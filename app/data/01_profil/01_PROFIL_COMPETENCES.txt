@@ -1,0 +1,125 @@
+# PROFIL DE COMPÉTENCES DE L'UTILISATEUR
+
+Dernière mise à jour : 24/07/2026 (initialisation)
+
+===============================================================================
+1. INFORMATIONS DÉCLARÉES (PREUVE NIVEAU A — fournies par l'utilisateur)
+===============================================================================
+Ce sont des faits déclaratifs. Ils ne constituent PAS une preuve de compétence
+et ne doivent jamais être interprétés comme telle (cf. protocole
+anti-hallucination, distinction information fournie / démontrée).
+
+- Formation suivie : BUT QLIO (Qualité, Logistique Industrielle et
+  Organisation)
+- Objectif à moyen terme : préparer un Master ITI (interdisciplinaire,
+  technologies innovantes)
+- Objectif à long terme déclaré : devenir chercheur
+- Centres d'intérêt déclarés : gestion industrielle, ingénierie, systèmes
+  complexes, technologie, innovation, stratégie industrielle ; curiosité plus
+  large que les seuls domaines listés ci-dessous
+- Domaines de progression visés : logistique industrielle, gestion de
+  production, statistiques/probabilités, algorithmique/programmation,
+  systèmes complexes, technologies innovantes, recherche opérationnelle
+
+===============================================================================
+2. AVERTISSEMENT MÉTHODOLOGIQUE (À CONSERVER)
+===============================================================================
+Aucune preuve directe (exercice résolu, code produit, explication fournie,
+projet réalisé) n'existe encore dans ce projet. Le diplôme BUT QLIO permet de
+formuler une HYPOTHÈSE (preuve de niveau D, confiance faible) : une exposition
+voire une compréhension partielle est probable pour certaines compétences des
+domaines "Logistique industrielle", "Gestion de production" et "Statistiques
+et probabilités". Cette hypothèse :
+- n'autorise aucun niveau supérieur à 1 tant qu'aucune preuve directe n'a été
+  observée ;
+- doit être confirmée ou infirmée par un diagnostic réel (voir
+  01_PLAN_EVALUATION_INITIALE.txt) ;
+- peut être fausse (formation ancienne, notions oubliées, spécialisation
+  différente selon l'établissement).
+
+Pour l'algorithmique/programmation, la recherche opérationnelle, les systèmes
+complexes et les technologies innovantes : aucune hypothèse fondée n'est
+formulée. Statut = NON ÉVALUÉ (aucune donnée disponible, et un BUT QLIO ne
+couvre pas nécessairement ces domaines en profondeur).
+
+===============================================================================
+3. ÉTAT DES COMPÉTENCES (état initial)
+===============================================================================
+Format : CODE | NIVEAU | CONFIANCE | ROBUSTESSE | DERNIÈRE PREUVE | STATUT
+
+--- LOGISTIQUE INDUSTRIELLE ---
+LOG-01 | Hypothèse 0-1 | Faible | Aucune | Aucune | À évaluer (hyp. BUT QLIO)
+LOG-02 | Hypothèse 0-1 | Faible | Aucune | Aucune | À évaluer (hyp. BUT QLIO)
+LOG-03 | Hypothèse 0-1 | Faible | Aucune | Aucune | À évaluer (hyp. BUT QLIO)
+LOG-04 | Non évalué    | Nulle  | Aucune | Aucune | À évaluer
+LOG-05 | Non évalué    | Nulle  | Aucune | Aucune | À évaluer
+LOG-06 | Non évalué    | Nulle  | Aucune | Aucune | À évaluer
+
+--- GESTION DE PRODUCTION ---
+PROD-01 | Hypothèse 0-1 | Faible | Aucune | Aucune | À évaluer (hyp. BUT QLIO)
+PROD-02 | Hypothèse 0-1 | Faible | Aucune | Aucune | À évaluer (hyp. BUT QLIO)
+PROD-03 | Hypothèse 0-1 | Faible | Aucune | Aucune | À évaluer (hyp. BUT QLIO)
+PROD-04 | Hypothèse 0-1 | Faible | Aucune | Aucune | À évaluer (hyp. BUT QLIO)
+PROD-05 | Non évalué    | Nulle  | Aucune | Aucune | À évaluer
+PROD-06 | Hypothèse 0-1 | Faible | Aucune | Aucune | À évaluer (hyp. BUT QLIO)
+
+--- STATISTIQUES ET PROBABILITÉS ---
+STAT-01 | Hypothèse 0-1 | Faible | Aucune | Aucune | À évaluer (hyp. BUT QLIO)
+STAT-02 | Hypothèse 0-1 | Faible | Aucune | Aucune | À évaluer (hyp. BUT QLIO)
+STAT-03 | Non évalué    | Nulle  | Aucune | Aucune | À évaluer
+STAT-04 | Non évalué    | Nulle  | Aucune | Aucune | À évaluer
+STAT-05 | Hypothèse 0-1 | Faible | Aucune | Aucune | À évaluer (hyp. BUT QLIO)
+STAT-06 | Non évalué    | Nulle  | Aucune | Aucune | À évaluer
+
+--- ALGORITHMIQUE ET PROGRAMMATION ---
+ALGO-01 | Non évalué | Nulle | Aucune | Aucune | À évaluer
+ALGO-02 | Non évalué | Nulle | Aucune | Aucune | À évaluer
+ALGO-03 | Non évalué | Nulle | Aucune | Aucune | À évaluer
+ALGO-04 | Non évalué | Nulle | Aucune | Aucune | À évaluer
+ALGO-05 | Non évalué | Nulle | Aucune | Aucune | À évaluer
+ALGO-06 | Non évalué | Nulle | Aucune | Aucune | À évaluer
+
+--- RECHERCHE OPÉRATIONNELLE ET OPTIMISATION ---
+RO-01 | Non évalué | Nulle | Aucune | Aucune | À évaluer
+RO-02 | Non évalué | Nulle | Aucune | Aucune | À évaluer
+RO-03 | Non évalué | Nulle | Aucune | Aucune | À évaluer
+RO-04 | Non évalué | Nulle | Aucune | Aucune | À évaluer
+RO-05 | Non évalué | Nulle | Aucune | Aucune | À évaluer
+
+--- SYSTÈMES COMPLEXES ---
+SYSC-01 | Non évalué | Nulle | Aucune | Aucune | À évaluer
+SYSC-02 | Non évalué | Nulle | Aucune | Aucune | À évaluer
+SYSC-03 | Non évalué | Nulle | Aucune | Aucune | À évaluer
+SYSC-04 | Non évalué | Nulle | Aucune | Aucune | À évaluer
+SYSC-05 | Non évalué | Nulle | Aucune | Aucune | À évaluer
+
+--- TECHNOLOGIES INNOVANTES ---
+TECH-01 | Non évalué | Nulle | Aucune | Aucune | À évaluer
+TECH-02 | Non évalué | Nulle | Aucune | Aucune | À évaluer
+TECH-03 | Non évalué | Nulle | Aucune | Aucune | À évaluer
+TECH-04 | Non évalué | Nulle | Aucune | Aucune | À évaluer
+TECH-05 | Non évalué | Nulle | Aucune | Aucune | À évaluer
+
+===============================================================================
+4. LACUNES IDENTIFIÉES
+===============================================================================
+Aucune. Aucune compétence n'a encore été testée ; aucune lacune ne peut être
+affirmée à ce stade (règle de non-invention, protocole anti-hallucination).
+
+===============================================================================
+5. ERREURS RÉCURRENTES
+===============================================================================
+Voir 01_ERREURS_RECURRENTES.txt (fichier vide à ce jour).
+
+===============================================================================
+6. PROCHAINE ÉVALUATION
+===============================================================================
+Voir 01_PLAN_EVALUATION_INITIALE.txt.
+
+===============================================================================
+RÈGLE DE MISE À JOUR DE CE FICHIER
+===============================================================================
+Toute modification de niveau, de confiance ou de robustesse doit indiquer :
+la compétence concernée, l'ancien niveau, le nouveau niveau, la preuve
+justificative et la date. Aucune mise à jour ne doit être effectuée sans
+preuve correspondante (cf. section 4 du protocole anti-hallucination).

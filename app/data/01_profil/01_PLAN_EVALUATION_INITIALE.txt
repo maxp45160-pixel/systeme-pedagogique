@@ -1,0 +1,59 @@
+# PLAN DE PREMIÈRE ÉVALUATION (DIAGNOSTIC INITIAL)
+
+Date : 24/07/2026
+
+===============================================================================
+OBJECTIF
+===============================================================================
+Remplacer les hypothèses du profil initial par des preuves directes, en
+commençant par ce qui est le plus rapide à calibrer et le plus utile aux
+objectifs déclarés (BUT QLIO → Master ITI → recherche).
+
+===============================================================================
+PRINCIPE
+===============================================================================
+Chaque diagnostic est court (mode léger), porte sur une seule compétence à la
+fois, et sert à situer un niveau réel — pas à enseigner. Les diagnostics ne
+sont pas administrés en une seule session : ils seront proposés
+progressivement, séance après séance, sans surcharger le travail de fond.
+
+===============================================================================
+ORDRE PROPOSÉ (priorisation, cf. section 16 des instructions principales)
+===============================================================================
+1. STATISTIQUES ET PROBABILITÉS (STAT-01, STAT-02)
+   → bases rapides à vérifier, forte utilité transversale (SPC, RO, ML)
+
+2. LOGISTIQUE INDUSTRIELLE (LOG-01, LOG-02)
+   → cœur du BUT QLIO, sert de socle aux domaines suivants
+
+3. GESTION DE PRODUCTION (PROD-01, PROD-03)
+   → cœur du BUT QLIO
+
+4. ALGORITHMIQUE ET PROGRAMMATION (ALGO-01, ALGO-05)
+   → prérequis critique pour le Master ITI, la RO et les systèmes complexes ;
+     aucune hypothèse disponible → priorité haute pour lever l'incertitude
+
+5. RECHERCHE OPÉRATIONNELLE (RO-01)
+   → dépend des acquis en statistiques et en algorithmique, testé après leur
+     calibration
+
+6. SYSTÈMES COMPLEXES (SYSC-01)
+   → exploration, dépend d'une bonne base en modélisation
+
+7. TECHNOLOGIES INNOVANTES (TECH-01)
+   → exploration, peut être abordé en parallèle via des lectures ou des cas
+
+===============================================================================
+MODALITÉ
+===============================================================================
+Pour chaque compétence testée : un exercice ou une question ouverte de
+difficulté standard, sans aide, suivi d'une analyse de la réponse
+(compréhension, méthode, résultat, justification) avant toute mise à jour du
+profil. Aucun niveau n'est augmenté sur la seule base d'une réponse correcte
+isolée (cf. section 8 du protocole d'évaluation).
+
+===============================================================================
+STATUT
+===============================================================================
+Aucun diagnostic n'a encore été réalisé. Prêt à démarrer dans l'ordre ci-dessus,
+ou dans un autre ordre si l'utilisateur préfère commencer ailleurs.

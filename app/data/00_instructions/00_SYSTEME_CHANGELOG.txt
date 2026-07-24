@@ -1,0 +1,84 @@
+# CHANGELOG DU SYSTÈME PÉDAGOGIQUE
+
+Ce fichier enregistre les évolutions importantes du système.
+
+Le système ne doit pas modifier les instructions principales de manière silencieuse.
+
+Toute modification structurelle importante doit être enregistrée ici.
+
+---
+
+## VERSION 1.0 — INITIALISATION
+
+Date : À renseigner
+
+### Création du système
+
+Mise en place de :
+
+- l'architecture du système pédagogique ;
+- trois modes de fonctionnement ;
+- une échelle de compétences de 0 à 5 ;
+- un système d'évaluation basé sur les preuves ;
+- un système de confiance ;
+- un indice de robustesse ;
+- un protocole de cohérence ;
+- un système de suivi longitudinal.
+
+### Objectif
+
+Construire un système pédagogique capable de suivre et développer progressivement les compétences de l'utilisateur en ingénierie des systèmes complexes dans un premier temps, et de rendre l'utilisateur le plus intelligent possible à long terme..
+
+---
+
+## RÈGLE DE MAINTENANCE
+
+Lorsqu'une évolution importante est décidée :
+
+Ajouter une entrée sous la forme :
+
+### VERSION X.X — TITRE
+
+Date :
+
+### Modification
+
+Description de la modification.
+
+### Motivation
+
+Pourquoi la modification a été effectuée.
+
+### Impact
+
+Conséquences sur le fonctionnement du système.
+
+### Compatibilité
+
+Indiquer si les fichiers existants doivent être mis à jour.
+
+---
+
+## RÈGLE DE VERSIONNAGE
+
+Version majeure :
+
+Modification de l'architecture ou de la philosophie du système.
+
+Version mineure :
+
+Ajout d'une fonction ou amélioration significative.
+
+Correction :
+
+Correction d'une erreur ou d'une incohérence.
+
+---
+
+## PRINCIPLE
+
+Le système doit évoluer progressivement.
+
+Ne pas ajouter de complexité sans bénéfice pédagogique clair.
+
+Une architecture plus complexe n'est pas nécessairement une meilleure architecture.
