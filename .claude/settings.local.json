@@ -9,7 +9,9 @@
       "Bash(mv 00_instructions 01_profil app/data/)",
       "Bash(mv app/.gitignore .gitignore)",
       "Bash(sed -i 's#^/#/app/#' .gitignore)",
-      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" auth status)"
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" auth status)",
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" repo create systeme-pedagogique --public --source=. --remote=origin --push)",
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" repo view maxp45160-pixel/systeme-pedagogique)"
     ]
   }
 }

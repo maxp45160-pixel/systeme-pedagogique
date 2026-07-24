@@ -1,26 +1,266 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+  Thème piloté par l'attribut `data-theme` sur <html>, positionné avant peinture
+  par le script inline de `layout.tsx`. La préférence système sert de valeur
+  initiale ; l'utilisateur peut ensuite forcer l'un ou l'autre.
+*/
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/*
+  Une couleur principale, des neutres, et quatre couleurs sémantiques.
+  La couleur porte une information — elle ne décore jamais.
+*/
+:root,
+[data-theme="clair"] {
+  --fond: #fafafa;
+  --surface: #ffffff;
+  --surface-2: #f4f4f5;
+  --surface-3: #ebebed;
+
+  --bordure: #e4e4e7;
+  --bordure-forte: #d4d4d8;
+
+  --texte: #18181b;
+  --texte-attenue: #52525b;
+  --texte-discret: #8b8b93;
+
+  --primaire: #4f46e5;
+  --primaire-fort: #4338ca;
+  --primaire-faible: #eef2ff;
+  --primaire-contraste: #ffffff;
+
+  --succes: #15803d;
+  --succes-faible: #f0fdf4;
+  --alerte: #b45309;
+  --alerte-faible: #fffbeb;
+  --info: #0369a1;
+  --info-faible: #f0f9ff;
+  --danger: #b91c1c;
+  --danger-faible: #fef2f2;
+
+  /* Échelle des niveaux de compétence 0 → 5 : une seule teinte qui monte. */
+  --niveau-vide: #e4e4e7;
+  --niveau-0: #c7c7cd;
+  --niveau-1: #b8bce0;
+  --niveau-2: #939ada;
+  --niveau-3: #6f79d0;
+  --niveau-4: #5259c8;
+  --niveau-5: #3f3aa8;
+
+  --ombre-surcouche: 0 8px 30px -6px rgb(24 24 27 / 0.14), 0 2px 8px -2px rgb(24 24 27 / 0.08);
+}
+
+[data-theme="dark"] {
+  --fond: #09090b;
+  --surface: #131316;
+  --surface-2: #1a1a1e;
+  --surface-3: #232329;
+
+  --bordure: #27272a;
+  --bordure-forte: #3f3f46;
+
+  --texte: #f4f4f5;
+  --texte-attenue: #a1a1aa;
+  --texte-discret: #71717a;
+
+  --primaire: #6366f1;
+  --primaire-fort: #818cf8;
+  --primaire-faible: #1e1b3a;
+  --primaire-contraste: #ffffff;
+
+  --succes: #4ade80;
+  --succes-faible: #0c1f14;
+  --alerte: #fbbf24;
+  --alerte-faible: #241a06;
+  --info: #38bdf8;
+  --info-faible: #071d2b;
+  --danger: #f87171;
+  --danger-faible: #2a0f0f;
+
+  --niveau-vide: #27272a;
+  --niveau-0: #3f3f46;
+  --niveau-1: #414a76;
+  --niveau-2: #4c5a9e;
+  --niveau-3: #5b6bc4;
+  --niveau-4: #7480e0;
+  --niveau-5: #9aa2f2;
+
+  --ombre-surcouche: 0 8px 30px -6px rgb(0 0 0 / 0.6), 0 2px 8px -2px rgb(0 0 0 / 0.4);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-fond: var(--fond);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+
+  --color-bordure: var(--bordure);
+  --color-bordure-forte: var(--bordure-forte);
+
+  --color-texte: var(--texte);
+  --color-texte-attenue: var(--texte-attenue);
+  --color-texte-discret: var(--texte-discret);
+
+  --color-primaire: var(--primaire);
+  --color-primaire-fort: var(--primaire-fort);
+  --color-primaire-faible: var(--primaire-faible);
+  --color-primaire-contraste: var(--primaire-contraste);
+
+  --color-succes: var(--succes);
+  --color-succes-faible: var(--succes-faible);
+  --color-alerte: var(--alerte);
+  --color-alerte-faible: var(--alerte-faible);
+  --color-info: var(--info);
+  --color-info-faible: var(--info-faible);
+  --color-danger: var(--danger);
+  --color-danger-faible: var(--danger-faible);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --radius-carte: 0.5rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html {
+    color-scheme: light;
+  }
+  [data-theme="dark"] {
+    color-scheme: dark;
+  }
+
+  body {
+    background: var(--fond);
+    color: var(--texte);
+    font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+    font-size: 0.9375rem;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Chiffres alignés verticalement dans les tableaux et compteurs. */
+  .chiffres {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  ::selection {
+    background: var(--primaire);
+    color: var(--primaire-contraste);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--primaire);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+
+  /* Barres de défilement discrètes. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--bordure-forte) transparent;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  /* Prose sobre pour les énoncés et corrections d'exercices. */
+  .prose-exo {
+    line-height: 1.7;
+  }
+  .prose-exo > * + * {
+    margin-top: 0.85rem;
+  }
+  .prose-exo strong {
+    font-weight: 600;
+    color: var(--texte);
+  }
+  .prose-exo h3 {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    margin-top: 1.5rem;
+  }
+  .prose-exo code {
+    font-family: var(--font-geist-mono), ui-monospace, monospace;
+    font-size: 0.85em;
+    background: var(--surface-2);
+    border: 1px solid var(--bordure);
+    border-radius: 4px;
+    padding: 0.1em 0.35em;
+  }
+  .prose-exo pre {
+    background: var(--surface-2);
+    border: 1px solid var(--bordure);
+    border-radius: 6px;
+    padding: 0.9rem 1rem;
+    overflow-x: auto;
+    font-size: 0.85em;
+    line-height: 1.6;
+  }
+  .prose-exo pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 1em;
+  }
+  .prose-exo table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875em;
+    font-variant-numeric: tabular-nums;
+  }
+  .prose-exo th,
+  .prose-exo td {
+    border: 1px solid var(--bordure);
+    padding: 0.4rem 0.6rem;
+    text-align: left;
+  }
+  .prose-exo th {
+    background: var(--surface-2);
+    font-weight: 600;
+  }
+  .prose-exo blockquote {
+    border-left: 2px solid var(--bordure-forte);
+    padding-left: 0.9rem;
+    color: var(--texte-attenue);
+  }
+  .prose-exo ul,
+  .prose-exo ol {
+    padding-left: 1.25rem;
+  }
+  .prose-exo li + li {
+    margin-top: 0.3rem;
+  }
+  .prose-exo ul {
+    list-style: disc;
+  }
+  .prose-exo ol {
+    list-style: decimal;
+  }
+}
+
+/* Animations volontairement minimales : uniquement l'apparition de contenu. */
+@keyframes apparition {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.apparition {
+  animation: apparition 0.18s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
