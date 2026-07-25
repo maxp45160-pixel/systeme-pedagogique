@@ -203,7 +203,7 @@ describe("score global — protocole d'évaluation §12", () => {
 
     expect(global.confiance).toBe("faible");
     expect(global.reserves.join(" ")).toContain("plafonnée");
-    // Une compétence maîtrisée sur 39 ne peut pas produire un score élevé.
+    // Une compétence maîtrisée sur l'ensemble du référentiel ne peut pas produire un score élevé.
     expect(global.scoreGlobal!).toBeLessThan(10);
   });
 

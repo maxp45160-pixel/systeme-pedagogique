@@ -118,6 +118,12 @@ export interface User {
   objectifLongTerme: string;
   /** Date d'initialisation du système (ISO). */
   debutSuivi: string;
+  /**
+   * Préférences pédagogiques déclarées par l'utilisateur (fait observé, pas
+   * dérivé). Transmises au tuteur pour qu'il adapte sa manière de travailler —
+   * il ne les infère jamais lui-même.
+   */
+  preferencesPedagogiques?: string[];
 }
 
 /**
@@ -329,7 +335,12 @@ export interface Reading {
 export interface LearningSession {
   id: string;
   date: string;
-  dureeMin: number;
+  /**
+   * Durée en minutes. Optionnel : une séance récapitulative (importée d'une
+   * synthèse, sans chronométrage) n'a pas de durée réelle — on ne fabrique pas
+   * un 0 trompeur (protocole anti-hallucination §7).
+   */
+  dureeMin?: number;
   domaines: DomaineId[];
   skillCodes: string[];
   activites: { type: string; ref: string; libelle: string }[];

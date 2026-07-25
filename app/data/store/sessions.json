@@ -1,0 +1,19 @@
+[
+  {
+    "id": "ses-synth-2026-07-25",
+    "date": "2026-07-25T12:00:00.000Z",
+    "domaines": ["logistique", "statistiques", "algorithmique"],
+    "skillCodes": ["LOG-02", "LOG-07", "LOG-08", "LOG-09", "STAT-01", "STAT-07", "ALGO-05"],
+    "activites": [
+      {
+        "type": "sequence",
+        "ref": "synthese_profil_competences_2026-07-25.md",
+        "libelle": "Séquence 'Concevoir et piloter un système de production sous incertitude' — Niveaux 1-2 clos, Niveau 3 démarré"
+      }
+    ],
+    "resultat": "Niveaux 1 et 2 clos, Niveau 3 en cours (script Python non exécuté)",
+    "apprentissagePrincipal": "Bonne intuition transversale (variabilité → stock de sécurité, connexion spontanée aux modèles économiques) ; le lien z-score / stock de sécurité reste la lacune ouverte prioritaire.",
+    "prochaineAction": "Reprendre STAT-07 (lien z-score) en priorité, puis retester LOG-09 sans accompagnement, puis exécuter le script Python (ALGO-05).",
+    "genereAutomatiquement": false
+  }
+]

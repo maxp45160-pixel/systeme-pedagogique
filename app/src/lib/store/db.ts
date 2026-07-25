@@ -41,11 +41,16 @@ export interface Collections {
 
 export const UTILISATEUR_PAR_DEFAUT: User = {
   id: "user-1",
-  prenom: "",
+  prenom: "Maxime",
   formation: "BUT QLIO (Qualité, Logistique Industrielle et Organisation)",
   objectifMoyenTerme: "Préparer un Master ITI interdisciplinaire en technologies innovantes",
   objectifLongTerme: "Devenir chercheur en ingénierie des systèmes complexes",
   debutSuivi: "2026-07-24",
+  // Préférences déclarées le 25/07/2026 (cf. synthese_profil_competences_2026-07-25.md).
+  preferencesPedagogiques: [
+    "Approche mixte calcul manuel + Python — pas de passage à l'automatisation intégrale.",
+    "Rappels réguliers et incitation à recalculer/reformuler les notions déjà vues plutôt que rappel passif ; construire une base solide avant d'avancer.",
+  ],
 };
 
 const VIDE: { [K in keyof Collections]: Collections[K] } = {

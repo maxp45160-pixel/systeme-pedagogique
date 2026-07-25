@@ -68,7 +68,7 @@ data/
   store/               journal d'événements JSON écrit par l'application
 
 app/src/
-  lib/domain/          15 entités + référentiel des 39 compétences
+  lib/domain/          15 entités + référentiel des 43 compétences
   lib/engine/          moteur de dérivation (pur, testé)
   lib/store/           lecture/écriture disque + Server Functions
   lib/tutor/           contexte pédagogique + manifeste

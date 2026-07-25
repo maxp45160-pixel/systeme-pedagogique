@@ -165,7 +165,9 @@ export function calculerActivite(
   const minutesParJour = new Map<string, number>();
   for (const s of sessions) {
     const cle = cleJour(s.date);
-    minutesParJour.set(cle, (minutesParJour.get(cle) ?? 0) + s.dureeMin);
+    // Une séance sans durée enregistrée compte pour 0 minute, mais reste un
+    // jour actif (elle est comptée via joursRecents plus bas).
+    minutesParJour.set(cle, (minutesParJour.get(cle) ?? 0) + (s.dureeMin ?? 0));
   }
 
   const recentes = sessions.filter((s) => joursDepuis(s.date, now) <= 30);
@@ -175,9 +177,9 @@ export function calculerActivite(
   return {
     minutesParJour,
     joursActifs30: joursRecents.size,
-    minutes30: recentes.reduce((s, x) => s + x.dureeMin, 0),
+    minutes30: recentes.reduce((s, x) => s + (x.dureeMin ?? 0), 0),
     seances30: recentes.length,
-    minutesTotal: sessions.reduce((s, x) => s + x.dureeMin, 0),
+    minutesTotal: sessions.reduce((s, x) => s + (x.dureeMin ?? 0), 0),
     derniereSeance: triees.at(-1)?.date ?? null,
   };
 }

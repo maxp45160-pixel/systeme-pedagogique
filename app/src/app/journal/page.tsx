@@ -77,7 +77,7 @@ export default async function PageJournal() {
           </Carte>
 
           {[...parJour.entries()].map(([jour, duJour]) => {
-            const total = duJour.reduce((s, x) => s + x.dureeMin, 0);
+            const total = duJour.reduce((s, x) => s + (x.dureeMin ?? 0), 0);
             const evenementsDuJour = evenements.filter((e) => e.date.slice(0, 10) === jour);
 
             return (
@@ -148,7 +148,7 @@ export default async function PageJournal() {
                         </div>
 
                         <span className="chiffres shrink-0 text-xs text-texte-discret">
-                          {formatDuree(s.dureeMin)}
+                          {s.dureeMin === undefined ? "durée non notée" : formatDuree(s.dureeMin)}
                         </span>
                       </div>
 

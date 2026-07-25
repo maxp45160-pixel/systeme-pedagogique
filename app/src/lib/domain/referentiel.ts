@@ -2,8 +2,12 @@
  * Référentiel de compétences.
  *
  * Transcription fidèle de `data/01_profil/01_MATRICE_COMPETENCES.txt`
- * (39 compétences, 7 domaines). Les intitulés ne sont pas reformulés :
+ * (43 compétences, 7 domaines). Les intitulés ne sont pas reformulés :
  * ils sont repris tels quels.
+ *
+ * Élargi le 25/07/2026 (LOG-07/08/09, STAT-07) — ajout justifié par
+ * l'observation réelle du travail de l'utilisateur (cf. section 7 des
+ * instructions ; source : synthese_profil_competences_2026-07-25.md).
  *
  * Trois champs sont ajoutés par l'application, et seulement eux :
  * - `palier`     : place dans l'arbre de progression du domaine ;
@@ -145,6 +149,17 @@ export const SKILLS: Skill[] = [
     prerequis: ["STAT-03"],
     importance: 0.8,
   },
+  {
+    // Ajout 25/07/2026 — observé (synthese_profil_competences_2026-07-25.md, C6).
+    // Lacune ouverte et reconnue par l'utilisateur : priorité #1 de la synthèse.
+    code: "STAT-07",
+    domaine: "statistiques",
+    intitule:
+      "Relier le z-score de la loi normale centrée réduite (z = (X−μ)/σ) à une application concrète de gestion industrielle (ex. stock de sécurité)",
+    palier: "intermediaire",
+    prerequis: ["STAT-02"],
+    importance: 0.9,
+  },
 
   /* ----------------------------- LOGISTIQUE ---------------------------- */
   {
@@ -210,6 +225,35 @@ export const SKILLS: Skill[] = [
     palier: "avance",
     prerequis: ["LOG-02", "SYSC-05"],
     importance: 0.9,
+  },
+  // Ajouts 25/07/2026 — observés (synthese_profil_competences_2026-07-25.md,
+  // C1, C4, C5). Importances estimées (à recalibrer), non dérivées d'un plan.
+  {
+    code: "LOG-07",
+    domaine: "logistique",
+    intitule:
+      "Identifier et typer les sources d'incertitude d'un système de production (demande, capacité/process, approvisionnement), y compris les données de référence supposées fiables à tort",
+    palier: "fondamentaux",
+    prerequis: [],
+    importance: 0.85,
+  },
+  {
+    code: "LOG-08",
+    domaine: "logistique",
+    intitule:
+      "Analyser l'arbitrage économique entre taux de service visé et stock de sécurité, et situer le modèle adapté (Wilson/EOQ en avenir certain vs newsvendor en avenir incertain)",
+    palier: "avance",
+    prerequis: ["LOG-02"],
+    importance: 0.8,
+  },
+  {
+    code: "LOG-09",
+    domaine: "logistique",
+    intitule:
+      "Calculer un stock de sécurité sous incertitude combinée (variabilité de la demande ET du délai fournisseur)",
+    palier: "avance",
+    prerequis: ["LOG-02"],
+    importance: 0.85,
   },
 
   /* ----------------------------- PRODUCTION ---------------------------- */

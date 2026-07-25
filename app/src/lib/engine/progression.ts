@@ -157,7 +157,7 @@ export function calculerEtatGlobal(etats: SkillState[], now: Date = new Date()):
   const reserves: string[] = [];
 
   // Une couverture faible plafonne la confiance globale : mesurer 3 compétences
-  // sur 39 ne permet pas d'être confiant sur l'ensemble (anti-hallucination §9).
+  // sur l'ensemble du référentiel ne permet pas d'être confiant globalement (anti-hallucination §9).
   if (couverture < 0.25 && RANG_CONFIANCE[confiance] > 1) {
     confiance = "faible";
     reserves.push(

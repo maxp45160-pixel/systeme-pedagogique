@@ -75,6 +75,13 @@ function serialiserProfil(ctx: Contexte): string {
   lignes.push(`Niveau global (gamification, secondaire) : ${ctx.xp.palier.niveau} — ${ctx.xp.palier.nom}`);
   lignes.push("");
 
+  const prefs = ctx.donnees.user.preferencesPedagogiques ?? [];
+  if (prefs.length > 0) {
+    lignes.push("## PRÉFÉRENCES PÉDAGOGIQUES DÉCLARÉES (à respecter)");
+    for (const p of prefs) lignes.push(`- ${p}`);
+    lignes.push("");
+  }
+
   for (const domaine of DOMAINES) {
     const etats = ctx.etats.filter((e) => e.skill.domaine === domaine.id);
     lignes.push(`## ${domaine.nom.toUpperCase()}`);
@@ -211,7 +218,7 @@ export async function construireContexte(ctx: Contexte): Promise<ContextePedagog
   const priorites = serialiserRecommandations(ctx);
 
   manifeste.push(
-    { nom: "État courant des 39 compétences", caracteres: profil.length, origine: "calcule" },
+    { nom: "État courant des 43 compétences", caracteres: profil.length, origine: "calcule" },
     { nom: "Erreurs récurrentes", caracteres: erreurs.length, origine: "calcule" },
     { nom: "Travail récent", caracteres: recent.length, origine: "calcule" },
     { nom: "Priorités calculées", caracteres: priorites.length, origine: "calcule" },

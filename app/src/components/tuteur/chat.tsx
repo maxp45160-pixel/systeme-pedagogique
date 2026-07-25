@@ -178,7 +178,7 @@ export function ChatTuteur({
               <div className="py-6 text-center">
                 <p className="text-sm font-medium">Le tuteur connaît ton profil</p>
                 <p className="mx-auto mt-1 max-w-md text-xs leading-relaxed text-texte-attenue">
-                  Il reçoit les protocoles du système et l&apos;état réel de tes 39 compétences,
+                  Il reçoit les protocoles du système et l&apos;état réel de tes 43 compétences,
                   calculé depuis tes preuves. Il ne peut pas modifier ton profil : il propose des
                   mises à jour que tu valides.
                 </p>
