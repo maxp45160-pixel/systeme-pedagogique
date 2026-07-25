@@ -48,3 +48,7 @@ next-env.d.ts
 
 # Fichier de permissions local Claude Code — personnel, ne doit pas être partagé
 .claude/settings.local.json
+
+# Local MCP configuration
+.mcp.json
+

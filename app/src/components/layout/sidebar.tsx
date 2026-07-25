@@ -6,6 +6,7 @@ import { A_VENIR, NAVIGATION } from "./navigation";
 import { cx } from "@/components/ui/primitives";
 import { IconeFeuille } from "@/components/ui/icones";
 import { BasculeTheme } from "./bascule-theme";
+import { UserMenu } from "./user-menu";
 
 export interface ResumeXp {
   niveau: number;
@@ -161,6 +162,7 @@ export function Sidebar({ xp, mode }: { xp: ResumeXp; mode: "reel" | "demo" }) {
           )}
         </div>
       </div>
+      <UserMenu />
     </aside>
   );
 }
