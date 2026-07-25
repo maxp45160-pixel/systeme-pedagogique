@@ -10,7 +10,7 @@ import {
   JaugeNiveau,
 } from "@/components/ui/primitives";
 import { Depliant } from "@/components/ui/explication";
-import { IconeFleche } from "@/components/ui/icones";
+import { IconeFeuille, IconeFleche } from "@/components/ui/icones";
 import { formatDuree } from "@/lib/engine/dates";
 
 /**
@@ -31,19 +31,27 @@ export function CarteProchaineAction({
   const { etat, exercice, raison, difficulteCible, dureeEstimeeMin } = principale;
 
   return (
-    <Carte accent>
-      <div className="px-4 py-4">
+    <Carte accent className="relative overflow-hidden">
+      {/* Épine pine en haut : signale la carte prioritaire de l'écran. */}
+      <div className="absolute inset-x-0 top-0 h-1 bg-primaire" aria-hidden />
+      {/* Filigrane botanique : discret, purement décoratif. */}
+      <IconeFeuille
+        className="pointer-events-none absolute -bottom-8 -right-6 size-40 text-primaire opacity-[0.06]"
+      />
+
+      <div className="relative px-5 py-5 sm:px-6">
         <div className="flex items-center gap-2">
+          <span className="size-1.5 rounded-full bg-primaire" aria-hidden />
           <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-primaire">
             Prochaine meilleure action
           </span>
         </div>
 
-        <h2 className="mt-2 text-lg font-semibold leading-snug tracking-tight">
+        <h2 className="mt-2.5 font-serif text-[1.6rem] font-medium leading-snug tracking-tight">
           {exercice ? exercice.titre : etat.prochaineEtape}
         </h2>
 
-        <p className="mt-2 text-sm text-texte-attenue">{raison}</p>
+        <p className="mt-2 max-w-xl text-sm text-texte-attenue">{raison}</p>
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Etiquette ton="primaire" mono>

@@ -13,80 +13,101 @@
 */
 :root,
 [data-theme="clair"] {
-  --fond: #fafafa;
-  --surface: #ffffff;
-  --surface-2: #f4f4f5;
-  --surface-3: #ebebed;
+  --fond: #f6f2e9;
+  --surface: #fffdf8;
+  --surface-2: #efe9db;
+  --surface-3: #e5ddca;
 
-  --bordure: #e4e4e7;
-  --bordure-forte: #d4d4d8;
+  --bordure: #e2d9c6;
+  --bordure-forte: #c9bd9f;
 
-  --texte: #18181b;
-  --texte-attenue: #52525b;
-  --texte-discret: #8b8b93;
+  --texte: #262117;
+  --texte-attenue: #5b5240;
+  --texte-discret: #877c62;
 
-  --primaire: #4f46e5;
-  --primaire-fort: #4338ca;
-  --primaire-faible: #eef2ff;
+  --primaire: #2f6b4f;
+  --primaire-fort: #265a41;
+  --primaire-faible: #e4eee6;
   --primaire-contraste: #ffffff;
 
-  --succes: #15803d;
-  --succes-faible: #f0fdf4;
-  --alerte: #b45309;
-  --alerte-faible: #fffbeb;
-  --info: #0369a1;
-  --info-faible: #f0f9ff;
-  --danger: #b91c1c;
-  --danger-faible: #fef2f2;
+  --succes: #3d7a2b;
+  --succes-faible: #eef3e6;
+  --alerte: #9a5a13;
+  --alerte-faible: #f7efdf;
+  --info: #2a6f97;
+  --info-faible: #e8f0f4;
+  --danger: #a83232;
+  --danger-faible: #f6e9e5;
 
-  /* Échelle des niveaux de compétence 0 → 5 : une seule teinte qui monte. */
-  --niveau-vide: #e4e4e7;
-  --niveau-0: #c7c7cd;
-  --niveau-1: #b8bce0;
-  --niveau-2: #939ada;
-  --niveau-3: #6f79d0;
-  --niveau-4: #5259c8;
-  --niveau-5: #3f3aa8;
+  /* Échelle des niveaux de compétence 0 → 5 : une seule teinte verte qui monte. */
+  --niveau-vide: #e2d9c6;
+  --niveau-0: #cdd8c4;
+  --niveau-1: #a9c6a0;
+  --niveau-2: #7fae76;
+  --niveau-3: #57934f;
+  --niveau-4: #3a7838;
+  --niveau-5: #285c2a;
 
-  --ombre-surcouche: 0 8px 30px -6px rgb(24 24 27 / 0.14), 0 2px 8px -2px rgb(24 24 27 / 0.08);
+  --ombre-surcouche: 0 8px 30px -6px rgb(38 33 23 / 0.14), 0 2px 8px -2px rgb(38 33 23 / 0.08);
+
+  /* Grille de carnet : trait d'encre très pâle sur le fond crème. */
+  --grille: rgb(38 33 23 / 0.035);
+  /* Ombre chaude et douce des cartes-papier. */
+  --ombre-carte: 0 1px 0 rgb(201 189 159 / 0.6), 0 1px 2px rgb(38 33 23 / 0.04);
+
+  /*
+    Barre latérale « forêt » : volontairement constante dans les deux thèmes
+    (comme un rabat de carnet), définie sur :root pour être héritée en sombre.
+  */
+  --rail: #223528;
+  --rail-2: #1a2a20;
+  --rail-bordure: #31463a;
+  --rail-texte: #e9e4d6;
+  --rail-texte-attenue: #a9bcae;
+  --rail-texte-discret: #7f9585;
+  --rail-actif: #2f6b4f;
+  --rail-actif-texte: #f2eee2;
 }
 
 [data-theme="dark"] {
-  --fond: #09090b;
-  --surface: #131316;
-  --surface-2: #1a1a1e;
-  --surface-3: #232329;
+  --fond: #17140f;
+  --surface: #201c16;
+  --surface-2: #2a251d;
+  --surface-3: #352f25;
 
-  --bordure: #27272a;
-  --bordure-forte: #3f3f46;
+  --bordure: #332d23;
+  --bordure-forte: #4a4234;
 
-  --texte: #f4f4f5;
-  --texte-attenue: #a1a1aa;
-  --texte-discret: #71717a;
+  --texte: #f0eadd;
+  --texte-attenue: #b7ac96;
+  --texte-discret: #8a7f68;
 
-  --primaire: #6366f1;
-  --primaire-fort: #818cf8;
-  --primaire-faible: #1e1b3a;
-  --primaire-contraste: #ffffff;
+  --primaire: #6fae86;
+  --primaire-fort: #8bc4a0;
+  --primaire-faible: #1c2c22;
+  --primaire-contraste: #12241a;
 
-  --succes: #4ade80;
-  --succes-faible: #0c1f14;
-  --alerte: #fbbf24;
-  --alerte-faible: #241a06;
-  --info: #38bdf8;
-  --info-faible: #071d2b;
-  --danger: #f87171;
-  --danger-faible: #2a0f0f;
+  --succes: #7cbf5f;
+  --succes-faible: #182410;
+  --alerte: #d99a3f;
+  --alerte-faible: #2a1e0a;
+  --info: #5fb0dc;
+  --info-faible: #0e2130;
+  --danger: #e07a6a;
+  --danger-faible: #2c1410;
 
-  --niveau-vide: #27272a;
-  --niveau-0: #3f3f46;
-  --niveau-1: #414a76;
-  --niveau-2: #4c5a9e;
-  --niveau-3: #5b6bc4;
-  --niveau-4: #7480e0;
-  --niveau-5: #9aa2f2;
+  --niveau-vide: #2a251d;
+  --niveau-0: #3a4232;
+  --niveau-1: #4a6046;
+  --niveau-2: #5c8055;
+  --niveau-3: #6fa06a;
+  --niveau-4: #86bd7e;
+  --niveau-5: #9fd694;
 
   --ombre-surcouche: 0 8px 30px -6px rgb(0 0 0 / 0.6), 0 2px 8px -2px rgb(0 0 0 / 0.4);
+
+  --grille: rgb(240 234 221 / 0.03);
+  --ombre-carte: 0 1px 0 rgb(0 0 0 / 0.4), 0 1px 2px rgb(0 0 0 / 0.25);
 }
 
 @theme inline {
@@ -118,8 +139,9 @@
 
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-serif: var(--font-fraunces), ui-serif, Georgia, "Times New Roman", serif;
 
-  --radius-carte: 0.5rem;
+  --radius-carte: 0.75rem;
 }
 
 @layer base {
@@ -131,13 +153,39 @@
   }
 
   body {
-    background: var(--fond);
+    background-color: var(--fond);
+    /* Trame de papier quadrillé : deux jeux de filets très pâles. */
+    background-image: linear-gradient(var(--grille) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grille) 1px, transparent 1px);
+    background-size: 26px 26px;
     color: var(--texte);
     font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
     font-size: 0.9375rem;
     line-height: 1.55;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+  }
+
+  /*
+    Souligné « tracé à la main » : un trait ondulé masqué, coloré par
+    `--primaire`, donc juste sous n'importe quel titre porteur de `.souligne`.
+    Purement décoratif → `aria-hidden` implicite (pseudo-élément).
+  */
+  .souligne {
+    position: relative;
+  }
+  .souligne::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -0.2em;
+    height: 0.42em;
+    background: var(--primaire);
+    opacity: 0.85;
+    pointer-events: none;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20150%2010'%20preserveAspectRatio='none'%3E%3Cpath%20d='M2%206%20C%2028%202%2C%2052%209%2C%2078%205%20S%20126%203%2C%20148%206'%20fill='none'%20stroke='black'%20stroke-width='2.5'%20stroke-linecap='round'/%3E%3C/svg%3E") no-repeat center / 100% 100%;
+    mask: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20150%2010'%20preserveAspectRatio='none'%3E%3Cpath%20d='M2%206%20C%2028%202%2C%2052%209%2C%2078%205%20S%20126%203%2C%20148%206'%20fill='none'%20stroke='black'%20stroke-width='2.5'%20stroke-linecap='round'/%3E%3C/svg%3E") no-repeat center / 100% 100%;
   }
 
   /* Chiffres alignés verticalement dans les tableaux et compteurs. */

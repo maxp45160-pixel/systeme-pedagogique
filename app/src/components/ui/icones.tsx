@@ -135,3 +135,10 @@ export const IconeMenu = ({ className }: Props) => (
     <path d="M4 7h16M4 12h16M4 17h16" />
   </Svg>
 );
+
+export const IconeFeuille = ({ className }: Props) => (
+  <Svg className={className}>
+    <path d="M5 20c-1-8 4-15 15-16 1 11-5 16-15 16Z" />
+    <path d="M5 20c2.5-4.5 6-7.5 11-9" />
+  </Svg>
+);

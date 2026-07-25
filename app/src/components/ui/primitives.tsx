@@ -22,8 +22,8 @@ export function Carte({
   return (
     <section
       className={cx(
-        "rounded-carte border border-bordure bg-surface",
-        accent && "border-primaire/35 ring-1 ring-primaire/10",
+        "rounded-carte border bg-surface shadow-[var(--ombre-carte)]",
+        accent ? "border-primaire/40 ring-1 ring-primaire/10" : "border-bordure",
         className,
       )}
     >
@@ -44,7 +44,7 @@ export function EnTeteCarte({
   return (
     <div className="flex items-start justify-between gap-4 border-b border-bordure px-4 py-3">
       <div className="min-w-0">
-        <h2 className="text-[0.9375rem] font-semibold tracking-tight">{titre}</h2>
+        <h2 className="font-serif text-[1.0625rem] font-medium tracking-tight">{titre}</h2>
         {legende && <p className="mt-0.5 text-xs text-texte-attenue">{legende}</p>}
       </div>
       {action && <div className="shrink-0">{action}</div>}

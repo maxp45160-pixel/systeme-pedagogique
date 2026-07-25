@@ -21,10 +21,13 @@ export function NavMobile() {
                 href={e.href}
                 aria-current={actif ? "page" : undefined}
                 className={cx(
-                  "flex flex-col items-center gap-0.5 py-2 text-[0.625rem] transition-colors",
-                  actif ? "text-primaire" : "text-texte-discret",
+                  "relative flex flex-col items-center gap-0.5 py-2 text-[0.625rem] transition-colors",
+                  actif ? "font-medium text-primaire" : "text-texte-discret hover:text-texte-attenue",
                 )}
               >
+                {actif && (
+                  <span className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-primaire" aria-hidden />
+                )}
                 <Icone className="size-[19px]" />
                 {e.court}
               </Link>

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Fraunces } from "next/font/google";
 import "./globals.css";
 import { chargerContexte } from "@/lib/store/context";
 import { Sidebar } from "@/components/layout/sidebar";
@@ -9,6 +9,13 @@ import { BasculeTheme } from "@/components/layout/bascule-theme";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+// Serif d'affichage : titres, dates, chiffres-héros. Le corps reste en sans.
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  style: ["normal", "italic"],
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Système pédagogique — Suivi longitudinal",
@@ -39,7 +46,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html
       lang="fr"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full`}
+      className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full`}
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: SCRIPT_THEME }} />
@@ -67,7 +74,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </div>
 
             <main className="flex-1 px-4 pb-20 pt-5 sm:px-6 lg:px-8 lg:pb-10">
-              <div className="mx-auto w-full max-w-6xl">{children}</div>
+              {/* Marge de carnet : filet terracotta discret le long du contenu (desktop). */}
+              <div className="mx-auto w-full max-w-6xl lg:border-l lg:border-danger/15 lg:pl-10">
+                {children}
+              </div>
             </main>
           </div>
         </div>

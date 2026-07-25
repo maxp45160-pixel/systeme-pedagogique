@@ -2,8 +2,20 @@
   {
     "id": "ses-synth-2026-07-25",
     "date": "2026-07-25T12:00:00.000Z",
-    "domaines": ["logistique", "statistiques", "algorithmique"],
-    "skillCodes": ["LOG-02", "LOG-07", "LOG-08", "LOG-09", "STAT-01", "STAT-07", "ALGO-05"],
+    "domaines": [
+      "logistique",
+      "statistiques",
+      "algorithmique"
+    ],
+    "skillCodes": [
+      "LOG-02",
+      "LOG-07",
+      "LOG-08",
+      "LOG-09",
+      "STAT-01",
+      "STAT-07",
+      "ALGO-05"
+    ],
     "activites": [
       {
         "type": "sequence",
@@ -15,5 +27,94 @@
     "apprentissagePrincipal": "Bonne intuition transversale (variabilité → stock de sécurité, connexion spontanée aux modèles économiques) ; le lien z-score / stock de sécurité reste la lacune ouverte prioritaire.",
     "prochaineAction": "Reprendre STAT-07 (lien z-score) en priorité, puis retester LOG-09 sans accompagnement, puis exécuter le script Python (ALGO-05).",
     "genereAutomatiquement": false
+  },
+  {
+    "id": "ses-ms088288-q6nn9",
+    "date": "2026-07-25T10:28:48.579Z",
+    "dureeMin": 22,
+    "domaines": [
+      "statistiques"
+    ],
+    "skillCodes": [
+      "STAT-02"
+    ],
+    "activites": [
+      {
+        "type": "exercice",
+        "ref": "diag-stat-02",
+        "libelle": "Choisir une loi pour un comptage de défauts"
+      }
+    ],
+    "resultat": "Exercice non abouti",
+    "difficulte": "Difficulté 2/5 · 0 indice(s) consulté(s)",
+    "notePersonnelle": "Ressenti : faible confiance, j'ai regardé sur internet, j'ai oublié la loi de poisson.",
+    "genereAutomatiquement": true
+  },
+  {
+    "id": "ses-ms0c2vd2-anilj",
+    "date": "2026-07-25T12:16:44.858Z",
+    "dureeMin": 56,
+    "domaines": [
+      "logistique"
+    ],
+    "skillCodes": [
+      "LOG-01"
+    ],
+    "activites": [
+      {
+        "type": "exercice",
+        "ref": "diag-log-01",
+        "libelle": "Quantité économique et point de commande"
+      }
+    ],
+    "resultat": "Exercice partiellement réussi",
+    "difficulte": "Difficulté 2/5 · 2 indice(s) consulté(s)",
+    "notePersonnelle": "Je me suis un peu compliqué la tâche dans le raisonnement de la question 3 mais je suis parvenu au même résultat. Cependant, je me suis trompé sur la question 2. Je suis parti du principe qu'on ferait 22 commandes par an puisque 21 c'est pas assez et j'ai multiplié la quantité totale des 22 commandes par les 6 euros de stockage annuel par unité.  Je n'ai pas compris le calcul du coût de possession et j'ai oublié de calculer le coût de passation de commandes.",
+    "genereAutomatiquement": true
+  },
+  {
+    "id": "ses-ms0d04rh-rm1dc",
+    "date": "2026-07-25T12:42:36.692Z",
+    "dureeMin": 7,
+    "domaines": [
+      "statistiques"
+    ],
+    "skillCodes": [
+      "STAT-01"
+    ],
+    "activites": [
+      {
+        "type": "exercice",
+        "ref": "diag-stat-01",
+        "libelle": "Décrire une série de temps de cycle"
+      }
+    ],
+    "resultat": "Exercice partiellement réussi",
+    "difficulte": "Difficulté 2/5 · 0 indice(s) consulté(s)",
+    "notePersonnelle": "Je me suis arrêté à une lecture purement statistique. J'ai voulu identifier le min et max mais je n'ai pas effectué l'analyse autour des quartiles. J'ai utilisé d'autres indicateurs qui se révèlent moins pertinents une fois la correction affichée.",
+    "genereAutomatiquement": true
+  },
+  {
+    "id": "ses-ms0dm0ea-4zaw4",
+    "date": "2026-07-25T12:59:37.435Z",
+    "dureeMin": 11,
+    "domaines": [
+      "logistique"
+    ],
+    "skillCodes": [
+      "LOG-02",
+      "STAT-02"
+    ],
+    "activites": [
+      {
+        "type": "exercice",
+        "ref": "diag-log-02",
+        "libelle": "Stock de sécurité sous demande variable"
+      }
+    ],
+    "resultat": "Exercice partiellement réussi",
+    "difficulte": "Difficulté 3/5 · 1 indice(s) consulté(s)",
+    "notePersonnelle": "L'exercice a été globalement maîtrisé car j'en ai fait un similaire hier, néanmoins, je n'ai pas ajouté le stock de sécurité au point de commande ce qui fait que je me suis trompé dans les calculs. De plus, je ne suis pas allé aussi loin dans l'analyse puisque la question s'arrêtait à commenter l'écart entre les 2 résultats.",
+    "genereAutomatiquement": true
   }
 ]
