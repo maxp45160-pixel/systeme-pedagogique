@@ -45,3 +45,6 @@ next-env.d.ts
 # cache jetable. Seuls les fichiers de tentatives en cours sont ignorés — ils
 # reflètent un exercice non terminé, sans valeur d'historique.
 /app/data/store/attempts.json
+
+# Fichier de permissions local Claude Code — personnel, ne doit pas être partagé
+.claude/settings.local.json
