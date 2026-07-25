@@ -1,5 +1,15 @@
 # ERREURS RÉCURRENTES
 
+> ⚠ ARCHIVE — non maintenu depuis le 25/07/2026.
+> Ce fichier texte n'est plus lu par l'application et ne reflète plus l'état
+> réel du profil (voir audit du 25/07/2026, section 2.1). La source de
+> vérité est désormais `app/data/store/*.json`, dérivée par le moteur de
+> `app/src/lib/engine/`. Conservé uniquement comme trace historique de
+> l'initialisation du 24/07/2026 — ne pas éditer, ne pas s'y fier pour l'état
+> courant.
+
+---
+
 Dernière mise à jour : 24/07/2026 (initialisation — aucune donnée)
 
 Ce fichier recense uniquement les erreurs qui se répètent, apparaissent dans

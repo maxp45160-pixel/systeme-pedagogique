@@ -1,5 +1,15 @@
 # MATRICE DE COMPÉTENCES — RÉFÉRENTIEL
 
+> ⚠ ARCHIVE — non maintenu depuis le 25/07/2026.
+> Ce fichier texte n'est plus lu par l'application et ne reflète plus l'état
+> réel du profil (voir audit du 25/07/2026, section 2.1). La source de
+> vérité est désormais `app/data/store/*.json`, dérivée par le moteur de
+> `app/src/lib/engine/`. Conservé uniquement comme trace historique de
+> l'initialisation du 24/07/2026 — ne pas éditer, ne pas s'y fier pour l'état
+> courant.
+
+---
+
 Date de création : 24/07/2026
 Statut : Initialisation — aucune compétence n'a encore été évaluée par une preuve directe.
 
@@ -32,6 +42,20 @@ LOG-05 — Analyser et optimiser un réseau logistique (implantation, flux,
          coûts de transport)
 LOG-06 — Évaluer la résilience d'une chaîne logistique face à une
          perturbation (rupture, aléas de demande)
+LOG-07 — Identifier et typer les sources d'incertitude d'un système de
+         production (demande, capacité/process, approvisionnement), y compris
+         les données de référence supposées fiables à tort
+         [Ajouté le 25/07/2026, cf. section 7 — élargissement justifié par
+         l'observation ; source : synthese_profil_competences_2026-07-25.md]
+LOG-08 — Analyser l'arbitrage économique entre taux de service visé et stock
+         de sécurité, et situer le modèle adapté (Wilson/EOQ en avenir certain
+         vs newsvendor en avenir incertain)
+         [Ajouté le 25/07/2026, cf. section 7 — élargissement justifié par
+         l'observation ; source : synthese_profil_competences_2026-07-25.md]
+LOG-09 — Calculer un stock de sécurité sous incertitude combinée (variabilité
+         de la demande ET du délai fournisseur)
+         [Ajouté le 25/07/2026, cf. section 7 — élargissement justifié par
+         l'observation ; source : synthese_profil_competences_2026-07-25.md]
 
 ===============================================================================
 DOMAINE : GESTION DE PRODUCTION
@@ -63,6 +87,11 @@ STAT-04 — Réaliser un test d'hypothèse pour comparer deux processus ou
 STAT-05 — Construire une carte de contrôle (SPC) et interpréter sa stabilité
 STAT-06 — Réaliser et interpréter une régression linéaire appliquée à un cas
           industriel
+STAT-07 — Relier le z-score de la loi normale centrée réduite (z = (X−μ)/σ) à
+          une application concrète de gestion industrielle (ex. stock de
+          sécurité)
+          [Ajouté le 25/07/2026, cf. section 7 — élargissement justifié par
+          l'observation ; source : synthese_profil_competences_2026-07-25.md]
 
 ===============================================================================
 DOMAINE : ALGORITHMIQUE ET PROGRAMMATION

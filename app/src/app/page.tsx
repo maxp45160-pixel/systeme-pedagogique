@@ -1,65 +1,139 @@
-import Image from "next/image";
+import Link from "next/link";
+import { chargerContexte } from "@/lib/store/context";
+import { calculerActivite, evenementsRecents } from "@/lib/engine/historique";
+import { EntetePage } from "@/components/layout/entete-page";
+import { BoutonActiverDemo } from "@/components/layout/bandeau-demo";
+import { CarteEtatGlobal } from "@/components/dashboard/etat-global";
+import { CarteProchaineAction } from "@/components/dashboard/prochaine-action";
+import { CarteProgressionRecente } from "@/components/dashboard/progression-recente";
+import { CarteObjectifs } from "@/components/dashboard/objectifs";
+import { CarteActivite } from "@/components/dashboard/activite";
+import { Carte, EnTeteCarte, Etiquette } from "@/components/ui/primitives";
 
-export default function Home() {
+export default async function TableauDeBord() {
+  const ctx = await chargerContexte();
+  const evenements = evenementsRecents(ctx.donnees.evidence, 6, ctx.now);
+  const activite = calculerActivite(ctx.donnees.sessions, ctx.now);
+  const aucunePreuve = ctx.global.nombrePreuves === 0;
+  const dateJour = new Intl.DateTimeFormat("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(new Date(ctx.now));
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <>
+      <EntetePage
+        titre="Tableau de bord"
+        surtitre={dateJour}
+        sousTitre={
+          aucunePreuve
+            ? "Une seule action suffit à lancer le suivi."
+            : "Ta prochaine action — le reste suit, en retrait."
+        }
+        actions={ctx.mode === "reel" ? <BoutonActiverDemo libelle="Mode démonstration" /> : undefined}
+      />
+
+      {/*
+        Au démarrage, l'écran est volontairement vide (protocole anti-hallucination).
+        La note est resserrée à une ligne et renvoie directement à l'action.
+      */}
+      {aucunePreuve && (
+        <div className="mb-6 flex items-start gap-2.5 rounded-carte border border-info/30 bg-info-faible px-4 py-2.5 text-sm">
+          <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-info" aria-hidden />
+          <p className="text-texte-attenue">
+            <strong className="font-medium text-info">Système en cours d&apos;initialisation.</strong>{" "}
+            Aucun niveau ne s&apos;affiche tant qu&apos;un diagnostic n&apos;a pas eu lieu — commence par
+            l&apos;action ci-dessous.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+      )}
+
+      {/* Action prioritaire : seule et dominante, rien ne la concurrence. */}
+      <div className="[&>*]:min-w-0">
+        <CarteProchaineAction recommandations={ctx.recommandations} />
+      </div>
+
+      {/*
+        Vue d'ensemble : tout le reste, en retrait derrière un titre discret et
+        un généreux espace. Aucune donnée retirée — seulement hiérarchisée.
+        `[&>*]:min-w-0` empêche un intitulé en `truncate` d'élargir la piste.
+      */}
+      <section className="mt-10">
+        <h2 className="mb-4 font-serif text-lg italic text-texte-discret">— vue d&apos;ensemble</h2>
+        <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
+          <div className="lg:col-span-3">
+            <CarteEtatGlobal global={ctx.global} etats={ctx.etats} />
+          </div>
+
+          <div className="lg:col-span-1">
+            <CarteObjectifs
+              objectifs={ctx.donnees.objectives}
+              recommandations={ctx.recommandations}
+              modeDemo={ctx.mode === "demo"}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+          </div>
+
+          <div className="lg:col-span-2">
+            <CarteProgressionRecente evenements={evenements} modeDemo={ctx.mode === "demo"} />
+          </div>
+
+          <div className="lg:col-span-1">
+            <CarteBadges badges={ctx.badges} />
+          </div>
+
+          <div className="lg:col-span-2">
+            <CarteActivite activite={activite} now={ctx.now} />
+          </div>
         </div>
-      </main>
-    </div>
+      </section>
+    </>
+  );
+}
+
+/**
+ * Badges obtenus. Rares par construction : six accomplissements seulement,
+ * chacun adossé à une preuve identifiée. Un badge sans source ne peut pas
+ * exister dans ce système.
+ */
+function CarteBadges({
+  badges,
+}: {
+  badges: { badge: { titre: string; description: string }; date: string; source: string }[];
+}) {
+  return (
+    <Carte>
+      <EnTeteCarte
+        titre="Jalons"
+        legende={badges.length === 0 ? "Six jalons possibles" : `${badges.length} obtenu(s)`}
+      />
+      <div className="px-4 py-3">
+        {badges.length === 0 ? (
+          <p className="text-xs text-texte-attenue">
+            Les jalons marquent des premières fois qui comptent : première résolution autonome,
+            première modélisation, premier transfert. Ils apparaîtront quand une preuve les
+            justifiera.
+          </p>
+        ) : (
+          <ul className="space-y-2.5">
+            {badges.map((b, i) => (
+              <li key={i}>
+                <div className="flex items-baseline gap-2">
+                  <Etiquette ton="succes">✓</Etiquette>
+                  <span className="text-xs font-medium">{b.badge.titre}</span>
+                </div>
+                <p className="mt-0.5 pl-1 text-[0.6875rem] text-texte-discret">{b.source}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+        <Link
+          href="/progression"
+          className="mt-3 inline-block text-xs text-primaire hover:underline"
+        >
+          Voir la progression détaillée
+        </Link>
+      </div>
+    </Carte>
   );
 }

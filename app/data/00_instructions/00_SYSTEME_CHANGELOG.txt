@@ -31,6 +31,50 @@ Construire un système pédagogique capable de suivre et développer progressive
 
 ---
 
+## VERSION 2.0 — INTERFACE APPLICATIVE (Next.js)
+
+Date : 25/07/2026
+
+### Modification
+
+Le système pédagogique textuel (fichiers `.txt` de `00_instructions/` et
+`01_profil/`) a été prolongé par une application Next.js (`app/`) qui
+transcrit en code les protocoles d'évaluation et anti-hallucination. Le
+journal de preuves (`SkillEvidence`), les tentatives d'exercice, les erreurs
+et les sessions sont désormais stockés dans `data/store/*.json`
+(append-only). Niveaux, scores, confiance, robustesse, XP et recommandations
+ne sont plus jamais stockés : ils sont recalculés à chaque lecture par un
+moteur testé (`app/src/lib/engine/`). Le référentiel des compétences est
+dupliqué en code (`app/src/lib/domain/referentiel.ts`).
+
+### Motivation
+
+Automatiser fidèlement l'application des protocoles (seuils de niveau,
+formule de score §12, robustesse §13, priorisation §16) plutôt que de
+compter sur la seule discipline du tuteur en conversation ; garantir qu'aucune
+valeur affichée n'est sans source (chaque nombre porte un « Pourquoi ? ») ;
+introduire un garde-fou supplémentaire en retirant au tuteur tout accès en
+écriture directe au profil.
+
+### Impact
+
+Le tuteur (le système, en conversation) ne mute plus le profil directement.
+Il formule des propositions de preuve structurées (voir section 17 des
+instructions principales, ajoutée en conséquence) que l'utilisateur valide
+via l'application, ou par une spécification technique explicite en session
+avec accès aux fichiers du projet. Les fichiers `01_profil/*.txt` deviennent
+une trace historique lisible, mais ne sont plus la source de vérité ni lus
+par l'application.
+
+### Compatibilité
+
+Les instructions principales (section 4 et section 10) ont été amendées par
+des notes de clarification, sans changer leur intention. Une nouvelle
+section 17 documente l'architecture. Les protocoles d'évaluation et
+anti-hallucination ne changent pas : le moteur les implémente tels quels.
+
+---
+
 ## RÈGLE DE MAINTENANCE
 
 Lorsqu'une évolution importante est décidée :

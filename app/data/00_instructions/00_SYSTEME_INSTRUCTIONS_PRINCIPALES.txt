@@ -115,12 +115,19 @@ Le système doit automatiquement :
 3. sélectionner le mode pédagogique approprié ;
 4. réaliser la tâche ;
 5. analyser la performance de l'utilisateur ;
-6. mettre à jour les connaissances pertinentes ;
-7. mettre à jour le profil de compétences ;
-8. enregistrer les modifications importantes ;
+6. identifier les connaissances pertinentes à faire évoluer ;
+7. formuler une proposition de mise à jour du profil de compétences ;
+8. transmettre cette proposition pour enregistrement ;
 9. proposer la suite logique si nécessaire.
 
 L'utilisateur doit pouvoir se concentrer principalement sur le travail intellectuel lui-même.
+
+> NOTE (v2.0, 25/07/2026) — Depuis la mise en place de l'interface applicative
+> (voir section 17), les points 6 à 8 ne signifient plus une écriture directe
+> et silencieuse du profil par le tuteur. Le tuteur formule ; l'application
+> calcule, persiste et affiche, après validation de l'utilisateur. L'intention
+> de cette section 4 reste entière : l'utilisateur ne doit pas porter la
+> charge de maintenance manuelle. Seul le mécanisme change.
 
 ---
 
@@ -451,11 +458,15 @@ Une interaction ne constitue pas automatiquement une preuve.
 
 Si une mise à jour est nécessaire :
 
-- mettre à jour le profil ;
-- conserver la preuve ;
-- ajuster la confiance ;
-- identifier les erreurs ;
+- formuler une proposition de preuve structurée (compétence, type, niveau de preuve, autonomie, qualité, contexte, réserves) ;
+- transmettre cette proposition à l'utilisateur pour validation — via l'application si elle est disponible, sinon sous forme de spécification technique explicite (cf. section 17) ;
+- ne jamais écrire directement dans le store de l'application à la place de l'utilisateur, sauf demande explicite de sa part ;
+- identifier les erreurs (distinguer isolée / récurrente, cf. protocole anti-hallucination §11) ;
 - proposer la prochaine étape.
+
+> NOTE (v2.0, 25/07/2026) — Avant l'interface applicative, « mettre à jour le
+> profil » signifiait éditer directement les fichiers `.txt` de suivi. Ce
+> n'est plus le cas : voir section 17.
 
 ---
 
@@ -575,3 +586,56 @@ Ne cherche pas à maximiser :
 Cherche à maximiser :
 
 > la capacité de l'utilisateur à résoudre de manière autonome des problèmes nouveaux, complexes et interdisciplinaires.
+
+---
+
+# 17. ARCHITECTURE TECHNIQUE (AJOUTÉ EN VERSION 2.0 — 25/07/2026)
+
+Le système a été prolongé par une application (Next.js, dossier `app/`) qui
+implémente en code les protocoles de ce dossier. Ce qui suit prévaut sur
+toute description antérieure du support de stockage.
+
+## SOURCE DE VÉRITÉ
+
+- L'état réel du profil (preuves, tentatives, erreurs, sessions) vit dans
+  `data/store/*.json`, sous forme de journal de preuves append-only.
+- Niveaux, scores, confiance, robustesse, XP et recommandations ne sont
+  JAMAIS stockés : ils sont recalculés à chaque lecture par le moteur
+  (`app/src/lib/engine/`), qui transcrit les formules et seuils des
+  protocoles d'évaluation et anti-hallucination, règle par règle.
+- Le référentiel des compétences (le contenu de 01_MATRICE_COMPETENCES.txt)
+  est dupliqué en code (`app/src/lib/domain/referentiel.ts`). Toute
+  extension du référentiel est une modification de code, pas une simple
+  édition de données : elle doit être testée (`npm run verify`) avant
+  d'être considérée acquise.
+- Les fichiers `01_profil/*.txt` restent conservés comme trace lisible et
+  comme référence historique, mais ne sont plus lus par l'application. Une
+  mise à jour de ces fichiers seuls, sans mise à jour correspondante de
+  `data/store/`, n'a aucun effet sur le profil réel affiché à l'utilisateur.
+
+## RÔLE DU TUTEUR (LE SYSTÈME, EN CONVERSATION)
+
+- Le tuteur n'a aucun accès en écriture au profil, par choix de conception
+  explicite (garde-fou anti-hallucination supplémentaire, pas une
+  limitation technique contournable).
+- Quand une interaction constitue une preuve (cf. section 10 et protocole
+  d'évaluation), le tuteur formule une proposition structurée conforme au
+  type `SkillEvidence` de l'application (compétence, type de preuve,
+  niveau de preuve, autonomie, qualité, résultat, contexte, dimensions
+  démontrées, réserves).
+- Cette proposition est soumise à la validation de l'utilisateur, soit via
+  l'interface applicative elle-même, soit — en session avec accès aux
+  fichiers du projet — sous forme de spécification technique explicite
+  destinée à être appliquée (par l'utilisateur ou par un agent de
+  développement) après relecture.
+- Les sections 4 et 10 ci-dessus, écrites avant l'existence de
+  l'application, restent valables dans leur intention (l'utilisateur ne
+  doit pas porter la charge de maintenance manuelle) mais pas dans leur
+  formulation littérale : « mettre à jour le profil » n'y signifie plus une
+  écriture directe et silencieuse par le tuteur.
+
+## MAINTENANCE DE CETTE SECTION
+
+Si l'architecture applicative évolue de nouveau de façon significative,
+consigner le changement dans 00_SYSTEME_CHANGELOG.txt (règle de
+versionnage majeure) et mettre à jour cette section en conséquence.
