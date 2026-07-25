@@ -23,7 +23,11 @@ export default async function PageTuteur(props: {
         titre="IA Tutor"
         sousTitre="Un tuteur qui reçoit les protocoles du système et l'état réel de tes compétences. Il questionne, corrige et propose — il ne modifie rien sans ta validation."
       />
-      <ChatTuteur competenceCiblee={amorce} modeDemo={ctx.mode === "demo"} />
+      <ChatTuteur
+        competenceCiblee={amorce}
+        modeDemo={ctx.mode === "demo"}
+        codesCompetences={ctx.etats.map((e) => e.skill.code)}
+      />
     </>
   );
 }

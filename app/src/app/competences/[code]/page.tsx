@@ -23,8 +23,12 @@ import {
   Statistique,
   TagConfiance,
 } from "@/components/ui/primitives";
-import { PanneauExplication, Reserves } from "@/components/ui/explication";
+import { Depliant, PanneauExplication, Reserves } from "@/components/ui/explication";
 import { IconeFleche } from "@/components/ui/icones";
+import {
+  FormulairePreuveManuelle,
+  type ValeursInitialesPreuve,
+} from "@/components/competences/formulaire-preuve";
 import { formatDateCourte, formatDateRelative } from "@/lib/engine/dates";
 
 const DIMENSIONS: Dimension[] = [
@@ -35,8 +39,12 @@ const DIMENSIONS: Dimension[] = [
   "justification",
 ];
 
-export default async function PageCompetence(props: { params: Promise<{ code: string }> }) {
+export default async function PageCompetence(props: {
+  params: Promise<{ code: string }>;
+  searchParams: Promise<{ proposition?: string }>;
+}) {
   const { code } = await props.params;
+  const { proposition } = await props.searchParams;
   const ctx = await chargerContexte();
   const etat = ctx.etatsParCode.get(decodeURIComponent(code).toUpperCase());
   if (!etat) notFound();
@@ -48,6 +56,21 @@ export default async function PageCompetence(props: { params: Promise<{ code: st
     e.competences.includes(etat.skill.code),
   );
   const recommandation = ctx.recommandations.find((r) => r.etat.skill.code === etat.skill.code);
+
+  // Pré-remplissage éventuel depuis une proposition du tuteur (§3). JSON
+  // invalide → formulaire vide, jamais d'erreur bloquante.
+  let valeursInitiales: ValeursInitialesPreuve | undefined;
+  if (proposition) {
+    try {
+      valeursInitiales = JSON.parse(decodeURIComponent(proposition)) as ValeursInitialesPreuve;
+    } catch {
+      valeursInitiales = undefined;
+    }
+  }
+  const skillsDisponibles = ctx.etats.map((e) => ({
+    code: e.skill.code,
+    intitule: e.skill.intitule,
+  }));
 
   return (
     <>
@@ -387,6 +410,36 @@ export default async function PageCompetence(props: { params: Promise<{ code: st
           )}
         </div>
       </div>
+
+      {/*
+        Deuxième chemin d'enregistrement d'une preuve — hors exercice du store.
+        Masqué en mode démonstration (les données fictives ne s'écrivent pas).
+        Pré-ouvert si l'on arrive depuis une proposition du tuteur.
+      */}
+      {ctx.mode !== "demo" && (
+        <Carte className="mt-4">
+          <div className="px-4 py-4">
+            <Depliant
+              resume="Enregistrer une preuve manuelle"
+              ouvertParDefaut={valeursInitiales !== undefined}
+            >
+              <div className="mt-3">
+                <p className="mb-4 max-w-2xl text-xs text-texte-attenue">
+                  Pour un travail qui n&apos;est pas passé par un exercice de l&apos;application :
+                  script exécuté seul, exercice papier, ou synthèse d&apos;un échange avec le tuteur.
+                  Mêmes règles que partout : une source vérifiable est obligatoire, et aucune
+                  dimension n&apos;est chiffrée si tu ne l&apos;as pas réellement observée.
+                </p>
+                <FormulairePreuveManuelle
+                  skillCode={etat.skill.code}
+                  skillsDisponibles={skillsDisponibles}
+                  valeursInitiales={valeursInitiales}
+                />
+              </div>
+            </Depliant>
+          </div>
+        </Carte>
+      )}
     </>
   );
 }

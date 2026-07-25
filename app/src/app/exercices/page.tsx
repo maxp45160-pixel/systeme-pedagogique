@@ -10,6 +10,8 @@ import {
   Etiquette,
   EtatVide,
 } from "@/components/ui/primitives";
+import { Depliant } from "@/components/ui/explication";
+import { FormulaireCreationExercice } from "@/components/exercices/formulaire-creation";
 import { formatDuree } from "@/lib/engine/dates";
 
 const TYPES: { cle: TypeExercice; libelle: string }[] = [
@@ -80,6 +82,29 @@ export default async function PageExercices(props: { searchParams: Promise<Filtr
         titre="Exercices"
         sousTitre="Chaque exercice terminé produit une preuve datée, avec l'autonomie réellement observée. C'est ce qui fait évoluer les compétences."
       />
+
+      {/* Création manuelle — hors mode démonstration (aucune écriture fictive). */}
+      {ctx.mode !== "demo" && (
+        <Carte className="mb-4">
+          <div className="px-4 py-3">
+            <Depliant resume="Ajouter un exercice">
+              <div className="mt-3">
+                <p className="mb-4 max-w-2xl text-xs text-texte-attenue">
+                  Pour ajouter un exercice à ta bibliothèque — par exemple à partir de ce que le
+                  tuteur a rédigé en conversation. Il apparaîtra dans la liste et pourra être commencé
+                  comme les diagnostics.
+                </p>
+                <FormulaireCreationExercice
+                  skillsDisponibles={ctx.etats.map((e) => ({
+                    code: e.skill.code,
+                    intitule: e.skill.intitule,
+                  }))}
+                />
+              </div>
+            </Depliant>
+          </div>
+        </Carte>
+      )}
 
       {/* Filtres — une ligne de contrôles au-dessus de la liste. */}
       <Carte className="mb-4">

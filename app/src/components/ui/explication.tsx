@@ -12,13 +12,16 @@ export function Depliant({
   resume,
   children,
   className,
+  ouvertParDefaut,
 }: {
   resume: string;
   children: ReactNode;
   className?: string;
+  /** Ouvre le bloc dès le rendu initial (ex. formulaire pré-rempli). */
+  ouvertParDefaut?: boolean;
 }) {
   return (
-    <details className={cx("group", className)}>
+    <details open={ouvertParDefaut} className={cx("group", className)}>
       <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-xs text-texte-discret transition-colors hover:text-texte marker:content-['']">
         <svg
           viewBox="0 0 12 12"

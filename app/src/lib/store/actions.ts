@@ -15,12 +15,16 @@ import { ajouter, lire, nouvelId, remplacer } from "./db";
 import { COOKIE_DEMO, modeDemoActif } from "./context";
 import type {
   Autonomie,
+  Difficulte,
   Dimension,
+  DomaineId,
+  Exercise,
   ExerciseAttempt,
   LearningSession,
   Objectif,
   QualitePreuve,
   SkillEvidence,
+  TypeExercice,
 } from "@/lib/domain/types";
 
 /** Le mode démonstration n'écrit jamais rien : toute mutation y est refusée. */
@@ -207,6 +211,142 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
 
   revalidatePath("/", "layout");
   redirect(`/exercices/${exercice.id}?bilan=1`);
+}
+
+/* ------------------------------------------------------------------ */
+/* Preuve manuelle (hors exercice du store)                            */
+/* ------------------------------------------------------------------ */
+
+export interface SoumissionPreuveManuelle {
+  skillCode: string;
+  date?: string; // ISO ; défaut : maintenant
+  type: SkillEvidence["type"];
+  niveauPreuve: "A" | "B";
+  autonomie: Autonomie;
+  qualite: QualitePreuve;
+  resultat: "reussi" | "partiel" | "echec";
+  contexte: string;
+  dimensions: Partial<Record<Dimension, number>>;
+  competencesCombinees?: string[];
+  sourceRef: string; // description vérifiable : "Script Python exécuté le 26/07", etc.
+  commentaire?: string;
+}
+
+/**
+ * Deuxième chemin d'écriture d'une preuve, à côté de `terminerExercice`.
+ * Couvre tout travail qui ne passe pas par un `Exercise` du store : script
+ * exécuté seul, exercice papier, synthèse d'un échange avec le tuteur.
+ *
+ * Mêmes garde-fous : refusé en mode démo, source toujours renseignée,
+ * dimensions non observées simplement omises (jamais un 0 par défaut).
+ * L'autonomie est ici DÉCLARÉE, pas déduite (§1.1 de la spec) : le commentaire
+ * stocké le signale toujours, pour que la distinction reste visible en aval.
+ */
+export async function enregistrerPreuveManuelle(
+  soumission: SoumissionPreuveManuelle,
+): Promise<void> {
+  await refuserSiDemo();
+  if (!soumission.contexte.trim()) throw new Error("Le contexte est obligatoire.");
+  if (!soumission.sourceRef.trim()) throw new Error("La source est obligatoire.");
+
+  const { SKILL_PAR_CODE } = await import("@/lib/domain/referentiel");
+  const skill = SKILL_PAR_CODE.get(soumission.skillCode);
+  if (!skill) throw new Error(`Compétence inconnue : ${soumission.skillCode}`);
+
+  const date = soumission.date ?? new Date().toISOString();
+
+  const preuve: SkillEvidence = {
+    id: nouvelId("ev"),
+    skillCode: soumission.skillCode,
+    date,
+    type: soumission.type,
+    niveauPreuve: soumission.niveauPreuve,
+    autonomie: soumission.autonomie,
+    qualite: soumission.qualite,
+    resultat: soumission.resultat,
+    contexte: soumission.contexte.trim(),
+    dimensions: soumission.dimensions,
+    competencesCombinees: soumission.competencesCombinees?.length
+      ? soumission.competencesCombinees
+      : undefined,
+    source: { kind: "manuel", ref: soumission.sourceRef.trim() },
+    commentaire: ["Autonomie auto-déclarée (non déduite).", soumission.commentaire?.trim()]
+      .filter(Boolean)
+      .join(" — "),
+  };
+  await ajouter("evidence", preuve);
+
+  // Même logique que `terminerExercice` : une entrée de journal automatique
+  // (instructions §15 — la maintenance se fait en arrière-plan).
+  const session: LearningSession = {
+    id: nouvelId("ses"),
+    date,
+    domaines: [skill.domaine],
+    skillCodes: [soumission.skillCode],
+    activites: [
+      { type: "preuve-manuelle", ref: preuve.id, libelle: soumission.contexte.trim() },
+    ],
+    resultat:
+      soumission.resultat === "reussi"
+        ? "Preuve enregistrée manuellement — réussie"
+        : soumission.resultat === "partiel"
+          ? "Preuve enregistrée manuellement — partielle"
+          : "Preuve enregistrée manuellement — non aboutie",
+    notePersonnelle: soumission.commentaire,
+    genereAutomatiquement: true,
+  };
+  await ajouter("sessions", session);
+
+  revalidatePath("/", "layout");
+}
+
+/* ------------------------------------------------------------------ */
+/* Création manuelle d'un exercice                                     */
+/* ------------------------------------------------------------------ */
+
+export interface SoumissionExerciceManuel {
+  titre: string;
+  domaine: DomaineId;
+  type: TypeExercice;
+  difficulte: Difficulte;
+  competences: string[];
+  dureeEstimeeMin: number;
+  enonce: string;
+  indices: string[];
+  correction: string;
+  criteres: { dimension: Dimension; libelle: string }[];
+}
+
+/**
+ * Crée un exercice depuis l'interface. Jamais `diagnostic: true` (§1.4) — ce
+ * champ reste réservé aux 10 exercices du plan d'évaluation initiale.
+ */
+export async function creerExercice(soumission: SoumissionExerciceManuel): Promise<string> {
+  await refuserSiDemo();
+  if (!soumission.titre.trim()) throw new Error("Le titre est obligatoire.");
+  if (!soumission.enonce.trim()) throw new Error("L'énoncé est obligatoire.");
+  if (!soumission.correction.trim()) throw new Error("La correction est obligatoire.");
+  if (soumission.competences.length === 0) throw new Error("Au moins une compétence est requise.");
+  if (soumission.criteres.length === 0) throw new Error("Au moins un critère est requis.");
+
+  const exercice: Exercise = {
+    id: nouvelId("ex"),
+    titre: soumission.titre.trim(),
+    domaine: soumission.domaine,
+    type: soumission.type,
+    difficulte: soumission.difficulte,
+    competences: soumission.competences,
+    dureeEstimeeMin: soumission.dureeEstimeeMin,
+    enonce: soumission.enonce,
+    indices: soumission.indices.filter((i) => i.trim().length > 0),
+    correction: soumission.correction,
+    criteres: soumission.criteres,
+    diagnostic: false,
+    origine: "manuel",
+  };
+  await ajouter("exercises", exercice);
+  revalidatePath("/exercices");
+  return exercice.id;
 }
 
 /* ------------------------------------------------------------------ */

@@ -1,10 +1,28 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { classesBouton, cx, Etiquette } from "@/components/ui/primitives";
 import { Markdown } from "@/components/ui/markdown";
 import { preparerPromptComplet } from "@/lib/tutor/actions";
 import type { SectionContexte } from "@/lib/tutor/contexte";
+import { extrairePropositions, type PropositionTuteur } from "@/lib/tutor/proposition";
+
+/**
+ * Lien vers la fiche compétence avec le formulaire de preuve pré-rempli.
+ * Défaut niveau B : une proposition vient d'une observation relayée par le
+ * tuteur, pas d'une action faite directement par l'utilisateur sur sa fiche.
+ */
+function lienProposition(p: PropositionTuteur): string {
+  const valeurs = {
+    contexte: `Proposition du tuteur — ${p.preuve}`,
+    commentaire: p.reserve,
+    niveauPreuve: "B" as const,
+  };
+  return `/competences/${p.competence.toUpperCase()}?proposition=${encodeURIComponent(
+    JSON.stringify(valeurs),
+  )}`;
+}
 
 /** Les sept modes rapides demandés. */
 const MODES = [
@@ -32,9 +50,12 @@ interface Etat {
 export function ChatTuteur({
   competenceCiblee,
   modeDemo,
+  codesCompetences,
 }: {
   competenceCiblee?: string;
   modeDemo: boolean;
+  /** Codes du référentiel — pour valider qu'une compétence citée existe vraiment. */
+  codesCompetences: string[];
 }) {
   const [etat, setEtat] = useState<Etat | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -185,29 +206,76 @@ export function ChatTuteur({
               </div>
             )}
 
-            {messages.map((m, i) => (
-              <div key={i} className={cx(m.role === "user" && "flex justify-end")}>
+            {messages.map((m, i) => {
+              // Propositions structurées du tuteur, validées contre le
+              // référentiel : on ne fabrique jamais un lien vers un code inventé.
+              const propositions =
+                m.role === "assistant" && m.content
+                  ? extrairePropositions(m.content).filter((p) =>
+                      codesCompetences.includes(p.competence.toUpperCase()),
+                    )
+                  : [];
+              return (
                 <div
+                  key={i}
                   className={cx(
-                    "max-w-[85%] rounded-lg px-3 py-2 text-sm",
-                    m.role === "user"
-                      ? "bg-primaire text-primaire-contraste"
-                      : "border border-bordure bg-surface-2",
+                    "flex flex-col gap-1.5",
+                    m.role === "user" ? "items-end" : "items-start",
                   )}
                 >
-                  {m.role === "user" ? (
-                    <p className="whitespace-pre-wrap">{m.content}</p>
-                  ) : m.content === "" ? (
-                    <span className="inline-flex items-center gap-1.5 text-xs text-texte-attenue">
-                      <span className="size-1.5 animate-pulse rounded-full bg-primaire" />
-                      Le tuteur réfléchit…
-                    </span>
-                  ) : (
-                    <Markdown contenu={m.content} />
-                  )}
+                  <div
+                    className={cx(
+                      "max-w-[85%] rounded-lg px-3 py-2 text-sm",
+                      m.role === "user"
+                        ? "bg-primaire text-primaire-contraste"
+                        : "border border-bordure bg-surface-2",
+                    )}
+                  >
+                    {m.role === "user" ? (
+                      <p className="whitespace-pre-wrap">{m.content}</p>
+                    ) : m.content === "" ? (
+                      <span className="inline-flex items-center gap-1.5 text-xs text-texte-attenue">
+                        <span className="size-1.5 animate-pulse rounded-full bg-primaire" />
+                        Le tuteur réfléchit…
+                      </span>
+                    ) : (
+                      <Markdown contenu={m.content} />
+                    )}
+                  </div>
+
+                  {/*
+                    Le tuteur n'a jamais d'accès en écriture : ce bouton ne fait
+                    que pré-remplir le formulaire de la fiche compétence. Seule
+                    ta validation explicite y déclenche l'enregistrement.
+                  */}
+                  {propositions.map((p, j) => (
+                    <div
+                      key={j}
+                      className="max-w-[85%] rounded-md border border-info/30 bg-info-faible px-3 py-2 text-xs"
+                    >
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Etiquette ton="info">Proposition</Etiquette>
+                        <span className="font-mono text-[0.6875rem] font-medium">
+                          {p.competence.toUpperCase()}
+                        </span>
+                        {p.niveauActuel && p.niveauPropose && (
+                          <span className="text-texte-attenue">
+                            niveau {p.niveauActuel} → {p.niveauPropose}
+                          </span>
+                        )}
+                      </div>
+                      {p.preuve && <p className="mt-1 text-texte-attenue">{p.preuve}</p>}
+                      <Link
+                        href={lienProposition(p)}
+                        className={cx(classesBouton("secondaire", "petite"), "mt-2")}
+                      >
+                        Revoir et enregistrer
+                      </Link>
+                    </div>
+                  ))}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {avis && (
