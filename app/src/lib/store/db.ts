@@ -169,8 +169,11 @@ export const lireJournalLocal = lireLocal;
 /* API publique                                                        */
 /* ------------------------------------------------------------------ */
 
-export async function lire<K extends keyof Collections>(nom: K): Promise<Collections[K]> {
-  const dorsale = await dorsaleCompte();
+export async function lire<K extends keyof Collections>(
+  nom: K,
+  dorsaleFournie?: DorsaleCompte | null,
+): Promise<Collections[K]> {
+  const dorsale = dorsaleFournie !== undefined ? dorsaleFournie : await dorsaleCompte();
   if (!dorsale) return lireLocal(nom);
 
   const { supabase, userId, courriel } = dorsale;
@@ -330,6 +333,7 @@ export async function remplacer<K extends CleListe>(
 }
 
 export async function lireTout(): Promise<Collections> {
+  const dorsale = await dorsaleCompte();
   const [
     user,
     evidence,
@@ -342,16 +346,16 @@ export async function lireTout(): Promise<Collections> {
     sessions,
     objectives,
   ] = await Promise.all([
-    lire("user"),
-    lire("evidence"),
-    lire("exercises"),
-    lire("attempts"),
-    lire("errors"),
-    lire("projects"),
-    lire("readings"),
-    lire("knowledge"),
-    lire("sessions"),
-    lire("objectives"),
+    lire("user", dorsale),
+    lire("evidence", dorsale),
+    lire("exercises", dorsale),
+    lire("attempts", dorsale),
+    lire("errors", dorsale),
+    lire("projects", dorsale),
+    lire("readings", dorsale),
+    lire("knowledge", dorsale),
+    lire("sessions", dorsale),
+    lire("objectives", dorsale),
   ]);
   return {
     user,
