@@ -371,12 +371,3 @@ export async function lireTout(): Promise<Collections> {
 export function nouvelId(prefixe: string): string {
   return `${prefixe}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
-
-export async function storeEstInitialise(): Promise<boolean> {
-  try {
-    await fs.access(fichier("exercises"));
-    return true;
-  } catch {
-    return false;
-  }
-}
