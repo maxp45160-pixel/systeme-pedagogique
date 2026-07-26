@@ -34,6 +34,17 @@ Supabase — jamais les deux à la fois :
 > authentification.** C'est acceptable sur `localhost` ; **ne pas exposer
 > l'application sur un réseau public sans configurer Supabase.**
 
+Les deux dorsales ne se synchronisent **jamais** entre elles : à chaque requête
+l'application écrit dans l'une ou dans l'autre, jamais dans les deux. Connecté
+au même compte depuis deux machines, on travaille sur la même base — il n'y a
+ni fichier à pousser ni synchronisation à déclencher.
+
+`data/store/*.json` reste donc le journal du mode local. Une fois les comptes
+en service, il ne bouge plus : c'est un état figé, pas une sauvegarde de la
+base. Pour une copie hors ligne, utiliser **Compte et synchronisation ›
+Exporter mon journal**, qui télécharge l'intégralité du journal depuis la
+dorsale active.
+
 Mise en route des comptes, du SSO Google et du serveur MCP :
 [`SETUP_COMPTES_SUPABASE.md`](../SETUP_COMPTES_SUPABASE.md).
 

@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { cx } from "@/components/ui/primitives";
 import { seDeconnecter } from "@/lib/supabase/actions";
 import { importerJournalLocal } from "@/lib/store/migration";
+import { exporterJournal } from "@/lib/store/export";
 import { IconeValide } from "@/components/ui/icones";
 
 export interface EtatSession {
@@ -113,6 +115,10 @@ function PanneauReglages({
 }) {
   const [enCours, demarrer] = useTransition();
   const [rapport, setRapport] = useState<string | null>(null);
+  const [exportEnCours, setExportEnCours] = useState(false);
+  // État distinct de `rapport` : celui-ci n'est rendu que dans la section
+  // d'import, absente tant qu'aucun compte n'est connecté.
+  const [messageExport, setMessageExport] = useState<string | null>(null);
 
   function lancerImport() {
     setRapport(null);
@@ -122,7 +128,33 @@ function PanneauReglages({
     });
   }
 
-  return (
+  async function telechargerArchive() {
+    setExportEnCours(true);
+    setMessageExport(null);
+    try {
+      const archive = await exporterJournal();
+      const total = Object.values(archive.effectifs).reduce((s, n) => s + n, 0);
+
+      const lien = document.createElement("a");
+      const url = URL.createObjectURL(
+        new Blob([JSON.stringify(archive, null, 2)], { type: "application/json" }),
+      );
+      lien.href = url;
+      lien.download = `journal-${archive.exporteLe.slice(0, 10)}.json`;
+      lien.click();
+      URL.revokeObjectURL(url);
+
+      setMessageExport(`Archive téléchargée — ${total} enregistrement(s).`);
+    } catch (erreur) {
+      setMessageExport(
+        erreur instanceof Error ? erreur.message : "Échec de l'export.",
+      );
+    } finally {
+      setExportEnCours(false);
+    }
+  }
+
+  const panneau = (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
       role="dialog"
@@ -203,6 +235,33 @@ function PanneauReglages({
             </div>
           )}
 
+          <div className="rounded-lg border border-bordure bg-surface-2/60 px-3 py-2.5">
+            <dt className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
+              Sauvegarde
+            </dt>
+            <dd className="mt-1 space-y-2 text-texte-attenue">
+              <p className="text-xs leading-relaxed">
+                Télécharge l&apos;intégralité de ton journal en JSON — preuves, séances,
+                erreurs, projets, profil. C&apos;est ta copie hors ligne : elle ne dépend
+                ni de l&apos;hébergeur ni du dépôt git.
+              </p>
+              <button
+                type="button"
+                onClick={telechargerArchive}
+                disabled={exportEnCours}
+                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-bordure-forte bg-surface px-3 text-xs font-medium transition-colors hover:bg-surface-2 disabled:pointer-events-none disabled:opacity-50"
+              >
+                {exportEnCours ? "Export en cours…" : "Exporter mon journal"}
+              </button>
+              {messageExport && (
+                <p className="flex items-start gap-1.5 text-xs text-texte">
+                  <IconeValide className="mt-0.5 size-3.5 shrink-0 text-succes" />
+                  <span>{messageExport}</span>
+                </p>
+              )}
+            </dd>
+          </div>
+
           {!session.configure && (
             <div className="rounded-lg border border-bordure bg-surface-2/60 px-3 py-2.5">
               <dt className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
@@ -250,6 +309,15 @@ function PanneauReglages({
       </div>
     </div>
   );
+
+  // Portail vers `body` : le rail est en `position: sticky`, ce qui crée
+  // toujours un contexte d'empilement. Rendue à l'intérieur, la modale voit son
+  // `z-50` confiné au rail et passe *sous* le contenu principal, qui vient plus
+  // loin dans le DOM. Aucune valeur de z-index ne corrige ça — il faut sortir
+  // du contexte.
+  return typeof document === "undefined"
+    ? null
+    : createPortal(panneau, document.body);
 }
 
 /** Engrenage — même tracé que le reste du jeu d'icônes (grille 24, trait 1,5). */
