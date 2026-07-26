@@ -19,9 +19,23 @@ npm run test     # tests du moteur seuls
 npm run build    # build de production
 ```
 
-> **Application locale, mono-utilisateur.** Les Server Functions écrivent sur le
-> disque sans authentification. C'est acceptable sur `localhost` ; **ne pas
-> exposer cette application sur un réseau public en l'état.**
+## Deux modes de fonctionnement
+
+L'application choisit sa dorsale de persistance selon la présence des clés
+Supabase — jamais les deux à la fois :
+
+| | **Local** (par défaut) | **Comptes** (Supabase configuré) |
+|---|---|---|
+| Données | `data/store/*.json`, versionné | PostgreSQL, isolé par compte via RLS |
+| Accès | aucune authentification | e-mail + mot de passe, ou SSO Google |
+| Usage | poste personnel, `localhost` | déploiement partagé (Vercel) |
+
+> **En mode local, les Server Functions écrivent sur le disque sans
+> authentification.** C'est acceptable sur `localhost` ; **ne pas exposer
+> l'application sur un réseau public sans configurer Supabase.**
+
+Mise en route des comptes, du SSO Google et du serveur MCP :
+[`SETUP_COMPTES_SUPABASE.md`](../SETUP_COMPTES_SUPABASE.md).
 
 ## IA Tutor (optionnel)
 
