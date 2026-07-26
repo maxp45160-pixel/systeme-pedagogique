@@ -78,9 +78,4 @@ export default async function PageConnexion({
       </div>
     </main>
   );
-}   </p>
-      </div>
-    </main>
->>>>>>> master
-  );
 }
