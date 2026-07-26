@@ -6,6 +6,7 @@ import { A_VENIR, NAVIGATION } from "./navigation";
 import { cx } from "@/components/ui/primitives";
 import { IconeFeuille } from "@/components/ui/icones";
 import { BasculeTheme } from "./bascule-theme";
+import { Compte, type EtatSession } from "./compte";
 
 export interface ResumeXp {
   niveau: number;
@@ -22,7 +23,15 @@ function estActif(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function Sidebar({ xp, mode }: { xp: ResumeXp; mode: "reel" | "demo" }) {
+export function Sidebar({
+  xp,
+  mode,
+  session,
+}: {
+  xp: ResumeXp;
+  mode: "reel" | "demo";
+  session: EtatSession;
+}) {
   const pathname = usePathname();
   const surAccueil = pathname === "/";
   const remplissage = Math.max(0, Math.min(1, xp.fraction)) * 100;
@@ -161,6 +170,8 @@ export function Sidebar({ xp, mode }: { xp: ResumeXp; mode: "reel" | "demo" }) {
           )}
         </div>
       </div>
+
+      <Compte session={session} />
     </aside>
   );
 }
