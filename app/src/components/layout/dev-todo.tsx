@@ -123,6 +123,7 @@ function MenuTroisPoints({
   onSupprimer: () => void;
 }) {
   const [ouvert, setOuvert] = useState(false);
+  const [versLeHaut, setVersLeHaut] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -136,10 +137,24 @@ function MenuTroisPoints({
     return () => document.removeEventListener("mousedown", handleClick);
   }, [ouvert]);
 
+  // Le menu s'ouvre normalement sous le bouton, mais pour les dernières lignes
+  // de la liste il n'y a pas la place : on l'ouvre alors vers le haut pour
+  // qu'il reste visible sans avoir à faire défiler la modale.
+  const ouvrirMenu = () => {
+    const rect = ref.current?.getBoundingClientRect();
+    const hauteurMenuEstimee = 130;
+    setVersLeHaut(!!rect && rect.bottom + hauteurMenuEstimee > window.innerHeight);
+    setOuvert(true);
+  };
+
   return (
     <div ref={ref} className="relative">
       <button
-        onClick={(e) => { e.stopPropagation(); setOuvert((v) => !v); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (ouvert) setOuvert(false);
+          else ouvrirMenu();
+        }}
         onMouseDown={(e) => e.stopPropagation()}
         className={cx(
           "flex size-6 shrink-0 items-center justify-center rounded text-texte-discret transition-all",
@@ -158,7 +173,12 @@ function MenuTroisPoints({
       </button>
 
       {ouvert && (
-        <div className="apparition absolute right-0 top-7 z-50 min-w-[10rem] overflow-hidden rounded-lg border border-bordure bg-surface shadow-[var(--ombre-surcouche)]">
+        <div
+          className={cx(
+            "apparition absolute right-0 z-50 min-w-[10rem] overflow-hidden rounded-lg border border-bordure bg-surface shadow-[var(--ombre-surcouche)]",
+            versLeHaut ? "bottom-7" : "top-7",
+          )}
+        >
           <button
             onClick={() => { setOuvert(false); onAttacherImage(); }}
             className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs hover:bg-surface-2 transition-colors"
