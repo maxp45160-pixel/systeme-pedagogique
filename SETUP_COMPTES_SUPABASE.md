@@ -147,6 +147,32 @@ dans le dashboard.
 
 ## 7. Déploiement Vercel
 
+### Qui a le droit de déclencher un déploiement
+
+Vercel refuse les déploiements dont **l'auteur du commit** n'est pas membre de
+l'équipe, et le déploiement part alors en état `BLOCKED` — sans aucun log de
+build, ce qui donne l'impression trompeuse d'un échec de compilation.
+
+C'est l'adresse inscrite dans le commit qui compte, pas le compte connecté dans
+le navigateur. Vérifier avant de pousser :
+
+```bash
+git log -1 --format="%an <%ae>"
+```
+
+Cette adresse doit correspondre à un compte GitHub membre de l'équipe Vercel.
+Le dépôt fixe donc son identité localement (`.git/config`), sans toucher à la
+configuration globale de la machine :
+
+```bash
+git config --local user.email "<adresse-du-compte-membre>"
+```
+
+Symptôme associé : « *&lt;compte&gt; is not a member of this team* » sur la page du
+déploiement.
+
+### Variables d'environnement
+
 **Settings** › **Environment Variables**, pour Production *et* Preview :
 
 - `NEXT_PUBLIC_SUPABASE_URL`
