@@ -55,3 +55,7 @@ next-env.d.ts
 # Local MCP configuration
 .mcp.json
 
+# Images attachées aux TODOs dev en mode local : en production elles vivent
+# dans le bucket Supabase `dev-todos`, jamais dans le dépôt.
+/app/public/uploads/
+

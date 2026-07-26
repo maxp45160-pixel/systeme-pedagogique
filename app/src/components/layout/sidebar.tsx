@@ -170,6 +170,7 @@ export function Sidebar({
           )}
         </div>
       </div>
+
       <Compte session={session} />
     </aside>
   );

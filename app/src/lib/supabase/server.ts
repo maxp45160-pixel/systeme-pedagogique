@@ -37,8 +37,6 @@ export async function createServeurClient(): Promise<SupabaseClient | null> {
   });
 }
 
-export const createServerSupabaseClient = createServeurClient;
-
 /**
  * Compte connecté, ou `null` (Supabase absent / visiteur anonyme).
  *

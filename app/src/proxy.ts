@@ -20,7 +20,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { SUPABASE_ANON_KEY, SUPABASE_URL, supabaseConfigure } from "@/lib/supabase/config";
 
 /** Chemins accessibles sans compte. */
-const PUBLICS = ["/login", "/auth", "/api/dev-todos"];
+const PUBLICS = ["/login", "/auth"];
 
 function estPublic(chemin: string): boolean {
   return PUBLICS.some((p) => chemin === p || chemin.startsWith(`${p}/`));
@@ -58,6 +58,12 @@ export async function proxy(request: NextRequest) {
   const chemin = request.nextUrl.pathname;
 
   if (!user && !estPublic(chemin)) {
+    // Une route d'API répond en JSON. La rediriger vers `/login` renverrait une
+    // page HTML avec un statut 200, que `fetch` interpréterait comme un succès.
+    if (chemin.startsWith("/api/")) {
+      return NextResponse.json({ erreur: "non-authentifie" }, { status: 401 });
+    }
+
     const versLogin = request.nextUrl.clone();
     versLogin.pathname = "/login";
     // Mémorise la destination pour y revenir après connexion.

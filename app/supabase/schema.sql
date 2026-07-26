@@ -328,3 +328,79 @@ CREATE INDEX IF NOT EXISTS evidence_user_skill_idx
 
 CREATE INDEX IF NOT EXISTS attempts_user_exercise_idx
   ON public.attempts (user_id, exercise_id);
+
+-- --------------------------------------------------------------------
+-- 12. TODOs de développement — table *partagée*
+--
+-- Exception délibérée à l'isolation par compte : c'est le tableau de bord
+-- de l'équipe qui construit l'outil, pas une donnée pédagogique. Tout compte
+-- connecté lit et écrit la même liste ; `auteur` trace qui a créé la ligne.
+-- La barrière reste RLS : `anon` n'a aucun accès.
+-- --------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS public.dev_todos (
+  id        TEXT PRIMARY KEY,
+  texte     TEXT NOT NULL,
+  priorite  TEXT NOT NULL DEFAULT 'moyenne'
+              CHECK (priorite IN ('haute', 'moyenne', 'basse')),
+  fait      BOOLEAN NOT NULL DEFAULT false,
+  ordre     INTEGER NOT NULL DEFAULT 0,
+  cree_a    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  auteur    TEXT,
+  images    TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[]
+);
+
+ALTER TABLE public.dev_todos ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "dev_todos_partagees" ON public.dev_todos;
+CREATE POLICY "dev_todos_partagees"
+  ON public.dev_todos FOR ALL
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+CREATE INDEX IF NOT EXISTS dev_todos_ordre_idx ON public.dev_todos (ordre);
+
+-- Renumérotation d'un glisser-déposer : une transaction, pas N requêtes.
+-- Pas de SECURITY DEFINER — la fonction s'exécute avec les droits de l'appelant
+-- et reste donc soumise à la politique ci-dessus.
+CREATE OR REPLACE FUNCTION public.reordonner_dev_todos(ordres JSONB)
+RETURNS VOID
+LANGUAGE plpgsql
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  UPDATE public.dev_todos AS d
+     SET ordre = (e.value->>'ordre')::int
+    FROM jsonb_array_elements(ordres) AS e
+   WHERE d.id = e.value->>'id';
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.reordonner_dev_todos(JSONB) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.reordonner_dev_todos(JSONB) TO authenticated;
+
+-- Images attachées aux TODOs. Bucket public en lecture (les vignettes sont
+-- affichées par de simples <img>), écriture réservée aux comptes connectés.
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'dev-todos', 'dev-todos', true, 5242880,
+  ARRAY['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/avif']
+)
+ON CONFLICT (id) DO UPDATE
+  SET public             = EXCLUDED.public,
+      file_size_limit    = EXCLUDED.file_size_limit,
+      allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+DROP POLICY IF EXISTS "dev_todos_images_lecture" ON storage.objects;
+CREATE POLICY "dev_todos_images_lecture"
+  ON storage.objects FOR SELECT
+  TO anon, authenticated
+  USING (bucket_id = 'dev-todos');
+
+DROP POLICY IF EXISTS "dev_todos_images_ecriture" ON storage.objects;
+CREATE POLICY "dev_todos_images_ecriture"
+  ON storage.objects FOR ALL
+  TO authenticated
+  USING (bucket_id = 'dev-todos')
+  WITH CHECK (bucket_id = 'dev-todos');

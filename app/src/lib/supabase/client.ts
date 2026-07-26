@@ -18,5 +18,3 @@ export function createNavigateurClient(): SupabaseClient | null {
   cache ??= createBrowserClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   return cache;
 }
-
-export const createClient = createNavigateurClient;

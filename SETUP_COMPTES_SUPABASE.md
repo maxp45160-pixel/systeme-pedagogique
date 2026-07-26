@@ -38,6 +38,13 @@ Vérification : **Table Editor** doit lister `profiles`, `evidence`, `exercises`
 `attempts`, `errors`, `projects`, `readings`, `knowledge`, `sessions`,
 `objectives`, chacune marquée « RLS enabled ».
 
+Le § 12 du script ajoute en plus `dev_todos` et le bucket de stockage
+`dev-todos`, qui alimentent le widget TODO de développement. Contrairement aux
+autres tables, celle-ci est **partagée** : tout compte connecté y lit et y
+écrit. C'est délibéré — c'est le tableau de bord de l'équipe, pas une donnée
+pédagogique. Tant que ce § n'est pas appliqué, le widget répond « la table
+`dev_todos` n'existe pas encore » au lieu de faire semblant de fonctionner.
+
 ## 3. Récupérer les clés publiques
 
 **Project Settings** › **API** :
