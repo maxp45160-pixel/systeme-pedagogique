@@ -12,7 +12,7 @@
     "id": "todo-2",
     "texte": "UI surchargée : trop de boutons, filtres pas esthétiques",
     "priorite": "haute",
-    "fait": false,
+    "fait": true,
     "ordre": 1,
     "creeA": "2026-07-26T18:38:01.000Z",
     "images": []
@@ -21,7 +21,7 @@
     "id": "todo-3",
     "texte": "Personnalisation par user : généraliser l'app (actuellement axée QLIO/Maxime)",
     "priorite": "haute",
-    "fait": false,
+    "fait": true,
     "ordre": 2,
     "creeA": "2026-07-26T18:38:02.000Z",
     "images": []
@@ -30,7 +30,7 @@
     "id": "todo-4",
     "texte": "Faire marcher l'AI tutor",
     "priorite": "haute",
-    "fait": false,
+    "fait": true,
     "ordre": 3,
     "creeA": "2026-07-26T18:38:03.000Z",
     "images": []
@@ -39,7 +39,7 @@
     "id": "todo-5",
     "texte": "Diagnostic initial pour personnalisation du profil utilisateur",
     "priorite": "haute",
-    "fait": false,
+    "fait": true,
     "ordre": 4,
     "creeA": "2026-07-26T18:38:04.000Z",
     "images": []
@@ -48,7 +48,7 @@
     "id": "todo-6",
     "texte": "Implémenter tous les « bientôt »",
     "priorite": "moyenne",
-    "fait": false,
+    "fait": true,
     "ordre": 5,
     "creeA": "2026-07-26T18:38:05.000Z",
     "images": []
@@ -57,7 +57,7 @@
     "id": "todo-7",
     "texte": "Radar/arbre compétences pas clair — revoir l'emplacement",
     "priorite": "moyenne",
-    "fait": false,
+    "fait": true,
     "ordre": 6,
     "creeA": "2026-07-26T18:38:06.000Z",
     "images": []
@@ -66,7 +66,7 @@
     "id": "todo-8",
     "texte": "Grille compétences : collapse sections (mémoriser entre sessions)",
     "priorite": "moyenne",
-    "fait": false,
+    "fait": true,
     "ordre": 7,
     "creeA": "2026-07-26T18:38:07.000Z",
     "images": []
@@ -75,7 +75,7 @@
     "id": "todo-9",
     "texte": "Intégration Google Calendar + planification",
     "priorite": "moyenne",
-    "fait": false,
+    "fait": true,
     "ordre": 8,
     "creeA": "2026-07-26T18:38:08.000Z",
     "images": []
@@ -84,7 +84,7 @@
     "id": "todo-10",
     "texte": "Améliorer la génération d'exercices",
     "priorite": "moyenne",
-    "fait": false,
+    "fait": true,
     "ordre": 9,
     "creeA": "2026-07-26T18:38:09.000Z",
     "images": []
@@ -93,7 +93,7 @@
     "id": "todo-11",
     "texte": "Polish général UI/UX",
     "priorite": "moyenne",
-    "fait": false,
+    "fait": true,
     "ordre": 10,
     "creeA": "2026-07-26T18:38:10.000Z",
     "images": []
@@ -102,7 +102,7 @@
     "id": "todo-12",
     "texte": "Suggérer relance d'exercices (spaced repetition)",
     "priorite": "basse",
-    "fait": false,
+    "fait": true,
     "ordre": 11,
     "creeA": "2026-07-26T18:38:11.000Z",
     "images": []
