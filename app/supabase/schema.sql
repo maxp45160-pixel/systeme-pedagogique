@@ -335,7 +335,9 @@ CREATE INDEX IF NOT EXISTS attempts_user_exercise_idx
 -- Exception délibérée à l'isolation par compte : c'est le tableau de bord
 -- de l'équipe qui construit l'outil, pas une donnée pédagogique. Tout compte
 -- connecté lit et écrit la même liste ; `auteur` trace qui a créé la ligne.
--- La barrière reste RLS : `anon` n'a aucun accès.
+-- La barrière reste RLS : `anon` n'a aucun accès. Le linter Supabase signale
+-- cette politique en `USING (true)` (lint 0024) — c'est l'intention ici, pas
+-- un oubli : le partage *est* la fonctionnalité.
 -- --------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS public.dev_todos (
@@ -380,8 +382,8 @@ $$;
 REVOKE EXECUTE ON FUNCTION public.reordonner_dev_todos(JSONB) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.reordonner_dev_todos(JSONB) TO authenticated;
 
--- Images attachées aux TODOs. Bucket public en lecture (les vignettes sont
--- affichées par de simples <img>), écriture réservée aux comptes connectés.
+-- Images attachées aux TODOs. Bucket public : les vignettes sont affichées par
+-- de simples <img>, servies par URL directe.
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
   'dev-todos', 'dev-todos', true, 5242880,
@@ -392,15 +394,21 @@ ON CONFLICT (id) DO UPDATE
       file_size_limit    = EXCLUDED.file_size_limit,
       allowed_mime_types = EXCLUDED.allowed_mime_types;
 
+-- Aucune politique SELECT : un bucket public sert déjà ses objets par URL, et
+-- une politique de lecture large autoriserait en plus le *listing* du bucket
+-- (linter Supabase 0025). Seuls le dépôt et le retrait sont ouverts, aux
+-- comptes connectés.
 DROP POLICY IF EXISTS "dev_todos_images_lecture" ON storage.objects;
-CREATE POLICY "dev_todos_images_lecture"
-  ON storage.objects FOR SELECT
-  TO anon, authenticated
-  USING (bucket_id = 'dev-todos');
-
 DROP POLICY IF EXISTS "dev_todos_images_ecriture" ON storage.objects;
-CREATE POLICY "dev_todos_images_ecriture"
-  ON storage.objects FOR ALL
+
+DROP POLICY IF EXISTS "dev_todos_images_depot" ON storage.objects;
+CREATE POLICY "dev_todos_images_depot"
+  ON storage.objects FOR INSERT
   TO authenticated
-  USING (bucket_id = 'dev-todos')
   WITH CHECK (bucket_id = 'dev-todos');
+
+DROP POLICY IF EXISTS "dev_todos_images_retrait" ON storage.objects;
+CREATE POLICY "dev_todos_images_retrait"
+  ON storage.objects FOR DELETE
+  TO authenticated
+  USING (bucket_id = 'dev-todos');
