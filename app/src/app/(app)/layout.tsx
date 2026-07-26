@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { NavMobile } from "@/components/layout/nav-mobile";
 import { BandeauDemo } from "@/components/layout/bandeau-demo";
 import { BasculeTheme } from "@/components/layout/bascule-theme";
+import { DevTodo } from "@/components/layout/dev-todo";
 
 /**
  * Cadre du carnet : rail de navigation, bandeau de démonstration, marge.
@@ -68,6 +69,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </div>
 
       <NavMobile />
+      <DevTodo />
     </div>
   );
 }

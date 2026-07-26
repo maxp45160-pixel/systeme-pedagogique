@@ -142,3 +142,22 @@ export const IconeFeuille = ({ className }: Props) => (
     <path d="M5 20c2.5-4.5 6-7.5 11-9" />
   </Svg>
 );
+
+export const IconeTodo = ({ className }: Props) => (
+  <Svg className={className}>
+    <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
+    <rect x="9" y="3" width="6" height="4" rx="1" />
+    <path d="M9 13l2 2 4-4" />
+  </Svg>
+);
+
+export const IconeGrip = ({ className }: Props) => (
+  <Svg className={className}>
+    <circle cx="9" cy="6" r="1" fill="currentColor" stroke="none" />
+    <circle cx="15" cy="6" r="1" fill="currentColor" stroke="none" />
+    <circle cx="9" cy="12" r="1" fill="currentColor" stroke="none" />
+    <circle cx="15" cy="12" r="1" fill="currentColor" stroke="none" />
+    <circle cx="9" cy="18" r="1" fill="currentColor" stroke="none" />
+    <circle cx="15" cy="18" r="1" fill="currentColor" stroke="none" />
+  </Svg>
+);

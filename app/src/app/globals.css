@@ -304,6 +304,12 @@
   animation: apparition 0.18s ease-out;
 }
 
+/* Défilement horizontal pour les textes tronqués dans le widget TODO. */
+@keyframes defilement {
+  0%, 5%    { transform: translateX(0); }
+  85%, 100% { transform: translateX(calc(-100% + 12rem)); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
