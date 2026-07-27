@@ -36,8 +36,12 @@ interface Filtres {
   type?: string;
 }
 
-export default async function PageExercices(props: { searchParams: Promise<Filtres> }) {
-  const f = await props.searchParams;
+export default async function PageExercices(props: {
+  searchParams: Promise<Filtres & { proposition?: string }>;
+}) {
+  // `proposition` est un simple drapeau d'ouverture posé par le chat : il est
+  // extrait des filtres pour ne pas se propager dans les liens de filtrage.
+  const { proposition, ...f } = await props.searchParams;
   const ctx = await chargerContexte();
 
   // Statut dérivé des tentatives — jamais stocké sur l'exercice lui-même.
@@ -87,14 +91,15 @@ export default async function PageExercices(props: { searchParams: Promise<Filtr
       {ctx.mode !== "demo" && (
         <Carte className="mb-4">
           <div className="px-4 py-3">
-            <Depliant resume="Ajouter un exercice">
+            <Depliant resume="Ajouter un exercice" ouvertParDefaut={Boolean(proposition)}>
               <div className="mt-3">
                 <p className="mb-4 max-w-2xl text-xs text-texte-attenue">
-                  Pour ajouter un exercice à ta bibliothèque — par exemple à partir de ce que le
-                  tuteur a rédigé en conversation. Il apparaîtra dans la liste et pourra être commencé
+                  Pour ajouter un exercice à ta bibliothèque — saisi à la main, ou proposé par le
+                  tuteur depuis la conversation. Il apparaîtra dans la liste et pourra être commencé
                   comme les diagnostics.
                 </p>
                 <FormulaireCreationExercice
+                  propositionEnAttente={Boolean(proposition)}
                   skillsDisponibles={ctx.etats.map((e) => ({
                     code: e.skill.code,
                     intitule: e.skill.intitule,
@@ -228,6 +233,13 @@ export default async function PageExercices(props: { searchParams: Promise<Filtr
                         <div className="flex items-center gap-2">
                           <span className="truncate text-sm font-medium">{ex.titre}</span>
                           {ex.diagnostic && <Etiquette ton="info">Diagnostic</Etiquette>}
+                          {/*
+                            Traçabilité du corpus (ADR-004) : un énoncé proposé
+                            par le tuteur n'a été relu par personne d'autre que
+                            l'utilisateur. On l'affiche plutôt que de le taire.
+                          */}
+                          {ex.origine === "tuteur" && <Etiquette ton="primaire">Tuteur</Etiquette>}
+                          {ex.origine === "manuel" && <Etiquette>Manuel</Etiquette>}
                         </div>
                         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.6875rem] text-texte-discret">
                           <span>{libelleDomaine(ex.domaine)}</span>

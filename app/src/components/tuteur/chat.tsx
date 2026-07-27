@@ -6,7 +6,13 @@ import { classesBouton, cx, Etiquette } from "@/components/ui/primitives";
 import { Markdown } from "@/components/ui/markdown";
 import { preparerPromptComplet } from "@/lib/tutor/actions";
 import type { SectionContexte } from "@/lib/tutor/contexte";
-import { extrairePropositions, type PropositionTuteur } from "@/lib/tutor/proposition";
+import {
+  CLE_PROPOSITION_EXERCICE,
+  extrairePropositions,
+  extrairePropositionsExercice,
+  type PropositionExercice,
+  type PropositionTuteur,
+} from "@/lib/tutor/proposition";
 
 /**
  * Lien vers la fiche compétence avec le formulaire de preuve pré-rempli.
@@ -22,6 +28,22 @@ function lienProposition(p: PropositionTuteur): string {
   return `/competences/${p.competence.toUpperCase()}?proposition=${encodeURIComponent(
     JSON.stringify(valeurs),
   )}`;
+}
+
+/**
+ * Dépose une proposition d'exercice à destination du formulaire de création.
+ *
+ * Passe par `sessionStorage` plutôt que par l'URL : un énoncé accompagné de sa
+ * correction dépasse vite la longueur exploitable d'une adresse, et la
+ * troncature serait silencieuse. L'URL ne porte qu'un drapeau d'ouverture.
+ */
+function deposerPropositionExercice(p: PropositionExercice): void {
+  try {
+    window.sessionStorage.setItem(CLE_PROPOSITION_EXERCICE, JSON.stringify(p));
+  } catch {
+    // sessionStorage indisponible (navigation privée stricte) : on laisse
+    // partir vers un formulaire vide plutôt que de bloquer la navigation.
+  }
 }
 
 /** Les sept modes rapides demandés. */
@@ -215,6 +237,14 @@ export function ChatTuteur({
                       codesCompetences.includes(p.competence.toUpperCase()),
                     )
                   : [];
+
+              // Exercices proposés par le tuteur (ADR-004). Même contrat que
+              // les preuves : rien n'est écrit tant que l'utilisateur n'a pas
+              // validé le formulaire pré-rempli.
+              const exercices =
+                m.role === "assistant" && m.content
+                  ? extrairePropositionsExercice(m.content)
+                  : [];
               return (
                 <div
                   key={i}
@@ -270,6 +300,38 @@ export function ChatTuteur({
                         className={cx(classesBouton("secondaire", "petite"), "mt-2")}
                       >
                         Revoir et enregistrer
+                      </Link>
+                    </div>
+                  ))}
+
+                  {/*
+                    Exercice proposé : même garde-fou. Le bouton dépose la
+                    proposition puis ouvre le formulaire de création — il
+                    n'ajoute rien au corpus par lui-même.
+                  */}
+                  {exercices.map((ex, j) => (
+                    <div
+                      key={`ex-${j}`}
+                      className="max-w-[85%] rounded-md border border-primaire/30 bg-surface-2 px-3 py-2 text-xs"
+                    >
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Etiquette ton="primaire">Exercice proposé</Etiquette>
+                        {ex.competences.map((c) => (
+                          <span key={c} className="font-mono text-[0.6875rem] font-medium">
+                            {c}
+                          </span>
+                        ))}
+                        {ex.difficulte && (
+                          <span className="text-texte-attenue">difficulté {ex.difficulte}/5</span>
+                        )}
+                      </div>
+                      <p className="mt-1 font-medium">{ex.titre}</p>
+                      <Link
+                        href="/exercices?proposition=1"
+                        onClick={() => deposerPropositionExercice(ex)}
+                        className={cx(classesBouton("secondaire", "petite"), "mt-2")}
+                      >
+                        Revoir et ajouter
                       </Link>
                     </div>
                   ))}

@@ -6,12 +6,16 @@ import type { Difficulte, Dimension, DomaineId, TypeExercice } from "@/lib/domai
 import { DIFFICULTES, LIBELLES_DIMENSIONS } from "@/lib/domain/types";
 import { DOMAINES } from "@/lib/domain/referentiel";
 import { creerExercice } from "@/lib/store/actions";
-import { classesBouton, cx } from "@/components/ui/primitives";
+import { CLE_PROPOSITION_EXERCICE, type PropositionExercice } from "@/lib/tutor/proposition";
+import { classesBouton, cx, Etiquette } from "@/components/ui/primitives";
 
 /**
- * Création manuelle d'un exercice, à partir de ce que le tuteur a produit en
- * conversation (copier-coller). Jamais `diagnostic: true` (§1.4) : le champ
- * reste réservé aux 10 exercices du plan d'évaluation initiale.
+ * Création d'un exercice — saisie manuelle, ou pré-remplissage depuis une
+ * proposition du tuteur (ADR-004). Jamais `diagnostic: true` (§1.4) : le champ
+ * reste réservé aux exercices du plan d'évaluation initiale.
+ *
+ * Le tuteur n'écrit jamais lui-même (P5) : il remplit ce formulaire, et c'est
+ * la validation de l'utilisateur qui déclenche l'écriture.
  */
 
 const TYPES: { valeur: TypeExercice; libelle: string }[] = [
@@ -36,10 +40,39 @@ const DIMENSIONS: Dimension[] = [
 const champ =
   "mt-1 w-full rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm placeholder:text-texte-discret focus:border-primaire focus:outline-none";
 
+/* ------------------------------------------------------------------ */
+/* Normalisation d'une proposition du tuteur                           */
+/*                                                                     */
+/* Le tuteur écrit du texte libre : rien ne garantit que ses valeurs    */
+/* appartiennent aux énumérations du domaine. Chaque conversion échoue  */
+/* en silence vers le défaut du formulaire plutôt que de rejeter la     */
+/* proposition — l'utilisateur voit et corrige avant d'enregistrer.     */
+/* ------------------------------------------------------------------ */
+
+function versDomaine(valeur: string): DomaineId | null {
+  return DOMAINES.find((d) => d.id === valeur)?.id ?? null;
+}
+
+function versType(valeur: string): TypeExercice | null {
+  return TYPES.find((t) => t.valeur === valeur)?.valeur ?? null;
+}
+
+function versDifficulte(valeur: string): Difficulte | null {
+  const n = Number.parseInt(valeur, 10);
+  return n >= 1 && n <= 5 ? (n as Difficulte) : null;
+}
+
+function versDimension(valeur: string): Dimension | null {
+  return DIMENSIONS.find((d) => d === valeur) ?? null;
+}
+
 export function FormulaireCreationExercice({
   skillsDisponibles,
+  propositionEnAttente = false,
 }: {
   skillsDisponibles: { code: string; intitule: string }[];
+  /** Vrai quand on arrive du chat via `?proposition=1` (ADR-004). */
+  propositionEnAttente?: boolean;
 }) {
   const router = useRouter();
   const [titre, setTitre] = useState("");
@@ -57,6 +90,86 @@ export function FormulaireCreationExercice({
 
   const [enCours, demarrer] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
+
+  /**
+   * Origine de l'énoncé, tracée jusqu'en base (ADR-004). Passe à « tuteur »
+   * uniquement si le formulaire a effectivement été pré-rempli — un formulaire
+   * repris à zéro reste « manuel ».
+   */
+  const [origine, setOrigine] = useState<"manuel" | "tuteur">("manuel");
+  const [ignores, setIgnores] = useState<string[]>([]);
+  const [propositionPerdue, setPropositionPerdue] = useState(false);
+
+  /**
+   * Charge la proposition déposée par le chat dans `sessionStorage`.
+   *
+   * Déclenché par un clic, jamais au montage. Deux raisons : c'est un acte
+   * volontaire de l'utilisateur, cohérent avec « le tuteur ne remplit rien
+   * sans toi » (P5) ; et cela évite un rendu serveur qui divergerait de
+   * l'hydratation, `sessionStorage` n'existant pas côté serveur.
+   *
+   * La proposition est consommée une seule fois : revenir sur la page ne
+   * réinjecte pas un ancien brouillon.
+   */
+  function chargerProposition() {
+    const brut = window.sessionStorage.getItem(CLE_PROPOSITION_EXERCICE);
+    if (!brut) {
+      setPropositionPerdue(true);
+      return;
+    }
+    window.sessionStorage.removeItem(CLE_PROPOSITION_EXERCICE);
+
+    let p: PropositionExercice;
+    try {
+      p = JSON.parse(brut) as PropositionExercice;
+    } catch {
+      setPropositionPerdue(true);
+      return;
+    }
+
+    const ecartes: string[] = [];
+
+    if (p.titre) setTitre(p.titre);
+    if (p.enonce) setEnonce(p.enonce);
+    if (p.correction) setCorrection(p.correction);
+
+    const d = versDomaine(p.domaine);
+    if (d) setDomaine(d);
+    else if (p.domaine) ecartes.push(`domaine « ${p.domaine} »`);
+
+    const t = versType(p.type);
+    if (t) setType(t);
+    else if (p.type) ecartes.push(`type « ${p.type} »`);
+
+    const diff = versDifficulte(p.difficulte);
+    if (diff) setDifficulte(diff);
+    else if (p.difficulte) ecartes.push(`difficulté « ${p.difficulte} »`);
+
+    const duree = Number.parseInt(p.dureeEstimeeMin, 10);
+    if (Number.isFinite(duree) && duree > 0) setDuree(duree);
+
+    // Une compétence hors référentiel n'est jamais retenue : le moteur
+    // n'aurait rien à quoi la rattacher (anti-hallucination §2).
+    const connues = new Set(skillsDisponibles.map((s) => s.code));
+    const retenues = p.competences.filter((c) => connues.has(c));
+    const inventees = p.competences.filter((c) => !connues.has(c));
+    if (retenues.length > 0) setCompetences(retenues);
+    if (inventees.length > 0) ecartes.push(`compétence(s) inconnue(s) : ${inventees.join(", ")}`);
+
+    if (p.indices.length > 0) setIndices(p.indices);
+
+    const criteresValides = p.criteres
+      .map((c) => ({ dimension: versDimension(c.dimension), libelle: c.libelle }))
+      .filter((c): c is { dimension: Dimension; libelle: string } => c.dimension !== null);
+    if (criteresValides.length > 0) setCriteres(criteresValides);
+    if (criteresValides.length < p.criteres.length) {
+      ecartes.push("critère(s) à dimension non reconnue");
+    }
+
+    setOrigine("tuteur");
+    setIgnores(ecartes);
+    setPropositionPerdue(false);
+  }
 
   const pret =
     titre.trim() &&
@@ -80,6 +193,7 @@ export function FormulaireCreationExercice({
           indices: indices.filter((i) => i.trim()),
           correction,
           criteres: criteres.filter((c) => c.libelle.trim()),
+          origine,
         });
         router.push(`/exercices/${id}`);
       } catch (e) {
@@ -90,6 +204,41 @@ export function FormulaireCreationExercice({
 
   return (
     <div className="space-y-4">
+      {propositionEnAttente && origine === "manuel" && (
+        <div className="rounded-md border border-primaire/30 bg-surface-2 px-3 py-2 text-xs">
+          <p className="text-texte-attenue">
+            {propositionPerdue
+              ? "La proposition n'est plus disponible — elle a peut-être déjà été chargée, ou l'onglet a été rouvert. Retourne au tuteur et clique à nouveau sur « Revoir et ajouter »."
+              : "Le tuteur a proposé un exercice. Rien n'a été enregistré : charge-le pour le relire et le corriger avant de valider."}
+          </p>
+          {!propositionPerdue && (
+            <button
+              type="button"
+              onClick={chargerProposition}
+              className={cx(classesBouton("secondaire", "petite"), "mt-2")}
+            >
+              Remplir depuis la proposition du tuteur
+            </button>
+          )}
+        </div>
+      )}
+
+      {origine === "tuteur" && (
+        <div className="rounded-md border border-info/30 bg-info-faible px-3 py-2 text-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            <Etiquette ton="info">Proposé par le tuteur</Etiquette>
+            <span className="text-texte-attenue">
+              Relis avant d&apos;enregistrer : rien n&apos;a été écrit pour l&apos;instant.
+            </span>
+          </div>
+          {ignores.length > 0 && (
+            <p className="mt-1.5 text-texte-discret">
+              Non repris car hors référentiel — {ignores.join(" · ")}.
+            </p>
+          )}
+        </div>
+      )}
+
       <label className="block">
         <span className="text-xs font-medium">Titre</span>
         <input

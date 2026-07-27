@@ -315,6 +315,15 @@ export interface SoumissionExerciceManuel {
   indices: string[];
   correction: string;
   criteres: { dimension: Dimension; libelle: string }[];
+  /**
+   * D'où vient l'énoncé (ADR-004). « tuteur » quand le formulaire a été
+   * pré-rempli par une proposition du tuteur, « manuel » quand l'utilisateur
+   * l'a écrit lui-même. Défaut prudent : « manuel ».
+   *
+   * Ce champ n'est pas décoratif : il rend traçable un corpus que personne ne
+   * relit (P3). Il est affiché dans la liste des exercices.
+   */
+  origine?: Extract<Exercise["origine"], "tuteur" | "manuel">;
 }
 
 /**
@@ -342,7 +351,9 @@ export async function creerExercice(soumission: SoumissionExerciceManuel): Promi
     correction: soumission.correction,
     criteres: soumission.criteres,
     diagnostic: false,
-    origine: "manuel",
+    // « seed » est réservé aux exercices livrés avec le logiciel : une écriture
+    // depuis l'interface ne peut jamais s'en réclamer.
+    origine: soumission.origine === "tuteur" ? "tuteur" : "manuel",
   };
   await ajouter("exercises", exercice);
   revalidatePath("/exercices");
