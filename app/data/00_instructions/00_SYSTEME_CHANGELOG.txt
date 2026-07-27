@@ -75,6 +75,43 @@ anti-hallucination ne changent pas : le moteur les implémente tels quels.
 
 ---
 
+## VERSION 2.1 — PROTOCOLE DE PÉRENNISATION
+
+Date : 27/07/2026
+
+### Modification
+
+Rédaction de `00_PERENNISATION_DU_SYSTEME.txt`, jusque-là créé mais vide.
+Ce protocole fixe la discipline transversale du système : diagnostiquer plutôt
+que démentir, comprendre avant de valider, ne pas accorder de confiance non
+vérifiée (à l'utilisateur comme au système lui-même), faire primer le
+protocole sur le code, traiter les commentaires libres comme une preuve,
+capturer le désaccord de l'utilisateur avec ses propres évaluations, et tenir
+la traçabilité (ADR à jour dans le même geste que la décision) comme condition
+du potentiel d'évolution du système.
+
+### Motivation
+
+Retour direct de l'utilisateur sur des incidents réels du projet : une analyse
+produit bâtie sur des données périmées faute d'avoir dit où était la vérité ;
+une validation donnée avant compréhension complète ; des affirmations de
+risque jamais vérifiées. Ces incidents étaient jusque-là traités au cas par
+cas dans `CLAUDE.md` et `FEATURE_EVALUATION_FRAMEWORK.md` ; ce protocole les
+généralise et les rend contraignants pour toute session, pédagogique ou
+technique.
+
+### Impact
+
+N'introduit aucune nouvelle mesure de compétence. Ajoute une exigence de
+comportement pour le tuteur et pour toute session travaillant sur ce dépôt.
+
+### Compatibilité
+
+N'amende aucun protocole existant ; en cas de tension apparente, ce document
+renvoie à l'objectif premier (section 2) comme critère de tranchage.
+
+---
+
 ## RÈGLE DE MAINTENANCE
 
 Lorsqu'une évolution importante est décidée :
