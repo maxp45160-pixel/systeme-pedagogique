@@ -10,22 +10,18 @@ import type { ReactNode } from "react";
  * par le tuteur.
  */
 
-let compteur = 0;
-function cle(): string {
-  return `md-${compteur++}`;
-}
-
 /** Applique gras et code en ligne à l'intérieur d'une ligne. */
-function enligne(texte: string): ReactNode[] {
+function enligne(texte: string, pfx: string = "in"): ReactNode[] {
   const sorties: ReactNode[] = [];
   // Découpe sur **gras** et `code`, en conservant les délimiteurs.
   const morceaux = texte.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
-  for (const m of morceaux) {
+  for (let idx = 0; idx < morceaux.length; idx++) {
+    const m = morceaux[idx];
     if (!m) continue;
     if (m.startsWith("**") && m.endsWith("**")) {
-      sorties.push(<strong key={cle()}>{m.slice(2, -2)}</strong>);
+      sorties.push(<strong key={`${pfx}-b-${idx}`}>{m.slice(2, -2)}</strong>);
     } else if (m.startsWith("`") && m.endsWith("`") && m.length > 2) {
-      sorties.push(<code key={cle()}>{m.slice(1, -1)}</code>);
+      sorties.push(<code key={`${pfx}-c-${idx}`}>{m.slice(1, -1)}</code>);
     } else {
       sorties.push(m);
     }
@@ -50,9 +46,11 @@ export function Markdown({ contenu }: { contenu: string }) {
   const lignes = contenu.split("\n");
   const blocs: ReactNode[] = [];
   let i = 0;
+  let blocIdx = 0;
 
   while (i < lignes.length) {
     const ligne = lignes[i];
+    const keyBloc = `b-${blocIdx++}`;
 
     // Bloc de code délimité par ```
     if (ligne.trim().startsWith("```")) {
@@ -65,7 +63,7 @@ export function Markdown({ contenu }: { contenu: string }) {
       }
       i++; // ferme le bloc
       blocs.push(
-        <pre key={cle()} data-langue={langue || undefined}>
+        <pre key={keyBloc} data-langue={langue || undefined}>
           <code>{corps.join("\n")}</code>
         </pre>,
       );
@@ -82,20 +80,20 @@ export function Markdown({ contenu }: { contenu: string }) {
         i++;
       }
       blocs.push(
-        <div key={cle()} className="overflow-x-auto">
+        <div key={keyBloc} className="overflow-x-auto">
           <table>
             <thead>
               <tr>
-                {entetes.map((h) => (
-                  <th key={cle()}>{enligne(h)}</th>
+                {entetes.map((h, hIdx) => (
+                  <th key={`th-${hIdx}`}>{enligne(h, `${keyBloc}-h-${hIdx}`)}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {corps.map((r) => (
-                <tr key={cle()}>
-                  {r.map((c) => (
-                    <td key={cle()}>{enligne(c)}</td>
+              {corps.map((r, rIdx) => (
+                <tr key={`tr-${rIdx}`}>
+                  {r.map((c, cIdx) => (
+                    <td key={`td-${cIdx}`}>{enligne(c, `${keyBloc}-c-${rIdx}-${cIdx}`)}</td>
                   ))}
                 </tr>
               ))}
@@ -109,7 +107,7 @@ export function Markdown({ contenu }: { contenu: string }) {
     // Titre
     const titre = /^(#{1,4})\s+(.*)$/.exec(ligne);
     if (titre) {
-      blocs.push(<h3 key={cle()}>{enligne(titre[2])}</h3>);
+      blocs.push(<h3 key={keyBloc}>{enligne(titre[2], `${keyBloc}-h`)}</h3>);
       i++;
       continue;
     }
@@ -121,7 +119,7 @@ export function Markdown({ contenu }: { contenu: string }) {
         corps.push(lignes[i].trim().replace(/^>\s?/, ""));
         i++;
       }
-      blocs.push(<blockquote key={cle()}>{enligne(corps.join(" "))}</blockquote>);
+      blocs.push(<blockquote key={keyBloc}>{enligne(corps.join(" "), `${keyBloc}-q`)}</blockquote>);
       continue;
     }
 
@@ -133,9 +131,9 @@ export function Markdown({ contenu }: { contenu: string }) {
         i++;
       }
       blocs.push(
-        <ul key={cle()}>
-          {items.map((t) => (
-            <li key={cle()}>{enligne(t)}</li>
+        <ul key={keyBloc}>
+          {items.map((t, itemIdx) => (
+            <li key={`li-${itemIdx}`}>{enligne(t, `${keyBloc}-li-${itemIdx}`)}</li>
           ))}
         </ul>,
       );
@@ -150,9 +148,9 @@ export function Markdown({ contenu }: { contenu: string }) {
         i++;
       }
       blocs.push(
-        <ol key={cle()}>
-          {items.map((t) => (
-            <li key={cle()}>{enligne(t)}</li>
+        <ol key={keyBloc}>
+          {items.map((t, itemIdx) => (
+            <li key={`li-${itemIdx}`}>{enligne(t, `${keyBloc}-li-${itemIdx}`)}</li>
           ))}
         </ol>,
       );
@@ -181,7 +179,7 @@ export function Markdown({ contenu }: { contenu: string }) {
       i++;
     }
     if (paragraphe.length > 0) {
-      blocs.push(<p key={cle()}>{enligne(paragraphe.join(" "))}</p>);
+      blocs.push(<p key={keyBloc}>{enligne(paragraphe.join(" "), `${keyBloc}-p`)}</p>);
     }
   }
 

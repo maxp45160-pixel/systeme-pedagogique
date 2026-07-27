@@ -12,7 +12,7 @@
  * que là où elles ont été lâchées.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { cx } from "@/components/ui/primitives";
 import { IconeTodo, IconeGrip } from "@/components/ui/icones";
 
@@ -114,46 +114,51 @@ const api = {
 /* ------------------------------------------------------------------ */
 
 function MenuTroisPoints({
+  ouvert,
+  onToggle,
   onRenommer,
   onAttacherImage,
   onSupprimer,
 }: {
+  ouvert: boolean;
+  onToggle: () => void;
   onRenommer: () => void;
   onAttacherImage: () => void;
   onSupprimer: () => void;
 }) {
-  const [ouvert, setOuvert] = useState(false);
   const [versLeHaut, setVersLeHaut] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!ouvert) return;
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOuvert(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [ouvert]);
 
   // Le menu s'ouvre normalement sous le bouton, mais pour les dernières lignes
   // de la liste il n'y a pas la place : on l'ouvre alors vers le haut pour
   // qu'il reste visible sans avoir à faire défiler la modale.
-  const ouvrirMenu = () => {
+  useLayoutEffect(() => {
+    if (!ouvert) return;
     const rect = ref.current?.getBoundingClientRect();
+    const conteneur = ref.current?.closest(".overflow-y-auto")?.getBoundingClientRect();
+    const limiteBasse = conteneur ? conteneur.bottom : window.innerHeight;
     const hauteurMenuEstimee = 130;
-    setVersLeHaut(!!rect && rect.bottom + hauteurMenuEstimee > window.innerHeight);
-    setOuvert(true);
-  };
+    setVersLeHaut(!!rect && rect.bottom + hauteurMenuEstimee > limiteBasse);
+  }, [ouvert]);
+
+  useEffect(() => {
+    if (!ouvert) return;
+
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        onToggle();
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [ouvert, onToggle]);
 
   return (
     <div ref={ref} className="relative">
       <button
         onClick={(e) => {
           e.stopPropagation();
-          if (ouvert) setOuvert(false);
-          else ouvrirMenu();
+          onToggle();
         }}
         onMouseDown={(e) => e.stopPropagation()}
         className={cx(
@@ -180,7 +185,7 @@ function MenuTroisPoints({
           )}
         >
           <button
-            onClick={() => { setOuvert(false); onAttacherImage(); }}
+            onClick={() => { onToggle(); onAttacherImage(); }}
             className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs hover:bg-surface-2 transition-colors"
           >
             <svg viewBox="0 0 24 24" className="size-3.5 shrink-0 text-texte-discret" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -191,7 +196,7 @@ function MenuTroisPoints({
             Attacher une image
           </button>
           <button
-            onClick={() => { setOuvert(false); onRenommer(); }}
+            onClick={() => { onToggle(); onRenommer(); }}
             className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs hover:bg-surface-2 transition-colors"
           >
             <svg viewBox="0 0 24 24" className="size-3.5 shrink-0 text-texte-discret" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -201,7 +206,7 @@ function MenuTroisPoints({
           </button>
           <div className="mx-2 my-0.5 h-px bg-bordure" />
           <button
-            onClick={() => { setOuvert(false); onSupprimer(); }}
+            onClick={() => { onToggle(); onSupprimer(); }}
             className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs text-danger hover:bg-danger-faible transition-colors"
           >
             <svg viewBox="0 0 24 24" className="size-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -357,6 +362,7 @@ export function DevTodo() {
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [renommageId, setRenommageId] = useState<string | null>(null);
   const [renommageTexte, setRenommageTexte] = useState("");
+  const [menuOuvertId, setMenuOuvertId] = useState<string | null>(null);
   const modaleRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadTodoId, setUploadTodoId] = useState<string | null>(null);
@@ -389,6 +395,7 @@ export function DevTodo() {
     }
     function handleKey(e: KeyboardEvent) {
       if (e.key !== "Escape") return;
+      if (menuOuvertId) { setMenuOuvertId(null); return; }
       if (renommageId) { setRenommageId(null); return; }
       setOuvert(false);
     }
@@ -398,7 +405,7 @@ export function DevTodo() {
       document.removeEventListener("mousedown", handleClick);
       document.removeEventListener("keydown", handleKey);
     };
-  }, [ouvert, renommageId]);
+  }, [ouvert, renommageId, menuOuvertId]);
 
   /* Ajout */
   const ajouterTodo = async () => {
@@ -688,6 +695,12 @@ export function DevTodo() {
                           onDragLeave={() => setDragOverId(null)}
                           onDrop={() => handleDrop(todo.id)}
                           onDragEnd={finDrag}
+                          onContextMenu={(e) => {
+                            if (!enRenommage) {
+                              e.preventDefault();
+                              setMenuOuvertId(todo.id);
+                            }
+                          }}
                           className={cx(
                             "group flex items-center gap-2 px-4 py-2.5 transition-all duration-150",
                             todo.fait && "opacity-50 bg-surface-2/30",
@@ -761,6 +774,8 @@ export function DevTodo() {
                           )}
 
                           <MenuTroisPoints
+                            ouvert={menuOuvertId === todo.id}
+                            onToggle={() => setMenuOuvertId(menuOuvertId === todo.id ? null : todo.id)}
                             onRenommer={() => demarrerRenommage(todo)}
                             onAttacherImage={() => lancerUpload(todo.id)}
                             onSupprimer={() => supprimer(todo.id)}
