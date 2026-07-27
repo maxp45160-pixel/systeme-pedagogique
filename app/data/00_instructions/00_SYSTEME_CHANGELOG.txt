@@ -112,6 +112,50 @@ renvoie à l'objectif premier (section 2) comme critère de tranchage.
 
 ---
 
+## VERSION 2.2 — SUPPRESSION DES FICHIERS DE PROFIL LEGACY
+
+Date : 27/07/2026
+
+### Modification
+
+Les cinq fichiers `data/01_profil/*.txt` (matrice des compétences, profil,
+erreurs récurrentes, historique de progression, plan d'évaluation initiale)
+ont été supprimés du dépôt. La section « Source de vérité » des instructions
+principales est amendée en conséquence : elle annonçait qu'ils restaient
+« une trace lisible », ce qui n'est plus le cas.
+
+Deux spécifications techniques exécutées ont été renommées avec le suffixe
+`_FAIT`, et les cinq SVG de démarrage de Next.js, référencés nulle part, ont
+été retirés de `public/`.
+
+### Motivation
+
+Ces fichiers n'étaient lus par aucun code depuis la version 2.0 et avaient
+déjà divergé du profil réel après un seul cycle de mise à jour
+(`AUDIT_SYSTEME_2026-07-25.md` §2.1 : `LOG-02` y figurait « À évaluer »
+alors qu'une preuve directe existait dans `data/store/`). Une source de
+vérité parallèle qui n'est ni lue ni vérifiée ne peut que mentir : la
+conserver contredit le protocole anti-hallucination, qui exige qu'aucune
+valeur ne soit affichée sans source fiable.
+
+### Impact
+
+Aucun sur le comportement de l'application ni du tuteur : le contexte
+pédagogique n'a jamais chargé ces fichiers (`lib/tutor/contexte.ts` ne lit
+que `00_instructions/`). Le référentiel des 43 compétences vit désormais
+uniquement dans `lib/domain/referentiel.ts`, qui porte la mention de sa
+provenance historique. Le contenu supprimé reste consultable dans
+l'historique git.
+
+### Compatibilité
+
+Aucune donnée du journal de preuves n'est touchée. Les commentaires de
+`referentiel.ts`, `types.ts` et `seed/exercises.ts` qui citaient ces fichiers
+comme source ont été mis à jour dans le même geste, pour ne pas laisser de
+référence morte.
+
+---
+
 ## RÈGLE DE MAINTENANCE
 
 Lorsqu'une évolution importante est décidée :
@@ -137,6 +181,80 @@ Conséquences sur le fonctionnement du système.
 ### Compatibilité
 
 Indiquer si les fichiers existants doivent être mis à jour.
+
+---
+
+## VERSION 2.3 — CONDENSATION DU CONTEXTE ENVOYÉ AU TUTEUR
+
+Date : 27/07/2026
+
+### Modification
+
+Les trois protocoles injectés dans le prompt du tuteur
+(`00_SYSTEME_INSTRUCTIONS_PRINCIPALES.txt`, `00_SYSTEME_PROTOCOLE_EVALUATION.txt`,
+`00_SYSTEME_PROTOCOLE_ANTI_HALLUCINATION.txt`) ont été réécrits plus court :
+22 328 → 18 898 caractères. Aucune règle n'a été supprimée, aucun seuil modifié.
+
+Ce qui a été retiré est de la redondance ou du commentaire destiné à un lecteur
+humain, pas au modèle :
+
+- les encarts historiques des instructions §4 et §10, qui expliquaient ce que
+  « mettre à jour le profil » signifiait *avant* l'interface applicative — la
+  règle en vigueur est déjà énoncée en §17 ;
+- l'échelle 0-5 dupliquée : instructions §6 renvoie désormais au protocole
+  d'évaluation §4, qui reste la seule définition ;
+- l'audit périodique dupliqué : instructions §14 renvoie à
+  l'anti-hallucination §9 ;
+- les énumérations de sous-thèmes des sept domaines (instructions §7) : le
+  référentiel réel des 43 compétences est transmis à chaque conversation dans
+  l'état courant du profil, et fait foi ;
+- l'historique de suppression des fichiers `01_profil/` (instructions §17),
+  consigné en version 2.2 de ce changelog, où il a sa place.
+
+**La numérotation des 17 / 17 / 14 sections est strictement conservée**, ainsi
+que les titres. Le moteur et les tests citent ces numéros
+(`moteur.test.ts` vérifie que la chaîne « §9 » figure dans une réserve) :
+renuméroter aurait cassé ces références sans qu'aucun test ne le signale.
+
+Deux ajouts, volontairement :
+
+- **évaluation §3** annonçait « six dimensions » et en listait sept. Corrigé en
+  « sept », avec la précision de celles qui entrent dans le score macro (cinq)
+  et de celles suivies séparément (autonomie, robustesse) — ce que le type
+  `Dimension` du code fait déjà.
+- **anti-hallucination §7** interdit désormais explicitement d'inventer un
+  détail circonstanciel non transmis (date, jour de la semaine, durée, ordre
+  des événements). Motif observable : lors du test de réfutation du 27/07, le
+  tuteur a daté « 25 juillet (jeudi) » et « 27 juillet (samedi) » alors que le
+  27 juillet 2026 est un lundi. Les jours de la semaine ne figurent pas dans le
+  contexte transmis : ils ont été déduits, et faux.
+
+En parallèle, la **sérialisation** du contexte (`app/src/lib/tutor/contexte.ts`,
+hors de ce dossier) a été compactée sans perte : les étiquettes de colonnes,
+répétées sur chacune des 43 lignes du profil, sont désormais données une seule
+fois en en-tête ; la mention « (hypothèse BUT QLIO non vérifiée — preuve de
+niveau D) », répétée à chaque compétence non évaluée, devient un suffixe « ?D »
+expliqué en légende.
+
+### Motivation
+
+Le contexte envoyé au modèle à chaque message pèse 39,7 k caractères, soit
+10 694 jetons mesurés. Ce volume n'est pas la cause des défauts observés le
+27/07 — il passe largement sous les quotas — mais il est payé à chaque message,
+sans mise en cache (`cacheLu: 0`), et allonge la latence. Réduire la redondance
+est un gain net ; réduire les règles ne l'aurait pas été.
+
+### Impact
+
+Aucun sur le moteur : aucun seuil, aucune formule, aucune numérotation n'a
+changé. `npm run verify` reste vert (57 tests). Le manifeste affiché dans
+l'interface du tuteur reflétera automatiquement les nouvelles tailles.
+
+### Compatibilité
+
+Rétrocompatible. Toute citation existante de la forme « protocole
+d'évaluation §12 » ou « anti-hallucination §7 » reste valide et pointe sur la
+même règle.
 
 ---
 

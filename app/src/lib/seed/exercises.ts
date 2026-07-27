@@ -1,7 +1,8 @@
 /**
  * Exercices de diagnostic initial.
  *
- * Un exercice par compétence listée dans `01_PLAN_EVALUATION_INITIALE.txt`,
+ * Un exercice par compétence listée dans `01_PLAN_EVALUATION_INITIALE.txt`
+ * (supprimé le 27/07/2026 ; l'ordre survit dans `ORDRE_DIAGNOSTIC`),
  * dans l'ordre de priorité qu'il fixe. Objectif de ces exercices : SITUER un
  * niveau réel, pas enseigner — d'où des énoncés courts, sans aide préalable,
  * et une correction qui distingue méthode et résultat.

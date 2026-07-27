@@ -5,6 +5,12 @@
  * (43 compétences, 7 domaines). Les intitulés ne sont pas reformulés :
  * ils sont repris tels quels.
  *
+ * ⚠️ Ce fichier source a été supprimé le 27/07/2026 : legacy, lu par aucun
+ * code et déjà en dérive (AUDIT_SYSTEME_2026-07-25.md §2.1). Son contenu
+ * reste consultable dans l'historique git. **Ce module est désormais la
+ * source de vérité du référentiel** — l'étendre est une modification de
+ * code, testée, pas une édition de données.
+ *
  * Élargi le 25/07/2026 (LOG-07/08/09, STAT-07) — ajout justifié par
  * l'observation réelle du travail de l'utilisateur (cf. section 7 des
  * instructions ; source : synthese_profil_competences_2026-07-25.md).
@@ -14,7 +20,8 @@
  * - `prerequis`  : indicatif, jamais bloquant (l'exploration reste libre) ;
  * - `importance` : poids pour l'objectif déclaré BUT QLIO → Master ITI,
  *                  dérivé de l'ordre de priorité de
- *                  `01_PLAN_EVALUATION_INITIALE.txt`, pas d'une supposition.
+ *                  `01_PLAN_EVALUATION_INITIALE.txt` (supprimé le 27/07/2026,
+ *                  cf. historique git), pas d'une supposition.
  */
 
 import type { Domaine, DomaineId, Skill } from "./types";
@@ -67,7 +74,8 @@ export const DOMAINES: Domaine[] = [
 export const DOMAINE_PAR_ID = new Map<DomaineId, Domaine>(DOMAINES.map((d) => [d.id, d]));
 
 /**
- * Ordre des diagnostics fixé par `01_PLAN_EVALUATION_INITIALE.txt`.
+ * Ordre des diagnostics fixé par `01_PLAN_EVALUATION_INITIALE.txt`
+ * (supprimé le 27/07/2026 — cet ordre en est la seule trace vivante).
  * Sert à départager les compétences non évaluées dans la recommandation :
  * au jour 0 tous les autres facteurs sont nuls, c'est ce plan qui tranche.
  */

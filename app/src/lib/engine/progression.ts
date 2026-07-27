@@ -15,6 +15,7 @@
 
 import type { Confiance, DomaineId, SkillState } from "@/lib/domain/types";
 import { DOMAINES } from "@/lib/domain/referentiel";
+import { JOUR_MS } from "./dates";
 
 const RANG_CONFIANCE: Record<Confiance, number> = { nulle: 0, faible: 1, moyenne: 2, forte: 3 };
 const CONFIANCE_PAR_RANG: Confiance[] = ["nulle", "faible", "moyenne", "forte"];
@@ -142,7 +143,7 @@ export function calculerEtatGlobal(etats: SkillState[], now: Date = new Date()):
     return e.preuves.some(
       (p) =>
         p.resultat === "reussi" &&
-        (now.getTime() - new Date(p.date).getTime()) / 86_400_000 <= 30,
+        (now.getTime() - new Date(p.date).getTime()) / JOUR_MS <= 30,
     );
   }).length;
 

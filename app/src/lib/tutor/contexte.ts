@@ -12,7 +12,6 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { Contexte } from "@/lib/store/context";
 import { DOMAINES } from "@/lib/domain/referentiel";
-import { AUTONOMIE } from "@/lib/domain/types";
 import { formatDateCourte } from "@/lib/engine/dates";
 
 const RACINE_DATA = path.join(process.cwd(), "data");
@@ -82,29 +81,35 @@ function serialiserProfil(ctx: Contexte): string {
     lignes.push("");
   }
 
+  // Les étiquettes de colonne sont données UNE fois plutôt que répétées sur
+  // chacune des 43 lignes : même information, ~4 000 caractères de moins dans
+  // le contexte envoyé au modèle.
+  lignes.push(
+    "Colonnes : code | niveau/5 | score/5 | confiance | robustesse | preuves/contextes | jours depuis la dernière preuve | intitulé",
+  );
+  lignes.push(
+    "« — » = aucune preuve, donc aucune valeur dérivable (ce n'est pas un zéro). Le suffixe « ?D » marque une hypothèse BUT QLIO non vérifiée, de niveau de preuve D.",
+  );
+  lignes.push("« ⚠n » = n preuve(s) contradictoire(s) conservée(s) : confiance réduite, niveau maintenu.");
+  lignes.push("");
+
   for (const domaine of DOMAINES) {
     const etats = ctx.etats.filter((e) => e.skill.domaine === domaine.id);
     lignes.push(`## ${domaine.nom.toUpperCase()}`);
     for (const e of etats) {
       if (e.preuves.length === 0) {
-        const hyp = e.skill.hypotheseInitiale
-          ? " (hypothèse BUT QLIO non vérifiée — preuve de niveau D)"
-          : "";
-        lignes.push(`${e.skill.code} | NON ÉVALUÉ${hyp} | ${e.skill.intitule}`);
+        const hyp = e.skill.hypotheseInitiale ? " ?D" : "";
+        lignes.push(`${e.skill.code} | —${hyp} | ${e.skill.intitule}`);
         continue;
       }
+      const contra = e.contradictions.length > 0 ? ` ⚠${e.contradictions.length}` : "";
       lignes.push(
-        `${e.skill.code} | niveau ${e.niveau}/5 | score ${e.score?.toFixed(1)}/5 | confiance ${
-          e.confiance
-        } | robustesse ${e.robustesse?.toFixed(2)} | ${e.preuves.length} preuve(s) sur ${
-          e.contextesTestes.length
-        } contexte(s) | dernière il y a ${e.joursDepuisDernierePreuve} j | ${e.skill.intitule}`,
+        `${e.skill.code} | ${e.niveau} | ${e.score?.toFixed(1)} | ${e.confiance} | ${e.robustesse?.toFixed(
+          2,
+        )} | ${e.preuves.length}/${e.contextesTestes.length} | ${e.joursDepuisDernierePreuve}j${contra} | ${
+          e.skill.intitule
+        }`,
       );
-      if (e.contradictions.length > 0) {
-        lignes.push(
-          `      ⚠ ${e.contradictions.length} preuve(s) contradictoire(s) conservée(s) — confiance réduite, niveau maintenu`,
-        );
-      }
     }
     lignes.push("");
   }
@@ -137,14 +142,19 @@ function serialiserRecent(ctx: Contexte): string {
   if (recentes.length === 0) {
     return "# TRAVAIL RÉCENT\n\nAucune séance enregistrée.";
   }
-  const lignes = ["# TRAVAIL RÉCENT (12 dernières preuves)", ""];
+  // Le libellé de l'autonomie (« A3 — Résolution autonome ») n'est pas répété
+  // ici : le protocole d'évaluation §5, déjà dans le contexte, les définit.
+  const lignes = [
+    "# TRAVAIL RÉCENT (12 dernières preuves)",
+    "",
+    "Colonnes : date | compétence | type | résultat | autonomie (§5) | qualité | contexte | commentaire de l'utilisateur",
+    "",
+  ];
   for (const p of recentes) {
     lignes.push(
-      `- ${formatDateCourte(p.date)} · ${p.skillCode} · ${p.type} · ${p.resultat} · ${p.autonomie} (${
-        AUTONOMIE[p.autonomie].libelle
-      }) · qualité ${p.qualite} · contexte « ${p.contexte} »${
-        p.commentaire ? ` · ${p.commentaire}` : ""
-      }`,
+      `- ${formatDateCourte(p.date)} | ${p.skillCode} | ${p.type} | ${p.resultat} | ${p.autonomie} | ${
+        p.qualite
+      } | « ${p.contexte} »${p.commentaire ? ` | ${p.commentaire}` : ""}`,
     );
   }
   return lignes.join("\n");

@@ -127,7 +127,7 @@ export interface User {
 }
 
 /**
- * Une compétence du référentiel (`01_MATRICE_COMPETENCES.txt`).
+ * Une compétence du référentiel (`lib/domain/referentiel.ts`).
  * Ne porte AUCUN état de progression : celui-ci est dérivé des preuves.
  */
 export interface Skill {
@@ -252,7 +252,7 @@ export interface ExerciseAttempt {
 }
 
 /**
- * Erreur récurrente (`01_ERREURS_RECURRENTES.txt`).
+ * Erreur récurrente (journal `data/store/errors.json`).
  * Une erreur isolée n'entre PAS ici (anti-hallucination §11).
  */
 export interface ErrorItem {

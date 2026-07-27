@@ -127,9 +127,8 @@ Système pédagogique/
 ├── .mcp.json                        serveur MCP Supabase pour Claude Code
 │
 ├── AUDIT_SYSTEME_2026-07-25.md      audit d'architecture (toujours pertinent)
-├── SPEC_MAJ_PROFIL_2026-07-25.md    spec « intégrer la synthèse » — EXÉCUTÉE
-├── SPEC_CHANTIER1_...2026-07-25.md  spec « fermer la boucle de preuves » — EXÉCUTÉE
-├── FEATURES.md                      ⚠️ DOUBLON EXACT de SPEC_CHANTIER1 (à supprimer)
+├── SPEC_MAJ_PROFIL_..._FAIT.md      spec « intégrer la synthèse » — EXÉCUTÉE
+├── SPEC_CHANTIER1_..._FAIT.md       spec « fermer la boucle de preuves » — EXÉCUTÉE
 ├── SETUP_COMPTES_SUPABASE.md        mise en route Supabase / SSO / Vercel
 ├── synthese_profil_competences_...  synthèse d'évaluation du 25/07
 │
@@ -138,7 +137,6 @@ Système pédagogique/
     │   ├── 00_instructions/         5 protocoles .txt — LUS TELS QUELS par le tuteur
     │   │                            (initialisation, instructions principales,
     │   │                             anti-hallucination, évaluation, changelog)
-    │   ├── 01_profil/               5 .txt LEGACY — plus lus par aucun code, déjà faux
     │   └── store/                   journal JSON du mode local
     │       ├── evidence.json        6 preuves  (10 Ko)
     │       ├── attempts.json        tentatives (3 Ko)
@@ -258,8 +256,9 @@ Vérifié dans le code, pas dans les specs :
 - **Projets / Lectures / Connaissances** : modèles de données présents dans
   `types.ts`, entrées de navigation présentes, mais les écrans annoncent
   franchement qu'ils n'existent pas. *C'est ce que tu appelles « les bientôt ».*
-- **Diagnostic initial personnalisé** : il existe un `01_PLAN_EVALUATION_INITIALE`
-  et 10 exercices de diagnostic, mais **aucun flux d'onboarding**. Un nouveau
+- **Diagnostic initial personnalisé** : il existe un ordre de diagnostic
+  (`ORDRE_DIAGNOSTIC`) et 10 exercices de diagnostic, mais **aucun flux
+  d'onboarding**. Un nouveau
   compte arrive sur une application vide, avec un référentiel QLIO qui n'est pas
   le sien.
 - **Généralisation du profil** : le référentiel des 43 compétences est **codé en
@@ -418,6 +417,10 @@ boutons »).
 
 ### 7.5 🟡 Dette documentaire et sources dupliquées
 
+> ✅ **Traité le 27/07/2026** pour les trois premiers points (ménage du dépôt) :
+> `FEATURES.md` et `data/01_profil/*.txt` supprimés, specs exécutées renommées
+> `_FAIT`. Le constat ci-dessous est conservé pour mémoire du raisonnement.
+
 - `FEATURES.md` = copie exacte de `SPEC_CHANTIER1` (19 408 octets tous les deux),
   et la spec est **déjà exécutée**. Un fichier nommé `FEATURES.md` qui décrit du
   travail terminé va induire en erreur toute future session.
@@ -543,8 +546,10 @@ référentiel.
 1. `cache()` sur `compteCourant` / `createServeurClient` → mesurer avant/après.
 2. Diagnostiquer le tuteur : clé présente ? logs Vercel ? Corriger la cause
    réelle.
-3. Supprimer `FEATURES.md`, marquer `01_profil/*.txt` en archive, renommer les
-   specs exécutées en `_FAIT`.
+3. ✅ ~~Supprimer `FEATURES.md`, marquer `01_profil/*.txt` en archive, renommer
+   les specs exécutées en `_FAIT`.~~ — fait le 27/07/2026 (`01_profil/*.txt`
+   supprimé plutôt qu'archivé : arbitrage de l'utilisateur, le référentiel de
+   code est désormais la seule source de vérité des compétences).
 
 *(Le widget dev-todo reste tel quel : liste partagée volontaire entre les deux
 développeurs. À restreindre au moment de l'ouverture aux utilisateurs — §7.4.)*

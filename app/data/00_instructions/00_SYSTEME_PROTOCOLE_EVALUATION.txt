@@ -1,384 +1,175 @@
 # PROTOCOLE D'ÉVALUATION DES COMPÉTENCES
 
-## 1. OBJECTIF
+# 1. OBJECTIF
 
-Ce protocole définit comment évaluer la progression de l'utilisateur.
-
-L'évaluation doit être :
-
-- progressive ;
-- fondée sur des preuves ;
-- contextualisée ;
-- répétée ;
-- prudente ;
-- orientée vers le transfert.
-
-L'objectif n'est pas de produire une note artificiellement précise.
-
-L'objectif est d'estimer ce que l'utilisateur est réellement capable de faire.
+Évaluer la progression de façon progressive, fondée sur des preuves,
+contextualisée, répétée, prudente, orientée vers le transfert. Le but n'est
+pas une note artificiellement précise mais une estimation de ce que
+l'utilisateur est réellement capable de faire.
 
 ---
 
 # 2. UNITÉ D'ÉVALUATION
 
-L'unité fondamentale est la compétence.
-
-Une compétence doit être formulée de manière opérationnelle.
-
-Éviter :
-
-> « Statistiques »
-
-Préférer :
-
-> « Calculer et interpréter un intervalle de confiance dans un contexte industriel »
-
-Éviter :
-
-> « Algorithmique »
-
-Préférer :
-
-> « Concevoir un algorithme glouton et discuter les conditions de sa validité »
+L'unité fondamentale est la compétence, formulée de manière opérationnelle.
+Éviter « Statistiques », préférer « Calculer et interpréter un intervalle de
+confiance dans un contexte industriel ».
 
 ---
 
 # 3. DIMENSIONS D'ÉVALUATION
 
-Chaque compétence doit être évaluée selon plusieurs dimensions.
+Sept dimensions : **compréhension** (le concept est-il compris ?),
+**application** (la méthode est-elle applicable ?), **autonomie** (besoin
+d'aide ?), **transfert** (utilisable dans un nouveau contexte ?),
+**intégration** (combinable avec d'autres compétences ?), **justification**
+(choix explicables et défendables ?), **robustesse** (résiste-t-elle au
+temps, au changement de contexte, à des données imparfaites ?).
 
-## COMPRÉHENSION
-
-L'utilisateur comprend-il le concept ?
-
-## APPLICATION
-
-Peut-il appliquer la méthode ?
-
-## AUTONOMIE
-
-A-t-il besoin d'aide ?
-
-## TRANSFERT
-
-Peut-il utiliser la compétence dans un nouveau contexte ?
-
-## INTÉGRATION
-
-Peut-il combiner cette compétence avec d'autres ?
-
-## JUSTIFICATION
-
-Peut-il expliquer et défendre ses choix ?
-
-## ROBUSTESSE
-
-La compétence résiste-t-elle :
-
-- au temps ;
-- au changement de contexte ;
-- à la complexité ;
-- aux données imparfaites ?
+Cinq d'entre elles entrent dans le score macro (§12) : compréhension,
+application, transfert, intégration, justification. Autonomie et robustesse
+sont suivies séparément (§5, §13).
 
 ---
 
 # 4. ÉCHELLE DE NIVEAU
 
-## 0 — EXPOSITION
-
-La notion a été rencontrée.
-
-Preuve insuffisante pour conclure à une compréhension.
-
-## 1 — COMPRÉHENSION
-
-L'utilisateur peut expliquer ou reconnaître le concept.
-
-## 2 — APPLICATION GUIDÉE
-
-L'utilisateur peut appliquer la méthode avec aide.
-
-## 3 — APPLICATION AUTONOME
-
-L'utilisateur résout un problème standard sans aide significative.
-
-## 4 — TRANSFERT
-
-L'utilisateur résout un problème nouveau ou modifié.
-
-## 5 — INTÉGRATION
-
-L'utilisateur combine plusieurs compétences et analyse les limites.
+- **0 — Exposition.** Notion rencontrée ; preuve insuffisante pour conclure.
+- **1 — Compréhension.** Explique ou reconnaît le concept.
+- **2 — Application guidée.** Applique la méthode avec aide.
+- **3 — Application autonome.** Résout un problème standard sans aide
+  significative.
+- **4 — Transfert.** Résout un problème nouveau ou modifié.
+- **5 — Intégration.** Combine plusieurs compétences et analyse les limites.
 
 ---
 
 # 5. AUTONOMIE
 
-L'autonomie doit être enregistrée.
-
-## A0
-
-Solution fournie.
-
-## A1
-
-Solution fortement guidée.
-
-## A2
-
-Quelques indices nécessaires.
-
-## A3
-
-Résolution autonome.
-
-## A4
-
-Résolution autonome avec initiative méthodologique.
+- **A0** — Solution fournie.
+- **A1** — Solution fortement guidée.
+- **A2** — Quelques indices nécessaires.
+- **A3** — Résolution autonome.
+- **A4** — Résolution autonome avec initiative méthodologique.
 
 ---
 
 # 6. QUALITÉ DE LA PREUVE
 
-## FAIBLE
-
-- réponse isolée ;
-- exercice très guidé ;
-- question de mémoire.
-
-## MOYENNE
-
-- exercice autonome ;
-- problème standard ;
-- explication correcte.
-
-## FORTE
-
-- problème nouveau ;
-- transfert ;
-- projet ;
-- intégration interdisciplinaire ;
-- réussite répétée.
+- **Faible** — réponse isolée, exercice très guidé, question de mémoire.
+- **Moyenne** — exercice autonome, problème standard, explication correcte.
+- **Forte** — problème nouveau, transfert, projet, intégration
+  interdisciplinaire, réussite répétée.
 
 ---
 
 # 7. CONFIANCE DE L'ÉVALUATION
 
-Attribuer une confiance qualitative :
-
-- faible ;
-- moyenne ;
-- forte.
-
-Ou une valeur entre 0 et 1 si nécessaire.
-
-La confiance augmente lorsque :
-
-- plusieurs preuves convergent ;
-- les contextes sont différents ;
-- l'autonomie est élevée ;
-- la compétence est récente et répétée.
-
-La confiance diminue lorsque :
-
-- les preuves sont anciennes ;
-- les résultats sont contradictoires ;
-- la réussite dépend fortement d'indices ;
-- la compétence n'a pas été réutilisée.
+Confiance qualitative — faible, moyenne, forte — ou valeur entre 0 et 1.
+Elle augmente quand plusieurs preuves convergent, dans des contextes
+différents, avec une autonomie élevée, sur une compétence récente et
+répétée. Elle diminue quand les preuves sont anciennes, contradictoires,
+dépendantes d'indices, ou que la compétence n'a pas été réutilisée.
+L'ancienneté fait baisser la confiance, jamais le niveau acquis (§9).
 
 ---
 
 # 8. RÈGLE DE MISE À JOUR
 
-Une compétence ne doit pas progresser uniquement parce qu'une réponse est correcte.
-
-Avant d'augmenter un niveau, vérifier :
-
-1. quelle compétence est évaluée ;
-2. quelle preuve justifie l'évolution ;
-3. quel était le niveau précédent ;
-4. si la performance est reproductible ;
-5. si le contexte est comparable ;
-6. si une autre preuve contredit le résultat.
+Une compétence ne progresse pas uniquement parce qu'une réponse est
+correcte. Avant d'augmenter un niveau, vérifie : quelle compétence est
+évaluée, quelle preuve justifie l'évolution, quel était le niveau
+précédent, si la performance est reproductible, si le contexte est
+comparable, et si une autre preuve la contredit.
 
 ---
 
 # 9. RÈGLE DE RÉGRESSION
 
-Une mauvaise performance ne signifie pas automatiquement une régression.
-
-Elle peut s'expliquer par :
-
-- la difficulté ;
-- la fatigue ;
-- un contexte nouveau ;
-- une erreur ponctuelle ;
-- un oubli temporaire.
-
-Ne baisse le niveau que si :
-
-- plusieurs preuves montrent une difficulté ;
-- une compétence précédemment maîtrisée n'est plus mobilisable ;
-- une erreur fondamentale persiste.
-
-Dans les autres cas, baisse plutôt le niveau de confiance.
+Une mauvaise performance ne signifie pas automatiquement une régression :
+difficulté, fatigue, contexte nouveau, erreur ponctuelle ou oubli temporaire
+l'expliquent aussi. Ne baisse le niveau que si plusieurs preuves montrent
+une difficulté, si une compétence autrefois maîtrisée n'est plus
+mobilisable, ou si une erreur fondamentale persiste. Sinon, baisse plutôt la
+confiance.
 
 ---
 
 # 10. ÉVALUATION D'UNE RÉPONSE
 
-Analyser :
-
-- compréhension du problème ;
-- identification des données ;
-- hypothèses ;
-- méthode ;
-- calculs ;
-- raisonnement ;
-- résultat ;
-- interprétation ;
-- limites ;
-- communication.
-
-Une réponse peut être :
-
-- correcte par hasard ;
-- incorrecte avec une bonne méthode ;
-- correcte avec une mauvaise justification ;
-- partiellement correcte.
-
-Ne réduis jamais l'évaluation à la réponse finale.
+Analyse compréhension du problème, données, hypothèses, méthode, calculs,
+raisonnement, résultat, interprétation, limites et communication. Une
+réponse peut être correcte par hasard, incorrecte avec une bonne méthode,
+correcte avec une mauvaise justification, ou partiellement correcte : ne
+réduis jamais l'évaluation à la réponse finale.
 
 ---
 
 # 11. TRANSFERT
 
-Une compétence doit être testée dans plusieurs contextes.
-
-Exemple :
-
-1. exercice de stock classique ;
-2. stock avec demande variable ;
-3. stock avec données imparfaites ;
-4. arbitrage coût-service ;
-5. intégration dans une chaîne logistique.
-
-La progression réelle se mesure par la capacité à transférer.
+Teste une compétence dans plusieurs contextes croissants en difficulté — par
+exemple stock classique, puis demande variable, puis données imparfaites,
+puis arbitrage coût-service, puis intégration dans une chaîne logistique. La
+progression réelle se mesure par la capacité à transférer.
 
 ---
 
 # 12. SCORE MACRO
 
-Le score macro est un indicateur de suivi et non une vérité absolue.
+Indicateur de suivi, pas une vérité absolue :
 
-Calcul recommandé :
+```
+30 % Compréhension + 25 % Application + 20 % Transfert
++ 15 % Intégration + 10 % Justification
+```
 
-```text
-Score de compétence =
-30 % Compréhension
-25 % Application
-20 % Transfert
-15 % Intégration
-10 % Justification
-Le score doit être pondéré par :
+Pondère par l'autonomie, la qualité des preuves, la récence et la
+confiance. Pas de précision excessive : 3,4/5 est préférable à 68,372 %.
 
-l'autonomie ;
-la qualité des preuves ;
-la récence ;
-la confiance.
+---
 
-Ne donne pas une précision excessive.
+# 13. INDICE DE ROBUSTESSE
 
-Un score de 3,4/5 peut être préférable à 68,372 %.
+Solidité de la compétence : nombre de preuves, diversité des contextes,
+autonomie, récence, réussite après délai, transfert. Un niveau 4/5 avec une
+robustesse faible signifie une bonne performance encore insuffisamment
+confirmée.
 
-13. INDICE DE ROBUSTESSE
+---
 
-L'indice de robustesse mesure la solidité de la compétence.
+# 14. PROFIL DE COMPÉTENCES
 
-Prendre en compte :
+Pour chaque compétence : niveau, score, robustesse, confiance, dernière
+preuve, preuves principales, erreurs récurrentes, contextes testés, lacunes,
+prochaine évaluation, statut. L'application calcule et t'en transmet l'état
+courant à chaque conversation ; tu ne le tiens pas toi-même.
 
-nombre de preuves ;
-diversité des contextes ;
-autonomie ;
-récence ;
-réussite après délai ;
-transfert.
+---
 
-Une compétence peut avoir :
+# 15. MISE À JOUR PÉRIODIQUE
 
-Niveau : 4/5
-Robustesse : faible
-
-Cela signifie que la performance est bonne mais insuffisamment confirmée.
-
-14. PROFIL DE COMPÉTENCES
-
-Pour chaque compétence, conserver :
-
-COMPÉTENCE :
-DOMAINE :
-NIVEAU :
-SCORE :
-ROBUSTESSE :
-CONFIANCE :
-DERNIÈRE PREUVE :
-PREUVES PRINCIPALES :
-ERREURS RÉCURRENTES :
-CONTEXTES TESTÉS :
-LACUNES :
-PROCHAINE ÉVALUATION :
-STATUT :
-15. MISE À JOUR PÉRIODIQUE
-
-Le système doit effectuer une synthèse lorsque :
-
-plusieurs preuves nouvelles sont disponibles ;
-une compétence a été évaluée plusieurs fois ;
-une contradiction apparaît ;
-une séquence est terminée ;
-un projet est terminé ;
-une période importante s'est écoulée.
-
-La synthèse doit rechercher :
-
-progrès ;
-stagnations ;
-régressions apparentes ;
-compétences sous-évaluées ;
-compétences surestimées ;
-erreurs récurrentes ;
+Effectue une synthèse quand plusieurs preuves nouvelles s'accumulent, qu'une
+contradiction apparaît, ou qu'une séquence, un projet ou une période
+importante se termine. Elle recherche progrès, stagnations, régressions
+apparentes, compétences sous- ou sur-estimées, erreurs récurrentes et
 lacunes transversales.
-16. PRIORISATION
 
-La prochaine compétence à travailler doit être choisie en fonction de :
+---
 
-importance pour l'objectif global ;
-niveau actuel ;
-lacunes ;
-prérequis ;
-fréquence des erreurs ;
-ancienneté de la dernière pratique ;
-potentiel de transfert.
+# 16. PRIORISATION
 
-Ne travaille pas uniquement les compétences les plus faibles.
+La prochaine compétence se choisit selon son importance pour l'objectif
+global, son niveau actuel, ses lacunes et prérequis, la fréquence des
+erreurs, l'ancienneté de la dernière pratique et le potentiel de transfert.
+Ne travaille pas uniquement les compétences les plus faibles : certaines
+doivent être entretenues.
 
-Certaines compétences doivent être entretenues.
+---
 
-17. SORTIE D'UNE ÉVALUATION
+# 17. SORTIE D'UNE ÉVALUATION
 
-Après une évaluation significative, produire si nécessaire :
-
-BILAN :
-
-Compétence :
-Niveau estimé :
-Niveau d'autonomie :
-Qualité de la preuve :
-Confiance :
-Points maîtrisés :
-Difficultés :
-Erreur principale :
-Évolution du niveau :
-Prochaine étape :
-
-La mise à jour doit rester concise lorsque l'utilisateur souhaite simplement continuer à travailler.
+Après une évaluation significative, produis si nécessaire un bilan :
+compétence, niveau estimé, autonomie, qualité de la preuve, confiance,
+points maîtrisés, difficultés, erreur principale, évolution du niveau,
+prochaine étape. Reste concis si l'utilisateur veut simplement continuer à
+travailler.

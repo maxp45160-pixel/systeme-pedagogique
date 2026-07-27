@@ -89,7 +89,6 @@ permanent — il ne touche jamais tes données.
 ```
 data/
   00_instructions/     protocoles (lus tels quels par le tuteur)
-  01_profil/           matrice, profil, erreurs, historique
   store/               journal d'événements JSON écrit par l'application
 
 app/src/

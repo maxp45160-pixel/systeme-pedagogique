@@ -16,6 +16,7 @@ import type {
   SkillEvidence,
 } from "@/lib/domain/types";
 import { SKILL_PAR_CODE } from "@/lib/domain/referentiel";
+import { JOUR_MS } from "./dates";
 import { computeSkillState } from "./skill-state";
 import { calculerEtatGlobal } from "./progression";
 import { cleJour, joursDepuis } from "./dates";
@@ -107,7 +108,7 @@ export function photographies(
   const sorties: Photographie[] = [];
 
   for (let d = jours; d >= 0; d -= pas) {
-    const instant = new Date(now.getTime() - d * 86_400_000);
+    const instant = new Date(now.getTime() - d * JOUR_MS);
     const jusque = triees.filter((e) => new Date(e.date) <= instant);
     const etats = skills.map((s) => computeSkillState(s, jusque, [], instant));
     const global = calculerEtatGlobal(etats, instant);
