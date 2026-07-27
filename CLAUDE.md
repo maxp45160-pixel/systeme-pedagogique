@@ -48,13 +48,14 @@ pratique et développer un sujet à long terme.
   JSON locaux (`app/data/store/`). Les deux dorsales sont **exclusives**
   (`lib/store/db.ts`), jamais synchronisées entre elles.
 - **Authentification :** Supabase Auth — e-mail/mot de passe + SSO Google
-- **IA :** `@anthropic-ai/sdk`, modèle `claude-opus-4-8`, streaming SSE.
-  ⚠️ Payant — **ne peut plus être le chemin nominal** (contrainte de gratuité
-  du 27/07, voir ADR-007).
+- **IA :** moteur du tuteur **interchangeable** (`lib/tutor/moteurs/`, ADR-007) —
+  `anthropic` via `@anthropic-ai/sdk` (payant) ou `compatible-openai` en `fetch`
+  pur (paliers gratuits : Groq, OpenRouter, Mistral…). Streaming SSE dans les
+  deux cas. Sans moteur configuré : 503 et repli « copier le contexte ».
 - **Styles :** Tailwind CSS v4 ; **graphiques SVG écrits à la main**, aucune
   librairie UI tierce
-- **Tests :** Vitest — **36 tests**, 3 fichiers (moteur, backend Supabase,
-  parseur de propositions)
+- **Tests :** Vitest — **57 tests**, 4 fichiers (moteur, backend Supabase,
+  parseurs de propositions, sélection du moteur du tuteur)
 - **Déploiement :** Vercel (Root Directory = `app`)
 - **Gestionnaire de paquets :** npm (workspace racine → `app/`)
 - **Outillage :** serveur MCP Supabase (`.mcp.json`)
@@ -88,9 +89,11 @@ fichier SQL **idempotent** unique, `app/supabase/schema.sql`, à réexécuter da
 Supabase Studio › SQL Editor.
 
 **Variables d'environnement** (`app/.env.local`, voir `.env.example`) :
-`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
-`ANTHROPIC_API_KEY` (facultative — sans elle le tuteur répond 503 et l'interface
-bascule sur « Copier le contexte »).
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, puis — toutes
+facultatives — le moteur du tuteur : `TUTEUR_MOTEUR`, `TUTEUR_CLE`,
+`TUTEUR_URL_BASE`, `TUTEUR_MODELE` (palier gratuit) ou `ANTHROPIC_API_KEY`.
+Sans aucun moteur, le tuteur répond 503 et l'interface bascule sur
+« Copier le contexte » — comportement voulu, pas une panne.
 
 ---
 
@@ -110,7 +113,7 @@ s'applique à l'interface autant qu'au tuteur :
 - **Le tuteur n'a aucun accès en écriture.** Il émet une proposition structurée
   que l'utilisateur valide lui-même.
 
-Chaque seuil du moteur cite le paragraphe du protocole qui l'impose, et 36 tests
+Chaque seuil du moteur cite le paragraphe du protocole qui l'impose, et 57 tests
 vérifient ces garanties. **Ne pas modifier un seuil sans modifier le protocole
 correspondant.**
 
@@ -183,7 +186,14 @@ validés.
 - **Ne pas affaiblir un garde-fou** : typage strict, calcul dérivé, absence
   d'accès en écriture du tuteur, `refuserSiDemo()` sur les Server Functions.
 - **Ne pas modifier** `.env.local`, `app/supabase/schema.sql` déjà appliqué,
-  ni `app/data/00_instructions/` (protocoles vivants).
+  ni `app/data/00_instructions/` (protocoles vivants) **en silence, en marge
+  d'une autre tâche**. Une modification de ces fichiers est légitime quand
+  elle est l'objet explicite et déclaré de la session (ex. rédiger un
+  protocole manquant) — dans ce cas elle se fait, et se consigne dans
+  `00_SYSTEME_CHANGELOG.txt` dans le même geste (voir
+  `00_PERENNISATION_DU_SYSTEME.txt` §6 et §12). Ce que ce garde-fou interdit,
+  c'est l'édition incidentelle — un seuil du moteur ou une variable d'env
+  ajustés au passage, sans que ce soit demandé ni tracé.
 - **Ne pas installer de dépendance** sans confirmation — l'absence de librairie
   UI tierce est un choix.
 - **Ne pas pousser directement sur `master`.**
