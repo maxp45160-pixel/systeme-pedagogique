@@ -1,26 +1,30 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { chargerContexte } from "@/lib/store/context";
 import { construireContexte } from "@/lib/tutor/contexte";
+import { choisirConfiguration, creerMoteur, decrireChoix } from "@/lib/tutor/moteurs";
 
 /**
- * Route du tuteur — appel à l'API Anthropic, réponse diffusée en flux.
+ * Route du tuteur — réponse diffusée en flux.
  *
- * Application locale mono-utilisateur : la clé reste côté serveur, dans
- * `.env.local` (déjà couvert par `.gitignore`). Sans clé configurée, la route
- * répond 503 et l'interface bascule d'elle-même en mode « copier le contexte »
- * — elle ne simule jamais une réponse.
+ * Cette route ne connaît aucun fournisseur : elle assemble le contexte, demande
+ * un moteur (ADR-007) et relaie ses événements. Changer de fournisseur est une
+ * variable d'environnement.
+ *
+ * Sans moteur configuré, elle répond 503 et l'interface bascule d'elle-même en
+ * mode « copier le contexte » — elle ne simule jamais une réponse.
  */
 
-const MODELE = "claude-opus-4-8";
-
 export async function POST(request: Request) {
-  const cle = process.env.ANTHROPIC_API_KEY;
-  if (!cle) {
+  const choix = choisirConfiguration(process.env);
+  const moteur = creerMoteur(choix);
+
+  if (!moteur) {
     return Response.json(
       {
-        erreur: "cle-absente",
+        erreur: "moteur-absent",
         message:
-          "Aucune clé ANTHROPIC_API_KEY n'est configurée. Utilise le mode « copier le contexte » ou ajoute la clé dans app/.env.local.",
+          choix.kind === "aucun"
+            ? `${choix.raison} Utilise le mode « copier le contexte » en attendant.`
+            : "Aucun moteur de tuteur disponible.",
       },
       { status: 503 },
     );
@@ -40,7 +44,6 @@ export async function POST(request: Request) {
 
   const ctx = await chargerContexte();
   const pedagogique = await construireContexte(ctx);
-  const client = new Anthropic({ apiKey: cle });
 
   const encodeur = new TextEncoder();
 
@@ -53,69 +56,12 @@ export async function POST(request: Request) {
       };
 
       try {
-        const stream = client.messages.stream({
-          model: MODELE,
-          max_tokens: 16000,
-          // Le raisonnement n'est pas diffusé à l'utilisateur : un tuteur qui
-          // expose sa démarche complète avant la tentative révèle la solution.
-          thinking: { type: "adaptive" },
-          output_config: { effort: "high" },
-          system: [
-            {
-              type: "text",
-              text: pedagogique.systemeStable,
-              // Les protocoles ne changent jamais : ils constituent le préfixe
-              // mis en cache. Le profil, variable, est placé après.
-              cache_control: { type: "ephemeral" },
-            },
-            { type: "text", text: pedagogique.systemeProfil },
-          ],
-          messages: messages.map((m) => ({ role: m.role, content: m.content })),
+        await moteur.repondre({
+          systemeStable: pedagogique.systemeStable,
+          systemeProfil: pedagogique.systemeProfil,
+          messages,
+          envoyer,
         });
-
-        stream.on("text", (delta) => envoyer("texte", { delta }));
-
-        const finale = await stream.finalMessage();
-
-        if (finale.stop_reason === "refusal") {
-          envoyer("refus", {
-            message:
-              "La demande a été déclinée par les garde-fous du modèle. Reformule-la ou aborde le sujet autrement.",
-            categorie: finale.stop_details?.category ?? null,
-          });
-        } else if (finale.stop_reason === "max_tokens") {
-          envoyer("tronque", {
-            message: "Réponse interrompue par la limite de longueur. Demande la suite si nécessaire.",
-          });
-        }
-
-        envoyer("fin", {
-          stopReason: finale.stop_reason,
-          usage: {
-            entree: finale.usage.input_tokens,
-            sortie: finale.usage.output_tokens,
-            cacheEcrit: finale.usage.cache_creation_input_tokens ?? 0,
-            cacheLu: finale.usage.cache_read_input_tokens ?? 0,
-          },
-        });
-      } catch (e) {
-        // Chaîne du plus spécifique au plus général, pour distinguer ce qui
-        // vaut la peine d'être réessayé de ce qui ne l'est pas.
-        let message = "Erreur inattendue lors de l'appel au tuteur.";
-        if (e instanceof Anthropic.AuthenticationError) {
-          message = "Clé API refusée. Vérifie ANTHROPIC_API_KEY dans app/.env.local.";
-        } else if (e instanceof Anthropic.NotFoundError) {
-          message = `Modèle introuvable (${MODELE}). Vérifie que ton compte y a accès.`;
-        } else if (e instanceof Anthropic.RateLimitError) {
-          message = "Limite de débit atteinte. Réessaie dans quelques instants.";
-        } else if (e instanceof Anthropic.APIConnectionError) {
-          message = "Connexion à l'API impossible. Vérifie ta connexion réseau.";
-        } else if (e instanceof Anthropic.APIError) {
-          message = `Erreur API ${e.status ?? ""} : ${e.message}`;
-        } else if (e instanceof Error) {
-          message = e.message;
-        }
-        envoyer("erreur", { message });
       } finally {
         controller.close();
       }
@@ -135,9 +81,13 @@ export async function POST(request: Request) {
 export async function GET() {
   const ctx = await chargerContexte();
   const pedagogique = await construireContexte(ctx);
+  const choix = choisirConfiguration(process.env);
+
   return Response.json({
-    cleConfiguree: Boolean(process.env.ANTHROPIC_API_KEY),
-    modele: MODELE,
+    // Conserve le nom historique du champ : l'interface s'en sert pour décider
+    // d'afficher le chat ou le repli « copier le contexte ».
+    cleConfiguree: choix.kind !== "aucun",
+    modele: decrireChoix(choix),
     manifeste: pedagogique.manifeste,
     caracteresTotal: pedagogique.caracteresTotal,
   });
