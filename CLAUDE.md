@@ -197,15 +197,16 @@ validés.
 - **Ne pas installer de dépendance** sans confirmation — l'absence de librairie
   UI tierce est un choix.
 - **Ne pas pousser directement sur `master`.**
-- **Ne pas « corriger » le widget de TODOs dev.** Le projet est développé à
-  deux ; la liste globale partagée entre comptes connectés
-  (`components/layout/dev-todo.tsx`, monté sans condition dans
-  `app/(app)/layout.tsx`) est **volontaire** — c'est l'outil de coordination de
-  l'équipe. À restreindre uniquement au moment de l'ouverture à des
-  utilisateurs tiers, et à ce moment-là côté RLS autant que côté rendu.
-  *(La base compte aujourd'hui 3 profils, dont un sans activité pédagogique :
-  la condition de réexamen est peut-être atteinte — question ouverte en
-  ADR-010, aucune action à prendre sans arbitrage.)*
+- **Ne pas remettre le widget de TODOs dev dans le produit** (ADR-019). Il vit
+  sur `/dev` (`components/dev/dev-todo.tsx`), hors du groupe `(app)`, et n'est
+  lié depuis aucun écran. Le projet est développé à deux : la liste globale
+  partagée entre comptes connectés est **volontaire**, c'est l'outil de
+  coordination de l'équipe, et elle ne se discute pas au titre de l'expérience
+  utilisateur. Ne pas non plus la « corriger » sans demande.
+  *(❓ La politique RLS reste `FOR ALL TO authenticated USING (true)` : tout
+  compte authentifié lit et modifie la liste, et la base compte 3 profils dont
+  un sans activité pédagogique. Question ouverte en ADR-019, aucune action à
+  prendre sans arbitrage.)*
 - **Ne pas construire par anticipation.** Un modèle de données sans besoin réel
   est de la complexité gratuite.
 - **Ne pas inventer de données.** Un écran non construit doit le dire.
