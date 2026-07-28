@@ -8,31 +8,14 @@ import { IconeFeuille } from "@/components/ui/icones";
 import { BasculeTheme } from "./bascule-theme";
 import { Compte, type EtatSession } from "./compte";
 
-export interface ResumeXp {
-  niveau: number;
-  nom: string;
-  xpTotal: number;
-  fraction: number;
-  xpDansPalier: number;
-  xpRequisPalier: number;
-  suivant: string | null;
-}
-
 function estActif(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function Sidebar({
-  xp,
-  session,
-}: {
-  xp: ResumeXp;
-  session: EtatSession;
-}) {
+export function Sidebar({ session }: { session: EtatSession }) {
   const pathname = usePathname();
   const surAccueil = pathname === "/";
-  const remplissage = Math.max(0, Math.min(1, xp.fraction)) * 100;
 
   return (
     // Rabat de carnet « forêt » : sombre et constant dans les deux thèmes, il
@@ -134,35 +117,6 @@ export function Sidebar({
           </ul>
         </div>
       </nav>
-
-      {/*
-        Progression du niveau : indicateur secondaire, en pied de rail. La
-        matrice de compétences reste l'information principale du système.
-      */}
-      <div className="border-t border-[var(--rail-bordure)] p-3">
-        <div className="rounded-xl border border-[var(--rail-bordure)] bg-[var(--rail-2)] px-3 py-2.5">
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="font-serif text-sm font-medium text-[var(--rail-texte)]">
-              Niveau {xp.niveau}
-            </span>
-            <span className="chiffres text-[0.6875rem] text-[var(--rail-texte-discret)]">
-              {xp.xpTotal} XP
-            </span>
-          </div>
-          <div className="mt-0.5 text-[0.625rem] text-[var(--rail-texte-discret)]">{xp.nom}</div>
-          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-black/25">
-            <div
-              className="h-full rounded-full bg-[var(--rail-actif)] transition-[width] duration-500"
-              style={{ width: `${remplissage}%` }}
-            />
-          </div>
-          <div className="mt-1.5 text-[0.625rem] text-[var(--rail-texte-discret)]">
-            {xp.suivant
-              ? `${xp.xpRequisPalier - xp.xpDansPalier} XP avant « ${xp.suivant} »`
-              : "Dernier palier atteint"}
-          </div>
-        </div>
-      </div>
 
       <Compte session={session} />
     </aside>

@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { computeSkillState, computeAllSkillStates } from "./skill-state";
 import { calculerEtatGlobal } from "./progression";
-import { deriverXP, totalXP, calculerNiveau } from "./xp";
 import { recommander } from "./recommend";
 import { SKILLS, SKILL_PAR_CODE, ORDRE_DIAGNOSTIC } from "@/lib/domain/referentiel";
 import type {
@@ -217,42 +216,12 @@ describe("score global — protocole d'évaluation §12", () => {
   });
 });
 
-describe("expérience — non-farmable par construction", () => {
-  it("aucun XP sans preuve : le journal vide ne produit rien", () => {
-    expect(totalXP(deriverXP([], [], []))).toBe(0);
-    expect(calculerNiveau(0).palier.niveau).toBe(1);
-    expect(calculerNiveau(0).palier.nom).toBe("Observateur");
-  });
-
-  it("chaque XP pointe vers une preuve identifiée", () => {
-    const preuves = [preuve({ jours: 5 }), preuve({ jours: 1, contexte: "B" })];
-    const evenements = deriverXP(preuves, [], []);
-    const idsPreuves = new Set(preuves.map((p) => p.id));
-    for (const e of evenements) {
-      expect(idsPreuves.has(e.sourceEvidenceId)).toBe(true);
-    }
-  });
-
-  it("une preuve en échec ou en autonomie nulle ne rapporte rien", () => {
-    expect(deriverXP([preuve({ resultat: "echec" })], [], [])).toHaveLength(0);
-    expect(deriverXP([preuve({ autonomie: "A0" })], [], [])).toHaveLength(0);
-  });
-
-  it("une même preuve ne produit qu'un seul événement d'XP", () => {
-    const p = preuve({ qualite: "forte", autonomie: "A4", type: "correction-erreur", dims: { transfert: 0.9 } });
-    const evenements = deriverXP([p], [], []);
-    expect(evenements).toHaveLength(1);
-  });
-
-  it("le total d'XP est déterministe : mêmes preuves, même résultat", () => {
-    const preuves = [
-      preuve({ jours: 40 }),
-      preuve({ jours: 20, contexte: "B" }),
-      preuve({ jours: 1, contexte: "C", qualite: "forte" }),
-    ];
-    expect(totalXP(deriverXP(preuves, [], []))).toBe(totalXP(deriverXP(preuves, [], [])));
-  });
-});
+/*
+ * Le bloc « expérience — non-farmable par construction » (5 tests) a été retiré
+ * le 28/07/2026 avec la mécanique d'XP elle-même (ADR-017). La garantie qu'il
+ * protégeait — un XP ne peut exister sans preuve source — n'a plus d'objet :
+ * ce n'est pas un garde-fou affaibli, c'est une mécanique supprimée.
+ */
 
 describe("recommandation — protocole d'évaluation §16", () => {
   it("au jour 0, recommande le premier diagnostic du plan d'évaluation initiale", () => {

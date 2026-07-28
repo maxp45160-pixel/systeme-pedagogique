@@ -1,4 +1,3 @@
-import { chargerContexte } from "@/lib/store/context";
 import { compteCourant } from "@/lib/supabase/server";
 import { supabaseConfigure } from "@/lib/supabase/config";
 import { Sidebar } from "@/components/layout/sidebar";
@@ -13,17 +12,7 @@ import { BasculeTheme } from "@/components/layout/bascule-theme";
  * celles qui n'en veulent pas (connexion, retour OAuth).
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const [{ xp }, compte] = await Promise.all([chargerContexte(), compteCourant()]);
-
-  const resumeXp = {
-    niveau: xp.palier.niveau,
-    nom: xp.palier.nom,
-    xpTotal: xp.xpTotal,
-    fraction: xp.fraction,
-    xpDansPalier: xp.xpDansPalier,
-    xpRequisPalier: xp.xpRequisPalier,
-    suivant: xp.suivant?.nom ?? null,
-  };
+  const compte = await compteCourant();
 
   const session = {
     configure: supabaseConfigure,
@@ -38,7 +27,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar xp={resumeXp} session={session} />
+      <Sidebar session={session} />
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Barre supérieure mobile : le nom du système et la bascule de thème. */}
@@ -48,12 +37,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               Système pédagogique
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="chiffres text-[0.6875rem] text-texte-discret">
-              N{resumeXp.niveau} · {resumeXp.xpTotal} XP
-            </span>
-            <BasculeTheme />
-          </div>
+          <BasculeTheme />
         </div>
 
         <main className="flex-1 px-4 pb-20 pt-5 sm:px-6 lg:px-8 lg:pb-10">

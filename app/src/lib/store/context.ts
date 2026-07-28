@@ -15,18 +15,14 @@ import { lireTout } from "./db";
 import { EXERCICES_DIAGNOSTIC } from "@/lib/seed/exercises";
 import { computeAllSkillStates } from "@/lib/engine/skill-state";
 import { calculerEtatGlobal, type EtatGlobal } from "@/lib/engine/progression";
-import { calculerNiveau, deriverBadges, deriverXP, totalXP, type BadgeObtenu, type EtatNiveau } from "@/lib/engine/xp";
 import { recommander, type Recommandation } from "@/lib/engine/recommend";
-import type { SkillState, XPEvent } from "@/lib/domain/types";
+import type { SkillState } from "@/lib/domain/types";
 
 export interface Contexte {
   donnees: Collections;
   etats: SkillState[];
   etatsParCode: Map<string, SkillState>;
   global: EtatGlobal;
-  xpEvents: XPEvent[];
-  xp: EtatNiveau;
-  badges: BadgeObtenu[];
   recommandations: Recommandation[];
   now: Date;
 }
@@ -57,18 +53,6 @@ export async function chargerContexte(): Promise<Contexte> {
   const etats = computeAllSkillStates(SKILLS, donnees.evidence, erreursParSkill, now);
   const global = calculerEtatGlobal(etats, now);
 
-  const xpEvents = deriverXP(donnees.evidence, donnees.exercises, donnees.projects);
-  const xp = calculerNiveau(totalXP(xpEvents));
-
-  const erreursCorrigees = donnees.errors
-    .filter((e) => e.statut === "corrigee" || e.statut === "consolidee")
-    .map((e) => ({
-      id: e.id,
-      concept: e.concept,
-      date: e.occurrences.at(-1)?.date ?? now.toISOString(),
-    }));
-  const badges = deriverBadges(donnees.evidence, donnees.projects, erreursCorrigees);
-
   const recommandations = recommander(
     etats,
     donnees.exercises,
@@ -82,9 +66,6 @@ export async function chargerContexte(): Promise<Contexte> {
     etats,
     etatsParCode: new Map(etats.map((e) => [e.skill.code, e])),
     global,
-    xpEvents,
-    xp,
-    badges,
     recommandations,
     now,
   };

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { chargerContexte } from "@/lib/store/context";
 import { calculerActivite, evenementsRecents } from "@/lib/engine/historique";
 import { EntetePage } from "@/components/layout/entete-page";
@@ -7,7 +6,6 @@ import { CarteProchaineAction } from "@/components/dashboard/prochaine-action";
 import { CarteProgressionRecente } from "@/components/dashboard/progression-recente";
 import { CarteObjectifs } from "@/components/dashboard/objectifs";
 import { CarteActivite } from "@/components/dashboard/activite";
-import { Carte, EnTeteCarte, Etiquette } from "@/components/ui/primitives";
 
 export default async function TableauDeBord() {
   const ctx = await chargerContexte();
@@ -75,62 +73,11 @@ export default async function TableauDeBord() {
             <CarteProgressionRecente evenements={evenements} />
           </div>
 
-          <div className="lg:col-span-1">
-            <CarteBadges badges={ctx.badges} />
-          </div>
-
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-3">
             <CarteActivite activite={activite} now={ctx.now} />
           </div>
         </div>
       </section>
     </>
-  );
-}
-
-/**
- * Badges obtenus. Rares par construction : six accomplissements seulement,
- * chacun adossé à une preuve identifiée. Un badge sans source ne peut pas
- * exister dans ce système.
- */
-function CarteBadges({
-  badges,
-}: {
-  badges: { badge: { titre: string; description: string }; date: string; source: string }[];
-}) {
-  return (
-    <Carte>
-      <EnTeteCarte
-        titre="Jalons"
-        legende={badges.length === 0 ? "Six jalons possibles" : `${badges.length} obtenu(s)`}
-      />
-      <div className="px-4 py-3">
-        {badges.length === 0 ? (
-          <p className="text-xs text-texte-attenue">
-            Les jalons marquent des premières fois qui comptent : première résolution autonome,
-            première modélisation, premier transfert. Ils apparaîtront quand une preuve les
-            justifiera.
-          </p>
-        ) : (
-          <ul className="space-y-2.5">
-            {badges.map((b, i) => (
-              <li key={i}>
-                <div className="flex items-baseline gap-2">
-                  <Etiquette ton="succes">✓</Etiquette>
-                  <span className="text-xs font-medium">{b.badge.titre}</span>
-                </div>
-                <p className="mt-0.5 pl-1 text-[0.6875rem] text-texte-discret">{b.source}</p>
-              </li>
-            ))}
-          </ul>
-        )}
-        <Link
-          href="/progression"
-          className="mt-3 inline-block text-xs text-primaire hover:underline"
-        >
-          Voir la progression détaillée
-        </Link>
-      </div>
-    </Carte>
   );
 }

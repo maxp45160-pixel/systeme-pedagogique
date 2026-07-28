@@ -71,7 +71,6 @@ function serialiserProfil(ctx: Contexte): string {
   lignes.push(
     `Couverture : ${ctx.global.competencesEvaluees}/${ctx.global.competencesTotal} compétences évaluées · ${ctx.global.nombrePreuves} preuve(s) directe(s)`,
   );
-  lignes.push(`Niveau global (gamification, secondaire) : ${ctx.xp.palier.niveau} — ${ctx.xp.palier.nom}`);
   lignes.push("");
 
   const prefs = ctx.donnees.user.preferencesPedagogiques ?? [];

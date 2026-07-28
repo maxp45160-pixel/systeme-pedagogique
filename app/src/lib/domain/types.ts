@@ -10,7 +10,7 @@
  *
  * Règle structurante : rien de ce qui est *dérivable* n'est stocké.
  * Le disque ne contient que des faits observés (preuves, tentatives,
- * sessions). Niveaux, scores, XP, badges sont recalculés à la lecture
+ * sessions). Niveaux et scores sont recalculés à la lecture
  * par `lib/engine/`.
  */
 
@@ -354,74 +354,6 @@ export interface LearningSession {
   genereAutomatiquement: boolean;
 }
 
-export interface QuestStep {
-  id: string;
-  libelle: string;
-  /** Condition vérifiable sur les preuves — jamais cochée à la main. */
-  condition:
-    | { kind: "niveau-min"; niveau: NiveauCompetence }
-    | { kind: "preuve-type"; type: SkillEvidence["type"] }
-    | { kind: "autonomie-min"; autonomie: Autonomie }
-    | { kind: "contextes-distincts"; nombre: number };
-}
-
-export interface Quest {
-  id: string;
-  titre: string;
-  skillCode: string;
-  etapes: QuestStep[];
-  recompenseXp: number;
-}
-
-export type BadgeId =
-  | "premiere-modelisation"
-  | "premiere-simulation"
-  | "premier-transfert"
-  | "premiere-resolution-autonome"
-  | "erreur-corrigee"
-  | "projet-termine";
-
-export interface Badge {
-  id: BadgeId;
-  titre: string;
-  description: string;
-  /** Condition évaluée sur le journal de preuves. */
-  critere: string;
-}
-
-/** Barème fourni par l'utilisateur. Émis uniquement en projection d'événements. */
-export type MotifXp =
-  | "exercice-termine"
-  | "exercice-difficile"
-  | "erreur-corrigee"
-  | "probleme-nouveau"
-  | "projet-termine"
-  | "transfert"
-  | "maintien";
-
-export const BAREME_XP: Record<MotifXp, { valeur: number; libelle: string }> = {
-  "exercice-termine": { valeur: 10, libelle: "Exercice terminé" },
-  "exercice-difficile": { valeur: 25, libelle: "Exercice difficile réussi" },
-  "erreur-corrigee": { valeur: 30, libelle: "Erreur récurrente corrigée" },
-  "probleme-nouveau": { valeur: 40, libelle: "Problème nouveau résolu" },
-  transfert: { valeur: 50, libelle: "Transfert de compétence démontré" },
-  "projet-termine": { valeur: 100, libelle: "Projet terminé" },
-  maintien: { valeur: 15, libelle: "Compétence maintenue dans le temps" },
-};
-
-/**
- * Événement d'expérience. Toujours dérivé d'une preuve : `sourceEvidenceId`
- * est obligatoire, ce qui rend le farming structurellement impossible.
- */
-export interface XPEvent {
-  id: string;
-  date: string;
-  motif: MotifXp;
-  valeur: number;
-  skillCode?: string;
-  sourceEvidenceId: string;
-}
-
 /** Photographie périodique, pour tracer l'évolution sans recalculer le passé. */
 export interface ProgressSnapshot {
   date: string;
@@ -429,7 +361,6 @@ export interface ProgressSnapshot {
   confianceGlobale: Confiance;
   nombrePreuves: number;
   competencesEvaluees: number;
-  xpTotal: number;
   parDomaine: Record<DomaineId, { score: number | null; preuves: number }>;
 }
 

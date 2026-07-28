@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/primitives";
 import { Courbe, GrilleActivite, LegendeActivite } from "@/components/charts";
 import { formatDuree } from "@/lib/engine/dates";
-import { PALIERS } from "@/lib/engine/xp";
 
 const PERIODES = [
   { cle: "semaine", libelle: "Cette semaine", jours: 7, pas: 1 },
@@ -279,50 +278,6 @@ export default async function PageProgression(props: {
               </div>
             </Carte>
 
-            <Carte>
-              <EnTeteCarte
-                titre="Expérience et jalons"
-                legende="Indicateur secondaire — dérivé des preuves, jamais de l'activité"
-              />
-              <div className="px-4 py-4">
-                <div className="flex flex-wrap gap-x-8 gap-y-4">
-                  <Statistique
-                    libelle="Niveau global"
-                    valeur={`${ctx.xp.palier.niveau} · ${ctx.xp.palier.nom}`}
-                    precision={
-                      ctx.xp.suivant
-                        ? `${ctx.xp.xpRequisPalier - ctx.xp.xpDansPalier} XP avant « ${ctx.xp.suivant.nom} »`
-                        : "dernier palier"
-                    }
-                  />
-                  <Statistique libelle="XP cumulés" valeur={ctx.xp.xpTotal} />
-                  <Statistique
-                    libelle="Jalons obtenus"
-                    valeur={`${ctx.badges.length}/6`}
-                  />
-                </div>
-
-                <ul className="mt-4 space-y-1">
-                  {PALIERS.map((p) => (
-                    <li
-                      key={p.niveau}
-                      className={cx(
-                        "flex items-baseline justify-between gap-2 text-xs",
-                        p.niveau === ctx.xp.palier.niveau
-                          ? "font-medium"
-                          : "text-texte-discret",
-                      )}
-                    >
-                      <span>
-                        {p.niveau === ctx.xp.palier.niveau && "→ "}
-                        Niveau {p.niveau} · {p.nom}
-                      </span>
-                      <span className="chiffres">{p.seuil} XP</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </Carte>
           </div>
 
           {/* --------------------------- Régularité ------------------------ */}
