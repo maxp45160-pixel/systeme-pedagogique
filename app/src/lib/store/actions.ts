@@ -11,6 +11,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ajouter, lire, nouvelId, remplacer } from "./db";
+import {
+  autonomieDepuisIndices,
+  qualiteDepuisDifficulte,
+  qualiteDepuisNature,
+} from "@/lib/engine/preuve";
 import type {
   Autonomie,
   Difficulte,
@@ -19,7 +24,6 @@ import type {
   Exercise,
   ExerciseAttempt,
   LearningSession,
-  QualitePreuve,
   SkillEvidence,
   TypeExercice,
 } from "@/lib/domain/types";
@@ -63,24 +67,6 @@ export async function enregistrerReponse(
 ): Promise<void> {
   await remplacer("attempts", attemptId, (t) => ({ ...t, reponse }));
   revalidatePath(`/exercices/${exerciseId}`);
-}
-
-/**
- * Déduit l'autonomie du nombre d'indices réellement consultés.
- * L'utilisateur ne la choisit pas : elle est observée, pas déclarée.
- */
-function autonomieDepuisIndices(indices: number, total: number): Autonomie {
-  if (total > 0 && indices >= total) return "A1";
-  if (indices >= 2) return "A2";
-  if (indices === 1) return "A2";
-  return "A3";
-}
-
-function qualiteDepuisDifficulte(difficulte: number, autonomie: Autonomie): QualitePreuve {
-  if (autonomie === "A0" || autonomie === "A1") return "faible";
-  if (difficulte >= 4 && (autonomie === "A3" || autonomie === "A4")) return "forte";
-  if (difficulte <= 1) return "faible";
-  return "moyenne";
 }
 
 export interface SoumissionExercice {
@@ -191,7 +177,6 @@ export interface SoumissionPreuveManuelle {
   type: SkillEvidence["type"];
   niveauPreuve: "A" | "B";
   autonomie: Autonomie;
-  qualite: QualitePreuve;
   resultat: "reussi" | "partiel" | "echec";
   contexte: string;
   dimensions: Partial<Record<Dimension, number>>;
@@ -209,6 +194,7 @@ export interface SoumissionPreuveManuelle {
  * simplement omises (jamais un 0 par défaut).
  * L'autonomie est ici DÉCLARÉE, pas déduite (§1.1 de la spec) : le commentaire
  * stocké le signale toujours, pour que la distinction reste visible en aval.
+ * La qualité, elle, n'est plus déclarée : elle se dérive (§6).
  */
 export async function enregistrerPreuveManuelle(
   soumission: SoumissionPreuveManuelle,
@@ -229,7 +215,7 @@ export async function enregistrerPreuveManuelle(
     type: soumission.type,
     niveauPreuve: soumission.niveauPreuve,
     autonomie: soumission.autonomie,
-    qualite: soumission.qualite,
+    qualite: qualiteDepuisNature(soumission.type, soumission.autonomie),
     resultat: soumission.resultat,
     contexte: soumission.contexte.trim(),
     dimensions: soumission.dimensions,

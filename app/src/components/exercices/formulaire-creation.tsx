@@ -4,18 +4,26 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Difficulte, Dimension, DomaineId, TypeExercice } from "@/lib/domain/types";
 import { DIFFICULTES, LIBELLES_DIMENSIONS } from "@/lib/domain/types";
-import { DOMAINES } from "@/lib/domain/referentiel";
+import { DOMAINES, DOMAINE_PILOTE } from "@/lib/domain/referentiel";
 import { creerExercice } from "@/lib/store/actions";
 import { CLE_PROPOSITION_EXERCICE, type PropositionExercice } from "@/lib/tutor/proposition";
 import { classesBouton, cx, Etiquette } from "@/components/ui/primitives";
 
 /**
- * Création d'un exercice — saisie manuelle, ou pré-remplissage depuis une
- * proposition du tuteur (ADR-004). Jamais `diagnostic: true` (§1.4) : le champ
- * reste réservé aux exercices du plan d'évaluation initiale.
+ * Validation d'un exercice proposé par le tuteur.
+ *
+ * Ce n'est plus un formulaire de saisie vierge (28/07/2026) : ADR-004 dit que
+ * le contenu pédagogique vient du tuteur, et zéro exercice avait été créé à la
+ * main depuis l'ouverture du produit. Onze champs offerts et jamais employés
+ * sont une charge de décision sans contrepartie ; les champs ne s'affichent
+ * donc qu'une fois une proposition chargée, pour être **relus et corrigés**.
  *
  * Le tuteur n'écrit jamais lui-même (P5) : il remplit ce formulaire, et c'est
- * la validation de l'utilisateur qui déclenche l'écriture.
+ * la validation de l'utilisateur qui déclenche l'écriture. Jamais
+ * `diagnostic: true` (§1.4) : le champ reste réservé aux exercices du plan
+ * d'évaluation initiale.
+ *
+ * Le domaine n'est plus un choix : il découle du périmètre actif (ADR-018).
  */
 
 const TYPES: { valeur: TypeExercice; libelle: string }[] = [
@@ -76,7 +84,6 @@ export function FormulaireCreationExercice({
 }) {
   const router = useRouter();
   const [titre, setTitre] = useState("");
-  const [domaine, setDomaine] = useState<DomaineId>(DOMAINES[0].id);
   const [type, setType] = useState<TypeExercice>("probleme");
   const [difficulte, setDifficulte] = useState<Difficulte>(2);
   const [competences, setCompetences] = useState<string[]>([]);
@@ -133,9 +140,11 @@ export function FormulaireCreationExercice({
     if (p.enonce) setEnonce(p.enonce);
     if (p.correction) setCorrection(p.correction);
 
-    const d = versDomaine(p.domaine);
-    if (d) setDomaine(d);
-    else if (p.domaine) ecartes.push(`domaine « ${p.domaine} »`);
+    // Le domaine proposé n'est pas repris : il est imposé par le périmètre
+    // actif. On le signale si le tuteur s'en est écarté.
+    if (p.domaine && versDomaine(p.domaine) !== DOMAINE_PILOTE) {
+      ecartes.push(`domaine « ${p.domaine} », hors périmètre`);
+    }
 
     const t = versType(p.type);
     if (t) setType(t);
@@ -184,7 +193,7 @@ export function FormulaireCreationExercice({
       try {
         const id = await creerExercice({
           titre,
-          domaine,
+          domaine: DOMAINE_PILOTE,
           type,
           difficulte,
           competences,
@@ -202,27 +211,40 @@ export function FormulaireCreationExercice({
     });
   }
 
+  // Tant qu'aucune proposition n'a été chargée, il n'y a rien à corriger :
+  // l'écran renvoie au tuteur au lieu d'ouvrir dix champs vides.
+  if (origine === "manuel") {
+    return (
+      <div className="space-y-3 text-xs">
+        {propositionEnAttente ? (
+          <div className="rounded-md border border-primaire/30 bg-surface-2 px-3 py-2">
+            <p className="text-texte-attenue">
+              {propositionPerdue
+                ? "La proposition n'est plus disponible — elle a peut-être déjà été chargée, ou l'onglet a été rouvert. Retourne au tuteur et clique à nouveau sur « Revoir et ajouter »."
+                : "Le tuteur a proposé un exercice. Rien n'a été enregistré : charge-le pour le relire et le corriger avant de valider."}
+            </p>
+            {!propositionPerdue && (
+              <button
+                type="button"
+                onClick={chargerProposition}
+                className={cx(classesBouton("principal", "petite"), "mt-2")}
+              >
+                Relire la proposition du tuteur
+              </button>
+            )}
+          </div>
+        ) : (
+          <p className="text-texte-attenue">
+            Les exercices viennent du tuteur : demande-lui-en un, relis-le, puis valide-le
+            ici. Aucun énoncé n&apos;est écrit sans que tu l&apos;aies lu.
+          </p>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      {propositionEnAttente && origine === "manuel" && (
-        <div className="rounded-md border border-primaire/30 bg-surface-2 px-3 py-2 text-xs">
-          <p className="text-texte-attenue">
-            {propositionPerdue
-              ? "La proposition n'est plus disponible — elle a peut-être déjà été chargée, ou l'onglet a été rouvert. Retourne au tuteur et clique à nouveau sur « Revoir et ajouter »."
-              : "Le tuteur a proposé un exercice. Rien n'a été enregistré : charge-le pour le relire et le corriger avant de valider."}
-          </p>
-          {!propositionPerdue && (
-            <button
-              type="button"
-              onClick={chargerProposition}
-              className={cx(classesBouton("secondaire", "petite"), "mt-2")}
-            >
-              Remplir depuis la proposition du tuteur
-            </button>
-          )}
-        </div>
-      )}
-
       {origine === "tuteur" && (
         <div className="rounded-md border border-info/30 bg-info-faible px-3 py-2 text-xs">
           <div className="flex flex-wrap items-center gap-2">
@@ -251,21 +273,6 @@ export function FormulaireCreationExercice({
       </label>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block">
-          <span className="text-xs font-medium">Domaine</span>
-          <select
-            value={domaine}
-            onChange={(e) => setDomaine(e.target.value as DomaineId)}
-            className={champ}
-          >
-            {DOMAINES.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.nom}
-              </option>
-            ))}
-          </select>
-        </label>
-
         <label className="block">
           <span className="text-xs font-medium">Type</span>
           <select

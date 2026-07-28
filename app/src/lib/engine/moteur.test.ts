@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { computeSkillState, computeAllSkillStates } from "./skill-state";
 import { calculerEtatGlobal } from "./progression";
 import { recommander } from "./recommend";
+import { autonomieDepuisIndices, qualiteDepuisNature } from "./preuve";
 import {
   DOMAINE_PILOTE,
   ORDRE_DIAGNOSTIC,
@@ -184,6 +185,52 @@ describe("récence — protocole d'évaluation §7", () => {
     expect(a.niveau).toBe(r.niveau);
     expect(a.robustesse!).toBeLessThan(r.robustesse!);
     expect(a.explication.reserves.join(" ")).toContain("Dernière preuve il y a");
+  });
+});
+
+describe("qualité dérivée — protocole d'évaluation §6", () => {
+  it("un travail fortement guidé vaut une preuve faible, quel qu'en soit le type", () => {
+    expect(qualiteDepuisNature("transfert", "A0")).toBe("faible");
+    expect(qualiteDepuisNature("transfert", "A1")).toBe("faible");
+    expect(qualiteDepuisNature("exercice", "A1")).toBe("faible");
+  });
+
+  it("un transfert ou un projet mené en autonomie vaut une preuve forte", () => {
+    expect(qualiteDepuisNature("transfert", "A3")).toBe("forte");
+    expect(qualiteDepuisNature("projet", "A4")).toBe("forte");
+  });
+
+  it("tout le reste vaut une preuve moyenne", () => {
+    for (const t of ["exercice", "calcul", "code", "etude-de-cas", "explication"] as const) {
+      expect(qualiteDepuisNature(t, "A3")).toBe("moyenne");
+    }
+  });
+
+  it("est une fonction pure : mêmes entrées, même résultat", () => {
+    expect(qualiteDepuisNature("calcul", "A2")).toBe(qualiteDepuisNature("calcul", "A2"));
+  });
+});
+
+describe("autonomie observée — protocole d'évaluation §5", () => {
+  it("aucun indice consulté vaut une résolution autonome", () => {
+    expect(autonomieDepuisIndices(0, 3)).toBe("A3");
+    expect(autonomieDepuisIndices(0, 0)).toBe("A3");
+  });
+
+  it("tous les indices consultés valent un accompagnement fort", () => {
+    expect(autonomieDepuisIndices(3, 3)).toBe("A1");
+    expect(autonomieDepuisIndices(4, 3)).toBe("A1");
+  });
+
+  it("un ou plusieurs indices sans les épuiser valent un accompagnement partiel", () => {
+    expect(autonomieDepuisIndices(1, 3)).toBe("A2");
+    expect(autonomieDepuisIndices(2, 3)).toBe("A2");
+  });
+
+  it("un exercice sans indice disponible ne peut pas dégrader l'autonomie", () => {
+    // `total = 0` : la condition « tous les indices consultés » ne doit pas se
+    // déclencher par un 0 >= 0 fortuit.
+    expect(autonomieDepuisIndices(0, 0)).toBe("A3");
   });
 });
 

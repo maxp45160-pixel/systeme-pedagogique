@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { chargerContexte } from "@/lib/store/context";
-import { DOMAINES, libelleDomaine } from "@/lib/domain/referentiel";
-import { DIFFICULTES, type Exercise, type TypeExercice } from "@/lib/domain/types";
+import { libelleDomaine } from "@/lib/domain/referentiel";
+import type { Exercise, TypeExercice } from "@/lib/domain/types";
 import { EntetePage } from "@/components/layout/entete-page";
 import {
   Carte,
@@ -28,12 +28,8 @@ const TYPES: { cle: TypeExercice; libelle: string }[] = [
 type Statut = "tous" | "a-faire" | "en-cours" | "termine";
 
 interface Filtres {
-  domaine?: string;
-  difficulte?: string;
   competence?: string;
   statut?: string;
-  duree?: string;
-  type?: string;
 }
 
 export default async function PageExercices(props: {
@@ -60,12 +56,7 @@ export default async function PageExercices(props: {
   };
 
   let exercices = ctx.donnees.exercises;
-  if (f.domaine) exercices = exercices.filter((e) => e.domaine === f.domaine);
-  if (f.type) exercices = exercices.filter((e) => e.type === f.type);
   if (f.competence) exercices = exercices.filter((e) => e.competences.includes(f.competence!));
-  if (f.difficulte) exercices = exercices.filter((e) => String(e.difficulte) === f.difficulte);
-  if (f.duree === "court") exercices = exercices.filter((e) => e.dureeEstimeeMin <= 25);
-  if (f.duree === "long") exercices = exercices.filter((e) => e.dureeEstimeeMin > 25);
   if (f.statut && f.statut !== "tous") exercices = exercices.filter((e) => statutDe(e) === f.statut);
 
   const lien = (maj: Partial<Filtres>) => {
@@ -92,9 +83,8 @@ export default async function PageExercices(props: {
           <Depliant resume="Ajouter un exercice" ouvertParDefaut={Boolean(proposition)}>
             <div className="mt-3">
               <p className="mb-4 max-w-2xl text-xs text-texte-attenue">
-                Pour ajouter un exercice à ta bibliothèque — saisi à la main, ou proposé par le
-                tuteur depuis la conversation. Il apparaîtra dans la liste et pourra être commencé
-                comme les diagnostics.
+                Un exercice validé rejoint la bibliothèque et se travaille comme les
+                diagnostics.
               </p>
               <FormulaireCreationExercice
                 propositionEnAttente={Boolean(proposition)}
@@ -108,58 +98,15 @@ export default async function PageExercices(props: {
         </div>
       </Carte>
 
-      {/* Filtres — une ligne de contrôles au-dessus de la liste. */}
+      {/*
+        Un seul axe de filtrage : le statut. Les cinq familles précédentes
+        (domaine, type, difficulté, durée, compétence) offraient ~5 000
+        combinaisons pour une bibliothèque qui en compte une poignée — trier
+        coûtait plus cher que lire la liste entière. Elles reviendront quand le
+        stock le justifiera, pas avant.
+      */}
       <Carte className="mb-4">
-        <div className="space-y-2.5 px-4 py-3">
-          <LigneFiltre libelle="Domaine">
-            <Puce href={lien({ domaine: undefined })} actif={!f.domaine}>
-              Tous
-            </Puce>
-            {DOMAINES.map((d) => (
-              <Puce key={d.id} href={lien({ domaine: d.id })} actif={f.domaine === d.id}>
-                {d.nom}
-              </Puce>
-            ))}
-          </LigneFiltre>
-
-          <LigneFiltre libelle="Type">
-            <Puce href={lien({ type: undefined })} actif={!f.type}>
-              Tous
-            </Puce>
-            {TYPES.filter((t) => ctx.donnees.exercises.some((e) => e.type === t.cle)).map((t) => (
-              <Puce key={t.cle} href={lien({ type: t.cle })} actif={f.type === t.cle}>
-                {t.libelle}
-              </Puce>
-            ))}
-          </LigneFiltre>
-
-          <LigneFiltre libelle="Difficulté">
-            <Puce href={lien({ difficulte: undefined })} actif={!f.difficulte}>
-              Toutes
-            </Puce>
-            {[1, 2, 3, 4, 5].map((n) => (
-              <Puce
-                key={n}
-                href={lien({ difficulte: String(n) })}
-                actif={f.difficulte === String(n)}
-              >
-                {n} · {DIFFICULTES[n as 1]}
-              </Puce>
-            ))}
-          </LigneFiltre>
-
-          <LigneFiltre libelle="Durée">
-            <Puce href={lien({ duree: undefined })} actif={!f.duree}>
-              Toutes
-            </Puce>
-            <Puce href={lien({ duree: "court" })} actif={f.duree === "court"}>
-              ≤ 25 min
-            </Puce>
-            <Puce href={lien({ duree: "long" })} actif={f.duree === "long"}>
-              &gt; 25 min
-            </Puce>
-          </LigneFiltre>
-
+        <div className="px-4 py-3">
           <LigneFiltre libelle="Statut">
             {(["tous", "a-faire", "en-cours", "termine"] as Statut[]).map((s) => (
               <Puce
@@ -179,18 +126,12 @@ export default async function PageExercices(props: {
           </LigneFiltre>
 
           {f.competence && (
-            <LigneFiltre libelle="Compétence">
-              <Puce href={lien({ competence: undefined })} actif={false}>
-                {f.competence} ✕
-              </Puce>
-            </LigneFiltre>
-          )}
-
-          {!aucunFiltre && (
-            <div className="pt-1">
-              <Link href="/exercices" className="text-xs text-primaire hover:underline">
-                Réinitialiser les filtres
-              </Link>
+            <div className="mt-2.5">
+              <LigneFiltre libelle="Compétence">
+                <Puce href={lien({ competence: undefined })} actif={false}>
+                  {f.competence} ✕
+                </Puce>
+              </LigneFiltre>
             </div>
           )}
         </div>

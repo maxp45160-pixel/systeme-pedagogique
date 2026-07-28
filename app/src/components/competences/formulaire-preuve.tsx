@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import type { Autonomie, Dimension, QualitePreuve, SkillEvidence } from "@/lib/domain/types";
-import { AUTONOMIE, LIBELLES_DIMENSIONS, QUALITE_PREUVE } from "@/lib/domain/types";
+import type { Autonomie, Dimension, SkillEvidence } from "@/lib/domain/types";
+import { AUTONOMIE, LIBELLES_DIMENSIONS } from "@/lib/domain/types";
 import { enregistrerPreuveManuelle } from "@/lib/store/actions";
 import { classesBouton, cx } from "@/components/ui/primitives";
 
@@ -33,7 +33,6 @@ const TYPES: { valeur: SkillEvidence["type"]; libelle: string }[] = [
 ];
 
 const AUTONOMIES: Autonomie[] = ["A0", "A1", "A2", "A3", "A4"];
-const QUALITES: QualitePreuve[] = ["faible", "moyenne", "forte"];
 const DIMENSIONS: Dimension[] = [
   "comprehension",
   "application",
@@ -68,11 +67,11 @@ export function FormulairePreuveManuelle({
 }) {
   const [resultat, setResultat] = useState<"reussi" | "partiel" | "echec">("reussi");
   const [type, setType] = useState<SkillEvidence["type"]>(valeursInitiales?.type ?? "exercice");
-  const [niveauPreuve, setNiveauPreuve] = useState<"A" | "B">(
-    valeursInitiales?.niveauPreuve ?? "A",
-  );
+  // Plus un choix : une preuve saisie ici porte sur un travail que l'utilisateur
+  // a fait lui-même, donc directe (A). Seule une proposition venue du tuteur
+  // arrive en B, et ce n'est pas à l'utilisateur de la requalifier.
+  const [niveauPreuve] = useState<"A" | "B">(valeursInitiales?.niveauPreuve ?? "A");
   const [autonomie, setAutonomie] = useState<Autonomie>("A3");
-  const [qualite, setQualite] = useState<QualitePreuve>("moyenne");
   const [dims, setDims] = useState<Partial<Record<Dimension, number>>>({});
   const [contexte, setContexte] = useState(valeursInitiales?.contexte ?? "");
   const [combinees, setCombinees] = useState<string[]>([]);
@@ -95,7 +94,6 @@ export function FormulairePreuveManuelle({
           type,
           niveauPreuve,
           autonomie,
-          qualite,
           resultat,
           contexte,
           dimensions: dims,
@@ -146,68 +144,20 @@ export function FormulairePreuveManuelle({
         </div>
       </div>
 
-      {/* Type + Qualité */}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block">
-          <span className="text-xs font-medium">Type de preuve</span>
-          <select
-            value={type}
-            onChange={(e) => setType(e.target.value as SkillEvidence["type"])}
-            className="mt-1 w-full rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm focus:border-primaire focus:outline-none"
-          >
-            {TYPES.map((t) => (
-              <option key={t.valeur} value={t.valeur}>
-                {t.libelle}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="block">
-          <span className="text-xs font-medium">Qualité de la preuve</span>
-          <select
-            value={qualite}
-            onChange={(e) => setQualite(e.target.value as QualitePreuve)}
-            className="mt-1 w-full rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm focus:border-primaire focus:outline-none"
-          >
-            {QUALITES.map((q) => (
-              <option key={q} value={q}>
-                {q.charAt(0).toUpperCase() + q.slice(1)} — {QUALITE_PREUVE[q].libelle}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      {/* Niveau de preuve A/B */}
-      <div>
-        <div className="mb-2 text-xs font-medium">Niveau de preuve</div>
-        <div className="grid gap-1.5 sm:grid-cols-2">
-          {(
-            [
-              { v: "A", titre: "A — preuve directe", aide: "Tu as toi-même fait ou vécu l'action décrite." },
-              { v: "B", titre: "B — preuve indirecte", aide: "Tu rapportes une observation relayée (tuteur, un tiers)." },
-            ] as const
-          ).map((o) => (
-            <button
-              key={o.v}
-              type="button"
-              onClick={() => setNiveauPreuve(o.v)}
-              className={cx(
-                "rounded-md border px-3 py-2 text-left transition-colors",
-                niveauPreuve === o.v
-                  ? "border-primaire/40 bg-primaire-faible"
-                  : "border-bordure hover:bg-surface-2",
-              )}
-            >
-              <div className={cx("text-xs font-medium", niveauPreuve === o.v && "text-primaire")}>
-                {o.titre}
-              </div>
-              <div className="mt-0.5 text-[0.625rem] text-texte-discret">{o.aide}</div>
-            </button>
+      <label className="block">
+        <span className="text-xs font-medium">Type de preuve</span>
+        <select
+          value={type}
+          onChange={(e) => setType(e.target.value as SkillEvidence["type"])}
+          className="mt-1 w-full rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm focus:border-primaire focus:outline-none"
+        >
+          {TYPES.map((t) => (
+            <option key={t.valeur} value={t.valeur}>
+              {t.libelle}
+            </option>
           ))}
-        </div>
-      </div>
+        </select>
+      </label>
 
       {/* Autonomie déclarée */}
       <div>
