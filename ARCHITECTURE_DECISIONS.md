@@ -14,7 +14,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | # | Sujet | Statut |
 |---|---|---|
 | [001](#adr-001) | Séparation observé / dérivé, moteur pur | ✅ Acceptée |
-| [002](#adr-002) | Deux dorsales exclusives, jamais synchronisées | ✅ Acceptée |
+| [002](#adr-002) | Deux dorsales exclusives, jamais synchronisées | 🔄 Remplacée par ADR-015 |
 | [003](#adr-003) | Aucune librairie UI tierce | ✅ Acceptée |
 | [004](#adr-004) | Le contenu pédagogique vient du tuteur | ✅ Acceptée (27/07) |
 | [005](#adr-005) | Le moteur de recommandation est aujourd'hui une file d'attente | 🔬 Hypothèse |
@@ -22,9 +22,16 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [007](#adr-007) | Tuteur intégré, moteur configurable | ✅ Acceptée (27/07) |
 | [008](#adr-008) | L'autonomie mesurée ignore l'aide externe | ❓ Ouverte |
 | [009](#adr-009) | Généralisation du référentiel | ❓ Ouverte, reportée |
-| [010](#adr-010) | Widget de TODOs dev partagé entre comptes | ✅ Acceptée, réexamen déclenché |
+| [010](#adr-010) | Widget de TODOs dev partagé entre comptes | 🔄 Remplacée par ADR-019 |
 | [011](#adr-011) | Conservation de l'objet `Exercise` | ❓ Ouverte |
 | [012](#adr-012) | Schéma SQL idempotent sans outil de migration | ✅ Acceptée, fragile |
+| [013](#adr-013) | **La boucle est le produit** — cadrage du chantier soustractif | ✅ Acceptée (28/07) |
+| [014](#adr-014) | Suppression des six entités sans usage | ✅ Acceptée (28/07) |
+| [015](#adr-015) | Dorsale unique : Supabase | ✅ Acceptée (28/07) |
+| [016](#adr-016) | Suppression du mode démonstration | ✅ Acceptée (28/07) |
+| [017](#adr-017) | Suppression de la gamification (XP, paliers, badges) | ✅ Acceptée (28/07) |
+| [018](#adr-018) | Périmètre pilote : domaine Logistique | ✅ Acceptée (28/07) |
+| [019](#adr-019) | Le widget de TODOs dev sort du produit | ✅ Acceptée (28/07) |
 
 ---
 
@@ -53,7 +60,12 @@ précisément ce que le système existe pour empêcher.
 ---
 
 <a name="adr-002"></a>
-## ADR-002 — Deux dorsales exclusives ✅
+## ADR-002 — Deux dorsales exclusives 🔄
+
+> 🔄 **Remplacée le 28/07/2026 par [ADR-015](#adr-015)** — dorsale unique
+> Supabase. La section ci-dessous est conservée pour l'historique : elle
+> explique pourquoi `app/data/store/*.json` a été, pendant trois jours, une
+> source d'analyses fausses.
 
 **Date.** 26/07/2026 (commit `d6826d4`, « ouvrir le suivi aux comptes
 Supabase » ; fusionné par `47a93f0`).
@@ -402,7 +414,11 @@ l'interface ne les renseigne**.
 ---
 
 <a name="adr-010"></a>
-## ADR-010 — Widget de TODOs dev partagé ✅ (réexamen déclenché)
+## ADR-010 — Widget de TODOs dev partagé 🔄
+
+> 🔄 **Remplacée le 28/07/2026 par [ADR-019](#adr-019)** — le widget sort du
+> produit. Le partage entre comptes reste volontaire ; c'est son montage sans
+> condition dans le layout applicatif qui change.
 
 **Décision d'origine.** La liste de TODOs est **globale et partagée entre tous
 les comptes authentifiés**. C'est volontaire : le projet est développé à
@@ -476,6 +492,213 @@ existantes, il n'y aura aucune trace exploitable.
 
 **Non traité maintenant** : le volume (16 preuves, 3 comptes) ne le justifie
 pas encore. À rouvrir avant tout changement de schéma destructif.
+
+---
+
+<a name="adr-013"></a>
+## ADR-013 — La boucle est le produit ✅
+
+**Date.** 28/07/2026. **Tranchée par Maxime.**
+
+**Contexte — le problème énoncé.** « Le code et le contexte me semblent overkill,
+je veux reculer pour mieux réavancer vers un projet réellement bien construit
+avec en son centre la valeur ajoutée pure. »
+
+**Faits mesurés le 28/07 en production** (Supabase, pas `app/data/store/`) :
+
+| Table | Lignes |
+|---|---|
+| `evidence` 20 · `sessions` 13 · `attempts` 12 | vivantes |
+| `exercises` | **0** |
+| `errors`, `objectives`, `projects`, `readings`, `knowledge` | **0** chacune |
+
+Les 11 exercices de diagnostic ont tous été faits (12 tentatives, 11 terminées).
+**Le stock est épuisé et la boucle est arrêtée au maillon de génération.**
+Douze entités déclarées, deux vivantes.
+
+**Décision.** Le produit est une boucle unique :
+**génération d'exercices → évaluation de la compétence → ajustement des
+exercices.** Tout le reste est secondaire et se justifie devant elle.
+
+**Portée du chantier ouvert ce jour : soustractif uniquement.** Le 3ᵉ maillon
+(ajustement) n'existe nulle part dans le code ; il fera l'objet d'une décision
+séparée, une fois le terrain dégagé. Ce chantier retire et durcit les deux
+maillons existants, il n'en ajoute pas.
+
+**Ce qui est déclaré irréductible et ne doit pas être abîmé :**
+1. la chaîne preuve → niveau dérivé, avec le « Pourquoi ? » de chaque valeur ;
+2. la vue longitudinale.
+
+**Conséquence de méthode.** Les décisions ADR-014 à ADR-019 sont les
+suppressions arbitrées une par une le 28/07 sur la base des faits ci-dessus.
+Aucune n'a été prise par déduction : chacune a été soumise et tranchée.
+
+---
+
+<a name="adr-014"></a>
+## ADR-014 — Suppression des six entités sans usage ✅
+
+**Date.** 28/07/2026. **Tranchée par Maxime, entité par entité.**
+
+**Décision.** Suppression de `Project` / `ProjectStep`, `Reading`,
+`KnowledgeItem`, `Objectif`, `ErrorItem`, `Quest` / `QuestStep` — types, tables,
+écrans et facteurs de moteur associés.
+
+**Justification par entité.**
+
+| Entité | Lignes en base | Élément décisif |
+|---|---|---|
+| `Reading`, `KnowledgeItem` | 0 | aucun chemin d'écriture n'a jamais existé ; les pages sont des placeholders |
+| `Quest` / `QuestStep` | — | types déclarés, jamais dans `Collections`, jamais lus : code strictement mort |
+| `Objectif` | 0 | le formulaire **est** exposé et pré-rempli sur l'écran d'entrée, et n'a jamais servi. Une UI proposée et ignorée est un signal plus fort qu'une UI absente |
+| `Project` | 0 | son seul usage actif était l'XP projet (+100), qui disparaît avec ADR-017 |
+| `ErrorItem` | 0 | le facteur de recommandation `+10×erreurs +2×occurrences` est donc structurellement mort depuis l'origine |
+
+**Réserve inscrite sur `ErrorItem`.** C'est conceptuellement le brouillon du
+3ᵉ maillon : ajuster les exercices suppose de savoir sur quoi l'utilisateur
+bute. La suppression est décidée **en connaissance de cela**. Quand le maillon
+3 sera traité, la question devra être reposée sous sa vraie forme : une
+difficulté **dérivée des preuves**, conformément à ADR-001, et non une fiche
+saisie à la main — ce qui est précisément ce qui n'a jamais été fait.
+
+**Conséquence sur ADR-005.** Deux des neuf facteurs de recommandation
+disparaissent (erreurs récurrentes, prérequis restant). Le test de réfutation
+d'ADR-005 reste valable, sur sept facteurs.
+
+---
+
+<a name="adr-015"></a>
+## ADR-015 — Dorsale unique : Supabase ✅
+
+**Date.** 28/07/2026. **Tranchée par Maxime.** Remplace [ADR-002](#adr-002).
+
+**Décision.** Supabase devient l'unique dorsale. La dorsale JSON locale est
+supprimée : les quatre forks `if (dorsale)` de `db.ts`, `lireLocal` /
+`ecrireLocal`, `migration.ts` et l'import « Journal local » de la modale compte.
+`export.ts` est **conservé** comme filet de sortie JSON.
+
+**Ce que la décision achète.**
+- ✅ La règle opérationnelle d'ADR-002 (« ne jamais lire `app/data/store/` pour
+  analyser l'usage ») cesse d'être une consigne à respecter : elle devient
+  structurellement impossible à enfreindre. C'était la source documentée d'une
+  analyse fausse le 27/07.
+- ✅ Disparition de l'écriture disque **sans authentification** signalée en
+  `CLAUDE.md` §6 — les Server Functions n'ont plus de chemin non authentifié.
+- ✅ Un seul jeu de règles à tester par opération d'écriture.
+
+**Ce qu'elle coûte.** Le développement hors ligne, et le premier démarrage sans
+configuration Supabase, ne sont plus possibles. Accepté explicitement.
+
+---
+
+<a name="adr-016"></a>
+## ADR-016 — Suppression du mode démonstration ✅
+
+**Date.** 28/07/2026. **Tranchée par Maxime.**
+
+**Décision.** Suppression de `lib/demo/dataset.ts` (483 l.), du cookie
+`mode-demo`, du bandeau et de `refuserSiDemo()`.
+
+**Élément décisif.** Le mode démo ne coûte pas 483 lignes, il coûte **une
+condition sur chaque formulaire de l'application** : objectifs, création
+d'exercice, preuve manuelle, statuts d'erreur, note de journal. Il conditionne
+environ la moitié de la surface interactive et double le nombre d'états à
+vérifier sur presque tous les écrans. C'est un multiplicateur, pas un module.
+
+**Ce qu'elle coûte.** Plus de démonstration du produit sans compte.
+
+---
+
+<a name="adr-017"></a>
+## ADR-017 — Suppression de la gamification ✅
+
+**Date.** 28/07/2026. **Tranchée par Maxime.**
+
+**Décision.** Suppression de `lib/engine/xp.ts` : `BAREME_XP` (7 motifs),
+`PALIERS` (7 paliers nommés), `BADGES` (6), `deriverXP`, `deriverBadges`, la
+jauge XP permanente du rail, la section paliers de `/progression` et la ligne
+« Niveau global (gamification, secondaire) » du contexte tuteur.
+
+**Éléments décisifs.**
+- Le contexte envoyé au tuteur qualifie lui-même la mécanique de
+  « (gamification, secondaire) » — le système la déclarait déjà accessoire.
+- Environ 20 seuils numériques et une UI permanente pour un signal que la vue
+  longitudinale, préservée, porte déjà.
+- `CODES_MODELISATION` (6 codes) et `CODES_SIMULATION` (3 codes) sont des
+  listes de codes de compétence **en dur**, fausses dès que le référentiel
+  bouge — ce que ADR-018 fait immédiatement.
+- Le code contient déjà une branche morte : `xp.ts:279-282`, le test
+  `type === "code"` est sans effet.
+
+**Ce qu'elle coûte.** Le seul retour positif immédiat après l'enregistrement
+d'une preuve. Accepté.
+
+**Conséquence sur les tests.** Les 5 tests « XP non-farmable » de
+`moteur.test.ts` disparaissent avec leur objet. La garantie qu'ils portaient
+(1 XP = 1 preuve existante, via `XPEvent.sourceEvidenceId` obligatoire) n'a
+plus de sujet. **Ce n'est pas un affaiblissement de garde-fou** au sens de
+`CLAUDE.md` §7 : la règle ne devient pas laxiste, la mécanique qu'elle
+contraignait cesse d'exister.
+
+---
+
+<a name="adr-018"></a>
+## ADR-018 — Périmètre pilote : domaine Logistique ✅
+
+**Date.** 28/07/2026. **Tranchée par Maxime.**
+
+**Contexte.** 43 compétences déclarées, **16 touchées** en trois jours, **31
+sans aucun support de travail**. Le référentiel dépasse largement ce que la
+boucle peut alimenter.
+
+**Décision.** Le référentiel **garde ses 43 compétences en données**. Un
+périmètre actif borne ce que l'application et le tuteur manipulent :
+**LOG-01 → LOG-09**, le domaine le plus travaillé (7 preuves sur 6
+compétences). Les 34 autres restent lisibles, hors calcul et hors contexte.
+
+**Décision attachée — le grain de la vue longitudinale change.** Le radar
+passait 7 axes = 7 domaines ; à l'échelle d'un pilote mono-domaine il ne dirait
+plus rien. Il passe à **9 axes = les 9 compétences de Logistique**, et la courbe
+de progression suit le score du domaine. C'est le seul point du chantier qui
+touche à ce qui a été déclaré irréductible en ADR-013 — il a été soumis et
+tranché comme tel.
+
+**Conséquence sur ADR-006 (❓ toujours ouverte).** Le défaut du score global —
+les compétences non mesurées comptées comme des zéros — passe de 12 mesurées
+sur 43 à 6 sur 9. L'écart de principe **ne disparaît pas** et ADR-006 reste à
+trancher ; il cesse simplement d'être le facteur dominant de la valeur
+affichée. Ne pas lire cette amélioration comme une résolution.
+
+**Conséquence sur ADR-009.** Réduire le périmètre actif est le contraire de
+généraliser, mais introduit le mécanisme dont ADR-009 aura besoin : la
+distinction entre le référentiel possédé et le référentiel travaillé.
+
+---
+
+<a name="adr-019"></a>
+## ADR-019 — Le widget de TODOs dev sort du produit ✅
+
+**Date.** 28/07/2026. **Tranchée par Maxime.** Remplace [ADR-010](#adr-010).
+
+**Contexte.** 1 340 lignes — `dev-todo.tsx` (808) + route (427) + upload (105) —
+soit **8,6 % du code**, plus que tout `lib/store/`, pour un outil hors domaine
+pédagogique monté **sans condition sur chaque page** de l'application.
+
+**Décision.** Le widget est **sorti du produit, pas réduit** : ses
+fonctionnalités restent intactes, il cesse d'être monté dans le layout
+applicatif et vit sur une route dédiée. Il n'est plus compté comme du code
+produit.
+
+**Ce qui change dans le garde-fou de `CLAUDE.md` §7.** L'interdiction passe de
+« ne pas corriger ce widget » à « ne pas le remettre dans le produit ». La forme
+change, le fond est identique : c'est l'outil de coordination de l'équipe, il ne
+se discute pas au titre de l'expérience utilisateur.
+
+**Conséquence sur la question ouverte d'ADR-010.** Le statut de
+`clement.peyredieu` devient sans objet **côté rendu** — le widget n'est plus
+exposé sur les pages du produit. ❓ **La question reste entière côté RLS** : la
+politique est toujours `FOR ALL TO authenticated USING (true)`, donc tout compte
+authentifié lit et modifie la liste. Aucune action prise là-dessus.
 
 ---
 
