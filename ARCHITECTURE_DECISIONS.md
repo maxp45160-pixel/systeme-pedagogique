@@ -204,7 +204,7 @@ alors le barème est à revoir.** D'ici là : ne rien changer.
 <a name="adr-006"></a>
 ## ADR-006 — Compétences non mesurées dans le score global ❓
 
-**Statut.** Ouverte. Voir `PRODUCT_PRINCIPLES.md` P2 pour la démonstration
+**Statut.** Ouverte. Voir `PRODUCT.md` §5 (P2) pour la démonstration
 complète de la contradiction.
 
 **Problème.** Le score global compte les 31 compétences sans preuve comme des
@@ -392,7 +392,7 @@ BUT QLIO → Master ITI. `recommend.ts` produit littéralement la phrase
 compte. Deux des trois comptes existants ont `formation: "Formation à
 renseigner"`.
 
-**Options** (reprises de `ETAT_DES_LIEUX_2026-07-27.md` §7.2) :
+**Options** (reprises de `archive/ETAT_DES_LIEUX_2026-07-27.md` §7.2) :
 **A** référentiels prédéfinis multiples · **B** référentiel en base éditable ·
 **C** socle transverse commun + extensions par compte.
 

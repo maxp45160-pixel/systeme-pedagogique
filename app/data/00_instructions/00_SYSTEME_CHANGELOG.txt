@@ -258,6 +258,63 @@ même règle.
 
 ---
 
+## VERSION 3.0 — RECENTRAGE SUR LA BOUCLE
+
+Date : 28/07/2026
+
+### Décision
+
+Le produit est une boucle : génération d'exercices → évaluation de la
+compétence → ajustement des exercices. Tout le reste est secondaire. Chantier
+soustractif tranché entité par entité par Maxime, sur la base des faits lus en
+production (ADR-013 à ADR-019).
+
+### Aucun fichier de protocole n'a été modifié
+
+Les trois protocoles injectés au tuteur sont inchangés. La numérotation
+17 / 17 / 14 et tous les seuils sont conservés.
+
+Deux points de vigilance, vérifiés et sans conséquence sur le texte :
+
+- **Anti-hallucination §6** — « ne supprime jamais une lacune, une erreur
+  récurrente, une faiblesse ». L'entité `ErrorItem` a été supprimée du code
+  (0 ligne en base, aucun chemin d'écriture n'avait jamais existé). §6 est une
+  règle de conduite adressée au tuteur — ne pas effacer une faiblesse de ce
+  qu'il affirme — et non l'exigence d'une table. La règle reste applicable
+  telle quelle.
+- **Évaluation §6** — la qualité de la preuve n'est plus déclarée par
+  l'utilisateur dans le formulaire de preuve manuelle : elle est **dérivée**
+  de la nature du travail, exactement comme §6 la définit (« faible — exercice
+  très guidé » ; « forte — transfert, projet » ; « moyenne » pour le reste).
+  Transcription, pas nouveau seuil. Vérifiée par 4 tests.
+
+### Ce qui a été retiré du code
+
+- six entités sans usage : `ErrorItem`, `Project`, `Reading`, `KnowledgeItem`,
+  `Objectif`, `Quest` — avec 5 tables, 4 écrans et 2 facteurs de recommandation
+- la gamification : XP, 7 paliers, 7 motifs, 6 badges
+- le mode démonstration et la dorsale JSON locale
+- 4 des 5 familles de filtres de la bibliothèque d'exercices
+
+### Ce qui a changé pour le tuteur
+
+- le contexte ne décrit plus que les compétences du **périmètre actif**
+  (domaine Logistique, 9 compétences au lieu de 43) et le lui dit
+  explicitement : un code hors de cette liste sera rejeté ;
+- la section « erreurs récurrentes » disparaît du contexte ;
+- les marqueurs `PROPOSITION DE MISE À JOUR` et `PROPOSITION D'EXERCICE` sont
+  devenus des constantes partagées entre le prompt et les parseurs. Ils étaient
+  recopiés : une désynchronisation cassait l'extraction **en silence**.
+
+### Effet mesuré sur le contexte
+
+Le contexte reste dominé par les 20 135 caractères de protocole. La réduction
+obtenue (~5 Ko sur ~33) vient du périmètre, pas d'une condensation
+supplémentaire : celle de la version 2.3 avait déjà retiré ce qui pouvait
+l'être sans perdre de règle.
+
+---
+
 ## RÈGLE DE VERSIONNAGE
 
 Version majeure :
