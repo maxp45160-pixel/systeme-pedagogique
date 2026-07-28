@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { cx } from "@/components/ui/primitives";
 import { seDeconnecter } from "@/lib/supabase/actions";
-import { importerJournalLocal } from "@/lib/store/migration";
 import { exporterJournal } from "@/lib/store/export";
 import { IconeValide } from "@/components/ui/icones";
 
@@ -113,20 +112,8 @@ function PanneauReglages({
   session: EtatSession;
   onFermer: () => void;
 }) {
-  const [enCours, demarrer] = useTransition();
-  const [rapport, setRapport] = useState<string | null>(null);
   const [exportEnCours, setExportEnCours] = useState(false);
-  // État distinct de `rapport` : celui-ci n'est rendu que dans la section
-  // d'import, absente tant qu'aucun compte n'est connecté.
   const [messageExport, setMessageExport] = useState<string | null>(null);
-
-  function lancerImport() {
-    setRapport(null);
-    demarrer(async () => {
-      const r = await importerJournalLocal();
-      setRapport(r.message);
-    });
-  }
 
   async function telechargerArchive() {
     setExportEnCours(true);
@@ -200,40 +187,11 @@ function PanneauReglages({
                 {session.connecte
                   ? `Connecté — données synchronisées sur votre compte (${session.courriel}).`
                   : session.configure
-                    ? "Non connecté — les données restent dans le journal JSON local de cette machine."
-                    : "Supabase non configuré — journal JSON local, mono-utilisateur."}
+                    ? "Non connecté — aucune donnée n'est accessible tant que la session n'est pas ouverte."
+                    : "Supabase non configuré — l'application ne peut ni lire ni écrire."}
               </span>
             </dd>
           </div>
-
-          {session.connecte && (
-            <div className="rounded-lg border border-bordure bg-surface-2/60 px-3 py-2.5">
-              <dt className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
-                Reprise du journal local
-              </dt>
-              <dd className="mt-1 space-y-2 text-texte-attenue">
-                <p className="text-xs leading-relaxed">
-                  Transfère les preuves et séances enregistrées avant l&apos;ouverture des
-                  comptes vers ce compte. Sans effet si le compte contient déjà des
-                  données ; relancer l&apos;import ne crée pas de doublon.
-                </p>
-                <button
-                  type="button"
-                  onClick={lancerImport}
-                  disabled={enCours}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-bordure-forte bg-surface px-3 text-xs font-medium transition-colors hover:bg-surface-2 disabled:pointer-events-none disabled:opacity-50"
-                >
-                  {enCours ? "Import en cours…" : "Importer le journal local"}
-                </button>
-                {rapport && (
-                  <p className="flex items-start gap-1.5 text-xs text-texte">
-                    <IconeValide className="mt-0.5 size-3.5 shrink-0 text-succes" />
-                    <span>{rapport}</span>
-                  </p>
-                )}
-              </dd>
-            </div>
-          )}
 
           <div className="rounded-lg border border-bordure bg-surface-2/60 px-3 py-2.5">
             <dt className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
@@ -268,7 +226,9 @@ function PanneauReglages({
                 Activer les comptes
               </dt>
               <dd className="mt-1 text-xs leading-relaxed text-texte-attenue">
-                Renseignez <code className="chiffres">NEXT_PUBLIC_SUPABASE_URL</code> et{" "}
+                Supabase est désormais la seule dorsale : sans ces clés, aucune donnée
+                n&apos;est lisible. Renseignez{" "}
+                <code className="chiffres">NEXT_PUBLIC_SUPABASE_URL</code> et{" "}
                 <code className="chiffres">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> dans{" "}
                 <code className="chiffres">app/.env.local</code> (ou les variables
                 d&apos;environnement Vercel), puis redémarrez le serveur.

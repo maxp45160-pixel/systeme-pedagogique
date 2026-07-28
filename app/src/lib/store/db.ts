@@ -1,24 +1,21 @@
 /**
- * Persistance — deux dorsales, une seule active par requête.
+ * Persistance — dorsale unique : Supabase (ADR-015).
  *
  * À n'importer que depuis du code serveur (pages serveur, Server Functions,
  * route handlers). Aucun composant client ne doit référencer ce module.
  *
- * - **Compte connecté** (Supabase configuré + session valide) : les données
- *   vivent dans PostgreSQL, isolées par compte via les politiques RLS.
- * - **Sinon** : journal append-only en JSON dans `data/store/`, mono-utilisateur.
- *   Les diffs git restent lisibles et le contenu inspectable à la main, ce qui
- *   prolonge la logique du système de fichiers `.txt` existant.
+ * Les données vivent dans PostgreSQL, isolées par compte via les politiques
+ * RLS — la seule barrière d'autorisation à laquelle le système accorde sa
+ * confiance. Sans session valide, aucune lecture ni écriture n'est possible :
+ * il n'existe plus de chemin de persistance non authentifié.
  *
- * Le choix est **exclusif** : on ne lit jamais l'un pour écrire dans l'autre.
- * Une double écriture ferait diverger les deux copies dès la première panne
- * réseau, et le disque n'est de toute façon pas persistant sur Vercel.
+ * Le journal JSON local a été supprimé le 28/07/2026. Il était exclusif de
+ * Supabase et jamais synchronisé avec lui, ce qui en faisait une source
+ * d'analyses fausses (voir ADR-002, conservée pour l'historique).
  */
 
 import "server-only";
 
-import { promises as fs } from "node:fs";
-import path from "node:path";
 import { compteCourant, createServeurClient } from "@/lib/supabase/server";
 import {
   TABLES,
@@ -43,8 +40,6 @@ import type {
   User,
 } from "@/lib/domain/types";
 
-const RACINE = path.join(process.cwd(), "data", "store");
-
 export interface Collections {
   user: User;
   evidence: SkillEvidence[];
@@ -58,24 +53,11 @@ export interface Collections {
   objectives: Objectif[];
 }
 
-export const UTILISATEUR_PAR_DEFAUT: User = {
-  id: "user-1",
-  prenom: "Maxime",
-  formation: "BUT QLIO (Qualité, Logistique Industrielle et Organisation)",
-  objectifMoyenTerme: "Préparer un Master ITI interdisciplinaire en technologies innovantes",
-  objectifLongTerme: "Devenir chercheur en ingénierie des systèmes complexes",
-  debutSuivi: "2026-07-24",
-  // Préférences déclarées le 25/07/2026 (cf. synthese_profil_competences_2026-07-25.md).
-  preferencesPedagogiques: [
-    "Approche mixte calcul manuel + Python — pas de passage à l'automatisation intégrale.",
-    "Rappels réguliers et incitation à recalculer/reformuler les notions déjà vues plutôt que rappel passif ; construire une base solide avant d'avancer.",
-  ],
-};
-
 /**
- * Valeurs de repli d'un compte Supabase. Volontairement neutres : le profil
- * historique ci-dessus décrit Maxime, pas un compte quelconque, et l'appliquer
- * à tout nouvel inscrit lui attribuerait une formation qu'il n'a pas déclarée.
+ * Valeurs de repli d'un compte Supabase, employées tant que le trigger
+ * `handle_new_user` n'a pas écrit la ligne `profiles`. Volontairement neutres :
+ * attribuer une formation non déclarée à un nouvel inscrit serait exactement
+ * l'invention de données que le protocole interdit.
  */
 function profilNeutre(id: string, courriel: string | undefined): User {
   return {
@@ -89,21 +71,8 @@ function profilNeutre(id: string, courriel: string | undefined): User {
   };
 }
 
-const VIDE: { [K in keyof Collections]: Collections[K] } = {
-  user: UTILISATEUR_PAR_DEFAUT,
-  evidence: [],
-  exercises: [],
-  attempts: [],
-  errors: [],
-  projects: [],
-  readings: [],
-  knowledge: [],
-  sessions: [],
-  objectives: [],
-};
-
 /* ------------------------------------------------------------------ */
-/* Choix de la dorsale                                                 */
+/* Accès à la dorsale                                                  */
 /* ------------------------------------------------------------------ */
 
 export interface DorsaleCompte {
@@ -113,57 +82,23 @@ export interface DorsaleCompte {
 }
 
 /**
- * Renvoie la dorsale Supabase si — et seulement si — un compte est connecté.
- * `null` signifie « journal JSON local », pas « erreur ».
+ * Résout la dorsale du compte connecté.
+ *
+ * L'absence de session est une **erreur**, pas un repli : depuis ADR-015 il
+ * n'existe plus de persistance hors compte. Le message nomme la cause parce
+ * qu'un échec silencieux ici afficherait un profil vide indiscernable d'un
+ * profil réellement sans preuve — ce que le protocole interdit.
  */
-export async function dorsaleCompte(): Promise<DorsaleCompte | null> {
+export async function dorsaleCompte(): Promise<DorsaleCompte> {
   const compte = await compteCourant();
-  if (!compte) return null;
-  const supabase = await createServeurClient();
-  if (!supabase) return null;
+  const supabase = compte ? await createServeurClient() : null;
+  if (!compte || !supabase) {
+    throw new Error(
+      "Aucune session : les données ne sont accessibles qu'avec un compte connecté (Supabase).",
+    );
+  }
   return { supabase, userId: compte.id, courriel: compte.email };
 }
-
-/* ------------------------------------------------------------------ */
-/* Journal local                                                       */
-/* ------------------------------------------------------------------ */
-
-function fichier(nom: keyof Collections): string {
-  return path.join(RACINE, `${nom}.json`);
-}
-
-async function assurerRacine(): Promise<void> {
-  await fs.mkdir(RACINE, { recursive: true });
-}
-
-/**
- * Un fichier absent ou illisible renvoie la valeur vide : l'application
- * démarre sans configuration, et une corruption ne fabrique jamais de
- * données de remplacement.
- */
-async function lireLocal<K extends keyof Collections>(nom: K): Promise<Collections[K]> {
-  try {
-    const brut = await fs.readFile(fichier(nom), "utf8");
-    return JSON.parse(brut) as Collections[K];
-  } catch {
-    return VIDE[nom];
-  }
-}
-
-/** Écriture atomique : fichier temporaire puis renommage. */
-async function ecrireLocal<K extends keyof Collections>(
-  nom: K,
-  valeur: Collections[K],
-): Promise<void> {
-  await assurerRacine();
-  const cible = fichier(nom);
-  const temporaire = `${cible}.tmp`;
-  await fs.writeFile(temporaire, JSON.stringify(valeur, null, 2), "utf8");
-  await fs.rename(temporaire, cible);
-}
-
-/** Lecture du journal local, exposée pour la migration vers un compte. */
-export const lireJournalLocal = lireLocal;
 
 /* ------------------------------------------------------------------ */
 /* API publique                                                        */
@@ -171,12 +106,9 @@ export const lireJournalLocal = lireLocal;
 
 export async function lire<K extends keyof Collections>(
   nom: K,
-  dorsaleFournie?: DorsaleCompte | null,
+  dorsaleFournie?: DorsaleCompte,
 ): Promise<Collections[K]> {
-  const dorsale = dorsaleFournie !== undefined ? dorsaleFournie : await dorsaleCompte();
-  if (!dorsale) return lireLocal(nom);
-
-  const { supabase, userId, courriel } = dorsale;
+  const { supabase, userId, courriel } = dorsaleFournie ?? (await dorsaleCompte());
   const defaut = profilNeutre(userId, courriel);
 
   if (nom === "user") {
@@ -213,10 +145,7 @@ export async function ecrire<K extends keyof Collections>(
   nom: K,
   valeur: Collections[K],
 ): Promise<void> {
-  const dorsale = await dorsaleCompte();
-  if (!dorsale) return ecrireLocal(nom, valeur);
-
-  const { supabase, userId } = dorsale;
+  const { supabase, userId } = await dorsaleCompte();
 
   if (nom === "user") {
     const { error } = await supabase
@@ -270,18 +199,11 @@ export async function ajouter<K extends CleListe>(
   nom: K,
   element: Collections[K][number],
 ): Promise<Collections[K][number]> {
-  const dorsale = await dorsaleCompte();
-  if (dorsale) {
-    const { supabase, userId } = dorsale;
-    const { error } = await supabase
-      .from(TABLES[nom])
-      .insert(entiteVersLigne(element as object, userId));
-    verifier(`ajout dans « ${nom} »`, error);
-    return element;
-  }
-
-  const actuel: unknown[] = await lireLocal(nom);
-  await ecrireLocal(nom, [...actuel, element] as Collections[K]);
+  const { supabase, userId } = await dorsaleCompte();
+  const { error } = await supabase
+    .from(TABLES[nom])
+    .insert(entiteVersLigne(element as object, userId));
+  verifier(`ajout dans « ${nom} »`, error);
   return element;
 }
 
@@ -297,38 +219,25 @@ export async function remplacer<K extends CleListe>(
   id: string,
   maj: (precedent: Collections[K][number]) => Collections[K][number],
 ): Promise<Collections[K][number] | null> {
-  const dorsale = await dorsaleCompte();
+  const { supabase, userId } = await dorsaleCompte();
+  const table = TABLES[nom];
 
-  if (dorsale) {
-    const { supabase, userId } = dorsale;
-    const table = TABLES[nom];
+  const { data, error } = await supabase
+    .from(table)
+    .select("*")
+    .eq("user_id", userId)
+    .eq("id", id)
+    .maybeSingle();
+  verifier(`lecture de « ${nom} » avant mise à jour`, error);
+  if (!data) return null;
 
-    const { data, error } = await supabase
-      .from(table)
-      .select("*")
-      .eq("user_id", userId)
-      .eq("id", id)
-      .maybeSingle();
-    verifier(`lecture de « ${nom} » avant mise à jour`, error);
-    if (!data) return null;
-
-    const suivant = maj(ligneVersEntite(data));
-    const { error: erreurMaj } = await supabase
-      .from(table)
-      .update(entiteVersLigne(suivant as object, userId))
-      .eq("user_id", userId)
-      .eq("id", id);
-    verifier(`mise à jour de « ${nom} »`, erreurMaj);
-    return suivant;
-  }
-
-  const actuel = (await lireLocal(nom)) as { id: string }[];
-  const index = actuel.findIndex((e) => e.id === id);
-  if (index === -1) return null;
-  const suivant = maj(actuel[index] as Collections[K][number]);
-  const copie = [...actuel];
-  copie[index] = suivant as { id: string };
-  await ecrireLocal(nom, copie as Collections[K]);
+  const suivant = maj(ligneVersEntite(data));
+  const { error: erreurMaj } = await supabase
+    .from(table)
+    .update(entiteVersLigne(suivant as object, userId))
+    .eq("user_id", userId)
+    .eq("id", id);
+  verifier(`mise à jour de « ${nom} »`, erreurMaj);
   return suivant;
 }
 
