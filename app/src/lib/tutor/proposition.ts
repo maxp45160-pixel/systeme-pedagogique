@@ -16,6 +16,19 @@
  * reste de toute façon lisible dans le chat.
  */
 
+/**
+ * Marqueurs des deux gabarits.
+ *
+ * Constantes partagées, et non chaînes recopiées : le prompt (`contexte.ts`)
+ * et les parseurs ci-dessous doivent employer exactement le même texte. Une
+ * désynchronisation ne lèverait aucune erreur — le message resterait lisible
+ * dans le chat et l'extraction cesserait simplement de fonctionner, sans
+ * bruit. C'est le maillon « génération » de la boucle : il ne doit pas pouvoir
+ * tomber en silence.
+ */
+export const MARQUEUR_PREUVE = "PROPOSITION DE MISE À JOUR";
+export const MARQUEUR_EXERCICE = "PROPOSITION D'EXERCICE";
+
 /* ------------------------------------------------------------------ */
 /* Proposition de preuve                                               */
 /* ------------------------------------------------------------------ */
@@ -41,7 +54,7 @@ const CHAMPS: { cle: keyof PropositionTuteur; etiquette: string }[] = [
 ];
 
 export function extrairePropositions(texte: string): PropositionTuteur[] {
-  const blocs = texte.split(/PROPOSITION DE MISE À JOUR/).slice(1);
+  const blocs = texte.split(MARQUEUR_PREUVE).slice(1);
   return blocs
     .map((bloc) => {
       const valeurs = {} as PropositionTuteur;
@@ -174,7 +187,7 @@ function decouperCritere(brut: string): { dimension: string; libelle: string } {
 }
 
 export function extrairePropositionsExercice(texte: string): PropositionExercice[] {
-  const blocs = texte.split(/PROPOSITION D'EXERCICE/).slice(1);
+  const blocs = texte.split(MARQUEUR_EXERCICE).slice(1);
 
   return blocs
     .map((bloc) => {

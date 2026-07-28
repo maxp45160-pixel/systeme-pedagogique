@@ -11,8 +11,9 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { Contexte } from "@/lib/store/context";
-import { DOMAINES } from "@/lib/domain/referentiel";
+import { DOMAINES, DOMAINE_PILOTE } from "@/lib/domain/referentiel";
 import { formatDateCourte } from "@/lib/engine/dates";
+import { MARQUEUR_EXERCICE, MARQUEUR_PREUVE } from "./proposition";
 
 const RACINE_DATA = path.join(process.cwd(), "data");
 
@@ -71,6 +72,9 @@ function serialiserProfil(ctx: Contexte): string {
   lignes.push(
     `Couverture : ${ctx.global.competencesEvaluees}/${ctx.global.competencesTotal} compétences évaluées · ${ctx.global.nombrePreuves} preuve(s) directe(s)`,
   );
+  lignes.push(
+    "Périmètre de travail : seules les compétences listées ci-dessous sont suivies. N'en propose aucune autre — un code hors de cette liste sera rejeté.",
+  );
   lignes.push("");
 
   const prefs = ctx.donnees.user.preferencesPedagogiques ?? [];
@@ -92,7 +96,10 @@ function serialiserProfil(ctx: Contexte): string {
   lignes.push("« ⚠n » = n preuve(s) contradictoire(s) conservée(s) : confiance réduite, niveau maintenu.");
   lignes.push("");
 
-  for (const domaine of DOMAINES) {
+  // Seuls les domaines du périmètre actif (ADR-018) : un en-tête suivi de rien
+  // laisserait croire que le domaine a été mesuré et trouvé vide.
+  const domainesActifs = DOMAINES.filter((d) => ctx.etats.some((e) => e.skill.domaine === d.id));
+  for (const domaine of domainesActifs) {
     const etats = ctx.etats.filter((e) => e.skill.domaine === domaine.id);
     lignes.push(`## ${domaine.nom.toUpperCase()}`);
     for (const e of etats) {
@@ -165,7 +172,7 @@ Tu interviens depuis l'application de suivi. Trois règles s'ajoutent aux protoc
    preuve de compétence, ne dis jamais « j'ai mis à jour ton profil ». Propose
    la mise à jour dans un bloc structuré, que l'utilisateur validera lui-même :
 
-   PROPOSITION DE MISE À JOUR
+   ${MARQUEUR_PREUVE}
    Compétence : <code>
    Niveau actuel : <valeur lue dans le profil ci-dessous>
    Niveau proposé : <valeur>
@@ -179,9 +186,9 @@ Tu interviens depuis l'application de suivi. Trois règles s'ajoutent aux protoc
    L'application le transformera en formulaire pré-rempli qu'il validera.
    N'annonce jamais qu'un exercice « a été ajouté » : tu proposes, il décide.
 
-   PROPOSITION D'EXERCICE
+   ${MARQUEUR_EXERCICE}
    Titre : <titre court et explicite>
-   Domaine : <logistique|production|statistiques|algorithmique|recherche-operationnelle|systemes-complexes|technologies-innovantes>
+   Domaine : ${DOMAINE_PILOTE}
    Type : <rappel|application|calcul|probleme|etude-de-cas|programmation|simulation|projet>
    Difficulté : <1 à 5>
    Compétences : <codes séparés par des virgules ; la première est la cible>

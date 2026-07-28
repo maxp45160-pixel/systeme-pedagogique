@@ -1,7 +1,12 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { chargerContexte } from "@/lib/store/context";
-import { DOMAINES } from "@/lib/domain/referentiel";
-import type { DomaineId, SkillState } from "@/lib/domain/types";
+import {
+  DOMAINES,
+  DOMAINE_PAR_ID,
+  DOMAINE_PILOTE,
+  SKILLS,
+} from "@/lib/domain/referentiel";
+import type { SkillState } from "@/lib/domain/types";
 import { EntetePage } from "@/components/layout/entete-page";
 import {
   Carte,
@@ -15,35 +20,34 @@ import {
 import { Radar, RepartitionNiveaux } from "@/components/charts";
 import { formatDateRelative } from "@/lib/engine/dates";
 
-type Vue = "grille" | "arbre" | "radar";
+type Vue = "grille" | "radar";
 
 const VUES: { cle: Vue; libelle: string }[] = [
   { cle: "grille", libelle: "Grille" },
-  { cle: "arbre", libelle: "Arbre" },
   { cle: "radar", libelle: "Radar" },
 ];
 
 export default async function PageCompetences(props: {
-  searchParams: Promise<{ vue?: string; domaine?: string }>;
+  searchParams: Promise<{ vue?: string }>;
 }) {
-  const { vue: vueBrute, domaine: domaineBrut } = await props.searchParams;
-  const vue: Vue = vueBrute === "arbre" || vueBrute === "radar" ? vueBrute : "grille";
-  const filtre = DOMAINES.find((d) => d.id === domaineBrut)?.id ?? null;
+  const { vue: vueBrute } = await props.searchParams;
+  const vue: Vue = vueBrute === "radar" ? "radar" : "grille";
 
   const ctx = await chargerContexte();
-  const etats = filtre ? ctx.etats.filter((e) => e.skill.domaine === filtre) : ctx.etats;
+  const domaine = DOMAINE_PAR_ID.get(DOMAINE_PILOTE);
 
   return (
     <>
       <EntetePage
         titre="Compétences"
-        sousTitre="Le référentiel complet, avec pour chaque compétence son niveau, la confiance de l'évaluation et la solidité des acquis."
+        surtitre={domaine?.nom}
+        sousTitre={`Périmètre de travail actuel : ${ctx.etats.length} compétences. Pour chacune, son niveau, la confiance de l'évaluation et la solidité des acquis.`}
         actions={
           <div className="flex rounded-md border border-bordure p-0.5">
             {VUES.map((v) => (
               <Link
                 key={v.cle}
-                href={`/competences?vue=${v.cle}${filtre ? `&domaine=${filtre}` : ""}`}
+                href={`/competences?vue=${v.cle}`}
                 className={cx(
                   "rounded px-2.5 py-1 text-xs font-medium transition-colors",
                   vue === v.cle
@@ -58,63 +62,21 @@ export default async function PageCompetences(props: {
         }
       />
 
-      <FiltreDomaines actif={filtre} vue={vue} etats={ctx.etats} />
+      {/*
+        Le référentiel complet compte 43 compétences ; seul le domaine pilote
+        est travaillé (ADR-018). Le dire franchement plutôt que laisser croire
+        que le référentiel se limite à ça.
+      */}
+      <p className="mb-4 rounded-carte border border-info/30 bg-info-faible px-4 py-2.5 text-xs text-texte-attenue">
+        <strong className="font-medium text-info">Périmètre pilote.</strong> Le référentiel
+        contient {SKILLS.length} compétences réparties sur {DOMAINES.length} domaines. Un seul
+        est travaillé pour l&apos;instant — les autres ne sont ni calculés ni affichés, faute de
+        contenu pour les alimenter.
+      </p>
 
-      {vue === "grille" && <VueGrille etats={etats} />}
-      {vue === "arbre" && <VueArbre etats={etats} />}
-      {vue === "radar" && <VueRadar global={ctx.global} />}
+      {vue === "grille" && <VueGrille etats={ctx.etats} />}
+      {vue === "radar" && <VueRadar etats={ctx.etats} />}
     </>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-
-function FiltreDomaines({
-  actif,
-  vue,
-  etats,
-}: {
-  actif: DomaineId | null;
-  vue: Vue;
-  etats: SkillState[];
-}) {
-  return (
-    <div className="mb-4 flex flex-wrap gap-1.5">
-      <Link
-        href={`/competences?vue=${vue}`}
-        className={cx(
-          "rounded-md border px-2 py-1 text-xs font-medium transition-colors",
-          actif === null
-            ? "border-primaire/30 bg-primaire-faible text-primaire"
-            : "border-bordure text-texte-attenue hover:bg-surface-2",
-        )}
-      >
-        Tous les domaines
-      </Link>
-      {DOMAINES.map((d) => {
-        const n = etats.filter((e) => e.skill.domaine === d.id).length;
-        const evalues = etats.filter(
-          (e) => e.skill.domaine === d.id && e.statut === "evalue",
-        ).length;
-        return (
-          <Link
-            key={d.id}
-            href={`/competences?vue=${vue}&domaine=${d.id}`}
-            className={cx(
-              "rounded-md border px-2 py-1 text-xs font-medium transition-colors",
-              actif === d.id
-                ? "border-primaire/30 bg-primaire-faible text-primaire"
-                : "border-bordure text-texte-attenue hover:bg-surface-2",
-            )}
-          >
-            {d.nom}
-            <span className="ml-1.5 chiffres text-texte-discret">
-              {evalues}/{n}
-            </span>
-          </Link>
-        );
-      })}
-    </div>
   );
 }
 
@@ -215,138 +177,41 @@ function LigneCompetence({ etat }: { etat: SkillState }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Vue arbre                                                           */
-/* ------------------------------------------------------------------ */
-
-const PALIERS = [
-  { cle: "fondamentaux", titre: "Fondamentaux" },
-  { cle: "intermediaire", titre: "Niveau intermédiaire" },
-  { cle: "avance", titre: "Niveau avancé" },
-] as const;
-
-/**
- * Arbre de progression par domaine.
- *
- * Les prérequis sont signalés mais jamais bloquants : le cahier des charges
- * exclut le verrouillage artificiel, et l'exploration doit rester libre.
- * Une compétence dont les prérequis manquent est simplement annotée.
- */
-function VueArbre({ etats }: { etats: SkillState[] }) {
-  const parCode = new Map(etats.map((e) => [e.skill.code, e]));
-
-  const domaines = DOMAINES.map((d) => ({
-    domaine: d,
-    items: etats.filter((e) => e.skill.domaine === d.id),
-  })).filter((g) => g.items.length > 0);
-
-  return (
-    <div className="space-y-4">
-      <p className="text-xs text-texte-attenue">
-        Les prérequis sont indiqués à titre d&apos;orientation. Aucune compétence n&apos;est
-        verrouillée : tu peux commencer où tu veux.
-      </p>
-
-      {domaines.map(({ domaine, items }) => (
-        <Carte key={domaine.id}>
-          <EnTeteCarte titre={domaine.nom} legende={domaine.description} />
-          <div className="space-y-4 px-4 py-4">
-            {PALIERS.map(({ cle, titre }) => {
-              const duPalier = items.filter((e) => e.skill.palier === cle);
-              if (duPalier.length === 0) return null;
-              return (
-                <div key={cle}>
-                  <div className="mb-2 text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret">
-                    {titre}
-                  </div>
-                  <ul className="space-y-1 border-l border-bordure pl-3">
-                    {duPalier.map((e) => {
-                      const manquants = e.skill.prerequis.filter((c) => {
-                        const p = parCode.get(c);
-                        return !p || p.niveau === null || p.niveau < 2;
-                      });
-                      return (
-                        <li key={e.skill.code} className="relative">
-                          <span
-                            className="absolute -left-3 top-3 h-px w-2.5 bg-bordure"
-                            aria-hidden
-                          />
-                          <Link
-                            href={`/competences/${e.skill.code}`}
-                            className="flex items-center gap-2 rounded px-1.5 py-1 transition-colors hover:bg-surface-2"
-                          >
-                            <span
-                              className="size-2 shrink-0 rounded-full"
-                              style={{
-                                background:
-                                  e.niveau === null
-                                    ? "var(--niveau-vide)"
-                                    : `var(--niveau-${e.niveau})`,
-                              }}
-                              aria-hidden
-                            />
-                            <CodeCompetence code={e.skill.code} />
-                            <span className="min-w-0 flex-1 truncate text-xs">
-                              {e.skill.intitule}
-                            </span>
-                            {manquants.length > 0 && (
-                              <span className="shrink-0 text-[0.625rem] text-texte-discret">
-                                prérequis : {manquants.join(", ")}
-                              </span>
-                            )}
-                            <span
-                              className={cx(
-                                "chiffres w-6 shrink-0 text-right text-xs font-medium",
-                                e.niveau === null && "text-texte-discret",
-                              )}
-                            >
-                              {e.niveau ?? "—"}
-                            </span>
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              );
-            })}
-          </div>
-        </Carte>
-      ))}
-    </div>
-  );
-}
 
 /* ------------------------------------------------------------------ */
 /* Vue radar — secondaire par construction                             */
 /* ------------------------------------------------------------------ */
 
-function VueRadar({
-  global,
-}: {
-  global: Awaited<ReturnType<typeof chargerContexte>>["global"];
-}) {
-  const axes = global.parDomaine.map((d) => ({
-    libelle: d.nom.split(" ")[0],
-    valeur: d.score,
+/**
+ * Un axe par compétence du périmètre, et non plus par domaine (ADR-018).
+ *
+ * À l'échelle d'un pilote mono-domaine, un radar à sept axes dont six sont
+ * vides ne dit rien. Au grain de la compétence il redevient lisible : on voit
+ * quelles compétences du domaine tiennent et lesquelles n'ont pas été mesurées.
+ */
+function VueRadar({ etats }: { etats: SkillState[] }) {
+  const axes = etats.map((e) => ({
+    libelle: e.skill.code,
+    // `score` est sur 5 côté moteur ; le radar raisonne en pourcentage.
+    valeur: e.score === null ? null : Math.round((e.score / 5) * 100),
   }));
-  const sansPreuve = global.parDomaine.filter((d) => d.score === null);
+  const sansPreuve = etats.filter((e) => e.score === null);
 
   return (
     <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
       <Carte>
         <EnTeteCarte
-          titre="Vue d'ensemble par domaine"
-          legende="Score sur 100, pondéré par l'importance des compétences"
+          titre="Vue d'ensemble du périmètre"
+          legende="Score sur 100, un axe par compétence travaillée"
         />
         <div className="px-4 py-5">
           <Radar axes={axes} />
           {sansPreuve.length > 0 && (
             <p className="mt-4 rounded-md border border-bordure bg-surface-2 px-3 py-2 text-[0.6875rem] text-texte-attenue">
               <strong className="font-medium">Lecture prudente.</strong>{" "}
-              {sansPreuve.length} domaine(s) sont tracés à zéro faute de preuve, non parce
+              {sansPreuve.length} compétence(s) sont tracées à zéro faute de preuve, non parce
               qu&apos;une faiblesse a été mesurée :{" "}
-              {sansPreuve.map((d) => d.nom).join(", ")}.
+              {sansPreuve.map((e) => e.skill.code).join(", ")}.
             </p>
           )}
         </div>
@@ -355,17 +220,21 @@ function VueRadar({
       <Carte>
         <EnTeteCarte titre="Détail chiffré" legende="La même information, sans dépendre de la forme" />
         <ul className="divide-y divide-bordure">
-          {global.parDomaine.map((d) => (
-            <li key={d.domaine} className="flex items-center gap-3 px-4 py-2.5">
+          {etats.map((e) => (
+            <li key={e.skill.code} className="flex items-center gap-3 px-4 py-2.5">
               <Link
-                href={`/competences?domaine=${d.domaine}`}
+                href={`/competences/${e.skill.code}`}
                 className="min-w-0 flex-1 truncate text-sm hover:underline"
               >
-                {d.nom}
+                <CodeCompetence code={e.skill.code} /> {e.skill.intitule}
               </Link>
-              <Statistique libelle="" valeur={d.score} unite="/100" />
-              <span className="w-24 shrink-0 text-right text-[0.6875rem] text-texte-discret">
-                {d.competencesEvaluees}/{d.competencesTotal} évaluées
+              <Statistique
+                libelle=""
+                valeur={e.score === null ? null : Math.round((e.score / 5) * 100)}
+                unite="/100"
+              />
+              <span className="w-20 shrink-0 text-right text-[0.6875rem] text-texte-discret">
+                {e.preuves.length} preuve{e.preuves.length > 1 ? "s" : ""}
               </span>
             </li>
           ))}

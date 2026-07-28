@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 import { computeSkillState, computeAllSkillStates } from "./skill-state";
 import { calculerEtatGlobal } from "./progression";
 import { recommander } from "./recommend";
-import { SKILLS, SKILL_PAR_CODE, ORDRE_DIAGNOSTIC } from "@/lib/domain/referentiel";
+import {
+  DOMAINE_PILOTE,
+  ORDRE_DIAGNOSTIC,
+  SKILLS,
+  SKILLS_ACTIFS,
+  SKILL_PAR_CODE,
+} from "@/lib/domain/referentiel";
 import type {
   Autonomie,
   Dimension,
@@ -178,6 +184,34 @@ describe("récence — protocole d'évaluation §7", () => {
     expect(a.niveau).toBe(r.niveau);
     expect(a.robustesse!).toBeLessThan(r.robustesse!);
     expect(a.explication.reserves.join(" ")).toContain("Dernière preuve il y a");
+  });
+});
+
+describe("périmètre actif — ADR-018", () => {
+  it("ne retient que les compétences du domaine pilote, sans toucher au référentiel", () => {
+    expect(SKILLS_ACTIFS.length).toBeGreaterThan(0);
+    expect(SKILLS_ACTIFS.every((s) => s.domaine === DOMAINE_PILOTE)).toBe(true);
+    // Le référentiel complet reste intact : les compétences hors périmètre sont
+    // écartées du calcul, pas supprimées.
+    expect(SKILLS.length).toBeGreaterThan(SKILLS_ACTIFS.length);
+    expect(SKILLS_ACTIFS.every((s) => SKILL_PAR_CODE.has(s.code))).toBe(true);
+  });
+
+  it("n'agrège aucun domaine hors périmètre — un domaine absent n'est pas un domaine à zéro", () => {
+    const etats = computeAllSkillStates(SKILLS_ACTIFS, [], MAINTENANT);
+    const global = calculerEtatGlobal(etats, MAINTENANT);
+    expect(global.parDomaine).toHaveLength(1);
+    expect(global.parDomaine[0].domaine).toBe(DOMAINE_PILOTE);
+    // Et sans preuve, toujours pas de zéro fabriqué.
+    expect(global.scoreGlobal).toBeNull();
+  });
+
+  it("une preuve hors périmètre n'entre dans aucun agrégat", () => {
+    const horsPerimetre = [preuve({ skill: "STAT-01", jours: 1 })];
+    const etats = computeAllSkillStates(SKILLS_ACTIFS, horsPerimetre, MAINTENANT);
+    const global = calculerEtatGlobal(etats, MAINTENANT);
+    expect(global.nombrePreuves).toBe(0);
+    expect(global.scoreGlobal).toBeNull();
   });
 });
 

@@ -7,7 +7,7 @@
  *
  */
 
-import { SKILLS } from "@/lib/domain/referentiel";
+import { CODES_ACTIFS, SKILLS_ACTIFS } from "@/lib/domain/referentiel";
 import type {
   Collections,
 } from "./db";
@@ -33,16 +33,22 @@ export async function chargerContexte(): Promise<Contexte> {
 
   // Les exercices de diagnostic font partie du logiciel, pas du journal :
   // ils sont toujours disponibles, sans étape d'initialisation.
+  //
+  // Filtrés sur le périmètre actif (ADR-018) : proposer un exercice sur une
+  // compétence qui n'est plus ni calculée ni affichée produirait une preuve
+  // que rien ne lirait.
   const idsStockes = new Set(donneesBrutes.exercises.map((e) => e.id));
+  const dansLePerimetre = (e: { competences: string[] }) =>
+    e.competences.some((c) => CODES_ACTIFS.has(c));
   const donnees: Collections = {
     ...donneesBrutes,
     exercises: [
-      ...EXERCICES_DIAGNOSTIC.filter((e) => !idsStockes.has(e.id)),
-      ...donneesBrutes.exercises,
+      ...EXERCICES_DIAGNOSTIC.filter((e) => !idsStockes.has(e.id) && dansLePerimetre(e)),
+      ...donneesBrutes.exercises.filter(dansLePerimetre),
     ],
   };
 
-  const etats = computeAllSkillStates(SKILLS, donnees.evidence, now);
+  const etats = computeAllSkillStates(SKILLS_ACTIFS, donnees.evidence, now);
   const global = calculerEtatGlobal(etats, now);
 
   const recommandations = recommander(etats, donnees.exercises, donnees.attempts, 6);

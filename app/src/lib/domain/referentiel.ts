@@ -93,6 +93,21 @@ export const ORDRE_DIAGNOSTIC: string[] = [
   "TECH-01",
 ];
 
+/**
+ * Périmètre pilote — ADR-018 (28/07/2026).
+ *
+ * Le référentiel garde ses 43 compétences : elles ne sont pas supprimées, elles
+ * sont **hors périmètre de travail**. Seules celles listées ici sont calculées,
+ * affichées et transmises au tuteur.
+ *
+ * Le domaine Logistique a été retenu parce que c'est le plus travaillé — 7
+ * preuves sur 6 des 9 compétences au 28/07. Étendre le périmètre est une
+ * décision, pas un réglage : le faire sans contenu pour l'alimenter ramènerait
+ * exactement le problème que ce chantier corrige (31 compétences sur 43 sans
+ * aucun support de travail).
+ */
+export const DOMAINE_PILOTE: DomaineId = "logistique";
+
 export const SKILLS: Skill[] = [
   /* ---------------------------- STATISTIQUES --------------------------- */
   {
@@ -522,6 +537,18 @@ export const SKILLS: Skill[] = [
 ];
 
 export const SKILL_PAR_CODE = new Map<string, Skill>(SKILLS.map((s) => [s.code, s]));
+
+/**
+ * Les compétences réellement travaillées (ADR-018). C'est cette liste, et non
+ * `SKILLS`, que consomment le moteur, l'interface et le contexte du tuteur.
+ *
+ * `SKILLS` reste exporté : une preuve enregistrée hors périmètre garde son
+ * intitulé lisible, elle n'est simplement plus agrégée. Rien n'est perdu, et
+ * élargir le périmètre suffit à la faire réapparaître dans les calculs.
+ */
+export const SKILLS_ACTIFS: Skill[] = SKILLS.filter((s) => s.domaine === DOMAINE_PILOTE);
+
+export const CODES_ACTIFS = new Set(SKILLS_ACTIFS.map((s) => s.code));
 
 export function skillsParDomaine(domaine: DomaineId): Skill[] {
   return SKILLS.filter((s) => s.domaine === domaine);

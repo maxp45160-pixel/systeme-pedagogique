@@ -102,7 +102,13 @@ export function calculerEtatGlobal(etats: SkillState[], now: Date = new Date()):
   const total = etats.length;
   const evalues = etats.filter((e) => e.statut === "evalue" && e.score !== null);
   const nombrePreuves = etats.reduce((s, e) => s + e.preuves.length, 0);
-  const parDomaine = DOMAINES.map((d) => agregerDomaine(d.id, etats));
+  // Seuls les domaines réellement représentés dans `etats` : depuis ADR-018 le
+  // périmètre actif peut n'en couvrir qu'un, et afficher six domaines vides
+  // ferait exactement ce que le protocole interdit — présenter une absence de
+  // mesure comme une mesure à zéro.
+  const parDomaine = DOMAINES.filter((d) => etats.some((e) => e.skill.domaine === d.id)).map((d) =>
+    agregerDomaine(d.id, etats),
+  );
 
   // Aucune preuve nulle part : le score n'existe pas. On ne renvoie pas 0,
   // qui prétendrait avoir mesuré (protocole anti-hallucination §7 et §14).
