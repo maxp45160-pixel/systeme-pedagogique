@@ -6,15 +6,9 @@ Contexte de travail pour Claude Code et Claude Chat sur ce dépôt.
 
 Le produit est une **boucle** :
 
-> **génération d'exercices → évaluation de la compétence → ajustement des
-> exercices**
+> **génération d'exercices → évaluation de la compétence → ajustement des exercices**
 
-Le 3ᵉ maillon **n'existe pas encore** dans le code. Les deux premiers existent,
-mais la boucle est arrêtée au premier : les 11 exercices de diagnostic ont tous
-été faits et **aucun exercice n'a jamais été créé** (`exercises` : 0 ligne).
-
-Tout le reste est secondaire et se justifie devant cette boucle. Un chantier de
-décomplexification l'a rétabli au centre le 28/07/2026 (ADR-013 à ADR-019).
+Le 3ᵉ maillon **n'existe pas encore**. La boucle est arrêtée au premier : les 11 exercices de diagnostic ont tous été faits et **aucun exercice n'a jamais été créé** (`exercises` : 0 ligne). Tout le reste est secondaire.
 
 ---
 
@@ -25,15 +19,10 @@ décomplexification l'a rétabli au centre le 28/07/2026 (ADR-013 à ADR-019).
 | [`PRODUCT.md`](PRODUCT.md) | Ce que le produit est, n'est pas, et les 8 principes — dont les 2 en défaut | **Fait autorité** |
 | [`ARCHITECTURE_DECISIONS.md`](ARCHITECTURE_DECISIONS.md) | Registre ADR — décisions, hypothèses, questions ouvertes | **Fait autorité** |
 | [`ROADMAP.md`](ROADMAP.md) | Ordre de travail et conditions de déclenchement | **Fait autorité** |
-| [`archive/`](archive/) | Documents datés — analyses, audits, specs terminées | ⚠️ **Ne jamais y lire un chiffre d'usage** |
 
-**Quatre statuts, au sens strict, employés dans tous ces documents :**
-✅ décision tranchée par une personne · 🔬 hypothèse argumentée non vérifiée ·
-❓ question ouverte · 🗑️ idée abandonnée avec sa raison.
+Statuts employés dans ces docs : ✅ décision tranchée · 🔬 hypothèse non vérifiée · ❓ question ouverte · 🗑️ idée abandonnée.
 
-> **Une analyse convaincante n'est pas une décision.** Ne jamais promouvoir en
-> ✅ une conclusion produite par une session Claude sans validation humaine
-> explicite.
+> **Une analyse convaincante n'est pas une décision.** Ne jamais promouvoir en ✅ une conclusion produite par une session Claude sans validation humaine explicite.
 
 ---
 
@@ -74,10 +63,7 @@ pratique et développer un sujet à long terme.
 - **Gestionnaire de paquets :** npm (workspace racine → `app/`)
 - **Outillage :** serveur MCP Supabase (`.mcp.json`)
 
-> ⚠️ **Cette version de Next.js n'est pas celle de tes données d'entraînement.**
-> APIs, conventions et structure de fichiers peuvent différer. Lire le guide
-> concerné dans `app/node_modules/next/dist/docs/` avant d'écrire du code.
-> Le middleware s'appelle désormais **`proxy`** (`app/src/proxy.ts`).
+> ⚠️ Le middleware Next.js s'appelle ici **`proxy`** (`app/src/proxy.ts`) — pas `middleware.ts`.
 
 ---
 
@@ -114,29 +100,17 @@ bascule sur « Copier le contexte » — comportement voulu, pas une panne.
 
 ## 5. Le principe qui gouverne tout
 
-`app/data/00_instructions/` définit un protocole anti-hallucination, **lu tel
-quel par le tuteur** et transcrit règle par règle dans `lib/engine/`. Il
-s'applique à l'interface autant qu'au tuteur :
+`app/data/00_instructions/` définit un protocole anti-hallucination lu par le tuteur et transcrit dans `lib/engine/` :
 
-- **Rien de ce qui peut être dérivé n'est stocké.** Le disque ne contient que
-  des faits observés (preuves, tentatives, séances). Niveaux, scores et
-  recommandations sont recalculés à chaque lecture.
+- **Rien de ce qui peut être dérivé n'est stocké.** Niveaux, scores et recommandations sont recalculés à chaque lecture.
 - **Aucune valeur sans source.** Chaque nombre affiché porte un « Pourquoi ? ».
 - **L'absence de mesure n'est pas un zéro.** Sans preuve : `—`, jamais `0/100`.
-- **Une faiblesse ne disparaît pas sans démonstration.** Les preuves
-  contradictoires réduisent la confiance, pas le niveau.
-- **Le tuteur n'a aucun accès en écriture.** Il émet une proposition structurée
-  que l'utilisateur valide lui-même.
+- **Une faiblesse ne disparaît pas sans démonstration.** Les preuves contradictoires réduisent la confiance, pas le niveau.
+- **Le tuteur n'a aucun accès en écriture.** Il émet une proposition que l'utilisateur valide.
 
-Chaque seuil du moteur cite le paragraphe du protocole qui l'impose, et 63 tests
-vérifient ces garanties. **Ne pas modifier un seuil sans modifier le protocole
-correspondant.**
+**Ne pas modifier un seuil du moteur sans modifier le protocole correspondant.** 63 tests vérifient ces garanties.
 
-⚠️ **Deux de ces principes ne sont pas tenus aujourd'hui** — le score global
-agrégé compte les compétences non mesurées comme des zéros, et la mesure
-d'autonomie ignore l'aide externe. Détail et démonstration dans
-[`PRODUCT.md`](PRODUCT.md) §5. Ce sont des écarts **connus et documentés**, pas
-des bugs à corriger sans arbitrage (ADR-006 et ADR-008).
+⚠️ Deux principes ne sont pas tenus : le score global compte les non-mesurées comme des zéros, et l'autonomie ignore l'aide externe. Écarts connus — voir `PRODUCT.md` §5 (ADR-006 et ADR-008).
 
 ---
 
@@ -154,17 +128,9 @@ l'alimenter ramènerait exactement le problème que le chantier du 28/07 corrige
 
 ## 7. Contraintes et points d'attention
 
-- 🔴 **Où se trouve l'état réel des données : dans Supabase, jamais ailleurs.**
-  Pour toute question sur l'usage — combien de preuves, quels exercices faits,
-  quel score affiché — interroger Supabase (serveur MCP configuré dans
-  `.mcp.json`). Les fichiers `app/data/store/*.json` ont été supprimés le 28/07 ;
-  les documents d'`archive/` contiennent des chiffres périmés.
-- **Sécurité.** RLS PostgreSQL est la **seule** barrière d'autorisation à
-  laquelle le système accorde sa confiance ; les redirections du proxy ne sont
-  qu'un confort d'affichage. Ne jamais mettre la clé `service_role` côté client.
-- **RGPD.** Une progression de compétences est une donnée personnelle. Toute
-  feature de partage doit être opt-in et granulaire.
-- **Accessibilité.** Non auditée à ce jour.
+- 🔴 **L'état réel des données est dans Supabase, jamais ailleurs.** Pour toute question sur l'usage, interroger Supabase via le MCP (`.mcp.json`).
+- **Sécurité.** RLS PostgreSQL est la seule barrière d'autorisation de confiance. Ne jamais mettre la clé `service_role` côté client.
+- **RGPD.** La progression est une donnée personnelle. Toute feature de partage doit être opt-in et granulaire.
 - **Compatibilité.** Navigateur en priorité, mobile en second temps.
 
 ---
@@ -187,15 +153,7 @@ l'alimenter ramènerait exactement le problème que le chantier du 28/07 corrige
 - **Ne pas installer de dépendance** sans confirmation — l'absence de librairie
   UI tierce est un choix.
 - **Ne pas pousser directement sur `master`.**
-- **Ne pas remettre le widget de TODOs dev dans le produit** (ADR-019). Il vit
-  sur `/dev` (`components/dev/dev-todo.tsx`), hors du groupe `(app)`, et n'est
-  lié depuis aucun écran. Le projet est développé à deux : la liste globale
-  partagée entre comptes connectés est **volontaire**, c'est l'outil de
-  coordination de l'équipe, et elle ne se discute pas au titre de l'expérience
-  utilisateur. Ne pas non plus la « corriger » sans demande.
-  *(❓ La politique RLS reste `FOR ALL TO authenticated USING (true)` : tout
-  compte authentifié lit et modifie la liste, et la base compte 3 profils dont
-  un sans activité pédagogique. Question ouverte en ADR-019.)*
+- **Ne pas remettre le widget de TODOs dev dans le produit** (ADR-019). Il vit sur `/dev` (`components/dev/dev-todo.tsx`), hors du groupe `(app)`. La liste partagée entre comptes est volontaire — ne pas la « corriger » sans demande.
 - **Ne pas construire par anticipation.** Un modèle de données sans besoin réel
   est de la complexité gratuite. C'est ce qui a produit les 6 entités mortes
   supprimées le 28/07.
@@ -208,52 +166,24 @@ l'alimenter ramènerait exactement le problème que le chantier du 28/07 corrige
 
 ## 9. Grille d'évaluation de toute proposition
 
-*(absorbée de `FEATURE_EVALUATION_FRAMEWORK.md`, supprimé le 28/07)*
+Vérifier les faits d'abord (Supabase pour l'usage, le dépôt pour le code). Puis répondre dans l'ordre :
 
-**Étape 0 — vérifier les faits avant de raisonner.** L'usage se lit dans
-Supabase, le code dans le dépôt. Nommer explicitement ce qui n'a pas pu être
-vérifié.
+1. **Quel problème réel ?** Observable, pas une impression.
+2. **Quel besoin, distinct de la solution ?** Retirer la solution de la demande.
+3. **Quels effets secondaires ?** Sur la surface produit, les données, les décisions futures.
+4. **Compatible avec les 8 principes ?** Incompatibilité → modifier le principe explicitement, jamais le contourner.
+5. **Quelle alternative ?** « Ne rien faire » est toujours recevable.
+6. **Recommandation et argument décisif.** Un avis tranché, pas une liste équilibrée.
 
-**Les six questions.** Toute proposition non triviale y répond, dans l'ordre :
-
-1. **Quel problème réel résout-elle ?** Un problème réel est *observable*.
-   « L'interface pourrait être plus claire » n'en est pas un ; « 31 compétences
-   sur 43 n'ont aucun exercice » en est un. Si le problème ne peut être formulé
-   qu'en termes de solution, il n'a pas encore été identifié.
-2. **Quel est le besoin, distinct de la solution imaginée ?** Toute demande
-   contient déjà une solution ; il faut la retirer. *Exemple réel :* demande
-   « recherche d'exercices » → besoin réel *qu'il existe des exercices*. D'où
-   ADR-004, et non une barre de recherche.
-3. **Quels sont les effets secondaires ?** Sur la surface produit (chaque ajout
-   renchérit tous les chantiers suivants), sur les données (une migration à
-   venir, sans outil de migration — ADR-012), sur le comportement de
-   l'utilisateur, sur les décisions qui deviennent plus difficiles ensuite.
-4. **Est-ce compatible avec les 8 principes ?** Principe par principe. Une
-   incompatibilité n'est pas rédhibitoire, mais impose de modifier le principe
-   *explicitement*, jamais de le contourner en silence.
-5. **Quelle est l'alternative ?** Au moins une, sérieusement construite. « Ne
-   rien faire » est toujours recevable. Formes plus économiques : résoudre en
-   amont, réutiliser un dispositif existant, rendre le problème visible et
-   attendre qu'il se manifeste.
-6. **Que recommande-t-on, et pourquoi ?** Un avis, avec l'argument décisif —
-   celui qui, s'il tombait, ferait changer d'avis. Pas une liste équilibrée.
-
-**Puis ranger la proposition dans un des quatre statuts du §1.**
+Ranger ensuite dans un statut du §1.
 
 ---
 
 ## 10. Workflow de travail préféré
 
-- **Vérifier les faits avant d'analyser** (§9, étape 0).
 - **Toujours proposer un plan avant de coder** pour tout chantier non trivial.
-- **Trancher plutôt que deviner** : quand une spec laisse un arbitrage ouvert,
-  proposer une décision argumentée et la faire valider — ne pas trancher
-  silencieusement en cours de route.
+- **Trancher plutôt que deviner** : proposer une décision argumentée, la faire valider.
 - **Une branche par fonctionnalité**, un merge dans `master` après validation.
 - **`npm run verify` doit être vert avant tout merge.**
-- Écrire les tests en même temps que le code **pour tout ce qui touche au
-  moteur**.
-- **Vercel refuse les déploiements dont l'auteur du commit n'est pas membre de
-  l'équipe** (état `BLOCKED`, sans logs de build). Vérifier
-  `git log -1 --format="%an <%ae>"` avant de pousser. Voir
-  `SETUP_COMPTES_SUPABASE.md` §7.
+- Écrire les tests en même temps que le code **pour tout ce qui touche au moteur**.
+- **Vercel refuse les déploiements dont l'auteur du commit n'est pas membre de l'équipe** (état `BLOCKED`). Vérifier `git log -1 --format="%an <%ae>"` avant de pousser.
