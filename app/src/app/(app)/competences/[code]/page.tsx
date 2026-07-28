@@ -413,33 +413,30 @@ export default async function PageCompetence(props: {
 
       {/*
         Deuxième chemin d'enregistrement d'une preuve — hors exercice du store.
-        Masqué en mode démonstration (les données fictives ne s'écrivent pas).
         Pré-ouvert si l'on arrive depuis une proposition du tuteur.
       */}
-      {ctx.mode !== "demo" && (
-        <Carte className="mt-4">
-          <div className="px-4 py-4">
-            <Depliant
-              resume="Enregistrer une preuve manuelle"
-              ouvertParDefaut={valeursInitiales !== undefined}
-            >
-              <div className="mt-3">
-                <p className="mb-4 max-w-2xl text-xs text-texte-attenue">
-                  Pour un travail qui n&apos;est pas passé par un exercice de l&apos;application :
-                  script exécuté seul, exercice papier, ou synthèse d&apos;un échange avec le tuteur.
-                  Mêmes règles que partout : une source vérifiable est obligatoire, et aucune
-                  dimension n&apos;est chiffrée si tu ne l&apos;as pas réellement observée.
-                </p>
-                <FormulairePreuveManuelle
-                  skillCode={etat.skill.code}
-                  skillsDisponibles={skillsDisponibles}
-                  valeursInitiales={valeursInitiales}
-                />
-              </div>
-            </Depliant>
-          </div>
-        </Carte>
-      )}
+      <Carte className="mt-4">
+        <div className="px-4 py-4">
+          <Depliant
+            resume="Enregistrer une preuve manuelle"
+            ouvertParDefaut={valeursInitiales !== undefined}
+          >
+            <div className="mt-3">
+              <p className="mb-4 max-w-2xl text-xs text-texte-attenue">
+                Pour un travail qui n&apos;est pas passé par un exercice de l&apos;application :
+                script exécuté seul, exercice papier, ou synthèse d&apos;un échange avec le tuteur.
+                Mêmes règles que partout : une source vérifiable est obligatoire, et aucune
+                dimension n&apos;est chiffrée si tu ne l&apos;as pas réellement observée.
+              </p>
+              <FormulairePreuveManuelle
+                skillCode={etat.skill.code}
+                skillsDisponibles={skillsDisponibles}
+                valeursInitiales={valeursInitiales}
+              />
+            </div>
+          </Depliant>
+        </div>
+      </Carte>
     </>
   );
 }

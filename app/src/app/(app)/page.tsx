@@ -2,7 +2,6 @@ import Link from "next/link";
 import { chargerContexte } from "@/lib/store/context";
 import { calculerActivite, evenementsRecents } from "@/lib/engine/historique";
 import { EntetePage } from "@/components/layout/entete-page";
-import { BoutonActiverDemo } from "@/components/layout/bandeau-demo";
 import { CarteEtatGlobal } from "@/components/dashboard/etat-global";
 import { CarteProchaineAction } from "@/components/dashboard/prochaine-action";
 import { CarteProgressionRecente } from "@/components/dashboard/progression-recente";
@@ -31,7 +30,6 @@ export default async function TableauDeBord() {
             ? "Une seule action suffit à lancer le suivi."
             : "Ta prochaine action — le reste suit, en retrait."
         }
-        actions={ctx.mode === "reel" ? <BoutonActiverDemo libelle="Mode démonstration" /> : undefined}
       />
 
       {/*
@@ -70,12 +68,11 @@ export default async function TableauDeBord() {
             <CarteObjectifs
               objectifs={ctx.donnees.objectives}
               recommandations={ctx.recommandations}
-              modeDemo={ctx.mode === "demo"}
             />
           </div>
 
           <div className="lg:col-span-2">
-            <CarteProgressionRecente evenements={evenements} modeDemo={ctx.mode === "demo"} />
+            <CarteProgressionRecente evenements={evenements} />
           </div>
 
           <div className="lg:col-span-1">

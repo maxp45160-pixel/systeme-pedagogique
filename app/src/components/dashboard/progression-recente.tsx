@@ -2,7 +2,6 @@ import Link from "next/link";
 import type { EvenementProgression } from "@/lib/engine/historique";
 import { Carte, CodeCompetence, EnTeteCarte, Etiquette, EtatVide } from "@/components/ui/primitives";
 import { formatDateRelative } from "@/lib/engine/dates";
-import { BoutonActiverDemo } from "@/components/layout/bandeau-demo";
 
 const LIBELLE_TYPE: Record<EvenementProgression["type"], string> = {
   exercice: "Exercice",
@@ -24,10 +23,8 @@ const LIBELLE_TYPE: Record<EvenementProgression["type"], string> = {
  */
 export function CarteProgressionRecente({
   evenements,
-  modeDemo,
 }: {
   evenements: EvenementProgression[];
-  modeDemo: boolean;
 }) {
   return (
     <Carte>
@@ -37,7 +34,6 @@ export function CarteProgressionRecente({
         <EtatVide
           titre="Aucune preuve enregistrée"
           message="Les évolutions apparaîtront ici dès le premier exercice terminé. Rien n'est affiché avant qu'une preuve existe."
-          action={modeDemo ? undefined : <BoutonActiverDemo />}
         />
       ) : (
         <ul className="divide-y divide-bordure">

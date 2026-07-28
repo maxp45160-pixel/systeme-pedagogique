@@ -25,11 +25,9 @@ function estActif(pathname: string, href: string): boolean {
 
 export function Sidebar({
   xp,
-  mode,
   session,
 }: {
   xp: ResumeXp;
-  mode: "reel" | "demo";
   session: EtatSession;
 }) {
   const pathname = usePathname();
@@ -163,11 +161,6 @@ export function Sidebar({
               ? `${xp.xpRequisPalier - xp.xpDansPalier} XP avant « ${xp.suivant} »`
               : "Dernier palier atteint"}
           </div>
-          {mode === "demo" && (
-            <div className="mt-2 rounded-md border border-[#d99a3f]/30 bg-[#d99a3f]/10 py-1 text-center text-[0.625rem] font-medium text-[#d99a3f]">
-              Données fictives
-            </div>
-          )}
         </div>
       </div>
 

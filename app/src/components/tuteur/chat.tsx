@@ -71,11 +71,9 @@ interface Etat {
 
 export function ChatTuteur({
   competenceCiblee,
-  modeDemo,
   codesCompetences,
 }: {
   competenceCiblee?: string;
-  modeDemo: boolean;
   /** Codes du référentiel — pour valider qu'une compétence citée existe vraiment. */
   codesCompetences: string[];
 }) {
@@ -489,13 +487,6 @@ export function ChatTuteur({
                 <code className="font-mono">ANTHROPIC_API_KEY=…</code>, puis relancer le serveur.
               </li>
             </ol>
-          </div>
-        )}
-
-        {modeDemo && (
-          <div className="rounded-carte border border-bordure bg-surface-2 px-4 py-3 text-xs text-texte-attenue">
-            Le mode démonstration est actif : le contexte transmis décrit le profil fictif, pas le
-            tien.
           </div>
         )}
 

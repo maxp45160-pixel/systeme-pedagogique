@@ -20,11 +20,9 @@ const HORIZONS: { cle: Objectif["horizon"]; titre: string; aide: string }[] = [
 export function CarteObjectifs({
   objectifs,
   recommandations,
-  modeDemo,
 }: {
   objectifs: Objectif[];
   recommandations: Recommandation[];
-  modeDemo: boolean;
 }) {
   const principale = recommandations[0];
 
@@ -67,7 +65,7 @@ export function CarteObjectifs({
               ) : (
                 <div className="mt-1.5">
                   <p className="text-xs text-texte-discret">{aide}</p>
-                  {!modeDemo && (
+                  {(
                     <form action={definirObjectif.bind(null, cle)} className="mt-2 flex gap-1.5">
                       <input
                         type="text"
@@ -81,7 +79,7 @@ export function CarteObjectifs({
                       </button>
                     </form>
                   )}
-                  {!modeDemo && principale && (
+                  {principale && (
                     <p className="mt-1 text-[0.625rem] text-texte-discret">
                       Le champ est pré-rempli d&apos;une proposition fondée sur ta recommandation
                       actuelle. Modifie-la librement.

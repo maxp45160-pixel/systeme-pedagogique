@@ -8,11 +8,9 @@
  * en l'état (voir README).
  */
 
-import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ajouter, lire, nouvelId, remplacer } from "./db";
-import { COOKIE_DEMO, modeDemoActif } from "./context";
 import type {
   Autonomie,
   Difficulte,
@@ -27,36 +25,11 @@ import type {
   TypeExercice,
 } from "@/lib/domain/types";
 
-/** Le mode démonstration n'écrit jamais rien : toute mutation y est refusée. */
-async function refuserSiDemo(): Promise<void> {
-  if (await modeDemoActif()) {
-    throw new Error(
-      "Mode démonstration actif : les données fictives ne peuvent pas être modifiées, et le profil réel n'est pas touché.",
-    );
-  }
-}
-
-/* ------------------------------------------------------------------ */
-/* Mode démonstration                                                  */
-/* ------------------------------------------------------------------ */
-
-export async function basculerModeDemo(): Promise<void> {
-  const jar = await cookies();
-  const actif = jar.get(COOKIE_DEMO)?.value === "1";
-  if (actif) {
-    jar.delete(COOKIE_DEMO);
-  } else {
-    jar.set(COOKIE_DEMO, "1", { httpOnly: false, sameSite: "lax", path: "/" });
-  }
-  revalidatePath("/", "layout");
-}
-
 /* ------------------------------------------------------------------ */
 /* Exercices                                                           */
 /* ------------------------------------------------------------------ */
 
 export async function demarrerTentative(exerciseId: string): Promise<void> {
-  await refuserSiDemo();
   const existantes = await lire("attempts");
   const enCours = existantes.find(
     (t) => t.exerciseId === exerciseId && t.statut === "en-cours",
@@ -77,7 +50,6 @@ export async function demarrerTentative(exerciseId: string): Promise<void> {
 }
 
 export async function debloquerIndice(attemptId: string, exerciseId: string): Promise<void> {
-  await refuserSiDemo();
   await remplacer("attempts", attemptId, (t) => ({
     ...t,
     indicesUtilises: t.indicesUtilises + 1,
@@ -90,7 +62,6 @@ export async function enregistrerReponse(
   exerciseId: string,
   reponse: string,
 ): Promise<void> {
-  await refuserSiDemo();
   await remplacer("attempts", attemptId, (t) => ({ ...t, reponse }));
   revalidatePath(`/exercices/${exerciseId}`);
 }
@@ -131,8 +102,6 @@ export interface SoumissionExercice {
  * (protocole anti-hallucination §4, traçabilité).
  */
 export async function terminerExercice(soumission: SoumissionExercice): Promise<void> {
-  await refuserSiDemo();
-
   const exercices = await lire("exercises");
   const { EXERCICES_DIAGNOSTIC } = await import("@/lib/seed/exercises");
   const exercice =
@@ -237,15 +206,14 @@ export interface SoumissionPreuveManuelle {
  * Couvre tout travail qui ne passe pas par un `Exercise` du store : script
  * exécuté seul, exercice papier, synthèse d'un échange avec le tuteur.
  *
- * Mêmes garde-fous : refusé en mode démo, source toujours renseignée,
- * dimensions non observées simplement omises (jamais un 0 par défaut).
+ * Mêmes garde-fous : source toujours renseignée, dimensions non observées
+ * simplement omises (jamais un 0 par défaut).
  * L'autonomie est ici DÉCLARÉE, pas déduite (§1.1 de la spec) : le commentaire
  * stocké le signale toujours, pour que la distinction reste visible en aval.
  */
 export async function enregistrerPreuveManuelle(
   soumission: SoumissionPreuveManuelle,
 ): Promise<void> {
-  await refuserSiDemo();
   if (!soumission.contexte.trim()) throw new Error("Le contexte est obligatoire.");
   if (!soumission.sourceRef.trim()) throw new Error("La source est obligatoire.");
 
@@ -331,7 +299,6 @@ export interface SoumissionExerciceManuel {
  * champ reste réservé aux 10 exercices du plan d'évaluation initiale.
  */
 export async function creerExercice(soumission: SoumissionExerciceManuel): Promise<string> {
-  await refuserSiDemo();
   if (!soumission.titre.trim()) throw new Error("Le titre est obligatoire.");
   if (!soumission.enonce.trim()) throw new Error("L'énoncé est obligatoire.");
   if (!soumission.correction.trim()) throw new Error("La correction est obligatoire.");
@@ -373,7 +340,6 @@ export async function changerStatutErreur(
   erreurId: string,
   statut: "nouvelle" | "en-cours" | "corrigee" | "consolidee",
 ): Promise<void> {
-  await refuserSiDemo();
   await remplacer("errors", erreurId, (e) => ({ ...e, statut }));
   revalidatePath("/erreurs");
 }
@@ -387,7 +353,6 @@ export async function ajouterNoteSession(
   sessionId: string,
   formData: FormData,
 ): Promise<void> {
-  await refuserSiDemo();
   const note = String(formData.get("note") ?? "").trim();
   await remplacer("sessions", sessionId, (s) => ({
     ...s,
@@ -405,7 +370,6 @@ export async function definirObjectif(
   horizon: Objectif["horizon"],
   formData: FormData,
 ): Promise<void> {
-  await refuserSiDemo();
   const libelle = String(formData.get("libelle") ?? "");
   const skillCodes = String(formData.get("skillCodes") ?? "")
     .split(",")

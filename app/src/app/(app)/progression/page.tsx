@@ -15,7 +15,6 @@ import {
   TagConfiance,
 } from "@/components/ui/primitives";
 import { Courbe, GrilleActivite, LegendeActivite } from "@/components/charts";
-import { BoutonActiverDemo } from "@/components/layout/bandeau-demo";
 import { formatDuree } from "@/lib/engine/dates";
 import { PALIERS } from "@/lib/engine/xp";
 
@@ -97,14 +96,9 @@ export default async function PageProgression(props: {
             titre="Aucun historique à afficher"
             message="La progression se construit à partir des preuves enregistrées. Rien ne sera tracé avant le premier exercice terminé — une courbe partant de zéro sans donnée serait une invention."
             action={
-              ctx.mode === "reel" ? (
-                <div className="flex flex-wrap items-center justify-center gap-2">
-                  <Link href="/" className="text-xs text-primaire hover:underline">
-                    Voir l&apos;action recommandée
-                  </Link>
-                  <BoutonActiverDemo />
-                </div>
-              ) : undefined
+              <Link href="/" className="text-xs text-primaire hover:underline">
+                Voir l&apos;action recommandée
+              </Link>
             }
           />
         </Carte>

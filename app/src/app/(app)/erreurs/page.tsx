@@ -86,7 +86,7 @@ export default async function PageErreurs() {
               </div>
               <div className="space-y-3">
                 {prioritaires.map((e) => (
-                  <CarteErreur key={e.id} erreur={e} prioritaire modeDemo={ctx.mode === "demo"} />
+                  <CarteErreur key={e.id} erreur={e} prioritaire />
                 ))}
               </div>
             </div>
@@ -97,7 +97,7 @@ export default async function PageErreurs() {
               <h2 className="mb-2 text-sm font-semibold tracking-tight">Autres erreurs suivies</h2>
               <div className="space-y-3">
                 {autres.map((e) => (
-                  <CarteErreur key={e.id} erreur={e} modeDemo={ctx.mode === "demo"} />
+                  <CarteErreur key={e.id} erreur={e} />
                 ))}
               </div>
             </div>
@@ -117,11 +117,9 @@ export default async function PageErreurs() {
 function CarteErreur({
   erreur,
   prioritaire,
-  modeDemo,
 }: {
   erreur: ErrorItem;
   prioritaire?: boolean;
-  modeDemo: boolean;
 }) {
   const contextes = new Set(erreur.occurrences.map((o) => o.contexte));
   const statut = STATUTS.find((s) => s.cle === erreur.statut)!;
@@ -198,7 +196,7 @@ function CarteErreur({
           </Depliant>
         </div>
 
-        {!modeDemo && (
+        {(
           <div className="mt-4 flex flex-wrap items-center gap-1.5 border-t border-bordure pt-3">
             <span className="mr-1 text-[0.625rem] uppercase tracking-wider text-texte-discret">
               Statut

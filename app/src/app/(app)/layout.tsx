@@ -3,18 +3,17 @@ import { compteCourant } from "@/lib/supabase/server";
 import { supabaseConfigure } from "@/lib/supabase/config";
 import { Sidebar } from "@/components/layout/sidebar";
 import { NavMobile } from "@/components/layout/nav-mobile";
-import { BandeauDemo } from "@/components/layout/bandeau-demo";
 import { BasculeTheme } from "@/components/layout/bascule-theme";
 
 /**
- * Cadre du carnet : rail de navigation, bandeau de démonstration, marge.
+ * Cadre du carnet : rail de navigation, marge.
  *
  * Le groupe `(app)` n'apparaît pas dans les URL : `/competences` reste
  * `/competences`. Il sépare seulement les pages qui ont besoin du cadre de
  * celles qui n'en veulent pas (connexion, retour OAuth).
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const [{ xp, mode }, compte] = await Promise.all([chargerContexte(), compteCourant()]);
+  const [{ xp }, compte] = await Promise.all([chargerContexte(), compteCourant()]);
 
   const resumeXp = {
     niveau: xp.palier.niveau,
@@ -39,11 +38,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar xp={resumeXp} mode={mode} session={session} />
+      <Sidebar xp={resumeXp} session={session} />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        {mode === "demo" && <BandeauDemo />}
-
         {/* Barre supérieure mobile : le nom du système et la bascule de thème. */}
         <div className="flex h-12 items-center justify-between gap-2 border-b border-bordure bg-surface px-4 lg:hidden">
           <div className="min-w-0">

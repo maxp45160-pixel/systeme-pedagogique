@@ -87,29 +87,26 @@ export default async function PageExercices(props: {
         sousTitre="Chaque exercice terminé produit une preuve datée, avec l'autonomie réellement observée. C'est ce qui fait évoluer les compétences."
       />
 
-      {/* Création manuelle — hors mode démonstration (aucune écriture fictive). */}
-      {ctx.mode !== "demo" && (
-        <Carte className="mb-4">
-          <div className="px-4 py-3">
-            <Depliant resume="Ajouter un exercice" ouvertParDefaut={Boolean(proposition)}>
-              <div className="mt-3">
-                <p className="mb-4 max-w-2xl text-xs text-texte-attenue">
-                  Pour ajouter un exercice à ta bibliothèque — saisi à la main, ou proposé par le
-                  tuteur depuis la conversation. Il apparaîtra dans la liste et pourra être commencé
-                  comme les diagnostics.
-                </p>
-                <FormulaireCreationExercice
-                  propositionEnAttente={Boolean(proposition)}
-                  skillsDisponibles={ctx.etats.map((e) => ({
-                    code: e.skill.code,
-                    intitule: e.skill.intitule,
-                  }))}
-                />
-              </div>
-            </Depliant>
-          </div>
-        </Carte>
-      )}
+      <Carte className="mb-4">
+        <div className="px-4 py-3">
+          <Depliant resume="Ajouter un exercice" ouvertParDefaut={Boolean(proposition)}>
+            <div className="mt-3">
+              <p className="mb-4 max-w-2xl text-xs text-texte-attenue">
+                Pour ajouter un exercice à ta bibliothèque — saisi à la main, ou proposé par le
+                tuteur depuis la conversation. Il apparaîtra dans la liste et pourra être commencé
+                comme les diagnostics.
+              </p>
+              <FormulaireCreationExercice
+                propositionEnAttente={Boolean(proposition)}
+                skillsDisponibles={ctx.etats.map((e) => ({
+                  code: e.skill.code,
+                  intitule: e.skill.intitule,
+                }))}
+              />
+            </div>
+          </Depliant>
+        </div>
+      </Carte>
 
       {/* Filtres — une ligne de contrôles au-dessus de la liste. */}
       <Carte className="mb-4">

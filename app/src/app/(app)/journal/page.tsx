@@ -12,7 +12,6 @@ import {
   EtatVide,
   Statistique,
 } from "@/components/ui/primitives";
-import { BoutonActiverDemo } from "@/components/layout/bandeau-demo";
 import { calculerActivite, evenementsRecents } from "@/lib/engine/historique";
 import { formatDateCourte, formatDuree } from "@/lib/engine/dates";
 
@@ -42,14 +41,9 @@ export default async function PageJournal() {
             titre="Journal vide"
             message="Une entrée est créée automatiquement à chaque exercice terminé : date, domaine, durée, résultat et difficulté rencontrée. Tu pourras y ajouter une note personnelle."
             action={
-              ctx.mode === "reel" ? (
-                <div className="flex flex-wrap items-center justify-center gap-2">
-                  <Link href="/exercices" className="text-xs text-primaire hover:underline">
-                    Commencer un exercice
-                  </Link>
-                  <BoutonActiverDemo />
-                </div>
-              ) : undefined
+              <Link href="/exercices" className="text-xs text-primaire hover:underline">
+                Commencer un exercice
+              </Link>
             }
           />
         </Carte>
@@ -161,26 +155,24 @@ export default async function PageJournal() {
                         ) : (
                           !ctx.donnees.user.prenom && null
                         )}
-                        {ctx.mode === "reel" && (
-                          <form
-                            action={ajouterNoteSession.bind(null, s.id)}
-                            className="mt-1.5 flex gap-1.5"
+                        <form
+                          action={ajouterNoteSession.bind(null, s.id)}
+                          className="mt-1.5 flex gap-1.5"
+                        >
+                          <input
+                            type="text"
+                            name="note"
+                            defaultValue={s.notePersonnelle ?? ""}
+                            placeholder="Note personnelle…"
+                            className="min-w-0 flex-1 rounded-md border border-bordure bg-surface px-2 py-1 text-xs placeholder:text-texte-discret focus:border-primaire focus:outline-none"
+                          />
+                          <button
+                            type="submit"
+                            className={classesBouton("secondaire", "petite")}
                           >
-                            <input
-                              type="text"
-                              name="note"
-                              defaultValue={s.notePersonnelle ?? ""}
-                              placeholder="Note personnelle…"
-                              className="min-w-0 flex-1 rounded-md border border-bordure bg-surface px-2 py-1 text-xs placeholder:text-texte-discret focus:border-primaire focus:outline-none"
-                            />
-                            <button
-                              type="submit"
-                              className={classesBouton("secondaire", "petite")}
-                            >
-                              Noter
-                            </button>
-                          </form>
-                        )}
+                            Noter
+                          </button>
+                        </form>
                       </div>
                     </li>
                   ))}

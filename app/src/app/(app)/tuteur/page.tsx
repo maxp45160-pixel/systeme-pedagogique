@@ -25,7 +25,6 @@ export default async function PageTuteur(props: {
       />
       <ChatTuteur
         competenceCiblee={amorce}
-        modeDemo={ctx.mode === "demo"}
         codesCompetences={ctx.etats.map((e) => e.skill.code)}
       />
     </>
