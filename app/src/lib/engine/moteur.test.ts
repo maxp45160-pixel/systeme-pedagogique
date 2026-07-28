@@ -55,7 +55,7 @@ function preuve(options: {
 const STAT01 = SKILL_PAR_CODE.get("STAT-01")!;
 
 function etat(preuves: SkillEvidence[], now = MAINTENANT) {
-  return computeSkillState(STAT01, preuves, [], now);
+  return computeSkillState(STAT01, preuves, now);
 }
 
 /* ------------------------------------------------------------------ */
@@ -183,7 +183,7 @@ describe("récence — protocole d'évaluation §7", () => {
 
 describe("score global — protocole d'évaluation §12", () => {
   it("vaut null sans aucune preuve, jamais 0", () => {
-    const etats = computeAllSkillStates(SKILLS, [], new Map(), MAINTENANT);
+    const etats = computeAllSkillStates(SKILLS, [], MAINTENANT);
     const global = calculerEtatGlobal(etats, MAINTENANT);
     expect(global.scoreGlobal).toBeNull();
     expect(global.niveauMoyen).toBeNull();
@@ -197,7 +197,7 @@ describe("score global — protocole d'évaluation §12", () => {
       preuve({ skill: "STAT-01", jours: 10, contexte: "C" }),
       preuve({ skill: "STAT-01", jours: 2, contexte: "D" }),
     ];
-    const etats = computeAllSkillStates(SKILLS, preuves, new Map(), MAINTENANT);
+    const etats = computeAllSkillStates(SKILLS, preuves, MAINTENANT);
     const global = calculerEtatGlobal(etats, MAINTENANT);
 
     expect(global.confiance).toBe("faible");
@@ -225,15 +225,15 @@ describe("score global — protocole d'évaluation §12", () => {
 
 describe("recommandation — protocole d'évaluation §16", () => {
   it("au jour 0, recommande le premier diagnostic du plan d'évaluation initiale", () => {
-    const etats = computeAllSkillStates(SKILLS, [], new Map(), MAINTENANT);
-    const [premiere] = recommander(etats, [], [], []);
+    const etats = computeAllSkillStates(SKILLS, [], MAINTENANT);
+    const [premiere] = recommander(etats, [], []);
     expect(premiere.etat.skill.code).toBe(ORDRE_DIAGNOSTIC[0]);
     expect(premiere.raison).toContain("plan d'évaluation initiale");
   });
 
   it("la raison affichée est construite depuis des facteurs réels et non vide", () => {
-    const etats = computeAllSkillStates(SKILLS, [], new Map(), MAINTENANT);
-    for (const r of recommander(etats, [], [], [], 5)) {
+    const etats = computeAllSkillStates(SKILLS, [], MAINTENANT);
+    for (const r of recommander(etats, [], [], 5)) {
       expect(r.raison.startsWith("Recommandé car")).toBe(true);
       expect(r.facteurs.length).toBeGreaterThan(0);
     }
@@ -244,8 +244,8 @@ describe("recommandation — protocole d'évaluation §16", () => {
       preuve({ skill: "STAT-01", jours: 0 }),
       preuve({ skill: "STAT-01", jours: 0, contexte: "B" }),
     ];
-    const etats = computeAllSkillStates(SKILLS, preuves, new Map(), MAINTENANT);
-    const [premiere] = recommander(etats, [], [], []);
+    const etats = computeAllSkillStates(SKILLS, preuves, MAINTENANT);
+    const [premiere] = recommander(etats, [], []);
     expect(premiere.etat.skill.code).not.toBe("STAT-01");
   });
 });

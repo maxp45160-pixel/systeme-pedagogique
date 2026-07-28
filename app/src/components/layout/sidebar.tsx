@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { A_VENIR, NAVIGATION } from "./navigation";
+import { NAVIGATION } from "./navigation";
 import { cx } from "@/components/ui/primitives";
 import { IconeFeuille } from "@/components/ui/icones";
 import { BasculeTheme } from "./bascule-theme";
@@ -96,26 +96,6 @@ export function Sidebar({ session }: { session: EtatSession }) {
           </div>
         ))}
 
-        {/* Fonctionnalités à venir : nettement séparées, discrètes, non cliquables. */}
-        <div className="mt-2 border-t border-[var(--rail-bordure)] pt-4">
-          <div className="px-2 pb-2 text-[0.625rem] font-semibold uppercase tracking-wider text-[var(--rail-texte-discret)]">
-            Bientôt
-          </div>
-          <ul className="space-y-0.5 opacity-60">
-            {A_VENIR.map((e) => {
-              const Icone = e.icone;
-              return (
-                <li key={e.href}>
-                  <div className="flex cursor-default items-center gap-2.5 rounded-md px-3 py-1.5 text-[0.8125rem] text-[var(--rail-texte-discret)]">
-                    <Icone className="size-4 shrink-0 opacity-70" />
-                    <span className="truncate">{e.libelle}</span>
-                    <span className="ml-auto text-[0.5625rem] uppercase tracking-wide">bientôt</span>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
       </nav>
 
       <Compte session={session} />

@@ -57,13 +57,6 @@ export default async function PageProgression(props: {
       : preuvesPeriode.reduce((s, e) => s + AUTONOMIE[e.autonomie].poids, 0) /
         preuvesPeriode.length;
 
-  const erreursActives = ctx.donnees.errors.filter(
-    (e) => !e.archivee && (e.statut === "nouvelle" || e.statut === "en-cours"),
-  );
-  const erreursResolues = ctx.donnees.errors.filter(
-    (e) => e.statut === "corrigee" || e.statut === "consolidee",
-  );
-
   return (
     <>
       <EntetePage
@@ -236,49 +229,6 @@ export default async function PageProgression(props: {
               })}
             </div>
           </Carte>
-
-          {/* ------------------------- Erreurs et XP ----------------------- */}
-          <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
-            <Carte>
-              <EnTeteCarte
-                titre="Évolution des erreurs"
-                legende="Une erreur qui disparaît doit avoir été démontrée résolue"
-              />
-              <div className="px-4 py-4">
-                <div className="flex flex-wrap gap-x-8 gap-y-4">
-                  <Statistique
-                    libelle="À consolider"
-                    valeur={erreursActives.length}
-                    precision="nouvelles ou en cours"
-                  />
-                  <Statistique
-                    libelle="Résolues"
-                    valeur={erreursResolues.length}
-                    precision="corrigées ou consolidées"
-                  />
-                  <Statistique
-                    libelle="Occurrences totales"
-                    valeur={ctx.donnees.errors.reduce((s, e) => s + e.occurrences.length, 0)}
-                    precision="toutes erreurs confondues"
-                  />
-                </div>
-                {ctx.donnees.errors.length === 0 ? (
-                  <p className="mt-3 text-xs text-texte-attenue">
-                    Aucune erreur récurrente enregistrée. Une erreur isolée n&apos;est pas consignée
-                    ici : seules celles qui se répètent ou persistent le sont.
-                  </p>
-                ) : (
-                  <Link
-                    href="/erreurs"
-                    className="mt-3 inline-block text-xs text-primaire hover:underline"
-                  >
-                    Voir les erreurs en détail
-                  </Link>
-                )}
-              </div>
-            </Carte>
-
-          </div>
 
           {/* --------------------------- Régularité ------------------------ */}
           <Carte>

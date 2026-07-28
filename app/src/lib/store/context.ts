@@ -42,24 +42,10 @@ export async function chargerContexte(): Promise<Contexte> {
     ],
   };
 
-  const erreursParSkill = new Map<string, string[]>();
-  for (const err of donnees.errors) {
-    if (err.archivee) continue;
-    for (const code of err.skillCodes) {
-      erreursParSkill.set(code, [...(erreursParSkill.get(code) ?? []), err.id]);
-    }
-  }
-
-  const etats = computeAllSkillStates(SKILLS, donnees.evidence, erreursParSkill, now);
+  const etats = computeAllSkillStates(SKILLS, donnees.evidence, now);
   const global = calculerEtatGlobal(etats, now);
 
-  const recommandations = recommander(
-    etats,
-    donnees.exercises,
-    donnees.attempts,
-    donnees.errors,
-    6,
-  );
+  const recommandations = recommander(etats, donnees.exercises, donnees.attempts, 6);
 
   return {
     donnees,

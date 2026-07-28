@@ -1,13 +1,9 @@
 import type { ComponentType } from "react";
 import {
   IconeCompetences,
-  IconeConnaissances,
-  IconeErreurs,
   IconeExercices,
   IconeJournal,
-  IconeLectures,
   IconeProgression,
-  IconeProjets,
   IconeTableauBord,
   IconeTuteur,
 } from "@/components/ui/icones";
@@ -17,8 +13,6 @@ export interface Entree {
   libelle: string;
   court: string;
   icone: ComponentType<{ className?: string }>;
-  /** Marqué comme non encore construit : la page le dit franchement. */
-  aVenir?: boolean;
 }
 
 export interface GroupeNav {
@@ -59,25 +53,8 @@ export const NAVIGATION: GroupeNav[] = [
     entrees: [
       { href: "/progression", libelle: "Progression", court: "Progrès", icone: IconeProgression },
       { href: "/competences", libelle: "Compétences", court: "Compét.", icone: IconeCompetences },
-      { href: "/erreurs", libelle: "Erreurs", court: "Erreurs", icone: IconeErreurs },
       { href: "/journal", libelle: "Journal de bord", court: "Journal", icone: IconeJournal },
     ],
-  },
-];
-
-/**
- * Fonctionnalités non encore construites : reléguées dans une section « Bientôt »
- * nettement séparée et discrète, pour ne plus concurrencer les entrées actives.
- */
-export const A_VENIR: Entree[] = [
-  { href: "/projets", libelle: "Projets", court: "Projets", icone: IconeProjets, aVenir: true },
-  { href: "/lectures", libelle: "Lectures", court: "Lectures", icone: IconeLectures, aVenir: true },
-  {
-    href: "/connaissances",
-    libelle: "Connaissances",
-    court: "Savoirs",
-    icone: IconeConnaissances,
-    aVenir: true,
   },
 ];
 
@@ -96,5 +73,4 @@ export const NAV_MOBILE: Entree[] = [
 export const TOUTES_ENTREES: Entree[] = [
   ACCUEIL,
   ...NAVIGATION.flatMap((g) => g.entrees),
-  ...A_VENIR,
 ];

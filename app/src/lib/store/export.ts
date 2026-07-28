@@ -7,9 +7,8 @@
  * le dépôt git ne transporte plus les données : il faut donc un moyen de
  * récupérer une copie hors ligne sans dépendre de l'hébergeur.
  *
- * L'export lit par la dorsale active — Supabase si un compte est connecté,
- * journal JSON sinon. Il photographie donc ce que l'utilisateur voit, pas une
- * couche de stockage particulière.
+ * L'export lit par `lireTout()`, donc par la dorsale unique : il photographie
+ * ce que l'utilisateur voit, pas une couche de stockage particulière.
  */
 
 import { lireTout } from "./db";
@@ -21,7 +20,7 @@ const FORMAT = 1;
 export interface Archive {
   format: number;
   exporteLe: string;
-  origine: { type: "compte"; courriel: string | null } | { type: "local" };
+  origine: { type: "compte"; courriel: string | null };
   /** Nombre d'éléments par collection — permet de vérifier une archive d'un coup d'œil. */
   effectifs: Record<string, number>;
   donnees: Awaited<ReturnType<typeof lireTout>>;
@@ -38,7 +37,7 @@ export async function exporterJournal(): Promise<Archive> {
   return {
     format: FORMAT,
     exporteLe: new Date().toISOString(),
-    origine: compte ? { type: "compte", courriel: compte.email ?? null } : { type: "local" },
+    origine: { type: "compte", courriel: compte?.email ?? null },
     effectifs,
     donnees,
   };

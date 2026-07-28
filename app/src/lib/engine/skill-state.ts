@@ -296,7 +296,6 @@ function prochaineEtape(niveau: NiveauCompetence | null, contextes: number): str
 export function computeSkillState(
   skill: Skill,
   toutesPreuves: SkillEvidence[],
-  erreursLiees: string[] = [],
   now: Date = new Date(),
 ): SkillState {
   const preuves = toutesPreuves
@@ -322,7 +321,6 @@ export function computeSkillState(
       dernierePreuve: null,
       joursDepuisDernierePreuve: null,
       contradictions: [],
-      erreursLiees,
       prochaineEtape: prochaineEtape(null, 0),
       statut: hypothese ? "hypothese" : "non-evalue",
       explication: {
@@ -422,7 +420,6 @@ export function computeSkillState(
     dernierePreuve: derniere?.date ?? null,
     joursDepuisDernierePreuve,
     contradictions,
-    erreursLiees,
     prochaineEtape: prochaineEtape(niveau, contextesTestes.length),
     statut: "evalue",
     explication,
@@ -433,10 +430,7 @@ export function computeSkillState(
 export function computeAllSkillStates(
   skills: Skill[],
   preuves: SkillEvidence[],
-  erreursParSkill: Map<string, string[]> = new Map(),
   now: Date = new Date(),
 ): SkillState[] {
-  return skills.map((s) =>
-    computeSkillState(s, preuves, erreursParSkill.get(s.code) ?? [], now),
-  );
+  return skills.map((s) => computeSkillState(s, preuves, now));
 }

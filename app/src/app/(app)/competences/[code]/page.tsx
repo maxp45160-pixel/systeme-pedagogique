@@ -49,9 +49,6 @@ export default async function PageCompetence(props: {
   const etat = ctx.etatsParCode.get(decodeURIComponent(code).toUpperCase());
   if (!etat) notFound();
 
-  const erreurs = ctx.donnees.errors.filter(
-    (e) => e.skillCodes.includes(etat.skill.code) && !e.archivee,
-  );
   const exercices = ctx.donnees.exercises.filter((e) =>
     e.competences.includes(etat.skill.code),
   );
@@ -330,37 +327,6 @@ export default async function PageCompetence(props: {
               <div className="px-4 py-3">
                 <Reserves items={etat.explication.reserves} />
               </div>
-            </Carte>
-          )}
-
-          {erreurs.length > 0 && (
-            <Carte>
-              <EnTeteCarte titre="Erreurs rattachées" legende="Données pédagogiques, pas des fautes" />
-              <ul className="divide-y divide-bordure">
-                {erreurs.map((e) => (
-                  <li key={e.id} className="px-4 py-2.5">
-                    <Link href="/erreurs" className="block hover:underline">
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="text-xs font-medium">{e.concept}</span>
-                        <Etiquette
-                          ton={
-                            e.statut === "consolidee"
-                              ? "succes"
-                              : e.statut === "corrigee"
-                                ? "info"
-                                : "alerte"
-                          }
-                        >
-                          {e.statut}
-                        </Etiquette>
-                      </div>
-                      <p className="mt-1 text-[0.6875rem] text-texte-discret">
-                        {e.occurrences.length} occurrence{e.occurrences.length > 1 ? "s" : ""}
-                      </p>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
             </Carte>
           )}
 

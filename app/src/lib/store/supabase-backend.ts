@@ -25,12 +25,7 @@ export const TABLES: Record<CleListe, string> = {
   evidence: "evidence",
   exercises: "exercises",
   attempts: "attempts",
-  errors: "errors",
-  projects: "projects",
-  readings: "readings",
-  knowledge: "knowledge",
   sessions: "sessions",
-  objectives: "objectives",
 };
 
 /** Colonnes de service, jamais exposées au domaine. */

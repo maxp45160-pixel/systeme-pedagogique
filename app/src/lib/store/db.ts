@@ -28,14 +28,9 @@ import {
   type ClientSupabase,
 } from "./supabase-backend";
 import type {
-  ErrorItem,
   Exercise,
   ExerciseAttempt,
-  KnowledgeItem,
   LearningSession,
-  Objectif,
-  Project,
-  Reading,
   SkillEvidence,
   User,
 } from "@/lib/domain/types";
@@ -45,12 +40,7 @@ export interface Collections {
   evidence: SkillEvidence[];
   exercises: Exercise[];
   attempts: ExerciseAttempt[];
-  errors: ErrorItem[];
-  projects: Project[];
-  readings: Reading[];
-  knowledge: KnowledgeItem[];
   sessions: LearningSession[];
-  objectives: Objectif[];
 }
 
 /**
@@ -243,41 +233,14 @@ export async function remplacer<K extends CleListe>(
 
 export async function lireTout(): Promise<Collections> {
   const dorsale = await dorsaleCompte();
-  const [
-    user,
-    evidence,
-    exercises,
-    attempts,
-    errors,
-    projects,
-    readings,
-    knowledge,
-    sessions,
-    objectives,
-  ] = await Promise.all([
+  const [user, evidence, exercises, attempts, sessions] = await Promise.all([
     lire("user", dorsale),
     lire("evidence", dorsale),
     lire("exercises", dorsale),
     lire("attempts", dorsale),
-    lire("errors", dorsale),
-    lire("projects", dorsale),
-    lire("readings", dorsale),
-    lire("knowledge", dorsale),
     lire("sessions", dorsale),
-    lire("objectives", dorsale),
   ]);
-  return {
-    user,
-    evidence,
-    exercises,
-    attempts,
-    errors,
-    projects,
-    readings,
-    knowledge,
-    sessions,
-    objectives,
-  };
+  return { user, evidence, exercises, attempts, sessions };
 }
 
 /** Identifiant lisible et trié chronologiquement. */

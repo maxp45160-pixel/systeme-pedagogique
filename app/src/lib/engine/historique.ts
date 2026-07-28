@@ -59,8 +59,8 @@ export function evenementsRecents(
     const skill = SKILL_PAR_CODE.get(preuve.skillCode);
     if (!skill) continue;
 
-    const avant = computeSkillState(skill, triees.slice(0, i), [], now);
-    const apres = computeSkillState(skill, triees.slice(0, i + 1), [], now);
+    const avant = computeSkillState(skill, triees.slice(0, i), now);
+    const apres = computeSkillState(skill, triees.slice(0, i + 1), now);
 
     evenements.push({
       date: preuve.date,
@@ -110,7 +110,7 @@ export function photographies(
   for (let d = jours; d >= 0; d -= pas) {
     const instant = new Date(now.getTime() - d * JOUR_MS);
     const jusque = triees.filter((e) => new Date(e.date) <= instant);
-    const etats = skills.map((s) => computeSkillState(s, jusque, [], instant));
+    const etats = skills.map((s) => computeSkillState(s, jusque, instant));
     const global = calculerEtatGlobal(etats, instant);
 
     sorties.push({
@@ -124,7 +124,7 @@ export function photographies(
 
   // Toujours terminer sur l'instant présent.
   if (sorties.at(-1) && joursDepuis(sorties.at(-1)!.date, now) > 0) {
-    const etats = skills.map((s) => computeSkillState(s, triees, [], now));
+    const etats = skills.map((s) => computeSkillState(s, triees, now));
     const global = calculerEtatGlobal(etats, now);
     sorties.push({
       date: now.toISOString(),

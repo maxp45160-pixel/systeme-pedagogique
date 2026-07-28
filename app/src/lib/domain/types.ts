@@ -251,87 +251,6 @@ export interface ExerciseAttempt {
   notes?: string;
 }
 
-/**
- * Erreur récurrente (journal `data/store/errors.json`).
- * Une erreur isolée n'entre PAS ici (anti-hallucination §11).
- */
-export interface ErrorItem {
-  id: string;
-  concept: string;
-  skillCodes: string[];
-  description: string;
-  causeProbable: string;
-  correction: string;
-  exemple?: string;
-  /** Contextes d'apparition — une erreur multi-contextes est une lacune probable. */
-  occurrences: { date: string; contexte: string; source: string }[];
-  statut: "nouvelle" | "en-cours" | "corrigee" | "consolidee";
-  /** Règle de non-suppression (§6) : on archive, on ne supprime jamais. */
-  archivee?: boolean;
-}
-
-export interface ProjectStep {
-  id: string;
-  /** Les 8 étapes de progression demandées. */
-  ordre: number;
-  titre: string;
-  statut: "a-faire" | "en-cours" | "terminee";
-  notes?: string;
-  dateFin?: string;
-}
-
-export interface Project {
-  id: string;
-  titre: string;
-  objectif: string;
-  domaines: DomaineId[];
-  skillCodes: string[];
-  etapes: ProjectStep[];
-  livrables: { titre: string; url?: string; note?: string }[];
-  difficultes: string[];
-  statut: "en-cours" | "termine" | "suspendu";
-  dateDebut: string;
-  dateFin?: string;
-  /** Bilan produit à la clôture — jamais généré automatiquement sans preuve. */
-  bilan?: {
-    competencesMobilisees: string[];
-    competencesDeveloppees: string[];
-    erreursRencontrees: string[];
-    autonomie: Autonomie;
-    transferabilite: string;
-  };
-}
-
-export interface KnowledgeItem {
-  id: string;
-  titre: string;
-  domaine: DomaineId;
-  skillCodes: string[];
-  contenu: string;
-  source: string;
-  date: string;
-  /** Une connaissance notée n'est pas une compétence démontrée. */
-  validee: boolean;
-}
-
-export interface Reading {
-  id: string;
-  titre: string;
-  auteur: string;
-  domaine: DomaineId;
-  statut: "a-lire" | "en-cours" | "lu" | "exploite" | "maitrise-par-la-pratique";
-  progression: number;
-  concepts: string[];
-  skillCodes: string[];
-  notes: string;
-  exercicesGeneres: string[];
-  /**
-   * Instructions §12 : la lecture n'est jamais une preuve de maîtrise.
-   * Ce champ reste une auto-déclaration, marquée comme telle dans l'UI.
-   */
-  comprehensionDeclaree?: 1 | 2 | 3 | 4 | 5;
-}
-
 export interface LearningSession {
   id: string;
   date: string;
@@ -365,22 +284,6 @@ export interface ProgressSnapshot {
 }
 
 /* ------------------------------------------------------------------ */
-/* Objectifs                                                           */
-/* ------------------------------------------------------------------ */
-
-export interface Objectif {
-  id: string;
-  horizon: "jour" | "semaine" | "long-terme";
-  libelle: string;
-  skillCodes: string[];
-  /** Cible mesurable sur le journal, ex. 1 exercice sur STAT-02. */
-  cible?: { kind: "exercices" | "preuves" | "minutes"; nombre: number };
-  dateCreation: string;
-  dateEcheance?: string;
-  atteint?: boolean;
-}
-
-/* ------------------------------------------------------------------ */
 /* Résultats dérivés (jamais persistés)                                */
 /* ------------------------------------------------------------------ */
 
@@ -410,7 +313,6 @@ export interface SkillState {
   joursDepuisDernierePreuve: number | null;
   /** Preuves qui s'opposent à la tendance dominante (§5 gestion des contradictions). */
   contradictions: SkillEvidence[];
-  erreursLiees: string[];
   prochaineEtape: string;
   explication: Explication;
   statut: "non-evalue" | "hypothese" | "evalue";

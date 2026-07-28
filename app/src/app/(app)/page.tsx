@@ -4,7 +4,6 @@ import { EntetePage } from "@/components/layout/entete-page";
 import { CarteEtatGlobal } from "@/components/dashboard/etat-global";
 import { CarteProchaineAction } from "@/components/dashboard/prochaine-action";
 import { CarteProgressionRecente } from "@/components/dashboard/progression-recente";
-import { CarteObjectifs } from "@/components/dashboard/objectifs";
 import { CarteActivite } from "@/components/dashboard/activite";
 
 export default async function TableauDeBord() {
@@ -62,14 +61,7 @@ export default async function TableauDeBord() {
             <CarteEtatGlobal global={ctx.global} etats={ctx.etats} />
           </div>
 
-          <div className="lg:col-span-1">
-            <CarteObjectifs
-              objectifs={ctx.donnees.objectives}
-              recommandations={ctx.recommandations}
-            />
-          </div>
-
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-3">
             <CarteProgressionRecente evenements={evenements} />
           </div>
 

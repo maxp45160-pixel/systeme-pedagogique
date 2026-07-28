@@ -19,7 +19,6 @@ import type {
   Exercise,
   ExerciseAttempt,
   LearningSession,
-  Objectif,
   QualitePreuve,
   SkillEvidence,
   TypeExercice,
@@ -328,23 +327,6 @@ export async function creerExercice(soumission: SoumissionExerciceManuel): Promi
 }
 
 /* ------------------------------------------------------------------ */
-/* Erreurs récurrentes                                                 */
-/* ------------------------------------------------------------------ */
-
-/**
- * Fait évoluer le statut d'une erreur. Le passage à « corrigée » exige une
- * preuve : règle de non-suppression (anti-hallucination §6) — on ne raye
- * jamais une faiblesse sans démonstration.
- */
-export async function changerStatutErreur(
-  erreurId: string,
-  statut: "nouvelle" | "en-cours" | "corrigee" | "consolidee",
-): Promise<void> {
-  await remplacer("errors", erreurId, (e) => ({ ...e, statut }));
-  revalidatePath("/erreurs");
-}
-
-/* ------------------------------------------------------------------ */
 /* Journal                                                             */
 /* ------------------------------------------------------------------ */
 
@@ -361,32 +343,3 @@ export async function ajouterNoteSession(
   revalidatePath("/journal");
 }
 
-/* ------------------------------------------------------------------ */
-/* Objectifs                                                           */
-/* ------------------------------------------------------------------ */
-
-/** Appelée par `<form action={definirObjectif.bind(null, horizon)}>`. */
-export async function definirObjectif(
-  horizon: Objectif["horizon"],
-  formData: FormData,
-): Promise<void> {
-  const libelle = String(formData.get("libelle") ?? "");
-  const skillCodes = String(formData.get("skillCodes") ?? "")
-    .split(",")
-    .map((c) => c.trim())
-    .filter(Boolean);
-  if (!libelle.trim()) return;
-
-  const actuels = await lire("objectives");
-  const conserves = actuels.filter((o) => o.horizon !== horizon);
-  const nouveau: Objectif = {
-    id: nouvelId("obj"),
-    horizon,
-    libelle: libelle.trim(),
-    skillCodes,
-    dateCreation: new Date().toISOString(),
-  };
-  const { ecrire } = await import("./db");
-  await ecrire("objectives", [...conserves, nouveau]);
-  revalidatePath("/");
-}

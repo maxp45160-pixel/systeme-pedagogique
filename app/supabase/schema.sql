@@ -172,88 +172,26 @@ CREATE TABLE IF NOT EXISTS public.attempts (
 );
 
 -- --------------------------------------------------------------------
--- 5. Erreurs récurrentes (ErrorItem)
+-- 5. Entités supprimées le 28/07/2026 (ADR-014)
+--
+-- `errors`, `projects`, `readings`, `knowledge` et `objectives` comptaient
+-- **zéro ligne** en production le jour de leur suppression, et pour trois
+-- d'entre elles aucun chemin d'écriture n'avait jamais existé. Le DROP est
+-- explicite plutôt que silencieux : réexécuter ce fichier sur une base encore
+-- ancienne doit les retirer, pas les laisser traîner.
+--
+-- ⚠️ Si une de ces tables contient des lignes chez vous, le DROP les détruit.
+-- Vérifiez avant de réexécuter le schéma.
 -- --------------------------------------------------------------------
 
-CREATE TABLE IF NOT EXISTS public.errors (
-  id              TEXT NOT NULL,
-  user_id         UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  concept         TEXT NOT NULL,
-  skill_codes     TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
-  description     TEXT NOT NULL,
-  cause_probable  TEXT NOT NULL,
-  correction      TEXT NOT NULL,
-  exemple         TEXT,
-  occurrences     JSONB NOT NULL DEFAULT '[]'::jsonb,
-  statut          TEXT NOT NULL DEFAULT 'nouvelle',
-  archivee        BOOLEAN,
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  PRIMARY KEY (user_id, id)
-);
+DROP TABLE IF EXISTS public.errors;
+DROP TABLE IF EXISTS public.projects;
+DROP TABLE IF EXISTS public.readings;
+DROP TABLE IF EXISTS public.knowledge;
+DROP TABLE IF EXISTS public.objectives;
 
 -- --------------------------------------------------------------------
--- 6. Projets (Project)
--- --------------------------------------------------------------------
-
-CREATE TABLE IF NOT EXISTS public.projects (
-  id            TEXT NOT NULL,
-  user_id       UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  titre         TEXT NOT NULL,
-  objectif      TEXT NOT NULL,
-  domaines      TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
-  skill_codes   TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
-  etapes        JSONB NOT NULL DEFAULT '[]'::jsonb,
-  livrables     JSONB NOT NULL DEFAULT '[]'::jsonb,
-  difficultes   TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
-  statut        TEXT NOT NULL DEFAULT 'en-cours',
-  date_debut    TEXT NOT NULL,
-  date_fin      TEXT,
-  bilan         JSONB,
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  PRIMARY KEY (user_id, id)
-);
-
--- --------------------------------------------------------------------
--- 7. Lectures (Reading)
--- --------------------------------------------------------------------
-
-CREATE TABLE IF NOT EXISTS public.readings (
-  id                      TEXT NOT NULL,
-  user_id                 UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  titre                   TEXT NOT NULL,
-  auteur                  TEXT NOT NULL DEFAULT '',
-  domaine                 TEXT NOT NULL,
-  statut                  TEXT NOT NULL DEFAULT 'a-lire',
-  progression             INTEGER NOT NULL DEFAULT 0,
-  concepts                TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
-  skill_codes             TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
-  notes                   TEXT NOT NULL DEFAULT '',
-  exercices_generes       TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
-  comprehension_declaree  SMALLINT,
-  created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  PRIMARY KEY (user_id, id)
-);
-
--- --------------------------------------------------------------------
--- 8. Connaissances (KnowledgeItem)
--- --------------------------------------------------------------------
-
-CREATE TABLE IF NOT EXISTS public.knowledge (
-  id           TEXT NOT NULL,
-  user_id      UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  titre        TEXT NOT NULL,
-  domaine      TEXT NOT NULL,
-  skill_codes  TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
-  contenu      TEXT NOT NULL DEFAULT '',
-  source       TEXT NOT NULL DEFAULT '',
-  date         TEXT NOT NULL,
-  validee      BOOLEAN NOT NULL DEFAULT false,
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  PRIMARY KEY (user_id, id)
-);
-
--- --------------------------------------------------------------------
--- 9. Séances (LearningSession)
+-- 6. Séances (LearningSession)
 -- --------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS public.sessions (
@@ -275,25 +213,7 @@ CREATE TABLE IF NOT EXISTS public.sessions (
 );
 
 -- --------------------------------------------------------------------
--- 10. Objectifs (Objectif)
--- --------------------------------------------------------------------
-
-CREATE TABLE IF NOT EXISTS public.objectives (
-  id              TEXT NOT NULL,
-  user_id         UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  horizon         TEXT NOT NULL,
-  libelle         TEXT NOT NULL,
-  skill_codes     TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
-  cible           JSONB,
-  date_creation   TEXT NOT NULL,
-  date_echeance   TEXT,
-  atteint         BOOLEAN,
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  PRIMARY KEY (user_id, id)
-);
-
--- --------------------------------------------------------------------
--- 11. RLS + index, appliqués uniformément aux tables de données
+-- 7. RLS + index, appliqués uniformément aux tables de données
 -- --------------------------------------------------------------------
 
 DO $$
@@ -301,8 +221,7 @@ DECLARE
   t TEXT;
 BEGIN
   FOREACH t IN ARRAY ARRAY[
-    'evidence', 'exercises', 'attempts', 'errors',
-    'projects', 'readings', 'knowledge', 'sessions', 'objectives'
+    'evidence', 'exercises', 'attempts', 'sessions'
   ]
   LOOP
     EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
@@ -330,7 +249,7 @@ CREATE INDEX IF NOT EXISTS attempts_user_exercise_idx
   ON public.attempts (user_id, exercise_id);
 
 -- --------------------------------------------------------------------
--- 12. TODOs de développement — table *partagée*
+-- 8. TODOs de développement — table *partagée*
 --
 -- Exception délibérée à l'isolation par compte : c'est le tableau de bord
 -- de l'équipe qui construit l'outil, pas une donnée pédagogique. Tout compte

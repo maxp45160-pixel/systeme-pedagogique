@@ -116,24 +116,6 @@ function serialiserProfil(ctx: Contexte): string {
   return lignes.join("\n");
 }
 
-function serialiserErreurs(ctx: Contexte): string {
-  const actives = ctx.donnees.errors.filter((e) => !e.archivee);
-  if (actives.length === 0) {
-    return "# ERREURS RÉCURRENTES\n\nAucune erreur récurrente enregistrée à ce jour.";
-  }
-  const lignes = ["# ERREURS RÉCURRENTES", ""];
-  for (const e of actives) {
-    const contextes = new Set(e.occurrences.map((o) => o.contexte));
-    lignes.push(
-      `- [${e.statut}] ${e.concept} (${e.skillCodes.join(", ")}) · ${e.occurrences.length} occurrence(s) sur ${contextes.size} contexte(s)`,
-    );
-    lignes.push(`  Erreur : ${e.description}`);
-    lignes.push(`  Cause probable : ${e.causeProbable}`);
-    lignes.push(`  Correction attendue : ${e.correction}`);
-  }
-  return lignes.join("\n");
-}
-
 function serialiserRecent(ctx: Contexte): string {
   const recentes = [...ctx.donnees.evidence]
     .sort((a, b) => b.date.localeCompare(a.date))
@@ -249,19 +231,17 @@ export async function construireContexte(ctx: Contexte): Promise<ContextePedagog
   });
 
   const profil = serialiserProfil(ctx);
-  const erreurs = serialiserErreurs(ctx);
   const recent = serialiserRecent(ctx);
   const priorites = serialiserRecommandations(ctx);
 
   manifeste.push(
-    { nom: "État courant des 43 compétences", caracteres: profil.length, origine: "calcule" },
-    { nom: "Erreurs récurrentes", caracteres: erreurs.length, origine: "calcule" },
+    { nom: "État courant des compétences", caracteres: profil.length, origine: "calcule" },
     { nom: "Travail récent", caracteres: recent.length, origine: "calcule" },
     { nom: "Priorités calculées", caracteres: priorites.length, origine: "calcule" },
   );
 
   const systemeStable = blocsStables.join("\n\n---\n\n");
-  const systemeProfil = [profil, erreurs, recent, priorites].join("\n\n---\n\n");
+  const systemeProfil = [profil, recent, priorites].join("\n\n---\n\n");
 
   return {
     systemeStable,

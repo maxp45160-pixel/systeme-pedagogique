@@ -2,8 +2,13 @@
  * Moteur de recommandation — « prochaine meilleure action ».
  *
  * Applique la priorisation du protocole d'évaluation §16 :
- * importance pour l'objectif, niveau actuel, lacunes, prérequis, fréquence
- * des erreurs, ancienneté de la dernière pratique, potentiel de transfert.
+ * importance pour l'objectif, niveau actuel, lacunes, prérequis,
+ * ancienneté de la dernière pratique, potentiel de transfert.
+ *
+ * Le facteur « fréquence des erreurs » du §16 a été retiré le 28/07/2026 avec
+ * l'entité `ErrorItem` (ADR-014) : il n'a jamais rien pondéré, la table étant
+ * restée vide. Il sera reposé sous sa vraie forme — une difficulté dérivée des
+ * preuves — quand le maillon « ajustement des exercices » sera traité.
  *
  * Deux garde-fous :
  * - §16 « ne travaille pas uniquement les compétences les plus faibles » :
@@ -14,7 +19,6 @@
 
 import type {
   Difficulte,
-  ErrorItem,
   Exercise,
   ExerciseAttempt,
   SkillState,
@@ -51,7 +55,6 @@ function difficulteCible(etat: SkillState): Difficulte {
 
 function evaluer(
   etat: SkillState,
-  erreurs: ErrorItem[],
   etatsParCode: Map<string, SkillState>,
 ): { valeur: number; facteurs: Facteur[] } {
   const facteurs: Facteur[] = [];
@@ -135,20 +138,7 @@ function evaluer(
     }
   }
 
-  // 8. Erreurs récurrentes rattachées — §16 « fréquence des erreurs ».
-  const liees = erreurs.filter(
-    (e) => e.skillCodes.includes(etat.skill.code) && e.statut !== "consolidee" && !e.archivee,
-  );
-  if (liees.length > 0) {
-    const occurrences = liees.reduce((s, e) => s + e.occurrences.length, 0);
-    facteurs.push({
-      libelle: "Erreurs récurrentes rattachées",
-      contribution: 10 * liees.length + 2 * occurrences,
-      phrase: `${liees.length} erreur(s) récurrente(s) y sont rattachée(s)`,
-    });
-  }
-
-  // 9. Prérequis : une compétence dont les bases ne sont pas posées attend.
+  // 8. Prérequis : une compétence dont les bases ne sont pas posées attend.
   const prerequisManquants = etat.skill.prerequis.filter((code) => {
     const p = etatsParCode.get(code);
     return !p || p.niveau === null || p.niveau < 2;
@@ -206,14 +196,13 @@ export function recommander(
   etats: SkillState[],
   exercices: Exercise[],
   tentatives: ExerciseAttempt[],
-  erreurs: ErrorItem[],
   limite = 5,
 ): Recommandation[] {
   const parCode = new Map(etats.map((e) => [e.skill.code, e]));
 
   return etats
     .map((etat) => {
-      const { valeur, facteurs } = evaluer(etat, erreurs, parCode);
+      const { valeur, facteurs } = evaluer(etat, parCode);
       const cible = difficulteCible(etat);
       const exercice = choisirExercice(etat, exercices, tentatives, cible);
       return {

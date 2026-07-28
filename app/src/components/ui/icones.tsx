@@ -47,28 +47,6 @@ export const IconeExercices = ({ className }: Props) => (
   </Svg>
 );
 
-export const IconeProjets = ({ className }: Props) => (
-  <Svg className={className}>
-    <path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4l2 2.5h9A1.5 1.5 0 0 1 21 10v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18Z" />
-  </Svg>
-);
-
-export const IconeConnaissances = ({ className }: Props) => (
-  <Svg className={className}>
-    <circle cx="12" cy="5" r="2.2" />
-    <circle cx="5" cy="17" r="2.2" />
-    <circle cx="19" cy="17" r="2.2" />
-    <path d="M10.4 6.8 6.6 15.2M13.6 6.8l3.8 8.4M7.2 17h9.6" />
-  </Svg>
-);
-
-export const IconeLectures = ({ className }: Props) => (
-  <Svg className={className}>
-    <path d="M12 6.5C10.5 5 8.5 4.5 4 4.5v13c4.5 0 6.5.5 8 2 1.5-1.5 3.5-2 8-2v-13c-4.5 0-6.5.5-8 2Z" />
-    <path d="M12 6.5v13" />
-  </Svg>
-);
-
 export const IconeProgression = ({ className }: Props) => (
   <Svg className={className}>
     <path d="M3 19h18" />
@@ -88,13 +66,6 @@ export const IconeJournal = ({ className }: Props) => (
   <Svg className={className}>
     <rect x="4" y="4" width="16" height="17" rx="2" />
     <path d="M8 3v3M16 3v3M4 9.5h16M8 13.5h2M8 17h2M14 13.5h2" />
-  </Svg>
-);
-
-export const IconeErreurs = ({ className }: Props) => (
-  <Svg className={className}>
-    <circle cx="12" cy="12" r="8.5" />
-    <path d="M12 7.5V13M12 16.2v.3" />
   </Svg>
 );
 
