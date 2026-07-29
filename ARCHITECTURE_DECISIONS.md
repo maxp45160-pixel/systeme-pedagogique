@@ -33,6 +33,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [018](#adr-018) | Périmètre pilote : domaine Logistique | 🔄 Remplacée par ADR-020 |
 | [019](#adr-019) | Le widget de TODOs dev sort du produit | ✅ Acceptée (28/07) |
 | [020](#adr-020) | Pivot du périmètre pilote : Développement logiciel | ✅ Acceptée (29/07) |
+| [021](#adr-021) | Compression et chargement conditionnel des protocoles du tuteur | ✅ Acceptée (29/07) |
 
 ---
 
@@ -770,6 +771,117 @@ dur) : elles restent vraies sans modification.
 au raisonnement mono-domaine d'ADR-018 (34 compétences hors périmètre tant
 qu'aucun contenu ne les alimente ; en ajouter une neuvième sans la retirer
 revient au problème qu'ADR-018 corrigeait).
+
+---
+
+<a name="adr-021"></a>
+## ADR-021 — Compression et chargement conditionnel des protocoles du tuteur ✅
+
+**Date.** 29/07/2026. **Tranchée par Maxime**, via deux réponses explicites
+à une clarification (`AskUserQuestion`) avant tout changement de code —
+même précédent qu'ADR-020.
+
+**Contexte.** À chaque message, le tuteur charge en préfixe système trois
+fichiers de `app/data/00_instructions/` (`construireContexte`,
+`app/src/lib/tutor/contexte.ts`) : Instructions principales, Protocole
+d'évaluation, Protocole anti-hallucination — 20 135 caractères ≈ 5 034
+tokens, sans condition. Ce coût est fixe et pèse le plus sur le cas qui
+compte le plus : les moteurs du palier gratuit (Groq, OpenRouter, Mistral…)
+ont une fenêtre de contexte étroite (~12K tokens/message) — c'est déjà le
+critère de choix du moteur documenté ailleurs. ~5K tokens de protocole avant
+même le profil de compétences, le travail récent et la question de
+l'utilisateur, c'est 40 % du budget englouti avant que la conversation
+commence. Le cache `ephemeral` d'Anthropic (`moteurs/anthropic.ts:32-41`)
+amortit ce coût en argent pour ce moteur précis, mais ne change rien au
+budget de contexte, ni pour Anthropic ni pour les moteurs sans cache.
+
+**Décision.**
+
+1. **Compression du texte, sans retrait de règle.** Les 3 fichiers chauds
+   ont déjà subi une passe de dédoublonnage documentée en
+   `00_SYSTEME_CHANGELOG.txt` (VERSION 2.3). Le gisement restant est fin :
+   conversion de quelques énumérations en prose vers des puces (retire les
+   mots de liaison, aucune information perdue) et retrait de deux phrases
+   méta redondantes avec une règle déjà posée ailleurs dans le même fichier
+   (`INSTRUCTIONS_PRINCIPALES` §17, `PERENNISATION` §6). Chaque coupe a été
+   vérifiée individuellement : « cette phrase porte-t-elle une règle
+   distincte, encore présente ailleurs dans le fichier compressé ? ».
+   Aucun test ne protège cette étape (`moteur.test.ts` teste le comportement
+   calculé, jamais le texte des `.txt`) — la seule garantie est la relecture
+   humaine du diff.
+2. **Chargement conditionnel du protocole d'évaluation, lui seul.**
+   `INSTRUCTIONS_PRINCIPALES` et `PROTOCOLE_ANTI_HALLUCINATION` restent
+   chargés en entier, sans condition : ce sont les garde-fous d'identité et
+   anti-hallucination — CLAUDE.md §8 interdit d'affaiblir un garde-fou, et
+   une erreur de chargement conditionnel sur l'un des deux romprait
+   exactement la garantie que le produit vend. `PROTOCOLE_EVALUATION` est
+   scindé en deux fichiers, **sans renumérotation des sections** (plusieurs
+   références absolues au numéro de section existent en code —
+   `contexte.ts` cite « §5 » et « §16 », `INSTRUCTIONS_PRINCIPALES` §6 cite
+   « §4 » — une renumérotation les aurait rendues fausses silencieusement) :
+   - `..._CORE.txt` (§1-11 : objectif, dimensions, échelle de niveau,
+     autonomie, qualité de preuve, confiance, règle de mise à jour, règle de
+     régression, évaluation d'une réponse, transfert) — **toujours chargé** :
+     nécessaire à chaque tour où une preuve pourrait être proposée ou une
+     réponse évaluée, pas seulement en synthèse.
+   - `..._SYNTHESE.txt` (§12-17 : score macro, indice de robustesse, champs
+     du profil, synthèse périodique, priorisation, format de bilan) —
+     chargé seulement quand un bilan est probable.
+3. **Déclencheur déterministe, pas un second appel LLM** (le coût et la
+   latence annuleraient le gain) : fonction pure
+   `fautChargerSyntheseEvaluation(dernierMessage, nombreDeTours)`
+   (`contexte.ts`, testée dans `contexte.test.ts`) — vrai si le dernier
+   message contient un mot-clé de bilan (bilan, synthèse, résumé, point
+   d'étape, où j'en suis, priorité, prochaine étape), **ou** si le nombre de
+   tours est un multiple de 5 (cadence de secours : une formulation non
+   reconnue retarde le protocole complet, ne le supprime jamais
+   durablement).
+4. **Sites sans historique de conversation** (`route.ts` `GET`, utilisé pour
+   l'indicateur de taille ; `actions.ts` `preparerPromptComplet`, le mode
+   « copier le contexte » sans clé API) : pas de tour suivant pour rattraper
+   un manque, donc pas d'heuristique — chargement complet par défaut
+   (`messages` vide ⇒ `chargerSynthese = true`).
+5. **Transparence.** Le `manifeste` déjà renvoyé par `construireContexte`
+   (jamais laisser croire que le tuteur a reçu plus qu'il n'a reçu) nomme
+   désormais « Protocole d'évaluation (essentiel) » le fichier CORE et
+   n'ajoute « Protocole d'évaluation (complet) » que les tours où SYNTHESE
+   est effectivement chargé.
+
+**Chiffres réels, mesurés après la passe de compression.** Fichiers
+toujours chargés : Instructions principales 8 014 + Évaluation CORE 4 252 +
+Anti-hallucination 5 311 = **17 577 caractères ≈ 4 394 tokens** sur un tour
+ordinaire, contre 20 135 caractères ≈ 5 034 tokens avant ce chantier —
+**-12,7 %** sur le plancher payé à chaque message. Sur un tour de synthèse
+(SYNTHESE inclus, 2 206 caractères de plus), le total revient à 19 783
+caractères ≈ 4 946 tokens, soit -1,7 % par rapport à l'ancien total : la
+compression seule, le découpage n'ajoutant ni ne retranchant rien de
+substantiel une fois SYNTHESE rechargé. Le gain est donc réel mais modeste,
+pas un facteur x2 — conforme à ce qui avait été annoncé avant
+implémentation, pas gonflé après coup.
+
+**Limite assumée, non contournée.** L'heuristique est un texte, pas une
+compréhension : une demande de bilan formulée de façon totalement
+inhabituelle peut ne déclencher ni mot-clé ni (si elle tombe hors cadence)
+le filet de sécurité, et le tuteur répondrait alors sans §12-17 en
+contexte — au pire une réponse moins étayée sur le score macro ou la
+priorisation ce tour précis, jamais un accès en écriture ni une invention de
+preuve (§1-11, toujours présents, couvrent déjà la règle de mise à jour et
+de régression). La cadence de 5 tours borne cette limite dans le temps.
+
+**Alternative écartée.** 🗑️ Un second appel LLM pour classifier l'intention
+avant de construire le contexte — écartée : le coût et la latence de l'appel
+de classification annuleraient le gain de tokens visé sur le message
+principal, précisément sur les moteurs à petite fenêtre où l'économie
+compte le plus.
+
+**Ce qui n'a pas été touché.** `00_SYSTEME_INITIALISATION.txt` et
+`00_SYSTEME_CHANGELOG.txt` : aucune redondance sûre à retirer sans perdre la
+valeur narrative que ces documents existent pour porter (§1 de
+`PERENNISATION` : « chaque règle répond à un incident réel ») — et ces deux
+fichiers ne sont de toute façon jamais lus par le code (`grep` exhaustif),
+donc leur taille n'a aucun effet sur le coût par message. Compresser ces
+fichiers pour gagner un chiffre aurait été le genre d'optimisation que ce
+même chantier existe pour éviter.
 
 ---
 
