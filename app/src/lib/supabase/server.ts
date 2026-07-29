@@ -9,6 +9,7 @@
 
 import "server-only";
 
+import { cache } from "react";
 import { createServerClient } from "@supabase/ssr";
 import type { SupabaseClient, User as CompteSupabase } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
@@ -44,12 +45,12 @@ export async function createServeurClient(): Promise<SupabaseClient | null> {
  * jeton auprès du serveur d'authentification. Se fier au cookie de session
  * reviendrait à faire confiance à une valeur modifiable par le client.
  */
-export async function compteCourant(): Promise<CompteSupabase | null> {
+export const compteCourant = cache(async (): Promise<CompteSupabase | null> => {
   const supabase = await createServeurClient();
   if (!supabase) return null;
   const { data, error } = await supabase.auth.getUser();
   if (error) return null;
   return data.user ?? null;
-}
+});
 
 export type { CompteSupabase };
