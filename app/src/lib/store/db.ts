@@ -16,6 +16,9 @@
 
 import "server-only";
 
+import { cache } from "react";
+
+import { redirect } from "next/navigation";
 import { compteCourant, createServeurClient } from "@/lib/supabase/server";
 import {
   TABLES,
@@ -74,21 +77,17 @@ export interface DorsaleCompte {
 /**
  * Résout la dorsale du compte connecté.
  *
- * L'absence de session est une **erreur**, pas un repli : depuis ADR-015 il
- * n'existe plus de persistance hors compte. Le message nomme la cause parce
- * qu'un échec silencieux ici afficherait un profil vide indiscernable d'un
- * profil réellement sans preuve — ce que le protocole interdit.
+ * L'absence de session redirige vers l'écran de connexion (`/login`) :
+ * depuis ADR-015 il n'existe plus de persistance hors compte.
  */
-export async function dorsaleCompte(): Promise<DorsaleCompte> {
+export const dorsaleCompte = cache(async (): Promise<DorsaleCompte> => {
   const compte = await compteCourant();
   const supabase = compte ? await createServeurClient() : null;
   if (!compte || !supabase) {
-    throw new Error(
-      "Aucune session : les données ne sont accessibles qu'avec un compte connecté (Supabase).",
-    );
+    redirect("/login");
   }
   return { supabase, userId: compte.id, courriel: compte.email };
-}
+});
 
 /* ------------------------------------------------------------------ */
 /* API publique                                                        */
@@ -188,13 +187,28 @@ export async function ecrire<K extends keyof Collections>(
 export async function ajouter<K extends CleListe>(
   nom: K,
   element: Collections[K][number],
+  dorsaleFournie?: DorsaleCompte,
 ): Promise<Collections[K][number]> {
-  const { supabase, userId } = await dorsaleCompte();
+  const { supabase, userId } = dorsaleFournie ?? (await dorsaleCompte());
   const { error } = await supabase
     .from(TABLES[nom])
     .insert(entiteVersLigne(element as object, userId));
   verifier(`ajout dans « ${nom} »`, error);
   return element;
+}
+
+/** Insère plusieurs éléments en une seule requête. */
+export async function ajouterPlusieurs<K extends CleListe>(
+  nom: K,
+  elements: Collections[K][number][],
+  dorsaleFournie?: DorsaleCompte,
+): Promise<void> {
+  if (elements.length === 0) return;
+  const { supabase, userId } = dorsaleFournie ?? (await dorsaleCompte());
+  const { error } = await supabase
+    .from(TABLES[nom])
+    .insert(elements.map((e) => entiteVersLigne(e as object, userId)));
+  verifier(`ajout groupé dans « ${nom} »`, error);
 }
 
 /**
@@ -208,8 +222,9 @@ export async function remplacer<K extends CleListe>(
   nom: K,
   id: string,
   maj: (precedent: Collections[K][number]) => Collections[K][number],
+  dorsaleFournie?: DorsaleCompte,
 ): Promise<Collections[K][number] | null> {
-  const { supabase, userId } = await dorsaleCompte();
+  const { supabase, userId } = dorsaleFournie ?? (await dorsaleCompte());
   const table = TABLES[nom];
 
   const { data, error } = await supabase
