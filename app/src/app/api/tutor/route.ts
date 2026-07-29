@@ -43,7 +43,7 @@ export async function POST(request: Request) {
   }
 
   const ctx = await chargerContexte();
-  const pedagogique = await construireContexte(ctx);
+  const pedagogique = await construireContexte(ctx, messages);
 
   const encodeur = new TextEncoder();
 

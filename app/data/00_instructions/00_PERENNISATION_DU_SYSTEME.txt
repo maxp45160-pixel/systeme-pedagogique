@@ -107,11 +107,8 @@ Un seuil modifié dans `lib/engine/` sans modification du paragraphe
 correspondant ici est une dérive silencieuse, même si les tests passent
 (cf. `CLAUDE.md` §4 et §7 : « ne pas modifier un seuil sans modifier le
 protocole correspondant » ; « ne pas modifier `app/data/00_instructions/` »
-sans que ce soit précisément l'objet de la session).
-
-Ce fichier lui-même est soumis à cette discipline : toute modification
-future de ce protocole de pérennisation doit être consignée dans
-`00_SYSTEME_CHANGELOG.txt`, comme pour les autres fichiers de ce dossier.
+sans que ce soit précisément l'objet de la session). Ce fichier lui-même
+n'échappe pas à cette discipline (§12).
 
 ---
 

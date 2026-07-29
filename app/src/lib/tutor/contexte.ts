@@ -17,15 +17,69 @@ import { MARQUEUR_EXERCICE, MARQUEUR_PREUVE } from "./proposition";
 
 const RACINE_DATA = path.join(process.cwd(), "data");
 
-/** Fichiers de protocole, dans l'ordre où ils sont empilés. */
+/**
+ * Fichiers de protocole toujours chargés, dans l'ordre où ils sont empilés.
+ * Placés avant `CONSIGNES_INTERFACE` pour que ce préfixe reste identique
+ * d'un tour à l'autre (préfixe stable pour le cache `ephemeral` d'Anthropic,
+ * `moteurs/anthropic.ts`), que le protocole d'évaluation complet soit ajouté
+ * ensuite ou non (ADR-021).
+ */
 const PROTOCOLES = [
   { fichier: "00_instructions/00_SYSTEME_INSTRUCTIONS_PRINCIPALES.txt", nom: "Instructions principales" },
-  { fichier: "00_instructions/00_SYSTEME_PROTOCOLE_EVALUATION.txt", nom: "Protocole d'évaluation" },
+  {
+    fichier: "00_instructions/00_SYSTEME_PROTOCOLE_EVALUATION_CORE.txt",
+    nom: "Protocole d'évaluation (essentiel)",
+  },
   {
     fichier: "00_instructions/00_SYSTEME_PROTOCOLE_ANTI_HALLUCINATION.txt",
     nom: "Protocole anti-hallucination",
   },
 ];
+
+/**
+ * Reste du protocole d'évaluation (§12-17 : score macro, robustesse,
+ * synthèse périodique, priorisation, format de bilan) — chargé seulement
+ * quand un bilan est probable (ADR-021). §1-11, nécessaires à chaque
+ * proposition de preuve, restent dans le fichier toujours chargé ci-dessus.
+ */
+const PROTOCOLE_EVALUATION_SYNTHESE = {
+  fichier: "00_instructions/00_SYSTEME_PROTOCOLE_EVALUATION_SYNTHESE.txt",
+  nom: "Protocole d'évaluation (complet)",
+};
+
+const MOTS_CLES_SYNTHESE = [
+  "bilan",
+  "synthese",
+  "resume",
+  "point d'etape",
+  "ou j'en suis",
+  "priorite",
+  "prochaine etape",
+];
+
+/** Au-delà de cette cadence, le protocole complet revient même sans mot-clé
+ * reconnu — filet de sécurité contre une formulation non prévue par la liste
+ * ci-dessus qui priverait durablement le tuteur du protocole complet. */
+const CADENCE_SYNTHESE = 5;
+
+function normaliser(texte: string): string {
+  return texte
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "");
+}
+
+/**
+ * Décide si le protocole d'évaluation complet (§12-17) doit être chargé ce
+ * tour-ci, à partir du dernier message utilisateur et du nombre de tours.
+ * Fonction pure et testable — pas d'appel LLM supplémentaire (le coût et la
+ * latence annuleraient le gain de tokens visé).
+ */
+export function fautChargerSyntheseEvaluation(dernierMessage: string, nombreDeTours: number): boolean {
+  if (nombreDeTours > 0 && nombreDeTours % CADENCE_SYNTHESE === 0) return true;
+  const normalise = normaliser(dernierMessage);
+  return MOTS_CLES_SYNTHESE.some((mot) => normalise.includes(mot));
+}
 
 export interface SectionContexte {
   nom: string;
@@ -218,7 +272,10 @@ Tu interviens depuis l'application de suivi. Trois règles s'ajoutent aux protoc
    pas de récapitulatif du profil non demandé, pas de félicitations
    automatiques. Réponds à la demande, questionne, corrige, propose la suite.`;
 
-export async function construireContexte(ctx: Contexte): Promise<ContextePedagogique> {
+export async function construireContexte(
+  ctx: Contexte,
+  messages: { role: "user" | "assistant"; content: string }[] = [],
+): Promise<ContextePedagogique> {
   const manifeste: SectionContexte[] = [];
   const blocsStables: string[] = [];
 
@@ -236,6 +293,21 @@ export async function construireContexte(ctx: Contexte): Promise<ContextePedagog
     caracteres: CONSIGNES_INTERFACE.length,
     origine: "calcule",
   });
+
+  // Sans historique transmis (indicateur de taille, mode « copier le
+  // contexte »), on ne peut pas appliquer l'heuristique : on charge le
+  // protocole complet par prudence (ADR-021) plutôt que de deviner.
+  const dernierMessageUtilisateur = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
+  const chargerSynthese =
+    messages.length === 0 || fautChargerSyntheseEvaluation(dernierMessageUtilisateur, messages.length);
+
+  if (chargerSynthese) {
+    const contenu = await lireFichier(PROTOCOLE_EVALUATION_SYNTHESE.fichier);
+    if (contenu) {
+      blocsStables.push(contenu);
+      manifeste.push({ nom: PROTOCOLE_EVALUATION_SYNTHESE.nom, caracteres: contenu.length, origine: "fichier" });
+    }
+  }
 
   const profil = serialiserProfil(ctx);
   const recent = serialiserRecent(ctx);

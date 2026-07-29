@@ -315,6 +315,58 @@ l'être sans perdre de règle.
 
 ---
 
+## VERSION 3.1 — COMPRESSION ET CHARGEMENT CONDITIONNEL DU PROTOCOLE D'ÉVALUATION
+
+Date : 29/07/2026
+
+### Modification
+
+Compression du texte des trois protocoles chauds (puces à la place de
+quelques énumérations en prose, retrait de deux phrases méta redondantes
+avec une règle déjà posée ailleurs dans le même fichier) — voir ADR-021 pour
+le détail des coupes et la méthode de vérification. `00_SYSTEME_PROTOCOLE_
+EVALUATION.txt` est scindé en deux fichiers **sans renumérotation** des
+sections (§1-11 dans `..._CORE.txt`, §12-17 dans `..._SYNTHESE.txt`) :
+`construireContexte` (`app/src/lib/tutor/contexte.ts`) charge désormais
+`..._CORE.txt` sans condition et n'ajoute `..._SYNTHESE.txt` que lorsqu'un
+bilan est probable (mot-clé dans le dernier message, ou tous les 5 tours en
+filet de sécurité), via la nouvelle fonction pure et testée
+`fautChargerSyntheseEvaluation`. `route.ts` transmet désormais l'historique
+des messages à `construireContexte` pour que l'heuristique puisse s'appliquer ;
+les sites sans historique (`GET`, `preparerPromptComplet`) chargent le
+protocole complet par défaut.
+
+### Motivation
+
+Les moteurs du palier gratuit ont une fenêtre de contexte étroite
+(~12K tokens/message). Les 20 135 caractères (~5 034 tokens) des trois
+protocoles chauds, chargés sans condition à chaque message, en occupaient
+déjà 40 % avant même le profil, le travail récent et la question — un coût
+fixe payé sur le budget qui compte le plus. Réduire la redondance du texte
+est un gain net ; réduire les règles ne l'aurait pas été.
+
+### Impact
+
+Aucun seuil, aucune formule, aucune règle retirée — vérifié section par
+section (voir ADR-021). `npm run verify` reste vert (68 tests, 5 nouveaux
+pour l'heuristique). Sur un tour ordinaire, le plancher toujours chargé
+passe de 20 135 à 17 577 caractères (~4 394 tokens, -12,7 %) ; sur un tour
+de synthèse, le total revient à 19 783 caractères (~4 946 tokens, -1,7 %
+par la seule compression). Le manifeste affiché dans l'interface du tuteur
+distingue désormais « Protocole d'évaluation (essentiel) » et « (complet) »
+selon ce qui a été chargé ce tour-ci.
+
+### Compatibilité
+
+Toute citation existante de la forme « protocole d'évaluation §5 » ou
+« §16 » reste valide : la numérotation des sections n'a pas changé, seule
+la frontière physique entre deux fichiers a été introduite entre §11 et
+§12. Une citation qui présumait un fichier unique (`00_SYSTEME_PROTOCOLE_
+EVALUATION.txt`, supprimé) devra être mise à jour vers `..._CORE.txt` ou
+`..._SYNTHESE.txt` selon la section visée.
+
+---
+
 ## RÈGLE DE VERSIONNAGE
 
 Version majeure :

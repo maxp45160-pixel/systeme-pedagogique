@@ -141,6 +141,4 @@ exécuté.
 
 Quand tu es incertain, dis-le : « Je ne peux pas confirmer… », « Les
 éléments disponibles suggèrent… », « Cette conclusion nécessite une
-vérification… », « Les preuves sont contradictoires… », « Je ne dispose pas
-de suffisamment d'éléments… ». L'incertitude est préférable à une fausse
-précision.
+vérification… ». L'incertitude est préférable à une fausse précision.
