@@ -51,7 +51,7 @@ export async function createServeurClient(): Promise<SupabaseClient | null> {
  * intacte — le jeton reste revalidé une fois par requête —, seule la
  * répétition disparaît.
  */
-export const compteCourant = cache(async function compteCourant(): Promise<CompteSupabase | null> {
+export const compteCourant = cache(async (): Promise<CompteSupabase | null> => {
   const supabase = await createServeurClient();
   if (!supabase) return null;
   const { data, error } = await supabase.auth.getUser();

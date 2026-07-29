@@ -28,7 +28,7 @@ export interface Contexte {
   now: Date;
 }
 
-export const chargerContexte = cache(async function chargerContexte(): Promise<Contexte> {
+export const chargerContexte = cache(async (): Promise<Contexte> => {
   const now = new Date();
   const donneesBrutes = await lireTout();
 

@@ -10,7 +10,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { ajouter, lire, nouvelId, remplacer } from "./db";
+import { ajouter, ajouterPlusieurs, dorsaleCompte, lire, nouvelId, remplacer } from "./db";
 import {
   autonomieDepuisIndices,
   qualiteDepuisDifficulte,
@@ -33,7 +33,8 @@ import type {
 /* ------------------------------------------------------------------ */
 
 export async function demarrerTentative(exerciseId: string): Promise<void> {
-  const existantes = await lire("attempts");
+  const dorsale = await dorsaleCompte();
+  const existantes = await lire("attempts", dorsale);
   const enCours = existantes.find(
     (t) => t.exerciseId === exerciseId && t.statut === "en-cours",
   );
@@ -47,16 +48,17 @@ export async function demarrerTentative(exerciseId: string): Promise<void> {
       autoEvaluation: {},
       resultat: "partiel",
       statut: "en-cours",
-    } satisfies ExerciseAttempt);
+    } satisfies ExerciseAttempt, dorsale);
   }
   revalidatePath(`/exercices/${exerciseId}`);
 }
 
 export async function debloquerIndice(attemptId: string, exerciseId: string): Promise<void> {
+  const dorsale = await dorsaleCompte();
   await remplacer("attempts", attemptId, (t) => ({
     ...t,
     indicesUtilises: t.indicesUtilises + 1,
-  }));
+  }), dorsale);
   revalidatePath(`/exercices/${exerciseId}`);
 }
 
@@ -65,7 +67,8 @@ export async function enregistrerReponse(
   exerciseId: string,
   reponse: string,
 ): Promise<void> {
-  await remplacer("attempts", attemptId, (t) => ({ ...t, reponse }));
+  const dorsale = await dorsaleCompte();
+  await remplacer("attempts", attemptId, (t) => ({ ...t, reponse }), dorsale);
   revalidatePath(`/exercices/${exerciseId}`);
 }
 
@@ -87,7 +90,8 @@ export interface SoumissionExercice {
  * (protocole anti-hallucination §4, traçabilité).
  */
 export async function terminerExercice(soumission: SoumissionExercice): Promise<void> {
-  const exercices = await lire("exercises");
+  const dorsale = await dorsaleCompte();
+  const exercices = await lire("exercises", dorsale);
   const { EXERCICES_DIAGNOSTIC } = await import("@/lib/seed/exercises");
   const exercice =
     exercices.find((e) => e.id === soumission.exerciseId) ??
@@ -102,7 +106,7 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
     resultat: soumission.resultat,
     statut: "terminee" as const,
     notes: soumission.notes,
-  }));
+  }), dorsale);
   if (!tentative) throw new Error("Tentative introuvable");
 
   const autonomie = autonomieDepuisIndices(tentative.indicesUtilises, exercice.indices.length);
@@ -111,34 +115,32 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
 
   // Une preuve par compétence ciblée. Les compétences secondaires sont
   // enregistrées comme preuve indirecte (niveau B), pas directe.
-  for (const [index, code] of exercice.competences.entries()) {
-    const preuve: SkillEvidence = {
-      id: nouvelId("ev"),
-      skillCode: code,
-      date,
-      type:
-        exercice.type === "programmation"
-          ? "code"
-          : exercice.type === "etude-de-cas"
-            ? "etude-de-cas"
-            : exercice.type === "calcul"
-              ? "calcul"
-              : "exercice",
-      niveauPreuve: index === 0 ? "A" : "B",
-      autonomie,
-      qualite,
-      resultat: soumission.resultat,
-      contexte: exercice.titre,
-      dimensions: soumission.autoEvaluation,
-      competencesCombinees:
-        exercice.competences.length > 1
-          ? exercice.competences.filter((c) => c !== code)
-          : undefined,
-      source: { kind: "exercice", ref: exercice.id },
-      commentaire: soumission.notes,
-    };
-    await ajouter("evidence", preuve);
-  }
+  const preuves: SkillEvidence[] = exercice.competences.map((code, index) => ({
+    id: nouvelId("ev"),
+    skillCode: code,
+    date,
+    type:
+      exercice.type === "programmation"
+        ? "code" as const
+        : exercice.type === "etude-de-cas"
+          ? "etude-de-cas" as const
+          : exercice.type === "calcul"
+            ? "calcul" as const
+            : "exercice" as const,
+    niveauPreuve: (index === 0 ? "A" : "B") as "A" | "B",
+    autonomie,
+    qualite,
+    resultat: soumission.resultat,
+    contexte: exercice.titre,
+    dimensions: soumission.autoEvaluation,
+    competencesCombinees:
+      exercice.competences.length > 1
+        ? exercice.competences.filter((c) => c !== code)
+        : undefined,
+    source: { kind: "exercice" as const, ref: exercice.id },
+    commentaire: soumission.notes,
+  }));
+  await ajouterPlusieurs("evidence", preuves, dorsale);
 
   // Une entrée de journal est produite automatiquement (instructions §15 :
   // la maintenance du système se fait en arrière-plan).
@@ -161,7 +163,7 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
     notePersonnelle: soumission.notes,
     genereAutomatiquement: true,
   };
-  await ajouter("sessions", session);
+  await ajouter("sessions", session, dorsale);
 
   revalidatePath("/", "layout");
   redirect(`/exercices/${exercice.id}?bilan=1`);
@@ -206,6 +208,7 @@ export async function enregistrerPreuveManuelle(
   const skill = SKILL_PAR_CODE.get(soumission.skillCode);
   if (!skill) throw new Error(`Compétence inconnue : ${soumission.skillCode}`);
 
+  const dorsale = await dorsaleCompte();
   const date = soumission.date ?? new Date().toISOString();
 
   const preuve: SkillEvidence = {
@@ -227,7 +230,7 @@ export async function enregistrerPreuveManuelle(
       .filter(Boolean)
       .join(" — "),
   };
-  await ajouter("evidence", preuve);
+  await ajouter("evidence", preuve, dorsale);
 
   // Même logique que `terminerExercice` : une entrée de journal automatique
   // (instructions §15 — la maintenance se fait en arrière-plan).
@@ -248,7 +251,7 @@ export async function enregistrerPreuveManuelle(
     notePersonnelle: soumission.commentaire,
     genereAutomatiquement: true,
   };
-  await ajouter("sessions", session);
+  await ajouter("sessions", session, dorsale);
 
   revalidatePath("/", "layout");
 }
