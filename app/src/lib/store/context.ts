@@ -7,6 +7,7 @@
  *
  */
 
+import { cache } from "react";
 import { CODES_ACTIFS, SKILLS_ACTIFS } from "@/lib/domain/referentiel";
 import type {
   Collections,
@@ -27,7 +28,7 @@ export interface Contexte {
   now: Date;
 }
 
-export async function chargerContexte(): Promise<Contexte> {
+export const chargerContexte = cache(async function chargerContexte(): Promise<Contexte> {
   const now = new Date();
   const donneesBrutes = await lireTout();
 
@@ -61,4 +62,4 @@ export async function chargerContexte(): Promise<Contexte> {
     recommandations,
     now,
   };
-}
+});
