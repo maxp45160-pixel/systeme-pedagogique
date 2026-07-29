@@ -1,11 +1,19 @@
 /**
  * Exercices de diagnostic initial.
  *
- * Un exercice par compétence listée dans `01_PLAN_EVALUATION_INITIALE.txt`
- * (supprimé le 27/07/2026 ; l'ordre survit dans `ORDRE_DIAGNOSTIC`),
- * dans l'ordre de priorité qu'il fixe. Objectif de ces exercices : SITUER un
- * niveau réel, pas enseigner — d'où des énoncés courts, sans aide préalable,
- * et une correction qui distingue méthode et résultat.
+ * Deux lots, tous deux `origine: "seed"` par exception à ADR-004 (le circuit
+ * tuteur → exercice n'est pas câblé) :
+ *
+ * 1. Le lot d'origine (STAT/LOG/PROD/ALGO/RO/SYSC/TECH) — un exercice par
+ *    compétence listée dans `01_PLAN_EVALUATION_INITIALE.txt` (supprimé le
+ *    27/07/2026 ; l'ordre survit dans `ORDRE_DIAGNOSTIC`), dans l'ordre de
+ *    priorité qu'il fixe.
+ * 2. Le lot DEV-01→10 (ADR-020, 29/07/2026) — dix compétences transférables
+ *    de lecture/maintenance de code, amorçant le nouveau périmètre pilote.
+ *
+ * Objectif de ces exercices : SITUER un niveau réel, pas seulement enseigner
+ * — d'où des énoncés courts, sans aide préalable, et une correction qui
+ * distingue méthode et résultat.
  *
  * Les indices sont ordonnés du plus léger au plus explicite et se débloquent
  * un par un (instructions §9 : ne pas donner la solution immédiatement).
@@ -767,6 +775,558 @@ Avec 14 événements, on est dans un régime de **très faible effectif**, pas d
       { dimension: "application", libelle: "J'ai su définir une cible exploitable avec un horizon" },
       { dimension: "justification", libelle: "J'ai détecté le piège du déséquilibre de classes" },
       { dimension: "integration", libelle: "J'ai relié le choix de métrique aux enjeux métier" },
+    ],
+  },
+
+  /* ==================== DÉVELOPPEMENT (ADR-020, 29/07/2026) ====================
+   * Lot fondateur pour amorcer le nouveau domaine `developpement`, converti
+   * depuis EXERCICES_APPRENTISSAGE.md (10 niveaux déjà rédigés). Même
+   * exception qu'à l'origine du lot ci-dessus : le circuit tuteur → exercice
+   * (ADR-004) n'est pas câblé, ADR-020 documente pourquoi un seed ponctuel
+   * est accepté ici.
+   * ================================================================== */
+
+  /* ------------------------------- DEV-01 -------------------------------- */
+  {
+    id: "diag-dev-01",
+    titre: "Lire un système de types statique",
+    domaine: "developpement",
+    type: "application",
+    difficulte: 1,
+    competences: ["DEV-01"],
+    dureeEstimeeMin: 20,
+    diagnostic: true,
+    origine: "seed",
+    enonce: `Voici un extrait réel de \`lib/domain/types.ts\`, le fichier qui définit le vocabulaire du moteur de ce projet.
+
+\`\`\`ts
+export type Autonomie = "A0" | "A1" | "A2" | "A3" | "A4";
+
+export const AUTONOMIE: Record<Autonomie, { libelle: string; poids: number }> = {
+  A0: { libelle: "Solution fournie", poids: 0 },
+  A1: { libelle: "Fortement guidé", poids: 0.25 },
+  A2: { libelle: "Quelques indices nécessaires", poids: 0.55 },
+  A3: { libelle: "Résolution autonome", poids: 0.85 },
+  A4: { libelle: "Autonome avec initiative méthodologique", poids: 1 },
+};
+
+/**
+ * Hiérarchie des preuves. A preuve directe · B preuve indirecte · C déduction
+ * · D hypothèse. C et D ne doivent jamais être présentées comme des faits certains.
+ */
+export type NiveauPreuve = "A" | "B" | "C" | "D";
+\`\`\`
+
+Et la fonction qui, ailleurs dans le moteur, se sert de ce type pour rejeter les preuves faibles :
+
+\`\`\`ts
+function estRecevable(e: SkillEvidence): boolean {
+  return e.niveauPreuve === "A" || e.niveauPreuve === "B";
+}
+\`\`\`
+
+**Méthode :** lis le bloc une fois, sans chercher la réponse. Réponds aux questions sur papier avant de lancer quoi que ce soit.
+
+**Questions :**
+1. Que vaut \`AUTONOMIE["A2"].poids\` ?
+2. Pourquoi \`AUTONOMIE["A5"]\` est-il refusé par TypeScript avant même l'exécution, alors qu'un simple objet JavaScript \`{A0: ..., A1: ...}\` ne refuserait rien ?
+3. \`NiveauPreuve\` inclut C et D alors que \`estRecevable\` ne les accepte jamais. Pourquoi garder dans le type des valeurs qu'on n'accepte jamais, plutôt que de les retirer ?`,
+    indices: [
+      "Un Record<Clé, Valeur> est un objet dont TypeScript connaît les clés à l'avance — que se passe-t-il quand tu demandes une clé hors de cet ensemble ?",
+      "Compare ce que fait le compilateur (avant l'exécution) et ce que ferait le moteur JavaScript à l'exécution sur un objet nu.",
+      "Regarde ce que ferait estRecevable si C et D n'existaient plus dans le type : pourrait-elle encore les nommer pour les rejeter ?",
+    ],
+    correction: `**1.** \`0.55\`.
+
+**2.** TypeScript vérifie les clés d'un \`Record<Autonomie, ...>\` contre le type union \`Autonomie\` à la compilation : \`"A5"\` n'appartenant pas à \`"A0"|"A1"|"A2"|"A3"|"A4"\`, l'accès est une erreur de compilation, avant toute exécution. Un objet JS nu n'a aucune de ces garanties : \`objet["A5"]\` renverrait simplement \`undefined\` à l'exécution, silencieusement.
+
+**3.** \`estRecevable\` a besoin que C et D existent *dans le type* pour pouvoir les **rejeter explicitement** dans son test. Les supprimer du type reviendrait à supprimer le garde-fou lui-même : plus rien n'empêcherait une future preuve d'être écrite avec un niveau non fiable, faute de pouvoir même le nommer pour le refuser.
+
+**Ce que ça apprend :** un type union borne les valeurs possibles à la compilation, avant même que le programme tourne — c'est un garde-fou, pas juste de la documentation.`,
+    criteres: [
+      { dimension: "comprehension", libelle: "J'ai su lire un type union et un Record sans les confondre avec un objet JS nu" },
+      { dimension: "application", libelle: "J'ai calculé correctement une valeur d'un Record typé" },
+      { dimension: "justification", libelle: "J'ai expliqué pourquoi une valeur toujours rejetée reste dans le type qui la nomme" },
+    ],
+  },
+
+  /* ------------------------------- DEV-02 -------------------------------- */
+  {
+    id: "diag-dev-02",
+    titre: "Exécuter une fonction pure à la main",
+    domaine: "developpement",
+    type: "calcul",
+    difficulte: 1,
+    competences: ["DEV-02"],
+    dureeEstimeeMin: 15,
+    diagnostic: true,
+    origine: "seed",
+    enonce: `Extrait réel de \`lib/engine/preuve.ts\` :
+
+\`\`\`ts
+/**
+ * Autonomie déduite du nombre d'indices réellement consultés.
+ * Observée, pas déclarée par l'utilisateur.
+ */
+export function autonomieDepuisIndices(indices: number, total: number): Autonomie {
+  if (total > 0 && indices >= total) return "A1";
+  if (indices >= 1) return "A2";
+  return "A3";
+}
+\`\`\`
+
+Une fonction pure ne dépend que de ses arguments et ne modifie rien à l'extérieur : c'est la seule chose qu'on peut exécuter fiablement « dans sa tête ».
+
+**Pour chaque cas, donne le résultat sans lancer le code :**
+1. \`autonomieDepuisIndices(0, 3)\`
+2. \`autonomieDepuisIndices(3, 3)\`
+3. \`autonomieDepuisIndices(1, 3)\`
+4. \`autonomieDepuisIndices(0, 0)\` — cas piège : aucun indice n'était disponible. Que fait la fonction, concrètement ?`,
+    indices: [
+      "Évalue les deux conditions dans l'ordre où elles sont écrites, pas dans un ordre logique que tu inventerais.",
+      "Pour le cas 4, la condition total > 0 && ... est un ET : un seul terme faux suffit à rendre tout le test faux.",
+      "Une fois les 4 réponses écrites, vérifie-les en ajoutant un test dans le fichier *.test.ts correspondant et en lançant npm run test.",
+    ],
+    correction: `**1.** \`total=3>0\` et \`indices=0<3\` → pas A1. \`indices=0\`, pas ≥1 → pas A2. Résultat : **A3**.
+**2.** \`indices=3 ≥ total=3\` et \`total>0\` → **A1**.
+**3.** \`total=3\`, \`indices=1≥1\` → **A2**.
+**4.** \`total=0\` : \`total > 0\` est faux, donc toute la condition l'est. \`indices=0\`, pas ≥1. Résultat : **A3** — un exercice sans indice disponible est traité comme une résolution pleinement autonome. Ce n'est pas un cas d'erreur, c'est la branche par défaut, et ça mérite d'être su.
+
+**Ce que ça apprend :** enchaîner mentalement des conditions simples, dans l'ordre où elles sont écrites, est la compétence de base pour lire n'importe quelle fonction pure sans avoir besoin de l'exécuter.`,
+    criteres: [
+      { dimension: "comprehension", libelle: "J'ai su ce qui définit une fonction pure et pourquoi on peut l'exécuter mentalement" },
+      { dimension: "application", libelle: "J'ai prédit correctement les 4 résultats avant d'exécuter le code" },
+      { dimension: "justification", libelle: "J'ai expliqué le cas limite total=0 sans le traiter comme une erreur" },
+    ],
+  },
+
+  /* ------------------------------- DEV-03 -------------------------------- */
+  {
+    id: "diag-dev-03",
+    titre: "Repérer un motif répété dans du code métier",
+    domaine: "developpement",
+    type: "application",
+    difficulte: 2,
+    competences: ["DEV-03"],
+    dureeEstimeeMin: 25,
+    diagnostic: true,
+    origine: "seed",
+    enonce: `Extrait réel de \`lib/engine/skill-state.ts\`, fonction \`niveauSoutenu\` (avec deux aides) :
+
+\`\`\`ts
+const ORDRE_AUTONOMIE = ["A0", "A1", "A2", "A3", "A4"] as const;
+
+function autonomieAuMoins(e: SkillEvidence, min: (typeof ORDRE_AUTONOMIE)[number]): boolean {
+  return ORDRE_AUTONOMIE.indexOf(e.autonomie) >= ORDRE_AUTONOMIE.indexOf(min);
+}
+
+function niveauSoutenu(preuves: SkillEvidence[]): AppuiNiveau[] {
+  const reussies = preuves.filter((e) => e.resultat === "reussi");
+  const nonEchouees = preuves.filter((e) => e.resultat !== "echec");
+  const appuis: AppuiNiveau[] = [];
+
+  const l1 = nonEchouees.filter((e) => dim(e, "comprehension") >= 0.6);
+  if (l1.length > 0) appuis.push({ niveau: 1, preuves: l1, raison: "compréhension démontrée" });
+
+  const l2 = reussies.filter((e) => dim(e, "application") >= 0.6 && autonomieAuMoins(e, "A1"));
+  if (l2.length > 0) appuis.push({ niveau: 2, preuves: l2, raison: "méthode appliquée avec accompagnement" });
+
+  const l3 = reussies.filter((e) => dim(e, "application") >= 0.7 && autonomieAuMoins(e, "A3"));
+  if (l3.length >= 2) appuis.push({ niveau: 3, preuves: l3, raison: "deux résolutions autonomes concordantes" });
+
+  const l4 = reussies.filter((e) => autonomieAuMoins(e, "A3") && dim(e, "transfert") >= 0.6);
+  const contextesL4 = new Set(l4.map((e) => e.contexte));
+  if (l4.length >= 2 && contextesL4.size >= 2) {
+    appuis.push({ niveau: 4, preuves: l4, raison: \`transfert démontré sur \${contextesL4.size} contextes distincts\` });
+  }
+
+  return appuis;
+}
+\`\`\`
+
+Et comment l'appelant s'en sert :
+
+\`\`\`ts
+const appuis = niveauSoutenu(preuves);
+let niveau = appuis.length > 0 ? Math.max(...appuis.map((a) => a.niveau)) : 0;
+\`\`\`
+
+**Questions :**
+1. Combien de \`.filter\` distincts apparaissent dans \`niveauSoutenu\` ? Pour chacun, dis en une phrase ce qu'il isole.
+2. \`new Set(l4.map((e) => e.contexte))\` : explique ce que mesure \`contextesL4.size\`, et pourquoi le niveau 4 exige \`size >= 2\` plutôt que \`l4.length >= 2\`.
+3. Pourquoi la fonction retourne-t-elle *tous* les paliers soutenus (un tableau) plutôt qu'un seul niveau ?`,
+    indices: [
+      "Compte-les un par un dans l'ordre du code : reussies, nonEchouees, puis un par palier.",
+      ".size d'un Set compte les valeurs distinctes — que se passe-t-il si deux preuves ont exactement le même contexte ?",
+      "Regarde ce que fait l'appelant avec le tableau retourné : que perdrait-il si la fonction ne renvoyait qu'un seul niveau ?",
+    ],
+    correction: `**1.** Au moins six \`.filter\` explicites (\`reussies\`, \`nonEchouees\`, un par palier \`l1\`…\`l4\`), plus un \`.map\` sur un filtre pour \`contextesL4\`. L'important est la justification de chacun, pas le compte exact.
+
+**2.** \`.size\` d'un \`Set\` compte les valeurs **distinctes** : deux preuves du même contexte ne comptent que pour 1. Exiger \`size >= 2\` garantit que le transfert est démontré dans des situations réellement différentes — deux réussites dans le même contexte ne prouvent que de la répétition, pas un transfert.
+
+**3.** Un niveau peut être soutenu par plusieurs paliers à la fois. L'appelant prend ensuite \`Math.max\` sur les niveaux soutenus : retourner un tableau garde toute l'information (quelles preuves soutiennent quoi) au lieu de la perdre en ne renvoyant qu'un nombre.
+
+**Ce que ça apprend :** \`.filter\`, \`.map\`, \`new Set()\` sont les trois outils qui reviennent dans presque tout code métier en TypeScript. Les repérer, c'est pouvoir lire n'importe quel fichier de ce genre sans en connaître le détail à l'avance.`,
+    criteres: [
+      { dimension: "comprehension", libelle: "J'ai su dire ce qu'isole chaque filter du code lu" },
+      { dimension: "application", libelle: "J'ai expliqué correctement ce que mesure la taille d'un Set" },
+      { dimension: "integration", libelle: "J'ai relié le tableau retourné à la façon dont l'appelant s'en sert" },
+    ],
+  },
+
+  /* ------------------------------- DEV-04 -------------------------------- */
+  {
+    id: "diag-dev-04",
+    titre: "Dérouler un pipeline de fonctions pures à la main",
+    domaine: "developpement",
+    type: "programmation",
+    difficulte: 2,
+    competences: ["DEV-04"],
+    dureeEstimeeMin: 35,
+    diagnostic: true,
+    origine: "seed",
+    enonce: `Extrait réel de \`lib/engine/skill-state.ts\` :
+
+\`\`\`ts
+/**
+ * Une mauvaise performance isolée ne fait PAS baisser le niveau : elle baisse
+ * la confiance. Le niveau ne recule que si une difficulté est confirmée par
+ * plusieurs preuves — ici : les deux preuves les plus récentes sont des
+ * échecs en autonomie réelle (A2+).
+ */
+function difficulteConfirmee(preuvesTriees: SkillEvidence[]): boolean {
+  if (preuvesTriees.length < 3) return false;
+  const deuxDernieres = preuvesTriees.slice(-2);
+  return deuxDernieres.every((e) => e.resultat === "echec" && autonomieAuMoins(e, "A2"));
+}
+
+export function computeSkillState(skill: Skill, toutesPreuves: SkillEvidence[], now = new Date()): SkillState {
+  const preuves = toutesPreuves
+    .filter((e) => e.skillCode === skill.code && estRecevable(e))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const appuis = niveauSoutenu(preuves);
+  let niveau = appuis.length > 0 ? Math.max(...appuis.map((a) => a.niveau)) : 0;
+
+  if (difficulteConfirmee(preuves) && niveau > 1) {
+    niveau = niveau - 1;
+  }
+  // ... calcul de la confiance, de la robustesse, des dimensions, puis du score.
+  return { skill, niveau, /* ... */ };
+}
+\`\`\`
+
+Enchaîner plusieurs fonctions pures (niveau → confiance → robustesse → score) est un **pipeline**. Le comprendre, c'est pouvoir prédire l'effet d'une preuve avant de l'enregistrer.
+
+**Exercice :** fabrique à la main (sur papier) 3 preuves fictives pour une compétence de ton choix, avec des dates, une \`autonomie\`, un \`resultat\`, des \`dimensions\`. Calcule à la main le niveau soutenu, et vérifie si \`difficulteConfirmee\` s'applique. Écris ensuite un test dans le style des tests déjà présents dans \`lib/engine/*.test.ts\` (regarde-en un pour le format d'une preuve de test) qui vérifie ta prédiction, et lance-le.
+
+**Question annexe :** dans quel cas précis le niveau peut-il *baisser* ? Pourquoi une seule mauvaise preuve ne suffit-elle jamais ?`,
+    indices: [
+      "Commence par écrire les 3 preuves sur papier avant d'ouvrir un éditeur — c'est l'exercice réel, pas le test lui-même.",
+      "Pour que difficulteConfirmee s'applique, il faut au moins 3 preuves triées par date, et les 2 dernières doivent être des échecs en A2 ou plus.",
+      "Une régression de niveau et une baisse de confiance sont deux mécanismes différents dans ce moteur — ne les confonds pas.",
+    ],
+    correction: `Il n'y a pas de résultat unique ici : le but est de vérifier ta prédiction contre le test que tu écris toi-même, c'est ça l'exercice.
+
+**Question annexe.** Le niveau ne baisse que si \`difficulteConfirmee\` est vraie, c'est-à-dire si les **deux dernières preuves**, et seulement elles, sont des échecs en autonomie réelle (A2 ou plus), avec au moins 3 preuves au total. Une preuve isolée n'y suffit jamais : c'est la **confiance** qui encaisse une mauvaise performance isolée, pas le niveau — pour éviter qu'un jour difficile n'efface un acquis réel.
+
+**Ce que ça apprend :** enchaîner plusieurs fonctions pures est ce qu'on appelle un pipeline. Le dérouler à la main, étape par étape, est la seule façon fiable de prédire ce qu'un changement va produire avant de l'exécuter.`,
+    criteres: [
+      { dimension: "application", libelle: "J'ai construit et fait passer un test qui vérifie ma prédiction manuelle" },
+      { dimension: "transfert", libelle: "J'ai identifié correctement la condition de régression du niveau, sans la confondre avec la confiance" },
+      { dimension: "justification", libelle: "J'ai expliqué pourquoi une preuve isolée ne fait jamais baisser un niveau" },
+    ],
+  },
+
+  /* ------------------------------- DEV-05 -------------------------------- */
+  {
+    id: "diag-dev-05",
+    titre: "Confronter le code à la documentation produit",
+    domaine: "developpement",
+    type: "etude-de-cas",
+    difficulte: 3,
+    competences: ["DEV-05"],
+    dureeEstimeeMin: 25,
+    diagnostic: true,
+    origine: "seed",
+    enonce: `Extrait réel de \`lib/engine/progression.ts\` :
+
+\`\`\`ts
+export function calculerEtatGlobal(etats: SkillState[], now = new Date()): EtatGlobal {
+  const poidsTotal = etats.reduce((s, e) => s + e.skill.importance, 0);
+  const acquis = etats.reduce((s, e) => s + e.skill.importance * ((e.score ?? 0) / 5), 0);
+  const scoreGlobal = Math.round((acquis / poidsTotal) * 100);
+  // ...
+}
+\`\`\`
+
+Et un document produit du même dépôt, tel quel :
+
+> \`calculerEtatGlobal\` calcule Σ importance × (score/5) ÷ Σ importance × 100 sur toutes les compétences du périmètre. Les compétences sans preuve entrent au **numérateur pour 0** et au **dénominateur pour leur importance pleine** : non mesuré y vaut exactement zéro, ce que le protocole interdit.
+>
+> Deux conséquences : le score est **anti-corrélé à l'ambition** — élargir le référentiel fait baisser le score sans qu'aucune compétence n'ait été perdue ; et un instrument dont la vertu est de ne pas confondre ignorance et incompétence peut afficher un score très bas en confondant exactement les deux.
+
+**Questions :**
+1. \`e.score ?? 0\` : une compétence sans preuve a \`e.score === null\`. Que devient-elle dans ce calcul ?
+2. Explique avec tes mots pourquoi élargir le référentiel (ajouter des compétences non mesurées) fait *baisser* \`scoreGlobal\`, sans qu'aucune compétence existante n'ait changé.
+3. Ce document range volontairement ce point en « question ouverte », pas en « bug à corriger ». Pourquoi ce n'est pas simplement un bug à corriger tout de suite — quel est le risque à « juste » exclure les non-mesurées du calcul, en passant, dans un autre chantier ?`,
+    indices: [
+      "?? 0 remplace null par 0 — regarde séparément l'effet sur le numérateur (acquis) et sur le dénominateur (poidsTotal).",
+      "Ajouter une compétence non mesurée change un seul des deux termes de la fraction. Lequel, et dans quel sens ça pousse le ratio ?",
+      "Un changement de formule change ce que le nombre affiché *veut dire*. Qui d'autre que le code est concerné par ce sens ?",
+    ],
+    correction: `**1.** \`null\` devient \`0\`. La compétence entre au numérateur pour 0, **et** au dénominateur pour son \`importance\` pleine.
+
+**2.** Ajouter une compétence non mesurée augmente \`poidsTotal\` (dénominateur) sans augmenter \`acquis\` (numérateur) : le rapport \`acquis / poidsTotal\` baisse mécaniquement, même si toutes les compétences déjà mesurées sont restées identiques. Le score est donc anti-corrélé à l'ambition du référentiel.
+
+**3.** La correction n'est pas neutre : exclure les non-mesurées change ce que le score *veut dire* (couverture vs performance pure), ce qui a des effets sur l'affichage et sur la confiance globale ailleurs dans le système. Un choix technique isolé, fait « en passant » dans un autre chantier, risquerait de trancher silencieusement un arbitrage produit qui mérite d'être posé à part, avec ses propres conséquences assumées.
+
+**Ce que ça apprend :** un principe écrit dans un document et son application dans le code sont deux choses différentes, qui peuvent diverger sans que personne ne mente. Savoir repérer l'écart — et savoir le classer « en attente d'arbitrage » plutôt que « bug » — est une compétence à part entière.`,
+    criteres: [
+      { dimension: "comprehension", libelle: "J'ai expliqué correctement ce que devient une compétence sans preuve dans le calcul" },
+      { dimension: "justification", libelle: "J'ai expliqué pourquoi élargir un référentiel peut faire baisser un score sans rien perdre" },
+      { dimension: "integration", libelle: "J'ai distingué une question ouverte d'un bug à corriger tout de suite, et dit pourquoi" },
+    ],
+  },
+
+  /* ------------------------------- DEV-06 -------------------------------- */
+  {
+    id: "diag-dev-06",
+    titre: "Tracer un flux client → serveur → base",
+    domaine: "developpement",
+    type: "etude-de-cas",
+    difficulte: 3,
+    competences: ["DEV-06"],
+    dureeEstimeeMin: 30,
+    diagnostic: true,
+    origine: "seed",
+    enonce: `Trois extraits réels du même dépôt, dans l'ordre où l'exécution les traverse.
+
+\`\`\`tsx
+// tourne dans le navigateur
+"use client";
+
+function soumettre() {
+  demarrer(async () => {
+    await terminerExercice({ attemptId, exerciseId: exercice.id, resultat, autoEvaluation, dureeMin: duree });
+  });
+}
+\`\`\`
+
+\`\`\`ts
+// tourne sur le serveur
+"use server";
+
+export async function terminerExercice(soumission) {
+  // ... construit une ou plusieurs preuves à partir de la soumission
+  for (const [index, code] of exercice.competences.entries()) {
+    const preuve = {
+      skillCode: code,
+      niveauPreuve: index === 0 ? "A" : "B",
+      // ...
+    };
+    await ajouter("evidence", preuve);
+  }
+}
+\`\`\`
+
+\`\`\`ts
+// écrit réellement dans la base
+export async function ajouter(nom, element) {
+  const { supabase, userId } = await dorsaleCompte();
+  const { error } = await supabase.from(TABLES[nom]).insert(entiteVersLigne(element, userId));
+  return element;
+}
+\`\`\`
+
+Dans Next.js, \`"use client"\` et \`"use server"\` délimitent deux mondes : ce qui tourne dans le navigateur, et ce qui tourne sur un serveur avec accès à la base. Comprendre cette frontière, c'est comprendre la majorité de l'architecture d'une application Next.js.
+
+**Exercice :** dessine (sur papier, en texte, peu importe) le trajet complet d'un clic sur le bouton de soumission : quelle fonction appelle quelle fonction, qu'est-ce qui s'exécute dans le navigateur, qu'est-ce qui s'exécute sur le serveur, à quel moment la donnée part réellement vers la base.
+
+**Question annexe :** pourquoi \`terminerExercice\` peut-elle écrire *plusieurs* preuves pour un seul exercice ?`,
+    indices: [
+      "Cherche dans le dépôt réel où soumettre() est défini, et remonte la chaîne d'appels jusqu'à la ligne qui touche effectivement la base.",
+      "Le passage d'un monde à l'autre se fait à l'appel d'une fonction marquée \"use server\" — repère cet appel précis dans le premier extrait.",
+      "Regarde ce que fait la boucle sur exercice.competences dans le deuxième extrait.",
+    ],
+    correction: `Le trajet : clic → \`soumettre()\` côté navigateur → appel à \`terminerExercice(...)\` : c'est **cet appel précis** qui bascule côté serveur, parce que la fonction est marquée \`"use server"\` → dans \`terminerExercice\`, construction de la ou des preuves et appel à \`ajouter("evidence", preuve)\` → dans la fonction \`ajouter\`, l'appel \`supabase.from(...).insert(...)\` est la ligne, et seulement elle, qui touche réellement la base.
+
+**Annexe.** Un exercice peut viser plusieurs compétences à la fois. La première reçoit une preuve directe (niveau A), les suivantes une preuve indirecte (niveau B) — la boucle sur \`exercice.competences\` écrit une preuve par compétence ciblée.
+
+**Ce que ça apprend :** situer précisément la ligne où un client cesse de parler à lui-même et commence à parler à un serveur (puis à une base) est la compétence de lecture d'architecture la plus rentable sur ce genre de projet.`,
+    criteres: [
+      { dimension: "comprehension", libelle: "J'ai situé correctement la frontière client / serveur" },
+      { dimension: "application", libelle: "J'ai tracé le trajet complet jusqu'à l'écriture réelle en base" },
+      { dimension: "justification", libelle: "J'ai expliqué pourquoi un exercice peut écrire plusieurs preuves" },
+    ],
+  },
+
+  /* ------------------------------- DEV-07 -------------------------------- */
+  {
+    id: "diag-dev-07",
+    titre: "Trouver une contradiction entre deux fichiers",
+    domaine: "developpement",
+    type: "etude-de-cas",
+    difficulte: 4,
+    competences: ["DEV-07"],
+    dureeEstimeeMin: 20,
+    diagnostic: true,
+    origine: "seed",
+    enonce: `Deux commentaires réels, écrits dans deux fichiers voisins du même dépôt, le même jour.
+
+\`\`\`ts
+// en tête d'un fichier de Server Functions
+/**
+ * Application mono-utilisateur exécutée en local : il n'y a pas
+ * d'authentification. Ne pas exposer cette application sur un réseau public.
+ */
+\`\`\`
+
+\`\`\`ts
+// en tête du fichier de persistance
+/**
+ * Les données vivent dans PostgreSQL, isolées par compte via les politiques
+ * RLS. Sans session valide, aucune lecture ni écriture n'est possible.
+ */
+
+export async function compteObligatoire() {
+  const compte = await compteCourant();
+  if (!compte) {
+    throw new Error("Aucune session : les données ne sont accessibles qu'avec un compte connecté.");
+  }
+  return compte;
+}
+\`\`\`
+
+Un commentaire n'est pas exécuté — rien ne garantit qu'il est encore vrai. Le vérifier contre le code qui, lui, tourne réellement, est un réflexe à avoir en permanence, y compris face aux explications d'un assistant IA.
+
+**Questions :**
+1. Que dit chaque commentaire sur l'authentification ? Les deux ne peuvent pas être vrais en même temps.
+2. Lequel décrit l'état réel du système ? Appuie-toi sur ce que fait réellement la fonction du second extrait, pas sur ce que dit le premier commentaire.
+3. Ce n'est pas grave en soi — mais que ferais-tu de cette découverte ? (Ne corrige rien : dis ce que tu ferais, et pourquoi ce n'est probablement pas une urgence.)`,
+    indices: [
+      "Un commentaire décrit une intention passée ; une fonction qui lève une erreur décrit un comportement présent.",
+      "Cherche depuis quand l'authentification a été introduite dans ce projet (les décisions d'architecture du dépôt en gardent la trace) — le premier commentaire date probablement d'avant.",
+      "La question 3 teste ton jugement de proportion, pas ta capacité à corriger : un commentaire faux qui ne pilote aucune exécution a un coût différent d'un bug.",
+    ],
+    correction: `**1.** Le premier dit qu'il n'y a pas d'authentification. Le second implique une authentification obligatoire (une session valide est requise pour toute donnée).
+
+**2.** Le second fichier décrit l'état réel : la fonction lève une erreur explicite si aucune session n'existe, ce qui est l'exact opposé d'une application locale sans authentification. Le premier commentaire date vraisemblablement d'avant l'introduction de l'authentification et n'a jamais été mis à jour.
+
+**3.** Un commentaire faux à ce point mérite une correction, mais ce n'est ni urgent ni risqué : il ne pilote aucune exécution (contrairement au code), donc son seul coût est de tromper un futur lecteur. Le corriger en une ligne, la prochaine fois qu'on touche ce fichier pour une autre raison, suffit ; ce n'est pas un chantier à part.
+
+**Ce que ça apprend :** le code ne ment jamais, les commentaires si — sans mauvaise foi, juste parce qu'ils ne sont pas exécutés. C'est le réflexe le plus utile face à toute documentation, humaine ou générée.`,
+    criteres: [
+      { dimension: "comprehension", libelle: "J'ai identifié précisément les deux affirmations contradictoires" },
+      { dimension: "justification", libelle: "J'ai déterminé laquelle décrit l'état réel en m'appuyant sur le code, pas sur le commentaire" },
+      { dimension: "integration", libelle: "J'ai proposé une réponse proportionnée plutôt qu'un chantier de correction immédiat" },
+    ],
+  },
+
+  /* ------------------------------- DEV-08 -------------------------------- */
+  {
+    id: "diag-dev-08",
+    titre: "Chasser une trace morte par recherche structurée",
+    domaine: "developpement",
+    type: "application",
+    difficulte: 4,
+    competences: ["DEV-08"],
+    dureeEstimeeMin: 25,
+    diagnostic: true,
+    origine: "seed",
+    enonce: `Une mécanique a été supprimée d'un projet réel — code, types, écran associé, tout retiré du même geste. Une recherche insensible à la casse sur son nom dans le code source (\`grep -ri <motif> src\`) remonte encore des occurrences.
+
+**Exercice :** choisis, dans un dépôt que tu as sous la main (ce projet convient), un élément qui a été officiellement supprimé ou renommé (une décision d'architecture ou un changelog en garde généralement la trace). Lance une recherche structurée (grep, ou la recherche globale de ton éditeur) sur son ancien nom dans tout le code source, et relève chaque occurrence restante avec son fichier et sa ligne.
+
+**Questions :**
+1. Liste les fichiers et les lignes trouvées.
+2. Pour chaque occurrence : est-ce un bug fonctionnel (ça casse quelque chose) ou un mensonge à l'utilisateur (l'interface promet quelque chose qui n'existe plus) ? Justifie chaque fois.
+3. Si la même occurrence apparaît à l'identique dans plusieurs fichiers, qu'est-ce que ça t'indique sur la façon dont ces fichiers ont été écrits ?`,
+    indices: [
+      "Relire tout un dépôt fichier par fichier pour vérifier qu'une suppression est complète ne passe pas à l'échelle — c'est exactement pour ça que grep existe.",
+      "Un commentaire qui explique *pourquoi* une ancienne mécanique a disparu est légitime et peut rester ; un texte visible par l'utilisateur qui la mentionne au présent ne l'est pas.",
+      "Une même phrase identique dans deux fichiers différents indique rarement une coïncidence.",
+    ],
+    correction: `Il n'y a pas de résultat unique ici : ce qui compte est la méthode (recherche structurée sur tout le code source, pas fichier par fichier) et la qualité de la justification pour chaque occurrence trouvée — bug fonctionnel contre mensonge à l'utilisateur ne se tranchent pas de la même façon.
+
+**Ce que ça apprend :** une recherche structurée (grep ou équivalent) pose une question précise à tout un dépôt d'un coup. C'est l'outil de vérification d'une suppression complète — pas la relecture fichier par fichier, qui ne passe pas à l'échelle dès que le dépôt grossit.`,
+    criteres: [
+      { dimension: "application", libelle: "J'ai utilisé une recherche structurée plutôt qu'une lecture fichier par fichier" },
+      { dimension: "comprehension", libelle: "J'ai distingué un commentaire légitime sur une ancienne mécanique d'un texte visible trompeur" },
+      { dimension: "justification", libelle: "J'ai justifié chaque occurrence trouvée individuellement, sans généraliser à l'aveugle" },
+    ],
+  },
+
+  /* ------------------------------- DEV-09 -------------------------------- */
+  {
+    id: "diag-dev-09",
+    titre: "Corriger un défaut réel avec le filet de sécurité",
+    domaine: "developpement",
+    type: "programmation",
+    difficulte: 5,
+    competences: ["DEV-09"],
+    dureeEstimeeMin: 30,
+    diagnostic: true,
+    origine: "seed",
+    enonce: `Reprends l'occurrence trouvée à l'exercice précédent (ou, si elle a déjà été corrigée entre-temps, une autre que tu identifies toi-même par la même méthode — un texte d'interface obsolète, un commentaire faux, un \`TODO\` non résolu).
+
+**Exercice :** corrige-la, dans le ou les fichiers concernés, sans toucher à autre chose. Puis lance la suite de vérification complète du projet (typage statique, lint, tests — dans ce dépôt : \`cd app && npm run verify\`). Les trois étapes doivent passer.
+
+**Questions :**
+1. Si le vérificateur de types échouait sur ce changement précis (un simple texte modifié), qu'est-ce que ça t'apprendrait sur ce que faisait réellement cette ligne — qu'un texte d'affichage ne devrait normalement pas casser ?
+2. Un process du type « une branche par fonctionnalité, une revue avant de fusionner » a un coût. Pour un changement de cette taille, en solo, est-ce proportionné, ou est-ce le genre de rituel pensé pour une équipe qu'il faut savoir alléger ? Prends position.`,
+    indices: [
+      "Un texte JSX statique ne devrait techniquement rien casser au typage — si c'est le cas, cherche ce qu'il y avait vraiment autour de ce texte.",
+      "La suite de vérification (typage, lint, tests) est le filet de sécurité : c'est elle qui te dit si la correction est sûre, pas ton impression.",
+      "La question 2 n'a pas de bonne réponse universelle — ce qui est jugé, c'est si ta position est justifiée et proportionnée à la taille réelle du changement.",
+    ],
+    correction: `**1.** Ça t'apprendrait que la ligne portait une dépendance de type (une variable, un import) et pas seulement du texte d'affichage — auquel cas le problème serait plus profond que sa seule apparence visible.
+
+**2.** Position attendue : pour un changement isolé et petit, en solo, un rituel de revue à plusieurs est disproportionné. Ce qui reste utile, c'est de lancer la suite de vérification avant de committer — le filet de sécurité, pas le rituel social.
+
+**Ce que ça apprend :** un filet de sécurité automatisé (typage, lint, tests) existe pour que la correction n'ait pas besoin d'être validée « à l'œil ». Savoir s'en servir, et savoir doser le process autour d'un changement à sa taille réelle, sont deux compétences distinctes et toutes deux nécessaires pour mener un projet seul.`,
+    criteres: [
+      { dimension: "application", libelle: "Ma correction fait passer la suite de vérification complète (typage, lint, tests)" },
+      { dimension: "justification", libelle: "J'ai expliqué ce qu'un échec du typage sur ce changement m'aurait appris" },
+      { dimension: "transfert", libelle: "J'ai jugé le process (branche, revue) proportionné à la taille réelle du changement, avec un argument" },
+    ],
+  },
+
+  /* ------------------------------- DEV-10 -------------------------------- */
+  {
+    id: "diag-dev-10",
+    titre: "Arbitrer soi-même une décision, avec une grille explicite",
+    domaine: "developpement",
+    type: "etude-de-cas",
+    difficulte: 5,
+    competences: ["DEV-10"],
+    dureeEstimeeMin: 30,
+    diagnostic: true,
+    origine: "seed",
+    enonce: `Reprends une question ouverte réelle d'un projet que tu connais (dans ce dépôt : la question de l'exercice DEV-05, « que faire des compétences non mesurées dans le score global »), et une grille de décision en 6 points telle que celle-ci :
+
+1. Quel problème réel — pas une impression, quelque chose d'observable dans le code ou l'usage.
+2. Quel besoin, distinct de la solution.
+3. Quels effets secondaires (sur les calculs, l'affichage, une décision future).
+4. Compatible avec les principes déjà posés du projet ?
+5. Quelle alternative — « ne rien faire » compte comme une option recevable.
+6. Ta recommandation, tranchée, pas une liste d'options équilibrées.
+
+**Exercice :** écris ta propre note de décision (une demi-page suffit), en suivant exactement les 6 points, sans en esquiver aucun. Range ta conclusion dans un statut explicite (décision tranchée / hypothèse / question ouverte / abandonné) et assume que tant que tu ne l'as pas décidée toi-même, une analyse — même convaincante, même produite par un assistant — reste une hypothèse ou une question ouverte, jamais une décision.
+
+**Ce que cet exercice teste réellement :** pas ta capacité à coder, mais ta capacité à dire non, ou à trancher différemment de ce qu'on t'aurait proposé, avec un argument aussi solide.`,
+    indices: [
+      "Le point 2 est le plus souvent sauté : retire la solution de la demande et redemande-toi ce qui est réellement en jeu.",
+      "Le point 5 doit être une vraie option pesée, pas une formalité qu'on écarte en une phrase.",
+      "Un avis qui rapporte les options sans en choisir une n'est pas une réponse acceptable au point 6, même si chaque option individuelle est bien analysée.",
+    ],
+    correction: `Il n'y a pas de corrigé unique ici. La seule vraie erreur possible est de rendre un avis qui esquive un des 6 points, ou qui se contente de rapporter les options sans trancher.
+
+**Ce que ça apprend :** appliquer une grille de décision explicite, point par point, est ce qui transforme une opinion en argument vérifiable — et c'est la compétence qui permet de challenger une proposition (la sienne ou celle d'un tiers) plutôt que de la subir.`,
+    criteres: [
+      { dimension: "integration", libelle: "J'ai suivi les 6 points de la grille sans en esquiver aucun" },
+      { dimension: "justification", libelle: "Ma recommandation est tranchée, pas une liste d'options équilibrées" },
+      { dimension: "transfert", libelle: "J'ai rangé ma conclusion dans un statut explicite et justifié pourquoi" },
     ],
   },
 ];

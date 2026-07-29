@@ -15,11 +15,18 @@
  * l'observation réelle du travail de l'utilisateur (cf. section 7 des
  * instructions ; source : synthese_profil_competences_2026-07-25.md).
  *
+ * Élargi le 29/07/2026 (domaine `developpement`, DEV-01→10, ADR-020) — dix
+ * compétences transférables de lecture/maintenance de code, converties depuis
+ * un lot d'exercices déjà rédigé. Devient le périmètre pilote ; Logistique
+ * sort du périmètre sans perdre ses preuves (voir `DOMAINE_PILOTE`).
+ *
  * Trois champs sont ajoutés par l'application, et seulement eux :
  * - `palier`     : place dans l'arbre de progression du domaine ;
  * - `prerequis`  : indicatif, jamais bloquant (l'exploration reste libre) ;
- * - `importance` : poids pour l'objectif déclaré BUT QLIO → Master ITI,
- *                  dérivé de l'ordre de priorité de
+ * - `importance` : poids pour l'objectif déclaré (dépend du domaine —
+ *                  BUT QLIO → Master ITI pour les domaines historiques,
+ *                  mener ce projet à bien pour `developpement`), dérivé pour
+ *                  les compétences historiques de l'ordre de priorité de
  *                  `01_PLAN_EVALUATION_INITIALE.txt` (supprimé le 27/07/2026,
  *                  cf. historique git), pas d'une supposition.
  */
@@ -27,6 +34,12 @@
 import type { Domaine, DomaineId, Skill } from "./types";
 
 export const DOMAINES: Domaine[] = [
+  {
+    id: "developpement",
+    nom: "Développement logiciel",
+    prefixe: "DEV",
+    description: "Lire, comprendre et faire évoluer un logiciel réel — typage, architecture, outillage, jugement technique.",
+  },
   {
     id: "statistiques",
     nom: "Statistiques et probabilités",
@@ -94,21 +107,113 @@ export const ORDRE_DIAGNOSTIC: string[] = [
 ];
 
 /**
- * Périmètre pilote — ADR-018 (28/07/2026).
+ * Périmètre pilote — ADR-020 (29/07/2026), remplace ADR-018.
  *
- * Le référentiel garde ses 43 compétences : elles ne sont pas supprimées, elles
+ * Le référentiel garde ses 53 compétences : elles ne sont pas supprimées, elles
  * sont **hors périmètre de travail**. Seules celles listées ici sont calculées,
  * affichées et transmises au tuteur.
  *
- * Le domaine Logistique a été retenu parce que c'est le plus travaillé — 7
- * preuves sur 6 des 9 compétences au 28/07. Étendre le périmètre est une
- * décision, pas un réglage : le faire sans contenu pour l'alimenter ramènerait
- * exactement le problème que ce chantier corrige (31 compétences sur 43 sans
- * aucun support de travail).
+ * Le domaine Développement est retenu parce que les compétences à faire
+ * progresser en premier sont celles qui permettent de mener ce projet à bien.
+ * Logistique (pilote précédent, ADR-018) sort du périmètre exactement comme
+ * les 34 autres compétences déjà hors périmètre : ses preuves (7 preuves, 6
+ * compétences) restent en base, intactes, simplement non calculées ni
+ * affichées tant que ce domaine n'est pas repris. Étendre ou changer le
+ * périmètre est une décision, pas un réglage — voir ADR-020.
  */
-export const DOMAINE_PILOTE: DomaineId = "logistique";
+export const DOMAINE_PILOTE: DomaineId = "developpement";
 
 export const SKILLS: Skill[] = [
+  /* --------------------------- DÉVELOPPEMENT ---------------------------- */
+  {
+    code: "DEV-01",
+    domaine: "developpement",
+    intitule:
+      "Lire et exploiter un système de types statique pour borner les valeurs valides (unions, Record, garde-fous à la compilation)",
+    palier: "fondamentaux",
+    prerequis: [],
+    importance: 1,
+  },
+  {
+    code: "DEV-02",
+    domaine: "developpement",
+    intitule: "Exécuter mentalement une fonction pure pour prédire son résultat avant de lancer le code",
+    palier: "fondamentaux",
+    prerequis: [],
+    importance: 1,
+  },
+  {
+    code: "DEV-03",
+    domaine: "developpement",
+    intitule:
+      "Reconnaître et utiliser les opérations de collection courantes (filter, map, Set) pour lire du code métier",
+    palier: "fondamentaux",
+    prerequis: ["DEV-02"],
+    importance: 1,
+  },
+  {
+    code: "DEV-04",
+    domaine: "developpement",
+    intitule:
+      "Dérouler à la main un pipeline de plusieurs fonctions pures enchaînées et vérifier sa prédiction par un test",
+    palier: "intermediaire",
+    prerequis: ["DEV-01", "DEV-03"],
+    importance: 0.9,
+  },
+  {
+    code: "DEV-05",
+    domaine: "developpement",
+    intitule:
+      "Confronter une documentation produit au code qui l'implémente pour repérer un écart entre le principe énoncé et son application réelle",
+    palier: "intermediaire",
+    prerequis: ["DEV-04"],
+    importance: 0.9,
+  },
+  {
+    code: "DEV-06",
+    domaine: "developpement",
+    intitule:
+      "Tracer le trajet complet d'une donnée dans une architecture client → serveur → base, en identifiant la frontière exacte entre les deux mondes",
+    palier: "intermediaire",
+    prerequis: ["DEV-01"],
+    importance: 0.9,
+  },
+  {
+    code: "DEV-07",
+    domaine: "developpement",
+    intitule: "Repérer une contradiction entre un commentaire de code et le comportement réel du code qu'il documente",
+    palier: "avance",
+    prerequis: ["DEV-06"],
+    importance: 0.85,
+  },
+  {
+    code: "DEV-08",
+    domaine: "developpement",
+    intitule:
+      "Localiser tous les usages d'un symbole ou d'un motif dans un dépôt par recherche structurée (grep), plutôt que fichier par fichier",
+    palier: "avance",
+    prerequis: [],
+    importance: 1,
+  },
+  {
+    code: "DEV-09",
+    domaine: "developpement",
+    intitule:
+      "Corriger un défaut réel identifié soi-même, en s'appuyant sur un filet de sécurité automatisé (typage, lint, tests) pour valider la correction",
+    palier: "avance",
+    prerequis: ["DEV-08"],
+    importance: 0.9,
+  },
+  {
+    code: "DEV-10",
+    domaine: "developpement",
+    intitule:
+      "Arbitrer une décision technique avec une grille explicite (problème réel, besoin, effets de bord, alternatives, recommandation tranchée)",
+    palier: "avance",
+    prerequis: ["DEV-05", "DEV-09"],
+    importance: 0.85,
+  },
+
   /* ---------------------------- STATISTIQUES --------------------------- */
   {
     code: "STAT-01",

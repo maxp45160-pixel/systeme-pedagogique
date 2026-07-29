@@ -59,14 +59,17 @@ function evaluer(
 ): { valeur: number; facteurs: Facteur[] } {
   const facteurs: Facteur[] = [];
 
-  // 1. Importance pour l'objectif déclaré (BUT QLIO → Master ITI).
+  // 1. Importance pour l'objectif déclaré — le sens de "l'objectif" dépend du
+  // domaine actif (DOMAINE_PILOTE) ; la phrase reste donc générique plutôt que
+  // de nommer un objectif d'un domaine précis (ex. Master ITI), qui deviendrait
+  // faux dès que le périmètre change (voir ADR-020).
   const fImportance = etat.skill.importance * 25;
   facteurs.push({
     libelle: "Importance pour l'objectif",
     contribution: fImportance,
     phrase:
       etat.skill.importance >= 0.9
-        ? "elle est centrale pour ton objectif Master ITI"
+        ? "elle est centrale pour ton objectif actuel"
         : "elle sert ton objectif de parcours",
   });
 

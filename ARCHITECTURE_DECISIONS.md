@@ -30,8 +30,9 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [015](#adr-015) | Dorsale unique : Supabase | ✅ Acceptée (28/07) |
 | [016](#adr-016) | Suppression du mode démonstration | ✅ Acceptée (28/07) |
 | [017](#adr-017) | Suppression de la gamification (XP, paliers, badges) | ✅ Acceptée (28/07) |
-| [018](#adr-018) | Périmètre pilote : domaine Logistique | ✅ Acceptée (28/07) |
+| [018](#adr-018) | Périmètre pilote : domaine Logistique | 🔄 Remplacée par ADR-020 |
 | [019](#adr-019) | Le widget de TODOs dev sort du produit | ✅ Acceptée (28/07) |
+| [020](#adr-020) | Pivot du périmètre pilote : Développement logiciel | ✅ Acceptée (29/07) |
 
 ---
 
@@ -643,7 +644,12 @@ contraignait cesse d'exister.
 ---
 
 <a name="adr-018"></a>
-## ADR-018 — Périmètre pilote : domaine Logistique ✅
+## ADR-018 — Périmètre pilote : domaine Logistique 🔄
+
+> 🔄 **Remplacée le 29/07/2026 par [ADR-020](#adr-020)** — le périmètre pilote
+> devient le domaine Développement. La section ci-dessous est conservée pour
+> l'historique : le raisonnement (un seul domaine actif à la fois, référentiel
+> conservé en entier) reste celui qu'ADR-020 réapplique.
 
 **Date.** 28/07/2026. **Tranchée par Maxime.**
 
@@ -699,6 +705,71 @@ se discute pas au titre de l'expérience utilisateur.
 exposé sur les pages du produit. ❓ **La question reste entière côté RLS** : la
 politique est toujours `FOR ALL TO authenticated USING (true)`, donc tout compte
 authentifié lit et modifie la liste. Aucune action prise là-dessus.
+
+---
+
+<a name="adr-020"></a>
+## ADR-020 — Pivot du périmètre pilote : Développement logiciel ✅
+
+**Date.** 29/07/2026. **Tranchée par Maxime**, via quatre réponses explicites
+à une clarification (`AskUserQuestion`) avant tout changement de code.
+Remplace [ADR-018](#adr-018).
+
+**Contexte.** L'utilisateur veut travailler en priorité des compétences de
+développement logiciel — lire, comprendre, faire évoluer ce projet réel —
+plutôt que la Logistique, pour être capable de mener ce projet à bien.
+Un lot de 10 exercices sur ce thème existait déjà, rédigé en dehors du format
+`Exercise` (fichier `EXERCICES_APPRENTISSAGE.md`, non versionné).
+
+**Décision.**
+
+1. `DOMAINE_PILOTE` passe de `"logistique"` à `"developpement"`. Le
+   référentiel gagne 10 compétences (`DEV-01`→`DEV-10`, `lib/domain/referentiel.ts`),
+   converties du lot d'exercices déjà rédigé.
+2. **Logistique sort du périmètre exactement comme les 34 autres compétences
+   déjà hors périmètre** — pas supprimée. Les 7 preuves déjà écrites sur
+   6 compétences Logistique restent en base, intactes ; elles cessent d'être
+   calculées et affichées tant que ce domaine n'est pas repris. Rien n'est
+   perdu (P1, P4) ; élargir de nouveau le périmètre suffirait à les faire
+   réapparaître dans les calculs — même garantie qu'ADR-018 offrait déjà pour
+   les 34 compétences d'origine.
+3. Le radar de la vue longitudinale suit désormais les 10 compétences Dev
+   (au lieu des 9 de Logistique) — même mécanisme générique qu'ADR-018 avait
+   introduit, aucun changement de code nécessaire au-delà de la donnée.
+4. Les 10 exercices sont enregistrés en `origine: "seed"`, `diagnostic: true`,
+   dans `EXERCICES_DIAGNOSTIC` (`lib/seed/exercises.ts`) — même mécanisme que
+   les 11 diagnostics d'origine.
+
+**Tension avec ADR-004 et PRODUCT.md, assumée et non contournée.** ADR-004
+écarte l'écriture manuelle de futurs exercices seed ; PRODUCT.md range « écrire
+des exercices seed à la main » en 🗑️ abandonné. Cette décision **répète ce
+geste**, pour la raison suivante : le circuit tuteur → exercice reste ❌ non
+câblé (ADR-004 le documente déjà), et ce lot est un **amorçage ponctuel d'un
+nouveau domaine** — exactement le précédent déjà accepté pour les 11
+diagnostics d'origine, pas l'ouverture d'une pratique récurrente. ADR-004
+n'est pas rouverte : le prochain exercice, au-delà de ce lot fondateur, devra
+venir du tuteur.
+
+**Correction connexe entraînée par ce pivot.** `lib/engine/recommend.ts`
+codait en dur la phrase « elle est centrale pour ton objectif Master ITI »
+pour toute compétence d'importance ≥ 0,9, quel que soit le domaine actif —
+elle serait devenue fausse pour les compétences Dev (P3 : aucune valeur sans
+source honnête). Généralisée en « elle est centrale pour ton objectif
+actuel ». Ne traite pas le problème plus large d'ADR-005 (l'importance ne
+discrimine pas assez), qui reste hors sujet ici.
+
+**Ce qui n'a pas eu besoin d'être touché, vérifié en lecture seule avant
+d'agir.** `app/data/00_instructions/*.txt` (protocole lu par le tuteur) ne
+code en dur aucune restriction à la Logistique. `ROADMAP.md` ne nomme aucun
+domaine spécifique. Les assertions de `moteur.test.ts` sur `DOMAINE_PILOTE`/
+`SKILLS_ACTIFS` sont écrites génériquement (aucune chaîne `"logistique"` en
+dur) : elles restent vraies sans modification.
+
+**Alternative écartée.** 🗑️ Garder Logistique active en parallèle de Dev
+(les deux domaines calculés à la fois) — écartée par l'utilisateur : contraire
+au raisonnement mono-domaine d'ADR-018 (34 compétences hors périmètre tant
+qu'aucun contenu ne les alimente ; en ajouter une neuvième sans la retirer
+revient au problème qu'ADR-018 corrigeait).
 
 ---
 

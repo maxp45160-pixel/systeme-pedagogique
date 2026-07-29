@@ -90,6 +90,7 @@ export const LIBELLES_DIMENSIONS: Record<Dimension, string> = {
 /* ------------------------------------------------------------------ */
 
 export type DomaineId =
+  | "developpement"
   | "logistique"
   | "production"
   | "statistiques"

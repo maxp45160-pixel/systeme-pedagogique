@@ -116,13 +116,16 @@ bascule sur « Copier le contexte » — comportement voulu, pas une panne.
 
 ## 6. Périmètre de travail
 
-Le référentiel compte **43 compétences sur 7 domaines**, mais seul le domaine
-**Logistique (LOG-01 → LOG-09)** est actif (ADR-018). C'est `SKILLS_ACTIFS`, et
-non `SKILLS`, que consomment le moteur, l'interface et le contexte du tuteur.
+Le référentiel compte **53 compétences sur 8 domaines**, mais seul le domaine
+**Développement logiciel (DEV-01 → DEV-10)** est actif (ADR-020, 29/07/2026,
+remplace ADR-018). C'est `SKILLS_ACTIFS`, et non `SKILLS`, que consomment le
+moteur, l'interface et le contexte du tuteur.
 
-Les 34 autres ne sont pas supprimées : elles sont hors périmètre. Élargir le
-périmètre est **une décision**, pas un réglage — le faire sans contenu pour
-l'alimenter ramènerait exactement le problème que le chantier du 28/07 corrige.
+Les 43 autres — dont Logistique (LOG-01 → LOG-09), pilote précédent — ne sont
+pas supprimées : elles sont hors périmètre, leurs preuves déjà écrites
+restent intactes en base. Élargir ou changer le périmètre est **une
+décision**, pas un réglage — le faire sans contenu pour l'alimenter ramènerait
+exactement le problème que le chantier du 28/07 corrige.
 
 ---
 

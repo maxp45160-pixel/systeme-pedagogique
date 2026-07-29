@@ -125,7 +125,9 @@ non à son agrégation. ❓ Non tranché : voir ADR-008.
 ✅ **Le moteur du tuteur doit être gratuit** et configurable (ADR-007).
 ✅ **Construire et utiliser en parallèle** est le mode de travail retenu.
 ✅ **La boucle est le produit** ; le périmètre de travail est le domaine
-Logistique tant que la boucle n'a pas fait ses preuves (ADR-013, ADR-018).
+Développement logiciel (DEV-01→10) tant que la boucle n'a pas fait ses
+preuves — Logistique, pilote précédent, reste hors périmètre comme les autres
+compétences non actives, ses preuves intactes en base (ADR-013, ADR-020).
 
 ### Ouvert
 
@@ -151,7 +153,11 @@ compris celles venant d'une session Claude.**
 fait nouveau.**
 
 🗑️ **« Écrire 30 exercices seed supplémentaires à la main. »** Écarté le 27/07 :
-coût récurrent, non transférable à un autre référentiel.
+coût récurrent, non transférable à un autre référentiel. *Nuance posée le
+29/07 (ADR-020) : un lot ponctuel de 10 exercices seed a été écrit pour
+amorcer le nouveau domaine Développement, par le même précédent que les 11
+diagnostics d'origine — ce n'est pas une réouverture de la pratique récurrente
+écartée ici.*
 
 🗑️ **« Corriger le score global sans arbitrage. »** P2 est une question ouverte
 depuis le 27/07 (ADR-006) : la formule ne se change pas au passage d'un autre
