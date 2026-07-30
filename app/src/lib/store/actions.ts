@@ -11,6 +11,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ajouter, lire, nouvelId, remplacer } from "./db";
+import { invaliderCacheContexte } from "./context";
 import {
   autonomieDepuisIndices,
   qualiteDepuisDifficulte,
@@ -49,6 +50,7 @@ export async function demarrerTentative(exerciseId: string): Promise<void> {
       statut: "en-cours",
     } satisfies ExerciseAttempt);
   }
+  invaliderCacheContexte();
   revalidatePath(`/exercices/${exerciseId}`);
 }
 
@@ -57,6 +59,7 @@ export async function debloquerIndice(attemptId: string, exerciseId: string): Pr
     ...t,
     indicesUtilises: t.indicesUtilises + 1,
   }));
+  invaliderCacheContexte();
   revalidatePath(`/exercices/${exerciseId}`);
 }
 
@@ -66,6 +69,7 @@ export async function enregistrerReponse(
   reponse: string,
 ): Promise<void> {
   await remplacer("attempts", attemptId, (t) => ({ ...t, reponse }));
+  invaliderCacheContexte();
   revalidatePath(`/exercices/${exerciseId}`);
 }
 
@@ -163,6 +167,7 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
   };
   await ajouter("sessions", session);
 
+  invaliderCacheContexte();
   revalidatePath("/", "layout");
   redirect(`/exercices/${exercice.id}?bilan=1`);
 }
@@ -250,6 +255,7 @@ export async function enregistrerPreuveManuelle(
   };
   await ajouter("sessions", session);
 
+  invaliderCacheContexte();
   revalidatePath("/", "layout");
 }
 
@@ -308,6 +314,7 @@ export async function creerExercice(soumission: SoumissionExerciceManuel): Promi
     origine: soumission.origine === "tuteur" ? "tuteur" : "manuel",
   };
   await ajouter("exercises", exercice);
+  invaliderCacheContexte();
   revalidatePath("/exercices");
   return exercice.id;
 }
@@ -326,6 +333,7 @@ export async function ajouterNoteSession(
     ...s,
     notePersonnelle: note || undefined,
   }));
+  invaliderCacheContexte();
   revalidatePath("/journal");
 }
 

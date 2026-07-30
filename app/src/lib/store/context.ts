@@ -5,13 +5,23 @@
  * et n'a jamais à savoir d'où viennent les données ni comment les indicateurs
  * sont calculés.
  *
+ * ── Cache mémoire ──────────────────────────────────────────────────────
+ *
+ * Les données changent rarement (une écriture pour ~50 navigations) mais
+ * étaient rechargées intégralement + recalculées à chaque changement de
+ * page (5 requêtes Supabase + calcul des 43 compétences).
+ *
+ * Un cache mémoire par userId élimine le coût de la lecture et du calcul
+ * pour les navigations successives. Il est invalidé explicitement par
+ * chaque Server Action qui écrit, et expire automatiquement après TTL
+ * secondes pour ne jamais servir de données périmées.
  */
 
 import { CODES_ACTIFS, SKILLS_ACTIFS } from "@/lib/domain/referentiel";
 import type {
   Collections,
 } from "./db";
-import { lireTout } from "./db";
+import { dorsaleCompte, lire } from "./db";
 import { EXERCICES_DIAGNOSTIC } from "@/lib/seed/exercises";
 import { computeAllSkillStates } from "@/lib/engine/skill-state";
 import { calculerEtatGlobal, type EtatGlobal } from "@/lib/engine/progression";
@@ -27,9 +37,66 @@ export interface Contexte {
   now: Date;
 }
 
+/* ------------------------------------------------------------------ */
+/* Cache mémoire                                                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Durée de vie du cache en millisecondes. Garde-fou : même sans invalidation
+ * explicite, le cache expire pour ne jamais servir de données trop anciennes
+ * (autre onglet, import externe, etc.).
+ */
+const TTL_MS = 30_000;
+
+interface EntreeCache {
+  contexte: Contexte;
+  timestamp: number;
+}
+
+/**
+ * Cache en mémoire du processus Node, indexé par userId.
+ *
+ * Un seul utilisateur en pratique, mais la clé par userId est correcte
+ * si le système évolue vers du multi-utilisateur.
+ */
+const cache = new Map<string, EntreeCache>();
+
+/**
+ * Invalide le cache du contexte.
+ *
+ * À appeler depuis chaque Server Action qui écrit des données (preuves,
+ * exercices, sessions, etc.). La prochaine navigation rechargera les
+ * données fraîches depuis Supabase.
+ */
+export function invaliderCacheContexte(): void {
+  cache.clear();
+}
+
+/* ------------------------------------------------------------------ */
+/* Chargement (avec cache)                                             */
+/* ------------------------------------------------------------------ */
+
 export async function chargerContexte(): Promise<Contexte> {
+  const dorsale = await dorsaleCompte();
+  const userId = dorsale.userId;
+
+  // Cache hit ?
+  const entree = cache.get(userId);
+  if (entree && Date.now() - entree.timestamp < TTL_MS) {
+    return entree.contexte;
+  }
+
+  // Cache miss : chargement complet depuis Supabase.
   const now = new Date();
-  const donneesBrutes = await lireTout();
+
+  const [user, evidence, exercises, attempts, sessions] = await Promise.all([
+    lire("user", dorsale),
+    lire("evidence", dorsale),
+    lire("exercises", dorsale),
+    lire("attempts", dorsale),
+    lire("sessions", dorsale),
+  ]);
+  const donneesBrutes: Collections = { user, evidence, exercises, attempts, sessions };
 
   // Les exercices de diagnostic font partie du logiciel, pas du journal :
   // ils sont toujours disponibles, sans étape d'initialisation.
@@ -53,7 +120,7 @@ export async function chargerContexte(): Promise<Contexte> {
 
   const recommandations = recommander(etats, donnees.exercises, donnees.attempts, 6);
 
-  return {
+  const contexte: Contexte = {
     donnees,
     etats,
     etatsParCode: new Map(etats.map((e) => [e.skill.code, e])),
@@ -61,4 +128,9 @@ export async function chargerContexte(): Promise<Contexte> {
     recommandations,
     now,
   };
+
+  // Stocker en cache.
+  cache.set(userId, { contexte, timestamp: Date.now() });
+
+  return contexte;
 }
