@@ -49,8 +49,8 @@ export async function demarrerTentative(exerciseId: string): Promise<void> {
       resultat: "partiel",
       statut: "en-cours",
     } satisfies ExerciseAttempt);
+    invaliderCacheContexte();
   }
-  invaliderCacheContexte();
   revalidatePath(`/exercices/${exerciseId}`);
 }
 
@@ -336,4 +336,3 @@ export async function ajouterNoteSession(
   invaliderCacheContexte();
   revalidatePath("/journal");
 }
-

@@ -84,29 +84,45 @@ export function moteurCompatibleOpenAI(
         }
         const cacheKey = `sys-${(h >>> 0).toString(36)}`;
 
-        const reponse = await fetch(`${base}/chat/completions`, {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            authorization: `Bearer ${cle}`,
-          },
-          body: JSON.stringify({
+        const appeler = (corps: unknown) =>
+          fetch(`${base}/chat/completions`, {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              authorization: "Bearer " + cle,
+            },
+            body: JSON.stringify(corps),
+          });
+
+        const payloadMistral = {
+          model: modele,
+          stream: true,
+          stream_options: { include_usage: true },
+          max_tokens: MAX_JETONS_SORTIE,
+          prompt_cache_key: cacheKey,
+          messages: [
+            // Séparer stable et profil en deux messages system : le préfixe
+            // stable est identique d'un tour à l'autre, maximisant le cache
+            // hit. Le profil (variable à chaque requête si une preuve change)
+            // vient après et ne casse pas le préfixe caché.
+            { role: "system", content: systemeStable },
+            { role: "system", content: systemeProfil },
+            ...messages.map((m) => ({ role: m.role, content: m.content })),
+          ],
+        };
+
+        let reponse = await appeler(payloadMistral);
+        if (reponse.status === 400) {
+          reponse = await appeler({
             model: modele,
             stream: true,
-            stream_options: { include_usage: true },
             max_tokens: MAX_JETONS_SORTIE,
-            prompt_cache_key: cacheKey,
             messages: [
-              // Séparer stable et profil en deux messages system : le préfixe
-              // stable est identique d'un tour à l'autre, maximisant le cache
-              // hit. Le profil (variable à chaque requête si une preuve change)
-              // vient après et ne casse pas le préfixe caché.
-              { role: "system", content: systemeStable },
-              { role: "system", content: systemeProfil },
+              { role: "system", content: `${systemeStable}\n\n${systemeProfil}` },
               ...messages.map((m) => ({ role: m.role, content: m.content })),
             ],
-          }),
-        });
+          });
+        }
 
         if (!reponse.ok || !reponse.body) {
           const corps = await reponse.text().catch(() => "");

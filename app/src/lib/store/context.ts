@@ -83,6 +83,7 @@ export async function chargerContexte(): Promise<Contexte> {
   // Cache hit ?
   const entree = cache.get(userId);
   if (entree && Date.now() - entree.timestamp < TTL_MS) {
+    entree.timestamp = Date.now();
     return entree.contexte;
   }
 

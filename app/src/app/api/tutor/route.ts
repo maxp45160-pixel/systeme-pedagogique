@@ -20,7 +20,7 @@ import type { MessageTuteur } from "@/lib/tutor/moteurs";
 /* Sans borne, le payload croît linéairement avec la longueur de la    */
 /* conversation (réponses assistant ≤ 8192 tokens s'accumulent) et     */
 /* finit en HTTP 413. On garde le premier message utilisateur (donne   */
-/* le contexte initial) + les N derniers échanges.                     */
+/* le contexte initial) + les N derniers messages.                     */
 /* ------------------------------------------------------------------ */
 
 /**
@@ -35,7 +35,7 @@ const MAX_MESSAGES_FENETRE = 20;
 
 /**
  * Réduit l'historique en conservant le premier message utilisateur
- * et les derniers échanges. Renvoie `{ fenetre, tronque }`.
+ * et les derniers messages. Renvoie `{ fenetre, tronque }`.
  */
 function fenêtrerHistorique(
   messages: MessageTuteur[],
@@ -45,17 +45,17 @@ function fenêtrerHistorique(
   }
 
   // Premier message utilisateur (contexte initial de la session).
-  const premier = messages[0];
+  const premier = messages.find((m) => m.role === "user");
   // Les N-1 derniers (on réserve une place pour le premier).
   const queue = messages.slice(-(MAX_MESSAGES_FENETRE - 1));
 
   // Vérifier que la queue commence bien par un message user pour garder
   // la structure user/assistant cohérente. Si ce n'est pas le cas, on
   // retire le premier message assistant orphelin.
-  const fenetre =
-    queue[0]?.role === "assistant"
-      ? [premier, ...queue.slice(1)]
-      : [premier, ...queue];
+  const queueNormalisee = queue[0]?.role === "assistant" ? queue.slice(1) : queue;
+  const fenetre = premier
+    ? [premier, ...queueNormalisee.filter((m) => m !== premier)]
+    : queueNormalisee;
 
   return { fenetre, tronque: true };
 }
@@ -106,7 +106,7 @@ export async function POST(request: Request) {
 
       if (tronque) {
         envoyer("tronque", {
-          message: `Conversation longue : seuls le premier message et les ${MAX_MESSAGES_FENETRE - 1} derniers échanges sont transmis au tuteur.`,
+          message: `Conversation longue : seuls le premier message et les ${MAX_MESSAGES_FENETRE - 1} derniers messages sont transmis au tuteur.`,
         });
       }
 
