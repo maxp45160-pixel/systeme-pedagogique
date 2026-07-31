@@ -99,16 +99,9 @@ export function profilVersUser(
   };
 }
 
-export function userVersProfil(user: User): Record<string, unknown> {
-  return {
-    prenom: user.prenom,
-    formation: user.formation,
-    objectif_moyen_terme: user.objectifMoyenTerme,
-    objectif_long_terme: user.objectifLongTerme,
-    debut_suivi: user.debutSuivi,
-    preferences_pedagogiques: user.preferencesPedagogiques ?? [],
-  };
-}
+// La traduction inverse (User → colonnes `profiles`) n'existe pas : aucun
+// écran n'édite le profil. Elle sera à réécrire le jour où cet écran existera
+// — cinq lignes symétriques de `profilVersUser` — plutôt que maintenue à vide.
 
 /* ------------------------------------------------------------------ */
 /* Diagnostic                                                          */

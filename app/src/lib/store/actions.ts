@@ -3,14 +3,21 @@
 /**
  * Server Functions — les seules écritures du système.
  *
- * Application mono-utilisateur exécutée en local : il n'y a pas
- * d'authentification. Ne pas exposer cette application sur un réseau public
- * en l'état (voir README).
+ * Chacune s'exécute au nom du compte connecté : `dorsaleCompte()` redirige vers
+ * `/login` sans session, et les politiques RLS de PostgreSQL restent la barrière
+ * d'autorisation (ADR-015). Le tuteur n'a aucun accès à ce module : il émet une
+ * proposition, l'utilisateur la valide, et c'est cette validation qui écrit (P5).
+ *
+ * Toutes appellent `revalidatePath("/", "layout")` (ADR-024). Une écriture peut
+ * déplacer un niveau, un score global et une recommandation à la fois : à 77
+ * lignes en base, invalider tout coûte moins cher que de raisonner, à chaque
+ * ajout, sur les écrans qu'une preuve touche. Cette uniformité est aussi ce qui
+ * rend sûr le cache routeur client de `next.config.ts`.
  */
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { ajouter, ajouterPlusieurs, dorsaleCompte, lire, nouvelId, remplacer } from "./db";
+import { ajouter, ajouterPlusieurs, dorsaleCompte, lire, modifier, nouvelId } from "./db";
 import {
   autonomieDepuisIndices,
   qualiteDepuisDifficulte,
@@ -50,26 +57,30 @@ export async function demarrerTentative(exerciseId: string): Promise<void> {
       statut: "en-cours",
     } satisfies ExerciseAttempt, dorsale);
   }
-  revalidatePath(`/exercices/${exerciseId}`);
+  revalidatePath("/", "layout");
 }
 
-export async function debloquerIndice(attemptId: string, exerciseId: string): Promise<void> {
-  const dorsale = await dorsaleCompte();
-  await remplacer("attempts", attemptId, (t) => ({
-    ...t,
-    indicesUtilises: t.indicesUtilises + 1,
-  }), dorsale);
-  revalidatePath(`/exercices/${exerciseId}`);
-}
-
-export async function enregistrerReponse(
+/**
+ * `indicesUtilises` est le compteur courant, lu par la page qui rend le bouton.
+ * Le passer évite de relire la tentative pour l'incrémenter : une requête au
+ * lieu de deux. Deux onglets cliquant à la même seconde perdraient un
+ * incrément — un compte est une personne, et la garde optimiste alternative
+ * transformerait la perte en indice affiché mais non compté, c'est-à-dire en
+ * autonomie surestimée. C'est le défaut connu qu'on refuse d'aggraver (P8).
+ */
+export async function debloquerIndice(
   attemptId: string,
-  exerciseId: string,
-  reponse: string,
+  indicesUtilises: number,
 ): Promise<void> {
   const dorsale = await dorsaleCompte();
-  await remplacer("attempts", attemptId, (t) => ({ ...t, reponse }), dorsale);
-  revalidatePath(`/exercices/${exerciseId}`);
+  await modifier("attempts", attemptId, { indicesUtilises: indicesUtilises + 1 }, dorsale);
+  revalidatePath("/", "layout");
+}
+
+export async function enregistrerReponse(attemptId: string, reponse: string): Promise<void> {
+  const dorsale = await dorsaleCompte();
+  await modifier("attempts", attemptId, { reponse }, dorsale);
+  revalidatePath("/", "layout");
 }
 
 export interface SoumissionExercice {
@@ -98,15 +109,16 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
     EXERCICES_DIAGNOSTIC.find((e) => e.id === soumission.exerciseId);
   if (!exercice) throw new Error(`Exercice introuvable : ${soumission.exerciseId}`);
 
-  const tentative = await remplacer("attempts", soumission.attemptId, (t) => ({
-    ...t,
+  // La tentative renvoyée est celle qui vient d'être écrite : `indicesUtilises`
+  // s'y lit sans relecture, et c'est lui qui détermine l'autonomie observée.
+  const tentative = await modifier("attempts", soumission.attemptId, {
     fin: new Date().toISOString(),
     dureeMin: soumission.dureeMin,
     autoEvaluation: soumission.autoEvaluation,
     resultat: soumission.resultat,
     statut: "terminee" as const,
     notes: soumission.notes,
-  }), dorsale);
+  }, dorsale);
   if (!tentative) throw new Error("Tentative introuvable");
 
   const autonomie = autonomieDepuisIndices(tentative.indicesUtilises, exercice.indices.length);
@@ -311,7 +323,7 @@ export async function creerExercice(soumission: SoumissionExerciceManuel): Promi
     origine: soumission.origine === "tuteur" ? "tuteur" : "manuel",
   };
   await ajouter("exercises", exercice);
-  revalidatePath("/exercices");
+  revalidatePath("/", "layout");
   return exercice.id;
 }
 
@@ -325,10 +337,9 @@ export async function ajouterNoteSession(
   formData: FormData,
 ): Promise<void> {
   const note = String(formData.get("note") ?? "").trim();
-  await remplacer("sessions", sessionId, (s) => ({
-    ...s,
-    notePersonnelle: note || undefined,
-  }));
-  revalidatePath("/journal");
+  // `null` et non `undefined` : vider le champ doit effacer la note en base,
+  // là où `undefined` signifierait « ne pas y toucher ».
+  await modifier("sessions", sessionId, { notePersonnelle: note || null });
+  revalidatePath("/", "layout");
 }
 

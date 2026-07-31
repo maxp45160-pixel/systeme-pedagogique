@@ -181,7 +181,7 @@ export default async function PageExercice(props: {
                 legende="Rédige ta méthode, pas seulement le résultat final"
               />
               <div className="px-4 py-4">
-                <ZoneReponse attemptId={enCours.id} exerciseId={exercice.id} valeur={enCours.reponse} />
+                <ZoneReponse attemptId={enCours.id} valeur={enCours.reponse} />
               </div>
             </Carte>
 
@@ -238,7 +238,7 @@ export default async function PageExercice(props: {
                   )}
 
                   {enCours.indicesUtilises < exercice.indices.length && (
-                    <form action={debloquerIndice.bind(null, enCours.id, exercice.id)}>
+                    <form action={debloquerIndice.bind(null, enCours.id, enCours.indicesUtilises)}>
                       <button type="submit" className={classesBouton("secondaire", "petite")}>
                         <IconeAmpoule className="size-3.5" />
                         Débloquer l&apos;indice {enCours.indicesUtilises + 1}
@@ -363,15 +363,13 @@ export default async function PageExercice(props: {
 /** Zone de réponse : sauvegarde explicite, pour rester prévisible. */
 function ZoneReponse({
   attemptId,
-  exerciseId,
   valeur,
 }: {
   attemptId: string;
-  exerciseId: string;
   valeur: string;
 }) {
   return (
-    <form action={enregistrerReponseForm.bind(null, attemptId, exerciseId)}>
+    <form action={enregistrerReponseForm.bind(null, attemptId)}>
       <textarea
         name="reponse"
         defaultValue={valeur}
@@ -393,10 +391,9 @@ function ZoneReponse({
 
 async function enregistrerReponseForm(
   attemptId: string,
-  exerciseId: string,
   formData: FormData,
 ): Promise<void> {
   "use server";
   const { enregistrerReponse } = await import("@/lib/store/actions");
-  await enregistrerReponse(attemptId, exerciseId, String(formData.get("reponse") ?? ""));
+  await enregistrerReponse(attemptId, String(formData.get("reponse") ?? ""));
 }
