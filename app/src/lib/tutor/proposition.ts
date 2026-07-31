@@ -53,14 +53,81 @@ const CHAMPS: { cle: keyof PropositionTuteur; etiquette: string }[] = [
   { cle: "reserve", etiquette: "Réserve" },
 ];
 
+/* ------------------------------------------------------------------ */
+/* Lecture d'une ligne « Étiquette : valeur »                          */
+/*                                                                     */
+/* Le gabarit demande une étiquette nue. Les modèles la mettent en     */
+/* gras — observé sur mistral-large-2512, qui écrit systématiquement   */
+/* `**Titre** : …`, et parfois `**Titre :**`. Une correspondance       */
+/* littérale échouait alors sur TOUS les champs : la proposition       */
+/* perdait son titre, se faisait rejeter, et aucun bouton n'était      */
+/* proposé. C'est exactement la panne silencieuse que ce module existe */
+/* pour empêcher.                                                      */
+/*                                                                     */
+/* On tolère donc le balisage autour de l'étiquette, sans rien relâcher */
+/* d'autre : le préfixe, une fois débarrassé de son emphase, doit être */
+/* l'étiquette ENTIÈRE (une numérotation « Indice 2 » admise), sans    */
+/* quoi la ligne n'est pas un champ.                                   */
+/* ------------------------------------------------------------------ */
+
+/** Caractères d'emphase markdown susceptibles d'entourer une étiquette. */
+const EMPHASE = /[*_~`]/g;
+
+/**
+ * Retire une paire d'emphase enveloppant une valeur — `*application*` →
+ * `application`. N'est appliqué qu'aux champs d'une seule ligne : sur un
+ * énoncé ou une correction, le markdown intérieur doit rester intact.
+ */
+function sansEmphaseEnveloppante(valeur: string): string {
+  const m = valeur.match(/^(\*\*|__|\*|_)([\s\S]+)\1$/);
+  return m ? m[2].trim() : valeur;
+}
+
+/**
+ * Sépare `ligne` en `{ etiquette, valeur }` si elle porte l'une des
+ * `etiquettes` attendues, `null` sinon.
+ */
+function lireChamp(
+  ligne: string,
+  etiquettes: readonly string[],
+): { etiquette: string; valeur: string } | null {
+  const coupure = ligne.indexOf(":");
+  if (coupure === -1) return null;
+
+  const prefixe = ligne.slice(0, coupure).replace(EMPHASE, "").trim();
+  const motif = new RegExp(`^(${etiquettes.join("|")})(?:\\s+\\d+)?$`);
+  const trouve = prefixe.match(motif);
+  if (!trouve) return null;
+
+  // `**Titre :**` laisse une emphase fermante orpheline en tête de valeur.
+  // Le `(?=\s|$)` la distingue d'une valeur qui commence légitimement par
+  // du gras, comme « **Attention** : … » dans un énoncé.
+  const valeur = ligne
+    .slice(coupure + 1)
+    .trim()
+    .replace(/^(\*\*|__|\*|_)(?=\s|$)/, "")
+    .trim();
+
+  return { etiquette: trouve[1], valeur };
+}
+
+const ETIQUETTES_PREUVE = CHAMPS.map((c) => c.etiquette);
+
 export function extrairePropositions(texte: string): PropositionTuteur[] {
   const blocs = texte.split(MARQUEUR_PREUVE).slice(1);
   return blocs
     .map((bloc) => {
+      const lus = new Map<string, string>();
+      for (const ligne of bloc.split("\n")) {
+        const champ = lireChamp(ligne, ETIQUETTES_PREUVE);
+        // Première occurrence seulement : le bloc décrit une proposition, la
+        // prose qui suit ne doit pas écraser ses champs.
+        if (champ && !lus.has(champ.etiquette)) lus.set(champ.etiquette, champ.valeur);
+      }
+
       const valeurs = {} as PropositionTuteur;
       for (const { cle, etiquette } of CHAMPS) {
-        const m = bloc.match(new RegExp(`${etiquette}\\s*:\\s*(.+)`));
-        valeurs[cle] = m?.[1]?.trim() ?? "";
+        valeurs[cle] = sansEmphaseEnveloppante(lus.get(etiquette) ?? "");
       }
       return valeurs;
     })
@@ -135,9 +202,12 @@ const CHAMPS_MULTILIGNES = new Set<string>(["Énoncé", "Correction"]);
  * `Critère` sont répétables — d'où une liste par étiquette.
  */
 function decouperChamps(bloc: string): Map<string, string[]> {
-  const motif = new RegExp(`^\\s*(${ETIQUETTES_EXERCICE.join("|")})\\s*:\\s*(.*)$`);
   const champs = new Map<string, string[]>();
   let courante: string | null = null;
+  /* Un champ mono-ligne ouvert faute de valeur sur sa propre ligne se referme
+   * à la première ligne vide — sans quoi la prose finale du tuteur, « Dis-moi
+   * si tu veux commencer. », serait avalée par le dernier indice. */
+  let fermeSurLigneVide = false;
 
   for (const ligne of bloc.split("\n")) {
     if (FIN_DE_BLOC.test(ligne)) {
@@ -145,22 +215,40 @@ function decouperChamps(bloc: string): Map<string, string[]> {
       continue;
     }
 
-    const trouve = ligne.match(motif);
+    const trouve = lireChamp(ligne, ETIQUETTES_EXERCICE);
     if (trouve) {
-      const etiquette = trouve[1];
+      const etiquette = trouve.etiquette;
       const liste = champs.get(etiquette) ?? [];
-      liste.push(trouve[2]);
+      liste.push(trouve.valeur);
       champs.set(etiquette, liste);
-      // Un champ mono-ligne se referme aussitôt : les lignes suivantes ne lui
-      // seront pas rattachées.
-      courante = CHAMPS_MULTILIGNES.has(etiquette) ? etiquette : null;
+
+      if (CHAMPS_MULTILIGNES.has(etiquette)) {
+        courante = etiquette;
+        fermeSurLigneVide = false;
+      } else if (trouve.valeur === "") {
+        // `**Indice** :` seul sur sa ligne, contenu en dessous — la forme que
+        // produit spontanément mistral-large. Sans cette reprise, l'indice
+        // était perdu, et avec lui la mesure de l'autonomie qui en dépend.
+        courante = etiquette;
+        fermeSurLigneVide = true;
+      } else {
+        courante = null;
+      }
       continue;
     }
 
-    if (courante) {
-      const liste = champs.get(courante)!;
-      liste[liste.length - 1] = `${liste[liste.length - 1]}\n${ligne}`;
+    if (!courante) continue;
+
+    if (fermeSurLigneVide && ligne.trim() === "") {
+      courante = null;
+      continue;
     }
+
+    const liste = champs.get(courante)!;
+    const dejaVide = liste[liste.length - 1] === "";
+    liste[liste.length - 1] = dejaVide
+      ? ligne
+      : `${liste[liste.length - 1]}\n${ligne}`;
   }
 
   return champs;
@@ -170,8 +258,17 @@ function premier(champs: Map<string, string[]>, etiquette: string): string {
   return (champs.get(etiquette)?.[0] ?? "").trim();
 }
 
+/** Comme `premier`, en retirant l'emphase qui enveloppe la valeur entière. */
+function premierNet(champs: Map<string, string[]>, etiquette: string): string {
+  return sansEmphaseEnveloppante(premier(champs, etiquette));
+}
+
 function tous(champs: Map<string, string[]>, etiquette: string): string[] {
   return (champs.get(etiquette) ?? []).map((v) => v.trim()).filter((v) => v.length > 0);
+}
+
+function nettoyerDimension(brut: string): string {
+  return brut.replace(EMPHASE, "").trim().toLowerCase();
 }
 
 /** « comprehension — Sait expliquer X » → { dimension, libelle }. */
@@ -179,10 +276,15 @@ function decouperCritere(brut: string): { dimension: string; libelle: string } {
   // `[\s\S]` plutôt que le drapeau `s` : la cible TypeScript du projet est
   // antérieure à ES2018, où ce drapeau n'existe pas.
   const separation = brut.match(/^([\s\S]*?)\s*[—–-]\s*([\s\S]*)$/);
-  if (!separation) return { dimension: brut.trim().toLowerCase(), libelle: "" };
+  // La dimension doit rester comparable au référentiel : le tuteur l'écrit
+  // souvent en italique (`*application*`), et « application » n'est pas
+  // « *application* » pour le formulaire qui la relit.
+  if (!separation) {
+    return { dimension: nettoyerDimension(brut), libelle: "" };
+  }
   return {
-    dimension: separation[1].trim().toLowerCase(),
-    libelle: separation[2].trim(),
+    dimension: nettoyerDimension(separation[1]),
+    libelle: sansEmphaseEnveloppante(separation[2].trim()),
   };
 }
 
@@ -193,13 +295,13 @@ export function extrairePropositionsExercice(texte: string): PropositionExercice
     .map((bloc) => {
       const champs = decouperChamps(bloc);
       return {
-        titre: premier(champs, "Titre"),
-        domaine: premier(champs, "Domaine").toLowerCase(),
-        type: premier(champs, "Type").toLowerCase(),
-        difficulte: premier(champs, "Difficulté"),
-        competences: premier(champs, "Compétences")
+        titre: premierNet(champs, "Titre"),
+        domaine: premierNet(champs, "Domaine").toLowerCase(),
+        type: premierNet(champs, "Type").toLowerCase(),
+        difficulte: premierNet(champs, "Difficulté"),
+        competences: premierNet(champs, "Compétences")
           .split(",")
-          .map((c) => c.trim().toUpperCase())
+          .map((c) => c.trim().replace(EMPHASE, "").toUpperCase())
           .filter((c) => c.length > 0),
         dureeEstimeeMin: premier(champs, "Durée estimée").replace(/[^0-9]/g, ""),
         enonce: premier(champs, "Énoncé"),
