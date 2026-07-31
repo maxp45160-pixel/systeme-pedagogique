@@ -15,7 +15,17 @@ import type { SupabaseClient, User as CompteSupabase } from "@supabase/supabase-
 import { cookies } from "next/headers";
 import { SUPABASE_ANON_KEY, SUPABASE_URL, supabaseConfigure } from "./config";
 
-export async function createServeurClient(): Promise<SupabaseClient | null> {
+/**
+ * Client Supabase de la requête en cours.
+ *
+ * `cache()` (React) a exactement la portée de `cookies()` : la requête
+ * serveur. Mémoïser la construction est donc sémantiquement identique à la
+ * refaire, à ceci près qu'on cesse de relire le bocal à cookies et de
+ * reconstruire un client pour chaque consommateur. La mise en page, la
+ * dorsale et les routes partagent maintenant une seule instance, là où une
+ * page en construisait trois.
+ */
+export const createServeurClient = cache(async (): Promise<SupabaseClient | null> => {
   if (!supabaseConfigure) return null;
 
   const jar = await cookies();
@@ -36,7 +46,7 @@ export async function createServeurClient(): Promise<SupabaseClient | null> {
       },
     },
   });
-}
+});
 
 /**
  * Compte connecté, ou `null` (Supabase absent / visiteur anonyme).
