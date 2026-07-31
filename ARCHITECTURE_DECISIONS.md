@@ -35,6 +35,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [020](#adr-020) | Pivot du périmètre pilote : Développement logiciel | ✅ Acceptée (29/07) |
 | [021](#adr-021) | Compression et chargement conditionnel des protocoles du tuteur | ✅ Acceptée (29/07) |
 | [022](#adr-022) | Vérification locale du jeton (`getClaims`) sur le chemin chaud | ✅ Acceptée (31/07) |
+| [023](#adr-023) | Cache des données inter-requêtes | ❓ Ouverte |
 
 ---
 
@@ -982,6 +983,64 @@ périmée serait nuisible — bannissement, rôle administrateur, suppression de
 compte en libre-service, partage de progression entre comptes — **ce
 chemin-là, et lui seul, doit rappeler `getUser()` explicitement**. Écrire
 ce rappel fait partie de la décision, pas d'un chantier futur.
+
+---
+
+<a name="adr-023"></a>
+
+## ADR-023 — Cache des données inter-requêtes ❓
+
+**Date.** 31/07/2026. **Ouverte, volontairement non implémentée.**
+
+**Contexte.** Le chantier de performance du 31/07 est parti d'une demande
+précise : « faire en sorte que le cache utilisateur n'appelle pas à chaque
+fois la base de données ». L'hypothèse implicite était que les lectures
+Supabase étaient le poste de latence dominant.
+
+**La mesure l'a contredite.** La base contient 29 preuves, 22 tentatives, 22
+séances, 1 exercice, 3 profils, avec les index `(user_id, …)` attendus sur
+toutes les tables. Les cinq `select` de `lireTout()` s'exécutent en
+parallèle : ils coûtent **un** aller-retour PostgREST, pour 77 lignes au
+total. Le poste dominant était l'authentification — deux allers-retours
+réseau par page, payés deux fois par navigation à cause des charges RSC —
+supprimés par ADR-022, plus l'absence totale de frontière `<Suspense>`, qui
+bloquait le premier octet jusqu'à la fin de la dérivation.
+
+**Pourquoi ne rien construire.** Un cache inter-requêtes supprimerait le
+dernier aller-retour restant. En échange il faudrait :
+
+- une clé de cache contenant l'identifiant du compte, et sept points
+  d'invalidation dans `lib/store/actions.ts` — dont deux (`creerExercice`,
+  `ajouterNoteSession`) n'ont pas l'identifiant sous la main aujourd'hui ;
+- **déplacer une décision de cloisonnement hors de PostgreSQL**, vers une
+  chaîne de caractères que nous fabriquons. CLAUDE.md §7 pose que RLS est la
+  seule barrière d'autorisation de confiance ; une erreur de clé ferait
+  servir les données d'un compte à un autre sans que Postgres ait son mot à
+  dire. Trois comptes réels existent.
+
+ADR-022 a supprimé **deux** allers-retours pour une fraction de ce risque.
+« Ne rien faire » est recevable (CLAUDE.md §9) : c'est la recommandation.
+
+**Qui doit trancher.** Maxime. **Ce qui bloque :** rien — il manque
+seulement une raison. Cette question ne se rouvre que si une mesure montre
+que les `select` sont redevenus le poste dominant, ce qui n'arrivera pas à
+77 lignes.
+
+**Si elle se rouvre**, les contraintes sont déjà connues :
+
+- `unstable_cache` **et** `"use cache"` interdisent `cookies()` dans le corps
+  mis en cache. Le client doit être construit à l'extérieur et capturé par
+  fermeture : garder `await dorsaleCompte()` en tête de `lireTout()` et
+  n'envelopper que le `Promise.all`.
+- Clé `["lireTout", userId]`, étiquette `` `compte:${userId}` ``. L'`userId`
+  vient de `claims.sub`, donc d'un jeton à signature vérifiée : il n'est pas
+  manipulable par le client. **Un test de non-fuite entre deux comptes est la
+  première chose à écrire, pas la dernière.**
+- Piège principal : `revalidatePath` **n'invalide pas** `unstable_cache`. Il
+  faut `revalidateTag` dans chaque écriture.
+- `cacheComponents` est à écarter : c'est une bascule globale du modèle de
+  rendu (PPR, frontière obligatoire sur tout accès dynamique non caché) pour
+  six pages.
 
 ---
 

@@ -50,15 +50,19 @@ pratique et développer un sujet à long terme.
 - **Base de données :** **Supabase / PostgreSQL uniquement**, RLS par compte
   (ADR-015). La dorsale JSON locale a été supprimée le 28/07 : sans session
   valide, aucune lecture ni écriture n'est possible.
-- **Authentification :** Supabase Auth — e-mail/mot de passe + SSO Google
+- **Authentification :** Supabase Auth — e-mail/mot de passe + SSO Google.
+  Le jeton est vérifié **localement** (`getClaims`, signature ES256 par
+  WebCrypto), jamais par un appel au serveur d'auth sur le chemin chaud
+  (ADR-022). Un chemin sensible à une révocation immédiate devrait rappeler
+  `getUser()` explicitement.
 - **IA :** moteur du tuteur **interchangeable** (`lib/tutor/moteurs/`, ADR-007) —
   `anthropic` via `@anthropic-ai/sdk` (payant) ou `compatible-openai` en `fetch`
   pur (paliers gratuits : Groq, OpenRouter, Mistral…). Streaming SSE dans les
   deux cas. Sans moteur configuré : 503 et repli « copier le contexte ».
 - **Styles :** Tailwind CSS v4 ; **graphiques SVG écrits à la main**, aucune
   librairie UI tierce
-- **Tests :** Vitest — **63 tests**, 4 fichiers (moteur, backend Supabase,
-  parseurs de propositions, sélection du moteur du tuteur)
+- **Tests :** Vitest — **95 tests**, 5 fichiers (moteur, backend Supabase,
+  parseurs de propositions, contexte du tuteur, sélection du moteur du tuteur)
 - **Déploiement :** Vercel (Root Directory = `app`)
 - **Gestionnaire de paquets :** npm (workspace racine → `app/`)
 - **Outillage :** serveur MCP Supabase (`.mcp.json`)
@@ -108,7 +112,7 @@ bascule sur « Copier le contexte » — comportement voulu, pas une panne.
 - **Une faiblesse ne disparaît pas sans démonstration.** Les preuves contradictoires réduisent la confiance, pas le niveau.
 - **Le tuteur n'a aucun accès en écriture.** Il émet une proposition que l'utilisateur valide.
 
-**Ne pas modifier un seuil du moteur sans modifier le protocole correspondant.** 63 tests vérifient ces garanties.
+**Ne pas modifier un seuil du moteur sans modifier le protocole correspondant.** 95 tests vérifient ces garanties.
 
 ⚠️ Deux principes ne sont pas tenus : le score global compte les non-mesurées comme des zéros, et l'autonomie ignore l'aide externe. Écarts connus — voir `PRODUCT.md` §5 (ADR-006 et ADR-008).
 
