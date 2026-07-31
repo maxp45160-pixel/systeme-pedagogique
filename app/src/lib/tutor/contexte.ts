@@ -47,6 +47,37 @@ const PROTOCOLE_EVALUATION_SYNTHESE = {
   nom: "Protocole d'évaluation (complet)",
 };
 
+/**
+ * Charte de rédaction d'une compétence (ADR-026) — chargée seulement quand la
+ * conversation porte sur le référentiel.
+ *
+ * Même arbitrage qu'ADR-021 : le contexte tourne autour de 28 Ko dominés par
+ * 20 Ko de protocole, et les moteurs gratuits ont de petites fenêtres. Ces
+ * 6 Ko ne servent à rien quand l'utilisateur travaille un exercice.
+ *
+ * Exception : un compte SANS référentiel le reçoit toujours. C'est sa seule
+ * conversation possible, et la faire dépendre d'un mot-clé reviendrait à
+ * laisser le tuteur improviser l'amorçage — le moment où il improviserait le
+ * plus coûteusement, puisque tout le reste en découle.
+ */
+const PROTOCOLE_REFERENTIEL = {
+  fichier: "00_instructions/00_SYSTEME_PROTOCOLE_REFERENTIEL.txt",
+  nom: "Protocole de construction du référentiel",
+};
+
+const MOTS_CLES_REFERENTIEL = [
+  "referentiel",
+  "competence",
+  "domaine",
+  "branche",
+  "ajouter",
+  "nouveau sujet",
+  "travailler sur",
+  "apprendre",
+  "me lancer",
+  "commencer",
+];
+
 const MOTS_CLES_SYNTHESE = [
   "bilan",
   "synthese",
@@ -79,6 +110,22 @@ export function fautChargerSyntheseEvaluation(dernierMessage: string, nombreDeTo
   if (nombreDeTours > 0 && nombreDeTours % CADENCE_SYNTHESE === 0) return true;
   const normalise = normaliser(dernierMessage);
   return MOTS_CLES_SYNTHESE.some((mot) => normalise.includes(mot));
+}
+
+/**
+ * Décide si la charte du référentiel doit être chargée ce tour-ci.
+ *
+ * Pure et testable, comme `fautChargerSyntheseEvaluation`. `referentielVide`
+ * l'emporte sur tout : sans compétence, il n'y a pas d'autre conversation à
+ * avoir.
+ */
+export function fautChargerProtocoleReferentiel(
+  dernierMessage: string,
+  referentielVide: boolean,
+): boolean {
+  if (referentielVide) return true;
+  const normalise = normaliser(dernierMessage);
+  return MOTS_CLES_REFERENTIEL.some((mot) => normalise.includes(mot));
 }
 
 export interface SectionContexte {
@@ -389,6 +436,17 @@ export async function construireContexte(
     if (contenu) {
       blocsStables.push(contenu);
       manifeste.push({ nom: PROTOCOLE_EVALUATION_SYNTHESE.nom, caracteres: contenu.length, origine: "fichier" });
+    }
+  }
+
+  // Même arbitrage, autre déclencheur : la charte du référentiel n'a d'utilité
+  // que quand la conversation porte dessus. Un compte sans référentiel la
+  // reçoit toujours — c'est sa seule conversation possible (ADR-026).
+  if (fautChargerProtocoleReferentiel(dernierMessageUtilisateur, ctx.referentiel.skills.length === 0)) {
+    const contenu = await lireFichier(PROTOCOLE_REFERENTIEL.fichier);
+    if (contenu) {
+      blocsStables.push(contenu);
+      manifeste.push({ nom: PROTOCOLE_REFERENTIEL.nom, caracteres: contenu.length, origine: "fichier" });
     }
   }
 

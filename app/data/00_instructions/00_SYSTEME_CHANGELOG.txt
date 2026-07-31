@@ -390,3 +390,46 @@ Le système doit évoluer progressivement.
 Ne pas ajouter de complexité sans bénéfice pédagogique clair.
 
 Une architecture plus complexe n'est pas nécessairement une meilleure architecture.
+---
+
+## 31/07/2026 — LE RÉFÉRENTIEL DEVIENT UNE DONNÉE PAR COMPTE (ADR-026)
+
+### Nouveau protocole
+
+Ajout de `00_SYSTEME_PROTOCOLE_REFERENTIEL.txt` — charte de construction du
+référentiel. Il définit à quelle condition une compétence peut y entrer : être
+MESURABLE PAR L'APPAREIL QUI EXISTE. Cinq critères, tous tracés aux protocoles
+existants (évaluation §3, §10, §11 ; types d'exercice).
+
+Ce fichier est chargé CONDITIONNELLEMENT, comme le protocole d'évaluation
+complet depuis ADR-021 : seulement quand la conversation porte sur le
+référentiel, et toujours pour un compte qui n'en a pas encore.
+
+### Ce qui change pour le tuteur
+
+1. Le référentiel n'est plus universel. Il appartient au compte, et un compte
+   neuf n'en a aucun — c'est l'état normal, pas une anomalie. Le contexte le
+   dit explicitement au lieu de sérialiser un tableau vide.
+
+2. Troisième type de proposition : PROPOSITION DE RÉFÉRENTIEL. Le tuteur peut
+   proposer une branche ou des compétences, jamais les écrire (P5 inchangé).
+
+3. Le tuteur N'ÉCRIT AUCUN CODE DE COMPÉTENCE dans une proposition de
+   référentiel. L'application les attribue depuis le préfixe du domaine. Un
+   code est la clé étrangère des preuves : un code inventé ferait suivre les
+   preuves vers la mauvaise compétence, sans erreur visible.
+
+4. Le gabarit de proposition d'exercice ne nomme plus un domaine en dur : il
+   liste les domaines réellement actifs du compte.
+
+### Protocoles NON modifiés
+
+Les protocoles d'évaluation et anti-hallucination ne sont pas touchés. La charte
+du référentiel s'y adosse — elle ne redéfinit aucun seuil, aucune échelle,
+aucune règle de mise à jour.
+
+### Conséquence sur un principe
+
+Le score global ne compte plus les compétences non mesurées comme des zéros
+(ADR-006, principe P2 rétabli). Le protocole d'évaluation §12 reste inchangé :
+c'était l'implémentation qui s'en écartait, pas le protocole.

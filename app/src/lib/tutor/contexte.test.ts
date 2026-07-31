@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { construireContexte, fautChargerSyntheseEvaluation } from "./contexte";
+import {
+  construireContexte,
+  fautChargerProtocoleReferentiel,
+  fautChargerSyntheseEvaluation,
+} from "./contexte";
 import { fenetrerHistorique, MAX_MESSAGES_FENETRE } from "./fenetre";
 import { DOMAINES_TEST, REFERENTIEL_TEST } from "@/lib/domain/referentiel.fixture";
 import { REFERENTIEL_VIDE } from "@/lib/domain/referentiel-compte";
@@ -225,5 +229,49 @@ describe("construireContexte — compte sans référentiel", () => {
     // `statistiques` est hors périmètre dans la fixture : le tuteur ne doit pas
     // se voir offrir un domaine qui n'est pas travaillé.
     expect(systemeStable).not.toContain("<statistiques");
+  });
+});
+
+/*
+ * ADR-026 — la charte de rédaction d'une compétence pèse ~6 Ko. Même arbitrage
+ * qu'ADR-021 : inutile quand l'utilisateur travaille un exercice, indispensable
+ * quand il construit son référentiel. Un compte vide la reçoit toujours, parce
+ * que c'est sa seule conversation possible.
+ */
+describe("fautChargerProtocoleReferentiel", () => {
+  it("charge toujours sur un compte sans référentiel, quel que soit le message", () => {
+    expect(fautChargerProtocoleReferentiel("bonjour", true)).toBe(true);
+    expect(fautChargerProtocoleReferentiel("", true)).toBe(true);
+  });
+
+  it("ne charge pas sur un message de travail ordinaire", () => {
+    expect(fautChargerProtocoleReferentiel("Corrige ma réponse à l'exercice 3", false)).toBe(false);
+    expect(fautChargerProtocoleReferentiel("Explique-moi la récursivité", false)).toBe(false);
+  });
+
+  it("charge sur une intention d'étendre le référentiel", () => {
+    expect(fautChargerProtocoleReferentiel("Je veux ajouter une compétence", false)).toBe(true);
+    expect(fautChargerProtocoleReferentiel("On peut créer un domaine philo ?", false)).toBe(true);
+    expect(fautChargerProtocoleReferentiel("j'aimerais travailler sur le droit", false)).toBe(true);
+  });
+
+  it("ignore la casse et les accents", () => {
+    expect(fautChargerProtocoleReferentiel("Mon RÉFÉRENTIEL est incomplet", false)).toBe(true);
+  });
+
+  it("le manifeste reflète le chargement réel — c'est la garantie de transparence", async () => {
+    const avecReferentiel = await construireContexte(construireCtxDeTest(), [
+      { role: "user", content: "Corrige ma réponse" },
+    ]);
+    expect(avecReferentiel.manifeste.map((s) => s.nom)).not.toContain(
+      "Protocole de construction du référentiel",
+    );
+
+    const compteVide = await construireContexte(construireCtxDeTest(REFERENTIEL_VIDE), [
+      { role: "user", content: "Corrige ma réponse" },
+    ]);
+    expect(compteVide.manifeste.map((s) => s.nom)).toContain(
+      "Protocole de construction du référentiel",
+    );
   });
 });

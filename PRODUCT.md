@@ -55,19 +55,22 @@ peut honnêtement en tirer — souvent moins que ce qu'on aimerait.**
 |---|---|
 | « ce que tu sais réellement faire » | ✅ Tenue. Le moteur est complet et testé. |
 | « avec le degré de certitude » | ✅ Tenue. Niveau / confiance / robustesse sont distincts et affichés. |
-| « quoi travailler ensuite » | 🔴 **Non tenue.** Les 11 diagnostics ont tous été faits, aucun exercice n'a jamais été créé. La boucle est arrêtée au maillon de génération. |
+| « quoi travailler ensuite » | 🟡 **Partielle.** Le maillon de génération s'est ouvert le 31/07 : les exercices existants viennent du tuteur. Le 3ᵉ maillon — l'ajustement, ADR-014 — n'existe toujours pas : rien ne relit `indicesUtilises`, `dureeMin` ni `resultat` pour calibrer l'exercice suivant. |
 
 ## 4. Public
 
-**Aujourd'hui, factuellement :** 3 comptes en production. Un utilisateur actif
-(19 preuves sur 16 compétences, du 25 au 28/07), un compte de développement
-(1 preuve), un compte sans aucune activité pédagogique.
+**Aujourd'hui, factuellement (31/07) :** 3 comptes en production. Un
+utilisateur actif (26 preuves sur 22 compétences, 20 tentatives terminées), un
+**compte tiers réellement actif** (3 preuves, 5 tentatives), un compte sans
+aucune activité pédagogique.
 
 **Cible déclarée :** toute personne souhaitant un suivi longitudinal de ses
 compétences avec un parcours personnalisé.
 
-🔬 **Hypothèse non vérifiée :** que le besoin existe au-delà de son auteur.
-*Test de réfutation : un compte tiers atteint 10 preuves sans assistance.*
+🔬 **Hypothèse partiellement soutenue :** que le besoin existe au-delà de son
+auteur. *Test de réfutation inchangé : un compte tiers atteint 10 preuves sans
+assistance.* Le compte tiers en est à 3 — et il les a produites sur un
+référentiel écrit pour quelqu'un d'autre, ce qu'ADR-026 corrige.
 
 ## 5. Les huit principes
 
@@ -78,7 +81,7 @@ arbitrage.
 | # | Principe | Source | État |
 |---|---|---|---|
 | **P1** | Rien de ce qui peut être dérivé n'est stocké | Instructions §1 | ✅ Tenu |
-| **P2** | L'absence de mesure n'est pas un zéro | Anti-halluc. §7 et §14 | ⚠️ Tenu par compétence, **violé en agrégat** |
+| **P2** | L'absence de mesure n'est pas un zéro | Anti-halluc. §7 et §14 | ✅ Tenu depuis le 31/07 (ADR-006) |
 | **P3** | Aucune valeur sans source — chaque nombre porte son « Pourquoi ? » | Anti-halluc. §4 | ✅ Tenu |
 | **P4** | Une faiblesse ne disparaît pas sans démonstration | Anti-halluc. §5 et §6 | ✅ Tenu |
 | **P5** | Le tuteur n'a aucun accès en écriture | Instructions §14 | ✅ Tenu |
@@ -86,21 +89,27 @@ arbitrage.
 | **P7** | L'honnêteté prime sur la complétude | Anti-halluc. §14 | ✅ Tenu |
 | **P8** | La qualité de la preuve conditionne tout | Anti-halluc. §2 ; éval. §5 et §6 | 🔴 Tenu formellement, **fragile en pratique** |
 
-### P2 — pourquoi il est violé, et ce qui a changé le 28/07
+### P2 — comment il a été rétabli le 31/07
 
-`calculerEtatGlobal` calcule `Σ importance × (score/5) ÷ Σ importance × 100`
-sur toutes les compétences du périmètre. Les compétences sans preuve entrent au
-**numérateur pour 0** et au **dénominateur pour leur importance pleine** : non
-mesuré y vaut exactement zéro, ce que le protocole interdit.
+`calculerEtatGlobal` calculait `Σ importance × (score/5) ÷ Σ importance` sur
+**toutes** les compétences du périmètre. Les compétences sans preuve entraient
+au **numérateur pour 0** et au **dénominateur pour leur importance pleine** :
+non mesuré y valait exactement zéro, ce que le protocole interdit.
 
-Deux conséquences entières : le score est **anti-corrélé à l'ambition** —
-élargir le référentiel fait baisser le score sans qu'aucune compétence n'ait été
+Deux conséquences entières : le score était **anti-corrélé à l'ambition** —
+élargir le référentiel le faisait baisser sans qu'aucune compétence n'ait été
 perdue ; et un instrument dont la vertu est de ne pas confondre ignorance et
 incompétence affichait 10/100 en confondant exactement les deux.
 
-Le périmètre pilote (ADR-018) fait passer le rapport de 12 mesurées / 43 à
-6 / 9. **L'écart de principe ne disparaît pas** — il cesse d'être le facteur
-dominant. ❓ Non tranché : voir ADR-006.
+**Ce qui a forcé la correction :** ADR-026 rend le référentiel extensible par
+l'utilisateur, et le tuteur peut lui en proposer l'extension. Le défaut cessait
+d'être une verrue documentée pour devenir une incitation structurelle à ne pas
+utiliser la fonctionnalité qu'on venait de construire.
+
+Les deux sommes portent désormais sur les seules compétences mesurées, et ce qui
+en sort revient **entièrement** à la couverture — l'indicateur honnête de ce qui
+n'a pas encore été mesuré. Le doute sur une couverture partielle continue de
+plafonner la *confiance*, pas d'abaisser le niveau. ✅ Tranché : ADR-006.
 
 ### P8 — pourquoi il est fragile
 
@@ -124,17 +133,21 @@ non à son agrégation. ❓ Non tranché : voir ADR-008.
 ✅ **Le contenu vient du tuteur**, pas de fichiers écrits à la main (ADR-004).
 ✅ **Le moteur du tuteur doit être gratuit** et configurable (ADR-007).
 ✅ **Construire et utiliser en parallèle** est le mode de travail retenu.
-✅ **La boucle est le produit** ; le périmètre de travail est le domaine
-Développement logiciel (DEV-01→10) tant que la boucle n'a pas fait ses
-preuves — Logistique, pilote précédent, reste hors périmètre comme les autres
-compétences non actives, ses preuves intactes en base (ADR-013, ADR-020).
+✅ **La boucle est le produit.**
+✅ **Le référentiel appartient au compte** (ADR-026, 31/07) : il n'existe aucune
+liste universelle de compétences. Un compte démarre vide, déclare son sujet et
+construit son arborescence avec le tuteur. Le périmètre de travail reste un
+frein utile, mais par compte (`competences.active`) et non plus global.
+✅ **Une preuve n'est jamais orpheline** (ADR-027) : une compétence sans preuve
+se supprime, une compétence qui en porte s'archive — jamais l'inverse.
+✅ **Le score porte sur ce qui est mesuré** (ADR-006) ; la couverture dit le
+reste.
 
 ### Ouvert
 
 ❓ Quel moteur gratuit exactement (ADR-007) — résolu **par mesure**.
-❓ Le traitement des compétences non mesurées dans le score (ADR-006).
-❓ La prise en compte de l'aide externe dans l'autonomie (ADR-008).
-❓ Quand et comment le référentiel cesse d'être codé en dur (ADR-009).
+❓ La prise en compte de l'aide externe dans l'autonomie (ADR-008) — le seul
+principe encore en défaut.
 ❓ Comment se pose le 3ᵉ maillon, « ajustement des exercices » (ADR-014).
 
 ## 7. Critère d'arrêt

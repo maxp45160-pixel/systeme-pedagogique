@@ -38,21 +38,26 @@ export default async function PageCompetences(props: {
         titre="Compétences"
         sousTitre="Pour chacune, son niveau, la confiance de l'évaluation et la solidité des acquis."
         actions={
-          <div className="flex rounded-md border border-bordure p-0.5">
-            {VUES.map((v) => (
-              <Link
-                key={v.cle}
-                href={`/competences?vue=${v.cle}`}
-                className={cx(
-                  "rounded px-2.5 py-1 text-xs font-medium transition-colors",
-                  vue === v.cle
-                    ? "bg-primaire-faible text-primaire"
-                    : "text-texte-attenue hover:text-texte",
-                )}
-              >
-                {v.libelle}
-              </Link>
-            ))}
+          <div className="flex items-center gap-3">
+            <Link href="/competences/referentiel" className="text-xs text-primaire hover:underline">
+              Gérer le référentiel
+            </Link>
+            <div className="flex rounded-md border border-bordure p-0.5">
+              {VUES.map((v) => (
+                <Link
+                  key={v.cle}
+                  href={`/competences?vue=${v.cle}`}
+                  className={cx(
+                    "rounded px-2.5 py-1 text-xs font-medium transition-colors",
+                    vue === v.cle
+                      ? "bg-primaire-faible text-primaire"
+                      : "text-texte-attenue hover:text-texte",
+                  )}
+                >
+                  {v.libelle}
+                </Link>
+              ))}
+            </div>
           </div>
         }
       />

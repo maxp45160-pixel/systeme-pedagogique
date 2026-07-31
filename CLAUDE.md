@@ -8,7 +8,15 @@ Le produit est une **boucle** :
 
 > **génération d'exercices → évaluation de la compétence → ajustement des exercices**
 
-Le 3ᵉ maillon **n'existe pas encore**. La boucle est arrêtée au premier : les 11 exercices de diagnostic ont tous été faits et **aucun exercice n'a jamais été créé** (`exercises` : 0 ligne). Tout le reste est secondaire.
+Le 1ᵉʳ maillon s'est ouvert le 31/07/2026 : les exercices en base portent tous
+`origine = 'tuteur'`. Le 2ᵉ tourne (20 tentatives terminées).
+
+Le **3ᵉ maillon n'existe toujours pas**, et ce n'est pas « on ne peut pas
+modifier un exercice » — `difficulte` est une colonne éditable. C'est que **rien
+ne relit la mesure pour calibrer la génération suivante** : `indicesUtilises`,
+`dureeMin` et `resultat` sont stockés et jamais réexploités, `recommend.ts` mappe
+le niveau vers une difficulté par table fixe, et le tuteur ne reçoit jamais
+« ton dernier exercice sur DEV-03 a été raté avec 3 indices ». Voir ADR-014.
 
 ---
 
@@ -18,7 +26,6 @@ Le 3ᵉ maillon **n'existe pas encore**. La boucle est arrêtée au premier : le
 |---|---|---|
 | [`PRODUCT.md`](PRODUCT.md) | Ce que le produit est, n'est pas, et les 8 principes — dont les 2 en défaut | **Fait autorité** |
 | [`ARCHITECTURE_DECISIONS.md`](ARCHITECTURE_DECISIONS.md) | Registre ADR — décisions, hypothèses, questions ouvertes | **Fait autorité** |
-| [`ROADMAP.md`](ROADMAP.md) | Ordre de travail et conditions de déclenchement | **Fait autorité** |
 
 Statuts employés dans ces docs : ✅ décision tranchée · 🔬 hypothèse non vérifiée · ❓ question ouverte · 🗑️ idée abandonnée.
 
@@ -61,8 +68,9 @@ pratique et développer un sujet à long terme.
   deux cas. Sans moteur configuré : 503 et repli « copier le contexte ».
 - **Styles :** Tailwind CSS v4 ; **graphiques SVG écrits à la main**, aucune
   librairie UI tierce
-- **Tests :** Vitest — **100 tests**, 5 fichiers (moteur, backend Supabase,
-  parseurs de propositions, contexte du tuteur, sélection du moteur du tuteur)
+- **Tests :** Vitest — **155 tests**, 6 fichiers (moteur, backend Supabase,
+  parseurs de propositions, contexte du tuteur, sélection du moteur du tuteur,
+  référentiel par compte)
 - **Déploiement :** Vercel (Root Directory = `app`)
 - **Gestionnaire de paquets :** npm (workspace racine → `app/`)
 - **Outillage :** serveur MCP Supabase (`.mcp.json`)
@@ -90,8 +98,15 @@ cd app && npm run verify   # tsc --noEmit && eslint && vitest run
 
 **Migrations base de données :** pas de CLI de migration. Le schéma est un
 fichier SQL **idempotent** unique, `app/supabase/schema.sql`, à réexécuter dans
-Supabase Studio › SQL Editor. ⚠️ Il contient désormais des `DROP TABLE`
-explicites (ADR-014) — les lire avant de le réexécuter.
+Supabase Studio › SQL Editor. ⚠️ Il contient des `DROP TABLE` explicites
+(ADR-014) — les lire avant de le réexécuter.
+
+⚠️ **Migration du référentiel non appliquée à ce jour.** ADR-026 déplace le
+référentiel en base. L'ordre est : `schema.sql` (§ 2 crée les tables) →
+`supabase/migration-referentiel.sql` (généré par `scripts/migrer-referentiel.ts`)
+→ `schema.sql` à nouveau, qui pose alors `evidence_competence_fk`. Cette clé
+n'est créée que si aucune preuve n'est orpheline ; sinon le fichier émet un
+`NOTICE` et continue.
 
 **Variables d'environnement** (`app/.env.local`, voir `.env.example`) :
 `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` — **désormais
@@ -114,24 +129,36 @@ bascule sur « Copier le contexte » — comportement voulu, pas une panne.
 
 **Ne pas modifier un seuil du moteur sans modifier le protocole correspondant.** 100 tests vérifient ces garanties.
 
-⚠️ Deux principes ne sont pas tenus : le score global compte les non-mesurées comme des zéros, et l'autonomie ignore l'aide externe. Écarts connus — voir `PRODUCT.md` §5 (ADR-006 et ADR-008).
+⚠️ **Un** principe n'est pas tenu : l'autonomie ignore l'aide externe (P8,
+ADR-008). Le score global a été corrigé le 31/07 — il porte sur les seules
+compétences mesurées, la couverture dit le reste (ADR-006). Voir `PRODUCT.md` §5.
 
 ---
 
-## 6. Périmètre de travail
+## 6. Le référentiel appartient au compte
 
-Le référentiel compte **53 compétences sur 8 domaines**, mais seul le domaine
-**Développement logiciel (DEV-01 → DEV-10)** est actif (ADR-020, 29/07/2026,
-remplace ADR-018). C'est `SKILLS_ACTIFS`, et non `SKILLS`, que consomment le
-moteur, l'interface et le contexte du tuteur.
+Depuis **ADR-026 (31/07/2026)**, il n'existe plus de référentiel global. Chaque
+compte a le sien, dans les tables `domaines` et `competences`, construit avec le
+tuteur et validé par l'utilisateur. `lib/domain/referentiel.ts` — 53 compétences
+en dur, `DOMAINE_PILOTE`, `SKILLS_ACTIFS` — **est en sursis** : il ne sert plus
+qu'à alimenter `scripts/migrer-referentiel.ts` et disparaît une fois la
+migration appliquée. Aucun code d'exécution ne doit l'importer.
 
-Les 43 autres — dont Logistique (LOG-01 → LOG-09), pilote précédent — ne sont
-pas supprimées : elles sont hors périmètre, leurs preuves déjà écrites
-restent intactes en base. Élargir ou changer le périmètre est **une
-décision**, pas un réglage — le faire sans contenu pour l'alimenter ramènerait
-exactement le problème que le chantier du 28/07 corrige.
+Les points d'entrée sont `lib/store/referentiel.ts` (lecture, `server-only`),
+`lib/domain/referentiel-compte.ts` (tout ce qui est pur : assemblage, ordre,
+validation, attribution des codes) et `lib/store/referentiel-actions.ts`
+(écritures). Le moteur, lui, ne connaît toujours aucun référentiel : il reçoit
+les compétences en paramètre.
 
----
+**Le périmètre de travail** survit à ADR-020 sous la forme du drapeau
+`competences.active`, par compte. C'est le frein contre le sur-ajout qui a
+produit la situation du 28/07 — un grand référentiel sans contenu pour
+l'alimenter.
+
+**Retrait (ADR-027)** : une compétence **sans preuve** se supprime franchement,
+une compétence **qui en porte** s'archive. Le geste est dérivé du nombre de
+preuves, jamais offert au choix, et annoncé avant le clic. Le `code` est
+immuable — c'est la clé étrangère des preuves.
 
 ## 7. Contraintes et points d'attention
 
@@ -146,6 +173,13 @@ exactement le problème que le chantier du 28/07 corrige.
 
 - **Ne pas toucher au cœur** (`lib/domain/`, `lib/engine/`, `lib/store/`) sans
   demande explicite. C'est ce qui porte la garantie du système.
+- **Ne jamais laisser le tuteur écrire un code de compétence.** Les codes sont
+  attribués par l'application depuis le préfixe du domaine (ADR-026). Un code
+  inventé entrerait en collision et les preuves suivraient la mauvaise
+  compétence, sans erreur visible.
+- **Ne pas supprimer une compétence qui porte des preuves** — l'archiver.
+  `supprimerCompetence` refuse plutôt que de se replier en silence : une
+  fonction qui fait autre chose que ce que son nom annonce s'érode (ADR-027).
 - **Ne pas affaiblir un garde-fou** : typage strict, calcul dérivé, absence
   d'accès en écriture du tuteur. En particulier, `NiveauPreuve` conserve ses
   quatre valeurs A/B/C/D bien que C et D ne soient jamais écrites : le moteur

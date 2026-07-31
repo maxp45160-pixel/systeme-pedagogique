@@ -7,9 +7,9 @@ import { EntetePage } from "@/components/layout/entete-page";
 import { ChatTuteur, type EtatContexteTuteur } from "@/components/tuteur/chat";
 
 export default async function PageTuteur(props: {
-  searchParams: Promise<{ competence?: string }>;
+  searchParams: Promise<{ competence?: string; amorce?: string }>;
 }) {
-  const { competence } = await props.searchParams;
+  const { competence, amorce } = await props.searchParams;
 
   return (
     <>
@@ -19,17 +19,23 @@ export default async function PageTuteur(props: {
       />
 
       <Suspense fallback={<SqueletteContenu cartes={3} />}>
-        <ContenuTuteur competence={competence} />
+        <ContenuTuteur competence={competence} amorce={amorce} />
       </Suspense>
     </>
   );
 }
 
-async function ContenuTuteur({ competence }: { competence?: string }) {
+async function ContenuTuteur({
+  competence,
+  amorce,
+}: {
+  competence?: string;
+  amorce?: string;
+}) {
   const ctx = await chargerContexte();
 
   const cible = competence ? ctx.etatsParCode.get(competence.toUpperCase()) : undefined;
-  const amorce = cible
+  const cibleLibelle = cible
     ? `${cible.skill.code} — ${cible.skill.intitule}${
         cible.niveau === null
           ? " (jamais évaluée)"
@@ -56,7 +62,8 @@ async function ContenuTuteur({ competence }: { competence?: string }) {
   return (
     <ChatTuteur
       etatInitial={etatInitial}
-      competenceCiblee={amorce}
+      competenceCiblee={cible ? cibleLibelle : undefined}
+      amorce={amorce}
       codesCompetences={ctx.etats.map((e) => e.skill.code)}
     />
   );

@@ -15,9 +15,9 @@ import "server-only";
 
 import { cache } from "react";
 
-import { dorsaleCompte, type DorsaleCompte } from "./db";
+import { dorsaleCompte, lire, type DorsaleCompte } from "./db";
 import { ligneVersEntite, verifier } from "./supabase-backend";
-import { assemblerReferentiel } from "@/lib/domain/referentiel-compte";
+import { assemblerReferentiel, modeRetrait, type ModeRetrait } from "@/lib/domain/referentiel-compte";
 import type { Domaine, Referentiel, Skill } from "@/lib/domain/types";
 
 export async function lireReferentiel(
@@ -42,3 +42,35 @@ export async function lireReferentiel(
 export const chargerReferentiel = cache(
   async (): Promise<Referentiel> => lireReferentiel(await dorsaleCompte()),
 );
+
+export interface EtatRetrait {
+  preuves: number;
+  mode: ModeRetrait;
+}
+
+/**
+ * Pour chaque compétence, le geste de retrait qui s'appliquerait et le nombre
+ * de preuves en jeu.
+ *
+ * C'est une **lecture**, pas une action : l'écran de gestion doit annoncer ce
+ * qui va se produire avant le clic (ADR-027). Un bouton « supprimer » qui
+ * archive en réalité, ou qui détruit des preuves sans le dire, serait trompeur
+ * dans un sens comme dans l'autre.
+ */
+export const chargerRetraits = cache(async (): Promise<Map<string, EtatRetrait>> => {
+  const dorsale = await dorsaleCompte();
+  const [referentiel, preuves] = await Promise.all([
+    lireReferentiel(dorsale),
+    lire("evidence", dorsale),
+  ]);
+
+  const parCode = new Map<string, number>();
+  for (const p of preuves) parCode.set(p.skillCode, (parCode.get(p.skillCode) ?? 0) + 1);
+
+  return new Map(
+    referentiel.skills.map((s) => {
+      const n = parCode.get(s.code) ?? 0;
+      return [s.code, { preuves: n, mode: modeRetrait(n) }];
+    }),
+  );
+});
