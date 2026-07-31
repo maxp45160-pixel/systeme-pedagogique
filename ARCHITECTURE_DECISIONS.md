@@ -1183,13 +1183,14 @@ dépliant — le replier transformerait une panne explicable en panne muette.
   information moins lue. La règle ne vaut que pour les lectures **de
   contrôle**, jamais pour ce qui doit provoquer une action.
 
-**Dette relevée au passage, non traitée.** Les réglages du compte — et donc
-l'export du journal, la déconnexion et désormais le choix du thème — vivent
-dans le pied du rail, qui est `hidden lg:flex`. **En dessous de `lg`, ils sont
-inaccessibles.** La bascule clair/sombre a été maintenue dans la barre
-supérieure mobile pour cette raison précise. Le défaut préexistait à ce
-chantier ; le corriger demande un point d'entrée « compte » dans la navigation
-mobile, hors périmètre ici.
+**Dette relevée au passage, corrigée dans la foulée.** Les réglages du compte —
+et donc l'export du journal, la déconnexion et désormais le choix du thème —
+vivent dans le pied du rail, qui est `hidden lg:flex` : en dessous de `lg`, ils
+n'étaient atteignables par aucun chemin. Le défaut préexistait à ce chantier,
+mais y déplacer le thème l'aggravait. La barre supérieure mobile reçoit donc un
+bouton compte ouvrant le même panneau, à la place de la bascule clair/sombre
+qui l'occupait. Conséquence : **il n'existe plus de bascule de thème isolée** —
+l'apparence est un réglage parmi les autres, au même endroit partout.
 
 ---
 
