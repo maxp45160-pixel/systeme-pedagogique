@@ -1,5 +1,7 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { chargerContexte } from "@/lib/store/context";
+import { SqueletteContenu } from "@/components/layout/squelette";
 import { SKILLS_ACTIFS } from "@/lib/domain/referentiel";
 import { AUTONOMIE } from "@/lib/domain/types";
 import { calculerActivite, photographies } from "@/lib/engine/historique";
@@ -24,12 +26,53 @@ const PERIODES = [
   { cle: "debut", libelle: "Depuis le début", jours: 365, pas: 21 },
 ] as const;
 
+type Periode = (typeof PERIODES)[number];
+
+/**
+ * L'en-tête et le sélecteur de période ne dépendent que de l'URL : ils sont
+ * rendus immédiatement, et la lecture des preuves — le seul poste vraiment
+ * coûteux de cette page — se fait derrière une frontière `<Suspense>`. Changer
+ * de période reste donc réactif même pendant le calcul.
+ */
 export default async function PageProgression(props: {
   searchParams: Promise<{ periode?: string }>;
 }) {
   const { periode: periodeBrute } = await props.searchParams;
   const periode = PERIODES.find((p) => p.cle === periodeBrute) ?? PERIODES[1];
 
+  return (
+    <>
+      <EntetePage
+        titre="Progression"
+        sousTitre="L'évolution dans le temps. Une progression réelle n'est pas linéaire : les plateaux sont normaux, et une baisse de confiance n'est pas une régression."
+        actions={
+          <div className="flex flex-wrap rounded-md border border-bordure p-0.5">
+            {PERIODES.map((p) => (
+              <Link
+                key={p.cle}
+                href={`/progression?periode=${p.cle}`}
+                className={cx(
+                  "rounded px-2.5 py-1 text-xs font-medium transition-colors",
+                  periode.cle === p.cle
+                    ? "bg-primaire-faible text-primaire"
+                    : "text-texte-attenue hover:text-texte",
+                )}
+              >
+                {p.libelle}
+              </Link>
+            ))}
+          </div>
+        }
+      />
+
+      <Suspense key={periode.cle} fallback={<SqueletteContenu />}>
+        <ContenuProgression periode={periode} />
+      </Suspense>
+    </>
+  );
+}
+
+async function ContenuProgression({ periode }: { periode: Periode }) {
   const ctx = await chargerContexte();
   const activite = calculerActivite(ctx.donnees.sessions, ctx.now);
   const aucunePreuve = ctx.global.nombrePreuves === 0;
@@ -59,29 +102,6 @@ export default async function PageProgression(props: {
 
   return (
     <>
-      <EntetePage
-        titre="Progression"
-        sousTitre="L'évolution dans le temps. Une progression réelle n'est pas linéaire : les plateaux sont normaux, et une baisse de confiance n'est pas une régression."
-        actions={
-          <div className="flex flex-wrap rounded-md border border-bordure p-0.5">
-            {PERIODES.map((p) => (
-              <Link
-                key={p.cle}
-                href={`/progression?periode=${p.cle}`}
-                className={cx(
-                  "rounded px-2.5 py-1 text-xs font-medium transition-colors",
-                  periode.cle === p.cle
-                    ? "bg-primaire-faible text-primaire"
-                    : "text-texte-attenue hover:text-texte",
-                )}
-              >
-                {p.libelle}
-              </Link>
-            ))}
-          </div>
-        }
-      />
-
       {aucunePreuve ? (
         <Carte>
           <EtatVide
