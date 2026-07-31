@@ -5,13 +5,16 @@
  * contente de lire les cookies de la requête. En Server Component la mutation
  * de cookies est interdite par React ; l'échec est donc attendu et ignoré,
  * contrairement aux erreurs réseau qui, elles, doivent remonter.
+ *
+ * L'identité du visiteur est établie par vérification locale du jeton
+ * (`getClaims`, ADR-022), non par un appel au serveur d'authentification.
  */
 
 import "server-only";
 
 import { cache } from "react";
 import { createServerClient } from "@supabase/ssr";
-import type { SupabaseClient, User as CompteSupabase } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { SUPABASE_ANON_KEY, SUPABASE_URL, supabaseConfigure } from "./config";
 
@@ -49,24 +52,63 @@ export const createServeurClient = cache(async (): Promise<SupabaseClient | null
 });
 
 /**
+ * Identité du compte, dérivée des seules revendications d'un jeton vérifié.
+ *
+ * Volontairement plus étroite que le type `User` de supabase-js : ces trois
+ * champs sont les seuls réellement consommés (mise en page `(app)`,
+ * `dorsaleCompte`, `/api/dev-todos`, `export.ts`), et tous figurent dans le
+ * jeton. Rien de ce qui n'est pas lu n'est transporté.
+ */
+export interface Compte {
+  readonly id: string;
+  readonly email: string | undefined;
+  readonly user_metadata: Record<string, unknown> | undefined;
+  /** Session anonyme Supabase. Aucun chemin ne l'active aujourd'hui. */
+  readonly estAnonyme: boolean;
+}
+
+/**
  * Compte connecté, ou `null` (Supabase absent / visiteur anonyme).
  *
- * Utilise `getUser()` et non `getSession()` : seul `getUser()` revalide le
- * jeton auprès du serveur d'authentification. Se fier au cookie de session
- * reviendrait à faire confiance à une valeur modifiable par le client.
+ * Utilise `getClaims()` (ADR-022) et non `getSession()`, ni `getUser()`.
  *
- * `cache()` (React) mémoïse l'appel pour la durée d'une requête serveur : la
- * mise en page, la page et la dorsale partagent alors un seul aller-retour
- * `getUser()` au lieu d'en refaire un chacun. La garantie de sécurité est
- * intacte — le jeton reste revalidé une fois par requête —, seule la
- * répétition disparaît.
+ * `getSession()` seul reste interdit : il se contenterait de lire le cookie,
+ * c'est-à-dire une valeur modifiable par le client. `getClaims()` **vérifie
+ * cryptographiquement** la signature du jeton — le projet signe en ES256, la
+ * vérification se fait donc localement par WebCrypto contre la clé publique
+ * du JWKS, sans aller-retour réseau. Elle valide aussi `exp`. Ces deux
+ * garanties sont celles que `getUser()` apportait ; ce qui disparaît, c'est
+ * l'appel au serveur d'authentification, payé jusqu'ici sur chaque page et
+ * chaque requête RSC — en double, avec celui du proxy.
+ *
+ * `allowExpired` n'est jamais passé : la validation de `exp` fait partie du
+ * contrat. Si le projet repassait à une clé symétrique, auth-js retomberait
+ * de lui-même sur `getUser()` — la sécurité ne dépend pas de notre choix.
+ *
+ * L'autorisation réelle, elle, reste entièrement du ressort des politiques
+ * RLS de PostgreSQL : ce compte ne sert qu'au contrôle optimiste (afficher ou
+ * rediriger) et à fournir l'identifiant des clauses `.eq("user_id", …)`, que
+ * RLS double de toute façon.
+ *
+ * `cache()` (React) mémoïse l'appel pour la durée d'une requête serveur.
  */
-export const compteCourant = cache(async (): Promise<CompteSupabase | null> => {
+export const compteCourant = cache(async (): Promise<Compte | null> => {
   const supabase = await createServeurClient();
   if (!supabase) return null;
-  const { data, error } = await supabase.auth.getUser();
-  if (error) return null;
-  return data.user ?? null;
-});
 
-export type { CompteSupabase };
+  // Trois variantes de retour :
+  //   { data, error: null }        jeton présent et signature vérifiée ;
+  //   { data: null, error }        jeton invalide, expiré, ou erreur réseau ;
+  //   { data: null, error: null }  aucun cookie de session (visiteur anonyme).
+  // Les deux dernières se traitent identiquement : pas de compte.
+  const { data, error } = await supabase.auth.getClaims();
+  if (error || !data) return null;
+
+  const revendications = data.claims;
+  return {
+    id: revendications.sub,
+    email: revendications.email,
+    user_metadata: revendications.user_metadata,
+    estAnonyme: revendications.is_anonymous === true,
+  };
+});

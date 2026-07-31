@@ -34,6 +34,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [019](#adr-019) | Le widget de TODOs dev sort du produit | ✅ Acceptée (28/07) |
 | [020](#adr-020) | Pivot du périmètre pilote : Développement logiciel | ✅ Acceptée (29/07) |
 | [021](#adr-021) | Compression et chargement conditionnel des protocoles du tuteur | ✅ Acceptée (29/07) |
+| [022](#adr-022) | Vérification locale du jeton (`getClaims`) sur le chemin chaud | ✅ Acceptée (31/07) |
 
 ---
 
@@ -882,6 +883,104 @@ fichiers ne sont de toute façon jamais lus par le code (`grep` exhaustif),
 donc leur taille n'a aucun effet sur le coût par message. Compresser ces
 fichiers pour gagner un chiffre aurait été le genre d'optimisation que ce
 même chantier existe pour éviter.
+
+---
+
+<a name="adr-022"></a>
+
+## ADR-022 — Vérification locale du jeton (`getClaims`) sur le chemin chaud ✅
+
+**Date.** 31/07/2026. **Tranchée par Maxime**, via une clarification
+explicite (`AskUserQuestion`) posée avant tout changement de code, la
+question portant précisément sur l'arbitrage de sécurité ci-dessous.
+
+**Contexte.** Chaque navigation dans le groupe `(app)` payait **deux
+allers-retours réseau** vers le serveur d'authentification Supabase :
+
+1. `proxy.ts` — `supabase.auth.getUser()`, sur chaque requête que couvre le
+   matcher ;
+2. `lib/supabase/server.ts` — `compteCourant()`, à nouveau pendant le rendu
+   du Server Component. Le `cache()` de React est porté par la requête React
+   et ne franchit pas la frontière du proxy : les deux appels ne pouvaient
+   pas se mutualiser.
+
+Et le matcher du proxy couvre aussi les charges RSC : ces deux allers-retours
+sont donc payés **deux fois** par navigation perçue (document + payload RSC).
+
+La mesure a écarté les autres suspects. La base contient 29 preuves, 22
+tentatives, 22 sessions, 1 exercice, 3 profils, avec les index `(user_id, …)`
+attendus : les cinq `select` de `lireTout()`, exécutés en parallèle, ne sont
+pas le poste dominant. C'est l'authentification qui l'est.
+
+**Fait qui rend la décision possible.** Le projet signe déjà ses jetons avec
+une **clé asymétrique ES256** — `…/auth/v1/.well-known/jwks.json` renvoie une
+clé EC vivante. `supabase.auth.getClaims()` peut donc vérifier la signature
+**localement**, par WebCrypto, sans appel réseau. Vérifié dans
+`@supabase/auth-js` : le cache JWKS est une variable de **module**
+(`GLOBAL_JWKS`), de TTL 10 minutes — reconstruire un client Supabase à chaque
+requête ne le retélécharge pas. Au plus une requête réseau toutes les dix
+minutes par processus.
+
+**Décision.** `proxy.ts` et `compteCourant` utilisent `getClaims()`.
+
+`compteCourant` ne renvoie plus le type `User` de supabase-js mais un type
+local `Compte` réduit aux trois champs réellement consommés (`id`, `email`,
+`user_metadata`) — tous présents dans le jeton. Le champ garde son nom
+snake_case pour que les sites d'appel restent inchangés.
+
+**Ce qui remplace le raisonnement précédent.** Le commentaire de
+`server.ts` justifiait `getUser()` contre `getSession()` : seul `getUser()`
+revalidait le jeton, se fier au cookie revenant à faire confiance à une
+valeur modifiable par le client. **Cet interdit sur `getSession()` reste
+entier.** `getClaims()` n'est pas `getSession()` : il vérifie
+cryptographiquement la signature du jeton contre la clé publique du projet,
+et valide `exp`. Un cookie forgé ne peut pas produire une signature valide
+sans la clé privée, qui ne quitte jamais Supabase. La confiance ne vient plus
+de l'interrogation du serveur d'auth, elle vient des mathématiques.
+
+Ce qui ne change **pas** :
+
+- **RLS reste la seule barrière d'autorisation** (CLAUDE.md §7). Le jeton
+  part de toute façon à PostgREST, qui le revalide indépendamment. Même si
+  notre vérification locale était fausse, aucune ligne ne traverserait.
+  `compteCourant` ne sert qu'au contrôle *optimiste* — déjà documenté comme
+  tel en tête de `proxy.ts` — et à fournir l'identifiant des clauses
+  `.eq("user_id", …)`, que RLS double.
+- `allowExpired` n'est jamais passé : la validation de `exp` fait partie du
+  contrat.
+- Le rafraîchissement du jeton reste le rôle nº 1 du proxy : `getClaims()`
+  passe par `getSession()`, qui rafraîchit si nécessaire, et le `setAll` du
+  proxy persiste les cookies comme avant.
+- Aucune clé `service_role` n'entre dans le code.
+
+**Repli automatique.** Si le projet repassait à un secret symétrique, ou si
+`crypto.subtle` était absent de l'environnement, auth-js retombe de lui-même
+sur `getUser()`. La migration est donc sûre par construction : le pire cas
+est le comportement d'avant, jamais une vérification affaiblie.
+
+**Conséquence assumée — l'arbitrage réel.** Un compte supprimé, banni ou
+déconnecté côté serveur conserve un jeton d'accès valide et non expiré
+jusqu'à son `exp` (durée configurée dans Auth › Sessions ; défaut Supabase :
+1 heure). `getUser()` s'en apercevait immédiatement ; `getClaims()` non.
+Acceptable ici, pour trois raisons :
+
+- La fenêtre est bornée. Le *refresh token*, lui, est révoqué immédiatement :
+  au prochain rafraîchissement, le proxy échoue et redirige.
+- La conséquence concrète est cosmétique. Les lignes du compte ont disparu
+  par cascade depuis `auth.users`, RLS ne renvoie rien, `lire("user")`
+  retombe sur `profilNeutre` : l'utilisateur voit une coquille vide au lieu
+  d'être redirigé. **Aucune donnée d'un autre compte n'est jamais
+  accessible — ce n'est pas nous qui en décidons, c'est Postgres.**
+- Le produit n'a aucun flux de révocation administrative : trois comptes, un
+  seul responsable, pas d'espace admin, pas de rôle privilégié, pas de
+  facturation. Le risque que couvrait `getUser()` n'existe pas ici.
+
+**Ce que cette décision n'autorise pas.** Elle retire `getUser()` du chemin
+chaud, elle ne l'interdit pas. Si un chemin apparaît un jour où une identité
+périmée serait nuisible — bannissement, rôle administrateur, suppression de
+compte en libre-service, partage de progression entre comptes — **ce
+chemin-là, et lui seul, doit rappeler `getUser()` explicitement**. Écrire
+ce rappel fait partie de la décision, pas d'un chantier futur.
 
 ---
 

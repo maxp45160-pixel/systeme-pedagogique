@@ -51,13 +51,18 @@ export async function proxy(request: NextRequest) {
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // `getClaims()` et non `getUser()` (ADR-022) : le projet signe ses jetons en
+  // ES256, la signature et `exp` sont donc vérifiées localement par WebCrypto
+  // contre le JWKS — mis en cache dix minutes par auth-js. Le proxy s'exécutant
+  // sur *chaque* requête, y compris les charges RSC de navigation, l'appel au
+  // serveur d'authentification qu'on supprime ici était le poste de latence
+  // dominant du rendu.
+  const { data } = await supabase.auth.getClaims();
+  const connecte = data !== null;
 
   const chemin = request.nextUrl.pathname;
 
-  if (!user && !estPublic(chemin)) {
+  if (!connecte && !estPublic(chemin)) {
     // Une route d'API répond en JSON. La rediriger vers `/login` renverrait une
     // page HTML avec un statut 200, que `fetch` interpréterait comme un succès.
     if (chemin.startsWith("/api/")) {
@@ -71,7 +76,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(versLogin);
   }
 
-  if (user && chemin === "/login") {
+  if (connecte && chemin === "/login") {
     const versAccueil = request.nextUrl.clone();
     versAccueil.pathname = "/";
     versAccueil.search = "";
