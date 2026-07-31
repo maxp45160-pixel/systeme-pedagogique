@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { computeSkillState, computeAllSkillStates } from "./skill-state";
 import { calculerEtatGlobal } from "./progression";
 import { recommander } from "./recommend";
+import { photographies } from "./historique";
 import { autonomieDepuisIndices, qualiteDepuisNature } from "./preuve";
 import {
   DOMAINE_PILOTE,
@@ -259,6 +260,40 @@ describe("périmètre actif — ADR-018", () => {
     const global = calculerEtatGlobal(etats, MAINTENANT);
     expect(global.nombrePreuves).toBe(0);
     expect(global.scoreGlobal).toBeNull();
+  });
+});
+
+describe("photographies — même périmètre que l'état courant (ADR-020)", () => {
+  const preuvesDev = [
+    preuve({ skill: "DEV-01", jours: 25, contexte: "A" }),
+    preuve({ skill: "DEV-01", jours: 12, contexte: "B" }),
+    preuve({ skill: "DEV-02", jours: 5, contexte: "C" }),
+  ];
+
+  it("la dernière photographie coïncide avec l'état global courant", () => {
+    // L'invariant qui était violé : `/progression` affichait `ctx.global.scoreGlobal`
+    // (calculé sur SKILLS_ACTIFS) et, dans le même bloc, un delta issu de
+    // `photographies(SKILLS, …)` — deux dénominateurs différents.
+    const photos = photographies(SKILLS_ACTIFS, preuvesDev, 30, 3, MAINTENANT);
+    const attendu = calculerEtatGlobal(
+      computeAllSkillStates(SKILLS_ACTIFS, preuvesDev, MAINTENANT),
+      MAINTENANT,
+    );
+
+    expect(photos.at(-1)!.scoreGlobal).toBe(attendu.scoreGlobal);
+    expect(photos.at(-1)!.competencesEvaluees).toBe(attendu.competencesEvaluees);
+    expect(photos.at(-1)!.nombrePreuves).toBe(preuvesDev.length);
+  });
+
+  it("le référentiel passé change l'échelle du score — d'où l'obligation d'employer le périmètre actif", () => {
+    // Les compétences non mesurées comptent comme des zéros dans le score global
+    // (écart connu, ADR-006) : élargir le référentiel dilue mécaniquement le score.
+    const surActifs = photographies(SKILLS_ACTIFS, preuvesDev, 30, 3, MAINTENANT).at(-1)!;
+    const surTout = photographies(SKILLS, preuvesDev, 30, 3, MAINTENANT).at(-1)!;
+
+    expect(surActifs.scoreGlobal).not.toBeNull();
+    expect(surTout.scoreGlobal).not.toBeNull();
+    expect(surTout.scoreGlobal!).toBeLessThan(surActifs.scoreGlobal!);
   });
 });
 

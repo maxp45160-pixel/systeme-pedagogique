@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { chargerContexte } from "@/lib/store/context";
-import { SKILLS } from "@/lib/domain/referentiel";
+import { SKILLS_ACTIFS } from "@/lib/domain/referentiel";
 import { AUTONOMIE } from "@/lib/domain/types";
 import { calculerActivite, photographies } from "@/lib/engine/historique";
 import { joursDepuis } from "@/lib/engine/dates";
@@ -36,7 +36,7 @@ export default async function PageProgression(props: {
 
   const photos = aucunePreuve
     ? []
-    : photographies(SKILLS, ctx.donnees.evidence, periode.jours, periode.pas, ctx.now);
+    : photographies(SKILLS_ACTIFS, ctx.donnees.evidence, periode.jours, periode.pas, ctx.now);
 
   const debut = photos[0];
   const fin = photos.at(-1);
