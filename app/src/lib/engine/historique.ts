@@ -52,15 +52,44 @@ export function evenementsRecents(
   now: Date = new Date(),
 ): EvenementProgression[] {
   const triees = [...preuves].sort((a, b) => a.date.localeCompare(b.date));
-  const evenements: EvenementProgression[] = [];
+
+  // `computeSkillState` commence par filtrer sur `skillCode` : l'état « avant »
+  // calculé sur `triees.slice(0, i)` vaut donc exactement l'état calculé sur le
+  // seul historique de cette compétence, tronqué au rang qu'y occupe la preuve.
+  // On regroupe une fois par compétence en mémorisant ce rang, puis on ne dérive
+  // que les `limite` preuves réellement rendues.
+  //
+  // La version précédente dérivait les n preuves — deux `computeSkillState` et
+  // deux copies du tableau complet chacune — pour n'en garder que `limite` à la
+  // dernière ligne. Sur le journal, qui ne fait que croître et demande 200
+  // évènements, ce coût était quadratique.
+  const parCode = new Map<string, SkillEvidence[]>();
+  const rangDansSaCompetence = new Array<number>(triees.length);
 
   for (let i = 0; i < triees.length; i++) {
+    const historique = parCode.get(triees[i].skillCode);
+    if (historique) {
+      rangDansSaCompetence[i] = historique.length;
+      historique.push(triees[i]);
+    } else {
+      rangDansSaCompetence[i] = 0;
+      parCode.set(triees[i].skillCode, [triees[i]]);
+    }
+  }
+
+  const evenements: EvenementProgression[] = [];
+
+  for (let i = triees.length - 1; i >= 0 && evenements.length < limite; i--) {
     const preuve = triees[i];
     const skill = SKILL_PAR_CODE.get(preuve.skillCode);
+    // Preuve hors référentiel : ignorée sans consommer de place dans la liste,
+    // comme lorsque le filtrage précédait le `slice(0, limite)`.
     if (!skill) continue;
 
-    const avant = computeSkillState(skill, triees.slice(0, i), now);
-    const apres = computeSkillState(skill, triees.slice(0, i + 1), now);
+    const historique = parCode.get(preuve.skillCode)!;
+    const rang = rangDansSaCompetence[i];
+    const avant = computeSkillState(skill, historique.slice(0, rang), now);
+    const apres = computeSkillState(skill, historique.slice(0, rang + 1), now);
 
     evenements.push({
       date: preuve.date,
@@ -77,7 +106,8 @@ export function evenementsRecents(
     });
   }
 
-  return evenements.reverse().slice(0, limite);
+  // Déjà du plus récent au plus ancien : le parcours part de la fin.
+  return evenements;
 }
 
 /* ------------------------------------------------------------------ */

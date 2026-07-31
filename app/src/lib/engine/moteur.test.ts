@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { computeSkillState, computeAllSkillStates } from "./skill-state";
 import { calculerEtatGlobal } from "./progression";
 import { recommander } from "./recommend";
-import { photographies } from "./historique";
+import { evenementsRecents, photographies, type EvenementProgression } from "./historique";
 import { autonomieDepuisIndices, qualiteDepuisNature } from "./preuve";
 import {
   DOMAINE_PILOTE,
@@ -260,6 +260,101 @@ describe("périmètre actif — ADR-018", () => {
     const global = calculerEtatGlobal(etats, MAINTENANT);
     expect(global.nombrePreuves).toBe(0);
     expect(global.scoreGlobal).toBeNull();
+  });
+});
+
+describe("evenementsRecents — équivalence avec le rejeu naïf", () => {
+  /**
+   * Implémentation de référence : copie littérale de la boucle quadratique
+   * d'origine. Elle rejoue le journal preuve par preuve sur le tableau complet.
+   * Le test ne vérifie pas une propriété choisie après coup — il vérifie que la
+   * version optimisée rend exactement ce que rendait celle qu'elle remplace.
+   */
+  function evenementsRecentsNaif(
+    preuves: SkillEvidence[],
+    limite: number,
+    now: Date,
+  ): EvenementProgression[] {
+    const triees = [...preuves].sort((a, b) => a.date.localeCompare(b.date));
+    const evenements: EvenementProgression[] = [];
+
+    for (let i = 0; i < triees.length; i++) {
+      const p = triees[i];
+      const skill = SKILL_PAR_CODE.get(p.skillCode);
+      if (!skill) continue;
+
+      const avant = computeSkillState(skill, triees.slice(0, i), now);
+      const apres = computeSkillState(skill, triees.slice(0, i + 1), now);
+
+      evenements.push({
+        date: p.date,
+        skillCode: p.skillCode,
+        intitule: skill.intitule,
+        domaine: skill.domaine,
+        niveauAvant: avant.niveau,
+        niveauApres: apres.niveau,
+        franchissement: avant.niveau !== apres.niveau,
+        resultat: p.resultat,
+        type: p.type,
+        contexte: p.contexte,
+        commentaire: p.commentaire,
+      });
+    }
+
+    return evenements.reverse().slice(0, limite);
+  }
+
+  // Jeu volontairement piégeux : plusieurs compétences entrelacées, deux dates
+  // strictement identiques (l'ordre relatif doit tenir au tri stable), un code
+  // hors référentiel, et une preuve non recevable.
+  const jeu: SkillEvidence[] = [
+    ...Array.from({ length: 12 }, (_, k) =>
+      preuve({ skill: "DEV-01", jours: 40 - k, contexte: `dev1-${k}` }),
+    ),
+    ...Array.from({ length: 9 }, (_, k) =>
+      preuve({ skill: "DEV-02", jours: 38 - k * 2, contexte: `dev2-${k}` }),
+    ),
+    ...Array.from({ length: 7 }, (_, k) =>
+      preuve({ skill: "DEV-03", jours: 30 - k * 3, resultat: "echec", contexte: `dev3-${k}` }),
+    ),
+    // Deux preuves à la même date, sur deux compétences différentes.
+    preuve({ skill: "DEV-04", jours: 9, contexte: "meme-date-a" }),
+    preuve({ skill: "DEV-05", jours: 9, contexte: "meme-date-b" }),
+    // Deux preuves à la même date, sur la MÊME compétence.
+    preuve({ skill: "DEV-06", jours: 4, contexte: "meme-date-c" }),
+    preuve({ skill: "DEV-06", jours: 4, contexte: "meme-date-d" }),
+    // Hors référentiel : ne doit apparaître nulle part, ni occuper de place.
+    preuve({ skill: "CODE-INEXISTANT", jours: 2, contexte: "fantome" }),
+    preuve({ skill: "STAT-01", jours: 6, contexte: "hors-perimetre-mais-connue" }),
+  ];
+
+  for (const limite of [1, 3, 8, 200]) {
+    it(`rend exactement la liste du rejeu naïf (limite = ${limite})`, () => {
+      expect(evenementsRecents(jeu, limite, MAINTENANT)).toEqual(
+        evenementsRecentsNaif(jeu, limite, MAINTENANT),
+      );
+    });
+  }
+
+  it("une limite supérieure au nombre de preuves rend tout le journal recevable", () => {
+    const tous = evenementsRecents(jeu, 10_000, MAINTENANT);
+    // Toutes les preuves sauf celle dont le code n'existe pas au référentiel.
+    expect(tous).toHaveLength(jeu.length - 1);
+  });
+
+  it("un code hors référentiel n'occupe pas de place dans la liste", () => {
+    expect(evenementsRecents(jeu, 200, MAINTENANT).some((e) => e.skillCode === "CODE-INEXISTANT"))
+      .toBe(false);
+  });
+
+  it("sort du plus récent au plus ancien", () => {
+    const dates = evenementsRecents(jeu, 200, MAINTENANT).map((e) => e.date);
+    expect([...dates].sort((a, b) => b.localeCompare(a))).toEqual(dates);
+  });
+
+  it("rend une liste vide sans preuve, et supporte une limite nulle", () => {
+    expect(evenementsRecents([], 8, MAINTENANT)).toEqual([]);
+    expect(evenementsRecents(jeu, 0, MAINTENANT)).toEqual([]);
   });
 });
 
