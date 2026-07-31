@@ -2,7 +2,7 @@ import { compteCourant } from "@/lib/supabase/server";
 import { supabaseConfigure } from "@/lib/supabase/config";
 import { Sidebar } from "@/components/layout/sidebar";
 import { NavMobile } from "@/components/layout/nav-mobile";
-import { BasculeTheme } from "@/components/layout/bascule-theme";
+import { CompteMobile } from "@/components/layout/compte";
 
 /**
  * Cadre du carnet : rail de navigation, marge.
@@ -30,14 +30,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <Sidebar session={session} />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Barre supérieure mobile : le nom du système et la bascule de thème. */}
+        {/*
+          Barre supérieure mobile : le nom du système et l'accès au compte.
+
+          Le pied du rail — compte, export du journal, déconnexion, thème — est
+          `hidden lg:flex`. Sans ce bouton, aucun de ces réglages n'était
+          atteignable sur mobile (ADR-025).
+        */}
         <div className="flex h-12 items-center justify-between gap-2 border-b border-bordure bg-surface px-4 lg:hidden">
           <div className="min-w-0">
             <div className="truncate text-sm font-semibold tracking-tight">
               Système pédagogique
             </div>
           </div>
-          <BasculeTheme />
+          <CompteMobile session={session} />
         </div>
 
         {/*
