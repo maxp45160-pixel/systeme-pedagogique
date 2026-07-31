@@ -242,6 +242,33 @@ function PanneauReglages({
         </div>
 
         <dl className="mt-4 space-y-3 text-sm">
+          {/*
+            Le profil déclaré (formation, objectifs, préférences) a sa propre
+            page : ce sont des phrases, pas des interrupteurs. Le lien vit ici
+            parce que c'est là qu'on vient chercher « mes réglages ».
+          */}
+          <div className="rounded-lg border border-bordure bg-surface-2/60 px-3 py-2.5">
+            <dt className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
+              Profil
+            </dt>
+            <dd className="mt-1 flex flex-wrap items-center gap-3">
+              <Link
+                href="/profil"
+                onClick={onFermer}
+                className="text-xs text-primaire hover:underline"
+              >
+                Formation, objectifs et préférences
+              </Link>
+              <Link
+                href="/competences/referentiel"
+                onClick={onFermer}
+                className="text-xs text-primaire hover:underline"
+              >
+                Référentiel
+              </Link>
+            </dd>
+          </div>
+
           <div className="rounded-lg border border-bordure bg-surface-2/60 px-3 py-2.5">
             <dt className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
               Apparence
