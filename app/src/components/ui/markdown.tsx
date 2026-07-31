@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 
 /**
  * Rendu markdown minimal, écrit sur mesure.
@@ -42,7 +42,7 @@ function cellules(ligne: string): string[] {
     .map((c) => c.trim());
 }
 
-export function Markdown({ contenu }: { contenu: string }) {
+export const Markdown = memo(function Markdown({ contenu }: { contenu: string }) {
   const lignes = contenu.split("\n");
   const blocs: ReactNode[] = [];
   let i = 0;
@@ -184,4 +184,4 @@ export function Markdown({ contenu }: { contenu: string }) {
   }
 
   return <div className="prose-exo">{blocs}</div>;
-}
+});

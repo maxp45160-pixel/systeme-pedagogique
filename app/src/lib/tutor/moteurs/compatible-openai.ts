@@ -28,7 +28,14 @@ interface DeltaChoix {
 
 interface FragmentReponse {
   choices?: DeltaChoix[] | null;
-  usage?: { prompt_tokens?: number; completion_tokens?: number } | null;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    /** Mistral-specific: tokens served from prefix cache. */
+    prompt_cache_hit_tokens?: number;
+    /** Mistral-specific: tokens NOT in cache (freshly computed). */
+    prompt_cache_miss_tokens?: number;
+  } | null;
 }
 
 /** Traduit un statut HTTP en message actionnable pour l'utilisateur. */
@@ -65,26 +72,57 @@ export function moteurCompatibleOpenAI(
 
     async repondre({ systemeStable, systemeProfil, messages, envoyer }: DemandeTuteur) {
       try {
-        const reponse = await fetch(`${base}/chat/completions`, {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            authorization: `Bearer ${cle}`,
-          },
-          body: JSON.stringify({
+        // Clé de cache : déterministe sur le contenu stable. Mistral utilise ce
+        // paramètre pour identifier un préfixe réutilisable d'une requête à
+        // l'autre, réduisant latence et coût sur les ~7-8K tokens de protocole.
+        //
+        // djb2 suffit ici : ce n'est pas de la sécurité, c'est un identifiant
+        // stable pour le même contenu textuel.
+        let h = 5381;
+        for (let i = 0; i < systemeStable.length; i++) {
+          h = ((h << 5) + h + systemeStable.charCodeAt(i)) | 0;
+        }
+        const cacheKey = `sys-${(h >>> 0).toString(36)}`;
+
+        const appeler = (corps: unknown) =>
+          fetch(`${base}/chat/completions`, {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              authorization: "Bearer " + cle,
+            },
+            body: JSON.stringify(corps),
+          });
+
+        const payloadMistral = {
+          model: modele,
+          stream: true,
+          stream_options: { include_usage: true },
+          max_tokens: MAX_JETONS_SORTIE,
+          prompt_cache_key: cacheKey,
+          messages: [
+            // Séparer stable et profil en deux messages system : le préfixe
+            // stable est identique d'un tour à l'autre, maximisant le cache
+            // hit. Le profil (variable à chaque requête si une preuve change)
+            // vient après et ne casse pas le préfixe caché.
+            { role: "system", content: systemeStable },
+            { role: "system", content: systemeProfil },
+            ...messages.map((m) => ({ role: m.role, content: m.content })),
+          ],
+        };
+
+        let reponse = await appeler(payloadMistral);
+        if (reponse.status === 400) {
+          reponse = await appeler({
             model: modele,
             stream: true,
             max_tokens: MAX_JETONS_SORTIE,
             messages: [
-              // Le format n'a qu'un seul emplacement système : les deux blocs
-              // sont concaténés dans l'ordre stable → variable, comme côté
-              // Anthropic, pour que les fournisseurs qui savent mettre en
-              // cache un préfixe puissent le faire.
-              { role: "system", content: `${systemeStable}\n\n---\n\n${systemeProfil}` },
+              { role: "system", content: `${systemeStable}\n\n${systemeProfil}` },
               ...messages.map((m) => ({ role: m.role, content: m.content })),
             ],
-          }),
-        });
+          });
+        }
 
         if (!reponse.ok || !reponse.body) {
           const corps = await reponse.text().catch(() => "");
@@ -156,8 +194,8 @@ export function moteurCompatibleOpenAI(
             ? {
                 entree: usage.prompt_tokens ?? 0,
                 sortie: usage.completion_tokens ?? 0,
-                cacheEcrit: 0,
-                cacheLu: 0,
+                cacheEcrit: usage.prompt_cache_miss_tokens ?? 0,
+                cacheLu: usage.prompt_cache_hit_tokens ?? 0,
               }
             : undefined,
         });

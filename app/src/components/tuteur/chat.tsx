@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { classesBouton, cx, Etiquette } from "@/components/ui/primitives";
 import { Markdown } from "@/components/ui/markdown";
@@ -69,6 +69,235 @@ interface Etat {
   caracteresTotal: number;
 }
 
+/* ------------------------------------------------------------------ */
+/* Fix 3 : Bulle de message mémoïsée                                   */
+/*                                                                     */
+/* Chaque bulle calcule ses propositions et son rendu Markdown          */
+/* uniquement quand son `content` change. Pendant le streaming SSE,    */
+/* seul le dernier message (contenu changeant) recalcule ; tous les    */
+/* messages précédents restent en cache React.                         */
+/* ------------------------------------------------------------------ */
+
+const MessageBulle = memo(function MessageBulle({
+  message,
+  index,
+  codesCompetences,
+}: {
+  message: Message;
+  index: number;
+  codesCompetences: string[];
+}) {
+  // Propositions structurées du tuteur, validées contre le
+  // référentiel : on ne fabrique jamais un lien vers un code inventé.
+  const propositions =
+    message.role === "assistant" && message.content
+      ? extrairePropositions(message.content).filter((p) =>
+          codesCompetences.includes(p.competence.toUpperCase()),
+        )
+      : [];
+
+  // Exercices proposés par le tuteur (ADR-004). Même contrat que
+  // les preuves : rien n'est écrit tant que l'utilisateur n'a pas
+  // validé le formulaire pré-rempli.
+  const exercices =
+    message.role === "assistant" && message.content
+      ? extrairePropositionsExercice(message.content)
+      : [];
+
+  return (
+    <div
+      className={cx(
+        "flex flex-col gap-1.5",
+        message.role === "user" ? "items-end" : "items-start",
+      )}
+    >
+      <div
+        className={cx(
+          "max-w-[85%] rounded-lg px-3 py-2 text-sm",
+          message.role === "user"
+            ? "bg-primaire text-primaire-contraste"
+            : "border border-bordure bg-surface-2",
+        )}
+      >
+        {message.role === "user" ? (
+          <p className="whitespace-pre-wrap">{message.content}</p>
+        ) : message.content === "" ? (
+          <span className="inline-flex items-center gap-1.5 text-xs text-texte-attenue">
+            <span className="size-1.5 animate-pulse rounded-full bg-primaire" />
+            Le tuteur réfléchit…
+          </span>
+        ) : (
+          <Markdown contenu={message.content} />
+        )}
+      </div>
+
+      {/*
+        Le tuteur n'a jamais d'accès en écriture : ce bouton ne fait
+        que pré-remplir le formulaire de la fiche compétence. Seule
+        ta validation explicite y déclenche l'enregistrement.
+      */}
+      {propositions.map((p, j) => (
+        <div
+          key={j}
+          className="max-w-[85%] rounded-md border border-info/30 bg-info-faible px-3 py-2 text-xs"
+        >
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Etiquette ton="info">Proposition</Etiquette>
+            <span className="font-mono text-[0.6875rem] font-medium">
+              {p.competence.toUpperCase()}
+            </span>
+            {p.niveauActuel && p.niveauPropose && (
+              <span className="text-texte-attenue">
+                niveau {p.niveauActuel} → {p.niveauPropose}
+              </span>
+            )}
+          </div>
+          {p.preuve && <p className="mt-1 text-texte-attenue">{p.preuve}</p>}
+          <Link
+            href={lienProposition(p)}
+            className={cx(classesBouton("secondaire", "petite"), "mt-2")}
+          >
+            Revoir et enregistrer
+          </Link>
+        </div>
+      ))}
+
+      {/*
+        Exercice proposé : même garde-fou. Le bouton dépose la
+        proposition puis ouvre le formulaire de création — il
+        n'ajoute rien au corpus par lui-même.
+      */}
+      {exercices.map((ex, j) => (
+        <div
+          key={`ex-${j}`}
+          className="max-w-[85%] rounded-md border border-primaire/30 bg-surface-2 px-3 py-2 text-xs"
+        >
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Etiquette ton="primaire">Exercice proposé</Etiquette>
+            {ex.competences.map((c) => (
+              <span key={c} className="font-mono text-[0.6875rem] font-medium">
+                {c}
+              </span>
+            ))}
+            {ex.difficulte && (
+              <span className="text-texte-attenue">difficulté {ex.difficulte}/5</span>
+            )}
+          </div>
+          <p className="mt-1 font-medium">{ex.titre}</p>
+          <Link
+            href="/exercices?proposition=1"
+            onClick={() => deposerPropositionExercice(ex)}
+            className={cx(classesBouton("secondaire", "petite"), "mt-2")}
+          >
+            Revoir et ajouter
+          </Link>
+        </div>
+      ))}
+    </div>
+  );
+});
+
+/* ------------------------------------------------------------------ */
+/* Fix 1 : Zone de saisie isolée                                       */
+/*                                                                     */
+/* `setSaisie` vit dans ce composant enfant : les frappes clavier ne   */
+/* déclenchent plus le re-render du transcript ni des boucles          */
+/* d'extraction. Le composant parent ne reçoit le texte qu'au submit.  */
+/* ------------------------------------------------------------------ */
+
+const ChatInput = memo(function ChatInput({
+  onEnvoyer,
+  onCopier,
+  enCours,
+  cleAbsente,
+  usage,
+  saisieInitiale,
+}: {
+  onEnvoyer: (texte: string) => void;
+  onCopier: (texte: string) => void;
+  enCours: boolean;
+  cleAbsente: boolean;
+  usage: string | null;
+  saisieInitiale: string;
+}) {
+  const [saisie, setSaisie] = useState(saisieInitiale);
+  const champRef = useRef<HTMLTextAreaElement>(null);
+
+  return (
+    <div className="border-t border-bordure px-3 py-3">
+      <div className="mb-2 flex flex-wrap gap-1">
+        {MODES.map((m) => (
+          <button
+            key={m.cle}
+            type="button"
+            disabled={enCours}
+            onClick={() => {
+              setSaisie(m.amorce);
+              champRef.current?.focus();
+            }}
+            className="rounded border border-bordure px-1.5 py-0.5 text-[0.6875rem] font-medium text-texte-attenue transition-colors hover:bg-surface-2 hover:text-texte disabled:opacity-50"
+          >
+            {m.libelle}
+          </button>
+        ))}
+      </div>
+
+      <textarea
+        ref={champRef}
+        value={saisie}
+        onChange={(e) => setSaisie(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault();
+            const texte = saisie.trim();
+            if (texte) {
+              onEnvoyer(texte);
+              setSaisie("");
+            }
+          }
+        }}
+        rows={3}
+        placeholder="Pose ta question, colle ton raisonnement, demande un exercice…"
+        className="w-full resize-y rounded-md border border-bordure bg-surface px-3 py-2 text-sm placeholder:text-texte-discret focus:border-primaire focus:outline-none"
+      />
+
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+        <span className="text-[0.625rem] text-texte-discret">
+          Ctrl+Entrée pour envoyer
+          {usage && <> · {usage}</>}
+        </span>
+        <div className="flex gap-1.5">
+          <button
+            type="button"
+            onClick={() => onCopier(saisie)}
+            className={classesBouton("secondaire", "petite")}
+          >
+            Copier le contexte
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const texte = saisie.trim();
+              if (texte) {
+                onEnvoyer(texte);
+                setSaisie("");
+              }
+            }}
+            disabled={enCours || !saisie.trim() || cleAbsente}
+            className={classesBouton("principal", "petite")}
+          >
+            {enCours ? "En cours…" : "Envoyer"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+/* ------------------------------------------------------------------ */
+/* Composant principal                                                 */
+/* ------------------------------------------------------------------ */
+
 export function ChatTuteur({
   competenceCiblee,
   codesCompetences,
@@ -79,14 +308,23 @@ export function ChatTuteur({
 }) {
   const [etat, setEtat] = useState<Etat | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [saisie, setSaisie] = useState(
-    competenceCiblee ? `Donne-moi un exercice sur ${competenceCiblee}.` : "",
-  );
   const [enCours, setEnCours] = useState(false);
   const [avis, setAvis] = useState<{ ton: "info" | "alerte" | "danger"; texte: string } | null>(null);
   const [usage, setUsage] = useState<string | null>(null);
   const zoneRef = useRef<HTMLDivElement>(null);
-  const champRef = useRef<HTMLTextAreaElement>(null);
+
+  /* ---------------------------------------------------------------- */
+  /* Fix 2 : Scroll par rAF au lieu de behavior:"smooth" sur chaque   */
+  /* token. On utilise un ref pour éviter de stacker des scrolls.      */
+  /* ---------------------------------------------------------------- */
+  const rafScroll = useRef<number>(0);
+  useEffect(() => {
+    cancelAnimationFrame(rafScroll.current);
+    rafScroll.current = requestAnimationFrame(() => {
+      zoneRef.current?.scrollTo({ top: zoneRef.current.scrollHeight });
+    });
+    return () => cancelAnimationFrame(rafScroll.current);
+  }, [messages]);
 
   useEffect(() => {
     fetch("/api/tutor")
@@ -97,19 +335,42 @@ export function ChatTuteur({
       );
   }, []);
 
-  useEffect(() => {
-    zoneRef.current?.scrollTo({ top: zoneRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages]);
+  /* ---------------------------------------------------------------- */
+  /* Fix 2 : Accumulation par ref + flush rAF                          */
+  /*                                                                   */
+  /* Pendant le streaming SSE les tokens arrivent plus vite que le     */
+  /* rafraîchissement écran (~60 fps). Au lieu de `setMessages` à      */
+  /* chaque token (→ re-render complet × nombre de tokens), on         */
+  /* accumule dans un ref et on flush en un seul `setMessages` par     */
+  /* frame via `requestAnimationFrame`.                                */
+  /* ---------------------------------------------------------------- */
+  const accumuleRef = useRef("");
+  const historiqueRef = useRef<Message[]>([]);
+  const rafRef = useRef<number>(0);
 
-  async function envoyer(texte: string) {
+  const flushAccumule = useCallback(() => {
+    const texte = accumuleRef.current;
+    const hist = historiqueRef.current;
+    setMessages([...hist, { role: "assistant", content: texte }]);
+    rafRef.current = 0;
+  }, []);
+
+  const planifierFlush = useCallback(() => {
+    if (rafRef.current === 0) {
+      rafRef.current = requestAnimationFrame(flushAccumule);
+    }
+  }, [flushAccumule]);
+
+  const envoyer = useCallback(async (texte: string) => {
     const contenu = texte.trim();
     if (!contenu || enCours) return;
 
     setAvis(null);
     setUsage(null);
     const historique: Message[] = [...messages, { role: "user", content: contenu }];
+    historiqueRef.current = historique;
+    accumuleRef.current = "";
     setMessages([...historique, { role: "assistant", content: "" }]);
-    setSaisie("");
     setEnCours(true);
 
     try {
@@ -134,7 +395,6 @@ export function ChatTuteur({
       const lecteur = reponse.body.getReader();
       const decodeur = new TextDecoder();
       let tampon = "";
-      let accumule = "";
 
       // Lecture du flux SSE : découpage sur la ligne vide séparant les événements.
       for (;;) {
@@ -160,8 +420,8 @@ export function ChatTuteur({
           }
 
           if (type === "texte") {
-            accumule += String(donnees.delta ?? "");
-            setMessages([...historique, { role: "assistant", content: accumule }]);
+            accumuleRef.current += String(donnees.delta ?? "");
+            planifierFlush();
           } else if (type === "refus" || type === "erreur") {
             setAvis({
               ton: type === "refus" ? "alerte" : "danger",
@@ -180,10 +440,18 @@ export function ChatTuteur({
         }
       }
 
-      if (accumule.trim() === "") {
+      // Flush final : s'assurer que le dernier contenu est bien dans le state
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
+      const final = accumuleRef.current;
+      if (final.trim() === "") {
         setMessages(historique);
+      } else {
+        setMessages([...historique, { role: "assistant", content: final }]);
       }
     } catch (e) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
       setMessages(historique);
       setAvis({
         ton: "danger",
@@ -192,9 +460,9 @@ export function ChatTuteur({
     } finally {
       setEnCours(false);
     }
-  }
+  }, [enCours, messages, planifierFlush]);
 
-  async function copierContexte() {
+  const copierContexte = useCallback(async (saisie: string) => {
     try {
       const prompt = await preparerPromptComplet(saisie);
       await navigator.clipboard.writeText(prompt);
@@ -205,9 +473,11 @@ export function ChatTuteur({
     } catch {
       setAvis({ ton: "danger", texte: "Copie impossible : le presse-papier est inaccessible." });
     }
-  }
+  }, []);
 
   const cleAbsente = etat !== null && !etat.cleConfiguree;
+
+  const saisieInitiale = competenceCiblee ? `Donne-moi un exercice sur ${competenceCiblee}.` : "";
 
   return (
     <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
@@ -226,116 +496,14 @@ export function ChatTuteur({
               </div>
             )}
 
-            {messages.map((m, i) => {
-              // Propositions structurées du tuteur, validées contre le
-              // référentiel : on ne fabrique jamais un lien vers un code inventé.
-              const propositions =
-                m.role === "assistant" && m.content
-                  ? extrairePropositions(m.content).filter((p) =>
-                      codesCompetences.includes(p.competence.toUpperCase()),
-                    )
-                  : [];
-
-              // Exercices proposés par le tuteur (ADR-004). Même contrat que
-              // les preuves : rien n'est écrit tant que l'utilisateur n'a pas
-              // validé le formulaire pré-rempli.
-              const exercices =
-                m.role === "assistant" && m.content
-                  ? extrairePropositionsExercice(m.content)
-                  : [];
-              return (
-                <div
-                  key={i}
-                  className={cx(
-                    "flex flex-col gap-1.5",
-                    m.role === "user" ? "items-end" : "items-start",
-                  )}
-                >
-                  <div
-                    className={cx(
-                      "max-w-[85%] rounded-lg px-3 py-2 text-sm",
-                      m.role === "user"
-                        ? "bg-primaire text-primaire-contraste"
-                        : "border border-bordure bg-surface-2",
-                    )}
-                  >
-                    {m.role === "user" ? (
-                      <p className="whitespace-pre-wrap">{m.content}</p>
-                    ) : m.content === "" ? (
-                      <span className="inline-flex items-center gap-1.5 text-xs text-texte-attenue">
-                        <span className="size-1.5 animate-pulse rounded-full bg-primaire" />
-                        Le tuteur réfléchit…
-                      </span>
-                    ) : (
-                      <Markdown contenu={m.content} />
-                    )}
-                  </div>
-
-                  {/*
-                    Le tuteur n'a jamais d'accès en écriture : ce bouton ne fait
-                    que pré-remplir le formulaire de la fiche compétence. Seule
-                    ta validation explicite y déclenche l'enregistrement.
-                  */}
-                  {propositions.map((p, j) => (
-                    <div
-                      key={j}
-                      className="max-w-[85%] rounded-md border border-info/30 bg-info-faible px-3 py-2 text-xs"
-                    >
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <Etiquette ton="info">Proposition</Etiquette>
-                        <span className="font-mono text-[0.6875rem] font-medium">
-                          {p.competence.toUpperCase()}
-                        </span>
-                        {p.niveauActuel && p.niveauPropose && (
-                          <span className="text-texte-attenue">
-                            niveau {p.niveauActuel} → {p.niveauPropose}
-                          </span>
-                        )}
-                      </div>
-                      {p.preuve && <p className="mt-1 text-texte-attenue">{p.preuve}</p>}
-                      <Link
-                        href={lienProposition(p)}
-                        className={cx(classesBouton("secondaire", "petite"), "mt-2")}
-                      >
-                        Revoir et enregistrer
-                      </Link>
-                    </div>
-                  ))}
-
-                  {/*
-                    Exercice proposé : même garde-fou. Le bouton dépose la
-                    proposition puis ouvre le formulaire de création — il
-                    n'ajoute rien au corpus par lui-même.
-                  */}
-                  {exercices.map((ex, j) => (
-                    <div
-                      key={`ex-${j}`}
-                      className="max-w-[85%] rounded-md border border-primaire/30 bg-surface-2 px-3 py-2 text-xs"
-                    >
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <Etiquette ton="primaire">Exercice proposé</Etiquette>
-                        {ex.competences.map((c) => (
-                          <span key={c} className="font-mono text-[0.6875rem] font-medium">
-                            {c}
-                          </span>
-                        ))}
-                        {ex.difficulte && (
-                          <span className="text-texte-attenue">difficulté {ex.difficulte}/5</span>
-                        )}
-                      </div>
-                      <p className="mt-1 font-medium">{ex.titre}</p>
-                      <Link
-                        href="/exercices?proposition=1"
-                        onClick={() => deposerPropositionExercice(ex)}
-                        className={cx(classesBouton("secondaire", "petite"), "mt-2")}
-                      >
-                        Revoir et ajouter
-                      </Link>
-                    </div>
-                  ))}
-                </div>
-              );
-            })}
+            {messages.map((m, i) => (
+              <MessageBulle
+                key={i}
+                message={m}
+                index={i}
+                codesCompetences={codesCompetences}
+              />
+            ))}
           </div>
 
           {avis && (
@@ -351,64 +519,15 @@ export function ChatTuteur({
             </div>
           )}
 
-          {/* Saisie */}
-          <div className="border-t border-bordure px-3 py-3">
-            <div className="mb-2 flex flex-wrap gap-1">
-              {MODES.map((m) => (
-                <button
-                  key={m.cle}
-                  type="button"
-                  disabled={enCours}
-                  onClick={() => {
-                    setSaisie(m.amorce);
-                    champRef.current?.focus();
-                  }}
-                  className="rounded border border-bordure px-1.5 py-0.5 text-[0.6875rem] font-medium text-texte-attenue transition-colors hover:bg-surface-2 hover:text-texte disabled:opacity-50"
-                >
-                  {m.libelle}
-                </button>
-              ))}
-            </div>
-
-            <textarea
-              ref={champRef}
-              value={saisie}
-              onChange={(e) => setSaisie(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                  e.preventDefault();
-                  void envoyer(saisie);
-                }
-              }}
-              rows={3}
-              placeholder="Pose ta question, colle ton raisonnement, demande un exercice…"
-              className="w-full resize-y rounded-md border border-bordure bg-surface px-3 py-2 text-sm placeholder:text-texte-discret focus:border-primaire focus:outline-none"
-            />
-
-            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-              <span className="text-[0.625rem] text-texte-discret">
-                Ctrl+Entrée pour envoyer
-                {usage && <> · {usage}</>}
-              </span>
-              <div className="flex gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => void copierContexte()}
-                  className={classesBouton("secondaire", "petite")}
-                >
-                  Copier le contexte
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void envoyer(saisie)}
-                  disabled={enCours || !saisie.trim() || cleAbsente}
-                  className={classesBouton("principal", "petite")}
-                >
-                  {enCours ? "En cours…" : "Envoyer"}
-                </button>
-              </div>
-            </div>
-          </div>
+          {/* Saisie — composant isolé (Fix 1) */}
+          <ChatInput
+            onEnvoyer={envoyer}
+            onCopier={copierContexte}
+            enCours={enCours}
+            cleAbsente={cleAbsente}
+            usage={usage}
+            saisieInitiale={saisieInitiale}
+          />
         </div>
       </div>
 
