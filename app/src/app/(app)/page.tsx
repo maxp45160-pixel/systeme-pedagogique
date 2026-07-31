@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import { chargerContexte } from "@/lib/store/context";
+import { SqueletteContenu } from "@/components/layout/squelette";
 import { calculerActivite, evenementsRecents } from "@/lib/engine/historique";
 import { EntetePage } from "@/components/layout/entete-page";
 import { CarteEtatGlobal } from "@/components/dashboard/etat-global";
@@ -6,29 +8,45 @@ import { CarteProchaineAction } from "@/components/dashboard/prochaine-action";
 import { CarteProgressionRecente } from "@/components/dashboard/progression-recente";
 import { CarteActivite } from "@/components/dashboard/activite";
 
-export default async function TableauDeBord() {
-  const ctx = await chargerContexte();
-  const evenements = evenementsRecents(ctx.donnees.evidence, 6, ctx.now);
-  const activite = calculerActivite(ctx.donnees.sessions, ctx.now);
-  const aucunePreuve = ctx.global.nombrePreuves === 0;
+export default function TableauDeBord() {
+  // La date du jour ne dépend d'aucune lecture : `ctx.now` n'est rien d'autre
+  // qu'un `new Date()` posé à l'entrée de `chargerContexte`.
   const dateJour = new Intl.DateTimeFormat("fr-FR", {
     weekday: "long",
     day: "numeric",
     month: "long",
-  }).format(new Date(ctx.now));
+  }).format(new Date());
 
   return (
     <>
+      {/*
+        Le sous-titre ne se dédouble plus selon qu'il existe ou non des preuves :
+        la variante « une seule action suffit » disait, en plus court, ce que
+        l'encart d'initialisation ci-dessous dit déjà en entier. Une phrase de
+        moins, aucune information perdue — et un en-tête qui n'attend plus la
+        lecture des preuves pour s'afficher.
+      */}
       <EntetePage
         titre="Tableau de bord"
         surtitre={dateJour}
-        sousTitre={
-          aucunePreuve
-            ? "Une seule action suffit à lancer le suivi."
-            : "Ta prochaine action — le reste suit, en retrait."
-        }
+        sousTitre="Ta prochaine action — le reste suit, en retrait."
       />
 
+      <Suspense fallback={<SqueletteContenu />}>
+        <ContenuTableauDeBord />
+      </Suspense>
+    </>
+  );
+}
+
+async function ContenuTableauDeBord() {
+  const ctx = await chargerContexte();
+  const evenements = evenementsRecents(ctx.donnees.evidence, 6, ctx.now);
+  const activite = calculerActivite(ctx.donnees.sessions, ctx.now);
+  const aucunePreuve = ctx.global.nombrePreuves === 0;
+
+  return (
+    <>
       {/*
         Au démarrage, l'écran est volontairement vide (protocole anti-hallucination).
         La note est resserrée à une ligne et renvoie directement à l'action.

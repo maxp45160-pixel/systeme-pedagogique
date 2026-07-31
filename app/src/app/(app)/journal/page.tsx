@@ -1,5 +1,7 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { chargerContexte } from "@/lib/store/context";
+import { SqueletteContenu } from "@/components/layout/squelette";
 import { libelleDomaine } from "@/lib/domain/referentiel";
 import { ajouterNoteSession } from "@/lib/store/actions";
 import { EntetePage } from "@/components/layout/entete-page";
@@ -15,7 +17,22 @@ import {
 import { calculerActivite, evenementsRecents } from "@/lib/engine/historique";
 import { formatDateCourte, formatDuree } from "@/lib/engine/dates";
 
-export default async function PageJournal() {
+export default function PageJournal() {
+  return (
+    <>
+      <EntetePage
+        titre="Journal de bord"
+        sousTitre="Généré automatiquement à partir des séances de travail. Chaque entrée correspond à une activité réellement enregistrée — rien n'y est ajouté à la main par le système."
+      />
+
+      <Suspense fallback={<SqueletteContenu />}>
+        <ContenuJournal />
+      </Suspense>
+    </>
+  );
+}
+
+async function ContenuJournal() {
   const ctx = await chargerContexte();
   const activite = calculerActivite(ctx.donnees.sessions, ctx.now);
   const evenements = evenementsRecents(ctx.donnees.evidence, 200, ctx.now);
@@ -30,11 +47,6 @@ export default async function PageJournal() {
 
   return (
     <>
-      <EntetePage
-        titre="Journal de bord"
-        sousTitre="Généré automatiquement à partir des séances de travail. Chaque entrée correspond à une activité réellement enregistrée — rien n'y est ajouté à la main par le système."
-      />
-
       {sessions.length === 0 ? (
         <Carte>
           <EtatVide

@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import { chargerContexte } from "@/lib/store/context";
+import { SqueletteContenu } from "@/components/layout/squelette";
 import { construireContexte } from "@/lib/tutor/contexte";
 import { choisirConfiguration, decrireChoix } from "@/lib/tutor/moteurs";
 import { EntetePage } from "@/components/layout/entete-page";
@@ -8,6 +10,22 @@ export default async function PageTuteur(props: {
   searchParams: Promise<{ competence?: string }>;
 }) {
   const { competence } = await props.searchParams;
+
+  return (
+    <>
+      <EntetePage
+        titre="IA Tutor"
+        sousTitre="Un tuteur qui reçoit les protocoles du système et l'état réel de tes compétences. Il questionne, corrige et propose — il ne modifie rien sans ta validation."
+      />
+
+      <Suspense fallback={<SqueletteContenu cartes={3} />}>
+        <ContenuTuteur competence={competence} />
+      </Suspense>
+    </>
+  );
+}
+
+async function ContenuTuteur({ competence }: { competence?: string }) {
   const ctx = await chargerContexte();
 
   const cible = competence ? ctx.etatsParCode.get(competence.toUpperCase()) : undefined;
@@ -36,16 +54,10 @@ export default async function PageTuteur(props: {
   };
 
   return (
-    <>
-      <EntetePage
-        titre="IA Tutor"
-        sousTitre="Un tuteur qui reçoit les protocoles du système et l'état réel de tes compétences. Il questionne, corrige et propose — il ne modifie rien sans ta validation."
-      />
-      <ChatTuteur
-        etatInitial={etatInitial}
-        competenceCiblee={amorce}
-        codesCompetences={ctx.etats.map((e) => e.skill.code)}
-      />
-    </>
+    <ChatTuteur
+      etatInitial={etatInitial}
+      competenceCiblee={amorce}
+      codesCompetences={ctx.etats.map((e) => e.skill.code)}
+    />
   );
 }

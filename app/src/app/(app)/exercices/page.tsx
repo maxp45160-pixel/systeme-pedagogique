@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import Link from "next/link";
+import { SqueletteContenu } from "@/components/layout/squelette";
 import { chargerContexte } from "@/lib/store/context";
 import { libelleDomaine } from "@/lib/domain/referentiel";
 import type { Exercise, TypeExercice } from "@/lib/domain/types";
@@ -38,6 +40,28 @@ export default async function PageExercices(props: {
   // `proposition` est un simple drapeau d'ouverture posé par le chat : il est
   // extrait des filtres pour ne pas se propager dans les liens de filtrage.
   const { proposition, ...f } = await props.searchParams;
+
+  return (
+    <>
+      <EntetePage
+        titre="Exercices"
+        sousTitre="Chaque exercice terminé produit une preuve datée, avec l'autonomie réellement observée. C'est ce qui fait évoluer les compétences."
+      />
+
+      <Suspense fallback={<SqueletteContenu />}>
+        <ContenuExercices proposition={proposition} filtres={f} />
+      </Suspense>
+    </>
+  );
+}
+
+async function ContenuExercices({
+  proposition,
+  filtres: f,
+}: {
+  proposition?: string;
+  filtres: Filtres;
+}) {
   const ctx = await chargerContexte();
 
   // Statut dérivé des tentatives — jamais stocké sur l'exercice lui-même.
@@ -73,11 +97,6 @@ export default async function PageExercices(props: {
 
   return (
     <>
-      <EntetePage
-        titre="Exercices"
-        sousTitre="Chaque exercice terminé produit une preuve datée, avec l'autonomie réellement observée. C'est ce qui fait évoluer les compétences."
-      />
-
       <Carte className="mb-4">
         <div className="px-4 py-3">
           <Depliant resume="Ajouter un exercice" ouvertParDefaut={Boolean(proposition)}>

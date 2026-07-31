@@ -1,11 +1,14 @@
-﻿import Link from "next/link";
+﻿import { Suspense } from "react";
+import Link from "next/link";
 import { chargerContexte } from "@/lib/store/context";
 import {
   DOMAINES,
   DOMAINE_PAR_ID,
   DOMAINE_PILOTE,
   SKILLS,
+  SKILLS_ACTIFS,
 } from "@/lib/domain/referentiel";
+import { SqueletteContenu } from "@/components/layout/squelette";
 import type { SkillState } from "@/lib/domain/types";
 import { EntetePage } from "@/components/layout/entete-page";
 import {
@@ -33,7 +36,6 @@ export default async function PageCompetences(props: {
   const { vue: vueBrute } = await props.searchParams;
   const vue: Vue = vueBrute === "radar" ? "radar" : "grille";
 
-  const ctx = await chargerContexte();
   const domaine = DOMAINE_PAR_ID.get(DOMAINE_PILOTE);
 
   return (
@@ -41,7 +43,10 @@ export default async function PageCompetences(props: {
       <EntetePage
         titre="Compétences"
         surtitre={domaine?.nom}
-        sousTitre={`Périmètre de travail actuel : ${ctx.etats.length} compétences. Pour chacune, son niveau, la confiance de l'évaluation et la solidité des acquis.`}
+        // `SKILLS_ACTIFS.length` plutôt que `ctx.etats.length` : identique par
+        // construction — `computeAllSkillStates` produit un état par compétence
+        // active — mais connu sans attendre la lecture des preuves.
+        sousTitre={`Périmètre de travail actuel : ${SKILLS_ACTIFS.length} compétences. Pour chacune, son niveau, la confiance de l'évaluation et la solidité des acquis.`}
         actions={
           <div className="flex rounded-md border border-bordure p-0.5">
             {VUES.map((v) => (
@@ -63,8 +68,8 @@ export default async function PageCompetences(props: {
       />
 
       {/*
-        Le référentiel complet compte 43 compétences ; seul le domaine pilote
-        est travaillé (ADR-018). Le dire franchement plutôt que laisser croire
+        Le référentiel complet compte 53 compétences ; seul le domaine pilote
+        est travaillé (ADR-020). Le dire franchement plutôt que laisser croire
         que le référentiel se limite à ça.
       */}
       <p className="mb-4 rounded-carte border border-info/30 bg-info-faible px-4 py-2.5 text-xs text-texte-attenue">
@@ -74,6 +79,18 @@ export default async function PageCompetences(props: {
         contenu pour les alimenter.
       </p>
 
+      <Suspense key={vue} fallback={<SqueletteContenu />}>
+        <ContenuCompetences vue={vue} />
+      </Suspense>
+    </>
+  );
+}
+
+async function ContenuCompetences({ vue }: { vue: Vue }) {
+  const ctx = await chargerContexte();
+
+  return (
+    <>
       {vue === "grille" && <VueGrille etats={ctx.etats} />}
       {vue === "radar" && <VueRadar etats={ctx.etats} />}
     </>
