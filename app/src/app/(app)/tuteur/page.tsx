@@ -1,6 +1,8 @@
 import { chargerContexte } from "@/lib/store/context";
+import { construireContexte } from "@/lib/tutor/contexte";
+import { choisirConfiguration, decrireChoix } from "@/lib/tutor/moteurs";
 import { EntetePage } from "@/components/layout/entete-page";
-import { ChatTuteur } from "@/components/tuteur/chat";
+import { ChatTuteur, type EtatContexteTuteur } from "@/components/tuteur/chat";
 
 export default async function PageTuteur(props: {
   searchParams: Promise<{ competence?: string }>;
@@ -17,6 +19,22 @@ export default async function PageTuteur(props: {
       }`
     : undefined;
 
+  // Assemblé ici plutôt que par un `fetch("/api/tutor")` au montage du chat :
+  // cette requête-là repayait un `chargerContexte()` complet — le `cache()` de
+  // React ne franchit pas la frontière d'une requête HTTP — plus un
+  // aller-retour d'authentification, pour un contexte déjà chargé ci-dessus.
+  // `messages` est vide, donc le protocole de synthèse est chargé (ADR-021 §4).
+  const pedagogique = await construireContexte(ctx);
+  const choix = choisirConfiguration(process.env);
+  const etatInitial: EtatContexteTuteur = {
+    // Conserve le nom historique du champ : l'interface s'en sert pour décider
+    // d'afficher le chat ou le repli « copier le contexte ».
+    cleConfiguree: choix.kind !== "aucun",
+    modele: decrireChoix(choix),
+    manifeste: pedagogique.manifeste,
+    caracteresTotal: pedagogique.caracteresTotal,
+  };
+
   return (
     <>
       <EntetePage
@@ -24,6 +42,7 @@ export default async function PageTuteur(props: {
         sousTitre="Un tuteur qui reçoit les protocoles du système et l'état réel de tes compétences. Il questionne, corrige et propose — il ne modifie rien sans ta validation."
       />
       <ChatTuteur
+        etatInitial={etatInitial}
         competenceCiblee={amorce}
         codesCompetences={ctx.etats.map((e) => e.skill.code)}
       />
