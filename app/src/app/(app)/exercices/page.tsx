@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { SqueletteContenu } from "@/components/layout/squelette";
 import { chargerContexte } from "@/lib/store/context";
-import { libelleDomaine } from "@/lib/domain/referentiel";
+import { libelleDomaine } from "@/lib/domain/referentiel-compte";
 import type { Exercise, TypeExercice } from "@/lib/domain/types";
 import { EntetePage } from "@/components/layout/entete-page";
 import {
@@ -110,6 +110,7 @@ async function ContenuExercices({
                 skillsDisponibles={ctx.etats.map((e) => ({
                   code: e.skill.code,
                   intitule: e.skill.intitule,
+                  domaine: e.skill.domaine,
                 }))}
               />
             </div>
@@ -199,7 +200,7 @@ async function ContenuExercices({
                           {ex.origine === "manuel" && <Etiquette>Manuel</Etiquette>}
                         </div>
                         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.6875rem] text-texte-discret">
-                          <span>{libelleDomaine(ex.domaine)}</span>
+                          <span>{libelleDomaine(ctx.referentiel, ex.domaine)}</span>
                           <span>·</span>
                           <span>{TYPES.find((t) => t.cle === ex.type)?.libelle ?? ex.type}</span>
                           <span>·</span>

@@ -42,7 +42,7 @@ export default function TableauDeBord() {
 
 async function ContenuTableauDeBord() {
   const ctx = await chargerContexte();
-  const evenements = evenementsRecents(ctx.donnees.evidence, 6, ctx.now);
+  const evenements = evenementsRecents(ctx.donnees.evidence, ctx.referentiel.parCode, 6, ctx.now);
   const activite = calculerActivite(ctx.donnees.sessions, ctx.now);
   const aucunePreuve = ctx.global.nombrePreuves === 0;
 
@@ -65,7 +65,7 @@ async function ContenuTableauDeBord() {
 
       {/* Action prioritaire : seule et dominante, rien ne la concurrence. */}
       <div className="[&>*]:min-w-0">
-        <CarteProchaineAction recommandations={ctx.recommandations} />
+        <CarteProchaineAction recommandations={ctx.recommandations} referentiel={ctx.referentiel} />
       </div>
 
       {/*

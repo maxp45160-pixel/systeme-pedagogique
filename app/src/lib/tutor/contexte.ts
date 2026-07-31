@@ -11,9 +11,9 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { Contexte } from "@/lib/store/context";
-import { DOMAINES, DOMAINE_PILOTE } from "@/lib/domain/referentiel";
+import type { Referentiel } from "@/lib/domain/types";
 import { formatDateCourte } from "@/lib/engine/dates";
-import { MARQUEUR_EXERCICE, MARQUEUR_PREUVE } from "./proposition";
+import { MARQUEUR_EXERCICE, MARQUEUR_PREUVE, MARQUEUR_REFERENTIEL } from "./proposition";
 
 const RACINE_DATA = path.join(process.cwd(), "data");
 
@@ -118,6 +118,30 @@ function serialiserProfil(ctx: Contexte): string {
   lignes.push("# ÉTAT COURANT DU PROFIL (calculé à partir du journal de preuves)");
   lignes.push("");
   lignes.push(`Date : ${formatDateCourte(ctx.now.toISOString())}`);
+
+  // Compte neuf : il n'y a pas de profil à sérialiser, et un tableau vide se
+  // lirait comme « mesuré et trouvé nul ». On dit ce qui est, et on donne au
+  // tuteur sa tâche du moment — construire le référentiel avec l'utilisateur.
+  if (ctx.referentiel.skills.length === 0) {
+    lignes.push("");
+    lignes.push("## AUCUN RÉFÉRENTIEL");
+    lignes.push("");
+    lignes.push(
+      "Ce compte n'a encore aucun domaine ni aucune compétence : il n'y a rien à mesurer, et aucun niveau ne peut être discuté.",
+    );
+    lignes.push(
+      "Ta tâche est de construire ce référentiel AVEC l'utilisateur, pas de le deviner. Interroge-le d'abord sur ce qu'il veut savoir faire et dans quel but ; propose ensuite une première branche par un bloc PROPOSITION DE RÉFÉRENTIEL.",
+    );
+    lignes.push(
+      "Ne propose ni preuve ni exercice tant qu'aucune compétence n'existe : ils n'auraient rien à quoi se rattacher.",
+    );
+    lignes.push("");
+    lignes.push(`Formation déclarée : ${ctx.donnees.user.formation}`);
+    lignes.push(`Objectif à moyen terme : ${ctx.donnees.user.objectifMoyenTerme}`);
+    lignes.push(`Objectif à long terme : ${ctx.donnees.user.objectifLongTerme}`);
+    return lignes.join("\n");
+  }
+
   lignes.push(
     `Progression globale : ${
       ctx.global.scoreGlobal === null ? "non calculable (aucune preuve)" : `${ctx.global.scoreGlobal}/100`
@@ -127,7 +151,7 @@ function serialiserProfil(ctx: Contexte): string {
     `Couverture : ${ctx.global.competencesEvaluees}/${ctx.global.competencesTotal} compétences évaluées · ${ctx.global.nombrePreuves} preuve(s) directe(s)`,
   );
   lignes.push(
-    "Périmètre de travail : seules les compétences listées ci-dessous sont suivies. N'en propose aucune autre — un code hors de cette liste sera rejeté.",
+    "Périmètre de travail : seules les compétences listées ci-dessous sont suivies. N'emploie aucun autre code dans une proposition de preuve ou d'exercice — il serait rejeté. Pour en ajouter une, passe par un bloc PROPOSITION DE RÉFÉRENTIEL, que l'utilisateur validera.",
   );
   lignes.push("");
 
@@ -139,8 +163,8 @@ function serialiserProfil(ctx: Contexte): string {
   }
 
   // Les étiquettes de colonne sont données UNE fois plutôt que répétées sur
-  // chacune des 43 lignes : même information, ~4 000 caractères de moins dans
-  // le contexte envoyé au modèle.
+  // chaque ligne : même information, plusieurs milliers de caractères de moins
+  // dans le contexte envoyé au modèle.
   lignes.push(
     "Colonnes : code | niveau/5 | score/5 | confiance | robustesse | preuves/contextes | jours depuis la dernière preuve | intitulé",
   );
@@ -150,9 +174,11 @@ function serialiserProfil(ctx: Contexte): string {
   lignes.push("« ⚠n » = n preuve(s) contradictoire(s) conservée(s) : confiance réduite, niveau maintenu.");
   lignes.push("");
 
-  // Seuls les domaines du périmètre actif (ADR-018) : un en-tête suivi de rien
-  // laisserait croire que le domaine a été mesuré et trouvé vide.
-  const domainesActifs = DOMAINES.filter((d) => ctx.etats.some((e) => e.skill.domaine === d.id));
+  // Seuls les domaines du périmètre actif : un en-tête suivi de rien laisserait
+  // croire que le domaine a été mesuré et trouvé vide.
+  const domainesActifs = ctx.referentiel.domaines.filter((d) =>
+    ctx.etats.some((e) => e.skill.domaine === d.id),
+  );
   for (const domaine of domainesActifs) {
     const etats = ctx.etats.filter((e) => e.skill.domaine === domaine.id);
     lignes.push(`## ${domaine.nom.toUpperCase()}`);
@@ -216,10 +242,26 @@ function serialiserRecommandations(ctx: Contexte): string {
   return lignes.join("\n");
 }
 
-/** Consignes propres à l'usage dans cette application. */
-const CONSIGNES_INTERFACE = `# CADRE D'INTERVENTION DANS CETTE INTERFACE
+/**
+ * Consignes propres à l'usage dans cette application.
+ *
+ * Devenue une fonction du référentiel avec ADR-026 : le gabarit d'exercice
+ * nommait le domaine pilote global, qui n'existe plus. Elle reste **stable pour
+ * un compte donné** tant que son référentiel ne change pas — c'est ce qui
+ * permet de la garder dans le bloc système mis en cache.
+ */
+function consignesInterface(referentiel: Referentiel): string {
+  const domaines = referentiel.domaines.filter((d) =>
+    referentiel.actifs.some((s) => s.domaine === d.id),
+  );
+  const listeDomaines =
+    domaines.length === 0
+      ? "<aucun domaine — commence par une PROPOSITION DE RÉFÉRENTIEL>"
+      : domaines.map((d) => d.id).join(" | ");
 
-Tu interviens depuis l'application de suivi. Trois règles s'ajoutent aux protocoles ci-dessus :
+  return `# CADRE D'INTERVENTION DANS CETTE INTERFACE
+
+Tu interviens depuis l'application de suivi. Quatre règles s'ajoutent aux protocoles ci-dessus :
 
 1. TU NE PEUX PAS ÉCRIRE DANS LE PROFIL.
    Tu ne disposes d'aucun accès en écriture. Si une interaction constitue une
@@ -242,7 +284,7 @@ Tu interviens depuis l'application de suivi. Trois règles s'ajoutent aux protoc
 
    ${MARQUEUR_EXERCICE}
    Titre : <titre court et explicite>
-   Domaine : ${DOMAINE_PILOTE}
+   Domaine : <${listeDomaines}>
    Type : <rappel|application|calcul|probleme|etude-de-cas|programmation|simulation|projet>
    Difficulté : <1 à 5>
    Compétences : <codes séparés par des virgules ; la première est la cible>
@@ -262,15 +304,55 @@ Tu interviens depuis l'application de suivi. Trois règles s'ajoutent aux protoc
    L'énoncé et la correction se terminent à l'étiquette suivante. Si tu veux
    commenter après le bloc, sépare-le par une ligne « --- ».
 
-3. TU NE DISPOSES QUE DU CONTEXTE FOURNI CI-DESSOUS.
+3. TU NE PEUX PAS MODIFIER LE RÉFÉRENTIEL — MAIS TU PEUX EN PROPOSER L'EXTENSION.
+   Le référentiel appartient au compte : il n'y a pas de liste universelle de
+   compétences. Quand l'utilisateur veut travailler un sujet qui n'y figure pas,
+   ou quand ce qu'il fait révèle un savoir-faire qu'aucune compétence ne couvre,
+   propose une branche ou des compétences dans ce bloc exact.
+
+   ${MARQUEUR_REFERENTIEL}
+   Domaine : <nom d'un domaine existant, ou d'une nouvelle branche>
+   Préfixe : <2 à 5 lettres majuscules — ignoré si le domaine existe déjà>
+   Description : <une phrase : ce que cette branche couvre>
+   Compétence : <palier> | <importance de 0 à 1> | <intitulé>
+   Justification : <sur quoi tu t'appuies — ce que l'utilisateur a dit ou fait>
+
+   Les paliers valides sont : fondamentaux, intermediaire, avance. Répète
+   « Compétence : » autant de fois que nécessaire, du plus fondamental au plus
+   avancé. Termine le bloc par une ligne « --- ».
+
+   N'ÉCRIS AUCUN CODE DE COMPÉTENCE dans ce bloc : c'est l'application qui les
+   attribue à partir du préfixe. Un code que tu inventerais entrerait en
+   collision avec un code existant, et les preuves suivraient le mauvais.
+
+   Chaque compétence proposée doit être MESURABLE PAR L'APPAREIL QUI EXISTE.
+   Un intitulé qui ne l'est pas produit une ligne que rien ne pourra jamais
+   remplir — c'est le défaut que ce système est fait pour éviter :
+     a. un savoir-faire OBSERVABLE, pas un sujet : « sait reconstruire un
+        argument sous forme canonique », jamais « l'histoire de la philosophie » ;
+     b. notable sur au moins une des cinq dimensions du protocole d'évaluation
+        §3 (comprehension, application, transfert, integration, justification) ;
+     c. testable dans au moins deux contextes distincts, sans quoi la
+        robustesse ne pourra jamais monter (§11) ;
+     d. exerçable par au moins un des types disponibles (rappel, application,
+        calcul, probleme, etude-de-cas, programmation, simulation, projet) ;
+     e. prouvable par un exercice de 20 à 60 minutes — plus large, découpe ;
+        plus étroit, fusionne.
+
+   L'importance se déclare par rapport à l'objectif du compte, pas dans
+   l'absolu. Si aucun objectif n'est renseigné, demande-le avant de proposer
+   des importances plutôt que de les supposer.
+
+4. TU NE DISPOSES QUE DU CONTEXTE FOURNI CI-DESSOUS.
    Tu n'as aucune mémoire des échanges précédents en dehors de la conversation
    en cours et de l'état du profil transmis. Ne prétends pas te souvenir d'une
    séance qui n'apparaît pas dans le travail récent.
 
-4. RESTE CONCIS SAUF DEMANDE CONTRAIRE.
+5. RESTE CONCIS SAUF DEMANDE CONTRAIRE.
    L'utilisateur vient travailler, pas lire des synthèses. Pas d'introduction,
    pas de récapitulatif du profil non demandé, pas de félicitations
    automatiques. Réponds à la demande, questionne, corrige, propose la suite.`;
+}
 
 export async function construireContexte(
   ctx: Contexte,
@@ -287,10 +369,11 @@ export async function construireContexte(
     }
   }
 
-  blocsStables.push(CONSIGNES_INTERFACE);
+  const consignes = consignesInterface(ctx.referentiel);
+  blocsStables.push(consignes);
   manifeste.push({
     nom: "Cadre d'intervention dans l'interface",
-    caracteres: CONSIGNES_INTERFACE.length,
+    caracteres: consignes.length,
     origine: "calcule",
   });
 

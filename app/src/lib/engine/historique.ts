@@ -9,13 +9,13 @@
  */
 
 import type {
+  Domaine,
   DomaineId,
   LearningSession,
   NiveauCompetence,
   Skill,
   SkillEvidence,
 } from "@/lib/domain/types";
-import { SKILL_PAR_CODE } from "@/lib/domain/referentiel";
 import { JOUR_MS } from "./dates";
 import { computeSkillState } from "./skill-state";
 import { calculerEtatGlobal } from "./progression";
@@ -48,6 +48,7 @@ export interface EvenementProgression {
  */
 export function evenementsRecents(
   preuves: SkillEvidence[],
+  skillsParCode: Map<string, Skill>,
   limite = 8,
   now: Date = new Date(),
 ): EvenementProgression[] {
@@ -81,9 +82,15 @@ export function evenementsRecents(
 
   for (let i = triees.length - 1; i >= 0 && evenements.length < limite; i--) {
     const preuve = triees[i];
-    const skill = SKILL_PAR_CODE.get(preuve.skillCode);
-    // Preuve hors référentiel : ignorée sans consommer de place dans la liste,
-    // comme lorsque le filtrage précédait le `slice(0, limite)`.
+    // `skillsParCode` doit couvrir TOUT le référentiel du compte, archivées
+    // comprises — c'est `Referentiel.parCode`, pas `actifs`. Une compétence
+    // sortie du périmètre garde ses preuves, et son historique doit rester
+    // lisible (P4).
+    const skill = skillsParCode.get(preuve.skillCode);
+    // Preuve hors référentiel : ignorée sans consommer de place dans la liste.
+    // Depuis ADR-027 la clé étrangère `evidence_competence_fk` rend ce cas
+    // impossible en base ; le garde reste pour les journaux importés et les
+    // tests.
     if (!skill) continue;
 
     const historique = parCode.get(preuve.skillCode)!;
@@ -133,6 +140,7 @@ export function photographies(
   jours: number,
   pas = 14,
   now: Date = new Date(),
+  domaines: Domaine[] = [],
 ): Photographie[] {
   const triees = [...preuves].sort((a, b) => a.date.localeCompare(b.date));
   const sorties: Photographie[] = [];
@@ -141,7 +149,7 @@ export function photographies(
     const instant = new Date(now.getTime() - d * JOUR_MS);
     const jusque = triees.filter((e) => new Date(e.date) <= instant);
     const etats = skills.map((s) => computeSkillState(s, jusque, instant));
-    const global = calculerEtatGlobal(etats, instant);
+    const global = calculerEtatGlobal(etats, instant, domaines);
 
     sorties.push({
       date: instant.toISOString(),
@@ -155,7 +163,7 @@ export function photographies(
   // Toujours terminer sur l'instant présent.
   if (sorties.at(-1) && joursDepuis(sorties.at(-1)!.date, now) > 0) {
     const etats = skills.map((s) => computeSkillState(s, triees, now));
-    const global = calculerEtatGlobal(etats, now);
+    const global = calculerEtatGlobal(etats, now, domaines);
     sorties.push({
       date: now.toISOString(),
       scoreGlobal: global.scoreGlobal,

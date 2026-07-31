@@ -103,7 +103,69 @@ REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM PUBLIC, anon, authentic
 REVOKE EXECUTE ON FUNCTION public.touch_updated_at() FROM PUBLIC, anon, authenticated;
 
 -- --------------------------------------------------------------------
--- 2. Preuves de compétence (SkillEvidence) — journal append-only
+-- 2. Référentiel de compétences — UNE ARBORESCENCE PAR COMPTE (ADR-026)
+--
+-- Jusqu'au 31/07/2026 le référentiel était un fichier TypeScript compilé
+-- (`src/lib/domain/referentiel.ts`, 53 compétences / 8 domaines centrés
+-- BUT QLIO → Master ITI) et `DOMAINE_PILOTE` en fixait le périmètre actif
+-- pour TOUS les comptes à la fois. Étendre le référentiel était un commit.
+--
+-- Il est désormais une donnée par compte, créée et étendue par le tuteur
+-- sous validation humaine : un compte de philosophie construit son propre
+-- arbre sans qu'une ligne de code soit écrite pour lui.
+--
+-- Deux règles portées par le schéma plutôt que par l'application :
+--   * le `code` est IMMUABLE — c'est la clé étrangère des preuves ;
+--   * un domaine qui porte encore des compétences ne peut pas être effacé
+--     (ON DELETE RESTRICT) : la cascade se décide, elle ne s'improvise pas.
+-- --------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS public.domaines (
+  user_id      UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  id           TEXT NOT NULL,                  -- slug, ex. « philosophie-morale »
+  nom          TEXT NOT NULL,
+  prefixe      TEXT NOT NULL,                  -- « PHI » → codes PHI-01, PHI-02…
+  description  TEXT NOT NULL DEFAULT '',
+  ordre        INTEGER NOT NULL DEFAULT 0,
+  archive      BOOLEAN NOT NULL DEFAULT false,
+  origine      TEXT NOT NULL DEFAULT 'utilisateur',  -- utilisateur | tuteur | migration
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, id),
+  -- Le préfixe engendre les codes : deux domaines qui le partagent
+  -- produiraient des collisions silencieuses.
+  UNIQUE (user_id, prefixe)
+);
+
+CREATE TABLE IF NOT EXISTS public.competences (
+  user_id             UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  code                TEXT NOT NULL,           -- « PHI-01 » — attribué par l'app, jamais par le tuteur
+  -- Nommée `domaine` et non `domaine_id` : `ligneVersEntite` convertit sans
+  -- table d'exceptions (`supabase-backend.ts`), et le champ du domaine
+  -- s'appelle `Skill.domaine`. Un suffixe ici imposerait une exception.
+  domaine             TEXT NOT NULL,
+  intitule            TEXT NOT NULL,
+  palier              TEXT NOT NULL DEFAULT 'fondamentaux'
+                      CHECK (palier IN ('fondamentaux', 'intermediaire', 'avance')),
+  prerequis           TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+  importance          REAL NOT NULL DEFAULT 0.5 CHECK (importance >= 0 AND importance <= 1),
+  ordre               INTEGER NOT NULL DEFAULT 0,
+  -- Périmètre de travail, par compte : traduction d'ADR-020, dont le
+  -- `DOMAINE_PILOTE` global disparaît. Une compétence hors périmètre n'est
+  -- ni calculée ni affichée ; ses preuves restent intactes.
+  active              BOOLEAN NOT NULL DEFAULT true,
+  -- Archivée = retirée du référentiel de travail SANS perdre ses preuves.
+  -- C'est le seul retrait possible dès qu'une preuve existe (P4, ADR-027).
+  archive             BOOLEAN NOT NULL DEFAULT false,
+  hypothese_initiale  JSONB,
+  origine             TEXT NOT NULL DEFAULT 'utilisateur',
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, code),
+  FOREIGN KEY (user_id, domaine)
+    REFERENCES public.domaines(user_id, id) ON DELETE RESTRICT
+);
+
+-- --------------------------------------------------------------------
+-- 3. Preuves de compétence (SkillEvidence) — journal append-only
 -- --------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS public.evidence (
@@ -125,8 +187,48 @@ CREATE TABLE IF NOT EXISTS public.evidence (
   PRIMARY KEY (user_id, id)
 );
 
+-- Une preuve n'est jamais orpheline (ADR-027).
+--
+-- Avant ADR-026 le lien preuve → compétence n'était qu'une chaîne libre, et
+-- `lib/engine/historique.ts` faisait `if (!skill) continue` : une preuve dont
+-- le code avait disparu du référentiel s'effaçait de l'historique EN SILENCE.
+-- La contrainte déplace cette garantie dans la base, qui seule peut l'appliquer
+-- à des codes produits par l'utilisateur.
+--
+-- Posée sous condition : sur une base antérieure à la migration du référentiel,
+-- les preuves existent avant les compétences. On refuse alors de la créer
+-- plutôt que de faire échouer tout le fichier — le schéma reste réexécutable.
+DO $$
+DECLARE
+  orphelines INTEGER;
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'evidence_competence_fk'
+  ) THEN
+    RETURN;
+  END IF;
+
+  SELECT COUNT(*) INTO orphelines
+  FROM public.evidence e
+  LEFT JOIN public.competences c
+    ON c.user_id = e.user_id AND c.code = e.skill_code
+  WHERE c.code IS NULL;
+
+  IF orphelines = 0 THEN
+    ALTER TABLE public.evidence
+      ADD CONSTRAINT evidence_competence_fk
+      FOREIGN KEY (user_id, skill_code)
+      REFERENCES public.competences(user_id, code);
+  ELSE
+    RAISE NOTICE
+      'evidence_competence_fk NON posée : % preuve(s) sans compétence correspondante. Appliquer la migration du référentiel, puis réexécuter ce fichier.',
+      orphelines;
+  END IF;
+END;
+$$;
+
 -- --------------------------------------------------------------------
--- 3. Exercices créés par l'utilisateur ou le tuteur
+-- 4. Exercices créés par l'utilisateur ou le tuteur
 --    (les exercices de diagnostic sont livrés avec le logiciel, pas stockés)
 -- --------------------------------------------------------------------
 
@@ -151,7 +253,7 @@ CREATE TABLE IF NOT EXISTS public.exercises (
 );
 
 -- --------------------------------------------------------------------
--- 4. Tentatives (ExerciseAttempt)
+-- 5. Tentatives (ExerciseAttempt)
 -- --------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS public.attempts (
@@ -172,7 +274,7 @@ CREATE TABLE IF NOT EXISTS public.attempts (
 );
 
 -- --------------------------------------------------------------------
--- 5. Entités supprimées le 28/07/2026 (ADR-014)
+-- 6. Entités supprimées le 28/07/2026 (ADR-014)
 --
 -- `errors`, `projects`, `readings`, `knowledge` et `objectives` comptaient
 -- **zéro ligne** en production le jour de leur suppression, et pour trois
@@ -191,7 +293,7 @@ DROP TABLE IF EXISTS public.knowledge;
 DROP TABLE IF EXISTS public.objectives;
 
 -- --------------------------------------------------------------------
--- 6. Séances (LearningSession)
+-- 7. Séances (LearningSession)
 -- --------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS public.sessions (
@@ -213,7 +315,11 @@ CREATE TABLE IF NOT EXISTS public.sessions (
 );
 
 -- --------------------------------------------------------------------
--- 7. RLS + index, appliqués uniformément aux tables de données
+-- 8. RLS + index, appliqués uniformément aux tables de données
+--
+-- `domaines` et `competences` entrent dans la même boucle que les autres :
+-- le référentiel est une donnée personnelle comme les preuves, pas une
+-- table de référence partagée.
 -- --------------------------------------------------------------------
 
 DO $$
@@ -221,7 +327,7 @@ DECLARE
   t TEXT;
 BEGIN
   FOREACH t IN ARRAY ARRAY[
-    'evidence', 'exercises', 'attempts', 'sessions'
+    'domaines', 'competences', 'evidence', 'exercises', 'attempts', 'sessions'
   ]
   LOOP
     EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
@@ -248,8 +354,13 @@ CREATE INDEX IF NOT EXISTS evidence_user_skill_idx
 CREATE INDEX IF NOT EXISTS attempts_user_exercise_idx
   ON public.attempts (user_id, exercise_id);
 
+-- Le référentiel se lit toujours groupé par domaine (affichage, agrégats,
+-- sérialisation pour le tuteur).
+CREATE INDEX IF NOT EXISTS competences_user_domaine_idx
+  ON public.competences (user_id, domaine);
+
 -- --------------------------------------------------------------------
--- 8. TODOs de développement — table *partagée*
+-- 9. TODOs de développement — table *partagée*
 --
 -- Exception délibérée à l'isolation par compte : c'est le tableau de bord
 -- de l'équipe qui construit l'outil, pas une donnée pédagogique. Tout compte

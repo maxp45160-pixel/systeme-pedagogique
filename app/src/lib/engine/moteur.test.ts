@@ -11,12 +11,12 @@ import {
 } from "./historique";
 import { autonomieDepuisIndices, qualiteDepuisNature } from "./preuve";
 import {
-  DOMAINE_PILOTE,
-  ORDRE_DIAGNOSTIC,
-  SKILLS,
-  SKILLS_ACTIFS,
-  SKILL_PAR_CODE,
-} from "@/lib/domain/referentiel";
+  DOMAINES_TEST,
+  REFERENTIEL_TEST,
+  SKILLS_TEST,
+  referentielDe,
+  skillDeTest,
+} from "@/lib/domain/referentiel.fixture";
 import type {
   Autonomie,
   Dimension,
@@ -66,6 +66,11 @@ function preuve(options: {
     source: { kind: "exercice", ref: "ex-test" },
   };
 }
+
+const SKILLS = SKILLS_TEST;
+const SKILLS_ACTIFS = REFERENTIEL_TEST.actifs;
+const SKILL_PAR_CODE = REFERENTIEL_TEST.parCode;
+const DOMAINE_PILOTE = "developpement";
 
 const STAT01 = SKILL_PAR_CODE.get("STAT-01")!;
 
@@ -242,19 +247,40 @@ describe("autonomie observée — protocole d'évaluation §5", () => {
   });
 });
 
-describe("périmètre actif — ADR-018", () => {
-  it("ne retient que les compétences du domaine pilote, sans toucher au référentiel", () => {
+describe("périmètre actif — par compte depuis ADR-026", () => {
+  it("ne retient que les compétences actives, sans toucher au référentiel", () => {
     expect(SKILLS_ACTIFS.length).toBeGreaterThan(0);
-    expect(SKILLS_ACTIFS.every((s) => s.domaine === DOMAINE_PILOTE)).toBe(true);
+    expect(SKILLS_ACTIFS.every((s) => s.active && !s.archive)).toBe(true);
     // Le référentiel complet reste intact : les compétences hors périmètre sont
     // écartées du calcul, pas supprimées.
     expect(SKILLS.length).toBeGreaterThan(SKILLS_ACTIFS.length);
     expect(SKILLS_ACTIFS.every((s) => SKILL_PAR_CODE.has(s.code))).toBe(true);
   });
 
+  it("`parCode` couvre aussi les compétences hors périmètre — sinon leurs preuves perdraient leur intitulé", () => {
+    // La garantie que porte `historique.ts` : une preuve ancienne sur une
+    // compétence désactivée doit rester lisible (P4).
+    expect(SKILL_PAR_CODE.has("STAT-01")).toBe(true);
+    expect(REFERENTIEL_TEST.codesActifs.has("STAT-01")).toBe(false);
+  });
+
+  it("une compétence archivée sort du périmètre même si elle est active", () => {
+    // Les deux drapeaux sont indépendants : `archive` prime, parce qu'il acte
+    // qu'une compétence porte des preuves et ne peut plus être supprimée.
+    const r = referentielDe([
+      skillDeTest("DEV-01", "developpement", "fondamentaux", 1, 0, [], {
+        active: true,
+        archive: true,
+      }),
+    ]);
+    expect(r.skills).toHaveLength(1);
+    expect(r.actifs).toHaveLength(0);
+    expect(r.parCode.has("DEV-01")).toBe(true);
+  });
+
   it("n'agrège aucun domaine hors périmètre — un domaine absent n'est pas un domaine à zéro", () => {
     const etats = computeAllSkillStates(SKILLS_ACTIFS, [], MAINTENANT);
-    const global = calculerEtatGlobal(etats, MAINTENANT);
+    const global = calculerEtatGlobal(etats, MAINTENANT, DOMAINES_TEST);
     expect(global.parDomaine).toHaveLength(1);
     expect(global.parDomaine[0].domaine).toBe(DOMAINE_PILOTE);
     // Et sans preuve, toujours pas de zéro fabriqué.
@@ -264,7 +290,7 @@ describe("périmètre actif — ADR-018", () => {
   it("une preuve hors périmètre n'entre dans aucun agrégat", () => {
     const horsPerimetre = [preuve({ skill: "STAT-01", jours: 1 })];
     const etats = computeAllSkillStates(SKILLS_ACTIFS, horsPerimetre, MAINTENANT);
-    const global = calculerEtatGlobal(etats, MAINTENANT);
+    const global = calculerEtatGlobal(etats, MAINTENANT, DOMAINES_TEST);
     expect(global.nombrePreuves).toBe(0);
     expect(global.scoreGlobal).toBeNull();
   });
@@ -337,31 +363,44 @@ describe("evenementsRecents — équivalence avec le rejeu naïf", () => {
 
   for (const limite of [1, 3, 8, 200]) {
     it(`rend exactement la liste du rejeu naïf (limite = ${limite})`, () => {
-      expect(evenementsRecents(jeu, limite, MAINTENANT)).toEqual(
+      expect(evenementsRecents(jeu, SKILL_PAR_CODE, limite, MAINTENANT)).toEqual(
         evenementsRecentsNaif(jeu, limite, MAINTENANT),
       );
     });
   }
 
   it("une limite supérieure au nombre de preuves rend tout le journal recevable", () => {
-    const tous = evenementsRecents(jeu, 10_000, MAINTENANT);
+    const tous = evenementsRecents(jeu, SKILL_PAR_CODE, 10_000, MAINTENANT);
     // Toutes les preuves sauf celle dont le code n'existe pas au référentiel.
     expect(tous).toHaveLength(jeu.length - 1);
   });
 
   it("un code hors référentiel n'occupe pas de place dans la liste", () => {
-    expect(evenementsRecents(jeu, 200, MAINTENANT).some((e) => e.skillCode === "CODE-INEXISTANT"))
-      .toBe(false);
+    expect(
+      evenementsRecents(jeu, SKILL_PAR_CODE, 200, MAINTENANT).some(
+        (e) => e.skillCode === "CODE-INEXISTANT",
+      ),
+    ).toBe(false);
+  });
+
+  it("une compétence hors périmètre garde son intitulé dans l'historique", () => {
+    // `parCode` et non `codesActifs` : c'est toute la raison pour laquelle
+    // `evenementsRecents` reçoit la carte complète (P4 — une faiblesse ne
+    // disparaît pas, et son historique reste lisible).
+    const evenements = evenementsRecents(jeu, SKILL_PAR_CODE, 200, MAINTENANT);
+    const horsPerimetre = evenements.find((e) => e.skillCode === "STAT-01");
+    expect(horsPerimetre).toBeDefined();
+    expect(horsPerimetre!.intitule).toBe(SKILL_PAR_CODE.get("STAT-01")!.intitule);
   });
 
   it("sort du plus récent au plus ancien", () => {
-    const dates = evenementsRecents(jeu, 200, MAINTENANT).map((e) => e.date);
+    const dates = evenementsRecents(jeu, SKILL_PAR_CODE, 200, MAINTENANT).map((e) => e.date);
     expect([...dates].sort((a, b) => b.localeCompare(a))).toEqual(dates);
   });
 
   it("rend une liste vide sans preuve, et supporte une limite nulle", () => {
-    expect(evenementsRecents([], 8, MAINTENANT)).toEqual([]);
-    expect(evenementsRecents(jeu, 0, MAINTENANT)).toEqual([]);
+    expect(evenementsRecents([], SKILL_PAR_CODE, 8, MAINTENANT)).toEqual([]);
+    expect(evenementsRecents(jeu, SKILL_PAR_CODE, 0, MAINTENANT)).toEqual([]);
   });
 });
 
@@ -374,12 +413,13 @@ describe("photographies — même périmètre que l'état courant (ADR-020)", ()
 
   it("la dernière photographie coïncide avec l'état global courant", () => {
     // L'invariant qui était violé : `/progression` affichait `ctx.global.scoreGlobal`
-    // (calculé sur SKILLS_ACTIFS) et, dans le même bloc, un delta issu de
+    // (calculé sur le périmètre actif) et, dans le même bloc, un delta issu de
     // `photographies(SKILLS, …)` — deux dénominateurs différents.
-    const photos = photographies(SKILLS_ACTIFS, preuvesDev, 30, 3, MAINTENANT);
+    const photos = photographies(SKILLS_ACTIFS, preuvesDev, 30, 3, MAINTENANT, DOMAINES_TEST);
     const attendu = calculerEtatGlobal(
       computeAllSkillStates(SKILLS_ACTIFS, preuvesDev, MAINTENANT),
       MAINTENANT,
+      DOMAINES_TEST,
     );
 
     expect(photos.at(-1)!.scoreGlobal).toBe(attendu.scoreGlobal);
@@ -387,28 +427,65 @@ describe("photographies — même périmètre que l'état courant (ADR-020)", ()
     expect(photos.at(-1)!.nombrePreuves).toBe(preuvesDev.length);
   });
 
-  it("le référentiel passé change l'échelle du score — d'où l'obligation d'employer le périmètre actif", () => {
-    // Les compétences non mesurées comptent comme des zéros dans le score global
-    // (écart connu, ADR-006) : élargir le référentiel dilue mécaniquement le score.
-    const surActifs = photographies(SKILLS_ACTIFS, preuvesDev, 30, 3, MAINTENANT).at(-1)!;
-    const surTout = photographies(SKILLS, preuvesDev, 30, 3, MAINTENANT).at(-1)!;
+  it("élargir le référentiel ne change PAS le score — ADR-006", () => {
+    // Garantie inversée le 31/07/2026. Avant, ce test vérifiait le contraire :
+    // ajouter des compétences non mesurées faisait chuter le score, parce
+    // qu'elles entraient au dénominateur pour leur importance pleine et au
+    // numérateur pour rien. Le score était donc anti-corrélé à l'ambition.
+    //
+    // Depuis ADR-026 le référentiel est extensible par l'utilisateur : ce
+    // défaut aurait cessé d'être une verrue documentée pour devenir une
+    // incitation structurelle à ne pas étendre son référentiel.
+    const surActifs = photographies(
+      SKILLS_ACTIFS,
+      preuvesDev,
+      30,
+      3,
+      MAINTENANT,
+      DOMAINES_TEST,
+    ).at(-1)!;
+    const surTout = photographies(SKILLS, preuvesDev, 30, 3, MAINTENANT, DOMAINES_TEST).at(-1)!;
 
     expect(surActifs.scoreGlobal).not.toBeNull();
-    expect(surTout.scoreGlobal).not.toBeNull();
-    expect(surTout.scoreGlobal!).toBeLessThan(surActifs.scoreGlobal!);
+    expect(surTout.scoreGlobal).toBe(surActifs.scoreGlobal);
+
+    // Ce qui change, et qui doit changer : la couverture. C'est elle qui porte
+    // désormais l'information « il reste des compétences non mesurées ».
+    const globalActifs = calculerEtatGlobal(
+      computeAllSkillStates(SKILLS_ACTIFS, preuvesDev, MAINTENANT),
+      MAINTENANT,
+      DOMAINES_TEST,
+    );
+    const globalTout = calculerEtatGlobal(
+      computeAllSkillStates(SKILLS, preuvesDev, MAINTENANT),
+      MAINTENANT,
+      DOMAINES_TEST,
+    );
+    expect(globalTout.competencesEvaluees).toBe(globalActifs.competencesEvaluees);
+    expect(globalTout.competencesTotal).toBeGreaterThan(globalActifs.competencesTotal);
   });
 });
 
-describe("score global — protocole d'évaluation §12", () => {
+describe("score global — protocole d'évaluation §12 et ADR-006", () => {
   it("vaut null sans aucune preuve, jamais 0", () => {
     const etats = computeAllSkillStates(SKILLS, [], MAINTENANT);
-    const global = calculerEtatGlobal(etats, MAINTENANT);
+    const global = calculerEtatGlobal(etats, MAINTENANT, DOMAINES_TEST);
     expect(global.scoreGlobal).toBeNull();
     expect(global.niveauMoyen).toBeNull();
     expect(global.confiance).toBe("nulle");
   });
 
-  it("plafonne la confiance globale quand la couverture du référentiel est faible", () => {
+  it("vaut null sur un référentiel vide — un compte neuf n'a pas un score de 0", () => {
+    // Cas normal d'un compte qui n'a pas encore construit son référentiel
+    // (ADR-026), et non un cas dégradé.
+    const global = calculerEtatGlobal([], MAINTENANT, []);
+    expect(global.scoreGlobal).toBeNull();
+    expect(global.niveauMoyen).toBeNull();
+    expect(global.competencesTotal).toBe(0);
+    expect(global.parDomaine).toEqual([]);
+  });
+
+  it("une couverture faible plafonne la confiance sans écraser le score", () => {
     const preuves = [
       preuve({ skill: "STAT-01", jours: 30, contexte: "A" }),
       preuve({ skill: "STAT-01", jours: 20, contexte: "B" }),
@@ -416,12 +493,46 @@ describe("score global — protocole d'évaluation §12", () => {
       preuve({ skill: "STAT-01", jours: 2, contexte: "D" }),
     ];
     const etats = computeAllSkillStates(SKILLS, preuves, MAINTENANT);
-    const global = calculerEtatGlobal(etats, MAINTENANT);
+    const global = calculerEtatGlobal(etats, MAINTENANT, DOMAINES_TEST);
 
+    // Le doute sur une couverture partielle s'exprime par la confiance et par
+    // la couverture, PAS en abaissant le niveau mesuré (ADR-006, P2).
     expect(global.confiance).toBe("faible");
     expect(global.reserves.join(" ")).toContain("plafonnée");
-    // Une compétence maîtrisée sur l'ensemble du référentiel ne peut pas produire un score élevé.
-    expect(global.scoreGlobal!).toBeLessThan(10);
+    expect(global.competencesEvaluees).toBe(1);
+    expect(global.competencesTotal).toBe(SKILLS.length);
+
+    // Une compétence réellement maîtrisée produit un score élevé : c'est ce que
+    // la mesure dit. Les six compétences jamais testées ne le contredisent pas,
+    // elles ne disent simplement rien.
+    expect(global.scoreGlobal!).toBeGreaterThan(30);
+    // Et la réserve doit annoncer la portée du nombre affiché (P3).
+    expect(global.reserves.join(" ")).toContain("compétence(s) mesurée(s)");
+  });
+
+  it("ajouter une compétence non mesurée ne déplace pas le score", () => {
+    const preuves = [
+      preuve({ skill: "DEV-01", jours: 20, contexte: "A" }),
+      preuve({ skill: "DEV-01", jours: 5, contexte: "B" }),
+    ];
+    const avant = calculerEtatGlobal(
+      computeAllSkillStates([SKILLS[0]], preuves, MAINTENANT),
+      MAINTENANT,
+      DOMAINES_TEST,
+    );
+    const apres = calculerEtatGlobal(
+      computeAllSkillStates(
+        [SKILLS[0], skillDeTest("DEV-99", "developpement", "avance", 1, 99)],
+        preuves,
+        MAINTENANT,
+      ),
+      MAINTENANT,
+      DOMAINES_TEST,
+    );
+
+    expect(apres.scoreGlobal).toBe(avant.scoreGlobal);
+    expect(apres.competencesTotal).toBe(avant.competencesTotal + 1);
+    expect(apres.competencesEvaluees).toBe(avant.competencesEvaluees);
   });
 
   it("le score n'excède jamais 5 et reste à une décimale", () => {
@@ -442,11 +553,31 @@ describe("score global — protocole d'évaluation §12", () => {
  */
 
 describe("recommandation — protocole d'évaluation §16", () => {
-  it("au jour 0, recommande le premier diagnostic du plan d'évaluation initiale", () => {
+  it("au jour 0, commence par les fondamentaux — ordre dérivé, plus aucune liste en dur", () => {
+    // Jusqu'au 31/07/2026 cet ordre venait d'`ORDRE_DIAGNOSTIC`, onze codes
+    // écrits à la main. Un référentiel construit par l'utilisateur (ADR-026)
+    // ne peut pas porter de liste écrite d'avance : le rang se dérive du
+    // palier, puis du rang déclaré dans le domaine.
     const etats = computeAllSkillStates(SKILLS, [], MAINTENANT);
-    const [premiere] = recommander(etats, [], []);
-    expect(premiere.etat.skill.code).toBe(ORDRE_DIAGNOSTIC[0]);
-    expect(premiere.raison).toContain("plan d'évaluation initiale");
+    const classement = recommander(etats, [], [], 10);
+
+    expect(classement[0].etat.skill.palier).toBe("fondamentaux");
+    expect(classement[0].raison).toContain("fondamentaux");
+
+    // Aucun palier avancé ne peut précéder un fondamental jamais évalué.
+    const rangDuPremierIntermediaire = classement.findIndex(
+      (r) => r.etat.skill.palier !== "fondamentaux",
+    );
+    const fondamentaux = classement.filter((r) => r.etat.skill.palier === "fondamentaux").length;
+    expect(rangDuPremierIntermediaire).toBe(fondamentaux);
+  });
+
+  it("à palier égal, le rang déclaré départage — et il est stable", () => {
+    const etats = computeAllSkillStates(SKILLS, [], MAINTENANT);
+    const codes = recommander(etats, [], [], 10)
+      .filter((r) => r.etat.skill.palier === "fondamentaux" && r.etat.skill.domaine === "developpement")
+      .map((r) => r.etat.skill.code);
+    expect(codes).toEqual(["DEV-01", "DEV-02", "DEV-03"]);
   });
 
   it("la raison affichée est construite depuis des facteurs réels et non vide", () => {

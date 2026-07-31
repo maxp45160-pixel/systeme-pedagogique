@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
       {
         erreur: bucketAbsent ? "bucket-absent" : "supabase",
         message: bucketAbsent
-          ? "Le bucket `dev-todos` n'existe pas encore : applique `app/supabase/schema.sql` (§ 12) dans Supabase Studio."
+          ? "Le bucket `dev-todos` n'existe pas encore : applique `app/supabase/schema.sql` (§ 9) dans Supabase Studio."
           : error.message,
       },
       { status: bucketAbsent ? 503 : 500 },

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Recommandation } from "@/lib/engine/recommend";
-import { DIFFICULTES } from "@/lib/domain/types";
-import { libelleDomaine } from "@/lib/domain/referentiel";
+import { DIFFICULTES, type Referentiel } from "@/lib/domain/types";
+import { libelleDomaine } from "@/lib/domain/referentiel-compte";
 import {
   Carte,
   classesBouton,
@@ -22,8 +22,10 @@ import { formatDuree } from "@/lib/engine/dates";
  */
 export function CarteProchaineAction({
   recommandations,
+  referentiel,
 }: {
   recommandations: Recommandation[];
+  referentiel: Referentiel;
 }) {
   const [principale, ...alternatives] = recommandations;
   if (!principale) return null;
@@ -57,7 +59,7 @@ export function CarteProchaineAction({
           <Etiquette ton="primaire" mono>
             {etat.skill.code}
           </Etiquette>
-          <Etiquette>{libelleDomaine(etat.skill.domaine)}</Etiquette>
+          <Etiquette>{libelleDomaine(referentiel, etat.skill.domaine)}</Etiquette>
           <Etiquette className="chiffres">
             Difficulté {exercice?.difficulte ?? difficulteCible}/5 ·{" "}
             {DIFFICULTES[exercice?.difficulte ?? difficulteCible]}

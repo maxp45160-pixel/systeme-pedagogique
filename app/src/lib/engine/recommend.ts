@@ -17,13 +17,13 @@
  *   dominants, jamais d'un texte rédigé d'avance.
  */
 
-import type {
-  Difficulte,
-  Exercise,
-  ExerciseAttempt,
-  SkillState,
+import {
+  ORDRE_PALIERS,
+  type Difficulte,
+  type Exercise,
+  type ExerciseAttempt,
+  type SkillState,
 } from "@/lib/domain/types";
-import { ORDRE_DIAGNOSTIC } from "@/lib/domain/referentiel";
 
 export interface Facteur {
   libelle: string;
@@ -74,16 +74,24 @@ function evaluer(
   });
 
   // 2. Absence totale de preuve — le cas dominant au démarrage.
+  //
+  // Au jour 0 tous les autres facteurs sont nuls : il faut bien un ordre pour
+  // départager les compétences jamais testées. Jusqu'au 31/07/2026 c'était
+  // `ORDRE_DIAGNOSTIC`, une liste de onze codes en dur, seule trace vivante
+  // d'un plan d'évaluation supprimé le 27/07. Un référentiel construit par
+  // l'utilisateur (ADR-026) ne peut pas porter de liste écrite d'avance :
+  // l'ordre se **dérive** de ce que la compétence déclare — son palier d'abord,
+  // son rang dans le domaine ensuite. Les fondamentaux passent avant l'avancé,
+  // ce que le plan supprimé faisait déjà, mais sans avoir à le réécrire pour
+  // chaque nouveau domaine.
   if (etat.preuves.length === 0) {
-    const rangPlan = ORDRE_DIAGNOSTIC.indexOf(etat.skill.code);
-    const bonusPlan = rangPlan >= 0 ? 30 - rangPlan * 2 : 0;
+    const rangPalier = Math.max(0, ORDRE_PALIERS.indexOf(etat.skill.palier));
+    const bonusPalier = 30 - rangPalier * 10;
+    const bonusOrdre = Math.max(0, 10 - etat.skill.ordre);
     facteurs.push({
       libelle: "Jamais évaluée",
-      contribution: 30 + bonusPlan,
-      phrase:
-        rangPlan >= 0
-          ? `elle figure au rang ${rangPlan + 1} de ton plan d'évaluation initiale et n'a jamais été testée`
-          : "elle n'a jamais été évaluée par une preuve directe",
+      contribution: 30 + bonusPalier + bonusOrdre,
+      phrase: `elle n'a jamais été évaluée et relève des ${etat.skill.palier === "fondamentaux" ? "fondamentaux" : `acquis de palier « ${etat.skill.palier} »`}`,
     });
   } else {
     // 3. Écart au niveau suivant : plus le palier est proche, plus l'effort paye.
@@ -220,12 +228,15 @@ export function recommander(
     })
     .sort((a, b) => {
       if (b.valeur !== a.valeur) return b.valeur - a.valeur;
-      // Départage stable : ordre du plan d'évaluation, puis code.
-      const ra = ORDRE_DIAGNOSTIC.indexOf(a.etat.skill.code);
-      const rb = ORDRE_DIAGNOSTIC.indexOf(b.etat.skill.code);
-      const na = ra === -1 ? 999 : ra;
-      const nb = rb === -1 ? 999 : rb;
-      return na - nb || a.etat.skill.code.localeCompare(b.etat.skill.code);
+      // Départage stable, dérivé du référentiel du compte : palier, puis rang
+      // déclaré dans le domaine, puis code.
+      const pa = ORDRE_PALIERS.indexOf(a.etat.skill.palier);
+      const pb = ORDRE_PALIERS.indexOf(b.etat.skill.palier);
+      return (
+        pa - pb ||
+        a.etat.skill.ordre - b.etat.skill.ordre ||
+        a.etat.skill.code.localeCompare(b.etat.skill.code)
+      );
     })
     .slice(0, limite);
 }

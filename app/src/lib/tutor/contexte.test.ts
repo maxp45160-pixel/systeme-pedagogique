@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { construireContexte, fautChargerSyntheseEvaluation } from "./contexte";
 import { fenetrerHistorique, MAX_MESSAGES_FENETRE } from "./fenetre";
-import { SKILLS_ACTIFS } from "@/lib/domain/referentiel";
+import { DOMAINES_TEST, REFERENTIEL_TEST } from "@/lib/domain/referentiel.fixture";
+import { REFERENTIEL_VIDE } from "@/lib/domain/referentiel-compte";
 import { computeAllSkillStates } from "@/lib/engine/skill-state";
 import { calculerEtatGlobal } from "@/lib/engine/progression";
 import { recommander } from "@/lib/engine/recommend";
@@ -49,12 +50,13 @@ describe("fautChargerSyntheseEvaluation", () => {
   });
 });
 
-function construireCtxDeTest(): Contexte {
+function construireCtxDeTest(referentiel = REFERENTIEL_TEST): Contexte {
   const now = new Date("2026-07-29T10:00:00.000Z");
-  const etats = computeAllSkillStates(SKILLS_ACTIFS, [], now);
-  const global = calculerEtatGlobal(etats, now);
+  const etats = computeAllSkillStates(referentiel.actifs, [], now);
+  const global = calculerEtatGlobal(etats, now, DOMAINES_TEST);
   const recommandations = recommander(etats, [], [], 5);
   return {
+    referentiel,
     donnees: {
       user: {
         id: "test",
@@ -182,5 +184,46 @@ describe("fenetrerHistorique", () => {
       // format de conversation, contrairement à un assistant orphelin.
       expect(fenetre.filter((m, i) => m.role === "assistant" && i === 0)).toHaveLength(0);
     }
+  });
+});
+
+/*
+ * ADR-026 — le référentiel est propre au compte, et un compte neuf n'en a
+ * aucun. Le contexte doit alors dire ce qui est plutôt que de sérialiser un
+ * tableau vide : un en-tête de colonnes suivi de rien se lit comme « mesuré
+ * et trouvé nul », exactement ce que le protocole anti-hallucination interdit.
+ */
+describe("construireContexte — compte sans référentiel", () => {
+  it("annonce l'absence de référentiel au lieu d'un profil vide", async () => {
+    const { systemeProfil } = await construireContexte(construireCtxDeTest(REFERENTIEL_VIDE));
+
+    expect(systemeProfil).toContain("AUCUN RÉFÉRENTIEL");
+    // La consigne d'amorçage : construire AVEC l'utilisateur, pas deviner.
+    expect(systemeProfil).toContain("PROPOSITION DE RÉFÉRENTIEL");
+    // Aucun en-tête de colonnes : il n'y a pas de tableau à lire.
+    expect(systemeProfil).not.toContain("Colonnes :");
+  });
+
+  it("interdit les propositions de preuve et d'exercice tant qu'aucune compétence n'existe", async () => {
+    const { systemeProfil } = await construireContexte(construireCtxDeTest(REFERENTIEL_VIDE));
+    expect(systemeProfil).toContain("Ne propose ni preuve ni exercice");
+  });
+
+  it("transmet quand même les objectifs déclarés — ils fondent l'importance des compétences", async () => {
+    const { systemeProfil } = await construireContexte(construireCtxDeTest(REFERENTIEL_VIDE));
+    expect(systemeProfil).toContain("Master ITI");
+  });
+
+  it("le gabarit d'exercice n'invente aucun domaine quand il n'y en a pas", async () => {
+    const { systemeStable } = await construireContexte(construireCtxDeTest(REFERENTIEL_VIDE));
+    expect(systemeStable).toContain("aucun domaine");
+  });
+
+  it("avec un référentiel, le gabarit liste les domaines réellement actifs", async () => {
+    const { systemeStable } = await construireContexte(construireCtxDeTest());
+    expect(systemeStable).toContain("developpement");
+    // `statistiques` est hors périmètre dans la fixture : le tuteur ne doit pas
+    // se voir offrir un domaine qui n'est pas travaillé.
+    expect(systemeStable).not.toContain("<statistiques");
   });
 });

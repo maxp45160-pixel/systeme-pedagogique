@@ -89,22 +89,31 @@ export const LIBELLES_DIMENSIONS: Record<Dimension, string> = {
 /* Domaines                                                            */
 /* ------------------------------------------------------------------ */
 
-export type DomaineId =
-  | "developpement"
-  | "logistique"
-  | "production"
-  | "statistiques"
-  | "algorithmique"
-  | "recherche-operationnelle"
-  | "systemes-complexes"
-  | "technologies-innovantes";
+/**
+ * Identifiant de domaine — un slug propre au compte, ex. « philosophie-morale ».
+ *
+ * C'était une union de huit littéraux jusqu'au 31/07/2026, quand le référentiel
+ * était un fichier TypeScript compilé. Depuis ADR-026 il est construit par
+ * l'utilisateur à l'exécution : aucune union ne peut le vérifier à la
+ * compilation. Le garde-fou n'est pas retiré, il est **déplacé** vers la clé
+ * étrangère `competences.domaine_id → domaines.id` (`supabase/schema.sql` § 2),
+ * seul endroit capable de l'appliquer à des données produites par un compte.
+ */
+export type DomaineId = string;
+
+/** D'où vient une entrée du référentiel. Fait observé, jamais dérivé. */
+export type OrigineReferentiel = "utilisateur" | "tuteur" | "migration";
 
 export interface Domaine {
   id: DomaineId;
   nom: string;
-  /** Préfixe des codes compétence, ex. « LOG » pour LOG-01. */
+  /** Préfixe des codes compétence, ex. « LOG » pour LOG-01. Unique par compte. */
   prefixe: string;
   description: string;
+  /** Rang d'affichage déclaré, à défaut d'ordre naturel. */
+  ordre: number;
+  archive: boolean;
+  origine: OrigineReferentiel;
 }
 
 /* ------------------------------------------------------------------ */
@@ -127,24 +136,48 @@ export interface User {
   preferencesPedagogiques?: string[];
 }
 
+/** Position dans l'arbre de progression du domaine. */
+export type Palier = "fondamentaux" | "intermediaire" | "avance";
+
+/** Ordre de progression des paliers — sert à ordonner les diagnostics. */
+export const ORDRE_PALIERS: Palier[] = ["fondamentaux", "intermediaire", "avance"];
+
 /**
- * Une compétence du référentiel (`lib/domain/referentiel.ts`).
+ * Une compétence du référentiel du compte (tables `domaines` / `competences`).
  * Ne porte AUCUN état de progression : celui-ci est dérivé des preuves.
  */
 export interface Skill {
-  /** Code du référentiel, ex. « LOG-02 ». */
+  /**
+   * Code du référentiel, ex. « LOG-02 ». **Immuable** : c'est la clé étrangère
+   * des preuves. Attribué par l'application à partir du préfixe du domaine,
+   * jamais proposé par le tuteur.
+   */
   code: string;
   domaine: DomaineId;
   intitule: string;
-  /** Position dans l'arbre de progression du domaine. */
-  palier: "fondamentaux" | "intermediaire" | "avance";
+  palier: Palier;
   /** Codes des compétences prérequises (indicatif, jamais bloquant). */
   prerequis: string[];
   /**
-   * Importance pour l'objectif déclaré (BUT QLIO → Master ITI → recherche),
+   * Importance pour l'objectif déclaré du compte (`objectifMoyenTerme`),
    * de 0 à 1. Utilisée par le moteur de recommandation (§16).
    */
   importance: number;
+  /** Rang déclaré dans le domaine — départage les compétences d'un même palier. */
+  ordre: number;
+  /**
+   * Périmètre de travail du compte (ADR-026, remplace le `DOMAINE_PILOTE`
+   * global d'ADR-020). Hors périmètre : ni calculée, ni affichée, ni transmise
+   * au tuteur. Ses preuves restent intactes.
+   */
+  active: boolean;
+  /**
+   * Retirée du référentiel de travail **sans perdre ses preuves** (ADR-027).
+   * C'est le seul retrait possible dès qu'une preuve existe : une compétence
+   * sans preuve se supprime franchement.
+   */
+  archive: boolean;
+  origine: OrigineReferentiel;
   /**
    * Hypothèse de départ issue de la formation déclarée — preuve de niveau D.
    * N'autorise aucun niveau affiché : sert uniquement à ordonner les diagnostics.
@@ -153,6 +186,23 @@ export interface Skill {
     niveauSuppose: string;
     justification: string;
   };
+}
+
+/**
+ * Le référentiel d'un compte, tel que lu par `lib/store/referentiel.ts`.
+ *
+ * Les quatre dernières entrées sont **dérivées** de `domaines` et `skills` à
+ * chaque lecture, jamais stockées (P1).
+ */
+export interface Referentiel {
+  domaines: Domaine[];
+  skills: Skill[];
+  /** Le périmètre de travail : `active && !archive`. */
+  actifs: Skill[];
+  /** Toutes les compétences, archivées comprises — résout les preuves anciennes. */
+  parCode: Map<string, Skill>;
+  codesActifs: Set<string>;
+  domainesParId: Map<DomaineId, Domaine>;
 }
 
 /**
