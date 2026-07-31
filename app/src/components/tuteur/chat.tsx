@@ -2,7 +2,8 @@
 
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { classesBouton, cx, Etiquette } from "@/components/ui/primitives";
+import { classesBouton, CodeCompetence, cx, Etiquette } from "@/components/ui/primitives";
+import { Depliant } from "@/components/ui/explication";
 import { Markdown } from "@/components/ui/markdown";
 import { preparerPromptComplet } from "@/lib/tutor/actions";
 import type { SectionContexte } from "@/lib/tutor/contexte";
@@ -148,9 +149,7 @@ const MessageBulle = memo(function MessageBulle({
         >
           <div className="flex flex-wrap items-center gap-1.5">
             <Etiquette ton="info">Proposition</Etiquette>
-            <span className="font-mono text-[0.6875rem] font-medium">
-              {p.competence.toUpperCase()}
-            </span>
+            <CodeCompetence code={p.competence.toUpperCase()} />
             {p.niveauActuel && p.niveauPropose && (
               <span className="text-texte-attenue">
                 niveau {p.niveauActuel} → {p.niveauPropose}
@@ -180,9 +179,7 @@ const MessageBulle = memo(function MessageBulle({
           <div className="flex flex-wrap items-center gap-1.5">
             <Etiquette ton="primaire">Exercice proposé</Etiquette>
             {ex.competences.map((c) => (
-              <span key={c} className="font-mono text-[0.6875rem] font-medium">
-                {c}
-              </span>
+              <CodeCompetence key={c} code={c} />
             ))}
             {ex.difficulte && (
               <span className="text-texte-attenue">difficulté {ex.difficulte}/5</span>
@@ -499,8 +496,8 @@ export function ChatTuteur({
   const saisieInitiale = competenceCiblee ? `Donne-moi un exercice sur ${competenceCiblee}.` : "";
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
-      <div className="lg:col-span-2">
+    <div className="space-y-4 [&>*]:min-w-0">
+      <div>
         <div className="flex h-[min(70vh,620px)] flex-col rounded-carte border border-bordure bg-surface">
           {/* Conversation */}
           <div ref={zoneRef} className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
@@ -545,9 +542,25 @@ export function ChatTuteur({
         </div>
       </div>
 
-      {/* Contexte réellement transmis */}
-      <div className="space-y-4">
-        <div className="rounded-carte border border-bordure bg-surface">
+      {/*
+        Contexte réellement transmis.
+
+        Il occupait un tiers de la largeur en permanence, alors qu'on ne le
+        consulte qu'en cas de doute. Il passe au repos derrière un `<details>`
+        natif — donc consultable sans JavaScript, et sans qu'une seule ligne
+        d'information soit retirée : la traçabilité exigée par le protocole
+        (« aucune valeur sans source ») tient à ce que l'information soit
+        atteignable, pas à ce qu'elle soit dépliée.
+
+        L'encart « clé absente » reste, lui, hors du dépliant : il est
+        actionnable, le masquer transformerait une panne explicable en panne
+        muette.
+      */}
+      <Depliant
+        resume={`Contexte transmis — ${(etat.caracteresTotal / 1000).toFixed(1)} k caractères · ${etat.modele}`}
+      >
+        <div className="space-y-4">
+          <div className="rounded-carte border border-bordure bg-surface">
           <div className="border-b border-bordure px-4 py-3">
             <div className="flex items-center gap-2">
               {/* Le contexte est assemblé par le serveur : il est chargé dès le
@@ -596,35 +609,36 @@ export function ChatTuteur({
               </Etiquette>
             </div>
           </div>
-        </div>
-
-        {cleAbsente && (
-          <div className="rounded-carte border border-alerte/30 bg-alerte-faible px-4 py-3 text-xs">
-            <p className="font-medium text-alerte">Aucune clé API configurée</p>
-            <p className="mt-1 text-texte-attenue">
-              Le chat intégré est désactivé — il ne simulera pas de réponse. Deux options :
-            </p>
-            <ol className="mt-2 space-y-1 pl-4 text-texte-attenue">
-              <li className="list-decimal">
-                Utiliser <strong>« Copier le contexte »</strong> et coller le prompt dans Claude.
-              </li>
-              <li className="list-decimal">
-                Créer <code className="font-mono">app/.env.local</code> avec{" "}
-                <code className="font-mono">ANTHROPIC_API_KEY=…</code>, puis relancer le serveur.
-              </li>
-            </ol>
           </div>
-        )}
 
-        <div className="rounded-carte border border-bordure bg-surface px-4 py-3 text-xs text-texte-attenue">
-          <p className="font-medium text-texte">Ce que le tuteur ne peut pas faire</p>
-          <ul className="mt-1.5 space-y-1">
-            <li>· Écrire dans ton profil — il propose, tu valides.</li>
-            <li>· Se souvenir d&apos;une séance absente du contexte ci-dessus.</li>
-            <li>· Affirmer une maîtrise que les preuves ne soutiennent pas.</li>
-          </ul>
+          <div className="rounded-carte border border-bordure bg-surface px-4 py-3 text-xs text-texte-attenue">
+            <p className="font-medium text-texte">Ce que le tuteur ne peut pas faire</p>
+            <ul className="mt-1.5 space-y-1">
+              <li>· Écrire dans ton profil — il propose, tu valides.</li>
+              <li>· Se souvenir d&apos;une séance absente du contexte ci-dessus.</li>
+              <li>· Affirmer une maîtrise que les preuves ne soutiennent pas.</li>
+            </ul>
+          </div>
         </div>
-      </div>
+      </Depliant>
+
+      {cleAbsente && (
+        <div className="rounded-carte border border-alerte/30 bg-alerte-faible px-4 py-3 text-xs">
+          <p className="font-medium text-alerte">Aucune clé API configurée</p>
+          <p className="mt-1 text-texte-attenue">
+            Le chat intégré est désactivé — il ne simulera pas de réponse. Deux options :
+          </p>
+          <ol className="mt-2 space-y-1 pl-4 text-texte-attenue">
+            <li className="list-decimal">
+              Utiliser <strong>« Copier le contexte »</strong> et coller le prompt dans Claude.
+            </li>
+            <li className="list-decimal">
+              Créer <code className="font-mono">app/.env.local</code> avec{" "}
+              <code className="font-mono">ANTHROPIC_API_KEY=…</code>, puis relancer le serveur.
+            </li>
+          </ol>
+        </div>
+      )}
     </div>
   );
 }

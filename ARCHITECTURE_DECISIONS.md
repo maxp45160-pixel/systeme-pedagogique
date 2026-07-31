@@ -37,6 +37,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [022](#adr-022) | Vérification locale du jeton (`getClaims`) sur le chemin chaud | ✅ Acceptée (31/07) |
 | [023](#adr-023) | Cache des données inter-requêtes | 🗑️ Écartée par [024](#adr-024) (31/07) |
 | [024](#adr-024) | Le cache de navigation est celui de Next, et l'invalidation est uniforme | ✅ Acceptée (31/07) |
+| [025](#adr-025) | La traçabilité peut être repliée, jamais retirée | ✅ Acceptée (31/07) |
 
 ---
 
@@ -1145,6 +1146,50 @@ délibérément hors de ce chantier, et qui reste à faire.
 allers-retours : le rendre atomique demanderait un index unique partiel, donc
 une modification de `schema.sql` (ADR-012, « fragile »). `lib/engine/` et
 `lib/domain/` sont inchangés.
+
+---
+
+<a name="adr-025"></a>
+## ADR-025 — La traçabilité peut être repliée, jamais retirée ✅
+
+**Date.** 31/07/2026. Tranchée explicitement pendant le chantier UI/UX.
+
+**Contexte.** Le protocole anti-hallucination impose que toute valeur affichée
+porte sa source. En pratique, cela s'était traduit par de la surface : le
+panneau « Contexte pédagogique » occupait en permanence un tiers de la largeur
+de `/tuteur`, et la carte « Progression récente » un tiers de la hauteur
+utile du tableau de bord. Les deux sont des lectures de contrôle — on les
+consulte en cas de doute, pas à chaque visite.
+
+La question posée était : peut-on les retirer ? Non — ce serait affaiblir le
+principe. Peut-on les mettre au repos ?
+
+**Décision.** Oui. Une information de traçabilité satisfait le protocole dès
+lors qu'elle est **atteignable sans quitter l'écran ni dépendre du réseau**.
+Elle n'a pas à être dépliée en permanence. Le véhicule est le `<details>` natif
+(primitive `Depliant`), qui fonctionne **sans JavaScript** — c'est cette
+propriété, et non l'ergonomie, qui rend le repli acceptable.
+
+Corollaire, appliqué dès ce chantier : **ce qui est actionnable ne se replie
+pas.** L'encart « Aucune clé API configurée » de `/tuteur` reste visible hors du
+dépliant — le replier transformerait une panne explicable en panne muette.
+
+**Conséquences.**
+- ✅ `/tuteur` : conversation pleine largeur, contexte replié sous un résumé
+  chiffré (`Contexte transmis — N k caractères · modèle`). Aucune ligne retirée.
+- ✅ Tableau de bord : « Progression récente » repliée, ce qui laisse le
+  bandeau d'activité passer au-dessus de la ligne de flottaison.
+- ⚠️ Un repli n'est jamais gratuit : une information repliée est une
+  information moins lue. La règle ne vaut que pour les lectures **de
+  contrôle**, jamais pour ce qui doit provoquer une action.
+
+**Dette relevée au passage, non traitée.** Les réglages du compte — et donc
+l'export du journal, la déconnexion et désormais le choix du thème — vivent
+dans le pied du rail, qui est `hidden lg:flex`. **En dessous de `lg`, ils sont
+inaccessibles.** La bascule clair/sombre a été maintenue dans la barre
+supérieure mobile pour cette raison précise. Le défaut préexistait à ce
+chantier ; le corriger demande un point d'entrée « compte » dans la navigation
+mobile, hors périmètre ici.
 
 ---
 

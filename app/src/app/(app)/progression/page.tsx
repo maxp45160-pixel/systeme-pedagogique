@@ -4,7 +4,7 @@ import { chargerContexte } from "@/lib/store/context";
 import { SqueletteContenu } from "@/components/layout/squelette";
 import { SKILLS_ACTIFS } from "@/lib/domain/referentiel";
 import { AUTONOMIE } from "@/lib/domain/types";
-import { calculerActivite, photographies } from "@/lib/engine/historique";
+import { activiteSurFenetre, calculerActivite, photographies } from "@/lib/engine/historique";
 import { joursDepuis } from "@/lib/engine/dates";
 import { EntetePage } from "@/components/layout/entete-page";
 import {
@@ -20,10 +20,13 @@ import { Courbe, GrilleActivite, LegendeActivite } from "@/components/charts";
 import { formatDuree } from "@/lib/engine/dates";
 
 const PERIODES = [
-  { cle: "semaine", libelle: "Cette semaine", jours: 7, pas: 1 },
-  { cle: "mois", libelle: "Ce mois", jours: 30, pas: 3 },
-  { cle: "trimestre", libelle: "3 derniers mois", jours: 90, pas: 7 },
-  { cle: "debut", libelle: "Depuis le début", jours: 365, pas: 21 },
+  // `semaines` : profondeur de la grille de régularité. Toujours au moins un peu
+  // plus large que la fenêtre demandée — une grille strictement à la taille de
+  // la période ne montrerait plus ce dont la période se détache.
+  { cle: "semaine", libelle: "Cette semaine", jours: 7, pas: 1, semaines: 9 },
+  { cle: "mois", libelle: "Ce mois", jours: 30, pas: 3, semaines: 13 },
+  { cle: "trimestre", libelle: "3 derniers mois", jours: 90, pas: 7, semaines: 26 },
+  { cle: "debut", libelle: "Depuis le début", jours: 365, pas: 21, semaines: 53 },
 ] as const;
 
 type Periode = (typeof PERIODES)[number];
@@ -75,6 +78,9 @@ export default async function PageProgression(props: {
 async function ContenuProgression({ periode }: { periode: Periode }) {
   const ctx = await chargerContexte();
   const activite = calculerActivite(ctx.donnees.sessions, ctx.now);
+  // Activité mesurée sur la fenêtre demandée, et non sur les 30 jours figés que
+  // `calculerActivite` produit : le filtre doit atteindre ces chiffres aussi.
+  const activitePeriode = activiteSurFenetre(ctx.donnees.sessions, periode.jours, ctx.now);
   const aucunePreuve = ctx.global.nombrePreuves === 0;
 
   const photos = aucunePreuve
@@ -122,23 +128,35 @@ async function ContenuProgression({ periode }: { periode: Periode }) {
               titre={`Bilan — ${periode.libelle.toLowerCase()}`}
               action={<TagConfiance confiance={ctx.global.confiance} />}
             />
-            <div className="px-4 py-4">
-              <div className="flex flex-wrap gap-x-8 gap-y-4">
+            <div className="px-4 py-3.5">
+              {/*
+                Deux blocs, deux natures.
+
+                Le score global et la robustesse sont des *états* : ils décrivent
+                où en est le suivi aujourd'hui, toutes preuves confondues, et ne
+                peuvent pas être « filtrés » par une fenêtre. Les afficher dans
+                la même rangée que des mesures de période laissait croire qu'ils
+                y répondaient — ils n'ont jamais bougé d'un filtre à l'autre.
+                Les séparer explicitement est la seule présentation honnête.
+              */}
+              <div className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
+                Sur la période
+              </div>
+              <div className="mt-2 flex flex-wrap gap-x-6 gap-y-3">
                 <Statistique
-                  libelle="Progression globale"
-                  valeur={ctx.global.scoreGlobal}
-                  unite="/ 100"
+                  libelle="Évolution du score"
+                  valeur={delta === null ? null : `${delta > 0 ? "+" : ""}${delta}`}
                   precision={
                     delta === null
-                      ? undefined
+                      ? "pas assez d'historique"
                       : delta === 0
-                        ? "inchangée sur la période"
-                        : `${delta > 0 ? "+" : ""}${delta} sur la période`
+                        ? "score inchangé"
+                        : "points de progression globale"
                   }
                   ton="primaire"
                 />
                 <Statistique
-                  libelle="Preuves sur la période"
+                  libelle="Preuves"
                   valeur={preuvesPeriode.length}
                   precision={`${ctx.global.nombrePreuves} au total`}
                 />
@@ -146,6 +164,31 @@ async function ContenuProgression({ periode }: { periode: Periode }) {
                   libelle="Autonomie moyenne"
                   valeur={autonomieMoyenne === null ? null : autonomieMoyenne.toFixed(2)}
                   precision="0 = solution fournie, 1 = pleine initiative"
+                />
+                <Statistique
+                  libelle="Temps de pratique"
+                  valeur={
+                    activitePeriode.seances === 0 ? null : formatDuree(activitePeriode.minutes)
+                  }
+                  precision={`${activitePeriode.seances} séance${activitePeriode.seances > 1 ? "s" : ""}`}
+                />
+                <Statistique
+                  libelle="Jours travaillés"
+                  valeur={activitePeriode.seances === 0 ? null : activitePeriode.joursActifs}
+                  precision={`sur ${periode.jours} jours`}
+                />
+              </div>
+
+              <div className="mt-4 border-t border-bordure pt-3 text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
+                Aujourd&apos;hui, toutes preuves confondues
+              </div>
+              <div className="mt-2 flex flex-wrap gap-x-6 gap-y-3">
+                <Statistique
+                  libelle="Progression globale"
+                  valeur={ctx.global.scoreGlobal}
+                  unite="/ 100"
+                  precision="état courant, hors période"
+                  ton="primaire"
                 />
                 <Statistique
                   libelle="Robustesse moyenne"
@@ -157,9 +200,9 @@ async function ContenuProgression({ periode }: { periode: Periode }) {
                   precision="solidité des acquis"
                 />
                 <Statistique
-                  libelle="Temps de pratique"
-                  valeur={formatDuree(activite.minutes30)}
-                  precision="30 derniers jours"
+                  libelle="Temps cumulé"
+                  valeur={formatDuree(activite.minutesTotal)}
+                  precision="depuis le début du suivi"
                 />
               </div>
 
@@ -189,7 +232,7 @@ async function ContenuProgression({ periode }: { periode: Periode }) {
               titre="Progression globale dans le temps"
               legende="Score sur 100, recalculé à chaque point à partir des preuves connues à cette date"
             />
-            <div className="px-4 py-4">
+            <div className="px-4 py-3.5">
               <Courbe
                 points={photos.map((p) => ({ date: p.date, valeur: p.scoreGlobal ?? 0 }))}
                 max={Math.max(20, ...photos.map((p) => p.scoreGlobal ?? 0)) * 1.15}
@@ -207,14 +250,19 @@ async function ContenuProgression({ periode }: { periode: Periode }) {
           <Carte>
             <EnTeteCarte
               titre="Par domaine"
-              legende="Une vignette par domaine, à la même échelle — plus lisible que sept courbes superposées"
+              legende="Le grand chiffre est l'état d'aujourd'hui ; la variation à sa gauche et la courbe couvrent la période"
             />
-            <div className="grid gap-4 px-4 py-4 sm:grid-cols-2 lg:grid-cols-3 [&>*]:min-w-0">
+            <div className="grid gap-4 px-4 py-3.5 sm:grid-cols-2 lg:grid-cols-3 [&>*]:min-w-0">
               {ctx.global.parDomaine.map((d) => {
-                const points = photos.map((p) => ({
-                  date: p.date,
-                  valeur: p.parDomaine.get(d.domaine) ?? 0,
-                }));
+                // `?? 0` écrivait une absence de mesure comme un zéro — la
+                // courbe partait donc du sol pour un domaine simplement pas
+                // encore évalué à cette date. On écarte les points non mesurés
+                // au lieu de les inventer (protocole anti-hallucination §7).
+                const points = photos
+                  .map((p) => ({ date: p.date, valeur: p.parDomaine.get(d.domaine) }))
+                  .filter((p): p is { date: string; valeur: number } => p.valeur !== undefined);
+                const deltaDomaine =
+                  points.length >= 2 ? points[points.length - 1].valeur - points[0].valeur : null;
                 return (
                   <div key={d.domaine}>
                     <div className="mb-1 flex items-baseline justify-between gap-2">
@@ -224,16 +272,29 @@ async function ContenuProgression({ periode }: { periode: Periode }) {
                       >
                         {d.nom}
                       </Link>
-                      <span
-                        className={cx(
-                          "chiffres shrink-0 text-xs font-semibold",
-                          d.score === null && "text-texte-discret",
+                      <span className="chiffres shrink-0 text-xs">
+                        {deltaDomaine !== null && deltaDomaine !== 0 && (
+                          <span
+                            className={cx(
+                              "mr-1.5 font-medium",
+                              deltaDomaine > 0 ? "text-succes" : "text-texte-discret",
+                            )}
+                          >
+                            {deltaDomaine > 0 ? "+" : ""}
+                            {deltaDomaine}
+                          </span>
                         )}
-                      >
-                        {d.score ?? "—"}
+                        <span
+                          className={cx(
+                            "font-semibold",
+                            d.score === null && "text-texte-discret",
+                          )}
+                        >
+                          {d.score ?? "—"}
+                        </span>
                       </span>
                     </div>
-                    {d.score === null ? (
+                    {d.score === null || points.length === 0 ? (
                       <div className="flex h-12 items-center justify-center rounded border border-dashed border-bordure text-[0.625rem] text-texte-discret">
                         Aucune preuve
                       </div>
@@ -254,14 +315,20 @@ async function ContenuProgression({ periode }: { periode: Periode }) {
           <Carte>
             <EnTeteCarte
               titre="Régularité de travail"
-              legende={`${activite.joursActifs30} jours travaillés sur les 30 derniers`}
+              legende={`${activitePeriode.joursActifs} jour${
+                activitePeriode.joursActifs > 1 ? "s" : ""
+              } travaillé${activitePeriode.joursActifs > 1 ? "s" : ""} sur les ${periode.jours} derniers`}
             />
-            <div className="px-4 py-4">
-              <GrilleActivite minutesParJour={activite.minutesParJour} semaines={26} now={ctx.now} />
+            <div className="px-4 py-3.5">
+              <GrilleActivite
+                minutesParJour={activite.minutesParJour}
+                semaines={periode.semaines}
+                now={ctx.now}
+              />
               <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                 <p className="text-[0.6875rem] text-texte-discret">
-                  Six mois d&apos;activité. Les interruptions sont visibles sans être signalées comme
-                  un problème.
+                  La grille déborde volontairement la période : les interruptions sont visibles sans
+                  être signalées comme un problème.
                 </p>
                 <LegendeActivite />
               </div>
@@ -274,7 +341,7 @@ async function ContenuProgression({ periode }: { periode: Periode }) {
               <EnTeteCarte titre="Ce que ces chiffres ne disent pas" />
               <ul className="px-4 py-3 space-y-1.5">
                 {ctx.global.reserves.map((r, i) => (
-                  <li key={i} className="flex gap-2 text-xs text-texte-attenue">
+                  <li key={i} className="flex items-start gap-2 text-xs text-texte-attenue">
                     <Etiquette>{i + 1}</Etiquette>
                     <span>{r}</span>
                   </li>

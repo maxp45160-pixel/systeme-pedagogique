@@ -7,6 +7,7 @@ import { CarteEtatGlobal } from "@/components/dashboard/etat-global";
 import { CarteProchaineAction } from "@/components/dashboard/prochaine-action";
 import { CarteProgressionRecente } from "@/components/dashboard/progression-recente";
 import { CarteActivite } from "@/components/dashboard/activite";
+import { Depliant } from "@/components/ui/explication";
 
 export default function TableauDeBord() {
   // La date du jour ne dépend d'aucune lecture : `ctx.now` n'est rien d'autre
@@ -68,24 +69,29 @@ async function ContenuTableauDeBord() {
       </div>
 
       {/*
-        Vue d'ensemble : tout le reste, en retrait derrière un titre discret et
-        un généreux espace. Aucune donnée retirée — seulement hiérarchisée.
-        `[&>*]:min-w-0` empêche un intitulé en `truncate` d'élargir la piste.
+        Vue d'ensemble : tout le reste, en retrait derrière un titre discret.
+        Aucune donnée retirée — seulement hiérarchisée, et réordonnée pour que
+        le bandeau d'activité soit lisible sans défilement : l'ancienne grille
+        `lg:grid-cols-3` ne servait à rien, tous ses enfants occupaient les trois
+        pistes. `[&>*]:min-w-0` empêche un intitulé en `truncate` d'élargir la
+        piste.
       */}
-      <section className="mt-10">
-        <h2 className="mb-4 font-serif text-lg italic text-texte-discret">— vue d&apos;ensemble</h2>
-        <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
-          <div className="lg:col-span-3">
-            <CarteEtatGlobal global={ctx.global} etats={ctx.etats} />
-          </div>
+      <section className="mt-6">
+        <h2 className="mb-3 font-serif text-lg italic text-texte-discret">— vue d&apos;ensemble</h2>
+        <div className="space-y-4 [&>*]:min-w-0">
+          {/* Une année pleine, étalée sur toute la largeur de la carte. */}
+          <CarteActivite activite={activite} now={ctx.now} semaines={52} cellule={16} />
 
-          <div className="lg:col-span-3">
+          <CarteEtatGlobal global={ctx.global} etats={ctx.etats} />
+
+          {/*
+            La progression récente est une lecture de contrôle, pas une lecture
+            d'entrée : elle passe au repos derrière un `<details>` natif, donc
+            sans JavaScript. Rien n'est retiré.
+          */}
+          <Depliant resume={`Progression récente — ${evenements.length} dernière${evenements.length > 1 ? "s" : ""} preuve${evenements.length > 1 ? "s" : ""}`}>
             <CarteProgressionRecente evenements={evenements} />
-          </div>
-
-          <div className="lg:col-span-3">
-            <CarteActivite activite={activite} now={ctx.now} />
-          </div>
+          </Depliant>
         </div>
       </section>
     </>

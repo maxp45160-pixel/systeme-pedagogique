@@ -62,7 +62,7 @@ async function ContenuJournal() {
       ) : (
         <div className="space-y-4">
           <Carte>
-            <div className="flex flex-wrap gap-x-8 gap-y-4 px-4 py-4">
+            <div className="flex flex-wrap gap-x-6 gap-y-3 px-4 py-3.5">
               <Statistique libelle="Séances enregistrées" valeur={sessions.length} />
               <Statistique
                 libelle="Temps cumulé"

@@ -40,9 +40,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <BasculeTheme />
         </div>
 
-        <main className="flex-1 px-4 pb-20 pt-5 sm:px-6 lg:px-8 lg:pb-10">
-          {/* Marge de carnet : filet terracotta discret le long du contenu (desktop). */}
-          <div className="mx-auto w-full max-w-6xl lg:border-l lg:border-danger/15 lg:pl-10">
+        {/*
+          Marge de carnet : filet discret courant sur toute la hauteur de la
+          fenêtre (desktop). Le `flex-1` est ce qui le rend continu — porté par
+          le bloc de contenu seul, le trait s'arrêtait à la dernière carte et
+          laissait le bas de l'écran vide. Les paddings verticaux sont posés à
+          l'intérieur du bloc pour que la bordure les englobe.
+        */}
+        <main className="flex flex-1 flex-col px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto w-full max-w-6xl flex-1 pb-20 pt-5 lg:border-l lg:border-marge lg:pb-10 lg:pl-8 lg:pt-6">
             {children}
           </div>
         </main>

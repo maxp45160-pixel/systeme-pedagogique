@@ -61,7 +61,7 @@ pratique et développer un sujet à long terme.
   deux cas. Sans moteur configuré : 503 et repli « copier le contexte ».
 - **Styles :** Tailwind CSS v4 ; **graphiques SVG écrits à la main**, aucune
   librairie UI tierce
-- **Tests :** Vitest — **95 tests**, 5 fichiers (moteur, backend Supabase,
+- **Tests :** Vitest — **100 tests**, 5 fichiers (moteur, backend Supabase,
   parseurs de propositions, contexte du tuteur, sélection du moteur du tuteur)
 - **Déploiement :** Vercel (Root Directory = `app`)
 - **Gestionnaire de paquets :** npm (workspace racine → `app/`)
@@ -112,7 +112,7 @@ bascule sur « Copier le contexte » — comportement voulu, pas une panne.
 - **Une faiblesse ne disparaît pas sans démonstration.** Les preuves contradictoires réduisent la confiance, pas le niveau.
 - **Le tuteur n'a aucun accès en écriture.** Il émet une proposition que l'utilisateur valide.
 
-**Ne pas modifier un seuil du moteur sans modifier le protocole correspondant.** 95 tests vérifient ces garanties.
+**Ne pas modifier un seuil du moteur sans modifier le protocole correspondant.** 100 tests vérifient ces garanties.
 
 ⚠️ Deux principes ne sont pas tenus : le score global compte les non-mesurées comme des zéros, et l'autonomie ignore l'aide externe. Écarts connus — voir `PRODUCT.md` §5 (ADR-006 et ADR-008).
 
