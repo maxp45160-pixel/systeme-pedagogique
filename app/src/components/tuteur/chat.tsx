@@ -62,7 +62,14 @@ interface Message {
   content: string;
 }
 
-interface Etat {
+/**
+ * État du contexte pédagogique, assemblé par le serveur et reçu en props.
+ *
+ * Il était auparavant récupéré au montage par un `fetch("/api/tutor")`, ce qui
+ * refaisait — dans une requête HTTP distincte, donc hors du `cache()` de React
+ * — le `chargerContexte()` que la page venait déjà de payer.
+ */
+export interface EtatContexteTuteur {
   cleConfiguree: boolean;
   modele: string;
   manifeste: SectionContexte[];
@@ -297,14 +304,19 @@ const ChatInput = memo(function ChatInput({
 /* ------------------------------------------------------------------ */
 
 export function ChatTuteur({
+  etatInitial,
   competenceCiblee,
   codesCompetences,
 }: {
+  /** Manifeste et moteur, calculés côté serveur au rendu de la page. */
+  etatInitial: EtatContexteTuteur;
   competenceCiblee?: string;
   /** Codes du référentiel — pour valider qu'une compétence citée existe vraiment. */
   codesCompetences: string[];
 }) {
-  const [etat, setEtat] = useState<Etat | null>(null);
+  // `etat` ne vient plus d'un chargement asynchrone : il est calculé par le
+  // serveur et ne change pas pendant la vie du composant. Pas d'état local.
+  const etat = etatInitial;
   const [messages, setMessages] = useState<Message[]>([]);
   const [enCours, setEnCours] = useState(false);
   const [avis, setAvis] = useState<{ ton: "info" | "alerte" | "danger"; texte: string } | null>(null);
@@ -323,15 +335,6 @@ export function ChatTuteur({
     });
     return () => cancelAnimationFrame(rafScroll.current);
   }, [messages]);
-
-  useEffect(() => {
-    fetch("/api/tutor")
-      .then((r) => r.json())
-      .then(setEtat)
-      .catch(() =>
-        setAvis({ ton: "danger", texte: "Impossible de lire l'état du contexte pédagogique." }),
-      );
-  }, []);
 
   /* ---------------------------------------------------------------- */
   /* Fix 2 : Accumulation par ref + flush rAF                          */
@@ -491,7 +494,7 @@ export function ChatTuteur({
     }
   }, []);
 
-  const cleAbsente = etat !== null && !etat.cleConfiguree;
+  const cleAbsente = !etat.cleConfiguree;
 
   const saisieInitiale = competenceCiblee ? `Donne-moi un exercice sur ${competenceCiblee}.` : "";
 
@@ -505,9 +508,9 @@ export function ChatTuteur({
               <div className="py-6 text-center">
                 <p className="text-sm font-medium">Le tuteur connaît ton profil</p>
                 <p className="mx-auto mt-1 max-w-md text-xs leading-relaxed text-texte-attenue">
-                  Il reçoit les protocoles du système et l&apos;état réel de tes 43 compétences,
-                  calculé depuis tes preuves. Il ne peut pas modifier ton profil : il propose des
-                  mises à jour que tu valides.
+                  Il reçoit les protocoles du système et l&apos;état réel de tes{" "}
+                  {codesCompetences.length} compétences, calculé depuis tes preuves. Il ne peut
+                  pas modifier ton profil : il propose des mises à jour que tu valides.
                 </p>
               </div>
             )}
@@ -547,14 +550,11 @@ export function ChatTuteur({
         <div className="rounded-carte border border-bordure bg-surface">
           <div className="border-b border-bordure px-4 py-3">
             <div className="flex items-center gap-2">
-              <span
-                className={cx(
-                  "size-1.5 rounded-full",
-                  etat ? "bg-succes" : "bg-texte-discret",
-                )}
-              />
+              {/* Le contexte est assemblé par le serveur : il est chargé dès le
+                  premier rendu, il n'y a plus d'état « en attente ». */}
+              <span className="size-1.5 rounded-full bg-succes" />
               <h2 className="text-[0.9375rem] font-semibold tracking-tight">
-                {etat ? "Contexte pédagogique chargé" : "Chargement du contexte…"}
+                Contexte pédagogique chargé
               </h2>
             </div>
             <p className="mt-1 text-xs text-texte-attenue">
@@ -563,43 +563,39 @@ export function ChatTuteur({
             </p>
           </div>
 
-          {etat && (
-            <>
-              <ul className="divide-y divide-bordure">
-                {etat.manifeste.map((s, i) => (
-                  <li key={i} className="flex items-baseline justify-between gap-2 px-4 py-2">
-                    <span className="min-w-0 text-xs">
-                      {s.nom}
-                      {s.origine === "fichier" && (
-                        <span className="ml-1 text-[0.625rem] text-texte-discret">fichier</span>
-                      )}
-                    </span>
-                    <span className="chiffres shrink-0 text-[0.6875rem] text-texte-discret">
-                      {(s.caracteres / 1000).toFixed(1)} k car.
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <div className="border-t border-bordure px-4 py-3 text-xs">
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className="text-texte-attenue">Total</span>
-                  <span className="chiffres font-medium">
-                    {(etat.caracteresTotal / 1000).toFixed(1)} k caractères
-                  </span>
-                </div>
-                <div className="mt-1 flex items-baseline justify-between gap-2">
-                  <span className="text-texte-attenue">Modèle</span>
-                  <span className="font-mono text-[0.6875rem]">{etat.modele}</span>
-                </div>
-                <div className="mt-1 flex items-baseline justify-between gap-2">
-                  <span className="text-texte-attenue">Clé API</span>
-                  <Etiquette ton={etat.cleConfiguree ? "succes" : "alerte"}>
-                    {etat.cleConfiguree ? "configurée" : "absente"}
-                  </Etiquette>
-                </div>
-              </div>
-            </>
-          )}
+          <ul className="divide-y divide-bordure">
+            {etat.manifeste.map((s, i) => (
+              <li key={i} className="flex items-baseline justify-between gap-2 px-4 py-2">
+                <span className="min-w-0 text-xs">
+                  {s.nom}
+                  {s.origine === "fichier" && (
+                    <span className="ml-1 text-[0.625rem] text-texte-discret">fichier</span>
+                  )}
+                </span>
+                <span className="chiffres shrink-0 text-[0.6875rem] text-texte-discret">
+                  {(s.caracteres / 1000).toFixed(1)} k car.
+                </span>
+              </li>
+            ))}
+          </ul>
+          <div className="border-t border-bordure px-4 py-3 text-xs">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-texte-attenue">Total</span>
+              <span className="chiffres font-medium">
+                {(etat.caracteresTotal / 1000).toFixed(1)} k caractères
+              </span>
+            </div>
+            <div className="mt-1 flex items-baseline justify-between gap-2">
+              <span className="text-texte-attenue">Modèle</span>
+              <span className="font-mono text-[0.6875rem]">{etat.modele}</span>
+            </div>
+            <div className="mt-1 flex items-baseline justify-between gap-2">
+              <span className="text-texte-attenue">Clé API</span>
+              <Etiquette ton={etat.cleConfiguree ? "succes" : "alerte"}>
+                {etat.cleConfiguree ? "configurée" : "absente"}
+              </Etiquette>
+            </div>
+          </div>
         </div>
 
         {cleAbsente && (

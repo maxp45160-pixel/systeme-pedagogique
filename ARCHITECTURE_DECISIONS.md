@@ -837,8 +837,9 @@ budget de contexte, ni pour Anthropic ni pour les moteurs sans cache.
    tours est un multiple de 5 (cadence de secours : une formulation non
    reconnue retarde le protocole complet, ne le supprime jamais
    durablement).
-4. **Sites sans historique de conversation** (`route.ts` `GET`, utilisé pour
-   l'indicateur de taille ; `actions.ts` `preparerPromptComplet`, le mode
+4. **Sites sans historique de conversation** (le rendu de `(app)/tuteur/page.tsx`,
+   pour l'indicateur de taille — c'était `route.ts` `GET` jusqu'à ce que
+   ADR-022 le supprime ; `actions.ts` `preparerPromptComplet`, le mode
    « copier le contexte » sans clé API) : pas de tour suivant pour rattraper
    un manque, donc pas d'heuristique — chargement complet par défaut
    (`messages` vide ⇒ `chargerSynthese = true`).

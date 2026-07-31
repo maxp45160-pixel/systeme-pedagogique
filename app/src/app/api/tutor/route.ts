@@ -1,6 +1,6 @@
 import { chargerContexte } from "@/lib/store/context";
 import { construireContexte } from "@/lib/tutor/contexte";
-import { choisirConfiguration, creerMoteur, decrireChoix } from "@/lib/tutor/moteurs";
+import { choisirConfiguration, creerMoteur } from "@/lib/tutor/moteurs";
 import { fenetrerHistorique, MAX_MESSAGES_FENETRE } from "@/lib/tutor/fenetre";
 
 /**
@@ -88,21 +88,5 @@ export async function POST(request: Request) {
       "cache-control": "no-cache, no-transform",
       connection: "keep-alive",
     },
-  });
-}
-
-/** Le manifeste de contexte, pour l'indicateur « contexte chargé » et le mode presse-papier. */
-export async function GET() {
-  const ctx = await chargerContexte();
-  const pedagogique = await construireContexte(ctx);
-  const choix = choisirConfiguration(process.env);
-
-  return Response.json({
-    // Conserve le nom historique du champ : l'interface s'en sert pour décider
-    // d'afficher le chat ou le repli « copier le contexte ».
-    cleConfiguree: choix.kind !== "aucun",
-    modele: decrireChoix(choix),
-    manifeste: pedagogique.manifeste,
-    caracteresTotal: pedagogique.caracteresTotal,
   });
 }
