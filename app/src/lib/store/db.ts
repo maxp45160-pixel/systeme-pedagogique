@@ -25,7 +25,6 @@ import {
   entiteVersLigne,
   ligneVersEntite,
   profilVersUser,
-  userVersProfil,
   verifier,
   type CleListe,
   type ClientSupabase,
@@ -122,67 +121,6 @@ export async function lire<K extends keyof Collections>(
   ) as Collections[K];
 }
 
-/**
- * Remplace intégralement une collection.
- *
- * Côté Supabase, « remplacer » se traduit par un upsert de la nouvelle liste
- * suivi de la suppression des lignes disparues — et non par un `DELETE` global
- * puis réinsertion, qui perdrait les `created_at` et laisserait la table vide
- * si l'insertion échouait.
- */
-export async function ecrire<K extends keyof Collections>(
-  nom: K,
-  valeur: Collections[K],
-): Promise<void> {
-  const { supabase, userId } = await dorsaleCompte();
-
-  if (nom === "user") {
-    const { error } = await supabase
-      .from("profiles")
-      .update(userVersProfil(valeur as User))
-      .eq("id", userId);
-    verifier("mise à jour du profil", error);
-    return;
-  }
-
-  const table = TABLES[nom as CleListe];
-  const elements = valeur as unknown as { id: string }[];
-
-  if (elements.length > 0) {
-    // Clé primaire composite : la cible du conflit est nommée explicitement
-    // plutôt que déduite, pour ne pas dépendre de l'introspection PostgREST.
-    const { error } = await supabase
-      .from(table)
-      .upsert(elements.map((e) => entiteVersLigne(e, userId)), {
-        onConflict: "user_id,id",
-      });
-    verifier(`écriture de « ${nom} »`, error);
-  }
-
-  // Diff explicite plutôt qu'un filtre `not.in` construit par concaténation :
-  // les identifiants partiraient dans une chaîne de filtre PostgREST, où une
-  // virgule ou un guillemet suffirait à changer le sens de la requête.
-  const { data: existants, error: erreurLecture } = await supabase
-    .from(table)
-    .select("id")
-    .eq("user_id", userId);
-  verifier(`inventaire de « ${nom} »`, erreurLecture);
-
-  const conserves = new Set(elements.map((e) => e.id));
-  const aSupprimer = ((existants ?? []) as { id: string }[])
-    .map((l) => l.id)
-    .filter((id) => !conserves.has(id));
-
-  if (aSupprimer.length > 0) {
-    const { error } = await supabase
-      .from(table)
-      .delete()
-      .eq("user_id", userId)
-      .in("id", aSupprimer);
-    verifier(`purge de « ${nom} »`, error);
-  }
-}
-
 /** Ajoute un élément en fin de collection. Le journal ne réécrit pas le passé. */
 export async function ajouter<K extends CleListe>(
   nom: K,
@@ -212,38 +150,45 @@ export async function ajouterPlusieurs<K extends CleListe>(
 }
 
 /**
- * Remplace un élément identifié par `id`.
+ * Met à jour les champs fournis d'un élément identifié par `id`, et renvoie
+ * l'entité telle qu'elle existe désormais en base — le tout en une requête.
  *
- * Réservé aux entités qui ont un cycle de vie propre (tentative en cours,
- * statut d'erreur, étape de projet). Les preuves, elles, ne sont jamais
- * modifiées après écriture : c'est ce qui rend l'historique auditable.
+ * Réservé aux entités qui ont un cycle de vie propre (tentative en cours, note
+ * de séance). Les preuves, elles, ne sont jamais modifiées après écriture :
+ * c'est ce qui rend l'historique auditable.
+ *
+ * Seuls les champs présents dans `champs` sont écrits — `entiteVersLigne` omet
+ * les absents. L'appelant n'a donc pas à relire l'entité pour la reconstruire,
+ * et il n'y a plus de fenêtre entre la lecture et l'écriture.
+ *
+ * Un champ vaut `null` pour être **effacé**, jamais `undefined` : `undefined`
+ * signifie « ne pas toucher ». La distinction est nécessaire, sans quoi vider
+ * une note de séance ne ferait rien du tout.
+ *
+ * Renvoie `null` si aucune ligne ne correspond, ce qui couvre aussi le cas où
+ * elle appartient à un autre compte : le filtre `user_id` double ici la
+ * politique RLS, qui reste la barrière de confiance.
  */
-export async function remplacer<K extends CleListe>(
+export type Champs<T> = { [P in keyof T]?: T[P] | null };
+
+export async function modifier<K extends CleListe>(
   nom: K,
   id: string,
-  maj: (precedent: Collections[K][number]) => Collections[K][number],
+  champs: Champs<Collections[K][number]>,
   dorsaleFournie?: DorsaleCompte,
 ): Promise<Collections[K][number] | null> {
   const { supabase, userId } = dorsaleFournie ?? (await dorsaleCompte());
-  const table = TABLES[nom];
 
   const { data, error } = await supabase
-    .from(table)
-    .select("*")
+    .from(TABLES[nom])
+    .update(entiteVersLigne(champs as object, userId))
     .eq("user_id", userId)
     .eq("id", id)
+    .select("*")
     .maybeSingle();
-  verifier(`lecture de « ${nom} » avant mise à jour`, error);
-  if (!data) return null;
+  verifier(`mise à jour de « ${nom} »`, error);
 
-  const suivant = maj(ligneVersEntite(data));
-  const { error: erreurMaj } = await supabase
-    .from(table)
-    .update(entiteVersLigne(suivant as object, userId))
-    .eq("user_id", userId)
-    .eq("id", id);
-  verifier(`mise à jour de « ${nom} »`, erreurMaj);
-  return suivant;
+  return data ? (ligneVersEntite(data) as Collections[K][number]) : null;
 }
 
 export async function lireTout(): Promise<Collections> {

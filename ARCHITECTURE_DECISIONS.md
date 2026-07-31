@@ -35,7 +35,8 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [020](#adr-020) | Pivot du périmètre pilote : Développement logiciel | ✅ Acceptée (29/07) |
 | [021](#adr-021) | Compression et chargement conditionnel des protocoles du tuteur | ✅ Acceptée (29/07) |
 | [022](#adr-022) | Vérification locale du jeton (`getClaims`) sur le chemin chaud | ✅ Acceptée (31/07) |
-| [023](#adr-023) | Cache des données inter-requêtes | ❓ Ouverte |
+| [023](#adr-023) | Cache des données inter-requêtes | 🗑️ Écartée par [024](#adr-024) (31/07) |
+| [024](#adr-024) | Le cache de navigation est celui de Next, et l'invalidation est uniforme | ✅ Acceptée (31/07) |
 
 ---
 
@@ -988,9 +989,19 @@ ce rappel fait partie de la décision, pas d'un chantier futur.
 
 <a name="adr-023"></a>
 
-## ADR-023 — Cache des données inter-requêtes ❓
+## ADR-023 — Cache des données inter-requêtes 🗑️
 
-**Date.** 31/07/2026. **Ouverte, volontairement non implémentée.**
+**Date.** 31/07/2026. **Ouverte le matin, écartée le soir même par
+[ADR-024](#adr-024).** Conservée intégralement : elle porte la mesure qui a
+permis de trancher, et la liste des pièges à relire si l'idée revenait.
+
+**Ce qui l'a close.** La question a été reposée le jour même sous un autre
+angle — « architecture trop complexe, revenir à une logique simple et
+unifiée » — et une seconde mesure a montré que le poste restant n'était pas
+le nombre de lectures **par rendu** (déjà un aller-retour) mais le nombre de
+**rendus par session** : le cache routeur client de Next était désactivé par
+défaut. ADR-024 le rallume. Aucun cache de données n'a été construit, et le
+cloisonnement des comptes reste entièrement dans PostgreSQL.
 
 **Contexte.** Le chantier de performance du 31/07 est parti d'une demande
 précise : « faire en sorte que le cache utilisateur n'appelle pas à chaque
@@ -1041,6 +1052,99 @@ que les `select` sont redevenus le poste dominant, ce qui n'arrivera pas à
 - `cacheComponents` est à écarter : c'est une bascule globale du modèle de
   rendu (PPR, frontière obligatoire sur tout accès dynamique non caché) pour
   six pages.
+
+---
+
+<a name="adr-024"></a>
+
+## ADR-024 — Le cache de navigation est celui de Next, et l'invalidation est uniforme ✅
+
+**Date.** 31/07/2026. Remplace [ADR-023](#adr-023).
+
+**Contexte.** Demande : « architecture trop complexe de manière globale,
+revenir à une logique simple et unifiée — un unique appel à la base au
+lancement de l'application, tout dans le cache, et à chaque modification
+mettre à jour la base et le cache ». Symptômes retenus : la navigation est
+lente au clic, et le code du store est illisible.
+
+**La mesure, encore.** Deux prémisses de la demande ne tenaient pas :
+`lireTout()` fait cinq `select` **en parallèle**, soit un aller-retour
+PostgREST pour 77 lignes ; et `chargerContexte()` est déjà mémoïsé par
+`cache()`, donc déjà « un seul point d'entrée ». Il n'y avait pas cinq appels
+à réduire à un.
+
+En revanche, `experimental.staleTimes.dynamic` vaut **0** par défaut en Next
+16.2.11. Toutes les pages du groupe `(app)` lisent les cookies de session,
+donc sont dynamiques : **aucune n'était conservée entre deux navigations.**
+Revenir sur une page déjà vue refaisait un rendu serveur complet et un
+aller-retour Supabase. Dix clics coûtaient dix allers-retours. C'était ça, la
+lenteur au clic — et le seul endroit où « un appel par session » avait un
+sens mesurable.
+
+**Décision.**
+
+1. `experimental.staleTimes: { dynamic: 300 }` dans `app/next.config.ts`. Une
+   page visitée est réaffichée depuis le cache routeur client, sans appel
+   serveur. Ce n'est **pas** un cache de données : rien n'est indexé par
+   compte côté serveur, et RLS reste la seule barrière (CLAUDE.md §7). `300`
+   est un cadran, pas une vérité.
+2. Les sept Server Functions passent toutes à `revalidatePath("/", "layout")`.
+   C'est ce qui rend le point 1 sûr : une écriture peut déplacer un niveau, un
+   score global et une recommandation à la fois, et raisonner à chaque ajout
+   sur les écrans qu'une preuve touche est précisément la complexité qu'on
+   retire. À 77 lignes, tout invalider ne coûte rien. **Les deux réglages se
+   lisent ensemble** — modifier l'un sans l'autre laisse du périmé à l'écran.
+
+**Ce qui n'a pas été construit, et pourquoi.**
+
+- **Store client global (SPA).** C'est la lecture littérale de la demande :
+  le layout charge tout une fois, un provider React tient les données, le
+  moteur — pur, donc portable — part dans le navigateur. Écarté : il faudrait
+  réécrire les sept pages en composants clients, ce qui annulerait les
+  frontières `<Suspense>` posées le matin même, alourdirait le bundle du
+  référentiel et du seed, et ferait diverger deux onglets. Le gain restant,
+  une fois le point 1 en place, se réduit au **premier** affichage de chaque
+  page.
+- **Cache serveur par compte** — voir ADR-023, écartée.
+
+**Effet secondaire assumé.** Après une écriture, la première visite de chaque
+page repaye son aller-retour. Les écritures sont rares devant les
+navigations : c'est le bon sens de l'échange.
+
+**Ménage effectué dans le même geste** (le second symptôme, « le store est
+illisible ») :
+
+- `ecrire()` supprimé de `lib/store/db.ts` : 52 lignes, trois requêtes SQL
+  (upsert, inventaire, delete), **zéro appelant**. Avec lui disparaît
+  `userVersProfil`, dont il était le seul consommateur — le jour où un écran
+  d'édition du profil existera, elle se réécrira en cinq lignes symétriques
+  de `profilVersUser`, plutôt que d'être maintenue à vide (CLAUDE.md §8 :
+  ne pas construire par anticipation).
+- `remplacer()` devient `modifier()` : mise à jour partielle avec
+  `.select()`, **une requête au lieu de deux**. Allers-retours par action :
+  `debloquerIndice` 2→1, `enregistrerReponse` 2→1, `ajouterNoteSession` 2→1,
+  `terminerExercice` 5→4.
+- `debloquerIndice` reçoit le compteur courant, que la page rend déjà, au
+  lieu de relire la tentative pour l'incrémenter. Deux onglets cliquant à la
+  même seconde perdraient un incrément ; la garde optimiste alternative
+  transformerait la perte en indice affiché mais non compté, c'est-à-dire en
+  **autonomie surestimée** — le défaut P8 déjà connu, qu'on refuse d'aggraver.
+- **Bug corrigé au passage :** `entiteVersLigne` ignore les `undefined`, donc
+  vider une note de séance n'écrivait rien — le champ restait tel quel. Le
+  défaut préexistait. `modifier()` distingue désormais `undefined`
+  (« ne pas toucher ») de `null` (« effacer »).
+- L'en-tête de `lib/store/actions.ts` affirmait « application mono-utilisateur
+  exécutée en local : il n'y a pas d'authentification ». Faux depuis ADR-015.
+
+**Limite connue.** `db.ts` n'a toujours aucun test : `modifier()` n'est
+couvert que par la vérification manuelle de bout en bout. Le couvrir
+demanderait un faux client PostgREST — infrastructure de test nouvelle,
+délibérément hors de ce chantier, et qui reste à faire.
+
+**Ce qui n'a pas été touché.** `demarrerTentative` garde ses deux
+allers-retours : le rendre atomique demanderait un index unique partiel, donc
+une modification de `schema.sql` (ADR-012, « fragile »). `lib/engine/` et
+`lib/domain/` sont inchangés.
 
 ---
 
