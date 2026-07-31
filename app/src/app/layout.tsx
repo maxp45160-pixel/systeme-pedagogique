@@ -19,10 +19,12 @@ export const metadata: Metadata = {
 };
 
 /**
- * Positionne le thème avant la première peinture, pour éviter le clignotement.
- * Préférence explicite si elle existe, sinon préférence système.
+ * Positionne le thème et l'état du rail avant la première peinture, pour éviter
+ * le clignotement. Pour le thème : préférence explicite si elle existe, sinon
+ * préférence système. Pour le rail : `data-rail="reduit"` seulement si l'état
+ * réduit a été choisi — l'absence d'attribut vaut « rail complet ».
  */
-const SCRIPT_THEME = `(function(){try{var t=localStorage.getItem('theme');if(!t){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'clair'}document.documentElement.setAttribute('data-theme',t)}catch(e){document.documentElement.setAttribute('data-theme','clair')}})()`;
+const SCRIPT_PREFERENCES = `(function(){try{var t=localStorage.getItem('theme');if(!t){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'clair'}document.documentElement.setAttribute('data-theme',t);if(localStorage.getItem('rail')==='reduit'){document.documentElement.setAttribute('data-rail','reduit')}}catch(e){document.documentElement.setAttribute('data-theme','clair')}})()`;
 
 /**
  * Coque minimale : polices, thème, `<html>`/`<body>`.
@@ -40,7 +42,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full`}
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: SCRIPT_THEME }} />
+        <script dangerouslySetInnerHTML={{ __html: SCRIPT_PREFERENCES }} />
       </head>
       <body className="min-h-full">{children}</body>
     </html>

@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 import { computeSkillState, computeAllSkillStates } from "./skill-state";
 import { calculerEtatGlobal } from "./progression";
 import { recommander } from "./recommend";
-import { evenementsRecents, photographies, type EvenementProgression } from "./historique";
+import {
+  activiteSurFenetre,
+  calculerActivite,
+  evenementsRecents,
+  photographies,
+  type EvenementProgression,
+} from "./historique";
 import { autonomieDepuisIndices, qualiteDepuisNature } from "./preuve";
 import {
   DOMAINE_PILOTE,
@@ -14,6 +20,7 @@ import {
 import type {
   Autonomie,
   Dimension,
+  LearningSession,
   QualitePreuve,
   SkillEvidence,
 } from "@/lib/domain/types";
@@ -458,5 +465,67 @@ describe("recommandation — protocole d'évaluation §16", () => {
     const etats = computeAllSkillStates(SKILLS, preuves, MAINTENANT);
     const [premiere] = recommander(etats, [], []);
     expect(premiere.etat.skill.code).not.toBe("STAT-01");
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Activité sur une fenêtre glissante                                  */
+/* ------------------------------------------------------------------ */
+
+describe("activiteSurFenetre — mesure réellement bornée par la période", () => {
+  function seance(jours: number, dureeMin: number | undefined): LearningSession {
+    return {
+      id: `s-${jours}-${dureeMin ?? "x"}`,
+      date: ilYa(jours),
+      dureeMin,
+      domaines: [STAT01.domaine],
+      skillCodes: [STAT01.code],
+      activites: [],
+      genereAutomatiquement: false,
+    };
+  }
+
+  it("sans séance, tout vaut zéro — et non « inconnu »", () => {
+    expect(activiteSurFenetre([], 30, MAINTENANT)).toEqual({
+      joursActifs: 0,
+      minutes: 0,
+      seances: 0,
+    });
+  });
+
+  it("exclut ce qui tombe hors de la fenêtre et inclut la borne exacte", () => {
+    const sessions = [seance(3, 60), seance(7, 30), seance(8, 45)];
+    expect(activiteSurFenetre(sessions, 7, MAINTENANT)).toEqual({
+      joursActifs: 2,
+      minutes: 90,
+      seances: 2,
+    });
+  });
+
+  it("une séance sans durée reste un jour travaillé, à 0 minute", () => {
+    // Ne pas avoir noté sa durée n'est pas ne pas avoir travaillé : l'absence
+    // de mesure ne doit pas effacer le fait (protocole anti-hallucination §7).
+    const resultat = activiteSurFenetre([seance(1, undefined)], 30, MAINTENANT);
+    expect(resultat.joursActifs).toBe(1);
+    expect(resultat.seances).toBe(1);
+    expect(resultat.minutes).toBe(0);
+  });
+
+  it("deux séances le même jour comptent pour un seul jour travaillé", () => {
+    const sessions = [seance(2, 20), { ...seance(2, 25), id: "s-bis" }];
+    const resultat = activiteSurFenetre(sessions, 30, MAINTENANT);
+    expect(resultat.joursActifs).toBe(1);
+    expect(resultat.seances).toBe(2);
+    expect(resultat.minutes).toBe(45);
+  });
+
+  it("à 30 jours, reproduit exactement les compteurs de calculerActivite", () => {
+    // Garantit que l'extraction n'a déplacé aucun seuil existant.
+    const sessions = [seance(0, 15), seance(12, 90), seance(29, 40), seance(45, 100)];
+    const fenetre = activiteSurFenetre(sessions, 30, MAINTENANT);
+    const globale = calculerActivite(sessions, MAINTENANT);
+    expect(fenetre.joursActifs).toBe(globale.joursActifs30);
+    expect(fenetre.minutes).toBe(globale.minutes30);
+    expect(fenetre.seances).toBe(globale.seances30);
   });
 });

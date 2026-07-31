@@ -109,16 +109,16 @@ export default async function PageCompetence(props: {
               }
               action={<TagConfiance confiance={etat.confiance} />}
             />
-            <div className="px-4 py-4">
-              <div className="flex flex-wrap items-end gap-x-8 gap-y-4">
+            <div className="px-4 py-3.5">
+              <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
                 <div>
                   <div className="text-[0.6875rem] uppercase tracking-wide text-texte-discret">
                     Niveau
                   </div>
-                  <div className="mt-1 flex items-baseline gap-1">
+                  <div className="chiffres mt-1 flex items-baseline gap-1">
                     <span
                       className={cx(
-                        "chiffres text-4xl font-semibold tracking-tight",
+                        "text-3xl font-semibold tracking-tight",
                         etat.niveau === null ? "text-texte-discret" : "text-primaire",
                       )}
                     >
@@ -180,7 +180,7 @@ export default async function PageCompetence(props: {
                         <span className="chiffres w-10 shrink-0 text-right text-xs">
                           {Math.round(etat.dimensions[d] * 100)}%
                         </span>
-                        <span className="w-12 shrink-0 text-right text-[0.625rem] text-texte-discret">
+                        <span className="chiffres w-12 shrink-0 text-right text-[0.625rem] text-texte-discret">
                           {Math.round(POIDS_DIMENSIONS[d] * 100)}%
                         </span>
                       </li>
@@ -278,7 +278,7 @@ export default async function PageCompetence(props: {
         {/* --------------------------- Colonne droite ----------------------- */}
         <div className="space-y-4">
           <Carte accent>
-            <div className="px-4 py-4">
+            <div className="px-4 py-3.5">
               <div className="text-[0.6875rem] font-semibold uppercase tracking-wider text-primaire">
                 Prochaine étape
               </div>
@@ -382,7 +382,7 @@ export default async function PageCompetence(props: {
         Pré-ouvert si l'on arrive depuis une proposition du tuteur.
       */}
       <Carte className="mt-4">
-        <div className="px-4 py-4">
+        <div className="px-4 py-3.5">
           <Depliant
             resume="Enregistrer une preuve manuelle"
             ouvertParDefaut={valeursInitiales !== undefined}

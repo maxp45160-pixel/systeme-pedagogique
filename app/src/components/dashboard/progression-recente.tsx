@@ -50,7 +50,7 @@ export function CarteProgressionRecente({
                     </Link>
 
                     {e.franchissement ? (
-                      <span className="text-sm font-medium">
+                      <span className="chiffres text-sm font-medium">
                         Niveau {e.niveauAvant ?? "—"} <span className="text-texte-discret">→</span>{" "}
                         <span className="text-succes">{e.niveauApres}</span>
                       </span>

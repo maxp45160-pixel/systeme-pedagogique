@@ -42,7 +42,14 @@ export function EnTeteCarte({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-bordure px-4 py-3">
+    // Sans légende le titre tient sur une ligne et l'action se centre dessus ;
+    // avec légende le bloc devient haut, et une action centrée flotterait.
+    <div
+      className={cx(
+        "flex justify-between gap-4 border-b border-bordure px-4 py-2.5",
+        legende ? "items-start" : "items-center",
+      )}
+    >
       <div className="min-w-0">
         <h2 className="font-serif text-[1.0625rem] font-medium tracking-tight">{titre}</h2>
         {legende && <p className="mt-0.5 text-xs text-texte-attenue">{legende}</p>}
@@ -50,6 +57,24 @@ export function EnTeteCarte({
       {action && <div className="shrink-0">{action}</div>}
     </div>
   );
+}
+
+/**
+ * Corps de carte.
+ *
+ * L'espacement intérieur des cartes était réécrit à chaque appel — on trouvait
+ * six valeurs verticales différentes pour le même rôle. Une seule primitive le
+ * possède désormais : changer la densité de l'application est une modification
+ * d'une ligne, ici.
+ */
+export function CorpsCarte({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return <div className={cx("px-4 py-3.5", className)}>{children}</div>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -204,10 +229,12 @@ export function Statistique({
   return (
     <div className="min-w-0">
       <div className="text-[0.6875rem] uppercase tracking-wide text-texte-discret">{libelle}</div>
-      <div className="mt-1 flex items-baseline gap-1">
+      {/* `chiffres` sur le conteneur, pas sur la valeur seule : l'unité (« / 100 »,
+          « / 5 ») porte elle aussi des chiffres qui doivent rester alignés. */}
+      <div className="chiffres mt-1 flex items-baseline gap-1">
         <span
           className={cx(
-            "chiffres text-2xl font-semibold tracking-tight",
+            "text-xl font-semibold tracking-tight",
             valeur === null && "text-texte-discret",
             ton === "primaire" && valeur !== null && "text-primaire",
           )}
@@ -242,7 +269,7 @@ export function EtatVide({
   icone?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center px-6 py-10 text-center">
+    <div className="flex flex-col items-center justify-center px-6 py-8 text-center">
       {icone && <div className="mb-3 text-texte-discret">{icone}</div>}
       <p className="text-sm font-medium">{titre}</p>
       <p className="mt-1 max-w-md text-xs leading-relaxed text-texte-attenue">{message}</p>
@@ -298,7 +325,7 @@ export function TitreSection({
   action?: ReactNode;
 }) {
   return (
-    <div className="mb-3 flex items-end justify-between gap-4">
+    <div className="mb-3 flex items-start justify-between gap-4">
       <div>
         <h2 className="text-sm font-semibold tracking-tight">{children}</h2>
         {legende && <p className="mt-0.5 text-xs text-texte-attenue">{legende}</p>}

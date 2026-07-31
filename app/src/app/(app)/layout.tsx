@@ -2,7 +2,7 @@ import { compteCourant } from "@/lib/supabase/server";
 import { supabaseConfigure } from "@/lib/supabase/config";
 import { Sidebar } from "@/components/layout/sidebar";
 import { NavMobile } from "@/components/layout/nav-mobile";
-import { BasculeTheme } from "@/components/layout/bascule-theme";
+import { CompteMobile } from "@/components/layout/compte";
 
 /**
  * Cadre du carnet : rail de navigation, marge.
@@ -30,19 +30,31 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <Sidebar session={session} />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Barre supérieure mobile : le nom du système et la bascule de thème. */}
+        {/*
+          Barre supérieure mobile : le nom du système et l'accès au compte.
+
+          Le pied du rail — compte, export du journal, déconnexion, thème — est
+          `hidden lg:flex`. Sans ce bouton, aucun de ces réglages n'était
+          atteignable sur mobile (ADR-025).
+        */}
         <div className="flex h-12 items-center justify-between gap-2 border-b border-bordure bg-surface px-4 lg:hidden">
           <div className="min-w-0">
             <div className="truncate text-sm font-semibold tracking-tight">
               Système pédagogique
             </div>
           </div>
-          <BasculeTheme />
+          <CompteMobile session={session} />
         </div>
 
-        <main className="flex-1 px-4 pb-20 pt-5 sm:px-6 lg:px-8 lg:pb-10">
-          {/* Marge de carnet : filet terracotta discret le long du contenu (desktop). */}
-          <div className="mx-auto w-full max-w-6xl lg:border-l lg:border-danger/15 lg:pl-10">
+        {/*
+          Marge de carnet : filet discret courant sur toute la hauteur de la
+          fenêtre (desktop). Le `flex-1` est ce qui le rend continu — porté par
+          le bloc de contenu seul, le trait s'arrêtait à la dernière carte et
+          laissait le bas de l'écran vide. Les paddings verticaux sont posés à
+          l'intérieur du bloc pour que la bordure les englobe.
+        */}
+        <main className="flex flex-1 flex-col px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto w-full max-w-6xl flex-1 pb-20 pt-5 lg:border-l lg:border-marge lg:pb-10 lg:pl-8 lg:pt-6">
             {children}
           </div>
         </main>

@@ -81,12 +81,29 @@ export function Courbe({
         strokeLinejoin="round"
         vectorEffect="non-scaling-stroke"
       />
-      <circle cx={x(n - 1)} cy={y(dernier.valeur)} r="3.5" fill="var(--primaire)" />
+      {/*
+        Marque de fin. Un `<circle>` se rendrait en ellipse étirée : le viewBox
+        est en `preserveAspectRatio="none"`, donc l'échelle horizontale n'est pas
+        celle du vertical. Un segment de longueur nulle à bout rond donne un point
+        parfaitement circulaire, l'épaisseur de trait échappant à la déformation.
+      */}
+      <line
+        x1={x(n - 1)}
+        y1={y(dernier.valeur)}
+        x2={x(n - 1)}
+        y2={y(dernier.valeur)}
+        stroke="var(--primaire)"
+        strokeWidth="7"
+        strokeLinecap="round"
+        vectorEffect="non-scaling-stroke"
+      />
       {/* Cibles de survol, plus larges que les marques. */}
       {points.map((p, i) => (
         <rect
           key={i}
-          x={x(i) - (L / n) / 2}
+          // Bornée à 0 : centrée sur le premier point, la cible débordait à
+          // gauche du viewBox et perdait la moitié de sa surface utile.
+          x={Math.max(0, x(i) - L / n / 2)}
           y={0}
           width={L / n}
           height={H}
@@ -114,14 +131,20 @@ export function Courbe({
 export function GrilleActivite({
   minutesParJour,
   semaines = 18,
+  cellule = 11,
   now = new Date(),
 }: {
   minutesParJour: Map<string, number>;
   semaines?: number;
+  /**
+   * Côté d'une case en pixels. La géométrie reste en pixels et non en
+   * pourcentage : une case de grille d'activité doit rester carrée, un
+   * étirement la rendrait illisible.
+   */
+  cellule?: number;
   now?: Date;
 }) {
-  const cellule = 11;
-  const espace = 3;
+  const espace = Math.max(2, Math.round(cellule * 0.27));
   const pas = cellule + espace;
 
   // On aligne la dernière colonne sur la semaine en cours (lundi → dimanche).
@@ -172,7 +195,7 @@ export function GrilleActivite({
                 y={ji * pas}
                 width={cellule}
                 height={cellule}
-                rx="2.5"
+                rx={Math.max(2, Math.round(cellule * 0.22))}
                 fill={futur ? "transparent" : couleur(c.minutes)}
                 opacity={futur ? 0 : c.minutes === 0 ? 0.55 : 1}
               >

@@ -83,10 +83,10 @@ export function PanneauExplication({
           <ul className="mt-2 space-y-1">
             {explication.reserves.map((r, i) => (
               <li key={i} className="flex gap-1.5 text-texte-attenue">
-                <span aria-hidden className="text-alerte">
+                <span aria-hidden className="mt-px text-alerte">
                   ·
                 </span>
-                {r}
+                <span>{r}</span>
               </li>
             ))}
           </ul>

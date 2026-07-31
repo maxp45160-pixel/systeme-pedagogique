@@ -182,6 +182,37 @@ export interface Activite {
   derniereSeance: string | null;
 }
 
+/** Activité mesurée sur une fenêtre glissante de N jours. */
+export interface ActiviteFenetre {
+  joursActifs: number;
+  minutes: number;
+  seances: number;
+}
+
+/**
+ * Activité sur les `jours` derniers jours.
+ *
+ * Extrait de `calculerActivite`, dont la fenêtre était figée à 30 jours : un
+ * écran filtré par période a besoin de la même mesure sur sa propre fenêtre.
+ * Aucun seuil n'est déplacé — `calculerActivite` appelle cette fonction avec
+ * `30` et produit exactement ce qu'elle produisait.
+ *
+ * Une séance sans durée enregistrée compte pour 0 minute mais reste un jour
+ * actif : ne pas noter sa durée n'est pas ne pas avoir travaillé.
+ */
+export function activiteSurFenetre(
+  sessions: LearningSession[],
+  jours: number,
+  now: Date = new Date(),
+): ActiviteFenetre {
+  const dansLaFenetre = sessions.filter((s) => joursDepuis(s.date, now) <= jours);
+  return {
+    joursActifs: new Set(dansLaFenetre.map((s) => cleJour(s.date))).size,
+    minutes: dansLaFenetre.reduce((total, s) => total + (s.dureeMin ?? 0), 0),
+    seances: dansLaFenetre.length,
+  };
+}
+
 /**
  * Régularité de travail, présentée de façon descriptive.
  *
@@ -196,20 +227,17 @@ export function calculerActivite(
   const minutesParJour = new Map<string, number>();
   for (const s of sessions) {
     const cle = cleJour(s.date);
-    // Une séance sans durée enregistrée compte pour 0 minute, mais reste un
-    // jour actif (elle est comptée via joursRecents plus bas).
     minutesParJour.set(cle, (minutesParJour.get(cle) ?? 0) + (s.dureeMin ?? 0));
   }
 
-  const recentes = sessions.filter((s) => joursDepuis(s.date, now) <= 30);
-  const joursRecents = new Set(recentes.map((s) => cleJour(s.date)));
+  const recente = activiteSurFenetre(sessions, 30, now);
   const triees = [...sessions].sort((a, b) => a.date.localeCompare(b.date));
 
   return {
     minutesParJour,
-    joursActifs30: joursRecents.size,
-    minutes30: recentes.reduce((s, x) => s + (x.dureeMin ?? 0), 0),
-    seances30: recentes.length,
+    joursActifs30: recente.joursActifs,
+    minutes30: recente.minutes,
+    seances30: recente.seances,
     minutesTotal: sessions.reduce((s, x) => s + (x.dureeMin ?? 0), 0),
     derniereSeance: triees.at(-1)?.date ?? null,
   };

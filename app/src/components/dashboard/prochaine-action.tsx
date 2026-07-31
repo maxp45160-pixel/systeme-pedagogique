@@ -39,7 +39,7 @@ export function CarteProchaineAction({
         className="pointer-events-none absolute -bottom-8 -right-6 size-40 text-primaire opacity-[0.06]"
       />
 
-      <div className="relative px-5 py-5 sm:px-6">
+      <div className="relative px-5 py-4 sm:px-6">
         <div className="flex items-center gap-2">
           <span className="size-1.5 rounded-full bg-primaire" aria-hidden />
           <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-primaire">
@@ -47,7 +47,7 @@ export function CarteProchaineAction({
           </span>
         </div>
 
-        <h2 className="mt-2.5 font-serif text-[1.6rem] font-medium leading-snug tracking-tight">
+        <h2 className="mt-2 font-serif text-[1.45rem] font-medium leading-snug tracking-tight">
           {exercice ? exercice.titre : etat.prochaineEtape}
         </h2>
 
@@ -58,7 +58,7 @@ export function CarteProchaineAction({
             {etat.skill.code}
           </Etiquette>
           <Etiquette>{libelleDomaine(etat.skill.domaine)}</Etiquette>
-          <Etiquette>
+          <Etiquette className="chiffres">
             Difficulté {exercice?.difficulte ?? difficulteCible}/5 ·{" "}
             {DIFFICULTES[exercice?.difficulte ?? difficulteCible]}
           </Etiquette>
@@ -70,7 +70,7 @@ export function CarteProchaineAction({
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="truncate text-xs font-medium">{etat.skill.intitule}</p>
-              <p className="mt-0.5 text-[0.6875rem] text-texte-discret">
+              <p className="chiffres mt-0.5 text-[0.6875rem] text-texte-discret">
                 {etat.niveau === null
                   ? "Niveau inconnu — jamais évaluée"
                   : `Niveau actuel ${etat.niveau}/5 · confiance ${etat.confiance}`}

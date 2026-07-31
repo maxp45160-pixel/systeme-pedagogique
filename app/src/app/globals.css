@@ -8,6 +8,13 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 /*
+  Rail réduit — même mécanique que le thème : un attribut posé sur <html> avant
+  peinture, et le CSS fait tout le reste. Aucun état React, donc aucune largeur
+  fausse au premier rendu et aucun écart d'hydratation possible.
+*/
+@custom-variant rail-reduit (&:where([data-rail="reduit"], [data-rail="reduit"] *));
+
+/*
   Une couleur principale, des neutres, et quatre couleurs sémantiques.
   La couleur porte une information — elle ne décore jamais.
 */
@@ -52,6 +59,12 @@
 
   /* Grille de carnet : trait d'encre très pâle sur le fond crème. */
   --grille: rgb(38 33 23 / 0.035);
+  /*
+    Filet de marge du carnet. Token dédié plutôt qu'un `--danger` dilué : ce
+    trait n'a aucune valeur d'alerte, et il doit pouvoir être réglé sans toucher
+    à une couleur sémantique.
+  */
+  --marge: #ddb9ab;
   /* Ombre chaude et douce des cartes-papier. */
   --ombre-carte: 0 1px 0 rgb(201 189 159 / 0.6), 0 1px 2px rgb(38 33 23 / 0.04);
 
@@ -107,6 +120,7 @@
   --ombre-surcouche: 0 8px 30px -6px rgb(0 0 0 / 0.6), 0 2px 8px -2px rgb(0 0 0 / 0.4);
 
   --grille: rgb(240 234 221 / 0.03);
+  --marge: #57342c;
   --ombre-carte: 0 1px 0 rgb(0 0 0 / 0.4), 0 1px 2px rgb(0 0 0 / 0.25);
 }
 
@@ -137,6 +151,8 @@
   --color-danger: var(--danger);
   --color-danger-faible: var(--danger-faible);
 
+  --color-marge: var(--marge);
+
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
   --font-serif: var(--font-fraunces), ui-serif, Georgia, "Times New Roman", serif;
@@ -161,7 +177,7 @@
     color: var(--texte);
     font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
     font-size: 0.9375rem;
-    line-height: 1.55;
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }

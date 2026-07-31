@@ -3,6 +3,7 @@ import type { EtatGlobal } from "@/lib/engine/progression";
 import type { SkillState } from "@/lib/domain/types";
 import {
   Carte,
+  CorpsCarte,
   EnTeteCarte,
   NombrePreuves,
   Statistique,
@@ -41,15 +42,15 @@ export function CarteEtatGlobal({
         action={<TagConfiance confiance={global.confiance} />}
       />
 
-      <div className="px-4 py-4">
-        <div className="flex flex-wrap items-end gap-x-8 gap-y-4">
+      <CorpsCarte>
+        <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
           <div>
             <div className="text-[0.6875rem] uppercase tracking-wide text-texte-discret">
               Progression globale
             </div>
-            <div className="mt-1 flex items-baseline gap-1.5">
+            <div className="chiffres mt-1 flex items-baseline gap-1.5">
               <span
-                className={`chiffres text-4xl font-semibold tracking-tight ${
+                className={`text-3xl font-semibold tracking-tight ${
                   aucunePreuve ? "text-texte-discret" : "text-primaire"
                 }`}
               >
@@ -87,14 +88,14 @@ export function CarteEtatGlobal({
         </div>
 
         {!aucunePreuve && (
-          <div className="mt-5 grid gap-4 sm:grid-cols-2 [&>*]:min-w-0">
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 [&>*]:min-w-0">
             <div>
               <div className="mb-2 text-[0.6875rem] uppercase tracking-wide text-texte-discret">
                 Répartition des niveaux
               </div>
               <RepartitionNiveaux compte={repartition} />
             </div>
-            <div className="flex items-end gap-6">
+            <div className="flex items-end gap-x-6">
               <Statistique
                 libelle="Compétences actives"
                 valeur={global.competencesActives}
@@ -138,7 +139,7 @@ export function CarteEtatGlobal({
             </div>
           </Depliant>
         </div>
-      </div>
+      </CorpsCarte>
     </Carte>
   );
 }

@@ -53,12 +53,12 @@ export default async function PageConnexion({
               <p className="text-xs leading-relaxed text-texte-attenue">
                 Ce déploiement n&apos;a pas de clés Supabase. L&apos;application
                 fonctionne en mode local mono-utilisateur : le journal reste dans{" "}
-                <code className="chiffres">app/data/store/</code>.
+                <code className="font-mono">app/data/store/</code>.
               </p>
               <p className="text-xs leading-relaxed text-texte-attenue">
                 Pour activer les comptes, renseignez{" "}
-                <code className="chiffres">NEXT_PUBLIC_SUPABASE_URL</code> et{" "}
-                <code className="chiffres">NEXT_PUBLIC_SUPABASE_ANON_KEY</code>, puis
+                <code className="font-mono">NEXT_PUBLIC_SUPABASE_URL</code> et{" "}
+                <code className="font-mono">NEXT_PUBLIC_SUPABASE_ANON_KEY</code>, puis
                 redémarrez le serveur.
               </p>
               <Link

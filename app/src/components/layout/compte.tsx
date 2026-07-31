@@ -7,6 +7,7 @@ import { cx } from "@/components/ui/primitives";
 import { seDeconnecter } from "@/lib/supabase/actions";
 import { exporterJournal } from "@/lib/store/export";
 import { IconeValide } from "@/components/ui/icones";
+import { appliquerTheme, lireChoixTheme, type ChoixTheme } from "./theme";
 
 export interface EtatSession {
   /** Les clés Supabase sont présentes sur ce déploiement. */
@@ -38,33 +39,13 @@ export function Compte({ session }: { session: EtatSession }) {
 
   return (
     <>
-      <div className="border-t border-[var(--rail-bordure)] p-3">
-        <div className="rounded-xl border border-[var(--rail-bordure)] bg-[var(--rail-2)] px-2.5 py-2">
-          <div className="flex items-center justify-between gap-2">
+      <div className="border-t border-[var(--rail-bordure)] p-3 rail-reduit:p-2">
+        <div className="rounded-xl border border-[var(--rail-bordure)] bg-[var(--rail-2)] px-2.5 py-2 rail-reduit:px-1 rail-reduit:py-2">
+          <div className="flex items-center justify-between gap-2 rail-reduit:flex-col rail-reduit:gap-2">
             <div className="flex min-w-0 items-center gap-2.5">
-              <div className="relative shrink-0">
-                {session.avatar ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={session.avatar}
-                    alt=""
-                    className="size-8 rounded-full object-cover ring-1 ring-[var(--rail-bordure)]"
-                  />
-                ) : (
-                  <span className="flex size-8 items-center justify-center rounded-full bg-[var(--rail-actif)] text-xs font-semibold text-[var(--rail-actif-texte)]">
-                    {nom.charAt(0).toUpperCase()}
-                  </span>
-                )}
-                <span
-                  aria-hidden
-                  className={cx(
-                    "absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-[var(--rail-2)]",
-                    session.connecte ? "bg-[var(--niveau-4)]" : "bg-[#d99a3f]",
-                  )}
-                />
-              </div>
+              <Avatar session={session} nom={nom} anneau="ring-[var(--rail-2)]" />
 
-              <div className="min-w-0">
+              <div className="min-w-0 rail-reduit:hidden">
                 <div className="truncate text-xs font-medium text-[var(--rail-texte)]">
                   {nom}
                 </div>
@@ -88,7 +69,7 @@ export function Compte({ session }: { session: EtatSession }) {
               {!session.connecte && session.configure && (
                 <Link
                   href="/login"
-                  className="rounded-md bg-[var(--rail-actif)] px-2 py-1 text-[0.6875rem] font-medium text-[var(--rail-actif-texte)] transition-opacity hover:opacity-90"
+                  className="rounded-md bg-[var(--rail-actif)] px-2 py-1 text-[0.6875rem] font-medium text-[var(--rail-actif-texte)] transition-opacity hover:opacity-90 rail-reduit:hidden"
                 >
                   Connexion
                 </Link>
@@ -102,6 +83,96 @@ export function Compte({ session }: { session: EtatSession }) {
         <PanneauReglages session={session} onFermer={() => setReglagesOuverts(false)} />
       )}
     </>
+  );
+}
+
+/**
+ * Accès au compte depuis la barre supérieure mobile.
+ *
+ * Le pied du rail est `hidden lg:flex` : en dessous de `lg`, les réglages — donc
+ * le compte, l'export du journal, la déconnexion et le choix du thème —
+ * n'étaient atteignables par aucun chemin. Ce bouton ouvre exactement le même
+ * panneau, sans le dupliquer.
+ *
+ * Il remplace la bascule de thème qui occupait cette place : l'apparence est
+ * désormais un réglage parmi d'autres, au même endroit sur mobile et sur poste
+ * fixe.
+ */
+export function CompteMobile({ session }: { session: EtatSession }) {
+  const [reglagesOuverts, setReglagesOuverts] = useState(false);
+
+  const nom = session.connecte
+    ? (session.nom ?? session.courriel?.split("@")[0] ?? "Compte")
+    : "Profil local";
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setReglagesOuverts(true)}
+        aria-label="Compte et réglages"
+        title="Compte et réglages"
+        className="flex shrink-0 items-center gap-1.5 rounded-md p-1 text-texte-attenue transition-colors hover:bg-surface-2 hover:text-texte"
+      >
+        <Avatar session={session} nom={nom} anneau="ring-surface" taille="petite" />
+        <IconeEngrenage className="size-4" />
+      </button>
+
+      {reglagesOuverts && (
+        <PanneauReglages session={session} onFermer={() => setReglagesOuverts(false)} />
+      )}
+    </>
+  );
+}
+
+/**
+ * Avatar et pastille d'état de session.
+ *
+ * `anneau` est une classe utilitaire complète, et non une couleur injectée : le
+ * liseré derrière la pastille doit reprendre le fond de l'endroit où l'avatar
+ * est posé (carte du rail ou barre mobile), et Tailwind ne génère que les
+ * classes qu'il lit littéralement dans les sources.
+ */
+function Avatar({
+  session,
+  nom,
+  anneau,
+  taille = "normale",
+}: {
+  session: EtatSession;
+  nom: string;
+  anneau: "ring-[var(--rail-2)]" | "ring-surface";
+  taille?: "normale" | "petite";
+}) {
+  const cote = taille === "petite" ? "size-7" : "size-8";
+  return (
+    <div className="relative shrink-0">
+      {session.avatar ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={session.avatar}
+          alt=""
+          className={cx(cote, "rounded-full object-cover ring-1 ring-[var(--rail-bordure)]")}
+        />
+      ) : (
+        <span
+          className={cx(
+            cote,
+            "flex items-center justify-center rounded-full bg-[var(--rail-actif)] text-xs font-semibold text-[var(--rail-actif-texte)]",
+          )}
+        >
+          {nom.charAt(0).toUpperCase()}
+        </span>
+      )}
+      <span
+        aria-hidden
+        className={cx(
+          "absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2",
+          anneau,
+          session.connecte ? "bg-[var(--niveau-4)]" : "bg-[#d99a3f]",
+        )}
+      />
+    </div>
   );
 }
 
@@ -173,6 +244,15 @@ function PanneauReglages({
         <dl className="mt-4 space-y-3 text-sm">
           <div className="rounded-lg border border-bordure bg-surface-2/60 px-3 py-2.5">
             <dt className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
+              Apparence
+            </dt>
+            <dd className="mt-1.5">
+              <ChoixApparence />
+            </dd>
+          </div>
+
+          <div className="rounded-lg border border-bordure bg-surface-2/60 px-3 py-2.5">
+            <dt className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
               État
             </dt>
             <dd className="mt-1 flex items-center gap-2">
@@ -228,9 +308,9 @@ function PanneauReglages({
               <dd className="mt-1 text-xs leading-relaxed text-texte-attenue">
                 Supabase est désormais la seule dorsale : sans ces clés, aucune donnée
                 n&apos;est lisible. Renseignez{" "}
-                <code className="chiffres">NEXT_PUBLIC_SUPABASE_URL</code> et{" "}
-                <code className="chiffres">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> dans{" "}
-                <code className="chiffres">app/.env.local</code> (ou les variables
+                <code className="font-mono">NEXT_PUBLIC_SUPABASE_URL</code> et{" "}
+                <code className="font-mono">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> dans{" "}
+                <code className="font-mono">app/.env.local</code> (ou les variables
                 d&apos;environnement Vercel), puis redémarrez le serveur.
               </dd>
             </div>
@@ -278,6 +358,50 @@ function PanneauReglages({
   return typeof document === "undefined"
     ? null
     : createPortal(panneau, document.body);
+}
+
+const APPARENCES: { cle: ChoixTheme; libelle: string }[] = [
+  { cle: "clair", libelle: "Clair" },
+  { cle: "dark", libelle: "Sombre" },
+  { cle: null, libelle: "Système" },
+];
+
+/**
+ * Choix du thème — clair, sombre, ou suivre le système.
+ *
+ * Lecture du stockage à l'initialisation, pas dans un effet : la modale n'est
+ * montée qu'au clic, donc jamais rendue côté serveur, et il n'y a ni écart
+ * d'hydratation ni rendu en cascade à craindre. `lireChoixTheme` retombe de
+ * toute façon sur `null` si le stockage est indisponible.
+ */
+function ChoixApparence() {
+  const [choix, setChoix] = useState<ChoixTheme>(lireChoixTheme);
+
+  function choisir(c: ChoixTheme) {
+    appliquerTheme(c);
+    setChoix(c);
+  }
+
+  return (
+    <div className="flex flex-wrap rounded-md border border-bordure p-0.5">
+      {APPARENCES.map((a) => (
+        <button
+          key={a.libelle}
+          type="button"
+          onClick={() => choisir(a.cle)}
+          aria-pressed={choix === a.cle}
+          className={cx(
+            "rounded px-2.5 py-1 text-xs font-medium transition-colors",
+            choix === a.cle
+              ? "bg-primaire-faible text-primaire"
+              : "text-texte-attenue hover:text-texte",
+          )}
+        >
+          {a.libelle}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 /** Engrenage — même tracé que le reste du jeu d'icônes (grille 24, trait 1,5). */

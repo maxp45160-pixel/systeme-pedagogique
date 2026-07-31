@@ -1,4 +1,4 @@
-﻿import { Suspense } from "react";
+import { Suspense } from "react";
 import Link from "next/link";
 import { chargerContexte } from "@/lib/store/context";
 import {
@@ -172,10 +172,10 @@ function LigneCompetence({ etat }: { etat: SkillState }) {
           <JaugeNiveau niveau={etat.niveau} />
         </div>
 
-        <div className="w-14 shrink-0 text-right">
+        <div className="chiffres w-14 shrink-0 text-right">
           <span
             className={cx(
-              "chiffres text-sm font-semibold",
+              "text-sm font-semibold",
               etat.niveau === null && "text-texte-discret",
             )}
           >
@@ -221,7 +221,7 @@ function VueRadar({ etats }: { etats: SkillState[] }) {
           titre="Vue d'ensemble du périmètre"
           legende="Score sur 100, un axe par compétence travaillée"
         />
-        <div className="px-4 py-5">
+        <div className="px-4 py-3.5">
           <Radar axes={axes} />
           {sansPreuve.length > 0 && (
             <p className="mt-4 rounded-md border border-bordure bg-surface-2 px-3 py-2 text-[0.6875rem] text-texte-attenue">

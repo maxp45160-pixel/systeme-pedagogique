@@ -74,7 +74,7 @@ export default async function PageExercice(props: {
               );
             })}
           </p>
-          <div className="mt-2 flex flex-wrap gap-2">
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <Link
               href={`/competences/${exercice.competences[0]}`}
               className={classesBouton("secondaire", "petite")}
@@ -126,7 +126,7 @@ export default async function PageExercice(props: {
         {/* -------------------------------- Énoncé -------------------------- */}
         <Carte>
           <EnTeteCarte titre="Énoncé" />
-          <div className="px-4 py-4 text-sm">
+          <div className="px-4 py-3.5 text-sm">
             <Markdown contenu={exercice.enonce} />
           </div>
         </Carte>
@@ -149,7 +149,7 @@ export default async function PageExercice(props: {
         {/* ------------------------ Démarrage / résolution ------------------ */}
         {!enCours && !derniereTerminee && (
           <Carte accent>
-            <div className="px-4 py-4">
+            <div className="px-4 py-3.5">
               <p className="text-sm">
                 Prends le temps de chercher avant d&apos;ouvrir un indice. Le nombre d&apos;indices
                 consultés détermine l&apos;autonomie enregistrée — c&apos;est ce qui distingue une
@@ -180,7 +180,7 @@ export default async function PageExercice(props: {
                 titre="Ta réponse"
                 legende="Rédige ta méthode, pas seulement le résultat final"
               />
-              <div className="px-4 py-4">
+              <div className="px-4 py-3.5">
                 <ZoneReponse attemptId={enCours.id} valeur={enCours.reponse} />
               </div>
             </Carte>
@@ -223,9 +223,9 @@ export default async function PageExercice(props: {
                       {exercice.indices.slice(0, enCours.indicesUtilises).map((ind, i) => (
                         <li
                           key={i}
-                          className="flex gap-2 rounded-md border border-bordure bg-surface-2 px-3 py-2"
+                          className="flex items-start gap-2 rounded-md border border-bordure bg-surface-2 px-3 py-2"
                         >
-                          <IconeAmpoule className="size-4 shrink-0 text-alerte" />
+                          <IconeAmpoule className="mt-0.5 size-4 shrink-0 text-alerte" />
                           <div>
                             <div className="text-[0.625rem] font-medium uppercase tracking-wider text-texte-discret">
                               Indice {i + 1}
@@ -252,7 +252,7 @@ export default async function PageExercice(props: {
             {/* Correction — jamais révélée d'emblée. */}
             {!correctionVisible ? (
               <Carte>
-                <div className="px-4 py-4">
+                <div className="px-4 py-3.5">
                   <p className="text-sm font-medium">Correction</p>
                   <p className="mt-1 text-xs text-texte-attenue">
                     Elle reste masquée tant que tu ne l&apos;ouvres pas. La révéler ne pénalise pas
@@ -273,7 +273,7 @@ export default async function PageExercice(props: {
                     titre="Correction"
                     legende="Compare ta méthode, pas seulement ton résultat"
                   />
-                  <div className="px-4 py-4 text-sm">
+                  <div className="px-4 py-3.5 text-sm">
                     <Markdown contenu={exercice.correction} />
                   </div>
                 </Carte>
@@ -283,7 +283,7 @@ export default async function PageExercice(props: {
                     titre="Auto-évaluation"
                     legende="C'est cette étape qui produit la preuve"
                   />
-                  <div className="px-4 py-4">
+                  <div className="px-4 py-3.5">
                     <FormulaireBilan
                       exercice={exercice}
                       attemptId={enCours.id}
@@ -324,7 +324,7 @@ export default async function PageExercice(props: {
                   </Etiquette>
                 }
               />
-              <div className="px-4 py-4 text-sm">
+              <div className="px-4 py-3.5 text-sm">
                 <Markdown contenu={exercice.correction} />
               </div>
             </Carte>
@@ -332,14 +332,14 @@ export default async function PageExercice(props: {
             {derniereTerminee.reponse && (
               <Carte>
                 <EnTeteCarte titre="Ta réponse d'alors" />
-                <div className="whitespace-pre-wrap px-4 py-4 text-xs text-texte-attenue">
+                <div className="whitespace-pre-wrap px-4 py-3.5 text-xs text-texte-attenue">
                   {derniereTerminee.reponse}
                 </div>
               </Carte>
             )}
 
             <Carte>
-              <div className="px-4 py-4">
+              <div className="px-4 py-3.5">
                 <p className="text-sm">
                   Cet exercice a produit une preuve. Le refaire plus tard, après un délai, est
                   exactement ce qui fait monter la robustesse d&apos;une compétence.

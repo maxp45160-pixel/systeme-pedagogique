@@ -32,7 +32,7 @@ export default function ErreurApp({
 
   return (
     <Carte>
-      <div className="px-4 py-6">
+      <div className="px-4 py-3.5">
         <h1 className="text-base font-semibold tracking-tight">
           Cette page n&apos;a pas pu être chargée
         </h1>
@@ -49,7 +49,7 @@ export default function ErreurApp({
           </p>
         )}
 
-        <div className="mt-5 flex flex-wrap gap-2">
+        <div className="mt-5 flex flex-wrap items-center gap-2">
           <button type="button" onClick={reset} className={classesBouton("principal")}>
             Réessayer
           </button>

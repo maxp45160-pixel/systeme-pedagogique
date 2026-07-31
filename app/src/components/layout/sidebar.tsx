@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { NAVIGATION } from "./navigation";
 import { cx } from "@/components/ui/primitives";
 import { IconeFeuille } from "@/components/ui/icones";
-import { BasculeTheme } from "./bascule-theme";
+import { BasculeRail } from "./bascule-rail";
 import { Compte, type EtatSession } from "./compte";
 
 function estActif(pathname: string, href: string): boolean {
@@ -20,9 +20,9 @@ export function Sidebar({ session }: { session: EtatSession }) {
   return (
     // Rabat de carnet « forêt » : sombre et constant dans les deux thèmes, il
     // encadre le canevas crème et concentre le regard sur le travail.
-    <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-[var(--rail-bordure)] bg-[var(--rail)] text-[var(--rail-texte)] lg:flex">
+    <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-[var(--rail-bordure)] bg-[var(--rail)] text-[var(--rail-texte)] lg:flex rail-reduit:w-16">
       {/* Logo = tableau de bord : le point d'entrée, plus un « groupe » à part. */}
-      <div className="flex h-16 items-center justify-between gap-2 border-b border-[var(--rail-bordure)] px-4">
+      <div className="flex h-16 items-center justify-between gap-2 border-b border-[var(--rail-bordure)] px-4 rail-reduit:h-auto rail-reduit:flex-col rail-reduit:px-0 rail-reduit:py-3">
         <Link
           href="/"
           aria-current={surAccueil ? "page" : undefined}
@@ -36,7 +36,7 @@ export function Sidebar({ session }: { session: EtatSession }) {
           >
             <IconeFeuille className="size-5" />
           </span>
-          <span className="min-w-0">
+          <span className="min-w-0 rail-reduit:hidden">
             <span className="block truncate font-serif text-[0.95rem] font-medium leading-tight text-[var(--rail-texte)]">
               Carnet
             </span>
@@ -45,20 +45,26 @@ export function Sidebar({ session }: { session: EtatSession }) {
             </span>
           </span>
         </Link>
-        <BasculeTheme tone="rail" />
+        <BasculeRail />
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-4">
+      <nav className="flex-1 overflow-y-auto px-3 py-4 rail-reduit:px-2">
         {NAVIGATION.map((groupe) => (
-          <div key={groupe.titre} className={groupe.primaire ? "mb-6" : "mb-6"}>
+          <div key={groupe.titre} className="mb-6">
             <div
               className={cx(
-                "px-2 pb-2 text-[0.625rem] font-semibold uppercase tracking-wider",
+                "px-2 pb-2 text-[0.625rem] font-semibold uppercase tracking-wider rail-reduit:hidden",
                 groupe.primaire ? "text-[var(--rail-texte-attenue)]" : "text-[var(--rail-texte-discret)]",
               )}
             >
               {groupe.titre}
             </div>
+            {/* Rail réduit : l'intitulé de groupe disparaît, un filet le remplace
+                pour que la séparation des deux groupes reste lisible. */}
+            <div
+              aria-hidden
+              className="mx-1 mb-2 hidden h-px bg-[var(--rail-bordure)] rail-reduit:block"
+            />
             <ul className={groupe.primaire ? "space-y-1" : "space-y-0.5"}>
               {groupe.entrees.map((e) => {
                 const actif = estActif(pathname, e.href);
@@ -68,8 +74,13 @@ export function Sidebar({ session }: { session: EtatSession }) {
                     <Link
                       href={e.href}
                       aria-current={actif ? "page" : undefined}
+                      // Le nom accessible ne doit jamais dépendre du CSS : en
+                      // rail réduit le libellé visible disparaît, `aria-label`
+                      // et `title` restent.
+                      aria-label={e.libelle}
+                      title={e.libelle}
                       className={cx(
-                        "group flex items-center transition-colors",
+                        "group flex items-center transition-colors rail-reduit:justify-center rail-reduit:px-0",
                         groupe.primaire
                           ? "gap-3 rounded-lg px-3 py-2.5 text-sm font-medium"
                           : "gap-2.5 rounded-md px-3 py-1.5 text-[0.8125rem]",
@@ -87,7 +98,7 @@ export function Sidebar({ session }: { session: EtatSession }) {
                           !actif && "text-[var(--rail-texte-discret)] group-hover:text-[var(--rail-texte-attenue)]",
                         )}
                       />
-                      <span className="truncate">{e.libelle}</span>
+                      <span className="truncate rail-reduit:hidden">{e.libelle}</span>
                     </Link>
                   </li>
                 );
@@ -95,7 +106,6 @@ export function Sidebar({ session }: { session: EtatSession }) {
             </ul>
           </div>
         ))}
-
       </nav>
 
       <Compte session={session} />
