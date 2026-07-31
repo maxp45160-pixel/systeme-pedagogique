@@ -29,20 +29,23 @@ rien à mesurer.
 ### 1. Faire tourner la boucle sur le périmètre pilote — *en cours*
 
 **Objectif :** qu'un exercice proposé par le tuteur soit validé, fait, et
-produise une preuve qui déplace un niveau de LOG.
+produise une preuve qui déplace un niveau de DEV.
 
 **Conditions déjà remplies** (chantier du 28/07) :
 - le terrain est dégagé — 6 entités mortes, la gamification, le mode démo et la
   dorsale locale ont été retirés ;
 - l'écran de création est devenu un écran de **validation** d'une proposition ;
-- le périmètre est borné à 9 compétences ;
-- les marqueurs de proposition ne peuvent plus se désynchroniser en silence.
+- le périmètre est borné à 10 compétences (DEV-01 → DEV-10, ADR-020) ;
+- les marqueurs de proposition ne peuvent plus se désynchroniser en silence ;
+- le chat du tuteur ne gèle plus sur les messages longs (31/07) — c'était
+  l'obstacle matériel : une proposition d'exercice est précisément un gros
+  message multi-lignes.
 
 **Ce qui reste à faire :** exécuter la boucle en vrai, plusieurs fois.
 
 ⚠️ **Condition de sortie — une mesure, pas une impression :** 5 exercices
 générés par le tuteur, validés et faits, produisant 5 preuves sur au moins
-3 compétences distinctes de LOG. Tant que ce n'est pas atteint, rien d'autre ne
+3 compétences distinctes de DEV. Tant que ce n'est pas atteint, rien d'autre ne
 commence.
 
 ### 2. Choisir le moteur gratuit — *en parallèle de 1*

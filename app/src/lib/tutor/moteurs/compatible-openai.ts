@@ -72,9 +72,14 @@ export function moteurCompatibleOpenAI(
 
     async repondre({ systemeStable, systemeProfil, messages, envoyer }: DemandeTuteur) {
       try {
-        // Clé de cache : déterministe sur le contenu stable. Mistral utilise ce
-        // paramètre pour identifier un préfixe réutilisable d'une requête à
-        // l'autre, réduisant latence et coût sur les ~7-8K tokens de protocole.
+        // Clé de cache : déterministe sur le contenu stable, pour que les
+        // fournisseurs sachant réutiliser un préfixe d'une requête à l'autre
+        // puissent le faire sur les ~8 K jetons de protocole.
+        //
+        // 🔬 Le gain effectif n'est pas vérifié : il se lit dans le décompte
+        // `cacheLu` affiché sous le chat. S'il reste à zéro, le fournisseur
+        // ignore ce paramètre et cette clé ne coûte rien de plus qu'un champ
+        // inutilisé — le repli 400 ci-dessous couvre le cas d'un refus.
         //
         // djb2 suffit ici : ce n'est pas de la sécurité, c'est un identifiant
         // stable pour le même contenu textuel.
@@ -113,9 +118,16 @@ export function moteurCompatibleOpenAI(
 
         let reponse = await appeler(payloadMistral);
         if (reponse.status === 400) {
+          // Repli pour les fournisseurs qui refusent `prompt_cache_key` ou le
+          // double bloc système : un seul message système concaténé, comme
+          // avant. `stream_options` est conservé — sans lui, le décompte de
+          // jetons disparaîtrait de l'interface sans que rien ne le signale,
+          // et c'est précisément ce décompte qui permet de vérifier si le
+          // cache de préfixe sert à quelque chose.
           reponse = await appeler({
             model: modele,
             stream: true,
+            stream_options: { include_usage: true },
             max_tokens: MAX_JETONS_SORTIE,
             messages: [
               { role: "system", content: `${systemeStable}\n\n${systemeProfil}` },

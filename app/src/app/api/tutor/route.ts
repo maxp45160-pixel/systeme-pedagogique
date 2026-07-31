@@ -1,7 +1,7 @@
 import { chargerContexte } from "@/lib/store/context";
 import { construireContexte } from "@/lib/tutor/contexte";
 import { choisirConfiguration, creerMoteur, decrireChoix } from "@/lib/tutor/moteurs";
-import type { MessageTuteur } from "@/lib/tutor/moteurs";
+import { fenetrerHistorique, MAX_MESSAGES_FENETRE } from "@/lib/tutor/fenetre";
 
 /**
  * Route du tuteur — réponse diffusée en flux.
@@ -13,52 +13,6 @@ import type { MessageTuteur } from "@/lib/tutor/moteurs";
  * Sans moteur configuré, elle répond 503 et l'interface bascule d'elle-même en
  * mode « copier le contexte » — elle ne simule jamais une réponse.
  */
-
-/* ------------------------------------------------------------------ */
-/* Fenêtrage de l'historique                                           */
-/*                                                                     */
-/* Sans borne, le payload croît linéairement avec la longueur de la    */
-/* conversation (réponses assistant ≤ 8192 tokens s'accumulent) et     */
-/* finit en HTTP 413. On garde le premier message utilisateur (donne   */
-/* le contexte initial) + les N derniers messages.                     */
-/* ------------------------------------------------------------------ */
-
-/**
- * Nombre maximum de messages (user + assistant) à transmettre au modèle,
- * en plus du premier message utilisateur conservé pour le contexte initial.
- *
- * 20 messages ≈ 10 échanges → ~80-100K tokens au pire, largement sous
- * la limite de 128K de Mistral tout en conservant suffisamment de contexte
- * conversationnel pour des réponses cohérentes.
- */
-const MAX_MESSAGES_FENETRE = 20;
-
-/**
- * Réduit l'historique en conservant le premier message utilisateur
- * et les derniers messages. Renvoie `{ fenetre, tronque }`.
- */
-function fenêtrerHistorique(
-  messages: MessageTuteur[],
-): { fenetre: MessageTuteur[]; tronque: boolean } {
-  if (messages.length <= MAX_MESSAGES_FENETRE) {
-    return { fenetre: messages, tronque: false };
-  }
-
-  // Premier message utilisateur (contexte initial de la session).
-  const premier = messages.find((m) => m.role === "user");
-  // Les N-1 derniers (on réserve une place pour le premier).
-  const queue = messages.slice(-(MAX_MESSAGES_FENETRE - 1));
-
-  // Vérifier que la queue commence bien par un message user pour garder
-  // la structure user/assistant cohérente. Si ce n'est pas le cas, on
-  // retire le premier message assistant orphelin.
-  const queueNormalisee = queue[0]?.role === "assistant" ? queue.slice(1) : queue;
-  const fenetre = premier
-    ? [premier, ...queueNormalisee.filter((m) => m !== premier)]
-    : queueNormalisee;
-
-  return { fenetre, tronque: true };
-}
 
 export async function POST(request: Request) {
   const choix = choisirConfiguration(process.env);
@@ -89,10 +43,15 @@ export async function POST(request: Request) {
     return Response.json({ erreur: "aucun-message" }, { status: 400 });
   }
 
-  const { fenetre: messages, tronque } = fenêtrerHistorique(messagesComplets);
+  const { fenetre: messages, tronque } = fenetrerHistorique(messagesComplets);
 
   const ctx = await chargerContexte();
-  const pedagogique = await construireContexte(ctx, messages);
+  // L'heuristique de chargement conditionnel (ADR-021) reçoit l'historique
+  // COMPLET, pas la fenêtre : sa cadence se compte en tours réellement
+  // échangés. Lui passer la fenêtre plafonnerait le compteur à la taille de
+  // celle-ci, et un plafond multiple de la cadence rechargerait le protocole
+  // complet à chaque message — l'inverse exact du gain visé.
+  const pedagogique = await construireContexte(ctx, messagesComplets);
 
   const encodeur = new TextEncoder();
 

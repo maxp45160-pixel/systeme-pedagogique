@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { construireContexte, fautChargerSyntheseEvaluation } from "./contexte";
+import { fenetrerHistorique, MAX_MESSAGES_FENETRE } from "./fenetre";
 import { SKILLS_ACTIFS } from "@/lib/domain/referentiel";
 import { computeAllSkillStates } from "@/lib/engine/skill-state";
 import { calculerEtatGlobal } from "@/lib/engine/progression";
@@ -106,5 +107,80 @@ describe("construireContexte — chargement conditionnel (ADR-021)", () => {
     ]);
     const noms = pedagogique.manifeste.map((s) => s.nom);
     expect(noms).toContain("Protocole d'évaluation (complet)");
+  });
+
+  /*
+   * Non-régression : `construireContexte` doit recevoir l'historique COMPLET,
+   * jamais la fenêtre d'envoi (`fenetrerHistorique`). Passer la fenêtre
+   * plafonnerait `messages.length` à sa taille, et la cadence de secours —
+   * qui se compte en tours réellement échangés — ne se déclencherait plus
+   * jamais sur une longue conversation, ou se déclencherait à chaque message
+   * si ce plafond tombait sur un multiple de la cadence. Dans les deux cas le
+   * garde-fou d'ADR-021 est perdu en silence.
+   */
+  it("garde une cadence juste sur une conversation plus longue que la fenêtre d'envoi", async () => {
+    const conversation = construireConversation(45);
+    expect(conversation.length).toBeGreaterThan(MAX_MESSAGES_FENETRE);
+    expect(conversation.length % 5).toBe(0); // tombe sur la cadence
+
+    const pedagogique = await construireContexte(construireCtxDeTest(), conversation);
+    const noms = pedagogique.manifeste.map((s) => s.nom);
+    expect(noms).toContain("Protocole d'évaluation (complet)");
+
+    // Le tour suivant, hors cadence, ne doit pas le recharger.
+    const horsCadence = construireConversation(46);
+    const suivant = await construireContexte(construireCtxDeTest(), horsCadence);
+    expect(suivant.manifeste.map((s) => s.nom)).not.toContain(
+      "Protocole d'évaluation (complet)",
+    );
+  });
+});
+
+/** Conversation ordinaire de `n` messages, sans aucun mot-clé de synthèse. */
+function construireConversation(n: number): { role: "user" | "assistant"; content: string }[] {
+  return Array.from({ length: n }, (_, i) => ({
+    role: i % 2 === 0 ? ("user" as const) : ("assistant" as const),
+    content: `Message ordinaire numero ${i}`,
+  }));
+}
+
+/*
+ * La fenêtre d'envoi borne le payload transmis au fournisseur. Elle est
+ * testée ici parce qu'elle a deux propriétés que rien d'autre ne garantit :
+ * elle conserve l'intention initiale de la séance, et elle ne laisse jamais
+ * une réponse du tuteur sans la question qui l'a produite.
+ */
+describe("fenetrerHistorique", () => {
+  it("ne touche pas une conversation courte", () => {
+    const messages = construireConversation(4);
+    const { fenetre, tronque } = fenetrerHistorique(messages);
+    expect(tronque).toBe(false);
+    expect(fenetre).toEqual(messages);
+  });
+
+  it("borne la conversation longue en gardant le premier message utilisateur", () => {
+    const messages = construireConversation(60);
+    const { fenetre, tronque } = fenetrerHistorique(messages);
+
+    expect(tronque).toBe(true);
+    expect(fenetre.length).toBeLessThanOrEqual(MAX_MESSAGES_FENETRE);
+    expect(fenetre[0]).toEqual(messages[0]);
+    // La fin de la conversation est toujours transmise intégralement.
+    expect(fenetre[fenetre.length - 1]).toEqual(messages[messages.length - 1]);
+  });
+
+  it("ne laisse jamais une réponse du tuteur orpheline en tête", () => {
+    // La parité décale le début de la queue : on couvre les deux cas, plus
+    // les longueurs voisines, pour que la normalisation soit exercée.
+    for (const n of [40, 41, 42, 43]) {
+      const { fenetre } = fenetrerHistorique(construireConversation(n));
+      // Un assistant en tête serait lu comme une affirmation spontanée du
+      // tuteur, sa question ayant disparu.
+      expect(fenetre[0]?.role).toBe("user");
+      // La couture (premier message + saut vers la fenêtre récente) peut
+      // juxtaposer deux messages utilisateur : c'est voulu et licite dans le
+      // format de conversation, contrairement à un assistant orphelin.
+      expect(fenetre.filter((m, i) => m.role === "assistant" && i === 0)).toHaveLength(0);
+    }
   });
 });

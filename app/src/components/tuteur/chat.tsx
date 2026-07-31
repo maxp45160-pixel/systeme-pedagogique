@@ -80,11 +80,9 @@ interface Etat {
 
 const MessageBulle = memo(function MessageBulle({
   message,
-  index,
   codesCompetences,
 }: {
   message: Message;
-  index: number;
   codesCompetences: string[];
 }) {
   // Propositions structurées du tuteur, validées contre le
@@ -361,19 +359,37 @@ export function ChatTuteur({
     }
   }, [flushAccumule]);
 
+  /* Miroirs des états lus par `envoyer`. Sans eux, `envoyer` changerait
+   * d'identité à chaque message et à chaque changement d'état, ce qui
+   * invaliderait le `memo` de `ChatInput` et rendrait son isolation — le
+   * correctif de la saisie — inopérante dès le deuxième tour. */
+  const messagesRef = useRef<Message[]>([]);
+  const enCoursRef = useRef(false);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+  useEffect(() => {
+    enCoursRef.current = enCours;
+  }, [enCours]);
+
   const envoyer = useCallback(async (texte: string) => {
     const contenu = texte.trim();
-    if (!contenu || enCours) return;
+    if (!contenu || enCoursRef.current) return;
 
     setAvis(null);
     setUsage(null);
-    const historique: Message[] = [...messages, { role: "user", content: contenu }];
+    const historique: Message[] = [...messagesRef.current, { role: "user", content: contenu }];
     historiqueRef.current = historique;
     accumuleRef.current = "";
     setMessages([...historique, { role: "assistant", content: "" }]);
     setEnCours(true);
 
     try {
+      // L'historique part en entier, volontairement : c'est la route qui
+      // décide ce qui atteint le modèle (`fenetrerHistorique`). Elle a besoin
+      // du compte de tours réel pour le chargement conditionnel des
+      // protocoles (ADR-021) ; fenêtrer ici lui ferait perdre cette
+      // information, et la borne serait appliquée deux fois.
       const reponse = await fetch("/api/tutor", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -460,7 +476,7 @@ export function ChatTuteur({
     } finally {
       setEnCours(false);
     }
-  }, [enCours, messages, planifierFlush]);
+  }, [planifierFlush]);
 
   const copierContexte = useCallback(async (saisie: string) => {
     try {
@@ -497,12 +513,7 @@ export function ChatTuteur({
             )}
 
             {messages.map((m, i) => (
-              <MessageBulle
-                key={i}
-                message={m}
-                index={i}
-                codesCompetences={codesCompetences}
-              />
+              <MessageBulle key={i} message={m} codesCompetences={codesCompetences} />
             ))}
           </div>
 
