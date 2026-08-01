@@ -375,9 +375,10 @@ tête d'ADR-007. *Fin de la section historique.*
 ---
 
 <a name="adr-008"></a>
-## ADR-008 — L'autonomie mesurée ignore l'aide externe ❓
+## ADR-008 — L'autonomie mesurée ignore l'aide externe 🔄 (fermée)
 
-**Statut.** Ouverte. Découvert le 27/07 en lisant les données de production.
+**Statut.** **Fermée le 01/08/2026 par [ADR-033](#adr-033)**, qui retient
+l'option A ci-dessous. Ouverte le 27/07 en lisant les données de production.
 
 **Problème.** `indicesUtilises` ne compte que les indices **internes**. Toute
 aide extérieure est invisible au moteur, qui enregistre néanmoins
@@ -415,7 +416,11 @@ partiellement aveugle. L'argument tient encore — un indice interne compté vau
 mieux qu'une autonomie entièrement déclarée — mais il est **plus faible qu'annoncé**.
 C'est pourquoi ADR-011 est rouverte.
 
-**En attente de :** arbitrage de Maxime.
+**Arbitré le 01/08/2026 par Maxime** — option A, portée au seul formulaire de
+preuve manuelle, sous une contrainte qu'il a posée explicitement : *« quand je
+parle d'autonomie c'est au niveau des inputs demandés par l'utilisateur. Faire
+en sorte qu'il n'ait pas beaucoup de boutons à sélectionner. »* Voir
+[ADR-033](#adr-033).
 
 ---
 
@@ -893,7 +898,14 @@ budget de contexte, ni pour Anthropic ni pour les moteurs sans cache.
 toujours chargés : Instructions principales 8 014 + Évaluation CORE 4 252 +
 Anti-hallucination 5 311 = **17 577 caractères ≈ 4 394 tokens** sur un tour
 ordinaire, contre 20 135 caractères ≈ 5 034 tokens avant ce chantier —
-**-12,7 %** sur le plancher payé à chaque message. Sur un tour de synthèse
+**-12,7 %** sur le plancher payé à chaque message.
+
+> ⚠️ **Ces trois chiffres ont dérivé après coup.** Remesurés le 01/08/2026 :
+> 8 926 + 4 863 + 5 311 = **19 100 caractères**, soit 1 523 de plus que ce que
+> ce paragraphe annonçait. Les fichiers ont grossi au fil des chantiers
+> suivants (ADR-026, ADR-029) sans que personne ne remette le total à jour —
+> et un chiffre périmé dans une ADR sert d'argument à la décision suivante.
+> Le dégraissage d'[ADR-032](#adr-032) repart de 19 100, pas de 17 577. Sur un tour de synthèse
 (SYNTHESE inclus, 2 206 caractères de plus), le total revient à 19 783
 caractères ≈ 4 946 tokens, soit -1,7 % par rapport à l'ancien total : la
 compression seule, le découpage n'ajoutant ni ne retranchant rien de
@@ -1642,6 +1654,372 @@ généré par le tuteur n'avait jamais été clos.** Le premier tour complet de 
 boucle l'a exhibé en une fois. C'est l'argument d'ADR-013 — la boucle est le
 produit — sous sa forme la plus concrète : la faire tourner mesure le système,
 pas seulement l'utilisateur.
+
+---
+
+## ADR-031 — Les propositions du tuteur passent en sortie structurée ✅
+
+**Date.** 01/08/2026. Lot 3.2 du plan de micro-incrémentation, **demandé
+explicitement**. Remplace le mécanisme de gabarits markdown d'[ADR-004](#adr-004)
+et d'[ADR-026](#adr-026) ; ne change aucun garde-fou.
+
+### Le problème
+
+Le tuteur écrivait ses propositions — preuve, exercice, branche — en blocs
+markdown à étiquettes, relus par une machine à états (`decouperChamps`,
+`lib/tutor/proposition.ts`). Trois défauts de **forme**, tous observés :
+
+1. **Une réponse tronquée produisait un demi-exercice, en silence.** Les champs
+   arrivent dans l'ordre du gabarit ; `Correction` et `Critère` sont en fin de
+   bloc. Un flux coupé — plafond de jetons, bouton « Arrêter » — laissait un
+   bloc qui satisfaisait « titre + énoncé », donc affichable, donc cliquable.
+   Le lot 1 l'a masqué avec `exerciceComplet` ; il ne l'a pas supprimé.
+2. **La mise en forme était une classe de bugs.** `**Titre** :`, `**Titre :**`,
+   étiquette seule sur sa ligne, tiret cadratin dans un intitulé : quatre
+   correctifs successifs sur le parseur, dont le commit `a3f2946`.
+3. **Les interdits n'étaient que des phrases.** « N'écris aucun code de
+   compétence » (ADR-026, `CLAUDE.md` §8) se lit ou ne se lit pas. Un code
+   inventé entre en collision et les preuves suivent la mauvaise compétence,
+   sans erreur visible.
+
+### Décision
+
+Les trois propositions passent par un **appel d'outil**, décrit une seule fois
+dans `lib/tutor/outils.ts` et traduit par chaque moteur (`tools` chez Anthropic,
+`tools` / `tool_choice` chez les compatibles OpenAI). Le texte conversationnel
+continue de streamer ; la proposition arrive en fin de tour, validée.
+
+- **La validation est écrite à la main et fait seule autorité.** Le schéma part
+  au fournisseur, mais un fournisseur qui le suivrait mal ne doit pas pouvoir
+  faire entrer une proposition mal formée. Aucune dépendance ajoutée.
+- **Le schéma de branche ne comporte AUCUN champ `code`.** L'interdit d'ADR-026
+  devient inexprimable au lieu d'être demandé. Un test le vérifie, et un second
+  vérifie qu'un `code` glissé malgré tout ne ressort pas de la validation.
+- **Une proposition invalide est rejetée ET annoncée** (`proposition-rejetee`).
+  Taire le rejet remplacerait le demi-exercice d'hier par un exercice disparu :
+  deux pannes silencieuses, pas une correction.
+- **`exerciceComplet` reste la seule définition de « complet »**, appliquée
+  désormais au plus tôt, à la validation.
+
+### Ce qui ne change pas
+
+Le tuteur n'a toujours **aucun accès en écriture** (P5). Un appel d'outil est
+une proposition : elle remplit un formulaire que l'utilisateur valide, comme le
+bloc markdown avant elle. Les types rendus par la validation sont ceux des
+parseurs — le formulaire de création et l'écran de validation du référentiel ne
+sont pas touchés.
+
+### Ce que la mesure dit — et contredit
+
+Le plan annonçait **~1 389 jetons économisés par message**. C'est faux, et il
+faut l'écrire :
+
+| Bloc | Avant | Après |
+|---|---|---|
+| `consignesInterface` | 5 556 car. | **3 105 car.** |
+| Schémas des trois outils | 0 | **3 128 car.** |
+| **Total** | **5 556** | **6 233 (+677, +12 %)** |
+
+Les gabarits ont bien disparu du prompt ; les schémas coûtent à peu près ce
+qu'ils remplacent. **Le gain de ce lot n'est donc pas la taille du prompt** — il
+est la rejetabilité d'une proposition tronquée et la disparition d'une classe de
+bugs. Les deux blocs vivent dans le préfixe stable, donc mis en cache : le coût
+marginal par message est celui d'un cache lu.
+
+Corollaire : **le lot 3.3 ne peut plus s'appuyer sur 3.2 pour son budget.** Les
+19 100 caractères de protocole restent le seul gisement réel.
+
+### Repli, et ce qu'il coûte
+
+`compatible-openai.ts` replie en deux marches sur un 400 : d'abord sans
+`prompt_cache_key` ni double bloc système (outils conservés), puis sans outils
+du tout. Dans ce dernier cas le tuteur répond en texte et **les parseurs de
+`proposition.ts` reprennent la main** — d'où leur maintien, avec leurs 33 tests.
+Ce qui se perd alors est exactement la rejetabilité. Le mode « copier le
+contexte » est dans le même cas : il n'a pas d'appel d'outil, et reçoit les
+schémas rendus en texte, depuis la même source.
+
+### 🔬 Ce qui n'est pas vérifié
+
+**La bascule n'a été exercée sur aucun moteur réel.** Les 15 tests de
+`outils.test.ts` portent sur la validation, pas sur ce que Mistral ou Anthropic
+émettent effectivement.
+
+**Premier essai, 01/08/2026 : aucune carte, et la cause était indécidable.** Les
+deux gestes ont rendu « Réponse interrompue. Le texte déjà reçu est conservé. »
+Deux enseignements, dont un défaut de ce lot :
+
+1. **Le second geste ne testait pas ce que j'avais écrit.** Cliquer « Arrêter »
+   coupe le `fetch` côté navigateur ; le serveur n'achève jamais son tour, donc
+   n'émet aucun appel d'outil, donc aucun rejet à annoncer. Le message
+   d'interruption est le comportement correct. Ce geste vérifie seulement
+   qu'aucune carte n'apparaît — c'est le cas. **`proposition-rejetee` ne peut
+   être atteint que par un tour qui va au bout** avec un appel invalide, en
+   pratique une troncature à `max_tokens`.
+2. **L'absence de carte avait trois causes possibles et aucune n'était
+   observable** : le tuteur n'a rien proposé, le fournisseur a refusé `tools` et
+   le repli s'est fait en silence, ou le flux a été coupé avant la fin — les
+   propositions n'arrivant qu'en fin de tour. Trois diagnostics, un symptôme :
+   la panne muette que ce lot combat s'était réinstallée dans le lot lui-même.
+
+Corrigé dans le même geste : l'événement `fin` porte désormais
+`outils: { actifs, appels }`. Le compte d'appels s'affiche sous le chat, et un
+repli sans outils déclenche un avis explicite au lieu de passer inaperçu.
+
+**Conséquence de conception à assumer** : en sortie structurée, la proposition
+arrive en fin de tour. **Interrompre une réponse la perd entièrement**, là où le
+gabarit markdown en laissait un fragment. C'est le prix de la rejetabilité, et
+il est visible plutôt que subi.
+
+### ✅ Vérifié sur Mistral le 01/08/2026
+
+Second essai, réponse menée au bout, `mistral-large-2512` :
+
+| Observé | Valeur |
+|---|---|
+| Appels d'outil | **1** |
+| Carte « Exercice proposé » | affichée — DEV-03, difficulté 1/5 |
+| Avis de repli | aucun — `tools` accepté sur `api.mistral.ai/v1` |
+| Jetons | 10 398 entrée / **2 035 sortie** |
+
+**La bascule fonctionne sur le moteur en service.** Anthropic reste 🔬 : aucune
+clé n'était disponible.
+
+Deux observations que cet essai a produites :
+
+**1. Le tuteur écrivait l'exercice deux fois** — dans l'appel d'outil *et* en
+prose dans le message (énoncé, critères, « je te propose de l'ajouter »). D'où
+les 2 035 jetons de sortie. La carte n'était pas dupliquée — le garde-fou
+« deux sources, jamais les deux » de `chat.tsx` a tenu — mais la sortie l'était.
+Corrigé par une règle du cadre d'intervention : ne pas recopier le contenu d'un
+appel d'outil, la carte l'affiche déjà. 🔬 Effet non mesuré.
+
+**2. `cacheLu` restait à 0 — et c'était un zéro fabriqué.** Examiné le
+01/08/2026 : `compatible-openai.ts` lisait `prompt_cache_hit_tokens`, décrit en
+commentaire comme « Mistral-specific ». **Il ne l'est pas** — c'est un champ
+DeepSeek. Mistral publie les jetons servis par le cache dans
+`usage.prompt_tokens_details.cached_tokens`, la forme standard OpenAI. Le champ
+lu était donc toujours absent, le `?? 0` le rendait nul, et l'interface
+affichait « dont 0 lus en cache » : **un chiffre qu'aucune API n'avait jamais
+dit, dans l'écran même où le produit promet de n'en afficher aucun** (P2, P3).
+
+C'est le défaut d'ADR-030 sous une autre forme — l'absence de mesure lue comme
+un zéro — cette fois sur l'indicateur de coût plutôt que sur le journal de
+preuves. Il ne fausse aucun niveau de compétence, mais il a directement faussé
+un arbitrage : c'est sur ce « 0 » que j'ai conclu, dans la version précédente de
+cette ADR, que les schémas étaient payés plein tarif.
+
+Corrigé : `jetonsLusEnCache` lit les deux formes, rend **`null`** quand le
+fournisseur est muet, et l'interface affiche alors « cache non renseigné par le
+fournisseur ». Quatre tests, dont un qui distingue un cache réellement vide
+(`cached_tokens: 0`) d'un cache non renseigné.
+
+🔬 **L'efficacité réelle du cache reste inconnue** — la mesure n'avait jamais eu
+lieu. À relire sous le chat au prochain message. Si le chiffre reste nul une
+fois le bon champ lu, deux pistes, dans cet ordre : `prompt_cache_key` est bien
+documenté chez Mistral mais notre clé est un hachage de `systemeStable`, qui
+**varie** selon les protocoles chargés ce tour-là (ADR-021) ; et le double bloc
+`system` peut empêcher la correspondance de préfixe.
+
+**Test de réfutation, pour Anthropic et pour toute reprise :**
+
+- demander un exercice et **laisser la réponse aller au bout** ; la carte doit
+  s'afficher, et la ligne sous le chat indiquer « 1 appel(s) d'outil » ;
+- si elle indique « 0 appel(s) » sans avis de repli, le fournisseur accepte les
+  outils mais le modèle ne les emploie pas : c'est le prompt qu'il faut reprendre ;
+- si l'avis « n'a pas accepté les appels d'outil » apparaît, le fournisseur
+  refuse `tools` sur cette route et la bascule est à revoir au niveau du moteur.
+
+### Étape suivante, non faite ici
+
+`proposition.ts` et ses tests **restent en place** tant que la vérification
+ci-dessus n'a pas eu lieu sur les deux moteurs. Leur retrait est un second
+commit, pas celui-ci.
+
+---
+
+## ADR-032 — Ce qu'un validateur rejette n'a pas à être un paragraphe de prompt ✅
+
+**Date.** 01/08/2026. Lot 3.3 du plan de micro-incrémentation, **demandé
+explicitement**. Suite directe d'[ADR-031](#adr-031), qui a rendu structurels
+plusieurs interdits jusque-là écrits en prose. Corrige les chiffres périmés
+d'[ADR-021](#adr-021).
+
+### La règle
+
+Un interdit tenu par le code — un schéma sans champ, une architecture sans
+route d'écriture, un moteur qui refuse une valeur — n'a pas besoin d'être
+répété au modèle. **Il est déjà impossible à enfreindre.** Ce qui doit rester
+au prompt est ce qu'aucun validateur ne saura dire : le jugement pédagogique.
+
+Ce dégraissage **ne retire aucune règle.** Il retire des répétitions et des
+énoncés devenus structurellement garantis.
+
+### Ce qui a été coupé, et pourquoi c'était sûr
+
+| Coupe | Ce qui la garantit désormais |
+|---|---|
+| Absence d'accès en écriture, dite **4 fois** (instructions §4, §10, §17, cadre d'intervention) | Aucune route de l'application ne l'offre. Énoncée **une** fois, dans le cadre d'intervention. |
+| Niveaux de preuve C et D détaillés en exemples | `estRecevable` les rejette, et le schéma de proposition de preuve **n'a aucun champ de niveau** — le tuteur ne peut pas en écrire un. |
+| « N'écris aucun code de compétence » (10 lignes) | ADR-031 : le schéma de branche n'a **pas** de champ `code`. |
+| Échelle 0-5 dans les instructions §6 | Dupliquait le protocole d'évaluation §4, dont le texte disait lui-même qu'il « fait foi ». |
+| Instructions §11, §14, §15 | Dupliquaient respectivement évaluation §7/§11, anti-hallucination §9, et la consigne de concision du cadre d'intervention. |
+| Conditions de mesurabilité a–e dans le cadre d'intervention | **Déplacées**, pas supprimées — voir ci-dessous. |
+
+### Mesure
+
+| Bloc | Avant | Après |
+|---|---|---|
+| Instructions principales | 8 926 | **7 029** |
+| Protocole d'évaluation (CORE) | 4 863 | 4 863 |
+| Protocole anti-hallucination | 5 311 | **5 299** |
+| Cadre d'intervention | 3 105 | **2 480** |
+| Schémas des outils | 3 128 | **3 348** |
+| **Plancher payé à chaque message** | **25 333** | **23 019 (−2 314, −9,1 %)** |
+
+Soit environ **−580 jetons par message**. Le protocole de référentiel, chargé
+à la demande, passe de 7 287 à 6 808.
+
+### Le seul poste en hausse, et pourquoi il est volontaire
+
+Les schémas grossissent de 220 caractères. Les cinq conditions de mesurabilité
+d'une compétence étaient écrites **deux fois** — dans le cadre d'intervention,
+à chaque message, et au protocole de référentiel §2. Les retirer du premier
+suffisait presque ; sauf que **le protocole de référentiel n'est chargé que sur
+mots-clés**, et « je veux travailler la thermodynamique » n'en porte aucun. Le
+tuteur aurait proposé une branche sans aucune règle de mesurabilité.
+
+Leur version condensée est donc passée dans la **description de l'outil**
+`proposer_referentiel`, qui part avec l'outil à chaque message. Le déplacement
+est le point : une règle qui doit toujours s'appliquer appartient à l'endroit
+qui est toujours présent, pas au fichier qu'une liste de mots-clés décide de
+charger.
+
+### La main la plus légère sur l'anti-hallucination
+
+Une seule coupe sur quatorze sections, et la moins engageante : les exemples
+de C et D. Les treize autres sont intactes. C'est le garde-fou que le produit
+vend ; on n'y touche qu'à la marge.
+
+⚠️ **`NiveauPreuve` conserve ses quatre valeurs dans le code.** C et D existent
+pour être **refusées** ; les retirer du type priverait le moteur de ce pouvoir
+(CLAUDE.md §8). Cette coupe ne touche que le prompt.
+
+### Un chiffre périmé est un argument faux
+
+ADR-021 annonçait 17 577 caractères de protocole toujours chargé. Remesuré
+aujourd'hui avant toute coupe : **19 100**. Les fichiers avaient grossi de
+1 523 caractères au fil d'ADR-026 et d'ADR-029, sans que le total soit repris.
+
+Ce n'est pas une coquille : ce chiffre sert d'argument aux décisions suivantes,
+et j'ai failli dimensionner ce lot dessus. ADR-021 porte désormais un
+avertissement daté. **Toute ADR qui annonce une mesure devrait porter la date à
+laquelle elle a été prise** — celles-ci ne vieillissent pas comme les décisions.
+
+### 🔬 Non vérifié
+
+**L'effet sur le comportement du tuteur n'est pas mesuré.** Retirer 2 314
+caractères de consignes redondantes ne devrait rien changer — c'est
+l'hypothèse, pas une observation. Test de réfutation : sur les trois prochains
+exercices générés, vérifier que la difficulté suit toujours le calibrage, que
+les critères portent bien une dimension du protocole, et qu'aucune proposition
+de branche ne contient d'intitulé non mesurable (« comprendre X », un sujet
+plutôt qu'un savoir-faire). Si l'un des trois dérape, la coupe correspondante
+se remet — et on saura laquelle.
+
+---
+
+<a name="adr-033"></a>
+## ADR-033 — L'aide extérieure se demande, l'autonomie se dérive ✅
+
+**Date.** 01/08/2026. **Tranchée par Maxime**, qui a arbitré [ADR-008](#adr-008)
+en option A *et* posé la contrainte de forme : réduire le nombre de boutons, pas
+en ajouter. Lot 4 du plan de micro-incrémentation. **Ferme le dernier principe
+en défaut (P8).**
+
+### Le défaut, une dernière fois
+
+`indicesUtilises` ne comptait que les indices **internes**. Documentation
+consultée, assistant IA sollicité, correction lue : invisibles. Le moteur
+écrivait « A3 — résolution autonome ».
+
+| Preuve | Enregistré | Écrit par l'utilisateur |
+|---|---|---|
+| `RO-01` | A3, 0 indice | *« J'ai eu besoin de l'aide de Claude et de ressources »* |
+| `STAT-02` | A3, 0 indice | *« j'ai regardé sur internet »* |
+
+**La personne était honnête ; l'instrument était sourd.** Le champ commentaire
+n'est pas lu par le moteur. C'est une erreur à l'**entrée** de la chaîne de
+preuve, pas à son agrégation — elle déforme tout ce qui en descend.
+
+### Décision
+
+L'aide extérieure **plafonne** l'autonomie, selon le protocole d'évaluation §5
+lu à la lettre :
+
+| Aide déclarée | Plafond | Raison |
+|---|---|---|
+| aucune | — | rien à plafonner |
+| documentation, cours | **A2** | « quelques indices nécessaires » — une référence consultée est un indice |
+| assistant IA | **A1** | « solution fortement guidée » |
+| correction obtenue | **A0** | « solution fournie », par définition |
+
+L'autonomie retenue est le **minimum** entre les indices internes et ce
+plafond. Un minimum, jamais un remplacement : indices épuisés (A1) + doc
+consultée (plafond A2) reste **A1**. Un plafond ne doit pas *relever* ce que la
+mesure interne avait déjà rabaissé.
+
+Le protocole d'évaluation §5 porte ce barème, écrit avant le code
+(`00_PERENNISATION` §6). `autonomieObservee` le transcrit.
+
+### La forme compte autant que le fond
+
+Le sélecteur à cinq paliers disparaît. Il demandait de **connaître le
+protocole** pour être rempli honnêtement, et récompensait l'optimisme : personne
+ne se déclare A1. À sa place, une question de fait dont la personne se
+souvient — de quelle aide as-tu disposé ? — avec « aucune » par défaut, donc
+**zéro clic dans le cas ordinaire**.
+
+C'est la contrainte posée par Maxime, et elle améliore la mesure au lieu de la
+contrarier : on ne demande plus un jugement sur soi, on demande un fait.
+
+> ⚠️ **A4 n'est plus atteignable.** C'était le seul palier auto-attribuable, et
+> « j'ai fait preuve d'initiative méthodologique » est exactement le type
+> d'auto-évaluation que ce chantier retire. Le palier reste dans `Autonomie` et
+> dans l'échelle du protocole ; plus rien ne l'écrit. Si une mesure objective de
+> l'initiative apparaît un jour, le palier est là pour la recevoir.
+
+### Ce qui n'est pas fait, et pourquoi
+
+**Les 29 preuves existantes ne sont pas retouchées.** Aucune donnée ne dit
+quelle aide a servi, sauf les deux commentaires ci-dessus. Corriger les
+vingt-sept autres demanderait de les inventer — la faute même que ce système
+combat. Le biais subsiste, **borné dans le temps**, et le protocole
+anti-hallucination §12 le signale désormais au tuteur comme portant sur les
+preuves antérieures au 01/08/2026.
+
+**Le bilan d'exercice ne pose pas la question.** Ce chemin dispose déjà d'une
+mesure non déclarative — le compteur d'indices — et le lot visait à *réduire*
+les inputs, pas à en ajouter un sur le chemin le plus fréquenté. L'écart y
+subsiste, moindre mais réel : quelqu'un qui fait un exercice de l'application
+avec Claude ouvert à côté sera toujours coté A3.
+
+C'est une fermeture **partielle** de P8, et il faut le dire ainsi. Le principe
+n'est plus violé sur le chemin où il n'existait aucune mesure ; il l'est encore,
+plus faiblement, là où une mesure partielle existe.
+
+### 🔬 Non vérifié
+
+**Aucune preuve n'a encore été enregistrée avec ce barème.** Test de
+réfutation : enregistrer une preuve manuelle en déclarant « assistant IA » et
+vérifier que l'autonomie écrite est **A1**, non A3 — et que le commentaire
+consigne « Aide extérieure déclarée : assistant IA ».
+
+Reste ouvert, et sans échéance : **le barème lui-même n'a pas été validé par
+l'usage.** `documentation → A2` est la lecture littérale du protocole, mais
+c'est une décision de valeur, pas une mesure. Si les niveaux s'effondrent chez
+quelqu'un qui travaille normalement documentation ouverte, c'est ce chiffre
+qu'il faudra rediscuter — pas le principe.
 
 ---
 

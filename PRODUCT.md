@@ -87,7 +87,7 @@ arbitrage.
 | **P5** | Le tuteur n'a aucun accès en écriture | Instructions §14 | ✅ Tenu |
 | **P6** | Le protocole est la spécification | — | ✅ Tenu |
 | **P7** | L'honnêteté prime sur la complétude | Anti-halluc. §14 | ✅ Tenu |
-| **P8** | La qualité de la preuve conditionne tout | Anti-halluc. §2 ; éval. §5 et §6 | 🔴 Tenu formellement, **fragile en pratique** |
+| **P8** | La qualité de la preuve conditionne tout | Anti-halluc. §2 ; éval. §5 et §6 | 🟡 Corrigé sur la preuve manuelle (ADR-033) ; l'écart subsiste, moindre, sur le bilan d'exercice |
 
 ### P2 — comment il a été rétabli le 31/07
 
@@ -111,20 +111,31 @@ en sort revient **entièrement** à la couverture — l'indicateur honnête de c
 n'a pas encore été mesuré. Le doute sur une couverture partielle continue de
 plafonner la *confiance*, pas d'abaisser le niveau. ✅ Tranché : ADR-006.
 
-### P8 — pourquoi il est fragile
+### P8 — corrigé sur un chemin, encore ouvert sur l'autre
 
-`indicesUtilises` ne compte que les indices **internes**. Toute aide extérieure
-est invisible au moteur, qui enregistre néanmoins A3 « résolution autonome » :
+`indicesUtilises` ne comptait que les indices **internes**. Toute aide
+extérieure était invisible au moteur, qui enregistrait néanmoins A3
+« résolution autonome » :
 
 | Preuve | Enregistré | Commentaire de l'utilisateur |
 |---|---|---|
 | `RO-01` | A3, 0 indice | *« J'ai eu besoin de l'aide de Claude et de ressources »* |
 | `STAT-02` | A3, 0 indice | *« j'ai regardé sur internet »* |
 
-L'utilisateur est honnête ; le moteur ne lit pas le champ commentaire. Les
-niveaux dérivés sont donc **structurellement optimistes** dans une proportion
-inconnue. Plus grave que P2, parce que le défaut est à l'entrée de la chaîne et
-non à son agrégation. ❓ Non tranché : voir ADR-008.
+L'utilisateur était honnête ; le moteur ne lisait pas le champ commentaire.
+
+✅ **Tranché le 01/08/2026 (ADR-033).** La preuve manuelle ne demande plus un
+palier d'autonomie : elle demande **de quelle aide la personne a disposé**, et
+le moteur en dérive le palier — documentation → A2, assistant IA → A1,
+correction → A0, en prenant toujours le minimum avec ce que disent les indices
+internes. Un fait constatable a remplacé une auto-évaluation.
+
+🔬 **Deux réserves, écrites plutôt que tues.** Le **bilan d'exercice** ne pose
+pas la question : il dispose déjà d'une mesure non déclarative, mais quelqu'un
+qui fait un exercice de l'application avec Claude ouvert à côté reste coté A3.
+Et les **29 preuves antérieures** ne sont pas retouchées — aucune donnée ne dit
+quelle aide a servi, et les inventer serait la faute que ce système combat. Le
+biais est donc réduit et borné dans le temps, pas supprimé.
 
 ## 6. Horizon
 

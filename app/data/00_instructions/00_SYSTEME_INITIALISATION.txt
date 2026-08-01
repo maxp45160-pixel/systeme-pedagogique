@@ -19,7 +19,7 @@ Si des fichiers de suivi sont nécessaires mais absents, les créer et les initi
 NOTE (v2.0, 25/07/2026) — Cette procédure d'initialisation textuelle a été
 exécutée une première fois (voir 00_SYSTEME_CHANGELOG.txt, VERSION 1.0).
 Depuis, une application dédiée (dossier `app/`) prend le relais pour tout ce
-qui est structure de données et calcul (voir section 17 des instructions
+qui est structure de données et calcul (voir section 13 des instructions
 principales). Si l'application n'est pas encore initialisée (`data/store/`
 vide ou absent), c'est l'état normal et attendu au premier lancement — ce
 n'est pas une régression à corriger en réappliquant les points 1 à 5

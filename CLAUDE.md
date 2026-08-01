@@ -35,7 +35,7 @@ voir — aucun exercice généré n'avait jamais été clos : `terminerExercice`
 
 | Document | Ce qu'il contient | Autorité |
 |---|---|---|
-| [`PRODUCT.md`](PRODUCT.md) | Ce que le produit est, n'est pas, et les 8 principes — dont les 2 en défaut | **Fait autorité** |
+| [`PRODUCT.md`](PRODUCT.md) | Ce que le produit est, n'est pas, et les 8 principes | **Fait autorité** |
 | [`ARCHITECTURE_DECISIONS.md`](ARCHITECTURE_DECISIONS.md) | Registre ADR — décisions, hypothèses, questions ouvertes | **Fait autorité** |
 
 Statuts employés dans ces docs : ✅ décision tranchée · 🔬 hypothèse non vérifiée · ❓ question ouverte · 🗑️ idée abandonnée.
@@ -79,9 +79,9 @@ pratique et développer un sujet à long terme.
   deux cas. Sans moteur configuré : 503 et repli « copier le contexte ».
 - **Styles :** Tailwind CSS v4 ; **graphiques SVG écrits à la main**, aucune
   librairie UI tierce
-- **Tests :** Vitest — **210 tests**, 8 fichiers (moteur, backend Supabase,
-  parseurs de propositions, contexte du tuteur, sélection du moteur du tuteur,
-  référentiel par compte, calibration, profil)
+- **Tests :** Vitest — **239 tests**, 9 fichiers (moteur, backend Supabase,
+  parseurs de propositions, outils du tuteur, contexte du tuteur, sélection du
+  moteur du tuteur, référentiel par compte, calibration, profil)
 - **Déploiement :** Vercel (Root Directory = `app`)
 - **Gestionnaire de paquets :** npm (workspace racine → `app/`)
 - **Outillage :** serveur MCP Supabase (`.mcp.json`)
@@ -140,9 +140,14 @@ bascule sur « Copier le contexte » — comportement voulu, pas une panne.
 
 **Ne pas modifier un seuil du moteur sans modifier le protocole correspondant.** 100 tests vérifient ces garanties.
 
-⚠️ **Un** principe n'est pas tenu : l'autonomie ignore l'aide externe (P8,
-ADR-008). Le score global a été corrigé le 31/07 — il porte sur les seules
-compétences mesurées, la couverture dit le reste (ADR-006). Voir `PRODUCT.md` §5.
+✅ **Les 8 principes sont tenus depuis le 01/08/2026.** P8 — l'autonomie
+ignorait l'aide externe — est fermé par ADR-033 : la preuve manuelle demande
+de quelle aide la personne a disposé, et le moteur en dérive le palier
+(`autonomieObservee`). Le score global avait été corrigé le 31/07 (ADR-006).
+
+🔬 Deux réserves subsistent sur P8, écrites dans `PRODUCT.md` §5 : le **bilan
+d'exercice** ne pose pas la question, et les **29 preuves antérieures** ne sont
+pas retouchées faute de donnée. Le biais est borné, pas supprimé.
 
 ---
 
@@ -187,7 +192,9 @@ immuable — c'est la clé étrangère des preuves.
 - **Ne jamais laisser le tuteur écrire un code de compétence.** Les codes sont
   attribués par l'application depuis le préfixe du domaine (ADR-026). Un code
   inventé entrerait en collision et les preuves suivraient la mauvaise
-  compétence, sans erreur visible.
+  compétence, sans erreur visible. Depuis ADR-031 le schéma de l'outil
+  `proposer_referentiel` n'a **aucun champ `code`** : l'interdit est devenu
+  inexprimable. Ne pas l'y réintroduire « pour la commodité ».
 - **Ne pas supprimer une compétence qui porte des preuves** — l'archiver.
   `supprimerCompetence` refuse plutôt que de se replier en silence : une
   fonction qui fait autre chose que ce que son nom annonce s'érode (ADR-027).

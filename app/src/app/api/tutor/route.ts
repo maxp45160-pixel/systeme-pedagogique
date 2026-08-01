@@ -74,6 +74,7 @@ export async function POST(request: Request) {
           systemeStable: pedagogique.systemeStable,
           systemeProfil: pedagogique.systemeProfil,
           messages,
+          outils: pedagogique.outils,
           envoyer,
         });
       } finally {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { estRenseigne, profilDeclare, serialiserProfilDeclare } from "./profil";
+import { estRenseigne, profilDeclare, serialiserProfilDeclare, valeurDeclaree } from "./profil";
 import type { User } from "./types";
 
 /*
@@ -106,5 +106,35 @@ describe("serialiserProfilDeclare — la place qu'occupait un profil écrit en d
       expect(texte).not.toContain("QLIO");
       expect(texte).not.toContain("ITI");
     }
+  });
+});
+
+/*
+ * L'amorce de `/demarrer` relaie le point de départ au tuteur (lot 4).
+ *
+ * Le champ « ton point de départ » a été retiré de cet écran : il écrivait
+ * `profiles.formation`, que `/profil` édite déjà via la même action. L'amorce
+ * reprend donc la valeur en base — et c'est là que le piège se referme, parce
+ * que cette colonne n'est jamais vide : elle vaut « Formation à renseigner »
+ * par défaut (`schema.sql` § 1). Un test de chaîne non vide laisse passer ce
+ * libellé, et le tuteur s'entend dire que le point de départ de la personne
+ * est « Formation à renseigner ».
+ */
+describe("valeurDeclaree — le garde-fou de l'amorçage", () => {
+  it("refuse les libellés d'invite du schéma", () => {
+    expect(valeurDeclaree("Formation à renseigner")).toBeNull();
+    expect(valeurDeclaree("Objectif à moyen terme à renseigner")).toBeNull();
+    expect(valeurDeclaree("Objectif à long terme à renseigner")).toBeNull();
+  });
+
+  it("refuse le vide et l'espace, sans les confondre avec une invite", () => {
+    expect(valeurDeclaree("")).toBeNull();
+    expect(valeurDeclaree("   ")).toBeNull();
+    expect(valeurDeclaree(undefined)).toBeNull();
+    expect(valeurDeclaree(null)).toBeNull();
+  });
+
+  it("rend la valeur réelle, débarrassée de ses espaces", () => {
+    expect(valeurDeclaree("  Licence de philosophie  ")).toBe("Licence de philosophie");
   });
 });

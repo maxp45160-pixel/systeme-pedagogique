@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import type { Autonomie, Dimension, SkillEvidence } from "@/lib/domain/types";
+import type { Dimension, SkillEvidence } from "@/lib/domain/types";
 import { AUTONOMIE, LIBELLES_DIMENSIONS } from "@/lib/domain/types";
+import { autonomieObservee, type AideExterne } from "@/lib/engine/preuve";
 import { enregistrerPreuveManuelle } from "@/lib/store/actions";
 import { classesBouton, cx } from "@/components/ui/primitives";
 
@@ -32,7 +33,22 @@ const TYPES: { valeur: SkillEvidence["type"]; libelle: string }[] = [
   { valeur: "projet", libelle: "Projet" },
 ];
 
-const AUTONOMIES: Autonomie[] = ["A0", "A1", "A2", "A3", "A4"];
+/**
+ * Ce qui a remplacé le select A0–A4 (ADR-033).
+ *
+ * Choisir son palier sur l'échelle du protocole demandait de connaître le
+ * protocole, et récompensait l'optimisme : personne ne se déclare A1. Ici la
+ * question porte sur un fait dont l'utilisateur se souvient, et le moteur
+ * dérive le palier. « Aucune » est le défaut : le cas honnête ordinaire ne
+ * coûte aucun clic.
+ */
+const AIDES: { valeur: AideExterne; libelle: string; aide: string }[] = [
+  { valeur: "aucune", libelle: "Aucune", aide: "Fait de tête, sans rien consulter" },
+  { valeur: "documentation", libelle: "Documentation", aide: "Cours, manuel, référence, internet" },
+  { valeur: "assistant-ia", libelle: "Assistant IA", aide: "Claude, ChatGPT, Copilot…" },
+  { valeur: "correction", libelle: "Correction obtenue", aide: "J'ai vu la solution" },
+];
+
 const DIMENSIONS: Dimension[] = [
   "comprehension",
   "application",
@@ -71,7 +87,7 @@ export function FormulairePreuveManuelle({
   // a fait lui-même, donc directe (A). Seule une proposition venue du tuteur
   // arrive en B, et ce n'est pas à l'utilisateur de la requalifier.
   const [niveauPreuve] = useState<"A" | "B">(valeursInitiales?.niveauPreuve ?? "A");
-  const [autonomie, setAutonomie] = useState<Autonomie>("A3");
+  const [aide, setAide] = useState<AideExterne>("aucune");
   const [dims, setDims] = useState<Partial<Record<Dimension, number>>>({});
   const [contexte, setContexte] = useState(valeursInitiales?.contexte ?? "");
   const [combinees, setCombinees] = useState<string[]>([]);
@@ -93,7 +109,7 @@ export function FormulairePreuveManuelle({
           skillCode,
           type,
           niveauPreuve,
-          autonomie,
+          aideExterne: aide,
           resultat,
           contexte,
           dimensions: dims,
@@ -116,6 +132,11 @@ export function FormulairePreuveManuelle({
   }
 
   const dimsRenseignees = Object.keys(dims).length;
+
+  /* Même fonction que celle du serveur, appelée ici pour l'aperçu seul : ce que
+   * le récapitulatif annonce est exactement ce qui sera écrit, et il n'y a pas
+   * deux barèmes à garder d'accord. Ce chemin n'a aucun indice interne. */
+  const autonomieDerivee = autonomieObservee(0, 0, aide);
 
   return (
     <div className="space-y-5">
@@ -159,25 +180,38 @@ export function FormulairePreuveManuelle({
         </select>
       </label>
 
-      {/* Autonomie déclarée */}
+      {/* Aide extérieure — l'autonomie s'en dérive (ADR-033) */}
       <div>
-        <label className="block">
-          <span className="text-xs font-medium">Autonomie</span>
-          <select
-            value={autonomie}
-            onChange={(e) => setAutonomie(e.target.value as Autonomie)}
-            className="mt-1 w-full rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm focus:border-primaire focus:outline-none"
-          >
-            {AUTONOMIES.map((a) => (
-              <option key={a} value={a}>
-                {a} — {AUTONOMIE[a].libelle}
-              </option>
-            ))}
-          </select>
-        </label>
-        <p className="mt-1 text-[0.625rem] text-texte-discret">
-          Déclarée, pas déduite — contrairement au flux exercice où elle vient du nombre d&apos;indices.
-          Le commentaire enregistré le signalera.
+        <div className="mb-2 text-xs font-medium">
+          De quelle aide as-tu disposé ?
+          <span className="ml-1.5 font-normal text-texte-discret">
+            — hors indices de l&apos;application
+          </span>
+        </div>
+        <div className="grid gap-1.5 sm:grid-cols-2">
+          {AIDES.map((a) => (
+            <button
+              key={a.valeur}
+              type="button"
+              onClick={() => setAide(a.valeur)}
+              className={cx(
+                "rounded-md border px-3 py-2 text-left transition-colors",
+                aide === a.valeur
+                  ? "border-primaire/40 bg-primaire-faible"
+                  : "border-bordure hover:bg-surface-2",
+              )}
+            >
+              <div className={cx("text-xs font-medium", aide === a.valeur && "text-primaire")}>
+                {a.libelle}
+              </div>
+              <div className="mt-0.5 text-[0.625rem] text-texte-discret">{a.aide}</div>
+            </button>
+          ))}
+        </div>
+        <p className="mt-1.5 text-[0.625rem] text-texte-discret">
+          C&apos;est une question de fait, pas une auto-évaluation : le niveau d&apos;autonomie
+          s&apos;en déduit (protocole d&apos;évaluation §5). Répondre honnêtement « assistant IA »
+          n&apos;est pas un aveu — c&apos;est ce qui rend la mesure utilisable.
         </p>
       </div>
 
@@ -304,7 +338,8 @@ export function FormulairePreuveManuelle({
             <strong>{skillCode}</strong>, résultat {resultat}
           </li>
           <li>
-            · Autonomie <strong>{autonomie}</strong> — déclarée, pas déduite (le commentaire le mentionnera)
+            · Autonomie <strong>{autonomieDerivee}</strong> — {AUTONOMIE[autonomieDerivee].libelle},
+            dérivée de l&apos;aide déclarée (le commentaire la consignera)
           </li>
           <li>
             · {dimsRenseignees === 0

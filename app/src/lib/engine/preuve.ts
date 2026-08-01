@@ -23,6 +23,78 @@ export function autonomieDepuisIndices(indices: number, total: number): Autonomi
 }
 
 /**
+ * Aide extérieure au système, déclarée par l'utilisateur (ADR-033).
+ *
+ * `indicesUtilises` ne compte que les indices INTERNES. Une documentation
+ * consultée, un assistant IA sollicité, une correction lue restaient invisibles
+ * au moteur, qui écrivait « A3 — résolution autonome » sur un travail où
+ * l'utilisateur avait lui-même noté en commentaire « j'ai eu besoin de l'aide
+ * de Claude » (ADR-008). Le champ commentaire n'est pas lu par le moteur : la
+ * personne était honnête, l'instrument sourd.
+ */
+export type AideExterne = "aucune" | "documentation" | "assistant-ia" | "correction";
+
+/**
+ * Plafond d'autonomie qu'une aide extérieure autorise — protocole
+ * d'évaluation §5, lu à la lettre.
+ *
+ * - `documentation` → **A2**, « quelques indices nécessaires » : une référence
+ *   consultée est un indice, simplement externe au système.
+ * - `assistant-ia` → **A1**, « solution fortement guidée ».
+ * - `correction` → **A0**, « solution fournie ». C'est la définition même.
+ *
+ * ⚠️ Ce barème déplace des niveaux mesurés. Il est délibérément sévère sur
+ * `documentation` : un travail mené documentation ouverte en permanence n'est
+ * pas une résolution autonome au sens du protocole, même si c'est une pratique
+ * professionnelle parfaitement normale. La distinction que le système mesure
+ * est « sait faire seul », pas « sait faire bien ».
+ */
+/**
+ * Formulations montrées à l'utilisateur et consignées dans le commentaire.
+ *
+ * Une seule source : le libellé du bouton cliqué et celui du commentaire
+ * enregistré doivent être le même texte, sans quoi relire une preuve ancienne
+ * demanderait de deviner à quelle option elle correspondait.
+ */
+export const LIBELLE_AIDE: Record<AideExterne, string> = {
+  aucune: "aucune",
+  documentation: "documentation, cours, manuel",
+  "assistant-ia": "assistant IA",
+  correction: "correction obtenue",
+};
+
+const PLAFOND_AIDE: Record<AideExterne, Autonomie> = {
+  aucune: "A4",
+  documentation: "A2",
+  "assistant-ia": "A1",
+  correction: "A0",
+};
+
+const ORDRE_AUTONOMIE: Autonomie[] = ["A0", "A1", "A2", "A3", "A4"];
+
+/**
+ * Autonomie retenue : le **minimum** entre ce que disent les indices internes
+ * et ce que le plafond de l'aide extérieure autorise.
+ *
+ * Un minimum, et non un remplacement : les deux signaux mesurent la même chose
+ * par deux voies, et celle qui constate le plus d'aide l'emporte. Quelqu'un qui
+ * a épuisé les indices internes ET consulté une documentation reste en A1 — le
+ * plafond A2 de la documentation ne doit pas *relever* une autonomie que les
+ * indices avaient déjà rabaissée.
+ */
+export function autonomieObservee(
+  indices: number,
+  total: number,
+  aide: AideExterne,
+): Autonomie {
+  const parIndices = autonomieDepuisIndices(indices, total);
+  const plafond = PLAFOND_AIDE[aide];
+  return ORDRE_AUTONOMIE.indexOf(parIndices) <= ORDRE_AUTONOMIE.indexOf(plafond)
+    ? parIndices
+    : plafond;
+}
+
+/**
  * Qualité d'une preuve issue d'un exercice — §6, via la difficulté affichée.
  */
 export function qualiteDepuisDifficulte(
