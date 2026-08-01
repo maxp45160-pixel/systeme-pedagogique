@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Fraunces } from "next/font/google";
+import { ProfilWrapper } from "@/components/dev/profil-wrapper";
+import { ProfilTracker } from "@/components/dev/profil-tracker";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -44,7 +46,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: SCRIPT_PREFERENCES }} />
       </head>
-      <body className="min-h-full">{children}</body>
+      <body className="min-h-full">
+        <ProfilWrapper>
+          <ProfilTracker />
+          {children}
+        </ProfilWrapper>
+      </body>
     </html>
   );
 }

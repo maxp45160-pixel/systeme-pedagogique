@@ -20,6 +20,7 @@ import { computeAllSkillStates } from "@/lib/engine/skill-state";
 import { calculerEtatGlobal, type EtatGlobal } from "@/lib/engine/progression";
 import { recommander, type Recommandation } from "@/lib/engine/recommend";
 import { calibrerToutes, type Calibration } from "@/lib/engine/calibration";
+import { mesurer, mesurerSync } from "@/lib/profiling/server";
 import type { Referentiel, SkillState } from "@/lib/domain/types";
 
 export interface Contexte {
@@ -39,10 +40,10 @@ export interface Contexte {
 
 export const chargerContexte = cache(async (): Promise<Contexte> => {
   const now = new Date();
-  const dorsale = await dorsaleCompte();
+  const dorsale = await mesurer("dorsaleCompte", () => dorsaleCompte());
   const [donneesBrutes, referentiel] = await Promise.all([
-    lireTout(),
-    lireReferentiel(dorsale),
+    mesurer("lireTout", () => lireTout()),
+    mesurer("lireReferentiel", () => lireReferentiel(dorsale)),
   ]);
 
   // Les exercices de diagnostic font partie du logiciel, pas du journal :
@@ -65,13 +66,24 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
     ],
   };
 
-  const etats = computeAllSkillStates(referentiel.actifs, donnees.evidence, now);
-  const global = calculerEtatGlobal(etats, now, referentiel.domaines);
+  const etats = mesurerSync("computeAllSkillStates", () =>
+    computeAllSkillStates(referentiel.actifs, donnees.evidence, now),
+    { competences: referentiel.actifs.length, preuves: donnees.evidence.length },
+  );
+  const global = mesurerSync("calculerEtatGlobal", () =>
+    calculerEtatGlobal(etats, now, referentiel.domaines),
+  );
 
   // Calculées AVANT la recommandation : c'est la calibration qui fixe la
   // difficulté visée, donc l'exercice retenu (ADR-028).
-  const calibrations = calibrerToutes(etats, donnees.exercises, donnees.attempts);
-  const recommandations = recommander(etats, donnees.exercises, donnees.attempts, 6, calibrations);
+  const calibrations = mesurerSync("calibrerToutes", () =>
+    calibrerToutes(etats, donnees.exercises, donnees.attempts),
+    { exercices: donnees.exercises.length, tentatives: donnees.attempts.length },
+  );
+  const recommandations = mesurerSync("recommander", () =>
+    recommander(etats, donnees.exercises, donnees.attempts, 6, calibrations),
+    { exercices: donnees.exercises.length, tentatives: donnees.attempts.length },
+  );
 
   return {
     donnees,

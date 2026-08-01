@@ -17,6 +17,7 @@ import { cache } from "react";
 
 import { dorsaleCompte, lire, type DorsaleCompte } from "./db";
 import { ligneVersEntite, verifier } from "./supabase-backend";
+import { mesurer } from "@/lib/profiling/server";
 import { assemblerReferentiel, modeRetrait, type ModeRetrait } from "@/lib/domain/referentiel-compte";
 import type { Domaine, Referentiel, Skill } from "@/lib/domain/types";
 
@@ -26,8 +27,8 @@ export async function lireReferentiel(
   const { supabase, userId } = dorsaleFournie ?? (await dorsaleCompte());
 
   const [domaines, competences] = await Promise.all([
-    supabase.from("domaines").select("*").eq("user_id", userId),
-    supabase.from("competences").select("*").eq("user_id", userId),
+    mesurer("supabase:domaines", () => supabase.from("domaines").select("*").eq("user_id", userId)),
+    mesurer("supabase:competences", () => supabase.from("competences").select("*").eq("user_id", userId)),
   ]);
 
   verifier("lecture des domaines", domaines.error);

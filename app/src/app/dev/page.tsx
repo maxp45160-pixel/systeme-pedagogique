@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { DevTodo } from "@/components/dev/dev-todo";
 
 /**
@@ -25,7 +26,15 @@ export default function DevPage() {
         n&apos;est liée depuis aucun écran.
       </p>
       <p className="mt-6 text-sm text-texte-discret">
-        La liste de TODOs partagée s&apos;ouvre par le bouton en bas à droite.
+        La liste de TODOs partagée se trouve derrière le bouton en bas à droite.
+      </p>
+      <p className="mt-3 text-sm">
+        <Link
+          href="/dev/profil"
+          className="font-medium text-primaire underline underline-offset-2 hover:text-primaire-fort"
+        >
+          Tableau de bord de profilage →
+        </Link>
       </p>
 
       <DevTodo />

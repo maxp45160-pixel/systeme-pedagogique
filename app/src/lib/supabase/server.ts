@@ -17,6 +17,7 @@ import { createServerClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { SUPABASE_ANON_KEY, SUPABASE_URL, supabaseConfigure } from "./config";
+import { mesurer } from "@/lib/profiling/server";
 
 /**
  * Client Supabase de la requête en cours.
@@ -31,7 +32,7 @@ import { SUPABASE_ANON_KEY, SUPABASE_URL, supabaseConfigure } from "./config";
 export const createServeurClient = cache(async (): Promise<SupabaseClient | null> => {
   if (!supabaseConfigure) return null;
 
-  const jar = await cookies();
+  const jar = await mesurer("cookies()", () => cookies());
 
   return createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     cookies: {
@@ -101,7 +102,7 @@ export const compteCourant = cache(async (): Promise<Compte | null> => {
   //   { data: null, error }        jeton invalide, expiré, ou erreur réseau ;
   //   { data: null, error: null }  aucun cookie de session (visiteur anonyme).
   // Les deux dernières se traitent identiquement : pas de compte.
-  const { data, error } = await supabase.auth.getClaims();
+  const { data, error } = await mesurer("supabase:getClaims", () => supabase.auth.getClaims());
   if (error || !data) return null;
 
   const revendications = data.claims;

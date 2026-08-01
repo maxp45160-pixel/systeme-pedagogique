@@ -20,6 +20,7 @@ import { cache } from "react";
 
 import { redirect } from "next/navigation";
 import { compteCourant, createServeurClient } from "@/lib/supabase/server";
+import { mesurer } from "@/lib/profiling/server";
 import {
   TABLES,
   entiteVersLigne,
@@ -100,20 +101,24 @@ export async function lire<K extends keyof Collections>(
   const defaut = profilNeutre(userId, courriel);
 
   if (nom === "user") {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .maybeSingle();
+    const { data, error } = await mesurer(`supabase:profiles`, () =>
+      supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .maybeSingle(),
+    );
     verifier("lecture du profil", error);
     // Profil absent : le trigger `handle_new_user` n'a pas encore tourné.
     return (data ? profilVersUser(data, defaut) : defaut) as Collections[K];
   }
 
-  const { data, error } = await supabase
-    .from(TABLES[nom as CleListe])
-    .select("*")
-    .eq("user_id", userId);
+  const { data, error } = await mesurer(`supabase:${TABLES[nom as CleListe]}`, () =>
+    supabase
+      .from(TABLES[nom as CleListe])
+      .select("*")
+      .eq("user_id", userId),
+  );
   verifier(`lecture de « ${nom} »`, error);
 
   return ((data ?? []) as Record<string, unknown>[]).map((l) =>

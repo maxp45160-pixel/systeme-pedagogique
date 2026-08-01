@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { cx } from "@/components/ui/primitives";
 import { IconeTodo, IconeGrip } from "@/components/ui/icones";
+import { mesurerInteraction } from "@/lib/profiling/client";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -411,7 +412,9 @@ export function DevTodo() {
   const ajouterTodo = async () => {
     const t = texte.trim();
     if (!t) return;
-    const { donnees, erreur } = await api.creer(t, priorite);
+    const { donnees, erreur } = await mesurerInteraction("clic", "Ajouter TODO", () =>
+      api.creer(t, priorite),
+    );
     setErreur(erreur);
     if (donnees) {
       setTodos((prev) => [...prev, donnees]);
@@ -424,13 +427,17 @@ export function DevTodo() {
     setTodos((prev) => prev.map((t) => (t.id === maj.id ? maj : t)));
 
   const toggleFait = async (todo: DevTodo) => {
-    const { donnees, erreur } = await api.modifier(todo.id, { fait: !todo.fait });
+    const { donnees, erreur } = await mesurerInteraction("clic", "Basculer TODO", () =>
+      api.modifier(todo.id, { fait: !todo.fait }),
+    );
     setErreur(erreur);
     if (donnees) remplacer(donnees);
   };
 
   const supprimer = async (id: string) => {
-    const { erreur } = await api.supprimer(id);
+    const { erreur } = await mesurerInteraction("clic", "Supprimer TODO", () =>
+      api.supprimer(id),
+    );
     setErreur(erreur);
     if (!erreur) setTodos((prev) => prev.filter((t) => t.id !== id));
   };
@@ -523,8 +530,8 @@ export function DevTodo() {
 
     // Une seule requête : renuméroter en N appels laisserait un ordre incohérent
     // si l'un d'eux échouait.
-    const { erreur } = await api.reordonner(
-      reordonne.map(({ id, ordre }) => ({ id, ordre })),
+    const { erreur } = await mesurerInteraction("clic", "Réordonner TODO", () =>
+      api.reordonner(reordonne.map(({ id, ordre }) => ({ id, ordre }))),
     );
     if (erreur) {
       setErreur(erreur);
