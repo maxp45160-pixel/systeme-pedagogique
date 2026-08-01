@@ -10,7 +10,12 @@ import type { SectionContexte } from "@/lib/tutor/contexte";
 import { MAX_MESSAGES_FENETRE } from "@/lib/tutor/fenetre";
 import { useEstHydrate } from "@/lib/ui/hydratation";
 import { cleParCompte, ecrireSession, effacerSession, lireSession } from "@/lib/ui/stockage-session";
-import type { PropositionRecue } from "@/lib/tutor/outils";
+import {
+  OUTIL_EXERCICE,
+  OUTIL_PREUVE,
+  OUTIL_REFERENTIEL,
+  type PropositionRecue,
+} from "@/lib/tutor/outils";
 import {
   CLE_PROPOSITION_EXERCICE,
   CLE_PROPOSITION_REFERENTIEL,
@@ -64,6 +69,19 @@ function deposerPropositionReferentiel(p: PropositionReferentiel): void {
     /* idem */
   }
 }
+
+/**
+ * Ce qu'on affiche pendant qu'un outil se remplit.
+ *
+ * Nommer l'outil plutôt que dire « en cours » : la rédaction d'un exercice
+ * prend nettement plus longtemps que celle d'une preuve, et savoir laquelle
+ * on attend est la différence entre patienter et croire à une panne.
+ */
+const LIBELLE_OUTIL: Record<string, string> = {
+  [OUTIL_EXERCICE]: "Le tuteur rédige un exercice — énoncé, indices, correction, critères…",
+  [OUTIL_PREUVE]: "Le tuteur prépare une proposition de preuve…",
+  [OUTIL_REFERENTIEL]: "Le tuteur compose une branche de compétences…",
+};
 
 /** Les sept modes rapides demandés. */
 const MODES = [
@@ -529,6 +547,8 @@ function ChatHydrate({
   const [enCours, setEnCours] = useState(false);
   const [avis, setAvis] = useState<{ ton: "info" | "alerte" | "danger"; texte: string } | null>(null);
   const [usage, setUsage] = useState<string | null>(null);
+  /** Outil que le tuteur est en train de remplir, `null` sinon. */
+  const [outilEnCours, setOutilEnCours] = useState<string | null>(null);
   const zoneRef = useRef<HTMLDivElement>(null);
 
   /**
@@ -713,6 +733,7 @@ function ChatHydrate({
 
     setAvis(null);
     setUsage(null);
+    setOutilEnCours(null);
     const historique: Message[] = [...messagesRef.current, { role: "user", content: contenu }];
     historiqueRef.current = historique;
     accumuleRef.current = "";
@@ -789,12 +810,29 @@ function ChatHydrate({
             });
           } else if (type === "tronque") {
             setAvis({ ton: "info", texte: String(donnees.message ?? "") });
+          } else if (type === "proposition-en-cours") {
+            /*
+             * Un appel d'outil n'émet aucun texte.
+             *
+             * Pendant la rédaction d'un exercice — la partie la plus longue du
+             * tour — le flux ne produisait plus rien de visible, et l'écran
+             * restait sur « le tuteur réfléchit… » pendant des dizaines de
+             * secondes. Indiscernable d'un plantage, et signalé comme tel.
+             *
+             * Le défaut a été introduit en deux temps : la sortie structurée a
+             * déplacé le contenu hors du flux de texte, puis la consigne de ne
+             * plus recopier la proposition en prose a supprimé le seul repère
+             * qui restait par accident.
+             */
+            setOutilEnCours(String(donnees.outil ?? ""));
           } else if (type === "proposition") {
+            setOutilEnCours(null);
             propositionsRef.current = [
               ...propositionsRef.current,
               donnees as unknown as PropositionRecue,
             ];
           } else if (type === "proposition-rejetee") {
+            setOutilEnCours(null);
             // Une proposition rejetée doit se voir. La taire remplacerait le
             // demi-exercice d'avant le lot 3.2 par un exercice disparu — deux
             // pannes silencieuses, pas une correction.
@@ -869,6 +907,10 @@ function ChatHydrate({
     } finally {
       abandonRef.current = null;
       setEnCours(false);
+      // Y compris à l'interruption et à l'erreur : un tour clos ne rédige plus
+      // rien, et laisser le statut allumé afficherait un travail qui n'a pas
+      // lieu — exactement la fausse information que ce chat s'interdit.
+      setOutilEnCours(null);
     }
   }, [annulerFlush, planifierFlush, publierReponse]);
 
@@ -928,6 +970,26 @@ function ChatHydrate({
                 enFluxDirect={enCours && i === messages.length - 1}
               />
             ))}
+
+            {/*
+              Ce que le tuteur fabrique quand il ne dit rien.
+
+              Un appel d'outil n'émet aucun texte : la rédaction d'un exercice,
+              qui est la partie la plus longue d'un tour, ne produisait plus
+              rien à l'écran. L'interface restait sur « le tuteur réfléchit… »
+              pendant des dizaines de secondes, ce qui se lit comme un
+              plantage — et a été signalé comme tel.
+
+              Hors du composant mémoïsé : ce statut change indépendamment du
+              contenu des bulles, et le faire descendre dans `MessageBulle`
+              relancerait son rendu à chaque transition.
+            */}
+            {outilEnCours && (
+              <div className="flex items-center gap-2 px-1 text-xs text-texte-attenue">
+                <span className="size-1.5 animate-pulse rounded-full bg-primaire" />
+                {LIBELLE_OUTIL[outilEnCours] ?? "Le tuteur prépare une proposition…"}
+              </div>
+            )}
           </div>
 
           {/*

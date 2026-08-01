@@ -53,6 +53,18 @@ export function moteurAnthropic(cle: string, modele: string): MoteurTuteur {
 
         stream.on("text", (delta) => envoyer("texte", { delta }));
 
+        // Un bloc `tool_use` ne produit aucun texte : sans cette annonce, le
+        // flux est muet pendant toute sa rédaction et l'interface reste sur
+        // « le tuteur réfléchit… ». Le nom est connu dès l'ouverture du bloc.
+        stream.on("streamEvent", (evenement) => {
+          if (
+            evenement.type === "content_block_start" &&
+            evenement.content_block.type === "tool_use"
+          ) {
+            envoyer("proposition-en-cours", { outil: evenement.content_block.name });
+          }
+        });
+
         const finale = await stream.finalMessage();
 
         // Les appels d'outil sont relayés APRÈS le texte, une fois le message

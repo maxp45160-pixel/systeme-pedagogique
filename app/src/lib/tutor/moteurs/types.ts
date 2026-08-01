@@ -29,6 +29,7 @@ export interface MessageTuteur {
  * - `texte`               `{ delta }`   — fragment de réponse
  * - `refus`               `{ message, categorie? }`
  * - `tronque`             `{ message }`
+ * - `proposition-en-cours` `{ outil }` — un appel d'outil a commencé
  * - `proposition`         `PropositionRecue` — appel d'outil validé (lot 3.2)
  * - `proposition-rejetee` `{ message }` — appel d'outil reçu mais non valide
  * - `fin`                 `{ stopReason, usage }`
@@ -36,6 +37,12 @@ export interface MessageTuteur {
  *
  * Tout moteur doit s'y conformer : c'est ce qui rend les moteurs
  * interchangeables sans toucher à l'interface.
+ *
+ * `proposition-en-cours` n'est pas cosmétique non plus. Un appel d'outil
+ * n'émet aucun `content` : la rédaction d'un exercice, qui est la partie la
+ * plus longue d'un tour, ne produit rien de visible. Sans cet événement, la
+ * sortie structurée se paie d'un écran figé de plusieurs dizaines de secondes,
+ * indiscernable d'une panne.
  *
  * `proposition-rejetee` n'est pas décoratif. Une proposition mal formée — le
  * plus souvent une réponse coupée par la limite de jetons — doit se voir. Sans

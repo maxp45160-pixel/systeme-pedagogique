@@ -234,8 +234,19 @@ export function moteurCompatibleOpenAI(
         let tampon = "";
         let motifArret: string | null = null;
         let usage: FragmentReponse["usage"] = null;
-        /** Appels d'outil en cours d'assemblage, par `index` du flux. */
-        const appelsOutil = new Map<number, { nom: string; arguments: string }>();
+        /**
+         * Appels d'outil en cours d'assemblage, par `index` du flux.
+         *
+         * `annonce` retient si l'interface a déjà été prévenue. Un appel d'outil
+         * n'émet AUCUN `content` : pendant toute sa rédaction — la partie la
+         * plus longue du tour — le flux est muet et l'écran reste sur « le
+         * tuteur réfléchit… ». Il faut donc dire ce qui se passe dès le premier
+         * fragment, sans quoi la sortie structurée se paie d'un écran figé.
+         */
+        const appelsOutil = new Map<
+          number,
+          { nom: string; arguments: string; annonce: boolean }
+        >();
 
         for (;;) {
           const { done, value } = await lecteur.read();
@@ -276,11 +287,21 @@ export function moteurCompatibleOpenAI(
               // qu'un appel à la fois : le rabattre sur 0 vaut mieux que de
               // perdre la proposition.
               const rang = appel.index ?? 0;
-              const courant = appelsOutil.get(rang) ?? { nom: "", arguments: "" };
+              const courant =
+                appelsOutil.get(rang) ?? { nom: "", arguments: "", annonce: false };
               // Le nom n'arrive qu'au premier fragment ; les suivants ne
               // portent que des morceaux d'arguments.
               if (appel.function?.name) courant.nom = appel.function.name;
               if (appel.function?.arguments) courant.arguments += appel.function.arguments;
+
+              // Dès que l'outil est nommé, l'interface peut le dire. Attendre
+              // la fin reviendrait à laisser l'écran muet pendant les dizaines
+              // de secondes que dure la rédaction d'un exercice.
+              if (!courant.annonce && courant.nom) {
+                courant.annonce = true;
+                envoyer("proposition-en-cours", { outil: courant.nom });
+              }
+
               appelsOutil.set(rang, courant);
             }
 
