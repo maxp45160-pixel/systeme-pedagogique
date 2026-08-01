@@ -55,7 +55,7 @@ peut honnêtement en tirer — souvent moins que ce qu'on aimerait.**
 |---|---|
 | « ce que tu sais réellement faire » | ✅ Tenue. Le moteur est complet et testé. |
 | « avec le degré de certitude » | ✅ Tenue. Niveau / confiance / robustesse sont distincts et affichés. |
-| « quoi travailler ensuite » | 🟡 **Les trois maillons existent depuis le 31/07** (ADR-026, ADR-028). Reste à faire tourner la boucle en entier : aucun exercice généré *à partir* de la calibration n'a encore été fait. |
+| « quoi travailler ensuite » | 🟡 **La boucle a tourné en entier le 01/08** (ADR-030). La difficulté produite a suivi le conseil de la calibration sur les deux compétences où il existait — le 3ᵉ maillon est démontré. La seconde moitié du test reste à mesurer : les deux tentatives ont été abandonnées en 1 minute, donc aucune dimension n'a pu reculer. |
 
 ## 4. Public
 
@@ -148,10 +148,16 @@ reste.
 ❓ Quel moteur gratuit exactement (ADR-007) — résolu **par mesure**.
 ❓ La prise en compte de l'aide externe dans l'autonomie (ADR-008) — le seul
 principe encore en défaut.
-✅ Le 3ᵉ maillon est posé (ADR-028) — difficulté et angle dérivés des
-tentatives. 🔬 **Reste à vérifier qu'il ajuste réellement.** *Test de
-réfutation : trois exercices générés après une calibration, dont la difficulté
-suit le conseil et dont la dimension faible recule.*
+✅ Le 3ᵉ maillon est posé (ADR-028) et **a fonctionné le 01/08** (ADR-030) :
+sur DEV-01 et DEV-03, la difficulté produite par le tuteur a suivi exactement
+celle que la calibration conseillait. 🔬 *Reste de la réfutation : « la
+dimension faible recule » demande un exercice réellement fait — les deux du
+01/08 ont été abandonnés en 1 minute.*
+
+⚠️ **Le premier tour complet a révélé un défaut que 194 tests n'avaient pas
+vu** : le journal de preuves enregistrait les abandons comme des mesures à
+zéro. Corrigé par ADR-030. Fait de méthode à retenir : faire tourner la boucle
+mesure le système, pas seulement l'utilisateur.
 
 ## 7. Critère d'arrêt
 

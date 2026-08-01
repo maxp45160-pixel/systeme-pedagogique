@@ -16,9 +16,18 @@ dérive des tentatives réelles une **difficulté conseillée** et une **dimensi
 faible**, sans rien stocker ; le tuteur les reçoit dans son contexte et le
 gabarit d'exercice ne lui laisse plus la difficulté à l'appréciation.
 
-⚠️ **La boucle n'a pas encore tourné en entier une seule fois.** Le maillon est
-câblé et testé sur les tentatives passées ; aucun exercice généré *à partir* de
-la calibration n'a encore été fait. C'est la prochaine mesure à obtenir.
+**La boucle a tourné en entier le 01/08/2026** (ADR-030). Sur DEV-01 et DEV-03,
+la difficulté produite par le tuteur a suivi exactement celle que la calibration
+conseillait : le 3ᵉ maillon est démontré, pas seulement câblé.
+
+⚠️ Ce premier tour a aussi exhibé un défaut que 194 tests ne pouvaient pas
+voir — aucun exercice généré n'avait jamais été clos : `terminerExercice`
+écrivait une preuve à dimensions nulles sur une tentative abandonnée en
+1 minute, alors que `calibration.ts` refusait d'en rien conclure. Corrigé
+(ADR-030) : `tentativeMenee` est désormais appelée par **les deux** chemins.
+
+🔬 Reste non mesuré : « la dimension faible recule ». Les deux tentatives du
+01/08 ont été abandonnées trop tôt pour le dire.
 
 ---
 
@@ -70,9 +79,9 @@ pratique et développer un sujet à long terme.
   deux cas. Sans moteur configuré : 503 et repli « copier le contexte ».
 - **Styles :** Tailwind CSS v4 ; **graphiques SVG écrits à la main**, aucune
   librairie UI tierce
-- **Tests :** Vitest — **182 tests**, 7 fichiers (moteur, backend Supabase,
+- **Tests :** Vitest — **210 tests**, 8 fichiers (moteur, backend Supabase,
   parseurs de propositions, contexte du tuteur, sélection du moteur du tuteur,
-  référentiel par compte, calibration)
+  référentiel par compte, calibration, profil)
 - **Déploiement :** Vercel (Root Directory = `app`)
 - **Gestionnaire de paquets :** npm (workspace racine → `app/`)
 - **Outillage :** serveur MCP Supabase (`.mcp.json`)
@@ -200,6 +209,16 @@ immuable — c'est la clé étrangère des preuves.
 - **Ne pas construire par anticipation.** Un modèle de données sans besoin réel
   est de la complexité gratuite. C'est ce qui a produit les 6 entités mortes
   supprimées le 28/07.
+- **Ne pas desserrer `tentativeMenee` d'un seul côté** (ADR-030). Elle est
+  appelée par la calibration *et* par l'écriture de la preuve, et un test lie
+  les deux. Une tentative sous 25 % de la durée estimée ne produit aucune
+  preuve : c'est un abandon, pas un échec. Le défaut est né de cette règle
+  appliquée à un seul chemin.
+- **Toute clé de stockage navigateur passe par `cleParCompte`**
+  (`lib/ui/stockage-session.ts`). Conversation du tuteur, brouillons : deux
+  comptes sur le même navigateur ne doivent jamais se voir — c'est ADR-029 un
+  cran plus bas. Et l'état venant du navigateur se lit dans un initialiseur
+  paresseux derrière `useEstHydrate`, jamais dans un `useEffect`.
 - **Ne pas déplacer un seuil de `lib/engine/calibration.ts` sans données.**
   `FRACTION_NON_TENTEE` et `FRACTION_TROP_FACILE` sont calés sur des tentatives
   réelles, citées dans les tests. Les changer demande de nouvelles observations,

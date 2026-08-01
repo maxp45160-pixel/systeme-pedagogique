@@ -38,6 +38,11 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [023](#adr-023) | Cache des données inter-requêtes | 🗑️ Écartée par [024](#adr-024) (31/07) |
 | [024](#adr-024) | Le cache de navigation est celui de Next, et l'invalidation est uniforme | ✅ Acceptée (31/07) |
 | [025](#adr-025) | La traçabilité peut être repliée, jamais retirée | ✅ Acceptée (31/07) |
+| [026](#adr-026) | Le référentiel est une donnée par compte, construite par le tuteur | ✅ Acceptée (31/07) |
+| [027](#adr-027) | Suppression ou archivage : une preuve n'est jamais orpheline | ✅ Acceptée (31/07) |
+| [028](#adr-028) | Le 3ᵉ maillon : la difficulté et l'angle sont dérivés des tentatives | ✅ Acceptée (31/07) |
+| [029](#adr-029) | Aucun profil n'est écrit dans les protocoles | ✅ Acceptée (31/07) |
+| [030](#adr-030) | Aucune preuve n'est écrite sur une tentative qui n'a pas eu lieu | ✅ Acceptée (01/08) |
 
 ---
 
@@ -1539,6 +1544,104 @@ dont elles décrivent la formation.
 déclaré — protocoles inclus, et non seulement les blocs calculés — ne doit
 contenir ni « QLIO » ni « Master ITI ». Le test lit `systemeStable` précisément
 parce que c'est dans un fichier de protocole que la fuite se trouvait.
+
+---
+
+<a name="adr-030"></a>
+## ADR-030 — Aucune preuve n'est écrite sur une tentative qui n'a pas eu lieu ✅
+
+**Date.** 01/08/2026. **Tranchée par Maxime**, sur une clarification explicite
+(`AskUserQuestion`) avant tout changement de code. Étend [ADR-028](#adr-028) au
+journal de preuves. Écho direct d'[ADR-008](#adr-008), qui reste ouverte.
+
+### Ce qui l'a révélée
+
+**La boucle a tourné en entier pour la première fois le 01/08/2026.** Le tuteur
+a généré deux exercices depuis la calibration, ils ont été faits et clos. C'est
+la mesure qu'attendaient `PRODUCT.md` §3 et `CLAUDE.md` §0.
+
+Elle a produit deux résultats, et le second n'était pas cherché.
+
+**1. Le 3ᵉ maillon fonctionne.** Sur les deux compétences où la calibration
+avait un avis, la difficulté produite l'a suivi exactement :
+
+| Compétence | Dernière tentative exploitable | Signal | Conseillée | Produite |
+|---|---|---|---|---|
+| DEV-01 | `diag-dev-01` partiel, 20 min / 20 | `calibre` | 1 + 0 = **1** | **1** |
+| DEV-03 | `diag-dev-03` échec, 15 min / 25 | `trop-difficile` | 2 − 1 = **1** | **1** |
+
+**2. Un défaut à l'entrée de la chaîne de preuve.** Les deux tentatives ont été
+**abandonnées en 1 minute**, sur 20 et 25 estimées. `calibration.ts` refusait
+d'en conclure quoi que ce soit — fractions de 0,04 et 0,05 contre
+`FRACTION_NON_TENTEE = 0,25`, signal `non-tentee`. C'est exactement la règle
+qu'ADR-028 avait construite autour de `diag-algo-01`.
+
+`terminerExercice` écrivait la preuve quand même, avec **toutes les dimensions
+à 0**. Mesuré sur DEV-01 en rejouant le moteur réel :
+
+```
+sans la tentative d'1 min : score 2,7  dims 1 / 1 / 0,75
+avec                      : score 2,3  dims 0,87 / 0,87 / 0,65  + 1 contradiction
+```
+
+### Le problème, correctement nommé
+
+Ce n'était pas « le seuil est mal réglé ». C'était que **le garde-fou
+anti-hallucination n'existait que d'un côté** : tenu pour dériver la difficulté,
+rompu pour écrire dans le journal de preuves — la seule chaîne qui fait bouger
+un niveau. « L'absence de mesure n'est pas un zéro » (P2) était donc vrai à
+l'affichage et faux à l'écriture.
+
+C'est la même forme de défaut qu'ADR-008 : à l'**entrée** de la chaîne, pas à
+son agrégation. Une erreur d'agrégation déforme un indicateur ; une erreur sur
+ce qui entre déforme tout ce qui en descend.
+
+### Décision
+
+La règle sort de `verdictTentative` dans **`tentativeMenee`**
+(`lib/engine/calibration.ts`), exportée, et les **deux** chemins l'appellent.
+Un test parcourt les deux et vérifie qu'ils rendent le même verdict : desserrer
+l'un sans l'autre le fait tomber.
+
+Au bilan, quand la tentative n'a pas eu lieu :
+
+- la tentative passe en **`abandonnee`** au lieu de `terminee` ;
+- **aucune preuve n'est écrite** ;
+- **l'écran le dit**. Le silence ferait croire la mesure enregistrée — ce serait
+  pire que le zéro qu'on vient de refuser d'écrire (P3 : aucune valeur sans
+  source, y compris quand la valeur est « rien ») ;
+- **la tentative reste en base.** C'est un fait observé, et `verdictTentative`
+  la lit pour expliquer pourquoi aucune difficulté n'est conseillée ;
+- **la séance reste au journal d'activité.** La minute passée a eu lieu ; la
+  taire ferait disparaître l'abandon du suivi.
+
+### Données existantes
+
+Trois preuves déjà écrites depuis un abandon (DEV-01, DEV-03, DEV-04, toutes
+dimensions à 0, fractions 0,040 / 0,040 / 0,050) ont été **supprimées** après
+revue ligne à ligne. Les tentatives correspondantes ont été conservées et
+passées en `abandonnee` : les 24 tentatives de la base sont intactes. DEV-01
+est revenu de 2,3 à 2,7.
+
+### Ce que cette décision ne fait pas
+
+Elle ne touche pas au seuil : `FRACTION_NON_TENTEE` reste à 0,25, calé sur des
+observations (ADR-028). Elle ne dit rien de l'aide externe — **ADR-008 reste
+ouverte**, et c'est toujours le seul principe en défaut.
+
+### Vérifié par
+
+8 tests dans `calibration.test.ts`, écrits sur les tentatives réelles du 01/08
+avec leurs valeurs exactes, dont celui qui lie les deux chemins. 210 tests au
+total.
+
+### Ce qu'il faut en retenir sur la méthode
+
+194 tests n'avaient pas vu ce défaut, et ne pouvaient pas : **aucun exercice
+généré par le tuteur n'avait jamais été clos.** Le premier tour complet de la
+boucle l'a exhibé en une fois. C'est l'argument d'ADR-013 — la boucle est le
+produit — sous sa forme la plus concrète : la faire tourner mesure le système,
+pas seulement l'utilisateur.
 
 ---
 
