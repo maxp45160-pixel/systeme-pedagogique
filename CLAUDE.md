@@ -79,7 +79,7 @@ pratique et développer un sujet à long terme.
   deux cas. Sans moteur configuré : 503 et repli « copier le contexte ».
 - **Styles :** Tailwind CSS v4 ; **graphiques SVG écrits à la main**, aucune
   librairie UI tierce
-- **Tests :** Vitest — **236 tests**, 9 fichiers (moteur, backend Supabase,
+- **Tests :** Vitest — **239 tests**, 9 fichiers (moteur, backend Supabase,
   parseurs de propositions, outils du tuteur, contexte du tuteur, sélection du
   moteur du tuteur, référentiel par compte, calibration, profil)
 - **Déploiement :** Vercel (Root Directory = `app`)

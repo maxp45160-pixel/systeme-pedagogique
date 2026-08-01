@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { modifierProfil } from "@/lib/store/referentiel-actions";
+import { valeurDeclaree } from "@/lib/domain/profil";
 import { classesBouton } from "@/components/ui/primitives";
 
 /**
@@ -40,6 +41,9 @@ export function FormulaireAmorcage({
   const [sujet, setSujet] = useState("");
   const [objectif, setObjectif] = useState(objectifMoyenTerme);
 
+  /* `null` tant que la personne n'a rien écrit sur `/profil`. */
+  const depart = valeurDeclaree(formation);
+
   const pret = sujet.trim().length > 2 && objectif.trim().length > 2;
 
   function soumettre() {
@@ -61,8 +65,13 @@ export function FormulaireAmorcage({
         const amorce = [
           `Je veux progresser en : ${sujet.trim()}.`,
           `Mon objectif : ${objectif.trim()}.`,
-          // Reprise du profil s'il est déjà renseigné, jamais redemandée ici.
-          formation.trim() ? `Mon point de départ : ${formation.trim()}.` : "",
+          /* Reprise du profil s'il est RÉELLEMENT renseigné, jamais redemandée
+           * ici. `valeurDeclaree` et pas un simple test de chaîne vide : la
+           * colonne porte par défaut « Formation à renseigner », qui est un
+           * libellé d'invite et non une réponse. Le relayer tel quel ferait
+           * dire au tuteur que le point de départ de la personne est
+           * « Formation à renseigner » — l'invention qu'ADR-029 a corrigée. */
+          depart ? `Mon point de départ : ${depart}.` : "",
           "",
           "Construis avec moi une première branche de référentiel. Interroge-moi d'abord si tu as besoin de précisions.",
         ]
