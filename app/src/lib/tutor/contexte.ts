@@ -145,9 +145,37 @@ export interface ContextePedagogique {
   caracteresTotal: number;
 }
 
+/**
+ * Contenu déjà lu, par chemin relatif.
+ *
+ * Les protocoles étaient relus du disque à chaque message : 3 fichiers sur un
+ * tour ordinaire, jusqu'à 5 quand la synthèse ou le protocole de référentiel
+ * s'ajoutent. Ce sont des fichiers livrés avec le build, immuables pour la
+ * durée du processus — les relire ne pouvait rien apporter de neuf.
+ *
+ * Portée module, donc partagée par toutes les requêtes servies par la même
+ * instance, contrairement au `cache()` de React qui s'arrête à la requête.
+ * C'est ce qui rend le gain réel sur le chemin chaud (`POST /api/tutor`).
+ *
+ * ⚠️ Corollaire assumé : modifier un `.txt` en développement demande de
+ * redémarrer le serveur. C'est le prix d'un cache de processus, et ces
+ * fichiers ne changent qu'à l'occasion d'un chantier déclaré (CLAUDE.md §8).
+ *
+ * Un échec de lecture n'est PAS mémorisé : un fichier absent le restera
+ * probablement, mais garder l'absence en cache transformerait une erreur de
+ * déploiement transitoire en panne durable, silencieuse, et invisible au
+ * manifeste.
+ */
+const contenusLus = new Map<string, string>();
+
 async function lireFichier(relatif: string): Promise<string | null> {
+  const memorise = contenusLus.get(relatif);
+  if (memorise !== undefined) return memorise;
+
   try {
-    return await fs.readFile(path.join(RACINE_DATA, relatif), "utf8");
+    const contenu = await fs.readFile(path.join(RACINE_DATA, relatif), "utf8");
+    contenusLus.set(relatif, contenu);
+    return contenu;
   } catch {
     return null;
   }
