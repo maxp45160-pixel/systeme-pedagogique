@@ -117,6 +117,41 @@ function borner(n: number): Difficulte {
 }
 
 /**
+ * L'exercice a-t-il seulement été fait ?
+ *
+ * Une durée dérisoire au regard de l'estimation n'est pas un échec : c'est un
+ * abandon, et on ne peut rien en conclure — ni sur la difficulté, ni sur le
+ * niveau de la personne (anti-hallucination §7).
+ *
+ * Exception : une **réussite** échappe à la règle. On ne réussit pas un
+ * exercice sans l'avoir fait, et une réussite éclair est au contraire le signal
+ * le plus informatif du lot.
+ *
+ * ⚠️ Cette fonction porte la règle pour **deux** chemins qui doivent dire la
+ * même chose : la calibration de la difficulté (`verdictTentative`, ci-dessous)
+ * et l'écriture de la preuve (`terminerExercice`, `lib/store/actions.ts`). Le
+ * second l'a longtemps ignorée : le 01/08/2026, une tentative abandonnée en
+ * 1 minute sur 20 estimées a été enregistrée comme une preuve à toutes
+ * dimensions nulles, faisant tomber DEV-01 de 2,7 à 2,3. Le garde-fou existait
+ * ici et nulle part ailleurs ; « l'absence de mesure n'est pas un zéro » (P2)
+ * était donc tenu pour la difficulté et rompu pour le journal de preuves.
+ */
+export function tentativeMenee(
+  tentative: Pick<ExerciseAttempt, "resultat" | "dureeMin">,
+  exercice: Pick<Exercise, "dureeEstimeeMin">,
+): boolean {
+  if (tentative.resultat === "reussi") return true;
+
+  const estimee = exercice.dureeEstimeeMin;
+  const reelle = tentative.dureeMin;
+  // Sans durée estimée exploitable, aucune fraction n'a de sens : on ne peut
+  // pas accuser la tentative de ne pas avoir eu lieu.
+  if (!(estimee > 0) || reelle === undefined) return true;
+
+  return reelle / estimee >= FRACTION_NON_TENTEE;
+}
+
+/**
  * Ce qu'une tentative dit du calibrage de l'exercice qui l'a produite.
  *
  * L'ordre des tests importe : la question « l'exercice a-t-il seulement été
@@ -141,16 +176,9 @@ export function verdictTentative(
   };
 
   // 1. L'exercice a-t-il été tenté ? Une durée dérisoire invalide tout le reste.
-  //
-  // Sauf en cas de RÉUSSITE : on ne peut pas réussir un exercice sans l'avoir
-  // fait. Une réussite éclair est une mesure — et même le signal « trop facile »
-  // le plus fort qui soit. Ne pas exclure ce cas reviendrait à jeter la donnée
-  // la plus informative du lot.
-  if (
-    tentative.resultat !== "reussi" &&
-    fraction !== null &&
-    fraction < FRACTION_NON_TENTEE
-  ) {
+  //    La règle vit dans `tentativeMenee` : elle est partagée avec l'écriture
+  //    de la preuve, qui doit dire exactement la même chose.
+  if (!tentativeMenee(tentative, exercice)) {
     return {
       ...base,
       signal: "non-tentee",
