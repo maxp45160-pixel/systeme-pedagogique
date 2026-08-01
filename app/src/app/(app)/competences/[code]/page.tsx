@@ -30,6 +30,7 @@ import {
   type ValeursInitialesPreuve,
 } from "@/components/competences/formulaire-preuve";
 import { formatDateCourte, formatDateRelative } from "@/lib/engine/dates";
+import { prochaineRevision } from "@/lib/engine/spaced";
 
 const DIMENSIONS: Dimension[] = [
   "comprehension",
@@ -295,6 +296,72 @@ export default async function PageCompetence(props: {
                   <IconeFleche className="size-4" />
                 </Link>
               )}
+            </div>
+          </Carte>
+
+          {/*
+            Répétition espacée (spaced.ts) : quand revoir cette compétence ?
+            L'intervalle se dérive de l'état (niveau, robustesse, confiance,
+            dernier résultat) — jamais d'une date stockée (P1). Une compétence
+            sans preuve n'est pas « à réviser » : elle est à diagnostiquer, et
+            la carte le dit au lieu d'afficher un intervalle vide.
+          */}
+          <Carte>
+            <EnTeteCarte
+              titre="Prochaine révision"
+              legende="Répétition espacée — dérivée de l'état, jamais stockée"
+            />
+            <div className="px-4 py-3.5">
+              {(() => {
+                const revision = prochaineRevision(etat, ctx.now);
+                if (revision.intervalleJours === 0) {
+                  return (
+                    <p className="text-xs text-texte-attenue">
+                      Aucune preuve : cette compétence est à <strong>diagnostiquer</strong>, pas à
+                      réviser. {"L'intervalle de révision apparaîtra dès la première preuve."}
+                    </p>
+                  );
+                }
+                return (
+                  <>
+                    <p className="text-sm">
+                      {revision.due ? (
+                        <span className="font-medium text-primaire">
+                          {"Due aujourd'hui —"} {revision.joursEcoules} jour
+                          {revision.joursEcoules && revision.joursEcoules > 1 ? "s" : ""} écoulé
+                          {revision.joursEcoules && revision.joursEcoules > 1 ? "s" : ""} pour un
+                          intervalle de {revision.intervalleJours} jour
+                          {revision.intervalleJours > 1 ? "s" : ""}.
+                        </span>
+                      ) : (
+                        <>
+                          Dans {revision.intervalleJours - (revision.joursEcoules ?? 0)} jour
+                          {revision.intervalleJours - (revision.joursEcoules ?? 0) > 1 ? "s" : ""}{" "}
+                          (intervalle {revision.intervalleJours} jour
+                          {revision.intervalleJours > 1 ? "s" : ""},{" "}
+                          {revision.joursEcoules ?? 0} écoulé
+                          {revision.joursEcoules && revision.joursEcoules > 1 ? "s" : ""}).
+                        </>
+                      )}
+                    </p>
+                    <Depliant resume="Pourquoi cet intervalle ?">
+                      <dl className="space-y-1">
+                        {revision.facteurs.map((f, i) => (
+                          <div
+                            key={i}
+                            className="flex items-baseline justify-between gap-3 border-b border-bordure/60 pb-1 last:border-0"
+                          >
+                            <dt className="text-xs text-texte-attenue">{f.libelle}</dt>
+                            <dd className="chiffres shrink-0 text-xs font-medium">
+                              {f.valeur} · ×{f.multiplicateur}
+                            </dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </Depliant>
+                  </>
+                );
+              })()}
             </div>
           </Carte>
 

@@ -78,7 +78,11 @@ async function ContenuTableauDeBord() {
 
       {/* Action prioritaire : seule et dominante, rien ne la concurrence. */}
       <div className="[&>*]:min-w-0">
-        <CarteProchaineAction recommandations={ctx.recommandations} referentiel={ctx.referentiel} />
+        <CarteProchaineAction
+          recommandations={ctx.recommandations}
+          referentiel={ctx.referentiel}
+          now={ctx.now}
+        />
       </div>
 
       {/*

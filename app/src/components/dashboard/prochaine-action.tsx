@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Recommandation } from "@/lib/engine/recommend";
 import { DIFFICULTES, LIBELLES_DIMENSIONS, type Referentiel } from "@/lib/domain/types";
 import { libelleDomaine } from "@/lib/domain/referentiel-compte";
+import { prochaineRevision } from "@/lib/engine/spaced";
 import {
   Carte,
   classesBouton,
@@ -23,14 +24,17 @@ import { formatDuree } from "@/lib/engine/dates";
 export function CarteProchaineAction({
   recommandations,
   referentiel,
+  now,
 }: {
   recommandations: Recommandation[];
   referentiel: Referentiel;
+  now: Date;
 }) {
   const [principale, ...alternatives] = recommandations;
   if (!principale) return null;
 
   const { etat, exercice, raison, difficulteCible, dureeEstimeeMin } = principale;
+  const revision = prochaineRevision(etat, now);
 
   return (
     <Carte accent className="relative overflow-hidden">
@@ -66,6 +70,7 @@ export function CarteProchaineAction({
           </Etiquette>
           <Etiquette>≈ {formatDuree(dureeEstimeeMin)}</Etiquette>
           {etat.preuves.length === 0 && <Etiquette ton="info">Diagnostic</Etiquette>}
+          {revision.due && <Etiquette ton="alerte">Révision due</Etiquette>}
         </div>
 
         <div className="mt-3 rounded-md border border-bordure bg-surface-2 px-3 py-2">
