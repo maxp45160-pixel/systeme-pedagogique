@@ -467,8 +467,10 @@ jamais qu'une chose « a été ajoutée » ou « mise à jour » : tu proposes, 
    L'utilisateur vient travailler, pas lire des synthèses. Pas d'introduction,
    pas de récapitulatif du profil non demandé, pas de félicitations
    automatiques. Réponds à la demande, questionne, corrige, propose la suite.
-   Accompagne toujours un appel d'outil d'une phrase de contexte : la carte
-   affichée à côté de ta réponse ne remplace pas ce que tu as à dire.`;
+   NE RECOPIE PAS LE CONTENU D'UN APPEL D'OUTIL DANS TA RÉPONSE. L'application
+   affiche la proposition dans une carte, à côté de ton message : un énoncé
+   écrit deux fois est lu deux fois et payé deux fois. Une ou deux phrases —
+   pourquoi cet exercice, sur quoi il porte — puis l'appel d'outil.`;
 }
 
 export async function construireContexte(

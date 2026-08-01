@@ -1759,14 +1759,44 @@ arrive en fin de tour. **Interrompre une réponse la perd entièrement**, là o�
 gabarit markdown en laissait un fragment. C'est le prix de la rejetabilité, et
 il est visible plutôt que subi.
 
-**Test de réfutation, corrigé :**
+### ✅ Vérifié sur Mistral le 01/08/2026
+
+Second essai, réponse menée au bout, `mistral-large-2512` :
+
+| Observé | Valeur |
+|---|---|
+| Appels d'outil | **1** |
+| Carte « Exercice proposé » | affichée — DEV-03, difficulté 1/5 |
+| Avis de repli | aucun — `tools` accepté sur `api.mistral.ai/v1` |
+| Jetons | 10 398 entrée / **2 035 sortie** |
+
+**La bascule fonctionne sur le moteur en service.** Anthropic reste 🔬 : aucune
+clé n'était disponible.
+
+Deux observations que cet essai a produites :
+
+**1. Le tuteur écrivait l'exercice deux fois** — dans l'appel d'outil *et* en
+prose dans le message (énoncé, critères, « je te propose de l'ajouter »). D'où
+les 2 035 jetons de sortie. La carte n'était pas dupliquée — le garde-fou
+« deux sources, jamais les deux » de `chat.tsx` a tenu — mais la sortie l'était.
+Corrigé par une règle du cadre d'intervention : ne pas recopier le contenu d'un
+appel d'outil, la carte l'affiche déjà. 🔬 Effet non mesuré.
+
+**2. `cacheLu` reste à 0.** Le préfixe stable n'est pas réutilisé d'un message à
+l'autre par ce fournisseur, ou `prompt_cache_key` est ignoré. Antérieur à cette
+ADR et hors de son périmètre, mais c'est ce qui rend le raisonnement « les
+schémas sont dans le préfixe caché, donc quasi gratuits » **non vérifié** : à ce
+jour ils sont payés plein tarif à chaque message, comme les gabarits qu'ils
+remplacent.
+
+**Test de réfutation, pour Anthropic et pour toute reprise :**
 
 - demander un exercice et **laisser la réponse aller au bout** ; la carte doit
   s'afficher, et la ligne sous le chat indiquer « 1 appel(s) d'outil » ;
 - si elle indique « 0 appel(s) » sans avis de repli, le fournisseur accepte les
   outils mais le modèle ne les emploie pas : c'est le prompt qu'il faut reprendre ;
-- si l'avis « n'a pas accepté les appels d'outil » apparaît, Mistral refuse
-  `tools` sur cette route et la bascule est à revoir au niveau du moteur.
+- si l'avis « n'a pas accepté les appels d'outil » apparaît, le fournisseur
+  refuse `tools` sur cette route et la bascule est à revoir au niveau du moteur.
 
 ### Étape suivante, non faite ici
 
