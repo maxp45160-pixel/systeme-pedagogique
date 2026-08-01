@@ -65,6 +65,7 @@ async function ContenuTuteur({
       competenceCiblee={cible ? cibleLibelle : undefined}
       amorce={amorce}
       codesCompetences={ctx.etats.map((e) => e.skill.code)}
+      compteId={ctx.donnees.user.id}
     />
   );
 }
