@@ -1367,6 +1367,100 @@ désarchiver d'abord, et le désarchivage ne la remet pas d'office au travail.
 
 ---
 
+<a name="adr-028"></a>
+## ADR-028 — Le 3ᵉ maillon : la difficulté et l'angle sont dérivés des tentatives ✅
+
+**Date.** 31/07/2026. **Tranchée par Maxime.** Lève la réserve d'[ADR-014](#adr-014).
+
+### Le problème, correctement nommé
+
+La boucle est *génération → évaluation → ajustement*. Le 3ᵉ maillon n'existait
+pas, et ce n'était **pas** « on ne peut pas modifier un exercice » — `difficulte`
+est une colonne éditable depuis l'origine.
+
+C'était que **rien ne relisait la mesure pour régler la génération suivante**.
+`indicesUtilises`, `dureeMin`, `resultat` et `autoEvaluation` étaient écrits à
+chaque tentative et jamais réexploités. `recommend.ts` mappait le niveau dérivé
+vers une difficulté par table fixe — la même proposition à qui venait d'échouer
+indices épuisés et à qui venait de réussir sans aide en moitié moins de temps.
+Et le tuteur, qui rédige les exercices, ne recevait jamais ce signal.
+
+### Ce que les données ont dicté
+
+ADR-014 inscrivait la condition : difficulté **dérivée des preuves**, pas
+ressaisie à la main — `ErrorItem` est resté vide précisément parce qu'il
+demandait une saisie. Les 17 tentatives réelles du compte principal ont fourni
+la matière, et trois faits ont façonné le module :
+
+**1. Les indices sont bimodaux.** 0 ou 3, presque jamais entre. Et
+`3 indices → échec` s'est vérifié 4 fois sur 4.
+
+**2. Il existe deux échecs différents.** `diag-algo-01` : difficulté 2, estimée
+25 min, « échoué » en **1 minute** avec les trois indices consultés. En conclure
+« trop difficile » serait inventer — l'exercice n'a pas été tenté. D'où la règle
+qui gouverne tout le module : **sous 25 % de la durée estimée, aucun verdict
+n'est rendu sur la difficulté** (anti-hallucination §7).
+
+Exception : une **réussite** échappe à cette règle. On ne réussit pas un
+exercice sans l'avoir fait, et une réussite éclair est le signal « trop facile »
+le plus fort qui soit — l'exclure jetterait la donnée la plus informative.
+
+**3. L'auto-évaluation est le signal le plus riche, et personne ne la lisait.**
+`diag-dev-03` a été échoué avec « comprehension 0.5, application 0,
+integration 0 ». La compréhension tient ; l'application s'effondre. Proposer le
+même exercice « en plus facile » raterait ce que la mesure dit.
+
+### Décision
+
+`lib/engine/calibration.ts` dérive, par compétence et sans rien stocker (P1) :
+
+| Sortie | Dérivée de |
+|---|---|
+| **Difficulté conseillée** | résultat × indices épuisés × durée réelle contre estimée, sur la dernière tentative exploitable |
+| **Dimension faible** | moyenne des `autoEvaluation` sur les 3 dernières tentatives, avec son nombre d'observations |
+
+Deux seuils, chacun calé sur des observations et non sur une intuition :
+`FRACTION_NON_TENTEE = 0.25` et `FRACTION_TROP_FACILE = 0.6`. Le second sépare
+exactement `diag-dev-05` (12 min sur 25) et `diag-prod-01` (14 sur 35) — trop
+faciles — de `diag-prod-03` (32 sur 35) et `diag-ro-01` (61 sur 35) — calibrés.
+
+**Le maillon n'est bouclé que parce que le tuteur reçoit le signal.** Un bloc
+« CALIBRAGE DU PROCHAIN EXERCICE » entre dans `systemeProfil`, et le gabarit de
+proposition d'exercice cesse de laisser la difficulté à l'appréciation du
+modèle : elle lui est donnée, et la dimension faible doit être travaillée par au
+moins un critère.
+
+### Ce que la calibration ne fait pas
+
+Elle règle la **difficulté**, elle ne **re-classe pas** les compétences. Les
+`facteurs` de `recommend.ts` restent des contributions chiffrées au score de
+priorité ; y glisser une entrée à contribution nulle aurait rendu la liste
+illisible. Faire peser le calibrage sur la priorité serait une décision
+distincte, non prise ici.
+
+Elle ne dit rien non plus quand elle n'a rien à dire : `difficulteConseillee`
+vaut `null` sur une compétence jamais travaillée en exercice, ou dont toutes les
+tentatives récentes ont été abandonnées trop tôt. L'appelant retombe alors sur
+la table par niveau — et l'interface l'affiche.
+
+### Vérifié par
+
+27 tests dans `calibration.test.ts`, **écrits sur les tentatives réelles** avec
+leurs valeurs exactes plutôt que sur des cas construits. Un seuil calé sur une
+intuition se déplace au premier désaccord ; un seuil calé sur des données
+observées demande de nouvelles données pour bouger. Dont le test du maillon
+lui-même : la même compétence, avec et sans calibration, ne reçoit pas la même
+difficulté.
+
+### Défaut trouvé en écrivant les tests
+
+La règle « non tentée » s'appliquait d'abord à **toutes** les tentatives, y
+compris les réussites : réussir un exercice de difficulté 5 en 5 minutes sur 25
+ne produisait aucun conseil. C'est le test qui l'a révélé, et c'est le module
+qui a été corrigé.
+
+---
+
 ## Comment modifier ce registre
 
 1. Une décision ✅ ne se retire pas : elle passe en 🔄 **Remplacée**, avec le

@@ -19,6 +19,7 @@ import { EXERCICES_DIAGNOSTIC } from "@/lib/seed/exercises";
 import { computeAllSkillStates } from "@/lib/engine/skill-state";
 import { calculerEtatGlobal, type EtatGlobal } from "@/lib/engine/progression";
 import { recommander, type Recommandation } from "@/lib/engine/recommend";
+import { calibrerToutes, type Calibration } from "@/lib/engine/calibration";
 import type { Referentiel, SkillState } from "@/lib/domain/types";
 
 export interface Contexte {
@@ -28,6 +29,11 @@ export interface Contexte {
   etatsParCode: Map<string, SkillState>;
   global: EtatGlobal;
   recommandations: Recommandation[];
+  /**
+   * 3ᵉ maillon de la boucle (ADR-028) : ce que les tentatives passées disent du
+   * calibrage du prochain exercice. Dérivé à chaque lecture, jamais stocké.
+   */
+  calibrations: Map<string, Calibration>;
   now: Date;
 }
 
@@ -62,7 +68,10 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
   const etats = computeAllSkillStates(referentiel.actifs, donnees.evidence, now);
   const global = calculerEtatGlobal(etats, now, referentiel.domaines);
 
-  const recommandations = recommander(etats, donnees.exercises, donnees.attempts, 6);
+  // Calculées AVANT la recommandation : c'est la calibration qui fixe la
+  // difficulté visée, donc l'exercice retenu (ADR-028).
+  const calibrations = calibrerToutes(etats, donnees.exercises, donnees.attempts);
+  const recommandations = recommander(etats, donnees.exercises, donnees.attempts, 6, calibrations);
 
   return {
     donnees,
@@ -71,6 +80,7 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
     etatsParCode: new Map(etats.map((e) => [e.skill.code, e])),
     global,
     recommandations,
+    calibrations,
     now,
   };
 });

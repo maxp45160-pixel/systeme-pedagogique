@@ -24,6 +24,7 @@ import {
   type ExerciseAttempt,
   type SkillState,
 } from "@/lib/domain/types";
+import type { Calibration } from "./calibration";
 
 export interface Facteur {
   libelle: string;
@@ -41,16 +42,44 @@ export interface Recommandation {
   exercice: Exercise | null;
   difficulteCible: Difficulte;
   dureeEstimeeMin: number;
+  /**
+   * Calibration dérivée des tentatives (ADR-028), ou `null` si aucune n'est
+   * exploitable. Portée jusqu'à l'interface pour que le « Pourquoi ? » puisse
+   * citer la tentative qui a produit la difficulté visée.
+   */
+  calibration: Calibration | null;
 }
 
-/** Niveau visé par compétence : le palier immédiatement au-dessus. */
-function difficulteCible(etat: SkillState): Difficulte {
+/**
+ * Difficulté visée pour le prochain exercice.
+ *
+ * Deux sources, dans cet ordre :
+ *
+ *   1. la CALIBRATION dérivée des tentatives (ADR-028) — ce que l'exercice
+ *      précédent a réellement produit : réussi sans aide en moitié moins de
+ *      temps que prévu, ou échoué indices épuisés ;
+ *   2. à défaut, la table par niveau ci-dessous.
+ *
+ * L'ordre est le 3ᵉ maillon de la boucle. La table seule ne regarde que le
+ * niveau dérivé, jamais comment la dernière tentative s'est passée : elle
+ * proposait la même difficulté à qui vient d'échouer et à qui vient de réussir
+ * sans effort. C'était l'ajustement manquant.
+ *
+ * `null` en calibration n'est pas un défaut : c'est le cas normal d'une
+ * compétence jamais travaillée en exercice. On retombe alors sur le niveau, et
+ * la raison affichée le dit (P3 — aucune valeur sans sa source).
+ */
+function difficulteDepuisNiveau(etat: SkillState): Difficulte {
   const n = etat.niveau;
   if (n === null) return 2; // diagnostic : difficulté standard, sans aide
   if (n <= 1) return 2;
   if (n === 2) return 3;
   if (n === 3) return 4;
   return 5;
+}
+
+function difficulteCible(etat: SkillState, calibration?: Calibration): Difficulte {
+  return calibration?.difficulteConseillee ?? difficulteDepuisNiveau(etat);
 }
 
 function evaluer(
@@ -208,13 +237,20 @@ export function recommander(
   exercices: Exercise[],
   tentatives: ExerciseAttempt[],
   limite = 5,
+  calibrations?: Map<string, Calibration>,
 ): Recommandation[] {
   const parCode = new Map(etats.map((e) => [e.skill.code, e]));
 
   return etats
     .map((etat) => {
       const { valeur, facteurs } = evaluer(etat, parCode);
-      const cible = difficulteCible(etat);
+      // La calibration règle la DIFFICULTÉ ; elle ne re-classe pas les
+      // compétences. `facteurs` reste une liste de contributions chiffrées au
+      // score de priorité — y glisser une entrée à 0 la rendrait illisible.
+      // Le « Pourquoi ? » de l'interface lit `calibration` séparément.
+      const calibration = calibrations?.get(etat.skill.code) ?? null;
+      const cible = difficulteCible(etat, calibration ?? undefined);
+
       const exercice = choisirExercice(etat, exercices, tentatives, cible);
       return {
         etat,
@@ -224,6 +260,7 @@ export function recommander(
         exercice,
         difficulteCible: cible,
         dureeEstimeeMin: exercice?.dureeEstimeeMin ?? 30,
+        calibration,
       };
     })
     .sort((a, b) => {

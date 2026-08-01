@@ -275,6 +275,64 @@ function serialiserRecent(ctx: Contexte): string {
   return lignes.join("\n");
 }
 
+/**
+ * Ce que les tentatives passées disent du calibrage à venir (ADR-028).
+ *
+ * C'est le 3ᵉ maillon de la boucle : sans ce bloc, le tuteur reçoit les niveaux
+ * mais ignore *comment* le dernier exercice s'est passé. Il proposait donc la
+ * même chose à qui vient d'échouer indices épuisés et à qui vient de réussir
+ * sans effort en moitié moins de temps que prévu.
+ *
+ * Seules les compétences réellement calibrées sont listées : une compétence
+ * jamais travaillée en exercice n'a rien à dire ici, et une ligne vide se
+ * lirait comme une mesure.
+ */
+function serialiserCalibration(ctx: Contexte): string {
+  const lignes: string[] = [];
+  const calibrees = ctx.etats
+    .map((e) => ctx.calibrations.get(e.skill.code))
+    .filter(
+      (c): c is NonNullable<typeof c> =>
+        Boolean(c) && (c!.difficulteConseillee !== null || c!.dimensionFaible !== null),
+    );
+
+  if (calibrees.length === 0) {
+    return "# CALIBRAGE DU PROCHAIN EXERCICE\n\nAucune tentative terminée : rien à calibrer pour l'instant. Pour un premier exercice, vise la difficulté 2 et reste sur un seul angle.";
+  }
+
+  lignes.push("# CALIBRAGE DU PROCHAIN EXERCICE (dérivé des tentatives réelles)");
+  lignes.push("");
+  lignes.push(
+    "Ces valeurs viennent de ce qui s'est passé : résultat, indices consultés, temps réel contre temps estimé, auto-évaluation par dimension. Elles ne sont ni déclarées ni devinées.",
+  );
+  lignes.push(
+    "QUAND TU PROPOSES UN EXERCICE, emploie la difficulté conseillée. Si la dimension faible est indiquée, c'est ELLE qu'il faut faire travailler — proposer le même exercice « en plus facile » raterait ce que la mesure dit.",
+  );
+  lignes.push("");
+  lignes.push("Colonnes : code | difficulté conseillée | ce qu'a donné la dernière tentative | dimension à travailler");
+  lignes.push("");
+
+  for (const c of calibrees) {
+    const dernier = c.verdicts[0];
+    const dim = c.dimensionFaible
+      ? `${c.dimensionFaible.dimension} (${c.dimensionFaible.moyenne} sur ${c.dimensionFaible.observations})`
+      : "—";
+    lignes.push(
+      `${c.skillCode} | ${c.difficulteConseillee ?? "—"} | ${dernier ? dernier.raison : "—"} | ${dim}`,
+    );
+  }
+
+  const nonTentees = calibrees.filter((c) => c.difficulteConseillee === null);
+  if (nonTentees.length > 0) {
+    lignes.push("");
+    lignes.push(
+      `« — » en difficulté : les tentatives ont été abandonnées trop tôt pour conclure. Ne suppose pas que l'exercice était trop dur — demande plutôt ce qui a bloqué.`,
+    );
+  }
+
+  return lignes.join("\n");
+}
+
 function serialiserRecommandations(ctx: Contexte): string {
   const lignes = ["# PRIORITÉS CALCULÉES PAR LE SYSTÈME", ""];
   lignes.push(
@@ -347,6 +405,16 @@ Tu interviens depuis l'application de suivi. Quatre règles s'ajoutent aux proto
    integration, justification. Répète « Indice : » et « Critère : » autant de
    fois que nécessaire. N'emploie que des codes de compétence figurant dans le
    profil ci-dessous — un code inventé sera rejeté.
+
+   LA DIFFICULTÉ N'EST PAS À TON APPRÉCIATION. Le bloc « CALIBRAGE DU PROCHAIN
+   EXERCICE » ci-dessous la donne, dérivée de ce qui s'est réellement passé lors
+   des dernières tentatives. Emploie-la. Si tu t'en écartes, dis pourquoi dans
+   la phrase qui précède le bloc.
+
+   Quand une dimension faible y est indiquée, l'exercice doit la faire
+   travailler, et au moins un « Critère : » doit porter sur elle. Un échec
+   localisé dans « application » n'appelle pas le même exercice en plus facile :
+   il appelle un exercice qui fait appliquer.
 
    L'énoncé et la correction se terminent à l'étiquette suivante. Si tu veux
    commenter après le bloc, sépare-le par une ligne « --- ».
@@ -452,16 +520,18 @@ export async function construireContexte(
 
   const profil = serialiserProfil(ctx);
   const recent = serialiserRecent(ctx);
+  const calibrage = serialiserCalibration(ctx);
   const priorites = serialiserRecommandations(ctx);
 
   manifeste.push(
     { nom: "État courant des compétences", caracteres: profil.length, origine: "calcule" },
     { nom: "Travail récent", caracteres: recent.length, origine: "calcule" },
+    { nom: "Calibrage du prochain exercice", caracteres: calibrage.length, origine: "calcule" },
     { nom: "Priorités calculées", caracteres: priorites.length, origine: "calcule" },
   );
 
   const systemeStable = blocsStables.join("\n\n---\n\n");
-  const systemeProfil = [profil, recent, priorites].join("\n\n---\n\n");
+  const systemeProfil = [profil, recent, calibrage, priorites].join("\n\n---\n\n");
 
   return {
     systemeStable,

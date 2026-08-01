@@ -10,6 +10,7 @@ import { REFERENTIEL_VIDE } from "@/lib/domain/referentiel-compte";
 import { computeAllSkillStates } from "@/lib/engine/skill-state";
 import { calculerEtatGlobal } from "@/lib/engine/progression";
 import { recommander } from "@/lib/engine/recommend";
+import { calibrerToutes } from "@/lib/engine/calibration";
 import type { Contexte } from "@/lib/store/context";
 
 /*
@@ -58,9 +59,11 @@ function construireCtxDeTest(referentiel = REFERENTIEL_TEST): Contexte {
   const now = new Date("2026-07-29T10:00:00.000Z");
   const etats = computeAllSkillStates(referentiel.actifs, [], now);
   const global = calculerEtatGlobal(etats, now, DOMAINES_TEST);
-  const recommandations = recommander(etats, [], [], 5);
+  const calibrations = calibrerToutes(etats, [], []);
+  const recommandations = recommander(etats, [], [], 5, calibrations);
   return {
     referentiel,
+    calibrations,
     donnees: {
       user: {
         id: "test",

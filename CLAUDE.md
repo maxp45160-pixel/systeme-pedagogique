@@ -11,12 +11,14 @@ Le produit est une **boucle** :
 Le 1ᵉʳ maillon s'est ouvert le 31/07/2026 : les exercices en base portent tous
 `origine = 'tuteur'`. Le 2ᵉ tourne (20 tentatives terminées).
 
-Le **3ᵉ maillon n'existe toujours pas**, et ce n'est pas « on ne peut pas
-modifier un exercice » — `difficulte` est une colonne éditable. C'est que **rien
-ne relit la mesure pour calibrer la génération suivante** : `indicesUtilises`,
-`dureeMin` et `resultat` sont stockés et jamais réexploités, `recommend.ts` mappe
-le niveau vers une difficulté par table fixe, et le tuteur ne reçoit jamais
-« ton dernier exercice sur DEV-03 a été raté avec 3 indices ». Voir ADR-014.
+Le **3ᵉ maillon a été posé le 31/07/2026** (ADR-028). `lib/engine/calibration.ts`
+dérive des tentatives réelles une **difficulté conseillée** et une **dimension
+faible**, sans rien stocker ; le tuteur les reçoit dans son contexte et le
+gabarit d'exercice ne lui laisse plus la difficulté à l'appréciation.
+
+⚠️ **La boucle n'a pas encore tourné en entier une seule fois.** Le maillon est
+câblé et testé sur les tentatives passées ; aucun exercice généré *à partir* de
+la calibration n'a encore été fait. C'est la prochaine mesure à obtenir.
 
 ---
 
@@ -68,9 +70,9 @@ pratique et développer un sujet à long terme.
   deux cas. Sans moteur configuré : 503 et repli « copier le contexte ».
 - **Styles :** Tailwind CSS v4 ; **graphiques SVG écrits à la main**, aucune
   librairie UI tierce
-- **Tests :** Vitest — **155 tests**, 6 fichiers (moteur, backend Supabase,
+- **Tests :** Vitest — **182 tests**, 7 fichiers (moteur, backend Supabase,
   parseurs de propositions, contexte du tuteur, sélection du moteur du tuteur,
-  référentiel par compte)
+  référentiel par compte, calibration)
 - **Déploiement :** Vercel (Root Directory = `app`)
 - **Gestionnaire de paquets :** npm (workspace racine → `app/`)
 - **Outillage :** serveur MCP Supabase (`.mcp.json`)
@@ -198,6 +200,10 @@ immuable — c'est la clé étrangère des preuves.
 - **Ne pas construire par anticipation.** Un modèle de données sans besoin réel
   est de la complexité gratuite. C'est ce qui a produit les 6 entités mortes
   supprimées le 28/07.
+- **Ne pas déplacer un seuil de `lib/engine/calibration.ts` sans données.**
+  `FRACTION_NON_TENTEE` et `FRACTION_TROP_FACILE` sont calés sur des tentatives
+  réelles, citées dans les tests. Les changer demande de nouvelles observations,
+  pas un avis (ADR-028).
 - **Ne pas inventer de données.** Un écran non construit doit le dire.
 - **Ne pas transformer une analyse en décision.** Une conclusion produite par
   une session Claude est 🔬 hypothèse ou ❓ question ouverte, jamais ✅ décision,

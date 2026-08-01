@@ -55,7 +55,7 @@ peut honnêtement en tirer — souvent moins que ce qu'on aimerait.**
 |---|---|
 | « ce que tu sais réellement faire » | ✅ Tenue. Le moteur est complet et testé. |
 | « avec le degré de certitude » | ✅ Tenue. Niveau / confiance / robustesse sont distincts et affichés. |
-| « quoi travailler ensuite » | 🟡 **Partielle.** Le maillon de génération s'est ouvert le 31/07 : les exercices existants viennent du tuteur. Le 3ᵉ maillon — l'ajustement, ADR-014 — n'existe toujours pas : rien ne relit `indicesUtilises`, `dureeMin` ni `resultat` pour calibrer l'exercice suivant. |
+| « quoi travailler ensuite » | 🟡 **Les trois maillons existent depuis le 31/07** (ADR-026, ADR-028). Reste à faire tourner la boucle en entier : aucun exercice généré *à partir* de la calibration n'a encore été fait. |
 
 ## 4. Public
 
@@ -148,7 +148,10 @@ reste.
 ❓ Quel moteur gratuit exactement (ADR-007) — résolu **par mesure**.
 ❓ La prise en compte de l'aide externe dans l'autonomie (ADR-008) — le seul
 principe encore en défaut.
-❓ Comment se pose le 3ᵉ maillon, « ajustement des exercices » (ADR-014).
+✅ Le 3ᵉ maillon est posé (ADR-028) — difficulté et angle dérivés des
+tentatives. 🔬 **Reste à vérifier qu'il ajuste réellement.** *Test de
+réfutation : trois exercices générés après une calibration, dont la difficulté
+suit le conseil et dont la dimension faible recule.*
 
 ## 7. Critère d'arrêt
 

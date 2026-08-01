@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Recommandation } from "@/lib/engine/recommend";
-import { DIFFICULTES, type Referentiel } from "@/lib/domain/types";
+import { DIFFICULTES, LIBELLES_DIMENSIONS, type Referentiel } from "@/lib/domain/types";
 import { libelleDomaine } from "@/lib/domain/referentiel-compte";
 import {
   Carte,
@@ -128,6 +128,47 @@ export function CarteProchaineAction({
                   </div>
                 ))}
               </dl>
+
+              {/*
+                3ᵉ maillon (ADR-028). La difficulté visée n'est plus déduite du
+                seul niveau : elle vient de ce que la dernière tentative a
+                produit. Un nombre qui bouge doit dire pourquoi (P3).
+              */}
+              {principale.calibration && principale.calibration.verdicts.length > 0 && (
+                <div className="mt-3 border-t border-bordure/60 pt-2">
+                  <p className="mb-1.5 text-texte-attenue">
+                    Difficulté {principale.difficulteCible}/5 —{" "}
+                    {principale.calibration.difficulteConseillee === null
+                      ? "déduite du niveau, faute de tentative exploitable :"
+                      : "dérivée de tes tentatives :"}
+                  </p>
+                  <ul className="space-y-1">
+                    {principale.calibration.verdicts.map((v) => (
+                      <li key={v.exerciceId} className="text-texte-attenue">
+                        · <span className="font-medium">{v.titre}</span> (difficulté {v.difficulte})
+                        — {v.raison}
+                      </li>
+                    ))}
+                  </ul>
+                  {principale.calibration.dimensionFaible && (
+                    <p className="mt-1.5 text-texte-attenue">
+                      Dimension la plus faible :{" "}
+                      <span className="font-medium">
+                        {LIBELLES_DIMENSIONS[principale.calibration.dimensionFaible.dimension]}
+                      </span>{" "}
+                      ({principale.calibration.dimensionFaible.moyenne} sur{" "}
+                      {principale.calibration.dimensionFaible.observations} tentative
+                      {principale.calibration.dimensionFaible.observations > 1 ? "s" : ""}) — c&apos;est
+                      elle qu&apos;il faut faire travailler.
+                    </p>
+                  )}
+                  {principale.calibration.explication.reserves.map((r, i) => (
+                    <p key={i} className="mt-1 text-texte-discret">
+                      {r}
+                    </p>
+                  ))}
+                </div>
+              )}
 
               {alternatives.length > 0 && (
                 <>
