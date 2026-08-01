@@ -8,6 +8,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
+import { validerAppelOutil } from "../outils";
 import type { DemandeTuteur, MoteurTuteur } from "./types";
 
 /** Modèle historique du projet. Surchargeable par `TUTEUR_MODELE`. */
@@ -18,7 +19,7 @@ export function moteurAnthropic(cle: string, modele: string): MoteurTuteur {
     nom: "anthropic",
     modele,
 
-    async repondre({ systemeStable, systemeProfil, messages, envoyer }: DemandeTuteur) {
+    async repondre({ systemeStable, systemeProfil, messages, outils, envoyer }: DemandeTuteur) {
       const client = new Anthropic({ apiKey: cle });
 
       try {
@@ -39,12 +40,36 @@ export function moteurAnthropic(cle: string, modele: string): MoteurTuteur {
             },
             { type: "text", text: systemeProfil },
           ],
+          // Les propositions passent par un outil, plus par un gabarit markdown
+          // (lot 3.2). Les définitions sont stables pour un compte donné : les
+          // placer ici ne casse pas le préfixe mis en cache ci-dessus.
+          tools: outils.map((o) => ({
+            name: o.nom,
+            description: o.description,
+            input_schema: o.schema as Anthropic.Tool["input_schema"],
+          })),
           messages: messages.map((m) => ({ role: m.role, content: m.content })),
         });
 
         stream.on("text", (delta) => envoyer("texte", { delta }));
 
         const finale = await stream.finalMessage();
+
+        // Les appels d'outil sont relayés APRÈS le texte, une fois le message
+        // clos : un `input` partiel n'est pas une proposition, c'est une
+        // proposition en cours d'écriture. C'est exactement ce que le gabarit
+        // markdown ne permettait pas de distinguer.
+        for (const bloc of finale.content) {
+          if (bloc.type !== "tool_use") continue;
+          const proposition = validerAppelOutil(bloc.name, bloc.input);
+          if (proposition) {
+            envoyer("proposition", proposition);
+          } else {
+            envoyer("proposition-rejetee", {
+              message: `Une proposition (${bloc.name}) est arrivée incomplète et n'a pas été retenue. Redemande-la.`,
+            });
+          }
+        }
 
         if (finale.stop_reason === "refusal") {
           envoyer("refus", {

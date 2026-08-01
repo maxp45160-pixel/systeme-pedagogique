@@ -12,6 +12,7 @@
  * corrompt les données. Passer le test de réfutation avant d'adopter un moteur.
  */
 
+import { validerAppelOutilJson } from "../outils";
 import type { DemandeTuteur, MoteurTuteur } from "./types";
 
 /**
@@ -21,8 +22,21 @@ import type { DemandeTuteur, MoteurTuteur } from "./types";
  */
 const MAX_JETONS_SORTIE = 8192;
 
+/**
+ * Fragment d'appel d'outil tel qu'il arrive sur le flux.
+ *
+ * `function.arguments` est découpé en morceaux arbitraires — jamais du JSON
+ * valide avant le dernier. D'où l'accumulation par `index` ci-dessous plutôt
+ * qu'une tentative de lecture au fil de l'eau.
+ */
+interface DeltaAppelOutil {
+  index?: number;
+  id?: string | null;
+  function?: { name?: string | null; arguments?: string | null } | null;
+}
+
 interface DeltaChoix {
-  delta?: { content?: string | null } | null;
+  delta?: { content?: string | null; tool_calls?: DeltaAppelOutil[] | null } | null;
   finish_reason?: string | null;
 }
 
@@ -70,7 +84,7 @@ export function moteurCompatibleOpenAI(
     nom: "compatible-openai",
     modele,
 
-    async repondre({ systemeStable, systemeProfil, messages, envoyer }: DemandeTuteur) {
+    async repondre({ systemeStable, systemeProfil, messages, outils, envoyer }: DemandeTuteur) {
       try {
         // Clé de cache : déterministe sur le contenu stable, pour que les
         // fournisseurs sachant réutiliser un préfixe d'une requête à l'autre
@@ -99,12 +113,24 @@ export function moteurCompatibleOpenAI(
             body: JSON.stringify(corps),
           });
 
+        // Traduction des outils au format « function calling » OpenAI. Le
+        // schéma lui-même est écrit une seule fois, dans `lib/tutor/outils.ts` :
+        // les deux moteurs proposent exactement la même chose au modèle.
+        const fonctions = outils.map((o) => ({
+          type: "function",
+          function: { name: o.nom, description: o.description, parameters: o.schema },
+        }));
+
+        const messagesConversation = messages.map((m) => ({ role: m.role, content: m.content }));
+
         const payloadMistral = {
           model: modele,
           stream: true,
           stream_options: { include_usage: true },
           max_tokens: MAX_JETONS_SORTIE,
           prompt_cache_key: cacheKey,
+          tools: fonctions,
+          tool_choice: "auto",
           messages: [
             // Séparer stable et profil en deux messages system : le préfixe
             // stable est identique d'un tour à l'autre, maximisant le cache
@@ -112,27 +138,48 @@ export function moteurCompatibleOpenAI(
             // vient après et ne casse pas le préfixe caché.
             { role: "system", content: systemeStable },
             { role: "system", content: systemeProfil },
-            ...messages.map((m) => ({ role: m.role, content: m.content })),
+            ...messagesConversation,
           ],
         };
 
+        // Repli en deux marches, du plus riche au plus pauvre. Chacune retire
+        // ce que la précédente peut avoir de refusable, et rien d'autre :
+        // un 400 ne dit pas QUEL champ a déplu.
+        const systemeUnique = [
+          { role: "system", content: `${systemeStable}\n\n${systemeProfil}` },
+          ...messagesConversation,
+        ];
+
         let reponse = await appeler(payloadMistral);
         if (reponse.status === 400) {
-          // Repli pour les fournisseurs qui refusent `prompt_cache_key` ou le
-          // double bloc système : un seul message système concaténé, comme
-          // avant. `stream_options` est conservé — sans lui, le décompte de
-          // jetons disparaîtrait de l'interface sans que rien ne le signale,
-          // et c'est précisément ce décompte qui permet de vérifier si le
-          // cache de préfixe sert à quelque chose.
+          // 1. Fournisseurs qui refusent `prompt_cache_key` ou le double bloc
+          //    système : un seul message système concaténé, outils conservés.
+          //    `stream_options` est conservé — sans lui, le décompte de jetons
+          //    disparaîtrait de l'interface sans que rien ne le signale, et
+          //    c'est précisément ce décompte qui permet de vérifier si le cache
+          //    de préfixe sert à quelque chose.
           reponse = await appeler({
             model: modele,
             stream: true,
             stream_options: { include_usage: true },
             max_tokens: MAX_JETONS_SORTIE,
-            messages: [
-              { role: "system", content: `${systemeStable}\n\n${systemeProfil}` },
-              ...messages.map((m) => ({ role: m.role, content: m.content })),
-            ],
+            tools: fonctions,
+            tool_choice: "auto",
+            messages: systemeUnique,
+          });
+        }
+        if (reponse.status === 400) {
+          // 2. Fournisseurs sans appel d'outil du tout. On ne perd pas la
+          //    conversation pour autant : le tuteur répond en texte et les
+          //    parseurs de `proposition.ts` restent le filet, comme avant le
+          //    lot 3.2. Ce qui se perd est la *rejetabilité* d'une proposition
+          //    tronquée — d'où le repli en dernier recours seulement.
+          reponse = await appeler({
+            model: modele,
+            stream: true,
+            stream_options: { include_usage: true },
+            max_tokens: MAX_JETONS_SORTIE,
+            messages: systemeUnique,
           });
         }
 
@@ -147,6 +194,8 @@ export function moteurCompatibleOpenAI(
         let tampon = "";
         let motifArret: string | null = null;
         let usage: FragmentReponse["usage"] = null;
+        /** Appels d'outil en cours d'assemblage, par `index` du flux. */
+        const appelsOutil = new Map<number, { nom: string; arguments: string }>();
 
         for (;;) {
           const { done, value } = await lecteur.read();
@@ -181,7 +230,36 @@ export function moteurCompatibleOpenAI(
 
             const delta = choix.delta?.content;
             if (delta) envoyer("texte", { delta });
+
+            for (const appel of choix.delta?.tool_calls ?? []) {
+              // `index` absent chez certains fournisseurs qui n'émettent
+              // qu'un appel à la fois : le rabattre sur 0 vaut mieux que de
+              // perdre la proposition.
+              const rang = appel.index ?? 0;
+              const courant = appelsOutil.get(rang) ?? { nom: "", arguments: "" };
+              // Le nom n'arrive qu'au premier fragment ; les suivants ne
+              // portent que des morceaux d'arguments.
+              if (appel.function?.name) courant.nom = appel.function.name;
+              if (appel.function?.arguments) courant.arguments += appel.function.arguments;
+              appelsOutil.set(rang, courant);
+            }
+
             if (choix.finish_reason) motifArret = choix.finish_reason;
+          }
+        }
+
+        // Le flux est clos : les arguments sont complets, ou ils ne le seront
+        // jamais. Un JSON coupé par la limite de jetons ne parse pas — il est
+        // rejeté et annoncé, là où le gabarit markdown livrait un demi-exercice
+        // sans le dire.
+        for (const appel of appelsOutil.values()) {
+          const proposition = validerAppelOutilJson(appel.nom, appel.arguments);
+          if (proposition) {
+            envoyer("proposition", proposition);
+          } else {
+            envoyer("proposition-rejetee", {
+              message: `Une proposition (${appel.nom || "outil inconnu"}) est arrivée incomplète et n'a pas été retenue. Redemande-la.`,
+            });
           }
         }
 

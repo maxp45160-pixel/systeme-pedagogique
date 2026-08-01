@@ -14,7 +14,13 @@ import type { Contexte } from "@/lib/store/context";
 import type { Referentiel } from "@/lib/domain/types";
 import { serialiserProfilDeclare } from "@/lib/domain/profil";
 import { formatDateCourte } from "@/lib/engine/dates";
-import { MARQUEUR_EXERCICE, MARQUEUR_PREUVE, MARQUEUR_REFERENTIEL } from "./proposition";
+import {
+  OUTIL_EXERCICE,
+  OUTIL_PREUVE,
+  OUTIL_REFERENTIEL,
+  outilsTuteur,
+  type OutilTuteur,
+} from "./outils";
 
 const RACINE_DATA = path.join(process.cwd(), "data");
 
@@ -140,6 +146,15 @@ export interface ContextePedagogique {
   systemeStable: string;
   /** Bloc variable : profil courant dérivé des preuves. */
   systemeProfil: string;
+  /**
+   * Outils par lesquels le tuteur propose (lot 3.2).
+   *
+   * Ils font partie du contexte transmis au même titre que les protocoles : le
+   * manifeste les compte, sans quoi l'interface annoncerait une taille
+   * inférieure à ce qui part réellement — exactement le genre de chiffre sans
+   * source que le protocole interdit.
+   */
+  outils: OutilTuteur[];
   manifeste: SectionContexte[];
   /** Estimation grossière, annoncée comme telle dans l'interface. */
   caracteresTotal: number;
@@ -384,103 +399,58 @@ function serialiserRecommandations(ctx: Contexte): string {
  * nommait le domaine pilote global, qui n'existe plus. Elle reste **stable pour
  * un compte donné** tant que son référentiel ne change pas — c'est ce qui
  * permet de la garder dans le bloc système mis en cache.
+ *
+ * Lot 3.2 : les trois gabarits markdown ont disparu d'ici. Ils décrivaient en
+ * prose une forme que le modèle devait reproduire exactement, et qu'un parseur
+ * devait relire ; ils sont remplacés par les trois outils de `outils.ts`, dont
+ * le schéma part dans la même requête. Ce qui reste ici est ce qu'un schéma ne
+ * sait pas dire : quand proposer, sur quoi s'appuyer, et ce qu'un intitulé de
+ * compétence doit être pour être mesurable.
  */
 function consignesInterface(referentiel: Referentiel): string {
   const domaines = referentiel.domaines.filter((d) =>
     referentiel.actifs.some((s) => s.domaine === d.id),
   );
-  const listeDomaines =
-    domaines.length === 0
-      ? "<aucun domaine — commence par une PROPOSITION DE RÉFÉRENTIEL>"
-      : domaines.map((d) => d.id).join(" | ");
 
   return `# CADRE D'INTERVENTION DANS CETTE INTERFACE
 
-Tu interviens depuis l'application de suivi. Quatre règles s'ajoutent aux protocoles ci-dessus :
+Tu interviens depuis l'application de suivi. Tu n'as AUCUN accès en écriture :
+ni au profil, ni au corpus d'exercices, ni au référentiel. Tu disposes de trois
+outils pour *proposer*, et l'utilisateur valide un formulaire pré-rempli. Ne dis
+jamais qu'une chose « a été ajoutée » ou « mise à jour » : tu proposes, il décide.
 
-1. TU NE PEUX PAS ÉCRIRE DANS LE PROFIL.
-   Tu ne disposes d'aucun accès en écriture. Si une interaction constitue une
-   preuve de compétence, ne dis jamais « j'ai mis à jour ton profil ». Propose
-   la mise à jour dans un bloc structuré, que l'utilisateur validera lui-même :
+1. ${OUTIL_PREUVE} — quand l'échange constitue une preuve de compétence.
+   Décris ce qui a été observé ici, précisément, pas ce que tu supposes acquis.
+   N'emploie que des codes de compétence figurant dans le profil ci-dessous.
 
-   ${MARQUEUR_PREUVE}
-   Compétence : <code>
-   Niveau actuel : <valeur lue dans le profil ci-dessous>
-   Niveau proposé : <valeur>
-   Preuve : <ce qui a été observé dans cet échange, précisément>
-   Autonomie observée : <A0-A4>
-   Qualité de la preuve : <faible|moyenne|forte>
-   Réserve : <ce qui reste à confirmer>
-
-2. TU NE PEUX PAS AJOUTER D'EXERCICE NON PLUS — MAIS TU PEUX EN PROPOSER UN.
-   Quand l'utilisateur demande un exercice, rédige-le dans ce bloc exact.
-   L'application le transformera en formulaire pré-rempli qu'il validera.
-   N'annonce jamais qu'un exercice « a été ajouté » : tu proposes, il décide.
-
-   ${MARQUEUR_EXERCICE}
-   Titre : <titre court et explicite>
-   Domaine : <${listeDomaines}>
-   Type : <rappel|application|calcul|probleme|etude-de-cas|programmation|simulation|projet>
-   Difficulté : <1 à 5>
-   Compétences : <codes séparés par des virgules ; la première est la cible>
-   Durée estimée : <minutes>
-   Énoncé :
-   <l'énoncé complet, plusieurs lignes autorisées>
-   Indice : <un indice par ligne, du plus léger au plus explicite>
-   Correction :
-   <la correction complète, plusieurs lignes autorisées>
-   Critère : <dimension> — <ce que l'utilisateur doit pouvoir cocher>
-
-   Les dimensions valides sont : comprehension, application, transfert,
-   integration, justification. Répète « Indice : » et « Critère : » autant de
-   fois que nécessaire. N'emploie que des codes de compétence figurant dans le
-   profil ci-dessous — un code inventé sera rejeté.
-
+2. ${OUTIL_EXERCICE} — quand l'utilisateur demande un exercice.
    LA DIFFICULTÉ N'EST PAS À TON APPRÉCIATION. Le bloc « CALIBRAGE DU PROCHAIN
    EXERCICE » ci-dessous la donne, dérivée de ce qui s'est réellement passé lors
-   des dernières tentatives. Emploie-la. Si tu t'en écartes, dis pourquoi dans
-   la phrase qui précède le bloc.
-
+   des dernières tentatives. Emploie-la ; si tu t'en écartes, dis pourquoi.
    Quand une dimension faible y est indiquée, l'exercice doit la faire
-   travailler, et au moins un « Critère : » doit porter sur elle. Un échec
-   localisé dans « application » n'appelle pas le même exercice en plus facile :
-   il appelle un exercice qui fait appliquer.
+   travailler, et au moins un critère doit porter sur elle. Un échec localisé
+   dans « application » n'appelle pas le même exercice en plus facile : il
+   appelle un exercice qui fait appliquer.
+   ${
+     domaines.length === 0
+       ? "Aucun domaine n'existe encore : commence par proposer une branche."
+       : `Domaines disponibles : ${domaines.map((d) => d.id).join(", ")}.`
+   }
 
-   L'énoncé et la correction se terminent à l'étiquette suivante. Si tu veux
-   commenter après le bloc, sépare-le par une ligne « --- ».
-
-3. TU NE PEUX PAS MODIFIER LE RÉFÉRENTIEL — MAIS TU PEUX EN PROPOSER L'EXTENSION.
-   Le référentiel appartient au compte : il n'y a pas de liste universelle de
-   compétences. Quand l'utilisateur veut travailler un sujet qui n'y figure pas,
-   ou quand ce qu'il fait révèle un savoir-faire qu'aucune compétence ne couvre,
-   propose une branche ou des compétences dans ce bloc exact.
-
-   ${MARQUEUR_REFERENTIEL}
-   Domaine : <nom d'un domaine existant, ou d'une nouvelle branche>
-   Préfixe : <2 à 5 lettres majuscules — ignoré si le domaine existe déjà>
-   Description : <une phrase : ce que cette branche couvre>
-   Compétence : <palier> | <importance de 0 à 1> | <intitulé>
-   Justification : <sur quoi tu t'appuies — ce que l'utilisateur a dit ou fait>
-
-   Les paliers valides sont : fondamentaux, intermediaire, avance. Répète
-   « Compétence : » autant de fois que nécessaire, du plus fondamental au plus
-   avancé. Termine le bloc par une ligne « --- ».
-
-   N'ÉCRIS AUCUN CODE DE COMPÉTENCE dans ce bloc : c'est l'application qui les
-   attribue à partir du préfixe. Un code que tu inventerais entrerait en
-   collision avec un code existant, et les preuves suivraient le mauvais.
+3. ${OUTIL_REFERENTIEL} — quand le sujet demandé ne figure pas au référentiel,
+   ou quand ce que fait l'utilisateur révèle un savoir-faire qu'aucune
+   compétence ne couvre. Le référentiel appartient au compte : il n'y a pas de
+   liste universelle.
 
    Chaque compétence proposée doit être MESURABLE PAR L'APPAREIL QUI EXISTE.
    Un intitulé qui ne l'est pas produit une ligne que rien ne pourra jamais
    remplir — c'est le défaut que ce système est fait pour éviter :
      a. un savoir-faire OBSERVABLE, pas un sujet : « sait reconstruire un
         argument sous forme canonique », jamais « l'histoire de la philosophie » ;
-     b. notable sur au moins une des cinq dimensions du protocole d'évaluation
-        §3 (comprehension, application, transfert, integration, justification) ;
+     b. notable sur au moins une des cinq dimensions du protocole d'évaluation §3 ;
      c. testable dans au moins deux contextes distincts, sans quoi la
         robustesse ne pourra jamais monter (§11) ;
-     d. exerçable par au moins un des types disponibles (rappel, application,
-        calcul, probleme, etude-de-cas, programmation, simulation, projet) ;
+     d. exerçable par au moins un des types d'exercice disponibles ;
      e. prouvable par un exercice de 20 à 60 minutes — plus large, découpe ;
         plus étroit, fusionne.
 
@@ -496,7 +466,9 @@ Tu interviens depuis l'application de suivi. Quatre règles s'ajoutent aux proto
 5. RESTE CONCIS SAUF DEMANDE CONTRAIRE.
    L'utilisateur vient travailler, pas lire des synthèses. Pas d'introduction,
    pas de récapitulatif du profil non demandé, pas de félicitations
-   automatiques. Réponds à la demande, questionne, corrige, propose la suite.`;
+   automatiques. Réponds à la demande, questionne, corrige, propose la suite.
+   Accompagne toujours un appel d'outil d'une phrase de contexte : la carte
+   affichée à côté de ta réponse ne remplace pas ce que tu as à dire.`;
 }
 
 export async function construireContexte(
@@ -560,21 +532,47 @@ export async function construireContexte(
     { nom: "Priorités calculées", caracteres: priorites.length, origine: "calcule" },
   );
 
+  const outils = outilsTuteur(ctx.referentiel);
+  // Ce que les schémas pèsent réellement dans la requête. Mesuré sur la
+  // sérialisation JSON, qui est la forme envoyée — pas estimé.
+  const caracteresOutils = JSON.stringify(outils).length;
+  manifeste.push({
+    nom: "Outils de proposition (schémas)",
+    caracteres: caracteresOutils,
+    origine: "calcule",
+  });
+
   const systemeStable = blocsStables.join("\n\n---\n\n");
   const systemeProfil = [profil, recent, calibrage, priorites].join("\n\n---\n\n");
 
   return {
     systemeStable,
     systemeProfil,
+    outils,
     manifeste,
-    caracteresTotal: systemeStable.length + systemeProfil.length,
+    caracteresTotal: systemeStable.length + systemeProfil.length + caracteresOutils,
   };
 }
 
-/** Version texte intégrale, pour le mode « copier le contexte » sans clé API. */
+/**
+ * Version texte intégrale, pour le mode « copier le contexte » sans clé API.
+ *
+ * Ce chemin n'a pas d'appel d'outil : le prompt est collé dans une fenêtre de
+ * chat ordinaire. Les schémas y sont donc rendus en texte, à la place des
+ * gabarits markdown qu'ils remplacent. Même source, une seule définition — un
+ * gabarit recopié à la main ici se serait désynchronisé au premier changement,
+ * en silence.
+ */
 export function contexteEnTexte(c: ContextePedagogique, question: string): string {
+  const schemas = c.outils
+    .map((o) => `## ${o.nom}\n${o.description}\n\n${JSON.stringify(o.schema, null, 2)}`)
+    .join("\n\n");
+
   return [
     c.systemeStable,
+    "\n\n---\n\n# FORME DES PROPOSITIONS (mode copié-collé)\n\n",
+    "Cette conversation n'a pas d'appel d'outil. Quand tu proposes, écris un bloc ```json contenant { \"outil\": <nom>, \"donnees\": { … } } conforme au schéma correspondant.\n\n",
+    schemas,
     "\n\n---\n\n",
     c.systemeProfil,
     "\n\n---\n\n# DEMANDE\n\n",

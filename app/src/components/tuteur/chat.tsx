@@ -10,6 +10,7 @@ import type { SectionContexte } from "@/lib/tutor/contexte";
 import { MAX_MESSAGES_FENETRE } from "@/lib/tutor/fenetre";
 import { useEstHydrate } from "@/lib/ui/hydratation";
 import { cleParCompte, ecrireSession, effacerSession, lireSession } from "@/lib/ui/stockage-session";
+import type { PropositionRecue } from "@/lib/tutor/outils";
 import {
   CLE_PROPOSITION_EXERCICE,
   CLE_PROPOSITION_REFERENTIEL,
@@ -78,6 +79,17 @@ const MODES = [
 interface Message {
   role: "user" | "assistant";
   content: string;
+  /**
+   * Propositions reçues en sortie structurée (lot 3.2).
+   *
+   * Présentes seulement quand le moteur sait appeler un outil. Absentes, les
+   * parseurs de `proposition.ts` reprennent la main sur le texte — c'est le
+   * filet, tant que la bascule n'est pas vérifiée sur les deux moteurs.
+   *
+   * Conservées avec le message dans `sessionStorage` : les recalculer depuis le
+   * texte à la relecture est précisément ce qu'on cherche à ne plus faire.
+   */
+  propositions?: PropositionRecue[];
 }
 
 /**
@@ -125,32 +137,53 @@ const MessageBulle = memo(function MessageBulle({
    */
   enFluxDirect: boolean;
 }) {
-  const analysable = message.role === "assistant" && message.content !== "" && !enFluxDirect;
+  /*
+   * Deux sources possibles, jamais les deux à la fois.
+   *
+   * Le moteur sait appeler un outil : les propositions sont arrivées validées
+   * contre un schéma, en fin de tour. Rien à relire dans le texte — et surtout,
+   * rien à relire DEUX fois : un tuteur qui appelle l'outil ET recopie le bloc
+   * en markdown afficherait la carte en double.
+   *
+   * Il ne le sait pas (repli de `compatible-openai.ts`, ou mode « copier le
+   * contexte ») : les parseurs reprennent la main, avec leurs limites connues.
+   */
+  const recues = message.propositions;
+  const analysable =
+    recues === undefined && message.role === "assistant" && message.content !== "" && !enFluxDirect;
 
-  // Propositions structurées du tuteur, validées contre le
-  // référentiel : on ne fabrique jamais un lien vers un code inventé.
-  const propositions = analysable
-    ? extrairePropositions(message.content).filter((p) =>
-        codesCompetences.includes(p.competence.toUpperCase()),
-      )
-    : [];
+  // Preuves proposées, validées contre le référentiel dans les deux cas : on ne
+  // fabrique jamais un lien vers un code inventé.
+  const propositions = (
+    recues
+      ? recues.flatMap((r) => (r.genre === "preuve" ? [r.preuve] : []))
+      : analysable
+        ? extrairePropositions(message.content)
+        : []
+  ).filter((p) => codesCompetences.includes(p.competence.toUpperCase()));
 
-  // Exercices proposés par le tuteur (ADR-004). Même contrat que
-  // les preuves : rien n'est écrit tant que l'utilisateur n'a pas
-  // validé le formulaire pré-rempli.
+  // Exercices proposés par le tuteur (ADR-004). Même contrat que les preuves :
+  // rien n'est écrit tant que l'utilisateur n'a pas validé le formulaire.
   //
-  // Second filtre, après la fin du flux : une réponse peut aussi être
-  // interrompue — plafond de jetons atteint, bouton « Arrêter ». `exerciceComplet`
-  // écarte alors le bloc au lieu d'offrir un lien vers un demi-exercice.
-  const exercices = analysable
-    ? extrairePropositionsExercice(message.content).filter(exerciceComplet)
-    : [];
+  // `exerciceComplet` s'applique des deux côtés — appliqué à la validation du
+  // schéma côté serveur, et ici au texte parsé : une réponse interrompue
+  // (plafond de jetons, bouton « Arrêter ») n'offre pas de lien vers un
+  // demi-exercice.
+  const exercices = recues
+    ? recues.flatMap((r) => (r.genre === "exercice" ? [r.exercice] : []))
+    : analysable
+      ? extrairePropositionsExercice(message.content).filter(exerciceComplet)
+      : [];
 
   // Branches proposées (ADR-026). Contrairement aux deux autres, ce bloc n'est
   // PAS filtré contre le référentiel : c'est précisément celui qui a le droit
   // d'introduire des compétences qui n'existent pas encore. Le garde-fou est
   // ailleurs — le tuteur n'y écrit aucun code, l'application les attribue.
-  const branches = analysable ? extrairePropositionsReferentiel(message.content) : [];
+  const branches = recues
+    ? recues.flatMap((r) => (r.genre === "referentiel" ? [r.branche] : []))
+    : analysable
+      ? extrairePropositionsReferentiel(message.content)
+      : [];
 
   return (
     <div
@@ -170,10 +203,17 @@ const MessageBulle = memo(function MessageBulle({
         {message.role === "user" ? (
           <p className="whitespace-pre-wrap">{message.content}</p>
         ) : message.content === "" ? (
-          <span className="inline-flex items-center gap-1.5 text-xs text-texte-attenue">
-            <span className="size-1.5 animate-pulse rounded-full bg-primaire" />
-            Le tuteur réfléchit…
-          </span>
+          /* Un message vide *avec* propositions n'attend rien : le tuteur a
+             appelé l'outil sans commenter. Afficher « réfléchit… » sous une
+             carte déjà rendue annoncerait un travail en cours qui n'existe pas. */
+          recues && recues.length > 0 ? (
+            <span className="text-xs text-texte-attenue">Proposition ci-dessous.</span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 text-xs text-texte-attenue">
+              <span className="size-1.5 animate-pulse rounded-full bg-primaire" />
+              Le tuteur réfléchit…
+            </span>
+          )
         ) : (
           <Markdown contenu={message.content} />
         )}
@@ -582,6 +622,14 @@ function ChatHydrate({
   const DELAI_FLUSH_MS = 66;
 
   const accumuleRef = useRef("");
+  /**
+   * Propositions validées reçues pendant le tour (lot 3.2).
+   *
+   * Un ref, comme le texte : elles arrivent en fin de flux et ne sont publiées
+   * qu'avec le message final. Les pousser dans l'état à l'arrivée ferait
+   * apparaître la carte avant la dernière ligne de la réponse.
+   */
+  const propositionsRef = useRef<PropositionRecue[]>([]);
   const historiqueRef = useRef<Message[]>([]);
   const flushRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -631,6 +679,34 @@ function ChatHydrate({
     abandonRef.current?.abort();
   }, []);
 
+  /**
+   * Publie la réponse du tour : texte accumulé + propositions validées.
+   *
+   * Un seul endroit, appelé aussi bien à la fin normale qu'à l'interruption.
+   * Les deux chemins écrivaient le même bloc ; les propositions structurées en
+   * auraient fait un troisième oubli possible.
+   *
+   * Un message sans texte MAIS avec une proposition est publié quand même : le
+   * tuteur peut n'avoir appelé que l'outil, et jeter le message emporterait la
+   * carte avec lui.
+   */
+  const publierReponse = useCallback((historique: Message[]) => {
+    const texte = accumuleRef.current;
+    const propositions = propositionsRef.current;
+    if (texte.trim() === "" && propositions.length === 0) {
+      setMessages(historique);
+      return;
+    }
+    setMessages([
+      ...historique,
+      {
+        role: "assistant",
+        content: texte,
+        ...(propositions.length > 0 ? { propositions } : {}),
+      },
+    ]);
+  }, []);
+
   const envoyer = useCallback(async (texte: string) => {
     const contenu = texte.trim();
     if (!contenu || enCoursRef.current) return;
@@ -640,6 +716,7 @@ function ChatHydrate({
     const historique: Message[] = [...messagesRef.current, { role: "user", content: contenu }];
     historiqueRef.current = historique;
     accumuleRef.current = "";
+    propositionsRef.current = [];
     setMessages([...historique, { role: "assistant", content: "" }]);
     setEnCours(true);
     // Envoyer, c'est vouloir lire la réponse : on raccroche le suivi du bas,
@@ -712,6 +789,16 @@ function ChatHydrate({
             });
           } else if (type === "tronque") {
             setAvis({ ton: "info", texte: String(donnees.message ?? "") });
+          } else if (type === "proposition") {
+            propositionsRef.current = [
+              ...propositionsRef.current,
+              donnees as unknown as PropositionRecue,
+            ];
+          } else if (type === "proposition-rejetee") {
+            // Une proposition rejetée doit se voir. La taire remplacerait le
+            // demi-exercice d'avant le lot 3.2 par un exercice disparu — deux
+            // pannes silencieuses, pas une correction.
+            setAvis({ ton: "alerte", texte: String(donnees.message ?? "") });
           } else if (type === "fin") {
             const u = donnees.usage as Record<string, number> | undefined;
             if (u) {
@@ -725,12 +812,7 @@ function ChatHydrate({
 
       // Flush final : s'assurer que le dernier contenu est bien dans le state
       annulerFlush();
-      const final = accumuleRef.current;
-      if (final.trim() === "") {
-        setMessages(historique);
-      } else {
-        setMessages([...historique, { role: "assistant", content: final }]);
-      }
+      publierReponse(historique);
     } catch (e) {
       annulerFlush();
 
@@ -739,14 +821,9 @@ function ChatHydrate({
       // Les cartes de proposition, elles, restent écartées — `exerciceComplet`
       // rejette un bloc inachevé (cf. `MessageBulle`).
       const annule = e instanceof DOMException && e.name === "AbortError";
-      const final = accumuleRef.current;
 
       if (annule) {
-        if (final.trim() === "") {
-          setMessages(historique);
-        } else {
-          setMessages([...historique, { role: "assistant", content: final }]);
-        }
+        publierReponse(historique);
         setAvis({ ton: "info", texte: "Réponse interrompue. Le texte déjà reçu est conservé." });
       } else {
         setMessages(historique);
@@ -759,7 +836,7 @@ function ChatHydrate({
       abandonRef.current = null;
       setEnCours(false);
     }
-  }, [annulerFlush, planifierFlush]);
+  }, [annulerFlush, planifierFlush, publierReponse]);
 
   const copierContexte = useCallback(async (saisie: string) => {
     try {

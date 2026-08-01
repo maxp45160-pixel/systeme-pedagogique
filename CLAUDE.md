@@ -79,9 +79,9 @@ pratique et développer un sujet à long terme.
   deux cas. Sans moteur configuré : 503 et repli « copier le contexte ».
 - **Styles :** Tailwind CSS v4 ; **graphiques SVG écrits à la main**, aucune
   librairie UI tierce
-- **Tests :** Vitest — **210 tests**, 8 fichiers (moteur, backend Supabase,
-  parseurs de propositions, contexte du tuteur, sélection du moteur du tuteur,
-  référentiel par compte, calibration, profil)
+- **Tests :** Vitest — **228 tests**, 9 fichiers (moteur, backend Supabase,
+  parseurs de propositions, outils du tuteur, contexte du tuteur, sélection du
+  moteur du tuteur, référentiel par compte, calibration, profil)
 - **Déploiement :** Vercel (Root Directory = `app`)
 - **Gestionnaire de paquets :** npm (workspace racine → `app/`)
 - **Outillage :** serveur MCP Supabase (`.mcp.json`)
@@ -187,7 +187,9 @@ immuable — c'est la clé étrangère des preuves.
 - **Ne jamais laisser le tuteur écrire un code de compétence.** Les codes sont
   attribués par l'application depuis le préfixe du domaine (ADR-026). Un code
   inventé entrerait en collision et les preuves suivraient la mauvaise
-  compétence, sans erreur visible.
+  compétence, sans erreur visible. Depuis ADR-031 le schéma de l'outil
+  `proposer_referentiel` n'a **aucun champ `code`** : l'interdit est devenu
+  inexprimable. Ne pas l'y réintroduire « pour la commodité ».
 - **Ne pas supprimer une compétence qui porte des preuves** — l'archiver.
   `supprimerCompetence` refuse plutôt que de se replier en silence : une
   fonction qui fait autre chose que ce que son nom annonce s'érode (ADR-027).

@@ -1645,6 +1645,106 @@ pas seulement l'utilisateur.
 
 ---
 
+## ADR-031 — Les propositions du tuteur passent en sortie structurée ✅
+
+**Date.** 01/08/2026. Lot 3.2 du plan de micro-incrémentation, **demandé
+explicitement**. Remplace le mécanisme de gabarits markdown d'[ADR-004](#adr-004)
+et d'[ADR-026](#adr-026) ; ne change aucun garde-fou.
+
+### Le problème
+
+Le tuteur écrivait ses propositions — preuve, exercice, branche — en blocs
+markdown à étiquettes, relus par une machine à états (`decouperChamps`,
+`lib/tutor/proposition.ts`). Trois défauts de **forme**, tous observés :
+
+1. **Une réponse tronquée produisait un demi-exercice, en silence.** Les champs
+   arrivent dans l'ordre du gabarit ; `Correction` et `Critère` sont en fin de
+   bloc. Un flux coupé — plafond de jetons, bouton « Arrêter » — laissait un
+   bloc qui satisfaisait « titre + énoncé », donc affichable, donc cliquable.
+   Le lot 1 l'a masqué avec `exerciceComplet` ; il ne l'a pas supprimé.
+2. **La mise en forme était une classe de bugs.** `**Titre** :`, `**Titre :**`,
+   étiquette seule sur sa ligne, tiret cadratin dans un intitulé : quatre
+   correctifs successifs sur le parseur, dont le commit `a3f2946`.
+3. **Les interdits n'étaient que des phrases.** « N'écris aucun code de
+   compétence » (ADR-026, `CLAUDE.md` §8) se lit ou ne se lit pas. Un code
+   inventé entre en collision et les preuves suivent la mauvaise compétence,
+   sans erreur visible.
+
+### Décision
+
+Les trois propositions passent par un **appel d'outil**, décrit une seule fois
+dans `lib/tutor/outils.ts` et traduit par chaque moteur (`tools` chez Anthropic,
+`tools` / `tool_choice` chez les compatibles OpenAI). Le texte conversationnel
+continue de streamer ; la proposition arrive en fin de tour, validée.
+
+- **La validation est écrite à la main et fait seule autorité.** Le schéma part
+  au fournisseur, mais un fournisseur qui le suivrait mal ne doit pas pouvoir
+  faire entrer une proposition mal formée. Aucune dépendance ajoutée.
+- **Le schéma de branche ne comporte AUCUN champ `code`.** L'interdit d'ADR-026
+  devient inexprimable au lieu d'être demandé. Un test le vérifie, et un second
+  vérifie qu'un `code` glissé malgré tout ne ressort pas de la validation.
+- **Une proposition invalide est rejetée ET annoncée** (`proposition-rejetee`).
+  Taire le rejet remplacerait le demi-exercice d'hier par un exercice disparu :
+  deux pannes silencieuses, pas une correction.
+- **`exerciceComplet` reste la seule définition de « complet »**, appliquée
+  désormais au plus tôt, à la validation.
+
+### Ce qui ne change pas
+
+Le tuteur n'a toujours **aucun accès en écriture** (P5). Un appel d'outil est
+une proposition : elle remplit un formulaire que l'utilisateur valide, comme le
+bloc markdown avant elle. Les types rendus par la validation sont ceux des
+parseurs — le formulaire de création et l'écran de validation du référentiel ne
+sont pas touchés.
+
+### Ce que la mesure dit — et contredit
+
+Le plan annonçait **~1 389 jetons économisés par message**. C'est faux, et il
+faut l'écrire :
+
+| Bloc | Avant | Après |
+|---|---|---|
+| `consignesInterface` | 5 556 car. | **3 105 car.** |
+| Schémas des trois outils | 0 | **3 128 car.** |
+| **Total** | **5 556** | **6 233 (+677, +12 %)** |
+
+Les gabarits ont bien disparu du prompt ; les schémas coûtent à peu près ce
+qu'ils remplacent. **Le gain de ce lot n'est donc pas la taille du prompt** — il
+est la rejetabilité d'une proposition tronquée et la disparition d'une classe de
+bugs. Les deux blocs vivent dans le préfixe stable, donc mis en cache : le coût
+marginal par message est celui d'un cache lu.
+
+Corollaire : **le lot 3.3 ne peut plus s'appuyer sur 3.2 pour son budget.** Les
+19 100 caractères de protocole restent le seul gisement réel.
+
+### Repli, et ce qu'il coûte
+
+`compatible-openai.ts` replie en deux marches sur un 400 : d'abord sans
+`prompt_cache_key` ni double bloc système (outils conservés), puis sans outils
+du tout. Dans ce dernier cas le tuteur répond en texte et **les parseurs de
+`proposition.ts` reprennent la main** — d'où leur maintien, avec leurs 33 tests.
+Ce qui se perd alors est exactement la rejetabilité. Le mode « copier le
+contexte » est dans le même cas : il n'a pas d'appel d'outil, et reçoit les
+schémas rendus en texte, depuis la même source.
+
+### 🔬 Ce qui n'est pas vérifié
+
+**La bascule n'a été exercée sur aucun moteur réel.** Les 15 tests de
+`outils.test.ts` portent sur la validation, pas sur ce que Mistral ou Anthropic
+émettent effectivement. Test de réfutation, à faire par une personne connectée :
+demander un exercice au tuteur et vérifier que la carte s'affiche ; puis cliquer
+« Arrêter » en cours de rédaction et vérifier qu'un avis de rejet apparaît au
+lieu d'une carte. Si Mistral ignore `tools`, le repli s'en charge sans le dire —
+c'est le point à surveiller en premier.
+
+### Étape suivante, non faite ici
+
+`proposition.ts` et ses tests **restent en place** tant que la vérification
+ci-dessus n'a pas eu lieu sur les deux moteurs. Leur retrait est un second
+commit, pas celui-ci.
+
+---
+
 ## Comment modifier ce registre
 
 1. Une décision ✅ ne se retire pas : elle passe en 🔄 **Remplacée**, avec le
