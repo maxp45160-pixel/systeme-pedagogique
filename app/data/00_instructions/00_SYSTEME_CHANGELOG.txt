@@ -646,3 +646,51 @@ L'écran d'amorçage `/demarrer` demandait « ton point de départ », qui écri
 `profiles.formation` — le champ que `/profil` édite ensuite, via la même
 action. Deux écrans pour une colonne. `/demarrer` garde le strict nécessaire à
 l'amorçage (le sujet, l'objectif) ; `/profil` reste l'écran d'édition.
+
+---
+
+## VERSION 3.5 — RÉPÉTITION ESPACÉE (MÉTHODE A', ÉVOLUTIVE VERS FSRS)
+
+Date : 02/08/2026
+
+### Modification
+
+Nouveau module `src/lib/engine/spaced.ts` : l'intervalle de révision d'une
+compétence se **dérive** de son état (niveau, robustesse, confiance, dernier
+résultat), jamais d'un état stocké (P1). Aucune colonne `prochaine_revision`
+en base : tout se recalcule à la lecture, comme le niveau et la robustesse.
+
+Le calcul est isolé derrière l'interface `ModeleRevision`, avec deux
+implémentations : `modeleHeuristique` (méthode A', active) et `modeleFsrs`
+(méthode C, emplacement réservé). `MODELE_ACTIF` est la seule constante à
+changer pour basculer de l'une à l'autre — même pattern que la calibration
+(ADR-028).
+
+Le moteur de recommandation (`recommend.ts`) remplace son facteur
+« Ancienneté de la dernière preuve » (linéaire, `j × 0,35`, plafonné à 30) par
+un signal binaire fort : « Due pour révision » → +40 si `estDue`, sinon
+pénalité « Pratiquée récemment » → −15.
+
+### Motivation
+
+Le facteur d'ancienneté montait linéairement avec le temps sans tenir compte
+de la maîtrise : une compétence robuste et une compétence fragile étaient
+traitées de la même façon. La répétition espacée dérive un intervalle de
+révision de l'état — une compétence robuste peut attendre, une fragile se
+révise vite — et réagit à la performance (un échec récent rapproche la
+révision). C'est le premier maillon d'une prescription pédagogique
+déterministe, à côté de la calibration qui règle la difficulté.
+
+### Impact
+
+Aucun seuil de protocole n'est modifié : la répétition espacée s'appuie sur
+la robustesse (§13), la confiance (§10) et la récence (§7) telles qu'elles
+existent. Le facteur « Ancienneté » du §16 est remplacé par un signal dérivé
+du même §16 (l'entretien d'une compétence acquise pèse toujours dans le
+calcul). `npm run verify` reste vert (254 tests, dont 15 nouveaux).
+
+### Compatibilité
+
+Rétrocompatible. Aucune donnée n'est touchée : l'intervalle se dérive des
+preuves existantes. Le passage à FSRS (méthode C) ne modifiera que
+`MODELE_ACTIF` et exigera une calibration sur les données réelles.

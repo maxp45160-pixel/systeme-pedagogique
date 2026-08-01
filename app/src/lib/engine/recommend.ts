@@ -25,6 +25,7 @@ import {
   type SkillState,
 } from "@/lib/domain/types";
 import type { Calibration } from "./calibration";
+import { estDue } from "./spaced";
 
 export interface Facteur {
   libelle: string;
@@ -132,17 +133,23 @@ function evaluer(
       phrase: `elle est au niveau ${n} et le palier suivant est atteignable`,
     });
 
-    // 4. Ancienneté de la dernière preuve — entretien (§16).
+    // 4. Répétition espacée — « est-elle due pour révision ? » (spaced.ts).
+    //
+    // Remplace l'ancien facteur « Ancienneté » (j × 0,35, plafonné à 30), qui
+    // montait linéairement avec le temps sans tenir compte de la maîtrise. La
+    // répétition espacée dérive un intervalle de révision de l'état (niveau,
+    // robustesse, confiance, dernier résultat) : une compétence robuste peut
+    // attendre, une fragile se révise vite. Le signal devient binaire et fort :
+    // « due » pousse fortement, « pas due » laisse respirer.
     const j = etat.joursDepuisDernierePreuve ?? 0;
-    const fAnciennete = Math.min(30, j * 0.35);
-    if (j >= 21) {
+    if (estDue(etat)) {
       facteurs.push({
-        libelle: "Ancienneté de la dernière preuve",
-        contribution: fAnciennete,
-        phrase: `elle n'a pas été travaillée depuis ${j} jours`,
+        libelle: "Due pour révision",
+        contribution: 40,
+        phrase: `elle est due pour révision (${j} jours écoulés)`,
       });
     } else {
-      // Pénalité : travaillée très récemment, laisser respirer.
+      // Pénalité : travaillée récemment, laisser respirer.
       facteurs.push({
         libelle: "Pratiquée récemment",
         contribution: -15,
