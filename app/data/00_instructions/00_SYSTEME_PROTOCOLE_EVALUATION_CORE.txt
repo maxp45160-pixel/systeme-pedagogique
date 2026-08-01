@@ -57,6 +57,31 @@ sont suivies séparément (§5, §13).
 - **A3** — Résolution autonome.
 - **A4** — Résolution autonome avec initiative méthodologique.
 
+**L'aide extérieure au système compte au même titre que les indices internes.**
+Un indice n'est pas moins un indice parce qu'il vient d'ailleurs. Le nombre
+d'indices consultés dans l'application ne voit que ce qui s'y passe ; ce qui a
+été cherché au-dehors se demande, et plafonne l'autonomie :
+
+  aide déclarée              plafond   raison
+  aucune                     —         rien à plafonner
+  documentation, cours       A2        une référence consultée est un indice
+  assistant IA               A1        « solution fortement guidée »
+  correction obtenue         A0        « solution fournie », par définition
+
+L'autonomie retenue est le MINIMUM entre ce que disent les indices internes et
+ce plafond. Un minimum, jamais un remplacement : quelqu'un qui a épuisé les
+indices de l'application ET consulté une documentation reste en A1. Un plafond
+ne relève pas une autonomie que la mesure interne avait déjà rabaissée.
+
+Ce que le système mesure ici est « sait faire seul », pas « sait faire bien ».
+Travailler documentation ouverte est une pratique professionnelle normale ; ce
+n'est simplement pas une résolution autonome au sens de cette échelle.
+
+L'aide extérieure se DEMANDE, elle ne se devine pas — et la question porte sur
+un fait dont la personne se souvient, jamais sur une auto-évaluation de son
+propre niveau. Une échelle à cinq paliers proposée telle quelle récompense
+l'optimisme : personne ne se déclare A1.
+
 ---
 
 # 6. QUALITÉ DE LA PREUVE

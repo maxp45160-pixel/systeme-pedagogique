@@ -578,3 +578,71 @@ déplacement assumé de cette règle vers l'endroit où elle est toujours prése
 
 Le paragraphe sur l'importance relative à l'objectif du compte sort également —
 il est au protocole de référentiel § 4, dans le fichier qui traite du sujet.
+
+---
+
+## VERSION 3.4 — L'AIDE EXTÉRIEURE ENTRE DANS LE CALCUL DE L'AUTONOMIE
+
+Date : 01/08/2026 (ADR-033, ferme ADR-008)
+
+### Le défaut corrigé
+
+Le compteur d'indices ne voyait que les indices INTERNES à l'application. Une
+documentation consultée, un assistant IA sollicité, une correction lue étaient
+invisibles au moteur, qui écrivait « A3 — résolution autonome ».
+
+Deux preuves de production le montraient noir sur blanc : RO-01 et STAT-02,
+enregistrées A3 avec zéro indice, portaient en commentaire « j'ai eu besoin de
+l'aide de Claude et de ressources » et « j'ai regardé sur internet ». La
+personne était honnête ; l'instrument était sourd — le champ commentaire n'est
+pas lu par le moteur.
+
+P8 était le dernier des huit principes encore en défaut. Il ne l'est plus.
+
+### Amendement du protocole d'évaluation § 5
+
+Ajout du barème de plafonnement par aide déclarée : documentation → A2,
+assistant IA → A1, correction obtenue → A0, aucune → pas de plafond.
+L'autonomie retenue est le MINIMUM entre les indices internes et ce plafond.
+
+Le protocole précède le code (00_PERENNISATION § 6) : ce paragraphe est écrit
+d'abord, `autonomieObservee` de `lib/engine/preuve.ts` le transcrit.
+
+### Amendement du protocole anti-hallucination § 12
+
+Le paragraphe décrivait l'écart comme ouvert et demandait au tuteur de lire le
+commentaire faute de mieux. Il dit désormais que la question est posée depuis
+le 01/08/2026, et cantonne la réserve aux preuves ANTÉRIEURES à cette date.
+
+### Ce qui change pour l'utilisateur
+
+Le sélecteur « Autonomie » à cinq paliers (A0 à A4) disparaît du formulaire de
+preuve manuelle. Il demandait de connaître le protocole pour être rempli
+honnêtement, et récompensait l'optimisme : personne ne se déclare A1.
+
+À sa place, une question de fait — de quelle aide as-tu disposé ? — dont la
+réponse par défaut est « aucune », donc sans clic dans le cas ordinaire.
+
+CONSÉQUENCE ASSUMÉE : A4 n'est plus atteignable. C'était le seul palier que
+l'utilisateur pouvait s'attribuer, et « j'ai fait preuve d'initiative
+méthodologique » est exactement le genre d'auto-évaluation que ce chantier
+retire. Le palier reste dans le type et dans l'échelle ; rien ne l'écrit plus.
+
+### Ce qui n'est PAS fait
+
+Les 29 preuves existantes ne sont pas retouchées. Aucune donnée ne dit quelle
+aide a servi, sauf les deux commentaires cités — inventer les vingt-sept autres
+serait précisément la faute que ce système combat. Le biais reste, borné dans
+le temps, et le protocole anti-hallucination § 12 le signale au tuteur.
+
+Le bilan d'exercice ne pose pas la question non plus : ce chemin dispose déjà
+d'une mesure non déclarative (le compteur d'indices), et le lot en cours visait
+à RÉDUIRE le nombre d'inputs demandés, pas à en ajouter un sur le chemin le
+plus fréquenté. L'écart y subsiste donc, moindre mais réel.
+
+### Double saisie supprimée
+
+L'écran d'amorçage `/demarrer` demandait « ton point de départ », qui écrivait
+`profiles.formation` — le champ que `/profil` édite ensuite, via la même
+action. Deux écrans pour une colonne. `/demarrer` garde le strict nécessaire à
+l'amorçage (le sujet, l'objectif) ; `/profil` reste l'écran d'édition.

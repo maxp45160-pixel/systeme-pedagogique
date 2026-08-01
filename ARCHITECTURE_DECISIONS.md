@@ -375,9 +375,10 @@ tête d'ADR-007. *Fin de la section historique.*
 ---
 
 <a name="adr-008"></a>
-## ADR-008 — L'autonomie mesurée ignore l'aide externe ❓
+## ADR-008 — L'autonomie mesurée ignore l'aide externe 🔄 (fermée)
 
-**Statut.** Ouverte. Découvert le 27/07 en lisant les données de production.
+**Statut.** **Fermée le 01/08/2026 par [ADR-033](#adr-033)**, qui retient
+l'option A ci-dessous. Ouverte le 27/07 en lisant les données de production.
 
 **Problème.** `indicesUtilises` ne compte que les indices **internes**. Toute
 aide extérieure est invisible au moteur, qui enregistre néanmoins
@@ -415,7 +416,11 @@ partiellement aveugle. L'argument tient encore — un indice interne compté vau
 mieux qu'une autonomie entièrement déclarée — mais il est **plus faible qu'annoncé**.
 C'est pourquoi ADR-011 est rouverte.
 
-**En attente de :** arbitrage de Maxime.
+**Arbitré le 01/08/2026 par Maxime** — option A, portée au seul formulaire de
+preuve manuelle, sous une contrainte qu'il a posée explicitement : *« quand je
+parle d'autonomie c'est au niveau des inputs demandés par l'utilisateur. Faire
+en sorte qu'il n'ait pas beaucoup de boutons à sélectionner. »* Voir
+[ADR-033](#adr-033).
 
 ---
 
@@ -1921,6 +1926,100 @@ les critères portent bien une dimension du protocole, et qu'aucune proposition
 de branche ne contient d'intitulé non mesurable (« comprendre X », un sujet
 plutôt qu'un savoir-faire). Si l'un des trois dérape, la coupe correspondante
 se remet — et on saura laquelle.
+
+---
+
+<a name="adr-033"></a>
+## ADR-033 — L'aide extérieure se demande, l'autonomie se dérive ✅
+
+**Date.** 01/08/2026. **Tranchée par Maxime**, qui a arbitré [ADR-008](#adr-008)
+en option A *et* posé la contrainte de forme : réduire le nombre de boutons, pas
+en ajouter. Lot 4 du plan de micro-incrémentation. **Ferme le dernier principe
+en défaut (P8).**
+
+### Le défaut, une dernière fois
+
+`indicesUtilises` ne comptait que les indices **internes**. Documentation
+consultée, assistant IA sollicité, correction lue : invisibles. Le moteur
+écrivait « A3 — résolution autonome ».
+
+| Preuve | Enregistré | Écrit par l'utilisateur |
+|---|---|---|
+| `RO-01` | A3, 0 indice | *« J'ai eu besoin de l'aide de Claude et de ressources »* |
+| `STAT-02` | A3, 0 indice | *« j'ai regardé sur internet »* |
+
+**La personne était honnête ; l'instrument était sourd.** Le champ commentaire
+n'est pas lu par le moteur. C'est une erreur à l'**entrée** de la chaîne de
+preuve, pas à son agrégation — elle déforme tout ce qui en descend.
+
+### Décision
+
+L'aide extérieure **plafonne** l'autonomie, selon le protocole d'évaluation §5
+lu à la lettre :
+
+| Aide déclarée | Plafond | Raison |
+|---|---|---|
+| aucune | — | rien à plafonner |
+| documentation, cours | **A2** | « quelques indices nécessaires » — une référence consultée est un indice |
+| assistant IA | **A1** | « solution fortement guidée » |
+| correction obtenue | **A0** | « solution fournie », par définition |
+
+L'autonomie retenue est le **minimum** entre les indices internes et ce
+plafond. Un minimum, jamais un remplacement : indices épuisés (A1) + doc
+consultée (plafond A2) reste **A1**. Un plafond ne doit pas *relever* ce que la
+mesure interne avait déjà rabaissé.
+
+Le protocole d'évaluation §5 porte ce barème, écrit avant le code
+(`00_PERENNISATION` §6). `autonomieObservee` le transcrit.
+
+### La forme compte autant que le fond
+
+Le sélecteur à cinq paliers disparaît. Il demandait de **connaître le
+protocole** pour être rempli honnêtement, et récompensait l'optimisme : personne
+ne se déclare A1. À sa place, une question de fait dont la personne se
+souvient — de quelle aide as-tu disposé ? — avec « aucune » par défaut, donc
+**zéro clic dans le cas ordinaire**.
+
+C'est la contrainte posée par Maxime, et elle améliore la mesure au lieu de la
+contrarier : on ne demande plus un jugement sur soi, on demande un fait.
+
+> ⚠️ **A4 n'est plus atteignable.** C'était le seul palier auto-attribuable, et
+> « j'ai fait preuve d'initiative méthodologique » est exactement le type
+> d'auto-évaluation que ce chantier retire. Le palier reste dans `Autonomie` et
+> dans l'échelle du protocole ; plus rien ne l'écrit. Si une mesure objective de
+> l'initiative apparaît un jour, le palier est là pour la recevoir.
+
+### Ce qui n'est pas fait, et pourquoi
+
+**Les 29 preuves existantes ne sont pas retouchées.** Aucune donnée ne dit
+quelle aide a servi, sauf les deux commentaires ci-dessus. Corriger les
+vingt-sept autres demanderait de les inventer — la faute même que ce système
+combat. Le biais subsiste, **borné dans le temps**, et le protocole
+anti-hallucination §12 le signale désormais au tuteur comme portant sur les
+preuves antérieures au 01/08/2026.
+
+**Le bilan d'exercice ne pose pas la question.** Ce chemin dispose déjà d'une
+mesure non déclarative — le compteur d'indices — et le lot visait à *réduire*
+les inputs, pas à en ajouter un sur le chemin le plus fréquenté. L'écart y
+subsiste, moindre mais réel : quelqu'un qui fait un exercice de l'application
+avec Claude ouvert à côté sera toujours coté A3.
+
+C'est une fermeture **partielle** de P8, et il faut le dire ainsi. Le principe
+n'est plus violé sur le chemin où il n'existait aucune mesure ; il l'est encore,
+plus faiblement, là où une mesure partielle existe.
+
+### 🔬 Non vérifié
+
+**Aucune preuve n'a encore été enregistrée avec ce barème.** Test de
+réfutation : enregistrer une preuve manuelle en déclarant « assistant IA » et
+vérifier que l'autonomie écrite est **A1**, non A3 — et que le commentaire
+consigne « Aide extérieure déclarée : assistant IA ».
+
+Reste ouvert, et sans échéance : **le barème lui-même n'a pas été validé par
+l'usage.** `documentation → A2` est la lecture littérale du protocole, mais
+c'est une décision de valeur, pas une mesure. Si les niveaux s'effondrent chez
+quelqu'un qui travaille normalement documentation ouverte, c'est ce chiffre
+qu'il faudra rediscuter — pas le principe.
 
 ---
 

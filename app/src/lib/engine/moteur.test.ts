@@ -9,7 +9,7 @@ import {
   photographies,
   type EvenementProgression,
 } from "./historique";
-import { autonomieDepuisIndices, qualiteDepuisNature } from "./preuve";
+import { autonomieDepuisIndices, autonomieObservee, qualiteDepuisNature } from "./preuve";
 import {
   DOMAINES_TEST,
   REFERENTIEL_TEST,
@@ -244,6 +244,45 @@ describe("autonomie observée — protocole d'évaluation §5", () => {
     // `total = 0` : la condition « tous les indices consultés » ne doit pas se
     // déclencher par un 0 >= 0 fortuit.
     expect(autonomieDepuisIndices(0, 0)).toBe("A3");
+  });
+});
+
+/*
+ * ADR-033 — fermeture d'ADR-008.
+ *
+ * `indicesUtilises` ne comptait que les indices INTERNES. Deux preuves de
+ * production portaient « A3 — résolution autonome » alors que leur commentaire
+ * disait « j'ai eu besoin de l'aide de Claude » et « j'ai regardé sur
+ * internet ». La personne était honnête ; l'instrument était sourd. P8 était le
+ * dernier principe en défaut.
+ */
+describe("aide extérieure — l'autonomie cesse d'ignorer ce qui vient du dehors", () => {
+  it("sans aide déclarée, rien ne change : le barème des indices fait seul foi", () => {
+    // Non-régression : tout ce qui a été mesuré jusqu'ici l'a été sans aide
+    // déclarée. Ce chantier ne doit pas rétro-déplacer un niveau existant.
+    expect(autonomieObservee(0, 3, "aucune")).toBe("A3");
+    expect(autonomieObservee(1, 3, "aucune")).toBe("A2");
+    expect(autonomieObservee(3, 3, "aucune")).toBe("A1");
+  });
+
+  it("l'aide extérieure plafonne l'autonomie", () => {
+    expect(autonomieObservee(0, 3, "documentation")).toBe("A2");
+    expect(autonomieObservee(0, 3, "assistant-ia")).toBe("A1");
+    expect(autonomieObservee(0, 3, "correction")).toBe("A0");
+  });
+
+  it("c'est un minimum, pas un remplacement : un plafond ne RELÈVE jamais", () => {
+    // Indices épuisés (A1) ET documentation consultée (plafond A2) : le
+    // résultat doit rester A1. Prendre le plafond effacerait la mesure la plus
+    // défavorable, donc la plus informative.
+    expect(autonomieObservee(3, 3, "documentation")).toBe("A1");
+    expect(autonomieObservee(1, 3, "correction")).toBe("A0");
+  });
+
+  it("le cas exact d'ADR-008 : A3 devient A1", () => {
+    // RO-01 et STAT-02 — zéro indice interne, aide externe réelle.
+    expect(autonomieDepuisIndices(0, 0)).toBe("A3");
+    expect(autonomieObservee(0, 0, "assistant-ia")).toBe("A1");
   });
 });
 

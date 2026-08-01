@@ -21,12 +21,14 @@ import { ajouter, ajouterPlusieurs, dorsaleCompte, lire, modifier, nouvelId } fr
 import { lireReferentiel } from "./referentiel";
 import {
   autonomieDepuisIndices,
+  autonomieObservee,
+  LIBELLE_AIDE,
   qualiteDepuisDifficulte,
   qualiteDepuisNature,
+  type AideExterne,
 } from "@/lib/engine/preuve";
 import { tentativeMenee } from "@/lib/engine/calibration";
 import type {
-  Autonomie,
   Difficulte,
   Dimension,
   DomaineId,
@@ -233,7 +235,15 @@ export interface SoumissionPreuveManuelle {
   date?: string; // ISO ; défaut : maintenant
   type: SkillEvidence["type"];
   niveauPreuve: "A" | "B";
-  autonomie: Autonomie;
+  /**
+   * L'aide extérieure remplace l'autonomie auto-déclarée (ADR-033).
+   *
+   * L'utilisateur ne choisit plus un palier de l'échelle A0–A4 : il répond à
+   * une question de fait — de quelle aide a-t-il disposé — et le moteur en
+   * dérive l'autonomie. Une échelle à cinq crans demandait de connaître le
+   * protocole pour être remplie honnêtement.
+   */
+  aideExterne: AideExterne;
   resultat: "reussi" | "partiel" | "echec";
   contexte: string;
   dimensions: Partial<Record<Dimension, number>>;
@@ -249,9 +259,12 @@ export interface SoumissionPreuveManuelle {
  *
  * Mêmes garde-fous : source toujours renseignée, dimensions non observées
  * simplement omises (jamais un 0 par défaut).
- * L'autonomie est ici DÉCLARÉE, pas déduite (§1.1 de la spec) : le commentaire
- * stocké le signale toujours, pour que la distinction reste visible en aval.
- * La qualité, elle, n'est plus déclarée : elle se dérive (§6).
+ *
+ * L'autonomie n'est plus déclarée ici non plus (ADR-033). L'utilisateur
+ * répond « de quelle aide as-tu disposé ? » ; le moteur en dérive le palier.
+ * Ce chemin n'ayant aucun indice interne à compter, l'aide extérieure est le
+ * seul signal — mais c'est un fait constatable, pas une auto-évaluation.
+ * La qualité se dérive de même (§6).
  */
 export async function enregistrerPreuveManuelle(
   soumission: SoumissionPreuveManuelle,
@@ -271,14 +284,18 @@ export async function enregistrerPreuveManuelle(
 
   const date = soumission.date ?? new Date().toISOString();
 
+  // Aucun indice interne sur ce chemin : `0 / 0` donne A3, que le plafond de
+  // l'aide extérieure rabaisse ensuite s'il y a lieu.
+  const autonomie = autonomieObservee(0, 0, soumission.aideExterne);
+
   const preuve: SkillEvidence = {
     id: nouvelId("ev"),
     skillCode: soumission.skillCode,
     date,
     type: soumission.type,
     niveauPreuve: soumission.niveauPreuve,
-    autonomie: soumission.autonomie,
-    qualite: qualiteDepuisNature(soumission.type, soumission.autonomie),
+    autonomie,
+    qualite: qualiteDepuisNature(soumission.type, autonomie),
     resultat: soumission.resultat,
     contexte: soumission.contexte.trim(),
     dimensions: soumission.dimensions,
@@ -286,7 +303,13 @@ export async function enregistrerPreuveManuelle(
       ? soumission.competencesCombinees
       : undefined,
     source: { kind: "manuel", ref: soumission.sourceRef.trim() },
-    commentaire: ["Autonomie auto-déclarée (non déduite).", soumission.commentaire?.trim()]
+    // Ce qui est consigné est le FAIT déclaré, pas l'inférence : « aide
+    // extérieure : assistant IA » se relit et se conteste, « autonomie A1 »
+    // non — on ne saurait plus d'où le palier vient.
+    commentaire: [
+      `Aide extérieure déclarée : ${LIBELLE_AIDE[soumission.aideExterne]}.`,
+      soumission.commentaire?.trim(),
+    ]
       .filter(Boolean)
       .join(" — "),
   };
