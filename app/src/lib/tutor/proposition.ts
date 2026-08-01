@@ -320,6 +320,50 @@ export function extrairePropositionsExercice(texte: string): PropositionExercice
     .filter((p) => p.titre.length > 0 && p.enonce.length > 0);
 }
 
+/**
+ * Ce qu'un exercice exige, indépendamment de la forme de ses champs.
+ *
+ * Signature structurelle volontaire : la proposition brute porte des chaînes,
+ * le formulaire porte des valeurs typées, et les deux doivent répondre à la
+ * même question — « y a-t-il là de quoi faire un exercice ? ». Une seule
+ * définition, appelée des deux côtés de la frontière.
+ */
+export interface ExerciceEsquisse {
+  titre: string;
+  enonce: string;
+  correction: string;
+  competences: string[];
+  criteres: { libelle: string }[];
+}
+
+/**
+ * L'esquisse porte-t-elle tout ce qu'un exercice exige ?
+ *
+ * À distinguer du filtre d'`extrairePropositionsExercice` ci-dessus, qui ne
+ * retient que le minimum *affichable*. Ici on répond à une autre question :
+ * peut-on en faire un exercice ?
+ *
+ * La distinction n'est pas théorique. Les champs arrivent dans l'ordre du
+ * gabarit, et `Correction` puis `Critère` viennent en dernier : pendant le
+ * flux, une proposition satisfait `titre + enonce` bien avant d'être entière.
+ * Sans ce prédicat, l'interface offrait un bouton sur un bloc encore en cours
+ * de rédaction, et le clic déposait un exercice tronqué que le formulaire
+ * acceptait à moitié.
+ *
+ * Un critère dont le libellé est vide ne compte pas : la création le filtre de
+ * toute façon (`creerExercice`), et un exercice sans aucun critère retenu ne
+ * mesurerait plus rien.
+ */
+export function exerciceComplet(x: ExerciceEsquisse): boolean {
+  return (
+    x.titre.trim().length > 0 &&
+    x.enonce.trim().length > 0 &&
+    x.correction.trim().length > 0 &&
+    x.competences.length > 0 &&
+    x.criteres.some((c) => c.libelle.trim().length > 0)
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* Proposition de référentiel (ADR-026)                                */
 /* ------------------------------------------------------------------ */

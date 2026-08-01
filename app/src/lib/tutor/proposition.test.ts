@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  exerciceComplet,
   extrairePropositions,
   extrairePropositionsExercice,
   extrairePropositionsReferentiel,
@@ -437,5 +438,61 @@ describe("proposition de référentiel — étiquettes en gras (même régressio
     expect(p.competences[0].palier).toBe("fondamentaux");
     // La virgule décimale est normalisée plus loin, par `normaliserImportance`.
     expect(p.competences[1].importance).toBe("0,8");
+  });
+});
+
+/*
+ * `exerciceComplet` — le garde-fou du flux.
+ *
+ * Les champs arrivent dans l'ordre du gabarit, et `Correction` puis `Critère`
+ * viennent en dernier. Une proposition est donc *extractible* bien avant
+ * d'être *exploitable* : c'est exactement l'écart que ce prédicat comble.
+ */
+describe("exerciceComplet", () => {
+  it("accepte un exercice entier", () => {
+    const [ex] = extrairePropositionsExercice(EXERCICE);
+    expect(exerciceComplet(ex)).toBe(true);
+  });
+
+  /*
+   * Rejoue le flux : on tronque le bloc à chaque ligne, dans l'ordre où le
+   * tuteur l'écrit. Le prédicat doit rester faux jusqu'à la dernière ligne
+   * nécessaire — sans quoi l'interface offre un lien vers un demi-exercice.
+   */
+  it("reste faux sur tout préfixe incomplet du même bloc", () => {
+    const lignes = EXERCICE.split("\n");
+    const prefixesComplets: number[] = [];
+
+    for (let i = 1; i <= lignes.length; i++) {
+      const [ex] = extrairePropositionsExercice(lignes.slice(0, i).join("\n"));
+      if (ex && exerciceComplet(ex)) prefixesComplets.push(i);
+    }
+
+    // Le premier préfixe accepté est celui qui contient le premier `Critère`,
+    // dernier champ requis à arriver. Tout ce qui précède est refusé.
+    const premierAccepte = prefixesComplets[0];
+    expect(premierAccepte).toBeGreaterThan(0);
+    expect(lignes[premierAccepte - 1]).toMatch(/^Critère\s*:/);
+  });
+
+  it("refuse un bloc coupé avant la correction", () => {
+    const [ex] = extrairePropositionsExercice(`PROPOSITION D'EXERCICE
+Titre : Stock de sécurité
+Compétences : LOG-09
+Énoncé :
+Calcule le stock de sécurité pour un taux de service de 95 %.`);
+    // Extractible — titre et énoncé sont là — mais pas exploitable.
+    expect(ex.titre).toBe("Stock de sécurité");
+    expect(exerciceComplet(ex)).toBe(false);
+  });
+
+  it("refuse un exercice sans compétence : le moteur n'aurait rien à rattacher", () => {
+    const [ex] = extrairePropositionsExercice(EXERCICE);
+    expect(exerciceComplet({ ...ex, competences: [] })).toBe(false);
+  });
+
+  it("refuse un critère au libellé vide, que la création filtrerait de toute façon", () => {
+    const [ex] = extrairePropositionsExercice(EXERCICE);
+    expect(exerciceComplet({ ...ex, criteres: [{ libelle: "  " }] })).toBe(false);
   });
 });

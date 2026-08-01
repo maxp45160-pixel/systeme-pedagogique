@@ -10,6 +10,7 @@ import type { SectionContexte } from "@/lib/tutor/contexte";
 import {
   CLE_PROPOSITION_EXERCICE,
   CLE_PROPOSITION_REFERENTIEL,
+  exerciceComplet,
   extrairePropositions,
   extrairePropositionsExercice,
   extrairePropositionsReferentiel,
@@ -102,35 +103,51 @@ export interface EtatContexteTuteur {
 const MessageBulle = memo(function MessageBulle({
   message,
   codesCompetences,
+  enFluxDirect,
 }: {
   message: Message;
   codesCompetences: string[];
+  /**
+   * Ce message est-il celui que le tuteur est en train d'écrire ?
+   *
+   * Deux conséquences, et elles ont la même cause — un bloc de proposition
+   * n'est pas encore un bloc tant que le flux n'est pas clos.
+   *
+   * 1. Correction. Les champs arrivent dans l'ordre du gabarit ; une
+   *    proposition d'exercice satisfait « titre + énoncé » bien avant que
+   *    Correction et Critères n'arrivent. La carte et son lien étaient rendus
+   *    dès cet instant, et cliquer déposait un exercice tronqué.
+   * 2. Coût. Les trois parseurs et le rendu Markdown tournaient à chaque flush
+   *    sur un texte qui ne pouvait rien produire d'exploitable.
+   */
+  enFluxDirect: boolean;
 }) {
+  const analysable = message.role === "assistant" && message.content !== "" && !enFluxDirect;
+
   // Propositions structurées du tuteur, validées contre le
   // référentiel : on ne fabrique jamais un lien vers un code inventé.
-  const propositions =
-    message.role === "assistant" && message.content
-      ? extrairePropositions(message.content).filter((p) =>
-          codesCompetences.includes(p.competence.toUpperCase()),
-        )
-      : [];
+  const propositions = analysable
+    ? extrairePropositions(message.content).filter((p) =>
+        codesCompetences.includes(p.competence.toUpperCase()),
+      )
+    : [];
 
   // Exercices proposés par le tuteur (ADR-004). Même contrat que
   // les preuves : rien n'est écrit tant que l'utilisateur n'a pas
   // validé le formulaire pré-rempli.
-  const exercices =
-    message.role === "assistant" && message.content
-      ? extrairePropositionsExercice(message.content)
-      : [];
+  //
+  // Second filtre, après la fin du flux : une réponse peut aussi être
+  // interrompue — plafond de jetons atteint, bouton « Arrêter ». `exerciceComplet`
+  // écarte alors le bloc au lieu d'offrir un lien vers un demi-exercice.
+  const exercices = analysable
+    ? extrairePropositionsExercice(message.content).filter(exerciceComplet)
+    : [];
 
   // Branches proposées (ADR-026). Contrairement aux deux autres, ce bloc n'est
   // PAS filtré contre le référentiel : c'est précisément celui qui a le droit
   // d'introduire des compétences qui n'existent pas encore. Le garde-fou est
   // ailleurs — le tuteur n'y écrit aucun code, l'application les attribue.
-  const branches =
-    message.role === "assistant" && message.content
-      ? extrairePropositionsReferentiel(message.content)
-      : [];
+  const branches = analysable ? extrairePropositionsReferentiel(message.content) : [];
 
   return (
     <div
@@ -270,6 +287,7 @@ const MessageBulle = memo(function MessageBulle({
 const ChatInput = memo(function ChatInput({
   onEnvoyer,
   onCopier,
+  onArreter,
   enCours,
   cleAbsente,
   usage,
@@ -277,6 +295,7 @@ const ChatInput = memo(function ChatInput({
 }: {
   onEnvoyer: (texte: string) => void;
   onCopier: (texte: string) => void;
+  onArreter: () => void;
   enCours: boolean;
   cleAbsente: boolean;
   usage: string | null;
@@ -336,20 +355,32 @@ const ChatInput = memo(function ChatInput({
           >
             Copier le contexte
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              const texte = saisie.trim();
-              if (texte) {
-                onEnvoyer(texte);
-                setSaisie("");
-              }
-            }}
-            disabled={enCours || !saisie.trim() || cleAbsente}
-            className={classesBouton("principal", "petite")}
-          >
-            {enCours ? "En cours…" : "Envoyer"}
-          </button>
+          {/* Pendant la rédaction, le bouton devient la seule action utile.
+              « En cours… » désactivé n'offrait aucune sortie. */}
+          {enCours ? (
+            <button
+              type="button"
+              onClick={onArreter}
+              className={classesBouton("secondaire", "petite")}
+            >
+              Arrêter
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                const texte = saisie.trim();
+                if (texte) {
+                  onEnvoyer(texte);
+                  setSaisie("");
+                }
+              }}
+              disabled={!saisie.trim() || cleAbsente}
+              className={classesBouton("principal", "petite")}
+            >
+              Envoyer
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -389,11 +420,46 @@ export function ChatTuteur({
   const zoneRef = useRef<HTMLDivElement>(null);
 
   /* ---------------------------------------------------------------- */
-  /* Fix 2 : Scroll par rAF au lieu de behavior:"smooth" sur chaque   */
-  /* token. On utilise un ref pour éviter de stacker des scrolls.      */
+  /* Suivi du bas, plutôt que recadrage forcé                          */
+  /*                                                                   */
+  /* Le scroll était repris à chaque changement de `messages`, sans     */
+  /* condition — donc à chaque flush du flux. Toute tentative de        */
+  /* remonter pour relire était écrasée au flush suivant : il fallait   */
+  /* attendre la fin de la rédaction pour pouvoir lire.                 */
+  /*                                                                   */
+  /* On ne recadre plus que si l'utilisateur était déjà en bas. Sinon   */
+  /* on le laisse où il est, et on le lui dit.                          */
   /* ---------------------------------------------------------------- */
+
+  /**
+   * Marge sous laquelle on considère qu'on est « en bas ».
+   *
+   * Pas zéro : `scrollHeight - scrollTop - clientHeight` n'atteint pas
+   * l'égalité exacte quand le navigateur arrondit au sous-pixel, et un
+   * décalage d'une frame suffirait à croire l'utilisateur parti lire plus haut.
+   */
+  const SEUIL_BAS_PX = 64;
+
+  const suitLeBas = useRef(true);
+  const [detache, setDetache] = useState(false);
+
+  useEffect(() => {
+    const zone = zoneRef.current;
+    if (!zone) return;
+    const surScroll = () => {
+      const auBas = zone.scrollHeight - zone.scrollTop - zone.clientHeight < SEUIL_BAS_PX;
+      suitLeBas.current = auBas;
+      setDetache(!auBas);
+    };
+    zone.addEventListener("scroll", surScroll, { passive: true });
+    return () => zone.removeEventListener("scroll", surScroll);
+  }, []);
+
   const rafScroll = useRef<number>(0);
   useEffect(() => {
+    // L'allongement du contenu ne déclenche pas d'événement `scroll` : la
+    // valeur lue ici est bien celle du dernier mouvement réel de l'utilisateur.
+    if (!suitLeBas.current) return;
     cancelAnimationFrame(rafScroll.current);
     rafScroll.current = requestAnimationFrame(() => {
       zoneRef.current?.scrollTo({ top: zoneRef.current.scrollHeight });
@@ -401,31 +467,52 @@ export function ChatTuteur({
     return () => cancelAnimationFrame(rafScroll.current);
   }, [messages]);
 
+  const reprendreLeSuivi = useCallback(() => {
+    suitLeBas.current = true;
+    setDetache(false);
+    const zone = zoneRef.current;
+    if (zone) zone.scrollTo({ top: zone.scrollHeight });
+  }, []);
+
   /* ---------------------------------------------------------------- */
-  /* Fix 2 : Accumulation par ref + flush rAF                          */
+  /* Accumulation par ref + flush cadencé                              */
   /*                                                                   */
-  /* Pendant le streaming SSE les tokens arrivent plus vite que le     */
-  /* rafraîchissement écran (~60 fps). Au lieu de `setMessages` à      */
-  /* chaque token (→ re-render complet × nombre de tokens), on         */
-  /* accumule dans un ref et on flush en un seul `setMessages` par     */
-  /* frame via `requestAnimationFrame`.                                */
+  /* Pendant le flux SSE les jetons arrivent plus vite que le          */
+  /* rafraîchissement écran. Au lieu de `setMessages` à chaque jeton    */
+  /* (→ re-render complet × nombre de jetons), on accumule dans un ref  */
+  /* et on ne publie qu'à intervalle fixe.                              */
+  /*                                                                   */
+  /* La cadence était celle de `requestAnimationFrame`, soit ~60 Hz.    */
+  /* Chaque publication reconstruit le Markdown du message entier ; à   */
+  /* 60 Hz sur une réponse longue, le rendu ne suit plus. L'œil ne fait */
+  /* pas la différence à 15 Hz, le navigateur si.                       */
   /* ---------------------------------------------------------------- */
+  const DELAI_FLUSH_MS = 66;
+
   const accumuleRef = useRef("");
   const historiqueRef = useRef<Message[]>([]);
-  const rafRef = useRef<number>(0);
+  const flushRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const annulerFlush = useCallback(() => {
+    if (flushRef.current !== null) {
+      clearTimeout(flushRef.current);
+      flushRef.current = null;
+    }
+  }, []);
 
   const flushAccumule = useCallback(() => {
-    const texte = accumuleRef.current;
-    const hist = historiqueRef.current;
-    setMessages([...hist, { role: "assistant", content: texte }]);
-    rafRef.current = 0;
+    flushRef.current = null;
+    setMessages([...historiqueRef.current, { role: "assistant", content: accumuleRef.current }]);
   }, []);
 
   const planifierFlush = useCallback(() => {
-    if (rafRef.current === 0) {
-      rafRef.current = requestAnimationFrame(flushAccumule);
+    if (flushRef.current === null) {
+      flushRef.current = setTimeout(flushAccumule, DELAI_FLUSH_MS);
     }
   }, [flushAccumule]);
+
+  // Un flux encore en vol au démontage laisserait un `setMessages` sans cible.
+  useEffect(() => annulerFlush, [annulerFlush]);
 
   /* Miroirs des états lus par `envoyer`. Sans eux, `envoyer` changerait
    * d'identité à chaque message et à chaque changement d'état, ce qui
@@ -440,6 +527,18 @@ export function ChatTuteur({
     enCoursRef.current = enCours;
   }, [enCours]);
 
+  /**
+   * Flux en cours, pour pouvoir l'interrompre.
+   *
+   * Il n'y en avait aucun : une réponse partie allait jusqu'au bout, même
+   * manifestement hors sujet, et le seul recours était d'attendre.
+   */
+  const abandonRef = useRef<AbortController | null>(null);
+
+  const arreter = useCallback(() => {
+    abandonRef.current?.abort();
+  }, []);
+
   const envoyer = useCallback(async (texte: string) => {
     const contenu = texte.trim();
     if (!contenu || enCoursRef.current) return;
@@ -451,6 +550,13 @@ export function ChatTuteur({
     accumuleRef.current = "";
     setMessages([...historique, { role: "assistant", content: "" }]);
     setEnCours(true);
+    // Envoyer, c'est vouloir lire la réponse : on raccroche le suivi du bas,
+    // quelle qu'ait été la position avant.
+    suitLeBas.current = true;
+    setDetache(false);
+
+    const abandon = new AbortController();
+    abandonRef.current = abandon;
 
     try {
       // L'historique part en entier, volontairement : c'est la route qui
@@ -462,6 +568,7 @@ export function ChatTuteur({
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ messages: historique }),
+        signal: abandon.signal,
       });
 
       if (!reponse.ok || !reponse.body) {
@@ -525,8 +632,7 @@ export function ChatTuteur({
       }
 
       // Flush final : s'assurer que le dernier contenu est bien dans le state
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = 0;
+      annulerFlush();
       const final = accumuleRef.current;
       if (final.trim() === "") {
         setMessages(historique);
@@ -534,17 +640,34 @@ export function ChatTuteur({
         setMessages([...historique, { role: "assistant", content: final }]);
       }
     } catch (e) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = 0;
-      setMessages(historique);
-      setAvis({
-        ton: "danger",
-        texte: e instanceof Error ? e.message : "Erreur réseau pendant la réponse.",
-      });
+      annulerFlush();
+
+      // Une interruption voulue n'est pas une panne : ce qui est arrivé avant
+      // le clic a été lu, et le jeter serait perdre le seul travail du tour.
+      // Les cartes de proposition, elles, restent écartées — `exerciceComplet`
+      // rejette un bloc inachevé (cf. `MessageBulle`).
+      const annule = e instanceof DOMException && e.name === "AbortError";
+      const final = accumuleRef.current;
+
+      if (annule) {
+        if (final.trim() === "") {
+          setMessages(historique);
+        } else {
+          setMessages([...historique, { role: "assistant", content: final }]);
+        }
+        setAvis({ ton: "info", texte: "Réponse interrompue. Le texte déjà reçu est conservé." });
+      } else {
+        setMessages(historique);
+        setAvis({
+          ton: "danger",
+          texte: e instanceof Error ? e.message : "Erreur réseau pendant la réponse.",
+        });
+      }
     } finally {
+      abandonRef.current = null;
       setEnCours(false);
     }
-  }, [planifierFlush]);
+  }, [annulerFlush, planifierFlush]);
 
   const copierContexte = useCallback(async (saisie: string) => {
     try {
@@ -582,9 +705,36 @@ export function ChatTuteur({
             )}
 
             {messages.map((m, i) => (
-              <MessageBulle key={i} message={m} codesCompetences={codesCompetences} />
+              <MessageBulle
+                key={i}
+                message={m}
+                codesCompetences={codesCompetences}
+                // Seul le dernier message peut être en cours de rédaction. Le
+                // passer aux autres les ferait tous re-rendre au démarrage et à
+                // la fin du flux, pour rien.
+                enFluxDirect={enCours && i === messages.length - 1}
+              />
             ))}
           </div>
+
+          {/*
+            Le suivi du bas a été relâché parce que l'utilisateur est remonté
+            lire. On ne le ramène pas de force — on lui laisse le geste.
+          */}
+          {detache && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={reprendreLeSuivi}
+                className={cx(
+                  classesBouton("secondaire", "petite"),
+                  "absolute -top-10 right-4 shadow-md",
+                )}
+              >
+                ↓ Reprendre le suivi
+              </button>
+            </div>
+          )}
 
           {avis && (
             <div
@@ -603,6 +753,7 @@ export function ChatTuteur({
           <ChatInput
             onEnvoyer={envoyer}
             onCopier={copierContexte}
+            onArreter={arreter}
             enCours={enCours}
             cleAbsente={cleAbsente}
             usage={usage}
