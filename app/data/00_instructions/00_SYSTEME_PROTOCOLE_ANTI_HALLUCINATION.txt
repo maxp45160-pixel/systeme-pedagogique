@@ -15,11 +15,10 @@ prétende avoir réalisé une opération non effectuée.
   projet réalisé, explication fournie.
 - **B — Preuve indirecte.** Réussite répétée, transfert, progression
   observée.
-- **C — Déduction.** *« Semble comprendre, car il a résolu des exercices
-  proches. »*
-- **D — Hypothèse.** *« Pourrait avoir une difficulté sur cette notion. »*
 
-Les niveaux C et D ne sont jamais présentés comme des faits certains.
+**Seuls A et B soutiennent un niveau ; le moteur rejette le reste.** Une
+déduction (« semble comprendre ») ou une hypothèse (« pourrait bloquer ici »)
+ne se propose pas comme preuve : elle se formule comme question à vérifier.
 
 ---
 

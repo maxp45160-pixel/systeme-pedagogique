@@ -477,3 +477,104 @@ part hors compte vierge : le tuteur tenait le sien du § 2. Il est désormais
 sérialisé à chaque conversation, et les valeurs par défaut du schéma
 (« Formation à renseigner ») sont nommées comme non déclarées plutôt que
 transmises comme des données.
+
+---
+
+## VERSION 3.3 — DÉGRAISSAGE DES PROTOCOLES
+
+Date : 01/08/2026 (ADR-032)
+
+### Règle appliquée
+
+CE QU'UN VALIDATEUR REJETTE N'A PAS À ÊTRE UN PARAGRAPHE DE PROMPT.
+
+Un interdit tenu par le code — un schéma sans champ, une architecture sans
+route d'écriture, un moteur qui refuse une valeur — n'a pas besoin d'être
+répété au modèle. Il est déjà impossible à enfreindre. Ce qui reste au prompt
+est ce qu'aucun validateur ne saura dire : le jugement pédagogique.
+
+Ce dégraissage NE RETIRE AUCUNE RÈGLE. Il retire des répétitions et des
+énoncés devenus structurellement garantis.
+
+### Mesures, avant et après (caractères réellement envoyés)
+
+                                    avant     après
+  Instructions principales           8 926     7 029
+  Protocole d'évaluation (CORE)      4 863     4 863   inchangé
+  Protocole anti-hallucination       5 311     5 299
+  Cadre d'intervention (calculé)     3 105     2 480
+  Schémas des outils (calculé)       3 128     3 348
+                                    ------    ------
+  Plancher payé à chaque message    25 333    23 019   -2 314 (-9,1 %)
+
+  Protocole de référentiel           7 287     6 808   chargé à la demande
+
+### Instructions principales — 17 sections ramenées à 13
+
+§ 6 (échelle 0-5) supprimé : il dupliquait le protocole d'évaluation § 4, dont
+il disait lui-même qu'il « fait foi ». Un renvoi d'une ligne le remplace au § 3.
+
+§ 11 (règle de progression) supprimé : dupliquait le protocole d'évaluation
+§ 7 et § 11 sur la robustesse.
+
+§ 14 (auto-évaluation du système) supprimé : disait « selon la grille de
+l'anti-hallucination § 9 » et rien d'autre. Le renvoi subsiste au § 9.
+
+§ 15 (format de réponse) supprimé : le cadre d'intervention transmis à chaque
+message porte déjà la consigne de concision, et elle y est opérante.
+
+§ 10 (mise à jour automatique) réduit à ce qu'il apportait en propre — « une
+interaction ne constitue pas automatiquement une preuve » — et renvoie pour le
+reste au protocole d'évaluation § 8 et § 9.
+
+§ 17 (architecture technique) réduit de moitié. Le paragraphe « Rôle du
+tuteur » disparaît : l'absence d'accès en écriture était énoncée QUATRE fois
+(§ 4, § 10, § 17, et le cadre d'intervention). Aucune route de l'application
+ne l'offre ; c'est une garantie d'architecture, pas une consigne à répéter.
+Elle reste énoncée une fois, dans le cadre d'intervention.
+
+Les sections sont renumérotées 1 à 13. La référence « section 17 » de
+00_SYSTEME_INITIALISATION.txt devient « section 13 ».
+
+### Protocole anti-hallucination — une seule coupe, la plus légère
+
+§ 2 (hiérarchie des preuves) : les niveaux C (déduction) et D (hypothèse) ne
+sont plus détaillés en exemples. Le moteur les rejette (estRecevable), et le
+schéma de proposition de preuve n'a aucun champ de niveau de preuve — le
+tuteur ne peut donc pas en écrire un. La règle est conservée en une phrase :
+seuls A et B soutiennent un niveau ; une déduction se formule comme question.
+
+ATTENTION — le type NiveauPreuve du code CONSERVE ses quatre valeurs. C et D
+existent pour être refusées ; les retirer du type priverait le moteur de ce
+pouvoir (CLAUDE.md § 8). Cette coupe ne touche que le prompt.
+
+Les treize autres sections sont inchangées. C'est le garde-fou que le produit
+vend : on n'y touche qu'à la marge, et jamais sans nécessité.
+
+### Protocole de construction du référentiel
+
+§ 5 (les codes ne t'appartiennent pas) réduit de dix lignes à trois. Depuis
+ADR-031, le schéma de proposition de référentiel n'a AUCUN champ « code » :
+l'interdit est devenu inexprimable. Ce qui reste est ce que le schéma ne tient
+pas — dans une proposition de preuve ou d'exercice, les codes sont des chaînes
+libres, et seuls ceux du profil sont acceptés.
+
+§ 8 : le paragraphe sur l'absence d'accès en écriture disparaît, comme dans les
+instructions principales et pour la même raison. Le reste — l'impossibilité de
+supprimer une compétence qui porte des preuves — est conservé.
+
+### Cadre d'intervention (généré par lib/tutor/contexte.ts)
+
+Les cinq conditions de mesurabilité d'une compétence (a à e) étaient écrites
+DEUX fois : ici, à chaque message, et au protocole de référentiel § 2. Elles
+sortent du cadre.
+
+Elles ne partent pas dans le vide : le protocole de référentiel n'est chargé
+que sur mots-clés, et « je veux travailler la thermodynamique » n'en porte
+aucun. Leur version condensée est passée dans la DESCRIPTION de l'outil
+proposer_referentiel, qui accompagne l'outil à chaque message. D'où les 220
+caractères de plus sur les schémas : ce n'est pas une dérive, c'est le
+déplacement assumé de cette règle vers l'endroit où elle est toujours présente.
+
+Le paragraphe sur l'importance relative à l'objectif du compte sort également —
+il est au protocole de référentiel § 4, dans le fichier qui traite du sujet.

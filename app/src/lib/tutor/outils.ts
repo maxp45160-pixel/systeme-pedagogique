@@ -249,7 +249,12 @@ export function outilsTuteur(referentiel: Referentiel): OutilTuteur[] {
     {
       nom: OUTIL_REFERENTIEL,
       description:
-        "Propose une branche de compétences quand le sujet demandé n'existe pas encore au référentiel. L'application attribue les codes.",
+        // Les cinq conditions de mesurabilité vivaient dans `consignesInterface`,
+        // à chaque message, ET au protocole de référentiel §2. Les retirer du
+        // premier suffisait presque : le protocole n'est chargé que sur
+        // mots-clés, et « je veux bosser la thermodynamique » n'en porte aucun.
+        // Leur place est ici — la description part avec l'outil, donc toujours.
+        "Propose une branche de compétences quand le sujet demandé n'existe pas encore au référentiel. L'application attribue les codes. Chaque intitulé doit être mesurable : un savoir-faire observable et non un sujet, notable sur au moins une dimension, testable dans deux contextes, exerçable par un des types d'exercice, et prouvable en 20 à 60 minutes.",
       schema: schemaReferentiel(),
     },
   ];

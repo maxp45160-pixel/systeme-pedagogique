@@ -893,7 +893,14 @@ budget de contexte, ni pour Anthropic ni pour les moteurs sans cache.
 toujours chargés : Instructions principales 8 014 + Évaluation CORE 4 252 +
 Anti-hallucination 5 311 = **17 577 caractères ≈ 4 394 tokens** sur un tour
 ordinaire, contre 20 135 caractères ≈ 5 034 tokens avant ce chantier —
-**-12,7 %** sur le plancher payé à chaque message. Sur un tour de synthèse
+**-12,7 %** sur le plancher payé à chaque message.
+
+> ⚠️ **Ces trois chiffres ont dérivé après coup.** Remesurés le 01/08/2026 :
+> 8 926 + 4 863 + 5 311 = **19 100 caractères**, soit 1 523 de plus que ce que
+> ce paragraphe annonçait. Les fichiers ont grossi au fil des chantiers
+> suivants (ADR-026, ADR-029) sans que personne ne remette le total à jour —
+> et un chiffre périmé dans une ADR sert d'argument à la décision suivante.
+> Le dégraissage d'[ADR-032](#adr-032) repart de 19 100, pas de 17 577. Sur un tour de synthèse
 (SYNTHESE inclus, 2 206 caractères de plus), le total revient à 19 783
 caractères ≈ 4 946 tokens, soit -1,7 % par rapport à l'ancien total : la
 compression seule, le découpage n'ajoutant ni ne retranchant rien de
@@ -1823,6 +1830,97 @@ documenté chez Mistral mais notre clé est un hachage de `systemeStable`, qui
 `proposition.ts` et ses tests **restent en place** tant que la vérification
 ci-dessus n'a pas eu lieu sur les deux moteurs. Leur retrait est un second
 commit, pas celui-ci.
+
+---
+
+## ADR-032 — Ce qu'un validateur rejette n'a pas à être un paragraphe de prompt ✅
+
+**Date.** 01/08/2026. Lot 3.3 du plan de micro-incrémentation, **demandé
+explicitement**. Suite directe d'[ADR-031](#adr-031), qui a rendu structurels
+plusieurs interdits jusque-là écrits en prose. Corrige les chiffres périmés
+d'[ADR-021](#adr-021).
+
+### La règle
+
+Un interdit tenu par le code — un schéma sans champ, une architecture sans
+route d'écriture, un moteur qui refuse une valeur — n'a pas besoin d'être
+répété au modèle. **Il est déjà impossible à enfreindre.** Ce qui doit rester
+au prompt est ce qu'aucun validateur ne saura dire : le jugement pédagogique.
+
+Ce dégraissage **ne retire aucune règle.** Il retire des répétitions et des
+énoncés devenus structurellement garantis.
+
+### Ce qui a été coupé, et pourquoi c'était sûr
+
+| Coupe | Ce qui la garantit désormais |
+|---|---|
+| Absence d'accès en écriture, dite **4 fois** (instructions §4, §10, §17, cadre d'intervention) | Aucune route de l'application ne l'offre. Énoncée **une** fois, dans le cadre d'intervention. |
+| Niveaux de preuve C et D détaillés en exemples | `estRecevable` les rejette, et le schéma de proposition de preuve **n'a aucun champ de niveau** — le tuteur ne peut pas en écrire un. |
+| « N'écris aucun code de compétence » (10 lignes) | ADR-031 : le schéma de branche n'a **pas** de champ `code`. |
+| Échelle 0-5 dans les instructions §6 | Dupliquait le protocole d'évaluation §4, dont le texte disait lui-même qu'il « fait foi ». |
+| Instructions §11, §14, §15 | Dupliquaient respectivement évaluation §7/§11, anti-hallucination §9, et la consigne de concision du cadre d'intervention. |
+| Conditions de mesurabilité a–e dans le cadre d'intervention | **Déplacées**, pas supprimées — voir ci-dessous. |
+
+### Mesure
+
+| Bloc | Avant | Après |
+|---|---|---|
+| Instructions principales | 8 926 | **7 029** |
+| Protocole d'évaluation (CORE) | 4 863 | 4 863 |
+| Protocole anti-hallucination | 5 311 | **5 299** |
+| Cadre d'intervention | 3 105 | **2 480** |
+| Schémas des outils | 3 128 | **3 348** |
+| **Plancher payé à chaque message** | **25 333** | **23 019 (−2 314, −9,1 %)** |
+
+Soit environ **−580 jetons par message**. Le protocole de référentiel, chargé
+à la demande, passe de 7 287 à 6 808.
+
+### Le seul poste en hausse, et pourquoi il est volontaire
+
+Les schémas grossissent de 220 caractères. Les cinq conditions de mesurabilité
+d'une compétence étaient écrites **deux fois** — dans le cadre d'intervention,
+à chaque message, et au protocole de référentiel §2. Les retirer du premier
+suffisait presque ; sauf que **le protocole de référentiel n'est chargé que sur
+mots-clés**, et « je veux travailler la thermodynamique » n'en porte aucun. Le
+tuteur aurait proposé une branche sans aucune règle de mesurabilité.
+
+Leur version condensée est donc passée dans la **description de l'outil**
+`proposer_referentiel`, qui part avec l'outil à chaque message. Le déplacement
+est le point : une règle qui doit toujours s'appliquer appartient à l'endroit
+qui est toujours présent, pas au fichier qu'une liste de mots-clés décide de
+charger.
+
+### La main la plus légère sur l'anti-hallucination
+
+Une seule coupe sur quatorze sections, et la moins engageante : les exemples
+de C et D. Les treize autres sont intactes. C'est le garde-fou que le produit
+vend ; on n'y touche qu'à la marge.
+
+⚠️ **`NiveauPreuve` conserve ses quatre valeurs dans le code.** C et D existent
+pour être **refusées** ; les retirer du type priverait le moteur de ce pouvoir
+(CLAUDE.md §8). Cette coupe ne touche que le prompt.
+
+### Un chiffre périmé est un argument faux
+
+ADR-021 annonçait 17 577 caractères de protocole toujours chargé. Remesuré
+aujourd'hui avant toute coupe : **19 100**. Les fichiers avaient grossi de
+1 523 caractères au fil d'ADR-026 et d'ADR-029, sans que le total soit repris.
+
+Ce n'est pas une coquille : ce chiffre sert d'argument aux décisions suivantes,
+et j'ai failli dimensionner ce lot dessus. ADR-021 porte désormais un
+avertissement daté. **Toute ADR qui annonce une mesure devrait porter la date à
+laquelle elle a été prise** — celles-ci ne vieillissent pas comme les décisions.
+
+### 🔬 Non vérifié
+
+**L'effet sur le comportement du tuteur n'est pas mesuré.** Retirer 2 314
+caractères de consignes redondantes ne devrait rien changer — c'est
+l'hypothèse, pas une observation. Test de réfutation : sur les trois prochains
+exercices générés, vérifier que la difficulté suit toujours le calibrage, que
+les critères portent bien une dimension du protocole, et qu'aucune proposition
+de branche ne contient d'intitulé non mesurable (« comprendre X », un sujet
+plutôt qu'un savoir-faire). Si l'un des trois dérape, la coupe correspondante
+se remet — et on saura laquelle.
 
 ---
 
