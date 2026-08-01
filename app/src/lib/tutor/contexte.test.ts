@@ -278,3 +278,72 @@ describe("fautChargerProtocoleReferentiel", () => {
     );
   });
 });
+
+/*
+ * ADR-029 — non-régression sur la fuite de profil entre comptes.
+ *
+ * Le § 2 des instructions principales décrivait en dur le parcours d'un seul
+ * utilisateur (« BUT QLIO », « Master ITI ») et ce fichier est chargé SANS
+ * CONDITION pour tous les comptes. Un compte tiers se voyait donc attribuer un
+ * diplôme et des objectifs qui n'étaient pas les siens, et le tuteur
+ * initialisait son profil là-dessus.
+ *
+ * Ce test lit le contexte COMPLET — protocoles inclus, pas seulement les
+ * blocs calculés — parce que c'est justement dans un fichier de protocole que
+ * la fuite se trouvait.
+ */
+describe("aucun profil ne fuit d'un compte à l'autre (ADR-029)", () => {
+  function ctxAnonyme() {
+    const ctx = construireCtxDeTest();
+    return {
+      ...ctx,
+      donnees: {
+        ...ctx.donnees,
+        user: {
+          ...ctx.donnees.user,
+          formation: "Formation à renseigner",
+          objectifMoyenTerme: "Objectif à moyen terme à renseigner",
+          objectifLongTerme: "Objectif à long terme à renseigner",
+          preferencesPedagogiques: [],
+        },
+      },
+    };
+  }
+
+  it("le contexte d'un compte sans profil déclaré ne nomme aucun diplôme", async () => {
+    const c = await construireContexte(ctxAnonyme());
+    const tout = `${c.systemeStable}\n${c.systemeProfil}`;
+    expect(tout).not.toContain("QLIO");
+    expect(tout).not.toMatch(/Master ITI/);
+  });
+
+  it("idem sur un compte sans référentiel — le cas de l'initialisation", async () => {
+    const vide = { ...ctxAnonyme(), referentiel: REFERENTIEL_VIDE, etats: [] };
+    const c = await construireContexte(vide as never);
+    const tout = `${c.systemeStable}\n${c.systemeProfil}`;
+    expect(tout).not.toContain("QLIO");
+    expect(tout).not.toMatch(/Master ITI/);
+    // Et l'interdiction d'inventer doit être présente, pas seulement l'absence.
+    expect(tout).toContain("N'INVENTE NI DIPLÔME NI OBJECTIF");
+  });
+
+  it("les instructions principales ne portent plus aucun profil ni référentiel figé", async () => {
+    const c = await construireContexte(ctxAnonyme());
+    expect(c.systemeStable).toContain("CE FICHIER NE CONTIENT AUCUN PROFIL");
+    expect(c.systemeStable).toContain("IL N'EXISTE AUCUNE LISTE UNIVERSELLE DE COMPÉTENCES");
+    // La liste des sept domaines historiques a disparu.
+    expect(c.systemeStable).not.toContain("logistique industrielle, gestion de production");
+  });
+
+  it("un profil réellement déclaré, lui, est bien transmis", async () => {
+    const ctx = construireCtxDeTest();
+    const c = await construireContexte({
+      ...ctx,
+      donnees: {
+        ...ctx.donnees,
+        user: { ...ctx.donnees.user, formation: "Licence de philosophie" },
+      },
+    } as never);
+    expect(c.systemeProfil).toContain("Licence de philosophie");
+  });
+});

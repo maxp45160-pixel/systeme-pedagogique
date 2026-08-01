@@ -12,9 +12,13 @@ l'utilisateur est réellement capable de faire.
 
 # 2. UNITÉ D'ÉVALUATION
 
-L'unité fondamentale est la compétence, formulée de manière opérationnelle.
+L'unité fondamentale est la compétence, formulée de manière opérationnelle :
+un savoir-faire observable, jamais un sujet.
+
 Éviter « Statistiques », préférer « Calculer et interpréter un intervalle de
-confiance dans un contexte industriel ».
+confiance sur un jeu de données réel ». Éviter « Philosophie morale »,
+préférer « Reconstruire un argument moral sous forme canonique ». La règle ne
+dépend d'aucun domaine : elle vaut pour le référentiel de chaque compte.
 
 ---
 
@@ -111,7 +115,12 @@ réduis jamais l'évaluation à la réponse finale.
 
 # 11. TRANSFERT
 
-Teste une compétence dans plusieurs contextes croissants en difficulté — par
-exemple stock classique, puis demande variable, puis données imparfaites,
-puis arbitrage coût-service, puis intégration dans une chaîne logistique. La
-progression réelle se mesure par la capacité à transférer.
+Teste une compétence dans plusieurs contextes croissants en difficulté : cas
+canonique, puis données imparfaites, puis arbitrage entre critères
+contradictoires, puis intégration dans un ensemble plus large.
+
+La forme de cette progression dépend du domaine — pour un stock : demande
+constante, puis variable, puis arbitrage coût-service ; pour un argument :
+texte clair, puis prémisse implicite, puis thèses concurrentes. Ce qui ne
+dépend d'aucun domaine, c'est que la progression réelle se mesure par la
+capacité à transférer.

@@ -12,6 +12,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { Contexte } from "@/lib/store/context";
 import type { Referentiel } from "@/lib/domain/types";
+import { serialiserProfilDeclare } from "@/lib/domain/profil";
 import { formatDateCourte } from "@/lib/engine/dates";
 import { MARQUEUR_EXERCICE, MARQUEUR_PREUVE, MARQUEUR_REFERENTIEL } from "./proposition";
 
@@ -183,9 +184,7 @@ function serialiserProfil(ctx: Contexte): string {
       "Ne propose ni preuve ni exercice tant qu'aucune compétence n'existe : ils n'auraient rien à quoi se rattacher.",
     );
     lignes.push("");
-    lignes.push(`Formation déclarée : ${ctx.donnees.user.formation}`);
-    lignes.push(`Objectif à moyen terme : ${ctx.donnees.user.objectifMoyenTerme}`);
-    lignes.push(`Objectif à long terme : ${ctx.donnees.user.objectifLongTerme}`);
+    lignes.push(serialiserProfilDeclare(ctx.donnees.user));
     return lignes.join("\n");
   }
 
@@ -202,12 +201,15 @@ function serialiserProfil(ctx: Contexte): string {
   );
   lignes.push("");
 
-  const prefs = ctx.donnees.user.preferencesPedagogiques ?? [];
-  if (prefs.length > 0) {
-    lignes.push("## PRÉFÉRENCES PÉDAGOGIQUES DÉCLARÉES (à respecter)");
-    for (const p of prefs) lignes.push(`- ${p}`);
-    lignes.push("");
-  }
+  // Le profil déclaré est transmis ICI, et nulle part ailleurs.
+  //
+  // Jusqu'au 31/07/2026 il n'était transmis nulle part : le tuteur tenait le
+  // sien du § 2 des instructions principales, qui décrivait en dur le parcours
+  // d'un seul utilisateur et partait vers TOUS les comptes. Un compte tiers se
+  // voyait donc attribuer un diplôme et des objectifs qui n'étaient pas les
+  // siens (ADR-029). Retirer ce paragraphe suppose de transmettre le vrai.
+  lignes.push(serialiserProfilDeclare(ctx.donnees.user));
+  lignes.push("");
 
   // Les étiquettes de colonne sont données UNE fois plutôt que répétées sur
   // chaque ligne : même information, plusieurs milliers de caractères de moins
@@ -216,7 +218,7 @@ function serialiserProfil(ctx: Contexte): string {
     "Colonnes : code | niveau/5 | score/5 | confiance | robustesse | preuves/contextes | jours depuis la dernière preuve | intitulé",
   );
   lignes.push(
-    "« — » = aucune preuve, donc aucune valeur dérivable (ce n'est pas un zéro). Le suffixe « ?D » marque une hypothèse BUT QLIO non vérifiée, de niveau de preuve D.",
+    "« — » = aucune preuve, donc aucune valeur dérivable (ce n'est pas un zéro). Le suffixe « ?D » marque une hypothèse issue de la formation déclarée, non vérifiée, de niveau de preuve D — elle n'autorise aucun niveau affiché.",
   );
   lignes.push("« ⚠n » = n preuve(s) contradictoire(s) conservée(s) : confiance réduite, niveau maintenu.");
   lignes.push("");
