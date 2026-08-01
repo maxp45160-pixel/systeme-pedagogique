@@ -9,6 +9,7 @@ import {
 } from "@/lib/tutor/proposition";
 import { normaliserPalier, prefixeParDefaut } from "@/lib/domain/referentiel-compte";
 import { classesBouton, cx, Etiquette } from "@/components/ui/primitives";
+import { effacerSession, lireSession } from "@/lib/ui/stockage-session";
 import type { Palier } from "@/lib/domain/types";
 
 /**
@@ -58,42 +59,37 @@ export function ValidationBranche({
     (d) => d.nom.toLowerCase() === domaine.trim().toLowerCase(),
   );
 
+  /**
+   * La proposition n'est pas consommée à la lecture.
+   *
+   * Elle l'était, et le retour sur cet écran — ne serait-ce que pour vérifier
+   * un intitulé existant ailleurs — remontait alors un formulaire vide et une
+   * branche à redemander au tuteur. Elle est retirée à la création de la
+   * branche, seul moment où elle n'a plus d'objet.
+   */
   function charger() {
-    let brut: string | null = null;
-    try {
-      brut = window.sessionStorage.getItem(CLE_PROPOSITION_REFERENTIEL);
-      // Consommée une seule fois : revenir sur cet écran ne doit pas rejouer
-      // une branche déjà validée.
-      window.sessionStorage.removeItem(CLE_PROPOSITION_REFERENTIEL);
-    } catch {
-      /* sessionStorage indisponible */
-    }
-    if (!brut) {
+    const p = lireSession<PropositionReferentiel>(CLE_PROPOSITION_REFERENTIEL);
+    if (!p) {
       setPerdue(true);
       setChargee(true);
       return;
     }
 
-    try {
-      const p = JSON.parse(brut) as PropositionReferentiel;
-      setDomaine(p.domaine);
-      setPrefixe(p.prefixe || prefixeParDefaut(p.domaine));
-      setDescription(p.description);
-      setJustification(p.justification);
-      setLignes(
-        p.competences.map((c) => ({
-          intitule: c.intitule,
-          palier: normaliserPalier(c.palier),
-          // Conservée en chaîne : `normaliserImportance` tranche côté serveur,
-          // et une virgule décimale doit rester lisible en attendant.
-          importance: c.importance || "0.5",
-          retenue: true,
-        })),
-      );
-      setPerdue(false);
-    } catch {
-      setPerdue(true);
-    }
+    setDomaine(p.domaine);
+    setPrefixe(p.prefixe || prefixeParDefaut(p.domaine));
+    setDescription(p.description);
+    setJustification(p.justification);
+    setLignes(
+      p.competences.map((c) => ({
+        intitule: c.intitule,
+        palier: normaliserPalier(c.palier),
+        // Conservée en chaîne : `normaliserImportance` tranche côté serveur,
+        // et une virgule décimale doit rester lisible en attendant.
+        importance: c.importance || "0.5",
+        retenue: true,
+      })),
+    );
+    setPerdue(false);
     setChargee(true);
   }
 
@@ -119,6 +115,9 @@ export function ValidationBranche({
           })),
           origine: "tuteur",
         });
+        // La branche existe : la proposition n'a plus d'objet, et la relire
+        // rejouerait une validation déjà faite.
+        effacerSession(CLE_PROPOSITION_REFERENTIEL);
         router.push(`/competences?ajoutees=${r.codes.length}`);
         router.refresh();
       } catch (e) {

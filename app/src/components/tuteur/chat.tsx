@@ -7,6 +7,9 @@ import { Depliant } from "@/components/ui/explication";
 import { Markdown } from "@/components/ui/markdown";
 import { preparerPromptComplet } from "@/lib/tutor/actions";
 import type { SectionContexte } from "@/lib/tutor/contexte";
+import { MAX_MESSAGES_FENETRE } from "@/lib/tutor/fenetre";
+import { useEstHydrate } from "@/lib/ui/hydratation";
+import { cleParCompte, ecrireSession, effacerSession, lireSession } from "@/lib/ui/stockage-session";
 import {
   CLE_PROPOSITION_EXERCICE,
   CLE_PROPOSITION_REFERENTIEL,
@@ -288,6 +291,7 @@ const ChatInput = memo(function ChatInput({
   onEnvoyer,
   onCopier,
   onArreter,
+  onReinitialiser,
   enCours,
   cleAbsente,
   usage,
@@ -296,6 +300,8 @@ const ChatInput = memo(function ChatInput({
   onEnvoyer: (texte: string) => void;
   onCopier: (texte: string) => void;
   onArreter: () => void;
+  /** Absent quand il n'y a rien à effacer : le bouton ne s'affiche pas. */
+  onReinitialiser?: () => void;
   enCours: boolean;
   cleAbsente: boolean;
   usage: string | null;
@@ -348,6 +354,16 @@ const ChatInput = memo(function ChatInput({
           {usage && <> · {usage}</>}
         </span>
         <div className="flex gap-1.5">
+          {onReinitialiser && !enCours && (
+            <button
+              type="button"
+              onClick={onReinitialiser}
+              title="Efface les messages affichés. Tes preuves et tes exercices ne sont pas touchés."
+              className={classesBouton("secondaire", "petite")}
+            >
+              Réinitialiser
+            </button>
+          )}
           <button
             type="button"
             onClick={() => onCopier(saisie)}
@@ -391,11 +407,45 @@ const ChatInput = memo(function ChatInput({
 /* Composant principal                                                 */
 /* ------------------------------------------------------------------ */
 
-export function ChatTuteur({
+export interface ProprietesChat {
+  /** Manifeste et moteur, calculés côté serveur au rendu de la page. */
+  etatInitial: EtatContexteTuteur;
+  competenceCiblee?: string;
+  amorce?: string;
+  codesCompetences: string[];
+  /** Compte courant — isole la conversation conservée (voir `stockage-session`). */
+  compteId: string;
+}
+
+/**
+ * Le chat ne se monte qu'une fois le navigateur disponible.
+ *
+ * Sa conversation vit dans `sessionStorage`, que le serveur ne peut pas lire.
+ * Monter d'abord un chat vide puis y injecter l'historique dans un effet
+ * marcherait, au prix d'une cascade de rendus et d'une amorce pré-remplie qu'il
+ * faudrait retirer juste après. On attend plutôt l'hydratation, et l'état part
+ * du bon pied dès le premier rendu réel.
+ *
+ * Le cadre est rendu en attendant, à sa hauteur définitive : rien ne saute.
+ */
+export function ChatTuteur(props: ProprietesChat) {
+  const hydrate = useEstHydrate();
+  if (!hydrate) {
+    return (
+      <div className="space-y-4 [&>*]:min-w-0">
+        <div className="h-[min(70vh,620px)] rounded-carte border border-bordure bg-surface" />
+      </div>
+    );
+  }
+  return <ChatHydrate {...props} />;
+}
+
+function ChatHydrate({
   etatInitial,
   competenceCiblee,
   amorce,
   codesCompetences,
+  compteId,
 }: {
   /** Manifeste et moteur, calculés côté serveur au rendu de la page. */
   etatInitial: EtatContexteTuteur;
@@ -409,15 +459,57 @@ export function ChatTuteur({
   amorce?: string;
   /** Codes du référentiel — pour valider qu'une compétence citée existe vraiment. */
   codesCompetences: string[];
+  /** Compte courant — isole la conversation conservée (voir `stockage-session`). */
+  compteId: string;
 }) {
   // `etat` ne vient plus d'un chargement asynchrone : il est calculé par le
   // serveur et ne change pas pendant la vie du composant. Pas d'état local.
   const etat = etatInitial;
-  const [messages, setMessages] = useState<Message[]>([]);
+
+  const cleConversation = cleParCompte("conversation", compteId);
+
+  /**
+   * La conversation reprend là où elle s'était arrêtée.
+   *
+   * `ChatTuteur` est démonté à toute navigation — y compris celle que ses
+   * propres cartes de proposition provoquent. Aller relire une proposition
+   * dans `/exercices` et revenir remontait un chat vide : la conversation ne
+   * survivait pas au geste que l'interface elle-même propose.
+   *
+   * Lecture dans l'initialiseur, jamais dans un effet : le composant n'est
+   * monté qu'une fois le navigateur disponible (voir `ChatTuteur` ci-dessus).
+   *
+   * Même borne qu'à l'envoi (`fenetrerHistorique`) : au-delà, ces messages
+   * n'atteindraient pas le modèle, et les afficher laisserait croire à une
+   * mémoire que le tuteur n'a pas.
+   */
+  const [messages, setMessages] = useState<Message[]>(
+    () => lireSession<Message[]>(cleConversation)?.slice(-MAX_MESSAGES_FENETRE) ?? [],
+  );
   const [enCours, setEnCours] = useState(false);
   const [avis, setAvis] = useState<{ ton: "info" | "alerte" | "danger"; texte: string } | null>(null);
   const [usage, setUsage] = useState<string | null>(null);
   const zoneRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Écriture seulement au repos.
+   *
+   * Pendant la rédaction, `messages` change 15 fois par seconde ; sérialiser à
+   * cette cadence coûterait plus que le flux lui-même, pour n'enregistrer que
+   * des états intermédiaires.
+   */
+  useEffect(() => {
+    if (enCours) return;
+    if (messages.length === 0) effacerSession(cleConversation);
+    else ecrireSession(cleConversation, messages);
+  }, [messages, enCours, cleConversation]);
+
+  const reinitialiserConversation = useCallback(() => {
+    setMessages([]);
+    setAvis(null);
+    setUsage(null);
+    effacerSession(cleConversation);
+  }, [cleConversation]);
 
   /* ---------------------------------------------------------------- */
   /* Suivi du bas, plutôt que recadrage forcé                          */
@@ -684,8 +776,18 @@ export function ChatTuteur({
 
   const cleAbsente = !etat.cleConfiguree;
 
+  /*
+   * L'amorce ne pré-remplit que sur une conversation vide.
+   *
+   * Elle vient de `/demarrer` ou d'une fiche compétence, en `searchParams` :
+   * elle reste dans l'adresse tant qu'on n'en change pas. La réappliquer sur
+   * une conversation retrouvée reproposerait le message d'ouverture à chaque
+   * retour sur la page, alors que la discussion est déjà engagée.
+   */
   const saisieInitiale =
-    amorce ?? (competenceCiblee ? `Donne-moi un exercice sur ${competenceCiblee}.` : "");
+    messages.length > 0
+      ? ""
+      : (amorce ?? (competenceCiblee ? `Donne-moi un exercice sur ${competenceCiblee}.` : ""));
 
   return (
     <div className="space-y-4 [&>*]:min-w-0">
@@ -754,6 +856,7 @@ export function ChatTuteur({
             onEnvoyer={envoyer}
             onCopier={copierContexte}
             onArreter={arreter}
+            onReinitialiser={messages.length > 0 ? reinitialiserConversation : undefined}
             enCours={enCours}
             cleAbsente={cleAbsente}
             usage={usage}

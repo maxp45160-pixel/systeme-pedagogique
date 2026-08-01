@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Difficulte, Dimension, TypeExercice } from "@/lib/domain/types";
 import { DIFFICULTES, LIBELLES_DIMENSIONS } from "@/lib/domain/types";
@@ -11,6 +11,8 @@ import {
   type PropositionExercice,
 } from "@/lib/tutor/proposition";
 import { classesBouton, cx, Etiquette } from "@/components/ui/primitives";
+import { useEstHydrate } from "@/lib/ui/hydratation";
+import { cleParCompte, ecrireSession, effacerSession, lireSession } from "@/lib/ui/stockage-session";
 
 /**
  * Validation d'un exercice proposé par le tuteur.
@@ -77,26 +79,87 @@ function versDimension(valeur: string): Dimension | null {
   return DIMENSIONS.find((d) => d === valeur) ?? null;
 }
 
-export function FormulaireCreationExercice({
-  skillsDisponibles,
-  propositionEnAttente = false,
-}: {
+/**
+ * Ce qui est conservé d'un formulaire à moitié rempli.
+ *
+ * Miroir exact des états de saisie ci-dessous. Le domaine n'y figure pas : il
+ * se dérive de la compétence cible, et le stocker ouvrirait la possibilité
+ * qu'il contredise ce qu'elle dit.
+ */
+interface BrouillonExercice {
+  titre: string;
+  type: TypeExercice;
+  difficulte: Difficulte;
+  competences: string[];
+  dureeEstimeeMin: number;
+  enonce: string;
+  indices: string[];
+  correction: string;
+  criteres: { dimension: Dimension; libelle: string }[];
+  origine: "manuel" | "tuteur";
+  ignores: string[];
+}
+
+/** Formulaire vierge — l'état de départ, et celui vers lequel on abandonne. */
+const BROUILLON_VIDE: BrouillonExercice = {
+  titre: "",
+  type: "probleme",
+  difficulte: 2,
+  competences: [],
+  dureeEstimeeMin: 20,
+  enonce: "",
+  indices: [""],
+  correction: "",
+  criteres: [{ dimension: "comprehension", libelle: "" }],
+  origine: "manuel",
+  ignores: [],
+};
+
+export interface ProprietesFormulaireExercice {
   skillsDisponibles: { code: string; intitule: string; domaine: string }[];
+  /** Compte courant — isole le brouillon conservé (voir `stockage-session`). */
+  compteId: string;
   /** Vrai quand on arrive du chat via `?proposition=1` (ADR-004). */
   propositionEnAttente?: boolean;
-}) {
+}
+
+/**
+ * Le formulaire ne se monte qu'une fois le navigateur disponible.
+ *
+ * Son brouillon vit dans `sessionStorage`, que le serveur ne peut pas lire.
+ * Attendre l'hydratation permet de partir de l'état conservé dès le premier
+ * rendu réel, plutôt que d'afficher un formulaire vide puis d'y réinjecter la
+ * saisie dans un effet.
+ */
+export function FormulaireCreationExercice(proprietes: ProprietesFormulaireExercice) {
+  const hydrate = useEstHydrate();
+  if (!hydrate) return null;
+  return <FormulaireHydrate {...proprietes} />;
+}
+
+function FormulaireHydrate({
+  skillsDisponibles,
+  propositionEnAttente = false,
+  compteId,
+}: ProprietesFormulaireExercice) {
   const router = useRouter();
-  const [titre, setTitre] = useState("");
-  const [type, setType] = useState<TypeExercice>("probleme");
-  const [difficulte, setDifficulte] = useState<Difficulte>(2);
-  const [competences, setCompetences] = useState<string[]>([]);
-  const [dureeEstimeeMin, setDuree] = useState(20);
-  const [enonce, setEnonce] = useState("");
-  const [indices, setIndices] = useState<string[]>([""]);
-  const [correction, setCorrection] = useState("");
-  const [criteres, setCriteres] = useState<{ dimension: Dimension; libelle: string }[]>([
-    { dimension: "comprehension", libelle: "" },
-  ]);
+
+  const cleBrouillon = cleParCompte("brouillon-exercice", compteId);
+  const [depart] = useState<BrouillonExercice>(
+    () => lireSession<BrouillonExercice>(cleBrouillon) ?? BROUILLON_VIDE,
+  );
+
+  const [titre, setTitre] = useState(depart.titre);
+  const [type, setType] = useState<TypeExercice>(depart.type);
+  const [difficulte, setDifficulte] = useState<Difficulte>(depart.difficulte);
+  const [competences, setCompetences] = useState<string[]>(depart.competences);
+  const [dureeEstimeeMin, setDuree] = useState(depart.dureeEstimeeMin);
+  const [enonce, setEnonce] = useState(depart.enonce);
+  const [indices, setIndices] = useState<string[]>(depart.indices);
+  const [correction, setCorrection] = useState(depart.correction);
+  const [criteres, setCriteres] = useState<{ dimension: Dimension; libelle: string }[]>(
+    depart.criteres,
+  );
 
   const [enCours, demarrer] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
@@ -106,8 +169,8 @@ export function FormulaireCreationExercice({
    * uniquement si le formulaire a effectivement été pré-rempli — un formulaire
    * repris à zéro reste « manuel ».
    */
-  const [origine, setOrigine] = useState<"manuel" | "tuteur">("manuel");
-  const [ignores, setIgnores] = useState<string[]>([]);
+  const [origine, setOrigine] = useState<"manuel" | "tuteur">(depart.origine);
+  const [ignores, setIgnores] = useState<string[]>(depart.ignores);
   const [propositionPerdue, setPropositionPerdue] = useState(false);
 
   /**
@@ -118,21 +181,14 @@ export function FormulaireCreationExercice({
    * sans toi » (P5) ; et cela évite un rendu serveur qui divergerait de
    * l'hydratation, `sessionStorage` n'existant pas côté serveur.
    *
-   * La proposition est consommée une seule fois : revenir sur la page ne
-   * réinjecte pas un ancien brouillon.
+   * La proposition n'est PAS consommée ici. Elle l'était, et c'est ce qui
+   * rendait le départ de la page définitif : plus de proposition à relire,
+   * plus de brouillon, rien. Elle n'est effacée qu'à la création de l'exercice
+   * ou sur un abandon explicite.
    */
   function chargerProposition() {
-    const brut = window.sessionStorage.getItem(CLE_PROPOSITION_EXERCICE);
-    if (!brut) {
-      setPropositionPerdue(true);
-      return;
-    }
-    window.sessionStorage.removeItem(CLE_PROPOSITION_EXERCICE);
-
-    let p: PropositionExercice;
-    try {
-      p = JSON.parse(brut) as PropositionExercice;
-    } catch {
+    const p = lireSession<PropositionExercice>(CLE_PROPOSITION_EXERCICE);
+    if (!p) {
       setPropositionPerdue(true);
       return;
     }
@@ -184,6 +240,63 @@ export function FormulaireCreationExercice({
     setPropositionPerdue(false);
   }
 
+  /*
+   * Enregistrement du brouillon à chaque frappe.
+   *
+   * Tant que le formulaire n'a rien reçu (`origine === "manuel"`), il n'y a rien
+   * à conserver — et écrire un brouillon vide écraserait celui d'une visite
+   * précédente avant même que la relecture ait eu lieu.
+   */
+  useEffect(() => {
+    if (origine === "manuel") return;
+    ecrireSession(cleBrouillon, {
+      titre,
+      type,
+      difficulte,
+      competences,
+      dureeEstimeeMin,
+      enonce,
+      indices,
+      correction,
+      criteres,
+      origine,
+      ignores,
+    } satisfies BrouillonExercice);
+  }, [
+    cleBrouillon,
+    titre,
+    type,
+    difficulte,
+    competences,
+    dureeEstimeeMin,
+    enonce,
+    indices,
+    correction,
+    criteres,
+    origine,
+    ignores,
+  ]);
+
+  /** Efface brouillon et proposition d'un même geste : ils vont par paire. */
+  function abandonnerBrouillon() {
+    effacerSession(cleBrouillon);
+    effacerSession(CLE_PROPOSITION_EXERCICE);
+    setTitre(BROUILLON_VIDE.titre);
+    setType(BROUILLON_VIDE.type);
+    setDifficulte(BROUILLON_VIDE.difficulte);
+    setCompetences(BROUILLON_VIDE.competences);
+    setDuree(BROUILLON_VIDE.dureeEstimeeMin);
+    setEnonce(BROUILLON_VIDE.enonce);
+    setIndices(BROUILLON_VIDE.indices);
+    setCorrection(BROUILLON_VIDE.correction);
+    setCriteres(BROUILLON_VIDE.criteres);
+    setIgnores(BROUILLON_VIDE.ignores);
+    setPropositionPerdue(false);
+    // En dernier : c'est lui qui referme les champs et coupe l'enregistrement
+    // du brouillon ci-dessus.
+    setOrigine(BROUILLON_VIDE.origine);
+  }
+
   // La première compétence est la cible principale (convention `Exercise`) :
   // c'est elle qui donne son domaine à l'exercice.
   const domaineCible =
@@ -214,6 +327,9 @@ export function FormulaireCreationExercice({
           criteres: criteres.filter((c) => c.libelle.trim()),
           origine,
         });
+        // L'exercice existe : le brouillon et la proposition n'ont plus d'objet.
+        effacerSession(cleBrouillon);
+        effacerSession(CLE_PROPOSITION_EXERCICE);
         router.push(`/exercices/${id}`);
       } catch (e) {
         setErreur(e instanceof Error ? e.message : "Création impossible.");
@@ -230,7 +346,7 @@ export function FormulaireCreationExercice({
           <div className="rounded-md border border-primaire/30 bg-surface-2 px-3 py-2">
             <p className="text-texte-attenue">
               {propositionPerdue
-                ? "La proposition n'est plus disponible — elle a peut-être déjà été chargée, ou l'onglet a été rouvert. Retourne au tuteur et clique à nouveau sur « Revoir et ajouter »."
+                ? "La proposition n'est plus disponible — l'onglet a été rouvert, ou le brouillon a été abandonné. Retourne au tuteur et clique à nouveau sur « Revoir et ajouter »."
                 : "Le tuteur a proposé un exercice. Rien n'a été enregistré : charge-le pour le relire et le corriger avant de valider."}
             </p>
             {!propositionPerdue && (
@@ -268,6 +384,17 @@ export function FormulaireCreationExercice({
               Non repris car hors référentiel — {ignores.join(" · ")}.
             </p>
           )}
+          <p className="mt-1.5 text-texte-discret">
+            Ce que tu saisis ici est conservé jusqu&apos;à la création de
+            l&apos;exercice : tu peux quitter cette page et y revenir.
+          </p>
+          <button
+            type="button"
+            onClick={abandonnerBrouillon}
+            className={cx(classesBouton("secondaire", "petite"), "mt-2")}
+          >
+            Abandonner ce brouillon
+          </button>
         </div>
       )}
 

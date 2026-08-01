@@ -107,6 +107,7 @@ async function ContenuExercices({
               </p>
               <FormulaireCreationExercice
                 propositionEnAttente={Boolean(proposition)}
+                compteId={ctx.donnees.user.id}
                 skillsDisponibles={ctx.etats.map((e) => ({
                   code: e.skill.code,
                   intitule: e.skill.intitule,
