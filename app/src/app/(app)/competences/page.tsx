@@ -185,7 +185,7 @@ function LigneCompetence({ etat }: { etat: SkillState }) {
           <p className="truncate text-sm">{etat.skill.intitule}</p>
           <p className="mt-0.5 text-[0.6875rem] text-texte-discret">
             {etat.statut === "non-evalue" && "Jamais évaluée"}
-            {etat.statut === "hypothese" && "Hypothèse BUT QLIO — non vérifiée"}
+            {etat.statut === "hypothese" && "Hypothèse issue de ta formation — non vérifiée"}
             {etat.statut === "evalue" &&
               `${etat.preuves.length} preuve${etat.preuves.length > 1 ? "s" : ""} · ${
                 etat.contextesTestes.length

@@ -1461,6 +1461,87 @@ qui a été corrigé.
 
 ---
 
+<a name="adr-029"></a>
+## ADR-029 — Aucun profil n'est écrit dans les protocoles ✅
+
+**Date.** 31/07/2026. **Tranchée par Maxime**, sur signalement d'usage réel.
+Corrige un angle mort d'[ADR-026](#adr-026).
+
+### Le défaut
+
+`data/00_instructions/00_SYSTEME_INSTRUCTIONS_PRINCIPALES.txt` § 2 décrivait en
+dur le parcours d'une seule personne — « Révise et approfondit son BUT QLIO,
+prépare un Master ITI interdisciplinaire, vise une carrière de chercheur ». Ce
+fichier est chargé **sans condition pour tous les comptes**.
+
+Conséquence observée : le compte tiers demandait au tuteur d'initialiser son
+profil, et le tuteur lui parlait de son BUT QLIO — un diplôme qui n'est pas le
+sien, des objectifs qui ne sont pas les siens.
+
+### Pourquoi ADR-026 ne l'a pas attrapé
+
+Le chantier a généralisé le **référentiel** — la liste de ce qui est mesuré —
+sans généraliser les **protocoles**, qui décrivent *qui* est mesuré. Les deux
+sont pourtant la même hypothèse : que le produit n'a qu'un utilisateur.
+
+C'est le genre de défaut qu'une relecture ne trouve pas, parce que le fichier
+fautif se lit correctement quand on est la personne décrite. Il a fallu l'usage
+d'un autre compte.
+
+### Décision
+
+**Aucun fichier de protocole ne contient de profil.** Le profil réel est
+transmis à chaque conversation, dans une section « PROFIL DÉCLARÉ PAR
+L'UTILISATEUR », et il vient exclusivement de ce que la personne a écrit.
+
+§ 2 pose la règle explicitement : ne jamais attribuer une formation, un diplôme,
+un métier ou un objectif absent de cette section — et ne pas l'inférer du
+référentiel. *Travailler la statistique ne fait pas de quelqu'un un ingénieur,
+ni la philosophie un étudiant en lettres.* Ce qui est marqué « non déclaré » se
+demande, il ne se comble pas : même exigence que pour un niveau de compétence
+(anti-hallucination §7).
+
+§ 7 perd la liste des sept domaines historiques et la référence au module
+supprimé.
+
+### Le manque qui rendait § 2 nécessaire
+
+`serialiserProfil` ne transmettait **jamais** `formation` ni les objectifs hors
+compte vierge : le tuteur n'avait littéralement pas d'autre source que le
+paragraphe écrit en dur. Le retirer sans transmettre le vrai profil aurait
+remplacé une erreur par un vide.
+
+`lib/domain/profil.ts` porte désormais la distinction entre **déclaré** et
+**pas encore rempli**. Les valeurs par défaut du schéma sont des libellés
+d'invite (« Formation à renseigner »), pas des réponses : les transmettre
+telles quelles se lirait comme une formation nommée « à renseigner ».
+
+### Trois autres fuites du même défaut, corrigées
+
+| Emplacement | Correction |
+|---|---|
+| `lib/tutor/contexte.ts` — légende « ?D » | « hypothèse **BUT QLIO** non vérifiée » → « hypothèse issue de la formation déclarée » |
+| `competences/page.tsx` | même étiquette, affichée à l'écran de tous les comptes |
+| `00_SYSTEME_PROTOCOLE_EVALUATION_CORE.txt` § 2 et § 11 | exemples exclusivement industriels, désormais donnés dans deux domaines. Aucune règle modifiée |
+
+### Une erreur de données, introduite par la migration d'ADR-026
+
+Le compte tiers avait reçu `hypothese_initiale = « Domaine couvert par le BUT
+QLIO »` sur `STAT-01` : la justification du compte d'origine, recopiée telle
+quelle. Une hypothèse tirée du diplôme de quelqu'un d'autre n'est pas une
+hypothèse — la ligne a été mise à `NULL` plutôt que réécrite, et
+`scripts/migrer-referentiel.ts` ne transfère plus les hypothèses hors du compte
+dont elles décrivent la formation.
+
+### Vérifié par
+
+15 tests, dont le décisif : le contexte **complet** d'un compte sans profil
+déclaré — protocoles inclus, et non seulement les blocs calculés — ne doit
+contenir ni « QLIO » ni « Master ITI ». Le test lit `systemeStable` précisément
+parce que c'est dans un fichier de protocole que la fuite se trouvait.
+
+---
+
 ## Comment modifier ce registre
 
 1. Une décision ✅ ne se retire pas : elle passe en 🔄 **Remplacée**, avec le

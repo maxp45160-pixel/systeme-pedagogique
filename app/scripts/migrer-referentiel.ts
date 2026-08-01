@@ -63,9 +63,16 @@ function ligneCompetence(
 ): string {
   const s = SKILLS.find((x) => x.code === code);
   if (!s) throw new Error(`Compétence inconnue : ${code}`);
-  const hypothese = s.hypotheseInitiale
-    ? `${txt(JSON.stringify(s.hypotheseInitiale))}::jsonb`
-    : "NULL";
+  // Les `hypotheseInitiale` du référentiel historique se justifient par le BUT
+  // QLIO du compte qui l'utilisait. Les recopier ailleurs attribuerait à
+  // quelqu'un d'autre un diplôme qui n'est pas le sien — ce qui a été fait par
+  // erreur le 31/07/2026 sur le compte tiers, puis corrigé (ADR-029).
+  //
+  // Une hypothèse n'est transférable qu'au compte dont elle décrit la formation.
+  const hypothese =
+    s.hypotheseInitiale && userId === MAXIME
+      ? `${txt(JSON.stringify(s.hypotheseInitiale))}::jsonb`
+      : "NULL";
   return `  (${txt(userId)}, ${txt(s.code)}, ${txt(s.domaine)}, ${txt(s.intitule)}, ${txt(
     s.palier,
   )}, ${tableauTexte(s.prerequis)}, ${s.importance}, ${ordre}, ${active}, ${archive}, ${hypothese}, 'migration')`;

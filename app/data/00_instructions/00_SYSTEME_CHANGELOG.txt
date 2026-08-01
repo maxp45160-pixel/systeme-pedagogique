@@ -433,3 +433,47 @@ aucune règle de mise à jour.
 Le score global ne compte plus les compétences non mesurées comme des zéros
 (ADR-006, principe P2 rétabli). Le protocole d'évaluation §12 reste inchangé :
 c'était l'implémentation qui s'en écartait, pas le protocole.
+
+---
+
+## 31/07/2026 — LE PROFIL N'EST PLUS ÉCRIT DANS LES INSTRUCTIONS (ADR-029)
+
+### Le défaut
+
+Le § 2 « PROFIL DE L'UTILISATEUR » décrivait en dur le parcours d'une seule
+personne : « Révise et approfondit son BUT QLIO, prépare un Master ITI
+interdisciplinaire, vise une carrière de chercheur. »
+
+Ce fichier est chargé SANS CONDITION pour tous les comptes. Un utilisateur
+tiers se voyait donc attribuer un diplôme, une formation et des objectifs qui
+n'étaient pas les siens — et le tuteur initialisait son profil là-dessus.
+
+Le défaut a survécu à ADR-026, qui avait généralisé le référentiel sans
+généraliser les protocoles. Signalé par l'usage réel, pas par une relecture.
+
+### Corrections apportées aux protocoles
+
+§ 2 — ne contient plus aucun profil. Il renvoie à la section « PROFIL DÉCLARÉ
+PAR L'UTILISATEUR », transmise dans l'état courant, et pose la règle : ne
+jamais attribuer une formation, un diplôme, un métier ou un objectif qui n'y
+figure pas, et ne pas l'inférer du référentiel de compétences. Ce qui est
+marqué « non déclaré » se DEMANDE, il ne se comble pas.
+
+§ 7 — ne contient plus la liste des sept domaines historiques, ni la référence
+au fichier de référentiel supprimé. Le référentiel appartient au compte
+(ADR-026) ; il n'existe aucune liste universelle de compétences.
+
+### Correction apportée au protocole d'évaluation
+
+§ 2 et § 11 portaient des exemples exclusivement industriels (intervalle de
+confiance en contexte industriel, progression de stock). Aucune règle n'est
+modifiée : les exemples sont désormais donnés dans deux domaines distincts,
+pour que la règle se lise comme générale — ce qu'elle a toujours été.
+
+### Ce qui change côté application
+
+Le profil déclaré (formation, objectifs, préférences) n'était transmis nulle
+part hors compte vierge : le tuteur tenait le sien du § 2. Il est désormais
+sérialisé à chaque conversation, et les valeurs par défaut du schéma
+(« Formation à renseigner ») sont nommées comme non déclarées plutôt que
+transmises comme des données.
