@@ -24,6 +24,7 @@ import {
   qualiteDepuisDifficulte,
   qualiteDepuisNature,
 } from "@/lib/engine/preuve";
+import { tentativeMenee } from "@/lib/engine/calibration";
 import type {
   Autonomie,
   Difficulte,
@@ -110,21 +111,62 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
     EXERCICES_DIAGNOSTIC.find((e) => e.id === soumission.exerciseId);
   if (!exercice) throw new Error(`Exercice introuvable : ${soumission.exerciseId}`);
 
+  const date = new Date().toISOString();
+
+  /*
+   * Une tentative qui n'a pas eu lieu ne produit aucune preuve.
+   *
+   * `tentativeMenee` (lib/engine/calibration.ts) porte la règle : sous 25 % de
+   * la durée estimée, sans réussite, on ne peut rien conclure. Elle gouvernait
+   * la calibration de la difficulté depuis ADR-028 et **pas** l'écriture de la
+   * preuve — d'où, le 01/08/2026, une preuve à toutes dimensions nulles écrite
+   * depuis un abandon d'1 minute sur 20 estimées, qui a fait tomber DEV-01 de
+   * 2,7 à 2,3. « L'absence de mesure n'est pas un zéro » (P2) était tenu d'un
+   * côté et rompu de l'autre.
+   *
+   * La tentative reste écrite en base : c'est un fait observé, et `verdictTentative`
+   * la lit pour expliquer pourquoi aucune difficulté n'est conseillée. Seul le
+   * journal de preuves — la chaîne qui fait bouger un niveau — la refuse.
+   */
+  const menee = tentativeMenee(
+    { resultat: soumission.resultat, dureeMin: soumission.dureeMin },
+    exercice,
+  );
+
   // La tentative renvoyée est celle qui vient d'être écrite : `indicesUtilises`
   // s'y lit sans relecture, et c'est lui qui détermine l'autonomie observée.
   const tentative = await modifier("attempts", soumission.attemptId, {
-    fin: new Date().toISOString(),
+    fin: date,
     dureeMin: soumission.dureeMin,
     autoEvaluation: soumission.autoEvaluation,
     resultat: soumission.resultat,
-    statut: "terminee" as const,
+    statut: (menee ? "terminee" : "abandonnee") as "terminee" | "abandonnee",
     notes: soumission.notes,
   }, dorsale);
   if (!tentative) throw new Error("Tentative introuvable");
 
+  if (!menee) {
+    // Le journal d'activité, lui, enregistre ce qui s'est passé : la minute
+    // passée est un fait, et la taire ferait disparaître l'abandon du suivi.
+    await ajouter("sessions", {
+      id: nouvelId("ses"),
+      date,
+      dureeMin: soumission.dureeMin,
+      domaines: [exercice.domaine],
+      skillCodes: exercice.competences,
+      activites: [{ type: "exercice", ref: exercice.id, libelle: exercice.titre }],
+      resultat: "Tentative abandonnée — trop courte pour conclure",
+      difficulte: `Difficulté ${exercice.difficulte}/5 · ${soumission.dureeMin} min sur ${exercice.dureeEstimeeMin} estimées`,
+      notePersonnelle: soumission.notes,
+      genereAutomatiquement: true,
+    } satisfies LearningSession, dorsale);
+
+    revalidatePath("/", "layout");
+    redirect(`/exercices/${exercice.id}?abandon=1`);
+  }
+
   const autonomie = autonomieDepuisIndices(tentative.indicesUtilises, exercice.indices.length);
   const qualite = qualiteDepuisDifficulte(exercice.difficulte, autonomie);
-  const date = new Date().toISOString();
 
   // Une preuve par compétence ciblée. Les compétences secondaires sont
   // enregistrées comme preuve indirecte (niveau B), pas directe.

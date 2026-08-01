@@ -3,6 +3,7 @@ import {
   calibrer,
   calibrerToutes,
   dimensionLaPlusFaible,
+  tentativeMenee,
   verdictTentative,
   FRACTION_NON_TENTEE,
   FRACTION_TROP_FACILE,
@@ -397,5 +398,68 @@ describe("le maillon est effectivement bouclé", () => {
     const toutes = calibrerToutes(etats, [], []);
     expect(toutes.size).toBe(REFERENTIEL_TEST.actifs.length);
     for (const c of toutes.values()) expect(c.difficulteConseillee).toBeNull();
+  });
+});
+
+/*
+ * `tentativeMenee` — la règle partagée avec l'écriture de la preuve.
+ *
+ * Elle gouvernait la calibration de la difficulté depuis ADR-028 et rien
+ * d'autre. Le 01/08/2026, la boucle a tourné en entier pour la première fois
+ * et l'a montré : deux exercices générés par le tuteur, abandonnés en 1 minute
+ * sur 20 et 25 estimées, ont produit des preuves à toutes dimensions nulles.
+ * DEV-01 est tombé de 2,7 à 2,3 sur un exercice que personne n'avait fait.
+ *
+ * Ces cas-là sont donc, eux aussi, des tentatives réelles.
+ */
+describe("tentativeMenee — aucune preuve sur une tentative qui n'a pas eu lieu", () => {
+  it("1 min sur 20 estimées, échec ⇒ non menée (ex-msahsloc, DEV-01, 01/08/2026)", () => {
+    const ex = exercice("ex-msahsloc-w2cwx", 1, 20, ["DEV-01"], 1);
+    expect(tentativeMenee({ resultat: "echec", dureeMin: 1 }, ex)).toBe(false);
+  });
+
+  it("1 min sur 25 estimées, échec ⇒ non menée (ex-msahkhoy, DEV-03/DEV-04)", () => {
+    const ex = exercice("ex-msahkhoy-maqnm", 1, 25, ["DEV-03", "DEV-04"], 3);
+    expect(tentativeMenee({ resultat: "echec", dureeMin: 1 }, ex)).toBe(false);
+  });
+
+  it("une réussite éclair reste une tentative menée : on ne réussit pas sans faire", () => {
+    const ex = exercice("diag-dev-01", 1, 20, ["DEV-01"], 3);
+    expect(tentativeMenee({ resultat: "reussi", dureeMin: 1 }, ex)).toBe(true);
+  });
+
+  it("20 min sur 20 estimées, partiel ⇒ menée (diag-dev-01, 30/07/2026)", () => {
+    const ex = exercice("diag-dev-01", 1, 20, ["DEV-01"], 3);
+    expect(tentativeMenee({ resultat: "partiel", dureeMin: 20 }, ex)).toBe(true);
+  });
+
+  it("15 min sur 25 estimées, échec ⇒ menée : un vrai échec se mesure (diag-dev-03)", () => {
+    const ex = exercice("diag-dev-03", 2, 25, ["DEV-03"], 3);
+    expect(tentativeMenee({ resultat: "echec", dureeMin: 15 }, ex)).toBe(true);
+  });
+
+  it("pile au seuil, la tentative compte", () => {
+    const ex = exercice("x", 2, 20, ["DEV-01"], 3);
+    expect(tentativeMenee({ resultat: "echec", dureeMin: 20 * FRACTION_NON_TENTEE }, ex)).toBe(true);
+  });
+
+  it("sans durée mesurable, on n'accuse pas la tentative de ne pas avoir eu lieu", () => {
+    const ex = exercice("x", 2, 20, ["DEV-01"], 3);
+    expect(tentativeMenee({ resultat: "echec", dureeMin: undefined }, ex)).toBe(true);
+    expect(tentativeMenee({ resultat: "echec", dureeMin: 1 }, { dureeEstimeeMin: 0 })).toBe(true);
+  });
+
+  /*
+   * Le lien entre les deux chemins. Si quelqu'un desserre l'un sans l'autre,
+   * ce test tombe — c'est tout son objet.
+   */
+  it("dit exactement la même chose que le verdict de calibration", () => {
+    const ex = exercice("x", 2, 20, ["DEV-01"], 3);
+    for (const resultat of ["reussi", "partiel", "echec"] as const) {
+      for (const dureeMin of [1, 4, 5, 6, 12, 20, 40]) {
+        const t = tentative({ exerciseId: "x", resultat, indicesUtilises: 0, dureeMin });
+        expect(verdictTentative(t, ex).signal === "non-tentee").toBe(!tentativeMenee(t, ex));
+      }
+    }
   });
 });

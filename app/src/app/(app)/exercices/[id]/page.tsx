@@ -23,10 +23,10 @@ import { formatDuree } from "@/lib/engine/dates";
 
 export default async function PageExercice(props: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ correction?: string; bilan?: string }>;
+  searchParams: Promise<{ correction?: string; bilan?: string; abandon?: string }>;
 }) {
   const { id } = await props.params;
-  const { correction, bilan } = await props.searchParams;
+  const { correction, bilan, abandon } = await props.searchParams;
 
   const ctx = await chargerContexte();
   const exercice = ctx.donnees.exercises.find((e) => e.id === id);
@@ -54,6 +54,39 @@ export default async function PageExercice(props: {
           ← Tous les exercices
         </Link>
       </div>
+
+      {/*
+        Abandon : aucune preuve écrite, et il faut le dire.
+
+        Le silence serait pire que le zéro qu'on vient de refuser d'écrire —
+        l'utilisateur croirait sa mesure enregistrée. On annonce ce qui n'a pas
+        été fait, et pourquoi (P3 : aucune valeur sans source, y compris quand
+        la valeur est « rien »).
+      */}
+      {abandon === "1" && (
+        <div className="mb-4 rounded-carte border border-info/30 bg-info-faible px-4 py-3">
+          <p className="text-sm font-medium text-info">Aucune preuve enregistrée</p>
+          <p className="mt-1 text-xs text-texte-attenue">
+            La tentative a duré moins d&apos;un quart de la durée estimée
+            ({exercice.dureeEstimeeMin} min) sans être réussie : elle est marquée comme
+            abandonnée. En tirer un niveau reviendrait à confondre « pas mesuré » et
+            « raté » — ton niveau sur{" "}
+            {exercice.competences.map((c) => c).join(", ")} est inchangé.
+          </p>
+          <p className="mt-1 text-xs text-texte-discret">
+            La tentative reste au journal : elle explique pourquoi aucune difficulté
+            n&apos;est conseillée pour le prochain exercice.
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <Link href={`/exercices/${exercice.id}`} className={classesBouton("principal", "petite")}>
+              Reprendre l&apos;exercice
+            </Link>
+            <Link href="/tuteur" className={classesBouton("secondaire", "petite")}>
+              En demander un autre au tuteur
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Bilan après enregistrement */}
       {bilan === "1" && derniereTerminee && (
