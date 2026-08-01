@@ -1,20 +1,31 @@
 /**
  * Agrégation globale et par domaine.
  *
- * Deux nombres distincts sont exposés, parce qu'ils répondent à deux
+ * Trois nombres distincts sont exposés, parce qu'ils répondent à trois
  * questions différentes et que les confondre serait trompeur :
  *
- * - `scoreGlobal`  — « où en suis-je sur l'ensemble du référentiel ? »
- *                    Les compétences non évaluées comptent pour zéro.
- * - `niveauMoyen`  — « quel est mon niveau là où j'ai été évalué ? »
- *                    Calculé sur les seules compétences évaluées.
+ * - `scoreGlobal`  — « à quel niveau suis-je là où j'ai été mesuré ? »
+ *                    Pondéré par l'importance de chaque compétence.
+ * - `niveauMoyen`  — la même chose, sans pondération.
+ * - la couverture (`competencesEvaluees` / `competencesTotal`) — « quelle part
+ *                    du référentiel a été mesurée ? »
  *
- * Afficher le premier sans le second donnerait l'impression d'un niveau
- * faible ; afficher le second sans le premier surestimerait la couverture.
+ * ADR-006, tranchée le 31/07/2026 — les compétences non évaluées ne sont plus
+ * comptées pour zéro. La formule précédente les portait au dénominateur pour
+ * leur importance pleine et au numérateur pour rien : non mesuré y valait
+ * exactement zéro, ce que le protocole anti-hallucination §7 interdit (P2).
+ *
+ * Deux conséquences motivaient la correction. Le score était **anti-corrélé à
+ * l'ambition** : élargir le référentiel le faisait chuter sans qu'aucune
+ * compétence n'ait été perdue. Et depuis ADR-026 le référentiel est extensible
+ * par l'utilisateur — le défaut serait passé de verrue documentée à incitation
+ * structurelle à ne pas étendre son référentiel.
+ *
+ * Ce qui disparaît du score revient donc **entièrement** à la couverture, qui
+ * est l'indicateur honnête de ce qui n'a pas encore été mesuré.
  */
 
-import type { Confiance, DomaineId, SkillState } from "@/lib/domain/types";
-import { DOMAINES } from "@/lib/domain/referentiel";
+import type { Confiance, Domaine, DomaineId, SkillState } from "@/lib/domain/types";
 import { JOUR_MS } from "./dates";
 
 const RANG_CONFIANCE: Record<Confiance, number> = { nulle: 0, faible: 1, moyenne: 2, forte: 3 };
@@ -60,11 +71,17 @@ function moyenneConfiance(etats: SkillState[]): Confiance {
   return CONFIANCE_PAR_RANG[Math.max(1, Math.round(moy))];
 }
 
-export function agregerDomaine(domaine: DomaineId, etats: SkillState[]): AgregatDomaine {
+export function agregerDomaine(
+  domaine: DomaineId,
+  etats: SkillState[],
+  domaines: Domaine[] = [],
+): AgregatDomaine {
   const duDomaine = etats.filter((e) => e.skill.domaine === domaine);
   const evalues = duDomaine.filter((e) => e.statut === "evalue" && e.score !== null);
   const preuves = duDomaine.reduce((s, e) => s + e.preuves.length, 0);
-  const nom = DOMAINES.find((d) => d.id === domaine)?.nom ?? domaine;
+  // Le référentiel est propre au compte (ADR-026) : à défaut de libellé, on
+  // affiche l'identifiant plutôt que d'inventer un nom.
+  const nom = domaines.find((d) => d.id === domaine)?.nom ?? domaine;
 
   if (evalues.length === 0) {
     return {
@@ -79,8 +96,11 @@ export function agregerDomaine(domaine: DomaineId, etats: SkillState[]): Agregat
     };
   }
 
-  const poidsTotal = duDomaine.reduce((s, e) => s + e.skill.importance, 0);
-  const acquis = duDomaine.reduce(
+  // ADR-006 : les deux sommes portent sur les seules compétences mesurées.
+  // `competencesTotal` conserve l'effectif complet — c'est lui, et non le
+  // score, qui dit ce qui reste à mesurer.
+  const poidsMesure = evalues.reduce((s, e) => s + e.skill.importance, 0);
+  const acquis = evalues.reduce(
     (s, e) => s + e.skill.importance * ((e.score ?? 0) / 5),
     0,
   );
@@ -88,7 +108,7 @@ export function agregerDomaine(domaine: DomaineId, etats: SkillState[]): Agregat
   return {
     domaine,
     nom,
-    score: poidsTotal === 0 ? null : Math.round((acquis / poidsTotal) * 100),
+    score: poidsMesure === 0 ? null : Math.round((acquis / poidsMesure) * 100),
     niveauMoyen:
       Math.round((evalues.reduce((s, e) => s + (e.niveau ?? 0), 0) / evalues.length) * 10) / 10,
     competencesTotal: duDomaine.length,
@@ -98,17 +118,28 @@ export function agregerDomaine(domaine: DomaineId, etats: SkillState[]): Agregat
   };
 }
 
-export function calculerEtatGlobal(etats: SkillState[], now: Date = new Date()): EtatGlobal {
+export function calculerEtatGlobal(
+  etats: SkillState[],
+  now: Date = new Date(),
+  domaines: Domaine[] = [],
+): EtatGlobal {
   const total = etats.length;
   const evalues = etats.filter((e) => e.statut === "evalue" && e.score !== null);
   const nombrePreuves = etats.reduce((s, e) => s + e.preuves.length, 0);
-  // Seuls les domaines réellement représentés dans `etats` : depuis ADR-018 le
-  // périmètre actif peut n'en couvrir qu'un, et afficher six domaines vides
-  // ferait exactement ce que le protocole interdit — présenter une absence de
-  // mesure comme une mesure à zéro.
-  const parDomaine = DOMAINES.filter((d) => etats.some((e) => e.skill.domaine === d.id)).map((d) =>
-    agregerDomaine(d.id, etats),
+
+  // Seuls les domaines réellement représentés dans `etats` : le périmètre de
+  // travail peut n'en couvrir qu'un, et afficher des domaines vides ferait
+  // exactement ce que le protocole interdit — présenter une absence de mesure
+  // comme une mesure à zéro.
+  //
+  // La liste se dérive des états eux-mêmes, et non plus d'un tableau global :
+  // depuis ADR-026 le référentiel est propre au compte. `domaines` ne sert plus
+  // qu'à ordonner et à nommer.
+  const rang = new Map(domaines.map((d, i) => [d.id, i]));
+  const presents = [...new Set(etats.map((e) => e.skill.domaine))].sort(
+    (a, b) => (rang.get(a) ?? Number.MAX_SAFE_INTEGER) - (rang.get(b) ?? Number.MAX_SAFE_INTEGER),
   );
+  const parDomaine = presents.map((id) => agregerDomaine(id, etats, domaines));
 
   // Aucune preuve nulle part : le score n'existe pas. On ne renvoie pas 0,
   // qui prétendrait avoir mesuré (protocole anti-hallucination §7 et §14).
@@ -132,12 +163,21 @@ export function calculerEtatGlobal(etats: SkillState[], now: Date = new Date()):
     };
   }
 
-  const poidsTotal = etats.reduce((s, e) => s + e.skill.importance, 0);
-  const acquis = etats.reduce((s, e) => s + e.skill.importance * ((e.score ?? 0) / 5), 0);
-  const scoreGlobal = Math.round((acquis / poidsTotal) * 100);
+  // ADR-006 — le score porte sur les seules compétences mesurées.
+  //
+  // Des preuves peuvent exister sans qu'aucune compétence n'atteigne le statut
+  // « evalue » (hypothèses, preuves irrecevables) : le score est alors `null`,
+  // pas 0. Une somme de poids nulle n'est pas un score nul.
+  const poidsMesure = evalues.reduce((s, e) => s + e.skill.importance, 0);
+  const acquis = evalues.reduce((s, e) => s + e.skill.importance * ((e.score ?? 0) / 5), 0);
+  const scoreGlobal = poidsMesure === 0 ? null : Math.round((acquis / poidsMesure) * 100);
 
+  // Même précaution : sans compétence évaluée, il n'y a pas de niveau moyen.
+  // Une moyenne sur zéro terme valait `NaN` et s'affichait comme une mesure.
   const niveauMoyen =
-    Math.round((evalues.reduce((s, e) => s + (e.niveau ?? 0), 0) / evalues.length) * 10) / 10;
+    evalues.length === 0
+      ? null
+      : Math.round((evalues.reduce((s, e) => s + (e.niveau ?? 0), 0) / evalues.length) * 10) / 10;
 
   const competencesActives = etats.filter(
     (e) => e.joursDepuisDernierePreuve !== null && e.joursDepuisDernierePreuve <= 30,
@@ -180,6 +220,12 @@ export function calculerEtatGlobal(etats: SkillState[], now: Date = new Date()):
         .join(", ")}.`,
     );
   }
+  // Sans cette phrase le score se lirait comme une progression sur l'ensemble
+  // du référentiel, ce qu'il n'est plus depuis ADR-006. Le nombre affiché et sa
+  // portée doivent tenir ensemble (P3 : aucune valeur sans sa source).
+  reserves.push(
+    `Score calculé sur les ${evalues.length} compétence(s) mesurée(s), pas sur les ${total} du référentiel : la couverture est un indicateur distinct.`,
+  );
   reserves.push(
     "Le score global est un indicateur de suivi, pas une vérité absolue (protocole d'évaluation §12).",
   );
@@ -198,15 +244,18 @@ export function calculerEtatGlobal(etats: SkillState[], now: Date = new Date()):
     facteurs: [
       { libelle: "Compétences évaluées", valeur: `${evalues.length} / ${total}` },
       { libelle: "Preuves directes enregistrées", valeur: `${nombrePreuves}` },
-      { libelle: "Niveau moyen là où mesuré", valeur: `${niveauMoyen} / 5` },
+      {
+        libelle: "Niveau moyen là où mesuré",
+        valeur: niveauMoyen === null ? "—" : `${niveauMoyen} / 5`,
+      },
       {
         libelle: "Méthode",
         valeur:
-          "Somme des scores pondérés par l'importance de chaque compétence, rapportée au référentiel complet.",
+          "Somme des scores pondérés par l'importance, rapportée aux seules compétences mesurées.",
       },
       {
         libelle: "Compétences non évaluées",
-        valeur: "comptées comme non acquises, jamais comme échec",
+        valeur: "exclues du score, comptées dans la couverture (ADR-006)",
       },
     ],
     reserves,

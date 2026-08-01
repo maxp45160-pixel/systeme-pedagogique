@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { chargerContexte } from "@/lib/store/context";
 import { SqueletteContenu } from "@/components/layout/squelette";
-import { SKILLS_ACTIFS } from "@/lib/domain/referentiel";
+
 import { AUTONOMIE } from "@/lib/domain/types";
 import { activiteSurFenetre, calculerActivite, photographies } from "@/lib/engine/historique";
 import { joursDepuis } from "@/lib/engine/dates";
@@ -85,7 +85,14 @@ async function ContenuProgression({ periode }: { periode: Periode }) {
 
   const photos = aucunePreuve
     ? []
-    : photographies(SKILLS_ACTIFS, ctx.donnees.evidence, periode.jours, periode.pas, ctx.now);
+    : photographies(
+        ctx.referentiel.actifs,
+        ctx.donnees.evidence,
+        periode.jours,
+        periode.pas,
+        ctx.now,
+        ctx.referentiel.domaines,
+      );
 
   const debut = photos[0];
   const fin = photos.at(-1);

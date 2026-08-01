@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { chargerContexte } from "@/lib/store/context";
 import { SqueletteContenu } from "@/components/layout/squelette";
 import { calculerActivite, evenementsRecents } from "@/lib/engine/historique";
@@ -42,7 +43,19 @@ export default function TableauDeBord() {
 
 async function ContenuTableauDeBord() {
   const ctx = await chargerContexte();
-  const evenements = evenementsRecents(ctx.donnees.evidence, 6, ctx.now);
+
+  // Compte neuf : il n'y a rien à mettre sur ce tableau de bord, et une grille
+  // de tirets ne dit pas quoi faire. On envoie construire le référentiel — la
+  // seule action possible tant qu'il n'existe pas (ADR-026).
+  //
+  // La redirection vit ici, pas dans le layout : les autres écrans ont chacun
+  // un état vide qui dit ce qui manque, et forcer un passage obligatoire les
+  // rendrait inaccessibles à quelqu'un qui veut simplement regarder.
+  if (ctx.referentiel.skills.length === 0) {
+    redirect("/demarrer");
+  }
+
+  const evenements = evenementsRecents(ctx.donnees.evidence, ctx.referentiel.parCode, 6, ctx.now);
   const activite = calculerActivite(ctx.donnees.sessions, ctx.now);
   const aucunePreuve = ctx.global.nombrePreuves === 0;
 
@@ -65,7 +78,7 @@ async function ContenuTableauDeBord() {
 
       {/* Action prioritaire : seule et dominante, rien ne la concurrence. */}
       <div className="[&>*]:min-w-0">
-        <CarteProchaineAction recommandations={ctx.recommandations} />
+        <CarteProchaineAction recommandations={ctx.recommandations} referentiel={ctx.referentiel} />
       </div>
 
       {/*

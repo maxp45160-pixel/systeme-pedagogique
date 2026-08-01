@@ -9,9 +9,12 @@ import { preparerPromptComplet } from "@/lib/tutor/actions";
 import type { SectionContexte } from "@/lib/tutor/contexte";
 import {
   CLE_PROPOSITION_EXERCICE,
+  CLE_PROPOSITION_REFERENTIEL,
   extrairePropositions,
   extrairePropositionsExercice,
+  extrairePropositionsReferentiel,
   type PropositionExercice,
+  type PropositionReferentiel,
   type PropositionTuteur,
 } from "@/lib/tutor/proposition";
 
@@ -44,6 +47,16 @@ function deposerPropositionExercice(p: PropositionExercice): void {
   } catch {
     // sessionStorage indisponible (navigation privée stricte) : on laisse
     // partir vers un formulaire vide plutôt que de bloquer la navigation.
+  }
+}
+
+/** Même passage que pour l'exercice : une branche de huit compétences ne tient
+ *  pas dans une adresse, et la troncature serait silencieuse. */
+function deposerPropositionReferentiel(p: PropositionReferentiel): void {
+  try {
+    window.sessionStorage.setItem(CLE_PROPOSITION_REFERENTIEL, JSON.stringify(p));
+  } catch {
+    /* idem */
   }
 }
 
@@ -108,6 +121,15 @@ const MessageBulle = memo(function MessageBulle({
   const exercices =
     message.role === "assistant" && message.content
       ? extrairePropositionsExercice(message.content)
+      : [];
+
+  // Branches proposées (ADR-026). Contrairement aux deux autres, ce bloc n'est
+  // PAS filtré contre le référentiel : c'est précisément celui qui a le droit
+  // d'introduire des compétences qui n'existent pas encore. Le garde-fou est
+  // ailleurs — le tuteur n'y écrit aucun code, l'application les attribue.
+  const branches =
+    message.role === "assistant" && message.content
+      ? extrairePropositionsReferentiel(message.content)
       : [];
 
   return (
@@ -192,6 +214,44 @@ const MessageBulle = memo(function MessageBulle({
             className={cx(classesBouton("secondaire", "petite"), "mt-2")}
           >
             Revoir et ajouter
+          </Link>
+        </div>
+      ))}
+
+      {/*
+        Branche proposée : le seul bloc qui peut introduire des compétences
+        inconnues. Rien n'est écrit ici non plus — le bouton dépose la
+        proposition et ouvre l'écran de validation, où les codes sont attribués
+        par l'application et où chaque intitulé reste corrigeable.
+      */}
+      {branches.map((b, j) => (
+        <div
+          key={`ref-${j}`}
+          className="max-w-[85%] rounded-md border border-primaire/30 bg-surface-2 px-3 py-2 text-xs"
+        >
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Etiquette ton="primaire">Branche proposée</Etiquette>
+            <span className="font-medium">{b.domaine}</span>
+            <span className="text-texte-attenue">
+              {b.competences.length} compétence{b.competences.length > 1 ? "s" : ""}
+            </span>
+          </div>
+          <ul className="mt-1.5 space-y-0.5 text-texte-attenue">
+            {b.competences.slice(0, 4).map((c, k) => (
+              <li key={k} className="truncate">
+                · {c.intitule}
+              </li>
+            ))}
+            {b.competences.length > 4 && (
+              <li className="text-texte-discret">… et {b.competences.length - 4} autre(s)</li>
+            )}
+          </ul>
+          <Link
+            href="/competences/referentiel?proposition=1"
+            onClick={() => deposerPropositionReferentiel(b)}
+            className={cx(classesBouton("secondaire", "petite"), "mt-2")}
+          >
+            Revoir et ajouter au référentiel
           </Link>
         </div>
       ))}
@@ -303,11 +363,19 @@ const ChatInput = memo(function ChatInput({
 export function ChatTuteur({
   etatInitial,
   competenceCiblee,
+  amorce,
   codesCompetences,
 }: {
   /** Manifeste et moteur, calculés côté serveur au rendu de la page. */
   etatInitial: EtatContexteTuteur;
   competenceCiblee?: string;
+  /**
+   * Message pré-écrit dans la zone de saisie, sans être envoyé — l'amorçage
+   * d'un compte neuf y dépose ce que la personne vient de déclarer. Pré-remplir
+   * plutôt qu'envoyer : le premier message reste le sien, relisible et
+   * modifiable avant départ.
+   */
+  amorce?: string;
   /** Codes du référentiel — pour valider qu'une compétence citée existe vraiment. */
   codesCompetences: string[];
 }) {
@@ -493,7 +561,8 @@ export function ChatTuteur({
 
   const cleAbsente = !etat.cleConfiguree;
 
-  const saisieInitiale = competenceCiblee ? `Donne-moi un exercice sur ${competenceCiblee}.` : "";
+  const saisieInitiale =
+    amorce ?? (competenceCiblee ? `Donne-moi un exercice sur ${competenceCiblee}.` : "");
 
   return (
     <div className="space-y-4 [&>*]:min-w-0">

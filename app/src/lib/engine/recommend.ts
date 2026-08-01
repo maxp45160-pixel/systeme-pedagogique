@@ -17,13 +17,14 @@
  *   dominants, jamais d'un texte rédigé d'avance.
  */
 
-import type {
-  Difficulte,
-  Exercise,
-  ExerciseAttempt,
-  SkillState,
+import {
+  ORDRE_PALIERS,
+  type Difficulte,
+  type Exercise,
+  type ExerciseAttempt,
+  type SkillState,
 } from "@/lib/domain/types";
-import { ORDRE_DIAGNOSTIC } from "@/lib/domain/referentiel";
+import type { Calibration } from "./calibration";
 
 export interface Facteur {
   libelle: string;
@@ -41,16 +42,44 @@ export interface Recommandation {
   exercice: Exercise | null;
   difficulteCible: Difficulte;
   dureeEstimeeMin: number;
+  /**
+   * Calibration dérivée des tentatives (ADR-028), ou `null` si aucune n'est
+   * exploitable. Portée jusqu'à l'interface pour que le « Pourquoi ? » puisse
+   * citer la tentative qui a produit la difficulté visée.
+   */
+  calibration: Calibration | null;
 }
 
-/** Niveau visé par compétence : le palier immédiatement au-dessus. */
-function difficulteCible(etat: SkillState): Difficulte {
+/**
+ * Difficulté visée pour le prochain exercice.
+ *
+ * Deux sources, dans cet ordre :
+ *
+ *   1. la CALIBRATION dérivée des tentatives (ADR-028) — ce que l'exercice
+ *      précédent a réellement produit : réussi sans aide en moitié moins de
+ *      temps que prévu, ou échoué indices épuisés ;
+ *   2. à défaut, la table par niveau ci-dessous.
+ *
+ * L'ordre est le 3ᵉ maillon de la boucle. La table seule ne regarde que le
+ * niveau dérivé, jamais comment la dernière tentative s'est passée : elle
+ * proposait la même difficulté à qui vient d'échouer et à qui vient de réussir
+ * sans effort. C'était l'ajustement manquant.
+ *
+ * `null` en calibration n'est pas un défaut : c'est le cas normal d'une
+ * compétence jamais travaillée en exercice. On retombe alors sur le niveau, et
+ * la raison affichée le dit (P3 — aucune valeur sans sa source).
+ */
+function difficulteDepuisNiveau(etat: SkillState): Difficulte {
   const n = etat.niveau;
   if (n === null) return 2; // diagnostic : difficulté standard, sans aide
   if (n <= 1) return 2;
   if (n === 2) return 3;
   if (n === 3) return 4;
   return 5;
+}
+
+function difficulteCible(etat: SkillState, calibration?: Calibration): Difficulte {
+  return calibration?.difficulteConseillee ?? difficulteDepuisNiveau(etat);
 }
 
 function evaluer(
@@ -74,16 +103,24 @@ function evaluer(
   });
 
   // 2. Absence totale de preuve — le cas dominant au démarrage.
+  //
+  // Au jour 0 tous les autres facteurs sont nuls : il faut bien un ordre pour
+  // départager les compétences jamais testées. Jusqu'au 31/07/2026 c'était
+  // `ORDRE_DIAGNOSTIC`, une liste de onze codes en dur, seule trace vivante
+  // d'un plan d'évaluation supprimé le 27/07. Un référentiel construit par
+  // l'utilisateur (ADR-026) ne peut pas porter de liste écrite d'avance :
+  // l'ordre se **dérive** de ce que la compétence déclare — son palier d'abord,
+  // son rang dans le domaine ensuite. Les fondamentaux passent avant l'avancé,
+  // ce que le plan supprimé faisait déjà, mais sans avoir à le réécrire pour
+  // chaque nouveau domaine.
   if (etat.preuves.length === 0) {
-    const rangPlan = ORDRE_DIAGNOSTIC.indexOf(etat.skill.code);
-    const bonusPlan = rangPlan >= 0 ? 30 - rangPlan * 2 : 0;
+    const rangPalier = Math.max(0, ORDRE_PALIERS.indexOf(etat.skill.palier));
+    const bonusPalier = 30 - rangPalier * 10;
+    const bonusOrdre = Math.max(0, 10 - etat.skill.ordre);
     facteurs.push({
       libelle: "Jamais évaluée",
-      contribution: 30 + bonusPlan,
-      phrase:
-        rangPlan >= 0
-          ? `elle figure au rang ${rangPlan + 1} de ton plan d'évaluation initiale et n'a jamais été testée`
-          : "elle n'a jamais été évaluée par une preuve directe",
+      contribution: 30 + bonusPalier + bonusOrdre,
+      phrase: `elle n'a jamais été évaluée et relève des ${etat.skill.palier === "fondamentaux" ? "fondamentaux" : `acquis de palier « ${etat.skill.palier} »`}`,
     });
   } else {
     // 3. Écart au niveau suivant : plus le palier est proche, plus l'effort paye.
@@ -200,13 +237,20 @@ export function recommander(
   exercices: Exercise[],
   tentatives: ExerciseAttempt[],
   limite = 5,
+  calibrations?: Map<string, Calibration>,
 ): Recommandation[] {
   const parCode = new Map(etats.map((e) => [e.skill.code, e]));
 
   return etats
     .map((etat) => {
       const { valeur, facteurs } = evaluer(etat, parCode);
-      const cible = difficulteCible(etat);
+      // La calibration règle la DIFFICULTÉ ; elle ne re-classe pas les
+      // compétences. `facteurs` reste une liste de contributions chiffrées au
+      // score de priorité — y glisser une entrée à 0 la rendrait illisible.
+      // Le « Pourquoi ? » de l'interface lit `calibration` séparément.
+      const calibration = calibrations?.get(etat.skill.code) ?? null;
+      const cible = difficulteCible(etat, calibration ?? undefined);
+
       const exercice = choisirExercice(etat, exercices, tentatives, cible);
       return {
         etat,
@@ -216,16 +260,20 @@ export function recommander(
         exercice,
         difficulteCible: cible,
         dureeEstimeeMin: exercice?.dureeEstimeeMin ?? 30,
+        calibration,
       };
     })
     .sort((a, b) => {
       if (b.valeur !== a.valeur) return b.valeur - a.valeur;
-      // Départage stable : ordre du plan d'évaluation, puis code.
-      const ra = ORDRE_DIAGNOSTIC.indexOf(a.etat.skill.code);
-      const rb = ORDRE_DIAGNOSTIC.indexOf(b.etat.skill.code);
-      const na = ra === -1 ? 999 : ra;
-      const nb = rb === -1 ? 999 : rb;
-      return na - nb || a.etat.skill.code.localeCompare(b.etat.skill.code);
+      // Départage stable, dérivé du référentiel du compte : palier, puis rang
+      // déclaré dans le domaine, puis code.
+      const pa = ORDRE_PALIERS.indexOf(a.etat.skill.palier);
+      const pb = ORDRE_PALIERS.indexOf(b.etat.skill.palier);
+      return (
+        pa - pb ||
+        a.etat.skill.ordre - b.etat.skill.ordre ||
+        a.etat.skill.code.localeCompare(b.etat.skill.code)
+      );
     })
     .slice(0, limite);
 }

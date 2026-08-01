@@ -208,10 +208,37 @@ alors le barème est à revoir.** D'ici là : ne rien changer.
 ---
 
 <a name="adr-006"></a>
-## ADR-006 — Compétences non mesurées dans le score global ❓
+## ADR-006 — Compétences non mesurées dans le score global ✅
 
-**Statut.** Ouverte. Voir `PRODUCT.md` §5 (P2) pour la démonstration
-complète de la contradiction.
+**Date.** 31/07/2026. **Tranchée par Maxime.** Option **B**.
+
+**Décision.** Le score global porte sur les **seules compétences mesurées**. La
+couverture (`competencesEvaluees` / `competencesTotal`) devient l'indicateur
+distinct de ce qui reste à mesurer. Ce qui sort du score y revient entièrement.
+
+**Ce qui a forcé l'arbitrage.** ADR-026 rend le référentiel extensible par
+l'utilisateur, et le tuteur peut lui en proposer l'extension. Le défaut cessait
+d'être une verrue documentée pour devenir une **incitation structurelle à ne pas
+étendre son référentiel** : chaque branche validée aurait fait chuter la note
+affichée. Un produit qui décourage la fonctionnalité qu'il vient de construire.
+
+**Application.** `lib/engine/progression.ts` — `calculerEtatGlobal` et
+`agregerDomaine` restreignent les deux sommes à `statut === "evalue"`. Une somme
+de poids nulle donne `null`, jamais 0. Une réserve annonce désormais la portée
+du nombre affiché (P3). `niveauMoyen` valait `NaN` sans compétence évaluée : il
+vaut `null`.
+
+**Ce qui ne change pas.** Le doute sur une couverture partielle continue de
+plafonner la **confiance** à « faible » sous 25 % de couverture. C'est là que le
+doute doit s'exprimer — pas en abaissant un niveau réellement mesuré.
+
+**Vérifié par** trois tests de `moteur.test.ts`, dont un dont la garantie a été
+**inversée** : « élargir le référentiel ne change PAS le score ». Il vérifiait
+exactement le contraire avant ce jour.
+
+---
+
+### Historique de la question (avant arbitrage)
 
 **Problème.** Le score global compte les 31 compétences sans preuve comme des
 zéros. Valeur affichée aujourd'hui : **10/100**. Le principe P2 interdit
@@ -229,11 +256,11 @@ exactement cela.
 supprime déjà le mensonge principal, qui est un problème de **nom** autant que
 de formule. Les deux sont compatibles.
 
-**Recommandation (non décidée).** Traiter **avant** ADR-009, pas après :
+**Recommandation (rendue le 31/07).** Traiter **avant** ADR-009, pas après :
 corriger un indicateur est trivial aujourd'hui, et devient un changement
-observable par tous les utilisateurs une fois le produit généralisé.
-
-**En attente de :** arbitrage de Maxime.
+observable par tous les utilisateurs une fois le produit généralisé. C'est
+exactement ce qui s'est produit — ADR-009 est arrivée dix jours plus tard sous
+la forme d'ADR-026, et la correction a dû se faire dans le même geste.
 
 ---
 
@@ -388,9 +415,14 @@ C'est pourquoi ADR-011 est rouverte.
 ---
 
 <a name="adr-009"></a>
-## ADR-009 — Généralisation du référentiel ❓ (reportée)
+## ADR-009 — Généralisation du référentiel 🔄 (fermée)
 
-**Statut.** Ouverte, **volontairement non traitée maintenant**.
+> 🔄 **Fermée le 31/07/2026 par [ADR-026](#adr-026)**, qui retient l'option
+> **B** — référentiel en base, éditable, par compte. Le texte ci-dessous est
+> conservé tel qu'il était : son ordre imposé a été respecté, ADR-004 puis
+> ADR-006 ayant été traitées avant.
+
+**Statut d'origine.** Ouverte, **volontairement non traitée maintenant**.
 
 **Problème.** `lib/domain/referentiel.ts` code en dur 43 compétences centrées
 BUT QLIO → Master ITI. `recommend.ts` produit littéralement la phrase
@@ -1191,6 +1223,241 @@ mais y déplacer le thème l'aggravait. La barre supérieure mobile reçoit donc
 bouton compte ouvrant le même panneau, à la place de la bascule clair/sombre
 qui l'occupait. Conséquence : **il n'existe plus de bascule de thème isolée** —
 l'apparence est un réglage parmi les autres, au même endroit partout.
+
+---
+
+<a name="adr-026"></a>
+## ADR-026 — Le référentiel est une donnée par compte, construite par le tuteur ✅
+
+**Date.** 31/07/2026. **Tranchée par Maxime.** Ferme [ADR-009](#adr-009),
+remplace [ADR-020](#adr-020).
+
+### Problème
+
+`lib/domain/referentiel.ts` codait en dur 53 compétences et 8 domaines centrés
+BUT QLIO → Master ITI, et `DOMAINE_PILOTE` en fixait le périmètre actif **pour
+tous les comptes à la fois**. Étendre le référentiel était un commit, pas un
+geste d'utilisateur.
+
+Le fait qui tranche, relevé en base le 31/07 : sur 3 comptes, **deux** avaient
+`formation: "Formation à renseigner"`, et l'un d'eux (`cyril.hup2716`) était un
+compte tiers **actif** — 3 preuves, 5 tentatives — travaillant sur un
+référentiel écrit pour quelqu'un d'autre. La cible déclarée du produit était
+déjà là, et le produit ne savait pas l'accueillir.
+
+### Décision
+
+Le référentiel devient une donnée par compte : tables `domaines` et
+`competences`, RLS par la même politique que les preuves. Un compte démarre
+**vide**, déclare son sujet, et construit son arborescence avec le tuteur —
+philosophie, droit, n'importe quoi — sans qu'une ligne de code soit écrite pour
+lui.
+
+Options écartées : **A** (référentiels prédéfinis multiples) ne sert que les
+sujets déjà écrits, et un philosophe n'y trouve rien ; **C** (socle commun +
+extensions) suppose qu'il existe un socle transverse, ce qu'aucune observation
+n'appuie.
+
+### Ce qui rend la chose possible, et pourquoi maintenant
+
+ADR-004 était le prérequis technique : un référentiel de philosophie n'aura
+jamais d'exercices écrits à la main. Il est vérifié depuis le 31/07 — les deux
+seuls exercices en base portent `origine = 'tuteur'`. Le maillon de génération
+fonctionne ; ce chantier le rend **transférable à n'importe quel sujet**.
+
+### Le garde-fou de typage est déplacé, pas retiré
+
+`DomaineId` cesse d'être une union de huit littéraux et devient `string`. Aucune
+union ne peut vérifier à la compilation une valeur produite à l'exécution par un
+utilisateur. La garantie passe à la clé étrangère
+`competences.domaine → domaines.id`, et surtout à `evidence_competence_fk`.
+
+**C'est un renforcement.** Avant, `historique.ts` faisait `if (!skill) continue`
+— une preuve dont le code avait disparu du référentiel s'effaçait de
+l'historique **en silence**. Désormais la base la refuse.
+
+### La règle uniforme de rédaction
+
+Une compétence n'entre au référentiel que si elle est **mesurable par l'appareil
+qui existe** — c'est la condition qui empêche un référentiel généré de se
+remplir de lignes que rien ne pourra jamais prouver. Cinq critères, chacun tracé
+à un protocole existant : savoir-faire observable (éval. §10) · notable sur les
+cinq dimensions (§3) · testable dans deux contextes (§11) · exerçable par un des
+huit types · prouvable en 20 à 60 min.
+
+Écrit dans `data/00_instructions/00_SYSTEME_PROTOCOLE_REFERENTIEL.txt`, chargé
+**conditionnellement** (mécanisme d'ADR-021 — 6 Ko inutiles quand l'utilisateur
+travaille un exercice). Un compte sans référentiel le reçoit toujours : c'est sa
+seule conversation possible.
+
+La moitié mécanique est vérifiée par le code
+(`lib/domain/referentiel-compte.ts`) ; la moitié sémantique — « est-ce vraiment
+un savoir-faire ? » — reste à l'humain au moment de la validation, ce qui est
+exactement la répartition de P5.
+
+### Le tuteur n'écrit aucun code de compétence
+
+Troisième type de proposition, `PROPOSITION DE RÉFÉRENTIEL`, sur le modèle des
+deux existants. Mais celui-ci a une contrainte propre : **les codes sont
+attribués par l'application**, à partir du préfixe du domaine, et jamais par le
+modèle.
+
+Un code est la clé étrangère des preuves. Un code inventé pourrait entrer en
+collision avec un code existant, et les preuves suivraient la mauvaise
+compétence — sans erreur visible, sans rien à corriger après coup. La
+numérotation ne réutilise jamais un numéro libéré par une suppression, pour la
+même raison.
+
+### Conséquences
+
+- `DOMAINE_PILOTE` global disparaît ; le périmètre devient `competences.active`,
+  par compte. ADR-020 est traduite, pas annulée.
+- `ORDRE_DIAGNOSTIC` — onze codes en dur, seule trace d'un plan supprimé le
+  27/07 — est remplacé par une dérivation (palier, puis rang déclaré). Un
+  référentiel construit par l'utilisateur ne peut pas porter de liste écrite
+  d'avance.
+- Le domaine d'un exercice se dérive de sa compétence cible. Un exercice ne peut
+  plus être rangé dans un domaine autre que celui qu'il mesure.
+- L'édition du profil existe enfin (`formation`, objectifs) — le prérequis
+  matériel qu'ADR-009 identifiait depuis le 27/07 et que rien ne renseignait.
+- ADR-006 a dû être tranchée dans le même geste. Voir plus haut.
+
+### Ce que cela ne fait pas
+
+Le 3ᵉ maillon — l'ajustement des exercices, ADR-014 — reste inexistant. Ce
+chantier rend le 1ᵉʳ maillon transférable à n'importe quel sujet ; il ne ferme
+pas la boucle.
+
+---
+
+<a name="adr-027"></a>
+## ADR-027 — Suppression ou archivage : une preuve n'est jamais orpheline ✅
+
+**Date.** 31/07/2026. **Tranchée par Maxime.** Corollaire d'[ADR-026](#adr-026).
+
+**Problème.** Un référentiel modifiable doit être *réductible* — la demande
+était explicite : « une logique facilement réalisable de supprimer des champs ».
+Mais supprimer une compétence qui porte des preuves détruirait ces preuves, ce
+qu'interdisent **P4** et le protocole anti-hallucination §6.
+
+**Décision.** Le geste de retrait est **dérivé du nombre de preuves**, jamais
+arbitré :
+
+| État | Geste | Effet |
+|---|---|---|
+| 0 preuve | `DELETE` franc | La ligne disparaît. Rien n'est perdu. Le code n'est pas réattribué. |
+| ≥ 1 preuve | Archivage (`archive = true`, `active = false`) | Les preuves restent, l'intitulé reste résoluble, la compétence sort des calculs et de l'affichage. |
+| Domaine | `DELETE` si toutes ses compétences le sont, archivage en cascade sinon | — |
+
+Le `code` est **immuable** : c'est la clé étrangère des preuves, le renommer
+déplacerait tout un historique vers une autre compétence. Intitulé, palier,
+importance, prérequis et ordre restent éditables — ce sont des libellés et des
+pondérations, pas des mesures.
+
+**Pourquoi ce n'est pas un choix offert.** L'écran annonce lequel des deux
+gestes s'appliquera, **avant** le clic, avec le nombre de preuves en jeu.
+`supprimerCompetence` **refuse** quand des preuves existent plutôt que de se
+replier en silence sur l'archivage : une fonction qui fait autre chose que ce
+que son nom annonce est exactement le genre de garde-fou qui s'érode.
+
+**Deux drapeaux distincts, et c'est délibéré.** `active` est le périmètre de
+travail, réversible d'un clic. `archive` acte qu'une compétence porte des
+preuves. Une compétence archivée ne se réactive pas directement : il faut la
+désarchiver d'abord, et le désarchivage ne la remet pas d'office au travail.
+
+---
+
+<a name="adr-028"></a>
+## ADR-028 — Le 3ᵉ maillon : la difficulté et l'angle sont dérivés des tentatives ✅
+
+**Date.** 31/07/2026. **Tranchée par Maxime.** Lève la réserve d'[ADR-014](#adr-014).
+
+### Le problème, correctement nommé
+
+La boucle est *génération → évaluation → ajustement*. Le 3ᵉ maillon n'existait
+pas, et ce n'était **pas** « on ne peut pas modifier un exercice » — `difficulte`
+est une colonne éditable depuis l'origine.
+
+C'était que **rien ne relisait la mesure pour régler la génération suivante**.
+`indicesUtilises`, `dureeMin`, `resultat` et `autoEvaluation` étaient écrits à
+chaque tentative et jamais réexploités. `recommend.ts` mappait le niveau dérivé
+vers une difficulté par table fixe — la même proposition à qui venait d'échouer
+indices épuisés et à qui venait de réussir sans aide en moitié moins de temps.
+Et le tuteur, qui rédige les exercices, ne recevait jamais ce signal.
+
+### Ce que les données ont dicté
+
+ADR-014 inscrivait la condition : difficulté **dérivée des preuves**, pas
+ressaisie à la main — `ErrorItem` est resté vide précisément parce qu'il
+demandait une saisie. Les 17 tentatives réelles du compte principal ont fourni
+la matière, et trois faits ont façonné le module :
+
+**1. Les indices sont bimodaux.** 0 ou 3, presque jamais entre. Et
+`3 indices → échec` s'est vérifié 4 fois sur 4.
+
+**2. Il existe deux échecs différents.** `diag-algo-01` : difficulté 2, estimée
+25 min, « échoué » en **1 minute** avec les trois indices consultés. En conclure
+« trop difficile » serait inventer — l'exercice n'a pas été tenté. D'où la règle
+qui gouverne tout le module : **sous 25 % de la durée estimée, aucun verdict
+n'est rendu sur la difficulté** (anti-hallucination §7).
+
+Exception : une **réussite** échappe à cette règle. On ne réussit pas un
+exercice sans l'avoir fait, et une réussite éclair est le signal « trop facile »
+le plus fort qui soit — l'exclure jetterait la donnée la plus informative.
+
+**3. L'auto-évaluation est le signal le plus riche, et personne ne la lisait.**
+`diag-dev-03` a été échoué avec « comprehension 0.5, application 0,
+integration 0 ». La compréhension tient ; l'application s'effondre. Proposer le
+même exercice « en plus facile » raterait ce que la mesure dit.
+
+### Décision
+
+`lib/engine/calibration.ts` dérive, par compétence et sans rien stocker (P1) :
+
+| Sortie | Dérivée de |
+|---|---|
+| **Difficulté conseillée** | résultat × indices épuisés × durée réelle contre estimée, sur la dernière tentative exploitable |
+| **Dimension faible** | moyenne des `autoEvaluation` sur les 3 dernières tentatives, avec son nombre d'observations |
+
+Deux seuils, chacun calé sur des observations et non sur une intuition :
+`FRACTION_NON_TENTEE = 0.25` et `FRACTION_TROP_FACILE = 0.6`. Le second sépare
+exactement `diag-dev-05` (12 min sur 25) et `diag-prod-01` (14 sur 35) — trop
+faciles — de `diag-prod-03` (32 sur 35) et `diag-ro-01` (61 sur 35) — calibrés.
+
+**Le maillon n'est bouclé que parce que le tuteur reçoit le signal.** Un bloc
+« CALIBRAGE DU PROCHAIN EXERCICE » entre dans `systemeProfil`, et le gabarit de
+proposition d'exercice cesse de laisser la difficulté à l'appréciation du
+modèle : elle lui est donnée, et la dimension faible doit être travaillée par au
+moins un critère.
+
+### Ce que la calibration ne fait pas
+
+Elle règle la **difficulté**, elle ne **re-classe pas** les compétences. Les
+`facteurs` de `recommend.ts` restent des contributions chiffrées au score de
+priorité ; y glisser une entrée à contribution nulle aurait rendu la liste
+illisible. Faire peser le calibrage sur la priorité serait une décision
+distincte, non prise ici.
+
+Elle ne dit rien non plus quand elle n'a rien à dire : `difficulteConseillee`
+vaut `null` sur une compétence jamais travaillée en exercice, ou dont toutes les
+tentatives récentes ont été abandonnées trop tôt. L'appelant retombe alors sur
+la table par niveau — et l'interface l'affiche.
+
+### Vérifié par
+
+27 tests dans `calibration.test.ts`, **écrits sur les tentatives réelles** avec
+leurs valeurs exactes plutôt que sur des cas construits. Un seuil calé sur une
+intuition se déplace au premier désaccord ; un seuil calé sur des données
+observées demande de nouvelles données pour bouger. Dont le test du maillon
+lui-même : la même compétence, avec et sans calibration, ne reçoit pas la même
+difficulté.
+
+### Défaut trouvé en écrivant les tests
+
+La règle « non tentée » s'appliquait d'abord à **toutes** les tentatives, y
+compris les réussites : réussir un exercice de difficulté 5 en 5 minutes sur 25
+ne produisait aucun conseil. C'est le test qui l'a révélé, et c'est le module
+qui a été corrigé.
 
 ---
 

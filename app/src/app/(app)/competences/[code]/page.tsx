@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { chargerContexte } from "@/lib/store/context";
-import { libelleDomaine } from "@/lib/domain/referentiel";
+import { libelleDomaine } from "@/lib/domain/referentiel-compte";
 import {
   AUTONOMIE,
   LIBELLES_DIMENSIONS,
@@ -79,7 +79,7 @@ export default async function PageCompetence(props: {
 
       <EntetePage
         titre={etat.skill.intitule}
-        sousTitre={`${etat.skill.code} · ${libelleDomaine(etat.skill.domaine)} · palier ${
+        sousTitre={`${etat.skill.code} · ${libelleDomaine(ctx.referentiel, etat.skill.domaine)} · palier ${
           etat.skill.palier === "fondamentaux"
             ? "fondamental"
             : etat.skill.palier === "intermediaire"

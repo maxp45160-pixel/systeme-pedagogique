@@ -28,6 +28,7 @@
  */
 export const MARQUEUR_PREUVE = "PROPOSITION DE MISE À JOUR";
 export const MARQUEUR_EXERCICE = "PROPOSITION D'EXERCICE";
+export const MARQUEUR_REFERENTIEL = "PROPOSITION DE RÉFÉRENTIEL";
 
 /* ------------------------------------------------------------------ */
 /* Proposition de preuve                                               */
@@ -201,7 +202,11 @@ const CHAMPS_MULTILIGNES = new Set<string>(["Énoncé", "Correction"]);
  * ne commence pas par une étiquette connue leur est rattachée. `Indice` et
  * `Critère` sont répétables — d'où une liste par étiquette.
  */
-function decouperChamps(bloc: string): Map<string, string[]> {
+function decouperChamps(
+  bloc: string,
+  etiquettes: readonly string[] = ETIQUETTES_EXERCICE,
+  multilignes: ReadonlySet<string> = CHAMPS_MULTILIGNES,
+): Map<string, string[]> {
   const champs = new Map<string, string[]>();
   let courante: string | null = null;
   /* Un champ mono-ligne ouvert faute de valeur sur sa propre ligne se referme
@@ -215,14 +220,14 @@ function decouperChamps(bloc: string): Map<string, string[]> {
       continue;
     }
 
-    const trouve = lireChamp(ligne, ETIQUETTES_EXERCICE);
+    const trouve = lireChamp(ligne, etiquettes);
     if (trouve) {
       const etiquette = trouve.etiquette;
       const liste = champs.get(etiquette) ?? [];
       liste.push(trouve.valeur);
       champs.set(etiquette, liste);
 
-      if (CHAMPS_MULTILIGNES.has(etiquette)) {
+      if (multilignes.has(etiquette)) {
         courante = etiquette;
         fermeSurLigneVide = false;
       } else if (trouve.valeur === "") {
@@ -313,4 +318,95 @@ export function extrairePropositionsExercice(texte: string): PropositionExercice
     // Un titre et un énoncé sont le minimum exploitable : en dessous, la
     // proposition ne remplirait rien d'utile dans le formulaire.
     .filter((p) => p.titre.length > 0 && p.enonce.length > 0);
+}
+
+/* ------------------------------------------------------------------ */
+/* Proposition de référentiel (ADR-026)                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Une branche proposée : un domaine — existant ou neuf — et les compétences à
+ * y ajouter.
+ *
+ * Comme pour l'exercice, tout est en chaînes brutes : la normalisation
+ * appartient à `lib/domain/referentiel-validation.ts` et la décision à
+ * l'utilisateur. Un champ mal rempli doit rester visible et corrigeable, pas
+ * être rejeté en silence.
+ *
+ * **Aucun code de compétence n'est lu ici**, et c'est délibéré : le gabarit
+ * interdit au tuteur d'en écrire. Un code est la clé étrangère des preuves ;
+ * l'application les attribue à partir du préfixe du domaine.
+ */
+export interface PropositionReferentiel {
+  domaine: string;
+  prefixe: string;
+  description: string;
+  /** Une entrée par ligne « Compétence : <palier> | <importance> | <intitulé> ». */
+  competences: { palier: string; importance: string; intitule: string }[];
+  justification: string;
+}
+
+/**
+ * Clé de passage du chat vers l'écran de validation du référentiel.
+ *
+ * Comme pour l'exercice, et pour la même raison : une branche de huit
+ * compétences dépasse la longueur exploitable d'une adresse, et la troncature
+ * serait silencieuse.
+ */
+export const CLE_PROPOSITION_REFERENTIEL = "systeme-pedagogique:proposition-referentiel";
+
+const ETIQUETTES_REFERENTIEL = [
+  "Domaine",
+  "Préfixe",
+  "Description",
+  "Compétence",
+  "Justification",
+] as const;
+
+/** Aucun champ ne s'étend sur plusieurs lignes dans ce gabarit. */
+const MULTILIGNES_REFERENTIEL: ReadonlySet<string> = new Set<string>();
+
+/**
+ * « fondamentaux | 0.8 | Sait reconstruire un argument » → les trois parties.
+ *
+ * Séparateur `|` plutôt que `—` : le tiret cadratin apparaît naturellement dans
+ * un intitulé de compétence, la barre verticale non.
+ */
+function decouperCompetence(brut: string): {
+  palier: string;
+  importance: string;
+  intitule: string;
+} {
+  const parts = brut.split("|").map((p) => sansEmphaseEnveloppante(p.trim()));
+  if (parts.length < 3) {
+    // Gabarit non respecté : on garde tout comme intitulé plutôt que de perdre
+    // la compétence. L'écran de validation montrera les champs manquants.
+    return { palier: "", importance: "", intitule: sansEmphaseEnveloppante(brut.trim()) };
+  }
+  return {
+    palier: parts[0].replace(EMPHASE, "").toLowerCase(),
+    importance: parts[1].replace(EMPHASE, ""),
+    // L'intitulé peut légitimement contenir une barre : on ne recolle que le
+    // reste, sans le tronquer à la troisième part.
+    intitule: parts.slice(2).join(" | ").trim(),
+  };
+}
+
+export function extrairePropositionsReferentiel(texte: string): PropositionReferentiel[] {
+  const blocs = texte.split(MARQUEUR_REFERENTIEL).slice(1);
+
+  return blocs
+    .map((bloc) => {
+      const champs = decouperChamps(bloc, ETIQUETTES_REFERENTIEL, MULTILIGNES_REFERENTIEL);
+      return {
+        domaine: premierNet(champs, "Domaine"),
+        prefixe: premierNet(champs, "Préfixe").replace(EMPHASE, "").toUpperCase(),
+        description: premierNet(champs, "Description"),
+        competences: tous(champs, "Compétence").map(decouperCompetence),
+        justification: premierNet(champs, "Justification"),
+      };
+    })
+    // Un domaine et au moins une compétence : en dessous, il n'y a rien à
+    // valider. Une branche vide ne se distinguerait pas d'un faux positif.
+    .filter((p) => p.domaine.length > 0 && p.competences.length > 0);
 }

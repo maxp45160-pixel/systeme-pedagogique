@@ -4,7 +4,7 @@
  * Contrairement aux collections pédagogiques isolées par `user_id`, les TODOs
  * dev sont **globales** : chaque compte connecté lit et modifie la même liste.
  * C'est un choix assumé (tableau d'équipe), matérialisé côté base par une
- * politique RLS ouverte à `authenticated` — cf. `supabase/schema.sql`, § 12.
+ * politique RLS ouverte à `authenticated` — cf. `supabase/schema.sql`, § 9.
  *
  * L'arbitrage du stockage suit la règle du reste du système : `supabaseConfigure`
  * décide, jamais un `try/catch` silencieux.
@@ -232,7 +232,7 @@ function erreurSupabase(message: string): Response {
     {
       erreur: tableAbsente ? "table-absente" : "supabase",
       message: tableAbsente
-        ? "La table `dev_todos` n'existe pas encore : applique `app/supabase/schema.sql` (§ 12) dans Supabase Studio."
+        ? "La table `dev_todos` n'existe pas encore : applique `app/supabase/schema.sql` (§ 9) dans Supabase Studio."
         : message,
     },
     { status: tableAbsente ? 503 : 500 },

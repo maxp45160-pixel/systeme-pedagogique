@@ -33,7 +33,26 @@
 
 import type { Domaine, DomaineId, Skill } from "./types";
 
-export const DOMAINES: Domaine[] = [
+/* ------------------------------------------------------------------ *
+ * ⚠️ MODULE EN SURSIS — supprimé à la fin du chantier ADR-026.
+ *
+ * Le référentiel est désormais une donnée par compte (tables `domaines` et
+ * `competences`, lues par `lib/store/referentiel.ts`). Ce fichier ne sert
+ * plus qu'à UNE chose : alimenter `scripts/migrer-referentiel.ts`, qui
+ * produit le SQL d'insertion du référentiel historique dans le compte qui
+ * l'utilisait. Aucun code d'exécution ne doit l'importer.
+ *
+ * Les quatre champs qu'ADR-026 ajoute à `Skill` (`ordre`, `active`,
+ * `archive`, `origine`) et les trois qu'il ajoute à `Domaine` sont
+ * volontairement absents ci-dessous : ce sont précisément les décisions que
+ * la migration prend, et les inscrire ici les figerait deux fois. D'où ces
+ * deux types locaux, qui découplent ce fichier mort du domaine vivant.
+ * ------------------------------------------------------------------ */
+
+type DomaineLegacy = Omit<Domaine, "ordre" | "archive" | "origine">;
+type SkillLegacy = Omit<Skill, "ordre" | "active" | "archive" | "origine">;
+
+export const DOMAINES: DomaineLegacy[] = [
   {
     id: "developpement",
     nom: "Développement logiciel",
@@ -84,7 +103,7 @@ export const DOMAINES: Domaine[] = [
   },
 ];
 
-export const DOMAINE_PAR_ID = new Map<DomaineId, Domaine>(DOMAINES.map((d) => [d.id, d]));
+export const DOMAINE_PAR_ID = new Map<DomaineId, DomaineLegacy>(DOMAINES.map((d) => [d.id, d]));
 
 /**
  * Ordre des diagnostics fixé par `01_PLAN_EVALUATION_INITIALE.txt`
@@ -123,7 +142,7 @@ export const ORDRE_DIAGNOSTIC: string[] = [
  */
 export const DOMAINE_PILOTE: DomaineId = "developpement";
 
-export const SKILLS: Skill[] = [
+export const SKILLS: SkillLegacy[] = [
   /* --------------------------- DÉVELOPPEMENT ---------------------------- */
   {
     code: "DEV-01",
@@ -641,24 +660,15 @@ export const SKILLS: Skill[] = [
   },
 ];
 
-export const SKILL_PAR_CODE = new Map<string, Skill>(SKILLS.map((s) => [s.code, s]));
+export const SKILL_PAR_CODE = new Map<string, SkillLegacy>(SKILLS.map((s) => [s.code, s]));
 
 /**
- * Les compétences réellement travaillées (ADR-018). C'est cette liste, et non
- * `SKILLS`, que consomment le moteur, l'interface et le contexte du tuteur.
+ * Les compétences réellement travaillées (ADR-020).
  *
- * `SKILLS` reste exporté : une preuve enregistrée hors périmètre garde son
- * intitulé lisible, elle n'est simplement plus agrégée. Rien n'est perdu, et
- * élargir le périmètre suffit à la faire réapparaître dans les calculs.
+ * Devient, dans la migration, le drapeau `competences.active` du compte qui
+ * utilisait ce référentiel : le périmètre cesse d'être global pour devenir un
+ * réglage par compte (ADR-026).
  */
-export const SKILLS_ACTIFS: Skill[] = SKILLS.filter((s) => s.domaine === DOMAINE_PILOTE);
+export const SKILLS_ACTIFS: SkillLegacy[] = SKILLS.filter((s) => s.domaine === DOMAINE_PILOTE);
 
 export const CODES_ACTIFS = new Set(SKILLS_ACTIFS.map((s) => s.code));
-
-export function skillsParDomaine(domaine: DomaineId): Skill[] {
-  return SKILLS.filter((s) => s.domaine === domaine);
-}
-
-export function libelleDomaine(id: DomaineId): string {
-  return DOMAINE_PAR_ID.get(id)?.nom ?? id;
-}

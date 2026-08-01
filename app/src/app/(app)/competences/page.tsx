@@ -1,15 +1,8 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { chargerContexte } from "@/lib/store/context";
-import {
-  DOMAINES,
-  DOMAINE_PAR_ID,
-  DOMAINE_PILOTE,
-  SKILLS,
-  SKILLS_ACTIFS,
-} from "@/lib/domain/referentiel";
 import { SqueletteContenu } from "@/components/layout/squelette";
-import type { SkillState } from "@/lib/domain/types";
+import type { Referentiel, SkillState } from "@/lib/domain/types";
 import { EntetePage } from "@/components/layout/entete-page";
 import {
   Carte,
@@ -36,48 +29,38 @@ export default async function PageCompetences(props: {
   const { vue: vueBrute } = await props.searchParams;
   const vue: Vue = vueBrute === "radar" ? "radar" : "grille";
 
-  const domaine = DOMAINE_PAR_ID.get(DOMAINE_PILOTE);
-
+  // Le référentiel étant propre au compte depuis ADR-026, aucun compteur n'est
+  // connu avant la lecture. L'en-tête reste donc rendu immédiatement mais sans
+  // chiffre ; le décompte réel arrive avec le contenu, dans le Suspense.
   return (
     <>
       <EntetePage
         titre="Compétences"
-        surtitre={domaine?.nom}
-        // `SKILLS_ACTIFS.length` plutôt que `ctx.etats.length` : identique par
-        // construction — `computeAllSkillStates` produit un état par compétence
-        // active — mais connu sans attendre la lecture des preuves.
-        sousTitre={`Périmètre de travail actuel : ${SKILLS_ACTIFS.length} compétences. Pour chacune, son niveau, la confiance de l'évaluation et la solidité des acquis.`}
+        sousTitre="Pour chacune, son niveau, la confiance de l'évaluation et la solidité des acquis."
         actions={
-          <div className="flex rounded-md border border-bordure p-0.5">
-            {VUES.map((v) => (
-              <Link
-                key={v.cle}
-                href={`/competences?vue=${v.cle}`}
-                className={cx(
-                  "rounded px-2.5 py-1 text-xs font-medium transition-colors",
-                  vue === v.cle
-                    ? "bg-primaire-faible text-primaire"
-                    : "text-texte-attenue hover:text-texte",
-                )}
-              >
-                {v.libelle}
-              </Link>
-            ))}
+          <div className="flex items-center gap-3">
+            <Link href="/competences/referentiel" className="text-xs text-primaire hover:underline">
+              Gérer le référentiel
+            </Link>
+            <div className="flex rounded-md border border-bordure p-0.5">
+              {VUES.map((v) => (
+                <Link
+                  key={v.cle}
+                  href={`/competences?vue=${v.cle}`}
+                  className={cx(
+                    "rounded px-2.5 py-1 text-xs font-medium transition-colors",
+                    vue === v.cle
+                      ? "bg-primaire-faible text-primaire"
+                      : "text-texte-attenue hover:text-texte",
+                  )}
+                >
+                  {v.libelle}
+                </Link>
+              ))}
+            </div>
           </div>
         }
       />
-
-      {/*
-        Le référentiel complet compte 53 compétences ; seul le domaine pilote
-        est travaillé (ADR-020). Le dire franchement plutôt que laisser croire
-        que le référentiel se limite à ça.
-      */}
-      <p className="mb-4 rounded-carte border border-info/30 bg-info-faible px-4 py-2.5 text-xs text-texte-attenue">
-        <strong className="font-medium text-info">Périmètre pilote.</strong> Le référentiel
-        contient {SKILLS.length} compétences réparties sur {DOMAINES.length} domaines. Un seul
-        est travaillé pour l&apos;instant — les autres ne sont ni calculés ni affichés, faute de
-        contenu pour les alimenter.
-      </p>
 
       <Suspense key={vue} fallback={<SqueletteContenu />}>
         <ContenuCompetences vue={vue} />
@@ -86,12 +69,48 @@ export default async function PageCompetences(props: {
   );
 }
 
+/**
+ * Deux vides distincts, et les confondre serait trompeur : un compte **sans
+ * référentiel** doit aller le construire avec le tuteur, un compte **sans
+ * preuve** doit aller se faire mesurer. Le second écran existe depuis toujours ;
+ * le premier est le cas normal d'un compte neuf depuis ADR-026.
+ */
+function BandeauPerimetre({ referentiel }: { referentiel: Referentiel }) {
+  const total = referentiel.skills.length;
+  const actifs = referentiel.actifs.length;
+
+  if (total === 0) {
+    return (
+      <p className="mb-4 rounded-carte border border-info/30 bg-info-faible px-4 py-2.5 text-xs text-texte-attenue">
+        <strong className="font-medium text-info">Aucun référentiel.</strong> Ce compte n&apos;a
+        pas encore de compétences à suivre.{" "}
+        <Link href="/demarrer" className="font-medium text-info underline underline-offset-2">
+          Déclare ton thème de travail
+        </Link>{" "}
+        — le tuteur proposera une première branche, que tu valideras.
+      </p>
+    );
+  }
+
+  if (actifs === total) return null;
+
+  return (
+    <p className="mb-4 rounded-carte border border-info/30 bg-info-faible px-4 py-2.5 text-xs text-texte-attenue">
+      <strong className="font-medium text-info">Périmètre de travail.</strong> Ton référentiel
+      compte {total} compétences sur {referentiel.domaines.length} domaine(s) ; {actifs} sont
+      dans ton périmètre actuel. Les autres ne sont ni calculées ni affichées — elles gardent
+      leurs preuves et reviennent dès que tu les réactives.
+    </p>
+  );
+}
+
 async function ContenuCompetences({ vue }: { vue: Vue }) {
   const ctx = await chargerContexte();
 
   return (
     <>
-      {vue === "grille" && <VueGrille etats={ctx.etats} />}
+      <BandeauPerimetre referentiel={ctx.referentiel} />
+      {vue === "grille" && <VueGrille etats={ctx.etats} referentiel={ctx.referentiel} />}
       {vue === "radar" && <VueRadar etats={ctx.etats} />}
     </>
   );
@@ -101,11 +120,19 @@ async function ContenuCompetences({ vue }: { vue: Vue }) {
 /* Vue grille — la vue par défaut                                      */
 /* ------------------------------------------------------------------ */
 
-function VueGrille({ etats }: { etats: SkillState[] }) {
-  const parDomaine = DOMAINES.map((d) => ({
-    domaine: d,
-    items: etats.filter((e) => e.skill.domaine === d.id),
-  })).filter((g) => g.items.length > 0);
+function VueGrille({
+  etats,
+  referentiel,
+}: {
+  etats: SkillState[];
+  referentiel: Referentiel;
+}) {
+  const parDomaine = referentiel.domaines
+    .map((d) => ({
+      domaine: d,
+      items: etats.filter((e) => e.skill.domaine === d.id),
+    }))
+    .filter((g) => g.items.length > 0);
 
   return (
     <div className="space-y-4">

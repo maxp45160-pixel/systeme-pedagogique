@@ -2,9 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { Difficulte, Dimension, DomaineId, TypeExercice } from "@/lib/domain/types";
+import type { Difficulte, Dimension, TypeExercice } from "@/lib/domain/types";
 import { DIFFICULTES, LIBELLES_DIMENSIONS } from "@/lib/domain/types";
-import { DOMAINES, DOMAINE_PILOTE } from "@/lib/domain/referentiel";
 import { creerExercice } from "@/lib/store/actions";
 import { CLE_PROPOSITION_EXERCICE, type PropositionExercice } from "@/lib/tutor/proposition";
 import { classesBouton, cx, Etiquette } from "@/components/ui/primitives";
@@ -23,7 +22,11 @@ import { classesBouton, cx, Etiquette } from "@/components/ui/primitives";
  * `diagnostic: true` (§1.4) : le champ reste réservé aux exercices du plan
  * d'évaluation initiale.
  *
- * Le domaine n'est plus un choix : il découle du périmètre actif (ADR-018).
+ * Le domaine n'est pas un choix : il **découle de la compétence cible**. Il
+ * découlait jusqu'au 31/07/2026 du périmètre pilote global, qui n'existe plus —
+ * le référentiel est propre au compte et peut compter plusieurs domaines actifs
+ * (ADR-026). Le dériver de la compétence supprime au passage la possibilité
+ * qu'un exercice soit rangé dans un domaine autre que celui qu'il mesure.
  */
 
 const TYPES: { valeur: TypeExercice; libelle: string }[] = [
@@ -57,10 +60,6 @@ const champ =
 /* proposition — l'utilisateur voit et corrige avant d'enregistrer.     */
 /* ------------------------------------------------------------------ */
 
-function versDomaine(valeur: string): DomaineId | null {
-  return DOMAINES.find((d) => d.id === valeur)?.id ?? null;
-}
-
 function versType(valeur: string): TypeExercice | null {
   return TYPES.find((t) => t.valeur === valeur)?.valeur ?? null;
 }
@@ -78,7 +77,7 @@ export function FormulaireCreationExercice({
   skillsDisponibles,
   propositionEnAttente = false,
 }: {
-  skillsDisponibles: { code: string; intitule: string }[];
+  skillsDisponibles: { code: string; intitule: string; domaine: string }[];
   /** Vrai quand on arrive du chat via `?proposition=1` (ADR-004). */
   propositionEnAttente?: boolean;
 }) {
@@ -140,10 +139,11 @@ export function FormulaireCreationExercice({
     if (p.enonce) setEnonce(p.enonce);
     if (p.correction) setCorrection(p.correction);
 
-    // Le domaine proposé n'est pas repris : il est imposé par le périmètre
-    // actif. On le signale si le tuteur s'en est écarté.
-    if (p.domaine && versDomaine(p.domaine) !== DOMAINE_PILOTE) {
-      ecartes.push(`domaine « ${p.domaine} », hors périmètre`);
+    // Le domaine proposé n'est jamais repris : il se dérive de la compétence
+    // cible, plus bas. On le signale seulement s'il contredit ce qu'elle dit.
+    const domainesDisponibles = new Set(skillsDisponibles.map((s) => s.domaine));
+    if (p.domaine && !domainesDisponibles.has(p.domaine)) {
+      ecartes.push(`domaine « ${p.domaine} », absent de ton périmètre`);
     }
 
     const t = versType(p.type);
@@ -180,11 +180,17 @@ export function FormulaireCreationExercice({
     setPropositionPerdue(false);
   }
 
+  // La première compétence est la cible principale (convention `Exercise`) :
+  // c'est elle qui donne son domaine à l'exercice.
+  const domaineCible =
+    skillsDisponibles.find((s) => s.code === competences[0])?.domaine ?? null;
+
   const pret =
     titre.trim() &&
     enonce.trim() &&
     correction.trim() &&
     competences.length > 0 &&
+    domaineCible !== null &&
     criteres.some((c) => c.libelle.trim());
 
   function soumettre() {
@@ -193,7 +199,7 @@ export function FormulaireCreationExercice({
       try {
         const id = await creerExercice({
           titre,
-          domaine: DOMAINE_PILOTE,
+          domaine: domaineCible ?? "",
           type,
           difficulte,
           competences,

@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { chargerContexte } from "@/lib/store/context";
 import { SqueletteContenu } from "@/components/layout/squelette";
-import { libelleDomaine } from "@/lib/domain/referentiel";
+import { libelleDomaine } from "@/lib/domain/referentiel-compte";
 import { ajouterNoteSession } from "@/lib/store/actions";
 import { EntetePage } from "@/components/layout/entete-page";
 import {
@@ -35,7 +35,7 @@ export default function PageJournal() {
 async function ContenuJournal() {
   const ctx = await chargerContexte();
   const activite = calculerActivite(ctx.donnees.sessions, ctx.now);
-  const evenements = evenementsRecents(ctx.donnees.evidence, 200, ctx.now);
+  const evenements = evenementsRecents(ctx.donnees.evidence, ctx.referentiel.parCode, 200, ctx.now);
 
   // Regroupement par jour, du plus récent au plus ancien.
   const sessions = [...ctx.donnees.sessions].sort((a, b) => b.date.localeCompare(a.date));
@@ -104,7 +104,7 @@ async function ContenuJournal() {
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-1.5">
                             {s.domaines.map((d) => (
-                              <Etiquette key={d}>{libelleDomaine(d)}</Etiquette>
+                              <Etiquette key={d}>{libelleDomaine(ctx.referentiel, d)}</Etiquette>
                             ))}
                             {s.skillCodes.map((c) => (
                               <Link key={c} href={`/competences/${c}`} className="hover:underline">

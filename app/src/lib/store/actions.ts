@@ -18,6 +18,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ajouter, ajouterPlusieurs, dorsaleCompte, lire, modifier, nouvelId } from "./db";
+import { lireReferentiel } from "./referentiel";
 import {
   autonomieDepuisIndices,
   qualiteDepuisDifficulte,
@@ -216,11 +217,16 @@ export async function enregistrerPreuveManuelle(
   if (!soumission.contexte.trim()) throw new Error("Le contexte est obligatoire.");
   if (!soumission.sourceRef.trim()) throw new Error("La source est obligatoire.");
 
-  const { SKILL_PAR_CODE } = await import("@/lib/domain/referentiel");
-  const skill = SKILL_PAR_CODE.get(soumission.skillCode);
+  const dorsale = await dorsaleCompte();
+
+  // Le référentiel est propre au compte (ADR-026) : la vérification porte sur
+  // celui de l'appelant, jamais sur une table globale. Elle double la clé
+  // étrangère `evidence_competence_fk`, qui reste la barrière de confiance —
+  // ici on veut surtout un message lisible plutôt qu'une erreur SQL.
+  const referentiel = await lireReferentiel(dorsale);
+  const skill = referentiel.parCode.get(soumission.skillCode);
   if (!skill) throw new Error(`Compétence inconnue : ${soumission.skillCode}`);
 
-  const dorsale = await dorsaleCompte();
   const date = soumission.date ?? new Date().toISOString();
 
   const preuve: SkillEvidence = {
@@ -305,6 +311,17 @@ export async function creerExercice(soumission: SoumissionExerciceManuel): Promi
   if (soumission.competences.length === 0) throw new Error("Au moins une compétence est requise.");
   if (soumission.criteres.length === 0) throw new Error("Au moins un critère est requis.");
 
+  const dorsale = await dorsaleCompte();
+  const referentiel = await lireReferentiel(dorsale);
+
+  // Un exercice attaché à une compétence inexistante produirait des preuves que
+  // rien ne lirait — exactement ce que `dansLePerimetre` filtre déjà côté
+  // lecture, mais refusé ici à l'écriture plutôt que masqué à l'affichage.
+  const inconnues = soumission.competences.filter((c) => !referentiel.codesActifs.has(c));
+  if (inconnues.length > 0) {
+    throw new Error(`Compétence(s) hors de ton périmètre : ${inconnues.join(", ")}`);
+  }
+
   const exercice: Exercise = {
     id: nouvelId("ex"),
     titre: soumission.titre.trim(),
@@ -322,7 +339,7 @@ export async function creerExercice(soumission: SoumissionExerciceManuel): Promi
     // depuis l'interface ne peut jamais s'en réclamer.
     origine: soumission.origine === "tuteur" ? "tuteur" : "manuel",
   };
-  await ajouter("exercises", exercice);
+  await ajouter("exercises", exercice, dorsale);
   revalidatePath("/", "layout");
   return exercice.id;
 }

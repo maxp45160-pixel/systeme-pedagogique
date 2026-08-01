@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { chargerContexte } from "@/lib/store/context";
-import { libelleDomaine } from "@/lib/domain/referentiel";
+import { libelleDomaine } from "@/lib/domain/referentiel-compte";
 import { DIFFICULTES } from "@/lib/domain/types";
 import {
   debloquerIndice,
@@ -91,7 +91,7 @@ export default async function PageExercice(props: {
       {/* -------------------------------- En-tête ------------------------- */}
       <header className="mb-5">
         <div className="flex flex-wrap items-center gap-1.5">
-          <Etiquette>{libelleDomaine(exercice.domaine)}</Etiquette>
+          <Etiquette>{libelleDomaine(ctx.referentiel, exercice.domaine)}</Etiquette>
           <Etiquette>
             Difficulté {exercice.difficulte}/5 · {DIFFICULTES[exercice.difficulte]}
           </Etiquette>
