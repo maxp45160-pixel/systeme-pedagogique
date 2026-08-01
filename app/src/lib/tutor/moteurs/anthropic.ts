@@ -59,8 +59,10 @@ export function moteurAnthropic(cle: string, modele: string): MoteurTuteur {
         // clos : un `input` partiel n'est pas une proposition, c'est une
         // proposition en cours d'écriture. C'est exactement ce que le gabarit
         // markdown ne permettait pas de distinguer.
+        let appelsOutil = 0;
         for (const bloc of finale.content) {
           if (bloc.type !== "tool_use") continue;
+          appelsOutil += 1;
           const proposition = validerAppelOutil(bloc.name, bloc.input);
           if (proposition) {
             envoyer("proposition", proposition);
@@ -85,6 +87,10 @@ export function moteurAnthropic(cle: string, modele: string): MoteurTuteur {
 
         envoyer("fin", {
           stopReason: finale.stop_reason,
+          // Ce moteur ne connaît pas de repli sans outils : ils sont toujours
+          // en service. Le champ existe pour que l'interface n'ait pas à savoir
+          // quel moteur lui parle.
+          outils: { actifs: true, appels: appelsOutil },
           usage: {
             entree: finale.usage.input_tokens,
             sortie: finale.usage.output_tokens,

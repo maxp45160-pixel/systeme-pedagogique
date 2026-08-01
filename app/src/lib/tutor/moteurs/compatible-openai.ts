@@ -150,6 +150,18 @@ export function moteurCompatibleOpenAI(
           ...messagesConversation,
         ];
 
+        /**
+         * Le fournisseur a-t-il accepté les outils ?
+         *
+         * Sans cette trace, le repli 2 ci-dessous est une panne muette : le
+         * tuteur répond, l'interface n'affiche aucune carte, et rien ne dit si
+         * c'est parce qu'il n'avait rien à proposer ou parce que la sortie
+         * structurée n'a jamais été en service. C'est exactement le genre de
+         * silence que ce lot existe pour supprimer — il ne pouvait pas rester
+         * dans le moteur qui le porte.
+         */
+        let outilsActifs = true;
+
         let reponse = await appeler(payloadMistral);
         if (reponse.status === 400) {
           // 1. Fournisseurs qui refusent `prompt_cache_key` ou le double bloc
@@ -174,6 +186,7 @@ export function moteurCompatibleOpenAI(
           //    parseurs de `proposition.ts` restent le filet, comme avant le
           //    lot 3.2. Ce qui se perd est la *rejetabilité* d'une proposition
           //    tronquée — d'où le repli en dernier recours seulement.
+          outilsActifs = false;
           reponse = await appeler({
             model: modele,
             stream: true,
@@ -277,6 +290,7 @@ export function moteurCompatibleOpenAI(
 
         envoyer("fin", {
           stopReason: motifArret,
+          outils: { actifs: outilsActifs, appels: appelsOutil.size },
           // Tous les fournisseurs ne renvoient pas l'usage en streaming.
           // L'interface le masque quand il est absent : on ne fabrique pas de
           // chiffre (protocole anti-hallucination §7).

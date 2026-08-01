@@ -801,10 +801,33 @@ function ChatHydrate({
             setAvis({ ton: "alerte", texte: String(donnees.message ?? "") });
           } else if (type === "fin") {
             const u = donnees.usage as Record<string, number> | undefined;
+            const compte = (donnees.outils as { appels?: number } | undefined)?.appels;
             if (u) {
               setUsage(
-                `${u.entree} jetons en entrée (dont ${u.cacheLu} lus en cache) · ${u.sortie} en sortie`,
+                `${u.entree} jetons en entrée (dont ${u.cacheLu} lus en cache) · ${u.sortie} en sortie` +
+                  // Discret, mais toujours là : « 0 appel » distingue un tuteur
+                  // qui n'a rien proposé d'un outil qui n'a pas fonctionné.
+                  (compte === undefined ? "" : ` · ${compte} appel(s) d'outil`),
               );
+            }
+
+            /*
+             * État de la sortie structurée, dit explicitement.
+             *
+             * Sans cette ligne, l'absence de carte a trois causes possibles et
+             * aucune n'est distinguable : le tuteur n'avait rien à proposer, le
+             * fournisseur a refusé les outils et le moteur s'est replié en
+             * silence, ou l'appel est arrivé invalide. Trois diagnostics, un
+             * seul symptôme — c'est la panne muette que ce lot combat, et elle
+             * s'était réinstallée dans le lot lui-même.
+             */
+            const o = donnees.outils as { actifs?: boolean; appels?: number } | undefined;
+            if (o && o.actifs === false) {
+              setAvis({
+                ton: "alerte",
+                texte:
+                  "Ce fournisseur n'a pas accepté les appels d'outil : les propositions repassent par le texte, sans contrôle de complétude.",
+              });
             }
           }
         }

@@ -1731,11 +1731,42 @@ schémas rendus en texte, depuis la même source.
 
 **La bascule n'a été exercée sur aucun moteur réel.** Les 15 tests de
 `outils.test.ts` portent sur la validation, pas sur ce que Mistral ou Anthropic
-émettent effectivement. Test de réfutation, à faire par une personne connectée :
-demander un exercice au tuteur et vérifier que la carte s'affiche ; puis cliquer
-« Arrêter » en cours de rédaction et vérifier qu'un avis de rejet apparaît au
-lieu d'une carte. Si Mistral ignore `tools`, le repli s'en charge sans le dire —
-c'est le point à surveiller en premier.
+émettent effectivement.
+
+**Premier essai, 01/08/2026 : aucune carte, et la cause était indécidable.** Les
+deux gestes ont rendu « Réponse interrompue. Le texte déjà reçu est conservé. »
+Deux enseignements, dont un défaut de ce lot :
+
+1. **Le second geste ne testait pas ce que j'avais écrit.** Cliquer « Arrêter »
+   coupe le `fetch` côté navigateur ; le serveur n'achève jamais son tour, donc
+   n'émet aucun appel d'outil, donc aucun rejet à annoncer. Le message
+   d'interruption est le comportement correct. Ce geste vérifie seulement
+   qu'aucune carte n'apparaît — c'est le cas. **`proposition-rejetee` ne peut
+   être atteint que par un tour qui va au bout** avec un appel invalide, en
+   pratique une troncature à `max_tokens`.
+2. **L'absence de carte avait trois causes possibles et aucune n'était
+   observable** : le tuteur n'a rien proposé, le fournisseur a refusé `tools` et
+   le repli s'est fait en silence, ou le flux a été coupé avant la fin — les
+   propositions n'arrivant qu'en fin de tour. Trois diagnostics, un symptôme :
+   la panne muette que ce lot combat s'était réinstallée dans le lot lui-même.
+
+Corrigé dans le même geste : l'événement `fin` porte désormais
+`outils: { actifs, appels }`. Le compte d'appels s'affiche sous le chat, et un
+repli sans outils déclenche un avis explicite au lieu de passer inaperçu.
+
+**Conséquence de conception à assumer** : en sortie structurée, la proposition
+arrive en fin de tour. **Interrompre une réponse la perd entièrement**, là où le
+gabarit markdown en laissait un fragment. C'est le prix de la rejetabilité, et
+il est visible plutôt que subi.
+
+**Test de réfutation, corrigé :**
+
+- demander un exercice et **laisser la réponse aller au bout** ; la carte doit
+  s'afficher, et la ligne sous le chat indiquer « 1 appel(s) d'outil » ;
+- si elle indique « 0 appel(s) » sans avis de repli, le fournisseur accepte les
+  outils mais le modèle ne les emploie pas : c'est le prompt qu'il faut reprendre ;
+- si l'avis « n'a pas accepté les appels d'outil » apparaît, Mistral refuse
+  `tools` sur cette route et la bascule est à revoir au niveau du moteur.
 
 ### Étape suivante, non faite ici
 
