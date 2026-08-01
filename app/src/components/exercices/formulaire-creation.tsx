@@ -5,7 +5,11 @@ import { useRouter } from "next/navigation";
 import type { Difficulte, Dimension, TypeExercice } from "@/lib/domain/types";
 import { DIFFICULTES, LIBELLES_DIMENSIONS } from "@/lib/domain/types";
 import { creerExercice } from "@/lib/store/actions";
-import { CLE_PROPOSITION_EXERCICE, type PropositionExercice } from "@/lib/tutor/proposition";
+import {
+  CLE_PROPOSITION_EXERCICE,
+  exerciceComplet,
+  type PropositionExercice,
+} from "@/lib/tutor/proposition";
 import { classesBouton, cx, Etiquette } from "@/components/ui/primitives";
 
 /**
@@ -185,13 +189,13 @@ export function FormulaireCreationExercice({
   const domaineCible =
     skillsDisponibles.find((s) => s.code === competences[0])?.domaine ?? null;
 
+  // Le fond du contrat est partagé avec le chat, qui n'offre son bouton que sur
+  // une proposition entière : « complet » doit vouloir dire la même chose des
+  // deux côtés. S'y ajoute ici la seule condition que le chat ne peut pas
+  // évaluer — le domaine, dérivé de la compétence cible contre le référentiel.
   const pret =
-    titre.trim() &&
-    enonce.trim() &&
-    correction.trim() &&
-    competences.length > 0 &&
-    domaineCible !== null &&
-    criteres.some((c) => c.libelle.trim());
+    exerciceComplet({ titre, enonce, correction, competences, criteres }) &&
+    domaineCible !== null;
 
   function soumettre() {
     setErreur(null);
