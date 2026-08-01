@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { choisirConfiguration, creerMoteur, decrireChoix } from "./index";
+import { jetonsLusEnCache } from "./compatible-openai";
 
 /**
  * La sélection du moteur est une fonction pure : elle se teste sans clé, sans
@@ -98,5 +99,35 @@ describe("creerMoteur et decrireChoix", () => {
     const libelle = decrireChoix(choisirConfiguration(GRATUIT));
     expect(libelle).toContain("llama-3.3-70b-versatile");
     expect(libelle).not.toContain("gsk_test");
+  });
+});
+
+/**
+ * Le zéro fabriqué de l'indicateur de cache.
+ *
+ * Le moteur lisait `prompt_cache_hit_tokens`, décrit en commentaire comme
+ * « Mistral-specific ». Il ne l'est pas : c'est un champ DeepSeek. Sur Mistral
+ * il est absent, le `?? 0` le rendait nul, et l'interface affichait « dont 0
+ * lus en cache » — un chiffre qu'aucune API n'avait jamais dit, dans l'écran
+ * même où le produit promet de n'en afficher aucun (P2, P3).
+ */
+describe("jetonsLusEnCache", () => {
+  it("lit la forme standard OpenAI / Mistral", () => {
+    expect(jetonsLusEnCache({ prompt_tokens: 100, prompt_tokens_details: { cached_tokens: 64 } })).toBe(64);
+  });
+
+  it("lit la forme plate de DeepSeek", () => {
+    expect(jetonsLusEnCache({ prompt_tokens: 100, prompt_cache_hit_tokens: 32 })).toBe(32);
+  });
+
+  it("rend null — jamais zéro — quand le fournisseur ne dit rien du cache", () => {
+    // Le cas de Mistral avant ce correctif. `null` fait afficher « non
+    // renseigné » ; `0` affirmerait un cache qui n'a servi à rien.
+    expect(jetonsLusEnCache({ prompt_tokens: 100, completion_tokens: 20 })).toBeNull();
+    expect(jetonsLusEnCache(null)).toBeNull();
+  });
+
+  it("distingue un cache réellement vide d'un cache non renseigné", () => {
+    expect(jetonsLusEnCache({ prompt_tokens_details: { cached_tokens: 0 } })).toBe(0);
   });
 });

@@ -800,11 +800,22 @@ function ChatHydrate({
             // pannes silencieuses, pas une correction.
             setAvis({ ton: "alerte", texte: String(donnees.message ?? "") });
           } else if (type === "fin") {
-            const u = donnees.usage as Record<string, number> | undefined;
+            const u = donnees.usage as Record<string, number | null> | undefined;
             const compte = (donnees.outils as { appels?: number } | undefined)?.appels;
             if (u) {
+              /*
+               * « dont 0 lus en cache » était un chiffre que personne n'avait
+               * mesuré : le moteur lisait un champ absent et le rabattait sur
+               * zéro. Un fournisseur muet sur le cache doit produire « non
+               * renseigné », pas un zéro — sans quoi l'indicateur affirme un
+               * échec du cache là où il n'a aucune information (P2, P3).
+               */
+              const cache =
+                u.cacheLu === null || u.cacheLu === undefined
+                  ? "cache non renseigné par le fournisseur"
+                  : `dont ${u.cacheLu} lus en cache`;
               setUsage(
-                `${u.entree} jetons en entrée (dont ${u.cacheLu} lus en cache) · ${u.sortie} en sortie` +
+                `${u.entree} jetons en entrée (${cache}) · ${u.sortie} en sortie` +
                   // Discret, mais toujours là : « 0 appel » distingue un tuteur
                   // qui n'a rien proposé d'un outil qui n'a pas fonctionné.
                   (compte === undefined ? "" : ` · ${compte} appel(s) d'outil`),

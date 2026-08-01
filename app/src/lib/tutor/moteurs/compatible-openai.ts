@@ -45,11 +45,38 @@ interface FragmentReponse {
   usage?: {
     prompt_tokens?: number;
     completion_tokens?: number;
-    /** Mistral-specific: tokens served from prefix cache. */
+    /**
+     * Forme standard (OpenAI, Mistral) : les jetons servis par le cache de
+     * préfixe sont ici.
+     *
+     * ⚠️ Les deux champs plats ci-dessous ont longtemps été les seuls lus, sur
+     * la foi d'un commentaire qui les disait « Mistral-specific ». Ils ne le
+     * sont pas — ce sont ceux de DeepSeek. Sur Mistral ils sont absents, le
+     * `?? 0` les rendait nuls, et l'interface annonçait « 0 lus en cache » sans
+     * qu'aucune API ne l'ait jamais dit. Un zéro fabriqué, dans l'écran même où
+     * le produit promet de n'en afficher aucun (P2, P3).
+     */
+    prompt_tokens_details?: { cached_tokens?: number } | null;
+    /** DeepSeek et compatibles : jetons servis par le cache. */
     prompt_cache_hit_tokens?: number;
-    /** Mistral-specific: tokens NOT in cache (freshly computed). */
+    /** DeepSeek et compatibles : jetons hors cache. */
     prompt_cache_miss_tokens?: number;
   } | null;
+}
+
+/**
+ * Jetons servis par le cache de préfixe, ou `null` si le fournisseur n'en dit
+ * rien.
+ *
+ * Exportée pour être testée : c'est une règle de lecture de mesure, et elle a
+ * déjà été fausse une fois. Trois formes coexistent dans la nature —
+ * `prompt_tokens_details.cached_tokens` (OpenAI, Mistral), les champs plats de
+ * DeepSeek, et rien du tout. Les deux premières se lisent ; la troisième doit
+ * rester `null` jusqu'à l'affichage.
+ */
+export function jetonsLusEnCache(usage: FragmentReponse["usage"]): number | null {
+  if (!usage) return null;
+  return usage.prompt_tokens_details?.cached_tokens ?? usage.prompt_cache_hit_tokens ?? null;
 }
 
 /** Traduit un statut HTTP en message actionnable pour l'utilisateur. */
@@ -294,12 +321,16 @@ export function moteurCompatibleOpenAI(
           // Tous les fournisseurs ne renvoient pas l'usage en streaming.
           // L'interface le masque quand il est absent : on ne fabrique pas de
           // chiffre (protocole anti-hallucination §7).
+          // `null` et non `0` quand le fournisseur ne dit rien du cache :
+          // l'interface affiche alors « non renseigné » au lieu d'un zéro que
+          // personne n'a mesuré. C'est la même règle qu'ADR-030 appliquée à
+          // l'indicateur de coût — l'absence de mesure n'est pas un zéro.
           usage: usage
             ? {
                 entree: usage.prompt_tokens ?? 0,
                 sortie: usage.completion_tokens ?? 0,
-                cacheEcrit: usage.prompt_cache_miss_tokens ?? 0,
-                cacheLu: usage.prompt_cache_hit_tokens ?? 0,
+                cacheEcrit: usage.prompt_cache_miss_tokens ?? null,
+                cacheLu: jetonsLusEnCache(usage),
               }
             : undefined,
         });

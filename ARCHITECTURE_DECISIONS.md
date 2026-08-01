@@ -1782,12 +1782,32 @@ les 2 035 jetons de sortie. La carte n'était pas dupliquée — le garde-fou
 Corrigé par une règle du cadre d'intervention : ne pas recopier le contenu d'un
 appel d'outil, la carte l'affiche déjà. 🔬 Effet non mesuré.
 
-**2. `cacheLu` reste à 0.** Le préfixe stable n'est pas réutilisé d'un message à
-l'autre par ce fournisseur, ou `prompt_cache_key` est ignoré. Antérieur à cette
-ADR et hors de son périmètre, mais c'est ce qui rend le raisonnement « les
-schémas sont dans le préfixe caché, donc quasi gratuits » **non vérifié** : à ce
-jour ils sont payés plein tarif à chaque message, comme les gabarits qu'ils
-remplacent.
+**2. `cacheLu` restait à 0 — et c'était un zéro fabriqué.** Examiné le
+01/08/2026 : `compatible-openai.ts` lisait `prompt_cache_hit_tokens`, décrit en
+commentaire comme « Mistral-specific ». **Il ne l'est pas** — c'est un champ
+DeepSeek. Mistral publie les jetons servis par le cache dans
+`usage.prompt_tokens_details.cached_tokens`, la forme standard OpenAI. Le champ
+lu était donc toujours absent, le `?? 0` le rendait nul, et l'interface
+affichait « dont 0 lus en cache » : **un chiffre qu'aucune API n'avait jamais
+dit, dans l'écran même où le produit promet de n'en afficher aucun** (P2, P3).
+
+C'est le défaut d'ADR-030 sous une autre forme — l'absence de mesure lue comme
+un zéro — cette fois sur l'indicateur de coût plutôt que sur le journal de
+preuves. Il ne fausse aucun niveau de compétence, mais il a directement faussé
+un arbitrage : c'est sur ce « 0 » que j'ai conclu, dans la version précédente de
+cette ADR, que les schémas étaient payés plein tarif.
+
+Corrigé : `jetonsLusEnCache` lit les deux formes, rend **`null`** quand le
+fournisseur est muet, et l'interface affiche alors « cache non renseigné par le
+fournisseur ». Quatre tests, dont un qui distingue un cache réellement vide
+(`cached_tokens: 0`) d'un cache non renseigné.
+
+🔬 **L'efficacité réelle du cache reste inconnue** — la mesure n'avait jamais eu
+lieu. À relire sous le chat au prochain message. Si le chiffre reste nul une
+fois le bon champ lu, deux pistes, dans cet ordre : `prompt_cache_key` est bien
+documenté chez Mistral mais notre clé est un hachage de `systemeStable`, qui
+**varie** selon les protocoles chargés ce tour-là (ADR-021) ; et le double bloc
+`system` peut empêcher la correspondance de préfixe.
 
 **Test de réfutation, pour Anthropic et pour toute reprise :**
 
