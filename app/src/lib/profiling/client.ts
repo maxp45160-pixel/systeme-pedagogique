@@ -5,7 +5,9 @@
  * composant, et `performance.now()` pour les interactions utilisateur.
  *
  * Les mesures sont stockées en mémoire (sessionStorage) et exposées sur
- * `/dev/profil`. Le profilage est actif uniquement en développement.
+ * `/dev/profil`. Le profilage est activable au runtime par un bouton
+ * « Démarrer / Arrêter » dans le panneau de profilage — plus besoin de
+ * relancer le serveur avec une variable d'environnement.
  */
 
 "use client";
@@ -31,9 +33,87 @@ export interface MesureInteraction {
   horodatage: number;
 }
 
-const ACTIF =
-  typeof window !== "undefined" &&
-  (process.env.NODE_ENV === "development" || process.env.NEXT_PUBLIC_PROFILAGE === "1");
+/**
+ * Drapeau runtime du profilage client.
+ *
+ * Trois sources, par ordre de priorité :
+ *   1. `NEXT_PUBLIC_PROFILAGE=1` (au démarrage) ;
+ *   2. `NODE_ENV=development` (au démarrage) ;
+ *   3. un drapeau sur `window` levé par le bouton du panneau.
+ *
+ * Le drapeau `window` est persisté dans `localStorage` pour survivre à un
+ * rechargement de page — sinon l'utilisateur devrait le redémarrer à chaque
+ * navigation, ce qui contredirait l'usage auquel il sert (profiler pendant qu'on
+ * utilise l'app).
+ */
+const CLE_DRAPEAU_CLIENT = "profilage-client-actif";
+
+function drapeauClient(): boolean {
+  if (typeof window === "undefined") return false;
+  // La variable d'environnement active le profilage au démarrage.
+  if (process.env.NODE_ENV === "development" || process.env.NEXT_PUBLIC_PROFILAGE === "1") {
+    return true;
+  }
+  // Sinon, on lit le drapeau runtime persisté.
+  try {
+    return window.localStorage.getItem(CLE_DRAPEAU_CLIENT) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function poserDrapeauClient(valeur: boolean): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (valeur) window.localStorage.setItem(CLE_DRAPEAU_CLIENT, "1");
+    else window.localStorage.removeItem(CLE_DRAPEAU_CLIENT);
+  } catch {
+    // localStorage indisponible : on ignore.
+  }
+  // Notifier les abonnés (useSyncExternalStore) pour un rafraîchissement immédiat.
+  const ecouteurs = (
+    window as unknown as { __profilageEcouteurs?: Set<() => void> }
+  ).__profilageEcouteurs;
+  ecouteurs?.forEach((fn) => fn());
+}
+
+/**
+ * Le profilage client est-il actif ?
+ *
+ * Lecture à chaque appel : le drapeau peut changer au runtime, et les fonctions
+ * ci-dessous (`onRenderProfil`, `enregistrerInteraction`) le lisent à chaud.
+ */
+export function profilageClientActif(): boolean {
+  return drapeauClient();
+}
+
+/** Active le profilage client au runtime (bouton « Démarrer »). */
+export function activerProfilageClient(): void {
+  poserDrapeauClient(true);
+}
+
+/** Désactive le profilage client au runtime (bouton « Arrêter »). */
+export function desactiverProfilageClient(): void {
+  poserDrapeauClient(false);
+  viderMesuresClient();
+}
+
+/**
+ * Abonnement au changement d'état du profilage client.
+ *
+ * `useSyncExternalStore` appelle cette fonction pour s'abonner ; quand le
+ * drapeau change (via `poserDrapeauClient`), l'écouteur est notifié et le
+ * composant se re-rend avec la nouvelle valeur.
+ */
+export function abonnerProfilageClient(ecouteur: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  const w = window as unknown as { __profilageEcouteurs?: Set<() => void> };
+  if (!w.__profilageEcouteurs) w.__profilageEcouteurs = new Set();
+  w.__profilageEcouteurs.add(ecouteur);
+  return () => {
+    w.__profilageEcouteurs?.delete(ecouteur);
+  };
+}
 
 const CLE_RENDUS = "profilage-rendus";
 const CLE_INTERACTIONS = "profilage-interactions";
@@ -42,7 +122,7 @@ const MAX_RENDUS = 200;
 const MAX_INTERACTIONS = 100;
 
 function lire<T>(cle: string, defaut: T): T {
-  if (!ACTIF) return defaut;
+  if (!profilageClientActif()) return defaut;
   try {
     const brut = sessionStorage.getItem(cle);
     return brut ? (JSON.parse(brut) as T) : defaut;
@@ -52,7 +132,7 @@ function lire<T>(cle: string, defaut: T): T {
 }
 
 function ecrire<T>(cle: string, valeur: T): void {
-  if (!ACTIF) return;
+  if (!profilageClientActif()) return;
   try {
     sessionStorage.setItem(cle, JSON.stringify(valeur));
   } catch {
@@ -69,7 +149,7 @@ export const onRenderProfil: ProfilerOnRenderCallback = (
   startTime,
   commitTime,
 ) => {
-  if (!ACTIF) return;
+  if (!profilageClientActif()) return;
 
   const rendus = lire<MesureRendu[]>(CLE_RENDUS, []);
   rendus.push({
@@ -90,7 +170,7 @@ export function enregistrerInteraction(
   libelle: string,
   dureeMs: number,
 ): void {
-  if (!ACTIF) return;
+  if (!profilageClientActif()) return;
 
   const interactions = lire<MesureInteraction[]>(CLE_INTERACTIONS, []);
   interactions.push({ type, libelle, dureeMs, horodatage: Date.now() });
@@ -108,7 +188,7 @@ export function mesurerInteraction<T>(
   libelle: string,
   fn: () => T | PromiseLike<T>,
 ): T | PromiseLike<T> {
-  if (!ACTIF) return fn();
+  if (!profilageClientActif()) return fn();
 
   const debut = performance.now();
   try {
@@ -168,16 +248,11 @@ export function interactionsActuelles(): MesureInteraction[] {
 
 /** Vide toutes les mesures client. */
 export function viderMesuresClient(): void {
-  if (!ACTIF) return;
+  if (typeof window === "undefined") return;
   try {
     sessionStorage.removeItem(CLE_RENDUS);
     sessionStorage.removeItem(CLE_INTERACTIONS);
   } catch {
     // ignore
   }
-}
-
-/** Le profilage client est-il actif ? */
-export function profilageClientActif(): boolean {
-  return ACTIF;
 }

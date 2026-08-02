@@ -8,6 +8,15 @@ import { seDeconnecter } from "@/lib/supabase/actions";
 import { exporterJournal } from "@/lib/store/export";
 import { IconeValide } from "@/components/ui/icones";
 import { appliquerTheme, lireChoixTheme, type ChoixTheme } from "./theme";
+import {
+  FOURNISSEURS,
+  ecrireConfigTuteur,
+  effacerConfigTuteur,
+  lireConfigTuteur,
+  masquerCle,
+  type ConfigTuteurClient,
+  type FournisseurTuteur,
+} from "@/lib/tutor/cle-client";
 
 export interface EtatSession {
   /** Les clés Supabase sont présentes sur ce déploiement. */
@@ -16,6 +25,8 @@ export interface EtatSession {
   courriel: string | null;
   nom: string | null;
   avatar: string | null;
+  /** Identifiant du compte — isole la clé API saisie côté client. */
+  compteId: string;
 }
 
 /**
@@ -221,7 +232,7 @@ function PanneauReglages({
       onClick={onFermer}
     >
       <div
-        className="w-full max-w-md rounded-xl border border-bordure bg-surface p-5 text-texte shadow-[var(--ombre-surcouche)]"
+        className="flex max-h-[90vh] w-full max-w-md flex-col overflow-y-auto rounded-xl border border-bordure bg-surface p-5 text-texte shadow-[var(--ombre-surcouche)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3 border-b border-bordure pb-3">
@@ -269,6 +280,16 @@ function PanneauReglages({
             </dd>
           </div>
 
+          {/* ── Tuteur IA : clé API saisie côté client ── */}
+          <div className="rounded-lg border border-bordure bg-surface-2/60 px-3 py-2.5">
+            <dt className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
+              Tuteur IA
+            </dt>
+            <dd className="mt-1.5">
+              <ReglagesTuteur compteId={session.compteId} />
+            </dd>
+          </div>
+
           <div className="rounded-lg border border-bordure bg-surface-2/60 px-3 py-2.5">
             <dt className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
               Apparence
@@ -306,9 +327,9 @@ function PanneauReglages({
             </dt>
             <dd className="mt-1 space-y-2 text-texte-attenue">
               <p className="text-xs leading-relaxed">
-                Télécharge l&apos;intégralité de ton journal en JSON — preuves, séances,
-                erreurs, projets, profil. C&apos;est ta copie hors ligne : elle ne dépend
-                ni de l&apos;hébergeur ni du dépôt git.
+                Télécharge l'intégralité de ton journal en JSON — preuves, séances,
+                erreurs, projets, profil. C'est ta copie hors ligne : elle ne dépend
+                ni de l'hébergeur ni du dépôt git.
               </p>
               <button
                 type="button"
@@ -334,11 +355,11 @@ function PanneauReglages({
               </dt>
               <dd className="mt-1 text-xs leading-relaxed text-texte-attenue">
                 Supabase est désormais la seule dorsale : sans ces clés, aucune donnée
-                n&apos;est lisible. Renseignez{" "}
+                n'est lisible. Renseignez{" "}
                 <code className="font-mono">NEXT_PUBLIC_SUPABASE_URL</code> et{" "}
                 <code className="font-mono">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> dans{" "}
                 <code className="font-mono">app/.env.local</code> (ou les variables
-                d&apos;environnement Vercel), puis redémarrez le serveur.
+                d'environnement Vercel), puis redémarrez le serveur.
               </dd>
             </div>
           )}
@@ -385,6 +406,213 @@ function PanneauReglages({
   return typeof document === "undefined"
     ? null
     : createPortal(panneau, document.body);
+}
+
+/* ------------------------------------------------------------------ */
+/* Réglages du tuteur IA — clé API saisie côté client                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Section de saisie de la clé API du tuteur.
+ *
+ * La clé est stockée dans le navigateur (`localStorage`, isolée par compte) et
+ * envoyée à la route `/api/tutor` à chaque message. Elle ne quitte jamais le
+ * navigateur pour un tiers.
+ *
+ * Un fournisseur pré-remplit l'URL de base et le modèle ; seul le champ clé
+ * est obligatoire. Le bouton « Effacer » supprime la config et revient au
+ * repli « copier le contexte ».
+ */
+function ReglagesTuteur({ compteId }: { compteId: string }) {
+  const [config, setConfig] = useState<ConfigTuteurClient | null>(() =>
+    lireConfigTuteur(compteId),
+  );
+  const [fournisseur, setFournisseur] = useState<FournisseurTuteur>(
+    () => config?.fournisseur ?? "mistral",
+  );
+  const [cle, setCle] = useState(() => config?.cle ?? "");
+  const [urlBase, setUrlBase] = useState(() => config?.urlBase ?? "");
+  const [modele, setModele] = useState(() => config?.modele ?? "");
+  const [afficherCle, setAfficherCle] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const preset = FOURNISSEURS.find((f) => f.cle === fournisseur);
+  const estAnthropic = preset?.anthropic === true;
+
+  // Quand le fournisseur change, on pré-remplit l'URL et le modèle avec les
+  // valeurs par défaut du preset — sauf si l'utilisateur a déjà saisi une
+  // valeur personnalisée pour ce fournisseur.
+  function choisirFournisseur(f: FournisseurTuteur) {
+    setFournisseur(f);
+    const p = FOURNISSEURS.find((x) => x.cle === f);
+    if (p?.urlBase && !urlBase) setUrlBase(p.urlBase);
+    if (p?.modeleParDefaut && !modele) setModele(p.modeleParDefaut);
+  }
+
+  function enregistrer() {
+    const cleTrim = cle.trim();
+    if (cleTrim === "") {
+      setMessage("Saisis ta clé API avant d'enregistrer.");
+      return;
+    }
+    if (!estAnthropic) {
+      const url = urlBase.trim() || preset?.urlBase || "";
+      const mod = modele.trim() || preset?.modeleParDefaut || "";
+      if (!url || !mod) {
+        setMessage("L'URL de base et le modèle sont requis pour ce fournisseur.");
+        return;
+      }
+      ecrireConfigTuteur(compteId, {
+        fournisseur,
+        cle: cleTrim,
+        urlBase: url,
+        modele: mod,
+      });
+    } else {
+      ecrireConfigTuteur(compteId, {
+        fournisseur,
+        cle: cleTrim,
+        ...(modele.trim() ? { modele: modele.trim() } : {}),
+      });
+    }
+    setConfig(lireConfigTuteur(compteId));
+    setMessage("Clé enregistrée. Le chat intégré est désormais actif.");
+  }
+
+  function effacer() {
+    effacerConfigTuteur(compteId);
+    setConfig(null);
+    setCle("");
+    setUrlBase("");
+    setModele("");
+    setMessage("Clé effacée. Le chat bascule en mode « copier le contexte ».");
+  }
+
+  return (
+    <div className="space-y-2.5">
+      {config && (
+        <div className="flex items-center gap-1.5 text-xs">
+          <span
+            aria-hidden
+            className="size-2 shrink-0 rounded-full bg-succes"
+          />
+          <span className="text-texte-attenue">
+            Clé configurée — {masquerCle(config.cle)}
+          </span>
+        </div>
+      )}
+
+      {/* Sélecteur de fournisseur */}
+      <div>
+        <label className="text-[0.6875rem] font-medium text-texte-attenue">
+          Fournisseur
+        </label>
+        <select
+          value={fournisseur}
+          onChange={(e) => choisirFournisseur(e.target.value as FournisseurTuteur)}
+          className="mt-0.5 w-full rounded-md border border-bordure bg-surface px-2.5 py-1.5 text-xs text-texte focus:border-primaire focus:outline-none"
+        >
+          {FOURNISSEURS.map((f) => (
+            <option key={f.cle} value={f.cle}>
+              {f.libelle}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Champ clé */}
+      <div>
+        <label className="text-[0.6875rem] font-medium text-texte-attenue">
+          Clé API
+        </label>
+        <div className="mt-0.5 flex gap-1.5">
+          <input
+            type={afficherCle ? "text" : "password"}
+            value={cle}
+            onChange={(e) => setCle(e.target.value)}
+            placeholder={preset?.aide ?? "Colle ta clé ici"}
+            className="min-w-0 flex-1 rounded-md border border-bordure bg-surface px-2.5 py-1.5 text-xs text-texte placeholder:text-texte-discret focus:border-primaire focus:outline-none"
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <button
+            type="button"
+            onClick={() => setAfficherCle((v) => !v)}
+            className="shrink-0 rounded-md border border-bordure bg-surface px-2 py-1 text-[0.6875rem] text-texte-attenue transition-colors hover:bg-surface-2"
+            title={afficherCle ? "Masquer la clé" : "Afficher la clé"}
+          >
+            {afficherCle ? "🙈" : "👁"}
+          </button>
+        </div>
+      </div>
+
+      {/* URL de base — masquée pour Anthropic */}
+      {!estAnthropic && (
+        <div>
+          <label className="text-[0.6875rem] font-medium text-texte-attenue">
+            URL de base
+          </label>
+          <input
+            type="text"
+            value={urlBase}
+            onChange={(e) => setUrlBase(e.target.value)}
+            placeholder={preset?.urlBase ?? "https://api.exemple.com/v1"}
+            className="mt-0.5 w-full rounded-md border border-bordure bg-surface px-2.5 py-1.5 text-xs text-texte placeholder:text-texte-discret focus:border-primaire focus:outline-none"
+            spellCheck={false}
+          />
+        </div>
+      )}
+
+      {/* Modèle */}
+      <div>
+        <label className="text-[0.6875rem] font-medium text-texte-attenue">
+          Modèle {preset?.modeleParDefaut && <span className="text-texte-discret">(défaut : {preset.modeleParDefaut})</span>}
+        </label>
+        <input
+          type="text"
+          value={modele}
+          onChange={(e) => setModele(e.target.value)}
+          placeholder={preset?.modeleParDefaut ?? "nom-du-modele"}
+          className="mt-0.5 w-full rounded-md border border-bordure bg-surface px-2.5 py-1.5 text-xs text-texte placeholder:text-texte-discret focus:border-primaire focus:outline-none"
+          spellCheck={false}
+        />
+      </div>
+
+      {preset?.aide && (
+        <p className="text-[0.6875rem] leading-relaxed text-texte-discret">
+          {preset.aide}
+        </p>
+      )}
+
+      <p className="text-[0.6875rem] leading-relaxed text-texte-discret">
+        ⚠️ La clé est stockée dans ton navigateur ({compteId === "local" ? "profil local" : "compte isolé"}) et
+        n'est jamais envoyée ailleurs qu'à la route du tuteur (même origine).
+      </p>
+
+      <div className="flex gap-1.5">
+        <button
+          type="button"
+          onClick={enregistrer}
+          className="inline-flex h-8 items-center rounded-md bg-primaire px-3 text-xs font-medium text-primaire-contraste transition-colors hover:bg-primaire-fort"
+        >
+          Enregistrer
+        </button>
+        {config && (
+          <button
+            type="button"
+            onClick={effacer}
+            className="inline-flex h-8 items-center rounded-md border border-danger/30 bg-danger-faible px-3 text-xs font-medium text-danger transition-colors hover:bg-danger/10"
+          >
+            Effacer
+          </button>
+        )}
+      </div>
+
+      {message && (
+        <p className="text-[0.6875rem] text-texte-attenue">{message}</p>
+      )}
+    </div>
+  );
 }
 
 const APPARENCES: { cle: ChoixTheme; libelle: string }[] = [

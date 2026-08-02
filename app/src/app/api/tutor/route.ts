@@ -2,20 +2,38 @@ import { chargerContexte } from "@/lib/store/context";
 import { construireContexte } from "@/lib/tutor/contexte";
 import { choisirConfiguration, creerMoteur } from "@/lib/tutor/moteurs";
 import { fenetrerHistorique, MAX_MESSAGES_FENETRE } from "@/lib/tutor/fenetre";
+import { configVersEnv, type ConfigTuteurClient } from "@/lib/tutor/cle-client";
 
 /**
  * Route du tuteur — réponse diffusée en flux.
  *
  * Cette route ne connaît aucun fournisseur : elle assemble le contexte, demande
  * un moteur (ADR-007) et relaie ses événements. Changer de fournisseur est une
- * variable d'environnement.
+ * variable d'environnement, ou désormais une config saisie côté client dans les
+ * réglages — cette dernière prime sur `app/.env.local`.
  *
  * Sans moteur configuré, elle répond 503 et l'interface bascule d'elle-même en
  * mode « copier le contexte » — elle ne simule jamais une réponse.
  */
 
+interface CorpsRequeteTuteur {
+  messages?: { role: "user" | "assistant"; content: string }[];
+  /** Config saisie côté client (réglages). Prime sur les variables serveur. */
+  config?: ConfigTuteurClient;
+}
+
 export async function POST(request: Request) {
-  const choix = choisirConfiguration(process.env);
+  let corps: CorpsRequeteTuteur;
+  try {
+    corps = (await request.json()) as CorpsRequeteTuteur;
+  } catch {
+    return Response.json({ erreur: "corps-invalide" }, { status: 400 });
+  }
+
+  // La config client (si présente) prime sur `process.env` : l'utilisateur qui
+  // a saisi sa clé dans les réglages n'a pas à éditer `app/.env.local`.
+  const env = { ...process.env, ...(corps.config ? configVersEnv(corps.config) : {}) };
+  const choix = choisirConfiguration(env);
   const moteur = creerMoteur(choix);
 
   if (!moteur) {
@@ -29,13 +47,6 @@ export async function POST(request: Request) {
       },
       { status: 503 },
     );
-  }
-
-  let corps: { messages?: { role: "user" | "assistant"; content: string }[] };
-  try {
-    corps = await request.json();
-  } catch {
-    return Response.json({ erreur: "corps-invalide" }, { status: 400 });
   }
 
   const messagesComplets = (corps.messages ?? []).filter((m) => m.content.trim().length > 0);

@@ -11,6 +11,12 @@ import { MAX_MESSAGES_FENETRE } from "@/lib/tutor/fenetre";
 import { useEstHydrate } from "@/lib/ui/hydratation";
 import { cleParCompte, ecrireSession, effacerSession, lireSession } from "@/lib/ui/stockage-session";
 import {
+  EVENEMENT_CHANGEMENT_CONFIG,
+  decrireConfigClient,
+  lireConfigTuteur,
+  type ConfigTuteurClient,
+} from "@/lib/tutor/cle-client";
+import {
   OUTIL_EXERCICE,
   OUTIL_PREUVE,
   OUTIL_REFERENTIEL,
@@ -522,7 +528,33 @@ function ChatHydrate({
 }) {
   // `etat` ne vient plus d'un chargement asynchrone : il est calculé par le
   // serveur et ne change pas pendant la vie du composant. Pas d'état local.
-  const etat = etatInitial;
+  const etatServeur = etatInitial;
+
+  /**
+   * Configuration saisie côté client (réglages), si présente.
+   *
+   * Elle prime sur l'état serveur (`cleConfiguree`, `modele`) : l'utilisateur
+   * qui a saisi sa clé dans les réglages n'a pas à éditer `app/.env.local`.
+   * Lue dans l'initialiseur (le composant n'est monté qu'après hydratation) et
+   * rafraîchie sur l'événement de changement diffusé par `cle-client.ts` —
+   * sauvegarder une clé dans les réglages met le chat à jour sans recharger.
+   */
+  const [configClient, setConfigClient] = useState<ConfigTuteurClient | null>(() =>
+    lireConfigTuteur(compteId),
+  );
+  useEffect(() => {
+    function surChangement() {
+      setConfigClient(lireConfigTuteur(compteId));
+    }
+    window.addEventListener(EVENEMENT_CHANGEMENT_CONFIG, surChangement);
+    return () => window.removeEventListener(EVENEMENT_CHANGEMENT_CONFIG, surChangement);
+  }, [compteId]);
+
+  const etat = {
+    ...etatServeur,
+    cleConfiguree: etatServeur.cleConfiguree || configClient !== null,
+    modele: configClient ? decrireConfigClient(configClient) : etatServeur.modele,
+  };
 
   const cleConversation = cleParCompte("conversation", compteId);
 
@@ -754,10 +786,17 @@ function ChatHydrate({
       // du compte de tours réel pour le chargement conditionnel des
       // protocoles (ADR-021) ; fenêtrer ici lui ferait perdre cette
       // information, et la borne serait appliquée deux fois.
+      //
+      // La config client (clé saisie dans les réglages) est lue à l'envoi plutôt
+      // qu'au montage : si l'utilisateur configure sa clé pendant que le chat
+      // est ouvert, le prochain message part avec — sans rechargement.
       const reponse = await fetch("/api/tutor", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ messages: historique }),
+        body: JSON.stringify({
+          messages: historique,
+          config: lireConfigTuteur(compteId) ?? undefined,
+        }),
         signal: abandon.signal,
       });
 
@@ -1122,15 +1161,23 @@ function ChatHydrate({
         <div className="rounded-carte border border-alerte/30 bg-alerte-faible px-4 py-3 text-xs">
           <p className="font-medium text-alerte">Aucune clé API configurée</p>
           <p className="mt-1 text-texte-attenue">
-            Le chat intégré est désactivé — il ne simulera pas de réponse. Deux options :
+            Le chat intégré est désactivé — il ne simulera pas de réponse. Trois options :
           </p>
           <ol className="mt-2 space-y-1 pl-4 text-texte-attenue">
+            <li className="list-decimal">
+              Ouvrir les <strong>réglages</strong> (icône engrenage, en bas du rail) et saisir ta
+              clé API — Mistral, Anthropic, Groq… La clé est stockée dans ton navigateur et
+              n'est jamais envoyée ailleurs qu'à la route du tuteur.
+            </li>
             <li className="list-decimal">
               Utiliser <strong>« Copier le contexte »</strong> et coller le prompt dans Claude.
             </li>
             <li className="list-decimal">
               Créer <code className="font-mono">app/.env.local</code> avec{" "}
-              <code className="font-mono">ANTHROPIC_API_KEY=…</code>, puis relancer le serveur.
+              <code className="font-mono">ANTHROPIC_API_KEY=…</code> (ou{" "}
+              <code className="font-mono">TUTEUR_CLE</code> /{" "}
+              <code className="font-mono">TUTEUR_URL_BASE</code> /{" "}
+              <code className="font-mono">TUTEUR_MODELE</code>), puis relancer le serveur.
             </li>
           </ol>
         </div>

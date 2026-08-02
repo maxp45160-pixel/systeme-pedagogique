@@ -24,6 +24,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       (compte?.user_metadata?.name as string | undefined) ??
       null,
     avatar: (compte?.user_metadata?.avatar_url as string | undefined) ?? null,
+    // Identifiant du compte — isole la clé API saisie côté client (voir
+    // `cle-client.ts` et `cleParCompte`). Toujours présent quand Supabase est
+    // configuré : `compteCourant()` renvoie `null` seulement sans session, et
+    // `dorsaleCompte()` redirige avant d'atteindre cette mise en page.
+    compteId: compte?.id ?? "local",
   };
 
   return (

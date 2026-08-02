@@ -1,18 +1,25 @@
 /**
  * API route — profilage serveur.
  *
- * Expose le registre des mesures collectées par `lib/profiling/server.ts`.
- * Réservé au développement : la route renvoie 404 si le profilage est inactif.
+ * Expose le registre des mesures collectées par `lib/profiling/server.ts` et
+ * permet de démarrer/arrêter le profilage au runtime (POST).
+ *
+ * `GET` renvoie toujours l'état (`actif`) et les mesures — même quand le
+ * profilage est inactif, pour que le panneau puisse afficher le bouton
+ * « Démarrer ». Les mesures sont vides dans ce cas.
  */
 
-import { mesuresActuelles, viderRegistre, profilageActif } from "@/lib/profiling/server";
+import {
+  activerProfilage,
+  desactiverProfilage,
+  mesuresActuelles,
+  profilageActif,
+  viderRegistre,
+} from "@/lib/profiling/server";
 
 export async function GET() {
-  if (!profilageActif()) {
-    return Response.json({ erreur: "profilage-inactif" }, { status: 404 });
-  }
-
-  const mesures = mesuresActuelles();
+  const actif = profilageActif();
+  const mesures = actif ? mesuresActuelles() : [];
 
   // Agrégation par opération : durée totale, moyenne, nombre d'appels.
   const parOperation = new Map<
@@ -37,7 +44,7 @@ export async function GET() {
   const agrege = [...parOperation.values()].sort((a, b) => b.totalMs - a.totalMs);
 
   return Response.json({
-    actif: true,
+    actif,
     totalMesures: mesures.length,
     totalMs: mesures.reduce((s, m) => s + m.dureeMs, 0),
     parOperation: agrege,
@@ -45,11 +52,50 @@ export async function GET() {
   });
 }
 
-export async function DELETE() {
-  if (!profilageActif()) {
-    return Response.json({ erreur: "profilage-inactif" }, { status: 404 });
+/**
+ * `POST` — bascule le profilage serveur au runtime.
+ *
+ * Corps : `{ action: "start" | "stop" }`.
+ *
+ * - `start` lève le drapeau runtime ; les opérations instrumentées
+ *   commencent à s'enregistrer.
+ * - `stop` baisse le drapeau et vide le registre.
+ *
+ * Le profilage activé par variable d'environnement (`PROFILAGE=1` ou
+ * `NODE_ENV=development`) ne peut pas être arrêté : `stop` ne fait rien dans ce
+ * cas, et la réponse l'indique (`actif: true`).
+ */
+export async function POST(request: Request) {
+  let corps: { action?: string };
+  try {
+    corps = (await request.json()) as { action?: string };
+  } catch {
+    return Response.json({ erreur: "corps-invalide" }, { status: 400 });
   }
 
-  viderRegistre();
-  return Response.json({ ok: true });
+  const action = corps.action;
+  if (action !== "start" && action !== "stop") {
+    return Response.json(
+      { erreur: "action inconnue — attendu : « start » ou « stop »." },
+      { status: 400 },
+    );
+  }
+
+  const actifParEnv =
+    process.env.NODE_ENV === "development" || process.env.PROFILAGE === "1";
+
+  if (action === "start") {
+    activerProfilage();
+  } else {
+    // Arrêter n'a d'effet que sur le drapeau runtime. Si l'environnement a
+    // activé le profilage, il reste actif — on ne peut pas le couper sans
+    // redémarrer.
+    if (!actifParEnv) {
+      desactiverProfilage();
+    } else {
+      viderRegistre();
+    }
+  }
+
+  return Response.json({ ok: true, actif: profilageActif(), actifParEnv });
 }
