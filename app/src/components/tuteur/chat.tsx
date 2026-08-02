@@ -1167,7 +1167,7 @@ function ChatHydrate({
             <li className="list-decimal">
               Ouvrir les <strong>réglages</strong> (icône engrenage, en bas du rail) et saisir ta
               clé API — Mistral, Anthropic, Groq… La clé est stockée dans ton navigateur et
-              n'est jamais envoyée ailleurs qu'à la route du tuteur.
+              n&apos;est jamais envoyée ailleurs qu&apos;à la route du tuteur.
             </li>
             <li className="list-decimal">
               Utiliser <strong>« Copier le contexte »</strong> et coller le prompt dans Claude.

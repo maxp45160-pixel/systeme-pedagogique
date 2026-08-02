@@ -327,9 +327,9 @@ function PanneauReglages({
             </dt>
             <dd className="mt-1 space-y-2 text-texte-attenue">
               <p className="text-xs leading-relaxed">
-                Télécharge l'intégralité de ton journal en JSON — preuves, séances,
-                erreurs, projets, profil. C'est ta copie hors ligne : elle ne dépend
-                ni de l'hébergeur ni du dépôt git.
+                Télécharge l&apos;intégralité de ton journal en JSON — preuves, séances,
+                erreurs, projets, profil. C&apos;est ta copie hors ligne : elle ne dépend
+                ni de l&apos;hébergeur ni du dépôt git.
               </p>
               <button
                 type="button"
@@ -355,11 +355,11 @@ function PanneauReglages({
               </dt>
               <dd className="mt-1 text-xs leading-relaxed text-texte-attenue">
                 Supabase est désormais la seule dorsale : sans ces clés, aucune donnée
-                n'est lisible. Renseignez{" "}
+                n&apos;est lisible. Renseignez{" "}
                 <code className="font-mono">NEXT_PUBLIC_SUPABASE_URL</code> et{" "}
                 <code className="font-mono">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> dans{" "}
                 <code className="font-mono">app/.env.local</code> (ou les variables
-                d'environnement Vercel), puis redémarrez le serveur.
+                d&apos;environnement Vercel), puis redémarrez le serveur.
               </dd>
             </div>
           )}
@@ -586,7 +586,7 @@ function ReglagesTuteur({ compteId }: { compteId: string }) {
 
       <p className="text-[0.6875rem] leading-relaxed text-texte-discret">
         ⚠️ La clé est stockée dans ton navigateur ({compteId === "local" ? "profil local" : "compte isolé"}) et
-        n'est jamais envoyée ailleurs qu'à la route du tuteur (même origine).
+        n&apos;est jamais envoyée ailleurs qu&apos;à la route du tuteur (même origine).
       </p>
 
       <div className="flex gap-1.5">
