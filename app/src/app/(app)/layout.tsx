@@ -3,7 +3,6 @@ import { supabaseConfigure } from "@/lib/supabase/config";
 import { Sidebar } from "@/components/layout/sidebar";
 import { NavMobile } from "@/components/layout/nav-mobile";
 import { CompteMobile } from "@/components/layout/compte";
-import { ProfilFlottant } from "@/components/dev/profil-flottant";
 import { ProfilPage } from "@/components/dev/profil-page";
 
 /**
@@ -70,15 +69,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </div>
 
       <NavMobile />
-
-      {/*
-        Panneau flottant de profilage — outil de développement.
-
-        Il ne rend rien tant que le profilage n'est pas disponible : en usage
-        normal, aucune surface. La condition vit dans le composant, où le
-        prédicat `profilageClientActif()` est déjà abonné à ses drapeaux.
-      */}
-      <ProfilFlottant />
     </div>
   );
 }
