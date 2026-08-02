@@ -123,7 +123,7 @@ async function ContenuProgression({ periode }: { periode: Periode }) {
             message="La progression se construit à partir des preuves enregistrées. Rien ne sera tracé avant le premier exercice terminé — une courbe partant de zéro sans donnée serait une invention."
             action={
               <Link href="/" className="text-xs text-primaire hover:underline">
-                Voir l'action recommandée
+                Voir l&apos;action recommandée
               </Link>
             }
           />
@@ -188,7 +188,7 @@ async function ContenuProgression({ periode }: { periode: Periode }) {
               </div>
 
               <div className="mt-4 border-t border-bordure pt-3 text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
-                Aujourd'hui, toutes preuves confondues
+                Aujourd&apos;hui, toutes preuves confondues
               </div>
               <div className="mt-2 flex flex-wrap gap-x-6 gap-y-3">
                 <Statistique
@@ -217,16 +217,16 @@ async function ContenuProgression({ periode }: { periode: Periode }) {
               {/* Le plateau est nommé, pas présenté comme un échec. */}
               {delta === 0 && preuvesPeriode.length > 0 && (
                 <p className="mt-4 rounded-md border border-bordure bg-surface-2 px-3 py-2 text-xs text-texte-attenue">
-                  Le score global n'a pas bougé sur la période, alors que{" "}
-                  {preuvesPeriode.length} preuve(s) ont été enregistrées. C'est un fonctionnement
-                  normal : consolider un niveau demande plusieurs preuves concordantes avant qu'un
+                  Le score global n&apos;a pas bougé sur la période, alors que{" "}
+                  {preuvesPeriode.length} preuve(s) ont été enregistrées. C&apos;est un fonctionnement
+                  normal : consolider un niveau demande plusieurs preuves concordantes avant qu&apos;un
                   palier soit franchi. Le travail compte même quand le chiffre ne bouge pas.
                 </p>
               )}
               {delta !== null && delta < 0 && (
                 <p className="mt-4 rounded-md border border-bordure bg-surface-2 px-3 py-2 text-xs text-texte-attenue">
-                  Le score a légèrement baissé. Ce n'est pas une perte de compétence : les
-                  niveaux acquis ne se retirent pas. C'est l'effet de l'ancienneté des
+                  Le score a légèrement baissé. Ce n&apos;est pas une perte de compétence : les
+                  niveaux acquis ne se retirent pas. C&apos;est l&apos;effet de l&apos;ancienneté des
                   preuves sur la confiance, qui pondère le score. Réutiliser une compétence ancienne
                   suffit à le rétablir.
                 </p>
@@ -249,7 +249,7 @@ async function ContenuProgression({ periode }: { periode: Periode }) {
               />
               <div className="mt-2 flex items-center justify-between text-[0.6875rem] text-texte-discret">
                 <span>{periode.libelle}</span>
-                <span>Aujourd'hui</span>
+                <span>Aujourd&apos;hui</span>
               </div>
             </CorpsCarte>
           </Carte>
