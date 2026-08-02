@@ -29,6 +29,21 @@ voir — aucun exercice généré n'avait jamais été clos : `terminerExercice`
 🔬 Reste non mesuré : « la dimension faible recule ». Les deux tentatives du
 01/08 ont été abandonnées trop tôt pour le dire.
 
+**Le 02/08/2026, la boucle a buté sur son inventaire, pas sur son algorithme.**
+Six irritants d'immersion remontés à l'usage ont été traités (ADR-034 à 036).
+Le fait qui les explique presque tous : **40 des 54 compétences actives n'ont
+aucun exercice** — 27 exercices en tout, 6 en base et 21 diagnostics livrés.
+« Refaire toujours les mêmes exos ratés » n'était pas un défaut de
+recommandation : le moteur n'avait rien d'autre à servir.
+
+⚠️ Ce tour a aussi exhibé un défaut d'un genre nouveau. `exercises.difficulte`
+était déclarée `TEXT` : `calibration.ts` faisait `"1" + 0` = `"10"`, borné à 5,
+et DEV-03/DEV-04 conseillaient une difficulté 5 sur la foi d'un partiel obtenu à
+difficulté 1 — valeur qui partait aussi dans le contexte du tuteur. **Aucun des
+239 tests ne pouvait le voir** : ils passent tous des `Difficulte` déjà typées,
+jamais une valeur venue de la dorsale. Le moteur est pur et testé ; ce qu'on lui
+donne à manger ne l'était pas. Corrigé (ADR-034), colonne en `INTEGER`.
+
 ---
 
 ## 1. Documents de référence — à lire avant toute proposition
@@ -79,9 +94,10 @@ pratique et développer un sujet à long terme.
   deux cas. Sans moteur configuré : 503 et repli « copier le contexte ».
 - **Styles :** Tailwind CSS v4 ; **graphiques SVG écrits à la main**, aucune
   librairie UI tierce
-- **Tests :** Vitest — **239 tests**, 9 fichiers (moteur, backend Supabase,
-  parseurs de propositions, outils du tuteur, contexte du tuteur, sélection du
-  moteur du tuteur, référentiel par compte, calibration, profil)
+- **Tests :** Vitest — **301 tests**, 12 fichiers (moteur, répétition espacée,
+  calibration, backend Supabase, référentiel par compte, cycle de vie des
+  exercices, profil, parseurs de propositions, outils du tuteur, contexte du
+  tuteur, amorces du tuteur, sélection du moteur du tuteur)
 - **Déploiement :** Vercel (Root Directory = `app`)
 - **Gestionnaire de paquets :** npm (workspace racine → `app/`)
 - **Outillage :** serveur MCP Supabase (`.mcp.json`)
@@ -112,6 +128,12 @@ fichier SQL **idempotent** unique, `app/supabase/schema.sql`, à réexécuter da
 Supabase Studio › SQL Editor. ⚠️ Il contient des `DROP TABLE` explicites
 (ADR-014) — les lire avant de le réexécuter.
 
+✅ **`supabase/migration-exercices.sql` a été appliqué le 02/08/2026.** Additif et
+idempotent, sans `DROP` : `exercises.difficulte` passe de `TEXT` à `INTEGER` avec
+un `CHECK BETWEEN 1 AND 5` (ADR-034), et la colonne `exercises.archive` apparaît
+(ADR-035). `schema.sql` porte les mêmes définitions pour une installation neuve.
+Inutile de le rejouer.
+
 ⚠️ **Migration du référentiel non appliquée à ce jour.** ADR-026 déplace le
 référentiel en base. L'ordre est : `schema.sql` (§ 2 crée les tables) →
 `supabase/migration-referentiel.sql` (généré par `scripts/migrer-referentiel.ts`)
@@ -138,7 +160,16 @@ bascule sur « Copier le contexte » — comportement voulu, pas une panne.
 - **Une faiblesse ne disparaît pas sans démonstration.** Les preuves contradictoires réduisent la confiance, pas le niveau.
 - **Le tuteur n'a aucun accès en écriture.** Il émet une proposition que l'utilisateur valide.
 
-**Ne pas modifier un seuil du moteur sans modifier le protocole correspondant.** 100 tests vérifient ces garanties.
+**Ne pas modifier un seuil du moteur sans modifier le protocole correspondant.**
+Ces garanties sont vérifiées par les tests de `lib/engine/` et `lib/domain/`.
+
+⚠️ **Un test vert ne garantit rien sur ce qui entre dans le moteur.** Le 02/08,
+une colonne `TEXT` là où le domaine dit `1|2|3|4|5` a produit une difficulté
+conseillée de 5 au lieu de 1, sans qu'aucun des 239 tests d'alors puisse le
+voir : ils passent tous des valeurs déjà typées. `ligneVersEntite` renomme des
+clés, il ne valide pas. Quand un calcul du moteur lit une valeur venue de la
+dorsale, il doit la convertir explicitement et **refuser de conclure** si elle
+est illisible — jamais fabriquer un nombre (P2, ADR-034).
 
 ✅ **Les 8 principes sont tenus depuis le 01/08/2026.** P8 — l'autonomie
 ignorait l'aide externe — est fermé par ADR-033 : la preuve manuelle demande
@@ -162,9 +193,17 @@ migration appliquée. Aucun code d'exécution ne doit l'importer.
 
 Les points d'entrée sont `lib/store/referentiel.ts` (lecture, `server-only`),
 `lib/domain/referentiel-compte.ts` (tout ce qui est pur : assemblage, ordre,
-validation, attribution des codes) et `lib/store/referentiel-actions.ts`
-(écritures). Le moteur, lui, ne connaît toujours aucun référentiel : il reçoit
-les compétences en paramètre.
+validation, attribution des codes, **table des retraits**) et
+`lib/store/referentiel-actions.ts` (écritures, unitaires **et groupées**). Le
+moteur, lui, ne connaît toujours aucun référentiel : il reçoit les compétences
+en paramètre.
+
+⚠️ **En lecture, appeler `chargerReferentiel()`, jamais `lireReferentiel()`.**
+Le second n'est là que pour les Server Functions d'écriture, qui ont déjà leur
+dorsale et ne doivent surtout pas lire un référentiel mis en cache avant leur
+propre écriture. Deux appelants faisaient chacun leur `lireReferentiel` dans la
+même requête : domaines, compétences et preuves étaient lus **deux fois par
+rendu**, et l'écran de gestion était le plus lent du produit (corrigé le 02/08).
 
 **Le périmètre de travail** survit à ADR-020 sous la forme du drapeau
 `competences.active`, par compte. C'est le frein contre le sur-ajout qui a
@@ -226,6 +265,21 @@ immuable — c'est la clé étrangère des preuves.
   comptes sur le même navigateur ne doivent jamais se voir — c'est ADR-029 un
   cran plus bas. Et l'état venant du navigateur se lit dans un initialiseur
   paresseux derrière `useEstHydrate`, jamais dans un `useEffect`.
+- **Ne pas supprimer un exercice qui porte des tentatives** — l'archiver
+  (ADR-035). `supprimerExercice` refuse, comme `supprimerCompetence`. Et le
+  compte de tentatives inclut les **abandons**, contrairement à ce que fait la
+  calibration : les deux modules ne posent pas la même question — « qu'a-t-on
+  mesuré ? » d'un côté, « reste-t-il une trace au journal ? » de l'autre.
+- **Ne pas remettre de filtres dans la liste d'exercices** (`exercices/page.tsx`).
+  Cinq familles ont été retirées volontairement — « ~5 000 combinaisons pour une
+  bibliothèque qui en compte une poignée ». Le besoin réel est de **regrouper**
+  et de **retirer**. Elles reviendront quand le stock le justifiera.
+- **Ne pas réintroduire une valeur unique là où il y a une file** (ADR-034,
+  02/08). `cleExercicesProposes(compteId)` stocke un `PropositionExercice[]` :
+  le tuteur sait produire plusieurs exercices par tour, et une clé unique les
+  écrasait un par un. Et comme toute clé de navigateur, elle passe par
+  `cleParCompte` — les deux clés de proposition étaient globales, en violation
+  directe de la règle un cran plus bas qu'ADR-029.
 - **Ne pas déplacer un seuil de `lib/engine/calibration.ts` sans données.**
   `FRACTION_NON_TENTEE` et `FRACTION_TROP_FACILE` sont calés sur des tentatives
   réelles, citées dans les tests. Les changer demande de nouvelles observations,
