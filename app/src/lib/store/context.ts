@@ -25,6 +25,15 @@ import type { Referentiel, SkillState } from "@/lib/domain/types";
 
 export interface Contexte {
   donnees: Collections;
+  /**
+   * Exercices que le moteur a le droit de proposer : `donnees.exercises` moins
+   * les archivés (calque ADR-027).
+   *
+   * Les archivés restent dans `donnees.exercises` — la liste doit pouvoir les
+   * montrer sous un repli, leur fiche doit rester ouvrable pour les désarchiver,
+   * et le journal cite leurs titres. Ils sortent du **flux**, pas des données.
+   */
+  exercicesActifs: Collections["exercises"];
   referentiel: Referentiel;
   etats: SkillState[];
   etatsParCode: Map<string, SkillState>;
@@ -74,19 +83,24 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
     calculerEtatGlobal(etats, now, referentiel.domaines),
   );
 
+  // Un exercice archivé ne calibre plus rien et ne se recommande plus. Il reste
+  // dans `donnees.exercises` pour la liste, la fiche et le journal.
+  const exercicesActifs = donnees.exercises.filter((e) => !e.archive);
+
   // Calculées AVANT la recommandation : c'est la calibration qui fixe la
   // difficulté visée, donc l'exercice retenu (ADR-028).
   const calibrations = mesurerSync("calibrerToutes", () =>
-    calibrerToutes(etats, donnees.exercises, donnees.attempts),
-    { exercices: donnees.exercises.length, tentatives: donnees.attempts.length },
+    calibrerToutes(etats, exercicesActifs, donnees.attempts),
+    { exercices: exercicesActifs.length, tentatives: donnees.attempts.length },
   );
   const recommandations = mesurerSync("recommander", () =>
-    recommander(etats, donnees.exercises, donnees.attempts, 6, calibrations, now),
-    { exercices: donnees.exercises.length, tentatives: donnees.attempts.length },
+    recommander(etats, exercicesActifs, donnees.attempts, 6, calibrations, now),
+    { exercices: exercicesActifs.length, tentatives: donnees.attempts.length },
   );
 
   return {
     donnees,
+    exercicesActifs,
     referentiel,
     etats,
     etatsParCode: new Map(etats.map((e) => [e.skill.code, e])),

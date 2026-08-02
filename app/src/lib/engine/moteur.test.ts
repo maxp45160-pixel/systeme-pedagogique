@@ -19,7 +19,10 @@ import {
 } from "@/lib/domain/referentiel.fixture";
 import type {
   Autonomie,
+  Difficulte,
   Dimension,
+  Exercise,
+  ExerciseAttempt,
   LearningSession,
   QualitePreuve,
   SkillEvidence,
@@ -675,6 +678,133 @@ describe("recommandation — protocole d'évaluation §16", () => {
     const rDev01PasDue = rJourPreuve.find((r) => r.etat.skill.code === "DEV-01")!;
     const facteurPasDue = rDev01PasDue.facteurs.find((f) => f.libelle === "Due pour révision");
     expect(facteurPasDue).toBeUndefined();
+  });
+});
+
+/* ------------------------------------------------------------------ */
+
+/*
+ * Le choix de l'exercice — 02/08/2026.
+ *
+ * Jusqu'ici `choisirExercice` n'excluait QUE les exercices réussis : un échec
+ * revenait au tour suivant, à l'identique, indéfiniment. Avec 6 exercices en
+ * base pour 54 compétences actives, la file n'avait rien d'autre à servir, et
+ * suivre la « prochaine action » revenait à refaire en boucle ce qu'on venait
+ * de rater. Le remède n'est pas un délai — trois jours ne rendent pas soluble
+ * un exercice hors de portée — mais une condition : un progrès démontré.
+ */
+describe("choix de l'exercice — un échec ne redonne pas le même exercice", () => {
+  function exo(id: string, difficulte: Difficulte, dureeEstimeeMin = 25): Exercise {
+    return {
+      id,
+      titre: `Exercice ${id}`,
+      domaine: "statistiques",
+      type: "application",
+      difficulte,
+      competences: ["STAT-01"],
+      dureeEstimeeMin,
+      enonce: "…",
+      indices: ["a", "b", "c"],
+      correction: "…",
+      criteres: [],
+      origine: "tuteur",
+    };
+  }
+
+  let n = 0;
+  function tent(
+    exerciseId: string,
+    resultat: ExerciseAttempt["resultat"],
+    jours: number,
+    statut: ExerciseAttempt["statut"] = "terminee",
+  ): ExerciseAttempt {
+    return {
+      id: `at-${++n}`,
+      exerciseId,
+      debut: ilYa(jours),
+      fin: ilYa(jours),
+      dureeMin: 20,
+      indicesUtilises: 1,
+      reponse: "…",
+      autoEvaluation: {},
+      resultat,
+      statut,
+    };
+  }
+
+  function propose(
+    exercices: Exercise[],
+    tentatives: ExerciseAttempt[],
+    preuves: SkillEvidence[] = [],
+  ): Exercise | null {
+    const etats = computeAllSkillStates(SKILLS, preuves, MAINTENANT);
+    const classement = recommander(
+      etats,
+      exercices,
+      tentatives,
+      SKILLS.length,
+      undefined,
+      MAINTENANT,
+    );
+    return classement.find((r) => r.etat.skill.code === "STAT-01")?.exercice ?? null;
+  }
+
+  it("un exercice réussi sort de la file", () => {
+    const ex = exo("ex-1", 2);
+    expect(propose([ex], [tent("ex-1", "reussi", 3)])).toBeNull();
+  });
+
+  it("un exercice échoué ne revient pas tant qu'aucun progrès n'est démontré", () => {
+    const ex = exo("ex-1", 2);
+    const echec = preuve({ skill: "STAT-01", jours: 3, resultat: "echec" });
+    expect(propose([ex], [tent("ex-1", "echec", 3)], [echec])).toBeNull();
+  });
+
+  it("il revient dès qu'une réussite postérieure le suit sur la compétence", () => {
+    const ex = exo("ex-1", 2);
+    const preuves = [
+      preuve({ skill: "STAT-01", jours: 5, resultat: "echec" }),
+      preuve({ skill: "STAT-01", jours: 1, resultat: "reussi", contexte: "Contexte B" }),
+    ];
+    const propose1 = propose([ex], [tent("ex-1", "echec", 5)], preuves);
+    expect(propose1?.id).toBe("ex-1");
+  });
+
+  it("une réussite ANTÉRIEURE à l'échec ne suffit pas — le progrès doit être postérieur", () => {
+    const ex = exo("ex-1", 2);
+    const preuves = [
+      preuve({ skill: "STAT-01", jours: 9, resultat: "reussi" }),
+      preuve({ skill: "STAT-01", jours: 3, resultat: "echec", contexte: "Contexte B" }),
+    ];
+    expect(propose([ex], [tent("ex-1", "echec", 3)], preuves)).toBeNull();
+  });
+
+  it("un partiel reste candidat — c'est un progrès, pas un mur", () => {
+    const ex = exo("ex-1", 2);
+    const partiel = preuve({ skill: "STAT-01", jours: 3, resultat: "partiel" });
+    expect(propose([ex], [tent("ex-1", "partiel", 3)], [partiel])?.id).toBe("ex-1");
+  });
+
+  it("un abandon ne compte pas : l'exercice reste proposable", () => {
+    // Même règle que `tentativeMenee` — une tentative interrompue ne dit rien.
+    const ex = exo("ex-1", 2);
+    expect(propose([ex], [tent("ex-1", "echec", 3, "abandonnee")])?.id).toBe("ex-1");
+  });
+
+  it("à écart de difficulté égal, ce qui n'a jamais été tenté passe devant", () => {
+    const dejaTente = exo("ex-vu", 2);
+    const neuf = exo("ex-neuf", 2);
+    const partiel = preuve({ skill: "STAT-01", jours: 3, resultat: "partiel" });
+    expect(
+      propose([dejaTente, neuf], [tent("ex-vu", "partiel", 3)], [partiel])?.id,
+    ).toBe("ex-neuf");
+  });
+
+  it("sans candidat, la recommandation n'invente pas d'exercice", () => {
+    // C'est le repli assumé : l'interface bascule alors sur « demander un
+    // exercice au tuteur » plutôt que de resservir ce qui vient d'échouer.
+    const echec = preuve({ skill: "STAT-01", jours: 3, resultat: "echec" });
+    expect(propose([exo("ex-1", 2)], [tent("ex-1", "echec", 3)], [echec])).toBeNull();
   });
 });
 

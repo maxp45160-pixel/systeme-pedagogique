@@ -238,7 +238,11 @@ CREATE TABLE IF NOT EXISTS public.exercises (
   titre               TEXT NOT NULL,
   domaine             TEXT NOT NULL,
   type                TEXT NOT NULL,
-  difficulte          TEXT NOT NULL,
+  -- INTEGER, pas TEXT : le domaine est 1..5 (`Difficulte`), et
+  -- `ligneVersEntite` ne coerce pas — une colonne TEXT faisait remonter
+  -- « 1 » au moteur, où `"1" + 0` vaut `"10"`. Voir
+  -- `migration-exercices.sql` §1 pour les bases déjà en service.
+  difficulte          INTEGER NOT NULL CHECK (difficulte BETWEEN 1 AND 5),
   competences         TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
   duree_estimee_min   INTEGER NOT NULL DEFAULT 0,
   enonce              TEXT NOT NULL,
@@ -248,6 +252,9 @@ CREATE TABLE IF NOT EXISTS public.exercises (
   criteres            JSONB NOT NULL DEFAULT '[]'::jsonb,
   diagnostic          BOOLEAN,
   origine             TEXT NOT NULL DEFAULT 'manuel',
+  -- Retrait sans perte de preuves (calque ADR-027). Un exercice sans
+  -- tentative se supprime ; un exercice qui en porte s'archive.
+  archive             BOOLEAN NOT NULL DEFAULT FALSE,
   created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (user_id, id)
 );

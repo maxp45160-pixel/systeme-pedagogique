@@ -284,6 +284,15 @@ export interface Exercise {
   /** Vrai pour les exercices du plan d'évaluation initiale. */
   diagnostic?: boolean;
   origine: "seed" | "tuteur" | "manuel";
+  /**
+   * Retiré du flux sans perte de preuves (calque ADR-027).
+   *
+   * Un exercice archivé sort de la recommandation et de la calibration, mais
+   * les preuves qu'il a produites restent au journal — sinon le retrait
+   * réécrirait le passé. Absent sur les exercices de diagnostic, qui sont
+   * livrés avec le logiciel et ne se retirent pas un par un.
+   */
+  archive?: boolean;
 }
 
 export interface ExerciseAttempt {

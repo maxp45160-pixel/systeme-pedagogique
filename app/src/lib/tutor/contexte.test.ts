@@ -64,6 +64,7 @@ function construireCtxDeTest(referentiel = REFERENTIEL_TEST): Contexte {
   return {
     referentiel,
     calibrations,
+    exercicesActifs: [],
     donnees: {
       user: {
         id: "test",

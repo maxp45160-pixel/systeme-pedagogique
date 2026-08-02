@@ -301,9 +301,29 @@ export function calibrer(
   // La difficulté se règle sur la dernière tentative EXPLOITABLE. Les autres
   // restent affichées — elles expliquent pourquoi il n'y a pas de conseil.
   const exploitable = verdicts.find((v) => v.signal !== "non-tentee");
-  const difficulteConseillee = exploitable
-    ? borner(exploitable.difficulte + AJUSTEMENT[exploitable.signal])
-    : null;
+
+  /*
+   * ⚠️ La conversion explicite n'est pas décorative.
+   *
+   * `exercises.difficulte` était déclarée TEXT et `ligneVersEntite` ne coerce
+   * pas : un exercice relu depuis la base portait `"1"` et non `1`. L'addition
+   * ci-dessous devenait une concaténation — `"1" + 0` vaut `"10"`, borné à 5 ;
+   * `"1" + (-1)` vaut `"1-1"`, donc NaN. Le 02/08/2026, DEV-03 et DEV-04
+   * conseillaient une difficulté 5 sur la foi d'un partiel obtenu à
+   * difficulté 1. Les tests ne le voyaient pas : ils passent des `Difficulte`
+   * typées, jamais une valeur venue de la dorsale.
+   *
+   * La colonne est désormais INTEGER (`supabase/migration-exercices.sql`).
+   * Le moteur ne s'en remet pas pour autant à la dorsale : une valeur
+   * inexploitable ne conseille RIEN, et le dit. Fabriquer un nombre à partir
+   * d'une entrée illisible est exactement ce que P2 interdit.
+   */
+  const base = exploitable ? Number(exploitable.difficulte) : Number.NaN;
+  const difficulteLisible = Number.isFinite(base);
+  const difficulteConseillee =
+    exploitable && difficulteLisible
+      ? borner(base + AJUSTEMENT[exploitable.signal])
+      : null;
 
   const facteurs: Explication["facteurs"] = verdicts.map((v) => ({
     libelle: `${v.titre} (difficulté ${v.difficulte})`,
@@ -325,6 +345,10 @@ export function calibrer(
     reserves.push(
       "Toutes les tentatives récentes ont été abandonnées trop tôt pour conclure sur la difficulté.",
     );
+  } else if (!difficulteLisible) {
+    reserves.push(
+      `La difficulté enregistrée pour « ${exploitable.titre} » n'est pas un nombre exploitable : aucune difficulté n'est conseillée.`,
+    );
   }
   if (dimensionFaible?.observations === 1) {
     reserves.push(
@@ -339,7 +363,7 @@ export function calibrer(
     dimensionFaible,
     verdicts,
     explication: {
-      resume: exploitable
+      resume: exploitable && difficulteConseillee !== null
         ? `Difficulté ${difficulteConseillee} conseillée : le dernier exercice exploitable a été ${
             exploitable.signal === "trop-facile"
               ? "trop facile"

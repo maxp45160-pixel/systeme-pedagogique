@@ -203,18 +203,73 @@ function evaluer(
   return { valeur, facteurs: facteurs.sort((a, b) => b.contribution - a.contribution) };
 }
 
-/** Choisit l'exercice le mieux adapté au niveau visé, non encore réussi. */
+/** Date d'une tentative : sa fin si elle en a une, son début sinon. */
+const dateTentative = (t: ExerciseAttempt): string => t.fin ?? t.debut;
+
+/**
+ * Tentatives TERMINÉES sur un exercice, de la plus récente à la plus ancienne.
+ *
+ * Les abandons sont écartés ici comme ils le sont dans `calibration.ts` : une
+ * tentative interrompue sous le quart de la durée estimée ne dit rien, ni sur
+ * l'exercice ni sur la personne. Une tentative en cours n'a pas de résultat.
+ */
+function terminees(exerciceId: string, tentatives: ExerciseAttempt[]): ExerciseAttempt[] {
+  return tentatives
+    .filter((t) => t.exerciseId === exerciceId && t.statut === "terminee")
+    .sort((a, b) => dateTentative(b).localeCompare(dateTentative(a)));
+}
+
+/**
+ * Cet exercice peut-il être recommandé ?
+ *
+ * Trois cas, du plus fort au plus faible :
+ *
+ *  1. DÉJÀ RÉUSSI — il sort de la file, définitivement. Le refaire reste
+ *     possible depuis sa fiche, et fait monter la robustesse ; ce n'est
+ *     simplement plus une recommandation.
+ *
+ *  2. DERNIÈRE TENTATIVE ÉCHOUÉE — il ne revient qu'après un **progrès
+ *     démontré** sur la compétence visée : une preuve en réussite postérieure
+ *     à cet échec. C'est P4 lu dans l'autre sens — une faiblesse ne disparaît
+ *     pas sans démonstration, et elle ne se remesure pas non plus sans qu'il y
+ *     ait quelque chose de nouveau à mesurer.
+ *
+ *     Le déclencheur est une CONDITION, pas un délai. Un minuteur reproposerait
+ *     au bout de trois jours un exercice hors de portée, sans que rien n'ait
+ *     changé entre-temps : c'est précisément ce que le produit faisait, et ce
+ *     qui donnait le sentiment de tourner en rond. Trois jours ne rendent pas
+ *     soluble ce qui ne l'était pas.
+ *
+ *  3. PARTIEL, ou jamais tenté — candidat. Un partiel est un progrès, pas un
+ *     mur : il reste proposable, il passe seulement derrière ce qui est neuf.
+ *
+ * Rien n'est stocké : tout se dérive des tentatives et des preuves (P1).
+ */
+function recommandable(
+  exercice: Exercise,
+  etat: SkillState,
+  tentatives: ExerciseAttempt[],
+): boolean {
+  const passees = terminees(exercice.id, tentatives);
+  if (passees.length === 0) return true;
+  if (passees.some((t) => t.resultat === "reussi")) return false;
+
+  const derniere = passees[0];
+  if (derniere.resultat !== "echec") return true;
+
+  const depuis = dateTentative(derniere);
+  return etat.preuves.some((p) => p.resultat === "reussi" && p.date > depuis);
+}
+
+/** Choisit l'exercice le mieux adapté au niveau visé, parmi les recommandables. */
 function choisirExercice(
   etat: SkillState,
   exercices: Exercise[],
   tentatives: ExerciseAttempt[],
   cible: Difficulte,
 ): Exercise | null {
-  const reussis = new Set(
-    tentatives.filter((t) => t.resultat === "reussi").map((t) => t.exerciseId),
-  );
   const candidats = exercices.filter(
-    (ex) => ex.competences.includes(etat.skill.code) && !reussis.has(ex.id),
+    (ex) => ex.competences.includes(etat.skill.code) && recommandable(ex, etat, tentatives),
   );
   if (candidats.length === 0) return null;
 
@@ -224,8 +279,15 @@ function choisirExercice(
     if (diag) return diag;
   }
 
+  // À difficulté également adaptée, ce qui n'a jamais été tenté passe devant.
+  // Sans cette clé, la file reservait indéfiniment le même exercice partiel
+  // alors qu'un exercice neuf attendait au même écart de la cible.
+  const jamaisTente = (ex: Exercise) =>
+    terminees(ex.id, tentatives).length === 0 ? 0 : 1;
+
   return candidats.sort(
     (a, b) =>
+      jamaisTente(a) - jamaisTente(b) ||
       Math.abs(a.difficulte - cible) - Math.abs(b.difficulte - cible) ||
       a.dureeEstimeeMin - b.dureeEstimeeMin,
   )[0];

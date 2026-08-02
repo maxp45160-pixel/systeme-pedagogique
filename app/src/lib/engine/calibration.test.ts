@@ -286,6 +286,53 @@ describe("calibrer — la difficulté conseillée", () => {
     ).toBe(1);
   });
 
+  /*
+   * Régression du 02/08/2026 — la difficulté venue de la dorsale.
+   *
+   * `exercises.difficulte` était déclarée TEXT et `ligneVersEntite` ne coerce
+   * pas : un exercice relu depuis la base portait `"1"`. L'addition devenait
+   * une concaténation, et le module conseillait 5 là où il fallait 1 — ce qui
+   * partait ensuite dans `difficulteCible` ET dans le contexte du tuteur, qui
+   * générait en conséquence. Aucun des tests existants ne pouvait le voir :
+   * ils passent tous des `Difficulte` déjà typées.
+   *
+   * La colonne est désormais INTEGER, mais ces cas restent : ils épinglent le
+   * contrat du moteur face à une entrée mal typée, quelle qu'en soit l'origine.
+   */
+  describe("face à une difficulté mal typée venue de la dorsale", () => {
+    const chaine = (v: string) => v as unknown as Difficulte;
+
+    it("lit « 1 » comme 1 — le cas exact de ex-msahkhoy-maqnm (partiel 17 min sur 25)", () => {
+      const ex = exercice("ex-1", chaine("1"), 25, ["DEV-01"]);
+      const c = calibrer(DEV01, [ex], [
+        tentative({ exerciseId: "ex-1", resultat: "partiel", indicesUtilises: 2, dureeMin: 17 }),
+      ]);
+      expect(c.signal).toBe("calibre");
+      expect(c.difficulteConseillee).toBe(1);
+      expect(c.difficulteConseillee).not.toBe(5);
+    });
+
+    it("ne produit jamais NaN sur la branche « trop difficile »", () => {
+      const ex = exercice("ex-1", chaine("1"), 30, ["DEV-01"]);
+      const c = calibrer(DEV01, [ex], [
+        tentative({ exerciseId: "ex-1", resultat: "echec", indicesUtilises: 3, dureeMin: 25 }),
+      ]);
+      expect(c.difficulteConseillee).toBe(1);
+      expect(Number.isNaN(c.difficulteConseillee)).toBe(false);
+    });
+
+    it("ne conseille RIEN si la valeur n'est pas un nombre, et le dit", () => {
+      const ex = exercice("ex-1", chaine("facile"), 25, ["DEV-01"]);
+      const c = calibrer(DEV01, [ex], [
+        tentative({ exerciseId: "ex-1", resultat: "partiel", indicesUtilises: 1, dureeMin: 20 }),
+      ]);
+      expect(c.difficulteConseillee).toBeNull();
+      expect(c.explication.reserves.join(" ")).toContain("n'est pas un nombre exploitable");
+      // Le verdict reste affiché : il explique pourquoi il n'y a pas de conseil.
+      expect(c.verdicts).toHaveLength(1);
+    });
+  });
+
   it("ne conseille RIEN quand la seule tentative n'a pas été menée", () => {
     // La garantie centrale : l'absence de mesure exploitable n'est pas une
     // mesure. Le conseil est `null`, la réserve le dit, et l'appelant retombe
