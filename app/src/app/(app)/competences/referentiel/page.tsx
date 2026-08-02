@@ -57,6 +57,7 @@ async function ContenuReferentiel({ proposition }: { proposition: boolean }) {
         <Carte className="mb-4">
           <div className="px-5 py-4">
             <ValidationBranche
+              compteId={ctx.donnees.user.id}
               domainesExistants={referentiel.domaines.map((d) => ({
                 id: d.id,
                 nom: d.nom,

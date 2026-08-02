@@ -26,6 +26,8 @@
  * bruit. C'est le maillon « génération » de la boucle : il ne doit pas pouvoir
  * tomber en silence.
  */
+import { cleParCompte } from "@/lib/ui/stockage-session";
+
 export const MARQUEUR_PREUVE = "PROPOSITION DE MISE À JOUR";
 export const MARQUEUR_EXERCICE = "PROPOSITION D'EXERCICE";
 export const MARQUEUR_REFERENTIEL = "PROPOSITION DE RÉFÉRENTIEL";
@@ -160,14 +162,29 @@ export interface PropositionExercice {
 }
 
 /**
- * Clé de passage du chat vers le formulaire de création, via `sessionStorage`.
+ * Clé de passage du chat vers l'écran de validation, via `sessionStorage`.
  *
  * Pourquoi pas l'URL, comme pour les preuves : un énoncé et sa correction
  * dépassent vite la longueur exploitable d'une adresse, et la troncature serait
  * silencieuse. L'URL ne porte donc qu'un drapeau (`?proposition=1`) qui ouvre
- * le formulaire ; le contenu passe par la session du navigateur.
+ * l'écran ; le contenu passe par la session du navigateur.
+ *
+ * ⚠️ Deux corrections du 02/08/2026, dans la même signature :
+ *
+ * 1. **Par compte.** C'était une constante globale, en violation directe de la
+ *    règle de `stockage-session.ts` — deux comptes sur le même navigateur
+ *    voyaient la même proposition en attente. ADR-029 un cran plus bas.
+ *
+ * 2. **Une FILE, pas une valeur.** Le tuteur sait produire plusieurs exercices
+ *    par tour — les deux moteurs accumulent les appels d'outil, et le parseur
+ *    texte extrait déjà plusieurs blocs. Mais chaque clic « Revoir et ajouter »
+ *    écrasait la clé unique : générer les exercices d'un domaine se faisait un
+ *    par un, avec un aller-retour vers le chat entre chacun. La valeur stockée
+ *    est désormais un `PropositionExercice[]`.
  */
-export const CLE_PROPOSITION_EXERCICE = "systeme-pedagogique:proposition-exercice";
+export function cleExercicesProposes(compteId: string): string {
+  return cleParCompte("propositions-exercice", compteId);
+}
 
 /** Étiquettes reconnues, dans l'ordre du gabarit. */
 const ETIQUETTES_EXERCICE = [
@@ -395,9 +412,11 @@ export interface PropositionReferentiel {
  *
  * Comme pour l'exercice, et pour la même raison : une branche de huit
  * compétences dépasse la longueur exploitable d'une adresse, et la troncature
- * serait silencieuse.
+ * serait silencieuse. Par compte, comme tout ce qui passe par le navigateur.
  */
-export const CLE_PROPOSITION_REFERENTIEL = "systeme-pedagogique:proposition-referentiel";
+export function cleReferentielPropose(compteId: string): string {
+  return cleParCompte("proposition-referentiel", compteId);
+}
 
 const ETIQUETTES_REFERENTIEL = [
   "Domaine",

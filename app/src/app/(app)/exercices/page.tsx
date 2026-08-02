@@ -21,7 +21,16 @@ import {
 import { Depliant } from "@/components/ui/explication";
 import { FormulaireCreationExercice } from "@/components/exercices/formulaire-creation";
 import { RetraitExercice } from "@/components/exercices/retrait";
+import { amorceLotExercices, lienTuteur } from "@/lib/tutor/amorces";
 import { formatDuree } from "@/lib/engine/dates";
+
+/**
+ * Compétences demandées en une fois au tuteur.
+ *
+ * Six énoncés complets — énoncé, indices, correction, critères — tiennent dans
+ * un tour ; seize se font couper en chemin. Le reste est annoncé, pas masqué.
+ */
+const LOT_MAX = 6;
 
 const TYPES: { cle: TypeExercice; libelle: string }[] = [
   { cle: "rappel", libelle: "Rappel" },
@@ -131,8 +140,75 @@ async function ContenuExercices({
 
   const aucunFiltre = Object.values(f).every((v) => !v);
 
+  /*
+   * Couverture du référentiel par le corpus.
+   *
+   * Au 02/08/2026, 40 des 54 compétences actives n'avaient AUCUN exercice.
+   * C'est la cause de fond derrière « je refais toujours les mêmes » : le
+   * moteur n'a rien d'autre à servir. Ce bloc rend la pénurie visible et offre
+   * de la combler par domaine plutôt que compétence par compétence.
+   */
+  const couverts = new Set(ctx.exercicesActifs.flatMap((e) => e.competences));
+  const decouverts = ctx.referentiel.domaines
+    .map((d) => ({
+      domaine: d,
+      codes: ctx.etats
+        .filter((e) => e.skill.domaine === d.id && !couverts.has(e.skill.code))
+        .map((e) => e.skill.code),
+    }))
+    .filter((g) => g.codes.length > 0);
+  const totalDecouvert = decouverts.reduce((s, g) => s + g.codes.length, 0);
+
   return (
     <>
+      {totalDecouvert > 0 && aucunFiltre && (
+        <Carte className="mb-4">
+          <div className="px-4 py-3">
+            <Depliant
+              resume={`${totalDecouvert} compétence${totalDecouvert > 1 ? "s" : ""} sans aucun exercice`}
+            >
+              <p className="mt-2 max-w-2xl text-xs text-texte-attenue">
+                Le moteur ne peut proposer que ce qui existe. Tant qu&apos;une compétence
+                n&apos;a aucun exercice, la recommandation retombe sur le tuteur — et si
+                toutes celles qui en ont sont déjà faites ou ratées, la file paraît tourner
+                en rond. Demander un lot par domaine évite d&apos;ouvrir une conversation par
+                compétence.
+              </p>
+              <ul className="mt-3 divide-y divide-bordure border-t border-bordure">
+                {decouverts.map(({ domaine, codes }) => {
+                  // Plafonné : un tour de tuteur qui rédige seize énoncés
+                  // complets se fait couper avant la fin. Ce qui est laissé de
+                  // côté est dit, jamais tronqué en silence (P3).
+                  const lot = codes.slice(0, LOT_MAX);
+                  return (
+                    <li
+                      key={domaine.id}
+                      className="flex flex-wrap items-center justify-between gap-2 py-2"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium">{domaine.nom}</p>
+                        <p className="mt-0.5 flex flex-wrap gap-1 text-[0.6875rem] text-texte-discret">
+                          {codes.map((c) => (
+                            <CodeCompetence key={c} code={c} />
+                          ))}
+                        </p>
+                      </div>
+                      <Link
+                        href={lienTuteur(amorceLotExercices(lot, domaine.nom))}
+                        className="shrink-0 text-xs text-primaire hover:underline"
+                      >
+                        Demander {lot.length} exercice{lot.length > 1 ? "s" : ""} au tuteur
+                        {codes.length > lot.length && ` (sur ${codes.length})`}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </Depliant>
+          </div>
+        </Carte>
+      )}
+
       <Carte className="mb-4">
         <div className="px-4 py-3">
           <Depliant resume="Ajouter un exercice" ouvertParDefaut={Boolean(proposition)}>

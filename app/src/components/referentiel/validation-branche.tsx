@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { creerBranche } from "@/lib/store/referentiel-actions";
 import {
-  CLE_PROPOSITION_REFERENTIEL,
+  cleReferentielPropose,
   type PropositionReferentiel,
 } from "@/lib/tutor/proposition";
 import { normaliserPalier, prefixeParDefaut } from "@/lib/domain/referentiel-compte";
@@ -38,10 +38,14 @@ interface Ligne {
 
 export function ValidationBranche({
   domainesExistants,
+  compteId,
 }: {
   domainesExistants: { id: string; nom: string; prefixe: string }[];
+  /** Isole la proposition en attente (voir `stockage-session`). */
+  compteId: string;
 }) {
   const router = useRouter();
+  const cleProposition = cleReferentielPropose(compteId);
   const [enCours, demarrer] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
   const [chargee, setChargee] = useState(false);
@@ -68,7 +72,7 @@ export function ValidationBranche({
    * branche, seul moment où elle n'a plus d'objet.
    */
   function charger() {
-    const p = lireSession<PropositionReferentiel>(CLE_PROPOSITION_REFERENTIEL);
+    const p = lireSession<PropositionReferentiel>(cleProposition);
     if (!p) {
       setPerdue(true);
       setChargee(true);
@@ -117,7 +121,7 @@ export function ValidationBranche({
         });
         // La branche existe : la proposition n'a plus d'objet, et la relire
         // rejouerait une validation déjà faite.
-        effacerSession(CLE_PROPOSITION_REFERENTIEL);
+        effacerSession(cleProposition);
         router.push(`/competences?ajoutees=${r.codes.length}`);
         router.refresh();
       } catch (e) {

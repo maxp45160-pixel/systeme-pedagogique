@@ -6,7 +6,7 @@ import type { Difficulte, Dimension, TypeExercice } from "@/lib/domain/types";
 import { DIFFICULTES, LIBELLES_DIMENSIONS } from "@/lib/domain/types";
 import { creerExercice } from "@/lib/store/actions";
 import {
-  CLE_PROPOSITION_EXERCICE,
+  cleExercicesProposes,
   exerciceComplet,
   type PropositionExercice,
 } from "@/lib/tutor/proposition";
@@ -145,9 +145,30 @@ function FormulaireHydrate({
   const router = useRouter();
 
   const cleBrouillon = cleParCompte("brouillon-exercice", compteId);
+  const cleFile = cleExercicesProposes(compteId);
   const [depart] = useState<BrouillonExercice>(
     () => lireSession<BrouillonExercice>(cleBrouillon) ?? BROUILLON_VIDE,
   );
+
+  /**
+   * Nombre de propositions encore en file, relu à chaque consommation.
+   *
+   * Le tuteur peut en déposer plusieurs d'un coup ; ce formulaire en traite
+   * une, celle de tête, puis passe à la suivante. C'est ce qui remplace
+   * l'aller-retour vers le chat entre chaque exercice.
+   */
+  const [enFile, setEnFile] = useState<number>(
+    () => (lireSession<PropositionExercice[]>(cleFile) ?? []).length,
+  );
+
+  /** Consomme la proposition de tête et rend ce qui reste derrière elle. */
+  function retirerDeLaFile(): PropositionExercice[] {
+    const reste = (lireSession<PropositionExercice[]>(cleFile) ?? []).slice(1);
+    if (reste.length === 0) effacerSession(cleFile);
+    else ecrireSession(cleFile, reste);
+    setEnFile(reste.length);
+    return reste;
+  }
 
   const [titre, setTitre] = useState(depart.titre);
   const [type, setType] = useState<TypeExercice>(depart.type);
@@ -163,6 +184,8 @@ function FormulaireHydrate({
 
   const [enCours, demarrer] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
+  /** Confirmation d'un ajout quand la file continue — on ne quitte pas la page. */
+  const [avis, setAvis] = useState<string | null>(null);
 
   /**
    * Origine de l'énoncé, tracée jusqu'en base (ADR-004). Passe à « tuteur »
@@ -187,7 +210,10 @@ function FormulaireHydrate({
    * ou sur un abandon explicite.
    */
   function chargerProposition() {
-    const p = lireSession<PropositionExercice>(CLE_PROPOSITION_EXERCICE);
+    const file = lireSession<PropositionExercice[]>(cleFile) ?? [];
+    const p = file[0];
+    setEnFile(file.length);
+    setAvis(null);
     if (!p) {
       setPropositionPerdue(true);
       return;
@@ -277,10 +303,8 @@ function FormulaireHydrate({
     ignores,
   ]);
 
-  /** Efface brouillon et proposition d'un même geste : ils vont par paire. */
-  function abandonnerBrouillon() {
-    effacerSession(cleBrouillon);
-    effacerSession(CLE_PROPOSITION_EXERCICE);
+  /** Remet les champs à l'état vierge, sans toucher au stockage. */
+  function reinitialiserChamps() {
     setTitre(BROUILLON_VIDE.titre);
     setType(BROUILLON_VIDE.type);
     setDifficulte(BROUILLON_VIDE.difficulte);
@@ -292,6 +316,23 @@ function FormulaireHydrate({
     setCriteres(BROUILLON_VIDE.criteres);
     setIgnores(BROUILLON_VIDE.ignores);
     setPropositionPerdue(false);
+  }
+
+  /**
+   * Efface le brouillon et écarte la proposition de tête : ils vont par paire.
+   *
+   * Écarter, et non vider la file entière — les propositions suivantes n'ont
+   * rien à voir avec celle qu'on abandonne.
+   */
+  function abandonnerBrouillon() {
+    effacerSession(cleBrouillon);
+    const reste = retirerDeLaFile();
+    reinitialiserChamps();
+    setAvis(
+      reste.length > 0
+        ? `Proposition écartée. ${reste.length} encore en attente.`
+        : null,
+    );
     // En dernier : c'est lui qui referme les champs et coupe l'enregistrement
     // du brouillon ci-dessus.
     setOrigine(BROUILLON_VIDE.origine);
@@ -329,7 +370,26 @@ function FormulaireHydrate({
         });
         // L'exercice existe : le brouillon et la proposition n'ont plus d'objet.
         effacerSession(cleBrouillon);
-        effacerSession(CLE_PROPOSITION_EXERCICE);
+        const reste = retirerDeLaFile();
+
+        /*
+         * Tant qu'il reste des propositions, on NE quitte PAS la page.
+         *
+         * Générer les exercices d'un domaine se faisait un par un, avec un
+         * aller-retour vers le chat entre chacun. Enchaîner sur la suivante
+         * transforme cette file en une seule séance de relecture — sans rien
+         * retirer au principe : chaque exercice est toujours lu et validé
+         * individuellement (P5).
+         */
+        if (reste.length > 0) {
+          reinitialiserChamps();
+          setOrigine("manuel");
+          setAvis(
+            `Exercice ajouté. ${reste.length} proposition${reste.length > 1 ? "s" : ""} encore en attente.`,
+          );
+          return;
+        }
+
         router.push(`/exercices/${id}`);
       } catch (e) {
         setErreur(e instanceof Error ? e.message : "Création impossible.");
@@ -342,12 +402,19 @@ function FormulaireHydrate({
   if (origine === "manuel") {
     return (
       <div className="space-y-3 text-xs">
-        {propositionEnAttente ? (
+        {avis && (
+          <p className="rounded-md border border-succes/30 bg-succes-faible px-3 py-2 text-succes">
+            {avis}
+          </p>
+        )}
+        {propositionEnAttente || enFile > 0 ? (
           <div className="rounded-md border border-primaire/30 bg-surface-2 px-3 py-2">
             <p className="text-texte-attenue">
               {propositionPerdue
                 ? "La proposition n'est plus disponible — l'onglet a été rouvert, ou le brouillon a été abandonné. Retourne au tuteur et clique à nouveau sur « Revoir et ajouter »."
-                : "Le tuteur a proposé un exercice. Rien n'a été enregistré : charge-le pour le relire et le corriger avant de valider."}
+                : enFile > 1
+                  ? `Le tuteur a proposé ${enFile} exercices. Rien n'a été enregistré : ils se relisent un par un, et tu valides ou écartes chacun.`
+                  : "Le tuteur a proposé un exercice. Rien n'a été enregistré : charge-le pour le relire et le corriger avant de valider."}
             </p>
             {!propositionPerdue && (
               <button
@@ -355,7 +422,9 @@ function FormulaireHydrate({
                 onClick={chargerProposition}
                 className={cx(classesBouton("principal", "petite"), "mt-2")}
               >
-                Relire la proposition du tuteur
+                {enFile > 1
+                  ? `Relire la proposition suivante (${enFile} en attente)`
+                  : "Relire la proposition du tuteur"}
               </button>
             )}
           </div>

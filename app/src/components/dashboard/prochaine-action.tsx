@@ -3,6 +3,7 @@ import type { Recommandation } from "@/lib/engine/recommend";
 import { DIFFICULTES, LIBELLES_DIMENSIONS, type Referentiel } from "@/lib/domain/types";
 import { libelleDomaine } from "@/lib/domain/referentiel-compte";
 import { prochaineRevision } from "@/lib/engine/spaced";
+import { amorceExercice, lienTuteur } from "@/lib/tutor/amorces";
 import {
   Carte,
   classesBouton,
@@ -96,7 +97,23 @@ export function CarteProchaineAction({
               <IconeFleche className="size-4" />
             </Link>
           ) : (
-            <Link href={`/tuteur?competence=${etat.skill.code}`} className={classesBouton("principal")}>
+            /*
+              Repli assumé : aucun exercice disponible pour cette compétence —
+              soit elle n'en a jamais eu, soit le seul qui existait vient
+              d'échouer et ne revient pas sans progrès démontré. Le lien porte
+              la difficulté visée et la dimension faible : c'est exactement ce
+              que la carte affiche à côté, et le retaper à la main serait absurde.
+            */
+            <Link
+              href={lienTuteur(
+                amorceExercice(etat.skill.code, {
+                  difficulteConseillee: difficulteCible,
+                  dimensionFaible: principale.calibration?.dimensionFaible?.dimension ?? null,
+                }),
+                etat.skill.code,
+              )}
+              className={classesBouton("principal")}
+            >
               Demander un exercice au tuteur
               <IconeFleche className="size-4" />
             </Link>

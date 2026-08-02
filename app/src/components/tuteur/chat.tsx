@@ -23,8 +23,8 @@ import {
   type PropositionRecue,
 } from "@/lib/tutor/outils";
 import {
-  CLE_PROPOSITION_EXERCICE,
-  CLE_PROPOSITION_REFERENTIEL,
+  cleExercicesProposes,
+  cleReferentielPropose,
   exerciceComplet,
   extrairePropositions,
   extrairePropositionsExercice,
@@ -51,29 +51,34 @@ function lienProposition(p: PropositionTuteur): string {
 }
 
 /**
- * Dépose une proposition d'exercice à destination du formulaire de création.
+ * Dépose une ou plusieurs propositions d'exercice dans la file de validation.
  *
  * Passe par `sessionStorage` plutôt que par l'URL : un énoncé accompagné de sa
  * correction dépasse vite la longueur exploitable d'une adresse, et la
  * troncature serait silencieuse. L'URL ne porte qu'un drapeau d'ouverture.
+ *
+ * La file est **cumulative** : demander trois exercices puis en déposer un
+ * quatrième depuis un autre message n'efface pas les précédents. C'est ce qui
+ * permet de composer un lot au fil de la conversation, puis de tout valider
+ * d'un coup. Les doublons d'un même titre sont écartés — un tuteur qui recopie
+ * son bloc en markdown alors qu'il a déjà appelé l'outil ne doit pas produire
+ * deux fois la même ligne.
  */
-function deposerPropositionExercice(p: PropositionExercice): void {
-  try {
-    window.sessionStorage.setItem(CLE_PROPOSITION_EXERCICE, JSON.stringify(p));
-  } catch {
-    // sessionStorage indisponible (navigation privée stricte) : on laisse
-    // partir vers un formulaire vide plutôt que de bloquer la navigation.
-  }
+function deposerPropositionsExercice(
+  nouvelles: PropositionExercice[],
+  compteId: string,
+): void {
+  const cle = cleExercicesProposes(compteId);
+  const existantes = lireSession<PropositionExercice[]>(cle) ?? [];
+  const vues = new Set(existantes.map((p) => p.titre.trim().toLowerCase()));
+  const ajouts = nouvelles.filter((p) => !vues.has(p.titre.trim().toLowerCase()));
+  ecrireSession(cle, [...existantes, ...ajouts]);
 }
 
 /** Même passage que pour l'exercice : une branche de huit compétences ne tient
  *  pas dans une adresse, et la troncature serait silencieuse. */
-function deposerPropositionReferentiel(p: PropositionReferentiel): void {
-  try {
-    window.sessionStorage.setItem(CLE_PROPOSITION_REFERENTIEL, JSON.stringify(p));
-  } catch {
-    /* idem */
-  }
+function deposerPropositionReferentiel(p: PropositionReferentiel, compteId: string): void {
+  ecrireSession(cleReferentielPropose(compteId), p);
 }
 
 /**
@@ -142,10 +147,13 @@ export interface EtatContexteTuteur {
 const MessageBulle = memo(function MessageBulle({
   message,
   codesCompetences,
+  compteId,
   enFluxDirect,
 }: {
   message: Message;
   codesCompetences: string[];
+  /** Isole la file de propositions du compte (voir `stockage-session`). */
+  compteId: string;
   /**
    * Ce message est-il celui que le tuteur est en train d'écrire ?
    *
@@ -294,13 +302,32 @@ const MessageBulle = memo(function MessageBulle({
           <p className="mt-1 font-medium">{ex.titre}</p>
           <Link
             href="/exercices?proposition=1"
-            onClick={() => deposerPropositionExercice(ex)}
+            onClick={() => deposerPropositionsExercice([ex], compteId)}
             className={cx(classesBouton("secondaire", "petite"), "mt-2")}
           >
             Revoir et ajouter
           </Link>
         </div>
       ))}
+
+      {/*
+        Le tuteur sait produire plusieurs exercices en un tour ; il fallait
+        jusqu'ici les reprendre un par un, avec un retour au chat entre chacun.
+        Ce bouton dépose le lot entier dans la file — la validation ligne à
+        ligne se fait ensuite sur l'écran des exercices, et rien n'est écrit
+        avant (P5).
+      */}
+      {exercices.length > 1 && (
+        <div className="max-w-[85%]">
+          <Link
+            href="/exercices?proposition=1"
+            onClick={() => deposerPropositionsExercice(exercices, compteId)}
+            className={classesBouton("principal", "petite")}
+          >
+            Revoir et ajouter les {exercices.length} exercices
+          </Link>
+        </div>
+      )}
 
       {/*
         Branche proposée : le seul bloc qui peut introduire des compétences
@@ -332,7 +359,7 @@ const MessageBulle = memo(function MessageBulle({
           </ul>
           <Link
             href="/competences/referentiel?proposition=1"
-            onClick={() => deposerPropositionReferentiel(b)}
+            onClick={() => deposerPropositionReferentiel(b, compteId)}
             className={cx(classesBouton("secondaire", "petite"), "mt-2")}
           >
             Revoir et ajouter au référentiel
@@ -1003,6 +1030,7 @@ function ChatHydrate({
                 key={i}
                 message={m}
                 codesCompetences={codesCompetences}
+                compteId={compteId}
                 // Seul le dernier message peut être en cours de rédaction. Le
                 // passer aux autres les ferait tous re-rendre au démarrage et à
                 // la fin du flux, pour rien.
