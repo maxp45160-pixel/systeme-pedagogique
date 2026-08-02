@@ -21,7 +21,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { dorsaleCompte, lire, type DorsaleCompte } from "./db";
+import { dorsaleCompte, type DorsaleCompte } from "./db";
 import { entiteVersLigne, verifier } from "./supabase-backend";
 import { lireReferentiel } from "./referentiel";
 import {
@@ -39,12 +39,24 @@ import {
 } from "@/lib/domain/referentiel-compte";
 import type { OrigineReferentiel, Palier } from "@/lib/domain/types";
 
-/** Nombre de preuves par code, pour trancher suppression contre archivage. */
+/**
+ * Nombre de preuves par code, pour trancher suppression contre archivage.
+ *
+ * Une seule colonne remonte. C'était `lire("evidence")` — donc un `SELECT *`
+ * sur toutes les preuves du compte, dimensions et sources JSONB comprises, pour
+ * ne rien faire d'autre que compter des occurrences d'un TEXT. Le geste le plus
+ * fréquent de l'écran de gestion payait la lecture la plus lourde de la base.
+ */
 async function compterPreuves(dorsale: DorsaleCompte): Promise<Map<string, number>> {
-  const preuves = await lire("evidence", dorsale);
+  const { data, error } = await dorsale.supabase
+    .from("evidence")
+    .select("skill_code")
+    .eq("user_id", dorsale.userId);
+  verifier("comptage des preuves", error);
+
   const compte = new Map<string, number>();
-  for (const p of preuves) {
-    compte.set(p.skillCode, (compte.get(p.skillCode) ?? 0) + 1);
+  for (const ligne of (data ?? []) as { skill_code: string }[]) {
+    compte.set(ligne.skill_code, (compte.get(ligne.skill_code) ?? 0) + 1);
   }
   return compte;
 }
@@ -305,6 +317,78 @@ export async function supprimerCompetence(code: string): Promise<void> {
     .eq("user_id", dorsale.userId)
     .eq("code", code);
   verifier("suppression de la compétence", error);
+  revalidatePath("/", "layout");
+}
+
+export interface ResultatRetraitGroupe {
+  supprimees: string[];
+  archivees: string[];
+}
+
+/**
+ * Retire plusieurs compétences en un geste.
+ *
+ * Chaque code garde son mode **dérivé** — on ne choisit pas d'archiver tout le
+ * lot parce qu'une seule ligne porte une preuve, et on ne supprime pas tout
+ * parce que la majorité est vide. Le lot est simplement scindé en deux
+ * requêtes, et le résultat dit ce qui est arrivé à quoi : l'écran l'annonçait
+ * avant le clic, il doit pouvoir le confirmer après.
+ *
+ * Un seul `revalidatePath` pour l'ensemble. Retirer huit compétences en coûtait
+ * huit, chacun suivi d'un rendu complet de la page — c'est le « ça prend
+ * quelques secondes de lag par branche » remonté à l'usage.
+ */
+export async function retirerCompetences(codes: string[]): Promise<ResultatRetraitGroupe> {
+  if (codes.length === 0) return { supprimees: [], archivees: [] };
+
+  const dorsale = await dorsaleCompte();
+  const preuves = await compterPreuves(dorsale);
+
+  const supprimees: string[] = [];
+  const archivees: string[] = [];
+  for (const code of codes) {
+    if (modeRetrait(preuves.get(code) ?? 0) === "suppression") supprimees.push(code);
+    else archivees.push(code);
+  }
+
+  if (archivees.length > 0) {
+    const { error } = await dorsale.supabase
+      .from("competences")
+      .update({ archive: true, active: false })
+      .eq("user_id", dorsale.userId)
+      .in("code", archivees);
+    verifier("archivage des compétences", error);
+  }
+
+  if (supprimees.length > 0) {
+    const { error } = await dorsale.supabase
+      .from("competences")
+      .delete()
+      .eq("user_id", dorsale.userId)
+      .in("code", supprimees);
+    verifier("suppression des compétences", error);
+  }
+
+  revalidatePath("/", "layout");
+  return { supprimees, archivees };
+}
+
+/**
+ * Change le périmètre de travail de plusieurs compétences en une requête.
+ *
+ * Même motif que ci-dessus : c'est le geste qu'on fait par poignées — « ces
+ * six-là sont trop dures pour l'instant » — et il coûtait un aller-retour par
+ * case cochée.
+ */
+export async function basculerActives(codes: string[], active: boolean): Promise<void> {
+  if (codes.length === 0) return;
+  const dorsale = await dorsaleCompte();
+  const { error } = await dorsale.supabase
+    .from("competences")
+    .update({ active })
+    .eq("user_id", dorsale.userId)
+    .in("code", codes);
+  verifier("changement de périmètre", error);
   revalidatePath("/", "layout");
 }
 

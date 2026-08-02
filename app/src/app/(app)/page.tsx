@@ -1,6 +1,8 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { chargerContexte } from "@/lib/store/context";
+import { formatDuree } from "@/lib/engine/dates";
 import { SqueletteContenu } from "@/components/layout/squelette";
 import { calculerActivite, evenementsRecents } from "@/lib/engine/historique";
 import { EntetePage } from "@/components/layout/entete-page";
@@ -60,6 +62,22 @@ async function ContenuTableauDeBord() {
   const activite = calculerActivite(ctx.donnees.sessions, ctx.now);
   const aucunePreuve = ctx.global.nombrePreuves === 0;
 
+  // Tentatives ouvertes, résolues contre le corpus. Un exercice archivé ou
+  // supprimé entre-temps ne doit pas produire une ligne sans titre.
+  const parId = new Map(ctx.donnees.exercises.map((e) => [e.id, e]));
+  const enCours = ctx.donnees.attempts
+    .filter((a) => a.statut === "en-cours")
+    .flatMap((a) => {
+      const exercice = parId.get(a.exerciseId);
+      if (!exercice) return [];
+      const minutes = Math.max(
+        1,
+        Math.round((ctx.now.getTime() - new Date(a.debut).getTime()) / 60_000),
+      );
+      return [{ exercice, depuis: minutes }];
+    })
+    .sort((a, b) => a.depuis - b.depuis);
+
   return (
     <>
       {/*
@@ -74,6 +92,44 @@ async function ContenuTableauDeBord() {
             Aucun niveau ne s&apos;affiche tant qu&apos;un diagnostic n&apos;a pas eu lieu — commence par
             l&apos;action ci-dessous.
           </p>
+        </div>
+      )}
+
+      {/*
+        Un exercice ouvert se signale.
+
+        Le statut d'une tentative est dérivé à chaque rendu et n'était lu nulle
+        part hors de la liste d'exercices : deux tentatives « en cours »
+        pouvaient traîner en base sans qu'aucun écran ne le dise, et
+        `CarteProchaineAction` affichait « Commencer » sans consulter
+        `attempts`. Reprendre un travail entamé demandait de se souvenir soi-même
+        qu'il existait, puis d'aller le chercher au filtre.
+
+        Placé AVANT l'action prioritaire : ce qui est déjà commencé passe avant
+        ce qu'il faudrait commencer.
+      */}
+      {enCours.length > 0 && (
+        <div className="mb-6 rounded-carte border border-primaire/30 bg-surface-2 px-4 py-3">
+          <p className="text-sm font-medium">
+            {enCours.length === 1
+              ? "Tu as un exercice en cours"
+              : `Tu as ${enCours.length} exercices en cours`}
+          </p>
+          <ul className="mt-2 space-y-1.5">
+            {enCours.map(({ exercice, depuis }) => (
+              <li key={exercice.id} className="flex flex-wrap items-baseline gap-2 text-xs">
+                <Link
+                  href={`/exercices/${exercice.id}`}
+                  className="font-medium text-primaire hover:underline"
+                >
+                  {exercice.titre}
+                </Link>
+                <span className="text-texte-discret">
+                  commencé il y a {formatDuree(depuis)} · {exercice.competences.join(", ")}
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

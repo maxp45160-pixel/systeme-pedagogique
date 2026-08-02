@@ -308,6 +308,37 @@ export function modeRetrait(nombreDePreuves: number): ModeRetrait {
   return nombreDePreuves === 0 ? "suppression" : "archivage";
 }
 
+export interface EtatRetrait {
+  preuves: number;
+  mode: ModeRetrait;
+}
+
+/**
+ * Pour chaque compétence, le geste de retrait qui s'appliquerait et le nombre
+ * de preuves en jeu — l'écran de gestion doit l'annoncer AVANT le clic
+ * (ADR-027).
+ *
+ * Fonction pure, et c'est le point. C'était une lecture serveur
+ * (`chargerRetraits`) qui refaisait `lireReferentiel` **et** un `SELECT *` sur
+ * les preuves, alors que la page venait déjà de charger les deux via
+ * `chargerContexte`. Domaines, compétences et preuves étaient donc lus deux
+ * fois par rendu, et l'écran de gestion était le plus lent du produit.
+ */
+export function retraitsParCode(
+  skills: Skill[],
+  preuves: { skillCode: string }[],
+): Map<string, EtatRetrait> {
+  const parCode = new Map<string, number>();
+  for (const p of preuves) parCode.set(p.skillCode, (parCode.get(p.skillCode) ?? 0) + 1);
+
+  return new Map(
+    skills.map((s) => {
+      const n = parCode.get(s.code) ?? 0;
+      return [s.code, { preuves: n, mode: modeRetrait(n) }];
+    }),
+  );
+}
+
 /**
  * Un domaine ne s'efface que si aucune de ses compétences ne porte de preuve.
  * Sinon il est archivé avec elles.

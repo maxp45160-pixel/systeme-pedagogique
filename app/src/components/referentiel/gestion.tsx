@@ -1,17 +1,19 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import {
   archiverCompetence,
   basculerActive,
+  basculerActives,
   desarchiverCompetence,
   modifierCompetence,
+  retirerCompetences,
+  retirerDomaine,
   supprimerCompetence,
 } from "@/lib/store/referentiel-actions";
 import { classesBouton, Carte, CodeCompetence, cx, Etiquette } from "@/components/ui/primitives";
 import type { Domaine, Palier, Skill } from "@/lib/domain/types";
-import type { EtatRetrait } from "@/lib/store/referentiel";
+import type { EtatRetrait } from "@/lib/domain/referentiel-compte";
 
 /**
  * Entretien du référentiel : modifier, sortir du périmètre, retirer.
@@ -43,25 +45,66 @@ export function GestionReferentiel({
   skills: Skill[];
   retraits: Record<string, EtatRetrait>;
 }) {
-  const router = useRouter();
   const [enCours, demarrer] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
+  const [avis, setAvis] = useState<string | null>(null);
   const [edite, setEdite] = useState<string | null>(null);
   const [confirme, setConfirme] = useState<string | null>(null);
+  const [domaineConfirme, setDomaineConfirme] = useState<string | null>(null);
 
+  /**
+   * Sélection multiple.
+   *
+   * Sortir six compétences du périmètre demandait six clics, six écritures et
+   * six rendus complets de la page — c'est le « ergonomiquement c'est une purge »
+   * remonté à l'usage. La sélection est locale et volatile : elle ne survit pas
+   * au rendu suivant, et c'est voulu — après une action groupée, ce qui reste à
+   * l'écran est le nouvel état, pas l'ancienne intention.
+   */
+  const [selection, setSelection] = useState<Set<string>>(new Set());
+
+  /*
+   * Pas de `router.refresh()` ici.
+   *
+   * Chaque Server Function fait déjà `revalidatePath("/", "layout")`, et la
+   * réponse de l'action embarque le rendu invalidé. Le `refresh` ajoutait un
+   * SECOND aller-retour RSC pour recalculer ce qu'on venait de recevoir : la
+   * page la plus lourde du produit était rendue deux fois par clic.
+   */
   function agir(action: () => Promise<unknown>) {
     setErreur(null);
+    setAvis(null);
     demarrer(async () => {
       try {
         await action();
         setEdite(null);
         setConfirme(null);
-        router.refresh();
+        setDomaineConfirme(null);
+        setSelection(new Set());
       } catch (e) {
         setErreur(e instanceof Error ? e.message : "Opération impossible.");
       }
     });
   }
+
+  function basculerSelection(code: string) {
+    setSelection((s) => {
+      const suivant = new Set(s);
+      if (suivant.has(code)) suivant.delete(code);
+      else suivant.add(code);
+      return suivant;
+    });
+  }
+
+  const codesSelectionnes = [...selection];
+  // Le mode reste dérivé PAR CODE, y compris en lot : on n'archive pas six
+  // lignes vides parce que la septième porte une preuve (ADR-027).
+  const aSupprimer = codesSelectionnes.filter(
+    (c) => (retraits[c]?.mode ?? "suppression") === "suppression",
+  );
+  const aArchiver = codesSelectionnes.filter(
+    (c) => (retraits[c]?.mode ?? "suppression") === "archivage",
+  );
 
   // Les domaines sans compétence ne sont pas affichés : un en-tête suivi de
   // rien laisserait croire à un domaine vide plutôt qu'à un domaine absent.
@@ -76,20 +119,165 @@ export function GestionReferentiel({
           {erreur}
         </p>
       )}
+      {avis && (
+        <p className="rounded-md border border-succes/30 bg-succes-faible px-3 py-2 text-xs text-succes">
+          {avis}
+        </p>
+      )}
+
+      {/*
+        Barre d'action groupée. Elle annonce la répartition exacte AVANT le
+        clic — combien seront effacées, combien archivées — parce que le mode
+        reste dérivé code par code et qu'un bouton unique masquerait ce
+        partage (ADR-027).
+      */}
+      {codesSelectionnes.length > 0 && (
+        <div className="sticky top-2 z-10 rounded-md border border-primaire/30 bg-surface-2 px-3 py-2.5 shadow-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium">
+              {codesSelectionnes.length} compétence{codesSelectionnes.length > 1 ? "s" : ""}{" "}
+              sélectionnée{codesSelectionnes.length > 1 ? "s" : ""}
+            </span>
+            <button
+              type="button"
+              disabled={enCours}
+              onClick={() => agir(() => basculerActives(codesSelectionnes, false))}
+              className={classesBouton("secondaire", "petite")}
+            >
+              Sortir du périmètre
+            </button>
+            <button
+              type="button"
+              disabled={enCours}
+              onClick={() => agir(() => basculerActives(codesSelectionnes, true))}
+              className={classesBouton("secondaire", "petite")}
+            >
+              Remettre au périmètre
+            </button>
+            <button
+              type="button"
+              disabled={enCours}
+              onClick={() =>
+                agir(async () => {
+                  const r = await retirerCompetences(codesSelectionnes);
+                  setAvis(
+                    `${r.supprimees.length} supprimée(s), ${r.archivees.length} archivée(s).`,
+                  );
+                })
+              }
+              className={classesBouton("secondaire", "petite")}
+            >
+              Retirer
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelection(new Set())}
+              className="text-[0.6875rem] text-texte-attenue hover:text-texte"
+            >
+              Tout désélectionner
+            </button>
+          </div>
+          <p className="mt-1.5 text-[0.6875rem] text-texte-attenue">
+            « Retirer » effacerait {aSupprimer.length} ligne
+            {aSupprimer.length > 1 ? "s" : ""} sans preuve et archiverait {aArchiver.length}{" "}
+            compétence{aArchiver.length > 1 ? "s" : ""} qui en portent. Les preuves restent en
+            base dans les deux cas.
+          </p>
+        </div>
+      )}
 
       {groupes.map(({ domaine, items }) => (
         <Carte key={domaine.id}>
           <div className="border-b border-bordure px-4 py-2.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm font-medium">{domaine.nom}</span>
-              <Etiquette mono>{domaine.prefixe}</Etiquette>
-              {domaine.archive && <Etiquette>Archivé</Etiquette>}
-              <span className="text-xs text-texte-discret">
-                {items.filter((s) => s.active && !s.archive).length} / {items.length} au périmètre
-              </span>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-medium">{domaine.nom}</span>
+                <Etiquette mono>{domaine.prefixe}</Etiquette>
+                {domaine.archive && <Etiquette>Archivé</Etiquette>}
+                <span className="text-xs text-texte-discret">
+                  {items.filter((s) => s.active && !s.archive).length} / {items.length} au périmètre
+                </span>
+              </div>
+
+              {/*
+                `retirerDomaine` existait depuis ADR-027, testée, et aucune
+                interface ne l'appelait : retirer une branche entière se faisait
+                donc compétence par compétence. Le mode est dérivé de la branche
+                entière — archivage dès qu'une seule de ses compétences porte
+                une preuve.
+              */}
+              <div className="flex shrink-0 items-center gap-1.5">
+                <button
+                  type="button"
+                  disabled={enCours}
+                  onClick={() =>
+                    setSelection(
+                      new Set(items.filter((s) => !s.archive).map((s) => s.code)),
+                    )
+                  }
+                  className="text-[0.6875rem] text-texte-attenue hover:text-texte"
+                >
+                  Tout sélectionner
+                </button>
+                {domaineConfirme === domaine.id ? (
+                  <>
+                    <button
+                      type="button"
+                      disabled={enCours}
+                      onClick={() =>
+                        agir(async () => {
+                          const mode = await retirerDomaine(domaine.id);
+                          setAvis(
+                            mode === "suppression"
+                              ? `Domaine « ${domaine.nom} » supprimé avec ses ${items.length} compétence(s).`
+                              : `Domaine « ${domaine.nom} » archivé : ses preuves restent en base.`,
+                          );
+                        })
+                      }
+                      className={classesBouton("secondaire", "petite")}
+                    >
+                      Confirmer le retrait du domaine
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDomaineConfirme(null)}
+                      className="text-[0.6875rem] text-texte-attenue hover:text-texte"
+                    >
+                      Annuler
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={enCours}
+                    onClick={() => setDomaineConfirme(domaine.id)}
+                    className={classesBouton("discret", "petite")}
+                  >
+                    Retirer le domaine
+                  </button>
+                )}
+              </div>
             </div>
             {domaine.description && (
               <p className="mt-1 text-xs text-texte-attenue">{domaine.description}</p>
+            )}
+            {domaineConfirme === domaine.id && (
+              <p className="mt-2 rounded-md border border-info/30 bg-info-faible px-3 py-2 text-xs text-texte-attenue">
+                {items.some((s) => (retraits[s.code]?.preuves ?? 0) > 0) ? (
+                  <>
+                    <span className="font-medium">Archivage, pas suppression.</span> Au moins une
+                    compétence de ce domaine porte des preuves : le domaine et ses{" "}
+                    {items.length} compétences sont archivés ensemble, et les preuves restent
+                    lisibles au journal.
+                  </>
+                ) : (
+                  <>
+                    <span className="font-medium">Suppression définitive.</span> Aucune des{" "}
+                    {items.length} compétences de ce domaine n&apos;a produit de preuve : la
+                    branche entière disparaît. Les codes ne seront pas réattribués.
+                  </>
+                )}
+              </p>
             )}
           </div>
 
@@ -99,10 +287,26 @@ export function GestionReferentiel({
               const enEdition = edite === s.code;
 
               return (
-                <li key={s.code} className={cx("px-4 py-3", s.archive && "opacity-60")}>
+                <li
+                  key={s.code}
+                  className={cx(
+                    "px-4 py-3",
+                    s.archive && "opacity-60",
+                    selection.has(s.code) && "bg-primaire-faible/40",
+                  )}
+                >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-1.5">
+                        {!s.archive && (
+                          <input
+                            type="checkbox"
+                            checked={selection.has(s.code)}
+                            onChange={() => basculerSelection(s.code)}
+                            aria-label={`Sélectionner ${s.code}`}
+                            className="mr-1 size-3.5 accent-[var(--primaire)]"
+                          />
+                        )}
                         <CodeCompetence code={s.code} />
                         <Etiquette>{s.palier}</Etiquette>
                         {s.archive ? (

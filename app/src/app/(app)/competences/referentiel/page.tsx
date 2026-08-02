@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { chargerContexte } from "@/lib/store/context";
-import { chargerRetraits } from "@/lib/store/referentiel";
+import { retraitsParCode } from "@/lib/domain/referentiel-compte";
 import { SqueletteContenu } from "@/components/layout/squelette";
 import { EntetePage } from "@/components/layout/entete-page";
 import { Carte, EtatVide } from "@/components/ui/primitives";
@@ -43,8 +43,12 @@ export default async function PageReferentiel(props: {
 }
 
 async function ContenuReferentiel({ proposition }: { proposition: boolean }) {
-  const [ctx, retraits] = await Promise.all([chargerContexte(), chargerRetraits()]);
+  const ctx = await chargerContexte();
   const { referentiel } = ctx;
+  // Dérivé de ce qui est déjà chargé, plus relu séparément : `chargerRetraits`
+  // refaisait `lireReferentiel` ET un `SELECT *` sur toutes les preuves, alors
+  // que `chargerContexte` venait de charger les deux.
+  const retraits = retraitsParCode(referentiel.skills, ctx.donnees.evidence);
 
   return (
     <>

@@ -122,8 +122,9 @@ export function ValidationBranche({
         // La branche existe : la proposition n'a plus d'objet, et la relire
         // rejouerait une validation déjà faite.
         effacerSession(cleProposition);
+        // `creerBranche` a déjà invalidé le cache (`revalidatePath`) : le
+        // `router.refresh()` qui suivait payait un second rendu complet.
         router.push(`/competences?ajoutees=${r.codes.length}`);
-        router.refresh();
       } catch (e) {
         setErreur(e instanceof Error ? e.message : "Enregistrement impossible.");
       }

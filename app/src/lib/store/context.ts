@@ -14,7 +14,7 @@
 import { cache } from "react";
 import type { Collections } from "./db";
 import { lireTout, dorsaleCompte } from "./db";
-import { lireReferentiel } from "./referentiel";
+import { chargerReferentiel } from "./referentiel";
 import { EXERCICES_DIAGNOSTIC } from "@/lib/seed/exercises";
 import { computeAllSkillStates } from "@/lib/engine/skill-state";
 import { calculerEtatGlobal, type EtatGlobal } from "@/lib/engine/progression";
@@ -49,10 +49,13 @@ export interface Contexte {
 
 export const chargerContexte = cache(async (): Promise<Contexte> => {
   const now = new Date();
-  const dorsale = await mesurer("dorsaleCompte", () => dorsaleCompte());
+  await mesurer("dorsaleCompte", () => dorsaleCompte());
+  // `chargerReferentiel` et non `lireReferentiel` : mémoïsé par requête, il ne
+  // relit pas domaines et compétences si un autre appelant les a déjà demandés
+  // dans le même rendu (voir `store/referentiel.ts`).
   const [donneesBrutes, referentiel] = await Promise.all([
     mesurer("lireTout", () => lireTout()),
-    mesurer("lireReferentiel", () => lireReferentiel(dorsale)),
+    mesurer("lireReferentiel", () => chargerReferentiel()),
   ]);
 
   // Les exercices de diagnostic font partie du logiciel, pas du journal :

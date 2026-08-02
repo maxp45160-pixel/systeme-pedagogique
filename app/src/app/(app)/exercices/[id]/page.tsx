@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/primitives";
 import { Markdown } from "@/components/ui/markdown";
 import { FormulaireBilan } from "@/components/exercices/formulaire-bilan";
+import { ZoneReponse } from "@/components/exercices/zone-reponse";
 import { IconeAmpoule, IconeFleche, IconeValide } from "@/components/ui/icones";
 import { formatDuree } from "@/lib/engine/dates";
 import { amorceExercice, lienTuteur } from "@/lib/tutor/amorces";
@@ -227,7 +228,11 @@ export default async function PageExercice(props: {
                 legende="Rédige ta méthode, pas seulement le résultat final"
               />
               <div className="px-4 py-3.5">
-                <ZoneReponse attemptId={enCours.id} valeur={enCours.reponse} />
+                <ZoneReponse
+                  attemptId={enCours.id}
+                  valeur={enCours.reponse}
+                  compteId={ctx.donnees.user.id}
+                />
                 {/*
                   Le lien porte l'identifiant de l'exercice : le tuteur reçoit
                   l'énoncé, les indices déjà consultés et le brouillon
@@ -423,40 +428,5 @@ export default async function PageExercice(props: {
 
 /* ------------------------------------------------------------------ */
 
-/** Zone de réponse : sauvegarde explicite, pour rester prévisible. */
-function ZoneReponse({
-  attemptId,
-  valeur,
-}: {
-  attemptId: string;
-  valeur: string;
-}) {
-  return (
-    <form action={enregistrerReponseForm.bind(null, attemptId)}>
-      <textarea
-        name="reponse"
-        defaultValue={valeur}
-        rows={10}
-        placeholder="Hypothèses, méthode, calculs, résultat, interprétation, limites…"
-        className="w-full resize-y rounded-md border border-bordure bg-surface px-3 py-2 font-mono text-xs leading-relaxed placeholder:text-texte-discret focus:border-primaire focus:outline-none"
-      />
-      <div className="mt-2 flex items-center gap-2">
-        <button type="submit" className={classesBouton("secondaire", "petite")}>
-          Enregistrer le brouillon
-        </button>
-        <span className="text-[0.625rem] text-texte-discret">
-          Le contenu n&apos;est pas corrigé automatiquement — il sert de trace de ton raisonnement.
-        </span>
-      </div>
-    </form>
-  );
-}
-
-async function enregistrerReponseForm(
-  attemptId: string,
-  formData: FormData,
-): Promise<void> {
-  "use server";
-  const { enregistrerReponse } = await import("@/lib/store/actions");
-  await enregistrerReponse(attemptId, String(formData.get("reponse") ?? ""));
-}
+/* `ZoneReponse` vit désormais dans `components/exercices/zone-reponse.tsx` :
+   le brouillon doit survivre à une navigation, ce qui demande du client. */

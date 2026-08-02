@@ -7,6 +7,7 @@ import {
   libelleDomaine,
   modeRetrait,
   modeRetraitDomaine,
+  retraitsParCode,
   normaliserImportance,
   normaliserPalier,
   normaliserPrefixe,
@@ -243,6 +244,36 @@ describe("retrait — ADR-027, une preuve n'est jamais orpheline", () => {
     expect(modeRetraitDomaine("developpement", REFERENTIEL_TEST, avecPreuve)).toBe("archivage");
     // Une preuve dans un autre domaine ne bloque pas celui-ci.
     expect(modeRetraitDomaine("statistiques", REFERENTIEL_TEST, avecPreuve)).toBe("suppression");
+  });
+
+  /*
+   * `retraitsParCode` remplace la lecture serveur `chargerRetraits`, qui
+   * refaisait `lireReferentiel` et un `SELECT *` sur les preuves alors que la
+   * page venait de charger les deux. Devenue pure, elle se teste sans base —
+   * et c'est cette table qui fonde l'annonce faite AVANT le clic.
+   */
+  it("dérive le geste et le compte pour chaque compétence, y compris à zéro", () => {
+    const skills = REFERENTIEL_TEST.skills.slice(0, 3);
+    const preuves = [
+      { skillCode: skills[0].code },
+      { skillCode: skills[0].code },
+      { skillCode: skills[1].code },
+    ];
+    const table = retraitsParCode(skills, preuves);
+
+    expect(table.get(skills[0].code)).toEqual({ preuves: 2, mode: "archivage" });
+    expect(table.get(skills[1].code)).toEqual({ preuves: 1, mode: "archivage" });
+    // Une compétence sans preuve figure quand même : son absence de la table
+    // se lirait comme « pas d'information », alors que c'est « aucune preuve ».
+    expect(table.get(skills[2].code)).toEqual({ preuves: 0, mode: "suppression" });
+    expect(table.size).toBe(3);
+  });
+
+  it("ignore une preuve dont le code n'est pas dans la liste fournie", () => {
+    const skills = REFERENTIEL_TEST.skills.slice(0, 1);
+    const table = retraitsParCode(skills, [{ skillCode: "CODE-ABSENT" }]);
+    expect(table.size).toBe(1);
+    expect(table.get(skills[0].code)?.preuves).toBe(0);
   });
 });
 
