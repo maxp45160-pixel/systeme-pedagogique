@@ -23,13 +23,9 @@ import {
   type PropositionRecue,
 } from "@/lib/tutor/outils";
 import {
-  cleExercicesProposes,
   cleReferentielPropose,
-  exerciceComplet,
   extrairePropositions,
-  extrairePropositionsExercice,
   extrairePropositionsReferentiel,
-  type PropositionExercice,
   type PropositionReferentiel,
   type PropositionTuteur,
 } from "@/lib/tutor/proposition";
@@ -48,31 +44,6 @@ function lienProposition(p: PropositionTuteur): string {
   return `/competences/${p.competence.toUpperCase()}?proposition=${encodeURIComponent(
     JSON.stringify(valeurs),
   )}`;
-}
-
-/**
- * Dépose une ou plusieurs propositions d'exercice dans la file de validation.
- *
- * Passe par `sessionStorage` plutôt que par l'URL : un énoncé accompagné de sa
- * correction dépasse vite la longueur exploitable d'une adresse, et la
- * troncature serait silencieuse. L'URL ne porte qu'un drapeau d'ouverture.
- *
- * La file est **cumulative** : demander trois exercices puis en déposer un
- * quatrième depuis un autre message n'efface pas les précédents. C'est ce qui
- * permet de composer un lot au fil de la conversation, puis de tout valider
- * d'un coup. Les doublons d'un même titre sont écartés — un tuteur qui recopie
- * son bloc en markdown alors qu'il a déjà appelé l'outil ne doit pas produire
- * deux fois la même ligne.
- */
-function deposerPropositionsExercice(
-  nouvelles: PropositionExercice[],
-  compteId: string,
-): void {
-  const cle = cleExercicesProposes(compteId);
-  const existantes = lireSession<PropositionExercice[]>(cle) ?? [];
-  const vues = new Set(existantes.map((p) => p.titre.trim().toLowerCase()));
-  const ajouts = nouvelles.filter((p) => !vues.has(p.titre.trim().toLowerCase()));
-  ecrireSession(cle, [...existantes, ...ajouts]);
 }
 
 /** Même passage que pour l'exercice : une branche de huit compétences ne tient
@@ -94,10 +65,9 @@ const LIBELLE_OUTIL: Record<string, string> = {
   [OUTIL_REFERENTIEL]: "Le tuteur compose une branche de compétences…",
 };
 
-/** Les sept modes rapides demandés. */
+/** Les six modes rapides — « Donne-moi un exercice » a disparu (lot 1.4). */
 const MODES = [
   { cle: "explique", libelle: "Explique-moi", amorce: "Explique-moi " },
-  { cle: "exercice", libelle: "Donne-moi un exercice", amorce: "Donne-moi un exercice sur " },
   { cle: "evalue", libelle: "Évalue-moi", amorce: "Évalue mon niveau sur " },
   { cle: "indice", libelle: "Donne-moi un indice", amorce: "Donne-moi un indice sur " },
   { cle: "corrige", libelle: "Corrige mon raisonnement", amorce: "Corrige mon raisonnement :\n\n" },
@@ -194,19 +164,6 @@ const MessageBulle = memo(function MessageBulle({
         : []
   ).filter((p) => codesCompetences.includes(p.competence.toUpperCase()));
 
-  // Exercices proposés par le tuteur (ADR-004). Même contrat que les preuves :
-  // rien n'est écrit tant que l'utilisateur n'a pas validé le formulaire.
-  //
-  // `exerciceComplet` s'applique des deux côtés — appliqué à la validation du
-  // schéma côté serveur, et ici au texte parsé : une réponse interrompue
-  // (plafond de jetons, bouton « Arrêter ») n'offre pas de lien vers un
-  // demi-exercice.
-  const exercices = recues
-    ? recues.flatMap((r) => (r.genre === "exercice" ? [r.exercice] : []))
-    : analysable
-      ? extrairePropositionsExercice(message.content).filter(exerciceComplet)
-      : [];
-
   // Branches proposées (ADR-026). Contrairement aux deux autres, ce bloc n'est
   // PAS filtré contre le référentiel : c'est précisément celui qui a le droit
   // d'introduire des compétences qui n'existent pas encore. Le garde-fou est
@@ -279,55 +236,6 @@ const MessageBulle = memo(function MessageBulle({
           </Link>
         </div>
       ))}
-
-      {/*
-        Exercice proposé : même garde-fou. Le bouton dépose la
-        proposition puis ouvre le formulaire de création — il
-        n'ajoute rien au corpus par lui-même.
-      */}
-      {exercices.map((ex, j) => (
-        <div
-          key={`ex-${j}`}
-          className="max-w-[85%] rounded-md border border-primaire/30 bg-surface-2 px-3.5 py-2.5 text-xs"
-        >
-          <div className="flex flex-wrap items-center gap-1.5">
-            <Etiquette ton="primaire">Exercice proposé</Etiquette>
-            {ex.competences.map((c) => (
-              <CodeCompetence key={c} code={c} />
-            ))}
-            {ex.difficulte && (
-              <span className="text-texte-attenue">difficulté {ex.difficulte}/5</span>
-            )}
-          </div>
-          <p className="mt-1 font-medium">{ex.titre}</p>
-          <Link
-            href="/exercices?proposition=1"
-            onClick={() => deposerPropositionsExercice([ex], compteId)}
-            className={cx(classesBouton("secondaire", "petite"), "mt-2")}
-          >
-            Revoir et ajouter
-          </Link>
-        </div>
-      ))}
-
-      {/*
-        Le tuteur sait produire plusieurs exercices en un tour ; il fallait
-        jusqu'ici les reprendre un par un, avec un retour au chat entre chacun.
-        Ce bouton dépose le lot entier dans la file — la validation ligne à
-        ligne se fait ensuite sur l'écran des exercices, et rien n'est écrit
-        avant (P5).
-      */}
-      {exercices.length > 1 && (
-        <div className="max-w-[85%]">
-          <Link
-            href="/exercices?proposition=1"
-            onClick={() => deposerPropositionsExercice(exercices, compteId)}
-            className={classesBouton("principal", "petite")}
-          >
-            Revoir et ajouter les {exercices.length} exercices
-          </Link>
-        </div>
-      )}
 
       {/*
         Branche proposée : le seul bloc qui peut introduire des compétences
@@ -1079,7 +987,7 @@ function ChatHydrate({
   const saisieInitiale =
     messages.length > 0
       ? ""
-      : (amorce ?? (competenceCiblee ? `Donne-moi un exercice sur ${competenceCiblee}.` : ""));
+      : (amorce ?? (competenceCiblee ? `Explique-moi ${competenceCiblee}.` : ""));
 
   return (
     <div className="space-y-6 [&>*]:min-w-0">

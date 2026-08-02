@@ -30,6 +30,7 @@ import {
   FormulairePreuveManuelle,
   type ValeursInitialesPreuve,
 } from "@/components/competences/formulaire-preuve";
+import { BoutonGenerer } from "@/components/exercices/bouton-generer";
 import { formatDateCourte, formatDateRelative } from "@/lib/engine/dates";
 import { prochaineRevision } from "@/lib/engine/spaced";
 
@@ -288,7 +289,7 @@ export default async function PageCompetence(props: {
               {recommandation && (
                 <p className="mt-2 text-xs text-texte-attenue">{recommandation.raison}</p>
               )}
-              {recommandation?.exercice && (
+              {recommandation?.exercice ? (
                 <Link
                   href={`/exercices/${recommandation.exercice.id}`}
                   className={cx(classesBouton("principal"), "mt-3 w-full")}
@@ -296,6 +297,29 @@ export default async function PageCompetence(props: {
                   Commencer
                   <IconeFleche className="size-4" />
                 </Link>
+              ) : (
+                <div className="mt-3">
+                  <BoutonGenerer
+                    competences={ctx.referentiel.actifs.map((s) => ({
+                      code: s.code,
+                      intitule: s.intitule,
+                      domaine: s.domaine,
+                    }))}
+                    competenceInitiale={etat.skill.code}
+                    calibrage={
+                      recommandation?.calibration
+                        ? {
+                            difficulteConseillee: recommandation.calibration.difficulteConseillee,
+                            dimensionFaible: recommandation.calibration.dimensionFaible,
+                            reserves: recommandation.calibration.explication.reserves,
+                          }
+                        : null
+                    }
+                    compteId={ctx.donnees.user.id}
+                    libelle="Générer un exercice"
+                    variante="principal"
+                  />
+                </div>
               )}
             </div>
           </Carte>

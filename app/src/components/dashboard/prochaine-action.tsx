@@ -3,7 +3,6 @@ import type { Recommandation } from "@/lib/engine/recommend";
 import { DIFFICULTES, LIBELLES_DIMENSIONS, type Referentiel } from "@/lib/domain/types";
 import { libelleDomaine } from "@/lib/domain/referentiel-compte";
 import { prochaineRevision } from "@/lib/engine/spaced";
-import { amorceExercice, lienTuteur } from "@/lib/tutor/amorces";
 import {
   Carte,
   classesBouton,
@@ -14,6 +13,7 @@ import {
 import { Depliant } from "@/components/ui/explication";
 import { IconeFeuille, IconeFleche } from "@/components/ui/icones";
 import { formatDuree } from "@/lib/engine/dates";
+import { BoutonGenerer } from "@/components/exercices/bouton-generer";
 
 /**
  * « Que dois-je faire maintenant ? »
@@ -26,10 +26,12 @@ export function CarteProchaineAction({
   recommandations,
   referentiel,
   now,
+  compteId,
 }: {
   recommandations: Recommandation[];
   referentiel: Referentiel;
   now: Date;
+  compteId: string;
 }) {
   const [principale, ...alternatives] = recommandations;
   if (!principale) return null;
@@ -100,23 +102,28 @@ export function CarteProchaineAction({
             /*
               Repli assumé : aucun exercice disponible pour cette compétence —
               soit elle n'en a jamais eu, soit le seul qui existait vient
-              d'échouer et ne revient pas sans progrès démontré. Le lien porte
-              la difficulté visée et la dimension faible : c'est exactement ce
-              que la carte affiche à côté, et le retaper à la main serait absurde.
+              d'échouer et ne revient pas sans progrès démontré. La modale de
+              génération remplace le détour par le tuteur : on crée là où on est.
             */
-            <Link
-              href={lienTuteur(
-                amorceExercice(etat.skill.code, {
-                  difficulteConseillee: difficulteCible,
-                  dimensionFaible: principale.calibration?.dimensionFaible?.dimension ?? null,
-                }),
-                etat.skill.code,
-              )}
-              className={classesBouton("principal")}
-            >
-              Demander un exercice au tuteur
-              <IconeFleche className="size-4" />
-            </Link>
+            <BoutonGenerer
+              competences={referentiel.actifs.map((s) => ({
+                code: s.code,
+                intitule: s.intitule,
+                domaine: s.domaine,
+              }))}
+              competenceInitiale={etat.skill.code}
+              calibrage={
+                principale.calibration
+                  ? {
+                      difficulteConseillee: principale.calibration.difficulteConseillee,
+                      dimensionFaible: principale.calibration.dimensionFaible,
+                      reserves: principale.calibration.explication.reserves,
+                    }
+                  : null
+              }
+              compteId={compteId}
+              libelle="Générer un exercice"
+            />
           )}
           <Link
             href={`/competences/${etat.skill.code}`}

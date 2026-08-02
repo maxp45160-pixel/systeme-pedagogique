@@ -22,7 +22,7 @@ import {
   LigneListe,
 } from "@/components/ui/primitives";
 import { Depliant } from "@/components/ui/explication";
-import { FormulaireCreationExercice } from "@/components/exercices/formulaire-creation";
+import { BoutonGenerer } from "@/components/exercices/bouton-generer";
 import { RetraitExercice } from "@/components/exercices/retrait";
 import { amorceLotExercices, lienTuteur } from "@/lib/tutor/amorces";
 import { formatDuree } from "@/lib/engine/dates";
@@ -54,11 +54,9 @@ interface Filtres {
 }
 
 export default async function PageExercices(props: {
-  searchParams: Promise<Filtres & { proposition?: string }>;
+  searchParams: Promise<Filtres>;
 }) {
-  // `proposition` est un simple drapeau d'ouverture posé par le chat : il est
-  // extrait des filtres pour ne pas se propager dans les liens de filtrage.
-  const { proposition, ...f } = await props.searchParams;
+  const f = await props.searchParams;
 
   return (
     <>
@@ -68,17 +66,15 @@ export default async function PageExercices(props: {
       />
 
       <Suspense fallback={<SqueletteContenu />}>
-        <ContenuExercices proposition={proposition} filtres={f} />
+        <ContenuExercices filtres={f} />
       </Suspense>
     </>
   );
 }
 
 async function ContenuExercices({
-  proposition,
   filtres: f,
 }: {
-  proposition?: string;
   filtres: Filtres;
 }) {
   const ctx = await chargerContexte();
@@ -214,23 +210,33 @@ async function ContenuExercices({
 
       <Carte>
         <CorpsCarte>
-          <Depliant resume="Ajouter un exercice" ouvertParDefaut={Boolean(proposition)}>
-            <div className="mt-3">
-              <p className="mb-4 max-w-2xl text-xs text-texte-attenue">
-                Un exercice validé rejoint la bibliothèque et se travaille comme les
-                diagnostics.
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium">Générer un exercice</p>
+              <p className="mt-0.5 max-w-2xl text-xs text-texte-attenue">
+                Le tuteur rédige, tu relis et tu valides. Rien nest écrit avant.
               </p>
-              <FormulaireCreationExercice
-                propositionEnAttente={Boolean(proposition)}
-                compteId={ctx.donnees.user.id}
-                skillsDisponibles={ctx.etats.map((e) => ({
-                  code: e.skill.code,
-                  intitule: e.skill.intitule,
-                  domaine: e.skill.domaine,
-                }))}
-              />
             </div>
-          </Depliant>
+            <BoutonGenerer
+              competences={ctx.referentiel.actifs.map((s) => ({
+                code: s.code,
+                intitule: s.intitule,
+                domaine: s.domaine,
+              }))}
+              competenceInitiale={ctx.recommandations[0]?.etat.skill.code ?? ctx.referentiel.actifs[0]?.code ?? ""}
+              calibrage={
+                ctx.recommandations[0]?.calibration
+                  ? {
+                      difficulteConseillee: ctx.recommandations[0].calibration.difficulteConseillee,
+                      dimensionFaible: ctx.recommandations[0].calibration.dimensionFaible,
+                      reserves: ctx.recommandations[0].calibration.explication.reserves,
+                    }
+                  : null
+              }
+              compteId={ctx.donnees.user.id}
+              libelle="Générer"
+            />
+          </div>
         </CorpsCarte>
       </Carte>
 

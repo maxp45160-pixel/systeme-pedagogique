@@ -142,6 +142,7 @@ async function ContenuTableauDeBord() {
           recommandations={ctx.recommandations}
           referentiel={ctx.referentiel}
           now={ctx.now}
+          compteId={ctx.donnees.user.id}
         />
       </div>
 
