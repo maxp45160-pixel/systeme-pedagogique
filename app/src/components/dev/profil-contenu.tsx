@@ -27,6 +27,8 @@ export interface MesureServeur {
 
 export interface ReponseProfilage {
   actif: boolean;
+  /** Le registre serveur collecte-t-il à cet instant ? */
+  enregistrement: boolean;
   totalMesures: number;
   totalMs: number;
   parOperation: {
@@ -77,6 +79,7 @@ export function ProfilContenu({
   rendus,
   interactions,
   clientActif,
+  enregistrement,
   chargement,
   erreur,
 }: {
@@ -84,9 +87,18 @@ export function ProfilContenu({
   rendus: RendusAgreges;
   interactions: MesureInteraction[];
   clientActif: boolean;
+  /** L'enregistrement est-il en cours ? Change ce que disent les états vides. */
+  enregistrement: boolean;
   chargement: boolean;
   erreur: string | null;
 }) {
+  // Sans enregistrement, un tableau vide n'est pas une absence de mesure :
+  // c'est une absence de collecte. Le dire, plutôt que laisser croire que
+  // l'application est instantanée.
+  const consigne = enregistrement
+    ? "Navigue dans le produit puis reviens ici."
+    : "L'enregistrement est à l'arrêt — clique sur « Démarrer », navigue, puis reviens ici.";
+
   return (
     <div className="space-y-6">
       {erreur && (
@@ -139,7 +151,7 @@ export function ProfilContenu({
           <p className="text-sm text-texte-discret">Chargement…</p>
         ) : !serveur || serveur.parOperation.length === 0 ? (
           <p className="text-sm text-texte-discret">
-            Aucune mesure serveur. Navigue dans le produit puis reviens ici.
+            Aucune mesure serveur. {consigne}
           </p>
         ) : (
           <div className="overflow-hidden rounded-carte border border-bordure bg-surface">
@@ -182,7 +194,7 @@ export function ProfilContenu({
           </p>
         ) : rendus.parComposant.length === 0 ? (
           <p className="text-sm text-texte-discret">
-            Aucun rendu enregistré. Navigue dans le produit puis reviens ici.
+            Aucun rendu enregistré. {consigne}
           </p>
         ) : (
           <div className="overflow-hidden rounded-carte border border-bordure bg-surface">

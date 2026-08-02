@@ -19,7 +19,9 @@ import {
   interactionsActuelles,
   viderMesuresClient,
   profilageClientActif,
+  abonnerProfilageClient,
 } from "@/lib/profiling/client";
+import { useEnregistrement } from "@/lib/profiling/utiliser-enregistrement";
 import {
   ProfilContenu,
   type ReponseProfilage,
@@ -35,7 +37,7 @@ export function ProfilFlottant() {
   // client. `useSyncExternalStore` fournit la bonne valeur de chaque côté
   // sans écart d'hydratation.
   const clientActif = useSyncExternalStore(
-    () => () => {},
+    abonnerProfilageClient,
     () => profilageClientActif(),
     () => false,
   );
@@ -90,6 +92,8 @@ export function ProfilFlottant() {
     };
   }, [ouvert]);
 
+  const { enCours, basculer } = useEnregistrement(charger);
+
   const vider = async () => {
     viderMesuresClient();
     try {
@@ -111,8 +115,12 @@ export function ProfilFlottant() {
         className={cx(
           "fixed bottom-20 right-4 z-50 flex size-11 items-center justify-center rounded-full shadow-lg transition-all duration-200",
           "lg:bottom-auto lg:top-4 lg:right-4",
-          "bg-info text-white hover:bg-info-fort hover:shadow-xl",
           "hover:scale-105 active:scale-95",
+          // Rouge pulsant pendant l'enregistrement : savoir que l'on mesure
+          // sans ouvrir le panneau.
+          enCours
+            ? "animate-pulse bg-danger text-white hover:bg-danger/90"
+            : "bg-info text-white hover:bg-info-fort hover:shadow-xl",
           ouvert && "ring-2 ring-info/40 ring-offset-2 ring-offset-fond",
         )}
         aria-label={ouvert ? "Fermer le profilage" : "Ouvrir le profilage"}
@@ -155,13 +163,30 @@ export function ProfilFlottant() {
               <span
                 className={cx(
                   "size-2 rounded-full",
-                  clientActif ? "bg-succes" : "bg-texte-discret",
+                  enCours ? "animate-pulse bg-danger" : clientActif ? "bg-succes" : "bg-texte-discret",
                 )}
-                title={clientActif ? "Profilage client actif" : "Profilage client inactif"}
+                title={
+                  enCours
+                    ? "Enregistrement en cours"
+                    : clientActif
+                      ? "Enregistrement à l'arrêt"
+                      : "Profilage client indisponible"
+                }
                 aria-hidden
               />
             </div>
             <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => void basculer()}
+                className={cx(
+                  "rounded-md px-2 py-1 text-[0.6875rem] font-medium transition-colors",
+                  enCours
+                    ? "border border-danger/30 bg-danger text-white hover:bg-danger/90"
+                    : "border border-succes/30 bg-succes-faible text-succes hover:bg-succes/10",
+                )}
+              >
+                {enCours ? "Arrêter" : "Démarrer"}
+              </button>
               <button
                 onClick={vider}
                 className="rounded-md border border-danger/30 bg-danger-faible px-2 py-1 text-[0.6875rem] font-medium text-danger transition-colors hover:bg-danger/10"
@@ -187,6 +212,7 @@ export function ProfilFlottant() {
               rendus={rendus}
               interactions={interactions}
               clientActif={clientActif}
+              enregistrement={enCours}
               chargement={false}
               erreur={erreur}
             />

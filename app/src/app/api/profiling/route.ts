@@ -2,16 +2,16 @@
  * API route — profilage serveur.
  *
  * Expose le registre des mesures collectées par `lib/profiling/server.ts` et
- * permet de démarrer/arrêter le profilage au runtime (POST).
+ * permet de démarrer/arrêter l'enregistrement au runtime (POST).
  *
- * `GET` renvoie toujours l'état (`actif`) et les mesures — même quand le
- * profilage est inactif, pour que le panneau puisse afficher le bouton
- * « Démarrer ». Les mesures sont vides dans ce cas.
+ * `GET` renvoie toujours l'état — même quand le profilage est indisponible,
+ * pour que le panneau puisse afficher le bouton « Démarrer ». Les mesures
+ * sont vides dans ce cas.
  */
 
 import {
-  activerProfilage,
-  desactiverProfilage,
+  definirEnregistrement,
+  enregistrementActif,
   mesuresActuelles,
   profilageActif,
   viderRegistre,
@@ -45,6 +45,7 @@ export async function GET() {
 
   return Response.json({
     actif,
+    enregistrement: enregistrementActif(),
     totalMesures: mesures.length,
     totalMs: mesures.reduce((s, m) => s + m.dureeMs, 0),
     parOperation: agrege,
@@ -53,22 +54,23 @@ export async function GET() {
 }
 
 /**
- * `POST` — bascule le profilage serveur au runtime.
+ * `POST` — démarre ou arrête l'enregistrement serveur.
  *
  * Corps : `{ action: "start" | "stop" }`.
  *
- * - `start` lève le drapeau runtime ; les opérations instrumentées
- *   commencent à s'enregistrer.
- * - `stop` baisse le drapeau et vide le registre.
+ * - `start` rend le profilage disponible (même hors `NODE_ENV=development`),
+ *   vide le registre et commence à collecter ;
+ * - `stop` arrête la collecte et conserve le registre, qu'on vient
+ *   précisément d'arrêter pour lire. Le vider est le rôle de `DELETE`.
  *
- * Le profilage activé par variable d'environnement (`PROFILAGE=1` ou
- * `NODE_ENV=development`) ne peut pas être arrêté : `stop` ne fait rien dans ce
- * cas, et la réponse l'indique (`actif: true`).
+ * Contrairement au drapeau de disponibilité, l'enregistrement s'arrête
+ * toujours — y compris quand `PROFILAGE=1` ou `NODE_ENV=development` l'a
+ * rendu disponible au démarrage.
  */
-export async function POST(request: Request) {
+export async function POST(requete: Request) {
   let corps: { action?: string };
   try {
-    corps = (await request.json()) as { action?: string };
+    corps = (await requete.json()) as { action?: string };
   } catch {
     return Response.json({ erreur: "corps-invalide" }, { status: 400 });
   }
@@ -81,21 +83,17 @@ export async function POST(request: Request) {
     );
   }
 
-  const actifParEnv =
-    process.env.NODE_ENV === "development" || process.env.PROFILAGE === "1";
+  definirEnregistrement(action === "start");
 
-  if (action === "start") {
-    activerProfilage();
-  } else {
-    // Arrêter n'a d'effet que sur le drapeau runtime. Si l'environnement a
-    // activé le profilage, il reste actif — on ne peut pas le couper sans
-    // redémarrer.
-    if (!actifParEnv) {
-      desactiverProfilage();
-    } else {
-      viderRegistre();
-    }
-  }
+  return Response.json({
+    ok: true,
+    actif: profilageActif(),
+    enregistrement: enregistrementActif(),
+  });
+}
 
-  return Response.json({ ok: true, actif: profilageActif(), actifParEnv });
+/** `DELETE` — vide le registre sans toucher à l'état d'enregistrement. */
+export async function DELETE() {
+  viderRegistre();
+  return Response.json({ ok: true });
 }

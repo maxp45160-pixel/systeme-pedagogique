@@ -5,11 +5,19 @@
  * dans un registre global (par requête serveur). Le registre est exposé via
  * `/api/profiling` et affiché sur `/dev/profil`.
  *
- * Le profilage peut être activé de trois façons, par ordre de priorité :
- *   1. par la variable d'environnement `PROFILAGE=1` (au démarrage) ;
- *   2. par `NODE_ENV=development` (au démarrage) ;
- *   3. par un bouton « Démarrer / Arrêter » dans le panneau de profilage, qui
- *      bascule un drapeau runtime sur `globalThis` — sans redémarrer le serveur.
+ * Deux notions distinctes, à ne pas confondre :
+ *
+ *   * **disponible** (`profilageActif`) — l'outillage peut mesurer dans ce
+ *     processus. Vrai en `NODE_ENV=development`, avec `PROFILAGE=1`, ou dès
+ *     qu'un « Démarrer » a levé le drapeau runtime : on peut donc profiler un
+ *     build de production sans le redémarrer ;
+ *   * **en cours d'enregistrement** (`enregistrementActif`) — on collecte
+ *     *maintenant*. À l'arrêt par défaut.
+ *
+ * Les séparer est ce qui rend le bouton « Arrêter » utile : sans cela, en
+ * développement, `profilageActif()` reste vrai quoi qu'il arrive et la
+ * collecte ne s'arrête jamais — tout ce qui précède le geste à mesurer noie
+ * la mesure.
  *
  * Le registre est volontairement en mémoire, par processus : il sert au
  * débogage et au traçage, pas à la production. Aucune donnée n'est persistée.
@@ -29,50 +37,64 @@ export interface Mesure {
 }
 
 /**
- * Drapeau runtime du profilage serveur, sur `globalThis`.
+ * Drapeaux runtime, sur `globalThis`.
  *
  * `globalThis` est partagé par toutes les instances de module en dev (Next.js
  * crée des instances distinctes pour les pages et les route handlers) — même
- * raison que pour le registre ci-dessous. Un drapeau module-level ne serait pas
- * vu par la route `/api/profiling`.
+ * raison que pour le registre ci-dessous. Un drapeau module-level ne serait
+ * pas vu par la route `/api/profiling`, et le démarrage déclenché depuis
+ * l'API resterait invisible des pages.
  */
 const CLE_DRAPEAU = "__profilage_actif__";
+const CLE_ENREGISTREMENT = "__profilage_enregistrement__";
 
-function drapeauGlobal(): boolean {
+function drapeauGlobal(cle: string): boolean {
   const g = globalThis as unknown as Record<string, boolean | undefined>;
-  return g[CLE_DRAPEAU] === true;
+  return g[cle] === true;
 }
 
-function poserDrapeau(valeur: boolean): void {
+function poserDrapeau(cle: string, valeur: boolean): void {
   const g = globalThis as unknown as Record<string, boolean | undefined>;
-  g[CLE_DRAPEAU] = valeur;
+  g[cle] = valeur;
 }
 
 /**
- * Le profilage est-il actif ?
+ * Le profilage est-il disponible dans ce processus ?
  *
- * Actif si la variable d'environnement l'a activé au démarrage, OU si le
+ * Vrai si la variable d'environnement l'a activé au démarrage, OU si le
  * drapeau runtime a été levé par le bouton du panneau.
  */
 export function profilageActif(): boolean {
   return (
     process.env.NODE_ENV === "development" ||
     process.env.PROFILAGE === "1" ||
-    drapeauGlobal()
+    drapeauGlobal(CLE_DRAPEAU)
   );
 }
 
-/** Active le profilage serveur au runtime (bouton « Démarrer »). */
-export function activerProfilage(): void {
-  poserDrapeau(true);
+/** L'enregistrement serveur est-il en cours ? */
+export function enregistrementActif(): boolean {
+  return profilageActif() && drapeauGlobal(CLE_ENREGISTREMENT);
 }
 
-/** Désactive le profilage serveur au runtime (bouton « Arrêter »). */
-export function desactiverProfilage(): void {
-  poserDrapeau(false);
-  // On vide aussi le registre : les mesures collectées ne sont plus consultées
-  // et n'ont pas vocation à traîner en mémoire.
-  viderRegistre();
+/**
+ * Démarre ou arrête l'enregistrement serveur.
+ *
+ * Démarrer lève aussi le drapeau de disponibilité — c'est ce qui permet de
+ * profiler un build où aucune variable d'environnement ne l'a demandé — et
+ * vide le registre : une session de mesure commence sur une table nette,
+ * sinon le total affiché mélange deux observations.
+ *
+ * Arrêter conserve le registre. On arrête précisément pour lire ce que l'on
+ * vient de mesurer ; le vider ici détruirait l'objet de la manœuvre. C'est à
+ * `DELETE /api/profiling` — le bouton « Vider » — de le faire, sur demande.
+ */
+export function definirEnregistrement(actif: boolean): void {
+  if (actif) {
+    poserDrapeau(CLE_DRAPEAU, true);
+    viderRegistre();
+  }
+  poserDrapeau(CLE_ENREGISTREMENT, actif);
 }
 
 /**
@@ -94,7 +116,7 @@ function registreGlobal(): Mesure[] {
 
 /** Enregistre une mesure dans le registre. */
 export function enregistrerMesure(mesure: Mesure): void {
-  if (!profilageActif()) return;
+  if (!enregistrementActif()) return;
   const registre = registreGlobal();
   registre.push(mesure);
   // Garde-fou : on ne laisse jamais le registre grossir sans borne.
@@ -115,7 +137,7 @@ export async function mesurer<T>(
   fn: () => PromiseLike<T>,
   details?: Record<string, number | string | boolean>,
 ): Promise<T> {
-  if (!profilageActif()) return fn();
+  if (!enregistrementActif()) return fn();
 
   const debut = performance.now();
   try {
@@ -136,7 +158,7 @@ export function mesurerSync<T>(
   fn: () => T,
   details?: Record<string, number | string | boolean>,
 ): T {
-  if (!profilageActif()) return fn();
+  if (!enregistrementActif()) return fn();
 
   const debut = performance.now();
   try {

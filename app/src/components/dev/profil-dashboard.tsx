@@ -8,12 +8,15 @@
  */
 
 import { useCallback, useEffect, useSyncExternalStore, useState } from "react";
+import { cx } from "@/components/ui/primitives";
 import {
   rendusActuels,
   interactionsActuelles,
   viderMesuresClient,
   profilageClientActif,
+  abonnerProfilageClient,
 } from "@/lib/profiling/client";
+import { useEnregistrement } from "@/lib/profiling/utiliser-enregistrement";
 import {
   ProfilContenu,
   type ReponseProfilage,
@@ -28,7 +31,7 @@ export function ProfilDashboard() {
   // client. `useSyncExternalStore` fournit la bonne valeur de chaque côté
   // sans écart d'hydratation.
   const clientActif = useSyncExternalStore(
-    () => () => {},
+    abonnerProfilageClient,
     () => profilageClientActif(),
     () => false,
   );
@@ -60,6 +63,9 @@ export function ProfilDashboard() {
     return () => clearTimeout(temporisateur);
   }, [charger, rafraichir]);
 
+  const rafraichirMaintenant = useCallback(() => setRafraichir((n) => n + 1), []);
+  const { enCours, basculer } = useEnregistrement(rafraichirMaintenant);
+
   const vider = async () => {
     viderMesuresClient();
     try {
@@ -79,14 +85,32 @@ export function ProfilDashboard() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <span
-            className={clientActif ? "size-2 rounded-full bg-succes" : "size-2 rounded-full bg-texte-discret"}
+            className={cx(
+              "size-2 rounded-full",
+              enCours ? "animate-pulse bg-danger" : clientActif ? "bg-succes" : "bg-texte-discret",
+            )}
             aria-hidden
           />
           <span className="text-sm text-texte-attenue">
-            Profilage client : {clientActif ? "actif" : "inactif"}
+            {!clientActif
+              ? "Profilage client : indisponible"
+              : enCours
+                ? "Enregistrement en cours"
+                : "Enregistrement à l'arrêt"}
           </span>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={() => void basculer()}
+            className={cx(
+              "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+              enCours
+                ? "border border-danger/30 bg-danger text-white hover:bg-danger/90"
+                : "border border-succes/30 bg-succes-faible text-succes hover:bg-succes/10",
+            )}
+          >
+            {enCours ? "Arrêter" : "Démarrer"}
+          </button>
           <button
             onClick={() => setRafraichir((n) => n + 1)}
             className="rounded-md border border-bordure-forte bg-surface px-3 py-1.5 text-xs font-medium text-texte transition-colors hover:bg-surface-2"
@@ -107,6 +131,7 @@ export function ProfilDashboard() {
         rendus={rendus}
         interactions={interactions}
         clientActif={clientActif}
+        enregistrement={enCours}
         chargement={chargement}
         erreur={erreur}
       />
