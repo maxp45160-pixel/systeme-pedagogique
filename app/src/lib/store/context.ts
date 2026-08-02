@@ -13,7 +13,7 @@
 
 import { cache } from "react";
 import type { Collections } from "./db";
-import { lireTout, dorsaleCompte } from "./db";
+import { lireTout, dorsaleCompte, chargerToutRPC } from "./db";
 import { chargerReferentiel } from "./referentiel";
 import { EXERCICES_DIAGNOSTIC } from "@/lib/seed/exercises";
 import { computeAllSkillStates } from "@/lib/engine/skill-state";
@@ -21,6 +21,7 @@ import { calculerEtatGlobal, type EtatGlobal } from "@/lib/engine/progression";
 import { recommander, type Recommandation } from "@/lib/engine/recommend";
 import { calibrerToutes, type Calibration } from "@/lib/engine/calibration";
 import { mesurer, mesurerSync } from "@/lib/profiling/server";
+import { assemblerReferentiel } from "@/lib/domain/referentiel-compte";
 import type { Referentiel, SkillState } from "@/lib/domain/types";
 
 export interface Contexte {
@@ -50,13 +51,32 @@ export interface Contexte {
 export const chargerContexte = cache(async (): Promise<Contexte> => {
   const now = new Date();
   await mesurer("dorsaleCompte", () => dorsaleCompte());
-  // `chargerReferentiel` et non `lireReferentiel` : mémoïsé par requête, il ne
-  // relit pas domaines et compétences si un autre appelant les a déjà demandés
-  // dans le même rendu (voir `store/referentiel.ts`).
-  const [donneesBrutes, referentiel] = await Promise.all([
-    mesurer("lireTout", () => lireTout()),
-    mesurer("lireReferentiel", () => chargerReferentiel()),
-  ]);
+
+  // ── Chemin rapide : une seule RPC pour tout ──
+  //
+  // `chargerToutRPC` ramène les 7 tables en un seul aller-retour réseau.
+  // Si la fonction SQL n'existe pas encore, elle renvoie `null` et le
+  // chemin lent prend le relais — aucune casse.
+  const rpc = await chargerToutRPC();
+
+  let donneesBrutes: Collections;
+  let referentiel: Referentiel;
+
+  if (rpc) {
+    donneesBrutes = rpc.collections;
+    referentiel = assemblerReferentiel(rpc.domaines, rpc.competences);
+  } else {
+    // ── Chemin lent : requêtes parallèles séparées ──
+    // `chargerReferentiel` et non `lireReferentiel` : mémoïsé par requête, il ne
+    // relit pas domaines et compétences si un autre appelant les a déjà demandés
+    // dans le même rendu (voir `store/referentiel.ts`).
+    const [d, r] = await Promise.all([
+      mesurer("lireTout", () => lireTout()),
+      mesurer("lireReferentiel", () => chargerReferentiel()),
+    ]);
+    donneesBrutes = d;
+    referentiel = r;
+  }
 
   // Les exercices de diagnostic font partie du logiciel, pas du journal :
   // ils sont toujours disponibles, sans étape d'initialisation.
@@ -113,3 +133,4 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
     now,
   };
 });
+

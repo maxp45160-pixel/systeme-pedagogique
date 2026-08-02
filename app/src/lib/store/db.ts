@@ -208,6 +208,79 @@ export async function lireTout(): Promise<Collections> {
   return { user, evidence, exercises, attempts, sessions };
 }
 
+/* ------------------------------------------------------------------ */
+/* RPC groupée                                                         */
+/* ------------------------------------------------------------------ */
+
+import type { Domaine, Skill } from "@/lib/domain/types";
+
+/**
+ * Résultat brut de la fonction PostgreSQL `charger_tout`.
+ *
+ * Elle renvoie les sept tables en un seul aller-retour — profil, données
+ * et référentiel — ce qui réduit la latence de ~750 ms (7 round-trips
+ * parallèles) à ~100 ms (1 round-trip).
+ */
+export interface ResultatRPC {
+  collections: Collections;
+  domaines: Domaine[];
+  competences: Skill[];
+}
+
+/**
+ * Charge toutes les données du compte en un seul appel RPC.
+ *
+ * Renvoie `null` si la fonction SQL n'existe pas encore en base (le
+ * code appelant doit alors se rabattre sur `lireTout` + `chargerReferentiel`).
+ */
+export async function chargerToutRPC(): Promise<ResultatRPC | null> {
+  const dorsale = await dorsaleCompte();
+  const { supabase, userId, courriel } = dorsale;
+  const defaut = profilNeutre(userId, courriel);
+
+  try {
+    const { data, error } = await mesurer("rpc:charger_tout", () =>
+      supabase.rpc("charger_tout"),
+    );
+
+    if (error) {
+      // La fonction n'existe pas encore — fallback silencieux.
+      console.warn("[profiling] charger_tout RPC indisponible, fallback :", error.message);
+      return null;
+    }
+
+    const brut = data as Record<string, unknown>;
+    if (!brut || typeof brut !== "object") return null;
+
+    // --- Profil ---
+    const profilBrut = brut.profile as Record<string, unknown> | null;
+    const user: User = profilBrut ? profilVersUser(profilBrut, defaut) : defaut;
+
+    // --- Collections tabulaires ---
+    const convertirListe = <T>(cle: string): T[] =>
+      ((brut[cle] as Record<string, unknown>[] | null) ?? []).map((l) =>
+        ligneVersEntite<T>(l),
+      );
+
+    const collections: Collections = {
+      user,
+      evidence: convertirListe<SkillEvidence>("evidence"),
+      exercises: convertirListe<Exercise>("exercises"),
+      attempts: convertirListe<ExerciseAttempt>("attempts"),
+      sessions: convertirListe<LearningSession>("sessions"),
+    };
+
+    // --- Référentiel ---
+    const domaines = convertirListe<Domaine>("domaines");
+    const competences = convertirListe<Skill>("competences");
+
+    return { collections, domaines, competences };
+  } catch (e) {
+    console.warn("[profiling] charger_tout RPC erreur :", e);
+    return null;
+  }
+}
+
 /** Identifiant lisible et trié chronologiquement. */
 export function nouvelId(prefixe: string): string {
   return `${prefixe}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
