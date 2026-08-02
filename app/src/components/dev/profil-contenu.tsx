@@ -241,13 +241,13 @@ export function ProfilContenu({
           </p>
         ) : (
           <div className="overflow-hidden rounded-carte border border-bordure bg-surface">
-            <table className="w-full text-left text-sm">
+            <table className="w-full table-fixed text-left text-sm">
               <thead>
                 <tr className="border-b border-bordure text-[0.6875rem] uppercase tracking-wide text-texte-discret">
-                  <th className="px-4 py-2 font-medium">Heure</th>
-                  <th className="px-4 py-2 font-medium">Type</th>
+                  <th className="w-[5rem] px-4 py-2 font-medium">Heure</th>
+                  <th className="w-[4rem] px-4 py-2 font-medium">Type</th>
                   <th className="px-4 py-2 font-medium">Libellé</th>
-                  <th className="px-4 py-2 text-right font-medium">Durée</th>
+                  <th className="w-[4.5rem] px-4 py-2 text-right font-medium">Durée</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-bordure/50">
@@ -269,7 +269,7 @@ export function ProfilContenu({
                         {i.type}
                       </span>
                     </td>
-                    <td className="px-4 py-2 text-xs">{i.libelle}</td>
+                    <td className="max-w-[12rem] truncate px-4 py-2 text-xs" title={i.libelle}>{i.libelle}</td>
                     <td className="px-4 py-2 text-right text-xs font-medium">
                       {formatMs(i.dureeMs)}
                     </td>

@@ -4,6 +4,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { NavMobile } from "@/components/layout/nav-mobile";
 import { CompteMobile } from "@/components/layout/compte";
 import { ProfilFlottant } from "@/components/dev/profil-flottant";
+import { ProfilPage } from "@/components/dev/profil-page";
 
 /**
  * Cadre du carnet : rail de navigation, marge.
@@ -61,7 +62,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         */}
         <main className="flex flex-1 flex-col px-4 sm:px-6 lg:px-8">
           <div className="mx-auto w-full max-w-6xl flex-1 pb-20 pt-5 lg:border-l lg:border-marge lg:pb-10 lg:pl-8 lg:pt-6">
-            {children}
+            <ProfilPage>
+              {children}
+            </ProfilPage>
           </div>
         </main>
       </div>

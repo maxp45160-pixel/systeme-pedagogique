@@ -108,7 +108,7 @@ export function ProfilFlottant() {
   const interactions = interactionsActuelles();
 
   return (
-    <>
+    <div data-profiling-ignore>
       {/* ── Bouton flottant ── */}
       <button
         onClick={() => setOuvert((o) => !o)}
@@ -219,6 +219,6 @@ export function ProfilFlottant() {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
