@@ -89,9 +89,9 @@ async function ContenuTableauDeBord() {
         <BandeauInfo>
           <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-info" aria-hidden />
           <p className="text-texte-attenue">
-            <strong className="font-medium text-info">Système en cours d'initialisation.</strong>{" "}
-            Aucun niveau ne s'affiche tant qu'un diagnostic n'a pas eu lieu — commence par
-            l'action ci-dessous.
+            <strong className="font-medium text-info">Système en cours d&apos;initialisation.</strong>{" "}
+            Aucun niveau ne s&apos;affiche tant qu&apos;un diagnostic n&apos;a pas eu lieu — commence par
+            l&apos;action ci-dessous.
           </p>
         </BandeauInfo>
       )}
@@ -167,7 +167,7 @@ async function ContenuTableauDeBord() {
         piste.
       */}
       <section>
-        <TitreSection>Vue d'ensemble</TitreSection>
+        <TitreSection>Vue d&apos;ensemble</TitreSection>
         <div className="space-y-6 [&>*]:min-w-0">
           {/* Une année pleine, étalée sur toute la largeur de la carte. */}
           <CarteActivite activite={activite} now={ctx.now} semaines={52} cellule={16} />

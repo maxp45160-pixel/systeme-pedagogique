@@ -171,10 +171,10 @@ async function ContenuExercices({
               resume={`${totalDecouvert} compétence${totalDecouvert > 1 ? "s" : ""} sans aucun exercice`}
             >
               <p className="mt-2 max-w-2xl text-xs text-texte-attenue">
-                Le moteur ne peut proposer que ce qui existe. Tant qu'une compétence
-                n'a aucun exercice, la recommandation retombe sur le tuteur — et si
+                Le moteur ne peut proposer que ce qui existe. Tant qu&apos;une compétence
+                n&apos;a aucun exercice, la recommandation retombe sur le tuteur — et si
                 toutes celles qui en ont sont déjà faites ou ratées, la file paraît tourner
-                en rond. Demander un lot par domaine évite d'ouvrir une conversation par
+                en rond. Demander un lot par domaine évite d&apos;ouvrir une conversation par
                 compétence.
               </p>
               <ul className="mt-3 divide-y divide-bordure border-t border-bordure">
@@ -343,8 +343,8 @@ async function ContenuExercices({
                 <Depliant resume={`Acquis — ${acquis.length} exercice${acquis.length > 1 ? "s" : ""} déjà réussi${acquis.length > 1 ? "s" : ""}`}>
                   <p className="mt-2 max-w-2xl text-xs text-texte-attenue">
                     Un exercice réussi sort de la file de recommandation. Le refaire après un
-                    délai reste possible — c'est même ce qui fait monter la robustesse —
-                    mais ce n'est plus ce que le système propose de lui-même.
+                    délai reste possible — c&apos;est même ce qui fait monter la robustesse —
+                    mais ce n&apos;est plus ce que le système propose de lui-même.
                   </p>
                   <ul className="mt-2 divide-y divide-bordure border-t border-bordure">
                     {acquis.map((ex) => (
@@ -367,7 +367,7 @@ async function ContenuExercices({
                 <Depliant resume={`Archivés — ${archives.length} exercice${archives.length > 1 ? "s" : ""} retiré${archives.length > 1 ? "s" : ""} du flux`}>
                   <p className="mt-2 max-w-2xl text-xs text-texte-attenue">
                     Ces exercices ne sont plus proposés et ne calibrent plus rien. Les preuves
-                    qu'ils ont produites restent en base — une preuve ne disparaît pas.
+                    qu&apos;ils ont produites restent en base — une preuve ne disparaît pas.
                   </p>
                   <ul className="mt-2 divide-y divide-bordure border-t border-bordure">
                     {archives.map((ex) => (

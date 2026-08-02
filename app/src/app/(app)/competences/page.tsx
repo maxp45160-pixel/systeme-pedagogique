@@ -87,7 +87,7 @@ function BandeauPerimetre({ referentiel }: { referentiel: Referentiel }) {
       <BandeauInfo>
         <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-info" aria-hidden />
         <p className="text-texte-attenue">
-          <strong className="font-medium text-info">Aucun référentiel.</strong> Ce compte n'a
+          <strong className="font-medium text-info">Aucun référentiel.</strong> Ce compte n&apos;a
           pas encore de compétences à suivre.{" "}
           <Link href="/demarrer" className="font-medium text-info underline underline-offset-2">
             Déclare ton thème de travail
@@ -263,7 +263,7 @@ function VueRadar({ etats }: { etats: SkillState[] }) {
             <p className="mt-4 rounded-md border border-bordure bg-surface-2 px-3 py-2 text-[0.6875rem] text-texte-attenue">
               <strong className="font-medium">Lecture prudente.</strong>{" "}
               {sansPreuve.length} compétence(s) sont tracées à zéro faute de preuve, non parce
-              qu'une faiblesse a été mesurée :{" "}
+              qu&apos;une faiblesse a été mesurée :{" "}
               {sansPreuve.map((e) => e.skill.code).join(", ")}.
             </p>
           )}
