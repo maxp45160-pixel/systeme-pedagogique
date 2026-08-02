@@ -68,7 +68,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
       <NavMobile />
 
-      {/* Panneau flottant de profilage : visible pendant qu'on utilise l'app. */}
+      {/*
+        Panneau flottant de profilage — outil de développement.
+
+        Il ne rend rien tant que le profilage n'est pas disponible : en usage
+        normal, aucune surface. La condition vit dans le composant, où le
+        prédicat `profilageClientActif()` est déjà abonné à ses drapeaux.
+      */}
       <ProfilFlottant />
     </div>
   );
