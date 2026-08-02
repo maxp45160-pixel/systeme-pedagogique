@@ -50,7 +50,7 @@ export function EnTeteCarte({
     // avec légende le bloc devient haut, et une action centrée flotterait.
     <div
       className={cx(
-        "flex justify-between gap-4 border-b border-bordure px-4 py-2.5",
+        "flex justify-between gap-4 border-b border-bordure px-5 py-3.5",
         legende ? "items-start" : "items-center",
       )}
     >
@@ -78,7 +78,71 @@ export function CorpsCarte({
   children: ReactNode;
   className?: string;
 }) {
-  return <div className={cx("px-4 py-3.5", className)}>{children}</div>;
+  return <div className={cx("px-5 py-4", className)}>{children}</div>;
+}
+
+/* ------------------------------------------------------------------ */
+/* Bandeaux d'information                                              */
+/* ------------------------------------------------------------------ */
+
+type TonBandeau = "info" | "primaire" | "alerte";
+
+const TONS_BANDEAU: Record<TonBandeau, string> = {
+  info: "border-info/30 bg-info-faible",
+  primaire: "border-primaire/30 bg-surface-2",
+  alerte: "border-alerte/30 bg-alerte-faible",
+};
+
+/**
+ * Bandeau d'information resserré, utilisé en tête de page pour signaler un
+ * état (initialisation, périmètre, exercice en cours…). Uniformise le pattern
+ * qui était réécrit à chaque page.
+ */
+export function BandeauInfo({
+  ton = "info",
+  children,
+  className,
+}: {
+  ton?: TonBandeau;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cx(
+        "flex items-start gap-2.5 rounded-carte border px-4 py-2.5 text-xs",
+        TONS_BANDEAU[ton],
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Lignes de liste                                                     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Ligne de liste, standard de l'application.
+ *
+ * Le padding et le survol étaient réécrits dans chaque page (`LigneExercice`,
+ * `LigneCompetence`, manifeste du tuteur…). Une seule primitive les porte.
+ * Le contenu (lien, actions…) est passé en children pour rester flexible.
+ */
+export function LigneListe({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <li className={cx("px-5 py-3.5 transition-colors hover:bg-surface-2", className)}>
+      {children}
+    </li>
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -273,7 +337,7 @@ export function EtatVide({
   icone?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center px-6 py-8 text-center">
+    <div className="flex flex-col items-center justify-center px-6 py-10 text-center">
       {icone && <div className="mb-3 text-texte-discret">{icone}</div>}
       <p className="text-sm font-medium">{titre}</p>
       <p className="mt-1 max-w-md text-xs leading-relaxed text-texte-attenue">{message}</p>
@@ -329,7 +393,7 @@ export function TitreSection({
   action?: ReactNode;
 }) {
   return (
-    <div className="mb-3 flex items-start justify-between gap-4">
+    <div className="mb-4 flex items-start justify-between gap-4">
       <div>
         <h2 className="text-sm font-semibold tracking-tight">{children}</h2>
         {legende && <p className="mt-0.5 text-xs text-texte-attenue">{legende}</p>}

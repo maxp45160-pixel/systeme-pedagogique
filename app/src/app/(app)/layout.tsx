@@ -60,8 +60,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           laissait le bas de l'écran vide. Les paddings verticaux sont posés à
           l'intérieur du bloc pour que la bordure les englobe.
         */}
-        <main className="flex flex-1 flex-col px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto w-full max-w-6xl flex-1 pb-20 pt-5 lg:border-l lg:border-marge lg:pb-10 lg:pl-8 lg:pt-6">
+        <main className="flex flex-1 flex-col px-4 sm:px-6 lg:px-10">
+          <div className="mx-auto w-full max-w-7xl flex-1 pb-24 pt-6 lg:border-l lg:border-marge lg:pb-12 lg:pl-10 lg:pt-8">
             <ProfilPage>
               {children}
             </ProfilPage>

@@ -12,6 +12,7 @@ import { RevisionsDues } from "@/components/dashboard/revisions-dues";
 import { CarteProgressionRecente } from "@/components/dashboard/progression-recente";
 import { CarteActivite } from "@/components/dashboard/activite";
 import { Depliant } from "@/components/ui/explication";
+import { BandeauInfo, TitreSection } from "@/components/ui/primitives";
 
 export default function TableauDeBord() {
   // La date du jour ne dépend d'aucune lecture : `ctx.now` n'est rien d'autre
@@ -79,20 +80,20 @@ async function ContenuTableauDeBord() {
     .sort((a, b) => a.depuis - b.depuis);
 
   return (
-    <>
+    <div className="space-y-6">
       {/*
         Au démarrage, l'écran est volontairement vide (protocole anti-hallucination).
         La note est resserrée à une ligne et renvoie directement à l'action.
       */}
       {aucunePreuve && (
-        <div className="mb-6 flex items-start gap-2.5 rounded-carte border border-info/30 bg-info-faible px-4 py-2.5 text-sm">
+        <BandeauInfo>
           <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-info" aria-hidden />
           <p className="text-texte-attenue">
-            <strong className="font-medium text-info">Système en cours d&apos;initialisation.</strong>{" "}
-            Aucun niveau ne s&apos;affiche tant qu&apos;un diagnostic n&apos;a pas eu lieu — commence par
-            l&apos;action ci-dessous.
+            <strong className="font-medium text-info">Système en cours d'initialisation.</strong>{" "}
+            Aucun niveau ne s'affiche tant qu'un diagnostic n'a pas eu lieu — commence par
+            l'action ci-dessous.
           </p>
-        </div>
+        </BandeauInfo>
       )}
 
       {/*
@@ -109,28 +110,30 @@ async function ContenuTableauDeBord() {
         ce qu'il faudrait commencer.
       */}
       {enCours.length > 0 && (
-        <div className="mb-6 rounded-carte border border-primaire/30 bg-surface-2 px-4 py-3">
-          <p className="text-sm font-medium">
-            {enCours.length === 1
-              ? "Tu as un exercice en cours"
-              : `Tu as ${enCours.length} exercices en cours`}
-          </p>
-          <ul className="mt-2 space-y-1.5">
-            {enCours.map(({ exercice, depuis }) => (
-              <li key={exercice.id} className="flex flex-wrap items-baseline gap-2 text-xs">
-                <Link
-                  href={`/exercices/${exercice.id}`}
-                  className="font-medium text-primaire hover:underline"
-                >
-                  {exercice.titre}
-                </Link>
-                <span className="text-texte-discret">
-                  commencé il y a {formatDuree(depuis)} · {exercice.competences.join(", ")}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <BandeauInfo ton="primaire">
+          <div className="min-w-0">
+            <p className="text-sm font-medium">
+              {enCours.length === 1
+                ? "Tu as un exercice en cours"
+                : `Tu as ${enCours.length} exercices en cours`}
+            </p>
+            <ul className="mt-2 space-y-1.5">
+              {enCours.map(({ exercice, depuis }) => (
+                <li key={exercice.id} className="flex flex-wrap items-baseline gap-2 text-xs">
+                  <Link
+                    href={`/exercices/${exercice.id}`}
+                    className="font-medium text-primaire hover:underline"
+                  >
+                    {exercice.titre}
+                  </Link>
+                  <span className="text-texte-discret">
+                    commencé il y a {formatDuree(depuis)} · {exercice.competences.join(", ")}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </BandeauInfo>
       )}
 
       {/* Action prioritaire : seule et dominante, rien ne la concurrence. */}
@@ -163,9 +166,9 @@ async function ContenuTableauDeBord() {
         pistes. `[&>*]:min-w-0` empêche un intitulé en `truncate` d'élargir la
         piste.
       */}
-      <section className="mt-6">
-        <h2 className="mb-3 font-serif text-lg italic text-texte-discret">— vue d&apos;ensemble</h2>
-        <div className="space-y-4 [&>*]:min-w-0">
+      <section>
+        <TitreSection>Vue d'ensemble</TitreSection>
+        <div className="space-y-6 [&>*]:min-w-0">
           {/* Une année pleine, étalée sur toute la largeur de la carte. */}
           <CarteActivite activite={activite} now={ctx.now} semaines={52} cellule={16} />
 
@@ -181,6 +184,6 @@ async function ContenuTableauDeBord() {
           </Depliant>
         </div>
       </section>
-    </>
+    </div>
   );
 }

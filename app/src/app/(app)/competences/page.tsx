@@ -5,12 +5,15 @@ import { SqueletteContenu } from "@/components/layout/squelette";
 import type { Referentiel, SkillState } from "@/lib/domain/types";
 import { EntetePage } from "@/components/layout/entete-page";
 import {
+  BandeauInfo,
   Carte,
   CodeCompetence,
+  CorpsCarte,
   cx,
   EnTeteCarte,
   Etiquette,
   JaugeNiveau,
+  LigneListe,
   Statistique,
 } from "@/components/ui/primitives";
 import { Radar, RepartitionNiveaux } from "@/components/charts";
@@ -81,26 +84,32 @@ function BandeauPerimetre({ referentiel }: { referentiel: Referentiel }) {
 
   if (total === 0) {
     return (
-      <p className="mb-4 rounded-carte border border-info/30 bg-info-faible px-4 py-2.5 text-xs text-texte-attenue">
-        <strong className="font-medium text-info">Aucun référentiel.</strong> Ce compte n&apos;a
-        pas encore de compétences à suivre.{" "}
-        <Link href="/demarrer" className="font-medium text-info underline underline-offset-2">
-          Déclare ton thème de travail
-        </Link>{" "}
-        — le tuteur proposera une première branche, que tu valideras.
-      </p>
+      <BandeauInfo>
+        <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-info" aria-hidden />
+        <p className="text-texte-attenue">
+          <strong className="font-medium text-info">Aucun référentiel.</strong> Ce compte n'a
+          pas encore de compétences à suivre.{" "}
+          <Link href="/demarrer" className="font-medium text-info underline underline-offset-2">
+            Déclare ton thème de travail
+          </Link>{" "}
+          — le tuteur proposera une première branche, que tu valideras.
+        </p>
+      </BandeauInfo>
     );
   }
 
   if (actifs === total) return null;
 
   return (
-    <p className="mb-4 rounded-carte border border-info/30 bg-info-faible px-4 py-2.5 text-xs text-texte-attenue">
-      <strong className="font-medium text-info">Périmètre de travail.</strong> Ton référentiel
-      compte {total} compétences sur {referentiel.domaines.length} domaine(s) ; {actifs} sont
-      dans ton périmètre actuel. Les autres ne sont ni calculées ni affichées — elles gardent
-      leurs preuves et reviennent dès que tu les réactives.
-    </p>
+    <BandeauInfo>
+      <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-info" aria-hidden />
+      <p className="text-texte-attenue">
+        <strong className="font-medium text-info">Périmètre de travail.</strong> Ton référentiel
+        compte {total} compétences sur {referentiel.domaines.length} domaine(s) ; {actifs} sont
+        dans ton périmètre actuel. Les autres ne sont ni calculées ni affichées — elles gardent
+        leurs preuves et reviennent dès que tu les réactives.
+      </p>
+    </BandeauInfo>
   );
 }
 
@@ -108,11 +117,11 @@ async function ContenuCompetences({ vue }: { vue: Vue }) {
   const ctx = await chargerContexte();
 
   return (
-    <>
+    <div className="space-y-6">
       <BandeauPerimetre referentiel={ctx.referentiel} />
       {vue === "grille" && <VueGrille etats={ctx.etats} referentiel={ctx.referentiel} />}
       {vue === "radar" && <VueRadar etats={ctx.etats} />}
-    </>
+    </div>
   );
 }
 
@@ -135,7 +144,7 @@ function VueGrille({
     .filter((g) => g.items.length > 0);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {parDomaine.map(({ domaine, items }) => {
         const repartition: Record<number, number> = {};
         for (const e of items) {
@@ -172,10 +181,10 @@ function VueGrille({
 
 function LigneCompetence({ etat }: { etat: SkillState }) {
   return (
-    <li>
+    <LigneListe>
       <Link
         href={`/competences/${etat.skill.code}`}
-        className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-surface-2"
+        className="flex w-full items-center gap-4"
       >
         <div className="w-16 shrink-0">
           <CodeCompetence code={etat.skill.code} />
@@ -217,7 +226,7 @@ function LigneCompetence({ etat }: { etat: SkillState }) {
           </span>
         </div>
       </Link>
-    </li>
+    </LigneListe>
   );
 }
 
@@ -242,45 +251,47 @@ function VueRadar({ etats }: { etats: SkillState[] }) {
   const sansPreuve = etats.filter((e) => e.score === null);
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
+    <div className="grid gap-6 lg:grid-cols-2 [&>*]:min-w-0">
       <Carte>
         <EnTeteCarte
           titre="Vue d'ensemble du périmètre"
           legende="Score sur 100, un axe par compétence travaillée"
         />
-        <div className="px-4 py-3.5">
+        <CorpsCarte>
           <Radar axes={axes} />
           {sansPreuve.length > 0 && (
             <p className="mt-4 rounded-md border border-bordure bg-surface-2 px-3 py-2 text-[0.6875rem] text-texte-attenue">
               <strong className="font-medium">Lecture prudente.</strong>{" "}
               {sansPreuve.length} compétence(s) sont tracées à zéro faute de preuve, non parce
-              qu&apos;une faiblesse a été mesurée :{" "}
+              qu'une faiblesse a été mesurée :{" "}
               {sansPreuve.map((e) => e.skill.code).join(", ")}.
             </p>
           )}
-        </div>
+        </CorpsCarte>
       </Carte>
 
       <Carte>
         <EnTeteCarte titre="Détail chiffré" legende="La même information, sans dépendre de la forme" />
         <ul className="divide-y divide-bordure">
           {etats.map((e) => (
-            <li key={e.skill.code} className="flex items-center gap-3 px-4 py-2.5">
+            <LigneListe key={e.skill.code}>
               <Link
                 href={`/competences/${e.skill.code}`}
-                className="min-w-0 flex-1 truncate text-sm hover:underline"
+                className="flex w-full items-center gap-4"
               >
-                <CodeCompetence code={e.skill.code} /> {e.skill.intitule}
+                <span className="min-w-0 flex-1 truncate text-sm hover:underline">
+                  <CodeCompetence code={e.skill.code} /> {e.skill.intitule}
+                </span>
+                <Statistique
+                  libelle=""
+                  valeur={e.score === null ? null : Math.round((e.score / 5) * 100)}
+                  unite="/100"
+                />
+                <span className="w-20 shrink-0 text-right text-[0.6875rem] text-texte-discret">
+                  {e.preuves.length} preuve{e.preuves.length > 1 ? "s" : ""}
+                </span>
               </Link>
-              <Statistique
-                libelle=""
-                valeur={e.score === null ? null : Math.round((e.score / 5) * 100)}
-                unite="/100"
-              />
-              <span className="w-20 shrink-0 text-right text-[0.6875rem] text-texte-discret">
-                {e.preuves.length} preuve{e.preuves.length > 1 ? "s" : ""}
-              </span>
-            </li>
+            </LigneListe>
           ))}
         </ul>
       </Carte>

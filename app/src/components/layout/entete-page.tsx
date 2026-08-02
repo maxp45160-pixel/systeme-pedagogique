@@ -14,7 +14,7 @@ export function EntetePage({
   actions?: ReactNode;
 }) {
   return (
-    <header className="mb-5 flex flex-wrap items-start justify-between gap-3">
+    <header className="mb-8 flex flex-wrap items-start justify-between gap-3">
       <div className="min-w-0">
         {surtitre && (
           <div className="font-serif text-sm italic text-texte-discret">{surtitre}</div>

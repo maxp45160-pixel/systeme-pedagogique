@@ -226,7 +226,7 @@ const MessageBulle = memo(function MessageBulle({
     >
       <div
         className={cx(
-          "max-w-[85%] rounded-lg px-3 py-2 text-sm",
+          "max-w-[85%] rounded-lg px-3.5 py-2.5 text-sm",
           message.role === "user"
             ? "bg-primaire text-primaire-contraste"
             : "border border-bordure bg-surface-2",
@@ -259,7 +259,7 @@ const MessageBulle = memo(function MessageBulle({
       {propositions.map((p, j) => (
         <div
           key={j}
-          className="max-w-[85%] rounded-md border border-info/30 bg-info-faible px-3 py-2 text-xs"
+          className="max-w-[85%] rounded-md border border-info/30 bg-info-faible px-3.5 py-2.5 text-xs"
         >
           <div className="flex flex-wrap items-center gap-1.5">
             <Etiquette ton="info">Proposition</Etiquette>
@@ -288,7 +288,7 @@ const MessageBulle = memo(function MessageBulle({
       {exercices.map((ex, j) => (
         <div
           key={`ex-${j}`}
-          className="max-w-[85%] rounded-md border border-primaire/30 bg-surface-2 px-3 py-2 text-xs"
+          className="max-w-[85%] rounded-md border border-primaire/30 bg-surface-2 px-3.5 py-2.5 text-xs"
         >
           <div className="flex flex-wrap items-center gap-1.5">
             <Etiquette ton="primaire">Exercice proposé</Etiquette>
@@ -338,7 +338,7 @@ const MessageBulle = memo(function MessageBulle({
       {branches.map((b, j) => (
         <div
           key={`ref-${j}`}
-          className="max-w-[85%] rounded-md border border-primaire/30 bg-surface-2 px-3 py-2 text-xs"
+          className="max-w-[85%] rounded-md border border-primaire/30 bg-surface-2 px-3.5 py-2.5 text-xs"
         >
           <div className="flex flex-wrap items-center gap-1.5">
             <Etiquette ton="primaire">Branche proposée</Etiquette>
@@ -1082,7 +1082,7 @@ function ChatHydrate({
       : (amorce ?? (competenceCiblee ? `Donne-moi un exercice sur ${competenceCiblee}.` : ""));
 
   return (
-    <div className="space-y-4 [&>*]:min-w-0">
+    <div className="space-y-6 [&>*]:min-w-0">
       <div>
         <div className="flex h-[min(70vh,620px)] flex-col rounded-carte border border-bordure bg-surface">
           {/* Conversation */}
@@ -1197,7 +1197,7 @@ function ChatHydrate({
       >
         <div className="space-y-4">
           <div className="rounded-carte border border-bordure bg-surface">
-          <div className="border-b border-bordure px-4 py-3">
+          <div className="border-b border-bordure px-5 py-3.5">
             <div className="flex items-center gap-2">
               {/* Le contexte est assemblé par le serveur : il est chargé dès le
                   premier rendu, il n'y a plus d'état « en attente ». */}
@@ -1214,7 +1214,7 @@ function ChatHydrate({
 
           <ul className="divide-y divide-bordure">
             {etat.manifeste.map((s, i) => (
-              <li key={i} className="flex items-baseline justify-between gap-2 px-4 py-2">
+              <li key={i} className="flex items-baseline justify-between gap-2 px-5 py-2.5">
                 <span className="min-w-0 text-xs">
                   {s.nom}
                   {s.origine === "fichier" && (
@@ -1227,7 +1227,7 @@ function ChatHydrate({
               </li>
             ))}
           </ul>
-          <div className="border-t border-bordure px-4 py-3 text-xs">
+          <div className="border-t border-bordure px-5 py-3.5 text-xs">
             <div className="flex items-baseline justify-between gap-2">
               <span className="text-texte-attenue">Total</span>
               <span className="chiffres font-medium">
@@ -1247,7 +1247,7 @@ function ChatHydrate({
           </div>
           </div>
 
-          <div className="rounded-carte border border-bordure bg-surface px-4 py-3 text-xs text-texte-attenue">
+          <div className="rounded-carte border border-bordure bg-surface px-5 py-4 text-xs text-texte-attenue">
             <p className="font-medium text-texte">Ce que le tuteur ne peut pas faire</p>
             <ul className="mt-1.5 space-y-1">
               <li>· Écrire dans ton profil — il propose, tu valides.</li>
@@ -1259,7 +1259,7 @@ function ChatHydrate({
       </Depliant>
 
       {cleAbsente && (
-        <div className="rounded-carte border border-alerte/30 bg-alerte-faible px-4 py-3 text-xs">
+        <div className="rounded-carte border border-alerte/30 bg-alerte-faible px-5 py-4 text-xs">
           <p className="font-medium text-alerte">Aucune clé API configurée</p>
           <p className="mt-1 text-texte-attenue">
             Le chat intégré est désactivé — il ne simulera pas de réponse. Trois options :

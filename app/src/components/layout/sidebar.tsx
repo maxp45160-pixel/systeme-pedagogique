@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAVIGATION } from "./navigation";
 import { cx } from "@/components/ui/primitives";
-import { IconeFeuille } from "@/components/ui/icones";
 import { BasculeRail } from "./bascule-rail";
 import { Compte, type EtatSession } from "./compte";
 
@@ -15,42 +14,22 @@ function estActif(pathname: string, href: string): boolean {
 
 export function Sidebar({ session }: { session: EtatSession }) {
   const pathname = usePathname();
-  const surAccueil = pathname === "/";
 
   return (
     // Rabat de carnet « forêt » : sombre et constant dans les deux thèmes, il
     // encadre le canevas crème et concentre le regard sur le travail.
     <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-[var(--rail-bordure)] bg-[var(--rail)] text-[var(--rail-texte)] lg:flex rail-reduit:w-16">
-      {/* Logo = tableau de bord : le point d'entrée, plus un « groupe » à part. */}
-      <div className="flex h-16 items-center justify-between gap-2 border-b border-[var(--rail-bordure)] px-4 rail-reduit:h-auto rail-reduit:flex-col rail-reduit:px-0 rail-reduit:py-3">
-        <Link
-          href="/"
-          aria-current={surAccueil ? "page" : undefined}
-          className="group flex min-w-0 items-center gap-2.5"
-        >
-          <span
-            className={cx(
-              "flex size-9 shrink-0 items-center justify-center rounded-xl bg-[var(--rail-actif)] text-[var(--rail-actif-texte)] transition-shadow",
-              surAccueil && "ring-2 ring-[var(--rail-actif)]/40 ring-offset-2 ring-offset-[var(--rail)]",
-            )}
-          >
-            <IconeFeuille className="size-5" />
-          </span>
-          <span className="min-w-0 rail-reduit:hidden">
-            <span className="block truncate font-serif text-[0.95rem] font-medium leading-tight text-[var(--rail-texte)]">
-              Carnet
-            </span>
-            <span className="block truncate text-[0.6875rem] text-[var(--rail-texte-discret)]">
-              Tableau de bord
-            </span>
-          </span>
-        </Link>
+      {/* En-tête : nom du système (déployé) + bascule de réduction. */}
+      <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-[var(--rail-bordure)] px-4 rail-reduit:justify-center rail-reduit:px-0">
+        <span className="min-w-0 truncate font-serif text-[0.95rem] font-medium leading-tight text-[var(--rail-texte)] rail-reduit:hidden">
+          Système pédagogique
+        </span>
         <BasculeRail />
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-4 rail-reduit:px-2">
         {NAVIGATION.map((groupe) => (
-          <div key={groupe.titre} className="mb-6">
+          <div key={groupe.titre} className="mb-6 last:mb-0">
             <div
               className={cx(
                 "px-2 pb-2 text-[0.625rem] font-semibold uppercase tracking-wider rail-reduit:hidden",
@@ -59,12 +38,6 @@ export function Sidebar({ session }: { session: EtatSession }) {
             >
               {groupe.titre}
             </div>
-            {/* Rail réduit : l'intitulé de groupe disparaît, un filet le remplace
-                pour que la séparation des deux groupes reste lisible. */}
-            <div
-              aria-hidden
-              className="mx-1 mb-2 hidden h-px bg-[var(--rail-bordure)] rail-reduit:block"
-            />
             <ul className={groupe.primaire ? "space-y-1" : "space-y-0.5"}>
               {groupe.entrees.map((e) => {
                 const actif = estActif(pathname, e.href);

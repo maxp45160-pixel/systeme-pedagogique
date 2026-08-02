@@ -14,9 +14,12 @@ import { EntetePage } from "@/components/layout/entete-page";
 import {
   Carte,
   CodeCompetence,
+  CorpsCarte,
   cx,
+  EnTeteCarte,
   Etiquette,
   EtatVide,
+  LigneListe,
 } from "@/components/ui/primitives";
 import { Depliant } from "@/components/ui/explication";
 import { FormulaireCreationExercice } from "@/components/exercices/formulaire-creation";
@@ -160,18 +163,18 @@ async function ContenuExercices({
   const totalDecouvert = decouverts.reduce((s, g) => s + g.codes.length, 0);
 
   return (
-    <>
+    <div className="space-y-6">
       {totalDecouvert > 0 && aucunFiltre && (
-        <Carte className="mb-4">
-          <div className="px-4 py-3">
+        <Carte>
+          <CorpsCarte>
             <Depliant
               resume={`${totalDecouvert} compétence${totalDecouvert > 1 ? "s" : ""} sans aucun exercice`}
             >
               <p className="mt-2 max-w-2xl text-xs text-texte-attenue">
-                Le moteur ne peut proposer que ce qui existe. Tant qu&apos;une compétence
-                n&apos;a aucun exercice, la recommandation retombe sur le tuteur — et si
+                Le moteur ne peut proposer que ce qui existe. Tant qu'une compétence
+                n'a aucun exercice, la recommandation retombe sur le tuteur — et si
                 toutes celles qui en ont sont déjà faites ou ratées, la file paraît tourner
-                en rond. Demander un lot par domaine évite d&apos;ouvrir une conversation par
+                en rond. Demander un lot par domaine évite d'ouvrir une conversation par
                 compétence.
               </p>
               <ul className="mt-3 divide-y divide-bordure border-t border-bordure">
@@ -205,12 +208,12 @@ async function ContenuExercices({
                 })}
               </ul>
             </Depliant>
-          </div>
+          </CorpsCarte>
         </Carte>
       )}
 
-      <Carte className="mb-4">
-        <div className="px-4 py-3">
+      <Carte>
+        <CorpsCarte>
           <Depliant resume="Ajouter un exercice" ouvertParDefaut={Boolean(proposition)}>
             <div className="mt-3">
               <p className="mb-4 max-w-2xl text-xs text-texte-attenue">
@@ -228,7 +231,7 @@ async function ContenuExercices({
               />
             </div>
           </Depliant>
-        </div>
+        </CorpsCarte>
       </Carte>
 
       {/*
@@ -239,8 +242,8 @@ async function ContenuExercices({
         stock le justifiera, pas avant. Le regroupement par domaine ci-dessous
         n'est pas un filtre : il ne cache rien, il ordonne.
       */}
-      <Carte className="mb-4">
-        <div className="px-4 py-3">
+      <Carte>
+        <CorpsCarte>
           <LigneFiltre libelle="Statut">
             {(["tous", "a-faire", "en-cours", "termine"] as Statut[]).map((s) => (
               <Puce
@@ -268,10 +271,10 @@ async function ContenuExercices({
               </LigneFiltre>
             </div>
           )}
-        </div>
+        </CorpsCarte>
       </Carte>
 
-      <div className="mb-3 text-xs text-texte-attenue">
+      <div className="text-xs text-texte-attenue">
         {exercices.length} exercice{exercices.length > 1 ? "s" : ""}
         {aucunFiltre ? " au total" : " correspondant aux filtres"}
         {acquis.length > 0 && ` · ${acquis.length} acquis`}
@@ -291,15 +294,17 @@ async function ContenuExercices({
           />
         </Carte>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {groupes.map(({ domaine, items }) => (
             <Carte key={domaine.id}>
-              <div className="flex items-baseline justify-between gap-3 border-b border-bordure px-4 py-2.5">
-                <h2 className="text-sm font-medium">{domaine.nom}</h2>
-                <span className="chiffres shrink-0 text-[0.6875rem] text-texte-discret">
-                  {items.length} exercice{items.length > 1 ? "s" : ""}
-                </span>
-              </div>
+              <EnTeteCarte
+                titre={domaine.nom}
+                action={
+                  <span className="chiffres shrink-0 text-[0.6875rem] text-texte-discret">
+                    {items.length} exercice{items.length > 1 ? "s" : ""}
+                  </span>
+                }
+              />
               <ul className="divide-y divide-bordure">
                 {items.map((ex) => (
                   <LigneExercice
@@ -315,13 +320,10 @@ async function ContenuExercices({
 
           {orphelins.length > 0 && (
             <Carte>
-              <div className="border-b border-bordure px-4 py-2.5">
-                <h2 className="text-sm font-medium">Domaine retiré du référentiel</h2>
-                <p className="mt-0.5 text-[0.6875rem] text-texte-discret">
-                  Ces exercices citent un domaine qui n&apos;est plus au référentiel. Leurs
-                  preuves restent lisibles ; l&apos;énoncé, lui, n&apos;a plus de rattachement.
-                </p>
-              </div>
+              <EnTeteCarte
+                titre="Domaine retiré du référentiel"
+                legende="Ces exercices citent un domaine qui n'est plus au référentiel. Leurs preuves restent lisibles ; l'énoncé, lui, n'a plus de rattachement."
+              />
               <ul className="divide-y divide-bordure">
                 {orphelins.map((ex) => (
                   <LigneExercice
@@ -337,12 +339,12 @@ async function ContenuExercices({
 
           {acquis.length > 0 && (
             <Carte>
-              <div className="px-4 py-3">
+              <CorpsCarte>
                 <Depliant resume={`Acquis — ${acquis.length} exercice${acquis.length > 1 ? "s" : ""} déjà réussi${acquis.length > 1 ? "s" : ""}`}>
                   <p className="mt-2 max-w-2xl text-xs text-texte-attenue">
                     Un exercice réussi sort de la file de recommandation. Le refaire après un
-                    délai reste possible — c&apos;est même ce qui fait monter la robustesse —
-                    mais ce n&apos;est plus ce que le système propose de lui-même.
+                    délai reste possible — c'est même ce qui fait monter la robustesse —
+                    mais ce n'est plus ce que le système propose de lui-même.
                   </p>
                   <ul className="mt-2 divide-y divide-bordure border-t border-bordure">
                     {acquis.map((ex) => (
@@ -355,17 +357,17 @@ async function ContenuExercices({
                     ))}
                   </ul>
                 </Depliant>
-              </div>
+              </CorpsCarte>
             </Carte>
           )}
 
           {archives.length > 0 && (
             <Carte>
-              <div className="px-4 py-3">
+              <CorpsCarte>
                 <Depliant resume={`Archivés — ${archives.length} exercice${archives.length > 1 ? "s" : ""} retiré${archives.length > 1 ? "s" : ""} du flux`}>
                   <p className="mt-2 max-w-2xl text-xs text-texte-attenue">
                     Ces exercices ne sont plus proposés et ne calibrent plus rien. Les preuves
-                    qu&apos;ils ont produites restent en base — une preuve ne disparaît pas.
+                    qu'ils ont produites restent en base — une preuve ne disparaît pas.
                   </p>
                   <ul className="mt-2 divide-y divide-bordure border-t border-bordure">
                     {archives.map((ex) => (
@@ -378,12 +380,12 @@ async function ContenuExercices({
                     ))}
                   </ul>
                 </Depliant>
-              </div>
+              </CorpsCarte>
             </Carte>
           )}
         </div>
       )}
-    </>
+    </div>
   );
 }
 
@@ -408,10 +410,10 @@ function LigneExercice({
   const etiquette = LIBELLES_USAGE[usage];
 
   return (
-    <li className="flex items-start gap-2 pr-4 transition-colors hover:bg-surface-2">
+    <LigneListe className="flex items-start gap-2">
       {/* Le lien ne couvre QUE le contenu : un bouton d'action imbriqué dans
           une ancre serait à la fois invalide et impossible à cliquer. */}
-      <Link href={`/exercices/${ex.id}`} className="block min-w-0 flex-1 py-3 pl-4">
+      <Link href={`/exercices/${ex.id}`} className="block min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="truncate text-sm font-medium">{ex.titre}</span>
           {ex.diagnostic && <Etiquette ton="info">Diagnostic</Etiquette>}
@@ -452,7 +454,7 @@ function LigneExercice({
         </div>
       </Link>
 
-      <div className="flex shrink-0 flex-col items-end gap-1.5 py-3">
+      <div className="flex shrink-0 flex-col items-end gap-1.5">
         <Etiquette ton={etiquette.ton}>{etiquette.texte}</Etiquette>
         {estRetirable(ex) && (
           <RetraitExercice
@@ -463,7 +465,7 @@ function LigneExercice({
           />
         )}
       </div>
-    </li>
+    </LigneListe>
   );
 }
 
