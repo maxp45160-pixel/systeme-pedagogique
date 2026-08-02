@@ -170,6 +170,22 @@ vu** : le journal de preuves enregistrait les abandons comme des mesures à
 zéro. Corrigé par ADR-030. Fait de méthode à retenir : faire tourner la boucle
 mesure le système, pas seulement l'utilisateur.
 
+⚠️ **Le deuxième tour, le 02/08, a buté sur l'inventaire.** Six irritants
+d'immersion remontés à l'usage (ADR-034 à 036). Le fait qui les explique presque
+tous : **40 des 54 compétences actives n'avaient aucun exercice**, pour un
+corpus de 27. Suivre la « prochaine action » revenait à refaire les mêmes
+échecs, non parce que la recommandation était mauvaise, mais parce qu'elle
+n'avait rien d'autre à proposer. Deuxième leçon de méthode : **la boucle ne vaut
+que ce que vaut son stock**, et le 1ᵉʳ maillon doit produire par lots, pas à
+l'unité.
+
+Ce tour a aussi montré un défaut d'un genre nouveau : `exercises.difficulte`
+était une colonne `TEXT`, et `"1" + 0` vaut `"10"` — deux compétences se
+voyaient conseiller la difficulté 5 sur la foi d'un partiel obtenu à
+difficulté 1. Les 239 tests d'alors ne pouvaient pas le voir : ils passent tous
+des valeurs déjà typées, jamais une valeur relue de la base. **Le moteur est
+pur et vérifié ; ce qu'on lui donne à manger ne l'était pas.**
+
 ## 7. Critère d'arrêt
 
 Une fonctionnalité n'entre pas dans ce produit parce qu'elle est intéressante,

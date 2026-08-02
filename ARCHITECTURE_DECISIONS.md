@@ -43,6 +43,12 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [028](#adr-028) | Le 3ᵉ maillon : la difficulté et l'angle sont dérivés des tentatives | ✅ Acceptée (31/07) |
 | [029](#adr-029) | Aucun profil n'est écrit dans les protocoles | ✅ Acceptée (31/07) |
 | [030](#adr-030) | Aucune preuve n'est écrite sur une tentative qui n'a pas eu lieu | ✅ Acceptée (01/08) |
+| [031](#adr-031) | Les propositions du tuteur passent en sortie structurée | ✅ Acceptée (01/08) |
+| [032](#adr-032) | Ce qu'un validateur rejette n'a pas à être un paragraphe de prompt | ✅ Acceptée (01/08) |
+| [033](#adr-033) | L'aide extérieure se demande, l'autonomie se dérive | ✅ Acceptée (01/08) |
+| [034](#adr-034) | Un exercice échoué ne revient qu'après un progrès démontré | 🔬 Hypothèse (02/08) |
+| [035](#adr-035) | Cycle de vie d'un exercice : le calque d'ADR-027 | 🔬 Hypothèse (02/08) |
+| [036](#adr-036) | Le tuteur voit le corpus, jamais les énoncés | 🔬 Hypothèse (02/08) |
 
 ---
 
@@ -2020,6 +2026,219 @@ l'usage.** `documentation → A2` est la lecture littérale du protocole, mais
 c'est une décision de valeur, pas une mesure. Si les niveaux s'effondrent chez
 quelqu'un qui travaille normalement documentation ouverte, c'est ce chiffre
 qu'il faudra rediscuter — pas le principe.
+
+---
+
+<a name="adr-034"></a>
+## ADR-034 — Un exercice échoué ne revient qu'après un progrès démontré 🔬
+
+**Date.** 02/08/2026. **Produite par une session Claude, non tranchée à
+l'usage.** Née d'un irritant remonté par Maxime :
+
+> « En suivant le système de "prochaine action", je me retrouve à refaire tous
+> les exos ratés, et qui ne sont pas de mon niveau réel sinon je les aurais
+> traité. Si j'y arrive pas une fois je vois pas pourquoi 3 jours après je
+> saurais davantage le faire. »
+
+### Le problème avait deux couches, et la première était un défaut
+
+**Couche 1 — un défaut de typage, pas une décision.** `exercises.difficulte`
+était déclarée `TEXT` (ADR-012 : schéma écrit à la main) et `ligneVersEntite` ne
+coerce rien. Un exercice relu depuis la base portait donc `"1"`, et
+`calibration.ts` faisait :
+
+```ts
+borner(exploitable.difficulte + AJUSTEMENT[exploitable.signal])
+```
+
+`"1" + 0` vaut `"10"` → borné à **5**. `"1" + (-1)` vaut `"1-1"` → **`NaN`**.
+
+Mesuré en production le 02/08 : DEV-03 et DEV-04 conseillaient une difficulté
+**5** sur la foi d'un `partiel` obtenu sur un exercice de difficulté **1**. Cette
+valeur alimentait `difficulteCible` *et* le bloc « CALIBRAGE DU PROCHAIN
+EXERCICE » envoyé au tuteur, qui générait en conséquence. Le « pas de mon niveau
+réel » était donc littéral.
+
+Les 239 tests d'alors ne pouvaient pas le voir : `calibration.test.ts` passe des
+`Difficulte` déjà typées, jamais une valeur venue de la dorsale. **Leçon :
+`lib/engine/` est pur et testé, mais il consomme des entités que personne ne
+valide à la frontière.** C'est un angle mort d'ADR-001 — la pureté du moteur ne
+garantit rien sur ce qu'on lui donne à manger.
+
+**Couche 2 — l'inventaire.** Relevé le même jour : 27 exercices (6 en base,
+21 diagnostics livrés) pour **54 compétences actives, dont 40 sans aucun
+exercice**. `choisirExercice` n'excluait que les exercices **réussis** : un
+échec redevenait candidat au tour suivant, à l'identique, indéfiniment. Le
+moteur n'avait rien d'autre à servir.
+
+### Décision
+
+Deux règles dans `choisirExercice`, et un repli.
+
+**1. Exclusion dure.** Un exercice dont la dernière tentative **terminée** est un
+`echec` ne redevient candidat qu'après un **progrès démontré** sur sa compétence
+cible : une preuve en `reussi` postérieure à cet échec.
+
+C'est une **condition, pas un délai**. Un refroidissement temporel reproposerait
+au bout de N jours un exercice hors de portée, sans que rien n'ait changé
+entre-temps — exactement l'objection de Maxime. C'est **P4 lu dans l'autre
+sens** : une faiblesse ne disparaît pas sans démonstration, et elle ne se
+remesure pas non plus sans qu'il y ait quelque chose de nouveau à mesurer.
+
+**2. Classement souple.** À écart de difficulté égal, un exercice **jamais
+tenté** passe devant un exercice déjà tenté. Un `partiel` reste candidat — c'est
+un progrès, pas un mur — il descend simplement dans la file.
+
+**3. Repli.** Plus aucun candidat ⇒ `exercice: null`, et la carte propose de
+demander un exercice au tuteur, avec la difficulté conseillée et la dimension
+faible **déjà dans l'amorce** (`lib/tutor/amorces.ts`). Mieux vaut aucun
+exercice qu'un exercice qui ne mesure rien.
+
+**Et le garde-fou de typage.** La colonne passe en `INTEGER` avec
+`CHECK BETWEEN 1 AND 5` (`supabase/migration-exercices.sql`). Mais le moteur ne
+s'en remet pas à la dorsale : `calibrer` convertit explicitement et, sur une
+valeur non finie, ne conseille **rien** — `difficulteConseillee: null` + une
+réserve. Fabriquer un nombre à partir d'une entrée illisible est ce que **P2**
+interdit.
+
+### Ce que ça ne fait pas
+
+Ça ne crée pas d'exercices. Les 40 compétences découvertes le restent tant que
+le tuteur n'en produit pas — d'où la génération par lot livrée le même jour.
+Cette ADR empêche seulement le système de **prétendre** avoir quelque chose à
+proposer.
+
+### 🔬 Test de réfutation
+
+Deux observations sont nécessaires, et aucune n'a eu lieu :
+
+1. **Échouer un exercice, puis en réussir un autre sur la même compétence.**
+   Le premier doit redevenir candidat au tour suivant, et pas avant. Si un
+   utilisateur se retrouve durablement sans rien à faire sur une compétence
+   qu'il travaille, la condition est trop stricte et le repli vers le tuteur
+   n'est pas une réponse suffisante.
+2. **Vérifier que le sentiment de progression revient.** C'est le vrai critère,
+   et il est subjectif. Si la file cesse de tourner en rond mais paraît
+   maintenant vide, le problème a seulement changé de forme.
+
+Le test unitaire correspondant existe (`moteur.test.ts`, describe « choix de
+l'exercice ») ; il garantit la mécanique, pas la pertinence.
+
+---
+
+<a name="adr-035"></a>
+## ADR-035 — Cycle de vie d'un exercice : le calque d'ADR-027 🔬
+
+**Date.** 02/08/2026. **Produite par une session Claude, non tranchée à
+l'usage.** Corollaire d'[ADR-027](#adr-027). Née d'un irritant remonté par
+Maxime : « Que devient un exercice maîtrisé ? Un exercice trop dur ? Ça reste
+dans le système en prenant de la place. »
+
+**Problème.** `Exercise` ne portait **aucun statut**. Un exercice réussi
+disparaissait de la recommandation mais restait dans la liste ; aucune action ne
+permettait de retirer un exercice manifestement hors niveau. La bibliothèque ne
+faisait qu'enfler, et ce qui était fait encombrait ce qui restait à faire.
+
+**Décision.** La règle est le **calque exact** de celle du référentiel, jusqu'au
+nom du type (`ModeRetrait` est importé, pas redéfini — deux vocabulaires pour
+une même règle finiraient par diverger) :
+
+| État | Geste | Effet |
+|---|---|---|
+| 0 tentative | `DELETE` franc | L'énoncé disparaît. Rien ne le cite. |
+| ≥ 1 tentative | Archivage (`archive = true`) | Sort de la recommandation et de la calibration. Les preuves restent. |
+
+`supprimerExercice` **refuse** quand des tentatives existent, plutôt que de se
+replier en silence sur l'archivage — même raison qu'ADR-027.
+
+**Une différence assumée avec la calibration.** `compterTentatives` compte
+**tous** les statuts, abandons compris, là où `calibration.ts` les écarte. Les
+deux modules ne posent pas la même question : la calibration demande « qu'a-t-on
+mesuré ? » (un abandon ne mesure rien), le retrait demande « reste-t-il une
+trace ? ». Une tentative abandonnée figure au journal et cite l'exercice par son
+titre ; l'effacer laisserait une entrée qui ne résout plus.
+
+**Les diagnostics ne se retirent pas** (`estRetirable`). Ils sont livrés avec le
+logiciel, pas propriété du compte. Les sortir du flux passe par le périmètre de
+la compétence (`competences.active`).
+
+**Regroupement, pas filtrage.** La liste se regroupe par domaine, avec un repli
+« Acquis » et un repli « Archivés ». Aucun filtre n'est réintroduit : le
+commentaire d'`exercices/page.tsx` documente pourquoi cinq familles ont été
+retirées — « ~5 000 combinaisons pour une bibliothèque qui en compte une
+poignée ». Avec 27 exercices, en remettre serait refaire l'erreur.
+
+### 🔬 Test de réfutation
+
+**Aucun exercice n'a encore été archivé ni supprimé.** À vérifier :
+
+1. Archiver un exercice portant des tentatives ⇒ ses preuves restent lisibles au
+   journal, et il sort bien de `exercicesActifs`.
+2. `supprimerExercice` sur ce même exercice ⇒ **refus explicite**, pas un
+   archivage silencieux.
+3. **Le vrai risque est l'usage, pas la mécanique** : si personne n'archive
+   jamais rien, le repli « Acquis » suffisait et ces trois Server Functions sont
+   de la complexité gratuite. À rouvrir si le compteur d'archivés reste à zéro
+   dans un mois.
+
+---
+
+<a name="adr-036"></a>
+## ADR-036 — Le tuteur voit le corpus, jamais les énoncés 🔬
+
+**Date.** 02/08/2026. **Produite par une session Claude, non tranchée à
+l'usage.** Née d'un irritant remonté par Maxime : « il n'a pas le contexte des
+exercices existants et ne sait pas ce sur quoi on travaille en temps réel, donc
+il ne peut pas trop nous aider au final. »
+
+**Le constat.** `lib/tutor/contexte.ts` n'ouvrait **ni `ctx.donnees.exercises`
+ni `ctx.donnees.attempts`**, alors que les deux étaient dans `Contexte` depuis
+toujours. Conséquences mesurées :
+
+- Le tuteur a produit **deux exercices quasi identiques sur LOG-10** — « Analyser
+  un schéma de flux logistique pour identifier un goulot » et « Identification
+  des goulots d'étranglement dans un flux logistique de production de vélos » —
+  sans pouvoir le soupçonner.
+- L'exercice ouvert était **totalement absent**. Le lien depuis une fiche
+  d'exercice était un `<Link href="/tuteur">` sans paramètre : demander de
+  l'aide obligeait à recoller l'énoncé à la main.
+
+**Décision.** Deux blocs entrent dans `systemeProfil` (bloc variable, jamais le
+préfixe mis en cache), avec une asymétrie délibérée :
+
+| Bloc | Ce qui part | Ce qui ne part pas |
+|---|---|---|
+| **Corpus existant** | Titres, compétences, difficulté, durée, état d'usage | **Les énoncés** |
+| **Exercice en cours** | Énoncé complet, indices consultés, brouillon de réponse | **La correction** |
+
+**Pourquoi pas les énoncés du corpus.** Le critère de choix du moteur du tuteur
+est la **taille du contexte**, pas le prix. Une trentaine de titres coûte
+quelques centaines de jetons ; une trentaine d'énoncés complets en coûterait des
+dizaines de milliers, **à chaque message**. Le bloc a un seul objet — ne plus
+produire de doublon — et les titres y suffisent. Plafonné à 60 lignes, et une
+troncature est **annoncée** : une liste tronquée en silence se lirait comme un
+corpus complet (**P3**).
+
+**Pourquoi l'énoncé de l'exercice ouvert, lui, se justifie.** C'est l'objet même
+de la conversation. Le brouillon part avec, et les indices déjà consultés aussi —
+avec la consigne de ne pas donner un indice plus explicite que ceux restés
+fermés : l'autonomie observée est ce qui fonde la preuve.
+
+**La correction ne part jamais.** Le tuteur la recopierait sur demande, et la
+preuve produite ne vaudrait plus rien. Un test le vérifie.
+
+### 🔬 Test de réfutation
+
+1. **Le doublon doit disparaître.** Demander un exercice sur une compétence qui
+   en a déjà un, et vérifier que le tuteur le cite plutôt que de le refaire.
+   Si les doublons persistent, la consigne « NE PROPOSE PAS » est trop faible et
+   il faudra valider côté application, pas côté prompt.
+2. **Le budget doit tenir.** Le manifeste du chat affiche le poids de chaque
+   bloc. À surveiller quand le corpus passera de 27 à 200 exercices : le plafond
+   de 60 lignes est posé sans donnée, c'est un chiffre rond, pas une mesure.
+3. **Ouvrir un exercice, cliquer « Demander de l'aide »**, et vérifier que le
+   tuteur cite l'énoncé sans qu'on le lui colle — et qu'il ne livre pas la
+   correction quand on la lui demande.
 
 ---
 
