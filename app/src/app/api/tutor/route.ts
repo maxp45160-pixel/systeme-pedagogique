@@ -20,7 +20,18 @@ interface CorpsRequeteTuteur {
   messages?: { role: "user" | "assistant"; content: string }[];
   /** Config saisie côté client (réglages). Prime sur les variables serveur. */
   config?: ConfigTuteurClient;
+  /** Exercice ouvert dans l'interface — son énoncé entre dans le contexte. */
+  exerciceId?: string;
 }
+
+/**
+ * Un tour de tuteur qui rédige un exercice complet — énoncé, indices,
+ * correction, critères — dépasse largement le défaut de plateforme. Sans cette
+ * borne explicite, la réponse était coupée sans qu'aucun événement `fin` ne
+ * soit émis : l'interface restait sur « le tuteur réfléchit… », ce qui se lit
+ * comme un plantage.
+ */
+export const maxDuration = 300;
 
 export async function POST(request: Request) {
   let corps: CorpsRequeteTuteur;
@@ -62,13 +73,32 @@ export async function POST(request: Request) {
   // échangés. Lui passer la fenêtre plafonnerait le compteur à la taille de
   // celle-ci, et un plafond multiple de la cadence rechargerait le protocole
   // complet à chaque message — l'inverse exact du gain visé.
-  const pedagogique = await construireContexte(ctx, messagesComplets);
+  const pedagogique = await construireContexte(ctx, messagesComplets, corps.exerciceId);
 
   const encodeur = new TextEncoder();
+
+  /*
+   * Abandon du client → abandon de la génération.
+   *
+   * Rien ne le portait : le flux n'avait pas de `cancel()` et `request.signal`
+   * n'était jamais consulté. Quand le navigateur coupait — bouton « Arrêter »,
+   * navigation, onglet fermé, second envoi — la génération continuait chez le
+   * fournisseur jusqu'au bout, facturée, pour un texte que plus personne ne
+   * lisait. Et `envoyer` continuait d'appeler `enqueue` sur un contrôleur
+   * fermé, ce qui jette au milieu du tour.
+   *
+   * Deux sources d'abandon fusionnées : celle de la plateforme
+   * (`request.signal`, déconnexion TCP) et celle du flux (`cancel`, le lecteur
+   * relâché côté navigateur). Elles ne se déclenchent pas dans les mêmes cas.
+   */
+  const abandon = new AbortController();
+  request.signal.addEventListener("abort", () => abandon.abort(), { once: true });
 
   const flux = new ReadableStream({
     async start(controller) {
       const envoyer = (evenement: string, donnees: unknown) => {
+        // Après abandon, le contrôleur est fermé : écrire dedans lèverait.
+        if (abandon.signal.aborted) return;
         controller.enqueue(
           encodeur.encode(`event: ${evenement}\ndata: ${JSON.stringify(donnees)}\n\n`),
         );
@@ -86,11 +116,21 @@ export async function POST(request: Request) {
           systemeProfil: pedagogique.systemeProfil,
           messages,
           outils: pedagogique.outils,
+          signal: abandon.signal,
           envoyer,
         });
       } finally {
-        controller.close();
+        // Fermer un contrôleur déjà annulé lève : le cas est normal, pas une
+        // panne. On l'avale plutôt que de polluer les journaux du serveur.
+        try {
+          controller.close();
+        } catch {
+          /* flux déjà annulé côté client */
+        }
       }
+    },
+    cancel() {
+      abandon.abort();
     },
   });
 

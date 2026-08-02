@@ -23,6 +23,17 @@ import type { DemandeTuteur, MoteurTuteur } from "./types";
 const MAX_JETONS_SORTIE = 8192;
 
 /**
+ * Au-delà, on considère que le fournisseur ne répondra pas.
+ *
+ * Aucun des trois `fetch` n'était borné : un palier gratuit muet bloquait la
+ * requête indéfiniment, jusqu'au timeout de plateforme, sans qu'aucun événement
+ * n'atteigne l'interface — donc « le tuteur réfléchit… » sans fin. Cinq minutes
+ * laissent largement le temps d'un exercice complet ; c'est un garde-fou contre
+ * le silence, pas une contrainte de débit.
+ */
+const DELAI_MAX_MS = 300_000;
+
+/**
  * Fragment d'appel d'outil tel qu'il arrive sur le flux.
  *
  * `function.arguments` est découpé en morceaux arbitraires — jamais du JSON
@@ -111,7 +122,28 @@ export function moteurCompatibleOpenAI(
     nom: "compatible-openai",
     modele,
 
-    async repondre({ systemeStable, systemeProfil, messages, outils, envoyer }: DemandeTuteur) {
+    async repondre({
+      systemeStable,
+      systemeProfil,
+      messages,
+      outils,
+      signal,
+      envoyer,
+    }: DemandeTuteur) {
+      if (signal?.aborted) return;
+
+      /*
+       * Deux causes d'arrêt, une seule poignée passée à `fetch`.
+       *
+       * `signal` — l'utilisateur a coupé. `AbortSignal.timeout` — le
+       * fournisseur ne répond plus : aucun des trois appels n'était borné, et
+       * un palier gratuit muet bloquait la requête jusqu'au timeout de
+       * plateforme, sans qu'aucun événement n'atteigne l'interface.
+       */
+      const bornes = [AbortSignal.timeout(DELAI_MAX_MS)];
+      if (signal) bornes.push(signal);
+      const arret = AbortSignal.any(bornes);
+
       try {
         // Clé de cache : déterministe sur le contenu stable, pour que les
         // fournisseurs sachant réutiliser un préfixe d'une requête à l'autre
@@ -138,6 +170,7 @@ export function moteurCompatibleOpenAI(
               authorization: "Bearer " + cle,
             },
             body: JSON.stringify(corps),
+            signal: arret,
           });
 
         // Traduction des outils au format « function calling » OpenAI. Le
@@ -356,9 +389,15 @@ export function moteurCompatibleOpenAI(
             : undefined,
         });
       } catch (e) {
+        // Abandon voulu : plus personne n'écoute, et afficher « erreur »
+        // signalerait un incident là où l'utilisateur a coupé lui-même.
+        if (signal?.aborted) return;
+
+        const expire = e instanceof DOMException && e.name === "TimeoutError";
         envoyer("erreur", {
-          message:
-            e instanceof Error
+          message: expire
+            ? `Le fournisseur n'a rien renvoyé en ${Math.round(DELAI_MAX_MS / 1000)} s. Réessaie, ou bascule sur « copier le contexte ».`
+            : e instanceof Error
               ? `Appel au fournisseur impossible : ${e.message}`
               : "Erreur inattendue lors de l'appel au tuteur.",
         });

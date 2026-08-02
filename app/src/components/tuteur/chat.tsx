@@ -427,6 +427,19 @@ const ChatInput = memo(function ChatInput({
         onKeyDown={(e) => {
           if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
             e.preventDefault();
+            /*
+             * Le raccourci doit dire exactement ce que dit le bouton.
+             *
+             * Il ne consultait pas `enCours` : pendant une génération,
+             * `envoyer` sortait immédiatement mais `setSaisie("")` s'exécutait
+             * quand même. Le message tapé disparaissait sans partir ni laisser
+             * de trace — c'est le « le tuteur plante quand on enchaîne » le
+             * plus fréquent, et ce n'était pas le tuteur.
+             *
+             * Le bouton, lui, est remplacé par « Arrêter » dans cet état : le
+             * chemin clavier était le seul trou.
+             */
+            if (enCours) return;
             const texte = saisie.trim();
             if (texte) {
               onEnvoyer(texte);
@@ -503,6 +516,13 @@ export interface ProprietesChat {
   etatInitial: EtatContexteTuteur;
   competenceCiblee?: string;
   amorce?: string;
+  /**
+   * Exercice depuis lequel on est arrivé (`/tuteur?exercice=…`).
+   *
+   * Renvoyé à la route à chaque message : c'est ce qui met l'énoncé dans le
+   * contexte, plutôt que d'obliger à le recoller à la main.
+   */
+  exerciceCible?: string;
   codesCompetences: string[];
   /** Compte courant — isole la conversation conservée (voir `stockage-session`). */
   compteId: string;
@@ -535,6 +555,7 @@ function ChatHydrate({
   etatInitial,
   competenceCiblee,
   amorce,
+  exerciceCible,
   codesCompetences,
   compteId,
 }: {
@@ -548,6 +569,8 @@ function ChatHydrate({
    * modifiable avant départ.
    */
   amorce?: string;
+  /** Exercice ouvert, transmis à la route pour que son énoncé entre au contexte. */
+  exerciceCible?: string;
   /** Codes du référentiel — pour valider qu'une compétence citée existe vraiment. */
   codesCompetences: string[];
   /** Compte courant — isole la conversation conservée (voir `stockage-session`). */
@@ -730,8 +753,23 @@ function ChatHydrate({
     }
   }, [flushAccumule]);
 
-  // Un flux encore en vol au démontage laisserait un `setMessages` sans cible.
-  useEffect(() => annulerFlush, [annulerFlush]);
+  /*
+   * Au démontage : couper le timer ET le flux.
+   *
+   * Seul le timer l'était. Le `fetch` restait en vol, et comme la route ne
+   * consultait pas `request.signal` (corrigé côté serveur dans le même lot), la
+   * génération continuait chez le fournisseur — jetons facturés pour un texte
+   * que plus personne n'affichait. Or le chat est démonté par ses PROPRES
+   * cartes de proposition : cliquer « Revoir et ajouter » suffisait à le
+   * déclencher.
+   */
+  useEffect(
+    () => () => {
+      annulerFlush();
+      abandonRef.current?.abort();
+    },
+    [annulerFlush],
+  );
 
   /* Miroirs des états lus par `envoyer`. Sans eux, `envoyer` changerait
    * d'identité à chaque message et à chaque changement d'état, ce qui
@@ -799,6 +837,18 @@ function ChatHydrate({
     propositionsRef.current = [];
     setMessages([...historique, { role: "assistant", content: "" }]);
     setEnCours(true);
+
+    /*
+     * Le message de l'utilisateur est enregistré MAINTENANT, pas à la clôture
+     * du tour.
+     *
+     * L'effet de persistance sort tôt quand `enCours` est vrai, et
+     * `setMessages` / `setEnCours(true)` sont groupés : il ne voyait jamais
+     * l'état intermédiaire. Une navigation pendant la génération — y compris
+     * celle que les cartes de proposition provoquent — emportait donc la
+     * question elle-même, pas seulement la réponse en cours.
+     */
+    ecrireSession(cleConversation, historique);
     // Envoyer, c'est vouloir lire la réponse : on raccroche le suivi du bas,
     // quelle qu'ait été la position avant.
     suitLeBas.current = true;
@@ -823,6 +873,9 @@ function ChatHydrate({
         body: JSON.stringify({
           messages: historique,
           config: lireConfigTuteur(compteId) ?? undefined,
+          // Met l'énoncé de l'exercice ouvert dans le contexte, plutôt que
+          // d'obliger à le recoller à la main.
+          exerciceId: exerciceCible,
         }),
         signal: abandon.signal,
       });
@@ -964,10 +1017,19 @@ function ChatHydrate({
         publierReponse(historique);
         setAvis({ ton: "info", texte: "Réponse interrompue. Le texte déjà reçu est conservé." });
       } else {
-        setMessages(historique);
+        /*
+         * Une coupure réseau ne justifie pas de jeter ce qui était déjà arrivé.
+         *
+         * `setMessages(historique)` effaçait tout l'accumulé : sur une réponse
+         * longue coupée aux trois quarts, l'écran se vidait d'un coup et le
+         * tour semblait n'avoir rien produit. On publie ce qui a été lu, en le
+         * marquant comme interrompu — un texte partiel annoncé comme tel vaut
+         * mieux qu'un écran vide (P3).
+         */
+        publierReponse(historique);
         setAvis({
           ton: "danger",
-          texte: e instanceof Error ? e.message : "Erreur réseau pendant la réponse.",
+          texte: `${e instanceof Error ? e.message : "Erreur réseau pendant la réponse."} Le texte reçu avant la coupure est conservé, mais la réponse est incomplète.`,
         });
       }
     } finally {
@@ -978,7 +1040,18 @@ function ChatHydrate({
       // lieu — exactement la fausse information que ce chat s'interdit.
       setOutilEnCours(null);
     }
-  }, [annulerFlush, planifierFlush, publierReponse]);
+  }, [
+    annulerFlush,
+    planifierFlush,
+    publierReponse,
+    // `compteId` était lu dans le corps (clé du fournisseur, clé de session) sans
+    // figurer ici : changer de compte sans démonter le chat aurait envoyé la clé
+    // du précédent. `cleConversation` et `exerciceCible` entrent pour la même
+    // raison — ils sont lus à l'envoi.
+    compteId,
+    cleConversation,
+    exerciceCible,
+  ]);
 
   const copierContexte = useCallback(async (saisie: string) => {
     try {

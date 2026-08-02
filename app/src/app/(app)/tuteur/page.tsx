@@ -7,9 +7,9 @@ import { EntetePage } from "@/components/layout/entete-page";
 import { ChatTuteur, type EtatContexteTuteur } from "@/components/tuteur/chat";
 
 export default async function PageTuteur(props: {
-  searchParams: Promise<{ competence?: string; amorce?: string }>;
+  searchParams: Promise<{ competence?: string; amorce?: string; exercice?: string }>;
 }) {
-  const { competence, amorce } = await props.searchParams;
+  const { competence, amorce, exercice } = await props.searchParams;
 
   return (
     <>
@@ -19,7 +19,7 @@ export default async function PageTuteur(props: {
       />
 
       <Suspense fallback={<SqueletteContenu cartes={3} />}>
-        <ContenuTuteur competence={competence} amorce={amorce} />
+        <ContenuTuteur competence={competence} amorce={amorce} exercice={exercice} />
       </Suspense>
     </>
   );
@@ -28,9 +28,12 @@ export default async function PageTuteur(props: {
 async function ContenuTuteur({
   competence,
   amorce,
+  exercice,
 }: {
   competence?: string;
   amorce?: string;
+  /** Exercice depuis lequel on est arrivé — son énoncé part au tuteur. */
+  exercice?: string;
 }) {
   const ctx = await chargerContexte();
 
@@ -48,7 +51,7 @@ async function ContenuTuteur({
   // React ne franchit pas la frontière d'une requête HTTP — plus un
   // aller-retour d'authentification, pour un contexte déjà chargé ci-dessus.
   // `messages` est vide, donc le protocole de synthèse est chargé (ADR-021 §4).
-  const pedagogique = await construireContexte(ctx);
+  const pedagogique = await construireContexte(ctx, [], exercice);
   const choix = choisirConfiguration(process.env);
   const etatInitial: EtatContexteTuteur = {
     // Conserve le nom historique du champ : l'interface s'en sert pour décider
@@ -64,6 +67,7 @@ async function ContenuTuteur({
       etatInitial={etatInitial}
       competenceCiblee={cible ? cibleLibelle : undefined}
       amorce={amorce}
+      exerciceCible={exercice}
       codesCompetences={ctx.etats.map((e) => e.skill.code)}
       compteId={ctx.donnees.user.id}
     />

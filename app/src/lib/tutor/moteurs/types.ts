@@ -65,6 +65,15 @@ export interface DemandeTuteur {
    * texte : les parseurs de `proposition.ts` restent le filet.
    */
   outils: OutilTuteur[];
+  /**
+   * Abandon du client, propagé jusqu'au fournisseur.
+   *
+   * Sans lui, couper l'onglet n'interrompait rien : la génération allait
+   * jusqu'au bout, facturée, pour un texte que plus personne n'affichait — et
+   * N envois rapprochés déclenchaient N générations simultanées, donc un 429.
+   * Un moteur qui l'ignore reste fonctionnel ; il coûte seulement plus cher.
+   */
+  signal?: AbortSignal;
   envoyer: EnvoyerEvenement;
 }
 

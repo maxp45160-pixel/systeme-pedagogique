@@ -12,6 +12,7 @@ import { calculerEtatGlobal } from "@/lib/engine/progression";
 import { recommander } from "@/lib/engine/recommend";
 import { calibrerToutes } from "@/lib/engine/calibration";
 import type { Contexte } from "@/lib/store/context";
+import type { Exercise, ExerciseAttempt } from "@/lib/domain/types";
 
 /*
  * ADR-021 : le protocole d'évaluation complet (§12-17 — score macro,
@@ -55,16 +56,21 @@ describe("fautChargerSyntheseEvaluation", () => {
   });
 });
 
-function construireCtxDeTest(referentiel = REFERENTIEL_TEST): Contexte {
+function construireCtxDeTest(
+  referentiel = REFERENTIEL_TEST,
+  corpus: { exercises?: Exercise[]; attempts?: ExerciseAttempt[] } = {},
+): Contexte {
   const now = new Date("2026-07-29T10:00:00.000Z");
+  const exercises = corpus.exercises ?? [];
+  const attempts = corpus.attempts ?? [];
   const etats = computeAllSkillStates(referentiel.actifs, [], now);
   const global = calculerEtatGlobal(etats, now, DOMAINES_TEST);
-  const calibrations = calibrerToutes(etats, [], []);
-  const recommandations = recommander(etats, [], [], 5, calibrations);
+  const calibrations = calibrerToutes(etats, exercises, attempts);
+  const recommandations = recommander(etats, exercises, attempts, 5, calibrations);
   return {
     referentiel,
     calibrations,
-    exercicesActifs: [],
+    exercicesActifs: exercises.filter((e) => !e.archive),
     donnees: {
       user: {
         id: "test",
@@ -75,8 +81,8 @@ function construireCtxDeTest(referentiel = REFERENTIEL_TEST): Contexte {
         debutSuivi: now.toISOString(),
       },
       evidence: [],
-      exercises: [],
-      attempts: [],
+      exercises,
+      attempts,
       sessions: [],
     },
     etats,
@@ -86,6 +92,117 @@ function construireCtxDeTest(referentiel = REFERENTIEL_TEST): Contexte {
     now,
   };
 }
+
+function exerciceDeTest(options: Partial<Exercise> = {}): Exercise {
+  return {
+    id: "ex-1",
+    titre: "Dérouler un pipeline de fonctions pures",
+    domaine: "developpement",
+    type: "application",
+    difficulte: 2,
+    competences: ["DEV-01"],
+    dureeEstimeeMin: 25,
+    enonce: "ÉNONCÉ-TÉMOIN : calcule le résultat de map puis filter.",
+    indices: ["indice 1", "indice 2", "indice 3"],
+    correction: "CORRECTION-TÉMOIN : le résultat est [4, 8].",
+    criteres: [],
+    origine: "tuteur",
+    ...options,
+  };
+}
+
+function tentativeDeTest(options: Partial<ExerciseAttempt> = {}): ExerciseAttempt {
+  return {
+    id: "at-1",
+    exerciseId: "ex-1",
+    debut: "2026-07-29T09:00:00.000Z",
+    indicesUtilises: 1,
+    reponse: "",
+    autoEvaluation: {},
+    resultat: "partiel",
+    statut: "en-cours",
+    ...options,
+  };
+}
+
+/*
+ * Le tuteur ne voyait ni le corpus ni l'exercice ouvert : `contexte.ts`
+ * n'ouvrait ni `donnees.exercises` ni `donnees.attempts`, alors que les deux
+ * étaient dans `Contexte`. D'où deux exercices quasi identiques produits sur
+ * LOG-10, et l'obligation de recoller un énoncé à la main pour demander de
+ * l'aide dessus.
+ */
+describe("construireContexte — corpus et exercice en cours", () => {
+  it("dit franchement qu'il n'y a aucun exercice, plutôt que de taire le bloc", async () => {
+    const p = await construireContexte(construireCtxDeTest());
+    expect(p.systemeProfil).toContain("Aucun exercice dans la bibliothèque");
+    expect(p.systemeProfil).toContain("Aucun exercice ouvert");
+    expect(p.manifeste.map((s) => s.nom)).toContain("Exercices existants");
+  });
+
+  it("liste les titres existants pour que le tuteur n'en refasse pas un doublon", async () => {
+    const p = await construireContexte(
+      construireCtxDeTest(REFERENTIEL_TEST, { exercises: [exerciceDeTest()] }),
+    );
+    expect(p.systemeProfil).toContain("Dérouler un pipeline de fonctions pures");
+    expect(p.systemeProfil).toContain("NE PROPOSE PAS");
+  });
+
+  it("ne transmet PAS les énoncés du corpus — c'est le budget de contexte", async () => {
+    // La règle qui protège le coût par message : trente titres coûtent quelques
+    // centaines de jetons, trente énoncés en coûteraient des dizaines de
+    // milliers. Seul l'exercice OUVERT donne son énoncé (test suivant).
+    const p = await construireContexte(
+      construireCtxDeTest(REFERENTIEL_TEST, { exercises: [exerciceDeTest()] }),
+    );
+    expect(p.systemeProfil).not.toContain("ÉNONCÉ-TÉMOIN");
+  });
+
+  it("écarte les exercices archivés du corpus annoncé", async () => {
+    const p = await construireContexte(
+      construireCtxDeTest(REFERENTIEL_TEST, {
+        exercises: [exerciceDeTest({ archive: true })],
+      }),
+    );
+    expect(p.systemeProfil).toContain("Aucun exercice dans la bibliothèque");
+  });
+
+  it("transmet l'énoncé et le brouillon de l'exercice ouvert", async () => {
+    const p = await construireContexte(
+      construireCtxDeTest(REFERENTIEL_TEST, {
+        exercises: [exerciceDeTest()],
+        attempts: [tentativeDeTest({ reponse: "BROUILLON-TÉMOIN : je bloque sur filter." })],
+      }),
+    );
+    expect(p.systemeProfil).toContain("ÉNONCÉ-TÉMOIN");
+    expect(p.systemeProfil).toContain("BROUILLON-TÉMOIN");
+    expect(p.systemeProfil).toContain("Indices consultés : 1 sur 3");
+  });
+
+  it("ne transmet JAMAIS la correction — le tuteur la recopierait sur demande", async () => {
+    const p = await construireContexte(
+      construireCtxDeTest(REFERENTIEL_TEST, {
+        exercises: [exerciceDeTest()],
+        attempts: [tentativeDeTest()],
+      }),
+    );
+    expect(p.systemeProfil).not.toContain("CORRECTION-TÉMOIN");
+  });
+
+  it("suit l'exercice explicitement ciblé, même sans tentative ouverte", async () => {
+    const p = await construireContexte(
+      construireCtxDeTest(REFERENTIEL_TEST, { exercises: [exerciceDeTest()] }),
+      [],
+      "ex-1",
+    );
+    expect(p.systemeProfil).toContain("ÉNONCÉ-TÉMOIN");
+  });
+
+  it("un identifiant inconnu ne fabrique aucun exercice", async () => {
+    const p = await construireContexte(construireCtxDeTest(), [], "ex-inexistant");
+    expect(p.systemeProfil).toContain("Aucun exercice ouvert");
+  });
+});
 
 /*
  * Vérifie le comportement bout en bout de `construireContexte` (jamais

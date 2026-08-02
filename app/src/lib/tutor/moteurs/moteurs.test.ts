@@ -88,6 +88,52 @@ describe("choisirConfiguration — moteur imposé", () => {
   });
 });
 
+/*
+ * Abandon du client (02/08/2026).
+ *
+ * Rien ne le portait : la route n'avait pas de `cancel()`, `request.signal`
+ * n'était jamais lu, et `DemandeTuteur` n'avait pas de champ `signal`. Couper
+ * l'onglet — ou enchaîner un second message — laissait la génération courir
+ * jusqu'au bout chez le fournisseur, facturée, pour un texte que plus personne
+ * n'affichait ; N envois rapprochés donnaient N générations simultanées, donc
+ * un 429 qui coupait la réponse en cours.
+ *
+ * Ce cas-ci pose la marche la plus élémentaire du contrat, et la seule
+ * testable sans réseau : un signal DÉJÀ abandonné ne doit produire ni appel ni
+ * événement. Émettre « erreur » ici afficherait un incident là où la personne a
+ * simplement cliqué « Arrêter ».
+ */
+describe("abandon — le moteur compatible n'appelle rien sur un signal déjà coupé", () => {
+  it("ne fait aucun fetch et n'émet aucun événement", async () => {
+    const moteur = creerMoteur(choisirConfiguration(GRATUIT));
+    expect(moteur).not.toBeNull();
+
+    const appels: string[] = [];
+    const fetchOriginal = globalThis.fetch;
+    globalThis.fetch = (() => {
+      appels.push("fetch");
+      throw new Error("le moteur n'aurait pas dû appeler le fournisseur");
+    }) as typeof fetch;
+
+    const evenements: string[] = [];
+    try {
+      await moteur!.repondre({
+        systemeStable: "…",
+        systemeProfil: "…",
+        messages: [{ role: "user", content: "bonjour" }],
+        outils: [],
+        signal: AbortSignal.abort(),
+        envoyer: (nom) => evenements.push(nom),
+      });
+    } finally {
+      globalThis.fetch = fetchOriginal;
+    }
+
+    expect(appels).toHaveLength(0);
+    expect(evenements).toHaveLength(0);
+  });
+});
+
 describe("creerMoteur et decrireChoix", () => {
   it("instancie un moteur pour chaque configuration valide", () => {
     expect(creerMoteur(choisirConfiguration(GRATUIT))?.nom).toBe("compatible-openai");

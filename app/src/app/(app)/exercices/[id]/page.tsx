@@ -20,6 +20,7 @@ import { Markdown } from "@/components/ui/markdown";
 import { FormulaireBilan } from "@/components/exercices/formulaire-bilan";
 import { IconeAmpoule, IconeFleche, IconeValide } from "@/components/ui/icones";
 import { formatDuree } from "@/lib/engine/dates";
+import { amorceExercice, lienTuteur } from "@/lib/tutor/amorces";
 
 export default async function PageExercice(props: {
   params: Promise<{ id: string }>;
@@ -81,7 +82,19 @@ export default async function PageExercice(props: {
             <Link href={`/exercices/${exercice.id}`} className={classesBouton("principal", "petite")}>
               Reprendre l&apos;exercice
             </Link>
-            <Link href="/tuteur" className={classesBouton("secondaire", "petite")}>
+            <Link
+              href={lienTuteur(
+                amorceExercice(exercice.competences[0] ?? "", {
+                  difficulteConseillee: ctx.calibrations.get(exercice.competences[0] ?? "")
+                    ?.difficulteConseillee,
+                  dimensionFaible:
+                    ctx.calibrations.get(exercice.competences[0] ?? "")?.dimensionFaible
+                      ?.dimension ?? null,
+                }),
+                exercice.competences[0],
+              )}
+              className={classesBouton("secondaire", "petite")}
+            >
               En demander un autre au tuteur
             </Link>
           </div>
@@ -215,6 +228,23 @@ export default async function PageExercice(props: {
               />
               <div className="px-4 py-3.5">
                 <ZoneReponse attemptId={enCours.id} valeur={enCours.reponse} />
+                {/*
+                  Le lien porte l'identifiant de l'exercice : le tuteur reçoit
+                  l'énoncé, les indices déjà consultés et le brouillon
+                  enregistré. Il n'y a plus rien à recoller à la main — et il ne
+                  reçoit toujours PAS la correction.
+                */}
+                <p className="mt-3 text-xs text-texte-attenue">
+                  Bloqué ?{" "}
+                  <Link
+                    href={`/tuteur?exercice=${encodeURIComponent(exercice.id)}`}
+                    className="text-primaire hover:underline"
+                  >
+                    Demander de l&apos;aide au tuteur sur cet exercice
+                  </Link>{" "}
+                  — il aura l&apos;énoncé et ton brouillon sous les yeux. Il ne donnera pas
+                  d&apos;indice plus explicite que ceux que tu as laissés fermés.
+                </p>
               </div>
             </Carte>
 

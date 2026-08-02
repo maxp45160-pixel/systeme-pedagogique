@@ -13,6 +13,7 @@ import path from "node:path";
 import type { Contexte } from "@/lib/store/context";
 import type { Referentiel } from "@/lib/domain/types";
 import { serialiserProfilDeclare } from "@/lib/domain/profil";
+import { usageExercice } from "@/lib/domain/exercice";
 import { formatDateCourte } from "@/lib/engine/dates";
 import {
   OUTIL_EXERCICE,
@@ -378,6 +379,134 @@ function serialiserCalibration(ctx: Contexte): string {
   return lignes.join("\n");
 }
 
+/**
+ * Ce que le corpus contient déjà.
+ *
+ * Jusqu'au 02/08/2026, `contexte.ts` n'ouvrait ni `ctx.donnees.exercises` ni
+ * `ctx.donnees.attempts` : le tuteur ne savait pas quels exercices existaient.
+ * Il en a produit deux quasi identiques sur LOG-10 — « Analyser un schéma de
+ * flux logistique pour identifier un goulot » et « Identification des goulots
+ * d'étranglement dans un flux logistique de production de vélos » — sans qu'il
+ * puisse le soupçonner.
+ *
+ * ⚠️ TITRES ET MÉTADONNÉES SEULEMENT, JAMAIS LES ÉNONCÉS. Le critère de choix
+ * du moteur est la taille du contexte : une trentaine de titres coûte quelques
+ * centaines de jetons, une trentaine d'énoncés complets en coûterait des
+ * dizaines de milliers, à chaque message. Le seul énoncé transmis est celui de
+ * l'exercice ouvert (bloc suivant), et il se justifie : c'est l'objet même de
+ * la conversation.
+ */
+function serialiserCorpus(ctx: Contexte): string {
+  const exercices = ctx.exercicesActifs;
+  if (exercices.length === 0) {
+    return "# EXERCICES EXISTANTS\n\nAucun exercice dans la bibliothèque. Tout ce que tu proposes sera un premier.";
+  }
+
+  const lignes = [
+    `# EXERCICES EXISTANTS (${exercices.length})`,
+    "",
+    "NE PROPOSE PAS un exercice qui refait ce qu'un de ceux-ci fait déjà. Si le besoin est proche d'un existant, dis-le et propose plutôt de le reprendre, ou change franchement d'angle.",
+    "",
+    "Colonnes : compétence(s) | difficulté | durée | état | titre",
+    "",
+  ];
+
+  const trie = [...exercices].sort(
+    (a, b) =>
+      (a.competences[0] ?? "").localeCompare(b.competences[0] ?? "") ||
+      a.difficulte - b.difficulte,
+  );
+
+  const montres = trie.slice(0, MAX_LIGNES_CORPUS);
+  for (const ex of montres) {
+    const etat = LIBELLES_USAGE_TUTEUR[usageExercice(ex.id, ctx.donnees.attempts)];
+    lignes.push(
+      `- ${ex.competences.join(", ")} | ${ex.difficulte}/5 | ${ex.dureeEstimeeMin} min | ${etat} | « ${ex.titre} »`,
+    );
+  }
+
+  // Une troncature muette se lirait comme un corpus complet (P3).
+  if (trie.length > montres.length) {
+    lignes.push("");
+    lignes.push(
+      `(${trie.length - montres.length} exercice(s) de plus ne sont pas listés ici, faute de place. La liste ci-dessus n'est donc pas exhaustive.)`,
+    );
+  }
+
+  return lignes.join("\n");
+}
+
+/** Vocabulaire court, destiné au modèle — pas les libellés de l'interface. */
+const LIBELLES_USAGE_TUTEUR: Record<string, string> = {
+  "a-faire": "jamais tenté",
+  "en-cours": "EN COURS",
+  acquis: "réussi",
+  travaille: "tenté, pas réussi",
+};
+
+/** Au-delà, le bloc coûterait plus qu'il ne rapporte. Voir `serialiserCorpus`. */
+const MAX_LIGNES_CORPUS = 60;
+
+/**
+ * L'exercice sur lequel la personne travaille en ce moment.
+ *
+ * C'est l'autre moitié du « il ne sait pas ce sur quoi on bosse ». Le lien vers
+ * le tuteur depuis une fiche d'exercice ne portait aucun paramètre, et aucune
+ * tentative en cours n'était transmise : demander de l'aide obligeait à recoller
+ * l'énoncé à la main.
+ *
+ * Ici l'énoncé complet est transmis, et le brouillon de réponse avec — c'est
+ * précisément ce sur quoi porte la demande d'aide. Les indices déjà consultés
+ * sont indiqués pour que le tuteur n'en redonne pas un plus explicite que ceux
+ * que la personne a choisi de ne pas ouvrir.
+ */
+function serialiserExerciceEnCours(ctx: Contexte, exerciceId?: string): string {
+  const parId = new Map(ctx.donnees.exercises.map((e) => [e.id, e]));
+
+  const enCours = ctx.donnees.attempts.filter((t) => t.statut === "en-cours");
+  const cible =
+    (exerciceId ? parId.get(exerciceId) : undefined) ??
+    parId.get(enCours[enCours.length - 1]?.exerciseId ?? "");
+
+  if (!cible) {
+    return "# EXERCICE EN COURS\n\nAucun exercice ouvert. Si la personne parle d'un exercice, demande-lui lequel — tu n'as pas son énoncé.";
+  }
+
+  const tentative = [...enCours].reverse().find((t) => t.exerciseId === cible.id);
+
+  const lignes = [
+    "# EXERCICE EN COURS",
+    "",
+    "C'est l'exercice ouvert dans l'interface au moment de ce message. Réponds à propos de CELUI-CI, sauf indication contraire.",
+    "",
+    `Titre : ${cible.titre}`,
+    `Compétence(s) : ${cible.competences.join(", ")}`,
+    `Difficulté : ${cible.difficulte}/5 · durée estimée ${cible.dureeEstimeeMin} min`,
+  ];
+
+  if (tentative) {
+    const total = cible.indices.length;
+    lignes.push(
+      `Indices consultés : ${tentative.indicesUtilises} sur ${total}. NE DONNE PAS un indice plus explicite que ceux qui restent fermés — la personne a choisi de ne pas les ouvrir, et l'autonomie observée est ce qui fonde sa preuve.`,
+    );
+  }
+
+  lignes.push("", "## Énoncé", "", cible.enonce);
+
+  if (tentative?.reponse.trim()) {
+    lignes.push(
+      "",
+      "## Brouillon de réponse déjà écrit par la personne",
+      "",
+      tentative.reponse.trim(),
+    );
+  }
+
+  // La correction n'est JAMAIS transmise : le tuteur la recopierait sur
+  // demande, et la preuve produite ne vaudrait plus rien.
+  return lignes.join("\n");
+}
+
 function serialiserRecommandations(ctx: Contexte): string {
   const lignes = ["# PRIORITÉS CALCULÉES PAR LE SYSTÈME", ""];
   lignes.push(
@@ -462,6 +591,8 @@ jamais qu'une chose « a été ajoutée » ou « mise à jour » : tu proposes, 
 export async function construireContexte(
   ctx: Contexte,
   messages: { role: "user" | "assistant"; content: string }[] = [],
+  /** Exercice explicitement ciblé par l'interface (`/tuteur?exercice=…`). */
+  exerciceId?: string,
 ): Promise<ContextePedagogique> {
   const manifeste: SectionContexte[] = [];
   const blocsStables: string[] = [];
@@ -511,12 +642,16 @@ export async function construireContexte(
   const profil = serialiserProfil(ctx);
   const recent = serialiserRecent(ctx);
   const calibrage = serialiserCalibration(ctx);
+  const corpus = serialiserCorpus(ctx);
+  const enCours = serialiserExerciceEnCours(ctx, exerciceId);
   const priorites = serialiserRecommandations(ctx);
 
   manifeste.push(
     { nom: "État courant des compétences", caracteres: profil.length, origine: "calcule" },
     { nom: "Travail récent", caracteres: recent.length, origine: "calcule" },
     { nom: "Calibrage du prochain exercice", caracteres: calibrage.length, origine: "calcule" },
+    { nom: "Exercices existants", caracteres: corpus.length, origine: "calcule" },
+    { nom: "Exercice en cours", caracteres: enCours.length, origine: "calcule" },
     { nom: "Priorités calculées", caracteres: priorites.length, origine: "calcule" },
   );
 
@@ -531,7 +666,9 @@ export async function construireContexte(
   });
 
   const systemeStable = blocsStables.join("\n\n---\n\n");
-  const systemeProfil = [profil, recent, calibrage, priorites].join("\n\n---\n\n");
+  const systemeProfil = [profil, recent, calibrage, corpus, enCours, priorites].join(
+    "\n\n---\n\n",
+  );
 
   return {
     systemeStable,

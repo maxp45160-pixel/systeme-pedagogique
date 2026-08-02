@@ -19,8 +19,18 @@ export function moteurAnthropic(cle: string, modele: string): MoteurTuteur {
     nom: "anthropic",
     modele,
 
-    async repondre({ systemeStable, systemeProfil, messages, outils, envoyer }: DemandeTuteur) {
+    async repondre({
+      systemeStable,
+      systemeProfil,
+      messages,
+      outils,
+      signal,
+      envoyer,
+    }: DemandeTuteur) {
       const client = new Anthropic({ apiKey: cle });
+
+      // Déjà abandonné avant même de partir : ne rien appeler du tout.
+      if (signal?.aborted) return;
 
       try {
         const stream = client.messages.stream({
@@ -50,6 +60,10 @@ export function moteurAnthropic(cle: string, modele: string): MoteurTuteur {
           })),
           messages: messages.map((m) => ({ role: m.role, content: m.content })),
         });
+
+        // L'abandon du client coupe la génération chez le fournisseur, plutôt
+        // que de la laisser courir dans le vide (voir `DemandeTuteur.signal`).
+        signal?.addEventListener("abort", () => stream.abort(), { once: true });
 
         stream.on("text", (delta) => envoyer("texte", { delta }));
 
@@ -111,6 +125,11 @@ export function moteurAnthropic(cle: string, modele: string): MoteurTuteur {
           },
         });
       } catch (e) {
+        // Un abandon voulu n'est pas une panne : plus personne n'écoute, et
+        // émettre « erreur » ferait afficher un incident là où l'utilisateur a
+        // simplement cliqué « Arrêter » ou changé de page.
+        if (signal?.aborted) return;
+
         // Chaîne du plus spécifique au plus général, pour distinguer ce qui
         // vaut la peine d'être réessayé de ce qui ne l'est pas.
         let message = "Erreur inattendue lors de l'appel au tuteur.";
