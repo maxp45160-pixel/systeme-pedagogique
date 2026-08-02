@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * Graphiques en SVG écrit à la main. Aucune bibliothèque.
  *
@@ -8,12 +10,47 @@
  * - jamais deux axes verticaux ; jamais de série multiple colorée — on préfère
  *   des petits multiples (une vignette par domaine) ;
  * - marques fines, axes et grilles en retrait, aucune valeur sur chaque point ;
- * - survol natif via `<title>`, qui sert aussi de texte alternatif ;
+ * - survol interactif : point mis en évidence et infobulle personnalisée ;
  * - les valeurs chiffrées sont toujours répétées en texte à côté du graphique,
  *   pour que l'information ne dépende jamais de la seule couleur.
  */
 
+import { useRef, useState } from "react";
 import { cleJour, formatDateCourte } from "@/lib/engine/dates";
+
+/* ------------------------------------------------------------------ */
+/* Infobulle partagée                                                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Infobulle positionnée en pourcentage de la largeur/hauteur du conteneur.
+ * Le SVG est en `preserveAspectRatio="none"` : les pourcentages correspondent
+ * exactement aux coordonnées réelles, quelle que soit la déformation.
+ *
+ * `whitespace-nowrap` force une seule ligne : la taille ne varie pas selon la
+ * longueur de la date.
+ */
+function Infobulle({
+  x,
+  y,
+  unite = "%",
+  children,
+}: {
+  x: number;
+  y: number;
+  /** `%` pour un conteneur à la largeur du SVG, `px` pour un conteneur scrollable. */
+  unite?: "%" | "px";
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-md border border-bordure bg-surface px-2 py-1 text-[0.6875rem] text-texte shadow-[var(--ombre-surcouche)]"
+      style={{ left: `${x}${unite}`, top: `${y}${unite}` }}
+    >
+      {children}
+    </div>
+  );
+}
 
 /* ------------------------------------------------------------------ */
 /* Courbe simple                                                       */
@@ -39,6 +76,9 @@ export function Courbe({
   hauteur?: number;
   libelle: string;
 }) {
+  const [survol, setSurvol] = useState<number | null>(null);
+  const [curseur, setCurseur] = useState<{ x: number; y: number } | null>(null);
+
   if (points.length === 0) {
     return (
       <div
@@ -61,59 +101,92 @@ export function Courbe({
   const aire = `${chemin} L${x(n - 1).toFixed(1)} ${H - marge} L${x(0).toFixed(1)} ${H - marge} Z`;
   const dernier = points[n - 1];
 
+  const pointSurvole = survol !== null ? points[survol] : null;
+
   return (
-    <svg
-      viewBox={`0 0 ${L} ${H}`}
-      className="w-full"
-      style={{ height: hauteur }}
-      role="img"
-      aria-label={`${libelle} : de ${points[0].valeur} à ${dernier.valeur}`}
-      preserveAspectRatio="none"
-    >
-      <title>{`${libelle} — dernière valeur ${dernier.valeur} le ${formatDateCourte(dernier.date)}`}</title>
-      <path d={aire} fill="var(--primaire)" opacity="0.09" />
-      <path
-        d={chemin}
-        fill="none"
-        stroke="var(--primaire)"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        vectorEffect="non-scaling-stroke"
-      />
-      {/*
-        Marque de fin. Un `<circle>` se rendrait en ellipse étirée : le viewBox
-        est en `preserveAspectRatio="none"`, donc l'échelle horizontale n'est pas
-        celle du vertical. Un segment de longueur nulle à bout rond donne un point
-        parfaitement circulaire, l'épaisseur de trait échappant à la déformation.
-      */}
-      <line
-        x1={x(n - 1)}
-        y1={y(dernier.valeur)}
-        x2={x(n - 1)}
-        y2={y(dernier.valeur)}
-        stroke="var(--primaire)"
-        strokeWidth="7"
-        strokeLinecap="round"
-        vectorEffect="non-scaling-stroke"
-      />
-      {/* Cibles de survol, plus larges que les marques. */}
-      {points.map((p, i) => (
-        <rect
-          key={i}
-          // Bornée à 0 : centrée sur le premier point, la cible débordait à
-          // gauche du viewBox et perdait la moitié de sa surface utile.
-          x={Math.max(0, x(i) - L / n / 2)}
-          y={0}
-          width={L / n}
-          height={H}
-          fill="transparent"
-          className="hover:fill-primaire/5"
-        >
-          <title>{`${formatDateCourte(p.date)} — ${p.valeur}`}</title>
-        </rect>
-      ))}
-    </svg>
+    <div className="relative">
+      <svg
+        viewBox={`0 0 ${L} ${H}`}
+        className="w-full"
+        style={{ height: hauteur }}
+        role="img"
+        aria-label={`${libelle} : de ${points[0].valeur} à ${dernier.valeur}`}
+        preserveAspectRatio="none"
+        onMouseLeave={() => {
+          setSurvol(null);
+          setCurseur(null);
+        }}
+        onMouseMove={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          setCurseur({
+            x: ((e.clientX - rect.left) / rect.width) * 100,
+            y: ((e.clientY - rect.top) / rect.height) * 100,
+          });
+        }}
+      >
+        <path d={aire} fill="var(--primaire)" opacity="0.09" />
+        <path
+          d={chemin}
+          fill="none"
+          stroke="var(--primaire)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+        />
+        {/*
+          Marque de fin. Un `<circle>` se rendrait en ellipse étirée : le viewBox
+          est en `preserveAspectRatio="none"`, donc l'échelle horizontale n'est pas
+          celle du vertical. Un segment de longueur nulle à bout rond donne un point
+          parfaitement circulaire, l'épaisseur de trait échappant à la déformation.
+        */}
+        <line
+          x1={x(n - 1)}
+          y1={y(dernier.valeur)}
+          x2={x(n - 1)}
+          y2={y(dernier.valeur)}
+          stroke="var(--primaire)"
+          strokeWidth="7"
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+        />
+        {/* Point mis en évidence au survol. */}
+        {pointSurvole && (
+          <line
+            x1={x(survol!)}
+            y1={y(pointSurvole.valeur)}
+            x2={x(survol!)}
+            y2={y(pointSurvole.valeur)}
+            stroke="var(--primaire-fort)"
+            strokeWidth="9"
+            strokeLinecap="round"
+            vectorEffect="non-scaling-stroke"
+          />
+        )}
+        {/* Cibles de survol, plus larges que les marques. */}
+        {points.map((p, i) => (
+          <rect
+            key={i}
+            // Bornée à 0 : centrée sur le premier point, la cible débordait à
+            // gauche du viewBox et perdait la moitié de sa surface utile.
+            x={Math.max(0, x(i) - L / n / 2)}
+            y={0}
+            width={L / n}
+            height={H}
+            fill="transparent"
+            className={survol === i ? "fill-primaire/5" : "hover:fill-primaire/5"}
+            onMouseEnter={() => setSurvol(i)}
+          />
+        ))}
+      </svg>
+
+      {pointSurvole && curseur && (
+        <Infobulle x={curseur.x} y={curseur.y}>
+          <span className="chiffres font-medium">{pointSurvole.valeur}</span>
+          <span className="text-texte-attenue"> · {formatDateCourte(pointSurvole.date)}</span>
+        </Infobulle>
+      )}
+    </div>
   );
 }
 
@@ -144,6 +217,10 @@ export function GrilleActivite({
   cellule?: number;
   now?: Date;
 }) {
+  const [survol, setSurvol] = useState<{ ci: number; ji: number } | null>(null);
+  const [curseur, setCurseur] = useState<{ x: number; y: number } | null>(null);
+  const conteneurRef = useRef<HTMLDivElement>(null);
+
   const espace = Math.max(2, Math.round(cellule * 0.27));
   const pas = cellule + espace;
 
@@ -176,18 +253,38 @@ export function GrilleActivite({
   const hauteur = 7 * pas;
   const joursActifs = [...minutesParJour.values()].filter((m) => m > 0).length;
 
+  const caseSurvolee =
+    survol !== null ? colonnes[survol.ci]?.[survol.ji] : null;
+
   return (
-    <div className="overflow-x-auto">
+    <div ref={conteneurRef} className="relative overflow-x-auto">
       <svg
         viewBox={`0 0 ${largeur} ${hauteur}`}
         width={largeur}
         height={hauteur}
         role="img"
         aria-label={`Activité sur ${semaines} semaines : ${joursActifs} jours travaillés`}
+        onMouseLeave={() => {
+          setSurvol(null);
+          setCurseur(null);
+        }}
+        onMouseMove={(e) => {
+          const conteneur = conteneurRef.current;
+          if (!conteneur) return;
+          const rect = conteneur.getBoundingClientRect();
+          // Position en pixels relatifs au conteneur visible (scrollable) :
+          // les pourcentages ne correspondent pas car le SVG est plus large
+          // que le conteneur.
+          setCurseur({
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top,
+          });
+        }}
       >
         {colonnes.map((colonne, ci) =>
           colonne.map((c, ji) => {
             const futur = c.date > now;
+            const estSurvole = survol?.ci === ci && survol?.ji === ji;
             return (
               <rect
                 key={`${ci}-${ji}`}
@@ -198,17 +295,25 @@ export function GrilleActivite({
                 rx={Math.max(2, Math.round(cellule * 0.22))}
                 fill={futur ? "transparent" : couleur(c.minutes)}
                 opacity={futur ? 0 : c.minutes === 0 ? 0.55 : 1}
-              >
-                <title>
-                  {c.minutes === 0
-                    ? `${formatDateCourte(c.date.toISOString())} — pas de séance`
-                    : `${formatDateCourte(c.date.toISOString())} — ${c.minutes} min`}
-                </title>
-              </rect>
+                stroke={estSurvole ? "var(--primaire)" : "transparent"}
+                strokeWidth={estSurvole ? 1.5 : 0}
+                className={!futur ? "cursor-pointer transition-opacity hover:opacity-80" : undefined}
+                onMouseEnter={() => setSurvol({ ci, ji })}
+              />
             );
           }),
         )}
       </svg>
+
+      {caseSurvolee && survol && curseur && (
+        <Infobulle x={curseur.x} y={curseur.y} unite="px">
+          <span className="font-medium">{formatDateCourte(caseSurvolee.date.toISOString())}</span>
+          <span className="text-texte-attenue">
+            {" "}
+            · {caseSurvolee.minutes === 0 ? "pas de séance" : `${caseSurvolee.minutes} min`}
+          </span>
+        </Infobulle>
+      )}
     </div>
   );
 }
