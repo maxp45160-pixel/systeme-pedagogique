@@ -86,6 +86,7 @@ function difficulteCible(etat: SkillState, calibration?: Calibration): Difficult
 function evaluer(
   etat: SkillState,
   etatsParCode: Map<string, SkillState>,
+  now: Date,
 ): { valeur: number; facteurs: Facteur[] } {
   const facteurs: Facteur[] = [];
 
@@ -142,7 +143,7 @@ function evaluer(
     // attendre, une fragile se révise vite. Le signal devient binaire et fort :
     // « due » pousse fortement, « pas due » laisse respirer.
     const j = etat.joursDepuisDernierePreuve ?? 0;
-    if (estDue(etat)) {
+    if (estDue(etat, now)) {
       facteurs.push({
         libelle: "Due pour révision",
         contribution: 40,
@@ -245,12 +246,13 @@ export function recommander(
   tentatives: ExerciseAttempt[],
   limite = 5,
   calibrations?: Map<string, Calibration>,
+  now: Date = new Date(),
 ): Recommandation[] {
   const parCode = new Map(etats.map((e) => [e.skill.code, e]));
 
   return etats
     .map((etat) => {
-      const { valeur, facteurs } = evaluer(etat, parCode);
+      const { valeur, facteurs } = evaluer(etat, parCode, now);
       // La calibration règle la DIFFICULTÉ ; elle ne re-classe pas les
       // compétences. `facteurs` reste une liste de contributions chiffrées au
       // score de priorité — y glisser une entrée à 0 la rendrait illisible.

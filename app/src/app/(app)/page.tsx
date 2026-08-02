@@ -6,6 +6,7 @@ import { calculerActivite, evenementsRecents } from "@/lib/engine/historique";
 import { EntetePage } from "@/components/layout/entete-page";
 import { CarteEtatGlobal } from "@/components/dashboard/etat-global";
 import { CarteProchaineAction } from "@/components/dashboard/prochaine-action";
+import { RevisionsDues } from "@/components/dashboard/revisions-dues";
 import { CarteProgressionRecente } from "@/components/dashboard/progression-recente";
 import { CarteActivite } from "@/components/dashboard/activite";
 import { Depliant } from "@/components/ui/explication";
@@ -84,6 +85,19 @@ async function ContenuTableauDeBord() {
           now={ctx.now}
         />
       </div>
+
+      {/*
+        « À réviser » : les compétences dont l'intervalle de répétition espacée
+        est dépassé, triées par retard. Placé APRÈS l'action prioritaire — rien
+        ne doit concurrencer la carte accentuée — et AVANT la vue d'ensemble.
+        La compétence n°1 est exclue : elle porte déjà son étiquette « Révision
+        due » et son bouton dans `CarteProchaineAction`.
+      */}
+      <RevisionsDues
+        etats={ctx.etats}
+        now={ctx.now}
+        codeExclu={ctx.recommandations[0]?.etat.skill.code}
+      />
 
       {/*
         Vue d'ensemble : tout le reste, en retrait derrière un titre discret.

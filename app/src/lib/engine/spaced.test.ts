@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeSkillState } from "./skill-state";
+import { computeSkillState, computeAllSkillStates } from "./skill-state";
 import {
   FACTEUR_DERNIER_RESULTAT,
   FACTEUR_NIVEAU,
@@ -7,8 +7,9 @@ import {
   MODELE_ACTIF,
   estDue,
   prochaineRevision,
+  revisionsDues,
 } from "./spaced";
-import { REFERENTIEL_TEST } from "@/lib/domain/referentiel.fixture";
+import { REFERENTIEL_TEST, SKILLS_TEST } from "@/lib/domain/referentiel.fixture";
 import type { Autonomie, Dimension, QualitePreuve, SkillEvidence } from "@/lib/domain/types";
 
 /*
@@ -202,5 +203,112 @@ describe("prochaineRevision — point d'entrée unique, avec justification (P3)"
     const r = prochaineRevision(e, MAINTENANT);
     const produit = r.facteurs.reduce((acc, f) => acc * f.multiplicateur, INTERVALLE_BASE_JOURS);
     expect(r.intervalleJours).toBe(Math.max(1, Math.round(produit)));
+  });
+
+  it("porte le champ `sansPreuve` — vrai sans preuve, faux avec", () => {
+    expect(prochaineRevision(etat([]), MAINTENANT).sansPreuve).toBe(true);
+    expect(prochaineRevision(etat([preuve({ jours: 5 })]), MAINTENANT).sansPreuve).toBe(false);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Agrégation — `revisionsDues`                                        */
+/* ------------------------------------------------------------------ */
+
+/*
+ * `revisionsDues` agrège les états en une liste triée de compétences à
+ * réviser. Les tests ci-dessous protègent les règles qui rendent le bloc
+ * « À réviser » du tableau de bord honnête : pas de compétence sans preuve,
+ * pas de compétence non due, tri par retard relatif, ordre déterministe.
+ */
+
+describe("revisionsDues — agrégation pure, triée par retard", () => {
+  // Les tests ont besoin de plusieurs compétences distinctes : on prend le
+  // référentiel de test, qui en porte six actives (DEV-01 → DEV-06).
+  const SKILLS = SKILLS_TEST;
+
+  function preuvesPour(code: string, jours: number): SkillEvidence {
+    return {
+      ...preuve({ jours }),
+      id: `ev-rev-${code}-${jours}`,
+      skillCode: code,
+    };
+  }
+
+  it("exclut les compétences sans preuve — à diagnostiquer, pas à réviser", () => {
+    // Aucune preuve sur aucune compétence : la liste est vide, pas une liste
+    // de zéros. On ne contourne pas `intervalle === null`.
+    const etats = computeAllSkillStates(SKILLS, [], MAINTENANT);
+    expect(revisionsDues(etats, MAINTENANT)).toEqual([]);
+  });
+
+  it("exclut les compétences qui ne sont pas dues", () => {
+    // Une preuve récente (0 jour) sur DEV-01 : intervalle ≥ 1, pas due.
+    const preuves = [preuvesPour("DEV-01", 0)];
+    const etats = computeAllSkillStates(SKILLS, preuves, MAINTENANT);
+    expect(revisionsDues(etats, MAINTENANT)).toEqual([]);
+  });
+
+  it("rend une liste vide quand rien n'est dû — et non une erreur", () => {
+    const etats = computeAllSkillStates(SKILLS, [], MAINTENANT);
+    const dues = revisionsDues(etats, MAINTENANT);
+    expect(dues).toEqual([]);
+    expect(dues.length).toBe(0);
+  });
+
+  it("le retard vaut bien joursEcoules / intervalleJours sur un cas calculé à la main", () => {
+    // DEV-01 avec une seule preuve vieille de 5 jours :
+    //   niveau 2 → ×2 ; robustesse calculée (non nulle avec une preuve) ; confiance faible → ×0,5 ;
+    //   dernier résultat réussi → ×1.
+    //   L'intervalle exact dépend de la robustesse dérivée : on le lit dans
+    //   l'état, puis on vérifie que retard = ecoules / intervalle.
+    const preuves = [preuvesPour("DEV-01", 5)];
+    const etats = computeAllSkillStates(SKILLS, preuves, MAINTENANT);
+    const dues = revisionsDues(etats, MAINTENANT);
+    expect(dues).toHaveLength(1);
+    expect(dues[0].etat.skill.code).toBe("DEV-01");
+    const ecoules = dues[0].revision.joursEcoules ?? 0;
+    expect(dues[0].retard).toBe(ecoules / dues[0].revision.intervalleJours);
+  });
+
+  it("trie par retard décroissant — la plus en retard d'abord", () => {
+    // DEV-01 : preuve vieille de 10 jours, intervalle 1 → retard 10.
+    // DEV-02 : preuve vieille de 3 jours, intervalle 1 → retard 3.
+    // DEV-03 : preuve vieille de 7 jours, intervalle 1 → retard 7.
+    // Ordre attendu : DEV-01 (10), DEV-03 (7), DEV-02 (3).
+    const preuves = [
+      preuvesPour("DEV-01", 10),
+      preuvesPour("DEV-02", 3),
+      preuvesPour("DEV-03", 7),
+    ];
+    const etats = computeAllSkillStates(SKILLS, preuves, MAINTENANT);
+    const dues = revisionsDues(etats, MAINTENANT);
+    const codes = dues.map((d) => d.etat.skill.code);
+    expect(codes).toEqual(["DEV-01", "DEV-03", "DEV-02"]);
+    // Le retard décroît bien.
+    expect(dues[0].retard).toBeGreaterThanOrEqual(dues[1].retard);
+    expect(dues[1].retard).toBeGreaterThanOrEqual(dues[2].retard);
+  });
+
+  it("départage les ex æquo par intervalle croissant, puis par code — déterministe", () => {
+    // Deux compétences avec le même retard (10/1 = 10) : on prend celle à
+    // l'intervalle le plus court d'abord. Si l'intervalle est aussi égal, le
+    // code départage — l'ordre doit être stable et testable.
+    //
+    // Ici DEV-01 et DEV-02 ont toutes deux une preuve vieille de 10 jours,
+    // un seul contexte, niveau 2, confiance faible → intervalle 1 pour les
+    // deux. Retard = 10 pour les deux. Le code départage : DEV-01 avant DEV-02.
+    const preuves = [
+      preuvesPour("DEV-01", 10),
+      preuvesPour("DEV-02", 10),
+    ];
+    const etats = computeAllSkillStates(SKILLS, preuves, MAINTENANT);
+    const dues = revisionsDues(etats, MAINTENANT);
+    expect(dues).toHaveLength(2);
+    expect(dues[0].etat.skill.code).toBe("DEV-01");
+    expect(dues[1].etat.skill.code).toBe("DEV-02");
+    // Même retard, même intervalle : l'ordre ne dépend que du code.
+    expect(dues[0].retard).toBe(dues[1].retard);
+    expect(dues[0].revision.intervalleJours).toBe(dues[1].revision.intervalleJours);
   });
 });
