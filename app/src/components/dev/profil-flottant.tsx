@@ -94,6 +94,26 @@ export function ProfilFlottant() {
 
   const { enCours, basculer } = useEnregistrement(charger);
 
+  /*
+   * Hors profilage, l'outil ne montre rien — pas même son bouton.
+   *
+   * Ce composant était monté sans condition dans le layout `(app)` : un bouton
+   * rond flottant, avec badge de compteur, présent sur TOUTES les pages du
+   * produit en production. Un outil de développement n'a pas à occuper une
+   * surface permanente de l'application, au même titre que le widget de TODOs
+   * qui vit sur `/dev` (ADR-019).
+   *
+   * La garde n'est pas `NODE_ENV !== "production"`, et c'est délibéré :
+   * `profilageClientActif()` est vrai en développement, avec
+   * `NEXT_PUBLIC_PROFILAGE=1`, ou dès qu'un drapeau runtime a été levé. Cette
+   * dernière voie existe précisément pour profiler un build de production
+   * (`lib/profiling/client.ts`) — la borner à `NODE_ENV` la supprimerait. On
+   * retire la surface, pas la capacité.
+   *
+   * Placée après tous les Hooks : leur ordre doit rester stable entre rendus.
+   */
+  if (!clientActif) return null;
+
   const vider = async () => {
     viderMesuresClient();
     try {
