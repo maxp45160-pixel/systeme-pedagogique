@@ -23,29 +23,27 @@ import { cleJour, formatDateCourte } from "@/lib/engine/dates";
 /* ------------------------------------------------------------------ */
 
 /**
- * Infobulle positionnée en pourcentage de la largeur/hauteur du conteneur.
- * Le SVG est en `preserveAspectRatio="none"` : les pourcentages correspondent
- * exactement aux coordonnées réelles, quelle que soit la déformation.
- *
- * `whitespace-nowrap` force une seule ligne : la taille ne varie pas selon la
- * longueur de la date.
+ * Infobulle positionnée en `fixed` (coordonnées écran) avec `z-50`.
+ * `fixed` permet de sortir du conteneur `overflow-x-auto` de la carte pour que
+ * le `z-index` s'affiche par-dessus le cadre sans aucune découpe.
  */
 function Infobulle({
   x,
   y,
-  unite = "%",
   children,
 }: {
   x: number;
   y: number;
-  /** `%` pour un conteneur à la largeur du SVG, `px` pour un conteneur scrollable. */
-  unite?: "%" | "px";
   children: React.ReactNode;
 }) {
+  // Si le curseur est tout en haut de l'écran, on affiche sous le curseur
+  const sousLeCurseur = y < 45;
   return (
     <div
-      className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-md border border-bordure bg-surface px-2 py-1 text-[0.6875rem] text-texte shadow-[var(--ombre-surcouche)]"
-      style={{ left: `${x}${unite}`, top: `${y}${unite}` }}
+      className={`pointer-events-none fixed z-50 -translate-x-1/2 whitespace-nowrap rounded-md border border-bordure bg-surface px-2 py-1 text-[0.6875rem] text-texte shadow-[var(--ombre-surcouche)] ${
+        sousLeCurseur ? "translate-y-4" : "-translate-y-full -translate-y-2"
+      }`}
+      style={{ left: x, top: y }}
     >
       {children}
     </div>
@@ -117,11 +115,7 @@ export function Courbe({
           setCurseur(null);
         }}
         onMouseMove={(e) => {
-          const rect = e.currentTarget.getBoundingClientRect();
-          setCurseur({
-            x: ((e.clientX - rect.left) / rect.width) * 100,
-            y: ((e.clientY - rect.top) / rect.height) * 100,
-          });
+          setCurseur({ x: e.clientX, y: e.clientY });
         }}
       >
         <path d={aire} fill="var(--primaire)" opacity="0.09" />
@@ -269,16 +263,7 @@ export function GrilleActivite({
           setCurseur(null);
         }}
         onMouseMove={(e) => {
-          const conteneur = conteneurRef.current;
-          if (!conteneur) return;
-          const rect = conteneur.getBoundingClientRect();
-          // Position en pixels relatifs au conteneur visible (scrollable) :
-          // les pourcentages ne correspondent pas car le SVG est plus large
-          // que le conteneur.
-          setCurseur({
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top,
-          });
+          setCurseur({ x: e.clientX, y: e.clientY });
         }}
       >
         {colonnes.map((colonne, ci) =>
@@ -306,7 +291,7 @@ export function GrilleActivite({
       </svg>
 
       {caseSurvolee && survol && curseur && (
-        <Infobulle x={curseur.x} y={curseur.y} unite="px">
+        <Infobulle x={curseur.x} y={curseur.y}>
           <span className="font-medium">{formatDateCourte(caseSurvolee.date.toISOString())}</span>
           <span className="text-texte-attenue">
             {" "}
