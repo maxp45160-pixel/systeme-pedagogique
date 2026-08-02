@@ -24,6 +24,7 @@ import {
   TagConfiance,
 } from "@/components/ui/primitives";
 import { Depliant, PanneauExplication, Reserves } from "@/components/ui/explication";
+import { FacteursRevision } from "@/components/ui/facteurs-revision";
 import { IconeFleche } from "@/components/ui/icones";
 import {
   FormulairePreuveManuelle,
@@ -314,7 +315,7 @@ export default async function PageCompetence(props: {
             <div className="px-4 py-3.5">
               {(() => {
                 const revision = prochaineRevision(etat, ctx.now);
-                if (revision.intervalleJours === 0) {
+                if (revision.sansPreuve) {
                   return (
                     <p className="text-xs text-texte-attenue">
                       Aucune preuve : cette compétence est à <strong>diagnostiquer</strong>, pas à
@@ -345,19 +346,7 @@ export default async function PageCompetence(props: {
                       )}
                     </p>
                     <Depliant resume="Pourquoi cet intervalle ?">
-                      <dl className="space-y-1">
-                        {revision.facteurs.map((f, i) => (
-                          <div
-                            key={i}
-                            className="flex items-baseline justify-between gap-3 border-b border-bordure/60 pb-1 last:border-0"
-                          >
-                            <dt className="text-xs text-texte-attenue">{f.libelle}</dt>
-                            <dd className="chiffres shrink-0 text-xs font-medium">
-                              {f.valeur} · ×{f.multiplicateur}
-                            </dd>
-                          </div>
-                        ))}
-                      </dl>
+                      <FacteursRevision facteurs={revision.facteurs} />
                     </Depliant>
                   </>
                 );
@@ -446,9 +435,11 @@ export default async function PageCompetence(props: {
 
       {/*
         Deuxième chemin d'enregistrement d'une preuve — hors exercice du store.
-        Pré-ouvert si l'on arrive depuis une proposition du tuteur.
+        Pré-ouvert si l'on arrive depuis une proposition du tuteur. L'ancre
+        `#preuve-manuelle` sert aussi de destination au lien secondaire du bloc
+        « À réviser » du tableau de bord.
       */}
-      <Carte className="mt-4">
+      <Carte id="preuve-manuelle" className="mt-4 scroll-mt-4">
         <div className="px-4 py-3.5">
           <Depliant
             resume="Enregistrer une preuve manuelle"
