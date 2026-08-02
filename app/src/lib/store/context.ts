@@ -81,7 +81,7 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
     { exercices: donnees.exercises.length, tentatives: donnees.attempts.length },
   );
   const recommandations = mesurerSync("recommander", () =>
-    recommander(etats, donnees.exercises, donnees.attempts, 6, calibrations),
+    recommander(etats, donnees.exercises, donnees.attempts, 6, calibrations, now),
     { exercices: donnees.exercises.length, tentatives: donnees.attempts.length },
   );
 

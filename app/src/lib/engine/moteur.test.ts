@@ -636,6 +636,46 @@ describe("recommandation — protocole d'évaluation §16", () => {
     const [premiere] = recommander(etats, [], []);
     expect(premiere.etat.skill.code).not.toBe("STAT-01");
   });
+
+  /*
+   * Le test qui empêche le défaut (a) de revenir : `now` passé en paramètre à
+   * `recommander` doit gouverner le facteur « Due pour révision ».
+   *
+   * Avant le 02/08/2026, `recommander` appelait `estDue(etat)` sans `now` : il
+   * retombait sur `new Date()` alors que tout le reste du moteur recevait `now`.
+   * Le badge du tableau de bord (calculé avec `ctx.now`) et le score (calculé
+   * avec une autre horloge) pouvaient diverger.
+   *
+   * Pour que `now` soit effectif, `estDue` doit recompter les jours écoulés
+   * depuis `dernierePreuve` plutôt que lire `joursDepuisDernierePreuve` (qui est
+   * figé à la création de l'état). On force donc `joursDepuisDernierePreuve` à
+   * `null` : c'est le chemin où le paramètre `now` change effectivement le
+   * résultat.
+   */
+  it("`now` passé en paramètre gouverne le facteur « Due pour révision »", () => {
+    // DEV-01 avec une preuve vieille de 5 jours par rapport à MAINTENANT.
+    // Intervalle = 1 (niveau 2, robustesse faible, confiance faible).
+    const preuves = [preuve({ skill: "DEV-01", jours: 5 })];
+    const etats = computeAllSkillStates(SKILLS, preuves, MAINTENANT);
+    // Force `joursDepuisDernierePreuve` à null : `estDue` recompte avec `now`.
+    const etatsSansJours = etats.map((e) => ({
+      ...e,
+      joursDepuisDernierePreuve: null,
+    }));
+
+    // Avec `now` = MAINTENANT (5 jours après la preuve) : due.
+    const rMaintenant = recommander(etatsSansJours, [], [], 10, undefined, MAINTENANT);
+    const rDev01 = rMaintenant.find((r) => r.etat.skill.code === "DEV-01")!;
+    const facteurDue = rDev01.facteurs.find((f) => f.libelle === "Due pour révision");
+    expect(facteurDue).toBeDefined();
+
+    // Avec `now` = jour de la preuve (0 jour écoulé) : pas due.
+    const jourPreuve = new Date(MAINTENANT.getTime() - 5 * JOUR);
+    const rJourPreuve = recommander(etatsSansJours, [], [], 10, undefined, jourPreuve);
+    const rDev01PasDue = rJourPreuve.find((r) => r.etat.skill.code === "DEV-01")!;
+    const facteurPasDue = rDev01PasDue.facteurs.find((f) => f.libelle === "Due pour révision");
+    expect(facteurPasDue).toBeUndefined();
+  });
 });
 
 /* ------------------------------------------------------------------ */

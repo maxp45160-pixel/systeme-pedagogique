@@ -24,12 +24,14 @@ import {
   TagConfiance,
 } from "@/components/ui/primitives";
 import { Depliant, PanneauExplication, Reserves } from "@/components/ui/explication";
+import { FacteursRevision } from "@/components/ui/facteurs-revision";
 import { IconeFleche } from "@/components/ui/icones";
 import {
   FormulairePreuveManuelle,
   type ValeursInitialesPreuve,
 } from "@/components/competences/formulaire-preuve";
 import { formatDateCourte, formatDateRelative } from "@/lib/engine/dates";
+import { prochaineRevision } from "@/lib/engine/spaced";
 
 const DIMENSIONS: Dimension[] = [
   "comprehension",
@@ -298,6 +300,60 @@ export default async function PageCompetence(props: {
             </div>
           </Carte>
 
+          {/*
+            Répétition espacée (spaced.ts) : quand revoir cette compétence ?
+            L'intervalle se dérive de l'état (niveau, robustesse, confiance,
+            dernier résultat) — jamais d'une date stockée (P1). Une compétence
+            sans preuve n'est pas « à réviser » : elle est à diagnostiquer, et
+            la carte le dit au lieu d'afficher un intervalle vide.
+          */}
+          <Carte>
+            <EnTeteCarte
+              titre="Prochaine révision"
+              legende="Répétition espacée — dérivée de l'état, jamais stockée"
+            />
+            <div className="px-4 py-3.5">
+              {(() => {
+                const revision = prochaineRevision(etat, ctx.now);
+                if (revision.sansPreuve) {
+                  return (
+                    <p className="text-xs text-texte-attenue">
+                      Aucune preuve : cette compétence est à <strong>diagnostiquer</strong>, pas à
+                      réviser. {"L'intervalle de révision apparaîtra dès la première preuve."}
+                    </p>
+                  );
+                }
+                return (
+                  <>
+                    <p className="text-sm">
+                      {revision.due ? (
+                        <span className="font-medium text-primaire">
+                          {"Due aujourd'hui —"} {revision.joursEcoules} jour
+                          {revision.joursEcoules && revision.joursEcoules > 1 ? "s" : ""} écoulé
+                          {revision.joursEcoules && revision.joursEcoules > 1 ? "s" : ""} pour un
+                          intervalle de {revision.intervalleJours} jour
+                          {revision.intervalleJours > 1 ? "s" : ""}.
+                        </span>
+                      ) : (
+                        <>
+                          Dans {revision.intervalleJours - (revision.joursEcoules ?? 0)} jour
+                          {revision.intervalleJours - (revision.joursEcoules ?? 0) > 1 ? "s" : ""}{" "}
+                          (intervalle {revision.intervalleJours} jour
+                          {revision.intervalleJours > 1 ? "s" : ""},{" "}
+                          {revision.joursEcoules ?? 0} écoulé
+                          {revision.joursEcoules && revision.joursEcoules > 1 ? "s" : ""}).
+                        </>
+                      )}
+                    </p>
+                    <Depliant resume="Pourquoi cet intervalle ?">
+                      <FacteursRevision facteurs={revision.facteurs} />
+                    </Depliant>
+                  </>
+                );
+              })()}
+            </div>
+          </Carte>
+
           {etat.contradictions.length > 0 && (
             <Carte>
               <EnTeteCarte
@@ -379,9 +435,11 @@ export default async function PageCompetence(props: {
 
       {/*
         Deuxième chemin d'enregistrement d'une preuve — hors exercice du store.
-        Pré-ouvert si l'on arrive depuis une proposition du tuteur.
+        Pré-ouvert si l'on arrive depuis une proposition du tuteur. L'ancre
+        `#preuve-manuelle` sert aussi de destination au lien secondaire du bloc
+        « À réviser » du tableau de bord.
       */}
-      <Carte className="mt-4">
+      <Carte id="preuve-manuelle" className="mt-4 scroll-mt-4">
         <div className="px-4 py-3.5">
           <Depliant
             resume="Enregistrer une preuve manuelle"

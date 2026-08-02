@@ -111,6 +111,15 @@ export interface ProchaineRevision {
   facteurs: FacteurIntervalle[];
   /** Phrase de synthèse, construite depuis les facteurs réels. */
   raison: string;
+  /**
+   * La compétence n'a aucune preuve : elle est à diagnostiquer, pas à réviser.
+   *
+   * Champ explicite, distinct d'une sentinelle sur `intervalleJours` : un
+   * modèle FSRS rendant `0` casserait l'affichage si la détection se faisait
+   * par `intervalleJours === 0`. L'interface `ModeleRevision` promet la
+   * substituabilité — la sentinelle ne la supporte pas.
+   */
+  sansPreuve: boolean;
 }
 
 /**
@@ -247,6 +256,7 @@ export function prochaineRevision(etat: SkillState, now: Date = new Date()): Pro
       joursEcoules,
       facteurs: [],
       raison: "Aucune preuve : compétence à diagnostiquer, pas à réviser.",
+      sansPreuve: true,
     };
   }
 
@@ -263,5 +273,59 @@ export function prochaineRevision(etat: SkillState, now: Date = new Date()): Pro
     joursEcoules,
     facteurs,
     raison,
+    sansPreuve: false,
   };
+}
+
+/* ------------------------------------------------------------------ */
+/* Agrégation — « que réviser aujourd'hui ? »                          */
+/* ------------------------------------------------------------------ */
+
+export interface RevisionDue {
+  etat: SkillState;
+  revision: ProchaineRevision;
+  /** joursEcoules / intervalleJours. > 1 = en retard. Dérivé, jamais stocké. */
+  retard: number;
+}
+
+/**
+ * Les compétences dues aujourd'hui, la plus en retard d'abord.
+ *
+ * Fonction pure : reçoit les états, rend une liste. Aucun accès base, aucun
+ * `server-only` — testable isolément.
+ *
+ * Règles :
+ *   • Une compétence sans preuve n'est jamais due (à diagnostiquer, pas à
+ *     réviser). On ne contourne pas `intervalle === null` en traitant `0`
+ *     comme un intervalle.
+ *   • Tri décroissant sur `retard` (joursEcoules / intervalleJours). Les ex
+ *     æquo sont départagés par `intervalleJours` croissant (la plus fragile
+ *     d'abord), puis par code de compétence — pour un ordre déterministe et
+ *     testable.
+ */
+export function revisionsDues(etats: SkillState[], now: Date = new Date()): RevisionDue[] {
+  const dues: RevisionDue[] = [];
+
+  for (const etat of etats) {
+    const revision = prochaineRevision(etat, now);
+    if (revision.sansPreuve || !revision.due) continue;
+
+    const intervalle = revision.intervalleJours;
+    const ecoules = revision.joursEcoules ?? 0;
+    // `intervalle` est ≥ 1 (garanti par `Math.max(1, …)` du modèle) : pas de
+    // division par zéro.
+    const retard = ecoules / intervalle;
+
+    dues.push({ etat, revision, retard });
+  }
+
+  return dues.sort((a, b) => {
+    if (b.retard !== a.retard) return b.retard - a.retard;
+    // Ex æquo sur le retard : la plus fragile (intervalle court) d'abord.
+    if (a.revision.intervalleJours !== b.revision.intervalleJours) {
+      return a.revision.intervalleJours - b.revision.intervalleJours;
+    }
+    // Dernier départage : le code. Déterministe et testable.
+    return a.etat.skill.code.localeCompare(b.etat.skill.code);
+  });
 }

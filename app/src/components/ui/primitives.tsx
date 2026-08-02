@@ -13,14 +13,18 @@ export function Carte({
   children,
   className,
   accent,
+  id,
 }: {
   children: ReactNode;
   className?: string;
   /** Liseré supérieur pour distinguer la carte principale d'un écran. */
   accent?: boolean;
+  /** Identifiant d'ancrage (ex. `#preuve-manuelle` pour un lien ciblé). */
+  id?: string;
 }) {
   return (
     <section
+      id={id}
       className={cx(
         "rounded-carte border bg-surface shadow-[var(--ombre-carte)]",
         accent ? "border-primaire/40 ring-1 ring-primaire/10" : "border-bordure",
