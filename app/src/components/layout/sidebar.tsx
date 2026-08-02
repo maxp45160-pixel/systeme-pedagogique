@@ -19,12 +19,12 @@ export function Sidebar({ session }: { session: EtatSession }) {
     // Rabat de carnet « forêt » : sombre et constant dans les deux thèmes, il
     // encadre le canevas crème et concentre le regard sur le travail.
     <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-[var(--rail-bordure)] bg-[var(--rail)] text-[var(--rail-texte)] lg:flex rail-reduit:w-16">
-      {/* En-tête : nom du système (déployé) + bascule de réduction. */}
-      <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-[var(--rail-bordure)] px-4 rail-reduit:justify-center rail-reduit:px-0">
+      {/* En-tête : bascule de réduction + nom du système (déployé). */}
+      <div className="flex h-16 shrink-0 items-center gap-2.5 border-b border-[var(--rail-bordure)] px-[18px] rail-reduit:justify-center rail-reduit:px-0">
+        <BasculeRail />
         <span className="min-w-0 truncate font-serif text-[0.95rem] font-medium leading-tight text-[var(--rail-texte)] rail-reduit:hidden">
           Système pédagogique
         </span>
-        <BasculeRail />
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-4 rail-reduit:px-2">
