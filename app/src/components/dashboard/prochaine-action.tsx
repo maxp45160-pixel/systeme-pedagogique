@@ -14,6 +14,10 @@ import { Depliant } from "@/components/ui/explication";
 import { IconeFeuille, IconeFleche } from "@/components/ui/icones";
 import { formatDuree } from "@/lib/engine/dates";
 import { BoutonGenerer } from "@/components/exercices/bouton-generer";
+import {
+  competencesPourModale,
+  type CalibrageModale,
+} from "@/components/exercices/proprietes-generation";
 
 /**
  * « Que dois-je faire maintenant ? »
@@ -25,11 +29,20 @@ import { BoutonGenerer } from "@/components/exercices/bouton-generer";
 export function CarteProchaineAction({
   recommandations,
   referentiel,
+  calibrages,
   now,
   compteId,
 }: {
   recommandations: Recommandation[];
   referentiel: Referentiel;
+  /**
+   * Calibrages de toutes les compétences actives, indexés par code.
+   *
+   * La modale laisse changer de compétence : lui passer la seule calibration
+   * de la recommandation principale ferait afficher la difficulté d'une autre
+   * compétence que celle visée.
+   */
+  calibrages: Record<string, CalibrageModale>;
   now: Date;
   compteId: string;
 }) {
@@ -106,21 +119,9 @@ export function CarteProchaineAction({
               génération remplace le détour par le tuteur : on crée là où on est.
             */
             <BoutonGenerer
-              competences={referentiel.actifs.map((s) => ({
-                code: s.code,
-                intitule: s.intitule,
-                domaine: s.domaine,
-              }))}
+              competences={competencesPourModale(referentiel.actifs)}
               competenceInitiale={etat.skill.code}
-              calibrage={
-                principale.calibration
-                  ? {
-                      difficulteConseillee: principale.calibration.difficulteConseillee,
-                      dimensionFaible: principale.calibration.dimensionFaible,
-                      reserves: principale.calibration.explication.reserves,
-                    }
-                  : null
-              }
+              calibrages={calibrages}
               compteId={compteId}
               libelle="Générer un exercice"
             />

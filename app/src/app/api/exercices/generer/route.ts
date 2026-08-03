@@ -28,11 +28,18 @@ interface CorpsGenerer {
   competences?: string[];
   /** Indice de rédaction facultatif. */
   theme?: string;
-  /** Combien d'exercices générer. Défaut : 1. */
-  combien?: number;
   /** Config saisie côté client (réglages). Prime sur les variables serveur. */
   config?: ConfigTuteurClient;
 }
+
+/*
+ * Un champ `combien` a été retiré ici : il était déclaré « Défaut : 1 » et
+ * n'était lu nulle part. Les « 2-3 d'avance » du plan (§1.3) supposent une
+ * recharge de fond après enregistrement — donc une écriture côté serveur, sans
+ * relecture — et c'est un geste à poser explicitement, pas à laisser deviner
+ * par un paramètre inerte. Tant qu'il n'est pas branché, la route génère un
+ * exercice par compétence demandée, et le dit.
+ */
 
 export async function POST(request: Request) {
   let corps: CorpsGenerer;
@@ -108,18 +115,22 @@ export async function POST(request: Request) {
       };
 
       try {
+        /*
+         * `envoyer` est passé en relais direct : les événements du moteur
+         * partent vers le navigateur au fil de l'eau.
+         *
+         * Ils étaient auparavant collectés puis rejoués APRÈS l'`await` — donc
+         * la modale ne recevait rien pendant toute la génération, puis tout
+         * d'un coup. Le commentaire promettait une progression que le code ne
+         * diffusait pas.
+         */
         const resultat = await genererExercices(
           moteur,
           ctx.referentiel,
           demandes,
           abandon.signal,
+          envoyer,
         );
-
-        // Relayer les événements du moteur (texte, proposition-en-cours,
-        // erreur…) pour que la modale affiche la progression.
-        for (const e of resultat.evenements) {
-          envoyer(e.evenement, e.donnees);
-        }
 
         if (resultat.erreur) {
           envoyer("erreur", { message: resultat.erreur });

@@ -15,9 +15,15 @@
  * met à jour sans rechargement. Fermer la modale abandonne la génération
  * (`request.signal`, câblé côté route).
  *
- * ⚠️ Piège du thème libre. `creerExercice` refuse une compétence hors
- * périmètre. Un thème sans correspondance ne peut rien produire : l'écran le
- * dit et propose d'ajouter la compétence. Il ne fabrique pas.
+ * ⚠️ Deux règles portées ici, et chacune a déjà coûté :
+ *
+ *  1. **Le calibrage suit le sélecteur.** Les calibrages arrivent indexés par
+ *     code (`calibragesPourModale`) et sont relus à chaque changement de
+ *     compétence. Une prop unique laissait afficher la difficulté d'une autre
+ *     compétence que celle visée — P3 rompu.
+ *  2. **Rien n'est fabriqué à l'enregistrement.** `convertirProposition`
+ *     refuse une difficulté ou une durée illisibles au lieu d'y substituer un
+ *     défaut (ADR-034, P2). La modale affiche alors ce qui cloche.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -25,35 +31,29 @@ import { useRouter } from "next/navigation";
 import { classesBouton, cx, Etiquette } from "@/components/ui/primitives";
 import { creerExercice } from "@/lib/store/actions";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
+import { convertirProposition } from "@/lib/tutor/conversion-exercice";
 import type { PropositionExercice } from "@/lib/tutor/proposition";
-import { DIFFICULTES, LIBELLES_DIMENSIONS, type Difficulte, type Dimension, type TypeExercice } from "@/lib/domain/types";
+import { DIFFICULTES, LIBELLES_DIMENSIONS, type Dimension } from "@/lib/domain/types";
+import type {
+  CalibrageModale,
+  CompetenceModale,
+} from "./proprietes-generation";
 
-export interface CompetenceModale {
-  code: string;
-  intitule: string;
-  domaine: string;
-}
-
-export interface CalibrageModale {
-  difficulteConseillee: Difficulte | null;
-  dimensionFaible: { dimension: Dimension; moyenne: number; observations: number } | null;
-  reserves: string[];
-}
+export type { CalibrageModale, CompetenceModale };
 
 export function ModaleExercice({
-  ouvert,
   onFermer,
   competences,
   competenceInitiale,
-  calibrage,
+  calibrages,
   compteId,
   surEnregistre,
 }: {
-  ouvert: boolean;
   onFermer: () => void;
   competences: CompetenceModale[];
   competenceInitiale: string;
-  calibrage: CalibrageModale | null;
+  /** Calibrages de toutes les compétences actives, indexés par code. */
+  calibrages: Record<string, CalibrageModale>;
   compteId: string;
   /** Appelé après l'enregistrement d'un exercice — pour rafraîchir la liste. */
   surEnregistre?: (id: string) => void;
@@ -61,27 +61,39 @@ export function ModaleExercice({
   const router = useRouter();
   const [code, setCode] = useState(competenceInitiale);
   const [theme, setTheme] = useState("");
-  const [phase, setPhase] = useState<"formulaire" | "generation" | "previsualisation">("formulaire");
+  const [phase, setPhase] = useState<"formulaire" | "generation" | "previsualisation">(
+    "formulaire",
+  );
   const [propositions, setPropositions] = useState<PropositionExercice[]>([]);
-  const [message, setMessage] = useState<string | null>(null);
+  /** Index des propositions déjà enregistrées — pas un drapeau global. */
+  const [enregistrees, setEnregistrees] = useState<Set<number>>(new Set());
+  const [pourquoi, setPourquoi] = useState(false);
+  const [progression, setProgression] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
-  const [enregistre, setEnregistre] = useState(false);
   const abandonRef = useRef<AbortController | null>(null);
 
-  // Abandon de la génération à la fermeture.
+  /*
+   * La modale est montée à l'ouverture et démontée à la fermeture
+   * (`BoutonGenerer`), donc l'état repart neuf à chaque fois. Il reste à
+   * abandonner la génération en cours au démontage : sans quoi le fournisseur
+   * continue de rédiger, facturé, pour un texte que plus personne ne lit.
+   */
   useEffect(() => {
-    if (!ouvert) abandonRef.current?.abort();
-  }, [ouvert]);
+    const controleur = abandonRef;
+    return () => controleur.current?.abort();
+  }, []);
 
   const competence = competences.find((c) => c.code === code);
-  const cal = calibrage;
+  // Relu à chaque rendu : c'est ce qui fait suivre le calibrage au sélecteur.
+  const cal = calibrages[code] ?? null;
 
   const generer = useCallback(async () => {
     if (!competence) return;
     setPhase("generation");
-    setMessage(null);
+    setProgression(null);
     setErreur(null);
     setPropositions([]);
+    setEnregistrees(new Set());
 
     const abandon = new AbortController();
     abandonRef.current = abandon;
@@ -134,7 +146,7 @@ export function ModaleExercice({
             setErreur(parsed.message);
             setPhase("formulaire");
           } else if (type === "proposition-en-cours") {
-            setMessage("Le tuteur rédige un exercice…");
+            setProgression("Le tuteur rédige l'exercice — énoncé, indices, correction, critères…");
           }
         }
       }
@@ -147,24 +159,31 @@ export function ModaleExercice({
   }, [competence, theme, compteId]);
 
   const enregistrer = useCallback(
-    async (p: PropositionExercice) => {
+    async (p: PropositionExercice, index: number) => {
       if (!competence) return;
       setErreur(null);
+
+      /*
+       * Conversion explicite AVANT l'écriture. Une difficulté ou une durée
+       * illisible arrête l'enregistrement et se dit — elle n'est pas remplacée
+       * par un défaut silencieux (ADR-034, P2). La durée en particulier est ce
+       * dont `tentativeMenee` se sert pour juger qu'une tentative a eu lieu.
+       */
+      const conversion = convertirProposition(p);
+      if (!conversion.ok) {
+        setErreur(
+          `Cette proposition n'est pas enregistrable — ${conversion.erreurs.join(" ")}`,
+        );
+        return;
+      }
+
       try {
         const id = await creerExercice({
-          titre: p.titre,
+          ...conversion.valeur,
           domaine: competence.domaine,
-          type: p.type as TypeExercice,
-          difficulte: (Number(p.difficulte) || 2) as Difficulte,
-          competences: p.competences,
-          dureeEstimeeMin: Number(p.dureeEstimeeMin) || 30,
-          enonce: p.enonce,
-          indices: p.indices,
-          correction: p.correction,
-          criteres: p.criteres as { dimension: Dimension; libelle: string }[],
           origine: "tuteur",
         });
-        setEnregistre(true);
+        setEnregistrees((s) => new Set(s).add(index));
         surEnregistre?.(id);
         router.refresh();
       } catch (e) {
@@ -173,8 +192,6 @@ export function ModaleExercice({
     },
     [competence, router, surEnregistre],
   );
-
-  if (!ouvert) return null;
 
   return (
     <div
@@ -192,7 +209,7 @@ export function ModaleExercice({
           <div>
             <h2 className="font-serif text-base font-medium">Générer un exercice</h2>
             <p className="mt-0.5 text-xs text-texte-discret">
-              Le tuteur rédige, tu relis et tu valides. Rien nest écrit avant.
+              Le tuteur rédige, tu relis et tu valides. Rien n&apos;est écrit avant.
             </p>
           </div>
           <button
@@ -208,12 +225,19 @@ export function ModaleExercice({
         {phase === "formulaire" && (
           <div className="mt-4 space-y-4">
             <div>
-              <label className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
+              <label
+                htmlFor="modale-competence"
+                className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret"
+              >
                 Compétence ciblée
               </label>
               <select
+                id="modale-competence"
                 value={code}
-                onChange={(e) => setCode(e.target.value)}
+                onChange={(e) => {
+                  setCode(e.target.value);
+                  setPourquoi(false);
+                }}
                 className="mt-1 w-full rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm focus:border-primaire focus:outline-none"
               >
                 {competences.map((c) => (
@@ -224,11 +248,17 @@ export function ModaleExercice({
               </select>
             </div>
 
-            {cal && (
+            {/*
+              Le bloc de calibrage est indexé sur `code` : il suit le sélecteur.
+              Sans calibrage du tout, on ne montre rien plutôt qu'un zéro (P2).
+            */}
+            {cal ? (
               <div className="rounded-md border border-bordure bg-surface-2 px-3 py-2 text-xs">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium">
-                    Difficulté {cal.difficulteConseillee ?? "—"}/5
+                    {cal.difficulteConseillee
+                      ? `Difficulté ${cal.difficulteConseillee}/5`
+                      : "Difficulté non dérivable"}
                   </span>
                   {cal.difficulteConseillee && (
                     <span className="text-texte-attenue">
@@ -238,11 +268,13 @@ export function ModaleExercice({
                   <button
                     type="button"
                     className="text-primaire hover:underline"
-                    onClick={() => setMessage(cal.reserves.join(" ") || "Aucune réserve.")}
+                    aria-expanded={pourquoi}
+                    onClick={() => setPourquoi((p) => !p)}
                   >
-                    ▸ Pourquoi ?
+                    {pourquoi ? "▾ Pourquoi ?" : "▸ Pourquoi ?"}
                   </button>
                 </div>
+
                 {cal.dimensionFaible && (
                   <p className="mt-1 text-texte-attenue">
                     Angle à travailler :{" "}
@@ -253,34 +285,61 @@ export function ModaleExercice({
                     tentative{cal.dimensionFaible.observations > 1 ? "s" : ""})
                   </p>
                 )}
+
                 {cal.difficulteConseillee === null && (
                   <p className="mt-1 text-texte-discret">
-                    Aucune tentative exploitable — difficulté déduite du niveau.
+                    Aucune tentative exploitable — la difficulté sera déduite du niveau.
                   </p>
                 )}
+
+                {pourquoi && (
+                  <div className="mt-2 border-t border-bordure pt-2">
+                    {cal.facteurs.length > 0 ? (
+                      <ul className="space-y-0.5 text-texte-attenue">
+                        {cal.facteurs.map((f, i) => (
+                          <li key={i}>
+                            · <span className="font-medium">{f.libelle}</span> — {f.valeur}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-texte-discret">
+                        Aucune tentative terminée sur cette compétence.
+                      </p>
+                    )}
+                    {cal.reserves.map((r, i) => (
+                      <p key={i} className="mt-1 text-texte-discret">
+                        {r}
+                      </p>
+                    ))}
+                  </div>
+                )}
               </div>
+            ) : (
+              <p className="rounded-md border border-bordure bg-surface-2 px-3 py-2 text-xs text-texte-discret">
+                Aucune mesure sur cette compétence — la difficulté sera déduite du niveau.
+              </p>
             )}
 
             <div>
-              <label className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
+              <label
+                htmlFor="modale-theme"
+                className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret"
+              >
                 Sur… (facultatif)
               </label>
               <input
+                id="modale-theme"
                 value={theme}
                 onChange={(e) => setTheme(e.target.value)}
                 placeholder="Un thème, un contexte, une situation…"
                 className="mt-1 w-full rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm placeholder:text-texte-discret focus:border-primaire focus:outline-none"
               />
               <p className="mt-1 text-[0.6875rem] text-texte-discret">
-                Un indice de rédaction, pas un sélecteur dobjet.
+                Un indice de rédaction, pas un sélecteur d&apos;objet.
               </p>
             </div>
 
-            {message && (
-              <p className="rounded-md border border-info/30 bg-info-faible px-3 py-2 text-xs text-texte-attenue">
-                {message}
-              </p>
-            )}
             {erreur && (
               <p className="rounded-md border border-danger/30 bg-danger-faible px-3 py-2 text-xs text-danger">
                 {erreur}
@@ -307,11 +366,14 @@ export function ModaleExercice({
           <div className="mt-8 flex flex-col items-center justify-center py-10 text-center">
             <span className="size-1.5 animate-pulse rounded-full bg-primaire" aria-hidden />
             <p className="mt-3 text-sm text-texte-attenue">
-              {message ?? "Le tuteur rédige un exercice — énoncé, indices, correction, critères…"}
+              {progression ?? "Le tuteur prend connaissance de ce qui a été mesuré…"}
             </p>
             <button
               type="button"
-              onClick={() => abandonRef.current?.abort()}
+              onClick={() => {
+                abandonRef.current?.abort();
+                setPhase("formulaire");
+              }}
               className={cx(classesBouton("secondaire", "petite"), "mt-4")}
             >
               Arrêter
@@ -321,14 +383,9 @@ export function ModaleExercice({
 
         {phase === "previsualisation" && (
           <div className="mt-4 space-y-4">
-            {enregistre && (
-              <p className="rounded-md border border-succes/30 bg-succes-faible px-3 py-2 text-xs text-succes">
-                Exercice enregistré dans ta bibliothèque.
-              </p>
-            )}
             {propositions.length === 0 ? (
               <p className="rounded-md border border-alerte/30 bg-alerte-faible px-3 py-2 text-xs text-alerte">
-                Aucun exercice exploitable na été produit. Réessaie, ou change de thème.
+                Aucun exercice exploitable n&apos;a été produit. Réessaie, ou change de thème.
               </p>
             ) : (
               propositions.map((p, i) => (
@@ -345,6 +402,7 @@ export function ModaleExercice({
                         difficulté {p.difficulte}/5
                       </span>
                     )}
+                    {enregistrees.has(i) && <Etiquette ton="succes">Enregistrée</Etiquette>}
                   </div>
                   <p className="mt-2 text-sm font-medium">{p.titre}</p>
                   <p className="mt-1 whitespace-pre-wrap text-xs text-texte-attenue">{p.enonce}</p>
@@ -385,21 +443,21 @@ export function ModaleExercice({
                       </ul>
                     </div>
                   )}
-                  {!enregistre && (
+                  {!enregistrees.has(i) && (
                     <div className="mt-3 flex justify-end gap-2">
+                      {/* Ne retire que cette proposition — les autres restent. */}
                       <button
                         type="button"
-                        onClick={() => {
-                          setPhase("formulaire");
-                          setPropositions([]);
-                        }}
+                        onClick={() =>
+                          setPropositions((liste) => liste.filter((_, j) => j !== i))
+                        }
                         className={classesBouton("secondaire", "petite")}
                       >
                         Rejeter
                       </button>
                       <button
                         type="button"
-                        onClick={() => void enregistrer(p)}
+                        onClick={() => void enregistrer(p, i)}
                         className={classesBouton("principal", "petite")}
                       >
                         Enregistrer
@@ -415,7 +473,14 @@ export function ModaleExercice({
               </p>
             )}
             <div className="flex justify-end gap-2 border-t border-bordure pt-3">
-              <button type="button" onClick={onFermer} className={classesBouton("secondaire")}>
+              <button
+                type="button"
+                onClick={() => setPhase("formulaire")}
+                className={classesBouton("secondaire")}
+              >
+                Générer un autre
+              </button>
+              <button type="button" onClick={onFermer} className={classesBouton("principal")}>
                 Fermer
               </button>
             </div>

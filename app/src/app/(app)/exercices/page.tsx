@@ -23,6 +23,10 @@ import {
 } from "@/components/ui/primitives";
 import { Depliant } from "@/components/ui/explication";
 import { BoutonGenerer } from "@/components/exercices/bouton-generer";
+import {
+  calibragesPourModale,
+  competencesPourModale,
+} from "@/components/exercices/proprietes-generation";
 import { RetraitExercice } from "@/components/exercices/retrait";
 import { amorceLotExercices, lienTuteur } from "@/lib/tutor/amorces";
 import { formatDuree } from "@/lib/engine/dates";
@@ -214,25 +218,13 @@ async function ContenuExercices({
             <div className="min-w-0">
               <p className="text-sm font-medium">Générer un exercice</p>
               <p className="mt-0.5 max-w-2xl text-xs text-texte-attenue">
-                Le tuteur rédige, tu relis et tu valides. Rien nest écrit avant.
+                Le tuteur rédige, tu relis et tu valides. Rien n&apos;est écrit avant.
               </p>
             </div>
             <BoutonGenerer
-              competences={ctx.referentiel.actifs.map((s) => ({
-                code: s.code,
-                intitule: s.intitule,
-                domaine: s.domaine,
-              }))}
+              competences={competencesPourModale(ctx.referentiel.actifs)}
               competenceInitiale={ctx.recommandations[0]?.etat.skill.code ?? ctx.referentiel.actifs[0]?.code ?? ""}
-              calibrage={
-                ctx.recommandations[0]?.calibration
-                  ? {
-                      difficulteConseillee: ctx.recommandations[0].calibration.difficulteConseillee,
-                      dimensionFaible: ctx.recommandations[0].calibration.dimensionFaible,
-                      reserves: ctx.recommandations[0].calibration.explication.reserves,
-                    }
-                  : null
-              }
+              calibrages={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
               compteId={ctx.donnees.user.id}
               libelle="Générer"
             />

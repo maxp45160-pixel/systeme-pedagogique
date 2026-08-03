@@ -31,6 +31,10 @@ import {
   type ValeursInitialesPreuve,
 } from "@/components/competences/formulaire-preuve";
 import { BoutonGenerer } from "@/components/exercices/bouton-generer";
+import {
+  calibragesPourModale,
+  competencesPourModale,
+} from "@/components/exercices/proprietes-generation";
 import { formatDateCourte, formatDateRelative } from "@/lib/engine/dates";
 import { prochaineRevision } from "@/lib/engine/spaced";
 
@@ -300,21 +304,9 @@ export default async function PageCompetence(props: {
               ) : (
                 <div className="mt-3">
                   <BoutonGenerer
-                    competences={ctx.referentiel.actifs.map((s) => ({
-                      code: s.code,
-                      intitule: s.intitule,
-                      domaine: s.domaine,
-                    }))}
+                    competences={competencesPourModale(ctx.referentiel.actifs)}
                     competenceInitiale={etat.skill.code}
-                    calibrage={
-                      recommandation?.calibration
-                        ? {
-                            difficulteConseillee: recommandation.calibration.difficulteConseillee,
-                            dimensionFaible: recommandation.calibration.dimensionFaible,
-                            reserves: recommandation.calibration.explication.reserves,
-                          }
-                        : null
-                    }
+                    calibrages={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
                     compteId={ctx.donnees.user.id}
                     libelle="Générer un exercice"
                     variante="principal"

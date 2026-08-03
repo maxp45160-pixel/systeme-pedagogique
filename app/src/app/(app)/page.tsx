@@ -8,6 +8,7 @@ import { calculerActivite, evenementsRecents } from "@/lib/engine/historique";
 import { EntetePage } from "@/components/layout/entete-page";
 import { CarteEtatGlobal } from "@/components/dashboard/etat-global";
 import { CarteProchaineAction } from "@/components/dashboard/prochaine-action";
+import { calibragesPourModale } from "@/components/exercices/proprietes-generation";
 import { RevisionsDues } from "@/components/dashboard/revisions-dues";
 import { CarteProgressionRecente } from "@/components/dashboard/progression-recente";
 import { CarteActivite } from "@/components/dashboard/activite";
@@ -141,6 +142,7 @@ async function ContenuTableauDeBord() {
         <CarteProchaineAction
           recommandations={ctx.recommandations}
           referentiel={ctx.referentiel}
+          calibrages={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
           now={ctx.now}
           compteId={ctx.donnees.user.id}
         />

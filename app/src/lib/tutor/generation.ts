@@ -138,12 +138,22 @@ export async function genererExercices(
   referentiel: Referentiel,
   demandes: { competence: Skill; calibration: Calibration | null; theme?: string }[],
   signal?: AbortSignal,
+  /**
+   * Relais **immédiat** des événements du moteur, pour la progression SSE.
+   *
+   * Sans lui, les événements n'étaient que collectés et rendus à la fin :
+   * l'appelant les rejouait après l'`await`, donc le navigateur ne recevait
+   * rien pendant toute la génération — jusqu'à 300 s — puis tout d'un coup.
+   * Le flux existait, la progression non.
+   */
+  diffuser?: (evenement: string, donnees: unknown) => void,
 ): Promise<ResultatGeneration> {
   const evenements: { evenement: string; donnees: unknown }[] = [];
   const exercices: PropositionExercice[] = [];
 
   const envoyer = (evenement: string, donnees: unknown) => {
     evenements.push({ evenement, donnees });
+    diffuser?.(evenement, donnees);
     if (evenement === "proposition") {
       const proposition = donnees as { genre: string; exercice?: PropositionExercice };
       if (proposition.genre === "exercice" && proposition.exercice) {
