@@ -23,10 +23,7 @@ import {
   type PropositionRecue,
 } from "@/lib/tutor/outils";
 import {
-  cleReferentielPropose,
   extrairePropositions,
-  extrairePropositionsReferentiel,
-  type PropositionReferentiel,
   type PropositionTuteur,
 } from "@/lib/tutor/proposition";
 
@@ -46,11 +43,6 @@ function lienProposition(p: PropositionTuteur): string {
   )}`;
 }
 
-/** Même passage que pour l'exercice : une branche de huit compétences ne tient
- *  pas dans une adresse, et la troncature serait silencieuse. */
-function deposerPropositionReferentiel(p: PropositionReferentiel, compteId: string): void {
-  ecrireSession(cleReferentielPropose(compteId), p);
-}
 
 /**
  * Ce qu'on affiche pendant qu'un outil se remplit.
@@ -117,13 +109,10 @@ export interface EtatContexteTuteur {
 const MessageBulle = memo(function MessageBulle({
   message,
   codesCompetences,
-  compteId,
   enFluxDirect,
 }: {
   message: Message;
   codesCompetences: string[];
-  /** Isole la file de propositions du compte (voir `stockage-session`). */
-  compteId: string;
   /**
    * Ce message est-il celui que le tuteur est en train d'écrire ?
    *
@@ -164,15 +153,6 @@ const MessageBulle = memo(function MessageBulle({
         : []
   ).filter((p) => codesCompetences.includes(p.competence.toUpperCase()));
 
-  // Branches proposées (ADR-026). Contrairement aux deux autres, ce bloc n'est
-  // PAS filtré contre le référentiel : c'est précisément celui qui a le droit
-  // d'introduire des compétences qui n'existent pas encore. Le garde-fou est
-  // ailleurs — le tuteur n'y écrit aucun code, l'application les attribue.
-  const branches = recues
-    ? recues.flatMap((r) => (r.genre === "referentiel" ? [r.branche] : []))
-    : analysable
-      ? extrairePropositionsReferentiel(message.content)
-      : [];
 
   return (
     <div
@@ -237,43 +217,6 @@ const MessageBulle = memo(function MessageBulle({
         </div>
       ))}
 
-      {/*
-        Branche proposée : le seul bloc qui peut introduire des compétences
-        inconnues. Rien n'est écrit ici non plus — le bouton dépose la
-        proposition et ouvre l'écran de validation, où les codes sont attribués
-        par l'application et où chaque intitulé reste corrigeable.
-      */}
-      {branches.map((b, j) => (
-        <div
-          key={`ref-${j}`}
-          className="max-w-[85%] rounded-md border border-primaire/30 bg-surface-2 px-3.5 py-2.5 text-xs"
-        >
-          <div className="flex flex-wrap items-center gap-1.5">
-            <Etiquette ton="primaire">Branche proposée</Etiquette>
-            <span className="font-medium">{b.domaine}</span>
-            <span className="text-texte-attenue">
-              {b.competences.length} compétence{b.competences.length > 1 ? "s" : ""}
-            </span>
-          </div>
-          <ul className="mt-1.5 space-y-0.5 text-texte-attenue">
-            {b.competences.slice(0, 4).map((c, k) => (
-              <li key={k} className="truncate">
-                · {c.intitule}
-              </li>
-            ))}
-            {b.competences.length > 4 && (
-              <li className="text-texte-discret">… et {b.competences.length - 4} autre(s)</li>
-            )}
-          </ul>
-          <Link
-            href="/competences/referentiel?proposition=1"
-            onClick={() => deposerPropositionReferentiel(b, compteId)}
-            className={cx(classesBouton("secondaire", "petite"), "mt-2")}
-          >
-            Revoir et ajouter au référentiel
-          </Link>
-        </div>
-      ))}
     </div>
   );
 });
@@ -1011,7 +954,6 @@ function ChatHydrate({
                 key={i}
                 message={m}
                 codesCompetences={codesCompetences}
-                compteId={compteId}
                 // Seul le dernier message peut être en cours de rédaction. Le
                 // passer aux autres les ferait tous re-rendre au démarrage et à
                 // la fin du flux, pour rien.

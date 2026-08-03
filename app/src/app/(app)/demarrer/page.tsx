@@ -27,7 +27,7 @@ export default async function PageDemarrer() {
   // Le référentiel existe déjà : il n'y a rien à amorcer. On ne réaffiche pas
   // un écran d'accueil à quelqu'un qui travaille depuis des semaines.
   if (ctx.referentiel.skills.length > 0) {
-    redirect("/competences/referentiel");
+    redirect("/competences");
   }
 
   const u = ctx.donnees.user;

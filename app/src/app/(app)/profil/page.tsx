@@ -32,7 +32,7 @@ export default async function PageProfil() {
         titre="Profil"
         sousTitre="Ce que tu déclares de toi. Sert à pondérer les recommandations et à cadrer le tuteur — jamais à déduire un niveau."
         actions={
-          <Link href="/competences/referentiel" className="text-xs text-primaire hover:underline">
+          <Link href="/competences?vue=gestion" className="text-xs text-primaire hover:underline">
             Gérer le référentiel
           </Link>
         }

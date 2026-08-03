@@ -35,6 +35,10 @@ import {
   calibragesPourModale,
   competencesPourModale,
 } from "@/components/exercices/proprietes-generation";
+import { TiroirTuteur } from "@/components/tuteur/tiroir-tuteur";
+import type { EtatContexteTuteur } from "@/components/tuteur/chat";
+import { construireContexte } from "@/lib/tutor/contexte";
+import { choisirConfiguration, decrireChoix } from "@/lib/tutor/moteurs";
 import { formatDateCourte, formatDateRelative } from "@/lib/engine/dates";
 import { prochaineRevision } from "@/lib/engine/spaced";
 
@@ -75,6 +79,17 @@ export default async function PageCompetence(props: {
     code: e.skill.code,
     intitule: e.skill.intitule,
   }));
+
+  // Contexte du tuteur pour le tiroir — même assemblage que la page /tuteur.
+  const pedagogique = await construireContexte(ctx, [], undefined);
+  const choix = choisirConfiguration(process.env);
+  const etatInitialTuteur: EtatContexteTuteur = {
+    cleConfiguree: choix.kind !== "aucun",
+    modele: decrireChoix(choix),
+    manifeste: pedagogique.manifeste,
+    caracteresTotal: pedagogique.caracteresTotal,
+  };
+  const codesCompetences = ctx.etats.map((e) => e.skill.code);
 
   return (
     <>
@@ -313,6 +328,15 @@ export default async function PageCompetence(props: {
                   />
                 </div>
               )}
+              <div className="mt-3 border-t border-bordure pt-3">
+                <TiroirTuteur
+                  etatInitial={etatInitialTuteur}
+                  competenceCiblee={`${etat.skill.code} — ${etat.skill.intitule}`}
+                  codesCompetences={codesCompetences}
+                  compteId={ctx.donnees.user.id}
+                  libelle="Explique-moi cette compétence"
+                />
+              </div>
             </div>
           </Carte>
 

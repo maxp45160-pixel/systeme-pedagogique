@@ -165,6 +165,58 @@ export async function creerBranche(
 /* ------------------------------------------------------------------ */
 
 /**
+ * Renomme ou décrit un domaine.
+ *
+ * ⚠️ L'`id` et le `prefixe` ne sont **jamais** modifiés. L'`id` est la clé
+ * étrangère de `competences.domaine` : le dériver de `slugifier(nouveauNom)`
+ * romprait silencieusement le rattachement. Le `prefixe` engendre les codes
+ * compétence — le changer rendrait les codes existants orphelins de leur
+ * préfixe. Seuls le libellé et la description changent.
+ *
+ * `validerDomaine(candidat, referentiel, idIgnore)` vérifie les collisions de
+ * nom et de préfixe — mais le préfixe n'est pas transmis, donc il ne peut pas
+ * « collisionner avec lui-même » : le paramètre `idIgnore` protège le nom.
+ */
+export interface ModificationDomaine {
+  nom?: string;
+  description?: string;
+}
+
+export async function modifierDomaine(
+  domaineId: string,
+  champs: ModificationDomaine,
+): Promise<void> {
+  const dorsale = await dorsaleCompte();
+  const referentiel = await lireReferentiel(dorsale);
+
+  const domaine = referentiel.domainesParId.get(domaineId);
+  if (!domaine) throw new Error(`Domaine inconnu : ${domaineId}`);
+
+  const candidat = {
+    nom: champs.nom ?? domaine.nom,
+    prefixe: domaine.prefixe,
+    description: champs.description ?? domaine.description,
+  };
+
+  const erreurs = validerDomaine(candidat, referentiel, domaineId);
+  if (erreurs.length > 0) throw new Error(erreurs.join(" "));
+
+  const ligne: Record<string, unknown> = {};
+  if (champs.nom !== undefined) ligne.nom = champs.nom.trim();
+  if (champs.description !== undefined) ligne.description = champs.description.trim();
+  if (Object.keys(ligne).length === 0) return;
+
+  const { error } = await dorsale.supabase
+    .from("domaines")
+    .update(ligne)
+    .eq("user_id", dorsale.userId)
+    .eq("id", domaineId);
+  verifier("modification du domaine", error);
+
+  revalidatePath("/", "layout");
+}
+
+/**
  * Champs modifiables d'une compétence.
  *
  * `code` n'y figure pas, et c'est structurel : c'est la clé étrangère des

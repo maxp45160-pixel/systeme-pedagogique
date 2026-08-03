@@ -27,7 +27,7 @@ import { LIBELLES_DIMENSIONS } from "@/lib/domain/types";
 import type { Calibration } from "@/lib/engine/calibration";
 import type { MoteurTuteur } from "./moteurs";
 import { outilsTuteur } from "./outils";
-import type { PropositionExercice } from "./proposition";
+import type { PropositionExercice, PropositionReferentiel } from "./proposition";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -192,4 +192,104 @@ export async function genererExercices(
   const erreur = exercices.length === 0 ? "Aucun exercice exploitable n'a été produit." : null;
 
   return { exercices, evenements, erreur };
+}
+
+/* ------------------------------------------------------------------ */
+/* Génération de branche référentiel (lot 2)                           */
+/* ------------------------------------------------------------------ */
+
+export interface ResultatGenerationBranche {
+  /** Branches validées, prêtes à être relues et enregistrées. */
+  branches: PropositionReferentiel[];
+  /** Événements reçus pendant la génération — pour la progression SSE. */
+  evenements: { evenement: string; donnees: unknown }[];
+  /** Message d'erreur, ou `null` si la génération a abouti. */
+  erreur: string | null;
+}
+
+/**
+ * Le prompt système de la génération de branche.
+ *
+ * Encore plus court que celui de l'exercice : la branche ne dépend d'aucune
+ * calibration, et le protocole de référentiel est porté par la description de
+ * l'outil `proposer_referentiel` elle-même (les cinq conditions de
+ * mesurabilité y vivent). Ce qui reste : l'identité, le sujet demandé, et les
+ * domaines existants — pour que le tuteur propose d'étendre un domaine plutôt
+ * qu'en créer un doublon.
+ */
+function construirePromptBranche(
+  referentiel: Referentiel,
+  theme: string,
+): string {
+  const domainesExistants = referentiel.domaines
+    .filter((d) => !d.archive)
+    .map((d) => `${d.nom} (${d.prefixe})`);
+
+  return [
+    "Tu es le tuteur du système pédagogique. Tu proposes une branche de compétences.",
+    "",
+    "PROTOCOLE DE RÉDIGATION D'UNE COMPÉTENCE",
+    "- Chaque intitulé doit décrire un savoir-faire observable, pas un sujet.",
+    "- Une compétence est mesurable : notable sur au moins une dimension, testable dans deux contextes, exerçable par un des types d'exercice, prouvable en 20 à 60 minutes.",
+    "- Les paliers vont de « fondamentaux » à « avancé » ; l'importance est entre 0 et 1.",
+    "- N'écris AUCUN code de compétence : l'application les attribue à l'enregistrement.",
+    "",
+    `Domaines existants : ${domainesExistants.length > 0 ? domainesExistants.join(", ") : "aucun — c'est une première branche."}`,
+    "",
+    `Sujet demandé : ${theme}`,
+    "",
+    "Appelle l'outil proposer_referentiel UNE fois. Ne recopie pas le contenu de l'appel dans ta réponse.",
+  ].join("\n");
+}
+
+/**
+ * Génère une branche de compétences via le moteur, sans conversation.
+ *
+ * Même mécanique que `genererExercices` : `envoyer` collecte, le moteur valide
+ * contre le schéma, et la proposition est retournée pour prévisualisation avant
+ * écriture. L'utilisateur valide — le tuteur propose (P5).
+ */
+export async function genererBranche(
+  moteur: MoteurTuteur,
+  referentiel: Referentiel,
+  theme: string,
+  signal?: AbortSignal,
+  diffuser?: (evenement: string, donnees: unknown) => void,
+): Promise<ResultatGenerationBranche> {
+  const evenements: { evenement: string; donnees: unknown }[] = [];
+  const branches: PropositionReferentiel[] = [];
+
+  const envoyer = (evenement: string, donnees: unknown) => {
+    evenements.push({ evenement, donnees });
+    diffuser?.(evenement, donnees);
+    if (evenement === "proposition") {
+      const proposition = donnees as { genre: string; branche?: PropositionReferentiel };
+      if (proposition.genre === "referentiel" && proposition.branche) {
+        branches.push(proposition.branche);
+      }
+    }
+  };
+
+  const systemeStable = construirePromptBranche(referentiel, theme);
+  const systemeProfil = "";
+
+  const messages = [
+    {
+      role: "user" as const,
+      content: `Propose-moi une branche de compétences sur : ${theme}`,
+    },
+  ];
+
+  await moteur.repondre({
+    systemeStable,
+    systemeProfil,
+    messages,
+    outils: outilsTuteur(referentiel),
+    signal,
+    envoyer,
+  });
+
+  const erreur = branches.length === 0 ? "Aucune branche exploitable n'a été produite." : null;
+
+  return { branches, evenements, erreur };
 }
