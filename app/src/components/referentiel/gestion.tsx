@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
 import {
   archiverCompetence,
   basculerActive,
@@ -13,7 +13,7 @@ import {
 } from "@/lib/store/referentiel-actions";
 import { classesBouton, Carte, CodeCompetence, cx, Etiquette } from "@/components/ui/primitives";
 import type { Domaine, Palier, Skill } from "@/lib/domain/types";
-import type { EtatRetrait } from "@/lib/domain/referentiel-compte";
+import { comparerCodes, type EtatRetrait } from "@/lib/domain/referentiel-compte";
 
 /**
  * Entretien du référentiel : modifier, sortir du périmètre, retirer.
@@ -63,6 +63,31 @@ export function GestionReferentiel({
    */
   const [selection, setSelection] = useState<Set<string>>(new Set());
 
+  /**
+   * Repli des panneaux.
+   *
+   * On stocke ce qui est **replié**, pas ce qui est ouvert : un domaine ajouté
+   * après le premier rendu apparaît alors déplié, sans que cet état ait à
+   * suivre les props. Rien n'est persisté — pas de clé navigateur, donc pas de
+   * question de cloisonnement par compte (ADR-029).
+   */
+  const [replies, setReplies] = useState<Set<string>>(new Set());
+  /** Les domaines périmés sont hors du champ de vision tant qu'on ne les demande pas. */
+  const [archivesOuverts, setArchivesOuverts] = useState(false);
+  /** Par domaine vivant : ses compétences archivées, repliées par défaut. */
+  const [archiveesOuvertes, setArchiveesOuvertes] = useState<Set<string>>(new Set());
+
+  function basculerDans(
+    valeur: string,
+    lire: Set<string>,
+    ecrire: (s: Set<string>) => void,
+  ) {
+    const suivant = new Set(lire);
+    if (suivant.has(valeur)) suivant.delete(valeur);
+    else suivant.add(valeur);
+    ecrire(suivant);
+  }
+
   /*
    * Pas de `router.refresh()` ici.
    *
@@ -108,9 +133,31 @@ export function GestionReferentiel({
 
   // Les domaines sans compétence ne sont pas affichés : un en-tête suivi de
   // rien laisserait croire à un domaine vide plutôt qu'à un domaine absent.
+  //
+  // L'ordre à l'intérieur d'un domaine est **numérique** : LOG-09 avant LOG-10.
+  // L'ordre général du référentiel (`comparerSkills` : palier, rang, code) reste
+  // celui du diagnostic — il répond à « par où commencer ? ». Ici la question
+  // est « où est LOG-12 ? », et seul le numéro y répond.
   const groupes = domaines
-    .map((d) => ({ domaine: d, items: skills.filter((s) => s.domaine === d.id) }))
+    .map((d) => ({
+      domaine: d,
+      items: [...skills.filter((s) => s.domaine === d.id)].sort((a, b) =>
+        comparerCodes(a.code, b.code),
+      ),
+    }))
     .filter((g) => g.items.length > 0);
+
+  /**
+   * Un domaine est périmé quand il est archivé, ou quand plus aucune de ses
+   * compétences ne l'est. Le second cas compte autant que le premier : une
+   * branche vidée compétence par compétence encombre la vue exactement comme
+   * une branche archivée d'un bloc, sans jamais porter l'étiquette.
+   */
+  const perime = (g: (typeof groupes)[number]) =>
+    g.domaine.archive || g.items.every((s) => s.archive);
+  const vivants = groupes.filter((g) => !perime(g));
+  const archives = groupes.filter(perime);
+  const affiches = archivesOuverts ? [...vivants, ...archives] : vivants;
 
   return (
     <div className="space-y-4">
@@ -186,18 +233,49 @@ export function GestionReferentiel({
         </div>
       )}
 
-      {groupes.map(({ domaine, items }) => (
-        <Carte key={domaine.id}>
-          <div className="border-b border-bordure px-4 py-2.5">
+      {affiches.map(({ domaine, items }, i) => (
+        <Fragment key={domaine.id}>
+          {i === vivants.length && (
+            <BandeauArchives
+              nombre={archives.length}
+              ouvert={archivesOuverts}
+              onBasculer={() => setArchivesOuverts((o) => !o)}
+            />
+          )}
+          <Carte>
+          {/*
+            L'en-tête reste lisible déplié : il garde son fond propre et colle
+            en haut du défilement. Un panneau ouvert de seize lignes perdait
+            autrement le nom du domaine hors de l'écran — replier n'aide pas si
+            l'on ne sait plus ce qu'on est en train de lire.
+
+            Le titre seul est le bouton de repli : les actions du domaine sont
+            des boutons voisins, jamais imbriqués dans lui.
+          */}
+          <div className="sticky top-0 z-[1] rounded-t-carte border-b border-bordure bg-surface px-4 py-2.5">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => basculerDans(domaine.id, replies, setReplies)}
+                aria-expanded={!replies.has(domaine.id)}
+                className="flex min-w-0 flex-wrap items-center gap-2 text-left"
+              >
+                <span
+                  aria-hidden
+                  className={cx(
+                    "text-[0.625rem] text-texte-discret transition-transform",
+                    replies.has(domaine.id) ? "-rotate-90" : "rotate-0",
+                  )}
+                >
+                  ▼
+                </span>
                 <span className="text-sm font-medium">{domaine.nom}</span>
                 <Etiquette mono>{domaine.prefixe}</Etiquette>
                 {domaine.archive && <Etiquette>Archivé</Etiquette>}
                 <span className="text-xs text-texte-discret">
                   {items.filter((s) => s.active && !s.archive).length} / {items.length} au périmètre
                 </span>
-              </div>
+              </button>
 
               {/*
                 `retirerDomaine` existait depuis ADR-027, testée, et aucune
@@ -281,8 +359,17 @@ export function GestionReferentiel({
             )}
           </div>
 
+          {!replies.has(domaine.id) && (
           <ul className="divide-y divide-bordure">
-            {items.map((s) => {
+            {items
+              .filter(
+                (s) =>
+                  // Les compétences archivées d'un domaine vivant sont repliées
+                  // à part : elles ne comptent plus, et les laisser dans le flux
+                  // fait chercher les vivantes au milieu d'elles.
+                  !s.archive || domaine.archive || archiveesOuvertes.has(domaine.id),
+              )
+              .map((s) => {
               const retrait = retraits[s.code] ?? { preuves: 0, mode: "suppression" as const };
               const enEdition = edite === s.code;
 
@@ -441,9 +528,79 @@ export function GestionReferentiel({
               );
             })}
           </ul>
-        </Carte>
+          )}
+
+          {/*
+            Le tiroir des archivées d'un domaine vivant. Il n'apparaît que s'il
+            a quelque chose à ranger, et il dit combien : un tiroir muet se
+            confondrait avec un domaine sans archive.
+          */}
+          {!replies.has(domaine.id) &&
+            !domaine.archive &&
+            items.some((s) => s.archive) && (
+              <button
+                type="button"
+                onClick={() => basculerDans(domaine.id, archiveesOuvertes, setArchiveesOuvertes)}
+                aria-expanded={archiveesOuvertes.has(domaine.id)}
+                className="w-full border-t border-bordure px-4 py-2 text-left text-[0.6875rem] text-texte-attenue transition-colors hover:bg-surface-2 hover:text-texte"
+              >
+                {archiveesOuvertes.has(domaine.id) ? "▼" : "▶"}{" "}
+                {items.filter((s) => s.archive).length} compétence
+                {items.filter((s) => s.archive).length > 1 ? "s" : ""} archivée
+                {items.filter((s) => s.archive).length > 1 ? "s" : ""}
+              </button>
+            )}
+          </Carte>
+        </Fragment>
       ))}
+
+      {/*
+        Quand le dossier est replié, aucun groupe archivé n'est rendu : le
+        bandeau ne peut plus s'insérer dans la liste, il se pose après elle.
+      */}
+      {archives.length > 0 && !archivesOuverts && (
+        <BandeauArchives
+          nombre={archives.length}
+          ouvert={false}
+          onBasculer={() => setArchivesOuverts(true)}
+        />
+      )}
     </div>
+  );
+}
+
+/**
+ * Le dossier des référentiels périmés.
+ *
+ * Un domaine archivé, ou dont plus aucune compétence n'est vivante, n'a plus à
+ * occuper le champ de vision : il reste consultable, mais on va le chercher.
+ * Le compte est affiché sur le bandeau replié — sinon le dossier ne dirait pas
+ * s'il vaut la peine d'être ouvert.
+ */
+function BandeauArchives({
+  nombre,
+  ouvert,
+  onBasculer,
+}: {
+  nombre: number;
+  ouvert: boolean;
+  onBasculer: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onBasculer}
+      aria-expanded={ouvert}
+      className="flex w-full items-center gap-2 rounded-carte border border-dashed border-bordure px-4 py-2.5 text-left text-xs text-texte-attenue transition-colors hover:border-bordure hover:bg-surface-2 hover:text-texte"
+    >
+      <span aria-hidden className="text-[0.625rem] text-texte-discret">
+        {ouvert ? "▼" : "▶"}
+      </span>
+      <span className="font-medium">Référentiels archivés</span>
+      <span className="text-texte-discret">
+        {nombre} domaine{nombre > 1 ? "s" : ""} — hors périmètre, preuves conservées
+      </span>
+    </button>
   );
 }
 
