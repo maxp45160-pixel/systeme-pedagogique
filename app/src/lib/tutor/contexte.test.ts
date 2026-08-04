@@ -205,6 +205,60 @@ describe("construireContexte — corpus et exercice en cours", () => {
 });
 
 /*
+ * Aider sur un exercice ouvert n'est pas la même conversation que choisir quoi
+ * faire ensuite.
+ *
+ * `exerciceId` ne vient que de l'interface de résolution. Le catalogue (jusqu'à
+ * 60 lignes, dont l'unique raison d'être est d'empêcher un doublon) et les
+ * priorités du moteur n'y servent aucune réponse possible — et repartaient à
+ * chaque message.
+ */
+describe("construireContexte — contexte allégé quand un exercice est ouvert", () => {
+  it("omet le catalogue et les priorités, et le manifeste ne les annonce pas", async () => {
+    const ctx = construireCtxDeTest(REFERENTIEL_TEST, {
+      exercises: [exerciceDeTest(), exerciceDeTest({ id: "ex-2", titre: "AUTRE-EXERCICE" })],
+      attempts: [tentativeDeTest()],
+    });
+
+    const aide = await construireContexte(ctx, [{ role: "user", content: "Je bloque" }], "ex-1");
+    expect(aide.systemeProfil).not.toContain("AUTRE-EXERCICE");
+    expect(aide.systemeProfil).not.toContain("PRIORITÉS CALCULÉES");
+    const noms = aide.manifeste.map((s) => s.nom);
+    expect(noms).not.toContain("Exercices existants");
+    expect(noms).not.toContain("Priorités calculées");
+
+    // Ce qui reste : l'énoncé, et de quoi calibrer le grain de l'aide.
+    expect(aide.systemeProfil).toContain("ÉNONCÉ-TÉMOIN");
+    expect(noms).toContain("État courant des compétences");
+    expect(noms).toContain("Travail récent");
+    expect(noms).toContain("Calibrage du prochain exercice");
+  });
+
+  it("hors exercice ouvert, les deux blocs repartent — c'est là qu'ils servent", async () => {
+    const ctx = construireCtxDeTest(REFERENTIEL_TEST, {
+      exercises: [exerciceDeTest({ id: "ex-2", titre: "AUTRE-EXERCICE" })],
+    });
+    const chat = await construireContexte(ctx, [{ role: "user", content: "Et maintenant ?" }]);
+    expect(chat.systemeProfil).toContain("AUTRE-EXERCICE");
+    expect(chat.manifeste.map((s) => s.nom)).toContain("Priorités calculées");
+  });
+
+  it("un exercice ouvert impose la gradation, que la concision contredisait", async () => {
+    const p = await construireContexte(
+      construireCtxDeTest(REFERENTIEL_TEST, {
+        exercises: [exerciceDeTest()],
+        attempts: [tentativeDeTest()],
+      }),
+    );
+    expect(p.systemeProfil).toContain("AIDE PAS À PAS");
+
+    // Aucun exercice ouvert : la consigne n'a pas de raison d'être là.
+    const sansExercice = await construireContexte(construireCtxDeTest());
+    expect(sansExercice.systemeProfil).not.toContain("AIDE PAS À PAS");
+  });
+});
+
+/*
  * Vérifie le comportement bout en bout de `construireContexte` (jamais
  * exercé avant ADR-021) : sans historique transmis, le protocole complet est
  * chargé par prudence ; avec un historique, l'heuristique décide, et le
@@ -370,10 +424,33 @@ describe("fautChargerProtocoleReferentiel", () => {
     expect(fautChargerProtocoleReferentiel("Explique-moi la récursivité", false)).toBe(false);
   });
 
+  /*
+   * Les verbes du langage courant ne sont plus des déclencheurs.
+   *
+   * `ajouter`, `apprendre`, `commencer`, `me lancer`, `travailler sur`
+   * figuraient dans la liste : « par où commencer cet exo ? » chargeait 6,8 Ko
+   * de charte de construction du référentiel, en pleine résolution, à chaque
+   * message. Le prix de ce resserrement est assumé : « j'aimerais travailler
+   * sur le droit » ne charge plus la charte, et le tuteur propose alors une
+   * branche avec les seules conditions de mesurabilité portées par la
+   * description de `proposer_referentiel` — qui, elle, part à chaque message.
+   */
+  it("ne charge plus sur un verbe ordinaire — c'est ce qui coûtait le plus", () => {
+    expect(fautChargerProtocoleReferentiel("Par où commencer cet exercice ?", false)).toBe(false);
+    expect(fautChargerProtocoleReferentiel("Je veux travailler sur la question 2", false)).toBe(
+      false,
+    );
+    expect(fautChargerProtocoleReferentiel("Comment apprendre cette méthode ?", false)).toBe(false);
+    expect(fautChargerProtocoleReferentiel("Tu peux ajouter un détail ?", false)).toBe(false);
+  });
+
   it("charge sur une intention d'étendre le référentiel", () => {
     expect(fautChargerProtocoleReferentiel("Je veux ajouter une compétence", false)).toBe(true);
     expect(fautChargerProtocoleReferentiel("On peut créer un domaine philo ?", false)).toBe(true);
-    expect(fautChargerProtocoleReferentiel("j'aimerais travailler sur le droit", false)).toBe(true);
+    expect(fautChargerProtocoleReferentiel("Ajouter un domaine pour le droit ?", false)).toBe(true);
+    expect(fautChargerProtocoleReferentiel("J'attaque un nouveau sujet : la lutherie", false)).toBe(
+      true,
+    );
   });
 
   it("ignore la casse et les accents", () => {

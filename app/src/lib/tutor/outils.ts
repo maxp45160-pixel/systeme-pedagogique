@@ -126,7 +126,17 @@ function schemaExercice(domaines: string[]): SchemaJson {
         description: "Codes du profil ; la première est la cible.",
       },
       duree_estimee_min: { type: "integer", minimum: 5, maximum: 240 },
-      enonce: { type: "string" },
+      enonce: {
+        type: "string",
+        // Les énoncés produits renvoyaient à des formules qu'ils ne donnaient
+        // pas : la personne devait aller les chercher ailleurs, et l'exercice
+        // mesurait alors sa capacité à retrouver une référence plutôt que la
+        // compétence visée. La consigne voyage avec l'outil, donc à chaque
+        // message — contrairement à une phrase de protocole chargée sur
+        // mots-clés.
+        description:
+          "Auto-suffisant : toutes les formules, constantes, données chiffrées et unités nécessaires à la résolution figurent dans l'énoncé. La personne ne doit avoir à chercher aucune information ailleurs. Exception : quand retrouver soi-même la formule EST la compétence évaluée — dis-le alors explicitement dans l'énoncé.",
+      },
       indices: {
         type: "array",
         items: { type: "string" },

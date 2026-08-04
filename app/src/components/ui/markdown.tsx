@@ -1,4 +1,5 @@
 import { memo, type ReactNode } from "react";
+import { decouperEnBlocs } from "@/lib/ui/markdown-blocs";
 
 /**
  * Rendu markdown minimal, écrit sur mesure.
@@ -8,6 +9,10 @@ import { memo, type ReactNode } from "react";
  * et tableaux. Aucune dépendance, aucun HTML brut injecté — le texte reste
  * du texte, ce qui écarte tout risque d'injection depuis un contenu généré
  * par le tuteur.
+ *
+ * Le **découpage** vit dans `lib/ui/markdown-blocs.ts` : il portait une boucle
+ * infinie que le JSX rendait intestable (Vitest ne prend que `*.test.ts`, en
+ * environnement node). Ce fichier ne décide plus rien — il rend.
  */
 
 /** Applique gras et code en ligne à l'intérieur d'une ligne. */
@@ -29,159 +34,58 @@ function enligne(texte: string, pfx: string = "in"): ReactNode[] {
   return sorties;
 }
 
-function estSeparateurTableau(ligne: string): boolean {
-  return /^\|[\s|:-]+\|$/.test(ligne.trim());
-}
-
-function cellules(ligne: string): string[] {
-  return ligne
-    .trim()
-    .replace(/^\|/, "")
-    .replace(/\|$/, "")
-    .split("|")
-    .map((c) => c.trim());
-}
-
 export const Markdown = memo(function Markdown({ contenu }: { contenu: string }) {
-  const lignes = contenu.split("\n");
-  const blocs: ReactNode[] = [];
-  let i = 0;
-  let blocIdx = 0;
+  const blocs = decouperEnBlocs(contenu).map((bloc, idx) => {
+    const cle = `b-${idx}`;
+    switch (bloc.genre) {
+      case "code":
+        return (
+          <pre key={cle} data-langue={bloc.langue || undefined}>
+            <code>{bloc.corps}</code>
+          </pre>
+        );
 
-  while (i < lignes.length) {
-    const ligne = lignes[i];
-    const keyBloc = `b-${blocIdx++}`;
-
-    // Bloc de code délimité par ```
-    if (ligne.trim().startsWith("```")) {
-      const langue = ligne.trim().slice(3).trim();
-      const corps: string[] = [];
-      i++;
-      while (i < lignes.length && !lignes[i].trim().startsWith("```")) {
-        corps.push(lignes[i]);
-        i++;
-      }
-      i++; // ferme le bloc
-      blocs.push(
-        <pre key={keyBloc} data-langue={langue || undefined}>
-          <code>{corps.join("\n")}</code>
-        </pre>,
-      );
-      continue;
-    }
-
-    // Tableau : une ligne d'en-tête suivie d'un séparateur
-    if (ligne.trim().startsWith("|") && estSeparateurTableau(lignes[i + 1] ?? "")) {
-      const entetes = cellules(ligne);
-      i += 2;
-      const corps: string[][] = [];
-      while (i < lignes.length && lignes[i].trim().startsWith("|")) {
-        corps.push(cellules(lignes[i]));
-        i++;
-      }
-      blocs.push(
-        <div key={keyBloc} className="overflow-x-auto">
-          <table>
-            <thead>
-              <tr>
-                {entetes.map((h, hIdx) => (
-                  <th key={`th-${hIdx}`}>{enligne(h, `${keyBloc}-h-${hIdx}`)}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {corps.map((r, rIdx) => (
-                <tr key={`tr-${rIdx}`}>
-                  {r.map((c, cIdx) => (
-                    <td key={`td-${cIdx}`}>{enligne(c, `${keyBloc}-c-${rIdx}-${cIdx}`)}</td>
+      case "tableau":
+        return (
+          <div key={cle} className="overflow-x-auto">
+            <table>
+              <thead>
+                <tr>
+                  {bloc.entetes.map((h, hIdx) => (
+                    <th key={`th-${hIdx}`}>{enligne(h, `${cle}-h-${hIdx}`)}</th>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>,
-      );
-      continue;
-    }
+              </thead>
+              <tbody>
+                {bloc.corps.map((r, rIdx) => (
+                  <tr key={`tr-${rIdx}`}>
+                    {r.map((c, cIdx) => (
+                      <td key={`td-${cIdx}`}>{enligne(c, `${cle}-c-${rIdx}-${cIdx}`)}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
 
-    // Titre
-    const titre = /^(#{1,4})\s+(.*)$/.exec(ligne);
-    if (titre) {
-      blocs.push(<h3 key={keyBloc}>{enligne(titre[2], `${keyBloc}-h`)}</h3>);
-      i++;
-      continue;
-    }
+      case "titre":
+        return <h3 key={cle}>{enligne(bloc.texte, `${cle}-h`)}</h3>;
 
-    // Citation
-    if (ligne.trim().startsWith(">")) {
-      const corps: string[] = [];
-      while (i < lignes.length && lignes[i].trim().startsWith(">")) {
-        corps.push(lignes[i].trim().replace(/^>\s?/, ""));
-        i++;
+      case "citation":
+        return <blockquote key={cle}>{enligne(bloc.texte, `${cle}-q`)}</blockquote>;
+
+      case "liste": {
+        const items = bloc.items.map((t, itemIdx) => (
+          <li key={`li-${itemIdx}`}>{enligne(t, `${cle}-li-${itemIdx}`)}</li>
+        ));
+        return bloc.ordonnee ? <ol key={cle}>{items}</ol> : <ul key={cle}>{items}</ul>;
       }
-      blocs.push(<blockquote key={keyBloc}>{enligne(corps.join(" "), `${keyBloc}-q`)}</blockquote>);
-      continue;
-    }
 
-    // Liste à puces
-    if (/^\s*[-*]\s+/.test(ligne)) {
-      const items: string[] = [];
-      while (i < lignes.length && /^\s*[-*]\s+/.test(lignes[i])) {
-        items.push(lignes[i].replace(/^\s*[-*]\s+/, ""));
-        i++;
-      }
-      blocs.push(
-        <ul key={keyBloc}>
-          {items.map((t, itemIdx) => (
-            <li key={`li-${itemIdx}`}>{enligne(t, `${keyBloc}-li-${itemIdx}`)}</li>
-          ))}
-        </ul>,
-      );
-      continue;
+      case "paragraphe":
+        return <p key={cle}>{enligne(bloc.texte, `${cle}-p`)}</p>;
     }
-
-    // Liste numérotée
-    if (/^\s*\d+\.\s+/.test(ligne)) {
-      const items: string[] = [];
-      while (i < lignes.length && /^\s*\d+\.\s+/.test(lignes[i])) {
-        items.push(lignes[i].replace(/^\s*\d+\.\s+/, ""));
-        i++;
-      }
-      blocs.push(
-        <ol key={keyBloc}>
-          {items.map((t, itemIdx) => (
-            <li key={`li-${itemIdx}`}>{enligne(t, `${keyBloc}-li-${itemIdx}`)}</li>
-          ))}
-        </ol>,
-      );
-      continue;
-    }
-
-    // Ligne vide
-    if (ligne.trim() === "") {
-      i++;
-      continue;
-    }
-
-    // Paragraphe : accumule jusqu'à la prochaine ligne vide ou bloc structuré
-    const paragraphe: string[] = [];
-    while (
-      i < lignes.length &&
-      lignes[i].trim() !== "" &&
-      !lignes[i].trim().startsWith("```") &&
-      !lignes[i].trim().startsWith("|") &&
-      !lignes[i].trim().startsWith(">") &&
-      !/^#{1,4}\s/.test(lignes[i]) &&
-      !/^\s*[-*]\s+/.test(lignes[i]) &&
-      !/^\s*\d+\.\s+/.test(lignes[i])
-    ) {
-      paragraphe.push(lignes[i]);
-      i++;
-    }
-    if (paragraphe.length > 0) {
-      blocs.push(<p key={keyBloc}>{enligne(paragraphe.join(" "), `${keyBloc}-p`)}</p>);
-    }
-  }
+  });
 
   return <div className="prose-exo">{blocs}</div>;
 });

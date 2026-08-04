@@ -2347,6 +2347,76 @@ déclare de quelle aide elle a disposé.
 
 ---
 
+## ADR-039 — Le « crash du tuteur » était une boucle infinie de rendu ✅
+
+**Date.** 04/08/2026. Cinq frictions d'usage remontées par Maxime sur le tuteur ;
+la première — « il crashe souvent, sans doute trop de contexte » — s'est révélée
+sans rapport avec le contexte.
+
+**Le fait.** `components/ui/markdown.tsx` ne terminait pas sur une ligne
+commençant par `|` non suivie d'un séparateur de tableau. Le bloc tableau
+n'acceptait cette ligne qu'accompagnée de son `|---|---|` ; la boucle paragraphe
+la refusait catégoriquement. Personne ne la consommait, `i` n'avançait plus. Le
+navigateur gelait, l'onglet mourait, tout le site avec.
+
+Ce n'était pas un cas limite : **le flux SSE livre la ligne d'en-tête d'un
+tableau avant son séparateur**. Tout tableau rédigé par le tuteur passait par cet
+état au premier flush. Un `|x| < 3` en début de ligne suffisait aussi. Le
+symptôme rapporté — « réponse coupée en plein milieu, puis plus rien ne
+marche » — décrivait exactement cela.
+
+**Ce qui a été fait.** Le découpage sort du JSX vers `lib/ui/markdown-blocs.ts`.
+Motif : Vitest ne prend que `src/**/*.test.ts` en environnement node — la
+fonction était **intestable là où elle vivait**, et c'est ce qui a permis au
+défaut de survivre à 320 tests verts. Elle porte désormais un invariant
+explicite : *chaque tour de boucle consomme au moins une ligne*. Une ligne que
+personne ne reconnaît devient du texte. Un caractère mal rendu est un défaut
+d'affichage ; un onglet figé est une perte de travail.
+
+**La leçon, qui n'est pas nouvelle.** C'est le calque exact d'ADR-034 : le moteur
+est pur et testé, et le défaut se loge dans ce qui n'est pas testable — une
+colonne `TEXT` hier, un composant de rendu aujourd'hui. **Ce qui n'est pas
+atteignable par un test finit par porter le défaut.**
+
+### Les quatre autres frictions
+
+| Friction | Cause | Correctif |
+|---|---|---|
+| Message perdu à la fermeture du tiroir | `publierReponse` fait un `setMessages` sur un composant démonté ; l'effet de persistance ne rejoue jamais | Écriture dans `sessionStorage` au démontage, **avant** l'`abort`, conditionnée à une génération en cours |
+| Texte sélectionné invisible | `::selection` = `--primaire` / `--primaire-contraste`, soit exactement les deux couleurs de la bulle utilisateur | Règle `::selection` inversée sur `[data-fond="primaire"]` |
+| Formules absentes des énoncés | `enonce` n'avait aucune `description` dans le schéma de `proposer_exercice` | Exigence d'auto-suffisance portée par le schéma — donc présente à chaque message, contrairement à une phrase de protocole chargée sur mots-clés |
+| Réponses trop directes | §8 impose la gradation, mais le mode LÉGER et la consigne de concision tirent en sens inverse | Consigne de gradation dans le bloc `EXERCICE EN COURS`, qui n'existe que si un exercice est ouvert |
+
+### Le contexte, dégraissé mais non refondu
+
+Le contexte n'était pas la cause du crash, et il n'a donc pas été refait. Deux
+corrections mesurées :
+
+1. **`MOTS_CLES_REFERENTIEL` resserré.** `ajouter`, `apprendre`, `commencer`,
+   `me lancer`, `travailler sur` y figuraient : « par où commencer cet exo ? »
+   chargeait 6,8 Ko de charte de construction du référentiel, en pleine
+   résolution, à chaque message. Ce sont des verbes du langage courant, pas des
+   marqueurs d'intention.
+2. **`exerciceId` allège le contexte.** Ce paramètre ne vient que de l'interface
+   de résolution. `EXERCICES EXISTANTS` (jusqu'à 60 lignes, dont l'unique raison
+   d'être est d'empêcher un doublon) et `PRIORITÉS CALCULÉES` n'y servent aucune
+   réponse possible. Ils sont omis, et **le manifeste ne les annonce plus** —
+   annoncer un bloc non transmis serait la fausse information que P2 et P3
+   interdisent.
+
+Ce qui reste sur ce chemin : profil, travail récent, calibrage, énoncé ouvert.
+
+### 🔬 Ce qui n'est pas démontré
+
+Le resserrement des mots-clés a un prix assumé : « j'aimerais travailler sur le
+droit » ne charge plus la charte du référentiel. Le garde-fou restant est la
+description de `proposer_referentiel`, qui porte les cinq conditions de
+mesurabilité et part à chaque message. **À vérifier à l'usage** : si les branches
+proposées sans la charte sont de moins bonne qualité, il faudra un déclencheur
+plus fin qu'une liste de mots — pas une liste plus longue.
+
+---
+
 ## Comment modifier ce registre
 
 1. Une décision ✅ ne se retire pas : elle passe en 🔄 **Remplacée**, avec le
