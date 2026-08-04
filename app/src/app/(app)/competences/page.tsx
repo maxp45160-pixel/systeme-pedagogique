@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { chargerContexte } from "@/lib/store/context";
-import { retraitsParCode } from "@/lib/domain/referentiel-compte";
+import { comparerCodes, retraitsParCode } from "@/lib/domain/referentiel-compte";
 import { SqueletteContenu } from "@/components/layout/squelette";
 import type { Referentiel, SkillState } from "@/lib/domain/types";
 import { EntetePage } from "@/components/layout/entete-page";
@@ -21,6 +21,7 @@ import { Radar, RepartitionNiveaux } from "@/components/charts";
 import { formatDateRelative } from "@/lib/engine/dates";
 import { BoutonAjouterCompetence } from "@/components/referentiel/bouton-ajouter";
 import { GestionReferentiel } from "@/components/referentiel/gestion";
+import { PanneauPliable } from "@/components/ui/panneau-pliable";
 import { PanneauProgression } from "@/components/suivi/panneau-progression";
 import { PanneauJournal } from "@/components/suivi/panneau-journal";
 
@@ -188,10 +189,15 @@ function VueGrille({
   domainesExistants: { id: string; nom: string; prefixe: string }[];
   compteId: string;
 }) {
+  // `etats` ne porte que le périmètre — ni archivée, ni hors périmètre : la
+  // grille n'a donc pas de dossier d'archives à ranger, contrairement à l'écran
+  // de gestion. L'ordre, lui, est le même des deux côtés : numérique.
   const parDomaine = referentiel.domaines
     .map((d) => ({
       domaine: d,
-      items: etats.filter((e) => e.skill.domaine === d.id),
+      items: [...etats.filter((e) => e.skill.domaine === d.id)].sort((a, b) =>
+        comparerCodes(a.skill.code, b.skill.code),
+      ),
     }))
     .filter((g) => g.items.length > 0);
 
@@ -205,33 +211,39 @@ function VueGrille({
         const preuves = items.reduce((s, e) => s + e.preuves.length, 0);
 
         return (
-          <Carte key={domaine.id}>
-            <EnTeteCarte
-              titre={domaine.nom}
-              legende={`${items.length} compétences · ${preuves} preuve${preuves > 1 ? "s" : ""}`}
-              action={
-                <div className="flex items-center gap-2">
-                  {Object.keys(repartition).length > 0 ? (
-                    <div className="w-40">
-                      <RepartitionNiveaux compte={repartition} />
-                    </div>
-                  ) : (
-                    <Etiquette>Aucune preuve</Etiquette>
-                  )}
-                  <BoutonAjouterCompetence
-                    domainesExistants={domainesExistants}
-                    compteId={compteId}
-                    domaineInitial={domaine.nom}
-                  />
-                </div>
-              }
-            />
+          <PanneauPliable
+            key={domaine.id}
+            titre={
+              <>
+                <span className="font-serif text-sm font-medium">{domaine.nom}</span>
+                <span className="text-xs text-texte-discret">
+                  {items.length} compétences · {preuves} preuve{preuves > 1 ? "s" : ""}
+                </span>
+              </>
+            }
+            actions={
+              <>
+                {Object.keys(repartition).length > 0 ? (
+                  <div className="w-40">
+                    <RepartitionNiveaux compte={repartition} />
+                  </div>
+                ) : (
+                  <Etiquette>Aucune preuve</Etiquette>
+                )}
+                <BoutonAjouterCompetence
+                  domainesExistants={domainesExistants}
+                  compteId={compteId}
+                  domaineInitial={domaine.nom}
+                />
+              </>
+            }
+          >
             <ul className="divide-y divide-bordure">
               {items.map((e) => (
                 <LigneCompetence key={e.skill.code} etat={e} />
               ))}
             </ul>
-          </Carte>
+          </PanneauPliable>
         );
       })}
     </div>

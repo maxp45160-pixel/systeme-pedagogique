@@ -11,7 +11,8 @@ import {
   retirerDomaine,
   supprimerCompetence,
 } from "@/lib/store/referentiel-actions";
-import { classesBouton, Carte, CodeCompetence, cx, Etiquette } from "@/components/ui/primitives";
+import { classesBouton, CodeCompetence, cx, Etiquette } from "@/components/ui/primitives";
+import { PanneauPliable } from "@/components/ui/panneau-pliable";
 import type { Domaine, Palier, Skill } from "@/lib/domain/types";
 import { comparerCodes, type EtatRetrait } from "@/lib/domain/referentiel-compte";
 
@@ -63,15 +64,6 @@ export function GestionReferentiel({
    */
   const [selection, setSelection] = useState<Set<string>>(new Set());
 
-  /**
-   * Repli des panneaux.
-   *
-   * On stocke ce qui est **replié**, pas ce qui est ouvert : un domaine ajouté
-   * après le premier rendu apparaît alors déplié, sans que cet état ait à
-   * suivre les props. Rien n'est persisté — pas de clé navigateur, donc pas de
-   * question de cloisonnement par compte (ADR-029).
-   */
-  const [replies, setReplies] = useState<Set<string>>(new Set());
   /** Les domaines périmés sont hors du champ de vision tant qu'on ne les demande pas. */
   const [archivesOuverts, setArchivesOuverts] = useState(false);
   /** Par domaine vivant : ses compétences archivées, repliées par défaut. */
@@ -242,49 +234,29 @@ export function GestionReferentiel({
               onBasculer={() => setArchivesOuverts((o) => !o)}
             />
           )}
-          <Carte>
-          {/*
-            L'en-tête reste lisible déplié : il garde son fond propre et colle
-            en haut du défilement. Un panneau ouvert de seize lignes perdait
-            autrement le nom du domaine hors de l'écran — replier n'aide pas si
-            l'on ne sait plus ce qu'on est en train de lire.
-
-            Le titre seul est le bouton de repli : les actions du domaine sont
-            des boutons voisins, jamais imbriqués dans lui.
-          */}
-          <div className="sticky top-0 z-[1] rounded-t-carte border-b border-bordure bg-surface px-4 py-2.5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <button
-                type="button"
-                onClick={() => basculerDans(domaine.id, replies, setReplies)}
-                aria-expanded={!replies.has(domaine.id)}
-                className="flex min-w-0 flex-wrap items-center gap-2 text-left"
-              >
-                <span
-                  aria-hidden
-                  className={cx(
-                    "text-[0.625rem] text-texte-discret transition-transform",
-                    replies.has(domaine.id) ? "-rotate-90" : "rotate-0",
-                  )}
-                >
-                  ▼
-                </span>
+          <PanneauPliable
+            // Un domaine périmé s'ouvre replié : on l'a déjà sorti du champ de
+            // vision, l'ouvrir d'office le remettrait dedans.
+            ouvertParDefaut={!perime({ domaine, items })}
+            titre={
+              <>
                 <span className="text-sm font-medium">{domaine.nom}</span>
                 <Etiquette mono>{domaine.prefixe}</Etiquette>
                 {domaine.archive && <Etiquette>Archivé</Etiquette>}
                 <span className="text-xs text-texte-discret">
                   {items.filter((s) => s.active && !s.archive).length} / {items.length} au périmètre
                 </span>
-              </button>
-
-              {/*
+              </>
+            }
+            actions={
+              /*
                 `retirerDomaine` existait depuis ADR-027, testée, et aucune
                 interface ne l'appelait : retirer une branche entière se faisait
                 donc compétence par compétence. Le mode est dérivé de la branche
                 entière — archivage dès qu'une seule de ses compétences porte
                 une preuve.
-              */}
-              <div className="flex shrink-0 items-center gap-1.5">
+              */
+              <>
                 <button
                   type="button"
                   disabled={enCours}
@@ -334,32 +306,54 @@ export function GestionReferentiel({
                     Retirer le domaine
                   </button>
                 )}
-              </div>
-            </div>
-            {domaine.description && (
-              <p className="mt-1 text-xs text-texte-attenue">{domaine.description}</p>
-            )}
-            {domaineConfirme === domaine.id && (
-              <p className="mt-2 rounded-md border border-info/30 bg-info-faible px-3 py-2 text-xs text-texte-attenue">
-                {items.some((s) => (retraits[s.code]?.preuves ?? 0) > 0) ? (
-                  <>
-                    <span className="font-medium">Archivage, pas suppression.</span> Au moins une
-                    compétence de ce domaine porte des preuves : le domaine et ses{" "}
-                    {items.length} compétences sont archivés ensemble, et les preuves restent
-                    lisibles au journal.
-                  </>
-                ) : (
-                  <>
-                    <span className="font-medium">Suppression définitive.</span> Aucune des{" "}
-                    {items.length} compétences de ce domaine n&apos;a produit de preuve : la
-                    branche entière disparaît. Les codes ne seront pas réattribués.
-                  </>
+              </>
+            }
+            sousEntete={
+              <>
+                {domaine.description && (
+                  <p className="mt-1 text-xs text-texte-attenue">{domaine.description}</p>
                 )}
-              </p>
-            )}
-          </div>
-
-          {!replies.has(domaine.id) && (
+                {domaineConfirme === domaine.id && (
+                  <p className="mt-2 rounded-md border border-info/30 bg-info-faible px-3 py-2 text-xs text-texte-attenue">
+                    {items.some((s) => (retraits[s.code]?.preuves ?? 0) > 0) ? (
+                      <>
+                        <span className="font-medium">Archivage, pas suppression.</span> Au moins
+                        une compétence de ce domaine porte des preuves : le domaine et ses{" "}
+                        {items.length} compétences sont archivés ensemble, et les preuves restent
+                        lisibles au journal.
+                      </>
+                    ) : (
+                      <>
+                        <span className="font-medium">Suppression définitive.</span> Aucune des{" "}
+                        {items.length} compétences de ce domaine n&apos;a produit de preuve : la
+                        branche entière disparaît. Les codes ne seront pas réattribués.
+                      </>
+                    )}
+                  </p>
+                )}
+              </>
+            }
+            pied={
+              /*
+                Le tiroir des archivées d'un domaine vivant. Il n'apparaît que
+                s'il a quelque chose à ranger, et il dit combien : un tiroir
+                muet se confondrait avec un domaine sans archive.
+              */
+              !domaine.archive && items.some((s) => s.archive) ? (
+                <button
+                  type="button"
+                  onClick={() => basculerDans(domaine.id, archiveesOuvertes, setArchiveesOuvertes)}
+                  aria-expanded={archiveesOuvertes.has(domaine.id)}
+                  className="w-full border-t border-bordure px-4 py-2 text-left text-[0.6875rem] text-texte-attenue transition-colors hover:bg-surface-2 hover:text-texte"
+                >
+                  {archiveesOuvertes.has(domaine.id) ? "▼" : "▶"}{" "}
+                  {items.filter((s) => s.archive).length} compétence
+                  {items.filter((s) => s.archive).length > 1 ? "s" : ""} archivée
+                  {items.filter((s) => s.archive).length > 1 ? "s" : ""}
+                </button>
+              ) : undefined
+            }
+          >
           <ul className="divide-y divide-bordure">
             {items
               .filter(
@@ -528,29 +522,7 @@ export function GestionReferentiel({
               );
             })}
           </ul>
-          )}
-
-          {/*
-            Le tiroir des archivées d'un domaine vivant. Il n'apparaît que s'il
-            a quelque chose à ranger, et il dit combien : un tiroir muet se
-            confondrait avec un domaine sans archive.
-          */}
-          {!replies.has(domaine.id) &&
-            !domaine.archive &&
-            items.some((s) => s.archive) && (
-              <button
-                type="button"
-                onClick={() => basculerDans(domaine.id, archiveesOuvertes, setArchiveesOuvertes)}
-                aria-expanded={archiveesOuvertes.has(domaine.id)}
-                className="w-full border-t border-bordure px-4 py-2 text-left text-[0.6875rem] text-texte-attenue transition-colors hover:bg-surface-2 hover:text-texte"
-              >
-                {archiveesOuvertes.has(domaine.id) ? "▼" : "▶"}{" "}
-                {items.filter((s) => s.archive).length} compétence
-                {items.filter((s) => s.archive).length > 1 ? "s" : ""} archivée
-                {items.filter((s) => s.archive).length > 1 ? "s" : ""}
-              </button>
-            )}
-          </Carte>
+          </PanneauPliable>
         </Fragment>
       ))}
 
