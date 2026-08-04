@@ -2,10 +2,7 @@ import type { ComponentType } from "react";
 import {
   IconeCompetences,
   IconeExercices,
-  IconeJournal,
-  IconeProgression,
   IconeTableauBord,
-  IconeTuteur,
 } from "@/components/ui/icones";
 
 export interface Entree {
@@ -23,10 +20,14 @@ export interface GroupeNav {
 }
 
 /**
- * Trois groupes, par ordre de priorité d'usage :
- *  - « Piloter » d'abord : le tableau de bord, point d'entrée de l'app.
- *  - « Travailler » ensuite, dominant : l'action à prendre maintenant.
- *  - « Suivre » en retrait : consultation de l'effet du travail.
+ * Trois pôles, par ordre de priorité d'usage :
+ *  - « Tableau de bord » d'abord : le point d'entrée de l'app.
+ *  - « Exercices » ensuite, dominant : l'action à prendre maintenant.
+ *  - « Compétences & Suivi » en retrait : consultation de l'effet du travail.
+ *
+ * Le tuteur n'est plus dans la navigation : il est devenu un tiroir, ouvert
+ * là où poser une question a un sens (lot 3). La route `/tuteur` reste
+ * atteignable depuis le tiroir (« ouvrir en pleine page »).
  */
 export const NAVIGATION: GroupeNav[] = [
   {
@@ -40,28 +41,22 @@ export const NAVIGATION: GroupeNav[] = [
     primaire: true,
     entrees: [
       { href: "/exercices", libelle: "Exercices", court: "Exos", icone: IconeExercices },
-      { href: "/tuteur", libelle: "IA Tutor", court: "Tuteur", icone: IconeTuteur },
     ],
   },
   {
     titre: "Suivre",
     entrees: [
-      { href: "/progression", libelle: "Progression", court: "Progrès", icone: IconeProgression },
-      { href: "/competences", libelle: "Compétences", court: "Compét.", icone: IconeCompetences },
-      { href: "/journal", libelle: "Journal de bord", court: "Journal", icone: IconeJournal },
+      { href: "/competences", libelle: "Compétences & Suivi", court: "Compét.", icone: IconeCompetences },
     ],
   },
 ];
 
 /**
- * Barre inférieure mobile : les cinq destinations réelles, dans le même ordre
- * de priorité que le desktop — le travail d'abord.
+ * Barre inférieure mobile : les trois pôles, dans le même ordre que le
+ * desktop — le travail d'abord.
  */
 export const NAV_MOBILE: Entree[] = [
   { href: "/", libelle: "Tableau de bord", court: "Bord", icone: IconeTableauBord },
   { href: "/exercices", libelle: "Exercices", court: "Exos", icone: IconeExercices },
-  { href: "/tuteur", libelle: "IA Tutor", court: "Tuteur", icone: IconeTuteur },
-  { href: "/competences", libelle: "Compétences", court: "Compét.", icone: IconeCompetences },
-  { href: "/progression", libelle: "Progression", court: "Progrès", icone: IconeProgression },
+  { href: "/competences", libelle: "Compétences & Suivi", court: "Compét.", icone: IconeCompetences },
 ];
-

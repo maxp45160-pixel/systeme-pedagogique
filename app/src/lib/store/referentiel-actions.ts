@@ -36,6 +36,7 @@ import {
   validerCompetence,
   validerDomaine,
   type CompetenceCandidate,
+  type DomaineCandidat,
 } from "@/lib/domain/referentiel-compte";
 import type { OrigineReferentiel, Palier } from "@/lib/domain/types";
 
@@ -177,6 +178,55 @@ export interface ModificationCompetence {
   importance?: number;
   prerequis?: string[];
   ordre?: number;
+}
+
+export interface ModificationDomaine {
+  nom?: string;
+  description?: string;
+}
+
+/**
+ * Renomme ou redécrit un domaine — le seul ajout serveur du chantier.
+ *
+ * L'`id` ne change PAS quand le nom change : c'est la clé étrangère de
+ * `competences.domaine`. Seul le libellé change. Le préfixe reste immuable,
+ * pour la même raison qui rend le `code` immuable : il engendre les codes.
+ *
+ * `validerDomaine` reçoit l'`id` actuel en `idIgnore` : c'est le seul cas où
+ * ce paramètre a un sens — une modification ne doit pas se heurter à
+ * elle-même.
+ */
+export async function modifierDomaine(
+  id: string,
+  champs: ModificationDomaine,
+): Promise<void> {
+  const dorsale = await dorsaleCompte();
+  const referentiel = await lireReferentiel(dorsale);
+
+  const domaine = referentiel.domainesParId.get(id);
+  if (!domaine) throw new Error(`Domaine inconnu : ${id}`);
+
+  const candidat: DomaineCandidat = {
+    nom: champs.nom ?? domaine.nom,
+    prefixe: domaine.prefixe,
+    description: champs.description ?? domaine.description,
+  };
+  const erreurs = validerDomaine(candidat, referentiel, id);
+  if (erreurs.length > 0) throw new Error(erreurs.join(" "));
+
+  const ligne: Record<string, unknown> = {};
+  if (champs.nom !== undefined) ligne.nom = champs.nom.trim();
+  if (champs.description !== undefined) ligne.description = champs.description.trim();
+  if (Object.keys(ligne).length === 0) return;
+
+  const { error } = await dorsale.supabase
+    .from("domaines")
+    .update(ligne)
+    .eq("user_id", dorsale.userId)
+    .eq("id", id);
+  verifier("modification du domaine", error);
+
+  revalidatePath("/", "layout");
 }
 
 export async function modifierCompetence(

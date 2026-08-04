@@ -3,26 +3,27 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { creerBranche } from "@/lib/store/referentiel-actions";
-import {
-  cleReferentielPropose,
-  type PropositionReferentiel,
-} from "@/lib/tutor/proposition";
-import { normaliserPalier, prefixeParDefaut } from "@/lib/domain/referentiel-compte";
+import { normaliserPalier } from "@/lib/domain/referentiel-compte";
 import { classesBouton, cx, Etiquette } from "@/components/ui/primitives";
-import { effacerSession, lireSession } from "@/lib/ui/stockage-session";
-import type { Palier } from "@/lib/domain/types";
+import type { OrigineReferentiel, Palier } from "@/lib/domain/types";
 
 /**
- * Validation d'une branche proposée par le tuteur.
+ * Validation d'une branche de compétences.
  *
- * Même contrat que le formulaire d'exercice : le tuteur remplit, l'utilisateur
- * relit et corrige, et c'est sa validation qui écrit (P5). Chaque intitulé
- * reste modifiable, chaque compétence peut être décochée.
+ * Même contrat que le formulaire d'exercice : le tuteur remplit (ou suggère),
+ * l'utilisateur relit et corrige, et c'est sa validation qui écrit (P5). Chaque
+ * intitulé reste modifiable, chaque compétence peut être décochée.
  *
  * Ce que le formulaire n'affiche PAS, et c'est volontaire : les codes. Ils sont
  * attribués par le serveur à partir du préfixe du domaine, après validation.
  * Les montrer ici laisserait croire qu'ils sont négociables, alors qu'ils sont
  * la clé étrangère des preuves et ne changeront plus jamais.
+ *
+ * Deux usages :
+ *  - dans la modale (`ModaleCompetence`), à partir d'un état vide ou pré-rempli
+ *    par une suggestion du tuteur ;
+ *  - sur l'écran de validation du référentiel, à partir d'une proposition
+ *    déposée par le chat.
  */
 const champ =
   "w-full rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm placeholder:text-texte-discret focus:border-primaire focus:outline-none";
@@ -36,26 +37,46 @@ interface Ligne {
   retenue: boolean;
 }
 
+export interface BrancheInitiale {
+  domaine: string;
+  prefixe: string;
+  description: string;
+  justification: string;
+  competences: { intitule: string; palier: string; importance: string }[];
+}
+
 export function ValidationBranche({
   domainesExistants,
-  compteId,
+  initiale,
+  origine = "tuteur",
+  surEnregistre,
 }: {
   domainesExistants: { id: string; nom: string; prefixe: string }[];
-  /** Isole la proposition en attente (voir `stockage-session`). */
-  compteId: string;
+  /** État initial — vide pour une création manuelle, pré-rempli pour une suggestion. */
+  initiale?: BrancheInitiale;
+  /** D'où vient la branche : « manuel » ou « tuteur ». */
+  origine?: OrigineReferentiel;
+  /** Appelé après l'enregistrement — pour fermer la modale ou rafraîchir. */
+  surEnregistre?: (codes: string[]) => void;
 }) {
   const router = useRouter();
-  const cleProposition = cleReferentielPropose(compteId);
   const [enCours, demarrer] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
-  const [chargee, setChargee] = useState(false);
-  const [perdue, setPerdue] = useState(false);
 
-  const [domaine, setDomaine] = useState("");
-  const [prefixe, setPrefixe] = useState("");
-  const [description, setDescription] = useState("");
-  const [justification, setJustification] = useState("");
-  const [lignes, setLignes] = useState<Ligne[]>([]);
+  const [domaine, setDomaine] = useState(initiale?.domaine ?? "");
+  const [prefixe, setPrefixe] = useState(initiale?.prefixe ?? "");
+  const [description, setDescription] = useState(initiale?.description ?? "");
+  const justification = initiale?.justification ?? "";
+  const [lignes, setLignes] = useState<Ligne[]>(
+    initiale?.competences.map((c) => ({
+      intitule: c.intitule,
+      palier: normaliserPalier(c.palier),
+      // Conservée en chaîne : `normaliserImportance` tranche côté serveur,
+      // et une virgule décimale doit rester lisible en attendant.
+      importance: c.importance || "0.5",
+      retenue: true,
+    })) ?? [],
+  );
 
   // Rattachement par nom : c'est ce que le tuteur écrit et ce que l'utilisateur
   // lit. Le préfixe du domaine existant fera foi côté serveur.
@@ -63,42 +84,12 @@ export function ValidationBranche({
     (d) => d.nom.toLowerCase() === domaine.trim().toLowerCase(),
   );
 
-  /**
-   * La proposition n'est pas consommée à la lecture.
-   *
-   * Elle l'était, et le retour sur cet écran — ne serait-ce que pour vérifier
-   * un intitulé existant ailleurs — remontait alors un formulaire vide et une
-   * branche à redemander au tuteur. Elle est retirée à la création de la
-   * branche, seul moment où elle n'a plus d'objet.
-   */
-  function charger() {
-    const p = lireSession<PropositionReferentiel>(cleProposition);
-    if (!p) {
-      setPerdue(true);
-      setChargee(true);
-      return;
-    }
-
-    setDomaine(p.domaine);
-    setPrefixe(p.prefixe || prefixeParDefaut(p.domaine));
-    setDescription(p.description);
-    setJustification(p.justification);
-    setLignes(
-      p.competences.map((c) => ({
-        intitule: c.intitule,
-        palier: normaliserPalier(c.palier),
-        // Conservée en chaîne : `normaliserImportance` tranche côté serveur,
-        // et une virgule décimale doit rester lisible en attendant.
-        importance: c.importance || "0.5",
-        retenue: true,
-      })),
-    );
-    setPerdue(false);
-    setChargee(true);
-  }
-
   function majLigne(i: number, maj: Partial<Ligne>) {
     setLignes((l) => l.map((x, k) => (k === i ? { ...x, ...maj } : x)));
+  }
+
+  function ajouterLigne() {
+    setLignes((l) => [...l, { intitule: "", palier: "fondamentaux", importance: "0.5", retenue: true }]);
   }
 
   const retenues = lignes.filter((l) => l.retenue && l.intitule.trim().length > 0);
@@ -117,51 +108,26 @@ export function ValidationBranche({
             palier: l.palier,
             importance: l.importance,
           })),
-          origine: "tuteur",
+          origine,
         });
-        // La branche existe : la proposition n'a plus d'objet, et la relire
-        // rejouerait une validation déjà faite.
-        effacerSession(cleProposition);
+        surEnregistre?.(r.codes);
         // `creerBranche` a déjà invalidé le cache (`revalidatePath`) : le
         // `router.refresh()` qui suivait payait un second rendu complet.
-        router.push(`/competences?ajoutees=${r.codes.length}`);
+        router.push(`/competences`);
       } catch (e) {
         setErreur(e instanceof Error ? e.message : "Enregistrement impossible.");
       }
     });
   }
 
-  if (!chargee) {
-    return (
-      <div>
-        <p className="text-sm font-medium">Une branche t&apos;attend</p>
-        <p className="mt-1 max-w-2xl text-xs text-texte-attenue">
-          Le tuteur a proposé des compétences. Charge-les pour les relire, les corriger, et
-          décider lesquelles rejoignent ton référentiel.
-        </p>
-        <button type="button" onClick={charger} className={cx(classesBouton("principal"), "mt-3")}>
-          Charger la proposition
-        </button>
-      </div>
-    );
-  }
-
-  if (perdue) {
-    return (
-      <div>
-        <p className="text-sm font-medium">Proposition introuvable</p>
-        <p className="mt-1 max-w-2xl text-xs text-texte-attenue">
-          Elle n&apos;a pas survécu à la navigation — elle transite par la session du navigateur,
-          jamais par la base. Redemande-la au tuteur : rien n&apos;a été écrit.
-        </p>
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-3xl space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Etiquette ton="primaire">Proposé par le tuteur</Etiquette>
+        {origine === "tuteur" ? (
+          <Etiquette ton="primaire">Proposé par le tuteur</Etiquette>
+        ) : (
+          <Etiquette>Nouvelle branche</Etiquette>
+        )}
         {existant ? (
           <span className="text-xs text-texte-attenue">
             rattaché au domaine existant « {existant.nom} » ({existant.prefixe})
@@ -173,7 +139,7 @@ export function ValidationBranche({
 
       {justification && (
         <p className="rounded-md border border-bordure bg-surface-2 px-3 py-2 text-xs text-texte-attenue">
-          <span className="font-medium">Sur quoi le tuteur s&apos;appuie :</span> {justification}
+          <span className="font-medium">Sur quoi le tuteur s{"'"}appuie :</span> {justification}
         </p>
       )}
 
@@ -211,7 +177,7 @@ export function ValidationBranche({
         <p className="text-xs font-medium">Compétences ({retenues.length} retenue(s))</p>
         <p className="mt-0.5 text-[0.6875rem] text-texte-discret">
           Chacune doit décrire un savoir-faire observable, prouvable par un exercice. Les codes
-          seront attribués à l&apos;enregistrement.
+          seront attribués à l{"'"}enregistrement.
         </p>
 
         <ul className="mt-2 space-y-2">
@@ -260,12 +226,27 @@ export function ValidationBranche({
                         className="w-16 rounded-md border border-bordure bg-surface px-1.5 py-1"
                       />
                     </label>
+                    <button
+                      type="button"
+                      onClick={() => setLignes((ls) => ls.filter((_, k) => k !== i))}
+                      className="text-[0.6875rem] text-texte-discret hover:text-danger"
+                    >
+                      Retirer
+                    </button>
                   </div>
                 </div>
               </div>
             </li>
           ))}
         </ul>
+
+        <button
+          type="button"
+          onClick={ajouterLigne}
+          className={cx(classesBouton("secondaire", "petite"), "mt-2")}
+        >
+          + Ajouter une compétence
+        </button>
       </div>
 
       {erreur && (

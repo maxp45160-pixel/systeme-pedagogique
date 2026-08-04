@@ -70,6 +70,11 @@ async function ContenuTuteur({
       exerciceCible={exercice}
       codesCompetences={ctx.etats.map((e) => e.skill.code)}
       compteId={ctx.donnees.user.id}
+      domainesExistants={ctx.referentiel.domaines.map((d) => ({
+        id: d.id,
+        nom: d.nom,
+        prefixe: d.prefixe,
+      }))}
     />
   );
 }

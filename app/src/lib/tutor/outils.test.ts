@@ -12,7 +12,6 @@
 import { describe, expect, it } from "vitest";
 import {
   OUTIL_EXERCICE,
-  OUTIL_PREUVE,
   OUTIL_REFERENTIEL,
   outilsTuteur,
   validerAppelOutil,
@@ -35,16 +34,6 @@ const EXERCICE_ENTIER = {
   indices: ["Commence par l'écart-type de la demande."],
   correction: "z × σ × √L, soit 1,65 × 20 × √2 ≈ 47 unités.",
   criteres: [{ dimension: "application", libelle: "Sait appliquer la formule au bon horizon" }],
-};
-
-const PREUVE_ENTIERE = {
-  competence: "log-10",
-  niveau_actuel: "2",
-  niveau_propose: "3",
-  preuve: "A dérivé le stock de sécurité sans indice, avec la bonne racine du délai.",
-  autonomie_observee: "A3",
-  qualite_preuve: "forte",
-  reserve: "Un seul contexte testé.",
 };
 
 const BRANCHE_ENTIERE = {
@@ -104,16 +93,6 @@ describe("validerAppelOutil — ce qui doit être rejeté", () => {
     expect(validerAppelOutil(OUTIL_EXERCICE, { ...EXERCICE_ENTIER, type: "quiz" })).toBeNull();
   });
 
-  it("rejette une preuve sans autonomie observée", () => {
-    expect(validerAppelOutil(OUTIL_PREUVE, sans(PREUVE_ENTIERE, "autonomie_observee"))).toBeNull();
-  });
-
-  it("rejette une preuve dont l'autonomie n'est pas une valeur du protocole", () => {
-    expect(
-      validerAppelOutil(OUTIL_PREUVE, { ...PREUVE_ENTIERE, autonomie_observee: "A9" }),
-    ).toBeNull();
-  });
-
   it("rejette une branche sans aucune compétence", () => {
     expect(validerAppelOutil(OUTIL_REFERENTIEL, { ...BRANCHE_ENTIERE, competences: [] })).toBeNull();
   });
@@ -162,14 +141,6 @@ describe("validerAppelOutil — ce qui passe", () => {
     expect(recu.exercice.criteres[0].dimension).toBe("transfert");
   });
 
-  it("met le code de compétence en majuscules sur une preuve", () => {
-    const recu = validerAppelOutil(OUTIL_PREUVE, PREUVE_ENTIERE);
-    if (recu?.genre !== "preuve") throw new Error("genre inattendu");
-    expect(recu.preuve.competence).toBe("LOG-10");
-    expect(recu.preuve.autonomieObservee).toBe("A3");
-    expect(recu.preuve.qualitePreuve).toBe("forte");
-  });
-
   it("accepte une branche et rend l'importance en chaîne", () => {
     const recu = validerAppelOutil(OUTIL_REFERENTIEL, BRANCHE_ENTIERE);
     if (recu?.genre !== "referentiel") throw new Error("genre inattendu");
@@ -180,8 +151,8 @@ describe("validerAppelOutil — ce qui passe", () => {
   });
 
   it("lit des arguments JSON complets", () => {
-    const recu = validerAppelOutilJson(OUTIL_PREUVE, JSON.stringify(PREUVE_ENTIERE));
-    expect(recu?.genre).toBe("preuve");
+    const recu = validerAppelOutilJson(OUTIL_EXERCICE, JSON.stringify(EXERCICE_ENTIER));
+    expect(recu?.genre).toBe("exercice");
   });
 });
 

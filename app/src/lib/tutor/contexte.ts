@@ -17,7 +17,6 @@ import { usageExercice } from "@/lib/domain/exercice";
 import { formatDateCourte } from "@/lib/engine/dates";
 import {
   OUTIL_EXERCICE,
-  OUTIL_PREUVE,
   OUTIL_REFERENTIEL,
   outilsTuteur,
   type OutilTuteur,
@@ -48,7 +47,7 @@ const PROTOCOLES = [
  * Reste du protocole d'évaluation (§12-17 : score macro, robustesse,
  * synthèse périodique, priorisation, format de bilan) — chargé seulement
  * quand un bilan est probable (ADR-021). §1-11, nécessaires à chaque
- * proposition de preuve, restent dans le fichier toujours chargé ci-dessus.
+ * évaluation, restent dans le fichier toujours chargé ci-dessus.
  */
 const PROTOCOLE_EVALUATION_SYNTHESE = {
   fichier: "00_instructions/00_SYSTEME_PROTOCOLE_EVALUATION_SYNTHESE.txt",
@@ -544,15 +543,11 @@ function consignesInterface(referentiel: Referentiel): string {
   return `# CADRE D'INTERVENTION DANS CETTE INTERFACE
 
 Tu interviens depuis l'application de suivi. Tu n'as AUCUN accès en écriture :
-ni au profil, ni au corpus d'exercices, ni au référentiel. Tu disposes de trois
+ni au profil, ni au corpus d'exercices, ni au référentiel. Tu disposes de deux
 outils pour *proposer*, et l'utilisateur valide un formulaire pré-rempli. Ne dis
 jamais qu'une chose « a été ajoutée » ou « mise à jour » : tu proposes, il décide.
 
-1. ${OUTIL_PREUVE} — quand l'échange constitue une preuve de compétence.
-   Décris ce qui a été observé ici, précisément, pas ce que tu supposes acquis.
-   N'emploie que des codes de compétence figurant dans le profil ci-dessous.
-
-2. ${OUTIL_EXERCICE} — quand l'utilisateur demande un exercice.
+1. ${OUTIL_EXERCICE} — quand l'utilisateur demande un exercice.
    LA DIFFICULTÉ N'EST PAS À TON APPRÉCIATION. Le bloc « CALIBRAGE DU PROCHAIN
    EXERCICE » ci-dessous la donne, dérivée de ce qui s'est réellement passé lors
    des dernières tentatives. Emploie-la ; si tu t'en écartes, dis pourquoi.
@@ -566,19 +561,19 @@ jamais qu'une chose « a été ajoutée » ou « mise à jour » : tu proposes, 
        : `Domaines disponibles : ${domaines.map((d) => d.id).join(", ")}.`
    }
 
-3. ${OUTIL_REFERENTIEL} — quand le sujet demandé ne figure pas au référentiel,
+2. ${OUTIL_REFERENTIEL} — quand le sujet demandé ne figure pas au référentiel,
    ou quand ce que fait l'utilisateur révèle un savoir-faire qu'aucune
    compétence ne couvre. Le référentiel appartient au compte : il n'y a pas de
    liste universelle. Les cinq conditions qu'un intitulé doit remplir pour être
    mesurable sont au protocole de construction du référentiel §2, chargé dès
    que la conversation porte sur le sujet.
 
-4. TU NE DISPOSES QUE DU CONTEXTE FOURNI CI-DESSOUS.
+3. TU NE DISPOSES QUE DU CONTEXTE FOURNI CI-DESSOUS.
    Tu n'as aucune mémoire des échanges précédents en dehors de la conversation
    en cours et de l'état du profil transmis. Ne prétends pas te souvenir d'une
    séance qui n'apparaît pas dans le travail récent.
 
-5. RESTE CONCIS SAUF DEMANDE CONTRAIRE.
+4. RESTE CONCIS SAUF DEMANDE CONTRAIRE.
    L'utilisateur vient travailler, pas lire des synthèses. Pas d'introduction,
    pas de récapitulatif du profil non demandé, pas de félicitations
    automatiques. Réponds à la demande, questionne, corrige, propose la suite.

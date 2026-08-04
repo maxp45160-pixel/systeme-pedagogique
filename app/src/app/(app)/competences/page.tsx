@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { chargerContexte } from "@/lib/store/context";
+import { retraitsParCode } from "@/lib/domain/referentiel-compte";
 import { SqueletteContenu } from "@/components/layout/squelette";
 import type { Referentiel, SkillState } from "@/lib/domain/types";
 import { EntetePage } from "@/components/layout/entete-page";
@@ -18,19 +19,35 @@ import {
 } from "@/components/ui/primitives";
 import { Radar, RepartitionNiveaux } from "@/components/charts";
 import { formatDateRelative } from "@/lib/engine/dates";
+import { BoutonAjouterCompetence } from "@/components/referentiel/bouton-ajouter";
+import { GestionReferentiel } from "@/components/referentiel/gestion";
+import { PanneauProgression } from "@/components/suivi/panneau-progression";
+import { PanneauJournal } from "@/components/suivi/panneau-journal";
 
-type Vue = "grille" | "radar";
+type Vue = "grille" | "radar" | "gerer" | "progression" | "journal";
 
 const VUES: { cle: Vue; libelle: string }[] = [
   { cle: "grille", libelle: "Grille" },
   { cle: "radar", libelle: "Radar" },
+  { cle: "gerer", libelle: "Gérer" },
+  { cle: "progression", libelle: "Progression" },
+  { cle: "journal", libelle: "Journal" },
 ];
 
 export default async function PageCompetences(props: {
   searchParams: Promise<{ vue?: string }>;
 }) {
   const { vue: vueBrute } = await props.searchParams;
-  const vue: Vue = vueBrute === "radar" ? "radar" : "grille";
+  const vue: Vue =
+    vueBrute === "radar"
+      ? "radar"
+      : vueBrute === "gerer"
+        ? "gerer"
+        : vueBrute === "progression"
+          ? "progression"
+          : vueBrute === "journal"
+            ? "journal"
+            : "grille";
 
   // Le référentiel étant propre au compte depuis ADR-026, aucun compteur n'est
   // connu avant la lecture. L'en-tête reste donc rendu immédiatement mais sans
@@ -42,9 +59,6 @@ export default async function PageCompetences(props: {
         sousTitre="Pour chacune, son niveau, la confiance de l'évaluation et la solidité des acquis."
         actions={
           <div className="flex items-center gap-3">
-            <Link href="/competences/referentiel" className="text-xs text-primaire hover:underline">
-              Gérer le référentiel
-            </Link>
             <div className="flex rounded-md border border-bordure p-0.5">
               {VUES.map((v) => (
                 <Link
@@ -87,7 +101,7 @@ function BandeauPerimetre({ referentiel }: { referentiel: Referentiel }) {
       <BandeauInfo>
         <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-info" aria-hidden />
         <p className="text-texte-attenue">
-          <strong className="font-medium text-info">Aucun référentiel.</strong> Ce compte n&apos;a
+          <strong className="font-medium text-info">Aucun référentiel.</strong> Ce compte n{"'"}a
           pas encore de compétences à suivre.{" "}
           <Link href="/demarrer" className="font-medium text-info underline underline-offset-2">
             Déclare ton thème de travail
@@ -115,11 +129,45 @@ function BandeauPerimetre({ referentiel }: { referentiel: Referentiel }) {
 
 async function ContenuCompetences({ vue }: { vue: Vue }) {
   const ctx = await chargerContexte();
+  const domainesExistants = ctx.referentiel.domaines.map((d) => ({
+    id: d.id,
+    nom: d.nom,
+    prefixe: d.prefixe,
+  }));
+
+  if (vue === "gerer") {
+    const retraits = retraitsParCode(ctx.referentiel.skills, ctx.donnees.evidence);
+    return (
+      <div className="space-y-6">
+        <BandeauPerimetre referentiel={ctx.referentiel} />
+        <GestionReferentiel
+          domaines={ctx.referentiel.domaines}
+          skills={ctx.referentiel.skills}
+          retraits={Object.fromEntries(retraits)}
+        />
+      </div>
+    );
+  }
+
+  if (vue === "progression") {
+    return <PanneauProgression periode="mois" />;
+  }
+
+  if (vue === "journal") {
+    return <PanneauJournal />;
+  }
 
   return (
     <div className="space-y-6">
       <BandeauPerimetre referentiel={ctx.referentiel} />
-      {vue === "grille" && <VueGrille etats={ctx.etats} referentiel={ctx.referentiel} />}
+      {vue === "grille" && (
+        <VueGrille
+          etats={ctx.etats}
+          referentiel={ctx.referentiel}
+          domainesExistants={domainesExistants}
+          compteId={ctx.donnees.user.id}
+        />
+      )}
       {vue === "radar" && <VueRadar etats={ctx.etats} />}
     </div>
   );
@@ -132,9 +180,13 @@ async function ContenuCompetences({ vue }: { vue: Vue }) {
 function VueGrille({
   etats,
   referentiel,
+  domainesExistants,
+  compteId,
 }: {
   etats: SkillState[];
   referentiel: Referentiel;
+  domainesExistants: { id: string; nom: string; prefixe: string }[];
+  compteId: string;
 }) {
   const parDomaine = referentiel.domaines
     .map((d) => ({
@@ -158,13 +210,20 @@ function VueGrille({
               titre={domaine.nom}
               legende={`${items.length} compétences · ${preuves} preuve${preuves > 1 ? "s" : ""}`}
               action={
-                Object.keys(repartition).length > 0 ? (
-                  <div className="w-40">
-                    <RepartitionNiveaux compte={repartition} />
-                  </div>
-                ) : (
-                  <Etiquette>Aucune preuve</Etiquette>
-                )
+                <div className="flex items-center gap-2">
+                  {Object.keys(repartition).length > 0 ? (
+                    <div className="w-40">
+                      <RepartitionNiveaux compte={repartition} />
+                    </div>
+                  ) : (
+                    <Etiquette>Aucune preuve</Etiquette>
+                  )}
+                  <BoutonAjouterCompetence
+                    domainesExistants={domainesExistants}
+                    compteId={compteId}
+                    domaineInitial={domaine.nom}
+                  />
+                </div>
               }
             />
             <ul className="divide-y divide-bordure">
@@ -263,7 +322,7 @@ function VueRadar({ etats }: { etats: SkillState[] }) {
             <p className="mt-4 rounded-md border border-bordure bg-surface-2 px-3 py-2 text-[0.6875rem] text-texte-attenue">
               <strong className="font-medium">Lecture prudente.</strong>{" "}
               {sansPreuve.length} compétence(s) sont tracées à zéro faute de preuve, non parce
-              qu&apos;une faiblesse a été mesurée :{" "}
+              qu{"'"}une faiblesse a été mesurée :{" "}
               {sansPreuve.map((e) => e.skill.code).join(", ")}.
             </p>
           )}

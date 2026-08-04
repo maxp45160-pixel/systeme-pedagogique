@@ -18,39 +18,15 @@ import {
 } from "@/lib/tutor/cle-client";
 import {
   OUTIL_EXERCICE,
-  OUTIL_PREUVE,
   OUTIL_REFERENTIEL,
   type PropositionRecue,
 } from "@/lib/tutor/outils";
 import {
-  cleReferentielPropose,
-  extrairePropositions,
   extrairePropositionsReferentiel,
   type PropositionReferentiel,
-  type PropositionTuteur,
 } from "@/lib/tutor/proposition";
-
-/**
- * Lien vers la fiche compétence avec le formulaire de preuve pré-rempli.
- * Défaut niveau B : une proposition vient d'une observation relayée par le
- * tuteur, pas d'une action faite directement par l'utilisateur sur sa fiche.
- */
-function lienProposition(p: PropositionTuteur): string {
-  const valeurs = {
-    contexte: `Proposition du tuteur — ${p.preuve}`,
-    commentaire: p.reserve,
-    niveauPreuve: "B" as const,
-  };
-  return `/competences/${p.competence.toUpperCase()}?proposition=${encodeURIComponent(
-    JSON.stringify(valeurs),
-  )}`;
-}
-
-/** Même passage que pour l'exercice : une branche de huit compétences ne tient
- *  pas dans une adresse, et la troncature serait silencieuse. */
-function deposerPropositionReferentiel(p: PropositionReferentiel, compteId: string): void {
-  ecrireSession(cleReferentielPropose(compteId), p);
-}
+import { ModaleCompetence } from "@/components/referentiel/modale-competence";
+import type { BrancheInitiale } from "@/components/referentiel/validation-branche";
 
 /**
  * Ce qu'on affiche pendant qu'un outil se remplit.
@@ -61,7 +37,6 @@ function deposerPropositionReferentiel(p: PropositionReferentiel, compteId: stri
  */
 const LIBELLE_OUTIL: Record<string, string> = {
   [OUTIL_EXERCICE]: "Le tuteur rédige un exercice — énoncé, indices, correction, critères…",
-  [OUTIL_PREUVE]: "Le tuteur prépare une proposition de preuve…",
   [OUTIL_REFERENTIEL]: "Le tuteur compose une branche de compétences…",
 };
 
@@ -117,13 +92,11 @@ export interface EtatContexteTuteur {
 const MessageBulle = memo(function MessageBulle({
   message,
   codesCompetences,
-  compteId,
   enFluxDirect,
+  onOuvrirBranche,
 }: {
   message: Message;
   codesCompetences: string[];
-  /** Isole la file de propositions du compte (voir `stockage-session`). */
-  compteId: string;
   /**
    * Ce message est-il celui que le tuteur est en train d'écrire ?
    *
@@ -138,6 +111,8 @@ const MessageBulle = memo(function MessageBulle({
    *    sur un texte qui ne pouvait rien produire d'exploitable.
    */
   enFluxDirect: boolean;
+  /** Ouvre la modale de compétences avec la branche pré-remplie. */
+  onOuvrirBranche: (b: PropositionReferentiel) => void;
 }) {
   /*
    * Deux sources possibles, jamais les deux à la fois.
@@ -153,16 +128,6 @@ const MessageBulle = memo(function MessageBulle({
   const recues = message.propositions;
   const analysable =
     recues === undefined && message.role === "assistant" && message.content !== "" && !enFluxDirect;
-
-  // Preuves proposées, validées contre le référentiel dans les deux cas : on ne
-  // fabrique jamais un lien vers un code inventé.
-  const propositions = (
-    recues
-      ? recues.flatMap((r) => (r.genre === "preuve" ? [r.preuve] : []))
-      : analysable
-        ? extrairePropositions(message.content)
-        : []
-  ).filter((p) => codesCompetences.includes(p.competence.toUpperCase()));
 
   // Branches proposées (ADR-026). Contrairement aux deux autres, ce bloc n'est
   // PAS filtré contre le référentiel : c'est précisément celui qui a le droit
@@ -209,39 +174,10 @@ const MessageBulle = memo(function MessageBulle({
       </div>
 
       {/*
-        Le tuteur n'a jamais d'accès en écriture : ce bouton ne fait
-        que pré-remplir le formulaire de la fiche compétence. Seule
-        ta validation explicite y déclenche l'enregistrement.
-      */}
-      {propositions.map((p, j) => (
-        <div
-          key={j}
-          className="max-w-[85%] rounded-md border border-info/30 bg-info-faible px-3.5 py-2.5 text-xs"
-        >
-          <div className="flex flex-wrap items-center gap-1.5">
-            <Etiquette ton="info">Proposition</Etiquette>
-            <CodeCompetence code={p.competence.toUpperCase()} />
-            {p.niveauActuel && p.niveauPropose && (
-              <span className="text-texte-attenue">
-                niveau {p.niveauActuel} → {p.niveauPropose}
-              </span>
-            )}
-          </div>
-          {p.preuve && <p className="mt-1 text-texte-attenue">{p.preuve}</p>}
-          <Link
-            href={lienProposition(p)}
-            className={cx(classesBouton("secondaire", "petite"), "mt-2")}
-          >
-            Revoir et enregistrer
-          </Link>
-        </div>
-      ))}
-
-      {/*
         Branche proposée : le seul bloc qui peut introduire des compétences
-        inconnues. Rien n'est écrit ici non plus — le bouton dépose la
-        proposition et ouvre l'écran de validation, où les codes sont attribués
-        par l'application et où chaque intitulé reste corrigeable.
+        inconnues. Rien n'est écrit ici non plus — le bouton ouvre la modale,
+        où les codes sont attribués par l'application et où chaque intitulé
+        reste corrigeable.
       */}
       {branches.map((b, j) => (
         <div
@@ -265,13 +201,13 @@ const MessageBulle = memo(function MessageBulle({
               <li className="text-texte-discret">… et {b.competences.length - 4} autre(s)</li>
             )}
           </ul>
-          <Link
-            href="/competences/referentiel?proposition=1"
-            onClick={() => deposerPropositionReferentiel(b, compteId)}
+          <button
+            type="button"
+            onClick={() => onOuvrirBranche(b)}
             className={cx(classesBouton("secondaire", "petite"), "mt-2")}
           >
             Revoir et ajouter au référentiel
-          </Link>
+          </button>
         </div>
       ))}
     </div>
@@ -434,6 +370,8 @@ export interface ProprietesChat {
   codesCompetences: string[];
   /** Compte courant — isole la conversation conservée (voir `stockage-session`). */
   compteId: string;
+  /** Domaines existants — pour la modale de compétences. */
+  domainesExistants: { id: string; nom: string; prefixe: string }[];
 }
 
 /**
@@ -466,6 +404,7 @@ function ChatHydrate({
   exerciceCible,
   codesCompetences,
   compteId,
+  domainesExistants,
 }: {
   /** Manifeste et moteur, calculés côté serveur au rendu de la page. */
   etatInitial: EtatContexteTuteur;
@@ -483,6 +422,8 @@ function ChatHydrate({
   codesCompetences: string[];
   /** Compte courant — isole la conversation conservée (voir `stockage-session`). */
   compteId: string;
+  /** Domaines existants — pour la modale de compétences. */
+  domainesExistants: { id: string; nom: string; prefixe: string }[];
 }) {
   // `etat` ne vient plus d'un chargement asynchrone : il est calculé par le
   // serveur et ne change pas pendant la vie du composant. Pas d'état local.
@@ -539,6 +480,8 @@ function ChatHydrate({
   const [usage, setUsage] = useState<string | null>(null);
   /** Outil que le tuteur est en train de remplir, `null` sinon. */
   const [outilEnCours, setOutilEnCours] = useState<string | null>(null);
+  /** Branche en attente de validation — ouvre la modale. */
+  const [brancheEnAttente, setBrancheEnAttente] = useState<BrancheInitiale | null>(null);
   const zoneRef = useRef<HTMLDivElement>(null);
 
   /**
@@ -989,6 +932,16 @@ function ChatHydrate({
       ? ""
       : (amorce ?? (competenceCiblee ? `Explique-moi ${competenceCiblee}.` : ""));
 
+  const ouvrirBranche = useCallback((b: PropositionReferentiel) => {
+    setBrancheEnAttente({
+      domaine: b.domaine,
+      prefixe: b.prefixe,
+      description: b.description,
+      justification: b.justification,
+      competences: b.competences,
+    });
+  }, []);
+
   return (
     <div className="space-y-6 [&>*]:min-w-0">
       <div>
@@ -999,7 +952,7 @@ function ChatHydrate({
               <div className="py-6 text-center">
                 <p className="text-sm font-medium">Le tuteur connaît ton profil</p>
                 <p className="mx-auto mt-1 max-w-md text-xs leading-relaxed text-texte-attenue">
-                  Il reçoit les protocoles du système et l&apos;état réel de tes{" "}
+                  Il reçoit les protocoles du système et l{"'"}état réel de tes{" "}
                   {codesCompetences.length} compétences, calculé depuis tes preuves. Il ne peut
                   pas modifier ton profil : il propose des mises à jour que tu valides.
                 </p>
@@ -1011,11 +964,11 @@ function ChatHydrate({
                 key={i}
                 message={m}
                 codesCompetences={codesCompetences}
-                compteId={compteId}
                 // Seul le dernier message peut être en cours de rédaction. Le
                 // passer aux autres les ferait tous re-rendre au démarrage et à
                 // la fin du flux, pour rien.
                 enFluxDirect={enCours && i === messages.length - 1}
+                onOuvrirBranche={ouvrirBranche}
               />
             ))}
 
@@ -1115,7 +1068,7 @@ function ChatHydrate({
               </h2>
             </div>
             <p className="mt-1 text-xs text-texte-attenue">
-              Contenu exact transmis au modèle à chaque message. Rien d&apos;autre n&apos;est
+              Contenu exact transmis au modèle à chaque message. Rien d{"'"}autre n{"'"}est
               connu du tuteur.
             </p>
           </div>
@@ -1159,7 +1112,7 @@ function ChatHydrate({
             <p className="font-medium text-texte">Ce que le tuteur ne peut pas faire</p>
             <ul className="mt-1.5 space-y-1">
               <li>· Écrire dans ton profil — il propose, tu valides.</li>
-              <li>· Se souvenir d&apos;une séance absente du contexte ci-dessus.</li>
+              <li>· Se souvenir d{"'"}une séance absente du contexte ci-dessus.</li>
               <li>· Affirmer une maîtrise que les preuves ne soutiennent pas.</li>
             </ul>
           </div>
@@ -1176,7 +1129,7 @@ function ChatHydrate({
             <li className="list-decimal">
               Ouvrir les <strong>réglages</strong> (icône engrenage, en bas du rail) et saisir ta
               clé API — Mistral, Anthropic, Groq… La clé est stockée dans ton navigateur et
-              n&apos;est jamais envoyée ailleurs qu&apos;à la route du tuteur.
+              n{"'"}est jamais envoyée ailleurs qu{"'"}à la route du tuteur.
             </li>
             <li className="list-decimal">
               Utiliser <strong>« Copier le contexte »</strong> et coller le prompt dans Claude.
@@ -1190,6 +1143,15 @@ function ChatHydrate({
             </li>
           </ol>
         </div>
+      )}
+
+      {brancheEnAttente && (
+        <ModaleCompetence
+          onFermer={() => setBrancheEnAttente(null)}
+          domainesExistants={domainesExistants}
+          compteId={compteId}
+          brancheInitiale={brancheEnAttente}
+        />
       )}
     </div>
   );

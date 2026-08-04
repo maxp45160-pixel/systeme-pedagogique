@@ -102,7 +102,7 @@ export const LIBELLES_DIMENSIONS: Record<Dimension, string> = {
 export type DomaineId = string;
 
 /** D'où vient une entrée du référentiel. Fait observé, jamais dérivé. */
-export type OrigineReferentiel = "utilisateur" | "tuteur" | "migration";
+export type OrigineReferentiel = "utilisateur" | "tuteur" | "migration" | "manuel";
 
 export interface Domaine {
   id: DomaineId;

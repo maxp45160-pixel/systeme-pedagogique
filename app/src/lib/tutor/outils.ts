@@ -34,14 +34,12 @@ import {
   exerciceComplet,
   type PropositionExercice,
   type PropositionReferentiel,
-  type PropositionTuteur,
 } from "./proposition";
 
 /* ------------------------------------------------------------------ */
 /* Noms d'outils et description neutre d'un schéma                     */
 /* ------------------------------------------------------------------ */
 
-export const OUTIL_PREUVE = "proposer_preuve";
 export const OUTIL_EXERCICE = "proposer_exercice";
 export const OUTIL_REFERENTIEL = "proposer_referentiel";
 
@@ -91,30 +89,11 @@ const TYPES_EXERCICE = [
   "projet",
 ] as const;
 
-const AUTONOMIES = ["A0", "A1", "A2", "A3", "A4"] as const;
-const QUALITES = ["faible", "moyenne", "forte"] as const;
 const PALIERS = ["fondamentaux", "intermediaire", "avance"] as const;
 
 /* ------------------------------------------------------------------ */
 /* Les trois schémas                                                   */
 /* ------------------------------------------------------------------ */
-
-function schemaPreuve(): SchemaJson {
-  return {
-    type: "object",
-    properties: {
-      competence: { type: "string", description: "Code figurant au profil." },
-      niveau_actuel: { type: "string" },
-      niveau_propose: { type: "string" },
-      preuve: { type: "string", description: "Ce qui a été observé ici, précisément." },
-      autonomie_observee: { type: "string", enum: [...AUTONOMIES] },
-      qualite_preuve: { type: "string", enum: [...QUALITES] },
-      reserve: { type: "string", description: "Ce qui reste à confirmer." },
-    },
-    required: ["competence", "preuve", "autonomie_observee", "qualite_preuve"],
-    additionalProperties: false,
-  };
-}
 
 /**
  * Le schéma d'exercice dépend du référentiel du compte : la liste des domaines
@@ -235,12 +214,6 @@ export function outilsTuteur(referentiel: Referentiel): OutilTuteur[] {
 
   return [
     {
-      nom: OUTIL_PREUVE,
-      description:
-        "Propose d'enregistrer une preuve de compétence observée dans cet échange. Tu ne l'écris pas : l'utilisateur la valide.",
-      schema: schemaPreuve(),
-    },
-    {
       nom: OUTIL_EXERCICE,
       description:
         "Propose un exercice à ajouter au corpus. Tu ne l'ajoutes pas : l'utilisateur le valide.",
@@ -300,33 +273,8 @@ function dansEnum(valeur: unknown, valeurs: readonly string[]): string {
  * référentiel ne changent pas. La bascule est interne au tuteur.
  */
 export type PropositionRecue =
-  | { genre: "preuve"; preuve: PropositionTuteur }
   | { genre: "exercice"; exercice: PropositionExercice }
   | { genre: "referentiel"; branche: PropositionReferentiel };
-
-function validerPreuve(entree: Record<string, unknown>): PropositionRecue | null {
-  const competence = texte(entree.competence).toUpperCase();
-  const preuve = texte(entree.preuve);
-  const autonomie = dansEnum(entree.autonomie_observee, AUTONOMIES).toUpperCase();
-  const qualite = dansEnum(entree.qualite_preuve, QUALITES);
-
-  // Les quatre champs requis. Sans l'un d'eux, la fiche compétence
-  // s'ouvrirait pré-remplie d'un vide qui se lirait comme une observation.
-  if (!competence || !preuve || !autonomie || !qualite) return null;
-
-  return {
-    genre: "preuve",
-    preuve: {
-      competence,
-      niveauActuel: texte(entree.niveau_actuel),
-      niveauPropose: texte(entree.niveau_propose),
-      preuve,
-      autonomieObservee: autonomie,
-      qualitePreuve: qualite,
-      reserve: texte(entree.reserve),
-    },
-  };
-}
 
 function validerExercice(entree: Record<string, unknown>): PropositionRecue | null {
   const criteres = (Array.isArray(entree.criteres) ? entree.criteres : [])
@@ -407,8 +355,6 @@ export function validerAppelOutil(nom: string, entree: unknown): PropositionRecu
   if (!donnees) return null;
 
   switch (nom) {
-    case OUTIL_PREUVE:
-      return validerPreuve(donnees);
     case OUTIL_EXERCICE:
       return validerExercice(donnees);
     case OUTIL_REFERENTIEL:

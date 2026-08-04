@@ -138,12 +138,6 @@ function LigneRevision({ due }: { due: RevisionDue }) {
             Générer un exercice
             <IconeFleche className="size-3.5" />
           </Link>
-          <Link
-            href={`/competences/${etat.skill.code}#preuve-manuelle`}
-            className={classesBouton("discret", "petite")}
-          >
-            J&#39;ai déjà travaillé ça
-          </Link>
         </div>
       </div>
 

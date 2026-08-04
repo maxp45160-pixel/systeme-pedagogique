@@ -4,8 +4,8 @@
  * Deux gabarits, tous deux fixés côté serveur dans `CONSIGNES_INTERFACE`
  * (`lib/tutor/contexte.ts`) :
  *
- * - `PROPOSITION DE MISE À JOUR` → une **preuve** à enregistrer ;
- * - `PROPOSITION D'EXERCICE` ..... → un **exercice** à ajouter au corpus.
+ * - `PROPOSITION D'EXERCICE` ..... → un **exercice** à ajouter au corpus ;
+ * - `PROPOSITION DE RÉFÉRENTIEL` → une **branche** de compétences à valider.
  *
  * Ces parseurs sont purement locaux et testables. Ils ne donnent aucun accès en
  * écriture au tuteur (P5) : ils transforment une proposition en formulaire
@@ -28,33 +28,8 @@
  */
 import { cleParCompte } from "@/lib/ui/stockage-session";
 
-export const MARQUEUR_PREUVE = "PROPOSITION DE MISE À JOUR";
 export const MARQUEUR_EXERCICE = "PROPOSITION D'EXERCICE";
 export const MARQUEUR_REFERENTIEL = "PROPOSITION DE RÉFÉRENTIEL";
-
-/* ------------------------------------------------------------------ */
-/* Proposition de preuve                                               */
-/* ------------------------------------------------------------------ */
-
-export interface PropositionTuteur {
-  competence: string;
-  niveauActuel: string;
-  niveauPropose: string;
-  preuve: string;
-  autonomieObservee: string;
-  qualitePreuve: string;
-  reserve: string;
-}
-
-const CHAMPS: { cle: keyof PropositionTuteur; etiquette: string }[] = [
-  { cle: "competence", etiquette: "Compétence" },
-  { cle: "niveauActuel", etiquette: "Niveau actuel" },
-  { cle: "niveauPropose", etiquette: "Niveau proposé" },
-  { cle: "preuve", etiquette: "Preuve" },
-  { cle: "autonomieObservee", etiquette: "Autonomie observée" },
-  { cle: "qualitePreuve", etiquette: "Qualité de la preuve" },
-  { cle: "reserve", etiquette: "Réserve" },
-];
 
 /* ------------------------------------------------------------------ */
 /* Lecture d'une ligne « Étiquette : valeur »                          */
@@ -112,29 +87,6 @@ function lireChamp(
     .trim();
 
   return { etiquette: trouve[1], valeur };
-}
-
-const ETIQUETTES_PREUVE = CHAMPS.map((c) => c.etiquette);
-
-export function extrairePropositions(texte: string): PropositionTuteur[] {
-  const blocs = texte.split(MARQUEUR_PREUVE).slice(1);
-  return blocs
-    .map((bloc) => {
-      const lus = new Map<string, string>();
-      for (const ligne of bloc.split("\n")) {
-        const champ = lireChamp(ligne, ETIQUETTES_PREUVE);
-        // Première occurrence seulement : le bloc décrit une proposition, la
-        // prose qui suit ne doit pas écraser ses champs.
-        if (champ && !lus.has(champ.etiquette)) lus.set(champ.etiquette, champ.valeur);
-      }
-
-      const valeurs = {} as PropositionTuteur;
-      for (const { cle, etiquette } of CHAMPS) {
-        valeurs[cle] = sansEmphaseEnveloppante(lus.get(etiquette) ?? "");
-      }
-      return valeurs;
-    })
-    .filter((p) => p.competence.length > 0);
 }
 
 /* ------------------------------------------------------------------ */

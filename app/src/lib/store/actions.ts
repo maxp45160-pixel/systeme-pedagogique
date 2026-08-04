@@ -23,11 +23,7 @@ import { lireReferentiel } from "./referentiel";
 import { compterTentatives, modeRetraitExercice } from "@/lib/domain/exercice";
 import {
   autonomieDepuisIndices,
-  autonomieObservee,
-  LIBELLE_AIDE,
   qualiteDepuisDifficulte,
-  qualiteDepuisNature,
-  type AideExterne,
 } from "@/lib/engine/preuve";
 import { tentativeMenee } from "@/lib/engine/calibration";
 import type {
@@ -226,119 +222,6 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
 
   revalidatePath("/", "layout");
   redirect(`/exercices/${exercice.id}?bilan=1`);
-}
-
-/* ------------------------------------------------------------------ */
-/* Preuve manuelle (hors exercice du store)                            */
-/* ------------------------------------------------------------------ */
-
-export interface SoumissionPreuveManuelle {
-  skillCode: string;
-  date?: string; // ISO ; défaut : maintenant
-  type: SkillEvidence["type"];
-  niveauPreuve: "A" | "B";
-  /**
-   * L'aide extérieure remplace l'autonomie auto-déclarée (ADR-033).
-   *
-   * L'utilisateur ne choisit plus un palier de l'échelle A0–A4 : il répond à
-   * une question de fait — de quelle aide a-t-il disposé — et le moteur en
-   * dérive l'autonomie. Une échelle à cinq crans demandait de connaître le
-   * protocole pour être remplie honnêtement.
-   */
-  aideExterne: AideExterne;
-  resultat: "reussi" | "partiel" | "echec";
-  contexte: string;
-  dimensions: Partial<Record<Dimension, number>>;
-  competencesCombinees?: string[];
-  sourceRef: string; // description vérifiable : "Script Python exécuté le 26/07", etc.
-  commentaire?: string;
-}
-
-/**
- * Deuxième chemin d'écriture d'une preuve, à côté de `terminerExercice`.
- * Couvre tout travail qui ne passe pas par un `Exercise` du store : script
- * exécuté seul, exercice papier, synthèse d'un échange avec le tuteur.
- *
- * Mêmes garde-fous : source toujours renseignée, dimensions non observées
- * simplement omises (jamais un 0 par défaut).
- *
- * L'autonomie n'est plus déclarée ici non plus (ADR-033). L'utilisateur
- * répond « de quelle aide as-tu disposé ? » ; le moteur en dérive le palier.
- * Ce chemin n'ayant aucun indice interne à compter, l'aide extérieure est le
- * seul signal — mais c'est un fait constatable, pas une auto-évaluation.
- * La qualité se dérive de même (§6).
- */
-export async function enregistrerPreuveManuelle(
-  soumission: SoumissionPreuveManuelle,
-): Promise<void> {
-  if (!soumission.contexte.trim()) throw new Error("Le contexte est obligatoire.");
-  if (!soumission.sourceRef.trim()) throw new Error("La source est obligatoire.");
-
-  const dorsale = await dorsaleCompte();
-
-  // Le référentiel est propre au compte (ADR-026) : la vérification porte sur
-  // celui de l'appelant, jamais sur une table globale. Elle double la clé
-  // étrangère `evidence_competence_fk`, qui reste la barrière de confiance —
-  // ici on veut surtout un message lisible plutôt qu'une erreur SQL.
-  const referentiel = await lireReferentiel(dorsale);
-  const skill = referentiel.parCode.get(soumission.skillCode);
-  if (!skill) throw new Error(`Compétence inconnue : ${soumission.skillCode}`);
-
-  const date = soumission.date ?? new Date().toISOString();
-
-  // Aucun indice interne sur ce chemin : `0 / 0` donne A3, que le plafond de
-  // l'aide extérieure rabaisse ensuite s'il y a lieu.
-  const autonomie = autonomieObservee(0, 0, soumission.aideExterne);
-
-  const preuve: SkillEvidence = {
-    id: nouvelId("ev"),
-    skillCode: soumission.skillCode,
-    date,
-    type: soumission.type,
-    niveauPreuve: soumission.niveauPreuve,
-    autonomie,
-    qualite: qualiteDepuisNature(soumission.type, autonomie),
-    resultat: soumission.resultat,
-    contexte: soumission.contexte.trim(),
-    dimensions: soumission.dimensions,
-    competencesCombinees: soumission.competencesCombinees?.length
-      ? soumission.competencesCombinees
-      : undefined,
-    source: { kind: "manuel", ref: soumission.sourceRef.trim() },
-    // Ce qui est consigné est le FAIT déclaré, pas l'inférence : « aide
-    // extérieure : assistant IA » se relit et se conteste, « autonomie A1 »
-    // non — on ne saurait plus d'où le palier vient.
-    commentaire: [
-      `Aide extérieure déclarée : ${LIBELLE_AIDE[soumission.aideExterne]}.`,
-      soumission.commentaire?.trim(),
-    ]
-      .filter(Boolean)
-      .join(" — "),
-  };
-  await ajouter("evidence", preuve, dorsale);
-
-  // Même logique que `terminerExercice` : une entrée de journal automatique
-  // (instructions §15 — la maintenance se fait en arrière-plan).
-  const session: LearningSession = {
-    id: nouvelId("ses"),
-    date,
-    domaines: [skill.domaine],
-    skillCodes: [soumission.skillCode],
-    activites: [
-      { type: "preuve-manuelle", ref: preuve.id, libelle: soumission.contexte.trim() },
-    ],
-    resultat:
-      soumission.resultat === "reussi"
-        ? "Preuve enregistrée manuellement — réussie"
-        : soumission.resultat === "partiel"
-          ? "Preuve enregistrée manuellement — partielle"
-          : "Preuve enregistrée manuellement — non aboutie",
-    notePersonnelle: soumission.commentaire,
-    genereAutomatiquement: true,
-  };
-  await ajouter("sessions", session, dorsale);
-
-  revalidatePath("/", "layout");
 }
 
 /* ------------------------------------------------------------------ */
