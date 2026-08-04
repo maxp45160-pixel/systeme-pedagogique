@@ -94,10 +94,11 @@ pratique et développer un sujet à long terme.
   deux cas. Sans moteur configuré : 503 et repli « copier le contexte ».
 - **Styles :** Tailwind CSS v4 ; **graphiques SVG écrits à la main**, aucune
   librairie UI tierce
-- **Tests :** Vitest — **301 tests**, 12 fichiers (moteur, répétition espacée,
+- **Tests :** Vitest — **320 tests**, 14 fichiers (moteur, répétition espacée,
   calibration, backend Supabase, référentiel par compte, cycle de vie des
   exercices, profil, parseurs de propositions, outils du tuteur, contexte du
-  tuteur, amorces du tuteur, sélection du moteur du tuteur)
+  tuteur, amorces du tuteur, sélection du moteur du tuteur, génération sans
+  conversation, conversion d'exercice)
 - **Déploiement :** Vercel (Root Directory = `app`)
 - **Gestionnaire de paquets :** npm (workspace racine → `app/`)
 - **Outillage :** serveur MCP Supabase (`.mcp.json`)
@@ -158,7 +159,10 @@ bascule sur « Copier le contexte » — comportement voulu, pas une panne.
 - **Aucune valeur sans source.** Chaque nombre affiché porte un « Pourquoi ? ».
 - **L'absence de mesure n'est pas un zéro.** Sans preuve : `—`, jamais `0/100`.
 - **Une faiblesse ne disparaît pas sans démonstration.** Les preuves contradictoires réduisent la confiance, pas le niveau.
-- **Le tuteur n'a aucun accès en écriture.** Il émet une proposition que l'utilisateur valide.
+- **Le tuteur n'écrit aucune mesure** (ADR-037). Il rédige le **contenu** — un
+  exercice n'affirme rien sur la personne, et il l'écrit directement. Tout ce qui
+  **mesure** — preuve, niveau, compétence — reste une proposition que
+  l'utilisateur valide.
 
 **Ne pas modifier un seuil du moteur sans modifier le protocole correspondant.**
 Ces garanties sont vérifiées par les tests de `lib/engine/` et `lib/domain/`.
@@ -250,7 +254,7 @@ immuable — c'est la clé étrangère des preuves.
   (voir `00_PERENNISATION_DU_SYSTEME.txt` §6 et §12).
 - **Ne pas installer de dépendance** sans confirmation — l'absence de librairie
   UI tierce est un choix.
-- **Ne pas pousser directement sur `master`.**
+- **Ne pas pousser directement sur `master`un chantier non vérifié.**
 - **Ne pas remettre le widget de TODOs dev dans le produit** (ADR-019). Il vit sur `/dev` (`components/dev/dev-todo.tsx`), hors du groupe `(app)`. La liste partagée entre comptes est volontaire — ne pas la « corriger » sans demande.
 - **Ne pas construire par anticipation.** Un modèle de données sans besoin réel
   est de la complexité gratuite. C'est ce qui a produit les 6 entités mortes

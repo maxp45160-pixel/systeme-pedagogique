@@ -13,9 +13,11 @@
 
 import { describe, expect, it } from "vitest";
 
-import { construirePromptGeneration } from "./generation";
+import { construirePromptGeneration, genererExercices } from "./generation";
 import type { Calibration } from "@/lib/engine/calibration";
 import type { Referentiel, Skill } from "@/lib/domain/types";
+import type { MoteurTuteur } from "./moteurs";
+import type { PropositionExercice } from "./proposition";
 
 /* ------------------------------------------------------------------ */
 /* Fixtures                                                            */
@@ -163,5 +165,89 @@ describe("construirePromptGeneration — plusieurs compétences", () => {
     ]);
     expect(prompt).toContain("LOG-10 — Analyser un flux logistique : difficulté 2");
     expect(prompt).toContain("DEV-03 — Filtrer et transformer une collection : difficulté 5");
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* La collecte — ce que `genererExercices` retient, et ce qu'il refuse  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Un moteur de test qui rejoue une suite d'événements figée.
+ *
+ * C'est exactement le contrat que `genererExercices` exploite : les moteurs
+ * exposent `repondre({… envoyer})`, et un `envoyer` qui collecte au lieu de
+ * diffuser suffit à faire du chat un chemin d'appel non conversationnel.
+ */
+function moteurQuiEmet(
+  evenements: { evenement: string; donnees: unknown }[],
+): MoteurTuteur {
+  return {
+    async repondre({ envoyer }: { envoyer: (e: string, d: unknown) => void }) {
+      for (const e of evenements) envoyer(e.evenement, e.donnees);
+    },
+  } as unknown as MoteurTuteur;
+}
+
+const EXERCICE = {
+  titre: "Réordonner une tournée",
+  competences: ["LOG-10"],
+} as unknown as PropositionExercice;
+
+describe("genererExercices — rien n'est fabriqué", () => {
+  it("ne rend aucun exercice, et le dit, quand le moteur n'en produit aucun", async () => {
+    // Une proposition tronquée est rejetée en amont par `validerAppelOutil` :
+    // le moteur n'émet alors aucun événement `proposition`. Le cas doit se
+    // solder par une erreur annoncée, jamais par un exercice à moitié rempli.
+    const r = await genererExercices(
+      moteurQuiEmet([{ evenement: "message", donnees: { texte: "Je réfléchis…" } }]),
+      REFERENTIEL,
+      [{ competence: LOG_10, calibration: calibration() }],
+    );
+    expect(r.exercices).toEqual([]);
+    expect(r.erreur).toBe("Aucun exercice exploitable n'a été produit.");
+  });
+
+  it("ne prend pas une proposition d'un autre genre pour un exercice", async () => {
+    // Le même canal porte les branches de référentiel. Collecter sur le seul
+    // nom de l'événement écrirait une branche dans la bibliothèque d'exercices.
+    const r = await genererExercices(
+      moteurQuiEmet([
+        { evenement: "proposition", donnees: { genre: "referentiel", branche: { domaine: "X" } } },
+      ]),
+      REFERENTIEL,
+      [{ competence: LOG_10, calibration: calibration() }],
+    );
+    expect(r.exercices).toEqual([]);
+    expect(r.erreur).not.toBeNull();
+  });
+
+  it("retient un exercice validé et ne signale aucune erreur", async () => {
+    const r = await genererExercices(
+      moteurQuiEmet([
+        { evenement: "proposition", donnees: { genre: "exercice", exercice: EXERCICE } },
+      ]),
+      REFERENTIEL,
+      [{ competence: LOG_10, calibration: calibration() }],
+    );
+    expect(r.exercices).toEqual([EXERCICE]);
+    expect(r.erreur).toBeNull();
+  });
+
+  it("relaie les événements au fil de l'eau, pas seulement à la fin", async () => {
+    // Sans ce relais, la modale restait figée jusqu'à 300 s puis recevait tout
+    // d'un coup : le flux existait, la progression non.
+    const vus: string[] = [];
+    await genererExercices(
+      moteurQuiEmet([
+        { evenement: "proposition-en-cours", donnees: { outil: "proposer_exercice" } },
+        { evenement: "proposition", donnees: { genre: "exercice", exercice: EXERCICE } },
+      ]),
+      REFERENTIEL,
+      [{ competence: LOG_10, calibration: calibration() }],
+      undefined,
+      (evenement) => vus.push(evenement),
+    );
+    expect(vus).toEqual(["proposition-en-cours", "proposition"]);
   });
 });

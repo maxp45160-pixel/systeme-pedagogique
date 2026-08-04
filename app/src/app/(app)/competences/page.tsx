@@ -35,9 +35,9 @@ const VUES: { cle: Vue; libelle: string }[] = [
 ];
 
 export default async function PageCompetences(props: {
-  searchParams: Promise<{ vue?: string }>;
+  searchParams: Promise<{ vue?: string; periode?: string }>;
 }) {
-  const { vue: vueBrute } = await props.searchParams;
+  const { vue: vueBrute, periode } = await props.searchParams;
   const vue: Vue =
     vueBrute === "radar"
       ? "radar"
@@ -79,8 +79,8 @@ export default async function PageCompetences(props: {
         }
       />
 
-      <Suspense key={vue} fallback={<SqueletteContenu />}>
-        <ContenuCompetences vue={vue} />
+      <Suspense key={`${vue}-${periode ?? ""}`} fallback={<SqueletteContenu />}>
+        <ContenuCompetences vue={vue} periode={periode ?? "mois"} />
       </Suspense>
     </>
   );
@@ -127,7 +127,7 @@ function BandeauPerimetre({ referentiel }: { referentiel: Referentiel }) {
   );
 }
 
-async function ContenuCompetences({ vue }: { vue: Vue }) {
+async function ContenuCompetences({ vue, periode }: { vue: Vue; periode: string }) {
   const ctx = await chargerContexte();
   const domainesExistants = ctx.referentiel.domaines.map((d) => ({
     id: d.id,
@@ -150,7 +150,7 @@ async function ContenuCompetences({ vue }: { vue: Vue }) {
   }
 
   if (vue === "progression") {
-    return <PanneauProgression periode="mois" />;
+    return <PanneauProgression periode={periode} />;
   }
 
   if (vue === "journal") {

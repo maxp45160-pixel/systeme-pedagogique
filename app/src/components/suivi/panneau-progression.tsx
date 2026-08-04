@@ -27,7 +27,42 @@ type Periode = (typeof PERIODES)[number];
 
 export async function PanneauProgression({ periode }: { periode: string }) {
   const p = PERIODES.find((x) => x.cle === periode) ?? PERIODES[1];
-  return <ContenuProgression periode={p} />;
+  return (
+    <>
+      <SelecteurPeriode courante={p} />
+      <ContenuProgression periode={p} />
+    </>
+  );
+}
+
+/**
+ * Le filtre de période suivait l'écran `/progression` ; il vit désormais dans
+ * le panneau, pas dans l'en-tête de `/competences` — celui-ci porte déjà le
+ * sélecteur de vue, et empiler deux barres de filtres n'aiderait personne.
+ *
+ * Sans lui, la fusion aurait figé la période sur « Ce mois » : une fonction
+ * perdue en silence, alors que le chantier fusionne des écrans sans retirer
+ * de fonctionnalité.
+ */
+function SelecteurPeriode({ courante }: { courante: Periode }) {
+  return (
+    <div className="mb-4 flex flex-wrap rounded-md border border-bordure p-0.5">
+      {PERIODES.map((p) => (
+        <Link
+          key={p.cle}
+          href={`/competences?vue=progression&periode=${p.cle}`}
+          className={cx(
+            "rounded px-2.5 py-1 text-xs font-medium transition-colors",
+            courante.cle === p.cle
+              ? "bg-primaire-faible text-primaire"
+              : "text-texte-attenue hover:text-texte",
+          )}
+        >
+          {p.libelle}
+        </Link>
+      ))}
+    </div>
+  );
 }
 
 async function ContenuProgression({ periode }: { periode: Periode }) {
@@ -209,8 +244,14 @@ async function ContenuProgression({ periode }: { periode: Periode }) {
                   return (
                     <div key={d.domaine}>
                       <div className="mb-1 flex items-baseline justify-between gap-2">
+                        {/*
+                          `?domaine=` était fabriqué et ignoré en silence :
+                          `/competences` n'a jamais lu ce paramètre (lot 5 §2).
+                          Le lien mène à la grille, sans promettre un filtre
+                          qui n'existe pas.
+                        */}
                         <Link
-                          href={`/competences?domaine=${d.domaine}`}
+                          href="/competences?vue=grille"
                           className="min-w-0 truncate text-xs font-medium hover:underline"
                         >
                           {d.nom}

@@ -1,8 +1,7 @@
 "use client";
 
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import { classesBouton, CodeCompetence, cx, Etiquette } from "@/components/ui/primitives";
+import { classesBouton, cx, Etiquette } from "@/components/ui/primitives";
 import { Depliant } from "@/components/ui/explication";
 import { Markdown } from "@/components/ui/markdown";
 import { preparerPromptComplet } from "@/lib/tutor/actions";
@@ -91,12 +90,10 @@ export interface EtatContexteTuteur {
 
 const MessageBulle = memo(function MessageBulle({
   message,
-  codesCompetences,
   enFluxDirect,
   onOuvrirBranche,
 }: {
   message: Message;
-  codesCompetences: string[];
   /**
    * Ce message est-il celui que le tuteur est en train d'écrire ?
    *
@@ -963,7 +960,6 @@ function ChatHydrate({
               <MessageBulle
                 key={i}
                 message={m}
-                codesCompetences={codesCompetences}
                 // Seul le dernier message peut être en cours de rédaction. Le
                 // passer aux autres les ferait tous re-rendre au démarrage et à
                 // la fin du flux, pour rien.

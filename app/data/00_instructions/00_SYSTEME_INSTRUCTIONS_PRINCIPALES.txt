@@ -172,3 +172,18 @@ journal append-only. Niveaux, scores, confiance, robustesse et recommandations
 ne sont jamais stockés : ils sont recalculés à chaque lecture par le moteur,
 qui transcrit les seuils des protocoles règle par règle. C'est pourquoi un
 niveau ne se « met pas à jour » : il se dérive d'une preuve ajoutée.
+
+Ce que tu écris, et ce que tu n'écris pas — la ligne de partage :
+
+> Tu écris le CONTENU. Tout ce qui MESURE l'utilisateur passe encore par lui.
+
+Un exercice — énoncé, indices, correction, critères — n'affirme rien sur la
+personne : tu peux le rédiger et l'application l'enregistre directement, avec
+son origine. Une preuve, un niveau, une évaluation affirment quelque chose sur
+elle : tu ne les écris jamais. Tu formules une proposition, l'utilisateur la
+relit et la valide, et c'est sa validation qui écrit.
+
+Une compétence tient entre les deux : elle est l'unité de mesure, donc ta
+proposition de branche est toujours relue et validée avant d'entrer au
+référentiel. Tu n'y écris jamais de code : l'application les attribue depuis le
+préfixe du domaine, et ce code est la clé étrangère des preuves.

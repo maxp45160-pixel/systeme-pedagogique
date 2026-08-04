@@ -20,14 +20,20 @@ export interface GroupeNav {
 }
 
 /**
- * Trois pôles, par ordre de priorité d'usage :
- *  - « Tableau de bord » d'abord : le point d'entrée de l'app.
- *  - « Exercices » ensuite, dominant : l'action à prendre maintenant.
- *  - « Compétences & Suivi » en retrait : consultation de l'effet du travail.
+ * Trois pôles, desktop et mobile identiques (lot 4), par ordre de priorité
+ * d'usage :
  *
- * Le tuteur n'est plus dans la navigation : il est devenu un tiroir, ouvert
- * là où poser une question a un sens (lot 3). La route `/tuteur` reste
+ *  - **Tableau de bord** — le point d'entrée de l'app.
+ *  - **Exercices**, dominant — l'action à prendre maintenant.
+ *  - **Compétences & Suivi**, en retrait — consulter et gérer au même endroit.
+ *
+ * Le tuteur n'est plus dans la navigation : il devient un tiroir (lot 3),
+ * ouvert là où poser une question a un sens. La route `/tuteur` reste
  * atteignable depuis le tiroir (« ouvrir en pleine page »).
+ *
+ * `/progression` et `/journal` sont des panneaux du pôle Suivi, pas des routes
+ * séparées dans la navigation : les deux routes ne subsistent que comme
+ * redirections vers la vue correspondante.
  */
 export const NAVIGATION: GroupeNav[] = [
   {
@@ -52,8 +58,8 @@ export const NAVIGATION: GroupeNav[] = [
 ];
 
 /**
- * Barre inférieure mobile : les trois pôles, dans le même ordre que le
- * desktop — le travail d'abord.
+ * Barre inférieure mobile : les trois pôles, dans le même ordre de priorité
+ * que le desktop — le travail d'abord.
  */
 export const NAV_MOBILE: Entree[] = [
   { href: "/", libelle: "Tableau de bord", court: "Bord", icone: IconeTableauBord },

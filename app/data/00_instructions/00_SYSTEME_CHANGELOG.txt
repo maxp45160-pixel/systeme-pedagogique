@@ -694,3 +694,51 @@ calcul). `npm run verify` reste vert (254 tests, dont 15 nouveaux).
 Rétrocompatible. Aucune donnée n'est touchée : l'intervalle se dérive des
 preuves existantes. Le passage à FSRS (méthode C) ne modifiera que
 `MODELE_ACTIF` et exigera une calibration sur les données réelles.
+
+---
+
+## VERSION 3.6 — LE TUTEUR ÉCRIT LE CONTENU, JAMAIS LA MESURE
+
+Date : 04/08/2026
+
+### Modification
+
+`00_SYSTEME_INSTRUCTIONS_PRINCIPALES.txt` §13 porte désormais explicitement la
+ligne de partage entre ce que le tuteur écrit et ce qu'il ne fait que proposer :
+
+> Tu écris le CONTENU. Tout ce qui MESURE l'utilisateur passe encore par lui.
+
+Un exercice — énoncé, indices, correction, critères — n'affirme rien sur la
+personne : le tuteur le rédige et l'application l'enregistre directement, avec
+son origine. Une preuve, un niveau, une évaluation affirment quelque chose sur
+elle : ils restent des propositions que l'utilisateur valide. Une compétence,
+unité de mesure, reste relue et validée avant d'entrer au référentiel, et le
+tuteur n'y écrit jamais de code — l'application les attribue depuis le préfixe
+du domaine.
+
+### Motivation
+
+Le principe était formulé « le tuteur n'a aucun accès en écriture ». Il
+interdisait donc aussi bien d'écrire une preuve que de rédiger un énoncé. Le
+coût était mesuré : 3 navigations, 2 gestes de chargement et 3 formulaires pour
+obtenir un exercice, alors que 40 des 54 compétences actives n'en avaient
+aucun. La reformulation nomme ce que la garantie protégeait réellement — elle
+est plus précise, pas plus permissive (ADR-037).
+
+### Impact
+
+Le formulaire de preuve manuelle est retiré (ADR-038) : il n'était pas utilisé,
+et la génération d'exercices à la demande lève la pénurie qui le justifiait. Le
+bilan d'exercice devient le seul chemin d'écriture d'une preuve. Conséquence
+écrite plutôt que tue : c'était **le seul chemin qui posait la question de
+l'aide extérieure** (VERSION 3.4, ADR-033). **P8 repasse de ✅ à 🔬** — la
+correction tient pour les preuves déjà enregistrées, mais aucune nouvelle ne
+l'emprunte. Reposer la question dans le bilan d'exercice est le candidat pour
+refermer le principe.
+
+Aucun seuil de protocole n'est modifié. `npm run verify` reste vert (320 tests).
+
+### Compatibilité
+
+Rétrocompatible. Aucune donnée n'est touchée ni retouchée : les preuves déjà
+enregistrées par le formulaire manuel gardent leur autonomie dérivée.

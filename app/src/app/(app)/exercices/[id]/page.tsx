@@ -22,6 +22,10 @@ import { ZoneReponse } from "@/components/exercices/zone-reponse";
 import { IconeAmpoule, IconeFleche, IconeValide } from "@/components/ui/icones";
 import { formatDuree } from "@/lib/engine/dates";
 import { amorceExercice, lienTuteur } from "@/lib/tutor/amorces";
+import { construireContexte } from "@/lib/tutor/contexte";
+import { choisirConfiguration, decrireChoix } from "@/lib/tutor/moteurs";
+import { TiroirTuteur } from "@/components/tuteur/tiroir-tuteur";
+import type { EtatContexteTuteur } from "@/components/tuteur/chat";
 
 export default async function PageExercice(props: {
   params: Promise<{ id: string }>;
@@ -48,6 +52,22 @@ export default async function PageExercice(props: {
         Math.round((ctx.now.getTime() - new Date(enCours.debut).getTime()) / 60_000),
       )
     : exercice.dureeEstimeeMin;
+
+  // Contexte du tuteur pour le tiroir — même assemblage que la page /tuteur.
+  const pedagogique = await construireContexte(ctx, [], exercice.id);
+  const choix = choisirConfiguration(process.env);
+  const etatInitialTuteur: EtatContexteTuteur = {
+    cleConfiguree: choix.kind !== "aucun",
+    modele: decrireChoix(choix),
+    manifeste: pedagogique.manifeste,
+    caracteresTotal: pedagogique.caracteresTotal,
+  };
+  const codesCompetences = ctx.etats.map((e) => e.skill.code);
+  const domainesExistants = ctx.referentiel.domaines.map((d) => ({
+    id: d.id,
+    nom: d.nom,
+    prefixe: d.prefixe,
+  }));
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -241,12 +261,14 @@ export default async function PageExercice(props: {
                 */}
                 <p className="mt-3 text-xs text-texte-attenue">
                   Bloqué ?{" "}
-                  <Link
-                    href={`/tuteur?exercice=${encodeURIComponent(exercice.id)}`}
-                    className="text-primaire hover:underline"
-                  >
-                    Demander de l&apos;aide au tuteur sur cet exercice
-                  </Link>{" "}
+                  <TiroirTuteur
+                    etatInitial={etatInitialTuteur}
+                    exerciceCible={exercice.id}
+                    codesCompetences={codesCompetences}
+                    compteId={ctx.donnees.user.id}
+                    domainesExistants={domainesExistants}
+                    libelle="Demander de l'aide au tuteur sur cet exercice"
+                  />{" "}
                   — il aura l&apos;énoncé et ton brouillon sous les yeux. Il ne donnera pas
                   d&apos;indice plus explicite que ceux que tu as laissés fermés.
                 </p>

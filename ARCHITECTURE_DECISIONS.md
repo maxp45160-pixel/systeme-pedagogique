@@ -2242,6 +2242,111 @@ preuve produite ne vaudrait plus rien. Un test le vérifie.
 
 ---
 
+## ADR-037 — Le tuteur écrit le contenu, jamais la mesure ✅
+
+**Date.** 03/08/2026, arbitrage rendu par une personne. Livré le 04/08/2026.
+
+**Le problème.** Le produit s'était construit chantier par chantier depuis le
+27/07 : chacun avait ajouté sa surface, aucun n'avait retiré celle du précédent.
+Mesure d'entrée : **11 écrans** dans le groupe `(app)`, **~180 actions
+interactives**, **6 points de départ** pour « générer un exercice » en 3 formes
+de lien incompatibles — pour **5 exercices en base** et **51 compétences
+actives dont 4 couvertes**.
+
+Deux défauts nommés :
+
+1. **La téléportation vers `/tuteur`.** Vouloir un exercice déracinait
+   l'utilisateur de sa page. Coût mesuré dans le code : 3 navigations, 2 gestes
+   de chargement explicites, ~9 clics, 3 formulaires.
+2. **La fragmentation.** 11 écrans, dont un (`/competences/referentiel`) absent
+   de la navigation et atteignable par 4 liens dispersés.
+
+**La reformulation de P5.** De « le tuteur n'a aucun accès en écriture » à **« le
+tuteur n'écrit aucune mesure »**. La ligne de partage :
+
+- un **exercice** n'affirme rien sur la personne → le tuteur l'écrit directement ;
+- une **preuve**, un **niveau** → jamais ; ils restent des propositions à valider ;
+- une **compétence** est l'unité de mesure : sa validation humaine reste, mais
+  elle tient dans une modale, plus dans un détour par le chat.
+
+P5 devient **plus précis, pas plus laxiste** : la reformulation nomme ce que la
+garantie protégeait réellement. **ADR-004** s'élargit d'autant — le contenu vient
+du tuteur, qui l'écrit désormais lui-même.
+
+**Ce qui est livré.** Génération d'exercices sans conversation
+(`lib/tutor/generation.ts` + `/api/exercices/generer`), modale de compétence in
+situ adossée à `ValidationBranche`, tuteur en tiroir latéral, navigation à 3
+pôles, `/competences` absorbant gestion, progression et journal.
+
+**Refusés explicitement, pour qu'ils ne soient pas reproposés par oubli** 🗑️ :
+
+- Le niveau **`Sujet`** entre domaine et compétence. Il n'existe pas : le schéma
+  a `domaines` et `competences`. Ce qu'on prend pour un 3ᵉ niveau est `palier` —
+  un attribut, pas un conteneur. L'inventer serait construire par anticipation,
+  ce qui a déjà produit 6 entités mortes supprimées le 28/07.
+- Le champ **`Code`** dans la modale de compétence. Le code est attribué par
+  l'application depuis le préfixe du domaine, et c'est la clé étrangère des
+  preuves (ADR-026). Depuis ADR-031 le schéma de l'outil n'a plus de champ
+  `code` : l'interdit est devenu inexprimable. Ne pas le réintroduire « pour la
+  commodité ».
+- Le **sélecteur de difficulté** dans la modale de génération. `calibrer()` la
+  dérive des tentatives observées (ADR-028) ; laisser choisir jetterait le 3ᵉ
+  maillon. Elle est dérivée et affichée avec son « Pourquoi ? » (**P3**), jamais
+  saisie.
+
+**Ce que le chantier a exhibé au passage.** Deux lignes de travail ont
+implémenté le même lot 2 en parallèle, et leur fusion a produit un doublon de
+`modifierDomaine` qu'aucun test ne pouvait voir — le fichier ne compilait plus,
+c'est `tsc` qui l'a arrêté. Une des deux implémentations enregistrait `origine:
+"utilisateur"` sur une branche entièrement rédigée par le tuteur : `origine` est
+un **fait observé, jamais dérivé**, et une prop à valeur par défaut la
+falsifiait en silence. Elle a été écartée pour cette raison.
+
+---
+
+## ADR-038 — Le retrait de la preuve manuelle ✅
+
+**Date.** 04/08/2026, décision de Maxime, **hors du plan du chantier** et
+postérieure à lui : le formulaire de preuve manuelle n'était pas utilisé.
+
+**Ce qui est retiré.** L'outil `proposer_preuve` du tuteur, l'extraction
+`extrairePropositions`, `components/competences/formulaire-preuve.tsx` (385
+lignes), `enregistrerPreuveManuelle` dans `lib/store/actions.ts`, la carte
+« Proposition » du chat, et les tests correspondants.
+
+**Ce qui reste.** Un seul chemin d'écriture d'une preuve : le **bilan
+d'exercice**, `terminerExercice`. La garantie centrale ne bouge pas — une preuve
+naît toujours d'un geste de l'utilisateur, jamais du tuteur.
+
+**Pourquoi c'est tenable.** L'objection évidente est que 40 des 54 compétences
+actives n'avaient aucun exercice, donc plus aucun moyen d'être mesurées. C'est le
+lot 1 qui y répond : la génération à la demande produit un exercice sur
+n'importe quelle compétence du périmètre, en une modale, sans changer de page.
+La preuve manuelle était le contournement d'une pénurie d'exercices que le
+chantier vient de lever.
+
+**Ce que cela coûte, écrit franchement.** ADR-033 avait fermé **P8** en posant la
+question de l'aide extérieure dans le formulaire manuel, d'où le moteur dérivait
+`autonomieObservee`. Ce formulaire n'existe plus, et **le bilan d'exercice ne
+pose pas la question** — la réserve était déjà écrite dans `PRODUCT.md` §5.
+**P8 repasse donc de ✅ à 🔬** : l'autonomie continue d'être dérivée pour les
+preuves issues d'un bilan, mais le protocole n'a plus de chemin où la personne
+déclare de quelle aide elle a disposé.
+
+### 🔬 Test de réfutation
+
+1. **Compter les preuves après un mois d'usage.** Si le volume de preuves chute
+   par rapport à juillet, le formulaire manuel servait plus que ce que l'usage
+   laissait croire, et il faudra un chemin de remplacement.
+2. **Vérifier qu'aucune compétence ne reste non mesurable.** Prendre une
+   compétence sans exercice, générer, terminer : la preuve doit exister. Si la
+   génération échoue pour une famille de compétences, ADR-038 les a rendues
+   muettes.
+3. **Rouvrir P8.** Poser la question d'autonomie dans le bilan d'exercice est le
+   candidat évident. Tant que ce n'est pas fait, le biais est borné mais réel.
+
+---
+
 ## Comment modifier ce registre
 
 1. Une décision ✅ ne se retire pas : elle passe en 🔄 **Remplacée**, avec le

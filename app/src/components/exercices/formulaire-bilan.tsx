@@ -121,7 +121,7 @@ export function FormulaireBilan({
         <div className="mb-2 text-xs font-medium">
           Critère par critère
           <span className="ml-1.5 font-normal text-texte-discret">
-            — sois honnête : c'est ce qui rend le suivi utile
+            — sois honnête : c{"'"}est ce qui rend le suivi utile
           </span>
         </div>
         <ul className="space-y-2">
@@ -206,8 +206,8 @@ export function FormulaireBilan({
           <li>· Une entrée de journal datée</li>
         </ul>
         <p className="mt-1.5">
-          Le niveau n'évoluera que si cette preuve le justifie au regard du protocole
-          d'évaluation. Une réussite isolée ne suffit pas à dépasser le niveau 2.
+          Le niveau n{"'"}évoluera que si cette preuve le justifie au regard du protocole
+          d{"'"}évaluation. Une réussite isolée ne suffit pas à dépasser le niveau 2.
         </p>
       </div>
 

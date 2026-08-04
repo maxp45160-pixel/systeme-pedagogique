@@ -193,3 +193,4 @@ export async function genererExercices(
 
   return { exercices, evenements, erreur };
 }
+

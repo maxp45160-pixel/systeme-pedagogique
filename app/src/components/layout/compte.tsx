@@ -271,7 +271,7 @@ function PanneauReglages({
                 Formation, objectifs et préférences
               </Link>
               <Link
-                href="/competences/referentiel"
+                href="/competences?vue=gerer"
                 onClick={onFermer}
                 className="text-xs text-primaire hover:underline"
               >

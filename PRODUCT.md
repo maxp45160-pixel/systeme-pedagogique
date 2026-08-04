@@ -84,10 +84,10 @@ arbitrage.
 | **P2** | L'absence de mesure n'est pas un zéro | Anti-halluc. §7 et §14 | ✅ Tenu depuis le 31/07 (ADR-006) |
 | **P3** | Aucune valeur sans source — chaque nombre porte son « Pourquoi ? » | Anti-halluc. §4 | ✅ Tenu |
 | **P4** | Une faiblesse ne disparaît pas sans démonstration | Anti-halluc. §5 et §6 | ✅ Tenu |
-| **P5** | Le tuteur n'a aucun accès en écriture | Instructions §14 | ✅ Tenu |
+| **P5** | Le tuteur n'écrit aucune mesure | Instructions §13 | ✅ Tenu — reformulé le 03/08 (ADR-037) |
 | **P6** | Le protocole est la spécification | — | ✅ Tenu |
 | **P7** | L'honnêteté prime sur la complétude | Anti-halluc. §14 | ✅ Tenu |
-| **P8** | La qualité de la preuve conditionne tout | Anti-halluc. §2 ; éval. §5 et §6 | 🟡 Corrigé sur la preuve manuelle (ADR-033) ; l'écart subsiste, moindre, sur le bilan d'exercice |
+| **P8** | La qualité de la preuve conditionne tout | Anti-halluc. §2 ; éval. §5 et §6 | 🔬 Rouvert le 04/08 (ADR-038) : le chemin qui posait la question d'autonomie a été retiré |
 
 ### P2 — comment il a été rétabli le 31/07
 
@@ -111,7 +111,21 @@ en sort revient **entièrement** à la couverture — l'indicateur honnête de c
 n'a pas encore été mesuré. Le doute sur une couverture partielle continue de
 plafonner la *confiance*, pas d'abaisser le niveau. ✅ Tranché : ADR-006.
 
-### P8 — corrigé sur un chemin, encore ouvert sur l'autre
+### P5 — ce que la garantie protégeait réellement
+
+Formulé « le tuteur n'a aucun accès en écriture », le principe interdisait aussi
+bien d'écrire une preuve que d'écrire un énoncé d'exercice. Or les deux n'ont
+pas la même nature : **une preuve affirme quelque chose sur la personne, un
+exercice n'affirme rien**. Le premier interdit est la garantie ; le second était
+un coût — 3 navigations et 3 formulaires pour obtenir un exercice, quand
+40 compétences sur 54 n'en avaient aucun.
+
+✅ **Reformulé le 03/08/2026 (ADR-037)** en « le tuteur n'écrit aucune mesure ».
+Le tuteur écrit désormais le **contenu** — exercices, propositions de branche —
+directement. Tout ce qui **mesure** reste une proposition que l'utilisateur
+valide. Le principe est devenu plus précis, pas plus permissif.
+
+### P8 — refermé le 01/08, rouvert le 04/08
 
 `indicesUtilises` ne comptait que les indices **internes**. Toute aide
 extérieure était invisible au moteur, qui enregistrait néanmoins A3
@@ -134,8 +148,17 @@ internes. Un fait constatable a remplacé une auto-évaluation.
 pas la question : il dispose déjà d'une mesure non déclarative, mais quelqu'un
 qui fait un exercice de l'application avec Claude ouvert à côté reste coté A3.
 Et les **29 preuves antérieures** ne sont pas retouchées — aucune donnée ne dit
-quelle aide a servi, et les inventer serait la faute que ce système combat. Le
-biais est donc réduit et borné dans le temps, pas supprimé.
+quelle aide a servi, et les inventer serait la faute que ce système combat.
+
+🔬 **Rouvert le 04/08/2026 (ADR-038).** Le formulaire de preuve manuelle a été
+retiré : il n'était pas utilisé, et le lot 1 lève la pénurie d'exercices qui le
+justifiait. Mais c'était **le seul chemin qui posait la question de l'aide
+extérieure**. Il ne reste que le bilan d'exercice, c'est-à-dire précisément la
+réserve ci-dessus, désormais sans contrepartie. P8 repasse donc de ✅ à 🔬 : la
+correction d'ADR-033 tient toujours pour les preuves déjà enregistrées par ce
+chemin, mais aucune nouvelle preuve ne l'emprunte. Reposer la question dans le bilan d'exercice est le candidat évident
+pour refermer ce principe ; tant que ce n'est pas fait, le biais est borné mais
+réel.
 
 ## 6. Horizon
 
