@@ -144,6 +144,10 @@ const MessageBulle = memo(function MessageBulle({
       )}
     >
       <div
+        // `data-fond` porte la règle `::selection` inversée (`globals.css`) :
+        // sur fond primaire, la sélection par défaut est de la même couleur que
+        // la bulle, donc invisible.
+        data-fond={message.role === "user" ? "primaire" : undefined}
         className={cx(
           "max-w-[85%] rounded-lg px-3.5 py-2.5 text-sm",
           message.role === "user"
@@ -601,24 +605,6 @@ function ChatHydrate({
     }
   }, [flushAccumule]);
 
-  /*
-   * Au démontage : couper le timer ET le flux.
-   *
-   * Seul le timer l'était. Le `fetch` restait en vol, et comme la route ne
-   * consultait pas `request.signal` (corrigé côté serveur dans le même lot), la
-   * génération continuait chez le fournisseur — jetons facturés pour un texte
-   * que plus personne n'affichait. Or le chat est démonté par ses PROPRES
-   * cartes de proposition : cliquer « Revoir et ajouter » suffisait à le
-   * déclencher.
-   */
-  useEffect(
-    () => () => {
-      annulerFlush();
-      abandonRef.current?.abort();
-    },
-    [annulerFlush],
-  );
-
   /* Miroirs des états lus par `envoyer`. Sans eux, `envoyer` changerait
    * d'identité à chaque message et à chaque changement d'état, ce qui
    * invaliderait le `memo` de `ChatInput` et rendrait son isolation — le
@@ -643,6 +629,50 @@ function ChatHydrate({
   const arreter = useCallback(() => {
     abandonRef.current?.abort();
   }, []);
+
+  /*
+   * Au démontage : enregistrer, couper le timer, couper le flux — dans cet ordre.
+   *
+   * Le timer et le flux l'étaient déjà (le `fetch` restait sinon en vol, facturé
+   * pour un texte que plus personne n'affichait — et le chat est démonté par ses
+   * PROPRES cartes de proposition : cliquer « Revoir et ajouter » suffit).
+   *
+   * L'enregistrement, lui, manquait. Le chemin d'abandon publie bien le texte
+   * reçu (`publierReponse`), mais par un `setMessages` sur un composant déjà
+   * démonté : l'effet de persistance ne rejoue jamais et `sessionStorage` garde
+   * l'état d'avant le tour. Fermer le tiroir pendant que le tuteur rédige — le
+   * geste le plus naturel quand la réponse est longue — perdait donc la réponse
+   * entière, alors que l'interface promet le contraire à l'interruption.
+   *
+   * Conditionné à `enCoursRef` : hors génération, `historiqueRef` porte
+   * l'historique du dernier tour, qu'une réinitialisation a pu vider depuis.
+   * L'écrire ici ressusciterait une conversation effacée.
+   */
+  useEffect(
+    () => () => {
+      annulerFlush();
+
+      if (enCoursRef.current) {
+        const texte = accumuleRef.current;
+        const propositions = propositionsRef.current;
+        const conversation: Message[] =
+          texte.trim() === "" && propositions.length === 0
+            ? historiqueRef.current
+            : [
+                ...historiqueRef.current,
+                {
+                  role: "assistant",
+                  content: texte,
+                  ...(propositions.length > 0 ? { propositions } : {}),
+                },
+              ];
+        if (conversation.length > 0) ecrireSession(cleConversation, conversation);
+      }
+
+      abandonRef.current?.abort();
+    },
+    [annulerFlush, cleConversation],
+  );
 
   /**
    * Publie la réponse du tour : texte accumulé + propositions validées.

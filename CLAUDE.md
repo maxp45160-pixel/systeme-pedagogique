@@ -94,11 +94,11 @@ pratique et développer un sujet à long terme.
   deux cas. Sans moteur configuré : 503 et repli « copier le contexte ».
 - **Styles :** Tailwind CSS v4 ; **graphiques SVG écrits à la main**, aucune
   librairie UI tierce
-- **Tests :** Vitest — **320 tests**, 14 fichiers (moteur, répétition espacée,
+- **Tests :** Vitest — **335 tests**, 15 fichiers (moteur, répétition espacée,
   calibration, backend Supabase, référentiel par compte, cycle de vie des
   exercices, profil, parseurs de propositions, outils du tuteur, contexte du
   tuteur, amorces du tuteur, sélection du moteur du tuteur, génération sans
-  conversation, conversion d'exercice)
+  conversation, conversion d'exercice, découpage markdown)
 - **Déploiement :** Vercel (Root Directory = `app`)
 - **Gestionnaire de paquets :** npm (workspace racine → `app/`)
 - **Outillage :** serveur MCP Supabase (`.mcp.json`)
@@ -288,6 +288,13 @@ immuable — c'est la clé étrangère des preuves.
   `FRACTION_NON_TENTEE` et `FRACTION_TROP_FACILE` sont calés sur des tentatives
   réelles, citées dans les tests. Les changer demande de nouvelles observations,
   pas un avis (ADR-028).
+- **Ne pas laisser une boucle de décision dans un `.tsx`** (ADR-039). Vitest ne
+  prend que `src/**/*.test.ts` en environnement node : ce qui vit dans un
+  composant est **hors de portée d'un test**. `markdown.tsx` a porté deux mois
+  une boucle infinie sur toute ligne commençant par `|` — le flux SSE livre
+  l'en-tête d'un tableau avant son séparateur, donc l'onglet gelait à chaque
+  tableau. Toute boucle `while` qui avance un index doit vivre dans `lib/`, et
+  garantir qu'elle **consomme au moins un élément par tour**.
 - **Ne pas inventer de données.** Un écran non construit doit le dire.
 - **Ne pas transformer une analyse en décision.** Une conclusion produite par
   une session Claude est 🔬 hypothèse ou ❓ question ouverte, jamais ✅ décision,

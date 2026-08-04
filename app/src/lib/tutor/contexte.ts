@@ -72,17 +72,29 @@ const PROTOCOLE_REFERENTIEL = {
   nom: "Protocole de construction du référentiel",
 };
 
+/**
+ * ⚠️ Ces mots-clés déclenchent 6,8 Ko de protocole. Ils désignent l'intention de
+ * TOUCHER AU RÉFÉRENTIEL, pas la conversation ordinaire.
+ *
+ * La première liste contenait `ajouter`, `apprendre`, `commencer`,
+ * `travailler sur`, `me lancer` : « par où commencer cet exo ? » chargeait la
+ * charte de construction du référentiel, en pleine résolution d'exercice, à
+ * chaque message. Ce sont des verbes du langage courant, pas des marqueurs
+ * d'intention.
+ *
+ * Le filet contre une formulation non prévue reste `referentielVide`, qui passe
+ * avant tout : le seul cas où rater le déclenchement coûterait cher.
+ */
 const MOTS_CLES_REFERENTIEL = [
   "referentiel",
   "competence",
   "domaine",
   "branche",
-  "ajouter",
   "nouveau sujet",
-  "travailler sur",
-  "apprendre",
-  "me lancer",
-  "commencer",
+  "nouvelle matiere",
+  "ajouter une",
+  "ajouter un domaine",
+  "ajouter au suivi",
 ];
 
 const MOTS_CLES_SYNTHESE = [
@@ -478,6 +490,14 @@ function serialiserExerciceEnCours(ctx: Contexte, exerciceId?: string): string {
     "",
     "C'est l'exercice ouvert dans l'interface au moment de ce message. Réponds à propos de CELUI-CI, sauf indication contraire.",
     "",
+    // La gradation est au § 8 des instructions principales, mais deux forces
+    // tirent en sens inverse sur ce chemin précis : le mode LÉGER (§5) et la
+    // consigne de concision du cadre d'intervention. Résultat observé — la
+    // solution arrivait d'un bloc, et la tentative ne mesurait plus rien.
+    // Ici, et seulement ici, la gradation reprend le dessus : ce bloc n'existe
+    // que si un exercice est ouvert.
+    "AIDE PAS À PAS, PAS DE SOLUTION D'EMBLÉE. Une étape à la fois, dans cet ordre : questionner ce qui bloque, faire expliciter l'hypothèse ou la méthode, donner un indice, corriger partiellement. Termine par une question qui rend la main. Ne livre la résolution complète que sur demande explicite, ou après plusieurs tentatives infructueuses — l'autonomie observée est ce qui fonde la preuve, et une solution donnée trop tôt la détruit.",
+    "",
     `Titre : ${cible.titre}`,
     `Compétence(s) : ${cible.competences.join(", ")}`,
     `Difficulté : ${cible.difficulte}/5 · durée estimée ${cible.dureeEstimeeMin} min`,
@@ -634,21 +654,47 @@ export async function construireContexte(
     }
   }
 
+  /*
+   * Un exercice ouvert change ce qui sert.
+   *
+   * `exerciceId` n'arrive que d'un endroit : l'interface où la personne est en
+   * train de résoudre quelque chose (`/tuteur?exercice=…`, tiroir d'une fiche
+   * d'exercice). Là, elle demande de l'aide sur CET énoncé — elle ne demande
+   * pas quoi faire ensuite. Le catalogue des exercices existants (jusqu'à
+   * 60 lignes, il n'existe que pour empêcher le tuteur d'en proposer un
+   * doublon) et les priorités du moteur de recommandation ne sont mobilisés par
+   * aucune réponse possible sur ce chemin, et ils y sont renvoyés à chaque
+   * message.
+   *
+   * Ce qui RESTE, et pourquoi : le profil (le niveau conditionne le grain de
+   * l'aide), le travail récent (les erreurs passées), le calibrage (la dimension
+   * faible dit sur quoi insister).
+   *
+   * Le manifeste ne liste que ce qui part réellement — un bloc omis n'y figure
+   * pas, sans quoi l'interface annoncerait un contexte que le modèle n'a pas
+   * reçu (P2, P3).
+   */
+  const aideSurExercice = Boolean(exerciceId);
+
   const profil = serialiserProfil(ctx);
   const recent = serialiserRecent(ctx);
   const calibrage = serialiserCalibration(ctx);
-  const corpus = serialiserCorpus(ctx);
+  const corpus = aideSurExercice ? null : serialiserCorpus(ctx);
   const enCours = serialiserExerciceEnCours(ctx, exerciceId);
-  const priorites = serialiserRecommandations(ctx);
+  const priorites = aideSurExercice ? null : serialiserRecommandations(ctx);
 
   manifeste.push(
     { nom: "État courant des compétences", caracteres: profil.length, origine: "calcule" },
     { nom: "Travail récent", caracteres: recent.length, origine: "calcule" },
     { nom: "Calibrage du prochain exercice", caracteres: calibrage.length, origine: "calcule" },
-    { nom: "Exercices existants", caracteres: corpus.length, origine: "calcule" },
-    { nom: "Exercice en cours", caracteres: enCours.length, origine: "calcule" },
-    { nom: "Priorités calculées", caracteres: priorites.length, origine: "calcule" },
   );
+  if (corpus !== null) {
+    manifeste.push({ nom: "Exercices existants", caracteres: corpus.length, origine: "calcule" });
+  }
+  manifeste.push({ nom: "Exercice en cours", caracteres: enCours.length, origine: "calcule" });
+  if (priorites !== null) {
+    manifeste.push({ nom: "Priorités calculées", caracteres: priorites.length, origine: "calcule" });
+  }
 
   const outils = outilsTuteur(ctx.referentiel);
   // Ce que les schémas pèsent réellement dans la requête. Mesuré sur la
@@ -661,9 +707,9 @@ export async function construireContexte(
   });
 
   const systemeStable = blocsStables.join("\n\n---\n\n");
-  const systemeProfil = [profil, recent, calibrage, corpus, enCours, priorites].join(
-    "\n\n---\n\n",
-  );
+  const systemeProfil = [profil, recent, calibrage, corpus, enCours, priorites]
+    .filter((bloc): bloc is string => bloc !== null)
+    .join("\n\n---\n\n");
 
   return {
     systemeStable,

@@ -215,6 +215,25 @@
     color: var(--primaire-contraste);
   }
 
+  /*
+   * Sélection sur fond primaire : inversée, sinon invisible.
+   *
+   * Les bulles de l'utilisateur dans le tuteur sont `bg-primaire
+   * text-primaire-contraste` — exactement les deux couleurs de la règle
+   * ci-dessus. Sélectionner son propre message ne changeait donc strictement
+   * rien à l'écran : impossible de voir ce qu'on relit ou ce qu'on s'apprête à
+   * copier. On échange les deux couleurs sur ce fond.
+   *
+   * L'attribut plutôt qu'une classe utilitaire : `::selection` ne s'hérite pas
+   * comme le reste, il faut le poser sur l'élément qui porte le texte, et
+   * Tailwind n'exprime pas ce pseudo-élément.
+   */
+  [data-fond="primaire"] ::selection,
+  [data-fond="primaire"]::selection {
+    background: var(--primaire-contraste);
+    color: var(--primaire);
+  }
+
   :focus-visible {
     outline: 2px solid var(--primaire);
     outline-offset: 2px;
