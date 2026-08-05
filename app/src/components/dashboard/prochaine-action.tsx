@@ -15,6 +15,7 @@ import { IconeFeuille, IconeFleche } from "@/components/ui/icones";
 import { formatDuree } from "@/lib/engine/dates";
 import { BoutonGenerer } from "@/components/exercices/bouton-generer";
 import { BoutonRefusRecommandation } from "@/components/dashboard/refus-recommandation";
+import { FeedbackRecommandation } from "@/components/dashboard/feedback-recommandation";
 import {
   competencesPourModale,
   type CalibrageModale,
@@ -140,6 +141,10 @@ export function CarteProchaineAction({
         </div>
 
         <div className="mt-4 border-t border-bordure pt-3">
+          <FeedbackRecommandation code={etat.skill.code} compteId={compteId} />
+        </div>
+
+        <div className="mt-3 border-t border-bordure pt-3">
           <Depliant resume="Pourquoi cette action plutôt qu'une autre ?">
             <div className="rounded-md border border-bordure bg-surface-2 p-3 text-xs">
               <p className="mb-2 text-texte-attenue">
