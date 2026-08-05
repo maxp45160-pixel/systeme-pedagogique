@@ -231,6 +231,18 @@ function VueGrille({
             }
             actions={
               <>
+                {/*
+                 * Le lien vit dans les actions, pas dans le titre : `titre` est
+                 * rendu à l'intérieur du bouton de repli, et un <a> dans un
+                 * <button> est du HTML invalide — le clic servirait deux
+                 * intentions à la fois, plier et naviguer.
+                 */}
+                <Link
+                  href={`/competences/domaine/${encodeURIComponent(domaine.id)}`}
+                  className="shrink-0 text-xs text-primaire hover:underline"
+                >
+                  Vue du domaine →
+                </Link>
                 {Object.keys(repartition).length > 0 ? (
                   <div className="w-40">
                     <RepartitionNiveaux compte={repartition} />
