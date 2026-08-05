@@ -31,6 +31,9 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   objectif_long_terme       TEXT NOT NULL DEFAULT 'Objectif à long terme à renseigner',
   debut_suivi               TEXT NOT NULL DEFAULT CURRENT_DATE::text,
   preferences_pedagogiques  TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+  -- Plan de travail rédigé par la personne. Sans défaut et nullable : un plan
+  -- non déclaré doit rester absent, pas se voir prêter une intention.
+  plan                      TEXT,
   created_at                TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at                TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

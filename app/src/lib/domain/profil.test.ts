@@ -100,6 +100,19 @@ describe("serialiserProfilDeclare — la place qu'occupait un profil écrit en d
     expect(texte).toContain("jamais à inférer");
   });
 
+  it("transmet le plan de travail quand il est déclaré, et rien sinon", () => {
+    const avec = serialiserProfilDeclare(utilisateur({ plan: "D'abord la logique." }));
+    expect(avec).toContain("PLAN DE TRAVAIL DÉCLARÉ");
+    expect(avec).toContain("D'abord la logique.");
+
+    // Ni titre de section ni consigne : un plan absent ne se devine pas.
+    for (const vide of [undefined, "   "]) {
+      expect(serialiserProfilDeclare(utilisateur({ plan: vide }))).not.toContain(
+        "PLAN DE TRAVAIL",
+      );
+    }
+  });
+
   it("ne mentionne aucun profil d'un autre compte, quel que soit l'utilisateur", () => {
     for (const u of [utilisateur(), utilisateur({ formation: "Licence de philosophie" })]) {
       const texte = serialiserProfilDeclare(u);

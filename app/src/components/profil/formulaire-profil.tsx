@@ -21,11 +21,13 @@ export function FormulaireProfil({
   objectifMoyenTerme,
   objectifLongTerme,
   preferencesPedagogiques,
+  plan,
 }: {
   formation: string;
   objectifMoyenTerme: string;
   objectifLongTerme: string;
   preferencesPedagogiques: string[];
+  plan?: string;
 }) {
   const router = useRouter();
   const [enCours, demarrer] = useTransition();
@@ -35,6 +37,7 @@ export function FormulaireProfil({
   const [moyen, setMoyen] = useState(objectifMoyenTerme);
   const [long, setLong] = useState(objectifLongTerme);
   const [prefs, setPrefs] = useState(preferencesPedagogiques.join("\n"));
+  const [planState, setPlanState] = useState(plan ?? "");
 
   function enregistrer() {
     setMessage(null);
@@ -45,6 +48,9 @@ export function FormulaireProfil({
           objectifMoyenTerme: moyen,
           objectifLongTerme: long,
           preferencesPedagogiques: prefs.split("\n"),
+          // Chaîne vide et non `undefined` : vider le plan doit l'effacer en
+          // base, or `modifierProfil` ignore les champs absents.
+          plan: planState,
         });
         setMessage({ ton: "info", texte: "Profil enregistré." });
         router.refresh();
@@ -111,6 +117,25 @@ export function FormulaireProfil({
         />
         <span className="mt-1 block text-[0.6875rem] text-texte-discret">
           Transmises au tuteur comme un fait déclaré : il les respecte, il ne les devine jamais.
+        </span>
+      </label>
+
+      <label className="block">
+        <span className="text-xs font-medium">
+          Plan de travail <span className="text-texte-discret">(facultatif)</span>
+        </span>
+        <textarea
+          value={planState}
+          onChange={(e) => setPlanState(e.target.value)}
+          rows={6}
+          placeholder={
+            "Ce que tu veux accomplir, dans quel ordre, avec quel contexte.\nEx : « D'abord consolider les fondamentaux de logique, puis attaquer l'optimisation linéaire pour le Master. Je travaille surtout le soir, 1h par session. »"
+          }
+          className={cx(champ, "resize-y")}
+        />
+        <span className="mt-1 block text-[0.6875rem] text-texte-discret">
+          Transmis au tuteur pour orienter les exercices et la priorisation. Plus c&apos;est
+          précis, plus le tuteur peut cibler — mais rien ne t&apos;engage à suivre ce plan à la lettre.
         </span>
       </label>
 

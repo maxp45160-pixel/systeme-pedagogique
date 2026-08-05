@@ -45,6 +45,7 @@ export default async function PageProfil() {
             objectifMoyenTerme={nonRenseigne(u.objectifMoyenTerme)}
             objectifLongTerme={nonRenseigne(u.objectifLongTerme)}
             preferencesPedagogiques={u.preferencesPedagogiques ?? []}
+            plan={u.plan}
           />
         </div>
       </Carte>

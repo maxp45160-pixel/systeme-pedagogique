@@ -193,6 +193,18 @@ describe("profil", () => {
       preferencesPedagogiques: ["Calcul manuel + Python"],
     });
   });
+
+  it("laisse le plan absent plutôt que de lui inventer un repli", () => {
+    // Un plan vide en base n'est pas un plan : le tuteur ne doit pas recevoir
+    // une intention que la personne n'a pas écrite.
+    expect(profilVersUser({ id: "compte-1", plan: "   " }, defaut).plan).toBeUndefined();
+    expect(profilVersUser({ id: "compte-1" }, defaut).plan).toBeUndefined();
+  });
+
+  it("remonte le plan déclaré", () => {
+    const user = profilVersUser({ id: "compte-1", plan: "Consolider la logique." }, defaut);
+    expect(user.plan).toBe("Consolider la logique.");
+  });
 });
 
 describe("remontée des erreurs", () => {

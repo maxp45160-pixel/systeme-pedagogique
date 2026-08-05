@@ -505,6 +505,7 @@ export interface ModificationProfil {
   objectifMoyenTerme?: string;
   objectifLongTerme?: string;
   preferencesPedagogiques?: string[];
+  plan?: string;
 }
 
 /**
@@ -532,6 +533,9 @@ export async function modifierProfil(champs: ModificationProfil): Promise<void> 
       .map((p) => p.trim())
       .filter((p) => p.length > 0);
   }
+  // Le plan est facultatif : le vider est un geste légitime, donc une chaîne
+  // vide part telle quelle plutôt que d'être écartée comme « rien à écrire ».
+  if (champs.plan !== undefined) ligne.plan = champs.plan.trim();
   if (Object.keys(ligne).length === 0) return;
 
   const { error } = await dorsale.supabase

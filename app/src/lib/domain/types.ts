@@ -134,6 +134,14 @@ export interface User {
    * il ne les infère jamais lui-même.
    */
   preferencesPedagogiques?: string[];
+  /**
+   * Plan de travail détaillé, écrit par l'utilisateur (Chantier 14).
+   *
+   * Ce que la personne veut accomplir, dans quel ordre, avec quel contexte.
+   * Transmis au tuteur et au moteur de recommandation pour pondérer
+   * l'importance des compétences selon le plan déclaré.
+   */
+  plan?: string;
 }
 
 /** Position dans l'arbre de progression du domaine. */

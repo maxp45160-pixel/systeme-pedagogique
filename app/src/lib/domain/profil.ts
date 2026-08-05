@@ -39,6 +39,8 @@ export interface ProfilDeclare {
   objectifMoyenTerme: string | null;
   objectifLongTerme: string | null;
   preferencesPedagogiques: string[];
+  /** Plan de travail rédigé par la personne, `null` s'il n'y en a pas. */
+  plan: string | null;
   /** Vrai si rien n'a été déclaré : le tuteur doit demander, pas supposer. */
   vide: boolean;
 }
@@ -51,16 +53,25 @@ export function profilDeclare(user: User): ProfilDeclare {
     .map((p) => p.trim())
     .filter((p) => p.length > 0);
 
+  // Le plan ne passe pas par `valeurDeclaree` : il n'a pas de libellé d'invite
+  // en base — la colonne est nullable, sans DEFAULT.
+  const plan = user.plan?.trim() ? user.plan.trim() : null;
+
   return {
     formation,
     objectifMoyenTerme,
     objectifLongTerme,
     preferencesPedagogiques,
+    plan,
+    // Un plan compte comme une déclaration : sans lui dans ce test, une
+    // personne qui n'aurait écrit que son plan verrait le tuteur affirmer que
+    // « rien n'a été déclaré » — et son plan tomberait avec le repli.
     vide:
       !formation &&
       !objectifMoyenTerme &&
       !objectifLongTerme &&
-      preferencesPedagogiques.length === 0,
+      preferencesPedagogiques.length === 0 &&
+      !plan,
   };
 }
 
@@ -98,6 +109,18 @@ export function serialiserProfilDeclare(user: User): string {
     lignes.push("");
     lignes.push("Préférences pédagogiques déclarées (à respecter, jamais à inférer) :");
     for (const pref of p.preferencesPedagogiques) lignes.push(`- ${pref}`);
+  }
+
+  // Plan de travail détaillé (Chantier 14).
+  if (p.plan) {
+    lignes.push("");
+    lignes.push("## PLAN DE TRAVAIL DÉCLARÉ");
+    lignes.push("");
+    lignes.push(p.plan);
+    lignes.push("");
+    lignes.push(
+      "Ce plan est ce que l'utilisateur veut accomplir. Tiens-en compte pour prioriser les compétences et orienter les exercices, sans pour autant écarter les compétences qui ne figurent pas explicitement dans le plan.",
+    );
   }
 
   return lignes.join("\n");
