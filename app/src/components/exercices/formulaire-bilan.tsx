@@ -181,9 +181,9 @@ export function FormulaireBilan({
       {/* Aide extérieure — plafonne l'autonomie enregistrée (ADR-033). */}
       <div>
         <div className="mb-2 text-xs font-medium">
-          As-tu eu besoin d'aide extérieure ?
+          As-tu eu besoin d&apos;aide extérieure ?
           <span className="ml-1.5 font-normal text-texte-discret">
-            — cela plafonne l'autonomie enregistrée
+            — cela plafonne l&apos;autonomie enregistrée
           </span>
         </div>
         <div className="grid gap-1.5 sm:grid-cols-2">
@@ -262,7 +262,7 @@ export function FormulaireBilan({
             {aide !== "aucune" && (
               <>
                 {" "}
-                — plafonnée par l'aide déclarée : {LIBELLE_AIDE[aide]}
+                — plafonnée par l&apos;aide déclarée : {LIBELLE_AIDE[aide]}
               </>
             )}
           </li>
