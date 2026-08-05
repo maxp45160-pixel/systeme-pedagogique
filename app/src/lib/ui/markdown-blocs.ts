@@ -27,7 +27,14 @@ export type BlocMarkdown =
   | { genre: "titre"; texte: string }
   | { genre: "citation"; texte: string }
   | { genre: "liste"; ordonnee: boolean; items: string[] }
+  | { genre: "formule"; latex: string }
   | { genre: "paragraphe"; texte: string };
+
+/** Formule affichée : `\[ … \]` ou `$$ … $$`, sur une ligne ou plusieurs. */
+const DELIMITEURS_FORMULE: ReadonlyArray<readonly [string, string]> = [
+  ["\\[", "\\]"],
+  ["$$", "$$"],
+];
 
 function estSeparateurTableau(ligne: string): boolean {
   return /^\|[\s|:-]+\|$/.test(ligne.trim());
@@ -49,6 +56,7 @@ function ouvreUnBloc(ligne: string): boolean {
     t === "" ||
     t.startsWith("```") ||
     t.startsWith("|") ||
+    DELIMITEURS_FORMULE.some(([ouvre]) => t.startsWith(ouvre)) ||
     t.startsWith(">") ||
     /^#{1,4}\s/.test(ligne) ||
     /^\s*[-*]\s+/.test(ligne) ||
@@ -89,6 +97,33 @@ export function decouperEnBlocs(contenu: string): BlocMarkdown[] {
         i++;
       }
       blocs.push({ genre: "tableau", entetes, corps });
+      continue;
+    }
+
+    /*
+     * Formule affichée. Le corps est accumulé jusqu'au délimiteur fermant, ou
+     * jusqu'à la fin du texte : le flux SSE livre régulièrement une formule
+     * ouverte mais pas encore close, et un `\[` orphelin ne doit pas bloquer la
+     * boucle. `i` a déjà avancé d'une ligne avant d'entrer dans l'accumulation.
+     */
+    const ouverture = DELIMITEURS_FORMULE.find(([ouvre]) => ligne.trim().startsWith(ouvre));
+    if (ouverture) {
+      const [ouvre, ferme] = ouverture;
+      const morceaux: string[] = [];
+      let reste = ligne.trim().slice(ouvre.length);
+      i++;
+      for (;;) {
+        const fin = reste.indexOf(ferme);
+        if (fin >= 0) {
+          morceaux.push(reste.slice(0, fin));
+          break;
+        }
+        morceaux.push(reste);
+        if (i >= lignes.length) break;
+        reste = lignes[i];
+        i++;
+      }
+      blocs.push({ genre: "formule", latex: morceaux.join(" ").trim() });
       continue;
     }
 

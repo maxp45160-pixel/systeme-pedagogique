@@ -1,5 +1,6 @@
 import { memo, type ReactNode } from "react";
 import { decouperEnBlocs } from "@/lib/ui/markdown-blocs";
+import { latexVersTexte, segmenterFormulesEnLigne } from "@/lib/ui/formule";
 
 /**
  * Rendu markdown minimal, écrit sur mesure.
@@ -15,8 +16,8 @@ import { decouperEnBlocs } from "@/lib/ui/markdown-blocs";
  * environnement node). Ce fichier ne décide plus rien — il rend.
  */
 
-/** Applique gras et code en ligne à l'intérieur d'une ligne. */
-function enligne(texte: string, pfx: string = "in"): ReactNode[] {
+/** Applique gras et code en ligne à l'intérieur d'un fragment de prose. */
+function emphase(texte: string, pfx: string): ReactNode[] {
   const sorties: ReactNode[] = [];
   // Découpe sur **gras** et `code`, en conservant les délimiteurs.
   const morceaux = texte.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
@@ -32,6 +33,24 @@ function enligne(texte: string, pfx: string = "in"): ReactNode[] {
     }
   }
   return sorties;
+}
+
+/**
+ * Rendu d'une ligne : formules en ligne d'abord, emphase ensuite.
+ *
+ * L'ordre compte — une formule est du code mathématique, pas de la prose : un
+ * `_` ou un `*` à l'intérieur doit rester un indice, jamais de l'italique.
+ */
+function enligne(texte: string, pfx: string = "in"): ReactNode[] {
+  return segmenterFormulesEnLigne(texte).flatMap((segment, idx) =>
+    segment.formule ? (
+      <span key={`${pfx}-f-${idx}`} className="formule">
+        {segment.texte}
+      </span>
+    ) : (
+      emphase(segment.texte, `${pfx}-${idx}`)
+    ),
+  );
 }
 
 export const Markdown = memo(function Markdown({ contenu }: { contenu: string }) {
@@ -81,6 +100,13 @@ export const Markdown = memo(function Markdown({ contenu }: { contenu: string })
         ));
         return bloc.ordonnee ? <ol key={cle}>{items}</ol> : <ul key={cle}>{items}</ul>;
       }
+
+      case "formule":
+        return (
+          <div key={cle} className="formule-affichee">
+            {latexVersTexte(bloc.latex)}
+          </div>
+        );
 
       case "paragraphe":
         return <p key={cle}>{enligne(bloc.texte, `${cle}-p`)}</p>;

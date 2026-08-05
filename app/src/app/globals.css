@@ -321,6 +321,23 @@
   .prose-exo ol {
     list-style: decimal;
   }
+  /* Formules : converties en Unicode par lib/ui/formule.ts, pas de librairie. */
+  .prose-exo .formule {
+    font-family: var(--font-geist-mono), ui-monospace, monospace;
+    font-size: 0.95em;
+    white-space: nowrap;
+  }
+  .prose-exo .formule-affichee {
+    font-family: var(--font-geist-mono), ui-monospace, monospace;
+    font-size: 1.05em;
+    text-align: center;
+    background: var(--surface-2);
+    border: 1px solid var(--bordure);
+    border-radius: 6px;
+    padding: 0.8rem 1rem;
+    overflow-x: auto;
+    white-space: pre-wrap;
+  }
 }
 
 /* Animations volontairement minimales : uniquement l'apparition de contenu. */
