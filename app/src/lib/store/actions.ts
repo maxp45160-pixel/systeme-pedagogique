@@ -22,8 +22,10 @@ import { verifier } from "./supabase-backend";
 import { lireReferentiel } from "./referentiel";
 import { compterTentatives, modeRetraitExercice } from "@/lib/domain/exercice";
 import {
-  autonomieDepuisIndices,
+  autonomieObservee,
+  LIBELLE_AIDE,
   qualiteDepuisDifficulte,
+  type AideExterne,
 } from "@/lib/engine/preuve";
 import { tentativeMenee } from "@/lib/engine/calibration";
 import type {
@@ -92,6 +94,15 @@ export interface SoumissionExercice {
   autoEvaluation: Partial<Record<Dimension, number>>;
   dureeMin: number;
   notes?: string;
+  /**
+   * Aide extérieure au système, déclarée par l'utilisateur (ADR-033).
+   *
+   * Plafonne l'autonomie enregistrée : documentation → A2, assistant IA → A1,
+   * correction → A0. Défaut prudent : « aucune » — le bilan d'exercice pose
+   * désormais la question, et l'absence de réponse ne doit pas relever
+   * l'autonomie.
+   */
+  aideExterne?: AideExterne;
 }
 
 /**
@@ -165,7 +176,11 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
     redirect(`/exercices/${exercice.id}?abandon=1`);
   }
 
-  const autonomie = autonomieDepuisIndices(tentative.indicesUtilises, exercice.indices.length);
+  const autonomie = autonomieObservee(
+    tentative.indicesUtilises,
+    exercice.indices.length,
+    soumission.aideExterne ?? "aucune",
+  );
   const qualite = qualiteDepuisDifficulte(exercice.difficulte, autonomie);
 
   // Une preuve par compétence ciblée. Les compétences secondaires sont
@@ -193,7 +208,14 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
         ? exercice.competences.filter((c) => c !== code)
         : undefined,
     source: { kind: "exercice" as const, ref: exercice.id },
-    commentaire: soumission.notes,
+    commentaire: [
+      soumission.notes,
+      soumission.aideExterne && soumission.aideExterne !== "aucune"
+        ? `Aide extérieure : ${LIBELLE_AIDE[soumission.aideExterne]}`
+        : null,
+    ]
+      .filter(Boolean)
+      .join(" · ") || undefined,
   }));
   await ajouterPlusieurs("evidence", preuves, dorsale);
 

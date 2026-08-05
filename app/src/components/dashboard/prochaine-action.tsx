@@ -14,6 +14,7 @@ import { Depliant } from "@/components/ui/explication";
 import { IconeFeuille, IconeFleche } from "@/components/ui/icones";
 import { formatDuree } from "@/lib/engine/dates";
 import { BoutonGenerer } from "@/components/exercices/bouton-generer";
+import { BoutonRefusRecommandation } from "@/components/dashboard/refus-recommandation";
 import {
   competencesPourModale,
   type CalibrageModale,
@@ -132,6 +133,10 @@ export function CarteProchaineAction({
           >
             Voir la compétence
           </Link>
+          <BoutonRefusRecommandation
+            code={etat.skill.code}
+            compteId={compteId}
+          />
         </div>
 
         <div className="mt-4 border-t border-bordure pt-3">

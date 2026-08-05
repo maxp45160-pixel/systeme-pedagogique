@@ -28,7 +28,6 @@ import {
   competencesPourModale,
 } from "@/components/exercices/proprietes-generation";
 import { RetraitExercice } from "@/components/exercices/retrait";
-import { amorceLotExercices, lienTuteur } from "@/lib/tutor/amorces";
 import { formatDuree } from "@/lib/engine/dates";
 
 /**
@@ -188,21 +187,23 @@ async function ContenuExercices({
                       key={domaine.id}
                       className="flex flex-wrap items-center justify-between gap-2 py-2"
                     >
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium">{domaine.nom}</p>
-                        <p className="mt-0.5 flex flex-wrap gap-1 text-[0.6875rem] text-texte-discret">
-                          {codes.map((c) => (
-                            <CodeCompetence key={c} code={c} />
-                          ))}
-                        </p>
-                      </div>
-                      <Link
-                        href={lienTuteur(amorceLotExercices(lot, domaine.nom))}
-                        className="shrink-0 text-xs text-primaire hover:underline"
-                      >
-                        Demander {lot.length} exercice{lot.length > 1 ? "s" : ""} au tuteur
-                        {codes.length > lot.length && ` (sur ${codes.length})`}
-                      </Link>
+                <div className="min-w-0">
+                  <p className="text-xs font-medium">{domaine.nom}</p>
+                  <p className="mt-0.5 flex flex-wrap gap-1 text-[0.6875rem] text-texte-discret">
+                    {codes.map((c) => (
+                      <CodeCompetence key={c} code={c} />
+                    ))}
+                  </p>
+                </div>
+                <BoutonGenerer
+                  competences={competencesPourModale(
+                    ctx.referentiel.actifs.filter((s) => s.domaine === domaine.id),
+                  )}
+                  competenceInitiale={lot[0]}
+                  calibrages={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
+                  compteId={ctx.donnees.user.id}
+                  libelle={`Générer un exercice${codes.length > lot.length ? ` (sur ${codes.length})` : ""}`}
+                />
                     </li>
                   );
                 })}

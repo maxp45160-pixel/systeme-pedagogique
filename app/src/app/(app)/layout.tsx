@@ -1,9 +1,11 @@
+import { Suspense } from "react";
 import { compteCourant } from "@/lib/supabase/server";
 import { supabaseConfigure } from "@/lib/supabase/config";
 import { Sidebar } from "@/components/layout/sidebar";
 import { NavMobile } from "@/components/layout/nav-mobile";
 import { CompteMobile } from "@/components/layout/compte";
 import { ProfilPage } from "@/components/dev/profil-page";
+import { BoutonTuteurFlottant } from "@/components/tuteur/bouton-flottant";
 
 /**
  * Cadre du carnet : rail de navigation, marge.
@@ -69,6 +71,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </div>
 
       <NavMobile />
+      <Suspense fallback={null}>
+        <BoutonTuteurFlottant />
+      </Suspense>
     </div>
   );
 }

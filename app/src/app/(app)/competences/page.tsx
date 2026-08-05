@@ -36,9 +36,9 @@ const VUES: { cle: Vue; libelle: string }[] = [
 ];
 
 export default async function PageCompetences(props: {
-  searchParams: Promise<{ vue?: string; periode?: string }>;
+  searchParams: Promise<{ vue?: string; periode?: string; recherche?: string }>;
 }) {
-  const { vue: vueBrute, periode } = await props.searchParams;
+  const { vue: vueBrute, periode, recherche } = await props.searchParams;
   const vue: Vue =
     vueBrute === "radar"
       ? "radar"
@@ -80,8 +80,8 @@ export default async function PageCompetences(props: {
         }
       />
 
-      <Suspense key={`${vue}-${periode ?? ""}`} fallback={<SqueletteContenu />}>
-        <ContenuCompetences vue={vue} periode={periode ?? "mois"} />
+      <Suspense key={`${vue}-${periode ?? ""}-${recherche ?? ""}`} fallback={<SqueletteContenu />}>
+        <ContenuCompetences vue={vue} periode={periode ?? "mois"} recherche={recherche} />
       </Suspense>
     </>
   );
@@ -128,7 +128,15 @@ function BandeauPerimetre({ referentiel }: { referentiel: Referentiel }) {
   );
 }
 
-async function ContenuCompetences({ vue, periode }: { vue: Vue; periode: string }) {
+async function ContenuCompetences({
+  vue,
+  periode,
+  recherche,
+}: {
+  vue: Vue;
+  periode: string;
+  recherche?: string;
+}) {
   const ctx = await chargerContexte();
   const domainesExistants = ctx.referentiel.domaines.map((d) => ({
     id: d.id,
@@ -155,7 +163,7 @@ async function ContenuCompetences({ vue, periode }: { vue: Vue; periode: string 
   }
 
   if (vue === "journal") {
-    return <PanneauJournal />;
+    return <PanneauJournal recherche={recherche} />;
   }
 
   return (

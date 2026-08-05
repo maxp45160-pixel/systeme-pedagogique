@@ -427,34 +427,91 @@ export default async function PageCompetence(props: {
             </Carte>
           )}
 
-          {etat.skill.prerequis.length > 0 && (
-            <Carte>
-              <EnTeteCarte titre="Prérequis" legende="Indicatifs, non bloquants" />
-              <ul className="divide-y divide-bordure">
-                {etat.skill.prerequis.map((c) => {
-                  const p = ctx.etatsParCode.get(c);
-                  return (
-                    <li key={c} className="px-4 py-2">
-                      <Link
-                        href={`/competences/${c}`}
-                        className="flex items-center justify-between gap-2 hover:underline"
-                      >
-                        <span className="min-w-0">
-                          <CodeCompetence code={c} />
-                          <span className="ml-1.5 text-xs text-texte-attenue">
-                            {p?.skill.intitule.slice(0, 40)}…
-                          </span>
-                        </span>
-                        <span className="chiffres shrink-0 text-xs text-texte-discret">
-                          {p?.niveau ?? "—"}/5
-                        </span>
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </Carte>
-          )}
+          {/*
+            Dépendances entre compétences (Chantier 10).
+            Les prérequis sont déjà affichés ; on ajoute les DÉPENDANTS —
+            les compétences qui citent celle-ci comme prérequis.
+          */}
+          {(() => {
+            const dependants = ctx.referentiel.actifs.filter((s) =>
+              s.prerequis.includes(etat.skill.code),
+            );
+            const aPrerequis = etat.skill.prerequis.length > 0;
+            const aDependants = dependants.length > 0;
+
+            if (!aPrerequis && !aDependants) return null;
+
+            return (
+              <Carte>
+                <EnTeteCarte
+                  titre="Dépendances"
+                  legende="Prérequis et compétences qui en dépendent"
+                />
+                {aPrerequis && (
+                  <div className="border-b border-bordure">
+                    <div className="px-4 pt-2.5 text-[0.625rem] font-semibold uppercase tracking-wider text-texte-discret">
+                      Prérequis (indicatifs, non bloquants)
+                    </div>
+                    <ul className="divide-y divide-bordure/60">
+                      {etat.skill.prerequis.map((c) => {
+                        const p = ctx.etatsParCode.get(c);
+                        return (
+                          <li key={c} className="px-4 py-2">
+                            <Link
+                              href={`/competences/${c}`}
+                              className="flex items-center justify-between gap-2 hover:underline"
+                            >
+                              <span className="min-w-0">
+                                <CodeCompetence code={c} />
+                                <span className="ml-1.5 text-xs text-texte-attenue">
+                                  {p?.skill.intitule.slice(0, 40)}
+                                  {p && p.skill.intitule.length > 40 ? "…" : ""}
+                                </span>
+                              </span>
+                              <span className="chiffres shrink-0 text-xs text-texte-discret">
+                                {p?.niveau ?? "—"}/5
+                              </span>
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+                {aDependants && (
+                  <div>
+                    <div className="px-4 pt-2.5 text-[0.625rem] font-semibold uppercase tracking-wider text-texte-discret">
+                      Compétences qui en dépendent
+                    </div>
+                    <ul className="divide-y divide-bordure/60">
+                      {dependants.map((s) => {
+                        const d = ctx.etatsParCode.get(s.code);
+                        return (
+                          <li key={s.code} className="px-4 py-2">
+                            <Link
+                              href={`/competences/${s.code}`}
+                              className="flex items-center justify-between gap-2 hover:underline"
+                            >
+                              <span className="min-w-0">
+                                <CodeCompetence code={s.code} />
+                                <span className="ml-1.5 text-xs text-texte-attenue">
+                                  {s.intitule.slice(0, 40)}
+                                  {s.intitule.length > 40 ? "…" : ""}
+                                </span>
+                              </span>
+                              <span className="chiffres shrink-0 text-xs text-texte-discret">
+                                {d?.niveau ?? "—"}/5
+                              </span>
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+              </Carte>
+            );
+          })()}
         </div>
       </div>
 

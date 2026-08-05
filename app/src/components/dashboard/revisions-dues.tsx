@@ -3,13 +3,13 @@ import type { SkillState } from "@/lib/domain/types";
 import { revisionsDues, type RevisionDue } from "@/lib/engine/spaced";
 import {
   Carte,
-  classesBouton,
   CodeCompetence,
   EnTeteCarte,
 } from "@/components/ui/primitives";
 import { Depliant } from "@/components/ui/explication";
 import { FacteursRevision } from "@/components/ui/facteurs-revision";
-import { IconeFleche } from "@/components/ui/icones";
+import { BoutonGenerer } from "@/components/exercices/bouton-generer";
+import type { CalibrageModale, CompetenceModale } from "@/components/exercices/proprietes-generation";
 
 /**
  * « À réviser » — les compétences dont l'intervalle de répétition espacée est
@@ -26,11 +26,19 @@ export function RevisionsDues({
   etats,
   now,
   codeExclu,
+  competences,
+  calibrages,
+  compteId,
 }: {
   etats: SkillState[];
   now: Date;
   /** Code de la recommandation n°1 — déjà affichée par `CarteProchaineAction`. */
   codeExclu?: string;
+  /** Compétences actives pour la modale de génération. */
+  competences: CompetenceModale[];
+  /** Calibrages de toutes les compétences actives, indexés par code. */
+  calibrages: Record<string, CalibrageModale>;
+  compteId: string;
 }) {
   const dues = revisionsDues(etats, now).filter((d) => d.etat.skill.code !== codeExclu);
 
@@ -59,7 +67,13 @@ export function RevisionsDues({
       />
       <ul className="divide-y divide-bordure">
         {affichees.map((d) => (
-          <LigneRevision key={d.etat.skill.code} due={d} />
+          <LigneRevision
+            key={d.etat.skill.code}
+            due={d}
+            competences={competences}
+            calibrages={calibrages}
+            compteId={compteId}
+          />
         ))}
       </ul>
 
@@ -97,7 +111,17 @@ export function RevisionsDues({
  * 5 j, 8 écoulés) ». Pas de « urgent », pas d'emoji, pas de score inventé —
  * un fait daté (P3).
  */
-function LigneRevision({ due }: { due: RevisionDue }) {
+function LigneRevision({
+  due,
+  competences,
+  calibrages,
+  compteId,
+}: {
+  due: RevisionDue;
+  competences: CompetenceModale[];
+  calibrages: Record<string, CalibrageModale>;
+  compteId: string;
+}) {
   const { etat, revision } = due;
   const ecoules = revision.joursEcoules ?? 0;
   const intervalle = revision.intervalleJours;
@@ -131,13 +155,14 @@ function LigneRevision({ due }: { due: RevisionDue }) {
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <Link
-            href={`/tuteur?competence=${etat.skill.code}`}
-            className={classesBouton("principal", "petite")}
-          >
-            Générer un exercice
-            <IconeFleche className="size-3.5" />
-          </Link>
+          <BoutonGenerer
+            competences={competences}
+            competenceInitiale={etat.skill.code}
+            calibrages={calibrages}
+            compteId={compteId}
+            libelle="Générer un exercice"
+            variante="principal"
+          />
         </div>
       </div>
 

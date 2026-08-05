@@ -14,13 +14,34 @@ import {
 import { calculerActivite, evenementsRecents } from "@/lib/engine/historique";
 import { formatDateCourte, formatDuree } from "@/lib/engine/dates";
 
-export async function PanneauJournal() {
+export async function PanneauJournal({ recherche: requete }: { recherche?: string }) {
   const ctx = await chargerContexte();
   const activite = calculerActivite(ctx.donnees.sessions, ctx.now);
   const evenements = evenementsRecents(ctx.donnees.evidence, ctx.referentiel.parCode, 200, ctx.now);
 
-  // Regroupement par jour, du plus récent au plus ancien.
-  const sessions = [...ctx.donnees.sessions].sort((a, b) => b.date.localeCompare(a.date));
+  // Filtrage par recherche textuelle (Chantier 6).
+  let sessions = [...ctx.donnees.sessions].sort((a, b) => b.date.localeCompare(a.date));
+  if (requete?.trim()) {
+    const q = requete.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+    sessions = sessions.filter((s) => {
+      const texte = [
+        s.resultat,
+        s.difficulte,
+        s.apprentissagePrincipal,
+        s.notePersonnelle,
+        s.prochaineAction,
+        ...s.skillCodes,
+        ...s.activites.map((a) => a.libelle),
+        ...s.domaines,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[̀-ͯ]/g, "");
+      return texte.includes(q);
+    });
+  }
   const parJour = new Map<string, typeof sessions>();
   for (const s of sessions) {
     const cle = s.date.slice(0, 10);
@@ -43,6 +64,33 @@ export async function PanneauJournal() {
         </Carte>
       ) : (
         <div className="space-y-4">
+          {/* Barre de recherche (Chantier 6) */}
+          <form className="relative" action="/competences" method="GET">
+            <input type="hidden" name="vue" value="journal" />
+            <input
+              type="search"
+              name="recherche"
+              defaultValue={requete ?? ""}
+              placeholder="Rechercher dans le journal… (compétence, mot-clé…)"
+              className="w-full rounded-md border border-bordure bg-surface px-3 py-2 pr-20 text-sm placeholder:text-texte-discret focus:border-primaire focus:outline-none"
+            />
+            <button
+              type="submit"
+              className="absolute right-1 top-1/2 -translate-y-1/2 rounded bg-primaire px-2.5 py-1 text-[0.6875rem] font-medium text-primaire-contraste"
+            >
+              Rechercher
+            </button>
+          </form>
+          {requete?.trim() && sessions.length === 0 ? (
+            <p className="rounded-md border border-bordure bg-surface-2 px-3 py-2 text-xs text-texte-attenue">
+              Aucune séance ne correspond à « {requete} ».
+            </p>
+          ) : requete?.trim() ? (
+            <p className="text-xs text-texte-attenue">
+              {sessions.length} séance{sessions.length > 1 ? "s" : ""} sur{" "}
+              {ctx.donnees.sessions.length}
+            </p>
+          ) : null}
           <Carte>
             <div className="flex flex-wrap gap-x-6 gap-y-3 px-4 py-3.5">
               <Statistique libelle="Séances enregistrées" valeur={sessions.length} />

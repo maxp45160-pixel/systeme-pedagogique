@@ -29,6 +29,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { classesBouton, cx, Etiquette } from "@/components/ui/primitives";
+import { Markdown } from "@/components/ui/markdown";
 import { creerExercice } from "@/lib/store/actions";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import { convertirProposition } from "@/lib/tutor/conversion-exercice";
@@ -389,62 +390,101 @@ export function ModaleExercice({
               </p>
             ) : (
               propositions.map((p, i) => (
-                <div key={i} className="rounded-md border border-bordure bg-surface-2 p-3">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <Etiquette ton="primaire">Proposition {i + 1}</Etiquette>
-                    {p.competences.map((c) => (
-                      <Etiquette key={c} mono>
-                        {c}
-                      </Etiquette>
-                    ))}
-                    {p.difficulte && (
-                      <span className="text-[0.6875rem] text-texte-attenue">
-                        difficulté {p.difficulte}/5
-                      </span>
-                    )}
-                    {enregistrees.has(i) && <Etiquette ton="succes">Enregistrée</Etiquette>}
+                <div key={i} className="overflow-hidden rounded-md border border-bordure bg-surface-2">
+                  {/* En-tête : titre + métadonnées */}
+                  <div className="border-b border-bordure bg-surface px-3 py-2.5">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Etiquette ton="primaire">Proposition {i + 1}</Etiquette>
+                      {enregistrees.has(i) && <Etiquette ton="succes">Enregistrée</Etiquette>}
+                    </div>
+                    <h3 className="mt-1.5 text-sm font-semibold leading-snug">{p.titre}</h3>
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                      {p.competences.map((c) => (
+                        <Etiquette key={c} mono>
+                          {c}
+                        </Etiquette>
+                      ))}
+                      {p.difficulte && (
+                        <span className="text-[0.6875rem] text-texte-attenue">
+                          difficulté {p.difficulte}/5
+                        </span>
+                      )}
+                      {p.dureeEstimeeMin && (
+                        <span className="text-[0.6875rem] text-texte-attenue">
+                          ≈ {p.dureeEstimeeMin} min
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <p className="mt-2 text-sm font-medium">{p.titre}</p>
-                  <p className="mt-1 whitespace-pre-wrap text-xs text-texte-attenue">{p.enonce}</p>
-                  {p.indices.length > 0 && (
-                    <div className="mt-2">
-                      <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
-                        Indices
-                      </p>
-                      <ul className="mt-1 space-y-0.5 text-xs text-texte-attenue">
-                        {p.indices.map((ind, j) => (
-                          <li key={j}>· {ind}</li>
-                        ))}
-                      </ul>
+
+                  {/* Corps : énoncé en markdown, indices et correction repliés */}
+                  <div className="px-3 py-2.5">
+                    <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
+                      Énoncé
+                    </p>
+                    <div className="prose-exo mt-1 text-xs">
+                      <Markdown contenu={p.enonce} />
                     </div>
-                  )}
-                  {p.correction && (
-                    <div className="mt-2">
-                      <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
-                        Correction
-                      </p>
-                      <p className="mt-1 whitespace-pre-wrap text-xs text-texte-attenue">
-                        {p.correction}
-                      </p>
-                    </div>
-                  )}
-                  {p.criteres.length > 0 && (
-                    <div className="mt-2">
-                      <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
-                        Critères
-                      </p>
-                      <ul className="mt-1 space-y-0.5 text-xs text-texte-attenue">
-                        {p.criteres.map((c, j) => (
-                          <li key={j}>
-                            · {LIBELLES_DIMENSIONS[c.dimension as Dimension] ?? c.dimension} —{" "}
-                            {c.libelle}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+
+                    {p.indices.length > 0 && (
+                      <details className="mt-2.5">
+                        <summary className="cursor-pointer text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret hover:text-texte">
+                          Indices ({p.indices.length})
+                        </summary>
+                        <ul className="mt-1.5 space-y-1 text-xs text-texte-attenue">
+                          {p.indices.map((ind, j) => (
+                            <li key={j} className="flex items-start gap-1.5">
+                              <span className="mt-0.5 text-texte-discret">{j + 1}.</span>
+                              <span>{ind}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    )}
+
+                    {p.correction && (
+                      <details className="mt-2.5">
+                        <summary className="cursor-pointer text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret hover:text-texte">
+                          Correction
+                        </summary>
+                        <div className="prose-exo mt-1.5 text-xs">
+                          <Markdown contenu={p.correction} />
+                        </div>
+                      </details>
+                    )}
+
+                    {p.criteres.length > 0 && (
+                      <div className="mt-2.5">
+                        <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
+                          Critères d'auto-évaluation
+                        </p>
+                        <ul className="mt-1 space-y-0.5 text-xs text-texte-attenue">
+                          {p.criteres.map((c, j) => (
+                            <li key={j} className="flex items-start gap-1.5">
+                              <span
+                                className={`mt-0.5 size-3 shrink-0 rounded-sm border ${
+                                  enregistrees.has(i)
+                                    ? "border-succes/40 bg-succes-faible"
+                                    : "border-bordure"
+                                }`}
+                                aria-hidden
+                              />
+                              <span>
+                                <span className="font-medium">
+                                  {LIBELLES_DIMENSIONS[c.dimension as Dimension] ?? c.dimension}
+                                </span>{" "}
+                                — {c.libelle}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Pied : actions */}
                   {!enregistrees.has(i) && (
-                    <div className="mt-3 flex justify-end gap-2">
+                    <div className="flex justify-end gap-2 border-t border-bordure bg-surface px-3 py-2">
                       {/* Ne retire que cette proposition — les autres restent. */}
                       <button
                         type="button"

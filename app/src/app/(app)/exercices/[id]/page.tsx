@@ -44,7 +44,11 @@ export default async function PageExercice(props: {
     [...tentatives].filter((a) => a.statut === "terminee").at(-1) ?? null;
 
   const cible = ctx.etatsParCode.get(exercice.competences[0]);
-  const correctionVisible = correction === "1" || bilan === "1" || derniereTerminee !== null;
+  // La correction reste masquée quand on REFIT un exercice : une nouvelle
+  // tentative doit repartir sans la solution sous les yeux, sinon elle ne
+  // mesure plus rien. `enCours` est vrai dès qu'une tentative est ouverte.
+  const correctionVisible =
+    correction === "1" || bilan === "1" || (derniereTerminee !== null && !enCours);
 
   const dureeSuggeree = enCours
     ? Math.max(

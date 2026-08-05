@@ -5,6 +5,7 @@ import type { Dimension, Exercise } from "@/lib/domain/types";
 import { LIBELLES_DIMENSIONS } from "@/lib/domain/types";
 import { terminerExercice } from "@/lib/store/actions";
 import { classesBouton, cx } from "@/components/ui/primitives";
+import { autonomieObservee, LIBELLE_AIDE, type AideExterne } from "@/lib/engine/preuve";
 
 const APPRECIATIONS = [
   { valeur: 0, libelle: "Non" },
@@ -17,6 +18,13 @@ const RESULTATS = [
   { valeur: "partiel", libelle: "Partiellement", aide: "Méthode correcte, résultat incomplet" },
   { valeur: "echec", libelle: "Non abouti", aide: "Je n'ai pas su faire" },
 ] as const;
+
+const AIDES: { valeur: AideExterne; libelle: string }[] = [
+  { valeur: "aucune", libelle: "Aucune" },
+  { valeur: "documentation", libelle: "Documentation, cours, manuel" },
+  { valeur: "assistant-ia", libelle: "Assistant IA" },
+  { valeur: "correction", libelle: "Correction obtenue" },
+];
 
 /**
  * Auto-évaluation après lecture de la correction.
@@ -41,17 +49,28 @@ export function FormulaireBilan({
   const [criteres, setCriteres] = useState<Record<number, number>>({});
   const [duree, setDuree] = useState(dureeSuggeree);
   const [notes, setNotes] = useState("");
+  const [aide, setAide] = useState<AideExterne>("aucune");
   const [enCours, demarrer] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
 
   const tousRenseignes = exercice.criteres.every((_, i) => criteres[i] !== undefined);
 
-  const autonomiePrevue =
-    indicesUtilises >= exercice.indices.length && exercice.indices.length > 0
-      ? "A1 — fortement guidé"
-      : indicesUtilises >= 1
-        ? "A2 — quelques indices nécessaires"
-        : "A3 — résolution autonome";
+  const autonomieCalculee = autonomieObservee(
+    indicesUtilises,
+    exercice.indices.length,
+    aide,
+  );
+  const autonomiePrevue = `${autonomieCalculee} — ${
+    autonomieCalculee === "A0"
+      ? "solution fournie"
+      : autonomieCalculee === "A1"
+        ? "fortement guidé"
+        : autonomieCalculee === "A2"
+          ? "quelques indices nécessaires"
+          : autonomieCalculee === "A3"
+            ? "résolution autonome"
+            : "autonome avec initiative méthodologique"
+  }`;
 
   function soumettre() {
     setErreur(null);
@@ -77,6 +96,7 @@ export function FormulaireBilan({
           autoEvaluation,
           dureeMin: duree,
           notes: notes.trim() || undefined,
+          aideExterne: aide,
         });
       } catch (e) {
         setErreur(e instanceof Error ? e.message : "Enregistrement impossible.");
@@ -158,6 +178,43 @@ export function FormulaireBilan({
         </ul>
       </div>
 
+      {/* Aide extérieure — plafonne l'autonomie enregistrée (ADR-033). */}
+      <div>
+        <div className="mb-2 text-xs font-medium">
+          As-tu eu besoin d'aide extérieure ?
+          <span className="ml-1.5 font-normal text-texte-discret">
+            — cela plafonne l'autonomie enregistrée
+          </span>
+        </div>
+        <div className="grid gap-1.5 sm:grid-cols-2">
+          {AIDES.map((a) => (
+            <button
+              key={a.valeur}
+              type="button"
+              onClick={() => setAide(a.valeur)}
+              className={cx(
+                "rounded-md border px-3 py-2 text-left text-xs transition-colors",
+                aide === a.valeur
+                  ? "border-primaire/40 bg-primaire-faible text-primaire"
+                  : "border-bordure text-texte-attenue hover:bg-surface-2",
+              )}
+            >
+              {a.libelle}
+            </button>
+          ))}
+        </div>
+        <p className="mt-1.5 text-[0.625rem] text-texte-discret">
+          {aide === "aucune" &&
+            "Aucune aide extérieure : l'autonomie sera déduite des seuls indices consultés."}
+          {aide === "documentation" &&
+            "Documentation consultée : l'autonomie est plafonnée à A2 — quelques indices nécessaires."}
+          {aide === "assistant-ia" &&
+            "Assistant IA sollicité : l'autonomie est plafonnée à A1 — solution fortement guidée."}
+          {aide === "correction" &&
+            "Correction obtenue : l'autonomie est plafonnée à A0 — solution fournie."}
+        </p>
+      </div>
+
       {/* Durée et notes */}
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block">
@@ -202,6 +259,12 @@ export function FormulaireBilan({
           <li>
             · Autonomie <strong>{autonomiePrevue}</strong>, déduite des {indicesUtilises} indice(s)
             consulté(s)
+            {aide !== "aucune" && (
+              <>
+                {" "}
+                — plafonnée par l'aide déclarée : {LIBELLE_AIDE[aide]}
+              </>
+            )}
           </li>
           <li>· Une entrée de journal datée</li>
         </ul>

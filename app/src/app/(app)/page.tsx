@@ -8,7 +8,10 @@ import { calculerActivite, evenementsRecents } from "@/lib/engine/historique";
 import { EntetePage } from "@/components/layout/entete-page";
 import { CarteEtatGlobal } from "@/components/dashboard/etat-global";
 import { CarteProchaineAction } from "@/components/dashboard/prochaine-action";
-import { calibragesPourModale } from "@/components/exercices/proprietes-generation";
+import {
+  calibragesPourModale,
+  competencesPourModale,
+} from "@/components/exercices/proprietes-generation";
 import { RevisionsDues } from "@/components/dashboard/revisions-dues";
 import { CarteProgressionRecente } from "@/components/dashboard/progression-recente";
 import { CarteActivite } from "@/components/dashboard/activite";
@@ -159,6 +162,9 @@ async function ContenuTableauDeBord() {
         etats={ctx.etats}
         now={ctx.now}
         codeExclu={ctx.recommandations[0]?.etat.skill.code}
+        competences={competencesPourModale(ctx.referentiel.actifs)}
+        calibrages={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
+        compteId={ctx.donnees.user.id}
       />
 
       {/*
