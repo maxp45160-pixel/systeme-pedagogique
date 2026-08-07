@@ -94,7 +94,7 @@ pratique et développer un sujet à long terme.
   deux cas. Sans moteur configuré : 503 et repli « copier le contexte ».
 - **Styles :** Tailwind CSS v4 ; **graphiques SVG écrits à la main**, aucune
   librairie UI tierce
-- **Tests :** Vitest — **422 tests**, 20 fichiers (moteur, répétition espacée,
+- **Tests :** Vitest — **501 tests**, 23 fichiers (moteur, répétition espacée,
   calibration, backend Supabase, référentiel par compte, cycle de vie des
   exercices, profil, parseurs de propositions, outils du tuteur, contexte du
   tuteur, amorces du tuteur, sélection du moteur du tuteur, génération sans
@@ -236,12 +236,24 @@ immuable — c'est la clé étrangère des preuves.
 
 - **Ne pas toucher au cœur** (`lib/domain/`, `lib/engine/`, `lib/store/`) sans
   demande explicite. C'est ce qui porte la garantie du système.
-- **Ne jamais laisser le tuteur écrire un code de compétence.** Les codes sont
-  attribués par l'application depuis le préfixe du domaine (ADR-026). Un code
-  inventé entrerait en collision et les preuves suivraient la mauvaise
-  compétence, sans erreur visible. Depuis ADR-031 le schéma de l'outil
-  `proposer_referentiel` n'a **aucun champ `code`** : l'interdit est devenu
-  inexprimable. Ne pas l'y réintroduire « pour la commodité ».
+- **Ne jamais laisser le tuteur FRAPPER un code de compétence** — mais il peut
+  en **désigner** un (ADR-043). Les deux ne sont pas le même acte :
+  - **frapper** = produire un identifiant que l'application n'a pas attribué.
+    Interdit : collision, preuves qui suivent la mauvaise compétence, **sans
+    erreur visible**. Les codes viennent du préfixe du domaine (ADR-026) ;
+    depuis ADR-031 les schémas de `proposer_referentiel`,
+    `proposer_referentiel_complet` et la section `ajouts` de `proposer_revision`
+    n'ont **aucun champ `code`** — l'interdit est inexprimable, ne pas l'y
+    réintroduire « pour la commodité » ;
+  - **désigner** = pointer un identifiant que l'application a **déjà attribué**
+    et vient de remettre au modèle. C'est ce que font `modifications`,
+    `retraits` et `prerequis` de `proposer_revision`, via un **`enum` fermé**
+    construit par le serveur sur les codes vivants du seul domaine révisé.
+    ⚠️ **Ne pas « simplifier » cet `enum` en `type: "string"`** : ce serait
+    rendre la frappe exprimable à nouveau, et le défaut serait invisible. Trois
+    couches le protègent — le schéma, `validerRevision`, `appliquerRevision` —
+    et les codes connus se lisent **dans le schéma lui-même**, jamais dans une
+    liste parallèle qui pourrait diverger.
 - **Ne pas supprimer une compétence qui porte des preuves** — l'archiver.
   `supprimerCompetence` refuse plutôt que de se replier en silence : une
   fonction qui fait autre chose que ce que son nom annonce s'érode (ADR-027).
@@ -278,6 +290,13 @@ immuable — c'est la clé étrangère des preuves.
   compte de tentatives inclut les **abandons**, contrairement à ce que fait la
   calibration : les deux modules ne posent pas la même question — « qu'a-t-on
   mesuré ? » d'un côté, « reste-t-il une trace au journal ? » de l'autre.
+- **Ne pas laisser un retrait être choisi plutôt que dérivé, même en lot**
+  (ADR-044). `scinderRetraits` (pur, testé) porte la règle d'ADR-027 et est
+  partagé par `retirerCompetences` **et** `appliquerRevision`. Deux copies
+  finiraient par diverger, et la divergence serait invisible : les deux chemins
+  « marcheraient », l'un effaçant ce que l'autre archive. `appliquerRevision`
+  ne contient **aucun `delete` direct**, et les retraits s'affichent **en
+  premier et décochés** — c'est le seul geste qu'on ne défait pas d'un clic.
 - **Ne pas remettre de filtres dans la liste d'exercices** (`exercices/page.tsx`).
   Cinq familles ont été retirées volontairement — « ~5 000 combinaisons pour une
   bibliothèque qui en compte une poignée ». Le besoin réel est de **regrouper**

@@ -55,6 +55,8 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [040](#adr-040) | La réponse écrite est la condition du bilan ; l'abandon est un geste | 🔬 Hypothèse (07/08) |
 | [041](#adr-041) | Le tuteur voit la correction sur un seul chemin, et n'en écrit aucune mesure | 🔬 Hypothèse (07/08) — amende [036](#adr-036) |
 | [042](#adr-042) | La maîtrise est un prédicat dérivé ; l'évolution est proposée, jamais appliquée | 🔬 Hypothèse (07/08) |
+| [043](#adr-043) | Le tuteur désigne un code, il n'en frappe aucun | ✅ Acceptée (07/08) — précise [026](#adr-026) |
+| [044](#adr-044) | Un référentiel se révise ; le retrait reste dérivé | 🔬 Hypothèse (07/08) |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08.)*
 
@@ -2697,6 +2699,138 @@ file une semaine **après** son arbitrage, un facteur négatif — à l'image du
 4. **Compter les compétences maîtrisées après un mois.** Si le nombre reste à
    deux, le seuil de niveau 4 est peut-être trop haut — ou le produit ne produit
    pas assez de contextes distincts, ce qui serait un fait plus intéressant.
+
+---
+
+## ADR-043 — Le tuteur désigne un code, il n'en frappe aucun ✅
+
+**Date.** 07/08/2026, lot C du chantier d'intégration IA.
+
+**Le problème.** CLAUDE.md §8 interdit de laisser le tuteur écrire un code de
+compétence, et ADR-031 a rendu l'interdit *structurel* en retirant le champ
+`code` du schéma de `proposer_referentiel`. Mais **réviser** un référentiel
+existant exige de désigner les compétences à reformuler ou à retirer. Appliquer
+l'interdit à la lettre rendrait la révision impossible ; l'assouplir sans le
+penser rouvrirait la classe de bugs qu'il ferme.
+
+**La distinction, à écrire noir sur blanc.**
+
+> **Frapper un code** = produire un identifiant que l'application n'a pas
+> attribué. Interdit : collision avec un code existant, preuves qui suivent la
+> mauvaise compétence, **sans erreur visible**.
+>
+> **Désigner un code** = pointer l'un des identifiants que l'application a
+> **déjà attribués** et qu'elle vient de remettre au modèle dans cette requête
+> même. Ce n'est pas le même acte, et il ne porte aucun des risques du premier.
+
+**Le design, en trois couches indépendantes.**
+
+1. **L'`enum` est fermé et construit par le serveur**, à la requête, sur les
+   codes vivants du **seul domaine révisé**. Une valeur hors de cet ensemble
+   n'est pas découragée : elle n'est pas dans le schéma. Deux bornes gratuites
+   au passage — une révision du domaine X ne peut pas renommer une compétence du
+   domaine Y, et une compétence **archivée** ne peut être ni renommée ni
+   re-retirée.
+2. **`validerRevision` revérifie l'appartenance.** Un fournisseur qui ignore le
+   schéma ne doit pas passer pour autant (ADR-031). Les codes connus sont tirés
+   du **schéma lui-même**, pas d'une liste passée à part : deux listes pourraient
+   diverger, une seule ne le peut pas.
+3. **`appliquerRevision` revérifie à l'écriture**, et refuse tout code dont le
+   domaine n'est pas celui révisé. Un bug du validateur ne peut donc pas toucher
+   une compétence hors périmètre ; RLS interdit de toucher un autre compte.
+
+**Et surtout : `ajouts` n'a aucun champ `code`.** L'interdit reste intact là où
+il compte — la frappe. L'`enum` ne fait que pointer.
+
+⚠️ **CLAUDE.md §8 est amendé** dans le même geste, pour qu'une session future ne
+« simplifie » pas cet `enum` en `type: "string"` par commodité. Ce serait rendre
+la frappe exprimable à nouveau, et le défaut serait invisible.
+
+---
+
+## ADR-044 — Un référentiel se révise ; le retrait reste dérivé 🔬
+
+**Date.** 07/08/2026, lot C du chantier d'intégration IA.
+
+**Ce qui manquait, dans les mots de Maxime.** « J'aime pas, il faut saisir à la
+main, ça marche pas bien. Sur la page compétence, on n'a pas d'option pour
+ajouter un référentiel. » Et sur une sous-page : « Ce référentiel ne couvre plus
+mes besoins, change-le » — **comportement attendu : mise à jour.**
+
+Deux manques distincts, donc, et le second est une capacité nouvelle :
+
+1. `/competences` n'avait **aucun** point d'entrée pour une branche neuve :
+   `+ Compétence` n'existe que sur la carte d'un domaine existant. Et
+   `proposer_referentiel` rend **une** branche, là où « le stoïcisme » en demande
+   plusieurs.
+2. Le référentiel ne se **révisait** pas. On pouvait créer, éditer une ligne à la
+   fois, retirer une ligne à la fois — pas reprendre une branche entière.
+
+### Ce qui est décidé
+
+`proposer_referentiel_complet` découpe un sujet en branches ; `proposer_revision`
+reprend une branche existante (ajouts, reformulations, retraits). Sur la page
+d'un domaine, **« + Compétence » devient « Réviser avec le tuteur »** — le
+chemin manuel reste atteignable depuis la modale, donc **la surface ne grossit
+pas d'un bouton**.
+
+### ADR-027 appliquée à un chemin groupé
+
+Le retrait reste **dérivé** : `scinderRetraits` (pure, testée, partagée avec
+`retirerCompetences`) décide par les preuves de chaque code, jamais par celles
+du lot. `appliquerRevision` ne contient **aucun `delete` direct**.
+
+L'écran ajoute une sécurité au-dessus d'ADR-027, qui exige seulement d'annoncer :
+**les retraits sont affichés en premier et décochés par défaut**. C'est le seul
+geste qu'on ne peut pas défaire d'un clic — une compétence archivée ne revient
+au périmètre qu'après avoir été désarchivée.
+
+### La réserve sur la reformulation en masse
+
+Renommer une compétence ne casse rien : le `code` est immuable, les preuves
+suivent. Mais **le sens de l'historique est réécrit**. Une preuve enregistrée sur
+« Sait reconstruire un argument » se lira désormais comme preuve de « Sait
+critiquer un sophisme ». ADR-027 autorise déjà d'éditer un intitulé — mais **à
+l'unité**. En masse, c'est un geste d'une autre nature.
+
+Mitigation retenue : le **nombre de preuves** est affiché à côté de chaque
+reformulation, et totalisé dans le pied de l'écran (P3). Pas d'interdiction :
+l'information, et la décision à la personne.
+
+### Pourquoi une branche écartée sur cinq est acceptable
+
+Le reste du module refuse plutôt que d'accepter à moitié. Ici, une branche
+invalide est **écartée** et les autres passent. La différence tient à ce qu'est
+l'objet : les parties d'un exercice forment **un** objet — un demi-exercice n'en
+est pas un. Cinq branches sont **cinq** unités, relues et cochées séparément.
+Écarter la quatrième ne produit aucun objet à moitié.
+
+La condition est que l'écart soit **annoncé** : une liste tronquée en silence se
+lirait comme un corpus complet (ADR-036). D'où `ecartees`, affiché. Zéro branche
+valide reste un rejet — il n'y a alors rien à relire.
+
+### 🔬 Test de réfutation
+
+1. **Après une révision, ouvrir le journal** et vérifier qu'aucune preuve n'a
+   perdu son sens. Si des entrées deviennent illisibles, le compte de preuves
+   affiché ne suffit pas et il faudra interdire la reformulation d'une
+   compétence au-delà d'un certain nombre de preuves.
+2. **Compter les retraits effectivement cochés.** S'ils sont systématiquement
+   décochés puis jamais recochés, le tuteur propose des retraits que personne ne
+   veut : la consigne du prompt est mal calée.
+3. **Vérifier qu'aucune preuve n'est orpheline** après plusieurs révisions :
+   ```sql
+   select count(*) from evidence e
+   where not exists (select 1 from competences c
+                     where c.user_id = e.user_id and c.code = e.skill_code);
+   ```
+   Doit rester à 0. Trois couches protègent ce chiffre — la dérivation
+   applicative, l'absence de `delete` direct, et la clé `evidence_competence_fk`,
+   **vérifiée posée en production le 07/08/2026**.
+4. **Regarder le nombre de branches proposées.** Si le tuteur en produit
+   systématiquement six pour des sujets étroits, le référentiel enflera — c'est
+   la situation du 28/07 (un grand référentiel sans contenu pour l'alimenter),
+   et la consigne « une seule si le sujet est étroit » aura échoué.
 
 ---
 
