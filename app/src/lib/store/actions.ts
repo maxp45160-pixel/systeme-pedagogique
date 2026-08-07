@@ -21,6 +21,7 @@ import { ajouter, ajouterPlusieurs, dorsaleCompte, lire, modifier, nouvelId } fr
 import { verifier } from "./supabase-backend";
 import { lireReferentiel } from "./referentiel";
 import { compterTentatives, modeRetraitExercice } from "@/lib/domain/exercice";
+import { motifBlocageBilan, reponseSuffisante } from "@/lib/domain/tentative";
 import {
   autonomieObservee,
   LIBELLE_AIDE,
@@ -121,6 +122,25 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
     exercices.find((e) => e.id === soumission.exerciseId) ??
     EXERCICES_DIAGNOSTIC.find((e) => e.id === soumission.exerciseId);
   if (!exercice) throw new Error(`Exercice introuvable : ${soumission.exerciseId}`);
+
+  /*
+   * Le refus a lieu AVANT toute écriture, et l'ordre n'est pas cosmétique.
+   *
+   * La fonction écrivait d'abord la tentative puis lisait la valeur de retour
+   * pour connaître `indicesUtilises`. Un refus placé après aurait laissé une
+   * tentative close, avec sa durée et son auto-évaluation, sans preuve pour
+   * l'expliquer — une trace à moitié écrite, plus difficile à lire qu'une
+   * absence de trace.
+   *
+   * La règle elle-même (`reponseSuffisante`) est le garde-fou serveur de ce que
+   * l'interface annonce déjà : sans réponse écrite, le bilan ne s'ouvre pas.
+   * L'interface peut être contournée, pas celle-ci.
+   */
+  const avant = (await lire("attempts", dorsale)).find((t) => t.id === soumission.attemptId);
+  if (!avant) throw new Error("Tentative introuvable");
+  if (!reponseSuffisante(avant.reponse)) {
+    throw new Error(motifBlocageBilan(avant.reponse) ?? "Réponse écrite manquante.");
+  }
 
   const date = new Date().toISOString();
 
@@ -244,6 +264,75 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
 
   revalidatePath("/", "layout");
   redirect(`/exercices/${exercice.id}?bilan=1`);
+}
+
+/**
+ * Clôt une tentative sans en rien conclure — le troisième chemin de clôture.
+ *
+ * Il en existait deux, et tous deux passaient par `terminerExercice` : la
+ * preuve écrite, et l'abandon *dérivé* d'une durée dérisoire (`tentativeMenee`,
+ * ADR-030). Les deux exigent une auto-évaluation, donc un bilan ouvert, donc
+ * — depuis la règle de la réponse écrite — une réponse rédigée. Une tentative
+ * qu'on ne veut pas mener n'aurait plus eu de sortie : elle serait restée
+ * `en-cours` indéfiniment, et l'exercice se serait affiché « en cours » pour
+ * toujours.
+ *
+ * Ce que cette fonction n'écrit pas est aussi important que ce qu'elle écrit :
+ *
+ * - **aucune preuve.** L'abandon n'est pas un échec. Un échec est une mesure,
+ *   il exige qu'on ait essayé ; un abandon dit seulement qu'on n'a pas essayé.
+ *   Les confondre ferait tomber un niveau sur un renoncement (P2, et c'est
+ *   exactement le défaut du 01/08/2026 corrigé par ADR-030).
+ * - **aucun `resultat`.** L'utilisateur ne s'est pas auto-évalué : lui prêter
+ *   un « partiel » par défaut serait fabriquer la mesure qu'on refuse d'écrire.
+ *   C'est sans danger pour la calibration, qui ne lit que les tentatives
+ *   `terminee` (`calibrer`, `recommend`, `usageExercice` filtrent toutes).
+ *
+ * La séance de journal, elle, est écrite : la minute passée est un fait, et la
+ * taire ferait disparaître l'abandon du suivi.
+ */
+export async function abandonnerExercice(
+  attemptId: string,
+  exerciseId: string,
+  dureeMin: number,
+): Promise<void> {
+  const dorsale = await dorsaleCompte();
+  const exercices = await lire("exercises", dorsale);
+  const { EXERCICES_DIAGNOSTIC } = await import("@/lib/seed/exercises");
+  const exercice =
+    exercices.find((e) => e.id === exerciseId) ??
+    EXERCICES_DIAGNOSTIC.find((e) => e.id === exerciseId);
+  if (!exercice) throw new Error(`Exercice introuvable : ${exerciseId}`);
+
+  const date = new Date().toISOString();
+  const duree = Number.isFinite(dureeMin) && dureeMin > 0 ? Math.round(dureeMin) : 1;
+
+  const tentative = await modifier(
+    "attempts",
+    attemptId,
+    { fin: date, dureeMin: duree, statut: "abandonnee" as const },
+    dorsale,
+  );
+  if (!tentative) throw new Error("Tentative introuvable");
+
+  await ajouter(
+    "sessions",
+    {
+      id: nouvelId("ses"),
+      date,
+      dureeMin: duree,
+      domaines: [exercice.domaine],
+      skillCodes: exercice.competences,
+      activites: [{ type: "exercice", ref: exercice.id, libelle: exercice.titre }],
+      resultat: "Tentative abandonnée — aucune preuve enregistrée",
+      difficulte: `Difficulté ${exercice.difficulte}/5 · ${duree} min sur ${exercice.dureeEstimeeMin} estimées`,
+      genereAutomatiquement: true,
+    } satisfies LearningSession,
+    dorsale,
+  );
+
+  revalidatePath("/", "layout");
+  redirect(`/exercices/${exercice.id}?abandon=1`);
 }
 
 /* ------------------------------------------------------------------ */
