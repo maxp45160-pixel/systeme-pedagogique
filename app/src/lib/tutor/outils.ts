@@ -30,6 +30,9 @@
  */
 
 import type { Referentiel } from "@/lib/domain/types";
+// Le barème vient du domaine, pas d'une constante locale : le prompt et l'écran
+// doivent nommer les mêmes valeurs dans les mêmes termes (`lib/domain/bilan.ts`).
+import { APPRECIATIONS, RESULTATS } from "@/lib/domain/bilan";
 import {
   exerciceComplet,
   type PropositionExercice,
@@ -42,6 +45,36 @@ import {
 
 export const OUTIL_EXERCICE = "proposer_exercice";
 export const OUTIL_REFERENTIEL = "proposer_referentiel";
+
+/**
+ * ⚠️ `proposer_correction` n'entre PAS dans `outilsTuteur`, et c'est le premier
+ * des six verrous qui bornent l'exception à ADR-036.
+ *
+ * ADR-036 dit que le tuteur voit le corpus — titres, compétences, difficulté,
+ * état d'usage — mais jamais les énoncés, et jamais la correction. Corriger une
+ * réponse exige pourtant de lire la correction : sans elle, le tuteur ne
+ * corrigerait pas, il improviserait un barème.
+ *
+ * L'exception est donc scopée à un seul chemin : un outil qui ne voyage pas
+ * avec le chat, un prompt dédié qui n'appelle jamais `construireContexte`, et
+ * une route qui n'accepte aucun historique de conversation. Le test
+ * `contexte.test.ts` « ne transmet JAMAIS la correction » reste vrai et reste
+ * la garantie du chat.
+ */
+export const OUTIL_CORRECTION = "proposer_correction";
+
+/**
+ * Plafond de longueur d'une justification de critère.
+ *
+ * Ce n'est pas une règle pédagogique, c'est une **borne de confinement**. La
+ * justification est la seule sortie du chemin de correction : si elle peut
+ * faire 2 000 caractères, elle peut contenir la correction réécrite, et
+ * l'exception à ADR-036 devient un tunnel plutôt qu'une fenêtre.
+ *
+ * 400 est un chiffre rond, choisi pour tenir « une à deux phrases » et rien de
+ * plus. Il se déplacera sur observation, comme tout seuil de ce dépôt.
+ */
+export const JUSTIFICATION_MAX = 400;
 
 /**
  * Sous-ensemble de JSON Schema effectivement employé ici.
@@ -211,6 +244,87 @@ function schemaReferentiel(): SchemaJson {
 }
 
 /**
+ * Le schéma de correction dépend de l'exercice : le nombre de critères y entre
+ * en borne haute du numéro de critère.
+ *
+ * Borner par le schéma plutôt que par une phrase du prompt n'est pas un détail
+ * de style. « Numérote de 1 à 5 » est une consigne qu'un modèle peut manquer ;
+ * `maximum: 5` est une valeur que le schéma n'admet pas. C'est la même
+ * bascule que celle du domaine en `enum` dans `schemaExercice` — une consigne
+ * de prompt devenue contrainte de structure.
+ *
+ * `valeur` est un `enum` de chaînes et non un nombre : `SchemaJson.enum` est
+ * déclaré `string[]`, et l'élargir toucherait l'interface partagée par les deux
+ * moteurs pour un besoin local. C'est déjà l'habitude de la maison —
+ * `PropositionExercice.difficulte` est une chaîne. La conversion explicite
+ * existe de toute façon en aval (`conversion-correction.ts`).
+ */
+function schemaCorrection(nombreDeCriteres: number): SchemaJson {
+  return {
+    type: "object",
+    properties: {
+      resultat: {
+        type: "string",
+        enum: RESULTATS.map((r) => r.valeur),
+        // Les aides viennent de `lib/domain/bilan.ts`, donc du même texte que
+        // celui affiché sous chaque bouton du formulaire. Deux échelles qui
+        // divergent ne lèveraient aucune erreur : elles produiraient une
+        // mesure fausse et silencieuse.
+        description: RESULTATS.map((r) => `${r.valeur} = ${r.aide}`).join(" · "),
+      },
+      appreciations: {
+        type: "array",
+        minItems: 1,
+        description:
+          "Une entrée par critère, exactement : ni plus, ni moins. Un critère non couvert fait rejeter la correction entière.",
+        items: {
+          type: "object",
+          properties: {
+            critere: {
+              type: "integer",
+              minimum: 1,
+              maximum: Math.max(1, nombreDeCriteres),
+              description: "Numéro du critère, dans l'ordre où il t'a été donné.",
+            },
+            valeur: {
+              type: "string",
+              enum: APPRECIATIONS.map((a) => String(a.valeur)),
+              description: APPRECIATIONS.map((a) => `${a.valeur} = ${a.libelle}`).join(" · "),
+            },
+            justification: {
+              type: "string",
+              description: `Une à deux phrases citant ce que la réponse contient ou omet. Ne recopie pas la correction. ${JUSTIFICATION_MAX} caractères au maximum.`,
+            },
+          },
+          required: ["critere", "valeur", "justification"],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ["resultat", "appreciations"],
+    additionalProperties: false,
+  };
+}
+
+/**
+ * L'outil de correction, pour un exercice donné.
+ *
+ * Rendu séparément et **jamais** ajouté à `outilsTuteur` : c'est ce qui le tient
+ * hors du chat, et donc ce qui borne l'exception à ADR-036 (voir
+ * `OUTIL_CORRECTION`).
+ */
+export function outilCorrection(
+  criteres: { dimension: string; libelle: string }[],
+): OutilTuteur {
+  return {
+    nom: OUTIL_CORRECTION,
+    description:
+      "Rends ton verdict sur la réponse de l'utilisateur, critère par critère. Tu n'enregistres rien : l'utilisateur relit ton verdict et le valide, le modifie, ou le rejette. Juge ce que la réponse CONTIENT ; ce qui n'y figure pas n'est pas démontré.",
+    schema: schemaCorrection(criteres.length),
+  };
+}
+
+/**
  * Les trois outils, pour un référentiel donné.
  *
  * Stable pour un compte tant que son référentiel ne change pas — même propriété
@@ -284,7 +398,20 @@ function dansEnum(valeur: unknown, valeurs: readonly string[]): string {
  */
 export type PropositionRecue =
   | { genre: "exercice"; exercice: PropositionExercice }
-  | { genre: "referentiel"; branche: PropositionReferentiel };
+  | { genre: "referentiel"; branche: PropositionReferentiel }
+  | { genre: "correction"; correction: PropositionCorrection };
+
+/**
+ * Une correction proposée, telle que l'outil la rend — tout en chaînes.
+ *
+ * Même convention que `PropositionExercice` : la validation garantit la
+ * *structure*, la conversion (`conversion-correction.ts`) garantit les
+ * *valeurs*, et elle refuse plutôt que de rabattre sur un défaut.
+ */
+export interface PropositionCorrection {
+  resultat: string;
+  appreciations: { critere: string; valeur: string; justification: string }[];
+}
 
 function validerExercice(entree: Record<string, unknown>): PropositionRecue | null {
   const criteres = (Array.isArray(entree.criteres) ? entree.criteres : [])
@@ -354,6 +481,61 @@ function validerReferentiel(entree: Record<string, unknown>): PropositionRecue |
 }
 
 /**
+ * Valide une correction proposée.
+ *
+ * Trois rejets, et aucun repli — c'est le point de tout le module :
+ *
+ * 1. **Une valeur hors de l'échelle est rejetée, jamais ramenée à 0.** Un 0 est
+ *    une mesure : « non démontré ». Le fabriquer à partir d'une valeur
+ *    illisible est exactement ce que P2 interdit, et le résultat serait
+ *    indiscernable d'un jugement réel.
+ * 2. **Un numéro de critère hors liste est rejeté.** Le schéma le borne déjà ;
+ *    un fournisseur qui ignore le schéma ne doit pas passer pour autant — le
+ *    validateur écrit à la main reste l'autorité (ADR-031).
+ * 3. **Une justification trop longue est rejetée.** C'est la borne de
+ *    confinement de l'exception à ADR-036 : sans elle, la « justification »
+ *    peut être la correction recopiée.
+ *
+ * La couverture exhaustive des critères n'est PAS vérifiée ici : elle demande
+ * de connaître leur nombre, et elle vit dans `convertirCorrection`. Une règle,
+ * une autorité.
+ */
+function validerCorrection(entree: Record<string, unknown>): PropositionRecue | null {
+  const resultat = dansEnum(
+    entree.resultat,
+    RESULTATS.map((r) => r.valeur),
+  );
+  if (!resultat) return null;
+
+  const brutes = Array.isArray(entree.appreciations) ? entree.appreciations : [];
+  if (brutes.length === 0) return null;
+
+  const echelle = APPRECIATIONS.map((a) => String(a.valeur));
+  const appreciations: PropositionCorrection["appreciations"] = [];
+
+  for (const brute of brutes) {
+    const o = objet(brute);
+    if (!o) return null;
+
+    const critere = nombreTexte(o.critere).replace(/[^0-9]/g, "");
+    if (!critere) return null;
+
+    // `nombreTexte` rend « 0.5 » pour le nombre 0.5 et « 0,5 » tel quel ; la
+    // normalisation de la virgule vit dans la conversion, avec le reste des
+    // règles de lecture. Ici on n'accepte que ce que l'échelle nomme.
+    const valeur = dansEnum(nombreTexte(o.valeur).replace(",", "."), echelle);
+    if (!valeur) return null;
+
+    const justification = texte(o.justification);
+    if (!justification || justification.length > JUSTIFICATION_MAX) return null;
+
+    appreciations.push({ critere, valeur, justification });
+  }
+
+  return { genre: "correction", correction: { resultat, appreciations } };
+}
+
+/**
  * Valide un appel d'outil et rend la proposition, ou `null`.
  *
  * `null` n'est pas un cas silencieux : les moteurs émettent un événement
@@ -369,6 +551,8 @@ export function validerAppelOutil(nom: string, entree: unknown): PropositionRecu
       return validerExercice(donnees);
     case OUTIL_REFERENTIEL:
       return validerReferentiel(donnees);
+    case OUTIL_CORRECTION:
+      return validerCorrection(donnees);
     default:
       return null;
   }
