@@ -54,6 +54,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [039](#adr-039) | Le « crash du tuteur » était une boucle infinie de rendu | ✅ Acceptée (04/08) |
 | [040](#adr-040) | La réponse écrite est la condition du bilan ; l'abandon est un geste | 🔬 Hypothèse (07/08) |
 | [041](#adr-041) | Le tuteur voit la correction sur un seul chemin, et n'en écrit aucune mesure | 🔬 Hypothèse (07/08) — amende [036](#adr-036) |
+| [042](#adr-042) | La maîtrise est un prédicat dérivé ; l'évolution est proposée, jamais appliquée | 🔬 Hypothèse (07/08) |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08.)*
 
@@ -2611,6 +2612,91 @@ protège pas le journal de preuves.
    correcteur complaisant.
 4. **Vérifier qu'aucune justification ne recopie la correction.** Si le plafond
    de 400 caractères est régulièrement atteint, il est mal calé.
+
+---
+
+## ADR-042 — La maîtrise est un prédicat dérivé ; l'évolution est proposée, jamais appliquée 🔬
+
+**Date.** 07/08/2026, lot B du chantier d'intégration IA.
+
+**La question.** ADR-035 a demandé « que devient un exercice maîtrisé ? » et y a
+répondu. Personne ne l'avait posée pour les **compétences**. Une compétence de
+niveau 5 restait dans la file de recommandation indéfiniment, avec un intervalle
+de révision seize fois plus long mais aucune sortie. Le produit savait dire « tu
+progresses » et ne savait pas dire « tu sais ».
+
+### Le prédicat
+
+```
+maitrisee ⟺ niveau !== null ∧ niveau >= 4 ∧ confiance ∈ {moyenne, forte}
+```
+
+**Aucune colonne, aucun stockage** (P1). Il se recalcule à chaque lecture, comme
+le niveau dont il dépend : une preuve contradictoire écrite demain le retire
+d'elle-même.
+
+**Pourquoi 4 et non 5.** Le niveau 5 de `niveauSoutenu` exige
+`competencesCombinees.length >= 1`, que `terminerExercice` n'écrit que pour un
+exercice visant plusieurs compétences. Mesuré le 07/08/2026 : **les 47 preuves
+du compte l'ont à `null`** — 2 exercices multi-compétences existent, aucune
+tentative terminée ne porte sur eux. **Le niveau 5 est donc inatteignable en
+pratique**, et c'est un fait sur le système qui méritait d'être consigné
+indépendamment de cet ADR. Poser la maîtrise à 5 aurait bâti une fonctionnalité
+qui ne se déclenche jamais : l'erreur exacte des six entités mortes du 28/07.
+
+Le niveau 4 est la définition protocolaire du transfert — deux réussites
+autonomes A3+ avec `transfert ≥ 0,6` sur deux contextes distincts. `DEB-01` et
+`RO-01` y sont aujourd'hui : le prédicat se déclenche sur des données réelles.
+
+**Pourquoi il n'ajoute aucun seuil.** C'est son argument central au regard de
+CLAUDE.md §8. La clause de confiance absorbe gratuitement ce qu'il faudrait
+sinon écrire à la main : une preuve contradictoire fait chuter l'échelon (P4),
+une dernière preuve de plus de 120 jours aussi, un contexte unique ne peut
+donner ni le niveau 4 ni une confiance moyenne, et une régression confirmée a
+déjà abaissé le niveau en amont.
+
+### Les trois évolutions, et ce que chacune écrit
+
+| Évolution | Écriture | Note |
+|---|---|---|
+| **successeur** | `creerBranche` — rattachement par **nom**, code par `attribuerCodes` | La compétence maîtrisée devient un **prérequis** du successeur : un fait du référentiel, pas une note. `SoumissionBranche` gagne `prerequis` ; la colonne `TEXT[]` existe déjà |
+| **élargissement** | **rien au référentiel** | Un « contexte » n'est pas un objet de base : `SkillEvidence.contexte` est le *titre de l'exercice*. Se résout en un exercice généré sur la **même** compétence, avec ce contexte pour thème |
+| **retrait** | `archiverCompetence` (ou `supprimerCompetence`), mode **dérivé** | Une compétence maîtrisée porte ≥ 2 preuves par construction : ce sera **toujours** un archivage. L'écran le dit avec le compte, avant le clic (ADR-027), et propose à côté le geste doux et réversible — sortir du périmètre |
+
+### Ce que ce lot ne fait pas
+
+**Il ne touche pas `recommend.ts`.** L'arbitrage de l'utilisateur *est* le
+mécanisme qui sort la compétence de la file ; y ajouter un facteur de score le
+préempterait, sur zéro donnée. Et `estDue` la tient déjà silencieuse 8 à 16 fois
+plus longtemps (`spaced.ts`).
+
+🔬 **Déclencheur pour rouvrir** : si une compétence maîtrisée reste en tête de la
+file une semaine **après** son arbitrage, un facteur négatif — à l'image du −15
+« Pratiquée récemment » — devient justifié.
+
+### 🗑️ Explicitement refusé, pour qu'on ne le repropose pas
+
+- une table ou une colonne `contextes` — un contexte est le titre d'un exercice ;
+- une colonne `maitrisee` ou `niveau` en base — P1, tout est dérivé ;
+- un niveau `Sujet` entre domaine et compétence — déjà refusé par ADR-037 ;
+- une carte de maîtrise sur le tableau de bord — une quatrième carte y serait le
+  défaut de surface qu'ADR-037 a nommé.
+
+### 🔬 Test de réfutation
+
+1. **Ouvrir `/competences/DEB-01`.** La carte doit être là, et son explication
+   citer le niveau 4, la confiance moyenne et les deux contextes. Sur `DEV-03`
+   (niveau bas), aucune carte, et `/api/competences/evolution` doit refuser.
+2. **Regarder les trois évolutions proposées sur un mois.** Si le tuteur
+   propose toujours « successeur », il ne lit pas les contextes : le référentiel
+   enflera sans que rien ne soit remesuré, et la réserve d'ADR-009 sur le
+   sur-ajout redevient d'actualité.
+3. **Vérifier qu'aucun successeur ne redouble une compétence voisine.** Les
+   intitulés du domaine partent dans le prompt pour cette raison ; si des
+   doublons apparaissent, le garde-fou ne suffit pas.
+4. **Compter les compétences maîtrisées après un mois.** Si le nombre reste à
+   deux, le seuil de niveau 4 est peut-être trop haut — ou le produit ne produit
+   pas assez de contextes distincts, ce qui serait un fait plus intéressant.
 
 ---
 
