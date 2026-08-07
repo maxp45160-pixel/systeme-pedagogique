@@ -2345,6 +2345,27 @@ déclare de quelle aide elle a disposé.
 3. **Rouvrir P8.** Poser la question d'autonomie dans le bilan d'exercice est le
    candidat évident. Tant que ce n'est pas fait, le biais est borné mais réel.
 
+### ⚠️ Correction factuelle — 07/08/2026
+
+**Le paragraphe « Ce que cela coûte » ci-dessus est faux depuis le jour où il a
+été écrit.** Le bilan d'exercice **pose** la question de l'aide extérieure :
+`components/exercices/formulaire-bilan.tsx` affiche les quatre options (aucune,
+documentation, assistant IA, correction obtenue), `soumettre` transmet
+`aideExterne`, et `terminerExercice` en dérive `autonomieObservee`
+(`lib/engine/preuve.ts`, `PLAFOND_AIDE`).
+
+Vérifié : `aideExterne` est entré dans ce composant par le commit `5424f4d`
+(04/08/2026, « Chantier du 02/08 au 04/08 ») — **le jour même d'ADR-038**. Les
+deux gestes se sont croisés, et l'ADR a décrit un état que le code venait de
+quitter. Le point 3 du test de réfutation était donc déjà fait au moment où il
+a été écrit.
+
+**Ce que cela ne tranche pas.** Le chemin existe, ce qui lève l'objection
+d'ADR-038 ; mais le barème `PLAFOND_AIDE` n'a jamais été confronté à l'usage, et
+les 29 preuves antérieures ne sont toujours pas retouchables faute de donnée.
+**P8 reste donc 🔬** — le rendre ✅ est un arbitrage humain, pas une conclusion
+de session (règle du §1 de `CLAUDE.md`).
+
 ---
 
 ## ADR-039 — Le « crash du tuteur » était une boucle infinie de rendu ✅
