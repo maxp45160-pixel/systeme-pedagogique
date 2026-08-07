@@ -6,18 +6,14 @@ import { LIBELLES_DIMENSIONS } from "@/lib/domain/types";
 import { terminerExercice } from "@/lib/store/actions";
 import { classesBouton, cx } from "@/components/ui/primitives";
 import { autonomieObservee, LIBELLE_AIDE, type AideExterne } from "@/lib/engine/preuve";
+import { APPRECIATIONS, RESULTATS, type ResultatBilan } from "@/lib/domain/bilan";
 
-const APPRECIATIONS = [
-  { valeur: 0, libelle: "Non" },
-  { valeur: 0.5, libelle: "En partie" },
-  { valeur: 1, libelle: "Oui" },
-] as const;
-
-const RESULTATS = [
-  { valeur: "reussi", libelle: "Réussi", aide: "Méthode et résultat corrects" },
-  { valeur: "partiel", libelle: "Partiellement", aide: "Méthode correcte, résultat incomplet" },
-  { valeur: "echec", libelle: "Non abouti", aide: "Je n'ai pas su faire" },
-] as const;
+/*
+ * `APPRECIATIONS` et `RESULTATS` vivaient ici. Ils sont partis dans
+ * `lib/domain/bilan.ts` parce que le prompt de correction (lot A1) doit rendre
+ * son verdict dans **exactement** les mêmes termes : deux échelles qui
+ * divergent ne lèveraient aucune erreur, elles produiraient une mesure fausse.
+ */
 
 const AIDES: { valeur: AideExterne; libelle: string }[] = [
   { valeur: "aucune", libelle: "Aucune" },
@@ -45,7 +41,7 @@ export function FormulaireBilan({
   dureeSuggeree: number;
   indicesUtilises: number;
 }) {
-  const [resultat, setResultat] = useState<"reussi" | "partiel" | "echec">("reussi");
+  const [resultat, setResultat] = useState<ResultatBilan>("reussi");
   const [criteres, setCriteres] = useState<Record<number, number>>({});
   const [duree, setDuree] = useState(dureeSuggeree);
   const [notes, setNotes] = useState("");
