@@ -20,6 +20,7 @@ import { computeAllSkillStates } from "@/lib/engine/skill-state";
 import { calculerEtatGlobal, type EtatGlobal } from "@/lib/engine/progression";
 import { recommander, type Recommandation } from "@/lib/engine/recommend";
 import { calibrerToutes, type Calibration } from "@/lib/engine/calibration";
+import { evaluerMaitrises, type Maitrise } from "@/lib/engine/maitrise";
 import { mesurer, mesurerSync } from "@/lib/profiling/server";
 import { assemblerReferentiel } from "@/lib/domain/referentiel-compte";
 import type { Referentiel, SkillState } from "@/lib/domain/types";
@@ -45,6 +46,12 @@ export interface Contexte {
    * calibrage du prochain exercice. Dérivé à chaque lecture, jamais stocké.
    */
   calibrations: Map<string, Calibration>;
+  /**
+   * « Cette compétence est-elle sue ? » — dérivé de `etats`, jamais stocké (P1,
+   * ADR-042). Aucun seuil propre : niveau ≥ 4 et confiance ≥ moyenne, deux
+   * valeurs que `computeSkillState` a déjà produites.
+   */
+  maitrises: Map<string, Maitrise>;
   now: Date;
 }
 
@@ -141,6 +148,15 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
     { exercices: exercicesActifs.length, tentatives: donnees.attempts.length },
   );
 
+  /*
+   * La maîtrise est dérivée des états, donc calculée après eux et jamais
+   * stockée (P1). Placée APRÈS `recommander` volontairement : elle n'entre pas
+   * dans la file, et ne doit pas donner l'impression de l'influencer. C'est
+   * l'arbitrage de l'utilisateur — successeur, élargissement, retrait — qui
+   * sort une compétence maîtrisée du cycle, pas un facteur de score (ADR-042).
+   */
+  const maitrises = evaluerMaitrises(etats);
+
   return {
     donnees,
     exercicesActifs,
@@ -150,6 +166,7 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
     global,
     recommandations,
     calibrations,
+    maitrises,
     now,
   };
 });
