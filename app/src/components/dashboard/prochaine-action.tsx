@@ -134,7 +134,7 @@ export function CarteProchaineAction({
           >
             Voir la compétence
           </Link>
-          <BoutonRefusRecommandation code={etat.skill.code} />
+          <BoutonRefusRecommandation code={etat.skill.code} exerciceId={exercice?.id} />
         </div>
 
         <div className="mt-4 border-t border-bordure pt-3">

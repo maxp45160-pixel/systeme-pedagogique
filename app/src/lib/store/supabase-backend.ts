@@ -15,7 +15,16 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { User } from "@/lib/domain/types";
+import type {
+  Domaine,
+  Exercise,
+  ExerciseAttempt,
+  LearningSession,
+  RefusRecommandation,
+  Skill,
+  SkillEvidence,
+  User,
+} from "@/lib/domain/types";
 import type { Collections } from "./db";
 
 /** Collections tabulaires — `user` est traité à part (table `profiles`). */
@@ -106,6 +115,88 @@ export function profilVersUser(
 // La traduction inverse (User → colonnes `profiles`) n'existe pas : aucun
 // écran n'édite le profil. Elle sera à réécrire le jour où cet écran existera
 // — cinq lignes symétriques de `profilVersUser` — plutôt que maintenue à vide.
+
+/* ------------------------------------------------------------------ */
+/* Chargement groupé (RPC `charger_tout`)                              */
+/* ------------------------------------------------------------------ */
+
+/** Ce que `charger_tout` doit rapporter : profil, données, référentiel. */
+export interface ResultatRPC {
+  collections: Collections;
+  domaines: Domaine[];
+  competences: Skill[];
+}
+
+/**
+ * Clés attendues dans la charge utile de `charger_tout`, hors `profile`.
+ *
+ * Toute table ajoutée aux `Collections` s'ajoute ici **et** dans la fonction
+ * SQL (`supabase/schema.sql` § 8bis).
+ */
+export const CLES_RPC = [
+  "evidence",
+  "exercises",
+  "attempts",
+  "sessions",
+  "refus_recommandations",
+  "domaines",
+  "competences",
+] as const;
+
+/**
+ * Charge utile de `charger_tout` → entités du domaine.
+ *
+ * Renvoie `null` — et n'invente rien — dès qu'une clé attendue manque : le
+ * code appelant se replie alors sur les lectures séparées, qui, elles, lisent
+ * bien toutes les tables.
+ *
+ * C'est le garde-fou qui manquait. La fonction SQL a vécu deux mois sans
+ * renvoyer `refus_recommandations` ; la conversion fabriquait un `[]` pour la
+ * clé absente, le moteur n'excluait jamais rien, et « Passer une suggestion »
+ * restait sans effet — un `[]` fabriqué est indiscernable d'un `[]` mesuré.
+ * C'est P2 (ADR-034) appliqué au transport : quand une valeur venue de la
+ * dorsale est illisible, refuser de conclure plutôt que produire un défaut
+ * plausible.
+ *
+ * Une liste vide reste parfaitement légitime — quand la clé est *présente*.
+ */
+export function convertirResultatRPC(
+  brut: unknown,
+  defautProfil: User,
+): ResultatRPC | null {
+  if (!brut || typeof brut !== "object" || Array.isArray(brut)) return null;
+  const charge = brut as Record<string, unknown>;
+
+  const manquantes = CLES_RPC.filter((cle) => !(cle in charge));
+  if (manquantes.length > 0) {
+    console.warn(
+      `[store] charger_tout : clés absentes de la charge utile (${manquantes.join(", ")})` +
+        " — repli sur les lectures séparées. La fonction SQL a dérivé du schéma.",
+    );
+    return null;
+  }
+
+  const profilBrut = charge.profile as Record<string, unknown> | null;
+  const user: User = profilBrut ? profilVersUser(profilBrut, defautProfil) : defautProfil;
+
+  const convertirListe = <T>(cle: string): T[] =>
+    ((charge[cle] as Record<string, unknown>[] | null) ?? []).map((l) =>
+      ligneVersEntite<T>(l),
+    );
+
+  return {
+    collections: {
+      user,
+      evidence: convertirListe<SkillEvidence>("evidence"),
+      exercises: convertirListe<Exercise>("exercises"),
+      attempts: convertirListe<ExerciseAttempt>("attempts"),
+      sessions: convertirListe<LearningSession>("sessions"),
+      refusRecommandations: convertirListe<RefusRecommandation>("refus_recommandations"),
+    },
+    domaines: convertirListe<Domaine>("domaines"),
+    competences: convertirListe<Skill>("competences"),
+  };
+}
 
 /* ------------------------------------------------------------------ */
 /* Diagnostic                                                          */

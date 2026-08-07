@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  CLES_RPC,
+  convertirResultatRPC,
   entiteVersLigne,
   ligneVersEntite,
   profilVersUser,
@@ -204,6 +206,80 @@ describe("profil", () => {
   it("remonte le plan déclaré", () => {
     const user = profilVersUser({ id: "compte-1", plan: "Consolider la logique." }, defaut);
     expect(user.plan).toBe("Consolider la logique.");
+  });
+});
+
+/*
+ * Chargement groupé — 07/08/2026.
+ *
+ * `charger_tout` a vécu deux mois sans renvoyer `refus_recommandations` : la
+ * conversion fabriquait un `[]` pour la clé absente, le moteur n'excluait rien
+ * et « Passer une suggestion » restait sans effet. Aucun test ne pouvait le
+ * voir — la conversion vivait dans un module `server-only`.
+ *
+ * Ces tests tiennent le garde-fou : une charge utile amputée est refusée, pas
+ * complétée. Un `[]` mesuré et un `[]` fabriqué doivent rester discernables.
+ */
+describe("charge utile de charger_tout", () => {
+  const defautProfil: User = {
+    id: "compte-1",
+    prenom: "alice",
+    formation: "Formation à renseigner",
+    objectifMoyenTerme: "MT",
+    objectifLongTerme: "LT",
+    debutSuivi: "2026-07-26",
+    preferencesPedagogiques: [],
+  };
+
+  const chargeComplete = (surcharge: Record<string, unknown> = {}) => ({
+    profile: { id: "compte-1", prenom: "Maxime" },
+    ...Object.fromEntries(CLES_RPC.map((cle) => [cle, []])),
+    ...surcharge,
+  });
+
+  it("convertit une charge utile complète", () => {
+    const resultat = convertirResultatRPC(
+      chargeComplete({
+        refus_recommandations: [
+          { id: "ref-1", user_id: "compte-1", code: "DEV-01", exercice_id: "ex-1", date: "2026-08-07" },
+        ],
+      }),
+      defautProfil,
+    );
+
+    expect(resultat).not.toBeNull();
+    expect(resultat!.collections.user.prenom).toBe("Maxime");
+    expect(resultat!.collections.refusRecommandations).toEqual([
+      { id: "ref-1", code: "DEV-01", exerciceId: "ex-1", date: "2026-08-07" },
+    ]);
+  });
+
+  it("refuse une charge utile amputée d'une clé plutôt que d'inventer une liste vide", () => {
+    for (const cle of CLES_RPC) {
+      const ampute = chargeComplete();
+      delete (ampute as Record<string, unknown>)[cle];
+      expect(convertirResultatRPC(ampute, defautProfil), `clé « ${cle} » absente`).toBeNull();
+    }
+  });
+
+  it("accepte une liste vide quand la clé est présente — l'absence de donnée est une donnée", () => {
+    const resultat = convertirResultatRPC(chargeComplete(), defautProfil);
+    expect(resultat).not.toBeNull();
+    expect(resultat!.collections.refusRecommandations).toEqual([]);
+    expect(resultat!.competences).toEqual([]);
+  });
+
+  it("refuse ce qui n'est pas un objet", () => {
+    expect(convertirResultatRPC(null, defautProfil)).toBeNull();
+    expect(convertirResultatRPC([], defautProfil)).toBeNull();
+    expect(convertirResultatRPC("{}", defautProfil)).toBeNull();
+  });
+
+  it("retombe sur le profil neutre quand la ligne `profiles` n'existe pas encore", () => {
+    // Le trigger `handle_new_user` peut n'avoir pas encore écrit : ce n'est pas
+    // une charge utile amputée, `profile` est bien présent, à null.
+    const resultat = convertirResultatRPC(chargeComplete({ profile: null }), defautProfil);
+    expect(resultat!.collections.user).toEqual(defautProfil);
   });
 });
 

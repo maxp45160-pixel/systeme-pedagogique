@@ -399,15 +399,22 @@ export async function supprimerExercice(exerciceId: string): Promise<void> {
  * Il est stocké en base (et non en localStorage) pour que le moteur de
  * recommandation puisse le prendre en compte au prochain calcul.
  *
+ * `exerciceId` fixe la portée : l'exercice proposé, ou — s'il est absent
+ * parce qu'aucun exercice n'était proposé — la compétence entière.
+ *
  * L'expiration (7 jours) est gérée à la lecture, jamais à l'écriture : on
  * n'efface pas un fait passé, on cesse de le prendre en compte.
  */
-export async function refuserRecommandation(code: string): Promise<void> {
+export async function refuserRecommandation(
+  code: string,
+  exerciceId?: string,
+): Promise<void> {
   const dorsale = await dorsaleCompte();
   const { error } = await dorsale.supabase.from("refus_recommandations").insert({
     id: nouvelId("ref"),
     user_id: dorsale.userId,
     code,
+    exercice_id: exerciceId ?? null,
     date: new Date().toISOString(),
   });
   verifier("enregistrement du refus de recommandation", error);

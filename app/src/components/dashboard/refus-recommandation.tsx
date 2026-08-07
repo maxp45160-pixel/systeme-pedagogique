@@ -8,7 +8,17 @@
  * et le moteur de recommandation l'exclut de la file pour 7 jours.
  *
  * Le refus est un fait observé : il ne modifie pas le moteur, il le filtre.
- * Le moteur reste pur et testé — il reçoit un Set de codes refusés.
+ * Le moteur reste pur et testé — il reçoit les ensembles de refus.
+ *
+ * Portée : l'exercice proposé. La compétence reste recommandable avec un
+ * autre exercice ; elle ne sort de la file que si tous les siens ont été
+ * passés. Sans `exerciceId` — cas du repli « Générer un exercice », où rien
+ * n'est proposé — le refus porte sur la compétence entière.
+ *
+ * Aucun état « déjà passé » n'est gardé ici : `router.refresh()` remplace la
+ * carte par la suivante, et c'est ce remplacement qui est le retour visible.
+ * Un drapeau local survivrait au rafraîchissement (React ne démonte pas le
+ * composant) et masquerait le bouton de la *nouvelle* recommandation.
  */
 
 import { useState, useTransition } from "react";
@@ -16,9 +26,15 @@ import { useRouter } from "next/navigation";
 import { classesBouton } from "@/components/ui/primitives";
 import { refuserRecommandation } from "@/lib/store/actions";
 
-export function BoutonRefusRecommandation({ code }: { code: string }) {
+export function BoutonRefusRecommandation({
+  code,
+  exerciceId,
+}: {
+  code: string;
+  /** Exercice proposé, s'il y en a un. Absent : le refus porte sur la compétence. */
+  exerciceId?: string;
+}) {
   const router = useRouter();
-  const [refuse, setRefuse] = useState(false);
   const [enCours, demarrer] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
 
@@ -26,21 +42,12 @@ export function BoutonRefusRecommandation({ code }: { code: string }) {
     setErreur(null);
     demarrer(async () => {
       try {
-        await refuserRecommandation(code);
-        setRefuse(true);
+        await refuserRecommandation(code, exerciceId);
         router.refresh();
       } catch (e) {
         setErreur(e instanceof Error ? e.message : "Impossible d'enregistrer le refus.");
       }
     });
-  }
-
-  if (refuse) {
-    return (
-      <span className="text-xs text-texte-discret">
-        Suggestion passée — la suivante prend sa place.
-      </span>
-    );
   }
 
   return (
@@ -50,7 +57,11 @@ export function BoutonRefusRecommandation({ code }: { code: string }) {
         onClick={refuser}
         disabled={enCours}
         className={classesBouton("secondaire", "petite")}
-        title="Écarte cette suggestion pendant 7 jours"
+        title={
+          exerciceId
+            ? "Écarte cet exercice pendant 7 jours et propose autre chose"
+            : "Écarte cette compétence pendant 7 jours"
+        }
       >
         {enCours ? "Passage…" : "Passer"}
       </button>

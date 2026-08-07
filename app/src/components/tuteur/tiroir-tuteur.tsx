@@ -14,14 +14,25 @@
  * compte (`cleParCompte`, ADR-029). Un lien « ouvrir en pleine page » permet
  * de passer au chat plein écran pour les longues conversations.
  *
- * Pas de bouton flottant global : le tiroir s'ouvre depuis les endroits où
- * poser une question a un sens, pas partout.
+ * Depuis le 07/08/2026 le tiroir a aussi un déclencheur **flottant**, monté
+ * globalement (`tuteur-global.tsx`) : le bouton rond en bas à droite ouvre le
+ * panneau au lieu de naviguer vers `/tuteur`, ce qui faisait perdre la page en
+ * cours — exactement le défaut que le tiroir existait pour corriger. Il est
+ * masqué là où une entrée contextuelle, mieux renseignée, existe déjà.
  */
 
 import { useState } from "react";
 import Link from "next/link";
 import { ChatTuteur, type EtatContexteTuteur } from "@/components/tuteur/chat";
-import { classesBouton } from "@/components/ui/primitives";
+import { classesBouton, cx } from "@/components/ui/primitives";
+
+/** Bouton rond en bas à droite — le déclencheur global. */
+const CLASSES_FLOTTANT = cx(
+  "fixed bottom-6 right-6 z-40 flex size-12 items-center justify-center",
+  "rounded-full bg-primaire text-primaire-contraste shadow-lg",
+  "transition-transform hover:scale-105 active:scale-95",
+  "focus:outline-none focus:ring-2 focus:ring-primaire focus:ring-offset-2",
+);
 
 export function TiroirTuteur({
   etatInitial,
@@ -31,6 +42,7 @@ export function TiroirTuteur({
   compteId,
   domainesExistants,
   libelle = "Demander de l'aide au tuteur",
+  declencheur = "bouton",
 }: {
   etatInitial: EtatContexteTuteur;
   competenceCiblee?: string;
@@ -40,17 +52,28 @@ export function TiroirTuteur({
   /** Domaines existants — le chat ouvre la modale de compétences in situ. */
   domainesExistants: { id: string; nom: string; prefixe: string }[];
   libelle?: string;
+  /** `flottant` : bouton rond global. `bouton` : bouton en ligne, dans la page. */
+  declencheur?: "bouton" | "flottant";
 }) {
   const [ouvert, setOuvert] = useState(false);
+  const flottant = declencheur === "flottant";
 
   return (
     <>
       <button
         type="button"
         onClick={() => setOuvert(true)}
-        className={classesBouton("secondaire", "petite")}
+        aria-label={flottant ? libelle : undefined}
+        title={flottant ? libelle : undefined}
+        className={flottant ? CLASSES_FLOTTANT : classesBouton("secondaire", "petite")}
       >
-        {libelle}
+        {flottant ? (
+          <span className="text-lg font-bold" aria-hidden>
+            💬
+          </span>
+        ) : (
+          libelle
+        )}
       </button>
 
       {ouvert && (

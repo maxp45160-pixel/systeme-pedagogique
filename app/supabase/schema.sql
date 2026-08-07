@@ -334,14 +334,21 @@ CREATE TABLE IF NOT EXISTS public.sessions (
 -- l'écriture.
 -- --------------------------------------------------------------------
 
+-- `exercice_id` NULL = refus de la compétence entière. Renseigné, le refus
+-- ne porte que sur l'exercice proposé : la compétence reste recommandable
+-- avec un autre exercice.
 CREATE TABLE IF NOT EXISTS public.refus_recommandations (
-  id         TEXT NOT NULL,
-  user_id    UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  code       TEXT NOT NULL,
-  date       TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  id          TEXT NOT NULL,
+  user_id     UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  code        TEXT NOT NULL,
+  exercice_id TEXT,
+  date        TEXT NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (user_id, id)
 );
+
+ALTER TABLE public.refus_recommandations
+  ADD COLUMN IF NOT EXISTS exercice_id TEXT;
 
 -- --------------------------------------------------------------------
 -- 8. RLS + index, appliqués uniformément aux tables de données
@@ -388,6 +395,50 @@ CREATE INDEX IF NOT EXISTS attempts_user_exercise_idx
 -- sérialisation pour le tuteur).
 CREATE INDEX IF NOT EXISTS competences_user_domaine_idx
   ON public.competences (user_id, domaine);
+
+-- --------------------------------------------------------------------
+-- 8bis. Chargement groupé — les huit tables du compte en un aller-retour
+--
+-- Sept requêtes parallèles coûtaient ~750 ms de latence cumulée ; cette
+-- RPC les ramène à un seul aller-retour. `chargerToutRPC` (lib/store/db.ts)
+-- l'appelle et se replie sur les lectures séparées si elle est absente
+-- **ou si sa charge utile ne porte pas toutes les clés attendues**.
+--
+-- Cette fonction a longtemps vécu uniquement dans Supabase Studio : elle a
+-- dérivé du schéma en oubliant `refus_recommandations`, et « Passer une
+-- suggestion » est resté sans effet sans qu'aucun test puisse le voir.
+-- Toute table ajoutée aux `Collections` doit apparaître ici.
+--
+-- SECURITY INVOKER (défaut) : soumise à RLS comme n'importe quelle lecture.
+-- --------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION public.charger_tout()
+RETURNS JSON
+LANGUAGE plpgsql
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  uid uuid := auth.uid();
+  resultat json;
+BEGIN
+  SELECT json_build_object(
+    'profile',     (SELECT row_to_json(p) FROM profiles p WHERE p.id = uid),
+    'evidence',    COALESCE((SELECT json_agg(row_to_json(e)) FROM evidence e WHERE e.user_id = uid), '[]'::json),
+    'exercises',   COALESCE((SELECT json_agg(row_to_json(x)) FROM exercises x WHERE x.user_id = uid), '[]'::json),
+    'attempts',    COALESCE((SELECT json_agg(row_to_json(a)) FROM attempts a WHERE a.user_id = uid), '[]'::json),
+    'sessions',    COALESCE((SELECT json_agg(row_to_json(s)) FROM sessions s WHERE s.user_id = uid), '[]'::json),
+    'refus_recommandations',
+                   COALESCE((SELECT json_agg(row_to_json(r)) FROM refus_recommandations r WHERE r.user_id = uid), '[]'::json),
+    'domaines',    COALESCE((SELECT json_agg(row_to_json(d)) FROM domaines d WHERE d.user_id = uid), '[]'::json),
+    'competences', COALESCE((SELECT json_agg(row_to_json(c)) FROM competences c WHERE c.user_id = uid), '[]'::json)
+  ) INTO resultat;
+
+  RETURN resultat;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.charger_tout() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.charger_tout() TO authenticated;
 
 -- --------------------------------------------------------------------
 -- 9. TODOs de développement — table *partagée*

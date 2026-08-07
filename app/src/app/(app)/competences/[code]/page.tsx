@@ -32,9 +32,7 @@ import {
   competencesPourModale,
 } from "@/components/exercices/proprietes-generation";
 import { TiroirTuteur } from "@/components/tuteur/tiroir-tuteur";
-import type { EtatContexteTuteur } from "@/components/tuteur/chat";
-import { construireContexte } from "@/lib/tutor/contexte";
-import { choisirConfiguration, decrireChoix } from "@/lib/tutor/moteurs";
+import { construireEtatInitialTuteur } from "@/lib/tutor/etat-initial";
 import { formatDateCourte, formatDateRelative } from "@/lib/engine/dates";
 import { prochaineRevision } from "@/lib/engine/spaced";
 
@@ -60,14 +58,7 @@ export default async function PageCompetence(props: {
   const recommandation = ctx.recommandations.find((r) => r.etat.skill.code === etat.skill.code);
 
   // Contexte du tuteur pour le tiroir — même assemblage que la page /tuteur.
-  const pedagogique = await construireContexte(ctx, [], undefined);
-  const choix = choisirConfiguration(process.env);
-  const etatInitialTuteur: EtatContexteTuteur = {
-    cleConfiguree: choix.kind !== "aucun",
-    modele: decrireChoix(choix),
-    manifeste: pedagogique.manifeste,
-    caracteresTotal: pedagogique.caracteresTotal,
-  };
+  const etatInitialTuteur = await construireEtatInitialTuteur(ctx);
   const codesCompetences = ctx.etats.map((e) => e.skill.code);
   const domainesExistants = ctx.referentiel.domaines.map((d) => ({
     id: d.id,

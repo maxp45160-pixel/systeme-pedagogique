@@ -117,19 +117,27 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
     { exercices: exercicesActifs.length, tentatives: donnees.attempts.length },
   );
 
-  // Refus de recommandation (R1) : les compétences refusées sont écartées de
+  // Refus de recommandation (R1) : ce que l'utilisateur a passé est écarté de
   // la file pour 7 jours. L'expiration est gérée ici, à la lecture.
-  const refus = donneesBrutes.refusRecommandations ?? [];
-  const maintenant = Date.now();
+  //
+  // Deux portées, distinguées par la présence de `exerciceId` : l'exercice
+  // seul (cas normal, la compétence reste recommandable autrement) ou la
+  // compétence entière (refus antérieurs au 07/08/2026, et refus posés quand
+  // aucun exercice n'était proposé).
+  const maintenant = now.getTime();
   const EXPIRATION_REFUS_MS = 7 * 24 * 60 * 60 * 1000;
-  const codesRefuses = new Set(
-    refus
-      .filter((r) => maintenant - new Date(r.date).getTime() < EXPIRATION_REFUS_MS)
-      .map((r) => r.code),
+  const refusFrais = (donneesBrutes.refusRecommandations ?? []).filter(
+    (r) => maintenant - new Date(r.date).getTime() < EXPIRATION_REFUS_MS,
   );
+  const refus = {
+    codes: new Set(refusFrais.filter((r) => !r.exerciceId).map((r) => r.code)),
+    exercices: new Set(
+      refusFrais.map((r) => r.exerciceId).filter((id): id is string => Boolean(id)),
+    ),
+  };
 
   const recommandations = mesurerSync("recommander", () =>
-    recommander(etats, exercicesActifs, donnees.attempts, 6, calibrations, now, codesRefuses),
+    recommander(etats, exercicesActifs, donnees.attempts, 6, calibrations, now, refus),
     { exercices: exercicesActifs.length, tentatives: donnees.attempts.length },
   );
 

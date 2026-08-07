@@ -328,8 +328,18 @@ export interface ExerciseAttempt {
  */
 export interface RefusRecommandation {
   id: string;
-  /** Code de la compétence refusée. */
+  /** Code de la compétence sur laquelle portait la recommandation refusée. */
   code: string;
+  /**
+   * Exercice refusé. Absent = c'est la **compétence entière** qui est écartée.
+   *
+   * Renseigné, le refus ne retire que cet exercice : la compétence reste
+   * recommandable avec un autre. Écarter la compétence à chaque « Passer »
+   * assèchait la file — 40 des 54 compétences actives n'ont aucun exercice.
+   * Absent reste le cas légitime des refus antérieurs au 07/08/2026 et de
+   * ceux posés quand aucun exercice n'était proposé (repli « Générer »).
+   */
+  exerciceId?: string;
   /** Date du refus (ISO). */
   date: string;
 }

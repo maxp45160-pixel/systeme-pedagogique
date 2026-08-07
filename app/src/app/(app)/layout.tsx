@@ -5,7 +5,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { NavMobile } from "@/components/layout/nav-mobile";
 import { CompteMobile } from "@/components/layout/compte";
 import { ProfilPage } from "@/components/dev/profil-page";
-import { BoutonTuteurFlottant } from "@/components/tuteur/bouton-flottant";
+import { TuteurGlobal } from "@/components/tuteur/tuteur-global";
 
 /**
  * Cadre du carnet : rail de navigation, marge.
@@ -71,8 +71,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </div>
 
       <NavMobile />
+      {/*
+        Le tiroir du tuteur, monté hors du flux : `Suspense` le laisse streamer
+        après la page, l'assemblage de son contexte ne retarde donc aucun rendu.
+      */}
       <Suspense fallback={null}>
-        <BoutonTuteurFlottant />
+        <TuteurGlobal />
       </Suspense>
     </div>
   );

@@ -261,22 +261,33 @@ function recommandable(
   return etat.preuves.some((p) => p.resultat === "reussi" && p.date > depuis);
 }
 
-/** Choisit l'exercice le mieux adapté au niveau visé, parmi les recommandables. */
+/**
+ * Choisit l'exercice le mieux adapté au niveau visé, parmi les recommandables.
+ *
+ * `null` a deux sens que l'appelant doit distinguer, d'où le second membre du
+ * couple renvoyé : « cette compétence n'avait rien à proposer » (repli
+ * « Générer un exercice ») et « elle avait de quoi, mais tout a été refusé »
+ * (la compétence sort de la file).
+ */
 function choisirExercice(
   etat: SkillState,
   exercices: Exercise[],
   tentatives: ExerciseAttempt[],
   cible: Difficulte,
-): Exercise | null {
-  const candidats = exercices.filter(
+  exercicesRefuses: Set<string>,
+): { exercice: Exercise | null; toutRefuse: boolean } {
+  const recommandables = exercices.filter(
     (ex) => ex.competences.includes(etat.skill.code) && recommandable(ex, etat, tentatives),
   );
-  if (candidats.length === 0) return null;
+  const candidats = recommandables.filter((ex) => !exercicesRefuses.has(ex.id));
+  if (candidats.length === 0) {
+    return { exercice: null, toutRefuse: recommandables.length > 0 };
+  }
 
   // Priorité aux diagnostics tant que la compétence n'a aucune preuve.
   if (etat.preuves.length === 0) {
     const diag = candidats.find((ex) => ex.diagnostic);
-    if (diag) return diag;
+    if (diag) return { exercice: diag, toutRefuse: false };
   }
 
   // À difficulté également adaptée, ce qui n'a jamais été tenté passe devant.
@@ -285,12 +296,13 @@ function choisirExercice(
   const jamaisTente = (ex: Exercise) =>
     terminees(ex.id, tentatives).length === 0 ? 0 : 1;
 
-  return candidats.sort(
+  const exercice = candidats.sort(
     (a, b) =>
       jamaisTente(a) - jamaisTente(b) ||
       Math.abs(a.difficulte - cible) - Math.abs(b.difficulte - cible) ||
       a.dureeEstimeeMin - b.dureeEstimeeMin,
   )[0];
+  return { exercice, toutRefuse: false };
 }
 
 function construireRaison(facteurs: Facteur[]): string {
@@ -310,19 +322,25 @@ export function recommander(
   calibrations?: Map<string, Calibration>,
   now: Date = new Date(),
   /**
-   * Codes de compétences refusées par l'utilisateur (R1).
+   * Ce que l'utilisateur a écarté (R1). Un refus est un fait observé.
    *
-   * Un refus est un fait observé : la personne a écarté une suggestion.
-   * Les compétences refusées sont exclues de la file de recommandation
-   * pour la durée d'expiration (7 jours, gérée à la lecture). Le moteur
-   * reste pur : il reçoit un Set de codes, il ne lit pas la base.
+   * - `exercices` : les exercices passés. C'est la portée normale — la
+   *   compétence reste recommandable avec un autre exercice.
+   * - `codes` : les compétences passées entières. Portée des refus antérieurs
+   *   au 07/08/2026 et de ceux posés quand aucun exercice n'était proposé.
+   *
+   * L'expiration (7 jours) est gérée à la lecture, en amont. Le moteur reste
+   * pur : il reçoit deux ensembles, il ne lit ni la base ni l'horloge pour ça.
    */
-  codesRefuses: Set<string> = new Set(),
+  refus: { codes: Set<string>; exercices: Set<string> } = {
+    codes: new Set(),
+    exercices: new Set(),
+  },
 ): Recommandation[] {
   const parCode = new Map(etats.map((e) => [e.skill.code, e]));
 
   return etats
-    .filter((e) => !codesRefuses.has(e.skill.code))
+    .filter((e) => !refus.codes.has(e.skill.code))
     .map((etat) => {
       const { valeur, facteurs } = evaluer(etat, parCode, now);
       // La calibration règle la DIFFICULTÉ ; elle ne re-classe pas les
@@ -332,8 +350,14 @@ export function recommander(
       const calibration = calibrations?.get(etat.skill.code) ?? null;
       const cible = difficulteCible(etat, calibration ?? undefined);
 
-      const exercice = choisirExercice(etat, exercices, tentatives, cible);
-      return {
+      const { exercice, toutRefuse } = choisirExercice(
+        etat,
+        exercices,
+        tentatives,
+        cible,
+        refus.exercices,
+      );
+      const recommandation: Recommandation = {
         etat,
         valeur,
         facteurs,
@@ -343,7 +367,17 @@ export function recommander(
         dureeEstimeeMin: exercice?.dureeEstimeeMin ?? 30,
         calibration,
       };
+      return { recommandation, toutRefuse };
     })
+    // Une compétence dont *tous* les exercices ont été passés sort de la file.
+    // `toutRefuse` reste interne au moteur : il répond à « pourquoi ce null ? »,
+    // pas à une question que l'interface se pose.
+    //
+    // Sans ce filtre, passer le dernier exercice d'une compétence la laisse en
+    // tête avec le repli « Générer un exercice » : le clic paraîtrait sans
+    // effet, ce qui est exactement le défaut que ce mécanisme répare.
+    .filter((r) => !r.toutRefuse)
+    .map((r) => r.recommandation)
     .sort((a, b) => {
       if (b.valeur !== a.valeur) return b.valeur - a.valeur;
       // Départage stable, dérivé du référentiel du compte : palier, puis rang
