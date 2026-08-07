@@ -144,21 +144,25 @@ le moteur en dérive le palier — documentation → A2, assistant IA → A1,
 correction → A0, en prenant toujours le minimum avec ce que disent les indices
 internes. Un fait constatable a remplacé une auto-évaluation.
 
-🔬 **Deux réserves, écrites plutôt que tues.** Le **bilan d'exercice** ne pose
-pas la question : il dispose déjà d'une mesure non déclarative, mais quelqu'un
-qui fait un exercice de l'application avec Claude ouvert à côté reste coté A3.
-Et les **29 preuves antérieures** ne sont pas retouchées — aucune donnée ne dit
-quelle aide a servi, et les inventer serait la faute que ce système combat.
+🔬 **Une réserve, écrite plutôt que tue.** Les **29 preuves antérieures** ne sont
+pas retouchées — aucune donnée ne dit quelle aide a servi, et les inventer serait
+la faute que ce système combat.
 
 🔬 **Rouvert le 04/08/2026 (ADR-038).** Le formulaire de preuve manuelle a été
 retiré : il n'était pas utilisé, et le lot 1 lève la pénurie d'exercices qui le
-justifiait. Mais c'était **le seul chemin qui posait la question de l'aide
-extérieure**. Il ne reste que le bilan d'exercice, c'est-à-dire précisément la
-réserve ci-dessus, désormais sans contrepartie. P8 repasse donc de ✅ à 🔬 : la
-correction d'ADR-033 tient toujours pour les preuves déjà enregistrées par ce
-chemin, mais aucune nouvelle preuve ne l'emprunte. Reposer la question dans le bilan d'exercice est le candidat évident
-pour refermer ce principe ; tant que ce n'est pas fait, le biais est borné mais
-réel.
+justifiait. Mais c'était le seul chemin qui posait alors la question de l'aide
+extérieure. P8 est repassé de ✅ à 🔬.
+
+⚠️ **Corrigé le 07/08/2026.** La phrase « le bilan d'exercice ne pose pas la
+question » était fausse au moment où elle a été écrite. Le bilan la pose depuis
+le commit `5424f4d` (04/08), soit le jour même d'ADR-038 : les deux gestes se
+sont croisés. `formulaire-bilan.tsx` affiche les quatre options, et
+`terminerExercice` en dérive `autonomieObservee`.
+
+**P8 reste 🔬 malgré tout**, pour une raison différente de celle d'ADR-038 : le
+chemin existe, mais le barème `PLAFOND_AIDE` (documentation → A2, assistant
+IA → A1, correction → A0) n'a jamais été confronté à l'usage. Le refermer en ✅
+demande une décision humaine, pas une relecture de code.
 
 ## 6. Horizon
 

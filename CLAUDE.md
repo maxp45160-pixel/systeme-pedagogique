@@ -94,11 +94,13 @@ pratique et développer un sujet à long terme.
   deux cas. Sans moteur configuré : 503 et repli « copier le contexte ».
 - **Styles :** Tailwind CSS v4 ; **graphiques SVG écrits à la main**, aucune
   librairie UI tierce
-- **Tests :** Vitest — **335 tests**, 15 fichiers (moteur, répétition espacée,
+- **Tests :** Vitest — **501 tests**, 23 fichiers (moteur, répétition espacée,
   calibration, backend Supabase, référentiel par compte, cycle de vie des
   exercices, profil, parseurs de propositions, outils du tuteur, contexte du
   tuteur, amorces du tuteur, sélection du moteur du tuteur, génération sans
-  conversation, conversion d'exercice, découpage markdown)
+  conversation, suggestion de branche, conversion d'exercice, conversion de
+  correction, prompt de correction, règle de la réponse écrite, découpage
+  markdown, formules)
 - **Déploiement :** Vercel (Root Directory = `app`)
 - **Gestionnaire de paquets :** npm (workspace racine → `app/`)
 - **Outillage :** serveur MCP Supabase (`.mcp.json`)
@@ -135,12 +137,14 @@ un `CHECK BETWEEN 1 AND 5` (ADR-034), et la colonne `exercises.archive` apparaî
 (ADR-035). `schema.sql` porte les mêmes définitions pour une installation neuve.
 Inutile de le rejouer.
 
-⚠️ **Migration du référentiel non appliquée à ce jour.** ADR-026 déplace le
-référentiel en base. L'ordre est : `schema.sql` (§ 2 crée les tables) →
-`supabase/migration-referentiel.sql` (généré par `scripts/migrer-referentiel.ts`)
-→ `schema.sql` à nouveau, qui pose alors `evidence_competence_fk`. Cette clé
-n'est créée que si aucune preuve n'est orpheline ; sinon le fichier émet un
-`NOTICE` et continue.
+✅ **Migration du référentiel appliquée.** Vérifié le 07/08/2026 :
+`evidence_competence_fk` **est posée** en base et **aucune preuve n'est
+orpheline**. (Cette section affirmait le contraire — le texte datait d'avant
+l'application.) L'ordre, pour mémoire et pour une installation neuve :
+`schema.sql` (§ 2 crée les tables) → `supabase/migration-referentiel.sql`
+(généré par `scripts/migrer-referentiel.ts`) → `schema.sql` à nouveau, qui pose
+alors la clé. Elle n'est créée que si aucune preuve n'est orpheline ; sinon le
+fichier émet un `NOTICE` et continue.
 
 **Variables d'environnement** (`app/.env.local`, voir `.env.example`) :
 `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` — **désormais
@@ -232,12 +236,24 @@ immuable — c'est la clé étrangère des preuves.
 
 - **Ne pas toucher au cœur** (`lib/domain/`, `lib/engine/`, `lib/store/`) sans
   demande explicite. C'est ce qui porte la garantie du système.
-- **Ne jamais laisser le tuteur écrire un code de compétence.** Les codes sont
-  attribués par l'application depuis le préfixe du domaine (ADR-026). Un code
-  inventé entrerait en collision et les preuves suivraient la mauvaise
-  compétence, sans erreur visible. Depuis ADR-031 le schéma de l'outil
-  `proposer_referentiel` n'a **aucun champ `code`** : l'interdit est devenu
-  inexprimable. Ne pas l'y réintroduire « pour la commodité ».
+- **Ne jamais laisser le tuteur FRAPPER un code de compétence** — mais il peut
+  en **désigner** un (ADR-043). Les deux ne sont pas le même acte :
+  - **frapper** = produire un identifiant que l'application n'a pas attribué.
+    Interdit : collision, preuves qui suivent la mauvaise compétence, **sans
+    erreur visible**. Les codes viennent du préfixe du domaine (ADR-026) ;
+    depuis ADR-031 les schémas de `proposer_referentiel`,
+    `proposer_referentiel_complet` et la section `ajouts` de `proposer_revision`
+    n'ont **aucun champ `code`** — l'interdit est inexprimable, ne pas l'y
+    réintroduire « pour la commodité » ;
+  - **désigner** = pointer un identifiant que l'application a **déjà attribué**
+    et vient de remettre au modèle. C'est ce que font `modifications`,
+    `retraits` et `prerequis` de `proposer_revision`, via un **`enum` fermé**
+    construit par le serveur sur les codes vivants du seul domaine révisé.
+    ⚠️ **Ne pas « simplifier » cet `enum` en `type: "string"`** : ce serait
+    rendre la frappe exprimable à nouveau, et le défaut serait invisible. Trois
+    couches le protègent — le schéma, `validerRevision`, `appliquerRevision` —
+    et les codes connus se lisent **dans le schéma lui-même**, jamais dans une
+    liste parallèle qui pourrait diverger.
 - **Ne pas supprimer une compétence qui porte des preuves** — l'archiver.
   `supprimerCompetence` refuse plutôt que de se replier en silence : une
   fonction qui fait autre chose que ce que son nom annonce s'érode (ADR-027).
@@ -274,6 +290,13 @@ immuable — c'est la clé étrangère des preuves.
   compte de tentatives inclut les **abandons**, contrairement à ce que fait la
   calibration : les deux modules ne posent pas la même question — « qu'a-t-on
   mesuré ? » d'un côté, « reste-t-il une trace au journal ? » de l'autre.
+- **Ne pas laisser un retrait être choisi plutôt que dérivé, même en lot**
+  (ADR-044). `scinderRetraits` (pur, testé) porte la règle d'ADR-027 et est
+  partagé par `retirerCompetences` **et** `appliquerRevision`. Deux copies
+  finiraient par diverger, et la divergence serait invisible : les deux chemins
+  « marcheraient », l'un effaçant ce que l'autre archive. `appliquerRevision`
+  ne contient **aucun `delete` direct**, et les retraits s'affichent **en
+  premier et décochés** — c'est le seul geste qu'on ne défait pas d'un clic.
 - **Ne pas remettre de filtres dans la liste d'exercices** (`exercices/page.tsx`).
   Cinq familles ont été retirées volontairement — « ~5 000 combinaisons pour une
   bibliothèque qui en compte une poignée ». Le besoin réel est de **regrouper**
@@ -295,6 +318,25 @@ immuable — c'est la clé étrangère des preuves.
   l'en-tête d'un tableau avant son séparateur, donc l'onglet gelait à chaque
   tableau. Toute boucle `while` qui avance un index doit vivre dans `lib/`, et
   garantir qu'elle **consomme au moins un élément par tour**.
+- **Ne pas élargir l'exception à ADR-036** (ADR-041, 07/08). Le tuteur voit la
+  correction d'un exercice **sur un seul chemin** : `lib/tutor/correction.ts` et
+  `/api/exercices/corriger`. Six verrous la bornent, tous du code — et le plus
+  fragile est le troisième : `outilCorrection` ne doit **jamais** entrer dans
+  `outilsTuteur`, sinon il voyage avec chaque message du chat et l'exception
+  cesse d'en être une. Un test le vérifie. `JUSTIFICATION_MAX` n'est pas une
+  règle de style : c'est ce qui empêche la « justification » d'être la
+  correction recopiée.
+- **Ne pas desserrer la réponse écrite d'un seul côté** (ADR-040). Le serveur
+  (`terminerExercice`) et l'écran appliquent `reponseSuffisante`, et le refus a
+  lieu **avant** toute écriture. `abandonnerExercice` est sa contrepartie
+  obligatoire : sans lui, une tentative qu'on ne veut pas mener reste
+  `en-cours` indéfiniment. Il n'écrit ni preuve ni `resultat` — prêter un
+  « partiel » par défaut fabriquerait la mesure qu'on refuse d'écrire.
+- **Ne pas laisser une proposition du tuteur entrer par un `useEffect`.** Dans
+  `formulaire-bilan.tsx`, le verdict pré-remplit l'état par un **initialiseur
+  paresseux**. Un `useEffect` qui recopie la prop écraserait les modifications
+  de l'utilisateur au moindre re-rendu : on cocherait un critère et il
+  reviendrait à la valeur du tuteur.
 - **Ne pas inventer de données.** Un écran non construit doit le dire.
 - **Ne pas transformer une analyse en décision.** Une conclusion produite par
   une session Claude est 🔬 hypothèse ou ❓ question ouverte, jamais ✅ décision,

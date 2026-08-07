@@ -11,6 +11,7 @@ import { moteurCompatibleOpenAI } from "./compatible-openai";
 import type { MoteurTuteur } from "./types";
 
 export type { DemandeTuteur, MessageTuteur, MoteurTuteur } from "./types";
+export { lireOutilsActifs, messageSansOutils } from "./types";
 
 export type ChoixMoteur =
   | { kind: "anthropic"; cle: string; modele: string }

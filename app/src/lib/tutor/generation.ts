@@ -26,6 +26,7 @@ import type { Referentiel, Skill } from "@/lib/domain/types";
 import { LIBELLES_DIMENSIONS } from "@/lib/domain/types";
 import type { Calibration } from "@/lib/engine/calibration";
 import type { MoteurTuteur } from "./moteurs";
+import { lireOutilsActifs, messageSansOutils } from "./moteurs";
 import { outilsTuteur } from "./outils";
 import type { PropositionExercice } from "./proposition";
 
@@ -47,6 +48,14 @@ export interface ResultatGeneration {
   exercices: PropositionExercice[];
   /** Événements reçus pendant la génération — pour la progression SSE. */
   evenements: { evenement: string; donnees: unknown }[];
+  /**
+   * Le fournisseur a-t-il servi les outils ?
+   *
+   * `true` par défaut : un moteur qui ne dit rien est présumé les avoir
+   * servis, faute de quoi on accuserait le fournisseur sur une absence
+   * d'information. Seul un `fin` explicite à `actifs: false` fait basculer.
+   */
+  outilsActifs: boolean;
   /** Message d'erreur, ou `null` si la génération a abouti. */
   erreur: string | null;
 }
@@ -150,10 +159,13 @@ export async function genererExercices(
 ): Promise<ResultatGeneration> {
   const evenements: { evenement: string; donnees: unknown }[] = [];
   const exercices: PropositionExercice[] = [];
+  let outilsActifs = true;
 
   const envoyer = (evenement: string, donnees: unknown) => {
     evenements.push({ evenement, donnees });
     diffuser?.(evenement, donnees);
+    const actifs = lireOutilsActifs(evenement, donnees);
+    if (actifs !== null) outilsActifs = actifs;
     if (evenement === "proposition") {
       const proposition = donnees as { genre: string; exercice?: PropositionExercice };
       if (proposition.genre === "exercice" && proposition.exercice) {
@@ -186,11 +198,24 @@ export async function genererExercices(
     envoyer,
   });
 
-  // Une proposition incomplète est rejetée par `validerAppelOutil` — elle
-  // n'entre jamais dans `exercices`. On le redit ici pour l'interface : la
-  // génération a pu aboutir sans produire d'exercice exploitable.
-  const erreur = exercices.length === 0 ? "Aucun exercice exploitable n'a été produit." : null;
+  /*
+   * Une proposition incomplète est rejetée par `validerAppelOutil` — elle
+   * n'entre jamais dans `exercices`. On le redit ici pour l'interface : la
+   * génération a pu aboutir sans produire d'exercice exploitable.
+   *
+   * Mais « rien d'exploitable » recouvrait deux pannes distinctes : un tuteur
+   * qui n'a rien proposé, et un fournisseur qui n'a jamais reçu les outils.
+   * La seconde ne se répare pas en reformulant la demande — elle se répare en
+   * changeant de fournisseur. Les distinguer est le minimum dû à qui lit le
+   * message.
+   */
+  const erreur =
+    exercices.length > 0
+      ? null
+      : outilsActifs
+        ? "Aucun exercice exploitable n'a été produit."
+        : messageSansOutils("la génération d'exercices");
 
-  return { exercices, evenements, erreur };
+  return { exercices, evenements, outilsActifs, erreur };
 }
 

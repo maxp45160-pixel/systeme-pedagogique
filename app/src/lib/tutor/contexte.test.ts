@@ -11,6 +11,7 @@ import { computeAllSkillStates } from "@/lib/engine/skill-state";
 import { calculerEtatGlobal } from "@/lib/engine/progression";
 import { recommander } from "@/lib/engine/recommend";
 import { calibrerToutes } from "@/lib/engine/calibration";
+import { evaluerMaitrises } from "@/lib/engine/maitrise";
 import type { Contexte } from "@/lib/store/context";
 import type { Exercise, ExerciseAttempt } from "@/lib/domain/types";
 
@@ -70,6 +71,7 @@ function construireCtxDeTest(
   return {
     referentiel,
     calibrations,
+    maitrises: evaluerMaitrises(etats),
     exercicesActifs: exercises.filter((e) => !e.archive),
     donnees: {
       user: {

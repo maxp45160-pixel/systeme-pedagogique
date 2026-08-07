@@ -17,10 +17,13 @@ import {
   JaugeNiveau,
 } from "@/components/ui/primitives";
 import { Markdown } from "@/components/ui/markdown";
-import { FormulaireBilan } from "@/components/exercices/formulaire-bilan";
+import { BilanAssiste } from "@/components/exercices/bilan-assiste";
+import { BoutonAbandon } from "@/components/exercices/abandon";
 import { ZoneReponse } from "@/components/exercices/zone-reponse";
+import { motifBlocageBilan, reponseSuffisante } from "@/lib/domain/tentative";
 import { IconeAmpoule, IconeFleche, IconeValide } from "@/components/ui/icones";
 import { formatDuree } from "@/lib/engine/dates";
+import { tentativeMenee } from "@/lib/engine/calibration";
 import { amorceExercice, lienTuteur } from "@/lib/tutor/amorces";
 import { construireEtatInitialTuteur } from "@/lib/tutor/etat-initial";
 import { TiroirTuteur } from "@/components/tuteur/tiroir-tuteur";
@@ -40,6 +43,24 @@ export default async function PageExercice(props: {
   const enCours = tentatives.find((a) => a.statut === "en-cours") ?? null;
   const derniereTerminee =
     [...tentatives].filter((a) => a.statut === "terminee").at(-1) ?? null;
+
+  /*
+   * Deux chemins mènent désormais à `?abandon=1` :
+   *
+   * - l'abandon DÉRIVÉ — la tentative n'a pas duré le quart de la durée
+   *   estimée, `tentativeMenee` refuse d'en conclure quoi que ce soit (ADR-030) ;
+   * - l'abandon DÉLIBÉRÉ — la personne a cliqué « Abandonner ».
+   *
+   * Le bandeau invoquait la durée dans les deux cas. Sur un abandon délibéré
+   * après 40 minutes de travail, il aurait affirmé une chose fausse à propos
+   * de ce qui venait de se passer. On lit donc la même règle que le serveur
+   * pour savoir laquelle des deux phrases est vraie.
+   */
+  const derniereAbandonnee =
+    [...tentatives].filter((a) => a.statut === "abandonnee").at(-1) ?? null;
+  const abandonDelibere = derniereAbandonnee
+    ? tentativeMenee(derniereAbandonnee, exercice)
+    : false;
 
   const cible = ctx.etatsParCode.get(exercice.competences[0]);
   // La correction reste masquée quand on REFIT un exercice : une nouvelle
@@ -84,11 +105,22 @@ export default async function PageExercice(props: {
         <div className="mb-4 rounded-carte border border-info/30 bg-info-faible px-4 py-3">
           <p className="text-sm font-medium text-info">Aucune preuve enregistrée</p>
           <p className="mt-1 text-xs text-texte-attenue">
-            La tentative a duré moins d&apos;un quart de la durée estimée
-            ({exercice.dureeEstimeeMin} min) sans être réussie : elle est marquée comme
-            abandonnée. En tirer un niveau reviendrait à confondre « pas mesuré » et
-            « raté » — ton niveau sur{" "}
-            {exercice.competences.map((c) => c).join(", ")} est inchangé.
+            {abandonDelibere ? (
+              <>
+                Tu as clos cette tentative sans la mener à son terme : elle est marquée
+                comme abandonnée. Un abandon n&apos;est pas un échec — un échec est une
+                mesure, il suppose qu&apos;on ait essayé. Ton niveau sur{" "}
+                {exercice.competences.join(", ")} est inchangé.
+              </>
+            ) : (
+              <>
+                La tentative a duré moins d&apos;un quart de la durée estimée
+                ({exercice.dureeEstimeeMin} min) sans être réussie : elle est marquée comme
+                abandonnée. En tirer un niveau reviendrait à confondre « pas mesuré » et
+                « raté » — ton niveau sur{" "}
+                {exercice.competences.join(", ")} est inchangé.
+              </>
+            )}
           </p>
           <p className="mt-1 text-xs text-texte-discret">
             La tentative reste au journal : elle explique pourquoi aucune difficulté
@@ -363,20 +395,66 @@ export default async function PageExercice(props: {
                   </div>
                 </Carte>
 
-                <Carte accent>
-                  <EnTeteCarte
-                    titre="Auto-évaluation"
-                    legende="C'est cette étape qui produit la preuve"
-                  />
-                  <div className="px-4 py-3.5">
-                    <FormulaireBilan
-                      exercice={exercice}
-                      attemptId={enCours.id}
-                      dureeSuggeree={dureeSuggeree}
-                      indicesUtilises={enCours.indicesUtilises}
+                {/*
+                  Le bilan demande la réponse écrite.
+
+                  La condition porte sur `enCours.reponse` — ce que la BASE
+                  porte — et non sur le texte à l'écran : `zone-reponse.tsx`
+                  exige un « Enregistrer le brouillon » explicite. D'où le
+                  message, qui nomme le bouton plutôt que l'intention.
+
+                  Mesuré le 07/08/2026 : 16 des 37 tentatives terminées
+                  n'avaient aucune réponse. La règle change donc réellement le
+                  parcours, et sa sortie est le bouton « Abandonner » ci-dessous.
+                */}
+                {reponseSuffisante(enCours.reponse) ? (
+                  <Carte accent>
+                    <EnTeteCarte
+                      titre="Auto-évaluation"
+                      legende="C'est cette étape qui produit la preuve"
                     />
-                  </div>
-                </Carte>
+                    <div className="px-4 py-3.5">
+                      {/*
+                        `BilanAssiste` lance la relecture puis rend le même
+                        `FormulaireBilan`, pré-rempli. En cas d'échec — 503,
+                        fournisseur sans outils, verdict illisible — il rend le
+                        formulaire NU avec la raison. Le chemin manuel n'est
+                        donc jamais perdu.
+                      */}
+                      <BilanAssiste
+                        exercice={exercice}
+                        attemptId={enCours.id}
+                        dureeSuggeree={dureeSuggeree}
+                        indicesUtilises={enCours.indicesUtilises}
+                        compteId={ctx.donnees.user.id}
+                      />
+                    </div>
+                  </Carte>
+                ) : (
+                  <Carte>
+                    <EnTeteCarte
+                      titre="Auto-évaluation"
+                      legende="Elle attend ta réponse écrite"
+                    />
+                    <div className="px-4 py-3.5">
+                      <p className="text-xs text-texte-attenue">
+                        {motifBlocageBilan(enCours.reponse)}
+                      </p>
+                      <p className="mt-2 text-xs text-texte-discret">
+                        Si tu ne veux pas mener cet exercice, clos-le franchement : aucune
+                        preuve ne sera écrite, et ton niveau restera inchangé.
+                      </p>
+                      <div className="mt-3">
+                        <BoutonAbandon
+                          attemptId={enCours.id}
+                          exerciceId={exercice.id}
+                          dureeMin={dureeSuggeree}
+                          codes={exercice.competences}
+                        />
+                      </div>
+                    </div>
+                  </Carte>
+                )}
               </>
             )}
           </>

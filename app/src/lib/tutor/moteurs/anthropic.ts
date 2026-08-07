@@ -89,7 +89,10 @@ export function moteurAnthropic(cle: string, modele: string): MoteurTuteur {
         for (const bloc of finale.content) {
           if (bloc.type !== "tool_use") continue;
           appelsOutil += 1;
-          const proposition = validerAppelOutil(bloc.name, bloc.input);
+          // Les outils armés sont passés au validateur : `proposer_revision`
+          // valide les codes désignés contre l'`enum` que ce fournisseur a
+          // effectivement reçu, jamais contre une liste parallèle.
+          const proposition = validerAppelOutil(bloc.name, bloc.input, outils);
           if (proposition) {
             envoyer("proposition", proposition);
           } else {

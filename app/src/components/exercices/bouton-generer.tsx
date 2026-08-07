@@ -21,6 +21,7 @@ import type { CalibrageModale, CompetenceModale } from "./proprietes-generation"
 export function BoutonGenerer({
   competences,
   competenceInitiale,
+  themeInitial,
   calibrages,
   compteId,
   libelle = "Générer un exercice",
@@ -29,6 +30,8 @@ export function BoutonGenerer({
 }: {
   competences: CompetenceModale[];
   competenceInitiale: string;
+  /** Thème pré-rempli — voir `ModaleExercice`. */
+  themeInitial?: string;
   /** Calibrages de toutes les compétences actives, indexés par code. */
   calibrages: Record<string, CalibrageModale>;
   compteId: string;
@@ -52,6 +55,7 @@ export function BoutonGenerer({
           onFermer={() => setOuvert(false)}
           competences={competences}
           competenceInitiale={competenceInitiale}
+          themeInitial={themeInitial}
           calibrages={calibrages}
           compteId={compteId}
           surEnregistre={surEnregistre}

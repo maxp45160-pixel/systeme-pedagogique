@@ -77,7 +77,27 @@ export async function POST(request: Request) {
       };
 
       try {
-        const resultat = await suggererBranche(moteur, ctx.referentiel, sujet, abandon.signal);
+        /*
+         * Le relais est filtré sur `proposition`, et ce n'est pas un détail.
+         *
+         * Le moteur émet `proposition` avec `{ genre, branche }` ; cette route
+         * émet son propre `proposition` terminal avec `{ branche }`. Les deux
+         * portent le même nom pour le lecteur SSE de la modale, qui déréférence
+         * `parsed.branche.domaine` — une proposition d'un autre genre le ferait
+         * lever. Seul l'événement terminal, construit après validation, sort
+         * sous ce nom. Le reste (`proposition-en-cours`, `proposition-rejetee`,
+         * `tronque`…) passe au fil de l'eau, ce qui est tout l'objet du relais.
+         */
+        const resultat = await suggererBranche(
+          moteur,
+          ctx.referentiel,
+          sujet,
+          abandon.signal,
+          (evenement, donnees) => {
+            if (evenement === "proposition") return;
+            envoyer(evenement, donnees);
+          },
+        );
 
         if (resultat.erreur) {
           envoyer("erreur", { message: resultat.erreur });

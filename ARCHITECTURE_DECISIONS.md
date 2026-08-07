@@ -49,6 +49,16 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [034](#adr-034) | Un exercice échoué ne revient qu'après un progrès démontré | 🔬 Hypothèse (02/08) |
 | [035](#adr-035) | Cycle de vie d'un exercice : le calque d'ADR-027 | 🔬 Hypothèse (02/08) |
 | [036](#adr-036) | Le tuteur voit le corpus, jamais les énoncés | 🔬 Hypothèse (02/08) |
+| [037](#adr-037) | P5 reformulé : le tuteur écrit le contenu, jamais la mesure | ✅ Acceptée (03/08) |
+| [038](#adr-038) | Le retrait de la preuve manuelle | ✅ Acceptée (04/08) · ⚠️ corrigée le 07/08 |
+| [039](#adr-039) | Le « crash du tuteur » était une boucle infinie de rendu | ✅ Acceptée (04/08) |
+| [040](#adr-040) | La réponse écrite est la condition du bilan ; l'abandon est un geste | 🔬 Hypothèse (07/08) |
+| [041](#adr-041) | Le tuteur voit la correction sur un seul chemin, et n'en écrit aucune mesure | 🔬 Hypothèse (07/08) — amende [036](#adr-036) |
+| [042](#adr-042) | La maîtrise est un prédicat dérivé ; l'évolution est proposée, jamais appliquée | 🔬 Hypothèse (07/08) |
+| [043](#adr-043) | Le tuteur désigne un code, il n'en frappe aucun | ✅ Acceptée (07/08) — précise [026](#adr-026) |
+| [044](#adr-044) | Un référentiel se révise ; le retrait reste dérivé | 🔬 Hypothèse (07/08) |
+
+*(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08.)*
 
 ---
 
@@ -2345,6 +2355,27 @@ déclare de quelle aide elle a disposé.
 3. **Rouvrir P8.** Poser la question d'autonomie dans le bilan d'exercice est le
    candidat évident. Tant que ce n'est pas fait, le biais est borné mais réel.
 
+### ⚠️ Correction factuelle — 07/08/2026
+
+**Le paragraphe « Ce que cela coûte » ci-dessus est faux depuis le jour où il a
+été écrit.** Le bilan d'exercice **pose** la question de l'aide extérieure :
+`components/exercices/formulaire-bilan.tsx` affiche les quatre options (aucune,
+documentation, assistant IA, correction obtenue), `soumettre` transmet
+`aideExterne`, et `terminerExercice` en dérive `autonomieObservee`
+(`lib/engine/preuve.ts`, `PLAFOND_AIDE`).
+
+Vérifié : `aideExterne` est entré dans ce composant par le commit `5424f4d`
+(04/08/2026, « Chantier du 02/08 au 04/08 ») — **le jour même d'ADR-038**. Les
+deux gestes se sont croisés, et l'ADR a décrit un état que le code venait de
+quitter. Le point 3 du test de réfutation était donc déjà fait au moment où il
+a été écrit.
+
+**Ce que cela ne tranche pas.** Le chemin existe, ce qui lève l'objection
+d'ADR-038 ; mais le barème `PLAFOND_AIDE` n'a jamais été confronté à l'usage, et
+les 29 preuves antérieures ne sont toujours pas retouchables faute de donnée.
+**P8 reste donc 🔬** — le rendre ✅ est un arbitrage humain, pas une conclusion
+de session (règle du §1 de `CLAUDE.md`).
+
 ---
 
 ## ADR-039 — Le « crash du tuteur » était une boucle infinie de rendu ✅
@@ -2414,6 +2445,392 @@ description de `proposer_referentiel`, qui porte les cinq conditions de
 mesurabilité et part à chaque message. **À vérifier à l'usage** : si les branches
 proposées sans la charte sont de moins bonne qualité, il faudra un déclencheur
 plus fin qu'une liste de mots — pas une liste plus longue.
+
+---
+
+## ADR-040 — La réponse écrite est la condition du bilan ; l'abandon est un geste 🔬
+
+**Date.** 07/08/2026, lot A0 du chantier d'intégration IA. Décision de Maxime,
+prise en connaissance du chiffre ci-dessous.
+
+**Le fait mesuré, avant d'écrire une ligne.** Sur 37 tentatives terminées,
+**16 ne portent aucune réponse écrite** (43 %). Ce n'est donc pas une formalité
+qu'on ajoute : c'est un changement de parcours réel, et il fallait le savoir
+avant de le décider, pas après.
+
+**La règle.** `terminerExercice` refuse une tentative dont `reponse` est vide
+après `trim`, et la carte d'auto-évaluation ne s'affiche pas. `reponseSuffisante`
+(`lib/domain/tentative.ts`) porte la règle, pure et testée.
+
+**Pourquoi aucun seuil de longueur.** « 42 » est une réponse complète à un
+exercice de calcul. Poser un minimum de caractères serait un seuil sans données,
+que CLAUDE.md §8 interdit et qu'ADR-028 a appris à ne pas poser : un seuil calé
+sur une intuition se déplace au premier désaccord. Le jour où l'usage montre
+qu'on tape « . » pour passer, ce sera une **observation**, et le seuil pourra
+être calé dessus.
+
+**Pourquoi la condition porte sur la base et non sur l'écran.**
+`zone-reponse.tsx` exige un clic « Enregistrer le brouillon » — choix délibéré,
+non remis en cause. Du texte non enregistré n'existe pas pour le serveur, et le
+tuteur ne le relirait pas. Conséquence : **le message d'erreur nomme le bouton**,
+sinon il enverrait la personne regarder un champ qu'elle a déjà rempli.
+
+**Le troisième chemin de clôture.** Il en existait deux, tous deux via
+`terminerExercice` : la preuve écrite, et l'abandon *dérivé* d'une durée
+dérisoire (ADR-030). Les deux exigent un bilan ouvert, donc désormais une
+réponse. Une tentative qu'on ne veut pas mener n'aurait plus eu de sortie :
+elle serait restée `en-cours` indéfiniment. D'où `abandonnerExercice`, qui
+n'écrit **aucune preuve** et **aucun `resultat`** — lui prêter un « partiel »
+par défaut fabriquerait la mesure qu'on refuse d'écrire. Sans danger pour la
+calibration : `calibrer`, `recommend` et `usageExercice` filtrent tous
+`statut === "terminee"`.
+
+**Le refus a lieu avant toute écriture.** `terminerExercice` écrivait la
+tentative puis lisait sa valeur de retour ; un refus placé après aurait laissé
+une tentative close, avec sa durée et son auto-évaluation, sans preuve pour
+l'expliquer. Une trace à moitié écrite est plus difficile à lire qu'une absence
+de trace.
+
+### ⚠️ Correction apportée à ADR-038 dans le même geste
+
+Le paragraphe « Ce que cela coûte » d'ADR-038 affirme que le bilan d'exercice ne
+pose pas la question de l'aide extérieure. **C'était faux le jour où ça a été
+écrit** : le commit `5424f4d` (04/08) l'y avait introduite. Voir la correction
+factuelle sous ADR-038. **P8 reste 🔬**, pour une autre raison — le barème
+`PLAFOND_AIDE` n'a jamais été confronté à l'usage.
+
+### 🔬 Test de réfutation
+
+1. **Compter les abandons délibérés sur un mois.** S'ils dépassent les bilans
+   remplis, la règle n'a pas produit des réponses écrites : elle a produit des
+   sorties. Il faudrait alors un chemin intermédiaire (dicter, photographier un
+   brouillon) plutôt que durcir davantage.
+2. **Regarder la longueur des réponses.** Si la médiane s'effondre vers un ou
+   deux caractères, la règle est contournée et le seuil devient justifiable —
+   sur données.
+3. **Vérifier qu'aucune tentative ne reste bloquée.** Les 3 tentatives
+   `en-cours` sans réponse au 07/08 doivent avoir trouvé leur sortie.
+
+---
+
+## ADR-041 — Le tuteur voit la correction sur un seul chemin, et n'en écrit aucune mesure 🔬
+
+**Date.** 07/08/2026, lot A1 du chantier d'intégration IA.
+
+**Ce qui est décidé.** Le tuteur relit la réponse écrite et rend un verdict
+complet — résultat global, une appréciation par critère, une justification par
+critère. L'interface l'affiche **replié**, avec un bouton « Accepter et
+enregistrer » et un « Relire / modifier » à un clic. Rien n'est écrit sans ce
+clic.
+
+### Ce que cela amende — ADR-036
+
+ADR-036 pose que le tuteur voit le corpus par ses titres, ses compétences, sa
+difficulté et son état d'usage, **jamais par ses énoncés et jamais par ses
+corrections**. Ce lot y ouvre une exception nommée : sur le chemin de
+correction, et sur lui seul, la correction de référence entre dans le prompt.
+
+La raison est qu'il n'y a pas d'alternative honnête. Un tuteur qui corrige sans
+la correction n'corrige pas : il improvise un barème. Et un barème improvisé qui
+pré-remplit un formulaire qui écrit une preuve est exactement ce que ce système
+existe pour empêcher.
+
+**Les six verrous, tous portés par du code :**
+
+| # | Verrou | Où |
+|---|---|---|
+| 1 | Prompt dédié, qui n'appelle jamais `construireContexte` | `lib/tutor/correction.ts` — le test `contexte.test.ts` « ne transmet JAMAIS la correction » reste vert et reste la garantie du chat |
+| 2 | Route dédiée ; `/api/tutor` ne lit toujours pas `exercice.correction` | `api/exercices/corriger` |
+| 3 | `outilCorrection` **n'entre pas** dans `outilsTuteur` — testé | `outils.ts` |
+| 4 | Aucun historique : un seul message construit côté serveur | la route n'accepte pas de `messages` |
+| 5 | La sortie ne peut pas contenir la correction : `JUSTIFICATION_MAX = 400` la borne, et le validateur rejette au-delà | `outils.ts` |
+| 6 | Ne sert qu'une tentative **ouverte, du compte, avec une réponse écrite** | gardes de la route |
+
+Le verrou 6 mérite un mot de plus. **Le corps de la requête ne porte qu'un
+`attemptId`** — ni exercice, ni correction, ni réponse. Le serveur relit tout
+sous RLS. Si le client envoyait un `exerciseId`, il obtiendrait la correction
+d'un exercice qu'il ne possède pas : une fuite de contenu par un chemin
+qu'ADR-036 croyait fermé.
+
+### Pourquoi ce n'est pas `proposer_preuve` ressuscité
+
+ADR-038 a retiré l'outil `proposer_preuve`. La distinction tient à ce que
+`proposer_correction` **ne nomme pas** : ni compétence, ni autonomie, ni qualité,
+ni niveau de preuve. Ces quatre-là restent dérivés par `autonomieObservee` et
+`qualiteDepuisDifficulte`, à partir de faits observés — indices consultés, aide
+déclarée, difficulté de l'exercice. L'outil ne porte que ce que la personne
+aurait coché elle-même.
+
+**Mais il faut le dire franchement : le tuteur recommence à *proposer* une
+mesure, ce qu'il avait cessé de faire le 04/08.** P5 tient à la lettre — « le
+tuteur écrit le contenu, jamais la mesure », et il n'écrit toujours rien. L'esprit,
+lui, est élargi, et ce registre n'a pas à le masquer.
+
+### Ce qui n'est pas proposé, et pourquoi
+
+**L'aide extérieure et la durée restent hors du repli, saisies par la personne.**
+L'aide est un fait que seul l'utilisateur connaît : le tuteur ne peut pas savoir
+s'il avait un assistant ouvert à côté. La lui faire proposer fabriquerait la
+donnée même qu'ADR-033 existe pour aller chercher.
+
+### Refuser plutôt que tronquer
+
+Une réponse de plus de `REPONSE_MAX_CARACTERES` (12 000) fait échouer la route
+avec un message explicite. Un verdict rendu sur une réponse amputée aurait l'air
+d'un verdict rendu sur le tout : « une liste tronquée en silence se lirait comme
+un corpus complet » (ADR-036), c'est la même règle. Repère : la plus longue
+réponse enregistrée à ce jour fait 1 183 caractères.
+
+De même, une valeur d'appréciation illisible est **rejetée, jamais ramenée à 0**.
+Un `0` est la mesure « non démontré » : le fabriquer produirait un jugement
+négatif que personne n'a porté, indiscernable d'un vrai. C'est P2, et c'est le
+motif d'ADR-034.
+
+### ⚠️ Un risque que ce lot introduit, et qu'il ne corrige pas
+
+`tentativeMenee` laisse toujours passer une **réussite**, quelle qu'en soit la
+durée — « on ne réussit pas un exercice sans l'avoir fait » (ADR-030). Ce
+raisonnement supposait une auto-évaluation humaine. Un verdict `reussi` proposé
+par le tuteur sur une réponse mince, écrite en deux minutes sur trente estimées,
+écrirait donc une preuve là où la personne aurait probablement abandonné.
+
+Le seuil n'est **pas** déplacé : CLAUDE.md §8 interdit de bouger un seuil de
+`calibration.ts` sans nouvelles observations. Le comportement est consigné ici
+pour être surveillé. `verdictTentative` classera ces cas en « trop-facile » et
+abaissera la difficulté conseillée — ce qui est la réaction voulue, mais ne
+protège pas le journal de preuves.
+
+### 🔬 Test de réfutation
+
+1. **Soumettre une réponse volontairement fausse.** Le verdict proposé ne doit
+   pas être `reussi`. S'il l'est, le dispositif corrompt la mesure à la source
+   et doit être retiré avant d'aller plus loin.
+2. **Compter les modifications sur les 5 premiers usages.** Si le verdict n'est
+   **jamais** modifié, « Accepter » est un tampon : la personne ne relit pas, et
+   la chaîne de preuves est alimentée par le modèle. C'est le risque central de
+   ce lot, et il n'est pas technique.
+3. **Comparer les niveaux avant / après sur un mois.** Une montée générale des
+   niveaux sans montée du nombre de contextes distincts signalerait un
+   correcteur complaisant.
+4. **Vérifier qu'aucune justification ne recopie la correction.** Si le plafond
+   de 400 caractères est régulièrement atteint, il est mal calé.
+
+---
+
+## ADR-042 — La maîtrise est un prédicat dérivé ; l'évolution est proposée, jamais appliquée 🔬
+
+**Date.** 07/08/2026, lot B du chantier d'intégration IA.
+
+**La question.** ADR-035 a demandé « que devient un exercice maîtrisé ? » et y a
+répondu. Personne ne l'avait posée pour les **compétences**. Une compétence de
+niveau 5 restait dans la file de recommandation indéfiniment, avec un intervalle
+de révision seize fois plus long mais aucune sortie. Le produit savait dire « tu
+progresses » et ne savait pas dire « tu sais ».
+
+### Le prédicat
+
+```
+maitrisee ⟺ niveau !== null ∧ niveau >= 4 ∧ confiance ∈ {moyenne, forte}
+```
+
+**Aucune colonne, aucun stockage** (P1). Il se recalcule à chaque lecture, comme
+le niveau dont il dépend : une preuve contradictoire écrite demain le retire
+d'elle-même.
+
+**Pourquoi 4 et non 5.** Le niveau 5 de `niveauSoutenu` exige
+`competencesCombinees.length >= 1`, que `terminerExercice` n'écrit que pour un
+exercice visant plusieurs compétences. Mesuré le 07/08/2026 : **les 47 preuves
+du compte l'ont à `null`** — 2 exercices multi-compétences existent, aucune
+tentative terminée ne porte sur eux. **Le niveau 5 est donc inatteignable en
+pratique**, et c'est un fait sur le système qui méritait d'être consigné
+indépendamment de cet ADR. Poser la maîtrise à 5 aurait bâti une fonctionnalité
+qui ne se déclenche jamais : l'erreur exacte des six entités mortes du 28/07.
+
+Le niveau 4 est la définition protocolaire du transfert — deux réussites
+autonomes A3+ avec `transfert ≥ 0,6` sur deux contextes distincts. `DEB-01` et
+`RO-01` y sont aujourd'hui : le prédicat se déclenche sur des données réelles.
+
+**Pourquoi il n'ajoute aucun seuil.** C'est son argument central au regard de
+CLAUDE.md §8. La clause de confiance absorbe gratuitement ce qu'il faudrait
+sinon écrire à la main : une preuve contradictoire fait chuter l'échelon (P4),
+une dernière preuve de plus de 120 jours aussi, un contexte unique ne peut
+donner ni le niveau 4 ni une confiance moyenne, et une régression confirmée a
+déjà abaissé le niveau en amont.
+
+### Les trois évolutions, et ce que chacune écrit
+
+| Évolution | Écriture | Note |
+|---|---|---|
+| **successeur** | `creerBranche` — rattachement par **nom**, code par `attribuerCodes` | La compétence maîtrisée devient un **prérequis** du successeur : un fait du référentiel, pas une note. `SoumissionBranche` gagne `prerequis` ; la colonne `TEXT[]` existe déjà |
+| **élargissement** | **rien au référentiel** | Un « contexte » n'est pas un objet de base : `SkillEvidence.contexte` est le *titre de l'exercice*. Se résout en un exercice généré sur la **même** compétence, avec ce contexte pour thème |
+| **retrait** | `archiverCompetence` (ou `supprimerCompetence`), mode **dérivé** | Une compétence maîtrisée porte ≥ 2 preuves par construction : ce sera **toujours** un archivage. L'écran le dit avec le compte, avant le clic (ADR-027), et propose à côté le geste doux et réversible — sortir du périmètre |
+
+### Ce que ce lot ne fait pas
+
+**Il ne touche pas `recommend.ts`.** L'arbitrage de l'utilisateur *est* le
+mécanisme qui sort la compétence de la file ; y ajouter un facteur de score le
+préempterait, sur zéro donnée. Et `estDue` la tient déjà silencieuse 8 à 16 fois
+plus longtemps (`spaced.ts`).
+
+🔬 **Déclencheur pour rouvrir** : si une compétence maîtrisée reste en tête de la
+file une semaine **après** son arbitrage, un facteur négatif — à l'image du −15
+« Pratiquée récemment » — devient justifié.
+
+### 🗑️ Explicitement refusé, pour qu'on ne le repropose pas
+
+- une table ou une colonne `contextes` — un contexte est le titre d'un exercice ;
+- une colonne `maitrisee` ou `niveau` en base — P1, tout est dérivé ;
+- un niveau `Sujet` entre domaine et compétence — déjà refusé par ADR-037 ;
+- une carte de maîtrise sur le tableau de bord — une quatrième carte y serait le
+  défaut de surface qu'ADR-037 a nommé.
+
+### 🔬 Test de réfutation
+
+1. **Ouvrir `/competences/DEB-01`.** La carte doit être là, et son explication
+   citer le niveau 4, la confiance moyenne et les deux contextes. Sur `DEV-03`
+   (niveau bas), aucune carte, et `/api/competences/evolution` doit refuser.
+2. **Regarder les trois évolutions proposées sur un mois.** Si le tuteur
+   propose toujours « successeur », il ne lit pas les contextes : le référentiel
+   enflera sans que rien ne soit remesuré, et la réserve d'ADR-009 sur le
+   sur-ajout redevient d'actualité.
+3. **Vérifier qu'aucun successeur ne redouble une compétence voisine.** Les
+   intitulés du domaine partent dans le prompt pour cette raison ; si des
+   doublons apparaissent, le garde-fou ne suffit pas.
+4. **Compter les compétences maîtrisées après un mois.** Si le nombre reste à
+   deux, le seuil de niveau 4 est peut-être trop haut — ou le produit ne produit
+   pas assez de contextes distincts, ce qui serait un fait plus intéressant.
+
+---
+
+## ADR-043 — Le tuteur désigne un code, il n'en frappe aucun ✅
+
+**Date.** 07/08/2026, lot C du chantier d'intégration IA.
+
+**Le problème.** CLAUDE.md §8 interdit de laisser le tuteur écrire un code de
+compétence, et ADR-031 a rendu l'interdit *structurel* en retirant le champ
+`code` du schéma de `proposer_referentiel`. Mais **réviser** un référentiel
+existant exige de désigner les compétences à reformuler ou à retirer. Appliquer
+l'interdit à la lettre rendrait la révision impossible ; l'assouplir sans le
+penser rouvrirait la classe de bugs qu'il ferme.
+
+**La distinction, à écrire noir sur blanc.**
+
+> **Frapper un code** = produire un identifiant que l'application n'a pas
+> attribué. Interdit : collision avec un code existant, preuves qui suivent la
+> mauvaise compétence, **sans erreur visible**.
+>
+> **Désigner un code** = pointer l'un des identifiants que l'application a
+> **déjà attribués** et qu'elle vient de remettre au modèle dans cette requête
+> même. Ce n'est pas le même acte, et il ne porte aucun des risques du premier.
+
+**Le design, en trois couches indépendantes.**
+
+1. **L'`enum` est fermé et construit par le serveur**, à la requête, sur les
+   codes vivants du **seul domaine révisé**. Une valeur hors de cet ensemble
+   n'est pas découragée : elle n'est pas dans le schéma. Deux bornes gratuites
+   au passage — une révision du domaine X ne peut pas renommer une compétence du
+   domaine Y, et une compétence **archivée** ne peut être ni renommée ni
+   re-retirée.
+2. **`validerRevision` revérifie l'appartenance.** Un fournisseur qui ignore le
+   schéma ne doit pas passer pour autant (ADR-031). Les codes connus sont tirés
+   du **schéma lui-même**, pas d'une liste passée à part : deux listes pourraient
+   diverger, une seule ne le peut pas.
+3. **`appliquerRevision` revérifie à l'écriture**, et refuse tout code dont le
+   domaine n'est pas celui révisé. Un bug du validateur ne peut donc pas toucher
+   une compétence hors périmètre ; RLS interdit de toucher un autre compte.
+
+**Et surtout : `ajouts` n'a aucun champ `code`.** L'interdit reste intact là où
+il compte — la frappe. L'`enum` ne fait que pointer.
+
+⚠️ **CLAUDE.md §8 est amendé** dans le même geste, pour qu'une session future ne
+« simplifie » pas cet `enum` en `type: "string"` par commodité. Ce serait rendre
+la frappe exprimable à nouveau, et le défaut serait invisible.
+
+---
+
+## ADR-044 — Un référentiel se révise ; le retrait reste dérivé 🔬
+
+**Date.** 07/08/2026, lot C du chantier d'intégration IA.
+
+**Ce qui manquait, dans les mots de Maxime.** « J'aime pas, il faut saisir à la
+main, ça marche pas bien. Sur la page compétence, on n'a pas d'option pour
+ajouter un référentiel. » Et sur une sous-page : « Ce référentiel ne couvre plus
+mes besoins, change-le » — **comportement attendu : mise à jour.**
+
+Deux manques distincts, donc, et le second est une capacité nouvelle :
+
+1. `/competences` n'avait **aucun** point d'entrée pour une branche neuve :
+   `+ Compétence` n'existe que sur la carte d'un domaine existant. Et
+   `proposer_referentiel` rend **une** branche, là où « le stoïcisme » en demande
+   plusieurs.
+2. Le référentiel ne se **révisait** pas. On pouvait créer, éditer une ligne à la
+   fois, retirer une ligne à la fois — pas reprendre une branche entière.
+
+### Ce qui est décidé
+
+`proposer_referentiel_complet` découpe un sujet en branches ; `proposer_revision`
+reprend une branche existante (ajouts, reformulations, retraits). Sur la page
+d'un domaine, **« + Compétence » devient « Réviser avec le tuteur »** — le
+chemin manuel reste atteignable depuis la modale, donc **la surface ne grossit
+pas d'un bouton**.
+
+### ADR-027 appliquée à un chemin groupé
+
+Le retrait reste **dérivé** : `scinderRetraits` (pure, testée, partagée avec
+`retirerCompetences`) décide par les preuves de chaque code, jamais par celles
+du lot. `appliquerRevision` ne contient **aucun `delete` direct**.
+
+L'écran ajoute une sécurité au-dessus d'ADR-027, qui exige seulement d'annoncer :
+**les retraits sont affichés en premier et décochés par défaut**. C'est le seul
+geste qu'on ne peut pas défaire d'un clic — une compétence archivée ne revient
+au périmètre qu'après avoir été désarchivée.
+
+### La réserve sur la reformulation en masse
+
+Renommer une compétence ne casse rien : le `code` est immuable, les preuves
+suivent. Mais **le sens de l'historique est réécrit**. Une preuve enregistrée sur
+« Sait reconstruire un argument » se lira désormais comme preuve de « Sait
+critiquer un sophisme ». ADR-027 autorise déjà d'éditer un intitulé — mais **à
+l'unité**. En masse, c'est un geste d'une autre nature.
+
+Mitigation retenue : le **nombre de preuves** est affiché à côté de chaque
+reformulation, et totalisé dans le pied de l'écran (P3). Pas d'interdiction :
+l'information, et la décision à la personne.
+
+### Pourquoi une branche écartée sur cinq est acceptable
+
+Le reste du module refuse plutôt que d'accepter à moitié. Ici, une branche
+invalide est **écartée** et les autres passent. La différence tient à ce qu'est
+l'objet : les parties d'un exercice forment **un** objet — un demi-exercice n'en
+est pas un. Cinq branches sont **cinq** unités, relues et cochées séparément.
+Écarter la quatrième ne produit aucun objet à moitié.
+
+La condition est que l'écart soit **annoncé** : une liste tronquée en silence se
+lirait comme un corpus complet (ADR-036). D'où `ecartees`, affiché. Zéro branche
+valide reste un rejet — il n'y a alors rien à relire.
+
+### 🔬 Test de réfutation
+
+1. **Après une révision, ouvrir le journal** et vérifier qu'aucune preuve n'a
+   perdu son sens. Si des entrées deviennent illisibles, le compte de preuves
+   affiché ne suffit pas et il faudra interdire la reformulation d'une
+   compétence au-delà d'un certain nombre de preuves.
+2. **Compter les retraits effectivement cochés.** S'ils sont systématiquement
+   décochés puis jamais recochés, le tuteur propose des retraits que personne ne
+   veut : la consigne du prompt est mal calée.
+3. **Vérifier qu'aucune preuve n'est orpheline** après plusieurs révisions :
+   ```sql
+   select count(*) from evidence e
+   where not exists (select 1 from competences c
+                     where c.user_id = e.user_id and c.code = e.skill_code);
+   ```
+   Doit rester à 0. Trois couches protègent ce chiffre — la dérivation
+   applicative, l'absence de `delete` direct, et la clé `evidence_competence_fk`,
+   **vérifiée posée en production le 07/08/2026**.
+4. **Regarder le nombre de branches proposées.** Si le tuteur en produit
+   systématiquement six pour des sujets étroits, le référentiel enflera — c'est
+   la situation du 28/07 (un grand référentiel sans contenu pour l'alimenter),
+   et la consigne « une seule si le sujet est étroit » aura échoué.
 
 ---
 

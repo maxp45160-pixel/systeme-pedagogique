@@ -234,6 +234,52 @@ describe("genererExercices — rien n'est fabriqué", () => {
     expect(r.erreur).toBeNull();
   });
 
+  it("distingue un fournisseur qui a refusé les outils d'un tuteur qui n'a rien proposé", async () => {
+    /*
+     * Les deux cas produisent zéro exercice, et rendaient le même message.
+     * Ils n'appellent pourtant pas le même geste : reformuler la demande ne
+     * réparera jamais un fournisseur qui n'a pas reçu `tools`. ADR-031 avait
+     * fermé ce silence pour le chat en faisant porter `outils` par `fin` ;
+     * les chemins sans conversation ne le lisaient pas.
+     */
+    const r = await genererExercices(
+      moteurQuiEmet([
+        { evenement: "texte", donnees: { delta: "Voici un exercice…" } },
+        { evenement: "fin", donnees: { stopReason: "stop", outils: { actifs: false, appels: 0 } } },
+      ]),
+      REFERENTIEL,
+      [{ competence: LOG_10, calibration: calibration() }],
+    );
+    expect(r.exercices).toEqual([]);
+    expect(r.outilsActifs).toBe(false);
+    expect(r.erreur).toContain("n'accepte pas les appels d'outil");
+    expect(r.erreur).not.toContain("Aucun exercice exploitable");
+  });
+
+  it("ne signale pas de repli quand le moteur dit que les outils étaient actifs", async () => {
+    const r = await genererExercices(
+      moteurQuiEmet([
+        { evenement: "fin", donnees: { stopReason: "stop", outils: { actifs: true, appels: 0 } } },
+      ]),
+      REFERENTIEL,
+      [{ competence: LOG_10, calibration: calibration() }],
+    );
+    expect(r.outilsActifs).toBe(true);
+    expect(r.erreur).toBe("Aucun exercice exploitable n'a été produit.");
+  });
+
+  it("présume les outils servis quand aucun `fin` exploitable n'arrive", async () => {
+    // Une absence d'information n'est pas un `false` : accuser le fournisseur
+    // sur un silence serait fabriquer un diagnostic (P2).
+    const r = await genererExercices(
+      moteurQuiEmet([{ evenement: "fin", donnees: { stopReason: "stop" } }]),
+      REFERENTIEL,
+      [{ competence: LOG_10, calibration: calibration() }],
+    );
+    expect(r.outilsActifs).toBe(true);
+    expect(r.erreur).toBe("Aucun exercice exploitable n'a été produit.");
+  });
+
   it("relaie les événements au fil de l'eau, pas seulement à la fin", async () => {
     // Sans ce relais, la modale restait figée jusqu'à 300 s puis recevait tout
     // d'un coup : le flux existait, la progression non.

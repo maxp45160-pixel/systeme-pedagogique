@@ -9,7 +9,7 @@ import {
   Statistique,
 } from "@/components/ui/primitives";
 import { Radar, RepartitionNiveaux } from "@/components/charts";
-import { BoutonAjouterCompetence } from "@/components/referentiel/bouton-ajouter";
+import { BoutonReviser } from "@/components/referentiel/bouton-reviser";
 import { GestionDomaine } from "@/components/referentiel/gestion-domaine";
 import { formatDateRelative } from "@/lib/engine/dates";
 import { comparerCodes } from "@/lib/domain/referentiel-compte";
@@ -76,11 +76,28 @@ export default async function PageDomaine(props: {
         titre={domaine.nom}
         sousTitre={domaine.description || `${etats.length} compétences · ${totalPreuves} preuves`}
         actions={
-          <BoutonAjouterCompetence
+          /*
+            « + Compétence » est devenu « Réviser avec le tuteur ».
+
+            Le geste attendu ici n'était pas d'ajouter une ligne mais de
+            reprendre la branche entière. Le chemin manuel n'est pas perdu : la
+            modale de révision porte un lien qui monte l'ancienne
+            `ModaleCompetence` avec le domaine pré-rempli. La surface ne grossit
+            donc pas d'un bouton.
+          */
+          <BoutonReviser
+            domaineId={domaine.id}
+            domaineNom={domaine.nom}
+            competences={skills
+              .filter((s) => !s.archive)
+              .map((s) => ({
+                code: s.code,
+                intitule: s.intitule,
+                palier: s.palier,
+                preuves: retraits[s.code]?.preuves ?? 0,
+              }))}
             domainesExistants={domainesExistants}
             compteId={ctx.donnees.user.id}
-            domaineInitial={domaine.nom}
-            libelle="+ Compétence"
           />
         }
       />

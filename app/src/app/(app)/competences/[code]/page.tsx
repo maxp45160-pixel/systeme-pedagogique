@@ -27,6 +27,7 @@ import { Depliant, PanneauExplication, Reserves } from "@/components/ui/explicat
 import { FacteursRevision } from "@/components/ui/facteurs-revision";
 import { IconeFleche } from "@/components/ui/icones";
 import { BoutonGenerer } from "@/components/exercices/bouton-generer";
+import { BoutonEvolution } from "@/components/competences/modale-evolution";
 import {
   calibragesPourModale,
   competencesPourModale,
@@ -56,6 +57,7 @@ export default async function PageCompetence(props: {
     e.competences.includes(etat.skill.code),
   );
   const recommandation = ctx.recommandations.find((r) => r.etat.skill.code === etat.skill.code);
+  const maitrise = ctx.maitrises.get(etat.skill.code);
 
   // Contexte du tuteur pour le tiroir — même assemblage que la page /tuteur.
   const etatInitialTuteur = await construireEtatInitialTuteur(ctx);
@@ -274,6 +276,50 @@ export default async function PageCompetence(props: {
 
         {/* --------------------------- Colonne droite ----------------------- */}
         <div className="space-y-4">
+          {/*
+            Compétence maîtrisée (ADR-042).
+
+            En tête de colonne, AU-DESSUS de « Prochaine étape » : quand une
+            compétence est sue, la question n'est plus « que faire ensuite pour
+            l'apprendre » mais « qu'en fait-on ». Rien n'est stocké — le
+            prédicat se recalcule à chaque lecture, et une preuve contradictoire
+            écrite demain fait disparaître cette carte d'elle-même.
+
+            Pas de carte sur le tableau de bord : une quatrième carte y serait le
+            défaut de surface qu'ADR-037 a nommé.
+          */}
+          {maitrise?.maitrisee && (
+            <Carte>
+              <EnTeteCarte
+                titre="Compétence maîtrisée"
+                legende="Dérivée du niveau et de la confiance — jamais stockée"
+                action={<Etiquette ton="succes">Maîtrisée</Etiquette>}
+              />
+              <div className="px-4 py-3.5">
+                <p className="text-xs text-texte-attenue">
+                  {maitrise.explication.resume}
+                </p>
+                <div className="mt-3">
+                  <BoutonEvolution
+                    code={etat.skill.code}
+                    intitule={etat.skill.intitule}
+                    domaineNom={libelleDomaine(ctx.referentiel, etat.skill.domaine)}
+                    nombrePreuves={etat.preuves.length}
+                    compteId={ctx.donnees.user.id}
+                    competences={competencesPourModale(ctx.referentiel.actifs)}
+                    calibrages={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
+                  />
+                </div>
+                <div className="mt-3 border-t border-bordure pt-3">
+                  <PanneauExplication
+                    explication={maitrise.explication}
+                    titre="D'où vient cette maîtrise ?"
+                  />
+                </div>
+              </div>
+            </Carte>
+          )}
+
           <Carte accent>
             <div className="px-4 py-3.5">
               <div className="text-[0.6875rem] font-semibold uppercase tracking-wider text-primaire">

@@ -11,8 +11,13 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  JUSTIFICATION_MAX,
+  OUTIL_CORRECTION,
+  OUTIL_EVOLUTION,
   OUTIL_EXERCICE,
   OUTIL_REFERENTIEL,
+  outilCorrection,
+  outilEvolution,
   outilsTuteur,
   validerAppelOutil,
   validerAppelOutilJson,
@@ -192,5 +197,223 @@ describe("outilsTuteur", () => {
     // Un `enum: []` n'admettrait aucune valeur : le modèle ne pourrait plus
     // proposer d'exercice du tout, y compris après création d'une branche.
     expect(exercice?.schema.properties?.domaine.enum).toBeUndefined();
+  });
+
+  it("n'expose ni proposer_correction ni proposer_evolution — ils ne passent pas par le chat", () => {
+    const noms = outilsTuteur(REFERENTIEL).map((o) => o.nom);
+    expect(noms).not.toContain(OUTIL_EVOLUTION);
+    expect(noms).toEqual([OUTIL_EXERCICE, OUTIL_REFERENTIEL]);
+  });
+
+  it("le schéma d'évolution n'expose AUCUN champ code", () => {
+    // Même interdit qu'ADR-026/031, même raison : un successeur est une
+    // compétence NOUVELLE, son code sort d'`attribuerCodes`.
+    expect(JSON.stringify(outilEvolution().schema)).not.toContain('"code"');
+  });
+
+  it("rejette un successeur sans intitulé", () => {
+    // Une évolution qu'on ne peut pas appliquer n'est pas une proposition,
+    // c'est une phrase : l'écran n'aurait rien à afficher.
+    expect(
+      validerAppelOutil(OUTIL_EVOLUTION, {
+        evolution: "successeur",
+        raisonnement: "Elle est solide.",
+      }),
+    ).toBeNull();
+  });
+
+  it("rejette un élargissement sans contexte", () => {
+    // C'est le contexte qui devient le thème de l'exercice : sans lui,
+    // l'élargissement n'élargit rien.
+    expect(
+      validerAppelOutil(OUTIL_EVOLUTION, {
+        evolution: "elargissement",
+        raisonnement: "Les deux contextes se ressemblent.",
+        intitule: "Peu importe",
+      }),
+    ).toBeNull();
+  });
+
+  it("rejette une évolution sans raisonnement", () => {
+    // Un arbitrage doit pouvoir être instruit (P3).
+    expect(
+      validerAppelOutil(OUTIL_EVOLUTION, { evolution: "retrait", raisonnement: "  " }),
+    ).toBeNull();
+  });
+
+  it("rejette une évolution hors des trois voies", () => {
+    expect(
+      validerAppelOutil(OUTIL_EVOLUTION, { evolution: "fusion", raisonnement: "x" }),
+    ).toBeNull();
+  });
+
+  it("accepte un retrait et ignore ses champs surnuméraires", () => {
+    // Proposer un retrait reste valide ; le reste est du bruit, pas un motif
+    // de rejet.
+    const recu = validerAppelOutil(OUTIL_EVOLUTION, {
+      evolution: "retrait",
+      raisonnement: "Elle sort du périmètre de travail.",
+      intitule: "Quelque chose",
+    });
+    if (recu?.genre !== "evolution") throw new Error("genre inattendu");
+    expect(recu.evolution.intitule).toBe("");
+  });
+
+  it("n'expose PAS proposer_correction — la correction ne passe pas par le chat", () => {
+    /*
+     * C'est le premier des six verrous qui bornent l'exception à ADR-036.
+     * Le chemin de correction doit voir la correction de l'exercice ; le chat,
+     * non. Si cet outil entrait ici, il voyagerait avec chaque message et
+     * l'exception cesserait d'en être une.
+     */
+    const noms = outilsTuteur(REFERENTIEL).map((o) => o.nom);
+    expect(noms).not.toContain(OUTIL_CORRECTION);
+    expect(noms).toEqual([OUTIL_EXERCICE, OUTIL_REFERENTIEL]);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* La correction — l'outil du lot A1                                   */
+/* ------------------------------------------------------------------ */
+
+const CRITERES = [
+  { dimension: "application", libelle: "Applique la formule au bon horizon" },
+  { dimension: "justification", libelle: "Justifie le choix du niveau de service" },
+];
+
+const CORRECTION_ENTIERE = {
+  resultat: "partiel",
+  appreciations: [
+    { critere: 1, valeur: "1", justification: "La formule est appliquée sur √2." },
+    { critere: 2, valeur: "0.5", justification: "Le 95 % est posé sans être justifié." },
+  ],
+};
+
+describe("outilCorrection — le schéma", () => {
+  it("borne le numéro de critère au nombre réel de critères", () => {
+    /*
+     * Borner par le schéma plutôt que par une phrase du prompt : « numérote de
+     * 1 à 2 » est une consigne qu'on peut manquer, `maximum: 2` est une valeur
+     * que le schéma n'admet pas.
+     */
+    const schema = outilCorrection(CRITERES).schema;
+    const critere = schema.properties?.appreciations.items?.properties?.critere;
+    expect(critere?.minimum).toBe(1);
+    expect(critere?.maximum).toBe(2);
+  });
+
+  it("n'énumère que les trois positions de l'échelle", () => {
+    const schema = outilCorrection(CRITERES).schema;
+    const valeur = schema.properties?.appreciations.items?.properties?.valeur;
+    expect(valeur?.enum).toEqual(["0", "0.5", "1"]);
+  });
+
+  it("nomme les résultats dans les mêmes termes que le formulaire", () => {
+    // `lib/domain/bilan.ts` est la source unique : si l'écran et le prompt
+    // divergeaient, rien ne le signalerait — la mesure serait simplement fausse.
+    const schema = outilCorrection(CRITERES).schema;
+    expect(schema.properties?.resultat.enum).toEqual(["reussi", "partiel", "echec"]);
+    expect(schema.properties?.resultat.description).toContain(
+      "Méthode correcte, résultat incomplet",
+    );
+  });
+
+  it("interdit explicitement de recopier la correction", () => {
+    const schema = outilCorrection(CRITERES).schema;
+    const justification = schema.properties?.appreciations.items?.properties?.justification;
+    expect(justification?.description).toContain("Ne recopie pas la correction");
+  });
+});
+
+describe("validerCorrection — les rejets", () => {
+  it("accepte un verdict complet et rend les valeurs en chaînes", () => {
+    const recu = validerAppelOutil(OUTIL_CORRECTION, CORRECTION_ENTIERE);
+    if (recu?.genre !== "correction") throw new Error("genre inattendu");
+    expect(recu.correction.resultat).toBe("partiel");
+    expect(recu.correction.appreciations).toEqual([
+      { critere: "1", valeur: "1", justification: "La formule est appliquée sur √2." },
+      { critere: "2", valeur: "0.5", justification: "Le 95 % est posé sans être justifié." },
+    ]);
+  });
+
+  it("rejette une appréciation hors de l'échelle plutôt que de la ramener à 0", () => {
+    /*
+     * Le cœur du module. Un 0 est une MESURE — « non démontré ». Le fabriquer
+     * à partir d'une valeur illisible produirait un jugement indiscernable
+     * d'un vrai. C'est P2, et c'est le défaut d'ADR-034 transposé.
+     */
+    const recu = validerAppelOutil(OUTIL_CORRECTION, {
+      ...CORRECTION_ENTIERE,
+      appreciations: [{ critere: 1, valeur: "0.75", justification: "À moitié." }],
+    });
+    expect(recu).toBeNull();
+  });
+
+  it("rejette un résultat hors des trois valeurs", () => {
+    const recu = validerAppelOutil(OUTIL_CORRECTION, {
+      ...CORRECTION_ENTIERE,
+      resultat: "excellent",
+    });
+    expect(recu).toBeNull();
+  });
+
+  it("rejette une justification qui dépasse le plafond", () => {
+    /*
+     * Ce n'est pas une règle de style : c'est la borne de confinement de
+     * l'exception à ADR-036. Une justification de 2 000 caractères, c'est la
+     * correction réécrite, et la borne serait vide.
+     */
+    const recu = validerAppelOutil(OUTIL_CORRECTION, {
+      ...CORRECTION_ENTIERE,
+      appreciations: [{ critere: 1, valeur: "1", justification: "x".repeat(JUSTIFICATION_MAX + 1) }],
+    });
+    expect(recu).toBeNull();
+  });
+
+  it("accepte une justification exactement au plafond", () => {
+    const recu = validerAppelOutil(OUTIL_CORRECTION, {
+      resultat: "reussi",
+      appreciations: [{ critere: 1, valeur: "1", justification: "x".repeat(JUSTIFICATION_MAX) }],
+    });
+    expect(recu?.genre).toBe("correction");
+  });
+
+  it("rejette une appréciation sans justification — un verdict sans motif ne se relit pas", () => {
+    const recu = validerAppelOutil(OUTIL_CORRECTION, {
+      resultat: "reussi",
+      appreciations: [{ critere: 1, valeur: "1", justification: "  " }],
+    });
+    expect(recu).toBeNull();
+  });
+
+  it("rejette un verdict sans aucune appréciation", () => {
+    const recu = validerAppelOutil(OUTIL_CORRECTION, { resultat: "reussi", appreciations: [] });
+    expect(recu).toBeNull();
+  });
+
+  it("rejette une correction tronquée par la limite de jetons", () => {
+    // Le symptôme le plus courant : le JSON ne parse pas.
+    const recu = validerAppelOutilJson(
+      OUTIL_CORRECTION,
+      '{"resultat":"partiel","appreciations":[{"critere":1,"valeur":"1","justi',
+    );
+    expect(recu).toBeNull();
+  });
+
+  it("lit une valeur numérique et une virgule décimale", () => {
+    // Les fournisseurs ne respectent pas tous `type: "string"`, et une locale
+    // française produit « 0,5 ». Les deux nomment une position de l'échelle.
+    const recu = validerAppelOutil(OUTIL_CORRECTION, {
+      resultat: "partiel",
+      appreciations: [{ critere: 1, valeur: 0.5, justification: "Partiellement." }],
+    });
+    if (recu?.genre !== "correction") throw new Error("genre inattendu");
+    expect(recu.correction.appreciations[0].valeur).toBe("0.5");
+
+    const virgule = validerAppelOutil(OUTIL_CORRECTION, {
+      resultat: "partiel",
+      appreciations: [{ critere: 1, valeur: "0,5", justification: "Partiellement." }],
+    });
+    expect(virgule?.genre).toBe("correction");
   });
 });

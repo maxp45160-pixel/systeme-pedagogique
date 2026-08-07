@@ -15,6 +15,7 @@ import {
 import { RepartitionNiveaux } from "@/components/charts";
 import { formatDateRelative } from "@/lib/engine/dates";
 import { BoutonAjouterCompetence } from "@/components/referentiel/bouton-ajouter";
+import { BoutonCreerReferentiel } from "@/components/referentiel/modale-referentiel";
 import { PanneauProgression } from "@/components/suivi/panneau-progression";
 import { PanneauJournal } from "@/components/suivi/panneau-journal";
 
@@ -192,8 +193,11 @@ function VueDomaines({
           <p className="text-sm font-medium">Aucun domaine actif</p>
           <p className="mx-auto mt-1 max-w-md text-xs text-texte-attenue">
             Ton référentiel est construit mais aucun domaine n{"'"}a de compétences actives.
-            Ajoute une compétence ou réactive un domaine pour commencer.
+            Ajoute un référentiel ci-dessous, ou réactive un domaine pour commencer.
           </p>
+          <div className="mt-3 flex justify-center">
+            <BoutonCreerReferentiel compteId={compteId} />
+          </div>
         </div>
       </Carte>
     );
@@ -201,6 +205,25 @@ function VueDomaines({
 
   return (
     <div className="space-y-4">
+      {/*
+        Le point d'entrée qui manquait.
+
+        `+ Compétence` n'existait que sur une carte de domaine EXISTANT : il n'y
+        avait aucun moyen d'ajouter une branche neuve depuis cette page. Et la
+        suggestion ne produisait qu'une branche, là où « le stoïcisme » en
+        demande plusieurs.
+
+        Placé ici et non dans l'en-tête de page : celui-ci est rendu hors du
+        `Suspense` et n'a pas de contexte chargé — l'y mettre bloquerait le
+        rendu de la coquille pour un bouton.
+      */}
+      <div className="flex items-center justify-between gap-3 rounded-carte border border-bordure bg-surface-2 px-4 py-2.5">
+        <p className="text-xs text-texte-attenue">
+          Un sujet à couvrir que le référentiel n{"'"}aborde pas encore ?
+        </p>
+        <BoutonCreerReferentiel compteId={compteId} />
+      </div>
+
       {parDomaine.map(({ domaine, items }) => {
         const repartition: Record<number, number> = {};
         for (const e of items) {

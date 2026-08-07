@@ -77,6 +77,47 @@ export interface DemandeTuteur {
   envoyer: EnvoyerEvenement;
 }
 
+/* ------------------------------------------------------------------ */
+/* Lecture de l'événement `fin`                                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Le fournisseur a-t-il servi les outils, d'après l'événement `fin` ?
+ *
+ * `compatible-openai` replie en dernier recours sur un appel **sans** `tools`
+ * quand le fournisseur refuse la sortie structurée (marche 2). Le tuteur
+ * répond alors en prose, aucun événement `proposition` n'est émis, et un
+ * chemin one-shot qui ne regarde que ses propositions conclut « rien
+ * d'exploitable » — le même message que pour un tuteur qui n'avait rien à
+ * dire. Deux pannes très différentes, une seule phrase : c'est le silence
+ * qu'ADR-031 a supprimé **pour le chat**, en faisant porter `outils` par
+ * l'événement `fin`. Les chemins sans conversation ne le lisaient pas.
+ *
+ * Rend `null` quand l'événement n'est pas un `fin` exploitable — l'absence
+ * d'information n'est pas un `false` (P2). L'appelant garde alors son
+ * diagnostic par défaut.
+ */
+export function lireOutilsActifs(evenement: string, donnees: unknown): boolean | null {
+  if (evenement !== "fin") return null;
+  if (typeof donnees !== "object" || donnees === null) return null;
+  const outils = (donnees as { outils?: unknown }).outils;
+  if (typeof outils !== "object" || outils === null) return null;
+  const actifs = (outils as { actifs?: unknown }).actifs;
+  return typeof actifs === "boolean" ? actifs : null;
+}
+
+/**
+ * Le message unique des chemins assistés quand le fournisseur n'outille pas.
+ *
+ * Aucun repli texte n'est proposé ici, et c'est délibéré : deviner une
+ * proposition dans de la prose est exactement la classe de bugs fermée par
+ * ADR-031. Le chemin assisté s'annonce indisponible, l'utilisateur retombe
+ * sur la saisie manuelle.
+ */
+export function messageSansOutils(quoi: string): string {
+  return `Ton fournisseur de modèle n'accepte pas les appels d'outil : ${quoi} est indisponible. Le chat reste utilisable, et la saisie manuelle aussi.`;
+}
+
 export interface MoteurTuteur {
   /** Identifiant technique, affiché dans le manifeste de l'interface. */
   readonly nom: string;

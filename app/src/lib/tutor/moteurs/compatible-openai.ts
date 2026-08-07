@@ -347,7 +347,8 @@ export function moteurCompatibleOpenAI(
         // rejeté et annoncé, là où le gabarit markdown livrait un demi-exercice
         // sans le dire.
         for (const appel of appelsOutil.values()) {
-          const proposition = validerAppelOutilJson(appel.nom, appel.arguments);
+          // Voir `anthropic.ts` : les outils armés servent au validateur.
+          const proposition = validerAppelOutilJson(appel.nom, appel.arguments, outils);
           if (proposition) {
             envoyer("proposition", proposition);
           } else {
