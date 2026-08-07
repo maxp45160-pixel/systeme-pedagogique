@@ -23,12 +23,14 @@ import { compteCourant, createServeurClient } from "@/lib/supabase/server";
 import { mesurer } from "@/lib/profiling/server";
 import {
   TABLES,
+  convertirResultatRPC,
   entiteVersLigne,
   ligneVersEntite,
   profilVersUser,
   verifier,
   type CleListe,
   type ClientSupabase,
+  type ResultatRPC,
 } from "./supabase-backend";
 import type {
   Exercise,
@@ -216,26 +218,24 @@ export async function lireTout(): Promise<Collections> {
 /* RPC groupée                                                         */
 /* ------------------------------------------------------------------ */
 
-import type { Domaine, Skill } from "@/lib/domain/types";
-
 /**
  * Résultat brut de la fonction PostgreSQL `charger_tout`.
  *
- * Elle renvoie les sept tables en un seul aller-retour — profil, données
+ * Elle renvoie les huit tables en un seul aller-retour — profil, données
  * et référentiel — ce qui réduit la latence de ~750 ms (7 round-trips
  * parallèles) à ~100 ms (1 round-trip).
+ *
+ * La conversion vit dans `supabase-backend.ts` : elle est pure, donc testable
+ * (ce module-ci est `server-only`).
  */
-export interface ResultatRPC {
-  collections: Collections;
-  domaines: Domaine[];
-  competences: Skill[];
-}
+export type { ResultatRPC };
 
 /**
  * Charge toutes les données du compte en un seul appel RPC.
  *
- * Renvoie `null` si la fonction SQL n'existe pas encore en base (le
- * code appelant doit alors se rabattre sur `lireTout` + `chargerReferentiel`).
+ * Renvoie `null` si la fonction SQL n'existe pas encore en base **ou si sa
+ * charge utile ne porte pas toutes les clés attendues** — le code appelant se
+ * rabat alors sur `lireTout` + `chargerReferentiel`.
  */
 export async function chargerToutRPC(): Promise<ResultatRPC | null> {
   const dorsale = await dorsaleCompte();
@@ -253,33 +253,7 @@ export async function chargerToutRPC(): Promise<ResultatRPC | null> {
       return null;
     }
 
-    const brut = data as Record<string, unknown>;
-    if (!brut || typeof brut !== "object") return null;
-
-    // --- Profil ---
-    const profilBrut = brut.profile as Record<string, unknown> | null;
-    const user: User = profilBrut ? profilVersUser(profilBrut, defaut) : defaut;
-
-    // --- Collections tabulaires ---
-    const convertirListe = <T>(cle: string): T[] =>
-      ((brut[cle] as Record<string, unknown>[] | null) ?? []).map((l) =>
-        ligneVersEntite<T>(l),
-      );
-
-    const collections: Collections = {
-      user,
-      evidence: convertirListe<SkillEvidence>("evidence"),
-      exercises: convertirListe<Exercise>("exercises"),
-      attempts: convertirListe<ExerciseAttempt>("attempts"),
-      sessions: convertirListe<LearningSession>("sessions"),
-      refusRecommandations: convertirListe<RefusRecommandation>("refus_recommandations"),
-    };
-
-    // --- Référentiel ---
-    const domaines = convertirListe<Domaine>("domaines");
-    const competences = convertirListe<Skill>("competences");
-
-    return { collections, domaines, competences };
+    return convertirResultatRPC(data, defaut);
   } catch (e) {
     console.warn("[profiling] charger_tout RPC erreur :", e);
     return null;

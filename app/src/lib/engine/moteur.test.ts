@@ -809,6 +809,102 @@ describe("choix de l'exercice — un échec ne redonne pas le même exercice", (
 });
 
 /* ------------------------------------------------------------------ */
+
+/*
+ * Refus de recommandation (R1) — 07/08/2026.
+ *
+ * Le paramètre d'exclusion existait depuis le 31/07 et n'était exercé par
+ * AUCUN test : les sept appels à `recommander` s'arrêtaient au 6ᵉ argument.
+ * Le défaut est pourtant resté invisible ailleurs — la fonction SQL
+ * `charger_tout` ne renvoyait pas la table des refus, l'ensemble arrivait
+ * toujours vide, et « Passer » n'écartait rien pendant deux mois.
+ *
+ * La portée a changé le 07/08 : un refus retire l'exercice proposé, pas la
+ * compétence. Écarter la compétence entière assèche une file où 40 des 54
+ * compétences actives n'ont aucun exercice.
+ */
+describe("refus de recommandation — portée exercice, et non compétence", () => {
+  function exo(id: string, difficulte: Difficulte): Exercise {
+    return {
+      id,
+      titre: `Exercice ${id}`,
+      domaine: "statistiques",
+      type: "application",
+      difficulte,
+      competences: ["STAT-01"],
+      dureeEstimeeMin: 25,
+      enonce: "…",
+      indices: ["a", "b", "c"],
+      correction: "…",
+      criteres: [],
+      origine: "tuteur",
+    };
+  }
+
+  const AUCUN = { codes: new Set<string>(), exercices: new Set<string>() };
+
+  function file(
+    exercices: Exercise[],
+    refus: { codes: Set<string>; exercices: Set<string> } = AUCUN,
+  ) {
+    const etats = computeAllSkillStates(SKILLS, [], MAINTENANT);
+    return recommander(etats, exercices, [], SKILLS.length, undefined, MAINTENANT, refus);
+  }
+
+  const stat01 = (r: ReturnType<typeof file>) =>
+    r.find((x) => x.etat.skill.code === "STAT-01");
+
+  it("sans refus, la file est inchangée — le défaut vaut absence d'exclusion", () => {
+    const exercices = [exo("ex-1", 2), exo("ex-2", 2)];
+    const etats = computeAllSkillStates(SKILLS, [], MAINTENANT);
+    const avecDefaut = recommander(etats, exercices, [], SKILLS.length, undefined, MAINTENANT);
+    const avecVide = file(exercices);
+    expect(avecVide.map((r) => r.etat.skill.code)).toEqual(
+      avecDefaut.map((r) => r.etat.skill.code),
+    );
+  });
+
+  it("passer un exercice laisse la compétence dans la file, avec un autre exercice", () => {
+    const exercices = [exo("ex-1", 2), exo("ex-2", 2)];
+    const sansRefus = stat01(file(exercices))!;
+    expect(sansRefus.exercice).not.toBeNull();
+
+    const refuse = stat01(
+      file(exercices, { codes: new Set(), exercices: new Set([sansRefus.exercice!.id]) }),
+    );
+    expect(refuse).toBeDefined();
+    expect(refuse!.exercice?.id).not.toBe(sansRefus.exercice!.id);
+  });
+
+  it("passer le dernier exercice retire la compétence de la file", () => {
+    // Sinon elle resterait en tête avec le repli « Générer un exercice » : le
+    // clic paraîtrait sans effet, ce que ce mécanisme est censé réparer.
+    const exercices = [exo("ex-1", 2)];
+    const refuse = stat01(
+      file(exercices, { codes: new Set(), exercices: new Set(["ex-1"]) }),
+    );
+    expect(refuse).toBeUndefined();
+  });
+
+  it("une compétence qui n'avait aucun exercice reste dans la file", () => {
+    // Elle n'a rien de refusé : son `exercice` null est un manque de stock,
+    // pas un refus. L'interface y propose « Générer un exercice ».
+    const refuse = stat01(file([], { codes: new Set(), exercices: new Set(["ex-1"]) }));
+    expect(refuse).toBeDefined();
+    expect(refuse!.exercice).toBeNull();
+  });
+
+  it("un refus par code écarte la compétence entière — portée héritée", () => {
+    // Ce que sont les refus antérieurs au 07/08/2026, et ceux posés quand
+    // aucun exercice n'était proposé.
+    const refuse = stat01(
+      file([exo("ex-1", 2)], { codes: new Set(["STAT-01"]), exercices: new Set() }),
+    );
+    expect(refuse).toBeUndefined();
+  });
+});
+
+/* ------------------------------------------------------------------ */
 /* Activité sur une fenêtre glissante                                  */
 /* ------------------------------------------------------------------ */
 

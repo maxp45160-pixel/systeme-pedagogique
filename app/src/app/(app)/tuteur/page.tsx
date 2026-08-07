@@ -1,10 +1,9 @@
 import { Suspense } from "react";
 import { chargerContexte } from "@/lib/store/context";
 import { SqueletteContenu } from "@/components/layout/squelette";
-import { construireContexte } from "@/lib/tutor/contexte";
-import { choisirConfiguration, decrireChoix } from "@/lib/tutor/moteurs";
+import { construireEtatInitialTuteur } from "@/lib/tutor/etat-initial";
 import { EntetePage } from "@/components/layout/entete-page";
-import { ChatTuteur, type EtatContexteTuteur } from "@/components/tuteur/chat";
+import { ChatTuteur } from "@/components/tuteur/chat";
 
 export default async function PageTuteur(props: {
   searchParams: Promise<{ competence?: string; amorce?: string; exercice?: string }>;
@@ -46,21 +45,7 @@ async function ContenuTuteur({
       }`
     : undefined;
 
-  // Assemblé ici plutôt que par un `fetch("/api/tutor")` au montage du chat :
-  // cette requête-là repayait un `chargerContexte()` complet — le `cache()` de
-  // React ne franchit pas la frontière d'une requête HTTP — plus un
-  // aller-retour d'authentification, pour un contexte déjà chargé ci-dessus.
-  // `messages` est vide, donc le protocole de synthèse est chargé (ADR-021 §4).
-  const pedagogique = await construireContexte(ctx, [], exercice);
-  const choix = choisirConfiguration(process.env);
-  const etatInitial: EtatContexteTuteur = {
-    // Conserve le nom historique du champ : l'interface s'en sert pour décider
-    // d'afficher le chat ou le repli « copier le contexte ».
-    cleConfiguree: choix.kind !== "aucun",
-    modele: decrireChoix(choix),
-    manifeste: pedagogique.manifeste,
-    caracteresTotal: pedagogique.caracteresTotal,
-  };
+  const etatInitial = await construireEtatInitialTuteur(ctx, exercice);
 
   return (
     <ChatTuteur

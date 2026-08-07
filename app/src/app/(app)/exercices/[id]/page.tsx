@@ -22,10 +22,8 @@ import { ZoneReponse } from "@/components/exercices/zone-reponse";
 import { IconeAmpoule, IconeFleche, IconeValide } from "@/components/ui/icones";
 import { formatDuree } from "@/lib/engine/dates";
 import { amorceExercice, lienTuteur } from "@/lib/tutor/amorces";
-import { construireContexte } from "@/lib/tutor/contexte";
-import { choisirConfiguration, decrireChoix } from "@/lib/tutor/moteurs";
+import { construireEtatInitialTuteur } from "@/lib/tutor/etat-initial";
 import { TiroirTuteur } from "@/components/tuteur/tiroir-tuteur";
-import type { EtatContexteTuteur } from "@/components/tuteur/chat";
 
 export default async function PageExercice(props: {
   params: Promise<{ id: string }>;
@@ -58,14 +56,7 @@ export default async function PageExercice(props: {
     : exercice.dureeEstimeeMin;
 
   // Contexte du tuteur pour le tiroir — même assemblage que la page /tuteur.
-  const pedagogique = await construireContexte(ctx, [], exercice.id);
-  const choix = choisirConfiguration(process.env);
-  const etatInitialTuteur: EtatContexteTuteur = {
-    cleConfiguree: choix.kind !== "aucun",
-    modele: decrireChoix(choix),
-    manifeste: pedagogique.manifeste,
-    caracteresTotal: pedagogique.caracteresTotal,
-  };
+  const etatInitialTuteur = await construireEtatInitialTuteur(ctx, exercice.id);
   const codesCompetences = ctx.etats.map((e) => e.skill.code);
   const domainesExistants = ctx.referentiel.domaines.map((d) => ({
     id: d.id,
