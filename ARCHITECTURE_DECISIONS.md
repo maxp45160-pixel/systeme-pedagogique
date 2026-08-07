@@ -49,6 +49,13 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [034](#adr-034) | Un exercice échoué ne revient qu'après un progrès démontré | 🔬 Hypothèse (02/08) |
 | [035](#adr-035) | Cycle de vie d'un exercice : le calque d'ADR-027 | 🔬 Hypothèse (02/08) |
 | [036](#adr-036) | Le tuteur voit le corpus, jamais les énoncés | 🔬 Hypothèse (02/08) |
+| [037](#adr-037) | P5 reformulé : le tuteur écrit le contenu, jamais la mesure | ✅ Acceptée (03/08) |
+| [038](#adr-038) | Le retrait de la preuve manuelle | ✅ Acceptée (04/08) · ⚠️ corrigée le 07/08 |
+| [039](#adr-039) | Le « crash du tuteur » était une boucle infinie de rendu | ✅ Acceptée (04/08) |
+| [040](#adr-040) | La réponse écrite est la condition du bilan ; l'abandon est un geste | 🔬 Hypothèse (07/08) |
+| [041](#adr-041) | Le tuteur voit la correction sur un seul chemin, et n'en écrit aucune mesure | 🔬 Hypothèse (07/08) — amende [036](#adr-036) |
+
+*(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08.)*
 
 ---
 
@@ -2435,6 +2442,175 @@ description de `proposer_referentiel`, qui porte les cinq conditions de
 mesurabilité et part à chaque message. **À vérifier à l'usage** : si les branches
 proposées sans la charte sont de moins bonne qualité, il faudra un déclencheur
 plus fin qu'une liste de mots — pas une liste plus longue.
+
+---
+
+## ADR-040 — La réponse écrite est la condition du bilan ; l'abandon est un geste 🔬
+
+**Date.** 07/08/2026, lot A0 du chantier d'intégration IA. Décision de Maxime,
+prise en connaissance du chiffre ci-dessous.
+
+**Le fait mesuré, avant d'écrire une ligne.** Sur 37 tentatives terminées,
+**16 ne portent aucune réponse écrite** (43 %). Ce n'est donc pas une formalité
+qu'on ajoute : c'est un changement de parcours réel, et il fallait le savoir
+avant de le décider, pas après.
+
+**La règle.** `terminerExercice` refuse une tentative dont `reponse` est vide
+après `trim`, et la carte d'auto-évaluation ne s'affiche pas. `reponseSuffisante`
+(`lib/domain/tentative.ts`) porte la règle, pure et testée.
+
+**Pourquoi aucun seuil de longueur.** « 42 » est une réponse complète à un
+exercice de calcul. Poser un minimum de caractères serait un seuil sans données,
+que CLAUDE.md §8 interdit et qu'ADR-028 a appris à ne pas poser : un seuil calé
+sur une intuition se déplace au premier désaccord. Le jour où l'usage montre
+qu'on tape « . » pour passer, ce sera une **observation**, et le seuil pourra
+être calé dessus.
+
+**Pourquoi la condition porte sur la base et non sur l'écran.**
+`zone-reponse.tsx` exige un clic « Enregistrer le brouillon » — choix délibéré,
+non remis en cause. Du texte non enregistré n'existe pas pour le serveur, et le
+tuteur ne le relirait pas. Conséquence : **le message d'erreur nomme le bouton**,
+sinon il enverrait la personne regarder un champ qu'elle a déjà rempli.
+
+**Le troisième chemin de clôture.** Il en existait deux, tous deux via
+`terminerExercice` : la preuve écrite, et l'abandon *dérivé* d'une durée
+dérisoire (ADR-030). Les deux exigent un bilan ouvert, donc désormais une
+réponse. Une tentative qu'on ne veut pas mener n'aurait plus eu de sortie :
+elle serait restée `en-cours` indéfiniment. D'où `abandonnerExercice`, qui
+n'écrit **aucune preuve** et **aucun `resultat`** — lui prêter un « partiel »
+par défaut fabriquerait la mesure qu'on refuse d'écrire. Sans danger pour la
+calibration : `calibrer`, `recommend` et `usageExercice` filtrent tous
+`statut === "terminee"`.
+
+**Le refus a lieu avant toute écriture.** `terminerExercice` écrivait la
+tentative puis lisait sa valeur de retour ; un refus placé après aurait laissé
+une tentative close, avec sa durée et son auto-évaluation, sans preuve pour
+l'expliquer. Une trace à moitié écrite est plus difficile à lire qu'une absence
+de trace.
+
+### ⚠️ Correction apportée à ADR-038 dans le même geste
+
+Le paragraphe « Ce que cela coûte » d'ADR-038 affirme que le bilan d'exercice ne
+pose pas la question de l'aide extérieure. **C'était faux le jour où ça a été
+écrit** : le commit `5424f4d` (04/08) l'y avait introduite. Voir la correction
+factuelle sous ADR-038. **P8 reste 🔬**, pour une autre raison — le barème
+`PLAFOND_AIDE` n'a jamais été confronté à l'usage.
+
+### 🔬 Test de réfutation
+
+1. **Compter les abandons délibérés sur un mois.** S'ils dépassent les bilans
+   remplis, la règle n'a pas produit des réponses écrites : elle a produit des
+   sorties. Il faudrait alors un chemin intermédiaire (dicter, photographier un
+   brouillon) plutôt que durcir davantage.
+2. **Regarder la longueur des réponses.** Si la médiane s'effondre vers un ou
+   deux caractères, la règle est contournée et le seuil devient justifiable —
+   sur données.
+3. **Vérifier qu'aucune tentative ne reste bloquée.** Les 3 tentatives
+   `en-cours` sans réponse au 07/08 doivent avoir trouvé leur sortie.
+
+---
+
+## ADR-041 — Le tuteur voit la correction sur un seul chemin, et n'en écrit aucune mesure 🔬
+
+**Date.** 07/08/2026, lot A1 du chantier d'intégration IA.
+
+**Ce qui est décidé.** Le tuteur relit la réponse écrite et rend un verdict
+complet — résultat global, une appréciation par critère, une justification par
+critère. L'interface l'affiche **replié**, avec un bouton « Accepter et
+enregistrer » et un « Relire / modifier » à un clic. Rien n'est écrit sans ce
+clic.
+
+### Ce que cela amende — ADR-036
+
+ADR-036 pose que le tuteur voit le corpus par ses titres, ses compétences, sa
+difficulté et son état d'usage, **jamais par ses énoncés et jamais par ses
+corrections**. Ce lot y ouvre une exception nommée : sur le chemin de
+correction, et sur lui seul, la correction de référence entre dans le prompt.
+
+La raison est qu'il n'y a pas d'alternative honnête. Un tuteur qui corrige sans
+la correction n'corrige pas : il improvise un barème. Et un barème improvisé qui
+pré-remplit un formulaire qui écrit une preuve est exactement ce que ce système
+existe pour empêcher.
+
+**Les six verrous, tous portés par du code :**
+
+| # | Verrou | Où |
+|---|---|---|
+| 1 | Prompt dédié, qui n'appelle jamais `construireContexte` | `lib/tutor/correction.ts` — le test `contexte.test.ts` « ne transmet JAMAIS la correction » reste vert et reste la garantie du chat |
+| 2 | Route dédiée ; `/api/tutor` ne lit toujours pas `exercice.correction` | `api/exercices/corriger` |
+| 3 | `outilCorrection` **n'entre pas** dans `outilsTuteur` — testé | `outils.ts` |
+| 4 | Aucun historique : un seul message construit côté serveur | la route n'accepte pas de `messages` |
+| 5 | La sortie ne peut pas contenir la correction : `JUSTIFICATION_MAX = 400` la borne, et le validateur rejette au-delà | `outils.ts` |
+| 6 | Ne sert qu'une tentative **ouverte, du compte, avec une réponse écrite** | gardes de la route |
+
+Le verrou 6 mérite un mot de plus. **Le corps de la requête ne porte qu'un
+`attemptId`** — ni exercice, ni correction, ni réponse. Le serveur relit tout
+sous RLS. Si le client envoyait un `exerciseId`, il obtiendrait la correction
+d'un exercice qu'il ne possède pas : une fuite de contenu par un chemin
+qu'ADR-036 croyait fermé.
+
+### Pourquoi ce n'est pas `proposer_preuve` ressuscité
+
+ADR-038 a retiré l'outil `proposer_preuve`. La distinction tient à ce que
+`proposer_correction` **ne nomme pas** : ni compétence, ni autonomie, ni qualité,
+ni niveau de preuve. Ces quatre-là restent dérivés par `autonomieObservee` et
+`qualiteDepuisDifficulte`, à partir de faits observés — indices consultés, aide
+déclarée, difficulté de l'exercice. L'outil ne porte que ce que la personne
+aurait coché elle-même.
+
+**Mais il faut le dire franchement : le tuteur recommence à *proposer* une
+mesure, ce qu'il avait cessé de faire le 04/08.** P5 tient à la lettre — « le
+tuteur écrit le contenu, jamais la mesure », et il n'écrit toujours rien. L'esprit,
+lui, est élargi, et ce registre n'a pas à le masquer.
+
+### Ce qui n'est pas proposé, et pourquoi
+
+**L'aide extérieure et la durée restent hors du repli, saisies par la personne.**
+L'aide est un fait que seul l'utilisateur connaît : le tuteur ne peut pas savoir
+s'il avait un assistant ouvert à côté. La lui faire proposer fabriquerait la
+donnée même qu'ADR-033 existe pour aller chercher.
+
+### Refuser plutôt que tronquer
+
+Une réponse de plus de `REPONSE_MAX_CARACTERES` (12 000) fait échouer la route
+avec un message explicite. Un verdict rendu sur une réponse amputée aurait l'air
+d'un verdict rendu sur le tout : « une liste tronquée en silence se lirait comme
+un corpus complet » (ADR-036), c'est la même règle. Repère : la plus longue
+réponse enregistrée à ce jour fait 1 183 caractères.
+
+De même, une valeur d'appréciation illisible est **rejetée, jamais ramenée à 0**.
+Un `0` est la mesure « non démontré » : le fabriquer produirait un jugement
+négatif que personne n'a porté, indiscernable d'un vrai. C'est P2, et c'est le
+motif d'ADR-034.
+
+### ⚠️ Un risque que ce lot introduit, et qu'il ne corrige pas
+
+`tentativeMenee` laisse toujours passer une **réussite**, quelle qu'en soit la
+durée — « on ne réussit pas un exercice sans l'avoir fait » (ADR-030). Ce
+raisonnement supposait une auto-évaluation humaine. Un verdict `reussi` proposé
+par le tuteur sur une réponse mince, écrite en deux minutes sur trente estimées,
+écrirait donc une preuve là où la personne aurait probablement abandonné.
+
+Le seuil n'est **pas** déplacé : CLAUDE.md §8 interdit de bouger un seuil de
+`calibration.ts` sans nouvelles observations. Le comportement est consigné ici
+pour être surveillé. `verdictTentative` classera ces cas en « trop-facile » et
+abaissera la difficulté conseillée — ce qui est la réaction voulue, mais ne
+protège pas le journal de preuves.
+
+### 🔬 Test de réfutation
+
+1. **Soumettre une réponse volontairement fausse.** Le verdict proposé ne doit
+   pas être `reussi`. S'il l'est, le dispositif corrompt la mesure à la source
+   et doit être retiré avant d'aller plus loin.
+2. **Compter les modifications sur les 5 premiers usages.** Si le verdict n'est
+   **jamais** modifié, « Accepter » est un tampon : la personne ne relit pas, et
+   la chaîne de preuves est alimentée par le modèle. C'est le risque central de
+   ce lot, et il n'est pas technique.
+3. **Comparer les niveaux avant / après sur un mois.** Une montée générale des
+   niveaux sans montée du nombre de contextes distincts signalerait un
+   correcteur complaisant.
+4. **Vérifier qu'aucune justification ne recopie la correction.** Si le plafond
+   de 400 caractères est régulièrement atteint, il est mal calé.
 
 ---
 
