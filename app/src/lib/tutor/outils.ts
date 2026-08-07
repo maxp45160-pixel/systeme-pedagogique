@@ -77,6 +77,20 @@ export const OUTIL_CORRECTION = "proposer_correction";
 export const JUSTIFICATION_MAX = 400;
 
 /**
+ * ⚠️ `proposer_evolution` n'entre pas non plus dans `outilsTuteur`.
+ *
+ * Il ne s'arme que sur une compétence dont `estMaitrisee` est vrai, et la route
+ * le revérifie côté serveur. Proposer une évolution sur une compétence qui n'a
+ * rien démontré serait exactement l'invention que ce système combat : un
+ * « successeur » de quelque chose qui n'est pas su.
+ *
+ * Et comme `proposer_referentiel`, **son schéma n'a aucun champ `code`**. Un
+ * successeur est une compétence NOUVELLE : son code sort d'`attribuerCodes`,
+ * comme tous les autres (ADR-026, ADR-031).
+ */
+export const OUTIL_EVOLUTION = "proposer_evolution";
+
+/**
  * Sous-ensemble de JSON Schema effectivement employé ici.
  *
  * Volontairement pauvre : ce qui n'est pas exprimable dans ce type n'est pas
@@ -324,6 +338,51 @@ export function outilCorrection(
   };
 }
 
+/** Les trois évolutions possibles d'une compétence maîtrisée (ADR-042). */
+export const EVOLUTIONS = ["successeur", "elargissement", "retrait"] as const;
+
+/**
+ * L'outil d'évolution d'une compétence maîtrisée.
+ *
+ * `SchemaJson` ne sait pas exprimer un `oneOf` : les champs conditionnellement
+ * requis — `intitule` pour un successeur, `contexte` pour un élargissement —
+ * sont vérifiés dans le validateur écrit à la main. C'est la philosophie
+ * déclarée du fichier : ce qui n'est pas exprimable dans ce type ne l'est pas
+ * dans un schéma non plus, et se valide là où la garantie est réelle.
+ */
+export function outilEvolution(): OutilTuteur {
+  return {
+    nom: OUTIL_EVOLUTION,
+    description:
+      "Propose ce que devient une compétence que la personne maîtrise. Trois voies, une seule à la fois : « successeur » (une compétence nouvelle, au palier au-dessus, qui s'appuie sur celle-ci) · « elargissement » (remesurer la même compétence dans un contexte nouveau, quand la maîtrise tient sur des contextes trop proches) · « retrait » (elle n'a plus sa place dans le périmètre). N'affirme rien qui ne figure pas dans ce qui t'a été donné. Tu ne l'appliques pas : la personne arbitre.",
+    schema: {
+      type: "object",
+      properties: {
+        evolution: { type: "string", enum: [...EVOLUTIONS] },
+        raisonnement: {
+          type: "string",
+          description:
+            "Ce que les preuves montrent, et ce qu'elles ne montrent pas. Cite les valeurs qui t'ont été données ; n'en ajoute aucune.",
+        },
+        intitule: {
+          type: "string",
+          description:
+            "Successeur uniquement : un savoir-faire observable, pas un sujet. Ne redouble aucun intitulé voisin.",
+        },
+        palier: { type: "string", enum: [...PALIERS] },
+        importance: { type: "number", minimum: 0, maximum: 1 },
+        contexte: {
+          type: "string",
+          description:
+            "Élargissement uniquement : le contexte nouveau où remesurer, formulé comme un thème d'exercice.",
+        },
+      },
+      required: ["evolution", "raisonnement"],
+      additionalProperties: false,
+    },
+  };
+}
+
 /**
  * Les trois outils, pour un référentiel donné.
  *
@@ -399,7 +458,24 @@ function dansEnum(valeur: unknown, valeurs: readonly string[]): string {
 export type PropositionRecue =
   | { genre: "exercice"; exercice: PropositionExercice }
   | { genre: "referentiel"; branche: PropositionReferentiel }
-  | { genre: "correction"; correction: PropositionCorrection };
+  | { genre: "correction"; correction: PropositionCorrection }
+  | { genre: "evolution"; evolution: PropositionEvolution };
+
+/**
+ * Une évolution proposée. Tout en chaînes, comme les autres — sauf `evolution`,
+ * qui est déjà contraint par l'`enum` et validé ci-dessous.
+ *
+ * **Aucun champ `code`** : un successeur est une compétence nouvelle, et son
+ * code est attribué par l'application (ADR-026).
+ */
+export interface PropositionEvolution {
+  evolution: (typeof EVOLUTIONS)[number];
+  raisonnement: string;
+  intitule: string;
+  palier: string;
+  importance: string;
+  contexte: string;
+}
 
 /**
  * Une correction proposée, telle que l'outil la rend — tout en chaînes.
@@ -536,6 +612,49 @@ function validerCorrection(entree: Record<string, unknown>): PropositionRecue | 
 }
 
 /**
+ * Valide une évolution proposée.
+ *
+ * Les champs conditionnellement requis sont vérifiés ici, faute de `oneOf` dans
+ * `SchemaJson`. La règle : une évolution qu'on ne peut pas **appliquer** n'est
+ * pas une proposition, c'est une phrase.
+ *
+ * - `successeur` sans `intitule` : l'écran de validation n'aurait rien à
+ *   afficher ni `creerBranche` rien à écrire ;
+ * - `elargissement` sans `contexte` : c'est le contexte qui devient le thème de
+ *   l'exercice à générer ; sans lui l'élargissement n'élargit rien ;
+ * - `retrait` avec un `intitule` : les champs surnuméraires sont ignorés, pas
+ *   rejetés — proposer un retrait reste valide, le reste est du bruit.
+ *
+ * `raisonnement` est requis dans tous les cas : une évolution sans motif ne se
+ * relit pas, et c'est un arbitrage que l'utilisateur doit pouvoir instruire (P3).
+ */
+function validerEvolution(entree: Record<string, unknown>): PropositionRecue | null {
+  const evolution = dansEnum(entree.evolution, EVOLUTIONS);
+  if (!evolution) return null;
+
+  const raisonnement = texte(entree.raisonnement);
+  if (!raisonnement) return null;
+
+  const intitule = texte(entree.intitule);
+  const contexte = texte(entree.contexte);
+
+  if (evolution === "successeur" && !intitule) return null;
+  if (evolution === "elargissement" && !contexte) return null;
+
+  return {
+    genre: "evolution",
+    evolution: {
+      evolution: evolution as PropositionEvolution["evolution"],
+      raisonnement,
+      intitule: evolution === "retrait" ? "" : intitule,
+      palier: dansEnum(entree.palier, PALIERS),
+      importance: nombreTexte(entree.importance),
+      contexte,
+    },
+  };
+}
+
+/**
  * Valide un appel d'outil et rend la proposition, ou `null`.
  *
  * `null` n'est pas un cas silencieux : les moteurs émettent un événement
@@ -553,6 +672,8 @@ export function validerAppelOutil(nom: string, entree: unknown): PropositionRecu
       return validerReferentiel(donnees);
     case OUTIL_CORRECTION:
       return validerCorrection(donnees);
+    case OUTIL_EVOLUTION:
+      return validerEvolution(donnees);
     default:
       return null;
   }
