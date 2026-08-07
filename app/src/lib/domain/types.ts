@@ -319,6 +319,21 @@ export interface ExerciseAttempt {
   notes?: string;
 }
 
+/**
+ * Refus d'une recommandation (R1).
+ *
+ * Fait observé : l'utilisateur a écarté une suggestion. Stocké en base pour
+ * que le moteur de recommandation puisse l'exclure de la file pendant la
+ * durée d'expiration (7 jours, gérée à la lecture).
+ */
+export interface RefusRecommandation {
+  id: string;
+  /** Code de la compétence refusée. */
+  code: string;
+  /** Date du refus (ISO). */
+  date: string;
+}
+
 export interface LearningSession {
   id: string;
   date: string;

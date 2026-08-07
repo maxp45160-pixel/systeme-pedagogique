@@ -389,6 +389,32 @@ export async function supprimerExercice(exerciceId: string): Promise<void> {
 }
 
 /* ------------------------------------------------------------------ */
+/* Refus de recommandation (R1)                                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Enregistre un refus de recommandation.
+ *
+ * Un refus est un fait observé : l'utilisateur a écarté une suggestion.
+ * Il est stocké en base (et non en localStorage) pour que le moteur de
+ * recommandation puisse le prendre en compte au prochain calcul.
+ *
+ * L'expiration (7 jours) est gérée à la lecture, jamais à l'écriture : on
+ * n'efface pas un fait passé, on cesse de le prendre en compte.
+ */
+export async function refuserRecommandation(code: string): Promise<void> {
+  const dorsale = await dorsaleCompte();
+  const { error } = await dorsale.supabase.from("refus_recommandations").insert({
+    id: nouvelId("ref"),
+    user_id: dorsale.userId,
+    code,
+    date: new Date().toISOString(),
+  });
+  verifier("enregistrement du refus de recommandation", error);
+  revalidatePath("/", "layout");
+}
+
+/* ------------------------------------------------------------------ */
 /* Journal                                                             */
 /* ------------------------------------------------------------------ */
 

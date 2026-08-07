@@ -1,27 +1,25 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { chargerContexte } from "@/lib/store/context";
+import { retraitsParCode } from "@/lib/domain/referentiel-compte";
 import { EntetePage } from "@/components/layout/entete-page";
 import {
   Carte,
-  CodeCompetence,
-  cx,
   EnTeteCarte,
-  EtatVide,
-  JaugeNiveau,
   Statistique,
 } from "@/components/ui/primitives";
 import { Radar, RepartitionNiveaux } from "@/components/charts";
 import { BoutonAjouterCompetence } from "@/components/referentiel/bouton-ajouter";
+import { GestionDomaine } from "@/components/referentiel/gestion-domaine";
 import { formatDateRelative } from "@/lib/engine/dates";
 import { comparerCodes } from "@/lib/domain/referentiel-compte";
 
 /**
- * Sous-page par domaine — stats agrégées sur la compétence globale (Chantier 9).
+ * Sous-page par domaine — stats agrégées + gestion complète (R5).
  *
- * Montre le score moyen, la répartition des niveaux, le nombre de preuves,
- * la dernière activité, et la liste des compétences du domaine avec leurs
- * niveaux individuels.
+ * La page /competences est épurée (grands champs sans détails).
+ * Ici on voit les stats du domaine, le radar, ET la liste des
+ * sous-compétences avec sélection multiple, édition, retrait, etc.
  */
 export default async function PageDomaine(props: {
   params: Promise<{ id: string }>;
@@ -36,6 +34,8 @@ export default async function PageDomaine(props: {
     .filter((e) => e.skill.domaine === domaine.id)
     .sort((a, b) => comparerCodes(a.skill.code, b.skill.code));
 
+  const skills = ctx.referentiel.skills.filter((s) => s.domaine === domaine.id);
+  const retraits = Object.fromEntries(retraitsParCode(skills, ctx.donnees.evidence));
   const domainesExistants = ctx.referentiel.domaines.map((d) => ({
     id: d.id,
     nom: d.nom,
@@ -47,10 +47,6 @@ export default async function PageDomaine(props: {
   const scoreMoyen =
     evaluees.length > 0
       ? evaluees.reduce((s, e) => s + (e.score ?? 0), 0) / evaluees.length
-      : null;
-  const niveauMoyen =
-    evaluees.length > 0
-      ? evaluees.reduce((s, e) => s + (e.niveau ?? 0), 0) / evaluees.length
       : null;
   const totalPreuves = etats.reduce((s, e) => s + e.preuves.length, 0);
   const repartition: Record<number, number> = {};
@@ -104,11 +100,6 @@ export default async function PageDomaine(props: {
               precision={evaluees.length === 0 ? "aucune compétence évaluée" : `sur ${evaluees.length} compétence(s)`}
             />
             <Statistique
-              libelle="Niveau moyen"
-              valeur={niveauMoyen === null ? null : niveauMoyen.toFixed(1).replace(".", ",")}
-              unite="/ 5"
-            />
-            <Statistique
               libelle="Preuves"
               valeur={totalPreuves}
               precision={`${etats.filter((e) => e.contextesTestes.length > 0).length} compétence(s) avec contexte(s)`}
@@ -119,8 +110,6 @@ export default async function PageDomaine(props: {
               precision={dernierePreuve ? "dernière preuve enregistrée" : "jamais"}
             />
           </div>
-
-          {/* Répartition des niveaux */}
           {Object.keys(repartition).length > 0 && (
             <div className="border-t border-bordure px-4 py-3">
               <div className="mb-2 text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
@@ -144,67 +133,20 @@ export default async function PageDomaine(props: {
               <Radar axes={axes} />
               {etats.some((e) => e.score === null) && (
                 <p className="mt-3 text-[0.6875rem] text-texte-attenue">
-                  Les compétences sans preuve sont tracées à zéro — ce n&apos;est pas une
-                  faiblesse mesurée.
+                  Les compétences sans preuve sont tracées à zéro — ce n{"'"}est pas
+                  une faiblesse mesurée.
                 </p>
               )}
             </div>
           </Carte>
         )}
 
-        {/* Liste des compétences */}
-        <Carte>
-          <EnTeteCarte
-            titre="Compétences du domaine"
-            legende={`${etats.length} compétence(s)`}
-          />
-          {etats.length === 0 ? (
-            <EtatVide
-              titre="Aucune compétence"
-              message="Ce domaine n'a pas encore de compétences. Ajoute-en une pour commencer."
-            />
-          ) : (
-            <ul className="divide-y divide-bordure">
-              {etats.map((e) => (
-                <li key={e.skill.code}>
-                  <Link
-                    href={`/competences/${e.skill.code}`}
-                    className="flex w-full items-center gap-4 px-4 py-3 transition-colors hover:bg-surface-2"
-                  >
-                    <div className="w-16 shrink-0">
-                      <CodeCompetence code={e.skill.code} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm">{e.skill.intitule}</p>
-                      <p className="mt-0.5 text-[0.6875rem] text-texte-discret">
-                        {e.statut === "non-evalue" && "Jamais évaluée"}
-                        {e.statut === "hypothese" && "Hypothèse — non vérifiée"}
-                        {e.statut === "evalue" &&
-                          `${e.preuves.length} preuve${e.preuves.length > 1 ? "s" : ""} · ${e.contextesTestes.length} contexte${e.contextesTestes.length > 1 ? "s" : ""}${
-                            e.dernierePreuve ? ` · ${formatDateRelative(e.dernierePreuve)}` : ""
-                          }`}
-                      </p>
-                    </div>
-                    <div className="hidden w-24 shrink-0 sm:block">
-                      <JaugeNiveau niveau={e.niveau} />
-                    </div>
-                    <div className="chiffres w-14 shrink-0 text-right">
-                      <span
-                        className={cx(
-                          "text-sm font-semibold",
-                          e.niveau === null && "text-texte-discret",
-                        )}
-                      >
-                        {e.niveau ?? "—"}
-                      </span>
-                      <span className="text-[0.6875rem] text-texte-discret">/5</span>
-                    </div>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Carte>
+        {/* Gestion des sous-compétences */}
+        <GestionDomaine
+          domaine={domaine}
+          skills={skills}
+          retraits={retraits}
+        />
       </div>
     </>
   );

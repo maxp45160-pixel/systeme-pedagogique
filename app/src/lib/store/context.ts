@@ -116,8 +116,20 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
     calibrerToutes(etats, exercicesActifs, donnees.attempts),
     { exercices: exercicesActifs.length, tentatives: donnees.attempts.length },
   );
+
+  // Refus de recommandation (R1) : les compétences refusées sont écartées de
+  // la file pour 7 jours. L'expiration est gérée ici, à la lecture.
+  const refus = donneesBrutes.refusRecommandations ?? [];
+  const maintenant = Date.now();
+  const EXPIRATION_REFUS_MS = 7 * 24 * 60 * 60 * 1000;
+  const codesRefuses = new Set(
+    refus
+      .filter((r) => maintenant - new Date(r.date).getTime() < EXPIRATION_REFUS_MS)
+      .map((r) => r.code),
+  );
+
   const recommandations = mesurerSync("recommander", () =>
-    recommander(etats, exercicesActifs, donnees.attempts, 6, calibrations, now),
+    recommander(etats, exercicesActifs, donnees.attempts, 6, calibrations, now, codesRefuses),
     { exercices: exercicesActifs.length, tentatives: donnees.attempts.length },
   );
 

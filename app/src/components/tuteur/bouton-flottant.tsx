@@ -3,21 +3,18 @@
 /**
  * Bouton flottant du tuteur — accessible depuis n'importe quelle page.
  *
- * Friction #4 : le tuteur n'était accessible que depuis les fiches.
- * Ce bouton le rend accessible de partout. Pour l'instant, il navigue
- * vers /tuteur. Une version future pourrait ouvrir un tiroir in-situ.
+ * Un `<Link>` natif plutôt qu'un `router.push` : la navigation fonctionne
+ * dès le premier rendu, indépendamment de l'hydratation, et ouvre bien la
+ * page /tuteur en pleine fenêtre.
  */
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { cx } from "@/components/ui/primitives";
 
 export function BoutonTuteurFlottant() {
-  const router = useRouter();
-
   return (
-    <button
-      type="button"
-      onClick={() => router.push("/tuteur")}
+    <Link
+      href="/tuteur"
       aria-label="Ouvrir le tuteur"
       title="Ouvrir le tuteur"
       className={cx(
@@ -30,6 +27,6 @@ export function BoutonTuteurFlottant() {
       <span className="text-lg font-bold" aria-hidden>
         💬
       </span>
-    </button>
+    </Link>
   );
 }

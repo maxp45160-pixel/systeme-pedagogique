@@ -309,10 +309,20 @@ export function recommander(
   limite = 5,
   calibrations?: Map<string, Calibration>,
   now: Date = new Date(),
+  /**
+   * Codes de compétences refusées par l'utilisateur (R1).
+   *
+   * Un refus est un fait observé : la personne a écarté une suggestion.
+   * Les compétences refusées sont exclues de la file de recommandation
+   * pour la durée d'expiration (7 jours, gérée à la lecture). Le moteur
+   * reste pur : il reçoit un Set de codes, il ne lit pas la base.
+   */
+  codesRefuses: Set<string> = new Set(),
 ): Recommandation[] {
   const parCode = new Map(etats.map((e) => [e.skill.code, e]));
 
   return etats
+    .filter((e) => !codesRefuses.has(e.skill.code))
     .map((etat) => {
       const { valeur, facteurs } = evaluer(etat, parCode, now);
       // La calibration règle la DIFFICULTÉ ; elle ne re-classe pas les

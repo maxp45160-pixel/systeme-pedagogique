@@ -1,36 +1,35 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { chargerContexte } from "@/lib/store/context";
-import { comparerCodes, retraitsParCode } from "@/lib/domain/referentiel-compte";
+import { comparerCodes } from "@/lib/domain/referentiel-compte";
 import { SqueletteContenu } from "@/components/layout/squelette";
 import type { Referentiel, SkillState } from "@/lib/domain/types";
 import { EntetePage } from "@/components/layout/entete-page";
 import {
   BandeauInfo,
   Carte,
-  CodeCompetence,
-  CorpsCarte,
   cx,
-  EnTeteCarte,
   Etiquette,
-  JaugeNiveau,
-  LigneListe,
   Statistique,
 } from "@/components/ui/primitives";
-import { Radar, RepartitionNiveaux } from "@/components/charts";
+import { RepartitionNiveaux } from "@/components/charts";
 import { formatDateRelative } from "@/lib/engine/dates";
 import { BoutonAjouterCompetence } from "@/components/referentiel/bouton-ajouter";
-import { GestionReferentiel } from "@/components/referentiel/gestion";
-import { PanneauPliable } from "@/components/ui/panneau-pliable";
 import { PanneauProgression } from "@/components/suivi/panneau-progression";
 import { PanneauJournal } from "@/components/suivi/panneau-journal";
 
-type Vue = "grille" | "radar" | "gerer" | "progression" | "journal";
+/**
+ * Page Compétences — version épurée (R5).
+ *
+ * On voit les grands champs (domaines) avec leurs stats agrégées, sans les
+ * détails des sous-compétences. Les détails — liste des compétences, niveaux,
+ * gestion — vivent dans la sous-page `/competences/domaine/[id]`.
+ */
+
+type Vue = "accueil" | "progression" | "journal";
 
 const VUES: { cle: Vue; libelle: string }[] = [
-  { cle: "grille", libelle: "Grille" },
-  { cle: "radar", libelle: "Radar" },
-  { cle: "gerer", libelle: "Gérer" },
+  { cle: "accueil", libelle: "Compétences" },
   { cle: "progression", libelle: "Progression" },
   { cle: "journal", libelle: "Journal" },
 ];
@@ -40,31 +39,24 @@ export default async function PageCompetences(props: {
 }) {
   const { vue: vueBrute, periode, recherche } = await props.searchParams;
   const vue: Vue =
-    vueBrute === "radar"
-      ? "radar"
-      : vueBrute === "gerer"
-        ? "gerer"
-        : vueBrute === "progression"
-          ? "progression"
-          : vueBrute === "journal"
-            ? "journal"
-            : "grille";
+    vueBrute === "progression"
+      ? "progression"
+      : vueBrute === "journal"
+        ? "journal"
+        : "accueil";
 
-  // Le référentiel étant propre au compte depuis ADR-026, aucun compteur n'est
-  // connu avant la lecture. L'en-tête reste donc rendu immédiatement mais sans
-  // chiffre ; le décompte réel arrive avec le contenu, dans le Suspense.
   return (
     <>
       <EntetePage
         titre="Compétences"
-        sousTitre="Pour chacune, son niveau, la confiance de l'évaluation et la solidité des acquis."
+        sousTitre="Tes grands domaines de travail. Clique sur un domaine pour voir ses compétences et les gérer."
         actions={
           <div className="flex items-center gap-3">
             <div className="flex rounded-md border border-bordure p-0.5">
               {VUES.map((v) => (
                 <Link
                   key={v.cle}
-                  href={`/competences?vue=${v.cle}`}
+                  href={`/competences${v.cle === "accueil" ? "" : `?vue=${v.cle}`}`}
                   className={cx(
                     "rounded px-2.5 py-1 text-xs font-medium transition-colors",
                     vue === v.cle
@@ -90,8 +82,7 @@ export default async function PageCompetences(props: {
 /**
  * Deux vides distincts, et les confondre serait trompeur : un compte **sans
  * référentiel** doit aller le construire avec le tuteur, un compte **sans
- * preuve** doit aller se faire mesurer. Le second écran existe depuis toujours ;
- * le premier est le cas normal d'un compte neuf depuis ADR-026.
+ * preuve** doit aller se faire mesurer.
  */
 function BandeauPerimetre({ referentiel }: { referentiel: Referentiel }) {
   const total = referentiel.skills.length;
@@ -144,20 +135,6 @@ async function ContenuCompetences({
     prefixe: d.prefixe,
   }));
 
-  if (vue === "gerer") {
-    const retraits = retraitsParCode(ctx.referentiel.skills, ctx.donnees.evidence);
-    return (
-      <div className="space-y-6">
-        <BandeauPerimetre referentiel={ctx.referentiel} />
-        <GestionReferentiel
-          domaines={ctx.referentiel.domaines}
-          skills={ctx.referentiel.skills}
-          retraits={Object.fromEntries(retraits)}
-        />
-      </div>
-    );
-  }
-
   if (vue === "progression") {
     return <PanneauProgression periode={periode} />;
   }
@@ -169,24 +146,26 @@ async function ContenuCompetences({
   return (
     <div className="space-y-6">
       <BandeauPerimetre referentiel={ctx.referentiel} />
-      {vue === "grille" && (
-        <VueGrille
-          etats={ctx.etats}
-          referentiel={ctx.referentiel}
-          domainesExistants={domainesExistants}
-          compteId={ctx.donnees.user.id}
-        />
-      )}
-      {vue === "radar" && <VueRadar etats={ctx.etats} />}
+      <VueDomaines
+        etats={ctx.etats}
+        referentiel={ctx.referentiel}
+        domainesExistants={domainesExistants}
+        compteId={ctx.donnees.user.id}
+      />
     </div>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/* Vue grille — la vue par défaut                                      */
+/* Vue accueil — les grands champs                                     */
 /* ------------------------------------------------------------------ */
 
-function VueGrille({
+/**
+ * Une carte par domaine : titre cliquable vers la sous-page, stats agrégées,
+ * répartition des niveaux, bouton « + Compétence ». Aucun détail de
+ * sous-compétence — ils vivent dans `/competences/domaine/[id]`.
+ */
+function VueDomaines({
   etats,
   referentiel,
   domainesExistants,
@@ -197,9 +176,6 @@ function VueGrille({
   domainesExistants: { id: string; nom: string; prefixe: string }[];
   compteId: string;
 }) {
-  // `etats` ne porte que le périmètre — ni archivée, ni hors périmètre : la
-  // grille n'a donc pas de dossier d'archives à ranger, contrairement à l'écran
-  // de gestion. L'ordre, lui, est le même des deux côtés : numérique.
   const parDomaine = referentiel.domaines
     .map((d) => ({
       domaine: d,
@@ -209,183 +185,85 @@ function VueGrille({
     }))
     .filter((g) => g.items.length > 0);
 
+  if (parDomaine.length === 0) {
+    return (
+      <Carte>
+        <div className="px-4 py-8 text-center">
+          <p className="text-sm font-medium">Aucun domaine actif</p>
+          <p className="mx-auto mt-1 max-w-md text-xs text-texte-attenue">
+            Ton référentiel est construit mais aucun domaine n{"'"}a de compétences actives.
+            Ajoute une compétence ou réactive un domaine pour commencer.
+          </p>
+        </div>
+      </Carte>
+    );
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {parDomaine.map(({ domaine, items }) => {
         const repartition: Record<number, number> = {};
         for (const e of items) {
           if (e.niveau !== null) repartition[e.niveau] = (repartition[e.niveau] ?? 0) + 1;
         }
-        const preuves = items.reduce((s, e) => s + e.preuves.length, 0);
+        const evaluees = items.filter((e) => e.niveau !== null);
+        const scoreMoyen =
+          evaluees.length > 0
+            ? evaluees.reduce((s, e) => s + (e.score ?? 0), 0) / evaluees.length
+            : null;
+        const totalPreuves = items.reduce((s, e) => s + e.preuves.length, 0);
+        const dernierePreuve = items
+          .map((e) => e.dernierePreuve)
+          .filter(Boolean)
+          .sort((a, b) => b!.localeCompare(a!))[0];
 
         return (
-          <PanneauPliable
-            key={domaine.id}
-            titre={
-              <>
-                <span className="font-serif text-sm font-medium">{domaine.nom}</span>
-                <span className="text-xs text-texte-discret">
-                  {items.length} compétences · {preuves} preuve{preuves > 1 ? "s" : ""}
-                </span>
-              </>
-            }
-            actions={
-              <>
-                {/*
-                 * Le lien vit dans les actions, pas dans le titre : `titre` est
-                 * rendu à l'intérieur du bouton de repli, et un <a> dans un
-                 * <button> est du HTML invalide — le clic servirait deux
-                 * intentions à la fois, plier et naviguer.
-                 */}
-                <Link
-                  href={`/competences/domaine/${encodeURIComponent(domaine.id)}`}
-                  className="shrink-0 text-xs text-primaire hover:underline"
-                >
-                  Vue du domaine →
-                </Link>
-                {Object.keys(repartition).length > 0 ? (
-                  <div className="w-40">
-                    <RepartitionNiveaux compte={repartition} />
-                  </div>
-                ) : (
-                  <Etiquette>Aucune preuve</Etiquette>
-                )}
+          <Carte key={domaine.id} className="transition-shadow hover:shadow-md">
+            <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+              <Link
+                href={`/competences/domaine/${encodeURIComponent(domaine.id)}`}
+                className="min-w-0 flex-1 group"
+              >
+                <div className="flex items-center gap-2">
+                  <h3 className="font-serif text-base font-medium group-hover:underline">
+                    {domaine.nom}
+                  </h3>
+                  <Etiquette mono>{domaine.prefixe}</Etiquette>
+                </div>
+                <p className="mt-1 text-xs text-texte-attenue">
+                  {items.length} compétence{items.length > 1 ? "s" : ""} · {evaluees.length}{" "}
+                  évaluée{evaluees.length > 1 ? "s" : ""} · {totalPreuves} preuve
+                  {totalPreuves > 1 ? "s" : ""}
+                  {dernierePreuve
+                    ? ` · dernière activité ${formatDateRelative(dernierePreuve)}`
+                    : ""}
+                </p>
+              </Link>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex gap-6">
+                  <Statistique
+                    libelle="Score moyen"
+                    valeur={scoreMoyen === null ? null : scoreMoyen.toFixed(1).replace(".", ",")}
+                    unite="/5"
+                  />
+                  {Object.keys(repartition).length > 0 && (
+                    <div className="w-32 self-center">
+                      <RepartitionNiveaux compte={repartition} />
+                    </div>
+                  )}
+                </div>
                 <BoutonAjouterCompetence
                   domainesExistants={domainesExistants}
                   compteId={compteId}
                   domaineInitial={domaine.nom}
+                  libelle="+ Compétence"
                 />
-              </>
-            }
-          >
-            <ul className="divide-y divide-bordure">
-              {items.map((e) => (
-                <LigneCompetence key={e.skill.code} etat={e} />
-              ))}
-            </ul>
-          </PanneauPliable>
+              </div>
+            </div>
+          </Carte>
         );
       })}
-    </div>
-  );
-}
-
-function LigneCompetence({ etat }: { etat: SkillState }) {
-  return (
-    <LigneListe>
-      <Link
-        href={`/competences/${etat.skill.code}`}
-        className="flex w-full items-center gap-4"
-      >
-        <div className="w-16 shrink-0">
-          <CodeCompetence code={etat.skill.code} />
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm">{etat.skill.intitule}</p>
-          <p className="mt-0.5 text-[0.6875rem] text-texte-discret">
-            {etat.statut === "non-evalue" && "Jamais évaluée"}
-            {etat.statut === "hypothese" && "Hypothèse issue de ta formation — non vérifiée"}
-            {etat.statut === "evalue" &&
-              `${etat.preuves.length} preuve${etat.preuves.length > 1 ? "s" : ""} · ${
-                etat.contextesTestes.length
-              } contexte${etat.contextesTestes.length > 1 ? "s" : ""}${
-                etat.dernierePreuve ? ` · ${formatDateRelative(etat.dernierePreuve)}` : ""
-              }`}
-          </p>
-        </div>
-
-        <div className="hidden w-24 shrink-0 sm:block">
-          <JaugeNiveau niveau={etat.niveau} />
-        </div>
-
-        <div className="chiffres w-14 shrink-0 text-right">
-          <span
-            className={cx(
-              "text-sm font-semibold",
-              etat.niveau === null && "text-texte-discret",
-            )}
-          >
-            {etat.niveau ?? "—"}
-          </span>
-          <span className="text-[0.6875rem] text-texte-discret">/5</span>
-        </div>
-
-        <div className="hidden w-20 shrink-0 text-right sm:block">
-          <span className="text-[0.6875rem] text-texte-discret">
-            {etat.confiance === "nulle" ? "—" : etat.confiance}
-          </span>
-        </div>
-      </Link>
-    </LigneListe>
-  );
-}
-
-
-/* ------------------------------------------------------------------ */
-/* Vue radar — secondaire par construction                             */
-/* ------------------------------------------------------------------ */
-
-/**
- * Un axe par compétence du périmètre, et non plus par domaine (ADR-018).
- *
- * À l'échelle d'un pilote mono-domaine, un radar à sept axes dont six sont
- * vides ne dit rien. Au grain de la compétence il redevient lisible : on voit
- * quelles compétences du domaine tiennent et lesquelles n'ont pas été mesurées.
- */
-function VueRadar({ etats }: { etats: SkillState[] }) {
-  const axes = etats.map((e) => ({
-    libelle: e.skill.code,
-    // `score` est sur 5 côté moteur ; le radar raisonne en pourcentage.
-    valeur: e.score === null ? null : Math.round((e.score / 5) * 100),
-  }));
-  const sansPreuve = etats.filter((e) => e.score === null);
-
-  return (
-    <div className="grid gap-6 lg:grid-cols-2 [&>*]:min-w-0">
-      <Carte>
-        <EnTeteCarte
-          titre="Vue d'ensemble du périmètre"
-          legende="Score sur 100, un axe par compétence travaillée"
-        />
-        <CorpsCarte>
-          <Radar axes={axes} />
-          {sansPreuve.length > 0 && (
-            <p className="mt-4 rounded-md border border-bordure bg-surface-2 px-3 py-2 text-[0.6875rem] text-texte-attenue">
-              <strong className="font-medium">Lecture prudente.</strong>{" "}
-              {sansPreuve.length} compétence(s) sont tracées à zéro faute de preuve, non parce
-              qu{"'"}une faiblesse a été mesurée :{" "}
-              {sansPreuve.map((e) => e.skill.code).join(", ")}.
-            </p>
-          )}
-        </CorpsCarte>
-      </Carte>
-
-      <Carte>
-        <EnTeteCarte titre="Détail chiffré" legende="La même information, sans dépendre de la forme" />
-        <ul className="divide-y divide-bordure">
-          {etats.map((e) => (
-            <LigneListe key={e.skill.code}>
-              <Link
-                href={`/competences/${e.skill.code}`}
-                className="flex w-full items-center gap-4"
-              >
-                <span className="min-w-0 flex-1 truncate text-sm hover:underline">
-                  <CodeCompetence code={e.skill.code} /> {e.skill.intitule}
-                </span>
-                <Statistique
-                  libelle=""
-                  valeur={e.score === null ? null : Math.round((e.score / 5) * 100)}
-                  unite="/100"
-                />
-                <span className="w-20 shrink-0 text-right text-[0.6875rem] text-texte-discret">
-                  {e.preuves.length} preuve{e.preuves.length > 1 ? "s" : ""}
-                </span>
-              </Link>
-            </LigneListe>
-          ))}
-        </ul>
-      </Carte>
     </div>
   );
 }

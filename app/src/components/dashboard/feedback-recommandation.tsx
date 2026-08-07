@@ -30,7 +30,12 @@ export function FeedbackRecommandation({
   code: string;
   compteId: string;
 }) {
-  const [donne, setDonne] = useState(false);
+  // Relu au montage : un feedback déjà donné doit rester « donné » quand on
+  // revient sur la page (Chantier 11, retour utilisateur R2).
+  const cle = cleParCompte("feedback-recommandations", compteId);
+  const [donne, setDonne] = useState(
+    () => (lireSession<FeedbackStocke[]>(cle) ?? []).some((f) => f.code === code),
+  );
   const [note, setNote] = useState<"pertinent" | "non-pertinent" | null>(null);
   const [justification, setJustification] = useState("");
   const [afficherJustification, setAfficherJustification] = useState(false);
@@ -41,7 +46,6 @@ export function FeedbackRecommandation({
   }
 
   function valider() {
-    const cle = cleParCompte("feedback-recommandations", compteId);
     const existants = lireSession<FeedbackStocke[]>(cle) ?? [];
     const misAJour = [
       {

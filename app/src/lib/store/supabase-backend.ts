@@ -26,6 +26,7 @@ export const TABLES: Record<CleListe, string> = {
   exercises: "exercises",
   attempts: "attempts",
   sessions: "sessions",
+  refusRecommandations: "refus_recommandations",
 };
 
 /** Colonnes de service, jamais exposées au domaine. */

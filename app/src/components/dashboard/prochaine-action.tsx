@@ -134,10 +134,7 @@ export function CarteProchaineAction({
           >
             Voir la compétence
           </Link>
-          <BoutonRefusRecommandation
-            code={etat.skill.code}
-            compteId={compteId}
-          />
+          <BoutonRefusRecommandation code={etat.skill.code} />
         </div>
 
         <div className="mt-4 border-t border-bordure pt-3">

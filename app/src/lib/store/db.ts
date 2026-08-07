@@ -34,6 +34,7 @@ import type {
   Exercise,
   ExerciseAttempt,
   LearningSession,
+  RefusRecommandation,
   SkillEvidence,
   User,
 } from "@/lib/domain/types";
@@ -44,6 +45,7 @@ export interface Collections {
   exercises: Exercise[];
   attempts: ExerciseAttempt[];
   sessions: LearningSession[];
+  refusRecommandations: RefusRecommandation[];
 }
 
 /**
@@ -198,14 +200,16 @@ export async function modifier<K extends CleListe>(
 
 export async function lireTout(): Promise<Collections> {
   const dorsale = await dorsaleCompte();
-  const [user, evidence, exercises, attempts, sessions] = await Promise.all([
-    lire("user", dorsale),
-    lire("evidence", dorsale),
-    lire("exercises", dorsale),
-    lire("attempts", dorsale),
-    lire("sessions", dorsale),
-  ]);
-  return { user, evidence, exercises, attempts, sessions };
+  const [user, evidence, exercises, attempts, sessions, refusRecommandations] =
+    await Promise.all([
+      lire("user", dorsale),
+      lire("evidence", dorsale),
+      lire("exercises", dorsale),
+      lire("attempts", dorsale),
+      lire("sessions", dorsale),
+      lire("refusRecommandations", dorsale),
+    ]);
+  return { user, evidence, exercises, attempts, sessions, refusRecommandations };
 }
 
 /* ------------------------------------------------------------------ */
@@ -268,6 +272,7 @@ export async function chargerToutRPC(): Promise<ResultatRPC | null> {
       exercises: convertirListe<Exercise>("exercises"),
       attempts: convertirListe<ExerciseAttempt>("attempts"),
       sessions: convertirListe<LearningSession>("sessions"),
+      refusRecommandations: convertirListe<RefusRecommandation>("refus_recommandations"),
     };
 
     // --- Référentiel ---

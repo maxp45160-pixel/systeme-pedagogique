@@ -8,9 +8,10 @@ import { Carte, cx } from "@/components/ui/primitives";
  *
  * Deux règles, et la seconde est celle qui a motivé le composant :
  *
- *  - **le titre seul est le bouton de repli** — les actions du panneau sont des
- *    boutons voisins, jamais imbriqués dans lui : un bouton dans un bouton
- *    n'est pas du HTML valide, et le clic y devient ambigu ;
+ *  - **la flèche seule est le bouton de repli** — le titre est un contenu
+ *    libre rendu à côté d'elle. S'il contient un lien, ce lien navigue sans
+ *    conflit avec le repli : un bouton dans un bouton n'est pas du HTML
+ *    valide, et le clic y devient ambigu (retour utilisateur R3) ;
  *  - **l'en-tête reste lisible déplié** — fond propre et position collante. Un
  *    panneau ouvert de seize lignes perdait le nom du domaine hors de l'écran,
  *    et replier n'aide pas si l'on ne sait plus ce qu'on est en train de lire.
@@ -27,7 +28,7 @@ export function PanneauPliable({
   children,
   pied,
 }: {
-  /** Contenu cliquable de l'en-tête : nom, étiquettes, compteurs. */
+  /** Contenu de l'en-tête : nom, étiquettes, compteurs — peut contenir un lien. */
   titre: ReactNode;
   /** Boutons du panneau, rendus à côté du titre et hors du bouton de repli. */
   actions?: ReactNode;
@@ -44,23 +45,26 @@ export function PanneauPliable({
     <Carte>
       <div className="sticky top-0 z-[1] rounded-t-carte border-b border-bordure bg-surface px-4 py-2.5">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={() => setOuvert((o) => !o)}
-            aria-expanded={ouvert}
-            className="flex min-w-0 flex-wrap items-center gap-2 text-left"
-          >
-            <span
-              aria-hidden
-              className={cx(
-                "text-[0.625rem] text-texte-discret transition-transform",
-                ouvert ? "rotate-0" : "-rotate-90",
-              )}
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setOuvert((o) => !o)}
+              aria-expanded={ouvert}
+              aria-label={ouvert ? "Replier" : "Déplier"}
+              className="shrink-0 rounded p-0.5 text-left transition-colors hover:bg-surface-2"
             >
-              ▼
-            </span>
+              <span
+                aria-hidden
+                className={cx(
+                  "block text-[0.625rem] text-texte-discret transition-transform",
+                  ouvert ? "rotate-0" : "-rotate-90",
+                )}
+              >
+                ▼
+              </span>
+            </button>
             {titre}
-          </button>
+          </div>
           {actions && <div className="flex shrink-0 items-center gap-1.5">{actions}</div>}
         </div>
         {sousEntete}

@@ -325,6 +325,25 @@ CREATE TABLE IF NOT EXISTS public.sessions (
 );
 
 -- --------------------------------------------------------------------
+-- 7bis. Refus de recommandation (R1)
+--
+-- Un refus est un fait observé : l'utilisateur a écarté une suggestion.
+-- Il est stocké en base (et non en localStorage) pour que le moteur de
+-- recommandation puisse le prendre en compte au prochain calcul. Le refus
+-- expire après 7 jours — le filtrage se fait à la lecture, jamais à
+-- l'écriture.
+-- --------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS public.refus_recommandations (
+  id         TEXT NOT NULL,
+  user_id    UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  code       TEXT NOT NULL,
+  date       TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, id)
+);
+
+-- --------------------------------------------------------------------
 -- 8. RLS + index, appliqués uniformément aux tables de données
 --
 -- `domaines` et `competences` entrent dans la même boucle que les autres :
@@ -337,7 +356,8 @@ DECLARE
   t TEXT;
 BEGIN
   FOREACH t IN ARRAY ARRAY[
-    'domaines', 'competences', 'evidence', 'exercises', 'attempts', 'sessions'
+    'domaines', 'competences', 'evidence', 'exercises', 'attempts', 'sessions',
+    'refus_recommandations'
   ]
   LOOP
     EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
