@@ -275,6 +275,179 @@ export async function modifierCompetence(
   revalidatePath("/", "layout");
 }
 
+/* ------------------------------------------------------------------ */
+/* Révision groupée d'une branche                                      */
+/* ------------------------------------------------------------------ */
+
+export interface SoumissionRevision {
+  domaineId: string;
+  /** Reformulation du domaine lui-même. Le **préfixe est immuable** : il engendre les codes. */
+  domaine?: { nom?: string; description?: string };
+  ajouts: { intitule: string; palier: string; importance: string; prerequis?: string[] }[];
+  modifications: { code: string; intitule?: string; palier?: string; importance?: string }[];
+  /** Codes à retirer. Le geste est **dérivé**, jamais choisi (ADR-027). */
+  retraits: string[];
+}
+
+export interface ResultatRevision {
+  ajoutes: string[];
+  modifiees: string[];
+  supprimees: string[];
+  archivees: string[];
+}
+
+/**
+ * Applique une révision relue et cochée par l'utilisateur.
+ *
+ * Une Server Function plutôt que trois appels enchaînés côté client, et pour
+ * une raison précise : les trois écritures doivent former **un** geste et
+ * **un** `revalidatePath`. Trois appels séparés, c'est trois rendus complets de
+ * la page — le « lag par branche » qu'ADR-035 a déjà corrigé pour les retraits
+ * groupés — et surtout un référentiel visible dans trois états intermédiaires
+ * dont aucun n'est celui que la personne a validé.
+ *
+ * Trois garde-fous, dans cet ordre :
+ *
+ * 1. **tout code doit appartenir à `domaineId`.** C'est la troisième couche du
+ *    design « désigner, pas frapper » : un bug du validateur ne peut pas
+ *    toucher une compétence hors périmètre, et RLS interdit de toucher un autre
+ *    compte ;
+ * 2. **aucun `delete` direct.** Les retraits passent par `scinderRetraits`,
+ *    donc par la règle d'ADR-027 : une compétence qui porte une preuve ne peut
+ *    qu'être archivée ;
+ * 3. **aucun ajout ne peut dépendre d'un code retiré** dans le même geste.
+ *    Sinon on écrirait une référence pendante — une compétence dont le
+ *    prérequis n'existe plus à la seconde où elle naît.
+ */
+export async function appliquerRevision(
+  soumission: SoumissionRevision,
+): Promise<ResultatRevision> {
+  const dorsale = await dorsaleCompte();
+  const referentiel = await lireReferentiel(dorsale);
+
+  const domaine = referentiel.domainesParId.get(soumission.domaineId);
+  if (!domaine) throw new Error(`Domaine inconnu : ${soumission.domaineId}`);
+
+  // 1. Périmètre : chaque code désigné appartient bien à ce domaine.
+  const designes = [...soumission.modifications.map((m) => m.code), ...soumission.retraits];
+  for (const code of designes) {
+    if (referentiel.parCode.get(code)?.domaine !== domaine.id) {
+      throw new Error(`${code} n'appartient pas au domaine ${domaine.nom}.`);
+    }
+  }
+
+  // 3. Références pendantes : un ajout ne dépend pas de ce qu'on retire.
+  const retires = new Set(soumission.retraits);
+  for (const a of soumission.ajouts) {
+    const pendant = (a.prerequis ?? []).find((c) => retires.has(c));
+    if (pendant) {
+      throw new Error(
+        `« ${a.intitule} » dépend de ${pendant}, qui est retiré dans la même révision.`,
+      );
+    }
+  }
+
+  const resultat: ResultatRevision = {
+    ajoutes: [],
+    modifiees: [],
+    supprimees: [],
+    archivees: [],
+  };
+
+  // ── Le domaine lui-même. Le préfixe n'est pas touché : il engendre les codes.
+  const champsDomaine: Record<string, string> = {};
+  if (soumission.domaine?.nom?.trim()) champsDomaine.nom = soumission.domaine.nom.trim();
+  if (soumission.domaine?.description?.trim()) {
+    champsDomaine.description = soumission.domaine.description.trim();
+  }
+  if (Object.keys(champsDomaine).length > 0) {
+    const { error } = await dorsale.supabase
+      .from("domaines")
+      .update(champsDomaine)
+      .eq("user_id", dorsale.userId)
+      .eq("id", domaine.id);
+    verifier("modification du domaine", error);
+  }
+
+  // ── Modifications, validées une à une comme `modifierCompetence`.
+  for (const m of soumission.modifications) {
+    const skill = referentiel.parCode.get(m.code);
+    if (!skill) continue;
+
+    const candidate: CompetenceCandidate = {
+      intitule: m.intitule?.trim() || skill.intitule,
+      palier: m.palier ? (normaliserPalier(m.palier) as Palier) : skill.palier,
+      importance: m.importance ? normaliserImportance(m.importance) : skill.importance,
+      prerequis: skill.prerequis,
+    };
+    const erreurs = validerCompetence(candidate, referentiel, skill.domaine, m.code);
+    if (erreurs.length > 0) throw new Error(`${m.code} — ${erreurs.join(" ")}`);
+
+    const { error } = await dorsale.supabase
+      .from("competences")
+      .update(entiteVersLigne(candidate, dorsale.userId))
+      .eq("user_id", dorsale.userId)
+      .eq("code", m.code);
+    verifier("modification de la compétence", error);
+    resultat.modifiees.push(m.code);
+  }
+
+  // ── Ajouts : codes attribués par l'application, jamais par le tuteur.
+  if (soumission.ajouts.length > 0) {
+    const candidates: CompetenceCandidate[] = soumission.ajouts
+      .filter((a) => a.intitule.trim().length > 0)
+      .map((a) => ({
+        intitule: a.intitule.trim(),
+        palier: normaliserPalier(a.palier) as Palier,
+        importance: normaliserImportance(a.importance),
+        prerequis: (a.prerequis ?? []).filter((c) => referentiel.parCode.has(c)),
+      }));
+
+    for (const c of candidates) {
+      const erreurs = validerCompetence(c, referentiel, domaine.id);
+      if (erreurs.length > 0) throw new Error(`« ${c.intitule} » — ${erreurs.join(" ")}`);
+    }
+
+    const nouvelles = construireCompetences(candidates, domaine, referentiel, "tuteur");
+    if (nouvelles.length > 0) {
+      const { error } = await dorsale.supabase
+        .from("competences")
+        .insert(nouvelles.map((s) => entiteVersLigne(s, dorsale.userId)));
+      verifier("ajout des compétences", error);
+      resultat.ajoutes.push(...nouvelles.map((s) => s.code));
+    }
+  }
+
+  // ── Retraits : le mode est DÉRIVÉ, jamais choisi.
+  if (soumission.retraits.length > 0) {
+    const preuves = await compterPreuves(dorsale);
+    const { supprimees, archivees } = scinderRetraits(soumission.retraits, preuves);
+
+    if (archivees.length > 0) {
+      const { error } = await dorsale.supabase
+        .from("competences")
+        .update({ archive: true, active: false })
+        .eq("user_id", dorsale.userId)
+        .in("code", archivees);
+      verifier("archivage des compétences", error);
+    }
+    if (supprimees.length > 0) {
+      const { error } = await dorsale.supabase
+        .from("competences")
+        .delete()
+        .eq("user_id", dorsale.userId)
+        .in("code", supprimees);
+      verifier("suppression des compétences", error);
+    }
+
+    resultat.supprimees = supprimees;
+    resultat.archivees = archivees;
+  }
+
+  revalidatePath("/", "layout");
+  return resultat;
+}
+
 /**
  * Entrée ou sortie du périmètre de travail.
  *

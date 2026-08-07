@@ -91,6 +91,42 @@ export const JUSTIFICATION_MAX = 400;
 export const OUTIL_EVOLUTION = "proposer_evolution";
 
 /**
+ * ⚠️ `proposer_revision` — le point d'architecture du lot C.
+ *
+ * CLAUDE.md §8 interdit de laisser le tuteur écrire un code de compétence.
+ * Réviser un référentiel existant exige pourtant de **désigner** les
+ * compétences à reformuler ou à retirer. Il faut donc nommer une distinction
+ * que l'interdit d'origine ne faisait pas :
+ *
+ * > **Frapper un code** = produire un identifiant que l'application n'a pas
+ * > attribué. Interdit : collision, preuves qui suivent la mauvaise
+ * > compétence, sans erreur visible (ADR-026).
+ * >
+ * > **Désigner un code** = pointer l'un des identifiants que l'application a
+ * > **déjà attribués** et qu'elle vient de remettre au modèle dans cette
+ * > requête même. Ce n'est pas le même acte.
+ *
+ * Le design est sûr par trois couches indépendantes :
+ *
+ * 1. **l'`enum` est fermé et construit par le serveur**, à la requête, sur les
+ *    codes vivants du seul domaine révisé. Une valeur hors de cet ensemble
+ *    n'est pas découragée — elle n'est pas dans le schéma. Deux bornes
+ *    gratuites au passage : une révision du domaine X ne peut pas renommer une
+ *    compétence du domaine Y, et une compétence archivée ne peut être ni
+ *    renommée ni re-retirée ;
+ * 2. **`validerRevision` revérifie l'appartenance**, parce qu'un fournisseur
+ *    qui ignore le schéma ne doit pas passer pour autant (ADR-031) ;
+ * 3. **`appliquerRevision` revérifie à l'écriture**, côté serveur.
+ *
+ * Et surtout : **`ajouts` n'a aucun champ `code`.** L'interdit reste intact là
+ * où il compte — la frappe. L'`enum` ne fait que pointer.
+ *
+ * ⚠️ Ne pas « simplifier » cet `enum` en `type: "string"` par commodité : ce
+ * serait rendre la frappe exprimable à nouveau.
+ */
+export const OUTIL_REVISION = "proposer_revision";
+
+/**
  * Sous-ensemble de JSON Schema effectivement employé ici.
  *
  * Volontairement pauvre : ce qui n'est pas exprimable dans ce type n'est pas
@@ -384,6 +420,100 @@ export function outilEvolution(): OutilTuteur {
 }
 
 /**
+ * L'outil de révision d'une branche existante.
+ *
+ * `codesVivants` est l'ensemble fermé des identifiants **déjà attribués** dans
+ * ce domaine — voir `OUTIL_REVISION` pour la distinction frapper / désigner.
+ * Le préfixe du domaine n'est pas modifiable : il engendre les codes.
+ */
+export function outilsRevision(codesVivants: string[]): OutilTuteur {
+  // Un `enum: []` n'admettrait aucune valeur et rendrait `modifications` et
+  // `retraits` inexprimables — ce qui est correct sur un domaine vide, mais
+  // doit rester lisible : on retombe alors sur une chaîne libre que le
+  // validateur rejettera de toute façon, faute de code connu.
+  const code: SchemaJson =
+    codesVivants.length > 0
+      ? { type: "string", enum: codesVivants, description: "Code d'une compétence existante." }
+      : { type: "string", description: "Aucune compétence existante dans ce domaine." };
+
+  return {
+    nom: OUTIL_REVISION,
+    description:
+      "Propose une révision de cette branche : ajouter, reformuler, retirer. Tu ne l'appliques pas — la personne relit chaque ligne et coche ce qu'elle garde. Les codes des compétences nouvelles sont attribués par l'application ; tu ne peux désigner que des codes existants.",
+    schema: {
+      type: "object",
+      properties: {
+        resume: {
+          type: "string",
+          description:
+            "Une à trois phrases : ce que tu changes et pourquoi, en repartant de ce que la personne a demandé.",
+        },
+        domaine: {
+          type: "object",
+          properties: {
+            nom: { type: "string" },
+            description: { type: "string", description: "Une phrase : ce que la branche couvre." },
+          },
+          additionalProperties: false,
+        },
+        ajouts: {
+          type: "array",
+          // Aucun champ `code` : l'interdit d'ADR-026/031 reste intact là où il
+          // compte — la frappe d'un identifiant neuf.
+          items: {
+            type: "object",
+            properties: {
+              palier: { type: "string", enum: [...PALIERS] },
+              importance: { type: "number", minimum: 0, maximum: 1 },
+              intitule: { type: "string", description: "Savoir-faire observable, pas un sujet." },
+              prerequis: { type: "array", items: code },
+              justification: { type: "string" },
+            },
+            required: ["palier", "importance", "intitule"],
+            additionalProperties: false,
+          },
+        },
+        modifications: {
+          type: "array",
+          description: "Ne mets que les champs qui changent.",
+          items: {
+            type: "object",
+            properties: {
+              code,
+              intitule: { type: "string" },
+              palier: { type: "string", enum: [...PALIERS] },
+              importance: { type: "number", minimum: 0, maximum: 1 },
+              justification: { type: "string" },
+            },
+            required: ["code"],
+            additionalProperties: false,
+          },
+        },
+        retraits: {
+          type: "array",
+          description:
+            "L'application décide seule entre suppression et archivage, selon les preuves enregistrées : ne le propose pas.",
+          items: {
+            type: "object",
+            properties: {
+              code,
+              justification: {
+                type: "string",
+                description: "Pourquoi elle n'a plus sa place. Obligatoire.",
+              },
+            },
+            required: ["code", "justification"],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ["resume"],
+      additionalProperties: false,
+    },
+  };
+}
+
+/**
  * Les trois outils, pour un référentiel donné.
  *
  * Stable pour un compte tant que son référentiel ne change pas — même propriété
@@ -459,7 +589,29 @@ export type PropositionRecue =
   | { genre: "exercice"; exercice: PropositionExercice }
   | { genre: "referentiel"; branche: PropositionReferentiel }
   | { genre: "correction"; correction: PropositionCorrection }
-  | { genre: "evolution"; evolution: PropositionEvolution };
+  | { genre: "evolution"; evolution: PropositionEvolution }
+  | { genre: "revision"; revision: PropositionRevision };
+
+export interface PropositionRevision {
+  resume: string;
+  domaine: { nom: string; description: string };
+  ajouts: {
+    intitule: string;
+    palier: string;
+    importance: string;
+    prerequis: string[];
+    justification: string;
+  }[];
+  /** `code` DÉSIGNE une compétence existante ; il n'en frappe aucune. */
+  modifications: {
+    code: string;
+    intitule: string;
+    palier: string;
+    importance: string;
+    justification: string;
+  }[];
+  retraits: { code: string; justification: string }[];
+}
 
 /**
  * Une évolution proposée. Tout en chaînes, comme les autres — sauf `evolution`,
@@ -655,13 +807,145 @@ function validerEvolution(entree: Record<string, unknown>): PropositionRecue | n
 }
 
 /**
+ * Les codes vivants tels que le schéma de révision les a énumérés.
+ *
+ * Aucune liste parallèle : on relit l'ensemble que le fournisseur a
+ * effectivement reçu. Un schéma sans `enum` — domaine vide — rend un ensemble
+ * vide, donc toute désignation est rejetée, ce qui est correct.
+ */
+function codesDuSchemaRevision(outils: OutilTuteur[]): Set<string> {
+  const revision = outils.find((o) => o.nom === OUTIL_REVISION);
+  const codes = revision?.schema.properties?.retraits?.items?.properties?.code?.enum ?? [];
+  return new Set(codes);
+}
+
+/**
+ * Valide une révision, contre les codes réellement connus.
+ *
+ * `codesConnus` est la deuxième des trois couches décrites sous
+ * `OUTIL_REVISION` : le schéma a déjà fermé l'`enum`, mais un fournisseur qui
+ * l'ignore ne doit pas passer pour autant (ADR-031).
+ *
+ * Les rejets, et pourquoi ils rejettent **l'appel entier** plutôt que de trier :
+ *
+ * - **un code inconnu** ⇒ la proposition parle d'un autre référentiel. Écarter
+ *   la ligne fautive et garder le reste laisserait croire à une révision
+ *   complète, alors que le modèle a raisonné sur autre chose ;
+ * - **un même code modifié ET retiré** ⇒ contradictoire : appliquer les deux
+ *   dans un ordre ou dans l'autre ne donne pas le même référentiel ;
+ * - **un doublon dans une section** ⇒ laquelle des deux vaut ?
+ * - **les quatre sections vides** ⇒ il n'y a rien à relire ; un écran de diff
+ *   vide se lit comme « le tuteur n'a rien trouvé à redire », ce qui est une
+ *   affirmation, pas une absence.
+ *
+ * Ce qui n'est **pas** vérifié ici : la longueur des intitulés. `validerCompetence`
+ * (`INTITULE_MIN`/`MAX`) le fait à l'écriture. Une règle, une autorité.
+ */
+function validerRevision(
+  entree: Record<string, unknown>,
+  codesConnus: Set<string>,
+): PropositionRecue | null {
+  const resume = texte(entree.resume);
+  if (!resume) return null;
+
+  const vus = new Set<string>();
+  const codeValide = (brut: unknown): string | null => {
+    const c = texte(brut).toUpperCase();
+    if (!c || !codesConnus.has(c) || vus.has(c)) return null;
+    vus.add(c);
+    return c;
+  };
+
+  const ajouts: PropositionRevision["ajouts"] = [];
+  for (const brut of Array.isArray(entree.ajouts) ? entree.ajouts : []) {
+    const o = objet(brut);
+    if (!o) return null;
+    const intitule = texte(o.intitule);
+    if (!intitule) return null;
+    ajouts.push({
+      intitule,
+      palier: dansEnum(o.palier, PALIERS),
+      importance: nombreTexte(o.importance),
+      // Un prérequis inconnu est écarté, pas rejeté : c'est une arête du
+      // graphe, pas l'objet de la proposition.
+      prerequis: listeDeTextes(o.prerequis)
+        .map((c) => c.toUpperCase())
+        .filter((c) => codesConnus.has(c)),
+      justification: texte(o.justification),
+    });
+  }
+
+  const modifications: PropositionRevision["modifications"] = [];
+  for (const brut of Array.isArray(entree.modifications) ? entree.modifications : []) {
+    const o = objet(brut);
+    if (!o) return null;
+    const code = codeValide(o.code);
+    if (!code) return null;
+
+    const intitule = texte(o.intitule);
+    const palier = dansEnum(o.palier, PALIERS);
+    const importance = nombreTexte(o.importance);
+    // Une modification réduite à son code ne modifie rien. L'écarter plutôt
+    // que rejeter : c'est du bruit, pas une contradiction.
+    if (!intitule && !palier && !importance) continue;
+
+    modifications.push({
+      code,
+      intitule,
+      palier,
+      importance,
+      justification: texte(o.justification),
+    });
+  }
+
+  const retraits: PropositionRevision["retraits"] = [];
+  for (const brut of Array.isArray(entree.retraits) ? entree.retraits : []) {
+    const o = objet(brut);
+    if (!o) return null;
+    const code = codeValide(o.code);
+    if (!code) return null;
+    // Le geste le plus destructeur doit s'annoncer (ADR-027) : sans motif, la
+    // personne ne peut pas instruire l'arbitrage.
+    const justification = texte(o.justification);
+    if (!justification) return null;
+    retraits.push({ code, justification });
+  }
+
+  const domaine = objet(entree.domaine) ?? {};
+  if (ajouts.length === 0 && modifications.length === 0 && retraits.length === 0) return null;
+
+  return {
+    genre: "revision",
+    revision: {
+      resume,
+      domaine: { nom: texte(domaine.nom), description: texte(domaine.description) },
+      ajouts,
+      modifications,
+      retraits,
+    },
+  };
+}
+
+/**
  * Valide un appel d'outil et rend la proposition, ou `null`.
  *
  * `null` n'est pas un cas silencieux : les moteurs émettent un événement
  * `proposition-rejetee` que l'interface affiche. Une proposition rejetée doit
  * se voir — c'est tout l'objet de la bascule.
  */
-export function validerAppelOutil(nom: string, entree: unknown): PropositionRecue | null {
+export function validerAppelOutil(
+  nom: string,
+  entree: unknown,
+  /**
+   * Les outils réellement armés pour cet appel.
+   *
+   * Sert à `proposer_revision`, dont la validation a besoin des codes connus.
+   * Les tirer du schéma plutôt que de les passer à part garantit qu'on valide
+   * contre **exactement** l'ensemble que le fournisseur a reçu : deux listes
+   * pourraient diverger, une seule ne le peut pas.
+   */
+  outils: OutilTuteur[] = [],
+): PropositionRecue | null {
   const donnees = objet(entree);
   if (!donnees) return null;
 
@@ -674,6 +958,8 @@ export function validerAppelOutil(nom: string, entree: unknown): PropositionRecu
       return validerCorrection(donnees);
     case OUTIL_EVOLUTION:
       return validerEvolution(donnees);
+    case OUTIL_REVISION:
+      return validerRevision(donnees, codesDuSchemaRevision(outils));
     default:
       return null;
   }
@@ -686,12 +972,16 @@ export function validerAppelOutil(nom: string, entree: unknown): PropositionRecu
  * Un JSON illisible est le symptôme le plus courant d'une réponse coupée par la
  * limite de jetons : il rend `null`, donc un rejet annoncé.
  */
-export function validerAppelOutilJson(nom: string, argumentsJson: string): PropositionRecue | null {
+export function validerAppelOutilJson(
+  nom: string,
+  argumentsJson: string,
+  outils: OutilTuteur[] = [],
+): PropositionRecue | null {
   let entree: unknown;
   try {
     entree = JSON.parse(argumentsJson);
   } catch {
     return null;
   }
-  return validerAppelOutil(nom, entree);
+  return validerAppelOutil(nom, entree, outils);
 }
