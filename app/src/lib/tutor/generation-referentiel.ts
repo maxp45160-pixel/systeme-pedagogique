@@ -15,7 +15,7 @@
 import type { Referentiel } from "@/lib/domain/types";
 import type { MoteurTuteur } from "./moteurs";
 import { lireOutilsActifs, messageSansOutils } from "./moteurs";
-import { outilsTuteur } from "./outils";
+import { outilReferentielComplet, outilsTuteur } from "./outils";
 import type { PropositionReferentiel } from "./proposition";
 
 /* ------------------------------------------------------------------ */
@@ -78,6 +78,117 @@ export function construirePromptSuggestion(
     "",
     "Appelle l'outil proposer_referentiel UNE fois. Ne recopie pas le contenu de l'appel dans ta réponse.",
   ].join("\n");
+}
+
+/* ------------------------------------------------------------------ */
+/* Référentiel complet — plusieurs branches d'un seul geste             */
+/* ------------------------------------------------------------------ */
+
+export interface ResultatReferentiel {
+  resume: string;
+  branches: PropositionReferentiel[];
+  /** Branches reçues mais non exploitables. Annoncé, jamais tu (ADR-036). */
+  ecartees: number;
+  outilsActifs: boolean;
+  erreur: string | null;
+}
+
+/**
+ * Le prompt d'un référentiel complet.
+ *
+ * Il diffère de celui d'une branche sur un seul point, mais qui change tout :
+ * il demande un **découpage**. Un sujet un peu large ne tient pas dans une
+ * branche — « le stoïcisme » se découpe en thèmes — et forcer une branche
+ * unique produit vingt compétences que personne ne relit.
+ *
+ * Il porte aussi les domaines existants, pour ne pas reproposer ce qui est
+ * déjà là : c'est le même souci que les intitulés voisins d'`evolution.ts`.
+ */
+export function construirePromptReferentiel(referentiel: Referentiel, sujet: string): string {
+  const existants = referentiel.domaines.filter((d) => !d.archive).map((d) => d.nom);
+
+  return [
+    "Tu es le tuteur du système pédagogique. Tu proposes un référentiel complet pour un sujet, découpé en branches.",
+    "",
+    "TU N'ENREGISTRES RIEN.",
+    "La personne relit branche par branche, compétence par compétence, et coche ce qu'elle garde.",
+    "",
+    "PROTOCOLE DE RÉDACTION D'UNE COMPÉTENCE",
+    "- Chaque intitulé est un savoir-faire observable, pas un sujet.",
+    "- Chaque compétence est notable sur au moins une dimension du référentiel.",
+    "- Chaque compétence est testable dans deux contextes.",
+    "- Chaque compétence est exerçable par un des types d'exercice.",
+    "- Chaque compétence est prouvable en 20 à 60 minutes.",
+    "- Du plus fondamental au plus avancé, à l'intérieur de chaque branche.",
+    "",
+    "COMMENT DÉCOUPER",
+    "- Une branche par grand thème du sujet. Trois à six branches pour un sujet large ; une seule si le sujet est étroit.",
+    "- Quatre à huit compétences par branche. Vingt compétences dans un domaine unique ne se relisent pas.",
+    "- Ne propose pas une branche pour un thème que tu ne sais pas remplir de compétences mesurables.",
+    "",
+    "L'application attribue tous les codes, à l'enregistrement. Tu n'en écris aucun.",
+    "",
+    `Sujet demandé : ${sujet}`,
+    "",
+    `Domaines déjà présents — ne les redouble pas : ${
+      existants.length > 0 ? existants.join(" · ") : "aucun, le référentiel est vide"
+    }`,
+    "",
+    "Appelle l'outil proposer_referentiel_complet UNE fois. Ne recopie pas le contenu de l'appel dans ta réponse.",
+  ].join("\n");
+}
+
+/** Propose un référentiel entier, sans conversation. */
+export async function proposerReferentiel(
+  moteur: MoteurTuteur,
+  referentiel: Referentiel,
+  sujet: string,
+  signal?: AbortSignal,
+  diffuser?: (evenement: string, donnees: unknown) => void,
+): Promise<ResultatReferentiel> {
+  let resume = "";
+  let branches: PropositionReferentiel[] = [];
+  let ecartees = 0;
+  let outilsActifs = true;
+
+  const envoyer = (evenement: string, donnees: unknown) => {
+    if (evenement !== "texte") diffuser?.(evenement, donnees);
+
+    const actifs = lireOutilsActifs(evenement, donnees);
+    if (actifs !== null) outilsActifs = actifs;
+
+    if (evenement === "proposition") {
+      const p = donnees as {
+        genre: string;
+        resume?: string;
+        branches?: PropositionReferentiel[];
+        ecartees?: number;
+      };
+      if (p.genre === "referentiel-complet" && p.branches) {
+        resume = p.resume ?? "";
+        branches = p.branches;
+        ecartees = p.ecartees ?? 0;
+      }
+    }
+  };
+
+  await moteur.repondre({
+    systemeStable: construirePromptReferentiel(referentiel, sujet),
+    systemeProfil: "",
+    outils: [outilReferentielComplet()],
+    messages: [{ role: "user" as const, content: `Propose un référentiel pour : ${sujet}` }],
+    signal,
+    envoyer,
+  });
+
+  const erreur =
+    branches.length > 0
+      ? null
+      : outilsActifs
+        ? "Aucun référentiel exploitable n'a été produit."
+        : messageSansOutils("la proposition de référentiel");
+
+  return { resume, branches, ecartees, outilsActifs, erreur };
 }
 
 /* ------------------------------------------------------------------ */

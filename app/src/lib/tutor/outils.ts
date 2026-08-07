@@ -127,6 +127,19 @@ export const OUTIL_EVOLUTION = "proposer_evolution";
 export const OUTIL_REVISION = "proposer_revision";
 
 /**
+ * Un référentiel entier — plusieurs branches d'un seul geste.
+ *
+ * `proposer_referentiel` rend **une** branche. Un sujet un peu large n'en tient
+ * pas une seule : « le stoïcisme » se découpe en thèmes, et forcer le tuteur à
+ * tout mettre dans un domaine produit une branche de vingt compétences que
+ * personne ne relit.
+ *
+ * Aucun champ `code` ici non plus : chaque branche réutilise exactement le
+ * schéma de `proposer_referentiel`.
+ */
+export const OUTIL_REFERENTIEL_COMPLET = "proposer_referentiel_complet";
+
+/**
  * Sous-ensemble de JSON Schema effectivement employé ici.
  *
  * Volontairement pauvre : ce qui n'est pas exprimable dans ce type n'est pas
@@ -420,6 +433,33 @@ export function outilEvolution(): OutilTuteur {
 }
 
 /**
+ * L'outil de proposition d'un référentiel complet.
+ *
+ * Chaque branche réutilise `schemaReferentiel()` — un seul endroit définit ce
+ * qu'est une branche, et l'interdit du champ `code` en hérite gratuitement.
+ */
+export function outilReferentielComplet(): OutilTuteur {
+  return {
+    nom: OUTIL_REFERENTIEL_COMPLET,
+    description:
+      "Propose un référentiel complet pour un sujet, découpé en branches cohérentes. Une branche par grand thème : ne mets pas vingt compétences dans un seul domaine, et n'en fais pas dix pour un sujet qui en tient trois. L'application attribue tous les codes.",
+    schema: {
+      type: "object",
+      properties: {
+        resume: {
+          type: "string",
+          description:
+            "Une à trois phrases : comment tu as découpé le sujet, et pourquoi ce découpage.",
+        },
+        branches: { type: "array", minItems: 1, items: schemaReferentiel() },
+      },
+      required: ["resume", "branches"],
+      additionalProperties: false,
+    },
+  };
+}
+
+/**
  * L'outil de révision d'une branche existante.
  *
  * `codesVivants` est l'ensemble fermé des identifiants **déjà attribués** dans
@@ -590,7 +630,8 @@ export type PropositionRecue =
   | { genre: "referentiel"; branche: PropositionReferentiel }
   | { genre: "correction"; correction: PropositionCorrection }
   | { genre: "evolution"; evolution: PropositionEvolution }
-  | { genre: "revision"; revision: PropositionRevision };
+  | { genre: "revision"; revision: PropositionRevision }
+  | { genre: "referentiel-complet"; resume: string; branches: PropositionReferentiel[]; ecartees: number };
 
 export interface PropositionRevision {
   resume: string;
@@ -807,6 +848,44 @@ function validerEvolution(entree: Record<string, unknown>): PropositionRecue | n
 }
 
 /**
+ * Valide un référentiel complet — et **écarte** une branche invalide au lieu de
+ * rejeter le lot.
+ *
+ * ⚠️ Divergence assumée avec la règle « refuser plutôt qu'accepter à moitié »
+ * qui gouverne le reste de ce module. Elle tient à ce qu'est l'objet : les
+ * parties d'un exercice forment **un** objet — un demi-exercice n'en est pas
+ * un. Cinq branches sont **cinq** unités, relues séparément, cochées
+ * séparément. Écarter la quatrième et livrer les quatre autres ne produit
+ * aucun objet à moitié.
+ *
+ * La condition est que le nombre d'écartées soit **annoncé** : une liste
+ * tronquée en silence se lirait comme un corpus complet (ADR-036). D'où
+ * `ecartees` dans la proposition, affiché par l'écran de relecture.
+ *
+ * Zéro branche valide reste un rejet : il n'y a alors rien à relire.
+ */
+function validerReferentielComplet(entree: Record<string, unknown>): PropositionRecue | null {
+  const resume = texte(entree.resume);
+  const brutes = Array.isArray(entree.branches) ? entree.branches : [];
+  if (brutes.length === 0) return null;
+
+  const branches: PropositionReferentiel[] = [];
+  let ecartees = 0;
+
+  for (const brute of brutes) {
+    const o = objet(brute);
+    // `validerReferentiel` est réutilisée telle quelle : une seule définition
+    // de ce qu'est une branche recevable.
+    const recu = o ? validerReferentiel(o) : null;
+    if (recu?.genre === "referentiel") branches.push(recu.branche);
+    else ecartees += 1;
+  }
+
+  if (branches.length === 0) return null;
+  return { genre: "referentiel-complet", resume, branches, ecartees };
+}
+
+/**
  * Les codes vivants tels que le schéma de révision les a énumérés.
  *
  * Aucune liste parallèle : on relit l'ensemble que le fournisseur a
@@ -960,6 +1039,8 @@ export function validerAppelOutil(
       return validerEvolution(donnees);
     case OUTIL_REVISION:
       return validerRevision(donnees, codesDuSchemaRevision(outils));
+    case OUTIL_REFERENTIEL_COMPLET:
+      return validerReferentielComplet(donnees);
     default:
       return null;
   }

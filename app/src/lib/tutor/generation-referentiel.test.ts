@@ -14,7 +14,13 @@
 
 import { describe, expect, it } from "vitest";
 
-import { construirePromptSuggestion, suggererBranche } from "./generation-referentiel";
+import {
+  construirePromptReferentiel,
+  construirePromptSuggestion,
+  proposerReferentiel,
+  suggererBranche,
+} from "./generation-referentiel";
+import { OUTIL_REFERENTIEL_COMPLET, validerAppelOutil } from "./outils";
 import type { Referentiel, Skill } from "@/lib/domain/types";
 import type { MoteurTuteur } from "./moteurs";
 import type { PropositionReferentiel } from "./proposition";
@@ -95,6 +101,142 @@ describe("construirePromptSuggestion", () => {
 /* ------------------------------------------------------------------ */
 /* La collecte                                                         */
 /* ------------------------------------------------------------------ */
+
+/* ------------------------------------------------------------------ */
+/* Le référentiel complet — plusieurs branches d'un seul geste          */
+/* ------------------------------------------------------------------ */
+
+const BRANCHE_VALIDE = {
+  domaine: "Stoïcisme antique",
+  prefixe: "STO",
+  description: "Les sources et la dichotomie du contrôle.",
+  competences: [
+    { palier: "fondamentaux", importance: 0.8, intitule: "Distinguer ce qui dépend de soi" },
+  ],
+  justification: "Demandé par l'utilisateur.",
+};
+
+describe("construirePromptReferentiel", () => {
+  it("demande un découpage en branches quand le sujet le mérite", () => {
+    // C'est la seule différence avec le prompt d'une branche, et elle change
+    // tout : un sujet large forcé dans un domaine produit vingt compétences
+    // que personne ne relit.
+    const prompt = construirePromptReferentiel(REFERENTIEL, "le stoïcisme");
+    expect(prompt).toContain("COMMENT DÉCOUPER");
+    expect(prompt).toContain("Une branche par grand thème");
+  });
+
+  it("porte les domaines déjà existants pour ne pas les redoubler", () => {
+    const prompt = construirePromptReferentiel(REFERENTIEL, "le stoïcisme");
+    expect(prompt).toContain("Logistique");
+  });
+
+  it("dit que le référentiel est vide plutôt que de laisser la liste blanche", () => {
+    expect(construirePromptReferentiel(REFERENTIEL_VIDE, "x")).toContain("aucun, le référentiel est vide");
+  });
+
+  it("n'autorise pas le tuteur à écrire un code", () => {
+    expect(construirePromptReferentiel(REFERENTIEL, "le stoïcisme")).toContain(
+      "L'application attribue",
+    );
+  });
+});
+
+describe("validerReferentielComplet — écarter n'est pas accepter à moitié", () => {
+  it("rend plusieurs branches", () => {
+    const recu = validerAppelOutil(OUTIL_REFERENTIEL_COMPLET, {
+      resume: "Trois thèmes.",
+      branches: [BRANCHE_VALIDE, { ...BRANCHE_VALIDE, domaine: "Stoïcisme moderne" }],
+    });
+    if (recu?.genre !== "referentiel-complet") throw new Error("genre inattendu");
+    expect(recu.branches).toHaveLength(2);
+    expect(recu.ecartees).toBe(0);
+  });
+
+  it("écarte une branche sans compétence et le COMPTE, sans jeter les autres", () => {
+    /*
+     * Divergence assumée avec la règle « refuser plutôt qu'accepter à moitié »
+     * du reste du module. Elle tient à ce qu'est l'objet : les parties d'un
+     * exercice forment UN objet — un demi-exercice n'en est pas un. Cinq
+     * branches sont CINQ unités, relues et cochées séparément.
+     *
+     * La condition est que l'écart soit annoncé : une liste tronquée en
+     * silence se lirait comme un corpus complet (ADR-036).
+     */
+    const recu = validerAppelOutil(OUTIL_REFERENTIEL_COMPLET, {
+      resume: "Deux thèmes.",
+      branches: [BRANCHE_VALIDE, { domaine: "Vide", competences: [] }],
+    });
+    if (recu?.genre !== "referentiel-complet") throw new Error("genre inattendu");
+    expect(recu.branches).toHaveLength(1);
+    expect(recu.ecartees).toBe(1);
+  });
+
+  it("rejette quand aucune branche n'est exploitable — il n'y a rien à relire", () => {
+    expect(
+      validerAppelOutil(OUTIL_REFERENTIEL_COMPLET, {
+        resume: "x",
+        branches: [{ domaine: "Vide", competences: [] }],
+      }),
+    ).toBeNull();
+  });
+
+  it("rejette un lot vide", () => {
+    expect(validerAppelOutil(OUTIL_REFERENTIEL_COMPLET, { resume: "x", branches: [] })).toBeNull();
+  });
+
+  it("n'accepte aucun code dans une branche", () => {
+    // Hérité de `validerReferentiel`, réutilisée telle quelle : une seule
+    // définition de ce qu'est une branche recevable.
+    const recu = validerAppelOutil(OUTIL_REFERENTIEL_COMPLET, {
+      resume: "x",
+      branches: [
+        {
+          ...BRANCHE_VALIDE,
+          competences: [
+            { palier: "avance", importance: 0.5, intitule: "Sait méditer", code: "STO-99" },
+          ],
+        },
+      ],
+    });
+    expect(JSON.stringify(recu)).not.toContain("STO-99");
+  });
+});
+
+describe("proposerReferentiel", () => {
+  it("distingue un fournisseur sans outils d'un tuteur muet", async () => {
+    const r = await proposerReferentiel(
+      moteurQuiEmet([
+        { evenement: "fin", donnees: { stopReason: "stop", outils: { actifs: false, appels: 0 } } },
+      ]),
+      REFERENTIEL,
+      "le stoïcisme",
+    );
+    expect(r.outilsActifs).toBe(false);
+    expect(r.erreur).toContain("n'accepte pas les appels d'outil");
+  });
+
+  it("remonte le nombre de branches écartées jusqu'à l'appelant", async () => {
+    const r = await proposerReferentiel(
+      moteurQuiEmet([
+        {
+          evenement: "proposition",
+          donnees: {
+            genre: "referentiel-complet",
+            resume: "Deux thèmes.",
+            branches: [BRANCHE_VALIDE],
+            ecartees: 2,
+          },
+        },
+      ]),
+      REFERENTIEL,
+      "le stoïcisme",
+    );
+    expect(r.branches).toHaveLength(1);
+    expect(r.ecartees).toBe(2);
+    expect(r.erreur).toBeNull();
+  });
+});
 
 describe("suggererBranche — rien n'est fabriqué", () => {
   it("retient une branche validée et ne signale aucune erreur", async () => {
