@@ -13,7 +13,9 @@ import {
   normaliserPalier,
   normaliserPrefixe,
   prefixeParDefaut,
+  prefixesDistincts,
   prochainCode,
+  scinderRetraits,
   slugifier,
   validerCompetence,
   validerDomaine,
@@ -72,6 +74,88 @@ describe("slugifier / préfixes", () => {
     // Illisible : 0.5, jamais 0 — une importance nulle retirerait la compétence
     // du calcul de recommandation sans que personne ne l'ait décidé.
     expect(normaliserImportance("beaucoup")).toBe(0.5);
+  });
+});
+
+describe("prefixesDistincts — la création multi-branches d'un seul geste", () => {
+  /*
+   * Le cas qui a motivé la fonction : « le stoïcisme en 5 thèmes » produit des
+   * noms dont `prefixeParDefaut` tire le MÊME préfixe, et `validerDomaine`
+   * refuse un préfixe déjà pris. Sans départage, la création multi-branches
+   * échouait sur son entrée la plus probable.
+   */
+  it("départage deux noms qui produisent le même préfixe", () => {
+    const p = prefixesDistincts(
+      [
+        { nom: "Stoïcisme antique", prefixe: "" },
+        { nom: "Stoïcisme moderne", prefixe: "" },
+      ],
+      [],
+    );
+    expect(p[0]).not.toBe(p[1]);
+    expect(new Set(p).size).toBe(2);
+  });
+
+  it("ne réutilise jamais un préfixe déjà pris par le référentiel", () => {
+    const p = prefixesDistincts([{ nom: "Logistique", prefixe: "LOG" }], ["LOG"]);
+    expect(p[0]).not.toBe("LOG");
+  });
+
+  it("conserve un préfixe proposé quand il est valide et libre", () => {
+    expect(prefixesDistincts([{ nom: "Philosophie", prefixe: "PHI" }], ["LOG"])).toEqual(["PHI"]);
+  });
+
+  it("retombe sur le préfixe par défaut quand celui proposé est illisible", () => {
+    // `normaliserPrefixe` fait déjà ce repli ; on vérifie qu'il n'est pas
+    // court-circuité par le départage.
+    expect(prefixesDistincts([{ nom: "Philosophie", prefixe: "12$" }], [])).toEqual(["PHI"]);
+  });
+
+  it("reste déterministe : même entrée, même sortie", () => {
+    // Sinon deux relectures du même écran montreraient deux codes différents.
+    const entree = [
+      { nom: "Stoïcisme antique", prefixe: "" },
+      { nom: "Stoïcisme moderne", prefixe: "" },
+      { nom: "Stoïcisme appliqué", prefixe: "" },
+    ];
+    expect(prefixesDistincts(entree, ["STO"])).toEqual(prefixesDistincts(entree, ["STO"]));
+  });
+
+  it("ne produit jamais un préfixe de plus de 5 caractères", () => {
+    const p = prefixesDistincts(
+      Array.from({ length: 8 }, () => ({ nom: "Stoïcisme", prefixe: "" })),
+      [],
+    );
+    for (const x of p) expect(x.length).toBeLessThanOrEqual(5);
+    expect(new Set(p).size).toBe(8);
+  });
+});
+
+describe("scinderRetraits — ADR-027 appliquée à un lot", () => {
+  it("sépare selon les preuves de chaque code", () => {
+    const { supprimees, archivees } = scinderRetraits(
+      ["A-01", "A-02"],
+      new Map([["A-02", 3]]),
+    );
+    expect(supprimees).toEqual(["A-01"]);
+    expect(archivees).toEqual(["A-02"]);
+  });
+
+  it("ne change pas le mode d'un code parce qu'un autre du lot porte des preuves", () => {
+    // Sinon un retrait groupé archiverait des lignes vides, et le référentiel
+    // enflerait d'archives qui ne protègent rien.
+    const { supprimees } = scinderRetraits(["A-01", "A-02"], new Map([["A-02", 9]]));
+    expect(supprimees).toContain("A-01");
+  });
+
+  it("traite un code inconnu du compteur comme sans preuve", () => {
+    // `compterPreuves` ne rend que les codes qui en ont : l'absence EST le zéro.
+    const { supprimees } = scinderRetraits(["A-99"], new Map());
+    expect(supprimees).toEqual(["A-99"]);
+  });
+
+  it("rend deux listes vides pour un lot vide", () => {
+    expect(scinderRetraits([], new Map())).toEqual({ supprimees: [], archivees: [] });
   });
 });
 

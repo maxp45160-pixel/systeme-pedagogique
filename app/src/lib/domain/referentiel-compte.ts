@@ -153,6 +153,66 @@ export function normaliserPrefixe(brut: string, nomDomaine: string): string {
   return PREFIXE_VALIDE.test(candidat) ? candidat : prefixeParDefaut(nomDomaine);
 }
 
+/**
+ * Des préfixes tous distincts pour un lot de branches créées d'un seul geste.
+ *
+ * Indispensable dès qu'on propose un référentiel en plusieurs branches : « le
+ * stoïcisme en 5 thèmes » produira « Stoïcisme antique » et « Stoïcisme
+ * moderne », dont `prefixeParDefaut` tire **le même** `STO`. Or `validerDomaine`
+ * refuse un préfixe déjà pris. Sans cette fonction, la création multi-branches
+ * échouerait sur son entrée la plus probable.
+ *
+ * Trois recours dans l'ordre, tous **déterministes** — même entrée, même
+ * sortie, sinon deux relectures du même écran montreraient deux codes :
+ *
+ * 1. le préfixe proposé, s'il est valide et libre ;
+ * 2. une lettre de plus tirée du nom (`STO` → `STOI` → `STOIC`) ;
+ * 3. un chiffre en fin (`STO2`), quand le nom n'a plus de lettres à donner.
+ *
+ * Les préfixes attribués au fil de la boucle entrent dans l'ensemble des pris :
+ * deux branches du même lot ne peuvent pas collisionner entre elles non plus.
+ */
+export function prefixesDistincts(
+  branches: { nom: string; prefixe: string }[],
+  dejaPris: Iterable<string>,
+): string[] {
+  const pris = new Set<string>();
+  for (const p of dejaPris) pris.add(p.toUpperCase());
+
+  return branches.map((b) => {
+    const propose = normaliserPrefixe(b.prefixe, b.nom);
+    if (!pris.has(propose)) {
+      pris.add(propose);
+      return propose;
+    }
+
+    // 2. Allonger depuis le nom, tant qu'il reste des lettres et de la place.
+    const lettres = slugifier(b.nom).replace(/[^a-z]/g, "").toUpperCase();
+    for (let longueur = propose.length + 1; longueur <= 5; longueur += 1) {
+      const candidat = lettres.slice(0, longueur);
+      if (candidat.length === longueur && !pris.has(candidat)) {
+        pris.add(candidat);
+        return candidat;
+      }
+    }
+
+    // 3. Suffixer par un chiffre. La base est tronquée pour rester ≤ 5.
+    const base = propose.slice(0, 4);
+    for (let n = 2; n < 100; n += 1) {
+      const candidat = `${base}${n}`.slice(0, 5);
+      if (!pris.has(candidat)) {
+        pris.add(candidat);
+        return candidat;
+      }
+    }
+
+    // Inatteignable en pratique : 98 branches de même préfixe dans un lot.
+    // On rend le préfixe proposé plutôt que d'inventer : `validerDomaine`
+    // refusera, avec un message lisible.
+    return propose;
+  });
+}
+
 export function normaliserPalier(brut: string): Palier {
   const nu = slugifier(brut);
   return PALIERS.find((p) => p === nu) ?? "fondamentaux";
@@ -359,6 +419,37 @@ export function retraitsParCode(
       return [s.code, { preuves: n, mode: modeRetrait(n) }];
     }),
   );
+}
+
+/**
+ * Découpe un lot de codes à retirer selon le geste **dérivé** de chacun.
+ *
+ * Extraite de `retirerCompetences` pour être partagée avec `appliquerRevision`
+ * (lot C). Deux copies de la règle d'ADR-027 finiraient par diverger, et la
+ * divergence serait invisible : les deux chemins « marcheraient », l'un
+ * effaçant ce que l'autre archive.
+ *
+ * ⚠️ Le mode de chaque code est décidé par **ses** preuves, jamais par celles
+ * du lot. Un code sans preuve part en suppression même si dix autres du même
+ * geste en portent — sinon un retrait groupé archiverait des lignes vides, et
+ * le référentiel enflerait d'archives qui ne protègent rien.
+ *
+ * Un code absent du compteur est traité comme sans preuve : c'est ce que
+ * `compterPreuves` produit — il ne rend que les codes qui en ont.
+ */
+export function scinderRetraits(
+  codes: string[],
+  preuvesParCode: Map<string, number>,
+): { supprimees: string[]; archivees: string[] } {
+  const supprimees: string[] = [];
+  const archivees: string[] = [];
+
+  for (const code of codes) {
+    if (modeRetrait(preuvesParCode.get(code) ?? 0) === "suppression") supprimees.push(code);
+    else archivees.push(code);
+  }
+
+  return { supprimees, archivees };
 }
 
 /**

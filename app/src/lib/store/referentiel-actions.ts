@@ -32,6 +32,7 @@ import {
   normaliserImportance,
   normaliserPalier,
   normaliserPrefixe,
+  scinderRetraits,
   slugifier,
   validerCompetence,
   validerDomaine,
@@ -410,12 +411,11 @@ export async function retirerCompetences(codes: string[]): Promise<ResultatRetra
   const dorsale = await dorsaleCompte();
   const preuves = await compterPreuves(dorsale);
 
-  const supprimees: string[] = [];
-  const archivees: string[] = [];
-  for (const code of codes) {
-    if (modeRetrait(preuves.get(code) ?? 0) === "suppression") supprimees.push(code);
-    else archivees.push(code);
-  }
+  // Le découpage vit dans `scinderRetraits` (pur, testé), partagé avec
+  // `appliquerRevision` : deux copies de la règle d'ADR-027 finiraient par
+  // diverger, et la divergence serait invisible — l'un effacerait ce que
+  // l'autre archive.
+  const { supprimees, archivees } = scinderRetraits(codes, preuves);
 
   if (archivees.length > 0) {
     const { error } = await dorsale.supabase
