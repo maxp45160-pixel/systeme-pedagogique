@@ -17,7 +17,7 @@ import {
   JaugeNiveau,
 } from "@/components/ui/primitives";
 import { Markdown } from "@/components/ui/markdown";
-import { FormulaireBilan } from "@/components/exercices/formulaire-bilan";
+import { BilanAssiste } from "@/components/exercices/bilan-assiste";
 import { BoutonAbandon } from "@/components/exercices/abandon";
 import { ZoneReponse } from "@/components/exercices/zone-reponse";
 import { motifBlocageBilan, reponseSuffisante } from "@/lib/domain/tentative";
@@ -414,11 +414,19 @@ export default async function PageExercice(props: {
                       legende="C'est cette étape qui produit la preuve"
                     />
                     <div className="px-4 py-3.5">
-                      <FormulaireBilan
+                      {/*
+                        `BilanAssiste` lance la relecture puis rend le même
+                        `FormulaireBilan`, pré-rempli. En cas d'échec — 503,
+                        fournisseur sans outils, verdict illisible — il rend le
+                        formulaire NU avec la raison. Le chemin manuel n'est
+                        donc jamais perdu.
+                      */}
+                      <BilanAssiste
                         exercice={exercice}
                         attemptId={enCours.id}
                         dureeSuggeree={dureeSuggeree}
                         indicesUtilises={enCours.indicesUtilises}
+                        compteId={ctx.donnees.user.id}
                       />
                     </div>
                   </Carte>

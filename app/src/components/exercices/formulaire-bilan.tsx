@@ -30,24 +30,59 @@ const AIDES: { valeur: AideExterne; libelle: string }[] = [
  * celui-ci est déduit du nombre d'indices réellement consultés, donc observé
  * et non déclaré.
  */
+/**
+ * Le verdict du tuteur, déjà converti et vérifié (`conversion-correction.ts`).
+ *
+ * Il ne porte ni durée, ni aide extérieure, ni note — voir plus bas : ce sont
+ * les seules choses que le tuteur ne peut pas savoir.
+ */
+export interface PropositionBilan {
+  resultat: ResultatBilan;
+  /** Index base 0, comme `exercice.criteres`. */
+  appreciations: Record<number, number>;
+  justifications: Record<number, string>;
+}
+
 export function FormulaireBilan({
   exercice,
   attemptId,
   dureeSuggeree,
   indicesUtilises,
+  propositionInitiale,
+  criteresReplies = false,
 }: {
   exercice: Exercise;
   attemptId: string;
   dureeSuggeree: number;
   indicesUtilises: number;
+  /** Verdict proposé par le tuteur. Absent : le formulaire s'ouvre vide, comme avant. */
+  propositionInitiale?: PropositionBilan;
+  /** Replie la liste des critères derrière « Relire / modifier ». */
+  criteresReplies?: boolean;
 }) {
-  const [resultat, setResultat] = useState<ResultatBilan>("reussi");
-  const [criteres, setCriteres] = useState<Record<number, number>>({});
+  /*
+   * Initialiseurs paresseux, jamais un `useEffect` (CLAUDE.md §8).
+   *
+   * Un `useEffect` qui recopie une prop dans l'état écrase les modifications de
+   * l'utilisateur au moindre re-rendu : on cocherait un critère et il
+   * reviendrait à la valeur du tuteur. Ici la proposition est une valeur
+   * INITIALE — après quoi l'état appartient à la personne.
+   */
+  const [resultat, setResultat] = useState<ResultatBilan>(
+    () => propositionInitiale?.resultat ?? "reussi",
+  );
+  const [criteres, setCriteres] = useState<Record<number, number>>(
+    () => propositionInitiale?.appreciations ?? {},
+  );
   const [duree, setDuree] = useState(dureeSuggeree);
   const [notes, setNotes] = useState("");
   const [aide, setAide] = useState<AideExterne>("aucune");
+  const [detaille, setDetaille] = useState(!criteresReplies);
   const [enCours, demarrer] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
+
+  const justifications = propositionInitiale?.justifications ?? {};
+  const assiste = propositionInitiale !== undefined;
 
   const tousRenseignes = exercice.criteres.every((_, i) => criteres[i] !== undefined);
 
@@ -134,47 +169,124 @@ export function FormulaireBilan({
 
       {/* Critères */}
       <div>
-        <div className="mb-2 text-xs font-medium">
-          Critère par critère
-          <span className="ml-1.5 font-normal text-texte-discret">
-            — sois honnête : c{"'"}est ce qui rend le suivi utile
-          </span>
-        </div>
-        <ul className="space-y-2">
-          {exercice.criteres.map((c, i) => (
-            <li
-              key={i}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-bordure bg-surface-2 px-3 py-2"
+        <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+          <div className="text-xs font-medium">
+            Critère par critère
+            <span className="ml-1.5 font-normal text-texte-discret">
+              {assiste
+                ? "— relis le verdict du tuteur : c'est toi qui décides"
+                : "— sois honnête : c'est ce qui rend le suivi utile"}
+            </span>
+          </div>
+          {/*
+            Le repli n'existe que quand un verdict a été proposé. Sans lui, la
+            personne remplit elle-même : replier ce qu'elle doit remplir
+            n'aurait aucun sens.
+          */}
+          {criteresReplies && (
+            <button
+              type="button"
+              onClick={() => setDetaille((d) => !d)}
+              aria-expanded={detaille}
+              className="text-[0.6875rem] text-texte-attenue underline-offset-2 hover:text-texte hover:underline"
             >
-              <div className="min-w-0 flex-1">
-                <p className="text-xs">{c.libelle}</p>
-                <p className="mt-0.5 text-[0.625rem] text-texte-discret">
-                  {LIBELLES_DIMENSIONS[c.dimension]}
-                </p>
-              </div>
-              <div className="flex shrink-0 gap-1">
-                {APPRECIATIONS.map((a) => (
-                  <button
-                    key={a.valeur}
-                    type="button"
-                    onClick={() => setCriteres((p) => ({ ...p, [i]: a.valeur }))}
-                    className={cx(
-                      "rounded border px-2 py-1 text-[0.6875rem] font-medium transition-colors",
-                      criteres[i] === a.valeur
-                        ? "border-primaire/40 bg-primaire text-primaire-contraste"
-                        : "border-bordure bg-surface text-texte-attenue hover:bg-surface-3",
-                    )}
-                  >
-                    {a.libelle}
-                  </button>
-                ))}
-              </div>
-            </li>
-          ))}
-        </ul>
+              {detaille ? "Replier" : "Relire / modifier"}
+            </button>
+          )}
+        </div>
+
+        {/*
+          Vue compacte : les JUSTIFICATIONS restent visibles, pas seulement les
+          pastilles. C'est la mitigation principale du risque central de ce lot
+          — qu'« Accepter » devienne un tampon et corrompe la mesure à l'entrée
+          de la chaîne. Un verdict qu'on ne peut pas lire ne se relit pas.
+        */}
+        {!detaille && (
+          <ul className="space-y-1.5">
+            {exercice.criteres.map((c, i) => {
+              const valeur = criteres[i];
+              const libelle = APPRECIATIONS.find((a) => a.valeur === valeur)?.libelle ?? "—";
+              return (
+                <li
+                  key={i}
+                  className="rounded-md border border-bordure bg-surface-2 px-3 py-2"
+                >
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <p className="min-w-0 flex-1 text-xs">{c.libelle}</p>
+                    <span
+                      className={cx(
+                        "shrink-0 rounded border px-1.5 py-0.5 text-[0.625rem] font-medium",
+                        valeur === 1
+                          ? "border-succes/40 bg-succes-faible text-succes"
+                          : valeur === 0.5
+                            ? "border-alerte/40 bg-alerte-faible text-alerte"
+                            : "border-bordure bg-surface text-texte-attenue",
+                      )}
+                    >
+                      {libelle}
+                    </span>
+                  </div>
+                  {justifications[i] && (
+                    <p className="mt-1 text-[0.6875rem] text-texte-attenue">{justifications[i]}</p>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        {detaille && (
+          <ul className="space-y-2">
+            {exercice.criteres.map((c, i) => (
+              <li
+                key={i}
+                className="rounded-md border border-bordure bg-surface-2 px-3 py-2"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs">{c.libelle}</p>
+                    <p className="mt-0.5 text-[0.625rem] text-texte-discret">
+                      {LIBELLES_DIMENSIONS[c.dimension]}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    {APPRECIATIONS.map((a) => (
+                      <button
+                        key={a.valeur}
+                        type="button"
+                        onClick={() => setCriteres((p) => ({ ...p, [i]: a.valeur }))}
+                        className={cx(
+                          "rounded border px-2 py-1 text-[0.6875rem] font-medium transition-colors",
+                          criteres[i] === a.valeur
+                            ? "border-primaire/40 bg-primaire text-primaire-contraste"
+                            : "border-bordure bg-surface text-texte-attenue hover:bg-surface-3",
+                        )}
+                      >
+                        {a.libelle}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {justifications[i] && (
+                  <p className="mt-1.5 border-t border-bordure pt-1.5 text-[0.6875rem] text-texte-attenue">
+                    <span className="text-texte-discret">Tuteur —</span> {justifications[i]}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
-      {/* Aide extérieure — plafonne l'autonomie enregistrée (ADR-033). */}
+      {/*
+        Aide extérieure — plafonne l'autonomie enregistrée (ADR-033).
+
+        ⚠️ Ce bloc et la durée restent HORS du repli, même quand le tuteur a
+        proposé un verdict. Ce n'est pas un oubli : l'aide extérieure est un
+        fait que seule la personne connaît — le tuteur ne peut pas savoir si
+        elle avait un assistant ouvert à côté. La lui faire proposer serait
+        fabriquer la donnée même qu'ADR-033 existe pour aller chercher.
+      */}
       <div>
         <div className="mb-2 text-xs font-medium">
           As-tu eu besoin d&apos;aide extérieure ?
@@ -283,7 +395,11 @@ export function FormulaireBilan({
           disabled={!tousRenseignes || enCours}
           className={classesBouton("principal")}
         >
-          {enCours ? "Enregistrement…" : "Enregistrer la preuve"}
+          {enCours
+            ? "Enregistrement…"
+            : assiste
+              ? "Accepter et enregistrer"
+              : "Enregistrer la preuve"}
         </button>
         {!tousRenseignes && (
           <span className="text-xs text-texte-discret">
