@@ -71,7 +71,20 @@ export interface SoumissionBranche {
   domaine: string;
   prefixe: string;
   description: string;
-  competences: { intitule: string; palier: string; importance: string }[];
+  competences: {
+    intitule: string;
+    palier: string;
+    importance: string;
+    /**
+     * Codes dont cette compétence dépend.
+     *
+     * Sert au successeur d'une compétence maîtrisée (ADR-042) : le lien
+     * « DEB-05 s'appuie sur DEB-01 » est un fait du référentiel, pas une note.
+     * `construireCompetences` lit déjà `c.prerequis ?? []` et la colonne
+     * `prerequis TEXT[]` existe — additif, aucune migration.
+     */
+    prerequis?: string[];
+  }[];
   origine?: OrigineReferentiel;
 }
 
@@ -108,6 +121,9 @@ export async function creerBranche(
       intitule: c.intitule.trim(),
       palier: normaliserPalier(c.palier) as Palier,
       importance: normaliserImportance(c.importance),
+      // Un prérequis pointant un code inexistant est écarté ici plutôt que de
+      // faire échouer la branche : c'est une arête du graphe, pas son objet.
+      prerequis: (c.prerequis ?? []).filter((code) => referentiel.parCode.has(code)),
     }));
 
   if (candidates.length === 0) {

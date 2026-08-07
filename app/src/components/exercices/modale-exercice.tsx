@@ -46,6 +46,7 @@ export function ModaleExercice({
   onFermer,
   competences,
   competenceInitiale,
+  themeInitial = "",
   calibrages,
   compteId,
   surEnregistre,
@@ -53,6 +54,15 @@ export function ModaleExercice({
   onFermer: () => void;
   competences: CompetenceModale[];
   competenceInitiale: string;
+  /**
+   * Thème pré-rempli, modifiable.
+   *
+   * Sert à l'élargissement d'une compétence maîtrisée (ADR-042) : le contexte
+   * proposé par le tuteur devient le thème de l'exercice. Un contexte n'est pas
+   * un objet de base — `SkillEvidence.contexte` est le titre de l'exercice —
+   * donc il n'a pas d'autre endroit où vivre que là.
+   */
+  themeInitial?: string;
   /** Calibrages de toutes les compétences actives, indexés par code. */
   calibrages: Record<string, CalibrageModale>;
   compteId: string;
@@ -61,7 +71,7 @@ export function ModaleExercice({
 }) {
   const router = useRouter();
   const [code, setCode] = useState(competenceInitiale);
-  const [theme, setTheme] = useState("");
+  const [theme, setTheme] = useState(themeInitial);
   const [phase, setPhase] = useState<"formulaire" | "generation" | "previsualisation">(
     "formulaire",
   );
