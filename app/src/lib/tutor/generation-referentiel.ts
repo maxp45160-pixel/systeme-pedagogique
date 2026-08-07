@@ -14,6 +14,7 @@
 
 import type { Referentiel } from "@/lib/domain/types";
 import type { MoteurTuteur } from "./moteurs";
+import { lireOutilsActifs, messageSansOutils } from "./moteurs";
 import { outilsTuteur } from "./outils";
 import type { PropositionReferentiel } from "./proposition";
 
@@ -29,6 +30,13 @@ export interface DemandeSuggestion {
 export interface ResultatSuggestion {
   /** Proposition validée, prête à être relue et enregistrée. */
   branche: PropositionReferentiel | null;
+  /**
+   * Le fournisseur a-t-il servi les outils ?
+   *
+   * `true` par défaut — voir `ResultatGeneration.outilsActifs` : une absence
+   * d'information n'accuse personne.
+   */
+  outilsActifs: boolean;
   /** Message d'erreur, ou `null` si la suggestion a abouti. */
   erreur: string | null;
 }
@@ -88,10 +96,23 @@ export async function suggererBranche(
   referentiel: Referentiel,
   sujet: string,
   signal?: AbortSignal,
+  /**
+   * Relais **immédiat** des événements du moteur, pour la progression SSE.
+   *
+   * Même motif que `genererExercices` : sans lui, la modale écoute un
+   * `proposition-en-cours` que personne n'émet, et reste sur son message
+   * d'attente initial pendant toute la rédaction — un appel d'outil ne produit
+   * aucun `content`, donc rien de visible.
+   */
+  diffuser?: (evenement: string, donnees: unknown) => void,
 ): Promise<ResultatSuggestion> {
   let branche: PropositionReferentiel | null = null;
+  let outilsActifs = true;
 
   const envoyer = (evenement: string, donnees: unknown) => {
+    diffuser?.(evenement, donnees);
+    const actifs = lireOutilsActifs(evenement, donnees);
+    if (actifs !== null) outilsActifs = actifs;
     if (evenement === "proposition") {
       const proposition = donnees as { genre: string; branche?: PropositionReferentiel };
       if (proposition.genre === "referentiel" && proposition.branche) {
@@ -119,6 +140,15 @@ export async function suggererBranche(
     envoyer,
   });
 
-  const erreur = branche === null ? "Aucune branche exploitable n'a été produite." : null;
-  return { branche, erreur };
+  // Deux pannes distinctes derrière une même absence de branche : un tuteur
+  // muet, qu'on relance en reformulant ; un fournisseur sans outils, qui ne se
+  // relance pas du tout. Voir `genererExercices`.
+  const erreur =
+    branche !== null
+      ? null
+      : outilsActifs
+        ? "Aucune branche exploitable n'a été produite."
+        : messageSansOutils("la suggestion de compétences");
+
+  return { branche, outilsActifs, erreur };
 }
