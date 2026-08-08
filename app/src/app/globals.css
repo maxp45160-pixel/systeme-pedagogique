@@ -1,4 +1,10 @@
 @import "tailwindcss";
+/*
+  Les valeurs de design vivent dans tokens.css, et nulle part ailleurs.
+  Ce fichier-ci ne contient plus que des COMPORTEMENTS : variantes, styles
+  de base, prose. Il consomme les jetons, il n'en définit aucun.
+*/
+@import "./tokens.css";
 
 /*
   Thème piloté par l'attribut `data-theme` sur <html>, positionné avant peinture
@@ -13,152 +19,6 @@
   fausse au premier rendu et aucun écart d'hydratation possible.
 */
 @custom-variant rail-reduit (&:where([data-rail="reduit"], [data-rail="reduit"] *));
-
-/*
-  Une couleur principale, des neutres, et quatre couleurs sémantiques.
-  La couleur porte une information — elle ne décore jamais.
-*/
-:root,
-[data-theme="clair"] {
-  --fond: #f6f2e9;
-  --surface: #fffdf8;
-  --surface-2: #efe9db;
-  --surface-3: #e5ddca;
-
-  --bordure: #e2d9c6;
-  --bordure-forte: #c9bd9f;
-
-  --texte: #262117;
-  --texte-attenue: #5b5240;
-  --texte-discret: #877c62;
-
-  --primaire: #2f6b4f;
-  --primaire-fort: #265a41;
-  --primaire-faible: #e4eee6;
-  --primaire-contraste: #ffffff;
-
-  --succes: #3d7a2b;
-  --succes-faible: #eef3e6;
-  --alerte: #9a5a13;
-  --alerte-faible: #f7efdf;
-  --info: #2a6f97;
-  --info-faible: #e8f0f4;
-  --danger: #a83232;
-  --danger-faible: #f6e9e5;
-
-  /* Échelle des niveaux de compétence 0 → 5 : une seule teinte verte qui monte. */
-  --niveau-vide: #e2d9c6;
-  --niveau-0: #cdd8c4;
-  --niveau-1: #a9c6a0;
-  --niveau-2: #7fae76;
-  --niveau-3: #57934f;
-  --niveau-4: #3a7838;
-  --niveau-5: #285c2a;
-
-  --ombre-surcouche: 0 8px 30px -6px rgb(38 33 23 / 0.14), 0 2px 8px -2px rgb(38 33 23 / 0.08);
-
-  /* Grille de carnet : trait d'encre très pâle sur le fond crème. */
-  --grille: rgb(38 33 23 / 0.035);
-  /*
-    Filet de marge du carnet. Token dédié plutôt qu'un `--danger` dilué : ce
-    trait n'a aucune valeur d'alerte, et il doit pouvoir être réglé sans toucher
-    à une couleur sémantique.
-  */
-  --marge: #ddb9ab;
-  /* Ombre chaude et douce des cartes-papier. */
-  --ombre-carte: 0 1px 0 rgb(201 189 159 / 0.6), 0 1px 2px rgb(38 33 23 / 0.04);
-
-  /*
-    Barre latérale « forêt » : volontairement constante dans les deux thèmes
-    (comme un rabat de carnet), définie sur :root pour être héritée en sombre.
-  */
-  --rail: #223528;
-  --rail-2: #1a2a20;
-  --rail-bordure: #31463a;
-  --rail-texte: #e9e4d6;
-  --rail-texte-attenue: #a9bcae;
-  --rail-texte-discret: #7f9585;
-  --rail-actif: #2f6b4f;
-  --rail-actif-texte: #f2eee2;
-}
-
-[data-theme="dark"] {
-  --fond: #17140f;
-  --surface: #201c16;
-  --surface-2: #2a251d;
-  --surface-3: #352f25;
-
-  --bordure: #332d23;
-  --bordure-forte: #4a4234;
-
-  --texte: #f0eadd;
-  --texte-attenue: #b7ac96;
-  --texte-discret: #8a7f68;
-
-  --primaire: #6fae86;
-  --primaire-fort: #8bc4a0;
-  --primaire-faible: #1c2c22;
-  --primaire-contraste: #12241a;
-
-  --succes: #7cbf5f;
-  --succes-faible: #182410;
-  --alerte: #d99a3f;
-  --alerte-faible: #2a1e0a;
-  --info: #5fb0dc;
-  --info-faible: #0e2130;
-  --danger: #e07a6a;
-  --danger-faible: #2c1410;
-
-  --niveau-vide: #2a251d;
-  --niveau-0: #3a4232;
-  --niveau-1: #4a6046;
-  --niveau-2: #5c8055;
-  --niveau-3: #6fa06a;
-  --niveau-4: #86bd7e;
-  --niveau-5: #9fd694;
-
-  --ombre-surcouche: 0 8px 30px -6px rgb(0 0 0 / 0.6), 0 2px 8px -2px rgb(0 0 0 / 0.4);
-
-  --grille: rgb(240 234 221 / 0.03);
-  --marge: #57342c;
-  --ombre-carte: 0 1px 0 rgb(0 0 0 / 0.4), 0 1px 2px rgb(0 0 0 / 0.25);
-}
-
-@theme inline {
-  --color-fond: var(--fond);
-  --color-surface: var(--surface);
-  --color-surface-2: var(--surface-2);
-  --color-surface-3: var(--surface-3);
-
-  --color-bordure: var(--bordure);
-  --color-bordure-forte: var(--bordure-forte);
-
-  --color-texte: var(--texte);
-  --color-texte-attenue: var(--texte-attenue);
-  --color-texte-discret: var(--texte-discret);
-
-  --color-primaire: var(--primaire);
-  --color-primaire-fort: var(--primaire-fort);
-  --color-primaire-faible: var(--primaire-faible);
-  --color-primaire-contraste: var(--primaire-contraste);
-
-  --color-succes: var(--succes);
-  --color-succes-faible: var(--succes-faible);
-  --color-alerte: var(--alerte);
-  --color-alerte-faible: var(--alerte-faible);
-  --color-info: var(--info);
-  --color-info-faible: var(--info-faible);
-  --color-danger: var(--danger);
-  --color-danger-faible: var(--danger-faible);
-
-  --color-marge: var(--marge);
-
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
-  --font-serif: var(--font-fraunces), ui-serif, Georgia, "Times New Roman", serif;
-
-  --radius-carte: 0.75rem;
-}
 
 @layer base {
   html {
@@ -176,7 +36,7 @@
     background-size: 26px 26px;
     color: var(--texte);
     font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-    font-size: 0.9375rem;
+    font-size: var(--pas-corps);
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
@@ -237,7 +97,7 @@
   :focus-visible {
     outline: 2px solid var(--primaire);
     outline-offset: 2px;
-    border-radius: 3px;
+    border-radius: var(--coin-net);
   }
 
   /* Barres de défilement discrètes. */
@@ -260,7 +120,7 @@
     color: var(--texte);
   }
   .prose-exo h3 {
-    font-size: 0.9375rem;
+    font-size: var(--pas-corps);
     font-weight: 600;
     margin-top: 1.5rem;
   }
@@ -269,13 +129,13 @@
     font-size: 0.85em;
     background: var(--surface-2);
     border: 1px solid var(--bordure);
-    border-radius: 4px;
+    border-radius: var(--coin-net);
     padding: 0.1em 0.35em;
   }
   .prose-exo pre {
     background: var(--surface-2);
     border: 1px solid var(--bordure);
-    border-radius: 6px;
+    border-radius: var(--coin-doux);
     padding: 0.9rem 1rem;
     overflow-x: auto;
     font-size: 0.85em;
@@ -333,7 +193,7 @@
     text-align: center;
     background: var(--surface-2);
     border: 1px solid var(--bordure);
-    border-radius: 6px;
+    border-radius: var(--coin-doux);
     padding: 0.8rem 1rem;
     overflow-x: auto;
     white-space: pre-wrap;
@@ -353,7 +213,7 @@
 }
 
 .apparition {
-  animation: apparition 0.18s ease-out;
+  animation: apparition var(--duree-vive) var(--courbe-sortie);
 }
 
 /* Défilement horizontal pour les textes tronqués dans le widget TODO. */
@@ -362,6 +222,10 @@
   85%, 100% { transform: translateX(calc(-100% + 12rem)); }
 }
 
+/*
+  Coupe-circuit global du mouvement. Les jetons `--duree-*` n'ont donc pas à
+  se protéger individuellement : une seule règle désarme toute l'animation.
+*/
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
