@@ -8,6 +8,7 @@ import {
   classesLienBouton,
   CodeCompetence,
   Etiquette,
+  EtatVide,
   JaugeNiveau,
 } from "@/components/ui/primitives";
 import { Depliant } from "@/components/ui/explication";
@@ -49,7 +50,29 @@ export function CarteProchaineAction({
   compteId: string;
 }) {
   const [principale, ...alternatives] = recommandations;
-  if (!principale) return null;
+  if (!principale) {
+    // `recommander()` (lib/engine/recommend.ts) rend une liste vide dans deux
+    // cas réels, pas un edge-case théorique : toutes les compétences actives
+    // ont été récemment refusées (R1), ou chacune a déjà épuisé ses exercices
+    // (`toutRefuse`). Le moteur ne distingue pas les deux pour l'appelant —
+    // le message ne prétend donc pas savoir lequel, il dit ce qui est vrai
+    // dans les deux cas. Cette carte est promise par le sous-titre du tableau
+    // de bord (« Ta prochaine action ») : elle ne peut pas s'évanouir sans
+    // un mot à la place.
+    return (
+      <Carte accent>
+        <EtatVide
+          titre="Aucune action à recommander pour l'instant"
+          message="Soit tout a déjà été proposé récemment et écarté, soit chaque compétence active a épuisé ses exercices. Explore la bibliothèque, ou reviens plus tard."
+          action={
+            <Link href="/exercices" className={classesLienBouton("secondaire")}>
+              Parcourir les exercices
+            </Link>
+          }
+        />
+      </Carte>
+    );
+  }
 
   const { etat, exercice, raison, difficulteCible, dureeEstimeeMin } = principale;
   const revision = prochaineRevision(etat, now);

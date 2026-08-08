@@ -40,8 +40,17 @@ export function ZoneReponse(proprietes: {
   // valeur en base puis d'y réinjecter le brouillon dans un effet.
   const hydrate = useEstHydrate();
   if (!hydrate) {
+    // `aria-hidden`, pas `aria-busy` : rendait cette attente invisible aux
+    // lecteurs d'écran plutôt que de l'annoncer. Un texte alternatif hors
+    // écran porte l'information même si la fenêtre est trop brève pour être
+    // vue.
     return (
-      <div className="h-[15.5rem] rounded-md border border-bordure bg-surface" aria-hidden />
+      <div
+        className="h-[15.5rem] rounded-md border border-bordure bg-surface"
+        aria-busy="true"
+      >
+        <span className="sr-only">Chargement de la zone de réponse…</span>
+      </div>
     );
   }
   return <ZoneHydrate {...proprietes} />;

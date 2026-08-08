@@ -45,6 +45,13 @@ export function GestionDomaine({
   retraits: Record<string, EtatRetrait>;
 }) {
   const [enCours, demarrer] = useTransition();
+  /**
+   * `enCours` est un seul `useTransition` partagé par toutes les mutations de
+   * cet écran — il ne dit pas LAQUELLE est en vol. `actionEnCours` porte
+   * l'identifiant de l'action cliquée ; seul son bouton reçoit `enChargement`
+   * (même raisonnement que `GestionReferentiel`).
+   */
+  const [actionEnCours, setActionEnCours] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [avis, setAvis] = useState<string | null>(null);
   const [edite, setEdite] = useState<string | null>(null);
@@ -64,9 +71,10 @@ export function GestionDomaine({
     (c) => (retraits[c]?.mode ?? "suppression") === "archivage",
   );
 
-  function agir(action: () => Promise<unknown>) {
+  function agir(id: string, action: () => Promise<unknown>) {
     setErreur(null);
     setAvis(null);
+    setActionEnCours(id);
     demarrer(async () => {
       try {
         await action();
@@ -75,6 +83,8 @@ export function GestionDomaine({
         setSelection(new Set());
       } catch (e) {
         setErreur(e instanceof Error ? e.message : "Opération impossible.");
+      } finally {
+        setActionEnCours(null);
       }
     });
   }
@@ -118,25 +128,28 @@ export function GestionDomaine({
               {codesSelectionnes.length > 1 ? "s" : ""}
             </span>
             <Bouton
+              enChargement={actionEnCours === "lot-sortir"}
               disabled={enCours}
-              onClick={() => agir(() => basculerActives(codesSelectionnes, false))}
+              onClick={() => agir("lot-sortir", () => basculerActives(codesSelectionnes, false))}
               variante="secondaire"
               taille="petite"
             >
               Sortir du périmètre
             </Bouton>
             <Bouton
+              enChargement={actionEnCours === "lot-remettre"}
               disabled={enCours}
-              onClick={() => agir(() => basculerActives(codesSelectionnes, true))}
+              onClick={() => agir("lot-remettre", () => basculerActives(codesSelectionnes, true))}
               variante="secondaire"
               taille="petite"
             >
               Remettre au périmètre
             </Bouton>
             <Bouton
+              enChargement={actionEnCours === "lot-retirer"}
               disabled={enCours}
               onClick={() =>
-                agir(async () => {
+                agir("lot-retirer", async () => {
                   const r = await retirerCompetences(codesSelectionnes);
                   setAvis(
                     `${r.supprimees.length} supprimée(s), ${r.archivees.length} archivée(s).`,
@@ -213,8 +226,11 @@ export function GestionDomaine({
                       <FormulaireEdition
                         skill={s}
                         enCours={enCours}
+                        enChargement={actionEnCours === `modifier-${s.code}`}
                         onAnnuler={() => setEdite(null)}
-                        onValider={(champs) => agir(() => modifierCompetence(s.code, champs))}
+                        onValider={(champs) =>
+                          agir(`modifier-${s.code}`, () => modifierCompetence(s.code, champs))
+                        }
                       />
                     ) : (
                       <p className="mt-1 text-sm">{s.intitule}</p>
@@ -238,7 +254,8 @@ export function GestionDomaine({
                         Modifier
                       </Bouton>
                       <Bouton
-                        onClick={() => agir(() => basculerActive(s.code, !s.active))}
+                        enChargement={actionEnCours === `perimetre-${s.code}`}
+                        onClick={() => agir(`perimetre-${s.code}`, () => basculerActive(s.code, !s.active))}
                         disabled={enCours}
                         variante="secondaire"
                         taille="petite"
@@ -248,8 +265,9 @@ export function GestionDomaine({
                       {confirme === s.code ? (
                         <div className="flex items-center gap-1.5">
                           <Bouton
+                            enChargement={actionEnCours === `retrait-${s.code}`}
                             onClick={() =>
-                              agir(() =>
+                              agir(`retrait-${s.code}`, () =>
                                 retrait.mode === "suppression"
                                   ? supprimerCompetence(s.code)
                                   : archiverCompetence(s.code),
@@ -337,7 +355,8 @@ export function GestionDomaine({
                     <Etiquette>Archivée</Etiquette>
                   </div>
                   <Bouton
-                    onClick={() => agir(() => desarchiverCompetence(s.code))}
+                    enChargement={actionEnCours === `desarchiver-${s.code}`}
+                    onClick={() => agir(`desarchiver-${s.code}`, () => desarchiverCompetence(s.code))}
                     disabled={enCours}
                     variante="secondaire"
                     taille="petite"
@@ -357,11 +376,15 @@ export function GestionDomaine({
 function FormulaireEdition({
   skill,
   enCours,
+  enChargement,
   onValider,
   onAnnuler,
 }: {
   skill: Skill;
+  /** Une autre action que la sienne est en vol : désactive sans faire tourner. */
   enCours: boolean;
+  /** Sa propre soumission est en vol. */
+  enChargement: boolean;
   onValider: (champs: { intitule: string; palier: Palier; importance: number }) => void;
   onAnnuler: () => void;
 }) {
@@ -394,6 +417,7 @@ function FormulaireEdition({
       </div>
       <div className="flex gap-1.5">
         <Bouton
+          enChargement={enChargement}
           disabled={enCours || intitule.trim().length === 0}
           onClick={() =>
             onValider({
@@ -407,7 +431,7 @@ function FormulaireEdition({
         >
           Enregistrer
         </Bouton>
-        <Bouton onClick={onAnnuler} variante="secondaire" taille="petite">
+        <Bouton onClick={onAnnuler} disabled={enCours} variante="secondaire" taille="petite">
           Annuler
         </Bouton>
       </div>

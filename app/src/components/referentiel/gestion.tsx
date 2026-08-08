@@ -46,6 +46,14 @@ export function GestionReferentiel({
   retraits: Record<string, EtatRetrait>;
 }) {
   const [enCours, demarrer] = useTransition();
+  /**
+   * `enCours` (ci-dessus) est un seul `useTransition` partagé par toutes les
+   * mutations de cet écran — il ne dit pas LAQUELLE est en vol. Lui brancher
+   * `enChargement` sur chaque bouton aurait fait tourner tous les boutons à
+   * la fois pour une seule action réelle. `actionEnCours` porte l'identifiant
+   * de l'action cliquée ; seul le bouton qui la porte reçoit `enChargement`.
+   */
+  const [actionEnCours, setActionEnCours] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [avis, setAvis] = useState<string | null>(null);
   const [edite, setEdite] = useState<string | null>(null);
@@ -87,9 +95,10 @@ export function GestionReferentiel({
    * SECOND aller-retour RSC pour recalculer ce qu'on venait de recevoir : la
    * page la plus lourde du produit était rendue deux fois par clic.
    */
-  function agir(action: () => Promise<unknown>) {
+  function agir(id: string, action: () => Promise<unknown>) {
     setErreur(null);
     setAvis(null);
+    setActionEnCours(id);
     demarrer(async () => {
       try {
         await action();
@@ -99,6 +108,8 @@ export function GestionReferentiel({
         setSelection(new Set());
       } catch (e) {
         setErreur(e instanceof Error ? e.message : "Opération impossible.");
+      } finally {
+        setActionEnCours(null);
       }
     });
   }
@@ -177,25 +188,28 @@ export function GestionReferentiel({
               sélectionnée{codesSelectionnes.length > 1 ? "s" : ""}
             </span>
             <Bouton
+              enChargement={actionEnCours === "lot-sortir"}
               disabled={enCours}
-              onClick={() => agir(() => basculerActives(codesSelectionnes, false))}
+              onClick={() => agir("lot-sortir", () => basculerActives(codesSelectionnes, false))}
               variante="secondaire"
               taille="petite"
             >
               Sortir du périmètre
             </Bouton>
             <Bouton
+              enChargement={actionEnCours === "lot-remettre"}
               disabled={enCours}
-              onClick={() => agir(() => basculerActives(codesSelectionnes, true))}
+              onClick={() => agir("lot-remettre", () => basculerActives(codesSelectionnes, true))}
               variante="secondaire"
               taille="petite"
             >
               Remettre au périmètre
             </Bouton>
             <Bouton
+              enChargement={actionEnCours === "lot-retirer"}
               disabled={enCours}
               onClick={() =>
-                agir(async () => {
+                agir("lot-retirer", async () => {
                   const r = await retirerCompetences(codesSelectionnes);
                   setAvis(
                     `${r.supprimees.length} supprimée(s), ${r.archivees.length} archivée(s).`,
@@ -271,9 +285,10 @@ export function GestionReferentiel({
                 {domaineConfirme === domaine.id ? (
                   <>
                     <Bouton
+                      enChargement={actionEnCours === `retirer-domaine-${domaine.id}`}
                       disabled={enCours}
                       onClick={() =>
-                        agir(async () => {
+                        agir(`retirer-domaine-${domaine.id}`, async () => {
                           const mode = await retirerDomaine(domaine.id);
                           setAvis(
                             mode === "suppression"
@@ -411,8 +426,11 @@ export function GestionReferentiel({
                         <FormulaireEdition
                           skill={s}
                           enCours={enCours}
+                          enChargement={actionEnCours === `modifier-${s.code}`}
                           onAnnuler={() => setEdite(null)}
-                          onValider={(champs) => agir(() => modifierCompetence(s.code, champs))}
+                          onValider={(champs) =>
+                            agir(`modifier-${s.code}`, () => modifierCompetence(s.code, champs))
+                          }
                         />
                       ) : (
                         <p className="mt-1 text-sm">{s.intitule}</p>
@@ -438,7 +456,8 @@ export function GestionReferentiel({
 
                         {s.archive ? (
                           <Bouton
-                            onClick={() => agir(() => desarchiverCompetence(s.code))}
+                            enChargement={actionEnCours === `desarchiver-${s.code}`}
+                            onClick={() => agir(`desarchiver-${s.code}`, () => desarchiverCompetence(s.code))}
                             disabled={enCours}
                             variante="secondaire"
                             taille="petite"
@@ -447,7 +466,8 @@ export function GestionReferentiel({
                           </Bouton>
                         ) : (
                           <Bouton
-                            onClick={() => agir(() => basculerActive(s.code, !s.active))}
+                            enChargement={actionEnCours === `perimetre-${s.code}`}
+                            onClick={() => agir(`perimetre-${s.code}`, () => basculerActive(s.code, !s.active))}
                             disabled={enCours}
                             variante="secondaire"
                             taille="petite"
@@ -460,8 +480,9 @@ export function GestionReferentiel({
                           (confirme === s.code ? (
                             <div className="flex items-center gap-1.5">
                               <Bouton
+                                enChargement={actionEnCours === `retrait-${s.code}`}
                                 onClick={() =>
-                                  agir(() =>
+                                  agir(`retrait-${s.code}`, () =>
                                     retrait.mode === "suppression"
                                       ? supprimerCompetence(s.code)
                                       : archiverCompetence(s.code),
@@ -582,11 +603,15 @@ function BandeauArchives({
 function FormulaireEdition({
   skill,
   enCours,
+  enChargement,
   onValider,
   onAnnuler,
 }: {
   skill: Skill;
+  /** Une autre action que la sienne est en vol : désactive sans faire tourner. */
   enCours: boolean;
+  /** Sa propre soumission est en vol. */
+  enChargement: boolean;
   onValider: (champs: { intitule: string; palier: Palier; importance: number }) => void;
   onAnnuler: () => void;
 }) {
@@ -619,6 +644,7 @@ function FormulaireEdition({
       </div>
       <div className="flex gap-1.5">
         <Bouton
+          enChargement={enChargement}
           disabled={enCours || intitule.trim().length === 0}
           onClick={() =>
             onValider({
@@ -632,7 +658,7 @@ function FormulaireEdition({
         >
           Enregistrer
         </Bouton>
-        <Bouton onClick={onAnnuler} variante="secondaire" taille="petite">
+        <Bouton onClick={onAnnuler} disabled={enCours} variante="secondaire" taille="petite">
           Annuler
         </Bouton>
       </div>

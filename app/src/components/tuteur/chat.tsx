@@ -384,7 +384,12 @@ export function ChatTuteur(props: ProprietesChat) {
   if (!hydrate) {
     return (
       <div className="space-y-4 [&>*]:min-w-0">
-        <div className="h-[min(70vh,620px)] rounded-carte border border-bordure bg-surface" />
+        <div
+          className="h-[min(70vh,620px)] rounded-carte border border-bordure bg-surface"
+          aria-busy="true"
+        >
+          <span className="sr-only">Chargement du tuteur…</span>
+        </div>
       </div>
     );
   }
