@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createNavigateurClient } from "@/lib/supabase/client";
-import { Bouton } from "@/components/ui/primitives";
+import { BandeauInfo, Bouton } from "@/components/ui/primitives";
 import { Champ } from "@/components/ui/champ";
 
 type Mode = "connexion" | "inscription";
@@ -83,17 +83,14 @@ export function FormulaireConnexion({
   return (
     <div className="space-y-4">
       {erreur && (
-        <p
-          role="alert"
-          className="rounded-md border border-danger/30 bg-danger-faible px-3 py-2 text-xs leading-relaxed text-danger"
-        >
-          {erreur}
-        </p>
+        <BandeauInfo ton="danger" taille="compacte">
+          <p className="leading-relaxed text-danger">{erreur}</p>
+        </BandeauInfo>
       )}
       {info && (
-        <p className="rounded-md border border-succes/30 bg-succes-faible px-3 py-2 text-xs leading-relaxed text-succes">
-          {info}
-        </p>
+        <BandeauInfo ton="succes" taille="compacte">
+          <p className="leading-relaxed text-succes">{info}</p>
+        </BandeauInfo>
       )}
 
       <Bouton

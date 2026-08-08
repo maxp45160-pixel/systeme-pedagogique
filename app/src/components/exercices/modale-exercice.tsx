@@ -28,7 +28,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bouton, Etiquette, PointActif } from "@/components/ui/primitives";
+import { BandeauInfo, Bouton, Etiquette, PointActif } from "@/components/ui/primitives";
 import { Champ, ChampSelect } from "@/components/ui/champ";
 import { Markdown } from "@/components/ui/markdown";
 import { creerExercice } from "@/lib/store/actions";
@@ -330,9 +330,9 @@ export function ModaleExercice({
             />
 
             {erreur && (
-              <p className="rounded-md border border-danger/30 bg-danger-faible px-3 py-2 text-xs text-danger">
-                {erreur}
-              </p>
+              <BandeauInfo ton="danger" taille="compacte">
+                <p className="text-danger">{erreur}</p>
+              </BandeauInfo>
             )}
 
             <div className="flex justify-end gap-2 border-t border-bordure pt-3">
@@ -369,9 +369,11 @@ export function ModaleExercice({
         {phase === "previsualisation" && (
           <div className="mt-4 space-y-4">
             {propositions.length === 0 ? (
-              <p className="rounded-md border border-alerte/30 bg-alerte-faible px-3 py-2 text-xs text-alerte">
-                Aucun exercice exploitable n&apos;a été produit. Réessaie, ou change de thème.
-              </p>
+              <BandeauInfo ton="alerte" taille="compacte">
+                <p className="text-alerte">
+                  Aucun exercice exploitable n&apos;a été produit. Réessaie, ou change de thème.
+                </p>
+              </BandeauInfo>
             ) : (
               propositions.map((p, i) => (
                 <div key={i} className="overflow-hidden rounded-md border border-bordure bg-surface-2">
@@ -488,9 +490,9 @@ export function ModaleExercice({
               ))
             )}
             {erreur && (
-              <p className="rounded-md border border-danger/30 bg-danger-faible px-3 py-2 text-xs text-danger">
-                {erreur}
-              </p>
+              <BandeauInfo ton="danger" taille="compacte">
+                <p className="text-danger">{erreur}</p>
+              </BandeauInfo>
             )}
             <div className="flex justify-end gap-2 border-t border-bordure pt-3">
               <Bouton onClick={() => setPhase("formulaire")} variante="secondaire">

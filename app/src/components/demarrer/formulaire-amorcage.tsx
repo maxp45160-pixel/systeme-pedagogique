@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { modifierProfil } from "@/lib/store/referentiel-actions";
 import { valeurDeclaree } from "@/lib/domain/profil";
-import { Bouton } from "@/components/ui/primitives";
+import { BandeauInfo, Bouton } from "@/components/ui/primitives";
 import { Champ } from "@/components/ui/champ";
 
 /**
@@ -102,9 +102,9 @@ export function FormulaireAmorcage({
       />
 
       {erreur && (
-        <p className="rounded-md border border-alerte/30 bg-alerte-faible px-3 py-2 text-xs text-alerte">
-          {erreur}
-        </p>
+        <BandeauInfo ton="alerte" taille="compacte">
+          <p className="text-alerte">{erreur}</p>
+        </BandeauInfo>
       )}
 
       <div className="flex items-center gap-3 pt-1">

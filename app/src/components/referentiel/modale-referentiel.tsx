@@ -20,7 +20,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Bouton, PointActif } from "@/components/ui/primitives";
+import { BandeauInfo, Bouton, PointActif } from "@/components/ui/primitives";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import type { PropositionReferentiel } from "@/lib/tutor/proposition";
 import { creerBranche } from "@/lib/store/referentiel-actions";
@@ -213,9 +213,9 @@ export function BoutonCreerReferentiel({ compteId }: { compteId: string }) {
           {etat.phase === "saisie" && (
             <div className="mt-4 space-y-3">
               {etat.message && (
-                <p className="rounded-md border border-danger/30 bg-danger-faible px-3 py-2 text-xs text-danger">
-                  {etat.message}
-                </p>
+                <BandeauInfo ton="danger" taille="compacte">
+                  <p className="text-danger">{etat.message}</p>
+                </BandeauInfo>
               )}
               <label className="block">
                 <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
@@ -274,9 +274,9 @@ export function BoutonCreerReferentiel({ compteId }: { compteId: string }) {
               </div>
 
               {erreur && (
-                <p className="rounded-md border border-danger/30 bg-danger-faible px-3 py-2 text-xs text-danger">
-                  {erreur}
-                </p>
+                <BandeauInfo ton="danger" taille="compacte">
+                  <p className="text-danger">{erreur}</p>
+                </BandeauInfo>
               )}
 
               {relecture.branches.map((b, i) => (

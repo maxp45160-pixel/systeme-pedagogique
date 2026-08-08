@@ -8,7 +8,7 @@ import {
   supprimerExercice,
 } from "@/lib/store/actions";
 import { modeRetraitExercice } from "@/lib/domain/exercice";
-import { Bouton } from "@/components/ui/primitives";
+import { BandeauInfo, Bouton } from "@/components/ui/primitives";
 
 /**
  * Retrait d'un exercice — calque exact de la gestion du référentiel (ADR-027).
@@ -109,21 +109,23 @@ export function RetraitExercice({
         preuves, elles, ne partiront pas.
       */}
       {confirme && (
-        <p className="mt-1 max-w-xs rounded-md border border-info/30 bg-info-faible px-3 py-2 text-left text-xs text-texte-attenue">
-          {mode === "suppression" ? (
-            <>
-              <span className="font-medium">Suppression définitive.</span> «&nbsp;{titre}&nbsp;»
-              n&apos;a jamais été tenté : l&apos;énoncé disparaît, rien n&apos;est perdu.
-            </>
-          ) : (
-            <>
-              <span className="font-medium">Archivage, pas suppression.</span> Cet exercice porte{" "}
-              {tentatives} tentative{tentatives > 1 ? "s" : ""} : les preuves qu&apos;elles ont
-              produites restent en base, et le journal continue de citer le titre. L&apos;exercice
-              sort seulement du flux — tu pourras le remettre.
-            </>
-          )}
-        </p>
+        <BandeauInfo ton="info" taille="compacte" className="mt-1 max-w-xs">
+          <p className="text-left text-texte-attenue">
+            {mode === "suppression" ? (
+              <>
+                <span className="font-medium">Suppression définitive.</span> «&nbsp;{titre}&nbsp;»
+                n&apos;a jamais été tenté : l&apos;énoncé disparaît, rien n&apos;est perdu.
+              </>
+            ) : (
+              <>
+                <span className="font-medium">Archivage, pas suppression.</span> Cet exercice porte{" "}
+                {tentatives} tentative{tentatives > 1 ? "s" : ""} : les preuves qu&apos;elles ont
+                produites restent en base, et le journal continue de citer le titre. L&apos;exercice
+                sort seulement du flux — tu pourras le remettre.
+              </>
+            )}
+          </p>
+        </BandeauInfo>
       )}
 
       {erreur && <span className="text-[0.6875rem] text-alerte">{erreur}</span>}

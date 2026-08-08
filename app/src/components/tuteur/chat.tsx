@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { Bouton, cx, Etiquette, PointActif } from "@/components/ui/primitives";
+import { BandeauInfo, Bouton, cx, Etiquette, PointActif } from "@/components/ui/primitives";
 import { Depliant } from "@/components/ui/explication";
 import { Markdown } from "@/components/ui/markdown";
 import { preparerPromptComplet } from "@/lib/tutor/actions";
@@ -1137,7 +1137,8 @@ function ChatHydrate({
       </Depliant>
 
       {cleAbsente && (
-        <div className="rounded-carte border border-alerte/30 bg-alerte-faible px-5 py-4 text-xs">
+        <BandeauInfo ton="alerte">
+        <div>
           <p className="font-medium text-alerte">Aucune clé API configurée</p>
           <p className="mt-1 text-texte-attenue">
             Le chat intégré est désactivé — il ne simulera pas de réponse. Trois options :
@@ -1160,6 +1161,7 @@ function ChatHydrate({
             </li>
           </ol>
         </div>
+        </BandeauInfo>
       )}
 
       {brancheEnAttente && (

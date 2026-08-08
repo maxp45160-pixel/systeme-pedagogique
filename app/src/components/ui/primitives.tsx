@@ -94,32 +94,50 @@ export function CorpsCarte({
 /* Bandeaux d'information                                              */
 /* ------------------------------------------------------------------ */
 
-type TonBandeau = "info" | "primaire" | "alerte";
+type TonBandeau = "info" | "primaire" | "alerte" | "succes" | "danger";
 
 const TONS_BANDEAU: Record<TonBandeau, string> = {
   info: "border-info/30 bg-info-faible",
   primaire: "border-primaire/30 bg-surface-2",
   alerte: "border-alerte/30 bg-alerte-faible",
+  succes: "border-succes/30 bg-succes-faible",
+  danger: "border-danger/30 bg-danger-faible",
 };
 
+const TAILLES_BANDEAU = {
+  normale: "gap-2.5 rounded-carte px-4 py-2.5",
+  /* Forme des 31 paragraphes d'alerte retapés à la main avant ce composant. */
+  compacte: "gap-2 rounded-md px-3 py-2",
+} as const;
+
 /**
- * Bandeau d'information resserré, utilisé en tête de page pour signaler un
- * état (initialisation, périmètre, exercice en cours…). Uniformise le pattern
- * qui était réécrit à chaque page.
+ * Bandeau d'information, utilisé en tête de page ou comme message de
+ * formulaire. Uniformise un pattern qui était réécrit à la main dans 16
+ * fichiers, 31 fois.
+ *
+ * `role` se déduit du ton : `alerte`/`danger` posent `role="alert"` — la
+ * plupart de ces bandeaux apparaissent après une action ratée et doivent
+ * être annoncés. `info`/`primaire`/`succes` n'en posent aucun : beaucoup sont
+ * un texte explicatif statique, toujours affiché, et `role="alert"` dessus
+ * annoncerait sans raison à chaque lecture d'écran.
  */
 export function BandeauInfo({
   ton = "info",
+  taille = "normale",
   children,
   className,
 }: {
   ton?: TonBandeau;
+  taille?: keyof typeof TAILLES_BANDEAU;
   children: ReactNode;
   className?: string;
 }) {
   return (
     <div
+      role={ton === "alerte" || ton === "danger" ? "alert" : undefined}
       className={cx(
-        "flex items-start gap-2.5 rounded-carte border px-4 py-2.5 text-xs",
+        "flex items-start border text-xs",
+        TAILLES_BANDEAU[taille],
         TONS_BANDEAU[ton],
         className,
       )}

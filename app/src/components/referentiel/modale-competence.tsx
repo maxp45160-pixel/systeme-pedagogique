@@ -17,7 +17,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bouton, PointActif } from "@/components/ui/primitives";
+import { BandeauInfo, Bouton, PointActif } from "@/components/ui/primitives";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import type { PropositionReferentiel } from "@/lib/tutor/proposition";
 import { ValidationBranche, type BrancheInitiale } from "./validation-branche";
@@ -213,9 +213,9 @@ export function ModaleCompetence({
             )}
 
             {erreur && (
-              <p className="rounded-md border border-danger/30 bg-danger-faible px-3 py-2 text-xs text-danger">
-                {erreur}
-              </p>
+              <BandeauInfo ton="danger" taille="compacte">
+                <p className="text-danger">{erreur}</p>
+              </BandeauInfo>
             )}
 
             <ValidationBranche

@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import type { Dimension, Exercise } from "@/lib/domain/types";
 import { LIBELLES_DIMENSIONS } from "@/lib/domain/types";
 import { terminerExercice } from "@/lib/store/actions";
-import { Bouton, cx } from "@/components/ui/primitives";
+import { BandeauInfo, Bouton, cx } from "@/components/ui/primitives";
 import { autonomieObservee, LIBELLE_AIDE, type AideExterne } from "@/lib/engine/preuve";
 import { APPRECIATIONS, RESULTATS, type ResultatBilan } from "@/lib/domain/bilan";
 
@@ -383,9 +383,9 @@ export function FormulaireBilan({
       </div>
 
       {erreur && (
-        <p className="rounded-md border border-danger/30 bg-danger-faible px-3 py-2 text-xs text-danger">
-          {erreur}
-        </p>
+        <BandeauInfo ton="danger" taille="compacte">
+          <p className="text-danger">{erreur}</p>
+        </BandeauInfo>
       )}
 
       <div className="flex flex-wrap items-center gap-2">

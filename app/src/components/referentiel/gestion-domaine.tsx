@@ -25,7 +25,7 @@ import {
   retirerCompetences,
   supprimerCompetence,
 } from "@/lib/store/referentiel-actions";
-import { Bouton, CodeCompetence, cx, Etiquette } from "@/components/ui/primitives";
+import { BandeauInfo, Bouton, CodeCompetence, cx, Etiquette } from "@/components/ui/primitives";
 import { Champ, ChampSelect } from "@/components/ui/champ";
 import type { Domaine, Palier, Skill } from "@/lib/domain/types";
 import { comparerCodes, type EtatRetrait } from "@/lib/domain/referentiel-compte";
@@ -97,14 +97,14 @@ export function GestionDomaine({
       </div>
 
       {erreur && (
-        <p className="rounded-md border border-alerte/30 bg-alerte-faible px-3 py-2 text-xs text-alerte">
-          {erreur}
-        </p>
+        <BandeauInfo ton="alerte" taille="compacte">
+          <p className="text-alerte">{erreur}</p>
+        </BandeauInfo>
       )}
       {avis && (
-        <p className="rounded-md border border-succes/30 bg-succes-faible px-3 py-2 text-xs text-succes">
-          {avis}
-        </p>
+        <BandeauInfo ton="succes" taille="compacte">
+          <p className="text-succes">{avis}</p>
+        </BandeauInfo>
       )}
 
       {/* Barre d'action groupée */}
@@ -284,23 +284,25 @@ export function GestionDomaine({
 
                 {/* L'annonce du geste, avant qu'il ne se produise (ADR-027). */}
                 {confirme === s.code && (
-                  <p className="mt-2 rounded-md border border-info/30 bg-info-faible px-3 py-2 text-xs text-texte-attenue">
-                    {retrait.mode === "suppression" ? (
-                      <>
-                        <span className="font-medium">Suppression définitive.</span>{" "}
-                        {s.code} n{"'"}a produit aucune preuve : la ligne disparaît, rien
-                        n{"'"}est perdu. Le code ne sera pas réattribué.
-                      </>
-                    ) : (
-                      <>
-                        <span className="font-medium">Archivage, pas suppression.</span> {s.code}{" "}
-                        porte {retrait.preuves} preuve
-                        {retrait.preuves > 1 ? "s" : ""} : elles restent en base et gardent leur
-                        intitulé dans ton journal. La compétence sort des calculs et de
-                        l{"'"}affichage — une preuve ne disparaît pas.
-                      </>
-                    )}
-                  </p>
+                  <BandeauInfo ton="info" taille="compacte" className="mt-2">
+                    <p className="text-texte-attenue">
+                      {retrait.mode === "suppression" ? (
+                        <>
+                          <span className="font-medium">Suppression définitive.</span>{" "}
+                          {s.code} n{"'"}a produit aucune preuve : la ligne disparaît, rien
+                          n{"'"}est perdu. Le code ne sera pas réattribué.
+                        </>
+                      ) : (
+                        <>
+                          <span className="font-medium">Archivage, pas suppression.</span> {s.code}{" "}
+                          porte {retrait.preuves} preuve
+                          {retrait.preuves > 1 ? "s" : ""} : elles restent en base et gardent leur
+                          intitulé dans ton journal. La compétence sort des calculs et de
+                          l{"'"}affichage — une preuve ne disparaît pas.
+                        </>
+                      )}
+                    </p>
+                  </BandeauInfo>
                 )}
               </li>
             );

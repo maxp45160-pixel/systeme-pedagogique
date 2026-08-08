@@ -8,6 +8,7 @@ import {
   demarrerTentative,
 } from "@/lib/store/actions";
 import {
+  BandeauInfo,
   Bouton,
   Carte,
   classesLienBouton,
@@ -103,7 +104,8 @@ export default async function PageExercice(props: {
         la valeur est « rien »).
       */}
       {abandon === "1" && (
-        <div className="mb-4 rounded-carte border border-info/30 bg-info-faible px-4 py-3">
+        <BandeauInfo ton="info" className="mb-4">
+        <div>
           <p className="text-sm font-medium text-info">Aucune preuve enregistrée</p>
           <p className="mt-1 text-xs text-texte-attenue">
             {abandonDelibere ? (
@@ -148,11 +150,13 @@ export default async function PageExercice(props: {
             </Link>
           </div>
         </div>
+        </BandeauInfo>
       )}
 
       {/* Bilan après enregistrement */}
       {bilan === "1" && derniereTerminee && (
-        <div className="mb-4 rounded-carte border border-succes/30 bg-succes-faible px-4 py-3">
+        <BandeauInfo ton="succes" className="mb-4">
+        <div>
           <p className="flex items-center gap-1.5 text-sm font-medium text-succes">
             <IconeValide className="size-4" />
             Preuve enregistrée
@@ -181,6 +185,7 @@ export default async function PageExercice(props: {
             </Link>
           </div>
         </div>
+        </BandeauInfo>
       )}
 
       {/* -------------------------------- En-tête ------------------------- */}

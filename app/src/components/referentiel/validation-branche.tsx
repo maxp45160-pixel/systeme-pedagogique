@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { creerBranche } from "@/lib/store/referentiel-actions";
 import { normaliserPalier } from "@/lib/domain/referentiel-compte";
-import { Bouton, cx, Etiquette } from "@/components/ui/primitives";
+import { BandeauInfo, Bouton, cx, Etiquette } from "@/components/ui/primitives";
 import { Champ, ChampSelect } from "@/components/ui/champ";
 import type { OrigineReferentiel, Palier } from "@/lib/domain/types";
 
@@ -222,9 +222,9 @@ export function ValidationBranche({
       </div>
 
       {erreur && (
-        <p className="rounded-md border border-alerte/30 bg-alerte-faible px-3 py-2 text-xs text-alerte">
-          {erreur}
-        </p>
+        <BandeauInfo ton="alerte" taille="compacte">
+          <p className="text-alerte">{erreur}</p>
+        </BandeauInfo>
       )}
 
       <Bouton onClick={soumettre} disabled={!pret || enCours} variante="principal">

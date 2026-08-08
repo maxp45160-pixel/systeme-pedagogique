@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { modifierProfil } from "@/lib/store/referentiel-actions";
-import { Bouton, cx } from "@/components/ui/primitives";
+import { BandeauInfo, Bouton } from "@/components/ui/primitives";
 import { Champ } from "@/components/ui/champ";
 
 /**
@@ -111,16 +111,11 @@ export function FormulaireProfil({
       />
 
       {message && (
-        <p
-          className={cx(
-            "rounded-md border px-3 py-2 text-xs",
-            message.ton === "alerte"
-              ? "border-alerte/30 bg-alerte-faible text-alerte"
-              : "border-info/30 bg-info-faible text-texte-attenue",
-          )}
-        >
-          {message.texte}
-        </p>
+        <BandeauInfo ton={message.ton} taille="compacte">
+          <p className={message.ton === "alerte" ? "text-alerte" : "text-texte-attenue"}>
+            {message.texte}
+          </p>
+        </BandeauInfo>
       )}
 
       <Bouton onClick={enregistrer} disabled={enCours} variante="principal">

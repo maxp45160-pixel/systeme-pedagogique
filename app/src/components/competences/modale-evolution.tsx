@@ -35,7 +35,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Bouton, PointActif } from "@/components/ui/primitives";
+import { BandeauInfo, Bouton, PointActif } from "@/components/ui/primitives";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import type { PropositionEvolution } from "@/lib/tutor/outils";
 import { archiverCompetence, basculerActive, creerBranche } from "@/lib/store/referentiel-actions";
@@ -243,9 +243,9 @@ function ModaleEvolution({
 
         {etat.phase === "erreur" && (
           <div className="mt-4 space-y-3">
-            <p className="rounded-md border border-danger/30 bg-danger-faible px-3 py-2 text-xs text-danger">
-              {etat.message}
-            </p>
+            <BandeauInfo ton="danger" taille="compacte">
+              <p className="text-danger">{etat.message}</p>
+            </BandeauInfo>
             <p className="text-xs text-texte-attenue">
               Tu peux arbitrer sans le tuteur : ajoute une compétence à la main depuis la page
               du domaine, ou sors celle-ci du périmètre — un geste réversible.
@@ -281,9 +281,9 @@ function ModaleEvolution({
             </div>
 
             {erreurAction && (
-              <p className="rounded-md border border-danger/30 bg-danger-faible px-3 py-2 text-xs text-danger">
-                {erreurAction}
-              </p>
+              <BandeauInfo ton="danger" taille="compacte">
+                <p className="text-danger">{erreurAction}</p>
+              </BandeauInfo>
             )}
 
             {p.evolution === "successeur" && (
@@ -359,14 +359,16 @@ function ModaleEvolution({
               <div className="space-y-2">
                 <p className="text-xs font-medium">Retirer {cible.code} du référentiel</p>
                 {/* L'annonce du geste dérivé, avant le clic (ADR-027). */}
-                <p className="rounded-md border border-info/30 bg-info-faible px-3 py-2 text-xs text-texte-attenue">
-                  <span className="font-medium text-texte">Archivage, pas suppression.</span>{" "}
-                  {cible.code} porte {cible.nombrePreuves} preuve
-                  {cible.nombrePreuves > 1 ? "s" : ""} : elles restent en base et gardent leur
-                  intitulé dans ton journal. La compétence sort des calculs et de l{"'"}affichage —
-                  une preuve ne disparaît pas. Tu devras la désarchiver pour la remettre au
-                  périmètre.
-                </p>
+                <BandeauInfo ton="info" taille="compacte">
+                  <p className="text-texte-attenue">
+                    <span className="font-medium text-texte">Archivage, pas suppression.</span>{" "}
+                    {cible.code} porte {cible.nombrePreuves} preuve
+                    {cible.nombrePreuves > 1 ? "s" : ""} : elles restent en base et gardent leur
+                    intitulé dans ton journal. La compétence sort des calculs et de l{"'"}affichage —
+                    une preuve ne disparaît pas. Tu devras la désarchiver pour la remettre au
+                    périmètre.
+                  </p>
+                </BandeauInfo>
                 <div className="flex flex-wrap items-center gap-2">
                   {confirmeRetrait ? (
                     <>

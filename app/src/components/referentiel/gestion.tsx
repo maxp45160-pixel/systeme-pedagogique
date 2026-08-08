@@ -11,7 +11,7 @@ import {
   retirerDomaine,
   supprimerCompetence,
 } from "@/lib/store/referentiel-actions";
-import { Bouton, CodeCompetence, cx, Etiquette } from "@/components/ui/primitives";
+import { BandeauInfo, Bouton, CodeCompetence, cx, Etiquette } from "@/components/ui/primitives";
 import { Champ, ChampSelect } from "@/components/ui/champ";
 import { PanneauPliable } from "@/components/ui/panneau-pliable";
 import type { Domaine, Palier, Skill } from "@/lib/domain/types";
@@ -153,14 +153,14 @@ export function GestionReferentiel({
   return (
     <div className="space-y-4">
       {erreur && (
-        <p className="rounded-md border border-alerte/30 bg-alerte-faible px-3 py-2 text-xs text-alerte">
-          {erreur}
-        </p>
+        <BandeauInfo ton="alerte" taille="compacte">
+          <p className="text-alerte">{erreur}</p>
+        </BandeauInfo>
       )}
       {avis && (
-        <p className="rounded-md border border-succes/30 bg-succes-faible px-3 py-2 text-xs text-succes">
-          {avis}
-        </p>
+        <BandeauInfo ton="succes" taille="compacte">
+          <p className="text-succes">{avis}</p>
+        </BandeauInfo>
       )}
 
       {/*
@@ -313,22 +313,24 @@ export function GestionReferentiel({
                   <p className="mt-1 text-xs text-texte-attenue">{domaine.description}</p>
                 )}
                 {domaineConfirme === domaine.id && (
-                  <p className="mt-2 rounded-md border border-info/30 bg-info-faible px-3 py-2 text-xs text-texte-attenue">
-                    {items.some((s) => (retraits[s.code]?.preuves ?? 0) > 0) ? (
-                      <>
-                        <span className="font-medium">Archivage, pas suppression.</span> Au moins
-                        une compétence de ce domaine porte des preuves : le domaine et ses{" "}
-                        {items.length} compétences sont archivés ensemble, et les preuves restent
-                        lisibles au journal.
-                      </>
-                    ) : (
-                      <>
-                        <span className="font-medium">Suppression définitive.</span> Aucune des{" "}
-                        {items.length} compétences de ce domaine n&apos;a produit de preuve : la
-                        branche entière disparaît. Les codes ne seront pas réattribués.
-                      </>
-                    )}
-                  </p>
+                  <BandeauInfo ton="info" taille="compacte" className="mt-2">
+                    <p className="text-texte-attenue">
+                      {items.some((s) => (retraits[s.code]?.preuves ?? 0) > 0) ? (
+                        <>
+                          <span className="font-medium">Archivage, pas suppression.</span> Au moins
+                          une compétence de ce domaine porte des preuves : le domaine et ses{" "}
+                          {items.length} compétences sont archivés ensemble, et les preuves restent
+                          lisibles au journal.
+                        </>
+                      ) : (
+                        <>
+                          <span className="font-medium">Suppression définitive.</span> Aucune des{" "}
+                          {items.length} compétences de ce domaine n&apos;a produit de preuve : la
+                          branche entière disparaît. Les codes ne seront pas réattribués.
+                        </>
+                      )}
+                    </p>
+                  </BandeauInfo>
                 )}
               </>
             }
@@ -499,23 +501,25 @@ export function GestionReferentiel({
                     preuves — et que ces preuves, elles, ne partiront pas.
                   */}
                   {confirme === s.code && (
-                    <p className="mt-2 rounded-md border border-info/30 bg-info-faible px-3 py-2 text-xs text-texte-attenue">
-                      {retrait.mode === "suppression" ? (
-                        <>
-                          <span className="font-medium">Suppression définitive.</span>{" "}
-                          {s.code} n&apos;a produit aucune preuve : la ligne disparaît, rien
-                          n&apos;est perdu. Le code ne sera pas réattribué.
-                        </>
-                      ) : (
-                        <>
-                          <span className="font-medium">Archivage, pas suppression.</span> {s.code}{" "}
-                          porte {retrait.preuves} preuve
-                          {retrait.preuves > 1 ? "s" : ""} : elles restent en base et gardent leur
-                          intitulé dans ton journal. La compétence sort des calculs et de
-                          l&apos;affichage — une preuve ne disparaît pas.
-                        </>
-                      )}
-                    </p>
+                    <BandeauInfo ton="info" taille="compacte" className="mt-2">
+                      <p className="text-texte-attenue">
+                        {retrait.mode === "suppression" ? (
+                          <>
+                            <span className="font-medium">Suppression définitive.</span>{" "}
+                            {s.code} n&apos;a produit aucune preuve : la ligne disparaît, rien
+                            n&apos;est perdu. Le code ne sera pas réattribué.
+                          </>
+                        ) : (
+                          <>
+                            <span className="font-medium">Archivage, pas suppression.</span> {s.code}{" "}
+                            porte {retrait.preuves} preuve
+                            {retrait.preuves > 1 ? "s" : ""} : elles restent en base et gardent leur
+                            intitulé dans ton journal. La compétence sort des calculs et de
+                            l&apos;affichage — une preuve ne disparaît pas.
+                          </>
+                        )}
+                      </p>
+                    </BandeauInfo>
                   )}
                 </li>
               );

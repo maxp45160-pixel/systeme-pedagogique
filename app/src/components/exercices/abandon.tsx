@@ -20,7 +20,7 @@
 
 import { useState, useTransition } from "react";
 import { abandonnerExercice } from "@/lib/store/actions";
-import { Bouton } from "@/components/ui/primitives";
+import { BandeauInfo, Bouton } from "@/components/ui/primitives";
 
 export function BoutonAbandon({
   attemptId,
@@ -61,19 +61,21 @@ export function BoutonAbandon({
   return (
     <div className="space-y-2">
       {/* L'annonce du geste, avant qu'il ne se produise (ADR-027). */}
-      <p className="rounded-md border border-info/30 bg-info-faible px-3 py-2 text-xs text-texte-attenue">
-        <span className="font-medium text-texte">Aucune preuve ne sera écrite.</span> Un
-        abandon n{"'"}est pas un échec : un échec est une mesure, il suppose qu{"'"}on ait
-        essayé. Ton niveau sur {codes.join(", ")} restera inchangé.
-        <br />
-        La tentative passe en abandonnée et reste au journal — elle explique pourquoi
-        aucune difficulté n{"'"}est conseillée pour le prochain exercice.
-      </p>
+      <BandeauInfo ton="info" taille="compacte">
+        <p className="text-texte-attenue">
+          <span className="font-medium text-texte">Aucune preuve ne sera écrite.</span> Un
+          abandon n{"'"}est pas un échec : un échec est une mesure, il suppose qu{"'"}on ait
+          essayé. Ton niveau sur {codes.join(", ")} restera inchangé.
+          <br />
+          La tentative passe en abandonnée et reste au journal — elle explique pourquoi
+          aucune difficulté n{"'"}est conseillée pour le prochain exercice.
+        </p>
+      </BandeauInfo>
 
       {erreur && (
-        <p className="rounded-md border border-danger/30 bg-danger-faible px-3 py-2 text-xs text-danger">
-          {erreur}
-        </p>
+        <BandeauInfo ton="danger" taille="compacte">
+          <p className="text-danger">{erreur}</p>
+        </BandeauInfo>
       )}
 
       <div className="flex flex-wrap items-center gap-2">
