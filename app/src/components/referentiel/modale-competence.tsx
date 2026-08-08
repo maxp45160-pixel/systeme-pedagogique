@@ -17,7 +17,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { classesBouton, cx } from "@/components/ui/primitives";
+import { Bouton } from "@/components/ui/primitives";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import type { PropositionReferentiel } from "@/lib/tutor/proposition";
 import { ValidationBranche, type BrancheInitiale } from "./validation-branche";
@@ -165,16 +165,17 @@ export function ModaleCompetence({
             <p className="mt-3 text-sm text-texte-attenue">
               {progression ?? "Le tuteur prend connaissance de ce qui a été mesuré…"}
             </p>
-            <button
-              type="button"
+            <Bouton
               onClick={() => {
                 abandonRef.current?.abort();
                 setPhase("formulaire");
               }}
-              className={cx(classesBouton("secondaire", "petite"), "mt-4")}
+              variante="secondaire"
+              taille="petite"
+              className="mt-4"
             >
               Arrêter
-            </button>
+            </Bouton>
           </div>
         )}
 
@@ -196,14 +197,13 @@ export function ModaleCompetence({
                     placeholder="Un sujet, un thème, un domaine…"
                     className="w-full rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm placeholder:text-texte-discret focus:border-primaire focus:outline-none"
                   />
-                  <button
-                    type="button"
+                  <Bouton
                     onClick={() => void suggerer()}
                     disabled={sujet.trim().length === 0}
-                    className={classesBouton("secondaire")}
+                    variante="secondaire"
                   >
                     Suggérer
-                  </button>
+                  </Bouton>
                 </div>
                 <p className="mt-1 text-[0.6875rem] text-texte-discret">
                   Le tuteur remplit les lignes ci-dessous — chacune reste décochable et

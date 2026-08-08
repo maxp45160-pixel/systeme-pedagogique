@@ -14,7 +14,7 @@
  */
 
 import { useState } from "react";
-import { classesBouton } from "@/components/ui/primitives";
+import { Bouton } from "@/components/ui/primitives";
 import { ModaleExercice } from "./modale-exercice";
 import type { CalibrageModale, CompetenceModale } from "./proprietes-generation";
 
@@ -43,13 +43,9 @@ export function BoutonGenerer({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOuvert(true)}
-        className={classesBouton(variante)}
-      >
+      <Bouton onClick={() => setOuvert(true)} variante={variante}>
         {libelle}
-      </button>
+      </Bouton>
       {ouvert && (
         <ModaleExercice
           onFermer={() => setOuvert(false)}

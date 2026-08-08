@@ -20,7 +20,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { classesBouton, cx } from "@/components/ui/primitives";
+import { Bouton } from "@/components/ui/primitives";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import type { PropositionReferentiel } from "@/lib/tutor/proposition";
 import { creerBranche } from "@/lib/store/referentiel-actions";
@@ -166,13 +166,9 @@ export function BoutonCreerReferentiel({ compteId }: { compteId: string }) {
 
   if (etat.phase === "fermee") {
     return (
-      <button
-        type="button"
-        onClick={() => setEtat({ phase: "saisie", message: null })}
-        className={classesBouton("secondaire", "petite")}
-      >
+      <Bouton onClick={() => setEtat({ phase: "saisie", message: null })} variante="secondaire" taille="petite">
         + Référentiel
-      </button>
+      </Bouton>
     );
   }
 
@@ -181,9 +177,9 @@ export function BoutonCreerReferentiel({ compteId }: { compteId: string }) {
 
   return (
     <>
-      <button type="button" className={classesBouton("secondaire", "petite")} disabled>
+      <Bouton variante="secondaire" taille="petite" disabled>
         + Référentiel
-      </button>
+      </Bouton>
 
       <div
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
@@ -232,14 +228,13 @@ export function BoutonCreerReferentiel({ compteId }: { compteId: string }) {
                   className="mt-1 w-full rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm placeholder:text-texte-discret focus:border-primaire focus:outline-none"
                 />
               </label>
-              <button
-                type="button"
+              <Bouton
                 onClick={() => void proposer()}
                 disabled={sujet.trim().length === 0}
-                className={classesBouton("principal")}
+                variante="principal"
               >
                 Proposer un référentiel
-              </button>
+              </Bouton>
             </div>
           )}
 
@@ -249,16 +244,17 @@ export function BoutonCreerReferentiel({ compteId }: { compteId: string }) {
               <p className="mt-3 text-sm text-texte-attenue">
                 {etat.progression ?? "Le tuteur découpe le sujet…"}
               </p>
-              <button
-                type="button"
+              <Bouton
                 onClick={() => {
                   abandonRef.current?.abort();
                   setEtat({ phase: "saisie", message: null });
                 }}
-                className={cx(classesBouton("secondaire", "petite"), "mt-4")}
+                variante="secondaire"
+                taille="petite"
+                className="mt-4"
               >
                 Arrêter
-              </button>
+              </Bouton>
             </div>
           )}
 
@@ -336,16 +332,15 @@ export function BoutonCreerReferentiel({ compteId }: { compteId: string }) {
               ))}
 
               <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
+                <Bouton
                   onClick={() => enregistrer(relecture.branches)}
                   disabled={enCours || retenues === 0}
-                  className={classesBouton("principal")}
+                  variante="principal"
                 >
                   {enCours
                     ? (progressionEcriture ?? "Enregistrement…")
                     : `Enregistrer ${retenues} branche${retenues > 1 ? "s" : ""}`}
-                </button>
+                </Bouton>
                 <button
                   type="button"
                   onClick={() => setEtat({ phase: "saisie", message: null })}

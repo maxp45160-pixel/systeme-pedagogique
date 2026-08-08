@@ -11,7 +11,7 @@
  */
 
 import { useState } from "react";
-import { classesBouton } from "@/components/ui/primitives";
+import { Bouton } from "@/components/ui/primitives";
 import { ModaleCompetence } from "./modale-competence";
 import { ModaleRevision, type CompetenceRevisable } from "./modale-revision";
 
@@ -32,13 +32,9 @@ export function BoutonReviser({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setVue("revision")}
-        className={classesBouton("secondaire", "petite")}
-      >
+      <Bouton onClick={() => setVue("revision")} variante="secondaire" taille="petite">
         Réviser avec le tuteur
-      </button>
+      </Bouton>
 
       {vue === "revision" && (
         <ModaleRevision

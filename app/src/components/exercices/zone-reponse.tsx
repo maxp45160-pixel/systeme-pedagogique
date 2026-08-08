@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { enregistrerReponse } from "@/lib/store/actions";
-import { classesBouton } from "@/components/ui/primitives";
+import { Bouton } from "@/components/ui/primitives";
 import { useEstHydrate } from "@/lib/ui/hydratation";
 import { cleParCompte, ecrireSession, effacerSession, lireSession } from "@/lib/ui/stockage-session";
 
@@ -103,18 +103,13 @@ function ZoneHydrate({
         className="w-full resize-y rounded-md border border-bordure bg-surface px-3 py-2 font-mono text-xs leading-relaxed placeholder:text-texte-discret focus:border-primaire focus:outline-none"
       />
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={enregistrer}
-          disabled={enCours || !nonEnregistre}
-          className={classesBouton("secondaire", "petite")}
-        >
+        <Bouton onClick={enregistrer} disabled={enCours || !nonEnregistre} variante="secondaire" taille="petite">
           {enCours
             ? "Enregistrement…"
             : nonEnregistre
               ? "Enregistrer le brouillon"
               : "Brouillon enregistré"}
-        </button>
+        </Bouton>
         <span className="text-[0.625rem] text-texte-discret">
           Le contenu n&apos;est pas corrigé automatiquement — il sert de trace de ton raisonnement.
         </span>

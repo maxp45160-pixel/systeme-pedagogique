@@ -9,7 +9,7 @@
  */
 
 import { useState } from "react";
-import { classesBouton } from "@/components/ui/primitives";
+import { Bouton } from "@/components/ui/primitives";
 import { ModaleCompetence } from "./modale-competence";
 
 export function BoutonAjouterCompetence({
@@ -28,13 +28,9 @@ export function BoutonAjouterCompetence({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOuverte(true)}
-        className={classesBouton("secondaire", "petite")}
-      >
+      <Bouton onClick={() => setOuverte(true)} variante="secondaire" taille="petite">
         {libelle}
-      </button>
+      </Bouton>
 
       {ouverte && (
         <ModaleCompetence

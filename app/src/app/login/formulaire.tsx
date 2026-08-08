@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createNavigateurClient } from "@/lib/supabase/client";
-import { cx } from "@/components/ui/primitives";
+import { Bouton } from "@/components/ui/primitives";
 
 type Mode = "connexion" | "inscription";
 
@@ -99,11 +99,11 @@ export function FormulaireConnexion({
         </p>
       )}
 
-      <button
-        type="button"
+      <Bouton
+        variante="secondaire"
+        className="w-full"
         onClick={connexionGoogle}
-        disabled={enCours}
-        className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border border-bordure-forte bg-surface px-3.5 text-sm font-medium text-texte transition-colors hover:bg-surface-2 disabled:pointer-events-none disabled:opacity-50"
+        enChargement={enCours}
       >
         <svg className="size-4" viewBox="0 0 24 24" aria-hidden>
           <path
@@ -124,7 +124,7 @@ export function FormulaireConnexion({
           />
         </svg>
         Continuer avec Google
-      </button>
+      </Bouton>
 
       <div className="flex items-center gap-3">
         <span className="h-px flex-1 bg-bordure" />
@@ -172,21 +172,9 @@ export function FormulaireConnexion({
           />
         </div>
 
-        <button
-          type="submit"
-          disabled={enCours}
-          className={cx(
-            "inline-flex h-9 w-full items-center justify-center rounded-md border border-transparent",
-            "bg-primaire px-3.5 text-sm font-medium text-primaire-contraste transition-colors",
-            "hover:bg-primaire-fort disabled:pointer-events-none disabled:opacity-50",
-          )}
-        >
-          {enCours
-            ? "Un instant…"
-            : mode === "inscription"
-              ? "Créer le compte"
-              : "Se connecter"}
-        </button>
+        <Bouton type="submit" variante="principal" className="w-full" enChargement={enCours}>
+          {mode === "inscription" ? "Créer le compte" : "Se connecter"}
+        </Bouton>
       </form>
 
       <button

@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import type { Dimension, Exercise } from "@/lib/domain/types";
 import { LIBELLES_DIMENSIONS } from "@/lib/domain/types";
 import { terminerExercice } from "@/lib/store/actions";
-import { classesBouton, cx } from "@/components/ui/primitives";
+import { Bouton, cx } from "@/components/ui/primitives";
 import { autonomieObservee, LIBELLE_AIDE, type AideExterne } from "@/lib/engine/preuve";
 import { APPRECIATIONS, RESULTATS, type ResultatBilan } from "@/lib/domain/bilan";
 
@@ -389,18 +389,13 @@ export function FormulaireBilan({
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={soumettre}
-          disabled={!tousRenseignes || enCours}
-          className={classesBouton("principal")}
-        >
+        <Bouton onClick={soumettre} disabled={!tousRenseignes || enCours} variante="principal">
           {enCours
             ? "Enregistrement…"
             : assiste
               ? "Accepter et enregistrer"
               : "Enregistrer la preuve"}
-        </button>
+        </Bouton>
         {!tousRenseignes && (
           <span className="text-xs text-texte-discret">
             Renseigne chaque critère pour continuer.

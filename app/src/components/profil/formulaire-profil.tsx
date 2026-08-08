@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { modifierProfil } from "@/lib/store/referentiel-actions";
-import { classesBouton, cx } from "@/components/ui/primitives";
+import { Bouton, cx } from "@/components/ui/primitives";
 
 const champ =
   "mt-1 w-full rounded-md border border-bordure bg-surface px-2.5 py-2 text-sm placeholder:text-texte-discret focus:border-primaire focus:outline-none";
@@ -152,14 +152,9 @@ export function FormulaireProfil({
         </p>
       )}
 
-      <button
-        type="button"
-        onClick={enregistrer}
-        disabled={enCours}
-        className={classesBouton("principal")}
-      >
+      <Bouton onClick={enregistrer} disabled={enCours} variante="principal">
         {enCours ? "Enregistrement…" : "Enregistrer"}
-      </button>
+      </Bouton>
     </div>
   );
 }

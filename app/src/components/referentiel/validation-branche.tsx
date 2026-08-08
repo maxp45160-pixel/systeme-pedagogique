@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { creerBranche } from "@/lib/store/referentiel-actions";
 import { normaliserPalier } from "@/lib/domain/referentiel-compte";
-import { classesBouton, cx, Etiquette } from "@/components/ui/primitives";
+import { Bouton, cx, Etiquette } from "@/components/ui/primitives";
 import type { OrigineReferentiel, Palier } from "@/lib/domain/types";
 
 /**
@@ -240,13 +240,9 @@ export function ValidationBranche({
           ))}
         </ul>
 
-        <button
-          type="button"
-          onClick={ajouterLigne}
-          className={cx(classesBouton("secondaire", "petite"), "mt-2")}
-        >
+        <Bouton onClick={ajouterLigne} variante="secondaire" taille="petite" className="mt-2">
           + Ajouter une compétence
-        </button>
+        </Bouton>
       </div>
 
       {erreur && (
@@ -255,16 +251,11 @@ export function ValidationBranche({
         </p>
       )}
 
-      <button
-        type="button"
-        onClick={soumettre}
-        disabled={!pret || enCours}
-        className={classesBouton("principal")}
-      >
+      <Bouton onClick={soumettre} disabled={!pret || enCours} variante="principal">
         {enCours
           ? "Enregistrement…"
           : `Ajouter ${retenues.length} compétence${retenues.length > 1 ? "s" : ""}`}
-      </button>
+      </Bouton>
     </div>
   );
 }

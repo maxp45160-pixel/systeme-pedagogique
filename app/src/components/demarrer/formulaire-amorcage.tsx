@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { modifierProfil } from "@/lib/store/referentiel-actions";
 import { valeurDeclaree } from "@/lib/domain/profil";
-import { classesBouton } from "@/components/ui/primitives";
+import { Bouton } from "@/components/ui/primitives";
 
 /**
  * Les deux questions de l'amorçage.
@@ -122,14 +122,9 @@ export function FormulaireAmorcage({
       )}
 
       <div className="flex items-center gap-3 pt-1">
-        <button
-          type="button"
-          onClick={soumettre}
-          disabled={!pret || enCours}
-          className={classesBouton("principal")}
-        >
+        <Bouton onClick={soumettre} disabled={!pret || enCours} variante="principal">
           {enCours ? "Enregistrement…" : "Continuer avec le tuteur"}
-        </button>
+        </Bouton>
         {!pret && (
           <span className="text-xs text-texte-discret">Le sujet et l&apos;objectif suffisent.</span>
         )}

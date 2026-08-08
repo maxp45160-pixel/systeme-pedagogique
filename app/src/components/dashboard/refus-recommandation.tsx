@@ -23,7 +23,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { classesBouton } from "@/components/ui/primitives";
+import { Bouton } from "@/components/ui/primitives";
 import { refuserRecommandation } from "@/lib/store/actions";
 
 export function BoutonRefusRecommandation({
@@ -52,11 +52,11 @@ export function BoutonRefusRecommandation({
 
   return (
     <div className="flex flex-col items-start gap-1">
-      <button
-        type="button"
+      <Bouton
         onClick={refuser}
         disabled={enCours}
-        className={classesBouton("secondaire", "petite")}
+        variante="secondaire"
+        taille="petite"
         title={
           exerciceId
             ? "Écarte cet exercice pendant 7 jours et propose autre chose"
@@ -64,7 +64,7 @@ export function BoutonRefusRecommandation({
         }
       >
         {enCours ? "Passage…" : "Passer"}
-      </button>
+      </Bouton>
       {erreur && <span className="text-[0.6875rem] text-alerte">{erreur}</span>}
     </div>
   );

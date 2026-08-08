@@ -35,7 +35,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { classesBouton, cx } from "@/components/ui/primitives";
+import { Bouton } from "@/components/ui/primitives";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import type { PropositionEvolution } from "@/lib/tutor/outils";
 import { archiverCompetence, basculerActive, creerBranche } from "@/lib/store/referentiel-actions";
@@ -147,13 +147,9 @@ export function BoutonEvolution(cible: Cible) {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => void demander()}
-        className={cx(classesBouton("secondaire"), "w-full")}
-      >
+      <Bouton onClick={() => void demander()} variante="secondaire" className="w-full">
         Demander une évolution au tuteur
-      </button>
+      </Bouton>
       {etat.phase !== "fermee" && (
         <ModaleEvolution
           cible={cible}
@@ -239,13 +235,9 @@ function ModaleEvolution({
             <p className="mt-3 text-sm text-texte-attenue">
               {etat.progression ?? "Le tuteur prend connaissance de ce qui a été mesuré…"}
             </p>
-            <button
-              type="button"
-              onClick={onFermer}
-              className={cx(classesBouton("secondaire", "petite"), "mt-4")}
-            >
+            <Bouton onClick={onFermer} variante="secondaire" taille="petite" className="mt-4">
               Arrêter
-            </button>
+            </Bouton>
           </div>
         )}
 
@@ -259,14 +251,14 @@ function ModaleEvolution({
               du domaine, ou sors celle-ci du périmètre — un geste réversible.
             </p>
             <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
+              <Bouton
                 onClick={() => agir(() => basculerActive(cible.code, false))}
                 disabled={enCours}
-                className={classesBouton("secondaire", "petite")}
+                variante="secondaire"
+                taille="petite"
               >
                 Sortir {cible.code} du périmètre
-              </button>
+              </Bouton>
               <button
                 type="button"
                 onClick={onRedemander}
@@ -304,8 +296,7 @@ function ModaleEvolution({
                     sur {cible.code}. Le code sera attribué à l{"'"}enregistrement.
                   </p>
                 </div>
-                <button
-                  type="button"
+                <Bouton
                   disabled={enCours}
                   onClick={() =>
                     agir(() =>
@@ -325,10 +316,10 @@ function ModaleEvolution({
                       }),
                     )
                   }
-                  className={classesBouton("principal")}
+                  variante="principal"
                 >
                   {enCours ? "Enregistrement…" : "Ajouter cette compétence"}
-                </button>
+                </Bouton>
               </div>
             )}
 
@@ -379,14 +370,13 @@ function ModaleEvolution({
                 <div className="flex flex-wrap items-center gap-2">
                   {confirmeRetrait ? (
                     <>
-                      <button
-                        type="button"
+                      <Bouton
                         disabled={enCours}
                         onClick={() => agir(() => archiverCompetence(cible.code))}
-                        className={classesBouton("secondaire")}
+                        variante="secondaire"
                       >
                         {enCours ? "Archivage…" : "Confirmer l'archivage"}
-                      </button>
+                      </Bouton>
                       <button
                         type="button"
                         onClick={() => setConfirmeRetrait(false)}
@@ -396,23 +386,19 @@ function ModaleEvolution({
                       </button>
                     </>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={() => setConfirmeRetrait(true)}
-                      className={classesBouton("secondaire")}
-                    >
+                    <Bouton onClick={() => setConfirmeRetrait(true)} variante="secondaire">
                       Archiver {cible.code}
-                    </button>
+                    </Bouton>
                   )}
                   {/* Le geste doux, à côté du destructeur — et réversible, lui. */}
-                  <button
-                    type="button"
+                  <Bouton
                     disabled={enCours}
                     onClick={() => agir(() => basculerActive(cible.code, false))}
-                    className={classesBouton("secondaire", "petite")}
+                    variante="secondaire"
+                    taille="petite"
                   >
                     Seulement la sortir du périmètre
-                  </button>
+                  </Bouton>
                 </div>
               </div>
             )}

@@ -13,7 +13,7 @@
  */
 
 import { useState } from "react";
-import { classesBouton } from "@/components/ui/primitives";
+import { Bouton } from "@/components/ui/primitives";
 import { cleParCompte, ecrireSession, lireSession } from "@/lib/ui/stockage-session";
 
 interface FeedbackStocke {
@@ -87,13 +87,9 @@ export function FeedbackRecommandation({
             }
           }}
         />
-        <button
-          type="button"
-          onClick={valider}
-          className={classesBouton("secondaire", "petite")}
-        >
+        <Bouton onClick={valider} variante="secondaire" taille="petite">
           Valider
-        </button>
+        </Bouton>
       </div>
     );
   }

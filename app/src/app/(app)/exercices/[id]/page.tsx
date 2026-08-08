@@ -8,8 +8,9 @@ import {
   demarrerTentative,
 } from "@/lib/store/actions";
 import {
+  Bouton,
   Carte,
-  classesBouton,
+  classesLienBouton,
   CodeCompetence,
   cx,
   EnTeteCarte,
@@ -127,7 +128,7 @@ export default async function PageExercice(props: {
             n&apos;est conseillée pour le prochain exercice.
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <Link href={`/exercices/${exercice.id}`} className={classesBouton("principal", "petite")}>
+            <Link href={`/exercices/${exercice.id}`} className={classesLienBouton("principal", "petite")}>
               Reprendre l&apos;exercice
             </Link>
             <Link
@@ -141,7 +142,7 @@ export default async function PageExercice(props: {
                 }),
                 exercice.competences[0],
               )}
-              className={classesBouton("secondaire", "petite")}
+              className={classesLienBouton("secondaire", "petite")}
             >
               En demander un autre au tuteur
             </Link>
@@ -171,11 +172,11 @@ export default async function PageExercice(props: {
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Link
               href={`/competences/${exercice.competences[0]}`}
-              className={classesBouton("secondaire", "petite")}
+              className={classesLienBouton("secondaire", "petite")}
             >
               Voir l&apos;effet sur la compétence
             </Link>
-            <Link href="/" className={classesBouton("secondaire", "petite")}>
+            <Link href="/" className={classesLienBouton("secondaire", "petite")}>
               Prochaine action recommandée
             </Link>
           </div>
@@ -257,10 +258,10 @@ export default async function PageExercice(props: {
                 </p>
               )}
               <form action={demarrerTentative.bind(null, exercice.id)} className="mt-4">
-                <button type="submit" className={classesBouton("principal")}>
+                <Bouton type="submit" variante="principal">
                   Commencer
                   <IconeFleche className="size-4" />
-                </button>
+                </Bouton>
               </form>
             </div>
           </Carte>
@@ -356,10 +357,10 @@ export default async function PageExercice(props: {
 
                   {enCours.indicesUtilises < exercice.indices.length && (
                     <form action={debloquerIndice.bind(null, enCours.id, enCours.indicesUtilises)}>
-                      <button type="submit" className={classesBouton("secondaire", "petite")}>
+                      <Bouton type="submit" variante="secondaire" taille="petite">
                         <IconeAmpoule className="size-3.5" />
                         Débloquer l&apos;indice {enCours.indicesUtilises + 1}
-                      </button>
+                      </Bouton>
                     </form>
                   )}
                 </div>
@@ -377,7 +378,7 @@ export default async function PageExercice(props: {
                   </p>
                   <Link
                     href={`/exercices/${exercice.id}?correction=1`}
-                    className={cx(classesBouton("secondaire"), "mt-3")}
+                    className={cx(classesLienBouton("secondaire"), "mt-3")}
                   >
                     Afficher la correction
                   </Link>
@@ -508,9 +509,9 @@ export default async function PageExercice(props: {
                   exactement ce qui fait monter la robustesse d&apos;une compétence.
                 </p>
                 <form action={demarrerTentative.bind(null, exercice.id)} className="mt-3">
-                  <button type="submit" className={classesBouton("secondaire")}>
+                  <Bouton type="submit" variante="secondaire">
                     Refaire cet exercice
-                  </button>
+                  </Bouton>
                 </form>
               </div>
             </Carte>

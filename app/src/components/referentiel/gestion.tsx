@@ -11,7 +11,7 @@ import {
   retirerDomaine,
   supprimerCompetence,
 } from "@/lib/store/referentiel-actions";
-import { classesBouton, CodeCompetence, cx, Etiquette } from "@/components/ui/primitives";
+import { Bouton, CodeCompetence, cx, Etiquette } from "@/components/ui/primitives";
 import { PanneauPliable } from "@/components/ui/panneau-pliable";
 import type { Domaine, Palier, Skill } from "@/lib/domain/types";
 import { comparerCodes, type EtatRetrait } from "@/lib/domain/referentiel-compte";
@@ -177,24 +177,23 @@ export function GestionReferentiel({
               {codesSelectionnes.length} compétence{codesSelectionnes.length > 1 ? "s" : ""}{" "}
               sélectionnée{codesSelectionnes.length > 1 ? "s" : ""}
             </span>
-            <button
-              type="button"
+            <Bouton
               disabled={enCours}
               onClick={() => agir(() => basculerActives(codesSelectionnes, false))}
-              className={classesBouton("secondaire", "petite")}
+              variante="secondaire"
+              taille="petite"
             >
               Sortir du périmètre
-            </button>
-            <button
-              type="button"
+            </Bouton>
+            <Bouton
               disabled={enCours}
               onClick={() => agir(() => basculerActives(codesSelectionnes, true))}
-              className={classesBouton("secondaire", "petite")}
+              variante="secondaire"
+              taille="petite"
             >
               Remettre au périmètre
-            </button>
-            <button
-              type="button"
+            </Bouton>
+            <Bouton
               disabled={enCours}
               onClick={() =>
                 agir(async () => {
@@ -204,10 +203,11 @@ export function GestionReferentiel({
                   );
                 })
               }
-              className={classesBouton("secondaire", "petite")}
+              variante="secondaire"
+              taille="petite"
             >
               Retirer
-            </button>
+            </Bouton>
             <button
               type="button"
               onClick={() => setSelection(new Set())}
@@ -271,8 +271,7 @@ export function GestionReferentiel({
                 </button>
                 {domaineConfirme === domaine.id ? (
                   <>
-                    <button
-                      type="button"
+                    <Bouton
                       disabled={enCours}
                       onClick={() =>
                         agir(async () => {
@@ -284,10 +283,11 @@ export function GestionReferentiel({
                           );
                         })
                       }
-                      className={classesBouton("secondaire", "petite")}
+                      variante="secondaire"
+                      taille="petite"
                     >
                       Confirmer le retrait du domaine
-                    </button>
+                    </Bouton>
                     <button
                       type="button"
                       onClick={() => setDomaineConfirme(null)}
@@ -297,14 +297,14 @@ export function GestionReferentiel({
                     </button>
                   </>
                 ) : (
-                  <button
-                    type="button"
+                  <Bouton
                     disabled={enCours}
                     onClick={() => setDomaineConfirme(domaine.id)}
-                    className={classesBouton("discret", "petite")}
+                    variante="discret"
+                    taille="petite"
                   >
                     Retirer le domaine
-                  </button>
+                  </Bouton>
                 )}
               </>
             }
@@ -425,40 +425,39 @@ export function GestionReferentiel({
 
                     {!enEdition && (
                       <div className="flex shrink-0 flex-wrap gap-1.5">
-                        <button
-                          type="button"
+                        <Bouton
                           onClick={() => setEdite(s.code)}
                           disabled={enCours}
-                          className={classesBouton("secondaire", "petite")}
+                          variante="secondaire"
+                          taille="petite"
                         >
                           Modifier
-                        </button>
+                        </Bouton>
 
                         {s.archive ? (
-                          <button
-                            type="button"
+                          <Bouton
                             onClick={() => agir(() => desarchiverCompetence(s.code))}
                             disabled={enCours}
-                            className={classesBouton("secondaire", "petite")}
+                            variante="secondaire"
+                            taille="petite"
                           >
                             Désarchiver
-                          </button>
+                          </Bouton>
                         ) : (
-                          <button
-                            type="button"
+                          <Bouton
                             onClick={() => agir(() => basculerActive(s.code, !s.active))}
                             disabled={enCours}
-                            className={classesBouton("secondaire", "petite")}
+                            variante="secondaire"
+                            taille="petite"
                           >
                             {s.active ? "Sortir du périmètre" : "Remettre au périmètre"}
-                          </button>
+                          </Bouton>
                         )}
 
                         {!s.archive &&
                           (confirme === s.code ? (
                             <div className="flex items-center gap-1.5">
-                              <button
-                                type="button"
+                              <Bouton
                                 onClick={() =>
                                   agir(() =>
                                     retrait.mode === "suppression"
@@ -467,10 +466,11 @@ export function GestionReferentiel({
                                   )
                                 }
                                 disabled={enCours}
-                                className={classesBouton("secondaire", "petite")}
+                                variante="secondaire"
+                                taille="petite"
                               >
                                 Confirmer
-                              </button>
+                              </Bouton>
                               <button
                                 type="button"
                                 onClick={() => setConfirme(null)}
@@ -480,14 +480,14 @@ export function GestionReferentiel({
                               </button>
                             </div>
                           ) : (
-                            <button
-                              type="button"
+                            <Bouton
                               onClick={() => setConfirme(s.code)}
                               disabled={enCours}
-                              className={classesBouton("secondaire", "petite")}
+                              variante="secondaire"
+                              taille="petite"
                             >
                               {retrait.mode === "suppression" ? "Supprimer" : "Archiver"}
-                            </button>
+                            </Bouton>
                           ))}
                       </div>
                     )}
@@ -622,8 +622,7 @@ function FormulaireEdition({
         </span>
       </div>
       <div className="flex gap-1.5">
-        <button
-          type="button"
+        <Bouton
           disabled={enCours || intitule.trim().length === 0}
           onClick={() =>
             onValider({
@@ -632,17 +631,14 @@ function FormulaireEdition({
               importance: Number.parseFloat(importance.replace(",", ".")),
             })
           }
-          className={classesBouton("principal", "petite")}
+          variante="principal"
+          taille="petite"
         >
           Enregistrer
-        </button>
-        <button
-          type="button"
-          onClick={onAnnuler}
-          className={classesBouton("secondaire", "petite")}
-        >
+        </Bouton>
+        <Bouton onClick={onAnnuler} variante="secondaire" taille="petite">
           Annuler
-        </button>
+        </Bouton>
       </div>
     </div>
   );

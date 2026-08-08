@@ -3,8 +3,8 @@ import { chargerContexte } from "@/lib/store/context";
 import { libelleDomaine } from "@/lib/domain/referentiel-compte";
 import { ajouterNoteSession } from "@/lib/store/actions";
 import {
+  Bouton,
   Carte,
-  classesBouton,
   CodeCompetence,
   EnTeteCarte,
   Etiquette,
@@ -208,12 +208,9 @@ export async function PanneauJournal({ recherche: requete }: { recherche?: strin
                             placeholder="Note personnelle…"
                             className="min-w-0 flex-1 rounded-md border border-bordure bg-surface px-2 py-1 text-xs placeholder:text-texte-discret focus:border-primaire focus:outline-none"
                           />
-                          <button
-                            type="submit"
-                            className={classesBouton("secondaire", "petite")}
-                          >
+                          <Bouton type="submit" variante="secondaire" taille="petite">
                             Noter
-                          </button>
+                          </Bouton>
                         </form>
                       </div>
                     </li>

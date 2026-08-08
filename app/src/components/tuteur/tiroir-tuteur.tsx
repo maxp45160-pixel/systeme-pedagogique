@@ -24,7 +24,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ChatTuteur, type EtatContexteTuteur } from "@/components/tuteur/chat";
-import { classesBouton, cx } from "@/components/ui/primitives";
+import { classesLienBouton, cx } from "@/components/ui/primitives";
 
 /** Bouton rond en bas à droite — le déclencheur global. */
 const CLASSES_FLOTTANT = cx(
@@ -65,7 +65,7 @@ export function TiroirTuteur({
         onClick={() => setOuvert(true)}
         aria-label={flottant ? libelle : undefined}
         title={flottant ? libelle : undefined}
-        className={flottant ? CLASSES_FLOTTANT : classesBouton("secondaire", "petite")}
+        className={flottant ? CLASSES_FLOTTANT : classesLienBouton("secondaire", "petite")}
       >
         {flottant ? (
           <span className="text-lg font-bold" aria-hidden>

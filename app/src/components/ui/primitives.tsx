@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ButtonHTMLAttributes, ReactNode } from "react";
 import type { Confiance, NiveauCompetence } from "@/lib/domain/types";
 
 export function cx(...parts: (string | false | null | undefined)[]): string {
@@ -350,28 +350,105 @@ export function EtatVide({
 /* Boutons                                                             */
 /* ------------------------------------------------------------------ */
 
-const VARIANTES = {
-  principal:
-    "bg-primaire text-primaire-contraste hover:bg-primaire-fort border-transparent",
-  secondaire:
-    "bg-surface text-texte hover:bg-surface-2 border-bordure-forte",
+type VarianteBouton = "principal" | "secondaire" | "discret" | "danger";
+type TailleBouton = "normale" | "compacte" | "petite";
+
+const VARIANTES_BOUTON: Record<VarianteBouton, string> = {
+  principal: "bg-primaire text-primaire-contraste hover:bg-primaire-fort border-transparent",
+  secondaire: "bg-surface text-texte hover:bg-surface-2 border-bordure-forte",
   discret: "bg-transparent text-texte-attenue hover:bg-surface-2 hover:text-texte border-transparent",
-} as const;
+  /*
+    Une seule recette « danger », choisie parce qu'elle était déjà la
+    majoritaire des trois qui coexistaient (validation-branche, gestion,
+    compte). La version pleine (bg-danger text-white) n'est offerte nulle
+    part : plus alarmante que toute action destructive réelle du produit.
+  */
+  danger: "border-danger/30 bg-danger-faible text-danger hover:bg-danger/10",
+};
 
-const TAILLES = {
+const TAILLES_BOUTON: Record<TailleBouton, string> = {
   normale: "h-9 px-3.5 text-sm",
+  /* Calée sur l'usage réel de compte.tsx (6 boutons) — pas une invention. */
+  compacte: "h-8 px-3 text-xs",
   petite: "h-7 px-2.5 text-xs",
-} as const;
+};
 
-export function classesBouton(
-  variante: keyof typeof VARIANTES = "secondaire",
-  taille: keyof typeof TAILLES = "normale",
+function IconeChargement({ className }: { className?: string }) {
+  return (
+    <svg className={cx("animate-spin", className)} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="9" strokeWidth="2.5" className="stroke-current opacity-25" />
+      <path d="M21 12a9 9 0 0 0-9-9" strokeWidth="2.5" strokeLinecap="round" className="stroke-current" />
+    </svg>
+  );
+}
+
+/**
+ * Classes visuelles de `Bouton`, pour les rares cas où l'élément ne peut pas
+ * être un `<button>` — un `<Link>` de navigation qui doit avoir l'apparence
+ * d'une action (ex. « Commencer », « Réaliser un diagnostic »). `Bouton`
+ * les utilise en interne ; aucun appelant ne doit retaper ces chaînes.
+ */
+export function classesLienBouton(
+  variante: VarianteBouton = "secondaire",
+  taille: TailleBouton = "normale",
 ): string {
   return cx(
     "inline-flex items-center justify-center gap-1.5 rounded-md border font-medium transition-colors",
-    "disabled:pointer-events-none disabled:opacity-50",
-    VARIANTES[variante],
-    TAILLES[taille],
+    VARIANTES_BOUTON[variante],
+    TAILLES_BOUTON[taille],
+  );
+}
+
+/**
+ * Bouton d'action, seule primitive de bouton de l'application.
+ *
+ * `type="button"` par défaut — un `<button>` natif dans un `<form>` vaut
+ * `submit` par défaut, et c'est exactement le piège qu'un composant wrapper
+ * peut cacher. `type="submit"` reste possible, explicitement.
+ *
+ * Le focus ne porte aucune classe : la règle globale `:focus-visible` de
+ * `globals.css` s'en charge, comme elle le fait déjà pour tout le reste.
+ *
+ * `enChargement` force `disabled` (pas de double-soumission), pose
+ * `aria-busy`, et préfixe le libellé d'un indicateur — le libellé reste
+ * affiché, jamais remplacé : le faire disparaître au moment où l'état
+ * change prive les lecteurs d'écran du nom de l'action en cours.
+ */
+export function Bouton({
+  variante = "secondaire",
+  taille = "normale",
+  enChargement = false,
+  disabled,
+  type = "button",
+  className,
+  children,
+  ...reste
+}: {
+  variante?: VarianteBouton;
+  taille?: TailleBouton;
+  enChargement?: boolean;
+  children: ReactNode;
+} & ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      type={type}
+      disabled={disabled || enChargement}
+      aria-busy={enChargement || undefined}
+      className={cx(
+        classesLienBouton(variante, taille),
+        "disabled:pointer-events-none disabled:opacity-50",
+        className,
+      )}
+      {...reste}
+    >
+      {enChargement && <IconeChargement className="size-3.5 shrink-0" />}
+      {children}
+      {enChargement && (
+        <span className="sr-only" aria-live="polite">
+          Chargement…
+        </span>
+      )}
+    </button>
   );
 }
 

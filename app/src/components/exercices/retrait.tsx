@@ -8,7 +8,7 @@ import {
   supprimerExercice,
 } from "@/lib/store/actions";
 import { modeRetraitExercice } from "@/lib/domain/exercice";
-import { classesBouton } from "@/components/ui/primitives";
+import { Bouton } from "@/components/ui/primitives";
 
 /**
  * Retrait d'un exercice — calque exact de la gestion du référentiel (ADR-027).
@@ -57,14 +57,14 @@ export function RetraitExercice({
   if (archive) {
     return (
       <div className="flex flex-col items-end gap-1">
-        <button
-          type="button"
+        <Bouton
           disabled={enCours}
           onClick={() => agir(() => desarchiverExercice(exerciceId))}
-          className={classesBouton("secondaire", "petite")}
+          variante="secondaire"
+          taille="petite"
         >
           Remettre dans le flux
-        </button>
+        </Bouton>
         {erreur && <span className="text-[0.6875rem] text-alerte">{erreur}</span>}
       </div>
     );
@@ -74,8 +74,7 @@ export function RetraitExercice({
     <div className="flex flex-col items-end gap-1">
       {confirme ? (
         <div className="flex items-center gap-1.5">
-          <button
-            type="button"
+          <Bouton
             disabled={enCours}
             onClick={() =>
               agir(() =>
@@ -84,10 +83,11 @@ export function RetraitExercice({
                   : archiverExercice(exerciceId),
               )
             }
-            className={classesBouton("secondaire", "petite")}
+            variante="secondaire"
+            taille="petite"
           >
             Confirmer
-          </button>
+          </Bouton>
           <button
             type="button"
             onClick={() => setConfirme(false)}
@@ -97,14 +97,9 @@ export function RetraitExercice({
           </button>
         </div>
       ) : (
-        <button
-          type="button"
-          disabled={enCours}
-          onClick={() => setConfirme(true)}
-          className={classesBouton("discret", "petite")}
-        >
+        <Bouton disabled={enCours} onClick={() => setConfirme(true)} variante="discret" taille="petite">
           {mode === "suppression" ? "Supprimer" : "Archiver"}
-        </button>
+        </Bouton>
       )}
 
       {/*

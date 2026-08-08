@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { cx } from "@/components/ui/primitives";
+import { Bouton, classesLienBouton, cx } from "@/components/ui/primitives";
 import { seDeconnecter } from "@/lib/supabase/actions";
 import { exporterJournal } from "@/lib/store/export";
 import { IconeValide } from "@/components/ui/icones";
@@ -331,14 +331,14 @@ function PanneauReglages({
                 erreurs, projets, profil. C&apos;est ta copie hors ligne : elle ne dépend
                 ni de l&apos;hébergeur ni du dépôt git.
               </p>
-              <button
-                type="button"
+              <Bouton
+                variante="secondaire"
+                taille="compacte"
                 onClick={telechargerArchive}
-                disabled={exportEnCours}
-                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-bordure-forte bg-surface px-3 text-xs font-medium transition-colors hover:bg-surface-2 disabled:pointer-events-none disabled:opacity-50"
+                enChargement={exportEnCours}
               >
-                {exportEnCours ? "Export en cours…" : "Exporter mon journal"}
-              </button>
+                Exporter mon journal
+              </Bouton>
               {messageExport && (
                 <p className="flex items-start gap-1.5 text-xs text-texte">
                   <IconeValide className="mt-0.5 size-3.5 shrink-0 text-succes" />
@@ -368,31 +368,21 @@ function PanneauReglages({
         <div className="mt-5 flex items-center justify-between gap-2 border-t border-bordure pt-3">
           {session.connecte ? (
             <form action={seDeconnecter}>
-              <button
-                type="submit"
-                className="inline-flex h-8 items-center rounded-md border border-transparent px-3 text-xs font-medium text-danger transition-colors hover:bg-danger-faible"
-              >
+              <Bouton type="submit" variante="danger" taille="compacte">
                 Se déconnecter
-              </button>
+              </Bouton>
             </form>
           ) : session.configure ? (
-            <Link
-              href="/login"
-              className="inline-flex h-8 items-center rounded-md bg-primaire px-3 text-xs font-medium text-primaire-contraste transition-colors hover:bg-primaire-fort"
-            >
+            <Link href="/login" className={classesLienBouton("principal", "compacte")}>
               Se connecter
             </Link>
           ) : (
             <span />
           )}
 
-          <button
-            type="button"
-            onClick={onFermer}
-            className="inline-flex h-8 items-center rounded-md border border-bordure-forte bg-surface px-3 text-xs font-medium transition-colors hover:bg-surface-2"
-          >
+          <Bouton variante="secondaire" taille="compacte" onClick={onFermer}>
             Fermer
-          </button>
+          </Bouton>
         </div>
       </div>
     </div>
@@ -590,21 +580,13 @@ function ReglagesTuteur({ compteId }: { compteId: string }) {
       </p>
 
       <div className="flex gap-1.5">
-        <button
-          type="button"
-          onClick={enregistrer}
-          className="inline-flex h-8 items-center rounded-md bg-primaire px-3 text-xs font-medium text-primaire-contraste transition-colors hover:bg-primaire-fort"
-        >
+        <Bouton variante="principal" taille="compacte" onClick={enregistrer}>
           Enregistrer
-        </button>
+        </Bouton>
         {config && (
-          <button
-            type="button"
-            onClick={effacer}
-            className="inline-flex h-8 items-center rounded-md border border-danger/30 bg-danger-faible px-3 text-xs font-medium text-danger transition-colors hover:bg-danger/10"
-          >
+          <Bouton variante="danger" taille="compacte" onClick={effacer}>
             Effacer
-          </button>
+          </Bouton>
         )}
       </div>
 

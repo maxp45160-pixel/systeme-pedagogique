@@ -13,7 +13,7 @@ import { EntetePage } from "@/components/layout/entete-page";
 import {
   BarreProgression,
   Carte,
-  classesBouton,
+  classesLienBouton,
   CodeCompetence,
   cx,
   EnTeteCarte,
@@ -87,7 +87,7 @@ export default async function PageCompetence(props: {
         }`}
         actions={
           exercices.length > 0 ? (
-            <Link href={`/exercices?competence=${etat.skill.code}`} className={classesBouton("secondaire")}>
+            <Link href={`/exercices?competence=${etat.skill.code}`} className={classesLienBouton("secondaire")}>
               {exercices.length} exercice{exercices.length > 1 ? "s" : ""} disponible
               {exercices.length > 1 ? "s" : ""}
             </Link>
@@ -213,7 +213,7 @@ export default async function PageCompetence(props: {
                 }
                 action={
                   exercices.length > 0 ? (
-                    <Link href={`/exercices/${exercices[0].id}`} className={classesBouton("principal", "petite")}>
+                    <Link href={`/exercices/${exercices[0].id}`} className={classesLienBouton("principal", "petite")}>
                       Réaliser un diagnostic
                       <IconeFleche className="size-3.5" />
                     </Link>
@@ -332,7 +332,7 @@ export default async function PageCompetence(props: {
               {recommandation?.exercice ? (
                 <Link
                   href={`/exercices/${recommandation.exercice.id}`}
-                  className={cx(classesBouton("principal"), "mt-3 w-full")}
+                  className={cx(classesLienBouton("principal"), "mt-3 w-full")}
                 >
                   Commencer
                   <IconeFleche className="size-4" />

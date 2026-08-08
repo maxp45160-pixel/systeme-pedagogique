@@ -5,7 +5,7 @@ import { libelleDomaine } from "@/lib/domain/referentiel-compte";
 import { prochaineRevision } from "@/lib/engine/spaced";
 import {
   Carte,
-  classesBouton,
+  classesLienBouton,
   CodeCompetence,
   Etiquette,
   JaugeNiveau,
@@ -109,7 +109,7 @@ export function CarteProchaineAction({
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {exercice ? (
-            <Link href={`/exercices/${exercice.id}`} className={classesBouton("principal")}>
+            <Link href={`/exercices/${exercice.id}`} className={classesLienBouton("principal")}>
               Commencer
               <IconeFleche className="size-4" />
             </Link>
@@ -130,7 +130,7 @@ export function CarteProchaineAction({
           )}
           <Link
             href={`/competences/${etat.skill.code}`}
-            className={classesBouton("secondaire")}
+            className={classesLienBouton("secondaire")}
           >
             Voir la compétence
           </Link>

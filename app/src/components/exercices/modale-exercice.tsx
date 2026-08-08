@@ -28,7 +28,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { classesBouton, cx, Etiquette } from "@/components/ui/primitives";
+import { Bouton, Etiquette } from "@/components/ui/primitives";
 import { Markdown } from "@/components/ui/markdown";
 import { creerExercice } from "@/lib/store/actions";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
@@ -358,17 +358,12 @@ export function ModaleExercice({
             )}
 
             <div className="flex justify-end gap-2 border-t border-bordure pt-3">
-              <button type="button" onClick={onFermer} className={classesBouton("secondaire")}>
+              <Bouton onClick={onFermer} variante="secondaire">
                 Annuler
-              </button>
-              <button
-                type="button"
-                onClick={() => void generer()}
-                disabled={!competence}
-                className={classesBouton("principal")}
-              >
+              </Bouton>
+              <Bouton onClick={() => void generer()} disabled={!competence} variante="principal">
                 Générer
-              </button>
+              </Bouton>
             </div>
           </div>
         )}
@@ -379,16 +374,17 @@ export function ModaleExercice({
             <p className="mt-3 text-sm text-texte-attenue">
               {progression ?? "Le tuteur prend connaissance de ce qui a été mesuré…"}
             </p>
-            <button
-              type="button"
+            <Bouton
               onClick={() => {
                 abandonRef.current?.abort();
                 setPhase("formulaire");
               }}
-              className={cx(classesBouton("secondaire", "petite"), "mt-4")}
+              variante="secondaire"
+              taille="petite"
+              className="mt-4"
             >
               Arrêter
-            </button>
+            </Bouton>
           </div>
         )}
 
@@ -496,22 +492,18 @@ export function ModaleExercice({
                   {!enregistrees.has(i) && (
                     <div className="flex justify-end gap-2 border-t border-bordure bg-surface px-3 py-2">
                       {/* Ne retire que cette proposition — les autres restent. */}
-                      <button
-                        type="button"
+                      <Bouton
                         onClick={() =>
                           setPropositions((liste) => liste.filter((_, j) => j !== i))
                         }
-                        className={classesBouton("secondaire", "petite")}
+                        variante="secondaire"
+                        taille="petite"
                       >
                         Rejeter
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void enregistrer(p, i)}
-                        className={classesBouton("principal", "petite")}
-                      >
+                      </Bouton>
+                      <Bouton onClick={() => void enregistrer(p, i)} variante="principal" taille="petite">
                         Enregistrer
-                      </button>
+                      </Bouton>
                     </div>
                   )}
                 </div>
@@ -523,16 +515,12 @@ export function ModaleExercice({
               </p>
             )}
             <div className="flex justify-end gap-2 border-t border-bordure pt-3">
-              <button
-                type="button"
-                onClick={() => setPhase("formulaire")}
-                className={classesBouton("secondaire")}
-              >
+              <Bouton onClick={() => setPhase("formulaire")} variante="secondaire">
                 Générer un autre
-              </button>
-              <button type="button" onClick={onFermer} className={classesBouton("principal")}>
+              </Bouton>
+              <Bouton onClick={onFermer} variante="principal">
                 Fermer
-              </button>
+              </Bouton>
             </div>
           </div>
         )}

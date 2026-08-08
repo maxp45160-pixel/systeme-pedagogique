@@ -29,7 +29,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { classesBouton, cx } from "@/components/ui/primitives";
+import { Bouton } from "@/components/ui/primitives";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import type { PropositionRevision } from "@/lib/tutor/outils";
 import { appliquerRevision } from "@/lib/store/referentiel-actions";
@@ -253,14 +253,13 @@ export function ModaleRevision({
               ne sont pas touchées.
             </p>
             <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
+              <Bouton
                 onClick={() => void reviser()}
                 disabled={demande.trim().length === 0}
-                className={classesBouton("principal")}
+                variante="principal"
               >
                 Demander une révision
-              </button>
+              </Bouton>
               <button
                 type="button"
                 onClick={onSaisieManuelle}
@@ -278,16 +277,17 @@ export function ModaleRevision({
             <p className="mt-3 text-sm text-texte-attenue">
               {etat.progression ?? "Le tuteur prend connaissance de la branche…"}
             </p>
-            <button
-              type="button"
+            <Bouton
               onClick={() => {
                 abandonRef.current?.abort();
                 setEtat({ phase: "saisie" });
               }}
-              className={cx(classesBouton("secondaire", "petite"), "mt-4")}
+              variante="secondaire"
+              taille="petite"
+              className="mt-4"
             >
               Arrêter
-            </button>
+            </Bouton>
           </div>
         )}
 
@@ -460,17 +460,16 @@ export function ModaleRevision({
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
+              <Bouton
                 onClick={() => appliquer(p)}
                 disabled={
                   enCours ||
                   compte.ajouts + compte.modifs + compte.supprimees + compte.archivees === 0
                 }
-                className={classesBouton("principal")}
+                variante="principal"
               >
                 {enCours ? "Application…" : "Appliquer ce qui est coché"}
-              </button>
+              </Bouton>
               <button
                 type="button"
                 onClick={() => setEtat({ phase: "saisie" })}

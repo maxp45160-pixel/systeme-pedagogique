@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { classesBouton, cx, Etiquette } from "@/components/ui/primitives";
+import { Bouton, cx, Etiquette } from "@/components/ui/primitives";
 import { Depliant } from "@/components/ui/explication";
 import { Markdown } from "@/components/ui/markdown";
 import { preparerPromptComplet } from "@/lib/tutor/actions";
@@ -202,13 +202,14 @@ const MessageBulle = memo(function MessageBulle({
               <li className="text-texte-discret">… et {b.competences.length - 4} autre(s)</li>
             )}
           </ul>
-          <button
-            type="button"
+          <Bouton
             onClick={() => onOuvrirBranche(b)}
-            className={cx(classesBouton("secondaire", "petite"), "mt-2")}
+            variante="secondaire"
+            taille="petite"
+            className="mt-2"
           >
             Revoir et ajouter au référentiel
-          </button>
+          </Bouton>
         </div>
       ))}
     </div>
@@ -304,35 +305,26 @@ const ChatInput = memo(function ChatInput({
         </span>
         <div className="flex gap-1.5">
           {onReinitialiser && !enCours && (
-            <button
-              type="button"
+            <Bouton
               onClick={onReinitialiser}
               title="Efface les messages affichés. Tes preuves et tes exercices ne sont pas touchés."
-              className={classesBouton("secondaire", "petite")}
+              variante="secondaire"
+              taille="petite"
             >
               Réinitialiser
-            </button>
+            </Bouton>
           )}
-          <button
-            type="button"
-            onClick={() => onCopier(saisie)}
-            className={classesBouton("secondaire", "petite")}
-          >
+          <Bouton onClick={() => onCopier(saisie)} variante="secondaire" taille="petite">
             Copier le contexte
-          </button>
+          </Bouton>
           {/* Pendant la rédaction, le bouton devient la seule action utile.
               « En cours… » désactivé n'offrait aucune sortie. */}
           {enCours ? (
-            <button
-              type="button"
-              onClick={onArreter}
-              className={classesBouton("secondaire", "petite")}
-            >
+            <Bouton onClick={onArreter} variante="secondaire" taille="petite">
               Arrêter
-            </button>
+            </Bouton>
           ) : (
-            <button
-              type="button"
+            <Bouton
               onClick={() => {
                 const texte = saisie.trim();
                 if (texte) {
@@ -341,10 +333,11 @@ const ChatInput = memo(function ChatInput({
                 }
               }}
               disabled={!saisie.trim() || cleAbsente}
-              className={classesBouton("principal", "petite")}
+              variante="principal"
+              taille="petite"
             >
               Envoyer
-            </button>
+            </Bouton>
           )}
         </div>
       </div>
@@ -1025,16 +1018,14 @@ function ChatHydrate({
           */}
           {detache && (
             <div className="relative">
-              <button
-                type="button"
+              <Bouton
                 onClick={reprendreLeSuivi}
-                className={cx(
-                  classesBouton("secondaire", "petite"),
-                  "absolute -top-10 right-4 shadow-md",
-                )}
+                variante="secondaire"
+                taille="petite"
+                className="absolute -top-10 right-4 shadow-md"
               >
                 ↓ Reprendre le suivi
-              </button>
+              </Bouton>
             </div>
           )}
 

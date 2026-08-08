@@ -20,7 +20,7 @@
 
 import { useState, useTransition } from "react";
 import { abandonnerExercice } from "@/lib/store/actions";
-import { classesBouton } from "@/components/ui/primitives";
+import { Bouton } from "@/components/ui/primitives";
 
 export function BoutonAbandon({
   attemptId,
@@ -52,14 +52,9 @@ export function BoutonAbandon({
 
   if (!confirme) {
     return (
-      <button
-        type="button"
-        onClick={() => setConfirme(true)}
-        disabled={enCours}
-        className={classesBouton("secondaire", "petite")}
-      >
+      <Bouton onClick={() => setConfirme(true)} disabled={enCours} variante="secondaire" taille="petite">
         Abandonner cette tentative
-      </button>
+      </Bouton>
     );
   }
 
@@ -82,14 +77,9 @@ export function BoutonAbandon({
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={abandonner}
-          disabled={enCours}
-          className={classesBouton("secondaire", "petite")}
-        >
+        <Bouton onClick={abandonner} disabled={enCours} variante="secondaire" taille="petite">
           {enCours ? "Clôture…" : "Confirmer l'abandon"}
-        </button>
+        </Bouton>
         <button
           type="button"
           onClick={() => setConfirme(false)}

@@ -15,7 +15,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { Carte, classesBouton } from "@/components/ui/primitives";
+import { Bouton, Carte, classesLienBouton } from "@/components/ui/primitives";
 
 export default function ErreurApp({
   error,
@@ -50,10 +50,10 @@ export default function ErreurApp({
         )}
 
         <div className="mt-5 flex flex-wrap items-center gap-2">
-          <button type="button" onClick={reset} className={classesBouton("principal")}>
+          <Bouton onClick={reset} variante="principal">
             Réessayer
-          </button>
-          <Link href="/login" className={classesBouton("secondaire")}>
+          </Bouton>
+          <Link href="/login" className={classesLienBouton("secondaire")}>
             Se reconnecter
           </Link>
         </div>

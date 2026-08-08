@@ -28,7 +28,7 @@ import type { Exercise } from "@/lib/domain/types";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import { convertirCorrection } from "@/lib/tutor/conversion-correction";
 import type { PropositionCorrection } from "@/lib/tutor/outils";
-import { classesBouton, cx } from "@/components/ui/primitives";
+import { Bouton } from "@/components/ui/primitives";
 import { FormulaireBilan, type PropositionBilan } from "./formulaire-bilan";
 
 type Etat =
@@ -154,16 +154,17 @@ export function BilanAssiste({
         <p className="mt-1 text-[0.6875rem] text-texte-discret">
           Son verdict sera une proposition : tu le relis et tu décides.
         </p>
-        <button
-          type="button"
+        <Bouton
           onClick={() => {
             abandonRef.current?.abort();
             setEtat({ phase: "nue", raison: null });
           }}
-          className={cx(classesBouton("secondaire", "petite"), "mt-4")}
+          variante="secondaire"
+          taille="petite"
+          className="mt-4"
         >
           Remplir sans le tuteur
-        </button>
+        </Bouton>
       </div>
     );
   }
