@@ -174,7 +174,7 @@ export default async function PageCompetence(props: {
                           {LIBELLES_DIMENSIONS[d]}
                         </span>
                         <div className="flex-1">
-                          <BarreProgression fraction={etat.dimensions[d]} />
+                          <BarreProgression fraction={etat.dimensions[d]} libelle={LIBELLES_DIMENSIONS[d]} />
                         </div>
                         <span className="chiffres w-10 shrink-0 text-right text-xs">
                           {Math.round(etat.dimensions[d] * 100)}%

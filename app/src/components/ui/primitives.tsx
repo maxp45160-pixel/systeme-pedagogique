@@ -323,25 +323,40 @@ export function JaugeNiveau({
   );
 }
 
+/**
+ * Barre de progression — une seule fraction, 0 à 1.
+ *
+ * `libelle` porte l'`aria-label` : sans lui, un lecteur d'écran n'a que
+ * « barre de progression, 43 % » sans savoir de quoi. Facultatif seulement
+ * parce que l'unique usage actuel place déjà l'intitulé dans un `<span>`
+ * juste à côté — un futur usage isolé doit le passer.
+ */
 export function BarreProgression({
   fraction,
   ton = "primaire",
+  libelle,
   className,
 }: {
   fraction: number;
   ton?: "primaire" | "neutre" | "succes";
+  libelle?: string;
   className?: string;
 }) {
   const couleur =
     ton === "succes" ? "var(--succes)" : ton === "neutre" ? "var(--bordure-forte)" : "var(--primaire)";
+  const pourcent = Math.round(Math.max(0, Math.min(1, fraction)) * 100);
   return (
     <div
       className={cx("h-1.5 w-full overflow-hidden rounded-full bg-surface-3", className)}
-      role="presentation"
+      role="progressbar"
+      aria-valuenow={pourcent}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label={libelle}
     >
       <div
         className="h-full rounded-full transition-[width] duration-500"
-        style={{ width: `${Math.max(0, Math.min(1, fraction)) * 100}%`, background: couleur }}
+        style={{ width: `${pourcent}%`, background: couleur }}
       />
     </div>
   );
