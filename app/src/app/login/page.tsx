@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { FormulaireConnexion } from "./formulaire";
 import { supabaseConfigure } from "@/lib/supabase/config";
+import { Carte } from "@/components/ui/primitives";
 
 /**
  * Écran de connexion — hors du groupe `(app)` : pas de rail, pas de contexte
@@ -44,7 +45,7 @@ export default async function PageConnexion({
           </p>
         </div>
 
-        <div className="rounded-xl border border-bordure bg-surface p-5 shadow-[var(--ombre-carte)]">
+        <Carte className="p-5">
           {supabaseConfigure ? (
             <FormulaireConnexion destination={destination} erreurInitiale={erreur ?? null} />
           ) : (
@@ -69,7 +70,7 @@ export default async function PageConnexion({
               </Link>
             </div>
           )}
-        </div>
+        </Carte>
 
         <p className="mt-4 text-center text-[0.6875rem] leading-relaxed text-texte-discret">
           Vos preuves de compétence restent privées : elles ne sont lisibles que par

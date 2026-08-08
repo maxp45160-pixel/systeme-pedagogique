@@ -12,6 +12,8 @@
  * rien mesurer (protocole anti-hallucination : pas de zéro par défaut).
  */
 
+import { Carte } from "@/components/ui/primitives";
+
 export function Barre({ className = "" }: { className?: string }) {
   return <div className={`animate-pulse rounded-md bg-surface-2 ${className}`} />;
 }
@@ -24,11 +26,11 @@ export function SqueletteContenu({ cartes = 6 }: { cartes?: number }) {
       className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
     >
       {Array.from({ length: cartes }).map((_, i) => (
-        <div key={i} className="space-y-3 rounded-xl border border-bordure bg-surface p-4">
+        <Carte key={i} className="space-y-3 p-4">
           <Barre className="h-4 w-24" />
           <Barre className="h-8 w-16" />
           <Barre className="h-3 w-full" />
-        </div>
+        </Carte>
       ))}
     </div>
   );

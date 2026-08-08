@@ -241,7 +241,7 @@ function VueDomaines({
           .sort((a, b) => b!.localeCompare(a!))[0];
 
         return (
-          <Carte key={domaine.id} className="transition-shadow hover:shadow-md">
+          <Carte key={domaine.id} interactive>
             <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
               <Link
                 href={`/competences/domaine/${encodeURIComponent(domaine.id)}`}

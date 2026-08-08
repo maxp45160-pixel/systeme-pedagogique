@@ -13,12 +13,20 @@ export function Carte({
   children,
   className,
   accent,
+  interactive,
   id,
 }: {
   children: ReactNode;
   className?: string;
   /** Liseré supérieur pour distinguer la carte principale d'un écran. */
   accent?: boolean;
+  /**
+   * La carte enveloppe un lien ou un bouton et doit le signaler au survol.
+   * `shadow-levee` — pas le `shadow-md` par défaut de Tailwind, sans lien
+   * avec l'échelle à 3 niveaux du produit. La carte reste un `<section>` :
+   * c'est l'enfant interactif qui porte le focus et le clic, jamais elle.
+   */
+  interactive?: boolean;
   /** Identifiant d'ancrage (ex. `#preuve-manuelle` pour un lien ciblé). */
   id?: string;
 }) {
@@ -28,6 +36,7 @@ export function Carte({
       className={cx(
         "rounded-carte border bg-surface shadow-[var(--ombre-carte)]",
         accent ? "border-primaire/40 ring-1 ring-primaire/10" : "border-bordure",
+        interactive && "transition-shadow hover:shadow-levee",
         className,
       )}
     >
