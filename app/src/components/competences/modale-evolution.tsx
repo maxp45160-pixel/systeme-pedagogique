@@ -35,7 +35,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Bouton } from "@/components/ui/primitives";
+import { Bouton, PointActif } from "@/components/ui/primitives";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import type { PropositionEvolution } from "@/lib/tutor/outils";
 import { archiverCompetence, basculerActive, creerBranche } from "@/lib/store/referentiel-actions";
@@ -231,7 +231,7 @@ function ModaleEvolution({
 
         {etat.phase === "demande" && (
           <div className="mt-8 flex flex-col items-center justify-center py-10 text-center">
-            <span className="size-1.5 animate-pulse rounded-full bg-primaire" aria-hidden />
+            <PointActif />
             <p className="mt-3 text-sm text-texte-attenue">
               {etat.progression ?? "Le tuteur prend connaissance de ce qui a été mesuré…"}
             </p>

@@ -28,7 +28,7 @@ import type { Exercise } from "@/lib/domain/types";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import { convertirCorrection } from "@/lib/tutor/conversion-correction";
 import type { PropositionCorrection } from "@/lib/tutor/outils";
-import { Bouton } from "@/components/ui/primitives";
+import { Bouton, PointActif } from "@/components/ui/primitives";
 import { FormulaireBilan, type PropositionBilan } from "./formulaire-bilan";
 
 type Etat =
@@ -147,7 +147,7 @@ export function BilanAssiste({
   if (etat.phase === "correction") {
     return (
       <div className="flex flex-col items-center justify-center py-8 text-center">
-        <span className="size-1.5 animate-pulse rounded-full bg-primaire" aria-hidden />
+        <PointActif />
         <p className="mt-3 text-sm text-texte-attenue">
           {progression ?? "Le tuteur relit ta réponse…"}
         </p>

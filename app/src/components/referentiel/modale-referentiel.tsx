@@ -20,7 +20,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Bouton } from "@/components/ui/primitives";
+import { Bouton, PointActif } from "@/components/ui/primitives";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import type { PropositionReferentiel } from "@/lib/tutor/proposition";
 import { creerBranche } from "@/lib/store/referentiel-actions";
@@ -240,7 +240,7 @@ export function BoutonCreerReferentiel({ compteId }: { compteId: string }) {
 
           {etat.phase === "proposition" && (
             <div className="mt-8 flex flex-col items-center justify-center py-10 text-center">
-              <span className="size-1.5 animate-pulse rounded-full bg-primaire" aria-hidden />
+              <PointActif />
               <p className="mt-3 text-sm text-texte-attenue">
                 {etat.progression ?? "Le tuteur découpe le sujet…"}
               </p>

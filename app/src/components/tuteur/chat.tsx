@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { Bouton, cx, Etiquette } from "@/components/ui/primitives";
+import { Bouton, cx, Etiquette, PointActif } from "@/components/ui/primitives";
 import { Depliant } from "@/components/ui/explication";
 import { Markdown } from "@/components/ui/markdown";
 import { preparerPromptComplet } from "@/lib/tutor/actions";
@@ -165,7 +165,7 @@ const MessageBulle = memo(function MessageBulle({
             <span className="text-xs text-texte-attenue">Proposition ci-dessous.</span>
           ) : (
             <span className="inline-flex items-center gap-1.5 text-xs text-texte-attenue">
-              <span className="size-1.5 animate-pulse rounded-full bg-primaire" />
+              <PointActif />
               Le tuteur réfléchit…
             </span>
           )
@@ -1006,7 +1006,7 @@ function ChatHydrate({
             */}
             {outilEnCours && (
               <div className="flex items-center gap-2 px-1 text-xs text-texte-attenue">
-                <span className="size-1.5 animate-pulse rounded-full bg-primaire" />
+                <PointActif />
                 {LIBELLE_OUTIL[outilEnCours] ?? "Le tuteur prépare une proposition…"}
               </div>
             )}

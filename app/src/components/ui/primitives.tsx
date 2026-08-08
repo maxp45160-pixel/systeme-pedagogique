@@ -194,6 +194,67 @@ export function Etiquette({
   );
 }
 
+/**
+ * Statut d'une compétence — cinq états sur deux axes distincts (voir
+ * `tokens.css` §4) : `inconnu`/`emergent`/`pratique`/`solide` mesurent la
+ * maîtrise, `a-rafraichir` mesure le temps et se superpose à n'importe lequel
+ * des quatre. Rendre les deux ensemble se fait en juxtaposant deux
+ * `EtiquetteStatut`, pas en ajoutant un état combiné ici.
+ *
+ * ⚠️ Purement présentationnel : le statut est un prop explicite, il n'existe
+ * aujourd'hui aucune fonction dans `lib/domain/` ou `lib/engine/` qui dérive
+ * l'un des cinq états depuis `SkillState` (niveau, confiance, dernière
+ * preuve). L'écrire serait fabriquer des seuils non validés par des données
+ * réelles — exactement ce que ce projet refuse ailleurs (calibration.ts). Ce
+ * composant est prêt ; le câblage attend une décision produit.
+ */
+export type StatutCompetence = "inconnu" | "emergent" | "pratique" | "solide" | "a-rafraichir";
+
+const LIBELLES_STATUT: Record<StatutCompetence, string> = {
+  inconnu: "Inconnu",
+  emergent: "Émergent",
+  pratique: "Pratiqué",
+  solide: "Solide",
+  "a-rafraichir": "À rafraîchir",
+};
+
+const TONS_STATUT: Record<StatutCompetence, string> = {
+  inconnu: "border-statut-inconnu/25 bg-statut-inconnu-faible text-statut-inconnu",
+  emergent: "border-statut-emergent/25 bg-statut-emergent-faible text-statut-emergent",
+  pratique: "border-statut-pratique/25 bg-statut-pratique-faible text-statut-pratique",
+  solide: "border-statut-solide/25 bg-statut-solide-faible text-statut-solide",
+  "a-rafraichir": "border-statut-a-rafraichir/25 bg-statut-a-rafraichir-faible text-statut-a-rafraichir",
+};
+
+export function EtiquetteStatut({
+  statut,
+  className,
+}: {
+  statut: StatutCompetence;
+  className?: string;
+}) {
+  return (
+    <span
+      className={cx(
+        "inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[0.6875rem] font-medium leading-normal",
+        TONS_STATUT[statut],
+        className,
+      )}
+    >
+      {LIBELLES_STATUT[statut]}
+    </span>
+  );
+}
+
+/**
+ * Point pulsant — signale une activité en cours (réponse du tuteur en train
+ * de s'écrire, action en attente). Dupliqué à l'identique dans 8 endroits
+ * avant ce composant.
+ */
+export function PointActif({ className }: { className?: string }) {
+  return <span aria-hidden className={cx("size-1.5 animate-pulse rounded-full bg-primaire", className)} />;
+}
+
 export function CodeCompetence({ code }: { code: string }) {
   return (
     <span className="font-mono text-[0.6875rem] font-medium tracking-tight text-texte-discret">

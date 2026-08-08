@@ -28,7 +28,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bouton, Etiquette } from "@/components/ui/primitives";
+import { Bouton, Etiquette, PointActif } from "@/components/ui/primitives";
 import { Champ, ChampSelect } from "@/components/ui/champ";
 import { Markdown } from "@/components/ui/markdown";
 import { creerExercice } from "@/lib/store/actions";
@@ -348,7 +348,7 @@ export function ModaleExercice({
 
         {phase === "generation" && (
           <div className="mt-8 flex flex-col items-center justify-center py-10 text-center">
-            <span className="size-1.5 animate-pulse rounded-full bg-primaire" aria-hidden />
+            <PointActif />
             <p className="mt-3 text-sm text-texte-attenue">
               {progression ?? "Le tuteur prend connaissance de ce qui a été mesuré…"}
             </p>
