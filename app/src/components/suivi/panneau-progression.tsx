@@ -14,7 +14,7 @@ import {
   Statistique,
   TagConfiance,
 } from "@/components/ui/primitives";
-import { Courbe, GrilleActivite, LegendeActivite } from "@/components/charts";
+import { Courbe, GrilleActivite, LegendeActivite, Radar } from "@/components/charts";
 import { formatDuree } from "@/lib/engine/dates";
 
 const PERIODES = [
@@ -116,6 +116,52 @@ async function ContenuProgression({ periode }: { periode: Periode }) {
         </Carte>
       ) : (
         <div className="space-y-6">
+          {/*
+            Radar de synthèse — où j'en suis, tous domaines confondus, en ce
+            moment précis. La courbe qui suit répond à une autre question
+            (comment ça a bougé) : le radar situe, elle raconte.
+            `ctx.global.parDomaine` porte déjà tout ce qu'il faut — un score
+            0-100 par domaine — sans calcul supplémentaire.
+            Sous 3 domaines mesurés un radar est un point ou un segment,
+            illisible : on retombe sur les sparklines « Par domaine »
+            ci-dessous, déjà présentes.
+          */}
+          {(() => {
+            const domainesMesures = ctx.global.parDomaine.filter((d) => d.score !== null);
+            if (domainesMesures.length < 3) return null;
+            const domainesNonMesures = ctx.global.parDomaine.filter((d) => d.score === null);
+            const axes = ctx.global.parDomaine.map((d) => ({ libelle: d.nom, valeur: d.score }));
+            const libelleRadar = "Radar de synthèse, un axe par domaine";
+            return (
+              <Carte>
+                <EnTeteCarte
+                  titre="Où j'en suis, tous domaines confondus"
+                  legende="Score sur 100, un axe par domaine"
+                />
+                <div className="px-4 py-3.5">
+                  {/*
+                    Deux rendus, un seul visible : `Radar` ne redimensionne
+                    pas sa géométrie interne (labels, rayon) par CSS seul —
+                    changer `taille` change le viewBox. Duplication acceptée,
+                    coût négligeable (une poignée d'éléments SVG).
+                  */}
+                  <div className="lg:hidden">
+                    <Radar axes={axes} libelle={libelleRadar} taille={260} />
+                  </div>
+                  <div className="hidden lg:block">
+                    <Radar axes={axes} libelle={libelleRadar} taille={320} />
+                  </div>
+                  {domainesNonMesures.length > 0 && (
+                    <p className="mt-3 text-[0.6875rem] text-texte-attenue">
+                      Tracés à zéro, pas mesurés comme faibles — aucune preuve encore :{" "}
+                      {domainesNonMesures.map((d) => d.nom).join(", ")}.
+                    </p>
+                  )}
+                </div>
+              </Carte>
+            );
+          })()}
+
           <Carte>
             <EnTeteCarte
               titre={`Bilan — ${periode.libelle.toLowerCase()}`}

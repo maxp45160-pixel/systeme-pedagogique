@@ -147,7 +147,7 @@ export default async function PageDomaine(props: {
               legende="Score sur 100, un axe par compétence"
             />
             <div className="px-4 py-3.5">
-              <Radar axes={axes} />
+              <Radar axes={axes} libelle={`Radar par compétence du domaine ${domaine.nom}`} />
               {etats.some((e) => e.score === null) && (
                 <p className="mt-3 text-[0.6875rem] text-texte-attenue">
                   Les compétences sans preuve sont tracées à zéro — ce n{"'"}est pas

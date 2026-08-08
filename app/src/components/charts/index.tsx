@@ -333,13 +333,29 @@ export interface AxeRadar {
 }
 
 /**
- * Radar des domaines. Une seule série, jamais la vue par défaut de la page
- * Compétences (exigence explicite du cahier des charges).
+ * Radar — une seule série, jamais une vue par défaut (exigence explicite du
+ * cahier des charges). Deux sens distincts selon l'appelant : un axe par
+ * compétence (page domaine) ou un axe par domaine (synthèse de progression).
  *
- * Les domaines sans preuve sont tracés à zéro ET listés en texte sous le
+ * Les axes sans preuve sont tracés à zéro ET listés en texte sous le
  * graphique, pour qu'un creux ne soit pas lu comme une faiblesse mesurée.
+ *
+ * `libelle` est requis — pas déduit en interne. Le composant a longtemps
+ * annoncé « Radar des domaines » quelle que soit la donnée reçue, y compris
+ * quand elle était en réalité un axe par compétence : un texte fixe dans le
+ * composant ment dès qu'un second sens existe. C'est à l'appelant de dire ce
+ * qu'il montre.
  */
-export function Radar({ axes, taille = 260 }: { axes: AxeRadar[]; taille?: number }) {
+export function Radar({
+  axes,
+  taille = 260,
+  libelle,
+}: {
+  axes: AxeRadar[];
+  taille?: number;
+  /** Décrit ce que représente un axe, ex. « Radar par compétence du domaine ». */
+  libelle: string;
+}) {
   const c = taille / 2;
   const rayon = c - 34;
   const n = axes.length;
@@ -364,7 +380,7 @@ export function Radar({ axes, taille = 260 }: { axes: AxeRadar[]; taille?: numbe
       className="mx-auto"
       style={{ maxWidth: taille }}
       role="img"
-      aria-label={`Radar des domaines. ${mesures.length} domaine(s) mesuré(s) sur ${n}.`}
+      aria-label={`${libelle}. ${mesures.length} mesuré(s) sur ${n}.`}
     >
       {/* Grille en retrait : quatre cercles seulement. */}
       {[0.25, 0.5, 0.75, 1].map((f) => (
