@@ -13,7 +13,7 @@ import {
 } from "@/lib/store/referentiel-actions";
 import { BandeauInfo, Bouton, CodeCompetence, cx, Etiquette } from "@/components/ui/primitives";
 import { Champ, ChampSelect } from "@/components/ui/champ";
-import { PanneauPliable } from "@/components/ui/panneau-pliable";
+import { PanneauPliable, TiroirRepliable } from "@/components/ui/panneau-pliable";
 import type { Domaine, Palier, Skill } from "@/lib/domain/types";
 import { comparerCodes, type EtatRetrait } from "@/lib/domain/referentiel-compte";
 
@@ -341,17 +341,18 @@ export function GestionReferentiel({
                 muet se confondrait avec un domaine sans archive.
               */
               !domaine.archive && items.some((s) => s.archive) ? (
-                <button
-                  type="button"
-                  onClick={() => basculerDans(domaine.id, archiveesOuvertes, setArchiveesOuvertes)}
-                  aria-expanded={archiveesOuvertes.has(domaine.id)}
-                  className="w-full border-t border-bordure px-4 py-2 text-left text-[0.6875rem] text-texte-attenue transition-colors hover:bg-surface-2 hover:text-texte"
-                >
-                  {archiveesOuvertes.has(domaine.id) ? "▼" : "▶"}{" "}
-                  {items.filter((s) => s.archive).length} compétence
-                  {items.filter((s) => s.archive).length > 1 ? "s" : ""} archivée
-                  {items.filter((s) => s.archive).length > 1 ? "s" : ""}
-                </button>
+                <TiroirRepliable
+                  ouvert={archiveesOuvertes.has(domaine.id)}
+                  onBasculer={() => basculerDans(domaine.id, archiveesOuvertes, setArchiveesOuvertes)}
+                  className="border-t border-bordure px-4 py-2 text-[0.6875rem] text-texte-attenue hover:bg-surface-2 hover:text-texte"
+                  libelle={
+                    <>
+                      {items.filter((s) => s.archive).length} compétence
+                      {items.filter((s) => s.archive).length > 1 ? "s" : ""} archivée
+                      {items.filter((s) => s.archive).length > 1 ? "s" : ""}
+                    </>
+                  }
+                />
               ) : undefined
             }
           >
@@ -562,20 +563,19 @@ function BandeauArchives({
   onBasculer: () => void;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onBasculer}
-      aria-expanded={ouvert}
-      className="flex w-full items-center gap-2 rounded-carte border border-dashed border-bordure px-4 py-2.5 text-left text-xs text-texte-attenue transition-colors hover:border-bordure hover:bg-surface-2 hover:text-texte"
-    >
-      <span aria-hidden className="text-[0.625rem] text-texte-discret">
-        {ouvert ? "▼" : "▶"}
-      </span>
-      <span className="font-medium">Référentiels archivés</span>
-      <span className="text-texte-discret">
-        {nombre} domaine{nombre > 1 ? "s" : ""} — hors périmètre, preuves conservées
-      </span>
-    </button>
+    <TiroirRepliable
+      ouvert={ouvert}
+      onBasculer={onBasculer}
+      className="rounded-carte border border-dashed border-bordure px-4 py-2.5 text-xs text-texte-attenue hover:border-bordure hover:bg-surface-2 hover:text-texte"
+      libelle={
+        <>
+          <span className="font-medium">Référentiels archivés</span>
+          <span className="text-texte-discret">
+            {nombre} domaine{nombre > 1 ? "s" : ""} — hors périmètre, preuves conservées
+          </span>
+        </>
+      }
+    />
   );
 }
 

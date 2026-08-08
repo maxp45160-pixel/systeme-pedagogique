@@ -27,6 +27,7 @@ import {
 } from "@/lib/store/referentiel-actions";
 import { BandeauInfo, Bouton, CodeCompetence, cx, Etiquette } from "@/components/ui/primitives";
 import { Champ, ChampSelect } from "@/components/ui/champ";
+import { TiroirRepliable } from "@/components/ui/panneau-pliable";
 import type { Domaine, Palier, Skill } from "@/lib/domain/types";
 import { comparerCodes, type EtatRetrait } from "@/lib/domain/referentiel-compte";
 
@@ -313,22 +314,20 @@ export function GestionDomaine({
       {/* Tiroir des compétences archivées du domaine */}
       {archivees.length > 0 && (
         <div className="rounded-carte border border-bordure bg-surface">
-          <button
-            type="button"
-            onClick={() => setArchivesOuvertes((o) => !o)}
-            aria-expanded={archivesOuvertes}
-            className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-[0.6875rem] text-texte-attenue transition-colors hover:bg-surface-2 hover:text-texte"
+          <TiroirRepliable
+            ouvert={archivesOuvertes}
+            onBasculer={() => setArchivesOuvertes((o) => !o)}
+            className="px-4 py-2.5 text-[0.6875rem] text-texte-attenue hover:bg-surface-2 hover:text-texte"
+            libelle={
+              <>
+                <span className="font-medium">
+                  {archivees.length} compétence{archivees.length > 1 ? "s" : ""} archivée
+                  {archivees.length > 1 ? "s" : ""}
+                </span>
+                <span className="text-texte-discret">— preuves conservées</span>
+              </>
+            }
           >
-            <span aria-hidden className="text-[0.625rem] text-texte-discret">
-              {archivesOuvertes ? "▼" : "▶"}
-            </span>
-            <span className="font-medium">
-              {archivees.length} compétence{archivees.length > 1 ? "s" : ""} archivée
-              {archivees.length > 1 ? "s" : ""}
-            </span>
-            <span className="text-texte-discret">— preuves conservées</span>
-          </button>
-          {archivesOuvertes && (
             <ul className="divide-y divide-bordure border-t border-bordure">
               {archivees.map((s) => (
                 <li key={s.code} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 opacity-70">
@@ -348,7 +347,7 @@ export function GestionDomaine({
                 </li>
               ))}
             </ul>
-          )}
+          </TiroirRepliable>
         </div>
       )}
     </div>

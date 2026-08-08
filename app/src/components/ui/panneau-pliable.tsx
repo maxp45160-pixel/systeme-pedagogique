@@ -75,3 +75,57 @@ export function PanneauPliable({
     </Carte>
   );
 }
+
+/**
+ * Tiroir replié léger — sans `Carte`, sans en-tête collant, sans slots.
+ *
+ * `PanneauPliable` a une forme (carte, en-tête collant) qui ne convient qu'à
+ * une seule section par écran. Trois endroits repliaient des compétences ou
+ * des référentiels archivés avec la même flèche ▼/▶ et le même
+ * `aria-expanded`, mais dans une ligne ou un bandeau, jamais une carte
+ * autonome — les y forcer aurait cassé leur mise en page. Ce composant ne
+ * possède que ce que les trois partagent réellement : la flèche, l'état, le
+ * câblage ARIA. Le chrome (bordure, fond, rayon) reste au choix de
+ * l'appelant via `className`, posé sur le `<button>` lui-même.
+ *
+ * Contrôlé, pas de `useState` interne : deux des trois usages gèrent l'état
+ * depuis le parent (plusieurs tiroirs à la fois, ou un état partagé au-delà
+ * de ce composant) ; le troisième ajoute son propre `useState` en deux
+ * lignes, comme n'importe quel composant contrôlé.
+ */
+export function TiroirRepliable({
+  ouvert,
+  onBasculer,
+  libelle,
+  className,
+  children,
+}: {
+  ouvert: boolean;
+  onBasculer: () => void;
+  /** Contenu du bouton, à côté de la flèche — texte ou composition de `<span>`. */
+  libelle: ReactNode;
+  className?: string;
+  /**
+   * Rendu seulement quand `ouvert` est vrai. Facultatif : un des trois
+   * usages réels ne fait que basculer un drapeau consulté ailleurs (un
+   * filtre appliqué dans une liste voisine) — il n'a rien à rendre ici.
+   */
+  children?: ReactNode;
+}) {
+  return (
+    <>
+      <button
+        type="button"
+        onClick={onBasculer}
+        aria-expanded={ouvert}
+        className={cx("flex w-full items-center gap-2 text-left transition-colors", className)}
+      >
+        <span aria-hidden className="shrink-0 text-[0.625rem] text-texte-discret">
+          {ouvert ? "▼" : "▶"}
+        </span>
+        {libelle}
+      </button>
+      {ouvert && children}
+    </>
+  );
+}
