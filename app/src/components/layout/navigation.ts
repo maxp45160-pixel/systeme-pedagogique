@@ -60,9 +60,22 @@ export const NAVIGATION: GroupeNav[] = [
 /**
  * Barre inférieure mobile : les trois pôles, dans le même ordre de priorité
  * que le desktop — le travail d'abord.
+ *
+ * Dérivée de `NAVIGATION`, pas recopiée : une recopie littérale (l'ancien
+ * état de ce fichier) a fini par diverger silencieusement du JSDoc qui la
+ * décrivait — « les cinq destinations » alors qu'il n'y en avait que trois.
+ * Une seule liste éditable ferme ce risque.
  */
-export const NAV_MOBILE: Entree[] = [
-  { href: "/", libelle: "Tableau de bord", court: "Bord", icone: IconeTableauBord },
-  { href: "/exercices", libelle: "Exercices", court: "Exos", icone: IconeExercices },
-  { href: "/competences", libelle: "Compétences & Suivi", court: "Compét.", icone: IconeCompetences },
-];
+export const NAV_MOBILE: Entree[] = NAVIGATION.flatMap((groupe) => groupe.entrees);
+
+/**
+ * Une destination est « active » si l'URL courante l'égale ou en descend —
+ * `/competences/domaine/x` active l'entrée `/competences`, mais `/exercices`
+ * n'active pas `/`. Partagée entre le rail (desktop) et la barre basse
+ * (mobile) : les deux doivent s'accorder sur la même page courante, pas
+ * chacune sa propre règle.
+ */
+export function estActif(pathname: string, href: string): boolean {
+  if (href === "/") return pathname === "/";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}

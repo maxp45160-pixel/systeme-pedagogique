@@ -2,18 +2,26 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { NAV_MOBILE } from "./navigation";
+import { estActif, NAV_MOBILE } from "./navigation";
 import { cx } from "@/components/ui/primitives";
 
-/** Barre inférieure sur mobile : les cinq destinations effectivement utiles. */
+/** Barre inférieure sur mobile : les mêmes destinations que le rail desktop. */
 export function NavMobile() {
   const pathname = usePathname();
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-bordure bg-surface/95 backdrop-blur-sm lg:hidden">
-      <ul className="grid grid-cols-5">
+      {/*
+        Nombre de colonnes dérivé de NAV_MOBILE, pas une classe Tailwind
+        interpolée : le scanner de classes de Tailwind lit le texte source,
+        il n'évalue rien — `grid-cols-${n}` ne produirait aucune règle.
+      */}
+      <ul
+        className="grid"
+        style={{ gridTemplateColumns: `repeat(${NAV_MOBILE.length}, minmax(0, 1fr))` }}
+      >
         {NAV_MOBILE.map((e) => {
-          const actif = e.href === "/" ? pathname === "/" : pathname.startsWith(e.href);
+          const actif = estActif(pathname, e.href);
           const Icone = e.icone;
           return (
             <li key={e.href}>

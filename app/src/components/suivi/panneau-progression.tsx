@@ -10,6 +10,7 @@ import {
   EnTeteCarte,
   Etiquette,
   EtatVide,
+  SelecteurSegmente,
   Statistique,
   TagConfiance,
 } from "@/components/ui/primitives";
@@ -46,22 +47,20 @@ export async function PanneauProgression({ periode }: { periode: string }) {
  */
 function SelecteurPeriode({ courante }: { courante: Periode }) {
   return (
-    <div className="mb-4 flex flex-wrap rounded-md border border-bordure p-0.5">
-      {PERIODES.map((p) => (
+    <SelecteurSegmente
+      className="mb-4"
+      options={PERIODES.map((p) => ({ cle: p.cle, libelle: p.libelle }))}
+      actif={courante.cle}
+      rendreItem={(o, classesItem, estActifItem) => (
         <Link
-          key={p.cle}
-          href={`/competences?vue=progression&periode=${p.cle}`}
-          className={cx(
-            "rounded px-2.5 py-1 text-xs font-medium transition-colors",
-            courante.cle === p.cle
-              ? "bg-primaire-faible text-primaire"
-              : "text-texte-attenue hover:text-texte",
-          )}
+          href={`/competences?vue=progression&periode=${o.cle}`}
+          aria-current={estActifItem ? "page" : undefined}
+          className={classesItem}
         >
-          {p.libelle}
+          {o.libelle}
         </Link>
-      ))}
-    </div>
+      )}
+    />
   );
 }
 
@@ -251,7 +250,7 @@ async function ContenuProgression({ periode }: { periode: Periode }) {
                           qui n'existe pas.
                         */}
                         <Link
-                          href="/competences?vue=grille"
+                          href="/competences"
                           className="min-w-0 truncate text-xs font-medium hover:underline"
                         >
                           {d.nom}

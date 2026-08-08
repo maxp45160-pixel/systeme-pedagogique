@@ -8,8 +8,8 @@ import { EntetePage } from "@/components/layout/entete-page";
 import {
   BandeauInfo,
   Carte,
-  cx,
   Etiquette,
+  SelecteurSegmente,
   Statistique,
 } from "@/components/ui/primitives";
 import { RepartitionNiveaux } from "@/components/charts";
@@ -52,24 +52,19 @@ export default async function PageCompetences(props: {
         titre="Compétences"
         sousTitre="Tes grands domaines de travail. Clique sur un domaine pour voir ses compétences et les gérer."
         actions={
-          <div className="flex items-center gap-3">
-            <div className="flex rounded-md border border-bordure p-0.5">
-              {VUES.map((v) => (
-                <Link
-                  key={v.cle}
-                  href={`/competences${v.cle === "accueil" ? "" : `?vue=${v.cle}`}`}
-                  className={cx(
-                    "rounded px-2.5 py-1 text-xs font-medium transition-colors",
-                    vue === v.cle
-                      ? "bg-primaire-faible text-primaire"
-                      : "text-texte-attenue hover:text-texte",
-                  )}
-                >
-                  {v.libelle}
-                </Link>
-              ))}
-            </div>
-          </div>
+          <SelecteurSegmente
+            options={VUES.map((v) => ({ cle: v.cle, libelle: v.libelle }))}
+            actif={vue}
+            rendreItem={(o, classesItem, estActifItem) => (
+              <Link
+                href={`/competences${o.cle === "accueil" ? "" : `?vue=${o.cle}`}`}
+                aria-current={estActifItem ? "page" : undefined}
+                className={classesItem}
+              >
+                {o.libelle}
+              </Link>
+            )}
+          />
         }
       />
 

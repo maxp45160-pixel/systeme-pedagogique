@@ -2,15 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { NAVIGATION } from "./navigation";
+import { estActif, NAVIGATION } from "./navigation";
 import { cx } from "@/components/ui/primitives";
 import { BasculeRail } from "./bascule-rail";
 import { Compte, type EtatSession } from "./compte";
-
-function estActif(pathname: string, href: string): boolean {
-  if (href === "/") return pathname === "/";
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
 
 export function Sidebar({ session }: { session: EtatSession }) {
   const pathname = usePathname();

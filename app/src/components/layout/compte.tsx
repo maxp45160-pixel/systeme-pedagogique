@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { Bouton, classesLienBouton, cx } from "@/components/ui/primitives";
+import { Bouton, classesLienBouton, cx, SelecteurSegmente } from "@/components/ui/primitives";
 import { Champ, ChampSelect, classesChamp } from "@/components/ui/champ";
 import { seDeconnecter } from "@/lib/supabase/actions";
 import { exporterJournal } from "@/lib/store/export";
@@ -272,7 +272,7 @@ function PanneauReglages({
                 Formation, objectifs et préférences
               </Link>
               <Link
-                href="/competences?vue=gerer"
+                href="/competences"
                 onClick={onFermer}
                 className="text-xs text-primaire hover:underline"
               >
@@ -585,10 +585,18 @@ function ReglagesTuteur({ compteId }: { compteId: string }) {
   );
 }
 
-const APPARENCES: { cle: ChoixTheme; libelle: string }[] = [
-  { cle: "clair", libelle: "Clair" },
-  { cle: "dark", libelle: "Sombre" },
-  { cle: null, libelle: "Système" },
+/*
+ * Clés en chaîne, pas `ChoixTheme` directement : `SelecteurSegmente` est
+ * générique sur une clé `string`, et `ChoixTheme` porte `null` (« suivre le
+ * système ») — la conversion se fait aux deux frontières de `ChoixApparence`
+ * plutôt que d'élargir le composant partagé pour ce seul cas.
+ */
+type CleApparence = "clair" | "dark" | "systeme";
+
+const APPARENCES: { cle: CleApparence; theme: ChoixTheme; libelle: string }[] = [
+  { cle: "clair", theme: "clair", libelle: "Clair" },
+  { cle: "dark", theme: "dark", libelle: "Sombre" },
+  { cle: "systeme", theme: null, libelle: "Système" },
 ];
 
 /**
@@ -607,25 +615,24 @@ function ChoixApparence() {
     setChoix(c);
   }
 
+  const actif = APPARENCES.find((a) => a.theme === choix)?.cle ?? "systeme";
+
   return (
-    <div className="flex flex-wrap rounded-md border border-bordure p-0.5">
-      {APPARENCES.map((a) => (
+    <SelecteurSegmente
+      options={APPARENCES.map((a) => ({ cle: a.cle, libelle: a.libelle }))}
+      actif={actif}
+      rendreItem={(o, classesItem, estActifItem) => (
         <button
-          key={a.libelle}
+          key={o.cle}
           type="button"
-          onClick={() => choisir(a.cle)}
-          aria-pressed={choix === a.cle}
-          className={cx(
-            "rounded px-2.5 py-1 text-xs font-medium transition-colors",
-            choix === a.cle
-              ? "bg-primaire-faible text-primaire"
-              : "text-texte-attenue hover:text-texte",
-          )}
+          onClick={() => choisir(APPARENCES.find((a) => a.cle === o.cle)!.theme)}
+          aria-pressed={estActifItem}
+          className={classesItem}
         >
-          {a.libelle}
+          {o.libelle}
         </button>
-      ))}
-    </div>
+      )}
+    />
   );
 }
 

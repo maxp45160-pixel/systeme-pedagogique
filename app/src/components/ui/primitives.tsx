@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import type { Confiance, NiveauCompetence } from "@/lib/domain/types";
 
@@ -143,6 +144,57 @@ export function BandeauInfo({
       )}
     >
       {children}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Sélecteur segmenté                                                   */
+/* ------------------------------------------------------------------ */
+
+export interface OptionSegmentee<T extends string> {
+  cle: T;
+  libelle: string;
+}
+
+/**
+ * Sélecteur segmenté — un état parmi plusieurs, montrés côte à côte.
+ *
+ * Trois copies visuellement identiques existaient (bascule de vue sur
+ * `/competences`, sélecteur de période, choix d'apparence), mais deux natures
+ * différentes se cachaient dessous : un état **partageable par URL** (un
+ * `<Link>`, on doit pouvoir l'ouvrir dans un nouvel onglet ou le mettre en
+ * favori) et une **préférence locale** (un `<button aria-pressed>`, elle ne
+ * vit que dans cette session). Un composant qui forcerait l'un des deux
+ * casserait l'autre — celui-ci ne possède donc que l'habillage et l'état actif
+ * calculé ; l'élément concret (`<Link>` ou `<button>`) reste au choix de
+ * l'appelant, via `rendreItem`.
+ */
+export function SelecteurSegmente<T extends string>({
+  options,
+  actif,
+  className,
+  rendreItem,
+}: {
+  options: OptionSegmentee<T>[];
+  actif: T;
+  className?: string;
+  /**
+   * Rend une option : reçoit ses classes déjà calculées (actif/inactif) à
+   * appliquer sur l'élément interactif choisi par l'appelant.
+   */
+  rendreItem: (option: OptionSegmentee<T>, classesItem: string, estActif: boolean) => ReactNode;
+}) {
+  return (
+    <div className={cx("flex flex-wrap rounded-md border border-bordure p-0.5", className)}>
+      {options.map((o) => {
+        const estActifItem = o.cle === actif;
+        const classesItem = cx(
+          "rounded px-2.5 py-1 text-xs font-medium transition-colors",
+          estActifItem ? "bg-primaire-faible text-primaire" : "text-texte-attenue hover:text-texte",
+        );
+        return <Fragment key={o.cle}>{rendreItem(o, classesItem, estActifItem)}</Fragment>;
+      })}
     </div>
   );
 }
