@@ -26,13 +26,12 @@ import {
   supprimerCompetence,
 } from "@/lib/store/referentiel-actions";
 import { Bouton, CodeCompetence, cx, Etiquette } from "@/components/ui/primitives";
+import { Champ, ChampSelect } from "@/components/ui/champ";
 import type { Domaine, Palier, Skill } from "@/lib/domain/types";
 import { comparerCodes, type EtatRetrait } from "@/lib/domain/referentiel-compte";
 
 const PALIERS: Palier[] = ["fondamentaux", "intermediaire", "avance"];
-
-const champ =
-  "w-full rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm focus:border-primaire focus:outline-none";
+const OPTIONS_PALIER = PALIERS.map((p) => ({ valeur: p, libelle: p }));
 
 export function GestionDomaine({
   domaine,
@@ -371,22 +370,15 @@ function FormulaireEdition({
 
   return (
     <div className="mt-2 space-y-2">
-      <input value={intitule} onChange={(e) => setIntitule(e.target.value)} className={champ} />
+      <Champ label="Intitulé" value={intitule} onChange={(e) => setIntitule(e.target.value)} />
       <div className="flex flex-wrap items-center gap-2 text-xs">
-        <label className="flex items-center gap-1.5">
-          <span className="text-texte-attenue">Palier</span>
-          <select
-            value={palier}
-            onChange={(e) => setPalier(e.target.value as Palier)}
-            className="rounded-md border border-bordure bg-surface px-1.5 py-1"
-          >
-            {PALIERS.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
-        </label>
+        <ChampSelect
+          label="Palier"
+          taille="compacte"
+          value={palier}
+          onChange={(e) => setPalier(e.target.value as Palier)}
+          options={OPTIONS_PALIER}
+        />
         <label className="flex items-center gap-1.5">
           <span className="text-texte-attenue">Importance</span>
           <input

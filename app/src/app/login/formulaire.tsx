@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createNavigateurClient } from "@/lib/supabase/client";
 import { Bouton } from "@/components/ui/primitives";
+import { Champ } from "@/components/ui/champ";
 
 type Mode = "connexion" | "inscription";
 
@@ -79,10 +80,6 @@ export function FormulaireConnexion({
     router.refresh();
   }
 
-  const champ =
-    "h-9 w-full rounded-md border border-bordure-forte bg-fond px-3 text-sm text-texte " +
-    "placeholder:text-texte-discret focus:border-primaire focus:outline-none focus:ring-1 focus:ring-primaire";
-
   return (
     <div className="space-y-4">
       {erreur && (
@@ -133,44 +130,28 @@ export function FormulaireConnexion({
       </div>
 
       <form onSubmit={soumettre} className="space-y-3">
-        <div>
-          <label
-            htmlFor="courriel"
-            className="mb-1 block text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret"
-          >
-            Adresse e-mail
-          </label>
-          <input
-            id="courriel"
-            type="email"
-            required
-            autoComplete="email"
-            value={courriel}
-            onChange={(e) => setCourriel(e.target.value)}
-            placeholder="vous@exemple.fr"
-            className={champ}
-          />
-        </div>
+        <Champ
+          id="courriel"
+          label="Adresse e-mail"
+          type="email"
+          requis
+          autoComplete="email"
+          value={courriel}
+          onChange={(e) => setCourriel(e.target.value)}
+          placeholder="vous@exemple.fr"
+        />
 
-        <div>
-          <label
-            htmlFor="mot-de-passe"
-            className="mb-1 block text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret"
-          >
-            Mot de passe
-          </label>
-          <input
-            id="mot-de-passe"
-            type="password"
-            required
-            minLength={8}
-            autoComplete={mode === "inscription" ? "new-password" : "current-password"}
-            value={motDePasse}
-            onChange={(e) => setMotDePasse(e.target.value)}
-            placeholder="8 caractères minimum"
-            className={champ}
-          />
-        </div>
+        <Champ
+          id="mot-de-passe"
+          label="Mot de passe"
+          type="password"
+          requis
+          minLength={8}
+          autoComplete={mode === "inscription" ? "new-password" : "current-password"}
+          value={motDePasse}
+          onChange={(e) => setMotDePasse(e.target.value)}
+          placeholder="8 caractères minimum"
+        />
 
         <Bouton type="submit" variante="principal" className="w-full" enChargement={enCours}>
           {mode === "inscription" ? "Créer le compte" : "Se connecter"}

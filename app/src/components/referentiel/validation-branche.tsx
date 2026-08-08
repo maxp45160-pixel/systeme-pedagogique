@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { creerBranche } from "@/lib/store/referentiel-actions";
 import { normaliserPalier } from "@/lib/domain/referentiel-compte";
 import { Bouton, cx, Etiquette } from "@/components/ui/primitives";
+import { Champ, ChampSelect } from "@/components/ui/champ";
 import type { OrigineReferentiel, Palier } from "@/lib/domain/types";
 
 /**
@@ -25,10 +26,8 @@ import type { OrigineReferentiel, Palier } from "@/lib/domain/types";
  *  - sur l'écran de validation du référentiel, à partir d'une proposition
  *    déposée par le chat.
  */
-const champ =
-  "w-full rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm placeholder:text-texte-discret focus:border-primaire focus:outline-none";
-
 const PALIERS: Palier[] = ["fondamentaux", "intermediaire", "avance"];
+const OPTIONS_PALIER = PALIERS.map((p) => ({ valeur: p, libelle: p }));
 
 interface Ligne {
   intitule: string;
@@ -144,34 +143,18 @@ export function ValidationBranche({
       )}
 
       <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
-        <label className="block">
-          <span className="text-xs font-medium">Domaine</span>
-          <input
-            value={domaine}
-            onChange={(e) => setDomaine(e.target.value)}
-            className={cx(champ, "mt-1")}
-          />
-        </label>
-        <label className="block">
-          <span className="text-xs font-medium">Préfixe</span>
-          <input
-            value={existant ? existant.prefixe : prefixe}
-            onChange={(e) => setPrefixe(e.target.value.toUpperCase())}
-            disabled={Boolean(existant)}
-            maxLength={5}
-            className={cx(champ, "mt-1 w-24 font-mono disabled:opacity-60")}
-          />
-        </label>
+        <Champ label="Domaine" value={domaine} onChange={(e) => setDomaine(e.target.value)} />
+        <Champ
+          label="Préfixe"
+          value={existant ? existant.prefixe : prefixe}
+          onChange={(e) => setPrefixe(e.target.value.toUpperCase())}
+          disabled={Boolean(existant)}
+          maxLength={5}
+          className="w-24 font-mono"
+        />
       </div>
 
-      <label className="block">
-        <span className="text-xs font-medium">Description</span>
-        <input
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          className={cx(champ, "mt-1")}
-        />
-      </label>
+      <Champ label="Description" value={description} onChange={(e) => setDescription(e.target.value)} />
 
       <div>
         <p className="text-xs font-medium">Compétences ({retenues.length} retenue(s))</p>
@@ -198,26 +181,19 @@ export function ValidationBranche({
                   aria-label={`Retenir « ${l.intitule} »`}
                 />
                 <div className="min-w-0 flex-1 space-y-2">
-                  <input
+                  <Champ
+                    label="Intitulé"
                     value={l.intitule}
                     onChange={(e) => majLigne(i, { intitule: e.target.value })}
-                    className={champ}
                   />
                   <div className="flex flex-wrap items-center gap-2 text-xs">
-                    <label className="flex items-center gap-1.5">
-                      <span className="text-texte-attenue">Palier</span>
-                      <select
-                        value={l.palier}
-                        onChange={(e) => majLigne(i, { palier: e.target.value as Palier })}
-                        className="rounded-md border border-bordure bg-surface px-1.5 py-1"
-                      >
-                        {PALIERS.map((p) => (
-                          <option key={p} value={p}>
-                            {p}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                    <ChampSelect
+                      label="Palier"
+                      taille="compacte"
+                      value={l.palier}
+                      onChange={(e) => majLigne(i, { palier: e.target.value as Palier })}
+                      options={OPTIONS_PALIER}
+                    />
                     <label className="flex items-center gap-1.5">
                       <span className="text-texte-attenue">Importance</span>
                       <input

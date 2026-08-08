@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { modifierProfil } from "@/lib/store/referentiel-actions";
 import { valeurDeclaree } from "@/lib/domain/profil";
 import { Bouton } from "@/components/ui/primitives";
+import { Champ } from "@/components/ui/champ";
 
 /**
  * Les deux questions de l'amorçage.
@@ -22,9 +23,6 @@ import { Bouton } from "@/components/ui/primitives";
  * `/profil` sans savoir si elle devait la ressaisir. `/demarrer` garde le
  * strict nécessaire à l'amorçage ; `/profil` reste l'écran d'édition.
  */
-const champ =
-  "mt-1 w-full rounded-md border border-bordure bg-surface px-2.5 py-2 text-sm placeholder:text-texte-discret focus:border-primaire focus:outline-none";
-
 export function FormulaireAmorcage({
   formation,
   objectifMoyenTerme,
@@ -87,33 +85,21 @@ export function FormulaireAmorcage({
 
   return (
     <div className="max-w-2xl space-y-4">
-      <label className="block">
-        <span className="text-xs font-medium">Le sujet</span>
-        <input
-          value={sujet}
-          onChange={(e) => setSujet(e.target.value)}
-          placeholder="philosophie morale, droit fiscal, lutherie, développement web…"
-          className={champ}
-        />
-        <span className="mt-1 block text-[0.6875rem] text-texte-discret">
-          Écris-le comme tu le dirais. Le tuteur le découpera en compétences mesurables, et tu
-          valideras.
-        </span>
-      </label>
+      <Champ
+        label="Le sujet"
+        value={sujet}
+        onChange={(e) => setSujet(e.target.value)}
+        placeholder="philosophie morale, droit fiscal, lutherie, développement web…"
+        aide="Écris-le comme tu le dirais. Le tuteur le découpera en compétences mesurables, et tu valideras."
+      />
 
-      <label className="block">
-        <span className="text-xs font-medium">Pour quoi faire</span>
-        <input
-          value={objectif}
-          onChange={(e) => setObjectif(e.target.value)}
-          placeholder="préparer un concours, tenir une discussion argumentée, changer de métier…"
-          className={champ}
-        />
-        <span className="mt-1 block text-[0.6875rem] text-texte-discret">
-          Sert à pondérer l&apos;importance de chaque compétence. Sans objectif, elles se
-          vaudraient toutes.
-        </span>
-      </label>
+      <Champ
+        label="Pour quoi faire"
+        value={objectif}
+        onChange={(e) => setObjectif(e.target.value)}
+        placeholder="préparer un concours, tenir une discussion argumentée, changer de métier…"
+        aide="Sert à pondérer l'importance de chaque compétence. Sans objectif, elles se vaudraient toutes."
+      />
 
       {erreur && (
         <p className="rounded-md border border-alerte/30 bg-alerte-faible px-3 py-2 text-xs text-alerte">

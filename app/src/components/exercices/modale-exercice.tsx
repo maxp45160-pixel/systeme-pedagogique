@@ -29,6 +29,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bouton, Etiquette } from "@/components/ui/primitives";
+import { Champ, ChampSelect } from "@/components/ui/champ";
 import { Markdown } from "@/components/ui/markdown";
 import { creerExercice } from "@/lib/store/actions";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
@@ -235,29 +236,16 @@ export function ModaleExercice({
 
         {phase === "formulaire" && (
           <div className="mt-4 space-y-4">
-            <div>
-              <label
-                htmlFor="modale-competence"
-                className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret"
-              >
-                Compétence ciblée
-              </label>
-              <select
-                id="modale-competence"
-                value={code}
-                onChange={(e) => {
-                  setCode(e.target.value);
-                  setPourquoi(false);
-                }}
-                className="mt-1 w-full rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm focus:border-primaire focus:outline-none"
-              >
-                {competences.map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.code} — {c.intitule}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <ChampSelect
+              id="modale-competence"
+              label="Compétence ciblée"
+              value={code}
+              onChange={(e) => {
+                setCode(e.target.value);
+                setPourquoi(false);
+              }}
+              options={competences.map((c) => ({ valeur: c.code, libelle: `${c.code} — ${c.intitule}` }))}
+            />
 
             {/*
               Le bloc de calibrage est indexé sur `code` : il suit le sélecteur.
@@ -332,24 +320,14 @@ export function ModaleExercice({
               </p>
             )}
 
-            <div>
-              <label
-                htmlFor="modale-theme"
-                className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret"
-              >
-                Sur… (facultatif)
-              </label>
-              <input
-                id="modale-theme"
-                value={theme}
-                onChange={(e) => setTheme(e.target.value)}
-                placeholder="Un thème, un contexte, une situation…"
-                className="mt-1 w-full rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm placeholder:text-texte-discret focus:border-primaire focus:outline-none"
-              />
-              <p className="mt-1 text-[0.6875rem] text-texte-discret">
-                Un indice de rédaction, pas un sélecteur d&apos;objet.
-              </p>
-            </div>
+            <Champ
+              id="modale-theme"
+              label="Sur… (facultatif)"
+              value={theme}
+              onChange={(e) => setTheme(e.target.value)}
+              placeholder="Un thème, un contexte, une situation…"
+              aide="Un indice de rédaction, pas un sélecteur d'objet."
+            />
 
             {erreur && (
               <p className="rounded-md border border-danger/30 bg-danger-faible px-3 py-2 text-xs text-danger">

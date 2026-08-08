@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Bouton, classesLienBouton, cx } from "@/components/ui/primitives";
+import { Champ, ChampSelect, classesChamp } from "@/components/ui/champ";
 import { seDeconnecter } from "@/lib/supabase/actions";
 import { exporterJournal } from "@/lib/store/export";
 import { IconeValide } from "@/components/ui/icones";
@@ -492,25 +493,19 @@ function ReglagesTuteur({ compteId }: { compteId: string }) {
         </div>
       )}
 
-      {/* Sélecteur de fournisseur */}
-      <div>
-        <label className="text-[0.6875rem] font-medium text-texte-attenue">
-          Fournisseur
-        </label>
-        <select
-          value={fournisseur}
-          onChange={(e) => choisirFournisseur(e.target.value as FournisseurTuteur)}
-          className="mt-0.5 w-full rounded-md border border-bordure bg-surface px-2.5 py-1.5 text-xs text-texte focus:border-primaire focus:outline-none"
-        >
-          {FOURNISSEURS.map((f) => (
-            <option key={f.cle} value={f.cle}>
-              {f.libelle}
-            </option>
-          ))}
-        </select>
-      </div>
+      <ChampSelect
+        label="Fournisseur"
+        taille="compacte"
+        value={fournisseur}
+        onChange={(e) => choisirFournisseur(e.target.value as FournisseurTuteur)}
+        options={FOURNISSEURS.map((f) => ({ valeur: f.cle, libelle: f.libelle }))}
+      />
 
-      {/* Champ clé */}
+      {/*
+        Champ composé (saisie + bouton afficher/masquer sur la même ligne) :
+        `Champ` ne représente pas cette forme, donc `classesChamp` porte le
+        même style à la main plutôt que de le redupliquer en chaîne.
+      */}
       <div>
         <label className="text-[0.6875rem] font-medium text-texte-attenue">
           Clé API
@@ -521,7 +516,7 @@ function ReglagesTuteur({ compteId }: { compteId: string }) {
             value={cle}
             onChange={(e) => setCle(e.target.value)}
             placeholder={preset?.aide ?? "Colle ta clé ici"}
-            className="min-w-0 flex-1 rounded-md border border-bordure bg-surface px-2.5 py-1.5 text-xs text-texte placeholder:text-texte-discret focus:border-primaire focus:outline-none"
+            className={cx(classesChamp("compacte", false), "min-w-0 flex-1")}
             autoComplete="off"
             spellCheck={false}
           />
@@ -538,35 +533,28 @@ function ReglagesTuteur({ compteId }: { compteId: string }) {
 
       {/* URL de base — masquée pour Anthropic */}
       {!estAnthropic && (
-        <div>
-          <label className="text-[0.6875rem] font-medium text-texte-attenue">
-            URL de base
-          </label>
-          <input
-            type="text"
-            value={urlBase}
-            onChange={(e) => setUrlBase(e.target.value)}
-            placeholder={preset?.urlBase ?? "https://api.exemple.com/v1"}
-            className="mt-0.5 w-full rounded-md border border-bordure bg-surface px-2.5 py-1.5 text-xs text-texte placeholder:text-texte-discret focus:border-primaire focus:outline-none"
-            spellCheck={false}
-          />
-        </div>
-      )}
-
-      {/* Modèle */}
-      <div>
-        <label className="text-[0.6875rem] font-medium text-texte-attenue">
-          Modèle {preset?.modeleParDefaut && <span className="text-texte-discret">(défaut : {preset.modeleParDefaut})</span>}
-        </label>
-        <input
+        <Champ
+          label="URL de base"
+          taille="compacte"
           type="text"
-          value={modele}
-          onChange={(e) => setModele(e.target.value)}
-          placeholder={preset?.modeleParDefaut ?? "nom-du-modele"}
-          className="mt-0.5 w-full rounded-md border border-bordure bg-surface px-2.5 py-1.5 text-xs text-texte placeholder:text-texte-discret focus:border-primaire focus:outline-none"
+          value={urlBase}
+          onChange={(e) => setUrlBase(e.target.value)}
+          placeholder={preset?.urlBase ?? "https://api.exemple.com/v1"}
           spellCheck={false}
         />
-      </div>
+      )}
+
+      <Champ
+        label={
+          preset?.modeleParDefaut ? `Modèle (défaut : ${preset.modeleParDefaut})` : "Modèle"
+        }
+        taille="compacte"
+        type="text"
+        value={modele}
+        onChange={(e) => setModele(e.target.value)}
+        placeholder={preset?.modeleParDefaut ?? "nom-du-modele"}
+        spellCheck={false}
+      />
 
       {preset?.aide && (
         <p className="text-[0.6875rem] leading-relaxed text-texte-discret">
