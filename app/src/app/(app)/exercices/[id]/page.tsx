@@ -9,7 +9,6 @@ import {
 } from "@/lib/store/actions";
 import {
   BandeauInfo,
-  Bouton,
   Carte,
   classesLienBouton,
   CodeCompetence,
@@ -18,10 +17,13 @@ import {
   Etiquette,
   JaugeNiveau,
 } from "@/components/ui/primitives";
+import { PanneauPliable } from "@/components/ui/panneau-pliable";
 import { Markdown } from "@/components/ui/markdown";
 import { BilanAssiste } from "@/components/exercices/bilan-assiste";
 import { BoutonAbandon } from "@/components/exercices/abandon";
 import { ZoneReponse } from "@/components/exercices/zone-reponse";
+import { BoutonSoumission } from "@/components/ui/bouton-soumission";
+import { FocusActe } from "@/components/exercices/focus-acte";
 import { motifBlocageBilan, reponseSuffisante } from "@/lib/domain/tentative";
 import { IconeAmpoule, IconeFleche, IconeValide } from "@/components/ui/icones";
 import { formatDuree } from "@/lib/engine/dates";
@@ -32,10 +34,16 @@ import { TiroirTuteur } from "@/components/tuteur/tiroir-tuteur";
 
 export default async function PageExercice(props: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ correction?: string; bilan?: string; abandon?: string }>;
+  searchParams: Promise<{
+    correction?: string;
+    /** Passe l'écran de Comparer (correction visible) à Mesurer (bilan). */
+    evaluer?: string;
+    bilan?: string;
+    abandon?: string;
+  }>;
 }) {
   const { id } = await props.params;
-  const { correction, bilan, abandon } = await props.searchParams;
+  const { correction, evaluer, bilan, abandon } = await props.searchParams;
 
   const ctx = await chargerContexte();
   const exercice = ctx.donnees.exercises.find((e) => e.id === id);
@@ -65,11 +73,27 @@ export default async function PageExercice(props: {
     : false;
 
   const cible = ctx.etatsParCode.get(exercice.competences[0]);
-  // La correction reste masquée quand on REFIT un exercice : une nouvelle
-  // tentative doit repartir sans la solution sous les yeux, sinon elle ne
-  // mesure plus rien. `enCours` est vrai dès qu'une tentative est ouverte.
-  const correctionVisible =
-    correction === "1" || bilan === "1" || (derniereTerminee !== null && !enCours);
+  /*
+   * Trois actes, un CTA principal chacun : Chercher (rien de visible ici
+   * encore) → Comparer (`correctionVisible`, sans être encore à l'évaluation)
+   * → Mesurer (`enMesure`, le formulaire de bilan). Chaque transition est un
+   * clic explicite, pas une conséquence de l'ouverture de la correction —
+   * avant ce chantier, révéler la correction affichait AUSSI le formulaire de
+   * bilan dans le même geste, l'un des ~15 blocs simultanés du constat de
+   * phase 3.
+   *
+   * La correction reste masquée quand on REFAIT un exercice : une nouvelle
+   * tentative doit repartir sans la solution sous les yeux, sinon elle ne
+   * mesure plus rien. `enCours` est vrai dès qu'une tentative est ouverte, et
+   * `correction`/`evaluer` n'existent que dans son URL — un `refaire` crée une
+   * tentative fraîche derrière un lien sans ces paramètres.
+   */
+  const correctionVisible = correction === "1" || evaluer === "1";
+  const enMesure = evaluer === "1";
+  // L'énoncé reste toujours atteignable — c'est le contexte, pas une action.
+  // Il ne se replie que dans l'acte Mesurer, jamais avant : Chercher et
+  // Comparer en ont encore besoin pour, respectivement, résoudre et comparer.
+  const foldEnonce = Boolean(enCours) && enMesure;
 
   const dureeSuggeree = enCours
     ? Math.max(
@@ -102,8 +126,12 @@ export default async function PageExercice(props: {
         l'utilisateur croirait sa mesure enregistrée. On annonce ce qui n'a pas
         été fait, et pourquoi (P3 : aucune valeur sans source, y compris quand
         la valeur est « rien »).
+
+        Exclusif avec le bandeau « Preuve enregistrée » ci-dessous — un seul
+        verdict sur cette tentative peut être vrai, l'URL ne doit pas pouvoir
+        afficher les deux.
       */}
-      {abandon === "1" && (
+      {abandon === "1" && bilan !== "1" && (
         <BandeauInfo ton="info" className="mb-4">
         <div>
           <p className="text-sm font-medium text-info">Aucune preuve enregistrée</p>
@@ -224,26 +252,47 @@ export default async function PageExercice(props: {
 
       <div className="space-y-4">
         {/* -------------------------------- Énoncé -------------------------- */}
-        <Carte>
-          <EnTeteCarte titre="Énoncé" />
-          <div className="px-4 py-3.5 text-sm">
-            <Markdown contenu={exercice.enonce} />
-          </div>
-        </Carte>
+        {foldEnonce ? (
+          <PanneauPliable ouvertParDefaut={false} titre={<span className="text-sm font-medium">Énoncé</span>}>
+            <div className="px-4 py-3.5 text-sm">
+              <Markdown contenu={exercice.enonce} />
+            </div>
+          </PanneauPliable>
+        ) : (
+          <Carte>
+            <EnTeteCarte titre="Énoncé" />
+            <div className="px-4 py-3.5 text-sm">
+              <Markdown contenu={exercice.enonce} />
+            </div>
+          </Carte>
+        )}
 
         {/* -------------------------------- Données ------------------------- */}
         {exercice.donnees && exercice.donnees.length > 0 && (
-          <Carte>
-            <EnTeteCarte titre="Données" />
-            <ul className="divide-y divide-bordure">
-              {exercice.donnees.map((d, i) => (
-                <li key={i} className="flex flex-wrap items-baseline justify-between gap-3 px-4 py-2">
-                  <span className="text-xs text-texte-attenue">{d.libelle}</span>
-                  <span className="chiffres text-sm font-medium">{d.valeur}</span>
-                </li>
-              ))}
-            </ul>
-          </Carte>
+          foldEnonce ? (
+            <PanneauPliable ouvertParDefaut={false} titre={<span className="text-sm font-medium">Données</span>}>
+              <ul className="divide-y divide-bordure">
+                {exercice.donnees.map((d, i) => (
+                  <li key={i} className="flex flex-wrap items-baseline justify-between gap-3 px-4 py-2">
+                    <span className="text-xs text-texte-attenue">{d.libelle}</span>
+                    <span className="chiffres text-sm font-medium">{d.valeur}</span>
+                  </li>
+                ))}
+              </ul>
+            </PanneauPliable>
+          ) : (
+            <Carte>
+              <EnTeteCarte titre="Données" />
+              <ul className="divide-y divide-bordure">
+                {exercice.donnees.map((d, i) => (
+                  <li key={i} className="flex flex-wrap items-baseline justify-between gap-3 px-4 py-2">
+                    <span className="text-xs text-texte-attenue">{d.libelle}</span>
+                    <span className="chiffres text-sm font-medium">{d.valeur}</span>
+                  </li>
+                ))}
+              </ul>
+            </Carte>
+          )
         )}
 
         {/* ------------------------ Démarrage / résolution ------------------ */}
@@ -263,10 +312,10 @@ export default async function PageExercice(props: {
                 </p>
               )}
               <form action={demarrerTentative.bind(null, exercice.id)} className="mt-4">
-                <Bouton type="submit" variante="principal">
+                <BoutonSoumission variante="principal">
                   Commencer
                   <IconeFleche className="size-4" />
-                </Bouton>
+                </BoutonSoumission>
               </form>
             </div>
           </Carte>
@@ -274,12 +323,22 @@ export default async function PageExercice(props: {
 
         {enCours && (
           <>
-            {/* Espace de réponse — libre, non corrigé automatiquement. */}
-            <Carte>
-              <EnTeteCarte
-                titre="Ta réponse"
-                legende="Rédige ta méthode, pas seulement le résultat final"
-              />
+            {/*
+              Ta réponse — vivante dans l'acte Chercher, repliée dès que la
+              correction devient visible (Comparer, Mesurer). L'édition reste
+              possible une fois repliée : rien n'interdit de continuer à
+              préciser sa méthode en comparant à la correction, seul le poids
+              visuel du bloc change.
+            */}
+            <PanneauPliable
+              ouvertParDefaut={!correctionVisible}
+              titre={<span className="text-sm font-medium">Ta réponse</span>}
+              sousEntete={
+                <p className="mt-0.5 text-xs text-texte-attenue">
+                  Rédige ta méthode, pas seulement le résultat final
+                </p>
+              }
+            >
               <div className="px-4 py-3.5">
                 <ZoneReponse
                   attemptId={enCours.id}
@@ -306,43 +365,61 @@ export default async function PageExercice(props: {
                   d&apos;indice plus explicite que ceux que tu as laissés fermés.
                 </p>
               </div>
-            </Carte>
+            </PanneauPliable>
 
-            {/* Indices — débloqués un par un, et l'ouverture est enregistrée. */}
+            {/*
+              Indices — repliés par défaut dès l'acte Chercher (secondaires à
+              la résolution elle-même), ouverts d'office si déjà entamés et
+              que la correction n'est pas encore sortie.
+            */}
             {exercice.indices.length > 0 && (
-              <Carte>
-                <EnTeteCarte
-                  titre="Indices"
-                  legende={`${enCours.indicesUtilises} / ${exercice.indices.length} consulté${
-                    enCours.indicesUtilises > 1 ? "s" : ""
-                  }`}
-                  action={
-                    <Etiquette
-                      ton={
-                        enCours.indicesUtilises === 0
-                          ? "succes"
-                          : enCours.indicesUtilises >= exercice.indices.length
-                            ? "alerte"
-                            : "info"
-                      }
-                    >
-                      Autonomie prévue :{" "}
-                      {enCours.indicesUtilises >= exercice.indices.length
-                        ? "A1"
-                        : enCours.indicesUtilises >= 1
-                          ? "A2"
-                          : "A3"}
-                    </Etiquette>
-                  }
-                />
+              <PanneauPliable
+                ouvertParDefaut={!correctionVisible && enCours.indicesUtilises > 0}
+                titre={
+                  <span className="text-sm font-medium">
+                    Indices — {enCours.indicesUtilises} / {exercice.indices.length} consulté
+                    {enCours.indicesUtilises > 1 ? "s" : ""}
+                  </span>
+                }
+                actions={
+                  <Etiquette
+                    ton={
+                      enCours.indicesUtilises === 0
+                        ? "succes"
+                        : enCours.indicesUtilises >= exercice.indices.length
+                          ? "alerte"
+                          : "info"
+                    }
+                  >
+                    Autonomie prévue :{" "}
+                    {enCours.indicesUtilises >= exercice.indices.length
+                      ? "A1"
+                      : enCours.indicesUtilises >= 1
+                        ? "A2"
+                        : "A3"}
+                  </Etiquette>
+                }
+                pied={
+                  enCours.indicesUtilises < exercice.indices.length && (
+                    <div className="border-t border-bordure px-4 py-3">
+                      <form action={debloquerIndice.bind(null, enCours.id, enCours.indicesUtilises)}>
+                        <BoutonSoumission variante="secondaire" taille="petite">
+                          <IconeAmpoule className="size-3.5" />
+                          Débloquer l&apos;indice {enCours.indicesUtilises + 1}
+                        </BoutonSoumission>
+                      </form>
+                    </div>
+                  )
+                }
+              >
                 <div className="px-4 py-3">
                   {enCours.indicesUtilises === 0 ? (
-                    <p className="mb-3 text-xs text-texte-attenue">
+                    <p className="text-xs text-texte-attenue">
                       Aucun indice consulté. Si tu résous l&apos;exercice ainsi, la preuve sera
                       enregistrée en autonomie A3.
                     </p>
                   ) : (
-                    <ul className="mb-3 space-y-2">
+                    <ul className="space-y-2">
                       {exercice.indices.slice(0, enCours.indicesUtilises).map((ind, i) => (
                         <li
                           key={i}
@@ -359,21 +436,12 @@ export default async function PageExercice(props: {
                       ))}
                     </ul>
                   )}
-
-                  {enCours.indicesUtilises < exercice.indices.length && (
-                    <form action={debloquerIndice.bind(null, enCours.id, enCours.indicesUtilises)}>
-                      <Bouton type="submit" variante="secondaire" taille="petite">
-                        <IconeAmpoule className="size-3.5" />
-                        Débloquer l&apos;indice {enCours.indicesUtilises + 1}
-                      </Bouton>
-                    </form>
-                  )}
                 </div>
-              </Carte>
+              </PanneauPliable>
             )}
 
-            {/* Correction — jamais révélée d'emblée. */}
-            {!correctionVisible ? (
+            {/* -------------------- Acte : Chercher (teaser) ----------------- */}
+            {!correctionVisible && (
               <Carte>
                 <div className="px-4 py-3.5">
                   <p className="text-sm font-medium">Correction</p>
@@ -383,16 +451,28 @@ export default async function PageExercice(props: {
                   </p>
                   <Link
                     href={`/exercices/${exercice.id}?correction=1`}
-                    className={cx(classesLienBouton("secondaire"), "mt-3")}
+                    className={cx(classesLienBouton("principal"), "mt-3")}
                   >
                     Afficher la correction
+                    <IconeFleche className="size-4" />
                   </Link>
                 </div>
               </Carte>
-            ) : (
+            )}
+
+            {/*
+              -------------------- Acte : Comparer ---------------------------
+              Correction visible, réponse et indices repliés (ci-dessus).
+              L'auto-évaluation n'apparaît qu'après un clic explicite — avant
+              ce chantier, révéler la correction affichait AUSSI le formulaire
+              de bilan dans le même geste.
+            */}
+            {correctionVisible && !enMesure && (
               <>
+                <FocusActe cle="comparer" cible="titre-comparer" />
                 <Carte>
                   <EnTeteCarte
+                    id="titre-comparer"
                     titre="Correction"
                     legende="Compare ta méthode, pas seulement ton résultat"
                   />
@@ -400,22 +480,62 @@ export default async function PageExercice(props: {
                     <Markdown contenu={exercice.correction} />
                   </div>
                 </Carte>
+                <Carte accent>
+                  <div className="px-4 py-3.5">
+                    <p className="text-sm">
+                      Relis ta méthode à côté de la correction. Quand tu es prêt, passe à
+                      l&apos;auto-évaluation — c&apos;est cette étape qui produit la preuve.
+                    </p>
+                    <Link
+                      href={`/exercices/${exercice.id}?evaluer=1`}
+                      className={cx(classesLienBouton("principal"), "mt-3")}
+                    >
+                      Passer à l&apos;auto-évaluation
+                      <IconeFleche className="size-4" />
+                    </Link>
+                  </div>
+                </Carte>
+              </>
+            )}
 
-                {/*
-                  Le bilan demande la réponse écrite.
+            {/*
+              -------------------- Acte : Mesurer ----------------------------
+              Énoncé, données, réponse, indices et correction sont tous
+              repliés (foldEnonce plus haut, PanneauPliable ci-dessus) : seul
+              le formulaire de bilan — ou le blocage qui l'empêche — reste
+              déployé.
 
-                  La condition porte sur `enCours.reponse` — ce que la BASE
-                  porte — et non sur le texte à l'écran : `zone-reponse.tsx`
-                  exige un « Enregistrer le brouillon » explicite. D'où le
-                  message, qui nomme le bouton plutôt que l'intention.
+              La condition `reponseSuffisante` porte sur `enCours.reponse` —
+              ce que la BASE porte — et non sur le texte à l'écran :
+              `zone-reponse.tsx` exige un « Enregistrer le brouillon »
+              explicite. D'où le message, qui nomme le bouton plutôt que
+              l'intention.
 
-                  Mesuré le 07/08/2026 : 16 des 37 tentatives terminées
-                  n'avaient aucune réponse. La règle change donc réellement le
-                  parcours, et sa sortie est le bouton « Abandonner » ci-dessous.
-                */}
+              Mesuré le 07/08/2026 : 16 des 37 tentatives terminées n'avaient
+              aucune réponse. La règle change donc réellement le parcours, et
+              sa sortie est le bouton « Abandonner » ci-dessous.
+            */}
+            {enMesure && (
+              <>
+                <FocusActe cle="mesurer" cible="titre-mesurer" />
+                <PanneauPliable
+                  ouvertParDefaut={false}
+                  titre={<span className="text-sm font-medium">Correction</span>}
+                  sousEntete={
+                    <p className="mt-0.5 text-xs text-texte-attenue">
+                      Compare ta méthode, pas seulement ton résultat
+                    </p>
+                  }
+                >
+                  <div className="px-4 py-3.5 text-sm">
+                    <Markdown contenu={exercice.correction} />
+                  </div>
+                </PanneauPliable>
+
                 {reponseSuffisante(enCours.reponse) ? (
                   <Carte accent>
                     <EnTeteCarte
+                      id="titre-mesurer"
                       titre="Auto-évaluation"
                       legende="C'est cette étape qui produit la preuve"
                     />
@@ -439,6 +559,7 @@ export default async function PageExercice(props: {
                 ) : (
                   <Carte>
                     <EnTeteCarte
+                      id="titre-mesurer"
                       titre="Auto-évaluation"
                       legende="Elle attend ta réponse écrite"
                     />
@@ -514,9 +635,9 @@ export default async function PageExercice(props: {
                   exactement ce qui fait monter la robustesse d&apos;une compétence.
                 </p>
                 <form action={demarrerTentative.bind(null, exercice.id)} className="mt-3">
-                  <Bouton type="submit" variante="secondaire">
+                  <BoutonSoumission variante="secondaire">
                     Refaire cet exercice
-                  </Bouton>
+                  </BoutonSoumission>
                 </form>
               </div>
             </Carte>

@@ -50,10 +50,18 @@ export function EnTeteCarte({
   titre,
   legende,
   action,
+  id,
 }: {
   titre: string;
   legende?: string;
   action?: ReactNode;
+  /**
+   * Posé sur le `<h2>`, avec `tabIndex={-1}` — rend le titre focusable par
+   * programme, sans l'ajouter à l'ordre de tabulation normal. Sert un écran
+   * qui déplace le focus vers un titre après une transition (un nouvel acte
+   * qui remplace le précédent), sans en faire un arrêt au clavier de plus.
+   */
+  id?: string;
 }) {
   return (
     // Sans légende le titre tient sur une ligne et l'action se centre dessus ;
@@ -65,7 +73,13 @@ export function EnTeteCarte({
       )}
     >
       <div className="min-w-0">
-        <h2 className="font-serif text-[1.0625rem] font-medium tracking-tight">{titre}</h2>
+        <h2
+          id={id}
+          tabIndex={id ? -1 : undefined}
+          className="font-serif text-[1.0625rem] font-medium tracking-tight outline-none"
+        >
+          {titre}
+        </h2>
         {legende && <p className="mt-0.5 text-xs text-texte-attenue">{legende}</p>}
       </div>
       {action && <div className="shrink-0">{action}</div>}
