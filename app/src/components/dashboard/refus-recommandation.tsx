@@ -56,7 +56,16 @@ export function BoutonRefusRecommandation({
         onClick={refuser}
         disabled={enCours}
         variante="secondaire"
-        taille="petite"
+        /*
+         * Taille normale, pas « petite » (audit §1.3).
+         *
+         * Ce bouton vit dans la même rangée flex que « Commencer » et « Voir la
+         * compétence », tous deux en `h-9` : à `h-7`, il était 8 px plus court
+         * et une taille de texte en dessous de ses deux voisins immédiats.
+         * C'est la seule incohérence de bouton que l'usage ait remontée
+         * d'elle-même — un écart dans une même rangée se voit, un écart entre
+         * deux écrans non.
+         */
         title={
           exerciceId
             ? "Écarte cet exercice pendant 7 jours et propose autre chose"

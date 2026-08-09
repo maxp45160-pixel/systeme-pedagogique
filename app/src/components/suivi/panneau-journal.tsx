@@ -12,7 +12,7 @@ import {
   Statistique,
 } from "@/components/ui/primitives";
 import { calculerActivite, evenementsRecents } from "@/lib/engine/historique";
-import { formatDateCourte, formatDuree } from "@/lib/engine/dates";
+import { cleJour, formatDateCourte, formatDuree } from "@/lib/engine/dates";
 
 export async function PanneauJournal({ recherche: requete }: { recherche?: string }) {
   const ctx = await chargerContexte();
@@ -42,15 +42,46 @@ export async function PanneauJournal({ recherche: requete }: { recherche?: strin
       return texte.includes(q);
     });
   }
+  /*
+   * `cleJour` et non `s.date.slice(0, 10)` (audit §2.12).
+   *
+   * La découpe de chaîne prend le jour **UTC** ; `cleJour` prend le jour
+   * **local**, et c'est lui qui alimente la grille d'activité. Hors UTC, une
+   * séance de fin de soirée tombait un jour dans le journal et le lendemain
+   * dans la grille — deux vues des mêmes données qui se contredisaient.
+   */
   const parJour = new Map<string, typeof sessions>();
   for (const s of sessions) {
-    const cle = s.date.slice(0, 10);
+    const cle = cleJour(s.date);
     parJour.set(cle, [...(parJour.get(cle) ?? []), s]);
   }
 
+  /*
+   * Les statistiques portent sur ce qui est AFFICHÉ (audit §2.9).
+   *
+   * « Durée moyenne » divisait `activite.minutesTotal` — toutes les séances —
+   * par `sessions.length`, la liste filtrée : chercher un mot-clé gonflait la
+   * moyenne du rapport entre les deux. « Séances enregistrées » avait la même
+   * incohérence de libellé. Numérateur et dénominateur viennent désormais du
+   * même ensemble, et le libellé dit lequel.
+   */
+  const filtre = Boolean(requete?.trim());
+  const minutesAffichees = sessions.reduce((total, s) => total + (s.dureeMin ?? 0), 0);
+  const joursAffiches = parJour.size;
+
+  /*
+   * Le journal est vide quand il n'y a AUCUNE séance — pas quand la recherche
+   * n'en trouve aucune. Le test portait sur la liste filtrée : une requête sans
+   * correspondance affichait « Journal vide » ET retirait le champ de
+   * recherche, qui vit dans la branche opposée. `?recherche=` devenait
+   * ineffaçable depuis l'interface, et le message prévu pour ce cas était du
+   * code mort.
+   */
+  const journalVide = ctx.donnees.sessions.length === 0;
+
   return (
     <>
-      {sessions.length === 0 ? (
+      {journalVide ? (
         <Carte>
           <EtatVide
             titre="Journal vide"
@@ -72,7 +103,7 @@ export async function PanneauJournal({ recherche: requete }: { recherche?: strin
               name="recherche"
               defaultValue={requete ?? ""}
               placeholder="Rechercher dans le journal… (compétence, mot-clé…)"
-              className="w-full rounded-md border border-bordure bg-surface px-3 py-2 pr-20 text-sm placeholder:text-texte-discret focus:border-primaire focus:outline-none"
+              className="w-full rounded-md border border-bordure-controle bg-surface px-3 py-2 pr-20 text-sm placeholder:text-texte-discret"
             />
             <button
               type="submit"
@@ -81,45 +112,78 @@ export async function PanneauJournal({ recherche: requete }: { recherche?: strin
               Rechercher
             </button>
           </form>
-          {requete?.trim() && sessions.length === 0 ? (
-            <p className="rounded-md border border-bordure bg-surface-2 px-3 py-2 text-xs text-texte-attenue">
-              Aucune séance ne correspond à « {requete} ».
-            </p>
-          ) : requete?.trim() ? (
+          {/*
+            Une recherche sans résultat n'est pas un journal vide : le champ
+            reste au-dessus, et un lien permet de l'effacer. Sans lui,
+            `?recherche=` ne se retirait que depuis la barre d'adresse.
+          */}
+          {filtre && sessions.length === 0 && (
+            <div className="rounded-md border border-bordure-controle bg-surface-2 px-3 py-2">
+              <p className="text-xs text-texte-attenue">
+                Aucune séance ne correspond à « {requete} ».
+              </p>
+              <Link
+                href="/competences?vue=journal"
+                className="mt-1 inline-block text-xs text-primaire hover:underline"
+              >
+                Effacer la recherche
+              </Link>
+            </div>
+          )}
+
+          {filtre && sessions.length > 0 && (
             <p className="text-xs text-texte-attenue">
               {sessions.length} séance{sessions.length > 1 ? "s" : ""} sur{" "}
               {ctx.donnees.sessions.length}
             </p>
-          ) : null}
+          )}
+
+          {sessions.length > 0 && (
           <Carte>
             <div className="flex flex-wrap gap-x-6 gap-y-3 px-4 py-3.5">
-              <Statistique libelle="Séances enregistrées" valeur={sessions.length} />
+              <Statistique
+                libelle={filtre ? "Séances trouvées" : "Séances enregistrées"}
+                valeur={sessions.length}
+                precision={filtre ? `sur ${ctx.donnees.sessions.length} au total` : undefined}
+              />
               <Statistique
                 libelle="Temps cumulé"
-                valeur={formatDuree(activite.minutesTotal)}
-                precision="depuis le début du suivi"
+                valeur={formatDuree(filtre ? minutesAffichees : activite.minutesTotal)}
+                precision={filtre ? "sur ces séances" : "depuis le début du suivi"}
               />
               <Statistique
                 libelle="Durée moyenne"
-                valeur={formatDuree(Math.round(activite.minutesTotal / sessions.length))}
+                // `sessions.length` ne peut pas être 0 ici : la branche vide est
+                // gouvernée par `journalVide`, et le cas « recherche sans
+                // résultat » ne rend pas ce bloc.
+                valeur={
+                  sessions.length > 0
+                    ? formatDuree(Math.round(minutesAffichees / sessions.length))
+                    : "—"
+                }
                 precision="par séance"
               />
               <Statistique
                 libelle="Jours travaillés"
-                valeur={activite.minutesParJour.size}
+                valeur={filtre ? joursAffiches : activite.minutesParJour.size}
                 precision="jours distincts"
               />
             </div>
           </Carte>
+          )}
 
           {[...parJour.entries()].map(([jour, duJour]) => {
             const total = duJour.reduce((s, x) => s + (x.dureeMin ?? 0), 0);
-            const evenementsDuJour = evenements.filter((e) => e.date.slice(0, 10) === jour);
+            // Même clé locale que le regroupement, sinon un évènement de fin de
+            // soirée se rattacherait au mauvais jour (audit §2.12).
+            const evenementsDuJour = evenements.filter((e) => cleJour(e.date) === jour);
 
             return (
               <Carte key={jour}>
                 <EnTeteCarte
-                  titre={formatDateCourte(`${jour}T12:00:00.000Z`)}
+                  // `T12:00:00` sans `Z` : midi LOCAL. Avec le `Z`, un fuseau
+                  // au-delà de UTC+12 affichait la date du lendemain.
+                  titre={formatDateCourte(`${jour}T12:00:00`)}
                   legende={`${duJour.length} séance${duJour.length > 1 ? "s" : ""} · ${formatDuree(total)}`}
                   action={
                     evenementsDuJour.some((e) => e.franchissement) ? (
@@ -206,7 +270,7 @@ export async function PanneauJournal({ recherche: requete }: { recherche?: strin
                             name="note"
                             defaultValue={s.notePersonnelle ?? ""}
                             placeholder="Note personnelle…"
-                            className="min-w-0 flex-1 rounded-md border border-bordure bg-surface px-2 py-1 text-xs placeholder:text-texte-discret focus:border-primaire focus:outline-none"
+                            className="min-w-0 flex-1 rounded-md border border-bordure-controle bg-surface px-2 py-1 text-xs placeholder:text-texte-discret"
                           />
                           <Bouton type="submit" variante="secondaire" taille="petite">
                             Noter

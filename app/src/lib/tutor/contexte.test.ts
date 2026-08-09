@@ -8,6 +8,7 @@ import { fenetrerHistorique, MAX_MESSAGES_FENETRE } from "./fenetre";
 import { DOMAINES_TEST, REFERENTIEL_TEST } from "@/lib/domain/referentiel.fixture";
 import { REFERENTIEL_VIDE } from "@/lib/domain/referentiel-compte";
 import { computeAllSkillStates } from "@/lib/engine/skill-state";
+import { OUTIL_REFERENTIEL } from "./outils";
 import { calculerEtatGlobal } from "@/lib/engine/progression";
 import { recommander } from "@/lib/engine/recommend";
 import { calibrerToutes } from "@/lib/engine/calibration";
@@ -483,7 +484,17 @@ describe("construireContexte — compte sans référentiel", () => {
 
     expect(systemeProfil).toContain("AUCUN RÉFÉRENTIEL");
     // La consigne d'amorçage : construire AVEC l'utilisateur, pas deviner.
-    expect(systemeProfil).toContain("PROPOSITION DE RÉFÉRENTIEL");
+    expect(systemeProfil).toContain("pas de le deviner");
+    /*
+     * Elle nomme l'OUTIL, plus le gabarit markdown.
+     *
+     * Ce test épinglait « PROPOSITION DE RÉFÉRENTIEL » — un bloc dont les
+     * étiquettes ont disparu des prompts au lot 3.2. Le test passait donc en
+     * garantissant la présence d'une consigne périmée : le tuteur était invité
+     * à produire une forme que plus rien ne décrivait (audit §2.17).
+     */
+    expect(systemeProfil).toContain(OUTIL_REFERENTIEL);
+    expect(systemeProfil).not.toContain("PROPOSITION DE RÉFÉRENTIEL");
     // Aucun en-tête de colonnes : il n'y a pas de tableau à lire.
     expect(systemeProfil).not.toContain("Colonnes :");
   });

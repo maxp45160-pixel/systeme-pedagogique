@@ -16,6 +16,7 @@ import { RevisionsDues } from "@/components/dashboard/revisions-dues";
 import { CarteProgressionRecente } from "@/components/dashboard/progression-recente";
 import { CarteActivite } from "@/components/dashboard/activite";
 import { Depliant } from "@/components/ui/explication";
+import { Glossaire } from "@/components/ui/glossaire";
 import { BandeauInfo, TitreSection } from "@/components/ui/primitives";
 
 export default function TableauDeBord() {
@@ -191,6 +192,14 @@ async function ContenuTableauDeBord() {
           <Depliant resume={`Progression récente — ${evenements.length} dernière${evenements.length > 1 ? "s" : ""} preuve${evenements.length > 1 ? "s" : ""}`}>
             <CarteProgressionRecente evenements={evenements} />
           </Depliant>
+
+          {/*
+            Le vocabulaire du produit, à portée de clic depuis l'écran d'entrée
+            (audit §1.5). Preuve, niveau, autonomie, confiance, robustesse : cinq
+            mots qui gouvernent tout ce qui est affiché plus haut, et qu'aucun
+            écran ne définissait.
+          */}
+          <Glossaire />
         </div>
       </section>
     </div>

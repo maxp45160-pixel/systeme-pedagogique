@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { chargerContexte } from "@/lib/store/context";
+import { LienRetour } from "@/components/ui/lien-retour";
 import { libelleDomaine } from "@/lib/domain/referentiel-compte";
 import {
   AUTONOMIE,
@@ -70,11 +71,7 @@ export default async function PageCompetence(props: {
 
   return (
     <>
-      <div className="mb-3">
-        <Link href="/competences" className="text-xs text-texte-attenue hover:text-texte">
-          ← Toutes les compétences
-        </Link>
-      </div>
+      <LienRetour href="/competences" libelle="Toutes les compétences" />
 
       <EntetePage
         titre={etat.skill.intitule}

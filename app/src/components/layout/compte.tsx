@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Bouton, classesLienBouton, cx, SelecteurSegmente } from "@/components/ui/primitives";
+import { Modale } from "@/components/ui/modale";
 import { Champ, ChampSelect, classesChamp } from "@/components/ui/champ";
 import { seDeconnecter } from "@/lib/supabase/actions";
 import { exporterJournal } from "@/lib/store/export";
@@ -225,35 +225,14 @@ function PanneauReglages({
     }
   }
 
-  const panneau = (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Compte et synchronisation"
-      onClick={onFermer}
+  return (
+    <Modale
+      titre="Compte et synchronisation"
+      sousTitre="Où sont stockées vos données de suivi."
+      largeur="md"
+      onFermer={onFermer}
     >
-      <div
-        className="flex max-h-[90vh] w-full max-w-md flex-col overflow-y-auto rounded-xl border border-bordure bg-surface p-5 text-texte shadow-[var(--ombre-surcouche)]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-3 border-b border-bordure pb-3">
-          <div>
-            <h2 className="font-serif text-base font-medium">Compte et synchronisation</h2>
-            <p className="mt-0.5 text-xs text-texte-discret">
-              Où sont stockées vos données de suivi.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onFermer}
-            aria-label="Fermer"
-            className="rounded-md px-2 py-1 text-sm text-texte-attenue transition-colors hover:bg-surface-2 hover:text-texte"
-          >
-            ✕
-          </button>
-        </div>
-
+      <>
         <dl className="mt-4 space-y-3 text-sm">
           {/*
             Le profil déclaré (formation, objectifs, préférences) a sa propre
@@ -386,18 +365,19 @@ function PanneauReglages({
             Fermer
           </Bouton>
         </div>
-      </div>
-    </div>
+      </>
+    </Modale>
   );
-
-  // Portail vers `body` : le rail est en `position: sticky`, ce qui crée
-  // toujours un contexte d'empilement. Rendue à l'intérieur, la modale voit son
-  // `z-50` confiné au rail et passe *sous* le contenu principal, qui vient plus
-  // loin dans le DOM. Aucune valeur de z-index ne corrige ça — il faut sortir
-  // du contexte.
-  return typeof document === "undefined"
-    ? null
-    : createPortal(panneau, document.body);
+  /*
+   * Le portail vit désormais dans `Modale`, et il reste indispensable ici : le
+   * rail est en `position: sticky`, ce qui crée toujours un contexte
+   * d'empilement. Rendue à l'intérieur, la modale verrait son `z-50` confiné au
+   * rail et passerait *sous* le contenu principal, qui vient plus loin dans le
+   * DOM. Aucune valeur de z-index ne corrige cela — il faut sortir du contexte.
+   *
+   * C'est ce que les six autres modales n'avaient pas, et c'est pour cela que
+   * le portail est dans la primitive plutôt que recopié ici.
+   */
 }
 
 /* ------------------------------------------------------------------ */

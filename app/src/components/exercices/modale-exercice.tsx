@@ -29,6 +29,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BandeauInfo, Bouton, Etiquette, PointActif } from "@/components/ui/primitives";
+import { Modale } from "@/components/ui/modale";
 import { Champ, ChampSelect } from "@/components/ui/champ";
 import { Markdown } from "@/components/ui/markdown";
 import { creerExercice } from "@/lib/store/actions";
@@ -252,34 +253,12 @@ export function ModaleExercice({
   );
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Générer un exercice"
-      onClick={onFermer}
+    <Modale
+      titre="Générer un exercice"
+      sousTitre="Le tuteur rédige, tu relis et tu valides. Rien n'est écrit avant."
+      onFermer={onFermer}
     >
-      <div
-        className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-y-auto rounded-xl border border-bordure bg-surface p-5 text-texte shadow-[var(--ombre-surcouche)]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-3 border-b border-bordure pb-3">
-          <div>
-            <h2 className="font-serif text-base font-medium">Générer un exercice</h2>
-            <p className="mt-0.5 text-xs text-texte-discret">
-              Le tuteur rédige, tu relis et tu valides. Rien n&apos;est écrit avant.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onFermer}
-            aria-label="Fermer"
-            className="rounded-md px-2 py-1 text-sm text-texte-attenue transition-colors hover:bg-surface-2 hover:text-texte"
-          >
-            ✕
-          </button>
-        </div>
-
+      <>
         {phase === "formulaire" && (
           <div className="mt-4 space-y-4">
             <ChampSelect
@@ -557,7 +536,7 @@ export function ModaleExercice({
             </div>
           </div>
         )}
-      </div>
-    </div>
+      </>
+    </Modale>
   );
 }

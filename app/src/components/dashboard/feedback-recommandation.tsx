@@ -79,7 +79,7 @@ export function FeedbackRecommandation({
           value={justification}
           onChange={(e) => setJustification(e.target.value)}
           placeholder="Justification (facultatif)…"
-          className="min-w-0 flex-1 rounded-md border border-bordure bg-surface px-2 py-1 text-xs placeholder:text-texte-discret focus:border-primaire focus:outline-none"
+          className="min-w-0 flex-1 rounded-md border border-bordure-controle bg-surface px-2 py-1 text-xs placeholder:text-texte-discret"
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();

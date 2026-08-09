@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { chargerContexte } from "@/lib/store/context";
+import { LienRetour } from "@/components/ui/lien-retour";
 import { retraitsParCode } from "@/lib/domain/referentiel-compte";
 import { EntetePage } from "@/components/layout/entete-page";
 import {
@@ -66,11 +66,7 @@ export default async function PageDomaine(props: {
 
   return (
     <>
-      <div className="mb-3">
-        <Link href="/competences" className="text-xs text-texte-attenue hover:text-texte">
-          ← Toutes les compétences
-        </Link>
-      </div>
+      <LienRetour href="/competences" libelle="Toutes les compétences" />
 
       <EntetePage
         titre={domaine.nom}

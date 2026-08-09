@@ -30,6 +30,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { BandeauInfo, Bouton, PointActif } from "@/components/ui/primitives";
+import { Modale } from "@/components/ui/modale";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import type { PropositionRevision } from "@/lib/tutor/outils";
 import { appliquerRevision } from "@/lib/store/referentiel-actions";
@@ -225,35 +226,12 @@ export function ModaleRevision({
     : null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Réviser la branche"
-      onClick={onFermer}
+    <Modale
+      titre={`Réviser « ${domaineNom} »`}
+      sousTitre="Dis ce qui ne va pas. Le tuteur propose, tu coches ce que tu gardes. Les codes existants ne changent jamais."
+      onFermer={onFermer}
     >
-      <div
-        className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-y-auto rounded-xl border border-bordure bg-surface p-5 text-texte shadow-[var(--ombre-surcouche)]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-3 border-b border-bordure pb-3">
-          <div>
-            <h2 className="font-serif text-base font-medium">Réviser « {domaineNom} »</h2>
-            <p className="mt-0.5 text-xs text-texte-discret">
-              Dis ce qui ne va pas. Le tuteur propose, tu coches ce que tu gardes. Les codes
-              existants ne changent jamais.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onFermer}
-            aria-label="Fermer"
-            className="rounded-md px-2 py-1 text-sm text-texte-attenue transition-colors hover:bg-surface-2 hover:text-texte"
-          >
-            ✕
-          </button>
-        </div>
-
+      <>
         {(etat.phase === "saisie" || etat.phase === "erreur") && (
           <div className="mt-4 space-y-3">
             {etat.phase === "erreur" && (
@@ -270,7 +248,7 @@ export function ModaleRevision({
                 onChange={(e) => setDemande(e.target.value)}
                 rows={3}
                 placeholder="Ce référentiel ne couvre plus mes besoins : recentre-le sur les flux et retire ce qui relève du stock."
-                className="mt-1 w-full rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm placeholder:text-texte-discret focus:border-primaire focus:outline-none"
+                className="mt-1 w-full rounded-md border border-bordure-controle bg-surface px-2 py-1.5 text-sm placeholder:text-texte-discret"
               />
             </label>
             <p className="text-[0.6875rem] text-texte-discret">
@@ -319,7 +297,7 @@ export function ModaleRevision({
 
         {p && compte && (
           <div className="mt-4 space-y-4">
-            <div className="rounded-md border border-bordure bg-surface-2 px-3 py-2.5">
+            <div className="rounded-md border border-bordure-controle bg-surface-2 px-3 py-2.5">
               <p className="text-[0.625rem] font-semibold uppercase tracking-wide text-texte-discret">
                 Ce que le tuteur propose
               </p>
@@ -347,7 +325,7 @@ export function ModaleRevision({
                     return (
                       <li
                         key={r.code}
-                        className="rounded-md border border-bordure bg-surface-2 px-3 py-2"
+                        className="rounded-md border border-bordure-controle bg-surface-2 px-3 py-2"
                       >
                         <label className="flex items-start gap-2">
                           <input
@@ -395,7 +373,7 @@ export function ModaleRevision({
                     return (
                       <li
                         key={m.code}
-                        className="rounded-md border border-bordure bg-surface-2 px-3 py-2"
+                        className="rounded-md border border-bordure-controle bg-surface-2 px-3 py-2"
                       >
                         <label className="flex items-start gap-2">
                           <input
@@ -449,7 +427,7 @@ export function ModaleRevision({
                 </h3>
                 <ul className="mt-2 space-y-2">
                   {p.ajouts.map((a, i) => (
-                    <li key={i} className="rounded-md border border-bordure bg-surface-2 px-3 py-2">
+                    <li key={i} className="rounded-md border border-bordure-controle bg-surface-2 px-3 py-2">
                       <label className="flex items-start gap-2">
                         <input
                           type="checkbox"
@@ -472,7 +450,7 @@ export function ModaleRevision({
             )}
 
             {/* Le pied : exactement ce qui sera écrit. */}
-            <div className="rounded-md border border-bordure bg-surface-2 px-3 py-2.5 text-[0.6875rem] text-texte-attenue">
+            <div className="rounded-md border border-bordure-controle bg-surface-2 px-3 py-2.5 text-[0.6875rem] text-texte-attenue">
               <p className="font-medium text-texte">Ce qui sera écrit</p>
               <p className="mt-1">
                 {compte.ajouts} ajout{compte.ajouts > 1 ? "s" : ""} · {compte.modifs} reformulation
@@ -507,7 +485,7 @@ export function ModaleRevision({
             </div>
           </div>
         )}
-      </div>
-    </div>
+      </>
+    </Modale>
   );
 }

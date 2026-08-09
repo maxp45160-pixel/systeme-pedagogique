@@ -176,7 +176,7 @@ const MessageBulle = memo(function MessageBulle({
           "max-w-[85%] rounded-lg px-3.5 py-2.5 text-sm",
           message.role === "user"
             ? "bg-primaire text-primaire-contraste"
-            : "border border-bordure bg-surface-2",
+            : "border border-bordure-controle bg-surface-2",
         )}
       >
         {message.role === "user" ? (
@@ -354,7 +354,7 @@ const ChatInput = memo(function ChatInput({
         }}
         rows={3}
         placeholder="Pose ta question, colle ton raisonnement, demande un exercice…"
-        className="w-full resize-y rounded-md border border-bordure bg-surface px-3 py-2 text-sm placeholder:text-texte-discret focus:border-primaire focus:outline-none"
+        className="w-full resize-y rounded-md border border-bordure-controle bg-surface px-3 py-2 text-sm placeholder:text-texte-discret"
       />
 
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
@@ -457,7 +457,7 @@ export function ChatTuteur(props: ProprietesChat) {
     return (
       <div className="space-y-4 [&>*]:min-w-0">
         <div
-          className="h-[min(70vh,620px)] rounded-carte border border-bordure bg-surface"
+          className="h-[min(70vh,620px)] rounded-carte border border-bordure-controle bg-surface"
           aria-busy="true"
         >
           <span className="sr-only">Chargement du tuteur…</span>
@@ -1054,7 +1054,7 @@ function ChatHydrate({
   return (
     <div className="space-y-6 [&>*]:min-w-0">
       <div>
-        <div className="flex h-[min(70vh,620px)] flex-col rounded-carte border border-bordure bg-surface">
+        <div className="flex h-[min(70vh,620px)] flex-col rounded-carte border border-bordure-controle bg-surface">
           {/* Conversation */}
           <div ref={zoneRef} className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
             {messages.length === 0 && (
@@ -1164,7 +1164,7 @@ function ChatHydrate({
         resume={`Contexte transmis — ${(etat.caracteresTotal / 1000).toFixed(1)} k caractères · ${etat.modele}`}
       >
         <div className="space-y-4">
-          <div className="rounded-carte border border-bordure bg-surface">
+          <div className="rounded-carte border border-bordure-controle bg-surface">
           <div className="border-b border-bordure px-5 py-3.5">
             <div className="flex items-center gap-2">
               {/* Le contexte est assemblé par le serveur : il est chargé dès le
@@ -1215,7 +1215,7 @@ function ChatHydrate({
           </div>
           </div>
 
-          <div className="rounded-carte border border-bordure bg-surface px-5 py-4 text-xs text-texte-attenue">
+          <div className="rounded-carte border border-bordure-controle bg-surface px-5 py-4 text-xs text-texte-attenue">
             <p className="font-medium text-texte">Ce que le tuteur ne peut pas faire</p>
             <ul className="mt-1.5 space-y-1">
               <li>· Écrire dans ton profil — il propose, tu valides.</li>

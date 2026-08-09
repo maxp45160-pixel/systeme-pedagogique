@@ -25,14 +25,27 @@ import { useState } from "react";
 import Link from "next/link";
 import { ChatTuteur, type EtatContexteTuteur } from "@/components/tuteur/chat";
 import { classesLienBouton, cx } from "@/components/ui/primitives";
+import { Modale } from "@/components/ui/modale";
 import type {
   CalibrageModale,
   CompetenceModale,
 } from "@/components/exercices/proprietes-generation";
 
-/** Bouton rond en bas à droite — le déclencheur global. */
+/**
+ * Bouton rond en bas à droite — le déclencheur global.
+ *
+ * ⚠️ `bottom-20` en dessous de `lg` (audit §1.5). `NavMobile` est
+ * `fixed inset-x-0 bottom-0` et haute d'environ 46 px : à `bottom-6`, le bouton
+ * se posait par-dessus et masquait une partie d'un des trois onglets. Le
+ * composant de développement (`dev-todo.tsx`) contournait déjà ce conflit ; le
+ * composant produit, non.
+ *
+ * `focus:outline-none` est conservé ici parce qu'un anneau de remplacement est
+ * fourni juste après — c'est le seul cas du produit où la suppression est
+ * compensée plutôt que subie.
+ */
 const CLASSES_FLOTTANT = cx(
-  "fixed bottom-6 right-6 z-40 flex size-12 items-center justify-center",
+  "fixed bottom-20 right-4 z-40 flex size-12 items-center justify-center lg:bottom-6 lg:right-6",
   "rounded-full bg-primaire text-primaire-contraste shadow-lg",
   "transition-transform hover:scale-105 active:scale-95",
   "focus:outline-none focus:ring-2 focus:ring-primaire focus:ring-offset-2",
@@ -90,40 +103,28 @@ export function TiroirTuteur({
       </button>
 
       {ouvert && (
-        <div
-          className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Tuteur"
-          onClick={() => setOuvert(false)}
+        /*
+         * Un tiroir reste une modale : `aria-modal` promet que ce qui est
+         * derrière n'existe plus, et cette promesse n'était pas tenue — ni
+         * `Échap`, ni piège de focus, ni restitution. `Modale` la tient, et
+         * `className` déplace le panneau contre le bord droit plutôt que de
+         * dupliquer la coquille (audit §1.4d).
+         */
+        <Modale
+          titre="IA Tutor"
+          sousTitre="Il reçoit les protocoles du système et l'état réel de tes compétences."
+          largeur="md"
+          position="laterale"
+          onFermer={() => setOuvert(false)}
         >
-          <div
-            className="absolute inset-y-0 right-0 flex w-full max-w-md flex-col border-l border-bordure bg-surface shadow-[var(--ombre-surcouche)]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between gap-2 border-b border-bordure px-4 py-3">
-              <div className="min-w-0">
-                <h2 className="font-serif text-sm font-medium">IA Tutor</h2>
-                <p className="truncate text-[0.6875rem] text-texte-discret">
-                  Il reçoit les protocoles du système et l&apos;état réel de tes compétences.
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-1.5">
-                <Link
-                  href={`/tuteur${exerciceCible ? `?exercice=${encodeURIComponent(exerciceCible)}` : competenceCiblee ? `?competence=${encodeURIComponent(competenceCiblee)}` : ""}`}
-                  className="text-[0.6875rem] text-primaire hover:underline"
-                >
-                  Ouvrir en pleine page
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => setOuvert(false)}
-                  aria-label="Fermer"
-                  className="rounded-md px-2 py-1 text-sm text-texte-attenue transition-colors hover:bg-surface-2 hover:text-texte"
-                >
-                  ✕
-                </button>
-              </div>
+          <>
+            <div className="border-b border-bordure pb-2 pt-2">
+              <Link
+                href={`/tuteur${exerciceCible ? `?exercice=${encodeURIComponent(exerciceCible)}` : competenceCiblee ? `?competence=${encodeURIComponent(competenceCiblee)}` : ""}`}
+                className="text-[0.6875rem] text-primaire hover:underline"
+              >
+                Ouvrir en pleine page
+              </Link>
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto">
@@ -138,8 +139,8 @@ export function TiroirTuteur({
                 calibragesModale={calibragesModale}
               />
             </div>
-          </div>
-        </div>
+          </>
+        </Modale>
       )}
     </>
   );

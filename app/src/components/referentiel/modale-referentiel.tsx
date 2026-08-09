@@ -21,6 +21,7 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { BandeauInfo, Bouton, PointActif } from "@/components/ui/primitives";
+import { Modale } from "@/components/ui/modale";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import type { PropositionReferentiel } from "@/lib/tutor/proposition";
 import { creerBranche } from "@/lib/store/referentiel-actions";
@@ -211,35 +212,12 @@ export function BoutonCreerReferentiel({ compteId }: { compteId: string }) {
         + Référentiel
       </Bouton>
 
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Ajouter un référentiel"
-        onClick={fermer}
+      <Modale
+        titre="Ajouter un référentiel"
+        sousTitre="Nomme un sujet ; le tuteur le découpe en branches. Tu relis, tu décoches, tu enregistres. Les codes sont attribués à l'enregistrement."
+        onFermer={fermer}
       >
-        <div
-          className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-y-auto rounded-xl border border-bordure bg-surface p-5 text-left text-texte shadow-[var(--ombre-surcouche)]"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex items-start justify-between gap-3 border-b border-bordure pb-3">
-            <div>
-              <h2 className="font-serif text-base font-medium">Ajouter un référentiel</h2>
-              <p className="mt-0.5 text-xs text-texte-discret">
-                Nomme un sujet ; le tuteur le découpe en branches. Tu relis, tu décoches, tu
-                enregistres. Les codes sont attribués à l{"'"}enregistrement.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={fermer}
-              aria-label="Fermer"
-              className="rounded-md px-2 py-1 text-sm text-texte-attenue transition-colors hover:bg-surface-2 hover:text-texte"
-            >
-              ✕
-            </button>
-          </div>
-
+        <>
           {etat.phase === "saisie" && (
             <div className="mt-4 space-y-3">
               {etat.message && (
@@ -255,7 +233,7 @@ export function BoutonCreerReferentiel({ compteId }: { compteId: string }) {
                   value={sujet}
                   onChange={(e) => setSujet(e.target.value)}
                   placeholder="le stoïcisme · la thermodynamique · le droit des contrats…"
-                  className="mt-1 w-full rounded-md border border-bordure bg-surface px-2 py-1.5 text-sm placeholder:text-texte-discret focus:border-primaire focus:outline-none"
+                  className="mt-1 w-full rounded-md border border-bordure-controle bg-surface px-2 py-1.5 text-sm placeholder:text-texte-discret"
                 />
               </label>
               <Bouton
@@ -290,7 +268,7 @@ export function BoutonCreerReferentiel({ compteId }: { compteId: string }) {
 
           {relecture && (
             <div className="mt-4 space-y-4">
-              <div className="rounded-md border border-bordure bg-surface-2 px-3 py-2.5">
+              <div className="rounded-md border border-bordure-controle bg-surface-2 px-3 py-2.5">
                 <p className="text-xs text-texte-attenue">{relecture.resume}</p>
                 {/* Une liste tronquée en silence se lirait comme complète (ADR-036). */}
                 {relecture.ecartees > 0 && (
@@ -330,7 +308,7 @@ export function BoutonCreerReferentiel({ compteId }: { compteId: string }) {
                         setPrefixes((p) => ({ ...p, [i]: e.target.value.toUpperCase().slice(0, 5) }))
                       }
                       aria-label={`Préfixe de ${b.domaine}`}
-                      className="chiffres w-16 shrink-0 rounded border border-bordure bg-surface px-1.5 py-0.5 text-center text-[0.6875rem] focus:border-primaire focus:outline-none"
+                      className="chiffres w-16 shrink-0 rounded border border-bordure-controle bg-surface px-1.5 py-0.5 text-center text-[0.6875rem]"
                     />
                   </label>
 
@@ -382,8 +360,8 @@ export function BoutonCreerReferentiel({ compteId }: { compteId: string }) {
               </div>
             </div>
           )}
-        </div>
-      </div>
+        </>
+      </Modale>
     </>
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { creerBranche } from "@/lib/store/referentiel-actions";
 import { normaliserPalier } from "@/lib/domain/referentiel-compte";
 import { BandeauInfo, Bouton, cx, Etiquette } from "@/components/ui/primitives";
@@ -58,7 +57,6 @@ export function ValidationBranche({
   /** Appelé après l'enregistrement — pour fermer la modale ou rafraîchir. */
   surEnregistre?: (codes: string[]) => void;
 }) {
-  const router = useRouter();
   const [enCours, demarrer] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
 
@@ -109,10 +107,19 @@ export function ValidationBranche({
           })),
           origine,
         });
+        /*
+         * La navigation appartient à l'APPELANT (audit §2.16).
+         *
+         * Ce composant faisait un `router.push("/competences")`
+         * inconditionnel, en plus du `onFermer()` que `surEnregistre` déclenche
+         * déjà. Valider une branche proposée dans le chat éjectait donc de
+         * `/tuteur` et démontait la conversation en cours — on perdait le fil
+         * pour avoir accepté une suggestion.
+         *
+         * `creerBranche` a déjà invalidé le cache (`revalidatePath`) : l'écran
+         * sur lequel on reste est à jour, où qu'il soit.
+         */
         surEnregistre?.(r.codes);
-        // `creerBranche` a déjà invalidé le cache (`revalidatePath`) : le
-        // `router.refresh()` qui suivait payait un second rendu complet.
-        router.push(`/competences`);
       } catch (e) {
         setErreur(e instanceof Error ? e.message : "Enregistrement impossible.");
       }

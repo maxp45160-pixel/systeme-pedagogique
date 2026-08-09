@@ -93,7 +93,16 @@ export function Courbe({
   const marge = 3;
   const n = points.length;
   const x = (i: number) => (n === 1 ? L / 2 : marge + (i * (L - 2 * marge)) / (n - 1));
-  const y = (v: number) => H - marge - (Math.max(0, Math.min(max, v)) / max) * (H - 2 * marge);
+  /*
+   * `max` est une prop publique, et `max === 0` produisait `0 / 0` — donc
+   * `d="MNaN NaN"`, une courbe muette (audit §2.11). Les appelants actuels
+   * passent tous un minimum, mais un composant ne se protège pas sur la
+   * discipline de ses appelants. Échelle nulle : tout se pose sur la ligne de
+   * base, ce qui est la lecture juste de « aucune valeur ».
+   */
+  const echelle = max > 0 ? max : 1;
+  const y = (v: number) =>
+    H - marge - (Math.max(0, Math.min(echelle, v)) / echelle) * (H - 2 * marge);
 
   const chemin = points.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)} ${y(p.valeur).toFixed(1)}`).join(" ");
   const aire = `${chemin} L${x(n - 1).toFixed(1)} ${H - marge} L${x(0).toFixed(1)} ${H - marge} Z`;
@@ -356,6 +365,26 @@ export function Radar({
   /** Décrit ce que représente un axe, ex. « Radar par compétence du domaine ». */
   libelle: string;
 }) {
+  /*
+   * Un radar demande au moins trois axes (audit §2.11).
+   *
+   * À un axe, `<polygon points="x,y">` ne dessine rien ; à deux, c'est un
+   * segment d'aire nulle. Dans les deux cas la carte s'affichait, titrée
+   * « Radar », avec une figure invisible — ce qui se lit comme un défaut de
+   * rendu, pas comme « pas assez de données ».
+   *
+   * Le garde-fou existait dans `panneau-progression.tsx` et pas sur la fiche de
+   * domaine. Il vit ici, une fois : un appelant ne doit pas avoir à connaître
+   * la géométrie du composant qu'il utilise.
+   */
+  if (axes.length < 3) {
+    return (
+      <p className="rounded-md border border-dashed border-bordure px-3 py-6 text-center text-xs text-texte-attenue">
+        Un radar demande au moins trois axes ; il y en a {axes.length}.
+      </p>
+    );
+  }
+
   const c = taille / 2;
   const rayon = c - 34;
   const n = axes.length;

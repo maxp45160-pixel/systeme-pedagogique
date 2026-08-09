@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { chargerContexte } from "@/lib/store/context";
+import { LienRetour } from "@/components/ui/lien-retour";
 import { libelleDomaine } from "@/lib/domain/referentiel-compte";
 import { DIFFICULTES } from "@/lib/domain/types";
 import {
@@ -124,11 +125,7 @@ export default async function PageExercice(props: {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <div className="mb-3">
-        <Link href="/exercices" className="text-xs text-texte-attenue hover:text-texte">
-          ← Tous les exercices
-        </Link>
-      </div>
+      <LienRetour href="/exercices" libelle="Tous les exercices" />
 
       {/*
         Abandon : aucune preuve écrite, et il faut le dire.

@@ -625,9 +625,6 @@ export function Bouton({
 /* Divers                                                              */
 /* ------------------------------------------------------------------ */
 
-export function Separateur({ className }: { className?: string }) {
-  return <div className={cx("h-px w-full bg-bordure", className)} />;
-}
 
 export function TitreSection({
   children,

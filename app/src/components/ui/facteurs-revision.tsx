@@ -19,7 +19,13 @@ export function FacteursRevision({ facteurs }: { facteurs: FacteurIntervalle[] }
         >
           <dt className="text-xs text-texte-attenue">{f.libelle}</dt>
           <dd className="chiffres shrink-0 text-xs font-medium">
-            {f.valeur} · ×{f.multiplicateur}
+            {/*
+              Arrondi à deux décimales : `1 + robustesse × 3` sur un flottant
+              produisait des « ×1.7000000000000002 » (audit §2.11). Toutes les
+              autres surfaces numériques du produit passent par `toFixed` ou
+              `Math.round` ; celle-ci était la seule à afficher le brut.
+            */}
+            {f.valeur} · ×{Math.round(f.multiplicateur * 100) / 100}
           </dd>
         </div>
       ))}

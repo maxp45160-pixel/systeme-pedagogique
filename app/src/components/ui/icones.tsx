@@ -47,21 +47,6 @@ export const IconeExercices = ({ className }: Props) => (
   </Svg>
 );
 
-export const IconeProgression = ({ className }: Props) => (
-  <Svg className={className}>
-    <path d="M3 19h18" />
-    <path d="M4.5 15.5 9 10.5l3.5 3 6-7.5" />
-    <path d="M18.5 6h-3.2M18.5 6v3.2" />
-  </Svg>
-);
-
-export const IconeTuteur = ({ className }: Props) => (
-  <Svg className={className}>
-    <path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-6.5L7 20v-4H6a2 2 0 0 1-2-2Z" />
-    <path d="M9.5 8.75a2.5 2.5 0 1 1 3 2.45V12" />
-  </Svg>
-);
-
 export const IconeJournal = ({ className }: Props) => (
   <Svg className={className}>
     <rect x="4" y="4" width="16" height="17" rx="2" />

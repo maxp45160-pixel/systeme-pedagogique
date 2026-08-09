@@ -234,7 +234,10 @@ function serialiserProfil(ctx: Contexte): string {
       "Ce compte n'a encore aucun domaine ni aucune compétence : il n'y a rien à mesurer, et aucun niveau ne peut être discuté.",
     );
     lignes.push(
-      "Ta tâche est de construire ce référentiel AVEC l'utilisateur, pas de le deviner. Interroge-le d'abord sur ce qu'il veut savoir faire et dans quel but ; propose ensuite une première branche par un bloc PROPOSITION DE RÉFÉRENTIEL.",
+      // Le gabarit markdown a disparu des prompts au lot 3.2 : la consigne
+      // nommait un bloc « PROPOSITION DE RÉFÉRENTIEL » dont les étiquettes
+      // n'étaient plus décrites nulle part. Le tuteur appelle l'outil.
+      `Ta tâche est de construire ce référentiel AVEC l'utilisateur, pas de le deviner. Interroge-le d'abord sur ce qu'il veut savoir faire et dans quel but ; propose ensuite une première branche avec l'outil ${OUTIL_REFERENTIEL}.`,
     );
     lignes.push(
       "Ne propose ni preuve ni exercice tant qu'aucune compétence n'existe : ils n'auraient rien à quoi se rattacher.",
@@ -253,7 +256,7 @@ function serialiserProfil(ctx: Contexte): string {
     `Couverture : ${ctx.global.competencesEvaluees}/${ctx.global.competencesTotal} compétences évaluées · ${ctx.global.nombrePreuves} preuve(s) directe(s)`,
   );
   lignes.push(
-    "Périmètre de travail : seules les compétences listées ci-dessous sont suivies. N'emploie aucun autre code dans une proposition de preuve ou d'exercice — il serait rejeté. Pour en ajouter une, passe par un bloc PROPOSITION DE RÉFÉRENTIEL, que l'utilisateur validera.",
+    `Périmètre de travail : seules les compétences listées ci-dessous sont suivies. N'emploie aucun autre code dans une proposition de preuve ou d'exercice — il serait rejeté. Pour en ajouter une, appelle ${OUTIL_REFERENTIEL} ; l'utilisateur validera.`,
   );
   lignes.push("");
 

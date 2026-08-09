@@ -232,7 +232,7 @@ export function FormulaireBilan({
               return (
                 <li
                   key={i}
-                  className="rounded-md border border-bordure bg-surface-2 px-3 py-2"
+                  className="rounded-md border border-bordure-controle bg-surface-2 px-3 py-2"
                 >
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <p className="min-w-0 flex-1 text-xs">{c.libelle}</p>
@@ -243,7 +243,7 @@ export function FormulaireBilan({
                           ? "border-succes/40 bg-succes-faible text-succes"
                           : valeur === 0.5
                             ? "border-alerte/40 bg-alerte-faible text-alerte"
-                            : "border-bordure bg-surface text-texte-attenue",
+                            : "border-bordure-controle bg-surface text-texte-attenue",
                       )}
                     >
                       {libelle}
@@ -263,7 +263,7 @@ export function FormulaireBilan({
             {exercice.criteres.map((c, i) => (
               <li
                 key={i}
-                className="rounded-md border border-bordure bg-surface-2 px-3 py-2"
+                className="rounded-md border border-bordure-controle bg-surface-2 px-3 py-2"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="min-w-0 flex-1">
@@ -282,7 +282,7 @@ export function FormulaireBilan({
                           "rounded border px-2 py-1 text-[0.6875rem] font-medium transition-colors",
                           criteres[i] === a.valeur
                             ? "border-primaire/40 bg-primaire text-primaire-contraste"
-                            : "border-bordure bg-surface text-texte-attenue hover:bg-surface-3",
+                            : "border-bordure-controle bg-surface text-texte-attenue hover:bg-surface-3",
                         )}
                       >
                         {a.libelle}
@@ -370,7 +370,7 @@ export function FormulaireBilan({
               max={600}
               value={duree}
               onChange={(e) => setDuree(Math.max(1, Number(e.target.value) || 1))}
-              className="chiffres w-20 rounded-md border border-bordure bg-surface px-2 py-1 text-sm focus:border-primaire focus:outline-none"
+              className="chiffres w-20 rounded-md border border-bordure-controle bg-surface px-2 py-1 text-sm"
             />
             <span className="text-xs text-texte-attenue">minutes</span>
           </div>
@@ -383,13 +383,13 @@ export function FormulaireBilan({
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Ce qui a bloqué, ce que je retiens…"
-            className="mt-1 w-full rounded-md border border-bordure bg-surface px-2 py-1 text-sm placeholder:text-texte-discret focus:border-primaire focus:outline-none"
+            className="mt-1 w-full rounded-md border border-bordure-controle bg-surface px-2 py-1 text-sm placeholder:text-texte-discret"
           />
         </label>
       </div>
 
       {/* Ce qui sera enregistré — annoncé avant l'écriture, pas après. */}
-      <div className="rounded-md border border-bordure bg-surface-2 px-3 py-2.5 text-[0.6875rem] text-texte-attenue">
+      <div className="rounded-md border border-bordure-controle bg-surface-2 px-3 py-2.5 text-[0.6875rem] text-texte-attenue">
         <p className="font-medium text-texte">Ce qui sera enregistré</p>
         <ul className="mt-1 space-y-0.5">
           <li>
