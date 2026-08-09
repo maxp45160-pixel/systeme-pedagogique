@@ -207,6 +207,108 @@ describe("construireContexte — corpus et exercice en cours", () => {
   });
 });
 
+/* ------------------------------------------------------------------ */
+/* Trajectoire (ADR-046) — l'histoire, et la frontière                 */
+/* ------------------------------------------------------------------ */
+
+/** Deux tentatives closes sur DEV-01, la seconde portant un verdict archivé. */
+function corpusAvecHistorique() {
+  const verdict = {
+    resultat: "partiel",
+    appreciations: { 0: 0.5 },
+    justifications: { 0: "JUSTIFICATION-TÉMOIN" },
+    bilan: {
+      pointsForts: "FORTS-TÉMOIN",
+      pointsBloquants: "BLOQUANTS-TÉMOIN",
+      aRetravailler: ["RETRAVAILLER-TÉMOIN : confond map et filter"],
+    },
+    date: "2026-07-28T10:00:00.000Z",
+  };
+  return {
+    exercises: [exerciceDeTest()],
+    attempts: [
+      tentativeDeTest({
+        id: "at-vieux",
+        debut: "2026-07-20T09:00:00.000Z",
+        fin: "2026-07-20T09:30:00.000Z",
+        dureeMin: 30,
+        statut: "terminee",
+        resultat: "echec",
+      }),
+      tentativeDeTest({
+        id: "at-recent",
+        debut: "2026-07-28T09:00:00.000Z",
+        fin: "2026-07-28T09:20:00.000Z",
+        dureeMin: 20,
+        statut: "terminee",
+        resultat: "partiel",
+        verdictTuteur: verdict,
+      }),
+    ],
+  };
+}
+
+describe("serialiserTrajectoire — le temps entre dans le contexte", () => {
+  it("transmet la suite des tentatives et les points relevés", async () => {
+    const p = await construireContexte(construireCtxDeTest(REFERENTIEL_TEST, corpusAvecHistorique()));
+
+    expect(p.systemeProfil).toContain("# TRAJECTOIRE");
+    // La suite chronologique : c'est elle qui permet de dire « ça revient ».
+    expect(p.systemeProfil).toContain("echec en 30 min");
+    expect(p.systemeProfil).toContain("partiel en 20 min");
+    expect(p.systemeProfil).toContain("RETRAVAILLER-TÉMOIN");
+    expect(p.manifeste.some((s) => s.nom === "Trajectoire")).toBe(true);
+  });
+
+  /*
+   * ⚠️ LE test de ce lot.
+   *
+   * `pointsForts` et `pointsBloquants` sont rédigés par le tuteur avec la
+   * correction sous les yeux, sur le chemin confiné de `correction.ts`. Les
+   * faire remonter dans le contexte du CHAT rouvrirait l'exception qu'ADR-036
+   * borne — un tunnel, pas une fenêtre. Seul `aRetravailler` franchit.
+   */
+  it("ne fait JAMAIS remonter la prose du verdict dans le contexte du chat", async () => {
+    const p = await construireContexte(construireCtxDeTest(REFERENTIEL_TEST, corpusAvecHistorique()));
+
+    expect(p.systemeProfil).not.toContain("FORTS-TÉMOIN");
+    expect(p.systemeProfil).not.toContain("BLOQUANTS-TÉMOIN");
+    expect(p.systemeProfil).not.toContain("JUSTIFICATION-TÉMOIN");
+    expect(p.systemeProfil).not.toContain("CORRECTION-TÉMOIN");
+    // Et ce qui a le droit de passer y est bien.
+    expect(p.systemeProfil).toContain("RETRAVAILLER-TÉMOIN");
+  });
+
+  it("n'écrit aucun bloc quand il n'y a pas encore d'histoire", async () => {
+    // Un bloc « TRAJECTOIRE » vide se lirait comme « aucun motif observé », qui
+    // est une affirmation. L'absence de mesure n'est pas une mesure (P2).
+    const p = await construireContexte(construireCtxDeTest());
+    expect(p.systemeProfil).not.toContain("# TRAJECTOIRE");
+    expect(p.manifeste.some((s) => s.nom === "Trajectoire")).toBe(false);
+  });
+
+  it("ignore une tentative encore ouverte — elle n'a pas de verdict", async () => {
+    const p = await construireContexte(
+      construireCtxDeTest(REFERENTIEL_TEST, {
+        exercises: [exerciceDeTest()],
+        attempts: [tentativeDeTest()],
+      }),
+    );
+    expect(p.systemeProfil).not.toContain("# TRAJECTOIRE");
+  });
+
+  it("part aussi en aide sur exercice — « tu avais déjà buté là-dessus »", async () => {
+    const p = await construireContexte(
+      construireCtxDeTest(REFERENTIEL_TEST, corpusAvecHistorique()),
+      [],
+      "ex-1",
+    );
+    expect(p.systemeProfil).toContain("# TRAJECTOIRE");
+    // Le corpus et les priorités, eux, restent omis sur ce chemin.
+    expect(p.systemeProfil).not.toContain("# EXERCICES EXISTANTS");
+  });
+});
+
 /*
  * Aider sur un exercice ouvert n'est pas la même conversation que choisir quoi
  * faire ensuite.

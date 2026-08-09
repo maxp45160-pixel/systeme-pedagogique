@@ -2943,6 +2943,129 @@ réelle quand le corpus le permettra.
 
 ---
 
+## ADR-046 — Le tuteur garde la mémoire de ses verdicts 🔬
+
+**Date.** 09/08/2026, lot 4 du chantier de stabilisation.
+
+**Ce qui manquait, dans les mots de Maxime.** « Le tuteur semble principalement
+remplir des cases pour moi, alors que j'attends davantage d'un véritable
+tuteur. » Suivi d'une liste — ce qui a été bien fait, ce qui pose problème,
+pourquoi, les erreurs identifiées, les conseils — et d'une seconde demande :
+« qu'il puisse détecter des patterns au fil du temps, plutôt que d'analyser
+chaque exercice indépendamment. »
+
+### Le diagnostic : il savait juger, pas se souvenir ni s'exprimer
+
+Trois causes distinctes, dont aucune n'est un problème de prompt.
+
+1. **Son format de sortie n'avait pas de place pour un retour.**
+   `PropositionCorrection` valait `{ resultat, appreciations[] }`. Aucun champ
+   global : ni « ce qui est acquis », ni « pourquoi c'est un problème », ni
+   « quoi retravailler ». Il ne pouvait dire que « 0 / 0,5 / 1 » plus 400
+   caractères par critère.
+
+2. **Le seul retour détaillé qu'il produisait était jeté.** La `justification`
+   par critère était affichée dans le formulaire de bilan — puis
+   `terminerExercice` recevait `resultat`, `autoEvaluation`, `dureeMin`, `notes`,
+   `aideExterne`, et rien d'autre. Le texte mourait avec la page.
+
+3. **Son contexte était un instantané.** `lib/engine/historique.ts` existait,
+   testé, et n'était **importé par aucun module du tuteur**.
+   `competencesAmeliorees` était calculé et jamais transmis. Le signal
+   historique le plus profond qui l'atteignait était la calibration : trois
+   tentatives, réduites à une phrase.
+
+Aucun prompt ne compense (2) et (3). L'ordre est contraint : élargir le format
+sans persister ne sert à rien, historiser sans matière non plus.
+
+### Ce qui est décidé
+
+1. **Le verdict s'élargit.** `schemaCorrection` gagne un `bilan` **requis** :
+   `points_forts`, `points_bloquants` (l'erreur *puis* ce qu'elle empêche),
+   `a_retravailler`. Un verdict sans lui est rejeté — sinon le tuteur retombe
+   dans la grille de cases que ce lot lui retire.
+
+2. **Le verdict se conserve.** `attempts.verdict_tuteur` (JSONB,
+   `supabase/migration-verdict.sql`, additive et idempotente). On archive aussi
+   ce que le tuteur **proposait** comme résultat et appréciations, à côté de ce
+   que la personne a validé : l'écart entre les deux dit si quelqu'un se
+   surestime, et c'est une observation qu'on ne pouvait pas faire.
+
+3. **Le temps entre dans le contexte.** Un bloc `TRAJECTOIRE` porte, par
+   compétence, la suite des tentatives, les points relevés lors des corrections
+   précédentes, les paliers franchis, et le nombre de compétences améliorées
+   sur 30 jours. Il rend `null` quand il n'y a pas encore d'histoire — un bloc
+   vide se lirait comme « aucun motif », qui est une affirmation.
+
+4. **Le déclaré se confronte à l'observé.** Les deux étaient déjà dans le
+   prompt ; il manquait la consigne de les comparer. Elle demande de nommer
+   l'écart **une fois**, en citant les deux côtés.
+
+### Pourquoi `JUSTIFICATION_MAX` ne bouge pas, et pourquoi le bilan est plus large
+
+ADR-041 décrit les 400 caractères comme une **borne de confinement**. Elle est
+maintenue, parce que la justification est attachée à **une case que
+l'utilisateur doit cocher** : longue, elle devient la correction réécrite, on la
+lit, on se dit « oui c'est ça », et on tamponne. La mesure est corrompue à
+l'entrée de la chaîne.
+
+Le bilan rédigé ne porte **aucune mesure**. Il n'est attaché à aucun critère,
+n'entre dans aucune preuve, ne pré-remplit rien, et s'affiche **après** les
+critères. D'où `FEEDBACK_MAX = 900` et `RETRAVAILLER_MAX = 180` : borner court
+reviendrait à refuser la demande plutôt qu'à la sécuriser.
+
+### ⚠️ La frontière réelle, et où elle est tenue
+
+Le risque n'est pas la longueur : c'est que ce texte **revienne dans le chat**,
+où la correction n'a jamais le droit d'entrer (ADR-036). Un bilan persisté puis
+resérialisé dans `construireContexte` serait exactement le tunnel qu'ADR-041
+bornait.
+
+Règle retenue : **seul `aRetravailler` franchit la frontière.** Ce sont des
+points courts, demandés sous une forme qui parle de la personne — « confond
+médiane et moyenne » — et non de la solution. `pointsForts` et
+`pointsBloquants` sont persistés, relisibles sur la fiche de l'exercice, et ne
+sortent jamais de là. Un test l'épingle avec quatre témoins textuels.
+
+**Ne pas « compléter » le bloc TRAJECTOIRE avec la prose** pour rendre le
+tuteur plus loquace. C'est la seule manière de rouvrir l'exception, et elle
+serait invisible : le tuteur paraîtrait simplement mieux informé.
+
+### L'archivage ne bloque jamais l'écriture d'une preuve
+
+`archiverVerdict` est appelée **après** la preuve et le journal, et son échec
+est journalisé puis avalé. Deux raisons, la seconde étant la vraie : la colonne
+peut ne pas encore exister (migration manuelle), et surtout **un conseil perdu
+ne doit pas empêcher l'écriture d'une mesure**. Les lier ferait dépendre la
+preuve d'un texte, ce qui est l'inverse de tout ce que le moteur défend.
+
+### 🔬 Test de réfutation
+
+1. **Lire trois verdicts consécutifs.** Si `points_bloquants` paraphrase la
+   correction au lieu de nommer l'incompréhension, la consigne du prompt a
+   échoué et la borne ne suffit pas : il faudra contraindre la forme, pas la
+   longueur.
+2. **Vérifier qu'aucun motif n'est affirmé sur une seule occurrence.** La
+   consigne exige deux dates. Si le tuteur écrit « tu confonds régulièrement… »
+   après un seul relevé, il hallucine un motif — le défaut le plus coûteux que
+   ce lot puisse produire, parce qu'il est crédible.
+3. **Surveiller `caracteresTotal`.** La trajectoire est plafonnée à 8
+   compétences et 5 tentatives chacune. Si le contexte franchit durablement la
+   fenêtre des moteurs gratuits, ce sont ces deux bornes qui bougent, pas le
+   principe.
+4. **Comparer `verdict_tuteur.resultat` et `attempts.resultat` sur 20
+   tentatives.** Un écart systématique dans un sens est une mesure de la
+   calibration de l'auto-évaluation — et personne ne l'a jamais regardée :
+   ```sql
+   select a.resultat as valide, a.verdict_tuteur->>'resultat' as propose, count(*)
+   from attempts a where a.verdict_tuteur is not null group by 1, 2;
+   ```
+5. **Vérifier que la prose ne fuit pas.** Le test automatique couvre le chemin
+   nominal ; relire le contexte réel via « Copier le contexte » après quelques
+   exercices corrigés, et y chercher un fragment de correction.
+
+---
+
 ## Comment modifier ce registre
 
 1. Une décision ✅ ne se retire pas : elle passe en 🔄 **Remplacée**, avec le

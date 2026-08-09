@@ -15,6 +15,7 @@ import type { Referentiel } from "@/lib/domain/types";
 import { serialiserProfilDeclare } from "@/lib/domain/profil";
 import { usageExercice } from "@/lib/domain/exercice";
 import { formatDateCourte } from "@/lib/engine/dates";
+import { evenementsRecents } from "@/lib/engine/historique";
 import {
   OUTIL_EXERCICE,
   OUTIL_REFERENTIEL,
@@ -332,6 +333,157 @@ function serialiserRecent(ctx: Contexte): string {
   return lignes.join("\n");
 }
 
+/* ------------------------------------------------------------------ */
+/* Trajectoire — ce qui manquait pour parler de motifs (ADR-046)        */
+/* ------------------------------------------------------------------ */
+
+/** Tentatives résumées par compétence, du plus ancien au plus récent. */
+const SUITE_TENTATIVES_MAX = 5;
+/** Compétences détaillées dans la trajectoire. Au-delà, le bloc noierait le reste. */
+const COMPETENCES_TRAJECTOIRE_MAX = 8;
+
+/**
+ * L'histoire, et non l'instantané.
+ *
+ * ## Ce qui manquait
+ *
+ * Le contexte ne portait qu'une photographie : une ligne par compétence avec
+ * son niveau du jour, les 12 dernières preuves, et une calibration tirée d'au
+ * plus 3 tentatives réduites à une phrase. Sur cette base, aucun modèle ne peut
+ * répondre à « est-ce que cette erreur revient ? » — non parce qu'il raisonne
+ * mal, mais parce que l'information n'était pas là.
+ *
+ * `lib/engine/historique.ts` existait pourtant, testé, et **n'était importé
+ * par aucun module du tuteur** : il ne servait qu'aux écrans. `progression.ts`
+ * calculait `competencesAmeliorees` sans que personne ne le transmette. Les
+ * verdicts du tuteur, eux, n'étaient simplement pas écrits (ADR-046).
+ *
+ * ## ⚠️ La frontière avec ADR-036
+ *
+ * Des trois champs du bilan archivé, **seul `aRetravailler` est sérialisé
+ * ici**. `pointsForts` et `pointsBloquants` sont rédigés avec la correction
+ * sous les yeux, sur le chemin confiné de `correction.ts` ; les faire remonter
+ * dans le contexte du chat rouvrirait l'exception que six verrous bornent.
+ * `aRetravailler` est demandé au tuteur sous une forme qui parle de la
+ * personne — « confond médiane et moyenne » — et non de la solution.
+ *
+ * Un test épingle cette frontière. Ne pas « compléter » ce bloc avec la prose
+ * pour rendre le tuteur plus loquace : ce serait le tunnel.
+ */
+function serialiserTrajectoire(ctx: Contexte): string | null {
+  const skillsParCode = new Map(ctx.referentiel.skills.map((s) => [s.code, s]));
+  const evenements = evenementsRecents(ctx.donnees.evidence, skillsParCode, 10, ctx.now);
+
+  // Les points à retravailler, par compétence, du plus ancien au plus récent.
+  // C'est la matière de « cette erreur revient » : un même point qui réapparaît
+  // à deux dates est un motif, le même point une fois est une observation.
+  const pointsParCode = new Map<string, { date: string; point: string }[]>();
+  const tentativesParCode = new Map<string, { date: string; resume: string }[]>();
+  const exercicesParId = new Map(ctx.donnees.exercises.map((e) => [e.id, e]));
+
+  for (const t of ctx.donnees.attempts) {
+    if (t.statut === "en-cours") continue;
+    const exercice = exercicesParId.get(t.exerciseId);
+    if (!exercice) continue;
+    const date = t.fin ?? t.debut;
+
+    for (const code of exercice.competences) {
+      const suite = tentativesParCode.get(code) ?? [];
+      suite.push({
+        date,
+        resume:
+          t.statut === "abandonnee"
+            ? "abandonnée"
+            : `${t.resultat}${t.dureeMin !== undefined ? ` en ${t.dureeMin} min` : ""}${
+                t.indicesUtilises > 0 ? `, ${t.indicesUtilises} indice(s)` : ""
+              }`,
+      });
+      tentativesParCode.set(code, suite);
+
+      for (const point of t.verdictTuteur?.bilan.aRetravailler ?? []) {
+        const liste = pointsParCode.get(code) ?? [];
+        liste.push({ date, point });
+        pointsParCode.set(code, liste);
+      }
+    }
+  }
+
+  // Les compétences qui ont quelque chose à raconter : au moins deux tentatives,
+  // ou un point relevé par le tuteur. Une compétence tentée une fois n'a pas
+  // d'histoire — l'inclure gonflerait le bloc sans rien apprendre.
+  const interessantes = [...tentativesParCode.entries()]
+    .filter(([code, suite]) => suite.length >= 2 || (pointsParCode.get(code)?.length ?? 0) > 0)
+    .sort((a, b) => {
+      const dernier = (s: { date: string }[]) => s[s.length - 1]?.date ?? "";
+      return dernier(b[1]).localeCompare(dernier(a[1]));
+    })
+    .slice(0, COMPETENCES_TRAJECTOIRE_MAX);
+
+  const franchissements = evenements.filter((e) => e.franchissement);
+
+  if (interessantes.length === 0 && franchissements.length === 0) return null;
+
+  const lignes = [
+    "# TRAJECTOIRE",
+    "",
+    "Ce bloc est le seul qui porte le TEMPS. Sers-t'en pour dire ce qu'une",
+    "photographie ne montre pas : ce qui revient, ce qui recule, ce qui a bougé.",
+    "N'affirme un motif que si plusieurs lignes ci-dessous le portent — deux",
+    "occurrences datées, pas une impression.",
+  ];
+
+  if (interessantes.length > 0) {
+    lignes.push("", "## Par compétence");
+    for (const [code, suite] of interessantes) {
+      const skill = skillsParCode.get(code);
+      const chronologique = [...suite].sort((a, b) => a.date.localeCompare(b.date));
+      const retenues = chronologique.slice(-SUITE_TENTATIVES_MAX);
+      const omises = chronologique.length - retenues.length;
+
+      lignes.push(
+        "",
+        `### ${code}${skill ? ` — ${skill.intitule}` : ""}`,
+        `- Tentatives${omises > 0 ? ` (${omises} plus ancienne(s) omise(s))` : ""} : ${retenues
+          .map((t) => `${formatDateCourte(t.date)} ${t.resume}`)
+          .join(" → ")}`,
+      );
+
+      const points = pointsParCode.get(code) ?? [];
+      if (points.length > 0) {
+        lignes.push(
+          `- Relevé par toi lors des corrections précédentes :`,
+          ...points
+            .sort((a, b) => a.date.localeCompare(b.date))
+            .map((p) => `  - ${formatDateCourte(p.date)} : ${p.point}`),
+        );
+      }
+    }
+  }
+
+  if (franchissements.length > 0) {
+    lignes.push(
+      "",
+      "## Paliers franchis récemment",
+      ...franchissements.map(
+        (e) =>
+          `- ${formatDateCourte(e.date)} | ${e.skillCode} : niveau ${e.niveauAvant ?? "—"} → ${
+            e.niveauApres ?? "—"
+          } (« ${e.contexte} »)`,
+      ),
+    );
+  }
+
+  const ameliorees = ctx.global.competencesAmeliorees;
+  lignes.push(
+    "",
+    ameliorees > 0
+      ? `Sur 30 jours : ${ameliorees} compétence(s) ont progressé d'au moins un niveau.`
+      : "Sur 30 jours : aucune compétence n'a changé de niveau.",
+  );
+
+  return lignes.join("\n");
+}
+
 /**
  * Ce que les tentatives passées disent du calibrage à venir (ADR-028).
  *
@@ -600,7 +752,25 @@ jamais qu'une chose « a été ajoutée » ou « mise à jour » : tu proposes, 
    en cours et de l'état du profil transmis. Ne prétends pas te souvenir d'une
    séance qui n'apparaît pas dans le travail récent.
 
-4. RESTE CONCIS SAUF DEMANDE CONTRAIRE.
+4. TU AS LE DROIT DE PARLER DU TEMPS — et le devoir de ne pas l'inventer.
+   Le bloc « TRAJECTOIRE », quand il est présent, porte la suite des tentatives
+   par compétence, les points que tu avais relevés lors des corrections
+   précédentes, et les paliers franchis. C'est la seule matière dont tu
+   disposes pour dire qu'une chose REVIENT. Sers-t'en, et cite les dates.
+   Un motif s'affirme sur au moins deux occurrences datées. Une seule est une
+   observation : dis-la comme telle, ou tais-la. Sans bloc TRAJECTOIRE, il n'y a
+   pas encore d'histoire — ne la déduis pas des niveaux, ils ne la portent pas.
+
+5. CONFRONTE CE QUI EST DÉCLARÉ À CE QUI EST MESURÉ.
+   Le profil dit ce que la personne pense savoir et vise ; les compétences
+   disent ce qui a été démontré. Quand les deux divergent nettement — un
+   objectif qui suppose un niveau que rien n'étaye, une formation déclarée sur
+   un domaine dont les preuves sont faibles —, nomme l'écart, une fois,
+   factuellement, en citant les deux côtés. Ce n'est pas un jugement : c'est
+   l'information la plus utile que tu puisses rendre, et personne d'autre n'est
+   placé pour la voir. N'en fais pas un refrain.
+
+6. RESTE CONCIS SAUF DEMANDE CONTRAIRE.
    L'utilisateur vient travailler, pas lire des synthèses. Pas d'introduction,
    pas de récapitulatif du profil non demandé, pas de félicitations
    automatiques. Réponds à la demande, questionne, corrige, propose la suite.
@@ -685,6 +855,14 @@ export async function construireContexte(
 
   const profil = serialiserProfil(ctx);
   const recent = serialiserRecent(ctx);
+  /*
+   * La trajectoire part MÊME en aide sur exercice (ADR-046) : « tu as déjà
+   * buté là-dessus il y a trois semaines » est exactement ce qu'on attend d'un
+   * tuteur pendant une tentative. Elle rend `null` quand il n'y a pas encore
+   * d'histoire — un bloc vide se lirait comme une absence de motif, ce qui est
+   * une affirmation qu'on n'a pas les moyens de faire.
+   */
+  const trajectoire = serialiserTrajectoire(ctx);
   const calibrage = serialiserCalibration(ctx);
   const corpus = aideSurExercice ? null : serialiserCorpus(ctx);
   const enCours = serialiserExerciceEnCours(ctx, exerciceId);
@@ -695,6 +873,9 @@ export async function construireContexte(
     { nom: "Travail récent", caracteres: recent.length, origine: "calcule" },
     { nom: "Calibrage du prochain exercice", caracteres: calibrage.length, origine: "calcule" },
   );
+  if (trajectoire !== null) {
+    manifeste.push({ nom: "Trajectoire", caracteres: trajectoire.length, origine: "calcule" });
+  }
   if (corpus !== null) {
     manifeste.push({ nom: "Exercices existants", caracteres: corpus.length, origine: "calcule" });
   }
@@ -714,7 +895,7 @@ export async function construireContexte(
   });
 
   const systemeStable = blocsStables.join("\n\n---\n\n");
-  const systemeProfil = [profil, recent, calibrage, corpus, enCours, priorites]
+  const systemeProfil = [profil, recent, trajectoire, calibrage, corpus, enCours, priorites]
     .filter((bloc): bloc is string => bloc !== null)
     .join("\n\n---\n\n");
 

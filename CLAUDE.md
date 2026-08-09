@@ -94,7 +94,7 @@ pratique et développer un sujet à long terme.
   deux cas. Sans moteur configuré : 503 et repli « copier le contexte ».
 - **Styles :** Tailwind CSS v4 ; **graphiques SVG écrits à la main**, aucune
   librairie UI tierce
-- **Tests :** Vitest — **516 tests**, 23 fichiers (moteur, répétition espacée,
+- **Tests :** Vitest — **551 tests**, 24 fichiers (moteur, répétition espacée,
   calibration, backend Supabase, référentiel par compte, cycle de vie des
   exercices, profil, parseurs de propositions, outils du tuteur, contexte du
   tuteur, amorces du tuteur, sélection du moteur du tuteur, génération sans
@@ -136,6 +136,13 @@ idempotent, sans `DROP` : `exercises.difficulte` passe de `TEXT` à `INTEGER` av
 un `CHECK BETWEEN 1 AND 5` (ADR-034), et la colonne `exercises.archive` apparaît
 (ADR-035). `schema.sql` porte les mêmes définitions pour une installation neuve.
 Inutile de le rejouer.
+
+⏳ **`supabase/migration-verdict.sql` reste À APPLIQUER** (09/08/2026, ADR-046).
+Additive et idempotente, sans `DROP` : ajoute `attempts.verdict_tuteur` (JSONB),
+où le verdict du tuteur est archivé. Tant qu'elle n'est pas passée,
+l'application tourne à l'identique — `archiverVerdict` est délibérément non
+bloquante et se contente d'un avertissement en journal. Aucun verdict n'est
+conservé jusque-là, donc aucune détection de motifs.
 
 ✅ **Migration du référentiel appliquée.** Vérifié le 07/08/2026 :
 `evidence_competence_fk` **est posée** en base et **aucune preuve n'est
@@ -339,6 +346,25 @@ immuable — c'est la clé étrangère des preuves.
   l'en-tête d'un tableau avant son séparateur, donc l'onglet gelait à chaque
   tableau. Toute boucle `while` qui avance un index doit vivre dans `lib/`, et
   garantir qu'elle **consomme au moins un élément par tour**.
+- **Ne faire remonter au chat que `aRetravailler`** (ADR-046). Le verdict du
+  tuteur est désormais persisté (`attempts.verdict_tuteur`) et une partie
+  repart dans `construireContexte`. `pointsForts` et `pointsBloquants` sont
+  rédigés **avec la correction sous les yeux**, sur le chemin confiné de
+  `correction.ts` : les sérialiser dans le contexte du chat rouvrirait
+  l'exception d'ADR-036 — un tunnel, pas une fenêtre, et invisible, puisque le
+  tuteur paraîtrait simplement mieux informé. Un test le vérifie avec quatre
+  témoins textuels. Ne pas « compléter » le bloc TRAJECTOIRE avec la prose.
+- **`JUSTIFICATION_MAX` ne bouge pas ; `FEEDBACK_MAX` est plus large, et c'est
+  cohérent** (ADR-046). La justification est attachée à **une case à cocher** :
+  longue, elle devient la correction réécrite qu'on tamponne, et la mesure est
+  corrompue à l'entrée. Le bilan rédigé ne porte **aucune** mesure — pas de
+  critère, pas de preuve, aucun pré-remplissage — et s'affiche après les
+  critères. Ne pas « harmoniser » les deux bornes : elles protègent des choses
+  différentes.
+- **`archiverVerdict` ne doit jamais bloquer l'écriture d'une preuve**
+  (ADR-046). Elle s'exécute après la preuve et le journal, et son échec est
+  journalisé puis avalé. Un conseil perdu est un incident ; une preuve perdue
+  est une régression du seul engagement du produit.
 - **Ne pas élargir l'exception à ADR-036** (ADR-041, 07/08). Le tuteur voit la
   correction d'un exercice **sur un seul chemin** : `lib/tutor/correction.ts` et
   `/api/exercices/corriger`. Six verrous la bornent, tous du code — et le plus
