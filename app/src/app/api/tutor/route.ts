@@ -2,7 +2,8 @@ import { chargerContexte } from "@/lib/store/context";
 import { construireContexte } from "@/lib/tutor/contexte";
 import { choisirConfiguration, creerMoteur } from "@/lib/tutor/moteurs";
 import { fenetrerHistorique, MAX_MESSAGES_FENETRE } from "@/lib/tutor/fenetre";
-import { configVersEnv, type ConfigTuteurClient } from "@/lib/tutor/cle-client";
+import type { ConfigTuteurClient } from "@/lib/tutor/cle-client";
+import { envTuteur } from "@/lib/tutor/env-requete";
 
 /**
  * Route du tuteur — réponse diffusée en flux.
@@ -43,8 +44,11 @@ export async function POST(request: Request) {
 
   // La config client (si présente) prime sur `process.env` : l'utilisateur qui
   // a saisi sa clé dans les réglages n'a pas à éditer `app/.env.local`.
-  const env = { ...process.env, ...(corps.config ? configVersEnv(corps.config) : {}) };
-  const choix = choisirConfiguration(env);
+  // Point d'entree unique : la config client est validee avant de toucher
+  // l'environnement du serveur (SSRF, voir lib/tutor/url-fournisseur.ts).
+  const resolution = envTuteur(corps.config);
+  if (!resolution.ok) return resolution.reponse;
+  const choix = choisirConfiguration(resolution.env);
   const moteur = creerMoteur(choix);
 
   if (!moteur) {
@@ -119,6 +123,26 @@ export async function POST(request: Request) {
           signal: abandon.signal,
           envoyer,
         });
+      } catch (e) {
+        /*
+         * Cette route était la SEULE des sept à n'avoir qu'un `finally`.
+         *
+         * Une exception échappée de `repondre` — par exemple `new Anthropic({
+         * apiKey })`, qui est construit HORS du `try` de son propre moteur —
+         * rejetait `start()`, mettait le flux en erreur, et le client affichait
+         * une panne réseau générique là où la vraie cause était une clé
+         * invalide. Les six autres routes émettent `erreur` ; celle-ci
+         * s'aligne, et l'abandon volontaire reste silencieux : ce n'est pas
+         * une panne.
+         */
+        if (!abandon.signal.aborted) {
+          envoyer("erreur", {
+            message:
+              e instanceof Error
+                ? `Le tuteur n'a pas pu répondre : ${e.message}`
+                : "Le tuteur n'a pas pu répondre.",
+          });
+        }
       } finally {
         // Fermer un contrôleur déjà annulé lève : le cas est normal, pas une
         // panne. On l'avale plutôt que de polluer les journaux du serveur.

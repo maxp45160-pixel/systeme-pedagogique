@@ -18,6 +18,7 @@ import {
   type ConfigTuteurClient,
   type FournisseurTuteur,
 } from "@/lib/tutor/cle-client";
+import { validerUrlFournisseur } from "@/lib/tutor/url-fournisseur";
 
 export interface EtatSession {
   /** Les clés Supabase sont présentes sur ce déploiement. */
@@ -451,6 +452,19 @@ function ReglagesTuteur({ compteId }: { compteId: string }) {
       const mod = modele.trim() || preset?.modeleParDefaut || "";
       if (!url || !mod) {
         setMessage("L'URL de base et le modèle sont requis pour ce fournisseur.");
+        return;
+      }
+      /*
+       * Même règle qu'au serveur, dite au bon moment.
+       *
+       * Le serveur refuse déjà cette URL (`configVersEnv`) et c'est lui qui
+       * fait autorité — l'interface est contournable. Mais laisser enregistrer
+       * une configuration dont on sait qu'elle sera rejetée reporterait le
+       * refus au premier message envoyé au tuteur, loin du champ fautif.
+       */
+      const validation = validerUrlFournisseur(url);
+      if (!validation.ok) {
+        setMessage(validation.motif);
         return;
       }
       ecrireConfigTuteur(compteId, {

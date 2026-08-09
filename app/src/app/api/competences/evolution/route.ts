@@ -1,6 +1,7 @@
 import { chargerContexte } from "@/lib/store/context";
 import { choisirConfiguration, creerMoteur } from "@/lib/tutor/moteurs";
-import { configVersEnv, type ConfigTuteurClient } from "@/lib/tutor/cle-client";
+import type { ConfigTuteurClient } from "@/lib/tutor/cle-client";
+import { envTuteur } from "@/lib/tutor/env-requete";
 import { proposerEvolution } from "@/lib/tutor/evolution";
 
 /**
@@ -73,8 +74,11 @@ export async function POST(request: Request) {
     (s) => s.domaine === domaine.id && s.code !== code,
   );
 
-  const env = { ...process.env, ...(corps.config ? configVersEnv(corps.config) : {}) };
-  const choix = choisirConfiguration(env);
+  // Point d'entree unique : la config client est validee avant de toucher
+  // l'environnement du serveur (SSRF, voir lib/tutor/url-fournisseur.ts).
+  const resolution = envTuteur(corps.config);
+  if (!resolution.ok) return resolution.reponse;
+  const choix = choisirConfiguration(resolution.env);
   const moteur = creerMoteur(choix);
 
   if (!moteur) {

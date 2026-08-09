@@ -1,6 +1,7 @@
 import { chargerContexte } from "@/lib/store/context";
 import { choisirConfiguration, creerMoteur } from "@/lib/tutor/moteurs";
-import { configVersEnv, type ConfigTuteurClient } from "@/lib/tutor/cle-client";
+import type { ConfigTuteurClient } from "@/lib/tutor/cle-client";
+import { envTuteur } from "@/lib/tutor/env-requete";
 import { proposerReferentiel } from "@/lib/tutor/generation-referentiel";
 import { prefixesDistincts } from "@/lib/domain/referentiel-compte";
 
@@ -37,8 +38,11 @@ export async function POST(request: Request) {
   const sujet = (corps.sujet ?? "").trim();
   if (!sujet) return Response.json({ erreur: "sujet-vide" }, { status: 400 });
 
-  const env = { ...process.env, ...(corps.config ? configVersEnv(corps.config) : {}) };
-  const choix = choisirConfiguration(env);
+  // Point d'entree unique : la config client est validee avant de toucher
+  // l'environnement du serveur (SSRF, voir lib/tutor/url-fournisseur.ts).
+  const resolution = envTuteur(corps.config);
+  if (!resolution.ok) return resolution.reponse;
+  const choix = choisirConfiguration(resolution.env);
   const moteur = creerMoteur(choix);
 
   if (!moteur) {

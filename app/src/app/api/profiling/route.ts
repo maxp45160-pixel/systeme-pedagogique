@@ -16,8 +16,35 @@ import {
   profilageActif,
   viderRegistre,
 } from "@/lib/profiling/server";
+import { supabaseConfigure } from "@/lib/supabase/config";
+import { compteCourant } from "@/lib/supabase/server";
+
+/**
+ * Ces trois verbes ne vérifiaient AUCUNE session.
+ *
+ * Le seul filtre était `proxy.ts`, qui se décrit lui-même comme un contrôle
+ * optimiste et qui **sort par un `return` anticipé** quand Supabase n'est pas
+ * configuré : la protection dépendait donc d'un chemin qui a le droit de ne
+ * pas s'exécuter. `POST` active la collecte de mesures au runtime, `GET` les
+ * expose, `DELETE` les efface — trois gestes qui n'ont rien à faire hors
+ * session, sur une route qui n'est pas derrière `(app)`.
+ *
+ * Toutes les autres routes revérifient (`api/dev-todos`). Celle-ci s'aligne :
+ * le proxy est une commodité, l'autorisation se prouve ici.
+ */
+async function refusSiAnonyme(): Promise<Response | null> {
+  // Sans Supabase configuré, il n'y a pas de notion de compte : c'est le mode
+  // d'installation locale, où le proxy laisse déjà tout passer.
+  if (!supabaseConfigure) return null;
+  const compte = await compteCourant();
+  if (compte) return null;
+  return Response.json({ erreur: "non-authentifie" }, { status: 401 });
+}
 
 export async function GET() {
+  const refus = await refusSiAnonyme();
+  if (refus) return refus;
+
   const actif = profilageActif();
   const mesures = actif ? mesuresActuelles() : [];
 
@@ -68,6 +95,9 @@ export async function GET() {
  * rendu disponible au démarrage.
  */
 export async function POST(requete: Request) {
+  const refus = await refusSiAnonyme();
+  if (refus) return refus;
+
   let corps: { action?: string };
   try {
     corps = (await requete.json()) as { action?: string };
@@ -94,6 +124,9 @@ export async function POST(requete: Request) {
 
 /** `DELETE` — vide le registre sans toucher à l'état d'enregistrement. */
 export async function DELETE() {
+  const refus = await refusSiAnonyme();
+  if (refus) return refus;
+
   viderRegistre();
   return Response.json({ ok: true });
 }

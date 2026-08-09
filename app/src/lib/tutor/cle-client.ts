@@ -16,6 +16,7 @@
  */
 
 import { cleParCompte } from "@/lib/ui/stockage-session";
+import { validerUrlFournisseur } from "./url-fournisseur";
 
 export type FournisseurTuteur =
   | "anthropic"
@@ -154,25 +155,55 @@ export function decrireConfigClient(config: ConfigTuteurClient): string {
   return `${modele} (${url}, clé locale)`;
 }
 
+export type ConversionEnv =
+  | { ok: true; env: Record<string, string> }
+  | { ok: false; motif: string };
+
 /**
  * Traduit la config client en variables d'environnement pour
  * `choisirConfiguration`. Le moteur est déterminé par le fournisseur.
  *
- * Utilisé côté serveur par la route `/api/tutor` : la config client prime sur
+ * Utilisé côté serveur par les sept routes SSE : la config client prime sur
  * `app/.env.local`, ce qui permet d'utiliser le tuteur sans modifier le fichier.
+ *
+ * ⚠️ **Le type de retour est une union, et c'est le garde-fou.**
+ *
+ * Cette fonction rendait directement l'objet d'environnement, `urlBase`
+ * comprise, sans jamais la regarder. Les sept routes la fusionnaient dans
+ * `process.env`, et `compatible-openai.ts` allait chercher
+ * `${TUTEUR_URL_BASE}/chat/completions` : un utilisateur authentifié pouvait
+ * faire émettre au serveur une requête vers n'importe quelle adresse interne
+ * et en relire le début de la réponse (SSRF).
+ *
+ * Renvoyer un `Record` validé aurait laissé le refus optionnel — un appelant
+ * pouvait l'ignorer sans que rien ne le signale. L'union oblige chaque route à
+ * traiter le cas, sous peine de ne pas compiler. La règle et sa vérification
+ * ne peuvent plus se séparer.
  */
-export function configVersEnv(config: ConfigTuteurClient): Record<string, string> {
+export function configVersEnv(config: ConfigTuteurClient): ConversionEnv {
   if (config.fournisseur === "anthropic") {
     return {
-      ANTHROPIC_API_KEY: config.cle,
-      ...(config.modele ? { TUTEUR_MODELE: config.modele } : {}),
+      ok: true,
+      env: {
+        ANTHROPIC_API_KEY: config.cle,
+        ...(config.modele ? { TUTEUR_MODELE: config.modele } : {}),
+      },
     };
   }
+
   const preset = FOURNISSEURS.find((f) => f.cle === config.fournisseur);
+  const urlBase = config.urlBase || preset?.urlBase || "";
+
+  const validation = validerUrlFournisseur(urlBase);
+  if (!validation.ok) return { ok: false, motif: validation.motif };
+
   return {
-    TUTEUR_MOTEUR: "compatible-openai",
-    TUTEUR_CLE: config.cle,
-    TUTEUR_URL_BASE: config.urlBase || preset?.urlBase || "",
-    TUTEUR_MODELE: config.modele || preset?.modeleParDefaut || "",
+    ok: true,
+    env: {
+      TUTEUR_MOTEUR: "compatible-openai",
+      TUTEUR_CLE: config.cle,
+      TUTEUR_URL_BASE: validation.url,
+      TUTEUR_MODELE: config.modele || preset?.modeleParDefaut || "",
+    },
   };
 }
