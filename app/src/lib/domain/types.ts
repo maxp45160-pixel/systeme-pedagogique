@@ -317,6 +317,51 @@ export interface ExerciseAttempt {
   resultat: "reussi" | "partiel" | "echec";
   statut: "en-cours" | "terminee" | "abandonnee";
   notes?: string;
+  /**
+   * Ce que le tuteur avait proposé, conservé tel quel (ADR-046).
+   *
+   * Absent quand la personne a rempli son bilan sans assistance, ou quand la
+   * colonne n'existe pas encore en base. Ce n'est **pas** une mesure : la
+   * mesure est ce que la personne a validé, et elle vit dans `resultat` et
+   * `autoEvaluation`. Ceci est la trace de ce qui lui a été proposé.
+   */
+  verdictTuteur?: VerdictTuteur;
+}
+
+/**
+ * Le verdict du tuteur sur une tentative, archivé.
+ *
+ * Il était **jeté** : le tuteur rendait un jugement critère par critère, le
+ * formulaire l'affichait, et le texte mourait avec la page. Le tuteur ne
+ * pouvait donc pas relire ce qu'il avait dit la fois d'avant, et « cette erreur
+ * revient » n'avait aucune matière — c'était le maillon manquant de la
+ * détection de motifs, pas un problème de prompt.
+ *
+ * On garde aussi ce qu'il **proposait** comme résultat et appréciations, à côté
+ * de ce que la personne a finalement validé. L'écart entre les deux est une
+ * observation qu'on ne pouvait pas faire : il dit si quelqu'un se surestime ou
+ * se sous-estime, et c'est une information sur la personne, pas sur l'exercice.
+ */
+export interface VerdictTuteur {
+  /** Le résultat que le tuteur proposait — comparable à `attempt.resultat`. */
+  resultat: string;
+  /** Index base 0, comme `exercice.criteres`. */
+  appreciations: Record<number, number>;
+  justifications: Record<number, string>;
+  /**
+   * Le retour rédigé.
+   *
+   * ⚠️ Seul `aRetravailler` a le droit de revenir dans le contexte du chat
+   * (`contexte.ts`) : la prose est écrite en ayant la correction sous les yeux,
+   * et la faire remonter au chat rouvrirait l'exception d'ADR-036.
+   */
+  bilan: {
+    pointsForts: string;
+    pointsBloquants: string;
+    aRetravailler: string[];
+  };
+  /** Date d'émission, pour trier sans dépendre de la tentative. */
+  date: string;
 }
 
 /**

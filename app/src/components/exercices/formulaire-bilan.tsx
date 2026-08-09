@@ -7,6 +7,8 @@ import { terminerExercice } from "@/lib/store/actions";
 import { BandeauInfo, Bouton, cx } from "@/components/ui/primitives";
 import { autonomieObservee, LIBELLE_AIDE, type AideExterne } from "@/lib/engine/preuve";
 import { APPRECIATIONS, RESULTATS, type ResultatBilan } from "@/lib/domain/bilan";
+import type { BilanRedige } from "@/lib/tutor/conversion-correction";
+import { BilanRedigeVue } from "@/components/exercices/bilan-redige";
 
 /*
  * `APPRECIATIONS` et `RESULTATS` vivaient ici. Ils sont partis dans
@@ -41,6 +43,11 @@ export interface PropositionBilan {
   /** Index base 0, comme `exercice.criteres`. */
   appreciations: Record<number, number>;
   justifications: Record<number, string>;
+  /**
+   * Le retour rédigé (ADR-046) — la seule partie du verdict qui ne pré-remplit
+   * rien. Elle s'affiche, elle ne se coche pas.
+   */
+  bilan?: BilanRedige;
 }
 
 export function FormulaireBilan({
@@ -82,6 +89,7 @@ export function FormulaireBilan({
   const [erreur, setErreur] = useState<string | null>(null);
 
   const justifications = propositionInitiale?.justifications ?? {};
+  const bilanRedige = propositionInitiale?.bilan;
   const assiste = propositionInitiale !== undefined;
 
   const tousRenseignes = exercice.criteres.every((_, i) => criteres[i] !== undefined);
@@ -128,6 +136,21 @@ export function FormulaireBilan({
           dureeMin: duree,
           notes: notes.trim() || undefined,
           aideExterne: aide,
+          /*
+            Le verdict archivé est celui du TUTEUR, pas celui affiché après
+            modification (ADR-046). On envoie `propositionInitiale`, jamais
+            l'état local : écrire l'état confondrait ce qui a été proposé avec
+            ce que la personne a retenu, et l'écart entre les deux est
+            précisément ce qu'on veut pouvoir observer.
+          */
+          verdictTuteur: propositionInitiale?.bilan
+            ? {
+                resultat: propositionInitiale.resultat,
+                appreciations: propositionInitiale.appreciations,
+                justifications: propositionInitiale.justifications,
+                bilan: propositionInitiale.bilan,
+              }
+            : undefined,
         });
       } catch (e) {
         setErreur(e instanceof Error ? e.message : "Enregistrement impossible.");
@@ -277,6 +300,19 @@ export function FormulaireBilan({
           </ul>
         )}
       </div>
+
+      {/*
+        Le retour rédigé du tuteur (ADR-046).
+
+        Il vit APRÈS les critères et ne pré-remplit rien : c'est ce qui le
+        distingue du reste du verdict. Les appréciations sont une mesure que la
+        personne valide ; ceci est un conseil qu'elle lit. Les mêler ferait de
+        la lecture un acte de validation.
+
+        Affiché même si la personne modifie les critères : le tuteur a jugé ce
+        qu'il a lu, et son analyse reste ce qu'elle était.
+      */}
+      {bilanRedige && <BilanRedigeVue bilan={bilanRedige} />}
 
       {/*
         Aide extérieure — plafonne l'autonomie enregistrée (ADR-033).

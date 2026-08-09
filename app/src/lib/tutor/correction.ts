@@ -118,6 +118,19 @@ export function construirePromptCorrection(
     "- Chaque justification cite ce que la réponse contient ou omet, en une à deux phrases.",
     "- Tu dois couvrir TOUS les critères. Un critère oublié fait rejeter ta correction entière.",
     "",
+    /*
+     * Le bilan rédigé (ADR-046). Le tuteur savait déjà juger ; il n'avait pas
+     * de place pour dire pourquoi, ni pour orienter la suite. Ces consignes
+     * sont ce qui sépare une grille de cases d'un retour de tuteur.
+     */
+    "COMMENT RÉDIGER LE BILAN",
+    "- Il s'adresse à la personne, pas au système. Tutoie, et parle de sa réponse à elle.",
+    "- points_forts : ce qui est réellement acquis, cité. Si rien ne l'est, dis-le — un encouragement à vide se repère et décrédibilise le reste.",
+    "- points_bloquants : l'erreur, PUIS ce qu'elle empêche. Remonte à l'incompréhension quand tu la vois, plutôt que de décrire le symptôme.",
+    "- a_retravailler : formule sur la PERSONNE, pas sur cet exercice. « Confond médiane et moyenne » se relit dans six semaines ; « question 3 fausse » ne se relit pas.",
+    "- Ce sont les seuls éléments que tu reverras dans une conversation ultérieure : écris-les pour ton toi futur, qui n'aura ni l'énoncé ni la correction sous les yeux.",
+    "- Le bilan ne porte aucune note. N'y remets pas de barème, et n'y recopie pas la correction de référence.",
+    "",
     "Appelle l'outil proposer_correction UNE fois. Ne recopie pas le contenu de l'appel dans ta réponse.",
   ].join("\n");
 }

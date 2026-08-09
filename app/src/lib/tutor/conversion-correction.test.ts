@@ -18,11 +18,17 @@ import { describe, expect, it } from "vitest";
 import { convertirCorrection, versAppreciation, versResultat } from "./conversion-correction";
 import type { PropositionCorrection } from "./outils";
 
+const BILAN: PropositionCorrection["bilan"] = {
+  pointsForts: "La méthode est posée.",
+  pointsBloquants: "Le seuil n'est pas justifié, donc le résultat n'est pas défendable.",
+  aRetravailler: ["Justifier un seuil avant de l'employer"],
+};
+
 function correction(
   appreciations: PropositionCorrection["appreciations"],
   resultat = "partiel",
 ): PropositionCorrection {
-  return { resultat, appreciations };
+  return { resultat, appreciations, bilan: BILAN };
 }
 
 /* ------------------------------------------------------------------ */

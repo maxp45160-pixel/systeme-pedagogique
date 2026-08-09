@@ -45,6 +45,7 @@ import type {
   LearningSession,
   SkillEvidence,
   TypeExercice,
+  VerdictTuteur,
 } from "@/lib/domain/types";
 
 /* ------------------------------------------------------------------ */
@@ -111,6 +112,15 @@ export interface SoumissionExercice {
    * l'autonomie.
    */
   aideExterne?: AideExterne;
+  /**
+   * Le verdict que le tuteur avait proposé, s'il y en a eu un (ADR-046).
+   *
+   * Il n'entre dans **aucun** calcul : la mesure reste `resultat` et
+   * `autoEvaluation`, c'est-à-dire ce que la personne a validé. Il est archivé
+   * pour deux usages — qu'elle puisse le relire, et que le tuteur retrouve
+   * plus tard ce qu'il avait observé.
+   */
+  verdictTuteur?: Omit<VerdictTuteur, "date">;
 }
 
 /**
@@ -271,8 +281,52 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
   };
   await ajouter("sessions", session, dorsale);
 
+  await archiverVerdict(soumission, date, dorsale);
+
   revalidatePath("/", "layout");
   redirect(`/exercices/${exercice.id}?bilan=1`);
+}
+
+/**
+ * Archive le verdict du tuteur — **sans jamais faire échouer le bilan**.
+ *
+ * Deux raisons, et la seconde est la vraie.
+ *
+ * 1. `attempts.verdict_tuteur` est ajoutée par `supabase/migration-verdict.sql`,
+ *    qui s'applique à la main. Entre le déploiement du code et l'exécution de
+ *    la migration, la colonne n'existe pas : l'écriture échouerait.
+ * 2. Surtout : **un conseil perdu ne doit pas empêcher l'écriture d'une
+ *    preuve.** La preuve est la seule chose que ce produit garantit ; le
+ *    verdict est un commentaire à côté. Les lier ferait dépendre la mesure
+ *    d'un texte, ce qui est l'inverse de tout ce que le moteur défend.
+ *
+ * D'où l'ordre : la preuve et le journal sont déjà écrits quand cette fonction
+ * s'exécute, et son échec est avalé après avoir été journalisé. Un verdict
+ * absent se lit comme un bilan rempli sans assistance — ce qui est vrai du
+ * point de vue de la mesure.
+ */
+async function archiverVerdict(
+  soumission: SoumissionExercice,
+  date: string,
+  dorsale: Awaited<ReturnType<typeof dorsaleCompte>>,
+): Promise<void> {
+  if (!soumission.verdictTuteur) return;
+  try {
+    await modifier(
+      "attempts",
+      soumission.attemptId,
+      { verdictTuteur: { ...soumission.verdictTuteur, date } },
+      dorsale,
+    );
+  } catch (e) {
+    // Journalisé et non tu : un verdict qui disparaît en silence redeviendrait
+    // le défaut que ce lot corrige, une couche plus bas.
+    console.warn(
+      `[verdict] archivage impossible pour ${soumission.attemptId} — la preuve, elle, est écrite. ` +
+        `Si « verdict_tuteur » est inconnue, applique supabase/migration-verdict.sql.`,
+      e,
+    );
+  }
 }
 
 /**

@@ -279,6 +279,11 @@ CREATE TABLE IF NOT EXISTS public.attempts (
   resultat          TEXT NOT NULL DEFAULT 'partiel',
   statut            TEXT NOT NULL DEFAULT 'en-cours',
   notes             TEXT,
+  -- Verdict proposé par le tuteur, conservé tel quel (ADR-046). NULL quand le
+  -- bilan a été rempli sans assistance. Ce n'est PAS une mesure : la mesure est
+  -- ce que la personne a validé, dans `resultat` et `auto_evaluation`.
+  -- Voir `supabase/migration-verdict.sql` pour une base déjà installée.
+  verdict_tuteur    JSONB,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (user_id, id)
 );

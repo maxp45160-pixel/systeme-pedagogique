@@ -38,6 +38,22 @@ export interface CorrectionEnregistrable {
   appreciations: Record<number, ValeurAppreciation>;
   /** Le motif du tuteur, affiché sous chaque critère. Même indexation. */
   justifications: Record<number, string>;
+  /**
+   * Le retour rédigé (ADR-046) — traversé sans transformation.
+   *
+   * `validerCorrection` a déjà borné les trois champs ; il n'y a rien à
+   * convertir, contrairement aux appréciations qui changent d'échelle et
+   * d'indexation. Le champ traverse pour que l'appelant n'ait pas à connaître
+   * deux objets là où il en manipule un.
+   */
+  bilan: BilanRedige;
+}
+
+export interface BilanRedige {
+  pointsForts: string;
+  pointsBloquants: string;
+  /** Les seuls éléments qui reviendront dans le contexte du chat. */
+  aRetravailler: string[];
 }
 
 /** `"partiel"` → `"partiel"`. Toute autre valeur rend `null` — on ne devine pas. */
@@ -130,6 +146,11 @@ export function convertirCorrection(
 
   return {
     ok: true,
-    valeur: { resultat: resultat as ResultatBilan, appreciations, justifications },
+    valeur: {
+      resultat: resultat as ResultatBilan,
+      appreciations,
+      justifications,
+      bilan: p.bilan,
+    },
   };
 }

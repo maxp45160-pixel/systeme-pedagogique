@@ -83,6 +83,40 @@ export const OUTIL_CORRECTION = "proposer_correction";
 export const JUSTIFICATION_MAX = 400;
 
 /**
+ * Plafonds du bilan rédigé — le feedback global du tuteur (ADR-046).
+ *
+ * ## Pourquoi ils sont plus larges que `JUSTIFICATION_MAX`, et pourquoi c'est
+ * défendable
+ *
+ * La borne ci-dessus protège un chemin précis : la justification est **attachée
+ * à une case que l'utilisateur doit cocher**. Longue, elle devient la correction
+ * réécrite, l'utilisateur la lit, se dit « oui c'est ça », et tamponne — la
+ * mesure est corrompue à l'entrée de la chaîne. Elle ne bouge pas.
+ *
+ * Le bilan rédigé, lui, **ne porte aucune mesure**. Il n'est attaché à aucun
+ * critère, il n'entre dans aucune preuve, il ne pré-remplit rien. C'est du
+ * conseil, et un conseil de 400 caractères ne dit pas « ce qui pose problème,
+ * pourquoi, et quoi faire ». Le borner court reviendrait à refuser la demande
+ * plutôt qu'à la sécuriser.
+ *
+ * ## ⚠️ La frontière qui reste, et où elle est tenue
+ *
+ * Le vrai risque n'est pas la longueur : c'est que ce texte **revienne dans le
+ * chat**, où la correction n'a jamais le droit d'entrer (ADR-036, et le test
+ * « ne transmet JAMAIS la correction »). Un bilan persisté puis resérialisé
+ * dans `construireContexte` serait précisément ce tunnel.
+ *
+ * D'où la règle, tenue dans `contexte.ts` et non ici : **seul
+ * `aRetravailler` franchit la frontière**. Ce sont des points courts qui
+ * parlent de la personne — « confond médiane et moyenne » — et non de la
+ * solution. `pointsForts` et `pointsBloquants` sont persistés, relisibles par
+ * l'utilisateur sur sa tentative, et ne sortent jamais de là.
+ */
+export const FEEDBACK_MAX = 900;
+export const RETRAVAILLER_MAX = 180;
+export const RETRAVAILLER_ITEMS_MAX = 4;
+
+/**
  * ⚠️ `proposer_evolution` n'entre pas non plus dans `outilsTuteur`.
  *
  * Il ne s'arme que sur une compétence dont `estMaitrisee` est vrai, et la route
@@ -159,6 +193,11 @@ export interface SchemaJson {
   minimum?: number;
   maximum?: number;
   minItems?: number;
+  /**
+   * Plafond du nombre d'entrées. Le schéma l'annonce ; `validerCorrection` le
+   * revérifie — un fournisseur qui ignore la contrainte ne doit pas passer.
+   */
+  maxItems?: number;
   items?: SchemaJson;
   properties?: Record<string, SchemaJson>;
   required?: string[];
@@ -373,8 +412,36 @@ function schemaCorrection(nombreDeCriteres: number): SchemaJson {
           additionalProperties: false,
         },
       },
+      bilan: {
+        type: "object",
+        description:
+          "Ton retour d'ensemble, adressé à la personne. Il ne porte aucune note : il explique et il oriente.",
+        properties: {
+          points_forts: {
+            type: "string",
+            description: `Ce qui est réellement acquis dans CETTE réponse, cité. Si rien ne l'est, dis-le plutôt que d'encourager à vide. ${FEEDBACK_MAX} caractères au maximum.`,
+          },
+          points_bloquants: {
+            type: "string",
+            description: `Ce qui ne va pas ET pourquoi c'est un problème — l'erreur, puis ce qu'elle empêche. Nomme l'incompréhension, pas seulement le symptôme. ${FEEDBACK_MAX} caractères au maximum.`,
+          },
+          a_retravailler: {
+            type: "array",
+            minItems: 1,
+            maxItems: RETRAVAILLER_ITEMS_MAX,
+            description:
+              "Points à reprendre, formulés sur la PERSONNE et non sur cet exercice — « confond médiane et moyenne », pas « question 3 fausse ». Ce sont les seuls éléments que tu reverras plus tard : écris-les pour ton toi futur.",
+            items: {
+              type: "string",
+              description: `Un point, court et autonome. ${RETRAVAILLER_MAX} caractères au maximum.`,
+            },
+          },
+        },
+        required: ["points_forts", "points_bloquants", "a_retravailler"],
+        additionalProperties: false,
+      },
     },
-    required: ["resultat", "appreciations"],
+    required: ["resultat", "appreciations", "bilan"],
     additionalProperties: false,
   };
 }
@@ -690,6 +757,17 @@ export interface PropositionEvolution {
 export interface PropositionCorrection {
   resultat: string;
   appreciations: { critere: string; valeur: string; justification: string }[];
+  /**
+   * Le retour rédigé (ADR-046). Ne porte aucune mesure — c'est ce qui lui vaut
+   * une borne plus large que `JUSTIFICATION_MAX`.
+   *
+   * ⚠️ Seul `aRetravailler` a le droit de revenir dans le contexte du chat.
+   */
+  bilan: {
+    pointsForts: string;
+    pointsBloquants: string;
+    aRetravailler: string[];
+  };
 }
 
 function validerExercice(entree: Record<string, unknown>): PropositionRecue | null {
@@ -811,7 +889,39 @@ function validerCorrection(entree: Record<string, unknown>): PropositionRecue | 
     appreciations.push({ critere, valeur, justification });
   }
 
-  return { genre: "correction", correction: { resultat, appreciations } };
+  /*
+   * Le bilan rédigé est REQUIS : un verdict sans lui redeviendrait la grille
+   * de cases d'avant ADR-046, et le tuteur retomberait dans le rôle que ce lot
+   * existe pour lui retirer. Refuser plutôt qu'accepter à moitié — un bilan
+   * absent ne se distinguerait pas, à l'écran, d'un bilan vide.
+   */
+  const b = objet(entree.bilan);
+  if (!b) return null;
+
+  const pointsForts = texte(b.points_forts);
+  const pointsBloquants = texte(b.points_bloquants);
+  if (!pointsForts || pointsForts.length > FEEDBACK_MAX) return null;
+  if (!pointsBloquants || pointsBloquants.length > FEEDBACK_MAX) return null;
+
+  const brutsRetravailler = Array.isArray(b.a_retravailler) ? b.a_retravailler : [];
+  if (brutsRetravailler.length === 0 || brutsRetravailler.length > RETRAVAILLER_ITEMS_MAX) {
+    return null;
+  }
+  const aRetravailler: string[] = [];
+  for (const brut of brutsRetravailler) {
+    const point = texte(brut);
+    if (!point || point.length > RETRAVAILLER_MAX) return null;
+    aRetravailler.push(point);
+  }
+
+  return {
+    genre: "correction",
+    correction: {
+      resultat,
+      appreciations,
+      bilan: { pointsForts, pointsBloquants, aRetravailler },
+    },
+  };
 }
 
 /**

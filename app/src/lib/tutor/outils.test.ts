@@ -11,7 +11,10 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  FEEDBACK_MAX,
   JUSTIFICATION_MAX,
+  RETRAVAILLER_ITEMS_MAX,
+  RETRAVAILLER_MAX,
   OUTIL_CORRECTION,
   OUTIL_EVOLUTION,
   OUTIL_EXERCICE,
@@ -281,12 +284,19 @@ const CRITERES = [
   { dimension: "justification", libelle: "Justifie le choix du niveau de service" },
 ];
 
+const BILAN_ENTIER = {
+  points_forts: "La formule est appliquée jusqu'au bout.",
+  points_bloquants: "Le niveau de service est choisi sans motif : le résultat n'est pas défendable.",
+  a_retravailler: ["Justifier un seuil avant de l'employer"],
+};
+
 const CORRECTION_ENTIERE = {
   resultat: "partiel",
   appreciations: [
     { critere: 1, valeur: "1", justification: "La formule est appliquée sur √2." },
     { critere: 2, valeur: "0.5", justification: "Le 95 % est posé sans être justifié." },
   ],
+  bilan: BILAN_ENTIER,
 };
 
 describe("outilCorrection — le schéma", () => {
@@ -374,14 +384,100 @@ describe("validerCorrection — les rejets", () => {
     const recu = validerAppelOutil(OUTIL_CORRECTION, {
       resultat: "reussi",
       appreciations: [{ critere: 1, valeur: "1", justification: "x".repeat(JUSTIFICATION_MAX) }],
+      bilan: BILAN_ENTIER,
     });
     expect(recu?.genre).toBe("correction");
+  });
+
+  /* ---------------------------------------------------------------- */
+  /* Le bilan rédigé (ADR-046)                                         */
+  /* ---------------------------------------------------------------- */
+
+  it("rejette un verdict sans bilan — sinon le tuteur retombe sur la grille de cases", () => {
+    // C'est tout l'objet du lot : un verdict qui n'explique rien redeviendrait
+    // le remplissage de formulaire que ce chantier lui retire.
+    expect(validerAppelOutil(OUTIL_CORRECTION, sans(CORRECTION_ENTIERE, "bilan"))).toBeNull();
+  });
+
+  it("rejette un bilan amputé d'un de ses trois champs", () => {
+    for (const cle of ["points_forts", "points_bloquants", "a_retravailler"] as const) {
+      const recu = validerAppelOutil(OUTIL_CORRECTION, {
+        ...CORRECTION_ENTIERE,
+        bilan: sans(BILAN_ENTIER, cle),
+      });
+      expect(recu, cle).toBeNull();
+    }
+  });
+
+  it("rejette un bilan qui dépasse son plafond", () => {
+    /*
+     * Plus large que `JUSTIFICATION_MAX` parce qu'il ne porte AUCUNE mesure —
+     * mais borné quand même : ce texte est persisté, et une partie repart dans
+     * le contexte du chat.
+     */
+    expect(
+      validerAppelOutil(OUTIL_CORRECTION, {
+        ...CORRECTION_ENTIERE,
+        bilan: { ...BILAN_ENTIER, points_bloquants: "x".repeat(FEEDBACK_MAX + 1) },
+      }),
+    ).toBeNull();
+
+    expect(
+      validerAppelOutil(OUTIL_CORRECTION, {
+        ...CORRECTION_ENTIERE,
+        bilan: { ...BILAN_ENTIER, a_retravailler: ["x".repeat(RETRAVAILLER_MAX + 1)] },
+      }),
+    ).toBeNull();
+  });
+
+  it("rejette une liste « à retravailler » vide ou trop longue", () => {
+    expect(
+      validerAppelOutil(OUTIL_CORRECTION, {
+        ...CORRECTION_ENTIERE,
+        bilan: { ...BILAN_ENTIER, a_retravailler: [] },
+      }),
+    ).toBeNull();
+
+    expect(
+      validerAppelOutil(OUTIL_CORRECTION, {
+        ...CORRECTION_ENTIERE,
+        bilan: {
+          ...BILAN_ENTIER,
+          a_retravailler: Array.from({ length: RETRAVAILLER_ITEMS_MAX + 1 }, (_, i) => `point ${i}`),
+        },
+      }),
+    ).toBeNull();
+  });
+
+  it("accepte un bilan exactement aux plafonds", () => {
+    const recu = validerAppelOutil(OUTIL_CORRECTION, {
+      ...CORRECTION_ENTIERE,
+      bilan: {
+        points_forts: "x".repeat(FEEDBACK_MAX),
+        points_bloquants: "y".repeat(FEEDBACK_MAX),
+        a_retravailler: Array.from({ length: RETRAVAILLER_ITEMS_MAX }, () => "z".repeat(RETRAVAILLER_MAX)),
+      },
+    });
+    if (recu?.genre !== "correction") throw new Error("genre inattendu");
+    expect(recu.correction.bilan.aRetravailler).toHaveLength(RETRAVAILLER_ITEMS_MAX);
+  });
+
+  it("l'outil de correction reste hors du chat, bilan ou pas", () => {
+    /*
+     * Le verrou le plus fragile d'ADR-041, revérifié maintenant que la sortie
+     * de ce chemin est plus large : si `outilCorrection` entrait dans
+     * `outilsTuteur`, il voyagerait avec chaque message et l'exception à
+     * ADR-036 cesserait d'en être une.
+     */
+    const noms = outilsTuteur(REFERENTIEL).map((o) => o.nom);
+    expect(noms).not.toContain(OUTIL_CORRECTION);
   });
 
   it("rejette une appréciation sans justification — un verdict sans motif ne se relit pas", () => {
     const recu = validerAppelOutil(OUTIL_CORRECTION, {
       resultat: "reussi",
       appreciations: [{ critere: 1, valeur: "1", justification: "  " }],
+      bilan: BILAN_ENTIER,
     });
     expect(recu).toBeNull();
   });
@@ -406,6 +502,7 @@ describe("validerCorrection — les rejets", () => {
     const recu = validerAppelOutil(OUTIL_CORRECTION, {
       resultat: "partiel",
       appreciations: [{ critere: 1, valeur: 0.5, justification: "Partiellement." }],
+      bilan: BILAN_ENTIER,
     });
     if (recu?.genre !== "correction") throw new Error("genre inattendu");
     expect(recu.correction.appreciations[0].valeur).toBe("0.5");
@@ -413,6 +510,7 @@ describe("validerCorrection — les rejets", () => {
     const virgule = validerAppelOutil(OUTIL_CORRECTION, {
       resultat: "partiel",
       appreciations: [{ critere: 1, valeur: "0,5", justification: "Partiellement." }],
+      bilan: BILAN_ENTIER,
     });
     expect(virgule?.genre).toBe("correction");
   });

@@ -52,6 +52,12 @@ const VERDICT: PropositionCorrection = {
     { critere: "1", valeur: "1", justification: "La racine du délai est bien là." },
     { critere: "2", valeur: "0", justification: "Le 95 % est posé sans être justifié." },
   ],
+  bilan: {
+    pointsForts: "Tu poses la bonne méthode et tu la mènes jusqu'au bout.",
+    pointsBloquants:
+      "Le niveau de service est choisi sans motif : sans lui, le stock obtenu n'est pas défendable devant un tiers.",
+    aRetravailler: ["Justifier le niveau de service retenu avant de calculer"],
+  },
 };
 
 function moteurQuiEmet(evenements: { evenement: string; donnees: unknown }[]): MoteurTuteur {

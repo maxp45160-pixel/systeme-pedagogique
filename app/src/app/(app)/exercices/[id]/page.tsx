@@ -26,7 +26,8 @@ import { BoutonSoumission } from "@/components/ui/bouton-soumission";
 import { FocusActe } from "@/components/exercices/focus-acte";
 import { motifBlocageBilan, reponseSuffisante } from "@/lib/domain/tentative";
 import { IconeAmpoule, IconeFleche, IconeValide } from "@/components/ui/icones";
-import { formatDuree } from "@/lib/engine/dates";
+import { formatDateCourte, formatDuree } from "@/lib/engine/dates";
+import { BilanRedigeVue } from "@/components/exercices/bilan-redige";
 import { tentativeMenee } from "@/lib/engine/calibration";
 import { amorceExercice, lienTuteur } from "@/lib/tutor/amorces";
 import { construireEtatInitialTuteur } from "@/lib/tutor/etat-initial";
@@ -663,6 +664,29 @@ export default async function PageExercice(props: {
                 <EnTeteCarte titre="Ta réponse d'alors" />
                 <div className="whitespace-pre-wrap px-4 py-3.5 text-xs text-texte-attenue">
                   {derniereTerminee.reponse}
+                </div>
+              </Carte>
+            )}
+
+            {/*
+              Le verdict archivé (ADR-046). C'est la moitié de la raison de le
+              persister : la seconde est que le tuteur le retrouve, mais la
+              première est que la personne puisse le relire — un conseil qu'on
+              ne peut consulter qu'une fois, au moment où l'on valide, n'est pas
+              un conseil.
+            */}
+            {derniereTerminee.verdictTuteur && (
+              <Carte>
+                <EnTeteCarte
+                  titre="Ce que le tuteur avait relevé"
+                  legende={`Verdict du ${formatDateCourte(derniereTerminee.verdictTuteur.date)}`}
+                />
+                <div className="px-4 py-3.5">
+                  <BilanRedigeVue
+                    bilan={derniereTerminee.verdictTuteur.bilan}
+                    titre="Sa lecture de ta réponse"
+                    legende="Il proposait ; c'est ton auto-évaluation qui a été enregistrée."
+                  />
                 </div>
               </Carte>
             )}
