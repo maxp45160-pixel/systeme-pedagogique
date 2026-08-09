@@ -94,7 +94,7 @@ pratique et développer un sujet à long terme.
   deux cas. Sans moteur configuré : 503 et repli « copier le contexte ».
 - **Styles :** Tailwind CSS v4 ; **graphiques SVG écrits à la main**, aucune
   librairie UI tierce
-- **Tests :** Vitest — **501 tests**, 23 fichiers (moteur, répétition espacée,
+- **Tests :** Vitest — **516 tests**, 23 fichiers (moteur, répétition espacée,
   calibration, backend Supabase, référentiel par compte, cycle de vie des
   exercices, profil, parseurs de propositions, outils du tuteur, contexte du
   tuteur, amorces du tuteur, sélection du moteur du tuteur, génération sans
@@ -310,7 +310,28 @@ immuable — c'est la clé étrangère des preuves.
 - **Ne pas déplacer un seuil de `lib/engine/calibration.ts` sans données.**
   `FRACTION_NON_TENTEE` et `FRACTION_TROP_FACILE` sont calés sur des tentatives
   réelles, citées dans les tests. Les changer demande de nouvelles observations,
-  pas un avis (ADR-028).
+  pas un avis (ADR-028). La règle a joué le 09/08 : les seuils n'ont **pas**
+  bougé, c'est ce qu'on leur donnait à mesurer qui a changé (ADR-045).
+- **Ne pas faire de `dureeEstimeeMin` un instrument de mesure** (ADR-045). C'est
+  un nombre écrit par un LLM ; sur les réussites réelles, la durée effective
+  valait **0,48 fois** cette estimation, et 7 réussites sur 10 étaient classées
+  « trop facile ». Le calibrage se compare donc à `dureeDeReference` — la
+  **médiane des durées observées** dès 2 tentatives, l'estimation en repli, la
+  source affichée avec la valeur.
+  ⚠️ `tentativeMenee` continue de lire `dureeEstimeeMin`, délibérément : elle
+  pose une autre question, tranche au premier passage quand rien n'est encore
+  observé, et aucune donnée ne la met en cause. Ne pas « harmoniser » les deux.
+- **Ne pas laisser un verdict isolé déplacer la difficulté** (ADR-045).
+  `difficulteConseillee` ne lisait que le dernier verdict exploitable : trois
+  réussites rapides poussaient de 2 à 5, et la valeur repartait dans le prompt
+  du tuteur, qui a consigne de s'y conformer. Le plus récent commande le **sens**,
+  mais il lui faut un second verdict du même signe (`SIGNAUX_CONCORDANTS`). Sans
+  confirmation la difficulté est *maintenue*, et la réserve le dit — maintenir
+  n'est pas s'abstenir.
+- **Les bornes de `difficulte` et `dureeEstimeeMin` ont une seule autorité**,
+  `lib/domain/exercice.ts` (ADR-045). Elles vivaient à trois endroits qui ne se
+  parlaient pas : le schéma de l'outil bornait la durée à 240, la conversion à
+  480, l'écriture à rien. Ne pas en reposer une localement « pour la lisibilité ».
 - **Ne pas laisser une boucle de décision dans un `.tsx`** (ADR-039). Vitest ne
   prend que `src/**/*.test.ts` en environnement node : ce qui vit dans un
   composant est **hors de portée d'un test**. `markdown.tsx` a porté deux mois

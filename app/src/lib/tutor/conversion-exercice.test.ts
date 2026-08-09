@@ -8,6 +8,12 @@ import {
   versDuree,
   versType,
 } from "./conversion-exercice";
+import {
+  DIFFICULTE_MAX,
+  DIFFICULTE_MIN,
+  DUREE_ESTIMEE_MAX,
+  DUREE_ESTIMEE_MIN,
+} from "@/lib/domain/exercice";
 import type { PropositionExercice } from "./proposition";
 
 /** Une proposition entièrement valide — chaque test n'en dégrade qu'un champ. */
@@ -64,6 +70,29 @@ describe("versDuree", () => {
     expect(versDuree("-10")).toBeNull();
     expect(versDuree(String(DUREE_MAX_MIN + 1))).toBeNull();
     expect(versDuree("bientôt")).toBeNull();
+  });
+
+  /*
+   * Les trois couches doivent refuser la MÊME chose (ADR-045).
+   *
+   * Le schéma de `proposer_exercice` bornait à 240, la conversion à 480, et
+   * `creerExercice` ne bornait rien : ce qui entrait en base pouvait dépasser
+   * ce que le tuteur avait le droit de proposer, et cette durée devenait
+   * l'unité de mesure de `tentativeMenee`. Les bornes vivent désormais dans
+   * `lib/domain/exercice.ts`, importées par les trois.
+   */
+  it("refuse ce que le schéma de l'outil refuse — mêmes bornes, une seule autorité", () => {
+    expect(DUREE_MAX_MIN).toBe(DUREE_ESTIMEE_MAX);
+
+    expect(versDuree(String(DUREE_ESTIMEE_MIN - 1))).toBeNull();
+    expect(versDuree(String(DUREE_ESTIMEE_MIN))).toBe(DUREE_ESTIMEE_MIN);
+    expect(versDuree(String(DUREE_ESTIMEE_MAX))).toBe(DUREE_ESTIMEE_MAX);
+    expect(versDuree(String(DUREE_ESTIMEE_MAX + 1))).toBeNull();
+
+    expect(versDifficulte(String(DIFFICULTE_MIN - 1))).toBeNull();
+    expect(versDifficulte(String(DIFFICULTE_MIN))).toBe(DIFFICULTE_MIN);
+    expect(versDifficulte(String(DIFFICULTE_MAX))).toBe(DIFFICULTE_MAX);
+    expect(versDifficulte(String(DIFFICULTE_MAX + 1))).toBeNull();
   });
 });
 

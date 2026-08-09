@@ -3,6 +3,7 @@ import {
   calibrer,
   calibrerToutes,
   dimensionLaPlusFaible,
+  dureeDeReference,
   tentativeMenee,
   verdictTentative,
   FRACTION_NON_TENTEE,
@@ -253,35 +254,78 @@ describe("dimensionLaPlusFaible — l'axe que la difficulté ne capture pas", ()
 describe("calibrer — la difficulté conseillée", () => {
   const DEV01 = REFERENTIEL_TEST.parCode.get("DEV-01")!;
 
-  it("monte d'un cran après un exercice trop facile", () => {
+  /*
+   * ADR-045 — un verdict isolé ne déplace plus la difficulté.
+   *
+   * Ces trois cas disaient l'inverse jusqu'au 09/08/2026 : une seule réussite
+   * rapide montait d'un cran. Mesuré sur les 46 tentatives réelles, cela
+   * classait `trop-facile` 7 réussites sur 10, et l'effet était cumulatif —
+   * la difficulté conseillée ne lisait que le dernier verdict exploitable.
+   */
+  it("ne monte PAS sur un seul « trop facile », et dit pourquoi", () => {
     const ex = exercice("ex-1", 3, 25, ["DEV-01"]);
     const c = calibrer(DEV01, [ex], [
       tentative({ exerciseId: "ex-1", resultat: "reussi", indicesUtilises: 0, dureeMin: 10 }),
     ]);
     expect(c.signal).toBe("trop-facile");
-    expect(c.difficulteConseillee).toBe(4);
+    // Le conseil reste celui de l'exercice exploitable : maintenu, pas absent.
+    expect(c.difficulteConseillee).toBe(3);
+    expect(c.explication.reserves.join(" ")).toContain("Un seul verdict va dans ce sens");
   });
 
-  it("descend d'un cran après un échec indices épuisés", () => {
-    const ex = exercice("ex-1", 4, 30, ["DEV-01"]);
-    const c = calibrer(DEV01, [ex], [
-      tentative({ exerciseId: "ex-1", resultat: "echec", indicesUtilises: 3, dureeMin: 25 }),
+  it("monte d'un cran quand DEUX verdicts concordent", () => {
+    const a = exercice("ex-a", 3, 25, ["DEV-01"]);
+    const b = exercice("ex-b", 3, 25, ["DEV-01"]);
+    const c = calibrer(DEV01, [a, b], [
+      tentative({ exerciseId: "ex-a", resultat: "reussi", indicesUtilises: 0, dureeMin: 8, jours: 4 }),
+      tentative({ exerciseId: "ex-b", resultat: "reussi", indicesUtilises: 0, dureeMin: 9, jours: 1 }),
+    ]);
+    expect(c.difficulteConseillee).toBe(4);
+    expect(c.explication.reserves.join(" ")).not.toContain("Un seul verdict");
+  });
+
+  it("descend d'un cran quand deux échecs indices épuisés concordent", () => {
+    const a = exercice("ex-a", 4, 30, ["DEV-01"]);
+    const b = exercice("ex-b", 4, 30, ["DEV-01"]);
+    const c = calibrer(DEV01, [a, b], [
+      tentative({ exerciseId: "ex-a", resultat: "echec", indicesUtilises: 3, dureeMin: 22, jours: 4 }),
+      tentative({ exerciseId: "ex-b", resultat: "echec", indicesUtilises: 3, dureeMin: 25, jours: 1 }),
     ]);
     expect(c.difficulteConseillee).toBe(3);
   });
 
+  it("le verdict le plus récent commande le SENS, pas seulement le nombre", () => {
+    // Deux « trop facile » anciens ne doivent pas l'emporter sur un
+    // « trop difficile » d'hier : sinon la calibration suivrait un passé révolu.
+    const a = exercice("ex-a", 3, 25, ["DEV-01"]);
+    const b = exercice("ex-b", 3, 25, ["DEV-01"]);
+    const recent = exercice("ex-c", 3, 30, ["DEV-01"]);
+    const c = calibrer(DEV01, [a, b, recent], [
+      tentative({ exerciseId: "ex-a", resultat: "reussi", indicesUtilises: 0, dureeMin: 8, jours: 6 }),
+      tentative({ exerciseId: "ex-b", resultat: "reussi", indicesUtilises: 0, dureeMin: 9, jours: 4 }),
+      tentative({ exerciseId: "ex-c", resultat: "echec", indicesUtilises: 3, dureeMin: 28, jours: 1 }),
+    ]);
+    expect(c.signal).toBe("trop-difficile");
+    // Seul de son avis : la difficulté ne descend pas non plus.
+    expect(c.difficulteConseillee).toBe(3);
+  });
+
   it("ne sort jamais de l'échelle 1–5", () => {
-    const facile = exercice("ex-1", 5, 25, ["DEV-01"]);
+    const f1 = exercice("ex-1", 5, 25, ["DEV-01"]);
+    const f2 = exercice("ex-2", 5, 25, ["DEV-01"]);
     expect(
-      calibrer(DEV01, [facile], [
-        tentative({ exerciseId: "ex-1", resultat: "reussi", indicesUtilises: 0, dureeMin: 5 }),
+      calibrer(DEV01, [f1, f2], [
+        tentative({ exerciseId: "ex-1", resultat: "reussi", indicesUtilises: 0, dureeMin: 5, jours: 4 }),
+        tentative({ exerciseId: "ex-2", resultat: "reussi", indicesUtilises: 0, dureeMin: 6, jours: 1 }),
       ]).difficulteConseillee,
     ).toBe(5);
 
-    const dur = exercice("ex-2", 1, 25, ["DEV-01"]);
+    const d1 = exercice("ex-3", 1, 25, ["DEV-01"]);
+    const d2 = exercice("ex-4", 1, 25, ["DEV-01"]);
     expect(
-      calibrer(DEV01, [dur], [
-        tentative({ exerciseId: "ex-2", resultat: "echec", indicesUtilises: 3, dureeMin: 20 }),
+      calibrer(DEV01, [d1, d2], [
+        tentative({ exerciseId: "ex-3", resultat: "echec", indicesUtilises: 3, dureeMin: 20, jours: 4 }),
+        tentative({ exerciseId: "ex-4", resultat: "echec", indicesUtilises: 3, dureeMin: 22, jours: 1 }),
       ]).difficulteConseillee,
     ).toBe(1);
   });
@@ -369,8 +413,10 @@ describe("calibrer — la difficulté conseillée", () => {
       tentative({ exerciseId: "ex-recent", resultat: "echec", indicesUtilises: 3, dureeMin: 2, jours: 1 }),
     ]);
     expect(c.verdicts[0].signal).toBe("non-tentee");
-    // L'abandon ne dit rien ; le dernier signal exploitable, si.
-    expect(c.difficulteConseillee).toBe(3);
+    // L'abandon ne dit rien ; le dernier signal exploitable, si — mais il est
+    // seul de son avis, donc il fixe la difficulté sans la déplacer (ADR-045).
+    expect(c.signal).toBe("trop-facile");
+    expect(c.difficulteConseillee).toBe(2);
   });
 
   it("n'a rien à dire sur une compétence jamais travaillée en exercice", () => {
@@ -409,21 +455,129 @@ describe("calibrer — la difficulté conseillée", () => {
 
 /* ------------------------------------------------------------------ */
 
+/*
+ * ADR-045 — la durée de référence.
+ *
+ * Constat du 09/08/2026, sur les 46 tentatives réellement enregistrées : la
+ * durée effectivement passée sur une réussite valait **0,48 fois** la durée que
+ * le tuteur avait estimée. Le moteur s'en servait pourtant comme d'un
+ * instrument gradué, et concluait « trop facile » sur 7 réussites sur 10.
+ */
+describe("dureeDeReference — le réel prime sur l'estimation", () => {
+  const DEV01 = REFERENTIEL_TEST.parCode.get("DEV-01")!;
+
+  it("retombe sur l'estimation tant qu'il n'y a qu'une observation", () => {
+    const ex = exercice("ex-1", 3, 30, ["DEV-01"]);
+    const r = dureeDeReference(ex, [
+      tentative({ exerciseId: "ex-1", resultat: "reussi", indicesUtilises: 0, dureeMin: 12 }),
+    ]);
+    expect(r).toEqual({ minutes: 30, source: "estimee", observations: 0 });
+  });
+
+  it("prend la médiane des durées observées dès la deuxième tentative", () => {
+    const ex = exercice("ex-1", 3, 30, ["DEV-01"]);
+    const r = dureeDeReference(ex, [
+      tentative({ exerciseId: "ex-1", resultat: "reussi", indicesUtilises: 0, dureeMin: 12, jours: 4 }),
+      tentative({ exerciseId: "ex-1", resultat: "partiel", indicesUtilises: 1, dureeMin: 18, jours: 1 }),
+    ]);
+    expect(r).toEqual({ minutes: 15, source: "observee", observations: 2 });
+  });
+
+  it("la médiane, pas la moyenne : une séance écourtée ne tire pas la référence", () => {
+    const ex = exercice("ex-1", 3, 30, ["DEV-01"]);
+    const r = dureeDeReference(ex, [
+      tentative({ exerciseId: "ex-1", resultat: "partiel", indicesUtilises: 1, dureeMin: 2, jours: 5 }),
+      tentative({ exerciseId: "ex-1", resultat: "reussi", indicesUtilises: 0, dureeMin: 20, jours: 3 }),
+      tentative({ exerciseId: "ex-1", resultat: "partiel", indicesUtilises: 2, dureeMin: 22, jours: 1 }),
+    ]);
+    // Moyenne : 14,7 — médiane : 20. La séance de 2 min ne redéfinit pas
+    // l'exercice ; elle reste un point, pas la référence.
+    expect(r.minutes).toBe(20);
+    expect(r.source).toBe("observee");
+  });
+
+  it("ignore les tentatives d'un autre exercice, en cours, ou sans durée", () => {
+    const ex = exercice("ex-1", 3, 30, ["DEV-01"]);
+    const r = dureeDeReference(ex, [
+      tentative({ exerciseId: "ex-1", resultat: "reussi", indicesUtilises: 0, dureeMin: 12 }),
+      tentative({ exerciseId: "ex-AUTRE", resultat: "reussi", indicesUtilises: 0, dureeMin: 90 }),
+      tentative({ exerciseId: "ex-1", resultat: "partiel", indicesUtilises: 0, dureeMin: 5, statut: "en-cours" }),
+      tentative({ exerciseId: "ex-1", resultat: "partiel", indicesUtilises: 0 }),
+    ]);
+    // Une seule durée exploitable reste : sous le minimum, donc l'estimation.
+    expect(r.source).toBe("estimee");
+  });
+
+  it("le cas réel : 7 réussites sur 10 étaient « trop faciles » contre l'estimation", () => {
+    /*
+     * L'estimation dit 30 min ; l'exercice se fait en réalité autour de 14.
+     * Contre l'estimation, 14/30 = 0,47 < 0,6 ⇒ « trop facile », à tort.
+     * Contre le réel, 14/14 = 1 ⇒ « calibré ». C'est tout le lot 3.
+     */
+    const ex = exercice("ex-1", 3, 30, ["DEV-01"]);
+    const attempts = [
+      tentative({ exerciseId: "ex-1", resultat: "reussi", indicesUtilises: 0, dureeMin: 13, jours: 5 }),
+      tentative({ exerciseId: "ex-1", resultat: "reussi", indicesUtilises: 0, dureeMin: 15, jours: 1 }),
+    ];
+
+    const contreEstimation = verdictTentative(attempts[1], ex);
+    expect(contreEstimation.signal).toBe("trop-facile");
+
+    const contreReel = verdictTentative(attempts[1], ex, dureeDeReference(ex, attempts));
+    expect(contreReel.signal).toBe("calibre");
+    // La source voyage avec la valeur : la phrase dit d'où vient le repère (P3).
+    expect(contreReel.raison).toContain("médiane de 2 tentatives");
+
+    // Et de bout en bout, la difficulté ne bouge plus.
+    expect(calibrer(DEV01, [ex], attempts).difficulteConseillee).toBe(3);
+  });
+
+  it("un exercice vraiment expédié reste détecté, référence observée comprise", () => {
+    // 20 min habituellement, fait en 5 : 0,25 < 0,6. Le garde-fou n'est pas
+    // désarmé, il est recalé.
+    const ex = exercice("ex-1", 3, 60, ["DEV-01"]);
+    const attempts = [
+      tentative({ exerciseId: "ex-1", resultat: "partiel", indicesUtilises: 1, dureeMin: 20, jours: 6 }),
+      tentative({ exerciseId: "ex-1", resultat: "partiel", indicesUtilises: 1, dureeMin: 20, jours: 4 }),
+      tentative({ exerciseId: "ex-1", resultat: "reussi", indicesUtilises: 0, dureeMin: 5, jours: 1 }),
+    ];
+    const v = verdictTentative(attempts[2], ex, dureeDeReference(ex, attempts));
+    expect(v.signal).toBe("trop-facile");
+  });
+
+  it("tentativeMenee garde l'estimation — ADR-030 n'est pas desserré", () => {
+    /*
+     * La règle de la preuve ne change pas de repère. Elle tranche le plus
+     * souvent au PREMIER passage, quand aucune observation n'existe, et rien
+     * dans les données du 09/08 ne la met en cause : une seule réussite sous
+     * 25 %. La desserrer d'un côté est ce que CLAUDE.md interdit.
+     */
+    const ex = exercice("ex-1", 3, 40, ["DEV-01"]);
+    expect(tentativeMenee({ resultat: "echec", dureeMin: 5 }, ex)).toBe(false);
+    expect(tentativeMenee({ resultat: "echec", dureeMin: 15 }, ex)).toBe(true);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+
 describe("le maillon est effectivement bouclé", () => {
   it("la calibration déplace la difficulté visée par la recommandation", () => {
     // C'est le test du 3ᵉ maillon lui-même : sans lui, `difficulteCible` ne
     // regardait que le niveau dérivé et proposait la même chose à qui vient
     // d'échouer et à qui vient de réussir sans effort.
     const skill = skillDeTest("DEV-01", "developpement", "fondamentaux", 1, 0);
-    const ex = exercice("ex-1", 2, 25, ["DEV-01"]);
+    // Deux tentatives, pas une : depuis ADR-045 un verdict isolé ne déplace
+    // plus rien. Le maillon se démontre donc avec la confirmation qu'il exige.
+    const exercices = [exercice("ex-1", 2, 25, ["DEV-01"]), exercice("ex-2", 2, 25, ["DEV-01"])];
     const attempts = [
-      tentative({ exerciseId: "ex-1", resultat: "reussi", indicesUtilises: 0, dureeMin: 8 }),
+      tentative({ exerciseId: "ex-1", resultat: "reussi", indicesUtilises: 0, dureeMin: 8, jours: 4 }),
+      tentative({ exerciseId: "ex-2", resultat: "reussi", indicesUtilises: 0, dureeMin: 9, jours: 1 }),
     ];
     const etats = computeAllSkillStates([skill], [], MAINTENANT);
 
-    const sansCalibration = recommander(etats, [ex], attempts, 5)[0];
-    const calibrations = calibrerToutes(etats, [ex], attempts);
-    const avecCalibration = recommander(etats, [ex], attempts, 5, calibrations)[0];
+    const sansCalibration = recommander(etats, exercices, attempts, 5)[0];
+    const calibrations = calibrerToutes(etats, exercices, attempts);
+    const avecCalibration = recommander(etats, exercices, attempts, 5, calibrations)[0];
 
     expect(sansCalibration.difficulteCible).toBe(2); // table par niveau
     expect(avecCalibration.difficulteCible).toBe(3); // dérivée de la tentative

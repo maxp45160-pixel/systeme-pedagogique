@@ -2834,6 +2834,115 @@ valide reste un rejet — il n'y a alors rien à relire.
 
 ---
 
+## ADR-045 — La difficulté conseillée demande une confirmation ; la durée de référence est observée 🔬
+
+**Date.** 09/08/2026, lot 3 du chantier de stabilisation.
+
+**Ce qui manquait, dans les mots de Maxime.** « La durée attendue d'un exercice
+pourrait être ajustée en fonction du niveau de l'utilisateur. » L'intuition
+visait juste, la cause était ailleurs : le problème n'est pas que la durée
+devrait s'adapter à la personne, c'est que **la durée est une donnée inventée
+par un LLM, et que le moteur s'en sert comme d'un instrument de mesure calibré**.
+
+### Le constat, chiffré
+
+Sur les 46 tentatives réellement enregistrées au 09/08/2026 :
+
+| Mesure | Valeur |
+|---|---|
+| Réussites sur exercices non diagnostiques | 10 |
+| … classées `trop-facile` par la calibration | **7** |
+| Durée réelle / durée estimée, sur les réussites | **0,48** en moyenne |
+
+`FRACTION_TROP_FACILE = 0.6` avait été calé (ADR-028) sur quatre **diagnostics**,
+dont la durée était rédigée à la main. Les exercices écrits par le tuteur portent
+une durée que personne n'a confrontée au réel, et elle vaut environ le double du
+temps effectivement passé. Le seuil restait bon ; ce qu'on lui donnait à mesurer
+ne l'était pas.
+
+S'y ajoutait un effet d'accumulation : `difficulteConseillee` ne lisait que **le
+dernier verdict exploitable**. Trois réussites rapides d'affilée poussaient de 2
+à 5, et cette valeur repartait dans le prompt de génération, où le tuteur a
+consigne de s'y conformer (« Emploie la difficulté conseillée ; si tu t'en
+écartes, c'est une erreur »). La boucle se renforçait elle-même.
+
+### Ce qui est décidé
+
+1. **La référence de durée devient le réel dès qu'il existe.** `dureeDeReference`
+   rend la **médiane des durées constatées** sur l'exercice à partir de
+   `OBSERVATIONS_DUREE_MINIMUM = 2` tentatives terminées, et retombe sinon sur
+   l'estimation. La **source voyage avec la valeur** et s'affiche dans la phrase
+   du verdict — « 14 min habituellement constatées (médiane de 3 tentatives) »
+   plutôt que « 30 estimées » (P3).
+   La médiane et non la moyenne : sur deux ou trois points, une séance
+   interrompue à 2 minutes rendrait tout le reste « lent ».
+
+2. **Bouger la difficulté demande une confirmation.** `SIGNAUX_CONCORDANTS = 2` :
+   le verdict le plus récent commande le **sens**, mais il lui faut un second
+   verdict du même signe dans la fenêtre des 3 retenus. Sans confirmation, la
+   difficulté est **maintenue** — c'est un conseil, pas une abstention — et la
+   réserve le dit.
+
+3. **Les bornes de `difficulte` et `dureeEstimeeMin` ont une seule autorité**
+   (`lib/domain/exercice.ts`), importée par le schéma de l'outil, la conversion
+   et `creerExercice`. Elles étaient posées à trois endroits qui ne se parlaient
+   pas : le schéma bornait la durée à 240, la conversion à 480, et l'écriture ne
+   bornait rien. Ce qui entrait en base pouvait dépasser ce que le tuteur avait
+   le droit de proposer.
+
+### Ce qui n'est PAS décidé : `tentativeMenee` garde l'estimation
+
+La règle des 25 % — celle qui décide si une preuve s'écrit (ADR-030) — continue
+de lire `dureeEstimeeMin`, et ce n'est pas un oubli. Elle pose une autre
+question (« la tentative a-t-elle eu lieu ? »), elle tranche le plus souvent au
+**premier** passage, quand aucune observation n'existe encore, et **rien dans
+les données ne la met en cause** : une seule réussite sous 25 %. La desserrer
+sans motif serait exactement ce que ce registre reproche à l'ancienne règle.
+
+### Ce que le rejeu montre — et ce qu'il ne montre pas
+
+Les deux règles rejouées sur les 46 tentatives réelles :
+
+| | Ancien | ADR-045 |
+|---|---|---|
+| Verdicts `trop-facile` / réussites | 7/10 | **7/10** |
+| Compétences dont la difficulté conseillée baisse | — | **3** (LOG-07 4→3, LOG-09 5→4, RO-01 4→3) |
+
+⚠️ **La référence observée ne change rien aujourd'hui**, et il faut le dire :
+un seul exercice du corpus a été tenté deux fois. La médiane est donc **inerte**
+— mécanisme correct, sans prise sur les données actuelles. C'est la règle de
+concordance qui fait tout le travail visible.
+
+Elle le fait avec discernement : DEB-01 et DEB-03 montent toujours d'un cran,
+chacune sur **deux** réussites rapides indépendantes. Seuls les signaux isolés
+sont retenus. C'est le comportement voulu — pas un amortissement uniforme.
+
+Ce déséquilibre est la conséquence directe du déficit d'inventaire (66
+compétences actives sur 77 sans aucun exercice) : on ne refait pas les exercices
+parce qu'il n'y en a pas assez pour tourner. La médiane deviendra la référence
+réelle quand le corpus le permettra.
+
+### 🔬 Test de réfutation
+
+1. **Rejouer le comptage dans un mois.** Si la part de `trop-facile` reste au-
+   dessus de 50 % une fois que des exercices auront été tentés deux fois, c'est
+   que le seuil de 0,6 est lui-même mal placé, et non sa référence.
+2. **Surveiller les difficultés conseillées à 5.** Il n'en reste aucune. Si
+   elles réapparaissent sans que deux verdicts concordants ne les justifient,
+   la concordance est contournée quelque part.
+3. **Vérifier qu'aucune difficulté ne se fige.** Le risque symétrique de cette
+   ADR est l'immobilisme : une compétence dont la difficulté ne bouge plus
+   jamais parce qu'aucun signal ne trouve son jumeau. Requête de contrôle —
+   compter les compétences dont les 3 verdicts retenus sont exploitables,
+   directionnels, et **discordants**. Si ce cas est fréquent, `TENTATIVES_RETENUES`
+   est trop étroit pour que la concordance se produise.
+4. **Comparer médiane et estimation par exercice**, une fois plusieurs exercices
+   tentés deux fois. Si l'écart reste autour de 2×, la consigne donnée au tuteur
+   sur la durée estimée est à revoir à la source — c'est là que la mesure devrait
+   être juste, pas seulement corrigée en aval.
+
+---
+
 ## Comment modifier ce registre
 
 1. Une décision ✅ ne se retire pas : elle passe en 🔄 **Remplacée**, avec le

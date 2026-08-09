@@ -20,7 +20,14 @@ import { redirect } from "next/navigation";
 import { ajouter, ajouterPlusieurs, dorsaleCompte, lire, modifier, nouvelId } from "./db";
 import { verifier } from "./supabase-backend";
 import { lireReferentiel } from "./referentiel";
-import { compterTentatives, modeRetraitExercice } from "@/lib/domain/exercice";
+import {
+  compterTentatives,
+  modeRetraitExercice,
+  DIFFICULTE_MAX,
+  DIFFICULTE_MIN,
+  DUREE_ESTIMEE_MAX,
+  DUREE_ESTIMEE_MIN,
+} from "@/lib/domain/exercice";
 import { motifRefusTerminerExercice } from "@/lib/domain/tentative";
 import {
   autonomieObservee,
@@ -373,6 +380,41 @@ export async function creerExercice(soumission: SoumissionExerciceManuel): Promi
   if (!soumission.correction.trim()) throw new Error("La correction est obligatoire.");
   if (soumission.competences.length === 0) throw new Error("Au moins une compétence est requise.");
   if (soumission.criteres.length === 0) throw new Error("Au moins un critère est requis.");
+
+  /*
+   * Difficulté et durée sont VALIDÉES ICI, et pas seulement en amont.
+   *
+   * `convertirProposition` les contrôle déjà côté modale, mais `creerExercice`
+   * est une Server Function : elle est atteignable sans passer par cet écran.
+   * Or ces deux nombres ne sont pas des métadonnées d'affichage — ce sont les
+   * unités de mesure du moteur. La difficulté est le point de départ de
+   * `difficulteConseillee` ; la durée est ce à quoi `tentativeMenee` compare
+   * une tentative pour décider si une preuve s'écrit. Les laisser entrer sans
+   * contrôle, c'est le défaut du 02/08/2026 (colonne TEXT) déplacé d'un cran :
+   * le moteur est pur et testé, ce qu'on lui donne à manger ne l'était pas.
+   *
+   * La borne haute est celle du schéma de l'outil (`outils.ts`), pas celle,
+   * plus lâche, de la conversion : ce qui entre en base doit être ce que le
+   * tuteur avait le droit de proposer.
+   */
+  if (
+    !Number.isInteger(soumission.difficulte) ||
+    soumission.difficulte < DIFFICULTE_MIN ||
+    soumission.difficulte > DIFFICULTE_MAX
+  ) {
+    throw new Error(
+      `Difficulté hors bornes : ${soumission.difficulte}. Elle doit être un entier de ${DIFFICULTE_MIN} à ${DIFFICULTE_MAX}.`,
+    );
+  }
+  if (
+    !Number.isInteger(soumission.dureeEstimeeMin) ||
+    soumission.dureeEstimeeMin < DUREE_ESTIMEE_MIN ||
+    soumission.dureeEstimeeMin > DUREE_ESTIMEE_MAX
+  ) {
+    throw new Error(
+      `Durée estimée hors bornes : ${soumission.dureeEstimeeMin}. Elle doit être un entier de ${DUREE_ESTIMEE_MIN} à ${DUREE_ESTIMEE_MAX} minutes.`,
+    );
+  }
 
   const dorsale = await dorsaleCompte();
   const referentiel = await lireReferentiel(dorsale);

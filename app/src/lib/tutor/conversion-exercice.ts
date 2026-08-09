@@ -28,6 +28,12 @@
  */
 
 import type { Difficulte, Dimension, TypeExercice } from "@/lib/domain/types";
+import {
+  DIFFICULTE_MAX,
+  DIFFICULTE_MIN,
+  DUREE_ESTIMEE_MAX,
+  DUREE_ESTIMEE_MIN,
+} from "@/lib/domain/exercice";
 import type { PropositionExercice } from "./proposition";
 
 const TYPES: TypeExercice[] = [
@@ -53,8 +59,15 @@ const DIMENSIONS: Dimension[] = [
  * Durée estimée plafond. Au-delà, ce n'est plus un exercice mais un projet, et
  * le seuil de 25 % de `tentativeMenee` n'aurait plus de sens : 25 % de huit
  * heures laisserait passer deux heures d'abandon comme une tentative menée.
+ *
+ * ⚠️ Ce plafond valait 480 alors que le schéma de `proposer_exercice` en
+ * imposait 240 : la conversion laissait donc passer, et `creerExercice` écrivait,
+ * une durée que le tuteur n'avait pas le droit de proposer. Les deux bornes
+ * vivent désormais dans `lib/domain/exercice.ts`, importées par les trois
+ * couches — le schéma, la conversion, l'écriture. Ce nom reste pour les
+ * appelants ; il ne porte plus de valeur propre.
  */
-export const DUREE_MAX_MIN = 480;
+export const DUREE_MAX_MIN = DUREE_ESTIMEE_MAX;
 
 export type Conversion<T> =
   | { ok: true; valeur: T }
@@ -85,7 +98,7 @@ function nu(brut: string): string {
 /** `"3"` → `3`. Toute valeur hors 1–5 rend `null` — on ne borne pas, on refuse. */
 export function versDifficulte(brut: string): Difficulte | null {
   const n = Number.parseInt(brut.trim(), 10);
-  if (!Number.isInteger(n) || n < 1 || n > 5) return null;
+  if (!Number.isInteger(n) || n < DIFFICULTE_MIN || n > DIFFICULTE_MAX) return null;
   return n as Difficulte;
 }
 
@@ -109,7 +122,7 @@ export function versDimension(brut: string): Dimension | null {
  */
 export function versDuree(brut: string): number | null {
   const n = Number.parseInt(brut.trim(), 10);
-  if (!Number.isInteger(n) || n <= 0 || n > DUREE_MAX_MIN) return null;
+  if (!Number.isInteger(n) || n < DUREE_ESTIMEE_MIN || n > DUREE_ESTIMEE_MAX) return null;
   return n;
 }
 

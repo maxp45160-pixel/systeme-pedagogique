@@ -34,6 +34,12 @@ import type { Referentiel } from "@/lib/domain/types";
 // doivent nommer les mêmes valeurs dans les mêmes termes (`lib/domain/bilan.ts`).
 import { APPRECIATIONS, RESULTATS } from "@/lib/domain/bilan";
 import {
+  DIFFICULTE_MAX,
+  DIFFICULTE_MIN,
+  DUREE_ESTIMEE_MAX,
+  DUREE_ESTIMEE_MIN,
+} from "@/lib/domain/exercice";
+import {
   exerciceComplet,
   type PropositionExercice,
   type PropositionReferentiel,
@@ -214,14 +220,18 @@ function schemaExercice(domaines: string[]): SchemaJson {
       // Pas de description : la règle 2 du cadre d'intervention dit déjà que la
       // difficulté vient du bloc CALIBRAGE. La répéter ici la ferait payer deux
       // fois, et diverger au premier changement.
-      difficulte: { type: "integer", minimum: 1, maximum: 5 },
+      difficulte: { type: "integer", minimum: DIFFICULTE_MIN, maximum: DIFFICULTE_MAX },
       competences: {
         type: "array",
         minItems: 1,
         items: { type: "string" },
         description: "Codes du profil ; la première est la cible.",
       },
-      duree_estimee_min: { type: "integer", minimum: 5, maximum: 240 },
+      duree_estimee_min: {
+        type: "integer",
+        minimum: DUREE_ESTIMEE_MIN,
+        maximum: DUREE_ESTIMEE_MAX,
+      },
       enonce: {
         type: "string",
         // Les énoncés produits renvoyaient à des formules qu'ils ne donnaient

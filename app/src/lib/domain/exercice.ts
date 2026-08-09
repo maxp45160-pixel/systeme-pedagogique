@@ -18,6 +18,31 @@ import type { Exercise, ExerciseAttempt } from "./types";
 
 export type { ModeRetrait };
 
+/* ------------------------------------------------------------------ */
+/* Bornes des deux nombres dont le moteur se sert comme d'une règle     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Bornes de `dureeEstimeeMin` et de `difficulte` — une seule autorité.
+ *
+ * Ces deux valeurs ne sont pas des métadonnées d'affichage. La difficulté est
+ * le point de départ de `difficulteConseillee` ; la durée est ce à quoi
+ * `tentativeMenee` compare une tentative pour décider si une preuve s'écrit.
+ * Elles étaient bornées à trois endroits qui ne se parlaient pas — le schéma
+ * de l'outil du tuteur, la conversion, et nulle part à l'écriture. La borne
+ * haute de la conversion (480) était le double de celle du schéma (240) : ce
+ * qui entrait en base pouvait dépasser ce que le tuteur avait le droit de
+ * proposer.
+ *
+ * Les vivre ici, dans un module pur que les trois importent, est la même
+ * discipline que `scinderRetraits` (ADR-044) : deux copies d'une règle
+ * finissent par diverger, et la divergence est invisible.
+ */
+export const DUREE_ESTIMEE_MIN = 5;
+export const DUREE_ESTIMEE_MAX = 240;
+export const DIFFICULTE_MIN = 1;
+export const DIFFICULTE_MAX = 5;
+
 /**
  * Quel retrait s'applique à un exercice, **dérivé** du nombre de tentatives.
  *
