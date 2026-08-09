@@ -25,6 +25,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { ChatTuteur, type EtatContexteTuteur } from "@/components/tuteur/chat";
 import { classesLienBouton, cx } from "@/components/ui/primitives";
+import type {
+  CalibrageModale,
+  CompetenceModale,
+} from "@/components/exercices/proprietes-generation";
 
 /** Bouton rond en bas à droite — le déclencheur global. */
 const CLASSES_FLOTTANT = cx(
@@ -41,6 +45,8 @@ export function TiroirTuteur({
   codesCompetences,
   compteId,
   domainesExistants,
+  competencesModale,
+  calibragesModale,
   libelle = "Demander de l'aide au tuteur",
   declencheur = "bouton",
 }: {
@@ -51,6 +57,13 @@ export function TiroirTuteur({
   compteId: string;
   /** Domaines existants — le chat ouvre la modale de compétences in situ. */
   domainesExistants: { id: string; nom: string; prefixe: string }[];
+  /**
+   * Compétences actives et calibrages — le chat ouvre aussi la modale
+   * d'exercice in situ (audit §2.3). Obligatoires : un exercice proposé dans
+   * le tiroir doit pouvoir s'enregistrer depuis le tiroir.
+   */
+  competencesModale: CompetenceModale[];
+  calibragesModale: Record<string, CalibrageModale>;
   libelle?: string;
   /** `flottant` : bouton rond global. `bouton` : bouton en ligne, dans la page. */
   declencheur?: "bouton" | "flottant";
@@ -121,6 +134,8 @@ export function TiroirTuteur({
                 codesCompetences={codesCompetences}
                 compteId={compteId}
                 domainesExistants={domainesExistants}
+                competencesModale={competencesModale}
+                calibragesModale={calibragesModale}
               />
             </div>
           </div>

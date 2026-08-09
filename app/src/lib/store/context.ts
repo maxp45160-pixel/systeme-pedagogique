@@ -97,11 +97,37 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
   const idsStockes = new Set(donneesBrutes.exercises.map((e) => e.id));
   const dansLePerimetre = (e: { competences: string[] }) =>
     e.competences.some((c) => referentiel.codesActifs.has(c));
+
+  /*
+   * Un exercice sorti du périmètre emporte sa tentative ouverte avec lui
+   * (audit §2.2) : il faut qu'il reste atteignable pour la clore — et le clore,
+   * c'est le seul geste autorisé sur lui. On le garde donc dans les données,
+   * mais on le marque pour qu'il ne revienne NI dans le flux du moteur.
+   *
+   * ⚠️ Les diagnostics comptent, et ce n'est pas un détail : ils ne vivent pas
+   * en base mais dans `EXERCICES_DIAGNOSTIC`, et ce sont eux qui portent les
+   * deux plus vieilles tentatives ouvertes du produit. Ne rattraper que les
+   * exercices stockés aurait laissé exactement la moitié du défaut en place —
+   * la moitié invisible, puisqu'elle ne se lit dans aucune table.
+   */
+  const tentativesOuvertes = new Set(
+    donneesBrutes.attempts.filter((t) => t.statut === "en-cours").map((t) => t.exerciseId),
+  );
+  const ouvertHorsPerimetre = (e: { id: string; competences: string[] }) =>
+    !dansLePerimetre(e) && tentativesOuvertes.has(e.id);
+
+  const horsPerimetreOuverts = [
+    ...EXERCICES_DIAGNOSTIC.filter((e) => !idsStockes.has(e.id) && ouvertHorsPerimetre(e)),
+    ...donneesBrutes.exercises.filter(ouvertHorsPerimetre),
+  ];
+  const idsHorsPerimetreOuverts = new Set(horsPerimetreOuverts.map((e) => e.id));
+
   const donnees: Collections = {
     ...donneesBrutes,
     exercises: [
       ...EXERCICES_DIAGNOSTIC.filter((e) => !idsStockes.has(e.id) && dansLePerimetre(e)),
       ...donneesBrutes.exercises.filter(dansLePerimetre),
+      ...horsPerimetreOuverts,
     ],
   };
 
@@ -114,8 +140,12 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
   );
 
   // Un exercice archivé ne calibre plus rien et ne se recommande plus. Il reste
-  // dans `donnees.exercises` pour la liste, la fiche et le journal.
-  const exercicesActifs = donnees.exercises.filter((e) => !e.archive);
+  // dans `donnees.exercises` pour la liste, la fiche et le journal. Pareil pour
+  // un exercice hors périmètre encore ouvert : il reste atteignable pour être
+  // clos, mais ne revient pas dans le flux (audit §2.2).
+  const exercicesActifs = donnees.exercises.filter(
+    (e) => !e.archive && !idsHorsPerimetreOuverts.has(e.id),
+  );
 
   // Calculées AVANT la recommandation : c'est la calibration qui fixe la
   // difficulté visée, donc l'exercice retenu (ADR-028).

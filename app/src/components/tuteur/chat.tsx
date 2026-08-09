@@ -26,6 +26,12 @@ import {
 } from "@/lib/tutor/proposition";
 import { ModaleCompetence } from "@/components/referentiel/modale-competence";
 import type { BrancheInitiale } from "@/components/referentiel/validation-branche";
+import { ModaleExercice } from "@/components/exercices/modale-exercice";
+import type { PropositionExercice } from "@/lib/tutor/proposition";
+import type {
+  CalibrageModale,
+  CompetenceModale,
+} from "@/components/exercices/proprietes-generation";
 
 /**
  * Ce qu'on affiche pendant qu'un outil se remplit.
@@ -92,6 +98,7 @@ const MessageBulle = memo(function MessageBulle({
   message,
   enFluxDirect,
   onOuvrirBranche,
+  onOuvrirExercice,
 }: {
   message: Message;
   /**
@@ -110,6 +117,8 @@ const MessageBulle = memo(function MessageBulle({
   enFluxDirect: boolean;
   /** Ouvre la modale de compétences avec la branche pré-remplie. */
   onOuvrirBranche: (b: PropositionReferentiel) => void;
+  /** Ouvre la modale d'exercice, pré-remplie avec la proposition (audit §2.3). */
+  onOuvrirExercice: (e: PropositionExercice) => void;
 }) {
   /*
    * Deux sources possibles, jamais les deux à la fois.
@@ -135,6 +144,21 @@ const MessageBulle = memo(function MessageBulle({
     : analysable
       ? extrairePropositionsReferentiel(message.content)
       : [];
+
+  /*
+   * Exercices proposés (audit §2.3). `proposer_exercice` est armé à chaque
+   * message et validé par le serveur, mais rien ne le rendait ici : le tuteur
+   * appelait l'outil, l'application recevait la proposition, et l'utilisateur
+   * lisait « Proposition ci-dessous. » suivi de rien.
+   *
+   * Une seule source, contrairement aux branches : l'appel d'outil. Le gabarit
+   * markdown de l'exercice a disparu des prompts au lot 3.2 — relire le texte
+   * ne trouverait jamais rien, et prétendre le contraire réintroduirait le
+   * demi-exercice tronqué que ce gabarit produisait.
+   */
+  const exercices = recues
+    ? recues.flatMap((r) => (r.genre === "exercice" ? [r.exercice] : []))
+    : [];
 
   return (
     <div
@@ -209,6 +233,41 @@ const MessageBulle = memo(function MessageBulle({
             className="mt-2"
           >
             Revoir et ajouter au référentiel
+          </Bouton>
+        </div>
+      ))}
+
+      {/*
+        Exercice proposé : comme la branche, rien n'est écrit ici. Le bouton
+        ouvre `ModaleExercice` sur cette proposition — le même écran de
+        prévisualisation que la génération depuis le tableau de bord, donc les
+        mêmes validations avant enregistrement.
+      */}
+      {exercices.map((e, j) => (
+        <div
+          key={`ex-${j}`}
+          className="max-w-[85%] rounded-md border border-primaire/30 bg-surface-2 px-3.5 py-2.5 text-xs"
+        >
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Etiquette ton="primaire">Exercice proposé</Etiquette>
+            {e.competences.map((c) => (
+              <Etiquette key={c} mono>
+                {c}
+              </Etiquette>
+            ))}
+          </div>
+          <p className="mt-1.5 font-medium">{e.titre}</p>
+          <p className="chiffres mt-0.5 text-texte-attenue">
+            Difficulté {e.difficulte}/5 · ≈ {e.dureeEstimeeMin} min · {e.indices.length} indice(s)
+            · {e.criteres.length} critère(s)
+          </p>
+          <Bouton
+            onClick={() => onOuvrirExercice(e)}
+            variante="secondaire"
+            taille="petite"
+            className="mt-2"
+          >
+            Revoir et enregistrer
           </Bouton>
         </div>
       ))}
@@ -366,6 +425,19 @@ export interface ProprietesChat {
   compteId: string;
   /** Domaines existants — pour la modale de compétences. */
   domainesExistants: { id: string; nom: string; prefixe: string }[];
+  /**
+   * Compétences actives — pour la modale d'exercice proposé (audit §2.3).
+   *
+   * ⚠️ Obligatoire, et ce n'est pas une rigueur gratuite. Le tuteur peut
+   * proposer un exercice à **chaque** message, sur n'importe quel montage du
+   * chat — page pleine comme tiroir. Une prop facultative rendrait le bouton
+   * « Revoir et enregistrer » silencieusement inerte là où l'appelant l'aurait
+   * oubliée : le défaut même que §2.3 corrige, déplacé d'un cran. En la rendant
+   * requise, l'oubli devient une erreur de compilation.
+   */
+  competencesModale: CompetenceModale[];
+  /** Calibrages de toutes les compétences, indexés par code — idem. */
+  calibragesModale: Record<string, CalibrageModale>;
 }
 
 /**
@@ -404,6 +476,8 @@ function ChatHydrate({
   codesCompetences,
   compteId,
   domainesExistants,
+  competencesModale,
+  calibragesModale,
 }: {
   /** Manifeste et moteur, calculés côté serveur au rendu de la page. */
   etatInitial: EtatContexteTuteur;
@@ -423,6 +497,10 @@ function ChatHydrate({
   compteId: string;
   /** Domaines existants — pour la modale de compétences. */
   domainesExistants: { id: string; nom: string; prefixe: string }[];
+  /** Compétences actives — pour la modale d'exercice proposé (audit §2.3). */
+  competencesModale: CompetenceModale[];
+  /** Calibrages de toutes les compétences, indexés par code — idem. */
+  calibragesModale: Record<string, CalibrageModale>;
 }) {
   // `etat` ne vient plus d'un chargement asynchrone : il est calculé par le
   // serveur et ne change pas pendant la vie du composant. Pas d'état local.
@@ -481,6 +559,8 @@ function ChatHydrate({
   const [outilEnCours, setOutilEnCours] = useState<string | null>(null);
   /** Branche en attente de validation — ouvre la modale. */
   const [brancheEnAttente, setBrancheEnAttente] = useState<BrancheInitiale | null>(null);
+  /** Exercice proposé en attente de validation — ouvre la modale (audit §2.3). */
+  const [exerciceEnAttente, setExerciceEnAttente] = useState<PropositionExercice | null>(null);
   const zoneRef = useRef<HTMLDivElement>(null);
 
   /**
@@ -967,6 +1047,10 @@ function ChatHydrate({
     });
   }, []);
 
+  const ouvrirExercice = useCallback((e: PropositionExercice) => {
+    setExerciceEnAttente(e);
+  }, []);
+
   return (
     <div className="space-y-6 [&>*]:min-w-0">
       <div>
@@ -993,6 +1077,7 @@ function ChatHydrate({
                 // la fin du flux, pour rien.
                 enFluxDirect={enCours && i === messages.length - 1}
                 onOuvrirBranche={ouvrirBranche}
+                onOuvrirExercice={ouvrirExercice}
               />
             ))}
 
@@ -1175,6 +1260,17 @@ function ChatHydrate({
           domainesExistants={domainesExistants}
           compteId={compteId}
           brancheInitiale={brancheEnAttente}
+        />
+      )}
+
+      {exerciceEnAttente && (
+        <ModaleExercice
+          onFermer={() => setExerciceEnAttente(null)}
+          competences={competencesModale}
+          competenceInitiale={exerciceEnAttente.competences[0] ?? ""}
+          calibrages={calibragesModale}
+          compteId={compteId}
+          propositionInitiale={exerciceEnAttente}
         />
       )}
     </div>

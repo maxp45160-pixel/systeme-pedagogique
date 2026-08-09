@@ -31,6 +31,10 @@ import { tentativeMenee } from "@/lib/engine/calibration";
 import { amorceExercice, lienTuteur } from "@/lib/tutor/amorces";
 import { construireEtatInitialTuteur } from "@/lib/tutor/etat-initial";
 import { TiroirTuteur } from "@/components/tuteur/tiroir-tuteur";
+import {
+  calibragesPourModale,
+  competencesPourModale,
+} from "@/components/exercices/proprietes-generation";
 
 export default async function PageExercice(props: {
   params: Promise<{ id: string }>;
@@ -365,6 +369,8 @@ export default async function PageExercice(props: {
                     codesCompetences={codesCompetences}
                     compteId={ctx.donnees.user.id}
                     domainesExistants={domainesExistants}
+                    competencesModale={competencesPourModale(ctx.referentiel.actifs)}
+                    calibragesModale={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
                     libelle="Demander de l'aide au tuteur sur cet exercice"
                   />{" "}
                   — il aura l&apos;énoncé et ton brouillon sous les yeux. Il ne donnera pas
@@ -519,7 +525,9 @@ export default async function PageExercice(props: {
 
               Mesuré le 07/08/2026 : 16 des 37 tentatives terminées n'avaient
               aucune réponse. La règle change donc réellement le parcours, et
-              sa sortie est le bouton « Abandonner » ci-dessous.
+              sa sortie est le bouton « Abandonner » rendu en pied de section —
+               disponible dans les trois actes, sans coûter la révélation de la
+               correction.
             */}
             {enMesure && (
               <>
@@ -575,21 +583,46 @@ export default async function PageExercice(props: {
                       </p>
                       <p className="mt-2 text-xs text-texte-discret">
                         Si tu ne veux pas mener cet exercice, clos-le franchement : aucune
-                        preuve ne sera écrite, et ton niveau restera inchangé.
+                        preuve ne sera écrite, et ton niveau restera inchangé. Le bouton
+                        « Abandonner cette tentative » est disponible en bas de page, dans
+                        les trois actes.
                       </p>
-                      <div className="mt-3">
-                        <BoutonAbandon
-                          attemptId={enCours.id}
-                          exerciceId={exercice.id}
-                          dureeMin={dureeSuggeree}
-                          codes={exercice.competences}
-                        />
-                      </div>
                     </div>
                   </Carte>
                 )}
               </>
             )}
+
+            {/*
+              -------------------- Pied de section — Abandonner -----------------
+              Disponible dans les trois actes, quel que soit l'état du brouillon.
+              Abandonner ne doit pas coûter la révélation de la correction (audit
+              §2.2) : ce n'est pas une sortie qu'on atteint en traversant Comparer,
+              c'est une sortie qui existe toujours. Et symétriquement, dès qu'un
+              brouillon suffisant existe, le bouton ne doit pas disparaître.
+            */}
+            <Carte className="border-dashed">
+              <EnTeteCarte
+                titre="Abandonner cette tentative"
+                legende="Aucune preuve ne sera écrite, ton niveau reste inchangé"
+              />
+              <div className="px-4 py-3.5">
+                <p className="text-xs text-texte-attenue">
+                  Tu peux clore cette tentative à tout moment, depuis n&apos;importe lequel des
+                  trois actes, que ta réponse soit rédigée ou non. La tentative reste au
+                  journal : elle explique pourquoi aucune difficulté n&apos;est conseillée pour
+                  le prochain exercice.
+                </p>
+                <div className="mt-3">
+                  <BoutonAbandon
+                    attemptId={enCours.id}
+                    exerciceId={exercice.id}
+                    dureeMin={dureeSuggeree}
+                    codes={exercice.competences}
+                  />
+                </div>
+              </div>
+            </Carte>
           </>
         )}
 

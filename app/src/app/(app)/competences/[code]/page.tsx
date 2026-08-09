@@ -356,6 +356,8 @@ export default async function PageCompetence(props: {
                   codesCompetences={codesCompetences}
                   compteId={ctx.donnees.user.id}
                   domainesExistants={domainesExistants}
+                  competencesModale={competencesPourModale(ctx.referentiel.actifs)}
+                  calibragesModale={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
                   libelle="Explique-moi cette compétence"
                 />
               </div>

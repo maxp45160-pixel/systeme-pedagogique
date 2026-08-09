@@ -4,6 +4,10 @@ import { SqueletteContenu } from "@/components/layout/squelette";
 import { construireEtatInitialTuteur } from "@/lib/tutor/etat-initial";
 import { EntetePage } from "@/components/layout/entete-page";
 import { ChatTuteur } from "@/components/tuteur/chat";
+import {
+  calibragesPourModale,
+  competencesPourModale,
+} from "@/components/exercices/proprietes-generation";
 
 export default async function PageTuteur(props: {
   searchParams: Promise<{ competence?: string; amorce?: string; exercice?: string }>;
@@ -60,6 +64,8 @@ async function ContenuTuteur({
         nom: d.nom,
         prefixe: d.prefixe,
       }))}
+      competencesModale={competencesPourModale(ctx.referentiel.actifs)}
+      calibragesModale={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
     />
   );
 }

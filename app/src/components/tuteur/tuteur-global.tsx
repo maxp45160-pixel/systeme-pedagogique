@@ -14,6 +14,10 @@ import { chargerContexte } from "@/lib/store/context";
 import { construireEtatInitialTuteur } from "@/lib/tutor/etat-initial";
 import { TiroirTuteur } from "@/components/tuteur/tiroir-tuteur";
 import { HorsPageContextuelle } from "@/components/tuteur/hors-page-contextuelle";
+import {
+  calibragesPourModale,
+  competencesPourModale,
+} from "@/components/exercices/proprietes-generation";
 
 export async function TuteurGlobal() {
   const ctx = await chargerContexte();
@@ -32,6 +36,8 @@ export async function TuteurGlobal() {
           nom: d.nom,
           prefixe: d.prefixe,
         }))}
+        competencesModale={competencesPourModale(ctx.referentiel.actifs)}
+        calibragesModale={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
       />
     </HorsPageContextuelle>
   );

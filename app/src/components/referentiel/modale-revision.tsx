@@ -27,7 +27,7 @@
  * Comme pour l'évolution : l'appel réseau part du **clic**, jamais d'un effet.
  */
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { BandeauInfo, Bouton, PointActif } from "@/components/ui/primitives";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
@@ -72,6 +72,17 @@ export function ModaleRevision({
   const [enCours, demarrer] = useTransition();
   const abandonRef = useRef<AbortController | null>(null);
 
+  /*
+   * `onFermer` démonte la modale (`bouton-reviser.tsx`) : fermer par le fond ou
+   * par ✕ laissait donc le `fetch` tourner, et le fournisseur rédiger — facturé
+   * — pour une révision que plus personne n'attendait (audit §2.4).
+   * `ModaleExercice` coupait déjà ; c'est la même correction, propagée.
+   */
+  useEffect(() => {
+    const controleur = abandonRef;
+    return () => controleur.current?.abort();
+  }, []);
+
   const preuvesParCode = new Map(competences.map((c) => [c.code, c.preuves]));
   const intitulesParCode = new Map(competences.map((c) => [c.code, c.intitule]));
 
@@ -108,6 +119,11 @@ export function ModaleRevision({
       const lecteur = reponse.body.getReader();
       const decodeur = new TextDecoder();
       let tampon = "";
+      /*
+       * Un flux fermé sans événement terminal — coupure, troncature, proxy —
+       * laissait la modale en « révision » indéfiniment (audit §2.4).
+       */
+      let verdictRecu = false;
 
       for (;;) {
         const { done, value } = await lecteur.read();
@@ -130,9 +146,11 @@ export function ModaleRevision({
             recue.ajouts.forEach((_, i) => (initial[`a${i}`] = true));
             recue.modifications.forEach((m) => (initial[`m${m.code}`] = true));
             recue.retraits.forEach((r) => (initial[`r${r.code}`] = false));
+            verdictRecu = true;
             setGarde(initial);
             setEtat({ phase: "relecture", proposition: recue });
           } else if (type === "erreur") {
+            verdictRecu = true;
             setEtat({
               phase: "erreur",
               message: (JSON.parse(donnees) as { message: string }).message,
@@ -141,6 +159,14 @@ export function ModaleRevision({
             setEtat({ phase: "revision", progression: "Le tuteur relit ta branche…" });
           }
         }
+      }
+
+      if (!verdictRecu && !abandon.signal.aborted) {
+        setEtat({
+          phase: "erreur",
+          message:
+            "Le flux s'est interrompu avant que le tuteur n'ait rendu sa révision. Rien n'a été appliqué — relance la révision.",
+        });
       }
     } catch {
       if (!abandon.signal.aborted) {

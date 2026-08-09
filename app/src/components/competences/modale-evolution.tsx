@@ -105,6 +105,11 @@ export function BoutonEvolution(cible: Cible) {
       const lecteur = reponse.body.getReader();
       const decodeur = new TextDecoder();
       let tampon = "";
+      /*
+       * Un flux fermé sans événement terminal — coupure, troncature, proxy —
+       * laissait la modale en « demande » indéfiniment (audit §2.4).
+       */
+      let verdictRecu = false;
 
       for (;;) {
         const { done, value } = await lecteur.read();
@@ -122,8 +127,10 @@ export function BoutonEvolution(cible: Cible) {
 
           if (type === "proposition") {
             const recue = (JSON.parse(donnees) as { evolution: PropositionEvolution }).evolution;
+            verdictRecu = true;
             setEtat({ phase: "proposition", proposition: recue });
           } else if (type === "erreur") {
+            verdictRecu = true;
             setEtat({
               phase: "erreur",
               message: (JSON.parse(donnees) as { message: string }).message,
@@ -132,6 +139,14 @@ export function BoutonEvolution(cible: Cible) {
             setEtat({ phase: "demande", progression: "Le tuteur relit ce qui a été mesuré…" });
           }
         }
+      }
+
+      if (!verdictRecu && !abandon.signal.aborted) {
+        setEtat({
+          phase: "erreur",
+          message:
+            "Le flux s'est interrompu avant que le tuteur n'ait rendu sa proposition. Rien n'a été enregistré — relance la demande.",
+        });
       }
     } catch {
       if (!abandon.signal.aborted) {

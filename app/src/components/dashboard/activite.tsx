@@ -53,7 +53,7 @@ export function CarteActivite({
           <p className="text-[0.6875rem] text-texte-discret">
             {aucuneSeance
               ? "La grille se remplira au fil des séances."
-              : "Une case vide est un jour sans séance — rien de plus."}
+              : "Une case vide est un jour sans séance"}
           </p>
           <LegendeActivite />
         </div>

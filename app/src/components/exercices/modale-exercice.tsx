@@ -51,6 +51,7 @@ export function ModaleExercice({
   calibrages,
   compteId,
   surEnregistre,
+  propositionInitiale,
 }: {
   onFermer: () => void;
   competences: CompetenceModale[];
@@ -69,16 +70,37 @@ export function ModaleExercice({
   compteId: string;
   /** Appelé après l'enregistrement d'un exercice — pour rafraîchir la liste. */
   surEnregistre?: (id: string) => void;
+  /**
+   * Proposition déjà reçue (issue du chat, audit §2.3) : la modale démarre
+   * directement en prévisualisation sur cette proposition, sans repasser par le
+   * fournisseur. La compétence visée est la première code proposé, sinon la
+   * compétence initiale passée.
+   */
+  propositionInitiale?: PropositionExercice;
 }) {
   const router = useRouter();
-  const [code, setCode] = useState(competenceInitiale);
+  const [code, setCode] = useState(
+    propositionInitiale?.competences[0] ?? competenceInitiale,
+  );
   const [theme, setTheme] = useState(themeInitial);
   const [phase, setPhase] = useState<"formulaire" | "generation" | "previsualisation">(
-    "formulaire",
+    propositionInitiale ? "previsualisation" : "formulaire",
   );
-  const [propositions, setPropositions] = useState<PropositionExercice[]>([]);
+  const [propositions, setPropositions] = useState<PropositionExercice[]>(
+    propositionInitiale ? [propositionInitiale] : [],
+  );
   /** Index des propositions déjà enregistrées — pas un drapeau global. */
   const [enregistrees, setEnregistrees] = useState<Set<number>>(new Set());
+  /**
+   * Index de la proposition en cours d'écriture, `null` si aucune.
+   *
+   * `enregistrees` n'était posé qu'APRÈS la résolution de `creerExercice` :
+   * pendant l'aller-retour, le bouton restait actif et deux clics créaient deux
+   * exercices identiques (audit §2.6). Un index plutôt qu'un booléen parce que
+   * la modale rend plusieurs propositions : seule celle qu'on écrit se
+   * verrouille, les autres restent enregistrables.
+   */
+  const [enEcriture, setEnEcriture] = useState<number | null>(null);
   const [pourquoi, setPourquoi] = useState(false);
   const [progression, setProgression] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -135,6 +157,15 @@ export function ModaleExercice({
       const lecteur = reponse.body.getReader();
       const decodeur = new TextDecoder();
       let tampon = "";
+      /*
+       * Un flux peut se fermer SANS événement terminal — coupure réseau,
+       * réponse tronquée, proxy qui referme. La boucle sortait alors sur `done`
+       * sans rien vérifier, et la modale restait en « génération » pour
+       * toujours : un chargement infini, qui se lit comme un plantage
+       * (audit §2.4). On note donc si un verdict est arrivé, et on le dit quand
+       * il n'est pas venu.
+       */
+      let recue = false;
 
       for (;;) {
         const { done, value } = await lecteur.read();
@@ -151,16 +182,25 @@ export function ModaleExercice({
 
           if (type === "propositions" && donnees) {
             const parsed = JSON.parse(donnees) as { exercices: PropositionExercice[] };
+            recue = true;
             setPropositions(parsed.exercices);
             setPhase("previsualisation");
           } else if (type === "erreur" && donnees) {
             const parsed = JSON.parse(donnees) as { message: string };
+            recue = true;
             setErreur(parsed.message);
             setPhase("formulaire");
           } else if (type === "proposition-en-cours") {
             setProgression("Le tuteur rédige l'exercice — énoncé, indices, correction, critères…");
           }
         }
+      }
+
+      if (!recue && !abandon.signal.aborted) {
+        setErreur(
+          "Le flux s'est interrompu avant que le tuteur n'ait rendu son exercice. Rien n'a été enregistré — relance la génération.",
+        );
+        setPhase("formulaire");
       }
     } catch {
       if (!abandon.signal.aborted) {
@@ -173,6 +213,9 @@ export function ModaleExercice({
   const enregistrer = useCallback(
     async (p: PropositionExercice, index: number) => {
       if (!competence) return;
+      // Un enregistrement en vol verrouille tout : le double-clic ne doit pas
+      // franchir la garde, même si le bouton était déjà rendu.
+      if (enEcriture !== null || enregistrees.has(index)) return;
       setErreur(null);
 
       /*
@@ -189,6 +232,7 @@ export function ModaleExercice({
         return;
       }
 
+      setEnEcriture(index);
       try {
         const id = await creerExercice({
           ...conversion.valeur,
@@ -200,9 +244,11 @@ export function ModaleExercice({
         router.refresh();
       } catch (e) {
         setErreur(e instanceof Error ? e.message : "Échec de l'enregistrement.");
+      } finally {
+        setEnEcriture(null);
       }
     },
-    [competence, router, surEnregistre],
+    [competence, router, surEnregistre, enEcriture, enregistrees],
   );
 
   return (
@@ -478,10 +524,17 @@ export function ModaleExercice({
                         }
                         variante="secondaire"
                         taille="petite"
+                        disabled={enEcriture !== null}
                       >
                         Rejeter
                       </Bouton>
-                      <Bouton onClick={() => void enregistrer(p, i)} variante="principal" taille="petite">
+                      <Bouton
+                        onClick={() => void enregistrer(p, i)}
+                        variante="principal"
+                        taille="petite"
+                        disabled={enEcriture !== null}
+                        enChargement={enEcriture === i}
+                      >
                         Enregistrer
                       </Bouton>
                     </div>

@@ -47,6 +47,20 @@ export function BoutonCreerReferentiel({ compteId }: { compteId: string }) {
   const [enCours, demarrer] = useTransition();
   const abandonRef = useRef<AbortController | null>(null);
 
+  /**
+   * Fermer, c'est aussi abandonner la génération en cours (audit §2.4).
+   *
+   * Fermer la modale ne faisait que changer de phase : le `fetch` continuait,
+   * le fournisseur rédigeait — facturé — pour un texte que plus personne
+   * n'attendait. `ModaleExercice` coupait déjà, celle-ci non ; c'est la même
+   * correction, propagée.
+   */
+  function fermer() {
+    abandonRef.current?.abort();
+    abandonRef.current = null;
+    setEtat({ phase: "fermee" });
+  }
+
   /** Lancée depuis un clic, jamais depuis un effet. */
   async function proposer() {
     if (sujet.trim().length === 0) return;
@@ -79,6 +93,12 @@ export function BoutonCreerReferentiel({ compteId }: { compteId: string }) {
       const lecteur = reponse.body.getReader();
       const decodeur = new TextDecoder();
       let tampon = "";
+      /*
+       * Un flux fermé sans événement terminal — coupure, troncature, proxy —
+       * laissait la modale en « proposition » indéfiniment (audit §2.4). On
+       * note ce qui est arrivé, et on le dit quand rien n'est venu.
+       */
+      let recue = false;
 
       for (;;) {
         const { done, value } = await lecteur.read();
@@ -107,6 +127,7 @@ export function BoutonCreerReferentiel({ compteId }: { compteId: string }) {
               p[i] = b.prefixe;
               b.competences.forEach((_, j) => (initial[`c${i}-${j}`] = true));
             });
+            recue = true;
             setGarde(initial);
             setPrefixes(p);
             setEtat({
@@ -116,6 +137,7 @@ export function BoutonCreerReferentiel({ compteId }: { compteId: string }) {
               branches: recu.branches,
             });
           } else if (type === "erreur") {
+            recue = true;
             setEtat({
               phase: "saisie",
               message: (JSON.parse(donnees) as { message: string }).message,
@@ -124,6 +146,14 @@ export function BoutonCreerReferentiel({ compteId }: { compteId: string }) {
             setEtat({ phase: "proposition", progression: "Le tuteur compose le référentiel…" });
           }
         }
+      }
+
+      if (!recue && !abandon.signal.aborted) {
+        setEtat({
+          phase: "saisie",
+          message:
+            "Le flux s'est interrompu avant que le tuteur n'ait rendu sa proposition. Rien n'a été enregistré — relance la proposition.",
+        });
       }
     } catch {
       if (!abandon.signal.aborted) {
@@ -186,7 +216,7 @@ export function BoutonCreerReferentiel({ compteId }: { compteId: string }) {
         role="dialog"
         aria-modal="true"
         aria-label="Ajouter un référentiel"
-        onClick={() => setEtat({ phase: "fermee" })}
+        onClick={fermer}
       >
         <div
           className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-y-auto rounded-xl border border-bordure bg-surface p-5 text-left text-texte shadow-[var(--ombre-surcouche)]"
@@ -202,7 +232,7 @@ export function BoutonCreerReferentiel({ compteId }: { compteId: string }) {
             </div>
             <button
               type="button"
-              onClick={() => setEtat({ phase: "fermee" })}
+              onClick={fermer}
               aria-label="Fermer"
               className="rounded-md px-2 py-1 text-sm text-texte-attenue transition-colors hover:bg-surface-2 hover:text-texte"
             >
