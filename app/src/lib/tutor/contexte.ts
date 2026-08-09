@@ -474,16 +474,23 @@ const MAX_LIGNES_CORPUS = 60;
 function serialiserExerciceEnCours(ctx: Contexte, exerciceId?: string): string {
   const parId = new Map(ctx.donnees.exercises.map((e) => [e.id, e]));
 
-  const enCours = ctx.donnees.attempts.filter((t) => t.statut === "en-cours");
+  /*
+   * PostgreSQL ne garantit aucun ordre de retour : trier les tentatives en
+   * cours sur leur date plutôt que traiter la position dans le tableau comme
+   * une date (audit §2.5). La plus récente ouverte vient en premier.
+   */
+  const enCours = ctx.donnees.attempts
+    .filter((t) => t.statut === "en-cours")
+    .sort((a, b) => b.debut.localeCompare(a.debut));
   const cible =
     (exerciceId ? parId.get(exerciceId) : undefined) ??
-    parId.get(enCours[enCours.length - 1]?.exerciseId ?? "");
+    parId.get(enCours[0]?.exerciseId ?? "");
 
   if (!cible) {
     return "# EXERCICE EN COURS\n\nAucun exercice ouvert. Si la personne parle d'un exercice, demande-lui lequel — tu n'as pas son énoncé.";
   }
 
-  const tentative = [...enCours].reverse().find((t) => t.exerciseId === cible.id);
+  const tentative = enCours.find((t) => t.exerciseId === cible.id);
 
   const lignes = [
     "# EXERCICE EN COURS",

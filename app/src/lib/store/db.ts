@@ -97,6 +97,22 @@ export const dorsaleCompte = cache(async (): Promise<DorsaleCompte> => {
 /* API publique                                                        */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Ordre chronologique par défaut des collections temporelles.
+ *
+ * PostgreSQL ne garantit AUCUN ordre de retour. Les appelants qui traitent la
+ * position dans le tableau comme une date — `derniereTerminee`,
+ * `derniereAbandonnee`, l'exercice que le tuteur croit en cours — lisaient
+ * l'ordre d'arrivée de la base, sans garantie (audit §2.5). Ce tri rend
+ * l'ordre déterministe à la source, au lieu de le laisser dépendre de la
+ * couche UI.
+ */
+const ORDRE_PAR_DEFAUT: Partial<Record<CleListe, { colonne: "debut" | "date"; asc: boolean }>> = {
+  attempts: { colonne: "debut", asc: true },
+  sessions: { colonne: "date", asc: true },
+  evidence: { colonne: "date", asc: true },
+};
+
 export async function lire<K extends keyof Collections>(
   nom: K,
   dorsaleFournie?: DorsaleCompte,
@@ -117,12 +133,12 @@ export async function lire<K extends keyof Collections>(
     return (data ? profilVersUser(data, defaut) : defaut) as Collections[K];
   }
 
-  const { data, error } = await mesurer(`supabase:${TABLES[nom as CleListe]}`, () =>
-    supabase
-      .from(TABLES[nom as CleListe])
-      .select("*")
-      .eq("user_id", userId),
-  );
+  const ordre = ORDRE_PAR_DEFAUT[nom as CleListe];
+  const { data, error } = await mesurer(`supabase:${TABLES[nom as CleListe]}`, () => {
+    let requete = supabase.from(TABLES[nom as CleListe]).select("*").eq("user_id", userId);
+    if (ordre) requete = requete.order(ordre.colonne, { ascending: ordre.asc });
+    return requete;
+  });
   verifier(`lecture de « ${nom} »`, error);
 
   return ((data ?? []) as Record<string, unknown>[]).map((l) =>

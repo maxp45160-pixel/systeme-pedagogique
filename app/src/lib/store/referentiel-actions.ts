@@ -622,6 +622,24 @@ export async function retirerCompetences(codes: string[]): Promise<ResultatRetra
 export async function basculerActives(codes: string[], active: boolean): Promise<void> {
   if (codes.length === 0) return;
   const dorsale = await dorsaleCompte();
+
+  /*
+   * Réactiver exige le même garde-fou que `basculerActive` : une compétence
+   * archivée ne rentre pas au périmètre d'un clic, il faut la désarchiver
+   * d'abord. Le geste par lot ne doit pas tenir un invariant que le geste
+   * unitaire refuserait (audit §2.8) — c'est la forme exacte qu'ADR-044 a
+   * corrigée pour les retraits.
+   */
+  if (active) {
+    const referentiel = await lireReferentiel(dorsale);
+    const archives = codes.filter((code) => referentiel.parCode.get(code)?.archive);
+    if (archives.length > 0) {
+      throw new Error(
+        `Compétence(s) archivée(s) : ${archives.join(", ")}. Désarchive-les avant de les remettre dans ton périmètre.`,
+      );
+    }
+  }
+
   const { error } = await dorsale.supabase
     .from("competences")
     .update({ active })

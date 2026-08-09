@@ -18,6 +18,8 @@
  * `FRACTION_NON_TENTEE` l'a été sur des tentatives réelles (ADR-028).
  */
 
+import type { ExerciseAttempt } from "@/lib/domain/types";
+
 /**
  * La réponse écrite permet-elle d'ouvrir le bilan ?
  *
@@ -43,4 +45,50 @@ export function reponseSuffisante(reponse: string | null | undefined): boolean {
 export function motifBlocageBilan(reponse: string | null | undefined): string | null {
   if (reponseSuffisante(reponse)) return null;
   return "Le bilan demande ta réponse écrite. Rédige-la puis clique « Enregistrer le brouillon » : c'est la trace du raisonnement, et c'est elle que le tuteur relira pour te proposer une correction.";
+}
+
+export interface SoumissionTerminerExercice {
+  exerciseId: string;
+  dureeMin: number;
+}
+
+/**
+ * Les refus d'une soumission de bilan, en un point d'autorité (audit §2.1).
+ *
+ * `terminerExercice` (lib/store/actions.ts) est une Server Function, donc un
+ * point d'entrée public : rejouer une soumission pouvait écrire une seconde
+ * preuve pour la même tentative, et un couple tentative/exercice incohérent
+ * attribuait la preuve aux compétences du mauvais exercice. `dureeMin`, qui
+ * alimente `tentativeMenee`, n'était pas validé non plus.
+ *
+ * Le vivre ici — module pur, testable sans base, partagé avec l'écriture —
+ * garantit que la validation effectivement appliquée est exactement celle que
+ * les tests vérifient (règle « une règle, une autorité »).
+ */
+export function motifRefusTerminerExercice(
+  avant: Pick<ExerciseAttempt, "id" | "statut" | "exerciseId" | "reponse">,
+  soumission: SoumissionTerminerExercice,
+): string | null {
+  // Une tentative close ne se rejoue pas : sinon la soumission réécrirait une
+  // seconde preuve pour la même tentative.
+  if (avant.statut !== "en-cours") {
+    return "Cette tentative est déjà clôturée : elle ne peut être soumise qu'une fois.";
+  }
+  // Le couple doit concorder : la preuve est attribuée aux compétences de
+  // l'exercice porté par la tentative.
+  if (avant.exerciseId !== soumission.exerciseId) {
+    return "La tentative ne correspond pas à cet exercice : la soumission est rejetée.";
+  }
+  // La durée est l'unité de mesure de `tentativeMenee` : une valeur non fiable
+  // ferait dire au moteur le contraire de ce qui s'est passé. Refuser plutôt
+  // que rabattre sur un défaut (P2).
+  if (!Number.isFinite(soumission.dureeMin) || soumission.dureeMin <= 0) {
+    return "La durée renseignée est invalide : elle doit être un nombre strictement positif.";
+  }
+  // La réponse écrite reste la condition d'ouverture du bilan, donc d'écriture
+  // de la preuve — l'interface peut être contournée, pas la règle.
+  if (!reponseSuffisante(avant.reponse)) {
+    return motifBlocageBilan(avant.reponse);
+  }
+  return null;
 }

@@ -21,7 +21,7 @@ import { ajouter, ajouterPlusieurs, dorsaleCompte, lire, modifier, nouvelId } fr
 import { verifier } from "./supabase-backend";
 import { lireReferentiel } from "./referentiel";
 import { compterTentatives, modeRetraitExercice } from "@/lib/domain/exercice";
-import { motifBlocageBilan, reponseSuffisante } from "@/lib/domain/tentative";
+import { motifRefusTerminerExercice } from "@/lib/domain/tentative";
 import {
   autonomieObservee,
   LIBELLE_AIDE,
@@ -132,15 +132,17 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
    * l'expliquer — une trace à moitié écrite, plus difficile à lire qu'une
    * absence de trace.
    *
-   * La règle elle-même (`reponseSuffisante`) est le garde-fou serveur de ce que
-   * l'interface annonce déjà : sans réponse écrite, le bilan ne s'ouvre pas.
-   * L'interface peut être contournée, pas celle-ci.
+   * La règle vit dans `motifRefusTerminerExercice` (lib/domain/tentative.ts),
+   * et elle est le garde-fou serveur de ce que l'interface annonce déjà — sans
+   * réponse écrite, le bilan ne s'ouvre pas — ainsi que de ce que l'interface
+   * ne montre pas : une tentative close ne se rejoue pas, le couple
+   * tentative/exercice doit concorder, et la durée doit être exploitable par
+   * `tentativeMenee`. L'interface peut être contournée, pas celle-ci.
    */
   const avant = (await lire("attempts", dorsale)).find((t) => t.id === soumission.attemptId);
   if (!avant) throw new Error("Tentative introuvable");
-  if (!reponseSuffisante(avant.reponse)) {
-    throw new Error(motifBlocageBilan(avant.reponse) ?? "Réponse écrite manquante.");
-  }
+  const refus = motifRefusTerminerExercice(avant, soumission);
+  if (refus) throw new Error(refus);
 
   const date = new Date().toISOString();
 

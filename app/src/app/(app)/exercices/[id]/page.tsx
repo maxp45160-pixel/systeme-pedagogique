@@ -51,8 +51,12 @@ export default async function PageExercice(props: {
 
   const tentatives = ctx.donnees.attempts.filter((a) => a.exerciseId === exercice.id);
   const enCours = tentatives.find((a) => a.statut === "en-cours") ?? null;
+  // PostgreSQL ne garantit aucun ordre de retour : la « dernière » tentative ne
+  // se lit pas en fin de tableau, elle se trie sur sa date (audit §2.5).
   const derniereTerminee =
-    [...tentatives].filter((a) => a.statut === "terminee").at(-1) ?? null;
+    [...tentatives]
+      .filter((a) => a.statut === "terminee")
+      .sort((a, b) => (b.fin ?? b.debut).localeCompare(a.fin ?? a.debut))[0] ?? null;
 
   /*
    * Deux chemins mènent désormais à `?abandon=1` :
@@ -67,7 +71,9 @@ export default async function PageExercice(props: {
    * pour savoir laquelle des deux phrases est vraie.
    */
   const derniereAbandonnee =
-    [...tentatives].filter((a) => a.statut === "abandonnee").at(-1) ?? null;
+    [...tentatives]
+      .filter((a) => a.statut === "abandonnee")
+      .sort((a, b) => (b.fin ?? b.debut).localeCompare(a.fin ?? a.debut))[0] ?? null;
   const abandonDelibere = derniereAbandonnee
     ? tentativeMenee(derniereAbandonnee, exercice)
     : false;

@@ -13,7 +13,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { motifBlocageBilan, reponseSuffisante } from "./tentative";
+import { motifBlocageBilan, motifRefusTerminerExercice, reponseSuffisante } from "./tentative";
 
 describe("reponseSuffisante", () => {
   it("refuse une réponse vide", () => {
@@ -56,5 +56,48 @@ describe("motifBlocageBilan", () => {
      */
     const motif = motifBlocageBilan("");
     expect(motif).toContain("Enregistrer le brouillon");
+  });
+});
+
+describe("motifRefusTerminerExercice", () => {
+  const avant = {
+    id: "att-1",
+    statut: "en-cours",
+    exerciseId: "ex-1",
+    reponse: "ma démarche",
+  } as const;
+  const soumission = { exerciseId: "ex-1", dureeMin: 12 };
+
+  it("refuse une tentative déjà clôturée — on ne rejoue pas une soumission", () => {
+    /*
+     * `terminerExercice` est une Server Function publique : rejouer la
+     * soumission réécrirait une seconde preuve pour la même tentative (audit
+     * §2.1). Le statut doit donc être vérifié, pas présumé.
+     */
+    const motif = motifRefusTerminerExercice({ ...avant, statut: "terminee" }, soumission);
+    expect(motif).toBeTruthy();
+    expect(motif).toContain("clôturée");
+  });
+
+  it("refuse un couple tentative/exercice incohérent — la preuve suivrait le mauvais exercice", () => {
+    const motif = motifRefusTerminerExercice(avant, { ...soumission, exerciseId: "ex-2" });
+    expect(motif).toBeTruthy();
+    expect(motif).toContain("ne correspond pas");
+  });
+
+  it("refuse une durée non finie ou non positive — elle alimente `tentativeMenee`", () => {
+    expect(motifRefusTerminerExercice(avant, { ...soumission, dureeMin: 0 })).toBeTruthy();
+    expect(motifRefusTerminerExercice(avant, { ...soumission, dureeMin: -4 })).toBeTruthy();
+    // `NaN` (venue d'un champ inexploitable) ne doit pas passer non plus.
+    expect(motifRefusTerminerExercice(avant, { ...soumission, dureeMin: Number.NaN })).toBeTruthy();
+  });
+
+  it("refuse une réponse absente — l'ouverture du bilan reste verrouillée", () => {
+    const motif = motifRefusTerminerExercice({ ...avant, reponse: "   " }, soumission);
+    expect(motif).toContain("Enregistrer le brouillon");
+  });
+
+  it("accepte une soumission cohérente", () => {
+    expect(motifRefusTerminerExercice(avant, soumission)).toBeNull();
   });
 });
