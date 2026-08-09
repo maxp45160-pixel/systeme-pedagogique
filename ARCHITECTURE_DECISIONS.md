@@ -3066,6 +3066,86 @@ preuve d'un texte, ce qui est l'inverse de tout ce que le moteur défend.
 
 ---
 
+## ADR-047 — Un exercice se corrige ; les preuves qu'il a produites ne bougent pas 🔬
+
+**Date.** 09/08/2026, lot 6 du chantier de stabilisation.
+
+**Ce qui manquait, dans les mots de Maxime.** « L'utilisateur ne peut pas
+suggérer de modification ou signaler facilement un problème sur un exercice. »
+
+### Le besoin, dépouillé de la solution
+
+Un « signalement » suppose un **destinataire**. Il n'y en a pas : la personne
+est seule avec son corpus. Retirer la solution de la demande laisse un besoin
+plus simple — **corriger**.
+
+Et il était impossible. `creerExercice` était la seule écriture ; il n'existait
+ni `modifierExercice`, ni écran d'édition. Un énoncé ambigu, une correction
+fausse, une durée absurde n'avaient qu'une issue : l'archivage. C'est-à-dire
+jeter le seul contenu disponible pour une compétence qui, dans la situation
+mesurée (11 compétences actives sur 77 disposant d'un exercice), n'en a le plus
+souvent aucun autre. **On jetait au lieu de réparer**, sur un corpus produit par
+un LLM que personne ne relit avant usage.
+
+### Ce qui est décidé
+
+`modifierExercice` change le **contenu** : titre, type, difficulté, durée,
+énoncé, indices, correction, critères. Elle passe par `exerciceDuCompte`, la
+même porte que le retrait — un diagnostic est livré avec le logiciel et n'est
+pas modifiable.
+
+**Ne se modifient pas :**
+
+- **`id`** — c'est ce que les preuves et le journal citent (`source.ref`).
+- **`origine`** (ADR-004) — qu'un énoncé ait été rédigé par le tuteur ne cesse
+  pas d'être vrai parce qu'on en corrige une phrase. Le champ dit d'où vient
+  l'exercice, pas qui l'a retouché en dernier.
+- **`competences`** — les changer ferait pointer les preuves passées vers une
+  autre compétence que celle qu'elles ont mesurée. C'est un autre exercice.
+- **`diagnostic`**, **`archive`** — hors compte pour le premier, gestes propres
+  pour le second.
+
+### La validation a une seule autorité
+
+`motifRefusExercice` (pur, testé, `lib/domain/exercice.ts`) est partagée par
+`creerExercice` **et** `modifierExercice`, et rejouée par l'écran pour dire tout
+de suite ce qui cloche. Deux copies auraient fini par diverger, et la divergence
+aurait été invisible : **on aurait pu faire entrer par l'édition ce que la
+création refuse**. C'est la forme exacte du défaut qu'ADR-044 a corrigé pour les
+retraits, et que l'audit a retrouvée sur `basculerActives`.
+
+### Ce que l'édition ne répare pas, et pourquoi c'est voulu
+
+**Les preuves déjà écrites.** Elles mesurent une tentative sur l'énoncé
+**d'alors**. Corriger le texte ne les rend ni plus ni moins justes ; les
+retoucher serait réécrire l'histoire (P4, anti-hallucination §6).
+
+Mais l'exercice affiché devient alors différent de celui qui a été fait, et le
+journal paraîtrait cohérent alors qu'il ne l'est plus. D'où `exercises.modifie_le`
+(`supabase/migration-exercice-edition.sql`) et l'étiquette « Contenu corrigé
+le … » sur la fiche. L'écran annonce en outre le nombre de tentatives déjà
+portées **avant** le clic — comme le retrait annonce son mode avant de
+s'exécuter (ADR-027).
+
+### 🔬 Test de réfutation
+
+1. **Compter les exercices corrigés au bout d'un mois.** Si le chiffre reste à
+   zéro, le besoin était mal lu : le problème n'était pas de corriger mais
+   autre chose — peut-être de savoir *qu'un* exercice est mauvais, ce qui est
+   une question de détection, pas d'édition.
+2. **Vérifier qu'aucune preuve ne devient illisible.** Requête de contrôle :
+   les preuves dont `source.ref` pointe un exercice `modifie_le` postérieur à
+   la date de la preuve. Si ces cas sont nombreux et que le journal en devient
+   confus, il faudra archiver une copie de l'énoncé au moment de la preuve
+   plutôt qu'une simple date.
+3. **Surveiller les corrections massives de difficulté ou de durée.** Ce sont
+   les deux nombres dont le moteur se sert comme d'une règle (ADR-045).
+   Quelqu'un qui les ajuste pour obtenir la difficulté conseillée qu'il
+   souhaite court-circuite la calibration — l'édition deviendrait un moyen de
+   contourner la mesure, ce qui est l'inverse du but.
+
+---
+
 ## Comment modifier ce registre
 
 1. Une décision ✅ ne se retire pas : elle passe en 🔄 **Remplacée**, avec le

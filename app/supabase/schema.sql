@@ -258,6 +258,10 @@ CREATE TABLE IF NOT EXISTS public.exercises (
   -- Retrait sans perte de preuves (calque ADR-027). Un exercice sans
   -- tentative se supprime ; un exercice qui en porte s'archive.
   archive             BOOLEAN NOT NULL DEFAULT FALSE,
+  -- Dernière correction du contenu (ADR-047). NULL si jamais retouché. Sert à
+  -- signaler qu'une preuve ancienne porte sur un énoncé qui a changé depuis.
+  -- Voir `supabase/migration-exercice-edition.sql` pour une base en service.
+  modifie_le          TEXT,
   created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (user_id, id)
 );

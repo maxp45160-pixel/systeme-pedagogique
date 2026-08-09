@@ -4,6 +4,12 @@ import {
   estRetirable,
   modeRetraitExercice,
   usageExercice,
+  motifRefusExercice,
+  DIFFICULTE_MAX,
+  DIFFICULTE_MIN,
+  DUREE_ESTIMEE_MAX,
+  DUREE_ESTIMEE_MIN,
+  type ContenuExercice,
 } from "./exercice";
 import type { Exercise, ExerciseAttempt } from "./types";
 
@@ -121,5 +127,75 @@ describe("usageExercice", () => {
 
   it("un abandon seul ne fait pas sortir de « à faire »", () => {
     expect(usageExercice("ex-1", [tent("ex-1", { statut: "abandonnee" })])).toBe("a-faire");
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Validation du contenu — une règle, une autorité (ADR-047)           */
+/* ------------------------------------------------------------------ */
+
+/*
+ * `creerExercice` portait ces règles en ligne. `modifierExercice` allait devoir
+ * les reprendre : deux copies, dont la seconde aurait pu être plus permissive
+ * sans que rien ne le signale — on aurait pu faire entrer par l'édition ce que
+ * la création refuse. C'est la forme du défaut qu'ADR-044 a corrigé pour les
+ * retraits et l'audit §2.8 pour `basculerActives`.
+ */
+function contenu(surcharge: Partial<ContenuExercice> = {}): ContenuExercice {
+  return {
+    titre: "Calcul du stock de sécurité",
+    difficulte: 3,
+    dureeEstimeeMin: 30,
+    competences: ["LOG-10"],
+    enonce: "Une référence consomme 120 unités par semaine…",
+    correction: "z × σ × √L.",
+    criteres: [{ dimension: "application", libelle: "Sait appliquer la formule" }],
+    ...surcharge,
+  };
+}
+
+describe("motifRefusExercice", () => {
+  it("accepte un contenu complet", () => {
+    expect(motifRefusExercice(contenu())).toBeNull();
+  });
+
+  it("refuse les champs vides, y compris remplis d'espaces", () => {
+    expect(motifRefusExercice(contenu({ titre: "   " }))).toContain("titre");
+    expect(motifRefusExercice(contenu({ enonce: "" }))).toContain("énoncé");
+    expect(motifRefusExercice(contenu({ correction: "  " }))).toContain("correction");
+  });
+
+  it("refuse un exercice sans compétence ni critère — il ne mesurerait rien", () => {
+    expect(motifRefusExercice(contenu({ competences: [] }))).toContain("compétence");
+    expect(motifRefusExercice(contenu({ criteres: [] }))).toContain("critère");
+  });
+
+  /*
+   * Les deux nombres dont le moteur se sert comme d'une règle. La difficulté
+   * amorce `difficulteConseillee` ; la durée est ce à quoi `tentativeMenee`
+   * compare une tentative pour décider si une preuve s'écrit. Les laisser
+   * entrer sans contrôle, c'est le défaut du 02/08/2026 (colonne TEXT) déplacé
+   * d'un cran.
+   */
+  it("borne la difficulté sur l'échelle du domaine", () => {
+    expect(motifRefusExercice(contenu({ difficulte: DIFFICULTE_MIN }))).toBeNull();
+    expect(motifRefusExercice(contenu({ difficulte: DIFFICULTE_MAX }))).toBeNull();
+    expect(motifRefusExercice(contenu({ difficulte: 0 }))).toContain("Difficulté");
+    expect(motifRefusExercice(contenu({ difficulte: 6 }))).toContain("Difficulté");
+    expect(motifRefusExercice(contenu({ difficulte: 2.5 }))).toContain("Difficulté");
+    expect(motifRefusExercice(contenu({ difficulte: Number.NaN }))).toContain("Difficulté");
+  });
+
+  it("borne la durée sur celle du schéma de l'outil, pas plus large", () => {
+    expect(motifRefusExercice(contenu({ dureeEstimeeMin: DUREE_ESTIMEE_MIN }))).toBeNull();
+    expect(motifRefusExercice(contenu({ dureeEstimeeMin: DUREE_ESTIMEE_MAX }))).toBeNull();
+    expect(motifRefusExercice(contenu({ dureeEstimeeMin: 0 }))).toContain("Durée");
+    expect(
+      motifRefusExercice(contenu({ dureeEstimeeMin: DUREE_ESTIMEE_MAX + 1 })),
+    ).toContain("Durée");
+    // La conversion plafonnait autrefois à 480, soit le double du schéma : ce
+    // qui entrait en base pouvait dépasser ce que le tuteur avait le droit de
+    // proposer.
+    expect(motifRefusExercice(contenu({ dureeEstimeeMin: 480 }))).toContain("Durée");
   });
 });

@@ -29,6 +29,8 @@ import { motifBlocageBilan, reponseSuffisante } from "@/lib/domain/tentative";
 import { IconeAmpoule, IconeFleche, IconeValide } from "@/components/ui/icones";
 import { formatDateCourte, formatDuree } from "@/lib/engine/dates";
 import { BilanRedigeVue } from "@/components/exercices/bilan-redige";
+import { BoutonEditer } from "@/components/exercices/bouton-editer";
+import { compterTentatives, estRetirable } from "@/lib/domain/exercice";
 import { tentativeMenee } from "@/lib/engine/calibration";
 import { amorceExercice, lienTuteur } from "@/lib/tutor/amorces";
 import { construireEtatInitialTuteur } from "@/lib/tutor/etat-initial";
@@ -233,6 +235,14 @@ export default async function PageExercice(props: {
           </Etiquette>
           <Etiquette>≈ {formatDuree(exercice.dureeEstimeeMin)}</Etiquette>
           {exercice.diagnostic && <Etiquette ton="info">Diagnostic</Etiquette>}
+          {/*
+            Une correction du contenu se signale (ADR-047). Une preuve ancienne
+            mesure une tentative sur l'énoncé d'ALORS : sans cette étiquette, le
+            journal paraîtrait cohérent alors que le support a changé.
+          */}
+          {exercice.modifieLe && (
+            <Etiquette>Contenu corrigé le {formatDateCourte(exercice.modifieLe)}</Etiquette>
+          )}
         </div>
         <h1 className="mt-2.5 text-xl font-semibold tracking-tight">{exercice.titre}</h1>
 
@@ -256,6 +266,24 @@ export default async function PageExercice(props: {
             );
           })}
         </div>
+
+        {/*
+          Corriger l'exercice (ADR-047). Réservé aux exercices du compte :
+          `estRetirable` porte déjà la question « cet exercice t'appartient-il ? »
+          — un diagnostic est livré avec le logiciel, et `modifierExercice` le
+          refuserait de toute façon côté serveur.
+
+          Placé dans l'en-tête, discret : c'est un geste rare, mais il doit être
+          là où l'on constate le défaut, pas dans un écran de gestion à part.
+        */}
+        {estRetirable(exercice) && (
+          <div className="mt-3">
+            <BoutonEditer
+              exercice={exercice}
+              tentatives={compterTentatives(exercice.id, ctx.donnees.attempts)}
+            />
+          </div>
+        )}
       </header>
 
       <div className="space-y-4">

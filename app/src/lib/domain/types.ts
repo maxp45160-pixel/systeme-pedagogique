@@ -301,6 +301,19 @@ export interface Exercise {
    * livrés avec le logiciel et ne se retirent pas un par un.
    */
   archive?: boolean;
+  /**
+   * Date de la dernière correction du contenu (ADR-047).
+   *
+   * Absente tant que l'exercice n'a pas été retouché — et absente aussi tant
+   * que `supabase/migration-exercice-edition.sql` n'est pas appliquée.
+   *
+   * Elle existe pour une raison précise : une preuve mesure une tentative sur
+   * l'énoncé **d'alors**. Corriger le texte ne rend pas cette mesure fausse,
+   * mais il rend l'exercice affiché différent de celui qui a été fait. Qui
+   * relit une preuve ancienne doit pouvoir savoir que le support a changé
+   * depuis — sinon le journal paraît cohérent alors qu'il ne l'est plus.
+   */
+  modifieLe?: string;
 }
 
 export interface ExerciseAttempt {

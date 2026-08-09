@@ -94,7 +94,7 @@ pratique et développer un sujet à long terme.
   deux cas. Sans moteur configuré : 503 et repli « copier le contexte ».
 - **Styles :** Tailwind CSS v4 ; **graphiques SVG écrits à la main**, aucune
   librairie UI tierce
-- **Tests :** Vitest — **551 tests**, 24 fichiers (moteur, répétition espacée,
+- **Tests :** Vitest — **556 tests**, 24 fichiers (moteur, répétition espacée,
   calibration, backend Supabase, référentiel par compte, cycle de vie des
   exercices, profil, parseurs de propositions, outils du tuteur, contexte du
   tuteur, amorces du tuteur, sélection du moteur du tuteur, génération sans
@@ -136,6 +136,12 @@ idempotent, sans `DROP` : `exercises.difficulte` passe de `TEXT` à `INTEGER` av
 un `CHECK BETWEEN 1 AND 5` (ADR-034), et la colonne `exercises.archive` apparaît
 (ADR-035). `schema.sql` porte les mêmes définitions pour une installation neuve.
 Inutile de le rejouer.
+
+⏳ **`supabase/migration-exercice-edition.sql` reste À APPLIQUER** (09/08/2026,
+ADR-047). Additive et idempotente : ajoute `exercises.modifie_le` (TEXT), la
+date de dernière correction du contenu. Sans elle, l'édition écrit tout sauf
+cette date. Peut être collée à la suite de la migration ci-dessous — les deux
+sont idempotentes et l'ordre n'importe pas.
 
 ⏳ **`supabase/migration-verdict.sql` reste À APPLIQUER** (09/08/2026, ADR-046).
 Additive et idempotente, sans `DROP` : ajoute `attempts.verdict_tuteur` (JSONB),
@@ -292,6 +298,17 @@ immuable — c'est la clé étrangère des preuves.
   comptes sur le même navigateur ne doivent jamais se voir — c'est ADR-029 un
   cran plus bas. Et l'état venant du navigateur se lit dans un initialiseur
   paresseux derrière `useEstHydrate`, jamais dans un `useEffect`.
+- **Ne pas dupliquer la validation d'un contenu d'exercice** (ADR-047).
+  `motifRefusExercice` (pur, testé, `lib/domain/exercice.ts`) est partagée par
+  `creerExercice`, `modifierExercice` et l'écran d'édition. Deux copies
+  finiraient par diverger, et la divergence serait invisible : on ferait entrer
+  par l'édition ce que la création refuse.
+- **Ne pas laisser l'édition toucher `id`, `origine` ou `competences`**
+  (ADR-047). Le premier est cité par les preuves, le deuxième dit d'où vient
+  l'énoncé et non qui l'a retouché, le troisième ferait pointer les preuves
+  passées vers une compétence qu'elles n'ont pas mesurée. Corriger un exercice
+  n'efface aucune preuve — `modifieLe` existe pour que le journal reste lisible
+  quand le support a changé.
 - **Ne pas supprimer un exercice qui porte des tentatives** — l'archiver
   (ADR-035). `supprimerExercice` refuse, comme `supprimerCompetence`. Et le
   compte de tentatives inclut les **abandons**, contrairement à ce que fait la

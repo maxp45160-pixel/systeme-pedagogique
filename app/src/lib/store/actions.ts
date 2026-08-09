@@ -23,10 +23,7 @@ import { lireReferentiel } from "./referentiel";
 import {
   compterTentatives,
   modeRetraitExercice,
-  DIFFICULTE_MAX,
-  DIFFICULTE_MIN,
-  DUREE_ESTIMEE_MAX,
-  DUREE_ESTIMEE_MIN,
+  motifRefusExercice,
 } from "@/lib/domain/exercice";
 import { motifRefusTerminerExercice } from "@/lib/domain/tentative";
 import {
@@ -429,46 +426,14 @@ export interface SoumissionExerciceManuel {
  * champ reste réservé aux 10 exercices du plan d'évaluation initiale.
  */
 export async function creerExercice(soumission: SoumissionExerciceManuel): Promise<string> {
-  if (!soumission.titre.trim()) throw new Error("Le titre est obligatoire.");
-  if (!soumission.enonce.trim()) throw new Error("L'énoncé est obligatoire.");
-  if (!soumission.correction.trim()) throw new Error("La correction est obligatoire.");
-  if (soumission.competences.length === 0) throw new Error("Au moins une compétence est requise.");
-  if (soumission.criteres.length === 0) throw new Error("Au moins un critère est requis.");
-
   /*
-   * Difficulté et durée sont VALIDÉES ICI, et pas seulement en amont.
-   *
-   * `convertirProposition` les contrôle déjà côté modale, mais `creerExercice`
-   * est une Server Function : elle est atteignable sans passer par cet écran.
-   * Or ces deux nombres ne sont pas des métadonnées d'affichage — ce sont les
-   * unités de mesure du moteur. La difficulté est le point de départ de
-   * `difficulteConseillee` ; la durée est ce à quoi `tentativeMenee` compare
-   * une tentative pour décider si une preuve s'écrit. Les laisser entrer sans
-   * contrôle, c'est le défaut du 02/08/2026 (colonne TEXT) déplacé d'un cran :
-   * le moteur est pur et testé, ce qu'on lui donne à manger ne l'était pas.
-   *
-   * La borne haute est celle du schéma de l'outil (`outils.ts`), pas celle,
-   * plus lâche, de la conversion : ce qui entre en base doit être ce que le
-   * tuteur avait le droit de proposer.
+   * La validation vit dans `lib/domain/exercice.ts`, partagée avec
+   * `modifierExercice` (ADR-047). Deux copies auraient fini par diverger, et la
+   * divergence aurait été invisible : on aurait pu faire entrer par l'édition
+   * ce que la création refuse.
    */
-  if (
-    !Number.isInteger(soumission.difficulte) ||
-    soumission.difficulte < DIFFICULTE_MIN ||
-    soumission.difficulte > DIFFICULTE_MAX
-  ) {
-    throw new Error(
-      `Difficulté hors bornes : ${soumission.difficulte}. Elle doit être un entier de ${DIFFICULTE_MIN} à ${DIFFICULTE_MAX}.`,
-    );
-  }
-  if (
-    !Number.isInteger(soumission.dureeEstimeeMin) ||
-    soumission.dureeEstimeeMin < DUREE_ESTIMEE_MIN ||
-    soumission.dureeEstimeeMin > DUREE_ESTIMEE_MAX
-  ) {
-    throw new Error(
-      `Durée estimée hors bornes : ${soumission.dureeEstimeeMin}. Elle doit être un entier de ${DUREE_ESTIMEE_MIN} à ${DUREE_ESTIMEE_MAX} minutes.`,
-    );
-  }
+  const refus = motifRefusExercice(soumission);
+  if (refus) throw new Error(refus);
 
   const dorsale = await dorsaleCompte();
   const referentiel = await lireReferentiel(dorsale);
@@ -501,6 +466,77 @@ export async function creerExercice(soumission: SoumissionExerciceManuel): Promi
   await ajouter("exercises", exercice, dorsale);
   revalidatePath("/", "layout");
   return exercice.id;
+}
+
+/** Ce qu'une édition peut changer. Ni `id`, ni `origine`, ni `diagnostic`. */
+export type SoumissionEditionExercice = Omit<SoumissionExerciceManuel, "origine"> & {
+  exerciceId: string;
+};
+
+/**
+ * Corrige un exercice **sans le perdre** (ADR-047).
+ *
+ * ## Le manque
+ *
+ * Il n'existait aucun chemin de modification : `creerExercice` était la seule
+ * écriture. Un énoncé ambigu, une correction fausse, une durée absurde n'avaient
+ * qu'une issue — l'archivage, c'est-à-dire la mise au rebut du seul contenu
+ * disponible pour une compétence qui, dans la plupart des cas, n'en a aucun
+ * autre. On jetait au lieu de réparer, sur un corpus produit par un LLM que
+ * personne ne relit avant usage.
+ *
+ * ## Ce qui ne se modifie pas, et pourquoi
+ *
+ * - **`id`** — c'est ce que les preuves et le journal citent (`source.ref`).
+ * - **`origine`** — le fait qu'un énoncé ait été rédigé par le tuteur ne cesse
+ *   pas d'être vrai parce qu'on en corrige une phrase (ADR-004). Le champ dit
+ *   d'où vient l'exercice, pas qui l'a retouché en dernier.
+ * - **`diagnostic`** et **`archive`** — le premier n'appartient pas au compte,
+ *   le second a ses propres gestes.
+ *
+ * ## Ce que l'édition NE répare PAS
+ *
+ * Les preuves déjà écrites. Elles portent la mesure d'une tentative sur
+ * l'énoncé **d'alors**, et corriger le texte ne les rend ni plus ni moins
+ * justes — les retoucher serait réécrire l'histoire (P4). D'où `modifieLe` :
+ * qui relira cet exercice saura qu'il a changé depuis, et l'écran d'édition
+ * annonce le nombre de tentatives déjà portées avant le clic.
+ */
+export async function modifierExercice(soumission: SoumissionEditionExercice): Promise<void> {
+  const refus = motifRefusExercice(soumission);
+  if (refus) throw new Error(refus);
+
+  const dorsale = await dorsaleCompte();
+  // Refuse les diagnostics et ce qui n'appartient pas au compte — même porte
+  // que le retrait, pour que les deux gestes aient exactement la même surface.
+  const avant = await exerciceDuCompte(soumission.exerciceId, dorsale);
+
+  const referentiel = await lireReferentiel(dorsale);
+  const inconnues = soumission.competences.filter((c) => !referentiel.codesActifs.has(c));
+  if (inconnues.length > 0) {
+    throw new Error(`Compétence(s) hors de ton périmètre : ${inconnues.join(", ")}`);
+  }
+
+  await modifier(
+    "exercises",
+    avant.id,
+    {
+      titre: soumission.titre.trim(),
+      domaine: soumission.domaine,
+      type: soumission.type,
+      difficulte: soumission.difficulte,
+      competences: soumission.competences,
+      dureeEstimeeMin: soumission.dureeEstimeeMin,
+      enonce: soumission.enonce,
+      indices: soumission.indices.filter((i) => i.trim().length > 0),
+      correction: soumission.correction,
+      criteres: soumission.criteres,
+      modifieLe: new Date().toISOString(),
+    },
+    dorsale,
+  );
+
+  revalidatePath("/", "layout");
 }
 
 /* ------------------------------------------------------------------ */

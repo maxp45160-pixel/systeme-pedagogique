@@ -43,6 +43,62 @@ export const DUREE_ESTIMEE_MAX = 240;
 export const DIFFICULTE_MIN = 1;
 export const DIFFICULTE_MAX = 5;
 
+/** Ce qu'un exercice doit satisfaire pour entrer en base, création ou édition. */
+export interface ContenuExercice {
+  titre: string;
+  difficulte: number;
+  dureeEstimeeMin: number;
+  competences: string[];
+  enonce: string;
+  correction: string;
+  criteres: unknown[];
+}
+
+/**
+ * Les refus d'un contenu d'exercice, en un point d'autorité (ADR-047).
+ *
+ * `creerExercice` portait ces règles en ligne. `modifierExercice` allait devoir
+ * les reprendre : deux copies d'une même validation, et la seconde aurait pu
+ * être plus permissive sans que rien ne le signale — on aurait pu faire entrer
+ * par l'édition ce que la création refuse. C'est la forme exacte du défaut
+ * qu'ADR-044 a corrigé pour les retraits, et §2.8 pour `basculerActives`.
+ *
+ * Module pur : testable sans base, et la validation appliquée est exactement
+ * celle que les tests vérifient.
+ */
+export function motifRefusExercice(contenu: ContenuExercice): string | null {
+  if (!contenu.titre.trim()) return "Le titre est obligatoire.";
+  if (!contenu.enonce.trim()) return "L'énoncé est obligatoire.";
+  if (!contenu.correction.trim()) return "La correction est obligatoire.";
+  if (contenu.competences.length === 0) return "Au moins une compétence est requise.";
+  if (contenu.criteres.length === 0) return "Au moins un critère est requis.";
+
+  /*
+   * Difficulté et durée ne sont pas des métadonnées d'affichage : ce sont les
+   * unités de mesure du moteur. La difficulté est le point de départ de
+   * `difficulteConseillee` ; la durée est ce à quoi `tentativeMenee` compare
+   * une tentative pour décider si une preuve s'écrit. Les bornes sont celles du
+   * schéma de l'outil du tuteur — ce qui entre en base doit être ce qu'il avait
+   * le droit de proposer.
+   */
+  if (
+    !Number.isInteger(contenu.difficulte) ||
+    contenu.difficulte < DIFFICULTE_MIN ||
+    contenu.difficulte > DIFFICULTE_MAX
+  ) {
+    return `Difficulté hors bornes : ${contenu.difficulte}. Elle doit être un entier de ${DIFFICULTE_MIN} à ${DIFFICULTE_MAX}.`;
+  }
+  if (
+    !Number.isInteger(contenu.dureeEstimeeMin) ||
+    contenu.dureeEstimeeMin < DUREE_ESTIMEE_MIN ||
+    contenu.dureeEstimeeMin > DUREE_ESTIMEE_MAX
+  ) {
+    return `Durée estimée hors bornes : ${contenu.dureeEstimeeMin}. Elle doit être un entier de ${DUREE_ESTIMEE_MIN} à ${DUREE_ESTIMEE_MAX} minutes.`;
+  }
+
+  return null;
+}
+
 /**
  * Quel retrait s'applique à un exercice, **dérivé** du nombre de tentatives.
  *
