@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { chargerContexte } from "@/lib/store/context";
+import { chargerThemes } from "@/lib/store/themes";
 import { comparerCodes } from "@/lib/domain/referentiel-compte";
 import { SqueletteContenu } from "@/components/layout/squelette";
 import type { Referentiel, SkillState } from "@/lib/domain/types";
@@ -9,30 +10,61 @@ import {
   BandeauInfo,
   Carte,
   Etiquette,
+  SelecteurSegmente,
   Statistique,
 } from "@/components/ui/primitives";
 import { RepartitionNiveaux } from "@/components/charts";
 import { formatDateRelative } from "@/lib/engine/dates";
 import { BoutonCreerReferentiel } from "@/components/referentiel/modale-referentiel";
+import { construireGraphe } from "@/components/competences/graphe-donnees";
+import { GrapheCompetences } from "@/components/competences/graphe-competences";
 
 /**
- * Page Compétences — version épurée (R5).
+ * Page Compétences — version épurée (R5) + vue Graphe (style Obsidian).
  *
- * On voit les grands champs (domaines) avec leurs stats agrégées, sans les
- * détails des sous-compétences. Les détails — liste des compétences, niveaux,
- * gestion — vivent dans la sous-page `/competences/domaine/[id]`.
+ * Deux vues accessibles via un sélecteur segmenté :
+ *   - **Liste** (défaut) : les grands champs (domaines) avec stats agrégées.
+ *   - **Graphe** : visualisation interactive force-directed à trois niveaux
+ *     (catégories → compétences → exercices).
  */
 
-export default async function PageCompetences() {
+type Vue = "liste" | "graphe";
+
+const VUES: { cle: Vue; libelle: string }[] = [
+  { cle: "liste", libelle: "Liste" },
+  { cle: "graphe", libelle: "Graphe" },
+];
+
+export default async function PageCompetences(props: {
+  searchParams: Promise<{ vue?: string }>;
+}) {
+  const { vue: vueBrute } = await props.searchParams;
+  const vue: Vue = vueBrute === "graphe" ? "graphe" : "liste";
+
   return (
     <>
       <EntetePage
         titre="Compétences"
         sousTitre="Tes grands domaines de travail. Clique sur un domaine pour voir ses compétences et les gérer."
+        actions={
+          <SelecteurSegmente
+            options={VUES}
+            actif={vue}
+            rendreItem={(o, classesItem, estActifItem) => (
+              <Link
+                href={`/competences${o.cle === "liste" ? "" : `?vue=${o.cle}`}`}
+                aria-current={estActifItem ? "page" : undefined}
+                className={classesItem}
+              >
+                {o.libelle}
+              </Link>
+            )}
+          />
+        }
       />
 
-      <Suspense fallback={<SqueletteContenu />}>
-        <ContenuCompetences />
+      <Suspense key={vue} fallback={<SqueletteContenu />}>
+        {vue === "graphe" ? <ContenuGraphe /> : <ContenuCompetences />}
       </Suspense>
     </>
   );
@@ -91,6 +123,24 @@ async function ContenuCompetences() {
       />
     </div>
   );
+}
+
+/**
+ * Charge les données du graphe et les sérialise en props pour le composant
+ * client `GrapheCompetences`. Aucun état de progression n'est inventé : tout
+ * est dérivé des faits existants (P1).
+ */
+async function ContenuGraphe() {
+  const [ctx, themes] = await Promise.all([chargerContexte(), chargerThemes()]);
+
+  const donneesGraphe = construireGraphe(
+    ctx.referentiel,
+    ctx.etats,
+    ctx.donnees.exercises,
+    themes,
+  );
+
+  return <GrapheCompetences donnees={donneesGraphe} />;
 }
 
 /* ------------------------------------------------------------------ */
@@ -217,4 +267,4 @@ function VueDomaines({
       })}
     </div>
   );
-}
+}

@@ -198,6 +198,18 @@
     overflow-x: auto;
     white-space: pre-wrap;
   }
+
+  /* Conteneur du graphe interactif des compétences (style Obsidian). */
+  .graphe-conteneur {
+    position: relative;
+    width: 100%;
+    min-height: 500px;
+    height: calc(100vh - 12rem);
+    border-radius: var(--rayon-carte, 0.75rem);
+    border: 1px solid var(--bordure);
+    background: var(--surface);
+    overflow: hidden;
+  }
 }
 
 /* Animations volontairement minimales : uniquement l'apparition de contenu. */
