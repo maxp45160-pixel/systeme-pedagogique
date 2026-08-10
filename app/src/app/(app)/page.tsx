@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { chargerContexte } from "@/lib/store/context";
+import { chargerThemes } from "@/lib/store/themes";
 import { formatDuree } from "@/lib/engine/dates";
 import { SqueletteContenu } from "@/components/layout/squelette";
 import { calculerActivite, evenementsRecents } from "@/lib/engine/historique";
@@ -69,6 +70,8 @@ async function ContenuTableauDeBord() {
     redirect("/demarrer");
   }
 
+  const themes = await chargerThemes();
+
   const evenements = evenementsRecents(ctx.donnees.evidence, ctx.referentiel.parCode, 6, ctx.now);
   const activite = calculerActivite(ctx.donnees.sessions, ctx.now);
   const aucunePreuve = ctx.global.nombrePreuves === 0;
@@ -84,6 +87,7 @@ async function ContenuTableauDeBord() {
     calibragesModale: calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations),
     recommandations: ctx.recommandations,
     domaines: ctx.referentiel.domaines.map((d) => ({ id: d.id, nom: d.nom })),
+    themes,
     compteId: ctx.donnees.user.id,
     pleineLargeur: true,
   };

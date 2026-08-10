@@ -231,6 +231,30 @@ END;
 $$;
 
 -- --------------------------------------------------------------------
+-- 3bis. Thèmes — regroupements de compétences traversant les domaines
+--    (chantier « thèmes », 10/08/2026, ADR-053)
+--
+-- Pas de FK vers `competences.code` : un code retiré du référentiel après
+-- coup doit rester lisible dans un thème passé, et le domaine pur
+-- (`themeVersThemeSeance`) filtre les codes disparus à la lecture — même
+-- précédent que `competences.prerequis`.
+-- --------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS public.themes (
+  user_id      UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  id           TEXT NOT NULL,
+  libelle      TEXT NOT NULL,
+  intention    TEXT,
+  codes        TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+  origine      TEXT NOT NULL DEFAULT 'utilisateur' CHECK (origine IN ('utilisateur', 'tuteur')),
+  cree_le      TEXT NOT NULL,
+  modifie_le   TEXT,
+  archive      BOOLEAN NOT NULL DEFAULT false,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, id)
+);
+
+-- --------------------------------------------------------------------
 -- 4. Exercices créés par l'utilisateur ou le tuteur
 --    (les exercices de diagnostic sont livrés avec le logiciel, pas stockés)
 -- --------------------------------------------------------------------
@@ -399,7 +423,7 @@ DECLARE
 BEGIN
   FOREACH t IN ARRAY ARRAY[
     'domaines', 'competences', 'evidence', 'exercises', 'attempts', 'sessions',
-    'refus_recommandations'
+    'refus_recommandations', 'themes'
   ]
   LOOP
     EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);

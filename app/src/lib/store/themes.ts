@@ -1,0 +1,36 @@
+/**
+ * Lecture des thèmes du compte connecté (chantier « thèmes », ADR-053).
+ *
+ * Même partition que le référentiel (`lib/store/referentiel.ts`) : ce module
+ * ne fait que l'entrée/sortie, tout ce qui est pur vit dans
+ * `lib/domain/theme.ts`.
+ */
+
+import "server-only";
+
+import { cache } from "react";
+
+import { dorsaleCompte, type DorsaleCompte } from "./db";
+import { ligneVersEntite, verifier } from "./supabase-backend";
+import { mesurer } from "@/lib/profiling/server";
+import type { Theme } from "@/lib/domain/theme";
+
+export async function lireThemes(dorsaleFournie?: DorsaleCompte): Promise<Theme[]> {
+  const { supabase, userId } = dorsaleFournie ?? (await dorsaleCompte());
+
+  const { data, error } = await mesurer("supabase:themes", () =>
+    supabase.from("themes").select("*").eq("user_id", userId),
+  );
+  verifier("lecture des thèmes", error);
+
+  return ((data ?? []) as Record<string, unknown>[]).map((l) => ligneVersEntite<Theme>(l));
+}
+
+/**
+ * Lecture mémoïsée par requête — même règle que `chargerReferentiel` : à
+ * appeler en lecture, jamais depuis une Server Function d'écriture qui a déjà
+ * sa dorsale en main.
+ */
+export const chargerThemes = cache(
+  async (): Promise<Theme[]> => lireThemes(await dorsaleCompte()),
+);

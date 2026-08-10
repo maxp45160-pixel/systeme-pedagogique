@@ -94,8 +94,8 @@ pratique et développer un sujet à long terme.
   deux cas. Sans moteur configuré : 503 et repli « copier le contexte ».
 - **Styles :** Tailwind CSS v4 ; **graphiques SVG écrits à la main**, aucune
   librairie UI tierce
-- **Tests :** Vitest — **617 tests**, 26 fichiers (moteur, répétition espacée,
-  calibration, **assemblage CAF**, **séance**, backend Supabase, référentiel par
+- **Tests :** Vitest — **672 tests**, 28 fichiers (moteur, répétition espacée,
+  calibration, **assemblage CAF**, **séance**, **thème**, backend Supabase, référentiel par
   compte, cycle de vie des exercices, profil, parseurs de propositions, outils
   du tuteur, contexte du tuteur, amorces du tuteur, sélection du moteur du
   tuteur, génération sans conversation, suggestion de branche, conversion
@@ -142,28 +142,21 @@ appliquées.** Vérifié en base le 10/08/2026 : `attempts.verdict_tuteur` et
 `exercises.modifie_le` existent. Cette section les annonçait « À APPLIQUER » —
 le texte datait d'avant leur exécution. Inutile de les rejouer.
 
-⏳ **`supabase/migration-seances.sql` reste À APPLIQUER** (10/08/2026, ADR-048).
-Deux parties, et elles n'ont pas le même régime :
+✅ **`supabase/migration-seances.sql` est appliquée.** Vérifié en base le
+10/08/2026 : `sessions.statut`, `sessions.planifiee_pour`,
+`sessions.besoin_declare`, `sessions.blueprint` et `attempts.evaluation`
+existent tous. Cette section annonçait « À APPLIQUER » — le texte datait
+d'avant l'exécution (même défaut que pour `migration-verdict.sql` ci-dessus).
+Inutile de la rejouer.
 
-- **§1, additif et idempotent** : quatre colonnes sur `sessions` (`statut`,
-  `planifiee_pour`, `besoin_declare`, `blueprint`). Sans urgence — tant qu'il
-  n'est pas passé, aucune séance composée ne peut être écrite et le reste de
-  l'application tourne à l'identique.
-- **🔴 §2, un `RENAME`** : `attempts.auto_evaluation` devient
-  `attempts.evaluation` (ADR-046, vocabulaire). Il préserve les données et sa
-  garde le rend rejouable, mais **il casse le code déployé** entre son exécution
-  et la mise en ligne : l'ancienne version écrit une colonne qui n'existe plus,
-  et lit une évaluation qui arrive sous un autre nom. **Appliquer la migration
-  et déployer dans la même fenêtre.**
+✅ **`supabase/migration-intention-exercice.sql` est appliquée.** Vérifié le
+10/08/2026 : `exercises.intention` existe. Inutile de la rejouer.
 
-⏳ **`supabase/migration-intention-exercice.sql` reste À APPLIQUER** (lot 2,
-Cline). Additive et idempotente, sans urgence : ajoute `exercises.intention`
-(TEXT, `decouverte|consolidation|transfert|revision`) — pourquoi un exercice a
-été **écrit**, pas pourquoi il est servi aujourd'hui. Le champ TypeScript
-`Exercise.intention` est optionnel et déjà lu par `versColonne` sans exception ;
-tant que la colonne n'existe pas, l'écriture l'omet simplement (`ligneVersEntite`
-laisse `undefined`). Peut s'appliquer indépendamment de `migration-seances.sql`,
-dans n'importe quel ordre.
+✅ **`supabase/migration-themes.sql` a été appliquée le 10/08/2026** (chantier
+« thèmes », ADR-055). Additive et idempotente, sans `DROP` : crée la table
+`themes` (regroupements de compétences traversant les domaines, sans FK vers
+`competences.code` — voir `lib/domain/theme.ts`). `schema.sql` porte la même
+définition pour une installation neuve. Inutile de la rejouer.
 
 Le renommage ne pouvait pas être évité côté code : `versColonne`
 (`supabase-backend.ts`) convertit camelCase → snake_case **sans table
@@ -461,6 +454,20 @@ immuable — c'est la clé étrangère des preuves.
   la recommandation sortent du même classement et ne peuvent pas diverger. Une
   liste de 77 cases transformait « je veux bosser ce sujet » en inventaire à
   trier.
+- **Un thème enregistré (`lib/domain/theme.ts`) alimente `portee`, jamais
+  `codesImposes`** (ADR-053/055). `composerSeance` préfixe `codesImposes` au
+  classement du moteur puis remplit *n* créneaux : un thème à 30 codes imposés
+  pour 4 créneaux écraserait `recommander()`, les 4 premiers codes gagnant dans
+  un ordre arbitraire. En passant par la portée `{ type: "theme", themeId,
+  codes }`, le moteur classe **dans** le thème — un seul classement, ADR-049
+  tenu. `codesImposes` reste réservé aux thèmes **ciblés** d'une seule
+  compétence (`themesSuggeres`).
+- **Ne pas ajouter de table d'arêtes compétence↔compétence** sans un
+  consommateur identifié dans le moteur. `competences.prerequis TEXT[]` est
+  l'avertissement : 17 compétences sur 77 le portent, un seul facteur de
+  `recommend.ts` le lit, et le formulaire d'édition ne sait même pas l'écrire.
+  Le besoin de relier des compétences entre elles (ADR-055) passe par la
+  co-appartenance à un **thème**, pas par une arête binaire de plus.
 - **Le pomodoro n'entre dans aucun calcul** (D5, lot 4.1). Ses durées sont
   librement réglables (1 à 120 min) précisément parce que rien ne les lit :
   ni `dureeDeReference`, ni `tentativeMenee`, ni `calculerActivite`. Ne jamais

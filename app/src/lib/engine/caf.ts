@@ -325,9 +325,13 @@ function dureeParExerciceDeReference(
 /* ------------------------------------------------------------------ */
 
 function dansLaPortee(etat: SkillState, portee: DemandeSeance["portee"]): boolean {
-  return portee.type === "mono"
-    ? etat.skill.domaine === portee.domaine
-    : portee.domaines.includes(etat.skill.domaine);
+  if (portee.type === "mono") return etat.skill.domaine === portee.domaine;
+  if (portee.type === "transverse") return portee.domaines.includes(etat.skill.domaine);
+  // "theme" : la portée porte ses propres codes (dérivés du thème enregistré à
+  // l'écran, filtrés des codes archivés/disparus). Le moteur classe DEDANS —
+  // c'est ce qui évite qu'un thème à 35 codes n'écrase le classement en les
+  // imposant tous (voir le commentaire de composerSeance ci-dessous).
+  return portee.codes.includes(etat.skill.code);
 }
 
 /**

@@ -478,6 +478,15 @@ export interface BesoinDeclare {
   tempsDisponibleMin: number;
   /** Date de la déclaration (ISO). C'est elle qui en fait un fait daté. */
   declareLe: string;
+  /**
+   * Le thème enregistré à l'origine de cette séance, s'il en existe un.
+   *
+   * Purement traçable : `themes` est du JSONB de premier niveau sur `sessions`,
+   * donc cette clé ne demande aucune migration (`versColonne` ne mappe que le
+   * premier niveau). Le moteur ne le relit jamais pour composer — c'est
+   * `blueprint.portee` qui porte les codes au moment de l'assemblage.
+   */
+  themeId?: string;
 }
 
 /** Une compétence retenue par l'assemblage, avec la difficulté visée et sa raison. */
@@ -488,10 +497,21 @@ export interface CibleSeance {
   raison: string;
 }
 
-/** Sur quoi porte la séance : un seul domaine, ou plusieurs. */
+/**
+ * Sur quoi porte la séance.
+ *
+ * `theme` est la 3ᵉ variante (chantier « thèmes », 10/08/2026) : une portée
+ * modulaire qui traverse librement les domaines, à la différence de `mono` et
+ * `transverse` qui restent bornées par le référentiel. `codes` est porté ici,
+ * pas recalculé depuis `themeId` à chaque lecture : un thème peut être
+ * modifié ou archivé après qu'une séance l'a utilisé, et la séance passée doit
+ * rester lisible telle qu'elle a été composée (même principe que `blueprint`,
+ * conservé pour traçabilité et non pour recalcul).
+ */
 export type PorteeSeance =
   | { type: "mono"; domaine: DomaineId }
-  | { type: "transverse"; domaines: DomaineId[] };
+  | { type: "transverse"; domaines: DomaineId[] }
+  | { type: "theme"; themeId: string; codes: string[] };
 
 /**
  * Le cahier des charges qui a produit la composition d'une séance.
