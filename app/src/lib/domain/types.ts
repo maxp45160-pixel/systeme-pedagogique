@@ -460,8 +460,18 @@ export type StatutSeance = "planifiee" | "en-cours" | "terminee";
  * nombre sur quelqu'un, sans preuve, exactement ce que P3 interdit.
  */
 export interface BesoinDeclare {
-  /** Écrit par la personne, mot pour mot. Jamais rédigé ni reformulé par le tuteur. */
-  intention: string;
+  /**
+   * Écrit par la personne, mot pour mot. Jamais rédigé ni reformulé par le
+   * tuteur.
+   *
+   * **Facultatif depuis le 10/08/2026.** Choisir un thème et un temps est déjà
+   * une déclaration d'intention ; exiger en plus une phrase rédigée faisait de
+   * la composition d'une séance un formulaire plus long que la séance
+   * elle-même. Son absence ne retire rien à `ecartBesoinRealise`, qui compare
+   * `codesVises` et `tempsDisponibleMin` — la phrase n'entre dans aucun calcul,
+   * elle est là pour être relue.
+   */
+  intention?: string;
   /** Les codes qu'elle dit vouloir travailler. Peut diverger du blueprint, et c'est le point. */
   codesVises: string[];
   /** Minutes dont elle dit disposer. Déclaration, pas chronométrage. */

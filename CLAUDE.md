@@ -451,6 +451,21 @@ immuable — c'est la clé étrangère des preuves.
   L'écart avec le réalisé est **dérivé**, rendu sous la forme des deux valeurs
   côte à côte, et ne produit **aucun score de biais** : ce serait un nombre porté
   sur quelqu'un, à partir d'une seule observation.
+  ⚠️ `intention` est **facultative** depuis le 10/08/2026 (amendement ADR-050) :
+  exiger une phrase rédigée rendait la composition plus longue que la séance.
+  Ne pas la **dériver du thème choisi** pour « remplir » le champ — ce serait
+  rédiger à la place de la personne. Absente = absente.
+- **Ne pas remettre de liste de compétences à cocher dans le compositeur**
+  (amendement ADR-050). Les compétences visées viennent d'un **thème**
+  (`themesSuggeres`), dont le premier EST la prochaine action : la suggestion et
+  la recommandation sortent du même classement et ne peuvent pas diverger. Une
+  liste de 77 cases transformait « je veux bosser ce sujet » en inventaire à
+  trier.
+- **Le pomodoro n'entre dans aucun calcul** (D5, lot 4.1). Ses durées sont
+  librement réglables (1 à 120 min) précisément parce que rien ne les lit :
+  ni `dureeDeReference`, ni `tentativeMenee`, ni `calculerActivite`. Ne jamais
+  le brancher sur `attempts.duree_min` « pour éviter une saisie » — un cycle
+  qu'on a laissé courir n'est pas une tentative (ADR-045).
 - **Ne pas inventer de données.** Un écran non construit doit le dire.
 - **Ne pas transformer une analyse en décision.** Une conclusion produite par
   une session Claude est 🔬 hypothèse ou ❓ question ouverte, jamais ✅ décision,

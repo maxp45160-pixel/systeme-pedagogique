@@ -50,8 +50,10 @@ import type {
   CibleSeance,
   DemandeSeance,
   Difficulte,
+  DomaineId,
   Exercise,
   ExerciseAttempt,
+  PorteeSeance,
   SkillState,
 } from "@/lib/domain/types";
 import {
@@ -110,6 +112,110 @@ export interface CompositionSeance {
   dureeEstimeeTotaleMin: number;
   /** Ce que la composition a fait et n'a pas pu faire, avec ses nombres (P3). */
   explication: string[];
+}
+
+/* ------------------------------------------------------------------ */
+/* Thèmes suggérés — « sur quoi je bosse ? » en un clic                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Un thème de travail proposé à la sélection.
+ *
+ * `portee` et `codesImposes` sont exactement les deux champs d'une
+ * `DemandeSeance` qui disent *sur quoi* porte la séance. Un thème n'est donc
+ * rien d'autre qu'une demande à moitié remplie — l'autre moitié étant le temps
+ * disponible. C'est ce qui permet de ramener la composition à deux gestes sans
+ * rien retirer au moteur.
+ */
+export interface ThemeSeance {
+  /** Clé stable, pour la sélection côté écran. */
+  cle: string;
+  libelle: string;
+  /** D'où vient la suggestion, ou ce qu'elle couvre. Affiché sous le libellé (P3). */
+  detail: string;
+  portee: PorteeSeance;
+  codesImposes: string[];
+}
+
+/** Combien de compétences en tête de file deviennent un thème ciblé. */
+export const THEMES_CIBLES_MAX = 3;
+
+/**
+ * Les thèmes à proposer, dérivés du classement du moteur.
+ *
+ * ## Pourquoi cette fonction existe
+ *
+ * Le compositeur demandait à l'utilisateur de cocher ses compétences visées
+ * dans une liste de **77 cases**. C'est la liste entière du référentiel actif
+ * présentée comme un formulaire : le geste « je veux bosser ce sujet » devenait
+ * un inventaire à trier, et le besoin déclaré coûtait plus cher que la séance
+ * qu'il préparait.
+ *
+ * Or le moteur sait déjà par quoi commencer — c'est `recommander()`, et c'est
+ * ce qui alimente la carte « Prochaine meilleure action ». Le premier thème
+ * rendu ici **est** cette prochaine action : la suggestion et la recommandation
+ * ne peuvent pas diverger, puisqu'elles sortent du même classement (ADR-049).
+ *
+ * ## Ce qu'elle rend, dans l'ordre
+ *
+ *  1. jusqu'à `THEMES_CIBLES_MAX` thèmes **ciblés** — une compétence en tête de
+ *     file, avec son domaine pour périmètre : la séance tourne autour d'elle et
+ *     se remplit avec ses voisines ;
+ *  2. un thème **par domaine** représenté en tête de file, sans compétence
+ *     imposée : « travailler ce domaine », en laissant le moteur choisir ;
+ *  3. un thème **transverse** dès que deux domaines au moins sont en jeu.
+ *
+ * Rien n'est inventé : sans recommandation, la liste est vide et l'écran doit
+ * le dire plutôt que proposer un thème par défaut (P2).
+ */
+export function themesSuggeres(
+  recommandations: Recommandation[],
+  /** Nom lisible de chaque domaine. Un domaine absent retombe sur son identifiant. */
+  nomsDomaines: Map<DomaineId, string>,
+  cibles = THEMES_CIBLES_MAX,
+): ThemeSeance[] {
+  if (recommandations.length === 0) return [];
+
+  const nom = (id: DomaineId) => nomsDomaines.get(id) ?? id;
+  const themes: ThemeSeance[] = [];
+
+  recommandations.slice(0, cibles).forEach((r, i) => {
+    themes.push({
+      cle: `competence:${r.etat.skill.code}`,
+      libelle: r.etat.skill.intitule,
+      // Le premier porte son rang explicitement : c'est la promesse du tableau
+      // de bord, et elle doit se lire ici aussi.
+      detail:
+        i === 0
+          ? `Prochaine action · ${nom(r.etat.skill.domaine)}`
+          : `${r.etat.skill.code} · ${nom(r.etat.skill.domaine)}`,
+      portee: { type: "mono", domaine: r.etat.skill.domaine },
+      codesImposes: [r.etat.skill.code],
+    });
+  });
+
+  const domaines = [...new Set(recommandations.map((r) => r.etat.skill.domaine))];
+  for (const domaine of domaines) {
+    themes.push({
+      cle: `domaine:${domaine}`,
+      libelle: `Tout le domaine ${nom(domaine)}`,
+      detail: "Le moteur choisit les compétences",
+      portee: { type: "mono", domaine },
+      codesImposes: [],
+    });
+  }
+
+  if (domaines.length >= 2) {
+    themes.push({
+      cle: "transverse",
+      libelle: "Transverse",
+      detail: `${domaines.length} domaines mêlés`,
+      portee: { type: "transverse", domaines },
+      codesImposes: [],
+    });
+  }
+
+  return themes;
 }
 
 /* ------------------------------------------------------------------ */

@@ -3356,6 +3356,39 @@ d'autre que l'indifférence du moteur à la demande.
 Un code visé sans exercice devient un **manquant**, pas un silence. Un code visé
 hors du périmètre de la séance est écarté **et annoncé**.
 
+### Amendement du 10/08/2026 — l'intention rédigée devient facultative
+
+**Ce qui a été observé, à l'usage immédiat.** Maxime, en essayant le
+compositeur : « le processus de conception de séances est plutôt lourd
+(l'affichage des compétences en liste c'est trop de trucs à faire) ». Le
+formulaire exigeait une phrase rédigée, un temps, **et une sélection dans une
+liste de 77 cases à cocher**, avant même de voir une composition. Le besoin
+déclaré coûtait plus cher que la séance qu'il préparait.
+
+**Ce qui change.** `BesoinDeclare.intention` passe de requis à facultatif, et
+la liste de cases est remplacée par un **thème** pré-sélectionné sur la
+prochaine action (`themesSuggeres`, `lib/engine/caf.ts`). Composer une séance
+demande désormais deux gestes : un thème, un temps.
+
+**Ce qui ne change pas, et c'est l'essentiel.** Le besoin déclaré reste un fait
+stocké et daté : `codesVises` (issus du thème), `tempsDisponibleMin` et
+`declareLe` sont toujours écrits verbatim. `ecartBesoinRealise` **ne lit pas**
+l'intention rédigée — il compare les codes et les temps — donc l'écart dérivé,
+qui est la substance de cette ADR, fonctionne à l'identique sans elle. Toujours
+aucun score de biais.
+
+**Ce qui est perdu, et c'est assumé.** La part qualitative de la déclaration —
+« pourquoi cette séance » en toutes lettres — ne sera en pratique renseignée que
+rarement, puisqu'elle est repliée derrière un lien facultatif. Sélectionner un
+thème est une intention *catégorielle*, pas une intention *raisonnée* : on
+saura « elle visait DEV-02 », pas « avant l'examen de jeudi ». Le champ reste
+disponible pour qui veut noter le pourquoi.
+
+⚠️ **Ce qui reste interdit :** dériver une intention depuis le thème choisi
+pour « remplir » le champ. Ce serait rédiger à la place de la personne une
+déclaration qu'elle n'a pas faite — exactement ce que la première phrase de
+cette ADR interdit au tuteur.
+
 ### Réserve
 
 🔬 La comparaison court terme / long terme demandée n'est pas faite : elle exige
@@ -3364,6 +3397,12 @@ des déclarations datées et des écarts dérivés — pas la lecture longitudin
 **Test de réfutation :** si après une dizaine de séances déclarées les écarts ne
 montrent aucun motif, le besoin déclaré est un formulaire de plus et doit être
 retiré plutôt que gardé « au cas où ».
+
+🔬 L'amendement ci-dessus rend cette réfutation **plus dure à trancher** :
+sans phrase rédigée, un écart sans motif pourra vouloir dire « le besoin déclaré
+ne sert à rien » ou « il manquait le contexte que la phrase portait ». Si le cas
+se présente, réactiver le champ en obligatoire sur quelques séances avant de
+conclure.
 
 ---
 

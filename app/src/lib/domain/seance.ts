@@ -157,10 +157,19 @@ export function seanceEnCoursPour(
  * par un chemin ce que l'autre refuse.
  */
 export function motifRefusBesoin(besoin: BesoinDeclare): string | null {
-  if (!besoin.intention.trim()) {
-    return "Dis en une phrase ce que tu veux travailler — c'est cette phrase qui sera relue plus tard.";
-  }
-  if (besoin.intention.length > INTENTION_MAX) {
+  /*
+   * L'intention est FACULTATIVE depuis le 10/08/2026.
+   *
+   * Elle était exigée, et c'était une friction mal placée : choisir un thème
+   * et un temps est déjà une déclaration d'intention datée. Demander en plus
+   * une phrase rédigée avant de composer faisait du formulaire l'obstacle que
+   * la séance devait lever.
+   *
+   * Ce que sa borne haute protège en revanche n'a pas changé — un champ de
+   * saisie ne doit pas devenir un journal — donc la longueur reste vérifiée
+   * quand une phrase est écrite.
+   */
+  if (besoin.intention !== undefined && besoin.intention.length > INTENTION_MAX) {
     return `Intention trop longue : ${besoin.intention.length} caractères pour ${INTENTION_MAX} au plus.`;
   }
   if (

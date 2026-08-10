@@ -93,7 +93,7 @@ async function ContenuSeances({
     tentatives: ctx.donnees.attempts,
     calibrations: Array.from(ctx.calibrations.entries()),
     calibragesModale: calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations),
-    codesRecommandes: ctx.recommandations.map((r) => r.etat.skill.code),
+    recommandations: ctx.recommandations,
     domaines: ctx.referentiel.domaines.map((d) => ({ id: d.id, nom: d.nom })),
     compteId: ctx.donnees.user.id,
   };

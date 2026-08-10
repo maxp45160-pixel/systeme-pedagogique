@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { composerSeance, nombreExercicesConseille } from "./caf";
+import {
+  composerSeance,
+  nombreExercicesConseille,
+  themesSuggeres,
+  THEMES_CIBLES_MAX,
+} from "./caf";
 import { EXERCICES_PAR_SEANCE_MAX } from "@/lib/domain/seance";
 import { computeAllSkillStates } from "./skill-state";
+import { recommander } from "./recommend";
 import { SKILLS_TEST } from "@/lib/domain/referentiel.fixture";
 import { motifRefusBlueprint } from "@/lib/domain/seance";
 import type {
@@ -94,6 +100,107 @@ const composer = (
     undefined,
     MAINTENANT,
   );
+
+/* ------------------------------------------------------------------ */
+
+/*
+ * Thèmes suggérés — 10/08/2026.
+ *
+ * Le compositeur demandait de cocher les compétences visées dans une liste de
+ * 77 cases : le besoin déclaré coûtait plus cher que la séance qu'il préparait.
+ * Ces thèmes remplacent la liste, et la propriété qui compte est la première
+ * ci-dessous : **le premier thème EST la prochaine action**. Si les deux
+ * pouvaient diverger, le tableau de bord et le compositeur proposeraient deux
+ * priorités différentes le même jour (ADR-049).
+ */
+describe("themesSuggeres — la suggestion sort du même classement que la prochaine action", () => {
+  const NOMS = new Map([
+    ["developpement", "Développement logiciel"],
+    ["statistiques", "Statistiques"],
+  ]);
+
+  const classement = () =>
+    recommander(etats(), [], [], SKILLS_TEST.length, undefined, MAINTENANT);
+
+  it("place la prochaine action en tête, et le dit", () => {
+    const reco = classement();
+    const themes = themesSuggeres(reco, NOMS);
+    expect(themes[0].codesImposes).toEqual([reco[0].etat.skill.code]);
+    expect(themes[0].libelle).toBe(reco[0].etat.skill.intitule);
+    expect(themes[0].detail).toContain("Prochaine action");
+  });
+
+  it("borne les thèmes ciblés et nomme le domaine plutôt que son identifiant", () => {
+    const themes = themesSuggeres(classement(), NOMS);
+    const cibles = themes.filter((t) => t.cle.startsWith("competence:"));
+    expect(cibles).toHaveLength(THEMES_CIBLES_MAX);
+    expect(cibles[0].detail).toContain("Développement logiciel");
+    expect(cibles[0].detail).not.toContain("developpement");
+  });
+
+  it("cible une compétence dans le périmètre de SON domaine, jamais transverse", () => {
+    // Un thème ciblé doit remplir la séance avec les voisines de la compétence
+    // visée : la porter en transverse la noierait dans le reste du référentiel.
+    const themes = themesSuggeres(classement(), NOMS);
+    const premier = themes[0];
+    expect(premier.portee.type).toBe("mono");
+    if (premier.portee.type === "mono") {
+      expect(premier.portee.domaine).toBe(classement()[0].etat.skill.domaine);
+    }
+  });
+
+  it("ajoute un thème par domaine représenté, sans compétence imposée", () => {
+    const themes = themesSuggeres(classement(), NOMS);
+    const parDomaine = themes.filter((t) => t.cle.startsWith("domaine:"));
+    expect(parDomaine.length).toBeGreaterThan(0);
+    for (const t of parDomaine) {
+      expect(t.codesImposes).toEqual([]);
+      expect(t.portee.type).toBe("mono");
+    }
+  });
+
+  it("n'offre le transverse que si deux domaines au moins sont en jeu", () => {
+    const unSeulDomaine = classement().filter(
+      (r) => r.etat.skill.domaine === "developpement",
+    );
+    expect(themesSuggeres(unSeulDomaine, NOMS).some((t) => t.cle === "transverse")).toBe(
+      false,
+    );
+  });
+
+  it("rend une liste vide sans recommandation — aucun thème par défaut", () => {
+    // P2 : sans classement, il n'existe aucune raison de proposer un sujet
+    // plutôt qu'un autre. L'écran doit le dire, pas inventer.
+    expect(themesSuggeres([], NOMS)).toEqual([]);
+  });
+
+  it("retombe sur l'identifiant quand le nom du domaine est inconnu", () => {
+    const themes = themesSuggeres(classement(), new Map());
+    expect(themes[0].detail).toContain("developpement");
+  });
+
+  it("produit des clés distinctes — elles servent de sélection", () => {
+    const cles = themesSuggeres(classement(), NOMS).map((t) => t.cle);
+    expect(new Set(cles).size).toBe(cles.length);
+  });
+
+  it("chaque thème compose : sa portée et ses codes imposés sont une demande valide", () => {
+    // Le lien entre la suggestion et l'assemblage : ce qu'un thème décrit doit
+    // se composer, sinon le sélecteur offrirait des impasses.
+    for (const t of themesSuggeres(classement(), NOMS)) {
+      const c = composerSeance(
+        { dureeCibleMin: 60, nombreExercices: 2, portee: t.portee, codesImposes: t.codesImposes },
+        etats(),
+        [],
+        [],
+        undefined,
+        MAINTENANT,
+      );
+      expect(c.activites.length + c.manquants.length).toBeGreaterThan(0);
+      expect(motifRefusBlueprint(c.blueprint)).toBeNull();
+    }
+  });
+});
 
 /* ------------------------------------------------------------------ */
 

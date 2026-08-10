@@ -1,45 +1,79 @@
 "use client";
 
 /**
- * Concepteur de séance — l'écran de composition (lots 2.1, 2.2 du plan de
- * refonte Séances).
+ * Concepteur de séance — deux gestes, pas un formulaire.
  *
- * Toute la logique vient du lot 1. Ce composant n'en recopie aucune : il appelle
- * `composerSeance` (lib/engine/caf.ts) avec le besoin déclaré et affiche ce
- * qu'elle rend — activités retenues avec leur raison, manquants avec la leur,
- * explication. Un second classement ici aurait divergé du tableau de bord sans
- * que rien ne le signale (ADR-049).
+ * ## Ce qui a été retiré, et pourquoi
  *
- * Le besoin est saisi mot pour mot, jamais reformulé (D6) ; l'écart entre le
- * déclaré et le réalisé est dérivé par `ecartBesoinRealise`, jamais ici.
+ * La première version demandait quatre choses avant de composer : une phrase
+ * d'intention rédigée, un temps, **une sélection dans une liste de 77 cases à
+ * cocher**, puis un écran de portée/nombre, puis un écran de date. Cinq
+ * décisions et trois écrans pour lancer une séance de travail — le formulaire
+ * coûtait plus cher que la séance qu'il préparait, et la liste de compétences
+ * transformait « je veux bosser ce sujet » en inventaire à trier.
  *
- * RIEN n'est écrit avant la validation de la dernière étape (D3, ADR-037) : un
- * manquant est généré par la modale existante, relu, et la séance n'est
- * persistée qu'au clic « Planifier ».
+ * Il en reste deux : **un thème** (pré-sélectionné sur la prochaine action) et
+ * **un temps**. Tout le reste est dérivé et affiché avec sa source :
+ *
+ *  - les compétences visées viennent du thème (`themesSuggeres`, qui lit le
+ *    même classement que la carte « Prochaine meilleure action » — les deux ne
+ *    peuvent pas diverger, ADR-049) ;
+ *  - le nombre d'exercices vient du temps (`nombreExercicesConseille`, médiane
+ *    des durées **observées**, ADR-045) ;
+ *  - la portée vient du thème.
+ *
+ * Rien n'est perdu : chaque valeur dérivée reste modifiable à l'étape de
+ * composition, et l'intention rédigée survit en champ facultatif replié.
+ *
+ * ## Ce qui n'a pas bougé
+ *
+ * Aucune logique n'est recopiée ici : `composerSeance` compose, `motifRefusBesoin`
+ * valide (la même fonction que le serveur), `planifierSeance` écrit. Et **rien
+ * n'est écrit avant la validation finale** (D3, ADR-037) : un manquant se
+ * génère par la modale existante, se relit, et la séance n'est persistée qu'au
+ * clic « Démarrer » ou « Planifier ».
  */
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bouton, Carte, SelecteurSegmente } from "@/components/ui/primitives";
-import { Champ, ChampSelect } from "@/components/ui/champ";
+import { Bouton, Carte, cx } from "@/components/ui/primitives";
+import { Champ } from "@/components/ui/champ";
 import { Modale } from "@/components/ui/modale";
-import type { DemandeSeance, Exercise, ExerciseAttempt, Skill, SkillState } from "@/lib/domain/types";
-import { motifRefusBesoin } from "@/lib/domain/seance";
+import type {
+  BesoinDeclare,
+  DemandeSeance,
+  Exercise,
+  ExerciseAttempt,
+  Skill,
+  SkillState,
+} from "@/lib/domain/types";
+import { motifRefusBesoin, TEMPS_DECLARE_MAX } from "@/lib/domain/seance";
+import { DUREE_ESTIMEE_MIN } from "@/lib/domain/exercice";
 import {
   composerSeance,
   nombreExercicesConseille,
+  themesSuggeres,
   type ActiviteComposee,
-  type ManquantSeance,
   type CompositionSeance,
+  type ManquantSeance,
+  type ThemeSeance,
 } from "@/lib/engine/caf";
 import type { Calibration } from "@/lib/engine/calibration";
-import { planifierSeance, type EntreePlanification } from "@/lib/store/seance-actions";
+import type { Recommandation } from "@/lib/engine/recommend";
+import {
+  demarrerSeance,
+  planifierSeance,
+  type EntreePlanification,
+} from "@/lib/store/seance-actions";
 import { BoutonGenerer } from "@/components/exercices/bouton-generer";
 import {
   competencesPourModale,
   type CalibrageModale,
   type CompetenceModale,
 } from "@/components/exercices/proprietes-generation";
+
+/** Temps proposé par défaut, en minutes. Modifiable au premier écran. */
+const TEMPS_PAR_DEFAUT = 60;
 
 export interface PresetSeance {
   codesVises: string[];
@@ -57,18 +91,27 @@ export interface DonneesSeance {
   /** Calibrages sérialisés — reconstitués en `Map` au rendu. */
   calibrations: [string, Calibration][];
   calibragesModale: Record<string, CalibrageModale>;
-  codesRecommandes: string[];
+  /**
+   * Le classement du moteur, sérialisé, d'où sortent les thèmes suggérés.
+   *
+   * On passe les recommandations et non les seuls codes : `themesSuggeres` a
+   * besoin de l'intitulé et du domaine pour écrire ses libellés, et les relire
+   * ici depuis `etats` reviendrait à refaire à la main ce que le moteur a déjà
+   * assemblé.
+   */
+  recommandations: Recommandation[];
   domaines: { id: string; nom: string }[];
   compteId: string;
   /** Pré-remplit le compositeur (ex. « Refaire cette séance »). */
   preset?: PresetSeance;
   /** Libellé du bouton déclencheur. */
   libelle?: string;
+  /** Le bouton occupe toute la largeur de son conteneur. */
+  pleineLargeur?: boolean;
 }
 
-type Phase = "besoin" | "composition" | "planification";
+type Phase = "besoin" | "composition";
 
-const PLAFOND_EXERCICES = 8;
 export function ConcepteurSeance({
   etats,
   actifs,
@@ -76,31 +119,60 @@ export function ConcepteurSeance({
   tentatives,
   calibrations,
   calibragesModale,
-  codesRecommandes,
+  recommandations,
   domaines,
   compteId,
   preset,
   libelle = "Composer une séance",
+  pleineLargeur = false,
 }: DonneesSeance) {
   const router = useRouter();
   const [ouvert, setOuvert] = useState(false);
   const [phase, setPhase] = useState<Phase>("besoin");
 
-  const [intention, setIntention] = useState("");
-  const [temps, setTemps] = useState(preset ? String(preset.dureeCibleMin) : "");
-  const [codesVises, setCodesVises] = useState<string[]>(
-    preset?.codesVises ?? codesRecommandes.slice(0, 5),
+  const nomsDomaines = useMemo(
+    () => new Map(domaines.map((d) => [d.id, d.nom])),
+    [domaines],
+  );
+  const themes = useMemo(
+    () => themesSuggeres(recommandations, nomsDomaines),
+    [recommandations, nomsDomaines],
   );
 
-  const [transverse, setTransverse] = useState(!preset?.domaine);
-  const [domaine, setDomaine] = useState(preset?.domaine ?? domaines[0]?.id ?? "");
-  const [nombreExercices, setNombreExercices] = useState(preset?.nombreExercices ?? 3);
-  /**
-   * Le nombre affiché suit `nombreExercicesConseille` tant que la personne n'a
-   * pas mis la main dessus. « Refaire cette séance » compte comme un choix
-   * explicite (`preset`) : le conseil du jour ne doit pas écraser un nombre
-   * qui vient d'ailleurs.
+  /*
+   * Un preset (« Refaire cette séance ») n'est pas un thème suggéré : il vient
+   * d'une séance passée. Il devient donc un thème à part, placé en tête, pour
+   * que le même sélecteur serve les deux cas — plutôt qu'un mode caché où le
+   * choix du thème disparaîtrait sans explication.
    */
+  const themeDuPreset: ThemeSeance | null = useMemo(() => {
+    if (!preset) return null;
+    return {
+      cle: "preset",
+      libelle: "La même séance",
+      detail: `${preset.codesVises.length} compétence(s) · ${preset.dureeCibleMin} min`,
+      portee: preset.domaine
+        ? { type: "mono", domaine: preset.domaine }
+        : { type: "transverse", domaines: domaines.map((d) => d.id) },
+      codesImposes: preset.codesVises,
+    };
+  }, [preset, domaines]);
+
+  const tousThemes = useMemo(
+    () => (themeDuPreset ? [themeDuPreset, ...themes] : themes),
+    [themeDuPreset, themes],
+  );
+
+  const [cleTheme, setCleTheme] = useState(() => tousThemes[0]?.cle ?? "");
+  const theme = tousThemes.find((t) => t.cle === cleTheme) ?? tousThemes[0] ?? null;
+
+  const [temps, setTemps] = useState(
+    String(preset?.dureeCibleMin ?? TEMPS_PAR_DEFAUT),
+  );
+  const [intention, setIntention] = useState("");
+  const [intentionOuverte, setIntentionOuverte] = useState(false);
+
+  const [nombreExercices, setNombreExercices] = useState(preset?.nombreExercices ?? 3);
   const [nombreTouche, setNombreTouche] = useState(Boolean(preset));
 
   const [planifieePour, setPlanifieePour] = useState("");
@@ -108,27 +180,26 @@ export function ConcepteurSeance({
   const [enregistrement, setEnregistrement] = useState(false);
 
   const calibMap = useMemo(() => new Map(calibrations), [calibrations]);
-
-  // `demande` est reconstruite À L'INTÉRIEUR du memo plutôt que passée en
-  // dépendance : un objet littéral change de référence à chaque rendu, ce qui
-  // aurait recalculé `composerSeance` (non gratuit — il parcourt tout le
-  // classement) même quand rien de ce qu'il lit n'a changé.
-  const composition: CompositionSeance = useMemo(() => {
-    const demande: DemandeSeance = {
-      dureeCibleMin: Math.max(1, Number(temps) || 30),
-      nombreExercices,
-      portee: transverse
-        ? { type: "transverse", domaines: deduireDomaines(etats) }
-        : { type: "mono", domaine },
-      codesImposes: codesVises,
-    };
-    return composerSeance(demande, etats, exercices, tentatives, calibMap, new Date());
-  }, [temps, nombreExercices, transverse, domaine, codesVises, etats, exercices, tentatives, calibMap]);
+  const tempsMin = Math.max(DUREE_ESTIMEE_MIN, Number(temps) || TEMPS_PAR_DEFAUT);
 
   const conseil = useMemo(
-    () => nombreExercicesConseille(Math.max(1, Number(temps) || 30), exercices, tentatives),
-    [temps, exercices, tentatives],
+    () => nombreExercicesConseille(tempsMin, exercices, tentatives),
+    [tempsMin, exercices, tentatives],
   );
+
+  // `demande` est reconstruite À L'INTÉRIEUR du memo : un objet littéral change
+  // de référence à chaque rendu, ce qui recalculerait `composerSeance` (non
+  // gratuit — il parcourt tout le classement) même quand rien n'a changé.
+  const composition: CompositionSeance | null = useMemo(() => {
+    if (!theme) return null;
+    const demande: DemandeSeance = {
+      dureeCibleMin: tempsMin,
+      nombreExercices,
+      portee: theme.portee,
+      codesImposes: theme.codesImposes,
+    };
+    return composerSeance(demande, etats, exercices, tentatives, calibMap, new Date());
+  }, [theme, tempsMin, nombreExercices, etats, exercices, tentatives, calibMap]);
 
   const competencesModale: CompetenceModale[] = useMemo(
     () => competencesPourModale(actifs),
@@ -141,33 +212,43 @@ export function ConcepteurSeance({
     setOuvert(true);
   }
 
-  function passerComposition() {
-    const refus = motifRefusBesoin({
-      intention: intention.trim(),
-      codesVises,
-      tempsDisponibleMin: Math.max(1, Number(temps) || 30),
+  function besoinCourant(): BesoinDeclare {
+    return {
+      // Absente plutôt que chaîne vide : un champ laissé vide n'est pas une
+      // intention déclarée, et `ecartBesoinRealise` ne doit pas afficher des
+      // guillemets autour de rien.
+      ...(intention.trim() ? { intention: intention.trim() } : {}),
+      codesVises: theme?.codesImposes ?? [],
+      tempsDisponibleMin: tempsMin,
       declareLe: new Date().toISOString(),
-    });
+    };
+  }
+
+  function passerComposition() {
+    const refus = motifRefusBesoin(besoinCourant());
     if (refus) {
       setErreur(refus);
       return;
     }
-    // Le nombre proposé s'applique une fois qu'on connaît le temps déclaré —
-    // pas avant, pas à chaque frappe : la personne verrait le champ bouger
-    // sous ses yeux pendant qu'elle tape. `nombreTouche` reste vrai si elle
-    // avait déjà corrigé le nombre à une étape précédente.
+    // Le nombre proposé s'applique une fois le temps connu — pas à chaque
+    // frappe, sinon le champ bougerait sous les yeux pendant la saisie.
     if (!nombreTouche && conseil) setNombreExercices(conseil.nombre);
     setErreur(null);
     setPhase("composition");
   }
 
-  async function planifier() {
-    const besoin = {
-      intention: intention.trim(),
-      codesVises,
-      tempsDisponibleMin: Math.max(1, Number(temps) || 30),
-      declareLe: new Date().toISOString(),
-    };
+  /**
+   * Écrit la séance, puis la démarre si on la veut tout de suite.
+   *
+   * Deux sorties et non deux boutons qui feraient deux choses différentes :
+   * « Démarrer » planifie et démarre dans la foulée (le cas courant, celui que
+   * « ça part » désigne) ; « Planifier pour plus tard » s'arrête après
+   * l'écriture. Une séance planifiée sans date reste démarrable depuis son
+   * déroulé — rien n'est enfermé.
+   */
+  async function enregistrer(demarrer: boolean) {
+    if (!composition) return;
+    const besoin = besoinCourant();
     const refus = motifRefusBesoin(besoin);
     if (refus) {
       setErreur(refus);
@@ -176,22 +257,28 @@ export function ConcepteurSeance({
     setEnregistrement(true);
     setErreur(null);
     try {
-      const activites = composition.activites.map((a) => ({
-        type: a.type,
-        ref: a.ref,
-        libelle: a.libelle,
-      }));
       const entree: EntreePlanification = {
         besoin,
         blueprint: composition.blueprint,
-        activites,
-        planifieePour: planifieePour ? new Date(planifieePour).toISOString() : undefined,
+        activites: composition.activites.map((a) => ({
+          type: a.type,
+          ref: a.ref,
+          libelle: a.libelle,
+        })),
+        ...(planifieePour && !demarrer
+          ? { planifieePour: new Date(planifieePour).toISOString() }
+          : {}),
       };
-      await planifierSeance(entree);
+      const id = await planifierSeance(entree);
+      if (demarrer) {
+        await demarrerSeance(id);
+        router.push(`/seances/${id}`);
+      } else {
+        router.refresh();
+      }
       setOuvert(false);
-      router.refresh();
     } catch (e) {
-      setErreur(e instanceof Error ? e.message : "Impossible de planifier la séance.");
+      setErreur(e instanceof Error ? e.message : "Impossible d'enregistrer la séance.");
     } finally {
       setEnregistrement(false);
     }
@@ -199,65 +286,56 @@ export function ConcepteurSeance({
 
   return (
     <>
-      <Bouton variante="principal" onClick={ouvrir}>
+      <Bouton
+        variante="principal"
+        onClick={ouvrir}
+        className={cx(pleineLargeur && "w-full")}
+      >
         {libelle}
       </Bouton>
 
       {ouvert && (
         <Modale
           titre="Composer une séance"
-          sousTitre="Ce que tu veux travailler, ce que le système propose, ce qui manque."
+          sousTitre="Un thème, un temps — le reste est dérivé et reste modifiable."
           onFermer={() => setOuvert(false)}
           largeur="2xl"
         >
-          {phase === "besoin" && (
+          {phase === "besoin" ? (
             <EtapeBesoin
-              intention={intention}
-              setIntention={setIntention}
+              themes={tousThemes}
+              cleTheme={cleTheme}
+              setCleTheme={setCleTheme}
               temps={temps}
               setTemps={setTemps}
-              codesVises={codesVises}
-              basculerCode={(c) =>
-                setCodesVises((v) => (v.includes(c) ? v.filter((x) => x !== c) : [...v, c]))
-              }
-              etats={etats}
+              conseil={conseil}
+              intention={intention}
+              setIntention={setIntention}
+              intentionOuverte={intentionOuverte}
+              setIntentionOuverte={setIntentionOuverte}
               erreur={erreur}
               continuer={passerComposition}
             />
-          )}
-
-          {phase === "composition" && (
+          ) : (
             <EtapeComposition
               composition={composition}
+              theme={theme}
               conseil={conseil}
-              transverse={transverse}
-              setTransverse={setTransverse}
-              domaine={domaine}
-              setDomaine={setDomaine}
-              domaines={domaines}
               nombreExercices={nombreExercices}
               setNombreExercices={(v) => {
                 setNombreTouche(true);
                 setNombreExercices(v);
               }}
+              planifieePour={planifieePour}
+              setPlanifieePour={setPlanifieePour}
               competencesModale={competencesModale}
               calibragesModale={calibragesModale}
               compteId={compteId}
-              retour={() => setPhase("besoin")}
-              continuer={() => setPhase("planification")}
-            />
-          )}
-
-          {phase === "planification" && (
-            <EtapePlanification
-              planifieePour={planifieePour}
-              setPlanifieePour={setPlanifieePour}
-              composition={composition}
-              planifier={planifier}
               enregistrement={enregistrement}
               erreur={erreur}
-              retour={() => setPhase("composition")}
-              besoinRecap={{ intention, temps, codesVises }}
+              retour={() => setPhase("besoin")}
+              demarrer={() => enregistrer(true)}
+              planifier={() => enregistrer(false)}
             />
           )}
         </Modale>
@@ -266,62 +344,129 @@ export function ConcepteurSeance({
   );
 }
 
-function EtapeBesoin(props: {
-  intention: string;
-  setIntention: (v: string) => void;
+/* ------------------------------------------------------------------ */
+/* Étape 1 — le thème et le temps                                      */
+/* ------------------------------------------------------------------ */
+
+function EtapeBesoin({
+  themes,
+  cleTheme,
+  setCleTheme,
+  temps,
+  setTemps,
+  conseil,
+  intention,
+  setIntention,
+  intentionOuverte,
+  setIntentionOuverte,
+  erreur,
+  continuer,
+}: {
+  themes: ThemeSeance[];
+  cleTheme: string;
+  setCleTheme: (v: string) => void;
   temps: string;
   setTemps: (v: string) => void;
-  codesVises: string[];
-  basculerCode: (c: string) => void;
-  etats: SkillState[];
+  conseil: ReturnType<typeof nombreExercicesConseille>;
+  intention: string;
+  setIntention: (v: string) => void;
+  intentionOuverte: boolean;
+  setIntentionOuverte: (v: boolean) => void;
   erreur: string | null;
   continuer: () => void;
 }) {
-  const { intention, setIntention, temps, setTemps, codesVises, basculerCode, etats, erreur, continuer } = props;
+  if (themes.length === 0) {
+    return (
+      <div className="space-y-3 pt-4">
+        <Carte>
+          <div className="px-4 py-8 text-center">
+            <p className="text-sm font-medium">Aucun thème à proposer</p>
+            <p className="mx-auto mt-1 max-w-md text-xs text-texte-attenue">
+              Le moteur n&apos;a rien à recommander : soit le référentiel est vide, soit
+              toutes les compétences actives ont été écartées récemment. Rien n&apos;est
+              proposé par défaut — il n&apos;y aurait aucune raison derrière.
+            </p>
+          </div>
+        </Carte>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-4 pt-4">
-      <Champ
-        label="Ce que tu veux travailler"
-        multiligne
-        rows={3}
-        value={intention}
-        onChange={(e) => setIntention(e.target.value)}
-        placeholder="Ex. : reprendre les suites numériques et la loi normale avant l'examen."
-        aide="Écris-le à ta main : la phrase est conservée telle quelle, et comparée à ce que tu auras réellement fait."
-      />
-      <Champ
-        label="Temps disponible (minutes)"
-        type="number"
-        min={1}
-        max={480}
-        value={temps}
-        onChange={(e) => setTemps(e.target.value)}
-        aide="Une déclaration, pas un chronométrage — elle sert à proposer un nombre d'exercices."
-      />
+    <div className="space-y-5 pt-4">
       <fieldset>
-        <legend className="mb-1 block text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
-          Compétences visées
+        <legend className="mb-2 block text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
+          Sur quoi tu bosses
         </legend>
-        <div className="max-h-56 space-y-1 overflow-y-auto rounded-md border border-bordure p-2">
-          {etats.map((e) => (
-            <label key={e.skill.code} className="flex items-start gap-2 text-xs">
+        <div className="space-y-1.5">
+          {themes.map((t) => (
+            <label
+              key={t.cle}
+              className={cx(
+                "flex cursor-pointer items-start gap-2.5 rounded-md border px-3 py-2.5 transition-colors",
+                t.cle === cleTheme
+                  ? "border-primaire/40 bg-primaire-faible"
+                  : "border-bordure hover:bg-surface-2",
+              )}
+            >
               <input
-                type="checkbox"
-                checked={codesVises.includes(e.skill.code)}
-                onChange={() => basculerCode(e.skill.code)}
+                type="radio"
+                name="theme-seance"
+                value={t.cle}
+                checked={t.cle === cleTheme}
+                onChange={() => setCleTheme(t.cle)}
                 className="mt-0.5"
               />
-              <span>
-                <span className="font-medium">{e.skill.intitule}</span>{" "}
-                <span className="text-texte-discret">({e.skill.code})</span>
+              <span className="min-w-0">
+                <span className="block text-sm font-medium">{t.libelle}</span>
+                <span className="block text-[0.6875rem] text-texte-discret">
+                  {t.detail}
+                </span>
               </span>
             </label>
           ))}
         </div>
-        <p className="mt-1 text-[0.6875rem] text-texte-discret">
-          Pré-cochées depuis tes recommandations, modifiables à la main.
-        </p>
       </fieldset>
+
+      <Champ
+        label="Temps disponible (minutes)"
+        type="number"
+        min={DUREE_ESTIMEE_MIN}
+        max={TEMPS_DECLARE_MAX}
+        value={temps}
+        onChange={(e) => setTemps(e.target.value)}
+        aide={
+          conseil
+            ? conseil.explication
+            : "Aucune durée de référence encore observée : tu fixeras le nombre d'exercices à l'étape suivante."
+        }
+      />
+
+      {/*
+        L'intention rédigée reste possible, mais repliée et facultative : c'est
+        elle qui rendait la composition plus longue que la séance. Son absence
+        ne retire rien à l'écart besoin/réalisé, qui compare le thème et le
+        temps — pas la phrase.
+      */}
+      {intentionOuverte ? (
+        <Champ
+          label="Pourquoi cette séance ? (facultatif)"
+          multiligne
+          rows={2}
+          value={intention}
+          onChange={(e) => setIntention(e.target.value)}
+          placeholder="Ex. : avant l'examen de jeudi."
+          aide="Conservée telle quelle, pour que tu puisses la relire plus tard."
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={() => setIntentionOuverte(true)}
+          className="text-xs text-primaire hover:underline"
+        >
+          + Noter pourquoi (facultatif)
+        </button>
+      )}
 
       {erreur && (
         <p role="alert" className="text-xs text-danger">
@@ -329,7 +474,7 @@ function EtapeBesoin(props: {
         </p>
       )}
 
-      <div className="flex justify-end gap-2 border-t border-bordure pt-3">
+      <div className="flex justify-end border-t border-bordure pt-3">
         <Bouton type="button" onClick={continuer} variante="principal">
           Voir la composition
         </Bouton>
@@ -338,83 +483,62 @@ function EtapeBesoin(props: {
   );
 }
 
-function EtapeComposition(props: {
-  composition: CompositionSeance;
+/* ------------------------------------------------------------------ */
+/* Étape 2 — ce que le moteur propose                                  */
+/* ------------------------------------------------------------------ */
+
+function EtapeComposition({
+  composition,
+  theme,
+  conseil,
+  nombreExercices,
+  setNombreExercices,
+  planifieePour,
+  setPlanifieePour,
+  competencesModale,
+  calibragesModale,
+  compteId,
+  enregistrement,
+  erreur,
+  retour,
+  demarrer,
+  planifier,
+}: {
+  composition: CompositionSeance | null;
+  theme: ThemeSeance | null;
   conseil: ReturnType<typeof nombreExercicesConseille>;
-  transverse: boolean;
-  setTransverse: (v: boolean) => void;
-  domaine: string;
-  setDomaine: (v: string) => void;
-  domaines: { id: string; nom: string }[];
   nombreExercices: number;
   setNombreExercices: (v: number) => void;
+  planifieePour: string;
+  setPlanifieePour: (v: string) => void;
   competencesModale: CompetenceModale[];
   calibragesModale: Record<string, CalibrageModale>;
   compteId: string;
+  enregistrement: boolean;
+  erreur: string | null;
   retour: () => void;
-  continuer: () => void;
+  demarrer: () => void;
+  planifier: () => void;
 }) {
-  const {
-    composition,
-    conseil,
-    transverse,
-    setTransverse,
-    domaine,
-    setDomaine,
-    domaines,
-    nombreExercices,
-    setNombreExercices,
-    competencesModale,
-    calibragesModale,
-    compteId,
-    retour,
-    continuer,
-  } = props;
+  if (!composition || !theme) return null;
+
+  const vide = composition.activites.length === 0 && composition.manquants.length === 0;
 
   return (
     <div className="space-y-4 pt-4">
-      <div className="flex flex-wrap items-end gap-4">
-        <SelecteurSegmente
-          options={[
-            { cle: "transverse", libelle: "Transverse" },
-            { cle: "mono", libelle: "Un domaine" },
-          ]}
-          actif={transverse ? "transverse" : "mono"}
-          rendreItem={(o, cls, act) => (
-            <button
-              key={o.cle}
-              type="button"
-              onClick={() => setTransverse(o.cle === "transverse")}
-              aria-pressed={act}
-              className={cls}
-            >
-              {o.libelle}
-            </button>
-          )}
-        />
-        {!transverse && (
-          <div className="w-56">
-            <ChampSelect
-              label="Domaine"
-              value={domaine}
-              onChange={(e) => setDomaine(e.target.value)}
-              options={domaines.map((d) => ({ valeur: d.id, libelle: d.nom }))}
-            />
-          </div>
-        )}
-        <div className="w-40">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-medium">{theme.libelle}</p>
+          <p className="text-[0.6875rem] text-texte-discret">{theme.detail}</p>
+        </div>
+        <div className="w-36 shrink-0">
           <Champ
             label="Exercices"
             type="number"
             min={1}
-            max={PLAFOND_EXERCICES}
             value={String(nombreExercices)}
             onChange={(e) => setNombreExercices(Math.max(1, Number(e.target.value) || 1))}
-            aide={
-              conseil
-                ? `Conseillé : ${conseil.nombre} (${conseil.explication})`
-                : "Aucune durée de référence encore : fixe le nombre toi-même."
-            }
+            aide={conseil ? `Conseillé : ${conseil.nombre}` : "À fixer toi-même"}
           />
         </div>
       </div>
@@ -451,26 +575,64 @@ function EtapeComposition(props: {
             />
           ))}
           <p className="text-[0.6875rem] text-texte-discret">
-            Génère et relis chaque exercice avant de planifier : rien n&apos;est écrit sans ta
-            validation.
+            Génère et relis chaque exercice avant de démarrer : rien n&apos;est écrit sans
+            ta validation. Les manquants non générés ne feront pas partie de la séance.
           </p>
         </div>
       )}
 
-      {composition.activites.length === 0 && composition.manquants.length === 0 && (
+      {vide && (
         <Carte>
           <div className="px-4 py-8 text-center text-xs text-texte-attenue">
-            Aucune compétence active dans ce périmètre : rien à composer.
+            Aucune compétence à travailler dans ce périmètre : choisis un autre thème.
           </div>
         </Carte>
       )}
 
+      <details className="rounded-md border border-bordure px-3 py-2">
+        <summary className="cursor-pointer text-xs text-texte-attenue">
+          Planifier pour plus tard plutôt que démarrer maintenant
+        </summary>
+        <div className="mt-2">
+          <Champ
+            label="Date et heure prévues"
+            type="datetime-local"
+            value={planifieePour}
+            onChange={(e) => setPlanifieePour(e.target.value)}
+            aide="La séance apparaîtra dans l'historique en « Planifiée », prête à démarrer."
+          />
+          <div className="mt-2">
+            <Bouton
+              type="button"
+              variante="secondaire"
+              onClick={planifier}
+              enChargement={enregistrement}
+              disabled={vide}
+            >
+              Planifier sans démarrer
+            </Bouton>
+          </div>
+        </div>
+      </details>
+
+      {erreur && (
+        <p role="alert" className="text-xs text-danger">
+          {erreur}
+        </p>
+      )}
+
       <div className="flex justify-between border-t border-bordure pt-3">
         <Bouton type="button" onClick={retour} variante="secondaire">
-          Modifier le besoin
+          Changer de thème
         </Bouton>
-        <Bouton type="button" onClick={continuer} variante="principal">
-          Continuer
+        <Bouton
+          type="button"
+          onClick={demarrer}
+          enChargement={enregistrement}
+          disabled={vide}
+          variante="principal"
+        >
+          Démarrer la séance
         </Bouton>
       </div>
     </div>
@@ -520,88 +682,3 @@ function LigneManquant({
     </div>
   );
 }
-
-function EtapePlanification(props: {
-  planifieePour: string;
-  setPlanifieePour: (v: string) => void;
-  composition: CompositionSeance;
-  planifier: () => void;
-  enregistrement: boolean;
-  erreur: string | null;
-  retour: () => void;
-  besoinRecap: { intention: string; temps: string; codesVises: string[] };
-}) {
-  const {
-    planifieePour,
-    setPlanifieePour,
-    composition,
-    planifier,
-    enregistrement,
-    erreur,
-    retour,
-    besoinRecap,
-  } = props;
-  const formatte = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" });
-
-  return (
-    <div className="space-y-4 pt-4">
-      <Carte>
-        <div className="px-4 py-3">
-          <p className="text-xs text-texte-discret">Besoin déclaré</p>
-          <p className="mt-0.5 text-sm italic">« {besoinRecap.intention} »</p>
-          <p className="mt-1 text-xs text-texte-attenue">
-            {besoinRecap.codesVises.length} compétence(s) visée(s) ·{" "}
-            {besoinRecap.temps || "30"} min déclarées
-          </p>
-        </div>
-      </Carte>
-
-      <p className="text-xs text-texte-attenue">
-        {composition.activites.length} exercice(s) retenu(s) — durée estimée{" "}
-        {composition.dureeEstimeeTotaleMin} min pour une cible de{" "}
-        {composition.blueprint.dureeCibleMin}.
-      </p>
-
-      <Champ
-        label="Date et heure prévues (optionnel)"
-        type="datetime-local"
-        value={planifieePour}
-        onChange={(e) => setPlanifieePour(e.target.value)}
-        aide={
-          planifieePour
-            ? `Planifiée le ${formatte.format(new Date(planifieePour))}.`
-            : "Laisse vide pour commencer tout de suite."
-        }
-      />
-
-      {erreur && (
-        <p role="alert" className="text-xs text-danger">
-          {erreur}
-        </p>
-      )}
-
-      <div className="flex justify-between border-t border-bordure pt-3">
-        <Bouton type="button" onClick={retour} variante="secondaire">
-          Retour
-        </Bouton>
-        <Bouton
-          type="button"
-          onClick={planifier}
-          enChargement={enregistrement}
-          variante="principal"
-        >
-          Planifier la séance
-        </Bouton>
-      </div>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Petits aides d'assemblage — purs, sans état.                        */
-/* ------------------------------------------------------------------ */
-
-function deduireDomaines(etats: SkillState[]): string[] {
-  return [...new Set(etats.map((e) => e.skill.domaine))];
-}
-

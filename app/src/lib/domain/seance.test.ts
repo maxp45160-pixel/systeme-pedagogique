@@ -163,8 +163,14 @@ describe("motifRefusBesoin", () => {
     expect(motifRefusBesoin(BESOIN)).toBeNull();
   });
 
-  it("refuse une intention vide", () => {
-    expect(motifRefusBesoin({ ...BESOIN, intention: "   " })).toContain("une phrase");
+  it("accepte un besoin sans intention rédigée — elle est facultative", () => {
+    /*
+     * Exiger une phrase avant de composer faisait du formulaire l'obstacle que
+     * la séance devait lever (10/08/2026). Choisir un thème et un temps est
+     * déjà une déclaration datée, et l'écart besoin/réalisé ne lit pas la
+     * phrase — il compare `codesVises` et `tempsDisponibleMin`.
+     */
+    expect(motifRefusBesoin({ ...BESOIN, intention: undefined })).toBeNull();
   });
 
   it("refuse une intention plus longue que la borne", () => {

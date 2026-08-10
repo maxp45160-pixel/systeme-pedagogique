@@ -82,9 +82,10 @@ async function ContenuTableauDeBord() {
     tentatives: ctx.donnees.attempts,
     calibrations: Array.from(ctx.calibrations.entries()),
     calibragesModale: calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations),
-    codesRecommandes: ctx.recommandations.map((r) => r.etat.skill.code),
+    recommandations: ctx.recommandations,
     domaines: ctx.referentiel.domaines.map((d) => ({ id: d.id, nom: d.nom })),
     compteId: ctx.donnees.user.id,
+    pleineLargeur: true,
   };
 
   // Tentatives ouvertes, résolues contre le corpus. Un exercice archivé ou
@@ -192,7 +193,7 @@ async function ContenuTableauDeBord() {
         <Carte>
           <EnTeteCarte
             titre="Composer une séance"
-            legende="Dis ce que tu veux travailler, le temps dont tu disposes, et quand."
+            legende="Un thème, un temps — le reste est dérivé."
           />
           <div className="px-5 py-4">
             <ConcepteurSeance {...donneesSeance} />
