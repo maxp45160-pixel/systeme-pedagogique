@@ -684,6 +684,88 @@ describe("recommandation — protocole d'évaluation §16", () => {
 /* ------------------------------------------------------------------ */
 
 /*
+ * Actionnabilité — lot 5, 10/08/2026.
+ *
+ * Mesuré le 10/08/2026 : 11 compétences actives sur 77 ont un exercice. Le
+ * classement seul poussait systématiquement vers le non-couvert (« Jamais
+ * évaluée » vaut jusqu'à +70), qui n'a pourtant rien à servir — la carte
+ * « Prochaine action » retombait sur « Générer un exercice » plutôt que
+ * « Commencer », pour la quasi-totalité des compétences.
+ *
+ * `BONUS_ACTIONNABLE` (+10) départage un quasi-ex-aequo. Ce n'est PAS une
+ * pénalité sur le non-couvert — l'absence d'exercice ne retire rien nulle
+ * part ailleurs — et le second test ci-dessous vérifie que le bonus reste
+ * trop modeste pour renverser un écart réel.
+ */
+describe("actionnabilité — un exercice disponible départage, sans jamais pénaliser le non-couvert", () => {
+  it("départage deux compétences autrement identiques, vers celle qui a un exercice", () => {
+    // Même palier, même importance, même ordre : sans le bonus, seul le code
+    // les départage (tri stable) — "AAA-01" gagnerait. C'est pourtant
+    // "BBB-01" qui a un exercice, et c'est elle qui doit gagner.
+    const a = skillDeTest("AAA-01", "developpement", "fondamentaux", 0.5, 0);
+    const b = skillDeTest("BBB-01", "developpement", "fondamentaux", 0.5, 0);
+    const referentiel = referentielDe([a, b], DOMAINES_TEST);
+    const etats = computeAllSkillStates(referentiel.actifs, [], MAINTENANT);
+
+    const exerciceB: Exercise = {
+      id: "ex-b",
+      titre: "Exercice B",
+      domaine: "developpement",
+      type: "application",
+      difficulte: 2,
+      competences: ["BBB-01"],
+      dureeEstimeeMin: 20,
+      enonce: "…",
+      indices: [],
+      correction: "…",
+      criteres: [],
+      origine: "tuteur",
+    };
+
+    const classement = recommander(etats, [exerciceB], [], 10, undefined, MAINTENANT);
+    expect(classement[0].etat.skill.code).toBe("BBB-01");
+    expect(
+      classement[0].facteurs.some((f) => f.libelle === "Exercice disponible"),
+    ).toBe(true);
+    // "AAA-01" n'a pas le facteur : le bonus ne s'applique qu'à ce qui est
+    // réellement actionnable.
+    const aaa = classement.find((r) => r.etat.skill.code === "AAA-01")!;
+    expect(aaa.facteurs.some((f) => f.libelle === "Exercice disponible")).toBe(false);
+  });
+
+  it("ne renverse pas un écart réel : jamais évaluée sans exercice passe devant une compétence actionnable de moindre priorité", () => {
+    // DEV-01 : jamais évaluée, aucun exercice — le cas dominant, +70 environ.
+    // DEV-05 : déjà évaluée, pratiquée à l'instant (donc "laisser respirer",
+    // -15), MAIS elle a un exercice disponible (+10). L'écart réel doit
+    // l'emporter sur le bonus modeste.
+    const preuves = [preuve({ skill: "DEV-05", jours: 0, resultat: "reussi" })];
+    const etats = computeAllSkillStates(SKILLS, preuves, MAINTENANT);
+
+    const exerciceDev05: Exercise = {
+      id: "ex-dev05",
+      titre: "Exercice DEV-05",
+      domaine: "developpement",
+      type: "application",
+      difficulte: 2,
+      competences: ["DEV-05"],
+      dureeEstimeeMin: 20,
+      enonce: "…",
+      indices: [],
+      correction: "…",
+      criteres: [],
+      origine: "tuteur",
+    };
+
+    const classement = recommander(etats, [exerciceDev05], [], 10, undefined, MAINTENANT);
+    const rangDev01 = classement.findIndex((r) => r.etat.skill.code === "DEV-01");
+    const rangDev05 = classement.findIndex((r) => r.etat.skill.code === "DEV-05");
+    expect(rangDev01).toBeLessThan(rangDev05);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+
+/*
  * Le choix de l'exercice — 02/08/2026.
  *
  * Jusqu'ici `choisirExercice` n'excluait QUE les exercices réussis : un échec
@@ -692,8 +774,13 @@ describe("recommandation — protocole d'évaluation §16", () => {
  * suivre la « prochaine action » revenait à refaire en boucle ce qu'on venait
  * de rater. Le remède n'est pas un délai — trois jours ne rendent pas soluble
  * un exercice hors de portée — mais une condition : un progrès démontré.
+ *
+ * Le lot 5 (10/08/2026) étend la même règle au partiel, qui en était resté
+ * exempté : observé en production, deux exercices ont chacun produit deux
+ * « partiel » à plusieurs jours d'écart sans qu'aucune condition ne les fasse
+ * sortir de la file entre les deux — la même impasse que l'échec non gouverné.
  */
-describe("choix de l'exercice — un échec ne redonne pas le même exercice", () => {
+describe("choix de l'exercice — un résultat non abouti ne redonne pas le même exercice", () => {
   function exo(id: string, difficulte: Difficulte, dureeEstimeeMin = 25): Exercise {
     return {
       id,
@@ -726,7 +813,7 @@ describe("choix de l'exercice — un échec ne redonne pas le même exercice", (
       dureeMin: 20,
       indicesUtilises: 1,
       reponse: "…",
-      autoEvaluation: {},
+      evaluation: {},
       resultat,
       statut,
     };
@@ -779,10 +866,35 @@ describe("choix de l'exercice — un échec ne redonne pas le même exercice", (
     expect(propose([ex], [tent("ex-1", "echec", 3)], preuves)).toBeNull();
   });
 
-  it("un partiel reste candidat — c'est un progrès, pas un mur", () => {
+  /*
+   * Un partiel n'est pas un mur — 09/08/2026 puis lot 5 (10/08/2026).
+   *
+   * Jusqu'au lot 5, un partiel restait candidat SANS AUCUNE condition,
+   * contrairement à l'échec. Observé en production le 10/08/2026 :
+   * `diag-dev-02` et `diag-tech-01` ont chacun produit deux « partiel » à
+   * plusieurs jours d'écart, sans que rien ne les ait fait sortir de la file
+   * entre les deux — le même exercice reproposé, le même résultat obtenu.
+   * P4 ne distingue pas l'échec du partiel : les deux sont un résultat non
+   * abouti, et les deux exigent la même démonstration de progrès avant de
+   * revenir.
+   */
+  it("un partiel ne revient pas tant qu'aucun progrès n'est démontré — même règle que l'échec", () => {
+    // Cas réel de `TECH-01` (10/08/2026) : `diag-tech-01` est son seul
+    // exercice, et deux partiels sans progrès l'ont produit à plusieurs jours
+    // d'écart. `exercice: null` fait retomber l'interface sur « Générer un
+    // exercice » — la sortie voulue, pas une impasse muette.
     const ex = exo("ex-1", 2);
     const partiel = preuve({ skill: "STAT-01", jours: 3, resultat: "partiel" });
-    expect(propose([ex], [tent("ex-1", "partiel", 3)], [partiel])?.id).toBe("ex-1");
+    expect(propose([ex], [tent("ex-1", "partiel", 3)], [partiel])).toBeNull();
+  });
+
+  it("un partiel revient dès qu'une réussite postérieure le suit sur la compétence", () => {
+    const ex = exo("ex-1", 2);
+    const preuves = [
+      preuve({ skill: "STAT-01", jours: 5, resultat: "partiel" }),
+      preuve({ skill: "STAT-01", jours: 1, resultat: "reussi", contexte: "Contexte B" }),
+    ];
+    expect(propose([ex], [tent("ex-1", "partiel", 5)], preuves)?.id).toBe("ex-1");
   });
 
   it("un abandon ne compte pas : l'exercice reste proposable", () => {
@@ -791,12 +903,19 @@ describe("choix de l'exercice — un échec ne redonne pas le même exercice", (
     expect(propose([ex], [tent("ex-1", "echec", 3, "abandonnee")])?.id).toBe("ex-1");
   });
 
-  it("à écart de difficulté égal, ce qui n'a jamais été tenté passe devant", () => {
+  it("à écart de difficulté égal, ce qui n'a jamais été tenté passe devant — même un exercice redevenu candidat", () => {
     const dejaTente = exo("ex-vu", 2);
     const neuf = exo("ex-neuf", 2);
-    const partiel = preuve({ skill: "STAT-01", jours: 3, resultat: "partiel" });
+    // `ex-vu` doit être RECANDIDAT pour que le départage ait quelque chose à
+    // départager : une réussite postérieure au partiel le débloque, sans quoi
+    // ce test ne prouverait plus rien depuis le lot 5 (`ex-vu` serait déjà
+    // exclu par `recommandable`, et `ex-neuf` resterait seul par défaut).
+    const preuves = [
+      preuve({ skill: "STAT-01", jours: 5, resultat: "partiel" }),
+      preuve({ skill: "STAT-01", jours: 1, resultat: "reussi", contexte: "Contexte B" }),
+    ];
     expect(
-      propose([dejaTente, neuf], [tent("ex-vu", "partiel", 3)], [partiel])?.id,
+      propose([dejaTente, neuf], [tent("ex-vu", "partiel", 5)], preuves)?.id,
     ).toBe("ex-neuf");
   });
 
@@ -963,5 +1082,42 @@ describe("activiteSurFenetre — mesure réellement bornée par la période", ()
     expect(fenetre.joursActifs).toBe(globale.joursActifs30);
     expect(fenetre.minutes).toBe(globale.minutes30);
     expect(fenetre.seances).toBe(globale.seances30);
+  });
+
+  /*
+   * Séances planifiées (ADR-048).
+   *
+   * Une séance PRÉVUE est une ligne de `sessions` comme les autres. Sans le
+   * filtre `seanceALieu`, elle remplirait une case du bandeau d'activité pour
+   * une intention — une mesure fabriquée là où rien n'a été mesuré (P2) — et le
+   * défaut serait indétectable à l'œil : la grille paraîtrait simplement plus
+   * fournie.
+   */
+  it("ne compte pas une séance planifiée : elle n'a pas eu lieu", () => {
+    const prevue: LearningSession = { ...seance(0, 60), id: "s-prevue", statut: "planifiee" };
+    expect(activiteSurFenetre([prevue], 30, MAINTENANT)).toEqual({
+      joursActifs: 0,
+      minutes: 0,
+      seances: 0,
+    });
+  });
+
+  it("compte une séance en cours : la personne y travaille", () => {
+    const encours: LearningSession = { ...seance(0, 25), id: "s-encours", statut: "en-cours" };
+    expect(activiteSurFenetre([encours], 30, MAINTENANT).seances).toBe(1);
+  });
+
+  it("laisse la séance planifiée hors du total et hors de la dernière séance", () => {
+    const eue = seance(3, 40);
+    const prevue: LearningSession = {
+      ...seance(0, 90),
+      id: "s-prevue",
+      statut: "planifiee",
+      date: ilYa(-2), // prévue dans deux jours
+    };
+    const a = calculerActivite([eue, prevue], MAINTENANT);
+    expect(a.minutesTotal).toBe(40);
+    expect(a.minutesParJour.size).toBe(1);
+    expect(a.derniereSeance).toBe(eue.date);
   });
 });

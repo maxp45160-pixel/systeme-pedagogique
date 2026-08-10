@@ -97,7 +97,7 @@ export function construirePromptGeneration(
     "PROTOCOLE DE RÉDACTION D'UN EXERCICE",
     "- L'énoncé doit être précis, autonome et tenir en un écran.",
     "- Les indices vont du plus léger au plus explicite : ils mesurent l'autonomie.",
-    "- La correction est complète : elle permet à l'utilisateur de s'auto-évaluer.",
+    "- La correction est complète : elle permet à l'utilisateur de s'évaluer.",
     "- Chaque critère porte sur une dimension du référentiel (compréhension, application, transfert, intégration, justification) et doit être cochable par l'utilisateur.",
     "- La durée estimée doit être réaliste : c'est elle qui permet de juger si la tentative a eu lieu.",
     "",

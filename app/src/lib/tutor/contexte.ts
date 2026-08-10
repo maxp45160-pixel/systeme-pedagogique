@@ -515,7 +515,7 @@ function serialiserCalibration(ctx: Contexte): string {
   lignes.push("# CALIBRAGE DU PROCHAIN EXERCICE (dérivé des tentatives réelles)");
   lignes.push("");
   lignes.push(
-    "Ces valeurs viennent de ce qui s'est passé : résultat, indices consultés, temps réel contre temps estimé, auto-évaluation par dimension. Elles ne sont ni déclarées ni devinées.",
+    "Ces valeurs viennent de ce qui s'est passé : résultat, indices consultés, temps réel contre temps estimé, évaluation par dimension. Elles ne sont ni déclarées ni devinées.",
   );
   lignes.push(
     "QUAND TU PROPOSES UN EXERCICE, emploie la difficulté conseillée. Si la dimension faible est indiquée, c'est ELLE qu'il faut faire travailler — proposer le même exercice « en plus facile » raterait ce que la mesure dit.",

@@ -54,7 +54,7 @@ function tentative(options: {
   resultat: ExerciseAttempt["resultat"];
   indicesUtilises: number;
   dureeMin?: number;
-  autoEvaluation?: Partial<Record<Dimension, number>>;
+  evaluation?: Partial<Record<Dimension, number>>;
   jours?: number;
   statut?: ExerciseAttempt["statut"];
 }): ExerciseAttempt {
@@ -69,7 +69,7 @@ function tentative(options: {
     dureeMin: options.dureeMin,
     indicesUtilises: options.indicesUtilises,
     reponse: "…",
-    autoEvaluation: options.autoEvaluation ?? {},
+    evaluation: options.evaluation ?? {},
     resultat: options.resultat,
     statut: options.statut ?? "terminee",
   };
@@ -207,7 +207,7 @@ describe("dimensionLaPlusFaible — l'axe que la difficulté ne capture pas", ()
         exerciseId: "diag-dev-03",
         resultat: "echec",
         indicesUtilises: 3,
-        autoEvaluation: { comprehension: 0.5, application: 0, integration: 0 },
+        evaluation: { comprehension: 0.5, application: 0, integration: 0 },
       }),
     ]);
     expect(faible).not.toBeNull();
@@ -220,8 +220,8 @@ describe("dimensionLaPlusFaible — l'axe que la difficulté ne capture pas", ()
 
   it("privilégie la dimension la mieux étayée à valeur égale", () => {
     const faible = dimensionLaPlusFaible([
-      tentative({ exerciseId: "a", resultat: "echec", indicesUtilises: 0, autoEvaluation: { application: 0, transfert: 0 } }),
-      tentative({ exerciseId: "b", resultat: "echec", indicesUtilises: 0, autoEvaluation: { application: 0 } }),
+      tentative({ exerciseId: "a", resultat: "echec", indicesUtilises: 0, evaluation: { application: 0, transfert: 0 } }),
+      tentative({ exerciseId: "b", resultat: "echec", indicesUtilises: 0, evaluation: { application: 0 } }),
     ]);
     expect(faible!.dimension).toBe("application");
     expect(faible!.observations).toBe(2);
@@ -234,13 +234,13 @@ describe("dimensionLaPlusFaible — l'axe que la difficulté ne capture pas", ()
           exerciseId: "a",
           resultat: "reussi",
           indicesUtilises: 0,
-          autoEvaluation: { comprehension: 1, application: 1 },
+          evaluation: { comprehension: 1, application: 1 },
         }),
       ]),
     ).toBeNull();
   });
 
-  it("ne désigne rien sans auto-évaluation", () => {
+  it("ne désigne rien sans évaluation", () => {
     expect(
       dimensionLaPlusFaible([
         tentative({ exerciseId: "a", resultat: "reussi", indicesUtilises: 0 }),
@@ -443,13 +443,13 @@ describe("calibrer — la difficulté conseillée", () => {
         resultat: "reussi",
         indicesUtilises: 0,
         dureeMin: 10,
-        autoEvaluation: { application: 0.5, comprehension: 1 },
+        evaluation: { application: 0.5, comprehension: 1 },
       }),
     ]);
     expect(c.explication.resume).toContain("trop facile");
     expect(c.explication.facteurs.length).toBeGreaterThan(0);
     expect(c.explication.facteurs.some((f) => f.valeur.includes("10 min sur 25"))).toBe(true);
-    expect(c.explication.reserves.join(" ")).toContain("une seule auto-évaluation");
+    expect(c.explication.reserves.join(" ")).toContain("une seule évaluation");
   });
 });
 

@@ -232,6 +232,8 @@ const TYPES_EXERCICE = [
 
 const PALIERS = ["fondamentaux", "intermediaire", "avance"] as const;
 
+const INTENTIONS = ["decouverte", "consolidation", "transfert", "revision"] as const;
+
 /* ------------------------------------------------------------------ */
 /* Les trois schémas                                                   */
 /* ------------------------------------------------------------------ */
@@ -300,6 +302,14 @@ function schemaExercice(domaines: string[]): SchemaJson {
           required: ["dimension", "libelle"],
           additionalProperties: false,
         },
+      },
+      // Optionnel, volontairement absent du bloc CALIBRAGE : c'est un fait sur
+      // la rédaction, pas une mesure — le moteur ne le lit pas.
+      intention: {
+        type: "string",
+        enum: [...INTENTIONS],
+        description:
+          "Pourquoi cet exercice : decouverte (première exposition), consolidation (refaire à niveau égal), transfert (contexte inédit), revision (reprise après un délai). Omets le champ si aucun n'est net.",
       },
     },
     required: [
@@ -794,6 +804,8 @@ function validerExercice(entree: Record<string, unknown>): PropositionRecue | nu
     indices: listeDeTextes(entree.indices),
     correction: texte(entree.correction),
     criteres,
+    // `dansEnum` rend "" si absente ou hors liste — jamais fabriquée.
+    intention: dansEnum(entree.intention, INTENTIONS),
   };
 
   // Même prédicat que l'interface et que le formulaire : une seule définition

@@ -162,6 +162,27 @@ describe("validerAppelOutil — ce qui passe", () => {
     const recu = validerAppelOutilJson(OUTIL_EXERCICE, JSON.stringify(EXERCICE_ENTIER));
     expect(recu?.genre).toBe("exercice");
   });
+
+  it("accepte une intention et la normalise", () => {
+    const recu = validerAppelOutil(OUTIL_EXERCICE, { ...EXERCICE_ENTIER, intention: "Décision" });
+    if (recu?.genre !== "exercice") throw new Error("genre inattendu");
+    // "Décision" n'existe pas dans la liste : `dansEnum` rend "" — absente,
+    // pas fabriquée. C'est `convertirProposition`, en aval, qui refuserait
+    // une valeur non vide mais hors liste.
+    expect(recu.exercice.intention).toBe("");
+  });
+
+  it("accepte une intention connue, insensible à la casse", () => {
+    const recu = validerAppelOutil(OUTIL_EXERCICE, { ...EXERCICE_ENTIER, intention: "Transfert" });
+    if (recu?.genre !== "exercice") throw new Error("genre inattendu");
+    expect(recu.exercice.intention).toBe("transfert");
+  });
+
+  it("accepte un exercice sans intention — champ optionnel", () => {
+    const recu = validerAppelOutil(OUTIL_EXERCICE, EXERCICE_ENTIER);
+    if (recu?.genre !== "exercice") throw new Error("genre inattendu");
+    expect(recu.exercice.intention).toBe("");
+  });
 });
 
 /* ------------------------------------------------------------------ */

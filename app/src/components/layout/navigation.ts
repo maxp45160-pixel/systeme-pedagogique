@@ -20,20 +20,18 @@ export interface GroupeNav {
 }
 
 /**
- * Trois pôles, desktop et mobile identiques (lot 4), par ordre de priorité
+ * Trois pôles, desktop et mobile identiques (ADR-053), par ordre de priorité
  * d'usage :
  *
- *  - **Tableau de bord** — le point d'entrée de l'app.
- *  - **Exercices**, dominant — l'action à prendre maintenant.
- *  - **Compétences & Suivi**, en retrait — consulter et gérer au même endroit.
+ *  - **Tableau de bord** — le point d'entrée de l'app (Piloter).
+ *  - **Séances**, dominant — composer, planifier et dérouler (Travailler).
+ *  - **Compétences**, en retrait — consulter et gérer au même endroit (Suivre).
  *
- * Le tuteur n'est plus dans la navigation : il devient un tiroir (lot 3),
- * ouvert là où poser une question a un sens. La route `/tuteur` reste
- * atteignable depuis le tiroir (« ouvrir en pleine page »).
- *
- * `/progression` et `/journal` sont des panneaux du pôle Suivi, pas des routes
- * séparées dans la navigation : les deux routes ne subsistent que comme
- * redirections vers la vue correspondante.
+ * La séparation tient au besoin (ADR-053) : le tableau de bord *pilote* (sa
+ * prochaine action), Séances *travaille* (le déroulé), Compétences *suit*
+ * (l'état). La route `/exercices` ne subsiste que comme redirection vers la vue
+ * Bibliothèque de `/seances` ; `/progression` et `/journal` redirigent vers les
+ * vues correspondantes.
  */
 export const NAVIGATION: GroupeNav[] = [
   {
@@ -46,13 +44,13 @@ export const NAVIGATION: GroupeNav[] = [
     titre: "Travailler",
     primaire: true,
     entrees: [
-      { href: "/exercices", libelle: "Exercices", court: "Exos", icone: IconeExercices },
+      { href: "/seances", libelle: "Séances", court: "Séances", icone: IconeExercices },
     ],
   },
   {
     titre: "Suivre",
     entrees: [
-      { href: "/competences", libelle: "Compétences & Suivi", court: "Compét.", icone: IconeCompetences },
+      { href: "/competences", libelle: "Compétences", court: "Compét.", icone: IconeCompetences },
     ],
   },
 ];

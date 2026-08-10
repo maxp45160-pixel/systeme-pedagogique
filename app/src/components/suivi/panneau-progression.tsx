@@ -26,11 +26,17 @@ const PERIODES = [
 
 type Periode = (typeof PERIODES)[number];
 
-export async function PanneauProgression({ periode }: { periode: string }) {
+export async function PanneauProgression({
+  periode,
+  base = "/seances",
+}: {
+  periode: string;
+  base?: string;
+}) {
   const p = PERIODES.find((x) => x.cle === periode) ?? PERIODES[1];
   return (
     <>
-      <SelecteurPeriode courante={p} />
+      <SelecteurPeriode courante={p} base={base} />
       <ContenuProgression periode={p} />
     </>
   );
@@ -45,7 +51,7 @@ export async function PanneauProgression({ periode }: { periode: string }) {
  * perdue en silence, alors que le chantier fusionne des écrans sans retirer
  * de fonctionnalité.
  */
-function SelecteurPeriode({ courante }: { courante: Periode }) {
+function SelecteurPeriode({ courante, base }: { courante: Periode; base: string }) {
   return (
     <SelecteurSegmente
       className="mb-4"
@@ -53,7 +59,7 @@ function SelecteurPeriode({ courante }: { courante: Periode }) {
       actif={courante.cle}
       rendreItem={(o, classesItem, estActifItem) => (
         <Link
-          href={`/competences?vue=progression&periode=${o.cle}`}
+          href={`${base}?vue=progression&periode=${o.cle}`}
           aria-current={estActifItem ? "page" : undefined}
           className={classesItem}
         >

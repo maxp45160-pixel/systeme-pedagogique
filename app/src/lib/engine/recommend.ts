@@ -79,14 +79,45 @@ function difficulteDepuisNiveau(etat: SkillState): Difficulte {
   return 5;
 }
 
-function difficulteCible(etat: SkillState, calibration?: Calibration): Difficulte {
+/**
+ * La difficulté à viser pour une compétence — calibration d'abord, niveau à
+ * défaut.
+ *
+ * Exportée depuis le 10/08/2026 pour la composition de séance (`engine/caf.ts`),
+ * qui doit annoncer une difficulté pour une compétence **sans exercice** : elle
+ * n'a alors aucune `Recommandation` d'où la lire. La recopier là-bas aurait posé
+ * une seconde table par niveau, et c'est précisément le genre de doublon qui
+ * dérive sans bruit (ADR-044).
+ */
+export function difficulteVisee(etat: SkillState, calibration?: Calibration): Difficulte {
   return calibration?.difficulteConseillee ?? difficulteDepuisNiveau(etat);
 }
+
+/**
+ * Bonus d'actionnabilité — lot 5, 10/08/2026.
+ *
+ * Départage à score proche vers ce qui se lance immédiatement, sans attendre
+ * une génération. Mesuré le 10/08/2026 : 11 compétences actives sur 77 ont un
+ * exercice, et le classement seul poussait systématiquement vers le
+ * non-couvert (« Jamais évaluée » vaut jusqu'à +70), qui n'a pourtant rien à
+ * servir — la carte « Prochaine action » retombait alors sur « Générer un
+ * exercice » plutôt que « Commencer ».
+ *
+ * ⚠️ **Ce n'est PAS une pénalité sur le non-couvert.** L'absence d'exercice ne
+ * retire rien nulle part ailleurs dans ce calcul — une pénalité serait
+ * l'inverse du besoin (le plan de refonte l'exclut explicitement). C'est un
+ * bonus modeste sur ce qui EST actionnable, du même ordre que « Confiance
+ * faible » (12) ou « Robustesse insuffisante » (14) : assez pour départager un
+ * quasi-ex-aequo, largement insuffisant pour renverser un écart réel comme
+ * « Jamais évaluée » (30 à 70) ou « Due pour révision » (40).
+ */
+export const BONUS_ACTIONNABLE = 10;
 
 function evaluer(
   etat: SkillState,
   etatsParCode: Map<string, SkillState>,
   now: Date,
+  actionnable: boolean,
 ): { valeur: number; facteurs: Facteur[] } {
   const facteurs: Facteur[] = [];
 
@@ -199,6 +230,17 @@ function evaluer(
     });
   }
 
+  // 9. Actionnable — voir `BONUS_ACTIONNABLE`. Calculé par l'appelant (il faut
+  // avoir choisi l'exercice pour le savoir) et simplement injecté ici : cette
+  // fonction reste celle qui écrit tous les facteurs, `raison` incluse.
+  if (actionnable) {
+    facteurs.push({
+      libelle: "Exercice disponible",
+      contribution: BONUS_ACTIONNABLE,
+      phrase: "un exercice existe déjà pour la lancer tout de suite",
+    });
+  }
+
   const valeur = facteurs.reduce((s, f) => s + f.contribution, 0);
   return { valeur, facteurs: facteurs.sort((a, b) => b.contribution - a.contribution) };
 }
@@ -228,11 +270,13 @@ function terminees(exerciceId: string, tentatives: ExerciseAttempt[]): ExerciseA
  *     possible depuis sa fiche, et fait monter la robustesse ; ce n'est
  *     simplement plus une recommandation.
  *
- *  2. DERNIÈRE TENTATIVE ÉCHOUÉE — il ne revient qu'après un **progrès
- *     démontré** sur la compétence visée : une preuve en réussite postérieure
- *     à cet échec. C'est P4 lu dans l'autre sens — une faiblesse ne disparaît
+ *  2. DERNIÈRE TENTATIVE ÉCHOUÉE OU PARTIELLE — il ne revient qu'après un
+ *     **progrès démontré** sur la compétence visée : une preuve en réussite
+ *     postérieure. C'est P4 lu dans l'autre sens — une faiblesse ne disparaît
  *     pas sans démonstration, et elle ne se remesure pas non plus sans qu'il y
- *     ait quelque chose de nouveau à mesurer.
+ *     ait quelque chose de nouveau à mesurer. Reproposer le même exercice qui
+ *     produit le même résultat n'apprend rien de neuf, ni au moteur ni à la
+ *     personne.
  *
  *     Le déclencheur est une CONDITION, pas un délai. Un minuteur reproposerait
  *     au bout de trois jours un exercice hors de portée, sans que rien n'ait
@@ -240,8 +284,21 @@ function terminees(exerciceId: string, tentatives: ExerciseAttempt[]): ExerciseA
  *     qui donnait le sentiment de tourner en rond. Trois jours ne rendent pas
  *     soluble ce qui ne l'était pas.
  *
- *  3. PARTIEL, ou jamais tenté — candidat. Un partiel est un progrès, pas un
- *     mur : il reste proposable, il passe seulement derrière ce qui est neuf.
+ *     ⚠️ Jusqu'au 10/08/2026 (lot 5), seul l'échec était gouverné par cette
+ *     règle — un partiel restait candidat indéfiniment, « parce que c'est un
+ *     progrès, pas un mur ». Observé en production le même jour : deux
+ *     exercices diagnostics (`diag-dev-02`, `diag-tech-01`) ont chacun produit
+ *     deux « partiel » à plusieurs JOURS d'écart, sans qu'aucune condition ne
+ *     les ait fait sortir de la file entre les deux — le même exercice
+ *     reproposé, le même résultat obtenu. C'est la définition même de
+ *     « tourner en rond », et P4 ne distingue pas l'échec du partiel : les
+ *     deux sont un résultat non abouti, et les deux exigent la même
+ *     démonstration avant de revenir. Une compétence qui n'a QUE cet exercice
+ *     se retrouve alors sans candidat — et retombe sur le repli « Générer un
+ *     exercice », qui est exactement la sortie voulue : proposer autre chose
+ *     plutôt que la même impasse.
+ *
+ *  3. JAMAIS TENTÉ — candidat sans condition.
  *
  * Rien n'est stocké : tout se dérive des tentatives et des preuves (P1).
  */
@@ -254,10 +311,7 @@ function recommandable(
   if (passees.length === 0) return true;
   if (passees.some((t) => t.resultat === "reussi")) return false;
 
-  const derniere = passees[0];
-  if (derniere.resultat !== "echec") return true;
-
-  const depuis = dateTentative(derniere);
+  const depuis = dateTentative(passees[0]);
   return etat.preuves.some((p) => p.resultat === "reussi" && p.date > depuis);
 }
 
@@ -342,13 +396,12 @@ export function recommander(
   return etats
     .filter((e) => !refus.codes.has(e.skill.code))
     .map((etat) => {
-      const { valeur, facteurs } = evaluer(etat, parCode, now);
-      // La calibration règle la DIFFICULTÉ ; elle ne re-classe pas les
-      // compétences. `facteurs` reste une liste de contributions chiffrées au
-      // score de priorité — y glisser une entrée à 0 la rendrait illisible.
-      // Le « Pourquoi ? » de l'interface lit `calibration` séparément.
+      // L'exercice se choisit AVANT le score : depuis le lot 5, le score lit
+      // s'il y en a un (`BONUS_ACTIONNABLE`). L'inverser referait de
+      // `difficulteVisee`/`choisirExercice` un calcul à part, potentiellement
+      // désynchronisé du score qu'il vient de nourrir.
       const calibration = calibrations?.get(etat.skill.code) ?? null;
-      const cible = difficulteCible(etat, calibration ?? undefined);
+      const cible = difficulteVisee(etat, calibration ?? undefined);
 
       const { exercice, toutRefuse } = choisirExercice(
         etat,
@@ -357,6 +410,14 @@ export function recommander(
         cible,
         refus.exercices,
       );
+
+      // La calibration règle la DIFFICULTÉ ; elle ne re-classe pas les
+      // compétences au-delà du bonus d'actionnabilité ci-dessus. `facteurs`
+      // reste une liste de contributions chiffrées au score de priorité — y
+      // glisser une entrée à 0 la rendrait illisible. Le « Pourquoi ? » de
+      // l'interface lit `calibration` séparément.
+      const { valeur, facteurs } = evaluer(etat, parCode, now, exercice !== null);
+
       const recommandation: Recommandation = {
         etat,
         valeur,

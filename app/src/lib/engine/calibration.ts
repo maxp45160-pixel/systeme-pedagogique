@@ -5,14 +5,14 @@
  * premiers maillons fonctionnent ; le troisième n'existait pas. Ce n'était pas
  * « on ne peut pas modifier un exercice » — `difficulte` est une colonne
  * éditable — mais que **rien ne relisait la mesure pour régler la génération
- * suivante**. `indicesUtilises`, `dureeMin`, `resultat` et `autoEvaluation`
+ * suivante**. `indicesUtilises`, `dureeMin`, `resultat` et `evaluation`
  * étaient écrits et jamais réexploités.
  *
  * Ce module dérive, pour chaque compétence, deux choses que le tuteur et le
  * moteur de recommandation peuvent utiliser :
  *
  *   1. une DIFFICULTÉ CONSEILLÉE, du résultat × indices × durée observés ;
- *   2. une DIMENSION FAIBLE, de l'auto-évaluation par critère.
+ *   2. une DIMENSION FAIBLE, de l'évaluation par critère.
  *
  * Le second axe est le plus important, et le moins évident. `diag-dev-03` a été
  * échoué avec « comprehension 0.5, application 0 » : la difficulté n'est pas le
@@ -228,20 +228,40 @@ export function dureeDeReference(
   exercice: Pick<Exercise, "id" | "dureeEstimeeMin">,
   tentatives: Pick<ExerciseAttempt, "exerciseId" | "statut" | "dureeMin">[],
 ): DureeReference {
-  const durees = tentatives
-    .filter((t) => t.exerciseId === exercice.id && t.statut === "terminee")
-    .map((t) => t.dureeMin)
-    .filter((d): d is number => typeof d === "number" && Number.isFinite(d) && d > 0)
-    .sort((a, b) => a - b);
+  const durees = dureesMenees(
+    tentatives.filter((t) => t.exerciseId === exercice.id),
+  );
 
   if (durees.length >= OBSERVATIONS_DUREE_MINIMUM) {
-    const milieu = Math.floor(durees.length / 2);
-    const mediane =
-      durees.length % 2 === 0 ? (durees[milieu - 1] + durees[milieu]) / 2 : durees[milieu];
-    return { minutes: mediane, source: "observee", observations: durees.length };
+    return { minutes: mediane(durees), source: "observee", observations: durees.length };
   }
 
   return { minutes: exercice.dureeEstimeeMin, source: "estimee", observations: 0 };
+}
+
+/** Les durées exploitables de tentatives menées, triées. */
+export function dureesMenees(
+  tentatives: Pick<ExerciseAttempt, "statut" | "dureeMin">[],
+): number[] {
+  return tentatives
+    .filter((t) => t.statut === "terminee")
+    .map((t) => t.dureeMin)
+    .filter((d): d is number => typeof d === "number" && Number.isFinite(d) && d > 0)
+    .sort((a, b) => a - b);
+}
+
+/**
+ * Médiane d'une liste **déjà triée** et non vide.
+ *
+ * La médiane, pas la moyenne, partout où ce module compare des durées : sur
+ * deux ou trois points, une séance interrompue à 2 minutes tirerait la moyenne
+ * assez bas pour rendre tout le reste « lent ».
+ */
+export function mediane(triees: number[]): number {
+  const milieu = Math.floor(triees.length / 2);
+  return triees.length % 2 === 0
+    ? (triees[milieu - 1] + triees[milieu]) / 2
+    : triees[milieu];
 }
 
 /** Comment nommer la référence dans une phrase — la source, jamais implicite. */
@@ -336,7 +356,7 @@ export function verdictTentative(
 /* ------------------------------------------------------------------ */
 
 /**
- * La dimension la plus faible des auto-évaluations retenues.
+ * La dimension la plus faible des évaluations retenues.
  *
  * C'est l'axe que la difficulté seule ne capture pas : un échec où
  * `comprehension` tient et `application` s'effondre n'appelle pas un exercice
@@ -351,7 +371,7 @@ export function dimensionLaPlusFaible(
   const cumul = new Map<Dimension, { somme: number; n: number }>();
 
   for (const t of tentatives) {
-    for (const [dim, valeur] of Object.entries(t.autoEvaluation)) {
+    for (const [dim, valeur] of Object.entries(t.evaluation)) {
       if (typeof valeur !== "number") continue;
       const d = dim as Dimension;
       const courant = cumul.get(d) ?? { somme: 0, n: 0 };
@@ -497,7 +517,7 @@ export function calibrer(
   }
   if (dimensionFaible?.observations === 1) {
     reserves.push(
-      "La dimension faible repose sur une seule auto-évaluation : à confirmer par une seconde.",
+      "La dimension faible repose sur une seule évaluation : à confirmer par une seconde.",
     );
   }
 

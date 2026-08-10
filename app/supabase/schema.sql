@@ -262,6 +262,10 @@ CREATE TABLE IF NOT EXISTS public.exercises (
   -- signaler qu'une preuve ancienne porte sur un énoncé qui a changé depuis.
   -- Voir `supabase/migration-exercice-edition.sql` pour une base en service.
   modifie_le          TEXT,
+  -- Pourquoi il a été écrit, pas pourquoi il est servi (voir types.ts). NULL
+  -- pour tout exercice antérieur à ce champ — jamais déduit après coup. Voir
+  -- `supabase/migration-intention-exercice.sql` pour une base en service.
+  intention           TEXT CHECK (intention IS NULL OR intention IN ('decouverte', 'consolidation', 'transfert', 'revision')),
   created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (user_id, id)
 );
@@ -279,7 +283,11 @@ CREATE TABLE IF NOT EXISTS public.attempts (
   duree_min         INTEGER,
   indices_utilises  INTEGER NOT NULL DEFAULT 0,
   reponse           TEXT NOT NULL DEFAULT '',
-  auto_evaluation   JSONB NOT NULL DEFAULT '{}'::jsonb,
+  -- Nommée `auto_evaluation` jusqu'au 10/08/2026. C'est LA mesure de la
+  -- tentative — ce que la personne a validé —, à distinguer de `verdict_tuteur`
+  -- ci-dessous, qui n'est que ce qui lui a été proposé.
+  -- Voir `supabase/migration-seances.sql` § 2 pour une base déjà installée.
+  evaluation        JSONB NOT NULL DEFAULT '{}'::jsonb,
   resultat          TEXT NOT NULL DEFAULT 'partiel',
   statut            TEXT NOT NULL DEFAULT 'en-cours',
   notes             TEXT,
@@ -329,6 +337,24 @@ CREATE TABLE IF NOT EXISTS public.sessions (
   prochaine_action         TEXT,
   note_personnelle         TEXT,
   genere_automatiquement   BOOLEAN NOT NULL DEFAULT false,
+
+  -- Séance composée (ADR-048). Une séance a toujours existé : elle était
+  -- écrite automatiquement à chaque exercice terminé, avec une seule activité.
+  -- Ces quatre colonnes lui donnent N activités et un cycle de vie.
+  --
+  -- `statut` à NULL = séance historique auto-générée, donc terminée. Le domaine
+  -- lit cette absence une seule fois (`statutSeance`, lib/domain/seance.ts) ;
+  -- on ne fabrique pas rétroactivement un statut que personne n'a posé.
+  --
+  -- `besoin_declare` est un fait observé et daté, stocké verbatim, PAS une
+  -- mesure : l'écart avec le réalisé est dérivé à la lecture et jamais agrégé
+  -- en score (ADR-050).
+  statut                   TEXT
+    CHECK (statut IS NULL OR statut IN ('planifiee', 'en-cours', 'terminee')),
+  planifiee_pour           TEXT,
+  besoin_declare           JSONB,
+  blueprint                JSONB,
+
   created_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (user_id, id)
 );

@@ -65,7 +65,7 @@ export function CarteProchaineAction({
           titre="Aucune action à recommander pour l'instant"
           message="Soit tout a déjà été proposé récemment et écarté, soit chaque compétence active a épuisé ses exercices. Explore la bibliothèque, ou reviens plus tard."
           action={
-            <Link href="/exercices" className={classesLienBouton("secondaire")}>
+            <Link href="/seances?vue=bibliotheque" className={classesLienBouton("secondaire")}>
               Parcourir les exercices
             </Link>
           }

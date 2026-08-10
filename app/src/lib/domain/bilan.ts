@@ -24,7 +24,7 @@ export type ValeurAppreciation = 0 | 0.5 | 1;
  *
  * Trois positions et pas cinq : le protocole d'évaluation raisonne en
  * « démontré / partiellement / non démontré ». Une échelle plus fine
- * donnerait une précision que l'auto-évaluation n'a pas.
+ * donnerait une précision que l'évaluation n'a pas.
  */
 export const APPRECIATIONS: { valeur: ValeurAppreciation; libelle: string }[] = [
   { valeur: 0, libelle: "Non" },

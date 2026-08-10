@@ -260,6 +260,29 @@ export type TypeExercice =
   | "simulation"
   | "projet";
 
+/**
+ * Pourquoi cet exercice a été écrit, pas pourquoi il est servi aujourd'hui.
+ *
+ * C'est un fait sur la rédaction — au même titre que `origine` — pas une
+ * mesure ni un signal exploité par le moteur : `recommend.ts` et
+ * `calibration.ts` continuent d'ignorer ce champ. Il existe pour que, le jour
+ * où on voudra comparer l'effet de différentes interventions pédagogiques, la
+ * donnée ait déjà été enregistrée — la reconstituer après coup serait
+ * impossible (les 23 exercices actuels n'en portent aucune, et resteront
+ * `undefined`).
+ *
+ * Optionnel côté schéma du tuteur : une valeur illisible fait échouer la
+ * conversion (`versIntention`), une valeur absente n'en fabrique aucune.
+ */
+export type IntentionExercice = "decouverte" | "consolidation" | "transfert" | "revision";
+
+export const INTENTIONS_EXERCICE: Record<IntentionExercice, string> = {
+  decouverte: "Découverte — première exposition à la compétence.",
+  consolidation: "Consolidation — refaire à niveau égal pour fiabiliser.",
+  transfert: "Transfert — même compétence, contexte inédit.",
+  revision: "Révision — reprise après un délai, contre l'oubli.",
+};
+
 export type Difficulte = 1 | 2 | 3 | 4 | 5;
 
 export const DIFFICULTES: Record<Difficulte, string> = {
@@ -287,7 +310,7 @@ export interface Exercise {
   indices: string[];
   /** Correction complète, révélée seulement après tentative. */
   correction: string;
-  /** Points de contrôle que l'utilisateur coche à l'auto-évaluation. */
+  /** Points de contrôle que l'utilisateur coche à l'évaluation. */
   criteres: { dimension: Dimension; libelle: string }[];
   /** Vrai pour les exercices du plan d'évaluation initiale. */
   diagnostic?: boolean;
@@ -314,6 +337,8 @@ export interface Exercise {
    * depuis — sinon le journal paraît cohérent alors qu'il ne l'est plus.
    */
   modifieLe?: string;
+  /** Pourquoi il a été écrit — voir `IntentionExercice`. Absent = non renseignée. */
+  intention?: IntentionExercice;
 }
 
 export interface ExerciseAttempt {
@@ -325,8 +350,17 @@ export interface ExerciseAttempt {
   /** Nombre d'indices consultés — détermine l'autonomie enregistrée. */
   indicesUtilises: number;
   reponse: string;
-  /** Auto-évaluation par critère, après lecture de la correction. */
-  autoEvaluation: Partial<Record<Dimension, number>>;
+  /**
+   * Évaluation par critère, après lecture de la correction.
+   *
+   * Nommée `autoEvaluation` jusqu'au 10/08/2026. Le préfixe promettait une
+   * chose que le produit ne fait pas : depuis ADR-046 le tuteur propose un
+   * verdict critère par critère, et ce que la personne valide est une
+   * évaluation assistée, pas une auto-évaluation. Le mot est tombé de
+   * l'interface, du champ et de la colonne dans le même geste — un vocabulaire
+   * qui ne survit qu'à moitié à un renommage est pire que celui qu'il remplace.
+   */
+  evaluation: Partial<Record<Dimension, number>>;
   resultat: "reussi" | "partiel" | "echec";
   statut: "en-cours" | "terminee" | "abandonnee";
   notes?: string;
@@ -336,7 +370,7 @@ export interface ExerciseAttempt {
    * Absent quand la personne a rempli son bilan sans assistance, ou quand la
    * colonne n'existe pas encore en base. Ce n'est **pas** une mesure : la
    * mesure est ce que la personne a validé, et elle vit dans `resultat` et
-   * `autoEvaluation`. Ceci est la trace de ce qui lui a été proposé.
+   * `evaluation`. Ceci est la trace de ce qui lui a été proposé.
    */
   verdictTuteur?: VerdictTuteur;
 }
@@ -402,6 +436,91 @@ export interface RefusRecommandation {
   date: string;
 }
 
+/**
+ * Où en est une séance. Absent en base = séance historique, donc terminée.
+ *
+ * `statutSeance` (lib/domain/seance.ts) est le seul endroit qui interprète
+ * cette absence : les 45 séances auto-générées avant le 10/08/2026 n'ont pas de
+ * statut, et leur en fabriquer un à la lecture serait moins clair que de dire
+ * une fois, au bon endroit, ce que l'absence signifie.
+ */
+export type StatutSeance = "planifiee" | "en-cours" | "terminee";
+
+/**
+ * Ce que la personne DÉCLARE vouloir, avant de travailler.
+ *
+ * C'est un fait observé — « le 10/08 à 9 h, elle a écrit ceci » — au même titre
+ * qu'une tentative ou une preuve, et c'est la seule raison pour laquelle il a le
+ * droit d'être stocké (P1). Ce n'est PAS une mesure sur la personne : rien ici
+ * n'est noté, agrégé ou comparé à un barème.
+ *
+ * Ce qu'on en tire — l'écart entre le déclaré et le réalisé — est **dérivé** à
+ * la lecture par `ecartBesoinRealise`, et affiché avec les deux valeurs qui le
+ * composent. Il n'existe volontairement aucun « indice de biais » : ce serait un
+ * nombre sur quelqu'un, sans preuve, exactement ce que P3 interdit.
+ */
+export interface BesoinDeclare {
+  /** Écrit par la personne, mot pour mot. Jamais rédigé ni reformulé par le tuteur. */
+  intention: string;
+  /** Les codes qu'elle dit vouloir travailler. Peut diverger du blueprint, et c'est le point. */
+  codesVises: string[];
+  /** Minutes dont elle dit disposer. Déclaration, pas chronométrage. */
+  tempsDisponibleMin: number;
+  /** Date de la déclaration (ISO). C'est elle qui en fait un fait daté. */
+  declareLe: string;
+}
+
+/** Une compétence retenue par l'assemblage, avec la difficulté visée et sa raison. */
+export interface CibleSeance {
+  code: string;
+  difficulte: Difficulte;
+  /** Phrase citant ce qui a fait retenir cette compétence — jamais un texte d'avance (P3). */
+  raison: string;
+}
+
+/** Sur quoi porte la séance : un seul domaine, ou plusieurs. */
+export type PorteeSeance =
+  | { type: "mono"; domaine: DomaineId }
+  | { type: "transverse"; domaines: DomaineId[] };
+
+/**
+ * Le cahier des charges qui a produit la composition d'une séance.
+ *
+ * Conservé avec la séance pour une raison de traçabilité, pas de calcul : sans
+ * lui, on ne saurait plus, en relisant une séance passée, si elle contenait
+ * trois exercices parce que c'était demandé ou parce que le stock s'est arrêté
+ * là. Le moteur ne le relit jamais pour en dériver quoi que ce soit.
+ */
+export interface BlueprintSeance {
+  dureeCibleMin: number;
+  nombreExercices: number;
+  portee: PorteeSeance;
+  cibles: CibleSeance[];
+}
+
+/**
+ * Ce qu'on DEMANDE à l'assemblage — le blueprint avant qu'il soit rempli.
+ *
+ * Jamais persisté : `composerSeance` (lib/engine/caf.ts) en dérive un
+ * `BlueprintSeance` complet, cibles comprises, et c'est celui-là qui est écrit
+ * avec la séance. Séparer les deux évite un état intermédiaire ambigu — un
+ * blueprint dont les cibles seraient vides parce qu'on ne les a pas encore
+ * calculées, ou parce que rien n'a été trouvé.
+ */
+export interface DemandeSeance {
+  dureeCibleMin: number;
+  nombreExercices: number;
+  portee: PorteeSeance;
+  /**
+   * Codes que la personne a explicitement visés dans son besoin déclaré.
+   *
+   * Ils passent devant le classement du moteur : c'est ce qui fait du besoin
+   * déclaré autre chose qu'un formulaire décoratif. Un code imposé qui n'a
+   * aucun exercice devient un manquant, pas un silence.
+   */
+  codesImposes?: string[];
+}
+
 export interface LearningSession {
   id: string;
   date: string;
@@ -422,6 +541,18 @@ export interface LearningSession {
   notePersonnelle?: string;
   /** Vrai si l'entrée a été produite par le système à partir d'événements. */
   genereAutomatiquement: boolean;
+
+  /* --- Séance composée (ADR-048, 10/08/2026) ------------------------- */
+
+  /**
+   * Absent sur les 45 séances écrites avant cette date : elles sont terminées,
+   * et `statutSeance` le dit une fois pour toutes plutôt que chaque appelant.
+   */
+  statut?: StatutSeance;
+  /** Date/heure prévue (ISO). Absente : la séance n'a pas été planifiée à l'avance. */
+  planifieePour?: string;
+  besoinDeclare?: BesoinDeclare;
+  blueprint?: BlueprintSeance;
 }
 
 /** Photographie périodique, pour tracer l'évolution sans recalculer le passé. */

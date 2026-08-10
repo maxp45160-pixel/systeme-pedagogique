@@ -27,7 +27,7 @@
  * du compte, et lui seul peut le faire.
  */
 
-import type { Difficulte, Dimension, TypeExercice } from "@/lib/domain/types";
+import type { Difficulte, Dimension, IntentionExercice, TypeExercice } from "@/lib/domain/types";
 import {
   DIFFICULTE_MAX,
   DIFFICULTE_MIN,
@@ -46,6 +46,8 @@ const TYPES: TypeExercice[] = [
   "simulation",
   "projet",
 ];
+
+const INTENTIONS: IntentionExercice[] = ["decouverte", "consolidation", "transfert", "revision"];
 
 const DIMENSIONS: Dimension[] = [
   "comprehension",
@@ -83,6 +85,8 @@ export interface ExerciceEnregistrable {
   indices: string[];
   correction: string;
   criteres: { dimension: Dimension; libelle: string }[];
+  /** Absente = non renseignée. Jamais déduite (P2). */
+  intention?: IntentionExercice;
 }
 
 /** Normalise pour comparaison : sans accent, sans casse, tirets unifiés. */
@@ -110,6 +114,19 @@ export function versType(brut: string): TypeExercice | null {
 export function versDimension(brut: string): Dimension | null {
   const candidat = nu(brut);
   return DIMENSIONS.find((d) => d === candidat) ?? null;
+}
+
+/**
+ * Vide → absente, jamais une erreur : `intention` est optionnelle. Une valeur
+ * non vide mais hors liste, en revanche, fait échouer la conversion — même
+ * règle que `versType` et `versDimension`, aucune valeur illisible ne
+ * disparaît en silence.
+ */
+export function versIntention(brut: string): IntentionExercice | null | undefined {
+  const trimmed = brut.trim();
+  if (!trimmed) return undefined;
+  const candidat = nu(trimmed);
+  return INTENTIONS.find((i) => i === candidat) ?? null;
 }
 
 /**
@@ -182,6 +199,11 @@ export function convertirProposition(
   }
   if (criteres.length === 0) erreurs.push("Aucun critère exploitable.");
 
+  const intention = versIntention(p.intention ?? "");
+  if (intention === null) {
+    erreurs.push(`Intention illisible : « ${p.intention} ».`);
+  }
+
   if (erreurs.length > 0) return { ok: false, erreurs };
 
   return {
@@ -196,6 +218,7 @@ export function convertirProposition(
       indices: p.indices.map((i) => i.trim()).filter(Boolean),
       correction,
       criteres,
+      ...(intention ? { intention } : {}),
     },
   };
 }

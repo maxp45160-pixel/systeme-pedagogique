@@ -25,7 +25,7 @@ const AIDES: { valeur: AideExterne; libelle: string }[] = [
 ];
 
 /**
- * Auto-évaluation après lecture de la correction.
+ * Évaluation après lecture de la correction.
  *
  * L'utilisateur juge sa performance critère par critère ; le système en tire
  * les dimensions de la preuve. Il ne choisit PAS son niveau d'autonomie :
@@ -121,9 +121,9 @@ export function FormulaireBilan({
       if (v === undefined) return;
       parDimension.set(c.dimension, [...(parDimension.get(c.dimension) ?? []), v]);
     });
-    const autoEvaluation: Partial<Record<Dimension, number>> = {};
+    const evaluation: Partial<Record<Dimension, number>> = {};
     for (const [d, valeurs] of parDimension) {
-      autoEvaluation[d] = valeurs.reduce((s, v) => s + v, 0) / valeurs.length;
+      evaluation[d] = valeurs.reduce((s, v) => s + v, 0) / valeurs.length;
     }
 
     demarrer(async () => {
@@ -132,7 +132,7 @@ export function FormulaireBilan({
           attemptId,
           exerciseId: exercice.id,
           resultat,
-          autoEvaluation,
+          evaluation,
           dureeMin: duree,
           notes: notes.trim() || undefined,
           aideExterne: aide,

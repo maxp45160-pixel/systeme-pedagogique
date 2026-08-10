@@ -9,15 +9,11 @@ import {
   BandeauInfo,
   Carte,
   Etiquette,
-  SelecteurSegmente,
   Statistique,
 } from "@/components/ui/primitives";
 import { RepartitionNiveaux } from "@/components/charts";
 import { formatDateRelative } from "@/lib/engine/dates";
-import { BoutonAjouterCompetence } from "@/components/referentiel/bouton-ajouter";
 import { BoutonCreerReferentiel } from "@/components/referentiel/modale-referentiel";
-import { PanneauProgression } from "@/components/suivi/panneau-progression";
-import { PanneauJournal } from "@/components/suivi/panneau-journal";
 
 /**
  * Page Compétences — version épurée (R5).
@@ -27,49 +23,16 @@ import { PanneauJournal } from "@/components/suivi/panneau-journal";
  * gestion — vivent dans la sous-page `/competences/domaine/[id]`.
  */
 
-type Vue = "accueil" | "progression" | "journal";
-
-const VUES: { cle: Vue; libelle: string }[] = [
-  { cle: "accueil", libelle: "Compétences" },
-  { cle: "progression", libelle: "Progression" },
-  { cle: "journal", libelle: "Journal" },
-];
-
-export default async function PageCompetences(props: {
-  searchParams: Promise<{ vue?: string; periode?: string; recherche?: string }>;
-}) {
-  const { vue: vueBrute, periode, recherche } = await props.searchParams;
-  const vue: Vue =
-    vueBrute === "progression"
-      ? "progression"
-      : vueBrute === "journal"
-        ? "journal"
-        : "accueil";
-
+export default async function PageCompetences() {
   return (
     <>
       <EntetePage
         titre="Compétences"
         sousTitre="Tes grands domaines de travail. Clique sur un domaine pour voir ses compétences et les gérer."
-        actions={
-          <SelecteurSegmente
-            options={VUES.map((v) => ({ cle: v.cle, libelle: v.libelle }))}
-            actif={vue}
-            rendreItem={(o, classesItem, estActifItem) => (
-              <Link
-                href={`/competences${o.cle === "accueil" ? "" : `?vue=${o.cle}`}`}
-                aria-current={estActifItem ? "page" : undefined}
-                className={classesItem}
-              >
-                {o.libelle}
-              </Link>
-            )}
-          />
-        }
       />
 
-      <Suspense key={`${vue}-${periode ?? ""}-${recherche ?? ""}`} fallback={<SqueletteContenu />}>
-        <ContenuCompetences vue={vue} periode={periode ?? "mois"} recherche={recherche} />
+      <Suspense fallback={<SqueletteContenu />}>
+        <ContenuCompetences />
       </Suspense>
     </>
   );
@@ -115,29 +78,8 @@ function BandeauPerimetre({ referentiel }: { referentiel: Referentiel }) {
   );
 }
 
-async function ContenuCompetences({
-  vue,
-  periode,
-  recherche,
-}: {
-  vue: Vue;
-  periode: string;
-  recherche?: string;
-}) {
+async function ContenuCompetences() {
   const ctx = await chargerContexte();
-  const domainesExistants = ctx.referentiel.domaines.map((d) => ({
-    id: d.id,
-    nom: d.nom,
-    prefixe: d.prefixe,
-  }));
-
-  if (vue === "progression") {
-    return <PanneauProgression periode={periode} />;
-  }
-
-  if (vue === "journal") {
-    return <PanneauJournal recherche={recherche} />;
-  }
 
   return (
     <div className="space-y-6">
@@ -145,7 +87,6 @@ async function ContenuCompetences({
       <VueDomaines
         etats={ctx.etats}
         referentiel={ctx.referentiel}
-        domainesExistants={domainesExistants}
         compteId={ctx.donnees.user.id}
       />
     </div>
@@ -164,12 +105,10 @@ async function ContenuCompetences({
 function VueDomaines({
   etats,
   referentiel,
-  domainesExistants,
   compteId,
 }: {
   etats: SkillState[];
   referentiel: Referentiel;
-  domainesExistants: { id: string; nom: string; prefixe: string }[];
   compteId: string;
 }) {
   const parDomaine = referentiel.domaines
@@ -271,12 +210,6 @@ function VueDomaines({
                     </div>
                   )}
                 </div>
-                <BoutonAjouterCompetence
-                  domainesExistants={domainesExistants}
-                  compteId={compteId}
-                  domaineInitial={domaine.nom}
-                  libelle="+ Compétence"
-                />
               </div>
             </div>
           </Carte>

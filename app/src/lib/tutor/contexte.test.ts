@@ -122,7 +122,7 @@ function tentativeDeTest(options: Partial<ExerciseAttempt> = {}): ExerciseAttemp
     debut: "2026-07-29T09:00:00.000Z",
     indicesUtilises: 1,
     reponse: "",
-    autoEvaluation: {},
+    evaluation: {},
     resultat: "partiel",
     statut: "en-cours",
     ...options,

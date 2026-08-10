@@ -1108,7 +1108,7 @@ Et un document produit du même dépôt, tel quel :
 
 function soumettre() {
   demarrer(async () => {
-    await terminerExercice({ attemptId, exerciseId: exercice.id, resultat, autoEvaluation, dureeMin: duree });
+    await terminerExercice({ attemptId, exerciseId: exercice.id, resultat, evaluation, dureeMin: duree });
   });
 }
 \`\`\`

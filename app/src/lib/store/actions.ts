@@ -26,6 +26,7 @@ import {
   motifRefusExercice,
 } from "@/lib/domain/exercice";
 import { motifRefusTerminerExercice } from "@/lib/domain/tentative";
+import { seanceEnCoursPour } from "@/lib/domain/seance";
 import {
   autonomieObservee,
   LIBELLE_AIDE,
@@ -49,6 +50,27 @@ import type {
 /* Exercices                                                           */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Cet exercice appartient-il à une séance en cours ?
+ *
+ * Les trois clôtures de tentative écrivent chacune une entrée de journal — une
+ * séance mono-exercice, comportement d'origine et toujours correct hors séance.
+ * Depuis ADR-048 une séance composée est **elle-même** cette entrée : la laisser
+ * en produire une seconde ferait compter deux fois le même travail, dans le
+ * journal comme dans le bandeau d'activité, et le défaut serait invisible
+ * puisque les deux lignes seraient exactes prises séparément.
+ *
+ * La règle vit dans `seanceEnCoursPour` (pur, testé) : les trois appelants
+ * posent la même question, et une seule fonction y répond.
+ */
+async function appartientAUneSeanceEnCours(
+  exerciceId: string,
+  dorsale: Awaited<ReturnType<typeof dorsaleCompte>>,
+): Promise<boolean> {
+  const seances = await lire("sessions", dorsale);
+  return seanceEnCoursPour(exerciceId, seances) !== null;
+}
+
 export async function demarrerTentative(exerciseId: string): Promise<void> {
   const dorsale = await dorsaleCompte();
   const existantes = await lire("attempts", dorsale);
@@ -62,7 +84,7 @@ export async function demarrerTentative(exerciseId: string): Promise<void> {
       debut: new Date().toISOString(),
       indicesUtilises: 0,
       reponse: "",
-      autoEvaluation: {},
+      evaluation: {},
       resultat: "partiel",
       statut: "en-cours",
     } satisfies ExerciseAttempt, dorsale);
@@ -97,7 +119,7 @@ export interface SoumissionExercice {
   attemptId: string;
   exerciseId: string;
   resultat: "reussi" | "partiel" | "echec";
-  autoEvaluation: Partial<Record<Dimension, number>>;
+  evaluation: Partial<Record<Dimension, number>>;
   dureeMin: number;
   notes?: string;
   /**
@@ -113,7 +135,7 @@ export interface SoumissionExercice {
    * Le verdict que le tuteur avait proposé, s'il y en a eu un (ADR-046).
    *
    * Il n'entre dans **aucun** calcul : la mesure reste `resultat` et
-   * `autoEvaluation`, c'est-à-dire ce que la personne a validé. Il est archivé
+   * `evaluation`, c'est-à-dire ce que la personne a validé. Il est archivé
    * pour deux usages — qu'elle puisse le relire, et que le tuteur retrouve
    * plus tard ce qu'il avait observé.
    */
@@ -142,7 +164,7 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
    *
    * La fonction écrivait d'abord la tentative puis lisait la valeur de retour
    * pour connaître `indicesUtilises`. Un refus placé après aurait laissé une
-   * tentative close, avec sa durée et son auto-évaluation, sans preuve pour
+   * tentative close, avec sa durée et son évaluation, sans preuve pour
    * l'expliquer — une trace à moitié écrite, plus difficile à lire qu'une
    * absence de trace.
    *
@@ -180,12 +202,16 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
     exercice,
   );
 
+  // Lu une fois pour les deux branches de sortie : dans une séance, c'est la
+  // séance qui tient le journal (ADR-048).
+  const dansUneSeance = await appartientAUneSeanceEnCours(exercice.id, dorsale);
+
   // La tentative renvoyée est celle qui vient d'être écrite : `indicesUtilises`
   // s'y lit sans relecture, et c'est lui qui détermine l'autonomie observée.
   const tentative = await modifier("attempts", soumission.attemptId, {
     fin: date,
     dureeMin: soumission.dureeMin,
-    autoEvaluation: soumission.autoEvaluation,
+    evaluation: soumission.evaluation,
     resultat: soumission.resultat,
     statut: (menee ? "terminee" : "abandonnee") as "terminee" | "abandonnee",
     notes: soumission.notes,
@@ -195,7 +221,8 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
   if (!menee) {
     // Le journal d'activité, lui, enregistre ce qui s'est passé : la minute
     // passée est un fait, et la taire ferait disparaître l'abandon du suivi.
-    await ajouter("sessions", {
+    // Sauf dans une séance : l'entrée de journal existe déjà, c'est elle.
+    if (!dansUneSeance) await ajouter("sessions", {
       id: nouvelId("ses"),
       date,
       dureeMin: soumission.dureeMin,
@@ -238,7 +265,7 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
     qualite,
     resultat: soumission.resultat,
     contexte: exercice.titre,
-    dimensions: soumission.autoEvaluation,
+    dimensions: soumission.evaluation,
     competencesCombinees:
       exercice.competences.length > 1
         ? exercice.competences.filter((c) => c !== code)
@@ -256,7 +283,8 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
   await ajouterPlusieurs("evidence", preuves, dorsale);
 
   // Une entrée de journal est produite automatiquement (instructions §15 :
-  // la maintenance du système se fait en arrière-plan).
+  // la maintenance du système se fait en arrière-plan) — sauf si l'exercice
+  // appartient à une séance en cours, qui est déjà cette entrée (ADR-048).
   const session: LearningSession = {
     id: nouvelId("ses"),
     date,
@@ -276,7 +304,7 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
     notePersonnelle: soumission.notes,
     genereAutomatiquement: true,
   };
-  await ajouter("sessions", session, dorsale);
+  if (!dansUneSeance) await ajouter("sessions", session, dorsale);
 
   await archiverVerdict(soumission, date, dorsale);
 
@@ -331,7 +359,7 @@ async function archiverVerdict(
  *
  * Il en existait deux, et tous deux passaient par `terminerExercice` : la
  * preuve écrite, et l'abandon *dérivé* d'une durée dérisoire (`tentativeMenee`,
- * ADR-030). Les deux exigent une auto-évaluation, donc un bilan ouvert, donc
+ * ADR-030). Les deux exigent une évaluation, donc un bilan ouvert, donc
  * — depuis la règle de la réponse écrite — une réponse rédigée. Une tentative
  * qu'on ne veut pas mener n'aurait plus eu de sortie : elle serait restée
  * `en-cours` indéfiniment, et l'exercice se serait affiché « en cours » pour
@@ -343,7 +371,7 @@ async function archiverVerdict(
  *   il exige qu'on ait essayé ; un abandon dit seulement qu'on n'a pas essayé.
  *   Les confondre ferait tomber un niveau sur un renoncement (P2, et c'est
  *   exactement le défaut du 01/08/2026 corrigé par ADR-030).
- * - **aucun `resultat`.** L'utilisateur ne s'est pas auto-évalué : lui prêter
+ * - **aucun `resultat`.** L'utilisateur ne s'est pas évalué : lui prêter
  *   un « partiel » par défaut serait fabriquer la mesure qu'on refuse d'écrire.
  *   C'est sans danger pour la calibration, qui ne lit que les tentatives
  *   `terminee` (`calibrer`, `recommend`, `usageExercice` filtrent toutes).
@@ -375,7 +403,8 @@ export async function abandonnerExercice(
   );
   if (!tentative) throw new Error("Tentative introuvable");
 
-  await ajouter(
+  // Dans une séance, l'entrée de journal existe déjà : c'est la séance (ADR-048).
+  if (!(await appartientAUneSeanceEnCours(exercice.id, dorsale))) await ajouter(
     "sessions",
     {
       id: nouvelId("ses"),
@@ -419,6 +448,8 @@ export interface SoumissionExerciceManuel {
    * relit (P3). Il est affiché dans la liste des exercices.
    */
   origine?: Extract<Exercise["origine"], "tuteur" | "manuel">;
+  /** Pourquoi il a été écrit — voir `IntentionExercice`. Absente si non renseignée. */
+  intention?: Exercise["intention"];
 }
 
 /**
@@ -462,6 +493,7 @@ export async function creerExercice(soumission: SoumissionExerciceManuel): Promi
     // « seed » est réservé aux exercices livrés avec le logiciel : une écriture
     // depuis l'interface ne peut jamais s'en réclamer.
     origine: soumission.origine === "tuteur" ? "tuteur" : "manuel",
+    ...(soumission.intention ? { intention: soumission.intention } : {}),
   };
   await ajouter("exercises", exercice, dorsale);
   revalidatePath("/", "layout");
@@ -531,6 +563,9 @@ export async function modifierExercice(soumission: SoumissionEditionExercice): P
       indices: soumission.indices.filter((i) => i.trim().length > 0),
       correction: soumission.correction,
       criteres: soumission.criteres,
+      // L'écran d'édition ne propose pas encore ce champ : ne pas l'écraser
+      // avec `undefined` si une intention avait été enregistrée à la création.
+      ...(soumission.intention ? { intention: soumission.intention } : {}),
       modifieLe: new Date().toISOString(),
     },
     dorsale,

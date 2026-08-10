@@ -37,7 +37,7 @@ function tent(
     dureeMin: 30,
     indicesUtilises: 0,
     reponse: "…",
-    autoEvaluation: {},
+    evaluation: {},
     resultat: options.resultat ?? "partiel",
     statut: options.statut ?? "terminee",
   };

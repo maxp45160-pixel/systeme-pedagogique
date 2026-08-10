@@ -467,7 +467,7 @@ export function ModaleExercice({
                     {p.criteres.length > 0 && (
                       <div className="mt-2.5">
                         <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
-                          Critères d&apos;auto-évaluation
+                          Critères d&apos;évaluation
                         </p>
                         <ul className="mt-1 space-y-0.5 text-xs text-texte-attenue">
                           {p.criteres.map((c, j) => (

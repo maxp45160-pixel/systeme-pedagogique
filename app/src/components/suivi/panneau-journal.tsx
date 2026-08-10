@@ -11,16 +11,31 @@ import {
   EtatVide,
   Statistique,
 } from "@/components/ui/primitives";
+import { seanceALieu } from "@/lib/domain/seance";
 import { calculerActivite, evenementsRecents } from "@/lib/engine/historique";
 import { cleJour, formatDateCourte, formatDuree } from "@/lib/engine/dates";
 
-export async function PanneauJournal({ recherche: requete }: { recherche?: string }) {
+export async function PanneauJournal({
+  recherche: requete,
+  base = "/seances",
+}: {
+  recherche?: string;
+  base?: string;
+}) {
   const ctx = await chargerContexte();
   const activite = calculerActivite(ctx.donnees.sessions, ctx.now);
   const evenements = evenementsRecents(ctx.donnees.evidence, ctx.referentiel.parCode, 200, ctx.now);
 
+  /*
+    Le journal dit ce qui s'est PASSÉ : une séance planifiée n'y a pas sa place
+    (ADR-048). Sans ce filtre, une séance prévue pour jeudi apparaîtrait jeudi
+    en tête du journal, indiscernable d'un travail effectué, et le total affiché
+    plus bas compterait une séance de plus qu'il n'y en a eu.
+  */
+  const eues = ctx.donnees.sessions.filter(seanceALieu);
+
   // Filtrage par recherche textuelle (Chantier 6).
-  let sessions = [...ctx.donnees.sessions].sort((a, b) => b.date.localeCompare(a.date));
+  let sessions = [...eues].sort((a, b) => b.date.localeCompare(a.date));
   if (requete?.trim()) {
     const q = requete.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
     sessions = sessions.filter((s) => {
@@ -77,7 +92,7 @@ export async function PanneauJournal({ recherche: requete }: { recherche?: strin
    * ineffaçable depuis l'interface, et le message prévu pour ce cas était du
    * code mort.
    */
-  const journalVide = ctx.donnees.sessions.length === 0;
+  const journalVide = eues.length === 0;
 
   return (
     <>
@@ -87,7 +102,7 @@ export async function PanneauJournal({ recherche: requete }: { recherche?: strin
             titre="Journal vide"
             message="Une entrée est créée automatiquement à chaque exercice terminé : date, domaine, durée, résultat et difficulté rencontrée. Tu pourras y ajouter une note personnelle."
             action={
-              <Link href="/exercices" className="text-xs text-primaire hover:underline">
+              <Link href="/seances?vue=bibliotheque" className="text-xs text-primaire hover:underline">
                 Commencer un exercice
               </Link>
             }
@@ -96,7 +111,7 @@ export async function PanneauJournal({ recherche: requete }: { recherche?: strin
       ) : (
         <div className="space-y-4">
           {/* Barre de recherche (Chantier 6) */}
-          <form className="relative" action="/competences" method="GET">
+          <form className="relative" action={base} method="GET">
             <input type="hidden" name="vue" value="journal" />
             <input
               type="search"
@@ -123,7 +138,7 @@ export async function PanneauJournal({ recherche: requete }: { recherche?: strin
                 Aucune séance ne correspond à « {requete} ».
               </p>
               <Link
-                href="/competences?vue=journal"
+                href={`${base}?vue=journal`}
                 className="mt-1 inline-block text-xs text-primaire hover:underline"
               >
                 Effacer la recherche
@@ -134,7 +149,7 @@ export async function PanneauJournal({ recherche: requete }: { recherche?: strin
           {filtre && sessions.length > 0 && (
             <p className="text-xs text-texte-attenue">
               {sessions.length} séance{sessions.length > 1 ? "s" : ""} sur{" "}
-              {ctx.donnees.sessions.length}
+              {eues.length}
             </p>
           )}
 
@@ -144,7 +159,7 @@ export async function PanneauJournal({ recherche: requete }: { recherche?: strin
               <Statistique
                 libelle={filtre ? "Séances trouvées" : "Séances enregistrées"}
                 valeur={sessions.length}
-                precision={filtre ? `sur ${ctx.donnees.sessions.length} au total` : undefined}
+                precision={filtre ? `sur ${eues.length} au total` : undefined}
               />
               <Statistique
                 libelle="Temps cumulé"

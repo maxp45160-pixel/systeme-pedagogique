@@ -127,7 +127,7 @@ export default async function PageExercice(props: {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <LienRetour href="/exercices" libelle="Tous les exercices" />
+      <LienRetour href="/seances?vue=bibliotheque" libelle="Tous les exercices" />
 
       {/*
         Abandon : aucune preuve écrite, et il faut le dire.
@@ -501,7 +501,7 @@ export default async function PageExercice(props: {
             {/*
               -------------------- Acte : Comparer ---------------------------
               Correction visible, réponse et indices repliés (ci-dessus).
-              L'auto-évaluation n'apparaît qu'après un clic explicite — avant
+              L'évaluation n'apparaît qu'après un clic explicite — avant
               ce chantier, révéler la correction affichait AUSSI le formulaire
               de bilan dans le même geste.
             */}
@@ -522,13 +522,13 @@ export default async function PageExercice(props: {
                   <div className="px-4 py-3.5">
                     <p className="text-sm">
                       Relis ta méthode à côté de la correction. Quand tu es prêt, passe à
-                      l&apos;auto-évaluation — c&apos;est cette étape qui produit la preuve.
+                      l&apos;évaluation — c&apos;est cette étape qui produit la preuve.
                     </p>
                     <Link
                       href={`/exercices/${exercice.id}?evaluer=1`}
                       className={cx(classesLienBouton("principal"), "mt-3")}
                     >
-                      Passer à l&apos;auto-évaluation
+                      Passer à l&apos;évaluation
                       <IconeFleche className="size-4" />
                     </Link>
                   </div>
@@ -576,7 +576,7 @@ export default async function PageExercice(props: {
                   <Carte accent>
                     <EnTeteCarte
                       id="titre-mesurer"
-                      titre="Auto-évaluation"
+                      titre="Évaluation"
                       legende="C'est cette étape qui produit la preuve"
                     />
                     <div className="px-4 py-3.5">
@@ -600,7 +600,7 @@ export default async function PageExercice(props: {
                   <Carte>
                     <EnTeteCarte
                       id="titre-mesurer"
-                      titre="Auto-évaluation"
+                      titre="Évaluation"
                       legende="Elle attend ta réponse écrite"
                     />
                     <div className="px-4 py-3.5">
@@ -710,7 +710,7 @@ export default async function PageExercice(props: {
                   <BilanRedigeVue
                     bilan={derniereTerminee.verdictTuteur.bilan}
                     titre="Sa lecture de ta réponse"
-                    legende="Il proposait ; c'est ton auto-évaluation qui a été enregistrée."
+                    legende="Il proposait ; c'est ton évaluation qui a été enregistrée."
                   />
                 </div>
               </Carte>

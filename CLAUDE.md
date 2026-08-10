@@ -94,13 +94,13 @@ pratique et développer un sujet à long terme.
   deux cas. Sans moteur configuré : 503 et repli « copier le contexte ».
 - **Styles :** Tailwind CSS v4 ; **graphiques SVG écrits à la main**, aucune
   librairie UI tierce
-- **Tests :** Vitest — **556 tests**, 24 fichiers (moteur, répétition espacée,
-  calibration, backend Supabase, référentiel par compte, cycle de vie des
-  exercices, profil, parseurs de propositions, outils du tuteur, contexte du
-  tuteur, amorces du tuteur, sélection du moteur du tuteur, génération sans
-  conversation, suggestion de branche, conversion d'exercice, conversion de
-  correction, prompt de correction, règle de la réponse écrite, découpage
-  markdown, formules)
+- **Tests :** Vitest — **617 tests**, 26 fichiers (moteur, répétition espacée,
+  calibration, **assemblage CAF**, **séance**, backend Supabase, référentiel par
+  compte, cycle de vie des exercices, profil, parseurs de propositions, outils
+  du tuteur, contexte du tuteur, amorces du tuteur, sélection du moteur du
+  tuteur, génération sans conversation, suggestion de branche, conversion
+  d'exercice, conversion de correction, prompt de correction, règle de la
+  réponse écrite, découpage markdown, formules)
 - **Déploiement :** Vercel (Root Directory = `app`)
 - **Gestionnaire de paquets :** npm (workspace racine → `app/`)
 - **Outillage :** serveur MCP Supabase (`.mcp.json`)
@@ -137,18 +137,39 @@ un `CHECK BETWEEN 1 AND 5` (ADR-034), et la colonne `exercises.archive` apparaî
 (ADR-035). `schema.sql` porte les mêmes définitions pour une installation neuve.
 Inutile de le rejouer.
 
-⏳ **`supabase/migration-exercice-edition.sql` reste À APPLIQUER** (09/08/2026,
-ADR-047). Additive et idempotente : ajoute `exercises.modifie_le` (TEXT), la
-date de dernière correction du contenu. Sans elle, l'édition écrit tout sauf
-cette date. Peut être collée à la suite de la migration ci-dessous — les deux
-sont idempotentes et l'ordre n'importe pas.
+✅ **`migration-verdict.sql` et `migration-exercice-edition.sql` sont
+appliquées.** Vérifié en base le 10/08/2026 : `attempts.verdict_tuteur` et
+`exercises.modifie_le` existent. Cette section les annonçait « À APPLIQUER » —
+le texte datait d'avant leur exécution. Inutile de les rejouer.
 
-⏳ **`supabase/migration-verdict.sql` reste À APPLIQUER** (09/08/2026, ADR-046).
-Additive et idempotente, sans `DROP` : ajoute `attempts.verdict_tuteur` (JSONB),
-où le verdict du tuteur est archivé. Tant qu'elle n'est pas passée,
-l'application tourne à l'identique — `archiverVerdict` est délibérément non
-bloquante et se contente d'un avertissement en journal. Aucun verdict n'est
-conservé jusque-là, donc aucune détection de motifs.
+⏳ **`supabase/migration-seances.sql` reste À APPLIQUER** (10/08/2026, ADR-048).
+Deux parties, et elles n'ont pas le même régime :
+
+- **§1, additif et idempotent** : quatre colonnes sur `sessions` (`statut`,
+  `planifiee_pour`, `besoin_declare`, `blueprint`). Sans urgence — tant qu'il
+  n'est pas passé, aucune séance composée ne peut être écrite et le reste de
+  l'application tourne à l'identique.
+- **🔴 §2, un `RENAME`** : `attempts.auto_evaluation` devient
+  `attempts.evaluation` (ADR-046, vocabulaire). Il préserve les données et sa
+  garde le rend rejouable, mais **il casse le code déployé** entre son exécution
+  et la mise en ligne : l'ancienne version écrit une colonne qui n'existe plus,
+  et lit une évaluation qui arrive sous un autre nom. **Appliquer la migration
+  et déployer dans la même fenêtre.**
+
+⏳ **`supabase/migration-intention-exercice.sql` reste À APPLIQUER** (lot 2,
+Cline). Additive et idempotente, sans urgence : ajoute `exercises.intention`
+(TEXT, `decouverte|consolidation|transfert|revision`) — pourquoi un exercice a
+été **écrit**, pas pourquoi il est servi aujourd'hui. Le champ TypeScript
+`Exercise.intention` est optionnel et déjà lu par `versColonne` sans exception ;
+tant que la colonne n'existe pas, l'écriture l'omet simplement (`ligneVersEntite`
+laisse `undefined`). Peut s'appliquer indépendamment de `migration-seances.sql`,
+dans n'importe quel ordre.
+
+Le renommage ne pouvait pas être évité côté code : `versColonne`
+(`supabase-backend.ts`) convertit camelCase → snake_case **sans table
+d'exceptions**, volontairement. Renommer le champ TypeScript sans la colonne
+aurait cassé l'écriture en silence ; ajouter une exception aurait ouvert la
+table que ce module refuse d'avoir.
 
 ✅ **Migration du référentiel appliquée.** Vérifié le 07/08/2026 :
 `evidence_competence_fk` **est posée** en base et **aucune preuve n'est
@@ -401,6 +422,35 @@ immuable — c'est la clé étrangère des preuves.
   paresseux**. Un `useEffect` qui recopie la prop écraserait les modifications
   de l'utilisateur au moindre re-rendu : on cocherait un critère et il
   reviendrait à la valeur du tuteur.
+- **Ne pas créer d'entité « séance »** (ADR-048). `LearningSession` existe
+  depuis l'origine et est écrite à chaque exercice terminé : 45 des 46 séances
+  en base sont des séances mono-exercice auto-générées. Une séance composée,
+  c'est la même entité avec *N* activités et un `statut`. Et une séance sans
+  statut est **terminée** — `statutSeance` est le seul endroit qui l'interprète ;
+  un `?? "terminee"` recopié dans un écran ferait réapparaître 45 séances closes
+  dans la file des séances à faire.
+- **Ne pas compter une séance planifiée comme de l'activité** (ADR-048).
+  `calculerActivite` compte une ligne de `sessions` par jour actif : une séance
+  prévue pour jeudi remplirait une case du bandeau sans qu'une minute ait été
+  travaillée. `seanceALieu` filtre en tête de `calculerActivite`,
+  `activiteSurFenetre` et du journal. Une séance `en-cours`, elle, compte.
+- **Ne pas laisser un exercice de séance écrire sa propre entrée de journal**
+  (ADR-048). Les trois clôtures de tentative interrogent
+  `seanceEnCoursPour` : dans une séance, la séance **est** l'entrée. Le défaut
+  serait invisible — les deux lignes seraient exactes prises séparément, et le
+  travail compterait double.
+- **Ne pas recopier le classement du moteur dans l'assemblage** (ADR-049).
+  `composerSeance` appelle `recommander` ; un second classement ferait proposer
+  au tableau de bord et au compositeur deux « meilleures actions » différentes
+  le même jour. Et **ne pas rabattre la composition sur les compétences déjà
+  couvertes** pour remplir la séance : c'est le défaut rapporté à l'usage, et il
+  paraîtrait seulement « mieux rempli ». Un manquant est la commande passée au
+  tuteur, pas un échec.
+- **Ne pas transformer le besoin déclaré en mesure** (ADR-050). Il est stocké
+  verbatim parce qu'une intention n'est dérivable de rien — c'est un fait daté.
+  L'écart avec le réalisé est **dérivé**, rendu sous la forme des deux valeurs
+  côte à côte, et ne produit **aucun score de biais** : ce serait un nombre porté
+  sur quelqu'un, à partir d'une seule observation.
 - **Ne pas inventer de données.** Un écran non construit doit le dire.
 - **Ne pas transformer une analyse en décision.** Une conclusion produite par
   une session Claude est 🔬 hypothèse ou ❓ question ouverte, jamais ✅ décision,

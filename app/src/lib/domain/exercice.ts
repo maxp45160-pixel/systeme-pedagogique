@@ -43,6 +43,18 @@ export const DUREE_ESTIMEE_MAX = 240;
 export const DIFFICULTE_MIN = 1;
 export const DIFFICULTE_MAX = 5;
 
+/**
+ * Combien d'énoncés complets on demande au tuteur en un tour.
+ *
+ * Observation, pas préférence : six énoncés — énoncé, indices, correction,
+ * critères — tiennent dans une réponse ; seize se font couper en chemin. La
+ * valeur vivait en constante locale de la liste d'exercices, où elle bornait la
+ * génération par domaine. La composition d'une séance bute sur exactement la
+ * même limite, et pour la même raison : deux copies auraient divergé au premier
+ * changement de modèle, sans que rien ne le signale.
+ */
+export const EXERCICES_PAR_LOT_MAX = 6;
+
 /** Ce qu'un exercice doit satisfaire pour entrer en base, création ou édition. */
 export interface ContenuExercice {
   titre: string;

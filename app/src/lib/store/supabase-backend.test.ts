@@ -30,7 +30,8 @@ describe("conversion des noms", () => {
   it("est réversible sur tous les champs persistés", () => {
     const champs = [
       "skillCode", "skillCodes", "niveauPreuve", "competencesCombinees",
-      "exerciseId", "indicesUtilises", "autoEvaluation", "causeProbable",
+      "exerciseId", "indicesUtilises", "verdictTuteur", "causeProbable",
+      "planifieePour", "besoinDeclare",
       "dureeMin", "dureeEstimeeMin", "apprentissagePrincipal", "prochaineAction",
       "notePersonnelle", "genereAutomatiquement", "dateCreation", "dateEcheance",
       "dateDebut", "dateFin", "exercicesGeneres", "comprehensionDeclaree", "id",

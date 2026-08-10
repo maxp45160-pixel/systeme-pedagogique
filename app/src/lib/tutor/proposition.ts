@@ -111,6 +111,8 @@ export interface PropositionExercice {
   indices: string[];
   correction: string;
   criteres: { dimension: string; libelle: string }[];
+  /** Pourquoi cet exercice, brut — voir `IntentionExercice`. Vide = non renseignée. */
+  intention?: string;
 }
 
 /**

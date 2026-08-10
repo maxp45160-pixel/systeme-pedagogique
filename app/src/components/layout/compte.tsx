@@ -251,13 +251,6 @@ function PanneauReglages({
               >
                 Formation, objectifs et préférences
               </Link>
-              <Link
-                href="/competences"
-                onClick={onFermer}
-                className="text-xs text-primaire hover:underline"
-              >
-                Référentiel
-              </Link>
             </dd>
           </div>
 

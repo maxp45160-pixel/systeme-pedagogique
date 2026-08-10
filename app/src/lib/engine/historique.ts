@@ -16,6 +16,7 @@ import type {
   Skill,
   SkillEvidence,
 } from "@/lib/domain/types";
+import { seanceALieu } from "@/lib/domain/seance";
 import { JOUR_MS } from "./dates";
 import { computeSkillState } from "./skill-state";
 import { calculerEtatGlobal } from "./progression";
@@ -213,7 +214,9 @@ export function activiteSurFenetre(
   jours: number,
   now: Date = new Date(),
 ): ActiviteFenetre {
-  const dansLaFenetre = sessions.filter((s) => joursDepuis(s.date, now) <= jours);
+  const dansLaFenetre = sessions
+    .filter(seanceALieu)
+    .filter((s) => joursDepuis(s.date, now) <= jours);
   return {
     joursActifs: new Set(dansLaFenetre.map((s) => cleJour(s.date))).size,
     minutes: dansLaFenetre.reduce((total, s) => total + (s.dureeMin ?? 0), 0),
@@ -232,21 +235,34 @@ export function calculerActivite(
   sessions: LearningSession[],
   now: Date = new Date(),
 ): Activite {
+  /*
+   * Le filtre est en tête, et il n'est pas un détail d'implémentation.
+   *
+   * Une séance PLANIFIÉE n'a pas eu lieu (ADR-048). La compter remplirait une
+   * case du bandeau d'activité pour une intention, ce qui est exactement le 0
+   * fabriqué à l'envers : une mesure là où il n'y a rien de mesuré (P2). Et
+   * `derniereSeance` pointerait vers une date future.
+   *
+   * `seanceALieu` vit dans le domaine parce que les deux fonctions de ce fichier
+   * posent la même question, et qu'un troisième appelant viendra.
+   */
+  const eues = sessions.filter(seanceALieu);
+
   const minutesParJour = new Map<string, number>();
-  for (const s of sessions) {
+  for (const s of eues) {
     const cle = cleJour(s.date);
     minutesParJour.set(cle, (minutesParJour.get(cle) ?? 0) + (s.dureeMin ?? 0));
   }
 
-  const recente = activiteSurFenetre(sessions, 30, now);
-  const triees = [...sessions].sort((a, b) => a.date.localeCompare(b.date));
+  const recente = activiteSurFenetre(eues, 30, now);
+  const triees = [...eues].sort((a, b) => a.date.localeCompare(b.date));
 
   return {
     minutesParJour,
     joursActifs30: recente.joursActifs,
     minutes30: recente.minutes,
     seances30: recente.seances,
-    minutesTotal: sessions.reduce((s, x) => s + (x.dureeMin ?? 0), 0),
+    minutesTotal: eues.reduce((s, x) => s + (x.dureeMin ?? 0), 0),
     derniereSeance: triees.at(-1)?.date ?? null,
   };
 }

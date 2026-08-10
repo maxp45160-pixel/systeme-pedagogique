@@ -57,8 +57,21 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [042](#adr-042) | La maîtrise est un prédicat dérivé ; l'évolution est proposée, jamais appliquée | 🔬 Hypothèse (07/08) |
 | [043](#adr-043) | Le tuteur désigne un code, il n'en frappe aucun | ✅ Acceptée (07/08) — précise [026](#adr-026) |
 | [044](#adr-044) | Un référentiel se révise ; le retrait reste dérivé | 🔬 Hypothèse (07/08) |
+| [045](#adr-045) | La difficulté conseillée demande confirmation ; la durée de référence est observée | 🔬 Hypothèse (09/08) |
+| [046](#adr-046) | Le tuteur garde la mémoire de ses verdicts | 🔬 Hypothèse (09/08) |
+| [047](#adr-047) | Un exercice se corrige ; les preuves qu'il a produites ne bougent pas | 🔬 Hypothèse (09/08) |
+| [048](#adr-048) | La séance existait déjà : elle s'étend, elle ne se recrée pas | ✅ Acceptée (10/08) |
+| [049](#adr-049) | Le CAF n'ajoute qu'une pièce : le modèle d'assemblage | ✅ Acceptée (10/08) |
+| [050](#adr-050) | Le besoin déclaré est un fait stocké ; l'écart est dérivé, et il n'y a pas de score de biais | ✅ Acceptée (10/08) |
+| [051](#adr-051) | Le moteur travaille sur `importance`, pas sur un objectif déclaré | ❓ Ouverte |
+| [052](#adr-052) | Le moteur dérive sans validation ; seul le tuteur ne mesure jamais | ✅ Acceptée (10/08) — précise [037](#adr-037) |
+| [053](#adr-053) | Pilotage au tableau de bord, analyse dans Séances ; navigation à trois pôles | ✅ Acceptée (10/08) |
+| [054](#adr-054) | L'actionnabilité départage sans pénaliser ; un partiel suit la règle de l'échec | ✅ Acceptée (10/08) |
 
-*(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08.)*
+*(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
+l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
+lot 1/2 de ce chantier, sur un sujet distinct — voir la note de numérotation en
+tête d'[ADR-053](#adr-053).)*
 
 ---
 
@@ -3143,6 +3156,497 @@ s'exécuter (ADR-027).
    Quelqu'un qui les ajuste pour obtenir la difficulté conseillée qu'il
    souhaite court-circuite la calibration — l'édition deviendrait un moyen de
    contourner la mesure, ce qui est l'inverse du but.
+
+---
+
+<a name="adr-048"></a>
+## ADR-048 — La séance existait déjà : elle s'étend, elle ne se recrée pas ✅
+
+**Date.** 10/08/2026, lot 1 du chantier de refonte. Tranchée par Maxime en
+discussion préalable.
+
+**Ce qui était demandé.** Un planificateur et un concepteur de séances au
+tableau de bord, et un onglet d'historique qui permette de revoir, refaire et
+analyser les séances passées.
+
+### Le fait qui a décidé de la forme
+
+`LearningSession` existe depuis l'origine et est écrite **automatiquement** à
+chaque exercice terminé (`lib/store/actions.ts`, trois appels). Relevé en base
+le 10/08/2026 : **46 séances, dont 45 auto-générées, chacune avec une seule
+activité**.
+
+Autrement dit, la séance n'était pas à créer — elle tournait depuis le début
+sous une forme dégénérée. Une séance composée, c'est la même entité avec *N*
+activités et un cycle de vie.
+
+**Décision : quatre colonnes additives sur `sessions`** — `statut`,
+`planifiee_pour`, `besoin_declare`, `blueprint` — et aucune table nouvelle.
+L'alternative examinée, une table `seances` distincte, aurait coupé l'historique
+en deux et laissé 45 lignes hors du nouvel onglet, pour un gain conceptuel nul :
+les deux entités auraient dit la même chose.
+
+### L'absence de statut a un sens, et un seul endroit le dit
+
+Les 45 séances antérieures n'ont pas de `statut`. Elles ont été écrites au
+moment où un exercice se terminait : elles sont donc terminées. `statutSeance`
+(`lib/domain/seance.ts`) est le seul endroit qui interprète cette absence. Un
+`seance.statut ?? "terminee"` recopié dans chaque écran aurait fini par diverger
+— et la divergence aurait fait réapparaître 45 séances closes dans la file des
+séances à faire.
+
+On ne fabrique pas rétroactivement un statut que personne n'a posé (P2).
+
+### Le double journal, et pourquoi il aurait été invisible
+
+Les trois clôtures de tentative — preuve écrite, abandon dérivé, abandon
+explicite — écrivent chacune une séance mono-exercice. Comportement d'origine,
+et toujours correct **hors séance**. Dans une séance composée, la séance *est*
+l'entrée de journal : laisser la clôture en écrire une seconde ferait compter
+deux fois le même travail, au journal comme au bandeau d'activité.
+
+Le défaut n'aurait levé aucune erreur : les deux lignes auraient été exactes
+prises séparément. La règle vit donc dans une fonction pure unique,
+`seanceEnCoursPour`, que les trois appelants interrogent — même discipline que
+`tentativeMenee` (ADR-030) et `scinderRetraits` (ADR-044).
+
+### Une séance planifiée n'est pas de l'activité
+
+Corollaire découvert en écrivant le lot, et c'est le piège le plus sournois de
+la planification : `calculerActivite` compte **une ligne de `sessions` par jour
+actif**. Une séance prévue pour jeudi aurait rempli une case du bandeau
+d'activité le jeudi, sans qu'une minute ait été travaillée.
+
+C'est le 0 fabriqué à l'envers — une mesure là où il n'y a rien de mesuré — dans
+l'écran même qui existe pour dire ce qui s'est réellement passé. `seanceALieu`
+(pur, testé) filtre en tête de `calculerActivite`, d'`activiteSurFenetre` et du
+journal. Une séance `en-cours` compte : la personne y travaille.
+
+### Ce qui n'est pas stocké
+
+L'avancement — qui est fait, qui reste. Il se dérive des tentatives
+(`avancementSeance`), et sa borne temporelle est la règle : **seules les
+tentatives ouvertes à partir du début de la séance comptent**. Sans elle, une
+séance composée d'exercices déjà travaillés s'afficherait terminée avant d'avoir
+commencé. C'est pour la même raison que `demarrerSeance` réécrit `date` au
+démarrage réel.
+
+### Réserve
+
+🔬 Le rattachement est garanti par une fonction pure partagée et ses tests, pas
+par un test qui relit `actions.ts`. Si un quatrième chemin de clôture apparaît
+sans appeler `appartientAUneSeanceEnCours`, le double journal revient en
+silence. Même exposition qu'ADR-030 avant que son test ne lie les deux chemins.
+
+---
+
+<a name="adr-049"></a>
+## ADR-049 — Le CAF n'ajoute qu'une pièce : le modèle d'assemblage ✅
+
+**Date.** 10/08/2026, lot 1 du chantier de refonte.
+
+**Ce qui était demandé.** Utiliser le Conceptual Assessment Framework pour
+assembler une séance de plusieurs exercices pertinents selon le profil de
+compétences.
+
+### Trois modèles sur quatre tournaient déjà
+
+| Modèle CAF | Ce qui le porte ici | État |
+|---|---|---|
+| *Student model* | `SkillState` — niveau, confiance, robustesse, contextes testés | existait |
+| *Evidence model* | `criteres`, `Dimension`, `engine/preuve.ts`, `maitrise.ts` | existait |
+| *Task model* | `Exercise` — type, difficulté, compétences, durée | existait |
+| *Assembly model* | — | **manquait** |
+
+Le produit savait répondre à « quelle tâche maintenant » (`recommander`) et
+n'avait jamais eu à répondre à « quelles tâches, combien, dans quel ordre ».
+`lib/engine/caf.ts` est cette réponse, et rien d'autre.
+
+### Il ne reclasse rien
+
+`composerSeance` appelle `recommander` et parcourt son classement. Un second
+classement aurait divergé du premier sans que rien ne le signale : le tableau de
+bord et le compositeur auraient proposé deux « meilleures actions » différentes
+le même jour. Même raison pour `recommandable` (l'éligibilité d'un exercice) et
+`difficulteVisee` — cette dernière a été **exportée** plutôt que recopiée,
+puisque l'assemblage doit annoncer une difficulté pour une compétence qui n'a
+aucun exercice, donc aucune `Recommandation` d'où la lire.
+
+Ce que caf ajoute tient en trois gestes : remplir *N* places, faire passer
+devant ce que la personne a explicitement visé, et **nommer ce qui manque**.
+
+### Le manquant est le produit principal
+
+Au 10/08/2026, **11 compétences actives sur 77 ont un exercice**. Une séance de
+quatre exercices est donc, dans le cas normal, une place tenue et trois à
+rédiger. `manquants` n'est pas une liste d'erreurs : c'est la commande que
+l'écran passe au tuteur, et c'est par là que le corpus se remplit.
+
+**Une composition qui se rabattrait sur les compétences déjà couvertes pour
+« faire une belle séance » reproduirait exactement le défaut rapporté à
+l'usage** — « ça me repropose toujours les mêmes exercices » — et il serait
+invisible, puisque la séance paraîtrait simplement mieux remplie. Un test le
+verrouille : une compétence jamais évaluée sans exercice passe devant une
+compétence travaillée qui en a un.
+
+### Ce qu'il refuse de fabriquer
+
+- **Une durée pour un exercice qui n'existe pas.** `dureeEstimeeTotaleMin` ne
+  compte que les exercices retenus ; l'explication dit combien manquent et que
+  leur durée est inconnue (P2).
+- **Des places de remplissage.** Si le périmètre compte moins de compétences que
+  demandé, la séance en contient moins, et l'explication le dit.
+- **Un exercice inscrit deux fois.** Un énoncé qui vise plusieurs compétences
+  tient une place ; les compétences qu'il couvre au passage n'en consomment pas.
+
+### Réserve
+
+🔬 Aucune séance CAF n'a encore été jouée. Le classement de `recommander` est
+mesuré sur une seule action à la fois ; rien ne dit qu'il ordonne bien un
+ensemble de quatre. **Test de réfutation :** si les séances composées se
+révèlent systématiquement mono-domaine ou monotones en difficulté alors que la
+portée demandée était transverse, l'assemblage a besoin d'une contrainte de
+diversité que le classement seul ne porte pas.
+
+---
+
+<a name="adr-050"></a>
+## ADR-050 — Le besoin déclaré est un fait stocké ; l'écart est dérivé ✅
+
+**Date.** 10/08/2026, lot 1 du chantier de refonte.
+
+**Ce qui était demandé, dans les mots de Maxime.** « Mesurer un besoin
+utilisateur avant génération de séance. Le besoin court terme pourra être
+mesuré au besoin plus long terme afin de juger de la pertinence des séances et
+des biais utilisateur. »
+
+### Où était le risque
+
+Le mot « mesurer », appliqué à une personne, sans preuve. Un questionnaire noté
+— motivation, énergie, priorité — agrégé en indicateur aurait produit un nombre
+sur quelqu'un que rien n'étaye : la forme exacte de ce que P2 et P3 interdisent,
+et que le produit refuse partout ailleurs.
+
+### Ce qui est décidé
+
+**Le besoin est stocké verbatim** : intention en clair, compétences visées,
+temps déclaré disponible, date. C'est un **fait observé** — « le 10/08 à 9 h,
+elle a écrit ceci » — au même titre qu'une tentative. Une intention n'est
+dérivable de rien : c'est la seule raison pour laquelle elle a le droit
+d'occuper une colonne (P1).
+
+**L'écart est dérivé** (`ecartBesoinRealise`), recalculé à chaque lecture,
+jamais écrit. Il rend les **deux valeurs côte à côte** — « 60 min déclarées,
+34 min passées », « 1 compétence travaillée sur 2 visées, laissée de côté :
+DEV-02 » — et s'arrête là.
+
+**Il n'existe aucun score de biais.** « Tu surestimes ton temps » est une
+conclusion sur quelqu'un ; elle demanderait une série, pas une séance. La
+fonction porte cette limite dans ses `reserves` plutôt que de laisser le lecteur
+la deviner, et un test vérifie qu'aucun constat ne contient de qualificatif de
+ce genre.
+
+### Le besoin doit commander, sinon il est décoratif
+
+`codesImposes` passe devant le classement du moteur dans `composerSeance`. Sans
+cela, on enregistrerait la déclaration et la séance composerait exactement ce
+qu'elle aurait composé sans elle — l'écart mesuré n'aurait alors rien mesuré
+d'autre que l'indifférence du moteur à la demande.
+
+Un code visé sans exercice devient un **manquant**, pas un silence. Un code visé
+hors du périmètre de la séance est écarté **et annoncé**.
+
+### Réserve
+
+🔬 La comparaison court terme / long terme demandée n'est pas faite : elle exige
+plusieurs séances déclarées, et il n'en existe aucune. Ce lot pose la matière —
+des déclarations datées et des écarts dérivés — pas la lecture longitudinale.
+**Test de réfutation :** si après une dizaine de séances déclarées les écarts ne
+montrent aucun motif, le besoin déclaré est un formulaire de plus et doit être
+retiré plutôt que gardé « au cas où ».
+
+---
+
+<a name="adr-051"></a>
+## ADR-051 — Le moteur travaille sur `importance`, pas sur un objectif déclaré ❓
+
+**Date.** 10/08/2026.
+
+**Origine.** Relecture croisée d'une analyse externe (ChatGPT) sur l'état du
+produit. La quasi-totalité du texte redécrivait l'existant ou proposait des
+constructions par anticipation que CLAUDE.md §8 interdit déjà — sans intérêt
+pour ce registre. Un point a résisté à l'examen : le profil porte
+`objectifMoyenTerme` et `objectifLongTerme` en prose libre, mais aucun calcul
+du moteur ne les lit. `recommend.ts` classe sur `importance` (un poids par
+compétence, fixé au référentiel), pas sur ce que la personne a dit vouloir
+faire de la compétence.
+
+### Le problème, à distinguer de sa solution
+
+« Apprendre Python », « développer une API », « réussir un entretien
+technique » et « contribuer à un projet open source » peuvent partager
+exactement le même référentiel de compétences et la même `importance` par
+compétence — et pourtant demander un ordre de travail différent : un
+entretien technique pousse vers la vitesse d'exécution et les cas classiques,
+un projet open source pousse vers la lecture de code existant et l'intégration.
+Le moteur ne peut aujourd'hui produire qu'un seul ordre, indifférent à
+laquelle des deux intentions est la vraie raison de la personne.
+
+C'est un trou réel, distinct du reste de l'analyse externe : il ne demande
+aucune nouvelle entité massive, aucune taxonomie d'activités, aucun modèle de
+stratégie pédagogique — juste la question de savoir si `importance` doit
+rester la seule source de tri, ou si un objectif déclaré doit la pondérer.
+
+### Pourquoi ❓ et pas 🔬 ni ✅
+
+Ce n'est pas encore une hypothèse testable : personne n'a encore proposé *ce
+que le moteur ferait différemment* si l'objectif était structuré plutôt que
+laissé en prose. Sans mécanisme précis à réfuter, ce n'est qu'une question.
+
+### Ce qui bloque
+
+**a)** Le goulot mesuré au 10/08/2026 reste le corpus : 11 compétences actives
+sur 77 ont un exercice ([PLAN_REFONTE_SEANCES.md §1](PLAN_REFONTE_SEANCES.md)).
+Un objectif déclaré ne peut réordonner que ce qui existe à classer — tant que
+66 compétences n'ont rien à servir, raffiner le tri ne change rien à l'écran.
+**b)** Aucun signal ne dit si `objectifMoyenTerme` / `objectifLongTerme`, tels
+qu'écrits aujourd'hui, portent assez de matière pour être exploités sans
+fabriquer une structure que la personne n'a pas donnée (P1, P2).
+
+### Qui doit trancher
+
+Maxime, une fois le corpus rempli et les séances CAF jouées plusieurs fois
+(ADR-049). Trancher maintenant reviendrait à choisir une structure
+(`LearningGoal` ou équivalent) avant d'avoir observé un seul cas où
+`importance` seule a produit un ordre insatisfaisant.
+
+---
+
+<a name="adr-052"></a>
+## ADR-052 — Le moteur dérive sans validation ; seul le tuteur ne mesure jamais ✅
+
+**Date.** 10/08/2026.
+
+**Origine.** Discussion sur une proposition externe (ChatGPT) de gestion de
+connaissances (« Obsidian intégré ») — non retenue comme chantier ici, mais
+qui a fait remonter une confusion dans l'application d'ADR-037 : une première
+lecture assimilait toute association automatique (ex. lier une note à une
+compétence) à une mesure écrite par le tuteur, donc interdite. Maxime a
+corrigé : « c'est le moteur qui doit décider surtout, pas l'utilisateur. Le
+moteur c'est pas l'IA c'est le code. »
+
+### Le problème, distinct de sa solution
+
+ADR-037 dit « le tuteur écrit le contenu, jamais la mesure ». Mais **tuteur**
+(le LLM, `lib/tutor/`) et **moteur** (le code déterministe, `lib/engine/`,
+`lib/domain/`) ne portent pas la même contrainte. Le moteur dérive déjà, sans
+validation utilisateur à chaque occurrence : `recommander()` choisit une
+compétence sans qu'on la confirme, `difficulteConseillee` (ADR-028, ADR-045)
+part dans le prompt du tuteur sans clic. Étendre par réflexe l'exigence de
+validation d'ADR-037 au moteur aurait interdit ce que le produit fait déjà
+partout, et aurait bloqué à tort toute dérivation automatique future (par
+exemple, un futur lien entre un objet de connaissance et une compétence).
+
+### Ce qui est décidé
+
+**Interdit** (inchangé, ADR-037) : le tuteur (LLM) produit un jugement —
+« ceci concerne la compétence X », un score, un niveau — et le système
+l'écrit tel quel. Aucune traçabilité de calcul, une opinion de modèle de
+langage habillée en mesure.
+
+**Permis, sans validation systématique** : le moteur (fonction pure, testée,
+`lib/engine/` ou `lib/domain/`) dérive une association ou une valeur par un
+calcul explicite — correspondance de mots-clés, similarité déterministe,
+classement. Le calcul est la source (P2), il est testable, et il peut
+s'exécuter et s'écrire sans qu'un humain valide chaque occurrence — exactement
+le régime déjà en vigueur pour `recommander()` et la calibration.
+
+**Limite : une preuve de compétence reste une exception.** Dès qu'une
+dérivation touche directement une **preuve** (niveau, `NiveauPreuve` A/B/C/D)
+plutôt qu'une métadonnée d'organisation, le régime de validation manuelle
+reprend (§5, bilan d'exercice) — le moteur peut proposer, il n'écrit pas la
+mesure de la personne sans qu'elle la confirme.
+
+**Toute valeur numérique dérivée** (type score de confiance) doit être
+recalculée à la lecture, jamais stockée figée (P1), et sortir d'une formule
+nommée et testée — jamais d'une estimation du tuteur au moment de la
+rédaction.
+
+### Conséquences
+
+- Précise ADR-037 : la contrainte de non-mesure vise le **tuteur**, pas le
+  **moteur**.
+- Débloque, le jour où un chantier de gestion de connaissances serait décidé,
+  la dérivation automatique de liens (Knowledge↔Compétence) sans en faire un
+  chantier de validation manuelle supplémentaire — à condition que le calcul
+  soit dans `lib/engine/` ou `lib/domain/`, testé, et ne touche aucune preuve.
+- Ne décide pas de construire cette fonctionnalité : aucun `KnowledgeItem`
+  n'existe. Cette entrée fixe la règle pour le jour où la question se posera,
+  conformément à §8 (ne pas construire par anticipation).
+
+---
+
+<a name="adr-053"></a>
+## ADR-053 — Pilotage au tableau de bord, analyse dans Séances ; navigation à trois pôles ✅
+
+**Date.** 10/08/2026, lots 2 à 4 du chantier de refonte.
+
+**⚠️ Note de numérotation.** Cette décision a été implémentée (code, six
+citations en commentaire) sous le numéro « ADR-051 » avant que cette entrée ne
+soit écrite — le numéro avait entre-temps été pris par une décision sans
+rapport (« Le moteur travaille sur `importance`… », rédigée en parallèle sur un
+autre fil). Les six citations dans le code (`navigation.ts`, les trois
+redirections `/exercices`, `/journal`, `/progression`, `ics.ts`) ont été
+corrigées vers ce numéro-ci dans le même geste que l'écriture de cette entrée.
+Ne pas recréer d'ADR-051 pointant sur ce sujet.
+
+**Ce qui était demandé, dans les mots de Maxime.** Un tableau de bord qui soit
+« le point d'entrée unique pour piloter l'activité (lancer une session, voir sa
+prochaine action, gérer son temps) », et un onglet Exercices qui n'ait plus la
+responsabilité du pilotage — devenu un historique des séances, consultable et
+rejouable.
+
+### La séparation, et pourquoi elle n'est pas cosmétique
+
+Deux questions distinctes se posaient sous le même écran depuis toujours :
+« que dois-je faire maintenant ? » (pilotage) et « qu'ai-je fait, et comment
+ça s'est passé ? » (analyse). L'ancien `/exercices` répondait aux deux à la
+fois — générer, filtrer, consulter — et c'est ce qui le rendait illisible
+(brief initial de Maxime, cadrant ce chantier).
+
+**Décision : le tableau de bord pilote, `/seances` analyse.**
+
+- **Tableau de bord** (`/`) — la carte « Prochaine meilleure action »
+  (inchangée), le concepteur de séance (« Composer une séance »), le pomodoro,
+  et la carte Profil. Tout ce qui se fait *maintenant*.
+- **`/seances`** — quatre vues dans un `SelecteurSegmente` : *Historique* (les
+  séances, rejouables via « Refaire cette séance » — [ADR-048](#adr-048)),
+  *Progression*, *Journal* et *Bibliothèque* (l'ancien `/exercices`, allégé :
+  plus de sélecteur de statut, le pilotage n'y vit plus).
+- **`/competences`** perd ses vues Progression et Journal, qui n'avaient de
+  sens que comme sous-onglets d'un pôle Suivre plus large ; il ne montre plus
+  que les domaines et leurs compétences.
+
+### Ce qui ne change pas de forme, seulement de nom
+
+`/exercices`, `/journal` et `/progression` restent des redirections — même
+geste que la fusion précédente de ces deux dernières dans `/competences`
+(historique de ce fichier). `/exercices/[id]`, l'écran unitaire d'un exercice,
+**ne bouge pas** : c'est ce que le déroulé d'une séance ouvre, et le contrainte
+« ne pas casser le process d'exercice à l'unité » (brief de Maxime) s'applique
+lettre à lettre.
+
+### Trois pôles, pas quatre
+
+Maxime a tranché explicitement (question posée en session, réponse retenue :
+« 3 pôles + carte Profil au tableau de bord ») plutôt que d'ajouter Profil
+comme quatrième pôle de navigation : le profil remonte en évidence par une
+carte au tableau de bord et un lien direct, sans coûter une entrée de nav pour
+un écran consulté rarement.
+
+### Réserve
+
+🔬 `.ics` (`lib/engine/ics.ts`) est écrit — fonction pure, hors périmètre d'une
+intégration calendrier complète (§5 du plan) — mais n'est encore appelé nulle
+part dans l'interface : aucun bouton d'export ne l'utilise. Fonction morte tant
+que ce bouton n'existe pas ; à retirer si elle ne trouve pas de point
+d'entrée, plutôt qu'à laisser traîner « au cas où » (CLAUDE.md §8).
+
+---
+
+<a name="adr-054"></a>
+## ADR-054 — L'actionnabilité départage sans pénaliser ; un partiel suit la règle de l'échec ✅
+
+**Date.** 10/08/2026, lot 5 du chantier de refonte.
+
+**Ce qui était demandé.** Revoir la logique de scoring de « prochaine
+meilleure action » : le brief initial de Maxime rapportait qu'elle
+« favorise les exercices déjà réalisés au lieu de prioriser les compétences
+faibles ou non couvertes ».
+
+### Le diagnostic a corrigé le problème avant de le traiter
+
+Mesuré le 10/08/2026 : `evaluer()` donnait déjà jusqu'à +70 au jamais-évalué
+contre +40 à « due pour révision » et **−15** à « pratiquée récemment ». Le
+classement des *compétences* poussait donc déjà vers le non-couvert. Le
+symptôme rapporté avait une autre cause : `choisirExercice` rendait `null`
+pour 66 compétences actives sur 77 (11 seulement ont un exercice), et la carte
+« Prochaine action » retombait alors sur « Générer un exercice » — visuellement
+indiscernable d'un algorithme qui privilégierait le déjà-fait, alors que le
+vrai obstacle était le corpus, pas le tri. Le diagnostic complet est dans
+[PLAN_REFONTE_SEANCES.md §1](PLAN_REFONTE_SEANCES.md).
+
+Deux défauts réels sont restés une fois cette confusion levée — ce sont eux
+que ce lot corrige.
+
+### 1. L'actionnabilité départage, elle ne pénalise pas
+
+`BONUS_ACTIONNABLE = 10` (`lib/engine/recommend.ts`) : une compétence pour
+laquelle un exercice existe déjà reçoit ce bonus modeste. Comparé aux autres
+facteurs — « Jamais évaluée » jusqu'à +70, « Due pour révision » +40,
+« Confiance faible » +12, « Robustesse insuffisante » +14 — il suffit à
+départager un quasi-ex-aequo, pas à renverser un écart réel. Deux tests le
+vérifient : l'un construit un ex-aequo strict et montre que le bonus décide
+(et non l'ordre alphabétique du code, qui aurait décidé sans lui) ; l'autre
+montre qu'une compétence jamais évaluée sans exercice passe quand même devant
+une compétence actionnable de moindre priorité.
+
+**Pourquoi un bonus et pas une pénalité sur le non-couvert.** Une pénalité
+aurait été l'inverse du besoin exprimé par Maxime — enfoncer encore ce qui
+manque déjà d'exercices. Le bonus agit uniquement sur la face « prête à
+lancer », jamais sur la face « manquante ».
+
+**Où il est calculé.** `recommander()` doit désormais choisir l'exercice
+AVANT de noter la compétence (`choisirExercice` puis `evaluer(..., exercice
+!== null)`), un réordonnancement du pipeline interne. Rien ne change à la
+sortie sur ce point : `Recommandation.exercice` est toujours résolu par
+`choisirExercice`, `evaluer` ne fait qu'en recevoir le résultat.
+
+### 2. Un partiel suit désormais la même règle qu'un échec
+
+Avant ce lot, `recommandable()` bloquait un exercice ÉCHOUÉ tant qu'aucune
+réussite postérieure n'était démontrée sur la compétence (règle posée le
+02/08, condition et non délai), mais laissait un exercice PARTIEL candidat
+sans aucune condition — « c'est un progrès, pas un mur ».
+
+**Observé en production le 10/08/2026** : `diag-dev-02` et `diag-tech-01` ont
+chacun produit deux résultats « partiel » à plusieurs *jours* d'écart, sans
+qu'aucune condition ne les ait fait sortir de la file entre les deux — le même
+exercice reproposé, le même résultat obtenu. C'est la définition même de
+« tourner en rond », l'irritant que ce chantier entier adresse, et l'exemption
+du partiel en était une cause directe et mesurée, pas hypothétique.
+
+**Décision : P4 ne distingue pas l'échec du partiel.** Les deux sont un
+résultat non abouti, et les deux exigent la même démonstration — une preuve en
+réussite postérieure sur la compétence — avant que le MÊME exercice ne
+revienne. `recommandable()` perd sa branche spéciale pour le partiel ; un seul
+chemin gouverne désormais échec et partiel.
+
+**Ce que ça change concrètement, vérifié sur les deux cas réels.** `TECH-01`
+n'a que `diag-tech-01` pour exercice : bloqué, la compétence retombe sur
+`exercice: null` et le repli « Générer un exercice » — la sortie voulue, pas
+une impasse. `DEV-02` a un second exercice en base : bloqué, `choisirExercice`
+sert l'autre exercice — encore mieux, puisque `jamaisTente` le préférait déjà
+à difficulté égale.
+
+**Ce qui ne change pas.** Une compétence jamais évaluée reste candidate sans
+condition — seule la RÉPÉTITION du même résultat sur le même exercice est
+gouvernée.
+
+### Ce qui n'a pas été fait, et pourquoi
+
+**5.3 du plan — « relire les facteurs à la lumière des séances »** n'est **pas
+implémenté**. Le plan le disait déjà : « à trancher sur données, pas avant »
+(CLAUDE.md §8, ne pas construire par anticipation). Aucune séance composée
+n'a encore été jouée en production ; rien ne dit aujourd'hui si le fait
+qu'une compétence ait été travaillée *dans* une séance transverse sans en
+être la cible doit peser sur son score. **Test de réfutation, pour qui
+reprendra ce point** : si, après plusieurs séances transverses jouées, des
+compétences déjà travaillées en séance restent premières dans la file malgré
+un score qui devrait les avoir fait reculer, le facteur manque réellement.
+
+⚠️ **Aucun seuil de `calibration.ts` n'a bougé** (ADR-028/045) : ce lot touche
+uniquement `recommend.ts`.
 
 ---
 

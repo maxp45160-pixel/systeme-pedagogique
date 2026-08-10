@@ -10,14 +10,19 @@ import { CarteEtatGlobal } from "@/components/dashboard/etat-global";
 import { CarteProchaineAction } from "@/components/dashboard/prochaine-action";
 import {
   calibragesPourModale,
-  competencesPourModale,
 } from "@/components/exercices/proprietes-generation";
-import { RevisionsDues } from "@/components/dashboard/revisions-dues";
 import { CarteProgressionRecente } from "@/components/dashboard/progression-recente";
 import { CarteActivite } from "@/components/dashboard/activite";
+import { CarteProfil } from "@/components/dashboard/carte-profil";
+import { Pomodoro } from "@/components/dashboard/pomodoro";
+import {
+  ConcepteurSeance,
+  type DonneesSeance,
+} from "@/components/seances/concepteur-seance";
 import { Depliant } from "@/components/ui/explication";
 import { Glossaire } from "@/components/ui/glossaire";
-import { BandeauInfo, TitreSection } from "@/components/ui/primitives";
+import { BandeauInfo, Bouton, Carte, EnTeteCarte, TitreSection } from "@/components/ui/primitives";
+import { abandonnerExercice } from "@/lib/store/actions";
 
 export default function TableauDeBord() {
   // La date du jour ne dépend d'aucune lecture : `ctx.now` n'est rien d'autre
@@ -68,6 +73,20 @@ async function ContenuTableauDeBord() {
   const activite = calculerActivite(ctx.donnees.sessions, ctx.now);
   const aucunePreuve = ctx.global.nombrePreuves === 0;
 
+  // Mêmes données que `/seances` (lot 3) : le concepteur ne recopie aucune
+  // logique, il lit ce que le lot 1 a déjà dérivé.
+  const donneesSeance: DonneesSeance = {
+    etats: ctx.etats,
+    actifs: ctx.referentiel.actifs,
+    exercices: ctx.donnees.exercises,
+    tentatives: ctx.donnees.attempts,
+    calibrations: Array.from(ctx.calibrations.entries()),
+    calibragesModale: calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations),
+    codesRecommandes: ctx.recommandations.map((r) => r.etat.skill.code),
+    domaines: ctx.referentiel.domaines.map((d) => ({ id: d.id, nom: d.nom })),
+    compteId: ctx.donnees.user.id,
+  };
+
   // Tentatives ouvertes, résolues contre le corpus. Un exercice archivé ou
   // supprimé entre-temps ne doit pas produire une ligne sans titre.
   const parId = new Map(ctx.donnees.exercises.map((e) => [e.id, e]));
@@ -80,7 +99,7 @@ async function ContenuTableauDeBord() {
         1,
         Math.round((ctx.now.getTime() - new Date(a.debut).getTime()) / 60_000),
       );
-      return [{ exercice, depuis: minutes }];
+      return [{ id: a.id, exercice, depuis: minutes }];
     })
     .sort((a, b) => a.depuis - b.depuis);
 
@@ -123,7 +142,7 @@ async function ContenuTableauDeBord() {
                 : `Tu as ${enCours.length} exercices en cours`}
             </p>
             <ul className="mt-2 space-y-1.5">
-              {enCours.map(({ exercice, depuis }) => (
+              {enCours.map(({ id, exercice, depuis }) => (
                 <li key={exercice.id} className="flex flex-wrap items-baseline gap-2 text-xs">
                   <Link
                     href={`/exercices/${exercice.id}`}
@@ -134,6 +153,11 @@ async function ContenuTableauDeBord() {
                   <span className="text-texte-discret">
                     commencé il y a {formatDuree(depuis)} · {exercice.competences.join(", ")}
                   </span>
+                  <form action={abandonnerExercice.bind(null, id, exercice.id, depuis)}>
+                    <Bouton type="submit" variante="secondaire" taille="petite">
+                      Abandonner
+                    </Bouton>
+                  </form>
                 </li>
               ))}
             </ul>
@@ -153,20 +177,32 @@ async function ContenuTableauDeBord() {
       </div>
 
       {/*
-        « À réviser » : les compétences dont l'intervalle de répétition espacée
-        est dépassé, triées par retard. Placé APRÈS l'action prioritaire — rien
-        ne doit concurrencer la carte accentuée — et AVANT la vue d'ensemble.
-        La compétence n°1 est exclue : elle porte déjà son étiquette « Révision
-        due » et son bouton dans `CarteProchaineAction`.
+        Piloter son temps : composer une séance, et un minuteur pour la tenir.
+        Placé APRÈS l'action prioritaire — elle reste seule et dominante — et
+        AVANT la vue d'ensemble : ce sont des outils de pilotage, pas une
+        lecture de contrôle.
+
+        « Composer une séance » n'ouvre rien d'autre que ce que `/seances`
+        ouvre déjà : le même `ConcepteurSeance`, les mêmes données dérivées du
+        lot 1. Deux points d'entrée, une seule logique (ADR-049) — recopier le
+        formulaire ici aurait été le début de la divergence que le reste du
+        chantier refuse.
       */}
-      <RevisionsDues
-        etats={ctx.etats}
-        now={ctx.now}
-        codeExclu={ctx.recommandations[0]?.etat.skill.code}
-        competences={competencesPourModale(ctx.referentiel.actifs)}
-        calibrages={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
-        compteId={ctx.donnees.user.id}
-      />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 [&>*]:min-w-0">
+        <Carte>
+          <EnTeteCarte
+            titre="Composer une séance"
+            legende="Dis ce que tu veux travailler, le temps dont tu disposes, et quand."
+          />
+          <div className="px-5 py-4">
+            <ConcepteurSeance {...donneesSeance} />
+          </div>
+        </Carte>
+
+        <Pomodoro compteId={ctx.donnees.user.id} />
+
+        <CarteProfil user={ctx.donnees.user} />
+      </div>
 
       {/*
         Vue d'ensemble : tout le reste, en retrait derrière un titre discret.

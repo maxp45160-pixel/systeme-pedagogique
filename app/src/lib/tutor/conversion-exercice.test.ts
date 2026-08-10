@@ -6,6 +6,7 @@ import {
   versDifficulte,
   versDimension,
   versDuree,
+  versIntention,
   versType,
 } from "./conversion-exercice";
 import {
@@ -109,6 +110,24 @@ describe("versType et versDimension", () => {
   });
 });
 
+describe("versIntention", () => {
+  it("accepte les quatre valeurs, insensible à la casse et aux accents", () => {
+    expect(versIntention("decouverte")).toBe("decouverte");
+    expect(versIntention("Consolidation")).toBe("consolidation");
+    expect(versIntention("transfert")).toBe("transfert");
+    expect(versIntention("Révision")).toBe("revision");
+  });
+
+  it("rend undefined pour une valeur absente — ce n'est pas une erreur", () => {
+    expect(versIntention("")).toBeUndefined();
+    expect(versIntention("   ")).toBeUndefined();
+  });
+
+  it("rend null, jamais une valeur déduite, pour une valeur hors liste", () => {
+    expect(versIntention("motivation")).toBeNull();
+  });
+});
+
 describe("convertirProposition", () => {
   it("convertit une proposition complète", () => {
     const r = convertirProposition(proposition());
@@ -175,5 +194,26 @@ describe("convertirProposition", () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.valeur.indices).toEqual(["Un indice"]);
+  });
+
+  it("passe l'intention quand elle est renseignée", () => {
+    const r = convertirProposition(proposition({ intention: "consolidation" }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.valeur.intention).toBe("consolidation");
+  });
+
+  it("n'écrit aucune intention par défaut — absence, pas une valeur fabriquée", () => {
+    const r = convertirProposition(proposition());
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.valeur.intention).toBeUndefined();
+  });
+
+  it("refuse une intention hors liste plutôt que de l'ignorer", () => {
+    const r = convertirProposition(proposition({ intention: "motivation" }));
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.erreurs.join(" ")).toContain("Intention illisible");
   });
 });
