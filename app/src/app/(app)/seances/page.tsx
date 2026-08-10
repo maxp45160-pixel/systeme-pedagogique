@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { chargerContexte } from "@/lib/store/context";
+import { chargerThemes } from "@/lib/store/themes";
 import { SqueletteContenu } from "@/components/layout/squelette";
 import { EntetePage } from "@/components/layout/entete-page";
 import { SelecteurSegmente } from "@/components/ui/primitives";
@@ -84,7 +85,7 @@ async function ContenuSeances({
   periode: string;
   recherche?: string;
 }) {
-  const ctx = await chargerContexte();
+  const [ctx, themes] = await Promise.all([chargerContexte(), chargerThemes()]);
 
   const donnees: DonneesSeance = {
     etats: ctx.etats,
@@ -95,6 +96,7 @@ async function ContenuSeances({
     calibragesModale: calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations),
     recommandations: ctx.recommandations,
     domaines: ctx.referentiel.domaines.map((d) => ({ id: d.id, nom: d.nom })),
+    themes,
     compteId: ctx.donnees.user.id,
   };
 

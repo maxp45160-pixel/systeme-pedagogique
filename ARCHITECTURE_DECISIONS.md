@@ -67,6 +67,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [052](#adr-052) | Le moteur dérive sans validation ; seul le tuteur ne mesure jamais | ✅ Acceptée (10/08) — précise [037](#adr-037) |
 | [053](#adr-053) | Pilotage au tableau de bord, analyse dans Séances ; navigation à trois pôles | ✅ Acceptée (10/08) |
 | [054](#adr-054) | L'actionnabilité départage sans pénaliser ; un partiel suit la règle de l'échec | ✅ Acceptée (10/08) |
+| [055](#adr-055) | Le thème : une portée modulaire, pas une arête de plus | 🔬 Hypothèse (10/08) |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -3686,6 +3687,93 @@ un score qui devrait les avoir fait reculer, le facteur manque réellement.
 
 ⚠️ **Aucun seuil de `calibration.ts` n'a bougé** (ADR-028/045) : ce lot touche
 uniquement `recommend.ts`.
+
+---
+
+<a name="adr-055"></a>
+## ADR-055 — Le thème : une portée modulaire, pas une arête de plus 🔬
+
+**Date.** 10/08/2026.
+
+**Origine.** Discussion avec Maxime sur un « knowledge graph » de compétences,
+relancée après ADR-052 : « je veux de la flexibilité dans ce que je veux
+apprendre et passer d'une structure stricte (compétence 01... sous compétence
+a.) à une structure modulaire et interconnectée pour favoriser la
+pluridisciplinarité. » Deux besoins distincts derrière cette phrase, séparés
+avant de coder (CLAUDE.md §9) : composer une séance à partir d'une intention
+libre (« je veux apprendre l'histoire de l'industrie japonaise »), et
+regrouper des compétences que le domaine sépare (le stoïcisme est 5 domaines
+sur 12 ; le japonais et le toyotisme n'ont aucun domaine commun).
+
+### Ce que la base disait, interrogée avant de concevoir
+
+12 domaines actifs, 77 compétences actives, 17 portant un `prerequis`, 16
+couvertes par un exercice. Deux lectures : les 12 domaines sont en réalité 3
+sujets (stoïcisme = 5 domaines, industrie = 5 domaines) — « bosser le
+stoïcisme » n'est pas exprimable aujourd'hui ; et **le graphe existe déjà et
+il est décoratif** — `competences.prerequis TEXT[]` (`schema.sql`), rempli à
+22 %, lu par un seul facteur de `recommend.ts`
+([recommend.ts:220](../app/src/lib/engine/recommend.ts)), et le formulaire
+d'édition du référentiel ne sait même pas l'écrire.
+
+### La décision
+
+**Le nœud manquant n'est pas une compétence, c'est un thème.** `ThemeSeance`
+existait déjà (`lib/engine/caf.ts`, ADR-049) et se décrivait lui-même comme
+« une demande à moitié remplie » — calculé depuis `recommander()` puis jeté.
+Le persister dans une table `themes` (id, libellé, intention facultative,
+`codes: string[]`, origine) suffit : un thème est une **hyper-arête nommée**,
+`{Japonais, Toyotisme, Histoire industrielle}` étant une relation à N branches
+qui porte son *pourquoi*. Une arête binaire n'en est qu'un cas particulier à
+2 membres — la co-appartenance est donc plus expressive, pas moins, et elle a
+un consommateur dès le premier jour (`composerSeance`), contrairement à une
+table d'arêtes typées que rien ne lirait.
+
+**Point de conception qui a tout décidé : le thème alimente `PorteeSeance`, pas
+`codesImposes`.** `composerSeance` préfixe `codesImposes` au classement puis
+remplit *n* créneaux ([caf.ts:401](../app/src/lib/engine/caf.ts)) — un thème à
+30 codes imposés pour 4 créneaux écraserait le classement, les 4 premiers
+codes gagnant dans un ordre arbitraire. `PorteeSeance` gagne donc une 3ᵉ
+variante, `{ type: "theme", themeId, codes }` : le moteur classe **dans** le
+thème, exactement comme pour `mono`/`transverse`. Un seul classement,
+ADR-049 tenu ; `codesImposes` reste réservé aux thèmes ciblés d'une seule
+compétence.
+
+**La résolution d'une intention libre passe par le moteur, pas par le
+tuteur — au sens d'ADR-052.** `proposer_theme` (`lib/tutor/outils.ts`) ne
+**désigne** que des codes déjà attribués (`enum` fermé, comme
+`proposer_revision`, ADR-043) ; il n'écrit jamais de code, et le tuteur n'écrit
+aucune mesure sur le lien produit — c'est une métadonnée d'organisation, pas
+une preuve de compétence. Comme `proposer_correction`, cet outil **n'entre
+pas** dans `outilsTuteur` : il n'est armé que sur `/api/themes/resoudre`.
+Une liste de codes vide n'est pas une erreur — c'est le refus demandé (P2, pas
+de rapprochement forcé) — et renvoie vers la création d'une branche plutôt que
+d'inventer une correspondance.
+
+### Ce qui n'a délibérément pas été fait
+
+- **Aucune table d'arêtes compétence↔compétence.** Aucun consommateur
+  identifié : `recommander` ne saurait pas quoi faire d'un lien typé. Le
+  besoin exprimé (japonais ↔ toyotisme) est couvert par la co-appartenance à
+  un thème.
+- **Aucun `KnowledgeItem`** (notes, lectures, projets — la partie « gestion de
+  connaissances » de la discussion d'origine). Un chantier séparé, pour le jour
+  où il sera décidé : une note aura alors un thème existant où se ranger.
+- **Aucun score de confiance ni pondération d'arête** : un nombre porté sur un
+  lien demanderait une source (P2), et rien ne la fournit aujourd'hui.
+- **Le domaine ne bouge pas** : toujours la source du préfixe de code
+  (ADR-026) et la cible de la FK des compétences. Le thème se superpose, il ne
+  remplace rien.
+
+### Réserve, et test de réfutation
+
+🔬 Rien ne dit encore qu'un thème enregistré sera **réutilisé** plutôt que
+composé une fois puis oublié — c'est ce qui distingue un vrai nœud de graphe
+d'une requête de recherche qu'on aurait tort de stocker. **Test de
+réfutation** : si après une dizaine de séances personnalisées aucun thème
+enregistré n'est jamais resélectionné, le thème n'est pas un nœud persistant —
+il ne doit plus être stocké, et la résolution doit redevenir éphémère
+(calculée à la demande, jamais écrite).
 
 ---
 

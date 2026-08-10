@@ -34,7 +34,7 @@
  * clic « Démarrer » ou « Planifier ».
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Bouton, Carte, cx } from "@/components/ui/primitives";
 import { Champ } from "@/components/ui/champ";
@@ -44,11 +44,13 @@ import type {
   DemandeSeance,
   Exercise,
   ExerciseAttempt,
+  Referentiel,
   Skill,
   SkillState,
 } from "@/lib/domain/types";
 import { motifRefusBesoin, TEMPS_DECLARE_MAX } from "@/lib/domain/seance";
 import { DUREE_ESTIMEE_MIN } from "@/lib/domain/exercice";
+import { themesEnregistres, type Theme } from "@/lib/domain/theme";
 import {
   composerSeance,
   nombreExercicesConseille,
@@ -65,7 +67,9 @@ import {
   planifierSeance,
   type EntreePlanification,
 } from "@/lib/store/seance-actions";
+import { etatRetraitTheme, modifierTheme, retirerTheme } from "@/lib/store/theme-actions";
 import { BoutonGenerer } from "@/components/exercices/bouton-generer";
+import { ModaleTheme } from "./modale-theme";
 import {
   competencesPourModale,
   type CalibrageModale,
@@ -101,6 +105,8 @@ export interface DonneesSeance {
    */
   recommandations: Recommandation[];
   domaines: { id: string; nom: string }[];
+  /** Thèmes enregistrés du compte (chantier « thèmes », ADR-053). */
+  themes: Theme[];
   compteId: string;
   /** Pré-remplit le compositeur (ex. « Refaire cette séance »). */
   preset?: PresetSeance;
@@ -121,6 +127,7 @@ export function ConcepteurSeance({
   calibragesModale,
   recommandations,
   domaines,
+  themes: themesPersistes,
   compteId,
   preset,
   libelle = "Composer une séance",
@@ -134,7 +141,7 @@ export function ConcepteurSeance({
     () => new Map(domaines.map((d) => [d.id, d.nom])),
     [domaines],
   );
-  const themes = useMemo(
+  const themesSug = useMemo(
     () => themesSuggeres(recommandations, nomsDomaines),
     [recommandations, nomsDomaines],
   );
@@ -158,13 +165,68 @@ export function ConcepteurSeance({
     };
   }, [preset, domaines]);
 
-  const tousThemes = useMemo(
-    () => (themeDuPreset ? [themeDuPreset, ...themes] : themes),
-    [themeDuPreset, themes],
+  /**
+   * Le premier thème de `themesSug` (ou le preset) EST la prochaine action —
+   * c'est la propriété d'ADR-049, inchangée. Ce chantier n'y touche pas : il
+   * ajoute un SECOND mode à côté, il ne modifie pas le premier.
+   */
+  const themePrincipal: ThemeSeance | null = themeDuPreset ?? themesSug[0] ?? null;
+
+  /*
+   * Référentiel « léger », reconstruit côté client à partir des seules pièces
+   * déjà envoyées par le serveur (`actifs`) — pour appeler `themesEnregistres`
+   * (lib/domain/theme.ts, pur) sans faire porter au client un `Referentiel`
+   * complet. Seuls `codesActifs` et `parCode` sont lus par cette fonction ;
+   * les autres champs restent vides, structurellement présents mais inertes.
+   */
+  const referentielLeger: Referentiel = useMemo(
+    () => ({
+      domaines: [],
+      skills: actifs,
+      actifs,
+      parCode: new Map(actifs.map((s) => [s.code, s])),
+      codesActifs: new Set(actifs.map((s) => s.code)),
+      domainesParId: new Map(),
+    }),
+    [actifs],
   );
 
-  const [cleTheme, setCleTheme] = useState(() => tousThemes[0]?.cle ?? "");
-  const theme = tousThemes.find((t) => t.cle === cleTheme) ?? tousThemes[0] ?? null;
+  const competencesParCode = useMemo(
+    () =>
+      new Map(
+        actifs.map((s) => [s.code, { intitule: s.intitule, domaine: nomsDomaines.get(s.domaine) ?? s.domaine }]),
+      ),
+    [actifs, nomsDomaines],
+  );
+
+  // Thèmes créés pendant cette session (via ModaleTheme) mais pas encore
+  // reflétés dans `themesPersistes` : ajoutés côté client pour une sélection
+  // immédiate, sans attendre un aller-retour serveur.
+  const [themesLocaux, setThemesLocaux] = useState<Theme[]>([]);
+
+  const themesEnreg = useMemo(
+    () => themesEnregistres([...themesPersistes, ...themesLocaux], referentielLeger),
+    [themesPersistes, themesLocaux, referentielLeger],
+  );
+
+  // Thèmes suggérés « larges » (domaine entier, transverse) à proposer en
+  // repli dans le mode personnalisé — le premier (la prochaine action) reste
+  // le contenu du mode « Prochaine action », pour ne pas le montrer deux fois.
+  const themesSugRepli = themesSug.slice(themeDuPreset ? 0 : 1);
+
+  const [mode, setMode] = useState<"prochaine-action" | "personnalisee">("prochaine-action");
+  const [cleThemePerso, setCleThemePerso] = useState<string>("");
+  const [modaleThemeOuverte, setModaleThemeOuverte] = useState(false);
+
+  const themesPersonnalises = useMemo(
+    () => [...themesEnreg, ...themesSugRepli],
+    [themesEnreg, themesSugRepli],
+  );
+
+  const theme: ThemeSeance | null =
+    mode === "prochaine-action"
+      ? themePrincipal
+      : (themesPersonnalises.find((t) => t.cle === cleThemePerso) ?? themesPersonnalises[0] ?? null);
 
   const [temps, setTemps] = useState(
     String(preset?.dureeCibleMin ?? TEMPS_PAR_DEFAUT),
@@ -213,14 +275,24 @@ export function ConcepteurSeance({
   }
 
   function besoinCourant(): BesoinDeclare {
+    // Un thème enregistré n'impose aucun code (voir composerSeance : il
+    // fournit une PORTÉE, pas une liste imposée, ADR-053) — mais la personne
+    // a explicitement nommé ces compétences en créant le thème, donc elles
+    // sont bien ce qu'elle vise. `codesImposes` reste la source pour les
+    // thèmes ciblés (une seule compétence, ADR-049).
+    const codesVises =
+      theme?.portee.type === "theme" ? theme.portee.codes : theme?.codesImposes ?? [];
+    const themeId = theme?.portee.type === "theme" ? theme.portee.themeId : undefined;
+
     return {
       // Absente plutôt que chaîne vide : un champ laissé vide n'est pas une
       // intention déclarée, et `ecartBesoinRealise` ne doit pas afficher des
       // guillemets autour de rien.
       ...(intention.trim() ? { intention: intention.trim() } : {}),
-      codesVises: theme?.codesImposes ?? [],
+      codesVises,
       tempsDisponibleMin: tempsMin,
       declareLe: new Date().toISOString(),
+      ...(themeId ? { themeId } : {}),
     };
   }
 
@@ -303,9 +375,20 @@ export function ConcepteurSeance({
         >
           {phase === "besoin" ? (
             <EtapeBesoin
-              themes={tousThemes}
-              cleTheme={cleTheme}
-              setCleTheme={setCleTheme}
+              mode={mode}
+              setMode={setMode}
+              themePrincipal={themePrincipal}
+              themesPersonnalises={themesPersonnalises}
+              themesEnreg={themesEnreg}
+              cleThemePerso={cleThemePerso}
+              setCleThemePerso={setCleThemePerso}
+              ouvrirModaleTheme={() => setModaleThemeOuverte(true)}
+              onThemeRetire={(id) => {
+                setThemesLocaux((prev) => prev.filter((t) => t.id !== id));
+                if (cleThemePerso === `theme:${id}`) setCleThemePerso("");
+                router.refresh();
+              }}
+              onThemeRenomme={() => router.refresh()}
               temps={temps}
               setTemps={setTemps}
               conseil={conseil}
@@ -340,6 +423,19 @@ export function ConcepteurSeance({
           )}
         </Modale>
       )}
+
+      {modaleThemeOuverte && (
+        <ModaleTheme
+          competencesParCode={competencesParCode}
+          compteId={compteId}
+          onFermer={() => setModaleThemeOuverte(false)}
+          onCree={(t) => {
+            setThemesLocaux((prev) => [...prev, t]);
+            setCleThemePerso(`theme:${t.id}`);
+            setMode("personnalisee");
+          }}
+        />
+      )}
     </>
   );
 }
@@ -349,9 +445,16 @@ export function ConcepteurSeance({
 /* ------------------------------------------------------------------ */
 
 function EtapeBesoin({
-  themes,
-  cleTheme,
-  setCleTheme,
+  mode,
+  setMode,
+  themePrincipal,
+  themesPersonnalises,
+  themesEnreg,
+  cleThemePerso,
+  setCleThemePerso,
+  ouvrirModaleTheme,
+  onThemeRetire,
+  onThemeRenomme,
   temps,
   setTemps,
   conseil,
@@ -362,9 +465,17 @@ function EtapeBesoin({
   erreur,
   continuer,
 }: {
-  themes: ThemeSeance[];
-  cleTheme: string;
-  setCleTheme: (v: string) => void;
+  mode: "prochaine-action" | "personnalisee";
+  setMode: (v: "prochaine-action" | "personnalisee") => void;
+  themePrincipal: ThemeSeance | null;
+  themesPersonnalises: ThemeSeance[];
+  /** Les seuls thèmes enregistrés (sans les suggestions de repli) — pour la gestion. */
+  themesEnreg: ThemeSeance[];
+  cleThemePerso: string;
+  setCleThemePerso: (v: string) => void;
+  ouvrirModaleTheme: () => void;
+  onThemeRetire: (themeId: string) => void;
+  onThemeRenomme: () => void;
   temps: string;
   setTemps: (v: string) => void;
   conseil: ReturnType<typeof nombreExercicesConseille>;
@@ -375,7 +486,7 @@ function EtapeBesoin({
   erreur: string | null;
   continuer: () => void;
 }) {
-  if (themes.length === 0) {
+  if (!themePrincipal && themesPersonnalises.length === 0) {
     return (
       <div className="space-y-3 pt-4">
         <Carte>
@@ -394,39 +505,113 @@ function EtapeBesoin({
 
   return (
     <div className="space-y-5 pt-4">
-      <fieldset>
-        <legend className="mb-2 block text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
-          Sur quoi tu bosses
-        </legend>
-        <div className="space-y-1.5">
-          {themes.map((t) => (
-            <label
-              key={t.cle}
-              className={cx(
-                "flex cursor-pointer items-start gap-2.5 rounded-md border px-3 py-2.5 transition-colors",
-                t.cle === cleTheme
-                  ? "border-primaire/40 bg-primaire-faible"
-                  : "border-bordure hover:bg-surface-2",
-              )}
-            >
-              <input
-                type="radio"
-                name="theme-seance"
-                value={t.cle}
-                checked={t.cle === cleTheme}
-                onChange={() => setCleTheme(t.cle)}
-                className="mt-0.5"
-              />
-              <span className="min-w-0">
-                <span className="block text-sm font-medium">{t.libelle}</span>
-                <span className="block text-[0.6875rem] text-texte-discret">
-                  {t.detail}
-                </span>
-              </span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
+      {/*
+        Deux gestes distincts, pas une liste unique : « prochaine action » est
+        pré-sélectionné et n'exige aucun choix — c'est le classement du moteur,
+        identique à la carte du tableau de bord (ADR-049). « Séance
+        personnalisée » ouvre sur les thèmes déjà enregistrés, une intention
+        libre résolue par le tuteur, et les thèmes larges (domaine, transverse)
+        en repli.
+      */}
+      <div role="tablist" className="flex gap-2 border-b border-bordure pb-3">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "prochaine-action"}
+          onClick={() => setMode("prochaine-action")}
+          disabled={!themePrincipal}
+          className={cx(
+            "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+            mode === "prochaine-action"
+              ? "bg-primaire-faible text-primaire"
+              : "text-texte-attenue hover:bg-surface-2",
+            !themePrincipal && "opacity-40",
+          )}
+        >
+          Prochaine action
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "personnalisee"}
+          onClick={() => setMode("personnalisee")}
+          className={cx(
+            "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+            mode === "personnalisee"
+              ? "bg-primaire-faible text-primaire"
+              : "text-texte-attenue hover:bg-surface-2",
+          )}
+        >
+          Séance personnalisée
+        </button>
+      </div>
+
+      {mode === "prochaine-action" && themePrincipal && (
+        <Carte>
+          <div className="px-4 py-3.5">
+            <p className="text-sm font-medium">{themePrincipal.libelle}</p>
+            <p className="mt-0.5 text-[0.6875rem] text-texte-discret">{themePrincipal.detail}</p>
+          </div>
+        </Carte>
+      )}
+
+      {mode === "personnalisee" && (
+        <fieldset className="space-y-2.5">
+          <legend className="mb-1 block text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
+            Sur quoi tu veux travailler
+          </legend>
+
+          <button
+            type="button"
+            onClick={ouvrirModaleTheme}
+            className="w-full rounded-md border border-dashed border-primaire/40 px-3 py-2.5 text-left text-sm text-primaire hover:bg-primaire-faible"
+          >
+            + Décrire ce que je veux apprendre
+          </button>
+
+          {themesPersonnalises.length === 0 ? (
+            <p className="text-xs text-texte-attenue">
+              Aucun thème enregistré pour l&apos;instant. Décris une intention ci-dessus, ou
+              utilise le classement du moteur via « Prochaine action ».
+            </p>
+          ) : (
+            <div className="space-y-1.5">
+              {themesPersonnalises.map((t) => (
+                <label
+                  key={t.cle}
+                  className={cx(
+                    "flex cursor-pointer items-start gap-2.5 rounded-md border px-3 py-2.5 transition-colors",
+                    t.cle === cleThemePerso
+                      ? "border-primaire/40 bg-primaire-faible"
+                      : "border-bordure hover:bg-surface-2",
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="theme-seance-perso"
+                    value={t.cle}
+                    checked={t.cle === cleThemePerso}
+                    onChange={() => setCleThemePerso(t.cle)}
+                    className="mt-0.5"
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium">{t.libelle}</span>
+                    <span className="block text-[0.6875rem] text-texte-discret">{t.detail}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          )}
+
+          {themesEnreg.length > 0 && (
+            <GestionThemes
+              themes={themesEnreg}
+              onRetire={onThemeRetire}
+              onRenomme={onThemeRenomme}
+            />
+          )}
+        </fieldset>
+      )}
 
       <Champ
         label="Temps disponible (minutes)"
@@ -479,6 +664,162 @@ function EtapeBesoin({
           Voir la composition
         </Bouton>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Gérer ses thèmes enregistrés — renommer, retirer. Vit ici plutôt que dans un
+ * nouvel onglet : c'est un réglage de la composition, pas un écran à part.
+ *
+ * Le retrait annonce son geste avant le clic (ADR-027, même charte que le
+ * référentiel) : `etatRetraitTheme` le dérive du nombre de séances qui citent
+ * ce thème, jamais offert au choix.
+ */
+function GestionThemes({
+  themes,
+  onRetire,
+  onRenomme,
+}: {
+  themes: ThemeSeance[];
+  onRetire: (themeId: string) => void;
+  onRenomme: () => void;
+}) {
+  const [edite, setEdite] = useState<string | null>(null);
+  const [libelleEdite, setLibelleEdite] = useState("");
+  const [confirme, setConfirme] = useState<string | null>(null);
+  const [geste, setGeste] = useState<{ seances: number; mode: "suppression" | "archivage" } | null>(
+    null,
+  );
+  const [enCours, demarrer] = useTransition();
+  const [erreur, setErreur] = useState<string | null>(null);
+
+  return (
+    <div className="space-y-1.5 border-t border-bordure pt-2.5">
+      <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
+        Mes thèmes
+      </p>
+      {erreur && (
+        <p role="alert" className="text-[0.6875rem] text-danger">
+          {erreur}
+        </p>
+      )}
+      <ul className="space-y-1">
+        {themes.map((t) => {
+          if (t.portee.type !== "theme") return null;
+          const themeId = t.portee.themeId;
+          return (
+            <li
+              key={themeId}
+              className="rounded-md border border-bordure bg-surface-2/60 px-2.5 py-1.5"
+            >
+              {edite === themeId ? (
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    value={libelleEdite}
+                    onChange={(e) => setLibelleEdite(e.target.value)}
+                    className="min-w-0 flex-1 rounded border border-bordure-controle bg-surface px-1.5 py-1 text-xs"
+                  />
+                  <button
+                    type="button"
+                    disabled={enCours}
+                    onClick={() =>
+                      demarrer(async () => {
+                        setErreur(null);
+                        try {
+                          await modifierTheme(themeId, {
+                            libelle: libelleEdite,
+                            codes: t.portee.type === "theme" ? t.portee.codes : [],
+                          });
+                          setEdite(null);
+                          onRenomme();
+                        } catch (e) {
+                          setErreur(e instanceof Error ? e.message : "Renommage impossible.");
+                        }
+                      })
+                    }
+                    className="text-[0.6875rem] font-medium text-primaire hover:underline"
+                  >
+                    Enregistrer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEdite(null)}
+                    className="text-[0.6875rem] text-texte-attenue hover:text-texte"
+                  >
+                    Annuler
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="min-w-0 truncate text-xs">{t.libelle}</span>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEdite(themeId);
+                        setLibelleEdite(t.libelle);
+                      }}
+                      className="text-[0.6875rem] text-texte-attenue hover:text-texte"
+                    >
+                      Renommer
+                    </button>
+                    {confirme === themeId ? (
+                      <button
+                        type="button"
+                        disabled={enCours}
+                        onClick={() =>
+                          demarrer(async () => {
+                            setErreur(null);
+                            try {
+                              await retirerTheme(themeId);
+                              onRetire(themeId);
+                            } catch (e) {
+                              setErreur(e instanceof Error ? e.message : "Retrait impossible.");
+                            }
+                          })
+                        }
+                        className="text-[0.6875rem] font-medium text-danger hover:underline"
+                      >
+                        Confirmer
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          demarrer(async () => {
+                            const etat = await etatRetraitTheme(themeId);
+                            setGeste(etat);
+                            setConfirme(themeId);
+                          })
+                        }
+                        className="text-[0.6875rem] text-texte-attenue hover:text-danger"
+                      >
+                        Retirer
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+              {/* L'annonce du geste, avant qu'il ne se produise (ADR-027). */}
+              {confirme === themeId && geste && (
+                <p className="mt-1 text-[0.6875rem] text-texte-discret">
+                  {geste.mode === "suppression" ? (
+                    <>Aucune séance ne le cite : suppression définitive.</>
+                  ) : (
+                    <>
+                      {geste.seances} séance{geste.seances > 1 ? "s" : ""} le cite
+                      {geste.seances > 1 ? "nt" : ""} : archivage, pas suppression — les séances
+                      passées restent lisibles.
+                    </>
+                  )}
+                </p>
+              )}
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

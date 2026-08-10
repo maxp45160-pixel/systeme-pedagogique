@@ -235,6 +235,23 @@ describe("motifRefusDemande — les bornes sont dérivées de celles d'un exerci
     });
     expect(refus).toContain("deux domaines");
   });
+
+  it("refuse une portée thème sans aucune compétence active", () => {
+    const refus = motifRefusDemande({
+      ...DEMANDE,
+      portee: { type: "theme", themeId: "t", codes: [] },
+    });
+    expect(refus).toContain("rien à composer");
+  });
+
+  it("accepte une portée thème avec des codes", () => {
+    expect(
+      motifRefusDemande({
+        ...DEMANDE,
+        portee: { type: "theme", themeId: "t", codes: ["DEV-01"] },
+      }),
+    ).toBeNull();
+  });
 });
 
 describe("motifRefusBlueprint — la même règle, plus les cibles", () => {

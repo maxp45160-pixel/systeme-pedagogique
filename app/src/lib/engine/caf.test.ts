@@ -433,3 +433,47 @@ describe("composerSeance — la propriété qui protège du défaut rapporté", 
     expect(c.activites.map((a) => a.ref)).toContain("ex-dev05");
   });
 });
+
+/*
+ * Portée "theme" (ADR-053) — le moteur classe DEDANS, il n'impose pas.
+ *
+ * C'est le point de conception qui a décidé toute la forme du chantier : un
+ * thème traite ses codes comme un périmètre à classer par `recommander`, pas
+ * comme des `codesImposes` qui passeraient devant lui. Un thème à 5 codes pour
+ * 2 créneaux doit donc respecter l'ordre du moteur, pas l'ordre d'écriture du
+ * thème.
+ */
+describe("composerSeance — portée 'theme'", () => {
+  const PORTEE_THEME = {
+    type: "theme" as const,
+    themeId: "theme-test",
+    codes: ["DEV-01", "DEV-02", "DEV-03"],
+  };
+
+  it("classe DANS les codes du thème, par le même moteur que 'mono'/'transverse'", () => {
+    const c = composer({ nombreExercices: 3, portee: PORTEE_THEME });
+    const codesRendus = [...c.activites, ...c.manquants].map((a) => ("code" in a ? a.code : a));
+    for (const code of codesRendus) {
+      expect(PORTEE_THEME.codes).toContain(code);
+    }
+    // Aucune compétence hors thème (DEV-04, DEV-05, DEV-06) ne doit apparaître.
+    expect(codesRendus).not.toContain("DEV-04");
+  });
+
+  it("un thème sans exercice ne rend QUE des manquants, jamais une activité inventée", () => {
+    const c = composer({ nombreExercices: 3, portee: PORTEE_THEME }, []);
+    expect(c.activites).toEqual([]);
+    expect(c.manquants.map((m) => m.code).sort()).toEqual(["DEV-01", "DEV-02", "DEV-03"]);
+  });
+
+  it("un code du thème absent du référentiel actif ne fait pas tomber la composition", () => {
+    // themeVersThemeSeance filtre déjà les codes disparus AVANT d'atteindre
+    // composerSeance ; celui-ci doit rester indifférent à un code inconnu qui
+    // lui parviendrait quand même — il l'ignore plutôt que planter.
+    const c = composer({
+      nombreExercices: 1,
+      portee: { type: "theme", themeId: "t", codes: ["DEV-01", "CODE-INEXISTANT"] },
+    });
+    expect(c.manquants.map((m) => m.code)).toEqual(["DEV-01"]);
+  });
+});
