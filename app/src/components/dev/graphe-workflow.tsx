@@ -562,7 +562,7 @@ export function GrapheWorkflowViz({
     return () => {
       sim.stop();
     };
-  }, [noeudsVisibles, liensVisibles, profondeurs]);
+  }, [noeuds, liens, typesNoeuds, typesLiens, profondeurs]);
 
   /* ── Redimensionnement ── */
 
