@@ -15,9 +15,9 @@
  */
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import Link from "next/link";
 import { BandeauInfo, Bouton, PointActif } from "@/components/ui/primitives";
 import { Modale } from "@/components/ui/modale";
+import { ModaleCompetence } from "@/components/referentiel/modale-competence";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import type { PropositionTheme } from "@/lib/tutor/outils";
 import { creerTheme } from "@/lib/store/theme-actions";
@@ -33,6 +33,7 @@ type Etat =
 export function ModaleTheme({
   competencesParCode,
   compteId,
+  domainesExistants,
   intentionInitiale = "",
   onFermer,
   onCree,
@@ -40,6 +41,7 @@ export function ModaleTheme({
   /** Intitulé et domaine, pour afficher chaque code désigné lisiblement. */
   competencesParCode: Map<string, { intitule: string; domaine: string }>;
   compteId: string;
+  domainesExistants: { id: string; nom: string; prefixe: string }[];
   intentionInitiale?: string;
   onFermer: () => void;
   /** Le thème vient d'être créé — le compositeur peut le sélectionner tout de suite. */
@@ -52,6 +54,7 @@ export function ModaleTheme({
   const [erreurAction, setErreurAction] = useState<string | null>(null);
   const [enCours, demarrer] = useTransition();
   const abandonRef = useRef<AbortController | null>(null);
+  const [creationCompetenceOuverte, setCreationCompetenceOuverte] = useState(false);
 
   useEffect(() => {
     const controleur = abandonRef;
@@ -172,6 +175,25 @@ export function ModaleTheme({
   const p = etat.phase === "relecture" ? etat.proposition : null;
   const codesGardes = p ? p.codes.filter((c) => garde[c]) : [];
 
+  if (creationCompetenceOuverte) {
+    const justification =
+      etat.phase === "aucune-correspondance" ? etat.proposition.justification ?? "" : "";
+    return (
+      <ModaleCompetence
+        onFermer={() => setCreationCompetenceOuverte(false)}
+        domainesExistants={domainesExistants}
+        compteId={compteId}
+        sujetInitial={intention.trim()}
+        descriptionInitiale={intention.trim()}
+        justificationInitiale={justification}
+        surEnregistre={() => {
+          setCreationCompetenceOuverte(false);
+          setEtat({ phase: "saisie" });
+        }}
+      />
+    );
+  }
+
   return (
     <Modale
       titre="Séance personnalisée"
@@ -239,12 +261,13 @@ export function ModaleTheme({
               )}
             </BandeauInfo>
             <div className="flex flex-wrap items-center gap-3">
-              <Link
-                href="/competences"
+              <button
+                type="button"
+                onClick={() => setCreationCompetenceOuverte(true)}
                 className="text-xs font-medium text-accent underline-offset-2 hover:underline"
               >
                 Créer une compétence pour ce sujet
-              </Link>
+              </button>
               <button
                 type="button"
                 onClick={() => setEtat({ phase: "saisie" })}

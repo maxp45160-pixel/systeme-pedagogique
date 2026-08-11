@@ -15,15 +15,15 @@ import {
 import { CarteProgressionRecente } from "@/components/dashboard/progression-recente";
 import { CarteActivite } from "@/components/dashboard/activite";
 import { CarteProfil } from "@/components/dashboard/carte-profil";
-import { Pomodoro } from "@/components/dashboard/pomodoro";
 import {
   ConcepteurSeance,
   type DonneesSeance,
 } from "@/components/seances/concepteur-seance";
 import { Depliant } from "@/components/ui/explication";
 import { Glossaire } from "@/components/ui/glossaire";
-import { BandeauInfo, Bouton, Carte, EnTeteCarte, TitreSection } from "@/components/ui/primitives";
+import { BandeauInfo, Bouton, Carte, classesLienBouton, TitreSection } from "@/components/ui/primitives";
 import { abandonnerExercice } from "@/lib/store/actions";
+import { statutSeance } from "@/lib/domain/seance";
 
 export default function TableauDeBord() {
   // La date du jour ne dépend d'aucune lecture : `ctx.now` n'est rien d'autre
@@ -86,17 +86,25 @@ async function ContenuTableauDeBord() {
     calibrations: Array.from(ctx.calibrations.entries()),
     calibragesModale: calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations),
     recommandations: ctx.recommandations,
-    domaines: ctx.referentiel.domaines.map((d) => ({ id: d.id, nom: d.nom })),
+    domaines: ctx.referentiel.domaines.map((d) => ({ id: d.id, nom: d.nom, prefixe: d.prefixe })),
     themes,
     compteId: ctx.donnees.user.id,
-    pleineLargeur: true,
   };
+
+  const seanceActive = ctx.donnees.sessions.find(
+    (seance) => statutSeance(seance) === "en-cours",
+  );
+  const exercicesDeLaSeanceActive = new Set(
+    seanceActive?.activites
+      .filter((activite) => activite.type === "exercice")
+      .map((activite) => activite.ref) ?? [],
+  );
 
   // Tentatives ouvertes, résolues contre le corpus. Un exercice archivé ou
   // supprimé entre-temps ne doit pas produire une ligne sans titre.
   const parId = new Map(ctx.donnees.exercises.map((e) => [e.id, e]));
   const enCours = ctx.donnees.attempts
-    .filter((a) => a.statut === "en-cours")
+    .filter((a) => a.statut === "en-cours" && !exercicesDeLaSeanceActive.has(a.exerciseId))
     .flatMap((a) => {
       const exercice = parId.get(a.exerciseId);
       if (!exercice) return [];
@@ -158,7 +166,7 @@ async function ContenuTableauDeBord() {
                   <span className="text-texte-discret">
                     commencé il y a {formatDuree(depuis)} · {exercice.competences.join(", ")}
                   </span>
-                  <form action={abandonnerExercice.bind(null, id, exercice.id, depuis)}>
+                  <form action={abandonnerExercice.bind(null, id, exercice.id, depuis, undefined)}>
                     <Bouton type="submit" variante="secondaire" taille="petite">
                       Abandonner
                     </Bouton>
@@ -170,42 +178,43 @@ async function ContenuTableauDeBord() {
         </BandeauInfo>
       )}
 
-      {/* Action prioritaire : seule et dominante, rien ne la concurrence. */}
+      {/* Une séance entamée passe avant toute nouvelle recommandation. */}
       <div className="[&>*]:min-w-0">
-        <CarteProchaineAction
-          recommandations={ctx.recommandations}
-          referentiel={ctx.referentiel}
-          calibrages={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
-          now={ctx.now}
-          compteId={ctx.donnees.user.id}
-        />
+        {seanceActive ? (
+          <Carte accent className="relative overflow-hidden">
+            <div className="absolute inset-x-0 top-0 h-1 bg-primaire" aria-hidden />
+            <div className="px-5 py-5 sm:px-6">
+              <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-primaire">Action prioritaire</p>
+              <h2 className="mt-2 font-serif text-2xl font-medium">Reprendre la séance</h2>
+              <p className="mt-2 text-sm text-texte-attenue">Retrouve l&apos;exercice, le minuteur et le tuteur dans le workspace, sans changer de contexte.</p>
+              <Link href={`/seances?session=${encodeURIComponent(seanceActive.id)}`} className={`${classesLienBouton("principal")} mt-4`}>
+                Reprendre la séance
+              </Link>
+            </div>
+          </Carte>
+        ) : (
+          <CarteProchaineAction
+            recommandations={ctx.recommandations}
+            referentiel={ctx.referentiel}
+            calibrages={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
+            now={ctx.now}
+            compteId={ctx.donnees.user.id}
+          />
+        )}
       </div>
 
-      {/*
-        Piloter son temps : composer une séance, et un minuteur pour la tenir.
-        Placé APRÈS l'action prioritaire — elle reste seule et dominante — et
-        AVANT la vue d'ensemble : ce sont des outils de pilotage, pas une
-        lecture de contrôle.
-
-        « Composer une séance » n'ouvre rien d'autre que ce que `/seances`
-        ouvre déjà : le même `ConcepteurSeance`, les mêmes données dérivées du
-        lot 1. Deux points d'entrée, une seule logique (ADR-049) — recopier le
-        formulaire ici aurait été le début de la divergence que le reste du
-        chantier refuse.
-      */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 [&>*]:min-w-0">
-        <Carte>
-          <EnTeteCarte
-            titre="Composer une séance"
-            legende="Un thème, un temps — le reste est dérivé."
-          />
-          <div className="flex justify-center px-5 py-4">
-            <ConcepteurSeance {...donneesSeance} />
+      <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
+        <Carte id="composer-seance" className="scroll-mt-6">
+          <div className="flex h-full flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-6">
+            <div>
+              <p className="text-sm font-medium">Composer une séance</p>
+              <p className="mt-1 text-xs text-texte-attenue">
+                La recommandation ci-dessus est déjà le point de départ de la composition.
+              </p>
+            </div>
+            <ConcepteurSeance {...donneesSeance} libelle="Composer une séance" />
           </div>
         </Carte>
-
-        <Pomodoro compteId={ctx.donnees.user.id} />
-
         <CarteProfil user={ctx.donnees.user} />
       </div>
 

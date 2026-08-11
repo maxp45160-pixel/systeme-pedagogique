@@ -29,6 +29,10 @@ export function ModaleCompetence({
   compteId,
   domaineInitial,
   brancheInitiale,
+  sujetInitial = "",
+  descriptionInitiale = "",
+  justificationInitiale = "",
+  surEnregistre,
 }: {
   onFermer: () => void;
   domainesExistants: { id: string; nom: string; prefixe: string }[];
@@ -37,17 +41,33 @@ export function ModaleCompetence({
   domaineInitial?: string;
   /** Branche pré-remplie — quand on ouvre depuis une proposition du tuteur. */
   brancheInitiale?: BrancheInitiale;
+  /** Sujet déjà déclaré avant l'ouverture de la modale (sans valoir proposition). */
+  sujetInitial?: string;
+  /** Contexte libre conservé dans le formulaire, toujours modifiable. */
+  descriptionInitiale?: string;
+  /** Explication d'un refus du tuteur, informative et non mesurante. */
+  justificationInitiale?: string;
+  /** Permet à l'appelant de reprendre son flux après la création. */
+  surEnregistre?: () => void;
 }) {
   const router = useRouter();
   const [phase, setPhase] = useState<"formulaire" | "suggestion">("formulaire");
-  const [sujet, setSujet] = useState("");
+  const [sujet, setSujet] = useState(sujetInitial);
   const [progression, setProgression] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [initiale, setInitiale] = useState<BrancheInitiale | undefined>(
     brancheInitiale ??
       (domaineInitial
         ? { domaine: domaineInitial, prefixe: "", description: "", justification: "", competences: [] }
-        : undefined),
+        : descriptionInitiale || justificationInitiale
+          ? {
+              domaine: "",
+              prefixe: "",
+              description: descriptionInitiale,
+              justification: justificationInitiale,
+              competences: [],
+            }
+          : undefined),
   );
   /*
    * Deux choses distinctes, longtemps portées par le même drapeau (audit §2.13).
@@ -217,6 +237,7 @@ export function ModaleCompetence({
               initiale={initiale}
               origine={venuDuTuteur ? "tuteur" : "manuel"}
               surEnregistre={() => {
+                surEnregistre?.();
                 onFermer();
                 router.refresh();
               }}

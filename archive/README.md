@@ -10,12 +10,22 @@ alors que la production en comptait 15.
 
 | Document | Date | Pourquoi il est ici |
 |---|---|---|
-| `ETAT_DES_LIEUX_2026-07-27.md` | 27/07/2026 | Ses chiffres d'usage (§5, §8) étaient déjà déclarés faux. Son analyse technique a été absorbée par le chantier de décomplexification du 28/07 |
-| `AUDIT_SYSTEME_2026-07-25.md` | 25/07/2026 | Instantané antérieur à l'ouverture des comptes |
-| `MESURE_MOTEUR_TUTEUR_2026-07-27.md` | 27/07/2026 | Mesure ponctuelle ; la décision qu'elle éclairait est ADR-007 |
-| `SPEC_CHANTIER1_BOUCLE_PREUVES_2026-07-25_FAIT.md` | 25/07/2026 | Chantier terminé |
-| `SPEC_MAJ_PROFIL_2026-07-25_FAIT.md` | 25/07/2026 | Chantier terminé |
-| `synthese_profil_competences_2026-07-25.md` | 25/07/2026 | Source des préférences pédagogiques et des 4 compétences ajoutées le 25/07 |
+| `SETUP_COMPTES_SUPABASE.md` | 28/07/2026 | Procédure d'exploitation, encore utile — pas une analyse |
+| `synthese_profil_competences_2026-07-25.md` | 25/07/2026 | Source des préférences pédagogiques et des 4 compétences ajoutées le 25/07. C'est une **donnée déclarée**, non dérivable : elle ne se recalcule pas |
 
-Les documents qui font autorité sont restés à la racine : `CLAUDE.md`,
-`PRODUCT.md`, `ARCHITECTURE_DECISIONS.md`, `ROADMAP.md`.
+## Supprimé le 11/08/2026
+
+Cinq documents ont été retirés : leur contenu est intégralement couvert par les
+documents qui font autorité, et les garder revenait à entretenir deux versions
+d'un même fait. Récupérables dans l'historique git.
+
+| Document supprimé | Ce qui le couvre |
+|---|---|
+| `ETAT_DES_LIEUX_2026-07-27.md` | Chiffres d'usage déjà déclarés faux ; analyse absorbée par le chantier du 28/07 |
+| `AUDIT_SYSTEME_2026-07-25.md` | Instantané antérieur à l'ouverture des comptes |
+| `MESURE_MOTEUR_TUTEUR_2026-07-27.md` | ADR-007 |
+| `SPEC_CHANTIER1_BOUCLE_PREUVES_2026-07-25_FAIT.md` | Chantier terminé, décisions en ADR |
+| `SPEC_MAJ_PROFIL_2026-07-25_FAIT.md` | Chantier terminé, décisions en ADR |
+
+Les documents qui font autorité sont à la racine : `CLAUDE.md`, `PRODUCT.md`,
+`PRODUCT_SPECIFICATION_MAP.md`, `ARCHITECTURE_DECISIONS.md`.

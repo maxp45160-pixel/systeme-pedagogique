@@ -9,6 +9,8 @@ Boucle centrale :
 génération d'exercices → évaluation → adaptation
 
 Lire `PRODUCT.md` avant toute décision produit.
+Lire `PRODUCT_SPECIFICATION_MAP.md` pour situer une brique : où elle vit, dans
+quelle couche, à quel état.
 Lire `ARCHITECTURE_DECISIONS.md` avant toute modification architecturale.
 
 Ne jamais transformer une analyse Claude en décision validée.

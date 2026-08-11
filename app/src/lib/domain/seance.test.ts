@@ -4,6 +4,7 @@ import {
   ecartBesoinRealise,
   exercicesDeLaSeance,
   motifRefusBesoin,
+  motifRefusActivites,
   motifRefusBlueprint,
   motifRefusDemande,
   resumeSeance,
@@ -277,6 +278,27 @@ describe("motifRefusBlueprint — la même règle, plus les cibles", () => {
       cibles: [...BLUEPRINT.cibles, { code: "DEV-03", difficulte: 2 as const, raison: "…" }],
     };
     expect(motifRefusBlueprint(trop)).toContain("3 compétences pour 2");
+  });
+});
+
+describe("motifRefusActivites — une séance sans exercice disponible est refusée", () => {
+  const act = (ref: string) => ({ type: "exercice" as const, ref, libelle: ref });
+
+  it("accepte une séance avec au moins un exercice retenu", () => {
+    expect(motifRefusActivites([act("ex-1"), act("ex-2")])).toBeNull();
+  });
+
+  it("refuse une séance sans aucune activité", () => {
+    expect(motifRefusActivites([])).not.toBeNull();
+  });
+
+  it("refuse une séance dont aucune activité n'est un exercice", () => {
+    // Les places « à générer » ne comptent pas encore comme activités : une
+    // séance qui n'en retiendrait que des manquants serait vide au premier
+    // exercice (P2). Le tuteur n'écrit jamais d'autre type d'activité, mais le
+    // refuse doit le prouver plutôt que de le supposer.
+    expect(motifRefusActivites([{ type: "pauvre" as string, ref: "x", libelle: "x" }])).not.toBeNull();
+    expect(motifRefusActivites([act("ex-1"), { type: "autre", ref: "y", libelle: "y" }])).toBeNull();
   });
 });
 

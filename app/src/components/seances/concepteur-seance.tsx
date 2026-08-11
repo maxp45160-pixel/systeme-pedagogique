@@ -28,7 +28,7 @@
  * ## Ce qui n'a pas bougé
  *
  * Aucune logique n'est recopiée ici : `composerSeance` compose, `motifRefusBesoin`
- * valide (la même fonction que le serveur), `planifierSeance` écrit. Et **rien
+ * valide (la même fonction que le serveur), `creerSeance` écrit. Et **rien
  * n'est écrit avant la validation finale** (D3, ADR-037) : un manquant se
  * génère par la modale existante, se relit, et la séance n'est persistée qu'au
  * clic « Démarrer » ou « Planifier ».
@@ -48,7 +48,13 @@ import type {
   Skill,
   SkillState,
 } from "@/lib/domain/types";
-import { motifRefusBesoin, TEMPS_DECLARE_MAX } from "@/lib/domain/seance";
+import {
+  EXERCICES_PAR_SEANCE_MAX,
+  EXERCICES_PAR_SEANCE_MIN,
+  motifRefusBesoin,
+  motifRefusDemande,
+  TEMPS_DECLARE_MAX,
+} from "@/lib/domain/seance";
 import { DUREE_ESTIMEE_MIN } from "@/lib/domain/exercice";
 import { themesEnregistres, type Theme } from "@/lib/domain/theme";
 import {
@@ -63,8 +69,7 @@ import {
 import type { Calibration } from "@/lib/engine/calibration";
 import type { Recommandation } from "@/lib/engine/recommend";
 import {
-  demarrerSeance,
-  planifierSeance,
+  creerSeance,
   type EntreePlanification,
 } from "@/lib/store/seance-actions";
 import { etatRetraitTheme, modifierTheme, retirerTheme } from "@/lib/store/theme-actions";
@@ -104,7 +109,7 @@ export interface DonneesSeance {
    * assemblé.
    */
   recommandations: Recommandation[];
-  domaines: { id: string; nom: string }[];
+  domaines: { id: string; nom: string; prefixe: string }[];
   /** Thèmes enregistrés du compte (chantier « thèmes », ADR-053). */
   themes: Theme[];
   compteId: string;
@@ -214,7 +219,12 @@ export function ConcepteurSeance({
   // le contenu du mode « Prochaine action », pour ne pas le montrer deux fois.
   const themesSugRepli = themesSug.slice(themeDuPreset ? 0 : 1);
 
-  const [mode, setMode] = useState<"prochaine-action" | "personnalisee">("prochaine-action");
+  const [mode, setMode] = useState<"prochaine-action" | "personnalisee">(
+    // Sans recommandation, `themePrincipal` est nul : l'onglet « Prochaine
+    // action » n'aurait rien à montrer. On bascule d'office vers le mode
+    // personnalisé, où la personne choisit un thème enregistré ou en décrit un.
+    themePrincipal ? "prochaine-action" : "personnalisee",
+  );
   const [cleThemePerso, setCleThemePerso] = useState<string>("");
   const [modaleThemeOuverte, setModaleThemeOuverte] = useState(false);
 
@@ -223,10 +233,14 @@ export function ConcepteurSeance({
     [themesEnreg, themesSugRepli],
   );
 
+  // En mode personnalisé, AUCUN repli silencieux : le thème composé est
+  // exactement celui coché dans la liste (`cleThemePerso`). Un repli vers le
+  // premier thème afficherait une sélection que la liste ne montre pas —
+  // l'écran composerait autre chose que ce que voit la personne.
   const theme: ThemeSeance | null =
     mode === "prochaine-action"
       ? themePrincipal
-      : (themesPersonnalises.find((t) => t.cle === cleThemePerso) ?? themesPersonnalises[0] ?? null);
+      : themesPersonnalises.find((t) => t.cle === cleThemePerso) ?? null;
 
   const [temps, setTemps] = useState(
     String(preset?.dureeCibleMin ?? TEMPS_PAR_DEFAUT),
@@ -234,7 +248,12 @@ export function ConcepteurSeance({
   const [intention, setIntention] = useState("");
   const [intentionOuverte, setIntentionOuverte] = useState(false);
 
-  const [nombreExercices, setNombreExercices] = useState(preset?.nombreExercices ?? 3);
+  const [nombreExercices, setNombreExercices] = useState(() =>
+    Math.min(
+      EXERCICES_PAR_SEANCE_MAX,
+      Math.max(EXERCICES_PAR_SEANCE_MIN, preset?.nombreExercices ?? 3),
+    ),
+  );
   const [nombreTouche, setNombreTouche] = useState(Boolean(preset));
 
   const [planifieePour, setPlanifieePour] = useState("");
@@ -252,16 +271,20 @@ export function ConcepteurSeance({
   // `demande` est reconstruite À L'INTÉRIEUR du memo : un objet littéral change
   // de référence à chaque rendu, ce qui recalculerait `composerSeance` (non
   // gratuit — il parcourt tout le classement) même quand rien n'a changé.
-  const composition: CompositionSeance | null = useMemo(() => {
+  const demande = useMemo<DemandeSeance | null>(() => {
     if (!theme) return null;
-    const demande: DemandeSeance = {
+    return {
       dureeCibleMin: tempsMin,
       nombreExercices,
       portee: theme.portee,
       codesImposes: theme.codesImposes,
     };
+  }, [theme, tempsMin, nombreExercices]);
+  const refusDemande = demande ? motifRefusDemande(demande) : null;
+  const composition: CompositionSeance | null = useMemo(() => {
+    if (!demande || motifRefusDemande(demande)) return null;
     return composerSeance(demande, etats, exercices, tentatives, calibMap, new Date());
-  }, [theme, tempsMin, nombreExercices, etats, exercices, tentatives, calibMap]);
+  }, [demande, etats, exercices, tentatives, calibMap]);
 
   const competencesModale: CompetenceModale[] = useMemo(
     () => competencesPourModale(actifs),
@@ -341,10 +364,12 @@ export function ConcepteurSeance({
           ? { planifieePour: new Date(planifieePour).toISOString() }
           : {}),
       };
-      const id = await planifierSeance(entree);
+      // Une écriture, pas « planifier puis démarrer » : si le mode « en-cours »
+      // échoue (une autre séance est déjà ouverte), `creerSeance` refuse AVANT
+      // d'écrire — aucune séance planifiée orpheline n'est laissée derrière.
+      const id = await creerSeance(entree, demarrer ? "en-cours" : "planifiee");
       if (demarrer) {
-        await demarrerSeance(id);
-        router.push(`/seances/${id}`);
+        router.push(`/seances?session=${id}`);
       } else {
         router.refresh();
       }
@@ -381,6 +406,7 @@ export function ConcepteurSeance({
               themesPersonnalises={themesPersonnalises}
               themesEnreg={themesEnreg}
               cleThemePerso={cleThemePerso}
+              themeChoisi={theme !== null}
               setCleThemePerso={setCleThemePerso}
               ouvrirModaleTheme={() => setModaleThemeOuverte(true)}
               onThemeRetire={(id) => {
@@ -405,6 +431,7 @@ export function ConcepteurSeance({
               theme={theme}
               conseil={conseil}
               nombreExercices={nombreExercices}
+              refusDemande={refusDemande}
               setNombreExercices={(v) => {
                 setNombreTouche(true);
                 setNombreExercices(v);
@@ -428,6 +455,7 @@ export function ConcepteurSeance({
         <ModaleTheme
           competencesParCode={competencesParCode}
           compteId={compteId}
+          domainesExistants={domaines}
           onFermer={() => setModaleThemeOuverte(false)}
           onCree={(t) => {
             setThemesLocaux((prev) => [...prev, t]);
@@ -451,6 +479,7 @@ function EtapeBesoin({
   themesPersonnalises,
   themesEnreg,
   cleThemePerso,
+  themeChoisi,
   setCleThemePerso,
   ouvrirModaleTheme,
   onThemeRetire,
@@ -472,6 +501,8 @@ function EtapeBesoin({
   /** Les seuls thèmes enregistrés (sans les suggestions de repli) — pour la gestion. */
   themesEnreg: ThemeSeance[];
   cleThemePerso: string;
+  /** Un thème est effectivement sélectionné (vrai hors mode sans recommandation). */
+  themeChoisi: boolean;
   setCleThemePerso: (v: string) => void;
   ouvrirModaleTheme: () => void;
   onThemeRetire: (themeId: string) => void;
@@ -660,7 +691,17 @@ function EtapeBesoin({
       )}
 
       <div className="flex justify-end border-t border-bordure pt-3">
-        <Bouton type="button" onClick={continuer} variante="principal">
+        <Bouton
+          type="button"
+          onClick={continuer}
+          variante="principal"
+          disabled={!themeChoisi}
+          title={
+            themeChoisi
+              ? undefined
+              : "Choisis un thème dans la liste (ou décris-en un) avant de composer."
+          }
+        >
           Voir la composition
         </Bouton>
       </div>
@@ -833,6 +874,7 @@ function EtapeComposition({
   theme,
   conseil,
   nombreExercices,
+  refusDemande,
   setNombreExercices,
   planifieePour,
   setPlanifieePour,
@@ -849,6 +891,7 @@ function EtapeComposition({
   theme: ThemeSeance | null;
   conseil: ReturnType<typeof nombreExercicesConseille>;
   nombreExercices: number;
+  refusDemande: string | null;
   setNombreExercices: (v: number) => void;
   planifieePour: string;
   setPlanifieePour: (v: string) => void;
@@ -861,9 +904,24 @@ function EtapeComposition({
   demarrer: () => void;
   planifier: () => void;
 }) {
-  if (!composition || !theme) return null;
+  if (!theme) return null;
+
+  if (!composition) {
+    return (
+      <div className="space-y-4 pt-4">
+        <p role="alert" className="text-xs text-danger">
+          {refusDemande ?? "Cette composition est incohérente. Reviens au besoin et ajuste la durée."}
+        </p>
+        <Bouton type="button" onClick={retour} variante="secondaire">Revenir au besoin</Bouton>
+      </div>
+    );
+  }
 
   const vide = composition.activites.length === 0 && composition.manquants.length === 0;
+  // Une séance sans AUCUN exercice retenu ne peut pas être écrite : les places
+  // « à générer » ne deviennent des activités qu'une fois créées ET relues dans
+  // la composition (même règle que `motifRefusActivites` côté serveur).
+  const sansExerciceDisponible = composition.activites.length === 0;
 
   return (
     <div className="space-y-4 pt-4">
@@ -876,9 +934,10 @@ function EtapeComposition({
           <Champ
             label="Exercices"
             type="number"
-            min={1}
+            min={EXERCICES_PAR_SEANCE_MIN}
+            max={EXERCICES_PAR_SEANCE_MAX}
             value={String(nombreExercices)}
-            onChange={(e) => setNombreExercices(Math.max(1, Number(e.target.value) || 1))}
+            onChange={(e) => setNombreExercices(Math.min(EXERCICES_PAR_SEANCE_MAX, Math.max(EXERCICES_PAR_SEANCE_MIN, Number(e.target.value) || EXERCICES_PAR_SEANCE_MIN)))}
             aide={conseil ? `Conseillé : ${conseil.nombre}` : "À fixer toi-même"}
           />
         </div>
@@ -933,6 +992,14 @@ function EtapeComposition({
         </div>
       )}
 
+      {sansExerciceDisponible && !vide && (
+        <p role="alert" className="text-xs text-danger">
+          Rien ne peut encore démarrer : aucun exercice n&apos;est déjà disponible. Génère
+          au moins un exercice manquant, relis-le — il rejoindra la composition — puis
+          valide. Les exercices non générés ne font pas partie de la séance.
+        </p>
+      )}
+
       {vide && (
         <Carte>
           <div className="px-4 py-8 text-center text-xs text-texte-attenue">
@@ -959,7 +1026,7 @@ function EtapeComposition({
               variante="secondaire"
               onClick={planifier}
               enChargement={enregistrement}
-              disabled={vide}
+              disabled={vide || sansExerciceDisponible}
             >
               Planifier sans démarrer
             </Bouton>
@@ -981,7 +1048,7 @@ function EtapeComposition({
           type="button"
           onClick={demarrer}
           enChargement={enregistrement}
-          disabled={vide}
+          disabled={vide || sansExerciceDisponible}
           variante="principal"
         >
           Démarrer la séance

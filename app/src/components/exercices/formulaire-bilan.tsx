@@ -9,6 +9,7 @@ import { autonomieObservee, LIBELLE_AIDE, type AideExterne } from "@/lib/engine/
 import { APPRECIATIONS, RESULTATS, type ResultatBilan } from "@/lib/domain/bilan";
 import type { BilanRedige } from "@/lib/tutor/conversion-correction";
 import { BilanRedigeVue } from "@/components/exercices/bilan-redige";
+import type { ContexteNavigationExercice } from "@/lib/domain/navigation-exercice";
 
 /*
  * `APPRECIATIONS` et `RESULTATS` vivaient ici. Ils sont partis dans
@@ -57,6 +58,7 @@ export function FormulaireBilan({
   indicesUtilises,
   propositionInitiale,
   criteresReplies = false,
+  navigation,
 }: {
   exercice: Exercise;
   attemptId: string;
@@ -66,6 +68,7 @@ export function FormulaireBilan({
   propositionInitiale?: PropositionBilan;
   /** Replie la liste des critères derrière « Relire / modifier ». */
   criteresReplies?: boolean;
+  navigation?: ContexteNavigationExercice;
 }) {
   /*
    * Initialiseurs paresseux, jamais un `useEffect` (CLAUDE.md §8).
@@ -151,6 +154,7 @@ export function FormulaireBilan({
                 bilan: propositionInitiale.bilan,
               }
             : undefined,
+          navigation,
         });
       } catch (e) {
         setErreur(e instanceof Error ? e.message : "Enregistrement impossible.");

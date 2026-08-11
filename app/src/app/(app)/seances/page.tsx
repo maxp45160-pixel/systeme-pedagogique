@@ -1,10 +1,8 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { chargerContexte } from "@/lib/store/context";
 import { chargerThemes } from "@/lib/store/themes";
 import { SqueletteContenu } from "@/components/layout/squelette";
 import { EntetePage } from "@/components/layout/entete-page";
-import { SelecteurSegmente } from "@/components/ui/primitives";
 import {
   calibragesPourModale,
 } from "@/components/exercices/proprietes-generation";
@@ -12,79 +10,55 @@ import {
   ConcepteurSeance,
   type DonneesSeance,
 } from "@/components/seances/concepteur-seance";
-import { VueHistorique } from "@/components/seances/vue-historique";
-import { PanneauProgression } from "@/components/suivi/panneau-progression";
-import { PanneauJournal } from "@/components/suivi/panneau-journal";
-import { Bibliotheque } from "@/components/exercices/bibliotheque";
+import { VueSeanceDetail } from "@/components/seances/vue-seance-detail";
+import { FileSeances } from "@/components/seances/file-seances";
+import { CahierSeances } from "@/components/seances/cahier-seances";
 
 /**
- * Pôle Séances (lot 3).
+ * Pôle Séances (ADR-061).
  *
- * Le pilotage vit ici : composer, planifier, dérouler, et relire (historique).
- * « Progression » et « Journal » sont ré-exportés depuis `/competences` ; la
- * « Bibliothèque » est l'ancien `/exercices`, allégé.
+ * Sans `session` : un hub — composer au centre, une file épinglée des séances
+ * en cours et planifiées, puis un cahier chronologique des séances réalisées.
+ * Plus de quatre onglets : ni Progression, ni Journal, ni Bibliothèque.
+ *
+ * Avec `session=<id>` : le workspace — le déroulé de la séance en cours, dans
+ * le shell pour l'instant, destiné à devenir plein écran au-dessus du nav.
  */
-
-type Vue = "accueil" | "progression" | "journal" | "bibliotheque";
-
-const VUES: { cle: Vue; libelle: string }[] = [
-  { cle: "accueil", libelle: "Historique" },
-  { cle: "progression", libelle: "Progression" },
-  { cle: "journal", libelle: "Journal" },
-  { cle: "bibliotheque", libelle: "Bibliothèque" },
-];
-
 export default async function PageSeances(props: {
-  searchParams: Promise<{ vue?: string; periode?: string; recherche?: string }>;
+  searchParams: Promise<{
+    session?: string;
+    exercice?: string;
+    correction?: string;
+    evaluer?: string;
+    bilan?: string;
+    abandon?: string;
+  }>;
 }) {
-  const { vue: vueBrute, periode, recherche } = await props.searchParams;
-  const vue: Vue =
-    vueBrute === "progression"
-      ? "progression"
-      : vueBrute === "journal"
-        ? "journal"
-        : vueBrute === "bibliotheque"
-          ? "bibliotheque"
-          : "accueil";
+  const recherche = await props.searchParams;
+  const { session, exercice } = recherche;
+
+  if (session) {
+    return (
+      <Suspense fallback={<SqueletteContenu />}>
+        <VueSeanceDetail id={session} exerciceDemande={exercice} recherche={recherche} />
+      </Suspense>
+    );
+  }
 
   return (
     <>
       <EntetePage
         titre="Séances"
-        sousTitre="Compose une séance, planifie-la ou déroule-la — et relis ce qui a été fait."
-        actions={
-          <SelecteurSegmente
-            options={VUES.map((v) => ({ cle: v.cle, libelle: v.libelle }))}
-            actif={vue}
-            rendreItem={(o, classesItem, estActifItem) => (
-              <Link
-                href={`/seances${o.cle === "accueil" ? "" : `?vue=${o.cle}`}`}
-                aria-current={estActifItem ? "page" : undefined}
-                className={classesItem}
-              >
-                {o.libelle}
-              </Link>
-            )}
-          />
-        }
+        sousTitre="Compose une séance, déroule-la — et relis ce qui a été fait."
       />
-
-      <Suspense key={`${vue}-${periode ?? ""}-${recherche ?? ""}`} fallback={<SqueletteContenu />}>
-        <ContenuSeances vue={vue} periode={periode ?? "mois"} recherche={recherche} />
+      <Suspense fallback={<SqueletteContenu />}>
+        <ContenuHub />
       </Suspense>
     </>
   );
 }
 
-async function ContenuSeances({
-  vue,
-  periode,
-  recherche,
-}: {
-  vue: Vue;
-  periode: string;
-  recherche?: string;
-}) {
+async function ContenuHub() {
   const [ctx, themes] = await Promise.all([chargerContexte(), chargerThemes()]);
 
   const donnees: DonneesSeance = {
@@ -95,27 +69,21 @@ async function ContenuSeances({
     calibrations: Array.from(ctx.calibrations.entries()),
     calibragesModale: calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations),
     recommandations: ctx.recommandations,
-    domaines: ctx.referentiel.domaines.map((d) => ({ id: d.id, nom: d.nom })),
+    domaines: ctx.referentiel.domaines.map((d) => ({ id: d.id, nom: d.nom, prefixe: d.prefixe })),
     themes,
     compteId: ctx.donnees.user.id,
   };
 
-  if (vue === "progression") {
-    return <PanneauProgression periode={periode} base="/seances" />;
-  }
-
-  if (vue === "journal") {
-    return <PanneauJournal recherche={recherche} base="/seances" />;
-  }
-
-  if (vue === "bibliotheque") {
-    return <Bibliotheque />;
-  }
-
   return (
-    <div className="space-y-6">
-      <ConcepteurSeance {...donnees} />
-      <VueHistorique seances={ctx.donnees.sessions} donnees={donnees} />
+    <div className="space-y-8">
+      {/* CTA centré — l'entrée principale de la composition. */}
+      <div className="flex justify-center">
+        <ConcepteurSeance {...donnees} libelle="Composer une séance" />
+      </div>
+
+      <FileSeances seances={ctx.donnees.sessions} />
+
+      <CahierSeances seances={ctx.donnees.sessions} donnees={donnees} />
     </div>
   );
 }

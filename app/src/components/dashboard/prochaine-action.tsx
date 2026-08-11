@@ -21,6 +21,7 @@ import {
   competencesPourModale,
   type CalibrageModale,
 } from "@/components/exercices/proprietes-generation";
+import type { ReactNode } from "react";
 
 /**
  * « Que dois-je faire maintenant ? »
@@ -35,6 +36,7 @@ export function CarteProchaineAction({
   calibrages,
   now,
   compteId,
+  actionPrincipale,
 }: {
   recommandations: Recommandation[];
   referentiel: Referentiel;
@@ -48,6 +50,8 @@ export function CarteProchaineAction({
   calibrages: Record<string, CalibrageModale>;
   now: Date;
   compteId: string;
+  /** Entrée vers le compositeur prérempli par la recommandation courante. */
+  actionPrincipale?: ReactNode;
 }) {
   const [principale, ...alternatives] = recommandations;
   if (!principale) {
@@ -63,12 +67,8 @@ export function CarteProchaineAction({
       <Carte accent>
         <EtatVide
           titre="Aucune action à recommander pour l'instant"
-          message="Soit tout a déjà été proposé récemment et écarté, soit chaque compétence active a épuisé ses exercices. Explore la bibliothèque, ou reviens plus tard."
-          action={
-            <Link href="/seances?vue=bibliotheque" className={classesLienBouton("secondaire")}>
-              Parcourir les exercices
-            </Link>
-          }
+          message="Soit tout a déjà été proposé récemment et écarté, soit chaque compétence active a épuisé ses exercices. Compose une séance personnalisée, ou reviens plus tard."
+          action={actionPrincipale ?? <Link href="/seances" className={classesLienBouton("secondaire")}>Composer une séance</Link>}
         />
       </Carte>
     );
@@ -131,7 +131,7 @@ export function CarteProchaineAction({
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          {exercice ? (
+          {actionPrincipale ?? (exercice ? (
             <Link href={`/exercices/${exercice.id}`} className={classesLienBouton("principal")}>
               Commencer
               <IconeFleche className="size-4" />
@@ -150,7 +150,7 @@ export function CarteProchaineAction({
               compteId={compteId}
               libelle="Générer un exercice"
             />
-          )}
+          ))}
           <Link
             href={`/competences/${etat.skill.code}`}
             className={classesLienBouton("secondaire")}

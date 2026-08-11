@@ -23,11 +23,13 @@
  */
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { ajouter, dorsaleCompte, lire, modifier, nouvelId, type DorsaleCompte } from "./db";
 import { verifier } from "./supabase-backend";
 import {
   avancementSeance,
   exercicesDeLaSeance,
+  motifRefusActivites,
   motifRefusBesoin,
   motifRefusBlueprint,
   resumeSeance,
@@ -52,19 +54,31 @@ export interface EntreePlanification {
   planifieePour?: string;
 }
 
+/** La séance est-elle seulement planifiée ou directement lancée ? */
+export type ModeCreationSeance = "planifiee" | "en-cours";
+
 /**
- * Écrit une séance planifiée.
+ * Écrit une séance — planifiée ou directement en cours — en UNE écriture.
  *
- * Les deux validations viennent du domaine (`lib/domain/seance.ts`) et sont les
+ * C'est le remplacement de l'enchaînement « planifier puis démarrer » : celui-là
+ * n'était pas atomique — si le démarrage échouait (une autre séance en cours),
+ * on restait avec une séance planifiée orpheline que personne n'avait voulue.
+ *
+ * Les validations viennent du domaine (`lib/domain/seance.ts`) et sont les
  * mêmes que celles de l'écran : une seule autorité, sinon on ferait entrer par
  * le serveur ce que le formulaire refuse, ou l'inverse (ADR-044, ADR-047).
  *
  * ⚠️ Les références d'activité sont vérifiées contre les exercices du compte.
  * L'interface ne propose que des exercices existants, mais l'interface est
  * contournable : une séance citant un exercice inconnu produirait un déroulé
- * qui s'arrête sur une page introuvable, et un journal qui ne résout plus.
+ * qui s'arrête sur une page introuvable, et un journal qui ne résout plus. Et
+ * une séance sans aucun exercice déjà disponible (`motifRefusActivites`) est
+ * refusée : les « à générer » ne comptent pas comme activité (P2).
  */
-export async function planifierSeance(entree: EntreePlanification): Promise<string> {
+export async function creerSeance(
+  entree: EntreePlanification,
+  mode: ModeCreationSeance,
+): Promise<string> {
   const dorsale = await dorsaleCompte();
 
   const refusBesoin = motifRefusBesoin(entree.besoin);
@@ -81,12 +95,32 @@ export async function planifierSeance(entree: EntreePlanification): Promise<stri
     throw new Error(`Exercice(s) introuvable(s) dans la séance : ${inconnus.join(", ")}.`);
   }
 
+  const refusActivites = motifRefusActivites(entree.activites);
+  if (refusActivites) throw new Error(refusActivites);
+
   const retenus = entree.activites.flatMap((a) => {
     const ex = parId.get(a.ref);
     return ex ? [ex] : [];
   });
 
-  const date = entree.planifieePour ?? new Date().toISOString();
+  // Avant toute écriture, la garde d'une seule séance en cours : le passage en
+  // « en-cours » est VÉRIFIÉ avant la création, pas après. S'il échoue, rien
+  // n'a été écrit — aucune séance planifiée laissée orpheline.
+  if (mode === "en-cours") {
+    const toutes = await lire("sessions", dorsale);
+    const autre = toutes.find((s) => statutSeance(s) === "en-cours");
+    if (autre) {
+      throw new Error(
+        "Une autre séance est déjà en cours. Termine-la avant d'en démarrer une seconde.",
+      );
+    }
+  }
+
+  const maintenant = new Date().toISOString();
+  // `date` borne `avancementSeance` : une séance planifiée garde la date prévue
+  // tant qu'elle n'est pas démarrée, une séance lancée mord à l'instant réel.
+  const date = mode === "en-cours" ? maintenant : (entree.planifieePour ?? maintenant);
+
   const seance: LearningSession = {
     id: nouvelId("ses"),
     date,
@@ -96,8 +130,10 @@ export async function planifierSeance(entree: EntreePlanification): Promise<stri
     skillCodes: [...new Set(entree.blueprint.cibles.map((c) => c.code))],
     activites: entree.activites,
     genereAutomatiquement: false,
-    statut: "planifiee",
-    ...(entree.planifieePour ? { planifieePour: entree.planifieePour } : {}),
+    statut: mode,
+    ...(mode === "planifiee" && entree.planifieePour
+      ? { planifieePour: entree.planifieePour }
+      : {}),
     besoinDeclare: entree.besoin,
     blueprint: entree.blueprint,
   };
@@ -160,6 +196,7 @@ export async function demarrerSeance(seanceId: string): Promise<void> {
     dorsale,
   );
   revalidatePath("/", "layout");
+  redirect(`/seances?session=${encodeURIComponent(seanceId)}`);
 }
 
 /**
@@ -231,4 +268,5 @@ export async function annulerSeance(seanceId: string): Promise<void> {
     .eq("id", seanceId);
   verifier("annulation de la séance", error);
   revalidatePath("/", "layout");
+  redirect("/seances");
 }

@@ -28,10 +28,9 @@ export interface GroupeNav {
  *  - **Compétences**, en retrait — consulter et gérer au même endroit (Suivre).
  *
  * La séparation tient au besoin (ADR-053) : le tableau de bord *pilote* (sa
- * prochaine action), Séances *travaille* (le déroulé), Compétences *suit*
- * (l'état). La route `/exercices` ne subsiste que comme redirection vers la vue
- * Bibliothèque de `/seances` ; `/progression` et `/journal` redirigent vers les
- * vues correspondantes.
+ * prochaine action), Séances *travaille* (le hub et le workspace, ADR-061),
+ * Compétences *suit* (l'état). Les routes `/exercices`, `/progression` et
+ * `/journal` ne subsistent que comme redirections (ADR-061).
  */
 export const NAVIGATION: GroupeNav[] = [
   {

@@ -86,7 +86,7 @@ export function CarteProgressionRecente({
 
       {evenements.length > 0 && (
         <div className="border-t border-bordure px-4 py-2">
-          <Link href="/seances?vue=journal" className="text-xs text-primaire hover:underline">
+          <Link href="/seances" className="text-xs text-primaire hover:underline">
             Voir le journal de bord complet
           </Link>
         </div>

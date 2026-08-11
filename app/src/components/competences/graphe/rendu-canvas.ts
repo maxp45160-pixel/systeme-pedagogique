@@ -17,9 +17,9 @@
  *    le dessin et la légende.
  */
 
-import type { LienGraphe, NoeudGraphe, TypeLien } from "@/lib/domain/graphe";
+import type { NoeudGraphe, TypeLien } from "@/lib/domain/graphe";
 import { couleurDomaine, couleurDomaineClaire } from "@/lib/ui/couleurs-domaines";
-import type { AxeCouleur, ReglagesGraphe } from "./reglages-graphe";
+import type { AxeCouleur } from "./reglages-graphe";
 import type { LienSimule, NoeudSimule } from "./moteur-force";
 
 export interface Camera {

@@ -20,6 +20,7 @@
 
 import { useState, useTransition } from "react";
 import { abandonnerExercice } from "@/lib/store/actions";
+import type { ContexteNavigationExercice } from "@/lib/domain/navigation-exercice";
 import { BandeauInfo, Bouton } from "@/components/ui/primitives";
 
 export function BoutonAbandon({
@@ -27,6 +28,7 @@ export function BoutonAbandon({
   exerciceId,
   dureeMin,
   codes,
+  navigation,
 }: {
   attemptId: string;
   exerciceId: string;
@@ -34,6 +36,7 @@ export function BoutonAbandon({
   dureeMin: number;
   /** Compétences visées, citées dans l'annonce : c'est d'elles qu'il s'agit. */
   codes: string[];
+  navigation?: ContexteNavigationExercice;
 }) {
   const [confirme, setConfirme] = useState(false);
   const [enCours, demarrer] = useTransition();
@@ -43,7 +46,7 @@ export function BoutonAbandon({
     setErreur(null);
     demarrer(async () => {
       try {
-        await abandonnerExercice(attemptId, exerciceId, dureeMin);
+        await abandonnerExercice(attemptId, exerciceId, dureeMin, navigation);
       } catch (e) {
         setErreur(e instanceof Error ? e.message : "Impossible de clore la tentative.");
       }

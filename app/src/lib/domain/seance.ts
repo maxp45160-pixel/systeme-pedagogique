@@ -247,6 +247,26 @@ export function motifRefusBlueprint(blueprint: BlueprintSeance): string | null {
   return null;
 }
 
+/**
+ * Les refus d'une liste d'activités retenues, avant écriture.
+ *
+ * Une séance a besoin d'au moins un exercice RÉELLEMENT disponible : les places
+ * « à générer » (`manquants`) n'existent pas encore comme exercice, et une
+ * séance qui n'en retiendrait que des manquants serait vide au premier
+ * exercice, sans rien à ouvrir ni à mesurer. La génération doit avoir eu lieu,
+ * s'être relue, et l'exercice avoir rejoint la composition, avant qu'une séance
+ * puisse être écrite (P2 — « à générer » n'est pas une activité).
+ */
+export function motifRefusActivites(
+  activites: readonly { type: string; ref: string; libelle: string }[],
+): string | null {
+  const exercices = activites.filter((a) => a.type === "exercice");
+  if (exercices.length === 0) {
+    return "Cette séance ne contient aucun exercice déjà disponible : génère et relis au moins un exercice avant de l'enregistrer.";
+  }
+  return null;
+}
+
 /* ------------------------------------------------------------------ */
 /* Avancement — dérivé des tentatives, jamais stocké                   */
 /* ------------------------------------------------------------------ */

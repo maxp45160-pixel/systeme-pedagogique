@@ -73,6 +73,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [058](#adr-058) | Granularité sans plafond ; les notes servent la boucle et entrent dans le graphe | ✅ Acceptée (11/08) |
 | [059](#adr-059) | Une séance créée conduit au workspace focus | ✅ Acceptée (11/08) |
 | [060](#adr-060) | Observer le maximum pertinent, jamais le maximum indiscriminé | ✅ Acceptée (11/08) |
+| [061](#adr-061) | Séances : un hub et un workspace, pas quatre vues | ✅ Acceptée (11/08) |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -4039,6 +4040,50 @@ de preuve qui n'est toujours pas défini.
 **Alternative écartée.** Ne conserver que le résultat final : cela empêche de
 comprendre pourquoi une compétence progresse ou résiste et rend le bilan moins
 précis.
+
+---
+<a name="adr-061"></a>
+## ADR-061 — Séances : un hub et un workspace, pas quatre vues ✅
+
+**Date.** 11/08/2026. **Tranchée par Maxime.** Remplace la partie « quatre vues »
+[ADR-053](#adr-053) et réalise [ADR-059](#adr-059) (workspace focus).
+
+### Décision
+
+`/seances` n'a plus quatre onglets. Il affiche deux choses :
+
+- sans `session` : un **hub** — un CTA de composition centré, une file épinglée
+  des séances en cours et planifiées (reprendre, démarrer, annuler), puis un
+  **cahier** chronologique léger des séances réalisées (y compris les anciennes
+  séances mono-exercice). Ni progression, ni recherche, ni statistiques : un
+  cahier, pas un tableau de bord ;
+- avec `session=<id>` : le **workspace** de la séance (ADR-059) — rechargable et
+  partageable par URL, couvrant l'interface courante. Les trois outils (file
+  d'exercices, Pomodoro, tuteur) restent repliés derrière des boutons.
+
+`LearningSession` reste l'unique entité (ADR-048), aucune migration DB. La
+progression et la bibliothèque disparaissent de Séances ; `/exercices/[id]`
+reste l'écran unitaire d'un exercice. Redirections conservées : `/journal` et
+`/exercices` → `/seances` ; `/progression` → `/competences` ;
+`/seances/[id]` → `/seances?session=<id>`.
+
+### Conséquences
+
+- Le déclencheur « Composer une séance » est centré sur le hub Séances, et
+  `creerSeance(entree, mode)` écrit une séance planifiée **ou** en cours en une
+  écriture — plus d'enchaînement « planifier puis démarrer » non atomique, qui
+  pouvait laisser une séance planifiée orpheline.
+- Une séance sans aucun exercice disponible est **refusée** (`motifRefusActivites`) :
+  les « à générer » ne comptent pas comme activité tant qu'ils ne sont pas
+  relus dans la composition.
+- Sortir du workspace ne termine rien : la séance reste épinglée et reprenable.
+  Une séance planifiée y affiche son résumé et « Démarrer » ; une séance
+  terminée reste consultable en lecture seule.
+
+**Alternative écartée.** Conserver les quatre onglets : la progression dépend
+des preuves (pôle Compétences), la bibliothèque est l'écran unitaire des
+exercices, et disperser le suivi derrière des onglets diluait la destination
+d'une séance.
 
 ---
 

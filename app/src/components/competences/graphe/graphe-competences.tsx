@@ -78,8 +78,21 @@ export function GrapheCompetences({
   const survolIdRef = useRef<string | null>(null);
 
   // Réglages : chargés côté client (localStorage n'existe pas au rendu serveur).
+  // La lecture est DIFFÉRÉE hors du corps de l'effet : un `setState` synchrone
+  // dans un effet déclenche des rendus en cascade (règle
+  // react-hooks/set-state-in-effect). Le timeout sert uniquement à sortir le
+  // setState du corps synchrone de l'effet ; `actif` protège contre un état
+  // appliqué après démontage.
   useEffect(() => {
-    setReglagesState(lireReglagesGraphe(compteId));
+    let actif = true;
+    const jeton = setTimeout(() => {
+      if (!actif) return;
+      setReglagesState(lireReglagesGraphe(compteId));
+    }, 0);
+    return () => {
+      actif = false;
+      clearTimeout(jeton);
+    };
   }, [compteId]);
 
   function changerReglages(suivant: ReglagesGraphe) {
@@ -209,8 +222,14 @@ export function GrapheCompetences({
     }
   }, [reglages.axeCouleur, reglages.seuilLibelles, contexteCouleur]);
 
+  // Dernier tracé frais, lu par les écouteurs et la simulation. Mise à jour
+  // dans un effet et non pendant le rendu : écrire `current` au rendu viole la
+  // règle react-hooks/refs et produit un résultat incohérent selon l'ordre de
+  // rendu (React peut appeler le corps du composant plusieurs fois).
   const dessinerRef = useRef(dessiner);
-  dessinerRef.current = dessiner;
+  useEffect(() => {
+    dessinerRef.current = dessiner;
+  }, [dessiner]);
 
   /* ------------------------------------------------------------------ */
   /* Cycle de vie de la simulation — recréée quand le jeu de nœuds/liens  */
@@ -259,7 +278,6 @@ export function GrapheCompetences({
     return () => {
       sim.stop();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [noeudsAAfficher, liensAffiches, reglages.forces]);
 
   /* ------------------------------------------------------------------ */

@@ -28,6 +28,11 @@ import {
 import { motifRefusTerminerExercice } from "@/lib/domain/tentative";
 import { seanceEnCoursPour } from "@/lib/domain/seance";
 import {
+  urlExercice,
+  type ContexteNavigationExercice,
+  type EtapeExercice,
+} from "@/lib/domain/navigation-exercice";
+import {
   autonomieObservee,
   LIBELLE_AIDE,
   qualiteDepuisDifficulte,
@@ -140,6 +145,27 @@ export interface SoumissionExercice {
    * plus tard ce qu'il avait observé.
    */
   verdictTuteur?: Omit<VerdictTuteur, "date">;
+  /** Retour optionnel vers le workspace. Cette donnée ne participe à aucune mesure. */
+  navigation?: ContexteNavigationExercice;
+}
+
+async function destinationApresExercice(
+  exerciceId: string,
+  etape: EtapeExercice,
+  navigation: ContexteNavigationExercice | undefined,
+  dorsale: Awaited<ReturnType<typeof dorsaleCompte>>,
+): Promise<string> {
+  if (!navigation) return urlExercice(exerciceId, undefined, etape);
+
+  // Cette validation intervient après les écritures pédagogiques : un contexte
+  // périmé ne peut donc jamais faire perdre une tentative ou une preuve.
+  const seances = await lire("sessions", dorsale);
+  const valide = seances.some(
+    (seance) =>
+      seance.id === navigation.seanceId &&
+      seance.activites.some((activite) => activite.type === "exercice" && activite.ref === exerciceId),
+  );
+  return urlExercice(exerciceId, valide ? navigation : undefined, etape);
 }
 
 /**
@@ -236,7 +262,7 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
     } satisfies LearningSession, dorsale);
 
     revalidatePath("/", "layout");
-    redirect(`/exercices/${exercice.id}?abandon=1`);
+    redirect(await destinationApresExercice(exercice.id, "abandon", soumission.navigation, dorsale));
   }
 
   const autonomie = autonomieObservee(
@@ -309,7 +335,7 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
   await archiverVerdict(soumission, date, dorsale);
 
   revalidatePath("/", "layout");
-  redirect(`/exercices/${exercice.id}?bilan=1`);
+  redirect(await destinationApresExercice(exercice.id, "bilan", soumission.navigation, dorsale));
 }
 
 /**
@@ -383,6 +409,7 @@ export async function abandonnerExercice(
   attemptId: string,
   exerciseId: string,
   dureeMin: number,
+  navigation?: ContexteNavigationExercice,
 ): Promise<void> {
   const dorsale = await dorsaleCompte();
   const exercices = await lire("exercises", dorsale);
@@ -421,7 +448,7 @@ export async function abandonnerExercice(
   );
 
   revalidatePath("/", "layout");
-  redirect(`/exercices/${exercice.id}?abandon=1`);
+  redirect(await destinationApresExercice(exercice.id, "abandon", navigation, dorsale));
 }
 
 /* ------------------------------------------------------------------ */

@@ -30,6 +30,7 @@ import { convertirCorrection } from "@/lib/tutor/conversion-correction";
 import type { PropositionCorrection } from "@/lib/tutor/outils";
 import { Bouton, PointActif } from "@/components/ui/primitives";
 import { FormulaireBilan, type PropositionBilan } from "./formulaire-bilan";
+import type { ContexteNavigationExercice } from "@/lib/domain/navigation-exercice";
 
 type Etat =
   | { phase: "correction" }
@@ -42,12 +43,14 @@ export function BilanAssiste({
   dureeSuggeree,
   indicesUtilises,
   compteId,
+  navigation,
 }: {
   exercice: Exercise;
   attemptId: string;
   dureeSuggeree: number;
   indicesUtilises: number;
   compteId: string;
+  navigation?: ContexteNavigationExercice;
 }) {
   const [etat, setEtat] = useState<Etat>({ phase: "correction" });
   const [progression, setProgression] = useState<string | null>(null);
@@ -184,6 +187,7 @@ export function BilanAssiste({
         indicesUtilises={indicesUtilises}
         propositionInitiale={etat.phase === "prete" ? etat.proposition : undefined}
         criteresReplies={etat.phase === "prete"}
+        navigation={navigation}
       />
     </div>
   );
