@@ -1,5 +1,10 @@
 # Synthèse des audits indépendants — mission ⑦
 
+> **Portée révisée le 11/08/2026.** Cette synthèse reste une annexe de risques
+> techniques. Elle ne pilote pas la roadmap produit. L'analyse orientée
+> intelligence, gaps fonctionnels et ordre de construction vit dans
+> `docs/audits/2026-08-audit-produit.md`.
+
 **Date :** 11/08/2026  
 **Sources :** `2026-08-audit-codex.md` (commit `4158157`) et `2026-08-audit-claude.md` (commit `ad88557`).  
 **Règle :** cette synthèse rapproche les constats sans les transformer en décision, sans modifier le code et sans changer un statut.

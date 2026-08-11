@@ -6,7 +6,11 @@ Organiser le travail validé par ce qu'il débloque, jamais par simple difficult
 
 ## Entrées
 
-`docs/QUESTIONS_OUVERTES.md`, `docs/MODELE.md`, `docs/audits/2026-08-synthese.md`, `PRODUCT_SPECIFICATION_MAP.md`, et les décisions humaines intervenues après ④ et ⑦.
+`docs/QUESTIONS_OUVERTES.md`, `docs/MODELE.md`,
+`docs/audits/2026-08-audit-produit.md`, `PRODUCT_SPECIFICATION_MAP.md`, et les
+décisions humaines intervenues après ④. La synthèse technique
+`docs/audits/2026-08-synthese.md` fournit des contraintes de fiabilité ; elle
+ne définit ni les gaps fonctionnels ni leur priorité produit.
 
 ## Livrable
 
@@ -14,7 +18,11 @@ Organiser le travail validé par ce qu'il débloque, jamais par simple difficult
 
 ## Méthode
 
-Constituer trois lots : ce qui ferme une question ouverte ; ce qui répare un écart concordant ; ce qui construit une brique ❓ déjà tranchée explicitement par une personne. Pour chaque élément : dépendances, décision source, résultat attendu, preuve de vérification et condition de démarrage.
+Ordonner les lots par fermeture de la boucle pédagogique : capacité actuelle,
+gap fonctionnel, observation qui manque, action suivante débloquée. Le
+nettoyage technique n'entre dans un lot que s'il en débloque directement la
+feature. Pour chaque élément : dépendances, décision source, résultat attendu,
+méthode, horizon, preuve de vérification et condition de démarrage.
 
 ## Critères de refus
 
