@@ -37,6 +37,7 @@ import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import { convertirProposition } from "@/lib/tutor/conversion-exercice";
 import type { PropositionExercice } from "@/lib/tutor/proposition";
 import { DIFFICULTES, LIBELLES_DIMENSIONS, type Dimension } from "@/lib/domain/types";
+import { EXERCICES_PAR_LOT_MAX } from "@/lib/domain/exercice";
 import type {
   CalibrageModale,
   CompetenceModale,
@@ -53,10 +54,20 @@ export function ModaleExercice({
   compteId,
   surEnregistre,
   propositionInitiale,
+  competencesCibles,
 }: {
   onFermer: () => void;
   competences: CompetenceModale[];
   competenceInitiale: string;
+  /**
+   * Génération groupée : un lot de codes à générer d'un coup, en un seul
+   * appel modèle (`genererExercices` accepte déjà plusieurs demandes). Quand
+   * ce tableau porte plus d'un code, la modale saute le formulaire — le
+   * geste est déjà déclaré par le bouton qui l'a ouverte (« Générer les N
+   * exercices manquants ») — et lance la génération directement à l'ouverture.
+   * Bornée à `EXERCICES_PAR_LOT_MAX`, la même borne que côté route.
+   */
+  competencesCibles?: string[];
   /**
    * Thème pré-rempli, modifiable.
    *
@@ -80,12 +91,22 @@ export function ModaleExercice({
   propositionInitiale?: PropositionExercice;
 }) {
   const router = useRouter();
+  /**
+   * Le lot borné — `null` en mode compétence unique. Bornage ici, à la
+   * frontière du composant : la route et `genererExercices` acceptent déjà
+   * jusqu'à `EXERCICES_PAR_LOT_MAX` demandes, mais rien n'empêchait un
+   * appelant d'en envoyer plus.
+   */
+  const codesLot =
+    competencesCibles && competencesCibles.length > 0
+      ? competencesCibles.slice(0, EXERCICES_PAR_LOT_MAX)
+      : null;
   const [code, setCode] = useState(
     propositionInitiale?.competences[0] ?? competenceInitiale,
   );
   const [theme, setTheme] = useState(themeInitial);
   const [phase, setPhase] = useState<"formulaire" | "generation" | "previsualisation">(
-    propositionInitiale ? "previsualisation" : "formulaire",
+    propositionInitiale ? "previsualisation" : codesLot ? "generation" : "formulaire",
   );
   const [propositions, setPropositions] = useState<PropositionExercice[]>(
     propositionInitiale ? [propositionInitiale] : [],
@@ -123,7 +144,8 @@ export function ModaleExercice({
   const cal = calibrages[code] ?? null;
 
   const generer = useCallback(async () => {
-    if (!competence) return;
+    const codesAEnvoyer = codesLot ?? (competence ? [competence.code] : []);
+    if (codesAEnvoyer.length === 0) return;
     setPhase("generation");
     setProgression(null);
     setErreur(null);
@@ -138,7 +160,7 @@ export function ModaleExercice({
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          competences: [competence.code],
+          competences: codesAEnvoyer,
           theme: theme.trim() || undefined,
           config: lireConfigTuteur(compteId) ?? undefined,
         }),
@@ -209,15 +231,43 @@ export function ModaleExercice({
         setPhase("formulaire");
       }
     }
-  }, [competence, theme, compteId]);
+  }, [codesLot, competence, theme, compteId]);
+
+  /*
+   * Mode lot : la génération part directement à l'ouverture, sans repasser
+   * par le formulaire — le geste est déjà déclaré par le bouton qui l'a
+   * ouverte. Une seule fois par montage (la modale est démontée/remontée à
+   * chaque ouverture, voir `BoutonGenerer`).
+   */
+  const lotDemarre = useRef(false);
+  useEffect(() => {
+    if (codesLot && !lotDemarre.current) {
+      lotDemarre.current = true;
+      void generer();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const enregistrer = useCallback(
     async (p: PropositionExercice, index: number) => {
-      if (!competence) return;
       // Un enregistrement en vol verrouille tout : le double-clic ne doit pas
       // franchir la garde, même si le bouton était déjà rendu.
       if (enEcriture !== null || enregistrees.has(index)) return;
       setErreur(null);
+
+      /*
+       * La compétence d'écriture est dérivée de LA proposition, pas de l'état
+       * `code` du formulaire — en mode lot, chaque proposition cible une
+       * compétence différente, et `code`/`competence` ne suivent plus rien.
+       */
+      const codeCible = p.competences[0];
+      const competenceCible = competences.find((c) => c.code === codeCible);
+      if (!competenceCible) {
+        setErreur(
+          `Compétence ${codeCible ?? "inconnue"} introuvable dans le référentiel — enregistrement refusé.`,
+        );
+        return;
+      }
 
       /*
        * Conversion explicite AVANT l'écriture. Une difficulté ou une durée
@@ -237,7 +287,7 @@ export function ModaleExercice({
       try {
         const id = await creerExercice({
           ...conversion.valeur,
-          domaine: competence.domaine,
+          domaine: competenceCible.domaine,
           origine: "tuteur",
         });
         setEnregistrees((s) => new Set(s).add(index));
@@ -249,7 +299,7 @@ export function ModaleExercice({
         setEnEcriture(null);
       }
     },
-    [competence, router, surEnregistre, enEcriture, enregistrees],
+    [competences, router, surEnregistre, enEcriture, enregistrees],
   );
 
   return (
@@ -259,7 +309,38 @@ export function ModaleExercice({
       onFermer={onFermer}
     >
       <>
-        {phase === "formulaire" && (
+        {phase === "formulaire" && codesLot && (
+          <div className="mt-4 space-y-4">
+            <p className="text-xs text-texte-attenue">
+              Génération du lot interrompue avant qu&apos;un exercice n&apos;ait été rendu — rien
+              n&apos;a été enregistré.
+            </p>
+            <ul className="flex flex-wrap gap-1.5">
+              {codesLot.map((c) => (
+                <Etiquette key={c} mono>
+                  {c}
+                </Etiquette>
+              ))}
+            </ul>
+
+            {erreur && (
+              <BandeauInfo ton="danger" taille="compacte">
+                <p className="text-danger">{erreur}</p>
+              </BandeauInfo>
+            )}
+
+            <div className="flex justify-end gap-2 border-t border-bordure pt-3">
+              <Bouton onClick={onFermer} variante="secondaire">
+                Annuler
+              </Bouton>
+              <Bouton onClick={() => void generer()} variante="principal">
+                Réessayer le lot
+              </Bouton>
+            </div>
+          </div>
+        )}
+
+        {phase === "formulaire" && !codesLot && (
           <div className="mt-4 space-y-4">
             <ChampSelect
               id="modale-competence"

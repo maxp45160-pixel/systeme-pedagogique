@@ -145,10 +145,23 @@ export function themeVersThemeSeance(theme: Theme, referentiel: Referentiel): Th
 /**
  * Les thèmes enregistrés, actifs, prêts à figurer à côté des thèmes suggérés
  * par le moteur dans le compositeur.
+ *
+ * Dédoublonné par `id` : le compositeur de séance (`ConcepteurSeance`) fusionne
+ * les thèmes déjà persistés côté serveur avec ceux créés pendant la session en
+ * cours (avant que `revalidatePath` ne les réinjecte dans les premiers), et les
+ * deux listes peuvent contenir la même entité le temps d'un aller-retour
+ * serveur. Dédoublonner ici, dans la fonction pure partagée, plutôt que dans
+ * chaque appelant (garde-fou : une seule implémentation par validation
+ * partagée).
  */
 export function themesEnregistres(themes: Theme[], referentiel: Referentiel): ThemeSeance[] {
-  return themes
-    .filter((t) => !t.archive)
-    .map((t) => themeVersThemeSeance(t, referentiel))
-    .filter((t): t is ThemeSeance => t !== null);
+  const vus = new Set<string>();
+  const resultat: ThemeSeance[] = [];
+  for (const t of themes) {
+    if (t.archive || vus.has(t.id)) continue;
+    vus.add(t.id);
+    const converti = themeVersThemeSeance(t, referentiel);
+    if (converti) resultat.push(converti);
+  }
+  return resultat;
 }

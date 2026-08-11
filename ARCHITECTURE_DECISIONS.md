@@ -3777,6 +3777,110 @@ il ne doit plus être stocké, et la résolution doit redevenir éphémère
 
 ---
 
+## ADR-056 — Le graphe est une vue dérivée : nœuds typés, liens réels, aucune arête fabriquée ✅
+
+**Date.** 11/08/2026.
+
+**Origine.** Un premier graphe de compétences façon Obsidian a été livré par
+Cyril sur `origin/master` (`feat: add interactive skill graph view`), non
+encore fusionné. Revue avant intégration (« regarde les changements faits par
+le commit de cyril sur le graph system, corrige le, fais le évoluer »).
+
+### Ce que la revue a trouvé
+
+Le moteur de forces était écrit à la main : répulsion O(n²) sur chaque paire à
+chaque frame, sans quadtree, dans une boucle `requestAnimationFrame` qui ne
+s'arrêtait jamais (pas de décroissance d'`alpha`, pas de seuil de
+convergence) — 200 itérations synchrones bloquantes à chaque changement de
+niveau. La structure était à trois niveaux zoomables (catégories →
+compétences → exercices) qui se remplaçaient, loin du graphe plat d'Obsidian.
+
+Plus grave que la performance : **le graphe inventait des arêtes.** Deux
+mécanismes fabriquaient des liens absents du référentiel :
+
+1. un « backbone » séquentiel par domaine — les compétences triées par code et
+   reliées en chaîne (`FTS-01 → FTS-02 → …`) dès qu'il n'y avait « pas assez »
+   de prérequis déclarés, typé identiquement à un vrai `prerequis` et donc
+   dessiné avec la même flèche de dépendance ;
+2. un regroupement de domaines par mots-clés codés en dur dans le code source
+   (`"stoïc"`, `"conway"`, `"couplage"`, `"domain-driven"`) — un graphe qui ne
+   fonctionne que sur le référentiel pour lequel ces mots ont été écrits.
+
+Cela viole l'invariant 6 du projet (« ne jamais inventer de données ») aussi
+directement qu'un score calculé sur une hypothèse non vérifiée. Un bug
+structurel en découlait d'ailleurs directement : une arête `inter-domaine`
+mélangeait un id de domaine et un code de compétence dans le même espace de
+noms, et la règle « prérequis inter-domaines, priorité maximale » se
+retrouvait silencieusement filtrée à l'affichage — invisible, donc jamais
+corrigée.
+
+### La décision
+
+**Une compétence sans prérequis, sans thème et sans exercice reste isolée
+dans le graphe.** C'est une information vraie et actionnable (« celle-là n'est
+reliée à rien »), pas un défaut à masquer en fabriquant un voisin. Quatre
+liens seulement, tous dérivés d'un fait réel :
+
+- `prerequis` — `skill.prerequis`, orienté ;
+- `theme` — `Theme.codes` (ADR-053), hub non orienté ;
+- `exercice` — `Exercise.competences`, hub non orienté ;
+- `similarite` — proximité de **vocabulaire** des intitulés de compétence
+  (TF-IDF + cosinus + top-K **mutuel**, `lib/engine/similarite-textuelle.ts`,
+  remplace `lib/ui/micro-embedding.ts`), toujours rendue en pointillé,
+  toujours un lien dérivé — jamais présenté comme une mesure (invariant 5).
+  Le module précédent utilisait des fréquences brutes sans IDF, sans
+  normalisation, et ne fonctionnait qu'au niveau domaine ; le remplaçant
+  travaille au niveau compétence et ne retient une paire que si chacune
+  figure dans le top-K de l'autre — la règle standard d'un graphe de
+  plus-proches-voisins, qui évite qu'un vocabulaire générique produise un hub
+  parasite relié à tout le référentiel.
+
+**Chaque identifiant de nœud est préfixé par son type**
+(`competence:LOG-01`, `theme:abc`, `exercice:xyz` — `lib/domain/graphe.ts`).
+C'est la correction directe du bug structurel ci-dessus, et un point
+d'extension : une future entité « note » (projet, PDF, cours — évoquée par
+Maxime, hors de ce chantier) ajoutera son propre préfixe sans toucher aux
+autres.
+
+**`etiquettes: string[]` sur chaque nœud** (domaine, palier, niveau,
+couverture, dérivées) est le second point d'extension : une note portera ses
+propres étiquettes libres dans le même tableau, et les filtres du panneau de
+réglages fonctionneront sans changement de modèle.
+
+**Le layout est calculé par `d3-force`**, pas par un moteur maison — Barnes-Hut
+(`forceManyBody`), décroissance d'`alpha` (la simulation converge puis dort,
+plus de boucle perpétuelle), `forceLink`/`forceCollide`/`forceX`/`forceY` pour
+ce que le code précédent réimplémentait à la main. ~6 ko gzippés (`d3-force` +
+`@types/d3-force`) pour ne plus maintenir un moteur physique. Le rendu reste
+Canvas 2D fait main (grille, arêtes, nœuds, tooltip, légende) — c'est la
+partie qui n'avait pas de raison de changer.
+
+**Structure : graphe plat**, comme Obsidian — tous les nœuds à l'écran, un
+panneau de réglages (filtres par type de nœud/lien, seuil de similarité, axe
+de coloration réglable — domaine par défaut, palier, maîtrise, couverture en
+exercices, forces de disposition), survol qui surligne les voisins directs et
+estompe le reste. Plus de niveaux qui se remplacent avec fil d'Ariane.
+
+### Ce qui reste volontairement hors de ce chantier
+
+- **Aucune entité « note »** (projet, PDF, cours, idée). Le modèle de nœuds
+  typés et d'étiquettes est prêt à l'accueillir ; sa persistance (table,
+  RLS, UI de rédaction) est un chantier séparé, à décider comme tel — même
+  raisonnement que « KnowledgeItem » en ADR-055.
+- **Aucun score de confiance sur une arête** dérivée : le poids d'un lien
+  `similarite` est affiché comme ce qu'il est (une similarité de texte), pas
+  présenté comme une mesure de compétence.
+
+### Réserve
+
+🔬 Le seuil et le top-K de la similarité (0.12, K=4) sont des valeurs de
+départ, pas calibrées sur un usage réel. **Test de réfutation** : si le
+panneau de réglages montre systématiquement soit aucune arête `similarite`
+soit un graphe saturé quel que soit le curseur, le calcul (ou son seuil par
+défaut) est à revoir.
+
+---
+
 ## Comment modifier ce registre
 
 1. Une décision ✅ ne se retire pas : elle passe en 🔄 **Remplacée**, avec le

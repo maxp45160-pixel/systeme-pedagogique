@@ -1,13 +1,7 @@
 import Link from "next/link";
 import { chargerContexte } from "@/lib/store/context";
 import { libelleDomaine } from "@/lib/domain/referentiel-compte";
-import {
-  compterTentatives,
-  estRetirable,
-  usageExercice,
-  EXERCICES_PAR_LOT_MAX,
-  type UsageExercice,
-} from "@/lib/domain/exercice";
+import { compterTentatives, estRetirable, usageExercice, type UsageExercice } from "@/lib/domain/exercice";
 import type { Exercise, ExerciseAttempt, Referentiel, TypeExercice } from "@/lib/domain/types";
 import {
   Carte,
@@ -19,11 +13,6 @@ import {
   LigneListe,
 } from "@/components/ui/primitives";
 import { Depliant } from "@/components/ui/explication";
-import { BoutonGenerer } from "@/components/exercices/bouton-generer";
-import {
-  calibragesPourModale,
-  competencesPourModale,
-} from "@/components/exercices/proprietes-generation";
 import { RetraitExercice } from "@/components/exercices/retrait";
 import { formatDuree } from "@/lib/engine/dates";
 
@@ -33,11 +22,14 @@ import { formatDuree } from "@/lib/engine/dates";
  * C'est l'ancien écran `/exercices`, allégé : le sélecteur de statut a disparu
  * (le pilotage n'est plus ici — il vit au tableau de bord et dans le compositeur
  * de séance), et aucun filtre ne le remplace (CLAUDE.md §8). Le regroupement par
- * domaine, « Acquis », « Archivés », le retrait, l'édition et le panneau
- * « compétences sans exercice » restent.
+ * domaine, « Acquis », « Archivés », le retrait et l'édition restent.
+ *
+ * Les deux cartes de génération (« N compétences sans aucun exercice » et
+ * « Générer un exercice ») ont été retirées : la génération d'exercices n'a
+ * plus qu'un seul chemin, celui du compositeur de séance (« À rédiger », lot
+ * de génération groupée) — pour ne pas laisser deux façons de faire la même
+ * chose diverger.
  */
-
-const LOT_MAX = EXERCICES_PAR_LOT_MAX;
 
 const TYPES: { cle: TypeExercice; libelle: string }[] = [
   { cle: "rappel", libelle: "Rappel" },
@@ -77,87 +69,8 @@ export async function Bibliotheque() {
   const idsGroupes = new Set(groupes.flatMap((g) => g.items.map((e) => e.id)));
   const orphelins = enFlux.filter((e) => !idsGroupes.has(e.id));
 
-  const couverts = new Set(ctx.exercicesActifs.flatMap((e) => e.competences));
-  const decouverts = ctx.referentiel.domaines
-    .map((d) => ({
-      domaine: d,
-      codes: ctx.etats
-        .filter((e) => e.skill.domaine === d.id && !couverts.has(e.skill.code))
-        .map((e) => e.skill.code),
-    }))
-    .filter((g) => g.codes.length > 0);
-  const totalDecouvert = decouverts.reduce((s, g) => s + g.codes.length, 0);
-
   return (
     <div className="space-y-6">
-      {totalDecouvert > 0 && (
-        <Carte>
-          <CorpsCarte>
-            <Depliant
-              resume={`${totalDecouvert} compétence${totalDecouvert > 1 ? "s" : ""} sans aucun exercice`}
-            >
-              <p className="mt-2 max-w-2xl text-xs text-texte-attenue">
-                Le moteur ne peut proposer que ce qui existe. Tant qu&apos;une compétence
-                n&apos;a aucun exercice, la recommandation retombe sur le tuteur — et si
-                toutes celles qui en ont sont déjà faites ou ratées, la file paraît tourner
-                en rond. Demander un lot par domaine évite d&apos;ouvrir une conversation par
-                compétence.
-              </p>
-              <ul className="mt-3 divide-y divide-bordure border-t border-bordure">
-                {decouverts.map(({ domaine, codes }) => {
-                  const lot = codes.slice(0, LOT_MAX);
-                  return (
-                    <li
-                      key={domaine.id}
-                      className="flex flex-wrap items-center justify-between gap-2 py-2"
-                    >
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium">{domaine.nom}</p>
-                        <p className="mt-0.5 flex flex-wrap gap-1 text-[0.6875rem] text-texte-discret">
-                          {codes.map((c) => (
-                            <CodeCompetence key={c} code={c} />
-                          ))}
-                        </p>
-                      </div>
-                      <BoutonGenerer
-                        competences={competencesPourModale(
-                          ctx.referentiel.actifs.filter((s) => s.domaine === domaine.id),
-                        )}
-                        competenceInitiale={lot[0]}
-                        calibrages={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
-                        compteId={ctx.donnees.user.id}
-                        libelle={`Générer un exercice${codes.length > lot.length ? ` (sur ${codes.length})` : ""}`}
-                      />
-                    </li>
-                  );
-                })}
-              </ul>
-            </Depliant>
-          </CorpsCarte>
-        </Carte>
-      )}
-      <Carte>
-        <CorpsCarte>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-sm font-medium">Générer un exercice</p>
-              <p className="mt-0.5 max-w-2xl text-xs text-texte-attenue">
-                Le tuteur rédige, tu relis et tu valides. Rien n&apos;est écrit avant.
-              </p>
-            </div>
-            <BoutonGenerer
-              competences={competencesPourModale(ctx.referentiel.actifs)}
-              competenceInitiale={
-                ctx.recommandations[0]?.etat.skill.code ?? ctx.referentiel.actifs[0]?.code ?? ""
-              }
-              calibrages={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
-              compteId={ctx.donnees.user.id}
-              libelle="Générer"
-            />
-          </div>
-        </CorpsCarte>
-      </Carte>
-
       <div className="text-xs text-texte-attenue">
         {exercices.length} exercice{exercices.length > 1 ? "s" : ""}
         {acquis.length > 0 && ` · ${acquis.length} acquis`}

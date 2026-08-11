@@ -16,16 +16,16 @@ import {
 import { RepartitionNiveaux } from "@/components/charts";
 import { formatDateRelative } from "@/lib/engine/dates";
 import { BoutonCreerReferentiel } from "@/components/referentiel/modale-referentiel";
-import { construireGraphe } from "@/components/competences/graphe-donnees";
-import { GrapheCompetences } from "@/components/competences/graphe-competences";
+import { construireGraphe } from "@/lib/domain/graphe";
+import { GrapheCompetences } from "@/components/competences/graphe/graphe-competences";
 
 /**
  * Page Compétences — version épurée (R5) + vue Graphe (style Obsidian).
  *
  * Deux vues accessibles via un sélecteur segmenté :
  *   - **Liste** (défaut) : les grands champs (domaines) avec stats agrégées.
- *   - **Graphe** : visualisation interactive force-directed à trois niveaux
- *     (catégories → compétences → exercices).
+ *   - **Graphe** : graphe plat façon Obsidian — tous les nœuds à l'écran,
+ *     panneau de réglages pour filtrer/classer/ajuster les forces (ADR-056).
  */
 
 type Vue = "liste" | "graphe";
@@ -140,7 +140,7 @@ async function ContenuGraphe() {
     themes,
   );
 
-  return <GrapheCompetences donnees={donneesGraphe} />;
+  return <GrapheCompetences donnees={donneesGraphe} compteId={ctx.donnees.user.id} />;
 }
 
 /* ------------------------------------------------------------------ */
@@ -267,4 +267,4 @@ function VueDomaines({
       })}
     </div>
   );
-}
+}

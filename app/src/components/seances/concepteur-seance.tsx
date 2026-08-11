@@ -901,19 +901,30 @@ function EtapeComposition({
 
       {composition.manquants.length > 0 && (
         <div className="space-y-2">
-          <p className="text-sm font-medium">
-            À rédiger — {composition.manquants.length} exercice
-            {composition.manquants.length > 1 ? "s" : ""} manquant
-            {composition.manquants.length > 1 ? "s" : ""}
-          </p>
-          {composition.manquants.map((m) => (
-            <LigneManquant
-              key={m.code}
-              manquant={m}
-              competencesModale={competencesModale}
-              calibragesModale={calibragesModale}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-medium">
+              À rédiger — {composition.manquants.length} exercice
+              {composition.manquants.length > 1 ? "s" : ""} manquant
+              {composition.manquants.length > 1 ? "s" : ""}
+            </p>
+            {/*
+              Un seul bouton pour tout le lot plutôt qu'un par compétence : la
+              route et `genererExercices` font déjà un seul appel modèle pour
+              N demandes (borné à EXERCICES_PAR_LOT_MAX). Générer un par un
+              est une lenteur d'interface, pas une contrainte du moteur.
+            */}
+            <BoutonGenerer
+              competences={competencesModale}
+              competenceInitiale={composition.manquants[0].code}
+              competencesCibles={composition.manquants.map((m) => m.code)}
+              calibrages={calibragesModale}
               compteId={compteId}
+              libelle={`Générer les ${composition.manquants.length} exercice${composition.manquants.length > 1 ? "s" : ""} manquant${composition.manquants.length > 1 ? "s" : ""}`}
+              variante="secondaire"
             />
+          </div>
+          {composition.manquants.map((m) => (
+            <LigneManquant key={m.code} manquant={m} />
           ))}
           <p className="text-[0.6875rem] text-texte-discret">
             Génère et relis chaque exercice avant de démarrer : rien n&apos;est écrit sans
@@ -992,30 +1003,10 @@ function LigneActivite({ activite }: { activite: ActiviteComposee }) {
   );
 }
 
-function LigneManquant({
-  manquant,
-  competencesModale,
-  calibragesModale,
-  compteId,
-}: {
-  manquant: ManquantSeance;
-  competencesModale: CompetenceModale[];
-  calibragesModale: Record<string, CalibrageModale>;
-  compteId: string;
-}) {
+function LigneManquant({ manquant }: { manquant: ManquantSeance }) {
   return (
     <div className="rounded-md border border-dashed border-bordure p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm font-medium">{manquant.intitule}</p>
-        <BoutonGenerer
-          competences={competencesModale}
-          competenceInitiale={manquant.code}
-          calibrages={calibragesModale}
-          compteId={compteId}
-          libelle="Générer"
-          variante="secondaire"
-        />
-      </div>
+      <p className="text-sm font-medium">{manquant.intitule}</p>
       <p className="mt-0.5 text-xs text-texte-discret">
         {manquant.code} · difficulté cible {manquant.difficulteCible}/5
       </p>

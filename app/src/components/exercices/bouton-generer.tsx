@@ -27,6 +27,7 @@ export function BoutonGenerer({
   libelle = "Générer un exercice",
   variante = "principal",
   surEnregistre,
+  competencesCibles,
 }: {
   competences: CompetenceModale[];
   competenceInitiale: string;
@@ -38,6 +39,8 @@ export function BoutonGenerer({
   libelle?: string;
   variante?: "principal" | "secondaire";
   surEnregistre?: (id: string) => void;
+  /** Génération groupée — voir `ModaleExercice`. */
+  competencesCibles?: string[];
 }) {
   const [ouvert, setOuvert] = useState(false);
 
@@ -55,6 +58,7 @@ export function BoutonGenerer({
           calibrages={calibrages}
           compteId={compteId}
           surEnregistre={surEnregistre}
+          competencesCibles={competencesCibles}
         />
       )}
     </>

@@ -138,4 +138,12 @@ describe("themesEnregistres", () => {
     ]);
     expect(themesEnregistres([theme(["DEV-01"])], referentiel)).toEqual([]);
   });
+
+  it("dédoublonne par id — le compositeur fusionne thèmes persistés et thèmes créés dans la session", () => {
+    const persiste = theme(["DEV-01"], { id: "t1" });
+    const local = theme(["DEV-01"], { id: "t1" }); // même id, revenu par revalidatePath
+    const rendus = themesEnregistres([persiste, local], REFERENTIEL_TEST);
+    expect(rendus).toHaveLength(1);
+    expect(rendus[0].cle).toBe("theme:t1");
+  });
 });

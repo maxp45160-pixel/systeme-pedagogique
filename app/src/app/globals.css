@@ -202,9 +202,9 @@
   /* Conteneur du graphe interactif des compétences (style Obsidian). */
   .graphe-conteneur {
     position: relative;
+    display: flex;
     width: 100%;
-    min-height: 500px;
-    height: calc(100vh - 12rem);
+    height: clamp(420px, calc(100vh - 12rem), 900px);
     border-radius: var(--rayon-carte, 0.75rem);
     border: 1px solid var(--bordure);
     background: var(--surface);

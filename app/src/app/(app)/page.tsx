@@ -199,7 +199,7 @@ async function ContenuTableauDeBord() {
             titre="Composer une séance"
             legende="Un thème, un temps — le reste est dérivé."
           />
-          <div className="px-5 py-4">
+          <div className="flex justify-center px-5 py-4">
             <ConcepteurSeance {...donneesSeance} />
           </div>
         </Carte>

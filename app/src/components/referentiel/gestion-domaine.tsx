@@ -17,13 +17,10 @@
 
 import { useState, useTransition } from "react";
 import {
-  archiverCompetence,
-  basculerActive,
   basculerActives,
   desarchiverCompetence,
   modifierCompetence,
   retirerCompetences,
-  supprimerCompetence,
 } from "@/lib/store/referentiel-actions";
 import { BandeauInfo, Bouton, CodeCompetence, cx, Etiquette } from "@/components/ui/primitives";
 import { Champ, ChampSelect } from "@/components/ui/champ";
@@ -55,7 +52,6 @@ export function GestionDomaine({
   const [erreur, setErreur] = useState<string | null>(null);
   const [avis, setAvis] = useState<string | null>(null);
   const [edite, setEdite] = useState<string | null>(null);
-  const [confirme, setConfirme] = useState<string | null>(null);
   const [selection, setSelection] = useState<Set<string>>(new Set());
   const [archivesOuvertes, setArchivesOuvertes] = useState(false);
 
@@ -79,7 +75,6 @@ export function GestionDomaine({
       try {
         await action();
         setEdite(null);
-        setConfirme(null);
         setSelection(new Set());
       } catch (e) {
         setErreur(e instanceof Error ? e.message : "Opération impossible.");
@@ -105,6 +100,15 @@ export function GestionDomaine({
         <span className="text-xs text-texte-discret">
           Gestion des compétences du domaine « {domaine.nom} »
         </span>
+        {vivantes.length > 0 && codesSelectionnes.length === 0 && (
+          <button
+            type="button"
+            onClick={() => setSelection(new Set(vivantes.map((s) => s.code)))}
+            className="text-[0.6875rem] text-texte-attenue hover:text-texte"
+          >
+            Tout sélectionner
+          </button>
+        )}
       </div>
 
       {erreur && (
@@ -127,6 +131,16 @@ export function GestionDomaine({
               {codesSelectionnes.length > 1 ? "s" : ""} sélectionnée
               {codesSelectionnes.length > 1 ? "s" : ""}
             </span>
+            {codesSelectionnes.length === 1 && (
+              <Bouton
+                onClick={() => setEdite(codesSelectionnes[0])}
+                disabled={enCours}
+                variante="secondaire"
+                taille="petite"
+              >
+                Modifier
+              </Bouton>
+            )}
             <Bouton
               enChargement={actionEnCours === "lot-sortir"}
               disabled={enCours}
@@ -161,6 +175,13 @@ export function GestionDomaine({
             >
               Retirer
             </Bouton>
+            <button
+              type="button"
+              onClick={() => setSelection(new Set(vivantes.map((s) => s.code)))}
+              className="text-[0.6875rem] text-texte-attenue hover:text-texte"
+            >
+              Tout sélectionner
+            </button>
             <button
               type="button"
               onClick={() => setSelection(new Set())}
@@ -242,87 +263,7 @@ export function GestionDomaine({
                       </p>
                     )}
                   </div>
-
-                  {!enEdition && (
-                    <div className="flex shrink-0 flex-wrap gap-1.5">
-                      <Bouton
-                        onClick={() => setEdite(s.code)}
-                        disabled={enCours}
-                        variante="secondaire"
-                        taille="petite"
-                      >
-                        Modifier
-                      </Bouton>
-                      <Bouton
-                        enChargement={actionEnCours === `perimetre-${s.code}`}
-                        onClick={() => agir(`perimetre-${s.code}`, () => basculerActive(s.code, !s.active))}
-                        disabled={enCours}
-                        variante="secondaire"
-                        taille="petite"
-                      >
-                        {s.active ? "Sortir du périmètre" : "Remettre au périmètre"}
-                      </Bouton>
-                      {confirme === s.code ? (
-                        <div className="flex items-center gap-1.5">
-                          <Bouton
-                            enChargement={actionEnCours === `retrait-${s.code}`}
-                            onClick={() =>
-                              agir(`retrait-${s.code}`, () =>
-                                retrait.mode === "suppression"
-                                  ? supprimerCompetence(s.code)
-                                  : archiverCompetence(s.code),
-                              )
-                            }
-                            disabled={enCours}
-                            variante="secondaire"
-                            taille="petite"
-                          >
-                            Confirmer
-                          </Bouton>
-                          <button
-                            type="button"
-                            onClick={() => setConfirme(null)}
-                            className="text-[0.6875rem] text-texte-attenue hover:text-texte"
-                          >
-                            Annuler
-                          </button>
-                        </div>
-                      ) : (
-                        <Bouton
-                          onClick={() => setConfirme(s.code)}
-                          disabled={enCours}
-                          variante="secondaire"
-                          taille="petite"
-                        >
-                          {retrait.mode === "suppression" ? "Supprimer" : "Archiver"}
-                        </Bouton>
-                      )}
-                    </div>
-                  )}
                 </div>
-
-                {/* L'annonce du geste, avant qu'il ne se produise (ADR-027). */}
-                {confirme === s.code && (
-                  <BandeauInfo ton="info" taille="compacte" className="mt-2">
-                    <p className="text-texte-attenue">
-                      {retrait.mode === "suppression" ? (
-                        <>
-                          <span className="font-medium">Suppression définitive.</span>{" "}
-                          {s.code} n{"'"}a produit aucune preuve : la ligne disparaît, rien
-                          n{"'"}est perdu. Le code ne sera pas réattribué.
-                        </>
-                      ) : (
-                        <>
-                          <span className="font-medium">Archivage, pas suppression.</span> {s.code}{" "}
-                          porte {retrait.preuves} preuve
-                          {retrait.preuves > 1 ? "s" : ""} : elles restent en base et gardent leur
-                          intitulé dans ton journal. La compétence sort des calculs et de
-                          l{"'"}affichage — une preuve ne disparaît pas.
-                        </>
-                      )}
-                    </p>
-                  </BandeauInfo>
-                )}
               </li>
             );
           })}
