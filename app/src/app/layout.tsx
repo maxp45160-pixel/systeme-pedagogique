@@ -18,6 +18,9 @@ export const metadata: Metadata = {
   title: "Système pédagogique — Suivi longitudinal",
   description:
     "Centre de pilotage personnel du développement de compétences en ingénierie des systèmes complexes.",
+  verification: {
+    google: "PYH66AATHwISN6RusvDJafbdLlJN0tnKYN5iTK0e19E",
+  },
 };
 
 /**
