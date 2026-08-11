@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { chargerContexte } from "@/lib/store/context";
 import { demarrerSeance, terminerSeance, annulerSeance } from "@/lib/store/seance-actions";
-import { avancementSeance, ecartBesoinRealise, statutSeance } from "@/lib/domain/seance";
+import { avancementSeance, ecartBesoinRealise, statutSeance, tentativeDeSeance } from "@/lib/domain/seance";
 import { urlExercice } from "@/lib/domain/navigation-exercice";
 import { formatDateCourte, formatDuree } from "@/lib/engine/dates";
 import { Bouton, Carte, CodeCompetence, EnTeteCarte, Etiquette, EtatVide, classesLienBouton, cx } from "@/components/ui/primitives";
@@ -11,6 +11,7 @@ import { TiroirTuteur } from "@/components/tuteur/tiroir-tuteur";
 import { construireEtatInitialTuteur } from "@/lib/tutor/etat-initial";
 import { calibragesPourModale, competencesPourModale } from "@/components/exercices/proprietes-generation";
 import { VueExercice } from "@/components/exercices/vue-exercice";
+import { ResumeExerciceCahier } from "@/components/seances/resume-exercice-cahier";
 
 type EtapeRecherche = {
   correction?: string;
@@ -184,11 +185,9 @@ export async function VueSeanceDetail({
                     Retour au déroulé de la séance
                   </Link>
                 </div>
-                <VueExercice
-                  params={Promise.resolve({ id: explicite })}
-                  searchParams={Promise.resolve({})}
-                  integree
-                  lectureSeule
+                <ResumeExerciceCahier
+                  exercice={parId.get(explicite)!}
+                  tentative={tentativeDeSeance(seance, explicite, ctx.donnees.attempts)}
                 />
               </>
             ) : (
@@ -200,7 +199,18 @@ export async function VueSeanceDetail({
                     {typeof seance.dureeMin === "number" && <p className="text-texte-attenue">Durée observée : {formatDuree(seance.dureeMin)}</p>}
                   </div>
                 </Carte>
-                <ListeActivites activites={activites} parId={parId} avancement={avancement} seanceId={seance.id} liens={false} />
+                <div className="space-y-4">
+                  {activites.map((activite) => {
+                    const exercice = parId.get(activite.ref)!;
+                    return (
+                      <ResumeExerciceCahier
+                        key={activite.ref}
+                        exercice={exercice}
+                        tentative={tentativeDeSeance(seance, activite.ref, ctx.donnees.attempts)}
+                      />
+                    );
+                  })}
+                </div>
                 {ecart && (
                   <Carte>
                     <EnTeteCarte titre="Besoin et réalisé" />

@@ -12,10 +12,10 @@ import {
 } from "@/components/seances/concepteur-seance";
 import { VueSeanceDetail } from "@/components/seances/vue-seance-detail";
 import { FileSeances } from "@/components/seances/file-seances";
-import { CahierSeances } from "@/components/seances/cahier-seances";
+import { CahierSeances, RechercheCahier } from "@/components/seances/cahier-seances";
 
 /**
- * Pôle Séances (ADR-061).
+ * Pôle Cahier (ADR-061, étendu par ADR-062).
  *
  * Sans `session` : un hub — composer au centre, une file épinglée des séances
  * en cours et planifiées, puis un cahier chronologique des séances réalisées.
@@ -32,6 +32,7 @@ export default async function PageSeances(props: {
     evaluer?: string;
     bilan?: string;
     abandon?: string;
+    q?: string;
   }>;
 }) {
   const recherche = await props.searchParams;
@@ -48,17 +49,17 @@ export default async function PageSeances(props: {
   return (
     <>
       <EntetePage
-        titre="Séances"
-        sousTitre="Compose une séance, déroule-la — et relis ce qui a été fait."
+        titre="Cahier"
+        sousTitre="Travaille une séance, puis retrouve l’essentiel de ce que tu en as tiré."
       />
       <Suspense fallback={<SqueletteContenu />}>
-        <ContenuHub />
+        <ContenuHub recherche={recherche.q} />
       </Suspense>
     </>
   );
 }
 
-async function ContenuHub() {
+async function ContenuHub({ recherche }: { recherche?: string }) {
   const [ctx, themes] = await Promise.all([chargerContexte(), chargerThemes()]);
 
   const donnees: DonneesSeance = {
@@ -76,6 +77,8 @@ async function ContenuHub() {
 
   return (
     <div className="space-y-8">
+      <RechercheCahier recherche={recherche} />
+
       {/* CTA centré — l'entrée principale de la composition. */}
       <div className="flex justify-center">
         <ConcepteurSeance {...donnees} libelle="Composer une séance" />
@@ -83,7 +86,11 @@ async function ContenuHub() {
 
       <FileSeances seances={ctx.donnees.sessions} />
 
-      <CahierSeances seances={ctx.donnees.sessions} donnees={donnees} />
+      <CahierSeances
+        seances={ctx.donnees.sessions}
+        donnees={donnees}
+        recherche={recherche}
+      />
     </div>
   );
 }

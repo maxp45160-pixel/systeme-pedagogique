@@ -11,6 +11,7 @@ import {
   seanceALieu,
   seanceEnCoursPour,
   statutSeance,
+  tentativeDeSeance,
   EXERCICES_PAR_SEANCE_MAX,
   INTENTION_MAX,
   TEMPS_DECLARE_MAX,
@@ -131,6 +132,24 @@ describe("exercicesDeLaSeance", () => {
       ],
     });
     expect(exercicesDeLaSeance(s)).toEqual(["ex-a"]);
+  });
+});
+
+describe("tentativeDeSeance — rattachement sans lien fabriqué", () => {
+  it("ignore une tentative antérieure au début d'une séance composée", () => {
+    const ancienne = tentative("ex-a", "terminee", { debut: "2026-08-09T09:00:00.000Z" });
+    const courante = tentative("ex-a", "terminee", { debut: "2026-08-10T09:30:00.000Z" });
+    expect(tentativeDeSeance(seance(), "ex-a", [ancienne, courante])?.id).toBe(courante.id);
+  });
+
+  it("rattache une séance historique à la clôture la plus proche", () => {
+    const loin = tentative("ex-a", "terminee", { debut: "2026-08-08T09:00:00.000Z" });
+    const proche = {
+      ...tentative("ex-a", "terminee", { debut: "2026-08-10T08:50:00.000Z" }),
+      fin: "2026-08-10T09:01:00.000Z",
+    };
+    const historique = seance({ genereAutomatiquement: true });
+    expect(tentativeDeSeance(historique, "ex-a", [loin, proche])?.id).toBe(proche.id);
   });
 });
 

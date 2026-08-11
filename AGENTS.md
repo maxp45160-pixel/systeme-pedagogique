@@ -9,8 +9,6 @@ Boucle centrale :
 génération d'exercices → évaluation → adaptation
 
 Lire `PRODUCT.md` avant toute décision produit.
-Lire `PRODUCT_SPECIFICATION_MAP.md` pour situer une brique : où elle vit, dans
-quelle couche, à quel état.
 Lire `ARCHITECTURE_DECISIONS.md` avant toute modification architecturale.
 
 Ne jamais transformer une analyse Codex en décision validée.
@@ -19,7 +17,7 @@ Ne jamais transformer une analyse Codex en décision validée.
 
 ## Les six couches
 
-Vocabulaire commun à tout le dépôt, défini par `PRODUCT_SPECIFICATION_MAP.md`.
+Vocabulaire commun à tout le dépôt, défini ci-dessous.
 Toute brique du produit se range dans exactement une couche.
 
 | # | Couche | Question | Nature |
@@ -39,13 +37,6 @@ Statuts : ✅ construit et tranché · 🔬 construit, hypothèse non réfutée 
 
 **Aucun agent ne fait monter un statut.** Seule une personne passe une brique
 en ✅, explicitement.
-
----
-
-## Missions en cours
-
-Les chantiers ③ à ⑩ sont décrits dans `docs/missions/`. Lire
-`docs/missions/README.md` avant d'en ouvrir une.
 
 ---
 

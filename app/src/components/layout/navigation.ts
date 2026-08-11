@@ -24,11 +24,11 @@ export interface GroupeNav {
  * d'usage :
  *
  *  - **Tableau de bord** — le point d'entrée de l'app (Piloter).
- *  - **Séances**, dominant — composer, planifier et dérouler (Travailler).
+ *  - **Cahier**, dominant — composer, planifier, dérouler et relire (Travailler).
  *  - **Compétences**, en retrait — consulter et gérer au même endroit (Suivre).
  *
  * La séparation tient au besoin (ADR-053) : le tableau de bord *pilote* (sa
- * prochaine action), Séances *travaille* (le hub et le workspace, ADR-061),
+ * prochaine action), Cahier *travaille* (le hub et le workspace, ADR-061),
  * Compétences *suit* (l'état). Les routes `/exercices`, `/progression` et
  * `/journal` ne subsistent que comme redirections (ADR-061).
  */
@@ -43,7 +43,7 @@ export const NAVIGATION: GroupeNav[] = [
     titre: "Travailler",
     primaire: true,
     entrees: [
-      { href: "/seances", libelle: "Séances", court: "Séances", icone: IconeExercices },
+      { href: "/seances", libelle: "Cahier", court: "Cahier", icone: IconeExercices },
     ],
   },
   {

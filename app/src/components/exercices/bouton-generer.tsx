@@ -28,6 +28,7 @@ export function BoutonGenerer({
   variante = "principal",
   surEnregistre,
   competencesCibles,
+  ouvrirDansCahierApresAcceptation = false,
 }: {
   competences: CompetenceModale[];
   competenceInitiale: string;
@@ -41,6 +42,8 @@ export function BoutonGenerer({
   surEnregistre?: (id: string) => void;
   /** Génération groupée — voir `ModaleExercice`. */
   competencesCibles?: string[];
+  /** Réservé à la prochaine action : accepter ouvre une séance focus. */
+  ouvrirDansCahierApresAcceptation?: boolean;
 }) {
   const [ouvert, setOuvert] = useState(false);
 
@@ -59,6 +62,7 @@ export function BoutonGenerer({
           compteId={compteId}
           surEnregistre={surEnregistre}
           competencesCibles={competencesCibles}
+          ouvrirDansCahierApresAcceptation={ouvrirDansCahierApresAcceptation}
         />
       )}
     </>

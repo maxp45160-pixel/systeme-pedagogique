@@ -74,6 +74,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [059](#adr-059) | Une séance créée conduit au workspace focus | ✅ Acceptée (11/08) |
 | [060](#adr-060) | Observer le maximum pertinent, jamais le maximum indiscriminé | ✅ Acceptée (11/08) |
 | [061](#adr-061) | Séances : un hub et un workspace, pas quatre vues | ✅ Acceptée (11/08) |
+| [062](#adr-062) | Le pôle devient Cahier ; la relecture synthétise et toute prochaine action ouvre le focus | ✅ Acceptée (11/08) |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -4084,6 +4085,50 @@ reste l'écran unitaire d'un exercice. Redirections conservées : `/journal` et
 des preuves (pôle Compétences), la bibliothèque est l'écran unitaire des
 exercices, et disperser le suivi derrière des onglets diluait la destination
 d'une séance.
+
+---
+
+<a name="adr-062"></a>
+## ADR-062 — Le pôle devient Cahier ; la relecture synthétise et toute prochaine action ouvre le focus ✅
+
+**Date.** 11/08/2026. **Tranchée par Maxime.** Étend [ADR-061](#adr-061) et
+remplace explicitement son retrait de la recherche.
+
+### Décision
+
+Le pôle visible s'appelle **Cahier**. La route `/seances` et l'entité
+`LearningSession` ne changent pas : « Cahier » désigne la destination où l'on
+travaille puis relit les séances, pas une nouvelle entité métier.
+
+La relecture d'une séance terminée ne rejoue plus l'écran d'exercice complet.
+Elle met d'abord en avant les conclusions réellement disponibles — notions
+travaillées, points forts, points bloquants et actions à reprendre — puis garde
+la réponse et la correction sous des volets explicites. Si aucun verdict du
+tuteur n'a été conservé, la synthèse peut seulement reformuler les critères et
+scores validés ; elle n'invente aucune conclusion. La recherche revient dans le
+cahier et porte sur les traces déjà disponibles. « Refaire la séance »
+recompose depuis le blueprint conservé ou, pour l'historique antérieur, depuis
+les exercices encore identifiables.
+
+Après génération, les deux décisions sont **Accepter** ou **Modifier**.
+Modifier transmet une consigne humaine et la proposition courante au tuteur ;
+la proposition révisée reste non enregistrée jusqu'à une acceptation explicite.
+
+Enfin, la prochaine action — exercice déjà disponible ou nouvel exercice
+accepté — crée une `LearningSession` mono-exercice puis ouvre le workspace
+focus. Cela réalise ADR-059 sur ce second point d'entrée sans créer de double
+entrée dans le journal.
+
+### Conséquences
+
+- aucune migration de base et aucune nouvelle entité ;
+- la correction reste disponible, mais ne concurrence plus les conclusions ;
+- le tuteur révise du contenu, jamais une mesure ;
+- une séance déjà en cours continue de bloquer l'ouverture d'une seconde.
+
+**Alternative écartée.** Ouvrir directement `/exercices/[id]` depuis la
+prochaine action : le focus resterait alors une présentation réservée au seul
+compositeur de séances, malgré ADR-059.
 
 ---
 

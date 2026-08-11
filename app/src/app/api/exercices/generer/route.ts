@@ -3,6 +3,7 @@ import { choisirConfiguration, creerMoteur } from "@/lib/tutor/moteurs";
 import type { ConfigTuteurClient } from "@/lib/tutor/cle-client";
 import { envTuteur } from "@/lib/tutor/env-requete";
 import { genererExercices } from "@/lib/tutor/generation";
+import type { PropositionExercice } from "@/lib/tutor/proposition";
 
 /**
  * Route de génération d'exercices — sans conversation.
@@ -31,6 +32,11 @@ interface CorpsGenerer {
   theme?: string;
   /** Config saisie côté client (réglages). Prime sur les variables serveur. */
   config?: ConfigTuteurClient;
+  /** Révision d'une proposition non enregistrée, demandée par la personne. */
+  modification?: {
+    consigne?: string;
+    proposition?: PropositionExercice;
+  };
 }
 
 /*
@@ -53,6 +59,18 @@ export async function POST(request: Request) {
   const codes = (corps.competences ?? []).filter((c) => c.trim().length > 0);
   if (codes.length === 0) {
     return Response.json({ erreur: "aucune-competence" }, { status: 400 });
+  }
+
+  const consigneModification = corps.modification?.consigne?.trim();
+  const propositionModification = corps.modification?.proposition;
+  if (corps.modification && (!consigneModification || consigneModification.length > 1_000 || !propositionModification)) {
+    return Response.json(
+      {
+        erreur: "modification-invalide",
+        message: "Décris la modification attendue en 1 000 caractères au plus.",
+      },
+      { status: 400 },
+    );
   }
 
   // La config client (si présente) prime sur `process.env` : l'utilisateur qui
@@ -91,6 +109,14 @@ export async function POST(request: Request) {
         competence: etat.skill,
         calibration: ctx.calibrations.get(etat.skill.code) ?? null,
         theme: corps.theme,
+        ...(consigneModification && propositionModification
+          ? {
+              modification: {
+                consigne: consigneModification,
+                proposition: propositionModification,
+              },
+            }
+          : {}),
       },
     ];
   });

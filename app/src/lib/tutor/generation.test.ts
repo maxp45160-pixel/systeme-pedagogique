@@ -168,6 +168,35 @@ describe("construirePromptGeneration — plusieurs compétences", () => {
   });
 });
 
+describe("construirePromptGeneration — modification guidée", () => {
+  it("transmet la consigne et la proposition comme données à réviser", () => {
+    const prompt = construirePromptGeneration(REFERENTIEL, [{
+      competence: DEV_03,
+      calibration: null,
+      modification: {
+        consigne: "Rends l'énoncé plus concret.",
+        proposition: {
+          titre: "Ancien titre",
+          domaine: "developpement",
+          type: "application",
+          difficulte: "2",
+          competences: [DEV_03.code],
+          dureeEstimeeMin: "20",
+          enonce: "Ancien énoncé",
+          indices: [],
+          correction: "Correction",
+          criteres: [{ dimension: "application", libelle: "Appliquer" }],
+        },
+      },
+    }]);
+
+    expect(prompt).toContain("RÉVISION DEMANDÉE");
+    expect(prompt).toContain("Rends l'énoncé plus concret.");
+    expect(prompt).toContain("Ancien énoncé");
+    expect(prompt).toContain("conservant les compétences ciblées");
+  });
+});
+
 /* ------------------------------------------------------------------ */
 /* La collecte — ce que `genererExercices` retient, et ce qu'il refuse  */
 /* ------------------------------------------------------------------ */

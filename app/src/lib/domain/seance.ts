@@ -119,6 +119,38 @@ export function exercicesDeLaSeance(seance: LearningSession): string[] {
 }
 
 /**
+ * Retrouve la tentative qui appartient à une séance sans inventer de lien.
+ *
+ * Les séances historiques ont été écrites au même geste que leur tentative :
+ * on retient donc la clôture la plus proche. Une séance composée, elle, ne peut
+ * revendiquer que les tentatives ouvertes après son démarrage.
+ */
+export function tentativeDeSeance(
+  seance: LearningSession,
+  exerciceId: string,
+  tentatives: ExerciseAttempt[],
+): ExerciseAttempt | undefined {
+  const candidates = tentatives.filter((tentative) => tentative.exerciseId === exerciceId);
+  if (candidates.length === 0) return undefined;
+
+  if (seance.genereAutomatiquement) {
+    const dateSeance = new Date(seance.date).getTime();
+    return [...candidates]
+      .filter((tentative) => tentative.statut !== "en-cours")
+      .sort((a, b) => {
+        const ecartA = Math.abs(new Date(a.fin ?? a.debut).getTime() - dateSeance);
+        const ecartB = Math.abs(new Date(b.fin ?? b.debut).getTime() - dateSeance);
+        return ecartA - ecartB;
+      })[0];
+  }
+
+  const depuisDebut = candidates
+    .filter((tentative) => tentative.debut >= seance.date && tentative.statut !== "en-cours")
+    .sort((a, b) => a.debut.localeCompare(b.debut));
+  return depuisDebut.find((tentative) => tentative.statut === "terminee") ?? depuisDebut[0];
+}
+
+/**
  * La séance en cours qui contient cet exercice, s'il y en a une.
  *
  * ⚠️ C'est la fonction qui empêche le double comptage, et le défaut qu'elle

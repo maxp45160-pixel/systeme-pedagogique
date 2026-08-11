@@ -28,4 +28,4 @@ d'un même fait. Récupérables dans l'historique git.
 | `SPEC_MAJ_PROFIL_2026-07-25_FAIT.md` | Chantier terminé, décisions en ADR |
 
 Les documents qui font autorité sont à la racine : `CLAUDE.md`, `PRODUCT.md`,
-`PRODUCT_SPECIFICATION_MAP.md`, `ARCHITECTURE_DECISIONS.md`.
+`ARCHITECTURE_DECISIONS.md`.

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Bouton, Carte, CodeCompetence, EnTeteCarte, EtatVide, Etiquette } from "@/components/ui/primitives";
 import { formatDateCourte, formatDuree, cleJour } from "@/lib/engine/dates";
-import { statutSeance } from "@/lib/domain/seance";
+import { statutSeance, tentativeDeSeance } from "@/lib/domain/seance";
 import type { Exercise, ExerciseAttempt, LearningSession } from "@/lib/domain/types";
 import {
   ConcepteurSeance,
@@ -18,24 +18,18 @@ import { ajouterNoteSession } from "@/lib/store/actions";
 export function CahierSeances({
   seances,
   donnees,
+  recherche,
 }: {
   seances: LearningSession[];
   donnees: DonneesSeance;
+  recherche?: string;
 }) {
+  const terme = recherche?.trim().toLocaleLowerCase("fr") ?? "";
+  const exercicesParId = new Map(donnees.exercices.map((exercice) => [exercice.id, exercice]));
   const realisees = seances
     .filter((s) => statutSeance(s) === "terminee")
+    .filter((s) => correspondRecherche(s, terme, exercicesParId))
     .sort((a, b) => b.date.localeCompare(a.date));
-
-  if (realisees.length === 0) {
-    return (
-      <Carte>
-        <EtatVide
-          titre="Aucune séance réalisée"
-          message="Compose ta première séance : une fois terminée, elle rejoint ce cahier."
-        />
-      </Carte>
-    );
-  }
 
   const parJour = new Map<string, LearningSession[]>();
   for (const seance of realisees) {
@@ -47,6 +41,17 @@ export function CahierSeances({
 
   return (
     <div className="space-y-6">
+      {realisees.length === 0 && (
+        <Carte>
+          <EtatVide
+            titre={terme ? "Aucun résultat" : "Aucune séance réalisée"}
+            message={terme
+              ? `Aucune séance ne correspond à « ${recherche?.trim()} ».`
+              : "Compose ta première séance : une fois terminée, elle rejoint ce cahier."}
+          />
+        </Carte>
+      )}
+
       {[...parJour.entries()].map(([cle, liste]) => (
         <div key={cle}>
           <h3 className="mb-2 font-serif text-base font-medium tracking-tight">
@@ -63,8 +68,34 @@ export function CahierSeances({
   );
 }
 
+export function RechercheCahier({ recherche }: { recherche?: string }) {
+  const terme = recherche?.trim() ?? "";
+  return (
+    <form action="/seances" method="get" className="flex flex-col gap-2 sm:flex-row">
+      <div className="relative min-w-0 flex-1">
+        <label htmlFor="recherche-cahier" className="sr-only">Rechercher dans le cahier</label>
+        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-texte-discret" aria-hidden>⌕</span>
+        <input
+          id="recherche-cahier"
+          name="q"
+          type="search"
+          defaultValue={recherche ?? ""}
+          placeholder="Rechercher une notion, une compétence, une conclusion…"
+          className="w-full rounded-md border border-bordure-controle bg-surface py-2.5 pl-9 pr-3 text-sm placeholder:text-texte-discret"
+        />
+      </div>
+      <Bouton type="submit" variante="secondaire">Rechercher</Bouton>
+      {terme && (
+        <Link href="/seances" className="self-center text-xs font-medium text-primaire hover:underline">
+          Effacer
+        </Link>
+      )}
+    </form>
+  );
+}
+
 function LigneCahier({ seance, donnees }: { seance: LearningSession; donnees: DonneesSeance }) {
-  const preset = presetDepuisSeance(seance);
+  const preset = presetDepuisSeance(seance, donnees.exercices);
   const exercicesParId = new Map(donnees.exercices.map((exercice) => [exercice.id, exercice]));
   const activites = seance.activites.filter((activite) => activite.type === "exercice");
 
@@ -116,12 +147,12 @@ function LigneCahier({ seance, donnees }: { seance: LearningSession; donnees: Do
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <Link
-            href={detailSeanceUrl(seance.id, activites[0]?.ref)}
+            href={detailSeanceUrl(seance.id)}
             className="text-xs font-medium text-primaire hover:underline"
           >
             Voir le détail de la séance
           </Link>
-          {preset && <ConcepteurSeance {...donnees} preset={preset} libelle="Refaire cette séance" />}
+          {preset && <ConcepteurSeance {...donnees} preset={preset} libelle="Refaire la séance" />}
         </div>
       </div>
     </Carte>
@@ -149,57 +180,72 @@ function TraceExercice({
   );
 }
 
-/**
- * Rattache une trace existante à l'activité sans ajouter de relation stockée.
- * Une séance composée prend la première tentative menée après son démarrage ;
- * une ancienne séance automatique prend celle dont la clôture est la plus
- * proche de sa date, car elle était écrite au même geste que la tentative.
- */
-function tentativeDeSeance(
-  seance: LearningSession,
-  exerciceId: string,
-  tentatives: ExerciseAttempt[],
-): ExerciseAttempt | undefined {
-  const candidates = tentatives.filter((tentative) => tentative.exerciseId === exerciceId);
-  if (candidates.length === 0) return undefined;
-
-  if (seance.genereAutomatiquement) {
-    const dateSeance = new Date(seance.date).getTime();
-    return [...candidates]
-      .filter((tentative) => tentative.statut !== "en-cours")
-      .sort((a, b) => {
-        const ecartA = Math.abs(new Date(a.fin ?? a.debut).getTime() - dateSeance);
-        const ecartB = Math.abs(new Date(b.fin ?? b.debut).getTime() - dateSeance);
-        return ecartA - ecartB;
-      })[0];
-  }
-
-  const depuisDebut = candidates
-    .filter((tentative) => tentative.debut >= seance.date && tentative.statut !== "en-cours")
-    .sort((a, b) => a.debut.localeCompare(b.debut));
-  return depuisDebut.find((tentative) => tentative.statut === "terminee") ?? depuisDebut[0];
-}
-
 function libelleResultat(tentative: ExerciseAttempt): string {
   if (tentative.statut === "abandonnee") return "Abandonné";
   if (tentative.statut === "en-cours") return "En cours";
   return tentative.resultat === "reussi" ? "Réussi" : tentative.resultat === "partiel" ? "Partiel" : "Non abouti";
 }
 
-function detailSeanceUrl(seanceId: string, exerciceId?: string): string {
+function detailSeanceUrl(seanceId: string): string {
   const params = new URLSearchParams({ session: seanceId });
-  if (exerciceId) params.set("exercice", exerciceId);
   return `/seances?${params.toString()}`;
 }
 
 /** Reconstruction d'une demande de composition à partir du blueprint conservé. */
-export function presetDepuisSeance(seance: LearningSession): PresetSeance | undefined {
+export function presetDepuisSeance(
+  seance: LearningSession,
+  exercices: Exercise[] = [],
+): PresetSeance | undefined {
   const blueprint = seance.blueprint;
-  if (!blueprint) return undefined;
+  if (blueprint) {
+    return {
+      codesVises: blueprint.cibles.map((cible) => cible.code),
+      nombreExercices: blueprint.nombreExercices,
+      dureeCibleMin: blueprint.dureeCibleMin,
+      domaine: blueprint.portee.type === "mono" ? blueprint.portee.domaine : undefined,
+    };
+  }
+
+  const ids = seance.activites.filter((activite) => activite.type === "exercice").map((activite) => activite.ref);
+  const retenus = ids.flatMap((id) => {
+    const exercice = exercices.find((item) => item.id === id);
+    return exercice ? [exercice] : [];
+  });
+  const codesVises = [...new Set(seance.skillCodes.length > 0
+    ? seance.skillCodes
+    : retenus.flatMap((exercice) => exercice.competences))];
+  if (codesVises.length === 0 || retenus.length === 0) return undefined;
+
+  const domaines = [...new Set(retenus.map((exercice) => exercice.domaine))];
   return {
-    codesVises: blueprint.cibles.map((cible) => cible.code),
-    nombreExercices: blueprint.nombreExercices,
-    dureeCibleMin: blueprint.dureeCibleMin,
-    domaine: blueprint.portee.type === "mono" ? blueprint.portee.domaine : undefined,
+    codesVises,
+    nombreExercices: retenus.length,
+    dureeCibleMin: retenus.reduce((total, exercice) => total + exercice.dureeEstimeeMin, 0),
+    domaine: domaines.length === 1 ? domaines[0] : undefined,
   };
+}
+
+function correspondRecherche(
+  seance: LearningSession,
+  terme: string,
+  exercicesParId: Map<string, Exercise>,
+): boolean {
+  if (!terme) return true;
+  const texte = [
+    seance.resultat,
+    seance.apprentissagePrincipal,
+    seance.prochaineAction,
+    seance.notePersonnelle,
+    seance.besoinDeclare?.intention,
+    ...seance.skillCodes,
+    ...seance.activites.map((activite) => activite.libelle),
+    ...seance.activites.flatMap((activite) => {
+      const exercice = exercicesParId.get(activite.ref);
+      return exercice ? [exercice.titre, exercice.enonce, ...exercice.competences] : [];
+    }),
+  ]
+    .filter((valeur): valeur is string => Boolean(valeur))
+    .join(" ")
+    .toLocaleLowerCase("fr");
+  return texte.includes(terme);
 }

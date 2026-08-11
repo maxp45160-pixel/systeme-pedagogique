@@ -33,6 +33,7 @@ import { Modale } from "@/components/ui/modale";
 import { Champ, ChampSelect } from "@/components/ui/champ";
 import { Markdown } from "@/components/ui/markdown";
 import { creerExercice } from "@/lib/store/actions";
+import { creerSeanceFocusExercice } from "@/lib/store/seance-actions";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import { convertirProposition } from "@/lib/tutor/conversion-exercice";
 import type { PropositionExercice } from "@/lib/tutor/proposition";
@@ -55,6 +56,7 @@ export function ModaleExercice({
   surEnregistre,
   propositionInitiale,
   competencesCibles,
+  ouvrirDansCahierApresAcceptation = false,
 }: {
   onFermer: () => void;
   competences: CompetenceModale[];
@@ -89,6 +91,8 @@ export function ModaleExercice({
    * compétence initiale passée.
    */
   propositionInitiale?: PropositionExercice;
+  /** Depuis la prochaine action, accepter enchaîne directement sur le workspace focus. */
+  ouvrirDansCahierApresAcceptation?: boolean;
 }) {
   const router = useRouter();
   /**
@@ -124,6 +128,8 @@ export function ModaleExercice({
    */
   const [enEcriture, setEnEcriture] = useState<number | null>(null);
   const [pourquoi, setPourquoi] = useState(false);
+  const [modificationIndex, setModificationIndex] = useState<number | null>(null);
+  const [consigneModification, setConsigneModification] = useState("");
   const [progression, setProgression] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const abandonRef = useRef<AbortController | null>(null);
@@ -143,14 +149,22 @@ export function ModaleExercice({
   // Relu à chaque rendu : c'est ce qui fait suivre le calibrage au sélecteur.
   const cal = calibrages[code] ?? null;
 
-  const generer = useCallback(async () => {
-    const codesAEnvoyer = codesLot ?? (competence ? [competence.code] : []);
+  const generer = useCallback(async (modification?: {
+    proposition: PropositionExercice;
+    index: number;
+    consigne: string;
+  }) => {
+    const codesAEnvoyer = modification
+      ? modification.proposition.competences.slice(0, 1)
+      : codesLot ?? (competence ? [competence.code] : []);
     if (codesAEnvoyer.length === 0) return;
     setPhase("generation");
     setProgression(null);
     setErreur(null);
-    setPropositions([]);
-    setEnregistrees(new Set());
+    if (!modification) {
+      setPropositions([]);
+      setEnregistrees(new Set());
+    }
 
     const abandon = new AbortController();
     abandonRef.current = abandon;
@@ -163,6 +177,14 @@ export function ModaleExercice({
           competences: codesAEnvoyer,
           theme: theme.trim() || undefined,
           config: lireConfigTuteur(compteId) ?? undefined,
+          ...(modification
+            ? {
+                modification: {
+                  proposition: modification.proposition,
+                  consigne: modification.consigne,
+                },
+              }
+            : {}),
         }),
         signal: abandon.signal,
       });
@@ -173,7 +195,7 @@ export function ModaleExercice({
           donnees?.message ??
             "La génération n'a pas pu démarrer. Vérifie la configuration du tuteur dans les réglages.",
         );
-        setPhase("formulaire");
+        setPhase(modification ? "previsualisation" : "formulaire");
         return;
       }
 
@@ -206,13 +228,21 @@ export function ModaleExercice({
           if (type === "propositions" && donnees) {
             const parsed = JSON.parse(donnees) as { exercices: PropositionExercice[] };
             recue = true;
-            setPropositions(parsed.exercices);
+            if (modification && parsed.exercices[0]) {
+              setPropositions((liste) => liste.map((proposition, index) =>
+                index === modification.index ? parsed.exercices[0] : proposition,
+              ));
+              setModificationIndex(null);
+              setConsigneModification("");
+            } else {
+              setPropositions(parsed.exercices);
+            }
             setPhase("previsualisation");
           } else if (type === "erreur" && donnees) {
             const parsed = JSON.parse(donnees) as { message: string };
             recue = true;
             setErreur(parsed.message);
-            setPhase("formulaire");
+            setPhase(modification ? "previsualisation" : "formulaire");
           } else if (type === "proposition-en-cours") {
             setProgression("Le tuteur rédige l'exercice — énoncé, indices, correction, critères…");
           }
@@ -223,12 +253,12 @@ export function ModaleExercice({
         setErreur(
           "Le flux s'est interrompu avant que le tuteur n'ait rendu son exercice. Rien n'a été enregistré — relance la génération.",
         );
-        setPhase("formulaire");
+        setPhase(modification ? "previsualisation" : "formulaire");
       }
     } catch {
       if (!abandon.signal.aborted) {
         setErreur("Génération interrompue.");
-        setPhase("formulaire");
+        setPhase(modification ? "previsualisation" : "formulaire");
       }
     }
   }, [codesLot, competence, theme, compteId]);
@@ -292,20 +322,40 @@ export function ModaleExercice({
         });
         setEnregistrees((s) => new Set(s).add(index));
         surEnregistre?.(id);
-        router.refresh();
+        if (ouvrirDansCahierApresAcceptation) {
+          try {
+            const seanceId = await creerSeanceFocusExercice(id);
+            onFermer();
+            router.push(`/seances?session=${encodeURIComponent(seanceId)}`);
+          } catch (e) {
+            setErreur(
+              `Exercice accepté. ${e instanceof Error ? e.message : "Le workspace n'a pas pu s'ouvrir."}`,
+            );
+          }
+        } else {
+          router.refresh();
+        }
       } catch (e) {
         setErreur(e instanceof Error ? e.message : "Échec de l'enregistrement.");
       } finally {
         setEnEcriture(null);
       }
     },
-    [competences, router, surEnregistre, enEcriture, enregistrees],
+    [
+      competences,
+      router,
+      surEnregistre,
+      enEcriture,
+      enregistrees,
+      ouvrirDansCahierApresAcceptation,
+      onFermer,
+    ],
   );
 
   return (
     <Modale
       titre="Générer un exercice"
-      sousTitre="Le tuteur rédige, tu relis et tu valides. Rien n'est écrit avant."
+      sousTitre="Relis la proposition : accepte-la ou indique au tuteur ce qu’il doit modifier."
       onFermer={onFermer}
     >
       <>
@@ -461,7 +511,7 @@ export function ModaleExercice({
             <Bouton
               onClick={() => {
                 abandonRef.current?.abort();
-                setPhase("formulaire");
+                setPhase(modificationIndex !== null ? "previsualisation" : "formulaire");
               }}
               variante="secondaire"
               taille="petite"
@@ -574,29 +624,69 @@ export function ModaleExercice({
                     )}
                   </div>
 
-                  {/* Pied : actions */}
+                  {/* Pied : deux décisions — accepter ou demander une modification. */}
                   {!enregistrees.has(i) && (
-                    <div className="flex justify-end gap-2 border-t border-bordure bg-surface px-3 py-2">
-                      {/* Ne retire que cette proposition — les autres restent. */}
-                      <Bouton
-                        onClick={() =>
-                          setPropositions((liste) => liste.filter((_, j) => j !== i))
-                        }
-                        variante="secondaire"
-                        taille="petite"
-                        disabled={enEcriture !== null}
-                      >
-                        Rejeter
-                      </Bouton>
-                      <Bouton
-                        onClick={() => void enregistrer(p, i)}
-                        variante="principal"
-                        taille="petite"
-                        disabled={enEcriture !== null}
-                        enChargement={enEcriture === i}
-                      >
-                        Enregistrer
-                      </Bouton>
+                    <div className="border-t border-bordure bg-surface px-3 py-3">
+                      {modificationIndex === i && (
+                        <div className="mb-3 rounded-md border border-primaire/20 bg-primaire-faible/50 p-3">
+                          <Champ
+                            label="Que veux-tu modifier ?"
+                            multiligne
+                            rows={3}
+                            value={consigneModification}
+                            onChange={(e) => setConsigneModification(e.target.value)}
+                            placeholder="Ex. Rends l’énoncé plus concret, retire l’ambiguïté du deuxième critère…"
+                            aide="Le tuteur révise cette proposition. Rien n’est enregistré tant que tu ne l’acceptes pas."
+                            autoFocus
+                          />
+                          <div className="mt-3 flex flex-wrap justify-end gap-2">
+                            <Bouton
+                              onClick={() => {
+                                setModificationIndex(null);
+                                setConsigneModification("");
+                              }}
+                              variante="secondaire"
+                              taille="petite"
+                            >
+                              Annuler
+                            </Bouton>
+                            <Bouton
+                              onClick={() => void generer({
+                                proposition: p,
+                                index: i,
+                                consigne: consigneModification.trim(),
+                              })}
+                              variante="principal"
+                              taille="petite"
+                              disabled={!consigneModification.trim()}
+                            >
+                              Appliquer avec l’IA
+                            </Bouton>
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex justify-end gap-2">
+                        <Bouton
+                          onClick={() => {
+                            setModificationIndex(i);
+                            setConsigneModification("");
+                          }}
+                          variante="secondaire"
+                          taille="petite"
+                          disabled={enEcriture !== null || modificationIndex === i}
+                        >
+                          Modifier
+                        </Bouton>
+                        <Bouton
+                          onClick={() => void enregistrer(p, i)}
+                          variante="principal"
+                          taille="petite"
+                          disabled={enEcriture !== null}
+                          enChargement={enEcriture === i}
+                        >
+                          Accepter
+                        </Bouton>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -608,9 +698,6 @@ export function ModaleExercice({
               </BandeauInfo>
             )}
             <div className="flex justify-end gap-2 border-t border-bordure pt-3">
-              <Bouton onClick={() => setPhase("formulaire")} variante="secondaire">
-                Générer un autre
-              </Bouton>
               <Bouton onClick={onFermer} variante="principal">
                 Fermer
               </Bouton>

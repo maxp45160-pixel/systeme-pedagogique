@@ -143,6 +143,50 @@ export async function creerSeance(
   return seance.id;
 }
 
+/**
+ * Transforme une prochaine action unitaire en vraie séance puis laisse le
+ * workspace focus la dérouler. On étend `LearningSession` : aucune entité
+ * parallèle et aucune double entrée dans le journal.
+ */
+export async function creerSeanceFocusExercice(exerciceId: string): Promise<string> {
+  const dorsale = await dorsaleCompte();
+  const exercices = await lire("exercises", dorsale);
+  const exercice = exercices.find((item) => item.id === exerciceId && !item.archive);
+  if (!exercice) throw new Error("Cet exercice n'est plus disponible.");
+
+  const maintenant = new Date().toISOString();
+  const codePrincipal = exercice.competences[0];
+  if (!codePrincipal) throw new Error("Cet exercice ne cible aucune compétence.");
+
+  return creerSeance(
+    {
+      besoin: {
+        codesVises: exercice.competences,
+        tempsDisponibleMin: exercice.dureeEstimeeMin,
+        declareLe: maintenant,
+      },
+      blueprint: {
+        dureeCibleMin: exercice.dureeEstimeeMin,
+        nombreExercices: 1,
+        portee: { type: "mono", domaine: exercice.domaine },
+        cibles: [{
+          code: codePrincipal,
+          difficulte: exercice.difficulte,
+          raison: "Exercice choisi depuis la prochaine action.",
+        }],
+      },
+      activites: [{ type: "exercice", ref: exercice.id, libelle: exercice.titre }],
+    },
+    "en-cours",
+  );
+}
+
+/** Server Action utilisée par le CTA d'une prochaine action déjà disponible. */
+export async function demarrerExerciceEnFocus(exerciceId: string): Promise<void> {
+  const seanceId = await creerSeanceFocusExercice(exerciceId);
+  redirect(`/seances?session=${encodeURIComponent(seanceId)}`);
+}
+
 /* ------------------------------------------------------------------ */
 /* Cycle de vie                                                        */
 /* ------------------------------------------------------------------ */

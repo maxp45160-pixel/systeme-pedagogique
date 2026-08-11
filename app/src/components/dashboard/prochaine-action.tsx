@@ -5,6 +5,7 @@ import { libelleDomaine } from "@/lib/domain/referentiel-compte";
 import { prochaineRevision } from "@/lib/engine/spaced";
 import {
   Carte,
+  Bouton,
   classesLienBouton,
   CodeCompetence,
   Etiquette,
@@ -22,6 +23,7 @@ import {
   type CalibrageModale,
 } from "@/components/exercices/proprietes-generation";
 import type { ReactNode } from "react";
+import { demarrerExerciceEnFocus } from "@/lib/store/seance-actions";
 
 /**
  * « Que dois-je faire maintenant ? »
@@ -132,10 +134,12 @@ export function CarteProchaineAction({
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {actionPrincipale ?? (exercice ? (
-            <Link href={`/exercices/${exercice.id}`} className={classesLienBouton("principal")}>
-              Commencer
-              <IconeFleche className="size-4" />
-            </Link>
+            <form action={demarrerExerciceEnFocus.bind(null, exercice.id)}>
+              <Bouton type="submit" variante="principal">
+                Commencer en focus
+                <IconeFleche className="size-4" />
+              </Bouton>
+            </form>
           ) : (
             /*
               Repli assumé : aucun exercice disponible pour cette compétence —
@@ -149,6 +153,7 @@ export function CarteProchaineAction({
               calibrages={calibrages}
               compteId={compteId}
               libelle="Générer un exercice"
+              ouvrirDansCahierApresAcceptation
             />
           ))}
           <Link
