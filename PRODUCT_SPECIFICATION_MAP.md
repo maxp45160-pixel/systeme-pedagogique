@@ -1,6 +1,6 @@
 # PRODUCT_SPECIFICATION_MAP.md — la carte des briques
 
-**Version 0.1 — 11/08/2026.** Complète `PRODUCT.md` (le *pourquoi*) et
+**Version 0.2 — 11/08/2026.** Complète `PRODUCT.md` (le *pourquoi*) et
 `ARCHITECTURE_DECISIONS.md` (le *comment tranché*). Ce document dit **où vit
 chaque brique** et **dans quel état elle est**.
 
@@ -45,9 +45,9 @@ peut pas prouver**.
 | Abandon ≠ mesure | Une tentative `abandonnee` ne produit aucune preuve | `domain/tentative.ts` | ✅ ADR-030 |
 | Aucune comparaison entre comptes | Pas de classement, pas de benchmark | absence assumée | ✅ |
 
-**À remplir :** la garantie « le tuteur n'écrit aucune mesure » (P5, ADR-037)
-est vraie dans le code mais n'est **visible nulle part dans l'interface**.
-Question ouverte : faut-il la montrer à l'utilisateur, et où ?
+**Décision du 11/08 :** la garantie « le tuteur n'écrit aucune mesure » (P5,
+ADR-037) reste une garantie du moteur et de maintenance. Elle n'a pas à être
+rendue visible dans l'interface.
 
 ---
 
@@ -56,12 +56,12 @@ Question ouverte : faut-il la montrer à l'utilisateur, et où ?
 | Brique | Contenu | Code | Statut |
 |---|---|---|---|
 | **11. Modèle de connaissances** — référentiel | `Domaine`, `Skill` (palier, importance, `active`, `archive`) ; propriété du compte, démarrage à vide | `domain/referentiel.ts`, `domain/referentiel-compte.ts` | ✅ ADR-026 |
-| **11.** Thèmes / sous-thèmes | Portée modulaire pour composer une séance libre | `domain/theme.ts`, `store/themes.ts` | 🔬 ADR-055 |
-| **11.** Notions / noties | Niveau de granularité sous le thème | — | ❓ non construit |
+| **11.** Thèmes / sous-thèmes | Portée modulaire existante ; cible hiérarchique sans profondeur maximale, affichée dans la liste | `domain/theme.ts`, `store/themes.ts` | 🔬 ADR-055 ; extension décidée, non construite ADR-058 |
+| **11.** Niveaux thématiques / notions | Même hiérarchie récursive que les thèmes, sans niveau terminal imposé | — | ❓ non construit — forme cible décidée ADR-058 |
 | **6.** Corpus d'exercices | Énoncé, données, indices, correction, critères par dimension, difficulté, `origine`, `intention` | `domain/exercice.ts` | ✅ |
 | **5.** Besoin déclaré | Ce que la personne dit vouloir travailler — fait stocké, l'écart est dérivé | `domain/seance.ts` (`BesoinDeclare`) | ✅ ADR-050 |
 | **8.** Protocoles du tuteur | Les instructions sont la spécification (P6) | `app/data/00_instructions/` | ✅ |
-| **11.** Notes markdown liées (« tout est une note ») | Chaque entité éditable comme note reliée | — | ❓ non construit — arbitrage : sert-il la boucle ou est-ce un second produit ? |
+| **11.** Notes liées | Contenu déclaré issu de cours, curiosités ou besoins professionnels ; sert la boucle et apparaît dans le graphe | — | ❓ non construit — finalité décidée ADR-058 |
 | **1.** Widgets modulables du tableau de bord | Composition libre de l'accueil | — | ❓ non construit |
 
 **Invariant de couche :** rien de dérivable ici (P1). Ni niveau, ni score, ni
@@ -75,10 +75,10 @@ date de prochaine révision.
 |---|---|---|---|
 | **7. Performance & évidences** — tentative | `debut`, `fin`, `dureeMin`, `indicesUtilises`, `reponse`, `statut` | `domain/types.ts` (`ExerciseAttempt`) | ✅ |
 | **7.** Évaluation assistée validée | Le tuteur propose critère par critère, la personne valide ; le champ ne s'appelle plus `autoEvaluation` | `domain/bilan.ts`, `formulaire-bilan.tsx` | ✅ ADR-046 |
-| **7.** Aide extérieure reçue | Fait constatable (documentation / assistant IA / correction), pas une auto-note ; le moteur en dérive le palier d'autonomie | `domain/bilan.ts`, `PLAFOND_AIDE` | 🔬 ADR-033 / ADR-038 — barème jamais confronté à l'usage |
+| **7.** Aide extérieure reçue | Traces internes d'abord, déclaration de ce qui reste invisible ; le moteur dérive le palier | `domain/bilan.ts`, `PLAFOND_AIDE` | 🔬 ADR-033 / ADR-057 — architecture décidée, barème jamais confronté à l'usage |
 | **8.** Verdict du tuteur archivé | Ce qu'il proposait, conservé à côté de ce qui a été validé ; l'écart est une observation sur la personne | `domain/types.ts` (`VerdictTuteur`) | 🔬 ADR-046 |
 | **7.** Preuve | Dimensions démontrées, `contexte` (condition du transfert), `source.{kind,ref}` obligatoire | `engine/preuve.ts`, `SkillEvidence` | ✅ P3 |
-| **7.** Hésitations, stratégies utilisées | Promis par le schéma visuel | — | ❓ **non observable aujourd'hui** — arbitrage : instrumenter, ou retirer de la vision |
+| **7.** Hésitations, stratégies utilisées | Le principe d'observer le maximum pertinent est décidé ; aucun signal ni champ n'est encore défini | — | ❓ non construit — ADR-060 |
 | **7.** Détection de triche | Promis par le schéma visuel | — | ❓ arbitrage — en tension avec la couche 0 : un système qui ne prouve pas ne doit pas accuser |
 | **9.** Erreurs récurrentes / motifs | Le maillon manquant a été posé (verdicts archivés) ; la détection reste à écrire | `tutor/correction.ts` | ❓ partiellement construit |
 
@@ -118,8 +118,8 @@ Navigation réelle : **trois pôles** (ADR-053), pas douze écrans.
 | **3. Profil & progression** — *Suivre* | Consulter l'état, gérer le référentiel | `/competences`, `/profil` | ✅ |
 | **6.** Faire l'exercice puis son bilan | Le geste central de la boucle | `/seances`, `/exercices` (redirection) | ✅ |
 | **8.** Demander au tuteur | Générer un lot d'exercices, étendre le référentiel, obtenir une correction | `/tuteur` | ✅ ADR-004 / ADR-037 |
-| **2. Workspace focus** | Environnement sans distraction pour l'exercice en cours | — | ❓ non construit — arbitrage : mode dédié, ou le déroulé de séance suffit-il ? |
-| **10. Reporting long terme** | Écran de recul, distinct du tableau de bord | `/progression` (redirection) | ❓ non construit comme écran propre |
+| **2. Workspace focus** | Destination de la création d'une séance ; environnement où `LearningSession` est travaillée | — | ❓ non construit — geste décidé ADR-059 |
+| **10. Reporting long terme** | Aucun écran propre pour l'instant : données insuffisantes, KPI actuels suffisants | `/progression` (redirection) | ❓ non construit — hors prochaine roadmap, réouverture sur fait nouveau |
 | **4.** Graphe navigable / éditable | Explorer le savoir, éditer depuis le graphe | `/competences` (vue graphe) | 🔬 lecture seule |
 
 **Gestes refusés par conception :** saisir une mesure sans source, s'auto-noter
@@ -139,23 +139,23 @@ en autonomie, se comparer à autrui.
 | **12.** Contexte du tuteur | Fenêtre bornée (~12 K jetons/message) | `tutor/fenetre.ts`, `tutor/contexte.ts` | ✅ ADR-007 |
 | **12.** Export du compte | Sortie complète des données | `store/export.ts` | ✅ P8 confidentialité |
 | **12.** Analytics / modèles prédictifs | Promis par le schéma visuel | — | ❓ non construit — arbitrage : incompatible avec « aucun partage sans consentement explicite » tant que la finalité n'est pas écrite |
-| **12.** Import/export Obsidian, PDF | — | — | ❓ non construit |
+| **12.** Import/export de ressources | Besoin validé pour cours, curiosité et contexte professionnel ; formats et pipeline non choisis | — | ❓ non construit — ADR-058, Q-16b |
 
 ---
 
 ## Ce qui reste à remplir, par ordre de blocage
 
-1. **Couche 2, aide extérieure** — refermer P8 en ✅ demande une décision
-   humaine sur le barème `PLAFOND_AIDE`, pas une relecture de code.
-2. **Couche 2, hésitations / triche** — instrumenter ou retirer de la vision.
-   Tant que c'est dessiné mais absent, le schéma promet ce que le produit ne
-   tient pas.
+1. **Couche 2, aide extérieure** — l'ordre des sources est décidé (ADR-057) ;
+   refermer P8 demande des données d'usage sur `PLAFOND_AIDE`.
+2. **Couche 2, hésitations** — le principe de collecte pertinente est décidé
+   (ADR-060), mais les faits observables restent à définir. **Triche** demeure
+   entièrement ouverte : aucune trace ne suffit aujourd'hui à accuser.
 3. **Couche 3, motifs d'erreur** — les verdicts sont archivés depuis ADR-046 ;
    la détection reste à écrire. C'est la brique 9 la plus proche d'exister.
-4. **Couche 1, granularité** — thème / sous-thème / notion : deux niveaux
-   existent, le troisième est dessiné. Trancher avant d'écrire du code.
-5. **Couche 4, Workspace focus** — décider si c'est un écran ou une propriété
-   du déroulé de séance.
+4. **Couche 1, granularité et notes** — la cible est tranchée par ADR-058 ; le
+   modèle récursif, la persistance et les formats restent à concevoir.
+5. **Couche 4, Workspace focus** — la destination du geste est décidée par
+   ADR-059 ; route, reprise et interface restent à concevoir.
 
 ---
 
@@ -166,8 +166,7 @@ construire.
 
 | Brique | Test de décision |
 |---|---|
-| Notes markdown liées partout | Un usage réel bute-t-il sur l'impossibilité d'annoter ? |
 | Widgets modulables | Deux utilisateurs veulent-ils réellement des accueils différents ? |
 | Replanification automatique | Un plan proposé est-il ignoré assez souvent pour justifier qu'il se réécrive seul ? |
-| Rapports hebdomadaires | La vue longitudinale existante manque-t-elle à l'usage ? |
+| Rapports hebdomadaires | Hors prochaine roadmap : les données sont insuffisantes et les KPI actuels suffisent. Réouverture sur fait nouveau. |
 | Benchmarks / comparaisons | 🗑️ Écarté — en tension directe avec le principe fondateur (`PRODUCT.md` §2). |

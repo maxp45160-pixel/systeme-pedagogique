@@ -12,4 +12,4 @@ Cette couche fixe la persistance, les autorisations et les frontières de donné
 | Contexte du tuteur | Historique, référentiel, exercice et données pertinentes | Fenêtre bornée et contexte conditionnel | P5, P8 : contexte utile sans fuite ni mesure inventée | `lib/tutor/fenetre.ts`, `lib/tutor/contexte.ts` | `lib/tutor/contexte.test.ts` | ✅ ADR-007 |
 | Export du compte | Collections du compte courant | Export complet des données du compte | P8 : sortie de ses propres données | `lib/store/export.ts` | — (pas de test dédié localisé) | ✅ |
 | Analytics / modèles prédictifs | — | Aucune collecte ou modèle construit | Consentement et finalité requis avant partage | — | — | ❓ non construit |
-| Import / export Obsidian, PDF | — | Aucun import/export de ces formats | Ne pas construire sans besoin observé | — | — | ❓ non construit |
+| Import / export de ressources | Cours, curiosités et besoins professionnels validés comme usages | Aucun pipeline ni format choisi | La ressource sert la boucle et reste isolée par compte | — | — | ❓ non construit — ADR-058, Q-16b |

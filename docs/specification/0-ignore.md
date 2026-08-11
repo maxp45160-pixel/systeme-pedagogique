@@ -10,3 +10,7 @@ Fiches établies par la mission ③ à partir du code et des tests existants. Le
 | Une faiblesse survit | Historique de preuves et nouvelle démonstration | Niveau / robustesse dérivés sans effacer un échec sans preuve postérieure | P4 | `lib/engine/preuve.ts`, `lib/engine/skill-state.ts`, `lib/engine/maitrise.ts` | `lib/engine/moteur.test.ts`, `lib/engine/maitrise.test.ts` | ✅ P4 |
 | Abandon ≠ mesure | Tentative et soumission de bilan | Aucun `SkillEvidence` issu d'une tentative abandonnée | P2, P3 | `lib/domain/tentative.ts`, `lib/store/actions.ts` | `lib/domain/tentative.test.ts` | ✅ ADR-030 |
 | Aucune comparaison entre comptes | Données du seul compte courant | Aucun classement ni benchmark produit | P8 : pas de partage sans consentement | absence assumée ; `lib/store/db.ts` est centré sur le compte | — (absence de fonctionnalité) | ✅ |
+
+La garantie P5 (« le tuteur n'écrit aucune mesure ») reste volontairement une
+garantie du moteur et de maintenance : Maxime a décidé le 11/08/2026 qu'elle
+n'avait pas à devenir un élément d'interface.

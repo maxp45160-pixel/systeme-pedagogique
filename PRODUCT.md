@@ -1,9 +1,17 @@
 # PRODUCT.md — Système pédagogique
 
-**Version 2.0 — 28/07/2026.** Fusion de `PRODUCT_VISION.md` et
+**Version 2.1 — 11/08/2026.** Fusion de `PRODUCT_VISION.md` et
 `PRODUCT_PRINCIPLES.md` (v1.0, 27/07), dont les démonstrations détaillées
 restent dans l'historique git. Document vivant : toute modification doit
 préciser ce qui passe d'une catégorie à l'autre.
+
+**Mouvement de cette version.** Passent de ❓ à ✅ décision humaine : autonomie
+mesurée par traces puis demandée pour l'invisible (ADR-057), granularité
+thématique sans plafond et notes au service de la boucle (ADR-058), workspace
+focus comme destination d'une séance créée (ADR-059), observation maximale des
+faits pédagogiquement pertinents (ADR-060). Ces décisions ne prétendent pas que
+les briques non construites existent déjà. Le reporting long terme est écarté
+de la prochaine roadmap faute de données ; les KPI actuels suffisent.
 
 > **Les quatre statuts**, au sens strict, employés dans tout le dépôt :
 >
@@ -87,7 +95,7 @@ arbitrage.
 | **P5** | Le tuteur n'écrit aucune mesure | Instructions §13 | ✅ Tenu — reformulé le 03/08 (ADR-037) |
 | **P6** | Le protocole est la spécification | — | ✅ Tenu |
 | **P7** | L'honnêteté prime sur la complétude | Anti-halluc. §14 | ✅ Tenu |
-| **P8** | La qualité de la preuve conditionne tout | Anti-halluc. §2 ; éval. §5 et §6 | 🔬 Rouvert le 04/08 (ADR-038) : le chemin qui posait la question d'autonomie a été retiré |
+| **P8** | La qualité de la preuve conditionne tout | Anti-halluc. §2 ; éval. §5 et §6 | 🔬 Architecture tranchée par ADR-057 ; `PLAFOND_AIDE` reste à confronter à l'usage |
 
 ### P2 — comment il a été rétabli le 31/07
 
@@ -110,6 +118,8 @@ Les deux sommes portent désormais sur les seules compétences mesurées, et ce 
 en sort revient **entièrement** à la couverture — l'indicateur honnête de ce qui
 n'a pas encore été mesuré. Le doute sur une couverture partielle continue de
 plafonner la *confiance*, pas d'abaisser le niveau. ✅ Tranché : ADR-006.
+Les compétences non mesurées restent **en veille** dans le référentiel, prêtes à
+être remobilisées lorsqu'une intention ou une recommandation les rend utiles.
 
 ### P5 — ce que la garantie protégeait réellement
 
@@ -164,6 +174,12 @@ chemin existe, mais le barème `PLAFOND_AIDE` (documentation → A2, assistant
 IA → A1, correction → A0) n'a jamais été confronté à l'usage. Le refermer en ✅
 demande une décision humaine, pas une relecture de code.
 
+✅ **Architecture de mesure tranchée le 11/08/2026 (ADR-057).** Le produit
+utilise d'abord les traces observables — indices, sollicitation du tuteur et
+aides internes — puis demande à la personne ce qui reste invisible. L'absence
+de trace ne vaut jamais « aucune aide ». Cette décision ne valide pas les
+plafonds numériques : P8 reste 🔬 jusqu'à leur confrontation à l'usage.
+
 ## 6. Horizon
 
 ### Décidé
@@ -180,12 +196,23 @@ frein utile, mais par compte (`competences.active`) et non plus global.
 se supprime, une compétence qui en porte s'archive — jamais l'inverse.
 ✅ **Le score porte sur ce qui est mesuré** (ADR-006) ; la couverture dit le
 reste.
+✅ **La connaissance n'a pas de profondeur maximale** (ADR-058) : thèmes et
+sous-thèmes appartiennent à une même hiérarchie ; les notes servent la boucle
+et apparaissent dans le graphe. La persistance reste à construire.
+✅ **Une séance créée conduit au workspace focus** (ADR-059), sans créer une
+nouvelle entité à côté de `LearningSession`.
+✅ **Observer le maximum pertinent** (ADR-060) : chaque signal recueilli doit
+avoir une source, une finalité pédagogique et un consommateur dans la boucle.
+✅ **P5 reste une garantie interne** : il n'est pas nécessaire de l'exposer dans
+l'interface tant que le moteur et ses validations la rendent vraie.
+✅ **Pas de reporting long terme maintenant** : les données sont insuffisantes
+et les KPI actuels répondent au besoin présent. Réouverture sur fait nouveau.
 
 ### Ouvert
 
 ❓ Quel moteur gratuit exactement (ADR-007) — résolu **par mesure**.
-❓ La prise en compte de l'aide externe dans l'autonomie (ADR-008) — le seul
-principe encore en défaut.
+🔬 Le barème `PLAFOND_AIDE` — l'architecture de mesure est décidée par ADR-057,
+mais ses plafonds n'ont pas encore été confrontés à l'usage.
 ✅ Le 3ᵉ maillon est posé (ADR-028) et **a fonctionné le 01/08** (ADR-030) :
 sur DEV-01 et DEV-03, la difficulté produite par le tuteur a suivi exactement
 celle que la calibration conseillait. 🔬 *Reste de la réfutation : « la
@@ -235,6 +262,6 @@ amorcer le nouveau domaine Développement, par le même précédent que les 11
 diagnostics d'origine — ce n'est pas une réouverture de la pratique récurrente
 écartée ici.*
 
-🗑️ **« Corriger le score global sans arbitrage. »** P2 est une question ouverte
-depuis le 27/07 (ADR-006) : la formule ne se change pas au passage d'un autre
-chantier.
+🗑️ **« Corriger le score global sans arbitrage. »** Écarté lorsque P2 était
+encore ouverte. L'arbitrage a ensuite été rendu le 31/07 (ADR-006) : la formule
+porte sur le seul périmètre mesuré et la couverture dit le reste.

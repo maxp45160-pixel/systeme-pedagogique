@@ -68,6 +68,11 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [053](#adr-053) | Pilotage au tableau de bord, analyse dans Séances ; navigation à trois pôles | ✅ Acceptée (10/08) |
 | [054](#adr-054) | L'actionnabilité départage sans pénaliser ; un partiel suit la règle de l'échec | ✅ Acceptée (10/08) |
 | [055](#adr-055) | Le thème : une portée modulaire, pas une arête de plus | 🔬 Hypothèse (10/08) |
+| [056](#adr-056) | Le graphe est une vue dérivée : nœuds typés, liens réels, aucune arête fabriquée | ✅ Acceptée (11/08) |
+| [057](#adr-057) | L'autonomie se mesure par traces, puis se demande pour l'invisible | ✅ Acceptée (11/08) |
+| [058](#adr-058) | Granularité sans plafond ; les notes servent la boucle et entrent dans le graphe | ✅ Acceptée (11/08) |
+| [059](#adr-059) | Une séance créée conduit au workspace focus | ✅ Acceptée (11/08) |
+| [060](#adr-060) | Observer le maximum pertinent, jamais le maximum indiscriminé | ✅ Acceptée (11/08) |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -3878,6 +3883,162 @@ départ, pas calibrées sur un usage réel. **Test de réfutation** : si le
 panneau de réglages montre systématiquement soit aucune arête `similarite`
 soit un graphe saturé quel que soit le curseur, le calcul (ou son seuil par
 défaut) est à revoir.
+
+---
+
+<a name="adr-057"></a>
+## ADR-057 — L'autonomie se mesure par traces, puis se demande pour l'invisible ✅
+
+**Date.** 11/08/2026. **Tranchée par Maxime** après la mission ④ : « Le degré
+d'autonomie doit être mesuré au maximum (sollicitation du tuteur, indices...)
+et sinon doit être demandé à l'utilisateur. »
+
+### Décision
+
+L'autonomie suit un ordre de preuve :
+
+1. le produit utilise d'abord les traces qu'il observe lui-même — indices
+   débloqués, sollicitation du tuteur et autres aides internes réellement
+   enregistrées ;
+2. il demande ensuite à la personne les aides extérieures que le produit ne
+   peut pas voir ;
+3. le moteur dérive le palier depuis l'ensemble de ces faits et retient la
+   borne la plus basse quand plusieurs signaux se contredisent.
+
+**L'absence de trace n'est jamais interprétée comme « aucune aide ».** Elle
+déclenche la question au bilan lorsque l'information est nécessaire. La
+personne ne choisit pas directement son palier d'autonomie : elle déclare un
+fait que le moteur traduit, conformément à ADR-033.
+
+### Rapport aux décisions précédentes
+
+- ADR-008 reste fermée : ignorer l'aide externe n'est plus une option.
+- ADR-033 reste valide et fournit le mécanisme de plafond.
+- ADR-038 reste un fait historique ; sa correction du 07/08 confirme que le
+  bilan pose déjà la question de l'aide extérieure.
+
+### Ce que cette décision ne valide pas
+
+Le barème `PLAFOND_AIDE` reste 🔬 tant qu'il n'a pas été confronté à l'usage.
+Cette décision fixe **quelles sources chercher et dans quel ordre**, pas les
+coefficients qui convertissent chaque aide en A0/A1/A2. P8 reste donc 🔬 sur sa
+calibration, même si son architecture de mesure est désormais tranchée.
+
+**Alternative écartée.** Demander systématiquement une auto-note d'autonomie :
+elle jette les traces objectives et réintroduit le biais retiré par ADR-033.
+
+---
+
+<a name="adr-058"></a>
+## ADR-058 — Granularité sans plafond ; les notes servent la boucle et entrent dans le graphe ✅
+
+**Date.** 11/08/2026. **Tranchée par Maxime** après la mission ④.
+
+### Décision
+
+Le modèle de connaissances cible une hiérarchie thématique de profondeur non
+bornée par le produit : thème, sous-thème et niveaux descendants ne constituent
+pas des entités différentes. **Thèmes et sous-thèmes apparaissent dans la
+liste. Toutes les notes apparaissent dans le graphe.**
+
+Une note sert la boucle pédagogique : elle permet d'intégrer un cours, une
+curiosité personnelle ou un besoin professionnel, de préciser ce que la
+personne veut apprendre et de conserver les ressources correspondantes dans un
+espace organisé. Une note est du contenu déclaré ; elle ne porte ni niveau, ni
+preuve, ni score par elle-même.
+
+### Rapport au modèle actuel
+
+ADR-055 n'est pas remplacée : le thème actuel reste une portée modulaire de
+séance et une hyper-arête nommée. La présente décision l'étend vers une
+hiérarchie récursive et décide la finalité de l'entité « note » laissée hors du
+chantier par ADR-055 et ADR-056.
+
+Le graphe d'ADR-056 reste une vue dérivée : il pourra accueillir des nœuds
+`note`, mais aucun lien ne sera fabriqué. Une note n'est reliée que par des
+relations réellement stockées ou par un lien explicitement présenté comme
+dérivé.
+
+### Ce qui reste à concevoir avant implémentation
+
+La décision ne choisit pas le schéma SQL, l'éditeur, les formats d'import, les
+règles de rattachement ni l'interface de navigation profonde. Le chantier devra
+notamment traiter les cycles, l'isolation RLS par compte, l'archivage et la
+distinction stricte entre contenu déclaré et mesure. Les briques restent ❓
+« non construites » dans la carte tant que ce travail n'est pas livré.
+
+**Alternatives écartées.** Une profondeur fixe « thème / sous-thème / notion » ;
+des notes détachées de la boucle ; un graphe qui invente automatiquement leurs
+relations.
+
+---
+
+<a name="adr-059"></a>
+## ADR-059 — Une séance créée conduit au workspace focus ✅
+
+**Date.** 11/08/2026. **Tranchée par Maxime** après la mission ④.
+
+### Décision
+
+La création d'une séance n'aboutit pas à une simple ligne planifiée : elle
+conduit au **workspace focus**, l'environnement dans lequel la séance est
+travaillée. Le geste produit est continu : composer → créer → travailler.
+
+Le workspace focus est une présentation et une phase de `LearningSession`, pas
+une nouvelle entité métier. ADR-048 reste donc la contrainte : la séance
+existante s'étend, elle ne se recrée pas. Le déroulé d'un exercice unitaire
+continue d'utiliser la séance et les tentatives existantes.
+
+### Ce qui reste à concevoir
+
+La route, le comportement d'une séance seulement planifiée, la reprise après
+interruption et la composition exacte de l'écran ne sont pas décidés ici. Ils
+devront préserver l'absence de double entrée dans le journal et le calcul pur
+de l'avancement.
+
+**Alternative écartée.** Créer une séance puis laisser la personne retrouver
+manuellement son point de départ dans un autre écran.
+
+---
+
+<a name="adr-060"></a>
+## ADR-060 — Observer le maximum pertinent, jamais le maximum indiscriminé ✅
+
+**Date.** 11/08/2026. **Tranchée par Maxime** après la mission ④ : « Le maximum
+de data doit être mesuré afin d'établir un bilan précis. »
+
+### Décision
+
+Pour chaque geste pédagogique, le produit recueille le maximum de **faits
+pertinents pour la boucle** qu'il peut observer honnêtement : temps réellement
+passé, indices, sollicitations du tuteur, réponses, validations et autres
+signaux explicitement reliés à une question du bilan.
+
+« Maximum » reste borné par les invariants du produit :
+
+- chaque observation a une source explicite (P3) ;
+- une donnée absente reste absente (P2) ;
+- le dérivable n'est pas stocké (P1) ;
+- les données restent isolées par compte et ne sont pas partagées sans
+  consentement (invariant 8, confidentialité) ;
+- le tuteur peut produire du contenu, jamais une mesure (P5) ;
+- une trace ne devient ni intention, ni hésitation, ni triche par inférence.
+
+Avant d'ajouter un champ, le chantier doit écrire la question pédagogique à
+laquelle il répond, sa source, sa durée de conservation et la dérivation qui le
+consomme. Sans consommateur dans la boucle, ce n'est pas une observation utile
+mais de la collecte par anticipation.
+
+### Conséquences
+
+La couche 2 est appelée à s'enrichir, notamment pour l'autonomie (ADR-057),
+mais cette décision n'autorise aucune télémétrie générale ni aucun partage de
+données. Elle ne résout pas la détection de triche : accuser demande un niveau
+de preuve qui n'est toujours pas défini.
+
+**Alternative écartée.** Ne conserver que le résultat final : cela empêche de
+comprendre pourquoi une compétence progresse ou résiste et rend le bilan moins
+précis.
 
 ---
 
