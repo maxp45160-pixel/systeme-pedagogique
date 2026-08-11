@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { Bouton, classesLienBouton, cx, SelecteurSegmente } from "@/components/ui/primitives";
+import { Bouton, cx, SelecteurSegmente } from "@/components/ui/primitives";
 import { Modale } from "@/components/ui/modale";
 import { Champ, ChampSelect, classesChamp } from "@/components/ui/champ";
 import { seDeconnecter } from "@/lib/supabase/actions";
@@ -21,9 +20,6 @@ import {
 import { validerUrlFournisseur } from "@/lib/tutor/url-fournisseur";
 
 export interface EtatSession {
-  /** Les clés Supabase sont présentes sur ce déploiement. */
-  configure: boolean;
-  connecte: boolean;
   courriel: string | null;
   nom: string | null;
   avatar: string | null;
@@ -41,14 +37,8 @@ export interface EtatSession {
 export function Compte({ session }: { session: EtatSession }) {
   const [reglagesOuverts, setReglagesOuverts] = useState(false);
 
-  const nom = session.connecte
-    ? (session.nom ?? session.courriel?.split("@")[0] ?? "Compte")
-    : "Profil local";
-  const sousTitre = session.connecte
-    ? (session.courriel ?? "")
-    : session.configure
-      ? "Non connecté"
-      : "Sans Supabase";
+  const nom = session.nom ?? session.courriel?.split("@")[0] ?? "Compte";
+  const sousTitre = session.courriel ?? "";
 
   return (
     <>
@@ -79,14 +69,6 @@ export function Compte({ session }: { session: EtatSession }) {
                 <IconeEngrenage className="size-4" />
               </button>
 
-              {!session.connecte && session.configure && (
-                <Link
-                  href="/login"
-                  className="rounded-md bg-[var(--rail-actif)] px-2 py-1 text-[0.6875rem] font-medium text-[var(--rail-actif-texte)] transition-opacity hover:opacity-90 rail-reduit:hidden"
-                >
-                  Connexion
-                </Link>
-              )}
             </div>
           </div>
         </div>
@@ -114,9 +96,7 @@ export function Compte({ session }: { session: EtatSession }) {
 export function CompteMobile({ session }: { session: EtatSession }) {
   const [reglagesOuverts, setReglagesOuverts] = useState(false);
 
-  const nom = session.connecte
-    ? (session.nom ?? session.courriel?.split("@")[0] ?? "Compte")
-    : "Profil local";
+  const nom = session.nom ?? session.courriel?.split("@")[0] ?? "Compte";
 
   return (
     <>
@@ -182,7 +162,7 @@ function Avatar({
         className={cx(
           "absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2",
           anneau,
-          session.connecte ? "bg-[var(--niveau-4)]" : "bg-[#d99a3f]",
+          "bg-[var(--niveau-4)]",
         )}
       />
     </div>
@@ -258,19 +238,9 @@ function PanneauReglages({
               État
             </dt>
             <dd className="mt-1 flex items-center gap-2">
-              <span
-                aria-hidden
-                className={cx(
-                  "size-2 shrink-0 rounded-full",
-                  session.connecte ? "bg-succes" : "bg-alerte",
-                )}
-              />
+              <span aria-hidden className="size-2 shrink-0 rounded-full bg-succes" />
               <span className="text-texte-attenue">
-                {session.connecte
-                  ? `Connecté — données synchronisées sur votre compte (${session.courriel}).`
-                  : session.configure
-                    ? "Non connecté — aucune donnée n'est accessible tant que la session n'est pas ouverte."
-                    : "Supabase non configuré — l'application ne peut ni lire ni écrire."}
+                Connecté — données synchronisées sur votre compte ({session.courriel}).
               </span>
             </dd>
           </div>
@@ -302,37 +272,14 @@ function PanneauReglages({
             </dd>
           </div>
 
-          {!session.configure && (
-            <div className="rounded-lg border border-bordure bg-surface-2/60 px-3 py-2.5">
-              <dt className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
-                Activer les comptes
-              </dt>
-              <dd className="mt-1 text-xs leading-relaxed text-texte-attenue">
-                Supabase est désormais la seule dorsale : sans ces clés, aucune donnée
-                n&apos;est lisible. Renseignez{" "}
-                <code className="font-mono">NEXT_PUBLIC_SUPABASE_URL</code> et{" "}
-                <code className="font-mono">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> dans{" "}
-                <code className="font-mono">app/.env.local</code> (ou les variables
-                d&apos;environnement Vercel), puis redémarrez le serveur.
-              </dd>
-            </div>
-          )}
         </dl>
 
         <div className="mt-5 flex items-center justify-between gap-2 border-t border-bordure pt-3">
-          {session.connecte ? (
-            <form action={seDeconnecter}>
-              <Bouton type="submit" variante="danger" taille="compacte">
-                Se déconnecter
-              </Bouton>
-            </form>
-          ) : session.configure ? (
-            <Link href="/login" className={classesLienBouton("principal", "compacte")}>
-              Se connecter
-            </Link>
-          ) : (
-            <span />
-          )}
+          <form action={seDeconnecter}>
+            <Bouton type="submit" variante="danger" taille="compacte">
+              Se déconnecter
+            </Bouton>
+          </form>
 
           <Bouton variante="secondaire" taille="compacte" onClick={onFermer}>
             Fermer

@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { compteCourant } from "@/lib/supabase/server";
-import { supabaseConfigure } from "@/lib/supabase/config";
 import { Sidebar } from "@/components/layout/sidebar";
 import { NavMobile } from "@/components/layout/nav-mobile";
 import { CompteMobile } from "@/components/layout/compte";
@@ -22,18 +21,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!compte) redirect("/login");
 
   const session = {
-    configure: supabaseConfigure,
-    connecte: compte !== null,
-    courriel: compte?.email ?? null,
+    courriel: compte.email ?? null,
     nom:
-      (compte?.user_metadata?.full_name as string | undefined) ??
-      (compte?.user_metadata?.name as string | undefined) ??
+      (compte.user_metadata?.full_name as string | undefined) ??
+      (compte.user_metadata?.name as string | undefined) ??
       null,
-    avatar: (compte?.user_metadata?.avatar_url as string | undefined) ?? null,
+    avatar: (compte.user_metadata?.avatar_url as string | undefined) ?? null,
     // Identifiant du compte — isole la clé API saisie côté client (voir
-    // `cle-client.ts` et `cleParCompte`). Toujours présent quand Supabase est
-    // configuré : `compteCourant()` renvoie `null` seulement sans session, et
-    // `dorsaleCompte()` redirige avant d'atteindre cette mise en page.
+    // `cle-client.ts` et `cleParCompte`).
     compteId: compte.id,
   };
 

@@ -1,8 +1,9 @@
 /**
  * Client Supabase côté navigateur.
  *
- * Renvoie `null` quand Supabase n'est pas configuré : les composants client
- * affichent alors l'état « profil local » au lieu de casser.
+ * Renvoie `null` quand Supabase n'est pas configuré. Le proxy empêche alors
+ * l'accès au produit ; les éventuels appelants publics doivent afficher
+ * l'erreur de configuration.
  */
 
 import { createBrowserClient } from "@supabase/ssr";
