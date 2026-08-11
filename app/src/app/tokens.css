@@ -11,7 +11,7 @@
 
     1. PRIMITIVES  (`--neutre-500`, `--vert-fort`…) — des valeurs brutes,
        sans intention. Un composant ne les référence JAMAIS directement.
-    2. SÉMANTIQUES (`--texte`, `--danger`, `--statut-inconnu`…) — un rôle,
+    2. SÉMANTIQUES (`--texte`, `--danger`, `--surface`…) — un rôle,
        pas une couleur. C'est le seul étage que les composants utilisent.
 
   Le thème sombre n'est pas le thème clair inversé : c'est une rampe chaude
@@ -22,9 +22,8 @@
   ─────────────────────────────────────────────────────────────────────────
   CONTRASTE — vérifié par calcul, pas à l'œil
   ─────────────────────────────────────────────────────────────────────────
-  90 paires jeton/fond ont été mesurées (WCAG 2.1 : 4.5:1 pour le texte,
-  3:1 pour les contours de contrôle). Toutes sont conformes. Trois valeurs
-  du produit échouaient et ont été corrigées — voir docs/design/01-tokens.md.
+  Les paires jeton/fond actives ont été mesurées (WCAG 2.1 : 4.5:1 pour le
+  texte, 3:1 pour les contours de contrôle) — voir docs/design/01-tokens.md.
 
   Toute modification d'une couleur ici doit être re-vérifiée AVANT d'être
   poussée. Une couleur « juste un peu plus claire » est le geste par lequel
@@ -33,10 +32,8 @@
   ─────────────────────────────────────────────────────────────────────────
   LA COULEUR NE PORTE JAMAIS SEULE UNE INFORMATION
   ─────────────────────────────────────────────────────────────────────────
-  Les cinq fonds `--statut-*-faible` sont volontairement de luminosités
-  voisines : ils ne peuvent PAS servir de seul signal. Un statut de
-  compétence s'affiche toujours avec son libellé écrit. Le fond colore, il
-  n'informe pas.
+  Les couleurs des graphiques ne peuvent PAS servir de seul signal : chaque
+  niveau reste accompagné de sa valeur écrite.
 */
 
 /* ═════════════════════════ THÈME CLAIR ═════════════════════════ */
@@ -62,9 +59,6 @@
   --vert-contraste: #ffffff;
 
   --prune-base: #6d4a7c;
-  --prune-fort: #5a3b68;
-  --prune-faible: #f0e9f3;
-  --prune-contraste: #ffffff;
 
   /* ── Primitives · sémantique d'action ─────────────────────────── */
   --vert-succes: #3d7a2b;
@@ -75,18 +69,6 @@
   --bleu-info-faible: #e8f0f4;
   --rouge-danger: #a83232;
   --rouge-danger-faible: #f6e9e5;
-
-  /* ── Primitives · statuts de compétence ───────────────────────── */
-  --st-inconnu: #6e6653;
-  --st-inconnu-faible: #eae5d8;
-  --st-emergent: #4d773e;
-  --st-emergent-faible: #eaf1e3;
-  --st-pratique: #26694a;
-  --st-pratique-faible: #e0ebe3;
-  --st-solide: #12452c;
-  --st-solide-faible: #d5e3d8;
-  --st-rafraichir: #8a5c2a;
-  --st-rafraichir-faible: #f3ecdd;
 
   /* ── Sémantiques · surfaces et texte ──────────────────────────── */
   --fond: var(--neutre-100);
@@ -122,9 +104,6 @@
     une mesure.
   */
   --accent: var(--prune-base);
-  --accent-fort: var(--prune-fort);
-  --accent-faible: var(--prune-faible);
-  --accent-contraste: var(--prune-contraste);
 
   /* ── Sémantiques · état d'une action ──────────────────────────── */
   --succes: var(--vert-succes);
@@ -135,33 +114,6 @@
   --info-faible: var(--bleu-info-faible);
   --danger: var(--rouge-danger);
   --danger-faible: var(--rouge-danger-faible);
-
-  /*
-    ── Sémantiques · statut d'une compétence ─────────────────────────
-    Cinq états, sur DEUX axes qu'il ne faut pas confondre :
-
-      inconnu · émergent · pratiqué · solide   → axe de la maîtrise
-      à rafraîchir                             → axe du temps
-
-    `--statut-inconnu` est un neutre chaud, jamais un rouge : l'absence de
-    mesure n'est pas un échec, et le produit doit pouvoir l'afficher sans
-    l'accuser. C'est le principe « l'absence de mesure n'est pas un zéro »
-    rendu tenable au niveau du jeton.
-
-    `--statut-a-rafraichir` porte sa propre teinte (ocre) parce qu'il peut
-    coexister avec n'importe quel niveau de maîtrise : une compétence solide
-    et ancienne est à rafraîchir sans cesser d'être solide.
-  */
-  --statut-inconnu: var(--st-inconnu);
-  --statut-inconnu-faible: var(--st-inconnu-faible);
-  --statut-emergent: var(--st-emergent);
-  --statut-emergent-faible: var(--st-emergent-faible);
-  --statut-pratique: var(--st-pratique);
-  --statut-pratique-faible: var(--st-pratique-faible);
-  --statut-solide: var(--st-solide);
-  --statut-solide-faible: var(--st-solide-faible);
-  --statut-a-rafraichir: var(--st-rafraichir);
-  --statut-a-rafraichir-faible: var(--st-rafraichir-faible);
 
   /*
     Échelle séquentielle des niveaux 0 → 5, pour les graphiques uniquement.
@@ -224,9 +176,6 @@
   --vert-contraste: #12241a;
 
   --prune-base: #c39ad2;
-  --prune-fort: #d4b3e0;
-  --prune-faible: #2a1f30;
-  --prune-contraste: #231a29;
 
   /* ── Primitives · sémantique d'action ─────────────────────────── */
   --vert-succes: #7cbf5f;
@@ -237,18 +186,6 @@
   --bleu-info-faible: #0e2130;
   --rouge-danger: #e07a6a;
   --rouge-danger-faible: #2c1410;
-
-  /* ── Primitives · statuts de compétence ───────────────────────── */
-  --st-inconnu: #a89c85;
-  --st-inconnu-faible: #282319;
-  --st-emergent: #9ccb8b;
-  --st-emergent-faible: #1b2614;
-  --st-pratique: #6fae86;
-  --st-pratique-faible: #1c2c22;
-  --st-solide: #4d9f77;
-  --st-solide-faible: #15251c;
-  --st-rafraichir: #cfa46a;
-  --st-rafraichir-faible: #2a2114;
 
   /*
     Les jetons sémantiques ci-dessous sont les mêmes rôles qu'en thème clair,
@@ -286,61 +223,20 @@
 /* ══════════════ JETONS SANS THÈME (identiques partout) ═════════ */
 
 :root {
-  /*
-    ── Typographie ──────────────────────────────────────────────────
-    Six pas, pas un de plus. Deux graisses. Chaque pas porte sa hauteur
-    de ligne : une taille sans interlignage associé est la porte d'entrée
-    des blocs de texte illisibles.
+  /* ── Typographie réellement consommée par les styles de base ───── */
+  --pas-corps: 0.9375rem;
 
-    Le pas 10 px de l'ancien code a été supprimé, pas renommé : en dessous
-    de 11 px, un libellé cesse d'être lisible pour une partie des gens.
-  */
-  --pas-micro: 0.6875rem;   /* 11 px — étiquettes, métadonnées, codes */
-  --pas-mineur: 0.8125rem;  /* 13 px — texte secondaire, légendes */
-  --pas-corps: 0.9375rem;   /* 15 px — corps de texte (défaut du <body>) */
-  --pas-majeur: 1.0625rem;  /* 17 px — sous-titres, chiffre mis en avant */
-  --pas-titre: 1.375rem;    /* 22 px — titre de section */
-  --pas-affiche: 1.75rem;   /* 28 px — titre de page, valeur héroïque */
-
-  /*
-    ── Espacement ───────────────────────────────────────────────────
-    Base 4 px, échelle unique. Tailwind v4 multiplie ce socle : `p-3` vaut
-    12 px, `gap-6` vaut 24 px. Rien d'autre ne doit apparaître dans un
-    composant — pas de valeur entre crochets pour un espacement.
-  */
+  /* ── Espacement ─────────────────────────────────────────────────── */
   --socle-espacement: 0.25rem;
 
-  /* ── Rayons ──────────────────────────────────────────────────────── */
-  --coin-net: 0.25rem;   /* 4 px  — pastilles, cases à cocher, segments */
-  --coin-doux: 0.375rem; /* 6 px  — champs, boutons, petits blocs */
-  --coin-carte: 0.75rem; /* 12 px — cartes, panneaux, modales */
-  --coin-plein: 9999px;  /*       — pilules, points, avatars */
+  /* ── Rayons réellement consommés ───────────────────────────────── */
+  --coin-net: 0.25rem;
+  --coin-doux: 0.375rem;
+  --coin-carte: 0.75rem;
 
-  /*
-    ── Motion ───────────────────────────────────────────────────────
-    Trois durées. Au-delà, l'interface paraît lente ; en deçà, le
-    changement n'est pas perçu. La règle `prefers-reduced-motion` de
-    globals.css les ramène toutes à ~0 — ces jetons n'ont pas à en tenir
-    compte individuellement.
-  */
-  --duree-vive: 150ms;    /* survol, focus, changement de couleur */
-  --duree-moyenne: 250ms; /* apparition, dépliage, bascule d'onglet */
-  --duree-ample: 400ms;   /* transition d'écran, célébration d'un jalon */
-
-  --courbe-standard: cubic-bezier(0.4, 0, 0.2, 1); /* déplacement sur place */
-  --courbe-sortie: cubic-bezier(0.16, 1, 0.3, 1);  /* entrée d'un élément */
-  --courbe-entree: cubic-bezier(0.4, 0, 1, 1);     /* sortie d'un élément */
-
-  /*
-    Trame diagonale pour « niveau inconnu » dans les graphiques : donne au
-    statut une texture, donc une existence sans la couleur. Indispensable
-    là où le libellé écrit ne tient pas.
-  */
-  --trame-inconnu: repeating-linear-gradient(
-    45deg,
-    var(--statut-inconnu-faible) 0 4px,
-    var(--surface-2) 4px 8px
-  );
+  /* ── Mouvement réellement consommé par `.apparition` ───────────── */
+  --duree-vive: 150ms;
+  --courbe-sortie: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* ══════════ EXPOSITION À TAILWIND (utilitaires générés) ════════ */
@@ -358,28 +254,12 @@
   --color-texte-attenue: var(--texte-attenue);
   --color-texte-discret: var(--texte-discret);
 
-  /* Rampe neutre — exposée pour les cas où un rôle n'existe pas encore.
-     Préférer TOUJOURS un jeton de rôle quand il en existe un. */
-  --color-neutre-50: var(--neutre-50);
-  --color-neutre-100: var(--neutre-100);
-  --color-neutre-200: var(--neutre-200);
-  --color-neutre-300: var(--neutre-300);
-  --color-neutre-400: var(--neutre-400);
-  --color-neutre-500: var(--neutre-500);
-  --color-neutre-600: var(--neutre-600);
-  --color-neutre-700: var(--neutre-700);
-  --color-neutre-800: var(--neutre-800);
-  --color-neutre-900: var(--neutre-900);
-
   /* Marque */
   --color-primaire: var(--primaire);
   --color-primaire-fort: var(--primaire-fort);
   --color-primaire-faible: var(--primaire-faible);
   --color-primaire-contraste: var(--primaire-contraste);
   --color-accent: var(--accent);
-  --color-accent-fort: var(--accent-fort);
-  --color-accent-faible: var(--accent-faible);
-  --color-accent-contraste: var(--accent-contraste);
 
   /* État d'une action */
   --color-succes: var(--succes);
@@ -391,69 +271,19 @@
   --color-danger: var(--danger);
   --color-danger-faible: var(--danger-faible);
 
-  /* Statut d'une compétence */
-  --color-statut-inconnu: var(--statut-inconnu);
-  --color-statut-inconnu-faible: var(--statut-inconnu-faible);
-  --color-statut-emergent: var(--statut-emergent);
-  --color-statut-emergent-faible: var(--statut-emergent-faible);
-  --color-statut-pratique: var(--statut-pratique);
-  --color-statut-pratique-faible: var(--statut-pratique-faible);
-  --color-statut-solide: var(--statut-solide);
-  --color-statut-solide-faible: var(--statut-solide-faible);
-  --color-statut-a-rafraichir: var(--statut-a-rafraichir);
-  --color-statut-a-rafraichir-faible: var(--statut-a-rafraichir-faible);
-
-  /* Niveaux (graphiques) */
-  --color-niveau-vide: var(--niveau-vide);
-  --color-niveau-0: var(--niveau-0);
-  --color-niveau-1: var(--niveau-1);
-  --color-niveau-2: var(--niveau-2);
-  --color-niveau-3: var(--niveau-3);
-  --color-niveau-4: var(--niveau-4);
-  --color-niveau-5: var(--niveau-5);
-
   /* Ornement */
   --color-marge: var(--marge);
 
   /* Familles */
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
   --font-serif: var(--font-fraunces), ui-serif, Georgia, "Times New Roman", serif;
-
-  /* Échelle de texte — `text-micro`, `text-corps`, `text-affiche`… */
-  --text-micro: var(--pas-micro);
-  --text-micro--line-height: 1.45;
-  --text-mineur: var(--pas-mineur);
-  --text-mineur--line-height: 1.5;
-  --text-corps: var(--pas-corps);
-  --text-corps--line-height: 1.6;
-  --text-majeur: var(--pas-majeur);
-  --text-majeur--line-height: 1.5;
-  --text-titre: var(--pas-titre);
-  --text-titre--line-height: 1.3;
-  --text-affiche: var(--pas-affiche);
-  --text-affiche--line-height: 1.2;
-
-  /* Graisses — `font-courant`, `font-appuye` */
-  --font-weight-courant: 400;
-  --font-weight-appuye: 600;
 
   /* Espacement — socle de l'échelle 4 px */
   --spacing: var(--socle-espacement);
 
-  /* Rayons — `rounded-net`, `rounded-doux`, `rounded-carte`, `rounded-plein` */
-  --radius-net: var(--coin-net);
-  --radius-doux: var(--coin-doux);
+  /* Rayon personnalisé encore exposé à Tailwind. */
   --radius-carte: var(--coin-carte);
-  --radius-plein: var(--coin-plein);
 
-  /* Ombres — `shadow-posee`, `shadow-levee`, `shadow-surcouche` */
-  --shadow-posee: var(--ombre-posee);
+  /* Ombre personnalisée encore exposée à Tailwind. */
   --shadow-levee: var(--ombre-levee);
-  --shadow-surcouche: var(--ombre-surcouche);
-
-  /* Courbes — `ease-standard`, `ease-sortie`, `ease-entree` */
-  --ease-standard: var(--courbe-standard);
-  --ease-sortie: var(--courbe-sortie);
-  --ease-entree: var(--courbe-entree);
 }

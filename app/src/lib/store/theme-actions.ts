@@ -13,7 +13,7 @@
 import { revalidatePath } from "next/cache";
 
 import { dorsaleCompte, type DorsaleCompte } from "./db";
-import { entiteVersLigne, ligneVersEntite, verifier } from "./supabase-backend";
+import { entiteVersLigne, verifier } from "./supabase-backend";
 import {
   idTheme,
   motifRefusTheme,
@@ -149,16 +149,4 @@ export async function retirerTheme(id: string): Promise<EtatRetraitTheme> {
 
   revalidatePath("/", "layout");
   return { seances, mode };
-}
-
-export async function lireTheme(id: string): Promise<Theme | null> {
-  const dorsale = await dorsaleCompte();
-  const { data, error } = await dorsale.supabase
-    .from("themes")
-    .select("*")
-    .eq("user_id", dorsale.userId)
-    .eq("id", id)
-    .maybeSingle();
-  verifier("lecture d'un thème", error);
-  return data ? ligneVersEntite<Theme>(data as Record<string, unknown>) : null;
 }

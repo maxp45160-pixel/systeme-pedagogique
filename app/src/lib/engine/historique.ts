@@ -9,7 +9,6 @@
  */
 
 import type {
-  Domaine,
   DomaineId,
   LearningSession,
   NiveauCompetence,
@@ -17,9 +16,7 @@ import type {
   SkillEvidence,
 } from "@/lib/domain/types";
 import { seanceALieu } from "@/lib/domain/seance";
-import { JOUR_MS } from "./dates";
 import { computeSkillState } from "./skill-state";
-import { calculerEtatGlobal } from "./progression";
 import { cleJour, joursDepuis } from "./dates";
 
 /* ------------------------------------------------------------------ */
@@ -122,62 +119,6 @@ export function evenementsRecents(
 /* Photographies périodiques                                           */
 /* ------------------------------------------------------------------ */
 
-export interface Photographie {
-  date: string;
-  scoreGlobal: number | null;
-  competencesEvaluees: number;
-  nombrePreuves: number;
-  parDomaine: Map<DomaineId, number | null>;
-}
-
-/**
- * Recalcule l'état global à intervalles réguliers sur une fenêtre donnée.
- * `pas` en jours ; 14 par défaut, pour éviter le bruit d'une courbe
- * quotidienne sur un phénomène qui évolue en semaines.
- */
-export function photographies(
-  skills: Skill[],
-  preuves: SkillEvidence[],
-  jours: number,
-  pas = 14,
-  now: Date = new Date(),
-  domaines: Domaine[] = [],
-): Photographie[] {
-  const triees = [...preuves].sort((a, b) => a.date.localeCompare(b.date));
-  const sorties: Photographie[] = [];
-
-  for (let d = jours; d >= 0; d -= pas) {
-    const instant = new Date(now.getTime() - d * JOUR_MS);
-    const jusque = triees.filter((e) => new Date(e.date) <= instant);
-    const etats = skills.map((s) => computeSkillState(s, jusque, instant));
-    const global = calculerEtatGlobal(etats, instant, domaines);
-
-    sorties.push({
-      date: instant.toISOString(),
-      scoreGlobal: global.scoreGlobal,
-      competencesEvaluees: global.competencesEvaluees,
-      nombrePreuves: jusque.length,
-      parDomaine: new Map(global.parDomaine.map((d) => [d.domaine, d.score])),
-    });
-  }
-
-  // Toujours terminer sur l'instant présent.
-  if (sorties.at(-1) && joursDepuis(sorties.at(-1)!.date, now) > 0) {
-    const etats = skills.map((s) => computeSkillState(s, triees, now));
-    const global = calculerEtatGlobal(etats, now, domaines);
-    sorties.push({
-      date: now.toISOString(),
-      scoreGlobal: global.scoreGlobal,
-      competencesEvaluees: global.competencesEvaluees,
-      nombrePreuves: triees.length,
-      parDomaine: new Map(global.parDomaine.map((d) => [d.domaine, d.score])),
-    });
-  }
-
-  return sorties;
-}
-
-/* ------------------------------------------------------------------ */
 /* Activité                                                            */
 /* ------------------------------------------------------------------ */
 

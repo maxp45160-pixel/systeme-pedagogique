@@ -203,21 +203,6 @@ export const modeleHeuristique: ModeleRevision = {
 };
 
 /* ------------------------------------------------------------------ */
-/* Méthode C — modèle FSRS (à venir)                                   */
-/* ------------------------------------------------------------------ */
-
-/**
- * Emplacement réservé pour la méthode C (FSRS).
- *
- * Un modèle FSRS dériverait la stabilité S et la difficulté D de l'état, puis
- * l'intervalle depuis la récupérabilité cible : `intervalle = −S × ln(R_cible)`.
- * Il exige une calibration sur les données réelles du système (combien de
- * jours une robustesse donnée représente-t-elle ?) — c'est pourquoi il n'est
- * pas implémenté ici. L'interface `ModeleRevision` est déjà en place pour
- * l'accueillir sans toucher aux appelants.
- */
-export const modeleFsrs: ModeleRevision | null = null;
-
 /**
  * Le modèle actif. Changer de méthode = changer cette constante, rien d'autre.
  */
@@ -278,54 +263,3 @@ export function prochaineRevision(etat: SkillState, now: Date = new Date()): Pro
 }
 
 /* ------------------------------------------------------------------ */
-/* Agrégation — « que réviser aujourd'hui ? »                          */
-/* ------------------------------------------------------------------ */
-
-export interface RevisionDue {
-  etat: SkillState;
-  revision: ProchaineRevision;
-  /** joursEcoules / intervalleJours. > 1 = en retard. Dérivé, jamais stocké. */
-  retard: number;
-}
-
-/**
- * Les compétences dues aujourd'hui, la plus en retard d'abord.
- *
- * Fonction pure : reçoit les états, rend une liste. Aucun accès base, aucun
- * `server-only` — testable isolément.
- *
- * Règles :
- *   • Une compétence sans preuve n'est jamais due (à diagnostiquer, pas à
- *     réviser). On ne contourne pas `intervalle === null` en traitant `0`
- *     comme un intervalle.
- *   • Tri décroissant sur `retard` (joursEcoules / intervalleJours). Les ex
- *     æquo sont départagés par `intervalleJours` croissant (la plus fragile
- *     d'abord), puis par code de compétence — pour un ordre déterministe et
- *     testable.
- */
-export function revisionsDues(etats: SkillState[], now: Date = new Date()): RevisionDue[] {
-  const dues: RevisionDue[] = [];
-
-  for (const etat of etats) {
-    const revision = prochaineRevision(etat, now);
-    if (revision.sansPreuve || !revision.due) continue;
-
-    const intervalle = revision.intervalleJours;
-    const ecoules = revision.joursEcoules ?? 0;
-    // `intervalle` est ≥ 1 (garanti par `Math.max(1, …)` du modèle) : pas de
-    // division par zéro.
-    const retard = ecoules / intervalle;
-
-    dues.push({ etat, revision, retard });
-  }
-
-  return dues.sort((a, b) => {
-    if (b.retard !== a.retard) return b.retard - a.retard;
-    // Ex æquo sur le retard : la plus fragile (intervalle court) d'abord.
-    if (a.revision.intervalleJours !== b.revision.intervalleJours) {
-      return a.revision.intervalleJours - b.revision.intervalleJours;
-    }
-    // Dernier départage : le code. Déterministe et testable.
-    return a.etat.skill.code.localeCompare(b.etat.skill.code);
-  });
-}

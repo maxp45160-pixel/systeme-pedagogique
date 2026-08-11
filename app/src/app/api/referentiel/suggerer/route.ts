@@ -3,6 +3,7 @@ import { choisirConfiguration, creerMoteur } from "@/lib/tutor/moteurs";
 import type { ConfigTuteurClient } from "@/lib/tutor/cle-client";
 import { envTuteur } from "@/lib/tutor/env-requete";
 import { suggererBranche } from "@/lib/tutor/generation-referentiel";
+import { serialiserProfilDeclare } from "@/lib/domain/profil";
 
 /**
  * Route de suggestion d'une branche de compétences — sans conversation.
@@ -101,6 +102,7 @@ export async function POST(request: Request) {
             if (evenement === "proposition") return;
             envoyer(evenement, donnees);
           },
+          serialiserProfilDeclare(ctx.donnees.user),
         );
 
         if (resultat.erreur) {

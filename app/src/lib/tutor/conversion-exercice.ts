@@ -57,20 +57,6 @@ const DIMENSIONS: Dimension[] = [
   "justification",
 ];
 
-/**
- * Durée estimée plafond. Au-delà, ce n'est plus un exercice mais un projet, et
- * le seuil de 25 % de `tentativeMenee` n'aurait plus de sens : 25 % de huit
- * heures laisserait passer deux heures d'abandon comme une tentative menée.
- *
- * ⚠️ Ce plafond valait 480 alors que le schéma de `proposer_exercice` en
- * imposait 240 : la conversion laissait donc passer, et `creerExercice` écrivait,
- * une durée que le tuteur n'avait pas le droit de proposer. Les deux bornes
- * vivent désormais dans `lib/domain/exercice.ts`, importées par les trois
- * couches — le schéma, la conversion, l'écriture. Ce nom reste pour les
- * appelants ; il ne porte plus de valeur propre.
- */
-export const DUREE_MAX_MIN = DUREE_ESTIMEE_MAX;
-
 export type Conversion<T> =
   | { ok: true; valeur: T }
   | { ok: false; erreurs: string[] };

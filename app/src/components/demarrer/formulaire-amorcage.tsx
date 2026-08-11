@@ -6,6 +6,7 @@ import { modifierProfil } from "@/lib/store/referentiel-actions";
 import { valeurDeclaree } from "@/lib/domain/profil";
 import { BandeauInfo, Bouton } from "@/components/ui/primitives";
 import { Champ } from "@/components/ui/champ";
+import { ModaleCompetence } from "@/components/referentiel/modale-competence";
 
 /**
  * Les deux questions de l'amorçage.
@@ -27,14 +28,17 @@ export function FormulaireAmorcage({
   formation,
   objectifMoyenTerme,
   objectifLongTerme,
+  compteId,
 }: {
   formation: string;
   objectifMoyenTerme: string;
   objectifLongTerme: string;
+  compteId: string;
 }) {
   const router = useRouter();
   const [enCours, demarrer] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
+  const [validationOuverte, setValidationOuverte] = useState(false);
 
   const [sujet, setSujet] = useState("");
   const [objectif, setObjectif] = useState(objectifMoyenTerme);
@@ -58,25 +62,10 @@ export function FormulaireAmorcage({
           objectifLongTerme: objectifLongTerme || undefined,
         });
 
-        // Le sujet passe au tuteur, pas en base. Le référentiel qui en sortira
-        // sera la seule trace — validée, donc vraie.
-        const amorce = [
-          `Je veux progresser en : ${sujet.trim()}.`,
-          `Mon objectif : ${objectif.trim()}.`,
-          /* Reprise du profil s'il est RÉELLEMENT renseigné, jamais redemandée
-           * ici. `valeurDeclaree` et pas un simple test de chaîne vide : la
-           * colonne porte par défaut « Formation à renseigner », qui est un
-           * libellé d'invite et non une réponse. Le relayer tel quel ferait
-           * dire au tuteur que le point de départ de la personne est
-           * « Formation à renseigner » — l'invention qu'ADR-029 a corrigée. */
-          depart ? `Mon point de départ : ${depart}.` : "",
-          "",
-          "Construis avec moi une première branche de référentiel. Interroge-moi d'abord si tu as besoin de précisions.",
-        ]
-          .filter(Boolean)
-          .join("\n");
-
-        router.push(`/tuteur?amorce=${encodeURIComponent(amorce)}`);
+        // Le sujet n'est pas stocké séparément : la branche relue et validée
+        // devient l'unique vérité. La route de suggestion relira le profil qui
+        // vient d'être enregistré pour tenir compte de l'objectif déclaré.
+        setValidationOuverte(true);
       } catch (e) {
         setErreur(e instanceof Error ? e.message : "Enregistrement impossible.");
       }
@@ -109,12 +98,24 @@ export function FormulaireAmorcage({
 
       <div className="flex items-center gap-3 pt-1">
         <Bouton onClick={soumettre} disabled={!pret || enCours} variante="principal">
-          {enCours ? "Enregistrement…" : "Continuer avec le tuteur"}
+          {enCours ? "Enregistrement…" : "Proposer une première branche"}
         </Bouton>
         {!pret && (
           <span className="text-xs text-texte-discret">Le sujet et l&apos;objectif suffisent.</span>
         )}
       </div>
+
+      {validationOuverte && (
+        <ModaleCompetence
+          onFermer={() => setValidationOuverte(false)}
+          domainesExistants={[]}
+          compteId={compteId}
+          sujetInitial={sujet.trim()}
+          descriptionInitiale={depart ? `Point de départ déclaré : ${depart}` : ""}
+          suggestionAutomatique
+          surEnregistre={() => router.replace("/competences")}
+        />
+      )}
     </div>
   );
 }

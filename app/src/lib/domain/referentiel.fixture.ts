@@ -73,6 +73,7 @@ export const SKILLS_TEST: Skill[] = [
 ];
 
 export const REFERENTIEL_TEST: Referentiel = assemblerReferentiel(DOMAINES_TEST, SKILLS_TEST);
+export const REFERENTIEL_VIDE: Referentiel = assemblerReferentiel([], []);
 
 /** Construit un référentiel de test sur mesure, pour les cas particuliers. */
 export function referentielDe(skills: Skill[], domaines: Domaine[] = DOMAINES_TEST): Referentiel {

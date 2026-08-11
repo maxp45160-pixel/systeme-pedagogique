@@ -7,7 +7,6 @@ import {
   construireDomaine,
   libelleDomaine,
   modeRetrait,
-  modeRetraitDomaine,
   retraitsParCode,
   normaliserImportance,
   normaliserPalier,
@@ -19,9 +18,9 @@ import {
   slugifier,
   validerCompetence,
   validerDomaine,
-  REFERENTIEL_VIDE,
 } from "./referentiel-compte";
 import {
+  REFERENTIEL_VIDE,
   DOMAINES_TEST,
   REFERENTIEL_TEST,
   domaineDeTest,
@@ -362,16 +361,6 @@ describe("retrait — ADR-027, une preuve n'est jamais orpheline", () => {
     // DÉRIVÉ du nombre de preuves, pas arbitré par l'utilisateur.
     expect(modeRetrait(1)).toBe("archivage");
     expect(modeRetrait(26)).toBe("archivage");
-  });
-
-  it("un domaine ne s'efface que si aucune de ses compétences ne porte de preuve", () => {
-    const vide = new Map<string, number>();
-    expect(modeRetraitDomaine("developpement", REFERENTIEL_TEST, vide)).toBe("suppression");
-
-    const avecPreuve = new Map([["DEV-03", 2]]);
-    expect(modeRetraitDomaine("developpement", REFERENTIEL_TEST, avecPreuve)).toBe("archivage");
-    // Une preuve dans un autre domaine ne bloque pas celui-ci.
-    expect(modeRetraitDomaine("statistiques", REFERENTIEL_TEST, avecPreuve)).toBe("suppression");
   });
 
   /*

@@ -57,7 +57,7 @@ export const createServeurClient = cache(async (): Promise<SupabaseClient | null
  *
  * Volontairement plus étroite que le type `User` de supabase-js : ces trois
  * champs sont les seuls réellement consommés (mise en page `(app)`,
- * `dorsaleCompte`, `/api/dev-todos`, `export.ts`), et tous figurent dans le
+ * `dorsaleCompte`, `export.ts`), et tous figurent dans le
  * jeton. Rien de ce qui n'est pas lu n'est transporté.
  */
 export interface Compte {

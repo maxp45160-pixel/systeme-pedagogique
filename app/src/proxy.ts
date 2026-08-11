@@ -11,8 +11,8 @@
  *    l'autorisation réelle est assurée par les politiques RLS de PostgreSQL,
  *    qui restent la seule barrière à laquelle on accorde de la confiance.
  *
- * Tant que Supabase n'est pas configuré, le proxy laisse tout passer :
- * l'application reste utilisable en mode local mono-utilisateur.
+ * Sans configuration Supabase, aucune route produit n'est ouverte : la page
+ * de connexion affiche l'erreur de configuration au lieu de simuler un mode local.
  */
 
 import { createServerClient } from "@supabase/ssr";
@@ -27,7 +27,18 @@ function estPublic(chemin: string): boolean {
 }
 
 export async function proxy(request: NextRequest) {
-  if (!supabaseConfigure) return NextResponse.next();
+  const chemin = request.nextUrl.pathname;
+  if (!supabaseConfigure) {
+    if (estPublic(chemin)) return NextResponse.next();
+    if (chemin.startsWith("/api/")) {
+      return NextResponse.json({ erreur: "configuration-supabase-absente" }, { status: 503 });
+    }
+    const versLogin = request.nextUrl.clone();
+    versLogin.pathname = "/login";
+    versLogin.search = "";
+    versLogin.searchParams.set("erreur", "configuration-supabase-absente");
+    return NextResponse.redirect(versLogin);
+  }
 
   // `reponse` est réassignée par `setAll` : les cookies rafraîchis doivent
   // partir à la fois vers la requête (pour la suite du rendu) et vers la
@@ -59,8 +70,6 @@ export async function proxy(request: NextRequest) {
   // dominant du rendu.
   const { data } = await supabase.auth.getClaims();
   const connecte = data !== null;
-
-  const chemin = request.nextUrl.pathname;
 
   if (!connecte && !estPublic(chemin)) {
     // Une route d'API répond en JSON. La rediriger vers `/login` renverrait une

@@ -21,8 +21,6 @@ import { ajouter, ajouterPlusieurs, dorsaleCompte, lire, modifier, nouvelId } fr
 import { verifier } from "./supabase-backend";
 import { lireReferentiel } from "./referentiel";
 import {
-  compterTentatives,
-  modeRetraitExercice,
   motifRefusExercice,
 } from "@/lib/domain/exercice";
 import { motifRefusTerminerExercice } from "@/lib/domain/tentative";
@@ -343,9 +341,8 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
  *
  * Deux raisons, et la seconde est la vraie.
  *
- * 1. `attempts.verdict_tuteur` est ajoutée par `supabase/migration-verdict.sql`,
- *    qui s'applique à la main. Entre le déploiement du code et l'exécution de
- *    la migration, la colonne n'existe pas : l'écriture échouerait.
+ * 1. `attempts.verdict_tuteur` peut manquer sur une base dont le schéma de
+ *    référence n'est pas à jour : l'écriture échouerait.
  * 2. Surtout : **un conseil perdu ne doit pas empêcher l'écriture d'une
  *    preuve.** La preuve est la seule chose que ce produit garantit ; le
  *    verdict est un commentaire à côté. Les lier ferait dépendre la mesure
@@ -374,7 +371,7 @@ async function archiverVerdict(
     // le défaut que ce lot corrige, une couche plus bas.
     console.warn(
       `[verdict] archivage impossible pour ${soumission.attemptId} — la preuve, elle, est écrite. ` +
-        `Si « verdict_tuteur » est inconnue, applique supabase/migration-verdict.sql.`,
+        `Si « verdict_tuteur » est inconnue, applique le schéma de référence courant.`,
       e,
     );
   }
@@ -561,6 +558,18 @@ export type SoumissionEditionExercice = Omit<SoumissionExerciceManuel, "origine"
  * qui relira cet exercice saura qu'il a changé depuis, et l'écran d'édition
  * annonce le nombre de tentatives déjà portées avant le clic.
  */
+async function exerciceDuCompte(
+  exerciceId: string,
+  dorsale: Awaited<ReturnType<typeof dorsaleCompte>>,
+): Promise<Exercise> {
+  const exercices = await lire("exercises", dorsale);
+  const exercice = exercices.find((e) => e.id === exerciceId);
+  if (!exercice) {
+    throw new Error(`Exercice « ${exerciceId} » introuvable dans ta bibliothèque.`);
+  }
+  return exercice;
+}
+
 export async function modifierExercice(soumission: SoumissionEditionExercice): Promise<void> {
   const refus = motifRefusExercice(soumission);
   if (refus) throw new Error(refus);
@@ -598,78 +607,6 @@ export async function modifierExercice(soumission: SoumissionEditionExercice): P
     dorsale,
   );
 
-  revalidatePath("/", "layout");
-}
-
-/* ------------------------------------------------------------------ */
-/* Retrait d'un exercice (calque ADR-027)                              */
-/* ------------------------------------------------------------------ */
-
-/**
- * Charge un exercice du compte, ou refuse.
- *
- * Les exercices de diagnostic sont livrés avec le logiciel et ne sont pas en
- * base : ils ne se retirent pas ligne à ligne. Les retirer du flux passe par le
- * périmètre de la compétence (`competences.active`).
- */
-async function exerciceDuCompte(
-  exerciceId: string,
-  dorsale: Awaited<ReturnType<typeof dorsaleCompte>>,
-): Promise<Exercise> {
-  const exercices = await lire("exercises", dorsale);
-  const exercice = exercices.find((e) => e.id === exerciceId);
-  if (!exercice) {
-    throw new Error(
-      `Exercice « ${exerciceId} » introuvable dans ta bibliothèque. Les exercices de diagnostic sont livrés avec le logiciel et ne se retirent pas un par un.`,
-    );
-  }
-  return exercice;
-}
-
-/** Retire l'exercice du flux sans toucher aux preuves qu'il a produites. */
-export async function archiverExercice(exerciceId: string): Promise<void> {
-  const dorsale = await dorsaleCompte();
-  await exerciceDuCompte(exerciceId, dorsale);
-  await modifier("exercises", exerciceId, { archive: true }, dorsale);
-  revalidatePath("/", "layout");
-}
-
-/** Remet un exercice archivé dans le flux. */
-export async function desarchiverExercice(exerciceId: string): Promise<void> {
-  const dorsale = await dorsaleCompte();
-  await exerciceDuCompte(exerciceId, dorsale);
-  await modifier("exercises", exerciceId, { archive: false }, dorsale);
-  revalidatePath("/", "layout");
-}
-
-/**
- * Supprime définitivement un exercice — **uniquement s'il ne porte aucune
- * tentative**.
- *
- * Le refus est explicite, jamais un repli silencieux sur l'archivage : c'est la
- * leçon d'ADR-027, une fonction qui fait autre chose que ce que son nom annonce
- * s'érode. Et la trace en jeu est réelle — une tentative, même abandonnée,
- * figure au journal et cite l'exercice par son titre ; l'effacer laisserait une
- * entrée qui ne résout plus.
- */
-export async function supprimerExercice(exerciceId: string): Promise<void> {
-  const dorsale = await dorsaleCompte();
-  await exerciceDuCompte(exerciceId, dorsale);
-
-  const tentatives = await lire("attempts", dorsale);
-  const nombre = compterTentatives(exerciceId, tentatives);
-  if (modeRetraitExercice(nombre) !== "suppression") {
-    throw new Error(
-      `Cet exercice porte ${nombre} tentative(s) : il ne peut pas être supprimé, seulement archivé. Une trace ne disparaît pas.`,
-    );
-  }
-
-  const { error } = await dorsale.supabase
-    .from("exercises")
-    .delete()
-    .eq("user_id", dorsale.userId)
-    .eq("id", exerciceId);
-  verifier("suppression de l'exercice", error);
   revalidatePath("/", "layout");
 }
 

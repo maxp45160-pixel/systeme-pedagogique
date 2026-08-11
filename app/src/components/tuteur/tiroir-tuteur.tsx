@@ -7,22 +7,18 @@
  * ouvert là où poser une question a un sens — pendant une tentative
  * (`/exercices/[id]`), ou sur une fiche compétence (`/competences/[code]`).
  *
- * Le tiroir garde l'énoncé visible : c'est la réponse directe au défaut
- * « demander de l'aide envoie sur /tuteur et on perd de vue l'énoncé ».
+ * Le tiroir garde l'énoncé visible pendant la demande d'aide.
  *
- * La conversation est la même que sur `/tuteur` — même `sessionStorage` par
- * compte (`cleParCompte`, ADR-029). Un lien « ouvrir en pleine page » permet
- * de passer au chat plein écran pour les longues conversations.
+ * La conversation est conservée dans `sessionStorage` par compte
+ * (`cleParCompte`, ADR-029).
  *
  * Depuis le 07/08/2026 le tiroir a aussi un déclencheur **flottant**, monté
  * globalement (`tuteur-global.tsx`) : le bouton rond en bas à droite ouvre le
- * panneau au lieu de naviguer vers `/tuteur`, ce qui faisait perdre la page en
- * cours — exactement le défaut que le tiroir existait pour corriger. Il est
+ * panneau sans faire perdre la page en cours. Il est
  * masqué là où une entrée contextuelle, mieux renseignée, existe déjà.
  */
 
 import { useState } from "react";
-import Link from "next/link";
 import { ChatTuteur, type EtatContexteTuteur } from "@/components/tuteur/chat";
 import { classesLienBouton, cx } from "@/components/ui/primitives";
 import { Modale } from "@/components/ui/modale";
@@ -54,6 +50,7 @@ const CLASSES_FLOTTANT = cx(
 export function TiroirTuteur({
   etatInitial,
   competenceCiblee,
+  amorce,
   exerciceCible,
   codesCompetences,
   compteId,
@@ -65,6 +62,8 @@ export function TiroirTuteur({
 }: {
   etatInitial: EtatContexteTuteur;
   competenceCiblee?: string;
+  /** Brouillon explicite à placer dans la saisie, sans envoi automatique. */
+  amorce?: string;
   exerciceCible?: string;
   codesCompetences: string[];
   compteId: string;
@@ -118,19 +117,11 @@ export function TiroirTuteur({
           onFermer={() => setOuvert(false)}
         >
           <>
-            <div className="border-b border-bordure pb-2 pt-2">
-              <Link
-                href={`/tuteur${exerciceCible ? `?exercice=${encodeURIComponent(exerciceCible)}` : competenceCiblee ? `?competence=${encodeURIComponent(competenceCiblee)}` : ""}`}
-                className="text-[0.6875rem] text-primaire hover:underline"
-              >
-                Ouvrir en pleine page
-              </Link>
-            </div>
-
             <div className="min-h-0 flex-1 overflow-y-auto">
               <ChatTuteur
                 etatInitial={etatInitial}
                 competenceCiblee={competenceCiblee}
+                amorce={amorce}
                 exerciceCible={exerciceCible}
                 codesCompetences={codesCompetences}
                 compteId={compteId}

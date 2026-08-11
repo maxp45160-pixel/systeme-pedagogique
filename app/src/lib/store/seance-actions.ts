@@ -289,8 +289,8 @@ export async function terminerSeance(seanceId: string): Promise<void> {
 /**
  * Annule une séance qui n'a pas commencé.
  *
- * Elle refuse plutôt que de se replier en silence, comme `supprimerExercice` et
- * `supprimerCompetence` (ADR-027) : une séance en cours porte des tentatives, et
+ * Elle refuse plutôt que de se replier en silence (ADR-027) : une séance en
+ * cours porte des tentatives, et
  * les tentatives ne s'effacent pas. Le geste attendu là est de la terminer, pas
  * de la faire disparaître — une fonction qui fait autre chose que ce que son nom
  * annonce s'érode.

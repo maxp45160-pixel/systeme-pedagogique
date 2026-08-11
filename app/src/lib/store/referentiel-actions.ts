@@ -27,8 +27,6 @@ import { lireReferentiel } from "./referentiel";
 import {
   construireCompetences,
   construireDomaine,
-  modeRetrait,
-  modeRetraitDomaine,
   normaliserImportance,
   normaliserPalier,
   normaliserPrefixe,
@@ -37,7 +35,6 @@ import {
   validerCompetence,
   validerDomaine,
   type CompetenceCandidate,
-  type DomaineCandidat,
 } from "@/lib/domain/referentiel-compte";
 import type { OrigineReferentiel, Palier } from "@/lib/domain/types";
 
@@ -195,55 +192,6 @@ export interface ModificationCompetence {
   importance?: number;
   prerequis?: string[];
   ordre?: number;
-}
-
-export interface ModificationDomaine {
-  nom?: string;
-  description?: string;
-}
-
-/**
- * Renomme ou redécrit un domaine — le seul ajout serveur du chantier.
- *
- * L'`id` ne change PAS quand le nom change : c'est la clé étrangère de
- * `competences.domaine`. Seul le libellé change. Le préfixe reste immuable,
- * pour la même raison qui rend le `code` immuable : il engendre les codes.
- *
- * `validerDomaine` reçoit l'`id` actuel en `idIgnore` : c'est le seul cas où
- * ce paramètre a un sens — une modification ne doit pas se heurter à
- * elle-même.
- */
-export async function modifierDomaine(
-  id: string,
-  champs: ModificationDomaine,
-): Promise<void> {
-  const dorsale = await dorsaleCompte();
-  const referentiel = await lireReferentiel(dorsale);
-
-  const domaine = referentiel.domainesParId.get(id);
-  if (!domaine) throw new Error(`Domaine inconnu : ${id}`);
-
-  const candidat: DomaineCandidat = {
-    nom: champs.nom ?? domaine.nom,
-    prefixe: domaine.prefixe,
-    description: champs.description ?? domaine.description,
-  };
-  const erreurs = validerDomaine(candidat, referentiel, id);
-  if (erreurs.length > 0) throw new Error(erreurs.join(" "));
-
-  const ligne: Record<string, unknown> = {};
-  if (champs.nom !== undefined) ligne.nom = champs.nom.trim();
-  if (champs.description !== undefined) ligne.description = champs.description.trim();
-  if (Object.keys(ligne).length === 0) return;
-
-  const { error } = await dorsale.supabase
-    .from("domaines")
-    .update(ligne)
-    .eq("user_id", dorsale.userId)
-    .eq("id", id);
-  verifier("modification du domaine", error);
-
-  revalidatePath("/", "layout");
 }
 
 export async function modifierCompetence(
@@ -482,32 +430,6 @@ export async function basculerActive(code: string, active: boolean): Promise<voi
 /* Retrait — ADR-027                                                   */
 /* ------------------------------------------------------------------ */
 
-export interface EtatRetrait {
-  code: string;
-  preuves: number;
-  mode: "suppression" | "archivage";
-}
-
-/**
- * Ce qui arriverait si on retirait cette compétence, **avant** de le faire.
- *
- * L'écran s'en sert pour annoncer le geste et le nombre de preuves en jeu. Un
- * bouton « supprimer » qui archive en réalité, ou qui détruit des preuves sans
- * le dire, serait aussi trompeur dans un sens que dans l'autre.
- */
-export async function etatRetrait(code: string): Promise<EtatRetrait> {
-  const dorsale = await dorsaleCompte();
-  const preuves = (await compterPreuves(dorsale)).get(code) ?? 0;
-  return { code, preuves, mode: modeRetrait(preuves) };
-}
-
-/**
- * Retire une compétence du référentiel de travail sans toucher à ses preuves.
- *
- * C'est le seul retrait possible dès qu'une preuve existe (P4,
- * anti-hallucination §6). L'intitulé reste résoluble par `Referentiel.parCode`,
- * donc l'historique reste lisible.
- */
 export async function archiverCompetence(code: string): Promise<void> {
   const dorsale = await dorsaleCompte();
   const { error } = await dorsale.supabase
@@ -529,34 +451,6 @@ export async function desarchiverCompetence(code: string): Promise<void> {
     .eq("user_id", dorsale.userId)
     .eq("code", code);
   verifier("désarchivage de la compétence", error);
-  revalidatePath("/", "layout");
-}
-
-/**
- * Supprime définitivement une compétence — **uniquement si elle ne porte
- * aucune preuve**.
- *
- * Le refus est explicite et non un repli silencieux sur l'archivage : une
- * fonction qui fait autre chose que ce que son nom annonce est exactement le
- * genre de garde-fou qui s'érode. L'appelant doit appeler `archiverCompetence`
- * en connaissance de cause.
- */
-export async function supprimerCompetence(code: string): Promise<void> {
-  const dorsale = await dorsaleCompte();
-  const preuves = (await compterPreuves(dorsale)).get(code) ?? 0;
-
-  if (modeRetrait(preuves) !== "suppression") {
-    throw new Error(
-      `« ${code} » porte ${preuves} preuve(s) : elle ne peut pas être supprimée, seulement archivée. Une preuve ne disparaît pas.`,
-    );
-  }
-
-  const { error } = await dorsale.supabase
-    .from("competences")
-    .delete()
-    .eq("user_id", dorsale.userId)
-    .eq("code", code);
-  verifier("suppression de la compétence", error);
   revalidatePath("/", "layout");
 }
 
@@ -649,61 +543,6 @@ export async function basculerActives(codes: string[], active: boolean): Promise
   revalidatePath("/", "layout");
 }
 
-/**
- * Retire un domaine entier.
- *
- * Supprimé si aucune de ses compétences ne porte de preuve ; archivé avec
- * elles sinon. La clé étrangère `ON DELETE RESTRICT` empêche de toute façon
- * d'effacer un domaine dont il reste des compétences : les compétences partent
- * d'abord, explicitement.
- */
-export async function retirerDomaine(domaineId: string): Promise<"suppression" | "archivage"> {
-  const dorsale = await dorsaleCompte();
-  const referentiel = await lireReferentiel(dorsale);
-  if (!referentiel.domainesParId.has(domaineId)) {
-    throw new Error(`Domaine inconnu : ${domaineId}`);
-  }
-
-  const preuves = await compterPreuves(dorsale);
-  const mode = modeRetraitDomaine(domaineId, referentiel, preuves);
-  const membres = referentiel.skills.filter((s) => s.domaine === domaineId);
-
-  if (mode === "archivage") {
-    const { error } = await dorsale.supabase
-      .from("competences")
-      .update({ archive: true, active: false })
-      .eq("user_id", dorsale.userId)
-      .eq("domaine", domaineId);
-    verifier("archivage des compétences du domaine", error);
-
-    const suite = await dorsale.supabase
-      .from("domaines")
-      .update({ archive: true })
-      .eq("user_id", dorsale.userId)
-      .eq("id", domaineId);
-    verifier("archivage du domaine", suite.error);
-  } else {
-    if (membres.length > 0) {
-      const { error } = await dorsale.supabase
-        .from("competences")
-        .delete()
-        .eq("user_id", dorsale.userId)
-        .eq("domaine", domaineId);
-      verifier("suppression des compétences du domaine", error);
-    }
-    const suite = await dorsale.supabase
-      .from("domaines")
-      .delete()
-      .eq("user_id", dorsale.userId)
-      .eq("id", domaineId);
-    verifier("suppression du domaine", suite.error);
-  }
-
-  revalidatePath("/", "layout");
-  return mode;
-}
-
-/* ------------------------------------------------------------------ */
 /* Profil                                                              */
 /* ------------------------------------------------------------------ */
 

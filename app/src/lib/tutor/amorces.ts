@@ -36,30 +36,3 @@ function precisions(calibrage: CalibrageAmorce): string {
 export function amorceExercice(code: string, calibrage: CalibrageAmorce = {}): string {
   return `Propose-moi un exercice sur ${code}${precisions(calibrage)}.`;
 }
-
-/**
- * Un lot d'exercices pour des compétences qui n'en ont aucun.
- *
- * La consigne demande explicitement **un appel d'outil par exercice** : les deux
- * moteurs savent accumuler plusieurs appels dans un même tour, et l'interface
- * sait déposer le lot entier dans la file de validation. Sans cette précision,
- * le tuteur en rédige un seul et attend.
- */
-export function amorceLotExercices(codes: string[], nomDomaine?: string): string {
-  const liste = codes.join(", ");
-  const ou = nomDomaine ? ` du domaine « ${nomDomaine} »` : "";
-  return [
-    `Ces compétences${ou} n'ont encore aucun exercice : ${liste}.`,
-    `Propose-m'en un pour chacune, en appelant l'outil une fois par exercice`,
-    `(${codes.length} appels), calibré sur mon niveau réel tel qu'il figure dans mon profil.`,
-    `Je les relirai un par un avant de les enregistrer.`,
-  ].join(" ");
-}
-
-/** Construit le lien vers le tuteur, amorce comprise. */
-export function lienTuteur(amorce: string, competence?: string): string {
-  const params = new URLSearchParams();
-  if (competence) params.set("competence", competence);
-  params.set("amorce", amorce);
-  return `/tuteur?${params.toString()}`;
-}

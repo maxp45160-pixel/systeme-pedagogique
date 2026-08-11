@@ -13,25 +13,17 @@
  * dans la colonne « Composant » du tableau de bord. Par défaut : `"app"`.
  */
 
-import { Profiler, type ReactNode } from "react";
+import { Profiler, type ReactNode, useMemo } from "react";
 import { onRenderProfil } from "@/lib/profiling/client";
+import { useProfilageEnCours } from "@/lib/profiling/utiliser-enregistrement";
 
-export function ProfilWrapper({ id = "app", children }: { id?: string; children: ReactNode }) {
+export function ProfilWrapper({ compteId, id = "app", children }: { compteId: string; id?: string; children: ReactNode }) {
+  const actif = useProfilageEnCours(compteId);
+  const onRender = useMemo(() => onRenderProfil(compteId), [compteId]);
+  if (!actif) return children;
   return (
-    <Profiler id={id} onRender={onRenderProfil}>
+    <Profiler id={id} onRender={onRender}>
       {children}
     </Profiler>
   );
 }
-
-/**
- * Zone de profilage réutilisable pour mesurer un composant ou une section.
- *
- * Exemple d'usage dans une page :
- * ```tsx
- * <ProfilZone id="tableau-de-bord">
- *   <MonContenu />
- * </ProfilZone>
- * ```
- */
-export const ProfilZone = ProfilWrapper;

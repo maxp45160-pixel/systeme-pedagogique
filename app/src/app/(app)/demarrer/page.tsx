@@ -48,6 +48,7 @@ export default async function PageDemarrer() {
             formation={nonRenseigne(u.formation)}
             objectifMoyenTerme={nonRenseigne(u.objectifMoyenTerme)}
             objectifLongTerme={nonRenseigne(u.objectifLongTerme)}
+            compteId={u.id}
           />
         </div>
       </Carte>

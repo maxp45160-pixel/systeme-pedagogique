@@ -6,17 +6,11 @@
  * retirer un exercice manifestement hors niveau. La bibliothèque ne faisait
  * qu'enfler.
  *
- * La règle retenue est le **calque exact** de celle du référentiel (ADR-027),
- * jusqu'au nom du type : ce qui ne porte aucune trace s'efface, ce qui en porte
- * s'archive. D'où l'import de `ModeRetrait` depuis `referentiel-compte` plutôt
- * qu'un jumeau local — deux vocabulaires pour une même règle finiraient par
- * diverger.
+ * Les règles encore consommées ici qualifient le contenu, comptent ses traces
+ * et déterminent s'il est retirable sans inventer de mesure.
  */
 
-import type { ModeRetrait } from "./referentiel-compte";
 import type { Exercise, ExerciseAttempt } from "./types";
-
-export type { ModeRetrait };
 
 /* ------------------------------------------------------------------ */
 /* Bornes des deux nombres dont le moteur se sert comme d'une règle     */
@@ -109,18 +103,6 @@ export function motifRefusExercice(contenu: ContenuExercice): string | null {
   }
 
   return null;
-}
-
-/**
- * Quel retrait s'applique à un exercice, **dérivé** du nombre de tentatives.
- *
- * Ce n'est pas un choix offert à l'utilisateur. Une tentative a produit des
- * preuves, et une preuve ne disparaît pas (P4, anti-hallucination §6) : dès la
- * première, seul l'archivage reste. Sans aucune tentative, l'exercice n'a rien
- * produit et s'efface franchement.
- */
-export function modeRetraitExercice(nombreDeTentatives: number): ModeRetrait {
-  return nombreDeTentatives === 0 ? "suppression" : "archivage";
 }
 
 /**

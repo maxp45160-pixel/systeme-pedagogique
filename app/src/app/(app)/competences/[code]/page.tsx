@@ -60,7 +60,7 @@ export default async function PageCompetence(props: {
   const recommandation = ctx.recommandations.find((r) => r.etat.skill.code === etat.skill.code);
   const maitrise = ctx.maitrises.get(etat.skill.code);
 
-  // Contexte du tuteur pour le tiroir — même assemblage que la page /tuteur.
+  // Contexte pédagogique partagé par tous les tiroirs du tuteur.
   const etatInitialTuteur = await construireEtatInitialTuteur(ctx);
   const codesCompetences = ctx.etats.map((e) => e.skill.code);
   const domainesExistants = ctx.referentiel.domaines.map((d) => ({
@@ -82,14 +82,6 @@ export default async function PageCompetence(props: {
               ? "intermédiaire"
               : "avancé"
         }`}
-        actions={
-          exercices.length > 0 ? (
-            <Link href={`/exercices?competence=${etat.skill.code}`} className={classesLienBouton("secondaire")}>
-              {exercices.length} exercice{exercices.length > 1 ? "s" : ""} disponible
-              {exercices.length > 1 ? "s" : ""}
-            </Link>
-          ) : undefined
-        }
       />
 
       <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">

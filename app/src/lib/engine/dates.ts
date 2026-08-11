@@ -49,10 +49,6 @@ export function formatDuree(minutes: number): string {
   return m === 0 ? `${h} h` : `${h} h ${String(m).padStart(2, "0")}`;
 }
 
-export function debutDeJour(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-}
-
 export function cleJour(d: Date | string): string {
   const date = typeof d === "string" ? new Date(d) : d;
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(

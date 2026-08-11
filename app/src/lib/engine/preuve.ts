@@ -8,7 +8,7 @@
  * protocole qui l'impose.
  */
 
-import type { Autonomie, QualitePreuve, SkillEvidence } from "@/lib/domain/types";
+import type { Autonomie, QualitePreuve } from "@/lib/domain/types";
 
 /**
  * Autonomie déduite du nombre d'indices réellement consultés.
@@ -104,22 +104,5 @@ export function qualiteDepuisDifficulte(
   if (autonomie === "A0" || autonomie === "A1") return "faible";
   if (difficulte >= 4 && (autonomie === "A3" || autonomie === "A4")) return "forte";
   if (difficulte <= 1) return "faible";
-  return "moyenne";
-}
-
-/**
- * Qualité d'une preuve hors exercice — §6, via la nature du travail.
- *
- * Le protocole définit la qualité par ce qu'était le travail, pas par une
- * appréciation portée après coup : « faible — réponse isolée, exercice très
- * guidé » ; « forte — problème nouveau, transfert, projet » ; « moyenne » pour
- * le reste. L'utilisateur ne la déclare donc plus.
- */
-export function qualiteDepuisNature(
-  type: SkillEvidence["type"],
-  autonomie: Autonomie,
-): QualitePreuve {
-  if (autonomie === "A0" || autonomie === "A1") return "faible";
-  if (type === "transfert" || type === "projet") return "forte";
   return "moyenne";
 }

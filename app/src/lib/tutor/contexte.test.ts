@@ -5,8 +5,7 @@ import {
   fautChargerSyntheseEvaluation,
 } from "./contexte";
 import { fenetrerHistorique, MAX_MESSAGES_FENETRE } from "./fenetre";
-import { DOMAINES_TEST, REFERENTIEL_TEST } from "@/lib/domain/referentiel.fixture";
-import { REFERENTIEL_VIDE } from "@/lib/domain/referentiel-compte";
+import { DOMAINES_TEST, REFERENTIEL_TEST, REFERENTIEL_VIDE } from "@/lib/domain/referentiel.fixture";
 import { computeAllSkillStates } from "@/lib/engine/skill-state";
 import { OUTIL_REFERENTIEL } from "./outils";
 import { calculerEtatGlobal } from "@/lib/engine/progression";

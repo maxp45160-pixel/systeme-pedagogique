@@ -22,11 +22,6 @@ import type { PropositionReferentiel } from "./proposition";
 /* Types                                                               */
 /* ------------------------------------------------------------------ */
 
-export interface DemandeSuggestion {
-  /** Le sujet sur lequel on veut une branche — un thème, pas un objet. */
-  sujet: string;
-}
-
 export interface ResultatSuggestion {
   /** Proposition validée, prête à être relue et enregistrée. */
   branche: PropositionReferentiel | null;
@@ -214,8 +209,9 @@ export async function suggererBranche(
    * `proposition-en-cours` que personne n'émet, et reste sur son message
    * d'attente initial pendant toute la rédaction — un appel d'outil ne produit
    * aucun `content`, donc rien de visible.
-   */
+  */
   diffuser?: (evenement: string, donnees: unknown) => void,
+  profilDeclare = "",
 ): Promise<ResultatSuggestion> {
   let branche: PropositionReferentiel | null = null;
   let outilsActifs = true;
@@ -233,7 +229,7 @@ export async function suggererBranche(
   };
 
   const systemeStable = construirePromptSuggestion(referentiel, sujet);
-  const systemeProfil = "";
+  const systemeProfil = profilDeclare;
 
   const messages = [
     {

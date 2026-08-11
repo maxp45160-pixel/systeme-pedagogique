@@ -18,7 +18,7 @@
  */
 
 import type { NoeudGraphe, TypeLien } from "@/lib/domain/graphe";
-import { couleurDomaine, couleurDomaineClaire } from "@/lib/ui/couleurs-domaines";
+import { couleurDomaine } from "@/lib/ui/couleurs-domaines";
 import type { AxeCouleur } from "./reglages-graphe";
 import type { LienSimule, NoeudSimule } from "./moteur-force";
 
@@ -153,17 +153,6 @@ export function couleurNoeud(
   }
 }
 
-export function haloDomaine(
-  n: NoeudGraphe,
-  ctx: ContexteCouleur,
-  palette: Palette,
-): string {
-  if (!n.domaineId) return palette.surface2;
-  const idx = ctx.indexDomaine.get(n.domaineId) ?? 0;
-  return couleurDomaineClaire(idx, ctx.totalDomaines);
-}
-
-/* ------------------------------------------------------------------ */
 /* Dessin                                                              */
 /* ------------------------------------------------------------------ */
 

@@ -29,13 +29,12 @@ import { compteCourant } from "@/lib/supabase/server";
  * expose, `DELETE` les efface — trois gestes qui n'ont rien à faire hors
  * session, sur une route qui n'est pas derrière `(app)`.
  *
- * Toutes les autres routes revérifient (`api/dev-todos`). Celle-ci s'aligne :
- * le proxy est une commodité, l'autorisation se prouve ici.
+ * Le proxy est une commodité : l'autorisation se prouve aussi dans la route.
  */
 async function refusSiAnonyme(): Promise<Response | null> {
-  // Sans Supabase configuré, il n'y a pas de notion de compte : c'est le mode
-  // d'installation locale, où le proxy laisse déjà tout passer.
-  if (!supabaseConfigure) return null;
+  if (!supabaseConfigure) {
+    return Response.json({ erreur: "configuration-supabase-absente" }, { status: 503 });
+  }
   const compte = await compteCourant();
   if (compte) return null;
   return Response.json({ erreur: "non-authentifie" }, { status: 401 });

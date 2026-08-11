@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   compterTentatives,
   estRetirable,
-  modeRetraitExercice,
   usageExercice,
   motifRefusExercice,
   DIFFICULTE_MAX,
@@ -60,17 +59,6 @@ function exo(options: Partial<Exercise> = {}): Exercise {
     ...options,
   };
 }
-
-describe("modeRetraitExercice", () => {
-  it("efface franchement ce qui n'a jamais été tenté", () => {
-    expect(modeRetraitExercice(0)).toBe("suppression");
-  });
-
-  it("archive dès la première tentative — une trace ne disparaît pas", () => {
-    expect(modeRetraitExercice(1)).toBe("archivage");
-    expect(modeRetraitExercice(12)).toBe("archivage");
-  });
-});
 
 describe("compterTentatives", () => {
   it("compte les abandons aussi : ils figurent au journal", () => {

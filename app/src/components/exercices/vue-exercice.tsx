@@ -32,7 +32,7 @@ import { BilanRedigeVue } from "@/components/exercices/bilan-redige";
 import { BoutonEditer } from "@/components/exercices/bouton-editer";
 import { compterTentatives, estRetirable } from "@/lib/domain/exercice";
 import { tentativeMenee } from "@/lib/engine/calibration";
-import { amorceExercice, lienTuteur } from "@/lib/tutor/amorces";
+import { amorceExercice } from "@/lib/tutor/amorces";
 import { construireEtatInitialTuteur } from "@/lib/tutor/etat-initial";
 import { TiroirTuteur } from "@/components/tuteur/tiroir-tuteur";
 import {
@@ -129,7 +129,7 @@ export async function VueExercice(props: {
       )
     : exercice.dureeEstimeeMin;
 
-  // Contexte du tuteur pour le tiroir — même assemblage que la page /tuteur.
+  // Contexte pédagogique partagé par tous les tiroirs du tuteur.
   const etatInitialTuteur = props.lectureSeule
     ? null
     : props.etatInitialTuteurFourni ?? await construireEtatInitialTuteur(ctx, exercice.id);
@@ -188,21 +188,25 @@ export async function VueExercice(props: {
             <Link href={urlExercice(exercice.id, navigation)} className={classesLienBouton("principal", "petite")}>
               Reprendre l&apos;exercice
             </Link>
-            <Link
-              href={lienTuteur(
-                amorceExercice(exercice.competences[0] ?? "", {
+            {etatInitialTuteur && (
+              <TiroirTuteur
+                etatInitial={etatInitialTuteur}
+                exerciceCible={exercice.id}
+                amorce={amorceExercice(exercice.competences[0] ?? "", {
                   difficulteConseillee: ctx.calibrations.get(exercice.competences[0] ?? "")
                     ?.difficulteConseillee,
                   dimensionFaible:
                     ctx.calibrations.get(exercice.competences[0] ?? "")?.dimensionFaible
                       ?.dimension ?? null,
-                }),
-                exercice.competences[0],
-              )}
-              className={classesLienBouton("secondaire", "petite")}
-            >
-              En demander un autre au tuteur
-            </Link>
+                })}
+                codesCompetences={codesCompetences}
+                compteId={ctx.donnees.user.id}
+                domainesExistants={domainesExistants}
+                competencesModale={competencesPourModale(ctx.referentiel.actifs)}
+                calibragesModale={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
+                libelle="En demander un autre au tuteur"
+              />
+            )}
           </div>}
         </div>
         </BandeauInfo>

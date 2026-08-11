@@ -32,11 +32,6 @@ export const APPRECIATIONS: { valeur: ValeurAppreciation; libelle: string }[] = 
   { valeur: 1, libelle: "Oui" },
 ];
 
-/** Le libellé d'une valeur, pour l'écrire dans un prompt sans le recopier. */
-export const LIBELLE_APPRECIATION: Record<string, string> = Object.fromEntries(
-  APPRECIATIONS.map((a) => [String(a.valeur), a.libelle]),
-);
-
 /** Résultat global d'une tentative — le même vocabulaire que `SkillEvidence.resultat`. */
 export type ResultatBilan = "reussi" | "partiel" | "echec";
 

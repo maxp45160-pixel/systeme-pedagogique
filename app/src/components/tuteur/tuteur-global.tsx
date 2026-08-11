@@ -1,9 +1,7 @@
 /**
  * Le tuteur, accessible de partout — en tiroir, pas en navigation.
  *
- * Remplace `BoutonTuteurFlottant`, qui était un `<Link href="/tuteur">` : le
- * bouton ressemblait à un ouvre-panneau et faisait perdre la page en cours.
- * Le tiroir garde la page visible derrière lui, ce pour quoi il existe.
+ * Le bouton flottant ouvre le tiroir et garde la page visible derrière lui.
  *
  * Sans exercice ni compétence ciblés : le contexte de la page n'est pas connu
  * ici. Les pages qui ont mieux à transmettre montent leur propre tiroir, et le

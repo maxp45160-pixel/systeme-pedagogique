@@ -26,6 +26,7 @@
 "use client";
 
 import type { ProfilerOnRenderCallback } from "react";
+import { cleParCompte } from "@/lib/ui/stockage-session";
 
 export interface MesureRendu {
   composant: string;
@@ -49,20 +50,25 @@ export interface MesureInteraction {
 const CLE_DRAPEAU_CLIENT = "profilage-client-actif";
 const CLE_ENREGISTREMENT = "profilage-client-enregistre";
 
-function lireDrapeau(cle: string): boolean {
+function cleCompte(cle: string, compteId: string): string {
+  return cleParCompte(cle, compteId);
+}
+
+function lireDrapeau(cle: string, compteId: string): boolean {
   if (typeof window === "undefined") return false;
   try {
-    return window.localStorage.getItem(cle) === "1";
+    return window.localStorage.getItem(cleCompte(cle, compteId)) === "1";
   } catch {
     return false;
   }
 }
 
-function poserDrapeau(cle: string, valeur: boolean): void {
+function poserDrapeau(cle: string, compteId: string, valeur: boolean): void {
   if (typeof window === "undefined") return;
   try {
-    if (valeur) window.localStorage.setItem(cle, "1");
-    else window.localStorage.removeItem(cle);
+    const cleIsolee = cleCompte(cle, compteId);
+    if (valeur) window.localStorage.setItem(cleIsolee, "1");
+    else window.localStorage.removeItem(cleIsolee);
   } catch {
     // localStorage indisponible : on ignore.
   }
@@ -80,19 +86,19 @@ function poserDrapeau(cle: string, valeur: boolean): void {
  * fonctions ci-dessous (`onRenderProfil`, `enregistrerInteraction`) le lisent
  * à chaud.
  */
-export function profilageClientActif(): boolean {
+export function profilageClientActif(compteId: string): boolean {
   if (typeof window === "undefined") return false;
   // La variable d'environnement active le profilage au démarrage.
   if (process.env.NODE_ENV === "development" || process.env.NEXT_PUBLIC_PROFILAGE === "1") {
     return true;
   }
   // Sinon, on lit le drapeau runtime persisté.
-  return lireDrapeau(CLE_DRAPEAU_CLIENT);
+  return lireDrapeau(CLE_DRAPEAU_CLIENT, compteId);
 }
 
 /** L'enregistrement client est-il en cours ? */
-export function enregistrementActif(): boolean {
-  return profilageClientActif() && lireDrapeau(CLE_ENREGISTREMENT);
+export function enregistrementActif(compteId: string): boolean {
+  return profilageClientActif(compteId) && lireDrapeau(CLE_ENREGISTREMENT, compteId);
 }
 
 /**
@@ -105,12 +111,12 @@ export function enregistrementActif(): boolean {
  * Arrêter conserve les mesures : on arrête pour lire ce que l'on vient de
  * mesurer. Le bouton « Vider » est là pour les effacer, sur demande.
  */
-export function definirEnregistrement(actif: boolean): void {
+export function definirEnregistrement(compteId: string, actif: boolean): void {
   if (actif) {
-    poserDrapeau(CLE_DRAPEAU_CLIENT, true);
-    viderMesuresClient();
+    poserDrapeau(CLE_DRAPEAU_CLIENT, compteId, true);
+    viderMesuresClient(compteId);
   }
-  poserDrapeau(CLE_ENREGISTREMENT, actif);
+  poserDrapeau(CLE_ENREGISTREMENT, compteId, actif);
 }
 
 /**
@@ -136,37 +142,37 @@ const CLE_INTERACTIONS = "profilage-interactions";
 const MAX_RENDUS = 200;
 const MAX_INTERACTIONS = 100;
 
-function lire<T>(cle: string, defaut: T): T {
-  if (!profilageClientActif()) return defaut;
+function lire<T>(cle: string, compteId: string, defaut: T): T {
+  if (!profilageClientActif(compteId)) return defaut;
   try {
-    const brut = sessionStorage.getItem(cle);
+    const brut = sessionStorage.getItem(cleCompte(cle, compteId));
     return brut ? (JSON.parse(brut) as T) : defaut;
   } catch {
     return defaut;
   }
 }
 
-function ecrire<T>(cle: string, valeur: T): void {
-  if (!profilageClientActif()) return;
+function ecrire<T>(cle: string, compteId: string, valeur: T): void {
+  if (!profilageClientActif(compteId)) return;
   try {
-    sessionStorage.setItem(cle, JSON.stringify(valeur));
+    sessionStorage.setItem(cleCompte(cle, compteId), JSON.stringify(valeur));
   } catch {
     // sessionStorage plein ou indisponible : on ignore.
   }
 }
 
 /** Callback React Profiler — enregistre chaque rendu. */
-export const onRenderProfil: ProfilerOnRenderCallback = (
+export const onRenderProfil = (compteId: string): ProfilerOnRenderCallback => (
   id,
-  phase,
+  _phase,
   actualDuration,
-  baseDuration,
+  _baseDuration,
   startTime,
   commitTime,
 ) => {
-  if (!enregistrementActif()) return;
+  if (!enregistrementActif(compteId)) return;
 
-  const rendus = lire<MesureRendu[]>(CLE_RENDUS, []);
+  const rendus = lire<MesureRendu[]>(CLE_RENDUS, compteId, []);
   rendus.push({
     composant: id,
     dureeMs: actualDuration,
@@ -176,58 +182,29 @@ export const onRenderProfil: ProfilerOnRenderCallback = (
     horodatage: Date.now(),
   });
   // On ne garde que les 200 dernières mesures.
-  ecrire(CLE_RENDUS, rendus.slice(-MAX_RENDUS));
+  ecrire(CLE_RENDUS, compteId, rendus.slice(-MAX_RENDUS));
 };
 
 /** Enregistre une interaction utilisateur. */
 export function enregistrerInteraction(
+  compteId: string,
   type: MesureInteraction["type"],
   libelle: string,
   dureeMs: number,
 ): void {
-  if (!enregistrementActif()) return;
+  if (!enregistrementActif(compteId)) return;
 
-  const interactions = lire<MesureInteraction[]>(CLE_INTERACTIONS, []);
+  const interactions = lire<MesureInteraction[]>(CLE_INTERACTIONS, compteId, []);
   interactions.push({ type, libelle, dureeMs, horodatage: Date.now() });
-  ecrire(CLE_INTERACTIONS, interactions.slice(-MAX_INTERACTIONS));
-}
-
-/**
- * Mesure la durée d'une fonction et l'enregistre comme interaction.
- *
- * Accepte aussi bien une fonction synchrone qu'asynchrone : si la fonction
- * renvoie une promesse, la durée mesurée couvre sa résolution complète.
- */
-export function mesurerInteraction<T>(
-  type: MesureInteraction["type"],
-  libelle: string,
-  fn: () => T | PromiseLike<T>,
-): T | PromiseLike<T> {
-  if (!enregistrementActif()) return fn();
-
-  const debut = performance.now();
-  try {
-    const resultat = fn();
-    if (resultat && typeof (resultat as PromiseLike<T>).then === "function") {
-      return (resultat as PromiseLike<T>).then((valeur) => {
-        enregistrerInteraction(type, libelle, performance.now() - debut);
-        return valeur;
-      });
-    }
-    enregistrerInteraction(type, libelle, performance.now() - debut);
-    return resultat;
-  } catch (e) {
-    enregistrerInteraction(type, libelle, performance.now() - debut);
-    throw e;
-  }
+  ecrire(CLE_INTERACTIONS, compteId, interactions.slice(-MAX_INTERACTIONS));
 }
 
 /** Renvoie les mesures de rendu, agrégées par composant. */
-export function rendusActuels(): {
+export function rendusActuels(compteId: string): {
   parComposant: { composant: string; appels: number; totalMs: number; maxMs: number; moyenneMs: number }[];
   total: number;
 } {
-  const rendus = lire<MesureRendu[]>(CLE_RENDUS, []);
+  const rendus = lire<MesureRendu[]>(CLE_RENDUS, compteId, []);
   const parComposant = new Map<
     string,
     { composant: string; appels: number; totalMs: number; maxMs: number; moyenneMs: number }
@@ -255,18 +232,18 @@ export function rendusActuels(): {
 }
 
 /** Renvoie les interactions enregistrées. */
-export function interactionsActuelles(): MesureInteraction[] {
-  return lire<MesureInteraction[]>(CLE_INTERACTIONS, []).sort(
+export function interactionsActuelles(compteId: string): MesureInteraction[] {
+  return lire<MesureInteraction[]>(CLE_INTERACTIONS, compteId, []).sort(
     (a, b) => b.horodatage - a.horodatage,
   );
 }
 
 /** Vide toutes les mesures client. */
-export function viderMesuresClient(): void {
+export function viderMesuresClient(compteId: string): void {
   if (typeof window === "undefined") return;
   try {
-    sessionStorage.removeItem(CLE_RENDUS);
-    sessionStorage.removeItem(CLE_INTERACTIONS);
+    sessionStorage.removeItem(cleCompte(CLE_RENDUS, compteId));
+    sessionStorage.removeItem(cleCompte(CLE_INTERACTIONS, compteId));
   } catch {
     // ignore
   }

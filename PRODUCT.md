@@ -190,7 +190,9 @@ plafonds numériques : P8 reste 🔬 jusqu'à leur confrontation à l'usage.
 ✅ **La boucle est le produit.**
 ✅ **Le référentiel appartient au compte** (ADR-026, 31/07) : il n'existe aucune
 liste universelle de compétences. Un compte démarre vide, déclare son sujet et
-construit son arborescence avec le tuteur. Le périmètre de travail reste un
+son objectif, puis corrige et valide une première branche éditable dans
+`/demarrer` avant d'ouvrir Compétences (ADR-063). Le tuteur reste disponible en
+tiroir contextuel ; il n'est pas une destination du parcours. Le périmètre reste un
 frein utile, mais par compte (`competences.active`) et non plus global.
 ✅ **Une preuve n'est jamais orpheline** (ADR-027) : une compétence sans preuve
 se supprime, une compétence qui en porte s'archive — jamais l'inverse.

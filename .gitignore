@@ -31,10 +31,8 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files
 .env*
-# Le gabarit ne contient aucune valeur : il documente les variables attendues.
-!/app/.env.example
 
 # vercel
 .vercel
@@ -43,10 +41,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Le journal d'événements (app/data/store/) est VOLONTAIREMENT versionné :
-# c'est le profil réel de l'utilisateur (application mono-utilisateur), pas du
-# cache jetable. Seuls les fichiers de tentatives en cours sont ignorés — ils
-# reflètent un exercice non terminé, sans valeur d'historique.
+# Donnée pédagogique locale historique, conservée mais non exécutée.
 /app/data/store/attempts.json
 
 # Fichier de permissions local Claude Code — personnel, ne doit pas être partagé
@@ -54,8 +49,4 @@ next-env.d.ts
 
 # Local MCP configuration
 .mcp.json
-
-# Images attachées aux TODOs dev en mode local : en production elles vivent
-# dans le bucket Supabase `dev-todos`, jamais dans le dépôt.
-/app/public/uploads/
 

@@ -6,10 +6,9 @@ import {
   activiteSurFenetre,
   calculerActivite,
   evenementsRecents,
-  photographies,
   type EvenementProgression,
 } from "./historique";
-import { autonomieDepuisIndices, autonomieObservee, qualiteDepuisNature } from "./preuve";
+import { autonomieDepuisIndices, autonomieObservee } from "./preuve";
 import {
   DOMAINES_TEST,
   REFERENTIEL_TEST,
@@ -201,29 +200,6 @@ describe("récence — protocole d'évaluation §7", () => {
     expect(a.niveau).toBe(r.niveau);
     expect(a.robustesse!).toBeLessThan(r.robustesse!);
     expect(a.explication.reserves.join(" ")).toContain("Dernière preuve il y a");
-  });
-});
-
-describe("qualité dérivée — protocole d'évaluation §6", () => {
-  it("un travail fortement guidé vaut une preuve faible, quel qu'en soit le type", () => {
-    expect(qualiteDepuisNature("transfert", "A0")).toBe("faible");
-    expect(qualiteDepuisNature("transfert", "A1")).toBe("faible");
-    expect(qualiteDepuisNature("exercice", "A1")).toBe("faible");
-  });
-
-  it("un transfert ou un projet mené en autonomie vaut une preuve forte", () => {
-    expect(qualiteDepuisNature("transfert", "A3")).toBe("forte");
-    expect(qualiteDepuisNature("projet", "A4")).toBe("forte");
-  });
-
-  it("tout le reste vaut une preuve moyenne", () => {
-    for (const t of ["exercice", "calcul", "code", "etude-de-cas", "explication"] as const) {
-      expect(qualiteDepuisNature(t, "A3")).toBe("moyenne");
-    }
-  });
-
-  it("est une fonction pure : mêmes entrées, même résultat", () => {
-    expect(qualiteDepuisNature("calcul", "A2")).toBe(qualiteDepuisNature("calcul", "A2"));
   });
 });
 
@@ -443,68 +419,6 @@ describe("evenementsRecents — équivalence avec le rejeu naïf", () => {
   it("rend une liste vide sans preuve, et supporte une limite nulle", () => {
     expect(evenementsRecents([], SKILL_PAR_CODE, 8, MAINTENANT)).toEqual([]);
     expect(evenementsRecents(jeu, SKILL_PAR_CODE, 0, MAINTENANT)).toEqual([]);
-  });
-});
-
-describe("photographies — même périmètre que l'état courant (ADR-020)", () => {
-  const preuvesDev = [
-    preuve({ skill: "DEV-01", jours: 25, contexte: "A" }),
-    preuve({ skill: "DEV-01", jours: 12, contexte: "B" }),
-    preuve({ skill: "DEV-02", jours: 5, contexte: "C" }),
-  ];
-
-  it("la dernière photographie coïncide avec l'état global courant", () => {
-    // L'invariant qui était violé : `/progression` affichait `ctx.global.scoreGlobal`
-    // (calculé sur le périmètre actif) et, dans le même bloc, un delta issu de
-    // `photographies(SKILLS, …)` — deux dénominateurs différents.
-    const photos = photographies(SKILLS_ACTIFS, preuvesDev, 30, 3, MAINTENANT, DOMAINES_TEST);
-    const attendu = calculerEtatGlobal(
-      computeAllSkillStates(SKILLS_ACTIFS, preuvesDev, MAINTENANT),
-      MAINTENANT,
-      DOMAINES_TEST,
-    );
-
-    expect(photos.at(-1)!.scoreGlobal).toBe(attendu.scoreGlobal);
-    expect(photos.at(-1)!.competencesEvaluees).toBe(attendu.competencesEvaluees);
-    expect(photos.at(-1)!.nombrePreuves).toBe(preuvesDev.length);
-  });
-
-  it("élargir le référentiel ne change PAS le score — ADR-006", () => {
-    // Garantie inversée le 31/07/2026. Avant, ce test vérifiait le contraire :
-    // ajouter des compétences non mesurées faisait chuter le score, parce
-    // qu'elles entraient au dénominateur pour leur importance pleine et au
-    // numérateur pour rien. Le score était donc anti-corrélé à l'ambition.
-    //
-    // Depuis ADR-026 le référentiel est extensible par l'utilisateur : ce
-    // défaut aurait cessé d'être une verrue documentée pour devenir une
-    // incitation structurelle à ne pas étendre son référentiel.
-    const surActifs = photographies(
-      SKILLS_ACTIFS,
-      preuvesDev,
-      30,
-      3,
-      MAINTENANT,
-      DOMAINES_TEST,
-    ).at(-1)!;
-    const surTout = photographies(SKILLS, preuvesDev, 30, 3, MAINTENANT, DOMAINES_TEST).at(-1)!;
-
-    expect(surActifs.scoreGlobal).not.toBeNull();
-    expect(surTout.scoreGlobal).toBe(surActifs.scoreGlobal);
-
-    // Ce qui change, et qui doit changer : la couverture. C'est elle qui porte
-    // désormais l'information « il reste des compétences non mesurées ».
-    const globalActifs = calculerEtatGlobal(
-      computeAllSkillStates(SKILLS_ACTIFS, preuvesDev, MAINTENANT),
-      MAINTENANT,
-      DOMAINES_TEST,
-    );
-    const globalTout = calculerEtatGlobal(
-      computeAllSkillStates(SKILLS, preuvesDev, MAINTENANT),
-      MAINTENANT,
-      DOMAINES_TEST,
-    );
-    expect(globalTout.competencesEvaluees).toBe(globalActifs.competencesEvaluees);
-    expect(globalTout.competencesTotal).toBeGreaterThan(globalActifs.competencesTotal);
   });
 });
 

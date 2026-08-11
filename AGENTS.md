@@ -137,6 +137,10 @@ Pour tout chantier non trivial :
 7. Vérifier avant merge.
 8. Documenter les décisions dans les fichiers appropriés.
 
+Toujours diagnostiquer la cause d'un défaut avant de conclure.
+En cas d'incompréhension, la formuler et demander avant de valider une décision.
+Vérifier les affirmations avec la même exigence, quelle que soit leur source.
+
 Ne pas construire par anticipation.
 
 Ne pas installer de dépendance sans confirmation.

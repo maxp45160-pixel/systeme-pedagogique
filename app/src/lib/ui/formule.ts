@@ -264,7 +264,7 @@ export function latexVersTexte(latex: string): string {
 
   // Commandes à un mot, les plus longues d'abord (`\Sigma` avant `\sigma`).
   // `Object.hasOwn` : sans lui, `\constructor` remonterait une fonction du prototype.
-  t = t.replace(/\\([A-Za-z]+)/g, (brut, nom: string) =>
+  t = t.replace(/\\([A-Za-z]+)/g, (_brut, nom: string) =>
     Object.hasOwn(SYMBOLES, nom) ? SYMBOLES[nom] : nom,
   );
 

@@ -32,6 +32,7 @@ export function ModaleCompetence({
   sujetInitial = "",
   descriptionInitiale = "",
   justificationInitiale = "",
+  suggestionAutomatique = false,
   surEnregistre,
 }: {
   onFermer: () => void;
@@ -47,6 +48,8 @@ export function ModaleCompetence({
   descriptionInitiale?: string;
   /** Explication d'un refus du tuteur, informative et non mesurante. */
   justificationInitiale?: string;
+  /** Lance immédiatement la suggestion, pour l'amorçage d'un compte neuf. */
+  suggestionAutomatique?: boolean;
   /** Permet à l'appelant de reprendre son flux après la création. */
   surEnregistre?: () => void;
 }) {
@@ -84,6 +87,7 @@ export function ModaleCompetence({
    */
   const [venuDuTuteur, setVenuDuTuteur] = useState(brancheInitiale !== undefined);
   const abandonRef = useRef<AbortController | null>(null);
+  const suggestionLanceeRef = useRef(false);
 
   useEffect(() => {
     const controleur = abandonRef;
@@ -165,6 +169,12 @@ export function ModaleCompetence({
       }
     }
   }, [sujet, compteId]);
+
+  useEffect(() => {
+    if (!suggestionAutomatique || suggestionLanceeRef.current || sujet.trim().length === 0) return;
+    suggestionLanceeRef.current = true;
+    void suggerer();
+  }, [suggestionAutomatique, sujet, suggerer]);
 
   return (
     <Modale

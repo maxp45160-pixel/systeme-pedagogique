@@ -22,7 +22,7 @@ import {
   type ReponseProfilage,
 } from "@/components/dev/profil-contenu";
 
-export function ProfilDashboard() {
+export function ProfilDashboard({ compteId }: { compteId: string }) {
   const [serveur, setServeur] = useState<ReponseProfilage | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [chargement, setChargement] = useState(true);
@@ -32,7 +32,7 @@ export function ProfilDashboard() {
   // sans écart d'hydratation.
   const clientActif = useSyncExternalStore(
     abonnerProfilageClient,
-    () => profilageClientActif(),
+    () => profilageClientActif(compteId),
     () => false,
   );
 
@@ -64,10 +64,10 @@ export function ProfilDashboard() {
   }, [charger, rafraichir]);
 
   const rafraichirMaintenant = useCallback(() => setRafraichir((n) => n + 1), []);
-  const { enCours, basculer } = useEnregistrement(rafraichirMaintenant);
+  const { enCours, basculer } = useEnregistrement(compteId, rafraichirMaintenant);
 
   const vider = async () => {
-    viderMesuresClient();
+    viderMesuresClient(compteId);
     try {
       await fetch("/api/profiling", { method: "DELETE" });
     } catch {
@@ -76,8 +76,8 @@ export function ProfilDashboard() {
     setRafraichir((n) => n + 1);
   };
 
-  const rendus = rendusActuels();
-  const interactions = interactionsActuelles();
+  const rendus = rendusActuels(compteId);
+  const interactions = interactionsActuelles(compteId);
 
   return (
     <div className="space-y-6">

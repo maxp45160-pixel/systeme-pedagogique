@@ -470,7 +470,7 @@ export function calibrer(
    * difficulté 1. Les tests ne le voyaient pas : ils passent des `Difficulte`
    * typées, jamais une valeur venue de la dorsale.
    *
-   * La colonne est désormais INTEGER (`supabase/migration-exercices.sql`).
+   * La colonne est INTEGER dans le schéma de référence.
    * Le moteur ne s'en remet pas pour autant à la dorsale : une valeur
    * inexploitable ne conseille RIEN, et le dit. Fabriquer un nombre à partir
    * d'une entrée illisible est exactement ce que P2 interdit.

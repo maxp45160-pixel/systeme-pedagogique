@@ -786,7 +786,7 @@ jamais qu'une chose « a été ajoutée » ou « mise à jour » : tu proposes, 
 export async function construireContexte(
   ctx: Contexte,
   messages: { role: "user" | "assistant"; content: string }[] = [],
-  /** Exercice explicitement ciblé par l'interface (`/tuteur?exercice=…`). */
+  /** Exercice explicitement ciblé par un tiroir contextuel. */
   exerciceId?: string,
 ): Promise<ContextePedagogique> {
   const manifeste: SectionContexte[] = [];
@@ -838,8 +838,8 @@ export async function construireContexte(
    * Un exercice ouvert change ce qui sert.
    *
    * `exerciceId` n'arrive que d'un endroit : l'interface où la personne est en
-   * train de résoudre quelque chose (`/tuteur?exercice=…`, tiroir d'une fiche
-   * d'exercice). Là, elle demande de l'aide sur CET énoncé — elle ne demande
+   * train de résoudre quelque chose (tiroir d'une fiche d'exercice). Là, elle
+   * demande de l'aide sur CET énoncé — elle ne demande
    * pas quoi faire ensuite. Le catalogue des exercices existants (jusqu'à
    * 60 lignes, il n'existe que pour empêcher le tuteur d'en proposer un
    * doublon) et les priorités du moteur de recommandation ne sont mobilisés par

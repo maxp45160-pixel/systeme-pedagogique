@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   convertirProposition,
-  DUREE_MAX_MIN,
   versDifficulte,
   versDimension,
   versDuree,
@@ -69,7 +68,7 @@ describe("versDuree", () => {
   it("refuse zéro, le négatif et l'aberrant", () => {
     expect(versDuree("0")).toBeNull();
     expect(versDuree("-10")).toBeNull();
-    expect(versDuree(String(DUREE_MAX_MIN + 1))).toBeNull();
+    expect(versDuree(String(DUREE_ESTIMEE_MAX + 1))).toBeNull();
     expect(versDuree("bientôt")).toBeNull();
   });
 
@@ -83,8 +82,6 @@ describe("versDuree", () => {
    * `lib/domain/exercice.ts`, importées par les trois.
    */
   it("refuse ce que le schéma de l'outil refuse — mêmes bornes, une seule autorité", () => {
-    expect(DUREE_MAX_MIN).toBe(DUREE_ESTIMEE_MAX);
-
     expect(versDuree(String(DUREE_ESTIMEE_MIN - 1))).toBeNull();
     expect(versDuree(String(DUREE_ESTIMEE_MIN))).toBe(DUREE_ESTIMEE_MIN);
     expect(versDuree(String(DUREE_ESTIMEE_MAX))).toBe(DUREE_ESTIMEE_MAX);

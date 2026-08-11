@@ -276,13 +276,6 @@ export type TypeExercice =
  */
 export type IntentionExercice = "decouverte" | "consolidation" | "transfert" | "revision";
 
-export const INTENTIONS_EXERCICE: Record<IntentionExercice, string> = {
-  decouverte: "Découverte — première exposition à la compétence.",
-  consolidation: "Consolidation — refaire à niveau égal pour fiabiliser.",
-  transfert: "Transfert — même compétence, contexte inédit.",
-  revision: "Révision — reprise après un délai, contre l'oubli.",
-};
-
 export type Difficulte = 1 | 2 | 3 | 4 | 5;
 
 export const DIFFICULTES: Record<Difficulte, string> = {
@@ -327,8 +320,8 @@ export interface Exercise {
   /**
    * Date de la dernière correction du contenu (ADR-047).
    *
-   * Absente tant que l'exercice n'a pas été retouché — et absente aussi tant
-   * que `supabase/migration-exercice-edition.sql` n'est pas appliquée.
+   * Absente tant que l'exercice n'a pas été retouché — et sur une base dont le
+   * schéma de référence n'est pas à jour.
    *
    * Elle existe pour une raison précise : une preuve mesure une tentative sur
    * l'énoncé **d'alors**. Corriger le texte ne rend pas cette mesure fausse,
@@ -585,17 +578,6 @@ export interface LearningSession {
   blueprint?: BlueprintSeance;
 }
 
-/** Photographie périodique, pour tracer l'évolution sans recalculer le passé. */
-export interface ProgressSnapshot {
-  date: string;
-  scoreGlobal: number | null;
-  confianceGlobale: Confiance;
-  nombrePreuves: number;
-  competencesEvaluees: number;
-  parDomaine: Record<DomaineId, { score: number | null; preuves: number }>;
-}
-
-/* ------------------------------------------------------------------ */
 /* Résultats dérivés (jamais persistés)                                */
 /* ------------------------------------------------------------------ */
 

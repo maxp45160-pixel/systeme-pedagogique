@@ -3,8 +3,8 @@ import "server-only";
 /**
  * Contexte initial du tuteur, assemblé côté serveur.
  *
- * Le même bloc était recopié dans quatre écrans (page `/tuteur`, fiche
- * exercice, fiche compétence, tiroir global). Il n'a jamais divergé, mais
+ * Le même bloc était recopié dans plusieurs écrans (fiche exercice, fiche
+ * compétence, tiroir global). Il n'a jamais divergé, mais
  * rien ne l'en empêchait : les trois champs viennent de deux appels dont
  * l'ordre et les arguments comptent.
  *

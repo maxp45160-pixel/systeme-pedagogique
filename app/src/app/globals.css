@@ -228,15 +228,9 @@
   animation: apparition var(--duree-vive) var(--courbe-sortie);
 }
 
-/* Défilement horizontal pour les textes tronqués dans le widget TODO. */
-@keyframes defilement {
-  0%, 5%    { transform: translateX(0); }
-  85%, 100% { transform: translateX(calc(-100% + 12rem)); }
-}
-
 /*
-  Coupe-circuit global du mouvement. Les jetons `--duree-*` n'ont donc pas à
-  se protéger individuellement : une seule règle désarme toute l'animation.
+  Coupe-circuit global du mouvement : une seule règle désarme toute
+  l'animation.
 */
 @media (prefers-reduced-motion: reduce) {
   *,

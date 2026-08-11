@@ -31,7 +31,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [016](#adr-016) | Suppression du mode démonstration | ✅ Acceptée (28/07) |
 | [017](#adr-017) | Suppression de la gamification (XP, paliers, badges) | ✅ Acceptée (28/07) |
 | [018](#adr-018) | Périmètre pilote : domaine Logistique | 🔄 Remplacée par ADR-020 |
-| [019](#adr-019) | Le widget de TODOs dev sort du produit | ✅ Acceptée (28/07) |
+| [019](#adr-019) | Le widget de TODOs dev sort du produit | 🔄 Remplacée par ADR-063 |
 | [020](#adr-020) | Pivot du périmètre pilote : Développement logiciel | ✅ Acceptée (29/07) |
 | [021](#adr-021) | Compression et chargement conditionnel des protocoles du tuteur | ✅ Acceptée (29/07) |
 | [022](#adr-022) | Vérification locale du jeton (`getClaims`) sur le chemin chaud | ✅ Acceptée (31/07) |
@@ -75,6 +75,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [060](#adr-060) | Observer le maximum pertinent, jamais le maximum indiscriminé | ✅ Acceptée (11/08) |
 | [061](#adr-061) | Séances : un hub et un workspace, pas quatre vues | ✅ Acceptée (11/08) |
 | [062](#adr-062) | Le pôle devient Cahier ; la relecture synthétise et toute prochaine action ouvre le focus | ✅ Acceptée (11/08) |
+| [063](#adr-063) | Amorçage direct, surfaces obsolètes retirées et Supabase obligatoire | ✅ Acceptée (11/08) |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -766,7 +767,11 @@ distinction entre le référentiel possédé et le référentiel travaillé.
 ---
 
 <a name="adr-019"></a>
-## ADR-019 — Le widget de TODOs dev sort du produit ✅
+## ADR-019 — Le widget de TODOs dev sort du produit 🔄
+
+> 🔄 **Remplacée le 11/08/2026 par [ADR-063](#adr-063).** Le widget, sa route,
+> sa table, sa fonction et son bucket sont désormais supprimés. La section
+> ci-dessous reste l'historique de la décision intermédiaire.
 
 **Date.** 28/07/2026. **Tranchée par Maxime.** Remplace [ADR-010](#adr-010).
 
@@ -4064,9 +4069,8 @@ précis.
 
 `LearningSession` reste l'unique entité (ADR-048), aucune migration DB. La
 progression et la bibliothèque disparaissent de Séances ; `/exercices/[id]`
-reste l'écran unitaire d'un exercice. Redirections conservées : `/journal` et
-`/exercices` → `/seances` ; `/progression` → `/competences` ;
-`/seances/[id]` → `/seances?session=<id>`.
+reste l'écran unitaire d'un exercice. Les anciennes routes de compatibilité ont
+ensuite été retirées par ADR-063.
 
 ### Conséquences
 
@@ -4129,6 +4133,54 @@ entrée dans le journal.
 **Alternative écartée.** Ouvrir directement `/exercices/[id]` depuis la
 prochaine action : le focus resterait alors une présentation réservée au seul
 compositeur de séances, malgré ADR-059.
+
+---
+
+<a name="adr-063"></a>
+## ADR-063 — Amorçage direct, surfaces obsolètes retirées et Supabase obligatoire ✅
+
+**Date.** 11/08/2026. **Tranchée par Maxime.** Remplace ADR-019 et la
+conservation transitoire des routes de compatibilité mentionnée par ADR-061.
+
+### Contexte
+
+La création d'un compte envoyait vers la page plein écran du tuteur, alors que
+le produit avait déjà convergé vers un tuteur contextuel en tiroir. Ce symptôme
+révélait un problème plus large : routes redondantes, exports inaccessibles,
+instructions non chargées, faux mode JSON local, scripts SQL ponctuels déjà
+appliqués et infrastructure TODO sans rôle pédagogique.
+
+### Décision
+
+- `/demarrer` enregistre le sujet et l'objectif, appelle le flux existant de
+  suggestion, puis fait corriger et valider une première branche avant un
+  `replace("/competences")`. Une erreur du moteur laisse la saisie manuelle
+  disponible ; un compte déjà amorcé ne revoit pas ce parcours.
+- Le tuteur n'est plus une route. Il reste un tiroir contextuel ; une amorce
+  explicite remplit le brouillon sans envoyer de message.
+- Les routes `/tuteur`, `/journal`, `/progression`,
+  `/competences/referentiel`, `/seances/[id]` et `/exercices` sont supprimées.
+  `/exercices/[id]` reste actif et `/dev` redirige vers `/dev/profil`.
+- Supabase devient une condition d'accès au produit. Il n'existe plus de mode
+  JSON local, de passage libre du proxy ni d'identifiant de compte de repli.
+- Le profilage reste disponible à la demande, authentifié et isolé par compte.
+  Profiler et écouteurs globaux n'existent que pendant un enregistrement actif.
+- Le système TODO de développement est supprimé sans archive : données,
+  bucket Storage, politiques, fonction, table, routes, composants et replis.
+- `schema.sql` reste la référence finale. Les migrations appliquées demeurent
+  dans l'historique Supabase ; aucun script SQL ponctuel appliqué n'est conservé
+  dans le dépôt.
+
+### Conséquences
+
+Le parcours initial a une seule destination et une seule implémentation de la
+suggestion de branche. Une configuration Supabase incomplète devient une erreur
+visible au lieu d'activer silencieusement une autre dorsale. Les surfaces et
+artefacts sans appel cessent de masquer les chemins réellement maintenus.
+
+Cette décision ne modifie aucune entité pédagogique, formule, seuil, donnée
+personnelle ou règle RLS du produit. Elle ne fait monter le statut d'aucune
+hypothèse antérieure.
 
 ---
 

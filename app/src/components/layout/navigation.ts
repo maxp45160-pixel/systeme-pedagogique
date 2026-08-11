@@ -29,8 +29,8 @@ export interface GroupeNav {
  *
  * La séparation tient au besoin (ADR-053) : le tableau de bord *pilote* (sa
  * prochaine action), Cahier *travaille* (le hub et le workspace, ADR-061),
- * Compétences *suit* (l'état). Les routes `/exercices`, `/progression` et
- * `/journal` ne subsistent que comme redirections (ADR-061).
+ * Compétences *suit* (l'état). Les anciennes surfaces parallèles ont été
+ * retirées : le rail ne décrit que les trois destinations actives (ADR-063).
  */
 export const NAVIGATION: GroupeNav[] = [
   {
@@ -67,7 +67,7 @@ export const NAV_MOBILE: Entree[] = NAVIGATION.flatMap((groupe) => groupe.entree
 
 /**
  * Une destination est « active » si l'URL courante l'égale ou en descend —
- * `/competences/domaine/x` active l'entrée `/competences`, mais `/exercices`
+ * `/competences/domaine/x` active l'entrée `/competences`, mais une autre route
  * n'active pas `/`. Partagée entre le rail (desktop) et la barre basse
  * (mobile) : les deux doivent s'accorder sur la même page courante, pas
  * chacune sa propre règle.

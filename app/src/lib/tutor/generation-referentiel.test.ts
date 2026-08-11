@@ -22,6 +22,7 @@ import {
 } from "./generation-referentiel";
 import { OUTIL_REFERENTIEL_COMPLET, validerAppelOutil } from "./outils";
 import type { Referentiel, Skill } from "@/lib/domain/types";
+import { REFERENTIEL_VIDE } from "@/lib/domain/referentiel.fixture";
 import type { MoteurTuteur } from "./moteurs";
 import type { PropositionReferentiel } from "./proposition";
 
@@ -42,12 +43,6 @@ const REFERENTIEL: Referentiel = {
   ],
   skills: [LOG_10],
   actifs: [LOG_10],
-} as unknown as Referentiel;
-
-const REFERENTIEL_VIDE: Referentiel = {
-  domaines: [],
-  skills: [],
-  actifs: [],
 } as unknown as Referentiel;
 
 const BRANCHE = {

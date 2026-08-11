@@ -3,8 +3,8 @@
 /**
  * Modale de génération d'exercice — créer là où on est.
  *
- * Un composant, trois points de montage : `/` (carte Prochaine action),
- * `/exercices` (en-tête), `/competences/[code]`.
+ * Un composant partagé par les points de génération contextuels : tableau de
+ * bord, fiche compétence, tiroir du tuteur et évolution du référentiel.
  *
  * La compétence est pré-remplie par `recommander()`, changeable. La difficulté
  * et l'angle sont dérivés par `calibrer()` et **affichés avec leur source**,

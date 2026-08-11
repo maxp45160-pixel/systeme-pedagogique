@@ -26,9 +26,7 @@
  * bruit. C'est le maillon « génération » de la boucle : il ne doit pas pouvoir
  * tomber en silence.
  */
-import { cleParCompte } from "@/lib/ui/stockage-session";
 
-export const MARQUEUR_EXERCICE = "PROPOSITION D'EXERCICE";
 export const MARQUEUR_REFERENTIEL = "PROPOSITION DE RÉFÉRENTIEL";
 
 /* ------------------------------------------------------------------ */
@@ -113,31 +111,6 @@ export interface PropositionExercice {
   criteres: { dimension: string; libelle: string }[];
   /** Pourquoi cet exercice, brut — voir `IntentionExercice`. Vide = non renseignée. */
   intention?: string;
-}
-
-/**
- * Clé de passage du chat vers l'écran de validation, via `sessionStorage`.
- *
- * Pourquoi pas l'URL, comme pour les preuves : un énoncé et sa correction
- * dépassent vite la longueur exploitable d'une adresse, et la troncature serait
- * silencieuse. L'URL ne porte donc qu'un drapeau (`?proposition=1`) qui ouvre
- * l'écran ; le contenu passe par la session du navigateur.
- *
- * ⚠️ Deux corrections du 02/08/2026, dans la même signature :
- *
- * 1. **Par compte.** C'était une constante globale, en violation directe de la
- *    règle de `stockage-session.ts` — deux comptes sur le même navigateur
- *    voyaient la même proposition en attente. ADR-029 un cran plus bas.
- *
- * 2. **Une FILE, pas une valeur.** Le tuteur sait produire plusieurs exercices
- *    par tour — les deux moteurs accumulent les appels d'outil, et le parseur
- *    texte extrait déjà plusieurs blocs. Mais chaque clic « Revoir et ajouter »
- *    écrasait la clé unique : générer les exercices d'un domaine se faisait un
- *    par un, avec un aller-retour vers le chat entre chacun. La valeur stockée
- *    est désormais un `PropositionExercice[]`.
- */
-export function cleExercicesProposes(compteId: string): string {
-  return cleParCompte("propositions-exercice", compteId);
 }
 
 /** Étiquettes reconnues, dans l'ordre du gabarit. */
@@ -243,54 +216,6 @@ function tous(champs: Map<string, string[]>, etiquette: string): string[] {
   return (champs.get(etiquette) ?? []).map((v) => v.trim()).filter((v) => v.length > 0);
 }
 
-function nettoyerDimension(brut: string): string {
-  return brut.replace(EMPHASE, "").trim().toLowerCase();
-}
-
-/** « comprehension — Sait expliquer X » → { dimension, libelle }. */
-function decouperCritere(brut: string): { dimension: string; libelle: string } {
-  // `[\s\S]` plutôt que le drapeau `s` : la cible TypeScript du projet est
-  // antérieure à ES2018, où ce drapeau n'existe pas.
-  const separation = brut.match(/^([\s\S]*?)\s*[—–-]\s*([\s\S]*)$/);
-  // La dimension doit rester comparable au référentiel : le tuteur l'écrit
-  // souvent en italique (`*application*`), et « application » n'est pas
-  // « *application* » pour le formulaire qui la relit.
-  if (!separation) {
-    return { dimension: nettoyerDimension(brut), libelle: "" };
-  }
-  return {
-    dimension: nettoyerDimension(separation[1]),
-    libelle: sansEmphaseEnveloppante(separation[2].trim()),
-  };
-}
-
-export function extrairePropositionsExercice(texte: string): PropositionExercice[] {
-  const blocs = texte.split(MARQUEUR_EXERCICE).slice(1);
-
-  return blocs
-    .map((bloc) => {
-      const champs = decouperChamps(bloc);
-      return {
-        titre: premierNet(champs, "Titre"),
-        domaine: premierNet(champs, "Domaine").toLowerCase(),
-        type: premierNet(champs, "Type").toLowerCase(),
-        difficulte: premierNet(champs, "Difficulté"),
-        competences: premierNet(champs, "Compétences")
-          .split(",")
-          .map((c) => c.trim().replace(EMPHASE, "").toUpperCase())
-          .filter((c) => c.length > 0),
-        dureeEstimeeMin: premier(champs, "Durée estimée").replace(/[^0-9]/g, ""),
-        enonce: premier(champs, "Énoncé"),
-        indices: tous(champs, "Indice"),
-        correction: premier(champs, "Correction"),
-        criteres: tous(champs, "Critère").map(decouperCritere),
-      };
-    })
-    // Un titre et un énoncé sont le minimum exploitable : en dessous, la
-    // proposition ne remplirait rien d'utile dans le formulaire.
-    .filter((p) => p.titre.length > 0 && p.enonce.length > 0);
-}
-
 /**
  * Ce qu'un exercice exige, indépendamment de la forme de ses champs.
  *
@@ -359,17 +284,6 @@ export interface PropositionReferentiel {
   /** Une entrée par ligne « Compétence : <palier> | <importance> | <intitulé> ». */
   competences: { palier: string; importance: string; intitule: string }[];
   justification: string;
-}
-
-/**
- * Clé de passage du chat vers l'écran de validation du référentiel.
- *
- * Comme pour l'exercice, et pour la même raison : une branche de huit
- * compétences dépasse la longueur exploitable d'une adresse, et la troncature
- * serait silencieuse. Par compte, comme tout ce qui passe par le navigateur.
- */
-export function cleReferentielPropose(compteId: string): string {
-  return cleParCompte("proposition-referentiel", compteId);
 }
 
 const ETIQUETTES_REFERENTIEL = [

@@ -1,10 +1,13 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { compteCourant } from "@/lib/supabase/server";
 import { supabaseConfigure } from "@/lib/supabase/config";
 import { Sidebar } from "@/components/layout/sidebar";
 import { NavMobile } from "@/components/layout/nav-mobile";
 import { CompteMobile } from "@/components/layout/compte";
 import { ProfilPage } from "@/components/dev/profil-page";
+import { ProfilWrapper } from "@/components/dev/profil-wrapper";
+import { ProfilTracker } from "@/components/dev/profil-tracker";
 import { TuteurGlobal } from "@/components/tuteur/tuteur-global";
 
 /**
@@ -16,6 +19,7 @@ import { TuteurGlobal } from "@/components/tuteur/tuteur-global";
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const compte = await compteCourant();
+  if (!compte) redirect("/login");
 
   const session = {
     configure: supabaseConfigure,
@@ -30,7 +34,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     // `cle-client.ts` et `cleParCompte`). Toujours présent quand Supabase est
     // configuré : `compteCourant()` renvoie `null` seulement sans session, et
     // `dorsaleCompte()` redirige avant d'atteindre cette mise en page.
-    compteId: compte?.id ?? "local",
+    compteId: compte.id,
   };
 
   return (
@@ -63,9 +67,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         */}
         <main className="flex flex-1 flex-col px-4 sm:px-6 lg:px-10">
           <div className="mx-auto w-full max-w-7xl flex-1 pb-24 pt-6 lg:border-l lg:border-marge lg:pb-12 lg:pl-10 lg:pt-8">
-            <ProfilPage>
-              {children}
-            </ProfilPage>
+            <ProfilWrapper compteId={compte.id}>
+              <ProfilTracker compteId={compte.id} />
+              <ProfilPage compteId={compte.id}>{children}</ProfilPage>
+            </ProfilWrapper>
           </div>
         </main>
       </div>

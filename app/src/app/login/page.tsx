@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { FormulaireConnexion } from "./formulaire";
 import { supabaseConfigure } from "@/lib/supabase/config";
 import { Carte } from "@/components/ui/primitives";
@@ -50,24 +49,17 @@ export default async function PageConnexion({
             <FormulaireConnexion destination={destination} erreurInitiale={erreur ?? null} />
           ) : (
             <div className="space-y-3 text-sm">
-              <p className="font-medium text-texte">Comptes non activés</p>
+              <p className="font-medium text-texte">Configuration Supabase requise</p>
               <p className="text-xs leading-relaxed text-texte-attenue">
-                Ce déploiement n&apos;a pas de clés Supabase. L&apos;application
-                fonctionne en mode local mono-utilisateur : le journal reste dans{" "}
-                <code className="font-mono">app/data/store/</code>.
+                Ce déploiement ne possède pas les clés publiques Supabase requises.
+                Aucune donnée n&apos;est lue ou écrite tant que la configuration est incomplète.
               </p>
               <p className="text-xs leading-relaxed text-texte-attenue">
-                Pour activer les comptes, renseignez{" "}
+                Renseignez{" "}
                 <code className="font-mono">NEXT_PUBLIC_SUPABASE_URL</code> et{" "}
                 <code className="font-mono">NEXT_PUBLIC_SUPABASE_ANON_KEY</code>, puis
                 redémarrez le serveur.
               </p>
-              <Link
-                href="/"
-                className="inline-flex h-9 items-center rounded-md border border-bordure-forte bg-surface px-3.5 text-sm font-medium transition-colors hover:bg-surface-2"
-              >
-                Continuer en local
-              </Link>
             </div>
           )}
         </Carte>

@@ -1,10 +1,8 @@
 /**
  * Configuration Supabase — point unique de lecture des variables d'environnement.
  *
- * L'application doit rester utilisable sans Supabase : tant que les deux
- * variables ne sont pas renseignées, le système retombe sur le journal JSON
- * local mono-utilisateur (comportement historique). C'est `supabaseConfigure`
- * qui arbitre, jamais un `try/catch` silencieux.
+ * Supabase est obligatoire. `supabaseConfigure` permet d'afficher une erreur
+ * explicite avant tout accès produit ; il n'active aucun stockage de repli.
  */
 
 export const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";

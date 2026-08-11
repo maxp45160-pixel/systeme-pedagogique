@@ -99,8 +99,6 @@ export function assemblerReferentiel(domaines: Domaine[], skills: Skill[]): Refe
  * ADR-026. L'interface doit le distinguer d'un référentiel sans preuve — le
  * premier envoie construire, le second envoie mesurer.
  */
-export const REFERENTIEL_VIDE: Referentiel = assemblerReferentiel([], []);
-
 /**
  * Libellé lisible d'un domaine, ou son identifiant à défaut.
  *
@@ -450,20 +448,6 @@ export function scinderRetraits(
   }
 
   return { supprimees, archivees };
-}
-
-/**
- * Un domaine ne s'efface que si aucune de ses compétences ne porte de preuve.
- * Sinon il est archivé avec elles.
- */
-export function modeRetraitDomaine(
-  domaineId: string,
-  referentiel: Referentiel,
-  preuvesParCode: Map<string, number>,
-): ModeRetrait {
-  const membres = referentiel.skills.filter((s) => s.domaine === domaineId);
-  const porteUnePreuve = membres.some((s) => (preuvesParCode.get(s.code) ?? 0) > 0);
-  return porteUnePreuve ? "archivage" : "suppression";
 }
 
 /* ------------------------------------------------------------------ */

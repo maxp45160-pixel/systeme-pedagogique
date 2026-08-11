@@ -334,10 +334,8 @@ function ModaleEvolution({
                   </p>
                 </div>
                 {/*
-                  Le vrai bouton de génération, pas un lien vers une page qui
-                  saurait lire des paramètres. La première version pointait vers
-                  `/exercices?generer=…&theme=…` — des paramètres que cette
-                  route ne lit pas : le lien ne faisait rien.
+                  Le vrai bouton de génération remplace l'ancien lien à
+                  paramètres, qui ne déclenchait aucune action.
                 */}
                 <BoutonGenerer
                   competences={cible.competences}

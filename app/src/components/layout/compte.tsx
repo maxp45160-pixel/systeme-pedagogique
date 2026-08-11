@@ -530,8 +530,8 @@ function ReglagesTuteur({ compteId }: { compteId: string }) {
       )}
 
       <p className="text-[0.6875rem] leading-relaxed text-texte-discret">
-        ⚠️ La clé est stockée dans ton navigateur ({compteId === "local" ? "profil local" : "compte isolé"}) et
-        n&apos;est jamais envoyée ailleurs qu&apos;à la route du tuteur (même origine).
+        ⚠️ La clé est stockée dans ton navigateur, isolée par compte, et n&apos;est
+        jamais envoyée ailleurs qu&apos;à la route du tuteur (même origine).
       </p>
 
       <div className="flex gap-1.5">

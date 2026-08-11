@@ -12,6 +12,7 @@
 
 import { useEffect } from "react";
 import { enregistrerInteraction } from "@/lib/profiling/client";
+import { useProfilageEnCours } from "@/lib/profiling/utiliser-enregistrement";
 
 const MAX_LIBELLE = 40;
 
@@ -81,8 +82,10 @@ function extraireLibelle(cible: HTMLElement): string {
   return cls || interactif.tagName.toLowerCase();
 }
 
-export function ProfilTracker() {
+export function ProfilTracker({ compteId }: { compteId: string }) {
+  const actif = useProfilageEnCours(compteId);
   useEffect(() => {
+    if (!actif) return;
     function handleClick(e: MouseEvent) {
       const cible = e.target as HTMLElement;
       if (!cible) return;
@@ -92,11 +95,11 @@ export function ProfilTracker() {
       if (cible.closest("[data-profiling-ignore]")) return;
 
       const libelle = extraireLibelle(cible);
-      enregistrerInteraction("clic", libelle, 0);
+      enregistrerInteraction(compteId, "clic", libelle, 0);
     }
 
     function handleNavigation() {
-      enregistrerInteraction("navigation", window.location.pathname, 0);
+      enregistrerInteraction(compteId, "navigation", window.location.pathname, 0);
     }
 
     // Popstate capte les navigations back/forward.
@@ -109,7 +112,7 @@ export function ProfilTracker() {
       window.removeEventListener("popstate", handleNavigation);
       document.removeEventListener("click", handleClick, true);
     };
-  }, []);
+  }, [actif, compteId]);
 
   return null;
 }

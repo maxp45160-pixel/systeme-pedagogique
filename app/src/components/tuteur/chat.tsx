@@ -409,12 +409,12 @@ const ChatInput = memo(function ChatInput({
 /* ------------------------------------------------------------------ */
 
 export interface ProprietesChat {
-  /** Manifeste et moteur, calculés côté serveur au rendu de la page. */
+  /** Manifeste et moteur, calculés côté serveur au rendu du tiroir. */
   etatInitial: EtatContexteTuteur;
   competenceCiblee?: string;
   amorce?: string;
   /**
-   * Exercice depuis lequel on est arrivé (`/tuteur?exercice=…`).
+   * Exercice ciblé par le tiroir.
    *
    * Renvoyé à la route à chaque message : c'est ce qui met l'énoncé dans le
    * contexte, plutôt que d'obliger à le recoller à la main.
@@ -539,7 +539,7 @@ function ChatHydrate({
    *
    * `ChatTuteur` est démonté à toute navigation — y compris celle que ses
    * propres cartes de proposition provoquent. Aller relire une proposition
-   * dans `/exercices` et revenir remontait un chat vide : la conversation ne
+   * sur sa fiche et revenir remontait un chat vide : la conversation ne
    * survivait pas au geste que l'interface elle-même propose.
    *
    * Lecture dans l'initialiseur, jamais dans un effet : le composant n'est
@@ -1025,17 +1025,12 @@ function ChatHydrate({
   const cleAbsente = !etat.cleConfiguree;
 
   /*
-   * L'amorce ne pré-remplit que sur une conversation vide.
-   *
-   * Elle vient de `/demarrer` ou d'une fiche compétence, en `searchParams` :
-   * elle reste dans l'adresse tant qu'on n'en change pas. La réappliquer sur
-   * une conversation retrouvée reproposerait le message d'ouverture à chaque
-   * retour sur la page, alors que la discussion est déjà engagée.
+   * Une amorce explicite fournie par un déclencheur contextuel prime sur le
+   * repli d'une conversation vide. Le tiroir est remonté à chaque ouverture :
+   * le brouillon est donc proposé une fois, sans être envoyé automatiquement.
    */
   const saisieInitiale =
-    messages.length > 0
-      ? ""
-      : (amorce ?? (competenceCiblee ? `Explique-moi ${competenceCiblee}.` : ""));
+    amorce ?? (messages.length === 0 && competenceCiblee ? `Explique-moi ${competenceCiblee}.` : "");
 
   const ouvrirBranche = useCallback((b: PropositionReferentiel) => {
     setBrancheEnAttente({

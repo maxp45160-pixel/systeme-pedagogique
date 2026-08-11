@@ -27,23 +27,27 @@ export interface Enregistrement {
   basculer: () => Promise<void>;
 }
 
+export function useProfilageEnCours(compteId: string): boolean {
+  return useSyncExternalStore(
+    abonnerProfilageClient,
+    () => enregistrementActif(compteId),
+    () => false,
+  );
+}
+
 /**
  * @param apresBascule appelé une fois les deux côtés alignés — sert à
  *   rafraîchir l'affichage sans attendre le prochain tick automatique.
  */
-export function useEnregistrement(apresBascule?: () => void): Enregistrement {
+export function useEnregistrement(compteId: string, apresBascule?: () => void): Enregistrement {
   // `enregistrementActif()` lit `window` : faux au SSR, vrai au client.
   // `useSyncExternalStore` fournit la bonne valeur de chaque côté sans écart
   // d'hydratation.
-  const enCours = useSyncExternalStore(
-    abonnerProfilageClient,
-    () => enregistrementActif(),
-    () => false,
-  );
+  const enCours = useProfilageEnCours(compteId);
 
   const basculer = useCallback(async () => {
-    const cible = !enregistrementActif();
-    definirEnregistrement(cible);
+    const cible = !enregistrementActif(compteId);
+    definirEnregistrement(compteId, cible);
     try {
       await fetch("/api/profiling", {
         method: "POST",
@@ -55,7 +59,7 @@ export function useEnregistrement(apresBascule?: () => void): Enregistrement {
       // a bien basculé. L'écart est visible dans le panneau.
     }
     apresBascule?.();
-  }, [apresBascule]);
+  }, [apresBascule, compteId]);
 
   return { enCours, basculer };
 }

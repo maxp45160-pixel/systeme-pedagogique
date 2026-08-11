@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { ProfilDashboard } from "@/components/dev/profil-dashboard";
+import { compteCourant } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 
 /**
  * Tableau de bord de profilage — mesure et trace les lenteurs.
@@ -17,7 +19,9 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function ProfilPage() {
+export default async function ProfilPage() {
+  const compte = await compteCourant();
+  if (!compte) redirect("/login");
   return (
     <main className="mx-auto w-full max-w-4xl px-6 py-12">
       <h1 className="font-serif text-2xl tracking-tight">Profilage</h1>
@@ -27,7 +31,7 @@ export default function ProfilPage() {
       </p>
 
       <div className="mt-8">
-        <ProfilDashboard />
+        <ProfilDashboard compteId={compte.id} />
       </div>
     </main>
   );
