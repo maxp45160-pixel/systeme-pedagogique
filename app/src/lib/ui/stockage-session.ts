@@ -23,6 +23,27 @@ export function cleParCompte(usage: string, compteId: string): string {
 }
 
 /**
+ * Clé du fil de conversation du tuteur — un fil par exercice.
+ *
+ * Il n'y avait qu'une conversation par compte, quel que soit l'exercice
+ * ouvert. Le contexte pédagogique envoyé au serveur, lui, suivait bien
+ * l'exercice courant (`serialiserExerciceEnCours`) : l'historique affiché
+ * parlait donc d'un exercice pendant que le tuteur en lisait un autre. Rien
+ * n'était perdu, mais les deux se contredisaient, et seule la personne
+ * pouvait s'en apercevoir.
+ *
+ * Sans exercice — le bouton flottant, une fiche compétence — le fil général
+ * garde la clé historique : la renommer viderait les conversations ouvertes
+ * au moment du déploiement.
+ */
+export function cleConversationTuteur(compteId: string, exerciceId?: string): string {
+  return cleParCompte(
+    exerciceId ? `conversation:exercice:${exerciceId}` : "conversation",
+    compteId,
+  );
+}
+
+/**
  * Toutes les fonctions sont silencieuses en cas d'échec.
  *
  * `sessionStorage` lève en navigation privée stricte et quand le quota est

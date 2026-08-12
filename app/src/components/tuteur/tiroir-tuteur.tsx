@@ -119,6 +119,17 @@ export function TiroirTuteur({
           <>
             <div className="min-h-0 flex-1 overflow-y-auto">
               <ChatTuteur
+                /*
+                 * Remonter quand on change d'exercice.
+                 *
+                 * `ChatTuteur` lit son historique dans l'initialiseur de
+                 * `useState` — une seule fois. Sans cette clé, passer d'un
+                 * exercice à l'autre sans fermer le tiroir garderait les
+                 * messages du précédent en mémoire tout en écrivant sous la
+                 * nouvelle clé de session : le fil du nouvel exercice serait
+                 * écrasé par celui de l'ancien.
+                 */
+                key={exerciceCible ?? "general"}
                 etatInitial={etatInitial}
                 competenceCiblee={competenceCiblee}
                 amorce={amorce}

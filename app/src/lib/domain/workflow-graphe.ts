@@ -460,10 +460,19 @@ export const GRAPHE_WORKFLOW: GrapheWorkflow = {
       libelle: "Vue Liste",
     },
     {
+      /*
+       * Depuis le graphe, la fiche s'ouvre en tiroir par la route
+       * d'interception `@fiche/(.)competences/[code]` : le graphe reste monté
+       * derrière, avec son zoom, sa caméra et ses filtres — trois états
+       * locaux qu'aucune navigation ne restaurerait, faute d'être écrits
+       * quelque part. L'état atteint reste la fiche, d'où le même nœud ;
+       * l'interception ne joue que sur un clic, un rechargement rend la page
+       * pleine.
+       */
       source: "page:/competences?vue=graphe",
       target: "page:/competences/{code}",
       type: "navigation",
-      libelle: "Nœud compétence",
+      libelle: "Nœud compétence (fiche en tiroir, graphe conservé)",
     },
     {
       source: "page:/competences?vue=graphe",
@@ -860,10 +869,17 @@ export const GRAPHE_WORKFLOW: GrapheWorkflow = {
     /* Tiroir du tuteur                                                 */
     /* ════════════════════════════════════════════════════════════════ */
     {
+      /*
+       * La surface de génération existe bien depuis le tiroir, mais elle s'y
+       * pose **en ligne** (`presentation="inline"`), pas en modale par-dessus :
+       * le tiroir est lui-même une `Modale`, et empiler deux `aria-modal`
+       * imbriquait deux pièges de focus. Le nœud décrit l'état atteint, pas la
+       * coquille qui le porte — la transition, elle, est inchangée.
+       */
       source: "tiroir:tuteur",
       target: "modal:generer-exercice",
       type: "ouverture",
-      libelle: "Exercice proposé par le tuteur",
+      libelle: "Exercice proposé par le tuteur (en ligne dans le tiroir)",
       condition: "proposition d'exercice",
     },
     {

@@ -8,7 +8,12 @@ import { preparerPromptComplet } from "@/lib/tutor/actions";
 import type { SectionContexte } from "@/lib/tutor/contexte";
 import { MAX_MESSAGES_FENETRE } from "@/lib/tutor/fenetre";
 import { useEstHydrate } from "@/lib/ui/hydratation";
-import { cleParCompte, ecrireSession, effacerSession, lireSession } from "@/lib/ui/stockage-session";
+import {
+  cleConversationTuteur,
+  ecrireSession,
+  effacerSession,
+  lireSession,
+} from "@/lib/ui/stockage-session";
 import {
   EVENEMENT_CHANGEMENT_CONFIG,
   decrireConfigClient,
@@ -532,7 +537,8 @@ function ChatHydrate({
     modele: configClient ? decrireConfigClient(configClient) : etatServeur.modele,
   };
 
-  const cleConversation = cleParCompte("conversation", compteId);
+  /** Un fil par exercice, un fil général hors exercice — voir la fonction. */
+  const cleConversation = cleConversationTuteur(compteId, exerciceCible);
 
   /**
    * La conversation reprend là où elle s'était arrêtée.
@@ -1259,7 +1265,17 @@ function ChatHydrate({
       )}
 
       {exerciceEnAttente && (
+        /*
+         * `inline` et non une modale : ce chat vit déjà dans le tiroir, qui
+         * est une `Modale`. Ouvrir une seconde surface `aria-modal` par-dessus
+         * imbriquait deux pièges de focus, et `Échap` fermait celle qui avait
+         * posé son écouteur en dernier — pas celle qu'on regarde.
+         *
+         * La proposition se relit donc dans la conversation qui l'a produite,
+         * sans rien recouvrir.
+         */
         <ModaleExercice
+          presentation="inline"
           onFermer={() => setExerciceEnAttente(null)}
           competences={competencesModale}
           competenceInitiale={exerciceEnAttente.competences[0] ?? ""}

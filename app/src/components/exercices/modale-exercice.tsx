@@ -26,7 +26,7 @@
  *     défaut (ADR-034, P2). La modale affiche alors ce qui cloche.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { BandeauInfo, Bouton, Etiquette, PointActif } from "@/components/ui/primitives";
 import { Modale } from "@/components/ui/modale";
@@ -57,6 +57,7 @@ export function ModaleExercice({
   propositionInitiale,
   competencesCibles,
   ouvrirDansCahierApresAcceptation = false,
+  presentation = "modale",
 }: {
   onFermer: () => void;
   competences: CompetenceModale[];
@@ -93,6 +94,16 @@ export function ModaleExercice({
   propositionInitiale?: PropositionExercice;
   /** Depuis la prochaine action, accepter enchaîne directement sur le workspace focus. */
   ouvrirDansCahierApresAcceptation?: boolean;
+  /**
+   * Où le contenu se pose. `modale` par défaut — la coquille flottante.
+   *
+   * `inline` sert au tiroir du tuteur, qui est **lui-même** une `Modale` :
+   * empiler une seconde surface `aria-modal` par-dessus la première imbrique
+   * deux pièges de focus et rend `Échap` ambigu — la touche ferme celle qui a
+   * posé son écouteur en dernier, jamais celle que la personne regarde. Le
+   * contenu est identique ; seule la coquille disparaît.
+   */
+  presentation?: "modale" | "inline";
 }) {
   const router = useRouter();
   /**
@@ -353,11 +364,7 @@ export function ModaleExercice({
   );
 
   return (
-    <Modale
-      titre="Générer un exercice"
-      sousTitre="Relis la proposition : accepte-la ou indique au tuteur ce qu’il doit modifier."
-      onFermer={onFermer}
-    >
+    <EnveloppeGeneration presentation={presentation} onFermer={onFermer}>
       <>
         {phase === "formulaire" && codesLot && (
           <div className="mt-4 space-y-4">
@@ -705,6 +712,66 @@ export function ModaleExercice({
           </div>
         )}
       </>
-    </Modale>
+    </EnveloppeGeneration>
+  );
+}
+
+const TITRE_GENERATION = "Générer un exercice";
+const SOUS_TITRE_GENERATION =
+  "Relis la proposition : accepte-la ou indique au tuteur ce qu’il doit modifier.";
+
+/**
+ * La coquille, et elle seule.
+ *
+ * Le contenu de la génération est identique dans les deux présentations : on
+ * n'en duplique pas une ligne. Ce composant ne décide que de ce qui l'entoure.
+ *
+ * En `inline`, pas de `role="dialog"`, pas d'`aria-modal`, pas de portail :
+ * l'hôte (le tiroir du tuteur) porte déjà tout cela. Un `<section>` avec son
+ * `aria-labelledby` suffit à nommer la région, et la fermeture reste offerte —
+ * elle abandonne la proposition sans quitter la conversation.
+ */
+function EnveloppeGeneration({
+  presentation,
+  onFermer,
+  children,
+}: {
+  presentation: "modale" | "inline";
+  onFermer: () => void;
+  children: ReactNode;
+}) {
+  const idTitre = useId();
+
+  if (presentation === "modale") {
+    return (
+      <Modale titre={TITRE_GENERATION} sousTitre={SOUS_TITRE_GENERATION} onFermer={onFermer}>
+        {children}
+      </Modale>
+    );
+  }
+
+  return (
+    <section
+      aria-labelledby={idTitre}
+      className="mt-4 rounded-lg border border-bordure bg-surface-2 p-4"
+    >
+      <div className="flex items-start justify-between gap-3 border-b border-bordure pb-3">
+        <div className="min-w-0">
+          <h3 id={idTitre} className="font-serif text-sm font-medium">
+            {TITRE_GENERATION}
+          </h3>
+          <p className="mt-0.5 text-xs text-texte-discret">{SOUS_TITRE_GENERATION}</p>
+        </div>
+        <button
+          type="button"
+          onClick={onFermer}
+          aria-label="Abandonner la proposition"
+          className="shrink-0 rounded-md px-2 py-1 text-sm text-texte-attenue transition-colors hover:bg-surface hover:text-texte"
+        >
+          ✕
+        </button>
+      </div>
+      {children}
+    </section>
   );
 }

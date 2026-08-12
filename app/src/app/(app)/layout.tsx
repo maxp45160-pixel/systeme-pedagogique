@@ -16,7 +16,19 @@ import { TuteurGlobal } from "@/components/tuteur/tuteur-global";
  * `/competences`. Il sépare seulement les pages qui ont besoin du cadre de
  * celles qui n'en veulent pas (connexion, retour OAuth).
  */
-export default async function AppLayout({ children }: { children: React.ReactNode }) {
+export default async function AppLayout({
+  children,
+  fiche,
+}: {
+  children: React.ReactNode;
+  /**
+   * Créneau parallèle `@fiche` — vide partout sauf sur l'interception de
+   * `/competences/[code]`, où il porte le tiroir ouvert depuis le graphe.
+   * Rendu hors du flux principal : le graphe reste monté derrière, avec son
+   * zoom et ses filtres.
+   */
+  fiche: React.ReactNode;
+}) {
   const compte = await compteCourant();
   if (!compte) redirect("/login");
 
@@ -69,6 +81,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
         </main>
       </div>
+
+      {fiche}
 
       <NavMobile />
       {/*
