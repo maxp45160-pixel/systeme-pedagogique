@@ -222,28 +222,28 @@ function VueTousLesDomaines({
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-y-auto bg-surface-2/30">
-      <header className="border-b border-bordure bg-surface px-6 py-6 lg:px-8 shrink-0">
-        <nav aria-label="Fil d’Ariane" className="flex items-center gap-2 min-h-[2.25rem] text-xs text-texte-discret">
-          {!sidebarOuverte && setSidebarOuverte && (
-            <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />
-          )}
-          <button
-            type="button"
-            onClick={revenirGrapheGlobal}
-            className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
-          >
-            Graphe global
-          </button>
-          <span className="text-texte-discret/60">/</span>
-          <span className="font-semibold text-texte">{libelleFil}</span>
-        </nav>
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="font-serif text-2xl font-medium tracking-tight text-texte">{titrePrincipal}</h2>
-            <p className="mt-1 text-xs text-texte-attenue">
-              {sousTitrePrincipal}
-            </p>
-          </div>
+      <header className="border-b border-bordure bg-surface shrink-0">
+        <div className="flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure/50 px-6 shrink-0">
+          <nav aria-label="Fil d’Ariane" className="flex items-center gap-2 text-xs text-texte-discret min-w-0">
+            {!sidebarOuverte && setSidebarOuverte && (
+              <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />
+            )}
+            <button
+              type="button"
+              onClick={revenirGrapheGlobal}
+              className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline shrink-0"
+            >
+              Graphe global
+            </button>
+            <span className="text-texte-discret/60 shrink-0">/</span>
+            <span className="font-semibold text-texte truncate">{libelleFil}</span>
+          </nav>
+        </div>
+        <div className="px-6 py-5 lg:px-8">
+          <h2 className="font-serif text-2xl font-medium tracking-tight text-texte">{titrePrincipal}</h2>
+          <p className="mt-1 text-xs text-texte-attenue">
+            {sousTitrePrincipal}
+          </p>
         </div>
       </header>
 
@@ -813,52 +813,55 @@ export function EspaceDocumentaire({
             />
           ) : selectionnee ? (
             <>
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-bordure px-6 pb-5 pt-3.5 shrink-0">
+              <div className="flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure/50 px-6 shrink-0 bg-surface">
+                <nav aria-label="Fil d’Ariane" className="flex items-center gap-2 text-xs text-texte-discret min-w-0">
+                  {!sidebarOuverte && (
+                    <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />
+                  )}
+                  <button
+                    type="button"
+                    onClick={revenirGrapheGlobal}
+                    className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline shrink-0"
+                  >
+                    Graphe global
+                  </button>
+                  {selectionnee.dossier.split("/").map((partie, index) => (
+                    <span key={index} className="flex items-center gap-1.5 shrink-0">
+                      <span className="text-texte-discret/60">/</span>
+                      {partie === "Domaines" ? (
+                        <button
+                          type="button"
+                          onClick={() => ouvrirElement("domaines")}
+                          className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
+                        >
+                          Domaines
+                        </button>
+                      ) : partie === "Transversal" ? (
+                        <button
+                          type="button"
+                          onClick={() => ouvrirElement("transversal")}
+                          className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
+                        >
+                          Transversal
+                        </button>
+                      ) : partie === "Domaines archivés" || partie === "Archivés" ? (
+                        <button
+                          type="button"
+                          onClick={() => ouvrirElement("domaines-archives")}
+                          className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
+                        >
+                          Domaines archivés
+                        </button>
+                      ) : (
+                        <span className="text-texte-discret">{partie}</span>
+                      )}
+                    </span>
+                  ))}
+                </nav>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-bordure px-6 pb-4 pt-3.5 shrink-0">
                 <div className="min-w-0">
-                  <nav aria-label="Fil d’Ariane" className="mb-1.5 flex flex-wrap items-center gap-2 h-9 text-xs text-texte-discret">
-                    {!sidebarOuverte && (
-                      <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />
-                    )}
-                    <button
-                      type="button"
-                      onClick={revenirGrapheGlobal}
-                      className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
-                    >
-                      Graphe global
-                    </button>
-                    {selectionnee.dossier.split("/").map((partie, index) => (
-                      <span key={index} className="flex items-center gap-1.5">
-                        <span className="text-texte-discret/60">/</span>
-                        {partie === "Domaines" ? (
-                          <button
-                            type="button"
-                            onClick={() => ouvrirElement("domaines")}
-                            className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
-                          >
-                            Domaines
-                          </button>
-                        ) : partie === "Transversal" ? (
-                          <button
-                            type="button"
-                            onClick={() => ouvrirElement("transversal")}
-                            className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
-                          >
-                            Transversal
-                          </button>
-                        ) : partie === "Domaines archivés" || partie === "Archivés" ? (
-                          <button
-                            type="button"
-                            onClick={() => ouvrirElement("domaines-archives")}
-                            className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
-                          >
-                            Domaines archivés
-                          </button>
-                        ) : (
-                          <span className="text-texte-discret">{partie}</span>
-                        )}
-                      </span>
-                    ))}
-                  </nav>
                   <div className="flex items-center gap-2 text-xs text-texte-discret">
                     <span>{selectionnee.typeLibelle}</span>
                     {selectionnee.lectureSeule && <span className="rounded bg-surface-2 px-1.5 py-0.5">projection</span>}

@@ -126,8 +126,8 @@ function VueCompetence({
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-surface-2/40">
-      <header className="border-b border-bordure bg-surface px-6 pb-6 pt-3.5 lg:px-8">
-        <nav aria-label="Fil d’Ariane" className="flex flex-wrap items-center gap-2 h-9 text-xs text-texte-discret">
+      <div className="flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure bg-surface px-6 shrink-0">
+        <nav aria-label="Fil d’Ariane" className="flex items-center gap-2 text-xs text-texte-discret min-w-0">
           {!sidebarOuverte && setSidebarOuverte && (
             <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />
           )}
@@ -136,24 +136,26 @@ function VueCompetence({
               <button
                 type="button"
                 onClick={revenirGraphe}
-                className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
+                className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline shrink-0"
               >
                 Graphe global
               </button>
-              <span className="text-texte-discret/60">/</span>
+              <span className="text-texte-discret/60 shrink-0">/</span>
             </>
           )}
           <button
             type="button"
             onClick={() => ouvrirElement(`domaine:${vue.domaineId}`)}
-            className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
+            className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline truncate"
           >
             {vue.domaineNom}
           </button>
-          <span className="text-texte-discret/60">/</span>
-          <span className="font-semibold text-texte">Compétences</span>
+          <span className="text-texte-discret/60 shrink-0">/</span>
+          <span className="font-semibold text-texte shrink-0">Compétences</span>
         </nav>
-        <div className="mt-4 flex flex-wrap items-start gap-5">
+      </div>
+      <header className="border-b border-bordure bg-surface px-6 py-5 lg:px-8">
+        <div className="flex flex-wrap items-start gap-5">
           <div className="flex min-w-0 items-start gap-3.5">
             <span className="grid size-14 shrink-0 place-items-center rounded-2xl border border-primaire/20 bg-primaire-faible text-primaire">
               <IconeCompetences className="size-7" />
@@ -337,8 +339,8 @@ function VueDomaine({
   ].filter((item) => !vue.domaine.archive || item.id !== "referentiel");
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-surface-2/40">
-      <header className="border-b border-bordure bg-surface px-6 pb-6 pt-3.5 lg:px-8">
-        <nav aria-label="Fil d’Ariane" className="flex flex-wrap items-center gap-2 h-9 text-xs text-texte-discret">
+      <div className="flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure bg-surface px-6 shrink-0">
+        <nav aria-label="Fil d’Ariane" className="flex items-center gap-2 text-xs text-texte-discret min-w-0">
           {!sidebarOuverte && setSidebarOuverte && (
             <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />
           )}
@@ -347,24 +349,26 @@ function VueDomaine({
               <button
                 type="button"
                 onClick={revenirGraphe}
-                className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
+                className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline shrink-0"
               >
                 Graphe global
               </button>
-              <span className="text-texte-discret/60">/</span>
+              <span className="text-texte-discret/60 shrink-0">/</span>
             </>
           )}
           <button
             type="button"
             onClick={() => ouvrirElement("domaines")}
-            className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
+            className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline shrink-0"
           >
             {vue.domaine.archive ? "Domaines archivés" : "Domaines"}
           </button>
-          <span className="text-texte-discret/60">/</span>
-          <span className="font-semibold text-texte">{vue.nom}</span>
+          <span className="text-texte-discret/60 shrink-0">/</span>
+          <span className="font-semibold text-texte truncate">{vue.nom}</span>
         </nav>
-        <div className="mt-4 flex items-start gap-4"><span className="grid size-14 place-items-center rounded-2xl bg-primaire-faible text-primaire"><IconeDocuments className="size-7" /></span><div><div className="flex flex-wrap items-center gap-2"><p className="text-xs font-semibold uppercase tracking-[0.12em] text-primaire">Fiche mère</p>{vue.domaine.archive && <span className="rounded-full bg-surface-3 px-2 py-0.5 text-[0.6875rem] font-semibold text-texte-discret">Archivé</span>}</div><h2 className="font-serif text-[2.2rem] font-medium tracking-tight">{vue.nom}</h2>{vue.description && <p className="mt-3 max-w-3xl text-base leading-relaxed text-texte-attenue">{vue.description}</p>}{vue.domaine.archive && <p className="mt-3 max-w-3xl rounded-lg border border-bordure bg-surface-2 px-3 py-2 text-xs leading-relaxed text-texte-discret">Ce domaine reste consultable, mais il est exclu du pilotage actif, du graphe principal et des suggestions.</p>}</div></div>
+      </div>
+      <header className="border-b border-bordure bg-surface px-6 py-5 lg:px-8">
+        <div className="flex items-start gap-4"><span className="grid size-14 place-items-center rounded-2xl bg-primaire-faible text-primaire"><IconeDocuments className="size-7" /></span><div><div className="flex flex-wrap items-center gap-2"><p className="text-xs font-semibold uppercase tracking-[0.12em] text-primaire">Fiche mère</p>{vue.domaine.archive && <span className="rounded-full bg-surface-3 px-2 py-0.5 text-[0.6875rem] font-semibold text-texte-discret">Archivé</span>}</div><h2 className="font-serif text-[2.2rem] font-medium tracking-tight">{vue.nom}</h2>{vue.description && <p className="mt-3 max-w-3xl text-base leading-relaxed text-texte-attenue">{vue.description}</p>}{vue.domaine.archive && <p className="mt-3 max-w-3xl rounded-lg border border-bordure bg-surface-2 px-3 py-2 text-xs leading-relaxed text-texte-discret">Ce domaine reste consultable, mais il est exclu du pilotage actif, du graphe principal et des suggestions.</p>}</div></div>
       </header>
       <div className="border-b border-bordure bg-surface px-6 lg:px-8">
         <div className="flex gap-1 overflow-x-auto" role="tablist" aria-label="Sections du domaine">
