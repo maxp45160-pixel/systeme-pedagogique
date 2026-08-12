@@ -58,6 +58,16 @@ export interface SnapshotDocument {
   createdAt?: string;
 }
 
+/** Métadonnées d'une ressource PDF attachée à une fiche support. */
+export interface PieceJointeDocument {
+  id: string;
+  nom: string;
+  mimeType: "application/pdf";
+  tailleOctets: number;
+  creeLe: string;
+  url?: string;
+}
+
 /** Métadonnées suffisantes pour afficher l'historique sans charger les corps. */
 export interface ResumeSnapshotDocument {
   id: string;

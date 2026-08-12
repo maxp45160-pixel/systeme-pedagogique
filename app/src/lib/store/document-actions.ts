@@ -6,12 +6,24 @@ import {
   validerDocumentMarkdown,
   validerLotDocumentsMarkdown,
 } from "@/lib/documents/archive";
-import { creerDocument, creerDocuments, lireApercusDocuments, lireDocument, lireDocuments, modifierDocument } from "./documents";
+import { creerDocument, creerDocuments, lireApercusDocuments, lireDocument, lireDocuments, modifierDocument, supprimerDocument } from "./documents";
 import { dorsaleCompte } from "./db";
 import { ligneVersEntite, verifier } from "./supabase-backend";
 import type { SnapshotDocument } from "@/lib/documents/types-documents";
+import {
+  enregistrerPieceJointe,
+  lirePiecesJointes,
+  preparerTeleversementPdf,
+  annulerTeleversementPdf,
+  supprimerPieceJointe,
+} from "./document-attachments";
 
 export type RoleNote = "support" | "operationnel";
+
+export interface MetadonneesNote {
+  contexte: string;
+  domaine: string;
+}
 
 const FORMATS_NOTE: Record<RoleNote, ReadonlySet<string>> = {
   support: new Set(["note", "reference", "article", "cours", "livre", "formule", "reflexion"]),
@@ -39,13 +51,64 @@ export async function creerNoteAction(
   type: string,
   id: string,
   titre: string,
+  metadonnees: MetadonneesNote,
 ): Promise<{ id: string; contenuMd: string }> {
   if (!FORMATS_NOTE[role].has(type)) {
     throw new Error("Ce format ne correspond pas au rôle de note choisi.");
   }
-  const contenuMd = creerDepuisTemplate(type, id, titre, undefined, { role });
+  const contexte = metadonnees.contexte.trim().replace(/\s+/g, " ");
+  const domaine = metadonnees.domaine.trim();
+  if (!contexte) throw new Error("Le contexte de la fiche est obligatoire.");
+  if (!domaine) throw new Error("Le domaine de la fiche est obligatoire.");
+  if (contexte.length > 200) throw new Error("Le contexte de la fiche est limité à 200 caractères.");
+
+  if (domaine !== "transversal") {
+    const dorsale = await dorsaleCompte();
+    const { data, error } = await dorsale.supabase
+      .from("domaines")
+      .select("id")
+      .eq("user_id", dorsale.userId)
+      .eq("id", domaine)
+      .maybeSingle();
+    verifier("validation du domaine de la note", error);
+    if (!data) throw new Error("Le domaine choisi n'existe plus dans ce compte.");
+  }
+
+  const contenuMd = creerDepuisTemplate(type, id, titre, undefined, { role, contexte, domaine });
   await creerDocument(id, contenuMd);
   return { id, contenuMd };
+}
+
+export async function supprimerNoteSupportAction(id: string): Promise<void> {
+  await supprimerDocument(id);
+}
+
+export async function preparerTeleversementPdfAction(
+  documentId: string,
+  nom: string,
+): Promise<{ chemin: string; token: string }> {
+  return preparerTeleversementPdf(documentId, nom);
+}
+
+export async function enregistrerPieceJointeAction(
+  documentId: string,
+  chemin: string,
+  nom: string,
+  tailleOctets: number,
+) {
+  return enregistrerPieceJointe(documentId, chemin, nom, tailleOctets);
+}
+
+export async function annulerTeleversementPdfAction(documentId: string, chemin: string): Promise<void> {
+  await annulerTeleversementPdf(documentId, chemin);
+}
+
+export async function lirePiecesJointesAction(documentId: string) {
+  return lirePiecesJointes(documentId);
+}
+
+export async function supprimerPieceJointeAction(documentId: string, pieceId: string): Promise<void> {
+  await supprimerPieceJointe(documentId, pieceId);
 }
 
 export async function sauvegarderDocumentAction(

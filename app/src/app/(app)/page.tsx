@@ -75,7 +75,7 @@ async function ContenuTableauDeBord() {
   const themes = await chargerThemes();
 
   const evenements = evenementsRecents(ctx.donnees.evidence, ctx.referentiel.parCode, 6, ctx.now);
-  const activite = calculerActivite(ctx.donnees.sessions, ctx.now);
+  const activite = calculerActivite(ctx.donnees.sessions, ctx.now, ctx.donnees.attempts);
   const aucunePreuve = ctx.global.nombrePreuves === 0;
 
   // Mêmes données que `/seances` (lot 3) : le concepteur ne recopie aucune
@@ -223,7 +223,11 @@ async function ContenuTableauDeBord() {
             <ConcepteurSeance {...donneesSeance} libelle="Composer une séance" />
           </div>
         </Carte>
-        <CaptureNotes />
+        <CaptureNotes
+          domaines={ctx.referentiel.domaines
+            .filter((domaine) => !domaine.archive && ctx.referentiel.actifs.some((skill) => skill.domaine === domaine.id))
+            .map((domaine) => ({ id: domaine.id, nom: domaine.nom }))}
+        />
         <CarteProfil user={ctx.donnees.user} />
       </div>
 

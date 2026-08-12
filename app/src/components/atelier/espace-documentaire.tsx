@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState, useTransition, type ChangeEvent, type Rea
 import { useRouter } from "next/navigation";
 import { Markdown } from "@/components/ui/markdown";
 import { cx } from "@/components/ui/primitives";
+import { createNavigateurClient } from "@/lib/supabase/client";
 import { analyserDocumentMarkdown, type LienMarkdown } from "@/lib/documents/markdown";
+import { BUCKET_PIECES_JOINTES, MAX_PDF_OCTETS, MIME_PDF, nomPdfValide } from "@/lib/documents/pieces-jointes";
 import type { ExerciseAttempt } from "@/lib/domain/types";
 import type { DonneesGraphe } from "@/lib/domain/graphe";
 import { GrapheCompetences } from "@/components/competences/graphe/graphe-competences";
@@ -17,10 +19,16 @@ import {
   exporterDocumentsMarkdownAction,
   importerDocumentsAction,
   lireDocumentAction,
+  lirePiecesJointesAction,
+  preparerTeleversementPdfAction,
+  enregistrerPieceJointeAction,
+  annulerTeleversementPdfAction,
   lireSnapshotAction,
   sauvegarderDocumentAction,
+  supprimerPieceJointeAction,
+  supprimerNoteSupportAction,
 } from "@/lib/store/document-actions";
-import type { SnapshotDocument } from "@/lib/documents/types-documents";
+import type { PieceJointeDocument, SnapshotDocument } from "@/lib/documents/types-documents";
 import type { VuePedagogiqueAtelier } from "@/lib/documents/vue-atelier";
 import { cleParCompte } from "@/lib/ui/stockage-session";
 import { FichePedagogiqueAtelier, PanneauPedagogiqueAtelier } from "./fiche-pedagogique";
@@ -151,9 +159,20 @@ export function EspaceDocumentaire({
   const [dossiersOuverts, setDossiersOuverts] = useState<Set<string>>(new Set());
   const [recherche, setRecherche] = useState("");
   const [contexteOuvert, setContexteOuvert] = useState(false);
+  const [cibleLien, setCibleLien] = useState("");
+  const [piecesJointesParDocument, setPiecesJointesParDocument] = useState<Record<string, PieceJointeDocument[]>>({});
 
   const selectionnee = elements.find((element) => element.id === selection) ?? null;
   const brouillon = selectionnee ? brouillons[selectionnee.id] ?? selectionnee.contenuMd : "";
+  const liensCourants = selectionnee
+    ? selectionnee.contenuCharge
+      ? analyserDocumentMarkdown(selectionnee.id, brouillon).liens
+      : selectionnee.liens
+    : [];
+  const fichesLiables = elements
+    .filter((element) => element.source === "document" && element.id !== selectionnee?.id)
+    .sort((a, b) => a.titre.localeCompare(b.titre, "fr"));
+  const documentSupportId = selectionnee?.frontMatter.role === "support" ? selectionnee.id : null;
 
   useEffect(() => {
     let actif = true;
@@ -176,6 +195,21 @@ export function EspaceDocumentaire({
       window.clearTimeout(jeton);
     };
   }, [graphe.compteId]);
+
+  useEffect(() => {
+    let actif = true;
+    if (!documentSupportId) return () => { actif = false; };
+    void lirePiecesJointesAction(documentSupportId)
+      .then((pieces) => {
+        if (actif) setPiecesJointesParDocument((anciens) => ({ ...anciens, [documentSupportId]: pieces }));
+      })
+      .catch((erreur: unknown) => {
+        if (actif) setMessage(erreur instanceof Error ? erreur.message : "Lecture des PDF impossible");
+      });
+    return () => { actif = false; };
+  }, [documentSupportId]);
+
+  const piecesJointes = documentSupportId ? piecesJointesParDocument[documentSupportId] : undefined;
 
   const elementsVisibles = useMemo(() => {
     const terme = recherche.trim().toLocaleLowerCase("fr-FR");
@@ -200,6 +234,7 @@ export function EspaceDocumentaire({
     const element = elements.find((item) => item.id === id);
     if (!element) return;
     setSelection(id);
+    setCibleLien("");
     setSnapshotApercu(null);
     setMode("editer");
     window.history.replaceState(null, "", `/atelier?document=${encodeURIComponent(id)}`);
@@ -300,6 +335,108 @@ export function EspaceDocumentaire({
         setSnapshotApercu(await lireSnapshotAction(selectionnee.id, snapshotId));
       } catch (erreur) {
         setMessage(erreur instanceof Error ? erreur.message : "Lecture du snapshot impossible");
+      }
+    });
+  }
+
+  function ajouterLien() {
+    if (!selectionnee || selectionnee.lectureSeule || !selectionnee.contenuCharge || selectionnee.schemaCompatible === false || !cibleLien) return;
+    const cible = fichesLiables.find((element) => element.id === cibleLien);
+    if (!cible) return;
+    if (liensCourants.some((lien) => lien.cible === cible.id)) {
+      setMessage(`La fiche « ${cible.titre} » est déjà liée.`);
+      return;
+    }
+
+    const base = brouillon.trimEnd();
+    setBrouillons((anciens) => ({
+      ...anciens,
+      [selectionnee.id]: `${base}${base ? "\n\n" : ""}[[${cible.id}]]\n`,
+    }));
+    setCibleLien("");
+    setMode("editer");
+    setMessage(`Lien vers « ${cible.titre} » ajouté. Enregistre la fiche pour le conserver.`);
+  }
+
+  function televerserPdf(event: ChangeEvent<HTMLInputElement>) {
+    const fichier = event.currentTarget.files?.[0];
+    event.currentTarget.value = "";
+    if (!fichier || !selectionnee || selectionnee.frontMatter.role !== "support") return;
+    if (!nomPdfValide(fichier.name) || (fichier.type && fichier.type !== MIME_PDF)) {
+      setMessage("Seuls les fichiers PDF peuvent être attachés.");
+      return;
+    }
+    if (fichier.size <= 0 || fichier.size > MAX_PDF_OCTETS) {
+      setMessage("Le PDF doit peser entre 1 octet et 10 Mo.");
+      return;
+    }
+
+    const documentId = selectionnee.id;
+    setMessage("Téléversement du PDF…");
+    demarrerTransition(async () => {
+      let cheminTeleverse: string | null = null;
+      try {
+        const client = createNavigateurClient();
+        if (!client) throw new Error("Supabase n'est pas configuré.");
+        const preparation = await preparerTeleversementPdfAction(documentId, fichier.name);
+        cheminTeleverse = preparation.chemin;
+        const { error } = await client.storage
+          .from(BUCKET_PIECES_JOINTES)
+          .uploadToSignedUrl(preparation.chemin, preparation.token, fichier, { contentType: MIME_PDF });
+        if (error) throw error;
+        const piece = await enregistrerPieceJointeAction(documentId, preparation.chemin, fichier.name, fichier.size);
+        setPiecesJointesParDocument((anciens) => ({
+          ...anciens,
+          [documentId]: [piece, ...(anciens[documentId] ?? [])],
+        }));
+        setMessage("PDF attaché.");
+      } catch (erreur) {
+        if (cheminTeleverse) {
+          try {
+            await annulerTeleversementPdfAction(documentId, cheminTeleverse);
+          } catch {
+            // Le nettoyage reste une tentative secondaire : l'erreur initiale
+            // est plus utile à la personne qui vient de téléverser le fichier.
+          }
+        }
+        setMessage(erreur instanceof Error ? erreur.message : "Téléversement du PDF impossible");
+      }
+    });
+  }
+
+  function supprimerPieceJointe(piece: PieceJointeDocument) {
+    if (!selectionnee || selectionnee.frontMatter.role !== "support") return;
+    if (!window.confirm(`Supprimer le PDF « ${piece.nom} » ?`)) return;
+    const documentId = selectionnee.id;
+    setMessage(null);
+    demarrerTransition(async () => {
+      try {
+        await supprimerPieceJointeAction(documentId, piece.id);
+        setPiecesJointesParDocument((anciens) => ({
+          ...anciens,
+          [documentId]: (anciens[documentId] ?? []).filter((ancienne) => ancienne.id !== piece.id),
+        }));
+        setMessage("PDF supprimé.");
+      } catch (erreur) {
+        setMessage(erreur instanceof Error ? erreur.message : "Suppression du PDF impossible");
+      }
+    });
+  }
+
+  function supprimerNoteSupport() {
+    if (!selectionnee || selectionnee.frontMatter.role !== "support") return;
+    if (!window.confirm(`Supprimer la note « ${selectionnee.titre} » ? Cette action est définitive.`)) return;
+    setMessage(null);
+    demarrerTransition(async () => {
+      try {
+        await supprimerNoteSupportAction(selectionnee.id);
+        setElements((anciens) => anciens.filter((element) => element.id !== selectionnee.id));
+        setSelection(null);
+        setCibleLien("");
+        window.history.replaceState(null, "", "/atelier");
+        router.refresh();
+      } catch (erreur) {
+        setMessage(erreur instanceof Error ? erreur.message : "Suppression impossible");
       }
     });
   }
@@ -480,12 +617,25 @@ export function EspaceDocumentaire({
                   </div>
                   <h2 className="mt-1 truncate font-serif text-2xl font-medium tracking-tight">{selectionnee.titre}</h2>
                 </div>
-                <div className="flex items-center gap-1 rounded-md border border-bordure p-0.5">
-                  {(["editer", "apercu"] as ModeDocument[]).map((option) => (
-                    <button key={option} type="button" onClick={() => setMode(option)} className={cx("rounded px-2.5 py-1 text-xs font-medium", mode === option ? "bg-primaire-faible text-primaire" : "text-texte-discret hover:text-texte")}>
-                      {option === "editer" ? "Modifier" : "Aperçu"}
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  {selectionnee.frontMatter.role === "support" && (
+                    <button
+                      type="button"
+                      onClick={supprimerNoteSupport}
+                      disabled={enCours || selectionnee.snapshots.length > 0}
+                      title={selectionnee.snapshots.length > 0 ? "Une version figée protège cette note" : undefined}
+                      className="rounded-md border border-danger/35 px-2.5 py-1.5 text-xs font-medium text-danger transition-colors hover:bg-danger-faible disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Supprimer
                     </button>
-                  ))}
+                  )}
+                  <div className="flex items-center gap-1 rounded-md border border-bordure p-0.5">
+                    {(["editer", "apercu"] as ModeDocument[]).map((option) => (
+                      <button key={option} type="button" onClick={() => setMode(option)} className={cx("rounded px-2.5 py-1 text-xs font-medium", mode === option ? "bg-primaire-faible text-primaire" : "text-texte-discret hover:text-texte")}>
+                        {option === "editer" ? "Modifier" : "Aperçu"}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -595,7 +745,7 @@ export function EspaceDocumentaire({
               <div>
                 <h3 className="text-xs font-semibold text-texte-attenue">Relations</h3>
                 <div className="mt-2 space-y-2 text-xs">
-                  {selectionnee.liens.length > 0 ? selectionnee.liens.map((lien, index) => {
+                  {liensCourants.length > 0 ? liensCourants.map((lien, index) => {
                     const cible = trouverCible(lien.cible);
                     return cible ? (
                       <button key={`${lien.cible}-${index}`} type="button" onClick={() => ouvrirElement(cible.id)} className="block text-left text-primaire hover:underline">→ {cible.titre}</button>
@@ -604,8 +754,71 @@ export function EspaceDocumentaire({
                     );
                   }) : <p className="text-texte-discret">Aucun lien déclaré.</p>}
                   {selectionnee.entrants.length > 0 && <p className="pt-1 text-texte-discret">Référencé par {selectionnee.entrants.length} document{selectionnee.entrants.length > 1 ? "s" : ""}.</p>}
+                  {!selectionnee.lectureSeule && selectionnee.contenuCharge && selectionnee.schemaCompatible !== false && fichesLiables.length > 0 && (
+                    <div className="border-t border-bordure pt-3">
+                      <label className="block text-[0.6875rem] font-medium text-texte-attenue" htmlFor="ajouter-lien-fiche">
+                        Ajouter un lien vers une fiche
+                      </label>
+                      <div className="mt-1.5 flex gap-1.5">
+                        <select
+                          id="ajouter-lien-fiche"
+                          value={cibleLien}
+                          onChange={(event) => setCibleLien(event.target.value)}
+                          className="min-w-0 flex-1 rounded-md border border-bordure-controle bg-surface px-2 py-1.5 text-xs"
+                        >
+                          <option value="">Choisir une fiche…</option>
+                          {fichesLiables.map((fiche) => <option key={fiche.id} value={fiche.id}>{fiche.titre}</option>)}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={ajouterLien}
+                          disabled={!cibleLien}
+                          className="shrink-0 rounded-md border border-bordure px-2 py-1.5 text-xs font-medium text-primaire hover:bg-primaire-faible disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Ajouter
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
+
+              {selectionnee.frontMatter.role === "support" && (
+                <div className="border-t border-bordure pt-4">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <h3 className="text-xs font-semibold text-texte-attenue">Pièces jointes</h3>
+                    <span className="text-[0.6875rem] text-texte-discret">{piecesJointes?.length ?? "…"}</span>
+                  </div>
+                  {piecesJointes === undefined ? (
+                    <p className="mt-2 text-xs text-texte-discret">Chargement des PDF…</p>
+                  ) : piecesJointes.length > 0 ? (
+                    <ul className="mt-2 space-y-1.5">
+                      {piecesJointes.map((piece) => (
+                        <li key={piece.id} className="flex items-center gap-2 rounded-md border border-bordure bg-surface px-2.5 py-2 text-xs">
+                          {piece.url ? (
+                            <a href={piece.url} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-primaire hover:underline" title={piece.nom}>
+                              {piece.nom}
+                            </a>
+                          ) : <span className="min-w-0 flex-1 truncate">{piece.nom}</span>}
+                          <span className="shrink-0 text-[0.625rem] text-texte-discret">{Math.max(1, Math.round(piece.tailleOctets / 1024))} Ko</span>
+                          {!selectionnee.lectureSeule && (
+                            <button type="button" onClick={() => supprimerPieceJointe(piece)} disabled={enCours} className="shrink-0 text-texte-discret hover:text-danger disabled:opacity-50" aria-label={`Supprimer ${piece.nom}`}>
+                              ×
+                            </button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : <p className="mt-2 text-xs leading-relaxed text-texte-discret">Aucun PDF attaché.</p>}
+                  {!selectionnee.lectureSeule && selectionnee.schemaCompatible !== false && (
+                    <label className="mt-3 inline-flex cursor-pointer rounded-md border border-bordure px-2.5 py-1.5 text-xs font-medium text-primaire hover:bg-primaire-faible has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50">
+                      Joindre un PDF
+                      <input type="file" accept=".pdf,application/pdf" className="sr-only" onChange={televerserPdf} disabled={enCours} />
+                    </label>
+                  )}
+                  <p className="mt-2 text-[0.6875rem] text-texte-discret">PDF uniquement · 10 Mo maximum.</p>
+                </div>
+              )}
 
               {selectionnee.source === "projection" && selectionnee.type === "exercice" && (
                 <div className="border-t border-bordure pt-4">

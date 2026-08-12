@@ -161,7 +161,8 @@ export async function VueExercice(props: {
       {abandon === "1" && bilan !== "1" && (
         <BandeauInfo ton="info" className="mb-4">
         <div>
-          <p className="text-sm font-medium text-info">Aucune preuve enregistrée</p>
+          <FocusActe cle={`abandon-${derniereAbandonnee?.id ?? exercice.id}`} cible="titre-abandon-exercice" />
+          <p id="titre-abandon-exercice" tabIndex={-1} className="text-sm font-medium text-info outline-none">Aucune preuve enregistrée</p>
           <p className="mt-1 text-xs text-texte-attenue">
             {abandonDelibere ? (
               <>
@@ -216,7 +217,8 @@ export async function VueExercice(props: {
       {bilan === "1" && derniereTerminee && (
         <BandeauInfo ton="succes" className="mb-4">
         <div>
-          <p className="flex items-center gap-1.5 text-sm font-medium text-succes">
+          <FocusActe cle={`bilan-${derniereTerminee.id}`} cible="titre-bilan-exercice" />
+          <p id="titre-bilan-exercice" tabIndex={-1} className="flex items-center gap-1.5 text-sm font-medium text-succes outline-none">
             <IconeValide className="size-4" />
             Preuve enregistrée
           </p>

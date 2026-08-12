@@ -20,6 +20,7 @@ import type {
   SnapshotDocument,
 } from "@/lib/documents/types-documents";
 import type { DocumentProductionPreuve } from "@/lib/documents/production";
+import { supprimerStockagePiecesJointes } from "./document-attachments";
 
 const TABLE_DOCUMENTS = "documents";
 const TABLE_LIENS = "document_links";
@@ -136,6 +137,53 @@ export async function lireDocument(id: string): Promise<LigneDocument> {
   verifier("lecture du document", error);
   if (!data) throw new Error("Document introuvable.");
   return ligneVersEntite<LigneDocument>(data as Record<string, unknown>);
+}
+
+/**
+ * Supprime une fiche de support encore éditoriale.
+ *
+ * Une fiche ayant produit un snapshot reste conservée : le snapshot porte une
+ * observation historique et la FK documentaire la protège déjà contre une
+ * suppression silencieuse.
+ */
+export async function supprimerDocument(id: string): Promise<void> {
+  const { supabase, userId } = await dorsaleCompte();
+  const identifiant = verifierIdentifiant(id);
+  const { data: document, error: lectureErreur } = await supabase
+    .from(TABLE_DOCUMENTS)
+    .select("frontmatter")
+    .eq("user_id", userId)
+    .eq("id", identifiant)
+    .maybeSingle();
+  verifier("lecture du document à supprimer", lectureErreur);
+  if (!document) throw new Error("Document introuvable.");
+
+  const frontMatter = frontMatterDepuisLigne(document as Record<string, unknown>);
+  if (frontMatter.role !== "support") {
+    throw new Error("Seules les notes de support peuvent être supprimées depuis l'Atelier.");
+  }
+
+  const { data: snapshots, error: snapshotsErreur } = await supabase
+    .from(TABLE_SNAPSHOTS)
+    .select("id")
+    .eq("user_id", userId)
+    .eq("document_id", identifiant)
+    .limit(1);
+  verifier("vérification des snapshots du document", snapshotsErreur);
+  if ((snapshots ?? []).length > 0) {
+    throw new Error("Cette note possède une version figée et ne peut plus être supprimée.");
+  }
+
+  await supprimerStockagePiecesJointes(identifiant, { supabase, userId, courriel: undefined });
+
+  const { error } = await supabase
+    .from(TABLE_DOCUMENTS)
+    .delete()
+    .eq("user_id", userId)
+    .eq("id", identifiant);
+  verifier("suppression de la note de support", error);
+  revalidatePath("/atelier");
+  revalidatePath("/");
 }
 
 export const lireApercusSnapshots = cache(async (): Promise<ResumeSnapshotDocument[]> => {

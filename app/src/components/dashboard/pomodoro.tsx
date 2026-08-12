@@ -73,7 +73,33 @@ function secondesRestantes(etat: EtatPersiste, maintenant: number): number {
   if (etat.finPrevue === undefined) {
     return etat.resteAuArret ?? dureesDe(etat)[etat.phase] * 60;
   }
-  return Math.max(0, Math.round((etat.finPrevue - maintenant) / 1000));
+  // Le premier affichage doit être 24:59 pour un cycle de 25 minutes. Le
+  // décompte représente la seconde en cours, pas une seconde supplémentaire
+  // ajoutée par l'arrondi d'une échéance future.
+  return Math.max(0, Math.ceil((etat.finPrevue - maintenant) / 1000) - 1);
+}
+
+function jouerSignalFin(): void {
+  if (typeof window === "undefined") return;
+  try {
+    const contexte = new window.AudioContext();
+    const oscillateur = contexte.createOscillator();
+    const gain = contexte.createGain();
+    const debut = contexte.currentTime;
+    oscillateur.type = "sine";
+    oscillateur.frequency.setValueAtTime(880, debut);
+    oscillateur.frequency.setValueAtTime(660, debut + 0.18);
+    gain.gain.setValueAtTime(0.0001, debut);
+    gain.gain.exponentialRampToValueAtTime(0.16, debut + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, debut + 0.42);
+    oscillateur.connect(gain);
+    gain.connect(contexte.destination);
+    oscillateur.addEventListener("ended", () => void contexte.close(), { once: true });
+    oscillateur.start(debut);
+    oscillateur.stop(debut + 0.42);
+  } catch {
+    // Le navigateur peut refuser l'AudioContext : le signal visuel reste actif.
+  }
 }
 
 function formaterMMSS(secondes: number): string {
@@ -94,7 +120,14 @@ export function Pomodoro({ compteId }: { compteId: string }) {
   const [etat, setEtat] = useState<EtatPersiste>(() => lireSession<EtatPersiste>(cle) ?? etatInitial());
   const [maintenant, setMaintenant] = useState(() => Date.now());
   const [reglageOuvert, setReglageOuvert] = useState(false);
+  const [signalFin, setSignalFin] = useState<PhasePomodoro | null>(null);
   const intervalle = useRef<ReturnType<typeof setInterval> | null>(null);
+  const etatCourant = useRef(etat);
+  const effacementSignal = useRef<number | null>(null);
+
+  useEffect(() => {
+    etatCourant.current = etat;
+  }, [etat]);
 
   const enMarche = etat.finPrevue !== undefined;
   const reste = secondesRestantes(etat, maintenant);
@@ -120,36 +153,54 @@ export function Pomodoro({ compteId }: { compteId: string }) {
     if (!enMarche) return;
     intervalle.current = setInterval(() => {
       const instant = Date.now();
-      setEtat((e) => {
-        if (e.finPrevue === undefined || instant < e.finPrevue) return e;
-        const suivante: PhasePomodoro = e.phase === "focus" ? "pause" : "focus";
-        return {
+      const e = etatCourant.current;
+      if (e.finPrevue !== undefined && instant >= e.finPrevue) {
+        const phaseTerminee = e.phase;
+        const suivante: PhasePomodoro = phaseTerminee === "focus" ? "pause" : "focus";
+        const prochain = {
           ...e,
           phase: suivante,
           finPrevue: instant + dureesDe(e)[suivante] * 60_000,
           resteAuArret: undefined,
-        };
-      });
+        } satisfies EtatPersiste;
+        etatCourant.current = prochain;
+        setEtat(prochain);
+        setSignalFin(phaseTerminee);
+        jouerSignalFin();
+        if (effacementSignal.current) window.clearTimeout(effacementSignal.current);
+        effacementSignal.current = window.setTimeout(() => setSignalFin(null), 8_000);
+      }
       setMaintenant(instant);
     }, 1000);
     return () => {
       if (intervalle.current) clearInterval(intervalle.current);
+      if (effacementSignal.current) window.clearTimeout(effacementSignal.current);
     };
   }, [enMarche]);
 
   function demarrer() {
+    const instant = Date.now();
+    setMaintenant(instant);
+    setSignalFin(null);
     setEtat((e) => ({
       ...e,
-      finPrevue: Date.now() + (e.resteAuArret ?? dureesDe(e)[e.phase] * 60) * 1000,
+      // `secondesRestantes` retire la seconde en cours pour afficher 24:59 au
+      // départ ; on la restitue à la reprise d'un minuteur suspendu afin de ne
+      // pas perdre une seconde à chaque cycle pause/reprise.
+      finPrevue: instant + (e.resteAuArret ?? dureesDe(e)[e.phase] * 60) * 1000 +
+        (e.resteAuArret === undefined ? 0 : 1000),
       resteAuArret: undefined,
     }));
   }
 
   function suspendre() {
+    const instant = Date.now();
+    setMaintenant(instant);
+    setSignalFin(null);
     setEtat((e) => ({
       ...e,
       finPrevue: undefined,
-      resteAuArret: secondesRestantes(e, Date.now()),
+      resteAuArret: secondesRestantes(e, instant),
     }));
   }
 
@@ -157,15 +208,19 @@ export function Pomodoro({ compteId }: { compteId: string }) {
     // Les durées réglées survivent : réinitialiser remet le compteur à zéro,
     // pas les préférences. Effacer les deux d'un même bouton obligerait à
     // re-régler après chaque cycle interrompu.
+    setSignalFin(null);
+    setMaintenant(Date.now());
     setEtat((e) => ({ phase: "focus", ...(e.dureesMin ? { dureesMin: e.dureesMin } : {}) }));
   }
 
   function oublierReglages() {
+    setSignalFin(null);
     setEtat(etatInitial());
     effacerSession(cle);
   }
 
   function changerPhase(phase: PhasePomodoro) {
+    setSignalFin(null);
     setEtat((e) => ({ ...e, phase, finPrevue: undefined, resteAuArret: undefined }));
   }
 
@@ -177,6 +232,7 @@ export function Pomodoro({ compteId }: { compteId: string }) {
    * choses différentes, et on ne saurait pas laquelle fait foi.
    */
   function reglerDuree(phase: PhasePomodoro, valeur: number) {
+    setSignalFin(null);
     setEtat((e) => {
       const dureesMin = { ...dureesDe(e), [phase]: bornerDuree(valeur) };
       return {
@@ -227,6 +283,16 @@ export function Pomodoro({ compteId }: { compteId: string }) {
         <p className="chiffres mt-3 text-center text-4xl font-medium tabular-nums">
           {formaterMMSS(reste)}
         </p>
+
+        {signalFin && (
+          <div
+            role="status"
+            aria-live="assertive"
+            className="mt-3 rounded-lg border border-succes/40 bg-succes-faible px-3 py-2 text-center text-xs font-medium text-succes animate-pulse"
+          >
+            {LIBELLES[signalFin]} terminée · {LIBELLES[etat.phase].toLocaleLowerCase("fr-FR")} lancée
+          </div>
+        )}
 
         <div className="mt-4 flex justify-center gap-2">
           {enMarche ? (

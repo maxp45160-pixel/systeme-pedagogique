@@ -5,8 +5,10 @@ import { demarrerSeance, terminerSeance, annulerSeance } from "@/lib/store/seanc
 import { avancementSeance, ecartBesoinRealise, statutSeance, tentativeDeSeance } from "@/lib/domain/seance";
 import { urlExercice } from "@/lib/domain/navigation-exercice";
 import { formatDateCourte, formatDuree } from "@/lib/engine/dates";
-import { Bouton, Carte, CodeCompetence, EnTeteCarte, Etiquette, EtatVide, classesLienBouton, cx } from "@/components/ui/primitives";
+import { Bouton, Carte, CodeCompetence, EnTeteCarte, Etiquette, EtatVide, classesLienBouton } from "@/components/ui/primitives";
 import { Pomodoro } from "@/components/dashboard/pomodoro";
+import { OutilSeance } from "@/components/seances/outil-seance";
+import { FocusActe } from "@/components/exercices/focus-acte";
 import { TiroirTuteur } from "@/components/tuteur/tiroir-tuteur";
 import { construireEtatInitialTuteur } from "@/lib/tutor/etat-initial";
 import { calibragesPourModale, competencesPourModale } from "@/components/exercices/proprietes-generation";
@@ -46,7 +48,13 @@ export async function VueSeanceDetail({
     (activite) => activite.type === "exercice" && parId.has(activite.ref),
   );
   const ids = activites.map((activite) => activite.ref);
-  const explicite = exerciceDemande && ids.includes(exerciceDemande) ? exerciceDemande : undefined;
+  const demandeDansSeance = exerciceDemande && ids.includes(exerciceDemande) ? exerciceDemande : undefined;
+  const explicite = statut === "terminee"
+    ? demandeDansSeance
+    : demandeDansSeance &&
+        (avancement.enCours.includes(demandeDansSeance) || avancement.restants.includes(demandeDansSeance))
+      ? demandeDansSeance
+      : undefined;
   const exerciceActif =
     explicite ?? avancement.enCours.find((ref) => ids.includes(ref)) ??
     avancement.restants.find((ref) => ids.includes(ref));
@@ -114,18 +122,18 @@ export async function VueSeanceDetail({
         {statut === "en-cours" && (
           <div className="space-y-5">
             <div className="flex flex-wrap items-center justify-center gap-2">
-              <details className="relative">
-                <summary className={cx(classesLienBouton("secondaire", "petite"), "cursor-pointer list-none")}>Exercices</summary>
-                <div className="fixed left-4 right-4 top-28 z-10 mt-2 rounded-lg border border-bordure bg-surface p-3 shadow-xl sm:absolute sm:left-1/2 sm:right-auto sm:top-auto sm:w-[min(34rem,calc(100vw-2rem))] sm:-translate-x-1/2">
-                  <ListeActivites activites={activites} parId={parId} avancement={avancement} seanceId={seance.id} compacte />
-                </div>
-              </details>
-              <details className="relative">
-                <summary className={cx(classesLienBouton("secondaire", "petite"), "cursor-pointer list-none")}>Pomodoro</summary>
-                <div className="fixed left-4 right-4 top-28 z-10 mt-2 shadow-xl sm:absolute sm:left-1/2 sm:right-auto sm:top-auto sm:w-[min(24rem,calc(100vw-2rem))] sm:-translate-x-1/2">
-                  <Pomodoro compteId={ctx.donnees.user.id} />
-                </div>
-              </details>
+              <OutilSeance
+                libelle="Exercices"
+                contenuClassName="fixed left-4 right-4 top-28 z-10 mt-2 rounded-lg border border-bordure bg-surface p-3 shadow-xl sm:absolute sm:left-1/2 sm:right-auto sm:top-auto sm:w-[min(34rem,calc(100vw-2rem))] sm:-translate-x-1/2"
+              >
+                <ListeActivites activites={activites} parId={parId} avancement={avancement} seanceId={seance.id} compacte />
+              </OutilSeance>
+              <OutilSeance
+                libelle="Pomodoro"
+                contenuClassName="fixed left-4 right-4 top-28 z-10 mt-2 shadow-xl sm:absolute sm:left-1/2 sm:right-auto sm:top-auto sm:w-[min(24rem,calc(100vw-2rem))] sm:-translate-x-1/2"
+              >
+                <Pomodoro compteId={ctx.donnees.user.id} />
+              </OutilSeance>
               {etatTuteur && exerciceActif && (
                 <TiroirTuteur
                   etatInitial={etatTuteur}
@@ -157,16 +165,22 @@ export async function VueSeanceDetail({
               />
             ) : (
               <div className="mx-auto max-w-2xl">
+                <FocusActe cle={`seance-prete-a-conclure-${seance.id}-${traites}`} cible="titre-seance-a-conclure" />
                 <Carte accent>
                   <div className="px-5 py-8 text-center">
-                    <p className="font-serif text-xl font-medium">Toutes les activités sont traitées</p>
+                    <h2 id="titre-seance-a-conclure" tabIndex={-1} className="font-serif text-xl font-medium outline-none">Toutes les activités sont traitées</h2>
                     <p className="mt-2 text-sm text-texte-attenue">La séance reste ouverte tant que tu ne la termines pas explicitement.</p>
+                    {peutTerminer && (
+                      <form action={terminerSeance.bind(null, seance.id)} className="mt-4">
+                        <Bouton type="submit" variante="principal">Terminer la séance</Bouton>
+                      </form>
+                    )}
                   </div>
                 </Carte>
               </div>
             )}
 
-            {peutTerminer && (
+            {peutTerminer && exerciceActif && (
               <div className="flex justify-center border-t border-bordure pt-5">
                 <form action={terminerSeance.bind(null, seance.id)}>
                   <Bouton type="submit" variante="principal">Terminer la séance</Bouton>
@@ -178,6 +192,7 @@ export async function VueSeanceDetail({
 
         {statut === "terminee" && (
           <div className="mx-auto max-w-3xl space-y-5">
+            <FocusActe cle={`seance-terminee-${seance.id}`} cible="titre-seance-terminee" />
             {explicite ? (
               <>
                 <div>
@@ -193,7 +208,7 @@ export async function VueSeanceDetail({
             ) : (
               <>
                 <Carte accent>
-                  <EnTeteCarte titre="Séance terminée" legende={`Séance du ${formatDateCourte(seance.date)}`} />
+                  <EnTeteCarte id="titre-seance-terminee" titre="Séance terminée" legende={`Séance du ${formatDateCourte(seance.date)}`} />
                   <div className="space-y-2 px-5 py-4 text-sm">
                     <p>{seance.resultat ?? `${avancement.menes.length} exercice(s) mené(s)`}</p>
                     {typeof seance.dureeMin === "number" && <p className="text-texte-attenue">Durée observée : {formatDuree(seance.dureeMin)}</p>}

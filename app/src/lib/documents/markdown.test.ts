@@ -58,11 +58,13 @@ competencies:
       "projet-transversal",
       "Projet transversal",
       "2026-08-12",
-      { role: "operationnel" },
+      { role: "operationnel", contexte: "Projet personnel", domaine: "transversal" },
     );
     const document = analyserDocumentMarkdown("projet-transversal", contenu);
 
     expect(document.frontMatter.role).toBe("operationnel");
+    expect(document.frontMatter.contexte).toBe("Projet personnel");
+    expect(document.frontMatter.domaine).toBe("transversal");
     expect(document.frontMatter).not.toHaveProperty("score");
     expect(document.frontMatter).not.toHaveProperty("niveau");
     expect(document.frontMatter).not.toHaveProperty("preuve");

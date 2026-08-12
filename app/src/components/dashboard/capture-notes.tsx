@@ -8,6 +8,11 @@ import { Modale } from "@/components/ui/modale";
 import { Bouton, Carte, cx } from "@/components/ui/primitives";
 import { creerNoteAction, type RoleNote } from "@/lib/store/document-actions";
 
+export interface DomaineNote {
+  id: string;
+  nom: string;
+}
+
 const FORMATS: Record<RoleNote, Array<{ valeur: string; libelle: string }>> = {
   support: [
     { valeur: "note", libelle: "Note libre" },
@@ -36,11 +41,13 @@ function slugifier(valeur: string): string {
     .replace(/^-+|-+$/g, "") || "note";
 }
 
-export function CaptureNotes() {
+export function CaptureNotes({ domaines }: { domaines: DomaineNote[] }) {
   const router = useRouter();
   const [role, setRole] = useState<RoleNote | null>(null);
   const [titre, setTitre] = useState("");
   const [format, setFormat] = useState("note");
+  const [contexte, setContexte] = useState("");
+  const [domaine, setDomaine] = useState("transversal");
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, demarrer] = useTransition();
 
@@ -48,16 +55,18 @@ export function CaptureNotes() {
     setRole(suivant);
     setFormat(FORMATS[suivant][0].valeur);
     setTitre("");
+    setContexte("");
+    setDomaine("transversal");
     setErreur(null);
   }
 
   function creer() {
-    if (!role || !titre.trim()) return;
+    if (!role || !titre.trim() || !contexte.trim() || !domaine) return;
     setErreur(null);
     demarrer(async () => {
       try {
         const id = `${format}-${slugifier(titre)}`;
-        await creerNoteAction(role, format, id, titre.trim());
+        await creerNoteAction(role, format, id, titre.trim(), { contexte, domaine });
         setRole(null);
         router.push(`/atelier?document=${encodeURIComponent(id)}`);
         router.refresh();
@@ -132,6 +141,29 @@ export function CaptureNotes() {
               />
             </label>
             <label className="block">
+              <span className="text-xs font-semibold uppercase tracking-wide text-texte-discret">Contexte</span>
+              <input
+                value={contexte}
+                onChange={(event) => setContexte(event.target.value)}
+                placeholder="Ex. Cours suivi, projet professionnel, curiosité personnelle…"
+                maxLength={200}
+                className="mt-1.5 w-full rounded-lg border border-bordure-controle bg-surface px-3 py-2.5 text-sm outline-none focus:border-primaire"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-semibold uppercase tracking-wide text-texte-discret">Domaine</span>
+              <select
+                value={domaine}
+                onChange={(event) => setDomaine(event.target.value)}
+                className="mt-1.5 w-full rounded-lg border border-bordure-controle bg-surface px-3 py-2.5 text-sm"
+              >
+                <option value="transversal">Transversal / plusieurs domaines</option>
+                {domaines.map((option) => (
+                  <option key={option.id} value={option.id}>{option.nom}</option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
               <span className="text-xs font-semibold uppercase tracking-wide text-texte-discret">Format</span>
               <select
                 value={format}
@@ -149,7 +181,7 @@ export function CaptureNotes() {
               <Bouton
                 variante="principal"
                 onClick={creer}
-                disabled={!titre.trim()}
+                disabled={!titre.trim() || !contexte.trim() || !domaine}
                 enChargement={enCours}
                 className={cx(enCours && "pointer-events-none")}
               >

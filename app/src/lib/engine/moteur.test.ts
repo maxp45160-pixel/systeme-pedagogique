@@ -1111,4 +1111,33 @@ describe("activiteSurFenetre — mesure réellement bornée par la période", ()
     expect(a.minutesParJour.size).toBe(1);
     expect(a.derniereSeance).toBe(eue.date);
   });
+
+  it("répartit une séance composée au jour de la tentative réelle", () => {
+    const seanceComposee: LearningSession = {
+      ...seance(13, undefined),
+      id: "s-composee",
+      date: "2026-07-23T09:00:00.000Z",
+      statut: "terminee",
+      genereAutomatiquement: false,
+      activites: [{ type: "exercice", ref: "ex-a", libelle: "A" }],
+    };
+    const tentative: ExerciseAttempt = {
+      id: "attempt-composee",
+      exerciseId: "ex-a",
+      debut: "2026-07-24T09:00:00.000Z",
+      fin: "2026-07-24T09:25:00.000Z",
+      dureeMin: 25,
+      indicesUtilises: 0,
+      reponse: "réponse",
+      evaluation: {},
+      resultat: "reussi",
+      statut: "terminee",
+    };
+
+    const activite = calculerActivite([seanceComposee], MAINTENANT, [tentative]);
+
+    expect([...activite.minutesParJour.values()]).toEqual([25]);
+    expect(activite.derniereSeance).toBe(tentative.fin);
+    expect(activite.minutesTotal).toBe(25);
+  });
 });

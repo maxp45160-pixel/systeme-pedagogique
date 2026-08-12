@@ -284,6 +284,7 @@ export async function terminerSeance(seanceId: string): Promise<void> {
     dorsale,
   );
   revalidatePath("/", "layout");
+  redirect(`/seances?session=${encodeURIComponent(seanceId)}`);
 }
 
 /**

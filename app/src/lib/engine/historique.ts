@@ -10,12 +10,13 @@
 
 import type {
   DomaineId,
+  ExerciseAttempt,
   LearningSession,
   NiveauCompetence,
   Skill,
   SkillEvidence,
 } from "@/lib/domain/types";
-import { seanceALieu } from "@/lib/domain/seance";
+import { seanceALieu, tentativeDeSeance } from "@/lib/domain/seance";
 import { computeSkillState } from "./skill-state";
 import { cleJour, joursDepuis } from "./dates";
 
@@ -139,6 +140,56 @@ export interface ActiviteFenetre {
   seances: number;
 }
 
+interface TraceActivite {
+  sessionId: string;
+  date: string;
+  dureeMin?: number;
+}
+
+/**
+ * Répartit le temps observé au jour de la tentative, quand la source est
+ * disponible. Les séances historiques sans tentative correspondante gardent
+ * leur ligne de repli : on ne réécrit pas le passé par absence de donnée.
+ */
+function tracesActivite(
+  sessions: LearningSession[],
+  tentatives: ExerciseAttempt[] = [],
+): TraceActivite[] {
+  return sessions.filter(seanceALieu).flatMap((seance) => {
+    const exercices = new Set(
+      seance.activites
+        .filter((activite) => activite.type === "exercice")
+        .map((activite) => activite.ref),
+    );
+    const candidates = tentatives.filter(
+      (tentative) =>
+        exercices.has(tentative.exerciseId) &&
+        (seance.genereAutomatiquement || tentative.debut >= seance.date),
+    );
+
+    if (tentatives.length === 0 || candidates.length === 0) {
+      return [{ sessionId: seance.id, date: seance.date, dureeMin: seance.dureeMin }];
+    }
+
+    // Une ancienne séance mono-exercice était écrite au même geste que sa
+    // tentative. `tentativeDeSeance` évite qu'un exercice refait plus tard ne
+    // déplace rétroactivement cette ligne historique.
+    if (seance.genereAutomatiquement) {
+      const exercice = [...exercices][0];
+      const tentative = exercice ? tentativeDeSeance(seance, exercice, tentatives) : undefined;
+      return tentative
+        ? [{ sessionId: seance.id, date: tentative.fin ?? tentative.debut, dureeMin: tentative.dureeMin ?? seance.dureeMin }]
+        : [{ sessionId: seance.id, date: seance.date, dureeMin: seance.dureeMin }];
+    }
+
+    return candidates.map((tentative) => ({
+      sessionId: seance.id,
+      date: tentative.fin ?? tentative.debut,
+      dureeMin: tentative.dureeMin,
+    }));
+  });
+}
+
 /**
  * Activité sur les `jours` derniers jours.
  *
@@ -154,14 +205,14 @@ export function activiteSurFenetre(
   sessions: LearningSession[],
   jours: number,
   now: Date = new Date(),
+  tentatives: ExerciseAttempt[] = [],
 ): ActiviteFenetre {
-  const dansLaFenetre = sessions
-    .filter(seanceALieu)
-    .filter((s) => joursDepuis(s.date, now) <= jours);
+  const dansLaFenetre = tracesActivite(sessions, tentatives)
+    .filter((trace) => joursDepuis(trace.date, now) <= jours);
   return {
-    joursActifs: new Set(dansLaFenetre.map((s) => cleJour(s.date))).size,
-    minutes: dansLaFenetre.reduce((total, s) => total + (s.dureeMin ?? 0), 0),
-    seances: dansLaFenetre.length,
+    joursActifs: new Set(dansLaFenetre.map((trace) => cleJour(trace.date))).size,
+    minutes: dansLaFenetre.reduce((total, trace) => total + (trace.dureeMin ?? 0), 0),
+    seances: new Set(dansLaFenetre.map((trace) => trace.sessionId)).size,
   };
 }
 
@@ -175,6 +226,7 @@ export function activiteSurFenetre(
 export function calculerActivite(
   sessions: LearningSession[],
   now: Date = new Date(),
+  tentatives: ExerciseAttempt[] = [],
 ): Activite {
   /*
    * Le filtre est en tête, et il n'est pas un détail d'implémentation.
@@ -188,22 +240,23 @@ export function calculerActivite(
    * posent la même question, et qu'un troisième appelant viendra.
    */
   const eues = sessions.filter(seanceALieu);
+  const traces = tracesActivite(eues, tentatives);
 
   const minutesParJour = new Map<string, number>();
-  for (const s of eues) {
-    const cle = cleJour(s.date);
-    minutesParJour.set(cle, (minutesParJour.get(cle) ?? 0) + (s.dureeMin ?? 0));
+  for (const trace of traces) {
+    const cle = cleJour(trace.date);
+    minutesParJour.set(cle, (minutesParJour.get(cle) ?? 0) + (trace.dureeMin ?? 0));
   }
 
-  const recente = activiteSurFenetre(eues, 30, now);
-  const triees = [...eues].sort((a, b) => a.date.localeCompare(b.date));
+  const recente = activiteSurFenetre(eues, 30, now, tentatives);
+  const triees = [...traces].sort((a, b) => a.date.localeCompare(b.date));
 
   return {
     minutesParJour,
     joursActifs30: recente.joursActifs,
     minutes30: recente.minutes,
     seances30: recente.seances,
-    minutesTotal: eues.reduce((s, x) => s + (x.dureeMin ?? 0), 0),
+    minutesTotal: traces.reduce((total, trace) => total + (trace.dureeMin ?? 0), 0),
     derniereSeance: triees.at(-1)?.date ?? null,
   };
 }
