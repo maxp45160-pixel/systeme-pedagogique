@@ -28,7 +28,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { BandeauInfo, Bouton, Etiquette, PointActif } from "@/components/ui/primitives";
+import { BandeauInfo, Bouton, Etiquette } from "@/components/ui/primitives";
 import { Modale } from "@/components/ui/modale";
 import { Champ, ChampSelect } from "@/components/ui/champ";
 import { Markdown } from "@/components/ui/markdown";
@@ -515,23 +515,13 @@ export function ModaleExercice({
         )}
 
         {phase === "generation" && (
-          <div className="mt-8 flex flex-col items-center justify-center py-10 text-center">
-            <PointActif />
-            <p className="mt-3 text-sm text-texte-attenue">
-              {progression ?? "Le tuteur prend connaissance de ce qui a été mesuré…"}
-            </p>
-            <Bouton
-              onClick={() => {
-                abandonRef.current?.abort();
-                setPhase(modificationIndex !== null ? "previsualisation" : "formulaire");
-              }}
-              variante="secondaire"
-              taille="petite"
-              className="mt-4"
-            >
-              Arrêter
-            </Bouton>
-          </div>
+          <ChargementGenerationExercice
+            progressionServeur={progression}
+            onArrêter={() => {
+              abandonRef.current?.abort();
+              setPhase(modificationIndex !== null ? "previsualisation" : "formulaire");
+            }}
+          />
         )}
 
         {phase === "previsualisation" && (
@@ -778,5 +768,81 @@ function EnveloppeGeneration({
       </div>
       {children}
     </section>
+  );
+}
+
+const ETAPES_GENERATION = [
+  "Analyse du référentiel et des mesures passées…",
+  "Calibration du niveau et de la difficulté…",
+  "Rédaction de l'énoncé et de la mise en situation…",
+  "Conception des indices et du guide de correction…",
+  "Finalisation de la proposition par le tuteur…",
+];
+
+/**
+ * Indication visuelle unique de chargement pour la génération d’exercice.
+ *
+ *  - Pas d'emojis.
+ *  - Une seule indication visuelle épurée (barre de progression + %).
+ *  - Progression ultra-continue basée sur le temps écoulé (départ à 0 %, asymptote fluide sans à-coup).
+ */
+function ChargementGenerationExercice({
+  progressionServeur,
+  onArrêter,
+}: {
+  progressionServeur: string | null;
+  onArrêter: () => void;
+}) {
+  const [pourcentage, setPourcentage] = useState(0);
+  const [etapeIndex, setEtapeIndex] = useState(0);
+
+  useEffect(() => {
+    const tempsDebut = Date.now();
+
+    // Actualisation ultra-continue (toutes les 100 ms) basée sur une asymptote lisse
+    const intervalPourcent = setInterval(() => {
+      const ecouleSec = (Date.now() - tempsDebut) / 1000;
+      // Progression asymptotique naturelle : 94 * (1 - e^(-t / 7))
+      const val = Math.min(94, Math.round(94 * (1 - Math.exp(-ecouleSec / 7))));
+      setPourcentage((prev) => Math.max(prev, val));
+    }, 100);
+
+    const intervalEtape = setInterval(() => {
+      setEtapeIndex((prev) => (prev < ETAPES_GENERATION.length - 1 ? prev + 1 : prev));
+    }, 2800);
+
+    return () => {
+      clearInterval(intervalPourcent);
+      clearInterval(intervalEtape);
+    };
+  }, []);
+
+  const texteCourant = progressionServeur ?? ETAPES_GENERATION[etapeIndex];
+
+  return (
+    <div className="mt-4 flex flex-col items-center justify-center rounded-xl border border-bordure bg-surface/50 p-6 text-center shadow-[var(--ombre-posee)]">
+      {/* Une seule indication visuelle : Barre de progression unique avec % et étape */}
+      <div className="w-full max-w-md space-y-2.5">
+        <div className="flex items-center justify-between text-xs font-medium text-texte-attenue">
+          <span className="truncate">{texteCourant}</span>
+          <span className="chiffres font-semibold text-texte shrink-0 ml-3">{pourcentage}%</span>
+        </div>
+        <div className="h-2 w-full overflow-hidden rounded-full bg-surface-3">
+          <div
+            className="h-full rounded-full bg-primaire transition-all duration-300 ease-out"
+            style={{ width: `${pourcentage}%` }}
+          />
+        </div>
+      </div>
+
+      <Bouton
+        onClick={onArrêter}
+        variante="secondaire"
+        taille="petite"
+        className="mt-6"
+      >
+        Arrêter
+      </Bouton>
+    </div>
   );
 }

@@ -312,6 +312,9 @@ export function EspaceDocumentaire({
 }) {
   const router = useRouter();
   const [elements, setElements] = useState(elementsInitials);
+  useEffect(() => {
+    setElements(elementsInitials);
+  }, [elementsInitials]);
   const selectionInitiale = useMemo(() => {
     if (!documentDemande) return null;
     return trouverElement(documentDemande, elementsInitials)?.id ?? null;
@@ -825,38 +828,53 @@ export function EspaceDocumentaire({
                   >
                     Graphe global
                   </button>
-                  {selectionnee.dossier.split("/").map((partie, index) => (
-                    <span key={index} className="flex items-center gap-1.5 shrink-0">
-                      <span className="text-texte-discret/60">/</span>
-                      {partie === "Domaines" ? (
-                        <button
-                          type="button"
-                          onClick={() => ouvrirElement("domaines")}
-                          className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
-                        >
-                          Domaines
-                        </button>
-                      ) : partie === "Transversal" ? (
-                        <button
-                          type="button"
-                          onClick={() => ouvrirElement("transversal")}
-                          className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
-                        >
-                          Transversal
-                        </button>
-                      ) : partie === "Domaines archivés" || partie === "Archivés" ? (
-                        <button
-                          type="button"
-                          onClick={() => ouvrirElement("domaines-archives")}
-                          className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
-                        >
-                          Domaines archivés
-                        </button>
-                      ) : (
-                        <span className="text-texte-discret">{partie}</span>
-                      )}
-                    </span>
-                  ))}
+                  {selectionnee.dossier.split("/").map((partie, index) => {
+                    const domaineEl = elements.find(
+                      (el) =>
+                        el.type === "domaine" &&
+                        ((el.vuePedagogique?.kind === "domaine" && el.vuePedagogique.nom === partie) || el.titre === partie),
+                    );
+                    return (
+                      <span key={index} className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-texte-discret/60">/</span>
+                        {partie === "Domaines" ? (
+                          <button
+                            type="button"
+                            onClick={() => ouvrirElement("domaines")}
+                            className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
+                          >
+                            Domaines
+                          </button>
+                        ) : partie === "Transversal" ? (
+                          <button
+                            type="button"
+                            onClick={() => ouvrirElement("transversal")}
+                            className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
+                          >
+                            Transversal
+                          </button>
+                        ) : partie === "Domaines archivés" || partie === "Archivés" ? (
+                          <button
+                            type="button"
+                            onClick={() => ouvrirElement("domaines-archives")}
+                            className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
+                          >
+                            Domaines archivés
+                          </button>
+                        ) : domaineEl ? (
+                          <button
+                            type="button"
+                            onClick={() => ouvrirElement(domaineEl.id)}
+                            className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
+                          >
+                            {partie}
+                          </button>
+                        ) : (
+                          <span className="text-texte-discret">{partie}</span>
+                        )}
+                      </span>
+                    );
+                  })}
                 </nav>
               </div>
 
@@ -998,6 +1016,12 @@ export function EspaceDocumentaire({
                 compteId={graphe.compteId}
                 generation={generation}
               />
+            ) : selectionnee.type === "exercice" ? (
+              <PanneauExerciceAtelier
+                element={selectionnee}
+                elements={elements}
+                ouvrirElement={ouvrirElement}
+              />
             ) : (
               <div className="space-y-5 p-4">
                 <div>
@@ -1088,38 +1112,6 @@ export function EspaceDocumentaire({
                   </div>
                 )}
 
-                {selectionnee.source === "projection" && selectionnee.type === "exercice" && (
-                  <div className="border-t border-bordure pt-4">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <h3 className="text-xs font-semibold text-texte-attenue">Tentatives associées</h3>
-                      <span className="text-[0.6875rem] text-texte-discret">{selectionnee.tentatives.length}</span>
-                    </div>
-                    {selectionnee.tentatives.length === 0 ? (
-                      <p className="mt-2 text-xs leading-relaxed text-texte-discret">Aucune tentative enregistrée pour cet exercice.</p>
-                    ) : (
-                      <ul className="mt-2 space-y-2">
-                        {selectionnee.tentatives.map((tentative) => (
-                          <li key={tentative.id} className="rounded-md border border-bordure bg-surface px-2.5 py-2 text-xs">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="font-medium">{tentative.resultat === "reussi" ? "Réussi" : tentative.resultat === "echec" ? "Échec" : "Partiel"}</span>
-                              <span className="text-[0.6875rem] text-texte-discret">{new Date(tentative.fin ?? tentative.debut).toLocaleDateString("fr-FR")}</span>
-                            </div>
-                            <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[0.6875rem] text-texte-discret">
-                              <span>{tentative.statut === "terminee" ? "Terminée" : tentative.statut === "abandonnee" ? "Abandonnée" : "En cours"}</span>
-                              {tentative.dureeMin !== undefined && <span>{tentative.dureeMin} min</span>}
-                              <span>{tentative.indicesUtilises} indice{tentative.indicesUtilises > 1 ? "s" : ""}</span>
-                            </div>
-                            {tentative.reponse.trim() && (
-                              <p className="mt-1.5 line-clamp-2 text-[0.6875rem] leading-relaxed text-texte-attenue">
-                                {tentative.reponse.trim().replace(/\s+/g, " ")}
-                              </p>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                )}
 
                 <div className="border-t border-bordure pt-4">
                   <h3 className="text-xs font-semibold text-texte-attenue">Vue pédagogique</h3>
@@ -1155,4 +1147,127 @@ export function EspaceDocumentaire({
 
 function compterElements(noeud: NoeudDossier): number {
   return noeud.elements.length + noeud.enfants.reduce((total, enfant) => total + compterElements(enfant), 0);
+}
+
+/**
+ * Panneau latéral spécialisé pour les projections d'exercice.
+ *
+ * Remplace les métadonnées techniques brutes par les informations utiles :
+ *  - Le domaine de rattachement (avec lien direct cliquable).
+ *  - Les compétences cibles (avec code, intitulé et lien direct cliquable).
+ *  - L'historique des tentatives réalisées.
+ *  - Le raccourci principal pour s'exercer dans le cahier.
+ */
+function PanneauExerciceAtelier({
+  element,
+  elements,
+  ouvrirElement,
+}: {
+  element: ElementAtelier;
+  elements: ElementAtelier[];
+  ouvrirElement: (id: string) => void;
+}) {
+  const partiesDossier = element.dossier.split("/").map((p) => p.trim()).filter(Boolean);
+  const nomDomaine = partiesDossier.find((p) => p !== "Domaines" && p !== "Transversal") ?? partiesDossier[0];
+  const domaineEl = nomDomaine
+    ? elements.find(
+        (el) =>
+          el.type === "domaine" &&
+          ((el.vuePedagogique?.kind === "domaine" && el.vuePedagogique.nom === nomDomaine) || el.titre === nomDomaine),
+      )
+    : null;
+
+  return (
+    <div className="space-y-5 p-4">
+      <div>
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-texte-attenue">
+          Domaine de rattachement
+        </h2>
+        {domaineEl ? (
+          <button
+            type="button"
+            onClick={() => ouvrirElement(domaineEl.id)}
+            className="mt-2 block w-full rounded-lg border border-bordure bg-surface p-3 text-left transition-colors hover:border-primaire hover:bg-surface-2 cursor-pointer"
+          >
+            <span className="block text-xs font-semibold text-primaire">Voir le domaine →</span>
+            <span className="mt-0.5 block truncate text-sm font-medium text-texte">
+              {(domaineEl.vuePedagogique?.kind === "domaine" ? domaineEl.vuePedagogique.nom : undefined) ?? domaineEl.titre}
+            </span>
+          </button>
+        ) : (
+          <p className="mt-2 text-xs text-texte-discret">{nomDomaine ?? "Non spécifié"}</p>
+        )}
+      </div>
+
+      <div className="border-t border-bordure pt-4">
+        <div className="flex items-baseline justify-between gap-2">
+          <h3 className="text-xs font-semibold text-texte-attenue">Compétences cibles</h3>
+          <span className="text-[0.6875rem] text-texte-discret">{element.sortants.length}</span>
+        </div>
+        {element.sortants.length > 0 ? (
+          <ul className="mt-2 space-y-1.5">
+            {element.sortants.map((code) => {
+              const compEl = elements.find((el) => el.id === code);
+              return (
+                <li key={code}>
+                  <button
+                    type="button"
+                    onClick={() => ouvrirElement(code)}
+                    className="flex w-full items-center justify-between gap-2 rounded-lg border border-bordure bg-surface px-3 py-2 text-left text-xs transition-colors hover:border-primaire hover:bg-surface-2 cursor-pointer"
+                  >
+                    <span className="font-mono text-[0.6875rem] font-semibold text-primaire">{code}</span>
+                    <span className="truncate flex-1 font-medium text-texte">{compEl?.titre ?? code}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="mt-2 text-xs text-texte-discret">Aucune compétence directement ciblée.</p>
+        )}
+      </div>
+
+      <div className="border-t border-bordure pt-4">
+        <div className="flex items-baseline justify-between gap-2">
+          <h3 className="text-xs font-semibold text-texte-attenue">Tentatives réalisées</h3>
+          <span className="text-[0.6875rem] text-texte-discret">{element.tentatives.length}</span>
+        </div>
+        {element.tentatives.length === 0 ? (
+          <p className="mt-2 text-xs leading-relaxed text-texte-discret">
+            Aucune tentative enregistrée. S&apos;exercer dans le cahier générera la première preuve.
+          </p>
+        ) : (
+          <ul className="mt-2 space-y-2">
+            {element.tentatives.map((tentative) => (
+              <li key={tentative.id} className="rounded-md border border-bordure bg-surface px-2.5 py-2 text-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium">
+                    {tentative.resultat === "reussi" ? "Réussi" : tentative.resultat === "echec" ? "Échec" : "Partiel"}
+                  </span>
+                  <span className="text-[0.6875rem] text-texte-discret">
+                    {new Date(tentative.fin ?? tentative.debut).toLocaleDateString("fr-FR")}
+                  </span>
+                </div>
+                <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[0.6875rem] text-texte-discret">
+                  <span>{tentative.statut === "terminee" ? "Terminée" : tentative.statut === "abandonnee" ? "Abandonnée" : "En cours"}</span>
+                  {tentative.dureeMin !== undefined && <span>{tentative.dureeMin} min</span>}
+                  <span>{tentative.indicesUtilises} indice{tentative.indicesUtilises > 1 ? "s" : ""}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="border-t border-bordure pt-4">
+        <Link
+          href={`/exercices/${element.id.replace(/^exercice:/, "")}`}
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-primaire px-4 py-2.5 text-xs font-semibold text-texte-inverse shadow hover:bg-primaire-survol transition-colors"
+        >
+          <span>S’exercer dans le cahier</span>
+          <span aria-hidden>→</span>
+        </Link>
+      </div>
+    </div>
+  );
 }
