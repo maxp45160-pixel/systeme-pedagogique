@@ -113,7 +113,7 @@ export function FormulaireAmorcage({
           sujetInitial={sujet.trim()}
           descriptionInitiale={depart ? `Point de départ déclaré : ${depart}` : ""}
           suggestionAutomatique
-          surEnregistre={() => router.replace("/competences")}
+          surEnregistre={() => router.replace("/atelier")}
         />
       )}
     </div>

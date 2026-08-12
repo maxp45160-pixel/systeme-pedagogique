@@ -92,6 +92,7 @@ function construireCtxDeTest(
     etatsParCode: new Map(etats.map((e) => [e.skill.code, e])),
     global,
     recommandations,
+    contexteDocumentaire: new Map(),
     now,
   };
 }

@@ -245,8 +245,18 @@ export interface SkillEvidence {
   dimensions: Partial<Record<Dimension, number>>;
   /** Compétences mobilisées conjointement — condition du niveau 5. */
   competencesCombinees?: string[];
-  /** Origine vérifiable : id de tentative, de projet, de session. */
-  source: { kind: "exercice" | "projet" | "session" | "tuteur" | "manuel"; ref: string };
+  /**
+   * Origine vérifiable : id de tentative, de projet ou de session.
+   *
+   * `document` et `snapshot` sont optionnels pour préserver les preuves
+   * historiques créées avant le corpus documentaire. Quand ils existent, le
+   * snapshot identifie exactement le contenu produit au moment de la mesure.
+   */
+  source: {
+    kind: "exercice" | "projet" | "session" | "tuteur" | "manuel";
+    ref: string;
+    document?: { documentId: string; snapshotId: string };
+  };
   commentaire?: string;
 }
 

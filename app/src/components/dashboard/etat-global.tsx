@@ -131,8 +131,8 @@ export function CarteEtatGlobal({
               </div>
               <p className="mt-3 text-texte-discret">
                 Le détail par compétence est consultable dans{" "}
-                <Link href="/competences" className="text-primaire underline decoration-primaire/30">
-                  la matrice de compétences
+                <Link href="/atelier" className="text-primaire underline decoration-primaire/30">
+                  l’Atelier
                 </Link>
                 .
               </p>

@@ -70,6 +70,7 @@ async function ContenuHub({ recherche }: { recherche?: string }) {
     calibrations: Array.from(ctx.calibrations.entries()),
     calibragesModale: calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations),
     recommandations: ctx.recommandations,
+    contexteDocumentaire: Array.from(ctx.contexteDocumentaire.entries()),
     domaines: ctx.referentiel.domaines.map((d) => ({ id: d.id, nom: d.nom, prefixe: d.prefixe })),
     themes,
     compteId: ctx.donnees.user.id,

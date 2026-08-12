@@ -15,6 +15,8 @@ import {
 import { CarteProgressionRecente } from "@/components/dashboard/progression-recente";
 import { CarteActivite } from "@/components/dashboard/activite";
 import { CarteProfil } from "@/components/dashboard/carte-profil";
+import { CaptureNotes } from "@/components/dashboard/capture-notes";
+import { PilotageReferentiel } from "@/components/dashboard/pilotage-referentiel";
 import {
   ConcepteurSeance,
   type DonneesSeance,
@@ -86,6 +88,7 @@ async function ContenuTableauDeBord() {
     calibrations: Array.from(ctx.calibrations.entries()),
     calibragesModale: calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations),
     recommandations: ctx.recommandations,
+    contexteDocumentaire: Array.from(ctx.contexteDocumentaire.entries()),
     domaines: ctx.referentiel.domaines.map((d) => ({ id: d.id, nom: d.nom, prefixe: d.prefixe })),
     themes,
     compteId: ctx.donnees.user.id,
@@ -203,7 +206,12 @@ async function ContenuTableauDeBord() {
         )}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
+      <PilotageReferentiel
+        referentiel={ctx.referentiel}
+        compteId={ctx.donnees.user.id}
+      />
+
+      <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
         <Carte id="composer-seance" className="scroll-mt-6">
           <div className="flex h-full flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-6">
             <div>
@@ -215,6 +223,7 @@ async function ContenuTableauDeBord() {
             <ConcepteurSeance {...donneesSeance} libelle="Composer une séance" />
           </div>
         </Carte>
+        <CaptureNotes />
         <CarteProfil user={ctx.donnees.user} />
       </div>
 

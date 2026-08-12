@@ -16,6 +16,7 @@ const LIBELLES_TYPE_NOEUD: Record<TypeNoeud, string> = {
   competence: "Compétences",
   exercice: "Exercices",
   theme: "Thèmes (hubs)",
+  document: "Documents Markdown",
 };
 
 const LIBELLES_AXE_COULEUR: Record<AxeCouleur, string> = {
@@ -25,7 +26,7 @@ const LIBELLES_AXE_COULEUR: Record<AxeCouleur, string> = {
   couverture: "Couverture en exercices",
 };
 
-const ORDRE_LIENS: TypeLien[] = ["prerequis", "theme", "exercice", "similarite"];
+const ORDRE_LIENS: TypeLien[] = ["prerequis", "theme", "exercice", "document", "similarite"];
 
 export function PanneauReglages({
   reglages,
@@ -41,26 +42,26 @@ export function PanneauReglages({
   }
 
   return (
-    <div className="flex h-full w-64 shrink-0 flex-col overflow-y-auto border-l border-bordure bg-surface-2 text-xs">
-      <div className="flex items-center justify-between border-b border-bordure px-3 py-2.5">
-        <p className="font-medium">Réglages</p>
+    <div className="absolute inset-y-0 right-0 z-20 flex w-[min(21rem,88%)] flex-col overflow-y-auto border-l border-bordure bg-surface-2/98 text-sm shadow-2xl backdrop-blur-md">
+      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-bordure bg-surface-2 px-4 py-3.5">
+        <p className="font-semibold">Réglages du graphe</p>
         <button
           type="button"
           onClick={onFermer}
-          className="text-texte-attenue hover:text-texte"
+          className="grid size-8 place-items-center rounded-lg border border-bordure text-texte-attenue hover:text-texte"
           aria-label="Fermer le panneau de réglages"
         >
           ✕
         </button>
       </div>
 
-      <div className="space-y-5 px-3 py-3">
+      <div className="space-y-6 px-4 py-4">
         {/* Types de nœuds */}
         <section>
           <p className="mb-1.5 font-medium text-texte-attenue">Afficher</p>
-          <div className="space-y-1">
+          <div className="space-y-2">
             {(Object.keys(LIBELLES_TYPE_NOEUD) as TypeNoeud[]).map((t) => (
-              <label key={t} className="flex items-center gap-1.5">
+              <label key={t} className="flex min-h-8 items-center gap-2">
                 <input
                   type="checkbox"
                   checked={reglages.typesNoeudsVisibles[t]}
@@ -70,7 +71,7 @@ export function PanneauReglages({
                       [t]: e.target.checked,
                     })
                   }
-                  className="size-3.5 accent-[var(--primaire)]"
+                  className="size-4 accent-[var(--primaire)]"
                 />
                 {LIBELLES_TYPE_NOEUD[t]}
               </label>
@@ -81,9 +82,9 @@ export function PanneauReglages({
         {/* Types de liens */}
         <section>
           <p className="mb-1.5 font-medium text-texte-attenue">Liens</p>
-          <div className="space-y-1">
+          <div className="space-y-2">
             {ORDRE_LIENS.map((t) => (
-              <label key={t} className="flex items-center gap-1.5">
+              <label key={t} className="flex min-h-8 items-center gap-2">
                 <input
                   type="checkbox"
                   checked={reglages.typesLiensVisibles[t]}
@@ -93,7 +94,7 @@ export function PanneauReglages({
                       [t]: e.target.checked,
                     })
                   }
-                  className="size-3.5 accent-[var(--primaire)]"
+                  className="size-4 accent-[var(--primaire)]"
                 />
                 <span className="flex items-center gap-1">
                   {STYLE_PAR_TYPE_LIEN[t].libelle}
@@ -187,9 +188,9 @@ export function PanneauReglages({
         <section>
           <p className="mb-1.5 font-medium text-texte-attenue">Libellés</p>
           <label className="flex flex-col gap-1">
-            <span className="text-texte-discret">
-              Apparaissent à partir du zoom {reglages.seuilLibelles.toFixed(2)}×
-            </span>
+              <span className="text-texte-discret">
+                Apparaissent à partir du zoom {reglages.seuilLibelles.toFixed(2)}×
+              </span>
             <input
               type="range"
               min={0.2}
@@ -198,6 +199,9 @@ export function PanneauReglages({
               value={reglages.seuilLibelles}
               onChange={(e) => set("seuilLibelles", Number(e.target.value))}
             />
+            <span className="text-xs leading-relaxed text-texte-discret">
+              Sur un graphe dense, les libellés complets restent masqués jusqu’à un zoom lisible.
+            </span>
           </label>
         </section>
       </div>

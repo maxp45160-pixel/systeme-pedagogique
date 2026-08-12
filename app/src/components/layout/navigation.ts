@@ -1,6 +1,6 @@
 import type { ComponentType } from "react";
 import {
-  IconeCompetences,
+  IconeDocuments,
   IconeExercices,
   IconeTableauBord,
 } from "@/components/ui/icones";
@@ -20,17 +20,20 @@ export interface GroupeNav {
 }
 
 /**
- * Trois pôles, desktop et mobile identiques (ADR-053), par ordre de priorité
+ * Trois groupes, desktop et mobile identiques, par ordre de priorité
  * d'usage :
  *
  *  - **Tableau de bord** — le point d'entrée de l'app (Piloter).
- *  - **Cahier**, dominant — composer, planifier, dérouler et relire (Travailler).
- *  - **Compétences**, en retrait — consulter et gérer au même endroit (Suivre).
+ *  - **Atelier**, dominant — explorer le corpus, le référentiel et sa progression (Visualiser).
+ *  - **Cahier** — composer, planifier, dérouler et relire (Travailler).
  *
  * La séparation tient au besoin (ADR-053) : le tableau de bord *pilote* (sa
- * prochaine action), Cahier *travaille* (le hub et le workspace, ADR-061),
- * Compétences *suit* (l'état). Les anciennes surfaces parallèles ont été
- * retirées : le rail ne décrit que les trois destinations actives (ADR-063).
+ * prochaine action), Atelier *visualise* (le workspace documentaire), Cahier
+ * *travaille* (le hub et le workspace, ADR-061),
+ * Les fiches de l'Atelier portent aussi le suivi et la gestion du référentiel.
+ * Les anciennes surfaces parallèles ont été
+ * retirées : le rail ne décrit que les destinations actives (ADR-063, étendu
+ * par l'Atelier documentaire).
  */
 export const NAVIGATION: GroupeNav[] = [
   {
@@ -40,16 +43,16 @@ export const NAVIGATION: GroupeNav[] = [
     ],
   },
   {
-    titre: "Travailler",
+    titre: "Visualiser",
     primaire: true,
     entrees: [
-      { href: "/seances", libelle: "Cahier", court: "Cahier", icone: IconeExercices },
+      { href: "/atelier", libelle: "Atelier", court: "Atelier", icone: IconeDocuments },
     ],
   },
   {
-    titre: "Suivre",
+    titre: "Travailler",
     entrees: [
-      { href: "/competences", libelle: "Compétences", court: "Compét.", icone: IconeCompetences },
+      { href: "/seances", libelle: "Cahier", court: "Cahier", icone: IconeExercices },
     ],
   },
 ];

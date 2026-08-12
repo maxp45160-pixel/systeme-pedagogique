@@ -67,6 +67,7 @@ import {
   type ThemeSeance,
 } from "@/lib/engine/caf";
 import type { Calibration } from "@/lib/engine/calibration";
+import type { ResumePreuvesDocumentaires } from "@/lib/engine/document-context";
 import type { Recommandation } from "@/lib/engine/recommend";
 import {
   creerSeance,
@@ -109,6 +110,8 @@ export interface DonneesSeance {
    * assemblé.
    */
   recommandations: Recommandation[];
+  /** Résumés documentaires sérialisables, issus du même contexte serveur. */
+  contexteDocumentaire: [string, ResumePreuvesDocumentaires][];
   domaines: { id: string; nom: string; prefixe: string }[];
   /** Thèmes enregistrés du compte (chantier « thèmes », ADR-053). */
   themes: Theme[];
@@ -131,6 +134,7 @@ export function ConcepteurSeance({
   calibrations,
   calibragesModale,
   recommandations,
+  contexteDocumentaire: contexteDocumentaireSerialise,
   domaines,
   themes: themesPersistes,
   compteId,
@@ -261,6 +265,10 @@ export function ConcepteurSeance({
   const [enregistrement, setEnregistrement] = useState(false);
 
   const calibMap = useMemo(() => new Map(calibrations), [calibrations]);
+  const contexteDocumentaire = useMemo(
+    () => new Map(contexteDocumentaireSerialise),
+    [contexteDocumentaireSerialise],
+  );
   const tempsMin = Math.max(DUREE_ESTIMEE_MIN, Number(temps) || TEMPS_PAR_DEFAUT);
 
   const conseil = useMemo(
@@ -283,8 +291,17 @@ export function ConcepteurSeance({
   const refusDemande = demande ? motifRefusDemande(demande) : null;
   const composition: CompositionSeance | null = useMemo(() => {
     if (!demande || motifRefusDemande(demande)) return null;
-    return composerSeance(demande, etats, exercices, tentatives, calibMap, new Date());
-  }, [demande, etats, exercices, tentatives, calibMap]);
+    return composerSeance(
+      demande,
+      etats,
+      exercices,
+      tentatives,
+      calibMap,
+      new Date(),
+      undefined,
+      contexteDocumentaire,
+    );
+  }, [demande, etats, exercices, tentatives, calibMap, contexteDocumentaire]);
 
   const competencesModale: CompetenceModale[] = useMemo(
     () => competencesPourModale(actifs),

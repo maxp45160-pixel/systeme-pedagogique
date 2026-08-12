@@ -72,3 +72,10 @@ export const IconeFeuille = ({ className }: Props) => (
     <path d="M5 20c2.5-4.5 6-7.5 11-9" />
   </Svg>
 );
+
+export const IconeDocuments = ({ className }: Props) => (
+  <Svg className={className}>
+    <path d="M6 3.5h8l4 4V20.5H6Z" />
+    <path d="M14 3.5v4h4M9 12h6M9 15.5h6" />
+  </Svg>
+);

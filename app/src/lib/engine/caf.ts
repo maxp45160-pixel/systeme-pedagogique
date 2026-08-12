@@ -64,6 +64,7 @@ import {
   type DureeReference,
 } from "./calibration";
 import { difficulteVisee, recommander, type Recommandation } from "./recommend";
+import type { ContexteDocumentaire } from "./document-context";
 import {
   EXERCICES_PAR_SEANCE_MAX,
   EXERCICES_PAR_SEANCE_MIN,
@@ -353,6 +354,7 @@ export function composerSeance(
     codes: new Set(),
     exercices: new Set(),
   },
+  contexteDocumentaire?: ContexteDocumentaire,
 ): CompositionSeance {
   const explication: string[] = [];
   const n = demande.nombreExercices;
@@ -388,6 +390,7 @@ export function composerSeance(
     calibrations,
     now,
     refus,
+    contexteDocumentaire,
   );
   const parCode = new Map<string, Recommandation>(
     classement.map((r) => [r.etat.skill.code, r]),

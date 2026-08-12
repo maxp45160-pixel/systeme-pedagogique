@@ -18,16 +18,8 @@ import { TuteurGlobal } from "@/components/tuteur/tuteur-global";
  */
 export default async function AppLayout({
   children,
-  fiche,
 }: {
   children: React.ReactNode;
-  /**
-   * Créneau parallèle `@fiche` — vide partout sauf sur l'interception de
-   * `/competences/[code]`, où il porte le tiroir ouvert depuis le graphe.
-   * Rendu hors du flux principal : le graphe reste monté derrière, avec son
-   * zoom et ses filtres.
-   */
-  fiche: React.ReactNode;
 }) {
   const compte = await compteCourant();
   if (!compte) redirect("/login");
@@ -81,8 +73,6 @@ export default async function AppLayout({
           </div>
         </main>
       </div>
-
-      {fiche}
 
       <NavMobile />
       {/*

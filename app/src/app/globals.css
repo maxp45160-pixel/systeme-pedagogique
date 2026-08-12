@@ -204,7 +204,7 @@
     position: relative;
     display: flex;
     width: 100%;
-    height: clamp(420px, calc(100vh - 12rem), 900px);
+    height: clamp(580px, calc(100vh - 9rem), 980px);
     border-radius: var(--rayon-carte, 0.75rem);
     border: 1px solid var(--bordure);
     background: var(--surface);

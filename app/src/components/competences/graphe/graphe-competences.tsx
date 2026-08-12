@@ -68,7 +68,8 @@ export function GrapheCompetences({
   const deplaceRef = useRef(false); // drag/pan réel vs simple clic
 
   const [reglages, setReglagesState] = useState<ReglagesGraphe>(REGLAGES_PAR_DEFAUT);
-  const [panneauOuvert, setPanneauOuvert] = useState(true);
+  const [panneauOuvert, setPanneauOuvert] = useState(false);
+  const [legendeOuverte, setLegendeOuverte] = useState(false);
   const [focusIndex, setFocusIndex] = useState(0);
   /**
    * Le survol pilote un redessin Canvas impératif (`dessinerRef.current()`),
@@ -173,6 +174,32 @@ export function GrapheCompetences({
   /* Dessin                                                              */
   /* ------------------------------------------------------------------ */
 
+  const ajusterCamera = useCallback(() => {
+    const noeuds = noeudsRef.current.filter(
+      (noeud) => noeud.x !== undefined && noeud.y !== undefined,
+    );
+    if (noeuds.length === 0) return;
+    const { largeur, hauteur } = tailleRef.current;
+    if (largeur <= 0 || hauteur <= 0) return;
+    const xs = noeuds.map((noeud) => noeud.x!);
+    const ys = noeuds.map((noeud) => noeud.y!);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+    const largeurMonde = Math.max(120, maxX - minX);
+    const hauteurMonde = Math.max(120, maxY - minY);
+    const zoom = Math.min(
+      1.35,
+      Math.max(0.2, Math.min((largeur - 120) / largeurMonde, (hauteur - 120) / hauteurMonde)),
+    );
+    cameraRef.current = {
+      x: -(minX + maxX) / 2,
+      y: -(minY + maxY) / 2,
+      zoom,
+    };
+  }, []);
+
   const dessiner = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -203,7 +230,8 @@ export function GrapheCompetences({
       dessinerLien(ctx, l, largeur, hauteur, camera, palette, opacite);
     }
 
-    const afficherLibelles = camera.zoom >= reglages.seuilLibelles;
+    const seuilDensite = noeudsRef.current.length > 55 ? 1.05 : noeudsRef.current.length > 35 ? 0.85 : 0.55;
+    const afficherLibelles = camera.zoom >= Math.max(reglages.seuilLibelles, seuilDensite);
     for (const n of noeudsRef.current) {
       const estSurvole = n.id === survol;
       const estVoisin = voisins.has(n.id);
@@ -265,20 +293,24 @@ export function GrapheCompetences({
     simulationRef.current?.stop();
     const sim = creerSimulation(noeudsSimules, liensSimules, reglages.forces);
     simulationRef.current = sim;
+    sim.stop();
+    for (let i = 0; i < 90; i++) sim.tick();
+    ajusterCamera();
 
     if (reduitMouvement) {
       // Convergence hors écran : pas d'animation visible, un seul dessin final.
-      sim.stop();
-      for (let i = 0; i < 300; i++) sim.tick();
+      for (let i = 0; i < 210; i++) sim.tick();
+      ajusterCamera();
       dessinerRef.current();
     } else {
       sim.on("tick", () => dessinerRef.current());
+      sim.alpha(0.22).restart();
     }
 
     return () => {
       sim.stop();
     };
-  }, [noeudsAAfficher, liensAffiches, reglages.forces]);
+  }, [noeudsAAfficher, liensAffiches, reglages.forces, ajusterCamera]);
 
   /* ------------------------------------------------------------------ */
   /* Redimensionnement — DPR géré, ResizeObserver plutôt que du polling  */
@@ -300,6 +332,7 @@ export function GrapheCompetences({
       canvas!.style.height = `${rect.height}px`;
       const ctx = canvas!.getContext("2d");
       ctx?.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ajusterCamera();
       dessinerRef.current();
     }
 
@@ -307,7 +340,7 @@ export function GrapheCompetences({
     const observateur = new ResizeObserver(redimensionner);
     observateur.observe(conteneur);
     return () => observateur.disconnect();
-  }, []);
+  }, [ajusterCamera]);
 
   /* ------------------------------------------------------------------ */
   /* Thème clair/sombre — l'app pilote `data-theme` sur <html>.          */
@@ -339,7 +372,8 @@ export function GrapheCompetences({
       if (n.x === undefined || n.y === undefined) continue;
       const px = largeur / 2 + (n.x + camera.x) * camera.zoom;
       const py = hauteur / 2 + (n.y + camera.y) * camera.zoom;
-      const rayon = n.rayon * camera.zoom;
+      const rayonMinimum = n.type === "theme" ? 7 : n.type === "competence" ? 5 : 4;
+      const rayon = Math.max(rayonMinimum, n.rayon * camera.zoom);
       const d = Math.hypot(xEcran - px, yEcran - py);
       if (d <= rayon + 2 && d < meilleureDistance) {
         meilleureDistance = d;
@@ -351,8 +385,14 @@ export function GrapheCompetences({
 
   const naviguerVersNoeud = useCallback(
     (n: NoeudGraphe) => {
-      if (n.type === "competence") router.push(`/competences/${encodeURIComponent(n.id.slice("competence:".length))}`);
-      else if (n.type === "exercice") router.push(`/exercices/${encodeURIComponent(n.id.slice("exercice:".length))}`);
+      if (n.type === "competence") {
+        const code = n.id.slice("competence:".length);
+        router.push(`/atelier?document=${encodeURIComponent(code)}`);
+      }
+      else if (n.type === "exercice") {
+        router.push(`/atelier?document=${encodeURIComponent(n.id)}`);
+      }
+      else if (n.type === "document") router.push(`/atelier?document=${encodeURIComponent(n.id.slice("document:".length))}`);
       // Un thème n'a pas de fiche dédiée : la portée se travaille depuis le
       // compositeur de séance, pas depuis le graphe.
     },
@@ -491,49 +531,75 @@ export function GrapheCompetences({
           ref={canvasRef}
           tabIndex={0}
           role="application"
-          aria-label="Graphe des compétences — flèches pour parcourir, Entrée pour ouvrir"
+          aria-label="Graphe des compétences et documents — flèches pour parcourir, Entrée pour ouvrir"
           onKeyDown={onKeyDown}
           className="block h-full w-full cursor-grab touch-none focus:outline-none focus-visible:ring-2 focus-visible:ring-primaire"
         />
 
-        {/* Légende — toujours visible, un seul point de vérité avec le dessin (rendu-canvas.ts) */}
-        <div className="pointer-events-none absolute bottom-2 left-2 space-y-1 rounded-md border border-bordure bg-surface/90 px-2.5 py-2 text-[0.6875rem] text-texte-attenue backdrop-blur-sm">
-          {(Object.keys(STYLE_PAR_TYPE_LIEN) as TypeLien[])
-            .filter((t) => reglages.typesLiensVisibles[t])
-            .map((t) => (
-              <div key={t} className="flex items-center gap-1.5">
-                <span
-                  className="inline-block h-0 w-4 border-t-2"
-                  style={{
-                    borderStyle: STYLE_PAR_TYPE_LIEN[t].pointille ? "dashed" : "solid",
-                    borderColor: "var(--texte-attenue)",
-                  }}
-                />
-                {STYLE_PAR_TYPE_LIEN[t].libelle}
+        <div className="absolute bottom-3 left-3">
+          {legendeOuverte && (
+            <div className="mb-2 max-w-[min(34rem,calc(100vw-5rem))] space-y-2 rounded-xl border border-bordure bg-surface/95 p-3 text-xs text-texte-attenue shadow-lg backdrop-blur-md">
+              <div className="flex flex-wrap gap-x-4 gap-y-2">
+                {(Object.keys(STYLE_PAR_TYPE_LIEN) as TypeLien[])
+                  .filter((t) => reglages.typesLiensVisibles[t])
+                  .map((t) => (
+                    <div key={t} className="flex items-center gap-1.5">
+                      <span
+                        className="inline-block h-0 w-5 border-t-2"
+                        style={{
+                          borderStyle: STYLE_PAR_TYPE_LIEN[t].pointille ? "dashed" : "solid",
+                          borderColor: "var(--texte-attenue)",
+                        }}
+                      />
+                      {STYLE_PAR_TYPE_LIEN[t].libelle}
+                    </div>
+                  ))}
               </div>
-            ))}
-          {reglages.axeCouleur === "domaine" && contexteCouleur.totalDomaines > 0 && (
-            <div className="mt-1.5 flex flex-wrap gap-1.5 border-t border-bordure pt-1.5">
-              {[...contexteCouleur.indexDomaine.entries()].map(([id, idx]) => (
-                <span key={id} className="flex items-center gap-1">
-                  <span
-                    className="inline-block size-2 rounded-full"
-                    style={{ background: couleurDomaine(idx, contexteCouleur.totalDomaines) }}
-                  />
-                  {id}
-                </span>
-              ))}
+              {reglages.axeCouleur === "domaine" && contexteCouleur.totalDomaines > 0 && (
+                <div className="flex flex-wrap gap-x-3 gap-y-2 border-t border-bordure pt-2">
+                  {[...contexteCouleur.indexDomaine.entries()].map(([id, idx]) => (
+                    <span key={id} className="flex items-center gap-1.5">
+                      <span
+                        className="inline-block size-2.5 rounded-full"
+                        style={{ background: couleurDomaine(idx, contexteCouleur.totalDomaines) }}
+                      />
+                      {id}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           )}
+          <button
+            type="button"
+            onClick={() => setLegendeOuverte((ouverte) => !ouverte)}
+            className="rounded-lg border border-bordure bg-surface/95 px-3 py-2 text-xs font-medium text-texte-attenue shadow-sm backdrop-blur-md hover:text-texte"
+            aria-expanded={legendeOuverte}
+          >
+            {legendeOuverte ? "Masquer la légende" : "Légende"}
+          </button>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setPanneauOuvert((o) => !o)}
-          className="absolute right-2 top-2 rounded-md border border-bordure bg-surface/90 px-2.5 py-1.5 text-xs font-medium text-texte-attenue backdrop-blur-sm hover:text-texte"
-        >
-          {panneauOuvert ? "Masquer les réglages" : "Réglages"}
-        </button>
+        <div className="absolute right-3 top-3 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              ajusterCamera();
+              dessinerRef.current();
+            }}
+            className="rounded-lg border border-bordure bg-surface/95 px-3 py-2 text-xs font-medium text-texte-attenue shadow-sm backdrop-blur-md hover:text-texte"
+          >
+            Recentrer
+          </button>
+          <button
+            type="button"
+            onClick={() => setPanneauOuvert((o) => !o)}
+            className="rounded-lg border border-bordure bg-surface/95 px-3 py-2 text-xs font-medium text-texte-attenue shadow-sm backdrop-blur-md hover:text-texte"
+            aria-expanded={panneauOuvert}
+          >
+            {panneauOuvert ? "Masquer les réglages" : "Réglages"}
+          </button>
+        </div>
       </div>
 
       {panneauOuvert && (

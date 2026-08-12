@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { computeSkillState, computeAllSkillStates } from "./skill-state";
 import { calculerEtatGlobal } from "./progression";
 import { recommander } from "./recommend";
+import { construireContexteDocumentaire } from "./document-context";
 import {
   activiteSurFenetre,
   calculerActivite,
@@ -592,6 +593,82 @@ describe("recommandation — protocole d'évaluation §16", () => {
     const rDev01PasDue = rJourPreuve.find((r) => r.etat.skill.code === "DEV-01")!;
     const facteurPasDue = rDev01PasDue.facteurs.find((f) => f.libelle === "Due pour révision");
     expect(facteurPasDue).toBeUndefined();
+  });
+
+  it("tient compte d'une preuve documentaire récente et contextualisée", () => {
+    const preuves = [
+      {
+        ...preuve({ skill: "STAT-01", jours: 10, contexte: "Cours" }),
+        source: {
+          kind: "exercice" as const,
+          ref: "ex-cours",
+          document: { documentId: "preuve-1", snapshotId: "snapshot-1" },
+        },
+      },
+      {
+        ...preuve({ skill: "STAT-01", jours: 1, contexte: "Projet" }),
+        source: {
+          kind: "projet" as const,
+          ref: "projet-1",
+          document: { documentId: "preuve-2", snapshotId: "snapshot-2" },
+        },
+      },
+    ];
+    const etats = computeAllSkillStates(SKILLS, preuves, MAINTENANT);
+    const contexteDocumentaire = construireContexteDocumentaire(preuves);
+    const recommandation = recommander(
+      etats,
+      [],
+      [],
+      10,
+      undefined,
+      MAINTENANT,
+      undefined,
+      contexteDocumentaire,
+    ).find((r) => r.etat.skill.code === "STAT-01")!;
+
+    expect(
+      recommandation.facteurs.find(
+        (facteur) => facteur.libelle === "Preuve documentaire contextualisée",
+      ),
+    ).toMatchObject({ contribution: -10 });
+  });
+
+  it("ne protège pas une compétence après une dernière production échouée", () => {
+    const preuves = [
+      {
+        ...preuve({ skill: "STAT-01", jours: 10, contexte: "Cours" }),
+        source: {
+          kind: "exercice" as const,
+          ref: "ex-cours",
+          document: { documentId: "preuve-1", snapshotId: "snapshot-1" },
+        },
+      },
+      {
+        ...preuve({ skill: "STAT-01", jours: 1, contexte: "Projet", resultat: "echec" }),
+        source: {
+          kind: "projet" as const,
+          ref: "projet-1",
+          document: { documentId: "preuve-2", snapshotId: "snapshot-2" },
+        },
+      },
+    ];
+    const recommandation = recommander(
+      computeAllSkillStates(SKILLS, preuves, MAINTENANT),
+      [],
+      [],
+      10,
+      undefined,
+      MAINTENANT,
+      undefined,
+      construireContexteDocumentaire(preuves),
+    ).find((r) => r.etat.skill.code === "STAT-01")!;
+
+    expect(
+      recommandation.facteurs.some(
+        (facteur) => facteur.libelle === "Preuve documentaire contextualisée",
+      ),
+    ).toBe(false);
   });
 });
 

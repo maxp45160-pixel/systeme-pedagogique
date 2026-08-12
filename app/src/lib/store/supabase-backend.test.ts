@@ -150,6 +150,30 @@ describe("entité → ligne SQL", () => {
     // `user_id` est une colonne technique : le retour la retire de lui-même.
     expect(ligneVersEntite(ligne)).toEqual(origine);
   });
+
+  it("préserve la provenance du document et de son snapshot", () => {
+    const origine = {
+      id: "ev-8",
+      skillCode: "STAT-02",
+      date: "2026-07-26",
+      type: "exercice",
+      niveauPreuve: "A",
+      autonomie: "seul",
+      qualite: "correcte",
+      resultat: "reussi",
+      contexte: "Étude de cas",
+      source: {
+        kind: "exercice",
+        ref: "att-8",
+        document: {
+          documentId: "preuve-att-8",
+          snapshotId: "snapshot-att-8-v1",
+        },
+      },
+    };
+
+    expect(ligneVersEntite(entiteVersLigne(origine, "compte-1"))).toEqual(origine);
+  });
 });
 
 describe("profil", () => {

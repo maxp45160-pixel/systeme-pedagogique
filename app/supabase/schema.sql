@@ -410,6 +410,74 @@ ALTER TABLE public.refus_recommandations
   ADD COLUMN IF NOT EXISTS exercice_id TEXT;
 
 -- --------------------------------------------------------------------
+-- 7bis. Corpus documentaire Markdown (source canonique)
+--
+-- Le contenu complet vit dans `contenu_md`. Les métadonnées documentaires et
+-- les relations sont relues depuis son front-matter et ses wikilinks ; les
+-- tables `document_links` et `document_snapshots` sont respectivement un index
+-- reconstructible et un historique immuable.
+-- --------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS public.documents (
+  user_id      UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  id           TEXT NOT NULL,
+  contenu_md   TEXT NOT NULL,
+  titre        TEXT NOT NULL DEFAULT '',
+  type         TEXT NOT NULL DEFAULT 'document',
+  tags         TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+  schema_version TEXT,
+  frontmatter  JSONB NOT NULL DEFAULT '{}'::JSONB,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, id)
+);
+
+DROP TRIGGER IF EXISTS on_document_updated ON public.documents;
+CREATE TRIGGER on_document_updated
+  BEFORE UPDATE ON public.documents
+  FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
+
+CREATE TABLE IF NOT EXISTS public.document_links (
+  user_id      UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  source_id    TEXT NOT NULL,
+  cible        TEXT NOT NULL,
+  libelle      TEXT,
+  ancre        TEXT NOT NULL DEFAULT '',
+  resolu       BOOLEAN NOT NULL DEFAULT false,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, source_id, cible, ancre),
+  FOREIGN KEY (user_id, source_id)
+    REFERENCES public.documents(user_id, id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS public.document_snapshots (
+  user_id        UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  id             TEXT NOT NULL,
+  document_id    TEXT NOT NULL,
+  version        INTEGER NOT NULL CHECK (version > 0),
+  contenu_md     TEXT NOT NULL,
+  capture_reason TEXT NOT NULL,
+  captured_at    TEXT NOT NULL,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, id),
+  UNIQUE (user_id, document_id, version),
+  FOREIGN KEY (user_id, document_id)
+    REFERENCES public.documents(user_id, id) ON DELETE RESTRICT
+);
+
+ALTER TABLE public.document_snapshots ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "snapshots_lecture_compte" ON public.document_snapshots;
+CREATE POLICY "snapshots_lecture_compte"
+  ON public.document_snapshots FOR SELECT
+  TO authenticated
+  USING ((select auth.uid()) = user_id);
+DROP POLICY IF EXISTS "snapshots_creation_compte" ON public.document_snapshots;
+CREATE POLICY "snapshots_creation_compte"
+  ON public.document_snapshots FOR INSERT
+  TO authenticated
+  WITH CHECK ((select auth.uid()) = user_id);
+
+-- --------------------------------------------------------------------
 -- 8. RLS + index, appliqués uniformément aux tables de données
 --
 -- `domaines` et `competences` entrent dans la même boucle que les autres :
@@ -421,9 +489,14 @@ DO $$
 DECLARE
   t TEXT;
 BEGIN
+  -- Les noms spécifiques utilisés par la migration distante sont retirés
+  -- avant que la boucle uniforme ne pose le nom canonique historique.
+  DROP POLICY IF EXISTS "documents_isolation_par_compte" ON public.documents;
+  DROP POLICY IF EXISTS "document_links_isolation_par_compte" ON public.document_links;
+
   FOREACH t IN ARRAY ARRAY[
     'domaines', 'competences', 'evidence', 'exercises', 'attempts', 'sessions',
-    'refus_recommandations', 'themes'
+    'refus_recommandations', 'themes', 'documents', 'document_links'
   ]
   LOOP
     EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
@@ -431,7 +504,7 @@ BEGIN
     EXECUTE format('DROP POLICY IF EXISTS "isolation_par_compte" ON public.%I', t);
     EXECUTE format(
       'CREATE POLICY "isolation_par_compte" ON public.%I FOR ALL TO authenticated '
-      || 'USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id)', t);
+      || 'USING ((select auth.uid()) = user_id) WITH CHECK ((select auth.uid()) = user_id)', t);
 
     -- Toutes les lectures filtrent sur user_id ; la clé primaire composite
     -- (user_id, id) sert déjà d'index préfixé, cet index couvre les tris.
@@ -454,6 +527,30 @@ CREATE INDEX IF NOT EXISTS attempts_user_exercise_idx
 -- sérialisation pour le tuteur).
 CREATE INDEX IF NOT EXISTS competences_user_domaine_idx
   ON public.competences (user_id, domaine);
+
+-- Le corpus est consulté par date de modification et les backlinks par cible.
+-- Ces index évitent un scan de tous les documents lorsque le corpus grandit.
+CREATE INDEX IF NOT EXISTS documents_user_updated_idx
+  ON public.documents (user_id, updated_at DESC);
+
+CREATE INDEX IF NOT EXISTS documents_user_type_idx
+  ON public.documents (user_id, type, updated_at DESC);
+
+CREATE INDEX IF NOT EXISTS document_links_user_target_idx
+  ON public.document_links (user_id, cible);
+
+-- Les tables documentaires sont privées par défaut. RLS limite les lignes ;
+-- les grants limitent en plus les rôles capables d'atteindre la table via la
+-- Data API. `service_role` reste disponible uniquement côté serveur.
+REVOKE ALL ON TABLE public.documents, public.document_links, public.document_snapshots FROM anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.documents, public.document_links TO authenticated;
+GRANT SELECT, INSERT ON TABLE public.document_snapshots TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.documents, public.document_links TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.document_snapshots TO service_role;
+REVOKE REFERENCES, TRIGGER, TRUNCATE ON TABLE public.documents, public.document_links, public.document_snapshots FROM authenticated;
+REVOKE REFERENCES, TRIGGER, TRUNCATE ON TABLE public.documents, public.document_links, public.document_snapshots FROM service_role;
+REVOKE MAINTAIN ON TABLE public.documents, public.document_links, public.document_snapshots FROM authenticated;
+REVOKE MAINTAIN ON TABLE public.documents, public.document_links, public.document_snapshots FROM service_role;
 
 -- --------------------------------------------------------------------
 -- 8bis. Chargement groupé — les huit tables du compte en un aller-retour

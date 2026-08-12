@@ -43,7 +43,7 @@ export function CarteProgressionRecente({
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     <Link
-                      href={`/competences/${e.skillCode}`}
+                      href={`/atelier?document=${encodeURIComponent(e.skillCode)}`}
                       className="inline-flex items-center gap-1.5 hover:underline"
                     >
                       <CodeCompetence code={e.skillCode} />

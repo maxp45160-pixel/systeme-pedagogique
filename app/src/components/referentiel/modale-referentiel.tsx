@@ -37,7 +37,13 @@ type Etat =
       branches: PropositionReferentiel[];
     };
 
-export function BoutonCreerReferentiel({ compteId }: { compteId: string }) {
+export function BoutonCreerReferentiel({
+  compteId,
+  libelle = "+ Référentiel",
+}: {
+  compteId: string;
+  libelle?: string;
+}) {
   const router = useRouter();
   const [etat, setEtat] = useState<Etat>({ phase: "fermee" });
   const [sujet, setSujet] = useState("");
@@ -198,7 +204,7 @@ export function BoutonCreerReferentiel({ compteId }: { compteId: string }) {
   if (etat.phase === "fermee") {
     return (
       <Bouton onClick={() => setEtat({ phase: "saisie", message: null })} variante="secondaire" taille="petite">
-        + Référentiel
+        {libelle}
       </Bouton>
     );
   }
@@ -209,7 +215,7 @@ export function BoutonCreerReferentiel({ compteId }: { compteId: string }) {
   return (
     <>
       <Bouton variante="secondaire" taille="petite" disabled>
-        + Référentiel
+        {libelle}
       </Bouton>
 
       <Modale

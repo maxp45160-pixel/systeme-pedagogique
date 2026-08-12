@@ -234,7 +234,7 @@ export async function VueExercice(props: {
           </p>
           {!props.integree && <div className="mt-2 flex flex-wrap items-center gap-2">
             <Link
-              href={`/competences/${exercice.competences[0]}`}
+              href={`/atelier?document=${encodeURIComponent(exercice.competences[0])}`}
               className={classesLienBouton("secondaire", "petite")}
             >
               Voir l&apos;effet sur la compétence
@@ -286,7 +286,7 @@ export async function VueExercice(props: {
                 {contenu}
               </div>
             ) : (
-              <Link key={c} href={`/competences/${c}`} className="flex items-center gap-2 rounded-md border border-bordure px-2 py-1 transition-colors hover:bg-surface-2">
+              <Link key={c} href={`/atelier?document=${encodeURIComponent(c)}`} className="flex items-center gap-2 rounded-md border border-bordure px-2 py-1 transition-colors hover:bg-surface-2">
                 {contenu}
               </Link>
             );

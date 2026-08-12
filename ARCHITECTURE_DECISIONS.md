@@ -76,6 +76,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [061](#adr-061) | Séances : un hub et un workspace, pas quatre vues | ✅ Acceptée (11/08) |
 | [062](#adr-062) | Le pôle devient Cahier ; la relecture synthétise et toute prochaine action ouvre le focus | ✅ Acceptée (11/08) |
 | [063](#adr-063) | Amorçage direct, surfaces obsolètes retirées et Supabase obligatoire | ✅ Acceptée (11/08) |
+| [064](#adr-064) | Workspace documentaire Markdown en extension progressive | 🔬 Hypothèse (12/08) |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -4181,6 +4182,108 @@ artefacts sans appel cessent de masquer les chemins réellement maintenus.
 Cette décision ne modifie aucune entité pédagogique, formule, seuil, donnée
 personnelle ou règle RLS du produit. Elle ne fait monter le statut d'aucune
 hypothèse antérieure.
+
+---
+
+<a name="adr-064"></a>
+## ADR-064 — Workspace documentaire Markdown en extension progressive 🔬
+
+**Date.** 12/08/2026. **Hypothèse non tranchée.** Cette entrée documente le
+chantier en cours ; elle ne transforme pas une analyse en décision humaine.
+
+### Contexte
+
+L'application possède déjà une vue graphe des compétences. Le chantier
+documentaire doit donc étendre cette architecture sans remplacer la boucle
+existante ni fabriquer un second référentiel pédagogique. Les productions
+réalisées dans un exercice doivent pouvoir devenir des traces durables, tout
+en conservant l'état exact qui a produit une preuve.
+
+### Hypothèse de travail
+
+- un document est représenté par un contenu Markdown, avec frontmatter et
+  liens `[[...]]` reconstruisibles ;
+- `documents` conserve actuellement ce contenu dans Supabase, qui reste la
+  dorsale unique de l'application ; une projection vers des fichiers `.md`
+  et son aller-retour restent à construire et à tester ;
+- `document_links` est un index recalculable, pas une seconde source de vérité ;
+- `document_snapshots` est append-only côté utilisateur : une production
+  utilisée comme preuve garde son contenu historique ;
+- l'Atelier exporte et importe les documents sous forme de fichiers `.md`
+  individuels ; l'import valide le lot et reconstruit l'index des liens après
+  écriture ;
+- le graphe intégré à l’Atelier étend la vue existante par des nœuds
+  `document` et des liens Markdown résolus ; les cibles inconnues restent
+  absentes du graphe ;
+- les snapshots de preuve sont consultables depuis l'Atelier en lecture seule,
+  sans possibilité de modifier leur contenu historique ;
+- `/atelier` devient le workspace documentaire et la surface globale de
+  visualisation ; aucune hiérarchie de dossiers n'est ajoutée au graphe ;
+- les mesures de `evidence` restent des faits observés et les seuils de niveau
+  ne changent pas ; le classement reçoit seulement une pondération provisoire
+  pour une preuve documentaire récente et contextualisée, à calibrer sur des
+  observations réelles.
+
+### État du lot 1 — implémentation technique (12/08/2026)
+
+Cette note décrit l’état du code ; elle ne change pas le statut 🔬 de l’ADR.
+
+- le contrat explicite `pedagogie/v1` est émis par les templates et les fiches
+  d’un contrat inconnu passent en lecture seule ; les fiches historiques sans
+  champ `schema` restent lisibles ;
+- les écritures valident l’identité, le contrat et une taille maximale de 2 Mo ;
+- les liens sont reconstruits de façon ciblée après une création ou une édition,
+  tandis qu’un rebuild complet reste disponible ;
+- l’enregistrement courant et le gel d’une version sont deux gestes distincts ;
+  l’édition concurrente est refusée par contrôle optimiste de `updated_at` ;
+- l’Atelier propose une recherche locale, un éditeur Markdown universel et
+  conserve les projections typées en lecture seule.
+- les métadonnées de liste (`titre`, `type`, `tags`, contrat et frontmatter)
+  sont matérialisées dans `documents` ; l’explorateur et le graphe lisent ces
+  aperçus, tandis que le corps Markdown n’est chargé qu’à l’ouverture d’une
+  fiche.
+- l’Atelier distingue désormais les projections pédagogiques du contenu
+  Markdown universel : un domaine est la fiche mère de ses compétences, puis
+  les exercices, preuves et documents sont reliés à chaque fiche compétence.
+  Cette hiérarchie d’interface est dérivée du référentiel existant ; elle
+  n’ajoute ni entité `Sujet`, ni mesure stockée, ni seconde source de vérité.
+- une fiche peut avoir plusieurs chemins de navigation dérivés : son chemin
+  principal par domaine et un raccourci transversal. Ces chemins pointent vers
+  le même identifiant, ne dupliquent pas le document et les racines vides ne
+  sont pas affichées. Les branches sont repliées par défaut ; seules les
+  branches ouvertes sont mémorisées localement, avec une clé isolée par compte.
+- le graphe reste plat conformément à ADR-056, mais son cadrage initial est
+  ajusté au jeu de nœuds et ses réglages ainsi que sa légende deviennent des
+  panneaux superposés et repliés : ils ne réduisent plus la surface du graphe.
+- l’Atelier devient l’unique surface de visualisation des domaines et des
+  compétences : structure, radar, relations, progression et gestion du
+  référentiel y sont contextuels. Les anciennes routes `/competences` restent
+  seulement des redirections de compatibilité ; le générateur d’exercice est
+  disponible dans le panneau de la compétence sélectionnée.
+- les domaines archivés sont consultables sous une racine distincte de
+  l’Atelier. Ils restent exclus des compétences actives, du graphe principal,
+  du pilotage et des suggestions ; ce classement lit le champ `archive` du
+  domaine et ne l’infère pas depuis son nom.
+- le tableau de bord porte les deux entrées de capture documentaire. Le rôle
+  `support` ou `operationnel` est une intention déclarée dans le frontmatter,
+  jamais une mesure : une note opérationnelle n’alimente `evidence` qu’après
+  une évaluation validée par le parcours existant.
+- le pilotage du référentiel reste compact sur le tableau de bord : création
+  d’un nouveau sujet en un point d’entrée, puis révision assistée par domaine
+  sous forme de diff explicitement validé avant application.
+
+Le durcissement des privilèges Data API et l’index de cible sont préparés dans
+`app/supabase/schema.sql`, mais leur application au projet distant reste à
+autoriser explicitement.
+
+### Test de réfutation avant passage en ✅
+
+Un export vers `.md`, une suppression de l'index et une reconstruction doivent
+restaurer les documents et les relations fondamentales sans perte. Une preuve
+doit également permettre de retrouver sa production originale et son snapshot
+sans que l'édition ultérieure du document modifie l'observation historique.
+Le chantier devra enfin mesurer que le chargement documentaire ne dégrade pas
+le chemin chaud des recommandations existantes.
 
 ---
 

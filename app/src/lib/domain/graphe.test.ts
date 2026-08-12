@@ -3,6 +3,7 @@ import { construireGraphe } from "./graphe";
 import { REFERENTIEL_TEST, referentielDe, skillDeTest } from "./referentiel.fixture";
 import type { Exercise, SkillState } from "./types";
 import type { Theme } from "./theme";
+import { reconstruireIndexDocumentaire } from "@/lib/documents/index";
 
 /*
  * Ce que ce fichier protège : le graphe ne dérive QUE des liens réels
@@ -191,5 +192,62 @@ describe("construireGraphe", () => {
     expect(ids).toContain("competence:DEV-01");
     expect(ids).toContain("theme:DEV-01");
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("ajoute les documents Markdown et leurs liens résolus au graphe existant", () => {
+    const exercice: Exercise = {
+      id: "ex-1",
+      titre: "Exercice vivant",
+      domaine: "developpement",
+      type: "application",
+      difficulte: 2,
+      competences: ["DEV-01"],
+      dureeEstimeeMin: 10,
+      enonce: "",
+      indices: [],
+      correction: "",
+      criteres: [],
+      origine: "seed",
+    };
+    const index = reconstruireIndexDocumentaire(
+      [
+        {
+          id: "preuve-1",
+          contenuMd: "---\ntype: preuve\nid: preuve-1\ncreated_at: 2026-08-12\n---\n\n# Production\n\n- [[DEV-01]]\n- [[exercice:ex-1]]\n- [[inconnu]]",
+        },
+      ],
+      ["DEV-01", "exercice:ex-1"],
+    );
+
+    const graphe = construireGraphe(
+      REFERENTIEL_TEST,
+      etatsDuReferentiel(),
+      [exercice],
+      [],
+      index,
+    );
+
+    expect(graphe.noeuds).toContainEqual(expect.objectContaining({
+      id: "document:preuve-1",
+      type: "document",
+      libelle: "Production",
+    }));
+    expect(graphe.liens).toEqual(expect.arrayContaining([
+      {
+        source: "document:preuve-1",
+        target: "competence:DEV-01",
+        type: "document",
+        poids: 0.8,
+        oriente: true,
+      },
+      {
+        source: "document:preuve-1",
+        target: "exercice:ex-1",
+        type: "document",
+        poids: 0.8,
+        oriente: true,
+      },
+    ]));
+    expect(graphe.liens.some((lien) => lien.target === "inconnu")).toBe(false);
   });
 });

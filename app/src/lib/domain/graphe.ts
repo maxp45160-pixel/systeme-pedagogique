@@ -47,6 +47,7 @@
 
 import type { Exercise, Referentiel, SkillState } from "./types";
 import type { Theme } from "./theme";
+import type { IndexDocumentaire } from "@/lib/documents/index";
 import {
   calculerSimilaritesTextuelles,
   type DocumentTexte,
@@ -56,7 +57,7 @@ import {
 /* Types exportés — consommés par le composant Canvas                  */
 /* ------------------------------------------------------------------ */
 
-export type TypeNoeud = "competence" | "exercice" | "theme";
+export type TypeNoeud = "competence" | "exercice" | "theme" | "document";
 // Extensible sans réécriture : "note" | "projet" | "document" | "cours" (lot 2, hors chantier).
 
 export interface NoeudGraphe {
@@ -72,7 +73,7 @@ export interface NoeudGraphe {
   poidsAffichage: number;
 }
 
-export type TypeLien = "prerequis" | "theme" | "exercice" | "similarite";
+export type TypeLien = "prerequis" | "theme" | "exercice" | "similarite" | "document";
 
 export interface LienGraphe {
   source: string;
@@ -100,6 +101,7 @@ export function construireGraphe(
   etats: SkillState[],
   exercices: Exercise[],
   themes: Theme[],
+  indexDocumentaire?: IndexDocumentaire,
 ): DonneesGraphe {
   const codesActifs = referentiel.codesActifs;
   const nomsDomaines = new Map(referentiel.domaines.map((d) => [d.id, d.nom]));
@@ -188,6 +190,53 @@ export function construireGraphe(
     });
     for (const c of codes) {
       ajouter({ source: idExercice, target: codeVersId(c), type: "exercice", poids: 1, oriente: false });
+    }
+  }
+
+  // ── Nœuds documents + liens Markdown réels ──
+  // Les documents sont une extension du graphe existant, pas une hiérarchie
+  // parallèle. Un lien n'entre ici que si sa cible correspond à un document,
+  // une compétence active ou un exercice vivant.
+  if (indexDocumentaire) {
+    const idsDocuments = new Set<string>();
+    for (const document of indexDocumentaire.documents) {
+      const id = `document:${document.id}`;
+      idsDocuments.add(id);
+      const domaineBrut = document.frontMatter.domaine ?? document.frontMatter.domain;
+      const domaineId = typeof domaineBrut === "string" && domaineBrut.trim() ? domaineBrut : null;
+      const connexions =
+        (indexDocumentaire.sortants.get(document.id)?.length ?? 0) +
+        (indexDocumentaire.entrants.get(document.id)?.length ?? 0);
+      noeuds.push({
+        id,
+        type: "document",
+        libelle: document.titre,
+        domaineId,
+        etiquettes: [
+          `type:${document.type ?? "document"}`,
+          ...(document.typeConnu ? [`categorie:${document.typeConnu}`] : []),
+        ],
+        poidsAffichage: Math.max(1, connexions),
+      });
+    }
+
+    const exercicesVivants = new Set(
+      exercices.filter((exercice) => !exercice.archive).map((exercice) => exercice.id),
+    );
+    const cibleDocumentaire = (cible: string): string | null => {
+      if (idsDocuments.has(`document:${cible}`)) return `document:${cible}`;
+      if (codesActifs.has(cible)) return codeVersId(cible);
+      const exerciceId = cible.startsWith("exercice:") ? cible.slice("exercice:".length) : cible;
+      if (exercicesVivants.has(exerciceId)) return `exercice:${exerciceId}`;
+      return null;
+    };
+
+    for (const lien of indexDocumentaire.liens) {
+      if (!lien.resolu) continue;
+      const source = `document:${lien.sourceId}`;
+      const target = cibleDocumentaire(lien.cible);
+      if (!idsDocuments.has(source) || !target) continue;
+      ajouter({ source, target, type: "document", poids: 0.8, oriente: true });
     }
   }
 

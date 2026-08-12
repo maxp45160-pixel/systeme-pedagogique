@@ -82,6 +82,7 @@ export const STYLE_PAR_TYPE_LIEN: Record<
   theme: { libelle: "Même thème", pointille: false, fleche: false },
   exercice: { libelle: "Ciblées par le même exercice", pointille: false, fleche: false },
   similarite: { libelle: "Proximité de vocabulaire", pointille: true, fleche: false },
+  document: { libelle: "Lien Markdown", pointille: false, fleche: true },
 };
 
 function couleurLien(type: TypeLien, palette: Palette): string {
@@ -94,6 +95,8 @@ function couleurLien(type: TypeLien, palette: Palette): string {
       return palette.texteDiscret;
     case "similarite":
       return palette.alerte;
+    case "document":
+      return palette.primaire;
   }
 }
 
@@ -133,6 +136,7 @@ export function couleurNoeud(
 ): string {
   if (n.type === "theme") return palette.succes;
   if (n.type === "exercice") return palette.texteDiscret;
+  if (n.type === "document") return palette.primaire;
 
   switch (axe) {
     case "palier": {
@@ -259,7 +263,8 @@ export function dessinerNoeud(
 ): void {
   if (n.x === undefined || n.y === undefined) return;
   const { x, y } = projeter(n, largeur, hauteur, camera);
-  const rayon = n.rayon * camera.zoom * (options.survole ? 1.15 : 1);
+  const rayonMinimum = n.type === "theme" ? 7 : n.type === "competence" ? 5 : 4;
+  const rayon = Math.max(rayonMinimum, n.rayon * camera.zoom) * (options.survole ? 1.15 : 1);
 
   ctx.save();
   ctx.globalAlpha = options.estompe ? 0.18 : 1;
@@ -289,10 +294,14 @@ export function dessinerNoeud(
     ctx.save();
     ctx.globalAlpha = 1;
     ctx.fillStyle = palette.texte;
-    ctx.font = `${Math.max(10, 11 * Math.min(camera.zoom, 1.4))}px var(--police-texte, sans-serif)`;
+    ctx.font = `${Math.max(12, 12 * Math.min(camera.zoom, 1.4))}px var(--police-texte, sans-serif)`;
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     const libelle = n.libelle.length > 28 ? `${n.libelle.slice(0, 27)}…` : n.libelle;
+    ctx.lineWidth = 3;
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = palette.surface;
+    ctx.strokeText(libelle, x, y + rayon + 4);
     ctx.fillText(libelle, x, y + rayon + 3);
     ctx.restore();
   }
@@ -310,13 +319,13 @@ export function dessinerTooltip(
   const { x, y } = projeter(n, largeur, hauteur, camera);
   const lignes = [n.libelle, ...n.etiquettes.slice(0, 3)];
   ctx.save();
-  ctx.font = "11px var(--police-texte, sans-serif)";
+  ctx.font = "12px var(--police-texte, sans-serif)";
   const largeurTexte = Math.max(...lignes.map((l) => ctx.measureText(l).width));
   const pad = 8;
   const boiteX = x + 12;
   const boiteY = y - 10;
   const boiteL = largeurTexte + pad * 2;
-  const boiteH = lignes.length * 15 + pad * 2 - 4;
+  const boiteH = lignes.length * 17 + pad * 2 - 4;
 
   ctx.fillStyle = palette.surface2;
   ctx.strokeStyle = palette.bordure;
@@ -331,7 +340,7 @@ export function dessinerTooltip(
   ctx.textBaseline = "top";
   lignes.forEach((ligne, i) => {
     ctx.fillStyle = i === 0 ? palette.texte : palette.texteAttenue;
-    ctx.fillText(ligne, boiteX + pad, boiteY + pad + i * 15);
+    ctx.fillText(ligne, boiteX + pad, boiteY + pad + i * 17);
   });
   ctx.restore();
 }

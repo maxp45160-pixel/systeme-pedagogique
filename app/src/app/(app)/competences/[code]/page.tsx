@@ -1,16 +1,12 @@
-import { FicheCompetence } from "@/components/competences/fiche-competence";
+import { redirect } from "next/navigation";
 
 /**
- * La fiche d'une compétence, en page pleine.
- *
- * Le contenu vit dans `FicheCompetence` : la même implémentation sert le
- * tiroir ouvert depuis le graphe (`@fiche/(.)competences/[code]`). Cette route
- * reste la destination canonique — elle répond au rechargement, au partage
- * d'URL et à toute navigation qui n'est pas un clic depuis le graphe.
+ * Compatibilité des anciens liens : la fiche canonique vit désormais dans
+ * l'Atelier, avec le radar, les relations et la prochaine action.
  */
 export default async function PageCompetence(props: {
   params: Promise<{ code: string }>;
 }) {
   const { code } = await props.params;
-  return <FicheCompetence code={code} />;
+  redirect(`/atelier?document=${encodeURIComponent(code)}`);
 }

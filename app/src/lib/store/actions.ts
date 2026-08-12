@@ -19,6 +19,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ajouter, ajouterPlusieurs, dorsaleCompte, lire, modifier, nouvelId } from "./db";
 import { verifier } from "./supabase-backend";
+import { capturerDocumentProduction } from "./documents";
 import { lireReferentiel } from "./referentiel";
 import {
   motifRefusExercice,
@@ -36,6 +37,7 @@ import {
   qualiteDepuisDifficulte,
   type AideExterne,
 } from "@/lib/engine/preuve";
+import { construireDocumentProductionPreuve } from "@/lib/documents/production";
 import { tentativeMenee } from "@/lib/engine/calibration";
 import type {
   Difficulte,
@@ -270,6 +272,15 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
   );
   const qualite = qualiteDepuisDifficulte(exercice.difficulte, autonomie);
 
+  // La réponse est une production durable avant d'être une mesure. On la
+  // conserve dans le corpus puis on fige exactement cet état : l'évidence
+  // pointera vers le snapshot, jamais vers un contenu éditable ultérieur.
+  const production = construireDocumentProductionPreuve(exercice, tentative, date);
+  const provenanceDocument = await capturerDocumentProduction(
+    production,
+    `preuve issue de la tentative ${tentative.id}`,
+  );
+
   // Une preuve par compétence ciblée. Les compétences secondaires sont
   // enregistrées comme preuve indirecte (niveau B), pas directe.
   const preuves: SkillEvidence[] = exercice.competences.map((code, index) => ({
@@ -294,7 +305,11 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
       exercice.competences.length > 1
         ? exercice.competences.filter((c) => c !== code)
         : undefined,
-    source: { kind: "exercice" as const, ref: exercice.id },
+    source: {
+      kind: "exercice" as const,
+      ref: exercice.id,
+      document: provenanceDocument,
+    },
     commentaire: [
       soumission.notes,
       soumission.aideExterne && soumission.aideExterne !== "aucune"

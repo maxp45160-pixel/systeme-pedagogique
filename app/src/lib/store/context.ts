@@ -19,6 +19,10 @@ import { EXERCICES_DIAGNOSTIC } from "@/lib/seed/exercises";
 import { computeAllSkillStates } from "@/lib/engine/skill-state";
 import { calculerEtatGlobal, type EtatGlobal } from "@/lib/engine/progression";
 import { recommander, type Recommandation } from "@/lib/engine/recommend";
+import {
+  construireContexteDocumentaire,
+  type ContexteDocumentaire,
+} from "@/lib/engine/document-context";
 import { calibrerToutes, type Calibration } from "@/lib/engine/calibration";
 import { evaluerMaitrises, type Maitrise } from "@/lib/engine/maitrise";
 import { mesurer, mesurerSync } from "@/lib/profiling/server";
@@ -52,6 +56,8 @@ export interface Contexte {
    * valeurs que `computeSkillState` a déjà produites.
    */
   maitrises: Map<string, Maitrise>;
+  /** Provenance documentaire dérivée des preuves, sans lecture supplémentaire. */
+  contexteDocumentaire: ContexteDocumentaire;
   now: Date;
 }
 
@@ -154,6 +160,11 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
     { exercices: exercicesActifs.length, tentatives: donnees.attempts.length },
   );
 
+  // Les documents ne sont pas relus sur le chemin chaud : la preuve porte déjà
+  // le lien vers son document et son snapshot. On ne dérive ici que le résumé
+  // nécessaire au classement pédagogique.
+  const contexteDocumentaire = construireContexteDocumentaire(donnees.evidence);
+
   // Refus de recommandation (R1) : ce que l'utilisateur a passé est écarté de
   // la file pour 7 jours. L'expiration est gérée ici, à la lecture.
   //
@@ -174,7 +185,16 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
   };
 
   const recommandations = mesurerSync("recommander", () =>
-    recommander(etats, exercicesActifs, donnees.attempts, 6, calibrations, now, refus),
+    recommander(
+      etats,
+      exercicesActifs,
+      donnees.attempts,
+      6,
+      calibrations,
+      now,
+      refus,
+      contexteDocumentaire,
+    ),
     { exercices: exercicesActifs.length, tentatives: donnees.attempts.length },
   );
 
@@ -197,6 +217,7 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
     recommandations,
     calibrations,
     maitrises,
+    contexteDocumentaire,
     now,
   };
 });

@@ -51,6 +51,7 @@ const RAYON_PAR_TYPE: Record<NoeudGraphe["type"], number> = {
   competence: 6,
   theme: 10,
   exercice: 4,
+  document: 7,
 };
 
 export function rayonNoeud(n: NoeudGraphe): number {
@@ -73,6 +74,7 @@ const STRENGTH_PAR_TYPE: Record<LienGraphe["type"], number> = {
   theme: 0.5,
   exercice: 0.4,
   similarite: 0.15,
+  document: 0.55,
 };
 
 export function creerSimulation(

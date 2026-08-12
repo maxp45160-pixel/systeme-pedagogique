@@ -157,7 +157,7 @@ export function CarteProchaineAction({
             />
           ))}
           <Link
-            href={`/competences/${etat.skill.code}`}
+            href={`/atelier?document=${encodeURIComponent(etat.skill.code)}`}
             className={classesLienBouton("secondaire")}
           >
             Voir la compétence
@@ -243,7 +243,7 @@ export function CarteProchaineAction({
                       <li key={r.etat.skill.code} className="flex items-baseline gap-2">
                         <CodeCompetence code={r.etat.skill.code} />
                         <Link
-                          href={`/competences/${r.etat.skill.code}`}
+                          href={`/atelier?document=${encodeURIComponent(r.etat.skill.code)}`}
                           className="min-w-0 flex-1 truncate text-texte-attenue hover:text-texte"
                         >
                           {r.etat.skill.intitule}

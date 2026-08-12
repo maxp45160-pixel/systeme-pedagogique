@@ -25,6 +25,7 @@ import {
   type SkillState,
 } from "@/lib/domain/types";
 import type { Calibration } from "./calibration";
+import type { ContexteDocumentaire, ResumePreuvesDocumentaires } from "./document-context";
 import { estDue } from "./spaced";
 
 export interface Facteur {
@@ -113,11 +114,21 @@ export function difficulteVisee(etat: SkillState, calibration?: Calibration): Di
  */
 export const BONUS_ACTIONNABLE = 10;
 
+/**
+ * Pondération provisoire de l'hypothèse documentaire (ADR-064).
+ *
+ * Elle ne s'active que si la dernière preuve est elle-même documentaire,
+ * récente selon le modèle de répétition espacée, et déjà contextualisée. Elle
+ * ne peut donc pas masquer une révision due ni une compétence sans preuve.
+ */
+export const PENALITE_PREUVE_DOCUMENTAIRE_SOLIDE = -10;
+
 function evaluer(
   etat: SkillState,
   etatsParCode: Map<string, SkillState>,
   now: Date,
   actionnable: boolean,
+  documentaire?: ResumePreuvesDocumentaires,
 ): { valeur: number; facteurs: Facteur[] } {
   const facteurs: Facteur[] = [];
 
@@ -174,7 +185,8 @@ function evaluer(
     // attendre, une fragile se révise vite. Le signal devient binaire et fort :
     // « due » pousse fortement, « pas due » laisse respirer.
     const j = etat.joursDepuisDernierePreuve ?? 0;
-    if (estDue(etat, now)) {
+    const due = estDue(etat, now);
+    if (due) {
       facteurs.push({
         libelle: "Due pour révision",
         contribution: 40,
@@ -186,6 +198,28 @@ function evaluer(
         libelle: "Pratiquée récemment",
         contribution: -15,
         phrase: `elle a été travaillée il y a ${j} jour(s)`,
+      });
+    }
+
+    const dernierePreuveEstDocumentaire =
+      documentaire?.derniereDate && etat.dernierePreuve
+        ? new Date(documentaire.derniereDate).getTime() ===
+          new Date(etat.dernierePreuve).getTime()
+        : false;
+    if (
+      !due &&
+      dernierePreuveEstDocumentaire &&
+      documentaire !== undefined &&
+      documentaire.nombre >= 2 &&
+      documentaire.reussites >= 2 &&
+      documentaire.dernierResultat === "reussi" &&
+      documentaire.contextes.length >= 2
+    ) {
+      facteurs.push({
+        libelle: "Preuve documentaire contextualisée",
+        contribution: PENALITE_PREUVE_DOCUMENTAIRE_SOLIDE,
+        phrase:
+          "elle dispose d'une production récente, conservée et déjà démontrée dans plusieurs contextes",
       });
     }
 
@@ -390,6 +424,7 @@ export function recommander(
     codes: new Set(),
     exercices: new Set(),
   },
+  contexteDocumentaire?: ContexteDocumentaire,
 ): Recommandation[] {
   const parCode = new Map(etats.map((e) => [e.skill.code, e]));
 
@@ -416,7 +451,13 @@ export function recommander(
       // reste une liste de contributions chiffrées au score de priorité — y
       // glisser une entrée à 0 la rendrait illisible. Le « Pourquoi ? » de
       // l'interface lit `calibration` séparément.
-      const { valeur, facteurs } = evaluer(etat, parCode, now, exercice !== null);
+      const { valeur, facteurs } = evaluer(
+        etat,
+        parCode,
+        now,
+        exercice !== null,
+        contexteDocumentaire?.get(etat.skill.code),
+      );
 
       const recommandation: Recommandation = {
         etat,
