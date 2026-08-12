@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition, type ChangeEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Markdown } from "@/components/ui/markdown";
 import { cx } from "@/components/ui/primitives";
 import { createNavigateurClient } from "@/lib/supabase/client";
@@ -16,8 +17,6 @@ import {
   type CategorieDocument,
 } from "@/lib/documents/types-documents";
 import {
-  exporterDocumentsMarkdownAction,
-  importerDocumentsAction,
   lireDocumentAction,
   lirePiecesJointesAction,
   preparerTeleversementPdfAction,
@@ -29,9 +28,9 @@ import {
   supprimerNoteSupportAction,
 } from "@/lib/store/document-actions";
 import type { PieceJointeDocument, SnapshotDocument } from "@/lib/documents/types-documents";
-import type { VuePedagogiqueAtelier } from "@/lib/documents/vue-atelier";
+import type { VueDomaineAtelier, VuePedagogiqueAtelier } from "@/lib/documents/vue-atelier";
 import { cleParCompte } from "@/lib/ui/stockage-session";
-import { FichePedagogiqueAtelier, PanneauPedagogiqueAtelier } from "./fiche-pedagogique";
+import { BoutonOuvrirExplorateur, FichePedagogiqueAtelier, PanneauPedagogiqueAtelier } from "./fiche-pedagogique";
 import type { CalibrageModale, CompetenceModale } from "@/components/exercices/proprietes-generation";
 
 export interface ElementAtelier {
@@ -122,13 +121,180 @@ function construireArbreDossiers(elements: ElementAtelier[]): NoeudDossier[] {
       }
     }
   }
+
+  function trierNoeud(noeud: NoeudDossier) {
+    noeud.elements.sort((a, b) => {
+      if (a.type === "domaine") return -1;
+      if (b.type === "domaine") return 1;
+      return a.titre.localeCompare(b.titre, "fr");
+    });
+    noeud.enfants.sort((a, b) => a.nom.localeCompare(b.nom, "fr"));
+    for (const enfant of noeud.enfants) {
+      trierNoeud(enfant);
+    }
+  }
+
   const ordreRacines = new Map([["Domaines", 0], ["Transversal", 1]]);
-  return [...racine.values()]
+  const racines = [...racine.values()]
     .filter((noeud) => compterElements(noeud) > 0)
     .sort((a, b) =>
       (ordreRacines.get(a.nom) ?? 10) - (ordreRacines.get(b.nom) ?? 10) ||
       a.nom.localeCompare(b.nom, "fr"),
     );
+
+  for (const r of racines) {
+    trierNoeud(r);
+  }
+  return racines;
+}
+
+function trouverElement(id: string, liste: ElementAtelier[]): ElementAtelier | undefined {
+  if (id === "domaines" || id === "transversal" || id === "domaines-archives") {
+    const titre = id === "transversal" ? "Transversal" : id === "domaines-archives" ? "Domaines archivés" : "Domaines";
+    return {
+      id,
+      titre,
+      type: "liste-domaines",
+      typeLibelle: titre,
+      categorie: "connaissance",
+      dossier: titre,
+      contenuMd: "",
+      contenuCharge: true,
+      frontMatter: {},
+      liens: [],
+      sortants: [],
+      entrants: [],
+      snapshots: [],
+      tentatives: [],
+      source: "projection",
+      lectureSeule: true,
+    };
+  }
+  const cleanId = id.replace(/^(competence|document|exercice|domaine):/, "");
+  return liste.find((element) => {
+    const elementCleanId = element.id.replace(/^(competence|document|exercice|domaine):/, "");
+    return (
+      element.id === id ||
+      elementCleanId === cleanId ||
+      element.id === `exercice:${cleanId}` ||
+      element.id === `domaine:${cleanId}` ||
+      element.id === `competence:${cleanId}` ||
+      element.id === `document:${cleanId}`
+    );
+  });
+}
+
+function VueTousLesDomaines({
+  domaines,
+  ouvrirElement,
+  revenirGrapheGlobal,
+  sidebarOuverte,
+  setSidebarOuverte,
+  selection,
+}: {
+  domaines: VueDomaineAtelier[];
+  ouvrirElement: (id: string) => void;
+  revenirGrapheGlobal: () => void;
+  sidebarOuverte?: boolean;
+  setSidebarOuverte?: (ouverte: boolean) => void;
+  selection?: string | null;
+}) {
+  const estTransversal = selection === "transversal";
+  const estArchives = selection === "domaines-archives";
+
+  const libelleFil = estTransversal
+    ? "Vue transversale"
+    : estArchives
+    ? "Domaines archivés"
+    : "Domaines";
+
+  const titrePrincipal = estTransversal
+    ? "Vue transversale"
+    : estArchives
+    ? "Domaines archivés"
+    : "Domaines d’apprentissage";
+
+  const sousTitrePrincipal = estTransversal
+    ? "Vue d’ensemble des thèmes, notes et compétences transversales"
+    : estArchives
+    ? `Vue d’ensemble des ${domaines.length} domaine(s) archivé(s)`
+    : `Vue d’ensemble des ${domaines.length} domaines du système pédagogique`;
+
+  return (
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-y-auto bg-surface-2/30">
+      <header className="border-b border-bordure bg-surface px-6 py-6 lg:px-8 shrink-0">
+        <nav aria-label="Fil d’Ariane" className="flex items-center gap-2 min-h-[2.25rem] text-xs text-texte-discret">
+          {!sidebarOuverte && setSidebarOuverte && (
+            <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />
+          )}
+          <button
+            type="button"
+            onClick={revenirGrapheGlobal}
+            className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
+          >
+            Graphe global
+          </button>
+          <span className="text-texte-discret/60">/</span>
+          <span className="font-semibold text-texte">{libelleFil}</span>
+        </nav>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-serif text-2xl font-medium tracking-tight text-texte">{titrePrincipal}</h2>
+            <p className="mt-1 text-xs text-texte-attenue">
+              {sousTitrePrincipal}
+            </p>
+          </div>
+        </div>
+      </header>
+
+      <div className="p-6 lg:p-8">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {domaines.map((domaine) => {
+            const total = domaine.competences.length;
+            const evaluees = domaine.nombreEvaluees;
+            const ratio = total > 0 ? Math.round((evaluees / total) * 100) : 0;
+            return (
+              <button
+                key={domaine.id}
+                type="button"
+                onClick={() => ouvrirElement(`domaine:${domaine.id}`)}
+                className="group flex flex-col justify-between rounded-xl border border-bordure bg-surface p-5 text-left shadow-[var(--ombre-posee)] transition-all duration-200 hover:-translate-y-1 hover:border-primaire/40 hover:shadow-[var(--ombre-levee)] cursor-pointer"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="rounded-md bg-primaire-faible px-2.5 py-1 text-xs font-semibold text-primaire">
+                      Domaine
+                    </span>
+                    <span className="chiffres text-xs text-texte-discret">
+                      {total} compétence{total > 1 ? "s" : ""}
+                    </span>
+                  </div>
+                  <h3 className="mt-3 font-serif text-lg font-medium leading-snug text-texte group-hover:text-primaire">
+                    {domaine.nom}
+                  </h3>
+                  {domaine.description && (
+                    <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-texte-attenue">
+                      {domaine.description}
+                    </p>
+                  )}
+                </div>
+
+                <div className="mt-5 border-t border-bordure pt-3">
+                  <div className="flex items-center justify-between text-xs text-texte-discret">
+                    <span>Couverture</span>
+                    <span className="chiffres font-medium text-texte">{ratio}% ({evaluees}/{total})</span>
+                  </div>
+                  <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-surface-3">
+                    <div className="h-full rounded-full bg-primaire transition-all duration-300" style={{ width: `${ratio}%` }} />
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function EspaceDocumentaire({
@@ -146,11 +312,11 @@ export function EspaceDocumentaire({
 }) {
   const router = useRouter();
   const [elements, setElements] = useState(elementsInitials);
-  const [selection, setSelection] = useState(
-    documentDemande && elementsInitials.some((element) => element.id === documentDemande)
-      ? documentDemande
-      : null,
-  );
+  const selectionInitiale = useMemo(() => {
+    if (!documentDemande) return null;
+    return trouverElement(documentDemande, elementsInitials)?.id ?? null;
+  }, [documentDemande, elementsInitials]);
+  const [selection, setSelection] = useState<string | null>(selectionInitiale);
   const [brouillons, setBrouillons] = useState<Record<string, string>>({});
   const [mode, setMode] = useState<ModeDocument>("editer");
   const [snapshotApercu, setSnapshotApercu] = useState<SnapshotDocument | null>(null);
@@ -159,41 +325,46 @@ export function EspaceDocumentaire({
   const [dossiersOuverts, setDossiersOuverts] = useState<Set<string>>(new Set());
   const [recherche, setRecherche] = useState("");
   const [contexteOuvert, setContexteOuvert] = useState(false);
+  const [sidebarOuverte, setSidebarOuverte] = useState(true);
   const [cibleLien, setCibleLien] = useState("");
   const [piecesJointesParDocument, setPiecesJointesParDocument] = useState<Record<string, PieceJointeDocument[]>>({});
 
-  const selectionnee = elements.find((element) => element.id === selection) ?? null;
+  useEffect(() => {
+    if (!documentDemande) return;
+    const trouve = trouverElement(documentDemande, elements);
+    if (trouve) {
+      setSelection(trouve.id);
+    }
+  }, [documentDemande, elements]);
+
+  const selectionnee = selection === "domaines" ? null : (elements.find((element) => element.id === selection) ?? null);
   const brouillon = selectionnee ? brouillons[selectionnee.id] ?? selectionnee.contenuMd : "";
   const liensCourants = selectionnee
     ? selectionnee.contenuCharge
       ? analyserDocumentMarkdown(selectionnee.id, brouillon).liens
       : selectionnee.liens
     : [];
-  const fichesLiables = elements
-    .filter((element) => element.source === "document" && element.id !== selectionnee?.id)
-    .sort((a, b) => a.titre.localeCompare(b.titre, "fr"));
+  const fichesLiables = useMemo(
+    () =>
+      elements
+        .filter((element) => element.source === "document" && element.id !== selectionnee?.id)
+        .sort((a, b) => a.titre.localeCompare(b.titre, "fr")),
+    [elements, selectionnee?.id],
+  );
   const documentSupportId = selectionnee?.frontMatter.role === "support" ? selectionnee.id : null;
 
   useEffect(() => {
-    let actif = true;
-    const jeton = window.setTimeout(() => {
-      if (!actif) return;
-      try {
-        const brut = window.localStorage.getItem(
-          cleParCompte("atelier-dossiers-ouverts", graphe.compteId),
-        );
-        const chemins = brut ? JSON.parse(brut) : [];
-        if (Array.isArray(chemins)) {
-          setDossiersOuverts(new Set(chemins.filter((chemin): chemin is string => typeof chemin === "string")));
-        }
-      } catch {
-        // Un état de navigation illisible revient au repli par défaut.
+    try {
+      const brut = window.localStorage.getItem(
+        cleParCompte("atelier-dossiers-ouverts", graphe.compteId),
+      );
+      const chemins = brut ? JSON.parse(brut) : [];
+      if (Array.isArray(chemins)) {
+        setDossiersOuverts(new Set(chemins.filter((chemin): chemin is string => typeof chemin === "string")));
       }
-    }, 0);
-    return () => {
-      actif = false;
-      window.clearTimeout(jeton);
-    };
+    } catch {
+      // Repli silencieux sur le repli par défaut.
+    }
   }, [graphe.compteId]);
 
   useEffect(() => {
@@ -224,27 +395,34 @@ export function EspaceDocumentaire({
     });
   }, [elements, recherche]);
 
+  function revenirGrapheGlobal() {
+    setSelection(null);
+    setCibleLien("");
+    setSnapshotApercu(null);
+    window.history.replaceState(null, "", "/atelier");
+  }
+
   function trouverCible(cible: string): ElementAtelier | undefined {
-    return elements.find((element) => element.id === cible || element.id === `exercice:${cible}`);
+    return trouverElement(cible, elements);
   }
 
   const arbreDossiers = useMemo(() => construireArbreDossiers(elementsVisibles), [elementsVisibles]);
 
   function ouvrirElement(id: string) {
-    const element = elements.find((item) => item.id === id);
+    const element = trouverElement(id, elements);
     if (!element) return;
-    setSelection(id);
+    setSelection(element.id);
     setCibleLien("");
     setSnapshotApercu(null);
     setMode("editer");
-    window.history.replaceState(null, "", `/atelier?document=${encodeURIComponent(id)}`);
+    window.history.replaceState(null, "", `/atelier?document=${encodeURIComponent(element.id)}`);
     if (element.source === "projection" || element.contenuCharge) return;
     setMessage(null);
     demarrerTransition(async () => {
       try {
-        const resultat = await lireDocumentAction(id);
-        const analyse = analyserDocumentMarkdown(id, resultat.contenuMd);
-        setElements((anciens) => anciens.map((ancien) => ancien.id === id
+        const resultat = await lireDocumentAction(element.id);
+        const analyse = analyserDocumentMarkdown(element.id, resultat.contenuMd);
+        setElements((anciens) => anciens.map((ancien) => ancien.id === element.id
           ? {
             ...ancien,
             ...documentDepuisAnalyse(analyse),
@@ -255,7 +433,7 @@ export function EspaceDocumentaire({
             entrants: ancien.entrants,
           }
           : ancien));
-        setBrouillons((anciens) => ({ ...anciens, [id]: resultat.contenuMd }));
+        setBrouillons((anciens) => ({ ...anciens, [element.id]: resultat.contenuMd }));
       } catch (erreur) {
         setMessage(erreur instanceof Error ? erreur.message : "Chargement impossible");
       }
@@ -281,14 +459,27 @@ export function EspaceDocumentaire({
 
   function rendreDossier(noeud: NoeudDossier, profondeur = 0): ReactNode {
     const ferme = !recherche.trim() && !dossiersOuverts.has(noeud.chemin);
-    const elementsDossier = [...noeud.elements].sort((a, b) => a.titre.localeCompare(b.titre, "fr"));
-    const enfants = [...noeud.enfants].sort((a, b) => a.nom.localeCompare(b.nom, "fr"));
+    const elementDomaine = noeud.elements.find((el) => el.type === "domaine");
+    const autresElements = noeud.elements.filter((el) => el.type !== "domaine");
+    const elementsDossier = elementDomaine
+      ? [elementDomaine, ...autresElements]
+      : autresElements;
+    const enfants = noeud.enfants;
+    const racineId =
+      noeud.chemin === "Domaines"
+        ? "domaines"
+        : noeud.chemin === "Transversal"
+        ? "transversal"
+        : noeud.chemin === "Domaines archivés" || noeud.chemin === "Archivés"
+        ? "domaines-archives"
+        : null;
+
     return (
       <div key={noeud.chemin}>
         <button
           type="button"
           onClick={() => basculerDossier(noeud.chemin)}
-          className="flex min-h-9 w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-[0.8125rem] font-semibold text-[var(--rail-texte-attenue)] transition-colors hover:bg-[var(--rail-2)] hover:text-[var(--rail-texte)]"
+          className="flex min-h-9 w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-[0.8125rem] font-semibold text-[var(--rail-texte-attenue)] transition-colors hover:bg-[var(--rail-2)] hover:text-[var(--rail-texte)] cursor-pointer"
           style={{ paddingLeft: `${0.5 + profondeur * 0.75}rem` }}
           aria-expanded={!ferme}
         >
@@ -301,23 +492,52 @@ export function EspaceDocumentaire({
         </button>
         {!ferme && (
           <div>
+            {racineId && (
+              <ul className="space-y-0.5" style={{ paddingLeft: `${1.25 + profondeur * 0.75}rem` }}>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => ouvrirElement(racineId)}
+                    className={cx(
+                      "flex min-h-9 w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-[0.8125rem] transition-colors cursor-pointer",
+                      selection === racineId
+                        ? "bg-[var(--rail-actif)] font-medium text-[var(--rail-actif-texte)]"
+                        : "text-[var(--rail-texte-attenue)] hover:bg-[var(--rail-2)] hover:text-[var(--rail-texte)]",
+                    )}
+                  >
+                    <span className="shrink-0 text-[var(--rail-texte-discret)]" aria-hidden>▣</span>
+                    <span className="min-w-0 flex-1 truncate font-medium">Vue d’ensemble</span>
+                  </button>
+                </li>
+              </ul>
+            )}
             {elementsDossier.length > 0 && (
               <ul className="space-y-0.5" style={{ paddingLeft: `${1.25 + profondeur * 0.75}rem` }}>
-                {elementsDossier.map((element) => (
-                  <li key={element.id}>
-                    <button
-                      type="button"
-                      onClick={() => ouvrirElement(element.id)}
-                      className={cx(
-                        "flex min-h-9 w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-[0.8125rem] transition-colors",
-                        element.id === selection ? "bg-[var(--rail-actif)] font-medium text-[var(--rail-actif-texte)]" : "text-[var(--rail-texte-attenue)] hover:bg-[var(--rail-2)] hover:text-[var(--rail-texte)]",
-                      )}
-                    >
-                      <span className="shrink-0 text-[var(--rail-texte-discret)]" aria-hidden>{element.type === "domaine" ? "▣" : element.source === "projection" ? "○" : "·"}</span>
-                      <span className="min-w-0 flex-1 truncate">{element.titre}</span>
-                    </button>
-                  </li>
-                ))}
+                {elementsDossier.map((element) => {
+                  const estVueEnsemble = element.type === "domaine";
+                  const libelleAffichage = estVueEnsemble ? "Vue d’ensemble" : element.titre;
+                  return (
+                    <li key={element.id}>
+                      <button
+                        type="button"
+                        onClick={() => ouvrirElement(element.id)}
+                        className={cx(
+                          "flex min-h-9 w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-[0.8125rem] transition-colors cursor-pointer",
+                          element.id === selection
+                            ? "bg-[var(--rail-actif)] font-medium text-[var(--rail-actif-texte)]"
+                            : "text-[var(--rail-texte-attenue)] hover:bg-[var(--rail-2)] hover:text-[var(--rail-texte)]",
+                        )}
+                      >
+                        <span className="shrink-0 text-[var(--rail-texte-discret)]" aria-hidden>
+                          {estVueEnsemble ? "▣" : element.source === "projection" ? "○" : "·"}
+                        </span>
+                        <span className={cx("min-w-0 flex-1 truncate", estVueEnsemble && "font-medium")}>
+                          {libelleAffichage}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             )}
             {enfants.map((enfant) => rendreDossier(enfant, profondeur + 1))}
@@ -479,65 +699,20 @@ export function EspaceDocumentaire({
     });
   }
 
-  async function exporterMarkdown() {
-    setMessage(null);
-    demarrerTransition(async () => {
-      try {
-        const fichiers = await exporterDocumentsMarkdownAction();
-        fichiers.forEach((fichier, index) => {
-          window.setTimeout(() => {
-            const lien = document.createElement("a");
-            const url = URL.createObjectURL(
-              new Blob([fichier.contenuMd], { type: "text/markdown;charset=utf-8" }),
-            );
-            lien.href = url;
-            lien.download = fichier.nomFichier;
-            lien.click();
-            window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
-          }, index * 75);
-        });
-        setMessage(`${fichiers.length} fichier(s) Markdown exporté(s)`);
-      } catch (erreur) {
-        setMessage(erreur instanceof Error ? erreur.message : "Export impossible");
-      }
-    });
-  }
-
-  function importerMarkdown(event: ChangeEvent<HTMLInputElement>) {
-    const fichiers = Array.from(event.currentTarget.files ?? []);
-    event.currentTarget.value = "";
-    if (fichiers.length === 0) return;
-    setMessage(null);
-    demarrerTransition(async () => {
-      try {
-        const resultat = await importerDocumentsAction(
-          await Promise.all(
-            fichiers.map(async (fichier) => ({
-              nomFichier: fichier.name,
-              contenuMd: await fichier.text(),
-            })),
-          ),
-        );
-        setMessage(`${resultat.importes} document(s) Markdown importé(s)`);
-        router.refresh();
-      } catch (erreur) {
-        setMessage(erreur instanceof Error ? erreur.message : "Import impossible");
-      }
-    });
-  }
-
   return (
-    <section className="relative -mx-2 overflow-hidden rounded-xl border border-bordure bg-surface shadow-[var(--ombre-levee)] lg:-mx-6">
-      <div className="flex items-center justify-end border-b border-bordure bg-surface px-3 py-2 2xl:hidden">
-        <button
-          type="button"
-          onClick={() => setContexteOuvert(true)}
-          className="rounded-lg border border-bordure-controle bg-surface-2 px-3 py-2 text-sm font-medium text-texte"
-          aria-expanded={contexteOuvert}
-        >
-          Ouvrir le contexte
-        </button>
-      </div>
+    <section className="relative -mx-2 flex flex-col overflow-hidden rounded-xl border border-bordure bg-surface shadow-[var(--ombre-levee)] lg:-mx-6 2xl:-mx-8 lg:h-[calc(100vh-12.5rem)] lg:min-h-[34rem]">
+      {selectionnee && (
+        <div className="flex items-center justify-end border-b border-bordure bg-surface px-3 py-2 2xl:hidden">
+          <button
+            type="button"
+            onClick={() => setContexteOuvert(true)}
+            className="rounded-lg border border-bordure-controle bg-surface-2 px-3 py-2 text-sm font-medium text-texte"
+            aria-expanded={contexteOuvert}
+          >
+            Ouvrir le contexte
+          </button>
+        </div>
+      )}
       {contexteOuvert && (
         <button
           type="button"
@@ -546,49 +721,60 @@ export function EspaceDocumentaire({
           aria-label="Fermer le panneau de contexte"
         />
       )}
-      <div className="flex min-h-[calc(100vh-8rem)] flex-col lg:grid lg:grid-cols-[20rem_minmax(0,1fr)] 2xl:grid-cols-[20rem_minmax(0,1fr)_23rem]">
-        <aside className="flex min-h-0 flex-col border-b border-[var(--rail-bordure)] bg-[var(--rail)] text-[var(--rail-texte)] lg:max-h-[calc(100vh-8rem)] lg:border-b-0 lg:border-r" aria-label="Explorateur documentaire">
-          <div className="flex items-center justify-between border-b border-[var(--rail-bordure)] px-4 py-4">
-            <div>
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--rail-texte)]">Atelier</h2>
-              <p className="mt-1 text-xs text-[var(--rail-texte-discret)]">
-                {recherche.trim() ? `${elementsVisibles.length} sur ${elements.length}` : `${elements.length}`} éléments
-              </p>
-            </div>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={exporterMarkdown}
-                disabled={enCours}
-                className="rounded-md border border-[var(--rail-bordure)] px-2.5 py-2 text-xs font-medium text-[var(--rail-texte-attenue)] transition-colors hover:bg-[var(--rail-2)] hover:text-[var(--rail-texte)] disabled:opacity-50"
-              >
-                Exporter .md
-              </button>
-              <label className="cursor-pointer rounded-md border border-[var(--rail-bordure)] px-2.5 py-2 text-xs font-medium text-[var(--rail-texte-attenue)] transition-colors hover:bg-[var(--rail-2)] hover:text-[var(--rail-texte)]">
-                Importer
-                <input
-                  type="file"
-                  accept=".md,text/markdown"
-                  multiple
-                  onChange={importerMarkdown}
-                  className="sr-only"
-                  disabled={enCours}
-                />
-              </label>
+      <div className={cx(
+        "flex flex-1 min-h-0 flex-col lg:grid lg:h-full transition-all duration-300",
+        sidebarOuverte
+          ? selectionnee
+            ? "lg:grid-cols-[20rem_minmax(0,1fr)] 2xl:grid-cols-[20rem_minmax(0,1fr)_23rem]"
+            : "lg:grid-cols-[20rem_minmax(0,1fr)]"
+          : selectionnee
+            ? "lg:grid-cols-[1fr] 2xl:grid-cols-[minmax(0,1fr)_23rem]"
+            : "lg:grid-cols-[1fr]",
+      )}>
+        <aside
+          className={cx(
+            "flex h-full min-h-0 flex-col border-b border-[var(--rail-bordure)] bg-[var(--rail)] text-[var(--rail-texte)] lg:border-b-0 lg:border-r transition-all duration-300",
+            !sidebarOuverte && "hidden lg:hidden",
+          )}
+          aria-label="Explorateur documentaire"
+        >
+          <div className="flex h-[4.25rem] items-center gap-3 border-b border-[var(--rail-bordure)] px-6 shrink-0">
+            <button
+              type="button"
+              onClick={() => setSidebarOuverte(false)}
+              className="grid size-9 shrink-0 place-items-center rounded-lg border border-[var(--rail-bordure)] bg-[var(--rail-2)] text-[var(--rail-texte)] transition-all duration-200 hover:bg-primaire hover:border-primaire hover:text-white cursor-pointer shadow-sm"
+              title="Masquer l’explorateur"
+              aria-label="Masquer l’explorateur"
+            >
+              <svg className="size-5 shrink-0 stroke-[2.5]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+              </svg>
+            </button>
+            <div className="flex-1 min-w-0">
+              <label className="sr-only" htmlFor="recherche-atelier">Rechercher dans l’Atelier</label>
+              <input
+                id="recherche-atelier"
+                type="search"
+                value={recherche}
+                onChange={(event) => setRecherche(event.target.value)}
+                placeholder="Rechercher une fiche…"
+                className="w-full rounded-lg border border-[var(--rail-bordure)] bg-[var(--rail-2)] px-3 py-1.5 text-xs text-[var(--rail-texte)] outline-none transition-colors placeholder:text-[var(--rail-texte-discret)] focus:border-[var(--rail-actif)]"
+              />
             </div>
           </div>
 
-          <div className="border-b border-[var(--rail-bordure)] px-4 py-3">
-            <label className="sr-only" htmlFor="recherche-atelier">Rechercher dans l’Atelier</label>
-            <input
-              id="recherche-atelier"
-              type="search"
-              value={recherche}
-              onChange={(event) => setRecherche(event.target.value)}
-              placeholder="Rechercher une fiche…"
-              className="w-full rounded-lg border border-[var(--rail-bordure)] bg-[var(--rail-2)] px-3 py-2.5 text-sm text-[var(--rail-texte)] outline-none transition-colors placeholder:text-[var(--rail-texte-discret)] focus:border-[var(--rail-actif)]"
-            />
-          </div>
+          {selectionnee && (
+            <div className="border-b border-[var(--rail-bordure)] px-3 py-2 shrink-0">
+              <button
+                type="button"
+                onClick={revenirGrapheGlobal}
+                className="flex w-full items-center gap-2 rounded-lg bg-[var(--rail-2)] px-3 py-2 text-xs font-semibold text-[var(--rail-texte)] transition-colors hover:bg-[var(--rail-actif)] hover:text-[var(--rail-actif-texte)]"
+              >
+                <span>←</span>
+                <span className="truncate">Revenir au graphe global</span>
+              </button>
+            </div>
+          )}
 
           <nav className="min-h-0 flex-1 overflow-y-auto p-3" aria-label="Dossiers, documents et projections">
             {arbreDossiers.map((noeud) => rendreDossier(noeud))}
@@ -597,19 +783,82 @@ export function EspaceDocumentaire({
           </nav>
         </aside>
 
-        <main className="flex min-w-0 flex-1 flex-col bg-surface">
-          {selectionnee?.vuePedagogique ? (
+        <main className="flex h-full min-w-0 flex-1 flex-col min-h-0 overflow-hidden bg-surface">
+          {selection === "domaines" || selection === "transversal" || selection === "domaines-archives" ? (
+            <VueTousLesDomaines
+              domaines={elements
+                .filter((el) => el.type === "domaine" && el.vuePedagogique)
+                .filter((el) => {
+                  const vue = el.vuePedagogique as VueDomaineAtelier;
+                  if (selection === "domaines-archives") return vue.domaine.archive;
+                  return !vue.domaine.archive;
+                })
+                .map((el) => el.vuePedagogique as VueDomaineAtelier)}
+              ouvrirElement={ouvrirElement}
+              revenirGrapheGlobal={revenirGrapheGlobal}
+              sidebarOuverte={sidebarOuverte}
+              setSidebarOuverte={setSidebarOuverte}
+              selection={selection}
+            />
+          ) : selectionnee?.vuePedagogique ? (
             <FichePedagogiqueAtelier
               vue={selectionnee.vuePedagogique}
               titre={selectionnee.titre}
               ouvrirElement={ouvrirElement}
+              revenirGraphe={revenirGrapheGlobal}
+              sidebarOuverte={sidebarOuverte}
+              setSidebarOuverte={setSidebarOuverte}
               compteId={graphe.compteId}
               modeInitial={modeInitial}
             />
           ) : selectionnee ? (
             <>
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-bordure px-6 py-5">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-bordure px-6 pb-5 pt-3.5 shrink-0">
                 <div className="min-w-0">
+                  <nav aria-label="Fil d’Ariane" className="mb-1.5 flex flex-wrap items-center gap-2 h-9 text-xs text-texte-discret">
+                    {!sidebarOuverte && (
+                      <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />
+                    )}
+                    <button
+                      type="button"
+                      onClick={revenirGrapheGlobal}
+                      className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
+                    >
+                      Graphe global
+                    </button>
+                    {selectionnee.dossier.split("/").map((partie, index) => (
+                      <span key={index} className="flex items-center gap-1.5">
+                        <span className="text-texte-discret/60">/</span>
+                        {partie === "Domaines" ? (
+                          <button
+                            type="button"
+                            onClick={() => ouvrirElement("domaines")}
+                            className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
+                          >
+                            Domaines
+                          </button>
+                        ) : partie === "Transversal" ? (
+                          <button
+                            type="button"
+                            onClick={() => ouvrirElement("transversal")}
+                            className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
+                          >
+                            Transversal
+                          </button>
+                        ) : partie === "Domaines archivés" || partie === "Archivés" ? (
+                          <button
+                            type="button"
+                            onClick={() => ouvrirElement("domaines-archives")}
+                            className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
+                          >
+                            Domaines archivés
+                          </button>
+                        ) : (
+                          <span className="text-texte-discret">{partie}</span>
+                        )}
+                      </span>
+                    ))}
+                  </nav>
                   <div className="flex items-center gap-2 text-xs text-texte-discret">
                     <span>{selectionnee.typeLibelle}</span>
                     {selectionnee.lectureSeule && <span className="rounded bg-surface-2 px-1.5 py-0.5">projection</span>}
@@ -629,50 +878,59 @@ export function EspaceDocumentaire({
                       Supprimer
                     </button>
                   )}
-                  <div className="flex items-center gap-1 rounded-md border border-bordure p-0.5">
-                    {(["editer", "apercu"] as ModeDocument[]).map((option) => (
-                      <button key={option} type="button" onClick={() => setMode(option)} className={cx("rounded px-2.5 py-1 text-xs font-medium", mode === option ? "bg-primaire-faible text-primaire" : "text-texte-discret hover:text-texte")}>
-                        {option === "editer" ? "Modifier" : "Aperçu"}
-                      </button>
-                    ))}
-                  </div>
+                  {selectionnee.type === "exercice" && (
+                    <Link
+                      href={`/exercices/${selectionnee.id.replace(/^exercice:/, "")}`}
+                      className="inline-flex items-center gap-1.5 rounded-md bg-primaire px-3 py-1.5 text-xs font-semibold text-texte-inverse shadow hover:bg-primaire-survol transition-colors"
+                    >
+                      <span>S’exercer dans le cahier</span>
+                      <span aria-hidden>→</span>
+                    </Link>
+                  )}
+                  {!selectionnee.lectureSeule && (
+                    <div className="flex items-center gap-1 rounded-md border border-bordure p-0.5">
+                      {(["editer", "apercu"] as ModeDocument[]).map((option) => (
+                        <button key={option} type="button" onClick={() => setMode(option)} className={cx("rounded px-2.5 py-1 text-xs font-medium", mode === option ? "bg-primaire-faible text-primaire" : "text-texte-discret hover:text-texte")}>
+                          {option === "editer" ? "Modifier" : "Aperçu"}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div className="min-h-0 flex-1 p-6">
+              <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
                 {!selectionnee.contenuCharge && selectionnee.source === "document" ? (
-                  <div className="flex min-h-[28rem] items-center justify-center rounded-md border border-bordure bg-surface-2 p-5 text-sm text-texte-discret" aria-live="polite">
+                  <div className="flex h-full min-h-[20rem] items-center justify-center rounded-md border border-bordure bg-surface-2 p-5 text-sm text-texte-discret" aria-live="polite">
                     Chargement de la fiche…
                   </div>
                 ) : snapshotApercu ? (
-                  <div className="prose-exo min-h-[28rem] rounded-md border border-bordure bg-surface-2 p-5">
+                  <div className="prose-exo min-h-full rounded-md border border-bordure bg-surface-2 p-5">
                     <div className="mb-4 flex items-center justify-between gap-3 border-b border-bordure pb-3 text-xs text-texte-discret">
-                      <span>Version v{snapshotApercu.version} · {natureSnapshot(snapshotApercu.captureReason) === "preuve" ? "preuve" : "révision"} · {snapshotApercu.capturedAt.slice(0, 10)}</span>
-                      <button type="button" onClick={() => setSnapshotApercu(null)} className="font-medium text-primaire hover:underline">Fermer</button>
+                      <span>Aperçu de la révision v{snapshotApercu.version}</span>
+                      <button type="button" onClick={() => setSnapshotApercu(null)} className="font-medium text-primaire hover:underline">Fermer l’aperçu</button>
                     </div>
-                    <Markdown contenu={analyserDocumentMarkdown(selectionnee.id, snapshotApercu.contenuMd).corps} />
+                    <Markdown contenu={snapshotApercu.contenuMd} />
                   </div>
-                ) : mode === "editer" ? (
-                  <textarea
-                    value={brouillon}
-                    onChange={(event) => setBrouillons((anciens) => ({ ...anciens, [selectionnee.id]: event.target.value }))}
-                    readOnly={selectionnee.lectureSeule || selectionnee.schemaCompatible === false}
-                    className={cx(
-                      "h-full min-h-[34rem] w-full resize-none rounded-xl border border-bordure bg-surface-2 p-6 font-mono text-sm leading-7 text-texte outline-none transition-colors focus:border-primaire/50",
-                      (selectionnee.lectureSeule || selectionnee.schemaCompatible === false) && "cursor-not-allowed opacity-75",
-                    )}
-                    aria-label={selectionnee.lectureSeule || selectionnee.schemaCompatible === false ? "Document Markdown en lecture seule" : "Contenu Markdown du document"}
-                    aria-readonly={selectionnee.lectureSeule || selectionnee.schemaCompatible === false}
-                    spellCheck={false}
-                  />
+                ) : mode === "editer" && !selectionnee.lectureSeule ? (
+                  <div className="flex h-full min-h-0 flex-col space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-bordure bg-surface-2 p-3 text-xs text-texte-discret">
+                      <div><span className="font-semibold text-texte">Rôle :</span> {String(selectionnee.frontMatter.role ?? "aucun")} · <span className="font-semibold text-texte">Dernière maj :</span> {selectionnee.updatedAt ? selectionnee.updatedAt.slice(0, 10) : "inconnue"}</div>
+                      <div className="flex items-center gap-2">
+                        <button type="button" onClick={() => sauvegarder(false)} disabled={enCours || brouillon === selectionnee.contenuMd} className="rounded-md bg-primaire px-3 py-1.5 font-medium text-texte-inverse shadow hover:bg-primaire-survol disabled:opacity-50">Enregistrer</button>
+                        <button type="button" onClick={() => sauvegarder(true)} disabled={enCours} className="rounded-md border border-bordure bg-surface px-3 py-1.5 font-medium hover:bg-surface-3 disabled:opacity-50">Figer révision</button>
+                      </div>
+                    </div>
+                    <textarea value={brouillon} onChange={(event) => setBrouillons((anciens) => ({ ...anciens, [selectionnee.id]: event.target.value }))} className="min-h-[22rem] flex-1 resize-none rounded-lg border border-bordure bg-surface p-4 font-mono text-sm leading-relaxed text-texte outline-none focus:border-primaire" placeholder="Contenu Markdown de la note…" />
+                  </div>
                 ) : (
-                  <div className="prose-exo min-h-[28rem] rounded-md border border-bordure bg-surface-2 p-5">
-                    <Markdown contenu={analyserDocumentMarkdown(selectionnee.id, brouillon).corps} />
+                  <div className="prose-exo min-h-full rounded-lg border border-bordure bg-surface p-6">
+                    <Markdown contenu={brouillon} />
                   </div>
                 )}
               </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-bordure px-4 py-2.5 text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-bordure px-4 py-2.5 text-xs shrink-0">
                 <span className="text-texte-discret" aria-live="polite">{message ?? (selectionnee.lectureSeule ? "Projection en lecture seule" : selectionnee.schemaCompatible === false ? "Contrat Markdown inconnu · lecture seule" : "Markdown comme source de vérité")}</span>
                 {!selectionnee.lectureSeule && selectionnee.contenuCharge && selectionnee.schemaCompatible !== false && !snapshotApercu && (
                   <div className="flex flex-wrap items-center gap-2">
@@ -687,200 +945,206 @@ export function EspaceDocumentaire({
               </div>
             </>
           ) : (
-            <div className="flex min-h-0 flex-1 flex-col bg-surface">
-              <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-bordure px-6 py-5">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-texte-discret">Mémoire documentaire</p>
-                  <h2 className="mt-1 font-serif text-2xl font-medium tracking-tight">Graphe global</h2>
+            <div className="flex h-full min-h-0 flex-1 flex-col bg-surface">
+              <div className="flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure px-6 shrink-0">
+                <div className="flex items-center gap-3">
+                  {!sidebarOuverte && (
+                    <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />
+                  )}
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-texte-discret leading-none">Mémoire documentaire</p>
+                    <h2 className="mt-0.5 font-serif text-2xl font-medium tracking-tight leading-tight">Graphe global</h2>
+                  </div>
                 </div>
-                <span className="text-sm text-texte-discret">Documents, compétences, exercices et thèmes reliés</span>
+                <span className="text-xs text-texte-discret hidden sm:inline">Documents, compétences, exercices et thèmes reliés</span>
               </div>
-              <div className="min-h-0 flex-1 p-4">
-                <GrapheCompetences donnees={graphe.donnees} compteId={graphe.compteId} />
+              <div className="flex min-h-0 flex-1 flex-col p-4">
+                <GrapheCompetences donnees={graphe.donnees} compteId={graphe.compteId} ouvrirElement={ouvrirElement} />
               </div>
             </div>
           )}
         </main>
 
-        <aside
-          className={cx(
-            "overflow-y-auto border-l border-bordure bg-surface shadow-2xl",
-            contexteOuvert
-              ? "fixed bottom-4 right-4 top-4 z-50 block w-[min(26rem,calc(100vw-2rem))] rounded-xl border"
-              : "hidden",
-            "2xl:static 2xl:z-auto 2xl:block 2xl:max-h-[calc(100vh-8rem)] 2xl:w-auto 2xl:rounded-none 2xl:border-y-0 2xl:border-r-0 2xl:shadow-none",
-          )}
-          aria-label="Contexte du document"
-        >
-          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-bordure bg-surface px-4 py-3 2xl:hidden">
-            <span className="text-sm font-semibold">Contexte</span>
-            <button
-              type="button"
-              onClick={() => setContexteOuvert(false)}
-              className="grid size-9 place-items-center rounded-lg border border-bordure text-lg text-texte-attenue"
-              aria-label="Fermer le contexte"
-            >
-              ×
-            </button>
-          </div>
-          {selectionnee?.vuePedagogique ? (
-            <PanneauPedagogiqueAtelier
-              vue={selectionnee.vuePedagogique}
-              ouvrirElement={ouvrirElement}
-              compteId={graphe.compteId}
-              generation={generation}
-            />
-          ) : selectionnee ? (
-            <div className="space-y-5 p-4">
-              <div>
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-texte-attenue">Contexte</h2>
-                <dl className="mt-3 space-y-2 text-xs">
-                  <div className="flex justify-between gap-3"><dt className="text-texte-discret">Type</dt><dd className="text-right font-medium">{selectionnee.typeLibelle}</dd></div>
-                  <div className="flex justify-between gap-3"><dt className="text-texte-discret">Catégorie</dt><dd className="text-right font-medium">{selectionnee.categorie}</dd></div>
-                  <div className="flex justify-between gap-3"><dt className="text-texte-discret">Identifiant</dt><dd className="max-w-[9rem] truncate text-right font-mono text-[0.6875rem]">{selectionnee.id}</dd></div>
-                  {selectionnee.snapshots.length > 0 && <div className="flex justify-between gap-3"><dt className="text-texte-discret">Versions gelées</dt><dd className="text-right font-medium">{selectionnee.snapshots.length}</dd></div>}
-                </dl>
-              </div>
-
-              <div>
-                <h3 className="text-xs font-semibold text-texte-attenue">Relations</h3>
-                <div className="mt-2 space-y-2 text-xs">
-                  {liensCourants.length > 0 ? liensCourants.map((lien, index) => {
-                    const cible = trouverCible(lien.cible);
-                    return cible ? (
-                      <button key={`${lien.cible}-${index}`} type="button" onClick={() => ouvrirElement(cible.id)} className="block text-left text-primaire hover:underline">→ {cible.titre}</button>
-                    ) : (
-                      <span key={`${lien.cible}-${index}`} className="block text-texte-discret">→ {lien.libelle ?? lien.cible} <span className="text-[0.625rem]">(à résoudre)</span></span>
-                    );
-                  }) : <p className="text-texte-discret">Aucun lien déclaré.</p>}
-                  {selectionnee.entrants.length > 0 && <p className="pt-1 text-texte-discret">Référencé par {selectionnee.entrants.length} document{selectionnee.entrants.length > 1 ? "s" : ""}.</p>}
-                  {!selectionnee.lectureSeule && selectionnee.contenuCharge && selectionnee.schemaCompatible !== false && fichesLiables.length > 0 && (
-                    <div className="border-t border-bordure pt-3">
-                      <label className="block text-[0.6875rem] font-medium text-texte-attenue" htmlFor="ajouter-lien-fiche">
-                        Ajouter un lien vers une fiche
-                      </label>
-                      <div className="mt-1.5 flex gap-1.5">
-                        <select
-                          id="ajouter-lien-fiche"
-                          value={cibleLien}
-                          onChange={(event) => setCibleLien(event.target.value)}
-                          className="min-w-0 flex-1 rounded-md border border-bordure-controle bg-surface px-2 py-1.5 text-xs"
-                        >
-                          <option value="">Choisir une fiche…</option>
-                          {fichesLiables.map((fiche) => <option key={fiche.id} value={fiche.id}>{fiche.titre}</option>)}
-                        </select>
-                        <button
-                          type="button"
-                          onClick={ajouterLien}
-                          disabled={!cibleLien}
-                          className="shrink-0 rounded-md border border-bordure px-2 py-1.5 text-xs font-medium text-primaire hover:bg-primaire-faible disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          Ajouter
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {selectionnee.frontMatter.role === "support" && (
-                <div className="border-t border-bordure pt-4">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <h3 className="text-xs font-semibold text-texte-attenue">Pièces jointes</h3>
-                    <span className="text-[0.6875rem] text-texte-discret">{piecesJointes?.length ?? "…"}</span>
-                  </div>
-                  {piecesJointes === undefined ? (
-                    <p className="mt-2 text-xs text-texte-discret">Chargement des PDF…</p>
-                  ) : piecesJointes.length > 0 ? (
-                    <ul className="mt-2 space-y-1.5">
-                      {piecesJointes.map((piece) => (
-                        <li key={piece.id} className="flex items-center gap-2 rounded-md border border-bordure bg-surface px-2.5 py-2 text-xs">
-                          {piece.url ? (
-                            <a href={piece.url} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-primaire hover:underline" title={piece.nom}>
-                              {piece.nom}
-                            </a>
-                          ) : <span className="min-w-0 flex-1 truncate">{piece.nom}</span>}
-                          <span className="shrink-0 text-[0.625rem] text-texte-discret">{Math.max(1, Math.round(piece.tailleOctets / 1024))} Ko</span>
-                          {!selectionnee.lectureSeule && (
-                            <button type="button" onClick={() => supprimerPieceJointe(piece)} disabled={enCours} className="shrink-0 text-texte-discret hover:text-danger disabled:opacity-50" aria-label={`Supprimer ${piece.nom}`}>
-                              ×
-                            </button>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : <p className="mt-2 text-xs leading-relaxed text-texte-discret">Aucun PDF attaché.</p>}
-                  {!selectionnee.lectureSeule && selectionnee.schemaCompatible !== false && (
-                    <label className="mt-3 inline-flex cursor-pointer rounded-md border border-bordure px-2.5 py-1.5 text-xs font-medium text-primaire hover:bg-primaire-faible has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50">
-                      Joindre un PDF
-                      <input type="file" accept=".pdf,application/pdf" className="sr-only" onChange={televerserPdf} disabled={enCours} />
-                    </label>
-                  )}
-                  <p className="mt-2 text-[0.6875rem] text-texte-discret">PDF uniquement · 10 Mo maximum.</p>
-                </div>
-              )}
-
-              {selectionnee.source === "projection" && selectionnee.type === "exercice" && (
-                <div className="border-t border-bordure pt-4">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <h3 className="text-xs font-semibold text-texte-attenue">Tentatives associées</h3>
-                    <span className="text-[0.6875rem] text-texte-discret">{selectionnee.tentatives.length}</span>
-                  </div>
-                  {selectionnee.tentatives.length === 0 ? (
-                    <p className="mt-2 text-xs leading-relaxed text-texte-discret">Aucune tentative enregistrée pour cet exercice.</p>
-                  ) : (
-                    <ul className="mt-2 space-y-2">
-                      {selectionnee.tentatives.map((tentative) => (
-                        <li key={tentative.id} className="rounded-md border border-bordure bg-surface px-2.5 py-2 text-xs">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="font-medium">{tentative.resultat === "reussi" ? "Réussi" : tentative.resultat === "echec" ? "Échec" : "Partiel"}</span>
-                            <span className="text-[0.6875rem] text-texte-discret">{new Date(tentative.fin ?? tentative.debut).toLocaleDateString("fr-FR")}</span>
-                          </div>
-                          <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[0.6875rem] text-texte-discret">
-                            <span>{tentative.statut === "terminee" ? "Terminée" : tentative.statut === "abandonnee" ? "Abandonnée" : "En cours"}</span>
-                            {tentative.dureeMin !== undefined && <span>{tentative.dureeMin} min</span>}
-                            <span>{tentative.indicesUtilises} indice{tentative.indicesUtilises > 1 ? "s" : ""}</span>
-                          </div>
-                          {tentative.reponse.trim() && (
-                            <p className="mt-1.5 line-clamp-2 text-[0.6875rem] leading-relaxed text-texte-attenue">
-                              {tentative.reponse.trim().replace(/\s+/g, " ")}
-                            </p>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
-
-              <div className="border-t border-bordure pt-4">
-                <h3 className="text-xs font-semibold text-texte-attenue">Vue pédagogique</h3>
-                <p className="mt-2 text-xs leading-relaxed text-texte-discret">Les compétences et exercices existants apparaissent ici en projection. Les liens Markdown alimentent aussi le graphe central.</p>
-                <button type="button" onClick={() => setSelection(null)} className="mt-3 inline-flex text-xs font-medium text-primaire hover:underline">Revenir au graphe central →</button>
-              </div>
-              {selectionnee.snapshots.length > 0 && (
-                <div className="border-t border-bordure pt-4">
-                    <h3 className="text-xs font-semibold text-texte-attenue">Historique du document</h3>
-                    <p className="mt-2 text-xs leading-relaxed text-texte-discret">Les preuves et les révisions éditoriales sont conservées séparément. Une correction ultérieure ne réécrit jamais une version déjà figée.</p>
-                  <div className="mt-2 space-y-1">
-                    {selectionnee.snapshots.map((snapshot) => (
-                      <button
-                        key={snapshot.id}
-                        type="button"
-                        onClick={() => ouvrirSnapshot(snapshot.id)}
-                        className="block w-full rounded px-1.5 py-1 text-left font-mono text-[0.625rem] text-primaire hover:bg-primaire-faible"
-                      >
-                        v{snapshot.version} · {natureSnapshot(snapshot.captureReason) === "preuve" ? "preuve" : "révision"} · {snapshot.capturedAt.slice(0, 10)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+        {selectionnee && (
+          <aside
+            key={contexteOuvert ? "ouvert" : "ferme"}
+            className={cx(
+              "min-h-0 overflow-y-auto border-l border-bordure bg-surface shadow-2xl coulissement-droite",
+              contexteOuvert
+                ? "fixed bottom-4 right-4 top-4 z-50 block w-[min(26rem,calc(100vw-2rem))] rounded-xl border"
+                : "hidden",
+              "2xl:static 2xl:z-auto 2xl:block 2xl:h-full 2xl:max-h-full 2xl:w-auto 2xl:rounded-none 2xl:border-y-0 2xl:border-r-0 2xl:shadow-none",
+            )}
+            aria-label="Contexte du document"
+          >
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-bordure bg-surface px-4 py-3 2xl:hidden">
+              <span className="text-sm font-semibold">Contexte</span>
+              <button
+                type="button"
+                onClick={() => setContexteOuvert(false)}
+                className="grid size-9 place-items-center rounded-lg border border-bordure text-lg text-texte-attenue"
+                aria-label="Fermer le contexte"
+              >
+                ×
+              </button>
             </div>
-          ) : (
-            <p className="p-4 text-xs text-texte-discret">Le contexte du document sélectionné apparaîtra ici.</p>
-          )}
-        </aside>
+            {selectionnee.vuePedagogique ? (
+              <PanneauPedagogiqueAtelier
+                vue={selectionnee.vuePedagogique}
+                ouvrirElement={ouvrirElement}
+                compteId={graphe.compteId}
+                generation={generation}
+              />
+            ) : (
+              <div className="space-y-5 p-4">
+                <div>
+                  <h2 className="text-xs font-semibold uppercase tracking-wider text-texte-attenue">Contexte</h2>
+                  <dl className="mt-3 space-y-2 text-xs">
+                    <div className="flex justify-between gap-3"><dt className="text-texte-discret">Type</dt><dd className="text-right font-medium">{selectionnee.typeLibelle}</dd></div>
+                    <div className="flex justify-between gap-3"><dt className="text-texte-discret">Catégorie</dt><dd className="text-right font-medium">{selectionnee.categorie}</dd></div>
+                    <div className="flex justify-between gap-3"><dt className="text-texte-discret">Identifiant</dt><dd className="max-w-[9rem] truncate text-right font-mono text-[0.6875rem]">{selectionnee.id}</dd></div>
+                    {selectionnee.snapshots.length > 0 && <div className="flex justify-between gap-3"><dt className="text-texte-discret">Versions gelées</dt><dd className="text-right font-medium">{selectionnee.snapshots.length}</dd></div>}
+                  </dl>
+                </div>
+
+                <div>
+                  <h3 className="text-xs font-semibold text-texte-attenue">Relations</h3>
+                  <div className="mt-2 space-y-2 text-xs">
+                    {liensCourants.length > 0 ? liensCourants.map((lien, index) => {
+                      const cible = trouverCible(lien.cible);
+                      return cible ? (
+                        <button key={`${lien.cible}-${index}`} type="button" onClick={() => ouvrirElement(cible.id)} className="block text-left text-primaire hover:underline">→ {cible.titre}</button>
+                      ) : (
+                        <span key={`${lien.cible}-${index}`} className="block text-texte-discret">→ {lien.libelle ?? lien.cible} <span className="text-[0.625rem]">(à résoudre)</span></span>
+                      );
+                    }) : <p className="text-texte-discret">Aucun lien déclaré.</p>}
+                    {selectionnee.entrants.length > 0 && <p className="pt-1 text-texte-discret">Référencé par {selectionnee.entrants.length} document{selectionnee.entrants.length > 1 ? "s" : ""}.</p>}
+                    {!selectionnee.lectureSeule && selectionnee.contenuCharge && selectionnee.schemaCompatible !== false && fichesLiables.length > 0 && (
+                      <div className="border-t border-bordure pt-3">
+                        <label className="block text-[0.6875rem] font-medium text-texte-attenue" htmlFor="ajouter-lien-fiche">
+                          Ajouter un lien vers une fiche
+                        </label>
+                        <div className="mt-1.5 flex gap-1.5">
+                          <select
+                            id="ajouter-lien-fiche"
+                            value={cibleLien}
+                            onChange={(event) => setCibleLien(event.target.value)}
+                            className="min-w-0 flex-1 rounded-md border border-bordure-controle bg-surface px-2 py-1.5 text-xs"
+                          >
+                            <option value="">Choisir une fiche…</option>
+                            {fichesLiables.map((fiche) => <option key={fiche.id} value={fiche.id}>{fiche.titre}</option>)}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={ajouterLien}
+                            disabled={!cibleLien}
+                            className="shrink-0 rounded-md border border-bordure px-2 py-1.5 text-xs font-medium text-primaire hover:bg-primaire-faible disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Ajouter
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {selectionnee.frontMatter.role === "support" && (
+                  <div className="border-t border-bordure pt-4">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <h3 className="text-xs font-semibold text-texte-attenue">Pièces jointes</h3>
+                      <span className="text-[0.6875rem] text-texte-discret">{piecesJointes?.length ?? "…"}</span>
+                    </div>
+                    {piecesJointes === undefined ? (
+                      <p className="mt-2 text-xs text-texte-discret">Chargement des PDF…</p>
+                    ) : piecesJointes.length > 0 ? (
+                      <ul className="mt-2 space-y-1.5">
+                        {piecesJointes.map((piece) => (
+                          <li key={piece.id} className="flex items-center gap-2 rounded-md border border-bordure bg-surface px-2.5 py-2 text-xs">
+                            {piece.url ? (
+                              <a href={piece.url} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-primaire hover:underline" title={piece.nom}>
+                                {piece.nom}
+                              </a>
+                            ) : <span className="min-w-0 flex-1 truncate">{piece.nom}</span>}
+                            <span className="shrink-0 text-[0.625rem] text-texte-discret">{Math.max(1, Math.round(piece.tailleOctets / 1024))} Ko</span>
+                            {!selectionnee.lectureSeule && (
+                              <button type="button" onClick={() => supprimerPieceJointe(piece)} disabled={enCours} className="shrink-0 text-texte-discret hover:text-danger disabled:opacity-50" aria-label={`Supprimer ${piece.nom}`}>
+                                ×
+                              </button>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : <p className="mt-2 text-xs leading-relaxed text-texte-discret">Aucun PDF attaché.</p>}
+                    {!selectionnee.lectureSeule && selectionnee.schemaCompatible !== false && (
+                      <label className="mt-3 inline-flex cursor-pointer rounded-md border border-bordure px-2.5 py-1.5 text-xs font-medium text-primaire hover:bg-primaire-faible has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50">
+                        Joindre un PDF
+                        <input type="file" accept=".pdf,application/pdf" className="sr-only" onChange={televerserPdf} disabled={enCours} />
+                      </label>
+                    )}
+                    <p className="mt-2 text-[0.6875rem] text-texte-discret">PDF uniquement · 10 Mo maximum.</p>
+                  </div>
+                )}
+
+                {selectionnee.source === "projection" && selectionnee.type === "exercice" && (
+                  <div className="border-t border-bordure pt-4">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <h3 className="text-xs font-semibold text-texte-attenue">Tentatives associées</h3>
+                      <span className="text-[0.6875rem] text-texte-discret">{selectionnee.tentatives.length}</span>
+                    </div>
+                    {selectionnee.tentatives.length === 0 ? (
+                      <p className="mt-2 text-xs leading-relaxed text-texte-discret">Aucune tentative enregistrée pour cet exercice.</p>
+                    ) : (
+                      <ul className="mt-2 space-y-2">
+                        {selectionnee.tentatives.map((tentative) => (
+                          <li key={tentative.id} className="rounded-md border border-bordure bg-surface px-2.5 py-2 text-xs">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-medium">{tentative.resultat === "reussi" ? "Réussi" : tentative.resultat === "echec" ? "Échec" : "Partiel"}</span>
+                              <span className="text-[0.6875rem] text-texte-discret">{new Date(tentative.fin ?? tentative.debut).toLocaleDateString("fr-FR")}</span>
+                            </div>
+                            <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[0.6875rem] text-texte-discret">
+                              <span>{tentative.statut === "terminee" ? "Terminée" : tentative.statut === "abandonnee" ? "Abandonnée" : "En cours"}</span>
+                              {tentative.dureeMin !== undefined && <span>{tentative.dureeMin} min</span>}
+                              <span>{tentative.indicesUtilises} indice{tentative.indicesUtilises > 1 ? "s" : ""}</span>
+                            </div>
+                            {tentative.reponse.trim() && (
+                              <p className="mt-1.5 line-clamp-2 text-[0.6875rem] leading-relaxed text-texte-attenue">
+                                {tentative.reponse.trim().replace(/\s+/g, " ")}
+                              </p>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+
+                <div className="border-t border-bordure pt-4">
+                  <h3 className="text-xs font-semibold text-texte-attenue">Vue pédagogique</h3>
+                  <p className="mt-2 text-xs leading-relaxed text-texte-discret">Les compétences et exercices existants apparaissent ici en projection. Les liens Markdown alimentent aussi le graphe central.</p>
+                  <button type="button" onClick={() => setSelection(null)} className="mt-3 inline-flex text-xs font-medium text-primaire hover:underline">Revenir au graphe central →</button>
+                </div>
+                {selectionnee.snapshots.length > 0 && (
+                  <div className="border-t border-bordure pt-4">
+                      <h3 className="text-xs font-semibold text-texte-attenue">Historique du document</h3>
+                      <p className="mt-2 text-xs leading-relaxed text-texte-discret">Les preuves et les révisions éditoriales sont conservées séparément. Une correction ultérieure ne réécrit jamais une version déjà figée.</p>
+                    <div className="mt-2 space-y-1">
+                      {selectionnee.snapshots.map((snapshot) => (
+                        <button
+                          key={snapshot.id}
+                          type="button"
+                          onClick={() => ouvrirSnapshot(snapshot.id)}
+                          className="block w-full rounded px-1.5 py-1 text-left font-mono text-[0.625rem] text-primaire hover:bg-primaire-faible"
+                        >
+                          v{snapshot.version} · {natureSnapshot(snapshot.captureReason) === "preuve" ? "preuve" : "révision"} · {snapshot.capturedAt.slice(0, 10)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </aside>
+        )}
       </div>
     </section>
   );

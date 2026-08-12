@@ -210,7 +210,7 @@ function extraireModales(
   if (fichier.startsWith("lib/") || !contenu.includes("<Modale")) return resultats;
 
   // Match actual JSX tag <Modale ...> or <Modale>
-  const matches = [...contenu.matchAll(/<Modale([\s\n\t>][^>]*)/g)];
+  const matches = [...contenu.matchAll(/<Modale\b([\s\S]*?)(?=\/?>|\n\s*<)/g)];
   for (const m of matches) {
     const props = m[1];
     let titre: string | null = null;
@@ -826,16 +826,6 @@ export async function scannerWorkflow(): Promise<GrapheWorkflow> {
           });
         }
       }
-    }
-
-    if (detectee && !parId.has(act.id)) {
-      const noeud: NoeudWorkflow = {
-        id: act.id,
-        type: "action",
-        libelle: act.libelle,
-      };
-      noeuds.push(noeud);
-      parId.set(act.id, noeud);
     }
   }
 

@@ -65,7 +65,7 @@ export default async function AppLayout({
           l'intérieur du bloc pour que la bordure les englobe.
         */}
         <main className="flex flex-1 flex-col px-4 sm:px-6 lg:px-10">
-          <div className="mx-auto w-full max-w-7xl flex-1 pb-24 pt-6 lg:border-l lg:border-marge lg:pb-12 lg:pl-10 lg:pt-8">
+          <div className="mx-auto w-full max-w-7xl flex-1 pb-24 pt-6 lg:border-l lg:border-marge lg:pb-12 lg:pl-10 lg:pt-8 2xl:max-w-[100rem]">
             <ProfilWrapper compteId={compte.id}>
               <ProfilTracker compteId={compte.id} />
               <ProfilPage compteId={compte.id}>{children}</ProfilPage>

@@ -49,9 +49,11 @@ import { couleurDomaine } from "@/lib/ui/couleurs-domaines";
 export function GrapheCompetences({
   donnees,
   compteId,
+  ouvrirElement,
 }: {
   donnees: DonneesGraphe;
   compteId: string;
+  ouvrirElement?: (id: string) => void;
 }) {
   const router = useRouter();
   const conteneurRef = useRef<HTMLDivElement>(null);
@@ -109,6 +111,25 @@ export function GrapheCompetences({
     () => donnees.noeuds.filter((n) => reglages.typesNoeudsVisibles[n.type]),
     [donnees.noeuds, reglages.typesNoeudsVisibles],
   );
+
+  const naviguerVersNoeud = useCallback(
+    (n: NoeudGraphe) => {
+      if (ouvrirElement) {
+        ouvrirElement(n.id);
+        return;
+      }
+      if (n.type === "competence") {
+        const code = n.id.slice("competence:".length);
+        router.push(`/atelier?document=${encodeURIComponent(code)}`);
+      } else if (n.type === "exercice") {
+        router.push(`/atelier?document=${encodeURIComponent(n.id)}`);
+      } else if (n.type === "document") {
+        router.push(`/atelier?document=${encodeURIComponent(n.id.slice("document:".length))}`);
+      }
+    },
+    [router, ouvrirElement],
+  );
+
   const idsVisibles = useMemo(() => new Set(noeudsVisibles.map((n) => n.id)), [noeudsVisibles]);
 
   /**
@@ -383,21 +404,7 @@ export function GrapheCompetences({
     return trouve;
   }, []);
 
-  const naviguerVersNoeud = useCallback(
-    (n: NoeudGraphe) => {
-      if (n.type === "competence") {
-        const code = n.id.slice("competence:".length);
-        router.push(`/atelier?document=${encodeURIComponent(code)}`);
-      }
-      else if (n.type === "exercice") {
-        router.push(`/atelier?document=${encodeURIComponent(n.id)}`);
-      }
-      else if (n.type === "document") router.push(`/atelier?document=${encodeURIComponent(n.id.slice("document:".length))}`);
-      // Un thème n'a pas de fiche dédiée : la portée se travaille depuis le
-      // compositeur de séance, pas depuis le graphe.
-    },
-    [router],
-  );
+
 
   useEffect(() => {
     const canvas = canvasRef.current;

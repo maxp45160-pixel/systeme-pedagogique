@@ -82,14 +82,36 @@ function CarteAssociee({
   );
 }
 
+export function BoutonOuvrirExplorateur({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="grid size-9 shrink-0 place-items-center rounded-lg border border-primaire/40 bg-primaire-faible text-primaire transition-all duration-200 hover:bg-primaire hover:border-primaire hover:text-white cursor-pointer shadow-sm"
+      title="Ouvrir l’explorateur"
+      aria-label="Ouvrir l’explorateur"
+    >
+      <svg className="size-5 shrink-0 stroke-[2.5]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
+      </svg>
+    </button>
+  );
+}
+
 function VueCompetence({
   vue,
   titre,
   ouvrirElement,
+  revenirGraphe,
+  sidebarOuverte,
+  setSidebarOuverte,
 }: {
   vue: VueCompetenceAtelier;
   titre: string;
   ouvrirElement: (id: string) => void;
+  revenirGraphe?: () => void;
+  sidebarOuverte?: boolean;
+  setSidebarOuverte?: (ouverte: boolean) => void;
 }) {
   const [onglet, setOnglet] = useState<Onglet>("synthese");
   const dimensionsTriees = [...vue.dimensions].sort((a, b) => b.valeur - a.valeur);
@@ -104,11 +126,34 @@ function VueCompetence({
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-surface-2/40">
-      <header className="border-b border-bordure bg-surface px-6 pb-6 pt-5 lg:px-8">
-        <p className="text-xs text-texte-discret">
-          Domaines <span className="px-1">/</span> {vue.domaineNom} <span className="px-1">/</span> Compétences
-        </p>
-        <div className="mt-5 flex flex-wrap items-start gap-5">
+      <header className="border-b border-bordure bg-surface px-6 pb-6 pt-3.5 lg:px-8">
+        <nav aria-label="Fil d’Ariane" className="flex flex-wrap items-center gap-2 h-9 text-xs text-texte-discret">
+          {!sidebarOuverte && setSidebarOuverte && (
+            <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />
+          )}
+          {revenirGraphe && (
+            <>
+              <button
+                type="button"
+                onClick={revenirGraphe}
+                className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
+              >
+                Graphe global
+              </button>
+              <span className="text-texte-discret/60">/</span>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={() => ouvrirElement(`domaine:${vue.domaineId}`)}
+            className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
+          >
+            {vue.domaineNom}
+          </button>
+          <span className="text-texte-discret/60">/</span>
+          <span className="font-semibold text-texte">Compétences</span>
+        </nav>
+        <div className="mt-4 flex flex-wrap items-start gap-5">
           <div className="flex min-w-0 items-start gap-3.5">
             <span className="grid size-14 shrink-0 place-items-center rounded-2xl border border-primaire/20 bg-primaire-faible text-primaire">
               <IconeCompetences className="size-7" />
@@ -181,7 +226,26 @@ function VueCompetence({
               </div>
               <div className="grid gap-3 xl:grid-cols-3">
                 <CarteAssociee titre="Exercices" compteur={vue.exercices.length}>
-                  {vue.exercices.length ? <ul className="space-y-1">{vue.exercices.slice(0, 4).map((exercice) => <li key={exercice.id}><Link href={`/exercices/${exercice.id}`} className="block rounded-lg px-2 py-2 hover:bg-surface-2"><span className="block truncate text-xs font-medium text-texte">{exercice.titre}</span><span className="mt-0.5 block text-[0.625rem] text-texte-discret">Difficulté {exercice.difficulte} · {exercice.dureeMin} min · {exercice.tentatives} tentative{exercice.tentatives > 1 ? "s" : ""}</span></Link></li>)}</ul> : <p className="px-2 py-3 text-xs text-texte-discret">Aucun exercice relié.</p>}
+                  {vue.exercices.length ? (
+                    <ul className="space-y-1">
+                      {vue.exercices.slice(0, 4).map((exercice) => (
+                        <li key={exercice.id}>
+                          <button
+                            type="button"
+                            onClick={() => ouvrirElement(`exercice:${exercice.id}`)}
+                            className="block w-full rounded-lg px-2 py-2 text-left hover:bg-surface-2 cursor-pointer"
+                          >
+                            <span className="block truncate text-xs font-medium text-texte">{exercice.titre}</span>
+                            <span className="mt-0.5 block text-[0.625rem] text-texte-discret">
+                              Difficulté {exercice.difficulte} · {exercice.dureeMin} min · {exercice.tentatives} tentative{exercice.tentatives > 1 ? "s" : ""}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="px-2 py-3 text-xs text-texte-discret">Aucun exercice relié.</p>
+                  )}
                 </CarteAssociee>
                 <CarteAssociee titre="Preuves" compteur={vue.preuves.length}>
                   {vue.preuves.length ? <ul className="space-y-1">{vue.preuves.slice(0, 4).map((preuve) => <li key={preuve.id} className="rounded-lg px-2 py-2"><span className="flex items-center justify-between gap-2 text-xs"><span className="truncate font-medium">{preuve.contexte}</span><span className={cx("shrink-0 rounded px-1.5 py-0.5 text-[0.625rem]", preuve.resultat === "reussi" ? "bg-succes-faible text-succes" : preuve.resultat === "partiel" ? "bg-info-faible text-info" : "bg-danger-faible text-danger")}>{preuve.resultat === "reussi" ? "Solide" : preuve.resultat === "partiel" ? "Partiel" : "À revoir"}</span></span><span className="mt-0.5 block text-[0.625rem] text-texte-discret">{dateCourte(preuve.date)} · preuve {preuve.niveauPreuve}</span></li>)}</ul> : <p className="px-2 py-3 text-xs text-texte-discret">Aucune preuve directe.</p>}
@@ -240,11 +304,17 @@ function Relations({ titre, ids, ouvrirElement }: { titre: string; ids: string[]
 function VueDomaine({
   vue,
   ouvrirElement,
+  revenirGraphe,
+  sidebarOuverte,
+  setSidebarOuverte,
   compteId,
   modeInitial,
 }: {
   vue: VueDomaineAtelier;
   ouvrirElement: (id: string) => void;
+  revenirGraphe?: () => void;
+  sidebarOuverte?: boolean;
+  setSidebarOuverte?: (ouverte: boolean) => void;
   compteId: string;
   modeInitial?: "referentiel";
 }) {
@@ -267,9 +337,34 @@ function VueDomaine({
   ].filter((item) => !vue.domaine.archive || item.id !== "referentiel");
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-surface-2/40">
-      <header className="border-b border-bordure bg-surface px-8 py-7">
-        <p className="text-xs text-texte-discret">{vue.domaine.archive ? "Domaines archivés" : "Domaines"} / {vue.nom}</p>
-        <div className="mt-5 flex items-start gap-4"><span className="grid size-14 place-items-center rounded-2xl bg-primaire-faible text-primaire"><IconeDocuments className="size-7" /></span><div><div className="flex flex-wrap items-center gap-2"><p className="text-xs font-semibold uppercase tracking-[0.12em] text-primaire">Fiche mère</p>{vue.domaine.archive && <span className="rounded-full bg-surface-3 px-2 py-0.5 text-[0.6875rem] font-semibold text-texte-discret">Archivé</span>}</div><h2 className="font-serif text-[2.2rem] font-medium tracking-tight">{vue.nom}</h2>{vue.description && <p className="mt-3 max-w-3xl text-base leading-relaxed text-texte-attenue">{vue.description}</p>}{vue.domaine.archive && <p className="mt-3 max-w-3xl rounded-lg border border-bordure bg-surface-2 px-3 py-2 text-xs leading-relaxed text-texte-discret">Ce domaine reste consultable, mais il est exclu du pilotage actif, du graphe principal et des suggestions.</p>}</div></div>
+      <header className="border-b border-bordure bg-surface px-6 pb-6 pt-3.5 lg:px-8">
+        <nav aria-label="Fil d’Ariane" className="flex flex-wrap items-center gap-2 h-9 text-xs text-texte-discret">
+          {!sidebarOuverte && setSidebarOuverte && (
+            <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />
+          )}
+          {revenirGraphe && (
+            <>
+              <button
+                type="button"
+                onClick={revenirGraphe}
+                className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
+              >
+                Graphe global
+              </button>
+              <span className="text-texte-discret/60">/</span>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={() => ouvrirElement("domaines")}
+            className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
+          >
+            {vue.domaine.archive ? "Domaines archivés" : "Domaines"}
+          </button>
+          <span className="text-texte-discret/60">/</span>
+          <span className="font-semibold text-texte">{vue.nom}</span>
+        </nav>
+        <div className="mt-4 flex items-start gap-4"><span className="grid size-14 place-items-center rounded-2xl bg-primaire-faible text-primaire"><IconeDocuments className="size-7" /></span><div><div className="flex flex-wrap items-center gap-2"><p className="text-xs font-semibold uppercase tracking-[0.12em] text-primaire">Fiche mère</p>{vue.domaine.archive && <span className="rounded-full bg-surface-3 px-2 py-0.5 text-[0.6875rem] font-semibold text-texte-discret">Archivé</span>}</div><h2 className="font-serif text-[2.2rem] font-medium tracking-tight">{vue.nom}</h2>{vue.description && <p className="mt-3 max-w-3xl text-base leading-relaxed text-texte-attenue">{vue.description}</p>}{vue.domaine.archive && <p className="mt-3 max-w-3xl rounded-lg border border-bordure bg-surface-2 px-3 py-2 text-xs leading-relaxed text-texte-discret">Ce domaine reste consultable, mais il est exclu du pilotage actif, du graphe principal et des suggestions.</p>}</div></div>
       </header>
       <div className="border-b border-bordure bg-surface px-6 lg:px-8">
         <div className="flex gap-1 overflow-x-auto" role="tablist" aria-label="Sections du domaine">
@@ -339,8 +434,46 @@ function VueDomaine({
   );
 }
 
-export function FichePedagogiqueAtelier({ vue, titre, ouvrirElement, compteId, modeInitial }: { vue: VuePedagogiqueAtelier; titre: string; ouvrirElement: (id: string) => void; compteId: string; modeInitial?: "referentiel" }) {
-  return vue.kind === "competence" ? <VueCompetence key={vue.code} vue={vue} titre={titre} ouvrirElement={ouvrirElement} /> : <VueDomaine vue={vue} ouvrirElement={ouvrirElement} compteId={compteId} modeInitial={modeInitial} />;
+export function FichePedagogiqueAtelier({
+  vue,
+  titre,
+  ouvrirElement,
+  revenirGraphe,
+  sidebarOuverte,
+  setSidebarOuverte,
+  compteId,
+  modeInitial,
+}: {
+  vue: VuePedagogiqueAtelier;
+  titre: string;
+  ouvrirElement: (id: string) => void;
+  revenirGraphe?: () => void;
+  sidebarOuverte?: boolean;
+  setSidebarOuverte?: (ouverte: boolean) => void;
+  compteId: string;
+  modeInitial?: "referentiel";
+}) {
+  return vue.kind === "competence" ? (
+    <VueCompetence
+      key={vue.code}
+      vue={vue}
+      titre={titre}
+      ouvrirElement={ouvrirElement}
+      revenirGraphe={revenirGraphe}
+      sidebarOuverte={sidebarOuverte}
+      setSidebarOuverte={setSidebarOuverte}
+    />
+  ) : (
+    <VueDomaine
+      vue={vue}
+      ouvrirElement={ouvrirElement}
+      revenirGraphe={revenirGraphe}
+      sidebarOuverte={sidebarOuverte}
+      setSidebarOuverte={setSidebarOuverte}
+      compteId={compteId}
+      modeInitial={modeInitial}
+    />
+  );
 }
 
 export function PanneauPedagogiqueAtelier({
@@ -354,15 +487,49 @@ export function PanneauPedagogiqueAtelier({
   compteId: string;
   generation: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
 }) {
-  if (vue.kind === "domaine") return <div className="space-y-5 p-4"><div><p className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-texte-discret">Structure</p><h3 className="mt-1 font-serif text-lg font-medium">{vue.nom}</h3></div><div className="rounded-xl border border-bordure bg-surface p-4"><p className="text-xs font-semibold">Organisation réelle</p><p className="mt-2 text-xs leading-relaxed text-texte-discret">Cette fiche mère regroupe les compétences du domaine. Les paliers les ordonnent ; ils ne créent pas de nouvelle entité.</p></div><div><p className="text-xs font-semibold text-texte-attenue">Accès rapide</p><div className="mt-2 space-y-1">{vue.competences.slice(0, 8).map((competence) => <button key={competence.code} type="button" onClick={() => ouvrirElement(competence.code)} className="block w-full rounded-lg px-2 py-2 text-left text-xs hover:bg-surface"><span className="block truncate font-medium">{competence.titre}</span><span className="font-mono text-[0.625rem] text-texte-discret">{competence.code}</span></button>)}</div></div></div>;
+  if (vue.kind === "domaine") {
+    return (
+      <div className="space-y-5 p-4">
+        <div>
+          <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-texte-discret">Structure</p>
+          <h3 className="mt-1 font-serif text-lg font-medium">{vue.nom}</h3>
+        </div>
+        <div className="rounded-xl border border-bordure bg-surface-2/60 p-4">
+          <p className="text-xs font-semibold">Organisation réelle</p>
+          <p className="mt-2 text-xs leading-relaxed text-texte-discret">
+            Cette fiche mère regroupe les compétences du domaine. Les paliers les ordonnent ; ils ne créent pas de nouvelle entité.
+          </p>
+        </div>
+        <div>
+          <p className="text-xs font-semibold text-texte-attenue">Accès rapide</p>
+          <div className="mt-2 space-y-1.5">
+            {vue.competences.slice(0, 8).map((competence) => (
+              <button
+                key={competence.code}
+                type="button"
+                onClick={() => ouvrirElement(competence.code)}
+                className="group flex w-full items-center justify-between rounded-xl border border-bordure/60 bg-surface-2/40 px-3 py-2.5 text-left text-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-primaire/40 hover:bg-primaire-faible/30 hover:shadow-sm cursor-pointer"
+              >
+                <div className="min-w-0 flex-1 pr-2">
+                  <span className="block truncate font-medium text-texte transition-colors group-hover:text-primaire">{competence.titre}</span>
+                  <span className="font-mono text-[0.625rem] text-texte-discret">{competence.code}</span>
+                </div>
+                <span className="shrink-0 text-texte-discret transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-primaire">→</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const prochainExercice = vue.exercices[0];
   return (
     <div className="space-y-5 p-4">
       <div><p className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-texte-discret">Informations</p><dl className="mt-3 space-y-2 text-xs"><div className="flex justify-between gap-3"><dt className="text-texte-discret">Code</dt><dd className="font-mono font-medium">{vue.code}</dd></div><div className="flex justify-between gap-3"><dt className="text-texte-discret">Domaine</dt><dd className="text-right font-medium">{vue.domaineNom}</dd></div><div className="flex justify-between gap-3"><dt className="text-texte-discret">Palier</dt><dd className="font-medium">{LIBELLES_PALIERS[vue.palier]}</dd></div><div className="flex justify-between gap-3"><dt className="text-texte-discret">Dernière preuve</dt><dd className="font-medium">{dateCourte(vue.dernierePreuve)}</dd></div></dl></div>
       <div className="border-t border-bordure pt-4"><p className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-texte-discret">Performances détaillées</p><div className="mt-3 space-y-3">{vue.dimensions.map((dimension) => <Barre key={dimension.id} valeur={dimension.valeur} libelle={dimension.libelle} />)}</div></div>
-      <section className="rounded-xl border border-alerte/30 bg-alerte-faible p-4"><p className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-alerte">Prochaine action</p><p className="mt-2 text-sm font-medium leading-snug">{vue.prochaineEtape}</p>{prochainExercice ? <Link href={`/exercices/${prochainExercice.id}`} className="mt-3 flex items-center justify-between rounded-lg bg-surface px-3 py-2.5 text-xs font-semibold text-primaire shadow-[var(--ombre-posee)]">Commencer un exercice <IconeFleche className="size-3.5" /></Link> : <div className="mt-3"><BoutonGenerer competences={generation.competences} competenceInitiale={vue.code} calibrages={generation.calibrages} compteId={compteId} libelle="Générer un exercice" /></div>}</section>
-      <div className="border-t border-bordure pt-4"><p className="text-xs font-semibold text-texte-attenue">Actions utiles</p><div className="mt-2 grid grid-cols-2 gap-2">{prochainExercice ? <Link href={`/exercices/${prochainExercice.id}`} className="rounded-lg border border-bordure-controle bg-surface px-3 py-2 text-center text-[0.6875rem] font-medium hover:bg-surface-2"><IconeExercices className="mx-auto mb-1 size-4" />S’exercer</Link> : <span className="rounded-lg border border-dashed border-bordure bg-surface-2 px-3 py-2 text-center text-[0.6875rem] text-texte-discret"><IconeExercices className="mx-auto mb-1 size-4" />À générer ci-dessus</span>}{vue.documents[0] ? <button type="button" onClick={() => ouvrirElement(vue.documents[0].id)} className="rounded-lg border border-bordure-controle bg-surface px-3 py-2 text-center text-[0.6875rem] font-medium hover:bg-surface-2"><IconeDocuments className="mx-auto mb-1 size-4" />Ressource</button> : <span className="rounded-lg border border-dashed border-bordure bg-surface-2 px-3 py-2 text-center text-[0.6875rem] text-texte-discret"><IconeDocuments className="mx-auto mb-1 size-4" />Aucun lien</span>}</div></div>
+      <section className="rounded-xl border border-alerte/30 bg-alerte-faible p-4"><p className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-alerte">Prochaine action</p><p className="mt-2 text-sm font-medium leading-snug">{vue.prochaineEtape}</p>{prochainExercice ? <button type="button" onClick={() => ouvrirElement(`exercice:${prochainExercice.id}`)} className="mt-3 flex w-full items-center justify-between rounded-lg bg-surface px-3 py-2.5 text-xs font-semibold text-primaire shadow-[var(--ombre-posee)] hover:bg-surface-2 cursor-pointer"><span>Aperçu de l’exercice</span> <IconeFleche className="size-3.5" /></button> : <div className="mt-3"><BoutonGenerer competences={generation.competences} competenceInitiale={vue.code} calibrages={generation.calibrages} compteId={compteId} libelle="Générer un exercice" /></div>}</section>
+      <div className="border-t border-bordure pt-4"><p className="text-xs font-semibold text-texte-attenue">Actions utiles</p><div className="mt-2 grid grid-cols-2 gap-2">{prochainExercice ? <button type="button" onClick={() => ouvrirElement(`exercice:${prochainExercice.id}`)} className="rounded-lg border border-bordure-controle bg-surface px-3 py-2 text-center text-[0.6875rem] font-medium hover:bg-surface-2 cursor-pointer"><IconeExercices className="mx-auto mb-1 size-4" />Aperçu</button> : <span className="rounded-lg border border-dashed border-bordure bg-surface-2 px-3 py-2 text-center text-[0.6875rem] text-texte-discret"><IconeExercices className="mx-auto mb-1 size-4" />À générer ci-dessus</span>}{vue.documents[0] ? <button type="button" onClick={() => ouvrirElement(vue.documents[0].id)} className="rounded-lg border border-bordure-controle bg-surface px-3 py-2 text-center text-[0.6875rem] font-medium hover:bg-surface-2"><IconeDocuments className="mx-auto mb-1 size-4" />Ressource</button> : <span className="rounded-lg border border-dashed border-bordure bg-surface-2 px-3 py-2 text-center text-[0.6875rem] text-texte-discret"><IconeDocuments className="mx-auto mb-1 size-4" />Aucun lien</span>}</div></div>
     </div>
   );
 }
