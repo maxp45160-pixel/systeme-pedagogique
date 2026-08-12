@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import {
-  GRAPHE_WORKFLOW,
   parcourirWorkflow,
   statistiquesGraphe,
 } from "@/lib/domain/workflow-graphe";
@@ -10,6 +9,7 @@ import {
   matriceAdjacence,
 } from "@/lib/domain/workflow-export";
 import { GrapheWorkflowViz } from "@/components/dev/graphe-workflow";
+import { scannerWorkflow } from "@/lib/domain/workflow-scanner";
 
 export const metadata: Metadata = {
   title: "Workflow — Dev — Système pédagogique",
@@ -17,15 +17,26 @@ export const metadata: Metadata = {
 };
 
 /**
+ * Outil de développement : la page doit toujours refléter l'état courant du
+ * code. Le graphe est construit par introspection des fichiers source à
+ * chaque requête — pas de cache, pas de constante manuelle à synchroniser.
+ */
+export const dynamic = "force-dynamic";
+
+/**
  * Page `/dev/workflow` — visualisation interactive du graphe de workflow.
  *
- * Le graphe et les statistiques sont calculés côté serveur (couche 3,
- * recalculable). Les Maps sont sérialisées en Records pour le passage en
- * props vers le composant client.
+ * Le graphe est construit dynamiquement par `scannerWorkflow()` qui lit
+ * le filesystem et les fichiers source (routes, `<Link>`, `router.push`,
+ * `redirect`, `<Modale>`). Le BFS et les statistiques restent inchangés.
+ *
+ * Les Maps sont sérialisées en Records pour le passage en props vers le
+ * composant client.
  */
-export default function PageWorkflow() {
-  const resultat = parcourirWorkflow(GRAPHE_WORKFLOW, "page:/");
-  const stats = statistiquesGraphe(resultat, GRAPHE_WORKFLOW);
+export default async function PageWorkflow() {
+  const graphe = await scannerWorkflow();
+  const resultat = parcourirWorkflow(graphe, "page:/");
+  const stats = statistiquesGraphe(resultat, graphe);
 
   // Sérialiser les Maps pour le client
   const profondeurs: Record<string, number> = {};
@@ -37,7 +48,7 @@ export default function PageWorkflow() {
     avecLibellesAretes: true,
     avecConditions: true,
   });
-  const json = exporterJSON(resultat, GRAPHE_WORKFLOW);
+  const json = exporterJSON(resultat, graphe);
   const matrice = matriceAdjacence(resultat.noeuds, resultat.liens);
 
   return (
