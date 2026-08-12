@@ -34,11 +34,34 @@ describe("parcourirWorkflow", () => {
   });
 
   it("signale les nœuds déclarés mais inatteignables depuis la racine", () => {
+    const graphe: GrapheWorkflow = {
+      noeuds: [
+        { id: "a", type: "page", libelle: "A" },
+        { id: "orpheline", type: "page", libelle: "Orpheline" },
+      ],
+      liens: [],
+    };
+    const resultat = parcourirWorkflow(graphe, "a");
+    expect(resultat.inatteignables.map((n) => n.id)).toEqual(["orpheline"]);
+  });
+
+  it("aucun état déclaré n'est mort : tout est atteignable depuis le tableau de bord", () => {
+    /*
+     * L'assertion précédente prenait `page:/login` pour un état inatteignable.
+     * C'était faux : `tiroir:reglages → page:/login` existe depuis que le
+     * panneau de compte porte « Se connecter ». Le test protégeait donc un
+     * défaut supposé au lieu de l'invariant réel.
+     *
+     * `action:ajouter-note` l'était, lui, réellement — non par conception mais
+     * parce que l'arête depuis `page:/seances` n'avait jamais été déclarée,
+     * alors que `ajouterNoteSession` est câblée dans `cahier-seances.tsx`.
+     *
+     * L'invariant utile est celui-ci : un nœud déclaré et jamais atteint est
+     * un défaut, soit d'implémentation, soit de déclaration. Les deux méritent
+     * de faire échouer la suite.
+     */
     const resultat = parcourirWorkflow(GRAPHE_WORKFLOW, "page:/");
-    // `/login` n'est pas atteignable depuis le tableau de bord dans le flux
-    // principal : il est atteint par redirection depuis le layout, pas par un
-    // lien. Il doit donc apparaître dans `inatteignables`.
-    expect(resultat.inatteignables.some((n) => n.id === "page:/login")).toBe(true);
+    expect(resultat.inatteignables.map((n) => n.id)).toEqual([]);
   });
 
   it("lève une erreur si la racine est inconnue", () => {
@@ -73,7 +96,29 @@ describe("parcourirWorkflow", () => {
     const resultat = parcourirWorkflow(graphe, "a");
     expect(resultat.ordre).toEqual(["a", "b", "c"]);
     expect(resultat.noeuds).toHaveLength(3);
-    expect(resultat.profondeurs.get("c")).toBe(2);
+    /*
+     * 1 et non 2 : un BFS retient la distance la PLUS COURTE, et `a → c` est
+     * direct. L'attente de 2 lisait le chemin le plus long (`a → b → c`), ce
+     * qu'un BFS ne mesure jamais — c'est précisément la propriété qui rend
+     * `diametreBFS` interprétable.
+     */
+    expect(resultat.profondeurs.get("c")).toBe(1);
+  });
+
+  it("la profondeur est la distance la plus courte, pas le chemin le plus long", () => {
+    const graphe: GrapheWorkflow = {
+      noeuds: [
+        { id: "a", type: "page", libelle: "A" },
+        { id: "b", type: "page", libelle: "B" },
+        { id: "c", type: "page", libelle: "C" },
+      ],
+      liens: [
+        { source: "a", target: "b", type: "navigation", libelle: "A→B" },
+        { source: "b", target: "c", type: "navigation", libelle: "B→C" },
+      ],
+    };
+    // Sans raccourci `a → c`, la seule distance possible est 2.
+    expect(parcourirWorkflow(graphe, "a").profondeurs.get("c")).toBe(2);
   });
 
   it("le graphe déclaré est cohérent : toutes les arêtes pointent vers des nœuds déclarés", () => {
@@ -163,6 +208,54 @@ describe("cohérence du graphe déclaré", () => {
       if (n.type === "page") {
         expect(n.url, `page sans URL : ${n.id}`).toBeDefined();
       }
+    }
+  });
+
+  it("convention 1 : tout effet de bord déclare où l'on se retrouve après", () => {
+    /*
+     * Une `action:` sans arête sortante décrit un cul-de-sac qui n'existe pas :
+     * après un effet de bord, la personne est toujours quelque part. 15 nœuds
+     * sur 43 étaient dans ce cas, ce qui faisait lire le graphe comme un
+     * entonnoir et a produit des conclusions fausses sur le parcours.
+     */
+    const avecSortie = new Set(GRAPHE_WORKFLOW.liens.map((l) => l.source));
+    const sansSortie = GRAPHE_WORKFLOW.noeuds
+      .filter((n) => n.type === "action" && !avecSortie.has(n.id))
+      .map((n) => n.id);
+    expect(sansSortie).toEqual([]);
+  });
+
+  it("convention 2 : toute modale et tout tiroir déclare sa fermeture", () => {
+    const ferme = new Set(
+      GRAPHE_WORKFLOW.liens.filter((l) => l.type === "retour").map((l) => l.source),
+    );
+    const sansFermeture = GRAPHE_WORKFLOW.noeuds
+      .filter((n) => (n.type === "modal" || n.type === "tiroir") && !ferme.has(n.id))
+      .map((n) => n.id);
+    expect(sansFermeture).toEqual([]);
+  });
+
+  it("chaque arête `retour` vise un hôte qui sait ouvrir la surface", () => {
+    /*
+     * Une fermeture ne peut ramener que là d'où l'on venait. Sans cette
+     * vérification, une arête `retour` pourrait fabriquer une transition qui
+     * n'existe pas — exactement ce que la déclaration s'interdit.
+     *
+     * L'ouverture d'une phase suivante compte aussi comme hôte : la
+     * prévisualisation revient au formulaire par `setPhase`, et ces deux nœuds
+     * sont reliés par une `transition`, pas par une `ouverture`.
+     */
+    const hotes = new Map<string, Set<string>>();
+    for (const l of GRAPHE_WORKFLOW.liens) {
+      if (l.type !== "ouverture" && l.type !== "transition") continue;
+      hotes.set(l.target, (hotes.get(l.target) ?? new Set()).add(l.source));
+    }
+    for (const l of GRAPHE_WORKFLOW.liens) {
+      if (l.type !== "retour") continue;
+      expect(
+        hotes.get(l.source)?.has(l.target),
+        `retour fabriqué : ${l.source} → ${l.target} (aucune ouverture inverse)`,
+      ).toBe(true);
     }
   });
 

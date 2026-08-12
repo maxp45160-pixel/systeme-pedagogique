@@ -94,6 +94,30 @@ export interface GrapheWorkflow {
  *   - `tiroir:<nom>`        — panneau latéral ;
  *   - `etape:<nom>`         — étape d'un parcours ;
  *   - `action:<nom>`        — effet de bord.
+ *
+ * ## Deux conventions d'arêtes, à appliquer sans exception
+ *
+ * Elles ne sont pas cosmétiques : leur application partielle rendait le graphe
+ * faux à la lecture. Avant leur écriture, 15 nœuds sur 43 n'avaient aucune
+ * sortie et le type `retour` n'était employé qu'une fois sur 97 arêtes — le
+ * graphe décrivait donc un entonnoir dont on ne revient pas, ce que le produit
+ * n'est pas. Une analyse en a conclu des « chaînes de 4 modales » qui
+ * n'existent nulle part dans le code.
+ *
+ * **1. Un nœud `action:` déclare toujours où l'on se retrouve après l'effet.**
+ * Soit la destination d'un `redirect()` explicite, soit — quand l'action ne
+ * fait que `revalidatePath` ou `router.refresh()` — l'état d'où elle est
+ * partie. Un effet de bord n'est jamais un cul-de-sac : la personne est
+ * toujours quelque part après.
+ *
+ * **2. Une modale et un tiroir déclarent leur fermeture**, en `retour`, vers
+ * chacun des hôtes qui savent les ouvrir. Une modale ouverte depuis deux pages
+ * porte deux arêtes `retour` : ce sont deux états d'arrivée réellement
+ * possibles, pas une duplication.
+ *
+ * Conséquence sur la lecture des statistiques : un `puits` devient un vrai
+ * signal (un état d'où l'on ne peut plus rien faire) au lieu d'un artefact de
+ * déclaration.
  */
 export const GRAPHE_WORKFLOW: GrapheWorkflow = {
   noeuds: [
@@ -309,6 +333,17 @@ export const GRAPHE_WORKFLOW: GrapheWorkflow = {
       type: "navigation",
       libelle: "Rechercher dans le cahier",
       condition: "terme de recherche saisi",
+    },
+    {
+      // `ajouterNoteSession` est câblée dans `cahier-seances.tsx` sur chaque
+      // séance relue. L'arête manquait : le nœud était donc déclaré et
+      // inatteignable, ce que le BFS signalait comme un état mort alors que la
+      // fonctionnalité existe et fonctionne.
+      source: "page:/seances",
+      target: "action:ajouter-note",
+      type: "soumission",
+      libelle: "Annoter",
+      condition: "séance réalisée dans le cahier",
     },
     {
       source: "page:/seances",
@@ -874,6 +909,184 @@ export const GRAPHE_WORKFLOW: GrapheWorkflow = {
       type: "transition",
       libelle: "Redirection après déconnexion",
     },
+
+    /* ════════════════════════════════════════════════════════════════ */
+    /* Convention 1 — où l'on se retrouve après un effet de bord        */
+    /*                                                                  */
+    /* Une action qui `redirect()` déclare sa cible ; une action qui ne  */
+    /* fait que `revalidatePath` / `router.refresh()` déclare l'état     */
+    /* d'où elle est partie. Les actions déjà pourvues plus haut         */
+    /* (`creer-seance`, `creer-exercice`, `creer-branche`,               */
+    /* `terminer-exercice`, `se-deconnecter`) ne sont pas répétées ici.  */
+    /* ════════════════════════════════════════════════════════════════ */
+    {
+      source: "action:refuser-recommandation",
+      target: "page:/",
+      type: "transition",
+      libelle: "Recommandation suivante affichée",
+    },
+    {
+      source: "action:demarrer-seance",
+      target: "page:/seances?session",
+      type: "transition",
+      libelle: "Redirection — séance démarrée",
+    },
+    {
+      // Aucun `redirect` : la séance terminée reste consultable en lecture
+      // seule dans son workspace (ADR-061).
+      source: "action:terminer-seance",
+      target: "page:/seances?session",
+      type: "transition",
+      libelle: "Séance close — workspace en lecture seule",
+    },
+    {
+      source: "action:annuler-seance",
+      target: "page:/seances",
+      type: "transition",
+      libelle: "Redirection — retour au cahier",
+    },
+    {
+      source: "action:ajouter-note",
+      target: "page:/seances",
+      type: "transition",
+      libelle: "Note enregistrée — le cahier se recharge",
+    },
+    {
+      source: "action:modifier-profil",
+      target: "page:/profil",
+      type: "transition",
+      libelle: "Profil enregistré — la page se rafraîchit",
+    },
+    {
+      source: "action:demarrer-tentative",
+      target: "etape:exercice-chercher",
+      type: "transition",
+      libelle: "Tentative ouverte — la résolution commence",
+    },
+    {
+      source: "action:debloquer-indice",
+      target: "etape:exercice-chercher",
+      type: "transition",
+      libelle: "Indice affiché — on reste dans la résolution",
+    },
+    {
+      // `destinationApresExercice` renvoie vers le workspace quand le contexte
+      // de séance est valide, vers l'écran unitaire sinon — deux états
+      // d'arrivée réels, pas une alternative de style.
+      source: "action:abandonner-tentative",
+      target: "page:/seances?session",
+      type: "transition",
+      libelle: "Retour au workspace — aucune preuve écrite",
+      condition: "tentative menée dans une séance",
+    },
+    {
+      source: "action:abandonner-tentative",
+      target: "page:/exercices/{id}",
+      type: "transition",
+      libelle: "Retour à l'exercice — aucune preuve écrite",
+      condition: "tentative menée hors séance",
+    },
+    {
+      source: "action:retirer-theme",
+      target: "modal:composer-seance",
+      type: "transition",
+      libelle: "Liste des thèmes rechargée",
+    },
+    {
+      source: "action:renommer-theme",
+      target: "modal:composer-seance",
+      type: "transition",
+      libelle: "Liste des thèmes rechargée",
+    },
+    {
+      source: "action:exporter-journal",
+      target: "tiroir:reglages",
+      type: "transition",
+      libelle: "Archive téléchargée — le panneau reste ouvert",
+    },
+    {
+      source: "action:enregistrer-cle-tuteur",
+      target: "tiroir:reglages",
+      type: "transition",
+      libelle: "Clé enregistrée — le panneau reste ouvert",
+    },
+
+    /* ════════════════════════════════════════════════════════════════ */
+    /* Sorties de modales manquantes — vérifiées dans le code           */
+    /* ════════════════════════════════════════════════════════════════ */
+    {
+      // `modale-theme.tsx` monte `ModaleCompetence` pour créer la compétence
+      // qui manque au thème en cours de description.
+      source: "modal:creer-theme",
+      target: "modal:ajouter-competences",
+      type: "ouverture",
+      libelle: "Créer la compétence manquante",
+    },
+    {
+      // `modale-evolution.tsx` appelle `creerBranche` pour la compétence
+      // successeur (ADR-042 : proposée, jamais appliquée d'office).
+      source: "modal:evolution-competence",
+      target: "action:creer-branche",
+      type: "soumission",
+      libelle: "Créer la compétence successeur",
+    },
+    {
+      source: "modal:evolution-competence",
+      target: "modal:generer-exercice",
+      type: "ouverture",
+      libelle: "Générer un exercice plus exigeant",
+    },
+    {
+      // `setPhase("formulaire")` sur interruption ou erreur de génération.
+      source: "modal:generer-exercice-previsualisation",
+      target: "modal:generer-exercice",
+      type: "retour",
+      libelle: "Génération interrompue — retour au formulaire",
+    },
+
+    /* ════════════════════════════════════════════════════════════════ */
+    /* Convention 2 — toute modale et tout tiroir déclare sa fermeture  */
+    /*                                                                  */
+    /* Une arête `retour` par hôte qui sait ouvrir la surface : ce sont  */
+    /* autant d'états d'arrivée réellement possibles. Sans elles, le     */
+    /* graphe décrivait un entonnoir sans issue.                        */
+    /* ════════════════════════════════════════════════════════════════ */
+    { source: "modal:composer-seance", target: "page:/", type: "retour", libelle: "Fermer" },
+    { source: "modal:composer-seance", target: "page:/seances", type: "retour", libelle: "Fermer" },
+
+    { source: "modal:generer-exercice", target: "page:/", type: "retour", libelle: "Fermer" },
+    { source: "modal:generer-exercice", target: "page:/seances?session", type: "retour", libelle: "Fermer" },
+    { source: "modal:generer-exercice", target: "page:/competences/{code}", type: "retour", libelle: "Fermer" },
+    { source: "modal:generer-exercice", target: "tiroir:tuteur", type: "retour", libelle: "Fermer" },
+    { source: "modal:generer-exercice", target: "modal:composer-seance-composition", type: "retour", libelle: "Fermer" },
+    { source: "modal:generer-exercice", target: "modal:evolution-competence", type: "retour", libelle: "Fermer" },
+
+    { source: "modal:ajouter-competences", target: "page:/competences", type: "retour", libelle: "Fermer" },
+    { source: "modal:ajouter-competences", target: "page:/competences/domaine/{id}", type: "retour", libelle: "Fermer" },
+    { source: "modal:ajouter-competences", target: "tiroir:tuteur", type: "retour", libelle: "Fermer" },
+    { source: "modal:ajouter-competences", target: "modal:creer-theme", type: "retour", libelle: "Fermer" },
+    {
+      source: "modal:ajouter-competences",
+      target: "page:/demarrer",
+      type: "retour",
+      libelle: "Fermer sans valider la branche",
+      condition: "amorçage",
+    },
+
+    { source: "modal:creer-theme", target: "modal:composer-seance", type: "retour", libelle: "Fermer" },
+    { source: "modal:reviser-domaine", target: "page:/competences/domaine/{id}", type: "retour", libelle: "Fermer" },
+    { source: "modal:evolution-competence", target: "page:/competences/{code}", type: "retour", libelle: "Fermer" },
+
+    { source: "tiroir:tuteur", target: "page:/", type: "retour", libelle: "Fermer le tiroir" },
+    { source: "tiroir:tuteur", target: "page:/seances", type: "retour", libelle: "Fermer le tiroir" },
+    { source: "tiroir:tuteur", target: "page:/seances?session", type: "retour", libelle: "Fermer le tiroir" },
+    { source: "tiroir:tuteur", target: "page:/competences", type: "retour", libelle: "Fermer le tiroir" },
+    { source: "tiroir:tuteur", target: "page:/competences?vue=graphe", type: "retour", libelle: "Fermer le tiroir" },
+    { source: "tiroir:tuteur", target: "page:/competences/{code}", type: "retour", libelle: "Fermer le tiroir" },
+    { source: "tiroir:tuteur", target: "page:/exercices/{id}", type: "retour", libelle: "Fermer le tiroir" },
+
+    { source: "tiroir:reglages", target: "page:/", type: "retour", libelle: "Fermer le panneau" },
+    { source: "tiroir:reglages", target: "page:/seances", type: "retour", libelle: "Fermer le panneau" },
   ],
 };
 
