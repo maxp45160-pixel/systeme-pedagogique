@@ -331,7 +331,8 @@ export function ModaleExercice({
           domaine: competenceCible.domaine,
           origine: "tuteur",
         });
-        setEnregistrees((s) => new Set(s).add(index));
+        const nouvellesEnregistrees = new Set(enregistrees).add(index);
+        setEnregistrees(nouvellesEnregistrees);
         surEnregistre?.(id);
         if (ouvrirDansCahierApresAcceptation) {
           try {
@@ -345,6 +346,9 @@ export function ModaleExercice({
           }
         } else {
           router.refresh();
+          if (nouvellesEnregistrees.size >= propositions.length) {
+            onFermer();
+          }
         }
       } catch (e) {
         setErreur(e instanceof Error ? e.message : "Échec de l'enregistrement.");
@@ -360,6 +364,7 @@ export function ModaleExercice({
       enregistrees,
       ouvrirDansCahierApresAcceptation,
       onFermer,
+      propositions.length,
     ],
   );
 
