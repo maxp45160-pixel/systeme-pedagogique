@@ -16,7 +16,7 @@ describe("scannerWorkflow", () => {
     const targetsAtelier = liensAtelier.map((l) => l.target);
 
     expect(targetsAtelier).toContain("modal:generer-un-exercice");
-    expect(targetsAtelier).toContain("modal:reviser-domainenom");
+    expect(targetsAtelier).toContain("modal:reviser-domaine");
     expect(targetsAtelier).toContain("page:/exercices/{id}");
   });
 });

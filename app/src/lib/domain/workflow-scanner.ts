@@ -16,7 +16,7 @@
  * Les types du graphe restent dans `workflow-graphe.ts` (couche 1).
  */
 
-import { readdir, readFile } from "fs/promises";
+import { readdir, readFile, stat } from "fs/promises";
 import { join, resolve } from "path";
 import type {
   GrapheWorkflow,
@@ -32,6 +32,39 @@ import type {
 
 const RACINE_SRC = resolve(process.cwd(), "src");
 const RACINE_APP = join(RACINE_SRC, "app");
+
+/* ------------------------------------------------------------------ */
+/* Cache de scan (dev)                                                 */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Cache des contenus analysés, indexé par chemin absolu.
+ *
+ * En mode dev, `/dev/workflow` est re-rendu à chaque navigation : sans cache,
+ * chaque rendu relit et re-parse l'intégralité du code source. On ne relit un
+ * fichier que si son `mtime` a changé depuis le dernier scan.
+ *
+ * Le cache est volontairement **non persistant** (module-level, pas de fichier
+ * sur disque) : il vit le temps du process serveur, ce qui suffit à amortir
+ * les re-rendus successifs sans jamais servir un contenu périmé après un
+ * redémarrage.
+ */
+const cacheContenus = new Map<string, { mtimeMs: number; contenu: string }>();
+
+async function lireFichierAvecCache(chemin: string): Promise<string | null> {
+  try {
+    const stats = await stat(chemin);
+    const enCache = cacheContenus.get(chemin);
+    if (enCache && enCache.mtimeMs === stats.mtimeMs) {
+      return enCache.contenu;
+    }
+    const contenu = await readFile(chemin, "utf-8");
+    cacheContenus.set(chemin, { mtimeMs: stats.mtimeMs, contenu });
+    return contenu;
+  } catch {
+    return null;
+  }
+}
 
 /* ------------------------------------------------------------------ */
 /* Types internes                                                      */
@@ -132,12 +165,25 @@ function cheminVersRoute(relatifApp: string): string | null {
 /* Normalisation d'URL                                                 */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Réduit un nom de variable de template à son concept, en retirant les
+ * suffixes de rôle. `domaineNom` → `domaine`, `seanceId` → `seance`.
+ * Évite que les identifiants de modale deviennent `reviser-domainenom`.
+ */
+function normaliserVariableTemplate(nom: string): string {
+  return nom.replace(/(Nom|Id|ID|Code|Titre|Libelle|Label)$/, "");
+}
+
 function normaliserUrl(url: string): string {
   return url.replace(/\$\{[^}]+\}/g, (match) => {
     if (match.includes("code")) return "{code}";
     if (match.includes("id")) return "{id}";
     const simple = match.match(/\$\{(\w+)\}/);
-    return simple ? `{${simple[1]}}` : "{param}";
+    if (simple) {
+      const concept = normaliserVariableTemplate(simple[1]);
+      return concept ? `{${concept}}` : "{param}";
+    }
+    return "{param}";
   });
 }
 
@@ -464,12 +510,8 @@ export async function scannerWorkflow(): Promise<GrapheWorkflow> {
 
   for (const chemin of cheminsFichiers) {
     const relatif = norm(chemin.slice(RACINE_SRC.length + 1));
-    let contenu: string;
-    try {
-      contenu = await readFile(chemin, "utf-8");
-    } catch {
-      continue;
-    }
+    const contenu = await lireFichierAvecCache(chemin);
+    if (contenu === null) continue;
 
     let route: string | undefined;
     let estPage = false;
@@ -576,6 +618,25 @@ export async function scannerWorkflow(): Promise<GrapheWorkflow> {
       type: "page",
       libelle: a.titrePage ?? libelleRoute(a.route),
       url: a.route,
+    };
+    noeuds.push(noeud);
+    parId.set(id, noeud);
+  }
+
+  // Nœud synthétique — Workspace séance (`/seances?session={id}`)
+  //
+  // Ce n'est pas une route du filesystem : c'est `/seances` avec un query
+  // parameter qui bascule dans le workspace plein écran (`VueSeanceDetail`).
+  // Le graphe déclaratif le déclare comme page à part entière ; le scanner
+  // doit le synthétiser quand `/seances` existe, sinon les arêtes qui le
+  // visent (ex. retour depuis `etape:exercice-bilan`) échouent au BFS.
+  if (parId.has("page:/seances")) {
+    const id = "page:/seances?session";
+    const noeud: NoeudWorkflow = {
+      id,
+      type: "page",
+      libelle: "Workspace séance",
+      url: "/seances?session={id}",
     };
     noeuds.push(noeud);
     parId.set(id, noeud);
@@ -761,6 +822,7 @@ export async function scannerWorkflow(): Promise<GrapheWorkflow> {
       liens: [
         { target: "page:/atelier", type: "navigation", libelle: "Voir l'effet sur la compétence" },
         { target: "page:/", type: "navigation", libelle: "Prochaine action recommandée" },
+        { target: "page:/seances?session", type: "navigation", libelle: "Retour au workspace séance", condition: "séance en cours" },
         { target: "etape:exercice-chercher", type: "transition", libelle: "Refaire cet exercice" },
       ],
     },

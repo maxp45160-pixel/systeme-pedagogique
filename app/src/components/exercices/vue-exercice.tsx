@@ -234,17 +234,29 @@ export async function VueExercice(props: {
               );
             })}
           </p>
-          {!props.integree && <div className="mt-2 flex flex-wrap items-center gap-2">
-            <Link
-              href={`/atelier?document=${encodeURIComponent(exercice.competences[0])}`}
-              className={classesLienBouton("secondaire", "petite")}
-            >
-              Voir l&apos;effet sur la compétence
-            </Link>
-            <Link href="/" className={classesLienBouton("secondaire", "petite")}>
-              Prochaine action recommandée
-            </Link>
-          </div>}
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {navigation && (
+              <Link
+                href={`/seances?session=${encodeURIComponent(navigation.seanceId)}`}
+                className={classesLienBouton("principal", "petite")}
+              >
+                Retour au workspace séance
+              </Link>
+            )}
+            {!props.integree && (
+              <>
+                <Link
+                  href={`/atelier?document=${encodeURIComponent(exercice.competences[0])}`}
+                  className={classesLienBouton("secondaire", "petite")}
+                >
+                  Voir l'effet sur la compétence
+                </Link>
+                <Link href="/" className={classesLienBouton("secondaire", "petite")}>
+                  Prochaine action recommandée
+                </Link>
+              </>
+            )}
+          </div>
         </div>
         </BandeauInfo>
       )}

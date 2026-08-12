@@ -621,6 +621,29 @@ export const GRAPHE_WORKFLOW: GrapheWorkflow = {
       libelle: "Échec — erreur affichée",
       condition: "identifiants invalides",
     },
+    {
+      // `router.replace(destination)` après connexion réussie — la destination
+      // par défaut est `/` (page.tsx), mais `?suite=` peut pointer ailleurs.
+      source: "page:/login",
+      target: "page:/",
+      type: "navigation",
+      libelle: "Redirection après connexion",
+      condition: "destination par défaut",
+    },
+    {
+      source: "page:/login",
+      target: "page:/seances",
+      type: "navigation",
+      libelle: "Redirection après connexion",
+      condition: "destination = /seances",
+    },
+    {
+      source: "page:/login",
+      target: "page:/seances?session",
+      type: "navigation",
+      libelle: "Redirection après connexion",
+      condition: "destination = workspace séance",
+    },
 
     /* ════════════════════════════════════════════════════════════════ */
     /* Depuis l'exercice autonome (page:/exercices/{id})                */
@@ -733,6 +756,13 @@ export const GRAPHE_WORKFLOW: GrapheWorkflow = {
     },
     {
       source: "etape:exercice-bilan",
+      target: "page:/seances?session",
+      type: "navigation",
+      libelle: "Retour au workspace séance",
+      condition: "séance en cours",
+    },
+    {
+      source: "etape:exercice-bilan",
       target: "etape:exercice-chercher",
       type: "transition",
       libelle: "Refaire cet exercice",
@@ -741,13 +771,6 @@ export const GRAPHE_WORKFLOW: GrapheWorkflow = {
     /* ════════════════════════════════════════════════════════════════ */
     /* Concepteur de séance — deux phases                               */
     /* ════════════════════════════════════════════════════════════════ */
-    {
-      source: "modal:composer-seance",
-      target: "modal:composer-seance-composition",
-      type: "transition",
-      libelle: "Voir la composition",
-      condition: "thème choisi et temps renseigné",
-    },
     {
       source: "modal:composer-seance",
       target: "modal:creer-theme",
