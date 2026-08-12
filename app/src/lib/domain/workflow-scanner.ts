@@ -140,7 +140,15 @@ function normaliserUrl(url: string): string {
 }
 
 function baseRoute(url: string): string {
-  return url.split("?")[0].split("#")[0];
+  const sansHash = url.split("#")[0];
+  const [base, query] = sansHash.split("?");
+  if (!query) return base;
+
+  // Conserver les query parameters significatifs qui définissent un mode/écran distinct
+  if (query.includes("session=")) {
+    return `${base}?session`;
+  }
+  return base;
 }
 
 /* ------------------------------------------------------------------ */
@@ -179,7 +187,7 @@ function extraireNavigations(contenu: string): NavigationExtraite[] {
     });
   }
   // redirect("/path") ou redirect('/path')
-  for (const m of contenu.matchAll(/redirect\(["'](\/[^"']*?)["']\)/g)) {
+  for (const m of contenu.matchAll(/redirect\(["'](\/[^"']*?)["']/g)) {
     r.push({ cible: m[1], brute: m[1], type: "redirect" });
   }
   // redirect(`/path...`)
@@ -228,11 +236,22 @@ function extraireModales(
       }
     }
 
-    // titre={expr ? "..." : "..."} — ternaire ou expression
+    // titre={cond ? "Titre1" : "Titre2"} — ternaire explicite
+    if (!titre) {
+      const ternaire = props.match(/\?\s*["']([^"']+)["']\s*:\s*["']([^"']+)["']/);
+      if (ternaire) {
+        resultats.push({ titre: ternaire[1], fichier });
+        resultats.push({ titre: ternaire[2], fichier });
+        continue;
+      }
+    }
+
+    // titre={expr} — fallback en filtrant les égalités (ex: role === "support")
     if (!titre) {
       const expr = props.match(/titre=\{([\s\S]+?)\}/);
       if (expr) {
-        const litteraux = [...expr[1].matchAll(/["']([^"']{4,})["']/g)];
+        const sansComparaisons = expr[1].replace(/===?\s*["'][^"']+["']/g, "");
+        const litteraux = [...sansComparaisons.matchAll(/["']([^"']{4,})["']/g)];
         for (const lit of litteraux) {
           resultats.push({ titre: lit[1], fichier });
         }
@@ -644,8 +663,8 @@ export async function scannerWorkflow(): Promise<GrapheWorkflow> {
     { id: "action:creer-exercice", libelle: "Accepter l'exercice généré", fonction: "creerExercice", destination: "page:/seances", typeDestination: "transition" },
     { id: "action:creer-branche", libelle: "Valider la branche de compétences", fonction: "creerBranche", destination: "page:/atelier", typeDestination: "transition" },
     { id: "action:modifier-profil", libelle: "Enregistrer le profil", fonction: "enregistrerSujetEtObjectifs", destination: "page:/profil", typeDestination: "transition" },
-    { id: "action:exporter-journal", libelle: "Exporter le journal", fonction: "exporterJournalAction", destination: "tiroir:compte-et-synchronisation", typeDestination: "transition" },
-    { id: "action:se-deconnecter", libelle: "Se déconnecter", fonction: "deconnecterAction", destination: "page:/login", typeDestination: "transition" },
+    { id: "action:exporter-journal", libelle: "Exporter le journal", fonction: "exporterJournal", destination: "tiroir:compte-et-synchronisation", typeDestination: "transition" },
+    { id: "action:se-deconnecter", libelle: "Se déconnecter", fonction: "seDeconnecter", destination: "page:/login", typeDestination: "transition" },
     { id: "action:retirer-theme", libelle: "Retirer un thème", fonction: "retirerThemeAction", destination: "modal:composer-une-seance", typeDestination: "transition" },
     { id: "action:renommer-theme", libelle: "Renommer un thème", fonction: "renommerThemeAction", destination: "modal:composer-une-seance", typeDestination: "transition" },
   ];
