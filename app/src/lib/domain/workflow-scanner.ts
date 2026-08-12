@@ -134,6 +134,8 @@ function cheminVersRoute(relatifApp: string): string | null {
 
 function normaliserUrl(url: string): string {
   return url.replace(/\$\{[^}]+\}/g, (match) => {
+    if (match.includes("code")) return "{code}";
+    if (match.includes("id")) return "{id}";
     const simple = match.match(/\$\{(\w+)\}/);
     return simple ? `{${simple[1]}}` : "{param}";
   });
@@ -270,10 +272,25 @@ function extraireModales(
 /* Extraction des imports                                              */
 /* ------------------------------------------------------------------ */
 
-function extraireImports(contenu: string): string[] {
+function extraireImports(contenu: string, meRelatif: string): string[] {
   const r: string[] = [];
   for (const m of contenu.matchAll(/from\s+["']@\/([^"']+)["']/g)) {
     r.push(m[1]);
+  }
+  const dirCourant = meRelatif.split("/").slice(0, -1).join("/");
+  for (const m of contenu.matchAll(/from\s+["'](\.\.?[^"']+)["']/g)) {
+    const relImport = m[1];
+    const parts = (dirCourant ? dirCourant + "/" + relImport : relImport).split("/");
+    const stack: string[] = [];
+    for (const p of parts) {
+      if (p === "." || p === "") continue;
+      if (p === "..") {
+        stack.pop();
+      } else {
+        stack.push(p);
+      }
+    }
+    r.push(stack.join("/"));
   }
   return r;
 }
@@ -352,6 +369,71 @@ function typeModale(titre: string, fichier: string): TypeNoeudWorkflow {
 }
 
 /* ------------------------------------------------------------------ */
+/* Collecte récursive des composants importés                         */
+/* ------------------------------------------------------------------ */
+
+function collecterComposantsRec(
+  relatif: string,
+  analyses: Map<string, FichierAnalyse>,
+  importVers: Map<string, string>,
+  visites = new Set<string>(),
+): Set<string> {
+  const resultats = new Set<string>();
+  const a = analyses.get(relatif);
+  if (!a) return resultats;
+
+  for (const imp of a.imports) {
+    const fichier = importVers.get(imp);
+    if (fichier && !visites.has(fichier)) {
+      visites.add(fichier);
+      resultats.add(fichier);
+      const subs = collecterComposantsRec(fichier, analyses, importVers, visites);
+      for (const s of subs) resultats.add(s);
+    }
+  }
+  return resultats;
+}
+
+/* ------------------------------------------------------------------ */
+/* Résolution d'URL cible vers un nœud de page                          */
+/* ------------------------------------------------------------------ */
+
+function resoudreRouteCible(
+  cibleRoute: string,
+  parId: Map<string, NoeudWorkflow>,
+): string | null {
+  const directId = `page:${cibleRoute}`;
+  if (parId.has(directId)) return directId;
+
+  const segmentsCible = cibleRoute.split("/").filter(Boolean);
+  for (const [id, noeud] of parId.entries()) {
+    if (noeud.type !== "page" || !noeud.url) continue;
+    const segmentsPage = noeud.url.split("/").filter(Boolean);
+    if (segmentsPage.length !== segmentsCible.length) continue;
+
+    let correspond = true;
+    for (let i = 0; i < segmentsPage.length; i++) {
+      const segP = segmentsPage[i];
+      const segC = segmentsCible[i];
+      const estParamPage = segP.startsWith("{") && segP.endsWith("}");
+      const estParamCible = segC.startsWith("{") && segC.endsWith("}");
+      if (!estParamPage && segP !== segC) {
+        correspond = false;
+        break;
+      }
+      if (estParamPage && !estParamCible && segC === "") {
+        correspond = false;
+        break;
+      }
+    }
+
+    if (correspond) return id;
+  }
+
+  return null;
+}
+
+/* ------------------------------------------------------------------ */
 /* Ajout d'un lien avec déduplication                                  */
 /* ------------------------------------------------------------------ */
 
@@ -403,7 +485,7 @@ export async function scannerWorkflow(): Promise<GrapheWorkflow> {
       chemin,
       relatif,
       contenu,
-      imports: extraireImports(contenu),
+      imports: extraireImports(contenu, relatif),
       navigations: extraireNavigations(contenu),
       modales: extraireModales(contenu, relatif),
       estPageRoute: estPage,
@@ -425,7 +507,7 @@ export async function scannerWorkflow(): Promise<GrapheWorkflow> {
     }
   }
 
-  /* ── Phase 3 : arbre de composants par page (2 niveaux) ── */
+  /* ── Phase 3 : arbre de composants par page (récursif) ── */
 
   const composantsPage = new Map<string, Set<string>>();
 
@@ -441,43 +523,15 @@ export async function scannerWorkflow(): Promise<GrapheWorkflow> {
     if (!a.estPageRoute || !a.route || a.estRedirectionPure) continue;
     if (a.route.startsWith("/dev")) continue;
 
-    const composants = new Set<string>();
-
-    // Imports directs de la page
-    for (const imp of a.imports) {
-      const fichier = importVers.get(imp);
-      if (fichier) {
-        composants.add(fichier);
-        // Un niveau de plus
-        const sub = analyses.get(fichier);
-        if (sub) {
-          for (const subImp of sub.imports) {
-            const subFichier = importVers.get(subImp);
-            if (subFichier) composants.add(subFichier);
-          }
-        }
-      }
-    }
+    const composants = collecterComposantsRec(a.relatif, analyses, importVers);
 
     // Imports des layouts couvrant cette page
     for (const layout of layoutsGlobaux) {
-      // Le layout couvre la page si le répertoire du layout est un ancêtre
       const dirLayout = layout.relatif.replace(/\/layout\.tsx?$/, "");
       const dirPage = a.relatif.replace(/\/page\.tsx?$/, "");
       if (dirPage.startsWith(dirLayout)) {
-        for (const imp of layout.imports) {
-          const fichier = importVers.get(imp);
-          if (fichier) {
-            composants.add(fichier);
-            const sub = analyses.get(fichier);
-            if (sub) {
-              for (const subImp of sub.imports) {
-                const subFichier = importVers.get(subImp);
-                if (subFichier) composants.add(subFichier);
-              }
-            }
-          }
-        }
+        const compsLayout = collecterComposantsRec(layout.relatif, analyses, importVers);
+        for (const c of compsLayout) composants.add(c);
       }
     }
 
@@ -625,7 +679,7 @@ export async function scannerWorkflow(): Promise<GrapheWorkflow> {
       // Suivre les redirections
       cibleRoute = resoudreRedirection(cibleRoute);
 
-      const cibleId = `page:${cibleRoute}`;
+      const cibleId = resoudreRouteCible(cibleRoute, parId) ?? `page:${cibleRoute}`;
       if (!parId.has(cibleId)) continue; // Cible inconnue
       if (cibleId === sourceId && nav.type !== "redirect") continue; // Self-link (sauf redirect conditionnel)
 
@@ -814,7 +868,7 @@ export async function scannerWorkflow(): Promise<GrapheWorkflow> {
         let dest = act.destination;
         if (dest.startsWith("page:")) {
           const rCible = resoudreRedirection(dest.slice(5));
-          dest = `page:${rCible}`;
+          dest = resoudreRouteCible(rCible, parId) ?? `page:${rCible}`;
         }
 
         if (parId.has(dest)) {
