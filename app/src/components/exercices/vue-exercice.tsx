@@ -249,7 +249,7 @@ export async function VueExercice(props: {
                   href={`/atelier?document=${encodeURIComponent(exercice.competences[0])}`}
                   className={classesLienBouton("secondaire", "petite")}
                 >
-                  Voir l'effet sur la compétence
+                  Voir l&apos;effet sur la compétence
                 </Link>
                 <Link href="/" className={classesLienBouton("secondaire", "petite")}>
                   Prochaine action recommandée

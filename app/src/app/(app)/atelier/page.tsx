@@ -212,6 +212,19 @@ export default async function PageAtelier(props: {
       lectureSeule: true,
     }));
 
+  const elementsAtelier = [
+    ...projectionsDomaines,
+    ...projectionsCompetences,
+    ...projectionsExercices,
+    ...documents,
+    ...projectionsThemes,
+  ];
+  const cleAtelier = [
+    documentDemande ?? "",
+    mode ?? "",
+    ...elementsAtelier.map(({ id, updatedAt }) => `${id}:${updatedAt ?? ""}`),
+  ].join("|");
+
   return (
     <>
       <EntetePage
@@ -219,7 +232,8 @@ export default async function PageAtelier(props: {
         sousTitre="Un corpus documentaire relié à tes compétences, tes productions et tes preuves."
       />
       <EspaceDocumentaire
-        elements={[...projectionsDomaines, ...projectionsCompetences, ...projectionsExercices, ...documents, ...projectionsThemes]}
+        key={cleAtelier}
+        elements={elementsAtelier}
         documentDemande={documentDemande}
         modeInitial={mode === "referentiel" ? "referentiel" : undefined}
         graphe={{

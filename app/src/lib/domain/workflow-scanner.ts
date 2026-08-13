@@ -31,7 +31,6 @@ import type {
 /* ------------------------------------------------------------------ */
 
 const RACINE_SRC = resolve(process.cwd(), "src");
-const RACINE_APP = join(RACINE_SRC, "app");
 
 /* ------------------------------------------------------------------ */
 /* Cache de scan (dev)                                                 */
@@ -646,6 +645,20 @@ export async function scannerWorkflow(): Promise<GrapheWorkflow> {
     parId.set(id, noeud);
   }
 
+  // Une fiche ouverte dans l'Atelier est un état réel de `/atelier`, même si
+  // elle ne possède pas de page filesystem distincte.
+  if (parId.has("page:/atelier")) {
+    const id = "page:/atelier?document";
+    const noeud: NoeudWorkflow = {
+      id,
+      type: "page",
+      libelle: "Atelier — fiche documentaire",
+      url: "/atelier?document={id}",
+    };
+    noeuds.push(noeud);
+    parId.set(id, noeud);
+  }
+
   // Nœuds modale / tiroir — depuis tous les fichiers analysés
   const modaleVue = new Set<string>(); // pour déduplication
   const modaleParFichier = new Map<string, string[]>(); // fichier → [ids]
@@ -885,8 +898,6 @@ export async function scannerWorkflow(): Promise<GrapheWorkflow> {
 
   // Détection des Server Actions invoquées dans le code
   for (const act of REGISTRE_ACTIONS) {
-    let detectee = false;
-
     for (const a of analyses.values()) {
       if (!a.contenu.includes(act.fonction)) continue;
 
@@ -912,8 +923,6 @@ export async function scannerWorkflow(): Promise<GrapheWorkflow> {
       }
 
       if (sourceId && parId.has(sourceId)) {
-        detectee = true;
-
         if (!parId.has(act.id)) {
           const noeud: NoeudWorkflow = {
             id: act.id,

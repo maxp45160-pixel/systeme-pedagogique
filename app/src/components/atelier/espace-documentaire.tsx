@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition, type ChangeEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, useTransition, type ChangeEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Markdown } from "@/components/ui/markdown";
@@ -64,6 +64,12 @@ interface NoeudDossier {
   chemin: string;
   enfants: NoeudDossier[];
   elements: ElementAtelier[];
+}
+
+const abonnementsDossiers = new Map<string, Set<() => void>>();
+
+function notifierDossiers(cle: string) {
+  for (const ecouter of abonnementsDossiers.get(cle) ?? []) ecouter();
 }
 
 function documentDepuisAnalyse(document: ReturnType<typeof analyserDocumentMarkdown>): ElementAtelier {
@@ -312,9 +318,6 @@ export function EspaceDocumentaire({
 }) {
   const router = useRouter();
   const [elements, setElements] = useState(elementsInitials);
-  useEffect(() => {
-    setElements(elementsInitials);
-  }, [elementsInitials]);
   const selectionInitiale = useMemo(() => {
     if (!documentDemande) return null;
     return trouverElement(documentDemande, elementsInitials)?.id ?? null;
@@ -325,50 +328,55 @@ export function EspaceDocumentaire({
   const [snapshotApercu, setSnapshotApercu] = useState<SnapshotDocument | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [enCours, demarrerTransition] = useTransition();
-  const [dossiersOuverts, setDossiersOuverts] = useState<Set<string>>(new Set());
+  const cleDossiers = cleParCompte("atelier-dossiers-ouverts", graphe.compteId);
+  const abonnementDossiers = useCallback((ecouter: () => void) => {
+    const ecouteurs = abonnementsDossiers.get(cleDossiers) ?? new Set<() => void>();
+    ecouteurs.add(ecouter);
+    abonnementsDossiers.set(cleDossiers, ecouteurs);
+    const surStockage = (event: StorageEvent) => {
+      if (event.key === cleDossiers) ecouter();
+    };
+    window.addEventListener("storage", surStockage);
+    return () => {
+      window.removeEventListener("storage", surStockage);
+      ecouteurs.delete(ecouter);
+      if (ecouteurs.size === 0) abonnementsDossiers.delete(cleDossiers);
+    };
+  }, [cleDossiers]);
+  const lireDossiers = useCallback(() => {
+    try {
+      return window.localStorage.getItem(cleDossiers) ?? "[]";
+    } catch {
+      return "[]";
+    }
+  }, [cleDossiers]);
+  const dossiersStockes = useSyncExternalStore(abonnementDossiers, lireDossiers, () => "[]");
+  const dossiersOuverts = useMemo(() => {
+    try {
+      const chemins = JSON.parse(dossiersStockes);
+      return new Set<string>(Array.isArray(chemins) ? chemins.filter((chemin): chemin is string => typeof chemin === "string") : []);
+    } catch {
+      return new Set<string>();
+    }
+  }, [dossiersStockes]);
   const [recherche, setRecherche] = useState("");
   const [contexteOuvert, setContexteOuvert] = useState(false);
   const [sidebarOuverte, setSidebarOuverte] = useState(true);
   const [cibleLien, setCibleLien] = useState("");
   const [piecesJointesParDocument, setPiecesJointesParDocument] = useState<Record<string, PieceJointeDocument[]>>({});
 
-  useEffect(() => {
-    if (!documentDemande) return;
-    const trouve = trouverElement(documentDemande, elements);
-    if (trouve) {
-      setSelection(trouve.id);
-    }
-  }, [documentDemande, elements]);
-
   const selectionnee = selection === "domaines" ? null : (elements.find((element) => element.id === selection) ?? null);
+  const selectionId = selectionnee?.id;
   const brouillon = selectionnee ? brouillons[selectionnee.id] ?? selectionnee.contenuMd : "";
   const liensCourants = selectionnee
     ? selectionnee.contenuCharge
       ? analyserDocumentMarkdown(selectionnee.id, brouillon).liens
       : selectionnee.liens
     : [];
-  const fichesLiables = useMemo(
-    () =>
-      elements
-        .filter((element) => element.source === "document" && element.id !== selectionnee?.id)
-        .sort((a, b) => a.titre.localeCompare(b.titre, "fr")),
-    [elements, selectionnee?.id],
-  );
+  const fichesLiables = elements
+    .filter((element) => element.source === "document" && element.id !== selectionId)
+    .sort((a, b) => a.titre.localeCompare(b.titre, "fr"));
   const documentSupportId = selectionnee?.frontMatter.role === "support" ? selectionnee.id : null;
-
-  useEffect(() => {
-    try {
-      const brut = window.localStorage.getItem(
-        cleParCompte("atelier-dossiers-ouverts", graphe.compteId),
-      );
-      const chemins = brut ? JSON.parse(brut) : [];
-      if (Array.isArray(chemins)) {
-        setDossiersOuverts(new Set(chemins.filter((chemin): chemin is string => typeof chemin === "string")));
-      }
-    } catch {
-      // Repli silencieux sur le repli par défaut.
-    }
-  }, [graphe.compteId]);
 
   useEffect(() => {
     let actif = true;
@@ -444,20 +452,15 @@ export function EspaceDocumentaire({
   }
 
   function basculerDossier(chemin: string) {
-    setDossiersOuverts((anciens) => {
-      const suivants = new Set(anciens);
-      if (suivants.has(chemin)) suivants.delete(chemin);
-      else suivants.add(chemin);
-      try {
-        window.localStorage.setItem(
-          cleParCompte("atelier-dossiers-ouverts", graphe.compteId),
-          JSON.stringify([...suivants]),
-        );
-      } catch {
-        // La navigation reste fonctionnelle si le stockage navigateur est indisponible.
-      }
-      return suivants;
-    });
+    const suivants = new Set(dossiersOuverts);
+    if (suivants.has(chemin)) suivants.delete(chemin);
+    else suivants.add(chemin);
+    try {
+      window.localStorage.setItem(cleDossiers, JSON.stringify([...suivants]));
+      notifierDossiers(cleDossiers);
+    } catch {
+      // La navigation reste fonctionnelle si le stockage navigateur est indisponible.
+    }
   }
 
   function rendreDossier(noeud: NoeudDossier, profondeur = 0): ReactNode {

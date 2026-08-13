@@ -20,5 +20,10 @@ describe("scannerWorkflow", () => {
     expect(targetsAtelier).toContain("modal:generer-un-exercice");
     expect(targetsAtelier).toContain("modal:reviser-domaine");
     expect(targetsAtelier).toContain("page:/exercices/{id}");
+
+    expect(graphe.noeuds.map((n) => n.id)).toContain("page:/atelier?document");
+    expect(graphe.liens).toContainEqual(expect.objectContaining({
+      target: "page:/atelier?document",
+    }));
   });
 });
