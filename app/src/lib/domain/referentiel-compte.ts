@@ -390,6 +390,8 @@ export function modeRetrait(nombreDePreuves: number): ModeRetrait {
 
 export interface EtatRetrait {
   preuves: number;
+  /** Autre dépendance conservée (exercice, séance, thème, prérequis ou succession). */
+  dependances?: number;
   mode: ModeRetrait;
 }
 
@@ -407,6 +409,7 @@ export interface EtatRetrait {
 export function retraitsParCode(
   skills: Skill[],
   preuves: { skillCode: string }[],
+  codesAvecDependances: ReadonlySet<string> = new Set(),
 ): Map<string, EtatRetrait> {
   const parCode = new Map<string, number>();
   for (const p of preuves) parCode.set(p.skillCode, (parCode.get(p.skillCode) ?? 0) + 1);
@@ -414,7 +417,12 @@ export function retraitsParCode(
   return new Map(
     skills.map((s) => {
       const n = parCode.get(s.code) ?? 0;
-      return [s.code, { preuves: n, mode: modeRetrait(n) }];
+      const dependance = codesAvecDependances.has(s.code);
+      return [s.code, {
+        preuves: n,
+        ...(dependance ? { dependances: 1 } : {}),
+        mode: n > 0 || dependance ? "archivage" : "suppression",
+      }];
     }),
   );
 }
@@ -465,6 +473,7 @@ export function construireDomaine(
     prefixe: candidat.prefixe,
     description: candidat.description.trim(),
     ordre,
+    version: 1,
     archive: false,
     origine,
   };

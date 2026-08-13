@@ -77,6 +77,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [062](#adr-062) | Le pôle devient Cahier ; la relecture synthétise et toute prochaine action ouvre le focus | ✅ Acceptée (11/08) |
 | [063](#adr-063) | Amorçage direct, surfaces obsolètes retirées et Supabase obligatoire | ✅ Acceptée (11/08) |
 | [064](#adr-064) | Workspace documentaire Markdown en extension progressive | 🔬 Hypothèse (12/08) |
+| [065](#adr-065) | Gouvernance transactionnelle du référentiel | 🔬 Proposition (13/08) |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -4252,6 +4253,9 @@ Cette note décrit l’état du code ; elle ne change pas le statut 🔬 de l’
   le même identifiant, ne dupliquent pas le document et les racines vides ne
   sont pas affichées. Les branches sont repliées par défaut ; seules les
   branches ouvertes sont mémorisées localement, avec une clé isolée par compte.
+- la racine transversale affiche ses catégories non vides plutôt que les
+  compétences elles-mêmes. Les productions probantes ont un seul chemin
+  canonique sous `Transversal/Preuves` : aucune seconde racine `Preuves`.
 - le graphe reste plat conformément à ADR-056, mais son cadrage initial est
   ajusté au jeu de nœuds et ses réglages ainsi que sa légende deviennent des
   panneaux superposés et repliés : ils ne réduisent plus la surface du graphe.
@@ -4284,6 +4288,68 @@ doit également permettre de retrouver sa production originale et son snapshot
 sans que l'édition ultérieure du document modifie l'observation historique.
 Le chantier devra enfin mesurer que le chargement documentaire ne dégrade pas
 le chemin chaud des recommandations existantes.
+
+---
+
+<a name="adr-065"></a>
+
+## ADR-065 — Gouvernance transactionnelle du référentiel 🔬
+
+**Date.** 13/08/2026. **Proposition non tranchée.** L’implémentation et les
+migrations distantes ont été vérifiées puis appliquées le 13/08/2026 sur
+autorisation explicite. Cette mise en œuvre ne vaut pas décision humaine et ne
+fait pas monter le statut de l’ADR.
+
+### Contexte
+
+Le référentiel est strictement l’agrégat `Domaine → Compétences`. Les preuves
+mesurent les compétences, les notes support aident à les travailler et les
+thèmes les regroupent transversalement ; aucun de ces objets n’entre dans le
+référentiel. Supabase reste la source de vérité. Markdown reste un format
+documentaire et d’import/export.
+
+Les règles existantes protégeaient déjà les preuves, mais les écritures d’une
+révision étaient plusieurs appels successifs : une erreur intermédiaire pouvait
+laisser un domaine partiellement modifié. Un code supprimé pouvait aussi être
+réattribué, et aucune trace durable ne disait quel diff une personne avait
+validé.
+
+### Proposition
+
+- toute mutation devient une commande fermée, validée dans le domaine puis
+  appliquée par une seule fonction PostgreSQL transactionnelle ;
+- `domaines.version` porte le verrou optimiste et refuse les écrans périmés ;
+- `referentiel_codes_emis` est append-only et empêche toute réutilisation d’un
+  code à partir de la migration ;
+- `referentiel_changes` conserve origine, motif, versions et états avant/après ;
+- une correction de forme conserve le code ; un changement de savoir-faire crée
+  un successeur et archive l’ancienne compétence via `remplace_par` ;
+- un retrait supprime uniquement ce qui n’a ni preuve ni dépendance historique ;
+  autrement il archive ; un domaine applique la même règle à toute sa branche ;
+- les domaines et compétences restent protégés par RLS et ne sont modifiables
+  que pendant la commande. La fonction est `SECURITY INVOKER`.
+
+Fusion et scission ne reçoivent pas de commande spéciale : elles se composent
+de créations de successeurs et d’archivages explicites, afin de ne jamais
+déplacer silencieusement une preuve ancienne.
+
+### Options écartées
+
+- fichiers `.md` comme source de vérité : contredit ADR-015 et créerait une
+  seconde dorsale ;
+- statuts de maturité génériques et relations typologiques libres : aucun
+  consommateur pédagogique ne les justifie ;
+- simple avertissement avant reformulation sémantique : il réécrirait le sens
+  de preuves déjà observées.
+
+### Test de réfutation
+
+Sur une base isolée, deux allocations concurrentes doivent produire deux codes
+distincts ; une erreur au milieu d’une révision ne doit laisser aucune écriture ;
+le même `request_id` doit rendre le même résultat sans seconde entrée ; un autre
+compte ne doit lire ni commander l’agrégat ; le journal doit refuser `UPDATE` et
+`DELETE`. Si la commande transactionnelle augmente sensiblement la latence du
+geste sans éviter d’incohérence observée, son périmètre devra être réduit.
 
 ---
 

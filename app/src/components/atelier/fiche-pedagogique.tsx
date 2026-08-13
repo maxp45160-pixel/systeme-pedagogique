@@ -335,7 +335,7 @@ function VueDomaine({
     { id: "structure" as const, libelle: "Structure" },
     { id: "progression" as const, libelle: "Progression" },
     { id: "referentiel" as const, libelle: "Gérer le référentiel" },
-  ].filter((item) => !vue.domaine.archive || item.id !== "referentiel");
+  ];
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-surface-2/40">
       <div className="flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure bg-surface px-6 shrink-0">
@@ -424,12 +424,12 @@ function VueDomaine({
               <BoutonReviser
                 domaineId={vue.domaine.id}
                 domaineNom={vue.domaine.nom}
-                competences={vue.skills.filter((skill) => !skill.archive).map((skill) => ({ code: skill.code, intitule: skill.intitule, palier: skill.palier, preuves: vue.retraits[skill.code]?.preuves ?? 0 }))}
+                competences={vue.skills.filter((skill) => !skill.archive).map((skill) => ({ code: skill.code, intitule: skill.intitule, palier: skill.palier, preuves: vue.retraits[skill.code]?.preuves ?? 0, modeRetrait: vue.retraits[skill.code]?.mode ?? "suppression" }))}
                 domainesExistants={vue.domainesExistants}
                 compteId={compteId}
               />
             </div>
-            <GestionDomaine domaine={vue.domaine} skills={vue.skills} retraits={vue.retraits} />
+            <GestionDomaine domaine={vue.domaine} skills={vue.skills} retraits={vue.retraits} changements={vue.changements} />
           </section>
         )}
       </div>

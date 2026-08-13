@@ -20,6 +20,7 @@ import { ligneVersEntite, verifier } from "./supabase-backend";
 import { mesurer } from "@/lib/profiling/server";
 import { assemblerReferentiel } from "@/lib/domain/referentiel-compte";
 import type { Domaine, Referentiel, Skill } from "@/lib/domain/types";
+import type { ChangementReferentiel } from "@/lib/domain/gouvernance-referentiel";
 
 export async function lireReferentiel(
   dorsaleFournie?: DorsaleCompte,
@@ -56,3 +57,20 @@ export async function lireReferentiel(
 export const chargerReferentiel = cache(
   async (): Promise<Referentiel> => lireReferentiel(await dorsaleCompte()),
 );
+
+export async function lireChangementsReferentiel(
+  dorsaleFournie?: DorsaleCompte,
+): Promise<ChangementReferentiel[]> {
+  const { supabase, userId } = dorsaleFournie ?? (await dorsaleCompte());
+  const { data, error } = await supabase
+    .from("referentiel_changes")
+    .select("id, request_id, domaine_id, type, version_avant, version_apres, origine, motif, diff, cree_le")
+    .eq("user_id", userId)
+    .order("cree_le", { ascending: false })
+    .limit(200);
+  // Compatibilité du déploiement en deux temps : le code peut être préparé
+  // localement avant que la migration additive soit explicitement autorisée.
+  if (error?.code === "42P01" || error?.code === "PGRST205") return [];
+  verifier("lecture du journal du référentiel", error);
+  return ((data ?? []) as Record<string, unknown>[]).map((ligne) => ligneVersEntite<ChangementReferentiel>(ligne));
+}

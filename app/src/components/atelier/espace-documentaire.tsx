@@ -32,6 +32,13 @@ import type { VueDomaineAtelier, VuePedagogiqueAtelier } from "@/lib/documents/v
 import { cleParCompte } from "@/lib/ui/stockage-session";
 import { BoutonOuvrirExplorateur, FichePedagogiqueAtelier, PanneauPedagogiqueAtelier } from "./fiche-pedagogique";
 import type { CalibrageModale, CompetenceModale } from "@/components/exercices/proprietes-generation";
+import { cheminsDepuisDefinition } from "@/lib/documents/chemins-atelier";
+import {
+  construireArbreDossiers,
+  compterElements,
+  trouverNoeudDossier,
+  type NoeudDossier,
+} from "@/lib/documents/arbre-atelier";
 
 export interface ElementAtelier {
   id: string;
@@ -59,13 +66,6 @@ export interface ElementAtelier {
 
 type ModeDocument = "editer" | "apercu";
 
-interface NoeudDossier {
-  nom: string;
-  chemin: string;
-  enfants: NoeudDossier[];
-  elements: ElementAtelier[];
-}
-
 const abonnementsDossiers = new Map<string, Set<() => void>>();
 
 function notifierDossiers(cle: string) {
@@ -74,16 +74,15 @@ function notifierDossiers(cle: string) {
 
 function documentDepuisAnalyse(document: ReturnType<typeof analyserDocumentMarkdown>): ElementAtelier {
   const definition = document.type ? definitionTypeDocument(document.type) : null;
+  const chemins = cheminsDepuisDefinition(definition, document.frontMatter);
   return {
     id: document.id,
     titre: document.titre,
     type: document.type ?? "document",
     typeLibelle: definition?.libelle ?? document.type ?? "Document",
     categorie: definition?.categorie ?? "connaissance",
-    dossier: definition?.dossierParDefaut ?? "Documents",
-    dossiersSecondaires: [
-      `Transversal/${document.frontMatter.role === "operationnel" ? "Notes opérationnelles" : document.frontMatter.role === "support" ? "Notes de support" : definition?.categorie === "preuve" ? "Preuves" : "Documents"}`,
-    ],
+    dossier: chemins.dossier,
+    dossiersSecondaires: chemins.dossiersSecondaires,
     contenuMd: document.contenuMd,
     contenuCharge: true,
     schemaCompatible: document.schemaCompatible,
@@ -96,62 +95,6 @@ function documentDepuisAnalyse(document: ReturnType<typeof analyserDocumentMarkd
     source: "document",
     lectureSeule: false,
   };
-}
-
-function construireArbreDossiers(elements: ElementAtelier[]): NoeudDossier[] {
-  const racine = new Map<string, NoeudDossier>();
-  for (const element of elements) {
-    const chemins = [...new Set([element.dossier, ...(element.dossiersSecondaires ?? [])])];
-    for (const dossier of chemins) {
-      const parties = dossier.split("/").map((partie) => partie.trim()).filter(Boolean);
-      const cheminParties = parties.length > 0 ? parties : ["Documents"];
-      let niveau = racine;
-      let parent: NoeudDossier | null = null;
-      let chemin = "";
-      for (const [index, partie] of cheminParties.entries()) {
-        chemin = chemin ? `${chemin}/${partie}` : partie;
-        let noeud = niveau.get(partie);
-        if (!noeud) {
-          noeud = { nom: partie, chemin, enfants: [], elements: [] };
-          niveau.set(partie, noeud);
-          parent?.enfants.push(noeud);
-        }
-        if (
-          index === cheminParties.length - 1 &&
-          !noeud.elements.some((item) => item.id === element.id)
-        ) {
-          noeud.elements.push(element);
-        }
-        parent = noeud;
-        niveau = new Map(noeud.enfants.map((enfant) => [enfant.nom, enfant]));
-      }
-    }
-  }
-
-  function trierNoeud(noeud: NoeudDossier) {
-    noeud.elements.sort((a, b) => {
-      if (a.type === "domaine") return -1;
-      if (b.type === "domaine") return 1;
-      return a.titre.localeCompare(b.titre, "fr");
-    });
-    noeud.enfants.sort((a, b) => a.nom.localeCompare(b.nom, "fr"));
-    for (const enfant of noeud.enfants) {
-      trierNoeud(enfant);
-    }
-  }
-
-  const ordreRacines = new Map([["Domaines", 0], ["Transversal", 1]]);
-  const racines = [...racine.values()]
-    .filter((noeud) => compterElements(noeud) > 0)
-    .sort((a, b) =>
-      (ordreRacines.get(a.nom) ?? 10) - (ordreRacines.get(b.nom) ?? 10) ||
-      a.nom.localeCompare(b.nom, "fr"),
-    );
-
-  for (const r of racines) {
-    trierNoeud(r);
-  }
-  return racines;
 }
 
 function trouverElement(id: string, liste: ElementAtelier[]): ElementAtelier | undefined {
@@ -303,6 +246,98 @@ function VueTousLesDomaines({
   );
 }
 
+function VueTransversale({
+  racine,
+  ouvrirDossier,
+  revenirGrapheGlobal,
+  sidebarOuverte,
+  setSidebarOuverte,
+}: {
+  racine: NoeudDossier<ElementAtelier> | null;
+  ouvrirDossier: (chemin: string) => void;
+  revenirGrapheGlobal: () => void;
+  sidebarOuverte: boolean;
+  setSidebarOuverte: (ouverte: boolean) => void;
+}) {
+  const categories = racine?.enfants ?? [];
+  return (
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-surface-2/30">
+      <header className="border-b border-bordure bg-surface px-6 py-5 lg:px-8">
+        <nav aria-label="Fil d’Ariane" className="mb-4 flex items-center gap-2 text-xs text-texte-discret">
+          {!sidebarOuverte && <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />}
+          <button type="button" onClick={revenirGrapheGlobal} className="font-medium hover:text-primaire hover:underline">Graphe global</button>
+          <span>/</span><span className="font-semibold text-texte">Vue transversale</span>
+        </nav>
+        <h2 className="font-serif text-2xl font-medium tracking-tight">Catégories transversales</h2>
+        <p className="mt-1 text-xs text-texte-attenue">Des accès dérivés vers les mêmes fiches, sans créer un second référentiel.</p>
+      </header>
+      <div className="p-6 lg:p-8">
+        {categories.length ? (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {categories.map((categorie) => (
+              <button key={categorie.chemin} type="button" onClick={() => ouvrirDossier(categorie.chemin)} className="rounded-xl border border-bordure bg-surface p-5 text-left shadow-[var(--ombre-posee)] transition-all hover:-translate-y-0.5 hover:border-primaire/40 hover:shadow-[var(--ombre-levee)]">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-semibold uppercase tracking-[0.1em] text-primaire">Catégorie</span>
+                  <span className="chiffres text-xs text-texte-discret">{compterElements(categorie)}</span>
+                </div>
+                <h3 className="mt-3 font-serif text-lg font-medium">{categorie.nom}</h3>
+                <p className="mt-2 text-xs text-texte-discret">Ouvrir la catégorie et ses sous-catégories</p>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="rounded-xl border border-dashed border-bordure bg-surface p-6 text-sm text-texte-discret">Aucune catégorie transversale n’est encore alimentée.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function VueCategorieTransversale({
+  noeud,
+  ouvrirDossier,
+  ouvrirElement,
+  revenirTransversal,
+}: {
+  noeud: NoeudDossier<ElementAtelier>;
+  ouvrirDossier: (chemin: string) => void;
+  ouvrirElement: (id: string) => void;
+  revenirTransversal: () => void;
+}) {
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto bg-surface-2/30">
+      <header className="border-b border-bordure bg-surface px-6 py-5 lg:px-8">
+        <button type="button" onClick={revenirTransversal} className="text-xs font-medium text-texte-discret hover:text-primaire hover:underline">← Catégories transversales</button>
+        <h2 className="mt-4 font-serif text-2xl font-medium tracking-tight">{noeud.nom}</h2>
+        <p className="mt-1 text-xs text-texte-attenue">{compterElements(noeud)} fiche{compterElements(noeud) > 1 ? "s" : ""} accessible{compterElements(noeud) > 1 ? "s" : ""} dans cette catégorie.</p>
+      </header>
+      <div className="space-y-6 p-6 lg:p-8">
+        {noeud.enfants.length > 0 && (
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {noeud.enfants.map((enfant) => (
+              <button key={enfant.chemin} type="button" onClick={() => ouvrirDossier(enfant.chemin)} className="rounded-xl border border-bordure bg-surface p-4 text-left hover:border-primaire/40">
+                <span className="text-sm font-semibold">{enfant.nom}</span>
+                <span className="ml-2 text-xs text-texte-discret">{compterElements(enfant)}</span>
+              </button>
+            ))}
+          </section>
+        )}
+        {noeud.elements.length > 0 && (
+          <section className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+            {noeud.elements.map((element) => (
+              <button key={element.id} type="button" onClick={() => ouvrirElement(element.id)} className="rounded-xl border border-bordure bg-surface p-4 text-left hover:border-primaire/40">
+                <span className="text-[0.6875rem] text-texte-discret">{element.typeLibelle}</span>
+                <span className="mt-1 block text-sm font-semibold">{element.titre}</span>
+              </button>
+            ))}
+          </section>
+        )}
+        {!noeud.enfants.length && !noeud.elements.length && <p className="text-sm text-texte-discret">Cette catégorie est vide.</p>}
+      </div>
+    </div>
+  );
+}
+
 export function EspaceDocumentaire({
   elements: elementsInitials,
   documentDemande,
@@ -418,6 +453,10 @@ export function EspaceDocumentaire({
   }
 
   const arbreDossiers = useMemo(() => construireArbreDossiers(elementsVisibles), [elementsVisibles]);
+  const racineTransversale = trouverNoeudDossier(arbreDossiers, "Transversal");
+  const dossierSelectionne = selection?.startsWith("dossier:")
+    ? trouverNoeudDossier(arbreDossiers, selection.slice("dossier:".length))
+    : null;
 
   function ouvrirElement(id: string) {
     const element = trouverElement(id, elements);
@@ -463,7 +502,14 @@ export function EspaceDocumentaire({
     }
   }
 
-  function rendreDossier(noeud: NoeudDossier, profondeur = 0): ReactNode {
+  function ouvrirDossier(chemin: string) {
+    setSelection(`dossier:${chemin}`);
+    setCibleLien("");
+    setSnapshotApercu(null);
+    window.history.replaceState(null, "", "/atelier");
+  }
+
+  function rendreDossier(noeud: NoeudDossier<ElementAtelier>, profondeur = 0): ReactNode {
     const ferme = !recherche.trim() && !dossiersOuverts.has(noeud.chemin);
     const elementDomaine = noeud.elements.find((el) => el.type === "domaine");
     const autresElements = noeud.elements.filter((el) => el.type !== "domaine");
@@ -790,7 +836,22 @@ export function EspaceDocumentaire({
         </aside>
 
         <main className="flex h-full min-w-0 flex-1 flex-col min-h-0 overflow-hidden bg-surface">
-          {selection === "domaines" || selection === "transversal" || selection === "domaines-archives" ? (
+          {selection === "transversal" ? (
+            <VueTransversale
+              racine={racineTransversale}
+              ouvrirDossier={ouvrirDossier}
+              revenirGrapheGlobal={revenirGrapheGlobal}
+              sidebarOuverte={sidebarOuverte}
+              setSidebarOuverte={setSidebarOuverte}
+            />
+          ) : dossierSelectionne ? (
+            <VueCategorieTransversale
+              noeud={dossierSelectionne}
+              ouvrirDossier={ouvrirDossier}
+              ouvrirElement={ouvrirElement}
+              revenirTransversal={() => ouvrirElement("transversal")}
+            />
+          ) : selection === "domaines" || selection === "domaines-archives" ? (
             <VueTousLesDomaines
               domaines={elements
                 .filter((el) => el.type === "domaine" && el.vuePedagogique)
@@ -1146,10 +1207,6 @@ export function EspaceDocumentaire({
       </div>
     </section>
   );
-}
-
-function compterElements(noeud: NoeudDossier): number {
-  return noeud.elements.length + noeud.enfants.reduce((total, enfant) => total + compterElements(enfant), 0);
 }
 
 /**

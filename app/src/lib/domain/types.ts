@@ -112,6 +112,8 @@ export interface Domaine {
   description: string;
   /** Rang d'affichage déclaré, à défaut d'ordre naturel. */
   ordre: number;
+  /** Version optimiste de l'agrégat, incrémentée à chaque commande validée. */
+  version: number;
   archive: boolean;
   origine: OrigineReferentiel;
 }
@@ -185,6 +187,8 @@ export interface Skill {
    * sans preuve se supprime franchement.
    */
   archive: boolean;
+  /** Successeur explicite lorsque le savoir-faire change de sens. */
+  remplacePar?: string;
   origine: OrigineReferentiel;
   /**
    * Hypothèse de départ issue de la formation déclarée — preuve de niveau D.

@@ -26,7 +26,7 @@ const domaine = (
   nom: string,
   prefixe: string,
   ordre: number,
-): Domaine => ({ id, nom, prefixe, description: "", ordre, archive: false, origine: "migration" });
+): Domaine => ({ id, nom, prefixe, description: "", ordre, version: 1, archive: false, origine: "migration" });
 
 const skill = (
   code: string,

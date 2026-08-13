@@ -9,7 +9,9 @@ import { chargerContexte } from "@/lib/store/context";
 import { chargerThemes } from "@/lib/store/themes";
 import { construireGraphe } from "@/lib/domain/graphe";
 import { construireVuesAtelier } from "@/lib/documents/vue-atelier";
+import { lireChangementsReferentiel } from "@/lib/store/referentiel";
 import { calibragesPourModale, competencesPourModale } from "@/components/exercices/proprietes-generation";
+import { cheminsDepuisDefinition } from "@/lib/documents/chemins-atelier";
 
 const LIBELLES_PALIERS: Record<string, string> = {
   fondamentaux: "Fondamentaux",
@@ -21,12 +23,13 @@ export default async function PageAtelier(props: {
   searchParams: Promise<{ document?: string; mode?: string }>;
 }) {
   const { document: documentDemande, mode } = await props.searchParams;
-  const [aperçus, snapshots, contexte, themes, contenuInitial] = await Promise.all([
+  const [aperçus, snapshots, contexte, themes, contenuInitial, changementsReferentiel] = await Promise.all([
     lireApercusDocuments(),
     lireApercusSnapshots(),
     chargerContexte(),
     chargerThemes(),
     documentDemande ? lireDocument(documentDemande).catch(() => null) : Promise.resolve(null),
+    lireChangementsReferentiel(),
   ]);
   const referentiel = contexte.referentiel;
   const exercices = contexte.donnees.exercises;
@@ -35,7 +38,7 @@ export default async function PageAtelier(props: {
       .filter(
         (domaine) =>
           !domaine.archive &&
-          referentiel.actifs.some((skill) => skill.domaine === domaine.id),
+          referentiel.skills.some((skill) => skill.domaine === domaine.id && !skill.archive),
       )
       .map((domaine) => domaine.id),
   );
@@ -56,6 +59,13 @@ export default async function PageAtelier(props: {
     ...exercices.flatMap((exercice) => [exercice.id, `exercice:${exercice.id}`]),
   ]);
   const tentativesParExercice = regrouperTentativesParExercice(contexte.donnees.attempts);
+  const codesAvecDependances = new Set<string>([
+    ...exercices.flatMap((exercice) => exercice.competences),
+    ...themes.flatMap((theme) => theme.codes),
+    ...contexte.donnees.sessions.flatMap((session) => session.skillCodes),
+    ...referentiel.skills.flatMap((skill) => [...skill.prerequis, ...(skill.remplacePar ? [skill.remplacePar] : [])]),
+    ...index.entrants.keys(),
+  ]);
   const vues = construireVuesAtelier(
     referentiel,
     contexte.etats,
@@ -63,6 +73,8 @@ export default async function PageAtelier(props: {
     contexte.donnees.attempts,
     index,
     contexte.donnees.evidence,
+    changementsReferentiel,
+    codesAvecDependances,
   );
   const vuesCompetences = new Map(vues.competences.map((vue) => [vue.code, vue]));
   const snapshotsParDocument = new Map<string, Array<{ id: string; version: number; captureReason: string; capturedAt: string }>>();
@@ -76,16 +88,15 @@ export default async function PageAtelier(props: {
     const contenuMd = contenuInitial?.id === document.id ? contenuInitial.contenuMd : "";
     const vue = contenuMd ? analyserDocumentMarkdown(document.id, contenuMd) : document;
     const definition = document.type ? definitionTypeDocument(document.type) : null;
+    const chemins = cheminsDepuisDefinition(definition, vue.frontMatter);
     return {
       id: document.id,
       titre: vue.titre,
       type: vue.type ?? "document",
       typeLibelle: definition?.libelle ?? vue.type ?? "Document",
       categorie: definition?.categorie ?? "connaissance",
-      dossier: definition?.dossierParDefaut ?? "Documents",
-      dossiersSecondaires: [
-        `Transversal/${vue.frontMatter.role === "operationnel" ? "Notes opérationnelles" : vue.frontMatter.role === "support" ? "Notes de support" : definition?.categorie === "preuve" ? "Preuves" : "Documents"}`,
-      ],
+      dossier: chemins.dossier,
+      dossiersSecondaires: chemins.dossiersSecondaires,
       contenuMd,
       contenuCharge: Boolean(contenuMd),
       updatedAt: contenuInitial?.id === document.id ? contenuInitial.updatedAt : document.updatedAt,

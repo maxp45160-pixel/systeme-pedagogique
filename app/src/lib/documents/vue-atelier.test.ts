@@ -104,6 +104,7 @@ const referentiel: Referentiel = {
     prefixe: "LOG",
     description: "Comprendre et améliorer les flux.",
     ordre: 1,
+    version: 1,
     archive: false,
     origine: "utilisateur",
   }],

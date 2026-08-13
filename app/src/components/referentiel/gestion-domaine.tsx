@@ -9,17 +9,19 @@
  * d'action groupée, édition inline, sortie/remise au périmètre,
  * archiver/supprimer (ADR-027), dossier des compétences archivées.
  *
- * LA RÈGLE D'ADR-027 EST AFFICHÉE AVANT LE CLIC : chaque compétence porte le
- * nombre de preuves, et le bouton de retrait dit lequel des deux gestes
- * s'appliquera — supprimer (0 preuve) ou archiver (≥1 preuve). Aucun choix
- * n'est offert : le mode est dérivé.
+ * La conséquence est affichée avant le clic : une compétence sans preuve ni
+ * dépendance historique peut être supprimée ; sinon elle est archivée. Aucun
+ * choix technique n'est offert à la personne : le mode est dérivé.
  */
 
 import { useState, useTransition } from "react";
 import {
+  archiverDomaine,
   basculerActives,
   desarchiverCompetence,
   modifierCompetence,
+  remplacerCompetence,
+  restaurerDomaine,
   retirerCompetences,
 } from "@/lib/store/referentiel-actions";
 import { BandeauInfo, Bouton, CodeCompetence, cx, Etiquette } from "@/components/ui/primitives";
@@ -27,6 +29,7 @@ import { Champ, ChampSelect } from "@/components/ui/champ";
 import { TiroirRepliable } from "@/components/ui/panneau-pliable";
 import type { Domaine, Palier, Skill } from "@/lib/domain/types";
 import { comparerCodes, type EtatRetrait } from "@/lib/domain/referentiel-compte";
+import type { ChangementReferentiel } from "@/lib/domain/gouvernance-referentiel";
 
 const PALIERS: Palier[] = ["fondamentaux", "intermediaire", "avance"];
 const OPTIONS_PALIER = PALIERS.map((p) => ({ valeur: p, libelle: p }));
@@ -35,11 +38,13 @@ export function GestionDomaine({
   domaine,
   skills,
   retraits,
+  changements,
 }: {
   domaine: Domaine;
   /** Compétences du domaine, toutes (vivantes et archivées). */
   skills: Skill[];
   retraits: Record<string, EtatRetrait>;
+  changements: ChangementReferentiel[];
 }) {
   const [enCours, demarrer] = useTransition();
   /**
@@ -52,8 +57,10 @@ export function GestionDomaine({
   const [erreur, setErreur] = useState<string | null>(null);
   const [avis, setAvis] = useState<string | null>(null);
   const [edite, setEdite] = useState<string | null>(null);
+  const [remplace, setRemplace] = useState<string | null>(null);
   const [selection, setSelection] = useState<Set<string>>(new Set());
   const [archivesOuvertes, setArchivesOuvertes] = useState(false);
+  const [confirmationRetraitDomaine, setConfirmationRetraitDomaine] = useState(false);
 
   const items = [...skills].sort((a, b) => comparerCodes(a.code, b.code));
   const vivantes = items.filter((s) => !s.archive);
@@ -66,6 +73,7 @@ export function GestionDomaine({
   const aArchiver = codesSelectionnes.filter(
     (c) => (retraits[c]?.mode ?? "suppression") === "archivage",
   );
+  const domaineDoitArchiver = skills.some((skill) => retraits[skill.code]?.mode === "archivage");
 
   function agir(id: string, action: () => Promise<unknown>) {
     setErreur(null);
@@ -100,16 +108,32 @@ export function GestionDomaine({
         <span className="text-xs text-texte-discret">
           Gestion des compétences du domaine « {domaine.nom} »
         </span>
-        {vivantes.length > 0 && codesSelectionnes.length === 0 && (
-          <button
-            type="button"
-            onClick={() => setSelection(new Set(vivantes.map((s) => s.code)))}
-            className="text-[0.6875rem] text-texte-attenue hover:text-texte"
-          >
-            Tout sélectionner
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {vivantes.length > 0 && codesSelectionnes.length === 0 && <button type="button" onClick={() => setSelection(new Set(vivantes.map((s) => s.code)))} className="text-[0.6875rem] text-texte-attenue hover:text-texte">Tout sélectionner</button>}
+          {domaine.archive ? (
+            <Bouton enChargement={actionEnCours === "restaurer-domaine"} disabled={enCours} onClick={() => agir("restaurer-domaine", () => restaurerDomaine(domaine.id))} variante="secondaire" taille="petite">Restaurer le domaine</Bouton>
+          ) : confirmationRetraitDomaine ? (
+            <>
+              <Bouton disabled={enCours} onClick={() => setConfirmationRetraitDomaine(false)} variante="discret" taille="petite">Annuler</Bouton>
+              <Bouton enChargement={actionEnCours === "retirer-domaine"} disabled={enCours} onClick={() => agir("retirer-domaine", async () => {
+                const resultat = await archiverDomaine(domaine.id);
+                setConfirmationRetraitDomaine(false);
+                setAvis(resultat.domaineSupprime ? "Domaine supprimé : aucun historique n'était à conserver." : "Domaine archivé avec son historique.");
+              })} variante="danger" taille="petite">Confirmer {domaineDoitArchiver ? "l’archivage" : "la suppression"}</Bouton>
+            </>
+          ) : (
+            <Bouton disabled={enCours} onClick={() => setConfirmationRetraitDomaine(true)} variante="secondaire" taille="petite">{domaineDoitArchiver ? "Archiver le domaine" : "Supprimer le domaine"}</Bouton>
+          )}
+        </div>
       </div>
+
+      {!domaine.archive && (
+        <p className="rounded-md border border-bordure bg-surface-2 px-3 py-2 text-[0.6875rem] text-texte-discret">
+          {domaineDoitArchiver
+            ? "Ce domaine porte un historique ou des dépendances : le retrait archivera toute la branche, sans supprimer ses preuves."
+            : "Ce domaine ne porte aucun historique conservé : le retrait supprimera atomiquement le domaine et ses compétences. Les codes ne seront jamais réattribués."}
+        </p>
+      )}
 
       {erreur && (
         <BandeauInfo ton="alerte" taille="compacte">
@@ -132,14 +156,10 @@ export function GestionDomaine({
               {codesSelectionnes.length > 1 ? "s" : ""}
             </span>
             {codesSelectionnes.length === 1 && (
-              <Bouton
-                onClick={() => setEdite(codesSelectionnes[0])}
-                disabled={enCours}
-                variante="secondaire"
-                taille="petite"
-              >
-                Modifier
-              </Bouton>
+              <>
+                <Bouton onClick={() => { setEdite(codesSelectionnes[0]); setRemplace(null); }} disabled={enCours} variante="secondaire" taille="petite">Corriger la formulation</Bouton>
+                <Bouton onClick={() => { setRemplace(codesSelectionnes[0]); setEdite(null); }} disabled={enCours} variante="secondaire" taille="petite">Changer le sens</Bouton>
+              </>
             )}
             <Bouton
               enChargement={actionEnCours === "lot-sortir"}
@@ -192,9 +212,9 @@ export function GestionDomaine({
           </div>
           <p className="mt-1.5 text-[0.6875rem] text-texte-attenue">
             « Retirer » effacerait {aSupprimer.length} ligne
-            {aSupprimer.length > 1 ? "s" : ""} sans preuve et archiverait {aArchiver.length}{" "}
+            {aSupprimer.length > 1 ? "s" : ""} sans historique et archiverait {aArchiver.length}{" "}
             compétence{aArchiver.length > 1 ? "s" : ""} qui en portent. Les preuves restent en
-            base dans les deux cas.
+            base et les dépendances restent résolubles.
           </p>
         </div>
       )}
@@ -237,9 +257,8 @@ export function GestionDomaine({
                       )}
                       <span className="chiffres text-[0.6875rem] text-texte-discret">
                         importance {s.importance} ·{" "}
-                        {retrait.preuves === 0
-                          ? "aucune preuve"
-                          : `${retrait.preuves} preuve${retrait.preuves > 1 ? "s" : ""}`}
+                        {retrait.preuves === 0 ? "aucune preuve" : `${retrait.preuves} preuve${retrait.preuves > 1 ? "s" : ""}`}
+                        {retrait.dependances ? " · dépendance historique" : ""}
                       </span>
                     </div>
 
@@ -255,6 +274,20 @@ export function GestionDomaine({
                       />
                     ) : (
                       <p className="mt-1 text-sm">{s.intitule}</p>
+                    )}
+
+                    {remplace === s.code && (
+                      <FormulaireRemplacement
+                        skill={s}
+                        enCours={enCours}
+                        enChargement={actionEnCours === `remplacer-${s.code}`}
+                        onAnnuler={() => setRemplace(null)}
+                        onValider={(champs) => agir(`remplacer-${s.code}`, async () => {
+                          const successeur = await remplacerCompetence(s.code, champs);
+                          setAvis(`${s.code} est archivée ; ${successeur} devient son successeur.`);
+                          setRemplace(null);
+                        })}
+                      />
                     )}
 
                     {s.prerequis.length > 0 && !enEdition && (
@@ -310,6 +343,56 @@ export function GestionDomaine({
           </TiroirRepliable>
         </div>
       )}
+
+      <section className="rounded-carte border border-bordure bg-surface p-4">
+        <h3 className="text-sm font-semibold">Historique de gouvernance</h3>
+        <p className="mt-1 text-xs text-texte-discret">Journal append-only des commandes validées sur ce domaine.</p>
+        {changements.length ? (
+          <ol className="mt-3 divide-y divide-bordure">
+            {changements.slice(0, 20).map((changement) => (
+              <li key={changement.id} className="py-2.5 text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-medium">{changement.motif}</span>
+                  <span className="chiffres text-texte-discret">{new Date(changement.creeLe).toLocaleString("fr-FR")}</span>
+                </div>
+                <p className="mt-1 text-texte-discret">{changement.type} · v{changement.versionAvant ?? "—"} → v{changement.versionApres ?? "supprimée"} · {changement.origine}</p>
+              </li>
+            ))}
+          </ol>
+        ) : <p className="mt-3 text-xs text-texte-discret">Aucun changement journalisé depuis l’activation de la gouvernance.</p>}
+      </section>
+    </div>
+  );
+}
+
+function FormulaireRemplacement({
+  skill,
+  enCours,
+  enChargement,
+  onValider,
+  onAnnuler,
+}: {
+  skill: Skill;
+  enCours: boolean;
+  enChargement: boolean;
+  onValider: (champs: { intitule: string; palier: Palier; importance: number; prerequis: string[] }) => void;
+  onAnnuler: () => void;
+}) {
+  const [intitule, setIntitule] = useState("");
+  const [palier, setPalier] = useState<Palier>(skill.palier);
+  const [importance, setImportance] = useState(String(skill.importance));
+  return (
+    <div className="mt-3 space-y-2 rounded-lg border border-alerte/30 bg-alerte-faible/40 p-3">
+      <p className="text-xs leading-relaxed text-texte-attenue">Un changement de savoir-faire ne réécrit pas les anciennes preuves : un nouveau code sera attribué et {skill.code} sera archivée avec un lien de succession.</p>
+      <Champ label="Nouvel intitulé" value={intitule} onChange={(event) => setIntitule(event.target.value)} />
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <ChampSelect label="Palier" taille="compacte" value={palier} onChange={(event) => setPalier(event.target.value as Palier)} options={OPTIONS_PALIER} />
+        <label className="flex items-center gap-1.5"><span className="text-texte-attenue">Importance</span><input value={importance} onChange={(event) => setImportance(event.target.value)} className="w-16 rounded-md border border-bordure bg-surface px-1.5 py-1" /></label>
+      </div>
+      <div className="flex gap-2">
+        <Bouton enChargement={enChargement} disabled={enCours || intitule.trim().length < 10} onClick={() => onValider({ intitule, palier, importance: Number.parseFloat(importance.replace(",", ".")), prerequis: skill.prerequis })} variante="principal" taille="petite">Créer le successeur</Bouton>
+        <Bouton onClick={onAnnuler} disabled={enCours} variante="secondaire" taille="petite">Annuler</Bouton>
+      </div>
     </div>
   );
 }

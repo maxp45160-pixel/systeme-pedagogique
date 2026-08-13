@@ -40,6 +40,7 @@ export interface CompetenceRevisable {
   intitule: string;
   palier: string;
   preuves: number;
+  modeRetrait: "suppression" | "archivage";
 }
 
 type Etat =
@@ -217,10 +218,10 @@ export function ModaleRevision({
         ajouts: p.ajouts.filter((_, i) => garde[`a${i}`]).length,
         modifs: p.modifications.filter((m) => garde[`m${m.code}`]).length,
         supprimees: p.retraits.filter(
-          (r) => garde[`r${r.code}`] && (preuvesParCode.get(r.code) ?? 0) === 0,
+          (r) => garde[`r${r.code}`] && competences.find((competence) => competence.code === r.code)?.modeRetrait === "suppression",
         ).length,
         archivees: p.retraits.filter(
-          (r) => garde[`r${r.code}`] && (preuvesParCode.get(r.code) ?? 0) > 0,
+          (r) => garde[`r${r.code}`] && competences.find((competence) => competence.code === r.code)?.modeRetrait === "archivage",
         ).length,
       }
     : null;
@@ -322,6 +323,7 @@ export function ModaleRevision({
                 <ul className="mt-2 space-y-2">
                   {p.retraits.map((r) => {
                     const preuves = preuvesParCode.get(r.code) ?? 0;
+                    const modeRetrait = competences.find((competence) => competence.code === r.code)?.modeRetrait ?? (preuves > 0 ? "archivage" : "suppression");
                     return (
                       <li
                         key={r.code}
@@ -344,12 +346,12 @@ export function ModaleRevision({
                             </span>
                             {/* Le geste DÉRIVÉ, annoncé avant le clic (ADR-027). */}
                             <span className="mt-1 block text-[0.6875rem] text-texte-discret">
-                              {preuves === 0 ? (
-                                <>Suppression définitive (0 preuve). Le code ne sera pas réattribué.</>
+                              {modeRetrait === "suppression" ? (
+                                <>Suppression définitive (aucun historique). Le code ne sera pas réattribué.</>
                               ) : (
                                 <>
-                                  Archivage ({preuves} preuve{preuves > 1 ? "s" : ""}) — elles
-                                  restent et gardent leur intitulé au journal. Tu devras la
+                                  Archivage ({preuves} preuve{preuves > 1 ? "s" : ""}{preuves === 0 ? ", autre dépendance conservée" : ""}) — l’historique
+                                  reste résoluble. Tu devras la
                                   désarchiver pour la remettre au périmètre.
                                 </>
                               )}

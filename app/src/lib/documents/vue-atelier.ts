@@ -13,6 +13,7 @@ import {
 } from "@/lib/domain/types";
 import { retraitsParCode, type EtatRetrait } from "@/lib/domain/referentiel-compte";
 import type { IndexDocumentaire } from "./index";
+import type { ChangementReferentiel } from "@/lib/domain/gouvernance-referentiel";
 
 export interface ExerciceLieAtelier {
   id: string;
@@ -81,6 +82,7 @@ export interface VueDomaineAtelier {
   skills: Skill[];
   retraits: Record<string, EtatRetrait>;
   domainesExistants: Array<{ id: string; nom: string; prefixe: string }>;
+  changements: ChangementReferentiel[];
   nombreEvaluees: number;
   nombrePreuves: number;
   nombreExercices: number;
@@ -117,8 +119,10 @@ export function construireVuesAtelier(
   tentatives: ExerciseAttempt[],
   index: IndexDocumentaire,
   preuvesReferentiel: SkillEvidence[] = [],
+  changementsReferentiel: ChangementReferentiel[] = [],
+  codesAvecDependances: ReadonlySet<string> = new Set(),
 ): { domaines: VueDomaineAtelier[]; competences: VueCompetenceAtelier[] } {
-  const domainesActifs = new Set(referentiel.actifs.map((skill) => skill.domaine));
+  const domainesVivants = new Set(referentiel.skills.filter((skill) => !skill.archive).map((skill) => skill.domaine));
   const competences: VueCompetenceAtelier[] = etats.map((etat) => {
     const domaine = referentiel.domainesParId.get(etat.skill.domaine);
     const exercicesLies = exercices
@@ -172,7 +176,7 @@ export function construireVuesAtelier(
   });
 
   const domaines: VueDomaineAtelier[] = referentiel.domaines
-    .filter((domaine) => domaine.archive || domainesActifs.has(domaine.id))
+    .filter((domaine) => domaine.archive || domainesVivants.has(domaine.id))
     .map((domaine) => {
       const items = competences.filter((competence) => competence.domaineId === domaine.id);
       const skills = referentiel.skills.filter((skill) => skill.domaine === domaine.id);
@@ -202,10 +206,11 @@ export function construireVuesAtelier(
         }),
         domaine,
         skills,
-        retraits: Object.fromEntries(retraitsParCode(skills, preuvesReferentiel)),
+        retraits: Object.fromEntries(retraitsParCode(skills, preuvesReferentiel, codesAvecDependances)),
         domainesExistants: referentiel.domaines
           .filter((item) => !item.archive)
           .map((item) => ({ id: item.id, nom: item.nom, prefixe: item.prefixe })),
+        changements: changementsReferentiel.filter((changement) => changement.domaineId === domaine.id),
         nombreEvaluees: items.filter((item) => item.niveau !== null).length,
         nombrePreuves: items.reduce((total, item) => total + item.nombrePreuves, 0),
         nombreExercices: exercicesDomaine.length,

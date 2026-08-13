@@ -212,6 +212,12 @@ et les KPI actuels répondent au besoin présent. Réouverture sur fait nouveau.
 
 ### Ouvert
 
+🔬 **Gouvernance durable proposée (ADR-065, 13/08).** Le référentiel reste
+strictement `Domaine → Compétences`. Preuves, notes support et thèmes le servent
+sans en devenir des entités. Les commandes transactionnelles, versions
+optimistes, codes non réutilisables, succession explicite et journal append-only
+ont été migrés le 13/08 sur autorisation explicite ; le statut n’est pas monté
+par l’agent.
 ❓ Quel moteur gratuit exactement (ADR-007) — résolu **par mesure**.
 🔬 Le barème `PLAFOND_AIDE` — l'architecture de mesure est décidée par ADR-057,
 mais ses plafonds n'ont pas encore été confrontés à l'usage.
