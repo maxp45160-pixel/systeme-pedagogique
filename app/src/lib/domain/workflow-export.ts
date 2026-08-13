@@ -24,7 +24,6 @@
  */
 
 import {
-  GRAPHE_WORKFLOW,
   type GrapheWorkflow,
   type LienWorkflow,
   type NoeudWorkflow,
@@ -257,7 +256,7 @@ export interface ExportComplet {
  */
 export function exporterWorkflowComplet(
   resultat: ResultatBFS,
-  graphe: GrapheWorkflow = GRAPHE_WORKFLOW,
+  graphe: GrapheWorkflow,
   racine = "page:/",
 ): ExportComplet {
   return {

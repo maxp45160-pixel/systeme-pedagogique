@@ -192,10 +192,13 @@ function baseRoute(url: string): string {
   const [base, query] = sansHash.split("?");
   if (!query) return base;
 
-  // Conserver les query parameters significatifs qui définissent un mode/écran distinct
-  if (query.includes("session=")) {
-    return `${base}?session`;
-  }
+  // Conserver les query parameters significatifs qui définissent un mode/écran
+  // distinct — sans eux, des états réels seraient effondrés en un seul nœud
+  // (ex. `?vue=graphe` bascule la vue compétences, `?document=` sélectionne
+  // une fiche de l'atelier).
+  if (query.includes("session=")) return `${base}?session`;
+  if (query.includes("vue=graphe")) return `${base}?vue=graphe`;
+  if (query.includes("document=")) return `${base}?document`;
   return base;
 }
 
@@ -378,6 +381,7 @@ const LIBELLES_ROUTES: Record<string, string> = {
   "/exercices/{id}": "Exercice autonome",
   "/competences/{code}": "Fiche compétence",
   "/competences/domaine/{id}": "Domaine",
+  "/competences?vue=graphe": "Compétences (graphe)",
   "/seances?session": "Workspace séance",
 };
 
@@ -742,8 +746,10 @@ export async function scannerWorkflow(): Promise<GrapheWorkflow> {
 
       const cibleId = resoudreRouteCible(cibleRoute, parId) ?? `page:${cibleRoute}`;
       if (!parId.has(cibleId)) continue; // Cible inconnue
-      if (cibleId === sourceId && nav.type !== "redirect") continue; // Self-link (sauf redirect conditionnel)
 
+      // On conserve les self-links : ils représentent des états réels (recherche
+      // sur `/seances`, erreur sur `/login`, rafraîchissement) et non des
+      // artefacts. Les supprimer effaçait des transitions que le produit a.
       ajouterLien(liens, vus, {
         source: sourceId,
         target: cibleId,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GRAPHE_WORKFLOW, parcourirWorkflow } from "./workflow-graphe";
+import { parcourirWorkflow, type GrapheWorkflow } from "./workflow-graphe";
 import {
   exporterDOT,
   exporterJSON,
@@ -13,6 +13,28 @@ import {
  * corrects — matrice d'adjacence binaire, listes d'adjacence dédupliquées,
  * DOT syntaxiquement valide, JSON complet et sérialisable.
  */
+
+const GRAPHE_TEST: GrapheWorkflow = {
+  noeuds: [
+    { id: "page:/", type: "page", libelle: "Tableau de bord", url: "/" },
+    { id: "page:/seances", type: "page", libelle: "Cahier", url: "/seances" },
+    { id: "modal:test", type: "modal", libelle: "Modale test" },
+  ],
+  liens: [
+    {
+      source: "page:/",
+      target: "page:/seances",
+      type: "navigation",
+      libelle: "Cahier (rail)",
+    },
+    {
+      source: "page:/",
+      target: "modal:test",
+      type: "ouverture",
+      libelle: "Ouvrir",
+    },
+  ],
+};
 
 describe("matriceAdjacence", () => {
   it("produit une matrice binaire carrée avec 1 aux positions des arêtes", () => {
@@ -133,8 +155,8 @@ describe("exporterDOT", () => {
 
 describe("exporterJSON", () => {
   it("sérialise le graphe complet avec statistiques", () => {
-    const resultat = parcourirWorkflow(GRAPHE_WORKFLOW, "page:/");
-    const json = exporterJSON(resultat, GRAPHE_WORKFLOW, "page:/");
+    const resultat = parcourirWorkflow(GRAPHE_TEST, "page:/");
+    const json = exporterJSON(resultat, GRAPHE_TEST, "page:/");
 
     expect(json.format).toBe("workflow-graphe");
     expect(json.version).toBe(1);
@@ -144,12 +166,12 @@ describe("exporterJSON", () => {
     expect(json.inatteignables.length).toBe(resultat.inatteignables.length);
     expect(json.profondeurs["page:/"]).toBe(0);
     expect(json.statistiques.atteignables).toBe(resultat.noeuds.length);
-    expect(json.statistiques.totalNoeuds).toBe(GRAPHE_WORKFLOW.noeuds.length);
+    expect(json.statistiques.totalNoeuds).toBe(GRAPHE_TEST.noeuds.length);
   });
 
   it("est sérialisable en JSON sans perte", () => {
-    const resultat = parcourirWorkflow(GRAPHE_WORKFLOW, "page:/");
-    const json = exporterJSON(resultat, GRAPHE_WORKFLOW, "page:/");
+    const resultat = parcourirWorkflow(GRAPHE_TEST, "page:/");
+    const json = exporterJSON(resultat, GRAPHE_TEST, "page:/");
     const relu = JSON.parse(JSON.stringify(json)) as typeof json;
     expect(relu.noeuds).toHaveLength(json.noeuds.length);
     expect(relu.liens).toHaveLength(json.liens.length);
@@ -158,8 +180,8 @@ describe("exporterJSON", () => {
 
 describe("exporterWorkflowComplet", () => {
   it("produit tous les formats d'un coup", () => {
-    const resultat = parcourirWorkflow(GRAPHE_WORKFLOW, "page:/");
-    const complet = exporterWorkflowComplet(resultat, GRAPHE_WORKFLOW, "page:/");
+    const resultat = parcourirWorkflow(GRAPHE_TEST, "page:/");
+    const complet = exporterWorkflowComplet(resultat, GRAPHE_TEST, "page:/");
 
     expect(complet.json.format).toBe("workflow-graphe");
     expect(complet.dot).toContain("digraph workflow {");
@@ -170,8 +192,8 @@ describe("exporterWorkflowComplet", () => {
   });
 
   it("la matrice est carrée et binaire", () => {
-    const resultat = parcourirWorkflow(GRAPHE_WORKFLOW, "page:/");
-    const complet = exporterWorkflowComplet(resultat, GRAPHE_WORKFLOW, "page:/");
+    const resultat = parcourirWorkflow(GRAPHE_TEST, "page:/");
+    const complet = exporterWorkflowComplet(resultat, GRAPHE_TEST, "page:/");
     const n = complet.matrice.noeuds.length;
     expect(complet.matrice.matrice).toHaveLength(n);
     for (const ligne of complet.matrice.matrice) {
