@@ -234,27 +234,28 @@ export async function VueExercice(props: {
               );
             })}
           </p>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            {navigation && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {navigation ? (
               <Link
                 href={`/seances?session=${encodeURIComponent(navigation.seanceId)}`}
-                className={classesLienBouton("principal", "petite")}
+                className={classesLienBouton("principal", "normale")}
               >
-                Retour au workspace séance
+                <span>Reprendre la séance (Exercice suivant)</span>
+                <span aria-hidden className="ml-1">→</span>
+              </Link>
+            ) : (
+              <Link href="/" className={classesLienBouton("principal", "normale")}>
+                <span>Prochaine action recommandée</span>
+                <span aria-hidden className="ml-1">→</span>
               </Link>
             )}
             {!props.integree && (
-              <>
-                <Link
-                  href={`/atelier?document=${encodeURIComponent(exercice.competences[0])}`}
-                  className={classesLienBouton("secondaire", "petite")}
-                >
-                  Voir l&apos;effet sur la compétence
-                </Link>
-                <Link href="/" className={classesLienBouton("secondaire", "petite")}>
-                  Prochaine action recommandée
-                </Link>
-              </>
+              <Link
+                href={`/atelier?document=${encodeURIComponent(exercice.competences[0])}`}
+                className={classesLienBouton("secondaire", "petite")}
+              >
+                Voir l&apos;effet sur la compétence
+              </Link>
             )}
           </div>
         </div>

@@ -161,6 +161,39 @@ function trouverElement(id: string, liste: ElementAtelier[]): ElementAtelier | u
   });
 }
 
+function BarreVuesAtelier({
+  vue,
+  onChanger,
+}: {
+  vue: "graphe" | "domaines" | "transversal";
+  onChanger: (v: "graphe" | "domaines" | "transversal") => void;
+}) {
+  const options = [
+    { cle: "graphe" as const, libelle: "Constellation" },
+    { cle: "domaines" as const, libelle: "Domaines" },
+    { cle: "transversal" as const, libelle: "Transversal" },
+  ];
+  return (
+    <div className="flex items-center gap-1 rounded-lg border border-bordure bg-surface-2 p-1 text-xs">
+      {options.map((opt) => (
+        <button
+          key={opt.cle}
+          type="button"
+          onClick={() => onChanger(opt.cle)}
+          className={cx(
+            "rounded-md px-2.5 py-1 font-medium transition-all cursor-pointer",
+            vue === opt.cle
+              ? "bg-surface text-texte shadow-sm font-semibold"
+              : "text-texte-discret hover:text-texte",
+          )}
+        >
+          {opt.libelle}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function VueTousLesDomaines({
   domaines,
   ouvrirElement,
@@ -215,6 +248,13 @@ function VueTousLesDomaines({
             <span className="text-texte-discret/60 shrink-0">/</span>
             <span className="font-semibold text-texte truncate">{libelleFil}</span>
           </nav>
+          <BarreVuesAtelier
+            vue={estTransversal ? "transversal" : "domaines"}
+            onChanger={(v) => {
+              if (v === "graphe") revenirGrapheGlobal();
+              else ouvrirElement(v);
+            }}
+          />
         </div>
         <div className="px-6 py-5 lg:px-8">
           <h2 className="font-serif text-2xl font-medium tracking-tight text-texte">{titrePrincipal}</h2>
@@ -277,12 +317,14 @@ function VueTousLesDomaines({
 function VueTransversale({
   racine,
   ouvrirDossier,
+  ouvrirElement,
   revenirGrapheGlobal,
   sidebarOuverte,
   setSidebarOuverte,
 }: {
   racine: NoeudDossier<ElementAtelier> | null;
   ouvrirDossier: (chemin: string) => void;
+  ouvrirElement: (id: string) => void;
   revenirGrapheGlobal: () => void;
   sidebarOuverte: boolean;
   setSidebarOuverte: (ouverte: boolean) => void;
@@ -290,12 +332,21 @@ function VueTransversale({
   const categories = racine?.enfants ?? [];
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-surface-2/30">
-      <header className="border-b border-bordure bg-surface px-6 py-5 lg:px-8">
-        <nav aria-label="Fil d’Ariane" className="mb-4 flex items-center gap-2 text-xs text-texte-discret">
-          {!sidebarOuverte && <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />}
-          <button type="button" onClick={revenirGrapheGlobal} className="font-medium hover:text-primaire hover:underline">Graphe global</button>
-          <span>/</span><span className="font-semibold text-texte">Vue transversale</span>
-        </nav>
+      <header className="border-b border-bordure bg-surface px-6 py-4 lg:px-8 shrink-0">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <nav aria-label="Fil d’Ariane" className="flex items-center gap-2 text-xs text-texte-discret">
+            {!sidebarOuverte && <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />}
+            <button type="button" onClick={revenirGrapheGlobal} className="font-medium hover:text-primaire hover:underline">Graphe global</button>
+            <span>/</span><span className="font-semibold text-texte">Vue transversale</span>
+          </nav>
+          <BarreVuesAtelier
+            vue="transversal"
+            onChanger={(v) => {
+              if (v === "graphe") revenirGrapheGlobal();
+              else ouvrirElement(v);
+            }}
+          />
+        </div>
         <h2 className="font-serif text-2xl font-medium tracking-tight">Catégories transversales</h2>
         <p className="mt-1 text-xs text-texte-attenue">Des accès dérivés vers les mêmes fiches, sans créer un second référentiel.</p>
       </header>
@@ -891,6 +942,7 @@ export function EspaceDocumentaire({
             <VueTransversale
               racine={racineTransversale}
               ouvrirDossier={ouvrirDossier}
+              ouvrirElement={ouvrirElement}
               revenirGrapheGlobal={revenirGrapheGlobal}
               sidebarOuverte={sidebarOuverte}
               setSidebarOuverte={setSidebarOuverte}
@@ -1102,7 +1154,16 @@ export function EspaceDocumentaire({
                     <h2 className="mt-0.5 font-serif text-2xl font-medium tracking-tight leading-tight">Graphe global</h2>
                   </div>
                 </div>
-                <span className="text-xs text-texte-discret hidden sm:inline">Documents, compétences, exercices et thèmes reliés</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-texte-discret hidden sm:inline">Documents, compétences, exercices et thèmes reliés</span>
+                  <BarreVuesAtelier
+                    vue="graphe"
+                    onChanger={(v) => {
+                      if (v === "graphe") revenirGrapheGlobal();
+                      else ouvrirElement(v);
+                    }}
+                  />
+                </div>
               </div>
               <div className="flex min-h-0 flex-1 flex-col p-4">
                 <GrapheCompetences donnees={graphe.donnees} compteId={graphe.compteId} ouvrirElement={ouvrirElement} />

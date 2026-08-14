@@ -74,11 +74,17 @@ export function CarteEtatGlobal({
             }
           />
 
-          <Statistique
-            libelle="Référentiel couvert"
-            valeur={`${global.competencesEvaluees}/${global.competencesTotal}`}
-            precision="compétences avec au moins une preuve"
-          />
+          <Link
+            href="/atelier"
+            className="group block rounded-md p-1 -m-1 transition-colors hover:bg-surface-2 cursor-pointer"
+            title="Explorer le référentiel dans l'Atelier"
+          >
+            <Statistique
+              libelle="Référentiel couvert"
+              valeur={`${global.competencesEvaluees}/${global.competencesTotal}`}
+              precision="compétences avec au moins une preuve →"
+            />
+          </Link>
 
           <Statistique
             libelle="Robustesse moyenne"
@@ -89,12 +95,17 @@ export function CarteEtatGlobal({
 
         {!aucunePreuve && (
           <div className="mt-4 grid gap-4 sm:grid-cols-2 [&>*]:min-w-0">
-            <div>
-              <div className="mb-2 text-[0.6875rem] uppercase tracking-wide text-texte-discret">
-                Répartition des niveaux
+            <Link
+              href="/atelier"
+              className="group block rounded-lg p-2 -m-2 transition-colors hover:bg-surface-2 cursor-pointer"
+              title="Voir la répartition dans l'Atelier"
+            >
+              <div className="mb-2 flex items-center justify-between text-[0.6875rem] uppercase tracking-wide text-texte-discret">
+                <span>Répartition des niveaux</span>
+                <span className="text-primaire text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">Explorer dans l’Atelier →</span>
               </div>
               <RepartitionNiveaux compte={repartition} />
-            </div>
+            </Link>
             <div className="flex items-end gap-x-6">
               <Statistique
                 libelle="Compétences actives"

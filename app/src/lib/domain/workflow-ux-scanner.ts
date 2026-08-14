@@ -287,6 +287,13 @@ export async function scannerUxJourney(): Promise<GrapheWorkflow> {
         libelle: "Consulter la progression",
         declencheur: "Vue dashboard",
       });
+      connecter({
+        source: "ux:kpi-progression",
+        target: "page:/atelier",
+        type: "navigation",
+        libelle: "Explorer dans l'Atelier",
+        declencheur: "Clic sur la couverture / répartition des niveaux",
+      });
     }
   }
 
@@ -541,6 +548,36 @@ export async function scannerUxJourney(): Promise<GrapheWorkflow> {
       type: "interaction",
       libelle: "Ouvrir l'explorateur",
       declencheur: "Clic bouton 'Ouvrir l'explorateur'",
+    });
+
+    // View Switcher unifié (Bascule directe 1 clic)
+    connecter({
+      source: "ux:atelier-graphe",
+      target: "ux:galerie-domaines",
+      type: "interaction",
+      libelle: "Bascule vue Domaines",
+      declencheur: "Clic onglet 'Domaines' (View Switcher)",
+    });
+    connecter({
+      source: "ux:atelier-graphe",
+      target: "ux:vue-transversale",
+      type: "interaction",
+      libelle: "Bascule vue Transversal",
+      declencheur: "Clic onglet 'Transversal' (View Switcher)",
+    });
+    connecter({
+      source: "ux:galerie-domaines",
+      target: "ux:vue-transversale",
+      type: "interaction",
+      libelle: "Bascule vue Transversal",
+      declencheur: "Clic onglet 'Transversal' (View Switcher)",
+    });
+    connecter({
+      source: "ux:vue-transversale",
+      target: "ux:galerie-domaines",
+      type: "interaction",
+      libelle: "Bascule vue Domaines",
+      declencheur: "Clic onglet 'Domaines' (View Switcher)",
     });
 
     // Navigation depuis la galerie de domaines
