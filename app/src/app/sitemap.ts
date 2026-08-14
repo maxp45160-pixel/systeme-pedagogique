@@ -5,7 +5,11 @@ import type { MetadataRoute } from "next";
  * Référence les URLs publiques et prioritaires du système.
  */
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://systeme-pedagogique.vercel.app";
+  const baseUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    (process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : "https://systeme-pedagogique-nine.vercel.app");
   const dateMaj = new Date();
 
   return [
