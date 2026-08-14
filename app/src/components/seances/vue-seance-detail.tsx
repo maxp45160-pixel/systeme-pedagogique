@@ -121,7 +121,10 @@ export async function VueSeanceDetail({
 
         {statut === "en-cours" && (
           <div className="space-y-5">
-            <div className="flex flex-wrap items-center justify-center gap-2">
+            <nav
+              aria-label="Outils de séance"
+              className="sticky top-2 z-20 mx-auto flex w-fit max-w-full flex-wrap items-center justify-center gap-1 rounded-xl border border-bordure bg-surface/95 p-1 shadow-sm backdrop-blur"
+            >
               <OutilSeance
                 libelle="Exercices"
                 contenuClassName="fixed left-4 right-4 top-28 z-10 mt-2 rounded-lg border border-bordure bg-surface p-3 shadow-xl sm:absolute sm:left-1/2 sm:right-auto sm:top-auto sm:w-[min(34rem,calc(100vw-2rem))] sm:-translate-x-1/2"
@@ -146,7 +149,7 @@ export async function VueSeanceDetail({
                   libelle="Tuteur IA"
                 />
               )}
-            </div>
+            </nav>
 
             {(recherche?.bilan === "1" || recherche?.abandon === "1") && suivant && (
               <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3 rounded-lg border border-primaire/30 bg-primaire-faible px-4 py-3 shadow-xs">
