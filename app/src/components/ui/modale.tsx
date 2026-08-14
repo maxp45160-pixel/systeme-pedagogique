@@ -25,12 +25,22 @@
  *   `position: fixed`, et l'overlay se retrouve cadré dans sa carte.
  * - Le clic sur le fond ferme, le clic dans le panneau non.
  *
- * ## Ce qu'elle ne fait PAS
+ * - Le défilement de l'arrière-plan est bloqué, en compensant la largeur de la
+ *   barre de défilement : sans cette compensation la page saute latéralement à
+ *   chaque ouverture, un remède plus visible que le mal.
  *
- * Elle ne bloque pas le défilement de l'arrière-plan. Le faire proprement
- * demande de compenser la largeur de la barre de défilement, faute de quoi la
- * page saute latéralement à chaque ouverture — un remède plus visible que le
- * mal. À traiter le jour où le défilement de fond gêne réellement.
+ * ## Trois zones, un seul défilement
+ *
+ * Le panneau ne défile pas ; son corps, oui. L'en-tête et le pied restent
+ * visibles quelle que soit la hauteur du contenu.
+ *
+ * C'est le défaut qu'on vient de corriger : `overflow-y-auto` était posé sur le
+ * panneau entier, si bien que le titre disparaissait vers le haut et que les
+ * boutons de validation attendaient tout en bas du défilement. Chaque appelant
+ * recopiait alors son propre pied (`border-t border-bordure pt-3` + `flex
+ * justify-end gap-2`) — la duplication que la primitive était censée supprimer.
+ * D'où la prop `pied` : les actions se déclarent, elles ne se remettent plus en
+ * page.
  */
 
 import { useCallback, useEffect, useId, useRef, type ReactNode } from "react";
@@ -48,12 +58,14 @@ const FOCUSABLES = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(",");
 
-export type LargeurModale = "md" | "xl" | "2xl";
+export type LargeurModale = "md" | "xl" | "2xl" | "3xl" | "4xl";
 
 const LARGEURS: Record<LargeurModale, string> = {
   md: "max-w-md",
   xl: "max-w-xl",
   "2xl": "max-w-2xl",
+  "3xl": "max-w-3xl",
+  "4xl": "max-w-4xl",
 };
 
 /**
@@ -73,6 +85,7 @@ export function Modale({
   largeur = "2xl",
   position = "centree",
   children,
+  pied,
   className,
 }: {
   /** Sert de titre visible ET de nom accessible — les deux ne peuvent pas diverger. */
@@ -82,6 +95,13 @@ export function Modale({
   largeur?: LargeurModale;
   position?: PositionModale;
   children: ReactNode;
+  /**
+   * Barre d'actions, tenue hors du défilement.
+   *
+   * Les boutons y sont alignés à droite et espacés : l'appelant fournit les
+   * boutons, pas leur mise en page.
+   */
+  pied?: ReactNode;
   className?: string;
 }) {
   const panneauRef = useRef<HTMLDivElement>(null);
@@ -105,6 +125,25 @@ export function Modale({
   useEffect(() => {
     const declencheur = document.activeElement as HTMLElement | null;
     return () => declencheur?.focus?.();
+  }, []);
+
+  /*
+   * Blocage du défilement de fond.
+   *
+   * La compensation vaut la largeur de la barre de défilement : la masquer sans
+   * rendre sa place décale toute la page vers la droite à l'ouverture. Les
+   * valeurs d'origine sont relues puis restituées telles quelles, pour qu'une
+   * modale ouverte au-dessus d'une autre rende bien `hidden` en se fermant.
+   */
+  useEffect(() => {
+    const compensation = window.innerWidth - document.documentElement.clientWidth;
+    const { overflow, paddingRight } = document.body.style;
+    document.body.style.overflow = "hidden";
+    if (compensation > 0) document.body.style.paddingRight = `${compensation}px`;
+    return () => {
+      document.body.style.overflow = overflow;
+      document.body.style.paddingRight = paddingRight;
+    };
   }, []);
 
   // Le focus entre dans la modale — sur le panneau lui-même si rien d'autre
@@ -173,8 +212,8 @@ export function Modale({
         aria-labelledby={idTitre}
         tabIndex={-1}
         className={cx(
-          "flex w-full flex-col overflow-y-auto border border-bordure",
-          "bg-surface p-5 text-left text-texte shadow-[var(--ombre-surcouche)]",
+          "flex w-full flex-col overflow-hidden border border-bordure",
+          "bg-surface text-left text-texte shadow-[var(--ombre-surcouche)]",
           position === "laterale"
             ? "h-full border-y-0 border-r-0"
             : "max-h-[90vh] rounded-xl",
@@ -183,7 +222,7 @@ export function Modale({
         )}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-3 border-b border-bordure pb-3">
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-bordure px-5 py-4">
           <div className="min-w-0">
             <h2 id={idTitre} className="font-serif text-base font-medium">
               {titre}
@@ -200,7 +239,13 @@ export function Modale({
           </button>
         </div>
 
-        {children}
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-4">{children}</div>
+
+        {pied && (
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-bordure px-5 py-3">
+            {pied}
+          </div>
+        )}
       </div>
     </div>,
     document.body,

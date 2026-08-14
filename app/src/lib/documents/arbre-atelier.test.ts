@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import { construireArbreDossiers, compterElements, trouverNoeudDossier } from "./arbre-atelier";
-import { resoudreCheminsDocumentAtelier } from "./chemins-atelier";
+import { cheminsDepuisDefinition, resoudreCheminsDocumentAtelier } from "./chemins-atelier";
+import { definitionTypeDocument } from "./types-documents";
+import { FORMATS_PAR_ROLE } from "./roles-note";
 
 describe("navigation de l'Atelier", () => {
   it("donne aux preuves un seul chemin canonique transversal", () => {
@@ -24,5 +26,50 @@ describe("navigation de l'Atelier", () => {
     expect(transversal?.enfants.map(({ nom }) => nom)).toEqual(["Compétences", "Preuves"]);
     expect(compterElements(transversal!)).toBe(2);
     expect(arbre.some(({ nom }) => nom === "Preuves")).toBe(false);
+  });
+
+  /*
+   * Le rôle prime sur le dossier par défaut du type. Sans cela, une séance
+   * partirait sous « Séances » et une expérimentation sous
+   * « Productions/Expérimentations » : les notes opérationnelles seraient
+   * éparpillées alors qu'elles forment une seule catégorie.
+   */
+  it("range toute note opérationnelle sous la même racine, quel que soit son format", () => {
+    for (const { valeur } of FORMATS_PAR_ROLE.operationnel) {
+      const definition = definitionTypeDocument(valeur);
+      const chemins = cheminsDepuisDefinition(definition, { role: "operationnel" });
+      expect(chemins.dossier, `format « ${valeur} »`).toBe(
+        `Transversal/Notes opérationnelles/${definition?.libelle}`,
+      );
+      expect(chemins.dossiersSecondaires, `format « ${valeur} »`).toEqual([]);
+    }
+  });
+
+  /*
+   * `projet` porte `dossierParDefaut: "Preuves/Projets"`. Une note qui la
+   * déclare opérationnelle ne doit pas suivre ce repli : elle n'est pas une
+   * preuve tant qu'aucune évaluation ne l'a validée.
+   */
+  it("ne range jamais une note opérationnelle parmi les preuves", () => {
+    const chemins = cheminsDepuisDefinition(definitionTypeDocument("projet"), {
+      role: "operationnel",
+    });
+    for (const chemin of [chemins.dossier, ...chemins.dossiersSecondaires]) {
+      expect(chemin.startsWith("Transversal/Preuves")).toBe(false);
+    }
+  });
+
+  it("range une note de support sous sa propre racine", () => {
+    expect(cheminsDepuisDefinition(definitionTypeDocument("cours"), { role: "support" })).toEqual({
+      dossier: "Transversal/Notes de support/Cours",
+      dossiersSecondaires: [],
+    });
+  });
+
+  it("laisse le repli historique aux productions sans rôle déclaré", () => {
+    expect(cheminsDepuisDefinition(definitionTypeDocument("projet"), {})).toEqual({
+      dossier: "Transversal/Preuves/Projets",
+      dossiersSecondaires: [],
+    });
   });
 });

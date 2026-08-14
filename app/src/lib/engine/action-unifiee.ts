@@ -1,5 +1,6 @@
 import type { Recommandation } from "./recommend";
 import { recommendLearningAction } from "./action-recommendation";
+import { idDocumentDepuisActivite } from "@/lib/domain/adaptive-learning";
 import type { SkillState } from "@/lib/domain/types";
 import type {
   ActivityEvent,
@@ -100,6 +101,14 @@ export type ActionUnifiee =
     reserves: string[];
   }
   | {
+    kind: "note";
+    /** Identifiant de la fiche, pour ouvrir son espace de travail. */
+    noteId: string;
+    action: RecommendedLearningAction;
+    facteurs: RecommendationFactor[];
+    reserves: string[];
+  }
+  | {
     kind: "activite";
     action: RecommendedLearningAction;
     facteurs: RecommendationFactor[];
@@ -191,6 +200,21 @@ export function choisirActionUnifiee(entrees: EntreesActionUnifiee): ActionUnifi
   }
 
   const action = proposition.primary;
+
+  /*
+   * La note passe avant la branche exercice.
+   *
+   * Une note de séance appartient à la famille « entrainer » : sans ce test en
+   * premier, elle serait remise en tête de la file d'exercices et l'écran
+   * proposerait un exercice là où la personne a engagé une séance. Le préfixe
+   * de l'identifiant est le seul discriminant fiable — la famille ne dit pas de
+   * quelle nature est le candidat.
+   */
+  const noteId = action.activityId ? idDocumentDepuisActivite(action.activityId) : null;
+  if (noteId) {
+    return { kind: "note", noteId, action, facteurs: action.factors, reserves: action.reservations };
+  }
+
   if (identifiantExercice(action) !== null || action.family === "entrainer") {
     const reordonnee = remettreEnTete(action, recommandations);
     if (reordonnee) {

@@ -4294,6 +4294,46 @@ sans que l'édition ultérieure du document modifie l'observation historique.
 Le chantier devra enfin mesurer que le chargement documentaire ne dégrade pas
 le chemin chaud des recommandations existantes.
 
+### Amendement du 14/08/2026 — la note opérationnelle devient un candidat dérivé 🔬
+
+Le corpus documentaire n'influençait le classement que par une pénalité de
+−10 points sur une preuve documentaire récente et contextualisée. Une note
+opérationnelle ouverte — un projet engagé, une séance capturée — restait
+invisible pour l'arbitrage, alors qu'elle est précisément un travail commencé
+que la personne attend de reprendre.
+
+**Décision.** Une note opérationnelle sans version figée est exposée comme
+`LearningActivity` par `lib/domain/note-activity-adapter.ts`, et versée aux
+candidats de `choisirActionUnifiee`. Rien n'est stocké : la famille, les
+compétences visées et l'état se relisent du front-matter et des liens, à chaque
+lecture. C'est le procédé déjà employé par `adaptLegacyExercise` pour les
+exercices et par `generationRequests` pour les demandes de génération.
+
+**Ce que la décision n'est pas.** Aucune table, aucune migration : la migration
+`20260813150000_adaptive_learning_loop.sql` reste locale, et le branchement vaut
+en mode `legacy` comme en `adaptive-v1`. Le classement des compétences n'est ni
+recalculé ni repondéré — `action-unifiee.ts` continue de le recevoir. Aucun
+seuil de calibration ne bouge.
+
+**Trois conventions assumées, à mettre à l'épreuve.**
+
+1. *La durée est conventionnelle par famille* (20 / 30 / 45 min). Une note ne
+   déclare pas sa durée ; une estimation individuelle donnerait à un chiffre
+   arbitraire l'apparence d'un calcul.
+2. *L'achèvement se lit sur le snapshot.* Une note figée a livré et sort de la
+   file. C'est le seul signal disponible sans ouvrir le corps de la fiche —
+   c'est aussi le plus fragile : une production rendue sans geste de gel
+   resterait proposée indéfiniment.
+3. *Un format hors des branches connues n'est pas un candidat.* Pas de famille
+   par défaut : arbitrer sur une nature qu'on n'a pas su déterminer reviendrait
+   à l'inventer.
+
+**Test de réfutation.** Dix boucles réelles couvrant au moins deux branches. Si
+les notes ne sont jamais retenues, ou le sont si souvent que les exercices
+disparaissent de la file, la pondération est fausse. Si le point 2 laisse des
+notes achevées tourner dans la file, il faut un état de clôture explicite — et
+c'est alors seulement que la persistance se justifiera.
+
 ---
 
 <a name="adr-065"></a>

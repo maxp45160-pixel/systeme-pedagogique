@@ -127,8 +127,23 @@ export function ModaleEdition({
       titre="Corriger cet exercice"
       sousTitre="L'énoncé, les indices, la correction et le calibrage. Les compétences visées ne changent pas ici."
       onFermer={onFermer}
+      pied={
+        <>
+          <Bouton variante="secondaire" onClick={onFermer} disabled={enCours}>
+            Annuler
+          </Bouton>
+          <Bouton
+            variante="principal"
+            onClick={soumettre}
+            disabled={refusLocal !== null}
+            enChargement={enCours}
+          >
+            Enregistrer les corrections
+          </Bouton>
+        </>
+      }
     >
-      <div className="mt-4 space-y-4">
+      <div className="space-y-4">
         {/*
           Annoncé avant le clic, pas après (ADR-027 appliqué à l'exercice) :
           modifier un exercice qui a déjà servi est un geste différent de
@@ -273,19 +288,6 @@ export function ModaleEdition({
           </BandeauInfo>
         )}
 
-        <div className="flex flex-wrap justify-end gap-2 border-t border-bordure pt-3">
-          <Bouton variante="secondaire" onClick={onFermer} disabled={enCours}>
-            Annuler
-          </Bouton>
-          <Bouton
-            variante="principal"
-            onClick={soumettre}
-            disabled={refusLocal !== null}
-            enChargement={enCours}
-          >
-            Enregistrer les corrections
-          </Bouton>
-        </div>
       </div>
     </Modale>
   );

@@ -19,7 +19,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ajouter, ajouterPlusieurs, dorsaleCompte, lire, modifier, nouvelId } from "./db";
 import { verifier } from "./supabase-backend";
-import { capturerDocumentProduction } from "./documents";
+import { capturerDocumentProduction, inscrireFicheExercice } from "./documents";
 import { lireReferentiel } from "./referentiel";
 import {
   motifRefusExercice,
@@ -38,6 +38,7 @@ import {
   type AideExterne,
 } from "@/lib/engine/preuve";
 import { construireDocumentProductionPreuve } from "@/lib/documents/production";
+import { ajouterPassageFiche, construireFicheExercice } from "@/lib/documents/fiche-exercice";
 import { tentativeMenee } from "@/lib/engine/calibration";
 import type {
   Difficulte,
@@ -279,6 +280,14 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
   const provenanceDocument = await capturerDocumentProduction(
     production,
     `preuve issue de la tentative ${tentative.id}`,
+  );
+
+  // La fiche de l'exercice, elle, reste éditoriale : une par exercice, enrichie
+  // d'une ligne à chaque passage. Elle prend dans l'arbre la place que tenait
+  // la projection en lecture seule, et se laisse annoter.
+  await inscrireFicheExercice(
+    construireFicheExercice(exercice, tentative, date),
+    (contenuMd) => ajouterPassageFiche(contenuMd, tentative),
   );
 
   // Une preuve par compétence ciblée. Les compétences secondaires sont

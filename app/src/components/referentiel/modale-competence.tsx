@@ -184,7 +184,7 @@ export function ModaleCompetence({
     >
       <>
         {phase === "suggestion" && (
-          <div className="mt-8 flex flex-col items-center justify-center py-10 text-center">
+          <div className="flex flex-col items-center justify-center py-10 text-center">
             <PointActif />
             <p className="mt-3 text-sm text-texte-attenue">
               {progression ?? "Le tuteur prend connaissance de ce qui a été mesuré…"}
@@ -204,7 +204,7 @@ export function ModaleCompetence({
         )}
 
         {phase === "formulaire" && (
-          <div className="mt-4 space-y-4">
+          <div className="space-y-4">
             {!venuDuTuteur && (
               <div>
                 <label

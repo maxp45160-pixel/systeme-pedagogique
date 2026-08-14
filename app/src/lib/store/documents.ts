@@ -140,11 +140,20 @@ export async function lireDocument(id: string): Promise<LigneDocument> {
 }
 
 /**
- * Supprime une fiche de support encore éditoriale.
+ * Supprime une note qui n'a encore rien démontré.
  *
- * Une fiche ayant produit un snapshot reste conservée : le snapshot porte une
- * observation historique et la FK documentaire la protège déjà contre une
- * suppression silencieuse.
+ * La règle n'est pas le rôle, c'est la preuve. Une fiche ayant produit un
+ * snapshot reste conservée : le snapshot porte une observation historique et la
+ * FK documentaire la protège déjà contre une suppression silencieuse. Tant
+ * qu'aucun snapshot n'existe, la fiche n'est qu'une intention déclarée — et une
+ * intention se retire.
+ *
+ * Restreindre la suppression au seul rôle `support` enfermait la personne avec
+ * ses brouillons : une note opérationnelle ouverte par erreur ne pouvait plus
+ * disparaître, alors qu'elle n'avait produit aucune mesure. Le rôle décrit une
+ * intention, il ne protège rien (ADR-064) ; c'est la preuve qui protège.
+ *
+ * Une projection n'est pas concernée : elle n'existe pas en base.
  */
 export async function supprimerDocument(id: string): Promise<void> {
   const { supabase, userId } = await dorsaleCompte();
@@ -159,8 +168,8 @@ export async function supprimerDocument(id: string): Promise<void> {
   if (!document) throw new Error("Document introuvable.");
 
   const frontMatter = frontMatterDepuisLigne(document as Record<string, unknown>);
-  if (frontMatter.role !== "support") {
-    throw new Error("Seules les notes de support peuvent être supprimées depuis l'Atelier.");
+  if (frontMatter.role !== "support" && frontMatter.role !== "operationnel") {
+    throw new Error("Seules les notes capturées peuvent être supprimées depuis l'Atelier.");
   }
 
   const { data: snapshots, error: snapshotsErreur } = await supabase
@@ -181,7 +190,7 @@ export async function supprimerDocument(id: string): Promise<void> {
     .delete()
     .eq("user_id", userId)
     .eq("id", identifiant);
-  verifier("suppression de la note de support", error);
+  verifier("suppression de la note", error);
   revalidatePath("/atelier");
   revalidatePath("/");
 }
@@ -423,4 +432,46 @@ export async function capturerDocumentProduction(
   await creerDocument(production.id, production.contenuMd, dorsale);
   const snapshot = await creerSnapshotDocument(production.id, captureReason, dorsale);
   return { documentId: production.id, snapshotId: snapshot.id };
+}
+
+/**
+ * Crée la fiche d'un exercice, ou y ajoute le passage qui vient d'avoir lieu.
+ *
+ * Le corps existant n'est jamais régénéré : `enrichir` reçoit ce qui est en
+ * base et n'y ajoute que sa ligne. Reconstruire la fiche à chaque passage
+ * effacerait les remarques écrites entre deux.
+ *
+ * Aucun snapshot n'est pris : la fiche est éditoriale. Ce qui doit être figé
+ * l'est déjà par `capturerDocumentProduction`, sur le document de preuve.
+ *
+ * L'échec n'est pas propagé. Cette écriture accompagne la fin d'un exercice ;
+ * la preuve et la mesure, elles, sont déjà enregistrées. Faire échouer la
+ * clôture parce qu'une fiche documentaire n'a pas pu s'écrire ferait perdre à
+ * la personne un travail réellement accompli.
+ */
+export async function inscrireFicheExercice(
+  fiche: { id: string; contenuMd: string },
+  enrichir: (contenuMd: string) => string,
+): Promise<void> {
+  try {
+    const dorsale = await dorsaleCompte();
+    const { data, error } = await dorsale.supabase
+      .from(TABLE_DOCUMENTS)
+      .select("contenu_md")
+      .eq("user_id", dorsale.userId)
+      .eq("id", verifierIdentifiant(fiche.id))
+      .maybeSingle();
+    verifier("lecture de la fiche d'exercice", error);
+
+    if (!data) {
+      await creerDocument(fiche.id, fiche.contenuMd, dorsale);
+      return;
+    }
+
+    const existant = (data as { contenu_md: string }).contenu_md;
+    const suivant = enrichir(existant);
+    if (suivant !== existant) await modifierDocument(fiche.id, suivant);
+  } catch (cause) {
+    console.error("Fiche d'exercice non inscrite", cause);
+  }
 }

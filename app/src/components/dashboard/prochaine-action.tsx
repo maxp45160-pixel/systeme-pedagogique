@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Recommandation } from "@/lib/engine/recommend";
 import { DIFFICULTES, LIBELLES_DIMENSIONS, type Referentiel } from "@/lib/domain/types";
 import { libelleDomaine } from "@/lib/domain/referentiel-compte";
+import { idDocumentDepuisActivite } from "@/lib/domain/adaptive-learning";
 import { prochaineRevision } from "@/lib/engine/spaced";
 import {
   Carte,
@@ -137,6 +138,13 @@ function lienActivite(action: RecommendedLearningAction, instant?: ContexteInsta
   if (action.activityId?.startsWith(prefixe)) {
     return `/exercices/${encodeURIComponent(action.activityId.slice(prefixe.length))}`;
   }
+  /*
+   * Une note opérationnelle mène à son propre espace de travail. Le mode de
+   * travail n'est pas transmis : cet écran ne le lit pas, et un paramètre
+   * inutilisé dans une URL partageable laisse croire qu'il fait quelque chose.
+   */
+  const noteId = action.activityId ? idDocumentDepuisActivite(action.activityId) : null;
+  if (noteId) return `/atelier?note=${encodeURIComponent(noteId)}`;
   // Le contexte d'instant voyage avec le lien : c'est lui qui a fixé la durée
   // et la taille de segment du contrat, et l'écran suivant doit pouvoir le
   // reconstruire à l'identique — rien n'ayant été enregistré.
@@ -223,8 +231,8 @@ export function CarteProchaineAction({
       <Carte accent>
         <EtatVide
           titre="Aucune action à recommander pour l'instant"
-          message="Soit tout a déjà été proposé récemment et écarté, soit chaque compétence active a épuisé ses exercices. Compose une séance personnalisée, ou reviens plus tard."
-          action={actionPrincipale ?? <Link href="/seances" className={classesLienBouton("secondaire")}>Composer une séance</Link>}
+          message="Soit tout a déjà été proposé récemment et écarté, soit chaque compétence active a épuisé ses exercices. Capture une note opérationnelle pour engager un travail, ou reviens plus tard."
+          action={actionPrincipale ?? <Link href="/seances" className={classesLienBouton("secondaire")}>Ouvrir le cahier</Link>}
         />
         {/*
           Le contrôle reste accessible ici : quand rien ne tient dans le temps
@@ -461,11 +469,17 @@ function CarteActionActivite({
   facteursInstant: readonly RecommendationFactor[];
   reservesInstant: readonly string[];
 }) {
+  const estNote = Boolean(action.activityId && idDocumentDepuisActivite(action.activityId));
   const libelle = action.source === "reprise"
     ? "Reprendre"
     : action.source === "generation"
       ? "Préparer le contenu"
-      : "Commencer";
+      : estNote
+        // Une note opérationnelle a déjà été ouverte : on la reprend, on ne la
+        // commence pas. Dire « Commencer » ferait douter d'avoir perdu son
+        // travail.
+        ? "Reprendre ce travail"
+        : "Commencer";
 
   return (
     <Carte accent className="relative overflow-hidden">
@@ -477,7 +491,7 @@ function CarteActionActivite({
       <div
         className="relative px-5 py-4 sm:px-6"
         data-testid="prochaine-action"
-        data-nature="activite"
+        data-nature={estNote ? "note" : "activite"}
         data-family={action.family}
       >
         <div className="flex items-center gap-2">

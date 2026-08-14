@@ -21,11 +21,36 @@ import {
   type EvidenceStatusEvent,
 } from "@/lib/domain/adaptive-learning";
 import type { SkillEvidence } from "@/lib/domain/types";
+import { adaptNotesOperationnelles } from "@/lib/domain/note-activity-adapter";
+import { lireApercusDocuments, lireApercusSnapshots } from "./documents";
 import {
   choisirActionUnifiee,
   type ActionUnifiee,
   type ContexteInstant,
 } from "@/lib/engine/action-unifiee";
+
+/**
+ * Les notes opérationnelles ouvertes, vues comme des candidats.
+ *
+ * Chargées ici et non dans `chargerContexte` : seul le tableau de bord arbitre
+ * une action, alors que le contexte sert toutes les pages. Élargir le contexte
+ * ferait payer ces deux lectures à des écrans qui n'en font rien — et ADR-064
+ * demande justement que le chargement documentaire ne dégrade pas le chemin
+ * chaud des recommandations.
+ *
+ * Les deux lectures ne portent que des métadonnées : ni corps de fiche, ni
+ * contenu de snapshot.
+ */
+async function candidatsNotes(ctx: Contexte): Promise<LearningActivity[]> {
+  const [apercus, snapshots] = await Promise.all([
+    lireApercusDocuments(),
+    lireApercusSnapshots(),
+  ]);
+  return adaptNotesOperationnelles(ctx.donnees.user.id, apercus, {
+    codesActifs: ctx.referentiel.codesActifs,
+    documentsFiges: new Set(snapshots.map(({ documentId }) => documentId)),
+  });
+}
 
 const OUTILS_DISPONIBLES = [
   "annotations", "ressources", "indices", "tuteur", "editeur-markdown",
@@ -282,6 +307,15 @@ export async function chargerActionProposee(
     !ctx.refus.exercices.has(activity.id.replace(/^legacy-exercise:/, ""))
     && !activity.target.skillCodes.some((code) => ctx.refus.codes.has(code)),
   );
+  /*
+   * Les notes entrent dans les deux modes.
+   *
+   * En production le mode est `legacy` : réserver ce branchement au mode
+   * adaptatif rendrait le chantier invisible là où il doit servir. Le moteur
+   * d'action est pur et reçoit ses candidats en paramètre — il n'a besoin
+   * d'aucune table pour les arbitrer.
+   */
+  const activitesNotes = await candidatsNotes(ctx);
   const commun = {
     accountId: ctx.donnees.user.id,
     instant,
@@ -294,7 +328,7 @@ export async function chargerActionProposee(
   if (ctx.donnees.user.learningLoopMode !== "adaptive-v1") {
     return choisirActionUnifiee({
       ...commun,
-      activities: activitesLegacy,
+      activities: [...activitesLegacy, ...activitesNotes],
       openRuns: ctx.adaptiveLegacy.openRuns,
       preferences: confirmedPreferences(ctx, declaredAt),
     });
@@ -310,7 +344,7 @@ export async function chargerActionProposee(
   };
   return choisirActionUnifiee({
     ...commun,
-    activities: [...activitesLegacy, ...stored.activities],
+    activities: [...activitesLegacy, ...activitesNotes, ...stored.activities],
     openRuns: [
       ...ctx.adaptiveLegacy.openRuns,
       ...stored.runs.filter((run) => run.status === "en-cours" || run.status === "en-pause"),

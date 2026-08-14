@@ -44,7 +44,7 @@ import {
   REGLAGES_PAR_DEFAUT,
   type ReglagesGraphe,
 } from "./reglages-graphe";
-import { couleurDomaine } from "@/lib/ui/couleurs-domaines";
+import { couleurDomaine, indexerDomaines } from "@/lib/ui/couleurs-domaines";
 
 export function GrapheCompetences({
   donnees,
@@ -183,12 +183,11 @@ export function GrapheCompetences({
   const noeudsAAfficher = noeudsVisibles;
 
   const contexteCouleur: ContexteCouleur = useMemo(() => {
-    const domaines = [...new Set(donnees.noeuds.map((n) => n.domaineId).filter(Boolean))].sort() as string[];
-    const indexDomaine = new Map(domaines.map((d, i) => [d, i]));
+    const { indexDomaine, totalDomaines } = indexerDomaines(donnees.noeuds.map((n) => n.domaineId));
     const competencesCouvertes = new Set(
       donnees.liens.filter((l) => l.type === "exercice").flatMap((l) => [l.source, l.target]),
     );
-    return { indexDomaine, totalDomaines: domaines.length, competencesCouvertes };
+    return { indexDomaine, totalDomaines, competencesCouvertes };
   }, [donnees.noeuds, donnees.liens]);
 
   /* ------------------------------------------------------------------ */

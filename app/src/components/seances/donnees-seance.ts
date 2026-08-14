@@ -1,0 +1,36 @@
+import "server-only";
+
+import { chargerContexte } from "@/lib/store/context";
+import { chargerThemes } from "@/lib/store/themes";
+import { calibragesPourModale } from "@/components/exercices/proprietes-generation";
+import type { DonneesSeance } from "./concepteur-seance";
+
+/**
+ * Les données du concepteur de séance, assemblées une seule fois.
+ *
+ * Le même bloc était recopié à l'identique par le tableau de bord et par le hub
+ * du cahier, et l'espace de travail d'une note de séance en aurait fait une
+ * troisième copie. Onze champs recopiés à la main dérivent : il suffit qu'un
+ * appelant oublie `contexteDocumentaire` pour que le concepteur compose sans le
+ * contexte documentaire, silencieusement.
+ *
+ * Rien n'est calculé ici : `chargerContexte` a déjà dérivé états, calibrages et
+ * classement. Cette fonction ne fait que sérialiser pour le client. Elle ne
+ * coûte pas un second chargement — `chargerContexte` est mémorisé par requête.
+ */
+export async function chargerDonneesSeance(): Promise<DonneesSeance> {
+  const [ctx, themes] = await Promise.all([chargerContexte(), chargerThemes()]);
+  return {
+    etats: ctx.etats,
+    actifs: ctx.referentiel.actifs,
+    exercices: ctx.donnees.exercises,
+    tentatives: ctx.donnees.attempts,
+    calibrations: Array.from(ctx.calibrations.entries()),
+    calibragesModale: calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations),
+    recommandations: ctx.recommandations,
+    contexteDocumentaire: Array.from(ctx.contexteDocumentaire.entries()),
+    domaines: ctx.referentiel.domaines.map((d) => ({ id: d.id, nom: d.nom, prefixe: d.prefixe })),
+    themes,
+    compteId: ctx.donnees.user.id,
+  };
+}

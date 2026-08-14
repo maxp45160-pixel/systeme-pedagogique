@@ -225,7 +225,7 @@ export function BoutonCreerReferentiel({
       >
         <>
           {etat.phase === "saisie" && (
-            <div className="mt-4 space-y-3">
+            <div className="space-y-3">
               {etat.message && (
                 <BandeauInfo ton="danger" taille="compacte">
                   <p className="text-danger">{etat.message}</p>
@@ -273,7 +273,7 @@ export function BoutonCreerReferentiel({
           )}
 
           {relecture && (
-            <div className="mt-4 space-y-4">
+            <div className="space-y-4">
               <div className="rounded-md border border-bordure-controle bg-surface-2 px-3 py-2.5">
                 <p className="text-xs text-texte-attenue">{relecture.resume}</p>
                 {/* Une liste tronquée en silence se lirait comme complète (ADR-036). */}

@@ -234,7 +234,7 @@ export function ModaleRevision({
     >
       <>
         {(etat.phase === "saisie" || etat.phase === "erreur") && (
-          <div className="mt-4 space-y-3">
+          <div className="space-y-3">
             {etat.phase === "erreur" && (
               <BandeauInfo ton="danger" taille="compacte">
                 <p className="text-danger">{etat.message}</p>
@@ -297,7 +297,7 @@ export function ModaleRevision({
         )}
 
         {p && compte && (
-          <div className="mt-4 space-y-4">
+          <div className="space-y-4">
             <div className="rounded-md border border-bordure-controle bg-surface-2 px-3 py-2.5">
               <p className="text-[0.625rem] font-semibold uppercase tracking-wide text-texte-discret">
                 Ce que le tuteur propose

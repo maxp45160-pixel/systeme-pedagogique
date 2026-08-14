@@ -26,7 +26,7 @@
  *     défaut (ADR-034, P2). La modale affiche alors ce qui cloche.
  */
 
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { BandeauInfo, Bouton, Etiquette } from "@/components/ui/primitives";
 import { Modale } from "@/components/ui/modale";
@@ -369,10 +369,65 @@ export function ModaleExercice({
   );
 
   return (
-    <EnveloppeGeneration presentation={presentation} onFermer={onFermer}>
+    <EnveloppeGeneration
+      presentation={presentation}
+      onFermer={onFermer}
+      largeur={phase === "previsualisation" ? "4xl" : "2xl"}
+      pied={
+        phase === "formulaire" && codesLot ? (
+          <>
+            <Bouton onClick={onFermer} variante="secondaire">
+              Annuler
+            </Bouton>
+            <Bouton onClick={() => void generer()} variante="principal">
+              Réessayer le lot
+            </Bouton>
+          </>
+        ) : phase === "formulaire" ? (
+          <>
+            <Bouton onClick={onFermer} variante="secondaire">
+              Annuler
+            </Bouton>
+            <Bouton onClick={() => void generer()} disabled={!competence} variante="principal">
+              Générer
+            </Bouton>
+          </>
+        ) : phase === "previsualisation" ? (
+          <>
+            {propositions.map((p, i) => !enregistrees.has(i) && (
+              <Fragment key={i}>
+                <Bouton
+                  onClick={() => {
+                    setModificationIndex(i);
+                    setConsigneModification("");
+                  }}
+                  variante="secondaire"
+                  disabled={enEcriture !== null || modificationIndex === i}
+                  aria-label={`Modifier la proposition ${i + 1}`}
+                >
+                  Modifier
+                </Bouton>
+                <Bouton
+                  onClick={() => void enregistrer(p, i)}
+                  variante="principal"
+                  disabled={enEcriture !== null}
+                  enChargement={enEcriture === i}
+                  aria-label={`Accepter la proposition ${i + 1}`}
+                >
+                  Accepter
+                </Bouton>
+              </Fragment>
+            ))}
+            <Bouton onClick={onFermer} variante="secondaire">
+              Fermer
+            </Bouton>
+          </>
+        ) : undefined
+      }
+    >
       <>
         {phase === "formulaire" && codesLot && (
-          <div className="mt-4 space-y-4">
+          <div className={presentation === "inline" ? "mt-4 space-y-4" : "space-y-4"}>
             <p className="text-xs text-texte-attenue">
               Génération du lot interrompue avant qu&apos;un exercice n&apos;ait été rendu — rien
               n&apos;a été enregistré.
@@ -391,19 +446,11 @@ export function ModaleExercice({
               </BandeauInfo>
             )}
 
-            <div className="flex justify-end gap-2 border-t border-bordure pt-3">
-              <Bouton onClick={onFermer} variante="secondaire">
-                Annuler
-              </Bouton>
-              <Bouton onClick={() => void generer()} variante="principal">
-                Réessayer le lot
-              </Bouton>
-            </div>
           </div>
         )}
 
         {phase === "formulaire" && !codesLot && (
-          <div className="mt-4 space-y-4">
+          <div className={presentation === "inline" ? "mt-4 space-y-4" : "space-y-4"}>
             <ChampSelect
               id="modale-competence"
               label="Compétence ciblée"
@@ -503,29 +550,23 @@ export function ModaleExercice({
               </BandeauInfo>
             )}
 
-            <div className="flex justify-end gap-2 border-t border-bordure pt-3">
-              <Bouton onClick={onFermer} variante="secondaire">
-                Annuler
-              </Bouton>
-              <Bouton onClick={() => void generer()} disabled={!competence} variante="principal">
-                Générer
-              </Bouton>
-            </div>
           </div>
         )}
 
         {phase === "generation" && (
-          <ChargementGenerationExercice
-            progressionServeur={progression}
-            onArrêter={() => {
-              abandonRef.current?.abort();
-              setPhase(modificationIndex !== null ? "previsualisation" : "formulaire");
-            }}
-          />
+          <div className={presentation === "inline" ? "mt-4" : undefined}>
+            <ChargementGenerationExercice
+              progressionServeur={progression}
+              onArrêter={() => {
+                abandonRef.current?.abort();
+                setPhase(modificationIndex !== null ? "previsualisation" : "formulaire");
+              }}
+            />
+          </div>
         )}
 
         {phase === "previsualisation" && (
-          <div className="mt-4 space-y-4">
+          <div className={presentation === "inline" ? "mt-4 space-y-4" : "space-y-4"}>
             {propositions.length === 0 ? (
               <BandeauInfo ton="alerte" taille="compacte">
                 <p className="text-alerte">
@@ -561,136 +602,112 @@ export function ModaleExercice({
                     </div>
                   </div>
 
-                  {/* Corps : énoncé en markdown, indices et correction repliés */}
-                  <div className="px-3 py-2.5">
-                    <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
-                      Énoncé
-                    </p>
-                    <div className="prose-exo mt-1 text-xs">
-                      <Markdown contenu={p.enonce} />
-                    </div>
+                  <div className="grid gap-4 px-3 py-3 lg:grid-cols-[minmax(0,1.25fr)_minmax(15rem,0.75fr)]">
+                    <section aria-labelledby={`enonce-${i}`} className="min-w-0">
+                      <p id={`enonce-${i}`} className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
+                        Énoncé
+                      </p>
+                      <div className="prose-exo mt-1 text-xs">
+                        <Markdown contenu={p.enonce} />
+                      </div>
+                    </section>
 
-                    {p.indices.length > 0 && (
-                      <details className="mt-2.5">
-                        <summary className="cursor-pointer text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret hover:text-texte">
-                          Indices ({p.indices.length})
-                        </summary>
-                        <ul className="mt-1.5 space-y-1 text-xs text-texte-attenue">
-                          {p.indices.map((ind, j) => (
-                            <li key={j} className="flex items-start gap-1.5">
-                              <span className="mt-0.5 text-texte-discret">{j + 1}.</span>
-                              <span>{ind}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </details>
-                    )}
+                    <aside className="min-w-0 space-y-3 border-t border-bordure pt-3 lg:border-l lg:border-t-0 lg:pl-4 lg:pt-0">
+                      {p.indices.length > 0 && (
+                        <section aria-labelledby={`indices-${i}`}>
+                          <p id={`indices-${i}`} className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
+                            Indices ({p.indices.length})
+                          </p>
+                          <ul className="mt-1.5 space-y-1 text-xs text-texte-attenue">
+                            {p.indices.map((ind, j) => (
+                              <li key={j} className="flex items-start gap-1.5">
+                                <span className="mt-0.5 text-texte-discret">{j + 1}.</span>
+                                <span>{ind}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </section>
+                      )}
 
-                    {p.correction && (
-                      <details className="mt-2.5">
-                        <summary className="cursor-pointer text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret hover:text-texte">
-                          Correction
-                        </summary>
-                        <div className="prose-exo mt-1.5 text-xs">
-                          <Markdown contenu={p.correction} />
+                      {p.correction && (
+                        <section aria-labelledby={`correction-${i}`}>
+                          <p id={`correction-${i}`} className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
+                            Correction
+                          </p>
+                          <div className="prose-exo mt-1.5 text-xs">
+                            <Markdown contenu={p.correction} />
+                          </div>
+                        </section>
+                      )}
+
+                      {p.criteres.length > 0 && (
+                        <section aria-labelledby={`criteres-${i}`}>
+                          <p id={`criteres-${i}`} className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
+                            Critères d&apos;évaluation
+                          </p>
+                          <ul className="mt-1 space-y-0.5 text-xs text-texte-attenue">
+                            {p.criteres.map((c, j) => (
+                              <li key={j} className="flex items-start gap-1.5">
+                                <span
+                                  className={`mt-0.5 size-3 shrink-0 rounded-sm border ${
+                                    enregistrees.has(i)
+                                      ? "border-succes/40 bg-succes-faible"
+                                      : "border-bordure"
+                                  }`}
+                                  aria-hidden
+                                />
+                                <span>
+                                  <span className="font-medium">
+                                    {LIBELLES_DIMENSIONS[c.dimension as Dimension] ?? c.dimension}
+                                  </span>{" "}
+                                  — {c.libelle}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </section>
+                      )}
+                    </aside>
+
+                    {modificationIndex === i && !enregistrees.has(i) && (
+                      <div className="rounded-md border border-primaire/20 bg-primaire-faible/50 p-3 lg:col-span-2">
+                        <Champ
+                          label="Que veux-tu modifier ?"
+                          multiligne
+                          rows={3}
+                          value={consigneModification}
+                          onChange={(e) => setConsigneModification(e.target.value)}
+                          placeholder="Ex. Rends l’énoncé plus concret, retire l’ambiguïté du deuxième critère…"
+                          aide="Le tuteur révise cette proposition. Rien n’est enregistré tant que tu ne l’acceptes pas."
+                          autoFocus
+                        />
+                        <div className="mt-3 flex flex-wrap justify-end gap-2">
+                          <Bouton
+                            onClick={() => {
+                              setModificationIndex(null);
+                              setConsigneModification("");
+                            }}
+                            variante="secondaire"
+                            taille="petite"
+                          >
+                            Annuler
+                          </Bouton>
+                          <Bouton
+                            onClick={() => void generer({
+                              proposition: p,
+                              index: i,
+                              consigne: consigneModification.trim(),
+                            })}
+                            variante="principal"
+                            taille="petite"
+                            disabled={!consigneModification.trim()}
+                          >
+                            Appliquer avec l’IA
+                          </Bouton>
                         </div>
-                      </details>
-                    )}
-
-                    {p.criteres.length > 0 && (
-                      <div className="mt-2.5">
-                        <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
-                          Critères d&apos;évaluation
-                        </p>
-                        <ul className="mt-1 space-y-0.5 text-xs text-texte-attenue">
-                          {p.criteres.map((c, j) => (
-                            <li key={j} className="flex items-start gap-1.5">
-                              <span
-                                className={`mt-0.5 size-3 shrink-0 rounded-sm border ${
-                                  enregistrees.has(i)
-                                    ? "border-succes/40 bg-succes-faible"
-                                    : "border-bordure"
-                                }`}
-                                aria-hidden
-                              />
-                              <span>
-                                <span className="font-medium">
-                                  {LIBELLES_DIMENSIONS[c.dimension as Dimension] ?? c.dimension}
-                                </span>{" "}
-                                — {c.libelle}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
                       </div>
                     )}
                   </div>
-
-                  {/* Pied : deux décisions — accepter ou demander une modification. */}
-                  {!enregistrees.has(i) && (
-                    <div className="border-t border-bordure bg-surface px-3 py-3">
-                      {modificationIndex === i && (
-                        <div className="mb-3 rounded-md border border-primaire/20 bg-primaire-faible/50 p-3">
-                          <Champ
-                            label="Que veux-tu modifier ?"
-                            multiligne
-                            rows={3}
-                            value={consigneModification}
-                            onChange={(e) => setConsigneModification(e.target.value)}
-                            placeholder="Ex. Rends l’énoncé plus concret, retire l’ambiguïté du deuxième critère…"
-                            aide="Le tuteur révise cette proposition. Rien n’est enregistré tant que tu ne l’acceptes pas."
-                            autoFocus
-                          />
-                          <div className="mt-3 flex flex-wrap justify-end gap-2">
-                            <Bouton
-                              onClick={() => {
-                                setModificationIndex(null);
-                                setConsigneModification("");
-                              }}
-                              variante="secondaire"
-                              taille="petite"
-                            >
-                              Annuler
-                            </Bouton>
-                            <Bouton
-                              onClick={() => void generer({
-                                proposition: p,
-                                index: i,
-                                consigne: consigneModification.trim(),
-                              })}
-                              variante="principal"
-                              taille="petite"
-                              disabled={!consigneModification.trim()}
-                            >
-                              Appliquer avec l’IA
-                            </Bouton>
-                          </div>
-                        </div>
-                      )}
-                      <div className="flex justify-end gap-2">
-                        <Bouton
-                          onClick={() => {
-                            setModificationIndex(i);
-                            setConsigneModification("");
-                          }}
-                          variante="secondaire"
-                          taille="petite"
-                          disabled={enEcriture !== null || modificationIndex === i}
-                        >
-                          Modifier
-                        </Bouton>
-                        <Bouton
-                          onClick={() => void enregistrer(p, i)}
-                          variante="principal"
-                          taille="petite"
-                          disabled={enEcriture !== null}
-                          enChargement={enEcriture === i}
-                        >
-                          Accepter
-                        </Bouton>
-                      </div>
-                    </div>
-                  )}
                 </div>
               ))
             )}
@@ -699,11 +716,6 @@ export function ModaleExercice({
                 <p className="text-danger">{erreur}</p>
               </BandeauInfo>
             )}
-            <div className="flex justify-end gap-2 border-t border-bordure pt-3">
-              <Bouton onClick={onFermer} variante="principal">
-                Fermer
-              </Bouton>
-            </div>
           </div>
         )}
       </>
@@ -729,17 +741,21 @@ const SOUS_TITRE_GENERATION =
 function EnveloppeGeneration({
   presentation,
   onFermer,
+  largeur,
+  pied,
   children,
 }: {
   presentation: "modale" | "inline";
   onFermer: () => void;
+  largeur: "2xl" | "4xl";
+  pied?: ReactNode;
   children: ReactNode;
 }) {
   const idTitre = useId();
 
   if (presentation === "modale") {
     return (
-      <Modale titre={TITRE_GENERATION} sousTitre={SOUS_TITRE_GENERATION} onFermer={onFermer}>
+      <Modale titre={TITRE_GENERATION} sousTitre={SOUS_TITRE_GENERATION} onFermer={onFermer} largeur={largeur} pied={pied}>
         {children}
       </Modale>
     );
@@ -767,6 +783,11 @@ function EnveloppeGeneration({
         </button>
       </div>
       {children}
+      {pied && (
+        <div className="mt-4 flex flex-wrap justify-end gap-2 border-t border-bordure pt-3">
+          {pied}
+        </div>
+      )}
     </section>
   );
 }
@@ -820,7 +841,7 @@ function ChargementGenerationExercice({
   const texteCourant = progressionServeur ?? ETAPES_GENERATION[etapeIndex];
 
   return (
-    <div className="mt-4 flex flex-col items-center justify-center rounded-xl border border-bordure bg-surface/50 p-6 text-center shadow-[var(--ombre-posee)]">
+    <div className="flex flex-col items-center justify-center rounded-xl border border-bordure bg-surface/50 p-6 text-center shadow-[var(--ombre-posee)]">
       {/* Une seule indication visuelle : Barre de progression unique avec % et étape */}
       <div className="w-full max-w-md space-y-2.5">
         <div className="flex items-center justify-between text-xs font-medium text-texte-attenue">

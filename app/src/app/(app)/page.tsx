@@ -2,7 +2,6 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { chargerContexte } from "@/lib/store/context";
-import { chargerThemes } from "@/lib/store/themes";
 import { formatDuree } from "@/lib/engine/dates";
 import { SqueletteContenu } from "@/components/layout/squelette";
 import { calculerActivite, evenementsRecents } from "@/lib/engine/historique";
@@ -17,10 +16,6 @@ import { CarteActivite } from "@/components/dashboard/activite";
 import { CarteProfil } from "@/components/dashboard/carte-profil";
 import { CaptureNotes } from "@/components/dashboard/capture-notes";
 import { PilotageReferentiel } from "@/components/dashboard/pilotage-referentiel";
-import {
-  ConcepteurSeance,
-  type DonneesSeance,
-} from "@/components/seances/concepteur-seance";
 import { Depliant } from "@/components/ui/explication";
 import { Glossaire } from "@/components/ui/glossaire";
 import { BandeauInfo, Bouton, Carte, classesLienBouton, Etiquette, TitreSection } from "@/components/ui/primitives";
@@ -102,8 +97,7 @@ async function ContenuTableauDeBord({ instant }: { instant: ContexteInstant }) {
     Les travaux ouverts d'une autre famille rejoignent le bandeau « en cours »
     plus bas, au lieu d'un second bandeau qui dirait la même chose ailleurs.
   */
-  const [themes, action, travauxOuverts] = await Promise.all([
-    chargerThemes(),
+  const [action, travauxOuverts] = await Promise.all([
     chargerActionProposee(ctx, instant),
     ctx.donnees.user.learningLoopMode === "adaptive-v1"
       ? loadAdaptiveOpenRuns(ctx.donnees.user.id)
@@ -113,22 +107,6 @@ async function ContenuTableauDeBord({ instant }: { instant: ContexteInstant }) {
   const evenements = evenementsRecents(ctx.preuvesEffectives, ctx.referentiel.parCode, 6, ctx.now);
   const activite = calculerActivite(ctx.donnees.sessions, ctx.now, ctx.donnees.attempts);
   const aucunePreuve = ctx.global.nombrePreuves === 0;
-
-  // Mêmes données que `/seances` (lot 3) : le concepteur ne recopie aucune
-  // logique, il lit ce que le lot 1 a déjà dérivé.
-  const donneesSeance: DonneesSeance = {
-    etats: ctx.etats,
-    actifs: ctx.referentiel.actifs,
-    exercices: ctx.donnees.exercises,
-    tentatives: ctx.donnees.attempts,
-    calibrations: Array.from(ctx.calibrations.entries()),
-    calibragesModale: calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations),
-    recommandations: ctx.recommandations,
-    contexteDocumentaire: Array.from(ctx.contexteDocumentaire.entries()),
-    domaines: ctx.referentiel.domaines.map((d) => ({ id: d.id, nom: d.nom, prefixe: d.prefixe })),
-    themes,
-    compteId: ctx.donnees.user.id,
-  };
 
   const seanceActive = ctx.donnees.sessions.find(
     (seance) => statutSeance(seance) === "en-cours",
@@ -258,7 +236,9 @@ async function ContenuTableauDeBord({ instant }: { instant: ContexteInstant }) {
             now={ctx.now}
             compteId={ctx.donnees.user.id}
             instant={instant}
-            activite={action?.kind === "activite" ? action.action : undefined}
+            activite={
+              action?.kind === "activite" || action?.kind === "note" ? action.action : undefined
+            }
             facteursInstant={action?.facteurs ?? []}
             reservesInstant={action?.reserves ?? []}
           />
@@ -270,18 +250,14 @@ async function ContenuTableauDeBord({ instant }: { instant: ContexteInstant }) {
         compteId={ctx.donnees.user.id}
       />
 
-      <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
-        <Carte id="composer-seance" className="scroll-mt-6">
-          <div className="flex h-full flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-6">
-            <div>
-              <p className="text-sm font-medium">Composer une séance</p>
-              <p className="mt-1 text-xs text-texte-attenue">
-                La recommandation ci-dessus est déjà le point de départ de la composition.
-              </p>
-            </div>
-            <ConcepteurSeance {...donneesSeance} libelle="Composer une séance" />
-          </div>
-        </Carte>
+      {/*
+        La composition n'a plus son entrée propre ici.
+        Une séance se déclenche en capturant une note opérationnelle « Séance
+        d'exercices » : l'espace de travail de cette note ouvre le concepteur.
+        Garder les deux chemins offrirait deux gestes pour une même intention,
+        dont un seul laisserait une trace dans l'Atelier.
+      */}
+      <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
         <CaptureNotes
           domaines={ctx.referentiel.domaines
             .filter((domaine) => !domaine.archive && ctx.referentiel.actifs.some((skill) => skill.domaine === domaine.id))

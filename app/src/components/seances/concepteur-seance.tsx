@@ -122,6 +122,27 @@ export interface DonneesSeance {
   libelle?: string;
   /** Le bouton occupe toute la largeur de son conteneur. */
   pleineLargeur?: boolean;
+  /**
+   * Ouvre la composition sans passer par le bouton.
+   *
+   * Sert à l'espace de travail d'une note « séance d'exercices » : capturer
+   * cette note EST la demande de composer. Faire cliquer une fois de plus
+   * ajouterait un geste sans rien décider.
+   */
+  ouvertParDefaut?: boolean;
+  /**
+   * Appelé après l'écriture de la séance, avant toute navigation.
+   *
+   * Sert à la note opérationnelle qui a déclenché la composition : elle y
+   * inscrit ses wikiliens vers les exercices retenus et les compétences visées.
+   * Une erreur ici n'annule pas la séance — elle est déjà écrite, et prétendre
+   * le contraire serait mentir sur l'état réel.
+   */
+  surSeanceCreee?: (seance: {
+    id: string;
+    activites: { type: string; ref: string; libelle: string }[];
+    codesVises: string[];
+  }) => Promise<void> | void;
 }
 
 type Phase = "besoin" | "composition";
@@ -141,9 +162,11 @@ export function ConcepteurSeance({
   preset,
   libelle = "Composer une séance",
   pleineLargeur = false,
+  surSeanceCreee,
+  ouvertParDefaut = false,
 }: DonneesSeance) {
   const router = useRouter();
-  const [ouvert, setOuvert] = useState(false);
+  const [ouvert, setOuvert] = useState(ouvertParDefaut);
   const [phase, setPhase] = useState<Phase>("besoin");
 
   const nomsDomaines = useMemo(
@@ -385,6 +408,7 @@ export function ConcepteurSeance({
       // échoue (une autre séance est déjà ouverte), `creerSeance` refuse AVANT
       // d'écrire — aucune séance planifiée orpheline n'est laissée derrière.
       const id = await creerSeance(entree, demarrer ? "en-cours" : "planifiee");
+      await surSeanceCreee?.({ id, activites: entree.activites, codesVises: besoin.codesVises });
       if (demarrer) {
         router.push(`/seances?session=${id}`);
       } else {
@@ -414,6 +438,56 @@ export function ConcepteurSeance({
           sousTitre="Un thème, un temps — le reste est dérivé et reste modifiable."
           onFermer={() => setOuvert(false)}
           largeur="2xl"
+          /*
+           * Les actions sont calculées ici plutôt que dans les étapes : le pied
+           * de la modale vit hors du défilement, et la composition est
+           * précisément l'écran assez long pour que « Démarrer la séance »
+           * finisse hors de vue. Les deux sorties anticipées de
+           * `EtapeComposition` sont reproduites à l'identique — sans quoi le
+           * pied proposerait de démarrer une séance qui n'existe pas.
+           */
+          pied={
+            phase === "besoin" ? (
+              <Bouton
+                type="button"
+                onClick={passerComposition}
+                variante="principal"
+                disabled={theme === null}
+                title={
+                  theme !== null
+                    ? undefined
+                    : "Choisis un thème dans la liste (ou décris-en un) avant de composer."
+                }
+              >
+                Voir la composition
+              </Bouton>
+            ) : !theme ? null : !composition ? (
+              <Bouton type="button" onClick={() => setPhase("besoin")} variante="secondaire">
+                Revenir au besoin
+              </Bouton>
+            ) : (
+              <div className="flex w-full items-center justify-between gap-2">
+                <Bouton type="button" onClick={() => setPhase("besoin")} variante="secondaire">
+                  Changer de thème
+                </Bouton>
+                <Bouton
+                  type="button"
+                  onClick={() => enregistrer(true)}
+                  enChargement={enregistrement}
+                  /*
+                   * Une séance sans AUCUN exercice retenu ne peut pas être
+                   * écrite : les places « à générer » ne deviennent des
+                   * activités qu'une fois créées ET relues dans la composition
+                   * (même règle que `motifRefusActivites` côté serveur).
+                   */
+                  disabled={composition.activites.length === 0}
+                  variante="principal"
+                >
+                  Démarrer la séance
+                </Bouton>
+              </div>
+            )
+          }
         >
           {phase === "besoin" ? (
             <EtapeBesoin
@@ -423,7 +497,6 @@ export function ConcepteurSeance({
               themesPersonnalises={themesPersonnalises}
               themesEnreg={themesEnreg}
               cleThemePerso={cleThemePerso}
-              themeChoisi={theme !== null}
               setCleThemePerso={setCleThemePerso}
               ouvrirModaleTheme={() => setModaleThemeOuverte(true)}
               onThemeRetire={(id) => {
@@ -440,7 +513,6 @@ export function ConcepteurSeance({
               intentionOuverte={intentionOuverte}
               setIntentionOuverte={setIntentionOuverte}
               erreur={erreur}
-              continuer={passerComposition}
             />
           ) : (
             <EtapeComposition
@@ -460,8 +532,6 @@ export function ConcepteurSeance({
               compteId={compteId}
               enregistrement={enregistrement}
               erreur={erreur}
-              retour={() => setPhase("besoin")}
-              demarrer={() => enregistrer(true)}
               planifier={() => enregistrer(false)}
             />
           )}
@@ -496,7 +566,6 @@ function EtapeBesoin({
   themesPersonnalises,
   themesEnreg,
   cleThemePerso,
-  themeChoisi,
   setCleThemePerso,
   ouvrirModaleTheme,
   onThemeRetire,
@@ -509,7 +578,6 @@ function EtapeBesoin({
   intentionOuverte,
   setIntentionOuverte,
   erreur,
-  continuer,
 }: {
   mode: "prochaine-action" | "personnalisee";
   setMode: (v: "prochaine-action" | "personnalisee") => void;
@@ -519,7 +587,6 @@ function EtapeBesoin({
   themesEnreg: ThemeSeance[];
   cleThemePerso: string;
   /** Un thème est effectivement sélectionné (vrai hors mode sans recommandation). */
-  themeChoisi: boolean;
   setCleThemePerso: (v: string) => void;
   ouvrirModaleTheme: () => void;
   onThemeRetire: (themeId: string) => void;
@@ -532,7 +599,6 @@ function EtapeBesoin({
   intentionOuverte: boolean;
   setIntentionOuverte: (v: boolean) => void;
   erreur: string | null;
-  continuer: () => void;
 }) {
   if (!themePrincipal && themesPersonnalises.length === 0) {
     return (
@@ -707,21 +773,6 @@ function EtapeBesoin({
         </p>
       )}
 
-      <div className="flex justify-end border-t border-bordure pt-3">
-        <Bouton
-          type="button"
-          onClick={continuer}
-          variante="principal"
-          disabled={!themeChoisi}
-          title={
-            themeChoisi
-              ? undefined
-              : "Choisis un thème dans la liste (ou décris-en un) avant de composer."
-          }
-        >
-          Voir la composition
-        </Bouton>
-      </div>
     </div>
   );
 }
@@ -900,8 +951,6 @@ function EtapeComposition({
   compteId,
   enregistrement,
   erreur,
-  retour,
-  demarrer,
   planifier,
 }: {
   composition: CompositionSeance | null;
@@ -917,8 +966,6 @@ function EtapeComposition({
   compteId: string;
   enregistrement: boolean;
   erreur: string | null;
-  retour: () => void;
-  demarrer: () => void;
   planifier: () => void;
 }) {
   if (!theme) return null;
@@ -929,7 +976,6 @@ function EtapeComposition({
         <p role="alert" className="text-xs text-danger">
           {refusDemande ?? "Cette composition est incohérente. Reviens au besoin et ajuste la durée."}
         </p>
-        <Bouton type="button" onClick={retour} variante="secondaire">Revenir au besoin</Bouton>
       </div>
     );
   }
@@ -1057,20 +1103,6 @@ function EtapeComposition({
         </p>
       )}
 
-      <div className="flex justify-between border-t border-bordure pt-3">
-        <Bouton type="button" onClick={retour} variante="secondaire">
-          Changer de thème
-        </Bouton>
-        <Bouton
-          type="button"
-          onClick={demarrer}
-          enChargement={enregistrement}
-          disabled={vide || sansExerciceDisponible}
-          variante="principal"
-        >
-          Démarrer la séance
-        </Bouton>
-      </div>
     </div>
   );
 }

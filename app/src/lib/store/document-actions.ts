@@ -1,6 +1,7 @@
 "use server";
 
 import { creerDepuisTemplate } from "@/lib/documents/markdown";
+import { formatAutorise, type RoleNote } from "@/lib/documents/roles-note";
 import {
   nomFichierMarkdown,
   validerDocumentMarkdown,
@@ -18,17 +19,10 @@ import {
   supprimerPieceJointe,
 } from "./document-attachments";
 
-export type RoleNote = "support" | "operationnel";
-
 export interface MetadonneesNote {
   contexte: string;
   domaine: string;
 }
-
-const FORMATS_NOTE: Record<RoleNote, ReadonlySet<string>> = {
-  support: new Set(["note", "reference", "article", "cours", "livre", "formule", "reflexion"]),
-  operationnel: new Set(["projet", "etude-de-cas", "redaction", "schema", "experimentation"]),
-};
 
 export async function creerDocumentAction(
   type: string,
@@ -53,7 +47,7 @@ export async function creerNoteAction(
   titre: string,
   metadonnees: MetadonneesNote,
 ): Promise<{ id: string; contenuMd: string }> {
-  if (!FORMATS_NOTE[role].has(type)) {
+  if (!formatAutorise(role, type)) {
     throw new Error("Ce format ne correspond pas au rôle de note choisi.");
   }
   const contexte = metadonnees.contexte.trim().replace(/\s+/g, " ");

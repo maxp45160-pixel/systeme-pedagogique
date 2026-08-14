@@ -202,7 +202,7 @@ export function ModaleTheme({
     >
       <>
         {(etat.phase === "saisie" || etat.phase === "erreur") && (
-          <div className="mt-4 space-y-3">
+          <div className="space-y-3">
             {etat.phase === "erreur" && (
               <BandeauInfo ton="danger" taille="compacte">
                 <p className="text-danger">{etat.message}</p>
@@ -231,7 +231,7 @@ export function ModaleTheme({
         )}
 
         {etat.phase === "resolution" && (
-          <div className="mt-8 flex flex-col items-center justify-center py-10 text-center">
+          <div className="flex flex-col items-center justify-center py-10 text-center">
             <PointActif />
             <p className="mt-3 text-sm text-texte-attenue">
               {etat.progression ?? "Le tuteur prend connaissance de ton intention…"}
@@ -251,7 +251,7 @@ export function ModaleTheme({
         )}
 
         {etat.phase === "aucune-correspondance" && (
-          <div className="mt-4 space-y-3">
+          <div className="space-y-3">
             <BandeauInfo ton="info" taille="compacte">
               <p>
                 Aucune compétence active ne correspond à <em>« {intention.trim()} »</em>.
@@ -280,7 +280,7 @@ export function ModaleTheme({
         )}
 
         {p && (
-          <div className="mt-4 space-y-4">
+          <div className="space-y-4">
             {erreurAction && (
               <BandeauInfo ton="danger" taille="compacte">
                 <p className="text-danger">{erreurAction}</p>

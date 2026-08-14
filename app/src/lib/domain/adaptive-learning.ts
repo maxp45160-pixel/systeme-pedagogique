@@ -3,6 +3,28 @@ import type { Autonomie, Dimension, QualitePreuve } from "./types";
 export const ACTIVITY_FAMILIES = ["explorer", "entrainer", "produire"] as const;
 export type ActivityFamily = (typeof ACTIVITY_FAMILIES)[number];
 
+/**
+ * Préfixe d'identifiant d'une note opérationnelle exposée comme activité.
+ *
+ * Il vit dans le contrat partagé, et non dans l'adaptateur, parce que les deux
+ * bouts en ont besoin : l'adaptateur pour le poser, le moteur d'arbitrage pour
+ * reconnaître la nature du candidat qu'il a retenu. Or ce module ne dépend de
+ * rien d'autre que des types du domaine — le moteur peut donc le lire sans
+ * tirer derrière lui la couche documentaire, à laquelle il n'a rien à savoir.
+ */
+export const PREFIXE_ACTIVITE_NOTE = "note:";
+
+export function idActiviteNote(documentId: string): string {
+  return `${PREFIXE_ACTIVITE_NOTE}${documentId}`;
+}
+
+/** Rend l'identifiant de la fiche, ou `null` si le candidat n'est pas une note. */
+export function idDocumentDepuisActivite(activityId: string): string | null {
+  return activityId.startsWith(PREFIXE_ACTIVITE_NOTE)
+    ? activityId.slice(PREFIXE_ACTIVITE_NOTE.length)
+    : null;
+}
+
 export const MENTAL_CAPACITIES = ["faible", "standard", "elevee"] as const;
 export type MentalCapacity = (typeof MENTAL_CAPACITIES)[number];
 

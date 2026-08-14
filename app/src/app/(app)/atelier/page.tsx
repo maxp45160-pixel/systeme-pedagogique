@@ -1,4 +1,6 @@
+import { notFound } from "next/navigation";
 import { EntetePage } from "@/components/layout/entete-page";
+import { WorkspaceNoteOperationnelle } from "@/components/atelier/workspace-note-operationnelle";
 import { EspaceDocumentaire, type ElementAtelier } from "@/components/atelier/espace-documentaire";
 import { definitionTypeDocument } from "@/lib/documents/types-documents";
 import { lireApercusDocuments, lireApercusSnapshots, lireDocument } from "@/lib/store/documents";
@@ -12,6 +14,8 @@ import { construireVuesAtelier } from "@/lib/documents/vue-atelier";
 import { lireChangementsReferentiel } from "@/lib/store/referentiel";
 import { calibragesPourModale, competencesPourModale } from "@/components/exercices/proprietes-generation";
 import { cheminsDepuisDefinition } from "@/lib/documents/chemins-atelier";
+import { paletteDomaines } from "@/lib/ui/couleurs-domaines";
+import { chargerDonneesSeance } from "@/components/seances/donnees-seance";
 
 const LIBELLES_PALIERS: Record<string, string> = {
   fondamentaux: "Fondamentaux",
@@ -20,9 +24,32 @@ const LIBELLES_PALIERS: Record<string, string> = {
 };
 
 export default async function PageAtelier(props: {
-  searchParams: Promise<{ document?: string; mode?: string }>;
+  searchParams: Promise<{ document?: string; mode?: string; note?: string }>;
 }) {
-  const { document: documentDemande, mode } = await props.searchParams;
+  const { document: documentDemande, mode, note } = await props.searchParams;
+
+  /*
+   * L'espace de travail d'une note opérationnelle occupe l'écran entier et n'a
+   * besoin que de sa fiche. On coupe court avant le chargement du corpus, du
+   * contexte et du graphe : les payer pour ne rien en afficher ralentirait
+   * l'ouverture sans rien apporter.
+   */
+  if (note) {
+    const fiche = await lireDocument(note).catch(() => null);
+    if (!fiche) notFound();
+    // Seule la branche « séance » a besoin du classement et du stock
+    // d'exercices : les autres se composent d'elles-mêmes.
+    const estSeance = analyserDocumentMarkdown(fiche.id, fiche.contenuMd).type === "seance";
+    return (
+      <WorkspaceNoteOperationnelle
+        id={fiche.id}
+        contenuInitial={fiche.contenuMd}
+        updatedAtInitial={fiche.updatedAt}
+        donneesSeance={estSeance ? await chargerDonneesSeance() : undefined}
+      />
+    );
+  }
+
   const [aperçus, snapshots, contexte, themes, contenuInitial, changementsReferentiel] = await Promise.all([
     lireApercusDocuments(),
     lireApercusSnapshots(),
@@ -88,13 +115,36 @@ export default async function PageAtelier(props: {
     const contenuMd = contenuInitial?.id === document.id ? contenuInitial.contenuMd : "";
     const vue = contenuMd ? analyserDocumentMarkdown(document.id, contenuMd) : document;
     const definition = document.type ? definitionTypeDocument(document.type) : null;
-    const chemins = cheminsDepuisDefinition(definition, vue.frontMatter);
+    const cheminsParDefaut = cheminsDepuisDefinition(definition, vue.frontMatter);
+    // `transversal` est une absence de domaine déclarée, pas un domaine.
+    const domaineDeclare = vue.frontMatter.domaine ?? vue.frontMatter.domain;
+    const domaineId =
+      typeof domaineDeclare === "string" && domaineDeclare !== "transversal"
+        ? domaineDeclare
+        : undefined;
+    /*
+     * Une fiche qui déclare son domaine sans déclarer de rôle est une
+     * production du système — la fiche d'un exercice mené, typiquement. Elle se
+     * range dans son domaine, exactement là où la projection qu'elle remplace
+     * se trouvait : on la cherchera à cet endroit, pas dans un dossier
+     * transversal. Les notes capturées, elles, ont un rôle et gardent la racine
+     * que leur donne `cheminsDepuisDefinition`.
+     */
+    const domaineConnu = domaineId ? referentiel.domainesParId.get(domaineId) : undefined;
+    const chemins =
+      domaineConnu && !vue.frontMatter.role && definition
+        ? {
+            dossier: `${domaineConnu.archive ? "Domaines archivés" : "Domaines"}/${domaineConnu.nom}/${definition.dossierParDefaut}`,
+            dossiersSecondaires: [],
+          }
+        : cheminsParDefaut;
     return {
       id: document.id,
       titre: vue.titre,
       type: vue.type ?? "document",
       typeLibelle: definition?.libelle ?? vue.type ?? "Document",
       categorie: definition?.categorie ?? "connaissance",
+      domaineId,
       dossier: chemins.dossier,
       dossiersSecondaires: chemins.dossiersSecondaires,
       contenuMd,
@@ -149,6 +199,7 @@ export default async function PageAtelier(props: {
     type: "domaine",
     typeLibelle: "Domaine",
     categorie: "connaissance",
+    domaineId: vue.id,
     dossier: vue.domaine.archive ? `Domaines archivés/${vue.nom}` : `Domaines/${vue.nom}`,
     contenuMd: `# ${vue.nom}\n\n${vue.description}`,
     contenuCharge: true,
@@ -172,6 +223,7 @@ export default async function PageAtelier(props: {
     type: "competence",
     typeLibelle: "Compétence",
     categorie: "action",
+    domaineId: skill.domaine,
     dossier: `${domainesArchives.has(skill.domaine) ? "Domaines archivés" : "Domaines"}/${referentiel.domainesParId.get(skill.domaine)?.nom ?? skill.domaine}/Compétences/${LIBELLES_PALIERS[skill.palier] ?? skill.palier}`,
     dossiersSecondaires: domainesArchives.has(skill.domaine) ? [] : ["Transversal/Compétences"],
     contenuMd: [
@@ -196,13 +248,28 @@ export default async function PageAtelier(props: {
     vuePedagogique: vuesCompetences.get(skill.code),
   }));
 
+  /*
+   * Un exercice qui a sa fiche n'est plus projeté.
+   *
+   * La projection est un pis-aller : elle montre un exercice que le corpus ne
+   * contient pas encore. Dès qu'une fiche existe — écrite à la fin du premier
+   * passage — la garder ferait deux entrées pour un même exercice dans l'arbre,
+   * l'une annotable et l'autre non.
+   */
+  const exercicesAvecFiche = new Set(
+    index.documents
+      .map((document) => document.frontMatter.exercice)
+      .filter((valeur): valeur is string => typeof valeur === "string"),
+  );
   const projectionsExercices: ElementAtelier[] = [...exercicesVisibles, ...exercicesArchives]
+    .filter((exercice) => !exercicesAvecFiche.has(exercice.id))
     .map((exercice) => ({
       id: `exercice:${exercice.id}`,
       titre: exercice.titre,
       type: "exercice",
       typeLibelle: "Exercice",
       categorie: "action",
+      domaineId: exercice.domaine,
       dossier: `${domainesArchives.has(exercice.domaine) ? "Domaines archivés" : "Domaines"}/${referentiel.domainesParId.get(exercice.domaine)?.nom ?? exercice.domaine}/Exercices`,
       dossiersSecondaires: domainesArchives.has(exercice.domaine) ? [] : ["Transversal/Exercices"],
       contenuMd: [
@@ -236,6 +303,21 @@ export default async function PageAtelier(props: {
     ...elementsAtelier.map(({ id, updatedAt }) => `${id}:${updatedAt ?? ""}`),
   ].join("|");
 
+  /*
+   * Le graphe est construit ici plutôt qu'en ligne dans le JSX : l'arbre teinte
+   * ses fiches à partir du même ensemble de domaines que lui. Deux ensembles
+   * différents donneraient deux palettes décalées pour un même domaine, et
+   * l'utilisateur perdrait le repère qu'on vient de lui donner.
+   */
+  const graphe = construireGraphe(
+    contexte.referentiel,
+    contexte.etats,
+    contexte.donnees.exercises,
+    themes,
+    index,
+  );
+  const couleursDomaines = paletteDomaines(graphe.noeuds.map((noeud) => noeud.domaineId));
+
   return (
     <>
       <EntetePage
@@ -245,16 +327,11 @@ export default async function PageAtelier(props: {
       <EspaceDocumentaire
         key={cleAtelier}
         elements={elementsAtelier}
+        couleursDomaines={couleursDomaines}
         documentDemande={documentDemande}
         modeInitial={mode === "referentiel" ? "referentiel" : undefined}
         graphe={{
-          donnees: construireGraphe(
-            contexte.referentiel,
-            contexte.etats,
-            contexte.donnees.exercises,
-            themes,
-            index,
-          ),
+          donnees: graphe,
           compteId: contexte.donnees.user.id,
         }}
         generation={{

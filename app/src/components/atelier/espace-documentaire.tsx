@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Markdown } from "@/components/ui/markdown";
 import { cx } from "@/components/ui/primitives";
+import { IconeChevron, IconeDossier, IconeFleche, IconeTableauBord } from "@/components/ui/icones";
+import { IconeDocument } from "@/components/ui/icone-document";
 import { createNavigateurClient } from "@/lib/supabase/client";
 import { analyserDocumentMarkdown, type LienMarkdown } from "@/lib/documents/markdown";
 import { BUCKET_PIECES_JOINTES, MAX_PDF_OCTETS, MIME_PDF, nomPdfValide } from "@/lib/documents/pieces-jointes";
@@ -33,6 +35,7 @@ import { cleParCompte } from "@/lib/ui/stockage-session";
 import { BoutonOuvrirExplorateur, FichePedagogiqueAtelier, PanneauPedagogiqueAtelier } from "./fiche-pedagogique";
 import type { CalibrageModale, CompetenceModale } from "@/components/exercices/proprietes-generation";
 import { cheminsDepuisDefinition } from "@/lib/documents/chemins-atelier";
+import { SECTION_CORRECTION } from "@/lib/documents/fiche-exercice";
 import {
   construireArbreDossiers,
   compterElements,
@@ -46,6 +49,8 @@ export interface ElementAtelier {
   type: string;
   typeLibelle: string;
   categorie: CategorieDocument;
+  /** Porte la teinte de l'élément. Absent pour le transversal, qui reste discret. */
+  domaineId?: string;
   dossier: string;
   /** Accès alternatifs vers la même fiche, sans dupliquer sa donnée. */
   dossiersSecondaires?: string[];
@@ -65,6 +70,29 @@ export interface ElementAtelier {
 }
 
 type ModeDocument = "editer" | "apercu";
+
+/**
+ * Une fiche capturée par la personne, par opposition à une projection ou à une
+ * production du système. C'est le seul ensemble qu'elle peut supprimer — et
+ * seulement tant qu'aucune version figée ne s'y attache.
+ */
+function estNoteCapturee(element: ElementAtelier): boolean {
+  const role = element.frontMatter.role;
+  return element.source === "document" && (role === "support" || role === "operationnel");
+}
+
+const AUCUN_REPLI: readonly string[] = [];
+
+/**
+ * La correction d'une fiche d'exercice reste fermée jusqu'à un geste.
+ *
+ * La fiche existe pour être relue, et un exercice se refait. L'afficher d'un
+ * bloc offrirait la réponse à qui rouvre l'énoncé — le système mesure
+ * l'autonomie, il n'a pas à la saboter.
+ */
+function titresReplies(element: ElementAtelier): readonly string[] {
+  return element.frontMatter.exercice ? [SECTION_CORRECTION] : AUCUN_REPLI;
+}
 
 const abonnementsDossiers = new Map<string, Set<() => void>>();
 
@@ -340,6 +368,7 @@ function VueCategorieTransversale({
 
 export function EspaceDocumentaire({
   elements: elementsInitials,
+  couleursDomaines,
   documentDemande,
   modeInitial,
   graphe,
@@ -347,6 +376,8 @@ export function EspaceDocumentaire({
   rectificationActive,
 }: {
   elements: ElementAtelier[];
+  /** Teinte par domaine, partagée avec le graphe pour qu'un domaine ait une seule couleur. */
+  couleursDomaines: Record<string, string>;
   documentDemande?: string;
   modeInitial?: "referentiel";
   graphe: { donnees: DonneesGraphe; compteId: string };
@@ -538,8 +569,13 @@ export function EspaceDocumentaire({
           style={{ paddingLeft: `${0.5 + profondeur * 0.75}rem` }}
           aria-expanded={!ferme}
         >
-          <span className="w-3 text-[var(--rail-texte-discret)]" aria-hidden>{ferme ? "›" : "⌄"}</span>
-          <span className="text-[var(--rail-texte-discret)]" aria-hidden>◇</span>
+          <IconeChevron
+            className={cx(
+              "size-3.5 shrink-0 text-[var(--rail-texte-discret)] transition-transform",
+              !ferme && "rotate-90",
+            )}
+          />
+          <IconeDossier className="size-4 shrink-0 text-[var(--rail-texte-discret)]" />
           <span className="truncate">{noeud.nom}</span>
           <span className="ml-auto text-xs font-normal text-[var(--rail-texte-discret)]">
             {compterElements(noeud)}
@@ -560,7 +596,7 @@ export function EspaceDocumentaire({
                         : "text-[var(--rail-texte-attenue)] hover:bg-[var(--rail-2)] hover:text-[var(--rail-texte)]",
                     )}
                   >
-                    <span className="shrink-0 text-[var(--rail-texte-discret)]" aria-hidden>▣</span>
+                    <IconeTableauBord className="size-4 shrink-0 text-[var(--rail-texte-discret)]" />
                     <span className="min-w-0 flex-1 truncate font-medium">Vue d’ensemble</span>
                   </button>
                 </li>
@@ -583,9 +619,17 @@ export function EspaceDocumentaire({
                             : "text-[var(--rail-texte-attenue)] hover:bg-[var(--rail-2)] hover:text-[var(--rail-texte)]",
                         )}
                       >
-                        <span className="shrink-0 text-[var(--rail-texte-discret)]" aria-hidden>
-                          {estVueEnsemble ? "▣" : element.source === "projection" ? "○" : "·"}
-                        </span>
+                        <IconeDocument
+                          type={element.type}
+                          couleur={element.domaineId ? couleursDomaines[element.domaineId] : undefined}
+                          className={cx(
+                            "size-4",
+                            !element.domaineId && "text-[var(--rail-texte-discret)]",
+                            // Une projection est en lecture seule : l'atténuation
+                            // remplace le `○` qui portait seul cette nuance.
+                            element.source === "projection" && "opacity-70",
+                          )}
+                        />
                         <span className={cx("min-w-0 flex-1 truncate", estVueEnsemble && "font-medium")}>
                           {libelleAffichage}
                         </span>
@@ -699,7 +743,7 @@ export function EspaceDocumentaire({
   }
 
   function supprimerNoteSupport() {
-    if (!selectionnee || selectionnee.frontMatter.role !== "support") return;
+    if (!selectionnee || !estNoteCapturee(selectionnee)) return;
     if (!window.confirm(`Supprimer la note « ${selectionnee.titre} » ? Cette action est définitive.`)) return;
     setMessage(null);
     demarrerTransition(async () => {
@@ -956,7 +1000,7 @@ export function EspaceDocumentaire({
                   <h2 className="mt-1 truncate font-serif text-2xl font-medium tracking-tight">{selectionnee.titre}</h2>
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2">
-                  {selectionnee.frontMatter.role === "support" && (
+                  {estNoteCapturee(selectionnee) && (
                     <button
                       type="button"
                       onClick={supprimerNoteSupport}
@@ -966,6 +1010,15 @@ export function EspaceDocumentaire({
                     >
                       Supprimer
                     </button>
+                  )}
+                  {selectionnee.frontMatter.role === "operationnel" && selectionnee.source === "document" && (
+                    <Link
+                      href={`/atelier?note=${encodeURIComponent(selectionnee.id)}`}
+                      className="inline-flex items-center gap-1.5 rounded-md bg-primaire px-3 py-1.5 text-xs font-semibold text-texte-inverse shadow hover:bg-primaire-survol transition-colors"
+                    >
+                      <span>Travailler cette fiche</span>
+                      <IconeFleche className="size-3.5" />
+                    </Link>
                   )}
                   {selectionnee.type === "exercice" && (
                     <Link
@@ -1014,7 +1067,7 @@ export function EspaceDocumentaire({
                   </div>
                 ) : (
                   <div className="prose-exo min-h-full rounded-lg border border-bordure bg-surface p-6">
-                    <Markdown contenu={brouillon} />
+                    <Markdown contenu={brouillon} titresReplies={titresReplies(selectionnee)} />
                   </div>
                 )}
               </div>

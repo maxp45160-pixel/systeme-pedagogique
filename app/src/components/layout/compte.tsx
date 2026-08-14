@@ -211,9 +211,24 @@ function PanneauReglages({
       sousTitre="Où sont stockées vos données de suivi."
       largeur="md"
       onFermer={onFermer}
+      pied={
+        // La déconnexion s'éloigne de la fermeture : deux gestes de portée très
+        // différente ne se touchent pas.
+        <div className="flex w-full items-center justify-between gap-2">
+          <form action={seDeconnecter}>
+            <Bouton type="submit" variante="danger" taille="compacte">
+              Se déconnecter
+            </Bouton>
+          </form>
+
+          <Bouton variante="secondaire" taille="compacte" onClick={onFermer}>
+            Fermer
+          </Bouton>
+        </div>
+      }
     >
       <>
-        <dl className="mt-4 space-y-3 text-sm">
+        <dl className="space-y-3 text-sm">
           {/* ── Tuteur IA : clé API saisie côté client ── */}
           <div className="rounded-lg border border-bordure bg-surface-2/60 px-3 py-2.5">
             <dt className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
@@ -273,18 +288,6 @@ function PanneauReglages({
           </div>
 
         </dl>
-
-        <div className="mt-5 flex items-center justify-between gap-2 border-t border-bordure pt-3">
-          <form action={seDeconnecter}>
-            <Bouton type="submit" variante="danger" taille="compacte">
-              Se déconnecter
-            </Bouton>
-          </form>
-
-          <Bouton variante="secondaire" taille="compacte" onClick={onFermer}>
-            Fermer
-          </Bouton>
-        </div>
       </>
     </Modale>
   );

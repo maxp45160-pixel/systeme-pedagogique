@@ -1,15 +1,8 @@
 import { Suspense } from "react";
 import { chargerContexte } from "@/lib/store/context";
-import { chargerThemes } from "@/lib/store/themes";
 import { SqueletteContenu } from "@/components/layout/squelette";
 import { EntetePage } from "@/components/layout/entete-page";
-import {
-  calibragesPourModale,
-} from "@/components/exercices/proprietes-generation";
-import {
-  ConcepteurSeance,
-  type DonneesSeance,
-} from "@/components/seances/concepteur-seance";
+import { chargerDonneesSeance } from "@/components/seances/donnees-seance";
 import { VueSeanceDetail } from "@/components/seances/vue-seance-detail";
 import { FileSeances } from "@/components/seances/file-seances";
 import { CahierSeances, RechercheCahier } from "@/components/seances/cahier-seances";
@@ -127,31 +120,19 @@ async function GenerationWorkspace({
 }
 
 async function ContenuHub({ recherche }: { recherche?: string }) {
-  const [ctx, themes] = await Promise.all([chargerContexte(), chargerThemes()]);
-
-  const donnees: DonneesSeance = {
-    etats: ctx.etats,
-    actifs: ctx.referentiel.actifs,
-    exercices: ctx.donnees.exercises,
-    tentatives: ctx.donnees.attempts,
-    calibrations: Array.from(ctx.calibrations.entries()),
-    calibragesModale: calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations),
-    recommandations: ctx.recommandations,
-    contexteDocumentaire: Array.from(ctx.contexteDocumentaire.entries()),
-    domaines: ctx.referentiel.domaines.map((d) => ({ id: d.id, nom: d.nom, prefixe: d.prefixe })),
-    themes,
-    compteId: ctx.donnees.user.id,
-  };
+  const [ctx, donnees] = await Promise.all([chargerContexte(), chargerDonneesSeance()]);
 
   return (
     <div className="space-y-8">
       <RechercheCahier recherche={recherche} />
 
-      {/* CTA centré — l'entrée principale de la composition. */}
-      <div className="flex justify-center">
-        <ConcepteurSeance {...donnees} libelle="Composer une séance" />
-      </div>
-
+      {/*
+        Le cahier tient l'historique ; il ne déclenche plus la composition.
+        Une séance naît d'une note opérationnelle « Séance d'exercices »,
+        capturée depuis le tableau de bord — c'est ce qui lui donne sa fiche et
+        sa place dans l'Atelier. « Refaire la séance » reste ci-dessous : rejouer
+        n'est pas composer.
+      */}
       <FileSeances seances={ctx.donnees.sessions} />
 
       <CahierSeances

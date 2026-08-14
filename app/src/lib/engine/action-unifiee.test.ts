@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { SkillState } from "@/lib/domain/types";
 import type { Recommandation } from "./recommend";
 import { adaptLegacyExercise } from "@/lib/domain/legacy-activity-adapter";
+import { adaptNoteOperationnelle, idActiviteNote } from "@/lib/domain/note-activity-adapter";
 import type { Exercise } from "@/lib/domain/types";
 import { choisirActionUnifiee, lireContexteInstant } from "./action-unifiee";
 
@@ -66,6 +67,27 @@ function recommandation(code: string, ex: Exercise | null): Recommandation {
     dureeEstimeeMin: ex?.dureeEstimeeMin ?? 20,
     calibration: null,
   };
+}
+
+function noteOperationnelle(id: string, type: string, codes: string[]) {
+  const activite = adaptNoteOperationnelle(
+    "compte-a",
+    {
+      id,
+      titre: `Note ${id}`,
+      type,
+      tags: [],
+      schema: "pedagogie/v1",
+      schemaCompatible: true,
+      frontMatter: { role: "operationnel", contexte: "Contexte", domaine: "dev" },
+      liens: codes.map((cible) => ({ cible })),
+      createdAt: NOW,
+      updatedAt: NOW,
+    },
+    { codesActifs: new Set(codes), documentsFiges: new Set() },
+  );
+  if (!activite) throw new Error("la fabrique de test doit produire un candidat");
+  return activite;
 }
 
 function entrees(exercices: Exercise[], recommandations: Recommandation[], tempsMin: number) {
@@ -140,6 +162,35 @@ describe("arbitrage à l'instant T", () => {
 
   it("ne rend rien quand il n'y a ni activité ni file", () => {
     expect(choisirActionUnifiee(entrees([], [], 30))).toBeNull();
+  });
+
+  /*
+   * Une note de séance appartient à la famille « entrainer », comme un
+   * exercice. Sans le test du préfixe placé AVANT la branche exercice, elle
+   * serait remise en tête de la file d'exercices : l'écran proposerait un
+   * exercice là où la personne a engagé une séance.
+   */
+  it("ne confond pas une note de séance avec un exercice malgré leur famille commune", () => {
+    const court = exercice("ex-court", "DEV-01", 15);
+    const note = noteOperationnelle("seance-lundi", "seance", ["DEV-01"]);
+    const resultat = choisirActionUnifiee({
+      ...entrees([court], [recommandation("DEV-01", court)], 30),
+      activities: [note],
+    });
+    expect(resultat?.kind).toBe("note");
+    if (resultat?.kind !== "note") throw new Error("branche inattendue");
+    expect(resultat.noteId).toBe("seance-lundi");
+  });
+
+  it("mène vers la fiche, pas vers la file, quand une note l'emporte", () => {
+    const note = noteOperationnelle("projet-audit", "projet", ["DEV-01"]);
+    const resultat = choisirActionUnifiee({
+      ...entrees([], [recommandation("DEV-01", null)], 60),
+      activities: [note],
+    });
+    if (resultat?.kind !== "note") throw new Error("branche inattendue");
+    expect(resultat.action.activityId).toBe(idActiviteNote("projet-audit"));
+    expect(resultat.action.family).toBe("produire");
   });
 
   it("expose les facteurs d'arbitrage sans inventer de contribution chiffrée", () => {

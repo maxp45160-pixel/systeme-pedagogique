@@ -53,8 +53,27 @@ function enligne(texte: string, pfx: string = "in"): ReactNode[] {
   );
 }
 
-export const Markdown = memo(function Markdown({ contenu }: { contenu: string }) {
-  const blocs = decouperEnBlocs(contenu).map((bloc, idx) => {
+/** Comparaison de titres insensible à la casse et aux espaces de bord. */
+function memeTitre(a: string, b: string): boolean {
+  return a.trim().toLocaleLowerCase("fr-FR") === b.trim().toLocaleLowerCase("fr-FR");
+}
+
+export const Markdown = memo(function Markdown({
+  contenu,
+  titresReplies,
+}: {
+  contenu: string;
+  /**
+   * Titres dont le contenu est masqué jusqu'à un geste explicite.
+   *
+   * Sert à la correction dans la fiche d'un exercice : elle doit être là — on
+   * l'a demandée — sans s'offrir au regard de qui rouvre l'exercice pour le
+   * refaire. Même précaution que le parcours d'exercice, qui dévoile la
+   * correction acte par acte plutôt que d'un bloc.
+   */
+  titresReplies?: readonly string[];
+}) {
+  const rendus = decouperEnBlocs(contenu).map((bloc, idx) => {
     const cle = `b-${idx}`;
     switch (bloc.genre) {
       case "code":
@@ -113,5 +132,35 @@ export const Markdown = memo(function Markdown({ contenu }: { contenu: string })
     }
   });
 
-  return <div className="prose-exo">{blocs}</div>;
+  if (!titresReplies?.length) return <div className="prose-exo">{rendus}</div>;
+
+  /*
+   * Regroupement par titre, uniquement quand un repli est demandé.
+   *
+   * Le découpage ne produit qu'une suite plate de blocs : un titre ne contient
+   * rien, il précède. On reconstitue donc la portée d'un titre — jusqu'au titre
+   * suivant — pour pouvoir la replier d'un seul tenant.
+   */
+  const blocs = decouperEnBlocs(contenu);
+  const sorties: ReactNode[] = [];
+  for (let idx = 0; idx < blocs.length; idx++) {
+    const bloc = blocs[idx];
+    const replie =
+      bloc.genre === "titre" && titresReplies.some((titre) => memeTitre(titre, bloc.texte));
+    if (!replie) {
+      sorties.push(rendus[idx]);
+      continue;
+    }
+    let fin = idx + 1;
+    while (fin < blocs.length && blocs[fin].genre !== "titre") fin++;
+    sorties.push(
+      <details key={`d-${idx}`} className="rounded-md border border-bordure px-3 py-2">
+        <summary className="cursor-pointer text-sm font-medium">{bloc.texte}</summary>
+        <div className="mt-2">{rendus.slice(idx + 1, fin)}</div>
+      </details>,
+    );
+    idx = fin - 1;
+  }
+
+  return <div className="prose-exo">{sorties}</div>;
 });
