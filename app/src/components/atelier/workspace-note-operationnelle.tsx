@@ -149,6 +149,23 @@ export function WorkspaceNoteOperationnelle({
    */
   const renseignees = sectionsSaisies.filter((section) => valeurs[section]?.trim()).length;
   const noteOperationnelle = definition?.categorie === "action" && analyseInitiale.frontMatter.role === "operationnel";
+  const domaineDeclare = analyseInitiale.frontMatter.domaine;
+  const domaineInitial =
+    typeof domaineDeclare === "string" && domaineDeclare !== "transversal"
+      ? domaineDeclare
+      : undefined;
+  const contexteInitial =
+    typeof analyseInitiale.frontMatter.contexte === "string"
+      ? analyseInitiale.frontMatter.contexte
+      : undefined;
+  const themeIdDeclare = analyseInitiale.frontMatter.theme_id;
+  const themeInitial =
+    typeof themeIdDeclare === "string"
+      ? donneesSeance?.themes.find((theme) => theme.id === themeIdDeclare)
+      : undefined;
+  const domaineLibelle = domaineInitial
+    ? donneesSeance?.domaines.find((domaine) => domaine.id === domaineInitial)?.nom
+    : undefined;
 
   async function enregistrer() {
     if (enregistrement || !noteOperationnelle) return;
@@ -217,13 +234,13 @@ export function WorkspaceNoteOperationnelle({
   }
 
   const titre = analyseInitiale.titre || "Note opérationnelle";
-  const surtitre = definition ? `Note opérationnelle · ${definition.libelle}` : "Note opérationnelle";
+  const surtitre = definition ? `Fiche de travail · ${definition.libelle}` : "Fiche de travail";
 
   return (
     <CoquilleWorkspace
       surtitre={surtitre}
       titre={titre}
-      sortie={{ href: "/atelier", libelle: "Sortir vers l’atelier" }}
+      sortie={{ href: "/atelier", libelle: "Retourner à l’Atelier" }}
       barre={<BarreEtapes renseignees={renseignees} total={sectionsSaisies.length} />}
     >
       {!noteOperationnelle ? (
@@ -242,13 +259,16 @@ export function WorkspaceNoteOperationnelle({
         >
           <div className="rounded-lg border border-primaire/20 bg-primaire-faible/35 px-4 py-3 text-sm leading-relaxed text-texte-attenue">
             {donneesSeance
-              ? "Compose ta séance : les exercices retenus rejoindront cette fiche, et chaque exercice mené y laissera la sienne. Ce journal se remplit tout seul — tu n’as rien à saisir pour démarrer."
+              ? `Cette page est le carnet de ta séance${themeInitial ? ` sur « ${themeInitial.libelle} »` : domaineLibelle ? ` dans « ${domaineLibelle} »` : ""}. La composition ci-dessous choisira les exercices dans ce périmètre, puis le déroulé se mettra à jour tout seul.`
               : "Cette fiche cadre une production. Décris ton travail dans chaque section ; elle ne devient une preuve qu’après une évaluation validée."}
           </div>
 
           {donneesSeance && (
             <ConcepteurSeance
               {...donneesSeance}
+              domaineInitial={domaineInitial}
+              contexteInitial={contexteInitial}
+              themeInitial={themeInitial}
               libelle="Reprendre la composition"
               ouvertParDefaut
               surSeanceCreee={inscrireSeance}

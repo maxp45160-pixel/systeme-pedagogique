@@ -8,7 +8,7 @@ import {
   validerLotDocumentsMarkdown,
 } from "@/lib/documents/archive";
 import { creerDocument, creerDocuments, lireApercusDocuments, lireDocument, lireDocuments, modifierDocument, supprimerDocument } from "./documents";
-import { dorsaleCompte } from "./db";
+import { dorsaleCompte, nouvelId } from "./db";
 import { ligneVersEntite, verifier } from "./supabase-backend";
 import type { SnapshotDocument, ResumeSnapshotDocument } from "@/lib/documents/types-documents";
 import {
@@ -22,6 +22,7 @@ import {
 export interface MetadonneesNote {
   contexte: string;
   domaine: string;
+  themeId?: string;
 }
 
 export async function creerDocumentAction(
@@ -43,7 +44,6 @@ export async function creerDocumentAction(
 export async function creerNoteAction(
   role: RoleNote,
   type: string,
-  id: string,
   titre: string,
   metadonnees: MetadonneesNote,
 ): Promise<{ id: string; contenuMd: string }> {
@@ -52,12 +52,17 @@ export async function creerNoteAction(
   }
   const contexte = metadonnees.contexte.trim().replace(/\s+/g, " ");
   const domaine = metadonnees.domaine.trim();
+  const themeId = metadonnees.themeId?.trim();
   if (!contexte) throw new Error("Le contexte de la fiche est obligatoire.");
   if (!domaine) throw new Error("Le domaine de la fiche est obligatoire.");
   if (contexte.length > 200) throw new Error("Le contexte de la fiche est limité à 200 caractères.");
+  if (themeId && role !== "operationnel") {
+    throw new Error("Un thème de travail ne peut être associé qu'à une note opérationnelle.");
+  }
 
+  const dorsale = domaine !== "transversal" || themeId ? await dorsaleCompte() : null;
   if (domaine !== "transversal") {
-    const dorsale = await dorsaleCompte();
+    if (!dorsale) throw new Error("La session du compte est introuvable.");
     const { data, error } = await dorsale.supabase
       .from("domaines")
       .select("id")
@@ -68,7 +73,26 @@ export async function creerNoteAction(
     if (!data) throw new Error("Le domaine choisi n'existe plus dans ce compte.");
   }
 
-  const contenuMd = creerDepuisTemplate(type, id, titre, undefined, { role, contexte, domaine });
+  if (themeId) {
+    if (!dorsale) throw new Error("La session du compte est introuvable.");
+    const { data, error } = await dorsale.supabase
+      .from("themes")
+      .select("id")
+      .eq("user_id", dorsale.userId)
+      .eq("id", themeId)
+      .eq("archive", false)
+      .maybeSingle();
+    verifier("validation du thème de la note", error);
+    if (!data) throw new Error("Le thème choisi n'existe plus dans ce compte.");
+  }
+
+  const id = nouvelId("doc");
+  const contenuMd = creerDepuisTemplate(type, id, titre, undefined, {
+    role,
+    contexte,
+    domaine,
+    ...(themeId ? { theme_id: themeId } : {}),
+  });
   await creerDocument(id, contenuMd);
   return { id, contenuMd };
 }

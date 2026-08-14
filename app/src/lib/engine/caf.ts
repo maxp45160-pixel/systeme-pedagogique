@@ -219,6 +219,23 @@ export function themesSuggeres(
   return themes;
 }
 
+/**
+ * Construit le thème correspondant à un domaine explicitement choisi.
+ *
+ * Ce n'est pas une recommandation du moteur : c'est la portée déclarée par la
+ * personne dans la fiche qui a lancé la séance. Le moteur choisira ensuite les
+ * compétences à l'intérieur de cette portée.
+ */
+export function themePourDomaine(domaine: DomaineId, nomDomaine: string): ThemeSeance {
+  return {
+    cle: `domaine:${domaine}`,
+    libelle: `Tout le domaine ${nomDomaine}`,
+    detail: "Domaine choisi dans ton travail",
+    portee: { type: "mono", domaine },
+    codesImposes: [],
+  };
+}
+
 /* ------------------------------------------------------------------ */
 /* Combien d'exercices tiennent dans le temps annoncé                  */
 /* ------------------------------------------------------------------ */

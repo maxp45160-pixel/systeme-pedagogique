@@ -8,30 +8,53 @@ import { Modale } from "@/components/ui/modale";
 import { Bouton, Carte, cx } from "@/components/ui/primitives";
 import { creerNoteAction } from "@/lib/store/document-actions";
 import { FORMATS_PAR_ROLE, type RoleNote } from "@/lib/documents/roles-note";
+import type { Theme } from "@/lib/domain/theme";
+import { ModaleTheme } from "@/components/seances/modale-theme";
 
 export interface DomaineNote {
   id: string;
   nom: string;
+  prefixe: string;
 }
 
-function slugifier(valeur: string): string {
-  return valeur
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "") || "note";
+export interface CompetenceNote {
+  code: string;
+  intitule: string;
+  domaine: string;
 }
 
-export function CaptureNotes({ domaines }: { domaines: DomaineNote[] }) {
+export function CaptureNotes({
+  domaines,
+  themes,
+  competences,
+  compteId,
+}: {
+  domaines: DomaineNote[];
+  themes: Theme[];
+  competences: CompetenceNote[];
+  compteId: string;
+}) {
   const router = useRouter();
   const [role, setRole] = useState<RoleNote | null>(null);
   const [titre, setTitre] = useState("");
   const [format, setFormat] = useState("note");
   const [contexte, setContexte] = useState("");
   const [domaine, setDomaine] = useState("transversal");
+  const [themeId, setThemeId] = useState("");
+  const [themesLocaux, setThemesLocaux] = useState<Theme[]>([]);
+  const [creationThemeOuverte, setCreationThemeOuverte] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, demarrer] = useTransition();
+
+  const themesDisponibles = [...themes, ...themesLocaux].filter(
+    (theme, index, liste) => !theme.archive && liste.findIndex((item) => item.id === theme.id) === index,
+  );
+  const competencesParCode = new Map(
+    competences.map((competence) => [competence.code, {
+      intitule: competence.intitule,
+      domaine: domaines.find((option) => option.id === competence.domaine)?.nom ?? competence.domaine,
+    }]),
+  );
 
   function ouvrir(suivant: RoleNote) {
     setRole(suivant);
@@ -39,6 +62,8 @@ export function CaptureNotes({ domaines }: { domaines: DomaineNote[] }) {
     setTitre("");
     setContexte("");
     setDomaine("transversal");
+    setThemeId("");
+    setCreationThemeOuverte(false);
     setErreur(null);
   }
 
@@ -47,17 +72,20 @@ export function CaptureNotes({ domaines }: { domaines: DomaineNote[] }) {
     setErreur(null);
     demarrer(async () => {
       try {
-        const id = `${format}-${slugifier(titre)}`;
-        await creerNoteAction(role, format, id, titre.trim(), { contexte, domaine });
+        const fiche = await creerNoteAction(role, format, titre.trim(), {
+          contexte,
+          domaine,
+          ...(role === "operationnel" && themeId ? { themeId } : {}),
+        });
         setRole(null);
         /*
          * Capturer une note opérationnelle, c'est demander à travailler — pas à
          * ouvrir un éditeur. On atterrit donc directement dans son espace de
          * travail. Une note de support, elle, se lit et s'annote : l'Atelier
          * suffit.
-         */
+        */
         const parametre = role === "operationnel" ? "note" : "document";
-        router.push(`/atelier?${parametre}=${encodeURIComponent(id)}`);
+        router.push(`/atelier?${parametre}=${encodeURIComponent(fiche.id)}`);
         router.refresh();
       } catch (cause) {
         setErreur(cause instanceof Error ? cause.message : "Création impossible.");
@@ -69,9 +97,9 @@ export function CaptureNotes({ domaines }: { domaines: DomaineNote[] }) {
     <>
       <Carte className="overflow-hidden">
         <div className="px-5 py-4 sm:px-6">
-          <p className="text-sm font-medium">Capturer une note</p>
+          <p className="text-sm font-medium">Commencer un travail</p>
           <p className="mt-1 text-xs leading-relaxed text-texte-attenue">
-            Choisis d’abord son rôle. Le format vient ensuite.
+            Renseigne une donnée ou choisis un domaine à travailler.
           </p>
           <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
             <button
@@ -83,9 +111,9 @@ export function CaptureNotes({ domaines }: { domaines: DomaineNote[] }) {
                 <IconeDocuments className="size-5 text-primaire" />
                 <IconeFleche className="size-3.5 text-texte-discret group-hover:text-primaire" />
               </span>
-              <span className="mt-3 block text-sm font-semibold">Support</span>
+              <span className="mt-3 block text-sm font-semibold">Renseigner une donnée</span>
               <span className="mt-1 block text-xs leading-relaxed text-texte-discret">
-                Comprendre, préparer ou personnaliser un contenu.
+                Ajouter une connaissance, une référence ou un support utile.
               </span>
             </button>
             <button
@@ -97,9 +125,9 @@ export function CaptureNotes({ domaines }: { domaines: DomaineNote[] }) {
                 <IconeExercices className="size-5 text-alerte" />
                 <IconeFleche className="size-3.5 text-texte-discret group-hover:text-alerte" />
               </span>
-              <span className="mt-3 block text-sm font-semibold">Opérationnelle</span>
+              <span className="mt-3 block text-sm font-semibold">Travailler un domaine</span>
               <span className="mt-1 block text-xs leading-relaxed text-texte-discret">
-                Cadrer un travail qui pourra ensuite être évalué.
+                Lancer une séance, un projet ou une production.
               </span>
             </button>
           </div>
@@ -108,11 +136,11 @@ export function CaptureNotes({ domaines }: { domaines: DomaineNote[] }) {
 
       {role && (
         <Modale
-          titre={role === "support" ? "Nouvelle note de support" : "Nouvelle note opérationnelle"}
+          titre={role === "support" ? "Nouvelle donnée" : "Nouveau travail"}
           sousTitre={
             role === "support"
-              ? "Cette fiche enrichit le contexte documentaire ; elle ne mesure aucune compétence."
-              : "Cette fiche cadre une production. Elle ne deviendra une preuve qu’après une évaluation validée."
+              ? "Cette fiche enrichit ton contexte documentaire ; elle ne mesure aucune compétence."
+              : "Choisis le domaine et le format du travail à mener. Les résultats observés seront enregistrés séparément."
           }
           largeur="md"
           onFermer={() => setRole(null)}
@@ -126,7 +154,7 @@ export function CaptureNotes({ domaines }: { domaines: DomaineNote[] }) {
                 enChargement={enCours}
                 className={cx(enCours && "pointer-events-none")}
               >
-                Créer et ouvrir
+                {role === "operationnel" ? "Créer et commencer" : "Créer et ouvrir"}
               </Bouton>
             </>
           }
@@ -154,7 +182,9 @@ export function CaptureNotes({ domaines }: { domaines: DomaineNote[] }) {
               />
             </label>
             <label className="block">
-              <span className="text-xs font-semibold uppercase tracking-wide text-texte-discret">Domaine</span>
+              <span className="text-xs font-semibold uppercase tracking-wide text-texte-discret">
+                {role === "operationnel" ? "Domaine à travailler" : "Domaine concerné"}
+              </span>
               <select
                 value={domaine}
                 onChange={(event) => setDomaine(event.target.value)}
@@ -166,8 +196,55 @@ export function CaptureNotes({ domaines }: { domaines: DomaineNote[] }) {
                 ))}
               </select>
             </label>
+            {role === "operationnel" && (
+              <div className="space-y-2">
+                <label className="block">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-texte-discret">
+                    Angle de travail (facultatif)
+                  </span>
+                  <select
+                    value={themeId}
+                    onChange={(event) => setThemeId(event.target.value)}
+                    className="mt-1.5 w-full rounded-lg border border-bordure-controle bg-surface px-3 py-2.5 text-sm"
+                  >
+                    <option value="">
+                      {domaine === "transversal"
+                        ? "Tout le travail transversal"
+                        : `Tout le domaine ${domaines.find((option) => option.id === domaine)?.nom ?? "choisi"}`}
+                    </option>
+                    {themesDisponibles.map((theme) => (
+                      <option key={theme.id} value={theme.id}>{theme.libelle}</option>
+                    ))}
+                  </select>
+                </label>
+                {!creationThemeOuverte ? (
+                  <button
+                    type="button"
+                    onClick={() => setCreationThemeOuverte(true)}
+                    className="text-xs text-primaire hover:underline"
+                  >
+                    + Décrire un angle précis
+                  </button>
+                ) : (
+                  <ModaleTheme
+                    presentation="inline"
+                    competencesParCode={competencesParCode}
+                    compteId={compteId}
+                    domainesExistants={domaines}
+                    onFermer={() => setCreationThemeOuverte(false)}
+                    onCree={(theme) => {
+                      setThemesLocaux((precedents) => [...precedents, theme]);
+                      setThemeId(theme.id);
+                      setCreationThemeOuverte(false);
+                    }}
+                  />
+                )}
+              </div>
+            )}
             <label className="block">
-              <span className="text-xs font-semibold uppercase tracking-wide text-texte-discret">Format</span>
+              <span className="text-xs font-semibold uppercase tracking-wide text-texte-discret">
+                {role === "operationnel" ? "Format de travail" : "Type de donnée"}
+              </span>
               <select
                 value={format}
                 onChange={(event) => setFormat(event.target.value)}

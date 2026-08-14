@@ -25,73 +25,14 @@ import {
 } from "@/components/exercices/proprietes-generation";
 import type { ReactNode } from "react";
 import { demarrerExerciceEnFocus } from "@/lib/store/seance-actions";
-import { classesChamp } from "@/components/ui/champ";
 import {
-  LIBELLES_CAPACITE,
   LIBELLES_FAMILLE,
   type ContexteInstant,
 } from "@/lib/engine/action-unifiee";
 import type {
-  MentalCapacity,
   RecommendationFactor,
   RecommendedLearningAction,
 } from "@/lib/domain/adaptive-learning";
-
-const CAPACITES: MentalCapacity[] = ["faible", "standard", "elevee"];
-
-/**
- * Ce dont la personne dispose maintenant — deux champs, une ligne.
- *
- * Formulaire GET : rien n'est écrit, rien n'est persisté. Le temps et la
- * capacité décrivent cet instant, pas un trait de la personne ; les remettre
- * dans l'URL suffit à recalculer, et laisse la page partageable et rechargeable
- * sans effet de bord. C'est aussi ce qui permet à l'arbitrage de fonctionner
- * sans aucune des tables de la boucle adaptative.
- */
-function ControleInstant({ instant }: { instant?: ContexteInstant }) {
-  if (!instant) return null;
-  return (
-    <form
-      method="get"
-      action="/"
-      className="mt-3 flex flex-wrap items-center gap-2 text-xs"
-      data-testid="controle-instant"
-    >
-      <label htmlFor="instant-temps" className="text-texte-discret">
-        J&apos;ai
-      </label>
-      <input
-        id="instant-temps"
-        name="temps"
-        type="number"
-        min={5}
-        max={480}
-        step={5}
-        defaultValue={instant.tempsMin}
-        className={`${classesChamp("compacte", false)} chiffres w-16`}
-      />
-      <span className="text-texte-discret">min,</span>
-      <label htmlFor="instant-capacite" className="sr-only">
-        Capacité mentale ressentie
-      </label>
-      <select
-        id="instant-capacite"
-        name="capacite"
-        defaultValue={instant.capacite}
-        className={`${classesChamp("compacte", false)} w-auto`}
-      >
-        {CAPACITES.map((capacite) => (
-          <option key={capacite} value={capacite}>
-            {LIBELLES_CAPACITE[capacite]}
-          </option>
-        ))}
-      </select>
-      <Bouton type="submit" variante="secondaire" taille="petite">
-        Recalculer
-      </Bouton>
-    </form>
-  );
-}
 
 /**
  * Ce que l'arbitrage à l'instant T a pesé, et ce qu'il ne prétend pas savoir.
@@ -193,8 +134,8 @@ export function CarteProchaineAction({
   /** Entrée vers le compositeur prérempli par la recommandation courante. */
   actionPrincipale?: ReactNode;
   /**
-   * Temps et capacité déclarés pour maintenant. Absent, la carte se comporte
-   * comme avant : le contrôle ne s'affiche pas et rien n'est arbitré.
+   * Temps et capacité déclarés pour maintenant. Ils servent à l'arbitrage et
+   * sont transmis au workspace, mais ne sont pas affichés dans cette carte.
    */
   instant?: ContexteInstant;
   /**
@@ -234,15 +175,6 @@ export function CarteProchaineAction({
           message="Soit tout a déjà été proposé récemment et écarté, soit chaque compétence active a épuisé ses exercices. Capture une note opérationnelle pour engager un travail, ou reviens plus tard."
           action={actionPrincipale ?? <Link href="/seances" className={classesLienBouton("secondaire")}>Ouvrir le cahier</Link>}
         />
-        {/*
-          Le contrôle reste accessible ici : quand rien ne tient dans le temps
-          déclaré, la première chose à pouvoir changer est le temps déclaré.
-        */}
-        {instant && (
-          <div className="px-5 pb-4 sm:px-6">
-            <ControleInstant instant={instant} />
-          </div>
-        )}
       </Carte>
     );
   }
@@ -277,8 +209,6 @@ export function CarteProchaineAction({
             Prochaine meilleure action
           </span>
         </div>
-
-        <ControleInstant instant={instant} />
 
         <h2 className="mt-2 font-serif text-[1.45rem] font-medium leading-snug tracking-tight">
           {exercice ? exercice.titre : etat.prochaineEtape}
@@ -500,8 +430,6 @@ function CarteActionActivite({
             Prochaine meilleure action
           </span>
         </div>
-
-        <ControleInstant instant={instant} />
 
         <h2 className="mt-2 font-serif text-[1.45rem] font-medium leading-snug tracking-tight">
           {action.title}
