@@ -1,20 +1,5 @@
 "use client";
 
-/**
- * Modale de création d'une branche de compétences — créer là où on est.
- *
- * Ouverte depuis `+ Compétence` sur une carte de domaine ou `+ Domaine` en
- * tête de `/competences`. Saisie directe : intitulé, palier, importance.
- * **Aucun champ `code`** — il est attribué à l'enregistrement par
- * `attribuerCodes`, et la modale le dit.
- *
- * « Suggérer avec le tuteur » : même mécanique qu'en §1.1, remplit les lignes
- * de la modale, chacune décochable et modifiable.
- *
- * Écrit par `creerBranche` avec `origine: "manuel"` ou `"tuteur"` — l'action
- * accepte déjà le paramètre et se rattache **par nom** à un domaine existant.
- */
-
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BandeauInfo, Bouton, PointActif } from "@/components/ui/primitives";
@@ -55,9 +40,11 @@ export function ModaleCompetence({
 }) {
   const router = useRouter();
   const [phase, setPhase] = useState<"formulaire" | "suggestion">("formulaire");
-  const [sujet, setSujet] = useState(sujetInitial);
+  const [sujet, setSujet] = useState(sujetInitial || domaineInitial || "");
   const [progression, setProgression] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [modeSuggestionOuvert, setModeSuggestionOuvert] = useState(false);
+
   const [initiale, setInitiale] = useState<BrancheInitiale | undefined>(
     brancheInitiale ??
       (domaineInitial
@@ -72,19 +59,7 @@ export function ModaleCompetence({
             }
           : undefined),
   );
-  /*
-   * Deux choses distinctes, longtemps portées par le même drapeau (audit §2.13).
-   *
-   * `initiale` répond à « le formulaire est-il pré-rempli ? ». Ouvrir la modale
-   * depuis la carte d'un domaine le pré-remplit avec ce seul domaine et
-   * `competences: []` — rien ne vient du tuteur. Or `origine` en était déduit :
-   * tout ce qu'on tapait à la main depuis un domaine, y compris via le lien
-   * « Ajouter une compétence à la main », était enregistré comme généré par le
-   * tuteur. C'est le champ de provenance qu'ADR-004 a créé.
-   *
-   * Et le même drapeau masquait « Suggérer avec le tuteur », qui n'apparaissait
-   * donc JAMAIS sur ce chemin.
-   */
+
   const [venuDuTuteur, setVenuDuTuteur] = useState(brancheInitiale !== undefined);
   const abandonRef = useRef<AbortController | null>(null);
   const suggestionLanceeRef = useRef(false);
@@ -150,9 +125,9 @@ export function ModaleCompetence({
               justification: parsed.branche.justification,
               competences: parsed.branche.competences,
             });
-            // C'est ICI, et seulement ici, que le contenu vient du tuteur.
             setVenuDuTuteur(true);
             setPhase("formulaire");
+            setModeSuggestionOuvert(false);
           } else if (type === "erreur" && donnees) {
             const parsed = JSON.parse(donnees) as { message: string };
             setErreur(parsed.message);
@@ -176,18 +151,28 @@ export function ModaleCompetence({
     void suggerer();
   }, [suggestionAutomatique, sujet, suggerer]);
 
+  const estDomaineExistant = Boolean(domaineInitial);
+  const titreModale = estDomaineExistant ? "Ajouter une compétence" : "Nouveau domaine d’apprentissage";
+  const sousTitreModale = estDomaineExistant
+    ? `Ajoute une compétence observable et mesurable au domaine.`
+    : "Définis une nouvelle branche du référentiel et ses compétences.";
+
   return (
     <Modale
-      titre="Ajouter des compétences"
-      sousTitre="Le tuteur suggère, tu relis et tu valides. Les codes seront attribués à l'enregistrement."
+      titre={titreModale}
+      sousTitre={sousTitreModale}
+      largeur="xl"
       onFermer={onFermer}
     >
       <>
         {phase === "suggestion" && (
-          <div className="flex flex-col items-center justify-center py-10 text-center">
+          <div className="flex flex-col items-center justify-center py-12 text-center">
             <PointActif />
-            <p className="mt-3 text-sm text-texte-attenue">
-              {progression ?? "Le tuteur prend connaissance de ce qui a été mesuré…"}
+            <p className="mt-4 font-serif text-base text-texte">
+              {progression ?? "Le tuteur analyse le domaine et compose les compétences…"}
+            </p>
+            <p className="mt-1 text-xs text-texte-discret">
+              Chaque proposition restera modifiable et ajustable avant validation.
             </p>
             <Bouton
               onClick={() => {
@@ -196,43 +181,67 @@ export function ModaleCompetence({
               }}
               variante="secondaire"
               taille="petite"
-              className="mt-4"
+              className="mt-5"
             >
-              Arrêter
+              Interrompre la suggestion
             </Bouton>
           </div>
         )}
 
         {phase === "formulaire" && (
           <div className="space-y-4">
+            {/* Volet suggestion du tuteur (repliable et épuré) */}
             {!venuDuTuteur && (
-              <div>
-                <label
-                  htmlFor="modale-sujet"
-                  className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret"
-                >
-                  Suggérer avec le tuteur
-                </label>
-                <div className="mt-1 flex gap-2">
-                  <input
-                    id="modale-sujet"
-                    value={sujet}
-                    onChange={(e) => setSujet(e.target.value)}
-                    placeholder="Un sujet, un thème, un domaine…"
-                    className="w-full rounded-md border border-bordure-controle bg-surface px-2 py-1.5 text-sm placeholder:text-texte-discret"
-                  />
-                  <Bouton
-                    onClick={() => void suggerer()}
-                    disabled={sujet.trim().length === 0}
-                    variante="secondaire"
+              <div className="rounded-xl border border-bordure bg-surface-2/40 p-3.5">
+                {!modeSuggestionOuvert ? (
+                  <button
+                    type="button"
+                    onClick={() => setModeSuggestionOuvert(true)}
+                    className="flex w-full items-center justify-between text-left text-xs text-texte-attenue hover:text-primaire cursor-pointer transition-colors"
                   >
-                    Suggérer
-                  </Bouton>
-                </div>
-                <p className="mt-1 text-[0.6875rem] text-texte-discret">
-                  Le tuteur remplit les lignes ci-dessous — chacune reste décochable et
-                  modifiable.
-                </p>
+                    <span className="flex items-center gap-2 font-medium">
+                      <span>✨</span>
+                      <span>Suggérer des compétences avec le tuteur IA</span>
+                    </span>
+                    <span className="text-texte-discret">Déplier →</span>
+                  </button>
+                ) : (
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <label
+                        htmlFor="modale-sujet"
+                        className="text-xs font-semibold text-texte"
+                      >
+                        Sujet ou intention pour le tuteur
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setModeSuggestionOuvert(false)}
+                        className="text-[0.6875rem] text-texte-discret hover:text-texte cursor-pointer"
+                      >
+                        Fermer
+                      </button>
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        id="modale-sujet"
+                        value={sujet}
+                        onChange={(e) => setSujet(e.target.value)}
+                        placeholder="Ex : Récursivité avancée, Raisonnement stoïcien..."
+                        className="w-full rounded-lg border border-bordure bg-surface px-3 py-2 text-xs text-texte placeholder:text-texte-discret focus:border-primaire outline-none"
+                      />
+                      <Bouton
+                        onClick={() => void suggerer()}
+                        disabled={sujet.trim().length === 0}
+                        variante="secondaire"
+                        taille="petite"
+                        className="shrink-0"
+                      >
+                        Générer
+                      </Bouton>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -245,7 +254,9 @@ export function ModaleCompetence({
             <ValidationBranche
               domainesExistants={domainesExistants}
               initiale={initiale}
+              domaineFixe={estDomaineExistant}
               origine={venuDuTuteur ? "tuteur" : "manuel"}
+              onFermer={onFermer}
               surEnregistre={() => {
                 surEnregistre?.();
                 onFermer();

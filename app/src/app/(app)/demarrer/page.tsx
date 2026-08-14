@@ -55,7 +55,7 @@ export default async function PageDemarrer() {
 
       <p className="mt-4 px-1 text-xs text-texte-attenue">
         Rien n&apos;est figé : le référentiel se modifie, s&apos;étend et se réduit à tout moment
-        depuis l&apos;écran <span className="font-medium">Compétences</span>.
+        depuis l&apos;<span className="font-medium">Atelier</span>.
       </p>
     </>
   );

@@ -88,7 +88,7 @@ export function EditeurDirect({
       onClick={handleClick}
       onFocus={onSelectionChange}
       onKeyDown={onRaccourci}
-      className={cx("prose-exo min-h-full w-full p-5 sm:p-6 outline-none", !lectureSeule && "cursor-text")}
+      className={cx("prose-exo min-h-full w-full px-5 pb-5 pt-7 sm:px-6 sm:pb-6 sm:pt-8 outline-none", !lectureSeule && "cursor-text")}
     />
   );
 }

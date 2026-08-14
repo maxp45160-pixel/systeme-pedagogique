@@ -33,7 +33,7 @@ import { FilArianeAtelier, BoutonOuvrirExplorateur } from "./fil-ariane-atelier"
 import { ConcepteurSeance, type DonneesSeance } from "@/components/seances/concepteur-seance";
 import type { ElementAtelier } from "./types-atelier";
 import type { NoeudDossier } from "@/lib/documents/arbre-atelier";
-import { sauvegarderDocumentAction, supprimerDocumentAction } from "@/lib/store/document-actions";
+import { creerDocumentBrutAction, sauvegarderDocumentAction, supprimerDocumentAction } from "@/lib/store/document-actions";
 import {
   BoutonSuppressionCarte,
   ModaleConfirmationSuppression,
@@ -158,11 +158,28 @@ function VueCompetence({
   async function creerNotePourCompetence() {
     demarrerCreationNote(async () => {
       try {
-        const timestamp = Date.now().toString(36);
-        const id = `note-${vue.code.toLowerCase().replace(/[^a-z0-9]/g, "-")}-${timestamp}`;
+        const codeNettoye = vue.code.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-");
+        const idRandom = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+        const id = `note-${codeNettoye}-${idRandom}`;
         const titreDoc = `Note sur ${vue.code} : ${titre}`;
-        const contenuInitial = `# ${titreDoc}\n\nFiche de travail et observations associées à la compétence [[${vue.code}]].\n\n## Notes\n\n- \n`;
-        await sauvegarderDocumentAction(id, contenuInitial);
+        const contenuInitial = [
+          "---",
+          `titre: "${titreDoc}"`,
+          "type: note",
+          "role: support",
+          `contexte: "Compétence ${vue.code}"`,
+          `domaine: "${vue.domaineNom || "transversal"}"`,
+          "---",
+          `# ${titreDoc}`,
+          "",
+          `Fiche de travail et observations associées à la compétence [[${vue.code}]].`,
+          "",
+          "## Notes",
+          "",
+          "- ",
+        ].join("\n");
+
+        await creerDocumentBrutAction(id, contenuInitial);
         router.refresh();
         ouvrirElement(id);
       } catch (err) {
@@ -365,9 +382,9 @@ function VueCompetence({
               <span className="inline-flex rounded-xl bg-primaire px-4 py-2 text-sm font-semibold text-primaire-contraste">{titre}</span>
             </div>
             <div className="mt-6 grid gap-5 md:grid-cols-3">
-              <Relations titre="Prérequis" ids={vue.prerequis} ouvrirElement={ouvrirElement} />
-              <Relations titre="Compétences suivantes" ids={vue.suivantes} ouvrirElement={ouvrirElement} />
-              <Relations titre="Documents" ids={vue.documents.map((document) => document.id)} ouvrirElement={ouvrirElement} />
+              <Relations titre="Prérequis" ids={vue.prerequis} ouvrirElement={ouvrirElement} elements={elements} />
+              <Relations titre="Compétences suivantes" ids={vue.suivantes} ouvrirElement={ouvrirElement} elements={elements} />
+              <Relations titre="Documents & ressources" ids={vue.documents.map((document) => document.id)} ouvrirElement={ouvrirElement} elements={elements} />
             </div>
           </section>
         )}
@@ -439,8 +456,72 @@ function VueCompetence({
   );
 }
 
-function Relations({ titre, ids, ouvrirElement }: { titre: string; ids: string[]; ouvrirElement: (id: string) => void }) {
-  return <div><h3 className="text-[0.6875rem] font-semibold uppercase tracking-[0.1em] text-texte-discret">{titre}</h3><div className="mt-2 space-y-1.5">{ids.map((id) => <button key={id} type="button" onClick={() => ouvrirElement(id)} className="block w-full rounded-lg border border-bordure bg-surface-2 px-3 py-2 text-left text-xs font-medium hover:border-primaire/40">{id}</button>)}{!ids.length && <p className="py-2 text-xs text-texte-discret">Aucune relation déclarée.</p>}</div></div>;
+function Relations({
+  titre,
+  ids,
+  ouvrirElement,
+  elements,
+}: {
+  titre: string;
+  ids: string[];
+  ouvrirElement: (id: string) => void;
+  elements?: ElementAtelier[];
+}) {
+  return (
+    <div className="rounded-xl border border-bordure bg-surface-2/30 p-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-texte-discret">
+          {titre}
+        </h3>
+        <span className="chiffres rounded-full bg-surface px-2 py-0.5 text-[0.6875rem] font-semibold text-texte-discret">
+          {ids.length}
+        </span>
+      </div>
+      <div className="mt-3 space-y-1.5">
+        {ids.map((id) => {
+          const cleanId = id.replace(/^(competence|document|exercice|domaine|theme):/, "");
+          const el = elements?.find(
+            (e) =>
+              e.id === id ||
+              e.id === cleanId ||
+              e.id.replace(/^(competence|document|exercice|domaine|theme):/, "") === cleanId,
+          );
+          const libelle = el?.titre && el.titre !== id ? el.titre : null;
+          const estCode = /^[A-Z0-9_-]+$/.test(cleanId) && cleanId.length <= 15;
+
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => ouvrirElement(id)}
+              className="group flex w-full flex-col justify-between gap-1 rounded-lg border border-bordure bg-surface p-2.5 text-left text-xs transition-all hover:border-primaire/40 hover:bg-surface-2 cursor-pointer shadow-xs"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className={cx(estCode ? "font-mono font-semibold text-primaire text-xs" : "font-medium text-texte truncate")}>
+                  {cleanId}
+                </span>
+                {el?.typeLibelle && (
+                  <span className="shrink-0 rounded bg-surface-2 px-1.5 py-0.5 text-[0.625rem] text-texte-discret capitalize">
+                    {el.typeLibelle}
+                  </span>
+                )}
+              </div>
+              {libelle && (
+                <span className="truncate text-[0.6875rem] text-texte-attenue group-hover:text-texte transition-colors">
+                  {libelle}
+                </span>
+              )}
+            </button>
+          );
+        })}
+        {ids.length === 0 && (
+          <p className="py-3 text-xs text-texte-discret text-center italic">
+            Aucun élément déclaré.
+          </p>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function VueDomaine({
@@ -640,7 +721,7 @@ function VueDomaine({
                 {
                   intitule: "",
                   palier: palierNouveau,
-                  importance: "essentielle",
+                  importance: "1.0",
                 },
               ],
             }}

@@ -220,6 +220,13 @@ export function GrapheCompetences({
     };
   }, []);
 
+  const zoomer = useCallback((facteur: number) => {
+    const camera = cameraRef.current;
+    const nouveauZoom = Math.min(2.5, Math.max(0.15, camera.zoom * facteur));
+    cameraRef.current = { ...camera, zoom: nouveauZoom };
+    dessinerRef.current();
+  }, []);
+
   const dessiner = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -587,20 +594,43 @@ export function GrapheCompetences({
         </div>
 
         <div className="absolute right-3 top-3 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              ajusterCamera();
-              dessinerRef.current();
-            }}
-            className="rounded-lg border border-bordure bg-surface/95 px-3 py-2 text-xs font-medium text-texte-attenue shadow-sm backdrop-blur-md hover:text-texte"
-          >
-            Recentrer
-          </button>
+          <div className="flex items-center rounded-lg border border-bordure bg-surface/95 shadow-sm backdrop-blur-md">
+            <button
+              type="button"
+              onClick={() => zoomer(1.25)}
+              className="grid size-8 place-items-center text-sm font-semibold text-texte-attenue hover:text-texte hover:bg-surface-2 transition-colors rounded-l-lg cursor-pointer"
+              title="Zoom avant"
+              aria-label="Zoom avant"
+            >
+              +
+            </button>
+            <div className="h-4 w-px bg-bordure" />
+            <button
+              type="button"
+              onClick={() => zoomer(0.8)}
+              className="grid size-8 place-items-center text-sm font-semibold text-texte-attenue hover:text-texte hover:bg-surface-2 transition-colors cursor-pointer"
+              title="Zoom arrière"
+              aria-label="Zoom arrière"
+            >
+              −
+            </button>
+            <div className="h-4 w-px bg-bordure" />
+            <button
+              type="button"
+              onClick={() => {
+                ajusterCamera();
+                dessinerRef.current();
+              }}
+              className="px-2.5 py-1.5 text-xs font-medium text-texte-attenue hover:text-texte hover:bg-surface-2 transition-colors rounded-r-lg cursor-pointer"
+              title="Recentrer la vue"
+            >
+              Recentrer
+            </button>
+          </div>
           <button
             type="button"
             onClick={() => setPanneauOuvert((o) => !o)}
-            className="rounded-lg border border-bordure bg-surface/95 px-3 py-2 text-xs font-medium text-texte-attenue shadow-sm backdrop-blur-md hover:text-texte"
+            className="rounded-lg border border-bordure bg-surface/95 px-3 py-2 text-xs font-medium text-texte-attenue shadow-sm backdrop-blur-md hover:text-texte cursor-pointer"
             aria-expanded={panneauOuvert}
           >
             {panneauOuvert ? "Masquer les réglages" : "Réglages"}

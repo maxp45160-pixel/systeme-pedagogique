@@ -10,13 +10,14 @@ import type { VueDomaineAtelier } from "@/lib/documents/vue-atelier";
 import type { ElementAtelier } from "./types-atelier";
 import { ModaleCompetence } from "@/components/referentiel/modale-competence";
 import { ModaleTheme } from "@/components/seances/modale-theme";
+import { ModaleExercice } from "@/components/exercices/modale-exercice";
 import {
   BoutonSuppressionCarte,
   ModaleConfirmationSuppression,
 } from "./modale-confirmation-suppression";
 import { archiverDomaine, retirerCompetences } from "@/lib/store/referentiel-actions";
 import { retirerTheme } from "@/lib/store/theme-actions";
-import { sauvegarderDocumentAction, supprimerDocumentAction } from "@/lib/store/document-actions";
+import { supprimerDocumentAction } from "@/lib/store/document-actions";
 import { BoutonGenerer } from "@/components/exercices/bouton-generer";
 import type { CalibrageModale, CompetenceModale } from "@/components/exercices/proprietes-generation";
 import {
@@ -378,29 +379,18 @@ export function VueCategorieTransversale({
 }) {
   const router = useRouter();
   const [modaleThemeOuverte, setModaleThemeOuverte] = useState(false);
+  const [modaleCompetenceOuverte, setModaleCompetenceOuverte] = useState(false);
+  const [modaleGenerationOuverte, setModaleGenerationOuverte] = useState(false);
   const [elementASupprimer, setElementASupprimer] = useState<ElementAtelier | null>(null);
-  const [creationNoteEnCours, demarrerCreationNote] = useTransition();
 
   const parties = noeud.chemin.split("/").map((p) => p.trim()).filter(Boolean);
-  const estThemes = noeud.nom === "Thèmes" || noeud.chemin.endsWith("/Thèmes") || noeud.chemin === "Transversal/Thèmes";
-  const estExercices = noeud.nom === "Exercices" || noeud.chemin.endsWith("/Exercices") || noeud.chemin === "Transversal/Exercices";
-  const estNotes = noeud.nom.includes("Notes") || noeud.chemin.includes("Notes");
+  const nomDossier = noeud.nom.toLowerCase();
+  const cheminDossier = noeud.chemin.toLowerCase();
 
-  async function creerNouvelleNote() {
-    demarrerCreationNote(async () => {
-      try {
-        const timestamp = Date.now().toString(36);
-        const id = `note-${timestamp}`;
-        const titreDoc = `Nouvelle note ${new Date().toLocaleDateString("fr-FR")}`;
-        const contenuInitial = `# ${titreDoc}\n\nNotes et observations libres.\n\n- \n`;
-        await sauvegarderDocumentAction(id, contenuInitial);
-        router.refresh();
-        ouvrirElement(id);
-      } catch (err) {
-        console.error("Erreur lors de la création de la note:", err);
-      }
-    });
-  }
+  const estThemes = nomDossier === "thèmes" || nomDossier === "themes" || cheminDossier.includes("/thèmes") || cheminDossier.includes("/themes");
+  const estExercices = nomDossier === "exercices" || cheminDossier.includes("/exercices");
+  const estCompetences = nomDossier === "compétences" || nomDossier === "competences" || cheminDossier.includes("/compétences") || cheminDossier.includes("/competences");
+  const estPreuves = nomDossier === "preuves" || cheminDossier.includes("/preuves");
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-surface-2/30">
@@ -629,32 +619,26 @@ export function VueCategorieTransversale({
           )}
 
           {estExercices && generation && compteId && (
-            <div className="group flex min-h-[170px] flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-bordure/80 bg-surface/20 p-6 text-center shadow-xs transition-all duration-200 hover:-translate-y-1 hover:border-primaire/60 hover:bg-surface hover:shadow-[var(--ombre-posee)]">
-              <span className="grid size-10 place-items-center rounded-full bg-surface-2 text-lg font-semibold text-texte-discret group-hover:bg-primaire-faible group-hover:text-primaire transition-colors">
-                +
-              </span>
-              <div className="min-w-0">
-                <BoutonGenerer
-                  competences={generation.competences}
-                  calibrages={generation.calibrages}
-                  compteId={compteId}
-                  competenceInitiale={generation.competences[0]?.code ?? ""}
-                  libelle="Générer un exercice"
-                  variante="secondaire"
-                  className="font-serif text-sm font-semibold text-primaire hover:underline"
-                />
-                <p className="mt-1 text-xs text-texte-discret leading-relaxed">
-                  Entraînement assisté par le tuteur
-                </p>
-              </div>
-            </div>
+            <CarteCreationPointillee
+              titre="Générer un exercice"
+              description="Entraînement assisté par le tuteur IA"
+              onClick={() => setModaleGenerationOuverte(true)}
+            />
           )}
 
-          {estNotes && (
+          {estCompetences && compteId && (
             <CarteCreationPointillee
-              titre={creationNoteEnCours ? "Création en cours..." : "Nouvelle note"}
-              description="Créer une fiche de travail ou ressource"
-              onClick={creerNouvelleNote}
+              titre="Ajouter une compétence"
+              description="Créer ou déclarer une nouvelle compétence"
+              onClick={() => setModaleCompetenceOuverte(true)}
+            />
+          )}
+
+          {estPreuves && generation && compteId && (
+            <CarteCreationPointillee
+              titre="Générer un exercice d’évaluation"
+              description="Produire une nouvelle preuve d’apprentissage"
+              onClick={() => setModaleGenerationOuverte(true)}
             />
           )}
         </section>
@@ -670,6 +654,33 @@ export function VueCategorieTransversale({
             setModaleThemeOuverte(false);
             router.refresh();
             ouvrirElement(`theme:${theme.id}`);
+          }}
+        />
+      )}
+
+      {modaleCompetenceOuverte && compteId && (
+        <ModaleCompetence
+          compteId={compteId}
+          domainesExistants={domainesExistants}
+          onFermer={() => setModaleCompetenceOuverte(false)}
+          surEnregistre={() => {
+            setModaleCompetenceOuverte(false);
+            router.refresh();
+          }}
+        />
+      )}
+
+      {modaleGenerationOuverte && generation && compteId && (
+        <ModaleExercice
+          onFermer={() => setModaleGenerationOuverte(false)}
+          competences={generation.competences}
+          competenceInitiale={generation.competences[0]?.code ?? ""}
+          calibrages={generation.calibrages}
+          compteId={compteId}
+          surEnregistre={(id) => {
+            setModaleGenerationOuverte(false);
+            router.refresh();
+            ouvrirElement(`exercice:${id}`);
           }}
         />
       )}

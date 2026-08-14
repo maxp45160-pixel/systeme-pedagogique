@@ -1500,6 +1500,13 @@ export async function scannerUxJourney(): Promise<GrapheWorkflow> {
       declencheur: "Clic pilule (Explique-moi, Évalue-moi, Lacunes...)",
     });
     connecter({
+      source: "ux:tuteur-modes",
+      target: "ux:tiroir-tuteur",
+      type: "transition",
+      libelle: "Envoi consigne",
+      declencheur: "Injection du message dans la conversation",
+    });
+    connecter({
       source: "ux:tiroir-tuteur",
       target: "ux:tuteur-suggestion-exercice",
       type: "interaction",

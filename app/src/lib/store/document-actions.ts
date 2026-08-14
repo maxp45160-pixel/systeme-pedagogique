@@ -35,6 +35,14 @@ export async function creerDocumentAction(
   return { id, contenuMd };
 }
 
+export async function creerDocumentBrutAction(
+  id: string,
+  contenuMd: string,
+): Promise<{ id: string; contenuMd: string }> {
+  await creerDocument(id, contenuMd);
+  return { id, contenuMd };
+}
+
 /**
  * Capture orientée depuis le tableau de bord.
  *

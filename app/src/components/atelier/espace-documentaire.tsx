@@ -300,6 +300,42 @@ export function EspaceDocumentaire({
       }
     }
   }, [selectionnee?.dossier, selection, dossiersOuverts, cleDossiers]);
+
+  const estModifie = Boolean(
+    selectionnee &&
+    !selectionnee.lectureSeule &&
+    selectionnee.contenuCharge &&
+    selectionnee.source === "document" &&
+    brouillon !== selectionnee.contenuMd,
+  );
+
+  // Avertissement de perte de modifications non enregistrées
+  useEffect(() => {
+    if (!estModifie) return;
+    const avertir = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", avertir);
+    return () => window.removeEventListener("beforeunload", avertir);
+  }, [estModifie]);
+
+  // Raccourci clavier global Ctrl+K / Cmd+K pour la recherche dans l'Atelier
+  useEffect(() => {
+    const surClavier = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setSidebarOuverte(true);
+        const inputRecherche = document.getElementById("recherche-atelier");
+        if (inputRecherche) {
+          inputRecherche.focus();
+          (inputRecherche as HTMLInputElement).select();
+        }
+      }
+    };
+    window.addEventListener("keydown", surClavier);
+    return () => window.removeEventListener("keydown", surClavier);
+  }, []);
   const liensCourants = selectionnee
     ? selectionnee.contenuCharge
       ? analyserDocumentMarkdown(selectionnee.id, brouillon).liens
@@ -857,16 +893,27 @@ export function EspaceDocumentaire({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
               </svg>
             </button>
-            <div className="flex-1 min-w-0">
-              <label className="sr-only" htmlFor="recherche-atelier">Rechercher dans l’Atelier</label>
+            <div className="relative flex-1 min-w-0">
+              <label className="sr-only" htmlFor="recherche-atelier">Rechercher dans l’Atelier (Ctrl+K)</label>
               <input
                 id="recherche-atelier"
                 type="search"
                 value={recherche}
                 onChange={(event) => setRecherche(event.target.value)}
-                placeholder="Rechercher une fiche…"
-                className="w-full rounded-lg border border-[var(--rail-bordure)] bg-[var(--rail-2)] px-3 py-1.5 text-xs text-[var(--rail-texte)] outline-none transition-colors placeholder:text-[var(--rail-texte-discret)] focus:border-[var(--rail-actif)]"
+                placeholder="Rechercher… (Ctrl+K)"
+                className="w-full rounded-lg border border-[var(--rail-bordure)] bg-[var(--rail-2)] pl-3 pr-7 py-1.5 text-xs text-[var(--rail-texte)] outline-none transition-colors placeholder:text-[var(--rail-texte-discret)] focus:border-[var(--rail-actif)]"
               />
+              {recherche && (
+                <button
+                  type="button"
+                  onClick={() => setRecherche("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 size-4 grid place-items-center rounded-full text-xs text-[var(--rail-texte-discret)] hover:bg-[var(--rail-bordure)] hover:text-[var(--rail-texte)] transition-colors cursor-pointer"
+                  title="Effacer la recherche"
+                  aria-label="Effacer la recherche"
+                >
+                  ×
+                </button>
+              )}
             </div>
           </div>
 
@@ -1016,9 +1063,17 @@ export function EspaceDocumentaire({
                       )}
                     </div>
                   )}
-                  <h2 className="truncate font-serif text-2xl font-medium tracking-tight text-texte">
-                    {selectionnee.titre}
-                  </h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="truncate font-serif text-2xl font-medium tracking-tight text-texte">
+                      {selectionnee.titre}
+                    </h2>
+                    {estModifie && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-alerte-faible px-2.5 py-0.5 text-[0.6875rem] font-medium text-alerte shrink-0" title="Modifications en attente d’enregistrement">
+                        <span className="size-1.5 rounded-full bg-alerte animate-pulse" />
+                        Non enregistré
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex flex-wrap items-center justify-end gap-2.5">
@@ -1105,16 +1160,16 @@ export function EspaceDocumentaire({
                       <Markdown contenu={snapshotApercu.contenuMd} />
                     </div>
                   ) : (
-                    <div className="relative min-h-full rounded-lg border border-bordure bg-surface focus-within:border-primaire transition-colors overflow-hidden">
-                      {/* Barre d'outils de formatage direct flottante superposée et masquée à moitié au repos */}
+                    <div className="relative min-h-full rounded-lg border border-bordure bg-surface focus-within:border-primaire transition-colors">
+                      {/* Barre d'outils de formatage direct sticky ancrée sur la bordure supérieure avec glissement au survol */}
                       {!selectionnee.lectureSeule && (
-                        <div className="group/toolbar absolute top-0 left-1/2 -translate-x-1/2 z-20 pt-0 px-3 transition-all duration-300">
+                        <div className="group/toolbar sticky top-0 z-30 flex justify-center -mt-px pt-0 px-3 pointer-events-none transition-all duration-300">
                           <div
                             className={cx(
-                              "flex items-center gap-1 rounded-full border bg-surface-2/95 backdrop-blur-md px-3 py-1 shadow-xs transition-all duration-300 -translate-y-1/2 group-hover/toolbar:translate-y-2 group-hover/toolbar:opacity-100 group-hover/toolbar:shadow-xl group-hover/toolbar:border-primaire/50 focus-within:translate-y-2 focus-within:opacity-100 focus-within:border-primaire/50 cursor-default",
+                              "pointer-events-auto flex items-center gap-1 rounded-full border bg-surface/95 backdrop-blur-md px-3 py-1 shadow-sm transition-all duration-300 -translate-y-1/2 group-hover/toolbar:translate-y-2 group-hover/toolbar:opacity-100 group-hover/toolbar:shadow-xl group-hover/toolbar:border-primaire/50 focus-within:translate-y-2 focus-within:opacity-100 focus-within:border-primaire/50 cursor-default",
                               (etatFormatage.bold || etatFormatage.italic || etatFormatage.h2 || etatFormatage.ul || etatFormatage.ol || etatFormatage.blockquote)
-                                ? "opacity-90 border-primaire/60 shadow-xs ring-1 ring-primaire/20"
-                                : "opacity-35 border-bordure/80",
+                                ? "opacity-95 translate-y-2 border-primaire/60 shadow-md ring-1 ring-primaire/20"
+                                : "opacity-35 hover:opacity-100 border-bordure/80",
                             )}
                           >
                             <button
