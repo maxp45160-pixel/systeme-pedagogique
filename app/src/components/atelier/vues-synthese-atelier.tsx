@@ -2,7 +2,7 @@
 
 import { cx } from "@/components/ui/primitives";
 import { BoutonRetour } from "@/components/ui/lien-retour";
-import { BoutonOuvrirExplorateur } from "./fiche-pedagogique";
+import { FilArianeAtelier, BoutonOuvrirExplorateur } from "./fil-ariane-atelier";
 import { compterElements, trouverNoeudDossier, type NoeudDossier } from "@/lib/documents/arbre-atelier";
 import type { VueDomaineAtelier } from "@/lib/documents/vue-atelier";
 import type { ElementAtelier } from "./types-atelier";
@@ -261,66 +261,20 @@ export function VueCategorieTransversale({
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-surface-2/30">
       <header className="border-b border-bordure bg-surface px-6 py-4 lg:px-8">
-        <nav aria-label="Fil d’Ariane" className="flex items-center gap-1.5 text-xs text-texte-discret min-w-0 flex-wrap sm:flex-nowrap mb-3">
-          {!sidebarOuverte && setSidebarOuverte && (
-            <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />
-          )}
-          <BoutonRetour onClick={revenirTransversal} libelle="Retour" />
-          {revenirGrapheGlobal && (
-            <button
-              type="button"
-              onClick={revenirGrapheGlobal}
-              className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline shrink-0"
-            >
-              Atelier
-            </button>
-          )}
-          {parties.map((partie, index) => {
-            const cheminCumule = parties.slice(0, index + 1).join("/");
-            const estDernier = index === parties.length - 1;
-            if (estDernier) {
-              return (
-                <span key={cheminCumule} className="flex items-center gap-1.5 min-w-0">
-                  <span className="text-texte-discret/60 shrink-0">/</span>
-                  <span className="font-semibold text-texte truncate">{partie}</span>
-                </span>
-              );
-            }
-            const domaineEl = elements.find(
-              (el) =>
-                el.type === "domaine" &&
-                ((el.vuePedagogique?.kind === "domaine" && el.vuePedagogique.nom === partie) || el.titre === partie),
-            );
-            let action: (() => void) | null = null;
-            if (partie === "Domaines") {
-              action = () => ouvrirElement("domaines");
-            } else if (partie === "Transversal") {
-              action = () => ouvrirElement("transversal");
-            } else if (partie === "Domaines archivés" || partie === "Archivés") {
-              action = () => ouvrirElement("domaines-archives");
-            } else if (domaineEl) {
-              action = () => ouvrirElement(domaineEl.id);
-            } else if (trouverNoeudDossier(arbreDossiers, cheminCumule)) {
-              action = () => ouvrirDossier(cheminCumule);
-            }
-            return (
-              <span key={cheminCumule} className="flex items-center gap-1.5 shrink-0">
-                <span className="text-texte-discret/60">/</span>
-                {action ? (
-                  <button
-                    type="button"
-                    onClick={action}
-                    className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
-                  >
-                    {partie}
-                  </button>
-                ) : (
-                  <span className="text-texte-discret">{partie}</span>
-                )}
-              </span>
-            );
-          })}
-        </nav>
+        <FilArianeAtelier
+          dossier={parties.slice(0, -1).join("/")}
+          titreCourant={noeud.nom}
+          revenirGraphe={revenirGrapheGlobal}
+          actionRetour={revenirTransversal}
+          libelleRetour="Retour"
+          ouvrirElement={ouvrirElement}
+          ouvrirDossier={ouvrirDossier}
+          arbreDossiers={arbreDossiers}
+          elements={elements}
+          sidebarOuverte={sidebarOuverte}
+          setSidebarOuverte={setSidebarOuverte}
+          className="mb-3"
+        />
         <h2 className="font-serif text-2xl font-medium tracking-tight">{noeud.nom}</h2>
         <p className="mt-1 text-xs text-texte-attenue">{compterElements(noeud)} fiche{compterElements(noeud) > 1 ? "s" : ""} accessible{compterElements(noeud) > 1 ? "s" : ""} dans cette catégorie.</p>
       </header>

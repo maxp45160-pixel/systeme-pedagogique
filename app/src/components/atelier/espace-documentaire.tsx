@@ -41,6 +41,7 @@ import type { VueDomaineAtelier } from "@/lib/documents/vue-atelier";
 import { cleParCompte } from "@/lib/ui/stockage-session";
 import { BoutonRetour } from "@/components/ui/lien-retour";
 import { BoutonOuvrirExplorateur, FichePedagogiqueAtelier, PanneauPedagogiqueAtelier } from "./fiche-pedagogique";
+import { FilArianeAtelier } from "./fil-ariane-atelier";
 import type { CalibrageModale, CompetenceModale } from "@/components/exercices/proprietes-generation";
 import { cheminsDepuisDefinition } from "@/lib/documents/chemins-atelier";
 import {
@@ -373,6 +374,10 @@ export function EspaceDocumentaire({
     : null;
 
   function ouvrirElement(id: string, opts?: { remplacerHistorique?: boolean } | unknown) {
+    if (id.startsWith("dossier:")) {
+      ouvrirDossier(id.slice("dossier:".length));
+      return;
+    }
     const element = trouverElement(id, elements);
     if (!element) {
       const cleanId = id.replace(/^(exercice|document):/, "");
@@ -850,7 +855,11 @@ export function EspaceDocumentaire({
             <FichePedagogiqueAtelier
               vue={selectionnee.vuePedagogique}
               titre={selectionnee.titre}
+              dossier={selectionnee.dossier}
               ouvrirElement={ouvrirElement}
+              ouvrirDossier={ouvrirDossier}
+              arbreDossiers={arbreDossiers}
+              elements={elements}
               revenirGraphe={revenirGrapheGlobal}
               sidebarOuverte={sidebarOuverte}
               setSidebarOuverte={setSidebarOuverte}
@@ -862,67 +871,17 @@ export function EspaceDocumentaire({
           ) : selectionnee ? (
             <>
               <div className="flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure/50 px-6 shrink-0 bg-surface">
-                <nav aria-label="Fil d’Ariane" className="flex items-center gap-1.5 text-xs text-texte-discret min-w-0 flex-wrap sm:flex-nowrap">
-                  {!sidebarOuverte && (
-                    <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />
-                  )}
-                  <BoutonRetour onClick={revenirGrapheGlobal} libelle="Retour à l'Atelier" />
-                  <button
-                    type="button"
-                    onClick={revenirGrapheGlobal}
-                    className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline shrink-0"
-                  >
-                    Atelier
-                  </button>
-                  {(() => {
-                    const parties = selectionnee.dossier.split("/").map((p) => p.trim()).filter(Boolean);
-                    return parties.map((partie, index) => {
-                      const cheminCumule = parties.slice(0, index + 1).join("/");
-                      const domaineEl = elements.find(
-                        (el) =>
-                          el.type === "domaine" &&
-                          ((el.vuePedagogique?.kind === "domaine" && el.vuePedagogique.nom === partie) || el.titre === partie),
-                      );
-                      const noeudDossier = trouverNoeudDossier(arbreDossiers, cheminCumule);
-
-                      let action: (() => void) | null = null;
-                      if (partie === "Domaines") {
-                        action = () => ouvrirElement("domaines");
-                      } else if (partie === "Transversal") {
-                        action = () => ouvrirElement("transversal");
-                      } else if (partie === "Domaines archivés" || partie === "Archivés") {
-                        action = () => ouvrirElement("domaines-archives");
-                      } else if (domaineEl) {
-                        action = () => ouvrirElement(domaineEl.id);
-                      } else if (noeudDossier) {
-                        action = () => ouvrirDossier(cheminCumule);
-                      }
-
-                      return (
-                        <span key={cheminCumule} className="flex items-center gap-1.5 shrink-0">
-                          <span className="text-texte-discret/60">/</span>
-                          {action ? (
-                            <button
-                              type="button"
-                              onClick={action}
-                              className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
-                            >
-                              {partie}
-                            </button>
-                          ) : (
-                            <span className="text-texte-discret">{partie}</span>
-                          )}
-                        </span>
-                      );
-                    });
-                  })()}
-                  <span className="flex items-center gap-1.5 min-w-0">
-                    <span className="text-texte-discret/60 shrink-0">/</span>
-                    <span className="font-semibold text-texte truncate" title={selectionnee.titre}>
-                      {selectionnee.titre}
-                    </span>
-                  </span>
-                </nav>
+                <FilArianeAtelier
+                  dossier={selectionnee.dossier}
+                  titreCourant={selectionnee.titre}
+                  revenirGraphe={revenirGrapheGlobal}
+                  ouvrirElement={ouvrirElement}
+                  ouvrirDossier={ouvrirDossier}
+                  arbreDossiers={arbreDossiers}
+                  elements={elements}
+                  sidebarOuverte={sidebarOuverte}
+                  setSidebarOuverte={setSidebarOuverte}
+                />
               </div>
 
               {/* Barre d'en-tête du document avec actions épurées */}

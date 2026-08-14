@@ -26,6 +26,9 @@ import type { CalibrageModale, CompetenceModale } from "@/components/exercices/p
 import { BoutonRetour } from "@/components/ui/lien-retour";
 import { Markdown } from "@/components/ui/markdown";
 import { RectificationPreuve } from "./rectification-preuve";
+import { FilArianeAtelier, BoutonOuvrirExplorateur } from "./fil-ariane-atelier";
+import type { ElementAtelier } from "./types-atelier";
+import type { NoeudDossier } from "@/lib/documents/arbre-atelier";
 
 type Onglet = "synthese" | "progression" | "relations" | "notes";
 
@@ -93,26 +96,16 @@ function CarteAssociee({
   );
 }
 
-export function BoutonOuvrirExplorateur({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="grid size-9 shrink-0 place-items-center rounded-lg border border-primaire/40 bg-primaire-faible text-primaire transition-all duration-200 hover:bg-primaire hover:border-primaire hover:text-white cursor-pointer shadow-sm"
-      title="Ouvrir l’explorateur"
-      aria-label="Ouvrir l’explorateur"
-    >
-      <svg className="size-5 shrink-0 stroke-[2.5]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
-      </svg>
-    </button>
-  );
-}
+export { BoutonOuvrirExplorateur } from "./fil-ariane-atelier";
 
 function VueCompetence({
   vue,
   titre,
+  dossier,
   ouvrirElement,
+  ouvrirDossier,
+  arbreDossiers,
+  elements,
   revenirGraphe,
   sidebarOuverte,
   setSidebarOuverte,
@@ -120,7 +113,11 @@ function VueCompetence({
 }: {
   vue: VueCompetenceAtelier;
   titre: string;
+  dossier?: string;
   ouvrirElement: (id: string) => void;
+  ouvrirDossier?: (chemin: string) => void;
+  arbreDossiers?: NoeudDossier<ElementAtelier>[];
+  elements?: ElementAtelier[];
   revenirGraphe?: () => void;
   sidebarOuverte?: boolean;
   setSidebarOuverte?: (ouverte: boolean) => void;
@@ -141,41 +138,17 @@ function VueCompetence({
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-surface-2/40">
       <div className="flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure bg-surface px-6 shrink-0">
-        <nav aria-label="Fil d’Ariane" className="flex items-center gap-1.5 text-xs text-texte-discret min-w-0 flex-wrap sm:flex-nowrap">
-          {!sidebarOuverte && setSidebarOuverte && (
-            <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />
-          )}
-          <BoutonRetour onClick={revenirGraphe} libelle="Retour à l'Atelier" />
-          {revenirGraphe && (
-            <>
-              <button
-                type="button"
-                onClick={revenirGraphe}
-                className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline shrink-0"
-              >
-                Atelier
-              </button>
-              <span className="text-texte-discret/60 shrink-0">/</span>
-            </>
-          )}
-          <button
-            type="button"
-            onClick={() => ouvrirElement("domaines")}
-            className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline shrink-0"
-          >
-            Domaines
-          </button>
-          <span className="text-texte-discret/60 shrink-0">/</span>
-          <button
-            type="button"
-            onClick={() => ouvrirElement(`domaine:${vue.domaineId}`)}
-            className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline truncate"
-          >
-            {vue.domaineNom}
-          </button>
-          <span className="text-texte-discret/60 shrink-0">/</span>
-          <span className="font-semibold text-texte shrink-0">{vue.code}</span>
-        </nav>
+        <FilArianeAtelier
+          dossier={dossier ?? `Domaines/${vue.domaineNom}`}
+          titreCourant={vue.code}
+          revenirGraphe={revenirGraphe}
+          ouvrirElement={ouvrirElement}
+          ouvrirDossier={ouvrirDossier}
+          arbreDossiers={arbreDossiers}
+          elements={elements}
+          sidebarOuverte={sidebarOuverte}
+          setSidebarOuverte={setSidebarOuverte}
+        />
       </div>
       <header className="border-b border-bordure bg-surface px-6 py-5 lg:px-8">
         <div className="flex flex-wrap items-start gap-5">
@@ -328,7 +301,11 @@ function Relations({ titre, ids, ouvrirElement }: { titre: string; ids: string[]
 
 function VueDomaine({
   vue,
+  dossier,
   ouvrirElement,
+  ouvrirDossier,
+  arbreDossiers,
+  elements,
   revenirGraphe,
   sidebarOuverte,
   setSidebarOuverte,
@@ -336,7 +313,11 @@ function VueDomaine({
   modeInitial,
 }: {
   vue: VueDomaineAtelier;
+  dossier?: string;
   ouvrirElement: (id: string) => void;
+  ouvrirDossier?: (chemin: string) => void;
+  arbreDossiers?: NoeudDossier<ElementAtelier>[];
+  elements?: ElementAtelier[];
   revenirGraphe?: () => void;
   sidebarOuverte?: boolean;
   setSidebarOuverte?: (ouverte: boolean) => void;
@@ -363,33 +344,17 @@ function VueDomaine({
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-surface-2/40">
       <div className="flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure bg-surface px-6 shrink-0">
-        <nav aria-label="Fil d’Ariane" className="flex items-center gap-1.5 text-xs text-texte-discret min-w-0 flex-wrap sm:flex-nowrap">
-          {!sidebarOuverte && setSidebarOuverte && (
-            <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />
-          )}
-          <BoutonRetour onClick={revenirGraphe} libelle="Retour à l'Atelier" />
-          {revenirGraphe && (
-            <>
-              <button
-                type="button"
-                onClick={revenirGraphe}
-                className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline shrink-0"
-              >
-                Atelier
-              </button>
-              <span className="text-texte-discret/60 shrink-0">/</span>
-            </>
-          )}
-          <button
-            type="button"
-            onClick={() => ouvrirElement(vue.domaine.archive ? "domaines-archives" : "domaines")}
-            className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline shrink-0"
-          >
-            {vue.domaine.archive ? "Domaines archivés" : "Domaines"}
-          </button>
-          <span className="text-texte-discret/60 shrink-0">/</span>
-          <span className="font-semibold text-texte truncate">{vue.nom}</span>
-        </nav>
+        <FilArianeAtelier
+          dossier={dossier ?? (vue.domaine.archive ? "Domaines archivés" : "Domaines")}
+          titreCourant={vue.nom}
+          revenirGraphe={revenirGraphe}
+          ouvrirElement={ouvrirElement}
+          ouvrirDossier={ouvrirDossier}
+          arbreDossiers={arbreDossiers}
+          elements={elements}
+          sidebarOuverte={sidebarOuverte}
+          setSidebarOuverte={setSidebarOuverte}
+        />
       </div>
       <header className="border-b border-bordure bg-surface px-6 py-5 lg:px-8">
         <div className="flex items-start gap-4"><span className="grid size-14 place-items-center rounded-2xl bg-primaire-faible text-primaire"><IconeDocuments className="size-7" /></span><div><div className="flex flex-wrap items-center gap-2"><p className="text-xs font-semibold uppercase tracking-[0.12em] text-primaire">Fiche mère</p>{vue.domaine.archive && <span className="rounded-full bg-surface-3 px-2 py-0.5 text-[0.6875rem] font-semibold text-texte-discret">Archivé</span>}</div><h2 className="font-serif text-[2.2rem] font-medium tracking-tight">{vue.nom}</h2>{vue.description && <p className="mt-3 max-w-3xl text-base leading-relaxed text-texte-attenue">{vue.description}</p>}{vue.domaine.archive && <p className="mt-3 max-w-3xl rounded-lg border border-bordure bg-surface-2 px-3 py-2 text-xs leading-relaxed text-texte-discret">Ce domaine reste consultable, mais il est exclu du pilotage actif, du graphe principal et des suggestions.</p>}</div></div>
@@ -465,7 +430,11 @@ function VueDomaine({
 function VueTheme({
   vue,
   titre,
+  dossier,
   ouvrirElement,
+  ouvrirDossier,
+  arbreDossiers,
+  elements,
   revenirGraphe,
   sidebarOuverte,
   setSidebarOuverte,
@@ -474,7 +443,11 @@ function VueTheme({
 }: {
   vue: VueThemeAtelier;
   titre: string;
+  dossier?: string;
   ouvrirElement: (id: string) => void;
+  ouvrirDossier?: (chemin: string) => void;
+  arbreDossiers?: NoeudDossier<ElementAtelier>[];
+  elements?: ElementAtelier[];
   revenirGraphe?: () => void;
   sidebarOuverte?: boolean;
   setSidebarOuverte?: (ouverte: boolean) => void;
@@ -503,35 +476,17 @@ function VueTheme({
     <div className="min-h-0 flex-1 overflow-y-auto bg-surface-2/40">
       {/* Barre supérieure fil d'Ariane */}
       <div className="flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure bg-surface px-6 shrink-0">
-        <nav aria-label="Fil d’Ariane" className="flex items-center gap-1.5 text-xs text-texte-discret min-w-0 flex-wrap sm:flex-nowrap">
-          {!sidebarOuverte && setSidebarOuverte && (
-            <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />
-          )}
-          <BoutonRetour onClick={revenirGraphe} libelle="Retour à l'Atelier" />
-          {revenirGraphe && (
-            <>
-              <button
-                type="button"
-                onClick={revenirGraphe}
-                className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline shrink-0"
-              >
-                Atelier
-              </button>
-              <span className="text-texte-discret/60 shrink-0">/</span>
-            </>
-          )}
-          <button
-            type="button"
-            onClick={() => ouvrirElement("transversal")}
-            className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline shrink-0"
-          >
-            Transversal
-          </button>
-          <span className="text-texte-discret/60 shrink-0">/</span>
-          <span className="font-medium text-texte-discret shrink-0">Thèmes</span>
-          <span className="text-texte-discret/60 shrink-0">/</span>
-          <span className="font-semibold text-texte truncate">{vue.libelle}</span>
-        </nav>
+        <FilArianeAtelier
+          dossier={dossier ?? "Transversal/Thèmes"}
+          titreCourant={vue.libelle}
+          revenirGraphe={revenirGraphe}
+          ouvrirElement={ouvrirElement}
+          ouvrirDossier={ouvrirDossier}
+          arbreDossiers={arbreDossiers}
+          elements={elements}
+          sidebarOuverte={sidebarOuverte}
+          setSidebarOuverte={setSidebarOuverte}
+        />
       </div>
 
       {/* Bannière d'en-tête du thème */}
@@ -896,13 +851,21 @@ function VueTheme({
 
 function VueExercice({
   vue,
+  dossier,
   ouvrirElement,
+  ouvrirDossier,
+  arbreDossiers,
+  elements,
   revenirGraphe,
   sidebarOuverte,
   setSidebarOuverte,
 }: {
   vue: VueExerciceProjectionAtelier;
+  dossier?: string;
   ouvrirElement: (id: string) => void;
+  ouvrirDossier?: (chemin: string) => void;
+  arbreDossiers?: NoeudDossier<ElementAtelier>[];
+  elements?: ElementAtelier[];
   revenirGraphe?: () => void;
   sidebarOuverte?: boolean;
   setSidebarOuverte?: (ouverte: boolean) => void;
@@ -910,33 +873,17 @@ function VueExercice({
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-surface-2/40">
       <div className="flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure bg-surface px-6 shrink-0">
-        <nav aria-label="Fil d’Ariane" className="flex items-center gap-1.5 text-xs text-texte-discret min-w-0 flex-wrap sm:flex-nowrap">
-          {!sidebarOuverte && setSidebarOuverte && (
-            <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />
-          )}
-          <BoutonRetour onClick={revenirGraphe} libelle="Retour à l'Atelier" />
-          {revenirGraphe && (
-            <>
-              <button
-                type="button"
-                onClick={revenirGraphe}
-                className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline shrink-0"
-              >
-                Atelier
-              </button>
-              <span className="text-texte-discret/60 shrink-0">/</span>
-            </>
-          )}
-          <button
-            type="button"
-            onClick={() => ouvrirElement(`domaine:${vue.domaineId}`)}
-            className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline truncate"
-          >
-            {vue.domaineNom}
-          </button>
-          <span className="text-texte-discret/60 shrink-0">/</span>
-          <span className="font-semibold text-texte truncate">{vue.titre}</span>
-        </nav>
+        <FilArianeAtelier
+          dossier={dossier ?? `Domaines/${vue.domaineNom}/Exercices`}
+          titreCourant={vue.titre}
+          revenirGraphe={revenirGraphe}
+          ouvrirElement={ouvrirElement}
+          ouvrirDossier={ouvrirDossier}
+          arbreDossiers={arbreDossiers}
+          elements={elements}
+          sidebarOuverte={sidebarOuverte}
+          setSidebarOuverte={setSidebarOuverte}
+        />
       </div>
 
       <header className="border-b border-bordure bg-surface px-6 py-6 lg:px-8">
@@ -1079,7 +1026,11 @@ function VueExercice({
 export function FichePedagogiqueAtelier({
   vue,
   titre,
+  dossier,
   ouvrirElement,
+  ouvrirDossier,
+  arbreDossiers,
+  elements,
   revenirGraphe,
   sidebarOuverte,
   setSidebarOuverte,
@@ -1090,7 +1041,11 @@ export function FichePedagogiqueAtelier({
 }: {
   vue: VuePedagogiqueAtelier;
   titre: string;
+  dossier?: string;
   ouvrirElement: (id: string) => void;
+  ouvrirDossier?: (chemin: string) => void;
+  arbreDossiers?: NoeudDossier<ElementAtelier>[];
+  elements?: ElementAtelier[];
   revenirGraphe?: () => void;
   sidebarOuverte?: boolean;
   setSidebarOuverte?: (ouverte: boolean) => void;
@@ -1105,7 +1060,11 @@ export function FichePedagogiqueAtelier({
         key={vue.code}
         vue={vue}
         titre={titre}
+        dossier={dossier}
         ouvrirElement={ouvrirElement}
+        ouvrirDossier={ouvrirDossier}
+        arbreDossiers={arbreDossiers}
+        elements={elements}
         revenirGraphe={revenirGraphe}
         sidebarOuverte={sidebarOuverte}
         setSidebarOuverte={setSidebarOuverte}
@@ -1118,7 +1077,11 @@ export function FichePedagogiqueAtelier({
     return (
       <VueDomaine
         vue={vue}
+        dossier={dossier}
         ouvrirElement={ouvrirElement}
+        ouvrirDossier={ouvrirDossier}
+        arbreDossiers={arbreDossiers}
+        elements={elements}
         revenirGraphe={revenirGraphe}
         sidebarOuverte={sidebarOuverte}
         setSidebarOuverte={setSidebarOuverte}
@@ -1134,7 +1097,11 @@ export function FichePedagogiqueAtelier({
         key={vue.id}
         vue={vue}
         titre={titre}
+        dossier={dossier}
         ouvrirElement={ouvrirElement}
+        ouvrirDossier={ouvrirDossier}
+        arbreDossiers={arbreDossiers}
+        elements={elements}
         revenirGraphe={revenirGraphe}
         sidebarOuverte={sidebarOuverte}
         setSidebarOuverte={setSidebarOuverte}
@@ -1148,7 +1115,11 @@ export function FichePedagogiqueAtelier({
     <VueExercice
       key={vue.id}
       vue={vue}
+      dossier={dossier}
       ouvrirElement={ouvrirElement}
+      ouvrirDossier={ouvrirDossier}
+      arbreDossiers={arbreDossiers}
+      elements={elements}
       revenirGraphe={revenirGraphe}
       sidebarOuverte={sidebarOuverte}
       setSidebarOuverte={setSidebarOuverte}
