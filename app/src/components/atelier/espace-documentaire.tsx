@@ -43,6 +43,7 @@ import { BoutonRetour } from "@/components/ui/lien-retour";
 import { BoutonOuvrirExplorateur, FichePedagogiqueAtelier, PanneauPedagogiqueAtelier } from "./fiche-pedagogique";
 import { FilArianeAtelier } from "./fil-ariane-atelier";
 import type { CalibrageModale, CompetenceModale } from "@/components/exercices/proprietes-generation";
+import type { DonneesSeance } from "@/components/seances/concepteur-seance";
 import { cheminsDepuisDefinition } from "@/lib/documents/chemins-atelier";
 import {
   construireArbreDossiers,
@@ -125,6 +126,7 @@ function documentDepuisAnalyse(document: ReturnType<typeof analyserDocumentMarkd
 }
 
 function trouverElement(id: string, liste: ElementAtelier[]): ElementAtelier | undefined {
+  if (!id) return undefined;
   if (id === "domaines" || id === "transversal" || id === "domaines-archives") {
     const titre = id === "transversal" ? "Transversal" : id === "domaines-archives" ? "Domaines archivés" : "Domaines";
     return {
@@ -146,9 +148,9 @@ function trouverElement(id: string, liste: ElementAtelier[]): ElementAtelier | u
       lectureSeule: true,
     };
   }
-  const cleanId = id.replace(/^(competence|document|exercice|domaine):/, "");
+  const cleanId = id.replace(/^(competence|document|exercice|domaine|theme):/, "");
   return liste.find((element) => {
-    const elementCleanId = element.id.replace(/^(competence|document|exercice|domaine):/, "");
+    const elementCleanId = element.id.replace(/^(competence|document|exercice|domaine|theme):/, "");
     return (
       element.id === id ||
       elementCleanId === cleanId ||
@@ -156,6 +158,7 @@ function trouverElement(id: string, liste: ElementAtelier[]): ElementAtelier | u
       element.id === `domaine:${cleanId}` ||
       element.id === `competence:${cleanId}` ||
       element.id === `document:${cleanId}` ||
+      element.id === `theme:${cleanId}` ||
       element.frontMatter?.exercice === cleanId ||
       element.frontMatter?.exercice === id
     );
@@ -171,6 +174,7 @@ export function EspaceDocumentaire({
   graphe,
   generation,
   rectificationActive,
+  donneesSeance,
 }: {
   elements: ElementAtelier[];
   /** Teinte par domaine, partagée avec le graphe pour qu'un domaine ait une seule couleur. */
@@ -182,6 +186,7 @@ export function EspaceDocumentaire({
   generation: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
   /** Corriger une preuve suppose le journal de rectification (boucle adaptative). */
   rectificationActive?: boolean;
+  donneesSeance?: DonneesSeance;
 }) {
   const router = useRouter();
   const [elements, setElements] = useState(elementsInitials);
@@ -254,7 +259,12 @@ export function EspaceDocumentaire({
   const [cibleLien, setCibleLien] = useState("");
   const [piecesJointesParDocument, setPiecesJointesParDocument] = useState<Record<string, PieceJointeDocument[]>>({});
 
-  const selectionnee = selection === "domaines" ? null : (elements.find((element) => element.id === selection) ?? null);
+  const selectionnee =
+    selection === "domaines" || selection === "transversal" || selection === "domaines-archives"
+      ? null
+      : selection
+      ? (trouverElement(selection, elements) ?? null)
+      : null;
   const selectionId = selectionnee?.id;
   const role = selectionnee?.frontMatter?.role;
   const roleLibelle = role === "support" ? "Support" : role === "operationnel" ? "Opérationnel" : null;
@@ -330,7 +340,8 @@ export function EspaceDocumentaire({
       const docParam = params.get("document");
       const dossierParam = params.get("dossier");
       if (docParam) {
-        setSelection(docParam);
+        const el = trouverElement(docParam, elements);
+        setSelection(el ? el.id : docParam);
       } else if (dossierParam) {
         setSelection(`dossier:${dossierParam}`);
       } else {
@@ -341,7 +352,7 @@ export function EspaceDocumentaire({
     }
     window.addEventListener("popstate", synchroniserDepuisHistorique);
     return () => window.removeEventListener("popstate", synchroniserDepuisHistorique);
-  }, []);
+  }, [elements]);
 
   useEffect(() => {
     if (!selection) return;
@@ -867,6 +878,7 @@ export function EspaceDocumentaire({
               modeInitial={modeInitial}
               rectificationActive={rectificationActive}
               generation={generation}
+              donneesSeance={donneesSeance}
             />
           ) : selectionnee ? (
             <>
@@ -1195,6 +1207,7 @@ export function EspaceDocumentaire({
                 ouvrirElement={ouvrirElement}
                 compteId={graphe.compteId}
                 generation={generation}
+                donneesSeance={donneesSeance}
               />
             ) : selectionnee.type === "exercice" ? (
               <PanneauExerciceAtelier

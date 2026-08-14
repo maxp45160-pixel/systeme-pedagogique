@@ -50,13 +50,14 @@ export default async function PageAtelier(props: {
     );
   }
 
-  const [aperçus, snapshots, contexte, themes, contenuInitial, changementsReferentiel] = await Promise.all([
+  const [aperçus, snapshots, contexte, themes, contenuInitial, changementsReferentiel, donneesSeance] = await Promise.all([
     lireApercusDocuments(),
     lireApercusSnapshots(),
     chargerContexte(),
     chargerThemes(),
     documentDemande ? lireDocument(documentDemande).catch(() => null) : Promise.resolve(null),
     lireChangementsReferentiel(),
+    chargerDonneesSeance(),
   ]);
   const referentiel = contexte.referentiel;
   const exercices = contexte.donnees.exercises;
@@ -346,6 +347,7 @@ export default async function PageAtelier(props: {
           calibrages: calibragesPourModale(referentiel.actifs, contexte.calibrations),
         }}
         rectificationActive={contexte.donnees.user.learningLoopMode === "adaptive-v1"}
+        donneesSeance={donneesSeance}
       />
     </>
   );

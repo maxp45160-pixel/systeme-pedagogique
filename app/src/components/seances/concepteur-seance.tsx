@@ -34,7 +34,7 @@
  * clic « Démarrer » ou « Planifier ».
  */
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Bouton, Carte, cx } from "@/components/ui/primitives";
 import { Champ } from "@/components/ui/champ";
@@ -86,6 +86,7 @@ import {
 const TEMPS_PAR_DEFAUT = 60;
 
 export interface PresetSeance {
+  libelle?: string;
   codesVises: string[];
   nombreExercices: number;
   dureeCibleMin: number;
@@ -122,6 +123,12 @@ export interface DonneesSeance {
   libelle?: string;
   /** Le bouton occupe toute la largeur de son conteneur. */
   pleineLargeur?: boolean;
+  /** Variante visuelle du bouton. */
+  variante?: "principal" | "secondaire" | "discret" | "danger";
+  /** Classe CSS additionnelle pour le bouton. */
+  className?: string;
+  /** Icône facultative affichée dans le bouton. */
+  icone?: ReactNode;
   /**
    * Ouvre la composition sans passer par le bouton.
    *
@@ -162,6 +169,9 @@ export function ConcepteurSeance({
   preset,
   libelle = "Composer une séance",
   pleineLargeur = false,
+  variante = "principal",
+  className,
+  icone,
   surSeanceCreee,
   ouvertParDefaut = false,
 }: DonneesSeance) {
@@ -188,7 +198,7 @@ export function ConcepteurSeance({
     if (!preset) return null;
     return {
       cle: "preset",
-      libelle: "La même séance",
+      libelle: preset.libelle ?? "La même séance",
       detail: `${preset.codesVises.length} compétence(s) · ${preset.dureeCibleMin} min`,
       portee: preset.domaine
         ? { type: "mono", domaine: preset.domaine }
@@ -424,11 +434,12 @@ export function ConcepteurSeance({
   return (
     <>
       <Bouton
-        variante="principal"
+        variante={variante}
         onClick={ouvrir}
-        className={cx(pleineLargeur && "w-full")}
+        className={cx(pleineLargeur && "w-full", className)}
       >
-        {libelle}
+        <span>{libelle}</span>
+        {icone}
       </Bouton>
 
       {ouvert && (

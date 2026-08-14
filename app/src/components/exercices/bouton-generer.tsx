@@ -14,7 +14,7 @@
  */
 
 import { useState } from "react";
-import { Bouton } from "@/components/ui/primitives";
+import { Bouton, cx } from "@/components/ui/primitives";
 import { ModaleExercice } from "./modale-exercice";
 import type { CalibrageModale, CompetenceModale } from "./proprietes-generation";
 
@@ -26,6 +26,8 @@ export function BoutonGenerer({
   compteId,
   libelle = "Générer un exercice",
   variante = "principal",
+  className,
+  pleineLargeur = false,
   surEnregistre,
   competencesCibles,
   ouvrirDansCahierApresAcceptation = false,
@@ -39,6 +41,8 @@ export function BoutonGenerer({
   compteId: string;
   libelle?: string;
   variante?: "principal" | "secondaire";
+  className?: string;
+  pleineLargeur?: boolean;
   surEnregistre?: (id: string) => void;
   /** Génération groupée — voir `ModaleExercice`. */
   competencesCibles?: string[];
@@ -49,7 +53,11 @@ export function BoutonGenerer({
 
   return (
     <>
-      <Bouton onClick={() => setOuvert(true)} variante={variante}>
+      <Bouton
+        onClick={() => setOuvert(true)}
+        variante={variante}
+        className={cx(pleineLargeur && "w-full", className)}
+      >
         {libelle}
       </Bouton>
       {ouvert && (

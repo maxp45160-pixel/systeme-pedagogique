@@ -27,6 +27,7 @@ import { BoutonRetour } from "@/components/ui/lien-retour";
 import { Markdown } from "@/components/ui/markdown";
 import { RectificationPreuve } from "./rectification-preuve";
 import { FilArianeAtelier, BoutonOuvrirExplorateur } from "./fil-ariane-atelier";
+import { ConcepteurSeance, type DonneesSeance } from "@/components/seances/concepteur-seance";
 import type { ElementAtelier } from "./types-atelier";
 import type { NoeudDossier } from "@/lib/documents/arbre-atelier";
 
@@ -440,6 +441,7 @@ function VueTheme({
   setSidebarOuverte,
   compteId,
   generation,
+  donneesSeance,
 }: {
   vue: VueThemeAtelier;
   titre: string;
@@ -453,6 +455,7 @@ function VueTheme({
   setSidebarOuverte?: (ouverte: boolean) => void;
   compteId?: string;
   generation?: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
+  donneesSeance?: DonneesSeance;
 }) {
   const [onglet, setOnglet] = useState<"competences" | "radar" | "exercices">("competences");
   const [filtreDomaine, setFiltreDomaine] = useState<string>("tous");
@@ -520,13 +523,30 @@ function VueTheme({
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <Link
-              href="/seances"
-              className="inline-flex items-center gap-2 rounded-xl bg-primaire px-4 py-2.5 text-xs font-semibold text-texte-inverse shadow-sm hover:bg-primaire-survol transition-colors"
-            >
-              <span>Lancer une séance</span>
-              <IconeFleche className="size-3.5" />
-            </Link>
+            {donneesSeance ? (
+              <ConcepteurSeance
+                {...donneesSeance}
+                preset={{
+                  libelle: vue.libelle,
+                  codesVises: vue.competences.map((c) => c.code),
+                  dureeCibleMin: 45,
+                  nombreExercices: Math.max(3, Math.min(vue.competences.length, 6)),
+                  domaine: vue.domaines.length === 1 ? vue.domaines[0]?.id : undefined,
+                }}
+                libelle="Lancer une séance"
+                variante="principal"
+                icone={<IconeFleche className="size-3.5" />}
+                className="inline-flex items-center gap-2 rounded-xl bg-primaire px-4 py-2.5 text-xs font-semibold text-texte-inverse shadow-xs hover:bg-primaire-survol transition-colors cursor-pointer"
+              />
+            ) : (
+              <Link
+                href="/seances"
+                className="inline-flex items-center gap-2 rounded-xl bg-primaire px-4 py-2.5 text-xs font-semibold text-texte-inverse shadow-xs hover:bg-primaire-survol transition-colors"
+              >
+                <span>Lancer une séance</span>
+                <IconeFleche className="size-3.5" />
+              </Link>
+            )}
             {generation && compteId && (
               <BoutonGenerer
                 competences={generation.competences}
@@ -1038,6 +1058,7 @@ export function FichePedagogiqueAtelier({
   modeInitial,
   rectificationActive,
   generation,
+  donneesSeance,
 }: {
   vue: VuePedagogiqueAtelier;
   titre: string;
@@ -1053,6 +1074,7 @@ export function FichePedagogiqueAtelier({
   modeInitial?: "referentiel";
   rectificationActive?: boolean;
   generation?: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
+  donneesSeance?: DonneesSeance;
 }) {
   if (vue.kind === "competence") {
     return (
@@ -1107,6 +1129,7 @@ export function FichePedagogiqueAtelier({
         setSidebarOuverte={setSidebarOuverte}
         compteId={compteId}
         generation={generation}
+        donneesSeance={donneesSeance}
       />
     );
   }
@@ -1132,11 +1155,13 @@ export function PanneauPedagogiqueAtelier({
   ouvrirElement,
   compteId,
   generation,
+  donneesSeance,
 }: {
   vue: VuePedagogiqueAtelier;
   ouvrirElement: (id: string) => void;
   compteId: string;
   generation: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
+  donneesSeance?: DonneesSeance;
 }) {
   if (vue.kind === "theme") {
     return (
@@ -1187,20 +1212,42 @@ export function PanneauPedagogiqueAtelier({
         {/* Entraînement & Génération */}
         <div className="rounded-xl border border-bordure bg-surface p-4 space-y-3">
           <p className="text-xs font-semibold text-texte">Entraînement ciblé</p>
-          <BoutonGenerer
-            competences={generation.competences}
-            competenceInitiale={vue.prochaineActionRecommandee?.code ?? vue.competences[0]?.code}
-            calibrages={generation.calibrages}
-            compteId={compteId}
-            libelle="Générer un exercice"
-          />
-          <Link
-            href="/seances"
-            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-bordure bg-surface-2 px-3 py-2 text-xs font-medium text-texte hover:bg-surface-3 transition-colors"
-          >
-            <span>Ouvrir dans les séances</span>
-            <span aria-hidden>→</span>
-          </Link>
+          <div className="grid grid-cols-2 gap-2">
+            <BoutonGenerer
+              competences={generation.competences}
+              competenceInitiale={vue.prochaineActionRecommandee?.code ?? vue.competences[0]?.code}
+              calibrages={generation.calibrages}
+              compteId={compteId}
+              libelle="Générer un exercice"
+              pleineLargeur
+              className="text-xs py-2 px-2 text-center justify-center cursor-pointer"
+            />
+            {donneesSeance ? (
+              <ConcepteurSeance
+                {...donneesSeance}
+                preset={{
+                  libelle: vue.libelle,
+                  codesVises: vue.competences.map((c) => c.code),
+                  dureeCibleMin: 45,
+                  nombreExercices: Math.max(3, Math.min(vue.competences.length, 6)),
+                  domaine: vue.domaines.length === 1 ? vue.domaines[0]?.id : undefined,
+                }}
+                libelle="Lancer une séance"
+                pleineLargeur
+                variante="secondaire"
+                icone={<span aria-hidden>→</span>}
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-bordure bg-surface-2 px-2 py-2 text-xs font-medium text-texte hover:bg-surface-3 transition-colors cursor-pointer text-center"
+              />
+            ) : (
+              <Link
+                href="/seances"
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-bordure bg-surface-2 px-2 py-2 text-xs font-medium text-texte hover:bg-surface-3 transition-colors text-center"
+              >
+                <span>Lancer une séance</span>
+                <span aria-hidden>→</span>
+              </Link>
+            )}
+          </div>
         </div>
 
         {/* Accès rapide aux compétences */}
@@ -1309,6 +1356,28 @@ export function PanneauPedagogiqueAtelier({
       <div className="border-t border-bordure pt-4"><p className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-texte-discret">Performances détaillées</p><div className="mt-3 space-y-3">{vue.dimensions.map((dimension) => <Barre key={dimension.id} valeur={dimension.valeur} libelle={dimension.libelle} />)}</div></div>
       <section className="rounded-xl border border-alerte/30 bg-alerte-faible p-4"><p className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-alerte">Prochaine action</p><p className="mt-2 text-sm font-medium leading-snug">{vue.prochaineEtape}</p>{prochainExercice ? <button type="button" onClick={() => ouvrirElement(`exercice:${prochainExercice.id}`)} className="mt-3 flex w-full items-center justify-between rounded-lg bg-surface px-3 py-2.5 text-xs font-semibold text-primaire shadow-[var(--ombre-posee)] hover:bg-surface-2 cursor-pointer"><span>Aperçu de l’exercice</span> <IconeFleche className="size-3.5" /></button> : <div className="mt-3"><BoutonGenerer competences={generation.competences} competenceInitiale={vue.code} calibrages={generation.calibrages} compteId={compteId} libelle="Générer un exercice" /></div>}</section>
       <div className="border-t border-bordure pt-4"><p className="text-xs font-semibold text-texte-attenue">Actions utiles</p><div className="mt-2 grid grid-cols-2 gap-2">{prochainExercice ? <button type="button" onClick={() => ouvrirElement(`exercice:${prochainExercice.id}`)} className="rounded-lg border border-bordure-controle bg-surface px-3 py-2 text-center text-[0.6875rem] font-medium hover:bg-surface-2 cursor-pointer"><IconeExercices className="mx-auto mb-1 size-4" />Aperçu</button> : <span className="rounded-lg border border-dashed border-bordure bg-surface-2 px-3 py-2 text-center text-[0.6875rem] text-texte-discret"><IconeExercices className="mx-auto mb-1 size-4" />À générer ci-dessus</span>}{vue.documents[0] ? <button type="button" onClick={() => ouvrirElement(vue.documents[0].id)} className="rounded-lg border border-bordure-controle bg-surface px-3 py-2 text-center text-[0.6875rem] font-medium hover:bg-surface-2 cursor-pointer"><IconeDocuments className="mx-auto mb-1 size-4" />Ressource</button> : <span className="rounded-lg border border-dashed border-bordure bg-surface-2 px-3 py-2 text-center text-[0.6875rem] text-texte-discret"><IconeDocuments className="mx-auto mb-1 size-4" />Aucun lien</span>}</div></div>
+      {donneesSeance && (
+        <div className="border-t border-bordure pt-4">
+          <p className="text-xs font-semibold text-texte-attenue">Séance ciblée</p>
+          <div className="mt-2">
+            <ConcepteurSeance
+              {...donneesSeance}
+              preset={{
+                libelle: `Compétence : ${vue.code}`,
+                codesVises: [vue.code],
+                dureeCibleMin: 30,
+                nombreExercices: 3,
+                domaine: vue.domaineId,
+              }}
+              libelle="Lancer une séance ciblée"
+              pleineLargeur
+              variante="secondaire"
+              icone={<span aria-hidden>→</span>}
+              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-bordure bg-surface-2 px-3 py-2 text-xs font-medium text-texte hover:bg-surface-3 transition-colors cursor-pointer"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
