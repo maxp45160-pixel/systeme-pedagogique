@@ -8,6 +8,7 @@ import { seDeconnecter } from "@/lib/supabase/actions";
 import { exporterJournal } from "@/lib/store/export";
 import { IconeValide } from "@/components/ui/icones";
 import { FormulaireProfil } from "@/components/profil/formulaire-profil";
+import { ModaleDangerCompte } from "./modale-danger-compte";
 import { appliquerTheme, lireChoixTheme, type ChoixTheme } from "./theme";
 import {
   FOURNISSEURS,
@@ -232,6 +233,7 @@ function PanneauReglages({
   const [onglet, setOnglet] = useState<OngletReglages>(ongletInitial);
   const [exportEnCours, setExportEnCours] = useState(false);
   const [messageExport, setMessageExport] = useState<string | null>(null);
+  const [modaleDangerOuverte, setModaleDangerOuverte] = useState(false);
   const [profilUser, setProfilUser] = useState<import("@/lib/domain/types").User | null>(null);
   const [chargementProfil, setChargementProfil] = useState(true);
 
@@ -380,7 +382,8 @@ function PanneauReglages({
               <dd className="mt-1 space-y-2 text-texte-attenue">
                 <p className="text-xs leading-relaxed">
                   Télécharge l&apos;intégralité de ton journal en JSON — preuves, séances,
-                  erreurs, projets, profil. C&apos;est ta copie souveraine hors ligne.
+                  exercices, tentatives, compétences, documents de l&apos;atelier et profil. C&apos;est
+                  ta copie souveraine hors ligne.
                 </p>
                 <Bouton
                   variante="secondaire"
@@ -398,9 +401,35 @@ function PanneauReglages({
                 )}
               </dd>
             </div>
+
+            <div className="rounded-lg border border-danger/30 bg-danger-faible/30 px-3 py-2.5 space-y-2">
+              <dt className="text-[0.6875rem] font-semibold uppercase tracking-wide text-danger">
+                Zone de danger — Réinitialisation & Données
+              </dt>
+              <dd className="space-y-2 text-texte-attenue">
+                <p className="text-xs leading-relaxed">
+                  Réinitialise l&apos;ensemble de tes données d&apos;apprentissage ou supprime
+                  définitivement toutes les informations de ton compte.
+                </p>
+                <Bouton
+                  variante="danger"
+                  taille="compacte"
+                  onClick={() => setModaleDangerOuverte(true)}
+                >
+                  Réinitialiser ou supprimer mes données…
+                </Bouton>
+              </dd>
+            </div>
           </dl>
         )}
       </div>
+
+      {modaleDangerOuverte && (
+        <ModaleDangerCompte
+          compteId={session.compteId}
+          onFermer={() => setModaleDangerOuverte(false)}
+        />
+      )}
     </Modale>
   );
 }
@@ -545,7 +574,7 @@ function ReglagesTuteur({ compteId }: { compteId: string }) {
             className="shrink-0 rounded-md border border-bordure bg-surface px-2 py-1 text-[0.6875rem] text-texte-attenue transition-colors hover:bg-surface-2"
             title={afficherCle ? "Masquer la clé" : "Afficher la clé"}
           >
-            {afficherCle ? "🙈" : "👁"}
+            {afficherCle ? "Masquer" : "Afficher"}
           </button>
         </div>
       </div>
@@ -582,7 +611,7 @@ function ReglagesTuteur({ compteId }: { compteId: string }) {
       )}
 
       <p className="text-[0.6875rem] leading-relaxed text-texte-discret">
-        ⚠️ La clé est stockée dans ton navigateur, isolée par compte, et n&apos;est
+        La clé est stockée dans ton navigateur, isolée par compte, et n&apos;est
         jamais envoyée ailleurs qu&apos;à la route du tuteur (même origine).
       </p>
 

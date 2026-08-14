@@ -142,12 +142,17 @@ export default async function PageAtelier(props: {
             dossiersSecondaires: [],
           }
         : cheminsParDefaut;
+    const estPreuve = vue.type === "preuve" || document.id.startsWith("preuve-");
+    let titreAffiche = vue.titre;
+    if (estPreuve && (!titreAffiche || titreAffiche === document.id)) {
+      titreAffiche = `Preuve de travail (${document.id.replace(/^preuve-(?:att-)?/, "")})`;
+    }
     return {
       id: document.id,
-      titre: vue.titre,
+      titre: titreAffiche,
       type: vue.type ?? "document",
-      typeLibelle: definition?.libelle ?? vue.type ?? "Document",
-      categorie: definition?.categorie ?? "connaissance",
+      typeLibelle: definition?.libelle ?? (estPreuve ? "Preuve" : vue.type ?? "Document"),
+      categorie: definition?.categorie ?? (estPreuve ? "action" : "connaissance"),
       domaineId,
       dossier: chemins.dossier,
       dossiersSecondaires: chemins.dossiersSecondaires,
@@ -162,7 +167,7 @@ export default async function PageAtelier(props: {
       snapshots: snapshotsParDocument.get(document.id) ?? [],
       tentatives: [],
       source: "document",
-      lectureSeule: false,
+      lectureSeule: estPreuve,
     };
   });
 

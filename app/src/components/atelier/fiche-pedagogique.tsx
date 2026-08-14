@@ -66,13 +66,19 @@ function pourcentage(valeur: number | null): string {
 }
 
 function Barre({ valeur, libelle }: { valeur: number; libelle: string }) {
+  const estEvalue = valeur > 0;
   return (
     <div className="grid grid-cols-[9rem_minmax(0,1fr)_3.25rem] items-center gap-4 text-sm">
       <span className="truncate text-texte-attenue">{libelle}</span>
       <span className="h-2 overflow-hidden rounded-full bg-surface-3">
-        <span className="block h-full rounded-full bg-primaire" style={{ width: `${Math.round(valeur * 100)}%` }} />
+        <span
+          className={cx("block h-full rounded-full", estEvalue ? "bg-primaire" : "bg-transparent")}
+          style={{ width: `${Math.round(valeur * 100)}%` }}
+        />
       </span>
-      <span className="chiffres text-right font-medium">{Math.round(valeur * 100)}%</span>
+      <span className={cx("chiffres text-right font-medium", estEvalue ? "text-texte" : "text-texte-discret")}>
+        {Math.round(valeur * 100)}%
+      </span>
     </div>
   );
 }
@@ -146,7 +152,8 @@ function VueCompetence({
   const [documentASupprimer, setDocumentASupprimer] = useState<DocumentLieAtelier | null>(null);
   const [creationNoteEnCours, demarrerCreationNote] = useTransition();
   const dimensionsTriees = [...vue.dimensions].sort((a, b) => b.valeur - a.valeur);
-  const pointsForts = vue.niveau === null ? [] : dimensionsTriees.slice(0, 2);
+  const aDesMesuresPositives = vue.dimensions.some((d) => d.valeur > 0);
+  const pointsForts = vue.niveau === null || !aDesMesuresPositives ? [] : dimensionsTriees.filter((d) => d.valeur > 0).slice(0, 2);
   const axes = vue.niveau === null ? [] : dimensionsTriees.slice(-2).reverse();
   const onglets: Array<{ id: Onglet; libelle: string }> = [
     { id: "synthese", libelle: "Vue d’ensemble" },
@@ -190,7 +197,7 @@ function VueCompetence({
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-surface-2/40">
-      <div className="flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure bg-surface px-6 shrink-0">
+      <div className="sticky top-0 z-10 flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure bg-surface px-6 shrink-0">
         <FilArianeAtelier
           dossier={dossier ?? `Domaines/${vue.domaineNom}`}
           titreCourant={vue.code}
@@ -571,7 +578,7 @@ function VueDomaine({
   ];
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-surface-2/40">
-      <div className="flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure bg-surface px-6 shrink-0">
+      <div className="sticky top-0 z-10 flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure bg-surface px-6 shrink-0">
         <FilArianeAtelier
           dossier={vue.domaine.archive ? "Domaines archivés" : "Domaines"}
           titreCourant={vue.nom}
@@ -827,7 +834,7 @@ function VueTheme({
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-surface-2/40">
       {/* Barre supérieure fil d'Ariane */}
-      <div className="flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure bg-surface px-6 shrink-0">
+      <div className="sticky top-0 z-10 flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure bg-surface px-6 shrink-0">
         <FilArianeAtelier
           dossier={dossier ?? "Transversal/Thèmes"}
           titreCourant={vue.libelle}
@@ -1298,7 +1305,7 @@ function VueExercice({
 }) {
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-surface-2/40">
-      <div className="flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure bg-surface px-6 shrink-0">
+      <div className="sticky top-0 z-10 flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure bg-surface px-6 shrink-0">
         <FilArianeAtelier
           dossier={dossier ?? `Domaines/${vue.domaineNom}/Exercices`}
           titreCourant={vue.titre}

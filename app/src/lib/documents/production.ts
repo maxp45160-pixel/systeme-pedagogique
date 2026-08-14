@@ -58,6 +58,8 @@ export function construireDocumentProductionPreuve(
       "---",
       "type: preuve",
       `id: ${id}`,
+      `titre: "${exercice.titre.replace(/"/g, '\\"')}"`,
+      `title: "${exercice.titre.replace(/"/g, '\\"')}"`,
       `created_at: ${produiteLe}`,
       `produced_at: ${produiteLe}`,
       `source_attempt: ${tentative.id}`,

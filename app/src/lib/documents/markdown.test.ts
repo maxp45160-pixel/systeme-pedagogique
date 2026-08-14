@@ -132,4 +132,12 @@ competencies:
     expect(index.documents[0].titre).toBe("Preuve A");
     expect(index.sortants.get("preuve-a")).toEqual(["LOG-01"]);
   });
+
+  it("extrait le titre depuis frontMatter.titre ou la première ligne de texte", () => {
+    const docTitre = analyserDocumentMarkdown("note-fr", "---\ntitre: Note en Français\ntype: note\n---\n\nTexte ici.");
+    expect(docTitre.titre).toBe("Note en Français");
+
+    const docSansH1 = analyserDocumentMarkdown("doc-sans-h1", "Appliquer les principes stoïciens\n\nContenu détaillé.");
+    expect(docSansH1.titre).toBe("Appliquer les principes stoïciens");
+  });
 });

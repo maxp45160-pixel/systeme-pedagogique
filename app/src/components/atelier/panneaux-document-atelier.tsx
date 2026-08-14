@@ -53,33 +53,70 @@ export function PanneauExerciceAtelier({
         )}
       </div>
 
-      <div className="border-t border-bordure pt-4">
-        <div className="flex items-baseline justify-between gap-2">
-          <h3 className="text-xs font-semibold text-texte-attenue">Compétences cibles</h3>
-          <span className="text-[0.6875rem] text-texte-discret">{element.sortants.length}</span>
-        </div>
-        {element.sortants.length > 0 ? (
-          <ul className="mt-2 space-y-1.5">
-            {element.sortants.map((code) => {
-              const compEl = elements.find((el) => el.id === code);
-              return (
-                <li key={code}>
-                  <button
-                    type="button"
-                    onClick={() => ouvrirElement(code)}
-                    className="flex w-full items-center justify-between gap-2 rounded-lg border border-bordure bg-surface px-3 py-2 text-left text-xs transition-colors hover:border-primaire hover:bg-surface-2 cursor-pointer"
-                  >
-                    <span className="font-mono text-[0.6875rem] font-semibold text-primaire">{code}</span>
-                    <span className="truncate flex-1 font-medium text-texte">{compEl?.titre ?? code}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <p className="mt-2 text-xs text-texte-discret">Aucune compétence directement ciblée.</p>
-        )}
-      </div>
+      {(() => {
+        const sortantsElements = element.sortants.map((code) => ({
+          code,
+          compEl: elements.find((el) => el.id === code),
+        }));
+        const competencesCibles = sortantsElements.filter(({ code, compEl }) => {
+          return compEl?.type === "competence" || (!code.startsWith("preuve-") && !code.startsWith("exercice:") && !code.startsWith("note-") && !code.startsWith("document:") && !code.startsWith("theme:") && !code.startsWith("domaine:"));
+        });
+        const documentsAssocies = sortantsElements.filter(({ code }) => !competencesCibles.some((c) => c.code === code));
+
+        return (
+          <>
+            <div className="border-t border-bordure pt-4">
+              <div className="flex items-baseline justify-between gap-2">
+                <h3 className="text-xs font-semibold text-texte-attenue">Compétences cibles</h3>
+                <span className="text-[0.6875rem] text-texte-discret">{competencesCibles.length}</span>
+              </div>
+              {competencesCibles.length > 0 ? (
+                <ul className="mt-2 space-y-1.5">
+                  {competencesCibles.map(({ code, compEl }) => (
+                    <li key={code}>
+                      <button
+                        type="button"
+                        onClick={() => ouvrirElement(code)}
+                        className="flex w-full items-center justify-between gap-2 rounded-lg border border-bordure bg-surface px-3 py-2 text-left text-xs transition-colors hover:border-primaire hover:bg-surface-2 cursor-pointer"
+                      >
+                        <span className="font-mono text-[0.6875rem] font-semibold text-primaire">{code}</span>
+                        <span className="truncate flex-1 font-medium text-texte">{compEl?.titre ?? code}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 text-xs text-texte-discret">Aucune compétence directement ciblée.</p>
+              )}
+            </div>
+
+            {documentsAssocies.length > 0 && (
+              <div className="border-t border-bordure pt-4">
+                <div className="flex items-baseline justify-between gap-2">
+                  <h3 className="text-xs font-semibold text-texte-attenue">Documents et preuves associés</h3>
+                  <span className="text-[0.6875rem] text-texte-discret">{documentsAssocies.length}</span>
+                </div>
+                <ul className="mt-2 space-y-1.5">
+                  {documentsAssocies.map(({ code, compEl }) => (
+                    <li key={code}>
+                      <button
+                        type="button"
+                        onClick={() => ouvrirElement(code)}
+                        className="flex w-full items-center justify-between gap-2 rounded-lg border border-bordure bg-surface px-3 py-2 text-left text-xs transition-colors hover:border-primaire hover:bg-surface-2 cursor-pointer"
+                      >
+                        <span className="truncate flex-1 font-medium text-texte">{compEl?.titre ?? code}</span>
+                        <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[0.625rem] text-texte-discret">
+                          {compEl?.typeLibelle ?? (code.startsWith("preuve-") ? "Preuve" : "Document")}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
+        );
+      })()}
 
       <div className="border-t border-bordure pt-4">
         <div className="flex items-baseline justify-between gap-2">

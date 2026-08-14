@@ -103,12 +103,13 @@ function notifierDossiers(cle: string) {
 function documentDepuisAnalyse(document: ReturnType<typeof analyserDocumentMarkdown>): ElementAtelier {
   const definition = document.type ? definitionTypeDocument(document.type) : null;
   const chemins = cheminsDepuisDefinition(definition, document.frontMatter);
+  const estPreuve = document.type === "preuve" || document.id.startsWith("preuve-");
   return {
     id: document.id,
     titre: document.titre,
-    type: document.type ?? "document",
-    typeLibelle: definition?.libelle ?? document.type ?? "Document",
-    categorie: definition?.categorie ?? "connaissance",
+    type: document.type ?? (estPreuve ? "preuve" : "document"),
+    typeLibelle: definition?.libelle ?? (estPreuve ? "Preuve" : document.type ?? "Document"),
+    categorie: definition?.categorie ?? (estPreuve ? "action" : "connaissance"),
     dossier: chemins.dossier,
     dossiersSecondaires: chemins.dossiersSecondaires,
     contenuMd: document.contenuMd,
@@ -121,7 +122,7 @@ function documentDepuisAnalyse(document: ReturnType<typeof analyserDocumentMarkd
     snapshots: [],
     tentatives: [],
     source: "document",
-    lectureSeule: false,
+    lectureSeule: estPreuve,
   };
 }
 
@@ -342,8 +343,8 @@ export function EspaceDocumentaire({
       : selectionnee.liens
     : [];
   const fichesLiables = elements
-    .filter((element) => element.source === "document" && element.id !== selectionId)
-    .sort((a, b) => a.titre.localeCompare(b.titre, "fr"));
+    .filter((element) => element.id !== selectionId && element.id !== "domaines" && element.id !== "transversal" && element.id !== "domaines-archives" && element.id !== "graphe")
+    .sort((a, b) => (a.dossier || "").localeCompare(b.dossier || "") || a.titre.localeCompare(b.titre, "fr"));
   const documentSupportId = selectionnee?.frontMatter.role === "support" ? selectionnee.id : null;
 
   useEffect(() => {
@@ -1051,11 +1052,15 @@ export function EspaceDocumentaire({
                 <div className="min-w-0 space-y-1">
                   {(selectionnee.lectureSeule || selectionnee.schemaCompatible === false) && (
                     <div className="flex flex-wrap items-center gap-2 text-xs">
-                      {selectionnee.lectureSeule && (
+                      {selectionnee.type === "preuve" || selectionnee.id.startsWith("preuve-") ? (
+                        <span className="rounded-md bg-info-faible px-2 py-0.5 font-medium text-info">
+                          Preuve conservée · Lecture seule
+                        </span>
+                      ) : selectionnee.lectureSeule ? (
                         <span className="rounded bg-surface-2 px-1.5 py-0.5 text-texte-attenue">
                           projection
                         </span>
-                      )}
+                      ) : null}
                       {selectionnee.schemaCompatible === false && (
                         <span className="rounded bg-alerte-faible px-1.5 py-0.5 font-medium text-alerte">
                           contrat inconnu
@@ -1464,24 +1469,64 @@ export function EspaceDocumentaire({
                           Ajouter un lien vers une fiche
                         </label>
                         <div className="flex gap-1.5">
-                          <select
-                            id="ajouter-lien-fiche"
-                            value={cibleLien}
-                            onChange={(event) => setCibleLien(event.target.value)}
-                            className="min-w-0 flex-1 rounded-md border border-bordure bg-surface-2 px-2.5 py-1.5 text-xs text-texte outline-none focus:border-primaire"
-                          >
-                            <option value="">Choisir une fiche…</option>
-                            {fichesLiables.map((fiche) => (
-                              <option key={fiche.id} value={fiche.id}>
-                                {fiche.titre}
-                              </option>
-                            ))}
-                          </select>
+                          {(() => {
+                            const competences = fichesLiables.filter((f) => f.type === "competence");
+                            const notes = fichesLiables.filter((f) => f.type === "note" || f.type === "document" || f.source === "document");
+                            const exercices = fichesLiables.filter((f) => f.type === "exercice");
+                            const autres = fichesLiables.filter((f) => !competences.includes(f) && !notes.includes(f) && !exercices.includes(f));
+
+                            return (
+                              <select
+                                id="ajouter-lien-fiche"
+                                value={cibleLien}
+                                onChange={(event) => setCibleLien(event.target.value)}
+                                className="min-w-0 flex-1 rounded-md border border-bordure bg-surface-2 px-2.5 py-1.5 text-xs text-texte outline-none focus:border-primaire cursor-pointer"
+                              >
+                                <option value="">Choisir une fiche…</option>
+                                {competences.length > 0 && (
+                                  <optgroup label="Compétences">
+                                    {competences.map((fiche) => (
+                                      <option key={fiche.id} value={fiche.id}>
+                                        {fiche.id} — {fiche.titre}
+                                      </option>
+                                    ))}
+                                  </optgroup>
+                                )}
+                                {notes.length > 0 && (
+                                  <optgroup label="Notes & Documents">
+                                    {notes.map((fiche) => (
+                                      <option key={fiche.id} value={fiche.id}>
+                                        {fiche.titre}
+                                      </option>
+                                    ))}
+                                  </optgroup>
+                                )}
+                                {exercices.length > 0 && (
+                                  <optgroup label="Exercices">
+                                    {exercices.map((fiche) => (
+                                      <option key={fiche.id} value={fiche.id}>
+                                        {fiche.titre}
+                                      </option>
+                                    ))}
+                                  </optgroup>
+                                )}
+                                {autres.length > 0 && (
+                                  <optgroup label="Autres ressources">
+                                    {autres.map((fiche) => (
+                                      <option key={fiche.id} value={fiche.id}>
+                                        {fiche.titre}
+                                      </option>
+                                    ))}
+                                  </optgroup>
+                                )}
+                              </select>
+                            );
+                          })()}
                           <button
                             type="button"
                             onClick={ajouterLien}
                             disabled={!cibleLien}
-                            className="shrink-0 rounded-md border border-bordure bg-surface px-2.5 py-1.5 text-xs font-medium text-primaire hover:bg-primaire-faible disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
+                            className="shrink-0 rounded-md border border-bordure bg-surface px-2.5 py-1.5 text-xs font-medium text-primaire hover:bg-primaire-faible disabled:cursor-not-allowed disabled:opacity-40 transition-colors cursor-pointer"
                           >
                             Ajouter
                           </button>

@@ -163,14 +163,30 @@ export function extraireLiensMarkdown(contenuMd: string): LienMarkdown[] {
 
 function titreDepuisCorps(corps: string, repli: string): string {
   const titre = corps.match(/^#\s+(.+)$/m)?.[1]?.trim();
-  return titre || repli;
+  if (titre) return titre;
+  const premiereLigne = corps.trim().split("\n")[0]?.trim().replace(/^#+\s*/, "");
+  if (
+    premiereLigne &&
+    !premiereLigne.startsWith("- ") &&
+    !premiereLigne.startsWith("> ") &&
+    !premiereLigne.startsWith("[[") &&
+    premiereLigne.length <= 120
+  ) {
+    return premiereLigne;
+  }
+  return repli;
 }
 
 export function analyserDocumentMarkdown(id: string, contenuMd: string): DocumentMarkdown {
   const { frontMatter, corps } = parserFrontMatter(contenuMd);
   const type = typeof frontMatter.type === "string" ? frontMatter.type : null;
   const schema = typeof frontMatter.schema === "string" ? frontMatter.schema : null;
-  const titreFrontMatter = typeof frontMatter.title === "string" ? frontMatter.title : null;
+  const titreFrontMatter =
+    typeof frontMatter.title === "string" && frontMatter.title.trim()
+      ? frontMatter.title.trim()
+      : typeof frontMatter.titre === "string" && frontMatter.titre.trim()
+        ? frontMatter.titre.trim()
+        : null;
   const titre = titreFrontMatter || titreDepuisCorps(corps, id);
 
   return {

@@ -58,8 +58,25 @@ export function ValidationBranche({
 
   const [domaine, setDomaine] = useState(initiale?.domaine ?? "");
   const [prefixe, setPrefixe] = useState(initiale?.prefixe ?? "");
+  const prefixeManuelRef = useRef(Boolean(initiale?.prefixe));
   const [description, setDescription] = useState(initiale?.description ?? "");
   const justification = initiale?.justification ?? "";
+
+  function genererPrefixeAuto(nom: string): string {
+    const nettoye = nom.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+    const mots = nettoye.split(/[^A-Z0-9]+/).filter(Boolean);
+    if (mots.length === 0) return "";
+    if (mots.length === 1) return mots[0].slice(0, 4);
+    if (mots.length === 2) return (mots[0].slice(0, 2) + mots[1].slice(0, 2)).slice(0, 4);
+    return mots.map((m) => m[0]).slice(0, 4).join("");
+  }
+
+  function gererChangementDomaine(valeur: string) {
+    setDomaine(valeur);
+    if (!prefixeManuelRef.current) {
+      setPrefixe(genererPrefixeAuto(valeur));
+    }
+  }
 
   const [lignes, setLignes] = useState<Ligne[]>(() => {
     if (initiale?.competences && initiale.competences.length > 0) {
@@ -161,7 +178,7 @@ export function ValidationBranche({
               </label>
               <input
                 value={domaine}
-                onChange={(e) => setDomaine(e.target.value)}
+                onChange={(e) => gererChangementDomaine(e.target.value)}
                 placeholder="Ex : Cryptographie & Sécurité"
                 className="w-full rounded-lg border border-bordure bg-surface px-3 py-2 text-sm text-texte placeholder:text-texte-discret focus:border-primaire outline-none"
               />
@@ -173,7 +190,10 @@ export function ValidationBranche({
               </label>
               <input
                 value={prefixe}
-                onChange={(e) => setPrefixe(e.target.value.toUpperCase())}
+                onChange={(e) => {
+                  prefixeManuelRef.current = true;
+                  setPrefixe(e.target.value.toUpperCase());
+                }}
                 placeholder="Ex : CRYP"
                 maxLength={5}
                 className="w-full rounded-lg border border-bordure bg-surface px-3 py-2 font-mono text-sm uppercase text-texte placeholder:text-texte-discret focus:border-primaire outline-none"
@@ -322,7 +342,7 @@ export function ValidationBranche({
       )}
 
       {/* Barre d'action */}
-      <div className="flex items-center justify-end gap-3 border-t border-bordure pt-4">
+      <div className="sticky bottom-0 z-10 -mx-5 -mb-4 mt-4 flex items-center justify-end gap-3 border-t border-bordure bg-surface/95 backdrop-blur-sm px-5 py-3.5">
         {onFermer && (
           <Bouton
             type="button"
@@ -341,7 +361,11 @@ export function ValidationBranche({
           variante="principal"
         >
           {enCours
-            ? "Ajout en cours…"
+            ? "Enregistrement…"
+            : !estDomaineConnu
+            ? retenues.length > 1
+              ? `Créer le domaine et ses ${retenues.length} compétences`
+              : "Créer le domaine"
             : retenues.length > 1
             ? `Ajouter les ${retenues.length} compétences`
             : "Ajouter la compétence"}
