@@ -20,7 +20,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { SUPABASE_ANON_KEY, SUPABASE_URL, supabaseConfigure } from "@/lib/supabase/config";
 
 /** Chemins accessibles sans compte. */
-const PUBLICS = ["/login", "/auth"];
+const PUBLICS = ["/login", "/auth", "/robots.txt", "/sitemap.xml"];
 
 function estPublic(chemin: string): boolean {
   return PUBLICS.some((p) => chemin === p || chemin.startsWith(`${p}/`));

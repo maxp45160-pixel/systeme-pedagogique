@@ -12,12 +12,70 @@ const fraunces = Fraunces({
   display: "swap",
 });
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://systeme-pedagogique.vercel.app";
+
 export const metadata: Metadata = {
-  title: "Système pédagogique — Suivi longitudinal",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: "Système pédagogique — Suivi longitudinal des compétences",
+    template: "%s | Système pédagogique",
+  },
   description:
-    "Centre de pilotage personnel du développement de compétences en ingénierie des systèmes complexes.",
+    "Centre de pilotage et d'apprentissage adaptatif : génération d'exercices ciblés, évaluation continue et suivi longitudinal des compétences en ingénierie des systèmes complexes.",
+  keywords: [
+    "système pédagogique",
+    "suivi longitudinal des compétences",
+    "apprentissage adaptatif",
+    "ingénierie des systèmes complexes",
+    "évaluation pédagogique",
+    "référentiel de compétences",
+    "tuteur pédagogique",
+  ],
+  authors: [{ name: "Système Pédagogique" }],
+  creator: "Système Pédagogique",
+  openGraph: {
+    title: "Système pédagogique — Suivi longitudinal des compétences",
+    description:
+      "Génération d'exercices ciblés, évaluation continue et suivi longitudinal du développement de compétences.",
+    url: siteUrl,
+    siteName: "Système Pédagogique",
+    locale: "fr_FR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Système pédagogique — Suivi longitudinal des compétences",
+    description:
+      "Centre de pilotage et d'apprentissage adaptatif des compétences en ingénierie des systèmes.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
   verification: {
     google: "PYH66AATHwISN6RusvDJafbdLlJN0tnKYN5iTK0e19E",
+  },
+};
+
+const JSON_LD_APPLICATION = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  name: "Système Pédagogique",
+  applicationCategory: "EducationalApplication",
+  operatingSystem: "All",
+  description:
+    "Centre de pilotage et d'apprentissage adaptatif : génération d'exercices ciblés, évaluation continue et suivi longitudinal des compétences.",
+  inLanguage: "fr",
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "EUR",
   },
 };
 
@@ -46,6 +104,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: SCRIPT_PREFERENCES }} />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD_APPLICATION) }}
+        />
       </head>
       <body className="min-h-full">
         {children}
