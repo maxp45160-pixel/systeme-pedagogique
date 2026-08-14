@@ -11,6 +11,7 @@ import {
   type SkillEvidence,
   type SkillState,
 } from "@/lib/domain/types";
+import type { Theme } from "@/lib/domain/theme";
 import { retraitsParCode, type EtatRetrait } from "@/lib/domain/referentiel-compte";
 import type { IndexDocumentaire } from "./index";
 import type { ChangementReferentiel } from "@/lib/domain/gouvernance-referentiel";
@@ -89,7 +90,79 @@ export interface VueDomaineAtelier {
   derniereActivite: string | null;
 }
 
-export type VuePedagogiqueAtelier = VueCompetenceAtelier | VueDomaineAtelier;
+export interface CompetenceThemeAtelier {
+  code: string;
+  titre: string;
+  domaineId: string;
+  domaineNom: string;
+  palier: string;
+  niveau: NiveauCompetence | null;
+  score: number | null;
+  confiance: Confiance;
+  nombrePreuves: number;
+  prochaineEtape?: string;
+  exercicesDisponibles: number;
+}
+
+export interface DomaineThemeAtelier {
+  id: string;
+  nom: string;
+  nombreCompetences: number;
+  nombreEvaluees: number;
+}
+
+export interface VueThemeAtelier {
+  kind: "theme";
+  id: string;
+  libelle: string;
+  intention?: string;
+  origine: "utilisateur" | "tuteur";
+  creeLe: string;
+  archive: boolean;
+  competences: CompetenceThemeAtelier[];
+  domaines: DomaineThemeAtelier[];
+  exercices: ExerciceLieAtelier[];
+  nombreEvaluees: number;
+  nombrePreuves: number;
+  nombreExercices: number;
+  scoreMoyen: number | null;
+  tauxCouverture: number;
+  derniereActivite: string | null;
+  prochaineActionRecommandee?: {
+    code: string;
+    titre: string;
+    motif: string;
+  } | null;
+}
+
+export interface VueExerciceProjectionAtelier {
+  kind: "exercice";
+  id: string;
+  titre: string;
+  enonce: string;
+  domaineId: string;
+  domaineNom: string;
+  difficulte: number;
+  dureeEstimeeMin: number;
+  typeExercice: string;
+  competences: Array<{
+    code: string;
+    titre: string;
+    palier: string;
+    niveau: NiveauCompetence | null;
+    score: number | null;
+  }>;
+  tentatives: ExerciseAttempt[];
+  nombreTentatives: number;
+  meilleurResultat: "reussi" | "partiel" | "echec" | null;
+  derniereTentative: string | null;
+}
+
+export type VuePedagogiqueAtelier =
+  | VueCompetenceAtelier
+  | VueDomaineAtelier
+  | VueThemeAtelier
+  | VueExerciceProjectionAtelier;
 
 function derniereDate(valeurs: Array<string | null>): string | null {
   const dates = valeurs.filter((valeur): valeur is string => Boolean(valeur));
@@ -121,7 +194,13 @@ export function construireVuesAtelier(
   preuvesReferentiel: SkillEvidence[] = [],
   changementsReferentiel: ChangementReferentiel[] = [],
   codesAvecDependances: ReadonlySet<string> = new Set(),
-): { domaines: VueDomaineAtelier[]; competences: VueCompetenceAtelier[] } {
+  themes: Theme[] = [],
+): {
+  domaines: VueDomaineAtelier[];
+  competences: VueCompetenceAtelier[];
+  themes: VueThemeAtelier[];
+  exercices: VueExerciceProjectionAtelier[];
+} {
   const domainesVivants = new Set(referentiel.skills.filter((skill) => !skill.archive).map((skill) => skill.domaine));
   const competences: VueCompetenceAtelier[] = etats.map((etat) => {
     const domaine = referentiel.domainesParId.get(etat.skill.domaine);
@@ -218,5 +297,142 @@ export function construireVuesAtelier(
       };
     });
 
-  return { domaines, competences };
+  const competencesParCode = new Map(competences.map((c) => [c.code, c]));
+  const tentativesParExercice = new Map<string, ExerciseAttempt[]>();
+  for (const t of tentatives) {
+    const list = tentativesParExercice.get(t.exerciseId) ?? [];
+    list.push(t);
+    tentativesParExercice.set(t.exerciseId, list);
+  }
+
+  const vuesThemes: VueThemeAtelier[] = themes
+    .filter((t) => !t.archive)
+    .map((theme) => {
+      const skillsDuTheme: CompetenceThemeAtelier[] = theme.codes.flatMap((code) => {
+        const comp = competencesParCode.get(code);
+        const skill = referentiel.parCode.get(code);
+        if (!skill) return [];
+        const domaine = referentiel.domainesParId.get(skill.domaine);
+        const exs = exercices.filter((e) => !e.archive && e.competences.includes(code));
+        return [{
+          code: skill.code,
+          titre: skill.intitule,
+          domaineId: skill.domaine,
+          domaineNom: domaine?.nom ?? skill.domaine,
+          palier: skill.palier,
+          niveau: comp?.niveau ?? null,
+          score: comp?.score ?? null,
+          confiance: comp?.confiance ?? "nulle",
+          nombrePreuves: comp?.nombrePreuves ?? 0,
+          prochaineEtape: comp?.prochaineEtape,
+          exercicesDisponibles: exs.length,
+        }];
+      });
+
+      const domainesMap = new Map<string, { id: string; nom: string; count: number; evaluees: number }>();
+      for (const comp of skillsDuTheme) {
+        const d = domainesMap.get(comp.domaineId) ?? {
+          id: comp.domaineId,
+          nom: comp.domaineNom,
+          count: 0,
+          evaluees: 0,
+        };
+        d.count++;
+        if (comp.niveau !== null) d.evaluees++;
+        domainesMap.set(comp.domaineId, d);
+      }
+
+      const codesDuThemeSet = new Set(skillsDuTheme.map((c) => c.code));
+      const exercicesDuTheme = exercices
+        .filter((e) => !e.archive && e.competences.some((c) => codesDuThemeSet.has(c)))
+        .map((e) => compterTentatives(e, tentatives));
+
+      const evaluees = skillsDuTheme.filter((c) => c.niveau !== null);
+      const nombrePreuves = skillsDuTheme.reduce((acc, c) => acc + c.nombrePreuves, 0);
+      const scores = evaluees.map((c) => c.score).filter((s): s is number => s !== null);
+      const scoreMoyen = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
+      const tauxCouverture = skillsDuTheme.length > 0 ? evaluees.length / skillsDuTheme.length : 0;
+
+      const nonEvaluees = skillsDuTheme.filter((c) => c.niveau === null);
+      const prioritaires = nonEvaluees.length > 0 ? nonEvaluees : [...skillsDuTheme].sort((a, b) => (a.score ?? 0) - (b.score ?? 0));
+      const cibleRecommandee = prioritaires[0];
+
+      const derniereActivite = derniereDate([
+        ...skillsDuTheme.map((c) => {
+          const comp = competencesParCode.get(c.code);
+          return comp?.dernierePreuve ?? null;
+        }),
+        ...exercicesDuTheme.map((e) => e.derniereTentative),
+      ]);
+
+      return {
+        kind: "theme",
+        id: theme.id,
+        libelle: theme.libelle,
+        intention: theme.intention,
+        origine: theme.origine,
+        creeLe: theme.creeLe,
+        archive: theme.archive,
+        competences: skillsDuTheme,
+        domaines: Array.from(domainesMap.values()).map((d) => ({
+          id: d.id,
+          nom: d.nom,
+          nombreCompetences: d.count,
+          nombreEvaluees: d.evaluees,
+        })),
+        exercices: exercicesDuTheme,
+        nombreEvaluees: evaluees.length,
+        nombrePreuves,
+        nombreExercices: exercicesDuTheme.length,
+        scoreMoyen,
+        tauxCouverture,
+        derniereActivite,
+        prochaineActionRecommandee: cibleRecommandee
+          ? {
+              code: cibleRecommandee.code,
+              titre: cibleRecommandee.titre,
+              motif: cibleRecommandee.niveau === null ? "Produire une première observation" : "Consolider la compétence",
+            }
+          : null,
+      };
+    });
+
+  const vuesExercices: VueExerciceProjectionAtelier[] = exercices.map((ex) => {
+    const domaine = referentiel.domainesParId.get(ex.domaine);
+    const skillsDeLExercice = ex.competences.map((code) => {
+      const skill = referentiel.parCode.get(code);
+      const comp = competencesParCode.get(code);
+      return {
+        code,
+        titre: skill?.intitule ?? code,
+        palier: skill?.palier ?? "fondamentaux",
+        niveau: comp?.niveau ?? null,
+        score: comp?.score ?? null,
+      };
+    });
+    const associees = tentativesParExercice.get(ex.id) ?? [];
+    const reussies = associees.some((t) => t.resultat === "reussi");
+    const partielles = associees.some((t) => t.resultat === "partiel");
+    const meilleurResultat = reussies ? "reussi" : partielles ? "partiel" : associees.length > 0 ? "echec" : null;
+    const derniereTentative = derniereDate(associees.map((t) => t.fin ?? t.debut));
+
+    return {
+      kind: "exercice",
+      id: ex.id,
+      titre: ex.titre,
+      enonce: ex.enonce,
+      domaineId: ex.domaine,
+      domaineNom: domaine?.nom ?? ex.domaine,
+      difficulte: ex.difficulte,
+      dureeEstimeeMin: ex.dureeEstimeeMin,
+      typeExercice: ex.type,
+      competences: skillsDeLExercice,
+      tentatives: associees,
+      nombreTentatives: associees.length,
+      meilleurResultat,
+      derniereTentative,
+    };
+  });
+
+  return { domaines, competences, themes: vuesThemes, exercices: vuesExercices };
 }

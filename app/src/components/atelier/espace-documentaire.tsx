@@ -857,6 +857,7 @@ export function EspaceDocumentaire({
               compteId={graphe.compteId}
               modeInitial={modeInitial}
               rectificationActive={rectificationActive}
+              generation={generation}
             />
           ) : selectionnee ? (
             <>

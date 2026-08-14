@@ -102,8 +102,11 @@ export default async function PageAtelier(props: {
     contexte.preuvesEffectives,
     changementsReferentiel,
     codesAvecDependances,
+    themes,
   );
   const vuesCompetences = new Map(vues.competences.map((vue) => [vue.code, vue]));
+  const vuesThemes = new Map(vues.themes.map((vue) => [vue.id, vue]));
+  const vuesExercices = new Map(vues.exercices.map((vue) => [vue.id, vue]));
   const snapshotsParDocument = new Map<string, Array<{ id: string; version: number; captureReason: string; capturedAt: string }>>();
   for (const snapshot of snapshots) {
     const items = snapshotsParDocument.get(snapshot.documentId) ?? [];
@@ -189,6 +192,7 @@ export default async function PageAtelier(props: {
       tentatives: [],
       source: "projection",
       lectureSeule: true,
+      vuePedagogique: vuesThemes.get(theme.id),
     }));
 
   const projectionsDomaines: ElementAtelier[] = vues.domaines
@@ -288,6 +292,7 @@ export default async function PageAtelier(props: {
       tentatives: tentativesParExercice.get(exercice.id) ?? [],
       source: "projection",
       lectureSeule: true,
+      vuePedagogique: vuesExercices.get(exercice.id),
     }));
 
   const elementsAtelier = [

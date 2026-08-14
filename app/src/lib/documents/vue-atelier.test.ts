@@ -8,6 +8,7 @@ import type {
   SkillEvidence,
   SkillState,
 } from "@/lib/domain/types";
+import type { Theme } from "@/lib/domain/theme";
 import type { IndexDocumentaire } from "./index";
 import { construireVuesAtelier } from "./vue-atelier";
 
@@ -212,6 +213,56 @@ describe("construireVuesAtelier", () => {
     expect(vues.domaines[1]).toMatchObject({
       id: "archive",
       competences: [{ code: "OLD-01", niveau: null, score: null }],
+    });
+  });
+
+  it("construit les vues thématiques et d'exercices enrichies", () => {
+    const theme: Theme = {
+      id: "flux-opti",
+      libelle: "Optimisation des flux",
+      intention: "Comprendre et optimiser les flux logistiques",
+      codes: [competence.code, suivante.code],
+      origine: "utilisateur",
+      creeLe: "2026-08-10T08:00:00.000Z",
+      archive: false,
+    };
+
+    const vues = construireVuesAtelier(
+      referentiel,
+      [etat(competence, [preuve]), etat(suivante)],
+      [exercice],
+      [tentative],
+      index,
+      [],
+      [],
+      new Set(),
+      [theme],
+    );
+
+    expect(vues.themes[0]).toMatchObject({
+      kind: "theme",
+      id: "flux-opti",
+      libelle: "Optimisation des flux",
+      intention: "Comprendre et optimiser les flux logistiques",
+      nombreEvaluees: 1,
+      nombrePreuves: 1,
+      nombreExercices: 1,
+      tauxCouverture: 0.5,
+    });
+    expect(vues.themes[0].competences.map((c) => c.code)).toEqual(["LOG-01", "LOG-02"]);
+    expect(vues.themes[0].domaines[0]).toMatchObject({
+      id: "logistique",
+      nombreCompetences: 2,
+      nombreEvaluees: 1,
+    });
+
+    expect(vues.exercices[0]).toMatchObject({
+      kind: "exercice",
+      id: exercice.id,
+      titre: exercice.titre,
+      domaineId: "logistique",
+      nombreTentatives: 1,
+      meilleurResultat: "reussi",
     });
   });
 });
