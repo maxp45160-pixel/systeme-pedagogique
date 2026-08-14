@@ -96,6 +96,39 @@ export async function VueSeanceDetail({
             />
           </div>
         </div>
+        {statut === "en-cours" && (
+          <div className="border-t border-bordure/60 px-4 py-2 sm:px-6">
+            <nav
+              aria-label="Outils de séance"
+              className="mx-auto flex w-fit max-w-full flex-wrap items-center justify-center gap-1 rounded-xl border border-bordure bg-surface/95 p-1 shadow-sm backdrop-blur"
+            >
+              <OutilSeance
+                libelle="Exercices"
+                contenuClassName="fixed left-4 right-4 top-28 z-30 mt-2 rounded-lg border border-bordure bg-surface p-3 shadow-xl sm:absolute sm:left-1/2 sm:right-auto sm:top-auto sm:w-[min(34rem,calc(100vw-2rem))] sm:-translate-x-1/2"
+              >
+                <ListeActivites activites={activites} parId={parId} avancement={avancement} seanceId={seance.id} compacte />
+              </OutilSeance>
+              <OutilSeance
+                libelle="Pomodoro"
+                contenuClassName="fixed left-4 right-4 top-28 z-30 mt-2 shadow-xl sm:absolute sm:left-1/2 sm:right-auto sm:top-auto sm:w-[min(24rem,calc(100vw-2rem))] sm:-translate-x-1/2"
+              >
+                <Pomodoro compteId={ctx.donnees.user.id} />
+              </OutilSeance>
+              {etatTuteur && exerciceActif && (
+                <TiroirTuteur
+                  etatInitial={etatTuteur}
+                  exerciceCible={exerciceActif}
+                  codesCompetences={ctx.etats.map((etat) => etat.skill.code)}
+                  compteId={ctx.donnees.user.id}
+                  domainesExistants={ctx.referentiel.domaines.map((domaine) => ({ id: domaine.id, nom: domaine.nom, prefixe: domaine.prefixe }))}
+                  competencesModale={competencesPourModale(ctx.referentiel.actifs)}
+                  calibragesModale={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
+                  libelle="Tuteur IA"
+                />
+              )}
+            </nav>
+          </div>
+        )}
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-5 sm:px-6">
@@ -121,36 +154,6 @@ export async function VueSeanceDetail({
 
         {statut === "en-cours" && (
           <div className="space-y-5">
-            <nav
-              aria-label="Outils de séance"
-              className="sticky top-2 z-20 mx-auto flex w-fit max-w-full flex-wrap items-center justify-center gap-1 rounded-xl border border-bordure bg-surface/95 p-1 shadow-sm backdrop-blur"
-            >
-              <OutilSeance
-                libelle="Exercices"
-                contenuClassName="fixed left-4 right-4 top-28 z-10 mt-2 rounded-lg border border-bordure bg-surface p-3 shadow-xl sm:absolute sm:left-1/2 sm:right-auto sm:top-auto sm:w-[min(34rem,calc(100vw-2rem))] sm:-translate-x-1/2"
-              >
-                <ListeActivites activites={activites} parId={parId} avancement={avancement} seanceId={seance.id} compacte />
-              </OutilSeance>
-              <OutilSeance
-                libelle="Pomodoro"
-                contenuClassName="fixed left-4 right-4 top-28 z-10 mt-2 shadow-xl sm:absolute sm:left-1/2 sm:right-auto sm:top-auto sm:w-[min(24rem,calc(100vw-2rem))] sm:-translate-x-1/2"
-              >
-                <Pomodoro compteId={ctx.donnees.user.id} />
-              </OutilSeance>
-              {etatTuteur && exerciceActif && (
-                <TiroirTuteur
-                  etatInitial={etatTuteur}
-                  exerciceCible={exerciceActif}
-                  codesCompetences={ctx.etats.map((etat) => etat.skill.code)}
-                  compteId={ctx.donnees.user.id}
-                  domainesExistants={ctx.referentiel.domaines.map((domaine) => ({ id: domaine.id, nom: domaine.nom, prefixe: domaine.prefixe }))}
-                  competencesModale={competencesPourModale(ctx.referentiel.actifs)}
-                  calibragesModale={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
-                  libelle="Tuteur IA"
-                />
-              )}
-            </nav>
-
             {(recherche?.bilan === "1" || recherche?.abandon === "1") && suivant && (
               <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3 rounded-lg border border-primaire/30 bg-primaire-faible px-4 py-3 shadow-xs">
                 <div>
