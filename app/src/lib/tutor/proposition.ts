@@ -260,6 +260,229 @@ export function exerciceComplet(x: ExerciceEsquisse): boolean {
   );
 }
 
+/**
+ * Extrait une proposition d'exercice rédigée en markdown/texte libre dans le chat,
+ * et assainit le texte du message pour masquer l'énoncé, les indices et la correction
+ * (garantissant le respect de la démarche d'apprentissage active).
+ */
+export function extrairePropositionExerciceDuTexte(texte: string): {
+  exercice: PropositionExercice | null;
+  texteNettoye: string;
+} {
+  const aEnonce = /(?:^|\n)\s*(?:[-*#]+\s*)?(?:Énoncé|Enoncé|ÉNONCÉ)\s*:/i.test(texte);
+  const aCorrection = /(?:^|\n)\s*(?:[-*#]+\s*)?(?:Correction|CORRECTION)\s*:/i.test(texte);
+  const posProposition = texte.search(/(?:^|\n)\s*(?:[-*#]+\s*)?(?:Proposition\s*(?:d'exercice)?|Titre)\s*:/i);
+
+  if (!aEnonce || !aCorrection) {
+    return { exercice: null, texteNettoye: texte };
+  }
+
+  // 1. Titre
+  let titre = "";
+  const matchTitre = texte.match(/(?:^|\n)\s*(?:[-*#]+\s*)?(?:Proposition\s*(?:d'exercice)?|Titre)\s*:\s*["“«]?([^"\n\r”»]+)["”»]?/i);
+  if (matchTitre) {
+    titre = matchTitre[1].trim();
+  }
+
+  // 2. Domaine
+  let domaine = "Développement";
+  const matchDomaine = texte.match(/(?:^|\n|[|•-])\s*Domaine\s*:\s*([^|\n\r•]+)/i);
+  if (matchDomaine) {
+    domaine = matchDomaine[1].trim();
+  }
+
+  // 3. Type
+  let type = "Application";
+  const matchType = texte.match(/(?:^|\n|[|•-])\s*Type\s*:\s*([^|\n\r•]+)/i);
+  if (matchType) {
+    type = matchType[1].trim();
+  }
+
+  // 4. Difficulté
+  let difficulte = "1";
+  const matchDiff = texte.match(/(?:^|\n|[|•-])\s*Difficult[ée]\s*:\s*(\d+)(?:\/\d+)?/i);
+  if (matchDiff) {
+    difficulte = matchDiff[1].trim();
+  }
+
+  // 5. Compétences
+  const competences: string[] = [];
+  const matchCompLigne = texte.match(/(?:^|\n|[|•-])\s*Compétence(?:s|\s+cible)?\s*:\s*([^\n\r]+)/i);
+  if (matchCompLigne) {
+    const codes = matchCompLigne[1].match(/[A-Z]{2,6}-\d{2,4}/g);
+    if (codes) competences.push(...codes);
+  }
+  if (competences.length === 0) {
+    const tousCodes = texte.match(/[A-Z]{2,6}-\d{2,4}/g);
+    if (tousCodes) competences.push(...Array.from(new Set(tousCodes)));
+  }
+
+  if (!titre) {
+    titre = competences.length > 0
+      ? `Exercice d'application ${competences[0]}`
+      : "Exercice d'entraînement";
+  }
+
+  // 6. Durée
+  let dureeEstimeeMin = "15";
+  const matchDuree = texte.match(/(?:^|\n|[|•-])\s*Durée(?:\s+estimée)?\s*:\s*(\d+)/i);
+  if (matchDuree) {
+    dureeEstimeeMin = matchDuree[1].trim();
+  }
+
+  // 7. Intention
+  let intention = "Consolidation";
+  const matchIntention = texte.match(/(?:^|\n|[|•-])\s*Intention\s*:\s*([^|\n\r•]+)/i);
+  if (matchIntention) {
+    intention = matchIntention[1].trim();
+  }
+
+  // Positions des sections
+  const posEnonce = texte.search(/(?:^|\n)\s*(?:[-*#]+\s*)?(?:Énoncé|Enoncé|ÉNONCÉ)\s*:/i);
+  const posIndices = texte.search(/(?:^|\n)\s*(?:[-*#]+\s*)?(?:Indices?|INDICES?)\s*(?:\([^)]*\))?\s*:/i);
+  const posCorrection = texte.search(/(?:^|\n)\s*(?:[-*#]+\s*)?(?:Correction|CORRECTION)\s*:/i);
+  const posCriteres = texte.search(/(?:^|\n)\s*(?:[-*#]+\s*)?(?:Critères?(?:\s+d'évaluation)?|CRITÈRES?)\s*:/i);
+  const posPourquoi = texte.search(/(?:^|\n)\s*(?:[-*#]+\s*)?(?:Pourquoi\s+cet\s+exercice\s*\?)/i);
+
+  // Énoncé
+  let enonce = "";
+  if (posEnonce !== -1) {
+    const finEnonce = posIndices !== -1 && posIndices > posEnonce
+      ? posIndices
+      : posCorrection > posEnonce
+        ? posCorrection
+        : texte.length;
+    const brut = texte.slice(posEnonce, finEnonce);
+    enonce = brut.replace(/(?:^|\n)\s*(?:[-*#]+\s*)?(?:Énoncé|Enoncé|ÉNONCÉ)\s*:\s*/i, "").replace(FIN_DE_BLOC, "").trim();
+  }
+
+  // Indices
+  const indices: string[] = [];
+  if (posIndices !== -1 && posCorrection > posIndices) {
+    const brutIndices = texte.slice(posIndices, posCorrection);
+    const texteSansHeader = brutIndices.replace(/(?:^|\n)\s*(?:[-*#]+\s*)?(?:Indices?|INDICES?)\s*(?:\([^)]*\))?\s*:\s*/i, "");
+    const lignes = texteSansHeader.split("\n");
+    let indiceCourant = "";
+    for (const ligne of lignes) {
+      if (FIN_DE_BLOC.test(ligne)) continue;
+      const matchInd = ligne.match(/^\s*(?:[-*•]|\d+\.|\bIndice\s*\d*\s*:)\s*(.*)/i);
+      if (matchInd) {
+        if (indiceCourant.trim()) indices.push(indiceCourant.trim());
+        indiceCourant = matchInd[1];
+      } else if (indiceCourant) {
+        indiceCourant += `\n${ligne}`;
+      }
+    }
+    if (indiceCourant.trim()) indices.push(indiceCourant.trim());
+  }
+
+  // Correction
+  let correction = "";
+  if (posCorrection !== -1) {
+    const finCorrection = posCriteres !== -1 && posCriteres > posCorrection
+      ? posCriteres
+      : posPourquoi !== -1 && posPourquoi > posCorrection
+        ? posPourquoi
+        : texte.length;
+    const brutCorrection = texte.slice(posCorrection, finCorrection);
+    correction = brutCorrection.replace(/(?:^|\n)\s*(?:[-*#]+\s*)?(?:Correction|CORRECTION)\s*:/i, "").replace(FIN_DE_BLOC, "").trim();
+  }
+
+  // Critères
+  const criteres: { dimension: string; libelle: string }[] = [];
+  if (posCriteres !== -1) {
+    const finCriteres = posPourquoi !== -1 && posPourquoi > posCriteres ? posPourquoi : texte.length;
+    const brutCriteres = texte.slice(posCriteres, finCriteres);
+    const lignesCriteres = brutCriteres.split("\n");
+    for (const ligne of lignesCriteres) {
+      if (FIN_DE_BLOC.test(ligne)) continue;
+      const nette = ligne.trim();
+      if (!nette || nette.toLowerCase().startsWith("dimension") || /^[|\s-]+$/.test(nette)) continue;
+
+      // Format tableau tabulé: Dimension \t Libellé
+      if (nette.includes("\t")) {
+        const parts = nette.split("\t").map((p) => p.trim()).filter(Boolean);
+        if (parts.length >= 2) {
+          criteres.push({
+            dimension: parts[0].toLowerCase(),
+            libelle: parts.slice(1).join(" "),
+          });
+          continue;
+        }
+      }
+
+      // Format tableau markdown: | Dimension | Libellé |
+      const matchTable = nette.match(/^\|?\s*([A-Za-zÀ-ÿ\s]+)\s*\|\s*([^|]+)\|?$/);
+      if (matchTable && !matchTable[1].toLowerCase().includes("dimension")) {
+        criteres.push({
+          dimension: matchTable[1].trim().toLowerCase(),
+          libelle: matchTable[2].trim(),
+        });
+        continue;
+      }
+
+      // Format puce: - Dimension : libellé
+      const matchPuce = nette.match(/^[-*•]\s*([A-Za-zÀ-ÿ]+)\s*:\s*(.+)/);
+      if (matchPuce) {
+        criteres.push({
+          dimension: matchPuce[1].trim().toLowerCase(),
+          libelle: matchPuce[2].trim(),
+        });
+      }
+    }
+  }
+
+  if (criteres.length === 0) {
+    criteres.push({ dimension: "application", libelle: "Application de la méthode sans erreur" });
+  }
+
+  const exercice: PropositionExercice = {
+    titre,
+    domaine,
+    type,
+    difficulte,
+    competences: competences.length > 0 ? competences : ["DEV-01"],
+    dureeEstimeeMin,
+    enonce,
+    indices,
+    correction,
+    criteres,
+    intention,
+  };
+
+  if (!exerciceComplet(exercice)) {
+    return { exercice: null, texteNettoye: texte };
+  }
+
+  // Trouver le début du bloc de l'exercice pour préserver l'introduction
+  const matchSepAvant = texte.slice(0, posEnonce).match(/(?:^|\n)\s*---+\s*$/m);
+  const coupure = matchSepAvant && matchSepAvant.index !== undefined && matchSepAvant.index > 0
+    ? matchSepAvant.index
+    : posProposition !== -1 && posProposition < posEnonce
+      ? posProposition
+      : posEnonce;
+
+  const intro = texte.slice(0, coupure).trim();
+
+  // Extraire le bloc "Pourquoi cet exercice ?" si présent
+  let pourquoiTexte = "";
+  if (posPourquoi !== -1) {
+    const apresPourquoi = texte.slice(posPourquoi);
+    const finPourquoi = apresPourquoi.search(/(?:^|\n)\s*(?:---+|\*{3,})?\s*Veux-tu\s+que\s+je\s+formalise/i);
+    const brutPourquoi = finPourquoi !== -1 ? apresPourquoi.slice(0, finPourquoi) : apresPourquoi;
+    pourquoiTexte = brutPourquoi.trim();
+  }
+
+  const morceaux: string[] = [];
+  if (intro) morceaux.push(intro);
+  morceaux.push("> **Exercice interactif prêt.** Les consignes, indices progressifs et corrections sont sécurisés dans le workspace de résolution ci-dessous.");
+  if (pourquoiTexte) morceaux.push(pourquoiTexte);
+
+  const texteNettoye = morceaux.join("\n\n");
+
+  return { exercice, texteNettoye };
+}
+
 /* ------------------------------------------------------------------ */
 /* Proposition de référentiel (ADR-026)                                */
 /* ------------------------------------------------------------------ */

@@ -14,6 +14,7 @@ import { BoutonReviser } from "@/components/referentiel/bouton-reviser";
 import { GestionDomaine } from "@/components/referentiel/gestion-domaine";
 import { BoutonGenerer } from "@/components/exercices/bouton-generer";
 import type { CalibrageModale, CompetenceModale } from "@/components/exercices/proprietes-generation";
+import { BoutonRetour } from "@/components/ui/lien-retour";
 import { RectificationPreuve } from "./rectification-preuve";
 
 type Onglet = "synthese" | "progression" | "relations" | "notes";
@@ -134,6 +135,7 @@ function VueCompetence({
           {!sidebarOuverte && setSidebarOuverte && (
             <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />
           )}
+          <BoutonRetour />
           {revenirGraphe && (
             <>
               <button
@@ -347,6 +349,7 @@ function VueDomaine({
           {!sidebarOuverte && setSidebarOuverte && (
             <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />
           )}
+          <BoutonRetour />
           {revenirGraphe && (
             <>
               <button

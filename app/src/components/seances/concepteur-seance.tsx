@@ -253,7 +253,6 @@ export function ConcepteurSeance({
     themePrincipal ? "prochaine-action" : "personnalisee",
   );
   const [cleThemePerso, setCleThemePerso] = useState<string>("");
-  const [modaleThemeOuverte, setModaleThemeOuverte] = useState(false);
 
   const themesPersonnalises = useMemo(
     () => [...themesEnreg, ...themesSugRepli],
@@ -498,7 +497,14 @@ export function ConcepteurSeance({
               themesEnreg={themesEnreg}
               cleThemePerso={cleThemePerso}
               setCleThemePerso={setCleThemePerso}
-              ouvrirModaleTheme={() => setModaleThemeOuverte(true)}
+              competencesParCode={competencesParCode}
+              compteId={compteId}
+              domainesExistants={domaines}
+              onThemeCree={(t) => {
+                setThemesLocaux((prev) => [...prev, t]);
+                setCleThemePerso(`theme:${t.id}`);
+                setMode("personnalisee");
+              }}
               onThemeRetire={(id) => {
                 setThemesLocaux((prev) => prev.filter((t) => t.id !== id));
                 if (cleThemePerso === `theme:${id}`) setCleThemePerso("");
@@ -537,20 +543,6 @@ export function ConcepteurSeance({
           )}
         </Modale>
       )}
-
-      {modaleThemeOuverte && (
-        <ModaleTheme
-          competencesParCode={competencesParCode}
-          compteId={compteId}
-          domainesExistants={domaines}
-          onFermer={() => setModaleThemeOuverte(false)}
-          onCree={(t) => {
-            setThemesLocaux((prev) => [...prev, t]);
-            setCleThemePerso(`theme:${t.id}`);
-            setMode("personnalisee");
-          }}
-        />
-      )}
     </>
   );
 }
@@ -567,7 +559,10 @@ function EtapeBesoin({
   themesEnreg,
   cleThemePerso,
   setCleThemePerso,
-  ouvrirModaleTheme,
+  competencesParCode,
+  compteId,
+  domainesExistants,
+  onThemeCree,
   onThemeRetire,
   onThemeRenomme,
   temps,
@@ -588,7 +583,10 @@ function EtapeBesoin({
   cleThemePerso: string;
   /** Un thème est effectivement sélectionné (vrai hors mode sans recommandation). */
   setCleThemePerso: (v: string) => void;
-  ouvrirModaleTheme: () => void;
+  competencesParCode: Map<string, { intitule: string; domaine: string }>;
+  compteId: string;
+  domainesExistants: { id: string; nom: string; prefixe: string }[];
+  onThemeCree: (theme: Theme) => void;
   onThemeRetire: (themeId: string) => void;
   onThemeRenomme: () => void;
   temps: string;
@@ -600,6 +598,8 @@ function EtapeBesoin({
   setIntentionOuverte: (v: boolean) => void;
   erreur: string | null;
 }) {
+  const [creationThemeOuverte, setCreationThemeOuverte] = useState(false);
+
   if (!themePrincipal && themesPersonnalises.length === 0) {
     return (
       <div className="space-y-3 pt-4">
@@ -675,13 +675,27 @@ function EtapeBesoin({
             Sur quoi tu veux travailler
           </legend>
 
-          <button
-            type="button"
-            onClick={ouvrirModaleTheme}
-            className="w-full rounded-md border border-dashed border-primaire/40 px-3 py-2.5 text-left text-sm text-primaire hover:bg-primaire-faible"
-          >
-            + Décrire ce que je veux apprendre
-          </button>
+          {!creationThemeOuverte ? (
+            <button
+              type="button"
+              onClick={() => setCreationThemeOuverte(true)}
+              className="w-full rounded-md border border-dashed border-primaire/40 px-3 py-2.5 text-left text-sm text-primaire transition-colors hover:bg-primaire-faible"
+            >
+              + Décrire ce que je veux apprendre
+            </button>
+          ) : (
+            <ModaleTheme
+              presentation="inline"
+              competencesParCode={competencesParCode}
+              compteId={compteId}
+              domainesExistants={domainesExistants}
+              onFermer={() => setCreationThemeOuverte(false)}
+              onCree={(t) => {
+                onThemeCree(t);
+                setCreationThemeOuverte(false);
+              }}
+            />
+          )}
 
           {themesPersonnalises.length === 0 ? (
             <p className="text-xs text-texte-attenue">
@@ -727,19 +741,46 @@ function EtapeBesoin({
         </fieldset>
       )}
 
-      <Champ
-        label="Temps disponible (minutes)"
-        type="number"
-        min={DUREE_ESTIMEE_MIN}
-        max={TEMPS_DECLARE_MAX}
-        value={temps}
-        onChange={(e) => setTemps(e.target.value)}
-        aide={
-          conseil
-            ? conseil.explication
-            : "Aucune durée de référence encore observée : tu fixeras le nombre d'exercices à l'étape suivante."
-        }
-      />
+      <div className="space-y-2">
+        <label className="block text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
+          Temps disponible (minutes)
+        </label>
+        <div className="flex flex-wrap gap-2">
+          {[
+            { temps: 15, libelle: "15 min (Express)" },
+            { temps: 30, libelle: "30 min (Équilibré)" },
+            { temps: 45, libelle: "45 min (Approfondi)" },
+            { temps: 60, libelle: "60 min (Standard)" },
+          ].map((preset) => (
+            <button
+              key={preset.temps}
+              type="button"
+              onClick={() => setTemps(String(preset.temps))}
+              className={cx(
+                "rounded-md border px-3 py-1.5 text-xs font-medium transition-all cursor-pointer",
+                temps === String(preset.temps)
+                  ? "border-primaire bg-primaire-faible text-primaire font-semibold shadow-xs"
+                  : "border-bordure bg-surface hover:bg-surface-2 text-texte-attenue hover:text-texte",
+              )}
+            >
+              {preset.libelle}
+            </button>
+          ))}
+        </div>
+        <Champ
+          label=""
+          type="number"
+          min={DUREE_ESTIMEE_MIN}
+          max={TEMPS_DECLARE_MAX}
+          value={temps}
+          onChange={(e) => setTemps(e.target.value)}
+          aide={
+            conseil
+              ? conseil.explication
+              : "Aucune durée de référence encore observée : tu fixeras le nombre d'exercices à l'étape suivante."
+          }
+        />
+      </div>
 
       {/*
         L'intention rédigée reste possible, mais repliée et facultative : c'est

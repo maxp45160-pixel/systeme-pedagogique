@@ -167,23 +167,36 @@ async function ContenuTableauDeBord({ instant }: { instant: ContexteInstant }) {
         <BandeauInfo ton="primaire">
           <div className="min-w-0" data-testid="travaux-en-cours">
             <p className="text-sm font-medium">{titreTravauxEnCours(enCours.length, travauxOuverts.length)}</p>
-            <ul className="mt-2 space-y-1.5">
+            <ul className="mt-2.5 space-y-2">
               {enCours.map(({ id, exercice, depuis }) => (
-                <li key={exercice.id} className="flex flex-wrap items-baseline gap-2 text-xs">
-                  <Link
-                    href={`/exercices/${exercice.id}`}
-                    className="font-medium text-primaire hover:underline"
-                  >
-                    {exercice.titre}
-                  </Link>
-                  <span className="text-texte-discret">
-                    commencé il y a {formatDuree(depuis)} · {exercice.competences.join(", ")}
-                  </span>
-                  <form action={abandonnerExercice.bind(null, id, exercice.id, depuis, undefined)}>
-                    <Bouton type="submit" variante="secondaire" taille="petite">
-                      Abandonner
-                    </Bouton>
-                  </form>
+                <li
+                  key={exercice.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primaire/20 bg-surface/80 px-3 py-2 text-xs shadow-xs"
+                >
+                  <div className="flex flex-wrap items-baseline gap-2 min-w-0">
+                    <Link
+                      href={`/exercices/${exercice.id}`}
+                      className="font-semibold text-primaire hover:underline"
+                    >
+                      {exercice.titre}
+                    </Link>
+                    <span className="text-texte-discret">
+                      commencé il y a {formatDuree(depuis)} · {exercice.competences.join(", ")}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Link
+                      href={`/exercices/${exercice.id}`}
+                      className={`${classesLienBouton("principal")} !py-1 !px-2.5 !text-xs`}
+                    >
+                      Reprendre →
+                    </Link>
+                    <form action={abandonnerExercice.bind(null, id, exercice.id, depuis, undefined)}>
+                      <Bouton type="submit" variante="secondaire" taille="petite">
+                        Abandonner
+                      </Bouton>
+                    </form>
+                  </div>
                 </li>
               ))}
               {/*
@@ -193,20 +206,31 @@ async function ContenuTableauDeBord({ instant }: { instant: ContexteInstant }) {
                 contenu est visible.
               */}
               {travauxOuverts.map(({ run, activity }) => (
-                <li key={run.id} className="flex flex-wrap items-baseline gap-2 text-xs">
-                  <Etiquette ton="primaire">{LIBELLES_FAMILLE[activity.family]}</Etiquette>
+                <li
+                  key={run.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primaire/20 bg-surface/80 px-3 py-2 text-xs shadow-xs"
+                >
+                  <div className="flex flex-wrap items-baseline gap-2 min-w-0">
+                    <Etiquette ton="primaire">{LIBELLES_FAMILLE[activity.family]}</Etiquette>
+                    <Link
+                      href={`/seances?run=${encodeURIComponent(run.id)}`}
+                      className="font-semibold text-primaire hover:underline"
+                    >
+                      {activity.title}
+                    </Link>
+                    <span className="text-texte-discret">
+                      {run.status === "planifiee" ? "prêt à démarrer" : "à reprendre"}
+                      {activity.target.skillCodes.length > 0
+                        ? ` · ${activity.target.skillCodes.join(", ")}`
+                        : ""}
+                    </span>
+                  </div>
                   <Link
                     href={`/seances?run=${encodeURIComponent(run.id)}`}
-                    className="font-medium text-primaire hover:underline"
+                    className={`${classesLienBouton("principal")} !py-1 !px-2.5 !text-xs shrink-0`}
                   >
-                    {activity.title}
+                    {run.status === "planifiee" ? "Démarrer →" : "Reprendre →"}
                   </Link>
-                  <span className="text-texte-discret">
-                    {run.status === "planifiee" ? "prêt à démarrer" : "à reprendre"}
-                    {activity.target.skillCodes.length > 0
-                      ? ` · ${activity.target.skillCodes.join(", ")}`
-                      : ""}
-                  </span>
                 </li>
               ))}
             </ul>

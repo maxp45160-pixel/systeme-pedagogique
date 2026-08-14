@@ -1,23 +1,80 @@
+"use client";
+
 import Link from "next/link";
 
 /**
  * Le lien de remontée d'une page profonde.
- *
- * Trois pages en avaient un, écrit trois fois à l'identique — même classes,
- * même flèche, même marge (audit §1.5). Ce n'est pas grave tant que les trois
- * copies s'accordent ; c'est exactement pour cela qu'elles finissent par ne
- * plus s'accorder.
- *
- * Il n'y a **pas** de fil d'Ariane, et ce n'est pas un oubli : la hiérarchie du
- * produit n'a que deux niveaux sous chaque pôle. Un fil d'Ariane à deux
- * segments dit la même chose qu'une flèche, en occupant plus de place.
  */
-export function LienRetour({ href, libelle }: { href: string; libelle: string }) {
+export function LienRetour({
+  href,
+  libelle = "Retour",
+  onClick,
+}: {
+  href?: string;
+  libelle?: string;
+  onClick?: () => void;
+}) {
+  function gererRetour(e: React.MouseEvent) {
+    if (onClick) {
+      e.preventDefault();
+      onClick();
+      return;
+    }
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      e.preventDefault();
+      window.history.back();
+      return;
+    }
+  }
+
+  if (!href) {
+    return (
+      <div className="mb-3">
+        <button
+          type="button"
+          onClick={gererRetour}
+          className="inline-flex items-center gap-1 text-xs text-texte-attenue hover:text-texte transition-colors cursor-pointer"
+        >
+          ← {libelle}
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="mb-3">
-      <Link href={href} className="text-xs text-texte-attenue hover:text-texte">
+      <Link href={href} onClick={gererRetour} className="inline-flex items-center gap-1 text-xs text-texte-attenue hover:text-texte transition-colors">
         ← {libelle}
       </Link>
     </div>
   );
 }
+
+export function BoutonRetour({
+  onClick,
+  libelle = "Retour",
+}: {
+  onClick?: () => void;
+  libelle?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={
+        onClick ??
+        (() => {
+          if (typeof window !== "undefined") {
+            window.history.back();
+          }
+        })
+      }
+      className="inline-flex items-center gap-1.5 rounded-lg border border-bordure bg-surface px-2.5 py-1.5 text-xs font-semibold text-texte-attenue transition-all duration-150 hover:bg-surface-2 hover:text-primaire hover:border-primaire/40 cursor-pointer shadow-xs shrink-0"
+      title="Revenir en arrière (Raccourci : bouton retour souris)"
+      aria-label="Revenir en arrière"
+    >
+      <span className="text-xs font-bold" aria-hidden>←</span>
+      <span>{libelle}</span>
+    </button>
+  );
+}
+

@@ -149,9 +149,28 @@ export async function VueSeanceDetail({
             </div>
 
             {(recherche?.bilan === "1" || recherche?.abandon === "1") && suivant && (
-              <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3 rounded-lg border border-primaire/25 bg-primaire-faible px-4 py-3">
-                <p className="text-sm">Cette activité est close. La suivante est prête.</p>
-                <Link href={urlExercice(suivant, { seanceId: seance.id })} className={classesLienBouton("principal", "petite")}>Passer à l’exercice suivant</Link>
+              <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3 rounded-lg border border-primaire/30 bg-primaire-faible px-4 py-3 shadow-xs">
+                <div>
+                  <p className="text-sm font-semibold text-primaire">Activité validée !</p>
+                  <p className="text-xs text-texte-attenue">La prochaine activité de ta séance est prête.</p>
+                </div>
+                <Link href={urlExercice(suivant, { seanceId: seance.id })} className={classesLienBouton("principal", "petite")}>
+                  Passer à l’activité suivante →
+                </Link>
+              </div>
+            )}
+
+            {(recherche?.bilan === "1" || recherche?.abandon === "1") && !suivant && peutTerminer && (
+              <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3 rounded-lg border border-succes/30 bg-succes-faible px-4 py-3 shadow-xs">
+                <div>
+                  <p className="text-sm font-semibold text-succes">Toutes les activités sont terminées !</p>
+                  <p className="text-xs text-texte-attenue">Tu peux maintenant clôturer cette séance et enregistrer ton bilan global.</p>
+                </div>
+                <form action={terminerSeance.bind(null, seance.id)}>
+                  <Bouton type="submit" variante="principal" taille="petite">
+                    Terminer la séance →
+                  </Bouton>
+                </form>
               </div>
             )}
 

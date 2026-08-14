@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   exerciceComplet,
+  extrairePropositionExerciceDuTexte,
   extrairePropositionsReferentiel,
 } from "./proposition";
 
@@ -139,3 +140,77 @@ describe("proposition de référentiel — étiquettes en gras (même régressio
     expect(p.competences[1].importance).toBe("0,8");
   });
 });
+
+describe("extrairePropositionExerciceDuTexte", () => {
+  const MESSAGE_EXO_TEXTE = `Voici une idée d'exercice qui cible DEV-02 (priorité système la plus élevée) tout en travaillant la dimension "application", identifiée comme faible dans tes dernières tentatives. Il s'agit d'un exercice de consolidation pour t'entraîner à exécuter mentalement des fonctions pures, avec un guidage progressif pour renforcer l'autonomie.
+
+---
+Proposition : "Prédire le résultat d'une fonction pure avec des structures de données imbriquées"
+
+Domaine : Développement Type : Application Difficulté : 1/5 Compétence cible : DEV-02 (Exécuter mentalement une fonction pure pour prédire son résultat avant de lancer le code) Durée estimée : 15 minutes Intention : Consolidation (reprise après échecs répétés, avec indices ciblés sur l'application)
+
+---
+Énoncé :
+
+On te donne la fonction pure suivante en JavaScript. Ton objectif est de prédire son résultat sans l'exécuter.
+
+function transformerDonnees(data) {
+  return data;
+}
+
+Questions :
+1. Quel est le contenu final ?
+
+---
+Indices (à consulter un par un si bloqué) :
+
+    Indice 1 : Liste les clés de entree.
+    Indice 2 : Vérifie si typeof valeur === 'number'.
+
+---
+Correction :
+
+    resultat.meta : count 3
+    resultat.valeurs : [10, 20, 14]
+
+---
+Critères d'évaluation :
+Dimension	Libellé
+Application	A appliqué correctement la logique de la fonction sans sauter d'étapes.
+Justification	A expliqué chaque étape du raisonnement.
+
+---
+Pourquoi cet exercice ?
+
+    Cible ta priorité : DEV-02 est en difficulté depuis le 29 juillet.
+
+--- Veux-tu que je formalise cette proposition via l'outil proposer_exercice pour l'ajouter à ton corpus ?`;
+
+  it("extrait fidèlement l'exercice complet depuis le texte libre du chat", () => {
+    const { exercice, texteNettoye } = extrairePropositionExerciceDuTexte(MESSAGE_EXO_TEXTE);
+    expect(exercice).not.toBeNull();
+    expect(exerciceComplet(exercice!)).toBe(true);
+    expect(exercice!.titre).toBe("Prédire le résultat d'une fonction pure avec des structures de données imbriquées");
+    expect(exercice!.competences).toContain("DEV-02");
+    expect(exercice!.difficulte).toBe("1");
+    expect(exercice!.enonce).toContain("transformerDonnees");
+    expect(exercice!.indices.length).toBeGreaterThanOrEqual(2);
+    expect(exercice!.correction).toContain("resultat.meta");
+    expect(exercice!.criteres.length).toBeGreaterThanOrEqual(2);
+
+    // Vérification que le texte nettoyé ne contient AUCUN spoiler de solution ou indice
+    expect(texteNettoye).not.toContain("resultat.valeurs : [10, 20, 14]");
+    expect(texteNettoye).not.toContain("Indice 1 : Liste les clés");
+    expect(texteNettoye).not.toContain("Veux-tu que je formalise cette proposition");
+    expect(texteNettoye).toContain("Exercice interactif prêt");
+    expect(texteNettoye).toContain("Pourquoi cet exercice ?");
+  });
+
+  it("ne modifie pas un message conversationnel ordinaire", () => {
+    const texte = "Bonjour ! Sur quoi souhaites-tu travailler aujourd'hui ?";
+    const { exercice, texteNettoye } = extrairePropositionExerciceDuTexte(texte);
+    expect(exercice).toBeNull();
+    expect(texteNettoye).toBe(texte);
+  });
+});
+

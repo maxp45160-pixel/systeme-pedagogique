@@ -32,6 +32,7 @@ import {
 import type { PieceJointeDocument, SnapshotDocument } from "@/lib/documents/types-documents";
 import type { VueDomaineAtelier, VuePedagogiqueAtelier } from "@/lib/documents/vue-atelier";
 import { cleParCompte } from "@/lib/ui/stockage-session";
+import { BoutonRetour } from "@/components/ui/lien-retour";
 import { BoutonOuvrirExplorateur, FichePedagogiqueAtelier, PanneauPedagogiqueAtelier } from "./fiche-pedagogique";
 import type { CalibrageModale, CompetenceModale } from "@/components/exercices/proprietes-generation";
 import { cheminsDepuisDefinition } from "@/lib/documents/chemins-atelier";
@@ -156,7 +157,9 @@ function trouverElement(id: string, liste: ElementAtelier[]): ElementAtelier | u
       element.id === `exercice:${cleanId}` ||
       element.id === `domaine:${cleanId}` ||
       element.id === `competence:${cleanId}` ||
-      element.id === `document:${cleanId}`
+      element.id === `document:${cleanId}` ||
+      element.frontMatter?.exercice === cleanId ||
+      element.frontMatter?.exercice === id
     );
   });
 }
@@ -174,17 +177,23 @@ function BarreVuesAtelier({
     { cle: "transversal" as const, libelle: "Transversal" },
   ];
   return (
-    <div className="flex items-center gap-1 rounded-lg border border-bordure bg-surface-2 p-1 text-xs">
+    <div
+      className="flex items-center gap-1 rounded-lg border border-bordure bg-surface-2 p-1 text-xs"
+      role="tablist"
+      aria-label="Modes de vue de l'Atelier"
+    >
       {options.map((opt) => (
         <button
           key={opt.cle}
           type="button"
+          role="tab"
+          aria-selected={vue === opt.cle}
           onClick={() => onChanger(opt.cle)}
           className={cx(
-            "rounded-md px-2.5 py-1 font-medium transition-all cursor-pointer",
+            "rounded-md px-3 py-1.5 font-medium transition-all cursor-pointer",
             vue === opt.cle
-              ? "bg-surface text-texte shadow-sm font-semibold"
-              : "text-texte-discret hover:text-texte",
+              ? "bg-surface text-primaire shadow-xs font-semibold"
+              : "text-texte-discret hover:text-texte hover:bg-surface/50",
           )}
         >
           {opt.libelle}
@@ -238,6 +247,7 @@ function VueTousLesDomaines({
             {!sidebarOuverte && setSidebarOuverte && (
               <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />
             )}
+            <BoutonRetour />
             <button
               type="button"
               onClick={revenirGrapheGlobal}
@@ -334,10 +344,11 @@ function VueTransversale({
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-surface-2/30">
       <header className="border-b border-bordure bg-surface px-6 py-4 lg:px-8 shrink-0">
         <div className="flex items-center justify-between gap-3 mb-3">
-          <nav aria-label="Fil d’Ariane" className="flex items-center gap-2 text-xs text-texte-discret">
+          <nav aria-label="Fil d’Ariane" className="flex items-center gap-2 text-xs text-texte-discret min-w-0">
             {!sidebarOuverte && <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />}
-            <button type="button" onClick={revenirGrapheGlobal} className="font-medium hover:text-primaire hover:underline">Graphe global</button>
-            <span>/</span><span className="font-semibold text-texte">Vue transversale</span>
+            <BoutonRetour />
+            <button type="button" onClick={revenirGrapheGlobal} className="font-medium hover:text-primaire hover:underline shrink-0">Graphe global</button>
+            <span className="text-texte-discret/60 shrink-0">/</span><span className="font-semibold text-texte truncate">Vue transversale</span>
           </nav>
           <BarreVuesAtelier
             vue="transversal"
@@ -386,8 +397,10 @@ function VueCategorieTransversale({
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-surface-2/30">
       <header className="border-b border-bordure bg-surface px-6 py-5 lg:px-8">
-        <button type="button" onClick={revenirTransversal} className="text-xs font-medium text-texte-discret hover:text-primaire hover:underline">← Catégories transversales</button>
-        <h2 className="mt-4 font-serif text-2xl font-medium tracking-tight">{noeud.nom}</h2>
+        <div className="flex items-center gap-2 mb-3">
+          <BoutonRetour onClick={revenirTransversal} libelle="Catégories transversales" />
+        </div>
+        <h2 className="mt-2 font-serif text-2xl font-medium tracking-tight">{noeud.nom}</h2>
         <p className="mt-1 text-xs text-texte-attenue">{compterElements(noeud)} fiche{compterElements(noeud) > 1 ? "s" : ""} accessible{compterElements(noeud) > 1 ? "s" : ""} dans cette catégorie.</p>
       </header>
       <div className="space-y-6 p-6 lg:p-8">
@@ -533,11 +546,69 @@ export function EspaceDocumentaire({
     });
   }, [elements, recherche]);
 
-  function revenirGrapheGlobal() {
+  const chargerContenuDocument = useCallback((elementId: string) => {
+    setMessage(null);
+    demarrerTransition(async () => {
+      try {
+        const resultat = await lireDocumentAction(elementId);
+        const analyse = analyserDocumentMarkdown(elementId, resultat.contenuMd);
+        setElements((anciens) => anciens.map((ancien) => ancien.id === elementId
+          ? {
+            ...ancien,
+            ...documentDepuisAnalyse(analyse),
+            contenuCharge: true,
+            updatedAt: resultat.updatedAt ?? ancien.updatedAt,
+            snapshots: ancien.snapshots,
+            sortants: ancien.sortants,
+            entrants: ancien.entrants,
+          }
+          : ancien));
+        setBrouillons((anciens) => ({ ...anciens, [elementId]: resultat.contenuMd }));
+      } catch (erreur) {
+        setMessage(erreur instanceof Error ? erreur.message : "Chargement impossible");
+      }
+    });
+  }, []);
+
+  // Synchronisation avec l'historique du navigateur (boutons retour/suivant de la souris et du navigateur)
+  useEffect(() => {
+    function synchroniserDepuisHistorique() {
+      if (typeof window === "undefined") return;
+      const params = new URLSearchParams(window.location.search);
+      const docParam = params.get("document");
+      const dossierParam = params.get("dossier");
+      if (docParam) {
+        setSelection(docParam);
+      } else if (dossierParam) {
+        setSelection(`dossier:${dossierParam}`);
+      } else {
+        setSelection(null);
+      }
+      setCibleLien("");
+      setSnapshotApercu(null);
+    }
+    window.addEventListener("popstate", synchroniserDepuisHistorique);
+    return () => window.removeEventListener("popstate", synchroniserDepuisHistorique);
+  }, []);
+
+  useEffect(() => {
+    if (!selection) return;
+    const element = elements.find((el) => el.id === selection);
+    if (element && element.source !== "projection" && !element.contenuCharge) {
+      chargerContenuDocument(element.id);
+    }
+  }, [selection, elements, chargerContenuDocument]);
+
+  function revenirGrapheGlobal(opts?: { remplacerHistorique?: boolean } | unknown) {
     setSelection(null);
     setCibleLien("");
     setSnapshotApercu(null);
-    window.history.replaceState(null, "", "/atelier");
+    const remplacer = typeof opts === "object" && opts !== null && "remplacerHistorique" in opts && Boolean((opts as { remplacerHistorique?: boolean }).remplacerHistorique);
+    if (remplacer) {
+      window.history.replaceState(null, "", "/atelier");
+    } else {
+      window.history.pushState(null, "", "/atelier");
+    }
   }
 
   function trouverCible(cible: string): ElementAtelier | undefined {
@@ -550,40 +621,29 @@ export function EspaceDocumentaire({
     ? trouverNoeudDossier(arbreDossiers, selection.slice("dossier:".length))
     : null;
 
-  function ouvrirElement(id: string) {
+  function ouvrirElement(id: string, opts?: { remplacerHistorique?: boolean } | unknown) {
     const element = trouverElement(id, elements);
-    if (!element) return;
-    if (element.type === "exercice") {
-      router.push(`/exercices/${element.id.replace(/^exercice:/, "")}`);
+    if (!element) {
+      const cleanId = id.replace(/^(exercice|document):/, "");
+      if (id.startsWith("exercice:") || /^[0-9a-f]{8}-[0-9a-f]{4}/i.test(cleanId)) {
+        router.push(`/exercices/${cleanId}`);
+      }
       return;
     }
+
     setSelection(element.id);
     setCibleLien("");
     setSnapshotApercu(null);
     setMode("editer");
-    window.history.replaceState(null, "", `/atelier?document=${encodeURIComponent(element.id)}`);
+    const nouvelleUrl = `/atelier?document=${encodeURIComponent(element.id)}`;
+    const remplacer = typeof opts === "object" && opts !== null && "remplacerHistorique" in opts && Boolean((opts as { remplacerHistorique?: boolean }).remplacerHistorique);
+    if (remplacer) {
+      window.history.replaceState({ documentId: element.id }, "", nouvelleUrl);
+    } else {
+      window.history.pushState({ documentId: element.id }, "", nouvelleUrl);
+    }
     if (element.source === "projection" || element.contenuCharge) return;
-    setMessage(null);
-    demarrerTransition(async () => {
-      try {
-        const resultat = await lireDocumentAction(element.id);
-        const analyse = analyserDocumentMarkdown(element.id, resultat.contenuMd);
-        setElements((anciens) => anciens.map((ancien) => ancien.id === element.id
-          ? {
-            ...ancien,
-            ...documentDepuisAnalyse(analyse),
-            contenuCharge: true,
-            updatedAt: resultat.updatedAt ?? ancien.updatedAt,
-            snapshots: ancien.snapshots,
-            sortants: ancien.sortants,
-            entrants: ancien.entrants,
-          }
-          : ancien));
-        setBrouillons((anciens) => ({ ...anciens, [element.id]: resultat.contenuMd }));
-      } catch (erreur) {
-        setMessage(erreur instanceof Error ? erreur.message : "Chargement impossible");
-      }
-    });
+    chargerContenuDocument(element.id);
   }
 
   function basculerDossier(chemin: string) {
@@ -602,7 +662,7 @@ export function EspaceDocumentaire({
     setSelection(`dossier:${chemin}`);
     setCibleLien("");
     setSnapshotApercu(null);
-    window.history.replaceState(null, "", "/atelier");
+    window.history.pushState({ dossier: chemin }, "", `/atelier?dossier=${encodeURIComponent(chemin)}`);
   }
 
   function rendreDossier(noeud: NoeudDossier<ElementAtelier>, profondeur = 0): ReactNode {
@@ -996,6 +1056,7 @@ export function EspaceDocumentaire({
                   {!sidebarOuverte && (
                     <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />
                   )}
+                  <BoutonRetour />
                   <button
                     type="button"
                     onClick={revenirGrapheGlobal}

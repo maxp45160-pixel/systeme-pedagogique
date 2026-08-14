@@ -1,6 +1,7 @@
 "use client";
 
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { BandeauInfo, Bouton, cx, Etiquette, PointActif } from "@/components/ui/primitives";
 import { Depliant } from "@/components/ui/explication";
 import { Markdown } from "@/components/ui/markdown";
@@ -26,6 +27,7 @@ import {
   type PropositionRecue,
 } from "@/lib/tutor/outils";
 import {
+  extrairePropositionExerciceDuTexte,
   extrairePropositionsReferentiel,
   type PropositionReferentiel,
 } from "@/lib/tutor/proposition";
@@ -33,6 +35,9 @@ import { ModaleCompetence } from "@/components/referentiel/modale-competence";
 import type { BrancheInitiale } from "@/components/referentiel/validation-branche";
 import { ModaleExercice } from "@/components/exercices/modale-exercice";
 import type { PropositionExercice } from "@/lib/tutor/proposition";
+import { convertirProposition } from "@/lib/tutor/conversion-exercice";
+import { creerExercice } from "@/lib/store/actions";
+import { creerSeanceFocusExercice } from "@/lib/store/seance-actions";
 import type {
   CalibrageModale,
   CompetenceModale,
@@ -104,6 +109,7 @@ const MessageBulle = memo(function MessageBulle({
   enFluxDirect,
   onOuvrirBranche,
   onOuvrirExercice,
+  onDemarrerExerciceDirect,
 }: {
   message: Message;
   /**
@@ -124,6 +130,8 @@ const MessageBulle = memo(function MessageBulle({
   onOuvrirBranche: (b: PropositionReferentiel) => void;
   /** Ouvre la modale d'exercice, pré-remplie avec la proposition (audit §2.3). */
   onOuvrirExercice: (e: PropositionExercice) => void;
+  /** Lance immédiatement l'exercice proposé en 1 clic direct. */
+  onDemarrerExerciceDirect?: (e: PropositionExercice) => void;
 }) {
   /*
    * Deux sources possibles, jamais les deux à la fois.
@@ -151,19 +159,29 @@ const MessageBulle = memo(function MessageBulle({
       : [];
 
   /*
-   * Exercices proposés (audit §2.3). `proposer_exercice` est armé à chaque
-   * message et validé par le serveur, mais rien ne le rendait ici : le tuteur
-   * appelait l'outil, l'application recevait la proposition, et l'utilisateur
-   * lisait « Proposition ci-dessous. » suivi de rien.
-   *
-   * Une seule source, contrairement aux branches : l'appel d'outil. Le gabarit
-   * markdown de l'exercice a disparu des prompts au lot 3.2 — relire le texte
-   * ne trouverait jamais rien, et prétendre le contraire réintroduirait le
-   * demi-exercice tronqué que ce gabarit produisait.
+   * Exercices proposés (audit §2.3).
+   * Deux sources :
+   * 1. L'appel d'outil structuré `proposer_exercice` (voie nominale).
+   * 2. Le filet de sécurité `extrairePropositionExerciceDuTexte` : si le modèle
+   *    a rédigé l'exercice en texte libre, l'exercice est extrait pour afficher
+   *    la carte d'action et les indices/corrections sont masqués du chat.
    */
+  const extractionExercice = useMemo(() => {
+    if (recues !== undefined || message.role !== "assistant" || message.content === "" || enFluxDirect) {
+      return { exercice: null, texteNettoye: message.content };
+    }
+    return extrairePropositionExerciceDuTexte(message.content);
+  }, [recues, message.role, message.content, enFluxDirect]);
+
   const exercices = recues
     ? recues.flatMap((r) => (r.genre === "exercice" ? [r.exercice] : []))
-    : [];
+    : extractionExercice.exercice
+      ? [extractionExercice.exercice]
+      : [];
+
+  const contenuAffiche = extractionExercice.exercice
+    ? extractionExercice.texteNettoye
+    : message.content;
 
   return (
     <div
@@ -199,7 +217,7 @@ const MessageBulle = memo(function MessageBulle({
             </span>
           )
         ) : (
-          <Markdown contenu={message.content} />
+          <Markdown contenu={contenuAffiche} />
         )}
       </div>
 
@@ -251,7 +269,7 @@ const MessageBulle = memo(function MessageBulle({
       {exercices.map((e, j) => (
         <div
           key={`ex-${j}`}
-          className="max-w-[85%] rounded-md border border-primaire/30 bg-surface-2 px-3.5 py-2.5 text-xs"
+          className="max-w-[85%] rounded-md border border-primaire/30 bg-surface-2 px-3.5 py-2.5 text-xs shadow-sm"
         >
           <div className="flex flex-wrap items-center gap-1.5">
             <Etiquette ton="primaire">Exercice proposé</Etiquette>
@@ -266,14 +284,24 @@ const MessageBulle = memo(function MessageBulle({
             Difficulté {e.difficulte}/5 · ≈ {e.dureeEstimeeMin} min · {e.indices.length} indice(s)
             · {e.criteres.length} critère(s)
           </p>
-          <Bouton
-            onClick={() => onOuvrirExercice(e)}
-            variante="secondaire"
-            taille="petite"
-            className="mt-2"
-          >
-            Revoir et enregistrer
-          </Bouton>
+          <div className="mt-2.5 flex flex-wrap items-center gap-2">
+            {onDemarrerExerciceDirect && (
+              <Bouton
+                onClick={() => onDemarrerExerciceDirect(e)}
+                variante="principal"
+                taille="petite"
+              >
+                Démarrer immédiatement →
+              </Bouton>
+            )}
+            <Bouton
+              onClick={() => onOuvrirExercice(e)}
+              variante="secondaire"
+              taille="petite"
+            >
+              Examiner & ajuster
+            </Bouton>
+          </div>
         </div>
       ))}
     </div>
@@ -1038,6 +1066,9 @@ function ChatHydrate({
   const saisieInitiale =
     amorce ?? (messages.length === 0 && competenceCiblee ? `Explique-moi ${competenceCiblee}.` : "");
 
+  const router = useRouter();
+  const [demarrageDirect, setDemarrageDirect] = useState(false);
+
   const ouvrirBranche = useCallback((b: PropositionReferentiel) => {
     setBrancheEnAttente({
       domaine: b.domaine,
@@ -1051,6 +1082,47 @@ function ChatHydrate({
   const ouvrirExercice = useCallback((e: PropositionExercice) => {
     setExerciceEnAttente(e);
   }, []);
+
+  const demarrerExerciceDirect = useCallback(
+    async (e: PropositionExercice) => {
+      if (demarrageDirect) return;
+      const codeCible = e.competences[0];
+      const comp = competencesModale.find((c) => c.code === codeCible);
+      if (!comp) {
+        setAvis({
+          ton: "danger",
+          texte: `Compétence ${codeCible ?? "inconnue"} introuvable dans le référentiel — enregistrement refusé.`,
+        });
+        return;
+      }
+      const conversion = convertirProposition(e);
+      if (!conversion.ok) {
+        setAvis({
+          ton: "danger",
+          texte: `Cette proposition n'est pas enregistrable — ${conversion.erreurs.join(" ")}`,
+        });
+        return;
+      }
+      setDemarrageDirect(true);
+      setAvis({ ton: "info", texte: "Enregistrement de l'exercice et lancement du workspace…" });
+      try {
+        const id = await creerExercice({
+          ...conversion.valeur,
+          domaine: comp.domaine,
+          origine: "tuteur",
+        });
+        const seanceId = await creerSeanceFocusExercice(id);
+        router.push(`/seances?session=${encodeURIComponent(seanceId)}`);
+      } catch (err) {
+        setAvis({
+          ton: "danger",
+          texte: `Échec du lancement direct : ${err instanceof Error ? err.message : "Erreur inconnue"}`,
+        });
+        setDemarrageDirect(false);
+      }
+    },
+    [competencesModale, demarrageDirect, router],
+  );
 
   return (
     <div className="space-y-6 [&>*]:min-w-0">
@@ -1079,6 +1151,7 @@ function ChatHydrate({
                 enFluxDirect={enCours && i === messages.length - 1}
                 onOuvrirBranche={ouvrirBranche}
                 onOuvrirExercice={ouvrirExercice}
+                onDemarrerExerciceDirect={demarrerExerciceDirect}
               />
             ))}
 
