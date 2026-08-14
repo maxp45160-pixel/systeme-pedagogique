@@ -1,11 +1,11 @@
 ---
 name: diff-audit
-description: Analyse le git diff actif pour détecter le code mort, les problèmes de logique, les opportunités d'optimisation de performance et le respect des invariants d'architecture du projet, puis génère un rapport détaillé.
+description: Analyse le git diff actif pour détecter le code mort, les problèmes de logique, les opportunités d'optimisation de performance, la sur-ingénierie / simplifications possibles et le respect des invariants d'architecture du projet, puis génère un rapport détaillé.
 ---
 
 # Skill : Analyse et Revue de Diff Git (`diff-audit`)
 
-Ce skill s'active lorsque l'utilisateur demande une analyse du git diff, une revue de code, une détection de code mort ou d'optimisations, ou une vérification des modifications en cours avant commit ou PR.
+Ce skill s'active lorsque l'utilisateur demande une analyse du git diff, une revue de code, une détection de code mort ou d'optimisations, une vérification des simplifications / sur-ingénierie, ou une vérification des modifications en cours avant commit ou PR.
 
 ---
 
@@ -38,10 +38,16 @@ Ce skill s'active lorsque l'utilisateur demande une analyse du git diff, une rev
 
 #### C. ⚡ Optimisations & Performance
 - **Rendus React superflus** : Manque de `useCallback`/`useMemo` sur des fonctions/objets complexes passés en props, ou tableaux de dépendances instables dans `useEffect`.
-- **Calculs redondants** : Traitements lourdes exécutés à chaque rendu ou au sein de boucles sans mémoïsation.
+- **Calculs redondants** : Traitements lourds exécutés à chaque rendu ou au sein de boucles sans mémoïsation.
 - **Requêtes I/O & Allocations** : Requêtes DB/API répétées inutilement ou création d'objets volumineux en boucle.
 
-#### D. 🏛️ Conformité aux Invariants du Projet (`AGENTS.md`)
+#### D. 🧩 Simplicité & Sur-Ingénierie (Over-engineering / Simplifications)
+- **Abstractions prématurées & Sur-généralisation** : Création d'interfaces, types génériques, wrappers ou indirection pour des besoins uniques ou non encore requis ("YAGNI / Don't build for anticipation").
+- **Complexité excessive** : Traitements ou structures de contrôle inutilement tortueux (ex: conditionnelles imbriquées exagérées, gestionnaires d'état lourds pour une valeur locale simple).
+- **Réinvention de la roue** : Code custom réécrivant des utilitaires déjà existants dans le projet (`lib/`) ou dans les APIs natives / bibliothèques du projet.
+- **Simplification syntaxique & Lisibilité** : Code verbeux qui gagne à être rationalisé (ex: simplification de ternaires, destructuring, fonctions fléchées directes) sans perte de clarté ni de sûreté.
+
+#### E. 🏛️ Conformité aux Invariants du Projet (`AGENTS.md`)
 - **Règle des 6 Couches** :
   - Couche 1 (*Connaît*) & Couche 2 (*Observe*) : Stocké, jamais calculé.
   - Couche 3 (*Décide*) : Dérivé, recalculable — **NE SE STOCKE JAMAIS**.
@@ -76,6 +82,9 @@ Générer un rapport clair, structuré et directement exploitable. Le rapport do
 ## 🏛️ Invariants Métier & Architecture (`AGENTS.md`)
 - **[Fichier](file:///path/to/file.ts#L12)** : Respect des 6 couches, non-stockage de données dérivées, typage strict.
 
+## 🧩 Simplicité & Sur-Ingénierie (Over-engineering)
+- **[Fichier](file:///path/to/file.ts#L25-L40)** : Abstractions superflues, indirection inutile ou simplification possible.
+
 ## 🗑️ Code Mort & Nettoyage
 - **[Fichier](file:///path/to/file.ts#L10-L15)** : Imports inutilisés, variables mortes, console.log restant.
 
@@ -93,5 +102,5 @@ Générer un rapport clair, structuré et directement exploitable. Le rapport do
 ---
 
 ## Consignes Générales
-- Si aucun problème n'est détecté sur un axe donné, l'indiquer brièvement (ex: "✅ Aucun code mort détecté.").
-- Prioriser les remarques par ordre de criticité (Bugs & Architecture d'abord, puis Code mort et Optimisations).
+- Si aucun problème n'est détecté sur un axe donné, l'indiquer brièvement (ex: "✅ Aucun code mort ou sur-ingénierie détectés.").
+- Prioriser les remarques par ordre de criticité (Bugs & Architecture d'abord, puis Sur-ingénierie/Simplifications, Code mort et Optimisations).

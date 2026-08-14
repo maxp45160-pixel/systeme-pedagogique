@@ -112,6 +112,9 @@
   .prose-exo {
     line-height: 1.7;
   }
+  .prose-exo > *:first-child {
+    margin-top: 0 !important;
+  }
   .prose-exo > * + * {
     margin-top: 0.85rem;
   }
@@ -119,10 +122,40 @@
     font-weight: 600;
     color: var(--texte);
   }
+  .prose-exo h1,
+  .prose-exo h2 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--texte);
+    margin-top: 1.35rem;
+    margin-bottom: 0.35rem;
+    letter-spacing: -0.01em;
+  }
   .prose-exo h3 {
     font-size: var(--pas-corps);
     font-weight: 600;
-    margin-top: 1.5rem;
+    color: var(--texte);
+    margin-top: 1.15rem;
+    margin-bottom: 0.25rem;
+  }
+  .prose-exo .wikilien-badge {
+    display: inline-block;
+    padding: 0.08rem 0.35rem;
+    border-radius: var(--coin-net);
+    background-color: var(--surface-2);
+    border: 1px solid var(--bordure);
+    color: var(--primaire);
+    font-family: var(--font-geist-mono), monospace;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.35;
+    margin: 0 0.15rem;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+  }
+  .prose-exo .wikilien-badge:hover {
+    background-color: var(--primaire-faible);
+    border-color: var(--primaire);
   }
   .prose-exo code {
     font-family: var(--font-geist-mono), ui-monospace, monospace;

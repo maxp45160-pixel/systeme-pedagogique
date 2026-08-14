@@ -24,9 +24,9 @@ const LIBELLES_PALIERS: Record<string, string> = {
 };
 
 export default async function PageAtelier(props: {
-  searchParams: Promise<{ document?: string; mode?: string; note?: string }>;
+  searchParams: Promise<{ document?: string; dossier?: string; mode?: string; note?: string }>;
 }) {
-  const { document: documentDemande, mode, note } = await props.searchParams;
+  const { document: documentDemande, dossier: dossierDemande, mode, note } = await props.searchParams;
 
   /*
    * L'espace de travail d'une note opérationnelle occupe l'écran entier et n'a
@@ -299,6 +299,7 @@ export default async function PageAtelier(props: {
   ];
   const cleAtelier = [
     documentDemande ?? "",
+    dossierDemande ?? "",
     mode ?? "",
     ...elementsAtelier.map(({ id, updatedAt }) => `${id}:${updatedAt ?? ""}`),
   ].join("|");
@@ -329,6 +330,7 @@ export default async function PageAtelier(props: {
         elements={elementsAtelier}
         couleursDomaines={couleursDomaines}
         documentDemande={documentDemande}
+        dossierDemande={dossierDemande}
         modeInitial={mode === "referentiel" ? "referentiel" : undefined}
         graphe={{
           donnees: graphe,

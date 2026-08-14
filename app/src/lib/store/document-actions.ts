@@ -10,7 +10,7 @@ import {
 import { creerDocument, creerDocuments, lireApercusDocuments, lireDocument, lireDocuments, modifierDocument, supprimerDocument } from "./documents";
 import { dorsaleCompte } from "./db";
 import { ligneVersEntite, verifier } from "./supabase-backend";
-import type { SnapshotDocument } from "@/lib/documents/types-documents";
+import type { SnapshotDocument, ResumeSnapshotDocument } from "@/lib/documents/types-documents";
 import {
   enregistrerPieceJointe,
   lirePiecesJointes,
@@ -110,13 +110,27 @@ export async function sauvegarderDocumentAction(
   contenuMd: string,
   capturerRevision = false,
   updatedAtAttendu?: string,
-): Promise<{ version: number | null; revisionFigee: boolean; updatedAt: string } | null> {
+): Promise<{
+  version: number | null;
+  revisionFigee: boolean;
+  updatedAt: string;
+  snapshot?: ResumeSnapshotDocument;
+} | null> {
   const resultat = await modifierDocument(id, contenuMd, capturerRevision, updatedAtAttendu);
   if (!resultat.modifie && !resultat.snapshot) return null;
   return {
     version: resultat.snapshot?.version ?? null,
     revisionFigee: resultat.snapshot !== null,
     updatedAt: resultat.updatedAt,
+    snapshot: resultat.snapshot
+      ? {
+        id: resultat.snapshot.id,
+        documentId: resultat.snapshot.documentId,
+        version: resultat.snapshot.version,
+        captureReason: resultat.snapshot.captureReason,
+        capturedAt: resultat.snapshot.capturedAt,
+      }
+      : undefined,
   };
 }
 

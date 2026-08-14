@@ -1,12 +1,13 @@
 import { memo, type ReactNode } from "react";
 import { decouperEnBlocs } from "@/lib/ui/markdown-blocs";
 import { latexVersTexte, segmenterFormulesEnLigne } from "@/lib/ui/formule";
+import { parserFrontMatter } from "@/lib/documents/markdown";
 
 /**
  * Rendu markdown minimal, écrit sur mesure.
  *
  * Ne gère que ce que les énoncés et corrections utilisent réellement :
- * titres, paragraphes, gras, code en ligne, blocs de code, listes, citations
+ * titres, paragraphes, gras, italique, wikiliens, code en ligne, blocs de code, listes, citations
  * et tableaux. Aucune dépendance, aucun HTML brut injecté — le texte reste
  * du texte, ce qui écarte tout risque d'injection depuis un contenu généré
  * par le tuteur.
@@ -16,16 +17,33 @@ import { latexVersTexte, segmenterFormulesEnLigne } from "@/lib/ui/formule";
  * environnement node). Ce fichier ne décide plus rien — il rend.
  */
 
-/** Applique gras et code en ligne à l'intérieur d'un fragment de prose. */
+/** Applique wikiliens, gras, italique et code en ligne à l'intérieur d'un fragment de prose. */
 function emphase(texte: string, pfx: string): ReactNode[] {
   const sorties: ReactNode[] = [];
-  // Découpe sur **gras** et `code`, en conservant les délimiteurs.
-  const morceaux = texte.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+  // Découpe sur [[wikiliens]], **gras**, *italique*, et `code`, en conservant les délimiteurs.
+  const morceaux = texte.split(/(\[\[[^\]]+\]\]|\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g);
   for (let idx = 0; idx < morceaux.length; idx++) {
     const m = morceaux[idx];
     if (!m) continue;
-    if (m.startsWith("**") && m.endsWith("**")) {
+    if (m.startsWith("[[") && m.endsWith("]]") && m.length > 4) {
+      const contenu = m.slice(2, -2).trim();
+      const [cible, libelle] = contenu.split("|", 2);
+      const texteAffiche = (libelle || cible).trim();
+      sorties.push(
+        <span
+          key={`${pfx}-w-${idx}`}
+          className="inline-flex items-center gap-0.5 rounded bg-primaire/10 px-1.5 py-0.5 font-mono text-xs font-medium text-primaire border border-primaire/20"
+          title={`Référence : ${cible}`}
+        >
+          <span className="text-primaire/50 font-sans text-[0.6875rem]">[[</span>
+          <span>{texteAffiche}</span>
+          <span className="text-primaire/50 font-sans text-[0.6875rem]">]]</span>
+        </span>,
+      );
+    } else if (m.startsWith("**") && m.endsWith("**")) {
       sorties.push(<strong key={`${pfx}-b-${idx}`}>{m.slice(2, -2)}</strong>);
+    } else if (m.startsWith("*") && m.endsWith("*") && m.length > 2) {
+      sorties.push(<em key={`${pfx}-i-${idx}`}>{m.slice(1, -1)}</em>);
     } else if (m.startsWith("`") && m.endsWith("`") && m.length > 2) {
       sorties.push(<code key={`${pfx}-c-${idx}`}>{m.slice(1, -1)}</code>);
     } else {
@@ -73,7 +91,9 @@ export const Markdown = memo(function Markdown({
    */
   titresReplies?: readonly string[];
 }) {
-  const rendus = decouperEnBlocs(contenu).map((bloc, idx) => {
+  const { corps } = parserFrontMatter(contenu);
+  const contenuNettoye = corps.trim();
+  const rendus = decouperEnBlocs(contenuNettoye).map((bloc, idx) => {
     const cle = `b-${idx}`;
     switch (bloc.genre) {
       case "code":
@@ -141,7 +161,7 @@ export const Markdown = memo(function Markdown({
    * rien, il précède. On reconstitue donc la portée d'un titre — jusqu'au titre
    * suivant — pour pouvoir la replier d'un seul tenant.
    */
-  const blocs = decouperEnBlocs(contenu);
+  const blocs = decouperEnBlocs(contenuNettoye);
   const sorties: ReactNode[] = [];
   for (let idx = 0; idx < blocs.length; idx++) {
     const bloc = blocs[idx];

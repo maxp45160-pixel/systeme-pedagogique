@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, useTransition, type ChangeEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition, type ChangeEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Markdown } from "@/components/ui/markdown";
@@ -9,6 +9,15 @@ import { IconeChevron, IconeDossier, IconeFleche, IconeTableauBord } from "@/com
 import { IconeDocument } from "@/components/ui/icone-document";
 import { createNavigateurClient } from "@/lib/supabase/client";
 import { analyserDocumentMarkdown, type LienMarkdown } from "@/lib/documents/markdown";
+import {
+  separerFrontMatterEtCorps,
+  recomposerDocumentComplet,
+  markdownVersHtml,
+  domVersMarkdown,
+  detecterEtatFormatage,
+  ETAT_FORMATAGE_DEFAUT,
+  type EtatFormatage,
+} from "@/lib/documents/wysiwyg-markdown";
 import { BUCKET_PIECES_JOINTES, MAX_PDF_OCTETS, MIME_PDF, nomPdfValide } from "@/lib/documents/pieces-jointes";
 import type { ExerciseAttempt } from "@/lib/domain/types";
 import type { DonneesGraphe } from "@/lib/domain/graphe";
@@ -17,6 +26,8 @@ import {
   definitionTypeDocument,
   natureSnapshot,
   type CategorieDocument,
+  type PieceJointeDocument,
+  type SnapshotDocument,
 } from "@/lib/documents/types-documents";
 import {
   lireDocumentAction,
@@ -29,7 +40,6 @@ import {
   supprimerPieceJointeAction,
   supprimerNoteSupportAction,
 } from "@/lib/store/document-actions";
-import type { PieceJointeDocument, SnapshotDocument } from "@/lib/documents/types-documents";
 import type { VueDomaineAtelier, VuePedagogiqueAtelier } from "@/lib/documents/vue-atelier";
 import { cleParCompte } from "@/lib/ui/stockage-session";
 import { BoutonRetour } from "@/components/ui/lien-retour";
@@ -70,8 +80,6 @@ export interface ElementAtelier {
   vuePedagogique?: VuePedagogiqueAtelier;
 }
 
-type ModeDocument = "editer" | "apercu";
-
 /**
  * Une fiche capturée par la personne, par opposition à une projection ou à une
  * production du système. C'est le seul ensemble qu'elle peut supprimer — et
@@ -93,6 +101,32 @@ const AUCUN_REPLI: readonly string[] = [];
  */
 function titresReplies(element: ElementAtelier): readonly string[] {
   return element.frontMatter.exercice ? [SECTION_CORRECTION] : AUCUN_REPLI;
+}
+
+/**
+ * Formate proprement une date liée au document en exploitant les différentes sources
+ * possibles (updatedAt, frontmatter created_at / produced_at, ou date du premier snapshot).
+ */
+function formaterDateDocument(element: ElementAtelier): string | null {
+  const dateStr =
+    element.updatedAt ||
+    (typeof element.frontMatter.created_at === "string" ? element.frontMatter.created_at : null) ||
+    (typeof element.frontMatter.produced_at === "string" ? element.frontMatter.produced_at : null) ||
+    element.snapshots[0]?.capturedAt ||
+    null;
+
+  if (!dateStr) return null;
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return null;
+    return d.toLocaleDateString("fr-FR", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return null;
+  }
 }
 
 const abonnementsDossiers = new Map<string, Set<() => void>>();
@@ -203,6 +237,50 @@ function BarreVuesAtelier({
   );
 }
 
+function EnteteVueAtelier({
+  surtitre = "Mémoire documentaire",
+  titre,
+  description,
+  vue,
+  onChangerVue,
+  sidebarOuverte,
+  setSidebarOuverte,
+}: {
+  surtitre?: string;
+  titre: string;
+  description?: string;
+  vue: "graphe" | "domaines" | "transversal";
+  onChangerVue: (v: "graphe" | "domaines" | "transversal") => void;
+  sidebarOuverte?: boolean;
+  setSidebarOuverte?: (ouverte: boolean) => void;
+}) {
+  return (
+    <div className="flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure bg-surface px-6 shrink-0">
+      <div className="flex items-center gap-3 min-w-0">
+        {!sidebarOuverte && setSidebarOuverte && (
+          <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />
+        )}
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-texte-discret leading-none">
+            {surtitre}
+          </p>
+          <h2 className="mt-0.5 font-serif text-2xl font-medium tracking-tight leading-tight text-texte truncate">
+            {titre}
+          </h2>
+        </div>
+      </div>
+      <div className="flex items-center gap-3 shrink-0">
+        {description && (
+          <span className="text-xs text-texte-discret hidden sm:inline max-w-sm lg:max-w-md xl:max-w-xl truncate">
+            {description}
+          </span>
+        )}
+        <BarreVuesAtelier vue={vue} onChanger={onChangerVue} />
+      </div>
+    </div>
+  );
+}
+
 function VueTousLesDomaines({
   domaines,
   ouvrirElement,
@@ -221,12 +299,6 @@ function VueTousLesDomaines({
   const estTransversal = selection === "transversal";
   const estArchives = selection === "domaines-archives";
 
-  const libelleFil = estTransversal
-    ? "Vue transversale"
-    : estArchives
-    ? "Domaines archivés"
-    : "Domaines";
-
   const titrePrincipal = estTransversal
     ? "Vue transversale"
     : estArchives
@@ -241,38 +313,17 @@ function VueTousLesDomaines({
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-y-auto bg-surface-2/30">
-      <header className="border-b border-bordure bg-surface shrink-0">
-        <div className="flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure/50 px-6 shrink-0">
-          <nav aria-label="Fil d’Ariane" className="flex items-center gap-2 text-xs text-texte-discret min-w-0">
-            {!sidebarOuverte && setSidebarOuverte && (
-              <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />
-            )}
-            <BoutonRetour />
-            <button
-              type="button"
-              onClick={revenirGrapheGlobal}
-              className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline shrink-0"
-            >
-              Graphe global
-            </button>
-            <span className="text-texte-discret/60 shrink-0">/</span>
-            <span className="font-semibold text-texte truncate">{libelleFil}</span>
-          </nav>
-          <BarreVuesAtelier
-            vue={estTransversal ? "transversal" : "domaines"}
-            onChanger={(v) => {
-              if (v === "graphe") revenirGrapheGlobal();
-              else ouvrirElement(v);
-            }}
-          />
-        </div>
-        <div className="px-6 py-5 lg:px-8">
-          <h2 className="font-serif text-2xl font-medium tracking-tight text-texte">{titrePrincipal}</h2>
-          <p className="mt-1 text-xs text-texte-attenue">
-            {sousTitrePrincipal}
-          </p>
-        </div>
-      </header>
+      <EnteteVueAtelier
+        titre={titrePrincipal}
+        description={sousTitrePrincipal}
+        vue={estTransversal ? "transversal" : "domaines"}
+        onChangerVue={(v) => {
+          if (v === "graphe") revenirGrapheGlobal();
+          else ouvrirElement(v);
+        }}
+        sidebarOuverte={sidebarOuverte}
+        setSidebarOuverte={setSidebarOuverte}
+      />
 
       <div className="p-6 lg:p-8">
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -336,31 +387,23 @@ function VueTransversale({
   ouvrirDossier: (chemin: string) => void;
   ouvrirElement: (id: string) => void;
   revenirGrapheGlobal: () => void;
-  sidebarOuverte: boolean;
-  setSidebarOuverte: (ouverte: boolean) => void;
+  sidebarOuverte?: boolean;
+  setSidebarOuverte?: (ouverte: boolean) => void;
 }) {
   const categories = racine?.enfants ?? [];
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-surface-2/30">
-      <header className="border-b border-bordure bg-surface px-6 py-4 lg:px-8 shrink-0">
-        <div className="flex items-center justify-between gap-3 mb-3">
-          <nav aria-label="Fil d’Ariane" className="flex items-center gap-2 text-xs text-texte-discret min-w-0">
-            {!sidebarOuverte && <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />}
-            <BoutonRetour />
-            <button type="button" onClick={revenirGrapheGlobal} className="font-medium hover:text-primaire hover:underline shrink-0">Graphe global</button>
-            <span className="text-texte-discret/60 shrink-0">/</span><span className="font-semibold text-texte truncate">Vue transversale</span>
-          </nav>
-          <BarreVuesAtelier
-            vue="transversal"
-            onChanger={(v) => {
-              if (v === "graphe") revenirGrapheGlobal();
-              else ouvrirElement(v);
-            }}
-          />
-        </div>
-        <h2 className="font-serif text-2xl font-medium tracking-tight">Catégories transversales</h2>
-        <p className="mt-1 text-xs text-texte-attenue">Des accès dérivés vers les mêmes fiches, sans créer un second référentiel.</p>
-      </header>
+      <EnteteVueAtelier
+        titre="Catégories transversales"
+        description="Des accès dérivés vers les mêmes fiches, sans créer un second référentiel."
+        vue="transversal"
+        onChangerVue={(v) => {
+          if (v === "graphe") revenirGrapheGlobal();
+          else ouvrirElement(v);
+        }}
+        sidebarOuverte={sidebarOuverte}
+        setSidebarOuverte={setSidebarOuverte}
+      />
       <div className="p-6 lg:p-8">
         {categories.length ? (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -385,29 +428,100 @@ function VueTransversale({
 
 function VueCategorieTransversale({
   noeud,
+  arbreDossiers = [],
+  elements = [],
   ouvrirDossier,
   ouvrirElement,
   revenirTransversal,
+  revenirGrapheGlobal,
+  sidebarOuverte,
+  setSidebarOuverte,
 }: {
   noeud: NoeudDossier<ElementAtelier>;
+  arbreDossiers?: NoeudDossier<ElementAtelier>[];
+  elements?: ElementAtelier[];
   ouvrirDossier: (chemin: string) => void;
   ouvrirElement: (id: string) => void;
   revenirTransversal: () => void;
+  revenirGrapheGlobal?: () => void;
+  sidebarOuverte?: boolean;
+  setSidebarOuverte?: (ouverte: boolean) => void;
 }) {
+  const parties = noeud.chemin.split("/").map((p) => p.trim()).filter(Boolean);
+
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-surface-2/30">
-      <header className="border-b border-bordure bg-surface px-6 py-5 lg:px-8">
-        <div className="flex items-center gap-2 mb-3">
-          <BoutonRetour onClick={revenirTransversal} libelle="Catégories transversales" />
-        </div>
-        <h2 className="mt-2 font-serif text-2xl font-medium tracking-tight">{noeud.nom}</h2>
+      <header className="border-b border-bordure bg-surface px-6 py-4 lg:px-8">
+        <nav aria-label="Fil d’Ariane" className="flex items-center gap-1.5 text-xs text-texte-discret min-w-0 flex-wrap sm:flex-nowrap mb-3">
+          {!sidebarOuverte && setSidebarOuverte && (
+            <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />
+          )}
+          <BoutonRetour onClick={revenirTransversal} libelle="Retour" />
+          {revenirGrapheGlobal && (
+            <>
+              <button
+                type="button"
+                onClick={revenirGrapheGlobal}
+                className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline shrink-0"
+              >
+                Atelier
+              </button>
+            </>
+          )}
+          {parties.map((partie, index) => {
+            const cheminCumule = parties.slice(0, index + 1).join("/");
+            const estDernier = index === parties.length - 1;
+            if (estDernier) {
+              return (
+                <span key={cheminCumule} className="flex items-center gap-1.5 min-w-0">
+                  <span className="text-texte-discret/60 shrink-0">/</span>
+                  <span className="font-semibold text-texte truncate">{partie}</span>
+                </span>
+              );
+            }
+            const domaineEl = elements.find(
+              (el) =>
+                el.type === "domaine" &&
+                ((el.vuePedagogique?.kind === "domaine" && el.vuePedagogique.nom === partie) || el.titre === partie),
+            );
+            let action: (() => void) | null = null;
+            if (partie === "Domaines") {
+              action = () => ouvrirElement("domaines");
+            } else if (partie === "Transversal") {
+              action = () => ouvrirElement("transversal");
+            } else if (partie === "Domaines archivés" || partie === "Archivés") {
+              action = () => ouvrirElement("domaines-archives");
+            } else if (domaineEl) {
+              action = () => ouvrirElement(domaineEl.id);
+            } else if (trouverNoeudDossier(arbreDossiers, cheminCumule)) {
+              action = () => ouvrirDossier(cheminCumule);
+            }
+            return (
+              <span key={cheminCumule} className="flex items-center gap-1.5 shrink-0">
+                <span className="text-texte-discret/60">/</span>
+                {action ? (
+                  <button
+                    type="button"
+                    onClick={action}
+                    className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
+                  >
+                    {partie}
+                  </button>
+                ) : (
+                  <span className="text-texte-discret">{partie}</span>
+                )}
+              </span>
+            );
+          })}
+        </nav>
+        <h2 className="font-serif text-2xl font-medium tracking-tight">{noeud.nom}</h2>
         <p className="mt-1 text-xs text-texte-attenue">{compterElements(noeud)} fiche{compterElements(noeud) > 1 ? "s" : ""} accessible{compterElements(noeud) > 1 ? "s" : ""} dans cette catégorie.</p>
       </header>
       <div className="space-y-6 p-6 lg:p-8">
         {noeud.enfants.length > 0 && (
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {noeud.enfants.map((enfant) => (
-              <button key={enfant.chemin} type="button" onClick={() => ouvrirDossier(enfant.chemin)} className="rounded-xl border border-bordure bg-surface p-4 text-left hover:border-primaire/40">
+              <button key={enfant.chemin} type="button" onClick={() => ouvrirDossier(enfant.chemin)} className="rounded-xl border border-bordure bg-surface p-4 text-left hover:border-primaire/40 cursor-pointer transition-colors">
                 <span className="text-sm font-semibold">{enfant.nom}</span>
                 <span className="ml-2 text-xs text-texte-discret">{compterElements(enfant)}</span>
               </button>
@@ -417,16 +531,99 @@ function VueCategorieTransversale({
         {noeud.elements.length > 0 && (
           <section className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
             {noeud.elements.map((element) => (
-              <button key={element.id} type="button" onClick={() => ouvrirElement(element.id)} className="rounded-xl border border-bordure bg-surface p-4 text-left hover:border-primaire/40">
+              <button key={element.id} type="button" onClick={() => ouvrirElement(element.id)} className="rounded-xl border border-bordure bg-surface p-4 text-left hover:border-primaire/40 cursor-pointer transition-colors">
                 <span className="text-[0.6875rem] text-texte-discret">{element.typeLibelle}</span>
                 <span className="mt-1 block text-sm font-semibold">{element.titre}</span>
               </button>
             ))}
           </section>
         )}
-        {!noeud.enfants.length && !noeud.elements.length && <p className="text-sm text-texte-discret">Cette catégorie est vide.</p>}
       </div>
     </div>
+  );
+}
+
+interface EditeurDirectProps {
+  documentId: string;
+  contenuInitialMd: string;
+  contenuCharge: boolean;
+  lectureSeule: boolean;
+  onSynchroniser: (nouveauMarkdownCorps: string) => void;
+  onRaccourci: (event: React.KeyboardEvent<HTMLDivElement>) => void;
+  onSelectionChange?: () => void;
+  onOuvrirWikilien?: (cible: string) => void;
+  editeurRef: React.RefObject<HTMLDivElement | null>;
+}
+
+function EditeurDirect({
+  documentId,
+  contenuInitialMd,
+  contenuCharge,
+  lectureSeule,
+  onSynchroniser,
+  onRaccourci,
+  onSelectionChange,
+  onOuvrirWikilien,
+  editeurRef,
+}: EditeurDirectProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const docChargeRef = useRef<string | null>(null);
+
+  // Initialisation du DOM uniquement lors du changement de document ou de chargement initial
+  useEffect(() => {
+    if (!containerRef.current || !contenuCharge) return;
+    const cleCharge = `${documentId}-${contenuCharge}`;
+    if (docChargeRef.current === cleCharge) return;
+    docChargeRef.current = cleCharge;
+    const { corps } = separerFrontMatterEtCorps(contenuInitialMd);
+    containerRef.current.innerHTML = markdownVersHtml(corps);
+  }, [documentId, contenuCharge, contenuInitialMd]);
+
+  const handleInput = useCallback(() => {
+    if (!containerRef.current) return;
+    const mdCorps = domVersMarkdown(containerRef.current);
+    onSynchroniser(mdCorps);
+    onSelectionChange?.();
+  }, [onSynchroniser, onSelectionChange]);
+
+  const handleClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    onSelectionChange?.();
+    const target = event.target as HTMLElement | null;
+    const badge = target?.closest?.("[data-wikilien]") as HTMLElement | null;
+    if (badge && onOuvrirWikilien) {
+      const cible = badge.getAttribute("data-wikilien");
+      if (cible) {
+        event.preventDefault();
+        onOuvrirWikilien(cible);
+      }
+    }
+  }, [onSelectionChange, onOuvrirWikilien]);
+
+  return (
+    <div
+      ref={(el) => {
+        containerRef.current = el;
+        if (editeurRef) {
+          (editeurRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+        }
+      }}
+      contentEditable={!lectureSeule}
+      suppressContentEditableWarning
+      onInput={handleInput}
+      onBlur={() => {
+        handleInput();
+        onSelectionChange?.();
+      }}
+      onKeyUp={onSelectionChange}
+      onMouseUp={onSelectionChange}
+      onClick={handleClick}
+      onFocus={onSelectionChange}
+      onKeyDown={onRaccourci}
+      className={cx(
+        "prose-exo min-h-full w-full p-5 sm:p-6 outline-none",
+        !lectureSeule && "cursor-text",
+      )}
+    />
   );
 }
 
@@ -434,6 +631,7 @@ export function EspaceDocumentaire({
   elements: elementsInitials,
   couleursDomaines,
   documentDemande,
+  dossierDemande,
   modeInitial,
   graphe,
   generation,
@@ -443,6 +641,7 @@ export function EspaceDocumentaire({
   /** Teinte par domaine, partagée avec le graphe pour qu'un domaine ait une seule couleur. */
   couleursDomaines: Record<string, string>;
   documentDemande?: string;
+  dossierDemande?: string;
   modeInitial?: "referentiel";
   graphe: { donnees: DonneesGraphe; compteId: string };
   generation: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
@@ -452,22 +651,46 @@ export function EspaceDocumentaire({
   const router = useRouter();
   const [elements, setElements] = useState(elementsInitials);
   const selectionInitiale = useMemo(() => {
-    if (!documentDemande) return null;
-    if (
-      documentDemande === "domaines" ||
-      documentDemande === "transversal" ||
-      documentDemande === "domaines-archives"
-    ) {
-      return documentDemande;
+    if (documentDemande) {
+      if (
+        documentDemande === "domaines" ||
+        documentDemande === "transversal" ||
+        documentDemande === "domaines-archives"
+      ) {
+        return documentDemande;
+      }
+      return trouverElement(documentDemande, elementsInitials)?.id ?? null;
     }
-    return trouverElement(documentDemande, elementsInitials)?.id ?? null;
-  }, [documentDemande, elementsInitials]);
+    if (dossierDemande) {
+      return `dossier:${dossierDemande}`;
+    }
+    return null;
+  }, [documentDemande, dossierDemande, elementsInitials]);
   const [selection, setSelection] = useState<string | null>(selectionInitiale);
   const [brouillons, setBrouillons] = useState<Record<string, string>>({});
-  const [mode, setMode] = useState<ModeDocument>("editer");
   const [snapshotApercu, setSnapshotApercu] = useState<SnapshotDocument | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [enCours, demarrerTransition] = useTransition();
+  const editeurRef = useRef<HTMLDivElement>(null);
+  const [etatFormatage, setEtatFormatage] = useState<EtatFormatage>(ETAT_FORMATAGE_DEFAUT);
+
+  const rafraichirEtatFormatage = useCallback(() => {
+    if (!editeurRef.current) {
+      setEtatFormatage(ETAT_FORMATAGE_DEFAUT);
+      return;
+    }
+    setEtatFormatage(detecterEtatFormatage(editeurRef.current));
+  }, []);
+
+  useEffect(() => {
+    const surSelectionChange = () => {
+      rafraichirEtatFormatage();
+    };
+    document.addEventListener("selectionchange", surSelectionChange);
+    return () => {
+      document.removeEventListener("selectionchange", surSelectionChange);
+    };
+  }, [rafraichirEtatFormatage]);
   const cleDossiers = cleParCompte("atelier-dossiers-ouverts", graphe.compteId);
   const abonnementDossiers = useCallback((ecouter: () => void) => {
     const ecouteurs = abonnementsDossiers.get(cleDossiers) ?? new Set<() => void>();
@@ -507,6 +730,9 @@ export function EspaceDocumentaire({
 
   const selectionnee = selection === "domaines" ? null : (elements.find((element) => element.id === selection) ?? null);
   const selectionId = selectionnee?.id;
+  const role = selectionnee?.frontMatter?.role;
+  const roleLibelle = role === "support" ? "Support" : role === "operationnel" ? "Opérationnel" : null;
+  const dateAffichee = selectionnee ? formaterDateDocument(selectionnee) : null;
   const brouillon = selectionnee ? brouillons[selectionnee.id] ?? selectionnee.contenuMd : "";
   const liensCourants = selectionnee
     ? selectionnee.contenuCharge
@@ -634,7 +860,6 @@ export function EspaceDocumentaire({
     setSelection(element.id);
     setCibleLien("");
     setSnapshotApercu(null);
-    setMode("editer");
     const nouvelleUrl = `/atelier?document=${encodeURIComponent(element.id)}`;
     const remplacer = typeof opts === "object" && opts !== null && "remplacerHistorique" in opts && Boolean((opts as { remplacerHistorique?: boolean }).remplacerHistorique);
     if (remplacer) {
@@ -780,6 +1005,33 @@ export function EspaceDocumentaire({
     });
   }
 
+  const synchroniserContenu = useCallback((nouveauCorps?: string) => {
+    if (!selectionnee) return;
+    const corpsActuel = nouveauCorps ?? (editeurRef.current ? domVersMarkdown(editeurRef.current) : "");
+    const { frontmatterBrut } = separerFrontMatterEtCorps(brouillon);
+    const documentComplet = recomposerDocumentComplet(frontmatterBrut, corpsActuel);
+    setBrouillons((anciens) => ({ ...anciens, [selectionnee.id]: documentComplet }));
+  }, [brouillon, selectionnee]);
+
+  function executerFormatage(commande: string, valeur?: string) {
+    if (!selectionnee || selectionnee.lectureSeule) return;
+    editeurRef.current?.focus();
+    document.execCommand(commande, false, valeur);
+    synchroniserContenu();
+  }
+
+  function gererRaccourcisClavier(event: React.KeyboardEvent<HTMLDivElement>) {
+    if ((event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey) {
+      if (event.key === "b" || event.key === "B") {
+        event.preventDefault();
+        executerFormatage("bold");
+      } else if (event.key === "i" || event.key === "I") {
+        event.preventDefault();
+        executerFormatage("italic");
+      }
+    }
+  }
+
   function ajouterLien() {
     if (!selectionnee || selectionnee.lectureSeule || !selectionnee.contenuCharge || selectionnee.schemaCompatible === false || !cibleLien) return;
     const cible = fichesLiables.find((element) => element.id === cibleLien);
@@ -789,14 +1041,20 @@ export function EspaceDocumentaire({
       return;
     }
 
-    const base = brouillon.trimEnd();
-    setBrouillons((anciens) => ({
-      ...anciens,
-      [selectionnee.id]: `${base}${base ? "\n\n" : ""}[[${cible.id}]]\n`,
-    }));
+    if (editeurRef.current) {
+      editeurRef.current.focus();
+      const badgeHtml = `<span class="wikilien-badge" data-wikilien="${cible.id}">[[${cible.titre || cible.id}]]</span>&nbsp;`;
+      document.execCommand("insertHTML", false, badgeHtml);
+      synchroniserContenu();
+    } else {
+      const base = brouillon.trimEnd();
+      setBrouillons((anciens) => ({
+        ...anciens,
+        [selectionnee.id]: `${base}${base ? "\n\n" : ""}[[${cible.id}]]\n`,
+      }));
+    }
     setCibleLien("");
-    setMode("editer");
-    setMessage(`Lien vers « ${cible.titre} » ajouté. Enregistre la fiche pour le conserver.`);
+    setMessage(`Lien vers « ${cible.titre} » inséré. Enregistre la fiche pour le conserver.`);
   }
 
   function televerserPdf(event: ChangeEvent<HTMLInputElement>) {
@@ -882,30 +1140,40 @@ export function EspaceDocumentaire({
     });
   }
 
-  function sauvegarder(capturerRevision = false) {
+  function sauvegarder(capturerRevision = true) {
     if (!selectionnee || selectionnee.lectureSeule || !selectionnee.contenuCharge || selectionnee.schemaCompatible === false) return;
     setMessage(null);
+    const contenuActuel = editeurRef.current
+      ? recomposerDocumentComplet(
+          separerFrontMatterEtCorps(brouillon).frontmatterBrut,
+          domVersMarkdown(editeurRef.current),
+        )
+      : brouillon;
+
     demarrerTransition(async () => {
       try {
         const resultat = await sauvegarderDocumentAction(
           selectionnee.id,
-          brouillon,
+          contenuActuel,
           capturerRevision,
           selectionnee.updatedAt,
         );
-        const analyse = analyserDocumentMarkdown(selectionnee.id, brouillon);
-        setElements((anciens) => anciens.map((element) =>
-          element.id === selectionnee.id
-            ? {
-              ...element,
-              ...documentDepuisAnalyse(analyse),
-              contenuCharge: true,
-              ...(resultat?.updatedAt ? { updatedAt: resultat.updatedAt } : {}),
-              snapshots: element.snapshots,
-            }
-            : element,
-        ));
-        setBrouillons((anciens) => ({ ...anciens, [selectionnee.id]: brouillon }));
+        const analyse = analyserDocumentMarkdown(selectionnee.id, contenuActuel);
+        setElements((anciens) => anciens.map((element) => {
+          if (element.id !== selectionnee.id) return element;
+          const nouveauxSnapshots = resultat?.snapshot
+            ? [resultat.snapshot, ...element.snapshots.filter((s) => s.id !== resultat.snapshot!.id)]
+            : element.snapshots;
+          return {
+            ...element,
+            ...documentDepuisAnalyse(analyse),
+            contenuCharge: true,
+            contenuMd: contenuActuel,
+            ...(resultat?.updatedAt ? { updatedAt: resultat.updatedAt } : {}),
+            snapshots: nouveauxSnapshots,
+          };
+        }));
+        setBrouillons((anciens) => ({ ...anciens, [selectionnee.id]: contenuActuel }));
         setMessage(
           resultat
             ? resultat.revisionFigee
@@ -1017,9 +1285,25 @@ export function EspaceDocumentaire({
           ) : dossierSelectionne ? (
             <VueCategorieTransversale
               noeud={dossierSelectionne}
+              arbreDossiers={arbreDossiers}
+              elements={elements}
               ouvrirDossier={ouvrirDossier}
               ouvrirElement={ouvrirElement}
-              revenirTransversal={() => ouvrirElement("transversal")}
+              revenirTransversal={() => {
+                const parties = dossierSelectionne.chemin.split("/").map((p) => p.trim()).filter(Boolean);
+                if (parties.length > 1) {
+                  const parentChemin = parties.slice(0, -1).join("/");
+                  if (parentChemin === "Transversal") ouvrirElement("transversal");
+                  else if (parentChemin === "Domaines") ouvrirElement("domaines");
+                  else if (parentChemin === "Domaines archivés" || parentChemin === "Archivés") ouvrirElement("domaines-archives");
+                  else ouvrirDossier(parentChemin);
+                } else {
+                  ouvrirElement("transversal");
+                }
+              }}
+              revenirGrapheGlobal={revenirGrapheGlobal}
+              sidebarOuverte={sidebarOuverte}
+              setSidebarOuverte={setSidebarOuverte}
             />
           ) : selection === "domaines" || selection === "domaines-archives" ? (
             <VueTousLesDomaines
@@ -1052,78 +1336,98 @@ export function EspaceDocumentaire({
           ) : selectionnee ? (
             <>
               <div className="flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure/50 px-6 shrink-0 bg-surface">
-                <nav aria-label="Fil d’Ariane" className="flex items-center gap-2 text-xs text-texte-discret min-w-0">
+                <nav aria-label="Fil d’Ariane" className="flex items-center gap-1.5 text-xs text-texte-discret min-w-0 flex-wrap sm:flex-nowrap">
                   {!sidebarOuverte && (
                     <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />
                   )}
-                  <BoutonRetour />
+                  <BoutonRetour onClick={revenirGrapheGlobal} libelle="Retour à l'Atelier" />
                   <button
                     type="button"
                     onClick={revenirGrapheGlobal}
                     className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline shrink-0"
                   >
-                    Graphe global
+                    Atelier
                   </button>
-                  {selectionnee.dossier.split("/").map((partie, index) => {
-                    const domaineEl = elements.find(
-                      (el) =>
-                        el.type === "domaine" &&
-                        ((el.vuePedagogique?.kind === "domaine" && el.vuePedagogique.nom === partie) || el.titre === partie),
-                    );
-                    return (
-                      <span key={index} className="flex items-center gap-1.5 shrink-0">
-                        <span className="text-texte-discret/60">/</span>
-                        {partie === "Domaines" ? (
-                          <button
-                            type="button"
-                            onClick={() => ouvrirElement("domaines")}
-                            className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
-                          >
-                            Domaines
-                          </button>
-                        ) : partie === "Transversal" ? (
-                          <button
-                            type="button"
-                            onClick={() => ouvrirElement("transversal")}
-                            className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
-                          >
-                            Transversal
-                          </button>
-                        ) : partie === "Domaines archivés" || partie === "Archivés" ? (
-                          <button
-                            type="button"
-                            onClick={() => ouvrirElement("domaines-archives")}
-                            className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
-                          >
-                            Domaines archivés
-                          </button>
-                        ) : domaineEl ? (
-                          <button
-                            type="button"
-                            onClick={() => ouvrirElement(domaineEl.id)}
-                            className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
-                          >
-                            {partie}
-                          </button>
-                        ) : (
-                          <span className="text-texte-discret">{partie}</span>
-                        )}
-                      </span>
-                    );
-                  })}
+                  {(() => {
+                    const parties = selectionnee.dossier.split("/").map((p) => p.trim()).filter(Boolean);
+                    return parties.map((partie, index) => {
+                      const cheminCumule = parties.slice(0, index + 1).join("/");
+                      const domaineEl = elements.find(
+                        (el) =>
+                          el.type === "domaine" &&
+                          ((el.vuePedagogique?.kind === "domaine" && el.vuePedagogique.nom === partie) || el.titre === partie),
+                      );
+                      const noeudDossier = trouverNoeudDossier(arbreDossiers, cheminCumule);
+
+                      let action: (() => void) | null = null;
+                      if (partie === "Domaines") {
+                        action = () => ouvrirElement("domaines");
+                      } else if (partie === "Transversal") {
+                        action = () => ouvrirElement("transversal");
+                      } else if (partie === "Domaines archivés" || partie === "Archivés") {
+                        action = () => ouvrirElement("domaines-archives");
+                      } else if (domaineEl) {
+                        action = () => ouvrirElement(domaineEl.id);
+                      } else if (noeudDossier) {
+                        action = () => ouvrirDossier(cheminCumule);
+                      }
+
+                      return (
+                        <span key={cheminCumule} className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-texte-discret/60">/</span>
+                          {action ? (
+                            <button
+                              type="button"
+                              onClick={action}
+                              className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline"
+                            >
+                              {partie}
+                            </button>
+                          ) : (
+                            <span className="text-texte-discret">{partie}</span>
+                          )}
+                        </span>
+                      );
+                    });
+                  })()}
+                  <span className="flex items-center gap-1.5 min-w-0">
+                    <span className="text-texte-discret/60 shrink-0">/</span>
+                    <span className="font-semibold text-texte truncate" title={selectionnee.titre}>
+                      {selectionnee.titre}
+                    </span>
+                  </span>
                 </nav>
               </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-bordure px-6 pb-4 pt-3.5 shrink-0">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 text-xs text-texte-discret">
-                    <span>{selectionnee.typeLibelle}</span>
-                    {selectionnee.lectureSeule && <span className="rounded bg-surface-2 px-1.5 py-0.5">projection</span>}
-                    {selectionnee.schemaCompatible === false && <span className="rounded bg-alerte-faible px-1.5 py-0.5 text-alerte">contrat inconnu</span>}
-                  </div>
-                  <h2 className="mt-1 truncate font-serif text-2xl font-medium tracking-tight">{selectionnee.titre}</h2>
+              {/* Barre d'en-tête du document avec actions épurées */}
+              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-bordure px-6 py-3.5 shrink-0 bg-surface">
+                <div className="min-w-0 space-y-1">
+                  {(selectionnee.lectureSeule || selectionnee.schemaCompatible === false) && (
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      {selectionnee.lectureSeule && (
+                        <span className="rounded bg-surface-2 px-1.5 py-0.5 text-texte-attenue">
+                          projection
+                        </span>
+                      )}
+                      {selectionnee.schemaCompatible === false && (
+                        <span className="rounded bg-alerte-faible px-1.5 py-0.5 font-medium text-alerte">
+                          contrat inconnu
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  <h2 className="truncate font-serif text-2xl font-medium tracking-tight text-texte">
+                    {selectionnee.titre}
+                  </h2>
                 </div>
-                <div className="flex flex-wrap items-center justify-end gap-2">
+
+                <div className="flex flex-wrap items-center justify-end gap-2.5">
+                  {message && (
+                    <span className="text-xs font-medium text-primaire" aria-live="polite">
+                      {message}
+                    </span>
+                  )}
+
                   {estNoteCapturee(selectionnee) && (
                     <button
                       type="button"
@@ -1135,79 +1439,216 @@ export function EspaceDocumentaire({
                       Supprimer
                     </button>
                   )}
+
                   {selectionnee.frontMatter.role === "operationnel" && selectionnee.source === "document" && (
                     <Link
                       href={`/atelier?note=${encodeURIComponent(selectionnee.id)}`}
-                      className="inline-flex items-center gap-1.5 rounded-md bg-primaire px-3 py-1.5 text-xs font-semibold text-texte-inverse shadow hover:bg-primaire-survol transition-colors"
+                      className="inline-flex items-center gap-1.5 rounded-md bg-primaire px-3 py-1.5 text-xs font-semibold text-texte-inverse shadow-sm hover:bg-primaire-survol transition-colors"
                     >
                       <span>Travailler cette fiche</span>
                       <IconeFleche className="size-3.5" />
                     </Link>
                   )}
+
                   {selectionnee.type === "exercice" && (
                     <Link
                       href={`/exercices/${selectionnee.id.replace(/^exercice:/, "")}`}
-                      className="inline-flex items-center gap-1.5 rounded-md bg-primaire px-3 py-1.5 text-xs font-semibold text-texte-inverse shadow hover:bg-primaire-survol transition-colors"
+                      className="inline-flex items-center gap-1.5 rounded-md bg-primaire px-3 py-1.5 text-xs font-semibold text-texte-inverse shadow-sm hover:bg-primaire-survol transition-colors"
                     >
                       <span>S’exercer dans le cahier</span>
                       <span aria-hidden>→</span>
                     </Link>
                   )}
-                  {!selectionnee.lectureSeule && (
-                    <div className="flex items-center gap-1 rounded-md border border-bordure p-0.5">
-                      {(["editer", "apercu"] as ModeDocument[]).map((option) => (
-                        <button key={option} type="button" onClick={() => setMode(option)} className={cx("rounded px-2.5 py-1 text-xs font-medium", mode === option ? "bg-primaire-faible text-primaire" : "text-texte-discret hover:text-texte")}>
-                          {option === "editer" ? "Modifier" : "Aperçu"}
-                        </button>
-                      ))}
-                    </div>
+
+                  {!selectionnee.lectureSeule && selectionnee.contenuCharge && selectionnee.schemaCompatible !== false && !snapshotApercu && (
+                    <button
+                      type="button"
+                      onClick={() => sauvegarder(true)}
+                      disabled={enCours || brouillon === selectionnee.contenuMd}
+                      className="rounded-md bg-primaire px-3.5 py-1.5 text-xs font-semibold text-texte-inverse shadow-sm hover:bg-primaire-survol disabled:cursor-not-allowed disabled:opacity-50 transition-colors cursor-pointer"
+                    >
+                      {enCours ? "Enregistrement…" : "Enregistrer"}
+                    </button>
                   )}
                 </div>
               </div>
 
-              <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
-                {!selectionnee.contenuCharge && selectionnee.source === "document" ? (
-                  <div className="flex h-full min-h-[20rem] items-center justify-center rounded-md border border-bordure bg-surface-2 p-5 text-sm text-texte-discret" aria-live="polite">
-                    Chargement de la fiche…
-                  </div>
-                ) : snapshotApercu ? (
-                  <div className="prose-exo min-h-full rounded-md border border-bordure bg-surface-2 p-5">
-                    <div className="mb-4 flex items-center justify-between gap-3 border-b border-bordure pb-3 text-xs text-texte-discret">
-                      <span>Aperçu de la révision v{snapshotApercu.version}</span>
-                      <button type="button" onClick={() => setSnapshotApercu(null)} className="font-medium text-primaire hover:underline">Fermer l’aperçu</button>
+              {/* Corps principal : Éditeur Document Direct */}
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-surface">
+                {/* Zone de document éditable en direct */}
+                <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+                  {!selectionnee.contenuCharge && selectionnee.source === "document" ? (
+                    <div className="flex h-full min-h-[20rem] items-center justify-center rounded-md border border-bordure bg-surface-2 p-5 text-sm text-texte-discret" aria-live="polite">
+                      Chargement de la fiche…
                     </div>
-                    <Markdown contenu={snapshotApercu.contenuMd} />
-                  </div>
-                ) : mode === "editer" && !selectionnee.lectureSeule ? (
-                  <div className="flex h-full min-h-0 flex-col space-y-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-bordure bg-surface-2 p-3 text-xs text-texte-discret">
-                      <div><span className="font-semibold text-texte">Rôle :</span> {String(selectionnee.frontMatter.role ?? "aucun")} · <span className="font-semibold text-texte">Dernière maj :</span> {selectionnee.updatedAt ? selectionnee.updatedAt.slice(0, 10) : "inconnue"}</div>
-                      <div className="flex items-center gap-2">
-                        <button type="button" onClick={() => sauvegarder(false)} disabled={enCours || brouillon === selectionnee.contenuMd} className="rounded-md bg-primaire px-3 py-1.5 font-medium text-texte-inverse shadow hover:bg-primaire-survol disabled:opacity-50">Enregistrer</button>
-                        <button type="button" onClick={() => sauvegarder(true)} disabled={enCours} className="rounded-md border border-bordure bg-surface px-3 py-1.5 font-medium hover:bg-surface-3 disabled:opacity-50">Figer révision</button>
+                  ) : snapshotApercu ? (
+                    <div className="prose-exo min-h-full rounded-lg border border-primaire/30 bg-surface-2/60 p-5 shadow-xs">
+                      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-bordure/60 pb-3 text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="rounded bg-primaire/15 px-2 py-0.5 font-semibold text-primaire">
+                            Archive v{snapshotApercu.version}
+                          </span>
+                          <span className="text-texte-discret">
+                            {natureSnapshot(snapshotApercu.captureReason) === "preuve" ? "Preuve immuable" : "Révision jalonnée"}
+                            {snapshotApercu.capturedAt ? ` · ${snapshotApercu.capturedAt.slice(0, 10)}` : ""}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setSnapshotApercu(null)}
+                          className="inline-flex items-center gap-1 rounded-md border border-bordure bg-surface px-2.5 py-1 font-medium text-texte transition-colors hover:bg-surface-3 cursor-pointer"
+                        >
+                          <span>Quitter l’archive</span>
+                          <span aria-hidden className="text-texte-discret">×</span>
+                        </button>
                       </div>
+                      <Markdown contenu={snapshotApercu.contenuMd} />
                     </div>
-                    <textarea value={brouillon} onChange={(event) => setBrouillons((anciens) => ({ ...anciens, [selectionnee.id]: event.target.value }))} className="min-h-[22rem] flex-1 resize-none rounded-lg border border-bordure bg-surface p-4 font-mono text-sm leading-relaxed text-texte outline-none focus:border-primaire" placeholder="Contenu Markdown de la note…" />
-                  </div>
-                ) : (
-                  <div className="prose-exo min-h-full rounded-lg border border-bordure bg-surface p-6">
-                    <Markdown contenu={brouillon} titresReplies={titresReplies(selectionnee)} />
-                  </div>
-                )}
-              </div>
-
-              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-bordure px-4 py-2.5 text-xs shrink-0">
-                <span className="text-texte-discret" aria-live="polite">{message ?? (selectionnee.lectureSeule ? "Projection en lecture seule" : selectionnee.schemaCompatible === false ? "Contrat Markdown inconnu · lecture seule" : "Markdown comme source de vérité")}</span>
-                {!selectionnee.lectureSeule && selectionnee.contenuCharge && selectionnee.schemaCompatible !== false && !snapshotApercu && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button type="button" onClick={() => sauvegarder(false)} disabled={enCours} className="rounded-md border border-bordure px-3 py-1.5 font-medium text-primaire transition-colors hover:bg-primaire-faible disabled:cursor-not-allowed disabled:opacity-50">
-                      {enCours ? "Enregistrement…" : "Enregistrer"}
-                    </button>
-                    <button type="button" onClick={() => sauvegarder(true)} disabled={enCours} className="rounded-md bg-primaire px-3 py-1.5 font-medium text-primaire-contraste disabled:cursor-not-allowed disabled:opacity-50">
-                      Figer une version
-                    </button>
-                  </div>
-                )}
+                  ) : (
+                    <div className="relative min-h-full rounded-lg border border-bordure bg-surface focus-within:border-primaire transition-colors overflow-hidden">
+                      {/* Barre d'outils de formatage direct flottante superposée et masquée à moitié au repos */}
+                      {!selectionnee.lectureSeule && (
+                        <div className="group/toolbar absolute top-0 left-1/2 -translate-x-1/2 z-20 pt-0 px-3 transition-all duration-300">
+                          <div
+                            className={cx(
+                              "flex items-center gap-1 rounded-full border bg-surface-2/95 backdrop-blur-md px-3 py-1 shadow-xs transition-all duration-300 -translate-y-1/2 group-hover/toolbar:translate-y-2 group-hover/toolbar:opacity-100 group-hover/toolbar:shadow-xl group-hover/toolbar:border-primaire/50 focus-within:translate-y-2 focus-within:opacity-100 focus-within:border-primaire/50 cursor-default",
+                              (etatFormatage.bold || etatFormatage.italic || etatFormatage.h2 || etatFormatage.ul || etatFormatage.ol || etatFormatage.blockquote)
+                                ? "opacity-90 border-primaire/60 shadow-xs ring-1 ring-primaire/20"
+                                : "opacity-35 border-bordure/80",
+                            )}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => {
+                                executerFormatage("bold");
+                                rafraichirEtatFormatage();
+                              }}
+                              className={cx(
+                                "flex size-6 items-center justify-center rounded-full text-xs font-bold transition-colors cursor-pointer",
+                                etatFormatage.bold
+                                  ? "bg-primaire text-texte-inverse shadow-xs font-bold"
+                                  : "text-texte hover:bg-primaire/15 hover:text-primaire",
+                              )}
+                              title="Gras (Ctrl+B)"
+                            >
+                              B
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                executerFormatage("italic");
+                                rafraichirEtatFormatage();
+                              }}
+                              className={cx(
+                                "flex size-6 items-center justify-center rounded-full text-xs italic font-serif transition-colors cursor-pointer",
+                                etatFormatage.italic
+                                  ? "bg-primaire text-texte-inverse shadow-xs"
+                                  : "text-texte hover:bg-primaire/15 hover:text-primaire",
+                              )}
+                              title="Italique (Ctrl+I)"
+                            >
+                              I
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                executerFormatage("formatBlock", "<h2>");
+                                rafraichirEtatFormatage();
+                              }}
+                              className={cx(
+                                "flex size-6 items-center justify-center rounded-full text-xs font-semibold transition-colors cursor-pointer",
+                                etatFormatage.h2
+                                  ? "bg-primaire text-texte-inverse shadow-xs font-semibold"
+                                  : "text-texte hover:bg-primaire/15 hover:text-primaire",
+                              )}
+                              title="Titre H2"
+                            >
+                              H
+                            </button>
+                            <div className="h-3.5 w-px bg-bordure mx-0.5" />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                executerFormatage("insertUnorderedList");
+                                rafraichirEtatFormatage();
+                              }}
+                              className={cx(
+                                "flex size-6 items-center justify-center rounded-full text-xs transition-colors cursor-pointer",
+                                etatFormatage.ul
+                                  ? "bg-primaire text-texte-inverse shadow-xs"
+                                  : "text-texte hover:bg-primaire/15 hover:text-primaire",
+                              )}
+                              title="Liste à puces"
+                            >
+                              •
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                executerFormatage("insertOrderedList");
+                                rafraichirEtatFormatage();
+                              }}
+                              className={cx(
+                                "flex size-6 items-center justify-center rounded-full text-[0.6875rem] font-medium transition-colors cursor-pointer",
+                                etatFormatage.ol
+                                  ? "bg-primaire text-texte-inverse shadow-xs font-medium"
+                                  : "text-texte hover:bg-primaire/15 hover:text-primaire",
+                              )}
+                              title="Liste numérotée"
+                            >
+                              1.
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                executerFormatage("formatBlock", "<blockquote>");
+                                rafraichirEtatFormatage();
+                              }}
+                              className={cx(
+                                "flex size-6 items-center justify-center rounded-full text-xs transition-colors cursor-pointer",
+                                etatFormatage.blockquote
+                                  ? "bg-primaire text-texte-inverse shadow-xs"
+                                  : "text-texte hover:bg-primaire/15 hover:text-primaire",
+                              )}
+                              title="Citation"
+                            >
+                              ”
+                            </button>
+                            <div className="h-3.5 w-px bg-bordure mx-0.5" />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const selectionText = window.getSelection()?.toString().trim() || "identifiant";
+                                document.execCommand(
+                                  "insertHTML",
+                                  false,
+                                  `<span class="wikilien-badge" data-wikilien="${selectionText}">[[${selectionText}]]</span>&nbsp;`,
+                                );
+                                synchroniserContenu();
+                                rafraichirEtatFormatage();
+                              }}
+                              className="flex h-6 items-center justify-center rounded-full px-1.5 font-mono text-[0.6875rem] font-medium text-primaire hover:bg-primaire/15 transition-colors cursor-pointer"
+                              title="Insérer un wikilien [[...]]"
+                            >
+                              [[ ]]
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      <EditeurDirect
+                        documentId={selectionnee.id}
+                        contenuInitialMd={brouillon}
+                        contenuCharge={selectionnee.contenuCharge}
+                        lectureSeule={selectionnee.lectureSeule}
+                        onSynchroniser={synchroniserContenu}
+                        onRaccourci={gererRaccourcisClavier}
+                        onSelectionChange={rafraichirEtatFormatage}
+                        onOuvrirWikilien={ouvrirElement}
+                        editeurRef={editeurRef}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             </>
           ) : (
@@ -1277,49 +1718,121 @@ export function EspaceDocumentaire({
                 ouvrirElement={ouvrirElement}
               />
             ) : (
-              <div className="space-y-5 p-4">
-                <div>
-                  <h2 className="text-xs font-semibold uppercase tracking-wider text-texte-attenue">Contexte</h2>
+              <div className="space-y-4 p-5">
+                {/* Carte Informations */}
+                <div className="rounded-lg border border-bordure bg-surface p-4">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-texte-discret">
+                    Informations
+                  </h3>
                   <dl className="mt-3 space-y-2 text-xs">
-                    <div className="flex justify-between gap-3"><dt className="text-texte-discret">Type</dt><dd className="text-right font-medium">{selectionnee.typeLibelle}</dd></div>
-                    <div className="flex justify-between gap-3"><dt className="text-texte-discret">Catégorie</dt><dd className="text-right font-medium">{selectionnee.categorie}</dd></div>
-                    <div className="flex justify-between gap-3"><dt className="text-texte-discret">Identifiant</dt><dd className="max-w-[9rem] truncate text-right font-mono text-[0.6875rem]">{selectionnee.id}</dd></div>
-                    {selectionnee.snapshots.length > 0 && <div className="flex justify-between gap-3"><dt className="text-texte-discret">Versions gelées</dt><dd className="text-right font-medium">{selectionnee.snapshots.length}</dd></div>}
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-texte-discret">Type</dt>
+                      <dd className="font-medium text-texte">{selectionnee.typeLibelle}</dd>
+                    </div>
+                    {roleLibelle && (
+                      <div className="flex justify-between gap-3">
+                        <dt className="text-texte-discret">Rôle</dt>
+                        <dd className="font-medium text-texte">{roleLibelle}</dd>
+                      </div>
+                    )}
+                    <div className="flex justify-between gap-3">
+                      <dt className="text-texte-discret">Catégorie</dt>
+                      <dd className="font-medium text-texte capitalize">{selectionnee.categorie}</dd>
+                    </div>
+                    {dateAffichee && (
+                      <div className="flex justify-between gap-3">
+                        <dt className="text-texte-discret">Date</dt>
+                        <dd className="font-medium text-texte">{dateAffichee}</dd>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center gap-3 pt-1 border-t border-bordure/40">
+                      <dt className="text-texte-discret">Identifiant</dt>
+                      <dd className="truncate font-mono text-[0.6875rem] text-texte-attenue max-w-[11rem]" title={selectionnee.id}>
+                        {selectionnee.id}
+                      </dd>
+                    </div>
+                    {selectionnee.snapshots.length > 0 && (
+                      <div className="flex justify-between gap-3">
+                        <dt className="text-texte-discret">Versions gelées</dt>
+                        <dd className="font-medium text-primaire">{selectionnee.snapshots.length}</dd>
+                      </div>
+                    )}
                   </dl>
                 </div>
 
-                <div>
-                  <h3 className="text-xs font-semibold text-texte-attenue">Relations</h3>
-                  <div className="mt-2 space-y-2 text-xs">
-                    {liensCourants.length > 0 ? liensCourants.map((lien, index) => {
-                      const cible = trouverCible(lien.cible);
-                      return cible ? (
-                        <button key={`${lien.cible}-${index}`} type="button" onClick={() => ouvrirElement(cible.id)} className="block text-left text-primaire hover:underline">→ {cible.titre}</button>
-                      ) : (
-                        <span key={`${lien.cible}-${index}`} className="block text-texte-discret">→ {lien.libelle ?? lien.cible} <span className="text-[0.625rem]">(à résoudre)</span></span>
-                      );
-                    }) : <p className="text-texte-discret">Aucun lien déclaré.</p>}
-                    {selectionnee.entrants.length > 0 && <p className="pt-1 text-texte-discret">Référencé par {selectionnee.entrants.length} document{selectionnee.entrants.length > 1 ? "s" : ""}.</p>}
+                {/* Carte Relations */}
+                <div className="rounded-lg border border-bordure bg-surface p-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-texte-discret">
+                      Relations
+                    </h3>
+                    {liensCourants.length > 0 && (
+                      <span className="text-[0.6875rem] text-texte-discret font-medium">
+                        {liensCourants.length} lien{liensCourants.length > 1 ? "s" : ""}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-3 space-y-2 text-xs">
+                    {liensCourants.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {liensCourants.map((lien, index) => {
+                          const cible = trouverCible(lien.cible);
+                          return cible ? (
+                            <button
+                              key={`${lien.cible}-${index}`}
+                              type="button"
+                              onClick={() => ouvrirElement(cible.id)}
+                              className="flex w-full items-center gap-1.5 rounded-md border border-bordure/50 bg-surface-2/40 px-2.5 py-1.5 text-left text-xs font-medium text-primaire hover:border-primaire/40 hover:bg-surface-2 transition-colors cursor-pointer"
+                            >
+                              <span className="shrink-0 text-texte-discret">→</span>
+                              <span className="truncate">{cible.titre}</span>
+                            </button>
+                          ) : (
+                            <div
+                              key={`${lien.cible}-${index}`}
+                              className="flex w-full items-center gap-1.5 rounded-md border border-bordure/30 bg-surface-2/20 px-2.5 py-1.5 text-xs text-texte-discret"
+                            >
+                              <span className="shrink-0">→</span>
+                              <span className="truncate">{lien.libelle ?? lien.cible}</span>
+                              <span className="shrink-0 text-[0.625rem] text-texte-attenue">(à résoudre)</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-texte-discret">Aucun lien déclaré.</p>
+                    )}
+
+                    {selectionnee.entrants.length > 0 && (
+                      <p className="pt-2 text-[0.6875rem] text-texte-attenue">
+                        Référencé par {selectionnee.entrants.length} document{selectionnee.entrants.length > 1 ? "s" : ""}.
+                      </p>
+                    )}
+
                     {!selectionnee.lectureSeule && selectionnee.contenuCharge && selectionnee.schemaCompatible !== false && fichesLiables.length > 0 && (
-                      <div className="border-t border-bordure pt-3">
-                        <label className="block text-[0.6875rem] font-medium text-texte-attenue" htmlFor="ajouter-lien-fiche">
+                      <div className="border-t border-bordure pt-3 mt-3">
+                        <label className="block text-[0.6875rem] font-medium text-texte-attenue mb-1.5" htmlFor="ajouter-lien-fiche">
                           Ajouter un lien vers une fiche
                         </label>
-                        <div className="mt-1.5 flex gap-1.5">
+                        <div className="flex gap-1.5">
                           <select
                             id="ajouter-lien-fiche"
                             value={cibleLien}
                             onChange={(event) => setCibleLien(event.target.value)}
-                            className="min-w-0 flex-1 rounded-md border border-bordure-controle bg-surface px-2 py-1.5 text-xs"
+                            className="min-w-0 flex-1 rounded-md border border-bordure bg-surface-2 px-2.5 py-1.5 text-xs text-texte outline-none focus:border-primaire"
                           >
                             <option value="">Choisir une fiche…</option>
-                            {fichesLiables.map((fiche) => <option key={fiche.id} value={fiche.id}>{fiche.titre}</option>)}
+                            {fichesLiables.map((fiche) => (
+                              <option key={fiche.id} value={fiche.id}>
+                                {fiche.titre}
+                              </option>
+                            ))}
                           </select>
                           <button
                             type="button"
                             onClick={ajouterLien}
                             disabled={!cibleLien}
-                            className="shrink-0 rounded-md border border-bordure px-2 py-1.5 text-xs font-medium text-primaire hover:bg-primaire-faible disabled:cursor-not-allowed disabled:opacity-50"
+                            className="shrink-0 rounded-md border border-bordure bg-surface px-2.5 py-1.5 text-xs font-medium text-primaire hover:bg-primaire-faible disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
                           >
                             Ajouter
                           </button>
@@ -1329,23 +1842,26 @@ export function EspaceDocumentaire({
                   </div>
                 </div>
 
+                {/* Carte Pièces Jointes */}
                 {selectionnee.frontMatter.role === "support" && (
-                  <div className="border-t border-bordure pt-4">
+                  <div className="rounded-lg border border-bordure bg-surface p-4">
                     <div className="flex items-baseline justify-between gap-2">
-                      <h3 className="text-xs font-semibold text-texte-attenue">Pièces jointes</h3>
+                      <h3 className="text-xs font-semibold uppercase tracking-wider text-texte-discret">Pièces jointes</h3>
                       <span className="text-[0.6875rem] text-texte-discret">{piecesJointes?.length ?? "…"}</span>
                     </div>
                     {piecesJointes === undefined ? (
                       <p className="mt-2 text-xs text-texte-discret">Chargement des PDF…</p>
                     ) : piecesJointes.length > 0 ? (
-                      <ul className="mt-2 space-y-1.5">
+                      <ul className="mt-2.5 space-y-1.5">
                         {piecesJointes.map((piece) => (
-                          <li key={piece.id} className="flex items-center gap-2 rounded-md border border-bordure bg-surface px-2.5 py-2 text-xs">
+                          <li key={piece.id} className="flex items-center gap-2 rounded-md border border-bordure bg-surface-2/40 px-2.5 py-2 text-xs">
                             {piece.url ? (
-                              <a href={piece.url} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-primaire hover:underline" title={piece.nom}>
+                              <a href={piece.url} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-primaire hover:underline font-medium" title={piece.nom}>
                                 {piece.nom}
                               </a>
-                            ) : <span className="min-w-0 flex-1 truncate">{piece.nom}</span>}
+                            ) : (
+                              <span className="min-w-0 flex-1 truncate">{piece.nom}</span>
+                            )}
                             <span className="shrink-0 text-[0.625rem] text-texte-discret">{Math.max(1, Math.round(piece.tailleOctets / 1024))} Ko</span>
                             {!selectionnee.lectureSeule && (
                               <button type="button" onClick={() => supprimerPieceJointe(piece)} disabled={enCours} className="shrink-0 text-texte-discret hover:text-danger disabled:opacity-50" aria-label={`Supprimer ${piece.nom}`}>
@@ -1355,36 +1871,47 @@ export function EspaceDocumentaire({
                           </li>
                         ))}
                       </ul>
-                    ) : <p className="mt-2 text-xs leading-relaxed text-texte-discret">Aucun PDF attaché.</p>}
+                    ) : (
+                      <p className="mt-2 text-xs text-texte-discret">Aucun PDF attaché.</p>
+                    )}
                     {!selectionnee.lectureSeule && selectionnee.schemaCompatible !== false && (
-                      <label className="mt-3 inline-flex cursor-pointer rounded-md border border-bordure px-2.5 py-1.5 text-xs font-medium text-primaire hover:bg-primaire-faible has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50">
+                      <label className="mt-3 inline-flex cursor-pointer rounded-md border border-bordure bg-surface px-2.5 py-1.5 text-xs font-medium text-primaire hover:bg-primaire-faible transition-colors has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50">
                         Joindre un PDF
                         <input type="file" accept=".pdf,application/pdf" className="sr-only" onChange={televerserPdf} disabled={enCours} />
                       </label>
                     )}
-                    <p className="mt-2 text-[0.6875rem] text-texte-discret">PDF uniquement · 10 Mo maximum.</p>
+                    <p className="mt-2 text-[0.6875rem] text-texte-discret">PDF uniquement · 10 Mo max.</p>
                   </div>
                 )}
 
-
-                <div className="border-t border-bordure pt-4">
-                  <h3 className="text-xs font-semibold text-texte-attenue">Vue pédagogique</h3>
-                  <p className="mt-2 text-xs leading-relaxed text-texte-discret">Les compétences et exercices existants apparaissent ici en projection. Les liens Markdown alimentent aussi le graphe central.</p>
-                  <button type="button" onClick={() => setSelection(null)} className="mt-3 inline-flex text-xs font-medium text-primaire hover:underline">Revenir au graphe central →</button>
-                </div>
+                {/* Carte Versions Gelées */}
                 {selectionnee.snapshots.length > 0 && (
-                  <div className="border-t border-bordure pt-4">
-                      <h3 className="text-xs font-semibold text-texte-attenue">Historique du document</h3>
-                      <p className="mt-2 text-xs leading-relaxed text-texte-discret">Les preuves et les révisions éditoriales sont conservées séparément. Une correction ultérieure ne réécrit jamais une version déjà figée.</p>
-                    <div className="mt-2 space-y-1">
+                  <div className="rounded-lg border border-bordure bg-surface p-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-semibold uppercase tracking-wider text-texte-discret">
+                        Versions gelées
+                      </h3>
+                      <span className="text-[0.6875rem] text-texte-discret font-medium">
+                        {selectionnee.snapshots.length} révision{selectionnee.snapshots.length > 1 ? "s" : ""}
+                      </span>
+                    </div>
+                    <div className="mt-2.5 max-h-64 overflow-y-auto pr-1 space-y-1.5 scrollbar-thin">
                       {selectionnee.snapshots.map((snapshot) => (
                         <button
                           key={snapshot.id}
                           type="button"
                           onClick={() => ouvrirSnapshot(snapshot.id)}
-                          className="block w-full rounded px-1.5 py-1 text-left font-mono text-[0.625rem] text-primaire hover:bg-primaire-faible"
+                          className="flex w-full items-center justify-between gap-2 rounded-md border border-bordure/50 bg-surface-2/40 px-2.5 py-1.5 text-left text-xs text-texte hover:border-primaire/40 hover:bg-surface-2 transition-colors cursor-pointer font-mono"
                         >
-                          v{snapshot.version} · {natureSnapshot(snapshot.captureReason) === "preuve" ? "preuve" : "révision"} · {snapshot.capturedAt.slice(0, 10)}
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-primaire">v{snapshot.version}</span>
+                            <span className="rounded bg-surface-3 px-1.5 py-0.5 text-[0.625rem] text-texte-attenue uppercase font-sans">
+                              {natureSnapshot(snapshot.captureReason) === "preuve" ? "preuve" : "révision"}
+                            </span>
+                          </div>
+                          <span className="text-[0.6875rem] text-texte-discret font-sans">
+                            {snapshot.capturedAt.slice(0, 10)}
+                          </span>
                         </button>
                       ))}
                     </div>

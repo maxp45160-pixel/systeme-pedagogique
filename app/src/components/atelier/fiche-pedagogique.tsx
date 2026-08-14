@@ -131,11 +131,11 @@ function VueCompetence({
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-surface-2/40">
       <div className="flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure bg-surface px-6 shrink-0">
-        <nav aria-label="Fil d’Ariane" className="flex items-center gap-2 text-xs text-texte-discret min-w-0">
+        <nav aria-label="Fil d’Ariane" className="flex items-center gap-1.5 text-xs text-texte-discret min-w-0 flex-wrap sm:flex-nowrap">
           {!sidebarOuverte && setSidebarOuverte && (
             <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />
           )}
-          <BoutonRetour />
+          <BoutonRetour onClick={revenirGraphe} libelle="Retour à l'Atelier" />
           {revenirGraphe && (
             <>
               <button
@@ -143,11 +143,19 @@ function VueCompetence({
                 onClick={revenirGraphe}
                 className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline shrink-0"
               >
-                Graphe global
+                Atelier
               </button>
               <span className="text-texte-discret/60 shrink-0">/</span>
             </>
           )}
+          <button
+            type="button"
+            onClick={() => ouvrirElement("domaines")}
+            className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline shrink-0"
+          >
+            Domaines
+          </button>
+          <span className="text-texte-discret/60 shrink-0">/</span>
           <button
             type="button"
             onClick={() => ouvrirElement(`domaine:${vue.domaineId}`)}
@@ -156,7 +164,7 @@ function VueCompetence({
             {vue.domaineNom}
           </button>
           <span className="text-texte-discret/60 shrink-0">/</span>
-          <span className="font-semibold text-texte shrink-0">Compétences</span>
+          <span className="font-semibold text-texte shrink-0">{vue.code}</span>
         </nav>
       </div>
       <header className="border-b border-bordure bg-surface px-6 py-5 lg:px-8">
@@ -345,11 +353,11 @@ function VueDomaine({
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-surface-2/40">
       <div className="flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure bg-surface px-6 shrink-0">
-        <nav aria-label="Fil d’Ariane" className="flex items-center gap-2 text-xs text-texte-discret min-w-0">
+        <nav aria-label="Fil d’Ariane" className="flex items-center gap-1.5 text-xs text-texte-discret min-w-0 flex-wrap sm:flex-nowrap">
           {!sidebarOuverte && setSidebarOuverte && (
             <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />
           )}
-          <BoutonRetour />
+          <BoutonRetour onClick={revenirGraphe} libelle="Retour à l'Atelier" />
           {revenirGraphe && (
             <>
               <button
@@ -357,14 +365,14 @@ function VueDomaine({
                 onClick={revenirGraphe}
                 className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline shrink-0"
               >
-                Graphe global
+                Atelier
               </button>
               <span className="text-texte-discret/60 shrink-0">/</span>
             </>
           )}
           <button
             type="button"
-            onClick={() => ouvrirElement("domaines")}
+            onClick={() => ouvrirElement(vue.domaine.archive ? "domaines-archives" : "domaines")}
             className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline shrink-0"
           >
             {vue.domaine.archive ? "Domaines archivés" : "Domaines"}

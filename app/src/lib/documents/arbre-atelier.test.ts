@@ -72,4 +72,20 @@ describe("navigation de l'Atelier", () => {
       dossiersSecondaires: [],
     });
   });
+
+  it("retrouve tous les sous-nœuds intermédiaires pour la résolution du fil d'Ariane", () => {
+    const arbre = construireArbreDossiers([
+      { id: "note-1", titre: "Ma Note", type: "note", dossier: "Transversal/Notes de support/Note personnelle" },
+      { id: "prev-1", titre: "Preuve 1", type: "preuve", dossier: "Transversal/Preuves" },
+      { id: "exo-1", titre: "Exercice 1", type: "exercice", dossier: "Domaines/Algèbre/Exercices" },
+    ]);
+
+    expect(trouverNoeudDossier(arbre, "Transversal")).not.toBeNull();
+    expect(trouverNoeudDossier(arbre, "Transversal/Notes de support")).not.toBeNull();
+    expect(trouverNoeudDossier(arbre, "Transversal/Notes de support/Note personnelle")).not.toBeNull();
+    expect(trouverNoeudDossier(arbre, "Transversal/Preuves")).not.toBeNull();
+    expect(trouverNoeudDossier(arbre, "Domaines/Algèbre")).not.toBeNull();
+    expect(trouverNoeudDossier(arbre, "Domaines/Algèbre/Exercices")).not.toBeNull();
+  });
 });
+
