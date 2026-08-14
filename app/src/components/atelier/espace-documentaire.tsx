@@ -192,9 +192,9 @@ function BarreVuesAtelier({
   onChanger: (v: "graphe" | "domaines" | "transversal") => void;
 }) {
   const options = [
-    { cle: "graphe" as const, libelle: "Constellation" },
     { cle: "domaines" as const, libelle: "Domaines" },
     { cle: "transversal" as const, libelle: "Transversal" },
+    { cle: "graphe" as const, libelle: "Constellation" },
   ];
   return (
     <div
@@ -649,12 +649,13 @@ export function EspaceDocumentaire({
       ) {
         return documentDemande;
       }
-      return trouverElement(documentDemande, elementsInitials)?.id ?? null;
+      return trouverElement(documentDemande, elementsInitials)?.id ?? "domaines";
     }
     if (dossierDemande) {
       return `dossier:${dossierDemande}`;
     }
-    return null;
+    // La vue par défaut de l'Atelier est la vue des domaines.
+    return "domaines";
   }, [documentDemande, dossierDemande, elementsInitials]);
   const [selection, setSelection] = useState<string | null>(selectionInitiale);
   const [brouillons, setBrouillons] = useState<Record<string, string>>({});
@@ -789,7 +790,7 @@ export function EspaceDocumentaire({
       } else if (dossierParam) {
         setSelection(`dossier:${dossierParam}`);
       } else {
-        setSelection(null);
+        setSelection("domaines");
       }
       setCibleLien("");
       setSnapshotApercu(null);
@@ -1111,7 +1112,7 @@ export function EspaceDocumentaire({
       try {
         await supprimerNoteSupportAction(selectionnee.id);
         setElements((anciens) => anciens.filter((element) => element.id !== selectionnee.id));
-        setSelection(null);
+        setSelection("domaines");
         setCibleLien("");
         window.history.replaceState(null, "", "/atelier");
         router.refresh();
