@@ -46,7 +46,6 @@ import { BoutonRetour } from "@/components/ui/lien-retour";
 import { BoutonOuvrirExplorateur, FichePedagogiqueAtelier, PanneauPedagogiqueAtelier } from "./fiche-pedagogique";
 import type { CalibrageModale, CompetenceModale } from "@/components/exercices/proprietes-generation";
 import { cheminsDepuisDefinition } from "@/lib/documents/chemins-atelier";
-import { SECTION_CORRECTION } from "@/lib/documents/fiche-exercice";
 import {
   construireArbreDossiers,
   compterElements,
@@ -88,19 +87,6 @@ export interface ElementAtelier {
 function estNoteCapturee(element: ElementAtelier): boolean {
   const role = element.frontMatter.role;
   return element.source === "document" && (role === "support" || role === "operationnel");
-}
-
-const AUCUN_REPLI: readonly string[] = [];
-
-/**
- * La correction d'une fiche d'exercice reste fermée jusqu'à un geste.
- *
- * La fiche existe pour être relue, et un exercice se refait. L'afficher d'un
- * bloc offrirait la réponse à qui rouvre l'énoncé — le système mesure
- * l'autonomie, il n'a pas à la saboter.
- */
-function titresReplies(element: ElementAtelier): readonly string[] {
-  return element.frontMatter.exercice ? [SECTION_CORRECTION] : AUCUN_REPLI;
 }
 
 /**
@@ -567,16 +553,20 @@ function EditeurDirect({
   editeurRef,
 }: EditeurDirectProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const docChargeRef = useRef<string | null>(null);
 
-  // Initialisation du DOM uniquement lors du changement de document ou de chargement initial
+  // Initialisation du DOM lors du changement de document ou d'un contenu modifié
+  // depuis l'extérieur (annulation, retour de snapshot, rechargement).
+  //
+  // La comparaison porte sur le corps sérialisé : quand l'utilisateur tape, le
+  // brouillon (contenuInitialMd) est mis à jour avec la sérialisation du DOM
+  // lui-même — les deux correspondent, on ne réinitialise pas. En revanche un
+  // contenu externe différent du DOM (annulation, rechargement) réinitialise.
   useEffect(() => {
     if (!containerRef.current || !contenuCharge) return;
-    const cleCharge = `${documentId}-${contenuCharge}`;
-    if (docChargeRef.current === cleCharge) return;
-    docChargeRef.current = cleCharge;
-    const { corps } = separerFrontMatterEtCorps(contenuInitialMd);
-    containerRef.current.innerHTML = markdownVersHtml(corps);
+    const corpsEntrant = separerFrontMatterEtCorps(contenuInitialMd).corps.trim();
+    const corpsDom = domVersMarkdown(containerRef.current).trim();
+    if (corpsDom === corpsEntrant) return;
+    containerRef.current.innerHTML = markdownVersHtml(corpsEntrant);
   }, [documentId, contenuCharge, contenuInitialMd]);
 
   const handleInput = useCallback(() => {
@@ -682,15 +672,6 @@ export function EspaceDocumentaire({
     setEtatFormatage(detecterEtatFormatage(editeurRef.current));
   }, []);
 
-  useEffect(() => {
-    const surSelectionChange = () => {
-      rafraichirEtatFormatage();
-    };
-    document.addEventListener("selectionchange", surSelectionChange);
-    return () => {
-      document.removeEventListener("selectionchange", surSelectionChange);
-    };
-  }, [rafraichirEtatFormatage]);
   const cleDossiers = cleParCompte("atelier-dossiers-ouverts", graphe.compteId);
   const abonnementDossiers = useCallback((ecouter: () => void) => {
     const ecouteurs = abonnementsDossiers.get(cleDossiers) ?? new Set<() => void>();

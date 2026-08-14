@@ -6,6 +6,46 @@ export const SCHEMA_MARKDOWN = "pedagogie/v1" as const;
 export type ValeurFrontMatter = string | number | boolean | null | string[];
 export type FrontMatter = Record<string, ValeurFrontMatter>;
 
+export interface ExtractionFrontMatter {
+  frontmatterBrut: string;
+  corps: string;
+}
+
+/**
+ * Expression rationnelle partagée pour découper les éléments en ligne
+ * (wikiliens, gras, italique, code) en conservant les délimiteurs.
+ *
+ * Utilisée par :
+ * - `wysiwyg-markdown.ts` pour générer le HTML de l'éditeur direct ;
+ * - `markdown.tsx` pour le rendu des énoncés, corrections et notes.
+ */
+export const REGEX_INLINE_MARKDOWN = /(\[\[[^\]]+\]\]|\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g;
+
+/**
+ * Isole le bloc Frontmatter YAML brut (s'il existe) du corps Markdown.
+ *
+ * C'est la brique de base de tout parsing de document : `parserFrontMatter`
+ * s'appuie dessus pour parser les métadonnées YAML, et l'éditeur WYSIWYG
+ * s'appuie dessus pour préserver le frontmatter sans le modifier.
+ */
+export function separerFrontMatterEtCorps(contenuMd: string): ExtractionFrontMatter {
+  const normalise = contenuMd.replace(/\r\n/g, "\n");
+  if (!normalise.startsWith("---\n")) {
+    return { frontmatterBrut: "", corps: normalise };
+  }
+
+  const fin = normalise.indexOf("\n---", 4);
+  if (fin === -1) {
+    return { frontmatterBrut: "", corps: normalise };
+  }
+
+  const finFrontmatter = fin + "\n---".length;
+  const frontmatterBrut = normalise.slice(0, finFrontmatter);
+  const corps = normalise.slice(finFrontmatter).replace(/^\n+/, "");
+
+  return { frontmatterBrut, corps };
+}
+
 export interface LienMarkdown {
   cible: string;
   libelle?: string;
@@ -63,15 +103,13 @@ export function parserFrontMatter(contenuMd: string): {
   frontMatter: FrontMatter;
   corps: string;
 } {
-  const normalise = contenuMd.replace(/\r\n/g, "\n");
-  if (!normalise.startsWith("---\n")) return { frontMatter: {}, corps: normalise };
-
-  const fin = normalise.indexOf("\n---", 4);
-  if (fin === -1) return { frontMatter: {}, corps: normalise };
-
-  const brut = normalise.slice(4, fin);
-  const lignes = brut.split("\n");
+  const { frontmatterBrut, corps } = separerFrontMatterEtCorps(contenuMd);
   const frontMatter: FrontMatter = {};
+
+  if (frontmatterBrut === "") return { frontMatter, corps };
+
+  const brut = frontmatterBrut.slice(4, -4);
+  const lignes = brut.split("\n");
 
   for (let i = 0; i < lignes.length; i += 1) {
     const ligne = lignes[i];
@@ -101,8 +139,7 @@ export function parserFrontMatter(contenuMd: string): {
     }
   }
 
-  const debutCorps = fin + "\n---".length;
-  return { frontMatter, corps: normalise.slice(debutCorps).replace(/^\n/, "") };
+  return { frontMatter, corps };
 }
 
 export function extraireLiensMarkdown(contenuMd: string): LienMarkdown[] {

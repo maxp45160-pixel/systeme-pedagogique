@@ -1,7 +1,7 @@
 import { memo, type ReactNode } from "react";
 import { decouperEnBlocs } from "@/lib/ui/markdown-blocs";
 import { latexVersTexte, segmenterFormulesEnLigne } from "@/lib/ui/formule";
-import { parserFrontMatter } from "@/lib/documents/markdown";
+import { parserFrontMatter, REGEX_INLINE_MARKDOWN } from "@/lib/documents/markdown";
 
 /**
  * Rendu markdown minimal, écrit sur mesure.
@@ -21,7 +21,7 @@ import { parserFrontMatter } from "@/lib/documents/markdown";
 function emphase(texte: string, pfx: string): ReactNode[] {
   const sorties: ReactNode[] = [];
   // Découpe sur [[wikiliens]], **gras**, *italique*, et `code`, en conservant les délimiteurs.
-  const morceaux = texte.split(/(\[\[[^\]]+\]\]|\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g);
+  const morceaux = texte.split(REGEX_INLINE_MARKDOWN);
   for (let idx = 0; idx < morceaux.length; idx++) {
     const m = morceaux[idx];
     if (!m) continue;
@@ -93,7 +93,8 @@ export const Markdown = memo(function Markdown({
 }) {
   const { corps } = parserFrontMatter(contenu);
   const contenuNettoye = corps.trim();
-  const rendus = decouperEnBlocs(contenuNettoye).map((bloc, idx) => {
+  const blocs = decouperEnBlocs(contenuNettoye);
+  const rendus = blocs.map((bloc, idx) => {
     const cle = `b-${idx}`;
     switch (bloc.genre) {
       case "code":
@@ -161,7 +162,6 @@ export const Markdown = memo(function Markdown({
    * rien, il précède. On reconstitue donc la portée d'un titre — jusqu'au titre
    * suivant — pour pouvoir la replier d'un seul tenant.
    */
-  const blocs = decouperEnBlocs(contenuNettoye);
   const sorties: ReactNode[] = [];
   for (let idx = 0; idx < blocs.length; idx++) {
     const bloc = blocs[idx];

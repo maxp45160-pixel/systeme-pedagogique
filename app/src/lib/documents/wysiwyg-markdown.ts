@@ -7,31 +7,14 @@
  * 3. Zéro dépendance externe lourde.
  */
 
-export interface ExtractionFrontMatter {
-  frontmatterBrut: string;
-  corps: string;
-}
+import {
+  separerFrontMatterEtCorps,
+  REGEX_INLINE_MARKDOWN,
+  type ExtractionFrontMatter,
+} from "@/lib/documents/markdown";
 
-/**
- * Isole le bloc Frontmatter YAML brut (s'il existe) du corps Markdown.
- */
-export function separerFrontMatterEtCorps(contenuMd: string): ExtractionFrontMatter {
-  const normalise = contenuMd.replace(/\r\n/g, "\n");
-  if (!normalise.startsWith("---\n")) {
-    return { frontmatterBrut: "", corps: normalise };
-  }
-
-  const fin = normalise.indexOf("\n---", 4);
-  if (fin === -1) {
-    return { frontmatterBrut: "", corps: normalise };
-  }
-
-  const finFrontmatter = fin + "\n---".length;
-  const frontmatterBrut = normalise.slice(0, finFrontmatter);
-  const corps = normalise.slice(finFrontmatter).replace(/^\n+/, "");
-
-  return { frontmatterBrut, corps };
-}
+export { separerFrontMatterEtCorps, REGEX_INLINE_MARKDOWN };
+export type { ExtractionFrontMatter };
 
 /**
  * Recompose le document complet avec son frontmatter YAML d'origine.
@@ -61,7 +44,7 @@ function echapperHtml(texte: string): string {
 export function formaterEnLigneVersHtml(texte: string): string {
   const tokens: Array<{ type: "html" | "text"; value: string }> = [];
   // Découpe sur les wikiliens, le gras, l'italique et le code
-  const regex = /(\[\[[^\]]+\]\]|\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g;
+  const regex = REGEX_INLINE_MARKDOWN;
   let dernierIndex = 0;
   let match: RegExpExecArray | null;
 
@@ -220,8 +203,10 @@ function serialiserNœudsInlineVersMarkdown(node: Node): string {
     const tagName = el.tagName.toLowerCase();
 
     if (el.classList.contains("wikilien-badge") || el.hasAttribute("data-wikilien")) {
-      const cible = el.getAttribute("data-wikilien") ?? el.textContent?.replace(/^\[\[|\]\]$/g, "").trim() ?? "";
-      return `[[${cible}]]`;
+      const cible = el.getAttribute("data-wikilien") ?? "";
+      const texteAffiche = el.textContent?.replace(/^\[\[|\]\]$/g, "").trim() ?? "";
+      if (!cible) return texteAffiche ? `[[${texteAffiche}]]` : "";
+      return texteAffiche && texteAffiche !== cible ? `[[${cible}|${texteAffiche}]]` : `[[${cible}]]`;
     }
 
     const enfants = Array.from(el.childNodes)
