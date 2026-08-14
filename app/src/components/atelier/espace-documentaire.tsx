@@ -37,7 +37,7 @@ import {
   supprimerPieceJointeAction,
   supprimerNoteSupportAction,
 } from "@/lib/store/document-actions";
-import type { VueDomaineAtelier } from "@/lib/documents/vue-atelier";
+import type { VueDomaineAtelier, VueCompetenceAtelier } from "@/lib/documents/vue-atelier";
 import { cleParCompte } from "@/lib/ui/stockage-session";
 import { BoutonRetour } from "@/components/ui/lien-retour";
 import { BoutonOuvrirExplorateur, FichePedagogiqueAtelier, PanneauPedagogiqueAtelier } from "./fiche-pedagogique";
@@ -52,7 +52,7 @@ import {
   type NoeudDossier,
 } from "@/lib/documents/arbre-atelier";
 import { EditeurDirect } from "./editeur-document";
-import { VueTousLesDomaines, VueTransversale, VueCategorieTransversale, BarreVuesAtelier } from "./vues-synthese-atelier";
+import { VueTousLesDomaines, VueTransversale, VueCategorieTransversale, BarreVuesAtelier, EnteteVueAtelier } from "./vues-synthese-atelier";
 import { PanneauExerciceAtelier } from "./panneaux-document-atelier";
 import type { ElementAtelier } from "./types-atelier";
 
@@ -127,8 +127,8 @@ function documentDepuisAnalyse(document: ReturnType<typeof analyserDocumentMarkd
 
 function trouverElement(id: string, liste: ElementAtelier[]): ElementAtelier | undefined {
   if (!id) return undefined;
-  if (id === "domaines" || id === "transversal" || id === "domaines-archives") {
-    const titre = id === "transversal" ? "Transversal" : id === "domaines-archives" ? "Domaines archivés" : "Domaines";
+  if (id === "domaines" || id === "transversal" || id === "domaines-archives" || id === "graphe") {
+    const titre = id === "transversal" ? "Transversal" : id === "domaines-archives" ? "Domaines archivés" : id === "graphe" ? "Constellation" : "Domaines";
     return {
       id,
       titre,
@@ -195,16 +195,17 @@ export function EspaceDocumentaire({
       if (
         documentDemande === "domaines" ||
         documentDemande === "transversal" ||
-        documentDemande === "domaines-archives"
+        documentDemande === "domaines-archives" ||
+        documentDemande === "graphe"
       ) {
         return documentDemande;
       }
-      return trouverElement(documentDemande, elementsInitials)?.id ?? null;
+      return trouverElement(documentDemande, elementsInitials)?.id ?? "domaines";
     }
     if (dossierDemande) {
       return `dossier:${dossierDemande}`;
     }
-    return null;
+    return "domaines";
   }, [documentDemande, dossierDemande, elementsInitials]);
   const [selection, setSelection] = useState<string | null>(selectionInitiale);
   const [brouillons, setBrouillons] = useState<Record<string, string>>({});
@@ -255,12 +256,17 @@ export function EspaceDocumentaire({
   }, [dossiersStockes]);
   const [recherche, setRecherche] = useState("");
   const [contexteOuvert, setContexteOuvert] = useState(false);
+  const [panneauDroitVisible, setPanneauDroitVisible] = useState(true);
   const [sidebarOuverte, setSidebarOuverte] = useState(true);
   const [cibleLien, setCibleLien] = useState("");
   const [piecesJointesParDocument, setPiecesJointesParDocument] = useState<Record<string, PieceJointeDocument[]>>({});
 
   const selectionnee =
-    selection === "domaines" || selection === "transversal" || selection === "domaines-archives"
+    selection === "domaines" ||
+    selection === "transversal" ||
+    selection === "domaines-archives" ||
+    selection === "graphe" ||
+    selection === "constellation"
       ? null
       : selection
       ? (trouverElement(selection, elements) ?? null)
@@ -270,6 +276,30 @@ export function EspaceDocumentaire({
   const roleLibelle = role === "support" ? "Support" : role === "operationnel" ? "Opérationnel" : null;
   const dateAffichee = selectionnee ? formaterDateDocument(selectionnee) : null;
   const brouillon = selectionnee ? brouillons[selectionnee.id] ?? selectionnee.contenuMd : "";
+
+  // Auto-expansion de l'arborescence vers le dossier de l'élément sélectionné
+  useEffect(() => {
+    const cheminCible = selectionnee?.dossier || (selection?.startsWith("dossier:") ? selection.slice("dossier:".length) : null);
+    if (!cheminCible) return;
+    const segments = cheminCible.split("/").filter(Boolean);
+    let cumule = "";
+    const aAjouter: string[] = [];
+    for (const seg of segments) {
+      cumule = cumule ? `${cumule}/${seg}` : seg;
+      if (!dossiersOuverts.has(cumule)) {
+        aAjouter.push(cumule);
+      }
+    }
+    if (aAjouter.length > 0) {
+      const suivants = new Set([...dossiersOuverts, ...aAjouter]);
+      try {
+        window.localStorage.setItem(cleDossiers, JSON.stringify([...suivants]));
+        notifierDossiers(cleDossiers);
+      } catch {
+        // Ignorer si le stockage est indisponible
+      }
+    }
+  }, [selectionnee?.dossier, selection, dossiersOuverts, cleDossiers]);
   const liensCourants = selectionnee
     ? selectionnee.contenuCharge
       ? analyserDocumentMarkdown(selectionnee.id, brouillon).liens
@@ -345,7 +375,7 @@ export function EspaceDocumentaire({
       } else if (dossierParam) {
         setSelection(`dossier:${dossierParam}`);
       } else {
-        setSelection(null);
+        setSelection("domaines");
       }
       setCibleLien("");
       setSnapshotApercu(null);
@@ -363,20 +393,54 @@ export function EspaceDocumentaire({
   }, [selection, elements, chargerContenuDocument]);
 
   function revenirGrapheGlobal(opts?: { remplacerHistorique?: boolean } | unknown) {
-    setSelection(null);
+    setSelection("graphe");
     setCibleLien("");
     setSnapshotApercu(null);
+    const nouvelleUrl = "/atelier?document=graphe";
     const remplacer = typeof opts === "object" && opts !== null && "remplacerHistorique" in opts && Boolean((opts as { remplacerHistorique?: boolean }).remplacerHistorique);
     if (remplacer) {
-      window.history.replaceState(null, "", "/atelier");
+      window.history.replaceState({ documentId: "graphe" }, "", nouvelleUrl);
     } else {
-      window.history.pushState(null, "", "/atelier");
+      window.history.pushState({ documentId: "graphe" }, "", nouvelleUrl);
+    }
+  }
+
+  function revenirAccueilAtelier(opts?: { remplacerHistorique?: boolean } | unknown) {
+    setSelection("domaines");
+    setCibleLien("");
+    setSnapshotApercu(null);
+    const nouvelleUrl = "/atelier";
+    const remplacer = typeof opts === "object" && opts !== null && "remplacerHistorique" in opts && Boolean((opts as { remplacerHistorique?: boolean }).remplacerHistorique);
+    if (remplacer) {
+      window.history.replaceState(null, "", nouvelleUrl);
+    } else {
+      window.history.pushState(null, "", nouvelleUrl);
     }
   }
 
   function trouverCible(cible: string): ElementAtelier | undefined {
     return trouverElement(cible, elements);
   }
+
+  const domainesExistants = useMemo(() => {
+    return elements
+      .filter((el) => el.type === "domaine" && el.vuePedagogique)
+      .map((el) => {
+        const v = el.vuePedagogique as VueDomaineAtelier;
+        return { id: v.domaine.id, nom: v.domaine.nom, prefixe: v.domaine.prefixe };
+      });
+  }, [elements]);
+
+  const competencesParCode = useMemo(() => {
+    const map = new Map<string, { intitule: string; domaine: string }>();
+    elements
+      .filter((el) => el.type === "competence" && el.vuePedagogique)
+      .forEach((el) => {
+        const v = el.vuePedagogique as VueCompetenceAtelier;
+        map.set(v.code, { intitule: el.titre, domaine: v.domaineNom });
+      });
+    return map;
+  }, [elements]);
 
   const arbreDossiers = useMemo(() => construireArbreDossiers(elementsVisibles), [elementsVisibles]);
   const racineTransversale = trouverNoeudDossier(arbreDossiers, "Transversal");
@@ -732,14 +796,27 @@ export function EspaceDocumentaire({
   return (
     <section className="relative -mx-2 flex flex-col overflow-hidden rounded-xl border border-bordure bg-surface shadow-[var(--ombre-levee)] lg:-mx-6 2xl:-mx-8 lg:h-[calc(100vh-12.5rem)] lg:min-h-[34rem]">
       {selectionnee && (
-        <div className="flex items-center justify-end border-b border-bordure bg-surface px-3 py-2 2xl:hidden">
+        <div className="flex items-center justify-end border-b border-bordure bg-surface px-3 py-1.5 2xl:hidden">
           <button
             type="button"
             onClick={() => setContexteOuvert(true)}
-            className="rounded-lg border border-bordure-controle bg-surface-2 px-3 py-2 text-sm font-medium text-texte"
+            className="rounded-lg border border-bordure-controle bg-surface-2 px-3 py-1.5 text-xs font-medium text-texte hover:bg-surface-3 transition-colors cursor-pointer"
             aria-expanded={contexteOuvert}
           >
-            Ouvrir le contexte
+            Ouvrir le volet de contexte
+          </button>
+        </div>
+      )}
+      {selectionnee && !panneauDroitVisible && (
+        <div className="hidden 2xl:flex items-center justify-end border-b border-bordure bg-surface px-4 py-1.5">
+          <button
+            type="button"
+            onClick={() => setPanneauDroitVisible(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-bordure bg-surface-2 px-2.5 py-1 text-xs font-medium text-texte-attenue hover:text-texte hover:bg-surface-3 transition-colors cursor-pointer"
+            title="Afficher le volet de contexte"
+          >
+            <span>Afficher le contexte</span>
+            <span aria-hidden>→</span>
           </button>
         </div>
       )}
@@ -754,11 +831,11 @@ export function EspaceDocumentaire({
       <div className={cx(
         "flex flex-1 min-h-0 flex-col lg:grid lg:h-full transition-all duration-300",
         sidebarOuverte
-          ? selectionnee
-            ? "lg:grid-cols-[20rem_minmax(0,1fr)] 2xl:grid-cols-[20rem_minmax(0,1fr)_23rem]"
+          ? selectionnee && panneauDroitVisible
+            ? "lg:grid-cols-[20rem_minmax(0,1fr)] 2xl:grid-cols-[20rem_minmax(0,1fr)_22rem]"
             : "lg:grid-cols-[20rem_minmax(0,1fr)]"
-          : selectionnee
-            ? "lg:grid-cols-[1fr] 2xl:grid-cols-[minmax(0,1fr)_23rem]"
+          : selectionnee && panneauDroitVisible
+            ? "lg:grid-cols-[1fr] 2xl:grid-cols-[minmax(0,1fr)_22rem]"
             : "lg:grid-cols-[1fr]",
       )}>
         <aside
@@ -793,15 +870,15 @@ export function EspaceDocumentaire({
             </div>
           </div>
 
-          {selectionnee && (
+          {selection && selection !== "domaines" && (
             <div className="border-b border-[var(--rail-bordure)] px-3 py-2 shrink-0">
               <button
                 type="button"
-                onClick={revenirGrapheGlobal}
-                className="flex w-full items-center gap-2 rounded-lg bg-[var(--rail-2)] px-3 py-2 text-xs font-semibold text-[var(--rail-texte)] transition-colors hover:bg-[var(--rail-actif)] hover:text-[var(--rail-actif-texte)]"
+                onClick={revenirAccueilAtelier}
+                className="flex w-full items-center gap-2 rounded-lg bg-[var(--rail-2)] px-3 py-2 text-xs font-semibold text-[var(--rail-texte)] transition-colors hover:bg-[var(--rail-actif)] hover:text-[var(--rail-actif-texte)] cursor-pointer"
               >
                 <span>←</span>
-                <span className="truncate">Revenir au graphe global</span>
+                <span className="truncate">Accueil Atelier</span>
               </button>
             </div>
           )}
@@ -814,7 +891,24 @@ export function EspaceDocumentaire({
         </aside>
 
         <main className="flex h-full min-w-0 flex-1 flex-col min-h-0 overflow-hidden bg-surface">
-          {selection === "transversal" ? (
+          {selection === "graphe" || selection === "constellation" ? (
+            <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface">
+              <EnteteVueAtelier
+                titre="Constellation"
+                description="Navigation relationnelle dans le graphe des compétences et documents"
+                vue="graphe"
+                onChangerVue={(v) => {
+                  if (v === "graphe") revenirGrapheGlobal();
+                  else ouvrirElement(v);
+                }}
+                sidebarOuverte={sidebarOuverte}
+                setSidebarOuverte={setSidebarOuverte}
+              />
+              <div className="flex min-h-0 flex-1 flex-col p-4">
+                <GrapheCompetences donnees={graphe.donnees} compteId={graphe.compteId} ouvrirElement={ouvrirElement} />
+              </div>
+            </div>
+          ) : selection === "transversal" ? (
             <VueTransversale
               racine={racineTransversale}
               ouvrirDossier={ouvrirDossier}
@@ -822,6 +916,9 @@ export function EspaceDocumentaire({
               revenirGrapheGlobal={revenirGrapheGlobal}
               sidebarOuverte={sidebarOuverte}
               setSidebarOuverte={setSidebarOuverte}
+              compteId={graphe.compteId}
+              competencesParCode={competencesParCode}
+              domainesExistants={domainesExistants}
             />
           ) : dossierSelectionne ? (
             <VueCategorieTransversale
@@ -845,6 +942,10 @@ export function EspaceDocumentaire({
               revenirGrapheGlobal={revenirGrapheGlobal}
               sidebarOuverte={sidebarOuverte}
               setSidebarOuverte={setSidebarOuverte}
+              compteId={graphe.compteId}
+              generation={generation}
+              competencesParCode={competencesParCode}
+              domainesExistants={domainesExistants}
             />
           ) : selection === "domaines" || selection === "domaines-archives" ? (
             <VueTousLesDomaines
@@ -861,6 +962,8 @@ export function EspaceDocumentaire({
               sidebarOuverte={sidebarOuverte}
               setSidebarOuverte={setSidebarOuverte}
               selection={selection}
+              compteId={graphe.compteId}
+              domainesExistants={domainesExistants}
             />
           ) : selectionnee?.vuePedagogique ? (
             <FichePedagogiqueAtelier
@@ -871,7 +974,7 @@ export function EspaceDocumentaire({
               ouvrirDossier={ouvrirDossier}
               arbreDossiers={arbreDossiers}
               elements={elements}
-              revenirGraphe={revenirGrapheGlobal}
+              revenirGraphe={revenirAccueilAtelier}
               sidebarOuverte={sidebarOuverte}
               setSidebarOuverte={setSidebarOuverte}
               compteId={graphe.compteId}
@@ -886,7 +989,7 @@ export function EspaceDocumentaire({
                 <FilArianeAtelier
                   dossier={selectionnee.dossier}
                   titreCourant={selectionnee.titre}
-                  revenirGraphe={revenirGrapheGlobal}
+                  revenirGraphe={revenirAccueilAtelier}
                   ouvrirElement={ouvrirElement}
                   ouvrirDossier={ouvrirDossier}
                   arbreDossiers={arbreDossiers}
@@ -1149,32 +1252,19 @@ export function EspaceDocumentaire({
               </div>
             </>
           ) : (
-            <div className="flex h-full min-h-0 flex-1 flex-col bg-surface">
-              <div className="flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure px-6 shrink-0">
-                <div className="flex items-center gap-3">
-                  {!sidebarOuverte && (
-                    <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />
-                  )}
-                  <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-texte-discret leading-none">Mémoire documentaire</p>
-                    <h2 className="mt-0.5 font-serif text-2xl font-medium tracking-tight leading-tight">Graphe global</h2>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-texte-discret hidden sm:inline">Documents, compétences, exercices et thèmes reliés</span>
-                  <BarreVuesAtelier
-                    vue="graphe"
-                    onChanger={(v) => {
-                      if (v === "graphe") revenirGrapheGlobal();
-                      else ouvrirElement(v);
-                    }}
-                  />
-                </div>
-              </div>
-              <div className="flex min-h-0 flex-1 flex-col p-4">
-                <GrapheCompetences donnees={graphe.donnees} compteId={graphe.compteId} ouvrirElement={ouvrirElement} />
-              </div>
-            </div>
+            <VueTousLesDomaines
+              domaines={elements
+                .filter((el) => el.type === "domaine" && el.vuePedagogique)
+                .filter((el) => !(el.vuePedagogique as VueDomaineAtelier).domaine.archive)
+                .map((el) => el.vuePedagogique as VueDomaineAtelier)}
+              ouvrirElement={ouvrirElement}
+              revenirGrapheGlobal={revenirGrapheGlobal}
+              sidebarOuverte={sidebarOuverte}
+              setSidebarOuverte={setSidebarOuverte}
+              selection="domaines"
+              compteId={graphe.compteId}
+              domainesExistants={domainesExistants}
+            />
           )}
         </main>
 
@@ -1182,20 +1272,26 @@ export function EspaceDocumentaire({
           <aside
             key={contexteOuvert ? "ouvert" : "ferme"}
             className={cx(
-              "min-h-0 overflow-y-auto border-l border-bordure bg-surface shadow-2xl coulissement-droite",
+              "min-h-0 overflow-y-auto border-l border-bordure bg-surface shadow-2xl coulissement-droite transition-all duration-200",
               contexteOuvert
                 ? "fixed bottom-4 right-4 top-4 z-50 block w-[min(26rem,calc(100vw-2rem))] rounded-xl border"
                 : "hidden",
-              "2xl:static 2xl:z-auto 2xl:block 2xl:h-full 2xl:max-h-full 2xl:w-auto 2xl:rounded-none 2xl:border-y-0 2xl:border-r-0 2xl:shadow-none",
+              panneauDroitVisible
+                ? "2xl:static 2xl:z-auto 2xl:block 2xl:h-full 2xl:max-h-full 2xl:w-auto 2xl:rounded-none 2xl:border-y-0 2xl:border-r-0 2xl:shadow-none"
+                : "2xl:hidden",
             )}
             aria-label="Contexte du document"
           >
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-bordure bg-surface px-4 py-3 2xl:hidden">
-              <span className="text-sm font-semibold">Contexte</span>
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-bordure bg-surface px-4 py-2.5">
+              <span className="text-xs font-semibold uppercase tracking-wider text-texte-discret">Contexte</span>
               <button
                 type="button"
-                onClick={() => setContexteOuvert(false)}
-                className="grid size-9 place-items-center rounded-lg border border-bordure text-lg text-texte-attenue"
+                onClick={() => {
+                  setContexteOuvert(false);
+                  setPanneauDroitVisible(false);
+                }}
+                className="grid size-7 place-items-center rounded-lg border border-bordure text-sm text-texte-attenue hover:bg-surface-2 transition-colors cursor-pointer"
+                title="Masquer le volet de contexte"
                 aria-label="Fermer le contexte"
               >
                 ×

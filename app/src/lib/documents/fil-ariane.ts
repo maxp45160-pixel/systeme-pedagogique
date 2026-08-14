@@ -42,10 +42,18 @@ export function resoudreSegmentsFilAriane({
   elements = [],
   arbreDossiers = [],
 }: ParametresFilAriane): FilArianeResolu {
-  const parties = dossier
+  let parties = dossier
     .split("/")
     .map((p) => p.trim())
     .filter(Boolean);
+
+  // Éviter la duplication si la dernière partie du chemin de dossier est identique au titre courant
+  if (
+    parties.length > 0 &&
+    parties[parties.length - 1].toLowerCase() === titreCourant.trim().toLowerCase()
+  ) {
+    parties = parties.slice(0, -1);
+  }
 
   const segments: SegmentFilAriane[] = parties.map((partie, index) => {
     const cheminCumule = parties.slice(0, index + 1).join("/");

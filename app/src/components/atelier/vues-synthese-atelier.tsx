@@ -1,11 +1,68 @@
 "use client";
 
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { cx } from "@/components/ui/primitives";
 import { BoutonRetour } from "@/components/ui/lien-retour";
 import { FilArianeAtelier, BoutonOuvrirExplorateur } from "./fil-ariane-atelier";
 import { compterElements, trouverNoeudDossier, type NoeudDossier } from "@/lib/documents/arbre-atelier";
 import type { VueDomaineAtelier } from "@/lib/documents/vue-atelier";
 import type { ElementAtelier } from "./types-atelier";
+import { ModaleCompetence } from "@/components/referentiel/modale-competence";
+import { ModaleTheme } from "@/components/seances/modale-theme";
+import {
+  BoutonSuppressionCarte,
+  ModaleConfirmationSuppression,
+} from "./modale-confirmation-suppression";
+import { archiverDomaine, retirerCompetences } from "@/lib/store/referentiel-actions";
+import { retirerTheme } from "@/lib/store/theme-actions";
+import { sauvegarderDocumentAction, supprimerDocumentAction } from "@/lib/store/document-actions";
+import { BoutonGenerer } from "@/components/exercices/bouton-generer";
+import type { CalibrageModale, CompetenceModale } from "@/components/exercices/proprietes-generation";
+import {
+  IconeTheme,
+  IconeCompetences,
+  IconeExercices,
+  IconeDocuments,
+  IconeFleche,
+} from "@/components/ui/icones";
+
+export function CarteCreationPointillee({
+  titre,
+  description,
+  onClick,
+  className,
+}: {
+  titre: string;
+  description?: string;
+  onClick: () => void;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cx(
+        "group flex min-h-[170px] flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-bordure/80 bg-surface/20 p-6 text-center shadow-xs transition-all duration-200 hover:-translate-y-1 hover:border-primaire/60 hover:bg-surface hover:shadow-[var(--ombre-posee)] cursor-pointer",
+        className,
+      )}
+    >
+      <span className="grid size-10 place-items-center rounded-full bg-surface-2 text-lg font-semibold text-texte-discret transition-colors group-hover:bg-primaire-faible group-hover:text-primaire">
+        +
+      </span>
+      <div className="min-w-0">
+        <span className="block font-serif text-sm font-semibold text-texte transition-colors group-hover:text-primaire">
+          {titre}
+        </span>
+        {description && (
+          <span className="mt-1 block text-xs text-texte-discret leading-relaxed max-w-[220px] mx-auto">
+            {description}
+          </span>
+        )}
+      </div>
+    </button>
+  );
+}
 
 export function BarreVuesAtelier({
   vue,
@@ -15,9 +72,9 @@ export function BarreVuesAtelier({
   onChanger: (v: "graphe" | "domaines" | "transversal") => void;
 }) {
   const options = [
-    { cle: "graphe" as const, libelle: "Constellation" },
     { cle: "domaines" as const, libelle: "Domaines" },
     { cle: "transversal" as const, libelle: "Transversal" },
+    { cle: "graphe" as const, libelle: "Constellation" },
   ];
   return (
     <div
@@ -97,6 +154,8 @@ export function VueTousLesDomaines({
   sidebarOuverte,
   setSidebarOuverte,
   selection,
+  compteId,
+  domainesExistants = [],
 }: {
   domaines: VueDomaineAtelier[];
   ouvrirElement: (id: string) => void;
@@ -104,7 +163,12 @@ export function VueTousLesDomaines({
   sidebarOuverte?: boolean;
   setSidebarOuverte?: (ouverte: boolean) => void;
   selection?: string | null;
+  compteId?: string;
+  domainesExistants?: { id: string; nom: string; prefixe: string }[];
 }) {
+  const router = useRouter();
+  const [modaleCreationOuverte, setModaleCreationOuverte] = useState(false);
+  const [domaineASupprimer, setDomaineASupprimer] = useState<VueDomaineAtelier | null>(null);
   const estTransversal = selection === "transversal";
   const estArchives = selection === "domaines-archives";
 
@@ -141,45 +205,90 @@ export function VueTousLesDomaines({
             const evaluees = domaine.nombreEvaluees;
             const ratio = total > 0 ? Math.round((evaluees / total) * 100) : 0;
             return (
-              <button
-                key={domaine.id}
-                type="button"
-                onClick={() => ouvrirElement(`domaine:${domaine.id}`)}
-                className="group flex flex-col justify-between rounded-xl border border-bordure bg-surface p-5 text-left shadow-[var(--ombre-posee)] transition-all duration-200 hover:-translate-y-1 hover:border-primaire/40 hover:shadow-[var(--ombre-levee)] cursor-pointer"
-              >
-                <div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="rounded-md bg-primaire-faible px-2.5 py-1 text-xs font-semibold text-primaire">
-                      Domaine
-                    </span>
-                    <span className="chiffres text-xs text-texte-discret">
-                      {total} compétence{total > 1 ? "s" : ""}
-                    </span>
+              <div key={domaine.id} className="group relative">
+                <button
+                  type="button"
+                  onClick={() => ouvrirElement(`domaine:${domaine.id}`)}
+                  className="flex h-full w-full flex-col justify-between rounded-xl border border-bordure bg-surface p-5 text-left shadow-[var(--ombre-posee)] transition-all duration-200 hover:-translate-y-1 hover:border-primaire/40 hover:shadow-[var(--ombre-levee)] cursor-pointer"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-3 pr-8">
+                      <span className="rounded-md bg-primaire-faible px-2.5 py-1 text-xs font-semibold text-primaire">
+                        Domaine
+                      </span>
+                      <span className="chiffres text-xs text-texte-discret">
+                        {total} compétence{total > 1 ? "s" : ""}
+                      </span>
+                    </div>
+                    <h3 className="mt-3 font-serif text-lg font-medium leading-snug text-texte group-hover:text-primaire">
+                      {domaine.nom}
+                    </h3>
+                    {domaine.description && (
+                      <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-texte-attenue">
+                        {domaine.description}
+                      </p>
+                    )}
                   </div>
-                  <h3 className="mt-3 font-serif text-lg font-medium leading-snug text-texte group-hover:text-primaire">
-                    {domaine.nom}
-                  </h3>
-                  {domaine.description && (
-                    <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-texte-attenue">
-                      {domaine.description}
-                    </p>
-                  )}
-                </div>
 
-                <div className="mt-5 border-t border-bordure pt-3">
-                  <div className="flex items-center justify-between text-xs text-texte-discret">
-                    <span>Couverture</span>
-                    <span className="chiffres font-medium text-texte">{ratio}% ({evaluees}/{total})</span>
+                  <div className="mt-5 border-t border-bordure pt-3">
+                    <div className="flex items-center justify-between text-xs text-texte-discret">
+                      <span>Couverture</span>
+                      <span className="chiffres font-medium text-texte">{ratio}% ({evaluees}/{total})</span>
+                    </div>
+                    <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-surface-3">
+                      <div className="h-full rounded-full bg-primaire transition-all duration-300" style={{ width: `${ratio}%` }} />
+                    </div>
                   </div>
-                  <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-surface-3">
-                    <div className="h-full rounded-full bg-primaire transition-all duration-300" style={{ width: `${ratio}%` }} />
-                  </div>
-                </div>
-              </button>
+                </button>
+
+                {!estArchives && (
+                  <BoutonSuppressionCarte
+                    titre="Archiver ce domaine"
+                    onClick={() => setDomaineASupprimer(domaine)}
+                  />
+                )}
+              </div>
             );
           })}
+
+          {!estArchives && !estTransversal && compteId && (
+            <CarteCreationPointillee
+              titre="Ajouter un domaine"
+              description="Créer une nouvelle branche de compétences"
+              onClick={() => setModaleCreationOuverte(true)}
+            />
+          )}
         </div>
       </div>
+
+      {domaineASupprimer && (
+        <ModaleConfirmationSuppression
+          titre="Archiver le domaine"
+          nomElement={domaineASupprimer.nom}
+          typeElement="domaine"
+          mode="archivage"
+          explication="Ce domaine et ses compétences seront retirés du pilotage actif. Toutes les preuves d'apprentissage et historiques restent fidèlement conservés dans le système."
+          texteBoutonConfirmer="Confirmer l’archivage"
+          onConfirmer={async () => {
+            await archiverDomaine(domaineASupprimer.id);
+            setDomaineASupprimer(null);
+            router.refresh();
+          }}
+          onFermer={() => setDomaineASupprimer(null)}
+        />
+      )}
+
+      {modaleCreationOuverte && compteId && (
+        <ModaleCompetence
+          compteId={compteId}
+          domainesExistants={domainesExistants}
+          onFermer={() => setModaleCreationOuverte(false)}
+          surEnregistre={() => {
+            setModaleCreationOuverte(false);
+            router.refresh();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -198,6 +307,9 @@ export function VueTransversale({
   revenirGrapheGlobal: () => void;
   sidebarOuverte?: boolean;
   setSidebarOuverte?: (ouverte: boolean) => void;
+  compteId?: string;
+  competencesParCode?: Map<string, { intitule: string; domaine: string }>;
+  domainesExistants?: { id: string; nom: string; prefixe: string }[];
 }) {
   const categories = racine?.enfants ?? [];
   return (
@@ -214,20 +326,20 @@ export function VueTransversale({
         setSidebarOuverte={setSidebarOuverte}
       />
       <div className="p-6 lg:p-8">
-        {categories.length ? (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {categories.map((categorie) => (
-              <button key={categorie.chemin} type="button" onClick={() => ouvrirDossier(categorie.chemin)} className="rounded-xl border border-bordure bg-surface p-5 text-left shadow-[var(--ombre-posee)] transition-all hover:-translate-y-0.5 hover:border-primaire/40 hover:shadow-[var(--ombre-levee)]">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs font-semibold uppercase tracking-[0.1em] text-primaire">Catégorie</span>
-                  <span className="chiffres text-xs text-texte-discret">{compterElements(categorie)}</span>
-                </div>
-                <h3 className="mt-3 font-serif text-lg font-medium">{categorie.nom}</h3>
-                <p className="mt-2 text-xs text-texte-discret">Ouvrir la catégorie et ses sous-catégories</p>
-              </button>
-            ))}
-          </div>
-        ) : (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {categories.map((categorie) => (
+            <button key={categorie.chemin} type="button" onClick={() => ouvrirDossier(categorie.chemin)} className="rounded-xl border border-bordure bg-surface p-5 text-left shadow-[var(--ombre-posee)] transition-all hover:-translate-y-0.5 hover:border-primaire/40 hover:shadow-[var(--ombre-levee)] cursor-pointer">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-semibold uppercase tracking-[0.1em] text-primaire">Catégorie</span>
+                <span className="chiffres text-xs text-texte-discret">{compterElements(categorie)}</span>
+              </div>
+              <h3 className="mt-3 font-serif text-lg font-medium">{categorie.nom}</h3>
+              <p className="mt-2 text-xs text-texte-discret">Ouvrir la catégorie et ses sous-catégories</p>
+            </button>
+          ))}
+        </div>
+
+        {categories.length === 0 && (
           <p className="rounded-xl border border-dashed border-bordure bg-surface p-6 text-sm text-texte-discret">Aucune catégorie transversale n’est encore alimentée.</p>
         )}
       </div>
@@ -245,6 +357,10 @@ export function VueCategorieTransversale({
   revenirGrapheGlobal,
   sidebarOuverte,
   setSidebarOuverte,
+  compteId,
+  generation,
+  competencesParCode,
+  domainesExistants = [],
 }: {
   noeud: NoeudDossier<ElementAtelier>;
   arbreDossiers?: NoeudDossier<ElementAtelier>[];
@@ -255,8 +371,36 @@ export function VueCategorieTransversale({
   revenirGrapheGlobal?: () => void;
   sidebarOuverte?: boolean;
   setSidebarOuverte?: (ouverte: boolean) => void;
+  compteId?: string;
+  generation?: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
+  competencesParCode?: Map<string, { intitule: string; domaine: string }>;
+  domainesExistants?: { id: string; nom: string; prefixe: string }[];
 }) {
+  const router = useRouter();
+  const [modaleThemeOuverte, setModaleThemeOuverte] = useState(false);
+  const [elementASupprimer, setElementASupprimer] = useState<ElementAtelier | null>(null);
+  const [creationNoteEnCours, demarrerCreationNote] = useTransition();
+
   const parties = noeud.chemin.split("/").map((p) => p.trim()).filter(Boolean);
+  const estThemes = noeud.nom === "Thèmes" || noeud.chemin.endsWith("/Thèmes") || noeud.chemin === "Transversal/Thèmes";
+  const estExercices = noeud.nom === "Exercices" || noeud.chemin.endsWith("/Exercices") || noeud.chemin === "Transversal/Exercices";
+  const estNotes = noeud.nom.includes("Notes") || noeud.chemin.includes("Notes");
+
+  async function creerNouvelleNote() {
+    demarrerCreationNote(async () => {
+      try {
+        const timestamp = Date.now().toString(36);
+        const id = `note-${timestamp}`;
+        const titreDoc = `Nouvelle note ${new Date().toLocaleDateString("fr-FR")}`;
+        const contenuInitial = `# ${titreDoc}\n\nNotes et observations libres.\n\n- \n`;
+        await sauvegarderDocumentAction(id, contenuInitial);
+        router.refresh();
+        ouvrirElement(id);
+      } catch (err) {
+        console.error("Erreur lors de la création de la note:", err);
+      }
+    });
+  }
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-surface-2/30">
@@ -289,17 +433,276 @@ export function VueCategorieTransversale({
             ))}
           </section>
         )}
-        {noeud.elements.length > 0 && (
-          <section className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-            {noeud.elements.map((element) => (
-              <button key={element.id} type="button" onClick={() => ouvrirElement(element.id)} className="rounded-xl border border-bordure bg-surface p-4 text-left hover:border-primaire/40 cursor-pointer transition-colors">
-                <span className="text-[0.6875rem] text-texte-discret">{element.typeLibelle}</span>
-                <span className="mt-1 block text-sm font-semibold">{element.titre}</span>
-              </button>
-            ))}
-          </section>
-        )}
+
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {noeud.elements.map((element) => {
+            const estTheme = element.id.startsWith("theme:") || element.type === "theme";
+            const estDoc = element.type === "document" || element.type === "note" || element.id.startsWith("note-") || element.id.startsWith("doc-");
+            const estComp = element.type === "competence";
+            const estExo = element.type === "exercice";
+            const supprimable = estTheme || estDoc || estComp;
+            const vuePedag = element.vuePedagogique as any;
+
+            if (estTheme) {
+              const nbCodes = Array.isArray(element.frontMatter.codes) ? element.frontMatter.codes.length : (vuePedag?.competences?.length ?? 0);
+              const intention = typeof element.frontMatter.intention === "string" ? element.frontMatter.intention : vuePedag?.intention;
+
+              return (
+                <div key={element.id} className="group relative">
+                  <button
+                    type="button"
+                    onClick={() => ouvrirElement(element.id)}
+                    className="flex h-full w-full min-h-[170px] flex-col justify-between rounded-2xl border border-bordure bg-surface p-5 text-left shadow-[var(--ombre-posee)] transition-all duration-200 hover:-translate-y-1 hover:border-primaire/40 hover:shadow-[var(--ombre-levee)] cursor-pointer"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-3 pr-8">
+                        <span className="grid size-9 place-items-center rounded-xl border border-accent/25 bg-accent/10 text-accent shadow-xs">
+                          <IconeTheme className="size-4.5" />
+                        </span>
+                        {nbCodes > 0 && (
+                          <span className="chiffres text-xs font-medium text-texte-discret">
+                            {nbCodes} compétence{nbCodes > 1 ? "s" : ""}
+                          </span>
+                        )}
+                      </div>
+
+                      <h3 className="mt-3.5 font-serif text-base font-semibold leading-snug text-texte group-hover:text-primaire transition-colors">
+                        {element.titre}
+                      </h3>
+
+                      {intention && (
+                        <p className="mt-2 line-clamp-2 text-xs italic font-serif leading-relaxed text-texte-attenue">
+                          « {intention} »
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between border-t border-bordure/60 pt-3 text-xs text-texte-discret">
+                      <span className="font-medium text-primaire group-hover:underline">Explorer le thème</span>
+                      <IconeFleche className="size-3.5 text-texte-discret transition-colors group-hover:text-primaire" />
+                    </div>
+                  </button>
+
+                  <BoutonSuppressionCarte
+                    titre={`Supprimer le thème ${element.titre}`}
+                    onClick={() => setElementASupprimer(element)}
+                  />
+                </div>
+              );
+            }
+
+            if (estComp) {
+              const code = element.id;
+              const niveau = vuePedag?.niveau;
+              const nbPreuves = vuePedag?.nombrePreuves ?? 0;
+              const domaineNom = vuePedag?.domaineNom;
+
+              return (
+                <div key={element.id} className="group relative">
+                  <button
+                    type="button"
+                    onClick={() => ouvrirElement(element.id)}
+                    className="flex h-full w-full min-h-[170px] flex-col justify-between rounded-2xl border border-bordure bg-surface p-5 text-left shadow-[var(--ombre-posee)] transition-all duration-200 hover:-translate-y-1 hover:border-primaire/40 hover:shadow-[var(--ombre-levee)] cursor-pointer"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-3 pr-8">
+                        <span className="font-mono text-xs font-semibold px-2.5 py-1 rounded-md bg-primaire-faible text-primaire">
+                          {code}
+                        </span>
+                        <span className="chiffres rounded-md bg-surface-2 px-2 py-0.5 text-[0.625rem] text-texte-discret font-medium">
+                          {niveau === null || niveau === undefined ? "Non évalué" : `Niveau ${niveau}`}
+                        </span>
+                      </div>
+
+                      <h3 className="mt-3 font-serif text-sm font-semibold leading-snug text-texte group-hover:text-primaire transition-colors">
+                        {element.titre}
+                      </h3>
+
+                      {domaineNom && (
+                        <p className="mt-1.5 line-clamp-1 text-xs text-texte-attenue">
+                          {domaineNom}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between border-t border-bordure/60 pt-3 text-xs text-texte-discret">
+                      <span className="chiffres">
+                        {nbPreuves} preuve{nbPreuves > 1 ? "s" : ""}
+                      </span>
+                      <span className="text-[0.6875rem] capitalize text-texte-discret">
+                        {vuePedag?.palier ?? "fondamentaux"}
+                      </span>
+                    </div>
+                  </button>
+
+                  <BoutonSuppressionCarte
+                    titre={`Retirer la compétence ${element.titre}`}
+                    onClick={() => setElementASupprimer(element)}
+                  />
+                </div>
+              );
+            }
+
+            if (estExo) {
+              const difficulte = typeof element.frontMatter.difficulte === "number" ? element.frontMatter.difficulte : null;
+              const nbTentatives = element.tentatives?.length ?? 0;
+
+              return (
+                <div key={element.id} className="group relative">
+                  <button
+                    type="button"
+                    onClick={() => ouvrirElement(element.id)}
+                    className="flex h-full w-full min-h-[170px] flex-col justify-between rounded-2xl border border-bordure bg-surface p-5 text-left shadow-[var(--ombre-posee)] transition-all duration-200 hover:-translate-y-1 hover:border-primaire/40 hover:shadow-[var(--ombre-levee)] cursor-pointer"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-3 pr-8">
+                        <span className="grid size-9 place-items-center rounded-xl bg-info-faible text-info">
+                          <IconeExercices className="size-4.5" />
+                        </span>
+                        {difficulte !== null && (
+                          <span className="chiffres text-xs text-texte-discret">
+                            Diff. {difficulte}/5
+                          </span>
+                        )}
+                      </div>
+
+                      <h3 className="mt-3.5 font-serif text-sm font-semibold leading-snug text-texte group-hover:text-primaire transition-colors">
+                        {element.titre}
+                      </h3>
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between border-t border-bordure/60 pt-3 text-xs text-texte-discret">
+                      <span className="chiffres">
+                        {nbTentatives} tentative{nbTentatives > 1 ? "s" : ""}
+                      </span>
+                      <span className="font-medium text-primaire group-hover:underline">S’exercer →</span>
+                    </div>
+                  </button>
+                </div>
+              );
+            }
+
+            return (
+              <div key={element.id} className="group relative">
+                <button
+                  type="button"
+                  onClick={() => ouvrirElement(element.id)}
+                  className="flex h-full w-full min-h-[170px] flex-col justify-between rounded-2xl border border-bordure bg-surface p-5 text-left shadow-[var(--ombre-posee)] transition-all duration-200 hover:-translate-y-1 hover:border-primaire/40 hover:shadow-[var(--ombre-levee)] cursor-pointer"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-3 pr-8">
+                      <span className="grid size-9 place-items-center rounded-xl bg-primaire-faible text-primaire">
+                        <IconeDocuments className="size-4.5" />
+                      </span>
+                      <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[0.625rem] font-medium capitalize text-texte-discret">
+                        {element.type}
+                      </span>
+                    </div>
+
+                    <h3 className="mt-3.5 font-serif text-sm font-semibold leading-snug text-texte group-hover:text-primaire transition-colors">
+                      {element.titre}
+                    </h3>
+                  </div>
+
+                  <div className="mt-4 flex items-center justify-between border-t border-bordure/60 pt-3 text-xs text-texte-discret">
+                    <span>Fiche de travail</span>
+                    <span className="font-medium text-primaire group-hover:underline">Ouvrir →</span>
+                  </div>
+                </button>
+
+                {supprimable && (
+                  <BoutonSuppressionCarte
+                    titre={`Supprimer ${element.titre}`}
+                    onClick={() => setElementASupprimer(element)}
+                  />
+                )}
+              </div>
+            );
+          })}
+
+          {estThemes && compteId && competencesParCode && (
+            <CarteCreationPointillee
+              titre="Nouveau thème transversal"
+              description="Composer un thème reliant des compétences"
+              onClick={() => setModaleThemeOuverte(true)}
+            />
+          )}
+
+          {estExercices && generation && compteId && (
+            <div className="group flex min-h-[170px] flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-bordure/80 bg-surface/20 p-6 text-center shadow-xs transition-all duration-200 hover:-translate-y-1 hover:border-primaire/60 hover:bg-surface hover:shadow-[var(--ombre-posee)]">
+              <span className="grid size-10 place-items-center rounded-full bg-surface-2 text-lg font-semibold text-texte-discret group-hover:bg-primaire-faible group-hover:text-primaire transition-colors">
+                +
+              </span>
+              <div className="min-w-0">
+                <BoutonGenerer
+                  competences={generation.competences}
+                  calibrages={generation.calibrages}
+                  compteId={compteId}
+                  competenceInitiale={generation.competences[0]?.code ?? ""}
+                  libelle="Générer un exercice"
+                  variante="secondaire"
+                  className="font-serif text-sm font-semibold text-primaire hover:underline"
+                />
+                <p className="mt-1 text-xs text-texte-discret leading-relaxed">
+                  Entraînement assisté par le tuteur
+                </p>
+              </div>
+            </div>
+          )}
+
+          {estNotes && (
+            <CarteCreationPointillee
+              titre={creationNoteEnCours ? "Création en cours..." : "Nouvelle note"}
+              description="Créer une fiche de travail ou ressource"
+              onClick={creerNouvelleNote}
+            />
+          )}
+        </section>
       </div>
+
+      {modaleThemeOuverte && compteId && competencesParCode && (
+        <ModaleTheme
+          compteId={compteId}
+          competencesParCode={competencesParCode}
+          domainesExistants={domainesExistants}
+          onFermer={() => setModaleThemeOuverte(false)}
+          onCree={(theme) => {
+            setModaleThemeOuverte(false);
+            router.refresh();
+            ouvrirElement(`theme:${theme.id}`);
+          }}
+        />
+      )}
+
+      {elementASupprimer && (
+        <ModaleConfirmationSuppression
+          titre={`Supprimer ${elementASupprimer.typeLibelle.toLowerCase()}`}
+          nomElement={elementASupprimer.titre}
+          typeElement={elementASupprimer.type as any}
+          mode="suppression"
+          explication={
+            elementASupprimer.type === "theme" || elementASupprimer.id.startsWith("theme:")
+              ? "Ce thème transversal sera retiré. Les compétences et exercices associés restent préservés."
+              : elementASupprimer.type === "competence"
+              ? "Cette compétence sera retirée du référentiel."
+              : "Ce document sera définitivement supprimé de votre espace."
+          }
+          texteBoutonConfirmer="Confirmer la suppression"
+          onConfirmer={async () => {
+            if (elementASupprimer.type === "theme" || elementASupprimer.id.startsWith("theme:")) {
+              const themeId = elementASupprimer.id.replace(/^theme:/, "");
+              await retirerTheme(themeId);
+            } else if (elementASupprimer.type === "competence") {
+              await retirerCompetences([elementASupprimer.id]);
+            } else {
+              await supprimerDocumentAction(elementASupprimer.id);
+            }
+            setElementASupprimer(null);
+            router.refresh();
+          }}
+          onFermer={() => setElementASupprimer(null)}
+        />
+      )}
     </div>
   );
 }

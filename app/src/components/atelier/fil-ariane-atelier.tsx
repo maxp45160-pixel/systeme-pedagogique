@@ -59,7 +59,7 @@ export function FilArianeAtelier({
   elements,
   sidebarOuverte = true,
   setSidebarOuverte,
-  libelleRetour = "Retour à l'Atelier",
+  libelleRetour = "Retour",
   actionRetour,
   className,
 }: FilArianeAtelierProps) {
@@ -74,7 +74,27 @@ export function FilArianeAtelier({
     [dossier, titreCourant, elements, arbreDossiers],
   );
 
-  const actionBoutonRetour = actionRetour ?? revenirGraphe;
+  const actionBoutonRetour = useMemo(() => {
+    if (actionRetour) return actionRetour;
+    if (segments.length > 0) {
+      const dernierSegment = segments[segments.length - 1];
+      if (dernierSegment?.cible) {
+        if (dernierSegment.cible.type === "element") {
+          const id = dernierSegment.cible.idOuChemin;
+          return () => ouvrirElement(id);
+        }
+        if (dernierSegment.cible.type === "dossier") {
+          const chemin = dernierSegment.cible.idOuChemin;
+          return () => {
+            if (ouvrirDossier) ouvrirDossier(chemin);
+            else ouvrirElement(`dossier:${chemin}`);
+          };
+        }
+      }
+    }
+    if (revenirGraphe) return revenirGraphe;
+    return () => ouvrirElement("domaines");
+  }, [actionRetour, segments, ouvrirElement, ouvrirDossier, revenirGraphe]);
 
   return (
     <nav
@@ -92,18 +112,17 @@ export function FilArianeAtelier({
         <BoutonRetour onClick={actionBoutonRetour} libelle={libelleRetour} />
       )}
 
-      {revenirGraphe && (
-        <>
-          <button
-            type="button"
-            onClick={revenirGraphe}
-            className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline shrink-0 cursor-pointer"
-          >
-            Atelier
-          </button>
-          <span className="text-texte-discret/60 shrink-0">/</span>
-        </>
-      )}
+      <button
+        type="button"
+        onClick={() => {
+          if (revenirGraphe) revenirGraphe();
+          else ouvrirElement("domaines");
+        }}
+        className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline shrink-0 cursor-pointer"
+      >
+        Atelier
+      </button>
+      <span className="text-texte-discret/60 shrink-0">/</span>
 
       {segments.map((segment) => {
         let onClick: (() => void) | undefined;

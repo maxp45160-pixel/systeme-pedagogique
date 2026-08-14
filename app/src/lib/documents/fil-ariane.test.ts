@@ -144,4 +144,21 @@ describe("resoudreSegmentsFilAriane", () => {
     expect(resultat.titreCourant).toBe("Document isolé");
     expect(resultat.segments).toEqual([]);
   });
+
+  it("déduplique automatiquement la dernière partie du dossier si elle correspond au titre courant", () => {
+    const resultat = resoudreSegmentsFilAriane({
+      dossier: "Domaines/Architecture logicielle",
+      titreCourant: "Architecture logicielle",
+      elements: elementsMock,
+    });
+
+    expect(resultat.titreCourant).toBe("Architecture logicielle");
+    expect(resultat.segments).toEqual([
+      {
+        libelle: "Domaines",
+        cheminCumule: "Domaines",
+        cible: { type: "element", idOuChemin: "domaines" },
+      },
+    ]);
+  });
 });

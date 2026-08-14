@@ -101,6 +101,10 @@ export async function supprimerNoteSupportAction(id: string): Promise<void> {
   await supprimerDocument(id);
 }
 
+export async function supprimerDocumentAction(id: string): Promise<void> {
+  await supprimerDocument(id);
+}
+
 export async function preparerTeleversementPdfAction(
   documentId: string,
   nom: string,
