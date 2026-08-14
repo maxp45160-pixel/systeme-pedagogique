@@ -46,7 +46,7 @@ export function ZoneReponse(proprietes: {
     // vue.
     return (
       <div
-        className="h-[15.5rem] rounded-md border border-bordure-controle bg-surface"
+        className="h-[15.5rem] rounded-md border border-bordure-controle bg-surface lg:h-[min(32rem,calc(100dvh-16rem))]"
         aria-busy="true"
       >
         <span className="sr-only">Chargement de la zone de réponse…</span>
@@ -109,7 +109,7 @@ function ZoneHydrate({
         onChange={(e) => setTexte(e.target.value)}
         rows={10}
         placeholder="Hypothèses, méthode, calculs, résultat, interprétation, limites…"
-        className="w-full resize-y rounded-md border border-bordure-controle bg-surface px-3 py-2 font-mono text-xs leading-relaxed placeholder:text-texte-discret"
+        className="h-[15.5rem] w-full resize-y rounded-md border border-bordure-controle bg-surface px-3 py-2 font-mono text-xs leading-relaxed placeholder:text-texte-discret lg:h-[min(32rem,calc(100dvh-16rem))]"
       />
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <Bouton onClick={enregistrer} disabled={enCours || !nonEnregistre} variante="secondaire" taille="petite">

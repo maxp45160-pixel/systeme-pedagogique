@@ -4,10 +4,7 @@ import { chargerContexte } from "@/lib/store/context";
 import { LienRetour } from "@/components/ui/lien-retour";
 import { libelleDomaine } from "@/lib/domain/referentiel-compte";
 import { DIFFICULTES } from "@/lib/domain/types";
-import {
-  debloquerIndice,
-  demarrerTentative,
-} from "@/lib/store/actions";
+import { demarrerTentative } from "@/lib/store/actions";
 import {
   BandeauInfo,
   Carte,
@@ -26,7 +23,7 @@ import { ZoneReponse } from "@/components/exercices/zone-reponse";
 import { BoutonSoumission } from "@/components/ui/bouton-soumission";
 import { FocusActe } from "@/components/exercices/focus-acte";
 import { motifBlocageBilan, reponseSuffisante } from "@/lib/domain/tentative";
-import { IconeAmpoule, IconeFleche, IconeValide } from "@/components/ui/icones";
+import { IconeFleche, IconeValide } from "@/components/ui/icones";
 import { formatDateCourte, formatDuree } from "@/lib/engine/dates";
 import { BilanRedigeVue } from "@/components/exercices/bilan-redige";
 import { BoutonEditer } from "@/components/exercices/bouton-editer";
@@ -141,9 +138,10 @@ export async function VueExercice(props: {
   }));
 
   const navigation = props.navigation;
+  const largeurVue = enCours ? "mx-auto max-w-6xl" : "mx-auto max-w-3xl";
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className={largeurVue}>
       {!props.integree && <LienRetour href="/seances" libelle="Toutes les séances" />}
 
       {/*
@@ -327,7 +325,14 @@ export async function VueExercice(props: {
         )}
       </header>
 
-      <div className="space-y-4">
+      <div className={enCours ? "grid gap-4 lg:grid-cols-2 lg:items-start" : "space-y-4"}>
+        <div
+          className={
+            enCours
+              ? "min-h-0 space-y-4 lg:col-start-1 lg:row-start-1 lg:max-h-[calc(100dvh-3rem)] lg:overflow-y-auto lg:overscroll-contain lg:pr-1"
+              : "space-y-4"
+          }
+        >
         {/* -------------------------------- Énoncé -------------------------- */}
         {foldEnonce ? (
           <PanneauPliable ouvertParDefaut={false} titre={<span className="text-sm font-medium">Énoncé</span>}>
@@ -372,14 +377,15 @@ export async function VueExercice(props: {
           )
         )}
 
+        </div>
+
         {/* ------------------------ Démarrage / résolution ------------------ */}
         {!props.lectureSeule && !enCours && !derniereTerminee && (
           <Carte accent>
             <div className="px-4 py-3.5">
               <p className="text-sm">
-                Prends le temps de chercher avant d&apos;ouvrir un indice. Le nombre d&apos;indices
-                consultés détermine l&apos;autonomie enregistrée — c&apos;est ce qui distingue une
-                application guidée d&apos;une résolution autonome.
+                Prends le temps de chercher avant de demander de l&apos;aide. La résolution reste
+                la tienne ; le tuteur intervient seulement quand tu en as besoin.
               </p>
               {cible?.preuves.length === 0 && (
                 <p className="mt-2 text-xs text-texte-attenue">
@@ -399,7 +405,7 @@ export async function VueExercice(props: {
         )}
 
         {enCours && (
-          <>
+          <div className="space-y-4 lg:col-start-2 lg:row-start-1">
             {/*
               Ta réponse — vivante dans l'acte Chercher, repliée dès que la
               correction devient visible (Comparer, Mesurer). L'édition reste
@@ -424,7 +430,7 @@ export async function VueExercice(props: {
                 />
                 {/*
                   Le lien porte l'identifiant de l'exercice : le tuteur reçoit
-                  l'énoncé, les indices déjà consultés et le brouillon
+                  l&apos;énoncé et le brouillon
                   enregistré. Il n'y a plus rien à recoller à la main — et il ne
                   reçoit toujours PAS la correction.
                 */}
@@ -440,108 +446,32 @@ export async function VueExercice(props: {
                     calibragesModale={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
                     libelle="Demander de l'aide au tuteur sur cet exercice"
                   />{" "}
-                  — il aura l&apos;énoncé et ton brouillon sous les yeux. Il ne donnera pas
-                  d&apos;indice plus explicite que ceux que tu as laissés fermés.
+                  — il aura l&apos;énoncé et ton brouillon sous les yeux. Il t&apos;aidera à avancer
+                  sans faire l&apos;exercice à ta place.
                 </p>}
               </div>
             </PanneauPliable>
 
-            {/*
-              Indices — repliés par défaut dès l'acte Chercher (secondaires à
-              la résolution elle-même), ouverts d'office si déjà entamés et
-              que la correction n'est pas encore sortie.
-            */}
-            {exercice.indices.length > 0 && (
-              <PanneauPliable
-                ouvertParDefaut={!correctionVisible && enCours.indicesUtilises > 0}
-                titre={
-                  <span className="text-sm font-medium">
-                    Indices — {enCours.indicesUtilises} / {exercice.indices.length} consulté
-                    {enCours.indicesUtilises > 1 ? "s" : ""}
-                  </span>
-                }
-                actions={
-                  <Etiquette
-                    ton={
-                      enCours.indicesUtilises === 0
-                        ? "succes"
-                        : enCours.indicesUtilises >= exercice.indices.length
-                          ? "alerte"
-                          : "info"
-                    }
-                  >
-                    Autonomie prévue :{" "}
-                    {enCours.indicesUtilises >= exercice.indices.length
-                      ? "A1"
-                      : enCours.indicesUtilises >= 1
-                        ? "A2"
-                        : "A3"}
-                  </Etiquette>
-                }
-                pied={
-                  enCours.indicesUtilises < exercice.indices.length && (
-                    <div className="border-t border-bordure px-4 py-3">
-                      <form action={debloquerIndice.bind(null, enCours.id, enCours.indicesUtilises)}>
-                        <BoutonSoumission variante="secondaire" taille="petite">
-                          <IconeAmpoule className="size-3.5" />
-                          Débloquer l&apos;indice {enCours.indicesUtilises + 1}
-                        </BoutonSoumission>
-                      </form>
-                    </div>
-                  )
-                }
-              >
-                <div className="px-4 py-3">
-                  {enCours.indicesUtilises === 0 ? (
-                    <p className="text-xs text-texte-attenue">
-                      Aucun indice consulté. Si tu résous l&apos;exercice ainsi, la preuve sera
-                      enregistrée en autonomie A3.
-                    </p>
-                  ) : (
-                    <ul className="space-y-2">
-                      {exercice.indices.slice(0, enCours.indicesUtilises).map((ind, i) => (
-                        <li
-                          key={i}
-                          className="flex items-start gap-2 rounded-md border border-bordure bg-surface-2 px-3 py-2"
-                        >
-                          <IconeAmpoule className="mt-0.5 size-4 shrink-0 text-alerte" />
-                          <div>
-                            <div className="text-[0.625rem] font-medium uppercase tracking-wider text-texte-discret">
-                              Indice {i + 1}
-                            </div>
-                            <p className="mt-0.5 text-xs">{ind}</p>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </PanneauPliable>
-            )}
-
             {/* -------------------- Acte : Chercher (teaser) ----------------- */}
             {!correctionVisible && (
-              <Carte>
-                <div className="px-4 py-3.5">
-                  <p className="text-sm font-medium">Correction</p>
-                  <p className="mt-1 text-xs text-texte-attenue">
-                    Elle reste masquée tant que tu ne l&apos;ouvres pas. La révéler ne pénalise pas
-                    ton autonomie — seuls les indices comptent — mais cherche d&apos;abord.
-                  </p>
-                  <Link
-                    href={urlExercice(exercice.id, navigation, "correction")}
-                    className={cx(classesLienBouton("principal"), "mt-3")}
-                  >
-                    Afficher la correction
-                    <IconeFleche className="size-4" />
-                  </Link>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-bordure px-1 py-2">
+                <div className="min-w-0">
+                  <p className="text-xs font-medium">Correction</p>
+                  <p className="text-micro text-texte-attenue">À ouvrir après ta recherche.</p>
                 </div>
-              </Carte>
+                <Link
+                  href={urlExercice(exercice.id, navigation, "correction")}
+                  className={cx(classesLienBouton("principal", "petite"))}
+                >
+                  Afficher la correction
+                  <IconeFleche className="size-4" />
+                </Link>
+              </div>
             )}
 
             {/*
               -------------------- Acte : Comparer ---------------------------
-              Correction visible, réponse et indices repliés (ci-dessus).
+              Correction visible, réponse repliée (ci-dessus).
               L'évaluation n'apparaît qu'après un clic explicite — avant
               ce chantier, révéler la correction affichait AUSSI le formulaire
               de bilan dans le même geste.
@@ -579,7 +509,7 @@ export async function VueExercice(props: {
 
             {/*
               -------------------- Acte : Mesurer ----------------------------
-              Énoncé, données, réponse, indices et correction sont tous
+              Énoncé, données, réponse et correction sont tous
               repliés (foldEnonce plus haut, PanneauPliable ci-dessus) : seul
               le formulaire de bilan — ou le blocage qui l'empêche — reste
               déployé.
@@ -669,30 +599,20 @@ export async function VueExercice(props: {
               c'est une sortie qui existe toujours. Et symétriquement, dès qu'un
               brouillon suffisant existe, le bouton ne doit pas disparaître.
             */}
-            <Carte className="border-dashed">
-              <EnTeteCarte
-                titre="Abandonner cette tentative"
-                legende="Aucune preuve ne sera écrite, ton niveau reste inchangé"
-              />
-              <div className="px-4 py-3.5">
-                <p className="text-xs text-texte-attenue">
-                  Tu peux clore cette tentative à tout moment, depuis n&apos;importe lequel des
-                  trois actes, que ta réponse soit rédigée ou non. La tentative reste au
-                  journal : elle explique pourquoi aucune difficulté n&apos;est conseillée pour
-                  le prochain exercice.
-                </p>
-                <div className="mt-3">
-                  <BoutonAbandon
-                    attemptId={enCours.id}
-                    exerciceId={exercice.id}
-                    dureeMin={dureeSuggeree}
-                    codes={exercice.competences}
-                    navigation={navigation}
-                  />
-                </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-bordure px-1 py-2">
+              <div className="min-w-0">
+                <p className="text-xs font-medium">Abandonner</p>
+                <p className="text-micro text-texte-attenue">Aucune preuve ne sera écrite.</p>
               </div>
-            </Carte>
-          </>
+              <BoutonAbandon
+                attemptId={enCours.id}
+                exerciceId={exercice.id}
+                dureeMin={dureeSuggeree}
+                codes={exercice.competences}
+                navigation={navigation}
+              />
+            </div>
+          </div>
         )}
 
         {/* ---------------------- Exercice déjà terminé --------------------- */}
@@ -701,7 +621,7 @@ export async function VueExercice(props: {
             <Carte>
               <EnTeteCarte
                 titre="Correction"
-                legende={`Tentative terminée · ${derniereTerminee.indicesUtilises} indice(s) · ${
+                legende={`Tentative terminée · ${
                   derniereTerminee.dureeMin ? formatDuree(derniereTerminee.dureeMin) : "durée non notée"
                 }`}
                 action={
