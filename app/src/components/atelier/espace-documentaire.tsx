@@ -495,6 +495,10 @@ export function EspaceDocumentaire({
   function ouvrirElement(id: string) {
     const element = trouverElement(id, elements);
     if (!element) return;
+    if (element.type === "exercice") {
+      router.push(`/exercices/${element.id.replace(/^exercice:/, "")}`);
+      return;
+    }
     setSelection(element.id);
     setCibleLien("");
     setSnapshotApercu(null);

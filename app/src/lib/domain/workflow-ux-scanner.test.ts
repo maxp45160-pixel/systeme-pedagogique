@@ -30,7 +30,6 @@ describe("scannerUxJourney", () => {
     expect(idsNoeuds).toContain("ux:categorie-dossier");
     expect(idsNoeuds).toContain("ux:fiche-competence");
     expect(idsNoeuds).toContain("ux:fiche-domaine");
-    expect(idsNoeuds).toContain("ux:projection-exercice");
     expect(idsNoeuds).toContain("ux:editeur-note");
     expect(idsNoeuds).toContain("ux:apercu-snapshot");
     expect(idsNoeuds).toContain("ux:panneau-contexte");
@@ -75,6 +74,21 @@ describe("scannerUxJourney", () => {
     const { exporterDOT } = await import("./workflow-export");
     const { writeFileSync, mkdirSync } = await import("node:fs");
     const graphe = await scannerUxJourney();
+    const resultat = parcourirWorkflow(graphe, "page:/");
+    const stats = statistiquesGraphe(resultat, graphe);
+    console.log("GRAPH_STATS:", JSON.stringify({
+      totalNoeuds: stats.totalNoeuds,
+      totalLiens: stats.totalLiens,
+      atteignables: stats.atteignables,
+      inatteignables: stats.inatteignables,
+      diametreBFS: stats.diametreBFS,
+      degreSortantMoyen: Number(stats.degreSortantMoyen.toFixed(2)),
+      degreEntrantMoyen: Number(stats.degreEntrantMoyen.toFixed(2)),
+      noeudsParType: graphe.noeuds.reduce((acc, n) => { acc[n.type] = (acc[n.type] || 0) + 1; return acc; }, {} as Record<string, number>),
+      noeudsParGroupe: graphe.noeuds.reduce((acc, n) => { acc[n.groupe || "aucun"] = (acc[n.groupe || "aucun"] || 0) + 1; return acc; }, {} as Record<string, number>),
+      puits: stats.puits,
+      sources: stats.sources,
+    }, null, 2));
     const dot = exporterDOT(graphe.noeuds, graphe.liens, { avecConditions: true });
     expect(dot).toContain("digraph workflow");
     mkdirSync("C:/Users/hupch/.gemini/antigravity-ide/brain/e2d864ec-d07b-4952-a815-411af741e932/scratch", { recursive: true });

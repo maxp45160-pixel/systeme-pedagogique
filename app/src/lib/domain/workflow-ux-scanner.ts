@@ -172,14 +172,6 @@ export async function scannerUxJourney(): Promise<GrapheWorkflow> {
       const refus = fichiers.get("components/dashboard/refus-recommandation.tsx");
       if (refus) {
         ajouterNoeud({
-          id: "ux:refus-recommandation",
-          type: "sous-vue",
-          groupe: "dashboard",
-          libelle: "Refus avec motif",
-          badge: "Feedback",
-          description: "Dialogue d'explication du refus (trop dur, trop facile, manque de temps).",
-        });
-        ajouterNoeud({
           id: "action:refuser-recommandation",
           type: "action",
           groupe: "dashboard",
@@ -187,17 +179,10 @@ export async function scannerUxJourney(): Promise<GrapheWorkflow> {
         });
         connecter({
           source: "ux:recommandation-active",
-          target: "ux:refus-recommandation",
-          type: "interaction",
-          libelle: "Refuser la proposition",
-          declencheur: "Clic 'Refuser avec motif'",
-        });
-        connecter({
-          source: "ux:refus-recommandation",
           target: "action:refuser-recommandation",
           type: "soumission",
-          libelle: "Confirmer le refus",
-          declencheur: "Sélection du motif (trop dur, trop facile...)",
+          libelle: "Passer la recommandation",
+          declencheur: "Clic 'Passer'",
         });
         connecter({
           source: "action:refuser-recommandation",
@@ -392,17 +377,7 @@ export async function scannerUxJourney(): Promise<GrapheWorkflow> {
       description: "Fiche mère avec 3 onglets (Structure par paliers, Progression Radar, Gestion du référentiel).",
     });
 
-    // 8. Projection Exercice
-    ajouterNoeud({
-      id: "ux:projection-exercice",
-      type: "sous-vue",
-      groupe: "atelier",
-      libelle: "Projection Exercice",
-      badge: "Aperçu",
-      description: "Aperçu de l'énoncé de l'exercice dans l'Atelier avec panneau latéral dédié et passerelle cahier.",
-    });
-
-    // 9. Éditeur Markdown
+    // 8. Éditeur Markdown
     ajouterNoeud({
       id: "ux:editeur-note",
       type: "sous-vue",
@@ -532,9 +507,9 @@ export async function scannerUxJourney(): Promise<GrapheWorkflow> {
     });
     connecter({
       source: "ux:explorateur-sidebar",
-      target: "ux:projection-exercice",
-      type: "interaction",
-      libelle: "Consulter projection exercice",
+      target: "page:/exercices/{id}",
+      type: "navigation",
+      libelle: "Ouvrir l'exercice dans le cahier",
       declencheur: "Clic sur un exercice dans l'arborescence",
     });
     connecter({
@@ -1399,13 +1374,6 @@ export async function scannerUxJourney(): Promise<GrapheWorkflow> {
       target: "page:/exercices/{id}",
       type: "transition",
       libelle: "Nouvel exercice disponible",
-    });
-    connecter({
-      source: "ux:projection-exercice",
-      target: "page:/exercices/{id}",
-      type: "navigation",
-      libelle: "S'exercer dans le cahier",
-      declencheur: "Clic 'S'exercer dans le cahier →'",
     });
     connecter({
       source: "ux:fiche-competence",
