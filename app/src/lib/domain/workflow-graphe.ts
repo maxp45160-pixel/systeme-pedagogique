@@ -34,8 +34,19 @@
 /* Types du graphe                                                     */
 /* ------------------------------------------------------------------ */
 
+export type PerspectiveWorkflow = "architecture" | "ux";
+
+export type GroupeWorkflow =
+  | "dashboard"
+  | "atelier"
+  | "seances"
+  | "exercice"
+  | "tuteur"
+  | "profil";
+
 export type TypeNoeudWorkflow =
   | "page" // écran plein (route Next.js)
+  | "sous-vue" // sous-état UX interactif ou vue interne
   | "modal" // fenêtre modale
   | "tiroir" // panneau latéral (tuteur, réglages)
   | "etape" // étape d'un parcours (acte Chercher/Comparer/Mesurer)
@@ -45,6 +56,7 @@ export type TypeLienWorkflow =
   | "navigation" // lien ou redirection entre pages
   | "ouverture" // ouvre une modale / un tiroir
   | "transition" // change d'étape dans un parcours
+  | "interaction" // interaction directe (clic canvas, onglet, widget)
   | "soumission" // formulaire / server action
   | "retour"; // ferme une modale ou revient en arrière
 
@@ -56,6 +68,12 @@ export interface NoeudWorkflow {
   url?: string;
   /** Condition d'existence — un état conditionnel n'est pas un défaut. */
   condition?: string;
+  /** Sous-système / cluster UX pour regroupement visuel et filtrage. */
+  groupe?: GroupeWorkflow;
+  /** Badge visuel succinct (ex: "Canvas 2D", "Chrono", "Markdown"). */
+  badge?: string;
+  /** Description détaillée de l'expérience vécue à cette étape. */
+  description?: string;
 }
 
 export interface LienWorkflow {
@@ -64,6 +82,8 @@ export interface LienWorkflow {
   type: TypeLienWorkflow;
   /** Libellé du bouton / lien / geste qui déclenche la transition. */
   libelle: string;
+  /** Déclencheur utilisateur précis (ex: "Clic sur le radar", "Déblocage indice 1/3"). */
+  declencheur?: string;
   /** Condition d'activation — l'arête n'existe que si la condition est vraie. */
   condition?: string;
 }

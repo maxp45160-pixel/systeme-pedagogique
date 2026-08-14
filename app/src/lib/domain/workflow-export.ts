@@ -154,27 +154,72 @@ export function exporterDOT(
 
   const FORME: Record<NoeudWorkflow["type"], string> = {
     page: "box",
+    "sous-vue": "component",
     modal: "ellipse",
     tiroir: "folder",
     etape: "note",
     action: "diamond",
   };
 
+  // Regrouper par groupe si présent
+  const parGroupe = new Map<string, NoeudWorkflow[]>();
+  const sansGroupe: NoeudWorkflow[] = [];
+
   for (const noeud of noeuds) {
+    if (noeud.groupe) {
+      const liste = parGroupe.get(noeud.groupe) ?? [];
+      liste.push(noeud);
+      parGroupe.set(noeud.groupe, liste);
+    } else {
+      sansGroupe.push(noeud);
+    }
+  }
+
+  function ecrireNoeud(noeud: NoeudWorkflow) {
     const attrs = [`shape=${FORME[noeud.type]}`];
     if (options.avecLibelles !== false) {
-      attrs.push(`label=${dotId(noeud.libelle)}`);
+      const lib = noeud.badge ? `[${noeud.badge}] ${noeud.libelle}` : noeud.libelle;
+      attrs.push(`label=${dotId(lib)}`);
     }
     if (noeud.url) {
       attrs.push(`URL=${dotId(noeud.url)}`);
     }
-    lignes.push(`  ${dotId(noeud.id)} [${attrs.join(", ")}];`);
+    if (noeud.description) {
+      attrs.push(`tooltip=${dotId(noeud.description)}`);
+    }
+    lignes.push(`    ${dotId(noeud.id)} [${attrs.join(", ")}];`);
+  }
+
+  if (parGroupe.size > 0) {
+    for (const [groupe, liste] of parGroupe.entries()) {
+      lignes.push(`  subgraph cluster_${groupe} {`);
+      lignes.push(`    label=${dotId(`Cluster ${groupe.toUpperCase()}`)};`);
+      lignes.push("    style=rounded;");
+      lignes.push("    color=\"#2f6f4f22\";");
+      for (const noeud of liste) {
+        ecrireNoeud(noeud);
+      }
+      lignes.push("  }");
+    }
+    for (const noeud of sansGroupe) {
+      ecrireNoeud(noeud);
+    }
+  } else {
+    for (const noeud of noeuds) {
+      ecrireNoeud(noeud);
+    }
   }
 
   for (const lien of liens) {
     const attrs: string[] = [];
     if (options.avecLibellesAretes !== false) {
-      attrs.push(`label=${dotId(lien.libelle)}`);
+      const texteLien = lien.declencheur
+        ? `${lien.libelle}\\n(${lien.declencheur})`
+        : lien.libelle;
+      attrs.push(`label=${dotId(texteLien)}`);
+    }
+    if (lien.declencheur) {
+      attrs.push(`tooltip=${dotId(`Déclencheur: ${lien.declencheur}`)}`);
     }
     if (options.avecConditions && lien.condition) {
       attrs.push("style=dashed");
