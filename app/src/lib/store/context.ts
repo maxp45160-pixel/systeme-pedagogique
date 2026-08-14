@@ -28,6 +28,9 @@ import { evaluerMaitrises, type Maitrise } from "@/lib/engine/maitrise";
 import { mesurer, mesurerSync } from "@/lib/profiling/server";
 import { assemblerReferentiel } from "@/lib/domain/referentiel-compte";
 import type { Referentiel, SkillState } from "@/lib/domain/types";
+import { adaptLegacyActivities } from "@/lib/domain/legacy-activity-adapter";
+import { loadEffectiveEvidence } from "./adaptive-learning";
+import type { EvidenceStatusEvent } from "@/lib/domain/adaptive-learning";
 
 export interface Contexte {
   donnees: Collections;
@@ -58,7 +61,25 @@ export interface Contexte {
   maitrises: Map<string, Maitrise>;
   /** Provenance documentaire dérivée des preuves, sans lecture supplémentaire. */
   contexteDocumentaire: ContexteDocumentaire;
+  /**
+   * Vue recalculée des preuves après application des rectifications. Les
+   * preuves originales restent toutes dans `donnees.evidence`.
+   */
+  preuvesEffectives: Collections["evidence"];
+  /** Journal append-only expliquant la vue effective des preuves. */
+  rectificationsPreuves: EvidenceStatusEvent[];
   now: Date;
+  /**
+   * Refus de recommandation (R1) encore frais, expiration déjà appliquée.
+   *
+   * Exposé parce que le classement n'est plus le seul à devoir les respecter :
+   * l'arbitrage à l'instant T voit tout le corpus, pas seulement la file, et
+   * ferait réapparaître un exercice écarté s'il ne recevait pas le même
+   * ensemble. Une seule implémentation de la règle, deux lecteurs.
+   */
+  refus: { codes: Set<string>; exercices: Set<string> };
+  /** Adaptation en lecture seule : aucune copie ni double écriture du legacy. */
+  adaptiveLegacy: ReturnType<typeof adaptLegacyActivities>;
 }
 
 export const chargerContexte = cache(async (): Promise<Contexte> => {
@@ -90,6 +111,15 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
     donneesBrutes = d;
     referentiel = r;
   }
+
+  // Une rectification ne réécrit jamais la preuve d'origine. Sa vue
+  // effective est recalculée avant toute entrée dans le moteur ; le journal
+  // brut demeure accessible dans `donnees.evidence` pour l'audit et l'Atelier.
+  // Le legacy n'interroge aucune nouvelle table pendant la bêta.
+  const vuePreuves = donneesBrutes.user.learningLoopMode === "adaptive-v1"
+    ? await loadEffectiveEvidence(donneesBrutes.evidence)
+    : { effective: donneesBrutes.evidence, statusEvents: [] };
+  const preuvesEffectives = vuePreuves.effective;
 
   // Les exercices de diagnostic font partie du logiciel, pas du journal :
   // ils sont toujours disponibles, sans étape d'initialisation.
@@ -138,8 +168,8 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
   };
 
   const etats = mesurerSync("computeAllSkillStates", () =>
-    computeAllSkillStates(referentiel.actifs, donnees.evidence, now),
-    { competences: referentiel.actifs.length, preuves: donnees.evidence.length },
+    computeAllSkillStates(referentiel.actifs, preuvesEffectives, now),
+    { competences: referentiel.actifs.length, preuves: preuvesEffectives.length },
   );
   const global = mesurerSync("calculerEtatGlobal", () =>
     calculerEtatGlobal(etats, now, referentiel.domaines),
@@ -163,7 +193,7 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
   // Les documents ne sont pas relus sur le chemin chaud : la preuve porte déjà
   // le lien vers son document et son snapshot. On ne dérive ici que le résumé
   // nécessaire au classement pédagogique.
-  const contexteDocumentaire = construireContexteDocumentaire(donnees.evidence);
+  const contexteDocumentaire = construireContexteDocumentaire(preuvesEffectives);
 
   // Refus de recommandation (R1) : ce que l'utilisateur a passé est écarté de
   // la file pour 7 jours. L'expiration est gérée ici, à la lecture.
@@ -218,7 +248,15 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
     calibrations,
     maitrises,
     contexteDocumentaire,
+    preuvesEffectives,
+    rectificationsPreuves: vuePreuves.statusEvents,
     now,
+    refus,
+    adaptiveLegacy: adaptLegacyActivities(
+      donnees.user.id,
+      exercicesActifs,
+      donnees.attempts,
+    ),
   };
 });
 

@@ -202,6 +202,27 @@ export const OUTIL_REFERENTIEL_COMPLET = "proposer_referentiel_complet";
 export const OUTIL_THEME = "proposer_theme";
 
 /**
+ * Outils confinés de la boucle adaptative.
+ *
+ * Ils ne sont jamais ajoutés à `outilsTuteur` : le serveur les arme pour une
+ * requête one-shot après avoir fixé la famille, les cibles, les contraintes,
+ * les ressources et le contrat d'évaluation. Le tuteur ne peut donc produire
+ * que le contenu du workspace, puis éventuellement une proposition de lecture
+ * d'un artefact figé. Il n'écrit ni activité, ni évaluation finale, ni preuve.
+ */
+export const OUTIL_EXPLORATION_ADAPTATIVE = "proposer_exploration_adaptative";
+export const OUTIL_MINI_PROJET_ADAPTATIF = "proposer_mini_projet_adaptatif";
+export const OUTIL_EVALUATION_PROJET = "proposer_evaluation_projet";
+
+export const APPRECIATIONS_PROJET = [
+  "non-demontre",
+  "partiellement-demontre",
+  "demontre",
+] as const;
+
+export type FamilleContenuAdaptatif = "explorer" | "produire";
+
+/**
  * Sous-ensemble de JSON Schema effectivement employé ici.
  *
  * Volontairement pauvre : ce qui n'est pas exprimable dans ce type n'est pas
@@ -478,6 +499,181 @@ function schemaCorrection(nombreDeCriteres: number): SchemaJson {
   };
 }
 
+const JALONS_ACTIVITE_MAX = 12;
+const ETAPES_WORKSPACE_MAX = 12;
+const CONSEILS_PROJET_MAX = 8;
+const ELEMENTS_OBSERVES_MAX = 5;
+const RESERVES_EVALUATION_MAX = 6;
+
+function schemaJalonsActivite(): SchemaJson {
+  return {
+    type: "array",
+    minItems: 1,
+    maxItems: JALONS_ACTIVITE_MAX,
+    items: {
+      type: "object",
+      properties: {
+        titre: { type: "string" },
+        consigne: { type: "string" },
+        resultat_attendu: {
+          type: "string",
+          description:
+            "Production observable attendue à ce jalon. Ce jalon reste une observation, jamais une preuve par lui-même.",
+        },
+      },
+      required: ["titre", "consigne", "resultat_attendu"],
+      additionalProperties: false,
+    },
+  };
+}
+
+function schemaExplorationAdaptative(): SchemaJson {
+  return {
+    type: "object",
+    properties: {
+      titre: { type: "string" },
+      description: { type: "string" },
+      brief: { type: "string" },
+      jalons: schemaJalonsActivite(),
+      workspace: {
+        type: "object",
+        properties: {
+          introduction: { type: "string" },
+          parcours: {
+            type: "array",
+            minItems: 1,
+            maxItems: ETAPES_WORKSPACE_MAX,
+            items: {
+              type: "object",
+              properties: {
+                titre: { type: "string" },
+                contenu: { type: "string" },
+                invite_annotation: {
+                  type: "string",
+                  description:
+                    "Invitation facultative à noter une idée ou une question. Chaîne vide si elle n'est pas utile.",
+                },
+              },
+              required: ["titre", "contenu", "invite_annotation"],
+              additionalProperties: false,
+            },
+          },
+          synthese_facultative: {
+            type: "string",
+            description:
+              "Invitation facultative à synthétiser. Elle soutient l'apprentissage mais ne produit aucune preuve.",
+          },
+        },
+        required: ["introduction", "parcours", "synthese_facultative"],
+        additionalProperties: false,
+      },
+    },
+    required: ["titre", "description", "brief", "jalons", "workspace"],
+    additionalProperties: false,
+  };
+}
+
+function schemaMiniProjetAdaptatif(): SchemaJson {
+  return {
+    type: "object",
+    properties: {
+      titre: { type: "string" },
+      description: { type: "string" },
+      brief: { type: "string" },
+      jalons: schemaJalonsActivite(),
+      workspace: {
+        type: "object",
+        properties: {
+          demarrage: { type: "string" },
+          canevas_artefact: {
+            type: "array",
+            minItems: 1,
+            maxItems: ETAPES_WORKSPACE_MAX,
+            items: {
+              type: "object",
+              properties: {
+                section: { type: "string" },
+                consigne: { type: "string" },
+              },
+              required: ["section", "consigne"],
+              additionalProperties: false,
+            },
+          },
+          conseils_realisation: {
+            type: "array",
+            maxItems: CONSEILS_PROJET_MAX,
+            items: { type: "string" },
+          },
+          consigne_soumission: { type: "string" },
+        },
+        required: [
+          "demarrage",
+          "canevas_artefact",
+          "conseils_realisation",
+          "consigne_soumission",
+        ],
+        additionalProperties: false,
+      },
+    },
+    required: ["titre", "description", "brief", "jalons", "workspace"],
+    additionalProperties: false,
+  };
+}
+
+function schemaEvaluationProjet(idsCriteres: string[]): SchemaJson {
+  const critere: SchemaJson =
+    idsCriteres.length > 0
+      ? { type: "string", enum: idsCriteres }
+      : { type: "string", description: "Aucun critère armé : la requête doit être refusée." };
+
+  return {
+    type: "object",
+    properties: {
+      criteres: {
+        type: "array",
+        minItems: Math.max(1, idsCriteres.length),
+        maxItems: Math.max(1, idsCriteres.length),
+        description:
+          "Une proposition pour chaque critère fourni, exactement une fois. La personne valide ou modifie ensuite chaque ligne.",
+        items: {
+          type: "object",
+          properties: {
+            critere_id: critere,
+            appreciation: { type: "string", enum: [...APPRECIATIONS_PROJET] },
+            justification: {
+              type: "string",
+              description:
+                "Ce que l'artefact figé montre ou ne montre pas pour ce seul critère. N'invente aucun élément absent.",
+            },
+            elements_observes: {
+              type: "array",
+              minItems: 1,
+              maxItems: ELEMENTS_OBSERVES_MAX,
+              items: { type: "string" },
+            },
+          },
+          required: ["critere_id", "appreciation", "justification", "elements_observes"],
+          additionalProperties: false,
+        },
+      },
+      synthese: {
+        type: "string",
+        description:
+          "Synthèse de la proposition. N'attribue ni niveau, ni qualité de preuve, ni autonomie.",
+      },
+      reserves: {
+        type: "array",
+        maxItems: RESERVES_EVALUATION_MAX,
+        items: { type: "string" },
+        description:
+          "Limites de lecture de l'artefact. Une absence d'information reste une réserve, jamais une valeur fabriquée.",
+      },
+    },
+    required: ["criteres", "synthese", "reserves"],
+    additionalProperties: false,
+  };
+}
+
 /**
  * L'outil de correction, pour un exercice donné.
  *
@@ -493,6 +689,50 @@ export function outilCorrection(
     description:
       "Rends ton verdict sur la réponse de l'utilisateur, critère par critère. Tu n'enregistres rien : l'utilisateur relit ton verdict et le valide, le modifie, ou le rejette. Juge ce que la réponse CONTIENT ; ce qui n'y figure pas n'est pas démontré.",
     schema: schemaCorrection(criteres.length),
+  };
+}
+
+/**
+ * Outil one-shot de contenu adaptatif. La famille est choisie par le serveur
+ * avant l'appel et n'apparaît dans aucun champ modifiable du schéma.
+ */
+export function outilGenerationActivite(
+  famille: FamilleContenuAdaptatif,
+): OutilTuteur {
+  if (famille === "explorer") {
+    return {
+      nom: OUTIL_EXPLORATION_ADAPTATIVE,
+      description:
+        "Rédige uniquement le contenu d'une exploration guidée dont le contrat est déjà fixé par le serveur. Tu n'enregistres rien et tu ne produis aucune preuve.",
+      schema: schemaExplorationAdaptative(),
+    };
+  }
+
+  return {
+    nom: OUTIL_MINI_PROJET_ADAPTATIF,
+    description:
+      "Rédige uniquement le contenu d'un mini-projet dont les cibles, ressources et critères sont déjà fixés par le serveur. Tu n'enregistres rien et tu ne notes rien.",
+    schema: schemaMiniProjetAdaptatif(),
+  };
+}
+
+/**
+ * Outil one-shot de proposition d'évaluation d'un projet.
+ *
+ * Les identifiants viennent exclusivement du contrat serveur et voyagent dans
+ * un `enum`. Le schéma ne comporte volontairement aucun niveau de compétence,
+ * score, qualité de preuve ou autonomie : ces décisions restent humaines et
+ * applicatives après revue.
+ */
+export function outilEvaluationProjet(
+  criteres: { id: string }[],
+): OutilTuteur {
+  const ids = [...new Set(criteres.map((c) => c.id.trim()).filter(Boolean))];
+  return {
+    nom: OUTIL_EVALUATION_PROJET,
+    description:
+      "Propose une lecture critère par critère d'un artefact figé. Tu n'enregistres rien : la personne valide, modifie ou rejette chaque ligne avant toute évaluation finale ou preuve.",
+    schema: schemaEvaluationProjet(ids),
   };
 }
 
@@ -778,6 +1018,8 @@ export type PropositionRecue =
   | { genre: "exercice"; exercice: PropositionExercice }
   | { genre: "referentiel"; branche: PropositionReferentiel }
   | { genre: "correction"; correction: PropositionCorrection }
+  | { genre: "contenu-activite"; contenu: PropositionContenuActivite }
+  | { genre: "evaluation-projet"; evaluation: PropositionEvaluationProjet }
   | { genre: "evolution"; evolution: PropositionEvolution }
   | { genre: "revision"; revision: PropositionRevision }
   | { genre: "referentiel-complet"; resume: string; branches: PropositionReferentiel[]; ecartees: number }
@@ -851,6 +1093,396 @@ export interface PropositionCorrection {
     pointsBloquants: string;
     aRetravailler: string[];
   };
+}
+
+export interface PropositionJalonActivite {
+  titre: string;
+  consigne: string;
+  resultatAttendu: string;
+}
+
+interface PropositionContenuCommun {
+  titre: string;
+  description: string;
+  brief: string;
+  jalons: PropositionJalonActivite[];
+}
+
+export interface PropositionExplorationAdaptative extends PropositionContenuCommun {
+  famille: "explorer";
+  workspace: {
+    introduction: string;
+    parcours: { titre: string; contenu: string; inviteAnnotation: string }[];
+    syntheseFacultative: string;
+  };
+}
+
+export interface PropositionMiniProjetAdaptatif extends PropositionContenuCommun {
+  famille: "produire";
+  workspace: {
+    demarrage: string;
+    canevasArtefact: { section: string; consigne: string }[];
+    conseilsRealisation: string[];
+    consigneSoumission: string;
+  };
+}
+
+export type PropositionContenuActivite =
+  | PropositionExplorationAdaptative
+  | PropositionMiniProjetAdaptatif;
+
+/**
+ * Lecture proposée par le tuteur. Ce type ne représente ni une évaluation
+ * finale ni une preuve : aucune écriture n'est possible depuis ce module.
+ */
+export interface PropositionEvaluationProjet {
+  criteres: {
+    critereId: string;
+    appreciation: (typeof APPRECIATIONS_PROJET)[number];
+    justification: string;
+    elementsObserves: string[];
+  }[];
+  synthese: string;
+  reserves: string[];
+}
+
+function clesExactes(
+  valeur: Record<string, unknown>,
+  attendues: readonly string[],
+): boolean {
+  const cles = Object.keys(valeur);
+  return cles.length === attendues.length && cles.every((cle) => attendues.includes(cle));
+}
+
+function texteBorne(
+  valeur: unknown,
+  maximum: number,
+  requis = true,
+): string | null {
+  if (typeof valeur !== "string") return null;
+  const resultat = valeur.trim();
+  if ((requis && resultat.length === 0) || resultat.length > maximum) return null;
+  return resultat;
+}
+
+function validerJalonsActivite(valeur: unknown): PropositionJalonActivite[] | null {
+  if (
+    !Array.isArray(valeur) ||
+    valeur.length === 0 ||
+    valeur.length > JALONS_ACTIVITE_MAX
+  ) {
+    return null;
+  }
+
+  const jalons: PropositionJalonActivite[] = [];
+  for (const brut of valeur) {
+    const jalon = objet(brut);
+    if (!jalon || !clesExactes(jalon, ["titre", "consigne", "resultat_attendu"])) {
+      return null;
+    }
+    const titre = texteBorne(jalon.titre, 160);
+    const consigne = texteBorne(jalon.consigne, 1_500);
+    const resultatAttendu = texteBorne(jalon.resultat_attendu, 800);
+    if (titre === null || consigne === null || resultatAttendu === null) return null;
+    jalons.push({ titre, consigne, resultatAttendu });
+  }
+  return jalons;
+}
+
+function validerExplorationAdaptative(
+  entree: Record<string, unknown>,
+): PropositionRecue | null {
+  if (!clesExactes(entree, ["titre", "description", "brief", "jalons", "workspace"])) {
+    return null;
+  }
+  const titre = texteBorne(entree.titre, 160);
+  const description = texteBorne(entree.description, 800);
+  const brief = texteBorne(entree.brief, 8_000);
+  const jalons = validerJalonsActivite(entree.jalons);
+  const workspace = objet(entree.workspace);
+  if (
+    titre === null ||
+    description === null ||
+    brief === null ||
+    jalons === null ||
+    !workspace ||
+    !clesExactes(workspace, ["introduction", "parcours", "synthese_facultative"])
+  ) {
+    return null;
+  }
+
+  const introduction = texteBorne(workspace.introduction, 4_000);
+  const syntheseFacultative = texteBorne(workspace.synthese_facultative, 1_000, false);
+  if (
+    introduction === null ||
+    syntheseFacultative === null ||
+    !Array.isArray(workspace.parcours) ||
+    workspace.parcours.length === 0 ||
+    workspace.parcours.length > ETAPES_WORKSPACE_MAX
+  ) {
+    return null;
+  }
+
+  const parcours: PropositionExplorationAdaptative["workspace"]["parcours"] = [];
+  for (const brute of workspace.parcours) {
+    const etape = objet(brute);
+    if (!etape || !clesExactes(etape, ["titre", "contenu", "invite_annotation"])) {
+      return null;
+    }
+    const titreEtape = texteBorne(etape.titre, 160);
+    const contenu = texteBorne(etape.contenu, 12_000);
+    const inviteAnnotation = texteBorne(etape.invite_annotation, 600, false);
+    if (titreEtape === null || contenu === null || inviteAnnotation === null) return null;
+    parcours.push({ titre: titreEtape, contenu, inviteAnnotation });
+  }
+
+  return {
+    genre: "contenu-activite",
+    contenu: {
+      famille: "explorer",
+      titre,
+      description,
+      brief,
+      jalons,
+      workspace: { introduction, parcours, syntheseFacultative },
+    },
+  };
+}
+
+function validerMiniProjetAdaptatif(
+  entree: Record<string, unknown>,
+): PropositionRecue | null {
+  if (!clesExactes(entree, ["titre", "description", "brief", "jalons", "workspace"])) {
+    return null;
+  }
+  const titre = texteBorne(entree.titre, 160);
+  const description = texteBorne(entree.description, 800);
+  const brief = texteBorne(entree.brief, 8_000);
+  const jalons = validerJalonsActivite(entree.jalons);
+  const workspace = objet(entree.workspace);
+  if (
+    titre === null ||
+    description === null ||
+    brief === null ||
+    jalons === null ||
+    !workspace ||
+    !clesExactes(workspace, [
+      "demarrage",
+      "canevas_artefact",
+      "conseils_realisation",
+      "consigne_soumission",
+    ])
+  ) {
+    return null;
+  }
+
+  const demarrage = texteBorne(workspace.demarrage, 4_000);
+  const consigneSoumission = texteBorne(workspace.consigne_soumission, 1_500);
+  if (
+    demarrage === null ||
+    consigneSoumission === null ||
+    !Array.isArray(workspace.canevas_artefact) ||
+    workspace.canevas_artefact.length === 0 ||
+    workspace.canevas_artefact.length > ETAPES_WORKSPACE_MAX ||
+    !Array.isArray(workspace.conseils_realisation) ||
+    workspace.conseils_realisation.length > CONSEILS_PROJET_MAX
+  ) {
+    return null;
+  }
+
+  const canevasArtefact: PropositionMiniProjetAdaptatif["workspace"]["canevasArtefact"] = [];
+  for (const brute of workspace.canevas_artefact) {
+    const section = objet(brute);
+    if (!section || !clesExactes(section, ["section", "consigne"])) return null;
+    const nom = texteBorne(section.section, 160);
+    const consigne = texteBorne(section.consigne, 1_500);
+    if (nom === null || consigne === null) return null;
+    canevasArtefact.push({ section: nom, consigne });
+  }
+
+  const conseilsRealisation: string[] = [];
+  for (const brut of workspace.conseils_realisation) {
+    const conseil = texteBorne(brut, 600);
+    if (conseil === null) return null;
+    conseilsRealisation.push(conseil);
+  }
+
+  return {
+    genre: "contenu-activite",
+    contenu: {
+      famille: "produire",
+      titre,
+      description,
+      brief,
+      jalons,
+      workspace: { demarrage, canevasArtefact, conseilsRealisation, consigneSoumission },
+    },
+  };
+}
+
+/** Revalide une proposition sérialisée par le client avant toute acceptation. */
+export function parsePropositionContenuActivite(
+  valeur: unknown,
+  familleAttendue: FamilleContenuAdaptatif,
+): PropositionContenuActivite | null {
+  const source = objet(valeur);
+  if (!source || source.famille !== familleAttendue) return null;
+  const jalons = Array.isArray(source.jalons)
+    ? source.jalons.map((brut) => {
+      const jalon = objet(brut);
+      return jalon
+        ? {
+          titre: jalon.titre,
+          consigne: jalon.consigne,
+          resultat_attendu: jalon.resultatAttendu,
+        }
+        : brut;
+    })
+    : source.jalons;
+  if (familleAttendue === "explorer") {
+    const workspace = objet(source.workspace);
+    const recue = workspace
+      ? validerExplorationAdaptative({
+        titre: source.titre,
+        description: source.description,
+        brief: source.brief,
+        jalons,
+        workspace: {
+          introduction: workspace.introduction,
+          parcours: Array.isArray(workspace.parcours)
+            ? workspace.parcours.map((brut) => {
+              const etape = objet(brut);
+              return etape
+                ? {
+                  titre: etape.titre,
+                  contenu: etape.contenu,
+                  invite_annotation: etape.inviteAnnotation,
+                }
+                : brut;
+            })
+            : workspace.parcours,
+          synthese_facultative: workspace.syntheseFacultative,
+        },
+      })
+      : null;
+    return recue?.genre === "contenu-activite" ? recue.contenu : null;
+  }
+  const workspace = objet(source.workspace);
+  const recue = workspace
+    ? validerMiniProjetAdaptatif({
+      titre: source.titre,
+      description: source.description,
+      brief: source.brief,
+      jalons,
+      workspace: {
+        demarrage: workspace.demarrage,
+        canevas_artefact: Array.isArray(workspace.canevasArtefact)
+          ? workspace.canevasArtefact.map((brut) => {
+            const section = objet(brut);
+            return section ? { section: section.section, consigne: section.consigne } : brut;
+          })
+          : workspace.canevasArtefact,
+        conseils_realisation: workspace.conseilsRealisation,
+        consigne_soumission: workspace.consigneSoumission,
+      },
+    })
+    : null;
+  return recue?.genre === "contenu-activite" ? recue.contenu : null;
+}
+
+/** Revalide une proposition d'évaluation sérialisée avant revue humaine. */
+export function parsePropositionEvaluationProjet(
+  valeur: unknown,
+  criterionIds: readonly string[],
+): PropositionEvaluationProjet | null {
+  const entree = objet(valeur);
+  if (!entree) return null;
+  const recue = validerEvaluationProjet(entree, new Set(criterionIds));
+  return recue?.genre === "evaluation-projet" ? recue.evaluation : null;
+}
+
+function idsCriteresEvaluation(outils: OutilTuteur[]): Set<string> {
+  const outil = outils.find((o) => o.nom === OUTIL_EVALUATION_PROJET);
+  const ids = outil?.schema.properties?.criteres?.items?.properties?.critere_id?.enum ?? [];
+  return new Set(ids);
+}
+
+function validerEvaluationProjet(
+  entree: Record<string, unknown>,
+  idsAttendus: Set<string>,
+): PropositionRecue | null {
+  if (
+    idsAttendus.size === 0 ||
+    !clesExactes(entree, ["criteres", "synthese", "reserves"]) ||
+    !Array.isArray(entree.criteres) ||
+    entree.criteres.length !== idsAttendus.size
+  ) {
+    return null;
+  }
+
+  const criteres: PropositionEvaluationProjet["criteres"] = [];
+  const vus = new Set<string>();
+  for (const brut of entree.criteres) {
+    const critere = objet(brut);
+    if (
+      !critere ||
+      !clesExactes(critere, [
+        "critere_id",
+        "appreciation",
+        "justification",
+        "elements_observes",
+      ])
+    ) {
+      return null;
+    }
+    const critereId = texteBorne(critere.critere_id, 160);
+    const appreciation = dansEnum(critere.appreciation, APPRECIATIONS_PROJET);
+    const justification = texteBorne(critere.justification, 1_500);
+    if (
+      critereId === null ||
+      !idsAttendus.has(critereId) ||
+      vus.has(critereId) ||
+      !appreciation ||
+      justification === null ||
+      !Array.isArray(critere.elements_observes) ||
+      critere.elements_observes.length === 0 ||
+      critere.elements_observes.length > ELEMENTS_OBSERVES_MAX
+    ) {
+      return null;
+    }
+
+    const elementsObserves: string[] = [];
+    for (const brutElement of critere.elements_observes) {
+      const element = texteBorne(brutElement, 600);
+      if (element === null) return null;
+      elementsObserves.push(element);
+    }
+    vus.add(critereId);
+    criteres.push({
+      critereId,
+      appreciation: appreciation as PropositionEvaluationProjet["criteres"][number]["appreciation"],
+      justification,
+      elementsObserves,
+    });
+  }
+  if (vus.size !== idsAttendus.size) return null;
+
+  const synthese = texteBorne(entree.synthese, 2_000);
+  if (
+    synthese === null ||
+    !Array.isArray(entree.reserves) ||
+    entree.reserves.length > RESERVES_EVALUATION_MAX
+  ) {
+    return null;
+  }
+  const reserves: string[] = [];
+  for (const brute of entree.reserves) {
+    const reserve = texteBorne(brute, 800);
+    if (reserve === null) return null;
+    reserves.push(reserve);
+  }
+
+  return { genre: "evaluation-projet", evaluation: { criteres, synthese, reserves } };
 }
 
 function validerExercice(entree: Record<string, unknown>): PropositionRecue | null {
@@ -1280,6 +1912,12 @@ export function validerAppelOutil(
       return validerReferentiel(donnees);
     case OUTIL_CORRECTION:
       return validerCorrection(donnees);
+    case OUTIL_EXPLORATION_ADAPTATIVE:
+      return validerExplorationAdaptative(donnees);
+    case OUTIL_MINI_PROJET_ADAPTATIF:
+      return validerMiniProjetAdaptatif(donnees);
+    case OUTIL_EVALUATION_PROJET:
+      return validerEvaluationProjet(donnees, idsCriteresEvaluation(outils));
     case OUTIL_EVOLUTION:
       return validerEvolution(donnees);
     case OUTIL_REVISION:

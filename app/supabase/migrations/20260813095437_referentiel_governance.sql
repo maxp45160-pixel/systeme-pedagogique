@@ -1,4 +1,5 @@
 -- Gouvernance transactionnelle du référentiel (proposition ADR-065).
+-- Version alignee sur l'historique distant schema_migrations le 13/08/2026.
 -- Migration additive : aucune donnée de domaine, compétence ou preuve n'est réécrite.
 
 ALTER TABLE public.domaines

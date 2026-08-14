@@ -14,6 +14,7 @@ import { calibrerToutes } from "@/lib/engine/calibration";
 import { evaluerMaitrises } from "@/lib/engine/maitrise";
 import type { Contexte } from "@/lib/store/context";
 import type { Exercise, ExerciseAttempt } from "@/lib/domain/types";
+import { adaptLegacyActivities } from "@/lib/domain/legacy-activity-adapter";
 
 /*
  * ADR-021 : le protocole d'évaluation complet (§12-17 — score macro,
@@ -93,7 +94,11 @@ function construireCtxDeTest(
     global,
     recommandations,
     contexteDocumentaire: new Map(),
+    preuvesEffectives: [],
+    rectificationsPreuves: [],
     now,
+    refus: { codes: new Set(), exercices: new Set() },
+    adaptiveLegacy: adaptLegacyActivities("test", exercises, attempts),
   };
 }
 

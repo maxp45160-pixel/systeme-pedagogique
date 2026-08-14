@@ -50,3 +50,7 @@ next-env.d.ts
 # Local MCP configuration
 .mcp.json
 
+# Artefacts du CLI Supabase — état d'un poste, jamais du dépôt.
+/app/supabase/.branches
+/app/supabase/.temp
+

@@ -1,3 +1,4 @@
+-- Version alignee sur l'historique distant schema_migrations le 13/08/2026.
 -- Durcissement post-migration ADR-065 : index de succession et politiques
 -- d'écriture séparées pour ne pas doubler la politique SELECT.
 

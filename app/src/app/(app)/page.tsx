@@ -23,11 +23,20 @@ import {
 } from "@/components/seances/concepteur-seance";
 import { Depliant } from "@/components/ui/explication";
 import { Glossaire } from "@/components/ui/glossaire";
-import { BandeauInfo, Bouton, Carte, classesLienBouton, TitreSection } from "@/components/ui/primitives";
+import { BandeauInfo, Bouton, Carte, classesLienBouton, Etiquette, TitreSection } from "@/components/ui/primitives";
 import { abandonnerExercice } from "@/lib/store/actions";
 import { statutSeance } from "@/lib/domain/seance";
+import { chargerActionProposee, loadAdaptiveOpenRuns } from "@/lib/store/adaptive-learning";
+import {
+  lireContexteInstant,
+  LIBELLES_FAMILLE,
+  type ContexteInstant,
+} from "@/lib/engine/action-unifiee";
 
-export default function TableauDeBord() {
+export default async function TableauDeBord(props: {
+  searchParams: Promise<{ temps?: string; capacite?: string }>;
+}) {
+  const instant = lireContexteInstant(await props.searchParams);
   // La date du jour ne dépend d'aucune lecture : `ctx.now` n'est rien d'autre
   // qu'un `new Date()` posé à l'entrée de `chargerContexte`.
   const dateJour = new Intl.DateTimeFormat("fr-FR", {
@@ -52,13 +61,26 @@ export default function TableauDeBord() {
       />
 
       <Suspense fallback={<SqueletteContenu />}>
-        <ContenuTableauDeBord />
+        <ContenuTableauDeBord instant={instant} />
       </Suspense>
     </>
   );
 }
 
-async function ContenuTableauDeBord() {
+/**
+ * Le bandeau parlait d'« exercices ». Il parle de « travaux » seulement quand
+ * une autre famille est réellement ouverte : sans elles, la phrase reste
+ * exactement celle que l'écran affichait déjà.
+ */
+function titreTravauxEnCours(exercices: number, activites: number): string {
+  const total = exercices + activites;
+  if (activites === 0) {
+    return total === 1 ? "Tu as un exercice en cours" : `Tu as ${total} exercices en cours`;
+  }
+  return total === 1 ? "Tu as un travail en cours" : `Tu as ${total} travaux en cours`;
+}
+
+async function ContenuTableauDeBord({ instant }: { instant: ContexteInstant }) {
   const ctx = await chargerContexte();
 
   // Compte neuf : il n'y a rien à mettre sur ce tableau de bord, et une grille
@@ -72,9 +94,23 @@ async function ContenuTableauDeBord() {
     redirect("/demarrer");
   }
 
-  const themes = await chargerThemes();
+  /*
+    L'arbitrage à l'instant T (ADR-066) n'a pas d'écran à lui : il alimente la
+    carte d'action déjà en place. En mode `legacy`, il ne lit aucune table
+    adaptative — seulement les exercices et les tentatives qui existent déjà.
 
-  const evenements = evenementsRecents(ctx.donnees.evidence, ctx.referentiel.parCode, 6, ctx.now);
+    Les travaux ouverts d'une autre famille rejoignent le bandeau « en cours »
+    plus bas, au lieu d'un second bandeau qui dirait la même chose ailleurs.
+  */
+  const [themes, action, travauxOuverts] = await Promise.all([
+    chargerThemes(),
+    chargerActionProposee(ctx, instant),
+    ctx.donnees.user.learningLoopMode === "adaptive-v1"
+      ? loadAdaptiveOpenRuns(ctx.donnees.user.id)
+      : Promise.resolve([]),
+  ]);
+
+  const evenements = evenementsRecents(ctx.preuvesEffectives, ctx.referentiel.parCode, 6, ctx.now);
   const activite = calculerActivite(ctx.donnees.sessions, ctx.now, ctx.donnees.attempts);
   const aucunePreuve = ctx.global.nombrePreuves === 0;
 
@@ -149,14 +185,10 @@ async function ContenuTableauDeBord() {
         Placé AVANT l'action prioritaire : ce qui est déjà commencé passe avant
         ce qu'il faudrait commencer.
       */}
-      {enCours.length > 0 && (
+      {enCours.length + travauxOuverts.length > 0 && (
         <BandeauInfo ton="primaire">
-          <div className="min-w-0">
-            <p className="text-sm font-medium">
-              {enCours.length === 1
-                ? "Tu as un exercice en cours"
-                : `Tu as ${enCours.length} exercices en cours`}
-            </p>
+          <div className="min-w-0" data-testid="travaux-en-cours">
+            <p className="text-sm font-medium">{titreTravauxEnCours(enCours.length, travauxOuverts.length)}</p>
             <ul className="mt-2 space-y-1.5">
               {enCours.map(({ id, exercice, depuis }) => (
                 <li key={exercice.id} className="flex flex-wrap items-baseline gap-2 text-xs">
@@ -174,6 +206,29 @@ async function ContenuTableauDeBord() {
                       Abandonner
                     </Bouton>
                   </form>
+                </li>
+              ))}
+              {/*
+                Même bandeau, même liste : un travail ouvert est un travail
+                ouvert, quelle que soit sa famille. L'étiquette dit ce que c'est ;
+                le geste d'abandon reste dans l'espace de travail, là où le
+                contenu est visible.
+              */}
+              {travauxOuverts.map(({ run, activity }) => (
+                <li key={run.id} className="flex flex-wrap items-baseline gap-2 text-xs">
+                  <Etiquette ton="primaire">{LIBELLES_FAMILLE[activity.family]}</Etiquette>
+                  <Link
+                    href={`/seances?run=${encodeURIComponent(run.id)}`}
+                    className="font-medium text-primaire hover:underline"
+                  >
+                    {activity.title}
+                  </Link>
+                  <span className="text-texte-discret">
+                    {run.status === "planifiee" ? "prêt à démarrer" : "à reprendre"}
+                    {activity.target.skillCodes.length > 0
+                      ? ` · ${activity.target.skillCodes.join(", ")}`
+                      : ""}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -197,11 +252,15 @@ async function ContenuTableauDeBord() {
           </Carte>
         ) : (
           <CarteProchaineAction
-            recommandations={ctx.recommandations}
+            recommandations={action?.kind === "exercice" ? action.recommandations : ctx.recommandations}
             referentiel={ctx.referentiel}
             calibrages={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
             now={ctx.now}
             compteId={ctx.donnees.user.id}
+            instant={instant}
+            activite={action?.kind === "activite" ? action.action : undefined}
+            facteursInstant={action?.facteurs ?? []}
+            reservesInstant={action?.reserves ?? []}
           />
         )}
       </div>
