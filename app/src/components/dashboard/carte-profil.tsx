@@ -1,14 +1,15 @@
-import Link from "next/link";
+"use client";
+
 import { profilDeclare } from "@/lib/domain/profil";
 import { Carte, EnTeteCarte, Etiquette } from "@/components/ui/primitives";
+import { ouvrirReglagesCompte } from "@/components/layout/compte";
 import type { User } from "@/lib/domain/types";
 
 /**
- * Carte Profil du tableau de bord (lot 4.2).
+ * Carte Profil du tableau de bord.
  *
  * Montre ce que le profil déclare réellement et ce qui manque, sans en inventer
- * (ADR-029) : une valeur restée à son libellé d'invite (« à renseigner ») est
- * traitée comme non déclarée, et nommée comme telle. Lien direct vers `/profil`.
+ * (ADR-029). Ouvre directement le panneau de réglages sur l'onglet Profil.
  */
 export function CarteProfil({ user }: { user: User }) {
   const p = profilDeclare(user);
@@ -73,12 +74,13 @@ export function CarteProfil({ user }: { user: User }) {
           </p>
         )}
 
-        <Link
-          href="/profil"
-          className="mt-3 inline-block text-xs font-medium text-primaire hover:underline"
+        <button
+          type="button"
+          onClick={() => ouvrirReglagesCompte("profil")}
+          className="mt-3 inline-block text-xs font-medium text-primaire hover:underline cursor-pointer"
         >
-          Compléter le profil
-        </Link>
+          {p.vide ? "Renseigner le profil" : "Modifier le profil"}
+        </button>
       </div>
     </Carte>
   );

@@ -27,7 +27,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Bouton, Carte, EnTeteCarte } from "@/components/ui/primitives";
+import { Bouton, Carte, EnTeteCarte, cx } from "@/components/ui/primitives";
 import { cleParCompte, ecrireSession, effacerSession, lireSession } from "@/lib/ui/stockage-session";
 import { useEstHydrate } from "@/lib/ui/hydratation";
 
@@ -357,3 +357,45 @@ export function Pomodoro({ compteId }: { compteId: string }) {
     </Carte>
   );
 }
+
+/**
+ * Pastille compacte indiquant le temps restant du Pomodoro quand il est actif.
+ * S'insère dans l'en-tête ou la barre mobile.
+ */
+export function PastillePomodoroGlobale({ compteId }: { compteId: string }) {
+  const hydrate = useEstHydrate();
+  const cle = cleParCompte("pomodoro", compteId);
+  const [etat, setEtat] = useState<EtatPersiste>(() => lireSession<EtatPersiste>(cle) ?? etatInitial());
+  const [maintenant, setMaintenant] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!hydrate) return;
+    const intervalle = setInterval(() => {
+      const e = lireSession<EtatPersiste>(cle);
+      if (e) setEtat(e);
+      setMaintenant(Date.now());
+    }, 1000);
+    return () => clearInterval(intervalle);
+  }, [hydrate, cle]);
+
+  if (!hydrate || etat.finPrevue === undefined) return null;
+
+  const reste = secondesRestantes(etat, maintenant);
+  const estFocus = etat.phase === "focus";
+
+  return (
+    <div
+      className={cx(
+        "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium shadow-sm transition-all animate-pulse",
+        estFocus
+          ? "border border-primaire/30 bg-primaire-faible text-primaire"
+          : "border border-succes/30 bg-succes-faible text-succes",
+      )}
+      title={`Pomodoro (${LIBELLES[etat.phase]}) en cours`}
+    >
+      <span>{estFocus ? "⏱️" : "☕"}</span>
+      <span className="font-mono tabular-nums font-semibold">{formaterMMSS(reste)}</span>
+    </div>
+  );
+}
+

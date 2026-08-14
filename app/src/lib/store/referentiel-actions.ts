@@ -237,3 +237,9 @@ export async function modifierProfil(champs: ModificationProfil): Promise<void> 
   verifier("modification du profil", error);
   revalidatePath("/", "layout");
 }
+
+export async function chargerProfilAction() {
+  const { lire } = await import("./db");
+  return lire("user");
+}
+

@@ -8,6 +8,7 @@ import { ProfilPage } from "@/components/dev/profil-page";
 import { ProfilWrapper } from "@/components/dev/profil-wrapper";
 import { ProfilTracker } from "@/components/dev/profil-tracker";
 import { TuteurGlobal } from "@/components/tuteur/tuteur-global";
+import { PastillePomodoroGlobale } from "@/components/dashboard/pomodoro";
 
 /**
  * Cadre du carnet : rail de navigation, marge.
@@ -49,10 +50,11 @@ export default async function AppLayout({
           atteignable sur mobile (ADR-025).
         */}
         <div className="flex h-12 items-center justify-between gap-2 border-b border-bordure bg-surface px-4 lg:hidden">
-          <div className="min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
             <div className="truncate text-sm font-semibold tracking-tight">
               Système pédagogique
             </div>
+            <PastillePomodoroGlobale compteId={session.compteId} />
           </div>
           <CompteMobile session={session} />
         </div>

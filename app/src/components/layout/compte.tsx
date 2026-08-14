@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Bouton, cx, SelecteurSegmente } from "@/components/ui/primitives";
 import { Modale } from "@/components/ui/modale";
 import { Champ, ChampSelect, classesChamp } from "@/components/ui/champ";
 import { seDeconnecter } from "@/lib/supabase/actions";
 import { exporterJournal } from "@/lib/store/export";
 import { IconeValide } from "@/components/ui/icones";
+import { FormulaireProfil } from "@/components/profil/formulaire-profil";
 import { appliquerTheme, lireChoixTheme, type ChoixTheme } from "./theme";
 import {
   FOURNISSEURS,
@@ -36,6 +37,17 @@ export interface EtatSession {
  */
 export function Compte({ session }: { session: EtatSession }) {
   const [reglagesOuverts, setReglagesOuverts] = useState(false);
+  const [ongletInitial, setOngletInitial] = useState<OngletReglages>("profil");
+
+  useEffect(() => {
+    function surOuvrir(event: Event) {
+      const detail = (event as CustomEvent<{ onglet?: OngletReglages }>).detail;
+      if (detail?.onglet) setOngletInitial(detail.onglet);
+      setReglagesOuverts(true);
+    }
+    window.addEventListener("ouvrir-reglages-compte", surOuvrir);
+    return () => window.removeEventListener("ouvrir-reglages-compte", surOuvrir);
+  }, []);
 
   const nom = session.nom ?? session.courriel?.split("@")[0] ?? "Compte";
   const sousTitre = session.courriel ?? "";
@@ -61,7 +73,10 @@ export function Compte({ session }: { session: EtatSession }) {
             <div className="flex shrink-0 items-center gap-1">
               <button
                 type="button"
-                onClick={() => setReglagesOuverts(true)}
+                onClick={() => {
+                  setOngletInitial("profil");
+                  setReglagesOuverts(true);
+                }}
                 title="Compte et synchronisation"
                 aria-label="Compte et synchronisation"
                 className="rounded-md p-1.5 text-[var(--rail-texte-attenue)] transition-colors hover:bg-white/10 hover:text-[var(--rail-texte)]"
@@ -75,7 +90,11 @@ export function Compte({ session }: { session: EtatSession }) {
       </div>
 
       {reglagesOuverts && (
-        <PanneauReglages session={session} onFermer={() => setReglagesOuverts(false)} />
+        <PanneauReglages
+          session={session}
+          ongletInitial={ongletInitial}
+          onFermer={() => setReglagesOuverts(false)}
+        />
       )}
     </>
   );
@@ -95,6 +114,17 @@ export function Compte({ session }: { session: EtatSession }) {
  */
 export function CompteMobile({ session }: { session: EtatSession }) {
   const [reglagesOuverts, setReglagesOuverts] = useState(false);
+  const [ongletInitial, setOngletInitial] = useState<OngletReglages>("profil");
+
+  useEffect(() => {
+    function surOuvrir(event: Event) {
+      const detail = (event as CustomEvent<{ onglet?: OngletReglages }>).detail;
+      if (detail?.onglet) setOngletInitial(detail.onglet);
+      setReglagesOuverts(true);
+    }
+    window.addEventListener("ouvrir-reglages-compte", surOuvrir);
+    return () => window.removeEventListener("ouvrir-reglages-compte", surOuvrir);
+  }, []);
 
   const nom = session.nom ?? session.courriel?.split("@")[0] ?? "Compte";
 
@@ -102,7 +132,10 @@ export function CompteMobile({ session }: { session: EtatSession }) {
     <>
       <button
         type="button"
-        onClick={() => setReglagesOuverts(true)}
+        onClick={() => {
+          setOngletInitial("profil");
+          setReglagesOuverts(true);
+        }}
         aria-label="Compte et réglages"
         title="Compte et réglages"
         className="flex shrink-0 items-center gap-1.5 rounded-md p-1 text-texte-attenue transition-colors hover:bg-surface-2 hover:text-texte"
@@ -112,7 +145,11 @@ export function CompteMobile({ session }: { session: EtatSession }) {
       </button>
 
       {reglagesOuverts && (
-        <PanneauReglages session={session} onFermer={() => setReglagesOuverts(false)} />
+        <PanneauReglages
+          session={session}
+          ongletInitial={ongletInitial}
+          onFermer={() => setReglagesOuverts(false)}
+        />
       )}
     </>
   );
@@ -169,15 +206,52 @@ function Avatar({
   );
 }
 
+export function ouvrirReglagesCompte(onglet?: "profil" | "tuteur" | "compte") {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("ouvrir-reglages-compte", { detail: { onglet } }));
+  }
+}
+
+type OngletReglages = "profil" | "tuteur" | "compte";
+
+const ONGLETS_REGLAGES: { cle: OngletReglages; libelle: string }[] = [
+  { cle: "profil", libelle: "Profil d'apprentissage" },
+  { cle: "tuteur", libelle: "Tuteur IA" },
+  { cle: "compte", libelle: "Compte & Synchronisation" },
+];
+
 function PanneauReglages({
   session,
+  ongletInitial = "profil",
   onFermer,
 }: {
   session: EtatSession;
+  ongletInitial?: OngletReglages;
   onFermer: () => void;
 }) {
+  const [onglet, setOnglet] = useState<OngletReglages>(ongletInitial);
   const [exportEnCours, setExportEnCours] = useState(false);
   const [messageExport, setMessageExport] = useState<string | null>(null);
+  const [profilUser, setProfilUser] = useState<import("@/lib/domain/types").User | null>(null);
+  const [chargementProfil, setChargementProfil] = useState(true);
+
+  useEffect(() => {
+    let actif = true;
+    import("@/lib/store/referentiel-actions")
+      .then((mod) => mod.chargerProfilAction())
+      .then((user) => {
+        if (actif) {
+          setProfilUser(user);
+          setChargementProfil(false);
+        }
+      })
+      .catch(() => {
+        if (actif) setChargementProfil(false);
+      });
+    return () => {
+      actif = false;
+    };
+  }, []);
 
   async function telechargerArchive() {
     setExportEnCours(true);
@@ -205,15 +279,15 @@ function PanneauReglages({
     }
   }
 
+  const nonRenseigne = (v?: string) => (!v || v.includes("à renseigner") ? "" : v);
+
   return (
     <Modale
-      titre="Compte et synchronisation"
-      sousTitre="Où sont stockées vos données de suivi."
-      largeur="md"
+      titre="Compte et réglages"
+      sousTitre="Gérer ton profil d'apprentissage, la connexion IA et la sauvegarde de tes données."
+      largeur="xl"
       onFermer={onFermer}
       pied={
-        // La déconnexion s'éloigne de la fermeture : deux gestes de portée très
-        // différente ne se touchent pas.
         <div className="flex w-full items-center justify-between gap-2">
           <form action={seDeconnecter}>
             <Bouton type="submit" variante="danger" taille="compacte">
@@ -227,80 +301,108 @@ function PanneauReglages({
         </div>
       }
     >
-      <>
-        <dl className="space-y-3 text-sm">
-          {/* ── Tuteur IA : clé API saisie côté client ── */}
-          <div className="rounded-lg border border-bordure bg-surface-2/60 px-3 py-2.5">
-            <dt className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
-              Tuteur IA
-            </dt>
-            <dd className="mt-1.5">
+      <div className="space-y-4">
+        <SelecteurSegmente
+          options={ONGLETS_REGLAGES}
+          actif={onglet}
+          rendreItem={(o, classesItem, estActifItem) => (
+            <button
+              key={o.cle}
+              type="button"
+              onClick={() => setOnglet(o.cle)}
+              aria-pressed={estActifItem}
+              className={classesItem}
+            >
+              {o.libelle}
+            </button>
+          )}
+        />
+
+        {onglet === "profil" && (
+          <div className="space-y-3 py-1">
+            {chargementProfil ? (
+              <div className="py-8 text-center text-xs text-texte-discret animate-pulse">
+                Chargement du profil…
+              </div>
+            ) : profilUser ? (
+              <FormulaireProfil
+                formation={nonRenseigne(profilUser.formation)}
+                objectifMoyenTerme={nonRenseigne(profilUser.objectifMoyenTerme)}
+                objectifLongTerme={nonRenseigne(profilUser.objectifLongTerme)}
+                preferencesPedagogiques={profilUser.preferencesPedagogiques ?? []}
+                plan={profilUser.plan}
+                famillesVisibles={profilUser.learningLoopMode === "adaptive-v1"}
+              />
+            ) : (
+              <p className="text-xs text-danger">Impossible de charger le profil.</p>
+            )}
+          </div>
+        )}
+
+        {onglet === "tuteur" && (
+          <div className="space-y-3 py-1">
+            <div className="rounded-lg border border-bordure bg-surface-2/60 px-3 py-2.5">
+              <dt className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret mb-1.5">
+                Clé API Tuteur
+              </dt>
               <ReglagesTuteur compteId={session.compteId} />
-            </dd>
+            </div>
           </div>
+        )}
 
-          <div className="rounded-lg border border-bordure bg-surface-2/60 px-3 py-2.5">
-            <dt className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
-              Apparence
-            </dt>
-            <dd className="mt-1.5">
-              <ChoixApparence />
-            </dd>
-          </div>
+        {onglet === "compte" && (
+          <dl className="space-y-3 text-sm py-1">
+            <div className="rounded-lg border border-bordure bg-surface-2/60 px-3 py-2.5">
+              <dt className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
+                Apparence
+              </dt>
+              <dd className="mt-1.5">
+                <ChoixApparence />
+              </dd>
+            </div>
 
-          <div className="rounded-lg border border-bordure bg-surface-2/60 px-3 py-2.5">
-            <dt className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
-              État
-            </dt>
-            <dd className="mt-1 flex items-center gap-2">
-              <span aria-hidden className="size-2 shrink-0 rounded-full bg-succes" />
-              <span className="text-texte-attenue">
-                Connecté — données synchronisées sur votre compte ({session.courriel}).
-              </span>
-            </dd>
-          </div>
+            <div className="rounded-lg border border-bordure bg-surface-2/60 px-3 py-2.5">
+              <dt className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
+                État de synchronisation
+              </dt>
+              <dd className="mt-1 flex items-center gap-2">
+                <span aria-hidden className="size-2 shrink-0 rounded-full bg-succes" />
+                <span className="text-xs text-texte-attenue">
+                  Connecté — données synchronisées sur votre compte ({session.courriel}).
+                </span>
+              </dd>
+            </div>
 
-          <div className="rounded-lg border border-bordure bg-surface-2/60 px-3 py-2.5">
-            <dt className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
-              Sauvegarde
-            </dt>
-            <dd className="mt-1 space-y-2 text-texte-attenue">
-              <p className="text-xs leading-relaxed">
-                Télécharge l&apos;intégralité de ton journal en JSON — preuves, séances,
-                erreurs, projets, profil. C&apos;est ta copie hors ligne : elle ne dépend
-                ni de l&apos;hébergeur ni du dépôt git.
-              </p>
-              <Bouton
-                variante="secondaire"
-                taille="compacte"
-                onClick={telechargerArchive}
-                enChargement={exportEnCours}
-              >
-                Exporter mon journal
-              </Bouton>
-              {messageExport && (
-                <p className="flex items-start gap-1.5 text-xs text-texte">
-                  <IconeValide className="mt-0.5 size-3.5 shrink-0 text-succes" />
-                  <span>{messageExport}</span>
+            <div className="rounded-lg border border-bordure bg-surface-2/60 px-3 py-2.5">
+              <dt className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
+                Sauvegarde & Journal
+              </dt>
+              <dd className="mt-1 space-y-2 text-texte-attenue">
+                <p className="text-xs leading-relaxed">
+                  Télécharge l&apos;intégralité de ton journal en JSON — preuves, séances,
+                  erreurs, projets, profil. C&apos;est ta copie souveraine hors ligne.
                 </p>
-              )}
-            </dd>
-          </div>
-
-        </dl>
-      </>
+                <Bouton
+                  variante="secondaire"
+                  taille="compacte"
+                  onClick={telechargerArchive}
+                  enChargement={exportEnCours}
+                >
+                  Exporter mon journal JSON
+                </Bouton>
+                {messageExport && (
+                  <p className="flex items-start gap-1.5 text-xs text-texte">
+                    <IconeValide className="mt-0.5 size-3.5 shrink-0 text-succes" />
+                    <span>{messageExport}</span>
+                  </p>
+                )}
+              </dd>
+            </div>
+          </dl>
+        )}
+      </div>
     </Modale>
   );
-  /*
-   * Le portail vit désormais dans `Modale`, et il reste indispensable ici : le
-   * rail est en `position: sticky`, ce qui crée toujours un contexte
-   * d'empilement. Rendue à l'intérieur, la modale verrait son `z-50` confiné au
-   * rail et passerait *sous* le contenu principal, qui vient plus loin dans le
-   * DOM. Aucune valeur de z-index ne corrige cela — il faut sortir du contexte.
-   *
-   * C'est ce que les six autres modales n'avaient pas, et c'est pour cela que
-   * le portail est dans la primitive plutôt que recopié ici.
-   */
 }
 
 /* ------------------------------------------------------------------ */

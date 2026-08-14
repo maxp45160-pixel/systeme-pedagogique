@@ -57,7 +57,6 @@ function workModeQuery(rawValue: string): string {
 
 export async function saveLearningGoal(requestId: string, formData: FormData): Promise<void> {
   if (await loadCommandReceipt(requestId, "enregistrer_objectif_apprentissage")) {
-    revalidatePath("/profil");
     revalidatePath("/");
     return;
   }
@@ -101,7 +100,6 @@ export async function saveLearningGoal(requestId: string, formData: FormData): P
     },
   });
   verifier("enregistrement transactionnel de l'objectif", error);
-  revalidatePath("/profil");
   revalidatePath("/");
 }
 

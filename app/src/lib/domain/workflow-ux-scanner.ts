@@ -1339,6 +1339,14 @@ export async function scannerUxJourney(): Promise<GrapheWorkflow> {
         declencheur: "Clic 'Retour au workspace séance'",
         condition: "séance en cours",
       });
+      connecter({
+        source: "action:abandonner-tentative",
+        target: "ux:workspace-seance",
+        type: "transition",
+        libelle: "Reprendre la séance",
+        declencheur: "Abandon dans une séance",
+        condition: "séance en cours",
+      });
     }
 
     if (parId.has("ux:recommandation-active")) {
@@ -1532,16 +1540,15 @@ export async function scannerUxJourney(): Promise<GrapheWorkflow> {
   /* ══════════════════════════════════════════════════════════════════ */
   /* 6. CLUSTER PROFIL, SYNC & AMORÇAGE                                 */
   /* ══════════════════════════════════════════════════════════════════ */
-  const pageProfil = fichiers.get("app/(app)/profil/page.tsx");
-  if (pageProfil) {
+  const compCompte = fichiers.get("components/layout/compte.tsx");
+  if (compCompte) {
     ajouterNoeud({
-      id: "page:/profil",
-      type: "page",
+      id: "ux:tiroir-compte",
+      type: "tiroir",
       groupe: "profil",
-      libelle: "Profil d'apprentissage",
-      url: "/profil",
-      badge: "Paramètres",
-      description: "Définition du sujet d'étude, objectifs à long terme et calibrage.",
+      libelle: "Tiroir Compte & Réglages",
+      badge: "Synchronisation",
+      description: "Gestion du profil d'apprentissage, clé IA, export du journal et session.",
     });
     ajouterNoeud({
       id: "ux:profil-objectifs",
@@ -1550,22 +1557,6 @@ export async function scannerUxJourney(): Promise<GrapheWorkflow> {
       libelle: "Édition Sujet & Objectifs",
       badge: "Objectifs",
       description: "Formulaire de mise à jour des ambitions et du domaine principal.",
-    });
-    ajouterNoeud({
-      id: "ux:reglage-boucle",
-      type: "sous-vue",
-      groupe: "profil",
-      libelle: "Réglage Boucle d'apprentissage",
-      badge: "Adaptatif",
-      description: "Activation du mode adaptatif avec journal de rectification.",
-    });
-    ajouterNoeud({
-      id: "ux:tiroir-compte",
-      type: "tiroir",
-      groupe: "profil",
-      libelle: "Tiroir Compte & Sync",
-      badge: "Synchronisation",
-      description: "Gestion de l'export JSON du journal, import et session utilisateur.",
     });
     ajouterNoeud({
       id: "page:/login",
@@ -1582,38 +1573,31 @@ export async function scannerUxJourney(): Promise<GrapheWorkflow> {
     ajouterNoeud({ id: "action:se-deconnecter", type: "action", groupe: "profil", libelle: "Déconnexion" });
 
     connecter({
-      source: "page:/profil",
+      source: "page:/",
+      target: "ux:tiroir-compte",
+      type: "ouverture",
+      libelle: "Ouvrir gestion de compte",
+      declencheur: "Clic sur l'avatar / pastille de statut sync",
+    });
+    connecter({
+      source: "ux:tiroir-compte",
       target: "ux:profil-objectifs",
       type: "interaction",
       libelle: "Éditer le profil",
-      declencheur: "Saisie dans les champs sujet & objectifs",
-    });
-    connecter({
-      source: "page:/profil",
-      target: "ux:reglage-boucle",
-      type: "interaction",
-      libelle: "Configurer la boucle",
-      declencheur: "Bascule mode adaptatif",
+      declencheur: "Onglet 'Profil d'apprentissage'",
     });
     connecter({
       source: "ux:profil-objectifs",
       target: "action:modifier-profil",
       type: "soumission",
       libelle: "Enregistrer le profil",
-      declencheur: "Clic 'Enregistrer les modifications'",
+      declencheur: "Clic 'Enregistrer'",
     });
     connecter({
       source: "action:modifier-profil",
-      target: "page:/profil",
+      target: "ux:tiroir-compte",
       type: "transition",
       libelle: "Profil sauvegardé",
-    });
-    connecter({
-      source: "page:/",
-      target: "ux:tiroir-compte",
-      type: "ouverture",
-      libelle: "Ouvrir gestion de compte",
-      declencheur: "Clic sur l'avatar / pastille de statut sync",
     });
     connecter({
       source: "ux:tiroir-compte",
@@ -1714,15 +1698,6 @@ export async function scannerUxJourney(): Promise<GrapheWorkflow> {
       type: "navigation",
       libelle: "Ouvrir les Séances",
       declencheur: "Menu navigation / Carte séances",
-    });
-  }
-  if (parId.has("page:/profil")) {
-    connecter({
-      source: "page:/",
-      target: "page:/profil",
-      type: "navigation",
-      libelle: "Ouvrir le Profil",
-      declencheur: "Menu navigation / Carte profil",
     });
   }
   if (parId.has("ux:alerte-domaine-fragile") && parId.has("modal:reviser-domaine")) {

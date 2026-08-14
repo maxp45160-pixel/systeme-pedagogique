@@ -70,4 +70,14 @@ describe("scannerUxJourney", () => {
     expect(liensContexte.map((l) => l.target)).toContain("action:televerser-pdf");
     expect(liensContexte.map((l) => l.target)).toContain("action:ajouter-wikilien");
   });
+
+  it("génère et exporte le graphe DOT audité", async () => {
+    const { exporterDOT } = await import("./workflow-export");
+    const { writeFileSync, mkdirSync } = await import("node:fs");
+    const graphe = await scannerUxJourney();
+    const dot = exporterDOT(graphe.noeuds, graphe.liens, { avecConditions: true });
+    expect(dot).toContain("digraph workflow");
+    mkdirSync("C:/Users/hupch/.gemini/antigravity-ide/brain/e2d864ec-d07b-4952-a815-411af741e932/scratch", { recursive: true });
+    writeFileSync("C:/Users/hupch/.gemini/antigravity-ide/brain/e2d864ec-d07b-4952-a815-411af741e932/scratch/regenerated_workflow.dot", dot, "utf-8");
+  });
 });

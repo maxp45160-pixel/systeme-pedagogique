@@ -6,6 +6,7 @@ import { estActif, NAVIGATION } from "./navigation";
 import { cx } from "@/components/ui/primitives";
 import { BasculeRail } from "./bascule-rail";
 import { Compte, type EtatSession } from "./compte";
+import { PastillePomodoroGlobale } from "@/components/dashboard/pomodoro";
 
 export function Sidebar({ session }: { session: EtatSession }) {
   const pathname = usePathname();
@@ -75,6 +76,10 @@ export function Sidebar({ session }: { session: EtatSession }) {
           </div>
         ))}
       </nav>
+
+      <div className="px-3 py-2 flex justify-center rail-reduit:hidden">
+        <PastillePomodoroGlobale compteId={session.compteId} />
+      </div>
 
       <Compte session={session} />
     </aside>
