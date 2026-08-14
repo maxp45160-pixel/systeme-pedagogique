@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { chargerContexte } from "@/lib/store/context";
+import { chargerThemes } from "@/lib/store/themes";
 import { formatDuree } from "@/lib/engine/dates";
 import { SqueletteContenu } from "@/components/layout/squelette";
 import { calculerActivite, evenementsRecents } from "@/lib/engine/historique";
@@ -76,7 +77,7 @@ function titreTravauxEnCours(exercices: number, activites: number): string {
 }
 
 async function ContenuTableauDeBord({ instant }: { instant: ContexteInstant }) {
-  const ctx = await chargerContexte();
+  const [ctx, themes] = await Promise.all([chargerContexte(), chargerThemes()]);
 
   // Compte neuf : il n'y a rien à mettre sur ce tableau de bord, et une grille
   // de tirets ne dit pas quoi faire. On envoie construire le référentiel — la
@@ -285,7 +286,14 @@ async function ContenuTableauDeBord({ instant }: { instant: ContexteInstant }) {
         <CaptureNotes
           domaines={ctx.referentiel.domaines
             .filter((domaine) => !domaine.archive && ctx.referentiel.actifs.some((skill) => skill.domaine === domaine.id))
-            .map((domaine) => ({ id: domaine.id, nom: domaine.nom }))}
+            .map((domaine) => ({ id: domaine.id, nom: domaine.nom, prefixe: domaine.prefixe }))}
+          themes={themes}
+          competences={ctx.referentiel.actifs.map((skill) => ({
+            code: skill.code,
+            intitule: skill.intitule,
+            domaine: skill.domaine,
+          }))}
+          compteId={ctx.donnees.user.id}
         />
         <CarteProfil user={ctx.donnees.user} />
       </div>

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   composerSeance,
   nombreExercicesConseille,
+  themePourDomaine,
   themesSuggeres,
   THEMES_CIBLES_MAX,
 } from "./caf";
@@ -199,6 +200,14 @@ describe("themesSuggeres — la suggestion sort du même classement que la proch
       expect(c.activites.length + c.manquants.length).toBeGreaterThan(0);
       expect(motifRefusBlueprint(c.blueprint)).toBeNull();
     }
+  });
+
+  it("représente un domaine déclaré sans imposer une compétence", () => {
+    const theme = themePourDomaine("developpement", "Développement logiciel");
+
+    expect(theme.portee).toEqual({ type: "mono", domaine: "developpement" });
+    expect(theme.codesImposes).toEqual([]);
+    expect(theme.detail).toBe("Domaine choisi dans ton travail");
   });
 });
 

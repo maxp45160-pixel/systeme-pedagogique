@@ -56,10 +56,11 @@ import {
   TEMPS_DECLARE_MAX,
 } from "@/lib/domain/seance";
 import { DUREE_ESTIMEE_MIN } from "@/lib/domain/exercice";
-import { themesEnregistres, type Theme } from "@/lib/domain/theme";
+import { themeVersThemeSeance, type Theme } from "@/lib/domain/theme";
 import {
   composerSeance,
   nombreExercicesConseille,
+  themePourDomaine,
   themesSuggeres,
   type ActiviteComposee,
   type CompositionSeance,
@@ -73,9 +74,7 @@ import {
   creerSeance,
   type EntreePlanification,
 } from "@/lib/store/seance-actions";
-import { etatRetraitTheme, modifierTheme, retirerTheme } from "@/lib/store/theme-actions";
 import { BoutonGenerer } from "@/components/exercices/bouton-generer";
-import { ModaleTheme } from "./modale-theme";
 import {
   competencesPourModale,
   type CalibrageModale,
@@ -119,6 +118,12 @@ export interface DonneesSeance {
   compteId: string;
   /** Pré-remplit le compositeur (ex. « Refaire cette séance »). */
   preset?: PresetSeance;
+  /** Domaine déclaré dans la fiche qui a lancé la composition. */
+  domaineInitial?: string;
+  /** Contexte déclaré dans la fiche qui a lancé la composition. */
+  contexteInitial?: string;
+  /** Thème choisi dans la fiche qui a lancé la composition. */
+  themeInitial?: Theme;
   /** Libellé du bouton déclencheur. */
   libelle?: string;
   /** Le bouton occupe toute la largeur de son conteneur. */
@@ -164,9 +169,11 @@ export function ConcepteurSeance({
   recommandations,
   contexteDocumentaire: contexteDocumentaireSerialise,
   domaines,
-  themes: themesPersistes,
   compteId,
   preset,
+  domaineInitial,
+  contexteInitial,
+  themeInitial,
   libelle = "Composer une séance",
   pleineLargeur = false,
   variante = "principal",
@@ -189,10 +196,8 @@ export function ConcepteurSeance({
   );
 
   /*
-   * Un preset (« Refaire cette séance ») n'est pas un thème suggéré : il vient
-   * d'une séance passée. Il devient donc un thème à part, placé en tête, pour
-   * que le même sélecteur serve les deux cas — plutôt qu'un mode caché où le
-   * choix du thème disparaîtrait sans explication.
+   * Un preset (« Refaire cette séance ») n'est pas une recommandation : il vient
+   * d'une séance passée et reste donc prioritaire sur les autres sources.
    */
   const themeDuPreset: ThemeSeance | null = useMemo(() => {
     if (!preset) return null;
@@ -207,19 +212,18 @@ export function ConcepteurSeance({
     };
   }, [preset, domaines]);
 
-  /**
-   * Le premier thème de `themesSug` (ou le preset) EST la prochaine action —
-   * c'est la propriété d'ADR-049, inchangée. Ce chantier n'y touche pas : il
-   * ajoute un SECOND mode à côté, il ne modifie pas le premier.
-   */
-  const themePrincipal: ThemeSeance | null = themeDuPreset ?? themesSug[0] ?? null;
+  const themeDuDomaine: ThemeSeance | null = useMemo(() => {
+    if (!domaineInitial) return null;
+    const domaine = domaines.find((item) => item.id === domaineInitial);
+    return domaine ? themePourDomaine(domaine.id, domaine.nom) : null;
+  }, [domaineInitial, domaines]);
 
   /*
    * Référentiel « léger », reconstruit côté client à partir des seules pièces
-   * déjà envoyées par le serveur (`actifs`) — pour appeler `themesEnregistres`
-   * (lib/domain/theme.ts, pur) sans faire porter au client un `Referentiel`
-   * complet. Seuls `codesActifs` et `parCode` sont lus par cette fonction ;
-   * les autres champs restent vides, structurellement présents mais inertes.
+   * déjà envoyées par le serveur (`actifs`) — pour convertir le thème choisi
+   * sans faire porter au client un `Referentiel` complet. Seuls `codesActifs`
+   * et `parCode` sont lus par cette conversion ; les autres champs restent
+   * vides, structurellement présents mais inertes.
    */
   const referentielLeger: Referentiel = useMemo(
     () => ({
@@ -233,56 +237,26 @@ export function ConcepteurSeance({
     [actifs],
   );
 
-  const competencesParCode = useMemo(
-    () =>
-      new Map(
-        actifs.map((s) => [s.code, { intitule: s.intitule, domaine: nomsDomaines.get(s.domaine) ?? s.domaine }]),
-      ),
-    [actifs, nomsDomaines],
+  const themeDuThemeInitial = useMemo(
+    () => (themeInitial ? themeVersThemeSeance(themeInitial, referentielLeger) : null),
+    [themeInitial, referentielLeger],
   );
 
-  // Thèmes créés pendant cette session (via ModaleTheme) mais pas encore
-  // reflétés dans `themesPersistes` : ajoutés côté client pour une sélection
-  // immédiate, sans attendre un aller-retour serveur.
-  const [themesLocaux, setThemesLocaux] = useState<Theme[]>([]);
+  /**
+   * Le sujet choisi dans le premier formulaire passe avant la recommandation
+   * globale : l'intention explicite de la personne borne la séance. Le domaine
+   * reste le repli des anciennes fiches qui n'ont pas encore de thème.
+   */
+  const themePrincipal: ThemeSeance | null =
+    themeDuPreset ?? themeDuThemeInitial ?? themeDuDomaine ?? themesSug[0] ?? null;
 
-  const themesEnreg = useMemo(
-    () => themesEnregistres([...themesPersistes, ...themesLocaux], referentielLeger),
-    [themesPersistes, themesLocaux, referentielLeger],
-  );
-
-  // Thèmes suggérés « larges » (domaine entier, transverse) à proposer en
-  // repli dans le mode personnalisé — le premier (la prochaine action) reste
-  // le contenu du mode « Prochaine action », pour ne pas le montrer deux fois.
-  const themesSugRepli = themesSug.slice(themeDuPreset ? 0 : 1);
-
-  const [mode, setMode] = useState<"prochaine-action" | "personnalisee">(
-    // Sans recommandation, `themePrincipal` est nul : l'onglet « Prochaine
-    // action » n'aurait rien à montrer. On bascule d'office vers le mode
-    // personnalisé, où la personne choisit un thème enregistré ou en décrit un.
-    themePrincipal ? "prochaine-action" : "personnalisee",
-  );
-  const [cleThemePerso, setCleThemePerso] = useState<string>("");
-
-  const themesPersonnalises = useMemo(
-    () => [...themesEnreg, ...themesSugRepli],
-    [themesEnreg, themesSugRepli],
-  );
-
-  // En mode personnalisé, AUCUN repli silencieux : le thème composé est
-  // exactement celui coché dans la liste (`cleThemePerso`). Un repli vers le
-  // premier thème afficherait une sélection que la liste ne montre pas —
-  // l'écran composerait autre chose que ce que voit la personne.
-  const theme: ThemeSeance | null =
-    mode === "prochaine-action"
-      ? themePrincipal
-      : themesPersonnalises.find((t) => t.cle === cleThemePerso) ?? null;
+  const theme = themePrincipal;
 
   const [temps, setTemps] = useState(
     String(preset?.dureeCibleMin ?? TEMPS_PAR_DEFAUT),
   );
-  const [intention, setIntention] = useState("");
-  const [intentionOuverte, setIntentionOuverte] = useState(false);
+  const [intention, setIntention] = useState(contexteInitial ?? "");
+  const [intentionOuverte, setIntentionOuverte] = useState(Boolean(contexteInitial?.trim()));
 
   const [nombreExercices, setNombreExercices] = useState(() =>
     Math.min(
@@ -445,7 +419,7 @@ export function ConcepteurSeance({
       {ouvert && (
         <Modale
           titre="Composer une séance"
-          sousTitre="Un thème, un temps — le reste est dérivé et reste modifiable."
+          sousTitre="Le sujet est déjà choisi. Indique un temps — le reste est dérivé et modifiable."
           onFermer={() => setOuvert(false)}
           largeur="2xl"
           /*
@@ -466,19 +440,19 @@ export function ConcepteurSeance({
                 title={
                   theme !== null
                     ? undefined
-                    : "Choisis un thème dans la liste (ou décris-en un) avant de composer."
+                    : "Aucun domaine ou thème exploitable n'est disponible pour composer."
                 }
               >
                 Voir la composition
               </Bouton>
             ) : !theme ? null : !composition ? (
               <Bouton type="button" onClick={() => setPhase("besoin")} variante="secondaire">
-                Revenir au besoin
+                Ajuster les paramètres
               </Bouton>
             ) : (
               <div className="flex w-full items-center justify-between gap-2">
                 <Bouton type="button" onClick={() => setPhase("besoin")} variante="secondaire">
-                  Changer de thème
+                  Ajuster les paramètres
                 </Bouton>
                 <Bouton
                   type="button"
@@ -501,27 +475,16 @@ export function ConcepteurSeance({
         >
           {phase === "besoin" ? (
             <EtapeBesoin
-              mode={mode}
-              setMode={setMode}
               themePrincipal={themePrincipal}
-              themesPersonnalises={themesPersonnalises}
-              themesEnreg={themesEnreg}
-              cleThemePerso={cleThemePerso}
-              setCleThemePerso={setCleThemePerso}
-              competencesParCode={competencesParCode}
-              compteId={compteId}
-              domainesExistants={domaines}
-              onThemeCree={(t) => {
-                setThemesLocaux((prev) => [...prev, t]);
-                setCleThemePerso(`theme:${t.id}`);
-                setMode("personnalisee");
-              }}
-              onThemeRetire={(id) => {
-                setThemesLocaux((prev) => prev.filter((t) => t.id !== id));
-                if (cleThemePerso === `theme:${id}`) setCleThemePerso("");
-                router.refresh();
-              }}
-              onThemeRenomme={() => router.refresh()}
+              sourceTheme={
+                themeDuPreset
+                  ? "Séance précédente"
+                  : themeDuThemeInitial
+                    ? "Thème choisi"
+                    : themeDuDomaine
+                      ? "Domaine choisi"
+                      : "Prochaine action"
+              }
               temps={temps}
               setTemps={setTemps}
               conseil={conseil}
@@ -563,19 +526,8 @@ export function ConcepteurSeance({
 /* ------------------------------------------------------------------ */
 
 function EtapeBesoin({
-  mode,
-  setMode,
   themePrincipal,
-  themesPersonnalises,
-  themesEnreg,
-  cleThemePerso,
-  setCleThemePerso,
-  competencesParCode,
-  compteId,
-  domainesExistants,
-  onThemeCree,
-  onThemeRetire,
-  onThemeRenomme,
+  sourceTheme,
   temps,
   setTemps,
   conseil,
@@ -585,21 +537,8 @@ function EtapeBesoin({
   setIntentionOuverte,
   erreur,
 }: {
-  mode: "prochaine-action" | "personnalisee";
-  setMode: (v: "prochaine-action" | "personnalisee") => void;
   themePrincipal: ThemeSeance | null;
-  themesPersonnalises: ThemeSeance[];
-  /** Les seuls thèmes enregistrés (sans les suggestions de repli) — pour la gestion. */
-  themesEnreg: ThemeSeance[];
-  cleThemePerso: string;
-  /** Un thème est effectivement sélectionné (vrai hors mode sans recommandation). */
-  setCleThemePerso: (v: string) => void;
-  competencesParCode: Map<string, { intitule: string; domaine: string }>;
-  compteId: string;
-  domainesExistants: { id: string; nom: string; prefixe: string }[];
-  onThemeCree: (theme: Theme) => void;
-  onThemeRetire: (themeId: string) => void;
-  onThemeRenomme: () => void;
+  sourceTheme: string;
   temps: string;
   setTemps: (v: string) => void;
   conseil: ReturnType<typeof nombreExercicesConseille>;
@@ -609,9 +548,7 @@ function EtapeBesoin({
   setIntentionOuverte: (v: boolean) => void;
   erreur: string | null;
 }) {
-  const [creationThemeOuverte, setCreationThemeOuverte] = useState(false);
-
-  if (!themePrincipal && themesPersonnalises.length === 0) {
+  if (!themePrincipal) {
     return (
       <div className="space-y-3 pt-4">
         <Carte>
@@ -630,127 +567,15 @@ function EtapeBesoin({
 
   return (
     <div className="space-y-5 pt-4">
-      {/*
-        Deux gestes distincts, pas une liste unique : « prochaine action » est
-        pré-sélectionné et n'exige aucun choix — c'est le classement du moteur,
-        identique à la carte du tableau de bord (ADR-049). « Séance
-        personnalisée » ouvre sur les thèmes déjà enregistrés, une intention
-        libre résolue par le tuteur, et les thèmes larges (domaine, transverse)
-        en repli.
-      */}
-      <div role="tablist" className="flex gap-2 border-b border-bordure pb-3">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "prochaine-action"}
-          onClick={() => setMode("prochaine-action")}
-          disabled={!themePrincipal}
-          className={cx(
-            "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-            mode === "prochaine-action"
-              ? "bg-primaire-faible text-primaire"
-              : "text-texte-attenue hover:bg-surface-2",
-            !themePrincipal && "opacity-40",
-          )}
-        >
-          Prochaine action
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "personnalisee"}
-          onClick={() => setMode("personnalisee")}
-          className={cx(
-            "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-            mode === "personnalisee"
-              ? "bg-primaire-faible text-primaire"
-              : "text-texte-attenue hover:bg-surface-2",
-          )}
-        >
-          Séance personnalisée
-        </button>
-      </div>
-
-      {mode === "prochaine-action" && themePrincipal && (
-        <Carte>
-          <div className="px-4 py-3.5">
-            <p className="text-sm font-medium">{themePrincipal.libelle}</p>
-            <p className="mt-0.5 text-[0.6875rem] text-texte-discret">{themePrincipal.detail}</p>
-          </div>
-        </Carte>
-      )}
-
-      {mode === "personnalisee" && (
-        <fieldset className="space-y-2.5">
-          <legend className="mb-1 block text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
-            Sur quoi tu veux travailler
-          </legend>
-
-          {!creationThemeOuverte ? (
-            <button
-              type="button"
-              onClick={() => setCreationThemeOuverte(true)}
-              className="w-full rounded-md border border-dashed border-primaire/40 px-3 py-2.5 text-left text-sm text-primaire transition-colors hover:bg-primaire-faible"
-            >
-              + Décrire ce que je veux apprendre
-            </button>
-          ) : (
-            <ModaleTheme
-              presentation="inline"
-              competencesParCode={competencesParCode}
-              compteId={compteId}
-              domainesExistants={domainesExistants}
-              onFermer={() => setCreationThemeOuverte(false)}
-              onCree={(t) => {
-                onThemeCree(t);
-                setCreationThemeOuverte(false);
-              }}
-            />
-          )}
-
-          {themesPersonnalises.length === 0 ? (
-            <p className="text-xs text-texte-attenue">
-              Aucun thème enregistré pour l&apos;instant. Décris une intention ci-dessus, ou
-              utilise le classement du moteur via « Prochaine action ».
-            </p>
-          ) : (
-            <div className="space-y-1.5">
-              {themesPersonnalises.map((t) => (
-                <label
-                  key={t.cle}
-                  className={cx(
-                    "flex cursor-pointer items-start gap-2.5 rounded-md border px-3 py-2.5 transition-colors",
-                    t.cle === cleThemePerso
-                      ? "border-primaire/40 bg-primaire-faible"
-                      : "border-bordure hover:bg-surface-2",
-                  )}
-                >
-                  <input
-                    type="radio"
-                    name="theme-seance-perso"
-                    value={t.cle}
-                    checked={t.cle === cleThemePerso}
-                    onChange={() => setCleThemePerso(t.cle)}
-                    className="mt-0.5"
-                  />
-                  <span className="min-w-0">
-                    <span className="block text-sm font-medium">{t.libelle}</span>
-                    <span className="block text-[0.6875rem] text-texte-discret">{t.detail}</span>
-                  </span>
-                </label>
-              ))}
-            </div>
-          )}
-
-          {themesEnreg.length > 0 && (
-            <GestionThemes
-              themes={themesEnreg}
-              onRetire={onThemeRetire}
-              onRenomme={onThemeRenomme}
-            />
-          )}
-        </fieldset>
-      )}
+      <Carte>
+        <div className="px-4 py-3.5">
+          <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-primaire">
+            {sourceTheme}
+          </p>
+          <p className="mt-1 text-sm font-medium">{themePrincipal.libelle}</p>
+          <p className="mt-0.5 text-[0.6875rem] text-texte-discret">{themePrincipal.detail}</p>
+        </div>
+      </Carte>
 
       <div className="space-y-2">
         <label className="block text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
@@ -825,162 +650,6 @@ function EtapeBesoin({
         </p>
       )}
 
-    </div>
-  );
-}
-
-/**
- * Gérer ses thèmes enregistrés — renommer, retirer. Vit ici plutôt que dans un
- * nouvel onglet : c'est un réglage de la composition, pas un écran à part.
- *
- * Le retrait annonce son geste avant le clic (ADR-027, même charte que le
- * référentiel) : `etatRetraitTheme` le dérive du nombre de séances qui citent
- * ce thème, jamais offert au choix.
- */
-function GestionThemes({
-  themes,
-  onRetire,
-  onRenomme,
-}: {
-  themes: ThemeSeance[];
-  onRetire: (themeId: string) => void;
-  onRenomme: () => void;
-}) {
-  const [edite, setEdite] = useState<string | null>(null);
-  const [libelleEdite, setLibelleEdite] = useState("");
-  const [confirme, setConfirme] = useState<string | null>(null);
-  const [geste, setGeste] = useState<{ seances: number; mode: "suppression" | "archivage" } | null>(
-    null,
-  );
-  const [enCours, demarrer] = useTransition();
-  const [erreur, setErreur] = useState<string | null>(null);
-
-  return (
-    <div className="space-y-1.5 border-t border-bordure pt-2.5">
-      <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
-        Mes thèmes
-      </p>
-      {erreur && (
-        <p role="alert" className="text-[0.6875rem] text-danger">
-          {erreur}
-        </p>
-      )}
-      <ul className="space-y-1">
-        {themes.map((t) => {
-          if (t.portee.type !== "theme") return null;
-          const themeId = t.portee.themeId;
-          return (
-            <li
-              key={themeId}
-              className="rounded-md border border-bordure bg-surface-2/60 px-2.5 py-1.5"
-            >
-              {edite === themeId ? (
-                <div className="flex items-center gap-1.5">
-                  <input
-                    type="text"
-                    value={libelleEdite}
-                    onChange={(e) => setLibelleEdite(e.target.value)}
-                    className="min-w-0 flex-1 rounded border border-bordure-controle bg-surface px-1.5 py-1 text-xs"
-                  />
-                  <button
-                    type="button"
-                    disabled={enCours}
-                    onClick={() =>
-                      demarrer(async () => {
-                        setErreur(null);
-                        try {
-                          await modifierTheme(themeId, {
-                            libelle: libelleEdite,
-                            codes: t.portee.type === "theme" ? t.portee.codes : [],
-                          });
-                          setEdite(null);
-                          onRenomme();
-                        } catch (e) {
-                          setErreur(e instanceof Error ? e.message : "Renommage impossible.");
-                        }
-                      })
-                    }
-                    className="text-[0.6875rem] font-medium text-primaire hover:underline"
-                  >
-                    Enregistrer
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEdite(null)}
-                    className="text-[0.6875rem] text-texte-attenue hover:text-texte"
-                  >
-                    Annuler
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between gap-2">
-                  <span className="min-w-0 truncate text-xs">{t.libelle}</span>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEdite(themeId);
-                        setLibelleEdite(t.libelle);
-                      }}
-                      className="text-[0.6875rem] text-texte-attenue hover:text-texte"
-                    >
-                      Renommer
-                    </button>
-                    {confirme === themeId ? (
-                      <button
-                        type="button"
-                        disabled={enCours}
-                        onClick={() =>
-                          demarrer(async () => {
-                            setErreur(null);
-                            try {
-                              await retirerTheme(themeId);
-                              onRetire(themeId);
-                            } catch (e) {
-                              setErreur(e instanceof Error ? e.message : "Retrait impossible.");
-                            }
-                          })
-                        }
-                        className="text-[0.6875rem] font-medium text-danger hover:underline"
-                      >
-                        Confirmer
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          demarrer(async () => {
-                            const etat = await etatRetraitTheme(themeId);
-                            setGeste(etat);
-                            setConfirme(themeId);
-                          })
-                        }
-                        className="text-[0.6875rem] text-texte-attenue hover:text-danger"
-                      >
-                        Retirer
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-              {/* L'annonce du geste, avant qu'il ne se produise (ADR-027). */}
-              {confirme === themeId && geste && (
-                <p className="mt-1 text-[0.6875rem] text-texte-discret">
-                  {geste.mode === "suppression" ? (
-                    <>Aucune séance ne le cite : suppression définitive.</>
-                  ) : (
-                    <>
-                      {geste.seances} séance{geste.seances > 1 ? "s" : ""} le cite
-                      {geste.seances > 1 ? "nt" : ""} : archivage, pas suppression — les séances
-                      passées restent lisibles.
-                    </>
-                  )}
-                </p>
-              )}
-            </li>
-          );
-        })}
-      </ul>
     </div>
   );
 }
