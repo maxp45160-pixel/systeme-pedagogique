@@ -440,6 +440,13 @@ export function EspaceDocumentaire({
   const [elements, setElements] = useState(elementsInitials);
   const selectionInitiale = useMemo(() => {
     if (!documentDemande) return null;
+    if (
+      documentDemande === "domaines" ||
+      documentDemande === "transversal" ||
+      documentDemande === "domaines-archives"
+    ) {
+      return documentDemande;
+    }
     return trouverElement(documentDemande, elementsInitials)?.id ?? null;
   }, [documentDemande, elementsInitials]);
   const [selection, setSelection] = useState<string | null>(selectionInitiale);

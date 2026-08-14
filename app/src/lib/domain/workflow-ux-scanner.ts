@@ -289,9 +289,9 @@ export async function scannerUxJourney(): Promise<GrapheWorkflow> {
       });
       connecter({
         source: "ux:kpi-progression",
-        target: "page:/atelier",
+        target: "ux:galerie-domaines",
         type: "navigation",
-        libelle: "Explorer dans l'Atelier",
+        libelle: "Explorer la couverture par domaine",
         declencheur: "Clic sur la couverture / répartition des niveaux",
       });
     }
