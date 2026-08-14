@@ -14,6 +14,7 @@ import { BoutonReviser } from "@/components/referentiel/bouton-reviser";
 import { GestionDomaine } from "@/components/referentiel/gestion-domaine";
 import { BoutonGenerer } from "@/components/exercices/bouton-generer";
 import type { CalibrageModale, CompetenceModale } from "@/components/exercices/proprietes-generation";
+import { RectificationPreuve } from "./rectification-preuve";
 
 type Onglet = "synthese" | "progression" | "relations" | "notes";
 
@@ -104,6 +105,7 @@ function VueCompetence({
   revenirGraphe,
   sidebarOuverte,
   setSidebarOuverte,
+  rectificationActive,
 }: {
   vue: VueCompetenceAtelier;
   titre: string;
@@ -111,6 +113,8 @@ function VueCompetence({
   revenirGraphe?: () => void;
   sidebarOuverte?: boolean;
   setSidebarOuverte?: (ouverte: boolean) => void;
+  /** Le journal de rectification n'existe que sous la boucle adaptative. */
+  rectificationActive?: boolean;
 }) {
   const [onglet, setOnglet] = useState<Onglet>("synthese");
   const dimensionsTriees = [...vue.dimensions].sort((a, b) => b.valeur - a.valeur);
@@ -268,7 +272,7 @@ function VueCompetence({
             </div>
             <div className="rounded-xl border border-bordure bg-surface p-5 shadow-[var(--ombre-posee)]">
               <h3 className="font-serif text-lg font-medium">Historique récent</h3>
-              <ol className="mt-4 space-y-4 border-l border-bordure pl-4">{vue.preuves.slice(0, 6).map((preuve) => <li key={preuve.id} className="relative"><span className="absolute -left-[1.18rem] top-1 size-2 rounded-full border-2 border-surface bg-primaire" /><p className="text-xs font-medium">{preuve.contexte}</p><p className="mt-0.5 text-[0.625rem] text-texte-discret">{dateCourte(preuve.date)} · {preuve.type}</p></li>)}</ol>
+              <ol className="mt-4 space-y-4 border-l border-bordure pl-4">{vue.preuves.slice(0, 6).map((preuve) => <li key={preuve.id} className="relative"><span className="absolute -left-[1.18rem] top-1 size-2 rounded-full border-2 border-surface bg-primaire" /><p className="text-xs font-medium">{preuve.contexte}</p><p className="mt-0.5 text-[0.625rem] text-texte-discret">{dateCourte(preuve.date)} · {preuve.type}</p>{rectificationActive && <RectificationPreuve preuveId={preuve.id} />}</li>)}</ol>
               {!vue.preuves.length && <p className="mt-4 text-xs text-texte-discret">Aucun historique disponible.</p>}
             </div>
           </section>
@@ -446,6 +450,7 @@ export function FichePedagogiqueAtelier({
   setSidebarOuverte,
   compteId,
   modeInitial,
+  rectificationActive,
 }: {
   vue: VuePedagogiqueAtelier;
   titre: string;
@@ -455,6 +460,7 @@ export function FichePedagogiqueAtelier({
   setSidebarOuverte?: (ouverte: boolean) => void;
   compteId: string;
   modeInitial?: "referentiel";
+  rectificationActive?: boolean;
 }) {
   return vue.kind === "competence" ? (
     <VueCompetence
@@ -465,6 +471,7 @@ export function FichePedagogiqueAtelier({
       revenirGraphe={revenirGraphe}
       sidebarOuverte={sidebarOuverte}
       setSidebarOuverte={setSidebarOuverte}
+      rectificationActive={rectificationActive}
     />
   ) : (
     <VueDomaine

@@ -144,6 +144,8 @@ export interface User {
    * l'importance des compétences selon le plan déclaré.
    */
   plan?: string;
+  /** Bascule déclarée par compte. `legacy` reste le défaut tant que la bêta n'est pas activée. */
+  learningLoopMode?: "legacy" | "adaptive-v1";
 }
 
 /** Position dans l'arbre de progression du domaine. */

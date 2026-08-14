@@ -72,7 +72,7 @@ export default async function PageAtelier(props: {
     exercices,
     contexte.donnees.attempts,
     index,
-    contexte.donnees.evidence,
+    contexte.preuvesEffectives,
     changementsReferentiel,
     codesAvecDependances,
   );
@@ -261,6 +261,7 @@ export default async function PageAtelier(props: {
           competences: competencesPourModale(referentiel.actifs),
           calibrages: calibragesPourModale(referentiel.actifs, contexte.calibrations),
         }}
+        rectificationActive={contexte.donnees.user.learningLoopMode === "adaptive-v1"}
       />
     </>
   );

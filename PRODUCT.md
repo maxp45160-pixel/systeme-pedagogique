@@ -1,17 +1,18 @@
 # PRODUCT.md — Système pédagogique
 
-**Version 2.1 — 11/08/2026.** Fusion de `PRODUCT_VISION.md` et
+**Version 3.0 — 13/08/2026.** Fusion de `PRODUCT_VISION.md` et
 `PRODUCT_PRINCIPLES.md` (v1.0, 27/07), dont les démonstrations détaillées
 restent dans l'historique git. Document vivant : toute modification doit
 préciser ce qui passe d'une catégorie à l'autre.
 
-**Mouvement de cette version.** Passent de ❓ à ✅ décision humaine : autonomie
-mesurée par traces puis demandée pour l'invisible (ADR-057), granularité
-thématique sans plafond et notes au service de la boucle (ADR-058), workspace
-focus comme destination d'une séance créée (ADR-059), observation maximale des
-faits pédagogiquement pertinents (ADR-060). Ces décisions ne prétendent pas que
-les briques non construites existent déjà. Le reporting long terme est écarté
-de la prochaine roadmap faute de données ; les KPI actuels suffisent.
+**Mouvement de cette version.** Décision humaine : la boucle centrée sur
+l'exercice devient un moteur d'actions d'apprentissage adaptatif (ADR-066).
+Trois familles sont retenues en v1 — Explorer, S'entraîner, Produire — avec une
+séparation stricte entre soutien et preuve, des objectifs structurés, un
+contexte déclaré léger et un profil entièrement dérivé. La question ouverte
+d'ADR-051 est ainsi tranchée. L'efficacité du classement, l'ergonomie des
+surfaces proposées et les nouveaux barèmes de qualité restent 🔬 : décider de
+les construire ne démontre pas qu'ils sont efficaces.
 
 > **Les quatre statuts**, au sens strict, employés dans tout le dépôt :
 >
@@ -26,14 +27,36 @@ de la prochaine roadmap faute de données ; les KPI actuels suffisent.
 
 ## 1. Ce que le produit est
 
-Une **boucle** : le tuteur génère un exercice, l'exercice mesure une
-compétence, la mesure oriente l'exercice suivant.
+Une **boucle d'actions d'apprentissage** : contexte déclaré + objectifs +
+profil dérivé → meilleure action étayée maintenant → activité → observations
+et production → preuve éventuelle → recalcul.
+
+Le noyau robuste reste `SkillEvidence → SkillState → recommandation`, mais
+l'apprentissage ne se réduit plus à l'exercice. La v1 couvre trois familles :
+**Explorer** pour soutenir la compréhension sans modifier directement le
+niveau ; **S'entraîner** avec le dispositif d'exercice actuel ; **Produire**
+avec un mini-projet ou une étude de cas durable, reprenable sur plusieurs
+séances et probante seulement sous un contrat explicite.
 
 Autour d'elle, un **instrument de mesure** dont la fonction première est de
-**refuser d'affirmer ce qu'il ne peut pas prouver**. L'utilisateur travaille, le
-système enregistre des **preuves**, en **dérive** un niveau par compétence, et
-**recommande** la prochaine action. Rien de ce qui peut être recalculé n'est
-stocké.
+**refuser d'affirmer ce qu'il ne peut pas prouver**. L'utilisateur travaille,
+le système conserve les déclarations, observations, productions, preuves et
+feedbacks ; il en **dérive** niveaux, tendances et prochaine action. Le
+« jumeau numérique » est cette vue recalculée, jamais un profil stocké. Rien de
+ce qui peut être recalculé n'est persisté.
+
+La recommandation n'est jamais présentée comme absolument optimale. Elle est la
+**meilleure action étayée maintenant**, accompagnée de son pourquoi et de ses
+réserves. Elle vit dans la carte d'action qui existait déjà : la boucle n'a pas
+d'écran à elle, et la file des suivantes reste où elle était.
+
+**Le vocabulaire d'implémentation ne remonte jamais à la surface.** *Artefact*,
+*snapshot*, *modèle*, *version*, *exécution*, *inventaire recalculé*,
+*événement d'audit* décrivent des mécanismes, pas des gestes d'apprentissage.
+Ils vivent dans le code et dans les ADR. À l'écran on dit *production*,
+*travail en cours*, *ce que tu as rendu*, *l'original est conservé*. Un écran
+qui compte des objets internes est un écran de maintenance : il n'a pas sa
+place devant quelqu'un qui vient travailler.
 
 Ce n'est pas un tracker d'habitudes, pas un LMS, pas un outil de révision. La
 distinction tient en une phrase : **un tracker enregistre ce que tu déclares
@@ -56,14 +79,15 @@ peut honnêtement en tirer — souvent moins que ce qu'on aimerait.**
 ## 3. La proposition de valeur, en une ligne
 
 > Savoir **ce que tu sais réellement faire**, avec le degré de certitude qui
-> va avec — et savoir quoi travailler ensuite, pour une raison qu'on peut te
-> montrer.
+> va avec — et choisir la meilleure action étayée maintenant, pour une raison
+> qu'on peut te montrer.
 
 | Promesse | État au 28/07/2026 |
 |---|---|
 | « ce que tu sais réellement faire » | ✅ Tenue. Le moteur est complet et testé. |
 | « avec le degré de certitude » | ✅ Tenue. Niveau / confiance / robustesse sont distincts et affichés. |
 | « quoi travailler ensuite » | 🟡 **La boucle a tourné en entier le 01/08** (ADR-030). La difficulté produite a suivi le conseil de la calibration sur les deux compétences où il existait — le 3ᵉ maillon est démontré. La seconde moitié du test reste à mesurer : les deux tentatives ont été abandonnées en 1 minute, donc aucune dimension n'a pu reculer. |
+| « parmi plusieurs façons d'apprendre » | 🔬 Architecture tranchée par ADR-066 ; pertinence à vérifier sur au moins 10 boucles réelles couvrant les trois familles et une reprise multi-séance. |
 
 ## 4. Public
 
@@ -187,7 +211,38 @@ plafonds numériques : P8 reste 🔬 jusqu'à leur confrontation à l'usage.
 ✅ **Le contenu vient du tuteur**, pas de fichiers écrits à la main (ADR-004).
 ✅ **Le moteur du tuteur doit être gratuit** et configurable (ADR-007).
 ✅ **Construire et utiliser en parallèle** est le mode de travail retenu.
-✅ **La boucle est le produit.**
+✅ **La boucle est le produit, et l'exercice n'en est plus l'unique geste**
+(ADR-066). Explorer soutient sans produire de preuve ; S'entraîner conserve le
+contrat de l'exercice ; Produire rend possibles les mini-projets et études de
+cas durables.
+✅ **Le contexte immédiat est déclaré, jamais deviné** : temps disponible,
+capacité mentale ressentie, intention, cible facultative et note verbatim. Les
+objectifs structurés et leurs liens vers compétences ou thèmes sont eux aussi
+des faits confirmés par la personne.
+✅ **Le profil enrichi est une vue dérivée.** Tendances, niveau, préférences
+inférées et recommandation se recalculent depuis les faits. Une préférence
+n'entre dans le déclaré qu'après confirmation explicite.
+✅ **La recommandation est explicable et révisable**, jamais dite absolument
+optimale : une action, ses facteurs, ses contraintes et ses réserves, dans la
+carte existante et son dépliant « Pourquoi cette action plutôt qu'une autre ? ».
+Aucun score de recommandation n'est stocké.
+✅ **Une production ne devient preuve que sous contrat.** L'exploration n'en
+produit aucune ; un mini-projet exige un état gelé, une évaluation humaine
+critère par critère et une provenance exacte. Les jalons restent des
+observations sauf contrat d'évaluation propre.
+✅ **Une preuve originale ne se réécrit pas.** Toute invalidation, restauration
+ou substitution passe par une rectification append-only ; son effet est dérivé
+à la lecture.
+✅ **`LearningSession` reste l'épisode de travail unique.** Plusieurs activités
+durables peuvent rester ouvertes, mais une seule séance peut être `en-cours`
+par compte. Les exercices historiques passent par un adaptateur sans copie ni
+double écriture.
+✅ **Le déploiement commence en bêta par compte**, `legacy` restant la valeur
+par défaut jusqu'aux critères de sortie. La migration est additive ; aucune
+ancienne donnée ou table n'est supprimée sans autorisation distincte.
+✅ **La validation de ce chantier reste gratuite pour l'instant** : aucun
+environnement Supabase payant n'est créé. Les migrations et fixtures sont
+préparées localement ; toute dépense future exigera un nouvel accord explicite.
 ✅ **Le référentiel appartient au compte** (ADR-026, 31/07) : il n'existe aucune
 liste universelle de compétences. Un compte démarre vide, déclare son sujet et
 son objectif, puis corrige et valide une première branche éditable dans
@@ -212,6 +267,24 @@ et les KPI actuels répondent au besoin présent. Réouverture sur fait nouveau.
 
 ### Ouvert
 
+🔬 **Pertinence du classement adaptatif (ADR-066).** Le moteur déterministe et
+ses règles de séquençage sont une politique explicable, pas la démonstration
+d'une action pédagogiquement optimale. Test : au moins 10 boucles réelles avec
+les trois familles et une reprise multi-séance, en collectant acceptation,
+passage, abandon, utilité et effort par famille sans recalibrer avant un volume
+suffisant.
+🔬 **Ergonomie des workspaces et du Mode de travail (ADR-066, révisé le
+14/08).** Focus, guidage et puissance des outils sont les surfaces décidées ;
+leur défaut exact reste à observer sur desktop et mobile. Une conformité
+clavier, tactile ou WCAG vérifie la mécanique, pas l'utilité. La première
+tentative a été retirée : elle avait remplacé le tableau de bord au lieu de s'y
+brancher, et exposait le vocabulaire interne. Le contexte d'instant tient
+désormais en deux champs dans la carte d'action ; qu'il soit suffisant reste à
+observer.
+🔬 **Qualité des preuves de projet (ADR-066).** Les conditions d'accès à une
+preuve faible, moyenne ou forte sont des garde-fous de départ, non un barème
+calibré. Les contradictions, rectifications et validations humaines doivent
+être observées avant toute revendication ou modification des seuils.
 🔬 **Gouvernance durable proposée (ADR-065, 13/08).** Le référentiel reste
 strictement `Domaine → Compétences`. Preuves, notes support et thèmes le servent
 sans en devenir des entités. Les commandes transactionnelles, versions

@@ -220,6 +220,7 @@ export interface ModificationProfil {
   objectifLongTerme?: string;
   preferencesPedagogiques?: string[];
   plan?: string;
+  learningLoopMode?: "legacy" | "adaptive-v1";
 }
 
 export async function modifierProfil(champs: ModificationProfil): Promise<void> {
@@ -230,6 +231,7 @@ export async function modifierProfil(champs: ModificationProfil): Promise<void> 
   if (champs.objectifLongTerme !== undefined) ligne.objectif_long_terme = champs.objectifLongTerme.trim();
   if (champs.preferencesPedagogiques !== undefined) ligne.preferences_pedagogiques = champs.preferencesPedagogiques.map((preference) => preference.trim()).filter(Boolean);
   if (champs.plan !== undefined) ligne.plan = champs.plan.trim();
+  if (champs.learningLoopMode !== undefined) ligne.learning_loop_mode = champs.learningLoopMode;
   if (Object.keys(ligne).length === 0) return;
   const { error } = await dorsale.supabase.from("profiles").update(ligne).eq("id", dorsale.userId);
   verifier("modification du profil", error);

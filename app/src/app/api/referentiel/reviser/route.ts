@@ -54,7 +54,7 @@ export async function POST(request: Request) {
   // Les compétences vivantes du domaine : ni archivées, ni d'ailleurs. C'est
   // exactement l'ensemble que l'`enum` du schéma énumérera.
   const vivantes = ctx.referentiel.skills.filter((s) => s.domaine === domaineId && !s.archive);
-  const retraits = retraitsParCode(vivantes, ctx.donnees.evidence);
+  const retraits = retraitsParCode(vivantes, ctx.preuvesEffectives);
 
   // Point d'entree unique : la config client est validee avant de toucher
   // l'environnement du serveur (SSRF, voir lib/tutor/url-fournisseur.ts).

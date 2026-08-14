@@ -344,12 +344,15 @@ export function EspaceDocumentaire({
   modeInitial,
   graphe,
   generation,
+  rectificationActive,
 }: {
   elements: ElementAtelier[];
   documentDemande?: string;
   modeInitial?: "referentiel";
   graphe: { donnees: DonneesGraphe; compteId: string };
   generation: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
+  /** Corriger une preuve suppose le journal de rectification (boucle adaptative). */
+  rectificationActive?: boolean;
 }) {
   const router = useRouter();
   const [elements, setElements] = useState(elementsInitials);
@@ -877,6 +880,7 @@ export function EspaceDocumentaire({
               setSidebarOuverte={setSidebarOuverte}
               compteId={graphe.compteId}
               modeInitial={modeInitial}
+              rectificationActive={rectificationActive}
             />
           ) : selectionnee ? (
             <>

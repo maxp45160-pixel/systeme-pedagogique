@@ -63,7 +63,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [048](#adr-048) | La séance existait déjà : elle s'étend, elle ne se recrée pas | ✅ Acceptée (10/08) |
 | [049](#adr-049) | Le CAF n'ajoute qu'une pièce : le modèle d'assemblage | ✅ Acceptée (10/08) |
 | [050](#adr-050) | Le besoin déclaré est un fait stocké ; l'écart est dérivé, et il n'y a pas de score de biais | ✅ Acceptée (10/08) |
-| [051](#adr-051) | Le moteur travaille sur `importance`, pas sur un objectif déclaré | ❓ Ouverte |
+| [051](#adr-051) | Le moteur travaille sur `importance`, pas sur un objectif déclaré | 🔄 Remplacée par ADR-066 |
 | [052](#adr-052) | Le moteur dérive sans validation ; seul le tuteur ne mesure jamais | ✅ Acceptée (10/08) — précise [037](#adr-037) |
 | [053](#adr-053) | Pilotage au tableau de bord, analyse dans Séances ; navigation à trois pôles | ✅ Acceptée (10/08) |
 | [054](#adr-054) | L'actionnabilité départage sans pénaliser ; un partiel suit la règle de l'échec | ✅ Acceptée (10/08) |
@@ -78,6 +78,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [063](#adr-063) | Amorçage direct, surfaces obsolètes retirées et Supabase obligatoire | ✅ Acceptée (11/08) |
 | [064](#adr-064) | Workspace documentaire Markdown en extension progressive | 🔬 Hypothèse (12/08) |
 | [065](#adr-065) | Gouvernance transactionnelle du référentiel | 🔬 Proposition (13/08) |
+| [066](#adr-066) | La boucle devient un moteur d'actions d'apprentissage adaptatif | ✅ Acceptée (13/08) |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -3422,7 +3423,11 @@ conclure.
 ---
 
 <a name="adr-051"></a>
-## ADR-051 — Le moteur travaille sur `importance`, pas sur un objectif déclaré ❓
+## ADR-051 — Le moteur travaille sur `importance`, pas sur un objectif déclaré 🔄
+
+> 🔄 **Remplacée le 13/08/2026 par [ADR-066](#adr-066).** L'objectif structuré
+> devient un fait déclaré et confirmé qui borne le classement. Le texte
+> ci-dessous est conservé comme diagnostic ayant conduit à l'arbitrage.
 
 **Date.** 10/08/2026.
 
@@ -4350,6 +4355,301 @@ le même `request_id` doit rendre le même résultat sans seconde entrée ; un a
 compte ne doit lire ni commander l’agrégat ; le journal doit refuser `UPDATE` et
 `DELETE`. Si la commande transactionnelle augmente sensiblement la latence du
 geste sans éviter d’incohérence observée, son périmètre devra être réduit.
+
+---
+
+<a name="adr-066"></a>
+
+## ADR-066 — La boucle devient un moteur d'actions d'apprentissage adaptatif ✅
+
+**Date.** 13/08/2026. **Tranchée explicitement par Maxime** après revue du
+système existant. Étend [ADR-013](#adr-013), ferme
+[ADR-051](#adr-051), conserve le noyau d'[ADR-001](#adr-001) et ne fait monter
+le statut d'aucune hypothèse antérieure.
+
+Cette ADR consigne une décision de produit et d'architecture. Elle ne prétend
+pas que chaque brique décrite ci-dessous est déjà construite ni que la politique
+choisie est pédagogiquement supérieure avant observation.
+
+> ✅ **Amendement du 14/08/2026 — le moteur arbitre, l'interface existante
+> affiche.** La première implémentation avait donné à la boucle ses propres
+> écrans : le tableau de bord était court-circuité par un rendu parallèle
+> (check-in, carte d'action, alternatives, travaux ouverts, objectifs), et
+> l'Atelier comme le Profil recevaient des panneaux d'inventaire. Le résultat
+> exposait le vocabulaire d'implémentation — « artefacts adaptatifs »,
+> « snapshots », « inventaire recalculé des modèles, versions, exécutions » —
+> et reconstruisait en parallèle trois mécanismes déjà présents : le refus de
+> recommandation, le feedback et les objectifs déclarés.
+>
+> **La boucle n'a pas d'écran à elle.** Sa sortie alimente `CarteProchaineAction`,
+> qui reste la carte unique du tableau de bord et garde sa forme. Le contexte
+> d'instant est un formulaire `GET` de deux champs dans cette carte : rien n'est
+> écrit, l'état vit dans l'URL, et l'arbitrage fonctionne **sans aucune table
+> adaptative** — donc en production, aujourd'hui, sur les exercices existants.
+> Le pont vit dans `lib/engine/action-unifiee.ts` : il reçoit le classement de
+> `recommander()`, ne le recalcule pas, et retraduit l'action retenue vers la
+> recommandation historique quand c'est un exercice.
+>
+> **Hors périmètre, explicitement.** La clôture transactionnelle
+> (`cloturer_exercice`, `learning_command_receipts`) est retirée de ce chantier :
+> elle réécrivait `terminerExercice` et `abandonnerExercice` sans garde de mode,
+> pour un RPC absent de la production — toute soumission d'exercice aurait
+> échoué au déploiement. Elle demandera son propre ADR et sa propre migration.
+> `evidence.source.ref` reste l'identifiant de l'exercice ; le passage à la
+> tentative décrit plus bas n'est pas appliqué.
+>
+> La migration `20260813150000_adaptive_learning_loop.sql` reste **locale**. La
+> production s'arrête à `20260813095635_referentiel_governance_policy_hardening`.
+
+### Le changement de boucle
+
+La boucle canonique devient :
+
+```text
+contexte déclaré + objectifs + profil dérivé
+→ meilleure action étayée maintenant
+→ activité
+→ observations et production
+→ preuve éventuelle
+→ recalcul
+```
+
+`SkillEvidence → SkillState → recommandation` reste le noyau de mesure. Ce qui
+change est l'espace des gestes proposés : l'exercice n'est plus le synonyme de
+l'apprentissage.
+
+Trois familles sont retenues en v1 :
+
+| Famille | Fonction | Régime de mesure |
+|---|---|---|
+| **Explorer** | Comprendre, mémoriser, annoter ou parcourir une ressource | Soutien : observations, jamais de `SkillEvidence` directe |
+| **S'entraîner** | Diagnostiquer, réviser ou consolider par l'exercice actuel | Preuve selon les règles existantes, durcies transactionnellement |
+| **Produire** | Transférer et intégrer dans un mini-projet ou une étude de cas reprenable | Preuve éventuelle, sous contrat et après validation humaine |
+
+Le produit ne dit jamais « action optimale » sans réserve. Il rend une
+**meilleure action étayée maintenant**, explique ses facteurs, contraintes et
+réserves, puis expose jusqu'à deux alternatives de familles différentes. S'il
+n'existe pas trois options honnêtes, il en montre moins.
+
+### Les six couches restent la frontière
+
+| Couche | Ce que cette décision y place |
+|---|---|
+| **0 — Ignore** | L'optimalité absolue, une préférence non confirmée, une intention inférée, une exploration prise pour une preuve et tout rattachement historique ambigu |
+| **1 — Connaît** | Objectifs, contexte immédiat, préférences confirmées, modèles fournis, contrats d'activité et ressources autorisées |
+| **2 — Observe** | Exécutions, événements, séances, productions et snapshots, validations humaines, feedbacks et interactions de recommandation |
+| **3 — Décide** | Profil, tendances, état effectif d'une preuve rectifiée, candidats, classement, famille, explication et recommandation ; tout est recalculable et non stocké |
+| **4 — Fait faire** | Check-in, dashboard, workspace de chaque famille, Mode de travail, Atelier et Profil |
+| **5 — Fait des données** | Supabase, RLS, contraintes, commandes transactionnelles, journal append-only, adaptateurs historiques et drapeau bêta par compte |
+
+La frontière est non négociable : les déclarations et observations ne sont pas
+recalculées ; les profils, scores, tendances et recommandations ne sont pas
+persistés. Le « jumeau numérique » est le nom de cette vue dérivée, pas une
+nouvelle entité ni un snapshot de profil.
+
+### Contrats publics et propriété des faits
+
+- `LearningGoal` conserve titre, description, priorité déclarée, horizon ou
+  date facultative, critères de réussite, état déclaré et cibles confirmées.
+  Le tuteur peut proposer les liens vers compétences ou thèmes dans un diff
+  fermé ; seule la validation humaine les fait entrer au but.
+- `ActionContext` conserve temps disponible, capacité mentale ressentie
+  (`faible | standard | élevée`), intention, cible facultative et note verbatim.
+  La note n'est ni résumée ni interprétée pour fabriquer un fait.
+- `ActivityTemplate` configure, par compte, un workspace fourni par
+  l'application. Aucun code arbitraire ni greffon exécutable n'entre par ce
+  chemin.
+- `LearningActivity` fixe famille, cible, durée et demande cognitive estimées,
+  mode de preuve, workspace, ressources autorisées, contrat d'évaluation,
+  version, origine et cycle d'archivage.
+- `ActivityRun` porte l'état exact (`planifiée`, `en-cours`, `en-pause`,
+  `terminée`, `abandonnée`), la version de l'activité, l'artefact courant et les
+  séances traversées. `ActivityEvent` journalise en append-only démarrages,
+  pauses, reprises, jalons, aides, changements de mode et fins.
+- `ActivityAssessment` distingue la proposition éventuelle du tuteur de la
+  validation humaine critère par critère. Seule la seconde peut déclencher une
+  preuve.
+- `ActionRecommendation` est une sortie dérivée : action principale,
+  alternatives, facteurs, contraintes, réserves et version de politique. Aucun
+  score de classement n'est stocké. Accepter, passer ou demander autre chose
+  peut en revanche être observé comme interaction.
+- `EvidenceStatusEvent` rectifie en append-only l'effet d'une preuve —
+  invalidation, restauration ou remplacement — sans modifier l'original. Son
+  état effectif est dérivé à la lecture.
+
+`LearningSession` demeure l'unique conteneur d'un épisode de travail
+([ADR-048](#adr-048)). Plusieurs activités durables peuvent rester ouvertes,
+mais une contrainte de base garantit une seule séance `en-cours` par compte.
+Les exercices et tentatives historiques sont lus par un adaptateur vers ces
+contrats : aucune recopie, aucun double écrit pendant la bêta.
+
+### Persistance et provenance
+
+Le modèle est additif : objectifs et cibles confirmées ; modèles et activités ;
+exécutions, liens aux séances, événements et évaluations ; check-ins et
+interactions ; rectifications de preuves.
+
+Avant extension, le chemin de preuve actuel est durci : les compétences d'un
+exercice ne sont plus modifiables, la clôture multi-écritures devient atomique,
+la preuve est protégée en base, sa source désigne la tentative exacte et les
+aides quittent la prose pour une observation structurée.
+
+> ⏸️ **Reporté (14/08/2026).** Ce paragraphe décrit un chantier distinct, dont
+> la migration n'est pas appliquée en production. Il a été retiré de
+> l'implémentation : `terminerExercice` et `abandonnerExercice` restent le code
+> de `master`, et `evidence.source.ref` reste l'identifiant de l'exercice.
+> Reprendre ce durcissement demande son propre ADR, sa migration appliquée, et
+> une vérification du chemin de soumission avant déploiement.
+
+Chaque nouvelle table `public` active RLS et les privilèges minimaux, avec
+isolation stricte par compte. Preuves, snapshots, événements, évaluations
+finales et rectifications refusent `UPDATE` et `DELETE`. Clôture, abandon et
+rectification passent par des commandes PostgreSQL transactionnelles
+`SECURITY INVOKER`, validées et idempotentes par `request_id`.
+
+Une clôture probante réalise en une transaction le verrouillage de l'exécution,
+la validation, le snapshot, l'évaluation finale, les preuves, l'événement
+terminal et le rattachement à la séance. Toute preuve nouvelle référence
+exactement une tentative ou une exécution et le snapshot de l'artefact. Un
+historique dont la provenance est ambiguë reste ambigu : aucun lien n'est
+fabriqué pour le rendre plus propre.
+
+Les lignes venant de Supabase sont validées à l'exécution avant d'entrer dans
+le moteur, sans introduire une seconde autorité de validation ni une nouvelle
+dépendance. L'historique local et distant des migrations est réconcilié avant
+toute application ; une migration présente localement n'est jamais supposée
+appliquée, et une migration distante n'est jamais rejouée par similarité de nom.
+
+### Politique de sélection
+
+Le moteur est déterministe et explicable en v1 :
+
+1. construire les candidats depuis les activités disponibles, les travaux
+   ouverts et les demandes de génération ;
+2. écarter archive, autre compte, outil indisponible ou incompatibilité de
+   temps ; un travail durable peut fournir un segment compatible ;
+3. appliquer la cible explicite du check-in, sinon l'objectif actif de priorité
+   la plus haute puis l'échéance la plus proche ;
+4. dans cette portée, réutiliser le classement actuel des compétences sans
+   modifier ses seuils de calibration ;
+5. proposer Explorer après une difficulté de compréhension ou sur demande,
+   S'entraîner pour diagnostic, révision ou consolidation, Produire pour
+   transfert, intégration, nouveau contexte ou reprise ;
+6. une exploration plus récente que la dernière preuve favorise ensuite
+   pratique ou production, sans modifier le niveau ;
+7. départager par adéquation au temps, capacité déclarée et préférences
+   **confirmées** ; une préférence seulement inférée reste sans effet ;
+8. rendre des alternatives réellement différentes et annoncer les manques.
+
+Quand aucune activité ne convient, le moteur fixe famille, compétences,
+contraintes, ressources et contrat. Le tuteur remplit seulement le contenu
+d'un schéma fermé. La proposition reste éphémère jusqu'à acceptation ou
+modification humaine.
+
+### Régimes de preuve
+
+Une exploration enregistre ce qui a eu lieu — durée, ressource, notes, aides,
+achèvement — et **aucune preuve de compétence**. Une activité terminée n'est pas
+pour autant une activité probante.
+
+L'exercice conserve ses règles de recevabilité, d'autonomie et de qualité ; sa
+clôture devient transactionnelle et les aides sont structurées.
+
+Pour un mini-projet, critères et ressources autorisées sont connus avant le
+travail. Les jalons sont des observations ; seule la soumission finale produit
+par défaut une évaluation, sauf jalon doté de son propre contrat explicite.
+L'aide se lit relativement aux ressources annoncées comme normales. Un travail
+externe ne peut être probant que si son état est gelable — import, export,
+commit immuable ou contenu copié. Un simple lien modifiable reste un support et
+ne peut jamais fonder une preuve forte.
+
+🔬 **Le barème de départ n'est pas validé par l'usage.** A0/A1 borne la preuve
+de projet à faible ; une preuve forte exige snapshot, réussite validée, critère
+de transfert ou d'intégration pleinement démontré et autonomie A3/A4 ; les
+autres cas probants sont moyens. La structure est décidée comme garde-fou, mais
+sa calibration reste une hypothèse. Aucun seuil actuel n'est modifié pour la
+faire paraître confirmée.
+
+### Surfaces et contrôle utilisateur
+
+La navigation reste à trois pôles et les composants existants restent
+l'autorité ; aucun nouveau pôle ni bibliothèque UI.
+
+*(Révisé le 14/08/2026 — voir l'amendement en tête. La liste ci-dessous décrit
+ce qui est effectivement rendu, pas ce qui avait été projeté.)*
+
+- le tableau de bord garde sa forme. `CarteProchaineAction` reste la carte
+  unique : elle porte le contexte d'instant (deux champs, formulaire `GET`),
+  l'action retenue, et — dans le dépliant « Pourquoi cette action plutôt qu'une
+  autre ? » déjà présent — les facteurs d'arbitrage et les réserves. Aucune
+  carte d'alternative : la file des suivantes est déjà dans ce dépliant ;
+- quand l'action retenue n'est pas un exercice, **la même carte** change de
+  contenu, pas de forme : la famille remplace la difficulté calibrée, qu'un
+  parcours d'exploration n'a pas ;
+- les travaux ouverts d'une autre famille rejoignent le bandeau « Tu as N
+  exercices en cours » plutôt qu'un second bandeau au même endroit ;
+- une URL recharge un workspace focus unique, dans le chrome du Cahier
+  (`CoquilleWorkspace` : plein écran, en-tête collant, « Sortir vers le
+  cahier ») : ressource, parcours et annotations pour Explorer ; trois actes
+  existants pour S'entraîner ; brief, jalons, artefact, ressources, critères et
+  soumission pour Produire ;
+- le panneau « Mode de travail » rend réellement opérants focus, guidage et
+  puissance des outils. Le moteur propose l'état initial, l'utilisateur garde
+  le dernier mot ;
+- l'Atelier ne reçoit aucun panneau d'inventaire. La rectification descend sur
+  la preuve elle-même, dans la fiche de compétence : « Signaler une erreur sur
+  cette preuve », un motif, et l'original conservé ;
+- le Profil garde son formulaire unique. Les familles préférées sont des cases
+  dans ce formulaire — un second formulaire écrivait le même champ et effaçait
+  ce que le premier venait d'y mettre. L'objectif structuré se replie sous les
+  objectifs déclarés : c'est la même intention, dite plus précisément, pas un
+  second système d'objectifs ;
+- le refus et le feedback restent ceux qui existaient
+  (`BoutonRefusRecommandation`, `FeedbackRecommandation`). Démarrages, pauses,
+  reprises, abandons et résultats sont observés automatiquement.
+
+La forme précise de ces surfaces est décidée comme direction ; leur qualité
+ergonomique reste 🔬 tant qu'elle n'est pas observée sur desktop, mobile,
+clavier, tactile, thèmes et réduction des animations.
+
+### Déploiement et sortie
+
+`adaptive-v1` est activé explicitement par compte ; `legacy` reste la valeur
+par défaut. La branche Supabase de validation est créée seulement après
+affichage et confirmation de son coût, puis alimentée uniquement de fixtures
+synthétiques. Aucune table ni donnée historique n'est supprimée sans une
+autorisation destructive distincte.
+
+✅ **Arbitrage du 13/08/2026 : aucun environnement payant pour l'instant.**
+La validation DB doit emprunter un environnement local gratuit. La branche
+hébergée décrite ci-dessus reste une option non autorisée, pas une étape du
+chantier en cours.
+
+La bêta ne s'élargit qu'après au moins dix boucles réelles couvrant les trois
+familles et une reprise multi-séance, sans écriture partielle, doublon,
+provenance perdue ni fuite RLS. Acceptation, passage, abandon, utilité et effort
+sont collectés par famille ; aucune amélioration pédagogique n'est revendiquée
+et aucun barème n'est recalibré avant un volume suffisant. Le legacy ne sort
+qu'après ces mêmes critères et une migration de parité validée.
+
+### Hypothèses et tests de réfutation
+
+1. 🔬 **Classement.** Si, après dix boucles, les passages et abandons se
+   concentrent sur une famille ou si les explications n'aident pas à choisir,
+   la politique de séquençage est à reprendre ; l'implémentation déterministe ne
+   vaut pas validation pédagogique.
+2. 🔬 **Interfaces.** Si la reprise multi-séance, le Mode de travail ou
+   l'Atelier ne sont pas utilisés sans assistance, les surfaces proposées ne
+   résolvent pas le défaut supposé ; on retire ou simplifie avant d'ajouter.
+3. 🔬 **Preuve de projet.** Si les validations sont systématiquement acceptées
+   sans modification, ou fréquemment rectifiées ensuite, la validation humaine
+   ne joue pas son rôle et le barème doit être réexaminé.
+4. ✅ **Fiabilité mécanique attendue.** Tests purs pour le déterminisme et les
+   régimes de preuve ; tests DB pour RLS, append-only, concurrence,
+   idempotence et rollback ; parcours de bout en bout pour les trois familles,
+   abandon, reprise réseau, conflit de version, rectification et refus d'un
+   artefact non gelé. L'absence de ces tests bloque la sortie de bêta, sans
+   prouver à elle seule l'efficacité pédagogique.
 
 ---
 

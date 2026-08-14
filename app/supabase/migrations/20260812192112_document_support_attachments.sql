@@ -1,4 +1,5 @@
 -- Pieces jointes PDF privees pour les notes support.
+-- Version alignee sur l'historique distant schema_migrations le 13/08/2026.
 
 CREATE TABLE IF NOT EXISTS public.document_attachments (
   user_id      UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,

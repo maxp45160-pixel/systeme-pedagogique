@@ -312,7 +312,7 @@ function serialiserProfil(ctx: Contexte): string {
 }
 
 function serialiserRecent(ctx: Contexte): string {
-  const recentes = [...ctx.donnees.evidence]
+  const recentes = [...ctx.preuvesEffectives]
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 12);
   if (recentes.length === 0) {
@@ -375,7 +375,7 @@ const COMPETENCES_TRAJECTOIRE_MAX = 8;
  */
 function serialiserTrajectoire(ctx: Contexte): string | null {
   const skillsParCode = new Map(ctx.referentiel.skills.map((s) => [s.code, s]));
-  const evenements = evenementsRecents(ctx.donnees.evidence, skillsParCode, 10, ctx.now);
+  const evenements = evenementsRecents(ctx.preuvesEffectives, skillsParCode, 10, ctx.now);
 
   // Les points à retravailler, par compétence, du plus ancien au plus récent.
   // C'est la matière de « cette erreur revient » : un même point qui réapparaît
