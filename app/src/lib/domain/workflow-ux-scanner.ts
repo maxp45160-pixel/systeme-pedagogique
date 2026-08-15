@@ -1002,20 +1002,12 @@ export async function scannerUxJourney(options: OptionsScannerUx = {}): Promise<
       description: "Arrêt explicite sans fabriquer de fausse mesure.",
     });
     ajouterNoeud({
-      id: "ux:exercice-comparer",
-      type: "etape",
-      groupe: "exercice",
-      libelle: "Acte 2 : Comparer",
-      badge: "Correction",
-      description: "Révélation de la solution officielle et confrontation avec la production.",
-    });
-    ajouterNoeud({
       id: "ux:exercice-mesurer",
       type: "etape",
       groupe: "exercice",
-      libelle: "Acte 3 : Mesurer",
-      badge: "Auto-évaluation",
-      description: "Bilan assisté, critères de réussite, charge mentale et autonomie.",
+      libelle: "Acte 2 : Bilan du tuteur",
+      badge: "Correction IA",
+      description: "Le tuteur relit la réponse et propose un bilan à valider.",
     });
     ajouterNoeud({
       id: "ux:exercice-bilan-final",
@@ -1135,17 +1127,10 @@ export async function scannerUxJourney(options: OptionsScannerUx = {}): Promise<
     }
     connecter({
       source: "ux:exercice-chercher",
-      target: "ux:exercice-comparer",
-      type: "transition",
-      libelle: "Passer à la correction",
-      declencheur: "Clic 'Afficher la correction'",
-    });
-    connecter({
-      source: "ux:exercice-comparer",
       target: "ux:exercice-mesurer",
       type: "transition",
-      libelle: "Passer à l'auto-évaluation",
-      declencheur: "Clic 'Passer à l'évaluation'",
+      libelle: "Demander la correction au tuteur",
+      declencheur: "Clic 'Demander la correction'",
     });
     connecter({
       source: "ux:exercice-mesurer",

@@ -169,7 +169,7 @@ function baseRoute(url: string): string {
 
 function groupePourChemin(relatif: string): GroupeWorkflow {
   const r = relatif.toLowerCase();
-  if (r.startsWith("app/(app)/seances") || r.startsWith("components/seances") || r.startsWith("components/adaptive")) {
+  if (r.startsWith("app/(app)/seances") || r.startsWith("components/seances")) {
     return "seances";
   }
   if (r.startsWith("app/(app)/atelier") || r.startsWith("components/atelier") || r.startsWith("components/referentiel")) {

@@ -37,7 +37,6 @@ import { ModaleExercice } from "@/components/exercices/modale-exercice";
 import type { PropositionExercice } from "@/lib/tutor/proposition";
 import { convertirProposition } from "@/lib/tutor/conversion-exercice";
 import { creerExercice } from "@/lib/store/actions";
-import { creerSeanceFocusExercice } from "@/lib/store/seance-actions";
 import type {
   CalibrageModale,
   CompetenceModale,
@@ -1106,13 +1105,12 @@ function ChatHydrate({
       setDemarrageDirect(true);
       setAvis({ ton: "info", texte: "Enregistrement de l'exercice et lancement du workspace…" });
       try {
-        const id = await creerExercice({
+        await creerExercice({
           ...conversion.valeur,
           domaine: comp.domaine,
           origine: "tuteur",
         });
-        const seanceId = await creerSeanceFocusExercice(id);
-        router.push(`/seances?session=${encodeURIComponent(seanceId)}`);
+        router.push(`/seances?composer=1&code=${encodeURIComponent(codeCible)}`);
       } catch (err) {
         setAvis({
           ton: "danger",

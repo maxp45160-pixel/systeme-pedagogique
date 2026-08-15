@@ -333,7 +333,6 @@ function PanneauReglages({
                 objectifLongTerme={nonRenseigne(profilUser.objectifLongTerme)}
                 preferencesPedagogiques={profilUser.preferencesPedagogiques ?? []}
                 plan={profilUser.plan}
-                famillesVisibles={profilUser.learningLoopMode === "adaptive-v1"}
               />
             ) : (
               <p className="text-xs text-danger">Impossible de charger le profil.</p>

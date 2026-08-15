@@ -109,7 +109,6 @@ export function profilVersUser(
     // Le plan n'a pas de repli : non déclaré, il reste absent. Un texte par
     // défaut serait une intention prêtée à la personne.
     plan: typeof ligne.plan === "string" && ligne.plan.trim().length > 0 ? ligne.plan : undefined,
-    learningLoopMode: ligne.learning_loop_mode === "adaptive-v1" ? "adaptive-v1" : "legacy",
   };
 }
 

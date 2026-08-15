@@ -55,6 +55,38 @@ import { outilCorrection, type PropositionCorrection } from "./outils";
  */
 export const REPONSE_MAX_CARACTERES = 12_000;
 
+/**
+ * Un verdict « réussi » ne peut pas être déduit d'un jeton isolé que le sujet
+ * ne contient nulle part. Cette barrière reste volontairement étroite : elle
+ * ne rejette pas une réponse et ne fabrique pas un échec, elle empêche
+ * seulement le tuteur de transformer un texte manifestement sans rapport en
+ * réussite automatique. La personne peut alors remplir le bilan elle-même.
+ */
+export function reponseTropPauvrePourUneReussiteAutomatique(
+  reponse: string,
+  exercice: Pick<Exercise, "titre" | "enonce" | "criteres">,
+): boolean {
+  const extraireMots = (texte: string) =>
+    texte
+      .toLocaleLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, " ")
+      .split(/\s+/)
+      .filter((mot) => mot.length >= 3);
+
+  const motsReponse = extraireMots(reponse.trim());
+  if (motsReponse.length !== 1) return false;
+
+  const motsExercice = new Set(
+    extraireMots(
+      [exercice.titre, exercice.enonce, ...exercice.criteres.map((critere) => critere.libelle)].join(
+        " ",
+      ),
+    ),
+  );
+
+  return !motsExercice.has(motsReponse[0]);
+}
+
 export interface ResultatCorrection {
   /** Verdict validé, prêt à pré-remplir le bilan. `null` si rien d'exploitable. */
   correction: PropositionCorrection | null;
@@ -193,12 +225,26 @@ export async function corrigerReponse(
     envoyer,
   });
 
+  const correctionRecue = correction as PropositionCorrection | null;
+
+  if (
+    correctionRecue?.resultat.trim().toLowerCase() === "reussi" &&
+    reponseTropPauvrePourUneReussiteAutomatique(reponse, exercice)
+  ) {
+    return {
+      correction: null,
+      outilsActifs,
+      erreur:
+        "La réponse est trop pauvre pour être validée automatiquement comme réussie. Relis et remplis le bilan toi-même.",
+    };
+  }
+
   const erreur =
-    correction !== null
+    correctionRecue !== null
       ? null
       : outilsActifs
         ? "Le tuteur n'a produit aucune correction exploitable."
         : messageSansOutils("la correction assistée");
 
-  return { correction, outilsActifs, erreur };
+  return { correction: correctionRecue, outilsActifs, erreur };
 }

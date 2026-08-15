@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { ApercuDocument } from "@/lib/documents/types-documents";
 import {
+  adaptNoteDocumentaire,
+  adaptNotesDocumentaires,
   adaptNoteOperationnelle,
   adaptNotesOperationnelles,
   idActiviteNote,
+  idActiviteRessource,
   idDocumentDepuisActivite,
 } from "./note-activity-adapter";
 
@@ -70,6 +73,45 @@ describe("une note opérationnelle devient un candidat", () => {
     const explorer = adaptNoteOperationnelle("compte-1", apercu({ type: "experimentation" }), OPTIONS);
     expect(explorer?.proofMode).toBe("support-seul");
     expect(explorer?.evaluationContract.scope).toBe("aucune");
+  });
+});
+
+describe("une ressource support devient un travail documentaire", () => {
+  it("propose un geste adapté au type sans créer de preuve", () => {
+    const activite = adaptNoteDocumentaire(
+      "compte-1",
+      apercu({
+        id: "papier-1",
+        titre: "Les boucles de rétroaction",
+        type: "article",
+        frontMatter: { role: "support" },
+      }),
+      OPTIONS,
+    );
+
+    expect(activite?.title).toContain("Lire et ficher le papier de recherche");
+    expect(activite?.id).toBe(idActiviteRessource("papier-1"));
+    expect(activite?.family).toBe("entrainer");
+    expect(activite?.authorizedResources[0]?.ref).toBe("papier-1");
+    expect(activite?.proofMode).toBe("support-seul");
+  });
+
+  it("ignore les supports inconnus et les ressources déjà figées", () => {
+    expect(adaptNoteDocumentaire("compte-1", apercu({ type: "inconnu", frontMatter: { role: "support" } }), OPTIONS)).toBeNull();
+    expect(adaptNoteDocumentaire("compte-1", apercu({ type: "cours", frontMatter: { role: "support" } }), {
+      ...OPTIONS,
+      documentsFiges: new Set(["projet-audit-flux"]),
+    })).toBeNull();
+  });
+
+  it("ajoute les supports au même corpus de candidats", () => {
+    const activites = adaptNotesDocumentaires("compte-1", [
+      apercu({ type: "cours", frontMatter: { role: "support" } }),
+      apercu({ type: "projet", frontMatter: { role: "operationnel" } }),
+    ], OPTIONS);
+
+    expect(activites).toHaveLength(1);
+    expect(activites[0].title).toContain("Lire et structurer le cours");
   });
 });
 

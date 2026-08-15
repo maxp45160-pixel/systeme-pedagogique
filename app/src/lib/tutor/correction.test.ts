@@ -16,7 +16,11 @@
 
 import { describe, expect, it } from "vitest";
 
-import { construirePromptCorrection, corrigerReponse } from "./correction";
+import {
+  construirePromptCorrection,
+  corrigerReponse,
+  reponseTropPauvrePourUneReussiteAutomatique,
+} from "./correction";
 import { RESULTATS } from "@/lib/domain/bilan";
 import type { Exercise } from "@/lib/domain/types";
 import type { MoteurTuteur } from "./moteurs";
@@ -169,6 +173,24 @@ describe("corrigerReponse — ce qui part au moteur", () => {
 /* ------------------------------------------------------------------ */
 
 describe("corrigerReponse — rien n'est fabriqué", () => {
+  it("ne laisse pas une suite de lettres hors sujet devenir une réussite", async () => {
+    const r = await corrigerReponse(
+      moteurQuiEmet([
+        { evenement: "proposition", donnees: { genre: "correction", correction: { ...VERDICT, resultat: "reussi" } } },
+      ]),
+      EXERCICE,
+      "hhjklmlkm",
+    );
+    expect(r.correction).toBeNull();
+    expect(r.erreur).toContain("trop pauvre");
+  });
+
+  it("n'applique pas cette barrière à une réponse qui reprend le vocabulaire du sujet", () => {
+    expect(
+      reponseTropPauvrePourUneReussiteAutomatique("stock", EXERCICE),
+    ).toBe(false);
+  });
+
   it("retient un verdict validé et ne signale aucune erreur", async () => {
     const r = await corrigerReponse(
       moteurQuiEmet([

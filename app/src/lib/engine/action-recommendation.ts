@@ -1,4 +1,5 @@
 import type { SkillState } from "@/lib/domain/types";
+import { PREFIXE_ACTIVITE_RESSOURCE } from "@/lib/domain/adaptive-learning";
 import type {
   ActionContext,
   ActionRecommendation,
@@ -286,6 +287,10 @@ function preferenceMatch(candidate: Candidate, preferences: readonly LearningPre
   });
 }
 
+function isDocumentResource(candidate: Candidate): boolean {
+  return candidate.activity?.id.startsWith(PREFIXE_ACTIVITE_RESSOURCE) ?? false;
+}
+
 function preferredMode(
   family: ActivityFamily,
   capacity: MentalCapacity,
@@ -333,6 +338,7 @@ function rankCandidate(
     - CAPACITY_ORDER[candidate.activity?.cognitiveDemand ?? candidate.generation?.cognitiveDemand ?? "standard"];
   const capacityFit = capacityDifference >= 0 ? 2 : capacityDifference === -1 ? 1 : 0;
   const preferred = preferenceMatch(candidate, input.preferences, input.context.accountId);
+  const documentResource = isDocumentResource(candidate);
   const rank = skillRank(candidate, input.rankedSkillStates);
   const timeFit = -Math.abs(input.context.availableTimeMinutes - candidate.durationMinutes);
   const factors: RecommendationFactor[] = [];
@@ -342,6 +348,7 @@ function rankCandidate(
   if (rank.code) factors.push({ kind: "classement-competence", label: `${rank.code} est prioritaire dans le classement actuel.`, sourceRef: rank.code });
   if (explicitFamilyMatch || sequenceMatch) factors.push({ kind: "sequencement", label: explicitFamilyMatch ? `L'intention explicite favorise ${candidate.family}.` : signal ? `La sequence appelle ${candidate.family} apres ${signal.kind}.` : `La sequence par defaut favorise ${candidate.family}.`, sourceRef: signal?.sourceRef });
   if (explorationFollowUp) factors.push({ kind: "exploration-recente", label: "Une exploration recente appelle maintenant une mise en pratique ou une production." });
+  if (documentResource) factors.push({ kind: "ressource-documentaire", label: "Cette ressource dispose d'un travail documentaire dédié." });
   factors.push({ kind: "temps", label: candidate.segmented ? `Un segment de ${candidate.durationMinutes} min tient dans le temps disponible.` : `La duree de ${candidate.durationMinutes} min tient dans le temps disponible.` });
   factors.push({ kind: "capacite", label: capacityFit === 2 ? "La demande cognitive est compatible avec la capacite declaree." : "La demande cognitive depasse la capacite declaree ; reserve affichee." });
   if (preferred) factors.push({ kind: "preference-declaree", label: "Correspond a une preference confirmee." });
@@ -384,6 +391,7 @@ function rankCandidate(
       explicitTarget ? 1 : 0,
       goalMatch ? 1 : 0,
       explicitFamilyMatch ? 1 : 0,
+      documentResource ? 1 : 0,
       rank.value,
       explorationFollowUp ? 1 : 0,
       sequenceMatch ? 1 : 0,

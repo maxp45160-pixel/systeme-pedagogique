@@ -29,8 +29,6 @@ import { mesurer, mesurerSync } from "@/lib/profiling/server";
 import { assemblerReferentiel } from "@/lib/domain/referentiel-compte";
 import type { Referentiel, SkillState } from "@/lib/domain/types";
 import { adaptLegacyActivities } from "@/lib/domain/legacy-activity-adapter";
-import { loadEffectiveEvidence } from "./adaptive-learning";
-import type { EvidenceStatusEvent } from "@/lib/domain/adaptive-learning";
 
 export interface Contexte {
   donnees: Collections;
@@ -62,12 +60,16 @@ export interface Contexte {
   /** Provenance documentaire dérivée des preuves, sans lecture supplémentaire. */
   contexteDocumentaire: ContexteDocumentaire;
   /**
-   * Vue recalculée des preuves après application des rectifications. Les
-   * preuves originales restent toutes dans `donnees.evidence`.
+   * Les preuves qui comptent pour le moteur.
+   *
+   * Elles étaient filtrées par un journal de rectifications, retiré le
+   * 15/08/2026 avec la boucle qui le portait (ADR-070) : la table
+   * `evidence_status_events` n'a jamais existé en production. Le champ reste
+   * distinct de `donnees.evidence` parce qu'il nomme une intention — ce qui
+   * entre dans le calcul — et qu'un futur mécanisme d'invalidation reprendrait
+   * exactement cette place, sans avoir à retoucher ses consommateurs.
    */
   preuvesEffectives: Collections["evidence"];
-  /** Journal append-only expliquant la vue effective des preuves. */
-  rectificationsPreuves: EvidenceStatusEvent[];
   now: Date;
   /**
    * Refus de recommandation (R1) encore frais, expiration déjà appliquée.
@@ -112,14 +114,7 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
     referentiel = r;
   }
 
-  // Une rectification ne réécrit jamais la preuve d'origine. Sa vue
-  // effective est recalculée avant toute entrée dans le moteur ; le journal
-  // brut demeure accessible dans `donnees.evidence` pour l'audit et l'Atelier.
-  // Le legacy n'interroge aucune nouvelle table pendant la bêta.
-  const vuePreuves = donneesBrutes.user.learningLoopMode === "adaptive-v1"
-    ? await loadEffectiveEvidence(donneesBrutes.evidence)
-    : { effective: donneesBrutes.evidence, statusEvents: [] };
-  const preuvesEffectives = vuePreuves.effective;
+  const preuvesEffectives = donneesBrutes.evidence;
 
   // Les exercices de diagnostic font partie du logiciel, pas du journal :
   // ils sont toujours disponibles, sans étape d'initialisation.
@@ -249,7 +244,6 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
     maitrises,
     contexteDocumentaire,
     preuvesEffectives,
-    rectificationsPreuves: vuePreuves.statusEvents,
     now,
     refus,
     adaptiveLegacy: adaptLegacyActivities(

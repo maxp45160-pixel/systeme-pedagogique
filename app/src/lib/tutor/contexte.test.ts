@@ -95,7 +95,6 @@ function construireCtxDeTest(
     recommandations,
     contexteDocumentaire: new Map(),
     preuvesEffectives: [],
-    rectificationsPreuves: [],
     now,
     refus: { codes: new Set(), exercices: new Set() },
     adaptiveLegacy: adaptLegacyActivities("test", exercises, attempts),

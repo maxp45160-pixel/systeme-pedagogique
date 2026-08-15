@@ -13,11 +13,9 @@ import { cleParCompte, ecrireSession, effacerSession, lireSession } from "@/lib/
  * raisonnement, et un bouton dit clairement quand elle est prise. Ce qui a
  * changé le 02/08/2026, c'est ce qui se passe entre deux clics.
  *
- * Le `<textarea>` était non contrôlé, sans auto-sauvegarde ni garde de sortie —
- * et le produit tendait lui-même le piège : « Afficher la correction » est un
- * `<Link href="?correction=1">`, donc une navigation, donc un remontage du
- * formulaire depuis la valeur en base. Cliquer dessus effaçait ce qu'on venait
- * d'écrire. Le cas était atteignable sans même quitter l'application.
+ * Le `<textarea>` était non contrôlé, sans auto-sauvegarde ni garde de sortie.
+ * La réponse doit maintenant rester disponible jusqu'à la demande de correction
+ * au tuteur, sans navigation vers une correction de référence.
  *
  * La saisie est désormais recopiée dans `sessionStorage` à chaque frappe
  * (cadencée), par compte et par tentative. Elle survit à toute navigation
