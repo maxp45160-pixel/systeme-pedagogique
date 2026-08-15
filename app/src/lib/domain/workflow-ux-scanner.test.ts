@@ -3,8 +3,8 @@ import { scannerUxJourney } from "./workflow-ux-scanner";
 import { parcourirWorkflow, statistiquesGraphe } from "./workflow-graphe";
 
 describe("scannerUxJourney", () => {
-  it("construit dynamiquement un graphe de parcours UX connecté avec tous les sous-systèmes réels", async () => {
-    const graphe = await scannerUxJourney();
+  it("construit dynamiquement le graphe Macro-UX de synthèse", async () => {
+    const graphe = await scannerUxJourney({ mode: "macro" });
     const resultat = parcourirWorkflow(graphe, "page:/");
     const stats = statistiquesGraphe(resultat, graphe);
 
@@ -12,86 +12,80 @@ describe("scannerUxJourney", () => {
     expect(stats.atteignables).toBe(stats.totalNoeuds);
     expect(resultat.inatteignables).toHaveLength(0);
 
-    // Vérifier la présence de tous les groupes UX
-    const groupesPresents = new Set(graphe.noeuds.map((n) => n.groupe));
-    expect(groupesPresents).toContain("dashboard");
-    expect(groupesPresents).toContain("atelier");
-    expect(groupesPresents).toContain("seances");
-    expect(groupesPresents).toContain("exercice");
-    expect(groupesPresents).toContain("tuteur");
-    expect(groupesPresents).toContain("profil");
-
-    // Vérifier les sous-états interactifs exhaustifs de l'Atelier
     const idsNoeuds = new Set(graphe.noeuds.map((n) => n.id));
-    expect(idsNoeuds).toContain("ux:explorateur-sidebar");
-    expect(idsNoeuds).toContain("ux:atelier-graphe");
-    expect(idsNoeuds).toContain("ux:galerie-domaines");
-    expect(idsNoeuds).toContain("ux:vue-transversale");
-    expect(idsNoeuds).toContain("ux:categorie-dossier");
-    expect(idsNoeuds).toContain("ux:fiche-competence");
-    expect(idsNoeuds).toContain("ux:fiche-domaine");
-    expect(idsNoeuds).toContain("ux:editeur-note");
-    expect(idsNoeuds).toContain("ux:apercu-snapshot");
-    expect(idsNoeuds).toContain("ux:panneau-contexte");
-
-    // Actions documentaires
-    expect(idsNoeuds).toContain("action:creer-note");
-    expect(idsNoeuds).toContain("action:figer-revision");
-    expect(idsNoeuds).toContain("action:televerser-pdf");
-    expect(idsNoeuds).toContain("action:supprimer-pdf");
-    expect(idsNoeuds).toContain("action:supprimer-note");
-    expect(idsNoeuds).toContain("action:ajouter-wikilien");
-
-    // Vérifier la boucle d'exercice en 3 actes
-    expect(idsNoeuds).toContain("ux:exercice-chercher");
-    expect(idsNoeuds).toContain("ux:exercice-indices");
-    expect(idsNoeuds).toContain("ux:exercice-abandon");
-    expect(idsNoeuds).toContain("ux:exercice-comparer");
-    expect(idsNoeuds).toContain("ux:exercice-mesurer");
-    expect(idsNoeuds).toContain("ux:exercice-bilan-final");
-
-    // Vérifier les déclencheurs (triggers)
-    const liensAvecDeclencheur = graphe.liens.filter((l) => Boolean(l.declencheur));
-    expect(liensAvecDeclencheur.length).toBeGreaterThan(25);
-
-    // Vérifier les transitions de l'explorateur et du canvas
-    const liensExplorateur = graphe.liens.filter((l) => l.source === "ux:explorateur-sidebar");
-    expect(liensExplorateur.map((l) => l.target)).toContain("ux:galerie-domaines");
-    expect(liensExplorateur.map((l) => l.target)).toContain("ux:vue-transversale");
-
-    const liensCanvas = graphe.liens.filter((l) => l.source === "ux:atelier-graphe");
-    expect(liensCanvas.map((l) => l.target)).toContain("ux:fiche-competence");
-    expect(liensCanvas.map((l) => l.target)).toContain("ux:fiche-domaine");
-
-    // Vérifier le volet contexte et snapshots
-    const liensContexte = graphe.liens.filter((l) => l.source === "ux:panneau-contexte");
-    expect(liensContexte.map((l) => l.target)).toContain("ux:apercu-snapshot");
-    expect(liensContexte.map((l) => l.target)).toContain("action:televerser-pdf");
-    expect(liensContexte.map((l) => l.target)).toContain("action:ajouter-wikilien");
+    expect(idsNoeuds).toContain("page:/");
+    expect(idsNoeuds).toContain("page:/atelier");
+    expect(idsNoeuds).toContain("page:/seances");
+    expect(idsNoeuds).toContain("page:/exercices/{id}");
+    expect(idsNoeuds).toContain("ux:concepteur-seance");
+    expect(idsNoeuds).toContain("modal:theme-ia");
   });
 
-  it("génère et exporte le graphe DOT audité", async () => {
-    const { exporterDOT } = await import("./workflow-export");
-    const { writeFileSync, mkdirSync } = await import("node:fs");
-    const graphe = await scannerUxJourney();
+  it("construit dynamiquement le graphe Atomique avec exhaustivité totale et Atelier complet", async () => {
+    const graphe = await scannerUxJourney({ mode: "atomique" });
     const resultat = parcourirWorkflow(graphe, "page:/");
     const stats = statistiquesGraphe(resultat, graphe);
-    console.log("GRAPH_STATS:", JSON.stringify({
-      totalNoeuds: stats.totalNoeuds,
-      totalLiens: stats.totalLiens,
-      atteignables: stats.atteignables,
-      inatteignables: stats.inatteignables,
-      diametreBFS: stats.diametreBFS,
-      degreSortantMoyen: Number(stats.degreSortantMoyen.toFixed(2)),
-      degreEntrantMoyen: Number(stats.degreEntrantMoyen.toFixed(2)),
-      noeudsParType: graphe.noeuds.reduce((acc, n) => { acc[n.type] = (acc[n.type] || 0) + 1; return acc; }, {} as Record<string, number>),
-      noeudsParGroupe: graphe.noeuds.reduce((acc, n) => { acc[n.groupe || "aucun"] = (acc[n.groupe || "aucun"] || 0) + 1; return acc; }, {} as Record<string, number>),
-      puits: stats.puits,
-      sources: stats.sources,
-    }, null, 2));
-    const dot = exporterDOT(graphe.noeuds, graphe.liens, { avecConditions: true });
+
+    expect(stats.totalNoeuds).toBeGreaterThan(50);
+    expect(stats.atteignables).toBe(stats.totalNoeuds);
+    expect(resultat.inatteignables).toHaveLength(0);
+
+    const idsNoeuds = new Set(graphe.noeuds.map((n) => n.id));
+
+    // Sous-onglets de compétence & actions
+    expect(idsNoeuds).toContain("ux:fiche-competence-synthese");
+    expect(idsNoeuds).toContain("ux:fiche-competence-progression");
+    expect(idsNoeuds).toContain("ux:fiche-competence-relations");
+    expect(idsNoeuds).toContain("ux:fiche-competence-notes");
+    expect(idsNoeuds).toContain("action:archiver-competence");
+
+    // Sous-onglets de domaine & projections
+    expect(idsNoeuds).toContain("ux:fiche-domaine-structure");
+    expect(idsNoeuds).toContain("ux:fiche-domaine-radar");
+    expect(idsNoeuds).toContain("ux:fiche-domaine-gestion");
+    expect(idsNoeuds).toContain("modal:ajouter-des-competences");
+    expect(idsNoeuds).toContain("ux:projection-theme");
+    expect(idsNoeuds).toContain("ux:projection-exercice");
+    expect(idsNoeuds).toContain("action:supprimer-theme");
+
+    // Gestion documentaire atomique
+    expect(idsNoeuds).toContain("action:televerser-pdf");
+    expect(idsNoeuds).toContain("action:supprimer-pdf");
+    expect(idsNoeuds).toContain("action:figer-revision");
+    expect(idsNoeuds).toContain("ux:apercu-snapshot");
+    expect(idsNoeuds).toContain("action:ajouter-wikilien");
+    expect(idsNoeuds).toContain("ux:categorie-dossier");
+    expect(idsNoeuds).toContain("modal:nouveau-document");
+
+    // Live séance & Pomodoro
+    expect(idsNoeuds).toContain("ux:pomodoro");
+    expect(idsNoeuds).toContain("action:ajouter-note");
+    expect(idsNoeuds).toContain("action:enregistrer-jalon");
+    expect(idsNoeuds).toContain("action:abandonner-activite-adaptative");
+    expect(idsNoeuds).toContain("ux:seance-bilan");
+
+    // Réglages & Profil atomique
+    expect(idsNoeuds).toContain("ux:profil-objectifs");
+    expect(idsNoeuds).toContain("action:modifier-profil");
+    expect(idsNoeuds).toContain("action:configurer-cle-ia");
+    expect(idsNoeuds).toContain("action:reinitialiser-compte");
+
+    // Feedback & Recommandation
+    expect(idsNoeuds).toContain("ux:feedback-recommandation");
+  });
+
+  it("génère et exporte les graphes DOT audités sans nœuds isolés", async () => {
+    const { exporterDOT } = await import("./workflow-export");
+    const grapheAtomique = await scannerUxJourney({ mode: "atomique" });
+    const resultat = parcourirWorkflow(grapheAtomique, "page:/");
+    const stats = statistiquesGraphe(resultat, grapheAtomique);
+
+    expect(stats.atteignables).toBe(stats.totalNoeuds);
+    expect(stats.inatteignables).toBe(0);
+    const dot = exporterDOT(grapheAtomique.noeuds, grapheAtomique.liens, { avecConditions: true });
     expect(dot).toContain("digraph workflow");
-    mkdirSync("C:/Users/hupch/.gemini/antigravity-ide/brain/e2d864ec-d07b-4952-a815-411af741e932/scratch", { recursive: true });
-    writeFileSync("C:/Users/hupch/.gemini/antigravity-ide/brain/e2d864ec-d07b-4952-a815-411af741e932/scratch/regenerated_workflow.dot", dot, "utf-8");
+    expect(dot).toContain("cluster_atelier");
+
+    console.log(`[Validation UX Journey] ${stats.totalNoeuds} nœuds, ${stats.totalLiens} liens, 0 inatteignables.`);
   });
 });

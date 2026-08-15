@@ -34,7 +34,7 @@
 /* Types du graphe                                                     */
 /* ------------------------------------------------------------------ */
 
-export type PerspectiveWorkflow = "architecture" | "ux";
+export type PerspectiveWorkflow = "architecture" | "ux" | "ux-atomique";
 
 export type GroupeWorkflow =
   | "dashboard"

@@ -3,27 +3,31 @@ import { scannerWorkflow } from "./workflow-scanner";
 import { parcourirWorkflow, statistiquesGraphe } from "./workflow-graphe";
 
 describe("scannerWorkflow", () => {
-  it("construit un graphe non vide avec la page Atelier et ses surfaces", async () => {
+  it("construit un graphe non vide avec les pages réelles et leurs liaisons", async () => {
     const graphe = await scannerWorkflow();
     const resultat = parcourirWorkflow(graphe, "page:/");
     const stats = statistiquesGraphe(resultat, graphe);
 
-    expect(stats.totalNoeuds).toBeGreaterThan(0);
+    expect(stats.totalNoeuds).toBeGreaterThan(10);
     expect(stats.atteignables).toBeGreaterThan(0);
 
-    // L'Atelier est la destination primaire du rail (navigation.ts) : le
-    // scanner doit la produire et la relier à ses surfaces réelles — la
-    // génération d'exercice, la révision de domaine et l'exercice autonome.
-    const liensAtelier = graphe.liens.filter((l) => l.source === "page:/atelier");
-    const targetsAtelier = liensAtelier.map((l) => l.target);
+    const idsNoeuds = graphe.noeuds.map((n) => n.id);
+    expect(idsNoeuds).toContain("page:/");
+    expect(idsNoeuds).toContain("page:/atelier");
+    expect(idsNoeuds).toContain("page:/seances");
+    expect(idsNoeuds).toContain("page:/exercices/{id}");
+    expect(idsNoeuds).toContain("page:/atelier?document");
 
-    expect(targetsAtelier).toContain("modal:generer-un-exercice");
-    expect(targetsAtelier).toContain("modal:reviser-domaine");
-    expect(targetsAtelier).toContain("page:/exercices/{id}");
+    // Vérifier la présence d'actions serveur réelles
+    const typesNoeuds = new Set(graphe.noeuds.map((n) => n.type));
+    expect(typesNoeuds).toContain("page");
+    expect(typesNoeuds).toContain("action");
 
-    expect(graphe.noeuds.map((n) => n.id)).toContain("page:/atelier?document");
-    expect(graphe.liens).toContainEqual(expect.objectContaining({
-      target: "page:/atelier?document",
-    }));
+    // L'Atelier est relié aux documents et à ses navigations
+    expect(graphe.liens).toContainEqual(
+      expect.objectContaining({
+        target: "page:/atelier?document",
+      }),
+    );
   });
 });

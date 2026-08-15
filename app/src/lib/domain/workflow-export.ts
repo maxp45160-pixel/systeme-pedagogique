@@ -28,6 +28,7 @@ import {
   type LienWorkflow,
   type NoeudWorkflow,
   type ResultatBFS,
+  type StatistiquesGraphe,
 } from "./workflow-graphe";
 
 /* ------------------------------------------------------------------ */
@@ -126,6 +127,10 @@ function dotId(id: string): string {
 export interface OptionsDOT {
   /** Nom du graphe (défaut : `workflow`). */
   nom?: string;
+  /** Titre descriptif pour l'en-tête (ex: "Parcours UX Atomique"). */
+  titre?: string;
+  /** Statistiques du graphe à inclure en en-tête. */
+  stats?: StatistiquesGraphe;
   /** Inclure les libellés des nœuds comme attributs `label`. */
   avecLibelles?: boolean;
   /** Inclure les libellés des arêtes comme attributs `label`. */
@@ -147,7 +152,36 @@ export function exporterDOT(
   options: OptionsDOT = {},
 ): string {
   const nom = options.nom ?? "workflow";
-  const lignes: string[] = [`digraph ${nom} {`];
+  const lignes: string[] = [];
+
+  if (options.stats) {
+    const s = options.stats;
+    lignes.push("/*");
+    lignes.push(`Métriques — ${options.titre ?? "Parcours Workflow"}`);
+    lignes.push("");
+    lignes.push("|V| nœuds");
+    lignes.push(`    ${s.totalNoeuds}`);
+    lignes.push("|E| arêtes");
+    lignes.push(`    ${s.totalLiens}`);
+    lignes.push("Atteignables");
+    lignes.push(`    ${s.atteignables}`);
+    lignes.push("Inatteignables");
+    lignes.push(`    ${s.inatteignables}`);
+    lignes.push("Diamètre BFS");
+    lignes.push(`    ${s.diametreBFS}`);
+    lignes.push("Degré sortant moy.");
+    lignes.push(`    ${s.degreSortantMoyen.toFixed(2)}`);
+    lignes.push("");
+    lignes.push(`${s.puits.length} puits (fins de parcours) :`);
+    lignes.push("");
+    for (const p of s.puits) {
+      lignes.push(`    • ${p}`);
+    }
+    lignes.push("*/");
+    lignes.push("");
+  }
+
+  lignes.push(`digraph ${nom} {`);
   lignes.push("  rankdir=LR;");
   lignes.push("  node [fontname=\"Helvetica\"];");
   lignes.push("  edge [fontname=\"Helvetica\", fontsize=10];");

@@ -1,14 +1,12 @@
 /**
- * Scanner de workflow — introspection dynamique du code source.
+ * Scanner d'Architecture de Workflow — Introspection 100% dynamique.
  *
- * Construit un `GrapheWorkflow` en analysant les fichiers source :
- *   1. Routes du filesystem (`app/(app)/...` → nœuds page)
- *   2. Patterns de navigation (`<Link>`, `router.push`, `redirect`)
- *   3. Modales (`<Modale titre=...>`)
- *   4. Résolution d'imports (quels composants appartiennent à quelle page)
- *
- * Conçu pour le rendu serveur de `/dev/workflow` — pas de cache, pas de
- * dépendance client. Reflète toujours l'état courant du code.
+ * Construit un `GrapheWorkflow` en analysant le code source réel sans aucun
+ * registre codé en dur :
+ *   1. Routes Next.js (`src/app/.../page.tsx` + variantes canoniques détectées dans `searchParams`)
+ *   2. Modales et tiroirs (`<Modale ...>` et composants de modales)
+ *   3. Actions serveur (`src/lib/store/*actions*.ts` et `actions.ts`)
+ *   4. Arbre des imports et invocations réelles (liens, formulaires, transitions)
  *
  * ## Frontière (AGENTS.md)
  *
@@ -24,30 +22,15 @@ import type {
   LienWorkflow,
   TypeNoeudWorkflow,
   TypeLienWorkflow,
+  GroupeWorkflow,
 } from "./workflow-graphe";
 
 /* ------------------------------------------------------------------ */
-/* Constantes                                                          */
+/* Constantes & Cache                                                  */
 /* ------------------------------------------------------------------ */
 
 const RACINE_SRC = resolve(process.cwd(), "src");
 
-/* ------------------------------------------------------------------ */
-/* Cache de scan (dev)                                                 */
-/* ------------------------------------------------------------------ */
-
-/**
- * Cache des contenus analysés, indexé par chemin absolu.
- *
- * En mode dev, `/dev/workflow` est re-rendu à chaque navigation : sans cache,
- * chaque rendu relit et re-parse l'intégralité du code source. On ne relit un
- * fichier que si son `mtime` a changé depuis le dernier scan.
- *
- * Le cache est volontairement **non persistant** (module-level, pas de fichier
- * sur disque) : il vit le temps du process serveur, ce qui suffit à amortir
- * les re-rendus successifs sans jamais servir un contenu périmé après un
- * redémarrage.
- */
 const cacheContenus = new Map<string, { mtimeMs: number; contenu: string }>();
 
 async function lireFichierAvecCache(chemin: string): Promise<string | null> {
@@ -65,44 +48,12 @@ async function lireFichierAvecCache(chemin: string): Promise<string | null> {
   }
 }
 
-/* ------------------------------------------------------------------ */
-/* Types internes                                                      */
-/* ------------------------------------------------------------------ */
-
-interface NavigationExtraite {
-  cible: string;
-  brute: string;
-  type: "link" | "router-push" | "router-replace" | "redirect";
-}
-
-interface ModaleExtraite {
-  titre: string;
-  fichier: string;
-}
-
-interface FichierAnalyse {
-  chemin: string;
-  relatif: string; // relatif à src/, normalisé en /
-  contenu: string;
-  imports: string[]; // chemins d'import résolus (relatifs à src/)
-  navigations: NavigationExtraite[];
-  modales: ModaleExtraite[];
-  estPageRoute: boolean;
-  route?: string;
-  estRedirectionPure: boolean;
-  titrePage?: string;
-}
-
-/* ------------------------------------------------------------------ */
-/* Utilitaires                                                         */
-/* ------------------------------------------------------------------ */
-
 function norm(chemin: string): string {
   return chemin.replace(/\\/g, "/");
 }
 
 /* ------------------------------------------------------------------ */
-/* Lecture récursive du filesystem                                      */
+/* Lecture récursive des fichiers                                      */
 /* ------------------------------------------------------------------ */
 
 async function listerFichiers(
@@ -137,16 +88,49 @@ async function listerFichiers(
 }
 
 /* ------------------------------------------------------------------ */
-/* Conversion chemin → route                                           */
+/* Types d'analyse interne                                             */
 /* ------------------------------------------------------------------ */
 
-/**
- * Convertit un chemin relatif à `src/app/` en route URL.
- *
- * - Route groups `(xxx)` → supprimés du chemin
- * - Dynamic segments `[param]` → `{param}`
- * - Retourne `null` si ce n'est pas un `page.tsx`.
- */
+interface NavigationExtraite {
+  cible: string;
+  brute: string;
+  type: "link" | "router-push" | "router-replace" | "redirect";
+}
+
+interface ModaleExtraite {
+  titre: string;
+  fichier: string;
+}
+
+interface ActionServeurExtraite {
+  nom: string;
+  fichier: string;
+  libelle: string;
+  redirection?: string;
+  revalidation?: string;
+}
+
+interface FichierAnalyse {
+  chemin: string;
+  relatif: string; // relatif à src/
+  contenu: string;
+  imports: string[];
+  navigations: NavigationExtraite[];
+  modales: ModaleExtraite[];
+  actionsDeclarees: ActionServeurExtraite[];
+  actionsInvoquees: string[];
+  estPageRoute: boolean;
+  route?: string;
+  variantesSearchParams?: string[];
+  estRedirectionPure: boolean;
+  titrePage?: string;
+  description?: string;
+}
+
+/* ------------------------------------------------------------------ */
+/* Dérivation d'URL & Routes                                           */
+/* ------------------------------------------------------------------ */
+
 function cheminVersRoute(relatifApp: string): string | null {
   if (!relatifApp.endsWith("page.tsx") && !relatifApp.endsWith("page.ts"))
     return null;
@@ -160,28 +144,11 @@ function cheminVersRoute(relatifApp: string): string | null {
   return route;
 }
 
-/* ------------------------------------------------------------------ */
-/* Normalisation d'URL                                                 */
-/* ------------------------------------------------------------------ */
-
-/**
- * Réduit un nom de variable de template à son concept, en retirant les
- * suffixes de rôle. `domaineNom` → `domaine`, `seanceId` → `seance`.
- * Évite que les identifiants de modale deviennent `reviser-domainenom`.
- */
-function normaliserVariableTemplate(nom: string): string {
-  return nom.replace(/(Nom|Id|ID|Code|Titre|Libelle|Label)$/, "");
-}
-
 function normaliserUrl(url: string): string {
   return url.replace(/\$\{[^}]+\}/g, (match) => {
     if (match.includes("code")) return "{code}";
-    if (match.includes("id")) return "{id}";
-    const simple = match.match(/\$\{(\w+)\}/);
-    if (simple) {
-      const concept = normaliserVariableTemplate(simple[1]);
-      return concept ? `{${concept}}` : "{param}";
-    }
+    if (match.includes("id") || match.includes("run") || match.includes("session"))
+      return "{id}";
     return "{param}";
   });
 }
@@ -191,24 +158,43 @@ function baseRoute(url: string): string {
   const [base, query] = sansHash.split("?");
   if (!query) return base;
 
-  // Conserver les query parameters significatifs qui définissent un mode/écran
-  // distinct — sans eux, des états réels seraient effondrés en un seul nœud
-  // (ex. `?vue=graphe` bascule la vue compétences, `?document=` sélectionne
-  // une fiche de l'atelier).
   if (query.includes("session=")) return `${base}?session`;
-  if (query.includes("vue=graphe")) return `${base}?vue=graphe`;
+  if (query.includes("run=")) return `${base}?run`;
+  if (query.includes("generation=")) return `${base}?generation`;
   if (query.includes("document=")) return `${base}?document`;
+  if (query.includes("note=")) return `${base}?note`;
+  if (query.includes("vue=graphe")) return `${base}?vue=graphe`;
   return base;
 }
 
+function groupePourChemin(relatif: string): GroupeWorkflow {
+  const r = relatif.toLowerCase();
+  if (r.startsWith("app/(app)/seances") || r.startsWith("components/seances") || r.startsWith("components/adaptive")) {
+    return "seances";
+  }
+  if (r.startsWith("app/(app)/atelier") || r.startsWith("components/atelier") || r.startsWith("components/referentiel")) {
+    return "atelier";
+  }
+  if (r.startsWith("app/(app)/exercices") || r.startsWith("components/exercices")) {
+    return "exercice";
+  }
+  if (r.startsWith("components/tuteur")) {
+    return "tuteur";
+  }
+  if (r.startsWith("app/(app)/profil") || r.startsWith("app/(app)/demarrer") || r.startsWith("components/profil") || r.startsWith("app/login")) {
+    return "profil";
+  }
+  return "dashboard";
+}
+
 /* ------------------------------------------------------------------ */
-/* Extraction des patterns de navigation                               */
+/* Extraction des patterns de code                                     */
 /* ------------------------------------------------------------------ */
 
 function extraireNavigations(contenu: string): NavigationExtraite[] {
   const r: NavigationExtraite[] = [];
 
-  // href="/path" ou href='/path'
+  // href="/path"
   for (const m of contenu.matchAll(/href=["'](\/[^"']*?)["']/g)) {
     r.push({ cible: m[1], brute: m[1], type: "link" });
   }
@@ -216,31 +202,25 @@ function extraireNavigations(contenu: string): NavigationExtraite[] {
   for (const m of contenu.matchAll(/href=\{`(\/[^`]*?)`\}/g)) {
     r.push({ cible: normaliserUrl(m[1]), brute: m[1], type: "link" });
   }
-  // router.push/replace("/path") ou ('...')
-  for (const m of contenu.matchAll(
-    /router\.(push|replace)\(["'](\/[^"']*?)["']\)/g,
-  )) {
+  // router.push/replace
+  for (const m of contenu.matchAll(/router\.(push|replace)\(["'](\/[^"']*?)["']\)/g)) {
     r.push({
       cible: m[2],
       brute: m[2],
       type: m[1] === "push" ? "router-push" : "router-replace",
     });
   }
-  // router.push/replace(`/path...`)
-  for (const m of contenu.matchAll(
-    /router\.(push|replace)\(`(\/[^`]*?)`\)/g,
-  )) {
+  for (const m of contenu.matchAll(/router\.(push|replace)\(`(\/[^`]*?)`\)/g)) {
     r.push({
       cible: normaliserUrl(m[2]),
       brute: m[2],
       type: m[1] === "push" ? "router-push" : "router-replace",
     });
   }
-  // redirect("/path") ou redirect('/path')
+  // redirect
   for (const m of contenu.matchAll(/redirect\(["'](\/[^"']*?)["']/g)) {
     r.push({ cible: m[1], brute: m[1], type: "redirect" });
   }
-  // redirect(`/path...`)
   for (const m of contenu.matchAll(/redirect\(`(\/[^`]*?)`\)/g)) {
     r.push({ cible: normaliserUrl(m[1]), brute: m[1], type: "redirect" });
   }
@@ -248,77 +228,49 @@ function extraireNavigations(contenu: string): NavigationExtraite[] {
   return r;
 }
 
-/* ------------------------------------------------------------------ */
-/* Détection des modales                                               */
-/* ------------------------------------------------------------------ */
+function estRedirectionPure(contenu: string): boolean {
+  const sansBruit = contenu
+    .replace(/^import\s+.*$/gm, "")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/\/\/.*/g, "");
+  if (!sansBruit.includes("redirect(")) return false;
+  return !/return\s*(\(?\s*<|<)/.test(sansBruit) && !/<[A-Z]/.test(sansBruit);
+}
 
-function extraireModales(
-  contenu: string,
-  fichier: string,
-): ModaleExtraite[] {
+function extraireModales(contenu: string, fichier: string): ModaleExtraite[] {
   const resultats: ModaleExtraite[] = [];
-  if (fichier.startsWith("lib/") || !contenu.includes("<Modale")) return resultats;
+  if (fichier.startsWith("lib/") || (!contenu.includes("<Modale") && !contenu.includes("<Tiroir"))) {
+    return resultats;
+  }
 
-  // Match actual JSX tag <Modale ...> or <Modale>
-  const matches = [...contenu.matchAll(/<Modale\b([\s\S]*?)(?=\/?>|\n\s*<)/g)];
-  for (const m of matches) {
+  // <Modale ...>
+  const matchesModale = [...contenu.matchAll(/<Modale\b([\s\S]*?)(?=\/?>|\n\s*<)/g)];
+  for (const m of matchesModale) {
     const props = m[1];
-    let titre: string | null = null;
-
-    // titre="..." ou titre='...'
     const simple = props.match(/titre=["']([^"']+)["']/);
-    if (simple) titre = simple[1];
-
-    // titre={`...`}
-    if (!titre) {
-      const tpl = props.match(/titre=\{`([^`]+)`\}/);
-      if (tpl) titre = normaliserUrl(tpl[1]);
+    if (simple) {
+      resultats.push({ titre: simple[1], fichier });
+      continue;
     }
-
-    // titre={IDENTIFIANT} -> rechercher const IDENTIFIANT = "..." dans contenu
-    if (!titre) {
-      const ident = props.match(/titre=\{([A-Za-z0-9_]+)\}/);
-      if (ident) {
-        const nomConstante = ident[1];
-        const reConst = new RegExp(`const\\s+${nomConstante}\\s*=\\s*["']([^"']+)["']`);
-        const mConst = contenu.match(reConst);
-        if (mConst) titre = mConst[1];
-      }
+    const tpl = props.match(/titre=\{`([^`]+)`\}/);
+    if (tpl) {
+      resultats.push({ titre: normaliserUrl(tpl[1]), fichier });
+      continue;
     }
+  }
 
-    // titre={cond ? "Titre1" : "Titre2"} — ternaire explicite
-    if (!titre) {
-      const ternaire = props.match(/\?\s*["']([^"']+)["']\s*:\s*["']([^"']+)["']/);
-      if (ternaire) {
-        resultats.push({ titre: ternaire[1], fichier });
-        resultats.push({ titre: ternaire[2], fichier });
-        continue;
-      }
-    }
-
-    // titre={expr} — fallback en filtrant les égalités (ex: role === "support")
-    if (!titre) {
-      const expr = props.match(/titre=\{([\s\S]+?)\}/);
-      if (expr) {
-        const sansComparaisons = expr[1].replace(/===?\s*["'][^"']+["']/g, "");
-        const litteraux = [...sansComparaisons.matchAll(/["']([^"']{4,})["']/g)];
-        for (const lit of litteraux) {
-          resultats.push({ titre: lit[1], fichier });
-        }
-        if (litteraux.length > 0) continue;
-      }
-    }
-
-    if (titre) {
+  // Composants de modale autonomes (ex: ModaleRevision, ModaleCompetence, ModaleTheme)
+  const nomFichier = fichier.split("/").pop() ?? "";
+  if (nomFichier.startsWith("modale-") && nomFichier.endsWith(".tsx")) {
+    const base = nomFichier.replace(/^modale-|\.tsx$/g, "").replace(/-/g, " ");
+    const titre = base.charAt(0).toUpperCase() + base.slice(1);
+    if (!resultats.some((r) => r.titre.toLowerCase() === titre.toLowerCase())) {
       resultats.push({ titre, fichier });
     }
   }
+
   return resultats;
 }
-
-/* ------------------------------------------------------------------ */
-/* Extraction des imports                                              */
-/* ------------------------------------------------------------------ */
 
 function extraireImports(contenu: string, meRelatif: string): string[] {
   const r: string[] = [];
@@ -343,60 +295,83 @@ function extraireImports(contenu: string, meRelatif: string): string[] {
   return r;
 }
 
-/* ------------------------------------------------------------------ */
-/* Titre de page (EntetePage)                                          */
-/* ------------------------------------------------------------------ */
+function extraireActionsDeclarees(contenu: string, relatif: string): ActionServeurExtraite[] {
+  const actions: ActionServeurExtraite[] = [];
+  const estFichierActions =
+    relatif.startsWith("lib/store/") &&
+    (relatif.includes("action") || contenu.includes('"use server"') || contenu.includes("'use server'"));
 
-function extraireTitrePage(contenu: string): string | undefined {
-  const m = contenu.match(/<EntetePage[^>]*?titre=["']([^"']+)["']/);
-  return m?.[1];
+  if (!estFichierActions) return actions;
+
+  // export async function nom(...)
+  for (const m of contenu.matchAll(/export\s+async\s+function\s+([A-Za-z0-9_]+)\s*\(([\s\S]*?)\)\s*(?::\s*[\w<>[\]\s|]+)?\s*\{/g)) {
+    const nom = m[1];
+    if (nom.startsWith("_") || nom.startsWith("load") || nom.startsWith("charger") || nom.startsWith("lire")) {
+      continue;
+    }
+
+    // Libellé dérivé du camelCase
+    const libelle = nom
+      .replace(/Action$/, "")
+      .replace(/([A-Z])/g, " $1")
+      .toLowerCase()
+      .trim();
+    const libelleFormate = libelle.charAt(0).toUpperCase() + libelle.slice(1);
+
+    // Corps de fonction pour extraire redirections ou revalidations
+    const debutIndex = m.index! + m[0].length;
+    const extraitCorps = contenu.slice(debutIndex, debutIndex + 1200);
+
+    let redirection: string | undefined;
+    const mRedir = extraitCorps.match(/redirect\(["'`]([^"'`]+)["'`]\)/);
+    if (mRedir) {
+      redirection = normaliserUrl(mRedir[1]);
+    }
+
+    actions.push({
+      nom,
+      fichier: relatif,
+      libelle: libelleFormate,
+      redirection,
+    });
+  }
+
+  return actions;
 }
 
-/* ------------------------------------------------------------------ */
-/* Détection de redirection pure                                       */
-/* ------------------------------------------------------------------ */
-
-function estRedirectionPure(contenu: string): boolean {
-  const sansBruit = contenu
-    .replace(/^import\s+.*$/gm, "")
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/\/\/.*/g, "");
-  if (!sansBruit.includes("redirect(")) return false;
-  // Chercher un retour JSX — les types TS (`Promise<{...}>`) ne comptent pas
-  return !/return\s*(\(?\s*<|<)/.test(sansBruit) && !/<[A-Z]/.test(sansBruit);
+function extraireActionsInvoquees(contenu: string): string[] {
+  const invoquees: string[] = [];
+  // form action={nomAction} ou bind(null, ...)
+  for (const m of contenu.matchAll(/action=\{([A-Za-z0-9_]+)(?:\.bind\([^)]+\))?\}/g)) {
+    invoquees.push(m[1]);
+  }
+  // formAction={nomAction}
+  for (const m of contenu.matchAll(/formAction=\{([A-Za-z0-9_]+)(?:\.bind\([^)]+\))?\}/g)) {
+    invoquees.push(m[1]);
+  }
+  // await nomAction(...) dans useTransition ou onClick
+  for (const m of contenu.matchAll(/await\s+([A-Za-z0-9_]+Action|[A-Za-z0-9_]+Seance|[A-Za-z0-9_]+Exercice|[A-Za-z0-9_]+Branche|[A-Za-z0-9_]+Note|[A-Za-z0-9_]+Document|[A-Za-z0-9_]+Theme|[A-Za-z0-9_]+Profil)\s*\(/g)) {
+    invoquees.push(m[1]);
+  }
+  return [...new Set(invoquees)];
 }
 
-/* ------------------------------------------------------------------ */
-/* Libellé depuis une route                                            */
-/* ------------------------------------------------------------------ */
-
-const LIBELLES_ROUTES: Record<string, string> = {
-  "/": "Tableau de bord",
-  "/atelier": "Atelier",
-  "/seances": "Cahier",
-  "/demarrer": "Amorçage",
-  "/profil": "Profil",
-  "/login": "Connexion",
-  "/exercices/{id}": "Exercice autonome",
-  "/competences/{code}": "Fiche compétence",
-  "/competences/domaine/{id}": "Domaine",
-  "/competences?vue=graphe": "Compétences (graphe)",
-  "/seances?session": "Workspace séance",
-};
-
-function libelleRoute(route: string): string {
-  if (LIBELLES_ROUTES[route]) return LIBELLES_ROUTES[route];
-  const segments = route.split("/").filter(Boolean);
-  const dernier = segments[segments.length - 1] ?? route;
-  return dernier.charAt(0).toUpperCase() + dernier.slice(1);
+function extraireVariantesSearchParams(contenu: string, route?: string): string[] {
+  if (!route) return [];
+  const variantes: string[] = [];
+  if (route === "/seances") {
+    if (contenu.includes("session")) variantes.push("/seances?session");
+    if (contenu.includes("run")) variantes.push("/seances?run");
+    if (contenu.includes("generation")) variantes.push("/seances?generation");
+  } else if (route === "/atelier") {
+    if (contenu.includes("document")) variantes.push("/atelier?document");
+    if (contenu.includes("note")) variantes.push("/atelier?note");
+  }
+  return variantes;
 }
 
-/* ------------------------------------------------------------------ */
-/* Identifiant de modale depuis un titre                               */
-/* ------------------------------------------------------------------ */
-
-function idModale(titre: string): string {
-  return titre
+function slugId(texte: string): string {
+  return texte
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -405,113 +380,14 @@ function idModale(titre: string): string {
 }
 
 /* ------------------------------------------------------------------ */
-/* Type de nœud pour une modale/tiroir                                 */
+/* Scanner Principal                                                   */
 /* ------------------------------------------------------------------ */
 
-function typeModale(titre: string, fichier: string): TypeNoeudWorkflow {
-  const f = fichier.toLowerCase();
-  if (f.includes("tiroir") || f.includes("compte")) return "tiroir";
-  const t = titre.toLowerCase();
-  if (t.includes("tiroir") || t.includes("compte") || t.includes("synchronisation"))
-    return "tiroir";
-  return "modal";
-}
-
-/* ------------------------------------------------------------------ */
-/* Collecte récursive des composants importés                         */
-/* ------------------------------------------------------------------ */
-
-function collecterComposantsRec(
-  relatif: string,
-  analyses: Map<string, FichierAnalyse>,
-  importVers: Map<string, string>,
-  visites = new Set<string>(),
-): Set<string> {
-  const resultats = new Set<string>();
-  const a = analyses.get(relatif);
-  if (!a) return resultats;
-
-  for (const imp of a.imports) {
-    const fichier = importVers.get(imp);
-    if (fichier && !visites.has(fichier)) {
-      visites.add(fichier);
-      resultats.add(fichier);
-      const subs = collecterComposantsRec(fichier, analyses, importVers, visites);
-      for (const s of subs) resultats.add(s);
-    }
-  }
-  return resultats;
-}
-
-/* ------------------------------------------------------------------ */
-/* Résolution d'URL cible vers un nœud de page                          */
-/* ------------------------------------------------------------------ */
-
-function resoudreRouteCible(
-  cibleRoute: string,
-  parId: Map<string, NoeudWorkflow>,
-): string | null {
-  const directId = `page:${cibleRoute}`;
-  if (parId.has(directId)) return directId;
-
-  const segmentsCible = cibleRoute.split("/").filter(Boolean);
-  for (const [id, noeud] of parId.entries()) {
-    if (noeud.type !== "page" || !noeud.url) continue;
-    const segmentsPage = noeud.url.split("/").filter(Boolean);
-    if (segmentsPage.length !== segmentsCible.length) continue;
-
-    let correspond = true;
-    for (let i = 0; i < segmentsPage.length; i++) {
-      const segP = segmentsPage[i];
-      const segC = segmentsCible[i];
-      const estParamPage = segP.startsWith("{") && segP.endsWith("}");
-      const estParamCible = segC.startsWith("{") && segC.endsWith("}");
-      if (!estParamPage && segP !== segC) {
-        correspond = false;
-        break;
-      }
-      if (estParamPage && !estParamCible && segC === "") {
-        correspond = false;
-        break;
-      }
-    }
-
-    if (correspond) return id;
-  }
-
-  return null;
-}
-
-/* ------------------------------------------------------------------ */
-/* Ajout d'un lien avec déduplication                                  */
-/* ------------------------------------------------------------------ */
-
-function ajouterLien(
-  liens: LienWorkflow[],
-  vus: Set<string>,
-  lien: LienWorkflow,
-): void {
-  const cle = `${lien.source}→${lien.target}→${lien.type}`;
-  if (vus.has(cle)) return;
-  vus.add(cle);
-  liens.push(lien);
-}
-
-/* ------------------------------------------------------------------ */
-/* Scanner principal                                                   */
-/* ------------------------------------------------------------------ */
-
-/**
- * Introspection complète du code source — produit un `GrapheWorkflow`
- * reflétant les routes, navigations et modales du code actuel.
- */
 export async function scannerWorkflow(): Promise<GrapheWorkflow> {
-  /* ── Phase 1 : lister et lire tous les fichiers ── */
-
-  const cheminsFichiers = await listerFichiers(RACINE_SRC);
+  const chemins = await listerFichiers(RACINE_SRC);
   const analyses = new Map<string, FichierAnalyse>();
 
-  for (const chemin of cheminsFichiers) {
+  for (const chemin of chemins) {
     const relatif = norm(chemin.slice(RACINE_SRC.length + 1));
     const contenu = await lireFichierAvecCache(chemin);
     if (contenu === null) continue;
@@ -526,23 +402,35 @@ export async function scannerWorkflow(): Promise<GrapheWorkflow> {
       }
     }
 
+    const navigations = extraireNavigations(contenu);
+    const modales = extraireModales(contenu, relatif);
+    const actionsDeclarees = extraireActionsDeclarees(contenu, relatif);
+    const actionsInvoquees = extraireActionsInvoquees(contenu);
+    const variantesSearchParams = estPage ? extraireVariantesSearchParams(contenu, route) : [];
+
+    // Titre de page
+    let titrePage: string | undefined;
+    const mTitre = contenu.match(/<EntetePage[^>]*?titre=["']([^"']+)["']/);
+    if (mTitre) titrePage = mTitre[1];
+
     analyses.set(relatif, {
       chemin,
       relatif,
       contenu,
       imports: extraireImports(contenu, relatif),
-      navigations: extraireNavigations(contenu),
-      modales: extraireModales(contenu, relatif),
+      navigations,
+      modales,
+      actionsDeclarees,
+      actionsInvoquees,
       estPageRoute: estPage,
       route,
+      variantesSearchParams,
       estRedirectionPure: estPage && estRedirectionPure(contenu),
-      titrePage: estPage ? extraireTitrePage(contenu) : undefined,
+      titrePage,
     });
   }
 
-  /* ── Phase 2 : table de résolution des imports ── */
-
-  // Clé = chemin d'import sans @/ ni extension → valeur = chemin relatif du fichier
+  // Résolution des imports
   const importVers = new Map<string, string>();
   for (const relatif of analyses.keys()) {
     const sansExt = relatif.replace(/\.(tsx?|jsx?)$/, "");
@@ -552,410 +440,225 @@ export async function scannerWorkflow(): Promise<GrapheWorkflow> {
     }
   }
 
-  /* ── Phase 3 : arbre de composants par page (récursif) ── */
+  function collecterComposantsRec(
+    relatif: string,
+    visites = new Set<string>(),
+  ): Set<string> {
+    const resultats = new Set<string>();
+    const a = analyses.get(relatif);
+    if (!a) return resultats;
 
-  const composantsPage = new Map<string, Set<string>>();
-
-  // Collecter aussi les layouts pour attribuer leurs composants aux pages enfants
-  const layoutsGlobaux: FichierAnalyse[] = [];
-  for (const a of analyses.values()) {
-    if (a.relatif.endsWith("layout.tsx") || a.relatif.endsWith("layout.ts")) {
-      if (a.relatif.startsWith("app/")) layoutsGlobaux.push(a);
+    for (const imp of a.imports) {
+      const fichier = importVers.get(imp);
+      if (fichier && !visites.has(fichier)) {
+        visites.add(fichier);
+        resultats.add(fichier);
+        const sous = collecterComposantsRec(fichier, visites);
+        for (const s of sous) resultats.add(s);
+      }
     }
+    return resultats;
   }
 
+  const composantsPage = new Map<string, Set<string>>();
   for (const a of analyses.values()) {
     if (!a.estPageRoute || !a.route || a.estRedirectionPure) continue;
     if (a.route.startsWith("/dev")) continue;
-
-    const composants = collecterComposantsRec(a.relatif, analyses, importVers);
-
-    // Imports des layouts couvrant cette page
-    for (const layout of layoutsGlobaux) {
-      const dirLayout = layout.relatif.replace(/\/layout\.tsx?$/, "");
-      const dirPage = a.relatif.replace(/\/page\.tsx?$/, "");
-      if (dirPage.startsWith(dirLayout)) {
-        const compsLayout = collecterComposantsRec(layout.relatif, analyses, importVers);
-        for (const c of compsLayout) composants.add(c);
-      }
-    }
-
-    composantsPage.set(a.route, composants);
+    composantsPage.set(a.route, collecterComposantsRec(a.relatif));
   }
-
-  /* ── Phase 4 : construire nœuds et arêtes ── */
 
   const noeuds: NoeudWorkflow[] = [];
   const liens: LienWorkflow[] = [];
   const parId = new Map<string, NoeudWorkflow>();
-  const vus = new Set<string>();
+  const vusLiens = new Set<string>();
 
-  // Table des redirections pures : route source → route cible
-  const redirections = new Map<string, string>();
-  for (const a of analyses.values()) {
-    if (a.estPageRoute && a.estRedirectionPure && a.navigations.length > 0) {
-      const cible = a.navigations.find((n) => n.type === "redirect");
-      if (cible && a.route) redirections.set(a.route, baseRoute(cible.cible));
+  function ajouterNoeud(noeud: NoeudWorkflow) {
+    if (!parId.has(noeud.id)) {
+      parId.set(noeud.id, noeud);
+      noeuds.push(noeud);
     }
   }
 
-  // Suivre une chaîne de redirections (max 5 sauts)
-  function resoudreRedirection(route: string): string {
-    let courant = route;
-    for (let i = 0; i < 5; i++) {
-      const suivant = redirections.get(courant);
-      if (!suivant || suivant === courant) return courant;
-      courant = suivant;
+  function connecter(lien: LienWorkflow) {
+    const cle = `${lien.source}→${lien.target}→${lien.type}→${lien.libelle}`;
+    if (!vusLiens.has(cle)) {
+      vusLiens.add(cle);
+      liens.push(lien);
     }
-    return courant;
   }
 
-  // Nœuds page
+  // 1. Déclarer les pages et sous-routes canoniques
   for (const a of analyses.values()) {
     if (!a.estPageRoute || !a.route || a.estRedirectionPure) continue;
     if (a.route.startsWith("/dev")) continue;
 
-    const id = `page:${a.route}`;
-    const noeud: NoeudWorkflow = {
-      id,
+    const pageId = `page:${a.route}`;
+    ajouterNoeud({
+      id: pageId,
       type: "page",
-      libelle: a.titrePage ?? libelleRoute(a.route),
+      libelle: a.titrePage ?? a.route,
       url: a.route,
-    };
-    noeuds.push(noeud);
-    parId.set(id, noeud);
+      groupe: groupePourChemin(a.relatif),
+    });
+
+    for (const varRoute of a.variantesSearchParams ?? []) {
+      const varId = `page:${varRoute}`;
+      const nomVar = varRoute.split("?")[1] ?? "";
+      ajouterNoeud({
+        id: varId,
+        type: "page",
+        libelle: `${a.titrePage ?? a.route} (${nomVar})`,
+        url: varRoute,
+        groupe: groupePourChemin(a.relatif),
+      });
+      // Arête bidirectionnelle page principale ↔ sous-mode
+      connecter({
+        source: pageId,
+        target: varId,
+        type: "transition",
+        libelle: `Mode ${nomVar}`,
+      });
+      connecter({
+        source: varId,
+        target: pageId,
+        type: "navigation",
+        libelle: "Retour",
+      });
+    }
   }
 
-  // Nœud synthétique — Workspace séance (`/seances?session={id}`)
-  //
-  // Ce n'est pas une route du filesystem : c'est `/seances` avec un query
-  // parameter qui bascule dans le workspace plein écran (`VueSeanceDetail`).
-  // Le graphe déclaratif le déclare comme page à part entière ; le scanner
-  // doit le synthétiser quand `/seances` existe, sinon les arêtes qui le
-  // visent (ex. retour depuis `etape:exercice-bilan`) échouent au BFS.
-  if (parId.has("page:/seances")) {
-    const id = "page:/seances?session";
-    const noeud: NoeudWorkflow = {
-      id,
-      type: "page",
-      libelle: "Workspace séance",
-      url: "/seances?session={id}",
-    };
-    noeuds.push(noeud);
-    parId.set(id, noeud);
-  }
-
-  // Une fiche ouverte dans l'Atelier est un état réel de `/atelier`, même si
-  // elle ne possède pas de page filesystem distincte.
-  if (parId.has("page:/atelier")) {
-    const id = "page:/atelier?document";
-    const noeud: NoeudWorkflow = {
-      id,
-      type: "page",
-      libelle: "Atelier — fiche documentaire",
-      url: "/atelier?document={id}",
-    };
-    noeuds.push(noeud);
-    parId.set(id, noeud);
-  }
-
-  // Nœuds modale / tiroir — depuis tous les fichiers analysés
-  const modaleVue = new Set<string>(); // pour déduplication
-  const modaleParFichier = new Map<string, string[]>(); // fichier → [ids]
-
+  // 2. Déclarer les modales et tiroirs
+  const modaleVersPage = new Map<string, string>();
   for (const a of analyses.values()) {
     for (const modale of a.modales) {
-      const slug = idModale(modale.titre);
-      const typ = typeModale(modale.titre, modale.fichier);
-      const id = `${typ === "tiroir" ? "tiroir" : "modal"}:${slug}`;
+      const slug = slugId(modale.titre);
+      const estTiroir = modale.titre.toLowerCase().includes("tiroir") || modale.fichier.includes("tiroir");
+      const id = `${estTiroir ? "tiroir" : "modal"}:${slug}`;
 
-      if (!modaleVue.has(id)) {
-        modaleVue.add(id);
-        const noeud: NoeudWorkflow = {
-          id,
-          type: typ,
-          libelle: modale.titre,
-        };
-        noeuds.push(noeud);
-        parId.set(id, noeud);
+      ajouterNoeud({
+        id,
+        type: estTiroir ? "tiroir" : "modal",
+        libelle: modale.titre,
+        groupe: groupePourChemin(modale.fichier),
+      });
+
+      // Retrouver la page qui importe ce fichier de modale
+      for (const [route, comps] of composantsPage.entries()) {
+        if (comps.has(modale.fichier) || route === a.route) {
+          const sourcePage = `page:${route}`;
+          if (parId.has(sourcePage)) {
+            modaleVersPage.set(id, sourcePage);
+            connecter({
+              source: sourcePage,
+              target: id,
+              type: "ouverture",
+              libelle: modale.titre,
+            });
+            connecter({
+              source: id,
+              target: sourcePage,
+              type: "retour",
+              libelle: "Fermer",
+            });
+          }
+        }
       }
-
-      const ids = modaleParFichier.get(modale.fichier) ?? [];
-      ids.push(id);
-      modaleParFichier.set(modale.fichier, ids);
     }
   }
 
-  // Arêtes
+  // 3. Déclarer les Server Actions réelles
+  const toutesActions = new Map<string, ActionServeurExtraite>();
   for (const a of analyses.values()) {
-    if (!a.estPageRoute || !a.route || a.estRedirectionPure) continue;
-    if (a.route.startsWith("/dev")) continue;
-
-    const sourceId = `page:${a.route}`;
-
-    // Rassembler les navigations : page + composants importés
-    const toutesNav = [...a.navigations];
-    const composants = composantsPage.get(a.route);
-
-    if (composants) {
-      for (const comp of composants) {
-        const ac = analyses.get(comp);
-        if (!ac) continue;
-        toutesNav.push(...ac.navigations);
-
-        // Modales déclarées dans ce composant → arête ouverture
-        const idsModales = modaleParFichier.get(comp);
-        if (idsModales) {
-          for (const mid of idsModales) {
-            if (parId.has(mid)) {
-              const noeudModal = parId.get(mid)!;
-              ajouterLien(liens, vus, {
-                source: sourceId,
-                target: mid,
-                type: "ouverture",
-                libelle: noeudModal.libelle,
-              });
-              // Retour modale → page
-              ajouterLien(liens, vus, {
-                source: mid,
-                target: sourceId,
-                type: "retour",
-                libelle: "Fermer",
-              });
-            }
-          }
-        }
-      }
-    }
-
-    // Modales déclarées directement dans la page
-    const idsModalesPage = modaleParFichier.get(a.relatif);
-    if (idsModalesPage) {
-      for (const mid of idsModalesPage) {
-        if (parId.has(mid)) {
-          const noeudModal = parId.get(mid)!;
-          ajouterLien(liens, vus, {
-            source: sourceId,
-            target: mid,
-            type: "ouverture",
-            libelle: noeudModal.libelle,
-          });
-          ajouterLien(liens, vus, {
-            source: mid,
-            target: sourceId,
-            type: "retour",
-            libelle: "Fermer",
-          });
-        }
-      }
-    }
-
-    // Arêtes de navigation
-    for (const nav of toutesNav) {
-      let cibleRoute = baseRoute(nav.cible);
-
-      // Suivre les redirections
-      cibleRoute = resoudreRedirection(cibleRoute);
-
-      const cibleId = resoudreRouteCible(cibleRoute, parId) ?? `page:${cibleRoute}`;
-      if (!parId.has(cibleId)) continue; // Cible inconnue
-
-      // On conserve les self-links : ils représentent des états réels (recherche
-      // sur `/seances`, erreur sur `/login`, rafraîchissement) et non des
-      // artefacts. Les supprimer effaçait des transitions que le produit a.
-      ajouterLien(liens, vus, {
-        source: sourceId,
-        target: cibleId,
-        type: "navigation",
-        libelle: cibleRoute,
-      });
+    for (const act of a.actionsDeclarees) {
+      toutesActions.set(act.nom, act);
     }
   }
 
-  /* ── Phase 6 : Actions et Étapes du parcours ── */
+  // Relier les actions invoquées dans chaque page
+  for (const [route, comps] of composantsPage.entries()) {
+    const pageId = `page:${route}`;
+    const actionsUtilisees = new Set<string>();
 
-  // Registre des Server Actions (effets de bord)
-  const REGISTRE_ACTIONS: Array<{
-    id: string;
-    libelle: string;
-    fonction: string;
-    destination: string;
-    typeDestination?: TypeLienWorkflow;
-    condition?: string;
-  }> = [
-    { id: "action:demarrer-tentative", libelle: "Commencer / Refaire", fonction: "demarrerTentative", destination: "etape:exercice-chercher", typeDestination: "transition" },
-    { id: "action:debloquer-indice", libelle: "Débloquer un indice", fonction: "debloquerIndice", destination: "etape:exercice-chercher", typeDestination: "transition", condition: "indices restants" },
-    { id: "action:abandonner-tentative", libelle: "Abandonner la tentative", fonction: "abandonnerExercice", destination: "page:/exercices/{id}", typeDestination: "transition" },
-    { id: "action:terminer-exercice", libelle: "Enregistrer la preuve", fonction: "terminerExercice", destination: "etape:exercice-bilan", typeDestination: "transition" },
-    { id: "action:creer-seance", libelle: "Créer la séance", fonction: "creerSeanceAction", destination: "page:/seances", typeDestination: "transition" },
-    { id: "action:demarrer-seance", libelle: "Démarrer la séance", fonction: "demarrerSeanceAction", destination: "page:/seances", typeDestination: "transition" },
-    { id: "action:terminer-seance", libelle: "Terminer la séance", fonction: "terminerSeanceAction", destination: "page:/seances", typeDestination: "transition" },
-    { id: "action:annuler-seance", libelle: "Annuler la séance", fonction: "annulerSeanceAction", destination: "page:/seances", typeDestination: "transition" },
-    { id: "action:ajouter-note", libelle: "Annoter la séance", fonction: "ajouterNoteSession", destination: "page:/seances", typeDestination: "transition" },
-    { id: "action:creer-note", libelle: "Enregistrer la note", fonction: "creerNoteAction", destination: "page:/atelier", typeDestination: "transition" },
-    { id: "action:refuser-recommandation", libelle: "Refuser la recommandation", fonction: "refuserRecommandation", destination: "page:/", typeDestination: "transition" },
-    { id: "action:creer-exercice", libelle: "Accepter l'exercice généré", fonction: "creerExercice", destination: "page:/seances", typeDestination: "transition" },
-    { id: "action:creer-branche", libelle: "Valider la branche de compétences", fonction: "creerBranche", destination: "page:/atelier", typeDestination: "transition" },
-    { id: "action:modifier-profil", libelle: "Enregistrer le profil", fonction: "enregistrerSujetEtObjectifs", destination: "page:/profil", typeDestination: "transition" },
-    { id: "action:exporter-journal", libelle: "Exporter le journal", fonction: "exporterJournal", destination: "tiroir:compte-et-synchronisation", typeDestination: "transition" },
-    { id: "action:se-deconnecter", libelle: "Se déconnecter", fonction: "seDeconnecter", destination: "page:/login", typeDestination: "transition" },
-    { id: "action:retirer-theme", libelle: "Retirer un thème", fonction: "retirerThemeAction", destination: "modal:composer-une-seance", typeDestination: "transition" },
-    { id: "action:renommer-theme", libelle: "Renommer un thème", fonction: "renommerThemeAction", destination: "modal:composer-une-seance", typeDestination: "transition" },
-  ];
+    const pageAnalyse = [...analyses.values()].find((a) => a.route === route);
+    if (pageAnalyse) {
+      pageAnalyse.actionsInvoquees.forEach((act) => actionsUtilisees.add(act));
+    }
 
-  // Registre des étapes du parcours d'exercice
-  const REGISTRE_ETAPES: Array<{
-    id: string;
-    libelle: string;
-    liens: Array<{ target: string; type: TypeLienWorkflow; libelle: string; condition?: string }>;
-  }> = [
-    {
-      id: "etape:exercice-chercher",
-      libelle: "Acte Chercher — résolution",
-      liens: [
-        { target: "action:demarrer-tentative", type: "soumission", libelle: "Commencer" },
-        { target: "action:debloquer-indice", type: "soumission", libelle: "Débloquer l'indice N", condition: "indices restants" },
-        { target: "etape:exercice-comparer", type: "transition", libelle: "Afficher la correction" },
-        { target: "action:abandonner-tentative", type: "soumission", libelle: "Abandonner cette tentative" },
-      ],
-    },
-    {
-      id: "etape:exercice-comparer",
-      libelle: "Acte Comparer — correction visible",
-      liens: [
-        { target: "etape:exercice-mesurer", type: "transition", libelle: "Passer à l'évaluation" },
-        { target: "action:abandonner-tentative", type: "soumission", libelle: "Abandonner cette tentative" },
-      ],
-    },
-    {
-      id: "etape:exercice-mesurer",
-      libelle: "Acte Mesurer — bilan",
-      liens: [
-        { target: "action:terminer-exercice", type: "soumission", libelle: "Enregistrer la preuve" },
-        { target: "action:abandonner-tentative", type: "soumission", libelle: "Abandonner cette tentative" },
-      ],
-    },
-    {
-      id: "etape:exercice-bilan",
-      libelle: "Bilan enregistré — preuve écrite",
-      liens: [
-        { target: "page:/atelier", type: "navigation", libelle: "Voir l'effet sur la compétence" },
-        { target: "page:/", type: "navigation", libelle: "Prochaine action recommandée" },
-        { target: "page:/seances?session", type: "navigation", libelle: "Retour au workspace séance", condition: "séance en cours" },
-        { target: "etape:exercice-chercher", type: "transition", libelle: "Refaire cet exercice" },
-      ],
-    },
-  ];
-
-  // Insérer les étapes si le parcours d'exercice est présent
-  const aParcoursExercice = [...parId.keys()].some(
-    (id) => id === "page:/exercices/{id}" || id === "page:/seances",
-  );
-
-  if (aParcoursExercice) {
-    for (const etape of REGISTRE_ETAPES) {
-      if (!parId.has(etape.id)) {
-        const noeud: NoeudWorkflow = {
-          id: etape.id,
-          type: "etape",
-          libelle: etape.libelle,
-        };
-        noeuds.push(noeud);
-        parId.set(etape.id, noeud);
+    for (const comp of comps) {
+      const aComp = analyses.get(comp);
+      if (aComp) {
+        aComp.actionsInvoquees.forEach((act) => actionsUtilisees.add(act));
       }
     }
 
-    if (parId.has("page:/exercices/{id}")) {
-      ajouterLien(liens, vus, {
-        source: "page:/exercices/{id}",
-        target: "etape:exercice-chercher",
-        type: "transition",
-        libelle: "Commencer la tentative",
+    for (const nomAct of actionsUtilisees) {
+      const act = toutesActions.get(nomAct);
+      if (!act) continue;
+
+      const actId = `action:${slugId(nomAct)}`;
+      ajouterNoeud({
+        id: actId,
+        type: "action",
+        libelle: act.libelle,
+        groupe: groupePourChemin(act.fichier),
       });
-    }
 
-    if (parId.has("page:/seances")) {
-      ajouterLien(liens, vus, {
-        source: "page:/seances",
-        target: "etape:exercice-chercher",
-        type: "transition",
-        libelle: "Exercice actif — acte Chercher",
+      connecter({
+        source: pageId,
+        target: actId,
+        type: "soumission",
+        libelle: act.libelle,
       });
-    }
 
-    for (const etape of REGISTRE_ETAPES) {
-      for (const l of etape.liens) {
-        ajouterLien(liens, vus, {
-          source: etape.id,
-          target: l.target,
-          type: l.type,
-          libelle: l.libelle,
-          condition: l.condition,
-        });
-      }
-    }
-  }
-
-  // Détection des Server Actions invoquées dans le code
-  for (const act of REGISTRE_ACTIONS) {
-    for (const a of analyses.values()) {
-      if (!a.contenu.includes(act.fonction)) continue;
-
-      // Retrouver la source (page ou modale) qui appelle cette fonction
-      let sourceId: string | undefined;
-
-      if (a.estPageRoute && a.route && !a.estRedirectionPure && !a.route.startsWith("/dev")) {
-        sourceId = `page:${a.route}`;
-      } else {
-        // Est-ce une modale ?
-        const idsModales = modaleParFichier.get(a.relatif);
-        if (idsModales && idsModales.length > 0) {
-          sourceId = idsModales[0];
-        } else {
-          // Quel composant/page importe ce fichier ?
-          for (const [route, comps] of composantsPage.entries()) {
-            if (comps.has(a.relatif)) {
-              sourceId = `page:${route}`;
-              break;
-            }
-          }
-        }
-      }
-
-      if (sourceId && parId.has(sourceId)) {
-        if (!parId.has(act.id)) {
-          const noeud: NoeudWorkflow = {
-            id: act.id,
-            type: "action",
-            libelle: act.libelle,
-          };
-          noeuds.push(noeud);
-          parId.set(act.id, noeud);
-        }
-
-        ajouterLien(liens, vus, {
-          source: sourceId,
-          target: act.id,
-          type: "soumission",
-          libelle: act.libelle,
-          condition: act.condition,
-        });
-
-        // Lien de sortie de l'action vers sa destination
-        let dest = act.destination;
-        if (dest.startsWith("page:")) {
-          const rCible = resoudreRedirection(dest.slice(5));
-          dest = resoudreRouteCible(rCible, parId) ?? `page:${rCible}`;
-        }
-
-        if (parId.has(dest)) {
-          ajouterLien(liens, vus, {
-            source: act.id,
-            target: dest,
-            type: act.typeDestination ?? "transition",
+      // Redirection après action
+      if (act.redirection) {
+        const destId = `page:${baseRoute(act.redirection)}`;
+        if (parId.has(destId)) {
+          connecter({
+            source: actId,
+            target: destId,
+            type: "transition",
             libelle: "Redirection après action",
           });
         }
+      } else {
+        // Retour à la page source après mise à jour
+        connecter({
+          source: actId,
+          target: pageId,
+          type: "transition",
+          libelle: "Actualisation",
+        });
+      }
+    }
+  }
+
+  // 4. Déclarer les navigations entre pages
+  for (const [route, comps] of composantsPage.entries()) {
+    const sourceId = `page:${route}`;
+    const toutesNav = new Set<string>();
+
+    const pageAnalyse = [...analyses.values()].find((a) => a.route === route);
+    if (pageAnalyse) {
+      pageAnalyse.navigations.forEach((n) => toutesNav.add(baseRoute(n.cible)));
+    }
+
+    for (const comp of comps) {
+      const aComp = analyses.get(comp);
+      if (aComp) {
+        aComp.navigations.forEach((n) => toutesNav.add(baseRoute(n.cible)));
+      }
+    }
+
+    for (const cible of toutesNav) {
+      const targetId = `page:${cible}`;
+      if (parId.has(targetId) && targetId !== sourceId) {
+        connecter({
+          source: sourceId,
+          target: targetId,
+          type: "navigation",
+          libelle: cible,
+        });
       }
     }
   }

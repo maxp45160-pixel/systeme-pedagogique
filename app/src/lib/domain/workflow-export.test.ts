@@ -151,6 +151,33 @@ describe("exporterDOT", () => {
     expect(dot).toContain("style=dashed");
     expect(dot).toContain("tooltip=\"référentiel vide\"");
   });
+
+  it("insère l'en-tête de métriques et puits quand stats est fourni", () => {
+    const noeuds = [
+      { id: "a", type: "page" as const, libelle: "A" },
+      { id: "b", type: "page" as const, libelle: "B" },
+    ];
+    const stats = {
+      totalNoeuds: 2,
+      totalLiens: 1,
+      atteignables: 2,
+      inatteignables: 0,
+      degreSortantMoyen: 0.5,
+      degreEntrantMoyen: 0.5,
+      puits: ["b"],
+      sources: ["a"],
+      diametreBFS: 1,
+    };
+    const dot = exporterDOT(noeuds, [{ source: "a", target: "b", type: "navigation", libelle: "A→B" }], {
+      titre: "Parcours Test",
+      stats,
+    });
+    expect(dot).toContain("Métriques — Parcours Test");
+    expect(dot).toContain("|V| nœuds\n    2");
+    expect(dot).toContain("|E| arêtes\n    1");
+    expect(dot).toContain("1 puits (fins de parcours) :");
+    expect(dot).toContain("• b");
+  });
 });
 
 describe("exporterJSON", () => {

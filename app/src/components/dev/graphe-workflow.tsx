@@ -82,6 +82,7 @@ export interface DonneesPerspectiveGraphe {
 export interface GrapheWorkflowVizProps {
   architecture?: DonneesPerspectiveGraphe;
   ux?: DonneesPerspectiveGraphe;
+  uxAtomique?: DonneesPerspectiveGraphe;
   /** Fallbacks pour rétrocompatibilité directe */
   noeuds?: NoeudWorkflow[];
   liens?: LienWorkflow[];
@@ -202,6 +203,7 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
   // Sélection du jeu de données selon la perspective
   const donneesCourantes = useMemo<DonneesPerspectiveGraphe>(() => {
     if (perspective === "ux" && props.ux) return props.ux;
+    if (perspective === "ux-atomique" && props.uxAtomique) return props.uxAtomique;
     if (perspective === "architecture" && props.architecture) return props.architecture;
     if (props.architecture) return props.architecture;
     if (props.ux) return props.ux;
@@ -511,7 +513,7 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
       ctx.fill();
 
       // Anneau de contour pour les groupes en mode UX
-      if (perspective === "ux" && n.groupe && GROUPES_CONFIG[n.groupe]) {
+      if (perspective !== "architecture" && n.groupe && GROUPES_CONFIG[n.groupe]) {
         ctx.lineWidth = 2 * camera.zoom;
         ctx.strokeStyle = GROUPES_CONFIG[n.groupe].couleur;
         ctx.stroke();
@@ -645,7 +647,7 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
       let posX = prof * ESPACEMENT_X;
       let posY = DECALAGE_Y_TYPE[n.type] + rang * 65;
 
-      if (perspective === "ux" && n.groupe && GROUPES_CONFIG[n.groupe]) {
+      if (perspective !== "architecture" && n.groupe && GROUPES_CONFIG[n.groupe]) {
         const cluster = GROUPES_CONFIG[n.groupe];
         posX = cluster.x + (rang % 3) * 60 - 60;
         posY = cluster.y + Math.floor(rang / 3) * 60 - 60;
@@ -680,18 +682,19 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
     liensRef.current = liensSimules;
 
     simulationRef.current?.stop();
+    const estModeUx = perspective !== "architecture";
     const sim = forceSimulation(noeudsSimules)
-      .force("charge", forceManyBody<NoeudSimule>().strength(perspective === "ux" ? -450 : -600))
+      .force("charge", forceManyBody<NoeudSimule>().strength(estModeUx ? -450 : -600))
       .force(
         "link",
         forceLink<NoeudSimule, LienSimule>(liensSimules)
           .id((n) => n.id)
-          .distance(perspective === "ux" ? 110 : 160)
+          .distance(estModeUx ? 110 : 160)
           .strength(0.25),
       )
       .force("collide", forceCollide<NoeudSimule>((n) => n.rayon + 18));
 
-    if (perspective === "ux") {
+    if (estModeUx) {
       // Clustering spatial par groupe UX
       sim.force(
         "x",
@@ -904,6 +907,37 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
 
   const matriceFormatee = useMemo(() => {
     if (!matriceNoeuds.length) return "";
+    const titrePerspective =
+      perspective === "architecture"
+        ? "Architecture AST"
+        : perspective === "ux-atomique"
+          ? "Parcours UX Atomique"
+          : "Parcours UX Synthèse";
+
+    const enteteStats = [
+      `/*`,
+      `Métriques — ${titrePerspective}`,
+      ``,
+      `|V| nœuds`,
+      `    ${stats.totalNoeuds}`,
+      `|E| arêtes`,
+      `    ${stats.totalLiens}`,
+      `Atteignables`,
+      `    ${stats.atteignables}`,
+      `Inatteignables`,
+      `    ${stats.inatteignables}`,
+      `Diamètre BFS`,
+      `    ${stats.diametreBFS}`,
+      `Degré sortant moy.`,
+      `    ${stats.degreSortantMoyen.toFixed(2)}`,
+      ``,
+      `${stats.puits.length} puits (fins de parcours) :`,
+      ``,
+      ...stats.puits.map((p) => `    • ${p}`),
+      `*/`,
+      ``,
+    ].join("\n");
+
     const max = Math.max(...matriceNoeuds.map((n) => n.length));
     const en_tete =
       " ".repeat(max + 2) + matriceNoeuds.map((_, i) => String(i).padStart(2)).join(" ");
@@ -911,8 +945,8 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
       const nom = matriceNoeuds[i].padEnd(max + 2);
       return nom + row.map((v) => String(v).padStart(2)).join(" ");
     });
-    return [en_tete, ...lignesMatrice].join("\n");
-  }, [matriceNoeuds, matriceData]);
+    return [enteteStats, en_tete, ...lignesMatrice].join("\n");
+  }, [matriceNoeuds, matriceData, stats, perspective]);
 
   const recentrerCamera = useCallback(() => {
     cameraRef.current = { x: 0, y: 0, zoom: 0.5 };
@@ -943,9 +977,27 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
               }`}
             >
               <span>🎯</span>
-              <span>Parcours UX (User Journey)</span>
+              <span>Parcours Synthèse</span>
               <span className="rounded-full bg-surface-2/40 px-1.5 py-0.2 text-[0.65rem] font-mono">
-                {props.ux?.stats.totalNoeuds ?? noeuds.length}
+                {props.ux?.stats.totalNoeuds ?? "?"}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPerspective("ux-atomique");
+                recentrerCamera();
+              }}
+              className={`flex items-center gap-2 rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                perspective === "ux-atomique"
+                  ? "bg-primaire text-primaire-contraste shadow-sm"
+                  : "text-texte-attenue hover:text-texte"
+              }`}
+            >
+              <span>🔬</span>
+              <span>Parcours Atomique</span>
+              <span className="rounded-full bg-surface-2/40 px-1.5 py-0.2 text-[0.65rem] font-mono">
+                {props.uxAtomique?.stats.totalNoeuds ?? "?"}
               </span>
             </button>
             <button
@@ -1001,7 +1053,7 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
 
           {/* Légende flottante */}
           <div className="pointer-events-none absolute bottom-3 left-3 space-y-2 rounded-lg border border-bordure bg-surface/92 p-3 text-[0.6875rem] text-texte-attenue backdrop-blur-sm shadow-md">
-            {perspective === "ux" && (
+            {perspective !== "architecture" && (
               <div>
                 <div className="mb-1 text-[0.6rem] font-semibold uppercase tracking-wider text-texte-discret">
                   Sous-systèmes UX
@@ -1068,7 +1120,7 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
             {/* Métriques */}
             <section className="border-b border-bordure px-4 py-3">
               <h2 className="text-[0.65rem] font-semibold uppercase tracking-wider text-texte-discret">
-                Métriques — {perspective === "ux" ? "Parcours UX" : "Architecture AST"}
+                Métriques — {perspective === "architecture" ? "Architecture AST" : perspective === "ux-atomique" ? "Parcours UX Atomique" : "Parcours UX Synthèse"}
               </h2>
               <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
                 <dt className="text-texte-attenue">|V| nœuds</dt>

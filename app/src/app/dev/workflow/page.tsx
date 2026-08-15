@@ -23,12 +23,15 @@ export const metadata: Metadata = {
 
 /**
  * Outil de développement : la page doit toujours refléter l'état courant du
- * code. Les graphes (Architecture et UX Journey) sont construits dynamiquement
- * à chaque requête sans persistance ni duplication.
+ * code. Les graphes (Architecture, UX Synthèse et UX Atomique) sont construits
+ * dynamiquement à chaque requête sans persistance ni duplication.
  */
 export const dynamic = "force-dynamic";
 
-function preparerPerspective(graphe: GrapheWorkflow): DonneesPerspectiveGraphe {
+function preparerPerspective(
+  graphe: GrapheWorkflow,
+  titre: string,
+): DonneesPerspectiveGraphe {
   const resultat = parcourirWorkflow(graphe, "page:/");
   const stats = statistiquesGraphe(resultat, graphe);
 
@@ -38,6 +41,8 @@ function preparerPerspective(graphe: GrapheWorkflow): DonneesPerspectiveGraphe {
   }
 
   const dot = exporterDOT(resultat.noeuds, resultat.liens, {
+    titre,
+    stats,
     avecLibelles: true,
     avecLibellesAretes: true,
     avecConditions: true,
@@ -59,26 +64,39 @@ function preparerPerspective(graphe: GrapheWorkflow): DonneesPerspectiveGraphe {
 }
 
 /**
- * Page `/dev/workflow` — visualisation interactive double perspective.
+ * Page `/dev/workflow` — visualisation interactive triple perspective.
  *
  * Combine :
- *   1. Vue Architecture (Code / AST) : introspection filesystem et imports.
- *   2. Vue Parcours UX (User Journey) : sous-états interactifs, triggers et boucle 3 actes.
+ *   1. Vue Parcours UX Synthèse (Macro-UX) : carrefours majeurs (~45 nœuds).
+ *   2. Vue Parcours UX Atomique : exhaustivité totale des boutons et sous-onglets (~89 nœuds).
+ *   3. Vue Architecture (Code / AST) : introspection filesystem et server actions.
  */
 export default async function PageWorkflow() {
-  const [grapheArch, grapheUx] = await Promise.all([
+  const [grapheArch, grapheUxMacro, grapheUxAtomique] = await Promise.all([
     scannerWorkflow(),
-    scannerUxJourney(),
+    scannerUxJourney({ mode: "macro" }),
+    scannerUxJourney({ mode: "atomique" }),
   ]);
 
-  const perspectiveArch = preparerPerspective(grapheArch);
-  const perspectiveUx = preparerPerspective(grapheUx);
+  const perspectiveArch = preparerPerspective(
+    grapheArch,
+    "Architecture Code (AST)",
+  );
+  const perspectiveUx = preparerPerspective(
+    grapheUxMacro,
+    "Parcours UX Synthèse (Macro)",
+  );
+  const perspectiveUxAtomique = preparerPerspective(
+    grapheUxAtomique,
+    "Parcours UX Atomique",
+  );
 
   return (
     <main className="flex h-[calc(100vh-3.25rem)] flex-col">
       <GrapheWorkflowViz
         architecture={perspectiveArch}
         ux={perspectiveUx}
+        uxAtomique={perspectiveUxAtomique}
       />
     </main>
   );
