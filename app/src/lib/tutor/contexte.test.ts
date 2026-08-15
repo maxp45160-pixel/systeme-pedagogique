@@ -74,6 +74,7 @@ function construireCtxDeTest(
     calibrations,
     maitrises: evaluerMaitrises(etats),
     exercicesActifs: exercises.filter((e) => !e.archive),
+    dureesEstimees: new Map(exercises.map((e) => [e.id, e.dureeEstimeeMin])),
     donnees: {
       user: {
         id: "test",

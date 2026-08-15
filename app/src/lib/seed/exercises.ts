@@ -1330,3 +1330,28 @@ Un commentaire n'est pas exécuté — rien ne garantit qu'il est encore vrai. L
     ],
   },
 ];
+
+/**
+ * `dureeEstimeeMin` par exercice, seed compris et sans aucun filtre (ADR-070).
+ *
+ * `Contexte.donnees.exercises` ne répond pas à cette question : elle est filtrée
+ * par périmètre, et n'accueille un diagnostic hors périmètre que s'il porte une
+ * tentative **en cours**. Une tentative abandonnée sur un diagnostic dont la
+ * compétence a quitté le référentiel n'y trouvait donc pas son exercice, et
+ * `dureeRetenue` retombait sur le garde-fou de 240 min au lieu des 15 minutes
+ * réellement estimées. Trois des cinq tentatives à durée aberrante corrigées le
+ * 15/08/2026 étaient exactement dans ce cas.
+ *
+ * La table ne porte que l'estimation, pas l'entité : rien ici ne peut
+ * réintroduire dans un écran un exercice qui en est sorti.
+ */
+export function tableDureesEstimees(
+  exercicesStockes: Pick<Exercise, "id" | "dureeEstimeeMin">[],
+): Map<string, number> {
+  return new Map([
+    ...EXERCICES_DIAGNOSTIC.map((e) => [e.id, e.dureeEstimeeMin] as const),
+    // La base l'emporte : un diagnostic recopié en exercice porte l'estimation
+    // que le compte lui connaît, pas celle du seed.
+    ...exercicesStockes.map((e) => [e.id, e.dureeEstimeeMin] as const),
+  ]);
+}

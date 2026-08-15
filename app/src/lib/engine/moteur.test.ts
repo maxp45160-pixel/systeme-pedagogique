@@ -10,6 +10,7 @@ import {
   type EvenementProgression,
 } from "./historique";
 import { autonomieDepuisIndices, autonomieObservee } from "./preuve";
+import { DUREE_ESTIMEE_MAX } from "@/lib/domain/exercice";
 import {
   DOMAINES_TEST,
   REFERENTIEL_TEST,
@@ -1139,5 +1140,112 @@ describe("activiteSurFenetre — mesure réellement bornée par la période", ()
     expect([...activite.minutesParJour.values()]).toEqual([25]);
     expect(activite.derniereSeance).toBe(tentative.fin);
     expect(activite.minutesTotal).toBe(25);
+  });
+
+  /*
+   * Temps d'horloge d'une tentative abandonnée (ADR-070).
+   *
+   * `att-mst5fis8-rfsu6`, 15/08/2026 : exercice ouvert le 14 à 18 h 15, abandonné
+   * le 15 à 11 h 11, `duree_min = 1015`, `statut = abandonnee`. L'accueil
+   * affichait « TRAVAILLÉ 16 h 55 · EXERCICES 0 · PREUVES 0 » et la carte
+   * annuelle peignait une journée entière de travail qui n'a pas eu lieu.
+   */
+  describe("temps retenu d'une tentative abandonnée", () => {
+    // Une table `id → dureeEstimeeMin`, comme celle que `Contexte` expose : elle
+    // couvre aussi ce que `donnees.exercises` filtre (ADR-070).
+    const estimees = (dureeEstimeeMin: number) => new Map([["ex-nuit", dureeEstimeeMin]]);
+
+    const seanceDeLaNuit: LearningSession = {
+      ...seance(1, 1015),
+      id: "s-nuit",
+      genereAutomatiquement: true,
+      activites: [{ type: "exercice", ref: "ex-nuit", libelle: "Exercice laissé ouvert" }],
+    };
+
+    function tentativeAbandonnee(dureeMin: number): ExerciseAttempt {
+      return {
+        id: "att-nuit",
+        exerciseId: "ex-nuit",
+        debut: seanceDeLaNuit.date,
+        fin: seanceDeLaNuit.date,
+        dureeMin,
+        indicesUtilises: 0,
+        reponse: "",
+        evaluation: {},
+        // `ExerciseAttempt.resultat` est déclaré obligatoire alors qu'un abandon
+        // n'en porte aucun en base (`abandonnerExercice` ne l'écrit pas). Aucune
+        // fonction traversée ici ne le lit ; la valeur est un remplissage de type.
+        resultat: "echec",
+        statut: "abandonnee",
+      };
+    }
+
+    it("plafonne le temps d'un abandon à la durée estimée de l'exercice", () => {
+      const resultat = activiteSurFenetre(
+        [seanceDeLaNuit],
+        30,
+        MAINTENANT,
+        [tentativeAbandonnee(1015)],
+        estimees(20),
+      );
+      expect(resultat.minutes).toBe(20);
+      // Le jour reste travaillé : la personne a bien ouvert l'exercice.
+      expect(resultat.joursActifs).toBe(1);
+      expect(resultat.seances).toBe(1);
+    });
+
+    it("ne touche pas à un abandon de durée plausible", () => {
+      const resultat = activiteSurFenetre(
+        [seanceDeLaNuit],
+        30,
+        MAINTENANT,
+        [tentativeAbandonnee(6)],
+        estimees(20),
+      );
+      expect(resultat.minutes).toBe(6);
+    });
+
+    it("sans exercice résolvable, retombe sur le garde-fou général de 240 min", () => {
+      // On ne connaît pas l'estimation : on ne peut pas serrer le plafond, mais
+      // une nuit entière n'est pas non plus un fait à retenir.
+      const resultat = activiteSurFenetre(
+        [seanceDeLaNuit],
+        30,
+        MAINTENANT,
+        [tentativeAbandonnee(1015)],
+        new Map(),
+      );
+      expect(resultat.minutes).toBe(DUREE_ESTIMEE_MAX);
+    });
+
+    it("laisse une tentative menée longue intacte tant qu'elle reste sous le garde-fou", () => {
+      // `diag-ro-01` a légitimement pris 61 min sur 35 estimées : rogner cela
+      // fausserait `dureeDeReference` (ADR-045).
+      const menee: ExerciseAttempt = {
+        ...tentativeAbandonnee(61),
+        statut: "terminee",
+        resultat: "reussi",
+        reponse: "réponse",
+      };
+      const resultat = activiteSurFenetre(
+        [seanceDeLaNuit],
+        30,
+        MAINTENANT,
+        [menee],
+        estimees(35),
+      );
+      expect(resultat.minutes).toBe(61);
+    });
+
+    it("la carte annuelle ne peint plus la journée fantôme", () => {
+      const activite = calculerActivite(
+        [seanceDeLaNuit],
+        MAINTENANT,
+        [tentativeAbandonnee(1015)],
+        estimees(20),
+      );
+      expect([...activite.minutesParJour.values()]).toEqual([20]);
+      expect(activite.minutesTotal).toBe(20);
+    });
   });
 });

@@ -13,7 +13,13 @@
 
 import { describe, expect, it } from "vitest";
 
-import { motifBlocageBilan, motifRefusTerminerExercice, reponseSuffisante } from "./tentative";
+import { DUREE_ESTIMEE_MAX } from "./exercice";
+import {
+  dureeRetenue,
+  motifBlocageBilan,
+  motifRefusTerminerExercice,
+  reponseSuffisante,
+} from "./tentative";
 
 describe("reponseSuffisante", () => {
   it("refuse une réponse vide", () => {
@@ -99,5 +105,51 @@ describe("motifRefusTerminerExercice", () => {
 
   it("accepte une soumission cohérente", () => {
     expect(motifRefusTerminerExercice(avant, soumission)).toBeNull();
+  });
+});
+
+/*
+ * `dureeRetenue` — ADR-070.
+ *
+ * `dureeMin` est du temps d'HORLOGE. Le 15/08/2026, `att-mst5fis8-rfsu6` portait
+ * 1015 minutes pour un exercice ouvert la veille au soir et abandonné le matin.
+ * Deux plafonds, parce que la question n'est pas la même : un abandon n'écrit
+ * aucune preuve, une tentative menée en écrit une et sa durée sert de référence.
+ */
+describe("dureeRetenue", () => {
+  const ESTIMEE = 20;
+
+  it("plafonne un abandon à la durée estimée", () => {
+    expect(dureeRetenue({ statut: "abandonnee", dureeMin: 1015 }, ESTIMEE)).toBe(20);
+  });
+
+  it("laisse un abandon bref tel quel — 5 minutes restent 5 minutes", () => {
+    expect(dureeRetenue({ statut: "abandonnee", dureeMin: 5 }, ESTIMEE)).toBe(5);
+  });
+
+  it("ne rogne pas une tentative menée plus longue que l'estimation", () => {
+    // `diag-ro-01` : 61 min sur 35 estimées, et c'est un fait exact dont
+    // `dureeDeReference` a besoin (ADR-045).
+    expect(dureeRetenue({ statut: "terminee", dureeMin: 61 }, 35)).toBe(61);
+  });
+
+  it("applique quand même le garde-fou général à une tentative menée", () => {
+    expect(dureeRetenue({ statut: "terminee", dureeMin: 1015 }, ESTIMEE)).toBe(DUREE_ESTIMEE_MAX);
+  });
+
+  it("sans exercice résolvable, retombe sur le garde-fou général", () => {
+    expect(dureeRetenue({ statut: "abandonnee", dureeMin: 1015 })).toBe(DUREE_ESTIMEE_MAX);
+  });
+
+  it("ignore une estimation inexploitable plutôt que de plafonner à zéro", () => {
+    // Plafonner à 0 fabriquerait une absence de travail : exactement ce que P2
+    // interdit, à l'envers.
+    expect(dureeRetenue({ statut: "abandonnee", dureeMin: 30 }, 0)).toBe(30);
+  });
+
+  it("ne fabrique rien à partir d'une durée absente ou invalide", () => {
+    expect(dureeRetenue({ statut: "abandonnee", dureeMin: undefined }, ESTIMEE)).toBeUndefined();
+    expect(dureeRetenue({ statut: "terminee", dureeMin: 0 }, ESTIMEE)).toBeUndefined();
+    expect(dureeRetenue({ statut: "terminee", dureeMin: Number.NaN }, ESTIMEE)).toBeUndefined();
   });
 });

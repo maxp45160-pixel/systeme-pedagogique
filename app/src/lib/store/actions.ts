@@ -24,7 +24,7 @@ import { lireReferentiel } from "./referentiel";
 import {
   motifRefusExercice,
 } from "@/lib/domain/exercice";
-import { motifRefusTerminerExercice } from "@/lib/domain/tentative";
+import { dureeRetenue, motifRefusTerminerExercice } from "@/lib/domain/tentative";
 import { seanceEnCoursPour } from "@/lib/domain/seance";
 import {
   urlExercice,
@@ -229,6 +229,19 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
     exercice,
   );
 
+  /*
+   * `menee` se décide sur la durée BRUTE — « la tentative a-t-elle eu lieu ? »
+   * porte sur le temps réellement écoulé. Ce qu'on ÉCRIT, en revanche, passe par
+   * `dureeRetenue` (ADR-070) : `dureeMin` est du temps d'horloge, et un onglet
+   * laissé ouvert une nuit produisait 1015 minutes de « travail ». Le plafond ne
+   * change rien à une durée plausible, donc rien à `dureeDeReference`.
+   */
+  const duree =
+    dureeRetenue(
+      { statut: menee ? "terminee" : "abandonnee", dureeMin: soumission.dureeMin },
+      exercice.dureeEstimeeMin,
+    ) ?? soumission.dureeMin;
+
   // Lu une fois pour les deux branches de sortie : dans une séance, c'est la
   // séance qui tient le journal (ADR-048).
   const dansUneSeance = await appartientAUneSeanceEnCours(exercice.id, dorsale);
@@ -237,7 +250,7 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
   // s'y lit sans relecture, et c'est lui qui détermine l'autonomie observée.
   const tentative = await modifier("attempts", soumission.attemptId, {
     fin: date,
-    dureeMin: soumission.dureeMin,
+    dureeMin: duree,
     evaluation: soumission.evaluation,
     resultat: soumission.resultat,
     statut: (menee ? "terminee" : "abandonnee") as "terminee" | "abandonnee",
@@ -252,12 +265,12 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
     if (!dansUneSeance) await ajouter("sessions", {
       id: nouvelId("ses"),
       date,
-      dureeMin: soumission.dureeMin,
+      dureeMin: duree,
       domaines: [exercice.domaine],
       skillCodes: exercice.competences,
       activites: [{ type: "exercice", ref: exercice.id, libelle: exercice.titre }],
       resultat: "Tentative abandonnée — trop courte pour conclure",
-      difficulte: `Difficulté ${exercice.difficulte}/5 · ${soumission.dureeMin} min sur ${exercice.dureeEstimeeMin} estimées`,
+      difficulte: `Difficulté ${exercice.difficulte}/5 · ${duree} min sur ${exercice.dureeEstimeeMin} estimées`,
       notePersonnelle: soumission.notes,
       genereAutomatiquement: true,
     } satisfies LearningSession, dorsale);
@@ -336,7 +349,7 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
   const session: LearningSession = {
     id: nouvelId("ses"),
     date,
-    dureeMin: soumission.dureeMin,
+    dureeMin: duree,
     domaines: [exercice.domaine],
     skillCodes: exercice.competences,
     activites: [
@@ -441,7 +454,22 @@ export async function abandonnerExercice(
   if (!exercice) throw new Error(`Exercice introuvable : ${exerciseId}`);
 
   const date = new Date().toISOString();
-  const duree = Number.isFinite(dureeMin) && dureeMin > 0 ? Math.round(dureeMin) : 1;
+  /*
+   * Plafonnée à `dureeEstimeeMin` (ADR-070).
+   *
+   * C'est ce chemin qui a produit `att-mst5fis8-rfsu6` : exercice ouvert le
+   * 14/08/2026 à 18 h 15, abandonné le 15 à 11 h 11, `duree_min = 1015`.
+   * `dureeMin` est du temps d'horloge, pas du temps travaillé ; une tentative
+   * abandonnée n'écrit aucune preuve, et le temps qu'on lui retient ne peut pas
+   * dépasser ce que l'exercice était censé demander. Le repli à 1 min pour une
+   * valeur inexploitable est conservé — il n'invente rien, il note qu'il s'est
+   * passé quelque chose de bref.
+   */
+  const duree =
+    dureeRetenue(
+      { statut: "abandonnee", dureeMin: Math.round(dureeMin) },
+      exercice.dureeEstimeeMin,
+    ) ?? 1;
 
   const tentative = await modifier(
     "attempts",

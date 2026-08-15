@@ -15,7 +15,7 @@ import { cache } from "react";
 import type { Collections } from "./db";
 import { lireTout, dorsaleCompte, chargerToutRPC } from "./db";
 import { chargerReferentiel } from "./referentiel";
-import { EXERCICES_DIAGNOSTIC } from "@/lib/seed/exercises";
+import { EXERCICES_DIAGNOSTIC, tableDureesEstimees } from "@/lib/seed/exercises";
 import { computeAllSkillStates } from "@/lib/engine/skill-state";
 import { calculerEtatGlobal, type EtatGlobal } from "@/lib/engine/progression";
 import { recommander, type Recommandation } from "@/lib/engine/recommend";
@@ -43,6 +43,23 @@ export interface Contexte {
    * et le journal cite leurs titres. Ils sortent du **flux**, pas des données.
    */
   exercicesActifs: Collections["exercises"];
+  /**
+   * `dureeEstimeeMin` par exercice, **sans aucun filtre** (ADR-070).
+   *
+   * `donnees.exercises` ne convient pas pour cet usage : elle est filtrée par
+   * périmètre, et n'accueille un diagnostic hors périmètre que s'il porte une
+   * tentative **en cours**. Une tentative abandonnée sur un diagnostic dont la
+   * compétence a quitté le référentiel n'y trouve donc pas son exercice — et le
+   * plafond de `dureeRetenue` retombait sur les 240 min du garde-fou au lieu des
+   * 15 min réellement estimées.
+   *
+   * Cette table répond à une autre question que la liste d'exercices : « combien
+   * de temps cet exercice était-il censé prendre ? » se pose pour tout ce qui a
+   * été tenté un jour, y compris ce qui n'est plus proposable. Elle ne porte que
+   * l'estimation, pas l'entité : rien ici ne peut réintroduire dans un écran un
+   * exercice qui en est sorti.
+   */
+  dureesEstimees: Map<string, number>;
   referentiel: Referentiel;
   etats: SkillState[];
   etatsParCode: Map<string, SkillState>;
@@ -167,6 +184,11 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
     ],
   };
 
+  // Sur les données BRUTES, pas sur `donnees.exercises` : c'est tout le point
+  // (ADR-070, `tableDureesEstimees`). La liste filtrée laisserait sans
+  // estimation les diagnostics et les exercices sortis du périmètre.
+  const dureesEstimees = tableDureesEstimees(donneesBrutes.exercises);
+
   const etats = mesurerSync("computeAllSkillStates", () =>
     computeAllSkillStates(referentiel.actifs, preuvesEffectives, now),
     { competences: referentiel.actifs.length, preuves: preuvesEffectives.length },
@@ -240,6 +262,7 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
   return {
     donnees,
     exercicesActifs,
+    dureesEstimees,
     referentiel,
     etats,
     etatsParCode: new Map(etats.map((e) => [e.skill.code, e])),

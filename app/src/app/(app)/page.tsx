@@ -116,7 +116,15 @@ async function ContenuTableauDeBord({ instant }: { instant: ContexteInstant }) {
   }));
 
   const evenements = evenementsRecents(ctx.preuvesEffectives, ctx.referentiel.parCode, 6, ctx.now);
-  const activite = calculerActivite(ctx.donnees.sessions, ctx.now, ctx.donnees.attempts);
+  // `dureesEstimees`, et non `donnees.exercises` : le plafond du temps retenu
+  // pour un abandon doit connaître aussi les diagnostics et les exercices sortis
+  // du périmètre, que la liste filtrée n'expose pas (ADR-070).
+  const activite = calculerActivite(
+    ctx.donnees.sessions,
+    ctx.now,
+    ctx.donnees.attempts,
+    ctx.dureesEstimees,
+  );
   const aucunePreuve = ctx.global.nombrePreuves === 0;
 
   const seanceActive = ctx.donnees.sessions.find(

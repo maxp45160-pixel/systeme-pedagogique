@@ -4984,3 +4984,150 @@ aperçus est trop large — ce n'est pas le modèle qui est trop petit.
 3. Une ❓ question ouverte doit nommer **qui doit trancher** et **ce qui bloque**.
 4. Aucune analyse produite par une session Claude ne devient ✅ sans validation
    humaine explicite.
+
+---
+
+## ADR-070 — `dureeMin` est du temps d'horloge : ce qui compte comme travail se plafonne ✅
+
+**Date.** 15/08/2026. **Tranchée explicitement par Maxime.** Prolonge
+[ADR-030](#adr-030) (une tentative abandonnée ne produit pas de preuve) du côté
+de l'activité, et applique le symétrique de P2.
+
+### Le défaut
+
+`terminerExercice` et `abandonnerExercice` (`lib/store/actions.ts`) écrivent
+`dureeMin` comme du **temps d'horloge** : début de la tentative, fin du geste de
+clôture. Rien ne borne l'écart.
+
+Observé le 15/08/2026 sur le compte `maxime.peyredieu` (Supabase
+`vxkjzzshlqulexydgfpc`) :
+
+```
+attempt att-mst5fis8-rfsu6
+  debut     2026-08-14T16:15:56Z
+  fin       2026-08-15T09:11:52Z
+  duree_min 1015
+  statut    abandonnee
+```
+
+Un exercice laissé ouvert toute la nuit, abandonné le matin. `tracesActivite`
+(`lib/engine/historique.ts`) construisait les traces d'activité à partir de
+TOUTES les tentatives d'une séance, sans jamais lire `statut` : les 1015 minutes
+entraient telles quelles dans le temps travaillé. Conséquences visibles —
+l'accueil affichait « AUJOURD'HUI · TRAVAILLÉ 16 h 55 · EXERCICES 0 · PREUVES 0 ·
+COMPÉTENCES 0 », et la carte d'activité annuelle peignait une journée pleine.
+
+Deux défauts distincts, longtemps confondus :
+
+1. **Un abandon apportait du temps travaillé.** P2 dit que l'absence de mesure
+   n'est pas un zéro ; son symétrique dit qu'une absence de travail n'est pas du
+   travail. Le garde-fou `tentativeMenee` portait déjà exactement cette question
+   pour la calibration et pour l'écriture de preuve — l'activité ne le
+   consultait pas.
+2. **Une durée d'horloge de 17 h était écrite en base comme un fait.** Elle
+   n'est un fait utile pour personne, et chaque nouveau lecteur devait
+   redécouvrir qu'il fallait s'en méfier.
+
+### Décision
+
+Une seule règle, `dureeRetenue` (`lib/domain/tentative.ts`), module pur, appliquée
+**à l'écriture et à la lecture**. Deux plafonds, parce que la question n'est pas
+la même des deux côtés :
+
+- **Tentative abandonnée → plafond `dureeEstimeeMin`.** Elle n'écrit aucune
+  preuve (ADR-030) ; le temps qu'on lui retient ne peut pas dépasser ce que
+  l'exercice était censé demander. Le temps n'est pas effacé pour autant : un
+  abandon après 5 minutes reste 5 minutes, et **le jour reste actif**. Effacer
+  la trace entière contredirait « la minute passée est un fait », déjà inscrit
+  dans `abandonnerExercice`.
+- **Tentative menée → plafond `DUREE_ESTIMEE_MAX` (240 min).** Aucune donnée ne
+  justifie de rogner une durée plausible : `diag-ro-01` a légitimement pris
+  61 min sur 35 estimées, et `dureeDeReference` a besoin de ce fait intact
+  (ADR-045). Ce plafond-là n'est qu'un garde-fou contre l'onglet oublié, et il
+  réutilise la borne haute déjà en vigueur pour `dureeEstimeeMin` — pas un
+  seuil nouveau (CLAUDE.md §8).
+
+Sans durée exploitable, `dureeRetenue` renvoie `undefined` : elle ne fabrique
+aucune valeur. Sans estimation exploitable, seul le garde-fou général
+s'applique — on ne connaît pas la référence serrée, mais une nuit entière n'est
+pas non plus un fait à retenir.
+
+Le plafond s'applique **aussi à la lecture** alors qu'il est posé à l'écriture,
+et ce n'est pas une redondance : les lignes déjà en base portent la valeur brute.
+
+Ce que l'activité reçoit pour cela est une **table `id → dureeEstimeeMin`**
+(`Contexte.dureesEstimees`, construite par `tableDureesEstimees`), et non une
+liste d'exercices. La distinction n'est pas cosmétique : `donnees.exercises` est
+filtrée par périmètre et n'accueille un diagnostic hors périmètre que s'il porte
+une tentative **en cours**. Une tentative abandonnée sur un diagnostic dont la
+compétence a quitté le référentiel n'y trouvait donc pas son exercice, et le
+plafond retombait sur le garde-fou de 240 min au lieu des 15 minutes réellement
+estimées — c'est le cas de trois des cinq lignes corrigées ci-dessous. La table
+est construite sur les données brutes plus tout le seed, sans aucun filtre ; elle
+ne porte que l'estimation, donc rien ne peut réintroduire dans un écran un
+exercice qui en est sorti. Le moteur, lui, continue de ne recevoir que la mesure
+dont il a besoin.
+
+### Ce qui n'est pas décidé
+
+- **Les durées de séance saisies à la main ne sont pas plafonnées.** Une
+  `LearningSession` ne pointe pas vers un exercice, donc vers aucune estimation,
+  et rogner une saisie humaine détruirait une donnée que personne n'a mise en
+  doute. En pratique le cas est couvert : la séance écrite par
+  `abandonnerExercice` est mono-exercice, et `tracesActivite` lit alors la durée
+  de la tentative.
+- **Les cinq tentatives aberrantes ont été corrigées en base le 15/08/2026**,
+  chacune ramenée à la `dureeEstimeeMin` de son exercice, conformément à la règle
+  ci-dessus. Aucune `attempts.duree_min` ne dépasse plus 240 min.
+
+  | tentative | exercice | avant | après |
+  |---|---|---|---|
+  | `att-ms6m02mh-23p8e` | `diag-dev-02` | 16 998 | 15 |
+  | `att-ms6mkarz-cv9ua` | `diag-dev-01` | 16 982 | 20 |
+  | `att-mskelkp1-hizb1` | `ex-mschc7c7-0aigv` | 3 095 | 30 |
+  | `att-msnh82t2-l8ls6` | `diag-dev-02` | 3 065 | 15 |
+  | `att-mst5fis8-rfsu6` | `ex-msqgj6rn-gnrf5` | 1 015 | 60 |
+
+  Trois portent un exercice de **diagnostic**, absent de la table `exercises` :
+  leur estimation vient de `lib/seed/exercises.ts`. C'est ce qui a révélé la
+  dissymétrie corrigée ci-dessous.
+
+- **Les durées portées par `sessions` n'ont pas été corrigées.** Elles ne sont
+  lues que faute de tentative correspondante, et chacune de ces cinq lignes en a
+  une.
+
+- **Le déclencheur en amont n'est pas traité ici.** Le 12/08/2026 à 20 h 08,
+  **douze séances identiques** ont été écrites en douze secondes pour
+  `diag-dev-02`, toutes à 3065 min. `abandonnerExercice` ne se protège pas d'un
+  clic répété : chaque appel écrit une entrée de journal, et l'activité les
+  compte toutes. C'est un défaut distinct de celui que cette ADR corrige, et il
+  produit lui aussi du temps travaillé qui n'a pas eu lieu.
+
+### Conséquences
+
+- L'accueil affiche, pour cette journée, le temps plafonné à la durée estimée de
+  l'exercice au lieu de 16 h 55. La journée reste une case colorée : l'exercice a
+  bien été ouvert.
+- La carte annuelle ne perd **aucune case** — le plafond réduit des minutes, il
+  ne supprime pas de trace. C'était le risque identifié avant l'arbitrage ; il ne
+  s'est pas matérialisé, précisément parce que l'option « exclure le jour » a été
+  écartée.
+- `dureeDeReference` et `dureesMenees` sont inchangées : elles ne lisent que les
+  tentatives `terminee`, dont la durée n'est touchée qu'au-delà de 240 min.
+
+### Hypothèses et tests de réfutation
+
+1. 🔬 **`dureeEstimeeMin` est le bon plafond pour un abandon.** *Test :* si des
+   abandons légitimement longs — la personne a réellement travaillé au-delà de
+   l'estimation avant de renoncer — sont régulièrement rabotés, c'est que le
+   plafond mesure l'optimisme du tuteur plutôt que le travail, et il devra suivre
+   `dureeDeReference` comme la calibration l'a fait (ADR-045).
+2. 🔬 **240 min est un garde-fou, pas un seuil actif.** *Test :* si des tentatives
+   menées atteignent ce plafond autrement que par un onglet oublié, la valeur
+   arbitre quelque chose qu'elle n'était pas censée arbitrer, et il faut alors
+   mesurer le temps réellement actif plutôt que du temps d'horloge.
+3. ❓ **Le vrai correctif est peut-être en amont.** `dureeMin` restera du temps
+   d'horloge tant que rien ne mesure l'activité effective (onglet au premier
+   plan, frappe, défilement). *Qui tranche :* Maxime. *Ce qui bloque :* aucune
+   donnée aujourd'hui sur la fréquence des sessions laissées ouvertes — une
+   seule est observée.

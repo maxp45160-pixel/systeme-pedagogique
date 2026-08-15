@@ -17,6 +17,7 @@ import type {
   SkillEvidence,
 } from "@/lib/domain/types";
 import { seanceALieu, tentativeDeSeance } from "@/lib/domain/seance";
+import { dureeRetenue } from "@/lib/domain/tentative";
 import { computeSkillState } from "./skill-state";
 import { cleJour, joursDepuis } from "./dates";
 
@@ -150,11 +151,27 @@ interface TraceActivite {
  * Répartit le temps observé au jour de la tentative, quand la source est
  * disponible. Les séances historiques sans tentative correspondante gardent
  * leur ligne de repli : on ne réécrit pas le passé par absence de donnée.
+ *
+ * ⚠️ La durée d'une tentative passe par `dureeRetenue` (ADR-070), jamais par
+ * `tentative.dureeMin` brut. `dureeMin` est du temps d'horloge : un exercice
+ * laissé ouvert une nuit puis abandonné valait 1015 minutes, et l'activité les
+ * comptait comme du travail. Le plafond s'applique ici en plus de l'écriture
+ * parce que les lignes déjà en base, elles, portent la valeur brute.
+ *
+ * `dureesEstimees` est une table `id → dureeEstimeeMin`, pas une liste
+ * d'exercices, et la distinction porte : elle doit couvrir tout ce qui a été
+ * tenté un jour — diagnostics compris, exercices sortis du périmètre compris —
+ * là où une liste d'exercices est toujours filtrée pour un écran. Le moteur ne
+ * reçoit ainsi que la mesure dont il a besoin, jamais le référentiel.
  */
 function tracesActivite(
   sessions: LearningSession[],
   tentatives: ExerciseAttempt[] = [],
+  dureesEstimees: Map<string, number> = new Map(),
 ): TraceActivite[] {
+  const duree = (tentative: ExerciseAttempt) =>
+    dureeRetenue(tentative, dureesEstimees.get(tentative.exerciseId));
+
   return sessions.filter(seanceALieu).flatMap((seance) => {
     const exercices = new Set(
       seance.activites
@@ -178,14 +195,14 @@ function tracesActivite(
       const exercice = [...exercices][0];
       const tentative = exercice ? tentativeDeSeance(seance, exercice, tentatives) : undefined;
       return tentative
-        ? [{ sessionId: seance.id, date: tentative.fin ?? tentative.debut, dureeMin: tentative.dureeMin ?? seance.dureeMin }]
+        ? [{ sessionId: seance.id, date: tentative.fin ?? tentative.debut, dureeMin: duree(tentative) ?? seance.dureeMin }]
         : [{ sessionId: seance.id, date: seance.date, dureeMin: seance.dureeMin }];
     }
 
     return candidates.map((tentative) => ({
       sessionId: seance.id,
       date: tentative.fin ?? tentative.debut,
-      dureeMin: tentative.dureeMin,
+      dureeMin: duree(tentative),
     }));
   });
 }
@@ -206,8 +223,9 @@ export function activiteSurFenetre(
   jours: number,
   now: Date = new Date(),
   tentatives: ExerciseAttempt[] = [],
+  dureesEstimees: Map<string, number> = new Map(),
 ): ActiviteFenetre {
-  const dansLaFenetre = tracesActivite(sessions, tentatives)
+  const dansLaFenetre = tracesActivite(sessions, tentatives, dureesEstimees)
     .filter((trace) => joursDepuis(trace.date, now) <= jours);
   return {
     joursActifs: new Set(dansLaFenetre.map((trace) => cleJour(trace.date))).size,
@@ -227,6 +245,7 @@ export function calculerActivite(
   sessions: LearningSession[],
   now: Date = new Date(),
   tentatives: ExerciseAttempt[] = [],
+  dureesEstimees: Map<string, number> = new Map(),
 ): Activite {
   /*
    * Le filtre est en tête, et il n'est pas un détail d'implémentation.
@@ -240,7 +259,7 @@ export function calculerActivite(
    * posent la même question, et qu'un troisième appelant viendra.
    */
   const eues = sessions.filter(seanceALieu);
-  const traces = tracesActivite(eues, tentatives);
+  const traces = tracesActivite(eues, tentatives, dureesEstimees);
 
   const minutesParJour = new Map<string, number>();
   for (const trace of traces) {
@@ -248,7 +267,7 @@ export function calculerActivite(
     minutesParJour.set(cle, (minutesParJour.get(cle) ?? 0) + (trace.dureeMin ?? 0));
   }
 
-  const recente = activiteSurFenetre(eues, 30, now, tentatives);
+  const recente = activiteSurFenetre(eues, 30, now, tentatives, dureesEstimees);
   const triees = [...traces].sort((a, b) => a.date.localeCompare(b.date));
 
   return {
