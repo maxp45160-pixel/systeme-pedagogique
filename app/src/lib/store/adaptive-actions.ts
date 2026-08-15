@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { dorsaleCompte, nouvelId } from "./db";
 import { verifier } from "./supabase-backend";
 import {
-  decideProjectProofQuality,
+  decideProjectProofs,
   parseActivityAssessment,
   parseLearningGoal,
   parseWorkModeSettings,
@@ -114,7 +114,7 @@ export async function acceptGeneratedActivity(formData: FormData): Promise<void>
   if (receipt) {
     const storedRunId = typeof receipt.runId === "string" ? receipt.runId : "";
     if (!storedRunId) throw new Error("Le reçu d'acceptation est incomplet.");
-    redirect(`/seances?run=${encodeURIComponent(storedRunId)}${workModeQuery(initialMode)}`);
+    redirect(`${await poleDuTravail(storedRunId)}?run=${encodeURIComponent(storedRunId)}${workModeQuery(initialMode)}`);
   }
   const { supabase, userId } = await dorsaleCompte();
   const ctx = await chargerContexte();
@@ -195,16 +195,12 @@ export async function acceptGeneratedActivity(formData: FormData): Promise<void>
         evaluationContract: generation.evaluationContract,
         workspaceContent,
       },
-      run: { id: runId, status: "planifiee" },
       /*
-        Aucun `checkinId` : le contexte d'instant n'est plus une ligne en base.
-        La colonne est nullable — l'interaction reste rattachée au candidat
-        accepté, ce qui suffit à ce qu'elle sert (la trace de l'acceptation).
+        Aucune interaction de recommandation n'est journalisée : le contexte
+        d'instant et ses traces ne sont pas persistés. L'acceptation se lit
+        dans l'existence même de l'activité et de son exécution.
       */
-      interaction: {
-        id: nouvelId("interaction"),
-        candidateId: generationRequestId,
-      },
+      run: { id: runId, status: "planifiee" },
     },
   });
   verifier("acceptation transactionnelle de l'activité", error);
@@ -212,22 +208,21 @@ export async function acceptGeneratedActivity(formData: FormData): Promise<void>
     ? data as Record<string, unknown>
     : null;
   const storedRunId = typeof result?.runId === "string" ? result.runId : runId;
-  revalidatePath("/seances");
-  redirect(`/seances?run=${encodeURIComponent(storedRunId)}${workModeQuery(initialMode)}`);
+  const pole = generation.family === "produire" ? "/projets" : "/seances";
+  revalidatePath(pole);
+  redirect(`${pole}?run=${encodeURIComponent(storedRunId)}${workModeQuery(initialMode)}`);
 }
 
-async function activeSessionForRun(runId: string): Promise<string | null> {
-  const { supabase, userId } = await dorsaleCompte();
-  const { data, error } = await supabase
-    .from("activity_run_sessions")
-    .select("session_id,sessions!inner(statut)")
-    .eq("user_id", userId)
-    .eq("run_id", runId)
-    .eq("sessions.statut", "en-cours")
-    .limit(1)
-    .maybeSingle();
-  verifier("lecture de la séance active de l'activité", error);
-  return data && typeof data.session_id === "string" ? data.session_id : null;
+/**
+ * Où revient un travail : aux projets s'il en est un, au cahier sinon.
+ *
+ * Un projet ne vit plus dans le Cahier (ADR-067) ; une exploration, si. Les
+ * actions servant les deux familles, la destination se lit sur l'activité
+ * plutôt que d'être écrite en dur.
+ */
+async function poleDuTravail(runId: string): Promise<"/projets" | "/seances"> {
+  const state = await loadAdaptiveWorkspace(runId);
+  return state?.activity.family === "produire" ? "/projets" : "/seances";
 }
 
 export async function startOrResumeActivity(
@@ -238,48 +233,35 @@ export async function startOrResumeActivity(
   const initialMode = parseWorkModeSettings(initialModeValue);
   const modeQuery = `&focus=${initialMode.focus}&guidance=${initialMode.guidance}&tools=${initialMode.toolPower}`;
   if (await loadCommandReceipt(requestId, "enregistrer_evenement_activite")) {
-    redirect(`/seances?run=${encodeURIComponent(runId)}${modeQuery}`);
+    redirect(`${await poleDuTravail(runId)}?run=${encodeURIComponent(runId)}${modeQuery}`);
   }
   const state = await loadAdaptiveWorkspace(runId);
   if (!state) throw new Error("Exécution introuvable.");
   if (state.run.status !== "planifiee" && state.run.status !== "en-pause") {
     throw new Error("Cette activité ne peut pas être démarrée dans son état actuel.");
   }
-  const ctx = await chargerContexte();
-  const domainIds = [...new Set(state.activity.target.skillCodes.flatMap((code) => {
-    const skill = ctx.referentiel.parCode.get(code);
-    return skill ? [skill.domaine] : [];
-  }))];
-  const existingSession = ctx.donnees.sessions.find((session) => session.statut === "en-cours");
-  const sessionId = existingSession?.id ?? nouvelId("ses");
-  const occurredAt = new Date().toISOString();
+  /*
+    Aucune séance n'est ouverte ni rejointe.
+
+    Un projet se reprend sur plusieurs jours : l'enfermer dans une séance
+    reviendrait soit à en ouvrir une à chaque reprise, soit à laisser une
+    séance courir entre deux sessions de travail. Le déroulé du projet est la
+    suite de ses propres événements.
+  */
   const { error } = await (await dorsaleCompte()).supabase.rpc("enregistrer_evenement_activite", {
     p_request_id: requestId,
     p_run_id: runId,
     p_payload: {
       type: state.run.status === "planifiee" ? "demarrage" : "reprise",
       eventId: nouvelId("event"),
-      occurredAt,
+      occurredAt: new Date().toISOString(),
       event: state.run.status === "planifiee" ? { mode: initialMode } : {},
-      sessionActivity: { type: state.activity.family, ref: runId, libelle: state.activity.title },
-      sessionDomainIds: domainIds,
-      sessionSkillCodes: state.activity.target.skillCodes,
-      ...(existingSession
-        ? { sessionId }
-        : {
-          session: {
-            id: sessionId,
-            date: occurredAt,
-            domainIds,
-            skillCodes: state.activity.target.skillCodes,
-            activities: [{ type: state.activity.family, ref: runId, libelle: state.activity.title }],
-          },
-        }),
     },
   });
   verifier("démarrage transactionnel de l'activité", error);
-  revalidatePath("/seances");
-  redirect(`/seances?run=${encodeURIComponent(runId)}${modeQuery}`);
+  const pole = await poleDuTravail(runId);
+  revalidatePath(pole);
+  redirect(`${pole}?run=${encodeURIComponent(runId)}${modeQuery}`);
 }
 
 export async function planActivity(
@@ -294,7 +276,7 @@ export async function planActivity(
   if (receipt) {
     const storedRunId = typeof receipt.runId === "string" ? receipt.runId : "";
     if (!storedRunId) throw new Error("Le reçu de planification est incomplet.");
-    redirect(`/seances?run=${encodeURIComponent(storedRunId)}${modeQuery}`);
+    redirect(`${await poleDuTravail(storedRunId)}?run=${encodeURIComponent(storedRunId)}${modeQuery}`);
   }
   if (!Number.isInteger(activityVersion) || activityVersion < 1) {
     throw new Error("Version d'activité invalide.");
@@ -311,8 +293,9 @@ export async function planActivity(
     ? data as Record<string, unknown>
     : null;
   const storedRunId = typeof result?.runId === "string" ? result.runId : runId;
-  revalidatePath("/seances");
-  redirect(`/seances?run=${encodeURIComponent(storedRunId)}${modeQuery}`);
+  const pole = await poleDuTravail(storedRunId);
+  revalidatePath(pole);
+  redirect(`${pole}?run=${encodeURIComponent(storedRunId)}${modeQuery}`);
 }
 
 export async function saveActivityArtifact(
@@ -321,7 +304,7 @@ export async function saveActivityArtifact(
   formData: FormData,
 ): Promise<void> {
   if (await loadCommandReceipt(requestId, "enregistrer_artefact_activite")) {
-    revalidatePath("/seances");
+    revalidatePath(await poleDuTravail(runId));
     return;
   }
   const state = await loadAdaptiveWorkspace(runId);
@@ -359,16 +342,15 @@ export async function saveActivityArtifact(
       : { kind: "lien-externe", ref: externalUrl, immutable: false },
   });
   verifier("sauvegarde transactionnelle de l'artefact", error);
-  revalidatePath("/seances");
+  revalidatePath(await poleDuTravail(runId));
 }
 
 export async function pauseActivity(runId: string, requestId: string): Promise<void> {
+  const pole = await poleDuTravail(runId);
   if (await loadCommandReceipt(requestId, "enregistrer_evenement_activite")) {
-    revalidatePath("/seances");
-    redirect("/seances");
+    revalidatePath(pole);
+    redirect(pole);
   }
-  const sessionId = await activeSessionForRun(runId);
-  if (!sessionId) throw new Error("Aucune séance active pour cette activité.");
   const { error } = await (await dorsaleCompte()).supabase.rpc("enregistrer_evenement_activite", {
     p_request_id: requestId,
     p_run_id: runId,
@@ -376,13 +358,12 @@ export async function pauseActivity(runId: string, requestId: string): Promise<v
       type: "pause",
       eventId: nouvelId("event"),
       occurredAt: new Date().toISOString(),
-      sessionId,
       event: { reason: "Pause demandée dans le workspace." },
     },
   });
   verifier("pause transactionnelle de l'activité", error);
-  revalidatePath("/seances");
-  redirect("/seances");
+  revalidatePath(pole);
+  redirect(pole);
 }
 
 export async function changeWorkMode(
@@ -394,8 +375,6 @@ export async function changeWorkMode(
   if (await loadCommandReceipt(requestId, "enregistrer_evenement_activite")) return;
   const previous = parseWorkModeSettings(previousValue);
   const next = parseWorkModeSettings(nextValue);
-  const sessionId = await activeSessionForRun(runId);
-  if (!sessionId) throw new Error("Aucune séance active pour ce changement de mode.");
   const { error } = await (await dorsaleCompte()).supabase.rpc("enregistrer_evenement_activite", {
     p_request_id: requestId,
     p_run_id: runId,
@@ -403,7 +382,6 @@ export async function changeWorkMode(
       type: "changement-mode",
       eventId: nouvelId("event"),
       occurredAt: new Date().toISOString(),
-      sessionId,
       event: { previous, next },
     },
   });
@@ -421,8 +399,6 @@ export async function recordMilestone(
   if (!state || !state.activity.workspaceContent?.milestones.some((item) => item.id === milestoneId)) {
     throw new Error("Ce jalon n'appartient pas au contrat de l'activité.");
   }
-  const sessionId = await activeSessionForRun(runId);
-  if (!sessionId) throw new Error("Aucune séance active pour ce jalon.");
   const { error } = await (await dorsaleCompte()).supabase.rpc("enregistrer_evenement_activite", {
     p_request_id: requestId,
     p_run_id: runId,
@@ -430,12 +406,11 @@ export async function recordMilestone(
       type: "jalon",
       eventId: nouvelId("event"),
       occurredAt: new Date().toISOString(),
-      sessionId,
       event: { milestoneId, state: "atteint" },
     },
   });
   verifier("journalisation du jalon", error);
-  revalidatePath("/seances");
+  revalidatePath(await poleDuTravail(runId));
 }
 
 export async function completeExploration(runId: string, requestId: string): Promise<void> {
@@ -445,18 +420,14 @@ export async function completeExploration(runId: string, requestId: string): Pro
   }
   const state = await loadAdaptiveWorkspace(runId);
   if (!state || state.activity.family !== "explorer") throw new Error("Exploration introuvable.");
-  const sessionId = await activeSessionForRun(runId);
-  if (!sessionId) throw new Error("Aucune séance active.");
   const { error } = await (await dorsaleCompte()).supabase.rpc("cloturer_execution_activite", {
     p_request_id: requestId,
     p_run_id: runId,
     p_payload: {
       eventId: nouvelId("event"),
-      sessionId,
       completedAt: new Date().toISOString(),
       artifact: state.run.currentArtifact,
       evidence: [],
-      session: { result: "Exploration terminée — aucune preuve de niveau produite." },
     },
   });
   verifier("clôture de l'exploration", error);
@@ -469,13 +440,11 @@ export async function abandonActivity(runId: string, requestId: string, formData
     revalidatePath("/", "layout");
     redirect("/");
   }
-  const sessionId = await activeSessionForRun(runId);
   const { error } = await (await dorsaleCompte()).supabase.rpc("abandonner_execution_activite", {
     p_request_id: requestId,
     p_run_id: runId,
     p_payload: {
       eventId: nouvelId("event"),
-      sessionId,
       abandonedAt: new Date().toISOString(),
       reason: text(formData, "reason") || undefined,
     },
@@ -505,8 +474,6 @@ export async function submitProject(runId: string, requestId: string, formData: 
   if (!state.artifact || typeof state.artifact.content.body !== "string" || !state.artifact.content.body.trim()) {
     throw new Error("Un artefact enregistré est requis avant la soumission.");
   }
-  const sessionId = await activeSessionForRun(runId);
-  if (!sessionId) throw new Error("Aucune séance active.");
   const now = new Date().toISOString();
   const snapshotId = nouvelId("artifact-snapshot");
   const rawProposedEvaluation = text(formData, "proposedEvaluation");
@@ -580,27 +547,38 @@ export async function submitProject(runId: string, requestId: string, formData: 
     frozenAt: now,
     immutable: true,
   };
-  const proof = decideProjectProofQuality(state.activity, assessment, artifact);
-  const dimensions = assessment.criteria.reduce<Partial<Record<Dimension, number>>>((result, criterion) => {
-    const contract = state.activity.evaluationContract.criteria.find((item) => item.id === criterion.criterionId);
-    if (contract?.dimension) result[contract.dimension] = DEMONSTRATION_SCORE[criterion.demonstration];
-    return result;
-  }, {});
-  const evidence: SkillEvidence[] = proof.eligible && proof.quality
-    ? state.activity.target.skillCodes.map((skillCode, index) => ({
+  const decision = decideProjectProofs(state.activity, assessment, artifact);
+  /*
+    Les dimensions sont calculées par compétence, à partir des seuls critères
+    qui la portent. Agréger toutes les dimensions du contrat donnerait à une
+    compétence le score obtenu sur une autre.
+  */
+  const dimensionsPour = (skillCode: string): Partial<Record<Dimension, number>> =>
+    assessment.criteria.reduce<Partial<Record<Dimension, number>>>((result, criterion) => {
+      const contract = state.activity.evaluationContract.criteria.find((item) => item.id === criterion.criterionId);
+      if (contract?.skillCode === skillCode && contract.dimension) {
+        result[contract.dimension] = DEMONSTRATION_SCORE[criterion.demonstration];
+      }
+      return result;
+    }, {});
+  const codesProuves = decision.proofs.map((entry) => entry.skillCode);
+  const evidence: SkillEvidence[] = decision.eligible
+    ? decision.proofs.map((entry, index) => ({
       id: nouvelId("ev"),
-      skillCode,
+      skillCode: entry.skillCode,
       date: now,
       type: "projet",
       niveauPreuve: index === 0 ? "A" : "B",
       autonomie: assessment.autonomy,
-      qualite: proof.quality!,
+      qualite: entry.quality,
       resultat: assessment.result,
       contexte: state.activity.title,
-      dimensions,
-      competencesCombinees: state.activity.target.skillCodes.filter((code) => code !== skillCode),
+      dimensions: dimensionsPour(entry.skillCode),
+      // Seules les compétences réellement prouvées sont combinées : une cible
+      // non démontrée n'a pas participé à cette preuve.
+      competencesCombinees: codesProuves.filter((code) => code !== entry.skillCode),
       source: { kind: "projet", ref: runId },
-      commentaire: proof.reason,
+      commentaire: entry.reason,
     }))
     : [];
   const { error } = await (await dorsaleCompte()).supabase.rpc("cloturer_execution_activite", {
@@ -608,14 +586,12 @@ export async function submitProject(runId: string, requestId: string, formData: 
     p_run_id: runId,
     p_payload: {
       eventId: nouvelId("event"),
-      sessionId,
       completedAt: now,
       artifact: { ...artifact, immutable: false, snapshotId: undefined, frozenAt: undefined },
       snapshot: { id: snapshotId, kind: "structure", capturedAt: now, metadata: { artifactVersion: state.artifact.version } },
       ...(proposedAssessment ? { proposedAssessment } : {}),
       assessment,
       evidence,
-      session: { result: `Projet ${assessment.result}.`, mainLearning: text(formData, "mainLearning") || undefined },
     },
   });
   verifier("soumission transactionnelle du projet", error);

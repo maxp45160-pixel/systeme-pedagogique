@@ -276,7 +276,6 @@ describe("sequencement des familles", () => {
       activityId: "explore",
       activityVersion: 1,
       status: "terminee",
-      sessionIds: ["session-1"],
       createdAt: "2026-08-12T08:00:00.000Z",
       completedAt: "2026-08-12T09:00:00.000Z",
     };
@@ -284,7 +283,6 @@ describe("sequencement des familles", () => {
       id: "event-close",
       accountId: "account-a",
       runId: exploreRun.id,
-      sessionId: "session-1",
       requestId: "request-close",
       type: "cloture",
       createdAt: "2026-08-12T09:00:00.000Z",
@@ -307,7 +305,6 @@ describe("sequencement des familles", () => {
       activityId: "project",
       activityVersion: 1,
       status: "en-pause",
-      sessionIds: ["session-old"],
       createdAt: NOW,
     };
     const result = recommendLearningAction(input({

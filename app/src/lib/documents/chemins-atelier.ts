@@ -16,14 +16,24 @@ export function resoudreCheminsDocumentAtelier(
   metadonnees: MetadonneesCheminAtelier,
 ): { dossier: string; dossiersSecondaires: string[] } {
   const role = metadonnees.frontMatter.role;
+  /*
+   * Une note opérationnelle n'a plus de catégorie intermédiaire.
+   *
+   * « Notes opérationnelles » ajoutait un palier qui ne disait rien : on
+   * cherchait un projet, on trouvait d'abord une catégorie qui parle du rôle du
+   * document plutôt que de ce qu'il est. Le libellé du type devient donc la
+   * branche directe — `Transversal/Projets`, `Transversal/Séances`.
+   */
   const categorieTransversale = role === "operationnel"
-    ? "Notes opérationnelles"
+    ? ""
     : role === "support"
       ? "Notes de support"
       : metadonnees.categorie === "preuve"
         ? "Preuves"
         : "Documents";
-  const transversal = `Transversal/${categorieTransversale}`;
+  const transversal = categorieTransversale
+    ? `Transversal/${categorieTransversale}`
+    : "Transversal";
   if (metadonnees.categorie === "preuve") return { dossier: transversal, dossiersSecondaires: [] };
 
   /*
@@ -41,7 +51,13 @@ export function resoudreCheminsDocumentAtelier(
    */
   if (role === "operationnel" || role === "support") {
     const branche = metadonnees.libelle?.trim();
-    return { dossier: branche ? `${transversal}/${branche}` : transversal, dossiersSecondaires: [] };
+    if (!branche) return { dossier: transversal || "Transversal", dossiersSecondaires: [] };
+    // Un type au pluriel se lit mieux comme dossier : « Projets », pas « Projet ».
+    const dossierBranche = branche.endsWith("s") ? branche : `${branche}s`;
+    return {
+      dossier: transversal ? `${transversal}/${dossierBranche}` : `Transversal/${dossierBranche}`,
+      dossiersSecondaires: [],
+    };
   }
 
   const dossier = metadonnees.dossierParDefaut || "Documents";

@@ -122,19 +122,12 @@ export function FileSeances({ seances }: { seances: LearningSession[] }) {
               </span>
               <div className="flex items-center gap-2">
                 {enCours ? (
-                  <>
-                    <form action={annulerSeance.bind(null, s.id)}>
-                      <Bouton type="submit" variante="secondaire" taille="petite">
-                        Abandonner
-                      </Bouton>
-                    </form>
-                    <Link
-                      href={`/seances?session=${s.id}`}
-                      className={classesLienBouton("principal")}
-                    >
-                      Reprendre la séance →
-                    </Link>
-                  </>
+                  <Link
+                    href={`/seances?session=${s.id}`}
+                    className={classesLienBouton("principal")}
+                  >
+                    Reprendre la séance →
+                  </Link>
                 ) : (
                   <>
                     <form action={annulerSeance.bind(null, s.id)}>

@@ -93,7 +93,9 @@ function lienActivite(action: RecommendedLearningAction, instant?: ContexteInsta
     + `&guidance=${action.proposedMode.guidance}`
     + `&tools=${action.proposedMode.toolPower}`
     + (instant ? `&temps=${instant.tempsMin}&capacite=${instant.capacite}` : "");
-  if (action.runId) return `/seances?run=${encodeURIComponent(action.runId)}&${mode}`;
+  // Un projet ouvert se reprend dans son pôle, pas dans le cahier (ADR-067).
+  const pole = action.family === "produire" ? "/projets" : "/seances";
+  if (action.runId) return `${pole}?run=${encodeURIComponent(action.runId)}&${mode}`;
   if (action.generationRequestId) {
     return `/seances?generation=${encodeURIComponent(action.generationRequestId)}&${mode}`;
   }

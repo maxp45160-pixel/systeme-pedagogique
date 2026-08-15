@@ -170,7 +170,27 @@ export const TYPES_DOCUMENTS: Readonly<Record<string, DefinitionTypeDocument>> =
    * cadre, il ne remplace pas l'entité (ADR-048).
    */
   seance: definition("seance", "Séance d'exercices", "action", "exercice", "Séances", ["Intention", "Déroulé", "Bilan"], ["competence"], ["Déroulé"]),
-  projet: definition("projet", "Projet", "action", "projet", "Preuves/Projets", ["Contexte", "Travail réalisé", "Résultats"], ["competence", "reference"]),
+  /*
+   * Un projet porte son énoncé.
+   *
+   * Les sections précédentes — Contexte, Travail réalisé, Résultats — donnaient
+   * trois zones vides à remplir soi-même : la fiche ne disait pas ce qu'il y
+   * avait à faire. Or un projet généré arrive avec un sujet, des étapes et des
+   * critères connus d'avance ; ne pas les afficher revenait à jeter le contrat.
+   *
+   * Les trois premières sections sont écrites par le système et lues, pas
+   * saisies. Les deux dernières restent au travail de la personne.
+   */
+  projet: definition(
+    "projet",
+    "Projet",
+    "action",
+    "projet",
+    "Projets",
+    ["Énoncé", "Étapes", "Critères d'évaluation", "Travail réalisé", "Résultats"],
+    ["competence", "reference"],
+    ["Énoncé", "Étapes", "Critères d'évaluation"],
+  ),
   "etude-de-cas": definition("etude-de-cas", "Étude de cas", "action", "etude-de-cas", "Preuves/Études de cas", ["Contexte", "Analyse", "Décision", "Bilan"], ["competence", "reference"]),
   redaction: definition("redaction", "Rédaction", "action", "redaction", "Productions/Rédactions", ["Sujet", "Rédaction", "Relecture"], ["competence", "reference"]),
   schema: definition("schema", "Schéma", "action", "schema", "Productions/Schémas", ["Intention", "Schéma", "Explication"], ["competence"]),

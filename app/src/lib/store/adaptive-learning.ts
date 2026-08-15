@@ -8,7 +8,6 @@ import {
   parseActivityEvent,
   parseActivityRun,
   parseLearningActivity,
-  parseLearningGoal,
   parseEvidenceStatusEvent,
   resolveEvidenceStatus,
   type ActionContext,
@@ -111,33 +110,22 @@ function adaptiveEntity(
 const loadAdaptiveRows = cache(async (accountId: string): Promise<AdaptiveRows> => {
   const { supabase, userId } = await dorsaleCompte();
   if (userId !== accountId) throw new Error("Compte adaptatif incohérent.");
-  const [goals, activitiesResult, runsResult, linksResult, eventsResult] =
+  const [goals, activitiesResult, runsResult, eventsResult] =
     await Promise.all([
       loadAdaptiveGoals(accountId),
       supabase.from("learning_activities").select("*").eq("user_id", userId),
       supabase.from("activity_runs").select("*").eq("user_id", userId),
-      supabase.from("activity_run_sessions").select("run_id,session_id").eq("user_id", userId),
       supabase.from("activity_events").select("*").eq("user_id", userId).order("created_at", { ascending: true }),
     ]);
   verifier("lecture des activités adaptatives", activitiesResult.error);
   verifier("lecture des exécutions adaptatives", runsResult.error);
-  verifier("lecture des séances d'activité", linksResult.error);
   verifier("lecture des événements d'activité", eventsResult.error);
-
-  const sessionsByRun = new Map<string, string[]>();
-  for (const row of (linksResult.data ?? []) as Record<string, unknown>[]) {
-    const runId = String(row.run_id);
-    sessionsByRun.set(runId, [...(sessionsByRun.get(runId) ?? []), String(row.session_id)]);
-  }
 
   const activities = ((activitiesResult.data ?? []) as Record<string, unknown>[]).map((row) =>
     parseLearningActivity(adaptiveEntity(row, userId)),
   );
   const runs = ((runsResult.data ?? []) as Record<string, unknown>[]).map((row) =>
-    parseActivityRun({
-      ...adaptiveEntity(row, userId),
-      sessionIds: sessionsByRun.get(String(row.id)) ?? [],
-    }),
+    parseActivityRun(adaptiveEntity(row, userId)),
   );
   const events = ((eventsResult.data ?? []) as Record<string, unknown>[]).map((row) => {
     const entity = adaptiveEntity(row, userId);
@@ -149,31 +137,19 @@ const loadAdaptiveRows = cache(async (accountId: string): Promise<AdaptiveRows> 
   return { goals, activities, runs, events };
 });
 
+/**
+ * Les objectifs déclarés ne sont pas stockés.
+ *
+ * `learning_goals` et `learning_goal_targets` ne font pas partie du périmètre
+ * déployé (migration `20260814231505_boucle_projet_minimale`) : les objectifs
+ * sont un chantier distinct de la boucle projet. La fonction reste, et rend une
+ * liste vide, pour que le moteur continue de recevoir le paramètre qu'il attend
+ * sans avoir à connaître cette absence.
+ */
 export const loadAdaptiveGoals = cache(async (accountId: string): Promise<LearningGoal[]> => {
-  const { supabase, userId } = await dorsaleCompte();
+  const { userId } = await dorsaleCompte();
   if (userId !== accountId) throw new Error("Compte adaptatif incohérent.");
-  const [goalsResult, targetsResult] = await Promise.all([
-    supabase.from("learning_goals").select("*").eq("user_id", userId),
-    supabase.from("learning_goal_targets").select("goal_id,target_kind,target_ref").eq("user_id", userId),
-  ]);
-  verifier("lecture des objectifs adaptatifs", goalsResult.error);
-  verifier("lecture des cibles d'objectifs", targetsResult.error);
-  const targetsByGoal = new Map<string, { skills: string[]; themes: string[] }>();
-  for (const row of (targetsResult.data ?? []) as Record<string, unknown>[]) {
-    const goalId = String(row.goal_id);
-    const current = targetsByGoal.get(goalId) ?? { skills: [], themes: [] };
-    if (row.target_kind === "skill") current.skills.push(String(row.target_ref));
-    if (row.target_kind === "theme") current.themes.push(String(row.target_ref));
-    targetsByGoal.set(goalId, current);
-  }
-  return ((goalsResult.data ?? []) as Record<string, unknown>[]).map((row) => {
-    const targets = targetsByGoal.get(String(row.id)) ?? { skills: [], themes: [] };
-    return parseLearningGoal({
-      ...adaptiveEntity(row, userId),
-      confirmedSkillCodes: targets.skills,
-      confirmedThemeIds: targets.themes,
-    });
-  });
+  return [];
 });
 
 export const loadAdaptiveOpenRuns = cache(async (accountId: string): Promise<AdaptiveOpenRun[]> => {
@@ -361,21 +337,16 @@ export const loadAdaptiveWorkspace = cache(async (
   runId: string,
 ): Promise<AdaptiveWorkspaceState | null> => {
   const { supabase, userId } = await dorsaleCompte();
-  const [runResult, linksResult, artifactResult, eventsResult] = await Promise.all([
+  const [runResult, artifactResult, eventsResult] = await Promise.all([
     supabase.from("activity_runs").select("*").eq("user_id", userId).eq("id", runId).maybeSingle(),
-    supabase.from("activity_run_sessions").select("session_id").eq("user_id", userId).eq("run_id", runId),
     supabase.from("activity_artifacts").select("content,version").eq("user_id", userId).eq("run_id", runId).maybeSingle(),
     supabase.from("activity_events").select("*").eq("user_id", userId).eq("run_id", runId).order("created_at", { ascending: true }),
   ]);
   verifier("lecture de l'exécution adaptative", runResult.error);
-  verifier("lecture des séances de l'exécution", linksResult.error);
   verifier("lecture de l'artefact courant", artifactResult.error);
   verifier("lecture des événements de l'exécution", eventsResult.error);
   if (!runResult.data) return null;
-  const run = parseActivityRun({
-    ...adaptiveEntity(runResult.data as Record<string, unknown>, userId),
-    sessionIds: ((linksResult.data ?? []) as Array<{ session_id: string }>).map((row) => row.session_id),
-  });
+  const run = parseActivityRun(adaptiveEntity(runResult.data as Record<string, unknown>, userId));
   const { data: activityData, error: activityError } = await supabase
     .from("learning_activities")
     .select("*")

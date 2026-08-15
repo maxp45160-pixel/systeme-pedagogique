@@ -21,9 +21,15 @@ export async function POST(request: Request) {
   }
   if (!body.runId) return Response.json({ erreur: "requete-incomplete" }, { status: 400 });
   const ctx = await chargerContexte();
-  if (ctx.donnees.user.learningLoopMode !== "adaptive-v1") {
-    return Response.json({ erreur: "beta-inactive" }, { status: 403 });
-  }
+  /*
+   * Pas de garde `learningLoopMode`.
+   *
+   * Le drapeau protège l'arbitrage automatique du moteur. Ici l'exécution
+   * existe déjà et la personne demande une relecture de sa propre production :
+   * refuser au motif que l'arbitrage est éteint rendrait un projet ouvert
+   * inévaluable. Ce que la relecture peut faire reste borné par le contrat,
+   * et sa proposition n'est jamais une mesure.
+   */
   const state = await loadAdaptiveWorkspace(body.runId);
   if (!state || state.activity.family !== "produire" || state.run.status !== "en-cours") {
     return Response.json({ erreur: "projet-introuvable" }, { status: 404 });

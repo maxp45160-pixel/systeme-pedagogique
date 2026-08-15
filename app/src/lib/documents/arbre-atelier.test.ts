@@ -38,9 +38,8 @@ describe("navigation de l'Atelier", () => {
     for (const { valeur } of FORMATS_PAR_ROLE.operationnel) {
       const definition = definitionTypeDocument(valeur);
       const chemins = cheminsDepuisDefinition(definition, { role: "operationnel" });
-      expect(chemins.dossier, `format « ${valeur} »`).toBe(
-        `Transversal/Notes opérationnelles/${definition?.libelle}`,
-      );
+      const branche = definition?.libelle.endsWith("s") ? definition.libelle : `${definition?.libelle}s`;
+      expect(chemins.dossier, `format « ${valeur} »`).toBe(`Transversal/${branche}`);
       expect(chemins.dossiersSecondaires, `format « ${valeur} »`).toEqual([]);
     }
   });
@@ -66,11 +65,12 @@ describe("navigation de l'Atelier", () => {
     });
   });
 
-  it("laisse le repli historique aux productions sans rôle déclaré", () => {
-    expect(cheminsDepuisDefinition(definitionTypeDocument("projet"), {})).toEqual({
-      dossier: "Transversal/Preuves/Projets",
-      dossiersSecondaires: [],
-    });
+  it("ne range plus un projet parmi les preuves, même sans rôle déclaré", () => {
+    const chemins = cheminsDepuisDefinition(definitionTypeDocument("projet"), {});
+    expect(chemins.dossier).toBe("Projets");
+    for (const chemin of [chemins.dossier, ...chemins.dossiersSecondaires]) {
+      expect(chemin.startsWith("Transversal/Preuves")).toBe(false);
+    }
   });
 
   it("retrouve tous les sous-nœuds intermédiaires pour la résolution du fil d'Ariane", () => {

@@ -52,6 +52,14 @@ export const NAVIGATION: GroupeNav[] = [
   {
     titre: "Travailler",
     entrees: [
+      /*
+       * Pas d'entrée « Projets ».
+       *
+       * Un projet n'est pas une destination à parcourir : il se crée depuis le
+       * tableau de bord et se pilote depuis sa fiche dans l'Atelier. Lui donner
+       * un pôle ajouterait une quatrième destination pour un objet qui vit déjà
+       * dans deux surfaces existantes.
+       */
       { href: "/seances", libelle: "Cahier", court: "Cahier", icone: IconeExercices },
     ],
   },

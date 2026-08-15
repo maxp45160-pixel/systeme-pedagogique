@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { ParcoursNouveauProjet } from "@/components/projets/modale-nouveau-projet";
 import { useRouter } from "next/navigation";
 
 import { IconeDocuments, IconeExercices, IconeFleche } from "@/components/ui/icones";
@@ -44,6 +45,17 @@ export function CaptureNotes({
   const [themesLocaux, setThemesLocaux] = useState<Theme[]>([]);
   const [creationThemeOuverte, setCreationThemeOuverte] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  /*
+    Un projet ne se réduit pas à une fiche vide.
+
+    Les autres formats opérationnels créent une note qu'on remplit soi-même.
+    Un projet, lui, se cible sur des compétences et porte un contrat
+    d'évaluation : le créer comme une note produisait trois zones de texte sans
+    brief, sans étapes et sans critères — le mot était le même, la chose non.
+    Le format « Projet » ouvre donc le parcours de composition, qui crée sa
+    fiche à l'arrivée.
+  */
+  const [projetOuvert, setProjetOuvert] = useState(false);
   const [enCours, demarrer] = useTransition();
 
   const themesDisponibles = [...themes, ...themesLocaux].filter(
@@ -134,7 +146,15 @@ export function CaptureNotes({
         </div>
       </Carte>
 
-      {role && (
+      {projetOuvert && (
+        <ParcoursNouveauProjet
+          accountId={compteId}
+          intentionInitiale={[titre.trim(), contexte.trim()].filter(Boolean).join(" — ")}
+          onFermer={() => setProjetOuvert(false)}
+        />
+      )}
+
+      {role && !projetOuvert && (
         <Modale
           titre={role === "support" ? "Nouvelle donnée" : "Nouveau travail"}
           sousTitre={
@@ -149,7 +169,16 @@ export function CaptureNotes({
               <Bouton variante="secondaire" onClick={() => setRole(null)}>Annuler</Bouton>
               <Bouton
                 variante="principal"
-                onClick={creer}
+                onClick={() => {
+                  // Le projet quitte le chemin des notes ici, avec ce qui a
+                  // déjà été saisi comme amorce de description.
+                  if (role === "operationnel" && format === "projet") {
+                    setRole(null);
+                    setProjetOuvert(true);
+                    return;
+                  }
+                  creer();
+                }}
                 disabled={!titre.trim() || !contexte.trim() || !domaine}
                 enChargement={enCours}
                 className={cx(enCours && "pointer-events-none")}
