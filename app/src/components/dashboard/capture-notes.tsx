@@ -1,16 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { ParcoursNouveauProjet } from "@/components/projets/modale-nouveau-projet";
 import { useRouter } from "next/navigation";
-
-import { IconeDocuments, IconeExercices, IconeFleche } from "@/components/ui/icones";
+import { IconeDocuments, IconeFleche } from "@/components/ui/icones";
 import { Modale } from "@/components/ui/modale";
 import { Bouton, Carte, cx } from "@/components/ui/primitives";
 import { creerNoteAction } from "@/lib/store/document-actions";
-import { FORMATS_PAR_ROLE, type RoleNote } from "@/lib/documents/roles-note";
-import type { Theme } from "@/lib/domain/theme";
-import { ModaleTheme } from "@/components/seances/modale-theme";
+import { FORMATS_PAR_ROLE } from "@/lib/documents/roles-note";
 
 export interface DomaineNote {
   id: string;
@@ -18,86 +14,44 @@ export interface DomaineNote {
   prefixe: string;
 }
 
-export interface CompetenceNote {
-  code: string;
-  intitule: string;
-  domaine: string;
-}
-
-export function CaptureNotes({
-  domaines,
-  themes,
-  competences,
-  compteId,
-}: {
-  domaines: DomaineNote[];
-  themes: Theme[];
-  competences: CompetenceNote[];
-  compteId: string;
-}) {
+/**
+ * CaptureNotes reste l'entrée des notes de support.
+ *
+ * Un travail n'est pas une note que l'on saisit avant de commencer : il a son
+ * propre parcours et peut produire une fiche ensuite. Garder les deux rôles
+ * dans cette modale mélangeait une capture documentaire avec un geste de
+ * travail.
+ */
+export function CaptureNotes({ domaines }: { domaines: DomaineNote[] }) {
   const router = useRouter();
-  const [role, setRole] = useState<RoleNote | null>(null);
+  const [ouverte, setOuverte] = useState(false);
   const [titre, setTitre] = useState("");
-  const [format, setFormat] = useState("note");
+  const [format, setFormat] = useState(FORMATS_PAR_ROLE.support[0].valeur);
   const [contexte, setContexte] = useState("");
   const [domaine, setDomaine] = useState("transversal");
-  const [themeId, setThemeId] = useState("");
-  const [themesLocaux, setThemesLocaux] = useState<Theme[]>([]);
-  const [creationThemeOuverte, setCreationThemeOuverte] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
-  /*
-    Un projet ne se réduit pas à une fiche vide.
-
-    Les autres formats opérationnels créent une note qu'on remplit soi-même.
-    Un projet, lui, se cible sur des compétences et porte un contrat
-    d'évaluation : le créer comme une note produisait trois zones de texte sans
-    brief, sans étapes et sans critères — le mot était le même, la chose non.
-    Le format « Projet » ouvre donc le parcours de composition, qui crée sa
-    fiche à l'arrivée.
-  */
-  const [projetOuvert, setProjetOuvert] = useState(false);
   const [enCours, demarrer] = useTransition();
 
-  const themesDisponibles = [...themes, ...themesLocaux].filter(
-    (theme, index, liste) => !theme.archive && liste.findIndex((item) => item.id === theme.id) === index,
-  );
-  const competencesParCode = new Map(
-    competences.map((competence) => [competence.code, {
-      intitule: competence.intitule,
-      domaine: domaines.find((option) => option.id === competence.domaine)?.nom ?? competence.domaine,
-    }]),
-  );
-
-  function ouvrir(suivant: RoleNote) {
-    setRole(suivant);
-    setFormat(FORMATS_PAR_ROLE[suivant][0].valeur);
+  function ouvrir() {
+    setOuverte(true);
     setTitre("");
+    setFormat(FORMATS_PAR_ROLE.support[0].valeur);
     setContexte("");
     setDomaine("transversal");
-    setThemeId("");
-    setCreationThemeOuverte(false);
     setErreur(null);
   }
 
   function creer() {
-    if (!role || !titre.trim() || !contexte.trim() || !domaine) return;
+    if (!titre.trim() || !contexte.trim() || !domaine) return;
     setErreur(null);
     demarrer(async () => {
       try {
-        const fiche = await creerNoteAction(role, format, titre.trim(), {
+        const fiche = await creerNoteAction("support", format, titre.trim(), {
           contexte,
           domaine,
-          ...(role === "operationnel" && themeId ? { themeId } : {}),
         });
-        setRole(null);
-        /*
-         * Capturer une note opérationnelle, c'est demander à travailler — pas à
-         * ouvrir un éditeur. On atterrit donc directement dans son espace de
-         * travail. Une note de support, elle, se lit et s'annote : l'Atelier
-         * suffit.
-        */
-        const parametre = role === "operationnel" ? "note" : "document";
-        router.push(`/atelier?${parametre}=${encodeURIComponent(fiche.id)}`);
+        setOuverte(false);
+        router.push(`/atelier?document=${encodeURIComponent(fiche.id)}`);
         router.refresh();
       } catch (cause) {
         setErreur(cause instanceof Error ? cause.message : "Création impossible.");
@@ -109,81 +63,41 @@ export function CaptureNotes({
     <>
       <Carte className="overflow-hidden">
         <div className="px-5 py-4 sm:px-6">
-          <p className="text-sm font-medium">Commencer un travail</p>
+          <p className="text-sm font-medium">Renseigner une donnée</p>
           <p className="mt-1 text-xs leading-relaxed text-texte-attenue">
-            Renseigne une donnée ou choisis un domaine à travailler.
+            Ajouter une connaissance, une référence ou un support utile.
           </p>
-          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-            <button
-              type="button"
-              onClick={() => ouvrir("support")}
-              className="group rounded-xl border border-bordure bg-surface-2 p-3 text-left transition-colors hover:border-primaire/35 hover:bg-primaire-faible/35"
-            >
-              <span className="flex items-center justify-between gap-3">
-                <IconeDocuments className="size-5 text-primaire" />
-                <IconeFleche className="size-3.5 text-texte-discret group-hover:text-primaire" />
-              </span>
-              <span className="mt-3 block text-sm font-semibold">Renseigner une donnée</span>
-              <span className="mt-1 block text-xs leading-relaxed text-texte-discret">
-                Ajouter une connaissance, une référence ou un support utile.
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => ouvrir("operationnel")}
-              className="group rounded-xl border border-bordure bg-surface-2 p-3 text-left transition-colors hover:border-alerte/35 hover:bg-alerte-faible/35"
-            >
-              <span className="flex items-center justify-between gap-3">
-                <IconeExercices className="size-5 text-alerte" />
-                <IconeFleche className="size-3.5 text-texte-discret group-hover:text-alerte" />
-              </span>
-              <span className="mt-3 block text-sm font-semibold">Travailler un domaine</span>
-              <span className="mt-1 block text-xs leading-relaxed text-texte-discret">
-                Lancer une séance, un projet ou une production.
-              </span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={ouvrir}
+            className="group mt-4 flex w-full items-center justify-between rounded-xl border border-bordure bg-surface-2 p-3 text-left transition-colors hover:border-primaire/35 hover:bg-primaire-faible/35"
+          >
+            <span className="flex items-center gap-3">
+              <IconeDocuments className="size-5 text-primaire" />
+              <span className="text-sm font-semibold">Nouvelle note de support</span>
+            </span>
+            <IconeFleche className="size-3.5 text-texte-discret group-hover:text-primaire" />
+          </button>
         </div>
       </Carte>
 
-      {projetOuvert && (
-        <ParcoursNouveauProjet
-          accountId={compteId}
-          intentionInitiale={[titre.trim(), contexte.trim()].filter(Boolean).join(" — ")}
-          onFermer={() => setProjetOuvert(false)}
-        />
-      )}
-
-      {role && !projetOuvert && (
+      {ouverte && (
         <Modale
-          titre={role === "support" ? "Nouvelle donnée" : "Nouveau travail"}
-          sousTitre={
-            role === "support"
-              ? "Cette fiche enrichit ton contexte documentaire ; elle ne mesure aucune compétence."
-              : "Choisis le domaine et le format du travail à mener. Les résultats observés seront enregistrés séparément."
-          }
+          titre="Nouvelle donnée"
+          sousTitre="Cette fiche enrichit ton contexte documentaire ; elle ne mesure aucune compétence."
           largeur="md"
-          onFermer={() => setRole(null)}
+          onFermer={() => setOuverte(false)}
           pied={
             <>
-              <Bouton variante="secondaire" onClick={() => setRole(null)}>Annuler</Bouton>
+              <Bouton variante="secondaire" onClick={() => setOuverte(false)}>Annuler</Bouton>
               <Bouton
                 variante="principal"
-                onClick={() => {
-                  // Le projet quitte le chemin des notes ici, avec ce qui a
-                  // déjà été saisi comme amorce de description.
-                  if (role === "operationnel" && format === "projet") {
-                    setRole(null);
-                    setProjetOuvert(true);
-                    return;
-                  }
-                  creer();
-                }}
+                onClick={creer}
                 disabled={!titre.trim() || !contexte.trim() || !domaine}
                 enChargement={enCours}
                 className={cx(enCours && "pointer-events-none")}
               >
-                {role === "operationnel" ? "Créer et commencer" : "Créer et ouvrir"}
+                Créer et ouvrir
               </Bouton>
             </>
           }
@@ -195,7 +109,7 @@ export function CaptureNotes({
                 value={titre}
                 onChange={(event) => setTitre(event.target.value)}
                 onKeyDown={(event) => { if (event.key === "Enter") creer(); }}
-                placeholder={role === "support" ? "Ex. Notes sur la théorie des files" : "Ex. Audit du flux de préparation"}
+                placeholder="Ex. Notes sur la théorie des files"
                 className="mt-1.5 w-full rounded-lg border border-bordure-controle bg-surface px-3 py-2.5 text-sm outline-none focus:border-primaire"
                 autoFocus
               />
@@ -211,9 +125,7 @@ export function CaptureNotes({
               />
             </label>
             <label className="block">
-              <span className="text-xs font-semibold uppercase tracking-wide text-texte-discret">
-                {role === "operationnel" ? "Domaine à travailler" : "Domaine concerné"}
-              </span>
+              <span className="text-xs font-semibold uppercase tracking-wide text-texte-discret">Domaine concerné</span>
               <select
                 value={domaine}
                 onChange={(event) => setDomaine(event.target.value)}
@@ -225,61 +137,14 @@ export function CaptureNotes({
                 ))}
               </select>
             </label>
-            {role === "operationnel" && (
-              <div className="space-y-2">
-                <label className="block">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-texte-discret">
-                    Angle de travail (facultatif)
-                  </span>
-                  <select
-                    value={themeId}
-                    onChange={(event) => setThemeId(event.target.value)}
-                    className="mt-1.5 w-full rounded-lg border border-bordure-controle bg-surface px-3 py-2.5 text-sm"
-                  >
-                    <option value="">
-                      {domaine === "transversal"
-                        ? "Tout le travail transversal"
-                        : `Tout le domaine ${domaines.find((option) => option.id === domaine)?.nom ?? "choisi"}`}
-                    </option>
-                    {themesDisponibles.map((theme) => (
-                      <option key={theme.id} value={theme.id}>{theme.libelle}</option>
-                    ))}
-                  </select>
-                </label>
-                {!creationThemeOuverte ? (
-                  <button
-                    type="button"
-                    onClick={() => setCreationThemeOuverte(true)}
-                    className="text-xs text-primaire hover:underline"
-                  >
-                    + Décrire un angle précis
-                  </button>
-                ) : (
-                  <ModaleTheme
-                    presentation="inline"
-                    competencesParCode={competencesParCode}
-                    compteId={compteId}
-                    domainesExistants={domaines}
-                    onFermer={() => setCreationThemeOuverte(false)}
-                    onCree={(theme) => {
-                      setThemesLocaux((precedents) => [...precedents, theme]);
-                      setThemeId(theme.id);
-                      setCreationThemeOuverte(false);
-                    }}
-                  />
-                )}
-              </div>
-            )}
             <label className="block">
-              <span className="text-xs font-semibold uppercase tracking-wide text-texte-discret">
-                {role === "operationnel" ? "Format de travail" : "Type de donnée"}
-              </span>
+              <span className="text-xs font-semibold uppercase tracking-wide text-texte-discret">Type de donnée</span>
               <select
                 value={format}
                 onChange={(event) => setFormat(event.target.value)}
                 className="mt-1.5 w-full rounded-lg border border-bordure-controle bg-surface px-3 py-2.5 text-sm"
               >
-                {FORMATS_PAR_ROLE[role].map((option) => (
+                {FORMATS_PAR_ROLE.support.map((option) => (
                   <option key={option.valeur} value={option.valeur}>{option.libelle}</option>
                 ))}
               </select>

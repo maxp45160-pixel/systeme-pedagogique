@@ -2,7 +2,6 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { chargerContexte } from "@/lib/store/context";
-import { chargerThemes } from "@/lib/store/themes";
 import { formatDuree } from "@/lib/engine/dates";
 import { SqueletteContenu } from "@/components/layout/squelette";
 import { calculerActivite, evenementsRecents } from "@/lib/engine/historique";
@@ -16,6 +15,7 @@ import { CarteProgressionRecente } from "@/components/dashboard/progression-rece
 import { CarteActivite } from "@/components/dashboard/activite";
 import { CarteProfil } from "@/components/dashboard/carte-profil";
 import { CaptureNotes } from "@/components/dashboard/capture-notes";
+import { ChoixTravail } from "@/components/dashboard/choix-travail";
 import { PilotageReferentiel } from "@/components/dashboard/pilotage-referentiel";
 import { Depliant } from "@/components/ui/explication";
 import { Glossaire } from "@/components/ui/glossaire";
@@ -77,7 +77,7 @@ function titreTravauxEnCours(exercices: number, activites: number): string {
 }
 
 async function ContenuTableauDeBord({ instant }: { instant: ContexteInstant }) {
-  const [ctx, themes] = await Promise.all([chargerContexte(), chargerThemes()]);
+  const ctx = await chargerContexte();
 
   // Compte neuf : il n'y a rien à mettre sur ce tableau de bord, et une grille
   // de tirets ne dit pas quoi faire. On envoie construire le référentiel — la
@@ -104,6 +104,16 @@ async function ContenuTableauDeBord({ instant }: { instant: ContexteInstant }) {
       ? loadAdaptiveOpenRuns(ctx.donnees.user.id)
       : Promise.resolve([]),
   ]);
+  const recommandationsTravail = (
+    action?.kind === "exercice" ? action.recommandations : ctx.recommandations
+  ).slice(0, 2).map((recommandation) => ({
+    code: recommandation.etat.skill.code,
+    intitule: recommandation.etat.skill.intitule,
+    domaineId: recommandation.etat.skill.domaine,
+    domaineNom: ctx.referentiel.domainesParId.get(recommandation.etat.skill.domaine)?.nom
+      ?? recommandation.etat.skill.domaine,
+    raison: recommandation.raison,
+  }));
 
   const evenements = evenementsRecents(ctx.preuvesEffectives, ctx.referentiel.parCode, 6, ctx.now);
   const activite = calculerActivite(ctx.donnees.sessions, ctx.now, ctx.donnees.attempts);
@@ -275,24 +285,15 @@ async function ContenuTableauDeBord({ instant }: { instant: ContexteInstant }) {
         compteId={ctx.donnees.user.id}
       />
 
-      {/*
-        La composition n'a plus son entrée propre ici.
-        Une séance se déclenche en capturant une note opérationnelle « Séance
-        d'exercices » : l'espace de travail de cette note ouvre le concepteur.
-        Garder les deux chemins offrirait deux gestes pour une même intention,
-        dont un seul laisserait une trace dans l'Atelier.
-      */}
+      {/* Les notes support et les travaux ont deux intentions différentes. */}
       <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
         <CaptureNotes
           domaines={ctx.referentiel.domaines
             .filter((domaine) => !domaine.archive && ctx.referentiel.actifs.some((skill) => skill.domaine === domaine.id))
             .map((domaine) => ({ id: domaine.id, nom: domaine.nom, prefixe: domaine.prefixe }))}
-          themes={themes}
-          competences={ctx.referentiel.actifs.map((skill) => ({
-            code: skill.code,
-            intitule: skill.intitule,
-            domaine: skill.domaine,
-          }))}
+        />
+        <ChoixTravail
+          recommandations={recommandationsTravail}
           compteId={ctx.donnees.user.id}
         />
         <CarteProfil user={ctx.donnees.user} />
