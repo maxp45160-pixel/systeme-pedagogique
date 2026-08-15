@@ -24,7 +24,11 @@ import { lireReferentiel } from "./referentiel";
 import {
   motifRefusExercice,
 } from "@/lib/domain/exercice";
-import { dureeRetenue, motifRefusTerminerExercice } from "@/lib/domain/tentative";
+import {
+  deciderAbandonExercice,
+  dureeRetenue,
+  motifRefusTerminerExercice,
+} from "@/lib/domain/tentative";
 import { seanceEnCoursPour } from "@/lib/domain/seance";
 import {
   urlExercice,
@@ -453,6 +457,17 @@ export async function abandonnerExercice(
     EXERCICES_DIAGNOSTIC.find((e) => e.id === exerciseId);
   if (!exercice) throw new Error(`Exercice introuvable : ${exerciseId}`);
 
+  /*
+   * L'état de la tentative est lu AVANT toute écriture, comme dans
+   * `terminerExercice` : c'est ce qui rend l'abandon idempotent. Sans cette
+   * lecture, chaque clic répété écrivait sa propre séance — douze pour un seul
+   * abandon le 12/08/2026 (voir `deciderAbandonExercice`, ADR-072).
+   */
+  const avant = (await lire("attempts", dorsale)).find((t) => t.id === attemptId);
+  if (!avant) throw new Error("Tentative introuvable");
+  const decision = deciderAbandonExercice(avant, exerciseId);
+  if (decision.action === "refuser") throw new Error(decision.motif);
+
   const date = new Date().toISOString();
   /*
    * Plafonnée à `dureeEstimeeMin` (ADR-071).
@@ -471,30 +486,32 @@ export async function abandonnerExercice(
       exercice.dureeEstimeeMin,
     ) ?? 1;
 
-  const tentative = await modifier(
-    "attempts",
-    attemptId,
-    { fin: date, dureeMin: duree, statut: "abandonnee" as const },
-    dorsale,
-  );
-  if (!tentative) throw new Error("Tentative introuvable");
+  if (decision.action === "abandonner") {
+    const tentative = await modifier(
+      "attempts",
+      attemptId,
+      { fin: date, dureeMin: duree, statut: "abandonnee" as const },
+      dorsale,
+    );
+    if (!tentative) throw new Error("Tentative introuvable");
 
-  // Dans une séance, l'entrée de journal existe déjà : c'est la séance (ADR-048).
-  if (!(await appartientAUneSeanceEnCours(exercice.id, dorsale))) await ajouter(
-    "sessions",
-    {
-      id: nouvelId("ses"),
-      date,
-      dureeMin: duree,
-      domaines: [exercice.domaine],
-      skillCodes: exercice.competences,
-      activites: [{ type: "exercice", ref: exercice.id, libelle: exercice.titre }],
-      resultat: "Tentative abandonnée — aucune preuve enregistrée",
-      difficulte: `Difficulté ${exercice.difficulte}/5 · ${duree} min sur ${exercice.dureeEstimeeMin} estimées`,
-      genereAutomatiquement: true,
-    } satisfies LearningSession,
-    dorsale,
-  );
+    // Dans une séance, l'entrée de journal existe déjà : c'est la séance (ADR-048).
+    if (!(await appartientAUneSeanceEnCours(exercice.id, dorsale))) await ajouter(
+      "sessions",
+      {
+        id: nouvelId("ses"),
+        date,
+        dureeMin: duree,
+        domaines: [exercice.domaine],
+        skillCodes: exercice.competences,
+        activites: [{ type: "exercice", ref: exercice.id, libelle: exercice.titre }],
+        resultat: "Tentative abandonnée — aucune preuve enregistrée",
+        difficulte: `Difficulté ${exercice.difficulte}/5 · ${duree} min sur ${exercice.dureeEstimeeMin} estimées`,
+        genereAutomatiquement: true,
+      } satisfies LearningSession,
+      dorsale,
+    );
+  }
 
   revalidatePath("/", "layout");
   redirect(await destinationApresExercice(exercice.id, "abandon", navigation, dorsale));

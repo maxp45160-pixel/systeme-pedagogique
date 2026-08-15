@@ -15,6 +15,7 @@ import { describe, expect, it } from "vitest";
 
 import { DUREE_ESTIMEE_MAX } from "./exercice";
 import {
+  deciderAbandonExercice,
   dureeRetenue,
   motifBlocageBilan,
   motifRefusTerminerExercice,
@@ -151,5 +152,36 @@ describe("dureeRetenue", () => {
     expect(dureeRetenue({ statut: "abandonnee", dureeMin: undefined }, ESTIMEE)).toBeUndefined();
     expect(dureeRetenue({ statut: "terminee", dureeMin: 0 }, ESTIMEE)).toBeUndefined();
     expect(dureeRetenue({ statut: "terminee", dureeMin: Number.NaN }, ESTIMEE)).toBeUndefined();
+  });
+});
+
+/**
+ * Ce que ces tests protègent : le 12/08/2026, douze séances identiques ont été
+ * écrites pour une seule tentative abandonnée (`att-msnh82t2-l8ls6`), chacune
+ * recomptée par `calculerActivite`. La règle testée ici est le second appel qui
+ * n'écrit rien.
+ */
+describe("deciderAbandonExercice", () => {
+  const enCours = { id: "att-1", statut: "en-cours" as const, exerciseId: "ex-1" };
+
+  it("abandonne une tentative en cours", () => {
+    expect(deciderAbandonExercice(enCours, "ex-1")).toEqual({ action: "abandonner" });
+  });
+
+  it("ignore un second appel : aucune séance n'est écrite deux fois", () => {
+    const apres = { ...enCours, statut: "abandonnee" as const };
+    expect(deciderAbandonExercice(apres, "ex-1")).toEqual({ action: "ignorer" });
+  });
+
+  it("refuse d'abandonner une tentative terminée — l'abandon ne défait pas une mesure", () => {
+    const decision = deciderAbandonExercice({ ...enCours, statut: "terminee" }, "ex-1");
+    expect(decision).toMatchObject({ action: "refuser" });
+  });
+
+  it("refuse un couple tentative/exercice incohérent, même déjà abandonnée", () => {
+    expect(deciderAbandonExercice(enCours, "ex-2")).toMatchObject({ action: "refuser" });
+    expect(
+      deciderAbandonExercice({ ...enCours, statut: "abandonnee" }, "ex-2"),
+    ).toMatchObject({ action: "refuser" });
   });
 });

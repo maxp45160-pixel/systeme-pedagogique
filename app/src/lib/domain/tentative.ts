@@ -143,3 +143,54 @@ export function motifRefusTerminerExercice(
   }
   return null;
 }
+
+/**
+ * Ce qu'un appel à `abandonnerExercice` doit faire de la tentative visée.
+ *
+ * `terminerExercice` refusait déjà une tentative close ; l'abandon, lui, ne
+ * regardait rien. Mesuré le 12/08/2026 sur `diag-dev-02` : **douze séances
+ * identiques** écrites entre 20:08:17 et 20:08:29 pour une seule tentative
+ * (`att-msnh82t2-l8ls6`), toutes `genereAutomatiquement`, toutes comptées par
+ * `calculerActivite` (lib/engine/historique.ts) — un abandon compté douze fois
+ * dans le temps travaillé (ADR-048 : une séance, une entrée de journal).
+ *
+ * Le refus symétrique de `motifRefusTerminerExercice` serait ici le mauvais
+ * geste : le second clic vient d'un utilisateur qui a déjà obtenu ce qu'il
+ * demandait, lui montrer une erreur serait mentir sur l'état réel. D'où trois
+ * issues plutôt que deux :
+ *
+ * - `abandonner` — la tentative est `en-cours`, on clôt et on journalise ;
+ * - `ignorer` — elle est **déjà** `abandonnee` : rien à écrire, on navigue.
+ *   C'est ce cas qui rend la fonction idempotente ;
+ * - `refuser` — incohérence réelle : tentative déjà `terminee` (elle porte une
+ *   preuve, l'abandonner la contredirait) ou couple tentative/exercice faux.
+ */
+export type DecisionAbandonExercice =
+  | { action: "abandonner" }
+  | { action: "ignorer" }
+  | { action: "refuser"; motif: string };
+
+export function deciderAbandonExercice(
+  avant: Pick<ExerciseAttempt, "id" | "statut" | "exerciseId">,
+  exerciseId: string,
+): DecisionAbandonExercice {
+  // Le couple d'abord : une tentative désignée par erreur ne doit être ni
+  // clôturée ni silencieusement acceptée, quel que soit son statut.
+  if (avant.exerciseId !== exerciseId) {
+    return {
+      action: "refuser",
+      motif: "La tentative ne correspond pas à cet exercice : l'abandon est rejeté.",
+    };
+  }
+  // Déjà abandonnée : le résultat demandé est déjà en base. Aucune écriture.
+  if (avant.statut === "abandonnee") return { action: "ignorer" };
+  // Terminée : elle porte une évaluation, donc potentiellement une preuve.
+  // L'abandon ne défait pas une mesure (P4).
+  if (avant.statut === "terminee") {
+    return {
+      action: "refuser",
+      motif: "Cette tentative est déjà terminée : elle ne peut plus être abandonnée.",
+    };
+  }
+  return { action: "abandonner" };
+}

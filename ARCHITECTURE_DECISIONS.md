@@ -5098,21 +5098,6 @@ repartira de ce besoin — et de cette ADR, qui conserve ce qui avait été tent
 Ce retrait est le LOT A du chantier « recentrer le produit sur la croissance
 visible ». Les lots suivants — l'impact de fin de travail, l'Atelier comme vue
 de croissance — ne créent aucune table : ils dérivent ce qui existe déjà.
-
----
-
-## Comment modifier ce registre
-
-1. Une décision ✅ ne se retire pas : elle passe en 🔄 **Remplacée**, avec le
-   numéro de l'ADR qui la remplace.
-2. Une 🔬 hypothèse doit porter son **test de réfutation**. Sans test, c'est une
-   opinion et elle n'a pas sa place ici.
-3. Une ❓ question ouverte doit nommer **qui doit trancher** et **ce qui bloque**.
-4. Aucune analyse produite par une session Claude ne devient ✅ sans validation
-   humaine explicite.
-
----
-
 ## ADR-071 — `dureeMin` est du temps d'horloge : ce qui compte comme travail se plafonne ✅
 
 **Date.** 15/08/2026. **Tranchée explicitement par Maxime.** Prolonge
@@ -5257,3 +5242,102 @@ dont il a besoin.
    plan, frappe, défilement). *Qui tranche :* Maxime. *Ce qui bloque :* aucune
    donnée aujourd'hui sur la fréquence des sessions laissées ouvertes — une
    seule est observée.
+
+---
+
+## ADR-072 — L'abandon d'une tentative est idempotent ; les séances qu'il a dupliquées sont effacées ✅
+
+**Date :** 16/08/2026
+**Remplace :** rien. Complète ADR-048 (une séance, une entrée de journal) et
+ADR-030 (l'abandon n'écrit aucune preuve).
+
+### Le fait
+
+Le 12/08/2026, entre 20:08:17 et 20:08:29, **douze séances identiques** ont été
+écrites en base pour l'exercice `diag-dev-02` : même `duree_min` (3065), même
+`resultat` (« Tentative abandonnée — aucune preuve enregistrée »), toutes
+`genere_automatiquement`. Une seule tentative les a produites
+(`att-msnh82t2-l8ls6`). Un utilisateur a cliqué douze fois sur « Abandonner »
+en douze secondes ; le serveur a obéi douze fois.
+
+`calculerActivite` (`lib/engine/historique.ts`) compte chaque séance : le même
+abandon pesait donc douze fois dans le temps travaillé et dans le compteur de
+séances. Le suivi longitudinal — la seule chose que ce produit prétend mesurer —
+disait faux sur cette journée.
+
+### La cause
+
+`terminerExercice` lit la tentative **avant** d'écrire et refuse une tentative
+déjà close (`motifRefusTerminerExercice`, ADR de la réponse écrite).
+`abandonnerExercice` ne lisait rien : il écrivait la tentative en `abandonnee`
+puis ajoutait sa séance, à chaque appel. Le troisième chemin de clôture avait
+été ajouté sans sa garde — l'asymétrie est le défaut, pas le clic.
+
+Le garde-fou client existait (bouton `disabled` pendant la transition) ; il ne
+protège rien. `abandonnerExercice` est une Server Function, donc un point
+d'entrée public : l'interface peut être contournée, pas la règle.
+
+### Décision — volet 1 : la règle
+
+`deciderAbandonExercice` (`lib/domain/tentative.ts`) devient l'autorité, module
+pur testable sans base, au même endroit que son homologue. Trois issues, et pas
+deux :
+
+- `abandonner` — tentative `en-cours` : on clôt, on journalise ;
+- `ignorer` — tentative **déjà** `abandonnee` : aucune écriture, on navigue ;
+- `refuser` — tentative `terminee` (elle porte une évaluation : l'abandon ne
+  défait pas une mesure), ou couple tentative/exercice incohérent.
+
+Le cas `ignorer` est le cœur de la décision. Le refus symétrique de
+`terminerExercice` aurait été le mauvais geste : le second clic vient d'un
+utilisateur qui a déjà obtenu ce qu'il demandait. Lui montrer une erreur serait
+mentir sur l'état réel de sa tentative. **Idempotent, pas bruyant.**
+
+`abandonnerExercice` lit désormais la tentative avant toute écriture, et la
+décision commande à la fois la mise à jour du statut et l'ajout de la séance.
+Tests dans `lib/domain/tentative.test.ts`.
+
+### Décision — volet 2 : les données déjà écrites
+
+Les 11 séances surnuméraires sont **supprimées** ; la première
+(`ses-msqiumcq-dck2y`, 20:08:17) est conservée — l'abandon a bien eu lieu, une
+fois.
+
+L'invariant « une séance avec des preuves est archivée, jamais supprimée » n'est
+pas contourné : il protège une trace qui explique une mesure. Ces onze lignes
+n'en portent aucune (`resultat` d'abandon, zéro preuve rattachée, aucune clé
+étrangère ne référence `sessions`), et l'abandon n'écrit jamais de preuve par
+construction (ADR-030). Ce ne sont pas des faits d'apprentissage : ce sont des
+artefacts d'écriture. Les archiver aurait exigé une colonne et un filtre dans le
+moteur pour préserver des lignes sans contenu informatif.
+
+Suppression exécutée le 16/08/2026 sur le projet `vxkjzzshlqulexydgfpc`, après
+vérification des 12 lignes et de l'absence de dépendance.
+
+### Ce que cette décision ne dit pas
+
+Elle ne dit pas que les autres chemins d'écriture sont idempotents. Elle dit que
+**tout point d'entrée public qui clôt une tentative doit lire son état avant
+d'écrire** — `terminerExercice` le faisait, `abandonnerExercice` ne le faisait
+pas, et l'écart s'est vu en base avant de se voir en revue. Une écriture de
+journal déclenchée par un clic est un candidat à ce défaut par défaut.
+
+### Réserve
+
+Le plafonnement de `dureeMin` évoqué avec cette correction (les 3065 min ramenées
+à 240 min à la lecture) **n'est pas présent sur cette branche** : ni dans
+`lib/engine/historique.ts`, ni dans ce registre. Il vit ailleurs et devra être
+rapproché de cette ADR au moment du merge. Il traitait la durée aberrante, pas
+la duplication — les deux défauts sont indépendants.
+
+---
+
+## Comment modifier ce registre
+
+1. Une décision ✅ ne se retire pas : elle passe en 🔄 **Remplacée**, avec le
+   numéro de l'ADR qui la remplace.
+2. Une 🔬 hypothèse doit porter son **test de réfutation**. Sans test, c'est une
+   opinion et elle n'a pas sa place ici.
+3. Une ❓ question ouverte doit nommer **qui doit trancher** et **ce qui bloque**.
+4. Aucune analyse produite par une session Claude ne devient ✅ sans validation
+   humaine explicite.
