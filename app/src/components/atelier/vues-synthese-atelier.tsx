@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { cx } from "@/components/ui/primitives";
 import { BoutonRetour } from "@/components/ui/lien-retour";
@@ -27,6 +27,12 @@ import {
   IconeDocuments,
   IconeFleche,
 } from "@/components/ui/icones";
+import { formatDateRelative } from "@/lib/engine/dates";
+import {
+  filtrerEtTrierDomaines,
+  LIBELLES_TRIS_DOMAINES,
+  type TriDomaine,
+} from "@/lib/documents/tri-domaines";
 
 export function CarteCreationPointillee({
   titre,
@@ -170,8 +176,14 @@ export function VueTousLesDomaines({
   const router = useRouter();
   const [modaleCreationOuverte, setModaleCreationOuverte] = useState(false);
   const [domaineASupprimer, setDomaineASupprimer] = useState<VueDomaineAtelier | null>(null);
+  const [tri, setTri] = useState<TriDomaine>("recent");
+
   const estTransversal = selection === "transversal";
   const estArchives = selection === "domaines-archives";
+
+  const domainesAffiches = useMemo(() => {
+    return filtrerEtTrierDomaines(domaines, { tri });
+  }, [domaines, tri]);
 
   const titrePrincipal = estTransversal
     ? "Vue transversale"
@@ -199,9 +211,35 @@ export function VueTousLesDomaines({
         setSidebarOuverte={setSidebarOuverte}
       />
 
-      <div className="p-6 lg:p-8">
+      <div className="p-6 lg:p-8 space-y-4">
+        {/* Ligne discrète de tri et d'information */}
+        <div className="flex items-center justify-between gap-4 text-xs text-texte-discret">
+          <span className="font-medium text-texte-attenue">
+            {domaines.length} domaine{domaines.length > 1 ? "s" : ""}
+          </span>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <label htmlFor="tri-domaines" className="text-texte-discret text-xs">
+              Trier par :
+            </label>
+            <select
+              id="tri-domaines"
+              value={tri}
+              onChange={(e) => setTri(e.target.value as TriDomaine)}
+              className="rounded-md border border-bordure bg-surface px-2.5 py-1 text-xs font-medium text-texte transition-colors hover:border-primaire/40 focus:border-primaire focus:outline-hidden cursor-pointer"
+            >
+              {Object.entries(LIBELLES_TRIS_DOMAINES).map(([cle, libelle]) => (
+                <option key={cle} value={cle}>
+                  {libelle}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Grille des domaines */}
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {domaines.map((domaine) => {
+          {domainesAffiches.map((domaine) => {
             const total = domaine.competences.length;
             const evaluees = domaine.nombreEvaluees;
             const ratio = total > 0 ? Math.round((evaluees / total) * 100) : 0;
@@ -231,13 +269,19 @@ export function VueTousLesDomaines({
                     )}
                   </div>
 
-                  <div className="mt-5 border-t border-bordure pt-3">
+                  <div className="mt-5 border-t border-bordure pt-3 space-y-2">
                     <div className="flex items-center justify-between text-xs text-texte-discret">
                       <span>Couverture</span>
                       <span className="chiffres font-medium text-texte">{ratio}% ({evaluees}/{total})</span>
                     </div>
-                    <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-surface-3">
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-3">
                       <div className="h-full rounded-full bg-primaire transition-all duration-300" style={{ width: `${ratio}%` }} />
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-texte-discret pt-0.5">
+                      <span>Dernière activité</span>
+                      <span className="chiffres text-texte-attenue font-medium">
+                        {domaine.derniereActivite ? formatDateRelative(domaine.derniereActivite) : "Aucune"}
+                      </span>
                     </div>
                   </div>
                 </button>
