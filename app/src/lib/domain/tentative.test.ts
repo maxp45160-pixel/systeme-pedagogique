@@ -109,7 +109,7 @@ describe("motifRefusTerminerExercice", () => {
 });
 
 /*
- * `dureeRetenue` — ADR-070.
+ * `dureeRetenue` — ADR-071.
  *
  * `dureeMin` est du temps d'HORLOGE. Le 15/08/2026, `att-mst5fis8-rfsu6` portait
  * 1015 minutes pour un exercice ouvert la veille au soir et abandonné le matin.

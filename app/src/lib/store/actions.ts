@@ -232,7 +232,7 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
   /*
    * `menee` se décide sur la durée BRUTE — « la tentative a-t-elle eu lieu ? »
    * porte sur le temps réellement écoulé. Ce qu'on ÉCRIT, en revanche, passe par
-   * `dureeRetenue` (ADR-070) : `dureeMin` est du temps d'horloge, et un onglet
+   * `dureeRetenue` (ADR-071) : `dureeMin` est du temps d'horloge, et un onglet
    * laissé ouvert une nuit produisait 1015 minutes de « travail ». Le plafond ne
    * change rien à une durée plausible, donc rien à `dureeDeReference`.
    */
@@ -455,7 +455,7 @@ export async function abandonnerExercice(
 
   const date = new Date().toISOString();
   /*
-   * Plafonnée à `dureeEstimeeMin` (ADR-070).
+   * Plafonnée à `dureeEstimeeMin` (ADR-071).
    *
    * C'est ce chemin qui a produit `att-mst5fis8-rfsu6` : exercice ouvert le
    * 14/08/2026 à 18 h 15, abandonné le 15 à 11 h 11, `duree_min = 1015`.

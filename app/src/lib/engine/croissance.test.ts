@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { resumeCroissance } from "./croissance";
 import { REFERENTIEL_TEST } from "@/lib/domain/referentiel.fixture";
+import { DUREE_ESTIMEE_MAX } from "@/lib/domain/exercice";
 import type {
   ExerciseAttempt,
   LearningSession,
@@ -246,5 +247,63 @@ describe("resumeCroissance — un palier franchi n'est pas une rencontre", () =>
     // …mais la croissance ne l'appelle pas un palier franchi.
     expect(resume.jour.franchissements).toBe(0);
     expect(resume.jour.premieresMesures).toBe(1);
+  });
+});
+
+/*
+ * Le temps d'horloge d'une tentative abandonnée (ADR-071).
+ *
+ * C'est cet écran qui a rendu le défaut visible : le 15/08/2026, l'accueil de
+ * l'Atelier affichait « AUJOURD'HUI · TRAVAILLÉ 16 h 55 · EXERCICES 0 ·
+ * PREUVES 0 » pour `att-mst5fis8-rfsu6`, un exercice ouvert la veille au soir et
+ * abandonné le matin — `duree_min = 1015`.
+ */
+describe("resumeCroissance — temps retenu d'un abandon", () => {
+  const nuitOuverte: ExerciseAttempt = {
+    ...tentative(CE_MATIN, "abandonnee"),
+    debut: VEILLE_TARD,
+    dureeMin: 1015,
+    resultat: "partiel",
+  };
+
+  it("plafonne à la durée estimée quand elle est fournie", () => {
+    const resume = resumeCroissance({
+      sessions: [seance(CE_MATIN, 1015)],
+      tentatives: [nuitOuverte],
+      preuves: [],
+      skillsParCode: SKILLS,
+      dureesEstimees: new Map([["ex-1", 60]]),
+      now: MAINTENANT,
+    });
+
+    expect(resume.jour.minutes).toBe(60);
+    expect(resume.semaine.minutes).toBe(60);
+  });
+
+  it("sans table d'estimations, retombe sur le garde-fou plutôt que sur 1015", () => {
+    // `dureesEstimees` est optionnelle : un appelant qui l'oublie ne doit pas
+    // pour autant réintroduire la nuit entière.
+    const resume = resumeCroissance({
+      sessions: [seance(CE_MATIN, 1015)],
+      tentatives: [nuitOuverte],
+      preuves: [],
+      skillsParCode: SKILLS,
+      now: MAINTENANT,
+    });
+
+    expect(resume.jour.minutes).toBe(DUREE_ESTIMEE_MAX);
+  });
+
+  it("ne touche pas une tentative menée de durée plausible", () => {
+    const resume = resumeCroissance({
+      sessions: [seance(CE_MATIN)],
+      tentatives: [tentative(CE_MATIN)],
+      preuves: [],
+      skillsParCode: SKILLS,
+      dureesEstimees: new Map([["ex-1", 15]]),
+      now: MAINTENANT,
+    });
+
+    expect(resume.jour.minutes).toBe(20);
   });
 });

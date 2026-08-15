@@ -1143,7 +1143,7 @@ describe("activiteSurFenetre — mesure réellement bornée par la période", ()
   });
 
   /*
-   * Temps d'horloge d'une tentative abandonnée (ADR-070).
+   * Temps d'horloge d'une tentative abandonnée (ADR-071).
    *
    * `att-mst5fis8-rfsu6`, 15/08/2026 : exercice ouvert le 14 à 18 h 15, abandonné
    * le 15 à 11 h 11, `duree_min = 1015`, `statut = abandonnee`. L'accueil
@@ -1152,7 +1152,7 @@ describe("activiteSurFenetre — mesure réellement bornée par la période", ()
    */
   describe("temps retenu d'une tentative abandonnée", () => {
     // Une table `id → dureeEstimeeMin`, comme celle que `Contexte` expose : elle
-    // couvre aussi ce que `donnees.exercises` filtre (ADR-070).
+    // couvre aussi ce que `donnees.exercises` filtre (ADR-071).
     const estimees = (dureeEstimeeMin: number) => new Map([["ex-nuit", dureeEstimeeMin]]);
 
     const seanceDeLaNuit: LearningSession = {

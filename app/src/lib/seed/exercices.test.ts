@@ -2,7 +2,7 @@
  * Ce que ces tests protègent.
  *
  * `tableDureesEstimees` est la seule source d'estimation pour le plafond de
- * `dureeRetenue` (ADR-070). Le défaut qu'elle corrige était invisible : les
+ * `dureeRetenue` (ADR-071). Le défaut qu'elle corrige était invisible : les
  * diagnostics ne vivent pas en base, la liste d'exercices du contexte est
  * filtrée par périmètre, et une tentative abandonnée sur un diagnostic sorti du
  * référentiel se retrouvait donc plafonnée à 240 min au lieu de son estimation.

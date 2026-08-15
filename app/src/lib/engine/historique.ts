@@ -154,7 +154,7 @@ interface TraceActivite {
  * disponible. Les séances historiques sans tentative correspondante gardent
  * leur ligne de repli : on ne réécrit pas le passé par absence de donnée.
  *
- * ⚠️ La durée d'une tentative passe par `dureeRetenue` (ADR-070), jamais par
+ * ⚠️ La durée d'une tentative passe par `dureeRetenue` (ADR-071), jamais par
  * `tentative.dureeMin` brut. `dureeMin` est du temps d'horloge : un exercice
  * laissé ouvert une nuit puis abandonné valait 1015 minutes, et l'activité les
  * comptait comme du travail. Le plafond s'applique ici en plus de l'écriture

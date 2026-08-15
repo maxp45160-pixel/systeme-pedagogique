@@ -90,6 +90,13 @@ export interface EntreesCroissance {
   preuves: readonly SkillEvidence[];
   /** Tout le référentiel, archivées comprises : une preuve ancienne reste lisible (P4). */
   skillsParCode: ReadonlyMap<string, Skill>;
+  /**
+   * `dureeEstimeeMin` par exercice — le plafond du temps retenu pour une
+   * tentative abandonnée (ADR-071). Sans elle, un exercice laissé ouvert une
+   * nuit compte pour le garde-fou de 240 min au lieu de sa durée estimée, et
+   * « TRAVAILLÉ » annonce un travail qui n'a pas eu lieu.
+   */
+  dureesEstimees?: ReadonlyMap<string, number>;
   now?: Date;
   /** Nombre d'événements de progression rendus. */
   limiteEvenements?: number;
@@ -180,8 +187,9 @@ export function resumeCroissance(entrees: EntreesCroissance): ResumeCroissance {
   );
   const evenements = evenementsRecents(preuves, entrees.skillsParCode, limite, now);
 
-  const activite = calculerActivite(sessions, now, tentatives);
-  const semaine = activiteSurFenetre(sessions, 7, now, tentatives);
+  const dureesEstimees = new Map(entrees.dureesEstimees ?? []);
+  const activite = calculerActivite(sessions, now, tentatives, dureesEstimees);
+  const semaine = activiteSurFenetre(sessions, 7, now, tentatives, dureesEstimees);
   const aujourdhui = cleJour(now);
 
   const jour = construireFenetre({

@@ -23,7 +23,7 @@ import { DUREE_ESTIMEE_MAX } from "@/lib/domain/exercice";
 
 /**
  * La durée d'une tentative que le système accepte de compter comme du temps
- * travaillé (ADR-070).
+ * travaillé (ADR-071).
  *
  * `terminerExercice` et `abandonnerExercice` écrivent `dureeMin` comme du temps
  * d'HORLOGE : début de la tentative, fin du geste de clôture. Observé le

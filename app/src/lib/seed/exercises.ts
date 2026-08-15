@@ -1332,7 +1332,7 @@ Un commentaire n'est pas exécuté — rien ne garantit qu'il est encore vrai. L
 ];
 
 /**
- * `dureeEstimeeMin` par exercice, seed compris et sans aucun filtre (ADR-070).
+ * `dureeEstimeeMin` par exercice, seed compris et sans aucun filtre (ADR-071).
  *
  * `Contexte.donnees.exercises` ne répond pas à cette question : elle est filtrée
  * par périmètre, et n'accueille un diagnostic hors périmètre que s'il porte une

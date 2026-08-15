@@ -5113,7 +5113,7 @@ de croissance — ne créent aucune table : ils dérivent ce qui existe déjà.
 
 ---
 
-## ADR-070 — `dureeMin` est du temps d'horloge : ce qui compte comme travail se plafonne ✅
+## ADR-071 — `dureeMin` est du temps d'horloge : ce qui compte comme travail se plafonne ✅
 
 **Date.** 15/08/2026. **Tranchée explicitement par Maxime.** Prolonge
 [ADR-030](#adr-030) (une tentative abandonnée ne produit pas de preuve) du côté

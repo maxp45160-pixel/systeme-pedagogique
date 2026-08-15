@@ -372,6 +372,7 @@ export default async function PageAtelier(props: {
           tentatives: contexte.donnees.attempts,
           preuves: contexte.preuvesEffectives,
           skillsParCode: referentiel.parCode,
+          dureesEstimees: contexte.dureesEstimees,
           now: contexte.now,
         })}
         ensemblesSuggeres={ensemblesProposes({

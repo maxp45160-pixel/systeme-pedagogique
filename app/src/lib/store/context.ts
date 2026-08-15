@@ -42,7 +42,7 @@ export interface Contexte {
    */
   exercicesActifs: Collections["exercises"];
   /**
-   * `dureeEstimeeMin` par exercice, **sans aucun filtre** (ADR-070).
+   * `dureeEstimeeMin` par exercice, **sans aucun filtre** (ADR-071).
    *
    * `donnees.exercises` ne convient pas pour cet usage : elle est filtrée par
    * périmètre, et n'accueille un diagnostic hors périmètre que s'il porte une
@@ -80,7 +80,7 @@ export interface Contexte {
    * Les preuves qui comptent pour le moteur.
    *
    * Elles étaient filtrées par un journal de rectifications, retiré le
-   * 15/08/2026 avec la boucle qui le portait (ADR-070) : la table
+   * 15/08/2026 avec la boucle qui le portait (ADR-071) : la table
    * `evidence_status_events` n'a jamais existé en production. Le champ reste
    * distinct de `donnees.evidence` parce qu'il nomme une intention — ce qui
    * entre dans le calcul — et qu'un futur mécanisme d'invalidation reprendrait
@@ -180,7 +180,7 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
   };
 
   // Sur les données BRUTES, pas sur `donnees.exercises` : c'est tout le point
-  // (ADR-070, `tableDureesEstimees`). La liste filtrée laisserait sans
+  // (ADR-071, `tableDureesEstimees`). La liste filtrée laisserait sans
   // estimation les diagnostics et les exercices sortis du périmètre.
   const dureesEstimees = tableDureesEstimees(donneesBrutes.exercises);
 
