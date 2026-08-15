@@ -226,33 +226,40 @@ export async function scannerUxJourney(options?: {
       const slug = slugId(modale.titre);
       const id = `${modale.estTiroir ? "tiroir" : "modal"}:${slug}`;
 
-      ajouterNoeud({
-        id,
-        type: modale.estTiroir ? "tiroir" : "modal",
-        libelle: modale.titre,
-        groupe: groupePourChemin(modale.fichier),
-      });
-
-      // Relier depuis chaque page qui monte cette modale
+      // Trouver toutes les pages qui montent cette modale
+      const pagesSources: string[] = [];
       for (const [route, comps] of composantsParPage.entries()) {
         if (comps.has(modale.fichier) || route === a.route) {
           const sourcePage = `page:${route}`;
           if (parId.has(sourcePage)) {
-            connecter({
-              source: sourcePage,
-              target: id,
-              type: "ouverture",
-              libelle: `Ouvrir ${modale.titre}`,
-              declencheur: `Déclencheur d'ouverture dans ${route}`,
-            });
-            connecter({
-              source: id,
-              target: sourcePage,
-              type: "retour",
-              libelle: "Fermer",
-              declencheur: "Clic 'Fermer' / Échap",
-            });
+            pagesSources.push(sourcePage);
           }
+        }
+      }
+
+      if (pagesSources.length > 0) {
+        ajouterNoeud({
+          id,
+          type: modale.estTiroir ? "tiroir" : "modal",
+          libelle: modale.titre,
+          groupe: groupePourChemin(modale.fichier),
+        });
+
+        for (const sourcePage of pagesSources) {
+          connecter({
+            source: sourcePage,
+            target: id,
+            type: "ouverture",
+            libelle: `Ouvrir ${modale.titre}`,
+            declencheur: `Déclencheur d'ouverture`,
+          });
+          connecter({
+            source: id,
+            target: sourcePage,
+            type: "retour",
+            libelle: "Fermer",
+            declencheur: "Clic 'Fermer' / Échap",
+          });
         }
       }
     }
@@ -274,6 +281,9 @@ export async function scannerUxJourney(options?: {
     ];
 
     for (const f of fichiersAInspecter) {
+      const surfaceCompId = mode === "atomique" ? surfacesParFichier.get(f.relatif) : undefined;
+      const sourceEffective = surfaceCompId && parId.has(surfaceCompId) ? surfaceCompId : pageId;
+
       // Boutons avec action
       for (const b of f.boutons) {
         if (b.actionInvoquee) {
@@ -288,7 +298,7 @@ export async function scannerUxJourney(options?: {
             });
 
             connecter({
-              source: pageId,
+              source: sourceEffective,
               target: actId,
               type: "soumission",
               libelle: act.libelle,
@@ -333,7 +343,7 @@ export async function scannerUxJourney(options?: {
         });
 
         connecter({
-          source: pageId,
+          source: sourceEffective,
           target: actId,
           type: "soumission",
           libelle: act.libelle,
@@ -366,19 +376,22 @@ export async function scannerUxJourney(options?: {
 
   // 6. Navigations inter-pages et boutons de navigation
   for (const [route, comps] of composantsParPage.entries()) {
-    const sourceId = `page:${route}`;
+    const pageId = `page:${route}`;
     const fichiersAInspecter = [
       ...[...analyses.values()].filter((a) => a.route === route),
       ...[...comps].map((c) => analyses.get(c)).filter(Boolean) as import("./workflow-ast-parser").FichierAstAnalyse[],
     ];
 
     for (const f of fichiersAInspecter) {
+      const surfaceCompId = mode === "atomique" ? surfacesParFichier.get(f.relatif) : undefined;
+      const sourceEffective = surfaceCompId && parId.has(surfaceCompId) ? surfaceCompId : pageId;
+
       for (const nav of f.navigations) {
         const cibleBase = baseRoute(nav.cible);
         const targetId = `page:${cibleBase}`;
-        if (parId.has(targetId) && targetId !== sourceId) {
+        if (parId.has(targetId) && targetId !== pageId) {
           connecter({
-            source: sourceId,
+            source: sourceEffective,
             target: targetId,
             type: "navigation",
             libelle: `Vers ${nav.cible}`,

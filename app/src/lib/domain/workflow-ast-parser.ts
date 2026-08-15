@@ -112,12 +112,46 @@ export function slugId(texte: string): string {
 }
 
 export function normaliserUrl(url: string): string {
-  return url.replace(/\$\{[^}]+\}/g, (match) => {
-    if (match.includes("code")) return "{code}";
-    if (match.includes("id") || match.includes("run") || match.includes("session"))
-      return "{id}";
-    return "{param}";
-  });
+  let u = url.trim();
+  if ((u.startsWith("`") && u.endsWith("`")) || (u.startsWith('"') && u.endsWith('"')) || (u.startsWith("'") && u.endsWith("'"))) {
+    u = u.slice(1, -1);
+  }
+  let resultat = "";
+  let i = 0;
+  while (i < u.length) {
+    if (u.startsWith("${", i)) {
+      let profondeur = 1;
+      let j = i + 2;
+      while (j < u.length && profondeur > 0) {
+        if (u[j] === "{") profondeur++;
+        else if (u[j] === "}") profondeur--;
+        j++;
+      }
+      const expr = u.slice(i, j).toLowerCase();
+      if (expr.includes("code") || expr.includes("domaine") || expr.includes("doc")) {
+        resultat += "{code}";
+      } else if (expr.includes("id") || expr.includes("run") || expr.includes("session")) {
+        resultat += "{id}";
+      } else {
+        resultat += "{param}";
+      }
+      i = j;
+    } else {
+      resultat += u[i];
+      i++;
+    }
+  }
+  return resultat.replace(/['"`]/g, "").trim();
+}
+
+export function normaliserTexteDynamique(texte: string): string {
+  return texte
+    .replace(/\$\{[^}]+\}/g, "")
+    .replace(/\(\s*\)/g, "")
+    .replace(/[\s(]+$/, "")
+    .replace(/\s+/g, " ")
+    .replace(/['"`]/g, "")
+    .trim();
 }
 
 export function baseRoute(url: string): string {
@@ -147,6 +181,13 @@ export function groupePourChemin(relatif: string): GroupeWorkflow {
     return "seances";
   }
   if (
+    r.startsWith("app/(app)/exercices") ||
+    r.startsWith("components/exercices") ||
+    r.startsWith("components/bilan")
+  ) {
+    return "exercice";
+  }
+  if (
     r.startsWith("app/(app)/atelier") ||
     r.startsWith("components/atelier") ||
     r.startsWith("components/referentiel") ||
@@ -154,43 +195,69 @@ export function groupePourChemin(relatif: string): GroupeWorkflow {
   ) {
     return "atelier";
   }
-  if (
-    r.startsWith("app/(app)/exercices") ||
-    r.startsWith("components/exercices")
-  ) {
-    return "exercice";
-  }
   if (r.startsWith("components/tuteur")) {
     return "tuteur";
   }
   if (
     r.startsWith("app/(app)/profil") ||
-    r.startsWith("app/(app)/demarrer") ||
     r.startsWith("components/profil") ||
-    r.startsWith("components/demarrer") ||
-    r.startsWith("app/login")
+    r.startsWith("components/compte") ||
+    r.startsWith("components/layout")
   ) {
     return "profil";
   }
   return "dashboard";
 }
 
-function cheminVersRoute(relatifApp: string): string | null {
-  if (!relatifApp.endsWith("page.tsx") && !relatifApp.endsWith("page.ts"))
-    return null;
-
-  let route = relatifApp.replace(/\/?page\.tsx?$/, "");
-  route = route.replace(/\([^)]+\)\/?/g, "");
-  route = route.replace(/\[([^\]]+)\]/g, "{$1}");
-  route = "/" + route;
-  route = route.replace(/\/+/g, "/");
-  if (route !== "/" && route.endsWith("/")) route = route.slice(0, -1);
-  return route;
+export function couleurGroupe(groupe: GroupeWorkflow): string {
+  switch (groupe) {
+    case "dashboard":
+      return "#2f6f4f22";
+    case "seances":
+      return "#3b82f622";
+    case "exercice":
+      return "#f59e0b22";
+    case "atelier":
+      return "#8b5cf622";
+    case "tuteur":
+      return "#06b6d422";
+    case "profil":
+      return "#64748b22";
+  }
 }
 
-/* ------------------------------------------------------------------ */
-/* Lecture récursive des fichiers                                      */
-/* ------------------------------------------------------------------ */
+export function cheminVersRoute(relatifApp: string): string | null {
+  const norm = relatifApp.replace(/\\/g, "/");
+  const match = norm.match(/(?:^|\/)(page)\.(tsx|ts|js|jsx)$/);
+  if (!match) return null;
+
+  let rep = norm.replace(/\/page\.(tsx|ts|js|jsx)$/, "");
+  if (rep === norm || rep === "page") rep = "";
+
+  const segments = rep
+    .split("/")
+    .filter((s) => s.length > 0 && !s.startsWith("(") && !s.endsWith(")"));
+
+  const route = "/" + segments.map((s) => {
+    if (s.startsWith("[...") && s.endsWith("]")) return `{...${s.slice(4, -1)}}`;
+    if (s.startsWith("[[...") && s.endsWith("]]")) return `{[...${s.slice(5, -2)}]}`;
+    if (s.startsWith("[") && s.endsWith("]")) return `{${s.slice(1, -1)}}`;
+    return s;
+  }).join("/");
+
+  return route === "" ? "/" : route;
+}
+
+export function routeVersId(route: string): string {
+  if (route === "/") return "page:/";
+  const sanitized = route
+    .replace(/^\//, "")
+    .replace(/[{}]/g, "")
+    .replace(/\//g, "-")
+    .replace(/\?/g, "-")
+    .replace(/=/g, "-");
+  return `page:/${sanitized}`;
+}
 
 const cacheContenus = new Map<string, { mtimeMs: number; contenu: string }>();
 
@@ -211,22 +278,24 @@ export async function lireFichierAvecCache(chemin: string): Promise<string | nul
 
 export async function listerFichiersRec(
   repertoire: string,
-  extensions = [".tsx", ".ts"],
+  extensions: string[] = [".tsx", ".ts"],
 ): Promise<string[]> {
-  const resultats: string[] = [];
   let entrees: import("fs").Dirent[];
   try {
     entrees = await readdir(repertoire, { withFileTypes: true });
   } catch {
-    return resultats;
+    return [];
   }
+  const resultats: string[] = [];
+
   for (const entree of entrees) {
     if (
       entree.name === "node_modules" ||
       entree.name === ".next" ||
       entree.name === ".git"
-    )
+    ) {
       continue;
+    }
     const chemin = join(repertoire, entree.name);
     if (entree.isDirectory()) {
       resultats.push(...(await listerFichiersRec(chemin, extensions)));
@@ -261,10 +330,40 @@ function extraireTexteNoeudJsx(noeud: ts.Node, sf: ts.SourceFile): string {
   if (ts.isJsxExpression(noeud) && noeud.expression) {
     return extraireTexteNoeudJsx(noeud.expression, sf);
   }
+  if (ts.isTemplateExpression(noeud)) {
+    return normaliserTexteDynamique(noeud.getText(sf).slice(1, -1));
+  }
   return "";
 }
 
-function valeurPropJsx(elem: ts.JsxOpeningElement | ts.JsxSelfClosingElement, nomProp: string, sf: ts.SourceFile): string | undefined {
+function resoudreValeurConstante(sf: ts.SourceFile, identifiant: string): string | undefined {
+  for (const statement of sf.statements) {
+    if (ts.isVariableStatement(statement)) {
+      for (const decl of statement.declarationList.declarations) {
+        if (ts.isIdentifier(decl.name) && decl.name.text === identifiant && decl.initializer) {
+          if (ts.isStringLiteral(decl.initializer) || ts.isNoSubstitutionTemplateLiteral(decl.initializer)) {
+            return decl.initializer.text;
+          }
+          if (ts.isTemplateExpression(decl.initializer)) {
+            return normaliserUrl(decl.initializer.getText(sf).slice(1, -1));
+          }
+          if (ts.isConditionalExpression(decl.initializer)) {
+            if (ts.isStringLiteral(decl.initializer.whenTrue)) return decl.initializer.whenTrue.text;
+            if (ts.isStringLiteral(decl.initializer.whenFalse)) return decl.initializer.whenFalse.text;
+          }
+        }
+      }
+    }
+  }
+  return undefined;
+}
+
+function valeurPropJsx(
+  elem: ts.JsxOpeningElement | ts.JsxSelfClosingElement,
+  nomProp: string,
+  sf: ts.SourceFile,
+  fichierRelatif?: string,
+): string | undefined {
   for (const prop of elem.attributes.properties) {
     if (ts.isJsxAttribute(prop) && prop.name.getText(sf) === nomProp) {
       if (!prop.initializer) return "true";
@@ -272,13 +371,27 @@ function valeurPropJsx(elem: ts.JsxOpeningElement | ts.JsxSelfClosingElement, no
         return prop.initializer.text;
       }
       if (ts.isJsxExpression(prop.initializer) && prop.initializer.expression) {
-        if (ts.isStringLiteral(prop.initializer.expression) || ts.isNoSubstitutionTemplateLiteral(prop.initializer.expression)) {
-          return prop.initializer.expression.text;
+        const expr = prop.initializer.expression;
+        if (ts.isStringLiteral(expr) || ts.isNoSubstitutionTemplateLiteral(expr)) {
+          return expr.text;
         }
-        if (ts.isTemplateExpression(prop.initializer.expression)) {
-          return normaliserUrl(prop.initializer.expression.getText(sf).slice(1, -1));
+        if (ts.isTemplateExpression(expr)) {
+          return normaliserUrl(expr.getText(sf).slice(1, -1));
         }
-        return prop.initializer.expression.getText(sf);
+        if (ts.isIdentifier(expr)) {
+          const nom = expr.text;
+          const resolu = resoudreValeurConstante(sf, nom);
+          if (resolu) return resolu;
+          if (nomProp === "titre" && fichierRelatif) {
+            const nomFichier = fichierRelatif.split("/").pop() ?? "";
+            const base = nomFichier.replace(/^modale-|^tiroir-|\.tsx?$/g, "").replace(/-/g, " ");
+            if (base && base !== "modale" && base !== "tiroir") {
+              return base.charAt(0).toUpperCase() + base.slice(1);
+            }
+          }
+          return nom;
+        }
+        return expr.getText(sf);
       }
     }
   }
@@ -338,9 +451,14 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
 
           let redirection: string | undefined;
           const corpsTexte = statement.body ? statement.body.getText(sf) : "";
-          const mRedir = corpsTexte.match(/redirect\(["'`]([^"'`]+)["'`]\)/);
+          const mRedir = corpsTexte.match(/redirect\(([^)]+)\)/);
           if (mRedir) {
-            redirection = normaliserUrl(mRedir[1]);
+            const arg = mRedir[1].trim();
+            if (arg.includes("pole") || arg.includes("poleDuTravail")) {
+              redirection = "/seances?run";
+            } else {
+              redirection = normaliserUrl(arg.replace(/^["'`]|["'`]$/g, ""));
+            }
           }
 
           actionsDeclarees.push({
@@ -490,13 +608,13 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
 
       // Titre de page
       if (tagName === "EntetePage") {
-        const t = valeurPropJsx(elem, "titre", sf);
+        const t = valeurPropJsx(elem, "titre", sf, relatif);
         if (t) titrePage = t;
       }
 
       // Modales JSX
       if (tagName === "Modale" || tagName === "Tiroir") {
-        const titre = valeurPropJsx(elem, "titre", sf) ?? "Modale";
+        const titre = valeurPropJsx(elem, "titre", sf, relatif) ?? "Modale";
         const estTiroir = tagName === "Tiroir" || titre.toLowerCase().includes("tiroir");
         const id = `${estTiroir ? "tiroir" : "modal"}:${slugId(titre)}`;
         if (!modales.some((m) => m.id === id)) {
@@ -506,7 +624,7 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
 
       // Liens JSX (<Link href="...">, <LienBouton href="...">, <a href="...">)
       if (tagName === "Link" || tagName === "LienBouton" || tagName === "a") {
-        const href = valeurPropJsx(elem, "href", sf);
+        const href = valeurPropJsx(elem, "href", sf, relatif);
         const texte = ts.isJsxElement(node) ? extraireTexteNoeudJsx(node, sf) : "";
         if (href && href.startsWith("/")) {
           navigations.push({
@@ -525,7 +643,7 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
 
       // Formulaires & Actions JSX (<form action={...}>)
       if (tagName === "form") {
-        const actionProp = valeurPropJsx(elem, "action", sf);
+        const actionProp = valeurPropJsx(elem, "action", sf, relatif);
         if (actionProp) {
           const matchAct = actionProp.match(/([A-Za-z0-9_]+)(?:\.bind)?/);
           if (matchAct) actionsInvoquees.push(matchAct[1]);
@@ -543,7 +661,7 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
         tagName === "BoutonEditer"
       ) {
         const texte = ts.isJsxElement(node) ? extraireTexteNoeudJsx(node, sf) : tagName;
-        const formAction = valeurPropJsx(elem, "formAction", sf);
+        const formAction = valeurPropJsx(elem, "formAction", sf, relatif);
         if (formAction) {
           const matchAct = formAction.match(/([A-Za-z0-9_]+)(?:\.bind)?/);
           if (matchAct) actionsInvoquees.push(matchAct[1]);
@@ -556,8 +674,12 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
       }
     }
 
-    // Détection d'onglets (const onglets = [...])
-    if (ts.isVariableDeclaration(node) && node.name.getText(sf).toLowerCase().includes("onglet")) {
+    // Détection d'onglets (const onglets = [...], tabs = [...])
+    if (
+      ts.isVariableDeclaration(node) &&
+      (node.name.getText(sf).toLowerCase().includes("onglet") ||
+        node.name.getText(sf).toLowerCase().includes("tabs"))
+    ) {
       if (node.initializer && ts.isArrayLiteralExpression(node.initializer)) {
         for (const elem of node.initializer.elements) {
           if (ts.isObjectLiteralExpression(elem)) {
@@ -565,9 +687,28 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
             let libelleOnglet = "";
             for (const p of elem.properties) {
               if (ts.isPropertyAssignment(p)) {
+                let init = p.initializer;
+                if (ts.isAsExpression(init)) {
+                  init = init.expression;
+                }
                 const nomProp = p.name.getText(sf);
-                if (nomProp === "id") idOnglet = p.initializer.getText(sf).replace(/['"]/g, "");
-                if (nomProp === "libelle" || nomProp === "titre") libelleOnglet = p.initializer.getText(sf).replace(/['"]/g, "");
+                if (nomProp === "id") {
+                  if (ts.isStringLiteral(init) || ts.isNoSubstitutionTemplateLiteral(init)) {
+                    idOnglet = init.text;
+                  } else {
+                    idOnglet = init.getText(sf).replace(/['"]/g, "").trim();
+                  }
+                }
+                if (nomProp === "libelle" || nomProp === "titre" || nomProp === "label") {
+                  if (ts.isStringLiteral(init) || ts.isNoSubstitutionTemplateLiteral(init)) {
+                    libelleOnglet = init.text;
+                  } else if (ts.isTemplateExpression(init)) {
+                    const head = init.head.text.replace(/[\s(]+$/, "").trim();
+                    libelleOnglet = head ? normaliserTexteDynamique(head) : "Onglet";
+                  } else {
+                    libelleOnglet = normaliserTexteDynamique(init.getText(sf));
+                  }
+                }
               }
             }
             if (idOnglet) {

@@ -34,8 +34,8 @@ describe("scannerUxJourney (dynamique AST)", () => {
     expect(idsNoeuds).toContain("page:/atelier");
     expect(idsNoeuds).toContain("page:/seances");
     expect(idsNoeuds).toContain("page:/exercices/{id}");
-    expect(idsNoeuds).toContain("page:/projets");
     expect(idsNoeuds).toContain("page:/demarrer");
+    expect(idsNoeuds).toContain("page:/login");
 
     // Surfaces de l'Atelier
     expect(idsNoeuds).toContain("ux:espacedocumentaire");
