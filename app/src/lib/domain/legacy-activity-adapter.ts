@@ -62,7 +62,6 @@ export function adaptLegacyAttempt(
     currentArtifact: attempt.reponse.trim()
       ? { kind: "markdown", ref: `attempt:${attempt.id}`, immutable: false }
       : undefined,
-    sessionIds: [],
     createdAt: attempt.debut,
     startedAt: attempt.debut,
   };

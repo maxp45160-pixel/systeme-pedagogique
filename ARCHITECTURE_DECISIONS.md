@@ -79,6 +79,8 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [064](#adr-064) | Workspace documentaire Markdown en extension progressive | 🔬 Hypothèse (12/08) |
 | [065](#adr-065) | Gouvernance transactionnelle du référentiel | 🔬 Proposition (13/08) |
 | [066](#adr-066) | La boucle devient un moteur d'actions d'apprentissage adaptatif | ✅ Acceptée (13/08) |
+| [067](#adr-067) | Un projet n'est pas une séance : il porte son propre déroulé | ✅ Acceptée (15/08) — amende [066](#adr-066) |
+| [068](#adr-068) | Une preuve de projet s'adosse à un critère porteur, jamais à la cible entière | ✅ Acceptée (15/08) — amende [066](#adr-066) |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -4690,6 +4692,126 @@ qu'après ces mêmes critères et une migration de parité validée.
    abandon, reprise réseau, conflit de version, rectification et refus d'un
    artefact non gelé. L'absence de ces tests bloque la sortie de bêta, sans
    prouver à elle seule l'efficacité pédagogique.
+
+---
+
+<a name="adr-067"></a>
+## ADR-067 — Un projet n'est pas une séance : il porte son propre déroulé ✅
+
+**Date.** 15/08/2026. **Tranchée explicitement par Maxime.** Amende
+[ADR-066](#adr-066) et laisse [ADR-048](#adr-048) intacte.
+
+### Le défaut
+
+La première implémentation de la famille « produire » faisait passer un projet
+par le conteneur de la séance. `enregistrer_evenement_activite` refusait tout
+démarrage sans séance ouverte — « Une séance en cours est requise » — en créait
+une au besoin, la clôturait à la pause, et une table `activity_run_sessions`
+rattachait chaque exécution aux séances traversées.
+
+Ce n'était pas un détail d'implémentation mais une confusion de gestes. Une
+séance est un épisode : on s'assoit, on travaille, on ferme. Un projet se mène
+par reprises, sur des jours, parfois avec plusieurs semaines entre deux
+sessions. Le faire vivre dans une séance laissait deux issues, toutes deux
+fausses : ouvrir une séance à chaque reprise, ce qui hache le projet en épisodes
+qui ne veulent rien dire ; ou laisser une séance courir entre deux moments de
+travail, ce qui fabrique une durée qui n'a jamais été travaillée.
+
+### Décision
+
+**Un projet ne réclame, ne crée et ne clôt aucune séance.** Son déroulé est la
+suite de ses propres `ActivityEvent` — démarrage, pause, reprise, jalon, aide,
+changement de mode, clôture, abandon. Sa durée s'en dérive, elle n'est pas
+stockée : c'est l'invariant « ne pas stocker ce qui est dérivable » appliqué au
+temps de travail.
+
+Conséquences sur les contrats :
+
+- `ActivityRun.sessionIds` et `ActivityEvent.sessionId` disparaissent du domaine ;
+- la table `activity_run_sessions` n'est pas déployée, et la colonne
+  `activity_events.session_id` n'existe pas ;
+- les six commandes de la boucle projet ne touchent plus `public.sessions`.
+
+`LearningSession` reste l'unique conteneur d'un épisode de travail (ADR-048) —
+pour les séances d'exercices, qui sont bien des épisodes. Aucune entité n'est
+créée pour le projet : il reste une `LearningActivity` de famille « produire »
+avec son `ActivityRun`, conformément à ADR-066.
+
+### Conséquences
+
+- Reprendre un projet trois jours plus tard ne produit ni séance fantôme, ni
+  double entrée au journal.
+- Le Cahier ne se remplit plus de séances qu'aucune personne n'a décidé
+  d'ouvrir.
+- La fiche projet devient le lieu du suivi, avec son journal écrit par le
+  système — étapes franchies, versions gelées, preuves obtenues.
+
+**Alternative écartée.** Conserver le lien en le rendant facultatif : une
+colonne nullable aurait laissé les deux régimes coexister sans que rien ne
+tranche, et le code aurait continué à supposer une séance là où il n'en faut
+pas.
+
+---
+
+<a name="adr-068"></a>
+## ADR-068 — Une preuve de projet s'adosse à un critère porteur, jamais à la cible entière ✅
+
+**Date.** 15/08/2026. **Tranchée explicitement par Maxime.** Amende
+[ADR-066](#adr-066) et applique l'invariant « absence de preuve ≠ zéro ».
+
+### Le défaut
+
+Un projet mobilise plusieurs compétences — c'est même sa raison d'être. La
+première implémentation attribuait à **toutes** les compétences de la cible la
+même qualité de preuve, calculée une fois pour le travail entier. Un projet
+visant cinq compétences en démontrait donc cinq du seul fait d'avoir été rendu
+et validé.
+
+C'est une mesure fabriquée. Le contrat d'évaluation savait dire ce qui était
+attendu, mais pas de quelle compétence chaque critère parlait : rien ne
+permettait de distinguer la compétence réellement mise en jeu de celle qui
+figurait dans la cible sans avoir été montrée.
+
+### Décision
+
+`EvaluationCriterion` porte un `skillCode` facultatif, contraint aux
+`target.skillCodes` de l'activité. Il reste facultatif parce qu'un contrat peut
+légitimement porter des critères de qualité générale, qui n'appartiennent à
+aucune compétence en particulier.
+
+Une compétence ne reçoit une preuve que si **un critère portant son code a été
+démontré** — `partielle` ou `pleine`. La qualité se calcule ensuite par
+compétence, sur ses seuls critères : le transfert ou l'intégration ne vaut
+preuve forte que s'il a été pleinement démontré sur un critère portant ce
+code-là.
+
+Les compétences visées mais non démontrées sont **nommées** (`undemonstrated`)
+et ne reçoivent rien. Le produit dit lesquelles n'ont pas été montrées, plutôt
+que de laisser croire qu'elles l'ont été ou qu'elles ont échoué.
+
+La règle est implémentée **deux fois, volontairement** : dans `decideProjectProofs`
+(domaine pur, testé) et dans `cloturer_execution_activite` (SQL). La base reste
+le dernier rempart si un appel contourne le domaine — même principe que la
+gouvernance du référentiel ([ADR-065](#adr-065)).
+
+### Conséquences
+
+- `competencesCombinees` ne liste que les compétences effectivement prouvées :
+  une cible non démontrée n'a pas participé à la preuve.
+- Les dimensions d'une preuve se calculent sur les seuls critères portant sa
+  compétence — sans quoi une compétence héritait du score obtenu sur une autre.
+- Un contrat sans aucun `skillCode` ne produit aucune preuve. C'est voulu :
+  sans rattachement explicite, rien ne permet de dire ce qui a été démontré.
+
+### Hypothèses et tests de réfutation
+
+1. 🔬 **Granularité des critères.** Si rattacher chaque critère à une compétence
+   pousse le tuteur à produire des contrats artificiellement longs — un critère
+   par compétence, sans nécessité —, c'est la formulation du contrat de
+   génération qui est à revoir, pas la règle d'attribution.
+2. 🔬 **Compétences jamais démontrées.** Si les projets visent régulièrement des
+   compétences qui ne reçoivent jamais de critère, la composition propose des
+   cibles trop larges et doit contraindre le nombre de compétences par projet.
 
 ---
 

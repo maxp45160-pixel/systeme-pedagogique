@@ -141,6 +141,16 @@ export interface EvaluationCriterion {
   id: string;
   label: string;
   dimension?: Dimension;
+  /**
+   * Compétence que ce critère démontre, prise dans la cible de l'activité.
+   *
+   * C'est ce lien qui rend une preuve attribuable. Un projet mobilisant cinq
+   * compétences ne les démontre pas toutes du seul fait d'avoir été rendu :
+   * sans critère porteur, une compétence ne reçoit rien. Le champ reste
+   * facultatif car un contrat peut porter des critères de qualité générale,
+   * qui n'appartiennent à aucune compétence en particulier.
+   */
+  skillCode?: string;
   required: boolean;
 }
 
@@ -223,7 +233,15 @@ export interface ActivityRun {
   activityVersion: number;
   status: "planifiee" | "en-cours" | "en-pause" | "terminee" | "abandonnee";
   currentArtifact?: ArtifactReference;
-  sessionIds: string[];
+  /*
+   * Aucune séance ici.
+   *
+   * Un projet n'est pas une séance : il se travaille par reprises, sur
+   * plusieurs jours, sans conteneur d'épisode. Son déroulé est la suite de ses
+   * `ActivityEvent` — démarrage, pause, reprise — et sa durée s'en dérive.
+   * Rattacher une exécution à une séance ferait porter au projet le rythme
+   * d'un autre geste de travail.
+   */
   activeMilestoneId?: string;
   createdAt: string;
   startedAt?: string;
@@ -236,7 +254,6 @@ interface ActivityEventBase {
   id: string;
   accountId: string;
   runId: string;
-  sessionId?: string;
   /** Cle d'idempotence de la commande ayant produit l'evenement. */
   requestId: string;
   createdAt: string;
@@ -400,9 +417,19 @@ export interface EffectiveEvidenceStatus {
   lastEventId?: string;
 }
 
+export interface SkillProofDecision {
+  skillCode: string;
+  quality: QualitePreuve;
+  reason: string;
+}
+
 export interface ProjectProofDecision {
+  /** Faux si le travail entier est inadmissible : rien n'est alors prouvé. */
   eligible: boolean;
-  quality: QualitePreuve | null;
+  /** Une entrée par compétence effectivement démontrée, et aucune autre. */
+  proofs: SkillProofDecision[];
+  /** Cibles qu'aucun critère démontré ne couvre. Elles ne reçoivent rien. */
+  undemonstrated: string[];
   reason: string;
 }
 
@@ -539,6 +566,7 @@ function parseEvaluationContract(value: unknown, path: string): EvaluationContra
       dimension: criterion.dimension === undefined
         ? undefined
         : enumeration(criterion.dimension, `${entryPath}.dimension`, ["comprehension", "application", "transfert", "integration", "justification"] as const),
+      skillCode: optionalString(criterion.skillCode, `${entryPath}.skillCode`),
       required: boolean(criterion.required, `${entryPath}.required`),
     };
   });
@@ -556,6 +584,29 @@ function parseEvaluationContract(value: unknown, path: string): EvaluationContra
     throw new AdaptiveLearningValidationError(path, "au moins un critere est requis");
   }
   return { scope, criteria, assessableMilestoneIds };
+}
+
+/**
+ * Un critère ne peut viser qu'une compétence de la cible.
+ *
+ * Sans ce contrôle, un contrat pourrait rattacher un critère à un code
+ * quelconque, et la preuve qui en découlerait viserait une compétence que
+ * l'activité n'a jamais annoncé travailler.
+ */
+function verifierCodesDesCriteres(
+  contract: EvaluationContract,
+  target: ActivityTarget,
+  path: string,
+): void {
+  const cibles = new Set(target.skillCodes);
+  for (const criterion of contract.criteria) {
+    if (criterion.skillCode && !cibles.has(criterion.skillCode)) {
+      throw new AdaptiveLearningValidationError(
+        `${path}.criteria`,
+        `le critere ${criterion.id} vise la competence ${criterion.skillCode}, absente de la cible`,
+      );
+    }
+  }
 }
 
 function parseMilestoneContent(value: unknown, path: string): ActivityMilestoneContent {
@@ -723,6 +774,7 @@ export function parseLearningActivity(value: unknown): LearningActivity {
   if (activity.workspaceContent && activity.workspaceContent.family !== activity.family) {
     throw new AdaptiveLearningValidationError("LearningActivity.workspaceContent", "la famille du contenu doit correspondre à l'activité");
   }
+  verifierCodesDesCriteres(activity.evaluationContract, activity.target, "LearningActivity.evaluationContract");
   return activity;
 }
 
@@ -758,7 +810,6 @@ export function parseActivityRun(value: unknown): ActivityRun {
     activityVersion: integer(source.activityVersion, "ActivityRun.activityVersion"),
     status: enumeration(source.status, "ActivityRun.status", ["planifiee", "en-cours", "en-pause", "terminee", "abandonnee"] as const),
     currentArtifact: source.currentArtifact === undefined ? undefined : parseArtifact(source.currentArtifact, "ActivityRun.currentArtifact"),
-    sessionIds: unique(strings(source.sessionIds, "ActivityRun.sessionIds"), "ActivityRun.sessionIds"),
     activeMilestoneId: optionalString(source.activeMilestoneId, "ActivityRun.activeMilestoneId"),
     createdAt: iso(source.createdAt, "ActivityRun.createdAt"),
     startedAt: optionalIso(source.startedAt, "ActivityRun.startedAt"),
@@ -787,7 +838,6 @@ export function parseActivityEvent(value: unknown): ActivityEvent {
     id: string(source.id, "ActivityEvent.id"),
     accountId: string(source.accountId, "ActivityEvent.accountId"),
     runId: string(source.runId, "ActivityEvent.runId"),
-    sessionId: optionalString(source.sessionId, "ActivityEvent.sessionId"),
     requestId: string(source.requestId, "ActivityEvent.requestId"),
     createdAt: iso(source.createdAt, "ActivityEvent.createdAt"),
   };
@@ -886,6 +936,7 @@ export function parseActivityGenerationRequest(value: unknown): ActivityGenerati
   if (request.minimumSegmentMinutes !== undefined && request.minimumSegmentMinutes > request.estimatedDurationMinutes) {
     throw new AdaptiveLearningValidationError("ActivityGenerationRequest.minimumSegmentMinutes", "un segment ne peut depasser la duree totale");
   }
+  verifierCodesDesCriteres(request.evaluationContract, request.target, "ActivityGenerationRequest.evaluationContract");
   return request;
 }
 
@@ -954,47 +1005,103 @@ export function resolveEvidenceStatus(
 }
 
 /**
- * Regime de preuve d'un mini-projet. Le moteur ne produit pas la preuve : il
- * decide seulement si une validation humaine et son snapshot la rendent
- * admissible, puis en derive la qualite prevue par le contrat.
+ * Regime de preuve d'un projet, competence par competence.
+ *
+ * Le moteur ne produit pas la preuve : il decide si une validation humaine et
+ * son snapshot rendent le travail admissible, puis, pour chaque competence
+ * visee, si un critere du contrat la porte et a ete demontre.
+ *
+ * Une competence dont aucun critere demontre ne porte le code ne recoit rien
+ * et figure dans `undemonstrated`. C'est le point ou l'absence de preuve se
+ * distingue d'un zero : le projet a bien eu lieu, cette competence-la n'a
+ * simplement pas ete montree.
+ *
+ * La regle est la meme que celle de `cloturer_execution_activite` : les deux
+ * implementations sont volontairement redondantes, la base restant le dernier
+ * rempart si un appel contourne le domaine.
  */
-export function decideProjectProofQuality(
+export function decideProjectProofs(
   activity: LearningActivity,
   assessment: ActivityAssessment,
   artifact: ArtifactReference | undefined,
 ): ProjectProofDecision {
-  if (activity.family !== "produire") return { eligible: false, quality: null, reason: "L'activite n'est pas une production." };
-  if (activity.proofMode === "support-seul") return { eligible: false, quality: null, reason: "Le contrat classe ce travail comme support." };
-  if (assessment.kind !== "validation-humaine") return { eligible: false, quality: null, reason: "La proposition du tuteur n'est pas une mesure." };
-  if (assessment.accountId !== activity.accountId) return { eligible: false, quality: null, reason: "L'evaluation appartient a un autre compte." };
-  if (assessment.activityId !== activity.id || assessment.activityVersion !== activity.version) return { eligible: false, quality: null, reason: "L'evaluation ne vise pas la version exacte de l'activite." };
+  const refuser = (reason: string): ProjectProofDecision => ({
+    eligible: false,
+    proofs: [],
+    undemonstrated: activity.target.skillCodes,
+    reason,
+  });
+
+  if (activity.family !== "produire") return refuser("L'activite n'est pas une production.");
+  if (activity.proofMode === "support-seul") return refuser("Le contrat classe ce travail comme support.");
+  if (assessment.kind !== "validation-humaine") return refuser("La proposition du tuteur n'est pas une mesure.");
+  if (assessment.accountId !== activity.accountId) return refuser("L'evaluation appartient a un autre compte.");
+  if (assessment.activityId !== activity.id || assessment.activityVersion !== activity.version) {
+    return refuser("L'evaluation ne vise pas la version exacte de l'activite.");
+  }
   if (assessment.scope.kind === "jalon" && (activity.evaluationContract.scope !== "jalons-et-soumission" || !activity.evaluationContract.assessableMilestoneIds.includes(assessment.scope.milestoneId))) {
-    return { eligible: false, quality: null, reason: "Ce jalon n'a pas de contrat d'evaluation propre." };
+    return refuser("Ce jalon n'a pas de contrat d'evaluation propre.");
   }
   if (!artifact?.snapshotId || !artifact.frozenAt || !artifact.immutable || assessment.artifactSnapshotId !== artifact.snapshotId) {
-    return { eligible: false, quality: null, reason: "L'artefact n'est pas fige dans un snapshot verifiable." };
+    return refuser("L'artefact n'est pas fige dans un snapshot verifiable.");
   }
   const assessedIds = new Set(assessment.criteria.map((criterion) => criterion.criterionId));
   const contractIds = new Set(activity.evaluationContract.criteria.map((criterion) => criterion.id));
   if (assessment.criteria.some((criterion) => !contractIds.has(criterion.criterionId))) {
-    return { eligible: false, quality: null, reason: "L'evaluation contient un critere absent du contrat." };
+    return refuser("L'evaluation contient un critere absent du contrat.");
   }
   if (activity.evaluationContract.criteria.some((criterion) => criterion.required && !assessedIds.has(criterion.id))) {
-    return { eligible: false, quality: null, reason: "Un critere requis n'a pas ete valide." };
+    return refuser("Un critere requis n'a pas ete valide.");
   }
   if (assessment.criteria.every((criterion) => criterion.demonstration === "non-observee")) {
-    return { eligible: false, quality: null, reason: "Aucun critere n'a ete observe." };
+    return refuser("Aucun critere n'a ete observe.");
   }
-  if (assessment.autonomy === "A0" || assessment.autonomy === "A1") {
-    return { eligible: true, quality: "faible", reason: "Le travail est probant, avec une autonomie A0/A1." };
-  }
+
   const criterionById = new Map(activity.evaluationContract.criteria.map((criterion) => [criterion.id, criterion]));
-  const transferFullyDemonstrated = assessment.criteria.some((result) => {
-    const criterion = criterionById.get(result.criterionId);
-    return result.demonstration === "pleine" && (criterion?.dimension === "transfert" || criterion?.dimension === "integration");
-  });
-  if (assessment.result === "reussi" && transferFullyDemonstrated && (assessment.autonomy === "A3" || assessment.autonomy === "A4")) {
-    return { eligible: true, quality: "forte", reason: "Snapshot, reussite, transfert/integration et autonomie forte sont reunis." };
+  const proofs: SkillProofDecision[] = [];
+  const undemonstrated: string[] = [];
+
+  for (const skillCode of activity.target.skillCodes) {
+    const portes = assessment.criteria.flatMap((result) => {
+      const criterion = criterionById.get(result.criterionId);
+      return criterion?.skillCode === skillCode ? [{ result, criterion }] : [];
+    });
+    const demontres = portes.filter(({ result }) =>
+      result.demonstration === "partielle" || result.demonstration === "pleine",
+    );
+    if (demontres.length === 0) {
+      undemonstrated.push(skillCode);
+      continue;
+    }
+    if (assessment.autonomy === "A0" || assessment.autonomy === "A1") {
+      proofs.push({ skillCode, quality: "faible", reason: "Competence demontree, avec une autonomie A0/A1." });
+      continue;
+    }
+    const transfertPlein = demontres.some(({ result, criterion }) =>
+      result.demonstration === "pleine"
+      && (criterion.dimension === "transfert" || criterion.dimension === "integration"),
+    );
+    if (assessment.result === "reussi" && transfertPlein && (assessment.autonomy === "A3" || assessment.autonomy === "A4")) {
+      proofs.push({ skillCode, quality: "forte", reason: "Reussite, transfert ou integration plein et autonomie forte sur cette competence." });
+      continue;
+    }
+    proofs.push({ skillCode, quality: "moyenne", reason: "Competence demontree sans reunir les conditions d'une preuve forte." });
   }
-  return { eligible: true, quality: "moyenne", reason: "Le travail est probant sans reunir toutes les conditions d'une preuve forte." };
+
+  if (proofs.length === 0) {
+    return {
+      eligible: false,
+      proofs: [],
+      undemonstrated,
+      reason: "Aucun critere demontre ne porte une competence de la cible.",
+    };
+  }
+  return {
+    eligible: true,
+    proofs,
+    undemonstrated,
+    reason: undemonstrated.length === 0
+      ? "Toutes les competences visees sont portees par un critere demontre."
+      : `Competences non demontrees, sans preuve : ${undemonstrated.join(", ")}.`,
+  };
 }

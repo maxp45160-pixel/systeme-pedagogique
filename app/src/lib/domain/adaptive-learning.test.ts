@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   AdaptiveLearningValidationError,
-  decideProjectProofQuality,
+  decideProjectProofs,
   parseActionContext,
   parseActivityAssessment,
   parseEvidenceStatusEvent,
@@ -23,7 +23,7 @@ function project(overrides: Partial<LearningActivity> = {}): LearningActivity {
     title: "Etude de cas",
     description: "Produire une solution dans un contexte nouveau.",
     family: "produire",
-    target: { skillCodes: ["DEV-01"], themeIds: [], goalIds: [] },
+    target: { skillCodes: ["DEV-01", "DEV-02"], themeIds: [], goalIds: [] },
     estimatedDurationMinutes: 90,
     cognitiveDemand: "elevee",
     proofMode: "soumission-finale",
@@ -33,8 +33,9 @@ function project(overrides: Partial<LearningActivity> = {}): LearningActivity {
     evaluationContract: {
       scope: "soumission-finale",
       criteria: [
-        { id: "application", label: "Solution fonctionnelle", dimension: "application", required: true },
-        { id: "transfer", label: "Transfert au nouveau contexte", dimension: "transfert", required: true },
+        { id: "application", label: "Solution fonctionnelle", dimension: "application", skillCode: "DEV-01", required: true },
+        { id: "transfer", label: "Transfert au nouveau contexte", dimension: "transfert", skillCode: "DEV-01", required: true },
+        { id: "restitution", label: "Restitution écrite", dimension: "justification", skillCode: "DEV-02", required: false },
       ],
       assessableMilestoneIds: [],
     },
@@ -120,7 +121,7 @@ describe("validation runtime des contrats adaptatifs", () => {
   });
 });
 
-describe("regime de preuve d'un mini-projet", () => {
+describe("regime de preuve d'un projet", () => {
   it("refuse la proposition du tuteur comme mesure", () => {
     const proposal: ActivityAssessment = {
       id: "assessment-proposal",
@@ -135,12 +136,12 @@ describe("regime de preuve d'un mini-projet", () => {
       requestId: "request-proposal",
       createdAt: NOW,
     };
-    const decision = decideProjectProofQuality(
+    const decision = decideProjectProofs(
       project(),
       proposal,
       frozenArtifact,
     );
-    expect(decision).toMatchObject({ eligible: false, quality: null });
+    expect(decision).toMatchObject({ eligible: false, proofs: [] });
   });
 
   it("refuse qu'une proposition du tuteur attribue un résultat ou une autonomie", () => {
@@ -161,39 +162,97 @@ describe("regime de preuve d'un mini-projet", () => {
   });
 
   it("refuse un simple lien externe modifiable", () => {
-    const decision = decideProjectProofQuality(project(), assessment(), {
+    const decision = decideProjectProofs(project(), assessment(), {
       kind: "lien-externe",
       ref: "https://example.test/work",
       immutable: false,
     });
-    expect(decision).toMatchObject({ eligible: false, quality: null });
+    expect(decision).toMatchObject({ eligible: false, proofs: [] });
   });
 
   it("classe A0/A1 en preuve faible meme si le travail reussit", () => {
-    expect(decideProjectProofQuality(project(), assessment({ autonomy: "A1" }), frozenArtifact))
-      .toMatchObject({ eligible: true, quality: "faible" });
+    const decision = decideProjectProofs(project(), assessment({ autonomy: "A1" }), frozenArtifact);
+    expect(decision.eligible).toBe(true);
+    expect(decision.proofs).toEqual([
+      expect.objectContaining({ skillCode: "DEV-01", quality: "faible" }),
+    ]);
   });
 
   it("n'accorde une preuve forte qu'avec reussite, transfert plein, A3/A4 et snapshot", () => {
-    expect(decideProjectProofQuality(project(), assessment(), frozenArtifact))
-      .toMatchObject({ eligible: true, quality: "forte" });
-    expect(decideProjectProofQuality(
+    expect(decideProjectProofs(project(), assessment(), frozenArtifact).proofs).toEqual([
+      expect.objectContaining({ skillCode: "DEV-01", quality: "forte" }),
+    ]);
+    expect(decideProjectProofs(
       project(),
       assessment({ criteria: [
         { criterionId: "application", demonstration: "pleine" },
         { criterionId: "transfer", demonstration: "partielle" },
       ] }),
       frozenArtifact,
-    )).toMatchObject({ eligible: true, quality: "moyenne" });
+    ).proofs).toEqual([
+      expect.objectContaining({ skillCode: "DEV-01", quality: "moyenne" }),
+    ]);
+  });
+
+  it("ne prouve pas une competence qu'aucun critere demontre ne porte", () => {
+    const decision = decideProjectProofs(project(), assessment(), frozenArtifact);
+    expect(decision.proofs.map((proof) => proof.skillCode)).toEqual(["DEV-01"]);
+    expect(decision.undemonstrated).toEqual(["DEV-02"]);
+    expect(decision.reason).toContain("DEV-02");
+  });
+
+  it("prouve chaque competence au niveau que ses propres criteres justifient", () => {
+    const decision = decideProjectProofs(
+      project(),
+      assessment({ criteria: [
+        { criterionId: "application", demonstration: "pleine" },
+        { criterionId: "transfer", demonstration: "pleine" },
+        { criterionId: "restitution", demonstration: "partielle" },
+      ] }),
+      frozenArtifact,
+    );
+    // DEV-01 porte un transfert plein ; DEV-02 n'a qu'une restitution
+    // partielle, sans dimension de transfert : la meme soumission ne leur vaut
+    // pas la meme preuve.
+    expect(decision.proofs).toEqual([
+      expect.objectContaining({ skillCode: "DEV-01", quality: "forte" }),
+      expect.objectContaining({ skillCode: "DEV-02", quality: "moyenne" }),
+    ]);
+    expect(decision.undemonstrated).toEqual([]);
+  });
+
+  it("refuse toute preuve quand aucun critere demontre ne porte de competence", () => {
+    const decision = decideProjectProofs(
+      project(),
+      assessment({ criteria: [
+        { criterionId: "application", demonstration: "insuffisante" },
+        { criterionId: "transfer", demonstration: "insuffisante" },
+      ] }),
+      frozenArtifact,
+    );
+    expect(decision).toMatchObject({ eligible: false, proofs: [] });
+    expect(decision.undemonstrated).toEqual(["DEV-01", "DEV-02"]);
+  });
+
+  it("refuse un critere visant une competence absente de la cible", () => {
+    expect(() => parseLearningActivity(project({
+      evaluationContract: {
+        scope: "soumission-finale",
+        criteria: [
+          { id: "application", label: "Solution fonctionnelle", dimension: "application", skillCode: "DEV-99", required: true },
+        ],
+        assessableMilestoneIds: [],
+      },
+    }))).toThrow("absente de la cible");
   });
 
   it("traite un jalon comme observation sans contrat explicite", () => {
-    const decision = decideProjectProofQuality(
+    const decision = decideProjectProofs(
       project(),
       assessment({ scope: { kind: "jalon", milestoneId: "draft" } }),
       frozenArtifact,
     );
-    expect(decision).toMatchObject({ eligible: false, quality: null });
+    expect(decision).toMatchObject({ eligible: false, proofs: [] });
   });
 });
 
