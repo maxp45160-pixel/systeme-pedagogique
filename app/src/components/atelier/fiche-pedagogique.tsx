@@ -12,7 +12,9 @@ import type {
   VuePedagogiqueAtelier,
   DocumentLieAtelier,
 } from "@/lib/documents/vue-atelier";
-import { cx } from "@/components/ui/primitives";
+import { CodeCompetence, cx } from "@/components/ui/primitives";
+import type { EtapeParcours } from "@/lib/engine/parcours";
+import { AppartenanceEnsembles } from "./appartenance-ensembles";
 import {
   IconeCompetences,
   IconeDocuments,
@@ -28,7 +30,6 @@ import { BoutonGenerer } from "@/components/exercices/bouton-generer";
 import type { CalibrageModale, CompetenceModale } from "@/components/exercices/proprietes-generation";
 import { BoutonRetour } from "@/components/ui/lien-retour";
 import { Markdown } from "@/components/ui/markdown";
-import { RectificationPreuve } from "./rectification-preuve";
 import { FilArianeAtelier, BoutonOuvrirExplorateur } from "./fil-ariane-atelier";
 import { ConcepteurSeance, type DonneesSeance } from "@/components/seances/concepteur-seance";
 import type { ElementAtelier } from "./types-atelier";
@@ -126,7 +127,6 @@ function VueCompetence({
   revenirGraphe,
   sidebarOuverte,
   setSidebarOuverte,
-  rectificationActive,
   compteId,
   generation,
   donneesSeance,
@@ -142,7 +142,6 @@ function VueCompetence({
   sidebarOuverte?: boolean;
   setSidebarOuverte?: (ouverte: boolean) => void;
   /** Le journal de rectification n'existe que sous la boucle adaptative. */
-  rectificationActive?: boolean;
   compteId?: string;
   generation?: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
   donneesSeance?: DonneesSeance;
@@ -370,15 +369,17 @@ function VueCompetence({
 
         {onglet === "progression" && (
           <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
+            <ResteADemontrer vue={vue} />
+
             <div className="rounded-xl border border-bordure bg-surface p-5 shadow-[var(--ombre-posee)]">
               <h3 className="font-serif text-lg font-medium">Performance détaillée</h3>
               <p className="mt-1 text-xs text-texte-discret">Calculée depuis les preuves observées ; aucune valeur n’est stockée.</p>
               <div className="mt-5 space-y-3">{vue.dimensions.map((dimension) => <Barre key={dimension.id} valeur={dimension.valeur} libelle={dimension.libelle} />)}</div>
             </div>
             <div className="rounded-xl border border-bordure bg-surface p-5 shadow-[var(--ombre-posee)]">
-              <h3 className="font-serif text-lg font-medium">Historique récent</h3>
-              <ol className="mt-4 space-y-4 border-l border-bordure pl-4">{vue.preuves.slice(0, 6).map((preuve) => <li key={preuve.id} className="relative"><span className="absolute -left-[1.18rem] top-1 size-2 rounded-full border-2 border-surface bg-primaire" /><p className="text-xs font-medium">{preuve.contexte}</p><p className="mt-0.5 text-[0.625rem] text-texte-discret">{dateCourte(preuve.date)} · {preuve.type}</p>{rectificationActive && <RectificationPreuve preuveId={preuve.id} />}</li>)}</ol>
-              {!vue.preuves.length && <p className="mt-4 text-xs text-texte-discret">Aucun historique disponible.</p>}
+              <h3 className="font-serif text-lg font-medium">Parcours</h3>
+              <p className="mt-1 text-xs text-texte-discret">Ce que chaque preuve a changé, rejoué depuis le journal.</p>
+              <FriseParcours etapes={vue.parcours} />
             </div>
           </section>
         )}
@@ -393,6 +394,12 @@ function VueCompetence({
               <Relations titre="Compétences suivantes" ids={vue.suivantes} ouvrirElement={ouvrirElement} elements={elements} />
               <Relations titre="Documents & ressources" ids={vue.documents.map((document) => document.id)} ouvrirElement={ouvrirElement} elements={elements} />
             </div>
+
+            <div className="mt-4">
+              <AppartenanceEnsembles vue={vue} ouvrirElement={ouvrirElement} />
+            </div>
+
+            <CoMobilisees vue={vue} ouvrirElement={ouvrirElement} />
           </section>
         )}
 
@@ -462,6 +469,169 @@ function VueCompetence({
     </div>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/* Le parcours d'une compétence                                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * La frise des preuves, avec ce que chacune a changé.
+ *
+ * L'ancien « Historique récent » listait un contexte et une date : il disait
+ * qu'il s'était passé quelque chose, jamais ce que ça avait changé. Le niveau
+ * d'avant chaque preuve est pourtant calculable, et `parcoursCompetence` le
+ * rejoue.
+ *
+ * Une preuve qui n'a rien déplacé reste affichée, sans mise en avant : ne
+ * montrer que les progressions donnerait l'illusion d'une courbe toujours
+ * montante, et ferait disparaître le travail de consolidation.
+ */
+function FriseParcours({ etapes }: { etapes: EtapeParcours[] }) {
+  if (etapes.length === 0) {
+    return <p className="mt-4 text-xs text-texte-discret">Aucune preuve : rien n’est affiché tant qu’il n’y a rien à montrer.</p>;
+  }
+
+  return (
+    <ol className="mt-4 space-y-4 border-l border-bordure pl-4">
+      {etapes.map((etape) => (
+        <li key={etape.preuveId} className="relative">
+          <span
+            className={cx(
+              "absolute -left-[1.18rem] top-1 size-2 rounded-full border-2 border-surface",
+              etape.progression ? "bg-succes" : etape.recul ? "bg-alerte" : etape.premiereMesure ? "bg-info" : "bg-primaire",
+            )}
+          />
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            {etape.premiereMesure ? (
+              <span className="chiffres text-xs font-semibold text-info">
+                Première mesure — niveau {etape.niveauApres}
+              </span>
+            ) : etape.progression || etape.recul ? (
+              <span className="chiffres text-xs font-semibold">
+                Niveau {etape.niveauAvant} <span aria-hidden className="text-texte-discret">→</span>{" "}
+                <span className={etape.progression ? "text-succes" : "text-alerte"}>{etape.niveauApres}</span>
+              </span>
+            ) : (
+              <span className="text-xs font-medium text-texte-attenue">
+                {etape.resultat === "reussi" ? "Réussi, niveau confirmé" : etape.resultat === "partiel" ? "Partiellement réussi" : "Non abouti"}
+              </span>
+            )}
+            {etape.nouveauContexte && !etape.premiereMesure && (
+              <span className="rounded border border-bordure px-1.5 py-0.5 text-[0.5625rem] uppercase tracking-wide text-texte-discret">
+                Contexte inédit
+              </span>
+            )}
+          </div>
+          <p className="mt-0.5 text-xs">{etape.contexte}</p>
+          <p className="mt-0.5 text-[0.625rem] text-texte-discret">
+            {dateCourte(etape.date)} · {etape.type} · autonomie {etape.autonomie}
+          </p>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/**
+ * Ce qu'il reste à démontrer.
+ *
+ * `prochaineEtape` et les réserves sont produits par `computeSkillState` et
+ * n'étaient lus nulle part sur cette fiche. Ils disent la seule chose que
+ * quelqu'un vient chercher après avoir regardé son niveau : ce qui manque pour
+ * qu'il bouge.
+ */
+function ResteADemontrer({ vue }: { vue: VueCompetenceAtelier }) {
+  const rien = !vue.prochaineEtape && vue.contradictions === 0 && vue.reserves.length === 0;
+  if (rien) return null;
+
+  return (
+    <div className="rounded-xl border border-bordure bg-surface p-5 shadow-[var(--ombre-posee)]">
+      <h3 className="font-serif text-lg font-medium">Ce qu’il reste à démontrer</h3>
+
+      {vue.prochaineEtape && (
+        <p className="mt-3 rounded-lg border border-alerte/30 bg-alerte-faible/40 px-3 py-2.5 text-sm leading-relaxed text-texte">
+          {vue.prochaineEtape}
+        </p>
+      )}
+
+      {vue.contradictions > 0 && (
+        <p className="mt-3 text-xs leading-relaxed text-texte-attenue">
+          <strong className="font-medium">
+            {vue.contradictions} preuve{vue.contradictions > 1 ? "s" : ""} s’oppose
+            {vue.contradictions > 1 ? "nt" : ""} à la tendance
+          </strong>{" "}
+          — le niveau en tient compte, et la confiance aussi. Une contradiction est une
+          information, pas une faute.
+        </p>
+      )}
+
+      {vue.reserves.length > 0 && (
+        <ul className="mt-3 space-y-1">
+          {vue.reserves.map((reserve) => (
+            <li key={reserve} className="flex gap-2 text-[0.6875rem] leading-relaxed text-texte-discret">
+              <span aria-hidden className="mt-1.5 size-1 shrink-0 rounded-full bg-bordure-contraste" />
+              <span>{reserve}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Les compétences que le travail a reliées à celle-ci.
+ *
+ * Un fait observé, pas une proximité devinée : ces compétences ont été mises
+ * en jeu par les mêmes exercices ou nommées sur les mêmes preuves. Le compte
+ * est affiché pour que le lien porte sa propre source (P3).
+ */
+function CoMobilisees({
+  vue,
+  ouvrirElement,
+}: {
+  vue: VueCompetenceAtelier;
+  ouvrirElement: (id: string) => void;
+}) {
+  const observees = vue.connexes.filter((item) => item.relation === "co-mobilisee");
+  if (observees.length === 0) return null;
+
+  return (
+    <section className="mt-4 rounded-xl border border-bordure bg-surface p-5 shadow-[var(--ombre-posee)]">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-texte-discret">
+        Souvent travaillées avec
+      </h3>
+      <p className="mt-1 text-[0.6875rem] text-texte-discret">
+        Observé dans ton travail, pas déclaré : ces compétences ont été mises en jeu par les
+        mêmes exercices.
+      </p>
+      <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+        {observees.map((item) => (
+          <li key={item.code}>
+            <button
+              type="button"
+              onClick={() => ouvrirElement(item.code)}
+              className="flex w-full items-center gap-2 rounded-lg border border-bordure bg-surface-2 px-3 py-2 text-left transition-colors hover:border-primaire/40 hover:bg-surface-3 cursor-pointer"
+            >
+              <CodeCompetence code={item.code} />
+              <span className="min-w-0 flex-1 truncate text-xs">{item.intitule}</span>
+              <span className="shrink-0 text-[0.625rem] text-texte-discret">
+                {item.occurrences}×
+              </span>
+              {!item.dejaMesuree && (
+                <span className="shrink-0 rounded border border-bordure px-1.5 py-0.5 text-[0.5625rem] uppercase tracking-wide text-texte-discret">
+                  Jamais mesurée
+                </span>
+              )}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 
 function Relations({
   titre,
@@ -1469,7 +1639,6 @@ export function FichePedagogiqueAtelier({
   setSidebarOuverte,
   compteId,
   modeInitial,
-  rectificationActive,
   generation,
   donneesSeance,
 }: {
@@ -1485,7 +1654,6 @@ export function FichePedagogiqueAtelier({
   setSidebarOuverte?: (ouverte: boolean) => void;
   compteId: string;
   modeInitial?: "referentiel";
-  rectificationActive?: boolean;
   generation?: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
   donneesSeance?: DonneesSeance;
 }) {
@@ -1503,7 +1671,6 @@ export function FichePedagogiqueAtelier({
         revenirGraphe={revenirGraphe}
         sidebarOuverte={sidebarOuverte}
         setSidebarOuverte={setSidebarOuverte}
-        rectificationActive={rectificationActive}
         compteId={compteId}
         generation={generation}
       />

@@ -93,7 +93,7 @@ export function FilArianeAtelier({
       }
     }
     if (revenirGraphe) return revenirGraphe;
-    return () => ouvrirElement("domaines");
+    return () => ouvrirElement("croissance");
   }, [actionRetour, segments, ouvrirElement, ouvrirDossier, revenirGraphe]);
 
   return (
@@ -116,7 +116,7 @@ export function FilArianeAtelier({
         type="button"
         onClick={() => {
           if (revenirGraphe) revenirGraphe();
-          else ouvrirElement("domaines");
+          else ouvrirElement("croissance");
         }}
         className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline shrink-0 cursor-pointer"
       >

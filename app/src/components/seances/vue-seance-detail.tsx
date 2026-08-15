@@ -14,6 +14,8 @@ import { construireEtatInitialTuteur } from "@/lib/tutor/etat-initial";
 import { calibragesPourModale, competencesPourModale } from "@/components/exercices/proprietes-generation";
 import { VueExercice } from "@/components/exercices/vue-exercice";
 import { ResumeExerciceCahier } from "@/components/seances/resume-exercice-cahier";
+import { CarteImpact, LienApresImpact } from "@/components/exercices/carte-impact";
+import { impactCumule, impactTentative } from "@/lib/engine/impact";
 
 type EtapeRecherche = {
   correction?: string;
@@ -58,6 +60,55 @@ export async function VueSeanceDetail({
   const exerciceActif =
     explicite ?? avancement.enCours.find((ref) => ids.includes(ref)) ??
     avancement.restants.find((ref) => ids.includes(ref));
+
+  /*
+   * L'impact de la séance entière, quand elle est close.
+   *
+   * `impactCumule` fusionne les compétences travaillées plusieurs fois : deux
+   * exercices sur la même compétence donnent un seul écart, du niveau d'avant
+   * le premier à celui d'après le dernier. Les additionner ferait dire deux
+   * fois à un même progrès qu'il a eu lieu.
+   */
+  /*
+   * La relecture d'un exercice seul dans une séance close montre le même
+   * impact, borné à cet exercice : arriver ici par « Retour au déroulé » ne
+   * doit pas faire perdre ce que le travail a changé.
+   */
+  const impactExplicite = (() => {
+    if (statut !== "terminee" || !explicite) return null;
+    const exercice = parId.get(explicite);
+    const tentative = exercice ? tentativeDeSeance(seance, explicite, ctx.donnees.attempts) : undefined;
+    if (!exercice || !tentative) return null;
+    return impactTentative({
+      exercice,
+      tentative,
+      preuves: ctx.preuvesEffectives,
+      skillsParCode: ctx.referentiel.parCode,
+      calibrations: ctx.calibrations,
+      now: ctx.now,
+    });
+  })();
+
+  const impactSeance = statut === "terminee" && !explicite
+    ? impactCumule(
+      activites.flatMap((activite) => {
+        const exercice = parId.get(activite.ref);
+        const tentative = exercice
+          ? tentativeDeSeance(seance, activite.ref, ctx.donnees.attempts)
+          : undefined;
+        if (!exercice || !tentative) return [];
+        const impact = impactTentative({
+          exercice,
+          tentative,
+          preuves: ctx.preuvesEffectives,
+          skillsParCode: ctx.referentiel.parCode,
+          calibrations: ctx.calibrations,
+          now: ctx.now,
+        });
+        return impact ? [impact] : [];
+      }),
+    )
+    : null;
   const suivant = [...avancement.enCours, ...avancement.restants]
     .find((ref) => ref !== exerciceActif && ids.includes(ref));
   const traites = avancement.menes.length + avancement.abandonnes.length;
@@ -225,6 +276,17 @@ export async function VueSeanceDetail({
                     Retour au déroulé de la séance
                   </Link>
                 </div>
+                {impactExplicite && (
+                  <CarteImpact
+                    impact={impactExplicite}
+                    actions={
+                      <LienApresImpact
+                        href={`/seances?session=${encodeURIComponent(seance.id)}`}
+                        libelle="Revenir à la séance"
+                      />
+                    }
+                  />
+                )}
                 <ResumeExerciceCahier
                   exercice={parId.get(explicite)!}
                   tentative={tentativeDeSeance(seance, explicite, ctx.donnees.attempts)}
@@ -232,13 +294,35 @@ export async function VueSeanceDetail({
               </>
             ) : (
               <>
-                <Carte accent>
-                  <EnTeteCarte id="titre-seance-terminee" titre="Séance terminée" legende={`Séance du ${formatDateCourte(seance.date)}`} />
-                  <div className="space-y-2 px-5 py-4 text-sm">
-                    <p>{seance.resultat ?? `${avancement.menes.length} exercice(s) mené(s)`}</p>
-                    {typeof seance.dureeMin === "number" && <p className="text-texte-attenue">Durée observée : {formatDuree(seance.dureeMin)}</p>}
+                {impactSeance && impactSeance.renforcees.length > 0 ? (
+                  <div id="titre-seance-terminee" tabIndex={-1} className="outline-none">
+                    <CarteImpact
+                      titre="Ce que cette séance vient d'ajouter"
+                      impact={{
+                        travail: {
+                          titre: `Séance du ${formatDateCourte(seance.date)}`,
+                          dureeMin: seance.dureeMin ?? impactSeance.dureeMin,
+                          difficulte: 0,
+                          resultat: "reussi",
+                          indicesUtilises: 0,
+                        },
+                        renforcees: impactSeance.renforcees,
+                        observations: impactSeance.observations,
+                        consequences: impactSeance.consequences,
+                        aRetravailler: [],
+                      }}
+                      actions={<LienApresImpact href="/" libelle="Prochaine action recommandée" />}
+                    />
                   </div>
-                </Carte>
+                ) : (
+                  <Carte accent>
+                    <EnTeteCarte id="titre-seance-terminee" titre="Séance terminée" legende={`Séance du ${formatDateCourte(seance.date)}`} />
+                    <div className="space-y-2 px-5 py-4 text-sm">
+                      <p>{seance.resultat ?? `${avancement.menes.length} exercice(s) mené(s)`}</p>
+                      {typeof seance.dureeMin === "number" && <p className="text-texte-attenue">Durée observée : {formatDuree(seance.dureeMin)}</p>}
+                    </div>
+                  </Carte>
+                )}
                 <div className="space-y-4">
                   {activites.map((activite) => {
                     const exercice = parId.get(activite.ref)!;

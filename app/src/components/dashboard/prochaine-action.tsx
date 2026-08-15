@@ -2,7 +2,10 @@ import Link from "next/link";
 import type { Recommandation } from "@/lib/engine/recommend";
 import { DIFFICULTES, LIBELLES_DIMENSIONS, type Referentiel } from "@/lib/domain/types";
 import { libelleDomaine } from "@/lib/domain/referentiel-compte";
-import { idDocumentDepuisActivite } from "@/lib/domain/adaptive-learning";
+import {
+  idDocumentDepuisActivite,
+  PREFIXE_ACTIVITE_RESSOURCE,
+} from "@/lib/domain/adaptive-learning";
 import { prochaineRevision } from "@/lib/engine/spaced";
 import {
   Carte,
@@ -16,15 +19,10 @@ import {
 import { Depliant } from "@/components/ui/explication";
 import { IconeFeuille, IconeFleche } from "@/components/ui/icones";
 import { formatDuree } from "@/lib/engine/dates";
-import { BoutonGenerer } from "@/components/exercices/bouton-generer";
 import { BoutonRefusRecommandation } from "@/components/dashboard/refus-recommandation";
 import { FeedbackRecommandation } from "@/components/dashboard/feedback-recommandation";
-import {
-  competencesPourModale,
-  type CalibrageModale,
-} from "@/components/exercices/proprietes-generation";
-import type { ReactNode } from "react";
 import { demarrerExerciceEnFocus } from "@/lib/store/seance-actions";
+import type { ReactNode } from "react";
 import {
   LIBELLES_FAMILLE,
   type ContexteInstant,
@@ -73,11 +71,13 @@ function BlocInstant({
   );
 }
 
-/** `/exercices/…` pour un exercice, l'espace de travail pour tout le reste. */
+/** Toute action d'apprentissage ouvre désormais le compositeur de séance. */
 function lienActivite(action: RecommendedLearningAction, instant?: ContexteInstant): string {
   const prefixe = "legacy-exercise:";
   if (action.activityId?.startsWith(prefixe)) {
-    return `/exercices/${encodeURIComponent(action.activityId.slice(prefixe.length))}`;
+    const code = action.target.skillCodes[0];
+    const temps = instant?.tempsMin ?? action.durationMinutes;
+    return `/seances?composer=1${code ? `&code=${encodeURIComponent(code)}` : ""}&temps=${temps}`;
   }
   /*
    * Une note opérationnelle mène à son propre espace de travail. Le mode de
@@ -112,7 +112,6 @@ function lienActivite(action: RecommendedLearningAction, instant?: ContexteInsta
 export function CarteProchaineAction({
   recommandations,
   referentiel,
-  calibrages,
   now,
   compteId,
   actionPrincipale,
@@ -123,14 +122,6 @@ export function CarteProchaineAction({
 }: {
   recommandations: Recommandation[];
   referentiel: Referentiel;
-  /**
-   * Calibrages de toutes les compétences actives, indexés par code.
-   *
-   * La modale laisse changer de compétence : lui passer la seule calibration
-   * de la recommandation principale ferait afficher la difficulté d'une autre
-   * compétence que celle visée.
-   */
-  calibrages: Record<string, CalibrageModale>;
   now: Date;
   compteId: string;
   /** Entrée vers le compositeur prérempli par la recommandation courante. */
@@ -252,25 +243,18 @@ export function CarteProchaineAction({
           {actionPrincipale ?? (exercice ? (
             <form action={demarrerExerciceEnFocus.bind(null, exercice.id)}>
               <Bouton type="submit" variante="principal">
-                Commencer en focus
+                Commencer
                 <IconeFleche className="size-4" />
               </Bouton>
             </form>
           ) : (
-            /*
-              Repli assumé : aucun exercice disponible pour cette compétence —
-              soit elle n'en a jamais eu, soit le seul qui existait vient
-              d'échouer et ne revient pas sans progrès démontré. La modale de
-              génération remplace le détour par le tuteur : on crée là où on est.
-            */
-            <BoutonGenerer
-              competences={competencesPourModale(referentiel.actifs)}
-              competenceInitiale={etat.skill.code}
-              calibrages={calibrages}
-              compteId={compteId}
-              libelle="Générer un exercice"
-              ouvrirDansCahierApresAcceptation
-            />
+            <Link
+              href={`/seances?composer=1&code=${encodeURIComponent(etat.skill.code)}&temps=${encodeURIComponent(String(instant?.tempsMin ?? dureeEstimeeMin))}`}
+              className={classesLienBouton("principal")}
+            >
+              Composer une séance
+              <IconeFleche className="size-4" />
+            </Link>
           ))}
           <Link
             href={`/atelier?document=${encodeURIComponent(etat.skill.code)}`}
@@ -402,10 +386,14 @@ function CarteActionActivite({
   reservesInstant: readonly string[];
 }) {
   const estNote = Boolean(action.activityId && idDocumentDepuisActivite(action.activityId));
+  const estRessource = action.activityId?.startsWith(PREFIXE_ACTIVITE_RESSOURCE) ?? false;
+  const codeRefusable = action.target.skillCodes[0];
   const libelle = action.source === "reprise"
     ? "Reprendre"
     : action.source === "generation"
       ? "Préparer le contenu"
+      : estRessource
+        ? "Travailler sur cette ressource"
       : estNote
         // Une note opérationnelle a déjà été ouverte : on la reprend, on ne la
         // commence pas. Dire « Commencer » ferait douter d'avoir perdu son
@@ -423,7 +411,7 @@ function CarteActionActivite({
       <div
         className="relative px-5 py-4 sm:px-6"
         data-testid="prochaine-action"
-        data-nature={estNote ? "note" : "activite"}
+        data-nature={estRessource ? "ressource" : estNote ? "note" : "activite"}
         data-family={action.family}
       >
         <div className="flex items-center gap-2">
@@ -459,10 +447,25 @@ function CarteActionActivite({
         )}
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <Link href={lienActivite(action, instant)} className={classesLienBouton("principal")}>
-            {libelle}
-            <IconeFleche className="size-4" />
-          </Link>
+          {action.activityId?.startsWith("legacy-exercise:") ? (
+            <form
+              action={demarrerExerciceEnFocus.bind(
+                null,
+                action.activityId.slice("legacy-exercise:".length),
+              )}
+            >
+              <Bouton type="submit" variante="principal">
+                {libelle}
+                <IconeFleche className="size-4" />
+              </Bouton>
+            </form>
+          ) : (
+            <Link href={lienActivite(action, instant)} className={classesLienBouton("principal")}>
+              {libelle}
+              <IconeFleche className="size-4" />
+            </Link>
+          )}
+          {codeRefusable && <BoutonRefusRecommandation code={codeRefusable} />}
         </div>
 
         <div className="mt-4 border-t border-bordure pt-3">

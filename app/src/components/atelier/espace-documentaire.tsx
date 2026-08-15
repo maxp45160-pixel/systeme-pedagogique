@@ -37,7 +37,7 @@ import {
   supprimerPieceJointeAction,
   supprimerNoteSupportAction,
 } from "@/lib/store/document-actions";
-import type { VueDomaineAtelier, VueCompetenceAtelier } from "@/lib/documents/vue-atelier";
+import type { VueDomaineAtelier, VueCompetenceAtelier, VueThemeAtelier } from "@/lib/documents/vue-atelier";
 import { cleParCompte } from "@/lib/ui/stockage-session";
 import { BoutonRetour } from "@/components/ui/lien-retour";
 import { BoutonOuvrirExplorateur, FichePedagogiqueAtelier, PanneauPedagogiqueAtelier } from "./fiche-pedagogique";
@@ -53,6 +53,9 @@ import {
 } from "@/lib/documents/arbre-atelier";
 import { EditeurDirect } from "./editeur-document";
 import { VueTousLesDomaines, VueTransversale, VueCategorieTransversale, BarreVuesAtelier, EnteteVueAtelier } from "./vues-synthese-atelier";
+import { VueCroissance } from "./vue-croissance";
+import type { ResumeCroissance } from "@/lib/engine/croissance";
+import type { EnsemblePropose } from "@/lib/engine/ensembles";
 import { PanneauExerciceAtelier } from "./panneaux-document-atelier";
 import type { ElementAtelier } from "./types-atelier";
 
@@ -128,8 +131,8 @@ function documentDepuisAnalyse(document: ReturnType<typeof analyserDocumentMarkd
 
 function trouverElement(id: string, liste: ElementAtelier[]): ElementAtelier | undefined {
   if (!id) return undefined;
-  if (id === "domaines" || id === "transversal" || id === "domaines-archives" || id === "graphe") {
-    const titre = id === "transversal" ? "Transversal" : id === "domaines-archives" ? "Domaines archivés" : id === "graphe" ? "Constellation" : "Domaines";
+  if (id === "croissance" || id === "domaines" || id === "transversal" || id === "domaines-archives" || id === "graphe") {
+    const titre = id === "croissance" ? "Ton atelier" : id === "transversal" ? "Transversal" : id === "domaines-archives" ? "Domaines archivés" : id === "graphe" ? "Constellation" : "Domaines";
     return {
       id,
       titre,
@@ -174,8 +177,9 @@ export function EspaceDocumentaire({
   modeInitial,
   graphe,
   generation,
-  rectificationActive,
   donneesSeance,
+  croissance,
+  ensemblesSuggeres,
 }: {
   elements: ElementAtelier[];
   /** Teinte par domaine, partagée avec le graphe pour qu'un domaine ait une seule couleur. */
@@ -185,15 +189,18 @@ export function EspaceDocumentaire({
   modeInitial?: "referentiel";
   graphe: { donnees: DonneesGraphe; compteId: string };
   generation: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
-  /** Corriger une preuve suppose le journal de rectification (boucle adaptative). */
-  rectificationActive?: boolean;
   donneesSeance?: DonneesSeance;
+  /** Dérivé côté serveur : l'accueil de l'Atelier ne recalcule rien. */
+  croissance: ResumeCroissance;
+  /** Ensembles que le travail dessine, à confirmer. Vide tant que rien n'est étayé. */
+  ensemblesSuggeres: EnsemblePropose[];
 }) {
   const router = useRouter();
   const [elements, setElements] = useState(elementsInitials);
   const selectionInitiale = useMemo(() => {
     if (documentDemande) {
       if (
+        documentDemande === "croissance" ||
         documentDemande === "domaines" ||
         documentDemande === "transversal" ||
         documentDemande === "domaines-archives" ||
@@ -201,12 +208,18 @@ export function EspaceDocumentaire({
       ) {
         return documentDemande;
       }
-      return trouverElement(documentDemande, elementsInitials)?.id ?? "domaines";
+      return trouverElement(documentDemande, elementsInitials)?.id ?? "croissance";
     }
     if (dossierDemande) {
       return `dossier:${dossierDemande}`;
     }
-    return "domaines";
+    /*
+      L'accueil est la vue de croissance, plus la grille de domaines.
+      Ouvrir l'Atelier sur un inventaire à administrer était le défaut central
+      du chantier : on y arrivait pour voir ce qu'on avait construit, et on
+      tombait sur ce qu'il restait à ranger.
+    */
+    return "croissance";
   }, [documentDemande, dossierDemande, elementsInitials]);
   const [selection, setSelection] = useState<string | null>(selectionInitiale);
   const [brouillons, setBrouillons] = useState<Record<string, string>>({});
@@ -263,6 +276,7 @@ export function EspaceDocumentaire({
   const [piecesJointesParDocument, setPiecesJointesParDocument] = useState<Record<string, PieceJointeDocument[]>>({});
 
   const selectionnee =
+    selection === "croissance" ||
     selection === "domaines" ||
     selection === "transversal" ||
     selection === "domaines-archives" ||
@@ -343,7 +357,7 @@ export function EspaceDocumentaire({
       : selectionnee.liens
     : [];
   const fichesLiables = elements
-    .filter((element) => element.id !== selectionId && element.id !== "domaines" && element.id !== "transversal" && element.id !== "domaines-archives" && element.id !== "graphe")
+    .filter((element) => element.id !== selectionId && element.id !== "croissance" && element.id !== "domaines" && element.id !== "transversal" && element.id !== "domaines-archives" && element.id !== "graphe")
     .sort((a, b) => (a.dossier || "").localeCompare(b.dossier || "") || a.titre.localeCompare(b.titre, "fr"));
   const documentSupportId = selectionnee?.frontMatter.role === "support" ? selectionnee.id : null;
 
@@ -412,7 +426,7 @@ export function EspaceDocumentaire({
       } else if (dossierParam) {
         setSelection(`dossier:${dossierParam}`);
       } else {
-        setSelection("domaines");
+        setSelection("croissance");
       }
       setCibleLien("");
       setSnapshotApercu(null);
@@ -443,7 +457,7 @@ export function EspaceDocumentaire({
   }
 
   function revenirAccueilAtelier(opts?: { remplacerHistorique?: boolean } | unknown) {
-    setSelection("domaines");
+    setSelection("croissance");
     setCibleLien("");
     setSnapshotApercu(null);
     const nouvelleUrl = "/atelier";
@@ -918,7 +932,7 @@ export function EspaceDocumentaire({
             </div>
           </div>
 
-          {selection && selection !== "domaines" && (
+          {selection && selection !== "croissance" && (
             <div className="border-b border-[var(--rail-bordure)] px-3 py-2 shrink-0">
               <button
                 type="button"
@@ -939,7 +953,25 @@ export function EspaceDocumentaire({
         </aside>
 
         <main className="flex h-full min-w-0 flex-1 flex-col min-h-0 overflow-hidden bg-surface">
-          {selection === "graphe" || selection === "constellation" ? (
+          {selection === "croissance" ? (
+            <VueCroissance
+              resume={croissance}
+              domaines={elements
+                .filter((el) => el.type === "domaine" && el.vuePedagogique)
+                .map((el) => el.vuePedagogique as VueDomaineAtelier)}
+              themes={elements
+                .filter((el) => el.type === "theme" && el.vuePedagogique)
+                .map((el) => el.vuePedagogique as VueThemeAtelier)}
+              ensemblesSuggeres={ensemblesSuggeres}
+              intitules={Object.fromEntries(
+                [...competencesParCode.entries()].map(([code, skill]) => [code, skill.intitule]),
+              )}
+              ouvrirElement={ouvrirElement}
+              revenirGrapheGlobal={revenirGrapheGlobal}
+              sidebarOuverte={sidebarOuverte}
+              setSidebarOuverte={setSidebarOuverte}
+            />
+          ) : selection === "graphe" || selection === "constellation" ? (
             <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface">
               <EnteteVueAtelier
                 titre="Constellation"
@@ -1027,7 +1059,6 @@ export function EspaceDocumentaire({
               setSidebarOuverte={setSidebarOuverte}
               compteId={graphe.compteId}
               modeInitial={modeInitial}
-              rectificationActive={rectificationActive}
               generation={generation}
               donneesSeance={donneesSeance}
             />

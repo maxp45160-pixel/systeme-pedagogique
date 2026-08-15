@@ -8,9 +8,6 @@ import { calculerActivite, evenementsRecents } from "@/lib/engine/historique";
 import { EntetePage } from "@/components/layout/entete-page";
 import { CarteEtatGlobal } from "@/components/dashboard/etat-global";
 import { CarteProchaineAction } from "@/components/dashboard/prochaine-action";
-import {
-  calibragesPourModale,
-} from "@/components/exercices/proprietes-generation";
 import { CarteProgressionRecente } from "@/components/dashboard/progression-recente";
 import { CarteActivite } from "@/components/dashboard/activite";
 import { CarteProfil } from "@/components/dashboard/carte-profil";
@@ -22,10 +19,11 @@ import { Glossaire } from "@/components/ui/glossaire";
 import { BandeauInfo, Bouton, Carte, classesLienBouton, Etiquette, TitreSection } from "@/components/ui/primitives";
 import { abandonnerExercice } from "@/lib/store/actions";
 import { statutSeance } from "@/lib/domain/seance";
-import { chargerActionProposee, loadAdaptiveOpenRuns } from "@/lib/store/adaptive-learning";
+import { chargerActionProposee } from "@/lib/store/adaptive-learning";
+import { lireApercusDocuments } from "@/lib/store/documents";
+import { recommanderActionsDocumentaires } from "@/lib/documents/recommandations";
 import {
   lireContexteInstant,
-  LIBELLES_FAMILLE,
   type ContexteInstant,
 } from "@/lib/engine/action-unifiee";
 
@@ -64,16 +62,11 @@ export default async function TableauDeBord(props: {
 }
 
 /**
- * Le bandeau parlait d'« exercices ». Il parle de « travaux » seulement quand
- * une autre famille est réellement ouverte : sans elles, la phrase reste
- * exactement celle que l'écran affichait déjà.
+ * Le bandeau ne parle plus que d'exercices : depuis le retrait des autres
+ * familles (ADR-070), c'est le seul travail qui puisse rester ouvert.
  */
-function titreTravauxEnCours(exercices: number, activites: number): string {
-  const total = exercices + activites;
-  if (activites === 0) {
-    return total === 1 ? "Tu as un exercice en cours" : `Tu as ${total} exercices en cours`;
-  }
-  return total === 1 ? "Tu as un travail en cours" : `Tu as ${total} travaux en cours`;
+function titreExercicesEnCours(exercices: number): string {
+  return exercices === 1 ? "Tu as un exercice en cours" : `Tu as ${exercices} exercices en cours`;
 }
 
 async function ContenuTableauDeBord({ instant }: { instant: ContexteInstant }) {
@@ -98,12 +91,11 @@ async function ContenuTableauDeBord({ instant }: { instant: ContexteInstant }) {
     Les travaux ouverts d'une autre famille rejoignent le bandeau « en cours »
     plus bas, au lieu d'un second bandeau qui dirait la même chose ailleurs.
   */
-  const [action, travauxOuverts] = await Promise.all([
+  const [action, aperçusDocuments] = await Promise.all([
     chargerActionProposee(ctx, instant),
-    ctx.donnees.user.learningLoopMode === "adaptive-v1"
-      ? loadAdaptiveOpenRuns(ctx.donnees.user.id)
-      : Promise.resolve([]),
+    lireApercusDocuments(),
   ]);
+  const recommandationsDocumentaires = recommanderActionsDocumentaires(aperçusDocuments);
   const recommandationsTravail = (
     action?.kind === "exercice" ? action.recommandations : ctx.recommandations
   ).slice(0, 2).map((recommandation) => ({
@@ -182,10 +174,10 @@ async function ContenuTableauDeBord({ instant }: { instant: ContexteInstant }) {
         Placé AVANT l'action prioritaire : ce qui est déjà commencé passe avant
         ce qu'il faudrait commencer.
       */}
-      {enCours.length + travauxOuverts.length > 0 && (
+      {enCours.length > 0 && (
         <BandeauInfo ton="primaire">
           <div className="min-w-0" data-testid="travaux-en-cours">
-            <p className="text-sm font-medium">{titreTravauxEnCours(enCours.length, travauxOuverts.length)}</p>
+            <p className="text-sm font-medium">{titreExercicesEnCours(enCours.length)}</p>
             <ul className="mt-2.5 space-y-2">
               {enCours.map(({ id, exercice, depuis }) => (
                 <li
@@ -218,40 +210,6 @@ async function ContenuTableauDeBord({ instant }: { instant: ContexteInstant }) {
                   </div>
                 </li>
               ))}
-              {/*
-                Même bandeau, même liste : un travail ouvert est un travail
-                ouvert, quelle que soit sa famille. L'étiquette dit ce que c'est ;
-                le geste d'abandon reste dans l'espace de travail, là où le
-                contenu est visible.
-              */}
-              {travauxOuverts.map(({ run, activity }) => (
-                <li
-                  key={run.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primaire/20 bg-surface/80 px-3 py-2 text-xs shadow-xs"
-                >
-                  <div className="flex flex-wrap items-baseline gap-2 min-w-0">
-                    <Etiquette ton="primaire">{LIBELLES_FAMILLE[activity.family]}</Etiquette>
-                    <Link
-                      href={`/seances?run=${encodeURIComponent(run.id)}`}
-                      className="font-semibold text-primaire hover:underline"
-                    >
-                      {activity.title}
-                    </Link>
-                    <span className="text-texte-discret">
-                      {run.status === "planifiee" ? "prêt à démarrer" : "à reprendre"}
-                      {activity.target.skillCodes.length > 0
-                        ? ` · ${activity.target.skillCodes.join(", ")}`
-                        : ""}
-                    </span>
-                  </div>
-                  <Link
-                    href={`/seances?run=${encodeURIComponent(run.id)}`}
-                    className={`${classesLienBouton("principal")} !py-1 !px-2.5 !text-xs shrink-0`}
-                  >
-                    {run.status === "planifiee" ? "Démarrer →" : "Reprendre →"}
-                  </Link>
-                </li>
-              ))}
             </ul>
           </div>
         </BandeauInfo>
@@ -275,7 +233,6 @@ async function ContenuTableauDeBord({ instant }: { instant: ContexteInstant }) {
           <CarteProchaineAction
             recommandations={action?.kind === "exercice" ? action.recommandations : ctx.recommandations}
             referentiel={ctx.referentiel}
-            calibrages={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
             now={ctx.now}
             compteId={ctx.donnees.user.id}
             instant={instant}
@@ -296,9 +253,7 @@ async function ContenuTableauDeBord({ instant }: { instant: ContexteInstant }) {
       {/* Les notes support et les travaux ont deux intentions différentes. */}
       <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
         <CaptureNotes
-          domaines={ctx.referentiel.domaines
-            .filter((domaine) => !domaine.archive && ctx.referentiel.actifs.some((skill) => skill.domaine === domaine.id))
-            .map((domaine) => ({ id: domaine.id, nom: domaine.nom, prefixe: domaine.prefixe }))}
+          recommandations={recommandationsDocumentaires}
         />
         <ChoixTravail
           recommandations={recommandationsTravail}

@@ -12,6 +12,13 @@ import {
   FORMATS_OPERATIONNELS_DISPONIBLES,
 } from "@/lib/documents/roles-note";
 
+type FormatTravail = (typeof FORMATS_OPERATIONNELS_DISPONIBLES)[number];
+
+const LIBELLE_FORMAT: Record<FormatTravail, string> = {
+  seance: "Séance de travail",
+  projet: "Projet",
+};
+
 export interface RecommandationTravail {
   code: string;
   intitule: string;
@@ -19,8 +26,6 @@ export interface RecommandationTravail {
   domaineNom: string;
   raison: string;
 }
-
-type FormatTravail = (typeof FORMATS_OPERATIONNELS_DISPONIBLES)[number];
 
 /** Entrée dédiée au travail : les notes support restent dans `CaptureNotes`. */
 export function ChoixTravail({
@@ -43,7 +48,8 @@ export function ChoixTravail({
   const recommandationSelectionnee = cible
     ? recommandations.find((recommandation) => recommandation.code === cible)
     : undefined;
-  const libelleCible = recommandationSelectionnee?.intitule ?? (cible === "autre" ? autreSujet.trim() : "");
+  const sujetLibre = autreSujet.trim();
+  const libelleCible = recommandationSelectionnee?.intitule ?? (cible === "autre" ? sujetLibre : "");
   const domaineCible = recommandationSelectionnee?.domaineId ?? "transversal";
 
   function ouvrir(cibleInitiale: string) {
@@ -57,6 +63,12 @@ export function ChoixTravail({
   function commencer() {
     if (!libelleCible) return;
     setErreur(null);
+
+    /*
+      Le projet passe par son propre parcours : le tuteur désigne les
+      compétences, la personne confirme, puis il rédige le sujet. La séance
+      n'a besoin de rien de tout cela — elle se compose à l'ouverture.
+    */
     if (format === "projet") {
       setIntentionProjet(libelleCible);
       setOuverte(false);
@@ -142,7 +154,7 @@ export function ChoixTravail({
       {ouverte && !projetOuvert && (
         <Modale
           titre="Nouveau travail"
-          sousTitre="Choisis une séance de travail ou un projet. Les autres formats arrivent bientôt."
+          sousTitre="Décris le sujet : il devient directement le travail à ouvrir."
           largeur="md"
           onFermer={() => setOuverte(false)}
           pied={
@@ -175,9 +187,9 @@ export function ChoixTravail({
               </label>
             )}
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-texte-discret">Cible choisie</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-texte-discret">Sujet de la séance</p>
               <p className="mt-1 rounded-lg border border-primaire/35 bg-primaire-faible/35 px-3 py-2.5 text-sm font-medium">
-                {libelleCible || "Choisis un sujet"}
+                {cible === "autre" ? sujetLibre || "Décris ton sujet ci-dessus" : libelleCible}
               </p>
             </div>
             <div className="space-y-2">
@@ -196,7 +208,7 @@ export function ChoixTravail({
                         : "border-bordure bg-surface-2 hover:border-primaire/35",
                     )}
                   >
-                    {valeur === "seance" ? "Séance de travail" : "Projet"}
+                    {LIBELLE_FORMAT[valeur]}
                   </button>
                 ))}
               </div>

@@ -78,8 +78,8 @@ export function FormulaireBilan({
    * reviendrait à la valeur du tuteur. Ici la proposition est une valeur
    * INITIALE — après quoi l'état appartient à la personne.
    */
-  const [resultat, setResultat] = useState<ResultatBilan>(
-    () => propositionInitiale?.resultat ?? "reussi",
+  const [resultat, setResultat] = useState<ResultatBilan | null>(
+    () => propositionInitiale?.resultat ?? null,
   );
   const [criteres, setCriteres] = useState<Record<number, number>>(
     () => propositionInitiale?.appreciations ?? {},
@@ -116,6 +116,19 @@ export function FormulaireBilan({
 
   function soumettre() {
     setErreur(null);
+
+    // Une absence de verdict n'est pas une réussite implicite. Le formulaire
+    // nu doit rester explicitement à décider, y compris quand la relecture du
+    // tuteur a échoué ou a été abandonnée.
+    if (resultat === null) {
+      setErreur("Choisis un résultat global avant d'enregistrer la preuve.");
+      return;
+    }
+
+    if (!tousRenseignes) {
+      setErreur("Renseigne chaque critère avant d'enregistrer la preuve.");
+      return;
+    }
 
     // Agrège les critères par dimension : moyenne des critères qui la visent.
     const parDimension = new Map<Dimension, number[]>();
@@ -429,14 +442,23 @@ export function FormulaireBilan({
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        <Bouton onClick={soumettre} disabled={!tousRenseignes || enCours} variante="principal">
+        <Bouton
+          onClick={soumettre}
+          disabled={resultat === null || !tousRenseignes || enCours}
+          variante="principal"
+        >
           {enCours
             ? "Enregistrement…"
             : assiste
               ? "Accepter et enregistrer"
               : "Enregistrer la preuve"}
         </Bouton>
-        {!tousRenseignes && (
+        {resultat === null && (
+          <span className="text-xs text-texte-discret">
+            Choisis le résultat global de ta résolution pour continuer.
+          </span>
+        )}
+        {resultat !== null && !tousRenseignes && (
           <span className="text-xs text-texte-discret">
             Renseigne chaque critère pour continuer.
           </span>

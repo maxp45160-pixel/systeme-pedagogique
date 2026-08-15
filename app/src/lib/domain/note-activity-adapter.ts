@@ -2,12 +2,13 @@ import type { ApercuDocument } from "@/lib/documents/types-documents";
 import { definitionTypeDocument } from "@/lib/documents/types-documents";
 import {
   idActiviteNote,
+  idActiviteRessource,
   type ActivityFamily,
   type ActivityWorkspace,
   type LearningActivity,
 } from "./adaptive-learning";
 
-export { idActiviteNote, idDocumentDepuisActivite } from "./adaptive-learning";
+export { idActiviteNote, idActiviteRessource, idDocumentDepuisActivite } from "./adaptive-learning";
 
 /**
  * Une note opérationnelle ouverte, vue comme une action possible.
@@ -66,6 +67,57 @@ const FAMILLE_PAR_TYPE: Record<string, ActivityFamily> = {
   schema: "produire",
 };
 
+const TRAVAIL_PAR_RESSOURCE: Record<string, {
+  action: string;
+  description: string;
+  duree: number;
+}> = {
+  article: {
+    action: "Lire et ficher le papier de recherche",
+    description: "Lire la ressource, en extraire les idées importantes et les relier à un cas d'application.",
+    duree: 30,
+  },
+  cours: {
+    action: "Lire et structurer le cours",
+    description: "Reprendre le cours, en dégager les objectifs et formaliser ce qui est à retenir.",
+    duree: 30,
+  },
+  formule: {
+    action: "Comprendre et appliquer les formules",
+    description: "Reprendre les formules, expliciter leurs variables et les mettre en application.",
+    duree: 25,
+  },
+  reference: {
+    action: "Lire et ficher la référence",
+    description: "Lire la ressource et conserver les passages utiles dans une fiche exploitable.",
+    duree: 25,
+  },
+  livre: {
+    action: "Lire et ficher le livre",
+    description: "Parcourir les chapitres utiles et transformer la lecture en fiche de travail.",
+    duree: 30,
+  },
+  note: {
+    action: "Reprendre et formaliser la note",
+    description: "Clarifier l'idée capturée et la transformer en ressource réutilisable.",
+    duree: 20,
+  },
+  reflexion: {
+    action: "Développer la réflexion",
+    description: "Reprendre la question, développer l'analyse et dégager une conclusion exploitable.",
+    duree: 25,
+  },
+};
+
+function codesCompetencesActifs(
+  apercu: ApercuDocument,
+  codesActifs: ReadonlySet<string>,
+): string[] {
+  return [
+    ...new Set(apercu.liens.map(({ cible }) => cible).filter((cible) => codesActifs.has(cible))),
+  ];
+}
+
 /**
  * Adapte une note opérationnelle, ou rend `null` si elle n'en est pas une.
  *
@@ -88,9 +140,7 @@ export function adaptNoteOperationnelle(
   if (!famille) return null;
 
   const definition = definitionTypeDocument(apercu.type);
-  const skillCodes = [
-    ...new Set(apercu.liens.map(({ cible }) => cible).filter((cible) => options.codesActifs.has(cible))),
-  ];
+  const skillCodes = codesCompetencesActifs(apercu, options.codesActifs);
   const contexte = typeof apercu.frontMatter.contexte === "string" ? apercu.frontMatter.contexte : "";
   const dateConnue = apercu.createdAt ?? apercu.updatedAt ?? "1970-01-01T00:00:00.000Z";
 
@@ -120,6 +170,71 @@ export function adaptNoteOperationnelle(
     createdAt: dateConnue,
     updatedAt: apercu.updatedAt ?? dateConnue,
   };
+}
+
+/**
+ * Expose une ressource support comme travail documentaire.
+ *
+ * La ressource reste la fiche canonique et son PDF reste son support. Le
+ * candidat dérivé demande un geste de lecture, de structuration et
+ * d'application ; il ne fabrique aucune preuve à partir de la capture.
+ */
+export function adaptNoteDocumentaire(
+  accountId: string,
+  apercu: ApercuDocument,
+  options: { codesActifs: ReadonlySet<string>; documentsFiges: ReadonlySet<string> },
+): LearningActivity | null {
+  if (apercu.frontMatter.role !== "support") return null;
+  if (options.documentsFiges.has(apercu.id)) return null;
+
+  const travail = TRAVAIL_PAR_RESSOURCE[apercu.type];
+  if (!travail) return null;
+
+  const dateConnue = apercu.createdAt ?? apercu.updatedAt ?? "1970-01-01T00:00:00.000Z";
+  return {
+    id: idActiviteRessource(apercu.id),
+    accountId,
+    title: `${travail.action} — ${apercu.titre}`,
+    description: travail.description,
+    family: "entrainer",
+    target: {
+      skillCodes: codesCompetencesActifs(apercu, options.codesActifs),
+      themeIds: [],
+      goalIds: [],
+      label: apercu.titre,
+    },
+    estimatedDurationMinutes: travail.duree,
+    cognitiveDemand: "standard",
+    // Le travail produit une fiche éditoriale ; une preuve n'existe qu'après
+    // une validation explicite, jamais au moment de l'ajout de la ressource.
+    proofMode: "support-seul",
+    workspace: "exercice-trois-actes",
+    requiredTools: ["editeur-markdown", "fichiers", "liens"],
+    authorizedResources: [{
+      id: apercu.id,
+      kind: "document-interne",
+      label: apercu.titre,
+      ref: apercu.id,
+      usage: "normale",
+    }],
+    evaluationContract: { scope: "aucune", criteria: [], assessableMilestoneIds: [] },
+    version: 1,
+    origin: "legacy-adapter",
+    status: "active",
+    createdAt: dateConnue,
+    updatedAt: apercu.updatedAt ?? dateConnue,
+  };
+}
+
+export function adaptNotesDocumentaires(
+  accountId: string,
+  apercus: readonly ApercuDocument[],
+  options: { codesActifs: ReadonlySet<string>; documentsFiges: ReadonlySet<string> },
+): LearningActivity[] {
+  return apercus.flatMap((apercu) => {
+    const activite = adaptNoteDocumentaire(accountId, apercu, options);
+    return activite ? [activite] : [];
+  });
 }
 
 export function adaptNotesOperationnelles(

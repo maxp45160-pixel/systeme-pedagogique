@@ -59,12 +59,6 @@ export function ResumeExerciceCahier({
           </details>
         )}
 
-        <details className="rounded-md border border-bordure bg-surface-2 px-3 py-2">
-          <summary className="cursor-pointer text-sm font-medium">Voir la correction</summary>
-          <div className="prose-exo mt-2 border-t border-bordure pt-2 text-sm">
-            <Markdown contenu={exercice.correction} />
-          </div>
-        </details>
       </div>
     </Carte>
   );

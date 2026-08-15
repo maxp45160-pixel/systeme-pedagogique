@@ -48,7 +48,9 @@ export interface EvenementProgression {
  */
 export function evenementsRecents(
   preuves: SkillEvidence[],
-  skillsParCode: Map<string, Skill>,
+  // `ReadonlyMap` : cette fonction ne fait que lire le référentiel, et
+  // l'exiger mutable obligeait ses appelants à en recopier un.
+  skillsParCode: ReadonlyMap<string, Skill>,
   limite = 8,
   now: Date = new Date(),
 ): EvenementProgression[] {

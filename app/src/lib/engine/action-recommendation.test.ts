@@ -269,6 +269,22 @@ describe("sequencement des familles", () => {
     expect(result?.primary.family).toBe("entrainer");
   });
 
+  it("met une ressource documentaire ouverte devant un exercice sans cible liée", () => {
+    const result = recommendLearningAction(input({
+      activities: [
+        activity("legacy-exercise", "entrainer"),
+        activity("ressource:papier-recherche", "entrainer", {
+          target: { skillCodes: [], themeIds: [], goalIds: [], label: "Papier de recherche" },
+          title: "Lire et ficher le papier de recherche — Boucles de rétroaction",
+          proofMode: "support-seul",
+        }),
+      ],
+    }));
+
+    expect(result?.primary.activityId).toBe("ressource:papier-recherche");
+    expect(result?.factors.some((factor) => factor.kind === "ressource-documentaire")).toBe(true);
+  });
+
   it("fait suivre une exploration plus recente que la preuve par pratique ou production", () => {
     const exploreRun: ActivityRun = {
       id: "run-explore",

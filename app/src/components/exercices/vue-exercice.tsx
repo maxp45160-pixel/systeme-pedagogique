@@ -7,6 +7,7 @@ import { DIFFICULTES } from "@/lib/domain/types";
 import { demarrerTentative } from "@/lib/store/actions";
 import {
   BandeauInfo,
+  Bouton,
   Carte,
   classesLienBouton,
   CodeCompetence,
@@ -20,14 +21,12 @@ import { Markdown } from "@/components/ui/markdown";
 import { BilanAssiste } from "@/components/exercices/bilan-assiste";
 import { BoutonAbandon } from "@/components/exercices/abandon";
 import { ZoneReponse } from "@/components/exercices/zone-reponse";
-import { BoutonSoumission } from "@/components/ui/bouton-soumission";
 import { FocusActe } from "@/components/exercices/focus-acte";
 import { motifBlocageBilan, reponseSuffisante } from "@/lib/domain/tentative";
-import { IconeFleche, IconeValide } from "@/components/ui/icones";
+import { IconeFleche } from "@/components/ui/icones";
 import { formatDateCourte, formatDuree } from "@/lib/engine/dates";
-import { BilanRedigeVue } from "@/components/exercices/bilan-redige";
-import { BoutonEditer } from "@/components/exercices/bouton-editer";
-import { compterTentatives, estRetirable } from "@/lib/domain/exercice";
+import { CarteImpact, LienApresImpact } from "@/components/exercices/carte-impact";
+import { impactTentative } from "@/lib/engine/impact";
 import { tentativeMenee } from "@/lib/engine/calibration";
 import { amorceExercice } from "@/lib/tutor/amorces";
 import { construireEtatInitialTuteur } from "@/lib/tutor/etat-initial";
@@ -45,7 +44,7 @@ export async function VueExercice(props: {
   params: Promise<{ id: string }>;
   searchParams: Promise<{
     correction?: string;
-    /** Passe l'écran de Comparer (correction visible) à Mesurer (bilan). */
+    /** Ancien paramètre conservé : il ouvre désormais directement le bilan du tuteur. */
     evaluer?: string;
     bilan?: string;
     abandon?: string;
@@ -63,16 +62,22 @@ export async function VueExercice(props: {
   const exercice = ctx.donnees.exercises.find((e) => e.id === id);
   if (!exercice) notFound();
 
+  const sessionNavigation = props.navigation
+    ? ctx.donnees.sessions.find((session) => session.id === props.navigation?.seanceId)
+    : null;
   const tentatives = ctx.donnees.attempts.filter((a) => a.exerciseId === exercice.id);
+  const tentativesDeCetteSeance = sessionNavigation
+    ? tentatives.filter((a) => a.debut >= sessionNavigation.date)
+    : tentatives;
   // Le cahier relit une séance : une tentative éventuellement ouverte ailleurs
   // ne doit jamais rendre cet écran éditable ni ouvrir un nouveau parcours.
   const enCours = props.lectureSeule
     ? null
-    : tentatives.find((a) => a.statut === "en-cours") ?? null;
+    : tentativesDeCetteSeance.find((a) => a.statut === "en-cours") ?? null;
   // PostgreSQL ne garantit aucun ordre de retour : la « dernière » tentative ne
   // se lit pas en fin de tableau, elle se trie sur sa date (audit §2.5).
   const derniereTerminee =
-    [...tentatives]
+    [...tentativesDeCetteSeance]
       .filter((a) => a.statut === "terminee")
       .sort((a, b) => (b.fin ?? b.debut).localeCompare(a.fin ?? a.debut))[0] ?? null;
 
@@ -96,27 +101,36 @@ export async function VueExercice(props: {
     ? tentativeMenee(derniereAbandonnee, exercice)
     : false;
 
+  /*
+   * L'impact n'est calculé que si l'écran l'affiche.
+   *
+   * `impactTentative` rejoue l'historique de chaque compétence touchée — deux
+   * `computeSkillState` par compétence. Le payer à chaque ouverture d'exercice,
+   * y compris pendant la recherche, serait un coût pour rien : la carte
+   * n'apparaît qu'au retour du bilan.
+   */
+  const impact = bilan === "1" && derniereTerminee
+    ? impactTentative({
+      exercice,
+      tentative: derniereTerminee,
+      preuves: ctx.preuvesEffectives,
+      skillsParCode: ctx.referentiel.parCode,
+      calibrations: ctx.calibrations,
+      now: ctx.now,
+    })
+    : null;
+
   const cible = ctx.etatsParCode.get(exercice.competences[0]);
   /*
-   * Trois actes, un CTA principal chacun : Chercher (rien de visible ici
-   * encore) → Comparer (`correctionVisible`, sans être encore à l'évaluation)
-   * → Mesurer (`enMesure`, le formulaire de bilan). Chaque transition est un
-   * clic explicite, pas une conséquence de l'ouverture de la correction —
-   * avant ce chantier, révéler la correction affichait AUSSI le formulaire de
-   * bilan dans le même geste, l'un des ~15 blocs simultanés du constat de
-   * phase 3.
-   *
-   * La correction reste masquée quand on REFAIT un exercice : une nouvelle
-   * tentative doit repartir sans la solution sous les yeux, sinon elle ne
-   * mesure plus rien. `enCours` est vrai dès qu'une tentative est ouverte, et
-   * `correction`/`evaluer` n'existent que dans son URL — un `refaire` crée une
-   * tentative fraîche derrière un lien sans ces paramètres.
+   * Deux actes : Chercher → Mesurer. La correction de référence n'est jamais
+   * exposée dans l'interface : le tuteur relit la réponse côté serveur et rend
+   * une proposition dans le bilan. Les anciennes URLs `?correction=1` sont
+   * rabattues sur ce même chemin pour ne pas réouvrir l'ancien écran.
    */
-  const correctionVisible = correction === "1" || evaluer === "1";
-  const enMesure = evaluer === "1";
+  const enMesure = evaluer === "1" || correction === "1";
   // L'énoncé reste toujours atteignable — c'est le contexte, pas une action.
-  // Il ne se replie que dans l'acte Mesurer, jamais avant : Chercher et
-  // Comparer en ont encore besoin pour, respectivement, résoudre et comparer.
+  // Il ne se replie que dans l'acte Mesurer, jamais avant : la recherche doit
+  // garder l'énoncé sous les yeux.
   const foldEnonce = Boolean(enCours) && enMesure;
 
   const dureeSuggeree = enCours
@@ -139,6 +153,7 @@ export async function VueExercice(props: {
 
   const navigation = props.navigation;
   const largeurVue = enCours ? "mx-auto max-w-6xl" : "mx-auto max-w-3xl";
+  const lienCompositeur = `/seances?composer=1&code=${encodeURIComponent(exercice.competences[0] ?? "")}&temps=${exercice.dureeEstimeeMin}`;
 
   return (
     <div className={largeurVue}>
@@ -184,8 +199,8 @@ export async function VueExercice(props: {
             n&apos;est conseillée pour le prochain exercice.
           </p>
           {!props.integree && <div className="mt-2 flex flex-wrap items-center gap-2">
-            <Link href={urlExercice(exercice.id, navigation)} className={classesLienBouton("principal", "petite")}>
-              Reprendre l&apos;exercice
+            <Link href={lienCompositeur} className={classesLienBouton("principal", "petite")}>
+              Reprendre dans une séance
             </Link>
             {etatInitialTuteur && (
               <TiroirTuteur
@@ -211,53 +226,34 @@ export async function VueExercice(props: {
         </BandeauInfo>
       )}
 
-      {/* Bilan après enregistrement */}
-      {bilan === "1" && derniereTerminee && (
-        <BandeauInfo ton="succes" className="mb-4">
-        <div>
+      {/*
+        Bilan après enregistrement — l'impact, pas deux nombres.
+        La carte est alimentée par `impactTentative`, qui rejoue le journal pour
+        dire le niveau AVANT et APRÈS. Le bandeau précédent affichait l'état
+        courant seul : on ne pouvait pas savoir si quelque chose avait bougé.
+      */}
+      {bilan === "1" && derniereTerminee && impact && (
+        <div className="mb-4">
           <FocusActe cle={`bilan-${derniereTerminee.id}`} cible="titre-bilan-exercice" />
-          <p id="titre-bilan-exercice" tabIndex={-1} className="flex items-center gap-1.5 text-sm font-medium text-succes outline-none">
-            <IconeValide className="size-4" />
-            Preuve enregistrée
-          </p>
-          <p className="mt-1 text-xs text-texte-attenue">
-            {exercice.competences.map((c) => {
-              const e = ctx.etatsParCode.get(c);
-              return (
-                <span key={c} className="mr-3 inline-block">
-                  <strong>{c}</strong> : niveau{" "}
-                  {e?.niveau === null || e?.niveau === undefined ? "—" : e.niveau}/5, confiance{" "}
-                  {e?.confiance ?? "—"}
-                </span>
-              );
-            })}
-          </p>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            {navigation ? (
-              <Link
-                href={`/seances?session=${encodeURIComponent(navigation.seanceId)}`}
-                className={classesLienBouton("principal", "normale")}
-              >
-                <span>Reprendre la séance (Exercice suivant)</span>
-                <span aria-hidden className="ml-1">→</span>
-              </Link>
-            ) : (
-              <Link href="/" className={classesLienBouton("principal", "normale")}>
-                <span>Prochaine action recommandée</span>
-                <span aria-hidden className="ml-1">→</span>
-              </Link>
-            )}
-            {!props.integree && (
-              <Link
-                href={`/atelier?document=${encodeURIComponent(exercice.competences[0])}`}
-                className={classesLienBouton("secondaire", "petite")}
-              >
-                Voir l&apos;effet sur la compétence
-              </Link>
-            )}
+          <div id="titre-bilan-exercice" tabIndex={-1} className="outline-none">
+            <CarteImpact
+              impact={impact}
+              lienCompetence={!props.integree}
+              actions={
+                <>
+                  {navigation ? (
+                    <LienApresImpact
+                      href={`/seances?session=${encodeURIComponent(navigation.seanceId)}`}
+                      libelle="Reprendre la séance (Exercice suivant)"
+                    />
+                  ) : (
+                    <LienApresImpact href="/" libelle="Prochaine action recommandée" />
+                  )}
+                </>
+              }
+            />
           </div>
         </div>
-        </BandeauInfo>
       )}
 
       {/* -------------------------------- En-tête ------------------------- */}
@@ -306,23 +302,6 @@ export async function VueExercice(props: {
           })}
         </div>
 
-        {/*
-          Corriger l'exercice (ADR-047). Réservé aux exercices du compte :
-          `estRetirable` porte déjà la question « cet exercice t'appartient-il ? »
-          — un diagnostic est livré avec le logiciel, et `modifierExercice` le
-          refuserait de toute façon côté serveur.
-
-          Placé dans l'en-tête, discret : c'est un geste rare, mais il doit être
-          là où l'on constate le défaut, pas dans un écran de gestion à part.
-        */}
-        {!props.integree && estRetirable(exercice) && (
-          <div className="mt-3">
-            <BoutonEditer
-              exercice={exercice}
-              tentatives={compterTentatives(exercice.id, ctx.donnees.attempts)}
-            />
-          </div>
-        )}
       </header>
 
       <div className={enCours ? "grid gap-4 lg:grid-cols-2 lg:items-start" : "space-y-4"}>
@@ -380,7 +359,7 @@ export async function VueExercice(props: {
         </div>
 
         {/* ------------------------ Démarrage / résolution ------------------ */}
-        {!props.lectureSeule && !enCours && !derniereTerminee && (
+        {!props.lectureSeule && !enCours && (props.integree || !derniereTerminee) && (
           <Carte accent>
             <div className="px-4 py-3.5">
               <p className="text-sm">
@@ -394,12 +373,19 @@ export async function VueExercice(props: {
                   une information utile.
                 </p>
               )}
-              <form action={demarrerTentative.bind(null, exercice.id)} className="mt-4">
-                <BoutonSoumission variante="principal">
-                  Commencer
+              {props.integree ? (
+                <form action={demarrerTentative.bind(null, exercice.id)}>
+                  <Bouton type="submit" variante="principal" taille="petite">
+                    Commencer l&apos;exercice
+                    <IconeFleche className="size-4" />
+                  </Bouton>
+                </form>
+              ) : (
+                <Link href={lienCompositeur} className={classesLienBouton("principal", "petite")}>
+                  Composer une séance
                   <IconeFleche className="size-4" />
-                </BoutonSoumission>
-              </form>
+                </Link>
+              )}
             </div>
           </Carte>
         )}
@@ -407,14 +393,12 @@ export async function VueExercice(props: {
         {enCours && (
           <div className="space-y-4 lg:col-start-2 lg:row-start-1">
             {/*
-              Ta réponse — vivante dans l'acte Chercher, repliée dès que la
-              correction devient visible (Comparer, Mesurer). L'édition reste
-              possible une fois repliée : rien n'interdit de continuer à
-              préciser sa méthode en comparant à la correction, seul le poids
-              visuel du bloc change.
+              Ta réponse — vivante dans l'acte Chercher, repliée dès que le
+              bilan du tuteur est ouvert. Elle reste modifiable avant l'envoi
+              au tuteur.
             */}
             <PanneauPliable
-              ouvertParDefaut={!correctionVisible}
+              ouvertParDefaut={!enMesure}
               titre={<span className="text-sm font-medium">Ta réponse</span>}
               sousEntete={
                 <p className="mt-0.5 text-xs text-texte-attenue">
@@ -452,67 +436,33 @@ export async function VueExercice(props: {
               </div>
             </PanneauPliable>
 
-            {/* -------------------- Acte : Chercher (teaser) ----------------- */}
-            {!correctionVisible && (
+            {/* ---------------- Acte : demander la correction au tuteur ------ */}
+            {!enMesure && (
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-bordure px-1 py-2">
                 <div className="min-w-0">
-                  <p className="text-xs font-medium">Correction</p>
-                  <p className="text-micro text-texte-attenue">À ouvrir après ta recherche.</p>
+                  <p className="text-xs font-medium">Correction par le tuteur</p>
+                  <p className="text-micro text-texte-attenue">
+                    Le tuteur relira ta réponse et te proposera un bilan.
+                  </p>
                 </div>
                 <Link
-                  href={urlExercice(exercice.id, navigation, "correction")}
+                  href={urlExercice(exercice.id, navigation, "evaluer")}
                   className={cx(classesLienBouton("principal", "petite"))}
                 >
-                  Afficher la correction
+                  Demander la correction
                   <IconeFleche className="size-4" />
                 </Link>
               </div>
             )}
 
             {/*
-              -------------------- Acte : Comparer ---------------------------
-              Correction visible, réponse repliée (ci-dessus).
-              L'évaluation n'apparaît qu'après un clic explicite — avant
-              ce chantier, révéler la correction affichait AUSSI le formulaire
-              de bilan dans le même geste.
+              La correction de référence reste côté serveur. Le clic ci-dessus
+              ouvre directement le bilan assisté ; aucune étape ne rend le
+              texte de correction à l'utilisateur.
             */}
-            {correctionVisible && !enMesure && (
-              <>
-                <FocusActe cle="comparer" cible="titre-comparer" />
-                <Carte>
-                  <EnTeteCarte
-                    id="titre-comparer"
-                    titre="Correction"
-                    legende="Compare ta méthode, pas seulement ton résultat"
-                  />
-                  <div className="px-4 py-3.5 text-sm">
-                    <Markdown contenu={exercice.correction} />
-                  </div>
-                </Carte>
-                <Carte accent>
-                  <div className="px-4 py-3.5">
-                    <p className="text-sm">
-                      Relis ta méthode à côté de la correction. Quand tu es prêt, passe à
-                      l&apos;évaluation — c&apos;est cette étape qui produit la preuve.
-                    </p>
-                    <Link
-                      href={urlExercice(exercice.id, navigation, "evaluer")}
-                      className={cx(classesLienBouton("principal"), "mt-3")}
-                    >
-                      Passer à l&apos;évaluation
-                      <IconeFleche className="size-4" />
-                    </Link>
-                  </div>
-                </Carte>
-              </>
-            )}
-
-            {/*
-              -------------------- Acte : Mesurer ----------------------------
-              Énoncé, données, réponse et correction sont tous
-              repliés (foldEnonce plus haut, PanneauPliable ci-dessus) : seul
-              le formulaire de bilan — ou le blocage qui l'empêche — reste
-              déployé.
+            {/* -------------------- Acte : Mesurer ----------------------------
+              Énoncé et réponse sont repliés : seul le bilan proposé par le
+              tuteur — ou le blocage qui l'empêche — reste déployé.
 
               La condition `reponseSuffisante` porte sur `enCours.reponse` —
               ce que la BASE porte — et non sur le texte à l'écran :
@@ -529,20 +479,6 @@ export async function VueExercice(props: {
             {enMesure && (
               <>
                 <FocusActe cle="mesurer" cible="titre-mesurer" />
-                <PanneauPliable
-                  ouvertParDefaut={false}
-                  titre={<span className="text-sm font-medium">Correction</span>}
-                  sousEntete={
-                    <p className="mt-0.5 text-xs text-texte-attenue">
-                      Compare ta méthode, pas seulement ton résultat
-                    </p>
-                  }
-                >
-                  <div className="px-4 py-3.5 text-sm">
-                    <Markdown contenu={exercice.correction} />
-                  </div>
-                </PanneauPliable>
-
                 {reponseSuffisante(enCours.reponse) ? (
                   <Carte accent>
                     <EnTeteCarte
@@ -615,85 +551,6 @@ export async function VueExercice(props: {
           </div>
         )}
 
-        {/* ---------------------- Exercice déjà terminé --------------------- */}
-        {!enCours && derniereTerminee && (
-          <>
-            <Carte>
-              <EnTeteCarte
-                titre="Correction"
-                legende={`Tentative terminée · ${
-                  derniereTerminee.dureeMin ? formatDuree(derniereTerminee.dureeMin) : "durée non notée"
-                }`}
-                action={
-                  <Etiquette
-                    ton={
-                      derniereTerminee.resultat === "reussi"
-                        ? "succes"
-                        : derniereTerminee.resultat === "partiel"
-                          ? "info"
-                          : "alerte"
-                    }
-                  >
-                    {derniereTerminee.resultat === "reussi"
-                      ? "Réussi"
-                      : derniereTerminee.resultat === "partiel"
-                        ? "Partiel"
-                        : "Non abouti"}
-                  </Etiquette>
-                }
-              />
-              <div className="px-4 py-3.5 text-sm">
-                <Markdown contenu={exercice.correction} />
-              </div>
-            </Carte>
-
-            {derniereTerminee.reponse && (
-              <Carte>
-                <EnTeteCarte titre="Ta réponse d'alors" />
-                <div className="whitespace-pre-wrap px-4 py-3.5 text-xs text-texte-attenue">
-                  {derniereTerminee.reponse}
-                </div>
-              </Carte>
-            )}
-
-            {/*
-              Le verdict archivé (ADR-046). C'est la moitié de la raison de le
-              persister : la seconde est que le tuteur le retrouve, mais la
-              première est que la personne puisse le relire — un conseil qu'on
-              ne peut consulter qu'une fois, au moment où l'on valide, n'est pas
-              un conseil.
-            */}
-            {derniereTerminee.verdictTuteur && (
-              <Carte>
-                <EnTeteCarte
-                  titre="Ce que le tuteur avait relevé"
-                  legende={`Verdict du ${formatDateCourte(derniereTerminee.verdictTuteur.date)}`}
-                />
-                <div className="px-4 py-3.5">
-                  <BilanRedigeVue
-                    bilan={derniereTerminee.verdictTuteur.bilan}
-                    titre="Sa lecture de ta réponse"
-                    legende="Il proposait ; c'est ton évaluation qui a été enregistrée."
-                  />
-                </div>
-              </Carte>
-            )}
-
-            {!props.lectureSeule && <Carte>
-              <div className="px-4 py-3.5">
-                <p className="text-sm">
-                  Cet exercice a produit une preuve. Le refaire plus tard, après un délai, est
-                  exactement ce qui fait monter la robustesse d&apos;une compétence.
-                </p>
-                <form action={demarrerTentative.bind(null, exercice.id)} className="mt-3">
-                  <BoutonSoumission variante="secondaire">
-                    Refaire cet exercice
-                  </BoutonSoumission>
-                </form>
-              </div>
-            </Carte>}
-          </>
-        )}
       </div>
     </div>
   );

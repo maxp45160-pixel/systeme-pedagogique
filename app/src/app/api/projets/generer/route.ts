@@ -19,10 +19,10 @@ import {
   type ContratGenerationActivite,
 } from "@/lib/tutor/adaptive-generation";
 import {
+  CompositionProjetInvalide,
   criteresProjet,
   parseCompositionProjet,
 } from "@/lib/domain/composition-projet";
-import { AdaptiveLearningValidationError } from "@/lib/domain/adaptive-learning";
 
 export const maxDuration = 300;
 
@@ -45,18 +45,11 @@ export async function POST(request: Request) {
   }
 
   const ctx = await chargerContexte();
-  /*
-   * Pas de garde `learningLoopMode` ici.
-   *
-   * Le drapeau de bêta protège l'**arbitrage** du moteur — ce qu'il propose
-   * de lui-même. Composer un projet est un geste demandé : le refuser au motif
-   * que l'arbitrage automatique est éteint reviendrait à confondre les deux.
-   */
   let composition;
   try {
     composition = parseCompositionProjet(corps, new Set(ctx.referentiel.parCode.keys()));
   } catch (cause) {
-    if (cause instanceof AdaptiveLearningValidationError) {
+    if (cause instanceof CompositionProjetInvalide) {
       return Response.json({ erreur: "composition-invalide", message: cause.message }, { status: 400 });
     }
     throw cause;

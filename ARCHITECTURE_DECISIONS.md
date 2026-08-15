@@ -79,8 +79,10 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [064](#adr-064) | Workspace documentaire Markdown en extension progressive | 🔬 Hypothèse (12/08) |
 | [065](#adr-065) | Gouvernance transactionnelle du référentiel | 🔬 Proposition (13/08) |
 | [066](#adr-066) | La boucle devient un moteur d'actions d'apprentissage adaptatif | ✅ Acceptée (13/08) |
-| [067](#adr-067) | Un projet n'est pas une séance : il porte son propre déroulé | ✅ Acceptée (15/08) — amende [066](#adr-066) |
-| [068](#adr-068) | Une preuve de projet s'adosse à un critère porteur, jamais à la cible entière | ✅ Acceptée (15/08) — amende [066](#adr-066) |
+| [067](#adr-067) | Un projet n'est pas une séance : il porte son propre déroulé | 🔄 Remplacée par [070](#adr-070) |
+| [068](#adr-068) | Une preuve de projet s'adosse à un critère porteur, jamais à la cible entière | 🔄 Remplacée par [070](#adr-070) |
+| [069](#adr-069) | L'agent écrit ce qui est réversible ; le journal d'actions est la contrepartie | 🔬 Hypothèse (15/08) |
+| [070](#adr-070) | Un projet est une note, pas une entité : la machinerie de « Produire » est retirée | ✅ Acceptée (15/08) — remplace [067](#adr-067) et [068](#adr-068) |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -4696,7 +4698,12 @@ qu'après ces mêmes critères et une migration de parité validée.
 ---
 
 <a name="adr-067"></a>
-## ADR-067 — Un projet n'est pas une séance : il porte son propre déroulé ✅
+## ADR-067 — Un projet n'est pas une séance : il porte son propre déroulé 🔄
+
+> 🔄 **Remplacée le 15/08/2026 par [ADR-070](#adr-070).** La famille « Produire »
+> a été retirée, code et tables : une exécution planifiée, jamais démarrée,
+> aucune preuve. Le contenu ci-dessous est conservé pour ne pas rebâtir à
+> l'identique sans fait nouveau.
 
 **Date.** 15/08/2026. **Tranchée explicitement par Maxime.** Amende
 [ADR-066](#adr-066) et laisse [ADR-048](#adr-048) intacte.
@@ -4754,7 +4761,12 @@ pas.
 ---
 
 <a name="adr-068"></a>
-## ADR-068 — Une preuve de projet s'adosse à un critère porteur, jamais à la cible entière ✅
+## ADR-068 — Une preuve de projet s'adosse à un critère porteur, jamais à la cible entière 🔄
+
+> 🔄 **Remplacée le 15/08/2026 par [ADR-070](#adr-070).** La famille « Produire »
+> a été retirée, code et tables : une exécution planifiée, jamais démarrée,
+> aucune preuve. Le contenu ci-dessous est conservé pour ne pas rebâtir à
+> l'identique sans fait nouveau.
 
 **Date.** 15/08/2026. **Tranchée explicitement par Maxime.** Amende
 [ADR-066](#adr-066) et applique l'invariant « absence de preuve ≠ zéro ».
@@ -4972,6 +4984,120 @@ aperçus est trop large — ce n'est pas le modèle qui est trop petit.
    référentiel » pour rester compréhensible, la séparation a fui jusqu'à
    l'écran et c'est la formulation des lignes qu'il faut revoir — pas le
    schéma, qui reste juste pour d'autres raisons.
+
+---
+
+## ADR-070 — Un projet est une note, pas une entité : la machinerie de « Produire » est retirée ✅
+
+**Date.** 15/08/2026. **Tranchée explicitement par Maxime**, après mesure sur la
+base de production. Remplace [ADR-067](#adr-067) et [ADR-068](#adr-068), et
+referme la partie « Produire » d'[ADR-066](#adr-066). L'arbitrage à l'instant T
+décrit par l'amendement d'ADR-066 du 14/08 **reste en place**.
+
+
+> ✅ **Amendement du 15/08/2026, le jour même — le geste revient, la machine
+> non.** La première rédaction de cette ADR retirait la famille « Produire »
+> entièrement. Maxime a repris la décision dans l'heure, avec un argument que le
+> constat chiffré ne couvrait pas : **on n'apprend pas qu'en faisant des
+> exercices**, et le mini-projet est un moyen d'apprentissage légitime — c'est
+> `PRODUCT.md` §1 qui le dit. Le compte d'usage disait qu'une implémentation
+> n'avait pas servi ; il ne disait rien de la pertinence du geste.
+>
+> **Ce qui revient**, sur le chemin documentaire et sans une seule table : un
+> projet est une **note opérationnelle de type `projet`**, exactement comme une
+> séance est une note de type `seance`. Le type documentaire déclarait déjà ses
+> sections (Énoncé / Étapes / Critères écrits par le système, puis Travail
+> réalisé / Résultats), `WorkspaceNoteOperationnelle` savait déjà l'ouvrir en
+> plein écran, et l'ancien `ouvrirProjetCompose` écrivait **déjà** cette fiche
+> — en plus de l'activité et de l'exécution. Il a suffi de couper ce « en
+> plus ».
+>
+> Sont conservés tels quels : `composition-projet.ts` (visée déclarée, durée,
+> six compétences au plus, contraintes — module pur), le parcours en trois
+> temps où le tuteur **désigne** des compétences du référentiel sans jamais en
+> frapper une, et les outils `proposer_mini_projet_adaptatif` /
+> `proposer_evaluation_projet`, qui n'avaient jamais dépendu des tables.
+>
+> **Ce que cette version ne fait pas, et l'assume.** Un projet ne devient pas
+> une preuve. Les critères restent écrits dans la fiche, lisibles, mais aucune
+> mesure n'en est dérivée — ce qui est exactement la règle du §10 du cahier :
+> avoir travaillé sur une ressource n'est pas avoir démontré une compétence. La
+> question du contrat de preuve (ce que tranchait [ADR-068](#adr-068)) se
+> rouvrira quand un projet aura été mené jusqu'au bout au moins une fois. Elle
+> ne se tranche pas d'avance : c'est cette anticipation qui avait produit sept
+> tables pour zéro preuve.
+>
+> « Explorer », elle, reste retirée : elle n'a jamais eu de surface, et aucun
+> geste utilisateur ne disparaît avec elle.
+### Le fait qui la motive
+
+L'audit produit du 15/08 a compté ce que la boucle projet avait produit depuis
+son déploiement :
+
+| Table | Lignes |
+|---|---|
+| `learning_activities`, `activity_runs`, `activity_artifacts`, `learning_command_receipts` | 1 chacune |
+| `activity_events`, `activity_assessments`, `artifact_snapshots` | 0 |
+| `evidence` portant un `activity_run_id` | 0 |
+
+L'unique exécution — un mini-projet Python sur six compétences `DEB-0x`, créé le
+15/08 à 00 h 10 — était encore au statut `planifiee` : jamais démarrée, jamais
+évaluée, aucune preuve. Ce n'est pas un rejet de l'idée après usage ; c'est le
+constat qu'elle n'a pas été utilisée, et qu'elle coûtait déjà ~1 600 lignes,
+7 tables, 6 RPC et 4 triggers.
+
+Deux faits aggravants, tous deux vérifiés plutôt que supposés :
+
+1. La migration `20260813150000_adaptive_learning_loop.sql` **n'a jamais été
+   appliquée** — conformément à l'amendement d'ADR-066, qui la déclarait locale.
+   Le code adaptatif lisait pourtant `learning_goals`, `learning_preferences` et
+   `evidence_status_events`, **trois tables inexistantes en production** :
+   basculer un compte en `adaptive-v1` aurait fait échouer `chargerContexte` dès
+   la première lecture. La bascule était donc une porte qui ne s'ouvrait pas.
+2. Le format « projet » était pourtant atteignable par **tous** les comptes
+   depuis la carte « Choisir un travail » du tableau de bord, sans passer par
+   `learningLoopMode`. Le garde-fou de bêta ne gardait pas l'entrée qu'il
+   croyait garder.
+
+### Décision
+
+Sont retirés, code et schéma dans le même geste
+(`20260815120000_retrait_boucle_projet.sql`) :
+
+- l'écran `/projets` et les routes `/api/activities/*` — mais **pas**
+  `/api/projets/generer`, qui compose le contenu et ne dépendait d'aucune table
+  (voir l'amendement) ;
+- `components/adaptive/*`, `modale-nouveau-projet`, `rectification-preuve`,
+  `objectifs-structures`, `activation-boucle-adaptative` ;
+- `store/adaptive-actions`, `store/projets-actions`, `domain/composition-projet`,
+  et les parseurs de `domain/adaptive-learning` devenus sans table à valider ;
+- les 7 tables, les 6 RPC, les 4 triggers, `profiles.learning_loop_mode` et les
+  trois colonnes de provenance de projet sur `evidence` ;
+- le fichier de migration jamais appliqué.
+
+**Ce qui reste, et pourquoi.** `engine/action-unifiee`,
+`engine/action-recommendation` et les deux adaptateurs (`legacy-activity-adapter`,
+`note-activity-adapter`) sont conservés : ils portent l'arbitrage « temps
+disponible / capacité mentale » de `CarteProchaineAction`, actif pour tous les
+comptes, et **sans aucune table**. Ils n'ont jamais dépendu de ce qui est retiré.
+
+`Contexte.preuvesEffectives` survit à la disparition du journal de
+rectifications : le nom désigne ce qui entre dans le calcul, et un futur
+mécanisme d'invalidation reprendrait cette place sans toucher ses consommateurs.
+
+### Ce que cette décision ne dit pas
+
+Elle ne dit pas qu'un mini-projet est un mauvais geste d'apprentissage, ni que
+« Produire » ne reviendra pas. Elle dit qu'une architecture bâtie avant l'usage
+a produit zéro preuve en deux jours, et qu'on ne garde pas en production une
+famille que personne n'a exercée. La reconstruire, si le besoin s'observe,
+repartira de ce besoin — et de cette ADR, qui conserve ce qui avait été tenté.
+
+### Conséquence sur le chantier en cours
+
+Ce retrait est le LOT A du chantier « recentrer le produit sur la croissance
+visible ». Les lots suivants — l'impact de fin de travail, l'Atelier comme vue
+de croissance — ne créent aucune table : ils dérivent ce qui existe déjà.
 
 ---
 

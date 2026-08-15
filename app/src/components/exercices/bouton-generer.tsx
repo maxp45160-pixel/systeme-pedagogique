@@ -1,21 +1,19 @@
-"use client";
-
 /**
- * Bouton « Générer » + modale — le point d'entrée du lot 1.
+ * Entrée « Générer » — ouvre désormais le compositeur de séance.
  *
- * Encapsule l'état d'ouverture de la modale pour pouvoir être monté depuis un
- * composant serveur (carte Prochaine action, en-tête des exercices, fiche
- * compétence) sans transformer ces pages en composants client.
+ * La génération n'est plus un geste unitaire isolé : elle se fait depuis une
+ * séance, avec une durée, un nombre d'exercices et une composition visibles.
+ * Le composant garde son nom et ses props pour ne pas multiplier les migrations
+ * d'appelants, mais ne monte plus l'ancienne modale de génération.
  *
- * La modale n'est **montée** que lorsqu'elle est ouverte, et non rendue puis
- * masquée : chaque ouverture repart donc d'un état neuf, sans traîner la
- * prévisualisation ni l'erreur de la fois précédente. Le démontage abandonne
- * la génération en cours (`useEffect` de nettoyage, côté modale).
+ * Les codes multiples sont conservés dans l'URL : le compositeur de séance
+ * peut ainsi traiter les manquants en lot, au lieu de recréer une génération
+ * par compétence.
  */
 
-import { useState } from "react";
-import { Bouton, cx } from "@/components/ui/primitives";
-import { ModaleExercice } from "./modale-exercice";
+import Link from "next/link";
+import { classesLienBouton, cx } from "@/components/ui/primitives";
+import { EXERCICES_PAR_LOT_MAX } from "@/lib/domain/exercice";
 import type { CalibrageModale, CompetenceModale } from "./proprietes-generation";
 
 export function BoutonGenerer({
@@ -49,30 +47,24 @@ export function BoutonGenerer({
   /** Réservé à la prochaine action : accepter ouvre une séance focus. */
   ouvrirDansCahierApresAcceptation?: boolean;
 }) {
-  const [ouvert, setOuvert] = useState(false);
+  const codes = [
+    ...(competencesCibles && competencesCibles.length > 0
+      ? competencesCibles
+      : [competenceInitiale]),
+  ]
+    .filter((code): code is string => Boolean(code))
+    .filter((code, index, liste) => liste.indexOf(code) === index)
+    .slice(0, EXERCICES_PAR_LOT_MAX);
+  const parametres = new URLSearchParams({ composer: "1" });
+  codes.forEach((code) => parametres.append("code", code));
+  if (themeInitial?.trim()) parametres.set("intention", themeInitial.trim());
 
   return (
-    <>
-      <Bouton
-        onClick={() => setOuvert(true)}
-        variante={variante}
-        className={cx(pleineLargeur && "w-full", className)}
-      >
-        {libelle}
-      </Bouton>
-      {ouvert && (
-        <ModaleExercice
-          onFermer={() => setOuvert(false)}
-          competences={competences}
-          competenceInitiale={competenceInitiale}
-          themeInitial={themeInitial}
-          calibrages={calibrages}
-          compteId={compteId}
-          surEnregistre={surEnregistre}
-          competencesCibles={competencesCibles}
-          ouvrirDansCahierApresAcceptation={ouvrirDansCahierApresAcceptation}
-        />
-      )}
-    </>
+    <Link
+      href={`/seances?${parametres.toString()}`}
+      className={cx(classesLienBouton(variante), pleineLargeur && "w-full", className)}
+    >
+      {libelle}
+    </Link>
   );
 }

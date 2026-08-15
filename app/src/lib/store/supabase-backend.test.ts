@@ -219,7 +219,6 @@ describe("profil", () => {
       debutSuivi: "2026-07-24",
       preferencesPedagogiques: ["Calcul manuel + Python"],
       plan: undefined,
-      learningLoopMode: "legacy",
     });
   });
 

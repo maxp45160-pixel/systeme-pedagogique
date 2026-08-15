@@ -6,16 +6,8 @@ import { chargerDonneesSeance } from "@/components/seances/donnees-seance";
 import { VueSeanceDetail } from "@/components/seances/vue-seance-detail";
 import { FileSeances } from "@/components/seances/file-seances";
 import { CahierSeances, RechercheCahier } from "@/components/seances/cahier-seances";
-import { ActivityWorkspace } from "@/components/adaptive/activity-workspace";
-import { GenerationReview } from "@/components/adaptive/generation-review";
-import { CoquilleWorkspace } from "@/components/seances/coquille-workspace";
-import { parseWorkModeSettings, type WorkModeSettings } from "@/lib/domain/adaptive-learning";
-import { lireContexteInstant, type ContexteInstant } from "@/lib/engine/action-unifiee";
-
-function workModeFromQuery(values: { focus?: string; guidance?: string; tools?: string }): WorkModeSettings | undefined {
-  if (!values.focus && !values.guidance && !values.tools) return undefined;
-  return parseWorkModeSettings({ focus: values.focus, guidance: values.guidance, toolPower: values.tools });
-}
+import { ConcepteurSeance, type PresetSeance } from "@/components/seances/concepteur-seance";
+import { TEMPS_DECLARE_MAX } from "@/lib/domain/seance";
 
 /**
  * Pôle Cahier (ADR-061, étendu par ADR-062).
@@ -35,53 +27,32 @@ export default async function PageSeances(props: {
     evaluer?: string;
     bilan?: string;
     abandon?: string;
-    run?: string;
-    generation?: string;
     q?: string;
-    focus?: string;
-    guidance?: string;
-    tools?: string;
+    composer?: string;
+    code?: string | string[];
+    intention?: string;
     temps?: string;
-    capacite?: string;
   }>;
 }) {
   const recherche = await props.searchParams;
-  const { session, exercice, run, generation } = recherche;
-  const recommendedMode = workModeFromQuery(recherche);
-
-  /*
-    Un travail d'une autre famille se déroule dans le même chrome qu'une séance :
-    plein écran, en-tête collant, sortie visible. Sans cette coquille, la page
-    disparaissait entièrement au profit du contenu, navigation comprise.
-  */
-  if (run) {
-    return (
-      <CoquilleWorkspace surtitre="Espace de travail" titre="Concentration">
-        <Suspense fallback={<SqueletteContenu />}>
-          <ActivityWorkspace runId={run} recommendedMode={recommendedMode} />
-        </Suspense>
-      </CoquilleWorkspace>
-    );
-  }
-
-  if (generation) {
-    return (
-      <CoquilleWorkspace surtitre="Espace de travail" titre="Préparer le contenu">
-        <Suspense fallback={<SqueletteContenu />}>
-          <GenerationWorkspace
-            generationRequestId={generation}
-            initialMode={recommendedMode}
-            instant={lireContexteInstant(recherche)}
-          />
-        </Suspense>
-      </CoquilleWorkspace>
-    );
-  }
+  const { session, exercice } = recherche;
 
   if (session) {
     return (
       <Suspense fallback={<SqueletteContenu />}>
         <VueSeanceDetail id={session} exerciceDemande={exercice} recherche={recherche} />
+      </Suspense>
+    );
+  }
+
+  if (recherche.composer === "1") {
+    return (
+      <Suspense fallback={<SqueletteContenu />}>
+        <CompositeurDepuisLien
+          codesParametres={recherche.code}
+          intention={recherche.intention}
+          temps={recherche.temps}
+        />
       </Suspense>
     );
   }
@@ -99,23 +70,56 @@ export default async function PageSeances(props: {
   );
 }
 
-async function GenerationWorkspace({
-  generationRequestId,
-  initialMode,
-  instant,
+async function CompositeurDepuisLien({
+  codesParametres,
+  intention,
+  temps,
 }: {
-  generationRequestId: string;
-  initialMode?: WorkModeSettings;
-  instant: ContexteInstant;
+  codesParametres?: string | string[];
+  intention?: string;
+  temps?: string;
 }) {
-  const ctx = await chargerContexte();
+  const donnees = await chargerDonneesSeance();
+  const codesDemandes = (Array.isArray(codesParametres) ? codesParametres : codesParametres ? [codesParametres] : [])
+    .filter((code, index, liste) => liste.indexOf(code) === index);
+  const codesActifs = new Set(donnees.actifs.map((skill) => skill.code));
+  const codesVises = codesDemandes.filter((code) => codesActifs.has(code));
+  const codeRepli = donnees.recommandations[0]?.etat.skill.code;
+  const codes = codesVises.length > 0 ? codesVises : codeRepli ? [codeRepli] : [];
+  const duree = Math.min(
+    TEMPS_DECLARE_MAX,
+    Math.max(5, Math.round(Number(temps) || 45)),
+  );
+  const domaines = [...new Set(codes.flatMap((code) => {
+    const skill = donnees.actifs.find((candidate) => candidate.code === code);
+    return skill ? [skill.domaine] : [];
+  }))];
+  const preset: PresetSeance | undefined = codes.length > 0
+    ? {
+        libelle: codes.length === 1 ? `Compétence : ${codes[0]}` : "Séance ciblée",
+        codesVises: codes,
+        nombreExercices: 3,
+        dureeCibleMin: duree,
+        ...(domaines.length === 1 ? { domaine: domaines[0] } : {}),
+      }
+    : undefined;
+
   return (
-    <GenerationReview
-      accountId={ctx.donnees.user.id}
-      generationRequestId={generationRequestId}
-      initialMode={initialMode}
-      instant={{ tempsMin: instant.tempsMin, capacite: instant.capacite }}
-    />
+    <>
+      <EntetePage
+        titre="Composer une séance"
+        sousTitre="Le travail se construit en plusieurs exercices, calibrés sur le temps disponible."
+      />
+      <div className="mx-auto max-w-5xl">
+        <ConcepteurSeance
+          {...donnees}
+          preset={preset}
+          contexteInitial={intention}
+          ouvertParDefaut
+          libelle="Ouvrir le compositeur"
+        />
+      </div>
+    </>
   );
 }
 

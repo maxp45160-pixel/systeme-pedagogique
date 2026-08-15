@@ -38,6 +38,7 @@ import {
 import type {
   BesoinDeclare,
   BlueprintSeance,
+  ExerciseAttempt,
   LearningSession,
 } from "@/lib/domain/types";
 
@@ -139,6 +140,40 @@ export async function creerSeance(
   };
 
   await ajouter("sessions", seance, dorsale);
+
+  // Une séance démarrée ouvre immédiatement la première tentative : sinon un
+  // exercice déjà travaillé retomberait sur son historique au lieu d'afficher
+  // un espace vierge. Les autres exercices s'ouvriront quand ils deviendront
+  // actifs, afin de ne pas lancer plusieurs chronomètres en parallèle.
+  if (mode === "en-cours") {
+    const premierExercice = entree.activites.find((activite) => activite.type === "exercice");
+    if (premierExercice) {
+      const tentatives = await lire("attempts", dorsale);
+      const dejaOuverte = tentatives.some(
+        (tentative) =>
+          tentative.exerciseId === premierExercice.ref &&
+          tentative.statut === "en-cours" &&
+          tentative.debut >= date,
+      );
+      if (!dejaOuverte) {
+        await ajouter(
+          "attempts",
+          {
+            id: nouvelId("att"),
+            exerciseId: premierExercice.ref,
+            debut: date,
+            indicesUtilises: 0,
+            reponse: "",
+            evaluation: {},
+            resultat: "partiel",
+            statut: "en-cours",
+          } satisfies ExerciseAttempt,
+          dorsale,
+        );
+      }
+    }
+  }
+
   revalidatePath("/", "layout");
   return seance.id;
 }
