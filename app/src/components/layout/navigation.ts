@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import {
+  IconeAmpoule,
   IconeDocuments,
   IconeExercices,
   IconeTableauBord,
@@ -25,7 +26,8 @@ export interface GroupeNav {
  *
  *  - **Tableau de bord** — le point d'entrée de l'app (Piloter).
  *  - **Atelier**, dominant — explorer le corpus, le référentiel et sa progression (Visualiser).
- *  - **Cahier** — composer, planifier, dérouler et relire (Travailler).
+ *  - **Cahier** — composer, planifier, dérouler et relire (Travailler),
+ *    suivi d'**Aide**, le mode d'emploi du produit.
  *
  * La séparation tient au besoin (ADR-053) : le tableau de bord *pilote* (sa
  * prochaine action), Atelier *visualise* (le workspace documentaire), Cahier
@@ -61,13 +63,18 @@ export const NAVIGATION: GroupeNav[] = [
        * dans deux surfaces existantes.
        */
       { href: "/seances", libelle: "Cahier", court: "Cahier", icone: IconeExercices },
+      /*
+       * Aide en dernier, sous le Cahier : c'est la destination qu'on cherche
+       * quand une autre n'a pas suffi, pas un pôle de travail.
+       */
+      { href: "/aide", libelle: "Aide", court: "Aide", icone: IconeAmpoule },
     ],
   },
 ];
 
 /**
- * Barre inférieure mobile : les trois pôles, dans le même ordre de priorité
- * que le desktop — le travail d'abord.
+ * Barre inférieure mobile : les mêmes destinations que le rail, dans le même
+ * ordre de priorité — le travail d'abord, l'aide en dernier.
  *
  * Dérivée de `NAVIGATION`, pas recopiée : une recopie littérale (l'ancien
  * état de ce fichier) a fini par diverger silencieusement du JSDoc qui la

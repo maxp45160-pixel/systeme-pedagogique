@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { chargerContexte } from "@/lib/store/context";
 import { EntetePage } from "@/components/layout/entete-page";
@@ -41,6 +42,19 @@ export default async function PageDemarrer() {
         titre="Sur quoi veux-tu progresser ?"
         sousTitre="Ce système mesure des savoir-faire à partir de preuves. Il ne sait pas encore lesquels te concernent — c'est la seule chose qu'il ne peut pas déduire."
       />
+
+      {/*
+        Le tutoriel est proposé ici, pas imposé avant : quelqu'un qui sait déjà
+        ce qu'il veut travailler ne doit pas traverser une page d'explications
+        pour commencer. Le lien reste au-dessus du formulaire pour rester vu.
+      */}
+      <p className="mb-4 px-1 text-xs text-texte-attenue">
+        Première visite ?{" "}
+        <Link href="/aide" className="font-medium text-primaire underline underline-offset-2">
+          Lis d&apos;abord comment ça marche
+        </Link>{" "}
+        — le parcours complet, écran par écran, en quelques minutes.
+      </p>
 
       <Carte>
         <div className="px-5 py-4">
