@@ -4815,6 +4815,166 @@ gouvernance du référentiel ([ADR-065](#adr-065)).
 
 ---
 
+## ADR-069 — L'agent écrit ce qui est réversible ; le journal d'actions est la contrepartie 🔬
+
+**Date.** 15/08/2026. **Direction tranchée par Maxime** (conversation du
+15/08) ; l'ergonomie du flux et le seuil d'aperçu restent 🔬. Étend
+[ADR-064](#adr-064) (workspace documentaire) et reprend la mécanique
+append-only d'[ADR-065](#adr-065).
+
+### Le problème
+
+L'Atelier demande aujourd'hui à la personne de savoir **où** vivent ses
+documents. C'est de la maintenance : personne n'ouvre l'application pour ranger
+ses notes, on l'ouvre pour travailler sur ce qui est utile. La cible est un
+système documentaire piloté en langage humain — « mets ce cours dans la base »,
+« fais un audit de ce qui manque », « prépare mon contrôle dans un mois ».
+
+Un agent qui range à la place de la personne pose une question qu'aucune liste
+de permissions ne referme durablement : **que peut-il écrire ?** Une liste se
+périme au premier type d'opération ajouté, et elle ne dit rien du cas qui
+compte — l'agent s'est trompé, et il faut pouvoir revenir en arrière sans
+détruire ce qui a été démontré depuis.
+
+### Décision
+
+**1. Le critère d'autorisation est la réversibilité, pas une liste.**
+
+> L'agent applique d'office toute action réversible tant que rien en aval n'en
+> dépend. Le reste, il le propose.
+
+Cette règle est dérivable, donc elle ne se maintient pas. Elle recouvre :
+
+| Réversible — appliqué d'office | Irréversible — jamais |
+|---|---|
+| type d'un document, ensemble de rattachement, tags | preuve, niveau, score, résultat d'évaluation |
+| lien document ↔ compétence existante | |
+| création de compétence, d'ensemble, de thème — tant qu'aucune preuve ne s'y rattache | |
+
+Une preuve annulée serait une preuve niée : l'invariant « une faiblesse ne
+disparaît pas sans nouvelle démonstration » l'interdit. L'exclusion du niveau
+mesure n'est donc pas une précaution, c'est une conséquence.
+
+**2. L'arborescence n'est pas écrite, elle est calculée.**
+
+`resoudreCheminsDocumentAtelier` reste une fonction pure `type + rôle +
+domaine → chemin`. L'agent renseigne des métadonnées ; le chemin en découle,
+déterministe et testable. L'agent ne peut donc pas casser l'arborescence : elle
+n'existe pas comme donnée mutable.
+
+**3. Rattacher n'est pas prouver.**
+
+Un document lié à une compétence dit « ça parle de ça », pas « tu sais le
+faire ». Les deux relations sont **distinctes en base**, jamais une seule avec
+un drapeau : le drapeau finit par être mal lu, et P3 tombe avec lui.
+
+**4. Le journal d'actions, append-only.**
+
+Une ligne par opération, rattachée à un **lot** :
+
+```
+id, user_id, lot_id, cree_le
+request_id  text   -- idempotence du rejeu, comme referentiel_changes
+intention   text   -- la phrase humaine à l'origine du lot
+operation   text   -- 'typer', 'rattacher', 'lier', ...
+cible_type  text   -- 'document' | 'competence' | 'ensemble' | 'theme'
+cible_id    text
+avant       jsonb  -- NULL si création
+apres       jsonb
+annulee_par uuid   -- FK vers la ligne d'annulation, NULL sinon
+```
+
+`avant` porte l'annulation : elle réapplique un état, elle ne calcule pas une
+opération inverse par type. Aucune table d'inverses à maintenir.
+
+Le trigger interdisant UPDATE et DELETE est celui d'[ADR-065](#adr-065).
+**Annuler n'efface jamais** : une nouvelle ligne est écrite et `annulee_par`
+est renseigné. « L'agent a fait ça, puis je l'ai corrigé » est de
+l'information — sur l'agent autant que sur l'usage.
+
+**4bis. Deux journaux, un `lot_id` commun.**
+
+Le journal d'actions **ne remplace pas** `referentiel_changes`
+([ADR-065](#adr-065)) et ne s'y fond pas. Celui-ci porte `domaine_id NOT NULL`,
+`version_avant`/`version_apres` et le verrou optimiste : y loger des opérations
+documentaires obligerait à rendre ces colonnes nullables — affaiblir les
+contraintes de la gouvernance pour héberger un voisin est le contraire de
+robuste. Et les opérations documentaires sont deux ordres de grandeur plus
+nombreuses : mélangées, elles noieraient un journal qui doit rester auditable.
+
+Le rattachement se fait par **`lot_id`**, ajouté nullable à
+`referentiel_changes` et `NOT NULL` dans le journal d'actions. Une intention qui
+crée une compétence et rattache douze documents écrit dans les deux tables sous
+le même lot. Le flux lit une **vue d'union** : la personne voit une ligne, pas
+deux journaux. `origine` accepte déjà `'tuteur'` — aucun enum à étendre.
+
+Conséquence sur l'annulation : défaire une opération documentaire réapplique
+`avant`. Défaire une mutation du référentiel **passe par la commande
+transactionnelle d'ADR-065** — un retrait, qui archive si des preuves existent
+et journalise sa propre ligne. Jamais d'écriture inverse directe dans
+`referentiel_changes` : le trigger append-only la refuserait, et c'est bien ce
+qu'on veut.
+
+**5. L'unité visible est l'intention, pas l'opération.**
+
+Un lot = une intention = une ligne au flux = une annulation. Ranger trente
+documents ne produit pas trente lignes à relire : ce serait la maintenance
+qu'on retire, rendue sous un autre nom. Déplier montre les opérations, et une
+opération isolée s'annule sans jeter le lot.
+
+**6. Une correction est une intention.**
+
+« Non, c'est de la thermo » repasse par la barre et produit son propre lot,
+journalisé comme les autres. Aucun chemin d'édition parallèle, aucun
+formulaire de validation — un formulaire à six champs réintroduit la
+maintenance avec une étape de plus.
+
+**7. Seuil d'aperçu.** Au-delà de **10 opérations**, l'agent montre le résultat
+groupé avant d'écrire. En dessous, il applique et ça passe au flux. Trente
+documents mal typés d'un coup, corrigés un par un, coûtent plus cher que trois
+secondes d'aperçu.
+
+**8. Le raisonnement porte sur les aperçus.** Le tuteur tourne avec un budget
+de contexte restreint : l'audit et le tri travaillent sur `ApercuDocument` et
+sur l'`IndexDocumentaire`, jamais sur les corps. Un corps ne se charge qu'après
+que l'agent a décidé lequel. Une intention qui ne peut pas se traiter sur les
+aperçus est trop large — ce n'est pas le modèle qui est trop petit.
+
+### Conséquences
+
+- La colonne gauche de l'Atelier cesse d'être un arbre. Barre d'intention,
+  « En cours », flux d'activité : au lieu de vérifier où sont ses documents, on
+  voit ce qui leur est arrivé.
+- Le flux affiche l'intention en clair à côté de chaque lot. P3 s'étend au
+  rangement : chaque action porte la demande qui l'a produite.
+- Une création annulable devient **archivable** dès qu'une preuve s'y
+  rattache : le bouton change de verbe, il ne disparaît pas.
+- Le journal est un prérequis d'implémentation, pas un complément : sans lui,
+  le tri de l'agent n'est ni observable ni rejouable, donc pas débogable.
+  Ordre retenu — journal, puis auditer (lecture seule), puis ingérer.
+
+### Hypothèses et tests de réfutation
+
+1. 🔬 **La correction après coup est plus fluide que la validation avant.**
+   *Test :* si sur les vingt premiers lots la part d'opérations annulées
+   dépasse un quart, l'agent se trompe trop pour qu'on le laisse écrire — le
+   seuil d'aperçu descend, jusqu'à 0 s'il le faut.
+2. 🔬 **Le seuil de 10 est le bon.** Convention assumée, pas une observation.
+   *Test :* si des lots sous le seuil sont régulièrement annulés en entier,
+   c'est la taille qui n'est pas le bon critère — le déclencheur devient la
+   confiance de l'agent sur le lot, pas son cardinal.
+3. 🔬 **Le flux se lit.** *Test :* si une erreur de rattachement est découverte
+   par une recherche infructueuse plutôt que par le flux, le flux est un
+   ornement et l'annulation doit remonter dans la surface où l'erreur se
+   constate.
+4. 🔬 **La vue d'union suffit à masquer les deux tables.** *Test :* si le flux
+   doit exposer une distinction entre « action documentaire » et « révision du
+   référentiel » pour rester compréhensible, la séparation a fui jusqu'à
+   l'écran et c'est la formulation des lignes qu'il faut revoir — pas le
+   schéma, qui reste juste pour d'autres raisons.
+
+---
+
 ## Comment modifier ce registre
 
 1. Une décision ✅ ne se retire pas : elle passe en 🔄 **Remplacée**, avec le

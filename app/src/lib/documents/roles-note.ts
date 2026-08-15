@@ -22,6 +22,17 @@ export interface FormatNote {
   libelle: string;
 }
 
+/** Formats opérationnels actuellement exposés dans le parcours principal. */
+export const FORMATS_OPERATIONNELS_DISPONIBLES = ["seance", "projet"] as const;
+
+/** Formats connus mais reportés dans l'interface principale. */
+export const FORMATS_OPERATIONNELS_A_VENIR: readonly FormatNote[] = [
+  { valeur: "etude-de-cas", libelle: "Étude de cas" },
+  { valeur: "redaction", libelle: "Rédaction" },
+  { valeur: "schema", libelle: "Schéma" },
+  { valeur: "experimentation", libelle: "Expérimentation" },
+];
+
 /** Les libellés sont ceux du formulaire : le contrôle et le menu partent d'ici. */
 export const FORMATS_PAR_ROLE: Record<RoleNote, readonly FormatNote[]> = {
   support: [
