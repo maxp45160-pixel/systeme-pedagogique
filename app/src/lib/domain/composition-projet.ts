@@ -12,8 +12,22 @@
  */
 
 import type { EvaluationCriterion } from "./adaptive-learning";
-import { AdaptiveLearningValidationError } from "./adaptive-learning";
 import type { Dimension } from "./types";
+
+/**
+ * Le refus d'une composition mal formée.
+ *
+ * Cette classe vivait dans `adaptive-learning.ts`, avec les parseurs des tables
+ * d'activité retirées le 15/08 (ADR-070). Elle revient ici parce que c'est le
+ * seul module qui la lève encore : une erreur de validation appartient au
+ * module qui valide, pas à un tronc commun qui n'a plus de tronc.
+ */
+export class CompositionProjetInvalide extends Error {
+  constructor(public readonly champ: string, message: string) {
+    super(`${champ}: ${message}`);
+    this.name = "CompositionProjetInvalide";
+  }
+}
 
 /**
  * La visée déclarée du projet.
@@ -45,7 +59,7 @@ export interface CompetenceCiblee {
 }
 
 function erreur(champ: string, message: string): never {
-  throw new AdaptiveLearningValidationError(`CompositionProjet.${champ}`, message);
+  throw new CompositionProjetInvalide(`CompositionProjet.${champ}`, message);
 }
 
 /**

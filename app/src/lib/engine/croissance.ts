@@ -1,0 +1,219 @@
+/**
+ * Ce que le travail récent a construit.
+ *
+ * ## Le défaut que ce module corrige
+ *
+ * L'Atelier s'ouvrait sur une grille de domaines : des cartes, un tri, un
+ * bouton « Ajouter un domaine », un pourcentage de couverture. Un écran de
+ * gestion. On n'y voyait ni ce qu'on venait de faire, ni ce que cela avait
+ * changé — seulement l'inventaire de ce qu'il resterait à administrer.
+ *
+ * Les trois niveaux de lecture du chantier — *ce que j'ai fait*, *ce que cela a
+ * changé*, *ce que je construis* — se dérivent tous de données déjà présentes :
+ * `activiteSurFenetre` pour le temps, `evenementsRecents` pour les niveaux
+ * avant/après, `construireVuesAtelier` pour les ensembles. Ce module n'assemble
+ * que le premier et le deuxième ; le troisième est déjà rendu par les vues de
+ * l'Atelier.
+ *
+ * ## Deux fenêtres, deux définitions différentes, et c'est volontaire
+ *
+ * « Aujourd'hui » est le **jour calendaire** : `joursDepuis` compte des tranches
+ * de 24 h, et un exercice terminé hier à 23 h y passerait pour « aujourd'hui »
+ * à 10 h ce matin. Sur un écran qui dit « aujourd'hui », ce serait faux.
+ *
+ * « 7 derniers jours » est une fenêtre **glissante**, et se nomme comme telle
+ * plutôt que « cette semaine » — qui laisserait entendre un lundi.
+ *
+ * Rien n'est stocké : tout est recalculé depuis le journal (P1).
+ */
+
+import type {
+  ExerciseAttempt,
+  LearningSession,
+  Skill,
+  SkillEvidence,
+} from "@/lib/domain/types";
+import { activiteSurFenetre, calculerActivite, evenementsRecents, type EvenementProgression } from "./historique";
+import { cleJour, joursDepuis } from "./dates";
+
+/**
+ * Un palier franchi, au sens strict.
+ *
+ * `EvenementProgression.franchissement` vaut « le niveau n'est plus le même »,
+ * ce qui inclut `null → 0` : une compétence rencontrée pour la première fois,
+ * dont le protocole dit qu'elle est au niveau 0 — *Exposition, preuve
+ * insuffisante pour conclure à une compréhension*. Compter cela comme un palier
+ * franchi ferait d'une absence de résultat une progression, et gonflerait le
+ * compteur exactement là où il doit être sévère.
+ *
+ * Une première mesure a son propre compteur (`premieresMesures`) : elle est une
+ * information, pas un progrès. Et une redescente n'est pas un franchissement non
+ * plus — elle est dite ailleurs, dans l'impact de la tentative.
+ */
+function estProgression(evenement: EvenementProgression): boolean {
+  return (
+    evenement.niveauAvant !== null &&
+    evenement.niveauApres !== null &&
+    evenement.niveauApres > evenement.niveauAvant
+  );
+}
+
+export interface FenetreCroissance {
+  libelle: string;
+  /** Minutes observées. Une séance sans durée notée compte 0 — pas d'invention. */
+  minutes: number;
+  joursActifs: number;
+  seances: number;
+  /** Tentatives réellement menées à terme, jamais les abandons. */
+  exercicesMenes: number;
+  preuves: number;
+  /** Codes travaillés, dans l'ordre de leur première preuve de la fenêtre. */
+  competencesTravaillees: string[];
+  /** Preuves ayant fait MONTER d'un palier. Ni les premières mesures, ni les reculs. */
+  franchissements: number;
+  /** Compétences mesurées pour la première fois de leur histoire. */
+  premieresMesures: number;
+}
+
+export interface ResumeCroissance {
+  jour: FenetreCroissance;
+  semaine: FenetreCroissance;
+  /** Les preuves récentes avec leur effet réel, du plus récent au plus ancien. */
+  evenements: EvenementProgression[];
+  /** Vrai quand rien n'a été fait ni aujourd'hui ni sur les 7 derniers jours. */
+  vide: boolean;
+}
+
+export interface EntreesCroissance {
+  sessions: readonly LearningSession[];
+  tentatives: readonly ExerciseAttempt[];
+  preuves: readonly SkillEvidence[];
+  /** Tout le référentiel, archivées comprises : une preuve ancienne reste lisible (P4). */
+  skillsParCode: ReadonlyMap<string, Skill>;
+  now?: Date;
+  /** Nombre d'événements de progression rendus. */
+  limiteEvenements?: number;
+}
+
+/** Les preuves du jour calendaire courant. */
+function duJour(preuves: readonly SkillEvidence[], now: Date): SkillEvidence[] {
+  const aujourdhui = cleJour(now);
+  return preuves.filter((preuve) => cleJour(preuve.date) === aujourdhui);
+}
+
+/** Les preuves des `jours` dernières tranches de 24 h. */
+function deLaFenetre(preuves: readonly SkillEvidence[], jours: number, now: Date): SkillEvidence[] {
+  return preuves.filter((preuve) => joursDepuis(preuve.date, now) <= jours);
+}
+
+/**
+ * Une preuve inaugure-t-elle la mesure de sa compétence ?
+ *
+ * Comparée à **tout** le journal, pas seulement à la fenêtre : une compétence
+ * mesurée le mois dernier et retravaillée aujourd'hui n'est pas une première.
+ */
+function premieres(
+  dansLaFenetre: readonly SkillEvidence[],
+  toutes: readonly SkillEvidence[],
+): number {
+  const premiereParCode = new Map<string, string>();
+  for (const preuve of toutes) {
+    const connue = premiereParCode.get(preuve.skillCode);
+    if (!connue || preuve.date < connue) premiereParCode.set(preuve.skillCode, preuve.date);
+  }
+  return dansLaFenetre.filter((preuve) => premiereParCode.get(preuve.skillCode) === preuve.date).length;
+}
+
+function construireFenetre(options: {
+  libelle: string;
+  preuvesFenetre: readonly SkillEvidence[];
+  toutesPreuves: readonly SkillEvidence[];
+  evenements: readonly EvenementProgression[];
+  dansLaFenetre: (date: string) => boolean;
+  tentatives: readonly ExerciseAttempt[];
+  minutes: number;
+  joursActifs: number;
+  seances: number;
+}): FenetreCroissance {
+  const codes: string[] = [];
+  for (const preuve of [...options.preuvesFenetre].sort((a, b) => a.date.localeCompare(b.date))) {
+    if (!codes.includes(preuve.skillCode)) codes.push(preuve.skillCode);
+  }
+
+  return {
+    libelle: options.libelle,
+    minutes: options.minutes,
+    joursActifs: options.joursActifs,
+    seances: options.seances,
+    exercicesMenes: options.tentatives.filter(
+      (tentative) =>
+        tentative.statut === "terminee" &&
+        tentative.fin !== undefined &&
+        options.dansLaFenetre(tentative.fin),
+    ).length,
+    preuves: options.preuvesFenetre.length,
+    competencesTravaillees: codes,
+    franchissements: options.evenements.filter(
+      (evenement) => estProgression(evenement) && options.dansLaFenetre(evenement.date),
+    ).length,
+    premieresMesures: premieres(options.preuvesFenetre, options.toutesPreuves),
+  };
+}
+
+export function resumeCroissance(entrees: EntreesCroissance): ResumeCroissance {
+  const now = entrees.now ?? new Date();
+  const sessions = [...entrees.sessions];
+  const tentatives = [...entrees.tentatives];
+  const preuves = [...entrees.preuves];
+
+  /*
+   * Les événements sont dérivés une seule fois, sur la fenêtre la plus large.
+   *
+   * `evenementsRecents` rejoue le journal — deux `computeSkillState` par preuve
+   * rendue. Le limiter au nombre de preuves de la semaine évite de payer le
+   * rejeu de tout l'historique pour n'en afficher que quelques lignes.
+   */
+  const preuvesSemaine = deLaFenetre(preuves, 7, now);
+  const limite = Math.max(
+    entrees.limiteEvenements ?? 8,
+    preuvesSemaine.length,
+  );
+  const evenements = evenementsRecents(preuves, entrees.skillsParCode, limite, now);
+
+  const activite = calculerActivite(sessions, now, tentatives);
+  const semaine = activiteSurFenetre(sessions, 7, now, tentatives);
+  const aujourdhui = cleJour(now);
+
+  const jour = construireFenetre({
+    libelle: "Aujourd'hui",
+    preuvesFenetre: duJour(preuves, now),
+    toutesPreuves: preuves,
+    evenements,
+    dansLaFenetre: (date) => cleJour(date) === aujourdhui,
+    tentatives,
+    minutes: activite.minutesParJour.get(aujourdhui) ?? 0,
+    joursActifs: activite.minutesParJour.has(aujourdhui) ? 1 : 0,
+    seances: sessions.filter((session) => cleJour(session.date) === aujourdhui).length,
+  });
+
+  const septJours = construireFenetre({
+    libelle: "7 derniers jours",
+    preuvesFenetre: preuvesSemaine,
+    toutesPreuves: preuves,
+    evenements,
+    dansLaFenetre: (date) => joursDepuis(date, now) <= 7,
+    tentatives,
+    minutes: semaine.minutes,
+    joursActifs: semaine.joursActifs,
+    seances: semaine.seances,
+  });
+
+  return {
+    jour,
+    semaine: septJours,
+    evenements: evenements.slice(0, entrees.limiteEvenements ?? 8),
+    // Le vide se juge sur la semaine, pas sur le jour : ne rien avoir fait
+    // depuis ce matin n'est pas ne rien avoir construit.
+    vide: septJours.preuves === 0 && septJours.exercicesMenes === 0 && septJours.minutes === 0,
+  };
+}

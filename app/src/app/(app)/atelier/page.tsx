@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
 import { EntetePage } from "@/components/layout/entete-page";
 import { WorkspaceNoteOperationnelle } from "@/components/atelier/workspace-note-operationnelle";
+import { WorkspaceNoteSupport } from "@/components/atelier/workspace-note-support";
 import { EspaceDocumentaire, type ElementAtelier } from "@/components/atelier/espace-documentaire";
 import { definitionTypeDocument } from "@/lib/documents/types-documents";
 import { lireApercusDocuments, lireApercusSnapshots, lireDocument } from "@/lib/store/documents";
+import { lirePiecesJointes } from "@/lib/store/document-attachments";
 import { reconstruireIndexDepuisApercus } from "@/lib/documents/index";
 import { analyserDocumentMarkdown } from "@/lib/documents/markdown";
 import { regrouperTentativesParExercice } from "@/lib/documents/workspace";
@@ -16,6 +18,8 @@ import { calibragesPourModale, competencesPourModale } from "@/components/exerci
 import { cheminsDepuisDefinition } from "@/lib/documents/chemins-atelier";
 import { paletteDomaines } from "@/lib/ui/couleurs-domaines";
 import { chargerDonneesSeance } from "@/components/seances/donnees-seance";
+import { resumeCroissance } from "@/lib/engine/croissance";
+import { ensemblesProposes } from "@/lib/engine/ensembles";
 
 const LIBELLES_PALIERS: Record<string, string> = {
   fondamentaux: "Fondamentaux",
@@ -37,9 +41,20 @@ export default async function PageAtelier(props: {
   if (note) {
     const fiche = await lireDocument(note).catch(() => null);
     if (!fiche) notFound();
+    const analyse = analyserDocumentMarkdown(fiche.id, fiche.contenuMd);
+    if (analyse.frontMatter.role === "support") {
+      return (
+        <WorkspaceNoteSupport
+          id={fiche.id}
+          contenuInitial={fiche.contenuMd}
+          updatedAtInitial={fiche.updatedAt}
+          piecesInitiales={await lirePiecesJointes(fiche.id).catch(() => [])}
+        />
+      );
+    }
     // Seule la branche « séance » a besoin du classement et du stock
     // d'exercices : les autres se composent d'elles-mêmes.
-    const estSeance = analyserDocumentMarkdown(fiche.id, fiche.contenuMd).type === "seance";
+    const estSeance = analyse.type === "seance";
     return (
       <WorkspaceNoteOperationnelle
         id={fiche.id}
@@ -351,8 +366,21 @@ export default async function PageAtelier(props: {
           competences: competencesPourModale(referentiel.actifs),
           calibrages: calibragesPourModale(referentiel.actifs, contexte.calibrations),
         }}
-        rectificationActive={contexte.donnees.user.learningLoopMode === "adaptive-v1"}
         donneesSeance={donneesSeance}
+        croissance={resumeCroissance({
+          sessions: contexte.donnees.sessions,
+          tentatives: contexte.donnees.attempts,
+          preuves: contexte.preuvesEffectives,
+          skillsParCode: referentiel.parCode,
+          now: contexte.now,
+        })}
+        ensemblesSuggeres={ensemblesProposes({
+          sessions: contexte.donnees.sessions,
+          exercices: contexte.donnees.exercises,
+          preuves: contexte.preuvesEffectives,
+          themes,
+          referentiel,
+        }).propositions}
       />
     </>
   );

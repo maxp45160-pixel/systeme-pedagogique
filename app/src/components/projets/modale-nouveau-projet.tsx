@@ -82,7 +82,6 @@ export function ParcoursNouveauProjet({
   const [enCours, setEnCours] = useState(false);
   const [progression, setProgression] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
-  const [requestId] = useState(() => `projet:${crypto.randomUUID()}`);
 
   const codesRetenus = (designees ?? [])
     .map((competence) => competence.code)
@@ -330,7 +329,6 @@ export function ParcoursNouveauProjet({
           <input type="hidden" name="capacite" value={capacite} />
           <input type="hidden" name="visee" value={visee} />
           <input type="hidden" name="contraintes" value="" />
-          <input type="hidden" name="requestId" value={requestId} />
           <input type="hidden" name="proposition" value={JSON.stringify(proposition)} />
           <Bouton type="button" variante="secondaire" onClick={proposerSujet} disabled={enCours}>
             Régénérer

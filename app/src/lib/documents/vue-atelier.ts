@@ -14,6 +14,12 @@ import {
 import type { Theme } from "@/lib/domain/theme";
 import { retraitsParCode, type EtatRetrait } from "@/lib/domain/referentiel-compte";
 import type { IndexDocumentaire } from "./index";
+import {
+  competencesConnexes,
+  parcoursCompetence,
+  type CompetenceConnexe,
+  type EtapeParcours,
+} from "@/lib/engine/parcours";
 import type { ChangementReferentiel } from "@/lib/domain/gouvernance-referentiel";
 
 export interface ExerciceLieAtelier {
@@ -60,6 +66,22 @@ export interface VueCompetenceAtelier {
   dimensions: Array<{ id: Dimension; libelle: string; valeur: number }>;
   prerequis: string[];
   suivantes: string[];
+  /**
+   * Le voisinage complet : déclaré (prérequis, suivantes) **et** observé
+   * (co-mobilisé). `prerequis` et `suivantes` restent au-dessus : plusieurs
+   * écrans les lisent encore séparément.
+   */
+  connexes: CompetenceConnexe[];
+  /** L'histoire de la compétence, du plus récent au plus ancien, avec les niveaux. */
+  parcours: EtapeParcours[];
+  /** Preuves qui s'opposent à la tendance dominante (§5 du protocole). */
+  contradictions: number;
+  /** Réserves du moteur sur cette mesure — déjà rédigées par `computeSkillState`. */
+  reserves: string[];
+  /** Les ensembles auxquels cette compétence appartient déjà. */
+  ensembles: Array<{ id: string; libelle: string; nombreCompetences: number }>;
+  /** Les ensembles actifs où elle pourrait entrer — pour l'y ajouter en un clic. */
+  ensemblesDisponibles: Array<{ id: string; libelle: string; codes: string[] }>;
   exercices: ExerciceLieAtelier[];
   preuves: PreuveAtelier[];
   documents: DocumentLieAtelier[];
@@ -239,6 +261,36 @@ export function construireVuesAtelier(
       suivantes: referentiel.actifs
         .filter((skill) => skill.prerequis.includes(etat.skill.code))
         .map((skill) => skill.code),
+      connexes: competencesConnexes({
+        skill: etat.skill,
+        actifs: referentiel.actifs,
+        skillsParCode: referentiel.parCode,
+        exercices,
+        preuves: preuvesReferentiel,
+      }),
+      /*
+       * Le parcours rejoue l'historique : deux `computeSkillState` par étape.
+       * Borné à 8 — au-delà, une frise ne se lit plus, et le coût serait payé
+       * pour chaque compétence de l'Atelier à chaque rendu.
+       */
+      parcours: parcoursCompetence(etat.skill, preuvesReferentiel, undefined, 8),
+      contradictions: etat.contradictions.length,
+      reserves: etat.explication.reserves,
+      /*
+       * L'appartenance est dérivée du thème, pas stockée sur la compétence.
+       * C'est ce qui permet à une même compétence d'appartenir à plusieurs
+       * ensembles sans que rien ne l'arbitre — le §6 du cahier des charges.
+       */
+      ensembles: themes
+        .filter((theme) => !theme.archive && theme.codes.includes(etat.skill.code))
+        .map((theme) => ({
+          id: theme.id,
+          libelle: theme.libelle,
+          nombreCompetences: theme.codes.length,
+        })),
+      ensemblesDisponibles: themes
+        .filter((theme) => !theme.archive && !theme.codes.includes(etat.skill.code))
+        .map((theme) => ({ id: theme.id, libelle: theme.libelle, codes: theme.codes })),
       exercices: exercicesLies,
       preuves: [...etat.preuves].reverse().map((preuve) => ({
         id: preuve.id,

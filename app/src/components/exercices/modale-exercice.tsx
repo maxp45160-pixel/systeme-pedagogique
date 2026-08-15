@@ -33,7 +33,6 @@ import { Modale } from "@/components/ui/modale";
 import { Champ, ChampSelect } from "@/components/ui/champ";
 import { Markdown } from "@/components/ui/markdown";
 import { creerExercice } from "@/lib/store/actions";
-import { creerSeanceFocusExercice } from "@/lib/store/seance-actions";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import { convertirProposition } from "@/lib/tutor/conversion-exercice";
 import type { PropositionExercice } from "@/lib/tutor/proposition";
@@ -335,15 +334,8 @@ export function ModaleExercice({
         setEnregistrees(nouvellesEnregistrees);
         surEnregistre?.(id);
         if (ouvrirDansCahierApresAcceptation) {
-          try {
-            const seanceId = await creerSeanceFocusExercice(id);
-            onFermer();
-            router.push(`/seances?session=${encodeURIComponent(seanceId)}`);
-          } catch (e) {
-            setErreur(
-              `Exercice accepté. ${e instanceof Error ? e.message : "Le workspace n'a pas pu s'ouvrir."}`,
-            );
-          }
+          onFermer();
+          router.push(`/seances?composer=1&code=${encodeURIComponent(codeCible)}`);
         } else {
           router.refresh();
           if (nouvellesEnregistrees.size >= propositions.length) {

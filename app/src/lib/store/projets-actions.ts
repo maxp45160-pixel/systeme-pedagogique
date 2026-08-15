@@ -3,22 +3,36 @@
 /**
  * Ouverture d'un projet composé explicitement.
  *
- * Le reste du cycle — démarrer, sauvegarder, jalonner, soumettre, abandonner —
- * vit dans `adaptive-actions.ts` et sert les trois familles. Seule l'ouverture
- * est propre au projet : c'est elle qui n'existait pas, la boucle ne sachant
- * proposer un projet que de sa propre initiative.
+ * ## Ce qui a changé le 15/08/2026 (ADR-070)
+ *
+ * Un projet ouvrait auparavant une `LearningActivity` et un `ActivityRun` dans
+ * sept tables dédiées, avec commande transactionnelle, versionnement optimiste
+ * et snapshots d'artefacts — puis écrivait *en plus* une fiche dans l'Atelier.
+ * La fiche portait déjà l'énoncé, les étapes et les critères ; l'exécution
+ * portait le contrat et une preuve qui n'a jamais été produite.
+ *
+ * **La fiche suffit.** Un projet est une note opérationnelle de type `projet`,
+ * exactement comme une séance est une note opérationnelle de type `seance` : le
+ * type documentaire déclare déjà ses sections, `WorkspaceNoteOperationnelle`
+ * sait déjà l'ouvrir en plein écran, et l'Atelier la range sans rien apprendre
+ * de nouveau. Zéro table.
+ *
+ * Ce que cette version ne fait pas, et l'assume : elle ne transforme pas un
+ * projet en preuve. Le contrat d'évaluation reste écrit dans la fiche, lisible,
+ * mais aucune mesure n'en est dérivée. Cette question se tranchera quand un
+ * projet aura été mené jusqu'au bout au moins une fois — pas avant.
  */
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { dorsaleCompte, nouvelId } from "./db";
-import { verifier } from "./supabase-backend";
+import { nouvelId } from "./db";
 import { chargerContexte } from "./context";
-import { parseLearningActivity, type LearningActivity } from "@/lib/domain/adaptive-learning";
 import {
   criteresProjet,
   parseCompositionProjet,
   segmentProjet,
+  type CompetenceCiblee,
+  type CompositionProjet,
 } from "@/lib/domain/composition-projet";
 import { parsePropositionContenuActivite } from "@/lib/tutor/outils";
 import { creerDepuisTemplate } from "@/lib/documents/markdown";
@@ -30,16 +44,13 @@ function texte(formData: FormData, cle: string): string {
 }
 
 export async function ouvrirProjetCompose(formData: FormData): Promise<void> {
-  const requestId = texte(formData, "requestId");
-  if (!requestId) throw new Error("Ouverture de projet incomplète.");
-
-  const { supabase, userId } = await dorsaleCompte();
   const ctx = await chargerContexte();
 
   /*
-   * La composition est relue côté serveur, jamais reprise du client tel quel :
-   * les codes doivent appartenir au référentiel du compte, et les critères sont
-   * recalculés ici. Le formulaire ne transporte que des déclarations.
+   * La composition est relue côté serveur, jamais reprise du client telle
+   * quelle : les codes doivent appartenir au référentiel du compte, et les
+   * critères sont recalculés ici. Le formulaire ne transporte que des
+   * déclarations.
    */
   const composition = parseCompositionProjet(
     {
@@ -67,113 +78,29 @@ export async function ouvrirProjetCompose(formData: FormData): Promise<void> {
     throw new Error("La proposition ne respecte plus le schéma fermé.");
   }
 
-  const competences = composition.skillCodes.map((code) => {
+  const competences: CompetenceCiblee[] = composition.skillCodes.map((code) => {
     const skill = ctx.referentiel.parCode.get(code)!;
     return { code: skill.code, intitule: skill.intitule };
   });
-  const maintenant = new Date().toISOString();
-  const activityId = nouvelId("activity");
-  const runId = nouvelId("run");
 
   /*
-   * L'activité est validée par le domaine avant d'atteindre la base : c'est là
-   * que le rattachement critère → compétence est vérifié (ADR-068). La garde
-   * SQL le revérifiera à la clôture ; les deux sont volontairement redondantes.
-   */
-  const activite = parseLearningActivity({
-    id: activityId,
-    accountId: userId,
-    title: proposition.titre,
-    description: proposition.description,
-    family: "produire",
-    target: {
-      skillCodes: composition.skillCodes,
-      themeIds: [],
-      goalIds: [],
-      label: composition.objectif,
-    },
-    estimatedDurationMinutes: composition.dureeMin,
-    minimumSegmentMinutes: segmentProjet(composition.dureeMin),
-    cognitiveDemand: composition.capacite,
-    proofMode: "soumission-finale",
-    workspace: "mini-projet",
-    requiredTools: ["editeur-markdown", "liens"],
-    authorizedResources: [],
-    evaluationContract: {
-      scope: "soumission-finale",
-      criteria: criteresProjet(competences, composition.visee),
-      assessableMilestoneIds: [],
-    },
-    workspaceContent: {
-      family: "produire",
-      brief: proposition.brief,
-      start: proposition.workspace.demarrage,
-      artifactSections: proposition.workspace.canevasArtefact.map((section) => ({
-        section: section.section,
-        instruction: section.consigne,
-      })),
-      advice: proposition.workspace.conseilsRealisation,
-      submissionInstruction: proposition.workspace.consigneSoumission,
-      milestones: proposition.jalons.map((jalon, index) => ({
-        id: `milestone-${index + 1}`,
-        title: jalon.titre,
-        instruction: jalon.consigne,
-        expectedResult: jalon.resultatAttendu,
-      })),
-    },
-    version: 1,
-    origin: "tuteur",
-    status: "active",
-    createdAt: maintenant,
-    updatedAt: maintenant,
-  });
-
-  const { data, error } = await supabase.rpc("accepter_activite_generee", {
-    p_request_id: requestId,
-    p_payload: {
-      activity: {
-        id: activite.id,
-        version: activite.version,
-        title: activite.title,
-        description: activite.description,
-        family: activite.family,
-        target: activite.target,
-        estimatedDurationMinutes: activite.estimatedDurationMinutes,
-        minimumSegmentMinutes: activite.minimumSegmentMinutes,
-        cognitiveDemand: activite.cognitiveDemand,
-        proofMode: activite.proofMode,
-        workspace: activite.workspace,
-        requiredTools: activite.requiredTools,
-        authorizedResources: activite.authorizedResources,
-        evaluationContract: activite.evaluationContract,
-        workspaceContent: activite.workspaceContent,
-      },
-      run: { id: runId, status: "planifiee" },
-    },
-  });
-  verifier("ouverture transactionnelle du projet", error);
-
-  const resultat = data && typeof data === "object" && !Array.isArray(data)
-    ? data as Record<string, unknown>
-    : null;
-  const runOuvert = typeof resultat?.runId === "string" ? resultat.runId : runId;
-
-  /*
-   * La fiche est la maison du projet.
+   * Le front-matter porte la composition, pas ses conséquences.
    *
-   * L'exécution porte le contrat, les événements et la preuve ; la fiche porte
-   * le suivi, et c'est depuis l'Atelier qu'on pilote. Elle référence son
-   * exécution en front-matter (`projet_run`), ce qui permet d'y rouvrir
-   * l'espace de production sans dupliquer quoi que ce soit du contrat.
+   * `visee` et les codes suffisent à recalculer les critères à tout moment
+   * (`criteresProjet` est pure) : les stocker en double serait stocker du
+   * dérivable. Ils sont écrits en clair dans la section « Critères » pour être
+   * lus, pas pour être relus par le moteur.
    */
   const documentId = nouvelId("doc");
-  const squelette = creerDepuisTemplate("projet", documentId, activite.title, undefined, {
+  const squelette = creerDepuisTemplate("projet", documentId, proposition.titre, undefined, {
     role: "operationnel",
     contexte: composition.objectif.slice(0, 200),
     domaine: "transversal",
-    projet_run: runOuvert,
+    projet_visee: composition.visee,
+    projet_duree_min: String(composition.dureeMin),
+    projet_competences: composition.skillCodes.join(", "),
   });
-  await creerDocument(documentId, remplirFicheProjet(squelette, activite, runOuvert, competences));
+  await creerDocument(documentId, remplirFicheProjet(squelette, proposition, composition, competences));
 
   revalidatePath("/atelier");
   redirect(`/atelier?note=${encodeURIComponent(documentId)}`);
@@ -183,49 +110,48 @@ export async function ouvrirProjetCompose(formData: FormData): Promise<void> {
  * L'énoncé du projet, écrit dans la fiche.
  *
  * Le sujet, les étapes et les critères existent déjà quand le projet s'ouvre.
- * Les laisser dans la seule exécution donnait une fiche à trois zones vides :
- * on y arrivait sans savoir ce qu'il y avait à faire. Ils sont donc inscrits
- * dans les sections que le type déclare, en Markdown ordinaire — la fiche
- * exportée se lit sans l'application.
+ * Les laisser ailleurs donnait une fiche à trois zones vides : on y arrivait
+ * sans savoir ce qu'il y avait à faire. Ils sont donc inscrits dans les
+ * sections que le type déclare, en Markdown ordinaire — la fiche exportée se
+ * lit sans l'application.
  */
 function remplirFicheProjet(
   squelette: string,
-  activite: LearningActivity,
-  runId: string,
-  competences: readonly { code: string; intitule: string }[],
+  proposition: Extract<ReturnType<typeof parsePropositionContenuActivite>, { famille: "produire" }>,
+  composition: CompositionProjet,
+  competences: readonly CompetenceCiblee[],
 ): string {
-  const contenu = activite.workspaceContent;
-  const jalons = contenu?.family === "produire" ? contenu.milestones : [];
-  const sections = contenu?.family === "produire" ? contenu.artifactSections : [];
-
   const enonce = [
-    contenu?.brief ?? activite.description,
+    proposition.brief,
     "",
-    `*Durée estimée : ${activite.estimatedDurationMinutes} min, reprenable par segments de ${activite.minimumSegmentMinutes ?? 20} min.*`,
+    `*Durée estimée : ${composition.dureeMin} min, reprenable par segments de ${segmentProjet(composition.dureeMin)} min.*`,
     "",
     "**Compétences visées**",
     "",
     ...competences.map(({ code, intitule }) => `- [[${code}]] — ${intitule}`),
-    "",
-    `[▶ Ouvrir l'espace de production](/projets?run=${encodeURIComponent(runId)})`,
   ].join("\n");
 
+  const jalons = proposition.jalons;
   const etapes = (jalons.length > 0
     ? jalons.flatMap((jalon, index) => [
-      `${index + 1}. **${jalon.title}** — ${jalon.instruction}`,
-      `   *Attendu :* ${jalon.expectedResult}`,
+      `${index + 1}. **${jalon.titre}** — ${jalon.consigne}`,
+      `   *Attendu :* ${jalon.resultatAttendu}`,
     ])
     : ["*Aucune étape n'a été proposée pour ce projet.*"]).join("\n");
 
+  const sections = proposition.workspace.canevasArtefact;
   const criteres = [
     ...(sections.length > 0
-      ? ["**Sections attendues du rendu**", "", ...sections.map((s) => `- **${s.section}** — ${s.instruction}`), ""]
+      ? ["**Sections attendues du rendu**", "", ...sections.map((s) => `- **${s.section}** — ${s.consigne}`), ""]
       : []),
     "**Critères d'évaluation**",
     "",
-    ...activite.evaluationContract.criteria.map((critere) => `- [[${critere.skillCode}]] — ${critere.label}`),
+    ...criteresProjet(competences, composition.visee).map(
+      (critere) => `- [[${critere.skillCode}]] — ${critere.label}`,
+    ),
     "",
-    "> Une compétence qu'aucun critère démontré ne porte ne reçoit aucune preuve.",
+    "> Ces critères se lisent : ils ne produisent aucune mesure automatique.",
+    "> Ce que le travail démontre reste à établir à la relecture.",
   ].join("\n");
 
   return remplacerSection(

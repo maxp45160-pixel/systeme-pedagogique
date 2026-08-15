@@ -7,20 +7,15 @@ import { BandeauInfo, Bouton } from "@/components/ui/primitives";
 import { Champ } from "@/components/ui/champ";
 
 /**
- * Les familles de travail que le moteur peut privilégier.
+ * Jetons de famille écrits par l'ancien sélecteur, retiré le 15/08/2026 avec
+ * les familles qu'il proposait (ADR-070).
  *
- * Elles vivent dans le même champ que les préférences écrites, préfixées pour
- * rester reconnaissables. Un second formulaire sur la même page écrivait le
- * même tableau et effaçait ce que celui-ci venait d'y mettre : une seule
- * écriture, un seul propriétaire du champ.
+ * Le filtre survit au sélecteur : des comptes en portent encore dans
+ * `preferencesPedagogiques`, et les afficher dans la zone de texte donnerait à
+ * relire une ligne `adaptive:family:produire` que personne n'a écrite. Ils
+ * disparaissent au premier enregistrement, sans migration.
  */
 const PREFIXE_FAMILLE = "adaptive:family:";
-
-const FAMILLES = [
-  { jeton: `${PREFIXE_FAMILLE}explorer`, libelle: "Explorer pour comprendre" },
-  { jeton: `${PREFIXE_FAMILLE}entrainer`, libelle: "M'entraîner sur des exercices" },
-  { jeton: `${PREFIXE_FAMILLE}produire`, libelle: "Produire dans un contexte réel" },
-] as const;
 
 /**
  * Les préférences pédagogiques sont une liste, une par ligne.
@@ -36,15 +31,12 @@ export function FormulaireProfil({
   objectifLongTerme,
   preferencesPedagogiques,
   plan,
-  famillesVisibles,
 }: {
   formation: string;
   objectifMoyenTerme: string;
   objectifLongTerme: string;
   preferencesPedagogiques: string[];
   plan?: string;
-  /** Les familles ne se choisissent que si la boucle sait les proposer. */
-  famillesVisibles?: boolean;
 }) {
   const router = useRouter();
   const [enCours, demarrer] = useTransition();
@@ -53,24 +45,10 @@ export function FormulaireProfil({
   const [form, setForm] = useState(formation);
   const [moyen, setMoyen] = useState(objectifMoyenTerme);
   const [long, setLong] = useState(objectifLongTerme);
-  // Les jetons de famille ne s'affichent pas dans la zone de texte : ils y
-  // seraient illisibles, et une relecture les effacerait sans le vouloir.
   const [prefs, setPrefs] = useState(
     preferencesPedagogiques.filter((p) => !p.startsWith(PREFIXE_FAMILLE)).join("\n"),
   );
-  const [familles, setFamilles] = useState(
-    () => new Set(preferencesPedagogiques.filter((p) => p.startsWith(PREFIXE_FAMILLE))),
-  );
   const [planState, setPlanState] = useState(plan ?? "");
-
-  function basculerFamille(jeton: string) {
-    setFamilles((precedent) => {
-      const suivant = new Set(precedent);
-      if (suivant.has(jeton)) suivant.delete(jeton);
-      else suivant.add(jeton);
-      return suivant;
-    });
-  }
 
   function enregistrer() {
     setMessage(null);
@@ -80,7 +58,7 @@ export function FormulaireProfil({
           formation: form,
           objectifMoyenTerme: moyen,
           objectifLongTerme: long,
-          preferencesPedagogiques: [...prefs.split("\n"), ...familles],
+          preferencesPedagogiques: prefs.split("\n"),
           // Chaîne vide et non `undefined` : vider le plan doit l'effacer en
           // base, or `modifierProfil` ignore les champs absents.
           plan: planState,
@@ -131,29 +109,6 @@ export function FormulaireProfil({
         className="resize-y"
         aide="Transmises au tuteur comme un fait déclaré : il les respecte, il ne les devine jamais."
       />
-
-      {famillesVisibles && (
-        <fieldset>
-          <legend className="mb-1 block text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
-            Façons de travailler que tu préfères
-          </legend>
-          <div className="space-y-2">
-            {FAMILLES.map(({ jeton, libelle }) => (
-              <label key={jeton} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={familles.has(jeton)}
-                  onChange={() => basculerFamille(jeton)}
-                />
-                <span>{libelle}</span>
-              </label>
-            ))}
-          </div>
-          <p className="mt-1 text-xs text-texte-attenue">
-            Une préférence pèse dans le choix de la prochaine action ; elle ne l&apos;impose pas.
-          </p>
-        </fieldset>
-      )}
 
       <Champ
         multiligne

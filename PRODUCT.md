@@ -7,9 +7,11 @@ préciser ce qui passe d'une catégorie à l'autre.
 
 **Mouvement de cette version.** Décision humaine : la boucle centrée sur
 l'exercice devient un moteur d'actions d'apprentissage adaptatif (ADR-066).
-Trois familles sont retenues en v1 — Explorer, S'entraîner, Produire — avec une
-séparation stricte entre soutien et preuve, des objectifs structurés, un
-contexte déclaré léger et un profil entièrement dérivé. La question ouverte
+Trois familles avaient été retenues en v1 — Explorer, S'entraîner, Produire.
+🔄 **Explorer a été retirée le 15/08/2026 (ADR-070)** ; **Produire a changé de
+support le même jour** : un projet est une note opérationnelle, plus une entité
+à sept tables. Le contexte déclaré léger et le profil entièrement dérivé
+restent. La question ouverte
 d'ADR-051 est ainsi tranchée. L'efficacité du classement, l'ergonomie des
 surfaces proposées et les nouveaux barèmes de qualité restent 🔬 : décider de
 les construire ne démontre pas qu'ils sont efficaces.
@@ -32,11 +34,13 @@ profil dérivé → meilleure action étayée maintenant → activité → obser
 et production → preuve éventuelle → recalcul.
 
 Le noyau robuste reste `SkillEvidence → SkillState → recommandation`, mais
-l'apprentissage ne se réduit plus à l'exercice. La v1 couvre trois familles :
-**Explorer** pour soutenir la compréhension sans modifier directement le
-niveau ; **S'entraîner** avec le dispositif d'exercice actuel ; **Produire**
-avec un mini-projet ou une étude de cas durable, reprenable sur plusieurs
-séances et probante seulement sous un contrat explicite.
+le geste **probant** reste l'exercice, mais il n'est pas le seul geste
+d'apprentissage : le **mini-projet** existe, sous forme de note opérationnelle
+(ADR-070). Il produit du travail et du contexte, pas encore une mesure — la
+question de son contrat de preuve se rouvrira quand un projet aura été mené à
+son terme. Explorer, elle, a été retirée faute de surface. Survit aussi
+l'arbitrage à l'instant T — temps disponible et capacité déclarée — qui
+réordonne la file sans qu'aucune table ne l'assiste.
 
 Autour d'elle, un **instrument de mesure** dont la fonction première est de
 **refuser d'affirmer ce qu'il ne peut pas prouver**. L'utilisateur travaille,
@@ -87,7 +91,7 @@ peut honnêtement en tirer — souvent moins que ce qu'on aimerait.**
 | « ce que tu sais réellement faire » | ✅ Tenue. Le moteur est complet et testé. |
 | « avec le degré de certitude » | ✅ Tenue. Niveau / confiance / robustesse sont distincts et affichés. |
 | « quoi travailler ensuite » | 🟡 **La boucle a tourné en entier le 01/08** (ADR-030). La difficulté produite a suivi le conseil de la calibration sur les deux compétences où il existait — le 3ᵉ maillon est démontré. La seconde moitié du test reste à mesurer : les deux tentatives ont été abandonnées en 1 minute, donc aucune dimension n'a pu reculer. |
-| « parmi plusieurs façons d'apprendre » | 🔬 Architecture tranchée par ADR-066 ; pertinence à vérifier sur au moins 10 boucles réelles couvrant les trois familles et une reprise multi-séance. |
+| « parmi plusieurs façons d'apprendre » | 🔬 **Deux gestes existent** depuis le 15/08 : l'exercice et le mini-projet, ce dernier sur le chemin documentaire (ADR-070). Reste à vérifier — aucun projet n'a encore été mené à son terme. |
 
 ## 4. Public
 
@@ -211,10 +215,12 @@ plafonds numériques : P8 reste 🔬 jusqu'à leur confrontation à l'usage.
 ✅ **Le contenu vient du tuteur**, pas de fichiers écrits à la main (ADR-004).
 ✅ **Le moteur du tuteur doit être gratuit** et configurable (ADR-007).
 ✅ **Construire et utiliser en parallèle** est le mode de travail retenu.
-✅ **La boucle est le produit, et l'exercice n'en est plus l'unique geste**
-(ADR-066). Explorer soutient sans produire de preuve ; S'entraîner conserve le
-contrat de l'exercice ; Produire rend possibles les mini-projets et études de
-cas durables.
+✅ **La boucle est le produit** (ADR-066). Son arbitrage — temps disponible,
+capacité déclarée — vit dans la carte d'action et fonctionne sans aucune table.
+🔄 **Les familles Explorer et Produire ont été retirées le 15/08 (ADR-070)** :
+la seconde avait produit une exécution planifiée, jamais démarrée, et aucune
+preuve. L'exercice redevient le geste unique, non par principe mais faute d'un
+usage qui justifie les autres.
 ✅ **Le contexte immédiat est déclaré, jamais deviné** : temps disponible,
 capacité mentale ressentie, intention, cible facultative et note verbatim. Les
 objectifs structurés et leurs liens vers compétences ou thèmes sont eux aussi
@@ -226,20 +232,22 @@ n'entre dans le déclaré qu'après confirmation explicite.
 optimale : une action, ses facteurs, ses contraintes et ses réserves, dans la
 carte existante et son dépliant « Pourquoi cette action plutôt qu'une autre ? ».
 Aucun score de recommandation n'est stocké.
-✅ **Une production ne devient preuve que sous contrat.** L'exploration n'en
-produit aucune ; un mini-projet exige un état gelé, une évaluation humaine
-critère par critère et une provenance exacte. Les jalons restent des
-observations sauf contrat d'évaluation propre.
-✅ **Une preuve originale ne se réécrit pas.** Toute invalidation, restauration
-ou substitution passe par une rectification append-only ; son effet est dérivé
-à la lecture.
+❓ **Une production ne devient preuve que sous contrat.** Le contrat critere par
+critere a été retiré le 15/08 avec la machinerie qui le portait (ADR-070) : les
+critères d'un projet s'écrivent désormais dans sa fiche, se lisent, et ne
+produisent aucune mesure. La question reste ouverte, et se tranchera sur un
+projet réellement mené — pas d'avance.
+✅ **Une preuve originale ne se réécrit pas.** 🔄 Le journal de rectifications
+qui le mettait en œuvre est parti le 15/08 (ADR-070) : sa table n'avait jamais
+existé en production. Aucun chemin ne réécrit une preuve aujourd'hui.
 ✅ **`LearningSession` reste l'épisode de travail unique.** Plusieurs activités
 durables peuvent rester ouvertes, mais une seule séance peut être `en-cours`
 par compte. Les exercices historiques passent par un adaptateur sans copie ni
 double écriture.
-✅ **Le déploiement commence en bêta par compte**, `legacy` restant la valeur
-par défaut jusqu'aux critères de sortie. La migration est additive ; aucune
-ancienne donnée ou table n'est supprimée sans autorisation distincte.
+🔄 **Le déploiement en bêta par compte** est sans objet depuis le 15/08 :
+`learning_loop_mode` a été retiré avec la boucle qu'il gardait (ADR-070). La
+suppression des 7 tables a fait l'objet de l'autorisation distincte que cette
+ligne exigeait.
 ✅ **La validation de ce chantier reste gratuite pour l'instant** : aucun
 environnement Supabase payant n'est créé. Les migrations et fixtures sont
 préparées localement ; toute dépense future exigera un nouvel accord explicite.
@@ -270,9 +278,8 @@ et les KPI actuels répondent au besoin présent. Réouverture sur fait nouveau.
 🔬 **Pertinence du classement adaptatif (ADR-066).** Le moteur déterministe et
 ses règles de séquençage sont une politique explicable, pas la démonstration
 d'une action pédagogiquement optimale. Test : au moins 10 boucles réelles avec
-les trois familles et une reprise multi-séance, en collectant acceptation,
-passage, abandon, utilité et effort par famille sans recalibrer avant un volume
-suffisant.
+une seule famille désormais (ADR-070), en collectant acceptation, passage,
+abandon, utilité et effort sans recalibrer avant un volume suffisant.
 🔬 **Ergonomie des workspaces et du Mode de travail (ADR-066, révisé le
 14/08).** Focus, guidage et puissance des outils sont les surfaces décidées ;
 leur défaut exact reste à observer sur desktop et mobile. Une conformité

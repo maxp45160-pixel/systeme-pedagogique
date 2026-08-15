@@ -10,7 +10,6 @@ import type { VueDomaineAtelier } from "@/lib/documents/vue-atelier";
 import type { ElementAtelier } from "./types-atelier";
 import { ModaleCompetence } from "@/components/referentiel/modale-competence";
 import { ModaleTheme } from "@/components/seances/modale-theme";
-import { ModaleExercice } from "@/components/exercices/modale-exercice";
 import {
   BoutonSuppressionCarte,
   ModaleConfirmationSuppression,
@@ -18,7 +17,6 @@ import {
 import { archiverDomaine, retirerCompetences } from "@/lib/store/referentiel-actions";
 import { retirerTheme } from "@/lib/store/theme-actions";
 import { supprimerDocumentAction } from "@/lib/store/document-actions";
-import { BoutonGenerer } from "@/components/exercices/bouton-generer";
 import type { CalibrageModale, CompetenceModale } from "@/components/exercices/proprietes-generation";
 import {
   IconeTheme,
@@ -424,7 +422,6 @@ export function VueCategorieTransversale({
   const router = useRouter();
   const [modaleThemeOuverte, setModaleThemeOuverte] = useState(false);
   const [modaleCompetenceOuverte, setModaleCompetenceOuverte] = useState(false);
-  const [modaleGenerationOuverte, setModaleGenerationOuverte] = useState(false);
   const [elementASupprimer, setElementASupprimer] = useState<ElementAtelier | null>(null);
 
   const parties = noeud.chemin.split("/").map((p) => p.trim()).filter(Boolean);
@@ -664,9 +661,13 @@ export function VueCategorieTransversale({
 
           {estExercices && generation && compteId && (
             <CarteCreationPointillee
-              titre="Générer un exercice"
-              description="Entraînement assisté par le tuteur IA"
-              onClick={() => setModaleGenerationOuverte(true)}
+              titre="Composer une séance"
+              description="Créer une séance d’entraînement avec le tuteur IA"
+              onClick={() =>
+                router.push(
+                  `/seances?composer=1&code=${encodeURIComponent(generation.competences[0]?.code ?? "")}`,
+                )
+              }
             />
           )}
 
@@ -680,9 +681,13 @@ export function VueCategorieTransversale({
 
           {estPreuves && generation && compteId && (
             <CarteCreationPointillee
-              titre="Générer un exercice d’évaluation"
+              titre="Composer une séance d’évaluation"
               description="Produire une nouvelle preuve d’apprentissage"
-              onClick={() => setModaleGenerationOuverte(true)}
+              onClick={() =>
+                router.push(
+                  `/seances?composer=1&code=${encodeURIComponent(generation.competences[0]?.code ?? "")}`,
+                )
+              }
             />
           )}
         </section>
@@ -710,21 +715,6 @@ export function VueCategorieTransversale({
           surEnregistre={() => {
             setModaleCompetenceOuverte(false);
             router.refresh();
-          }}
-        />
-      )}
-
-      {modaleGenerationOuverte && generation && compteId && (
-        <ModaleExercice
-          onFermer={() => setModaleGenerationOuverte(false)}
-          competences={generation.competences}
-          competenceInitiale={generation.competences[0]?.code ?? ""}
-          calibrages={generation.calibrages}
-          compteId={compteId}
-          surEnregistre={(id) => {
-            setModaleGenerationOuverte(false);
-            router.refresh();
-            ouvrirElement(`exercice:${id}`);
           }}
         />
       )}

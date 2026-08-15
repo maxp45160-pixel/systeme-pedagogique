@@ -22,7 +22,15 @@ export interface FormatNote {
   libelle: string;
 }
 
-/** Formats opérationnels actuellement exposés dans le parcours principal. */
+/**
+ * Formats opérationnels actuellement exposés dans le parcours principal.
+ *
+ * `projet` y est resté au travers du retrait de la boucle adaptative
+ * (ADR-070) : ce qui a été supprimé est la machinerie d'`ActivityRun` qui le
+ * portait, pas le geste. Un projet est désormais une note opérationnelle, au
+ * même titre qu'une séance — même type documentaire, même espace de travail,
+ * aucune table propre.
+ */
 export const FORMATS_OPERATIONNELS_DISPONIBLES = ["seance", "projet"] as const;
 
 /** Formats connus mais reportés dans l'interface principale. */

@@ -144,8 +144,6 @@ export interface User {
    * l'importance des compétences selon le plan déclaré.
    */
   plan?: string;
-  /** Bascule déclarée par compte. `legacy` reste le défaut tant que la bêta n'est pas activée. */
-  learningLoopMode?: "legacy" | "adaptive-v1";
 }
 
 /** Position dans l'arbre de progression du domaine. */
@@ -317,7 +315,7 @@ export interface Exercise {
   donnees?: { libelle: string; valeur: string }[];
   /** Indices débloqués un par un, du plus léger au plus explicite. */
   indices: string[];
-  /** Correction complète, révélée seulement après tentative. */
+  /** Correction de référence, réservée au tuteur côté serveur. */
   correction: string;
   /** Points de contrôle que l'utilisateur coche à l'évaluation. */
   criteres: { dimension: Dimension; libelle: string }[];
