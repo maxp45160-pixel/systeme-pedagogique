@@ -86,6 +86,18 @@ describe("choisirConfiguration — moteur imposé", () => {
     });
     expect(choix).toMatchObject({ kind: "anthropic", modele: "claude-haiku-4-5" });
   });
+
+  it("donne priorité à Anthropic quand TUTEUR_MOTEUR=anthropic même si le serveur a un palier gratuit", () => {
+    const choix = choisirConfiguration({
+      ...GRATUIT,
+      TUTEUR_MOTEUR: "anthropic",
+      ANTHROPIC_API_KEY: "sk-ant-test",
+    });
+    expect(choix.kind).toBe("anthropic");
+    if (choix.kind === "anthropic") {
+      expect(choix.cle).toBe("sk-ant-test");
+    }
+  });
 });
 
 /*

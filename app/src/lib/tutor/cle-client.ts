@@ -155,6 +155,85 @@ export function decrireConfigClient(config: ConfigTuteurClient): string {
   return `${modele} (${url}, clé locale)`;
 }
 
+export type ValidationCle =
+  | { ok: true }
+  | { ok: false; motif: string };
+
+/**
+ * Valide le format minimal d'une clé API selon le fournisseur d'IA sélectionné.
+ *
+ * Évite d'enregistrer des placeholders, des clés tronquées ou des clés d'un autre
+ * fournisseur (ex. coller une clé Mistral sur Anthropic ou frapper 'BetaTesteur').
+ */
+export function validerCleFournisseur(
+  fournisseur: FournisseurTuteur,
+  cleBrute: string,
+): ValidationCle {
+  const cle = cleBrute.trim();
+  if (!cle) {
+    return { ok: false, motif: "Saisis ta clé API avant d'enregistrer." };
+  }
+  if (cle.length < 8) {
+    return { ok: false, motif: "La clé API saisie est anormalement courte." };
+  }
+
+  switch (fournisseur) {
+    case "anthropic": {
+      if (!cle.startsWith("sk-ant-")) {
+        return {
+          ok: false,
+          motif: "Format de clé Anthropic invalide : elle doit commencer par « sk-ant- ».",
+        };
+      }
+      if (cle.length < 20) {
+        return { ok: false, motif: "La clé Anthropic est incomplète." };
+      }
+      break;
+    }
+    case "groq": {
+      if (!cle.startsWith("gsk_")) {
+        return {
+          ok: false,
+          motif: "Format de clé Groq invalide : elle doit commencer par « gsk_ ».",
+        };
+      }
+      if (cle.length < 20) {
+        return { ok: false, motif: "La clé Groq est incomplète." };
+      }
+      break;
+    }
+    case "openrouter": {
+      if (!cle.startsWith("sk-or-")) {
+        return {
+          ok: false,
+          motif: "Format de clé OpenRouter invalide : elle doit commencer par « sk-or- ».",
+        };
+      }
+      if (cle.length < 20) {
+        return { ok: false, motif: "La clé OpenRouter est incomplète." };
+      }
+      break;
+    }
+    case "mistral": {
+      if (cle.length < 20) {
+        return { ok: false, motif: "La clé Mistral est anormalement courte (attendu ~32 caractères)." };
+      }
+      if (!/^[a-zA-Z0-9_-]+$/.test(cle)) {
+        return { ok: false, motif: "La clé Mistral contient des caractères invalides." };
+      }
+      break;
+    }
+    case "custom": {
+      if (cle.length < 8) {
+        return { ok: false, motif: "La clé personnalisée est trop courte." };
+      }
+      break;
+    }
+  }
+
+  return { ok: true };
+}
+
 export type ConversionEnv =
   | { ok: true; env: Record<string, string> }
   | { ok: false; motif: string };
@@ -181,12 +260,18 @@ export type ConversionEnv =
  * ne peuvent plus se séparer.
  */
 export function configVersEnv(config: ConfigTuteurClient): ConversionEnv {
+  const validationCle = validerCleFournisseur(config.fournisseur, config.cle);
+  if (!validationCle.ok) {
+    return { ok: false, motif: validationCle.motif };
+  }
+
   if (config.fournisseur === "anthropic") {
     return {
       ok: true,
       env: {
-        ANTHROPIC_API_KEY: config.cle,
-        ...(config.modele ? { TUTEUR_MODELE: config.modele } : {}),
+        TUTEUR_MOTEUR: "anthropic",
+        ANTHROPIC_API_KEY: config.cle.trim(),
+        ...(config.modele ? { TUTEUR_MODELE: config.modele.trim() } : {}),
       },
     };
   }
@@ -201,9 +286,9 @@ export function configVersEnv(config: ConfigTuteurClient): ConversionEnv {
     ok: true,
     env: {
       TUTEUR_MOTEUR: "compatible-openai",
-      TUTEUR_CLE: config.cle,
+      TUTEUR_CLE: config.cle.trim(),
       TUTEUR_URL_BASE: validation.url,
-      TUTEUR_MODELE: config.modele || preset?.modeleParDefaut || "",
+      TUTEUR_MODELE: config.modele?.trim() || preset?.modeleParDefaut || "",
     },
   };
 }

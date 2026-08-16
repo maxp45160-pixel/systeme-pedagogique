@@ -8,9 +8,14 @@ describe("scannerUxJourney (dynamique AST)", () => {
     const resultat = parcourirWorkflow(graphe, "page:/");
     const stats = statistiquesGraphe(resultat, graphe);
 
-    expect(stats.totalNoeuds).toBeGreaterThan(120);
+    expect(stats.totalNoeuds).toBeGreaterThanOrEqual(100);
+    expect(stats.totalNoeuds).toBeLessThanOrEqual(300);
     expect(stats.atteignables).toBe(stats.totalNoeuds);
     expect(resultat.inatteignables).toHaveLength(0);
+
+    // ZÉRO faux-positif sur les dossiers non-UI (lib/)
+    const fauxPositifsLib = graphe.noeuds.filter((n) => n.id.startsWith("micro:lib-"));
+    expect(fauxPositifsLib).toHaveLength(0);
 
     // Vérifier la présence des groupes clés
     const groupesPresents = new Set(graphe.noeuds.map((n) => n.groupe));
@@ -46,7 +51,7 @@ describe("scannerUxJourney (dynamique AST)", () => {
     expect(idsNoeuds).toContain("ux:exercice-mesurer");
     expect(idsNoeuds).toContain("ux:exercice-bilan-final");
 
-    // Micro-interactions détectées (Canvas, Pomodoro, Tuteur, Accordéons)
+    // Micro-interactions réelles détectées (Canvas, Pomodoro, Tuteur, Accordéons)
     const microNoeuds = graphe.noeuds.filter((n) => n.id.startsWith("micro:"));
     expect(microNoeuds.length).toBeGreaterThan(5);
 

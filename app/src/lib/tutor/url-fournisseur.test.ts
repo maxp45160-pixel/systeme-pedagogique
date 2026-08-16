@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { validerUrlFournisseur } from "./url-fournisseur";
-import { configVersEnv, FOURNISSEURS } from "./cle-client";
+import { configVersEnv, validerCleFournisseur, FOURNISSEURS } from "./cle-client";
 
 /*
  * SSRF — audit §2.7, 09/08/2026.
@@ -78,23 +78,66 @@ describe("validerUrlFournisseur — les cibles internes sont refusées", () => {
   });
 });
 
+describe("validerCleFournisseur — validation des formats de clés", () => {
+  it("refuse les chaînes vides ou anormalement courtes", () => {
+    expect(validerCleFournisseur("anthropic", "").ok).toBe(false);
+    expect(validerCleFournisseur("anthropic", "   ").ok).toBe(false);
+    expect(validerCleFournisseur("anthropic", "123").ok).toBe(false);
+  });
+
+  it("valide les clés Anthropic (sk-ant- et longueur suffisante)", () => {
+    expect(validerCleFournisseur("anthropic", "sk-ant-api03-abcdef1234567890").ok).toBe(true);
+    expect(validerCleFournisseur("anthropic", "BetaTesteur").ok).toBe(false);
+    expect(validerCleFournisseur("anthropic", "sk-ant-short").ok).toBe(false);
+  });
+
+  it("valide les clés Groq (gsk_ et longueur suffisante)", () => {
+    expect(validerCleFournisseur("groq", "gsk_1234567890abcdef1234567890").ok).toBe(true);
+    expect(validerCleFournisseur("groq", "sk-ant-api03-abcdef").ok).toBe(false);
+    expect(validerCleFournisseur("groq", "BetaTesteur").ok).toBe(false);
+  });
+
+  it("valide les clés OpenRouter (sk-or-)", () => {
+    expect(validerCleFournisseur("openrouter", "sk-or-v1-abcdef1234567890123456").ok).toBe(true);
+    expect(validerCleFournisseur("openrouter", "BetaTesteur").ok).toBe(false);
+  });
+
+  it("valide les clés Mistral (alphanumérique de longueur suffisante)", () => {
+    expect(validerCleFournisseur("mistral", "abcdef1234567890abcdef1234567890").ok).toBe(true);
+    expect(validerCleFournisseur("mistral", "court").ok).toBe(false);
+  });
+
+  it("valide les clés personnalisées (longueur minimale 8)", () => {
+    expect(validerCleFournisseur("custom", "cle-secrete-valide-123").ok).toBe(true);
+    expect(validerCleFournisseur("custom", "abc").ok).toBe(false);
+  });
+});
+
 describe("configVersEnv — le refus ne peut pas être ignoré", () => {
   it("refuse une config dont l'URL vise le réseau interne", () => {
     const r = configVersEnv({
       fournisseur: "custom",
-      cle: "sk-test",
+      cle: "cle-secrete-valide-123",
       urlBase: "http://169.254.169.254/latest/meta-data",
     });
     expect(r.ok).toBe(false);
   });
 
   it("refuse « custom » sans URL — aucun repli implicite vers un preset", () => {
-    const r = configVersEnv({ fournisseur: "custom", cle: "sk-test" });
+    const r = configVersEnv({ fournisseur: "custom", cle: "cle-secrete-valide-123" });
     expect(r.ok).toBe(false);
   });
 
+  it("refuse une clé factice comme « BetaTesteur » pour Anthropic", () => {
+    const r = configVersEnv({ fournisseur: "anthropic", cle: "BetaTesteur" });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.motif).toContain("sk-ant-");
+    }
+  });
+
   it("laisse passer un preset et pose l'URL validée", () => {
-    const r = configVersEnv({ fournisseur: "mistral", cle: "sk-test" });
+    const r = configVersEnv({ fournisseur: "mistral", cle: "abcdef1234567890abcdef1234567890" });
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect(r.env.TUTEUR_URL_BASE).toBe("https://api.mistral.ai/v1");
@@ -102,11 +145,12 @@ describe("configVersEnv — le refus ne peut pas être ignoré", () => {
     }
   });
 
-  it("Anthropic n'a pas d'URL de base : rien à valider, rien à refuser", () => {
-    const r = configVersEnv({ fournisseur: "anthropic", cle: "sk-ant-test" });
+  it("Anthropic pose TUTEUR_MOTEUR=anthropic et ANTHROPIC_API_KEY", () => {
+    const r = configVersEnv({ fournisseur: "anthropic", cle: "sk-ant-api03-abcdef1234567890" });
     expect(r.ok).toBe(true);
     if (r.ok) {
-      expect(r.env.ANTHROPIC_API_KEY).toBe("sk-ant-test");
+      expect(r.env.TUTEUR_MOTEUR).toBe("anthropic");
+      expect(r.env.ANTHROPIC_API_KEY).toBe("sk-ant-api03-abcdef1234567890");
       expect(r.env.TUTEUR_URL_BASE).toBeUndefined();
     }
   });
