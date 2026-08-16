@@ -220,3 +220,11 @@ export const IconePreuve = ({ className }: Props) => (
     <path d="m8.5 12.5 2.5 2.5 4.5-5" />
   </Svg>
 );
+
+export const IconeRecherche = ({ className }: Props) => (
+  <Svg className={className}>
+    <circle cx="11" cy="11" r="6.5" />
+    <path d="m16 16 4.5 4.5" />
+  </Svg>
+);
+

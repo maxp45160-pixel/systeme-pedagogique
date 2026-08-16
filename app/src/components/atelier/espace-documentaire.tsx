@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Markdown } from "@/components/ui/markdown";
 import { cx } from "@/components/ui/primitives";
-import { IconeFleche } from "@/components/ui/icones";
+import { IconeFleche, IconeRecherche } from "@/components/ui/icones";
 import { IconeDocument } from "@/components/ui/icone-document";
 import { createNavigateurClient } from "@/lib/supabase/client";
 import { analyserDocumentMarkdown } from "@/lib/documents/markdown";
@@ -43,9 +43,10 @@ import type { CalibrageModale, CompetenceModale } from "@/components/exercices/p
 import type { DonneesSeance } from "@/components/seances/concepteur-seance";
 import { rangerDocument, type RangementAtelier } from "@/lib/documents/rangement-atelier";
 import { EditeurDirect } from "./editeur-document";
-import { VueTousLesDomaines, EnteteVueAtelier, type VueAtelier } from "./vues-synthese-atelier";
+import { VueTousLesDomaines, BarreVuesAtelier, type VueAtelier } from "./vues-synthese-atelier";
 import { VueRessources, VueThemes } from "./vues-ressources-atelier";
 import { PanneauExerciceAtelier } from "./panneaux-document-atelier";
+import { LIBELLES_TRIS_DOMAINES, type TriDomaine } from "@/lib/documents/tri-domaines";
 import type { ElementAtelier } from "./types-atelier";
 
 export type { ElementAtelier };
@@ -294,6 +295,7 @@ export function EspaceDocumentaire({
    * recherche, qui rend maintenant ses résultats à plat.
    */
   const [recherche, setRecherche] = useState("");
+  const [triDomaines, setTriDomaines] = useState<TriDomaine>("recent");
   const [contexteOuvert, setContexteOuvert] = useState(false);
   const [panneauDroitVisible, setPanneauDroitVisible] = useState(true);
   const [cibleLien, setCibleLien] = useState("");
@@ -701,58 +703,115 @@ export function EspaceDocumentaire({
         />
       )}
       {/*
-        Barre de recherche, en tête du panneau et sur toute sa largeur.
-
-        Elle vivait dans l'explorateur, qui n'existe plus. Ce qui change n'est
-        pas seulement sa place : l'arbre y filtrait ses branches, ici la
-        recherche rend une **liste de résultats**. Chercher une fiche ne demande
-        plus de savoir dans quel dossier calculé elle a été rangée.
+        Barre supérieure de navigation et de recherche unifiée de l'Atelier.
+        Elle réunit les modes de vue (Domaines, Thèmes, Ressources, Graphe)
+        ou le retour vers le corpus, ainsi qu'un champ de recherche compact avec raccourci Ctrl+K.
       */}
-      <div className="flex items-center gap-3 border-b border-bordure bg-surface-2/50 px-4 py-2.5 shrink-0">
-        <div className="relative min-w-0 flex-1">
-          <label className="sr-only" htmlFor="recherche-atelier">
-            Rechercher dans l’Atelier (Ctrl+K)
-          </label>
-          <input
-            id="recherche-atelier"
-            type="search"
-            value={recherche}
-            onChange={(event) => setRecherche(event.target.value)}
-            placeholder="Rechercher une fiche, une compétence, un exercice… (Ctrl+K)"
-            className="w-full rounded-lg border border-bordure-controle bg-surface px-3 py-1.5 text-xs outline-none transition-colors placeholder:text-texte-discret focus:border-primaire"
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-bordure bg-surface px-4 py-2.5 shrink-0 min-h-[3.5rem]">
+        {!selectionnee ? (
+          <div className="flex items-center gap-3">
+            <BarreVuesAtelier
+              vue={(["domaines", "themes", "ressources", "graphe"].includes(selection ?? "") ? selection : "domaines") as VueAtelier}
+              onChanger={changerVue}
+            />
+          </div>
+        ) : (
+          <RetourAtelier
+            element={selectionnee}
+            ouvrirElement={ouvrirElement}
+            changerVue={changerVue}
           />
-        </div>
-        {recherche.trim() ? (
-          <span className="shrink-0 text-xs text-texte-discret">
-            {elementsVisibles.length} résultat{elementsVisibles.length > 1 ? "s" : ""}
-          </span>
-        ) : null}
+        )}
 
-        {selectionnee && (
-          <>
-            <button
-              type="button"
-              onClick={() => setContexteOuvert(true)}
-              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-bordure-controle bg-surface px-2.5 py-1.5 text-xs font-medium text-texte-attenue transition-colors hover:bg-surface-3 hover:text-texte cursor-pointer 2xl:hidden"
-              aria-expanded={contexteOuvert}
-              title="Ouvrir le volet de contexte"
-            >
-              <span>Contexte</span>
-              <span aria-hidden>→</span>
-            </button>
-            {!panneauDroitVisible && (
+        <div className="flex items-center gap-2.5 min-w-0">
+          {!selectionnee && (selection === "domaines" || selection === "domaines-archives" || !selection) && (
+            <div className="flex items-center gap-1.5 shrink-0 text-xs">
+              <label htmlFor="tri-domaines-top" className="text-texte-discret hidden md:inline text-xs">
+                Trier par :
+              </label>
+              <select
+                id="tri-domaines-top"
+                value={triDomaines}
+                onChange={(e) => setTriDomaines(e.target.value as TriDomaine)}
+                className="rounded-lg border border-bordure bg-surface px-2.5 py-1.5 text-xs font-medium text-texte transition-colors hover:border-primaire/40 focus:border-primaire focus:outline-hidden cursor-pointer"
+              >
+                {Object.entries(LIBELLES_TRIS_DOMAINES).map(([cle, libelle]) => (
+                  <option key={cle} value={cle}>
+                    {libelle}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div className="relative flex items-center">
+            <IconeRecherche className="pointer-events-none absolute left-2.5 size-3.5 text-texte-discret" />
+            <label className="sr-only" htmlFor="recherche-atelier">
+              Rechercher dans l’Atelier (Ctrl+K)
+            </label>
+            <input
+              id="recherche-atelier"
+              type="search"
+              value={recherche}
+              onChange={(event) => setRecherche(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  setRecherche("");
+                  event.currentTarget.blur();
+                }
+              }}
+              placeholder="Rechercher dans l’Atelier…"
+              className="w-52 sm:w-64 lg:w-72 rounded-lg border border-bordure bg-surface-2/60 pl-8 pr-11 py-1.5 text-xs outline-none transition-all placeholder:text-texte-discret focus:w-80 focus:border-primaire focus:bg-surface focus:ring-1 focus:ring-primaire/20"
+            />
+            {recherche.trim() ? (
               <button
                 type="button"
-                onClick={() => setPanneauDroitVisible(true)}
-                className="hidden shrink-0 items-center gap-1.5 rounded-lg border border-bordure-controle bg-surface px-2.5 py-1.5 text-xs font-medium text-texte-attenue transition-colors hover:bg-surface-3 hover:text-texte cursor-pointer 2xl:inline-flex"
-                title="Afficher le volet de contexte"
+                onClick={() => setRecherche("")}
+                className="absolute right-2.5 text-xs text-texte-discret hover:text-texte cursor-pointer"
+                title="Effacer la recherche (Échap)"
+                aria-label="Effacer la recherche"
               >
-                <span>Afficher le contexte</span>
+                ×
+              </button>
+            ) : (
+              <kbd className="pointer-events-none absolute right-2.5 hidden sm:inline-flex items-center rounded border border-bordure/70 bg-surface px-1.5 py-0.5 text-[10px] font-medium text-texte-discret">
+                ⌘K
+              </kbd>
+            )}
+          </div>
+
+          {recherche.trim() ? (
+            <span className="hidden sm:inline-flex shrink-0 text-xs font-medium text-primaire">
+              {elementsVisibles.length} résultat{elementsVisibles.length > 1 ? "s" : ""}
+            </span>
+          ) : null}
+
+          {selectionnee && (
+            <>
+              <button
+                type="button"
+                onClick={() => setContexteOuvert(true)}
+                className="flex shrink-0 items-center gap-1.5 rounded-lg border border-bordure-controle bg-surface px-2.5 py-1.5 text-xs font-medium text-texte-attenue transition-colors hover:bg-surface-3 hover:text-texte cursor-pointer 2xl:hidden"
+                aria-expanded={contexteOuvert}
+                title="Ouvrir le volet de contexte"
+              >
+                <span>Contexte</span>
                 <span aria-hidden>→</span>
               </button>
-            )}
-          </>
-        )}
+              {!panneauDroitVisible && (
+                <button
+                  type="button"
+                  onClick={() => setPanneauDroitVisible(true)}
+                  className="hidden shrink-0 items-center gap-1.5 rounded-lg border border-bordure-controle bg-surface px-2.5 py-1.5 text-xs font-medium text-texte-attenue transition-colors hover:bg-surface-3 hover:text-texte cursor-pointer 2xl:inline-flex"
+                  title="Afficher le volet de contexte"
+                >
+                  <span>Afficher le contexte</span>
+                  <span aria-hidden>→</span>
+                </button>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       {/*
@@ -772,6 +831,7 @@ export function EspaceDocumentaire({
             setRecherche("");
             ouvrirElement(id);
           }}
+          onFermer={() => setRecherche("")}
         />
       )}
 
@@ -783,17 +843,8 @@ export function EspaceDocumentaire({
       )}>
         <main className="flex h-full min-w-0 flex-1 flex-col min-h-0 overflow-hidden bg-surface">
           {selection === "graphe" ? (
-
-            <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface">
-              <EnteteVueAtelier
-                titre="Graphe"
-                description="La même matière, vue par ses liens : compétences, exercices et ressources."
-                vue="graphe"
-                onChangerVue={changerVue}
-              />
-              <div className="flex min-h-0 flex-1 flex-col p-4">
-                <GrapheCompetences donnees={graphe.donnees} compteId={graphe.compteId} ouvrirElement={ouvrirElement} />
-              </div>
+            <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface p-4">
+              <GrapheCompetences donnees={graphe.donnees} compteId={graphe.compteId} ouvrirElement={ouvrirElement} />
             </div>
           ) : selection === "themes" ? (
             <VueThemes
@@ -826,6 +877,7 @@ export function EspaceDocumentaire({
               selection={selection}
               compteId={graphe.compteId}
               domainesExistants={domainesExistants}
+              tri={triDomaines}
             />
           ) : selectionnee?.vuePedagogique ? (
             <FichePedagogiqueAtelier
@@ -840,14 +892,6 @@ export function EspaceDocumentaire({
             />
           ) : selectionnee ? (
             <>
-              <div className="flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure/50 px-6 shrink-0 bg-surface">
-                <RetourAtelier
-                  element={selectionnee}
-                  ouvrirElement={ouvrirElement}
-                  changerVue={changerVue}
-                />
-              </div>
-
               {/* Barre d'en-tête du document avec actions épurées */}
               <div className="flex flex-wrap items-center justify-between gap-4 border-b border-bordure px-6 py-3.5 shrink-0 bg-surface">
                 <div className="min-w-0 space-y-1">
@@ -1433,43 +1477,70 @@ function ResultatsRecherche({
   elements,
   couleursDomaines,
   ouvrir,
+  onFermer,
 }: {
   terme: string;
   elements: ElementAtelier[];
   couleursDomaines: Record<string, string>;
   ouvrir: (id: string) => void;
+  onFermer?: () => void;
 }) {
   return (
-    <div className="absolute inset-x-0 bottom-0 top-[3.25rem] z-30 overflow-y-auto bg-surface p-4">
+    <div className="absolute inset-x-0 bottom-0 top-[3.5rem] z-30 overflow-y-auto bg-surface/98 backdrop-blur-sm p-4 sm:p-6 space-y-3">
+      <div className="flex items-center justify-between border-b border-bordure pb-2 text-xs">
+        <span className="font-medium text-texte">
+          {elements.length} résultat{elements.length > 1 ? "s" : ""} pour « <span className="text-primaire">{terme}</span> »
+        </span>
+        {onFermer && (
+          <button
+            type="button"
+            onClick={onFermer}
+            className="flex items-center gap-1 text-texte-discret hover:text-texte transition-colors cursor-pointer"
+          >
+            <span>Fermer</span>
+            <kbd className="rounded border border-bordure bg-surface px-1 text-[10px]">Échap</kbd>
+          </button>
+        )}
+      </div>
+
       {elements.length === 0 ? (
-        <p className="px-1 py-8 text-center text-xs text-texte-discret">
-          Aucune fiche ne correspond à « {terme} ».
-        </p>
+        <div className="py-12 text-center text-xs text-texte-discret">
+          <p>Aucune fiche ne correspond à « {terme} ».</p>
+          <p className="mt-1 text-[11px] text-texte-attenue">Essaie un mot-clé, un code de compétence ou un titre.</p>
+        </div>
       ) : (
-        <ul className="grid gap-1.5">
+        <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
           {elements.map((element) => (
             <li key={element.id}>
               <button
                 type="button"
                 onClick={() => ouvrir(element.id)}
-                className="flex w-full items-center gap-2.5 rounded-lg border border-bordure bg-surface px-3 py-2.5 text-left transition-colors hover:border-primaire/35 hover:bg-primaire-faible/25 cursor-pointer"
+                className="group flex w-full items-start gap-3 rounded-xl border border-bordure bg-surface p-3.5 text-left shadow-xs transition-all hover:-translate-y-0.5 hover:border-primaire/40 hover:bg-surface-2/60 hover:shadow-sm cursor-pointer"
               >
-                <IconeDocument
-                  type={element.type}
-                  couleur={element.domaineId ? couleursDomaines[element.domaineId] : undefined}
-                  className={cx(
-                    "size-4 shrink-0",
-                    !element.domaineId && "text-texte-discret",
-                    // Ce qui est en lecture seule s'affiche atténué.
-                    element.source === "projection" && "opacity-70",
-                  )}
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm">{element.titre}</span>
-                  <span className="block truncate text-[0.6875rem] text-texte-discret">
-                    {element.typeLibelle}
+                <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-surface-2 group-hover:bg-primaire-faible transition-colors">
+                  <IconeDocument
+                    type={element.type}
+                    couleur={element.domaineId ? couleursDomaines[element.domaineId] : undefined}
+                    className={cx(
+                      "size-4 shrink-0",
+                      !element.domaineId && "text-texte-discret group-hover:text-primaire",
+                      element.source === "projection" && "opacity-70",
+                    )}
+                  />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium text-texte group-hover:text-primaire transition-colors">
+                    {element.titre}
                   </span>
-                </span>
+                  <div className="mt-1 flex items-center gap-2 text-[0.6875rem] text-texte-discret">
+                    <span className="rounded bg-surface-2 px-1.5 py-0.5 font-medium text-texte-attenue">
+                      {element.typeLibelle}
+                    </span>
+                    {element.source === "projection" && (
+                      <span className="text-[10px] text-texte-attenue">Lecture seule</span>
+                    )}
+                  </div>
+                </div>
               </button>
             </li>
           ))}

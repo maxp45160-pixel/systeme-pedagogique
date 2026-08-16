@@ -12,7 +12,7 @@ import {
   BoutonSuppressionCarte,
   ModaleConfirmationSuppression,
 } from "./modale-confirmation-suppression";
-import { CarteCreationPointillee, EnteteVueAtelier, type VueAtelier } from "./vues-synthese-atelier";
+import { CarteCreationPointillee, type VueAtelier } from "./vues-synthese-atelier";
 import type { ElementAtelier } from "./types-atelier";
 
 const CLASSE_CARTE =
@@ -54,13 +54,7 @@ export function VueRessources({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-surface-2/30">
-      <EnteteVueAtelier
-        titre="Ressources"
-        description="Ce que tu as lu, écrit ou déposé — rattaché aux compétences que ça sert."
-        vue="ressources"
-        onChangerVue={changerVue}
-      />
-      <div className="space-y-8 p-6 lg:p-8">
+      <div className="space-y-8 p-5 sm:p-6 lg:p-8">
         <section>
           <div className="flex items-baseline justify-between gap-3">
             <h3 className="font-serif text-lg font-medium text-texte">À trier</h3>
@@ -229,13 +223,7 @@ export function VueThemes({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-surface-2/30">
-      <EnteteVueAtelier
-        titre="Thèmes"
-        description="Des sélections de compétences, y compris à travers plusieurs domaines."
-        vue="themes"
-        onChangerVue={changerVue}
-      />
-      <div className="p-6 lg:p-8">
+      <div className="p-5 sm:p-6 lg:p-8">
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {themes.map((element) => {
             const vue = element.vuePedagogique;

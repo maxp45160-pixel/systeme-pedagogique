@@ -98,9 +98,8 @@ export async function scannerWorkflow(): Promise<GrapheWorkflow> {
   const modaleVersPage = new Map<string, string>();
   for (const a of analyses.values()) {
     for (const modale of a.modales) {
-      const slug = slugId(modale.titre);
-      const estTiroir = modale.estTiroir || modale.titre.toLowerCase().includes("tiroir") || modale.fichier.includes("tiroir");
-      const id = `${estTiroir ? "tiroir" : "modal"}:${slug}`;
+      const id = modale.id;
+      const estTiroir = modale.estTiroir;
 
       ajouterNoeud({
         id,
