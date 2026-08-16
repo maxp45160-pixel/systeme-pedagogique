@@ -2,19 +2,18 @@
 
 import type { ResumeCroissance, FenetreCroissance } from "@/lib/engine/croissance";
 import type { VueDomaineAtelier, VueThemeAtelier } from "@/lib/documents/vue-atelier";
-import { EnteteVueAtelier } from "./vues-synthese-atelier";
-import { EnsemblesSuggeres } from "./ensembles-suggeres";
+import { EnsemblesSuggeres } from "@/components/atelier/ensembles-suggeres";
 import type { EnsemblePropose } from "@/lib/engine/ensembles";
 import { CodeCompetence, Etiquette, cx } from "@/components/ui/primitives";
 import { formatDateRelative, formatDuree } from "@/lib/engine/dates";
 
 /**
- * L'accueil de l'Atelier : ce que le travail a construit.
+ * Le bilan de croissance — ce que le travail récent a produit.
  *
- * Il remplace la grille de domaines — cartes, tri, « Ajouter un domaine »,
- * pourcentage de couverture — qui était un écran de gestion posé devant
- * quelqu'un venu voir ce qu'il avait fait. Les domaines n'ont pas disparu : ils
- * descendent d'un cran, dans « Ce que je construis », avec les thèmes.
+ * Il était l'accueil de l'Atelier. C'était sa mauvaise place : on ouvre
+ * l'Atelier pour retrouver une note ou une compétence, et on tombait sur un
+ * bilan de la semaine qu'il fallait traverser. Un bilan répond à « où j'en
+ * suis », pas à « où est ma fiche » — il appartient à `/progression`.
  *
  * Trois niveaux de lecture, dans l'ordre où on se les pose :
  *   1. **Ce que j'ai fait** — l'activité brute, deux fenêtres ;
@@ -25,52 +24,33 @@ import { formatDateRelative, formatDuree } from "@/lib/engine/dates";
  * `construireVuesAtelier`. Un composant qui recalculerait une mesure serait un
  * second endroit où la règle vit.
  */
-export function VueCroissance({
+export function BilanCroissance({
   resume,
   domaines,
   themes,
   ensemblesSuggeres,
   intitules,
   ouvrirElement,
-  revenirGrapheGlobal,
-  sidebarOuverte,
-  setSidebarOuverte,
 }: {
   resume: ResumeCroissance;
   domaines: VueDomaineAtelier[];
   themes: VueThemeAtelier[];
   ensemblesSuggeres: EnsemblePropose[];
   intitules: Record<string, string>;
+  /** Ouvre une fiche dans l'Atelier — c'est là que vivent les éléments cités. */
   ouvrirElement: (id: string) => void;
-  revenirGrapheGlobal: () => void;
-  sidebarOuverte?: boolean;
-  setSidebarOuverte?: (ouverte: boolean) => void;
 }) {
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col overflow-y-auto bg-surface-2/30">
-      <EnteteVueAtelier
-        titre="Ton atelier"
-        description="Ce que tu as fait, ce que ça a changé, ce que tu construis"
-        vue="domaines"
-        onChangerVue={(v) => {
-          if (v === "graphe") revenirGrapheGlobal();
-          else ouvrirElement(v);
-        }}
-        sidebarOuverte={sidebarOuverte}
-        setSidebarOuverte={setSidebarOuverte}
+    <div className="space-y-8">
+      <NiveauActivite resume={resume} />
+      <NiveauCroissance resume={resume} ouvrirElement={ouvrirElement} />
+      <NiveauConstruction
+        domaines={domaines}
+        themes={themes}
+        ensemblesSuggeres={ensemblesSuggeres}
+        intitules={intitules}
+        ouvrirElement={ouvrirElement}
       />
-
-      <div className="space-y-8 p-6 lg:p-8">
-        <NiveauActivite resume={resume} />
-        <NiveauCroissance resume={resume} ouvrirElement={ouvrirElement} />
-        <NiveauConstruction
-          domaines={domaines}
-          themes={themes}
-          ensemblesSuggeres={ensemblesSuggeres}
-          intitules={intitules}
-          ouvrirElement={ouvrirElement}
-        />
-      </div>
     </div>
   );
 }

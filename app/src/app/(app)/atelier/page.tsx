@@ -18,8 +18,6 @@ import { calibragesPourModale, competencesPourModale } from "@/components/exerci
 import { cheminsDepuisDefinition } from "@/lib/documents/chemins-atelier";
 import { paletteDomaines } from "@/lib/ui/couleurs-domaines";
 import { chargerDonneesSeance } from "@/components/seances/donnees-seance";
-import { resumeCroissance } from "@/lib/engine/croissance";
-import { ensemblesProposes } from "@/lib/engine/ensembles";
 
 const LIBELLES_PALIERS: Record<string, string> = {
   fondamentaux: "Fondamentaux",
@@ -367,21 +365,6 @@ export default async function PageAtelier(props: {
           calibrages: calibragesPourModale(referentiel.actifs, contexte.calibrations),
         }}
         donneesSeance={donneesSeance}
-        croissance={resumeCroissance({
-          sessions: contexte.donnees.sessions,
-          tentatives: contexte.donnees.attempts,
-          preuves: contexte.preuvesEffectives,
-          skillsParCode: referentiel.parCode,
-          dureesEstimees: contexte.dureesEstimees,
-          now: contexte.now,
-        })}
-        ensemblesSuggeres={ensemblesProposes({
-          sessions: contexte.donnees.sessions,
-          exercices: contexte.donnees.exercises,
-          preuves: contexte.preuvesEffectives,
-          themes,
-          referentiel,
-        }).propositions}
       />
     </>
   );

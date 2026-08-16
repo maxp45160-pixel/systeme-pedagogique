@@ -1,15 +1,14 @@
-"use client";
-
 import { profilDeclare } from "@/lib/domain/profil";
 import { Carte, EnTeteCarte, Etiquette } from "@/components/ui/primitives";
-import { ouvrirReglagesCompte } from "@/components/layout/compte";
 import type { User } from "@/lib/domain/types";
 
 /**
- * Carte Profil du tableau de bord.
+ * Carte Profil, aujourd'hui en tête de `/compte`.
  *
  * Montre ce que le profil déclare réellement et ce qui manque, sans en inventer
- * (ADR-029). Ouvre directement le panneau de réglages sur l'onglet Profil.
+ * (ADR-029). N'ouvre plus rien : elle a cessé d'être un composant client le
+ * jour où son unique interaction — ouvrir la modale de réglages — a disparu
+ * avec la modale.
  */
 export function CarteProfil({ user }: { user: User }) {
   const p = profilDeclare(user);
@@ -74,13 +73,16 @@ export function CarteProfil({ user }: { user: User }) {
           </p>
         )}
 
-        <button
-          type="button"
-          onClick={() => ouvrirReglagesCompte("profil")}
-          className="mt-3 inline-block text-xs font-medium text-primaire hover:underline cursor-pointer"
-        >
-          {p.vide ? "Renseigner le profil" : "Modifier le profil"}
-        </button>
+        {/*
+          Plus de bouton d'ouverture de modale : la carte vit désormais sur
+          `/compte`, juste au-dessus du formulaire qu'elle désignait. Le lien
+          pointe l'ancre du formulaire plutôt que d'ouvrir une seconde surface.
+        */}
+        <p className="mt-3 text-[0.6875rem] text-texte-discret">
+          {p.vide
+            ? "Renseigne-le dans le formulaire ci-dessous."
+            : "Modifiable dans le formulaire ci-dessous."}
+        </p>
       </div>
     </Carte>
   );

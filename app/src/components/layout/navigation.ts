@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 import {
   IconeAmpoule,
+  IconeCompetences,
   IconeDocuments,
   IconeExercices,
   IconeTableauBord,
@@ -18,6 +19,14 @@ export interface GroupeNav {
   entrees: Entree[];
   /** Groupe prioritaire : rendu dominant (l'action qu'on veut déclencher). */
   primaire?: boolean;
+  /**
+   * Groupe détaché, poussé au bas du rail.
+   *
+   * Sert à séparer ce qui n'est pas un pôle de travail du reste des
+   * destinations, sans inventer une seconde liste que les deux barres
+   * devraient tenir synchronisée.
+   */
+  aPart?: boolean;
 }
 
 /**
@@ -26,8 +35,8 @@ export interface GroupeNav {
  *
  *  - **Tableau de bord** — le point d'entrée de l'app (Piloter).
  *  - **Atelier**, dominant — explorer le corpus, le référentiel et sa progression (Visualiser).
- *  - **Cahier** — composer, planifier, dérouler et relire (Travailler),
- *    suivi d'**Aide**, le mode d'emploi du produit.
+ *  - **Cahier** — composer, planifier, dérouler et relire (Travailler).
+ *  - **Aide** — le mode d'emploi, détaché en bas de rail (`aPart`).
  *
  * La séparation tient au besoin (ADR-053) : le tableau de bord *pilote* (sa
  * prochaine action), Atelier *visualise* (le workspace documentaire), Cahier
@@ -42,6 +51,16 @@ export const NAVIGATION: GroupeNav[] = [
     titre: "Piloter",
     entrees: [
       { href: "/", libelle: "Tableau de bord", court: "Bord", icone: IconeTableauBord },
+      /*
+       * La progression est une destination, pas un bloc du tableau de bord.
+       *
+       * Elle y vivait sous « Vue d'ensemble » : activité sur un an, état global,
+       * dernières preuves, glossaire. Quatre lectures qu'on traversait pour
+       * atteindre l'action du jour, alors qu'on ne les ouvre pas dans le même
+       * geste. Elle reste sous « Piloter » — c'est la même question, « où j'en
+       * suis », posée sur un autre horizon.
+       */
+      { href: "/progression", libelle: "Progression", court: "Progrès", icone: IconeCompetences },
     ],
   },
   {
@@ -63,10 +82,21 @@ export const NAVIGATION: GroupeNav[] = [
        * dans deux surfaces existantes.
        */
       { href: "/seances", libelle: "Cahier", court: "Cahier", icone: IconeExercices },
-      /*
-       * Aide en dernier, sous le Cahier : c'est la destination qu'on cherche
-       * quand une autre n'a pas suffi, pas un pôle de travail.
-       */
+    ],
+  },
+  /*
+   * Aide, seule, tout en bas.
+   *
+   * Elle était la seconde entrée de « Travailler », sous le Cahier — donc
+   * rangée parmi les pôles de travail, alors qu'elle n'en est pas un. On
+   * n'ouvre pas l'aide dans le geste où l'on compose une séance : on l'ouvre
+   * quand une autre destination n'a pas suffi. Un groupe à elle, détaché du
+   * reste, dit cette différence de nature sans avoir à l'expliquer.
+   */
+  {
+    titre: "Comprendre",
+    aPart: true,
+    entrees: [
       { href: "/aide", libelle: "Aide", court: "Aide", icone: IconeAmpoule },
     ],
   },

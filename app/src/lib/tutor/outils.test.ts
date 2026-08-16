@@ -19,9 +19,11 @@ import {
   OUTIL_EVOLUTION,
   OUTIL_EXERCICE,
   OUTIL_REFERENTIEL,
+  OUTIL_INTENTION,
   OUTIL_THEME,
   outilCorrection,
   outilEvolution,
+  outilIntention,
   outilTheme,
   outilsTuteur,
   validerAppelOutil,
@@ -608,5 +610,62 @@ describe("proposer_theme", () => {
     });
     if (recu?.genre !== "theme") throw new Error("genre inattendu");
     expect(recu.theme.codes).toEqual(["LOG-01"]);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* traduire_intention — le point d'entrée le plus emprunté             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Ce que ces cas protègent : `traduire_intention` est armé sur le chemin que
+ * tout le monde prend. Un validateur permissif y ferait entrer un code inventé
+ * dans une URL de composition, donc une génération sur une compétence qui
+ * n'existe pas. Le premier cas est celui-là.
+ */
+describe("validerAppelOutil — traduire_intention", () => {
+  const outils = [outilIntention(["LOG-01", "LOG-02"])];
+  const valider = (entree: unknown) => validerAppelOutil(OUTIL_INTENTION, entree, outils);
+
+  const TRAVAIL = {
+    genre: "travail",
+    titre: "Deux exercices sur le stock de sécurité",
+    pourquoi: "La compétence n'a aucune preuve récente.",
+    codes: ["LOG-01"],
+    sujet: "",
+  };
+
+  it("écarte un code absent du schéma armé", () => {
+    const recu = valider({
+      action: { ...TRAVAIL, codes: ["LOG-01", "LOG-99"] },
+      alternatives: [],
+    });
+    if (recu?.genre !== "intention") throw new Error("genre inattendu");
+    expect(recu.traduction.action.codes).toEqual(["LOG-01"]);
+  });
+
+  it("rejette un travail dont tous les codes sont inventés", () => {
+    expect(valider({ action: { ...TRAVAIL, codes: ["LOG-99"] }, alternatives: [] })).toBeNull();
+  });
+
+  it("rejette un genre hors des trois", () => {
+    expect(valider({ action: { ...TRAVAIL, genre: "projet" }, alternatives: [] })).toBeNull();
+  });
+
+  it("accepte une traduction complète", () => {
+    const recu = valider({
+      action: TRAVAIL,
+      alternatives: [
+        { genre: "note", titre: "Déposer l'énoncé", pourquoi: "Pour le relire.", codes: [], sujet: "" },
+      ],
+    });
+    if (recu?.genre !== "intention") throw new Error("genre inattendu");
+    expect(recu.traduction.action.genre).toBe("travail");
+    expect(recu.traduction.alternatives).toHaveLength(1);
+  });
+
+  it("n'énumère aucun code quand le compte est neuf", () => {
+    const neuf = outilIntention([]);
+    expect(neuf.schema.properties?.action?.properties?.codes?.items?.enum).toBeUndefined();
   });
 });

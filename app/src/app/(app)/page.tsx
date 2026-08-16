@@ -4,24 +4,14 @@ import { redirect } from "next/navigation";
 import { chargerContexte } from "@/lib/store/context";
 import { formatDuree } from "@/lib/engine/dates";
 import { SqueletteContenu } from "@/components/layout/squelette";
-import { calculerActivite, evenementsRecents } from "@/lib/engine/historique";
+import { calculerActivite } from "@/lib/engine/historique";
 import { EntetePage } from "@/components/layout/entete-page";
-import { CarteEtatGlobal } from "@/components/dashboard/etat-global";
 import { CarteProchaineAction } from "@/components/dashboard/prochaine-action";
-import { CarteProgressionRecente } from "@/components/dashboard/progression-recente";
-import { CarteActivite } from "@/components/dashboard/activite";
-import { CarteProfil } from "@/components/dashboard/carte-profil";
-import { CaptureNotes } from "@/components/dashboard/capture-notes";
-import { ChoixTravail } from "@/components/dashboard/choix-travail";
-import { PilotageReferentiel } from "@/components/dashboard/pilotage-referentiel";
-import { Depliant } from "@/components/ui/explication";
-import { Glossaire } from "@/components/ui/glossaire";
-import { BandeauInfo, Bouton, Carte, classesLienBouton, Etiquette, TitreSection } from "@/components/ui/primitives";
+import { IconeFleche } from "@/components/ui/icones";
+import { BandeauInfo, Bouton, Carte, classesLienBouton } from "@/components/ui/primitives";
 import { abandonnerExercice } from "@/lib/store/actions";
 import { statutSeance } from "@/lib/domain/seance";
 import { chargerActionProposee } from "@/lib/store/adaptive-learning";
-import { lireApercusDocuments } from "@/lib/store/documents";
-import { recommanderActionsDocumentaires } from "@/lib/documents/recommandations";
 import {
   lireContexteInstant,
   type ContexteInstant,
@@ -90,24 +80,13 @@ async function ContenuTableauDeBord({ instant }: { instant: ContexteInstant }) {
 
     Les travaux ouverts d'une autre famille rejoignent le bandeau « en cours »
     plus bas, au lieu d'un second bandeau qui dirait la même chose ailleurs.
-  */
-  const [action, aperçusDocuments] = await Promise.all([
-    chargerActionProposee(ctx, instant),
-    lireApercusDocuments(),
-  ]);
-  const recommandationsDocumentaires = recommanderActionsDocumentaires(aperçusDocuments);
-  const recommandationsTravail = (
-    action?.kind === "exercice" ? action.recommandations : ctx.recommandations
-  ).slice(0, 2).map((recommandation) => ({
-    code: recommandation.etat.skill.code,
-    intitule: recommandation.etat.skill.intitule,
-    domaineId: recommandation.etat.skill.domaine,
-    domaineNom: ctx.referentiel.domainesParId.get(recommandation.etat.skill.domaine)?.nom
-      ?? recommandation.etat.skill.domaine,
-    raison: recommandation.raison,
-  }));
 
-  const evenements = evenementsRecents(ctx.preuvesEffectives, ctx.referentiel.parCode, 6, ctx.now);
+    Les aperçus documentaires ne sont plus lus ici : ils n'alimentaient que les
+    pistes de `CaptureNotes`, et déposer une ressource passe maintenant par le
+    `+`. Une lecture de moins à chaque ouverture du tableau de bord.
+  */
+  const action = await chargerActionProposee(ctx, instant);
+
   // `dureesEstimees`, et non `donnees.exercises` : le plafond du temps retenu
   // pour un abandon doit connaître aussi les diagnostics et les exercices sortis
   // du périmètre, que la liste filtrée n'expose pas (ADR-071).
@@ -245,57 +224,68 @@ async function ContenuTableauDeBord({ instant }: { instant: ContexteInstant }) {
         )}
       </div>
 
-      <PilotageReferentiel
-        referentiel={ctx.referentiel}
-        compteId={ctx.donnees.user.id}
-      />
-
-      {/* Les notes support et les travaux ont deux intentions différentes. */}
-      <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
-        <CaptureNotes
-          recommandations={recommandationsDocumentaires}
-        />
-        <ChoixTravail
-          recommandations={recommandationsTravail}
-          compteId={ctx.donnees.user.id}
-        />
-        <CarteProfil user={ctx.donnees.user} />
-      </div>
-
       {/*
-        Vue d'ensemble : tout le reste, en retrait derrière un titre discret.
-        Aucune donnée retirée — seulement hiérarchisée, et réordonnée pour que
-        le bandeau d'activité soit lisible sans défilement : l'ancienne grille
-        `lg:grid-cols-3` ne servait à rien, tous ses enfants occupaient les trois
-        pistes. `[&>*]:min-w-0` empêche un intitulé en `truncate` d'élargir la
-        piste.
+        Le reste tenait sur cet écran en six cartes de plus : capture de note,
+        choix de travail, pilotage du référentiel, profil, activité, état
+        global, progression récente, glossaire. Trois d'entre elles étaient des
+        points d'entrée de création — elles sont maintenant derrière le `+`, qui
+        demande un besoin au lieu d'un objet. Les trois lectures restantes ont
+        leur propre page : elles se consultent, elles ne se pilotent pas, et les
+        garder ici obligeait à défiler pour retrouver l'action prioritaire, qui
+        est la seule raison d'ouvrir cet écran.
       */}
-      <section>
-        <TitreSection>Vue d&apos;ensemble</TitreSection>
-        <div className="space-y-6 [&>*]:min-w-0">
-          {/* Une année pleine, étalée sur toute la largeur de la carte. */}
-          <CarteActivite activite={activite} now={ctx.now} semaines={52} cellule={16} />
-
-          <CarteEtatGlobal global={ctx.global} etats={ctx.etats} />
-
-          {/*
-            La progression récente est une lecture de contrôle, pas une lecture
-            d'entrée : elle passe au repos derrière un `<details>` natif, donc
-            sans JavaScript. Rien n'est retiré.
-          */}
-          <Depliant resume={`Progression récente — ${evenements.length} dernière${evenements.length > 1 ? "s" : ""} preuve${evenements.length > 1 ? "s" : ""}`}>
-            <CarteProgressionRecente evenements={evenements} />
-          </Depliant>
-
-          {/*
-            Le vocabulaire du produit, à portée de clic depuis l'écran d'entrée
-            (audit §1.5). Preuve, niveau, autonomie, confiance, robustesse : cinq
-            mots qui gouvernent tout ce qui est affiché plus haut, et qu'aucun
-            écran ne définissait.
-          */}
-          <Glossaire />
-        </div>
-      </section>
+      <BandeauProgression
+        preuves={ctx.global.nombrePreuves}
+        competencesActives={ctx.referentiel.actifs.length}
+        joursActifs30={activite.joursActifs30}
+      />
     </div>
+  );
+}
+
+/**
+ * Trois chiffres et un lien — ce qui reste du bloc « Vue d'ensemble ».
+ *
+ * Aucune donnée n'est perdue : tout ce qui était affiché ici l'est encore, sur
+ * `/progression`. Ce qui change, c'est qu'on ne le traverse plus pour arriver
+ * à l'action du jour.
+ */
+function BandeauProgression({
+  preuves,
+  competencesActives,
+  joursActifs30,
+}: {
+  preuves: number;
+  competencesActives: number;
+  joursActifs30: number;
+}) {
+  return (
+    <Link
+      href="/progression"
+      className="group flex flex-wrap items-center justify-between gap-4 rounded-xl border border-bordure bg-surface px-5 py-4 transition-colors hover:border-primaire/35 sm:px-6"
+    >
+      <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
+        <span className="text-sm">
+          <span className="font-medium">{preuves}</span>{" "}
+          <span className="text-texte-discret">preuve{preuves > 1 ? "s" : ""}</span>
+        </span>
+        <span className="text-sm">
+          <span className="font-medium">{competencesActives}</span>{" "}
+          <span className="text-texte-discret">
+            compétence{competencesActives > 1 ? "s" : ""} active{competencesActives > 1 ? "s" : ""}
+          </span>
+        </span>
+        <span className="text-sm">
+          <span className="font-medium">{joursActifs30}</span>{" "}
+          <span className="text-texte-discret">
+            jour{joursActifs30 > 1 ? "s" : ""} actif{joursActifs30 > 1 ? "s" : ""} sur 30
+          </span>
+        </span>
+      </div>
+      <span className="flex items-center gap-1.5 text-xs font-medium text-primaire">
+        Voir ma progression
+        <IconeFleche className="size-3.5" />
+      </span>
+    </Link>
   );
 }

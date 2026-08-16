@@ -8,6 +8,7 @@ import { ProfilPage } from "@/components/dev/profil-page";
 import { ProfilWrapper } from "@/components/dev/profil-wrapper";
 import { ProfilTracker } from "@/components/dev/profil-tracker";
 import { TuteurGlobal } from "@/components/tuteur/tuteur-global";
+import { FournisseurIntention } from "@/components/intention/contexte-intention";
 import { PastillePomodoroGlobale } from "@/components/dashboard/pomodoro";
 
 /**
@@ -38,6 +39,12 @@ export default async function AppLayout({
   };
 
   return (
+    /*
+      Le point d'entrée `+` enveloppe tout le cadre : ses deux déclencheurs
+      vivent dans le rail et dans la barre mobile, sa modale est montée une
+      seule fois au-dessus des deux (voir `FournisseurIntention`).
+    */
+    <FournisseurIntention compteId={session.compteId}>
     <div className="flex min-h-screen">
       <Sidebar session={session} />
 
@@ -85,5 +92,6 @@ export default async function AppLayout({
         <TuteurGlobal />
       </Suspense>
     </div>
+    </FournisseurIntention>
   );
 }

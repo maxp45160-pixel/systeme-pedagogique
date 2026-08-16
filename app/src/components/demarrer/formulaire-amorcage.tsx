@@ -3,10 +3,9 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { modifierProfil } from "@/lib/store/referentiel-actions";
-import { valeurDeclaree } from "@/lib/domain/profil";
 import { BandeauInfo, Bouton } from "@/components/ui/primitives";
 import { Champ } from "@/components/ui/champ";
-import { ModaleCompetence } from "@/components/referentiel/modale-competence";
+import { ModaleReferentiel } from "@/components/referentiel/modale-referentiel";
 
 /**
  * Les deux questions de l'amorçage.
@@ -25,12 +24,10 @@ import { ModaleCompetence } from "@/components/referentiel/modale-competence";
  * strict nécessaire à l'amorçage ; `/profil` reste l'écran d'édition.
  */
 export function FormulaireAmorcage({
-  formation,
   objectifMoyenTerme,
   objectifLongTerme,
   compteId,
 }: {
-  formation: string;
   objectifMoyenTerme: string;
   objectifLongTerme: string;
   compteId: string;
@@ -42,9 +39,6 @@ export function FormulaireAmorcage({
 
   const [sujet, setSujet] = useState("");
   const [objectif, setObjectif] = useState(objectifMoyenTerme);
-
-  /* `null` tant que la personne n'a rien écrit sur `/profil`. */
-  const depart = valeurDeclaree(formation);
 
   const pret = sujet.trim().length > 2 && objectif.trim().length > 2;
 
@@ -106,14 +100,32 @@ export function FormulaireAmorcage({
       </div>
 
       {validationOuverte && (
-        <ModaleCompetence
-          onFermer={() => setValidationOuverte(false)}
-          domainesExistants={[]}
+        /*
+          Le même chemin d'extension que le bouton `+`, et non plus la branche
+          unique.
+
+          L'amorçage passait par `ModaleCompetence`, qui rend UNE branche : un
+          sujet large — « la philosophie morale » — y arrivait en un domaine de
+          douze compétences que personne ne relit. `ModaleReferentiel` découpe
+          en branches quand le sujet le demande, et n'en fait qu'une quand il
+          est étroit. Surtout, c'est exactement ce que le `+` ouvrira ensuite :
+          le premier geste du compte et tous les suivants montrent le même
+          écran, au lieu d'apprendre deux fois la même chose.
+        */
+        <ModaleReferentiel
           compteId={compteId}
           sujetInitial={sujet.trim()}
-          descriptionInitiale={depart ? `Point de départ déclaré : ${depart}` : ""}
-          suggestionAutomatique
-          surEnregistre={() => router.replace("/atelier")}
+          demarrageAutomatique
+          onFermer={() => setValidationOuverte(false)}
+          /*
+            Vers le tableau de bord, pas vers l'Atelier.
+
+            Le référentiel qui vient d'être écrit n'a encore aucune preuve : le
+            corpus documentaire n'a rien à montrer. Ce qu'il y a à faire ensuite
+            — la première action proposée — est sur le tableau de bord, et c'est
+            là que la boucle commence.
+          */
+          surEnregistre={() => router.replace("/")}
         />
       )}
     </div>

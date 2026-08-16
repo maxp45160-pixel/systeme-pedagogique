@@ -39,6 +39,13 @@ import {
   DUREE_ESTIMEE_MAX,
   DUREE_ESTIMEE_MIN,
 } from "@/lib/domain/exercice";
+// La validation d'une intention vit au domaine, pas ici : c'est elle qui décide
+// ce qu'est une action exécutable, et elle est tenue par ses propres tests.
+import {
+  GENRES_INTENTION,
+  validerTraductionIntention,
+  type TraductionIntention,
+} from "@/lib/domain/intention";
 import {
   exerciceComplet,
   type PropositionExercice,
@@ -200,6 +207,25 @@ export const OUTIL_REFERENTIEL_COMPLET = "proposer_referentiel_complet";
  * tuteur — pas par un assouplissement du schéma.
  */
 export const OUTIL_THEME = "proposer_theme";
+
+/**
+ * ⚠️ `traduire_intention` — le point d'entrée unique de création.
+ *
+ * N'entre PAS dans `outilsTuteur`, pour la même raison que `proposer_theme` :
+ * il n'est armé que sur `POST /api/intention`, où le serveur a déjà fixé les
+ * codes actifs et le contexte du compte.
+ *
+ * Même distinction frapper / désigner : `codes` est un `enum` fermé sur les
+ * codes actifs du compte entier — un besoin exprimé traverse les domaines par
+ * construction. Aucun champ de code en écriture libre. Le genre `referentiel`
+ * ne porte qu'un `sujet` en clair, jamais un code : quand le sujet n'existe pas
+ * encore, il n'y a rien à désigner, et c'est la proposition de branche
+ * (`proposer_referentiel`) qui prendra le relais après validation humaine.
+ *
+ * ⚠️ Ne pas « simplifier » cet `enum` en `type: "string"` : ce serait rendre la
+ * frappe de code exprimable sur le chemin le plus emprunté de l'application.
+ */
+export const OUTIL_INTENTION = "traduire_intention";
 
 /**
  * Outils confinés de la boucle adaptative.
@@ -943,6 +969,99 @@ export function outilTheme(codesActifs: string[]): OutilTuteur {
 }
 
 /**
+ * L'outil de traduction d'un besoin exprimé en une action déjà connue.
+ *
+ * Le schéma porte l'essentiel du cadrage, pas le prompt : les trois genres sont
+ * un `enum`, les codes en sont un autre, et il n'existe aucun champ par lequel
+ * une quatrième famille d'action pourrait entrer. Un modèle qui « inventerait »
+ * un projet ou une évaluation ne produirait pas un appel valide.
+ *
+ * `alternatives` n'est pas décoratif : un besoin exprimé en langage libre est
+ * souvent ambigu — « je bloque sur les coûts » peut vouloir dire s'entraîner,
+ * relire une ressource, ou constater que rien au référentiel ne couvre le
+ * sujet. Rendre une seule lecture obligerait l'utilisateur à reformuler pour
+ * corriger le tir ; en rendre deux ou trois lui laisse choisir sans réécrire.
+ *
+ * `codesActifs` peut arriver vide — un compte neuf. Le schéma retombe alors sur
+ * une chaîne libre plutôt qu'un `enum: []` invalide, exactement comme
+ * `outilTheme` ; la validation en aval écarte de toute façon tout code inconnu,
+ * donc l'ensemble vide écarte tout. Un compte sans référentiel ne peut produire
+ * qu'un `referentiel` ou une `note`, et c'est le résultat voulu.
+ */
+export function outilIntention(codesActifs: string[]): OutilTuteur {
+  const code: SchemaJson =
+    codesActifs.length > 0
+      ? { type: "string", enum: codesActifs, description: "Code d'une compétence existante." }
+      : { type: "string", description: "Aucune compétence active dans ce compte." };
+
+  const action: SchemaJson = {
+    type: "object",
+    properties: {
+      genre: {
+        type: "string",
+        enum: [...GENRES_INTENTION],
+        description:
+          "travail = s'entraîner sur des compétences existantes ; projet = produire un artefact qui mobilise plusieurs compétences à la fois ; note = déposer une ressource ou un contexte, sans mesure ; referentiel = le sujet n'existe pas encore au référentiel et il faut d'abord le décrire.",
+      },
+      titre: {
+        type: "string",
+        description: "Ce qui sera fait, en une ligne lisible. Pas d'identifiant, pas de code.",
+      },
+      pourquoi: {
+        type: "string",
+        description: "Pourquoi cette action répond au besoin exprimé, en une ou deux phrases.",
+      },
+      codes: {
+        type: "array",
+        items: code,
+        description:
+          "Compétences visées, uniquement pour un travail. Vide pour une note ou une extension de référentiel.",
+      },
+      sujet: {
+        type: "string",
+        description:
+          "Le sujet en clair. Obligatoire pour referentiel (ce sur quoi une branche sera proposée) et pour projet (ce qui sera produit) — ces deux parcours partent d'une phrase, pas de codes.",
+      },
+    },
+    required: ["genre", "titre", "pourquoi", "codes", "sujet"],
+    additionalProperties: false,
+  };
+
+  return {
+    nom: OUTIL_INTENTION,
+    description:
+      "Traduis le besoin exprimé en une action que le système sait déjà exécuter. Tu n'exécutes rien : la personne relit et confirme. Ne rapproche pas de force — si aucune compétence active ne couvre le sujet, dis-le en proposant une extension du référentiel plutôt qu'un travail sur des compétences voisines.",
+    schema: {
+      type: "object",
+      properties: {
+        action: action,
+        alternatives: {
+          type: "array",
+          maxItems: 3,
+          items: action,
+          description: "Autres lectures possibles du même besoin, de la plus au moins probable.",
+        },
+      },
+      required: ["action", "alternatives"],
+      additionalProperties: false,
+    },
+  };
+}
+
+/**
+ * Les codes actifs tels que le schéma d'intention les a énumérés.
+ *
+ * Même précaution que `codesDuSchemaTheme` : on relit l'ensemble effectivement
+ * reçu par le fournisseur plutôt qu'une liste parallèle qui pourrait diverger.
+ */
+function codesDuSchemaIntention(outils: OutilTuteur[]): Set<string> {
+  const intention = outils.find((o) => o.nom === OUTIL_INTENTION);
+  const codes =
+    intention?.schema.properties?.action?.properties?.codes?.items?.enum ?? [];
+  return new Set(codes);
+}
+
+/**
  * Les trois outils, pour un référentiel donné.
  *
  * Stable pour un compte tant que son référentiel ne change pas — même propriété
@@ -1023,7 +1142,8 @@ export type PropositionRecue =
   | { genre: "evolution"; evolution: PropositionEvolution }
   | { genre: "revision"; revision: PropositionRevision }
   | { genre: "referentiel-complet"; resume: string; branches: PropositionReferentiel[]; ecartees: number }
-  | { genre: "theme"; theme: PropositionTheme };
+  | { genre: "theme"; theme: PropositionTheme }
+  | { genre: "intention"; traduction: TraductionIntention };
 
 /**
  * Une résolution de thème proposée. `codes` DÉSIGNE des compétences
@@ -1926,6 +2046,10 @@ export function validerAppelOutil(
       return validerReferentielComplet(donnees);
     case OUTIL_THEME:
       return validerTheme(donnees, codesDuSchemaTheme(outils));
+    case OUTIL_INTENTION: {
+      const traduction = validerTraductionIntention(donnees, codesDuSchemaIntention(outils));
+      return traduction ? { genre: "intention", traduction } : null;
+    }
     default:
       return null;
   }

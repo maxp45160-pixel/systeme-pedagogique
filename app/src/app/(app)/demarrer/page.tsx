@@ -59,13 +59,46 @@ export default async function PageDemarrer() {
       <Carte>
         <div className="px-5 py-4">
           <FormulaireAmorcage
-            formation={nonRenseigne(u.formation)}
             objectifMoyenTerme={nonRenseigne(u.objectifMoyenTerme)}
             objectifLongTerme={nonRenseigne(u.objectifLongTerme)}
             compteId={u.id}
           />
         </div>
       </Carte>
+
+      {/*
+        Ce qui vient après, dit maintenant plutôt que découvert plus tard.
+
+        C'est le seul écran que tout nouveau compte traverse : c'est donc ici,
+        et nulle part ailleurs, qu'on peut apprendre le geste central du produit
+        — le `+`. Sans cette phrase, le point d'entrée unique est un bouton de
+        plus dans un rail, et l'utilisateur retombe sur l'habitude qu'on vient
+        de retirer : chercher, dans un menu, l'objet qu'il faudrait créer.
+      */}
+      <div className="mt-6 rounded-xl border border-bordure bg-surface-2/50 px-5 py-4">
+        <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret">
+          Ensuite
+        </p>
+        <ol className="mt-2.5 space-y-2 text-xs leading-relaxed text-texte-attenue">
+          <li>
+            <span className="font-medium text-texte">1. Tu relis la proposition.</span> Le tuteur
+            découpe le sujet en compétences mesurables ; tu décoches ce qui ne te concerne pas.
+            Rien n&apos;est enregistré avant ta validation.
+          </li>
+          <li>
+            <span className="font-medium text-texte">2. Le tableau de bord te propose une action.</span>{" "}
+            Une seule — celle qui produira la prochaine preuve.
+          </li>
+          <li>
+            <span className="font-medium text-texte">
+              3. Pour tout le reste, le bouton <span className="font-mono">+</span>.
+            </span>{" "}
+            Tu y écris ce dont tu as besoin, en une phrase, et le système choisit quoi faire :
+            s&apos;entraîner, produire, déposer une ressource, ou étendre ton référentiel. Tu n&apos;as
+            jamais à choisir quel objet créer.
+          </li>
+        </ol>
+      </div>
 
       <p className="mt-4 px-1 text-xs text-texte-attenue">
         Rien n&apos;est figé : le référentiel se modifie, s&apos;étend et se réduit à tout moment

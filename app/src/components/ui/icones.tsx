@@ -51,6 +51,13 @@ export const IconeExercices = ({ className }: Props) => (
   </Svg>
 );
 
+/** Le point d'entrée unique de création — voir `components/intention`. */
+export const IconePlus = ({ className }: Props) => (
+  <Svg className={className}>
+    <path d="M12 5v14M5 12h14" />
+  </Svg>
+);
+
 export const IconeFleche = ({ className }: Props) => (
   <Svg className={className}>
     <path d="M5 12h14M13 6l6 6-6 6" />

@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { cx } from "@/components/ui/primitives";
 import { BoutonRetour } from "@/components/ui/lien-retour";
-import { FilArianeAtelier, BoutonOuvrirExplorateur } from "./fil-ariane-atelier";
+import { FilArianeAtelier } from "./fil-ariane-atelier";
 import { compterElements, trouverNoeudDossier, type NoeudDossier } from "@/lib/documents/arbre-atelier";
 import type { VueDomaineAtelier } from "@/lib/documents/vue-atelier";
 import type { ElementAtelier } from "./types-atelier";
@@ -114,23 +114,16 @@ export function EnteteVueAtelier({
   description,
   vue,
   onChangerVue,
-  sidebarOuverte,
-  setSidebarOuverte,
 }: {
   surtitre?: string;
   titre: string;
   description?: string;
   vue: "graphe" | "domaines" | "transversal";
   onChangerVue: (v: "graphe" | "domaines" | "transversal") => void;
-  sidebarOuverte?: boolean;
-  setSidebarOuverte?: (ouverte: boolean) => void;
 }) {
   return (
     <div className="flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure bg-surface px-6 shrink-0">
       <div className="flex items-center gap-3 min-w-0">
-        {!sidebarOuverte && setSidebarOuverte && (
-          <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />
-        )}
         <div className="min-w-0">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-texte-discret leading-none">
             {surtitre}
@@ -156,8 +149,6 @@ export function VueTousLesDomaines({
   domaines,
   ouvrirElement,
   revenirGrapheGlobal,
-  sidebarOuverte,
-  setSidebarOuverte,
   selection,
   compteId,
   domainesExistants = [],
@@ -165,8 +156,6 @@ export function VueTousLesDomaines({
   domaines: VueDomaineAtelier[];
   ouvrirElement: (id: string) => void;
   revenirGrapheGlobal: () => void;
-  sidebarOuverte?: boolean;
-  setSidebarOuverte?: (ouverte: boolean) => void;
   selection?: string | null;
   compteId?: string;
   domainesExistants?: { id: string; nom: string; prefixe: string }[];
@@ -205,8 +194,6 @@ export function VueTousLesDomaines({
           if (v === "graphe") revenirGrapheGlobal();
           else ouvrirElement(v);
         }}
-        sidebarOuverte={sidebarOuverte}
-        setSidebarOuverte={setSidebarOuverte}
       />
 
       <div className="p-6 lg:p-8 space-y-4">
@@ -341,15 +328,11 @@ export function VueTransversale({
   ouvrirDossier,
   ouvrirElement,
   revenirGrapheGlobal,
-  sidebarOuverte,
-  setSidebarOuverte,
 }: {
   racine: NoeudDossier<ElementAtelier> | null;
   ouvrirDossier: (chemin: string) => void;
   ouvrirElement: (id: string) => void;
   revenirGrapheGlobal: () => void;
-  sidebarOuverte?: boolean;
-  setSidebarOuverte?: (ouverte: boolean) => void;
   compteId?: string;
   competencesParCode?: Map<string, { intitule: string; domaine: string }>;
   domainesExistants?: { id: string; nom: string; prefixe: string }[];
@@ -365,8 +348,6 @@ export function VueTransversale({
           if (v === "graphe") revenirGrapheGlobal();
           else ouvrirElement(v);
         }}
-        sidebarOuverte={sidebarOuverte}
-        setSidebarOuverte={setSidebarOuverte}
       />
       <div className="p-6 lg:p-8">
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -398,8 +379,6 @@ export function VueCategorieTransversale({
   ouvrirElement,
   revenirTransversal,
   revenirGrapheGlobal,
-  sidebarOuverte,
-  setSidebarOuverte,
   compteId,
   generation,
   competencesParCode,
@@ -412,8 +391,6 @@ export function VueCategorieTransversale({
   ouvrirElement: (id: string) => void;
   revenirTransversal: () => void;
   revenirGrapheGlobal?: () => void;
-  sidebarOuverte?: boolean;
-  setSidebarOuverte?: (ouverte: boolean) => void;
   compteId?: string;
   generation?: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
   competencesParCode?: Map<string, { intitule: string; domaine: string }>;
@@ -446,8 +423,6 @@ export function VueCategorieTransversale({
           ouvrirDossier={ouvrirDossier}
           arbreDossiers={arbreDossiers}
           elements={elements}
-          sidebarOuverte={sidebarOuverte}
-          setSidebarOuverte={setSidebarOuverte}
           className="mb-3"
         />
         <h2 className="font-serif text-2xl font-medium tracking-tight">{noeud.nom}</h2>

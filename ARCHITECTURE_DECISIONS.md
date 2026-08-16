@@ -5332,6 +5332,188 @@ la duplication — les deux défauts sont indépendants.
 
 ---
 
+## ADR-073 — On déclare un besoin, le système choisit l'objet : le point d'entrée `+` ✅
+
+**Date :** 16/08/2026. **Tranchée explicitement par Maxime** (« suppression,
+réduction, fusion » — l'utilisateur déclare son intention, le système s'adapte).
+Applique P5 (le tuteur produit du contenu, pas des mesures) à la création, et
+prolonge [ADR-053](#adr-053) sur la séparation piloter / visualiser / travailler.
+
+### Le défaut
+
+Mesuré sur le graphe UX atomique de `/dev/workflow`, le 16/08/2026, avant et
+après chantier :
+
+| | Avant | Après |
+|---|---|---|
+| Nœuds | 139 | **126** |
+| Liens | 307 | **271** |
+| Modales + tiroirs | 22 | **15** |
+| Cartes du tableau de bord | 7 | **1** (l'action prioritaire) |
+| Onglets de fiche | 7 | **4** |
+| « Pages » | 26, pour 7 routes réelles | 29, pour 9 routes réelles |
+
+Le nombre de « pages » **monte**, et c'est le résultat voulu : `/compte` et
+`/progression` sont deux destinations qui remplacent trois modales et six
+cartes. Ce qui baisse, c'est ce qui se superpose à l'écran courant.
+
+Vingt-deux modales pour sept écrans, dont **treize étaient le même geste** :
+créer quelque chose. Elles ne différaient que par l'**objet** — compétence,
+thème, exercice, séance, note, projet, branche, révision. Choisir l'objet
+suppose de connaître le modèle de données ; personne n'ouvre l'application pour
+ça. Le retour utilisateur — « trop d'actions possibles, on se perd » — décrit
+exactement ce coût.
+
+### La décision
+
+**Un point d'entrée unique remplace les treize.** Le bouton `+`, au centre de la
+barre mobile et en tête du rail, demande un besoin en langage libre. Un appel
+d'outil confiné (`traduire_intention`, `POST /api/intention`) le traduit en
+**une** action parmi quatre genres — `travail`, `projet`, `note`,
+`referentiel` — plus deux alternatives en retrait.
+
+Trois propriétés en font autre chose qu'une modale de plus :
+
+1. **Aucune destination n'est inventée.** Chaque genre rejoint une surface qui
+   existait déjà : le compositeur de séance, le parcours de projet, la création
+   de note, la proposition de référentiel. Le `+` oriente, il n'écrit pas.
+2. **Aucune entité n'est créée.** Une intention est traduite, exécutée, et
+   disparaît. Rien n'est persisté (invariant 1).
+3. **L'interdit de frappe est porté par le schéma, pas par le prompt.** `codes`
+   est un `enum` fermé sur les codes actifs du compte ; `validerActionIntention`
+   (`lib/domain/intention.ts`) écarte tout code hors de cet ensemble, et fait
+   **tomber** l'action si l'écrémage vide un `travail`. Pas de valeur de repli
+   fabriquée à partir d'une donnée invalide.
+
+**Le langage libre est le point, pas un confort.** Une table de mots-clés
+traiterait « génère un exercice sur les stocks » et échouerait sur « je bloque
+depuis deux jours et j'ai un contrôle vendredi » — la phrase qu'on veut
+accepter. La contrainte est donc reportée du prompt vers le schéma.
+
+### Ce qui disparaît, et où c'est parti
+
+| Retiré | Repris par |
+|---|---|
+| `CaptureNotes`, `ChoixTravail`, `PilotageReferentiel` (tableau de bord) | le `+` |
+| Modale « Compte et réglages » et ses 2 modales filles | page `/compte` |
+| `CarteProfil` (tableau de bord) | page `/compte` |
+| Bloc « Vue d'ensemble » : activité, état global, progression récente, glossaire | page `/progression` |
+
+**Aide sort des pôles de travail.** Elle était la seconde entrée du groupe
+« Travailler », sous le Cahier — rangée parmi les destinations qu'on ouvre pour
+produire, alors qu'on ne l'ouvre que quand une autre n'a pas suffi. Elle a
+désormais son propre groupe, détaché en bas du rail (`aPart` dans
+`NAVIGATION`), séparé par un filet.
+
+**Deux pages plutôt que zéro.** `/compte` et `/progression` se **consultent** ;
+le tableau de bord se **pilote**. Les empiler obligeait à traverser la
+consultation pour atteindre l'action du jour, à chaque ouverture. Aucune donnée
+n'a été retirée — l'activité y est même à sa taille pleine, et la fenêtre des
+preuves récentes passe de 6 à 12.
+
+`/progression` est devenue le **profil** : elle rassemble ce qui répondait à
+« où j'en suis » depuis trois écrans différents — le bloc « Vue d'ensemble » du
+tableau de bord, la carte de profil, et le bilan de croissance qui servait
+d'accueil à l'Atelier. Elle y ajoute un cumul sur toute l'histoire
+(`lib/engine/carriere.ts`, 12 tests) : temps travaillé, séances tenues,
+exercices menés, preuves, jours actifs, meilleure série de jours consécutifs.
+
+⚠️ **Aucun de ces totaux ne produit un rang.** La demande évoquait un profil de
+carrière de jeu vidéo ; ce que ces profils classent, c'est le **temps passé**.
+Un « niveau de profil » calculé sur les minutes donnerait une seconde réponse à
+« où j'en suis », concurrente du score global — et celle-là monterait en
+laissant simplement l'application ouverte. Les compteurs comptent des faits déjà
+écrits, ils ne s'agrègent en rien. Le seul classement reste celui des preuves
+(P2, P6).
+
+Deux précautions de la même famille dans ces écrans : une barre de domaine n'est
+tracée que si un score existe — une barre à zéro pour un domaine sans preuve
+montrerait un niveau nul là où il n'y a pas de mesure ; et la série « en cours »
+tient tant que la dernière preuve date d'aujourd'hui ou d'hier, sinon elle
+tomberait à zéro chaque matin pour qui travaille le soir.
+
+**Un seul chemin d'extension du référentiel.** `ModaleReferentiel` a été
+extraite de `BoutonCreerReferentiel` pour accepter un `sujetInitial` : le `+` et
+`/demarrer` ouvrent désormais le **même** écran que le bouton historique.
+`/demarrer` n'utilise plus `ModaleCompetence` (une branche) mais le découpage
+complet — le premier geste d'un compte et tous les suivants montrent la même
+chose.
+
+### L'Atelier : ce qui était dérivé n'avait pas à être navigué
+
+**L'explorateur de gauche est supprimé.** Son arbre —
+`Domaines/X/Compétences/Fondamentaux` — n'existe nulle part en base : c'est
+`cheminsDepuisDefinition` qui le calcule à chaque rendu. On demandait donc de
+naviguer dans un classement que personne n'a fait, et qui se réorganise dès
+qu'une fiche change de type. Autour de lui vivaient un `localStorage` par
+compte, un abonnement `storage`, un `useSyncExternalStore` et un effet
+d'auto-expansion : toute cette machinerie mémorisait une position dans ce
+classement dérivé.
+
+Ce que l'arbre servait vraiment — retrouver une fiche — est repris par la
+recherche, remontée en tête du panneau sur toute sa largeur et qui rend
+maintenant **une liste de résultats** plutôt qu'un arbre élagué. Le chemin y
+figure comme repère, pas comme parcours à refaire. Les résultats se posent en
+superposition : la vue courante reste derrière, et refermer la recherche rend
+l'écran qu'on avait quitté.
+
+`construireArbreDossiers` reste — le fil d'Ariane et les vues transversales s'en
+servent — mais il est désormais construit sur `elements` et non sur
+`elementsVisibles` : un arbre filtré par la recherche viderait ces vues pendant
+la frappe.
+
+**L'accueil de l'Atelier est supprimé.** C'était la vue de croissance :
+activité de la journée et de la semaine, paliers franchis, ensembles en
+construction. Un bilan — donc une réponse à « où j'en suis », posée devant
+quelqu'un venu chercher « où est ma fiche ». L'Atelier ouvre désormais
+directement sur les domaines, d'où descendent les compétences, les exercices et
+les notes.
+
+Le bilan n'est pas jeté : il devient `BilanCroissance` et rejoint
+`/progression`, avec les autres lectures de sa famille. Il ne dépend plus du
+routeur — un composant client mince (`BilanCroissanceLie`) traduit ses
+identifiants en URL d'Atelier, ce qui lui permettrait d'être remonté ailleurs
+sans réécriture.
+
+**Sept onglets deviennent quatre**, sur deux duplications démontrées et une
+troisième forme redondante :
+
+| Fusionné | Dans | Parce que |
+|---|---|---|
+| Vue d'ensemble | Progression | ses « points forts » et « axes » sont les deux extrêmes de la liste de dimensions que Progression affiche en entier |
+| Notes & ressources | Relations | `vue.documents` y était listé deux fois, la colonne « Documents & ressources » de Relations disant déjà la même chose |
+| Radar & Profil | Compétences | le radar trace `vue.competences`, c'est-à-dire la liste qui le suit, sous une autre forme |
+
+### Ce que cette décision ne dit pas
+
+Elle ne dit pas que les 19 variantes `searchParams` sont réduites. Une
+page qui porte cinq modes (`?session ?run ?document ?note ?abandon`) reste un
+multiplexeur d'états où « où suis-je » n'est pas lisible dans l'URL. Ce défaut
+est mesuré mais non traité.
+
+### Réserves
+
+1. 🔬 **La traduction dépend d'un fournisseur qui outille.** Sans appel d'outil,
+   le `+` s'annonce indisponible et renvoie aux destinations du menu — même
+   honnêteté que les autres chemins assistés (ADR-031). *Test de réfutation :*
+   si le taux d'échec de traduction dépasse celui des autres chemins one-shot,
+   c'est le prompt qu'il faut reprendre, pas le principe.
+2. ❓ **`reprendre` n'est pas un genre.** Un travail déjà ouvert est un fait lu
+   en base, signalé par le bandeau du tableau de bord — le faire proposer par le
+   modèle reviendrait à lui laisser affirmer un état du compte. *Qui tranche :*
+   Maxime, si l'usage montre qu'on cherche « reprendre » dans le `+`.
+3. ❓ **Les trois graphes de `/dev/workflow` restent trois.** Macro et Atomique
+   ne diffèrent que de 7 nœuds, Architecture est un sous-ensemble d'UX. *Qui
+   tranche :* Maxime. *Ce qui bloque :* hors périmètre de ce chantier, dit
+   explicitement.
+4. 🔬 **La recherche remplace-t-elle vraiment l'arbre ?** Elle filtre sur titre,
+   identifiant, type et tags — pas sur le contenu des fiches. *Test de
+   réfutation :* si l'on se met à taper des mots qui sont dans le corps d'une
+   note sans la trouver, c'est l'index qu'il faut élargir, pas l'arbre qu'il
+   faut rétablir.
+
+---
+
 ## Comment modifier ce registre
 
 1. Une décision ✅ ne se retire pas : elle passe en 🔄 **Remplacée**, avec le

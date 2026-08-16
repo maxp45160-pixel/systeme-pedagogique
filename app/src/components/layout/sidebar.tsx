@@ -7,6 +7,7 @@ import { cx } from "@/components/ui/primitives";
 import { BasculeRail } from "./bascule-rail";
 import { Compte, type EtatSession } from "./compte";
 import { PastillePomodoroGlobale } from "@/components/dashboard/pomodoro";
+import { BoutonIntentionRail } from "@/components/intention/bouton-intention";
 
 export function Sidebar({ session }: { session: EtatSession }) {
   const pathname = usePathname();
@@ -23,9 +24,33 @@ export function Sidebar({ session }: { session: EtatSession }) {
         </span>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-4 rail-reduit:px-2">
+      {/*
+        `flex flex-col` sur la nav : c'est ce qui donne prise au `mt-auto` du
+        groupe détaché. Sans lui, la marge auto n'a rien à repousser et « Aide »
+        resterait collée au Cahier.
+      */}
+      <nav className="flex flex-1 flex-col overflow-y-auto px-3 py-4 rail-reduit:px-2">
+        {/*
+          Le `+` est posé au-dessus des destinations, et hors des groupes : ce
+          n'est pas un endroit où aller, c'est le geste qu'on veut déclencher.
+          Le mettre dans « Piloter » ou « Travailler » l'aurait rangé parmi des
+          pages, ce qu'il n'est pas.
+        */}
+        <div className="mb-6">
+          <BoutonIntentionRail />
+        </div>
+
         {NAVIGATION.map((groupe) => (
-          <div key={groupe.titre} className="mb-6 last:mb-0">
+          <div
+            key={groupe.titre}
+            className={cx(
+              "mb-6 last:mb-0",
+              // Un groupe détaché est poussé au bas du rail par sa marge auto,
+              // et séparé par un filet : il n'appartient pas à la liste des
+              // pôles de travail qui le précède.
+              groupe.aPart && "mt-auto border-t border-[var(--rail-bordure)] pt-4",
+            )}
+          >
             <div
               className={cx(
                 "px-2 pb-2 text-[0.625rem] font-semibold uppercase tracking-wider rail-reduit:hidden",

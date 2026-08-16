@@ -30,7 +30,7 @@ import { BoutonGenerer } from "@/components/exercices/bouton-generer";
 import type { CalibrageModale, CompetenceModale } from "@/components/exercices/proprietes-generation";
 import { BoutonRetour } from "@/components/ui/lien-retour";
 import { Markdown } from "@/components/ui/markdown";
-import { FilArianeAtelier, BoutonOuvrirExplorateur } from "./fil-ariane-atelier";
+import { FilArianeAtelier } from "./fil-ariane-atelier";
 import { ConcepteurSeance, type DonneesSeance } from "@/components/seances/concepteur-seance";
 import type { ElementAtelier } from "./types-atelier";
 import type { NoeudDossier } from "@/lib/documents/arbre-atelier";
@@ -42,7 +42,7 @@ import {
 import { retirerCompetences } from "@/lib/store/referentiel-actions";
 import { retirerTheme } from "@/lib/store/theme-actions";
 
-type Onglet = "synthese" | "progression" | "relations" | "notes";
+type Onglet = "progression" | "relations";
 
 const LIBELLES_PALIERS: Record<string, string> = {
   fondamentaux: "Fondamentaux",
@@ -114,7 +114,6 @@ function CarteAssociee({
   );
 }
 
-export { BoutonOuvrirExplorateur } from "./fil-ariane-atelier";
 
 function VueCompetence({
   vue,
@@ -125,8 +124,6 @@ function VueCompetence({
   arbreDossiers,
   elements,
   revenirGraphe,
-  sidebarOuverte,
-  setSidebarOuverte,
   compteId,
   generation,
   donneesSeance,
@@ -139,26 +136,33 @@ function VueCompetence({
   arbreDossiers?: NoeudDossier<ElementAtelier>[];
   elements?: ElementAtelier[];
   revenirGraphe?: () => void;
-  sidebarOuverte?: boolean;
-  setSidebarOuverte?: (ouverte: boolean) => void;
   /** Le journal de rectification n'existe que sous la boucle adaptative. */
   compteId?: string;
   generation?: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
   donneesSeance?: DonneesSeance;
 }) {
   const router = useRouter();
-  const [onglet, setOnglet] = useState<Onglet>("synthese");
+  const [onglet, setOnglet] = useState<Onglet>("progression");
   const [documentASupprimer, setDocumentASupprimer] = useState<DocumentLieAtelier | null>(null);
   const [creationNoteEnCours, demarrerCreationNote] = useTransition();
-  const dimensionsTriees = [...vue.dimensions].sort((a, b) => b.valeur - a.valeur);
-  const aDesMesuresPositives = vue.dimensions.some((d) => d.valeur > 0);
-  const pointsForts = vue.niveau === null || !aDesMesuresPositives ? [] : dimensionsTriees.filter((d) => d.valeur > 0).slice(0, 2);
-  const axes = vue.niveau === null ? [] : dimensionsTriees.slice(-2).reverse();
+  /*
+   * Deux onglets, là où il y en avait quatre.
+   *
+   * « Vue d'ensemble » montrait les deux dimensions les plus fortes et les deux
+   * plus faibles — c'est-à-dire les extrêmes de la liste que « Progression »
+   * affichait **en entier**, juste à côté. Même donnée, deux onglets, et il
+   * fallait deviner lequel des deux répondait à « où j'en suis ».
+   *
+   * « Notes & ressources » listait `vue.documents`, que « Relations » listait
+   * déjà sous « Documents & ressources ». La seule chose que l'onglet ajoutait
+   * — créer et supprimer une note liée — est reprise ici.
+   *
+   * Restent les deux questions qu'on se pose vraiment sur une compétence : où
+   * j'en suis, et à quoi elle tient.
+   */
   const onglets: Array<{ id: Onglet; libelle: string }> = [
-    { id: "synthese", libelle: "Vue d’ensemble" },
     { id: "progression", libelle: "Progression" },
-    { id: "relations", libelle: "Relations" },
-    { id: "notes", libelle: "Notes & ressources" },
+    { id: "relations", libelle: "Relations & ressources" },
   ];
 
   async function creerNotePourCompetence() {
@@ -205,8 +209,6 @@ function VueCompetence({
           ouvrirDossier={ouvrirDossier}
           arbreDossiers={arbreDossiers}
           elements={elements}
-          sidebarOuverte={sidebarOuverte}
-          setSidebarOuverte={setSidebarOuverte}
         />
       </div>
       <header className="border-b border-bordure bg-surface px-6 py-5 lg:px-8">
@@ -292,24 +294,27 @@ function VueCompetence({
       </div>
 
       <div className="space-y-5 px-6 py-6 lg:px-8">
-        {onglet === "synthese" && (
+        {onglet === "progression" && (
           <>
-            <section className="grid gap-3 lg:grid-cols-2">
-              <div className="rounded-xl border border-bordure bg-surface p-4 shadow-[var(--ombre-posee)]">
-                <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-texte-discret">Points les plus démontrés</h3>
-                {pointsForts.length ? (
-                  <ul className="mt-3 space-y-2">
-                    {pointsForts.map((dimension) => <li key={dimension.id} className="flex items-center justify-between text-sm"><span>{dimension.libelle}</span><span className="chiffres font-medium text-succes">{Math.round(dimension.valeur * 100)}%</span></li>)}
-                  </ul>
-                ) : <p className="mt-3 text-sm text-texte-discret">Une première preuve est nécessaire pour distinguer les points forts.</p>}
+            <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
+              <ResteADemontrer vue={vue} />
+
+              <div className="rounded-xl border border-bordure bg-surface p-5 shadow-[var(--ombre-posee)]">
+                <h3 className="font-serif text-lg font-medium">Performance détaillée</h3>
+                <p className="mt-1 text-xs text-texte-discret">Calculée depuis les preuves observées ; aucune valeur n’est stockée.</p>
+                {/*
+                  Les barres portent déjà ce que « points forts » et « axes à
+                  remobiliser » disaient en extrayant les deux extrêmes. Le
+                  classement reste lisible — les dimensions sont ordonnées — sans
+                  qu'il faille deux encarts pour montrer quatre lignes d'une
+                  liste affichée en entier juste en dessous.
+                */}
+                <div className="mt-5 space-y-3">{vue.dimensions.map((dimension) => <Barre key={dimension.id} valeur={dimension.valeur} libelle={dimension.libelle} />)}</div>
               </div>
-              <div className="rounded-xl border border-bordure bg-surface p-4 shadow-[var(--ombre-posee)]">
-                <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-texte-discret">Dimensions à remobiliser</h3>
-                {axes.length ? (
-                  <ul className="mt-3 space-y-2">
-                    {axes.map((dimension) => <li key={dimension.id} className="flex items-center justify-between text-sm"><span>{dimension.libelle}</span><span className="chiffres font-medium text-alerte">{Math.round(dimension.valeur * 100)}%</span></li>)}
-                  </ul>
-                ) : <p className="mt-3 text-sm text-texte-discret">Aucun axe n’est affirmé sans observation directe.</p>}
+              <div className="rounded-xl border border-bordure bg-surface p-5 shadow-[var(--ombre-posee)]">
+                <h3 className="font-serif text-lg font-medium">Parcours</h3>
+                <p className="mt-1 text-xs text-texte-discret">Ce que chaque preuve a changé, rejoué depuis le journal.</p>
+                <FriseParcours etapes={vue.parcours} />
               </div>
             </section>
 
@@ -367,32 +372,20 @@ function VueCompetence({
           </>
         )}
 
-        {onglet === "progression" && (
-          <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
-            <ResteADemontrer vue={vue} />
-
-            <div className="rounded-xl border border-bordure bg-surface p-5 shadow-[var(--ombre-posee)]">
-              <h3 className="font-serif text-lg font-medium">Performance détaillée</h3>
-              <p className="mt-1 text-xs text-texte-discret">Calculée depuis les preuves observées ; aucune valeur n’est stockée.</p>
-              <div className="mt-5 space-y-3">{vue.dimensions.map((dimension) => <Barre key={dimension.id} valeur={dimension.valeur} libelle={dimension.libelle} />)}</div>
-            </div>
-            <div className="rounded-xl border border-bordure bg-surface p-5 shadow-[var(--ombre-posee)]">
-              <h3 className="font-serif text-lg font-medium">Parcours</h3>
-              <p className="mt-1 text-xs text-texte-discret">Ce que chaque preuve a changé, rejoué depuis le journal.</p>
-              <FriseParcours etapes={vue.parcours} />
-            </div>
-          </section>
-        )}
-
         {onglet === "relations" && (
+          <>
           <section className="rounded-xl border border-bordure bg-surface p-5 shadow-[var(--ombre-posee)]">
             <div className="text-center">
               <span className="inline-flex rounded-xl bg-primaire px-4 py-2 text-sm font-semibold text-primaire-contraste">{titre}</span>
             </div>
-            <div className="mt-6 grid gap-5 md:grid-cols-3">
+            {/*
+              Deux colonnes, plus trois : la colonne « Documents & ressources »
+              redisait, en liste compacte, les cartes rendues juste en dessous.
+              Les documents ne sont plus nommés deux fois sur le même écran.
+            */}
+            <div className="mt-6 grid gap-5 md:grid-cols-2">
               <Relations titre="Prérequis" ids={vue.prerequis} ouvrirElement={ouvrirElement} elements={elements} />
               <Relations titre="Compétences suivantes" ids={vue.suivantes} ouvrirElement={ouvrirElement} elements={elements} />
-              <Relations titre="Documents & ressources" ids={vue.documents.map((document) => document.id)} ouvrirElement={ouvrirElement} elements={elements} />
             </div>
 
             <div className="mt-4">
@@ -401,10 +394,14 @@ function VueCompetence({
 
             <CoMobilisees vue={vue} ouvrirElement={ouvrirElement} />
           </section>
-        )}
 
-        {onglet === "notes" && (
-          <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {/*
+            Les notes et ressources liées, reprises de l'onglet qu'elles
+            occupaient seules. Une ressource EST une relation de la compétence :
+            elles se lisent dans le même mouvement que les prérequis et les
+            compétences suivantes.
+          */}
+          <section className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {vue.documents.map((document) => (
               <div key={document.id} className="group relative">
                 <button
@@ -447,6 +444,7 @@ function VueCompetence({
               </div>
             </button>
           </section>
+          </>
         )}
       </div>
 
@@ -709,8 +707,6 @@ function VueDomaine({
   arbreDossiers,
   elements,
   revenirGraphe,
-  sidebarOuverte,
-  setSidebarOuverte,
   compteId,
   modeInitial,
 }: {
@@ -721,8 +717,6 @@ function VueDomaine({
   arbreDossiers?: NoeudDossier<ElementAtelier>[];
   elements?: ElementAtelier[];
   revenirGraphe?: () => void;
-  sidebarOuverte?: boolean;
-  setSidebarOuverte?: (ouverte: boolean) => void;
   compteId: string;
   modeInitial?: "referentiel";
 }) {
@@ -757,8 +751,6 @@ function VueDomaine({
           ouvrirDossier={ouvrirDossier}
           arbreDossiers={arbreDossiers}
           elements={elements}
-          sidebarOuverte={sidebarOuverte}
-          setSidebarOuverte={setSidebarOuverte}
         />
       </div>
       <header className="border-b border-bordure bg-surface px-6 py-5 lg:px-8">
@@ -961,8 +953,6 @@ function VueTheme({
   arbreDossiers,
   elements,
   revenirGraphe,
-  sidebarOuverte,
-  setSidebarOuverte,
   compteId,
   generation,
   donneesSeance,
@@ -975,14 +965,12 @@ function VueTheme({
   arbreDossiers?: NoeudDossier<ElementAtelier>[];
   elements?: ElementAtelier[];
   revenirGraphe?: () => void;
-  sidebarOuverte?: boolean;
-  setSidebarOuverte?: (ouverte: boolean) => void;
   compteId?: string;
   generation?: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
   donneesSeance?: DonneesSeance;
 }) {
   const router = useRouter();
-  const [onglet, setOnglet] = useState<"competences" | "radar" | "exercices">("competences");
+  const [onglet, setOnglet] = useState<"competences" | "exercices">("competences");
   const [filtreDomaine, setFiltreDomaine] = useState<string>("tous");
   const [confirmationSuppressionTheme, setConfirmationSuppressionTheme] = useState(false);
 
@@ -995,9 +983,12 @@ function VueTheme({
     valeur: c.score === null ? null : Math.round((c.score / 5) * 100),
   }));
 
+  /*
+   * Deux onglets, et non plus trois : « Radar & Profil » est remonté en tête
+   * de « Compétences », dont il traçait déjà la liste sous forme de radar.
+   */
   const onglets = [
     { id: "competences" as const, libelle: `Compétences (${vue.competences.length})` },
-    { id: "radar" as const, libelle: "Radar & Profil" },
     { id: "exercices" as const, libelle: `Exercices (${vue.exercices.length})` },
   ];
 
@@ -1013,8 +1004,6 @@ function VueTheme({
           ouvrirDossier={ouvrirDossier}
           arbreDossiers={arbreDossiers}
           elements={elements}
-          sidebarOuverte={sidebarOuverte}
-          setSidebarOuverte={setSidebarOuverte}
         />
       </div>
 
@@ -1182,6 +1171,67 @@ function VueTheme({
       <div className="space-y-6 px-6 py-6 lg:px-8">
         {onglet === "competences" && (
           <div className="space-y-6">
+            {/*
+              Le radar et la synthèse ouvraient un onglet à eux. Le radar trace
+              exactement `vue.competences` — la liste qui suit, sous une autre
+              forme : deux onglets pour une donnée, et le choix entre les deux
+              n'était pas un choix de contenu. Les compteurs, eux, servent
+              d'en-tête à cette liste plutôt que de vivre ailleurs.
+            */}
+          <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
+            <div className="rounded-xl border border-bordure bg-surface p-5 shadow-[var(--ombre-posee)]">
+              <h3 className="font-serif text-xl font-medium text-texte">Radar du Thème</h3>
+              <p className="mt-1 text-xs text-texte-discret">
+                Vue globale du niveau atteint sur chaque compétence du thème.
+              </p>
+              <div className="mt-6 flex justify-center">
+                <Radar axes={axes} taille={340} libelle={`Radar thématique de ${vue.libelle}`} />
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-bordure bg-surface p-5 shadow-[var(--ombre-posee)]">
+              <h3 className="font-serif text-lg font-medium text-texte">Synthèse des Acquis</h3>
+              <dl className="mt-4 space-y-3 text-sm">
+                <div className="flex justify-between gap-3">
+                  <dt className="text-texte-discret">Compétences totales</dt>
+                  <dd className="font-semibold">{vue.competences.length}</dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-texte-discret">Évaluées avec preuve</dt>
+                  <dd className="font-semibold">{vue.nombreEvaluees} ({Math.round(vue.tauxCouverture * 100)}%)</dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-texte-discret">Preuves directes</dt>
+                  <dd className="font-semibold">{vue.nombrePreuves}</dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-texte-discret">Exercices prêts</dt>
+                  <dd className="font-semibold">{vue.nombreExercices}</dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-texte-discret">Dernière activité</dt>
+                  <dd className="text-right font-semibold">{dateCourte(vue.derniereActivite)}</dd>
+                </div>
+              </dl>
+
+              {vue.prochaineActionRecommandee && (
+                <div className="mt-6 rounded-lg bg-alerte-faible p-3.5 text-xs">
+                  <p className="font-semibold text-alerte">Prochaine étape conseillée</p>
+                  <p className="mt-1 font-medium text-texte">{vue.prochaineActionRecommandee.titre}</p>
+                  <p className="mt-0.5 text-texte-discret">{vue.prochaineActionRecommandee.motif}</p>
+                  <button
+                    type="button"
+                    onClick={() => ouvrirElement(vue.prochaineActionRecommandee!.code)}
+                    className="mt-2.5 inline-flex items-center gap-1 font-semibold text-primaire hover:underline cursor-pointer"
+                  >
+                    <span>Voir la compétence</span>
+                    <span>→</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </section>
+
             {/* Filtre par domaine si multi-domaines */}
             {vue.domaines.length > 1 && (
               <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -1323,61 +1373,6 @@ function VueTheme({
           </div>
         )}
 
-        {onglet === "radar" && (
-          <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
-            <div className="rounded-xl border border-bordure bg-surface p-5 shadow-[var(--ombre-posee)]">
-              <h3 className="font-serif text-xl font-medium text-texte">Radar du Thème</h3>
-              <p className="mt-1 text-xs text-texte-discret">
-                Vue globale du niveau atteint sur chaque compétence du thème.
-              </p>
-              <div className="mt-6 flex justify-center">
-                <Radar axes={axes} taille={340} libelle={`Radar thématique de ${vue.libelle}`} />
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-bordure bg-surface p-5 shadow-[var(--ombre-posee)]">
-              <h3 className="font-serif text-lg font-medium text-texte">Synthèse des Acquis</h3>
-              <dl className="mt-4 space-y-3 text-sm">
-                <div className="flex justify-between gap-3">
-                  <dt className="text-texte-discret">Compétences totales</dt>
-                  <dd className="font-semibold">{vue.competences.length}</dd>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <dt className="text-texte-discret">Évaluées avec preuve</dt>
-                  <dd className="font-semibold">{vue.nombreEvaluees} ({Math.round(vue.tauxCouverture * 100)}%)</dd>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <dt className="text-texte-discret">Preuves directes</dt>
-                  <dd className="font-semibold">{vue.nombrePreuves}</dd>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <dt className="text-texte-discret">Exercices prêts</dt>
-                  <dd className="font-semibold">{vue.nombreExercices}</dd>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <dt className="text-texte-discret">Dernière activité</dt>
-                  <dd className="text-right font-semibold">{dateCourte(vue.derniereActivite)}</dd>
-                </div>
-              </dl>
-
-              {vue.prochaineActionRecommandee && (
-                <div className="mt-6 rounded-lg bg-alerte-faible p-3.5 text-xs">
-                  <p className="font-semibold text-alerte">Prochaine étape conseillée</p>
-                  <p className="mt-1 font-medium text-texte">{vue.prochaineActionRecommandee.titre}</p>
-                  <p className="mt-0.5 text-texte-discret">{vue.prochaineActionRecommandee.motif}</p>
-                  <button
-                    type="button"
-                    onClick={() => ouvrirElement(vue.prochaineActionRecommandee!.code)}
-                    className="mt-2.5 inline-flex items-center gap-1 font-semibold text-primaire hover:underline cursor-pointer"
-                  >
-                    <span>Voir la compétence</span>
-                    <span>→</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          </section>
-        )}
 
         {onglet === "exercices" && (
           <section className="space-y-4">
@@ -1460,8 +1455,6 @@ function VueExercice({
   arbreDossiers,
   elements,
   revenirGraphe,
-  sidebarOuverte,
-  setSidebarOuverte,
 }: {
   vue: VueExerciceProjectionAtelier;
   dossier?: string;
@@ -1470,8 +1463,6 @@ function VueExercice({
   arbreDossiers?: NoeudDossier<ElementAtelier>[];
   elements?: ElementAtelier[];
   revenirGraphe?: () => void;
-  sidebarOuverte?: boolean;
-  setSidebarOuverte?: (ouverte: boolean) => void;
 }) {
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-surface-2/40">
@@ -1484,8 +1475,6 @@ function VueExercice({
           ouvrirDossier={ouvrirDossier}
           arbreDossiers={arbreDossiers}
           elements={elements}
-          sidebarOuverte={sidebarOuverte}
-          setSidebarOuverte={setSidebarOuverte}
         />
       </div>
 
@@ -1635,8 +1624,6 @@ export function FichePedagogiqueAtelier({
   arbreDossiers,
   elements,
   revenirGraphe,
-  sidebarOuverte,
-  setSidebarOuverte,
   compteId,
   modeInitial,
   generation,
@@ -1650,8 +1637,6 @@ export function FichePedagogiqueAtelier({
   arbreDossiers?: NoeudDossier<ElementAtelier>[];
   elements?: ElementAtelier[];
   revenirGraphe?: () => void;
-  sidebarOuverte?: boolean;
-  setSidebarOuverte?: (ouverte: boolean) => void;
   compteId: string;
   modeInitial?: "referentiel";
   generation?: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
@@ -1669,8 +1654,6 @@ export function FichePedagogiqueAtelier({
         arbreDossiers={arbreDossiers}
         elements={elements}
         revenirGraphe={revenirGraphe}
-        sidebarOuverte={sidebarOuverte}
-        setSidebarOuverte={setSidebarOuverte}
         compteId={compteId}
         generation={generation}
       />
@@ -1687,8 +1670,6 @@ export function FichePedagogiqueAtelier({
         arbreDossiers={arbreDossiers}
         elements={elements}
         revenirGraphe={revenirGraphe}
-        sidebarOuverte={sidebarOuverte}
-        setSidebarOuverte={setSidebarOuverte}
         compteId={compteId}
         modeInitial={modeInitial}
       />
@@ -1707,8 +1688,6 @@ export function FichePedagogiqueAtelier({
         arbreDossiers={arbreDossiers}
         elements={elements}
         revenirGraphe={revenirGraphe}
-        sidebarOuverte={sidebarOuverte}
-        setSidebarOuverte={setSidebarOuverte}
         compteId={compteId}
         generation={generation}
         donneesSeance={donneesSeance}
@@ -1726,8 +1705,6 @@ export function FichePedagogiqueAtelier({
       arbreDossiers={arbreDossiers}
       elements={elements}
       revenirGraphe={revenirGraphe}
-      sidebarOuverte={sidebarOuverte}
-      setSidebarOuverte={setSidebarOuverte}
     />
   );
 }

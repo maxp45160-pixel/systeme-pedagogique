@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition, type ChangeEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Markdown } from "@/components/ui/markdown";
 import { cx } from "@/components/ui/primitives";
-import { IconeChevron, IconeDossier, IconeFleche, IconeTableauBord } from "@/components/ui/icones";
+import { IconeFleche } from "@/components/ui/icones";
 import { IconeDocument } from "@/components/ui/icone-document";
 import { createNavigateurClient } from "@/lib/supabase/client";
 import { analyserDocumentMarkdown } from "@/lib/documents/markdown";
@@ -37,25 +37,15 @@ import {
   supprimerPieceJointeAction,
   supprimerNoteSupportAction,
 } from "@/lib/store/document-actions";
-import type { VueDomaineAtelier, VueCompetenceAtelier, VueThemeAtelier } from "@/lib/documents/vue-atelier";
-import { cleParCompte } from "@/lib/ui/stockage-session";
-import { BoutonRetour } from "@/components/ui/lien-retour";
-import { BoutonOuvrirExplorateur, FichePedagogiqueAtelier, PanneauPedagogiqueAtelier } from "./fiche-pedagogique";
+import type { VueDomaineAtelier, VueCompetenceAtelier } from "@/lib/documents/vue-atelier";
+import { FichePedagogiqueAtelier, PanneauPedagogiqueAtelier } from "./fiche-pedagogique";
 import { FilArianeAtelier } from "./fil-ariane-atelier";
 import type { CalibrageModale, CompetenceModale } from "@/components/exercices/proprietes-generation";
 import type { DonneesSeance } from "@/components/seances/concepteur-seance";
 import { cheminsDepuisDefinition } from "@/lib/documents/chemins-atelier";
-import {
-  construireArbreDossiers,
-  compterElements,
-  trouverNoeudDossier,
-  type NoeudDossier,
-} from "@/lib/documents/arbre-atelier";
+import { construireArbreDossiers, trouverNoeudDossier } from "@/lib/documents/arbre-atelier";
 import { EditeurDirect } from "./editeur-document";
-import { VueTousLesDomaines, VueTransversale, VueCategorieTransversale, BarreVuesAtelier, EnteteVueAtelier } from "./vues-synthese-atelier";
-import { VueCroissance } from "./vue-croissance";
-import type { ResumeCroissance } from "@/lib/engine/croissance";
-import type { EnsemblePropose } from "@/lib/engine/ensembles";
+import { VueTousLesDomaines, VueTransversale, VueCategorieTransversale, EnteteVueAtelier } from "./vues-synthese-atelier";
 import { PanneauExerciceAtelier } from "./panneaux-document-atelier";
 import type { ElementAtelier } from "./types-atelier";
 
@@ -97,12 +87,6 @@ function formaterDateDocument(element: ElementAtelier): string | null {
   }
 }
 
-const abonnementsDossiers = new Map<string, Set<() => void>>();
-
-function notifierDossiers(cle: string) {
-  for (const ecouter of abonnementsDossiers.get(cle) ?? []) ecouter();
-}
-
 function documentDepuisAnalyse(document: ReturnType<typeof analyserDocumentMarkdown>): ElementAtelier {
   const definition = document.type ? definitionTypeDocument(document.type) : null;
   const chemins = cheminsDepuisDefinition(definition, document.frontMatter);
@@ -131,8 +115,8 @@ function documentDepuisAnalyse(document: ReturnType<typeof analyserDocumentMarkd
 
 function trouverElement(id: string, liste: ElementAtelier[]): ElementAtelier | undefined {
   if (!id) return undefined;
-  if (id === "croissance" || id === "domaines" || id === "transversal" || id === "domaines-archives" || id === "graphe") {
-    const titre = id === "croissance" ? "Ton atelier" : id === "transversal" ? "Transversal" : id === "domaines-archives" ? "Domaines archivés" : id === "graphe" ? "Constellation" : "Domaines";
+  if (id === "domaines" || id === "transversal" || id === "domaines-archives" || id === "graphe") {
+    const titre = id === "transversal" ? "Transversal" : id === "domaines-archives" ? "Domaines archivés" : id === "graphe" ? "Constellation" : "Domaines";
     return {
       id,
       titre,
@@ -178,8 +162,6 @@ export function EspaceDocumentaire({
   graphe,
   generation,
   donneesSeance,
-  croissance,
-  ensemblesSuggeres,
 }: {
   elements: ElementAtelier[];
   /** Teinte par domaine, partagée avec le graphe pour qu'un domaine ait une seule couleur. */
@@ -190,17 +172,12 @@ export function EspaceDocumentaire({
   graphe: { donnees: DonneesGraphe; compteId: string };
   generation: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
   donneesSeance?: DonneesSeance;
-  /** Dérivé côté serveur : l'accueil de l'Atelier ne recalcule rien. */
-  croissance: ResumeCroissance;
-  /** Ensembles que le travail dessine, à confirmer. Vide tant que rien n'est étayé. */
-  ensemblesSuggeres: EnsemblePropose[];
 }) {
   const router = useRouter();
   const [elements, setElements] = useState(elementsInitials);
   const selectionInitiale = useMemo(() => {
     if (documentDemande) {
       if (
-        documentDemande === "croissance" ||
         documentDemande === "domaines" ||
         documentDemande === "transversal" ||
         documentDemande === "domaines-archives" ||
@@ -208,18 +185,25 @@ export function EspaceDocumentaire({
       ) {
         return documentDemande;
       }
-      return trouverElement(documentDemande, elementsInitials)?.id ?? "croissance";
+      return trouverElement(documentDemande, elementsInitials)?.id ?? "domaines";
     }
     if (dossierDemande) {
       return `dossier:${dossierDemande}`;
     }
     /*
-      L'accueil est la vue de croissance, plus la grille de domaines.
-      Ouvrir l'Atelier sur un inventaire à administrer était le défaut central
-      du chantier : on y arrivait pour voir ce qu'on avait construit, et on
-      tombait sur ce qu'il restait à ranger.
+      L'Atelier ouvre sur le corpus, pas sur un écran d'accueil.
+
+      Il en avait un — la vue de croissance : activité de la semaine, paliers
+      franchis, ensembles en construction. C'était un bilan, et un bilan répond
+      à « où j'en suis », pas à « où est ma note ». On y arrivait pour consulter
+      ses fiches et on lisait d'abord un résumé de ce qu'on avait fait, avant de
+      pouvoir cliquer vers ce qu'on cherchait. Ce bilan vit maintenant sur
+      `/progression`, avec les autres lectures de la même famille.
+
+      Reste ce pour quoi on ouvre l'Atelier : les domaines et, dessous, les
+      compétences, les exercices et les notes.
     */
-    return "croissance";
+    return "domaines";
   }, [documentDemande, dossierDemande, elementsInitials]);
   const [selection, setSelection] = useState<string | null>(selectionInitiale);
   const [brouillons, setBrouillons] = useState<Record<string, string>>({});
@@ -237,46 +221,28 @@ export function EspaceDocumentaire({
     setEtatFormatage(detecterEtatFormatage(editeurRef.current));
   }, []);
 
-  const cleDossiers = cleParCompte("atelier-dossiers-ouverts", graphe.compteId);
-  const abonnementDossiers = useCallback((ecouter: () => void) => {
-    const ecouteurs = abonnementsDossiers.get(cleDossiers) ?? new Set<() => void>();
-    ecouteurs.add(ecouter);
-    abonnementsDossiers.set(cleDossiers, ecouteurs);
-    const surStockage = (event: StorageEvent) => {
-      if (event.key === cleDossiers) ecouter();
-    };
-    window.addEventListener("storage", surStockage);
-    return () => {
-      window.removeEventListener("storage", surStockage);
-      ecouteurs.delete(ecouter);
-      if (ecouteurs.size === 0) abonnementsDossiers.delete(cleDossiers);
-    };
-  }, [cleDossiers]);
-  const lireDossiers = useCallback(() => {
-    try {
-      return window.localStorage.getItem(cleDossiers) ?? "[]";
-    } catch {
-      return "[]";
-    }
-  }, [cleDossiers]);
-  const dossiersStockes = useSyncExternalStore(abonnementDossiers, lireDossiers, () => "[]");
-  const dossiersOuverts = useMemo(() => {
-    try {
-      const chemins = JSON.parse(dossiersStockes);
-      return new Set<string>(Array.isArray(chemins) ? chemins.filter((chemin): chemin is string => typeof chemin === "string") : []);
-    } catch {
-      return new Set<string>();
-    }
-  }, [dossiersStockes]);
+  /*
+   * Plus d'état de dossiers ouverts.
+   *
+   * L'explorateur de gauche gardait, par compte et dans `localStorage`, la
+   * liste des dossiers dépliés — avec son abonnement `storage`, son
+   * `useSyncExternalStore` et un effet d'auto-expansion vers l'élément
+   * sélectionné. Toute cette machinerie servait un arbre entièrement **dérivé**
+   * des fiches : `Domaines/X/Compétences/Palier` n'existe nulle part en base,
+   * c'est `cheminsDepuisDefinition` qui le calcule à chaque rendu. On
+   * mémorisait donc la position d'un utilisateur dans un classement qu'il n'a
+   * pas fait, et qui se réorganise dès qu'une fiche change de type.
+   *
+   * Ce que l'arbre servait vraiment — retrouver une fiche — est repris par la
+   * recherche, qui rend maintenant ses résultats à plat.
+   */
   const [recherche, setRecherche] = useState("");
   const [contexteOuvert, setContexteOuvert] = useState(false);
   const [panneauDroitVisible, setPanneauDroitVisible] = useState(true);
-  const [sidebarOuverte, setSidebarOuverte] = useState(true);
   const [cibleLien, setCibleLien] = useState("");
   const [piecesJointesParDocument, setPiecesJointesParDocument] = useState<Record<string, PieceJointeDocument[]>>({});
 
   const selectionnee =
-    selection === "croissance" ||
     selection === "domaines" ||
     selection === "transversal" ||
     selection === "domaines-archives" ||
@@ -291,30 +257,6 @@ export function EspaceDocumentaire({
   const roleLibelle = role === "support" ? "Support" : role === "operationnel" ? "Opérationnel" : null;
   const dateAffichee = selectionnee ? formaterDateDocument(selectionnee) : null;
   const brouillon = selectionnee ? brouillons[selectionnee.id] ?? selectionnee.contenuMd : "";
-
-  // Auto-expansion de l'arborescence vers le dossier de l'élément sélectionné
-  useEffect(() => {
-    const cheminCible = selectionnee?.dossier || (selection?.startsWith("dossier:") ? selection.slice("dossier:".length) : null);
-    if (!cheminCible) return;
-    const segments = cheminCible.split("/").filter(Boolean);
-    let cumule = "";
-    const aAjouter: string[] = [];
-    for (const seg of segments) {
-      cumule = cumule ? `${cumule}/${seg}` : seg;
-      if (!dossiersOuverts.has(cumule)) {
-        aAjouter.push(cumule);
-      }
-    }
-    if (aAjouter.length > 0) {
-      const suivants = new Set([...dossiersOuverts, ...aAjouter]);
-      try {
-        window.localStorage.setItem(cleDossiers, JSON.stringify([...suivants]));
-        notifierDossiers(cleDossiers);
-      } catch {
-        // Ignorer si le stockage est indisponible
-      }
-    }
-  }, [selectionnee?.dossier, selection, dossiersOuverts, cleDossiers]);
 
   const estModifie = Boolean(
     selectionnee &&
@@ -340,7 +282,8 @@ export function EspaceDocumentaire({
     const surClavier = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        setSidebarOuverte(true);
+        // Le champ est désormais toujours monté : plus besoin d'ouvrir quoi que
+        // ce soit avant de lui donner le focus.
         const inputRecherche = document.getElementById("recherche-atelier");
         if (inputRecherche) {
           inputRecherche.focus();
@@ -357,7 +300,7 @@ export function EspaceDocumentaire({
       : selectionnee.liens
     : [];
   const fichesLiables = elements
-    .filter((element) => element.id !== selectionId && element.id !== "croissance" && element.id !== "domaines" && element.id !== "transversal" && element.id !== "domaines-archives" && element.id !== "graphe")
+    .filter((element) => element.id !== selectionId && element.id !== "domaines" && element.id !== "transversal" && element.id !== "domaines-archives" && element.id !== "graphe")
     .sort((a, b) => (a.dossier || "").localeCompare(b.dossier || "") || a.titre.localeCompare(b.titre, "fr"));
   const documentSupportId = selectionnee?.frontMatter.role === "support" ? selectionnee.id : null;
 
@@ -426,7 +369,7 @@ export function EspaceDocumentaire({
       } else if (dossierParam) {
         setSelection(`dossier:${dossierParam}`);
       } else {
-        setSelection("croissance");
+        setSelection("domaines");
       }
       setCibleLien("");
       setSnapshotApercu(null);
@@ -457,7 +400,7 @@ export function EspaceDocumentaire({
   }
 
   function revenirAccueilAtelier(opts?: { remplacerHistorique?: boolean } | unknown) {
-    setSelection("croissance");
+    setSelection("domaines");
     setCibleLien("");
     setSnapshotApercu(null);
     const nouvelleUrl = "/atelier";
@@ -493,7 +436,16 @@ export function EspaceDocumentaire({
     return map;
   }, [elements]);
 
-  const arbreDossiers = useMemo(() => construireArbreDossiers(elementsVisibles), [elementsVisibles]);
+  /*
+   * Construit sur `elements`, plus sur `elementsVisibles`.
+   *
+   * Tant que l'explorateur affichait l'arbre, le filtrer par la recherche avait
+   * un sens : on rétrécissait ce qu'on parcourait. Mais cet arbre sert aussi
+   * les vues transversales et le fil d'Ariane, qui restent affichés derrière la
+   * recherche — les alimenter avec un arbre filtré les viderait pendant qu'on
+   * tape. La recherche a maintenant sa propre liste ; l'arbre garde tout.
+   */
+  const arbreDossiers = useMemo(() => construireArbreDossiers(elements), [elements]);
   const racineTransversale = trouverNoeudDossier(arbreDossiers, "Transversal");
   const dossierSelectionne = selection?.startsWith("dossier:")
     ? trouverNoeudDossier(arbreDossiers, selection.slice("dossier:".length))
@@ -527,126 +479,11 @@ export function EspaceDocumentaire({
     chargerContenuDocument(element.id);
   }
 
-  function basculerDossier(chemin: string) {
-    const suivants = new Set(dossiersOuverts);
-    if (suivants.has(chemin)) suivants.delete(chemin);
-    else suivants.add(chemin);
-    try {
-      window.localStorage.setItem(cleDossiers, JSON.stringify([...suivants]));
-      notifierDossiers(cleDossiers);
-    } catch {
-      // La navigation reste fonctionnelle si le stockage navigateur est indisponible.
-    }
-  }
-
   function ouvrirDossier(chemin: string) {
     setSelection(`dossier:${chemin}`);
     setCibleLien("");
     setSnapshotApercu(null);
     window.history.pushState({ dossier: chemin }, "", `/atelier?dossier=${encodeURIComponent(chemin)}`);
-  }
-
-  function rendreDossier(noeud: NoeudDossier<ElementAtelier>, profondeur = 0): ReactNode {
-    const ferme = !recherche.trim() && !dossiersOuverts.has(noeud.chemin);
-    const elementDomaine = noeud.elements.find((el) => el.type === "domaine");
-    const autresElements = noeud.elements.filter((el) => el.type !== "domaine");
-    const elementsDossier = elementDomaine
-      ? [elementDomaine, ...autresElements]
-      : autresElements;
-    const enfants = noeud.enfants;
-    const racineId =
-      noeud.chemin === "Domaines"
-        ? "domaines"
-        : noeud.chemin === "Transversal"
-        ? "transversal"
-        : noeud.chemin === "Domaines archivés" || noeud.chemin === "Archivés"
-        ? "domaines-archives"
-        : null;
-
-    return (
-      <div key={noeud.chemin}>
-        <button
-          type="button"
-          onClick={() => basculerDossier(noeud.chemin)}
-          className="flex min-h-9 w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-[0.8125rem] font-semibold text-[var(--rail-texte-attenue)] transition-colors hover:bg-[var(--rail-2)] hover:text-[var(--rail-texte)] cursor-pointer"
-          style={{ paddingLeft: `${0.5 + profondeur * 0.75}rem` }}
-          aria-expanded={!ferme}
-        >
-          <IconeChevron
-            className={cx(
-              "size-3.5 shrink-0 text-[var(--rail-texte-discret)] transition-transform",
-              !ferme && "rotate-90",
-            )}
-          />
-          <IconeDossier className="size-4 shrink-0 text-[var(--rail-texte-discret)]" />
-          <span className="truncate">{noeud.nom}</span>
-          <span className="ml-auto text-xs font-normal text-[var(--rail-texte-discret)]">
-            {compterElements(noeud)}
-          </span>
-        </button>
-        {!ferme && (
-          <div>
-            {racineId && (
-              <ul className="space-y-0.5" style={{ paddingLeft: `${1.25 + profondeur * 0.75}rem` }}>
-                <li>
-                  <button
-                    type="button"
-                    onClick={() => ouvrirElement(racineId)}
-                    className={cx(
-                      "flex min-h-9 w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-[0.8125rem] transition-colors cursor-pointer",
-                      selection === racineId
-                        ? "bg-[var(--rail-actif)] font-medium text-[var(--rail-actif-texte)]"
-                        : "text-[var(--rail-texte-attenue)] hover:bg-[var(--rail-2)] hover:text-[var(--rail-texte)]",
-                    )}
-                  >
-                    <IconeTableauBord className="size-4 shrink-0 text-[var(--rail-texte-discret)]" />
-                    <span className="min-w-0 flex-1 truncate font-medium">Vue d’ensemble</span>
-                  </button>
-                </li>
-              </ul>
-            )}
-            {elementsDossier.length > 0 && (
-              <ul className="space-y-0.5" style={{ paddingLeft: `${1.25 + profondeur * 0.75}rem` }}>
-                {elementsDossier.map((element) => {
-                  const estVueEnsemble = element.type === "domaine";
-                  const libelleAffichage = estVueEnsemble ? "Vue d’ensemble" : element.titre;
-                  return (
-                    <li key={element.id}>
-                      <button
-                        type="button"
-                        onClick={() => ouvrirElement(element.id)}
-                        className={cx(
-                          "flex min-h-9 w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-[0.8125rem] transition-colors cursor-pointer",
-                          element.id === selection
-                            ? "bg-[var(--rail-actif)] font-medium text-[var(--rail-actif-texte)]"
-                            : "text-[var(--rail-texte-attenue)] hover:bg-[var(--rail-2)] hover:text-[var(--rail-texte)]",
-                        )}
-                      >
-                        <IconeDocument
-                          type={element.type}
-                          couleur={element.domaineId ? couleursDomaines[element.domaineId] : undefined}
-                          className={cx(
-                            "size-4",
-                            !element.domaineId && "text-[var(--rail-texte-discret)]",
-                            // Une projection est en lecture seule : l'atténuation
-                            // remplace le `○` qui portait seul cette nuance.
-                            element.source === "projection" && "opacity-70",
-                          )}
-                        />
-                        <span className={cx("min-w-0 flex-1 truncate", estVueEnsemble && "font-medium")}>
-                          {libelleAffichage}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-            {enfants.map((enfant) => rendreDossier(enfant, profondeur + 1))}
-          </div>
-        )}
-      </div>
-    );
   }
 
   function ouvrirSnapshot(snapshotId: string) {
@@ -879,99 +716,74 @@ export function EspaceDocumentaire({
           aria-label="Fermer le panneau de contexte"
         />
       )}
+      {/*
+        Barre de recherche, en tête du panneau et sur toute sa largeur.
+
+        Elle vivait dans l'explorateur, qui n'existe plus. Ce qui change n'est
+        pas seulement sa place : l'arbre y filtrait ses branches, ici la
+        recherche rend une **liste de résultats**. Chercher une fiche ne demande
+        plus de savoir dans quel dossier calculé elle a été rangée.
+      */}
+      <div className="flex items-center gap-3 border-b border-bordure bg-surface-2/50 px-4 py-2.5 shrink-0">
+        {selection && (
+          <button
+            type="button"
+            onClick={revenirAccueilAtelier}
+            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-bordure-controle bg-surface px-2.5 py-1.5 text-xs font-medium text-texte-attenue transition-colors hover:text-texte cursor-pointer"
+          >
+            <span aria-hidden>←</span>
+            <span className="hidden sm:inline">Accueil Atelier</span>
+          </button>
+        )}
+        <div className="relative min-w-0 flex-1">
+          <label className="sr-only" htmlFor="recherche-atelier">
+            Rechercher dans l’Atelier (Ctrl+K)
+          </label>
+          <input
+            id="recherche-atelier"
+            type="search"
+            value={recherche}
+            onChange={(event) => setRecherche(event.target.value)}
+            placeholder="Rechercher une fiche, une compétence, un exercice… (Ctrl+K)"
+            className="w-full rounded-lg border border-bordure-controle bg-surface px-3 py-1.5 text-xs outline-none transition-colors placeholder:text-texte-discret focus:border-primaire"
+          />
+        </div>
+        {recherche.trim() && (
+          <span className="shrink-0 text-xs text-texte-discret">
+            {elementsVisibles.length} résultat{elementsVisibles.length > 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
+
+      {/*
+        Les résultats se posent **par-dessus** le panneau, ils ne le remplacent
+        pas : la vue courante reste en place derrière, et refermer la recherche
+        rend exactement l'écran qu'on avait quitté. C'est aussi ce qui garde le
+        corps du composant sur une seule branche de rendu — un ternaire
+        enveloppant tout le panneau fait renoncer le compilateur React à la
+        mémoïsation manuelle qui vit plus haut dans ce fichier.
+      */}
+      {recherche.trim() && (
+        <ResultatsRecherche
+          terme={recherche.trim()}
+          elements={elementsVisibles}
+          couleursDomaines={couleursDomaines}
+          ouvrir={(id) => {
+            setRecherche("");
+            ouvrirElement(id);
+          }}
+        />
+      )}
+
       <div className={cx(
         "flex flex-1 min-h-0 flex-col lg:grid lg:h-full transition-all duration-300",
-        sidebarOuverte
-          ? selectionnee && panneauDroitVisible
-            ? "lg:grid-cols-[20rem_minmax(0,1fr)] 2xl:grid-cols-[20rem_minmax(0,1fr)_22rem]"
-            : "lg:grid-cols-[20rem_minmax(0,1fr)]"
-          : selectionnee && panneauDroitVisible
-            ? "lg:grid-cols-[1fr] 2xl:grid-cols-[minmax(0,1fr)_22rem]"
-            : "lg:grid-cols-[1fr]",
+        selectionnee && panneauDroitVisible
+          ? "lg:grid-cols-[1fr] 2xl:grid-cols-[minmax(0,1fr)_22rem]"
+          : "lg:grid-cols-[1fr]",
       )}>
-        <aside
-          className={cx(
-            "flex h-full min-h-0 flex-col border-b border-[var(--rail-bordure)] bg-[var(--rail)] text-[var(--rail-texte)] lg:border-b-0 lg:border-r transition-all duration-300",
-            !sidebarOuverte && "hidden lg:hidden",
-          )}
-          aria-label="Explorateur documentaire"
-        >
-          <div className="flex h-[4.25rem] items-center gap-3 border-b border-[var(--rail-bordure)] px-6 shrink-0">
-            <button
-              type="button"
-              onClick={() => setSidebarOuverte(false)}
-              className="grid size-9 shrink-0 place-items-center rounded-lg border border-[var(--rail-bordure)] bg-[var(--rail-2)] text-[var(--rail-texte)] transition-all duration-200 hover:bg-primaire hover:border-primaire hover:text-white cursor-pointer shadow-sm"
-              title="Masquer l’explorateur"
-              aria-label="Masquer l’explorateur"
-            >
-              <svg className="size-5 shrink-0 stroke-[2.5]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-              </svg>
-            </button>
-            <div className="relative flex-1 min-w-0">
-              <label className="sr-only" htmlFor="recherche-atelier">Rechercher dans l’Atelier (Ctrl+K)</label>
-              <input
-                id="recherche-atelier"
-                type="search"
-                value={recherche}
-                onChange={(event) => setRecherche(event.target.value)}
-                placeholder="Rechercher… (Ctrl+K)"
-                className="w-full rounded-lg border border-[var(--rail-bordure)] bg-[var(--rail-2)] pl-3 pr-7 py-1.5 text-xs text-[var(--rail-texte)] outline-none transition-colors placeholder:text-[var(--rail-texte-discret)] focus:border-[var(--rail-actif)]"
-              />
-              {recherche && (
-                <button
-                  type="button"
-                  onClick={() => setRecherche("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 size-4 grid place-items-center rounded-full text-xs text-[var(--rail-texte-discret)] hover:bg-[var(--rail-bordure)] hover:text-[var(--rail-texte)] transition-colors cursor-pointer"
-                  title="Effacer la recherche"
-                  aria-label="Effacer la recherche"
-                >
-                  ×
-                </button>
-              )}
-            </div>
-          </div>
-
-          {selection && selection !== "croissance" && (
-            <div className="border-b border-[var(--rail-bordure)] px-3 py-2 shrink-0">
-              <button
-                type="button"
-                onClick={revenirAccueilAtelier}
-                className="flex w-full items-center gap-2 rounded-lg bg-[var(--rail-2)] px-3 py-2 text-xs font-semibold text-[var(--rail-texte)] transition-colors hover:bg-[var(--rail-actif)] hover:text-[var(--rail-actif-texte)] cursor-pointer"
-              >
-                <span>←</span>
-                <span className="truncate">Accueil Atelier</span>
-              </button>
-            </div>
-          )}
-
-          <nav className="min-h-0 flex-1 overflow-y-auto p-3" aria-label="Dossiers, documents et projections">
-            {arbreDossiers.map((noeud) => rendreDossier(noeud))}
-            {elements.length === 0 && <p className="px-2 py-4 text-xs text-[var(--rail-texte-discret)]">Ton espace est encore vide.</p>}
-            {elements.length > 0 && elementsVisibles.length === 0 && <p className="px-2 py-4 text-xs leading-relaxed text-[var(--rail-texte-discret)]">Aucune fiche ne correspond à cette recherche.</p>}
-          </nav>
-        </aside>
-
         <main className="flex h-full min-w-0 flex-1 flex-col min-h-0 overflow-hidden bg-surface">
-          {selection === "croissance" ? (
-            <VueCroissance
-              resume={croissance}
-              domaines={elements
-                .filter((el) => el.type === "domaine" && el.vuePedagogique)
-                .map((el) => el.vuePedagogique as VueDomaineAtelier)}
-              themes={elements
-                .filter((el) => el.type === "theme" && el.vuePedagogique)
-                .map((el) => el.vuePedagogique as VueThemeAtelier)}
-              ensemblesSuggeres={ensemblesSuggeres}
-              intitules={Object.fromEntries(
-                [...competencesParCode.entries()].map(([code, skill]) => [code, skill.intitule]),
-              )}
-              ouvrirElement={ouvrirElement}
-              revenirGrapheGlobal={revenirGrapheGlobal}
-              sidebarOuverte={sidebarOuverte}
-              setSidebarOuverte={setSidebarOuverte}
-            />
-          ) : selection === "graphe" || selection === "constellation" ? (
+          {selection === "graphe" || selection === "constellation" ? (
+
             <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface">
               <EnteteVueAtelier
                 titre="Constellation"
@@ -981,8 +793,6 @@ export function EspaceDocumentaire({
                   if (v === "graphe") revenirGrapheGlobal();
                   else ouvrirElement(v);
                 }}
-                sidebarOuverte={sidebarOuverte}
-                setSidebarOuverte={setSidebarOuverte}
               />
               <div className="flex min-h-0 flex-1 flex-col p-4">
                 <GrapheCompetences donnees={graphe.donnees} compteId={graphe.compteId} ouvrirElement={ouvrirElement} />
@@ -994,8 +804,6 @@ export function EspaceDocumentaire({
               ouvrirDossier={ouvrirDossier}
               ouvrirElement={ouvrirElement}
               revenirGrapheGlobal={revenirGrapheGlobal}
-              sidebarOuverte={sidebarOuverte}
-              setSidebarOuverte={setSidebarOuverte}
               compteId={graphe.compteId}
               competencesParCode={competencesParCode}
               domainesExistants={domainesExistants}
@@ -1020,8 +828,6 @@ export function EspaceDocumentaire({
                 }
               }}
               revenirGrapheGlobal={revenirGrapheGlobal}
-              sidebarOuverte={sidebarOuverte}
-              setSidebarOuverte={setSidebarOuverte}
               compteId={graphe.compteId}
               generation={generation}
               competencesParCode={competencesParCode}
@@ -1039,8 +845,6 @@ export function EspaceDocumentaire({
                 .map((el) => el.vuePedagogique as VueDomaineAtelier)}
               ouvrirElement={ouvrirElement}
               revenirGrapheGlobal={revenirGrapheGlobal}
-              sidebarOuverte={sidebarOuverte}
-              setSidebarOuverte={setSidebarOuverte}
               selection={selection}
               compteId={graphe.compteId}
               domainesExistants={domainesExistants}
@@ -1055,8 +859,6 @@ export function EspaceDocumentaire({
               arbreDossiers={arbreDossiers}
               elements={elements}
               revenirGraphe={revenirAccueilAtelier}
-              sidebarOuverte={sidebarOuverte}
-              setSidebarOuverte={setSidebarOuverte}
               compteId={graphe.compteId}
               modeInitial={modeInitial}
               generation={generation}
@@ -1073,8 +875,6 @@ export function EspaceDocumentaire({
                   ouvrirDossier={ouvrirDossier}
                   arbreDossiers={arbreDossiers}
                   elements={elements}
-                  sidebarOuverte={sidebarOuverte}
-                  setSidebarOuverte={setSidebarOuverte}
                 />
               </div>
 
@@ -1350,8 +1150,6 @@ export function EspaceDocumentaire({
                 .map((el) => el.vuePedagogique as VueDomaineAtelier)}
               ouvrirElement={ouvrirElement}
               revenirGrapheGlobal={revenirGrapheGlobal}
-              sidebarOuverte={sidebarOuverte}
-              setSidebarOuverte={setSidebarOuverte}
               selection="domaines"
               compteId={graphe.compteId}
               domainesExistants={domainesExistants}
@@ -1648,5 +1446,67 @@ export function EspaceDocumentaire({
         )}
       </div>
     </section>
+  );
+}
+
+/**
+ * Ce que l'explorateur de gauche rendait, à plat.
+ *
+ * L'arbre exigeait de savoir dans quel dossier **calculé** une fiche avait été
+ * rangée — `Domaines/X/Compétences/Fondamentaux` n'est écrit nulle part, c'est
+ * une projection. Une liste de résultats répond à la même question sans
+ * demander ce savoir : le chemin y est affiché comme un repère, pas comme un
+ * parcours à refaire.
+ */
+function ResultatsRecherche({
+  terme,
+  elements,
+  couleursDomaines,
+  ouvrir,
+}: {
+  terme: string;
+  elements: ElementAtelier[];
+  couleursDomaines: Record<string, string>;
+  ouvrir: (id: string) => void;
+}) {
+  return (
+    <div className="absolute inset-x-0 bottom-0 top-[3.25rem] z-30 overflow-y-auto bg-surface p-4">
+      {elements.length === 0 ? (
+        <p className="px-1 py-8 text-center text-xs text-texte-discret">
+          Aucune fiche ne correspond à « {terme} ».
+        </p>
+      ) : (
+        <ul className="grid gap-1.5">
+          {elements.map((element) => (
+            <li key={element.id}>
+              <button
+                type="button"
+                onClick={() => ouvrir(element.id)}
+                className="flex w-full items-center gap-2.5 rounded-lg border border-bordure bg-surface px-3 py-2.5 text-left transition-colors hover:border-primaire/35 hover:bg-primaire-faible/25 cursor-pointer"
+              >
+                <IconeDocument
+                  type={element.type}
+                  couleur={element.domaineId ? couleursDomaines[element.domaineId] : undefined}
+                  className={cx(
+                    "size-4 shrink-0",
+                    !element.domaineId && "text-texte-discret",
+                    // Une projection est en lecture seule : même atténuation que
+                    // dans l'ancien explorateur.
+                    element.source === "projection" && "opacity-70",
+                  )}
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm">{element.titre}</span>
+                  <span className="block truncate text-[0.6875rem] text-texte-discret">
+                    {element.typeLibelle}
+                    {element.dossier ? ` · ${element.dossier}` : ""}
+                  </span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }

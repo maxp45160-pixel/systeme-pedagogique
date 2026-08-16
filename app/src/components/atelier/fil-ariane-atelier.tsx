@@ -7,22 +7,6 @@ import { resoudreSegmentsFilAriane } from "@/lib/documents/fil-ariane";
 import type { ElementAtelier } from "./types-atelier";
 import type { NoeudDossier } from "@/lib/documents/arbre-atelier";
 
-export function BoutonOuvrirExplorateur({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="grid size-9 shrink-0 place-items-center rounded-lg border border-primaire/40 bg-primaire-faible text-primaire transition-all duration-200 hover:bg-primaire hover:border-primaire hover:text-white cursor-pointer shadow-xs"
-      title="Ouvrir l’explorateur"
-      aria-label="Ouvrir l’explorateur"
-    >
-      <svg className="size-5 shrink-0 stroke-[2.5]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
-      </svg>
-    </button>
-  );
-}
-
 export interface FilArianeAtelierProps {
   /** Chemin de dossier hiérarchique (ex: "Transversal/Thèmes", "Domaines/Architecture logicielle") */
   dossier: string;
@@ -39,9 +23,7 @@ export interface FilArianeAtelierProps {
   /** Liste des éléments de l'Atelier pour retrouver les domaines */
   elements?: ElementAtelier[];
   /** État d'ouverture de l'explorateur latéral */
-  sidebarOuverte?: boolean;
   /** Fonction de bascule de l'explorateur latéral */
-  setSidebarOuverte?: (ouverte: boolean) => void;
   /** Libellé personnalisé pour le bouton de retour */
   libelleRetour?: string;
   /** Action de retour personnalisée (ex: revenir au dossier parent dans une vue catégorie) */
@@ -57,8 +39,6 @@ export function FilArianeAtelier({
   ouvrirDossier,
   arbreDossiers,
   elements,
-  sidebarOuverte = true,
-  setSidebarOuverte,
   libelleRetour = "Retour",
   actionRetour,
   className,
@@ -93,7 +73,7 @@ export function FilArianeAtelier({
       }
     }
     if (revenirGraphe) return revenirGraphe;
-    return () => ouvrirElement("croissance");
+    return () => ouvrirElement("domaines");
   }, [actionRetour, segments, ouvrirElement, ouvrirDossier, revenirGraphe]);
 
   return (
@@ -104,9 +84,6 @@ export function FilArianeAtelier({
         className,
       )}
     >
-      {!sidebarOuverte && setSidebarOuverte && (
-        <BoutonOuvrirExplorateur onClick={() => setSidebarOuverte(true)} />
-      )}
 
       {actionBoutonRetour && (
         <BoutonRetour onClick={actionBoutonRetour} libelle={libelleRetour} />
@@ -116,7 +93,7 @@ export function FilArianeAtelier({
         type="button"
         onClick={() => {
           if (revenirGraphe) revenirGraphe();
-          else ouvrirElement("croissance");
+          else ouvrirElement("domaines");
         }}
         className="font-medium text-texte-discret transition-colors hover:text-primaire hover:underline shrink-0 cursor-pointer"
       >

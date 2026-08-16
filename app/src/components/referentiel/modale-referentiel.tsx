@@ -18,7 +18,7 @@
  * croire que rien n'a été écrit.
  */
 
-import { useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { BandeauInfo, Bouton, PointActif } from "@/components/ui/primitives";
 import { Modale } from "@/components/ui/modale";
@@ -27,7 +27,6 @@ import type { PropositionReferentiel } from "@/lib/tutor/proposition";
 import { creerBranche } from "@/lib/store/referentiel-actions";
 
 type Etat =
-  | { phase: "fermee" }
   | { phase: "saisie"; message: string | null }
   | { phase: "proposition"; progression: string | null }
   | {
@@ -37,16 +36,34 @@ type Etat =
       branches: PropositionReferentiel[];
     };
 
-export function BoutonCreerReferentiel({
+/**
+ * La modale seule, sans son déclencheur.
+ *
+ * Elle a été extraite de `BoutonCreerReferentiel` pour que le point d'entrée
+ * unique (`components/intention`) puisse l'ouvrir avec un sujet **déjà connu** :
+ * quelqu'un qui vient d'écrire « je veux apprendre le stoïcisme » n'a pas à le
+ * retaper dans un second champ. Le bouton d'origine reste, monté au-dessus
+ * d'elle — un seul chemin d'extension du référentiel, deux façons d'y entrer.
+ */
+export function ModaleReferentiel({
   compteId,
-  libelle = "+ Référentiel",
+  sujetInitial = "",
+  demarrageAutomatique = false,
+  onFermer,
+  surEnregistre,
 }: {
   compteId: string;
-  libelle?: string;
+  /** Sujet déjà déclaré avant l'ouverture. */
+  sujetInitial?: string;
+  /** Lance la proposition sans attendre un second clic sur le même sujet. */
+  demarrageAutomatique?: boolean;
+  onFermer: () => void;
+  /** Permet à l'appelant de reprendre son flux après l'écriture. */
+  surEnregistre?: () => void;
 }) {
   const router = useRouter();
-  const [etat, setEtat] = useState<Etat>({ phase: "fermee" });
-  const [sujet, setSujet] = useState("");
+  const [etat, setEtat] = useState<Etat>({ phase: "saisie", message: null });
+  const [sujet, setSujet] = useState(sujetInitial);
   const [garde, setGarde] = useState<Record<string, boolean>>({});
   const [prefixes, setPrefixes] = useState<Record<number, string>>({});
   const [progressionEcriture, setProgressionEcriture] = useState<string | null>(null);
@@ -65,11 +82,14 @@ export function BoutonCreerReferentiel({
   function fermer() {
     abandonRef.current?.abort();
     abandonRef.current = null;
-    setEtat({ phase: "fermee" });
+    onFermer();
   }
 
-  /** Lancée depuis un clic, jamais depuis un effet. */
-  async function proposer() {
+  /**
+   * Lancée depuis un clic — ou depuis le démarrage automatique, quand le sujet
+   * vient d'être écrit ailleurs et n'a pas à être reconfirmé.
+   */
+  const proposer = useCallback(async () => {
     if (sujet.trim().length === 0) return;
     abandonRef.current?.abort();
     const abandon = new AbortController();
@@ -167,7 +187,19 @@ export function BoutonCreerReferentiel({
         setEtat({ phase: "saisie", message: "Proposition interrompue." });
       }
     }
-  }
+  }, [compteId, sujet]);
+
+  /*
+   * Le démarrage automatique ne se rejoue pas : sans le drapeau, un rendu
+   * déclenché par la progression relancerait une seconde proposition — donc un
+   * second appel facturé pour un seul sujet.
+   */
+  const demarrageLanceRef = useRef(false);
+  useEffect(() => {
+    if (!demarrageAutomatique || demarrageLanceRef.current || sujet.trim().length === 0) return;
+    demarrageLanceRef.current = true;
+    void proposer();
+  }, [demarrageAutomatique, proposer, sujet]);
 
   function enregistrer(branches: PropositionReferentiel[]) {
     setErreur(null);
@@ -189,9 +221,9 @@ export function BoutonCreerReferentiel({
           });
         }
         setProgressionEcriture(null);
-        setEtat({ phase: "fermee" });
-        setSujet("");
         router.refresh();
+        surEnregistre?.();
+        onFermer();
       } catch (e) {
         setProgressionEcriture(null);
         setErreur(
@@ -201,23 +233,11 @@ export function BoutonCreerReferentiel({
     });
   }
 
-  if (etat.phase === "fermee") {
-    return (
-      <Bouton onClick={() => setEtat({ phase: "saisie", message: null })} variante="secondaire" taille="petite">
-        {libelle}
-      </Bouton>
-    );
-  }
-
   const relecture = etat.phase === "relecture" ? etat : null;
   const retenues = relecture ? relecture.branches.filter((_, i) => garde[`b${i}`]).length : 0;
 
   return (
     <>
-      <Bouton variante="secondaire" taille="petite" disabled>
-        {libelle}
-      </Bouton>
-
       <Modale
         titre="Ajouter un référentiel"
         sousTitre="Nomme un sujet ; le tuteur le découpe en branches. Tu relis, tu décoches, tu enregistres. Les codes sont attribués à l'enregistrement."
@@ -368,6 +388,33 @@ export function BoutonCreerReferentiel({
           )}
         </>
       </Modale>
+    </>
+  );
+}
+
+/**
+ * Le déclencheur historique — un bouton, puis la modale.
+ *
+ * Il ne porte plus aucune logique : tout ce qu'il faisait vit dans
+ * `ModaleReferentiel`, que le point d'entrée `+` monte aussi de son côté.
+ */
+export function BoutonCreerReferentiel({
+  compteId,
+  libelle = "+ Référentiel",
+}: {
+  compteId: string;
+  libelle?: string;
+}) {
+  const [ouverte, setOuverte] = useState(false);
+
+  return (
+    <>
+      <Bouton onClick={() => setOuverte(true)} variante="secondaire" taille="petite" disabled={ouverte}>
+        {libelle}
+      </Bouton>
+      {ouverte && (
+        <ModaleReferentiel compteId={compteId} onFermer={() => setOuverte(false)} />
+      )}
     </>
   );
 }

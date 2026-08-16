@@ -1,9 +1,11 @@
 "use client";
 
+import { Fragment } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { estActif, NAV_MOBILE } from "./navigation";
 import { cx } from "@/components/ui/primitives";
+import { BoutonIntentionMobile } from "@/components/intention/bouton-intention";
 
 /** Barre inférieure sur mobile : les mêmes destinations que le rail desktop. */
 export function NavMobile() {
@@ -18,13 +20,26 @@ export function NavMobile() {
       */}
       <ul
         className="grid"
-        style={{ gridTemplateColumns: `repeat(${NAV_MOBILE.length}, minmax(0, 1fr))` }}
+        style={{ gridTemplateColumns: `repeat(${NAV_MOBILE.length + 1}, minmax(0, 1fr))` }}
       >
-        {NAV_MOBILE.map((e) => {
+        {NAV_MOBILE.map((e, index) => {
+          /*
+            Le `+` est intercalé au milieu des destinations, pas ajouté au bout.
+            Le centre de la barre est la zone la plus atteignable au pouce, et
+            c'est là qu'on veut le geste le plus fréquent — les destinations,
+            elles, se cherchent.
+          */
+          const centre = Math.floor(NAV_MOBILE.length / 2);
           const actif = estActif(pathname, e.href);
           const Icone = e.icone;
           return (
-            <li key={e.href}>
+            <Fragment key={e.href}>
+              {index === centre && (
+                <li>
+                  <BoutonIntentionMobile />
+                </li>
+              )}
+              <li>
               <Link
                 href={e.href}
                 aria-current={actif ? "page" : undefined}
@@ -39,7 +54,8 @@ export function NavMobile() {
                 <Icone className="size-[19px]" />
                 {e.court}
               </Link>
-            </li>
+              </li>
+            </Fragment>
           );
         })}
       </ul>

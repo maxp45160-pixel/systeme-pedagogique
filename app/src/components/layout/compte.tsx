@@ -1,25 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Bouton, cx, SelecteurSegmente } from "@/components/ui/primitives";
-import { Modale } from "@/components/ui/modale";
-import { Champ, ChampSelect, classesChamp } from "@/components/ui/champ";
-import { seDeconnecter } from "@/lib/supabase/actions";
-import { exporterJournal } from "@/lib/store/export";
-import { IconeValide } from "@/components/ui/icones";
-import { FormulaireProfil } from "@/components/profil/formulaire-profil";
-import { ModaleDangerCompte } from "./modale-danger-compte";
-import { appliquerTheme, lireChoixTheme, type ChoixTheme } from "./theme";
-import {
-  FOURNISSEURS,
-  ecrireConfigTuteur,
-  effacerConfigTuteur,
-  lireConfigTuteur,
-  masquerCle,
-  type ConfigTuteurClient,
-  type FournisseurTuteur,
-} from "@/lib/tutor/cle-client";
-import { validerUrlFournisseur } from "@/lib/tutor/url-fournisseur";
+import Link from "next/link";
+import { cx } from "@/components/ui/primitives";
 
 export interface EtatSession {
   courriel: string | null;
@@ -35,69 +17,39 @@ export interface EtatSession {
  * L'état vient du serveur (`compteCourant()`) et non d'un `getUser()` côté
  * client : le rail est déjà rendu avec la bonne identité au premier affichage,
  * sans phase « chargement… » ni bascule visible.
+ *
+ * Ce pied ouvrait une modale à trois onglets, qui en ouvrait deux autres. Il
+ * mène maintenant à `/compte` — une page, donc une adresse, un bouton retour et
+ * un onglet de navigateur qui fonctionnent.
  */
 export function Compte({ session }: { session: EtatSession }) {
-  const [reglagesOuverts, setReglagesOuverts] = useState(false);
-  const [ongletInitial, setOngletInitial] = useState<OngletReglages>("profil");
-
-  useEffect(() => {
-    function surOuvrir(event: Event) {
-      const detail = (event as CustomEvent<{ onglet?: OngletReglages }>).detail;
-      if (detail?.onglet) setOngletInitial(detail.onglet);
-      setReglagesOuverts(true);
-    }
-    window.addEventListener("ouvrir-reglages-compte", surOuvrir);
-    return () => window.removeEventListener("ouvrir-reglages-compte", surOuvrir);
-  }, []);
-
   const nom = session.nom ?? session.courriel?.split("@")[0] ?? "Compte";
   const sousTitre = session.courriel ?? "";
 
   return (
-    <>
-      <div className="border-t border-[var(--rail-bordure)] p-3 rail-reduit:p-2">
-        <div className="rounded-xl border border-[var(--rail-bordure)] bg-[var(--rail-2)] px-2.5 py-2 rail-reduit:px-1 rail-reduit:py-2">
-          <div className="flex items-center justify-between gap-2 rail-reduit:flex-col rail-reduit:gap-2">
-            <div className="flex min-w-0 items-center gap-2.5">
-              <Avatar session={session} nom={nom} anneau="ring-[var(--rail-2)]" />
+    <div className="border-t border-[var(--rail-bordure)] p-3 rail-reduit:p-2">
+      <Link
+        href="/compte"
+        title="Compte et réglages"
+        aria-label="Compte et réglages"
+        className="flex items-center justify-between gap-2 rounded-xl border border-[var(--rail-bordure)] bg-[var(--rail-2)] px-2.5 py-2 transition-colors hover:bg-white/5 rail-reduit:flex-col rail-reduit:gap-2 rail-reduit:px-1 rail-reduit:py-2"
+      >
+        <span className="flex min-w-0 items-center gap-2.5">
+          <Avatar session={session} nom={nom} anneau="ring-[var(--rail-2)]" />
 
-              <div className="min-w-0 rail-reduit:hidden">
-                <div className="truncate text-xs font-medium text-[var(--rail-texte)]">
-                  {nom}
-                </div>
-                <div className="truncate text-[0.625rem] text-[var(--rail-texte-discret)]">
-                  {sousTitre}
-                </div>
-              </div>
-            </div>
+          <span className="min-w-0 rail-reduit:hidden">
+            <span className="block truncate text-xs font-medium text-[var(--rail-texte)]">
+              {nom}
+            </span>
+            <span className="block truncate text-[0.625rem] text-[var(--rail-texte-discret)]">
+              {sousTitre}
+            </span>
+          </span>
+        </span>
 
-            <div className="flex shrink-0 items-center gap-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setOngletInitial("profil");
-                  setReglagesOuverts(true);
-                }}
-                title="Compte et synchronisation"
-                aria-label="Compte et synchronisation"
-                className="rounded-md p-1.5 text-[var(--rail-texte-attenue)] transition-colors hover:bg-white/10 hover:text-[var(--rail-texte)]"
-              >
-                <IconeEngrenage className="size-4" />
-              </button>
-
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {reglagesOuverts && (
-        <PanneauReglages
-          session={session}
-          ongletInitial={ongletInitial}
-          onFermer={() => setReglagesOuverts(false)}
-        />
-      )}
-    </>
+        <IconeEngrenage className="size-4 shrink-0 text-[var(--rail-texte-attenue)]" />
+      </Link>
+    </div>
   );
 }
 
@@ -106,53 +58,22 @@ export function Compte({ session }: { session: EtatSession }) {
  *
  * Le pied du rail est `hidden lg:flex` : en dessous de `lg`, les réglages — donc
  * le compte, l'export du journal, la déconnexion et le choix du thème —
- * n'étaient atteignables par aucun chemin. Ce bouton ouvre exactement le même
- * panneau, sans le dupliquer.
- *
- * Il remplace la bascule de thème qui occupait cette place : l'apparence est
- * désormais un réglage parmi d'autres, au même endroit sur mobile et sur poste
- * fixe.
+ * n'étaient atteignables par aucun chemin. Ce lien mène à la même page que le
+ * pied du rail, sans la dupliquer.
  */
 export function CompteMobile({ session }: { session: EtatSession }) {
-  const [reglagesOuverts, setReglagesOuverts] = useState(false);
-  const [ongletInitial, setOngletInitial] = useState<OngletReglages>("profil");
-
-  useEffect(() => {
-    function surOuvrir(event: Event) {
-      const detail = (event as CustomEvent<{ onglet?: OngletReglages }>).detail;
-      if (detail?.onglet) setOngletInitial(detail.onglet);
-      setReglagesOuverts(true);
-    }
-    window.addEventListener("ouvrir-reglages-compte", surOuvrir);
-    return () => window.removeEventListener("ouvrir-reglages-compte", surOuvrir);
-  }, []);
-
   const nom = session.nom ?? session.courriel?.split("@")[0] ?? "Compte";
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => {
-          setOngletInitial("profil");
-          setReglagesOuverts(true);
-        }}
-        aria-label="Compte et réglages"
-        title="Compte et réglages"
-        className="flex shrink-0 items-center gap-1.5 rounded-md p-1 text-texte-attenue transition-colors hover:bg-surface-2 hover:text-texte"
-      >
-        <Avatar session={session} nom={nom} anneau="ring-surface" taille="petite" />
-        <IconeEngrenage className="size-4" />
-      </button>
-
-      {reglagesOuverts && (
-        <PanneauReglages
-          session={session}
-          ongletInitial={ongletInitial}
-          onFermer={() => setReglagesOuverts(false)}
-        />
-      )}
-    </>
+    <Link
+      href="/compte"
+      aria-label="Compte et réglages"
+      title="Compte et réglages"
+      className="flex shrink-0 items-center gap-1.5 rounded-md p-1 text-texte-attenue transition-colors hover:bg-surface-2 hover:text-texte"
+    >
+      <Avatar session={session} nom={nom} anneau="ring-surface" taille="petite" />
+      <IconeEngrenage className="size-4" />
+    </Link>
   );
 }
 
@@ -204,482 +125,6 @@ function Avatar({
         )}
       />
     </div>
-  );
-}
-
-export function ouvrirReglagesCompte(onglet?: "profil" | "tuteur" | "compte") {
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(new CustomEvent("ouvrir-reglages-compte", { detail: { onglet } }));
-  }
-}
-
-type OngletReglages = "profil" | "tuteur" | "compte";
-
-const ONGLETS_REGLAGES: { cle: OngletReglages; libelle: string }[] = [
-  { cle: "profil", libelle: "Profil d'apprentissage" },
-  { cle: "tuteur", libelle: "Tuteur IA" },
-  { cle: "compte", libelle: "Compte & Synchronisation" },
-];
-
-function PanneauReglages({
-  session,
-  ongletInitial = "profil",
-  onFermer,
-}: {
-  session: EtatSession;
-  ongletInitial?: OngletReglages;
-  onFermer: () => void;
-}) {
-  const [onglet, setOnglet] = useState<OngletReglages>(ongletInitial);
-  const [exportEnCours, setExportEnCours] = useState(false);
-  const [messageExport, setMessageExport] = useState<string | null>(null);
-  const [modaleDangerOuverte, setModaleDangerOuverte] = useState(false);
-  const [profilUser, setProfilUser] = useState<import("@/lib/domain/types").User | null>(null);
-  const [chargementProfil, setChargementProfil] = useState(true);
-
-  useEffect(() => {
-    let actif = true;
-    import("@/lib/store/referentiel-actions")
-      .then((mod) => mod.chargerProfilAction())
-      .then((user) => {
-        if (actif) {
-          setProfilUser(user);
-          setChargementProfil(false);
-        }
-      })
-      .catch(() => {
-        if (actif) setChargementProfil(false);
-      });
-    return () => {
-      actif = false;
-    };
-  }, []);
-
-  async function telechargerArchive() {
-    setExportEnCours(true);
-    setMessageExport(null);
-    try {
-      const archive = await exporterJournal();
-      const total = Object.values(archive.effectifs).reduce((s, n) => s + n, 0);
-
-      const lien = document.createElement("a");
-      const url = URL.createObjectURL(
-        new Blob([JSON.stringify(archive, null, 2)], { type: "application/json" }),
-      );
-      lien.href = url;
-      lien.download = `journal-${archive.exporteLe.slice(0, 10)}.json`;
-      lien.click();
-      URL.revokeObjectURL(url);
-
-      setMessageExport(`Archive téléchargée — ${total} enregistrement(s).`);
-    } catch (erreur) {
-      setMessageExport(
-        erreur instanceof Error ? erreur.message : "Échec de l'export.",
-      );
-    } finally {
-      setExportEnCours(false);
-    }
-  }
-
-  const nonRenseigne = (v?: string) => (!v || v.includes("à renseigner") ? "" : v);
-
-  return (
-    <Modale
-      titre="Compte et réglages"
-      sousTitre="Gérer ton profil d'apprentissage, la connexion IA et la sauvegarde de tes données."
-      largeur="xl"
-      onFermer={onFermer}
-      pied={
-        <div className="flex w-full items-center justify-between gap-2">
-          <form action={seDeconnecter}>
-            <Bouton type="submit" variante="danger" taille="compacte">
-              Se déconnecter
-            </Bouton>
-          </form>
-
-          <Bouton variante="secondaire" taille="compacte" onClick={onFermer}>
-            Fermer
-          </Bouton>
-        </div>
-      }
-    >
-      <div className="space-y-4">
-        <SelecteurSegmente
-          options={ONGLETS_REGLAGES}
-          actif={onglet}
-          rendreItem={(o, classesItem, estActifItem) => (
-            <button
-              key={o.cle}
-              type="button"
-              onClick={() => setOnglet(o.cle)}
-              aria-pressed={estActifItem}
-              className={classesItem}
-            >
-              {o.libelle}
-            </button>
-          )}
-        />
-
-        {onglet === "profil" && (
-          <div className="space-y-3 py-1">
-            {chargementProfil ? (
-              <div className="py-8 text-center text-xs text-texte-discret animate-pulse">
-                Chargement du profil…
-              </div>
-            ) : profilUser ? (
-              <FormulaireProfil
-                formation={nonRenseigne(profilUser.formation)}
-                objectifMoyenTerme={nonRenseigne(profilUser.objectifMoyenTerme)}
-                objectifLongTerme={nonRenseigne(profilUser.objectifLongTerme)}
-                preferencesPedagogiques={profilUser.preferencesPedagogiques ?? []}
-                plan={profilUser.plan}
-              />
-            ) : (
-              <p className="text-xs text-danger">Impossible de charger le profil.</p>
-            )}
-          </div>
-        )}
-
-        {onglet === "tuteur" && (
-          <div className="space-y-3 py-1">
-            <div className="rounded-lg border border-bordure bg-surface-2/60 px-3 py-2.5">
-              <dt className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret mb-1.5">
-                Clé API Tuteur
-              </dt>
-              <ReglagesTuteur compteId={session.compteId} />
-            </div>
-          </div>
-        )}
-
-        {onglet === "compte" && (
-          <dl className="space-y-3 text-sm py-1">
-            <div className="rounded-lg border border-bordure bg-surface-2/60 px-3 py-2.5">
-              <dt className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
-                Apparence
-              </dt>
-              <dd className="mt-1.5">
-                <ChoixApparence />
-              </dd>
-            </div>
-
-            <div className="rounded-lg border border-bordure bg-surface-2/60 px-3 py-2.5">
-              <dt className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
-                État de synchronisation
-              </dt>
-              <dd className="mt-1 flex items-center gap-2">
-                <span aria-hidden className="size-2 shrink-0 rounded-full bg-succes" />
-                <span className="text-xs text-texte-attenue">
-                  Connecté — données synchronisées sur votre compte ({session.courriel}).
-                </span>
-              </dd>
-            </div>
-
-            <div className="rounded-lg border border-bordure bg-surface-2/60 px-3 py-2.5">
-              <dt className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
-                Sauvegarde & Journal
-              </dt>
-              <dd className="mt-1 space-y-2 text-texte-attenue">
-                <p className="text-xs leading-relaxed">
-                  Télécharge l&apos;intégralité de ton journal en JSON — preuves, séances,
-                  exercices, tentatives, compétences, documents de l&apos;atelier et profil. C&apos;est
-                  ta copie souveraine hors ligne.
-                </p>
-                <Bouton
-                  variante="secondaire"
-                  taille="compacte"
-                  onClick={telechargerArchive}
-                  enChargement={exportEnCours}
-                >
-                  Exporter mon journal JSON
-                </Bouton>
-                {messageExport && (
-                  <p className="flex items-start gap-1.5 text-xs text-texte">
-                    <IconeValide className="mt-0.5 size-3.5 shrink-0 text-succes" />
-                    <span>{messageExport}</span>
-                  </p>
-                )}
-              </dd>
-            </div>
-
-            <div className="rounded-lg border border-danger/30 bg-danger-faible/30 px-3 py-2.5 space-y-2">
-              <dt className="text-[0.6875rem] font-semibold uppercase tracking-wide text-danger">
-                Zone de danger — Réinitialisation & Données
-              </dt>
-              <dd className="space-y-2 text-texte-attenue">
-                <p className="text-xs leading-relaxed">
-                  Réinitialise l&apos;ensemble de tes données d&apos;apprentissage ou supprime
-                  définitivement toutes les informations de ton compte.
-                </p>
-                <Bouton
-                  variante="danger"
-                  taille="compacte"
-                  onClick={() => setModaleDangerOuverte(true)}
-                >
-                  Réinitialiser ou supprimer mes données…
-                </Bouton>
-              </dd>
-            </div>
-          </dl>
-        )}
-      </div>
-
-      {modaleDangerOuverte && (
-        <ModaleDangerCompte
-          compteId={session.compteId}
-          onFermer={() => setModaleDangerOuverte(false)}
-        />
-      )}
-    </Modale>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Réglages du tuteur IA — clé API saisie côté client                  */
-/* ------------------------------------------------------------------ */
-
-/**
- * Section de saisie de la clé API du tuteur.
- *
- * La clé est stockée dans le navigateur (`localStorage`, isolée par compte) et
- * envoyée à la route `/api/tutor` à chaque message. Elle ne quitte jamais le
- * navigateur pour un tiers.
- *
- * Un fournisseur pré-remplit l'URL de base et le modèle ; seul le champ clé
- * est obligatoire. Le bouton « Effacer » supprime la config et revient au
- * repli « copier le contexte ».
- */
-function ReglagesTuteur({ compteId }: { compteId: string }) {
-  const [config, setConfig] = useState<ConfigTuteurClient | null>(() =>
-    lireConfigTuteur(compteId),
-  );
-  const [fournisseur, setFournisseur] = useState<FournisseurTuteur>(
-    () => config?.fournisseur ?? "mistral",
-  );
-  const [cle, setCle] = useState(() => config?.cle ?? "");
-  const [urlBase, setUrlBase] = useState(() => config?.urlBase ?? "");
-  const [modele, setModele] = useState(() => config?.modele ?? "");
-  const [afficherCle, setAfficherCle] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-
-  const preset = FOURNISSEURS.find((f) => f.cle === fournisseur);
-  const estAnthropic = preset?.anthropic === true;
-
-  // Quand le fournisseur change, on pré-remplit l'URL et le modèle avec les
-  // valeurs par défaut du preset — sauf si l'utilisateur a déjà saisi une
-  // valeur personnalisée pour ce fournisseur.
-  function choisirFournisseur(f: FournisseurTuteur) {
-    setFournisseur(f);
-    const p = FOURNISSEURS.find((x) => x.cle === f);
-    if (p?.urlBase && !urlBase) setUrlBase(p.urlBase);
-    if (p?.modeleParDefaut && !modele) setModele(p.modeleParDefaut);
-  }
-
-  function enregistrer() {
-    const cleTrim = cle.trim();
-    if (cleTrim === "") {
-      setMessage("Saisis ta clé API avant d'enregistrer.");
-      return;
-    }
-    if (!estAnthropic) {
-      const url = urlBase.trim() || preset?.urlBase || "";
-      const mod = modele.trim() || preset?.modeleParDefaut || "";
-      if (!url || !mod) {
-        setMessage("L'URL de base et le modèle sont requis pour ce fournisseur.");
-        return;
-      }
-      /*
-       * Même règle qu'au serveur, dite au bon moment.
-       *
-       * Le serveur refuse déjà cette URL (`configVersEnv`) et c'est lui qui
-       * fait autorité — l'interface est contournable. Mais laisser enregistrer
-       * une configuration dont on sait qu'elle sera rejetée reporterait le
-       * refus au premier message envoyé au tuteur, loin du champ fautif.
-       */
-      const validation = validerUrlFournisseur(url);
-      if (!validation.ok) {
-        setMessage(validation.motif);
-        return;
-      }
-      ecrireConfigTuteur(compteId, {
-        fournisseur,
-        cle: cleTrim,
-        urlBase: url,
-        modele: mod,
-      });
-    } else {
-      ecrireConfigTuteur(compteId, {
-        fournisseur,
-        cle: cleTrim,
-        ...(modele.trim() ? { modele: modele.trim() } : {}),
-      });
-    }
-    setConfig(lireConfigTuteur(compteId));
-    setMessage("Clé enregistrée. Le chat intégré est désormais actif.");
-  }
-
-  function effacer() {
-    effacerConfigTuteur(compteId);
-    setConfig(null);
-    setCle("");
-    setUrlBase("");
-    setModele("");
-    setMessage("Clé effacée. Le chat bascule en mode « copier le contexte ».");
-  }
-
-  return (
-    <div className="space-y-2.5">
-      {config && (
-        <div className="flex items-center gap-1.5 text-xs">
-          <span
-            aria-hidden
-            className="size-2 shrink-0 rounded-full bg-succes"
-          />
-          <span className="text-texte-attenue">
-            Clé configurée — {masquerCle(config.cle)}
-          </span>
-        </div>
-      )}
-
-      <ChampSelect
-        label="Fournisseur"
-        taille="compacte"
-        value={fournisseur}
-        onChange={(e) => choisirFournisseur(e.target.value as FournisseurTuteur)}
-        options={FOURNISSEURS.map((f) => ({ valeur: f.cle, libelle: f.libelle }))}
-      />
-
-      {/*
-        Champ composé (saisie + bouton afficher/masquer sur la même ligne) :
-        `Champ` ne représente pas cette forme, donc `classesChamp` porte le
-        même style à la main plutôt que de le redupliquer en chaîne.
-      */}
-      <div>
-        <label className="text-[0.6875rem] font-medium text-texte-attenue">
-          Clé API
-        </label>
-        <div className="mt-0.5 flex gap-1.5">
-          <input
-            type={afficherCle ? "text" : "password"}
-            value={cle}
-            onChange={(e) => setCle(e.target.value)}
-            placeholder={preset?.aide ?? "Colle ta clé ici"}
-            className={cx(classesChamp("compacte", false), "min-w-0 flex-1")}
-            autoComplete="off"
-            spellCheck={false}
-          />
-          <button
-            type="button"
-            onClick={() => setAfficherCle((v) => !v)}
-            className="shrink-0 rounded-md border border-bordure bg-surface px-2 py-1 text-[0.6875rem] text-texte-attenue transition-colors hover:bg-surface-2"
-            title={afficherCle ? "Masquer la clé" : "Afficher la clé"}
-          >
-            {afficherCle ? "Masquer" : "Afficher"}
-          </button>
-        </div>
-      </div>
-
-      {/* URL de base — masquée pour Anthropic */}
-      {!estAnthropic && (
-        <Champ
-          label="URL de base"
-          taille="compacte"
-          type="text"
-          value={urlBase}
-          onChange={(e) => setUrlBase(e.target.value)}
-          placeholder={preset?.urlBase ?? "https://api.exemple.com/v1"}
-          spellCheck={false}
-        />
-      )}
-
-      <Champ
-        label={
-          preset?.modeleParDefaut ? `Modèle (défaut : ${preset.modeleParDefaut})` : "Modèle"
-        }
-        taille="compacte"
-        type="text"
-        value={modele}
-        onChange={(e) => setModele(e.target.value)}
-        placeholder={preset?.modeleParDefaut ?? "nom-du-modele"}
-        spellCheck={false}
-      />
-
-      {preset?.aide && (
-        <p className="text-[0.6875rem] leading-relaxed text-texte-discret">
-          {preset.aide}
-        </p>
-      )}
-
-      <p className="text-[0.6875rem] leading-relaxed text-texte-discret">
-        La clé est stockée dans ton navigateur, isolée par compte, et n&apos;est
-        jamais envoyée ailleurs qu&apos;à la route du tuteur (même origine).
-      </p>
-
-      <div className="flex gap-1.5">
-        <Bouton variante="principal" taille="compacte" onClick={enregistrer}>
-          Enregistrer
-        </Bouton>
-        {config && (
-          <Bouton variante="danger" taille="compacte" onClick={effacer}>
-            Effacer
-          </Bouton>
-        )}
-      </div>
-
-      {message && (
-        <p className="text-[0.6875rem] text-texte-attenue">{message}</p>
-      )}
-    </div>
-  );
-}
-
-/*
- * Clés en chaîne, pas `ChoixTheme` directement : `SelecteurSegmente` est
- * générique sur une clé `string`, et `ChoixTheme` porte `null` (« suivre le
- * système ») — la conversion se fait aux deux frontières de `ChoixApparence`
- * plutôt que d'élargir le composant partagé pour ce seul cas.
- */
-type CleApparence = "clair" | "dark" | "systeme";
-
-const APPARENCES: { cle: CleApparence; theme: ChoixTheme; libelle: string }[] = [
-  { cle: "clair", theme: "clair", libelle: "Clair" },
-  { cle: "dark", theme: "dark", libelle: "Sombre" },
-  { cle: "systeme", theme: null, libelle: "Système" },
-];
-
-/**
- * Choix du thème — clair, sombre, ou suivre le système.
- *
- * Lecture du stockage à l'initialisation, pas dans un effet : la modale n'est
- * montée qu'au clic, donc jamais rendue côté serveur, et il n'y a ni écart
- * d'hydratation ni rendu en cascade à craindre. `lireChoixTheme` retombe de
- * toute façon sur `null` si le stockage est indisponible.
- */
-function ChoixApparence() {
-  const [choix, setChoix] = useState<ChoixTheme>(lireChoixTheme);
-
-  function choisir(c: ChoixTheme) {
-    appliquerTheme(c);
-    setChoix(c);
-  }
-
-  const actif = APPARENCES.find((a) => a.theme === choix)?.cle ?? "systeme";
-
-  return (
-    <SelecteurSegmente
-      options={APPARENCES.map((a) => ({ cle: a.cle, libelle: a.libelle }))}
-      actif={actif}
-      rendreItem={(o, classesItem, estActifItem) => (
-        <button
-          key={o.cle}
-          type="button"
-          onClick={() => choisir(APPARENCES.find((a) => a.cle === o.cle)!.theme)}
-          aria-pressed={estActifItem}
-          className={classesItem}
-        >
-          {o.libelle}
-        </button>
-      )}
-    />
   );
 }
 
