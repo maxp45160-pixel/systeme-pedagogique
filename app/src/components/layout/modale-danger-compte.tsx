@@ -65,9 +65,16 @@ export function ModaleDangerCompte({
     }
   }
 
-  function nettoyerStockageClient() {
+  function nettoyerStockageClient(mode: ModeReinitialisationCompte) {
     try {
-      effacerConfigTuteur(compteId);
+      // La clé API du tuteur est un réglage navigateur indépendant des données
+      // d'apprentissage : elle survit à un « reset » (l'utilisateur reste
+      // connecté et va re-configurer son référentiel avec l'IA). Elle n'est
+      // effacée que lors d'une suppression totale du compte, où l'isolation
+      // par compte la rend orpheline.
+      if (mode === "supprimer_et_deconnecter") {
+        effacerConfigTuteur(compteId);
+      }
       window.localStorage.removeItem(`graphe:reglages:${compteId}`);
       window.localStorage.removeItem(`atelier:dossiers:${compteId}`);
       window.localStorage.removeItem("dossiers");
@@ -83,7 +90,7 @@ export function ModaleDangerCompte({
     setErreur(null);
 
     try {
-      nettoyerStockageClient();
+      nettoyerStockageClient(mode);
       const resultat = await reinitialiserDonneesCompteAction(mode);
       if (resultat?.succes) {
         onFermer();
