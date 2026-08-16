@@ -30,10 +30,8 @@ import { BoutonGenerer } from "@/components/exercices/bouton-generer";
 import type { CalibrageModale, CompetenceModale } from "@/components/exercices/proprietes-generation";
 import { BoutonRetour } from "@/components/ui/lien-retour";
 import { Markdown } from "@/components/ui/markdown";
-import { FilArianeAtelier } from "./fil-ariane-atelier";
 import { ConcepteurSeance, type DonneesSeance } from "@/components/seances/concepteur-seance";
 import type { ElementAtelier } from "./types-atelier";
-import type { NoeudDossier } from "@/lib/documents/arbre-atelier";
 import { creerDocumentBrutAction, sauvegarderDocumentAction, supprimerDocumentAction } from "@/lib/store/document-actions";
 import {
   BoutonSuppressionCarte,
@@ -41,6 +39,37 @@ import {
 } from "./modale-confirmation-suppression";
 import { retirerCompetences } from "@/lib/store/referentiel-actions";
 import { retirerTheme } from "@/lib/store/theme-actions";
+
+/**
+ * Un seul retour, vers l'endroit où l'objet vit réellement.
+ *
+ * Le fil d'Ariane affichait un chemin de dossiers qui n'existait dans aucune
+ * table — `Domaines / Algèbre / Compétences / Fondamentaux`. Ce qu'il faisait
+ * d'utile, revenir en arrière, tient en un bouton.
+ */
+function RetourVersAtelier({
+  libelle,
+  titreCourant,
+  onRetour,
+}: {
+  libelle: string;
+  titreCourant: string;
+  onRetour: () => void;
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      <button
+        type="button"
+        onClick={onRetour}
+        className="flex shrink-0 items-center gap-1.5 rounded-lg border border-bordure-controle bg-surface px-2.5 py-1.5 text-xs font-medium text-texte-attenue transition-colors hover:text-texte cursor-pointer"
+      >
+        <span aria-hidden>←</span>
+        <span className="max-w-[12rem] truncate">{libelle}</span>
+      </button>
+      <span className="truncate font-serif text-lg font-medium text-texte">{titreCourant}</span>
+    </div>
+  );
+}
 
 type Onglet = "progression" | "relations";
 
@@ -118,24 +147,16 @@ function CarteAssociee({
 function VueCompetence({
   vue,
   titre,
-  dossier,
   ouvrirElement,
-  ouvrirDossier,
-  arbreDossiers,
   elements,
-  revenirGraphe,
   compteId,
   generation,
   donneesSeance,
 }: {
   vue: VueCompetenceAtelier;
   titre: string;
-  dossier?: string;
   ouvrirElement: (id: string) => void;
-  ouvrirDossier?: (chemin: string) => void;
-  arbreDossiers?: NoeudDossier<ElementAtelier>[];
   elements?: ElementAtelier[];
-  revenirGraphe?: () => void;
   /** Le journal de rectification n'existe que sous la boucle adaptative. */
   compteId?: string;
   generation?: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
@@ -201,14 +222,10 @@ function VueCompetence({
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-surface-2/40">
       <div className="sticky top-0 z-10 flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure bg-surface px-6 shrink-0">
-        <FilArianeAtelier
-          dossier={dossier ?? `Domaines/${vue.domaineNom}`}
+        <RetourVersAtelier
+          libelle={vue.domaineNom}
           titreCourant={vue.code}
-          revenirGraphe={revenirGraphe}
-          ouvrirElement={ouvrirElement}
-          ouvrirDossier={ouvrirDossier}
-          arbreDossiers={arbreDossiers}
-          elements={elements}
+          onRetour={() => ouvrirElement(`domaine:${vue.domaineId}`)}
         />
       </div>
       <header className="border-b border-bordure bg-surface px-6 py-5 lg:px-8">
@@ -701,22 +718,13 @@ function Relations({
 
 function VueDomaine({
   vue,
-  dossier,
   ouvrirElement,
-  ouvrirDossier,
-  arbreDossiers,
-  elements,
-  revenirGraphe,
   compteId,
   modeInitial,
 }: {
   vue: VueDomaineAtelier;
-  dossier?: string;
   ouvrirElement: (id: string) => void;
-  ouvrirDossier?: (chemin: string) => void;
-  arbreDossiers?: NoeudDossier<ElementAtelier>[];
   elements?: ElementAtelier[];
-  revenirGraphe?: () => void;
   compteId: string;
   modeInitial?: "referentiel";
 }) {
@@ -743,14 +751,10 @@ function VueDomaine({
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-surface-2/40">
       <div className="sticky top-0 z-10 flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure bg-surface px-6 shrink-0">
-        <FilArianeAtelier
-          dossier={vue.domaine.archive ? "Domaines archivés" : "Domaines"}
+        <RetourVersAtelier
+          libelle={vue.domaine.archive ? "Domaines archivés" : "Domaines"}
           titreCourant={vue.nom}
-          revenirGraphe={revenirGraphe}
-          ouvrirElement={ouvrirElement}
-          ouvrirDossier={ouvrirDossier}
-          arbreDossiers={arbreDossiers}
-          elements={elements}
+          onRetour={() => ouvrirElement(vue.domaine.archive ? "domaines-archives" : "domaines")}
         />
       </div>
       <header className="border-b border-bordure bg-surface px-6 py-5 lg:px-8">
@@ -947,24 +951,15 @@ function VueDomaine({
 function VueTheme({
   vue,
   titre,
-  dossier,
   ouvrirElement,
-  ouvrirDossier,
-  arbreDossiers,
-  elements,
-  revenirGraphe,
   compteId,
   generation,
   donneesSeance,
 }: {
   vue: VueThemeAtelier;
   titre: string;
-  dossier?: string;
   ouvrirElement: (id: string) => void;
-  ouvrirDossier?: (chemin: string) => void;
-  arbreDossiers?: NoeudDossier<ElementAtelier>[];
   elements?: ElementAtelier[];
-  revenirGraphe?: () => void;
   compteId?: string;
   generation?: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
   donneesSeance?: DonneesSeance;
@@ -996,14 +991,10 @@ function VueTheme({
     <div className="min-h-0 flex-1 overflow-y-auto bg-surface-2/40">
       {/* Barre supérieure fil d'Ariane */}
       <div className="sticky top-0 z-10 flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure bg-surface px-6 shrink-0">
-        <FilArianeAtelier
-          dossier={dossier ?? "Transversal/Thèmes"}
+        <RetourVersAtelier
+          libelle="Thèmes"
           titreCourant={vue.libelle}
-          revenirGraphe={revenirGraphe}
-          ouvrirElement={ouvrirElement}
-          ouvrirDossier={ouvrirDossier}
-          arbreDossiers={arbreDossiers}
-          elements={elements}
+          onRetour={() => ouvrirElement("themes")}
         />
       </div>
 
@@ -1449,32 +1440,19 @@ function VueTheme({
 
 function VueExercice({
   vue,
-  dossier,
   ouvrirElement,
-  ouvrirDossier,
-  arbreDossiers,
-  elements,
-  revenirGraphe,
 }: {
   vue: VueExerciceProjectionAtelier;
-  dossier?: string;
   ouvrirElement: (id: string) => void;
-  ouvrirDossier?: (chemin: string) => void;
-  arbreDossiers?: NoeudDossier<ElementAtelier>[];
   elements?: ElementAtelier[];
-  revenirGraphe?: () => void;
 }) {
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-surface-2/40">
       <div className="sticky top-0 z-10 flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure bg-surface px-6 shrink-0">
-        <FilArianeAtelier
-          dossier={dossier ?? `Domaines/${vue.domaineNom}/Exercices`}
+        <RetourVersAtelier
+          libelle={vue.domaineNom}
           titreCourant={vue.titre}
-          revenirGraphe={revenirGraphe}
-          ouvrirElement={ouvrirElement}
-          ouvrirDossier={ouvrirDossier}
-          arbreDossiers={arbreDossiers}
-          elements={elements}
+          onRetour={() => ouvrirElement(`domaine:${vue.domaineId}`)}
         />
       </div>
 
@@ -1618,12 +1596,8 @@ function VueExercice({
 export function FichePedagogiqueAtelier({
   vue,
   titre,
-  dossier,
   ouvrirElement,
-  ouvrirDossier,
-  arbreDossiers,
   elements,
-  revenirGraphe,
   compteId,
   modeInitial,
   generation,
@@ -1631,12 +1605,8 @@ export function FichePedagogiqueAtelier({
 }: {
   vue: VuePedagogiqueAtelier;
   titre: string;
-  dossier?: string;
   ouvrirElement: (id: string) => void;
-  ouvrirDossier?: (chemin: string) => void;
-  arbreDossiers?: NoeudDossier<ElementAtelier>[];
   elements?: ElementAtelier[];
-  revenirGraphe?: () => void;
   compteId: string;
   modeInitial?: "referentiel";
   generation?: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
@@ -1648,12 +1618,8 @@ export function FichePedagogiqueAtelier({
         key={vue.code}
         vue={vue}
         titre={titre}
-        dossier={dossier}
         ouvrirElement={ouvrirElement}
-        ouvrirDossier={ouvrirDossier}
-        arbreDossiers={arbreDossiers}
         elements={elements}
-        revenirGraphe={revenirGraphe}
         compteId={compteId}
         generation={generation}
       />
@@ -1664,12 +1630,7 @@ export function FichePedagogiqueAtelier({
     return (
       <VueDomaine
         vue={vue}
-        dossier={dossier}
         ouvrirElement={ouvrirElement}
-        ouvrirDossier={ouvrirDossier}
-        arbreDossiers={arbreDossiers}
-        elements={elements}
-        revenirGraphe={revenirGraphe}
         compteId={compteId}
         modeInitial={modeInitial}
       />
@@ -1682,12 +1643,7 @@ export function FichePedagogiqueAtelier({
         key={vue.id}
         vue={vue}
         titre={titre}
-        dossier={dossier}
         ouvrirElement={ouvrirElement}
-        ouvrirDossier={ouvrirDossier}
-        arbreDossiers={arbreDossiers}
-        elements={elements}
-        revenirGraphe={revenirGraphe}
         compteId={compteId}
         generation={generation}
         donneesSeance={donneesSeance}
@@ -1699,12 +1655,7 @@ export function FichePedagogiqueAtelier({
     <VueExercice
       key={vue.id}
       vue={vue}
-      dossier={dossier}
       ouvrirElement={ouvrirElement}
-      ouvrirDossier={ouvrirDossier}
-      arbreDossiers={arbreDossiers}
-      elements={elements}
-      revenirGraphe={revenirGraphe}
     />
   );
 }

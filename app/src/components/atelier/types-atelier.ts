@@ -2,6 +2,7 @@ import type { CategorieDocument } from "@/lib/documents/types-documents";
 import type { LienMarkdown } from "@/lib/documents/markdown";
 import type { ExerciseAttempt } from "@/lib/domain/types";
 import type { VuePedagogiqueAtelier } from "@/lib/documents/vue-atelier";
+import type { RangementAtelier } from "@/lib/documents/rangement-atelier";
 
 export interface ElementAtelier {
   id: string;
@@ -9,11 +10,10 @@ export interface ElementAtelier {
   type: string;
   typeLibelle: string;
   categorie: CategorieDocument;
-  /** Porte la teinte de l'élément. Absent pour le transversal, qui reste discret. */
+  /** Porte la teinte de l'élément. Absent hors des domaines, qui restent discrets. */
   domaineId?: string;
-  dossier: string;
-  /** Accès alternatifs vers la même fiche, sans dupliquer sa donnée. */
-  dossiersSecondaires?: string[];
+  /** Zone unique. Un objet, un emplacement — plus de chemin de dossier calculé. */
+  rangement: RangementAtelier;
   contenuMd: string;
   contenuCharge: boolean;
   updatedAt?: string;

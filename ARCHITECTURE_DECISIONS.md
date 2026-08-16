@@ -84,11 +84,13 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [069](#adr-069) | L'agent écrit ce qui est réversible ; le journal d'actions est la contrepartie | 🔬 Hypothèse (15/08) |
 | [070](#adr-070) | Un projet est une note, pas une entité : la machinerie de « Produire » est retirée | ✅ Acceptée (15/08) — remplace [067](#adr-067) et [068](#adr-068) |
 | [074](#adr-074) | Rôle applicatif et suspension d'accès, portés par RLS | ✅ Acceptée (16/08) — ferme la question ouverte d'[019](#adr-019) |
+| [080](#adr-080) | L'Atelier a quatre lieux, et aucun dossier | ✅ Acceptée (16/08) |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
 lot 1/2 de ce chantier, sur un sujet distinct — voir la note de numérotation en
-tête d'[ADR-053](#adr-053).)*
+tête d'[ADR-053](#adr-053). 075 à 079 ne sont pas encore reprises dans ce
+tableau ; leurs sections font foi.)*
 
 ---
 
@@ -5927,6 +5929,87 @@ le lieu où le travail était consigné.
    utiles sont systématiquement à cheval sur plusieurs jours — une séance
    commencée le soir et finie le lendemain, un même sujet repris trois jours de
    suite — c'est que l'unité réelle est l'intention, pas la date.
+
+---
+
+## ADR-080 — L'Atelier a quatre lieux, et aucun dossier : le classement calculé est retiré ✅
+
+**Date.** 16/08/2026. **Tranchée par Maxime**, après un test utilisateur : la
+personne a décrit l'Atelier comme « trop fouillis et complexe ». Prolonge
+[ADR-065](#adr-065) (le référentiel reste `Domaine → Compétences`) et
+[ADR-058](#adr-058) (les notes servent la boucle).
+
+**Contexte.** L'Atelier rangeait ses fiches dans une arborescence recalculée à
+chaque rendu. Trois faits, tous vérifiables dans le code retiré :
+
+1. **Les dossiers n'existaient nulle part.** `Domaines/Algèbre/Compétences/
+   Fondamentaux` était fabriqué par `cheminsDepuisDefinition` au moment du
+   rendu. Aucune table ne le portait, et il se réorganisait dès qu'une fiche
+   changeait de type.
+2. **Chaque compétence apparaissait deux fois.** `dossiersSecondaires` déposait
+   la même fiche dans son domaine **et** dans `Transversal/Compétences` ; idem
+   pour les exercices. La branche « Transversal » était un second référentiel
+   posé à côté du vrai — exactement ce que sa propre description prétendait
+   éviter (« sans créer un second référentiel »).
+3. **Les preuves occupaient la place des documents.** Elles entraient dans
+   l'arbre comme des fiches, sous un titre de repli qui affichait leur
+   identifiant de tentative. Ce sont les entrées les plus nombreuses du corpus,
+   et les moins consultables.
+
+S'y ajoutait un fil d'Ariane qui dépliait ces chemins fictifs sur quatre
+segments, et un badge `projection` — du vocabulaire d'implémentation à l'écran,
+que `PRODUCT.md` §1 interdit.
+
+**Décision.**
+
+* **Quatre lieux, qui ne se recouvrent pas** : `Domaines`, `Thèmes`,
+  `Ressources`, `Graphe`. « Transversal » est retiré avec le classement qu'il
+  ouvrait. Le graphe reste dans l'Atelier : c'est une **bascule d'affichage sur
+  la même matière**, pas une destination séparée.
+* **Un objet, une zone.** `ZoneAtelier` remplace `dossier: string` et
+  `dossiersSecondaires`. Un élément ne peut plus être à deux endroits.
+* **Une compétence, un exercice et une fiche produite vivent dans leur
+  domaine** — celui que la base déclare, jamais un nom de dossier comparé par
+  chaîne de caractères.
+* **Un thème est une sélection de compétences, jamais un contenant.** Il a sa
+  propre entrée et n'accueille aucune fiche.
+* **Une preuve sort du corpus** (`hors-corpus`). Elle reste lisible depuis la
+  frise de la compétence, depuis l'exercice qui l'a produite et depuis la
+  recherche. Elle n'est plus rangée nulle part, et ne porte plus son
+  identifiant technique comme titre.
+* **Une ressource est rattachée à des compétences**, et le domaine s'en déduit.
+  Une ressource qui n'en cite aucune est **à trier** : l'Atelier le dit et
+  propose de l'ouvrir pour la rattacher, plutôt que de la ranger arbitrairement.
+  Les rattachements sont **lus** dans les liens résolus par le serveur contre le
+  référentiel du compte — jamais devinés.
+* **Le fil d'Ariane est remplacé par un retour**, vers la zone d'où l'on vient
+  et le domaine quand il y en a un.
+
+**Ce que ça retire.** `lib/documents/arbre-atelier.ts`,
+`lib/documents/chemins-atelier.ts`, `lib/documents/fil-ariane.ts`,
+`components/atelier/fil-ariane-atelier.tsx`, `VueTransversale` et
+`VueCategorieTransversale`, le paramètre d'URL `?dossier`, et les badges
+`projection` / `contrat inconnu`.
+
+**Ce qui n'a pas été construit, et pourquoi.** Un état **archivé** pour les
+ressources était prévu dans la proposition. Il n'existe aucun indicateur
+d'archivage sur les documents en base : le construire aurait demandé une
+migration que rien ne justifie encore. Deux états seulement — *à trier* et
+*rattachée*.
+
+**Ce qui reste ouvert.**
+
+1. ❓ **Une compétence peut-elle appartenir à plusieurs domaines ?** Demandé le
+   16/08. `skills.domaine` est singulier et `domaine_id` est `NOT NULL` :
+   c'est une migration et une révision d'[ADR-065](#adr-065), pas un changement
+   d'écran. *Qui tranche :* Maxime. *Ce qui bloque :* décider si le second
+   domaine est un vrai rattachement — qui compte alors dans la couverture du
+   domaine et dans les scores — ou une simple étiquette de lecture, auquel cas
+   un thème le fait déjà sans toucher au schéma.
+2. 🔬 **Quatre lieux suffisent-ils ?** *Test de réfutation :* si une personne
+   redemande « où est ma fiche ? » après ce changement, ou si la boîte « à
+   trier » ne se vide jamais, c'est que le rattachement coûte trop cher et qu'il
+   faut un geste de tri plus direct qu'« ouvrir la fiche et ajouter un lien ».
 
 ---
 
