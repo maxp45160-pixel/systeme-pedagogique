@@ -58,6 +58,20 @@ export function moteurAnthropic(cle: string, modele: string): MoteurTuteur {
             description: o.description,
             input_schema: o.schema as Anthropic.Tool["input_schema"],
           })),
+          /*
+           * Un seul outil armé = un chemin one-shot (traduire un besoin,
+           * résoudre un thème, rédiger un lot). Là, l'appel n'est pas une option
+           * offerte au modèle : c'est TOUT ce que la requête attend, et une
+           * réponse en prose ne produit rien d'exploitable — l'écran affichait
+           * alors « aucune action exploitable » pour un modèle qui avait
+           * simplement répondu à côté du canal.
+           *
+           * Le chat, lui, arme plusieurs outils et doit garder le droit de
+           * répondre sans en appeler aucun : c'est une conversation.
+           */
+          ...(outils.length === 1
+            ? { tool_choice: { type: "tool" as const, name: outils[0].nom } }
+            : {}),
           messages: messages.map((m) => ({ role: m.role, content: m.content })),
         });
 

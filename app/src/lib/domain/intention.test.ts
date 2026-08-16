@@ -44,8 +44,14 @@ describe("validerActionIntention", () => {
     expect(valide?.codes).toEqual(["LOG-01"]);
   });
 
+  /*
+   * « projet » servait de genre inconnu dans ce test : il l'a été, il ne l'est
+   * plus depuis que le parcours de projet est branché. Le test restait vert
+   * pour une autre raison — l'action tombait faute de sujet — donc il ne
+   * vérifiait plus rien de ce que son nom annonce.
+   */
   it("refuse un genre inconnu", () => {
-    expect(validerActionIntention(action({ genre: "projet" }), CODES)).toBeNull();
+    expect(validerActionIntention(action({ genre: "poème" }), CODES)).toBeNull();
   });
 
   it("refuse une action sans justification", () => {
@@ -83,28 +89,33 @@ describe("validerActionIntention", () => {
     expect(valide?.codes).toHaveLength(6);
   });
 
-  it("exige un sujet pour une extension de référentiel", () => {
-    expect(
-      validerActionIntention(action({ genre: "referentiel", codes: [], sujet: "" }), CODES),
-    ).toBeNull();
+  it("garde le sujet écrit pour une extension de référentiel", () => {
     expect(
       validerActionIntention(
         action({ genre: "referentiel", codes: [], sujet: "thermodynamique" }),
         CODES,
-      ),
-    ).not.toBeNull();
+      )?.sujet,
+    ).toBe("thermodynamique");
   });
 
-  it("exige un sujet pour un projet — son parcours part d'une phrase", () => {
-    expect(
-      validerActionIntention(action({ genre: "projet", codes: [], sujet: "" }), CODES),
-    ).toBeNull();
-    expect(
-      validerActionIntention(
-        action({ genre: "projet", codes: [], sujet: "un dossier d'optimisation d'entrepôt" }),
+  /*
+   * Le sujet manquant retombe sur le titre plutôt que de faire tomber
+   * l'action : c'est déjà ce que fait le consommateur (`action.sujet ||
+   * action.titre`), et l'exiger refusait des actions exécutables — « génère moi
+   * un domaine mathématiques » revenait comme « proposition incomplète ».
+   */
+  it("retombe sur le titre quand le sujet manque, pour un référentiel comme pour un projet", () => {
+    for (const genre of ["referentiel", "projet"]) {
+      const valide = validerActionIntention(
+        action({ genre, codes: [], sujet: "", titre: "Décrire le domaine mathématiques" }),
         CODES,
-      ),
-    ).not.toBeNull();
+      );
+      expect(valide?.sujet).toBe("Décrire le domaine mathématiques");
+    }
+  });
+
+  it("ne fabrique aucun sujet pour un travail", () => {
+    expect(validerActionIntention(action({ sujet: "" }), CODES)?.sujet).toBe("");
   });
 
   it("accepte une note sans code ni sujet", () => {

@@ -8,7 +8,7 @@
  */
 
 import type { MoteurTuteur } from "./moteurs";
-import { lireOutilsActifs, messageSansOutils } from "./moteurs";
+import { lireErreurMoteur, lireOutilsActifs, messageSansOutils } from "./moteurs";
 import {
   outilEvaluationProjet,
   outilGenerationActivite,
@@ -302,11 +302,14 @@ export async function genererContenuActivite(
   const evenements: { evenement: string; donnees: unknown }[] = [];
   const propositions: PropositionContenuActivite[] = [];
   let outilsActifs = true;
+  /** La panne annoncée par le moteur — clé refusée, quota, modèle absent. */
+  let panne: string | null = null;
   const envoyer = (evenement: string, donnees: unknown) => {
     evenements.push({ evenement, donnees });
     diffuser?.(evenement, donnees);
     const actifs = lireOutilsActifs(evenement, donnees);
     if (actifs !== null) outilsActifs = actifs;
+    panne = panne ?? lireErreurMoteur(evenement, donnees);
     const proposition = objet(donnees);
     if (evenement !== "proposition" || proposition?.genre !== "contenu-activite") return;
     const contenu = objet(proposition.contenu);
@@ -327,11 +330,12 @@ export async function genererContenuActivite(
   const proposition = propositions.length === 1 ? propositions[0] : null;
   const erreur = proposition
     ? null
-    : !outilsActifs
-      ? messageSansOutils("la génération d'activité adaptative")
-      : propositions.length > 1
-        ? "Le tuteur a produit plusieurs contenus alors qu'un seul était demandé. Aucun n'a été retenu."
-        : "Le tuteur n'a produit aucun contenu d'activité exploitable.";
+    : (panne ??
+      (!outilsActifs
+        ? messageSansOutils("la génération d'activité adaptative")
+        : propositions.length > 1
+          ? "Le tuteur a produit plusieurs contenus alors qu'un seul était demandé. Aucun n'a été retenu."
+          : "Le tuteur n'a produit aucun contenu d'activité exploitable."));
   return { proposition, evenements, outilsActifs, erreur };
 }
 
@@ -349,6 +353,8 @@ export async function proposerEvaluationProjet(
   const evenements: { evenement: string; donnees: unknown }[] = [];
   const propositions: PropositionEvaluationProjet[] = [];
   let outilsActifs = true;
+  /** La panne annoncée par le moteur — clé refusée, quota, modèle absent. */
+  let panne: string | null = null;
   const envoyer = (evenement: string, donnees: unknown) => {
     evenements.push({ evenement, donnees });
     // Le texte libre pourrait recopier l'artefact ; seule la sortie structurée
@@ -356,6 +362,7 @@ export async function proposerEvaluationProjet(
     if (evenement !== "texte") diffuser?.(evenement, donnees);
     const actifs = lireOutilsActifs(evenement, donnees);
     if (actifs !== null) outilsActifs = actifs;
+    panne = panne ?? lireErreurMoteur(evenement, donnees);
     const proposition = objet(donnees);
     if (evenement === "proposition" && proposition?.genre === "evaluation-projet") {
       propositions.push(proposition.evaluation as PropositionEvaluationProjet);
@@ -385,10 +392,11 @@ export async function proposerEvaluationProjet(
   const proposition = propositions.length === 1 ? propositions[0] : null;
   const erreur = proposition
     ? null
-    : !outilsActifs
-      ? messageSansOutils("la proposition d'évaluation du projet")
-      : propositions.length > 1
-        ? "Le tuteur a produit plusieurs évaluations alors qu'une seule était demandée. Aucune n'a été retenue."
-        : "Le tuteur n'a produit aucune proposition d'évaluation exploitable.";
+    : (panne ??
+      (!outilsActifs
+        ? messageSansOutils("la proposition d'évaluation du projet")
+        : propositions.length > 1
+          ? "Le tuteur a produit plusieurs évaluations alors qu'une seule était demandée. Aucune n'a été retenue."
+          : "Le tuteur n'a produit aucune proposition d'évaluation exploitable."));
   return { proposition, evenements, outilsActifs, erreur };
 }

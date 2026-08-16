@@ -95,27 +95,6 @@ async function ContenuTableauDeBord({ instant }: { instant: ContexteInstant }) {
   ]);
   const recommandationsDocumentaires = recommanderActionsDocumentaires(aperçusDocuments);
 
-  /*
-    Les deux priorités que `ChoixTravail` propose comme cibles.
-
-    Mêmes recommandations que la carte d'action juste au-dessus — c'est
-    volontaire : le bouton propose de travailler ce que le moteur recommande,
-    et « autre sujet » reste ouvert à côté.
-  */
-  const recommandationsTravail = (
-    action?.kind === "exercice" ? action.recommandations : ctx.recommandations
-  )
-    .slice(0, 2)
-    .map((recommandation) => ({
-      code: recommandation.etat.skill.code,
-      intitule: recommandation.etat.skill.intitule,
-      domaineId: recommandation.etat.skill.domaine,
-      domaineNom:
-        ctx.referentiel.domainesParId.get(recommandation.etat.skill.domaine)?.nom ??
-        recommandation.etat.skill.domaine,
-      raison: recommandation.raison,
-    }));
-
   // `dureesEstimees`, et non `donnees.exercises` : le plafond du temps retenu
   // pour un abandon doit connaître aussi les diagnostics et les exercices sortis
   // du périmètre, que la liste filtrée n'expose pas (ADR-071).
@@ -294,20 +273,7 @@ async function ContenuTableauDeBord({ instant }: { instant: ContexteInstant }) {
         rien, un travail produit des preuves.
       */}
       <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
-        <ChoixTravail
-          recommandations={recommandationsTravail}
-          competences={ctx.referentiel.actifs.map((skill) => ({
-            code: skill.code,
-            intitule: skill.intitule,
-            domaine: skill.domaine,
-          }))}
-          domaines={ctx.referentiel.domaines.map((domaine) => ({
-            id: domaine.id,
-            nom: domaine.nom,
-            prefixe: domaine.prefixe,
-          }))}
-          compteId={ctx.donnees.user.id}
-        />
+        <ChoixTravail compteId={ctx.donnees.user.id} />
         <CaptureNotes recommandations={recommandationsDocumentaires} />
       </div>
 

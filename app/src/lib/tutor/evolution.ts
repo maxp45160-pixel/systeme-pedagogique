@@ -21,7 +21,7 @@
 import type { Domaine, Skill, SkillState } from "@/lib/domain/types";
 import type { Maitrise } from "@/lib/engine/maitrise";
 import type { MoteurTuteur } from "./moteurs";
-import { lireOutilsActifs, messageSansOutils } from "./moteurs";
+import { lireErreurMoteur, lireOutilsActifs, messageSansOutils } from "./moteurs";
 import { outilEvolution, type PropositionEvolution } from "./outils";
 
 export interface ResultatEvolution {
@@ -102,12 +102,15 @@ export async function proposerEvolution(
 ): Promise<ResultatEvolution> {
   let evolution: PropositionEvolution | null = null;
   let outilsActifs = true;
+  /** La panne annoncée par le moteur — clé refusée, quota, modèle absent. */
+  let panne: string | null = null;
 
   const envoyer = (evenement: string, donnees: unknown) => {
     if (evenement !== "texte") diffuser?.(evenement, donnees);
 
     const actifs = lireOutilsActifs(evenement, donnees);
     if (actifs !== null) outilsActifs = actifs;
+    panne = panne ?? lireErreurMoteur(evenement, donnees);
 
     if (evenement === "proposition") {
       const proposition = donnees as { genre: string; evolution?: PropositionEvolution };
@@ -134,9 +137,10 @@ export async function proposerEvolution(
   const erreur =
     evolution !== null
       ? null
-      : outilsActifs
-        ? "Le tuteur n'a proposé aucune évolution exploitable."
-        : messageSansOutils("la proposition d'évolution");
+      : (panne ??
+        (outilsActifs
+          ? "Le tuteur n'a proposé aucune évolution exploitable."
+          : messageSansOutils("la proposition d'évolution")));
 
   return { evolution, outilsActifs, erreur };
 }

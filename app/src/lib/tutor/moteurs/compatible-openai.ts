@@ -181,6 +181,22 @@ export function moteurCompatibleOpenAI(
           function: { name: o.nom, description: o.description, parameters: o.schema },
         }));
 
+        /*
+         * Un seul outil armé = un chemin one-shot (traduire un besoin, résoudre
+         * un thème, rédiger un lot d'exercices). L'appel n'y est pas une option
+         * offerte au modèle : c'est tout ce que la requête attend. En `auto`, un
+         * modèle qui répond « voici une séance sur la logistique… » en prose
+         * produit zéro proposition, et l'écran ne peut rien dire de mieux que
+         * « aucune action exploitable » — la panne la plus opaque du produit.
+         *
+         * Le chat arme plusieurs outils et garde `auto` : il doit pouvoir
+         * répondre sans rien proposer, sinon chaque message forcerait une carte.
+         */
+        const choixOutil =
+          outils.length === 1
+            ? { type: "function", function: { name: outils[0].nom } }
+            : "auto";
+
         const messagesConversation = messages.map((m) => ({ role: m.role, content: m.content }));
 
         const payloadMistral = {
@@ -190,7 +206,7 @@ export function moteurCompatibleOpenAI(
           max_tokens: MAX_JETONS_SORTIE,
           prompt_cache_key: cacheKey,
           tools: fonctions,
-          tool_choice: "auto",
+          tool_choice: choixOutil,
           messages: [
             // Séparer stable et profil en deux messages system : le préfixe
             // stable est identique d'un tour à l'autre, maximisant le cache
@@ -236,7 +252,7 @@ export function moteurCompatibleOpenAI(
             stream_options: { include_usage: true },
             max_tokens: MAX_JETONS_SORTIE,
             tools: fonctions,
-            tool_choice: "auto",
+            tool_choice: choixOutil,
             messages: systemeUnique,
           });
         }

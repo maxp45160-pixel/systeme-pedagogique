@@ -41,9 +41,31 @@ import { dureeRetenue } from "@/lib/domain/tentative";
 import type {
   BesoinDeclare,
   BlueprintSeance,
+  Exercise,
   ExerciseAttempt,
   LearningSession,
 } from "@/lib/domain/types";
+
+/**
+ * Les exercices que le compte peut réellement dérouler, par identifiant.
+ *
+ * ⚠️ Lire la seule table `exercises` ne suffit pas : les diagnostics vivent dans
+ * `EXERCICES_DIAGNOSTIC` et non en base (ADR-004). `chargerContexte` les expose
+ * au moteur, donc la prochaine action peut parfaitement en désigner un — et la
+ * séance était alors refusée avec « Cet exercice n'est plus disponible », pour
+ * un exercice qui n'a jamais cessé de l'être. `terminerExercice` fait déjà cette
+ * jonction ; l'écriture de séance ne la faisait pas.
+ *
+ * Une ligne stockée l'emporte sur le diagnostic de même identifiant : c'est la
+ * règle qu'applique déjà `chargerContexte` (`idsStockes`).
+ */
+async function catalogueExercices(dorsale: DorsaleCompte): Promise<Map<string, Exercise>> {
+  const stockes = await lire("exercises", dorsale);
+  const { EXERCICES_DIAGNOSTIC } = await import("@/lib/seed/exercises");
+  const parId = new Map<string, Exercise>(EXERCICES_DIAGNOSTIC.map((e) => [e.id, e]));
+  for (const exercice of stockes) parId.set(exercice.id, exercice);
+  return parId;
+}
 
 /* ------------------------------------------------------------------ */
 /* Planification                                                       */
@@ -90,8 +112,7 @@ export async function creerSeance(
   const refusBlueprint = motifRefusBlueprint(entree.blueprint);
   if (refusBlueprint) throw new Error(refusBlueprint);
 
-  const exercices = await lire("exercises", dorsale);
-  const parId = new Map(exercices.map((e) => [e.id, e]));
+  const parId = await catalogueExercices(dorsale);
   const inconnus = entree.activites
     .filter((a) => a.type === "exercice" && !parId.has(a.ref))
     .map((a) => a.ref);
@@ -167,9 +188,8 @@ export async function creerSeance(
  */
 export async function creerSeanceFocusExercice(exerciceId: string): Promise<string> {
   const dorsale = await dorsaleCompte();
-  const exercices = await lire("exercises", dorsale);
-  const exercice = exercices.find((item) => item.id === exerciceId && !item.archive);
-  if (!exercice) throw new Error("Cet exercice n'est plus disponible.");
+  const exercice = (await catalogueExercices(dorsale)).get(exerciceId);
+  if (!exercice || exercice.archive) throw new Error("Cet exercice n'est plus disponible.");
 
   const maintenant = new Date().toISOString();
   const codePrincipal = exercice.competences[0];

@@ -115,9 +115,8 @@ function texte(valeur: unknown, max: number): string {
  * Valide une action rendue par le modèle contre les codes réellement actifs.
  *
  * Rend `null` plutôt qu'une action rabotée quand il manque ce qui la rend
- * exécutable : un travail sans compétence visée n'a rien à composer, une
- * extension de référentiel sans sujet n'a rien à proposer. Fabriquer une
- * valeur de repli à partir d'une donnée invalide est précisément ce qu'on
+ * exécutable : un travail sans compétence visée n'a rien à composer. Fabriquer
+ * une valeur de repli à partir d'une donnée invalide est précisément ce qu'on
  * s'interdit — l'appelant annonce l'échec et laisse la saisie manuelle.
  *
  * Un code hors de l'ensemble actif est écarté sans faire tomber l'action : le
@@ -149,16 +148,22 @@ export function validerActionIntention(
     ),
   ].slice(0, EXERCICES_PAR_LOT_MAX);
 
-  const sujet = texte(entree.sujet, TITRE_MAX);
+  /*
+   * `projet` et `referentiel` partent d'une phrase, pas d'une liste de codes.
+   * Cette phrase, c'est `sujet` — et à défaut `titre`, qui dit déjà en une
+   * ligne ce qui sera fait.
+   *
+   * Le repli n'invente rien : c'est **exactement** ce que les deux
+   * consommateurs font depuis toujours (`CaptureIntention.executer` ouvre le
+   * parcours sur `action.sujet || action.titre`). L'exiger ici refusait donc
+   * des actions parfaitement exécutables : « génère moi un domaine
+   * mathématiques » revenait comme « proposition incomplète » alors que le
+   * titre portait le sujet. Une phrase relue par la personne dans l'écran
+   * suivant, dans les deux cas.
+   */
+  const sujet = texte(entree.sujet, TITRE_MAX) || (genre === "travail" ? "" : titre);
 
   if (genre === "travail" && codes.length === 0) return null;
-  /*
-   * `projet` et `referentiel` exigent un sujet, et pour la même raison : leurs
-   * deux parcours en aval partent d'une phrase, pas d'une liste de codes. Le
-   * parcours de projet recible lui-même les compétences depuis l'intention —
-   * lui passer des codes sans phrase le laisserait sans point de départ.
-   */
-  if ((genre === "referentiel" || genre === "projet") && !sujet) return null;
 
   return { genre, titre, pourquoi, codes, sujet };
 }

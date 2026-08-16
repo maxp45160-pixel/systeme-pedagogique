@@ -648,8 +648,8 @@ describe("validerAppelOutil — traduire_intention", () => {
     expect(valider({ action: { ...TRAVAIL, codes: ["LOG-99"] }, alternatives: [] })).toBeNull();
   });
 
-  it("rejette un genre hors des trois", () => {
-    expect(valider({ action: { ...TRAVAIL, genre: "projet" }, alternatives: [] })).toBeNull();
+  it("rejette un genre hors de l'énumération", () => {
+    expect(valider({ action: { ...TRAVAIL, genre: "poème" }, alternatives: [] })).toBeNull();
   });
 
   it("accepte une traduction complète", () => {

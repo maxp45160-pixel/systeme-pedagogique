@@ -56,7 +56,7 @@ import {
   TEMPS_DECLARE_MAX,
 } from "@/lib/domain/seance";
 import { DUREE_ESTIMEE_MIN } from "@/lib/domain/exercice";
-import { themeVersThemeSeance, type Theme } from "@/lib/domain/theme";
+import { themeVersThemeSeance, themesEnregistres, type Theme } from "@/lib/domain/theme";
 import {
   composerSeance,
   nombreExercicesConseille,
@@ -181,6 +181,7 @@ export function ConcepteurSeance({
   recommandations,
   contexteDocumentaire: contexteDocumentaireSerialise,
   domaines,
+  themes,
   compteId,
   preset,
   domaineInitial,
@@ -267,12 +268,54 @@ export function ConcepteurSeance({
   );
 
   /**
+   * Le sujet choisi à la main, qui prime sur toutes les sources dérivées.
+   *
+   * Le compositeur affichait « Le sujet est déjà choisi » et n'offrait aucun
+   * moyen d'en changer : ouvert sans code, il retombait sur la tête du
+   * classement, et la seule sortie pour travailler autre chose était de fermer
+   * la modale et de repasser par un autre écran. Une valeur dérivée reste
+   * modifiable — c'est la règle du reste de cet écran (le nombre d'exercices,
+   * le temps), elle manquait au sujet lui-même.
+   */
+  const [themeChoisi, setThemeChoisi] = useState<ThemeSeance | null>(null);
+
+  /** Les thèmes enregistrés du compte, convertis en portées de séance. */
+  const themesDuCompte = useMemo(
+    () => themesEnregistres(themes, referentielLeger),
+    [themes, referentielLeger],
+  );
+
+  /** Un domaine entier — la portée la plus large qu'on puisse viser. */
+  const themesDeDomaine = useMemo(
+    () => domaines.map((d) => themePourDomaine(d.id, d.nom)),
+    [domaines],
+  );
+
+  /**
+   * N'importe quelle compétence active, visée seule.
+   *
+   * `codesImposes` et non une portée de thème : viser une compétence précise,
+   * c'est demander cette compétence-là, pas le domaine qui la contient.
+   */
+  const themesDeCompetence = useMemo(
+    () =>
+      actifs.map((skill) => ({
+        cle: `competence:${skill.code}`,
+        libelle: skill.intitule,
+        detail: `${skill.code} · ${nomsDomaines.get(skill.domaine) ?? skill.domaine}`,
+        portee: { type: "mono" as const, domaine: skill.domaine },
+        codesImposes: [skill.code],
+      })),
+    [actifs, nomsDomaines],
+  );
+
+  /**
    * Le sujet choisi dans le premier formulaire passe avant la recommandation
    * globale : l'intention explicite de la personne borne la séance. Le domaine
    * reste le repli des anciennes fiches qui n'ont pas encore de thème.
    */
   const themePrincipal: ThemeSeance | null =
-    themeDuPreset ?? themeDuThemeInitial ?? themeDuDomaine ?? themesSug[0] ?? null;
+    themeChoisi ?? themeDuPreset ?? themeDuThemeInitial ?? themeDuDomaine ?? themesSug[0] ?? null;
 
   const theme = themePrincipal;
 
@@ -428,7 +471,21 @@ export function ConcepteurSeance({
           onFermer={fermer}
           largeur="3xl"
           pied={
-            phase === "besoin" ? (
+            /*
+             * La génération n'a pas de pied à elle : `ModaleExercice` en
+             * présentation `inline` porte le sien (générer, accepter, retoucher).
+             * Un second pied ici proposerait « Démarrer la séance » pendant
+             * qu'on relit un exercice qui n'y est pas encore entré.
+             */
+            generationCibles ? (
+              <Bouton
+                type="button"
+                onClick={() => setGenerationCibles(null)}
+                variante="secondaire"
+              >
+                ← Composition
+              </Bouton>
+            ) : phase === "besoin" ? (
               <div className="flex w-full items-center justify-between gap-2">
                 <Bouton type="button" onClick={fermer} variante="secondaire">
                   Annuler
@@ -506,24 +563,71 @@ export function ConcepteurSeance({
                 </span>
                 <span>Composition & Exercices</span>
               </button>
+              {generationCibles && (
+                <>
+                  <span className="text-xs text-texte-discret">→</span>
+                  <span className="flex items-center gap-2 rounded-full bg-primaire px-3 py-1 text-xs font-semibold text-primaire-contraste shadow-xs">
+                    <span className="flex size-4 items-center justify-center rounded-full bg-white/20 text-[0.625rem]">
+                      3
+                    </span>
+                    <span>Rédaction</span>
+                  </span>
+                </>
+              )}
             </div>
             <span className="text-[0.6875rem] font-medium text-texte-discret">
-              {phase === "besoin" ? "Étape 1/2" : "Étape 2/2"}
+              {generationCibles
+                ? "Étape 3/3"
+                : phase === "besoin"
+                  ? "Étape 1/2"
+                  : "Étape 2/2"}
             </span>
           </div>
 
-          {phase === "besoin" ? (
+          {generationCibles ? (
+            /*
+             * La rédaction des manquants se fait DANS le compositeur, pas dans
+             * une seconde modale par-dessus la première : deux surfaces
+             * `aria-modal` empilées imbriquent deux pièges de focus et rendent
+             * `Échap` ambigu — la touche ferme celle qui a posé son écouteur en
+             * dernier, jamais celle qu'on regarde. C'est la raison d'être du
+             * mode `inline` de `ModaleExercice`.
+             *
+             * Chaque acceptation écrit l'exercice puis `router.refresh()` : les
+             * props serveur reviennent, `composerSeance` recalcule, et
+             * l'exercice passe de « à rédiger » à « retenu » sans rechargement.
+             */
+            <ModaleExercice
+              presentation="inline"
+              onFermer={() => setGenerationCibles(null)}
+              competences={competencesModale}
+              competenceInitiale={generationCibles.codeInitial}
+              competencesCibles={generationCibles.codes}
+              calibrages={calibragesModale}
+              compteId={compteId}
+              surEnregistre={() => {
+                router.refresh();
+              }}
+            />
+          ) : phase === "besoin" ? (
             <EtapeBesoin
               themePrincipal={themePrincipal}
               sourceTheme={
-                themeDuPreset
-                  ? "Séance précédente"
-                  : themeDuThemeInitial
-                    ? "Thème choisi"
-                    : themeDuDomaine
-                      ? "Domaine choisi"
-                      : "Prochaine action"
+                themeChoisi
+                  ? "Sujet choisi"
+                  : themeDuPreset
+                    ? "Séance précédente"
+                    : themeDuThemeInitial
+                      ? "Thème choisi"
+                      : themeDuDomaine
+                        ? "Domaine choisi"
+                        : "Prochaine action"
               }
+              suggestions={themesSug}
+              themesEnregistres={themesDuCompte}
+              themesDeDomaine={themesDeDomaine}
+              themesDeCompetence={themesDeCompetence}
+              surChoisirTheme={setThemeChoisi}
               temps={temps}
               setTemps={setTemps}
               conseil={conseil}
@@ -555,21 +659,6 @@ export function ConcepteurSeance({
           )}
         </Modale>
       )}
-
-      {/* Modale de génération d'exercice connectée directement */}
-      {generationCibles && (
-        <ModaleExercice
-          onFermer={() => setGenerationCibles(null)}
-          competences={competencesModale}
-          competenceInitiale={generationCibles.codeInitial}
-          competencesCibles={generationCibles.codes}
-          calibrages={calibragesModale}
-          compteId={compteId}
-          surEnregistre={() => {
-            router.refresh();
-          }}
-        />
-      )}
     </>
   );
 }
@@ -578,9 +667,88 @@ export function ConcepteurSeance({
 /* Étape 1 — le thème et le temps                                      */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Un sujet proposé au choix, avec son détail.
+ *
+ * Le détail n'est pas décoratif : c'est lui qui distingue « Tout le domaine
+ * Logistique » d'une compétence isolée du même domaine, et qui dit d'où vient
+ * la suggestion. Un libellé seul rendrait deux portées très différentes
+ * indiscernables (P3).
+ */
+function BoutonSujet({
+  sujet,
+  actif,
+  surChoisir,
+}: {
+  sujet: ThemeSeance;
+  actif: boolean;
+  surChoisir: (sujet: ThemeSeance) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => surChoisir(sujet)}
+      aria-pressed={actif}
+      className={cx(
+        "block w-full rounded-lg border px-3 py-2 text-left transition-colors",
+        actif
+          ? "border-primaire bg-primaire-faible"
+          : "border-bordure bg-surface hover:border-primaire/35 hover:bg-primaire-faible/35",
+      )}
+    >
+      <span className="block text-xs font-medium">{sujet.libelle}</span>
+      <span className="mt-0.5 block text-[0.6875rem] text-texte-discret">{sujet.detail}</span>
+    </button>
+  );
+}
+
+function ListeSujets({
+  titre,
+  sujets,
+  actif,
+  surChoisir,
+  vide,
+}: {
+  titre: string;
+  sujets: ThemeSeance[];
+  /** Clé du sujet courant, pour le marquer sans le rendre deux fois. */
+  actif: string;
+  surChoisir: (sujet: ThemeSeance) => void;
+  /** Phrase affichée quand la liste est vide. Absente : la section disparaît. */
+  vide?: string;
+}) {
+  if (sujets.length === 0 && !vide) return null;
+  return (
+    <div className="space-y-2">
+      <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
+        {titre}
+      </p>
+      {sujets.length === 0 ? (
+        <p className="text-xs text-texte-discret">{vide}</p>
+      ) : (
+        <div className="space-y-1.5">
+          {sujets.map((sujet) => (
+            <BoutonSujet
+              key={sujet.cle}
+              sujet={sujet}
+              actif={sujet.cle === actif}
+              surChoisir={surChoisir}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function EtapeBesoin({
   themePrincipal,
   sourceTheme,
+  suggestions,
+  themesEnregistres: themesDuCompte,
+  themesDeDomaine,
+  themesDeCompetence,
+  surChoisirTheme,
   temps,
   setTemps,
   conseil,
@@ -592,6 +760,11 @@ function EtapeBesoin({
 }: {
   themePrincipal: ThemeSeance | null;
   sourceTheme: string;
+  suggestions: ThemeSeance[];
+  themesEnregistres: ThemeSeance[];
+  themesDeDomaine: ThemeSeance[];
+  themesDeCompetence: ThemeSeance[];
+  surChoisirTheme: (theme: ThemeSeance | null) => void;
   temps: string;
   setTemps: (v: string) => void;
   conseil: ReturnType<typeof nombreExercicesConseille>;
@@ -601,6 +774,26 @@ function EtapeBesoin({
   setIntentionOuverte: (v: boolean) => void;
   erreur: string | null;
 }) {
+  // Déclarés avant toute sortie anticipée : l'ordre des hooks ne se négocie pas.
+  const [choixOuvert, setChoixOuvert] = useState(false);
+  const [recherche, setRecherche] = useState("");
+
+  const q = recherche.trim().toLowerCase();
+  /*
+   * La recherche ne porte que sur les compétences : les trois autres listes
+   * sont courtes et se lisent d'un coup d'œil, là où le référentiel actif peut
+   * compter des dizaines d'entrées. Sans filtre, choisir une compétence précise
+   * redeviendrait l'inventaire à trier que cet écran a supprimé.
+   */
+  const competencesFiltrees = q
+    ? themesDeCompetence
+        .filter(
+          (t) =>
+            t.libelle.toLowerCase().includes(q) || t.detail.toLowerCase().includes(q),
+        )
+        .slice(0, 12)
+    : [];
+
   if (!themePrincipal) {
     return (
       <div className="space-y-3 pt-2">
@@ -632,7 +825,81 @@ function EtapeBesoin({
         <p className="mt-1 text-xs leading-relaxed text-texte-attenue">
           {themePrincipal.detail}
         </p>
+        <button
+          type="button"
+          onClick={() => setChoixOuvert((ouvert) => !ouvert)}
+          className="mt-2 text-xs text-primaire underline-offset-2 hover:underline"
+          aria-expanded={choixOuvert}
+        >
+          {choixOuvert ? "Garder ce sujet" : "Choisir un autre sujet"}
+        </button>
       </div>
+
+      {choixOuvert && (
+        <div className="space-y-4 rounded-xl border border-bordure bg-surface-2 p-4">
+          <ListeSujets
+            titre="Ce que le moteur recommande"
+            sujets={suggestions}
+            actif={themePrincipal.cle}
+            surChoisir={(theme) => {
+              surChoisirTheme(theme);
+              setChoixOuvert(false);
+            }}
+          />
+          <ListeSujets
+            titre="Tes thèmes enregistrés"
+            sujets={themesDuCompte}
+            actif={themePrincipal.cle}
+            surChoisir={(theme) => {
+              surChoisirTheme(theme);
+              setChoixOuvert(false);
+            }}
+            vide="Aucun thème enregistré pour l'instant."
+          />
+          <ListeSujets
+            titre="Un domaine entier"
+            sujets={themesDeDomaine}
+            actif={themePrincipal.cle}
+            surChoisir={(theme) => {
+              surChoisirTheme(theme);
+              setChoixOuvert(false);
+            }}
+          />
+          <div className="space-y-2">
+            <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
+              Une compétence précise
+            </p>
+            <input
+              type="search"
+              value={recherche}
+              onChange={(event) => setRecherche(event.target.value)}
+              placeholder="Filtrer par intitulé ou par code…"
+              className="w-full rounded-md border border-bordure-controle bg-surface px-2.5 py-1.5 text-xs placeholder:text-texte-discret focus:border-primaire focus:outline-none"
+            />
+            {q && competencesFiltrees.length === 0 && (
+              <p className="text-xs text-texte-discret">
+                Aucune compétence active ne correspond.
+              </p>
+            )}
+            {competencesFiltrees.length > 0 && (
+              <div className="space-y-1.5">
+                {competencesFiltrees.map((sujet) => (
+                  <BoutonSujet
+                    key={sujet.cle}
+                    sujet={sujet}
+                    actif={sujet.cle === themePrincipal.cle}
+                    surChoisir={(theme) => {
+                      surChoisirTheme(theme);
+                      setChoixOuvert(false);
+                      setRecherche("");
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Sélection du temps */}
       <div className="space-y-3">

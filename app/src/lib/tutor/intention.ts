@@ -29,7 +29,7 @@
 import type { TraductionIntention } from "@/lib/domain/intention";
 import type { Referentiel } from "@/lib/domain/types";
 import type { MoteurTuteur } from "./moteurs";
-import { lireOutilsActifs, messageSansOutils } from "./moteurs";
+import { lireErreurMoteur, lireOutilsActifs, messageSansOutils } from "./moteurs";
 import { outilIntention } from "./outils";
 
 /* ------------------------------------------------------------------ */
@@ -129,11 +129,29 @@ export async function traduireIntention(
 ): Promise<ResultatIntention> {
   let traduction: TraductionIntention | null = null;
   let outilsActifs = true;
+  /*
+   * Le moteur émet `proposition-rejetee` quand le tuteur A appelé l'outil mais
+   * que la sortie n'a pas passé `validerTraductionIntention` — typiquement un
+   * `travail` sans aucune compétence désignée, ou un `projet` sans sujet.
+   *
+   * Sans cette capture, les deux pannes se ressemblaient à l'écran : « aucune
+   * action exploitable », qu'il n'y ait eu aucun appel d'outil ou un appel
+   * refusé. Ce sont pourtant deux choses différentes — la seconde se corrige en
+   * reformulant, la première non.
+   */
+  let rejet: string | null = null;
+  /** La panne annoncée par le moteur — clé refusée, quota, modèle absent. */
+  let panne: string | null = null;
 
   const envoyer = (evenement: string, donnees: unknown) => {
     diffuser?.(evenement, donnees);
     const actifs = lireOutilsActifs(evenement, donnees);
     if (actifs !== null) outilsActifs = actifs;
+    panne = panne ?? lireErreurMoteur(evenement, donnees);
+    if (evenement === "proposition-rejetee") {
+      const message = (donnees as { message?: unknown } | null)?.message;
+      if (typeof message === "string" && message.trim()) rejet = message.trim();
+    }
     if (evenement === "proposition") {
       const proposition = donnees as { genre: string; traduction?: TraductionIntention };
       if (proposition.genre === "intention" && proposition.traduction) {
@@ -159,9 +177,14 @@ export async function traduireIntention(
   const erreur =
     traduction !== null
       ? null
-      : outilsActifs
-        ? "Aucune action exploitable n'a été produite pour ce besoin."
-        : messageSansOutils("la traduction d'un besoin");
+      : // La panne du fournisseur passe AVANT tout le reste : c'est la seule
+        // cause qui ne se corrige pas en reformulant.
+        panne ??
+        (!outilsActifs
+          ? messageSansOutils("la traduction d'un besoin")
+          : rejet
+            ? `${rejet} Le plus souvent, l'action visait un travail sans désigner aucune compétence existante.`
+            : "Aucune action exploitable n'a été produite pour ce besoin.");
 
   return { traduction, outilsActifs, erreur };
 }

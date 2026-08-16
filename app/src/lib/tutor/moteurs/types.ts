@@ -107,6 +107,28 @@ export function lireOutilsActifs(evenement: string, donnees: unknown): boolean |
 }
 
 /**
+ * La panne annoncée par le moteur, ou `null`.
+ *
+ * ⚠️ Sans cette lecture, **une clé expirée s'affiche « le tuteur n'a rien
+ * produit d'exploitable »**. Le moteur émet pourtant la vraie cause — « Clé
+ * refusée par le fournisseur », « quota atteint », « modèle introuvable » — et
+ * les chemins one-shot la laissaient passer : ils ne regardaient que leurs
+ * propositions, concluaient à l'absence, et écrasaient le message précis par le
+ * leur, générique. Le cas s'est produit le 16/08/2026 : une clé Mistral expirée
+ * a fait passer trois écrans pour cassés (besoin, thème, génération), et rien à
+ * l'écran ne pointait vers les réglages.
+ *
+ * `null` quand l'événement n'est pas une erreur porteuse de message : l'appelant
+ * garde son diagnostic par défaut.
+ */
+export function lireErreurMoteur(evenement: string, donnees: unknown): string | null {
+  if (evenement !== "erreur") return null;
+  if (typeof donnees !== "object" || donnees === null) return null;
+  const message = (donnees as { message?: unknown }).message;
+  return typeof message === "string" && message.trim() ? message.trim() : null;
+}
+
+/**
  * Le message unique des chemins assistés quand le fournisseur n'outille pas.
  *
  * Aucun repli texte n'est proposé ici, et c'est délibéré : deviner une

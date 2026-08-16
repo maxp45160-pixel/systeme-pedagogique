@@ -14,7 +14,7 @@
 
 import type { Referentiel } from "@/lib/domain/types";
 import type { MoteurTuteur } from "./moteurs";
-import { lireOutilsActifs, messageSansOutils } from "./moteurs";
+import { lireErreurMoteur, lireOutilsActifs, messageSansOutils } from "./moteurs";
 import { outilReferentielComplet, outilsTuteur } from "./outils";
 import type { PropositionReferentiel } from "./proposition";
 
@@ -145,12 +145,15 @@ export async function proposerReferentiel(
   let branches: PropositionReferentiel[] = [];
   let ecartees = 0;
   let outilsActifs = true;
+  /** La panne annoncée par le moteur — clé refusée, quota, modèle absent. */
+  let panne: string | null = null;
 
   const envoyer = (evenement: string, donnees: unknown) => {
     if (evenement !== "texte") diffuser?.(evenement, donnees);
 
     const actifs = lireOutilsActifs(evenement, donnees);
     if (actifs !== null) outilsActifs = actifs;
+    panne = panne ?? lireErreurMoteur(evenement, donnees);
 
     if (evenement === "proposition") {
       const p = donnees as {
@@ -179,9 +182,10 @@ export async function proposerReferentiel(
   const erreur =
     branches.length > 0
       ? null
-      : outilsActifs
-        ? "Aucun référentiel exploitable n'a été produit."
-        : messageSansOutils("la proposition de référentiel");
+      : (panne ??
+        (outilsActifs
+          ? "Aucun référentiel exploitable n'a été produit."
+          : messageSansOutils("la proposition de référentiel")));
 
   return { resume, branches, ecartees, outilsActifs, erreur };
 }
@@ -215,11 +219,14 @@ export async function suggererBranche(
 ): Promise<ResultatSuggestion> {
   let branche: PropositionReferentiel | null = null;
   let outilsActifs = true;
+  /** La panne annoncée par le moteur — clé refusée, quota, modèle absent. */
+  let panne: string | null = null;
 
   const envoyer = (evenement: string, donnees: unknown) => {
     diffuser?.(evenement, donnees);
     const actifs = lireOutilsActifs(evenement, donnees);
     if (actifs !== null) outilsActifs = actifs;
+    panne = panne ?? lireErreurMoteur(evenement, donnees);
     if (evenement === "proposition") {
       const proposition = donnees as { genre: string; branche?: PropositionReferentiel };
       if (proposition.genre === "referentiel" && proposition.branche) {
@@ -253,9 +260,10 @@ export async function suggererBranche(
   const erreur =
     branche !== null
       ? null
-      : outilsActifs
-        ? "Aucune branche exploitable n'a été produite."
-        : messageSansOutils("la suggestion de compétences");
+      : (panne ??
+        (outilsActifs
+          ? "Aucune branche exploitable n'a été produite."
+          : messageSansOutils("la suggestion de compétences")));
 
   return { branche, outilsActifs, erreur };
 }

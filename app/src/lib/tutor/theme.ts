@@ -15,7 +15,7 @@
 
 import type { Referentiel } from "@/lib/domain/types";
 import type { MoteurTuteur } from "./moteurs";
-import { lireOutilsActifs, messageSansOutils } from "./moteurs";
+import { lireErreurMoteur, lireOutilsActifs, messageSansOutils } from "./moteurs";
 import { outilTheme, type PropositionTheme } from "./outils";
 
 export interface ResultatResolutionTheme {
@@ -69,11 +69,14 @@ export async function resoudreTheme(
 ): Promise<ResultatResolutionTheme> {
   let theme: PropositionTheme | null = null;
   let outilsActifs = true;
+  /** La panne annoncée par le moteur — clé refusée, quota, modèle absent. */
+  let panne: string | null = null;
 
   const envoyer = (evenement: string, donnees: unknown) => {
     diffuser?.(evenement, donnees);
     const actifs = lireOutilsActifs(evenement, donnees);
     if (actifs !== null) outilsActifs = actifs;
+    panne = panne ?? lireErreurMoteur(evenement, donnees);
     if (evenement === "proposition") {
       const proposition = donnees as { genre: string; theme?: PropositionTheme };
       if (proposition.genre === "theme" && proposition.theme) {
@@ -98,9 +101,12 @@ export async function resoudreTheme(
   const erreur =
     theme !== null
       ? null
-      : outilsActifs
-        ? "Aucune résolution exploitable n'a été produite."
-        : messageSansOutils("la résolution du thème");
+      : // La panne du fournisseur d'abord : elle ne se corrige pas en
+        // reformulant l'intention (voir `lireErreurMoteur`).
+        panne ??
+        (outilsActifs
+          ? "Aucune résolution exploitable n'a été produite."
+          : messageSansOutils("la résolution du thème"));
 
   return { theme, outilsActifs, erreur };
 }

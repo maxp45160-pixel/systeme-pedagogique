@@ -1023,7 +1023,17 @@ export function outilIntention(codesActifs: string[]): OutilTuteur {
           "Le sujet en clair. Obligatoire pour referentiel (ce sur quoi une branche sera proposée) et pour projet (ce qui sera produit) — ces deux parcours partent d'une phrase, pas de codes.",
       },
     },
-    required: ["genre", "titre", "pourquoi", "codes", "sujet"],
+    /*
+     * `sujet` n'est PAS requis au schéma, alors qu'il l'est pour un `projet` et
+     * une extension de `referentiel`.
+     *
+     * L'exiger de tous obligeait le modèle à écrire un sujet pour un `travail`
+     * qui n'en a pas besoin — un champ à remplir pour rien sur le genre le plus
+     * fréquent, et une raison de plus de rater l'appel. La règle par genre est
+     * portée par `validerActionIntention`, qui refuse le projet ou l'extension
+     * sans sujet : une seule autorité, celle qui sait de quel genre il s'agit.
+     */
+    required: ["genre", "titre", "pourquoi", "codes"],
     additionalProperties: false,
   };
 
@@ -1039,10 +1049,12 @@ export function outilIntention(codesActifs: string[]): OutilTuteur {
           type: "array",
           maxItems: 3,
           items: action,
-          description: "Autres lectures possibles du même besoin, de la plus au moins probable.",
+          description: "Autres lectures possibles du même besoin, de la plus au moins probable. Facultatif.",
         },
       },
-      required: ["action", "alternatives"],
+      // Seule l'action principale est exigée : une traduction sans alternative
+      // est complète, et `validerTraductionIntention` traite déjà l'absence.
+      required: ["action"],
       additionalProperties: false,
     },
   };

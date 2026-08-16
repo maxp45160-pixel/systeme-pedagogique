@@ -147,6 +147,16 @@ export function CaptureIntention({
             const parsed = JSON.parse(donnees) as { message: string };
             setErreur(parsed.message);
             setPhase("saisie");
+          } else if (type === "proposition-rejetee" && donnees) {
+            /*
+             * Le tuteur a bien appelé l'outil, mais sa sortie a été refusée —
+             * un travail sans compétence désignée, un projet sans sujet. Le
+             * message du moteur dit ce qui a été écarté ; l'écran l'affichait
+             * jusqu'ici comme une absence de réponse, ce qui n'est pas la même
+             * panne et ne se corrige pas de la même façon.
+             */
+            const parsed = JSON.parse(donnees) as { message?: string };
+            if (parsed.message?.trim()) setErreur(parsed.message.trim());
           } else if (type === "proposition-en-cours") {
             setProgression("Le moteur choisit l'action qui répond à ton besoin…");
           }

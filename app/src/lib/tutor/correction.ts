@@ -36,7 +36,7 @@ import type { Exercise } from "@/lib/domain/types";
 import { LIBELLES_DIMENSIONS } from "@/lib/domain/types";
 import { APPRECIATIONS, RESULTATS } from "@/lib/domain/bilan";
 import type { MoteurTuteur } from "./moteurs";
-import { lireOutilsActifs, messageSansOutils } from "./moteurs";
+import { lireErreurMoteur, lireOutilsActifs, messageSansOutils } from "./moteurs";
 import { outilCorrection, type PropositionCorrection } from "./outils";
 
 /* ------------------------------------------------------------------ */
@@ -192,12 +192,15 @@ export async function corrigerReponse(
 ): Promise<ResultatCorrection> {
   let correction: PropositionCorrection | null = null;
   let outilsActifs = true;
+  /** La panne annoncée par le moteur — clé refusée, quota, modèle absent. */
+  let panne: string | null = null;
 
   const envoyer = (evenement: string, donnees: unknown) => {
     if (evenement !== "texte") diffuser?.(evenement, donnees);
 
     const actifs = lireOutilsActifs(evenement, donnees);
     if (actifs !== null) outilsActifs = actifs;
+    panne = panne ?? lireErreurMoteur(evenement, donnees);
 
     if (evenement === "proposition") {
       const proposition = donnees as { genre: string; correction?: PropositionCorrection };
@@ -242,9 +245,10 @@ export async function corrigerReponse(
   const erreur =
     correctionRecue !== null
       ? null
-      : outilsActifs
-        ? "Le tuteur n'a produit aucune correction exploitable."
-        : messageSansOutils("la correction assistée");
+      : (panne ??
+        (outilsActifs
+          ? "Le tuteur n'a produit aucune correction exploitable."
+          : messageSansOutils("la correction assistée")));
 
   return { correction: correctionRecue, outilsActifs, erreur };
 }

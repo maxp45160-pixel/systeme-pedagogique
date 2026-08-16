@@ -26,7 +26,7 @@ import type { Referentiel, Skill } from "@/lib/domain/types";
 import { LIBELLES_DIMENSIONS } from "@/lib/domain/types";
 import type { Calibration } from "@/lib/engine/calibration";
 import type { MoteurTuteur } from "./moteurs";
-import { lireOutilsActifs, messageSansOutils } from "./moteurs";
+import { lireErreurMoteur, lireOutilsActifs, messageSansOutils } from "./moteurs";
 import { outilsTuteur } from "./outils";
 import type { PropositionExercice } from "./proposition";
 
@@ -178,12 +178,15 @@ export async function genererExercices(
   const evenements: { evenement: string; donnees: unknown }[] = [];
   const exercices: PropositionExercice[] = [];
   let outilsActifs = true;
+  /** La panne annoncée par le moteur — clé refusée, quota, modèle absent. */
+  let panne: string | null = null;
 
   const envoyer = (evenement: string, donnees: unknown) => {
     evenements.push({ evenement, donnees });
     diffuser?.(evenement, donnees);
     const actifs = lireOutilsActifs(evenement, donnees);
     if (actifs !== null) outilsActifs = actifs;
+    panne = panne ?? lireErreurMoteur(evenement, donnees);
     if (evenement === "proposition") {
       const proposition = donnees as { genre: string; exercice?: PropositionExercice };
       if (proposition.genre === "exercice" && proposition.exercice) {
@@ -232,9 +235,10 @@ export async function genererExercices(
   const erreur =
     exercices.length > 0
       ? null
-      : outilsActifs
-        ? "Aucun exercice exploitable n'a été produit."
-        : messageSansOutils("la génération d'exercices");
+      : (panne ??
+        (outilsActifs
+          ? "Aucun exercice exploitable n'a été produit."
+          : messageSansOutils("la génération d'exercices")));
 
   return { exercices, evenements, outilsActifs, erreur };
 }
