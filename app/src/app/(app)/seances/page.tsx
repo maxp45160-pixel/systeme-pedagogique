@@ -30,6 +30,7 @@ export default async function PageSeances(props: {
     q?: string;
     composer?: string;
     code?: string | string[];
+    theme?: string;
     intention?: string;
     temps?: string;
   }>;
@@ -50,6 +51,7 @@ export default async function PageSeances(props: {
       <Suspense fallback={<SqueletteContenu />}>
         <CompositeurDepuisLien
           codesParametres={recherche.code}
+          themeDemande={recherche.theme}
           intention={recherche.intention}
           temps={recherche.temps}
         />
@@ -72,15 +74,26 @@ export default async function PageSeances(props: {
 
 async function CompositeurDepuisLien({
   codesParametres,
+  themeDemande,
   intention,
   temps,
 }: {
   codesParametres?: string | string[];
+  themeDemande?: string;
   intention?: string;
   temps?: string;
 }) {
   const donnees = await chargerDonneesSeance();
-  const codesDemandes = (Array.isArray(codesParametres) ? codesParametres : codesParametres ? [codesParametres] : [])
+  /*
+   * Un thème demandé passe avant les codes : il porte une portée nommée, que
+   * `ConcepteurSeance` sait déjà préférer au reste (`themeDuThemeInitial`).
+   * Un identifiant inconnu ou archivé n'est pas une erreur — on retombe sur le
+   * chemin par codes plutôt que d'ouvrir un écran vide.
+   */
+  const themeInitial = themeDemande
+    ? donnees.themes.find((theme) => theme.id === themeDemande && !theme.archive)
+    : undefined;
+  const codesDemandes =(Array.isArray(codesParametres) ? codesParametres : codesParametres ? [codesParametres] : [])
     .filter((code, index, liste) => liste.indexOf(code) === index);
   const codesActifs = new Set(donnees.actifs.map((skill) => skill.code));
   const codesVises = codesDemandes.filter((code) => codesActifs.has(code));
@@ -94,7 +107,9 @@ async function CompositeurDepuisLien({
     const skill = donnees.actifs.find((candidate) => candidate.code === code);
     return skill ? [skill.domaine] : [];
   }))];
-  const preset: PresetSeance | undefined = codes.length > 0
+  // `themeDuPreset` prime sur `themeDuThemeInitial` dans le compositeur : un
+  // preset construit ici masquerait le thème demandé.
+  const preset: PresetSeance | undefined = !themeInitial && codes.length > 0
     ? {
         libelle: codes.length === 1 ? `Compétence : ${codes[0]}` : "Séance ciblée",
         codesVises: codes,
@@ -114,6 +129,7 @@ async function CompositeurDepuisLien({
         <ConcepteurSeance
           {...donnees}
           preset={preset}
+          themeInitial={themeInitial}
           contexteInitial={intention}
           ouvertParDefaut
           libelle="Ouvrir le compositeur"

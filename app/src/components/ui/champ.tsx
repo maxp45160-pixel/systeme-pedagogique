@@ -14,6 +14,20 @@ const TAILLES_CHAMP: Record<TailleChamp, string> = {
 };
 
 /*
+ * Un multiligne n'a pas de hauteur fixe.
+ *
+ * `h-9` écrasait `rows` : un `<textarea rows={6}>` s'affichait sur une ligne et
+ * demie, et le texte long — le brief d'un projet, typiquement — devenait
+ * illisible dans une fente. Les appelants qui l'avaient remarqué compensaient
+ * un par un avec `className="min-h-32"` ; ceux qui ne l'avaient pas remarqué
+ * gardaient la fente. La hauteur revient donc à `rows`, qui est faite pour ça.
+ */
+const TAILLES_CHAMP_MULTILIGNE: Record<TailleChamp, string> = {
+  normale: "px-2.5 py-2 text-sm",
+  compacte: "px-1.5 py-1 text-xs",
+};
+
+/*
  * Bordure `--bordure-controle`, pas `--bordure` : c'est le jeton posé en
  * phase 1 précisément pour le contour d'un contrôle (WCAG 1.4.11, 3:1).
  * Aucune classe `focus:` — la règle globale `:focus-visible` de globals.css
@@ -25,12 +39,16 @@ const TAILLES_CHAMP: Record<TailleChamp, string> = {
  * représente pas : mêmes classes, chrome de label/erreur retapé à la main
  * plutôt que dupliqué en chaîne.
  */
-export function classesChamp(taille: TailleChamp, enErreur: boolean): string {
+export function classesChamp(
+  taille: TailleChamp,
+  enErreur: boolean,
+  multiligne = false,
+): string {
   return cx(
     "w-full rounded-md border bg-surface text-texte placeholder:text-texte-discret transition-colors",
     "disabled:pointer-events-none disabled:opacity-50",
     enErreur ? "border-danger" : "border-bordure-controle",
-    TAILLES_CHAMP[taille],
+    (multiligne ? TAILLES_CHAMP_MULTILIGNE : TAILLES_CHAMP)[taille],
   );
 }
 
@@ -136,7 +154,7 @@ export function Champ(props: ProprietesChampInput | ProprietesChampTextarea) {
   const erreurId = `${idFinal}-erreur`;
   const decrivantPar = cx(aide && !erreur && aideId, erreur && erreurId) || undefined;
 
-  const classes = cx(classesChamp(taille, Boolean(erreur)), className);
+  const classes = cx(classesChamp(taille, Boolean(erreur), Boolean(multiligne)), className);
 
   return (
     <div>

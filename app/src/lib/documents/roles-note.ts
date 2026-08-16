@@ -22,16 +22,15 @@ export interface FormatNote {
   libelle: string;
 }
 
-/**
- * Formats opérationnels actuellement exposés dans le parcours principal.
+/*
+ * Il n'y a plus de liste de « formats opérationnels disponibles ».
  *
- * `projet` y est resté au travers du retrait de la boucle adaptative
- * (ADR-070) : ce qui a été supprimé est la machinerie d'`ActivityRun` qui le
- * portait, pas le geste. Un projet est désormais une note opérationnelle, au
- * même titre qu'une séance — même type documentaire, même espace de travail,
- * aucune table propre.
+ * Elle valait quand séance et projet étaient deux formats du même document. Une
+ * séance ne produit plus de note : elle va droit au compositeur, qui écrit une
+ * `LearningSession` (voir `ChoixTravail`). Le format `seance` reste déclaré
+ * ci-dessous parce que les fiches déjà écrites doivent continuer à s'ouvrir —
+ * il n'est simplement plus proposé nulle part.
  */
-export const FORMATS_OPERATIONNELS_DISPONIBLES = ["seance", "projet"] as const;
 
 /** Formats connus mais reportés dans l'interface principale. */
 export const FORMATS_OPERATIONNELS_A_VENIR: readonly FormatNote[] = [

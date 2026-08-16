@@ -215,3 +215,19 @@ export function urlComposition(codes: string[], intention: string): string {
   if (t) parametres.set("intention", t);
   return `/seances?${parametres.toString()}`;
 }
+
+/**
+ * La même destination, pour un thème déjà enregistré.
+ *
+ * On passe l'identifiant plutôt que la liste de codes : un thème est une
+ * **portée** (`{type: "theme"}`), pas une liste imposée (ADR-053). Recopier ses
+ * codes dans l'URL les transformerait en `codesImposes` et priverait le moteur
+ * du choix qu'il doit faire à l'intérieur du thème — et le `themeId` du besoin
+ * déclaré serait perdu.
+ */
+export function urlCompositionTheme(themeId: string, intention: string): string {
+  const parametres = new URLSearchParams({ composer: "1", theme: themeId });
+  const t = intention.trim();
+  if (t) parametres.set("intention", t);
+  return `/seances?${parametres.toString()}`;
+}
