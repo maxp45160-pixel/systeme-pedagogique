@@ -27,17 +27,21 @@ export async function lireReferentiel(
 ): Promise<Referentiel> {
   const { supabase, userId } = dorsaleFournie ?? (await dorsaleCompte());
 
-  const [domaines, competences] = await Promise.all([
+  const [domaines, competences, rattachements] = await Promise.all([
     mesurer("supabase:domaines", () => supabase.from("domaines").select("*").eq("user_id", userId)),
     mesurer("supabase:competences", () => supabase.from("competences").select("*").eq("user_id", userId)),
+    mesurer("supabase:competence_domaines", () =>
+      supabase.from("competence_domaines").select("code,domaine").eq("user_id", userId)),
   ]);
 
   verifier("lecture des domaines", domaines.error);
   verifier("lecture des compétences", competences.error);
+  verifier("lecture des rattachements de compétences", rattachements.error);
 
   return assemblerReferentiel(
     ((domaines.data ?? []) as Record<string, unknown>[]).map((l) => ligneVersEntite<Domaine>(l)),
     ((competences.data ?? []) as Record<string, unknown>[]).map((l) => ligneVersEntite<Skill>(l)),
+    (rattachements.data ?? []) as Array<{ code: string; domaine: string }>,
   );
 }
 

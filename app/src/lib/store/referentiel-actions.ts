@@ -90,6 +90,60 @@ export async function creerBranche(soumission: SoumissionBranche): Promise<Resul
   };
 }
 
+export interface ResultatRattachement {
+  domaineId: string;
+  rattachees: string[];
+  detachees: string[];
+}
+
+/**
+ * Rattache des compétences d'autres domaines à celui-ci, ou les en détache.
+ *
+ * Le domaine porteur ne bouge pas : il garde le code et la gouvernance. Ce
+ * geste ajoute une lecture — la compétence devient visible depuis ce domaine et
+ * compte dans sa couverture (ADR-081). Aucun code n'est créé, aucune preuve
+ * n'est dupliquée.
+ */
+export async function rattacherCompetences(
+  domaineId: string,
+  codes: string[],
+  rattache: boolean,
+): Promise<ResultatRattachement> {
+  const dorsale = await dorsaleCompte();
+  const referentiel = await lireReferentiel(dorsale);
+  const domaine = referentiel.domainesParId.get(domaineId);
+  if (!domaine) throw new Error(`Domaine inconnu : ${domaineId}`);
+
+  const demandes = [...new Set(codes)];
+  for (const code of demandes) {
+    const skill = referentiel.parCode.get(code);
+    if (!skill) throw new Error(`Compétence inconnue : ${code}`);
+    if (skill.domaine === domaineId) {
+      throw new Error(`${code} est déjà portée par ${domaine.nom} : un rattachement ne se superpose pas au porteur.`);
+    }
+  }
+
+  const { data, error } = await dorsale.supabase.rpc("rattacher_competences_domaine", {
+    p_request_id: nouvelIdCommande(),
+    p_expected_version: domaine.version ?? null,
+    p_origine: "utilisateur",
+    p_motif: rattache
+      ? `Rattachement de ${demandes.join(", ")} à ${domaine.nom}`
+      : `Détachement de ${demandes.join(", ")} de ${domaine.nom}`,
+    p_domaine_id: domaineId,
+    p_codes: demandes,
+    p_rattache: rattache,
+  });
+  verifier("rattachement de compétences", error);
+  revalidatePath("/", "layout");
+  const resultat = data as { domaineId: string; rattachees?: string[]; detachees?: string[] };
+  return {
+    domaineId: resultat.domaineId,
+    rattachees: resultat.rattachees ?? [],
+    detachees: resultat.detachees ?? [],
+  };
+}
+
 export interface ModificationCompetence {
   intitule?: string;
   palier?: Palier;

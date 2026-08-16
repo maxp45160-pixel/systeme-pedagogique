@@ -72,8 +72,35 @@ function comparerDomaines(a: Domaine, b: Domaine): number {
  *
  * Les quatre vues sont recalculées à chaque lecture et jamais stockées (P1).
  */
-export function assemblerReferentiel(domaines: Domaine[], skills: Skill[]): Referentiel {
-  const tries = [...skills].sort(comparerSkills);
+export function assemblerReferentiel(
+  domaines: Domaine[],
+  skills: Skill[],
+  /**
+   * Rattachements lus dans `competence_domaines`. Absents, chaque compétence ne
+   * sert que son domaine porteur — c'est l'état de tout compte qui n'a jamais
+   * rattaché quoi que ce soit, et le comportement d'avant ADR-081.
+   */
+  rattachements: Array<{ code: string; domaine: string }> = [],
+): Referentiel {
+  const secondairesParCode = new Map<string, string[]>();
+  const domainesConnus = new Set(domaines.map(({ id }) => id));
+  for (const { code, domaine } of rattachements) {
+    // Un rattachement vers un domaine disparu ne se répare pas en silence : on
+    // l'ignore, comme les prérequis inconnus, plutôt que d'inventer un domaine.
+    if (!domainesConnus.has(domaine)) continue;
+    const deja = secondairesParCode.get(code) ?? [];
+    if (!deja.includes(domaine)) deja.push(domaine);
+    secondairesParCode.set(code, deja);
+  }
+
+  const tries = [...skills]
+    .map((skill) => ({
+      ...skill,
+      domainesSecondaires: (secondairesParCode.get(skill.code) ?? []).filter(
+        (domaine) => domaine !== skill.domaine,
+      ),
+    }))
+    .sort(comparerSkills);
   // Le périmètre de travail : ni archivée, ni désactivée. Les deux drapeaux
   // sont distincts — désactiver est réversible d'un clic, archiver acte qu'une
   // compétence porte des preuves et ne peut plus être supprimée (ADR-027).
