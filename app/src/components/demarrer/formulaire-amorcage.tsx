@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { modifierProfil } from "@/lib/store/referentiel-actions";
 import { BandeauInfo, Bouton, cx } from "@/components/ui/primitives";
@@ -103,7 +103,19 @@ export function FormulaireAmorcage({
     "Pratique & Code d'abord",
     "Cas concrets métier",
   ]);
-  const [cleConfiguree, setCleConfiguree] = useState(() => Boolean(lireConfigTuteur(compteId)));
+  // La lecture de la clé ne se fait pas à l'initialisation : pendant le SSR,
+  // `lireConfigTuteur` retourne toujours `null` (pas de `window`), et lire le
+  // `localStorage` au premier rendu client produirait un mismatch d'hydratation
+  // si une clé existe. On part sur `false` (l'état du serveur) et on synchronise
+  // après montage.
+  const [cleConfiguree, setCleConfiguree] = useState(false);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      setCleConfiguree(Boolean(lireConfigTuteur(compteId)));
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [compteId]);
   const [panneauCleOuvert, setPanneauCleOuvert] = useState(false);
 
   const sujetValide = sujet.trim().length > 2;
