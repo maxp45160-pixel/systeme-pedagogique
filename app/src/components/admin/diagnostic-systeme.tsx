@@ -95,9 +95,9 @@ export function DiagnosticSystemeView({ diagnostic }: { diagnostic: DiagnosticSy
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Fournisseurs IA configurés */}
         <div className="rounded-xl border border-bordure bg-surface p-6 shadow-sm">
-          <h3 className="text-base font-semibold text-texte">Fournisseurs d'Intelligence Artificielle</h3>
+          <h3 className="text-base font-semibold text-texte">Fournisseurs d&apos;Intelligence Artificielle</h3>
           <p className="mt-1 text-xs text-texte-discret">
-            Détection de la présence des clés d'API serveur (sans exposition des valeurs secrètes).
+            Détection de la présence des clés d&apos;API serveur (sans exposition des valeurs secrètes).
           </p>
 
           <div className="mt-4 divide-y divide-bordure/60">
@@ -191,7 +191,7 @@ export function DiagnosticSystemeView({ diagnostic }: { diagnostic: DiagnosticSy
         <div className="rounded-xl border border-bordure bg-surface p-6 shadow-sm">
           <h3 className="text-base font-semibold text-texte">Garde-fous & Invariants Système</h3>
           <p className="mt-1 text-xs text-texte-discret">
-            Vérification des protections d'autorisation et d'isolation des données.
+            Vérification des protections d&apos;autorisation et d&apos;isolation des données.
           </p>
 
           <div className="mt-4 space-y-3">
@@ -214,7 +214,7 @@ export function DiagnosticSystemeView({ diagnostic }: { diagnostic: DiagnosticSy
               <div>
                 <div className="text-sm font-medium text-texte">Protection des Pairs Administrateurs</div>
                 <div className="text-xs text-texte-discret">
-                  Interdiction formelle de rétrogradation et suspension d'un admin par un autre admin.
+                  Interdiction formelle de rétrogradation et suspension d&apos;un admin par un autre admin.
                 </div>
               </div>
             </div>
@@ -226,7 +226,7 @@ export function DiagnosticSystemeView({ diagnostic }: { diagnostic: DiagnosticSy
               <div>
                 <div className="text-sm font-medium text-texte">Principe P8 — Confidentialité Stricte</div>
                 <div className="text-xs text-texte-discret">
-                  Zéro lecture de contenus d'exercices, notes ou conversations d'autrui dans le panel admin.
+                  Zéro lecture de contenus d&apos;exercices, notes ou conversations d&apos;autrui dans le panel admin.
                 </div>
               </div>
             </div>
@@ -244,7 +244,7 @@ export function DiagnosticSystemeView({ diagnostic }: { diagnostic: DiagnosticSy
               <div>
                 <div className="text-sm font-medium text-texte">Isolation des Clés Secrètes</div>
                 <div className="text-xs text-texte-discret">
-                  Aucune clé `service_role` ni clé d'API privée n'est exposée au client (`NEXT_PUBLIC_`).
+                  Aucune clé `service_role` ni clé d&apos;API privée n&apos;est exposée au client (`NEXT_PUBLIC_`).
                 </div>
               </div>
             </div>

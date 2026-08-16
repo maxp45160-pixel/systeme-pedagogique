@@ -274,7 +274,7 @@ export function ValidationBranche({
               {/* Sélection du Palier */}
               <div>
                 <label className="block text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret mb-1.5">
-                  Palier d'apprentissage
+                  Palier d&apos;apprentissage
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   {PALIERS.map((p) => {
@@ -304,7 +304,7 @@ export function ValidationBranche({
               {/* Sélection de l'Importance */}
               <div>
                 <label className="block text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret mb-1.5">
-                  Niveau d'importance
+                  Niveau d&apos;importance
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   {IMPORTANCES.map((imp) => {

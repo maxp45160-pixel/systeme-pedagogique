@@ -2,7 +2,7 @@
 
 import { useState, useTransition, type ChangeEvent, type DragEvent } from "react";
 import { useRouter } from "next/navigation";
-import { IconeFleche } from "@/components/ui/icones";
+import { IconeArticle, IconeCours, IconeFleche, IconeNote } from "@/components/ui/icones";
 import { Modale } from "@/components/ui/modale";
 import { Bouton, Carte, cx } from "@/components/ui/primitives";
 import { creerNoteAction } from "@/lib/store/document-actions";
@@ -103,53 +103,68 @@ export function CaptureNotes({
   return (
     <>
       <Carte className="overflow-hidden">
-        <div className="px-5 py-4 sm:px-6">
-          <p className="text-sm font-medium">Renseigner une donnée</p>
-          <p className="mt-1 text-xs leading-relaxed text-texte-attenue">
-            Deux pistes documentaires recommandées, ou une autre donnée si tu préfères.
-          </p>
-          <div className="mt-4 grid gap-2">
+        <div className="p-4 sm:p-5">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-semibold tracking-tight text-texte">Renseigner une donnée</h3>
+              <p className="text-xs text-texte-attenue mt-0.5">Enrichir le corpus documentaire & notes de support</p>
+            </div>
+          </div>
+
+          <div className="mt-3.5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
             {recommandations.slice(0, 2).map((recommandation, index) => (
               <button
                 key={recommandation.id}
                 type="button"
                 onClick={() => ouvrir(recommandation.id)}
-                className="group rounded-xl border border-bordure bg-surface-2 p-3 text-left transition-colors hover:border-primaire/35 hover:bg-primaire-faible/35"
+                className="group flex flex-col justify-between rounded-xl border border-bordure bg-surface-2 p-3.5 text-left transition-all hover:border-primaire/40 hover:bg-primaire-faible/25"
               >
-                <span className="flex items-center justify-between gap-3">
-                  <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-primaire">
-                    Piste {index + 1}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-2 text-xs font-semibold text-texte group-hover:text-primaire min-w-0">
+                    <span className="flex size-6 items-center justify-center rounded-md bg-primaire-faible text-primaire shrink-0">
+                      {recommandation.format === "article" ? (
+                        <IconeArticle className="size-3.5" />
+                      ) : (
+                        <IconeCours className="size-3.5" />
+                      )}
+                    </span>
+                    <span className="truncate">{recommandation.intitule}</span>
                   </span>
-                  <IconeFleche className="size-3.5 text-texte-discret group-hover:text-primaire" />
-                </span>
-                <span className="mt-2 block text-sm font-semibold">{recommandation.intitule}</span>
-                <span className="mt-1 block text-xs text-texte-discret">
-                  {recommandation.description}
-                </span>
-                <span className="mt-1 block text-xs text-texte-discret">
-                  {recommandation.formatLibelle} · {recommandation.raison}
-                </span>
+                  <IconeFleche className="size-3 text-texte-discret transition-transform group-hover:translate-x-0.5 group-hover:text-primaire shrink-0" />
+                </div>
+                <p className="mt-2 text-xs text-texte-discret line-clamp-2">
+                  Piste {index + 1} · {recommandation.description}
+                </p>
               </button>
             ))}
+
             {recommandations.length === 0 && (
-              <p className="rounded-lg border border-bordure px-3 py-2 text-xs text-texte-discret">
-                Aucune piste disponible pour le moment.
-              </p>
+              <div className="rounded-xl border border-bordure bg-surface-2 p-3.5 text-xs text-texte-discret">
+                Corpus documentaire à jour.
+              </div>
             )}
+
             <button
               type="button"
               onClick={() => ouvrir("autre")}
-              className="group flex w-full items-center justify-between rounded-xl border border-dashed border-bordure-contraste bg-surface p-3 text-left transition-colors hover:border-primaire/35 hover:bg-primaire-faible/35"
+              className={cx(
+                "group flex items-center justify-between rounded-xl border border-dashed border-bordure-contraste bg-surface p-3.5 text-left transition-all hover:border-primaire/40 hover:bg-primaire-faible/25",
+                recommandations.length < 2 && "col-span-1 sm:col-span-2",
+              )}
             >
-              <span>
-                <span className="block text-sm font-semibold">Autre donnée</span>
-                <span className="mt-1 block text-xs text-texte-discret">Décris ce que tu veux ajouter.</span>
+              <span className="flex items-center gap-2 text-xs font-semibold text-texte group-hover:text-primaire">
+                <span className="flex size-6 items-center justify-center rounded-md bg-surface-2 text-texte-discret group-hover:text-primaire shrink-0">
+                  <IconeNote className="size-3.5" />
+                </span>
+                Autre note ou document support
               </span>
-              <IconeFleche className="size-3.5 text-texte-discret group-hover:text-primaire" />
+              <IconeFleche className="size-3 text-texte-discret transition-transform group-hover:translate-x-0.5 group-hover:text-primaire shrink-0" />
             </button>
           </div>
         </div>
       </Carte>
+
+
 
       {ouverte && (
         <Modale

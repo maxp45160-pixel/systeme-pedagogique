@@ -146,8 +146,8 @@ export function CockpitAdmin({
             <div className="mb-6">
               <h2 className="text-lg font-serif tracking-tight text-texte">Console de Profilage</h2>
               <p className="mt-1 text-xs text-texte-discret">
-                Mesure les temps d'exécution des lectures base de données, du moteur pédagogique et
-                des rendus client. Vous pouvez activer l'enregistrement ici, naviguer librement sur
+                Mesure les temps d&apos;exécution des lectures base de données, du moteur pédagogique et
+                des rendus client. Vous pouvez activer l&apos;enregistrement ici, naviguer librement sur
                 le site (la pastille flottante confirme la capture), puis revenir analyser les résultats.
               </p>
             </div>

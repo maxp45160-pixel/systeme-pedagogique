@@ -72,7 +72,7 @@ export function FeedbackRecommandation({
     return (
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs text-texte-attenue">
-          {note === "pertinent" ? "👍 Pertinent" : "👎 Non pertinent"} — pourquoi ?
+          {note === "pertinent" ? "Pertinent" : "Non pertinent"} — pourquoi ?
         </span>
         <input
           type="text"
@@ -95,24 +95,22 @@ export function FeedbackRecommandation({
   }
 
   return (
-    <div className="flex items-center gap-1.5">
-      <span className="text-xs text-texte-discret">Cette suggestion était-elle pertinente ?</span>
+    <div className="flex items-center gap-1.5 text-xs text-texte-discret">
+      <span>Suggestion pertinente ?</span>
       <button
         type="button"
         onClick={() => enregistrer("pertinent")}
-        className="rounded-md border border-bordure px-2 py-0.5 text-xs transition-colors hover:bg-surface-2"
-        title="Pertinent"
+        className="rounded-md border border-bordure px-2 py-0.5 text-xs transition-colors hover:border-primaire/40 hover:text-texte hover:bg-surface-2"
       >
-        👍
+        Oui
       </button>
       <button
         type="button"
         onClick={() => enregistrer("non-pertinent")}
-        className="rounded-md border border-bordure px-2 py-0.5 text-xs transition-colors hover:bg-surface-2"
-        title="Non pertinent"
+        className="rounded-md border border-bordure px-2 py-0.5 text-xs transition-colors hover:border-alerte/40 hover:text-texte hover:bg-surface-2"
       >
-        👎
+        Non
       </button>
     </div>
   );
-}
+}

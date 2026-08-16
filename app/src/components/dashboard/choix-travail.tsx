@@ -28,7 +28,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ParcoursNouveauProjet } from "@/components/projets/modale-nouveau-projet";
-import { IconeFleche } from "@/components/ui/icones";
+import { IconeExercices, IconeFleche, IconeProjet } from "@/components/ui/icones";
 import { Carte } from "@/components/ui/primitives";
 
 /** Entrée dédiée au travail : les notes support restent dans `CaptureNotes`. */
@@ -39,39 +39,51 @@ export function ChoixTravail({ compteId }: { compteId: string }) {
   return (
     <>
       <Carte className="overflow-hidden">
-        <div className="px-5 py-4 sm:px-6">
-          <p className="text-sm font-medium">Choisir un travail</p>
-          <p className="mt-1 text-xs leading-relaxed text-texte-attenue">
-            Une séance pour t&apos;entraîner, un projet pour produire.
-          </p>
-          <div className="mt-4 grid gap-2">
+        <div className="p-4 sm:p-5">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-semibold tracking-tight text-texte">Choisir un travail</h3>
+              <p className="text-xs text-texte-attenue mt-0.5">Entraînement ponctuel ou production de projet</p>
+            </div>
+          </div>
+
+          <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
             <button
               type="button"
               onClick={() => router.push("/seances?composer=1")}
-              className="group rounded-xl border border-bordure bg-surface-2 p-3 text-left transition-colors hover:border-primaire/35 hover:bg-primaire-faible/35"
+              className="group flex flex-col justify-between rounded-xl border border-bordure bg-surface-2 p-3.5 text-left transition-all hover:border-primaire/40 hover:bg-primaire-faible/25"
             >
-              <span className="flex items-center justify-between gap-3">
-                <span className="text-sm font-semibold">Créer une séance</span>
-                <IconeFleche className="size-3.5 text-texte-discret group-hover:text-primaire" />
-              </span>
-              <span className="mt-1 block text-xs text-texte-discret">
-                Le compositeur propose un sujet et un nombre d&apos;exercices — tout reste
-                modifiable.
-              </span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex items-center gap-2 text-xs font-semibold text-texte group-hover:text-primaire">
+                  <span className="flex size-6 items-center justify-center rounded-md bg-primaire-faible text-primaire shrink-0">
+                    <IconeExercices className="size-3.5" />
+                  </span>
+                  Créer une séance
+                </span>
+                <IconeFleche className="size-3 text-texte-discret transition-transform group-hover:translate-x-0.5 group-hover:text-primaire shrink-0" />
+              </div>
+              <p className="mt-2 text-xs text-texte-discret line-clamp-2">
+                Compositeur adaptatif : sujet libre, ciblé ou transversal.
+              </p>
             </button>
+
             <button
               type="button"
               onClick={() => setProjetOuvert(true)}
-              className="group rounded-xl border border-bordure bg-surface-2 p-3 text-left transition-colors hover:border-primaire/35 hover:bg-primaire-faible/35"
+              className="group flex flex-col justify-between rounded-xl border border-bordure bg-surface-2 p-3.5 text-left transition-all hover:border-primaire/40 hover:bg-primaire-faible/25"
             >
-              <span className="flex items-center justify-between gap-3">
-                <span className="text-sm font-semibold">Créer un projet</span>
-                <IconeFleche className="size-3.5 text-texte-discret group-hover:text-primaire" />
-              </span>
-              <span className="mt-1 block text-xs text-texte-discret">
-                Décris ce que tu veux produire : le parcours désigne les compétences
-                mobilisées, tu confirmes.
-              </span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex items-center gap-2 text-xs font-semibold text-texte group-hover:text-primaire">
+                  <span className="flex size-6 items-center justify-center rounded-md bg-primaire-faible text-primaire shrink-0">
+                    <IconeProjet className="size-3.5" />
+                  </span>
+                  Créer un projet
+                </span>
+                <IconeFleche className="size-3 text-texte-discret transition-transform group-hover:translate-x-0.5 group-hover:text-primaire shrink-0" />
+              </div>
+              <p className="mt-2 text-xs text-texte-discret line-clamp-2">
+                Parcours de production guidé & compétences mobilisées.
+              </p>
             </button>
           </div>
         </div>
@@ -86,3 +98,5 @@ export function ChoixTravail({ compteId }: { compteId: string }) {
     </>
   );
 }
+
+
