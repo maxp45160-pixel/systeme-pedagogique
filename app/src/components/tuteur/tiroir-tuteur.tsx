@@ -22,30 +22,23 @@ import { useState } from "react";
 import { ChatTuteur, type EtatContexteTuteur } from "@/components/tuteur/chat";
 import { classesLienBouton, cx } from "@/components/ui/primitives";
 import { Modale } from "@/components/ui/modale";
+import { IconeMessage } from "@/components/ui/icones";
 import type {
   CalibrageModale,
   CompetenceModale,
 } from "@/components/exercices/proprietes-generation";
 
-/**
- * Bouton rond en bas à droite — le déclencheur global.
- *
- * ⚠️ `bottom-20` en dessous de `lg` (audit §1.5). `NavMobile` est
- * `fixed inset-x-0 bottom-0` et haute d'environ 46 px : à `bottom-6`, le bouton
- * se posait par-dessus et masquait une partie d'un des trois onglets. Le
- * composant de développement (`dev-todo.tsx`) contournait déjà ce conflit ; le
- * composant produit, non.
- *
- * `focus:outline-none` est conservé ici parce qu'un anneau de remplacement est
- * fourni juste après — c'est le seul cas du produit où la suppression est
- * compensée plutôt que subie.
- */
 const CLASSES_FLOTTANT = cx(
   "fixed bottom-20 right-4 z-40 flex size-12 items-center justify-center lg:bottom-6 lg:right-6",
   "rounded-full bg-primaire text-primaire-contraste shadow-lg",
   "transition-transform hover:scale-105 active:scale-95",
   "focus:outline-none focus:ring-2 focus:ring-primaire focus:ring-offset-2",
 );
+
+export interface ActionContextuelleTuteur {
+  libelle: string;
+  amorce: string;
+}
 
 export function TiroirTuteur({
   etatInitial,
@@ -59,6 +52,7 @@ export function TiroirTuteur({
   calibragesModale,
   libelle = "Demander de l'aide au tuteur",
   declencheur = "bouton",
+  actionsContextuelles,
 }: {
   etatInitial: EtatContexteTuteur;
   competenceCiblee?: string;
@@ -77,30 +71,65 @@ export function TiroirTuteur({
   competencesModale: CompetenceModale[];
   calibragesModale: Record<string, CalibrageModale>;
   libelle?: string;
-  /** `flottant` : bouton rond global. `bouton` : bouton en ligne, dans la page. */
-  declencheur?: "bouton" | "flottant";
+  /** `flottant` : bouton rond global. `bouton` : bouton en ligne. `barre-contextuelle` : actions directes. */
+  declencheur?: "bouton" | "flottant" | "barre-contextuelle";
+  /** Liste d'actions prédéfinies à afficher en barre contextuelle. */
+  actionsContextuelles?: ActionContextuelleTuteur[];
 }) {
   const [ouvert, setOuvert] = useState(false);
+  const [amorceCourante, setAmorceCourante] = useState<string | undefined>(amorce);
   const flottant = declencheur === "flottant";
+  const barre = declencheur === "barre-contextuelle";
+
+  function ouvrirAvecAmorce(texteAmorce?: string) {
+    setAmorceCourante(texteAmorce ?? amorce);
+    setOuvert(true);
+  }
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOuvert(true)}
-        aria-label={flottant ? libelle : undefined}
-        title={flottant ? libelle : undefined}
-        data-tour={flottant ? "tuteur-flottant" : undefined}
-        className={flottant ? CLASSES_FLOTTANT : classesLienBouton("secondaire", "petite")}
-      >
-        {flottant ? (
-          <span className="text-lg font-bold" aria-hidden>
-            💬
+      {barre ? (
+        <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-bordure/60">
+          <span className="text-[0.6875rem] font-medium text-texte-attenue mr-0.5">
+            Aide du Tuteur :
           </span>
-        ) : (
-          libelle
-        )}
-      </button>
+          {actionsContextuelles && actionsContextuelles.length > 0 ? (
+            actionsContextuelles.map((act, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => ouvrirAvecAmorce(act.amorce)}
+                className="inline-flex items-center gap-1 rounded-md border border-bordure bg-surface px-2 py-1 text-[0.6875rem] text-texte-attenue transition-colors hover:border-primaire/40 hover:bg-primaire-faible hover:text-primaire"
+              >
+                <span>{act.libelle}</span>
+              </button>
+            ))
+          ) : (
+            <button
+              type="button"
+              onClick={() => ouvrirAvecAmorce(amorce)}
+              className={classesLienBouton("secondaire", "petite")}
+            >
+              {libelle}
+            </button>
+          )}
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => ouvrirAvecAmorce(amorce)}
+          aria-label={flottant ? libelle : undefined}
+          title={flottant ? libelle : undefined}
+          data-tour={flottant ? "tuteur-flottant" : undefined}
+          className={flottant ? CLASSES_FLOTTANT : classesLienBouton("secondaire", "petite")}
+        >
+          {flottant ? (
+            <IconeMessage className="size-5" />
+          ) : (
+            libelle
+          )}
+        </button>
+      )}
 
       {ouvert && (
         /*
@@ -133,7 +162,7 @@ export function TiroirTuteur({
                 key={exerciceCible ?? "general"}
                 etatInitial={etatInitial}
                 competenceCiblee={competenceCiblee}
-                amorce={amorce}
+                amorce={amorceCourante ?? amorce}
                 exerciceCible={exerciceCible}
                 codesCompetences={codesCompetences}
                 compteId={compteId}
@@ -148,3 +177,4 @@ export function TiroirTuteur({
     </>
   );
 }
+

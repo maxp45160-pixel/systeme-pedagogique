@@ -338,6 +338,13 @@ const ChatInput = memo(function ChatInput({
   const [saisie, setSaisie] = useState(saisieInitiale);
   const champRef = useRef<HTMLTextAreaElement>(null);
 
+  useEffect(() => {
+    if (saisieInitiale) {
+      setSaisie(saisieInitiale);
+      champRef.current?.focus();
+    }
+  }, [saisieInitiale]);
+
   return (
     <div className="border-t border-bordure px-3 py-3">
       <div className="mb-2 flex flex-wrap gap-1">

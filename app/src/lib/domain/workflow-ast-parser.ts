@@ -841,56 +841,59 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
       );
     }
 
-    // 5.3. Tuteur IA & Paliers d'indices
-    const estComposantTuteur =
-      relatif.startsWith("components/tuteur/") ||
-      relatif.includes("bilan-assiste") ||
-      relatif.includes("formulaire-bilan") ||
-      relatif.includes("bilan-redige") ||
-      contenu.includes("<ChatTuteur") ||
-      contenu.includes("<TiroirTuteur");
-
-    if (estComposantTuteur) {
+    // 5.3. Modes rapides & Déclencheurs contextuels du Tuteur IA (Hub central chat.tsx / vue-exercice.tsx)
+    if (relatif.endsWith("chat.tsx")) {
       microInteractions.push(
         {
-          id: `micro:${slugFichier}-tuteur-p1`,
+          id: `micro:${slugFichier}-mode-indice`,
           type: "tuteur",
-          libelle: "Indice Palier 1 (Maïeutique)",
-          declencheur: "Question d'orientation sans révélation",
+          libelle: "Demande d'indice de démarche",
+          declencheur: "Clic mode 'Donne-moi un indice'",
           fichier: relatif,
-          badge: "Palier 1/3",
+          badge: "Indice",
         },
         {
-          id: `micro:${slugFichier}-tuteur-p2`,
+          id: `micro:${slugFichier}-mode-corrige`,
           type: "tuteur",
-          libelle: "Indice Palier 2 (Méthode)",
-          declencheur: "Rappel théorique & démarche",
+          libelle: "Correction de raisonnement",
+          declencheur: "Clic mode 'Corrige mon raisonnement'",
           fichier: relatif,
-          badge: "Palier 2/3",
+          badge: "Correction",
         },
         {
-          id: `micro:${slugFichier}-tuteur-p3`,
+          id: `micro:${slugFichier}-mode-explique`,
           type: "tuteur",
-          libelle: "Indice Palier 3 (Amorce)",
-          declencheur: "Amorce guidée du premier calcul",
+          libelle: "Explication de concept",
+          declencheur: "Clic mode 'Explique-moi'",
           fichier: relatif,
-          badge: "Palier 3/3",
+          badge: "Concept",
         },
         {
-          id: `micro:${slugFichier}-tuteur-ton`,
+          id: `micro:${slugFichier}-mode-lacunes`,
           type: "tuteur",
-          libelle: "Ajustement du ton pédagogique",
-          declencheur: "Sélection socratique / directif / bienveillant",
+          libelle: "Bilan des lacunes ciblées",
+          declencheur: "Clic mode 'Fais le point sur mes lacunes'",
           fichier: relatif,
-          badge: "Posture",
+          badge: "Diagnostic",
+        },
+      );
+    } else if (relatif.endsWith("vue-exercice.tsx")) {
+      microInteractions.push(
+        {
+          id: `micro:${slugFichier}-aide-contextuelle-indice`,
+          type: "tuteur",
+          libelle: "Demander un indice de résolution",
+          declencheur: "Clic 'Besoin d'un indice ?'",
+          fichier: relatif,
+          badge: "Indice",
         },
         {
-          id: `micro:${slugFichier}-tuteur-feedback`,
+          id: `micro:${slugFichier}-aide-contextuelle-consigne`,
           type: "tuteur",
-          libelle: "Vote d'utilité de l'explication",
-          declencheur: "Feedback sur la clarté du tuteur",
+          libelle: "Clarification de consigne",
+          declencheur: "Clic 'Comprendre la consigne'",
           fichier: relatif,
-          badge: "Feedback",
+          badge: "Consigne",
         },
       );
     }

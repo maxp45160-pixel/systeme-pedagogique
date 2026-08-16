@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { amorceExercice } from "./amorces";
+import {
+  amorceConsigne,
+  amorceExercice,
+  amorceIndice,
+  amorceMethode,
+  amorceVerification,
+} from "./amorces";
 
 /*
  * L'amorce ne donne aucun pouvoir nouveau au tuteur : elle recopie ce que
@@ -30,3 +36,33 @@ describe("amorceExercice", () => {
     expect(a).toContain("Application");
   });
 });
+
+describe("amorces d'aide contextuelle pour la résolution", () => {
+  it("génère une amorce d'indice sans révélation de solution", () => {
+    const a = amorceIndice("DEV-01");
+    expect(a).toContain("DEV-01");
+    expect(a).toContain("sans me donner la solution");
+
+    const aSansCode = amorceIndice();
+    expect(aSansCode).toContain("sans me donner la solution");
+  });
+
+  it("génère une amorce d'explication de consigne", () => {
+    const a = amorceConsigne("MATH-03");
+    expect(a).toContain("MATH-03");
+    expect(a).toContain("avec d'autres mots");
+  });
+
+  it("génère une amorce de rappel méthodologique", () => {
+    const a = amorceMethode("SYS-02");
+    expect(a).toContain("SYS-02");
+    expect(a).toContain("démarche type");
+  });
+
+  it("génère une amorce de vérification de démarche", () => {
+    const a = amorceVerification("DEV-05");
+    expect(a).toContain("DEV-05");
+    expect(a).toContain("bonne voie");
+  });
+});
+

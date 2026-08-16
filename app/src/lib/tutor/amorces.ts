@@ -36,3 +36,32 @@ function precisions(calibrage: CalibrageAmorce): string {
 export function amorceExercice(code: string, calibrage: CalibrageAmorce = {}): string {
   return `Propose-moi un exercice sur ${code}${precisions(calibrage)}.`;
 }
+
+/** Demande d'indice léger / démarche socratique pour l'exercice ouvert. */
+export function amorceIndice(codeCompetence?: string): string {
+  return codeCompetence
+    ? `Peux-tu me donner un premier indice de démarche ou une question d'orientation pour cet exercice sur ${codeCompetence}, sans me donner la solution ?`
+    : "Peux-tu me donner un premier indice de démarche ou une question d'orientation pour cet exercice, sans me donner la solution ?";
+}
+
+/** Demande d'explication de la consigne avec d'autres mots. */
+export function amorceConsigne(codeCompetence?: string): string {
+  return codeCompetence
+    ? `Peux-tu m'expliquer la consigne et l'objectif de cet exercice sur ${codeCompetence} avec d'autres mots sans me donner la solution ?`
+    : "Peux-tu m'expliquer la consigne et l'objectif de cet exercice avec d'autres mots sans me donner la solution ?";
+}
+
+/** Rappel des notions clés et de la méthode requise. */
+export function amorceMethode(codeCompetence?: string): string {
+  return codeCompetence
+    ? `Peux-tu me rappeler les notions théoriques clés et la démarche type pour aborder ${codeCompetence} ?`
+    : "Peux-tu me rappeler les notions théoriques clés et la démarche type pour aborder cet exercice ?";
+}
+
+/** Vérification du début de raisonnement sans dévoiler la solution. */
+export function amorceVerification(codeCompetence?: string): string {
+  return codeCompetence
+    ? `Voici mon début de raisonnement sur ${codeCompetence}, peux-tu me dire si je suis sur la bonne voie sans me donner la réponse ?\n\n`
+    : "Voici mon début de raisonnement, peux-tu me dire si je suis sur la bonne voie sans me donner la réponse ?\n\n";
+}
+

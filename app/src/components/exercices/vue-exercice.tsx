@@ -28,7 +28,12 @@ import { formatDateCourte, formatDuree } from "@/lib/engine/dates";
 import { CarteImpact, LienApresImpact } from "@/components/exercices/carte-impact";
 import { impactTentative } from "@/lib/engine/impact";
 import { tentativeMenee } from "@/lib/engine/calibration";
-import { amorceExercice } from "@/lib/tutor/amorces";
+import {
+  amorceConsigne,
+  amorceExercice,
+  amorceIndice,
+  amorceMethode,
+} from "@/lib/tutor/amorces";
 import { construireEtatInitialTuteur } from "@/lib/tutor/etat-initial";
 import { TiroirTuteur } from "@/components/tuteur/tiroir-tuteur";
 import {
@@ -413,26 +418,42 @@ export async function VueExercice(props: {
                   compteId={ctx.donnees.user.id}
                 />
                 {/*
-                  Le lien porte l'identifiant de l'exercice : le tuteur reçoit
-                  l&apos;énoncé et le brouillon
-                  enregistré. Il n'y a plus rien à recoller à la main — et il ne
-                  reçoit toujours PAS la correction.
+                  Le tiroir porte l'identifiant de l'exercice : le tuteur reçoit
+                  l'énoncé et le brouillon enregistré. Les déclencheurs contextuels
+                  pré-remplissent la question sans révéler la solution.
                 */}
-                {!props.integree && etatInitialTuteur && <p className="mt-3 text-xs text-texte-attenue">
-                  Bloqué ?{" "}
-                  <TiroirTuteur
-                    etatInitial={etatInitialTuteur}
-                    exerciceCible={exercice.id}
-                    codesCompetences={codesCompetences}
-                    compteId={ctx.donnees.user.id}
-                    domainesExistants={domainesExistants}
-                    competencesModale={competencesPourModale(ctx.referentiel.actifs)}
-                    calibragesModale={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
-                    libelle="Demander de l'aide au tuteur sur cet exercice"
-                  />{" "}
-                  — il aura l&apos;énoncé et ton brouillon sous les yeux. Il t&apos;aidera à avancer
-                  sans faire l&apos;exercice à ta place.
-                </p>}
+                {etatInitialTuteur && (
+                  <div className="mt-3">
+                    <TiroirTuteur
+                      etatInitial={etatInitialTuteur}
+                      exerciceCible={exercice.id}
+                      codesCompetences={codesCompetences}
+                      compteId={ctx.donnees.user.id}
+                      domainesExistants={domainesExistants}
+                      competencesModale={competencesPourModale(ctx.referentiel.actifs)}
+                      calibragesModale={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
+                      declencheur="barre-contextuelle"
+                      actionsContextuelles={[
+                        {
+                          libelle: "Besoin d'un indice ?",
+                          amorce: amorceIndice(exercice.competences[0]),
+                        },
+                        {
+                          libelle: "Comprendre la consigne",
+                          amorce: amorceConsigne(exercice.competences[0]),
+                        },
+                        {
+                          libelle: "Rappel de méthode",
+                          amorce: amorceMethode(exercice.competences[0]),
+                        },
+                        {
+                          libelle: "Poser une question",
+                          amorce: "",
+                        },
+                      ]}
+                    />
+                  </div>
+                )}
               </div>
             </PanneauPliable>
 
