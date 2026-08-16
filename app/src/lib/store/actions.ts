@@ -29,7 +29,7 @@ import {
   dureeRetenue,
   motifRefusTerminerExercice,
 } from "@/lib/domain/tentative";
-import { seanceEnCoursPour } from "@/lib/domain/seance";
+import { seanceHoteDeLExercice } from "@/lib/domain/seance";
 import {
   urlExercice,
   type ContexteNavigationExercice,
@@ -70,15 +70,23 @@ import type {
  * journal comme dans le bandeau d'activité, et le défaut serait invisible
  * puisque les deux lignes seraient exactes prises séparément.
  *
- * La règle vit dans `seanceEnCoursPour` (pur, testé) : les trois appelants
+ * La règle vit dans `seanceHoteDeLExercice` (pur, testé) : les trois appelants
  * posent la même question, et une seule fonction y répond.
+ *
+ * ⚠️ `seanceIdContexte` est indispensable depuis que plusieurs séances peuvent
+ * être ouvertes en même temps (16/08/2026). Sans lui, un exercice présent dans
+ * deux séances ouvertes serait rattaché à la plus récente — un rattachement
+ * arbitraire, et invisible puisque les deux lignes de journal resteraient
+ * exactes prises séparément. Le workspace sait dans quelle séance il déroule ;
+ * il le dit plutôt qu'on ne le devine.
  */
 async function appartientAUneSeanceEnCours(
   exerciceId: string,
   dorsale: Awaited<ReturnType<typeof dorsaleCompte>>,
+  seanceIdContexte?: string,
 ): Promise<boolean> {
   const seances = await lire("sessions", dorsale);
-  return seanceEnCoursPour(exerciceId, seances) !== null;
+  return seanceHoteDeLExercice(exerciceId, seances, seanceIdContexte) !== null;
 }
 
 export async function demarrerTentative(exerciseId: string): Promise<void> {
@@ -248,7 +256,11 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
 
   // Lu une fois pour les deux branches de sortie : dans une séance, c'est la
   // séance qui tient le journal (ADR-048).
-  const dansUneSeance = await appartientAUneSeanceEnCours(exercice.id, dorsale);
+  const dansUneSeance = await appartientAUneSeanceEnCours(
+    exercice.id,
+    dorsale,
+    soumission.navigation?.seanceId,
+  );
 
   // La tentative renvoyée est celle qui vient d'être écrite : `indicesUtilises`
   // s'y lit sans relecture, et c'est lui qui détermine l'autonomie observée.
@@ -496,7 +508,7 @@ export async function abandonnerExercice(
     if (!tentative) throw new Error("Tentative introuvable");
 
     // Dans une séance, l'entrée de journal existe déjà : c'est la séance (ADR-048).
-    if (!(await appartientAUneSeanceEnCours(exercice.id, dorsale))) await ajouter(
+    if (!(await appartientAUneSeanceEnCours(exercice.id, dorsale, navigation?.seanceId))) await ajouter(
       "sessions",
       {
         id: nouvelId("ses"),

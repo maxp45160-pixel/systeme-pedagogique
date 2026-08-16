@@ -402,8 +402,13 @@ CREATE TABLE IF NOT EXISTS public.sessions (
   -- `besoin_declare` est un fait observé et daté, stocké verbatim, PAS une
   -- mesure : l'écart avec le réalisé est dérivé à la lecture et jamais agrégé
   -- en score (ADR-050).
+  -- `abandonnee` (16/08/2026) est le pendant, pour la séance, de ce que
+  -- `attempts.statut` porte déjà : une trace conservée, sans mesure. Elle
+  -- existe parce qu'une séance en cours n'avait qu'une seule sortie — la
+  -- terminer — et restait donc ouverte indéfiniment quand on ne voulait pas
+  -- la mener.
   statut                   TEXT
-    CHECK (statut IS NULL OR statut IN ('planifiee', 'en-cours', 'terminee')),
+    CHECK (statut IS NULL OR statut IN ('planifiee', 'en-cours', 'terminee', 'abandonnee')),
   planifiee_pour           TEXT,
   besoin_declare           JSONB,
   blueprint                JSONB,

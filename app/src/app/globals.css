@@ -108,6 +108,64 @@
 }
 
 @layer components {
+  /*
+    Une page du cahier.
+
+    Trois traits suffisent à faire une page, et aucun n'est gratuit :
+
+      1. la **réglure** — des lignes horizontales régulières, calées sur le
+         rythme vertical (26px, le même pas que la trame du fond) ;
+      2. le **filet de marge** — le trait vertical rouge d'un cahier d'école,
+         qui donne au bloc son bord gauche et justifie son retrait ;
+      3. l'**ombre posée** et le grain du papier — la page est au-dessus du
+         bureau, pas peinte dessus.
+
+    La réglure est un fond, jamais un contenu : elle ne gêne aucune sélection
+    de texte et disparaît à l'impression comme le reste des fonds.
+
+    ⚠️ `background-attachment: local` : sans lui, la réglure resterait fixe
+    pendant que le contenu défile à l'intérieur d'un bloc scrollable, et les
+    lignes glisseraient sous le texte.
+  */
+  .page-cahier {
+    position: relative;
+    background-color: var(--surface);
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 25px,
+      var(--reglure) 25px,
+      var(--reglure) 26px
+    );
+    background-attachment: local;
+    border: 1px solid var(--bordure);
+    border-radius: var(--coin-carte);
+    box-shadow: var(--ombre-posee);
+  }
+
+  /*
+    Le filet de marge, en pseudo-élément : il doit courir sur toute la hauteur
+    de la page quel qu'en soit le contenu, ce qu'une bordure gauche ne fait pas
+    quand le bloc porte déjà un cadre.
+  */
+  .page-cahier::before {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    left: 2.25rem;
+    width: 1px;
+    background: var(--marge);
+    opacity: 0.55;
+    pointer-events: none;
+  }
+
+  @media (max-width: 640px) {
+    /* Sur mobile, la marge mangerait la moitié de la ligne : on la retire. */
+    .page-cahier::before {
+      display: none;
+    }
+  }
+
   /* Prose sobre pour les énoncés et corrections d'exercices. */
   .prose-exo {
     line-height: 1.7;

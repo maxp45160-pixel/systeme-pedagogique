@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { Bouton, Carte, CodeCompetence, EnTeteCarte, EtatVide, Etiquette } from "@/components/ui/primitives";
 import { formatDateCourte, formatDuree, cleJour } from "@/lib/engine/dates";
-import { statutSeance, tentativeDeSeance } from "@/lib/domain/seance";
+import {
+  avancementSeance,
+  peutReprendreSeance,
+  statutSeance,
+  tentativeDeSeance,
+} from "@/lib/domain/seance";
 import type { Exercise, ExerciseAttempt, LearningSession } from "@/lib/domain/types";
 import {
   ConcepteurSeance,
@@ -14,6 +19,25 @@ import { ajouterNoteSession } from "@/lib/store/actions";
  * Cahier chronologique léger (ADR-061) — le remplaçant d'Historique + Journal.
  * Les traces détaillées restent repliées par exercice : le carnet se relit
  * comme un cahier, sans faire disparaître la réponse, le bilan ou le tuteur.
+ *
+ * ## Deux registres, et c'est le point (16/08/2026)
+ *
+ * Toutes les lignes de `sessions` ne sont pas des séances. `terminerExercice`
+ * en écrit une par exercice clos hors séance : au 16/08/2026, **45 des 51
+ * lignes** sont de celles-là. Le cahier les rendait exactement comme les autres
+ * — carte pleine, champ d'annotation, « Refaire la séance » — et les six vraies
+ * séances se noyaient dans quarante-cinq cartes identiques.
+ *
+ * Ce sont deux choses différentes, et `genereAutomatiquement` le dit déjà :
+ *
+ *  - une **séance** composée est une page du cahier : ce qu'on a voulu, ce qu'on
+ *    en a tiré, ce qu'on en note ;
+ *  - un **exercice fait hors séance** est une trace en marge : ce qui a été
+ *    travaillé, et rien de plus.
+ *
+ * Le regroupement par jour ne change pas : une journée garde sa séance et ce
+ * qu'on a fait à côté, dans deux densités différentes. Rien n'est masqué, rien
+ * n'est agrégé — la distinction est lue, pas fabriquée (P1).
  */
 export function CahierSeances({
   seances,
@@ -26,8 +50,21 @@ export function CahierSeances({
 }) {
   const terme = recherche?.trim().toLocaleLowerCase("fr") ?? "";
   const exercicesParId = new Map(donnees.exercices.map((exercice) => [exercice.id, exercice]));
+  /*
+   * Le cahier tient les séances refermées : terminées, et abandonnées dont il
+   * ne reste rien à reprendre. Celles qui gardent des activités jamais ouvertes
+   * restent dans la file « en suspens » — les ranger ici les enterrerait dans
+   * l'historique alors qu'elles demandent encore un geste.
+   */
   const realisees = seances
-    .filter((s) => statutSeance(s) === "terminee")
+    .filter((s) => {
+      const statut = statutSeance(s);
+      if (statut === "terminee") return true;
+      return (
+        statut === "abandonnee" &&
+        !peutReprendreSeance(s, avancementSeance(s, donnees.tentatives))
+      );
+    })
     .filter((s) => correspondRecherche(s, terme, exercicesParId))
     .sort((a, b) => b.date.localeCompare(a.date));
 
@@ -94,16 +131,23 @@ export function RechercheCahier({ recherche }: { recherche?: string }) {
   );
 }
 
-function LigneCahier({ seance, donnees }: { seance: LearningSession; donnees: DonneesSeance }) {
+/**
+ * Une séance refermée, relue : ce qu'elle visait, ce qu'elle a traversé, ce
+ * qu'on en note. Exportée pour la page du cahier, qui la pose sur le jour où la
+ * séance a eu lieu.
+ */
+export function LigneCahier({ seance, donnees }: { seance: LearningSession; donnees: DonneesSeance }) {
   const preset = presetDepuisSeance(seance, donnees.exercices);
   const exercicesParId = new Map(donnees.exercices.map((exercice) => [exercice.id, exercice]));
   const activites = seance.activites.filter((activite) => activite.type === "exercice");
+  const abandonnee = statutSeance(seance) === "abandonnee";
 
   return (
     <Carte>
       <EnTeteCarte
         titre={`${seance.activites.length} activité${seance.activites.length > 1 ? "s" : ""}`}
         legende={seance.dureeMin !== undefined ? formatDuree(seance.dureeMin) : "durée non notée"}
+        action={abandonnee ? <Etiquette ton="danger">Abandonnée</Etiquette> : undefined}
       />
       <div className="px-5 py-4">
         {seance.skillCodes.length > 0 && (

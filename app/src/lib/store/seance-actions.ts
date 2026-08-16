@@ -32,9 +32,12 @@ import {
   motifRefusActivites,
   motifRefusBesoin,
   motifRefusBlueprint,
+  peutReprendreSeance,
   resumeSeance,
+  resumeSeanceAbandonnee,
   statutSeance,
 } from "@/lib/domain/seance";
+import { dureeRetenue } from "@/lib/domain/tentative";
 import type {
   BesoinDeclare,
   BlueprintSeance,
@@ -104,18 +107,15 @@ export async function creerSeance(
     return ex ? [ex] : [];
   });
 
-  // Avant toute écriture, la garde d'une seule séance en cours : le passage en
-  // « en-cours » est VÉRIFIÉ avant la création, pas après. S'il échoue, rien
-  // n'a été écrit — aucune séance planifiée laissée orpheline.
-  if (mode === "en-cours") {
-    const toutes = await lire("sessions", dorsale);
-    const autre = toutes.find((s) => statutSeance(s) === "en-cours");
-    if (autre) {
-      throw new Error(
-        "Une autre séance est déjà en cours. Termine-la avant d'en démarrer une seconde.",
-      );
-    }
-  }
+  /*
+   * Plus de garde « une seule séance en cours » (16/08/2026).
+   *
+   * Elle existait pour que `seanceEnCoursPour` ne soit jamais ambigu. Sa
+   * contrepartie est `seanceHoteDeLExercice` : le rattachement d'un exercice
+   * terminé se fait maintenant sur le contexte explicite du workspace, pas sur
+   * une déduction. Lever la garde SANS cette contrepartie rouvrirait le double
+   * journal d'ADR-048 — les deux vont ensemble.
+   */
 
   const maintenant = new Date().toISOString();
   // `date` borne `avancementSeance` : une séance planifiée garde la date prévue
@@ -141,38 +141,20 @@ export async function creerSeance(
 
   await ajouter("sessions", seance, dorsale);
 
-  // Une séance démarrée ouvre immédiatement la première tentative : sinon un
-  // exercice déjà travaillé retomberait sur son historique au lieu d'afficher
-  // un espace vierge. Les autres exercices s'ouvriront quand ils deviendront
-  // actifs, afin de ne pas lancer plusieurs chronomètres en parallèle.
-  if (mode === "en-cours") {
-    const premierExercice = entree.activites.find((activite) => activite.type === "exercice");
-    if (premierExercice) {
-      const tentatives = await lire("attempts", dorsale);
-      const dejaOuverte = tentatives.some(
-        (tentative) =>
-          tentative.exerciseId === premierExercice.ref &&
-          tentative.statut === "en-cours" &&
-          tentative.debut >= date,
-      );
-      if (!dejaOuverte) {
-        await ajouter(
-          "attempts",
-          {
-            id: nouvelId("att"),
-            exerciseId: premierExercice.ref,
-            debut: date,
-            indicesUtilises: 0,
-            reponse: "",
-            evaluation: {},
-            resultat: "partiel",
-            statut: "en-cours",
-          } satisfies ExerciseAttempt,
-          dorsale,
-        );
-      }
-    }
-  }
+  /*
+   * La première tentative n'est PLUS ouverte ici (16/08/2026).
+   *
+   * Elle l'était pour qu'un exercice déjà travaillé s'ouvre vierge plutôt que
+   * sur son historique — ce que `demarrerTentative` fait de toute façon quand
+   * l'exercice s'affiche. Depuis que plusieurs séances peuvent être ouvertes,
+   * la pré-ouverture lançait autant de chronomètres que de séances démarrées :
+   * `dureeMin` est du temps d'horloge (ADR-071), et une tentative ouverte dans
+   * une séance qu'on n'a pas encore regardée aurait mesuré du temps passé
+   * ailleurs. Une mesure sans source (P2).
+   *
+   * La tentative s'ouvre donc là où le travail commence réellement : à
+   * l'ouverture de l'exercice.
+   */
 
   revalidatePath("/", "layout");
   return seance.id;
@@ -229,11 +211,35 @@ export async function demarrerExerciceEnFocus(exerciceId: string): Promise<void>
 async function seanceDuCompte(
   seanceId: string,
   dorsale: DorsaleCompte,
-): Promise<{ seance: LearningSession; toutes: LearningSession[] }> {
+): Promise<LearningSession> {
   const toutes = await lire("sessions", dorsale);
   const seance = toutes.find((s) => s.id === seanceId);
   if (!seance) throw new Error(`Séance introuvable : ${seanceId}`);
-  return { seance, toutes };
+  return seance;
+}
+
+/**
+ * Les minutes observées sur les activités de la séance, ou `null`.
+ *
+ * `null` et non `0` : aucune tentative ouverte n'est une absence de mesure, pas
+ * une durée nulle (P2). C'est cette absence que `seanceALieu` lit pour refuser
+ * de compter un abandon sec comme un jour de travail.
+ *
+ * Les tentatives abandonnées comptent : la minute passée est un fait, et c'est
+ * déjà ce que fait le journal d'un abandon d'exercice hors séance.
+ */
+function dureeObservee(
+  seance: LearningSession,
+  tentatives: ExerciseAttempt[],
+): number | null {
+  const prevus = new Set(exercicesDeLaSeance(seance));
+  const durees = tentatives
+    .filter(
+      (t) =>
+        prevus.has(t.exerciseId) && t.debut >= seance.date && typeof t.dureeMin === "number",
+    )
+    .map((t) => t.dureeMin as number);
+  return durees.length > 0 ? durees.reduce((s, d) => s + d, 0) : null;
 }
 
 /**
@@ -244,27 +250,23 @@ async function seanceDuCompte(
  * démarrée jeudi compterait sinon comme siennes toutes les tentatives faites
  * entre-temps, et s'afficherait à moitié terminée avant d'avoir commencé.
  *
- * Une seule séance en cours à la fois. Ce n'est pas une contrainte de confort :
- * `seanceEnCoursPour` désigne la séance à laquelle rattacher un exercice
- * terminé, et deux séances ouvertes rendraient ce rattachement arbitraire.
+ * Plus aucune garde d'unicité : plusieurs séances peuvent être ouvertes en même
+ * temps (16/08/2026). Ce que cette garde protégeait — le rattachement non
+ * ambigu d'un exercice terminé — est désormais tenu par le contexte explicite
+ * du workspace (`seanceHoteDeLExercice`).
  */
 export async function demarrerSeance(seanceId: string): Promise<void> {
   const dorsale = await dorsaleCompte();
-  const { seance, toutes } = await seanceDuCompte(seanceId, dorsale);
+  const seance = await seanceDuCompte(seanceId, dorsale);
 
   const statut = statutSeance(seance);
   if (statut !== "planifiee") {
     throw new Error(
       statut === "en-cours"
         ? "Cette séance est déjà en cours."
-        : "Cette séance est terminée : elle ne se redémarre pas. Compose-en une nouvelle.",
-    );
-  }
-
-  const autre = toutes.find((s) => s.id !== seanceId && statutSeance(s) === "en-cours");
-  if (autre) {
-    throw new Error(
-      "Une autre séance est déjà en cours. Termine-la avant d'en démarrer une seconde.",
+        : statut === "abandonnee"
+          ? "Cette séance a été abandonnée : elle se reprend, elle ne se démarre pas."
+          : "Cette séance est terminée : elle ne se redémarre pas. Compose-en une nouvelle.",
     );
   }
 
@@ -290,7 +292,7 @@ export async function demarrerSeance(seanceId: string): Promise<void> {
  */
 export async function terminerSeance(seanceId: string): Promise<void> {
   const dorsale = await dorsaleCompte();
-  const { seance } = await seanceDuCompte(seanceId, dorsale);
+  const seance = await seanceDuCompte(seanceId, dorsale);
 
   if (statutSeance(seance) === "terminee") {
     throw new Error("Cette séance est déjà terminée.");
@@ -299,23 +301,155 @@ export async function terminerSeance(seanceId: string): Promise<void> {
   const tentatives = await lire("attempts", dorsale);
   const avancement = avancementSeance(seance, tentatives);
 
-  const prevus = new Set(exercicesDeLaSeance(seance));
-  const durees = tentatives
-    .filter(
-      (t) =>
-        prevus.has(t.exerciseId) && t.debut >= seance.date && typeof t.dureeMin === "number",
-    )
-    .map((t) => t.dureeMin as number);
-  const dureeMin = durees.length > 0 ? durees.reduce((s, d) => s + d, 0) : null;
-
   await modifier(
     "sessions",
     seanceId,
     {
       statut: "terminee",
       resultat: resumeSeance(avancement),
-      dureeMin,
+      dureeMin: dureeObservee(seance, tentatives),
     },
+    dorsale,
+  );
+  revalidatePath("/", "layout");
+  redirect(`/seances?session=${encodeURIComponent(seanceId)}`);
+}
+
+/**
+ * Abandonne une séance : la refermer sans rien en conclure.
+ *
+ * ## Le manque qu'elle comble
+ *
+ * Une séance en cours n'avait qu'une sortie, `terminerSeance`, qui écrit un
+ * résultat au journal. Une séance qu'on ne veut pas mener — mauvais moment,
+ * mauvaise composition — n'avait donc aucune porte : elle restait ouverte
+ * indéfiniment. C'est le même manque que celui qu'`abandonnerExercice` a comblé
+ * un cran plus bas, et la réponse est la même.
+ *
+ * ## Ce qu'elle n'écrit pas
+ *
+ * **Aucune mesure sur la séance.** `resumeSeanceAbandonnee` compte ce qui a été
+ * mené et ce qui ne l'a jamais été ; il ne qualifie pas. Un abandon dit qu'on
+ * n'a pas continué, pas qu'on a échoué — les confondre poserait un jugement sur
+ * un renoncement (P2, P3).
+ *
+ * **Aucune preuve, ni aucune destruction de preuve.** Les exercices déjà menés
+ * gardent les leurs : ce qui a été démontré reste démontré (P4).
+ *
+ * `dureeMin` reste `null` si rien n'a été ouvert, et c'est ce que `seanceALieu`
+ * lit pour ne pas colorer une case du bandeau d'activité avec un abandon sec.
+ *
+ * ## Idempotence
+ *
+ * Rappeler la fonction sur une séance déjà abandonnée ne réécrit rien et ne
+ * lève pas : c'est la leçon d'ADR-072, où douze clics sur « abandonner » ont
+ * produit douze entrées de journal. Un geste répété par impatience ou par
+ * double soumission doit converger, pas s'empiler.
+ */
+export async function abandonnerSeance(seanceId: string): Promise<void> {
+  const dorsale = await dorsaleCompte();
+  const seance = await seanceDuCompte(seanceId, dorsale);
+  const statut = statutSeance(seance);
+
+  if (statut === "abandonnee") {
+    redirect(`/seances?session=${encodeURIComponent(seanceId)}`);
+  }
+  if (statut === "terminee") {
+    throw new Error(
+      "Cette séance est terminée : ce qui a été fait est au journal, et ne s'abandonne pas après coup.",
+    );
+  }
+  if (statut === "planifiee") {
+    throw new Error(
+      "Cette séance n'a pas commencé : elle s'annule, elle ne s'abandonne pas.",
+    );
+  }
+
+  const date = new Date().toISOString();
+  const tentatives = await lire("attempts", dorsale);
+  const exercices = await lire("exercises", dorsale);
+  const parId = new Map(exercices.map((e) => [e.id, e]));
+  const prevus = new Set(exercicesDeLaSeance(seance));
+
+  /*
+   * Les tentatives encore ouvertes de la séance sont refermées ici.
+   *
+   * Sans cela, l'exercice resterait « en cours » pour toujours dans une séance
+   * qui, elle, ne l'est plus : `avancementSeance` compterait un travail en
+   * cours que rien ne peut plus clore, et le chronomètre continuerait de courir
+   * jusqu'à la prochaine ouverture de l'exercice. Le plafond d'ADR-071
+   * s'applique — `dureeMin` est du temps d'horloge, pas du temps travaillé.
+   */
+  const ouvertes = tentatives.filter(
+    (t) => prevus.has(t.exerciseId) && t.statut === "en-cours" && t.debut >= seance.date,
+  );
+  for (const tentative of ouvertes) {
+    const exercice = parId.get(tentative.exerciseId);
+    const ecouleMin = Math.round(
+      (new Date(date).getTime() - new Date(tentative.debut).getTime()) / 60000,
+    );
+    const duree = exercice
+      ? dureeRetenue({ statut: "abandonnee", dureeMin: ecouleMin }, exercice.dureeEstimeeMin) ?? 1
+      : Math.max(1, ecouleMin);
+    await modifier(
+      "attempts",
+      tentative.id,
+      { fin: date, dureeMin: duree, statut: "abandonnee" as const },
+      dorsale,
+    );
+  }
+
+  // Relu après les clôtures : les durées qui viennent d'être écrites font
+  // partie du temps observé de la séance.
+  const apres = await lire("attempts", dorsale);
+  const avancement = avancementSeance(seance, apres);
+
+  await modifier(
+    "sessions",
+    seanceId,
+    {
+      statut: "abandonnee",
+      resultat: resumeSeanceAbandonnee(avancement),
+      dureeMin: dureeObservee(seance, apres),
+    },
+    dorsale,
+  );
+  revalidatePath("/", "layout");
+  redirect("/seances");
+}
+
+/**
+ * Reprend une séance abandonnée là où elle s'est arrêtée.
+ *
+ * ⚠️ **`date` n'est pas réécrite**, à l'inverse de `demarrerSeance`, et
+ * l'asymétrie est le cœur du geste. `date` borne `avancementSeance` : la
+ * réécrire ferait perdre à la séance tout le travail déjà mené en son sein, qui
+ * se retrouverait antérieur à son propre début. On rouvrirait une séance vide
+ * en croyant reprendre — et « reprendre » redeviendrait « refaire ».
+ *
+ * `resultat` et `dureeMin` sont effacés : ils décrivaient un état clos qui ne
+ * l'est plus. Les laisser afficherait au journal le bilan d'un abandon dans une
+ * séance rouverte, et ils seront réécrits à la vraie clôture.
+ */
+export async function reprendreSeance(seanceId: string): Promise<void> {
+  const dorsale = await dorsaleCompte();
+  const seance = await seanceDuCompte(seanceId, dorsale);
+
+  if (statutSeance(seance) === "en-cours") {
+    redirect(`/seances?session=${encodeURIComponent(seanceId)}`);
+  }
+
+  const tentatives = await lire("attempts", dorsale);
+  if (!peutReprendreSeance(seance, avancementSeance(seance, tentatives))) {
+    throw new Error(
+      "Cette séance n'a rien à reprendre : toutes ses activités ont été traitées. Compose-en une nouvelle.",
+    );
+  }
+
+  await modifier(
+    "sessions",
+    seanceId,
+    { statut: "en-cours", resultat: null, dureeMin: null },
     dorsale,
   );
   revalidatePath("/", "layout");
@@ -333,11 +467,11 @@ export async function terminerSeance(seanceId: string): Promise<void> {
  */
 export async function annulerSeance(seanceId: string): Promise<void> {
   const dorsale = await dorsaleCompte();
-  const { seance } = await seanceDuCompte(seanceId, dorsale);
+  const seance = await seanceDuCompte(seanceId, dorsale);
 
   if (statutSeance(seance) !== "planifiee") {
     throw new Error(
-      "Seule une séance qui n'a pas commencé peut être annulée. Termine celle-ci : ce qui a été fait reste au journal.",
+      "Seule une séance qui n'a pas commencé peut être annulée. Termine ou abandonne celle-ci : ce qui a été fait reste au journal.",
     );
   }
 
