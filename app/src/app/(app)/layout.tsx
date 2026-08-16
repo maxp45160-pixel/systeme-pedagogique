@@ -12,6 +12,7 @@ import { ProfilFlottant } from "@/components/dev/profil-flottant";
 import { TuteurGlobal } from "@/components/tuteur/tuteur-global";
 import { resoudreIdentite } from "@/lib/domain/identite";
 import { FournisseurIntention } from "@/components/intention/contexte-intention";
+import { FournisseurOnboarding } from "@/components/onboarding/onboarding-context";
 import { PastillePomodoroGlobale } from "@/components/dashboard/pomodoro";
 
 /**
@@ -53,59 +54,60 @@ export default async function AppLayout({
 
   return (
     /*
-      Le point d'entrée `+` enveloppe tout le cadre : ses deux déclencheurs
-      vivent dans le rail et dans la barre mobile, sa modale est montée une
-      seule fois au-dessus des deux (voir `FournisseurIntention`).
+      Le point d'entrée `+` et l'onboarding enveloppent tout le cadre : ses déclencheurs
+      vivent dans le rail et dans la barre mobile.
     */
-    <FournisseurIntention compteId={session.compteId}>
-    <div className="flex min-h-screen">
-      <Sidebar session={session} administrateur={administrateur} />
+    <FournisseurOnboarding compteId={session.compteId}>
+      <FournisseurIntention compteId={session.compteId}>
+        <div className="flex min-h-screen">
+          <Sidebar session={session} administrateur={administrateur} />
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        {/*
-          Barre supérieure mobile : le nom du système et l'accès au compte.
+          <div className="flex min-w-0 flex-1 flex-col">
+            {/*
+              Barre supérieure mobile : le nom du système et l'accès au compte.
 
-          Le pied du rail — compte, export du journal, déconnexion, thème — est
-          `hidden lg:flex`. Sans ce bouton, aucun de ces réglages n'était
-          atteignable sur mobile (ADR-025).
-        */}
-        <div className="flex h-12 items-center justify-between gap-2 border-b border-bordure bg-surface px-4 lg:hidden">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="truncate text-sm font-semibold tracking-tight">
-              Système pédagogique
+              Le pied du rail — compte, export du journal, déconnexion, thème — est
+              `hidden lg:flex`. Sans ce bouton, aucun de ces réglages n'était
+              atteignable sur mobile (ADR-025).
+            */}
+            <div className="flex h-12 items-center justify-between gap-2 border-b border-bordure bg-surface px-4 lg:hidden">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="truncate text-sm font-semibold tracking-tight">
+                  Système pédagogique
+                </div>
+                <PastillePomodoroGlobale compteId={session.compteId} />
+              </div>
+              <CompteMobile session={session} />
             </div>
-            <PastillePomodoroGlobale compteId={session.compteId} />
+
+            {/*
+              Marge de carnet : filet discret courant sur toute la hauteur de la
+              fenêtre (desktop). Le `flex-1` est ce qui le rend continu — porté par
+              le bloc de contenu seul, le trait s'arrêtait à la dernière carte et
+              laissait le bas de l'écran vide. Les paddings verticaux sont posés à
+              l'intérieur du bloc pour que la bordure les englobe.
+            */}
+            <main className="flex flex-1 flex-col px-4 sm:px-6 lg:px-10">
+              <div className="mx-auto w-full max-w-7xl flex-1 pb-24 pt-6 lg:border-l lg:border-marge lg:pb-12 lg:pl-10 lg:pt-8 2xl:max-w-[100rem]">
+                <ProfilWrapper compteId={compte.id}>
+                  <ProfilTracker compteId={compte.id} />
+                  <ProfilPage compteId={compte.id}>{children}</ProfilPage>
+                </ProfilWrapper>
+              </div>
+            </main>
           </div>
-          <CompteMobile session={session} />
+
+          <NavMobile />
+          <ProfilFlottant compteId={compte.id} />
+          {/*
+            Le tiroir du tuteur, monté hors du flux : `Suspense` le laisse streamer
+            après la page, l'assemblage de son contexte ne retarde donc aucun rendu.
+          */}
+          <Suspense fallback={null}>
+            <TuteurGlobal />
+          </Suspense>
         </div>
-
-        {/*
-          Marge de carnet : filet discret courant sur toute la hauteur de la
-          fenêtre (desktop). Le `flex-1` est ce qui le rend continu — porté par
-          le bloc de contenu seul, le trait s'arrêtait à la dernière carte et
-          laissait le bas de l'écran vide. Les paddings verticaux sont posés à
-          l'intérieur du bloc pour que la bordure les englobe.
-        */}
-        <main className="flex flex-1 flex-col px-4 sm:px-6 lg:px-10">
-          <div className="mx-auto w-full max-w-7xl flex-1 pb-24 pt-6 lg:border-l lg:border-marge lg:pb-12 lg:pl-10 lg:pt-8 2xl:max-w-[100rem]">
-            <ProfilWrapper compteId={compte.id}>
-              <ProfilTracker compteId={compte.id} />
-              <ProfilPage compteId={compte.id}>{children}</ProfilPage>
-            </ProfilWrapper>
-          </div>
-        </main>
-      </div>
-
-      <NavMobile />
-      <ProfilFlottant compteId={compte.id} />
-      {/*
-        Le tiroir du tuteur, monté hors du flux : `Suspense` le laisse streamer
-        après la page, l'assemblage de son contexte ne retarde donc aucun rendu.
-      */}
-      <Suspense fallback={null}>
-        <TuteurGlobal />
-      </Suspense>
-    </div>
-    </FournisseurIntention>
+      </FournisseurIntention>
+    </FournisseurOnboarding>
   );
 }

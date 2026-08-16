@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Modale } from "@/components/ui/modale";
-import { Bouton, cx, PointActif } from "@/components/ui/primitives";
+import { Bouton, cx } from "@/components/ui/primitives";
 import { IconeFleche } from "@/components/ui/icones";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
+import { ChargementGeneration } from "@/components/ui/chargement-generation";
 import { creerNoteAction } from "@/lib/store/document-actions";
 import { FORMATS_PAR_ROLE } from "@/lib/documents/roles-note";
 import { ModaleReferentiel } from "@/components/referentiel/modale-referentiel";
@@ -246,25 +247,21 @@ export function CaptureIntention({
       }
     >
       {phase === "traduction" && (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <PointActif />
-          <p className="mt-4 font-serif text-base text-texte">
-            {progression ?? "Le moteur lit ton besoin…"}
-          </p>
-          <p className="mt-1 text-xs text-texte-discret">
-            Rien n&apos;est enregistré : tu reliras l&apos;action avant qu&apos;elle ne se lance.
-          </p>
-          <Bouton
-            onClick={() => {
+        <div className="py-8">
+          <ChargementGeneration
+            progressionServeur={progression}
+            etapes={[
+              "Lecture et qualification de ton intention…",
+              "Rapprochement avec tes compétences et notes…",
+              "Sélection de l'action la plus pertinente…",
+              "Finalisation de la proposition…",
+            ]}
+            dureeAsymptoteSec={5}
+            onArreter={() => {
               abandonRef.current?.abort();
               setPhase("saisie");
             }}
-            variante="secondaire"
-            taille="petite"
-            className="mt-5"
-          >
-            Interrompre
-          </Bouton>
+          />
         </div>
       )}
 

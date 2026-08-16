@@ -3,26 +3,59 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { modifierProfil } from "@/lib/store/referentiel-actions";
-import { BandeauInfo, Bouton } from "@/components/ui/primitives";
+import { BandeauInfo, Bouton, cx } from "@/components/ui/primitives";
 import { Champ } from "@/components/ui/champ";
 import { ModaleReferentiel } from "@/components/referentiel/modale-referentiel";
+import { IconeFleche } from "@/components/ui/icones";
+import { ReglagesTuteur } from "@/components/tuteur/reglages-tuteur";
+import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 
-/**
- * Les deux questions de l'amorçage.
- *
- * Le sujet n'est pas enregistré comme tel : il n'existe pas de colonne « thème »
- * et il ne doit pas en exister une. Le thème d'un compte, c'est son référentiel
- * — le stocker à côté créerait deux vérités qui divergeraient au premier ajout
- * de branche. Il part donc directement dans le premier message au tuteur, qui
- * en fera une proposition que l'utilisateur validera.
- *
- * Il y en avait trois : « ton point de départ » écrivait `profiles.formation`,
- * exactement le champ que `/profil` édite ensuite, via la même action. Deux
- * écrans pour une colonne, dont l'un facultatif et jamais revisité — la
- * personne qui remplissait `/demarrer` retrouvait la question inchangée sur
- * `/profil` sans savoir si elle devait la ressaisir. `/demarrer` garde le
- * strict nécessaire à l'amorçage ; `/profil` reste l'écran d'édition.
- */
+interface ExempleSujet {
+  label: string;
+  emoji: string;
+  sujet: string;
+  objectif: string;
+}
+
+const EXEMPLES: ExempleSujet[] = [
+  {
+    emoji: "💻",
+    label: "Développement Web",
+    sujet: "Développement Web moderne (TypeScript, React, Next.js, API, bases de données)",
+    objectif: "Concevoir et déployer des applications web complètes et robustes de bout en bout",
+  },
+  {
+    emoji: "⚖️",
+    label: "Droit & Fiscalité",
+    sujet: "Droit des affaires, des contrats et optimisation fiscale",
+    objectif: "Rédiger et analyser des contrats commerciaux et sécuriser des opérations sans risque juridique",
+  },
+  {
+    emoji: "🇬🇧",
+    label: "Anglais professionnel",
+    sujet: "Anglais professionnel, communication en entreprise et négociation internationale",
+    objectif: "Animer des réunions, argumenter et négocier avec aisance avec des interlocuteurs anglophones",
+  },
+  {
+    emoji: "📊",
+    label: "Data & IA appliquée",
+    sujet: "Analyse de données, Python pour la data et modèles de Machine Learning",
+    objectif: "Extraire des enseignements de jeux de données complexes et modéliser des prédictions métier",
+  },
+  {
+    emoji: "📐",
+    label: "Mathématiques",
+    sujet: "Algèbre linéaire, analyse réelle et probabilités appliquées",
+    objectif: "Résoudre des problèmes complexes et préparer des concours techniques",
+  },
+  {
+    emoji: "🎸",
+    label: "Musique & MAO",
+    sujet: "Harmonie musicale, composition, mixage et production sur DAW",
+    objectif: "Composer et finaliser des morceaux musicaux cohérents et masterisés",
+  },
+];
+
 export function FormulaireAmorcage({
   objectifMoyenTerme,
   objectifLongTerme,
@@ -39,26 +72,26 @@ export function FormulaireAmorcage({
 
   const [sujet, setSujet] = useState("");
   const [objectif, setObjectif] = useState(objectifMoyenTerme);
+  const [cleConfiguree, setCleConfiguree] = useState(() => Boolean(lireConfigTuteur(compteId)));
+  const [panneauCleOuvert, setPanneauCleOuvert] = useState(false);
 
-  const pret = sujet.trim().length > 2 && objectif.trim().length > 2;
+  const sujetValide = sujet.trim().length > 2;
+  const objectifValide = objectif.trim().length > 2;
+  const pret = sujetValide && objectifValide;
+
+  function choisirExemple(ex: ExempleSujet) {
+    setSujet(ex.sujet);
+    setObjectif(ex.objectif);
+  }
 
   function soumettre() {
     setErreur(null);
     demarrer(async () => {
       try {
         await modifierProfil({
-          // `formation` n'est plus écrite ici : c'est `/profil` qui l'édite.
-          // Elle est relayée telle quelle à l'amorce si elle existe déjà.
           objectifMoyenTerme: objectif,
-          // Non demandé ici : un horizon long ne se déclare pas au premier
-          // écran. La colonne reste à son libellé par défaut, et l'écran de
-          // profil permettra de la renseigner plus tard.
           objectifLongTerme: objectifLongTerme || undefined,
         });
-
-        // Le sujet n'est pas stocké séparément : la branche relue et validée
-        // devient l'unique vérité. La route de suggestion relira le profil qui
-        // vient d'être enregistré pour tenir compte de l'objectif déclaré.
         setValidationOuverte(true);
       } catch (e) {
         setErreur(e instanceof Error ? e.message : "Enregistrement impossible.");
@@ -67,22 +100,129 @@ export function FormulaireAmorcage({
   }
 
   return (
-    <div className="max-w-2xl space-y-4">
-      <Champ
-        label="Le sujet"
-        value={sujet}
-        onChange={(e) => setSujet(e.target.value)}
-        placeholder="philosophie morale, droit fiscal, lutherie, développement web…"
-        aide="Écris-le comme tu le dirais. Le tuteur le découpera en compétences mesurables, et tu valideras."
-      />
+    <div className="space-y-6">
+      {/* En-tête guidé pas-à-pas */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-bordure/60 pb-3">
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center rounded-full bg-primaire/15 px-2.5 py-0.5 text-[0.6875rem] font-semibold uppercase tracking-wider text-primaire">
+            Étape 1 sur 2 · Ton axe d&apos;apprentissage
+          </span>
+        </div>
+        <span className="text-xs text-texte-discret">Configuration initiale en 2 min</span>
+      </div>
 
-      <Champ
-        label="Pour quoi faire"
-        value={objectif}
-        onChange={(e) => setObjectif(e.target.value)}
-        placeholder="préparer un concours, tenir une discussion argumentée, changer de métier…"
-        aide="Sert à pondérer l'importance de chaque compétence. Sans objectif, elles se vaudraient toutes."
-      />
+      {/* État de la clé IA */}
+      <div className="rounded-xl border border-bordure bg-surface px-4 py-3 shadow-xs">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span
+              className={cx(
+                "size-2 rounded-full",
+                cleConfiguree ? "bg-succes" : "bg-avertissement animate-pulse",
+              )}
+            />
+            <span className="text-xs font-medium text-texte">
+              {cleConfiguree
+                ? "Clé IA configurée (prête à générer)"
+                : "Clé IA non configurée (Mistral, Groq gratuit, Anthropic)"}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setPanneauCleOuvert((v) => !v)}
+            className="text-xs font-medium text-primaire hover:underline"
+          >
+            {panneauCleOuvert ? "Fermer les réglages" : cleConfiguree ? "Modifier la clé" : "Renseigner ma clé IA"}
+          </button>
+        </div>
+
+        {panneauCleOuvert && (
+          <div className="mt-3 border-t border-bordure/60 pt-3">
+            <ReglagesTuteur
+              compteId={compteId}
+              compact
+              surEnregistre={() => {
+                setCleConfiguree(true);
+                setPanneauCleOuvert(false);
+              }}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Chips d'exemples d'inspiration */}
+      <div className="rounded-xl border border-bordure/80 bg-surface-2/60 p-4">
+        <p className="text-xs font-medium text-texte mb-2 flex items-center gap-1.5">
+          <span>💡 Exemples d&apos;inspiration (remplissage en 1 clic) :</span>
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {EXEMPLES.map((ex) => (
+            <button
+              key={ex.label}
+              type="button"
+              onClick={() => choisirExemple(ex)}
+              className={cx(
+                "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all shadow-xs",
+                sujet === ex.sujet
+                  ? "border-primaire bg-primaire/15 text-primaire"
+                  : "border-bordure bg-surface text-texte-attenue hover:border-primaire/40 hover:text-texte hover:bg-surface-2",
+              )}
+            >
+              <span>{ex.emoji}</span>
+              <span>{ex.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Formulaire avec indicateurs d'étapes */}
+      <div className="space-y-5">
+        <div className="relative">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs font-semibold text-texte flex items-center gap-1.5">
+              <span className="flex size-5 items-center justify-center rounded-full bg-surface-2 border border-bordure text-[0.6875rem] font-mono">
+                1
+              </span>
+              Le sujet à maîtriser
+            </span>
+            {sujetValide && (
+              <span className="text-xs font-medium text-primaire flex items-center gap-1">
+                ✓ Prêt
+              </span>
+            )}
+          </div>
+          <Champ
+            label=""
+            value={sujet}
+            onChange={(e) => setSujet(e.target.value)}
+            placeholder="Ex : développement web, droit fiscal, lutherie, philosophie morale…"
+            aide="Écris-le avec tes propres mots. Le tuteur IA le découpera ensuite en compétences mesurables."
+          />
+        </div>
+
+        <div className="relative">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs font-semibold text-texte flex items-center gap-1.5">
+              <span className="flex size-5 items-center justify-center rounded-full bg-surface-2 border border-bordure text-[0.6875rem] font-mono">
+                2
+              </span>
+              Pour quoi faire (ton objectif concret)
+            </span>
+            {objectifValide && (
+              <span className="text-xs font-medium text-primaire flex items-center gap-1">
+                ✓ Prêt
+              </span>
+            )}
+          </div>
+          <Champ
+            label=""
+            value={objectif}
+            onChange={(e) => setObjectif(e.target.value)}
+            placeholder="Ex : préparer un concours, changer de métier, mener un projet en autonomie…"
+            aide="Permet de calibrer l'importance de chaque compétence selon ton ambition réelle."
+          />
+        </div>
+      </div>
 
       {erreur && (
         <BandeauInfo ton="alerte" taille="compacte">
@@ -90,41 +230,41 @@ export function FormulaireAmorcage({
         </BandeauInfo>
       )}
 
-      <div className="flex items-center gap-3 pt-1">
-        <Bouton onClick={soumettre} disabled={!pret || enCours} variante="principal">
-          {enCours ? "Enregistrement…" : "Proposer une première branche"}
-        </Bouton>
-        {!pret && (
-          <span className="text-xs text-texte-discret">Le sujet et l&apos;objectif suffisent.</span>
-        )}
+      {/* Bouton d'action interactif */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-bordure/60">
+        <div className="flex items-center gap-3">
+          <Bouton
+            onClick={soumettre}
+            disabled={!pret || enCours}
+            variante="principal"
+            className={cx(
+              "group px-5 py-2.5 shadow-md transition-all",
+              pret && "ring-2 ring-primaire/30 animate-pulse",
+            )}
+          >
+            <span>{enCours ? "Génération en cours…" : "Générer mon référentiel avec l'IA"}</span>
+            <IconeFleche className="size-3.5 transition-transform group-hover:translate-x-1" />
+          </Bouton>
+
+          {!pret && (
+            <span className="text-xs text-texte-discret">
+              Remplis le sujet et l&apos;objectif pour continuer.
+            </span>
+          )}
+        </div>
+
+        <span className="text-xs text-texte-discret">
+          Rien n&apos;est enregistré sans ta validation.
+        </span>
       </div>
 
       {validationOuverte && (
-        /*
-          Le même chemin d'extension que le bouton `+`, et non plus la branche
-          unique.
-
-          L'amorçage passait par `ModaleCompetence`, qui rend UNE branche : un
-          sujet large — « la philosophie morale » — y arrivait en un domaine de
-          douze compétences que personne ne relit. `ModaleReferentiel` découpe
-          en branches quand le sujet le demande, et n'en fait qu'une quand il
-          est étroit. Surtout, c'est exactement ce que le `+` ouvrira ensuite :
-          le premier geste du compte et tous les suivants montrent le même
-          écran, au lieu d'apprendre deux fois la même chose.
-        */
         <ModaleReferentiel
           compteId={compteId}
           sujetInitial={sujet.trim()}
           demarrageAutomatique
+          guideEtape="Étape 2 sur 2 : Relis les compétences découpées par le tuteur. Tu peux en décocher ou valider directement pour lancer ton Tableau de bord !"
           onFermer={() => setValidationOuverte(false)}
-          /*
-            Vers le tableau de bord, pas vers l'Atelier.
-
-            Le référentiel qui vient d'être écrit n'a encore aucune preuve : le
-            corpus documentaire n'a rien à montrer. Ce qu'il y a à faire ensuite
-            — la première action proposée — est sur le tableau de bord, et c'est
-            là que la boucle commence.
-          */
           surEnregistre={() => router.replace("/")}
         />
       )}

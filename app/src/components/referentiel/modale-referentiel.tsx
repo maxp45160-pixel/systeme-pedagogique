@@ -20,11 +20,20 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { BandeauInfo, Bouton, PointActif } from "@/components/ui/primitives";
+import { BandeauInfo, Bouton } from "@/components/ui/primitives";
 import { Modale } from "@/components/ui/modale";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import type { PropositionReferentiel } from "@/lib/tutor/proposition";
 import { creerBranche } from "@/lib/store/referentiel-actions";
+import { ReglagesTuteur } from "@/components/tuteur/reglages-tuteur";
+import { ChargementGeneration } from "@/components/ui/chargement-generation";
+
+const ETAPES_REFERENTIEL = [
+  "Analyse du sujet et identification des axes majeurs…",
+  "Structuration des domaines de compétences…",
+  "Découpage en compétences observables et mesurables…",
+  "Attribution des critères et finalisation du référentiel…",
+];
 
 type Etat =
   | { phase: "saisie"; message: string | null }
@@ -49,6 +58,7 @@ export function ModaleReferentiel({
   compteId,
   sujetInitial = "",
   demarrageAutomatique = false,
+  guideEtape,
   onFermer,
   surEnregistre,
 }: {
@@ -57,6 +67,8 @@ export function ModaleReferentiel({
   sujetInitial?: string;
   /** Lance la proposition sans attendre un second clic sur le même sujet. */
   demarrageAutomatique?: boolean;
+  /** Message ou badge d'étape guidée lors d'un onboarding. */
+  guideEtape?: string;
   onFermer: () => void;
   /** Permet à l'appelant de reprendre son flux après l'écriture. */
   surEnregistre?: () => void;
@@ -244,51 +256,74 @@ export function ModaleReferentiel({
         onFermer={fermer}
       >
         <>
+          {guideEtape && (
+            <div className="mb-4 rounded-xl border border-primaire/30 bg-primaire/10 px-4 py-3 text-xs text-texte flex items-center gap-2.5">
+              <span className="text-base" aria-hidden>💡</span>
+              <p className="leading-relaxed">{guideEtape}</p>
+            </div>
+          )}
+
           {etat.phase === "saisie" && (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {etat.message && (
-                <BandeauInfo ton="danger" taille="compacte">
-                  <p className="text-danger">{etat.message}</p>
+                <BandeauInfo ton="alerte" taille="compacte">
+                  <div>
+                    <p className="font-semibold text-alerte">Clé IA requise pour la proposition</p>
+                    <p className="mt-1 text-xs text-texte-attenue">
+                      Renseigne ta clé API ci-dessous (ex : <strong>Groq</strong> gratuit, <strong>Mistral</strong> ou <strong>Anthropic</strong>) pour que le tuteur découpe ton sujet en compétences.
+                    </p>
+                  </div>
                 </BandeauInfo>
               )}
-              <label className="block">
-                <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
-                  Sujet
-                </span>
-                <input
-                  value={sujet}
-                  onChange={(e) => setSujet(e.target.value)}
-                  placeholder="le stoïcisme · la thermodynamique · le droit des contrats…"
-                  className="mt-1 w-full rounded-md border border-bordure-controle bg-surface px-2 py-1.5 text-sm placeholder:text-texte-discret"
+
+              <div className="rounded-xl border border-primaire/30 bg-surface-2/60 p-4">
+                <p className="mb-2 text-xs font-semibold text-texte">
+                  🔑 Configuration rapide du tuteur IA :
+                </p>
+                <ReglagesTuteur
+                  compteId={compteId}
+                  compact
+                  surEnregistre={() => {
+                    setErreur(null);
+                    void proposer();
+                  }}
                 />
-              </label>
-              <Bouton
-                onClick={() => void proposer()}
-                disabled={sujet.trim().length === 0}
-                variante="principal"
-              >
-                Proposer un référentiel
-              </Bouton>
+              </div>
+
+              <div className="border-t border-bordure/60 pt-3">
+                <label className="block mb-3">
+                  <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
+                    Sujet
+                  </span>
+                  <input
+                    value={sujet}
+                    onChange={(e) => setSujet(e.target.value)}
+                    placeholder="le stoïcisme · la thermodynamique · le droit des contrats…"
+                    className="mt-1 w-full rounded-md border border-bordure-controle bg-surface px-2 py-1.5 text-sm placeholder:text-texte-discret"
+                  />
+                </label>
+                <Bouton
+                  onClick={() => void proposer()}
+                  disabled={sujet.trim().length === 0}
+                  variante="principal"
+                >
+                  Générer le référentiel avec cette clé
+                </Bouton>
+              </div>
             </div>
           )}
 
           {etat.phase === "proposition" && (
-            <div className="mt-8 flex flex-col items-center justify-center py-10 text-center">
-              <PointActif />
-              <p className="mt-3 text-sm text-texte-attenue">
-                {etat.progression ?? "Le tuteur découpe le sujet…"}
-              </p>
-              <Bouton
-                onClick={() => {
+            <div className="py-6">
+              <ChargementGeneration
+                progressionServeur={etat.progression}
+                etapes={ETAPES_REFERENTIEL}
+                dureeAsymptoteSec={8}
+                onArreter={() => {
                   abandonRef.current?.abort();
                   setEtat({ phase: "saisie", message: null });
                 }}
-                variante="secondaire"
-                taille="petite"
-                className="mt-4"
-              >
-                Arrêter
-              </Bouton>
+              />
             </div>
           )}
 

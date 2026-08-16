@@ -20,6 +20,7 @@ import {
   lireContexteInstant,
   type ContexteInstant,
 } from "@/lib/engine/action-unifiee";
+import { DashboardTour } from "@/components/onboarding/dashboard-tour";
 
 export default async function TableauDeBord(props: {
   searchParams: Promise<{ temps?: string; capacite?: string }>;
@@ -297,6 +298,8 @@ async function ContenuTableauDeBord({ instant }: { instant: ContexteInstant }) {
         competencesActives={ctx.referentiel.actifs.length}
         joursActifs30={activite.joursActifs30}
       />
+
+      <DashboardTour autoDemarrage={aucunePreuve} />
     </div>
   );
 }

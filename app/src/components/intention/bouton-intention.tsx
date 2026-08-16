@@ -27,6 +27,7 @@ export function BoutonIntentionRail() {
       onClick={ouvrir}
       aria-label={LIBELLE}
       title={LIBELLE}
+      data-tour="nouveau-besoin"
       className="group flex w-full items-center gap-3 rounded-lg bg-[var(--rail-actif)] px-3 py-2.5 text-sm font-medium text-[var(--rail-actif-texte)] shadow-sm transition-opacity hover:opacity-90 rail-reduit:justify-center rail-reduit:px-0"
     >
       <IconePlus className="size-[18px] shrink-0" />
@@ -50,6 +51,7 @@ export function BoutonIntentionMobile() {
       type="button"
       onClick={ouvrir}
       aria-label={LIBELLE}
+      data-tour="nouveau-besoin"
       className="flex w-full flex-col items-center justify-center py-1.5"
     >
       <span className="flex size-10 items-center justify-center rounded-full bg-primaire text-surface shadow-md">

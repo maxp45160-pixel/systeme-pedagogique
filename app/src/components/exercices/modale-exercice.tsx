@@ -28,12 +28,23 @@
 
 import { Fragment, useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { BandeauInfo, Bouton, Etiquette } from "@/components/ui/primitives";
-import { Modale } from "@/components/ui/modale";
+import {
+  BandeauInfo,
+  Bouton,
+  Carte,
+  classesLienBouton,
+  CodeCompetence,
+  cx,
+  Etiquette,
+  SelecteurSegmente,
+  TagConfiance,
+} from "@/components/ui/primitives";
 import { Champ, ChampSelect } from "@/components/ui/champ";
+import { Modale } from "@/components/ui/modale";
 import { Markdown } from "@/components/ui/markdown";
 import { creerExercice } from "@/lib/store/actions";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
+import { ChargementGeneration } from "@/components/ui/chargement-generation";
 import { convertirProposition } from "@/lib/tutor/conversion-exercice";
 import type { PropositionExercice } from "@/lib/tutor/proposition";
 import { DIFFICULTES, LIBELLES_DIMENSIONS, type Dimension } from "@/lib/domain/types";
@@ -547,9 +558,11 @@ export function ModaleExercice({
 
         {phase === "generation" && (
           <div className={presentation === "inline" ? "mt-4" : undefined}>
-            <ChargementGenerationExercice
+            <ChargementGeneration
               progressionServeur={progression}
-              onArrêter={() => {
+              etapes={ETAPES_GENERATION}
+              dureeAsymptoteSec={7}
+              onArreter={() => {
                 abandonRef.current?.abort();
                 setPhase(modificationIndex !== null ? "previsualisation" : "formulaire");
               }}
@@ -792,70 +805,4 @@ const ETAPES_GENERATION = [
   "Finalisation de la proposition par le tuteur…",
 ];
 
-/**
- * Indication visuelle unique de chargement pour la génération d’exercice.
- *
- *  - Pas d'emojis.
- *  - Une seule indication visuelle épurée (barre de progression + %).
- *  - Progression ultra-continue basée sur le temps écoulé (départ à 0 %, asymptote fluide sans à-coup).
- */
-function ChargementGenerationExercice({
-  progressionServeur,
-  onArrêter,
-}: {
-  progressionServeur: string | null;
-  onArrêter: () => void;
-}) {
-  const [pourcentage, setPourcentage] = useState(0);
-  const [etapeIndex, setEtapeIndex] = useState(0);
 
-  useEffect(() => {
-    const tempsDebut = Date.now();
-
-    // Actualisation ultra-continue (toutes les 100 ms) basée sur une asymptote lisse
-    const intervalPourcent = setInterval(() => {
-      const ecouleSec = (Date.now() - tempsDebut) / 1000;
-      // Progression asymptotique naturelle : 94 * (1 - e^(-t / 7))
-      const val = Math.min(94, Math.round(94 * (1 - Math.exp(-ecouleSec / 7))));
-      setPourcentage((prev) => Math.max(prev, val));
-    }, 100);
-
-    const intervalEtape = setInterval(() => {
-      setEtapeIndex((prev) => (prev < ETAPES_GENERATION.length - 1 ? prev + 1 : prev));
-    }, 2800);
-
-    return () => {
-      clearInterval(intervalPourcent);
-      clearInterval(intervalEtape);
-    };
-  }, []);
-
-  const texteCourant = progressionServeur ?? ETAPES_GENERATION[etapeIndex];
-
-  return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-bordure bg-surface/50 p-6 text-center shadow-[var(--ombre-posee)]">
-      {/* Une seule indication visuelle : Barre de progression unique avec % et étape */}
-      <div className="w-full max-w-md space-y-2.5">
-        <div className="flex items-center justify-between text-xs font-medium text-texte-attenue">
-          <span className="truncate">{texteCourant}</span>
-          <span className="chiffres font-semibold text-texte shrink-0 ml-3">{pourcentage}%</span>
-        </div>
-        <div className="h-2 w-full overflow-hidden rounded-full bg-surface-3">
-          <div
-            className="h-full rounded-full bg-primaire transition-all duration-300 ease-out"
-            style={{ width: `${pourcentage}%` }}
-          />
-        </div>
-      </div>
-
-      <Bouton
-        onClick={onArrêter}
-        variante="secondaire"
-        taille="petite"
-        className="mt-6"
-      >
-        Arrêter
-      </Bouton>
-    </div>
-  );
-}

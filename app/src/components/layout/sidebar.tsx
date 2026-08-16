@@ -37,7 +37,7 @@ export function Sidebar({
         groupe détaché. Sans lui, la marge auto n'a rien à repousser et « Aide »
         resterait collée au Cahier.
       */}
-      <nav className="flex flex-1 flex-col overflow-y-auto px-3 py-4 rail-reduit:px-2">
+      <nav data-tour="navigation-rail" className="flex flex-1 flex-col overflow-y-auto px-3 py-4 rail-reduit:px-2">
         {/*
           Le `+` est posé au-dessus des destinations, et hors des groupes : ce
           n'est pas un endroit où aller, c'est le geste qu'on veut déclencher.

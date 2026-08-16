@@ -192,6 +192,7 @@ export function CarteProchaineAction({
       <div
         className="relative px-5 py-4 sm:px-6"
         data-testid="prochaine-action"
+        data-tour="action-prioritaire"
         data-nature="exercice"
         data-competence={etat.skill.code}
         data-exercice={exercice?.id}
@@ -411,6 +412,7 @@ function CarteActionActivite({
       <div
         className="relative px-5 py-4 sm:px-6"
         data-testid="prochaine-action"
+        data-tour="action-prioritaire"
         data-nature={estRessource ? "ressource" : estNote ? "note" : "activite"}
         data-family={action.family}
       >

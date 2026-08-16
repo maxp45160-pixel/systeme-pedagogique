@@ -29,10 +29,11 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { BandeauInfo, Bouton, PointActif } from "@/components/ui/primitives";
+import { BandeauInfo, Bouton } from "@/components/ui/primitives";
 import { Modale } from "@/components/ui/modale";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import type { PropositionRevision } from "@/lib/tutor/outils";
+import { ChargementGeneration } from "@/components/ui/chargement-generation";
 import { appliquerRevision } from "@/lib/store/referentiel-actions";
 
 export interface CompetenceRevisable {
@@ -277,22 +278,21 @@ export function ModaleRevision({
         )}
 
         {etat.phase === "revision" && (
-          <div className="mt-8 flex flex-col items-center justify-center py-10 text-center">
-            <PointActif />
-            <p className="mt-3 text-sm text-texte-attenue">
-              {etat.progression ?? "Le tuteur prend connaissance de la branche…"}
-            </p>
-            <Bouton
-              onClick={() => {
+          <div className="py-8">
+            <ChargementGeneration
+              progressionServeur={etat.progression}
+              etapes={[
+                "Prise de connaissance de la branche et des compétences…",
+                "Analyse des retraits, reformulations et ajouts…",
+                "Vérification de la cohérence globale…",
+                "Finalisation de la révision…",
+              ]}
+              dureeAsymptoteSec={7}
+              onArreter={() => {
                 abandonRef.current?.abort();
                 setEtat({ phase: "saisie" });
               }}
-              variante="secondaire"
-              taille="petite"
-              className="mt-4"
-            >
-              Arrêter
-            </Bouton>
+            />
           </div>
         )}
 

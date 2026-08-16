@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BandeauInfo, Bouton, PointActif } from "@/components/ui/primitives";
+import { BandeauInfo, Bouton } from "@/components/ui/primitives";
 import { Modale } from "@/components/ui/modale";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import type { PropositionReferentiel } from "@/lib/tutor/proposition";
 import { ValidationBranche, type BrancheInitiale } from "./validation-branche";
+import { ChargementGeneration } from "@/components/ui/chargement-generation";
 
 export function ModaleCompetence({
   onFermer,
@@ -166,25 +167,21 @@ export function ModaleCompetence({
     >
       <>
         {phase === "suggestion" && (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <PointActif />
-            <p className="mt-4 font-serif text-base text-texte">
-              {progression ?? "Le tuteur analyse le domaine et compose les compétences…"}
-            </p>
-            <p className="mt-1 text-xs text-texte-discret">
-              Chaque proposition restera modifiable et ajustable avant validation.
-            </p>
-            <Bouton
-              onClick={() => {
+          <div className="py-8">
+            <ChargementGeneration
+              progressionServeur={progression}
+              etapes={[
+                "Analyse du domaine et de l'axe d'apprentissage…",
+                "Formulation des compétences associées…",
+                "Définition des critères d'évaluation…",
+                "Finalisation de la branche…",
+              ]}
+              dureeAsymptoteSec={7}
+              onArreter={() => {
                 abandonRef.current?.abort();
                 setPhase("formulaire");
               }}
-              variante="secondaire"
-              taille="petite"
-              className="mt-5"
-            >
-              Interrompre la suggestion
-            </Bouton>
+            />
           </div>
         )}
 

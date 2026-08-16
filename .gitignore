@@ -50,8 +50,15 @@ next-env.d.ts
 # Données locales et historique de sessions Cline
 .cline/
 
-# Local MCP configuration
+# Local MCP configuration & IDE
 .mcp.json
+.vscode/
+.agents/mcp_config.json
+skills-lock.json
+
+# Downloaded Agent Skills
+.agents/skills/supabase/
+.agents/skills/supabase-postgres-best-practices/
 
 # Artefacts du CLI Supabase — état d'un poste, jamais du dépôt.
 /app/supabase/.branches

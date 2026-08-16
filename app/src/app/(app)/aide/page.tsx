@@ -9,6 +9,7 @@ import {
   classesLienBouton,
 } from "@/components/ui/primitives";
 import { NIVEAUX } from "@/lib/domain/types";
+import { BoutonRelancerTour } from "@/components/onboarding/bouton-relancer-tour";
 
 /**
  * Tutoriel d'entrée : ce qu'un compte neuf doit comprendre avant de travailler.
@@ -217,6 +218,16 @@ export default function PageAide() {
       />
 
       <div className="mx-auto max-w-3xl space-y-10">
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-primaire/30 bg-primaire/10 p-4">
+          <div className="space-y-0.5">
+            <p className="text-sm font-semibold text-texte">Visite guidée interactive</p>
+            <p className="text-xs text-texte-attenue">
+              Besoin d&apos;un rappel des commandes principales ? Relance le tour pas-à-pas sur le Tableau de bord.
+            </p>
+          </div>
+          <BoutonRelancerTour libelle="Lancer la visite guidée" />
+        </div>
+
         <BandeauInfo ton="primaire">
           Le principe tient en une phrase : <strong>le système ne mesure que ce que tu as
           démontré</strong>. Tout ce qui suit découle de là — le tuteur écrit les exercices, tes

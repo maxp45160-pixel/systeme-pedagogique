@@ -72,6 +72,12 @@ export const IconeFleche = ({ className }: Props) => (
   </Svg>
 );
 
+export const IconeFermer = ({ className }: Props) => (
+  <Svg className={className}>
+    <path d="m6 6 12 12M6 18 18 6" />
+  </Svg>
+);
+
 export const IconeAmpoule = ({ className }: Props) => (
   <Svg className={className}>
     <path d="M9 17.5h6M10 20.5h4" />

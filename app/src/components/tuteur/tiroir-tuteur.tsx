@@ -90,6 +90,7 @@ export function TiroirTuteur({
         onClick={() => setOuvert(true)}
         aria-label={flottant ? libelle : undefined}
         title={flottant ? libelle : undefined}
+        data-tour={flottant ? "tuteur-flottant" : undefined}
         className={flottant ? CLASSES_FLOTTANT : classesLienBouton("secondaire", "petite")}
       >
         {flottant ? (

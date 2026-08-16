@@ -15,11 +15,12 @@
  */
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { BandeauInfo, Bouton, cx, PointActif } from "@/components/ui/primitives";
+import { BandeauInfo, Bouton, cx } from "@/components/ui/primitives";
 import { Modale } from "@/components/ui/modale";
 import { ModaleCompetence } from "@/components/referentiel/modale-competence";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import type { PropositionTheme } from "@/lib/tutor/outils";
+import { ChargementGeneration } from "@/components/ui/chargement-generation";
 import { creerTheme } from "@/lib/store/theme-actions";
 import type { Theme } from "@/lib/domain/theme";
 
@@ -238,22 +239,21 @@ export function ModaleTheme({
       )}
 
       {etat.phase === "resolution" && (
-        <div className="flex flex-col items-center justify-center py-10 text-center">
-          <PointActif />
-          <p className="mt-3 text-sm text-texte-attenue">
-            {etat.progression ?? "Le tuteur prend connaissance de ton intention…"}
-          </p>
-          <Bouton
-            onClick={() => {
+        <div className="py-8">
+          <ChargementGeneration
+            progressionServeur={etat.progression}
+            etapes={[
+              "Analyse de ton intention d'apprentissage…",
+              "Rapprochement sémantique avec ton référentiel…",
+              "Sélection des compétences les plus pertinentes…",
+              "Finalisation de la proposition…",
+            ]}
+            dureeAsymptoteSec={6}
+            onArreter={() => {
               abandonRef.current?.abort();
               setEtat({ phase: "saisie" });
             }}
-            variante="secondaire"
-            taille="petite"
-            className="mt-4"
-          >
-            Arrêter
-          </Bouton>
+          />
         </div>
       )}
 
