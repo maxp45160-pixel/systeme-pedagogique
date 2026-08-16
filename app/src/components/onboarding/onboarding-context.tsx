@@ -4,11 +4,11 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useState,
   type ReactNode,
 } from "react";
 import { cleParCompte } from "@/lib/ui/stockage-session";
+import { lireLocalSimple, ecrireLocalSimple, effacerLocal } from "@/lib/ui/stockage-local";
 
 interface ContexteOnboardingType {
   compteId: string;
@@ -34,20 +34,11 @@ export function FournisseurOnboarding({
   children: ReactNode;
 }) {
   const [tourActif, setTourActif] = useState<string | null>(null);
-  const [estMonte, setEstMonte] = useState(false);
-
-  useEffect(() => {
-    setEstMonte(true);
-  }, []);
 
   const estTourTermine = useCallback(
     (tourId: string): boolean => {
       if (typeof window === "undefined") return false;
-      try {
-        return window.localStorage.getItem(cleTour(tourId, compteId)) === "1";
-      } catch {
-        return false;
-      }
+      return lireLocalSimple(cleTour(tourId, compteId)) === "1";
     },
     [compteId],
   );
@@ -55,11 +46,7 @@ export function FournisseurOnboarding({
   const terminerTour = useCallback(
     (tourId: string) => {
       if (typeof window !== "undefined") {
-        try {
-          window.localStorage.setItem(cleTour(tourId, compteId), "1");
-        } catch {
-          // Ignore les erreurs de quota ou mode privé
-        }
+        ecrireLocalSimple(cleTour(tourId, compteId), "1");
       }
       setTourActif((actuel) => (actuel === tourId ? null : actuel));
     },
@@ -69,11 +56,7 @@ export function FournisseurOnboarding({
   const reinitialiserTour = useCallback(
     (tourId: string) => {
       if (typeof window !== "undefined") {
-        try {
-          window.localStorage.removeItem(cleTour(tourId, compteId));
-        } catch {
-          // Ignore
-        }
+        effacerLocal(cleTour(tourId, compteId));
       }
       setTourActif(tourId);
     },

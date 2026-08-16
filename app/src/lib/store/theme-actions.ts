@@ -128,8 +128,7 @@ export async function etatRetraitTheme(id: string): Promise<EtatRetraitTheme> {
  */
 export async function retirerTheme(id: string): Promise<EtatRetraitTheme> {
   const dorsale = await dorsaleCompte();
-  const seances = await nombreDeSeancesCitant(dorsale, id);
-  const mode = modeRetrait(seances);
+  const { seances, mode } = await etatRetraitTheme(id);
 
   if (mode === "suppression") {
     const { error } = await dorsale.supabase

@@ -38,21 +38,28 @@ npm install --workspaces
 
 ---
 
-## Formatage du Tool Calling & Modèles (DeepSeek / Reasoning)
+## Protocole Tool Calling (Robuste pour DeepSeek & Modèles de Raisonnement)
 
-1. **Hygiène des balises XML** :
-   - Ne **JAMAIS** insérer de tokens spéciaux ou de balises internes de réflexion/DSML (ex: `</｜｜DSML｜｜>`, `<｜DSML｜>`, etc.) dans les balises XML ou les paramètres d'outils (`<path>`, `<command>`, etc.).
-   - Les chemins de fichiers doivent être propres, sans espaces superflus ni balises parasites :
-     - Correct : `<path>app/src/lib/domain/seance.ts</path>`
-     - Incorrect : `<path>app/src/lib/domain/seance.ts</｜｜DSML｜｜></path>`
+1. **Format XML Strict & Précis** :
+   - Tout appel d'outil doit être formulé en XML standard sans aucun caractère ou token parasite dans les balises d'ouverture et de fermeture.
+   - Les balises doivent impérativement être fermées avec leur nom exact (`</path>`, `</diff>`, `</content>`, `</command>`).
+   - Exemple exact :
+     ```xml
+     <read_file>
+     <path>app/src/lib/domain/seance.ts</path>
+     </read_file>
+     ```
 
-2. **Chemins de fichiers** :
+2. **Un seul appel d'outil par message** :
+   - Toujours inclure immédiatement un appel d'outil utile lors d'une étape de diagnostic ou de modification. Ne jamais terminer une réponse intermédiaire par du texte brut sans outil pour éviter le blocage de séquence du harness.
+
+3. **Chemins de fichiers & Portée** :
    - Tous les fichiers applicatifs se trouvent sous le préfixe `app/` (ex: `app/src/lib/domain/...`, `app/src/components/...`).
    - Toujours spécifier le chemin relatif complet depuis la racine.
 
-3. **Édition de fichiers (`replace_in_file`, `write_to_file`)** :
-   - Toujours renseigner l'ensemble des paramètres requis (`path`, `diff` ou `content`).
-   - S'assurer que le bloc cible `SEARCH` correspond exactement aux lignes du fichier existant avant de proposer un `REPLACE`.
+4. **Édition ciblée (`replace_in_file`)** :
+   - Spécifier des blocs `SEARCH` courts (5 à 15 lignes max), uniques et contenant 1 à 2 lignes de contexte avant et après pour garantir une correspondance exacte.
+   - Toujours vérifier le contenu actuel du fichier avec `read_file` avant de générer un `replace_in_file`.
 
 ---
 

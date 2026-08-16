@@ -16,6 +16,7 @@
  */
 
 import { cleParCompte } from "@/lib/ui/stockage-session";
+import { lireLocal, ecrireLocal, effacerLocal } from "@/lib/ui/stockage-local";
 import { validerUrlFournisseur } from "./url-fournisseur";
 
 export type FournisseurTuteur =
@@ -105,39 +106,25 @@ function cleStockage(compteId: string): string {
 /** Lit la config enregistrée pour ce compte, ou `null` si aucune clé valide. */
 export function lireConfigTuteur(compteId: string): ConfigTuteurClient | null {
   if (typeof window === "undefined") return null;
-  try {
-    const brut = window.localStorage.getItem(cleStockage(compteId));
-    if (!brut) return null;
-    const config = JSON.parse(brut) as ConfigTuteurClient;
-    if (!config || typeof config.cle !== "string" || config.cle.trim() === "") {
-      return null;
-    }
-    return config;
-  } catch {
+  const config = lireLocal<ConfigTuteurClient>(cleStockage(compteId));
+  if (!config || typeof config.cle !== "string" || config.cle.trim() === "") {
     return null;
   }
+  return config;
 }
 
 /** Enregistre la config pour ce compte. */
 export function ecrireConfigTuteur(compteId: string, config: ConfigTuteurClient): void {
   if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(cleStockage(compteId), JSON.stringify(config));
-    notifierChangement();
-  } catch {
-    // localStorage indisponible ou plein : on ignore.
-  }
+  ecrireLocal(cleStockage(compteId), config);
+  notifierChangement();
 }
 
 /** Efface la config enregistrée pour ce compte. */
 export function effacerConfigTuteur(compteId: string): void {
   if (typeof window === "undefined") return;
-  try {
-    window.localStorage.removeItem(cleStockage(compteId));
-    notifierChangement();
-  } catch {
-    // ignore
-  }
+  effacerLocal(cleStockage(compteId));
+  notifierChangement();
 }
 
 /** Masque la clé pour l'affichage : ne montre que les derniers caractères. */

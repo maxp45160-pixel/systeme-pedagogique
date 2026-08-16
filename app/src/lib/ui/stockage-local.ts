@@ -53,3 +53,32 @@ export function ecrireLocal(cle: string, valeur: unknown): void {
     /* voir ci-dessus */
   }
 }
+
+/**
+ * Accès bruts, pour les valeurs qui ne sont pas du JSON sérialisable ou qui
+ * n'ont pas besoin de l'être (un drapeau `"1"`, un marqueur simple).
+ * Même silence que leurs jumelles typées.
+ */
+export function lireLocalSimple(cle: string): string | null {
+  try {
+    return window.localStorage.getItem(cle);
+  } catch {
+    return null;
+  }
+}
+
+export function ecrireLocalSimple(cle: string, valeur: string): void {
+  try {
+    window.localStorage.setItem(cle, valeur);
+  } catch {
+    /* voir ci-dessus */
+  }
+}
+
+export function effacerLocal(cle: string): void {
+  try {
+    window.localStorage.removeItem(cle);
+  } catch {
+    /* voir ci-dessus */
+  }
+}

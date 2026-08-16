@@ -23,6 +23,7 @@ import { capturerDocumentProduction, inscrireFicheExercice } from "./documents";
 import { lireReferentiel } from "./referentiel";
 import {
   motifRefusExercice,
+  trouverExercice,
 } from "@/lib/domain/exercice";
 import {
   deciderAbandonExercice,
@@ -193,9 +194,7 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
   const dorsale = await dorsaleCompte();
   const exercices = await lire("exercises", dorsale);
   const { EXERCICES_DIAGNOSTIC } = await import("@/lib/seed/exercises");
-  const exercice =
-    exercices.find((e) => e.id === soumission.exerciseId) ??
-    EXERCICES_DIAGNOSTIC.find((e) => e.id === soumission.exerciseId);
+  const exercice = trouverExercice(exercices, EXERCICES_DIAGNOSTIC, soumission.exerciseId);
   if (!exercice) throw new Error(`Exercice introuvable : ${soumission.exerciseId}`);
 
   /*
@@ -464,9 +463,7 @@ export async function abandonnerExercice(
   const dorsale = await dorsaleCompte();
   const exercices = await lire("exercises", dorsale);
   const { EXERCICES_DIAGNOSTIC } = await import("@/lib/seed/exercises");
-  const exercice =
-    exercices.find((e) => e.id === exerciseId) ??
-    EXERCICES_DIAGNOSTIC.find((e) => e.id === exerciseId);
+  const exercice = trouverExercice(exercices, EXERCICES_DIAGNOSTIC, exerciseId);
   if (!exercice) throw new Error(`Exercice introuvable : ${exerciseId}`);
 
   /*

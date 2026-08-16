@@ -45,7 +45,8 @@ export function GuideTour({
   const [estMonte, setEstMonte] = useState(false);
 
   useEffect(() => {
-    setEstMonte(true);
+    const id = requestAnimationFrame(() => setEstMonte(true));
+    return () => cancelAnimationFrame(id);
   }, []);
 
   const etape = etapes[indexCourant];
@@ -85,8 +86,7 @@ export function GuideTour({
       }
     }
 
-    // Actualise immédiatement et après un court délai pour les transitions / scrolls
-    actualiserPosition();
+    // Actualise après un court délai pour laisser les transitions / scrolls se poser.
     const timer = setTimeout(actualiserPosition, 300);
 
     window.addEventListener("resize", actualiserPosition);

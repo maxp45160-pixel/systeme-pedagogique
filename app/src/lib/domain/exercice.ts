@@ -130,6 +130,27 @@ export function estRetirable(exercice: Exercise): boolean {
 }
 
 /**
+ * Résout un exercice par identifiant, d'abord dans les exercices stockés du
+ * compte, puis dans les diagnostics livrés avec le logiciel.
+ *
+ * Les diagnostics ne vivent pas en base (ADR-004) : toute écriture ou lecture
+ * qui cite un exercice par son id doit connaître les deux sources. Cette
+ * jonction était recopiée à trois endroits — `terminerExercice`,
+ * `abandonnerExercice` et `catalogueExercices` — et une copie supplémentaire
+ * aurait dérivé sans bruit (ADR-044).
+ *
+ * La règle d'antériorité est celle de `chargerContexte` : une ligne stockée
+ * l'emporte sur le diagnostic de même identifiant (`idsStockes`).
+ */
+export function trouverExercice(
+  stockes: readonly Exercise[],
+  diagnostics: readonly Exercise[],
+  id: string,
+): Exercise | null {
+  return stockes.find((e) => e.id === id) ?? diagnostics.find((e) => e.id === id) ?? null;
+}
+
+/**
  * Statut d'usage d'un exercice, dérivé de ses tentatives — jamais stocké (P1).
  *
  * `acquis` n'est pas « maîtrisé » : c'est « au moins une tentative réussie ».

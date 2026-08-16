@@ -27,6 +27,7 @@
 
 import type { ProfilerOnRenderCallback } from "react";
 import { cleParCompte } from "@/lib/ui/stockage-session";
+import { lireLocalSimple, ecrireLocalSimple, effacerLocal } from "@/lib/ui/stockage-local";
 
 export interface MesureRendu {
   composant: string;
@@ -56,22 +57,14 @@ function cleCompte(cle: string, compteId: string): string {
 
 function lireDrapeau(cle: string, compteId: string): boolean {
   if (typeof window === "undefined") return false;
-  try {
-    return window.localStorage.getItem(cleCompte(cle, compteId)) === "1";
-  } catch {
-    return false;
-  }
+  return lireLocalSimple(cleCompte(cle, compteId)) === "1";
 }
 
 function poserDrapeau(cle: string, compteId: string, valeur: boolean): void {
   if (typeof window === "undefined") return;
-  try {
-    const cleIsolee = cleCompte(cle, compteId);
-    if (valeur) window.localStorage.setItem(cleIsolee, "1");
-    else window.localStorage.removeItem(cleIsolee);
-  } catch {
-    // localStorage indisponible : on ignore.
-  }
+  const cleIsolee = cleCompte(cle, compteId);
+  if (valeur) ecrireLocalSimple(cleIsolee, "1");
+  else effacerLocal(cleIsolee);
   // Notifier les abonnés (useSyncExternalStore) pour un rafraîchissement immédiat.
   const ecouteurs = (
     window as unknown as { __profilageEcouteurs?: Set<() => void> }
@@ -155,9 +148,10 @@ const MAX_INTERACTIONS = 200;
 
 function lire<T>(cle: string, compteId: string, defaut: T): T {
   if (!profilageClientActif(compteId)) return defaut;
+  const brut = lireLocalSimple(cleCompte(cle, compteId));
+  if (brut === null) return defaut;
   try {
-    const brut = localStorage.getItem(cleCompte(cle, compteId));
-    return brut ? (JSON.parse(brut) as T) : defaut;
+    return JSON.parse(brut) as T;
   } catch {
     return defaut;
   }
@@ -184,11 +178,7 @@ function notifierEcouteurs(): void {
 
 function ecrire<T>(cle: string, compteId: string, valeur: T): void {
   if (!profilageClientActif(compteId)) return;
-  try {
-    localStorage.setItem(cleCompte(cle, compteId), JSON.stringify(valeur));
-  } catch {
-    // localStorage plein ou indisponible : on ignore.
-  }
+  ecrireLocalSimple(cleCompte(cle, compteId), JSON.stringify(valeur));
   notifierEcouteurs();
 }
 
@@ -279,10 +269,6 @@ export function interactionsActuelles(compteId: string): MesureInteraction[] {
 /** Vide toutes les mesures client. */
 export function viderMesuresClient(compteId: string): void {
   if (typeof window === "undefined") return;
-  try {
-    localStorage.removeItem(cleCompte(CLE_RENDUS, compteId));
-    localStorage.removeItem(cleCompte(CLE_INTERACTIONS, compteId));
-  } catch {
-    // ignore
-  }
+  effacerLocal(cleCompte(CLE_RENDUS, compteId));
+  effacerLocal(cleCompte(CLE_INTERACTIONS, compteId));
 }

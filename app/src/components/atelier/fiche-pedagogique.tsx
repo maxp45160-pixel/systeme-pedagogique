@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { NIVEAUX } from "@/lib/domain/types";
+import { formatDateCourte, formatDateHeure } from "@/lib/engine/dates";
 import type {
   VueCompetenceAtelier,
   VueDomaineAtelier,
@@ -89,7 +90,7 @@ const LIBELLES_CONFIANCE: Record<string, string> = {
 
 function dateCourte(date: string | null): string {
   if (!date) return "Aucune activité";
-  return new Date(date).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
+  return formatDateCourte(date);
 }
 
 function pourcentage(valeur: number | null): string {
@@ -1604,13 +1605,7 @@ function VueExercice({
                       {t.resultat === "reussi" ? "Réussi" : t.resultat === "partiel" ? "Partiel" : "Échec"}
                     </span>
                     <span className="text-texte-discret">
-                      {new Date(t.fin ?? t.debut).toLocaleDateString("fr-FR", {
-                        day: "numeric",
-                        month: "long",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                      {formatDateHeure(t.fin ?? t.debut)}
                     </span>
                   </div>
                   <div className="flex items-center gap-3 text-texte-discret">

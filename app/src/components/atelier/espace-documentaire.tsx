@@ -9,6 +9,7 @@ import { IconeFleche, IconeRecherche } from "@/components/ui/icones";
 import { IconeDocument } from "@/components/ui/icone-document";
 import { createNavigateurClient } from "@/lib/supabase/client";
 import { analyserDocumentMarkdown } from "@/lib/documents/markdown";
+import { formatDateCourte } from "@/lib/engine/dates";
 import {
   separerFrontMatterEtCorps,
   recomposerDocumentComplet,
@@ -77,11 +78,7 @@ function formaterDateDocument(element: ElementAtelier): string | null {
   try {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return null;
-    return d.toLocaleDateString("fr-FR", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
+    return formatDateCourte(dateStr);
   } catch {
     return null;
   }

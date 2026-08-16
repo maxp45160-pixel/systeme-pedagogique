@@ -32,6 +32,17 @@ export function formatDateCourte(date: string): string {
   });
 }
 
+/** Date et heure, pour un événement daté précisément (une tentative, un passage). */
+export function formatDateHeure(date: string): string {
+  return new Date(date).toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export function formatDateRelative(date: string, now: Date = new Date()): string {
   const j = joursDepuis(date, now);
   if (j === 0) return "aujourd'hui";

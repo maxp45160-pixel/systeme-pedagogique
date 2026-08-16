@@ -8,14 +8,10 @@
 
 import "server-only";
 
-import { cache } from "react";
-
 import { dorsaleCompte, type DorsaleCompte } from "./db";
 import { ligneVersEntite, verifier } from "./supabase-backend";
 import { mesurer } from "@/lib/profiling/server";
 import type { Theme } from "@/lib/domain/theme";
-
-import { chargerContexte } from "./context";
 
 export async function lireThemes(dorsaleFournie?: DorsaleCompte): Promise<Theme[]> {
   const { supabase, userId } = dorsaleFournie ?? (await dorsaleCompte());
@@ -27,13 +23,3 @@ export async function lireThemes(dorsaleFournie?: DorsaleCompte): Promise<Theme[
 
   return ((data ?? []) as Record<string, unknown>[]).map((l) => ligneVersEntite<Theme>(l));
 }
-
-/**
- * Lecture mémoïsée par requête — connectée au contexte complet.
- *
- * S'appuie sur `chargerContexte()` pour bénéficier de la RPC groupée
- * `charger_tout` et de la déduplication de requête.
- */
-export const chargerThemes = cache(
-  async (): Promise<Theme[]> => (await chargerContexte()).themes,
-);
