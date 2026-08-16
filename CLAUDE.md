@@ -75,6 +75,9 @@ Consulter `PRODUCT.md` pour la définition complète des principes.
 - `dureeEstimeeMin` n'est pas une mesure de performance.
 - Une tentative abandonnée ne produit pas de preuve.
 - Une séance ne doit pas produire de double entrée dans le journal.
+- Plusieurs séances peuvent être en cours : rattacher un exercice terminé passe
+  par le contexte explicite du workspace (`seanceHoteDeLExercice`), jamais par
+  déduction seule (ADR-077).
 - Ne pas créer de nouvelle entité pour remplacer `LearningSession`.
 - Toute clé de stockage navigateur doit être isolée par compte.
 - La logique métier non triviale doit vivre dans `lib/`, pas dans un composant.

@@ -127,20 +127,32 @@ async function ContenuTableauDeBord({ instant }: { instant: ContexteInstant }) {
   );
   const aucunePreuve = ctx.global.nombrePreuves === 0;
 
-  const seanceActive = ctx.donnees.sessions.find(
-    (seance) => statutSeance(seance) === "en-cours",
-  );
-  const exercicesDeLaSeanceActive = new Set(
-    seanceActive?.activites
-      .filter((activite) => activite.type === "exercice")
-      .map((activite) => activite.ref) ?? [],
+  /*
+   * TOUTES les séances ouvertes, et non la première trouvée : plusieurs peuvent
+   * l'être depuis le 16/08/2026. N'en retenir qu'une ferait remonter les
+   * exercices des autres dans le bandeau « travail entamé » ci-dessous, comme
+   * s'ils traînaient hors séance — alors qu'ils sont exactement là où on les a
+   * laissés.
+   */
+  const seancesActives = [...ctx.donnees.sessions]
+    .filter((seance) => statutSeance(seance) === "en-cours")
+    .sort((a, b) => b.date.localeCompare(a.date));
+  const seanceActive = seancesActives[0];
+
+  const exercicesDesSeancesActives = new Set(
+    seancesActives
+      .flatMap((seance) =>
+        seance.activites
+          .filter((activite) => activite.type === "exercice")
+          .map((activite) => activite.ref),
+      ),
   );
 
   // Tentatives ouvertes, résolues contre le corpus. Un exercice archivé ou
   // supprimé entre-temps ne doit pas produire une ligne sans titre.
   const parId = new Map(ctx.donnees.exercises.map((e) => [e.id, e]));
   const enCours = ctx.donnees.attempts
-    .filter((a) => a.statut === "en-cours" && !exercicesDeLaSeanceActive.has(a.exerciseId))
+    .filter((a) => a.statut === "en-cours" && !exercicesDesSeancesActives.has(a.exerciseId))
     .flatMap((a) => {
       const exercice = parId.get(a.exerciseId);
       if (!exercice) return [];
@@ -230,8 +242,24 @@ async function ContenuTableauDeBord({ instant }: { instant: ContexteInstant }) {
             <div className="absolute inset-x-0 top-0 h-1 bg-primaire" aria-hidden />
             <div className="px-5 py-5 sm:px-6">
               <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-primaire">Action prioritaire</p>
-              <h2 className="mt-2 font-serif text-2xl font-medium">Reprendre la séance</h2>
+              <h2 className="mt-2 font-serif text-2xl font-medium">
+                {seancesActives.length > 1 ? "Reprendre la dernière séance" : "Reprendre la séance"}
+              </h2>
               <p className="mt-2 text-sm text-texte-attenue">Retrouve l&apos;exercice, le minuteur et le tuteur dans le workspace, sans changer de contexte.</p>
+              {/*
+                Plusieurs séances peuvent être ouvertes. Le tableau de bord en
+                désigne une — la plus récemment commencée — et le dit, plutôt
+                que de laisser croire qu'il n'y en a qu'une. Les autres se
+                retrouvent dans la file du cahier.
+              */}
+              {seancesActives.length > 1 && (
+                <p className="mt-1 text-xs text-texte-discret">
+                  {seancesActives.length} séances sont ouvertes.{" "}
+                  <Link href="/seances" className="font-medium text-primaire hover:underline">
+                    Voir la file du cahier
+                  </Link>
+                </p>
+              )}
               <Link href={`/seances?session=${encodeURIComponent(seanceActive.id)}`} className={`${classesLienBouton("principal")} mt-4`}>
                 Reprendre la séance
               </Link>

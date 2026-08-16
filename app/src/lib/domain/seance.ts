@@ -108,9 +108,20 @@ export function statutSeance(seance: LearningSession): StatutSeance {
  * pour dire ce qui s'est réellement passé.
  *
  * Une séance `en-cours` a lieu : la personne y travaille en ce moment.
+ *
+ * Une séance **abandonnée** relève du même piège, sous une autre forme : elle a
+ * été démarrée, donc elle porte une date réelle, mais rien n'y a peut-être eu
+ * lieu. `abandonnerSeance` n'écrit `dureeMin` que si une tentative a été menée
+ * — l'absence de durée est donc ici le fait « aucune minute observée », et non
+ * une donnée manquante. C'est cette absence qui décide, pas le statut : compter
+ * un abandon sec comme un jour actif fabriquerait de l'activité à partir d'un
+ * renoncement (P2).
  */
 export function seanceALieu(seance: LearningSession): boolean {
-  return statutSeance(seance) !== "planifiee";
+  const statut = statutSeance(seance);
+  if (statut === "planifiee") return false;
+  if (statut === "abandonnee") return typeof seance.dureeMin === "number";
+  return true;
 }
 
 /** Les identifiants d'exercice que la séance prévoit ou a traversés. */
@@ -160,8 +171,13 @@ export function tentativeDeSeance(
  * et sa propre séance auto-générée — et le journal compterait deux fois le même
  * travail, y compris dans le bandeau d'activité.
  *
- * À plusieurs séances en cours (cas anormal mais possible), la plus récemment
- * commencée l'emporte : c'est celle dans laquelle la personne travaille.
+ * ⚠️ **Ce n'est plus l'autorité, c'est le repli** (16/08/2026). Depuis que
+ * plusieurs séances peuvent être ouvertes en même temps, « la plus récemment
+ * commencée » n'est plus une réponse : le même exercice peut appartenir à deux
+ * séances ouvertes, et deviner laquelle rattacherait le travail à la mauvaise.
+ * La question se pose désormais à `seanceHoteDeLExercice`, qui préfère le
+ * contexte explicite. Cette fonction reste la réponse des chemins qui n'en ont
+ * pas — un exercice ouvert depuis la bibliothèque, hors workspace.
  */
 export function seanceEnCoursPour(
   exerciceId: string,
@@ -174,6 +190,43 @@ export function seanceEnCoursPour(
     )
     .sort((a, b) => b.date.localeCompare(a.date));
   return candidates[0] ?? null;
+}
+
+/**
+ * La séance qui tient le journal pour cet exercice — contexte d'abord.
+ *
+ * ## Pourquoi cette fonction existe
+ *
+ * L'invariant « une seule séance en cours » (ADR-048) n'était pas du confort :
+ * il rendait `seanceEnCoursPour` non ambigu. En le levant, on rouvre exactement
+ * le défaut qu'ADR-048 avait fermé — un exercice présent dans deux séances
+ * ouvertes serait rattaché à l'une d'elles au hasard de la date, et les deux
+ * lignes de journal resteraient exactes prises séparément. Invisible.
+ *
+ * La réponse n'est pas de mieux deviner, c'est de ne plus deviner : le
+ * workspace SAIT dans quelle séance il déroule (`?session=<id>`), et il le
+ * transmet. `seanceIdContexte` n'est cru que s'il désigne une séance réellement
+ * en cours qui contient réellement cet exercice — un contexte périmé ou
+ * fabriqué ne doit pas pouvoir rattacher du travail à n'importe quoi.
+ *
+ * Sans contexte utilisable, on retombe sur `seanceEnCoursPour` : c'est le cas
+ * d'un exercice ouvert hors workspace, où aucune séance n'a été désignée.
+ */
+export function seanceHoteDeLExercice(
+  exerciceId: string,
+  seances: LearningSession[],
+  seanceIdContexte?: string,
+): LearningSession | null {
+  if (seanceIdContexte) {
+    const designee = seances.find(
+      (s) =>
+        s.id === seanceIdContexte &&
+        statutSeance(s) === "en-cours" &&
+        exercicesDeLaSeance(s).includes(exerciceId),
+    );
+    if (designee) return designee;
+  }
+  return seanceEnCoursPour(exerciceId, seances);
 }
 
 /* ------------------------------------------------------------------ */
@@ -363,6 +416,44 @@ export function resumeSeance(avancement: AvancementSeance): string {
   return abandonnes.length > 0
     ? `${base}, ${abandonnes.length} abandonné(s)`
     : base;
+}
+
+/**
+ * La phrase écrite quand une séance est abandonnée.
+ *
+ * Même discipline que `resumeSeance` : elle compte, elle ne juge pas. « Séance
+ * ratée » serait une mesure portée sur un renoncement, c'est-à-dire sur
+ * l'absence de mesure — la faute exacte qu'ADR-030 a corrigée un cran plus bas,
+ * sur la tentative.
+ *
+ * Le nombre d'exercices jamais ouverts est cité : c'est ce qui reste à faire, et
+ * c'est ce que la reprise lira.
+ */
+export function resumeSeanceAbandonnee(avancement: AvancementSeance): string {
+  const { total, menes, restants } = avancement;
+  const base = `Séance abandonnée — ${menes.length} exercice(s) mené(s) sur ${total}`;
+  return restants.length > 0
+    ? `${base}, ${restants.length} jamais ouvert(s)`
+    : base;
+}
+
+/**
+ * La séance peut-elle être reprise là où elle s'est arrêtée ?
+ *
+ * « Reprendre » n'est pas « refaire » : refaire recompose une séance neuve à
+ * partir du blueprint (`presetDepuisSeance`), reprendre rouvre CELLE-CI sur ce
+ * qui n'a pas été traité. Il faut donc qu'il reste quelque chose à traiter —
+ * une séance abandonnée dont tous les exercices ont été menés n'a rien à
+ * reprendre, elle a seulement été close par la mauvaise porte.
+ */
+export function peutReprendreSeance(
+  seance: LearningSession,
+  avancement: AvancementSeance,
+): boolean {
+  return (
+    statutSeance(seance) === "abandonnee" &&
+    avancement.restants.length + avancement.enCours.length > 0
+  );
 }
 
 /* ------------------------------------------------------------------ */

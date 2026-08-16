@@ -7,9 +7,12 @@ import {
   motifRefusActivites,
   motifRefusBlueprint,
   motifRefusDemande,
+  peutReprendreSeance,
   resumeSeance,
+  resumeSeanceAbandonnee,
   seanceALieu,
   seanceEnCoursPour,
+  seanceHoteDeLExercice,
   statutSeance,
   tentativeDeSeance,
   EXERCICES_PAR_SEANCE_MAX,
@@ -121,6 +124,17 @@ describe("seanceALieu — le garde du bandeau d'activité", () => {
     expect(seanceALieu(seance({ statut: "terminee" }))).toBe(true);
     expect(seanceALieu(seance())).toBe(true);
   });
+
+  it("exclut l'abandon sec : rien n'y a été ouvert", () => {
+    // Le même piège que la séance planifiée, sous une autre forme : la séance
+    // porte une date réelle, mais aucune minute n'y a été observée. La compter
+    // colorerait une case du bandeau d'activité avec un renoncement.
+    expect(seanceALieu(seance({ statut: "abandonnee" }))).toBe(false);
+  });
+
+  it("inclut l'abandon qui a laissé une durée observée", () => {
+    expect(seanceALieu(seance({ statut: "abandonnee", dureeMin: 12 }))).toBe(true);
+  });
 });
 
 describe("exercicesDeLaSeance", () => {
@@ -175,6 +189,67 @@ describe("seanceEnCoursPour — le garde contre le double journal", () => {
     const ancienne = seance({ id: "ses-vieille", statut: "en-cours", date: "2026-08-01T09:00:00.000Z" });
     const recente = seance({ id: "ses-recente", statut: "en-cours", date: "2026-08-10T09:00:00.000Z" });
     expect(seanceEnCoursPour("ex-a", [ancienne, recente])?.id).toBe("ses-recente");
+  });
+});
+
+describe("seanceHoteDeLExercice — le rattachement ne se devine plus", () => {
+  /*
+   * La contrepartie de la levée de l'invariant « une seule séance en cours »
+   * (16/08/2026). Le défaut qu'elle ferme est invisible : deux séances ouvertes
+   * contenant le même exercice produiraient un rattachement au hasard de la
+   * date, et les deux lignes de journal resteraient exactes prises séparément.
+   */
+  const ancienne = seance({ id: "ses-vieille", statut: "en-cours", date: "2026-08-01T09:00:00.000Z" });
+  const recente = seance({ id: "ses-recente", statut: "en-cours", date: "2026-08-10T09:00:00.000Z" });
+
+  it("préfère la séance désignée par le contexte, même si elle est plus ancienne", () => {
+    expect(seanceHoteDeLExercice("ex-a", [ancienne, recente], "ses-vieille")?.id).toBe("ses-vieille");
+  });
+
+  it("retombe sur la déduction sans contexte", () => {
+    expect(seanceHoteDeLExercice("ex-a", [ancienne, recente])?.id).toBe("ses-recente");
+  });
+
+  it("refuse un contexte qui ne contient pas l'exercice", () => {
+    const autre = seance({ id: "ses-autre", statut: "en-cours", activites: [{ type: "exercice", ref: "ex-z", libelle: "Z" }] });
+    expect(seanceHoteDeLExercice("ex-a", [autre, recente], "ses-autre")?.id).toBe("ses-recente");
+  });
+
+  it("refuse un contexte périmé : une séance close ne capte plus rien", () => {
+    const close = seance({ id: "ses-close", statut: "abandonnee" });
+    expect(seanceHoteDeLExercice("ex-a", [close], "ses-close")).toBeNull();
+  });
+});
+
+describe("abandon et reprise d'une séance", () => {
+  it("compte sans juger", () => {
+    const avancement = avancementSeance(seance({ statut: "abandonnee" }), [
+      tentative("ex-a", "terminee"),
+    ]);
+    const phrase = resumeSeanceAbandonnee(avancement);
+    expect(phrase).toContain("1 exercice(s) mené(s) sur 2");
+    expect(phrase).toContain("1 jamais ouvert(s)");
+    // Aucun qualificatif sur la personne ni sur la séance (P2, P3).
+    expect(phrase).not.toMatch(/rat|échec|echec/i);
+  });
+
+  it("ne propose la reprise que s'il reste quelque chose à reprendre", () => {
+    const s = seance({ statut: "abandonnee" });
+    const rien = avancementSeance(s, [
+      tentative("ex-a", "terminee"),
+      tentative("ex-b", "terminee"),
+    ]);
+    expect(peutReprendreSeance(s, rien)).toBe(false);
+
+    const reste = avancementSeance(s, [tentative("ex-a", "terminee")]);
+    expect(peutReprendreSeance(s, reste)).toBe(true);
+  });
+
+  it("ne propose la reprise que d'une séance abandonnée", () => {
+    const enCours = seance({ statut: "en-cours" });
+    expect(peutReprendreSeance(enCours, avancementSeance(enCours, []))).toBe(false);
+    const terminee = seance({ statut: "terminee" });
+    expect(peutReprendreSeance(terminee, avancementSeance(terminee, []))).toBe(false);
   });
 });
 

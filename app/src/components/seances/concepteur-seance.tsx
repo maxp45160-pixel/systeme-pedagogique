@@ -143,6 +143,18 @@ export interface DonneesSeance {
    */
   ouvertParDefaut?: boolean;
   /**
+   * Refermer le compositeur ramène à l'écran d'où l'on vient.
+   *
+   * Réservé au compositeur ouvert par un lien (`/seances?composer=1`) : on y
+   * arrive depuis le tableau de bord, un exercice, une fiche — et renoncer à
+   * composer doit rendre la main à cet écran-là, pas laisser sur une URL de
+   * composition qui ne compose plus rien.
+   *
+   * Repli sur le cahier quand il n'y a pas d'historique (lien ouvert dans un
+   * onglet neuf) : `router.back()` sortirait alors de l'application.
+   */
+  retourEnFermant?: boolean;
+  /**
    * Appelé après l'écriture de la séance, avant toute navigation.
    *
    * Sert à la note opérationnelle qui a déclenché la composition : elle y
@@ -181,10 +193,18 @@ export function ConcepteurSeance({
   icone,
   surSeanceCreee,
   ouvertParDefaut = false,
+  retourEnFermant = false,
 }: DonneesSeance) {
   const router = useRouter();
   const [ouvert, setOuvert] = useState(ouvertParDefaut);
   const [phase, setPhase] = useState<Phase>("besoin");
+
+  function fermer() {
+    setOuvert(false);
+    if (!retourEnFermant) return;
+    if (typeof window !== "undefined" && window.history.length > 1) router.back();
+    else router.push("/seances");
+  }
 
   const nomsDomaines = useMemo(
     () => new Map(domaines.map((d) => [d.id, d.nom])),
@@ -420,7 +440,7 @@ export function ConcepteurSeance({
         <Modale
           titre="Composer une séance"
           sousTitre="Le sujet est déjà choisi. Indique un temps — le reste est dérivé et modifiable."
-          onFermer={() => setOuvert(false)}
+          onFermer={fermer}
           largeur="2xl"
           /*
            * Les actions sont calculées ici plutôt que dans les étapes : le pied

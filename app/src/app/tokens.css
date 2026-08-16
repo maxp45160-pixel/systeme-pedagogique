@@ -132,6 +132,13 @@
   /* ── Sémantiques · ornement du carnet ─────────────────────────── */
   --grille: rgb(38 33 23 / 0.035);
   --marge: #ddb9ab;
+  /*
+    Réglure d'une page du cahier — les lignes horizontales sur lesquelles on
+    écrit. Distincte de `--grille`, qui trame le fond de l'application : la
+    réglure appartient à la page, elle est donc un cran plus lisible, sans
+    jamais concurrencer le texte qu'elle porte.
+  */
+  --reglure: rgb(38 33 23 / 0.06);
 
   /* ── Ombres · trois niveaux d'élévation, pas un de plus ───────── */
   --ombre-posee: 0 1px 0 rgb(201 189 159 / 0.6), 0 1px 2px rgb(38 33 23 / 0.04);
@@ -214,6 +221,7 @@
 
   --grille: rgb(240 234 221 / 0.03);
   --marge: #57342c;
+  --reglure: rgb(240 234 221 / 0.055);
 
   --ombre-posee: 0 1px 0 rgb(0 0 0 / 0.4), 0 1px 2px rgb(0 0 0 / 0.25);
   --ombre-levee: 0 2px 4px -1px rgb(0 0 0 / 0.5), 0 4px 12px -2px rgb(0 0 0 / 0.35);
@@ -273,6 +281,7 @@
 
   /* Ornement */
   --color-marge: var(--marge);
+  --color-reglure: var(--reglure);
 
   /* Familles */
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;

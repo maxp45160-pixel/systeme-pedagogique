@@ -5734,6 +5734,202 @@ multiligne revient à `rows`.
 
 ---
 
+## ADR-077 — Une séance s'abandonne, et plusieurs peuvent être ouvertes : le rattachement cesse d'être déduit ✅
+
+**Date.** 16/08/2026. **Tranchée par Maxime.** Lève l'invariant « une seule
+séance en cours » posé par [ADR-048](#adr-048), et fournit sa contrepartie.
+
+**Contexte.** Une séance en cours n'avait qu'une sortie : `terminerSeance`, qui
+écrit un résultat au journal. `annulerSeance` refuse tout ce qui n'est pas
+`planifiee`. Une séance ouverte au mauvais moment restait donc ouverte
+indéfiniment — et comme une seule pouvait l'être à la fois, elle bloquait
+toutes les suivantes. C'est le même manque qu'`abandonnerExercice` avait comblé
+un cran plus bas ([ADR-030](#adr-030), [ADR-072](#adr-072)).
+
+L'invariant d'unicité n'était pas du confort : il rendait `seanceEnCoursPour`
+non ambigu. Le lever seul aurait rouvert exactement le défaut qu'ADR-048 avait
+fermé — un exercice présent dans deux séances ouvertes rattaché à l'une d'elles
+au hasard de la date, avec deux lignes de journal exactes prises séparément,
+donc invisible.
+
+**Décision.**
+
+* **`abandonnee` devient un statut de séance**, symétrique de ce que
+  `ExerciseAttempt.statut` porte depuis l'origine. `resumeSeanceAbandonnee`
+  compte et ne juge pas : un abandon dit qu'on n'a pas continué, pas qu'on a
+  échoué (P2, P3). Les exercices déjà menés gardent leurs preuves (P4). Le geste
+  est **idempotent** — la leçon d'[ADR-072](#adr-072), où douze clics avaient
+  produit douze entrées de journal.
+* **`seanceALieu` refuse l'abandon sec.** Une séance abandonnée porte une date
+  réelle mais n'a peut-être rien ouvert. C'est l'absence de `dureeMin` qui
+  décide, pas le statut : compter un renoncement comme un jour actif
+  fabriquerait de l'activité à partir de rien — le piège déjà identifié pour la
+  séance planifiée.
+* **Le rattachement se lit dans le contexte, il ne se devine plus.**
+  `seanceHoteDeLExercice` préfère la séance que le workspace désigne
+  (`?session=<id>`), et ne la croit que si elle est réellement en cours et
+  contient réellement cet exercice. `seanceEnCoursPour` reste le repli des
+  chemins sans contexte (un exercice ouvert hors workspace). **C'est cette
+  fonction qui autorise la levée de l'invariant** : les deux ne se séparent pas.
+* **La tentative s'ouvre à l'ouverture de l'exercice, plus au démarrage de la
+  séance.** `creerSeance` pré-ouvrait la première tentative ; à N séances
+  démarrées, cela lançait N chronomètres. `dureeMin` est du temps d'horloge
+  ([ADR-071](#adr-071)) : une tentative ouverte dans une séance qu'on n'a pas
+  encore regardée aurait mesuré du temps passé ailleurs.
+* **Reprendre n'est pas refaire.** `reprendreSeance` rouvre CELLE-CI sur ce qui
+  n'a pas été traité et **ne réécrit pas `date`** — à l'inverse de
+  `demarrerSeance`. `date` borne `avancementSeance` : la réécrire ferait perdre
+  à la séance tout le travail déjà mené en son sein. « Refaire la séance », dans
+  le cahier, continue d'en recomposer une neuve depuis le blueprint.
+
+**Migration.** `20260816180000_abandon_seance.sql` élargit
+`sessions_statut_check`. Aucune ligne existante n'est touchée : au 16/08/2026,
+46 statuts NULL, 4 `terminee`, 1 `en-cours`.
+
+**Ce qui reste ouvert.**
+
+1. ❓ **Le tableau de bord doit-il désigner une séance ?** Il affiche « Reprendre
+   la dernière séance » et annonce le nombre de séances ouvertes. Si l'usage
+   montre qu'on jongle réellement entre plusieurs, la carte devra les lister
+   plutôt qu'en élire une. *Qui tranche :* Maxime. *Ce qui bloque :* savoir si
+   plusieurs séances coexistent en pratique ou seulement en théorie.
+2. 🔬 **L'abandon remplace-t-il la clôture ?** *Test de réfutation :* si les
+   séances finissent majoritairement en `abandonnee` plutôt qu'en `terminee`,
+   c'est que terminer coûte trop cher (le bilan) et que l'abandon sert de porte
+   de sortie par défaut — le geste serait alors mal placé, pas mal conçu.
+
+---
+
+## ADR-078 — Le cahier a une marge : un endroit où écrire avant de savoir quoi en faire ✅
+
+**Date.** 16/08/2026. **Tranchée par Maxime.** Prolonge
+[ADR-061](#adr-061) (le cahier) et [ADR-077](#adr-077).
+
+**Contexte.** Le pôle Cahier n'était un lieu de travail que dans son nom :
+le hub s'ouvrait sur un champ de recherche, puis sur un historique. La seule
+zone de saisie de tout le pôle était le champ « Annoter » d'une séance
+**terminée** — on ne pouvait donc rien écrire avant de travailler, ni pendant,
+ni en dehors d'une séance. Or c'est exactement ce qu'on fait dans un cahier :
+« je bloque sur les conversions », « revoir la formule de Little ». Ces phrases
+sont le point d'entrée naturel de la boucle, et elles n'avaient nulle part où
+atterrir.
+
+La capture de note existante ne comble pas ce manque : `creerNoteAction` exige
+un titre, un contexte et un domaine. Un formulaire de trois champs devant une
+phrase de six mots fait qu'on ne l'écrit pas — la même friction que
+[ADR-073](#adr-073) a retirée du choix d'objet.
+
+**Décision.**
+
+* **La marge est un document du corpus, pas une table.** Il n'y a rien à
+  modéliser : une liste de phrases datées. Un document Markdown la porte sans
+  migration, s'exporte avec le reste, se relit hors de l'application et se
+  corrige à la main. Une table `notes_cahier` aurait ajouté une entité et ses
+  politiques RLS pour stocker du texte libre. Identifiant fixe
+  (`marge-du-cahier`), une par compte, type `note` — aucun type de registre
+  supplémentaire.
+* **La lecture n'écrit pas.** Le document naît à la première ligne, pas à la
+  première visite : ouvrir le cahier ne doit pas peupler l'Atelier de fiches que
+  personne n'a voulues.
+* **On ne réécrit que la section « Marge ».** Le document est ouvrable dans
+  l'Atelier et éditable à la main ; une réécriture globale emporterait le texte
+  écrit à côté, sans qu'aucune erreur ne le signale. Le parseur ne devine rien —
+  une ligne non conforme est laissée telle quelle (même discipline que
+  `projet.ts`).
+* **Rien de ce qui est écrit là n'entre dans le moteur.** Une ligne de marge
+  n'est ni une preuve, ni une mesure, ni un niveau. Cocher est une déclaration
+  (P5, [ADR-064](#adr-064)). « En faire une séance » ne fait que pré-remplir
+  l'intention du compositeur, qui reste le seul chemin d'écriture d'une
+  `LearningSession`.
+* **L'ordre du hub est l'ordre du geste** : la marge, puis ce qui demande un
+  geste (en cours / en suspens / planifiée), puis la relecture avec sa recherche.
+  La recherche ouvrait la page : on fouillait un historique avant d'avoir vu ce
+  qui était ouvert.
+* **La marge suit le travail.** Elle est aussi un outil du workspace, à côté du
+  Pomodoro et du tuteur : c'est pendant un exercice qu'on se dit « il faudra
+  revoir ça ».
+
+**Ce qui reste ouvert.**
+
+1. ❓ **La marge doit-elle être visible ailleurs que dans le cahier ?** Le
+   tableau de bord pourrait lire les lignes ouvertes comme signal d'une prochaine
+   action. Rien ne le fait aujourd'hui, volontairement : ce serait faire entrer
+   une phrase libre dans la recommandation. *Qui tranche :* Maxime. *Ce qui
+   bloque :* voir d'abord ce qu'on y écrit réellement.
+2. 🔬 **La marge nourrit-elle la boucle ?** *Test de réfutation :* si les lignes
+   s'accumulent sans qu'aucune ne devienne une séance, la marge est une liste de
+   regrets et non un point d'entrée — il faudra alors se demander ce qui empêche
+   le passage à la séance, pas ajouter un rappel.
+
+---
+
+## ADR-079 — Le cahier a des pages : un jour par page, et le travail s'y déroule ✅
+
+**Date.** 16/08/2026. **Tranchée par Maxime.** Refond la surface posée par
+[ADR-061](#adr-061), et prolonge [ADR-077](#adr-077) et [ADR-078](#adr-078).
+
+**Contexte.** Le pôle s'appelait Cahier sans en avoir la forme. Le hub déroulait
+tout l'historique d'un coup, précédé d'un champ de recherche : pas de page, donc
+rien à tourner et rien à rouvrir là où on s'était arrêté. Surtout, le déroulé
+d'une séance était un calque `fixed inset-0` qui **remplaçait** le cahier —
+travailler, c'était en sortir, et le lieu de travail n'avait aucun rapport avec
+le lieu où le travail était consigné.
+
+**Décision.**
+
+* **Une page est un jour**, et rien n'est stocké pour cela. Le jour est le seul
+  découpage qui existe déjà dans les données : une séance a une date, une ligne
+  de marge a le jour où elle a été écrite. Une page est une lecture, pas une
+  entité (P1) — et elle apparaît quand quelque chose y a été écrit, plutôt que
+  d'être créée.
+* **Le feuilletage saute les jours vides.** C'est ce qui distingue un cahier
+  d'un calendrier. Une séance *planifiée* vit sur la page du jour prévu : le
+  cahier a donc des pages à venir.
+* **Un calendrier pour aller à une date**, replié par défaut, sans JavaScript
+  (`<details>`). Le feuilletage sert à relire de proche en proche ; il ne
+  retrouve pas « le mardi où j'ai travaillé les flux ». La grille marque les
+  jours qui portent une page. Un jour vide reste cliquable et ouvre une page qui
+  le dit — l'interdire obligerait à deviner où l'on a le droit d'aller.
+* **Le plein écran devient un mode, pas une destination** (`focus=1`). Sans lui,
+  la séance se déroule à sa place sur la page de son jour. Le drapeau voyage
+  dans `ContexteNavigationExercice` : sans cela, terminer un exercice faisait
+  retomber le travail hors du plein écran au milieu d'une séance — un mode
+  choisi que l'application défaisait toute seule. Il est purement d'affichage et
+  n'ouvre aucun accès : le serveur ne valide que `seanceId`.
+* **Un marque-page côté client**, isolé par compte ([ADR-029](#adr-029)). C'est
+  une préférence d'affichage : la stocker en base demanderait une colonne et une
+  écriture à chaque page tournée. Il vit en `localStorage` là où
+  `stockage-session.ts` reste en `sessionStorage` — celui-là porte des échanges
+  pédagogiques dont la rétention n'a pas été décidée, un marque-page est une
+  date, et un marque-page qui tombe quand on referme le cahier n'en est pas un.
+  La page rendue est toujours juste ; la redirection ne fait que l'améliorer.
+* **Deux registres sur la page.** Une séance composée est une page écrite ; un
+  exercice clos hors séance est une trace en marge. 45 des 51 lignes de
+  `sessions` sont des traces, et les rendre à l'identique noyait les vraies
+  séances sous quarante-cinq cartes. La distinction est **lue**
+  (`genereAutomatiquement`), jamais fabriquée.
+* **La file épinglée devient des onglets.** Elle répétait en tête ce que la page
+  du jour montre déjà — deux endroits pour le même objet. Ce qui manquait, c'est
+  de savoir qu'une séance est ouverte **ailleurs** : un onglet par séance
+  ouverte sur une autre page, qui y mène, et qui disparaît quand on y est.
+* **La marge ne s'écrit que sur la page du jour.** Écrire sur une page passée
+  daterait la ligne du jour regardé et non de celui où on l'a écrite — une date
+  fausse sur un fait daté (P2). Les pages passées restent annotables séance par
+  séance.
+
+**Ce qui reste ouvert.**
+
+1. ❓ **Que devient la recherche ?** Elle est aujourd'hui l'index du cahier :
+   elle traverse les jours et rend la liste chronologique, sans page. Un index
+   par compétence serait plus proche d'un vrai cahier. *Qui tranche :* Maxime.
+   *Ce qui bloque :* savoir si l'on cherche des mots ou des compétences.
+2. 🔬 **Le jour est-il le bon découpage ?** *Test de réfutation :* si les pages
+   utiles sont systématiquement à cheval sur plusieurs jours — une séance
+   commencée le soir et finie le lendemain, un même sujet repris trois jours de
+   suite — c'est que l'unité réelle est l'intention, pas la date.
+
+---
+
 ## Comment modifier ce registre
 
 1. Une décision ✅ ne se retire pas : elle passe en 🔄 **Remplacée**, avec le

@@ -451,8 +451,14 @@ export interface RefusRecommandation {
  * cette absence : les 45 séances auto-générées avant le 10/08/2026 n'ont pas de
  * statut, et leur en fabriquer un à la lecture serait moins clair que de dire
  * une fois, au bon endroit, ce que l'absence signifie.
+ *
+ * `abandonnee` (16/08/2026) est le pendant de ce que `ExerciseAttempt.statut`
+ * porte depuis l'origine. Une séance en cours n'avait qu'une sortie — la
+ * terminer — et une séance qu'on ne veut pas mener serait restée ouverte
+ * indéfiniment. Elle n'est PAS un échec : `seanceALieu` refuse de la compter
+ * comme de l'activité tant qu'aucune tentative n'y a été menée (P2).
  */
-export type StatutSeance = "planifiee" | "en-cours" | "terminee";
+export type StatutSeance = "planifiee" | "en-cours" | "terminee" | "abandonnee";
 
 /**
  * Ce que la personne DÉCLARE vouloir, avant de travailler.
