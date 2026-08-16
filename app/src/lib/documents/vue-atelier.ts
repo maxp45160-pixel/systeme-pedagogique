@@ -100,9 +100,23 @@ export interface VueDomaineAtelier {
     score: number | null;
     confiance: Confiance;
     nombrePreuves: number;
+    /**
+     * Vraie quand la compétence sert ce domaine sans en être portée
+     * (ADR-081). Son code vient d'ailleurs, et elle ne s'y retire pas : elle
+     * s'en détache.
+     */
+    rattachee?: boolean;
+    /** Nom du domaine porteur, pour une rattachée. */
+    porteurNom?: string;
   }>;
   domaine: Domaine;
   skills: Skill[];
+  /**
+   * Tout le référentiel du compte, pour proposer un rattachement (ADR-081).
+   * La modale a besoin des compétences des **autres** domaines : `skills` ne
+   * porte que celles de celui-ci.
+   */
+  skillsReferentiel: Skill[];
   retraits: Record<string, EtatRetrait>;
   domainesExistants: Array<{ id: string; nom: string; prefixe: string }>;
   changements: ChangementReferentiel[];
@@ -314,6 +328,19 @@ export function construireVuesAtelier(
       const skillsAffichees = domaine.archive
         ? skills.filter((skill) => !skill.archive)
         : skills.filter((skill) => referentiel.codesActifs.has(skill.code));
+      /*
+       * Les compétences rattachées (ADR-081) : portées ailleurs, elles servent
+       * ce domaine et doivent s'y voir. Un domaine archivé ne les montre pas —
+       * il ne sert plus rien.
+       */
+      const rattachees = domaine.archive
+        ? []
+        : referentiel.skills.filter(
+            (skill) =>
+              skill.domaine !== domaine.id &&
+              (skill.domainesSecondaires ?? []).includes(domaine.id) &&
+              referentiel.codesActifs.has(skill.code),
+          );
       const codes = new Set(skillsAffichees.map((skill) => skill.code));
       const exercicesDomaine = exercices.filter(
         (exercice) => !exercice.archive && exercice.competences.some((code) => codes.has(code)),
@@ -323,8 +350,9 @@ export function construireVuesAtelier(
         id: domaine.id,
         nom: domaine.nom,
         description: domaine.description,
-        competences: skillsAffichees.map((skill) => {
+        competences: [...skillsAffichees, ...rattachees].map((skill) => {
           const item = competences.find((competence) => competence.code === skill.code);
+          const rattachee = skill.domaine !== domaine.id;
           return {
             code: skill.code,
             titre: skill.intitule,
@@ -333,10 +361,14 @@ export function construireVuesAtelier(
             score: item?.score ?? null,
             confiance: item?.confiance ?? "nulle",
             nombrePreuves: item?.nombrePreuves ?? 0,
+            ...(rattachee
+              ? { rattachee: true, porteurNom: referentiel.domainesParId.get(skill.domaine)?.nom ?? skill.domaine }
+              : {}),
           };
         }),
         domaine,
         skills,
+        skillsReferentiel: referentiel.skills,
         retraits: Object.fromEntries(retraitsParCode(skills, preuvesReferentiel, codesAvecDependances)),
         domainesExistants: referentiel.domaines
           .filter((item) => !item.archive)
