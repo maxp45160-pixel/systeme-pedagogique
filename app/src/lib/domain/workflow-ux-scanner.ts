@@ -568,8 +568,7 @@ function construireUxAtomique(
   // 4. Modales & Tiroirs réels
   for (const a of analyses.values()) {
     for (const modale of a.modales) {
-      const slug = slugId(modale.titre);
-      const id = `${modale.estTiroir ? "tiroir" : "modal"}:${slug}`;
+      const id = modale.id;
 
       // Trouver toutes les pages qui montent cette modale
       const pagesSources: string[] = [];

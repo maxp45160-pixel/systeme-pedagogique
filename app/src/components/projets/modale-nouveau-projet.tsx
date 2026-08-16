@@ -29,7 +29,7 @@ import {
 } from "@/lib/domain/composition-projet";
 import { Modale } from "@/components/ui/modale";
 import { Champ, ChampSelect } from "@/components/ui/champ";
-import { BandeauInfo, Bouton, Etiquette } from "@/components/ui/primitives";
+import { BandeauInfo, Bouton, Etiquette, cx } from "@/components/ui/primitives";
 
 const LIBELLE_VISEE: Record<ViseeProjet, string> = {
   application: "Mettre en œuvre",
@@ -94,6 +94,10 @@ export function ParcoursNouveauProjet({
   const [catalogue, setCatalogue] = useState<CompetenceLisible[] | null>(null);
   const [recherche, setRecherche] = useState("");
 
+  const [etape, setEtape] = useState<1 | 2 | 3>(1);
+  const [intentionCiblee, setIntentionCiblee] = useState("");
+  const [confirmerAbandon, setConfirmerAbandon] = useState(false);
+
   /*
    * Le référentiel actif, pour nommer ce que le tuteur désigne et pour offrir
    * ce qu'il n'a pas désigné. Chargé une fois, à l'ouverture : le ciblage dure
@@ -129,15 +133,18 @@ export function ParcoursNouveauProjet({
     .map((competence) => competence.code)
     .filter((code) => !retirees.has(code));
 
+  const codesEffectifs = useMemo(() => {
+    if (codesRetenus.length > 0) return codesRetenus;
+    if (criteres.length > 0) {
+      return [...new Set(criteres.map((c) => c.skillCode).filter(Boolean))];
+    }
+    return [];
+  }, [codesRetenus, criteres]);
+
   const complet = codesRetenus.length >= COMPETENCES_MAX;
   const dejaCitees = new Set((designees ?? []).map((competence) => competence.code));
   const terme = recherche.trim().toLowerCase();
-  /*
-   * Les candidates à l'ajout : tout le référentiel actif sauf ce qui est déjà
-   * dans la liste. Filtrées seulement quand on tape — afficher les 77 d'un coup
-   * transformerait le geste « j'en veux une de plus » en inventaire à trier,
-   * exactement ce que le compositeur de séance a retiré.
-   */
+
   const candidates =
     terme.length === 0
       ? []
@@ -163,6 +170,12 @@ export function ParcoursNouveauProjet({
 
   /** Étape 1 : la phrase devient des codes existants, jamais des codes neufs. */
   async function cibler() {
+    const texteIntention = intention.trim();
+    if (texteIntention === intentionCiblee && designees && designees.length > 0) {
+      setEtape(2);
+      return;
+    }
+
     setEnCours(true);
     setErreur(null);
     setProgression(null);
@@ -170,7 +183,7 @@ export function ParcoursNouveauProjet({
       const reponse = await fetch("/api/themes/resoudre", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ texte: intention.trim(), config: lireConfigTuteur(accountId) ?? undefined }),
+        body: JSON.stringify({ texte: texteIntention, config: lireConfigTuteur(accountId) ?? undefined }),
       });
       if (!reponse.ok || !reponse.body) {
         const corps = await reponse.json().catch(() => null) as { message?: string } | null;
@@ -202,14 +215,9 @@ export function ParcoursNouveauProjet({
             }
             setDesignees(theme.codes.map((code) => ({ code, origine: "tuteur" as const })));
             setJustification(theme.justification ?? "");
-            /*
-              Le tuteur désigne ce qu'il trouve — rien ne le borne à
-              `COMPETENCES_MAX`, et il en rend régulièrement plus. Le surplus
-              est mis de côté ici, explicitement : le couper en silence à
-              l'envoi affichait huit compétences actives sous un message
-              disant qu'il y en avait six. Elles restent là, échangeables.
-            */
             setRetirees(new Set(theme.codes.slice(COMPETENCES_MAX)));
+            setIntentionCiblee(texteIntention);
+            setEtape(2);
           } else if (type === "erreur") {
             recu = true;
             throw new Error((JSON.parse(donnees) as { message: string }).message);
@@ -255,6 +263,7 @@ export function ParcoursNouveauProjet({
       }
       setProposition(corps.proposition);
       setCriteres(corps.criteres ?? []);
+      setEtape(3);
     } catch (cause) {
       setErreur(cause instanceof Error ? cause.message : "Génération impossible.");
     } finally {
@@ -262,16 +271,43 @@ export function ParcoursNouveauProjet({
     }
   }
 
-  // ---- Temps 1 : la phrase -------------------------------------------------
-  if (!designees) {
-    return (
-      <Modale
-        titre="Créer un projet"
-        sousTitre="Décris ce que tu veux travailler. Rien n'est enregistré avant ton acceptation."
-        onFermer={onFermer}
-        pied={
+  function tenterFermeture() {
+    if (etape > 1 && (proposition !== null || (designees !== null && designees.length > 0))) {
+      setConfirmerAbandon(true);
+    } else {
+      onFermer();
+    }
+  }
+
+  // Titres et métadonnées selon l'étape
+  const titreModale =
+    etape === 3
+      ? "Relire avant d'ouvrir"
+      : etape === 2
+        ? "Ce que ce projet mettrait en jeu"
+        : "Créer un projet";
+
+  const sousTitreModale =
+    etape === 3
+      ? "Tout reste modifiable. Rien n'est enregistré tant que tu n'ouvres pas le projet."
+      : etape === 2
+        ? "Le tuteur a désigné ces compétences dans ton référentiel. Retire celles qui n'ont pas leur place."
+        : "Décris ce que tu veux travailler. Rien n'est enregistré avant ton acceptation.";
+
+  const contenu = proposition?.famille === "produire" ? proposition : null;
+
+  return (
+    <Modale
+      titre={titreModale}
+      sousTitre={sousTitreModale}
+      largeur={etape === 3 ? "3xl" : "2xl"}
+      onFermer={tenterFermeture}
+      pied={
+        confirmerAbandon ? null : etape === 1 ? (
           <>
-            <Bouton type="button" variante="secondaire" onClick={onFermer}>Annuler</Bouton>
+            <Bouton type="button" variante="secondaire" onClick={tenterFermeture}>
+              Annuler
+            </Bouton>
             <Bouton
               type="button"
               onClick={cibler}
@@ -282,66 +318,10 @@ export function ParcoursNouveauProjet({
               Continuer
             </Bouton>
           </>
-        }
-      >
-        <div className="space-y-4">
-          {erreur && <BandeauInfo ton="danger">{erreur}</BandeauInfo>}
-          {progression && <BandeauInfo taille="compacte">{progression}</BandeauInfo>}
-          <Champ
-            label="Ce que tu veux travailler"
-            name="intention"
-            multiligne
-            rows={5}
-            value={intention}
-            onChange={(event) => setIntention(event.target.value)}
-            aide="Une phrase suffit. Exemple : « je construis une application web et je veux structurer sa base de données »."
-          />
-          <div className="grid gap-3 md:grid-cols-3">
-            <Champ
-              label="Durée estimée (min)"
-              name="dureeMin"
-              type="number"
-              min={DUREE_PROJET_MIN}
-              max={DUREE_PROJET_MAX}
-              value={String(dureeMin)}
-              onChange={(event) => setDureeMin(Number(event.target.value))}
-              aide="Reprenable par segments."
-            />
-            <ChampSelect
-              label="Exigence"
-              name="capacite"
-              value={capacite}
-              onChange={(event) => setCapacite(event.target.value)}
-              options={[
-                { valeur: "faible", libelle: "Légère" },
-                { valeur: "standard", libelle: "Standard" },
-                { valeur: "elevee", libelle: "Élevée" },
-              ]}
-            />
-            <ChampSelect
-              label="Visée"
-              name="visee"
-              value={visee}
-              onChange={(event) => setVisee(event.target.value as ViseeProjet)}
-              options={VISEES_PROJET.map((valeur) => ({ valeur, libelle: LIBELLE_VISEE[valeur] }))}
-            />
-          </div>
-        </div>
-      </Modale>
-    );
-  }
-
-  // ---- Temps 2 : les compétences désignées, à confirmer ---------------------
-  if (!proposition) {
-    return (
-      <Modale
-        titre="Ce que ce projet mettrait en jeu"
-        sousTitre="Le tuteur a désigné ces compétences dans ton référentiel. Retire celles qui n'ont pas leur place."
-        onFermer={onFermer}
-        pied={
+        ) : etape === 2 ? (
           <>
-            <Bouton type="button" variante="secondaire" onClick={() => setDesignees(null)}>
-              Revenir à la description
+            <Bouton type="button" variante="secondaire" onClick={() => setEtape(1)}>
+              ← Revenir à la description
             </Bouton>
             <Bouton
               type="button"
@@ -350,213 +330,357 @@ export function ParcoursNouveauProjet({
               enChargement={enCours}
               data-testid="generer-projet"
             >
-              Proposer un sujet
+              Proposer un sujet →
             </Bouton>
           </>
-        }
-      >
-        <div className="space-y-4">
-          {erreur && <BandeauInfo ton="danger">{erreur}</BandeauInfo>}
-          {justification && (
-            <BandeauInfo taille="compacte">« {justification} »</BandeauInfo>
-          )}
-          {designees.length > COMPETENCES_MAX && (
-            <BandeauInfo ton="info" taille="compacte">
-              <p>
-                Le tuteur en a désigné {designees.length}. Un projet en porte{" "}
-                {COMPETENCES_MAX} au plus : les {designees.length - COMPETENCES_MAX} dernières
-                sont mises de côté ci-dessous. Échange-les si ce ne sont pas les bonnes.
-              </p>
-            </BandeauInfo>
-          )}
-          <ul className="space-y-2" data-testid="competences-designees">
-            {designees.map((competence) => {
-              const retiree = retirees.has(competence.code);
-              const connue = parCode.get(competence.code);
-              return (
-                <li key={competence.code} className="flex items-start justify-between gap-3 rounded-md border border-bordure px-3 py-2">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Etiquette ton={retiree ? undefined : "primaire"}>{competence.code}</Etiquette>
-                      {competence.origine === "utilisateur" && (
-                        <span className="text-[0.6875rem] uppercase tracking-wide text-texte-discret">
-                          ajoutée par toi
-                        </span>
-                      )}
-                    </div>
-                    {/*
-                      L'intitulé, s'il est connu. Pas de repli inventé : une
-                      compétence dont le référentiel n'a rien à dire n'affiche
-                      que son code, qui reste exact.
-                    */}
-                    {connue && (
-                      <p className={retiree ? "mt-1 text-sm text-texte-discret line-through" : "mt-1 text-sm"}>
-                        {connue.intitule}
-                      </p>
-                    )}
-                    {connue && (
-                      <p className="mt-0.5 text-[0.6875rem] text-texte-discret">{connue.domaineNom}</p>
-                    )}
-                  </div>
-                  <Bouton
-                    type="button"
-                    variante="discret"
-                    // Remettre une compétence quand six sont déjà retenues
-                    // dépasserait le plafond que le serveur refuse.
-                    disabled={retiree && complet}
-                    title={retiree && complet ? `Maximum atteint : ${COMPETENCES_MAX} compétences.` : undefined}
-                    onClick={() => setRetirees((actuelles) => {
-                      const suivantes = new Set(actuelles);
-                      if (retiree) suivantes.delete(competence.code);
-                      else suivantes.add(competence.code);
-                      return suivantes;
-                    })}
-                  >
-                    {retiree ? "Remettre" : "Retirer"}
-                  </Bouton>
-                </li>
-              );
-            })}
-          </ul>
-
-          {/*
-            Ajouter ce que le tuteur n'a pas vu.
-
-            Il ne désigne que ce que la description laissait entendre ; une
-            compétence qu'on veut mobiliser sans l'avoir écrite n'a aucune
-            raison d'être hors d'atteinte. On ne peut choisir que dans le
-            référentiel actif — le geste ajoute une compétence au projet, il
-            n'en crée aucune (le serveur refuse d'ailleurs tout code hors
-            référentiel).
-          */}
-          <div className="space-y-2 border-t border-bordure pt-3">
-            <Champ
-              label="Ajouter une compétence"
-              value={recherche}
-              onChange={(event) => setRecherche(event.target.value)}
-              disabled={complet || catalogue === null}
-              placeholder="Cherche par intitulé, code ou domaine"
-              aide={
-                catalogue === null
-                  ? "Lecture de ton référentiel…"
-                  : complet
-                    ? `Maximum atteint : ${COMPETENCES_MAX} compétences par projet. Retires-en une pour en ajouter une autre.`
-                    : "Seules les compétences déjà au référentiel peuvent être mobilisées."
-              }
-            />
-            {candidates.length > 0 && (
-              <ul className="space-y-1" data-testid="competences-candidates">
-                {candidates.map((competence) => (
-                  <li key={competence.code}>
-                    <button
-                      type="button"
-                      onClick={() => ajouter(competence.code)}
-                      className="flex w-full items-baseline gap-2 rounded-md border border-bordure px-3 py-2 text-left text-sm transition-colors hover:border-primaire/40 hover:bg-primaire-faible/35"
-                    >
-                      <span className="font-mono text-[0.6875rem] text-texte-discret">
-                        {competence.code}
-                      </span>
-                      <span className="min-w-0 flex-1">{competence.intitule}</span>
-                      <span className="text-[0.6875rem] text-texte-discret">
-                        {competence.domaineNom}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {terme.length > 0 && candidates.length === 0 && catalogue !== null && !complet && (
-              <p className="text-xs text-texte-attenue">
-                Aucune compétence active ne correspond. Si le sujet n&apos;est couvert par
-                aucune, il faut d&apos;abord étendre le référentiel depuis l&apos;Atelier.
-              </p>
-            )}
-          </div>
-
-          <p className="text-xs text-texte-attenue">
-            {codesRetenus.length} compétence(s) retenue(s) sur {COMPETENCES_MAX} au plus. Chacune
-            recevra son critère d&apos;évaluation ; une compétence qu&apos;aucun critère démontré
-            ne porte ne recevra aucune preuve.
-          </p>
-        </div>
-      </Modale>
-    );
-  }
-
-  // ---- Temps 3 : le sujet, à relire ----------------------------------------
-  const contenu = proposition.famille === "produire" ? proposition : null;
-
-  return (
-    <Modale
-      titre="Relire avant d'ouvrir"
-      sousTitre="Tout reste modifiable. Rien n'est enregistré tant que tu n'ouvres pas le projet."
-      largeur="3xl"
-      onFermer={onFermer}
-      pied={
-        <form action={ouvrirProjetCompose} className="flex flex-wrap gap-2">
-          {codesRetenus.map((code) => <input key={code} type="hidden" name="skillCodes" value={code} />)}
-          <input type="hidden" name="objectif" value={intention.trim()} />
-          <input type="hidden" name="dureeMin" value={String(dureeMin)} />
-          <input type="hidden" name="capacite" value={capacite} />
-          <input type="hidden" name="visee" value={visee} />
-          <input type="hidden" name="contraintes" value="" />
-          <input type="hidden" name="proposition" value={JSON.stringify(proposition)} />
-          <Bouton type="button" variante="secondaire" onClick={proposerSujet} disabled={enCours}>
-            Régénérer
-          </Bouton>
-          <Bouton type="submit" data-testid="ouvrir-projet">Ouvrir le projet</Bouton>
-        </form>
+        ) : (
+          <form action={ouvrirProjetCompose} className="flex flex-wrap items-center justify-between w-full gap-2">
+            <Bouton
+              type="button"
+              variante="discret"
+              onClick={() => setEtape(2)}
+              disabled={enCours}
+            >
+              ← Ajuster les compétences
+            </Bouton>
+            <div className="flex flex-wrap gap-2">
+              {codesEffectifs.map((code) => <input key={code} type="hidden" name="skillCodes" value={code} />)}
+              <input type="hidden" name="objectif" value={intention.trim()} />
+              <input type="hidden" name="dureeMin" value={String(dureeMin)} />
+              <input type="hidden" name="capacite" value={capacite} />
+              <input type="hidden" name="visee" value={visee} />
+              <input type="hidden" name="contraintes" value="" />
+              <input type="hidden" name="proposition" value={JSON.stringify(proposition)} />
+              <Bouton type="button" variante="secondaire" onClick={proposerSujet} disabled={enCours}>
+                Régénérer
+              </Bouton>
+              <Bouton type="submit" disabled={codesEffectifs.length === 0 || enCours} data-testid="ouvrir-projet">
+                Ouvrir le projet
+              </Bouton>
+            </div>
+          </form>
+        )
       }
     >
       <div className="space-y-4">
-        {erreur && <BandeauInfo ton="danger">{erreur}</BandeauInfo>}
-        <Champ
-          label="Titre"
-          value={proposition.titre}
-          onChange={(event) => setProposition({ ...proposition, titre: event.target.value })}
-        />
-        <Champ
-          label="Brief"
-          multiligne
-          rows={6}
-          value={proposition.brief}
-          onChange={(event) => setProposition({ ...proposition, brief: event.target.value })}
-        />
-        <section>
-          <h3 className="text-sm font-medium">Étapes proposées</h3>
-          <ol className="mt-2 space-y-2 text-sm text-texte-attenue">
-            {proposition.jalons.map((jalon, index) => (
-              <li key={`${jalon.titre}-${index}`} className="rounded-md border border-bordure p-3">
-                <strong className="text-texte">{jalon.titre}</strong>
-                <p className="mt-1">{jalon.consigne}</p>
-                <p className="mt-1 text-xs text-texte-discret">Attendu : {jalon.resultatAttendu}</p>
-              </li>
-            ))}
-          </ol>
-        </section>
-        {contenu && (
-          <section>
-            <h3 className="text-sm font-medium">Sections du rendu</h3>
-            <ul className="mt-2 space-y-1 text-sm text-texte-attenue">
-              {contenu.workspace.canevasArtefact.map((section, index) => (
-                <li key={`${section.section}-${index}`}>
-                  <span className="text-texte">{section.section}</span> — {section.consigne}
-                </li>
-              ))}
-            </ul>
-          </section>
+        {/* Stepper visuel d'avancement */}
+        <div className="flex items-center justify-between rounded-lg border border-bordure bg-surface-2/40 px-3 py-2 text-xs mb-2">
+          <button
+            type="button"
+            onClick={() => setEtape(1)}
+            className={cx(
+              "flex items-center gap-1.5 font-medium transition-colors",
+              etape === 1 ? "text-primaire font-semibold" : "text-texte-attenue hover:text-texte",
+            )}
+          >
+            <span
+              className={cx(
+                "flex size-5 items-center justify-center rounded-full text-[0.6875rem]",
+                etape === 1
+                  ? "bg-primaire text-primaire-contraste"
+                  : "bg-surface border border-bordure",
+              )}
+            >
+              1
+            </span>
+            <span>Intention</span>
+          </button>
+          <span className="text-texte-discret">→</span>
+          <button
+            type="button"
+            onClick={() => {
+              if (designees && designees.length > 0) {
+                setEtape(2);
+              }
+            }}
+            disabled={!designees || designees.length === 0}
+            className={cx(
+              "flex items-center gap-1.5 font-medium transition-colors",
+              etape === 2
+                ? "text-primaire font-semibold"
+                : designees && designees.length > 0
+                  ? "text-texte-attenue hover:text-texte"
+                  : "text-texte-discret cursor-not-allowed",
+            )}
+          >
+            <span
+              className={cx(
+                "flex size-5 items-center justify-center rounded-full text-[0.6875rem]",
+                etape === 2
+                  ? "bg-primaire text-primaire-contraste"
+                  : designees && designees.length > 0
+                    ? "bg-primaire/20 text-primaire"
+                    : "bg-surface border border-bordure",
+              )}
+            >
+              2
+            </span>
+            <span>Compétences {codesEffectifs.length > 0 ? `(${codesEffectifs.length})` : ""}</span>
+          </button>
+          <span className="text-texte-discret">→</span>
+          <button
+            type="button"
+            onClick={() => {
+              if (proposition) {
+                setEtape(3);
+              }
+            }}
+            disabled={!proposition}
+            className={cx(
+              "flex items-center gap-1.5 font-medium transition-colors",
+              etape === 3
+                ? "text-primaire font-semibold"
+                : proposition
+                  ? "text-texte-attenue hover:text-texte"
+                  : "text-texte-discret cursor-not-allowed",
+            )}
+          >
+            <span
+              className={cx(
+                "flex size-5 items-center justify-center rounded-full text-[0.6875rem]",
+                etape === 3
+                  ? "bg-primaire text-primaire-contraste"
+                  : "bg-surface border border-bordure",
+              )}
+            >
+              3
+            </span>
+            <span>Revue & Jalons</span>
+          </button>
+        </div>
+
+        {/* Garde-fou d'abandon si travail en cours */}
+        {confirmerAbandon && (
+          <div className="rounded-xl border border-alerte/40 bg-alerte/10 p-4 text-center space-y-2.5">
+            <p className="text-sm font-semibold text-alerte">Abandonner la création du projet ?</p>
+            <p className="text-xs text-texte-attenue">
+              Les compétences identifiées et les jalons proposés seront effacés.
+            </p>
+            <div className="flex justify-center gap-2 pt-2">
+              <Bouton type="button" variante="secondaire" onClick={() => setConfirmerAbandon(false)}>
+                Continuer l&apos;édition
+              </Bouton>
+              <Bouton type="button" variante="danger" onClick={onFermer}>
+                Confirmer l&apos;abandon
+              </Bouton>
+            </div>
+          </div>
         )}
-        <section>
-          <h3 className="text-sm font-medium">Critères, connus d&apos;avance</h3>
-          <ul className="mt-2 space-y-2 text-sm">
-            {criteres.map((critere) => (
-              <li key={critere.id} className="flex flex-wrap items-center gap-2">
-                <Etiquette ton="primaire">{critere.skillCode}</Etiquette>
-                <span className="text-texte-attenue">{critere.label}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+
+        {!confirmerAbandon && (
+          <>
+            {erreur && <BandeauInfo ton="danger">{erreur}</BandeauInfo>}
+            {progression && <BandeauInfo taille="compacte">{progression}</BandeauInfo>}
+
+            {/* ---- Étape 1 : Intention & Format ---- */}
+            {etape === 1 && (
+              <div className="space-y-4">
+                <Champ
+                  label="Ce que tu veux travailler"
+                  name="intention"
+                  multiligne
+                  rows={5}
+                  value={intention}
+                  onChange={(event) => setIntention(event.target.value)}
+                  aide="Une phrase suffit. Exemple : « je construis une application web et je veux structurer sa base de données »."
+                />
+                <div className="grid gap-3 md:grid-cols-3">
+                  <Champ
+                    label="Durée estimée (min)"
+                    name="dureeMin"
+                    type="number"
+                    min={DUREE_PROJET_MIN}
+                    max={DUREE_PROJET_MAX}
+                    value={String(dureeMin)}
+                    onChange={(event) => setDureeMin(Number(event.target.value))}
+                    aide="Reprenable par segments."
+                  />
+                  <ChampSelect
+                    label="Exigence"
+                    name="capacite"
+                    value={capacite}
+                    onChange={(event) => setCapacite(event.target.value)}
+                    options={[
+                      { valeur: "faible", libelle: "Légère" },
+                      { valeur: "standard", libelle: "Standard" },
+                      { valeur: "elevee", libelle: "Élevée" },
+                    ]}
+                  />
+                  <ChampSelect
+                    label="Visée"
+                    name="visee"
+                    value={visee}
+                    onChange={(event) => setVisee(event.target.value as ViseeProjet)}
+                    options={VISEES_PROJET.map((valeur) => ({ valeur, libelle: LIBELLE_VISEE[valeur] }))}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* ---- Étape 2 : Compétences désignées ---- */}
+            {etape === 2 && designees && (
+              <div className="space-y-4">
+                {justification && (
+                  <BandeauInfo taille="compacte">« {justification} »</BandeauInfo>
+                )}
+                {designees.length > COMPETENCES_MAX && (
+                  <BandeauInfo ton="info" taille="compacte">
+                    <p>
+                      Le tuteur en a désigné {designees.length}. Un projet en porte{" "}
+                      {COMPETENCES_MAX} au plus : les {designees.length - COMPETENCES_MAX} dernières
+                      sont mises de côté ci-dessous. Échange-les si ce ne sont pas les bonnes.
+                    </p>
+                  </BandeauInfo>
+                )}
+                <ul className="space-y-2" data-testid="competences-designees">
+                  {designees.map((competence) => {
+                    const retiree = retirees.has(competence.code);
+                    const connue = parCode.get(competence.code);
+                    return (
+                      <li key={competence.code} className="flex items-start justify-between gap-3 rounded-md border border-bordure px-3 py-2">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Etiquette ton={retiree ? undefined : "primaire"}>{competence.code}</Etiquette>
+                            {competence.origine === "utilisateur" && (
+                              <span className="text-[0.6875rem] uppercase tracking-wide text-texte-discret">
+                                ajoutée par toi
+                              </span>
+                            )}
+                          </div>
+                          {connue && (
+                            <p className={retiree ? "mt-1 text-sm text-texte-discret line-through" : "mt-1 text-sm"}>
+                              {connue.intitule}
+                            </p>
+                          )}
+                          {connue && (
+                            <p className="mt-0.5 text-[0.6875rem] text-texte-discret">{connue.domaineNom}</p>
+                          )}
+                        </div>
+                        <Bouton
+                          type="button"
+                          variante="discret"
+                          disabled={retiree && complet}
+                          title={retiree && complet ? `Maximum atteint : ${COMPETENCES_MAX} compétences.` : undefined}
+                          onClick={() => setRetirees((actuelles) => {
+                            const suivantes = new Set(actuelles);
+                            if (retiree) suivantes.delete(competence.code);
+                            else suivantes.add(competence.code);
+                            return suivantes;
+                          })}
+                        >
+                          {retiree ? "Remettre" : "Retirer"}
+                        </Bouton>
+                      </li>
+                    );
+                  })}
+                </ul>
+
+                <div className="space-y-2 border-t border-bordure pt-3">
+                  <Champ
+                    label="Ajouter une compétence"
+                    value={recherche}
+                    onChange={(event) => setRecherche(event.target.value)}
+                    disabled={complet || catalogue === null}
+                    placeholder="Cherche par intitulé, code ou domaine"
+                    aide={
+                      catalogue === null
+                        ? "Lecture de ton référentiel…"
+                        : complet
+                          ? `Maximum atteint : ${COMPETENCES_MAX} compétences par projet. Retires-en une pour en ajouter une autre.`
+                          : "Seules les compétences déjà au référentiel peuvent être mobilisées."
+                    }
+                  />
+                  {candidates.length > 0 && (
+                    <ul className="space-y-1" data-testid="competences-candidates">
+                      {candidates.map((competence) => (
+                        <li key={competence.code}>
+                          <button
+                            type="button"
+                            onClick={() => ajouter(competence.code)}
+                            className="flex w-full items-baseline gap-2 rounded-md border border-bordure px-3 py-2 text-left text-sm transition-colors hover:border-primaire/40 hover:bg-primaire-faible/35"
+                          >
+                            <span className="font-mono text-[0.6875rem] text-texte-discret">
+                              {competence.code}
+                            </span>
+                            <span className="min-w-0 flex-1">{competence.intitule}</span>
+                            <span className="text-[0.6875rem] text-texte-discret">
+                              {competence.domaineNom}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {terme.length > 0 && candidates.length === 0 && catalogue !== null && !complet && (
+                    <p className="text-xs text-texte-attenue">
+                      Aucune compétence active ne correspond. Si le sujet n&apos;est couvert par
+                      aucune, il faut d&apos;abord étendre le référentiel depuis l&apos;Atelier.
+                    </p>
+                  )}
+                </div>
+
+                <p className="text-xs text-texte-attenue">
+                  {codesRetenus.length} compétence(s) retenue(s) sur {COMPETENCES_MAX} au plus. Chacune
+                  recevra son critère d&apos;évaluation ; une compétence qu&apos;aucun critère démontré
+                  ne porte ne recevra aucune preuve.
+                </p>
+              </div>
+            )}
+
+            {/* ---- Étape 3 : Revue & Jalons ---- */}
+            {etape === 3 && proposition && (
+              <div className="space-y-4">
+                <Champ
+                  label="Titre"
+                  value={proposition.titre}
+                  onChange={(event) => setProposition({ ...proposition, titre: event.target.value })}
+                />
+                <Champ
+                  label="Brief"
+                  multiligne
+                  rows={6}
+                  value={proposition.brief}
+                  onChange={(event) => setProposition({ ...proposition, brief: event.target.value })}
+                />
+                <section>
+                  <h3 className="text-sm font-medium">Étapes proposées</h3>
+                  <ol className="mt-2 space-y-2 text-sm text-texte-attenue">
+                    {proposition.jalons.map((jalon, index) => (
+                      <li key={`${jalon.titre}-${index}`} className="rounded-md border border-bordure p-3">
+                        <strong className="text-texte">{jalon.titre}</strong>
+                        <p className="mt-1">{jalon.consigne}</p>
+                        <p className="mt-1 text-xs text-texte-discret">Attendu : {jalon.resultatAttendu}</p>
+                      </li>
+                    ))}
+                  </ol>
+                </section>
+                {contenu && (
+                  <section>
+                    <h3 className="text-sm font-medium">Sections du rendu</h3>
+                    <ul className="mt-2 space-y-1 text-sm text-texte-attenue">
+                      {contenu.workspace.canevasArtefact.map((section, index) => (
+                        <li key={`${section.section}-${index}`}>
+                          <span className="text-texte">{section.section}</span> — {section.consigne}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+                <section>
+                  <h3 className="text-sm font-medium">Critères, connus d&apos;avance</h3>
+                  <ul className="mt-2 space-y-2 text-sm">
+                    {criteres.map((critere) => (
+                      <li key={critere.id} className="flex flex-wrap items-center gap-2">
+                        <Etiquette ton="primaire">{critere.skillCode}</Etiquette>
+                        <span className="text-texte-attenue">{critere.label}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </Modale>
   );

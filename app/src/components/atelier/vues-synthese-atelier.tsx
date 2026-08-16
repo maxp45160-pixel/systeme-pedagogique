@@ -148,6 +148,7 @@ export function VueTousLesDomaines({
   selection,
   compteId,
   domainesExistants = [],
+  tri = "recent",
 }: {
   domaines: VueDomaineAtelier[];
   ouvrirElement: (id: string) => void;
@@ -155,11 +156,11 @@ export function VueTousLesDomaines({
   selection?: string | null;
   compteId?: string;
   domainesExistants?: { id: string; nom: string; prefixe: string }[];
+  tri?: TriDomaine;
 }) {
   const router = useRouter();
   const [modaleCreationOuverte, setModaleCreationOuverte] = useState(false);
   const [domaineASupprimer, setDomaineASupprimer] = useState<VueDomaineAtelier | null>(null);
-  const [tri, setTri] = useState<TriDomaine>("recent");
 
   const estArchives = selection === "domaines-archives";
 
@@ -167,47 +168,9 @@ export function VueTousLesDomaines({
     return filtrerEtTrierDomaines(domaines, { tri });
   }, [domaines, tri]);
 
-  const titrePrincipal = estArchives ? "Domaines archivés" : "Domaines";
-
-  const sousTitrePrincipal = estArchives
-    ? `${domaines.length} domaine${domaines.length > 1 ? "s" : ""} archivé${domaines.length > 1 ? "s" : ""}`
-    : "Le référentiel du compte : chaque domaine et les compétences qu’il porte.";
-
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-y-auto bg-surface-2/30">
-      <EnteteVueAtelier
-        titre={titrePrincipal}
-        description={sousTitrePrincipal}
-        vue="domaines"
-        onChangerVue={changerVue}
-      />
-
-      <div className="p-6 lg:p-8 space-y-4">
-        {/* Ligne discrète de tri et d'information */}
-        <div className="flex items-center justify-between gap-4 text-xs text-texte-discret">
-          <span className="font-medium text-texte-attenue">
-            {domaines.length} domaine{domaines.length > 1 ? "s" : ""}
-          </span>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <label htmlFor="tri-domaines" className="text-texte-discret text-xs">
-              Trier par :
-            </label>
-            <select
-              id="tri-domaines"
-              value={tri}
-              onChange={(e) => setTri(e.target.value as TriDomaine)}
-              className="rounded-md border border-bordure bg-surface px-2.5 py-1 text-xs font-medium text-texte transition-colors hover:border-primaire/40 focus:border-primaire focus:outline-hidden cursor-pointer"
-            >
-              {Object.entries(LIBELLES_TRIS_DOMAINES).map(([cle, libelle]) => (
-                <option key={cle} value={cle}>
-                  {libelle}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
+      <div className="p-5 sm:p-6 lg:p-8">
         {/* Grille des domaines */}
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {domainesAffiches.map((domaine) => {

@@ -201,7 +201,13 @@ export const CHAMP_JALONS_FAITS = "projet_jalons_faits";
  */
 export function lireJalonsFaits(frontMatter: FrontMatter): Set<number> {
   const brut = frontMatter[CHAMP_JALONS_FAITS];
-  const valeurs = Array.isArray(brut) ? brut : typeof brut === "string" ? brut.split(",") : [];
+  const valeurs = Array.isArray(brut)
+    ? brut
+    : typeof brut === "number"
+      ? [brut]
+      : typeof brut === "string"
+        ? brut.split(",")
+        : [];
   const faits = new Set<number>();
   for (const valeur of valeurs) {
     const numero = Number(String(valeur).trim());

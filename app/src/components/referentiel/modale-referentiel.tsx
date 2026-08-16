@@ -278,6 +278,9 @@ export function ModaleReferentiel({
     });
   }
 
+  const [afficherReglagesCle, setAfficherReglagesCle] = useState(false);
+  const aCleConfiguree = Boolean(lireConfigTuteur(compteId));
+
   const relecture = etat.phase === "relecture" ? etat : null;
   const retenues = relecture ? relecture.branches.filter((_, i) => garde[`b${i}`]).length : 0;
 
@@ -309,19 +312,47 @@ export function ModaleReferentiel({
                 </BandeauInfo>
               )}
 
-              <div className="rounded-xl border border-primaire/30 bg-surface-2/60 p-4">
-                <p className="mb-2 text-xs font-semibold text-texte">
-                  🔑 Configuration rapide du tuteur IA :
-                </p>
-                <ReglagesTuteur
-                  compteId={compteId}
-                  compact
-                  surEnregistre={() => {
-                    setErreur(null);
-                    void proposer();
-                  }}
-                />
-              </div>
+              {aCleConfiguree && !etat.message && !afficherReglagesCle ? (
+                <div className="flex items-center justify-between rounded-lg border border-bordure bg-surface-2/40 px-3 py-2 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="size-2 rounded-full bg-succes" />
+                    <span className="text-texte-attenue">Tuteur IA configuré et prêt</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAfficherReglagesCle(true)}
+                    className="text-[0.6875rem] font-medium text-primaire hover:underline"
+                  >
+                    Modifier la clé
+                  </button>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-primaire/30 bg-surface-2/60 p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-texte">
+                      🔑 Configuration du tuteur IA :
+                    </p>
+                    {aCleConfiguree && !etat.message && (
+                      <button
+                        type="button"
+                        onClick={() => setAfficherReglagesCle(false)}
+                        className="text-[0.6875rem] text-texte-discret hover:underline"
+                      >
+                        Replier
+                      </button>
+                    )}
+                  </div>
+                  <ReglagesTuteur
+                    compteId={compteId}
+                    compact
+                    surEnregistre={() => {
+                      setErreur(null);
+                      setAfficherReglagesCle(false);
+                      void proposer();
+                    }}
+                  />
+                </div>
+              )}
 
               <div className="border-t border-bordure/60 pt-3">
                 <label className="block mb-3">

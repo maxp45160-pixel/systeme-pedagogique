@@ -630,11 +630,20 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
 
       // Modales JSX
       if (tagName === "Modale" || tagName === "Tiroir") {
-        const titre = valeurPropJsx(elem, "titre", sf, relatif) ?? "Modale";
-        const estTiroir = tagName === "Tiroir" || titre.toLowerCase().includes("tiroir");
-        const id = `${estTiroir ? "tiroir" : "modal"}:${slugId(titre)}`;
-        if (!modales.some((m) => m.id === id)) {
-          modales.push({ id, titre, fichier: relatif, estTiroir });
+        const titre = valeurPropJsx(elem, "titre", sf, relatif);
+        const estTiroir = tagName === "Tiroir" || (titre ? titre.toLowerCase().includes("tiroir") : false);
+
+        const modaleDediee = modales.find((m) => m.fichier === relatif);
+        if (modaleDediee) {
+          if (titre && titre !== "Modale") {
+            modaleDediee.titre = titre;
+          }
+        } else {
+          const titreEffectif = titre ?? "Modale";
+          const id = `${estTiroir ? "tiroir" : "modal"}:${slugId(titreEffectif)}`;
+          if (!modales.some((m) => m.id === id)) {
+            modales.push({ id, titre: titreEffectif, fichier: relatif, estTiroir });
+          }
         }
       }
 

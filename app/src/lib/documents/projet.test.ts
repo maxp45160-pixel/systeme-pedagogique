@@ -141,6 +141,11 @@ describe("jalons faits", () => {
     expect(suivant).toContain(`${CHAMP_JALONS_FAITS}: 1, 2`);
     const { frontMatter } = parserFrontMatter(suivant);
     expect([...lireJalonsFaits(frontMatter)].sort()).toEqual([1, 2]);
+
+    const seul = ecrireJalonsFaits(FICHE, [1]);
+    expect(seul).toContain(`${CHAMP_JALONS_FAITS}: 1`);
+    const { frontMatter: frontMatterSeul } = parserFrontMatter(seul);
+    expect([...lireJalonsFaits(frontMatterSeul)]).toEqual([1]);
   });
 
   it("retire le champ quand plus rien n'est coché", () => {

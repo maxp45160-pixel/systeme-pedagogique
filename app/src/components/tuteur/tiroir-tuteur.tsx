@@ -111,7 +111,7 @@ export function TiroirTuteur({
          * dupliquer la coquille (audit §1.4d).
          */
         <Modale
-          titre="IA Tutor"
+          titre="Tuteur IA"
           sousTitre="Il reçoit les protocoles du système et l'état réel de tes compétences."
           largeur="md"
           position="laterale"
