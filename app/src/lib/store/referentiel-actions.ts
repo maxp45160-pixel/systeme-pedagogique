@@ -24,8 +24,6 @@ import {
   type EnveloppeCommandeReferentiel,
   type ResultatCommandeReferentiel,
 } from "@/lib/domain/gouvernance-referentiel";
-
-export type { CompetenceDejaAuReferentiel };
 import { normaliserImportance, normaliserPalier, validerCompetence } from "@/lib/domain/referentiel-compte";
 import type { OrigineReferentiel, Palier, Referentiel } from "@/lib/domain/types";
 

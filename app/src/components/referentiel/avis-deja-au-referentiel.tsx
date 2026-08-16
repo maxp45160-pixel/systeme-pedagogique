@@ -1,7 +1,7 @@
 "use client";
 
 import { BandeauInfo } from "@/components/ui/primitives";
-import type { CompetenceDejaAuReferentiel } from "@/lib/store/referentiel-actions";
+import type { CompetenceDejaAuReferentiel } from "@/lib/domain/gouvernance-referentiel";
 
 /**
  * Dit ce qui a été rattaché plutôt que recréé.

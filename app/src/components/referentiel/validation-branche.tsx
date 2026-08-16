@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition, useEffect, useRef } from "react";
-import { creerBranche, type CompetenceDejaAuReferentiel } from "@/lib/store/referentiel-actions";
+import { creerBranche } from "@/lib/store/referentiel-actions";
+import type { CompetenceDejaAuReferentiel } from "@/lib/domain/gouvernance-referentiel";
 import { AvisDejaAuReferentiel } from "./avis-deja-au-referentiel";
 import { normaliserPalier } from "@/lib/domain/referentiel-compte";
 import { BandeauInfo, Bouton, cx } from "@/components/ui/primitives";
