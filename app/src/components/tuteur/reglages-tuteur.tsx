@@ -9,6 +9,7 @@ import {
   effacerConfigTuteur,
   lireConfigTuteur,
   masquerCle,
+  validerCleFournisseur,
   type ConfigTuteurClient,
   type FournisseurTuteur,
 } from "@/lib/tutor/cle-client";
@@ -47,10 +48,12 @@ export function ReglagesTuteur({
 
   function enregistrer() {
     const cleTrim = cle.trim();
-    if (cleTrim === "") {
-      setMessage("Saisis ta clé API avant d'enregistrer.");
+    const validationCle = validerCleFournisseur(fournisseur, cleTrim);
+    if (!validationCle.ok) {
+      setMessage(validationCle.motif);
       return;
     }
+
     let nouvelleConfig: ConfigTuteurClient;
     if (!estAnthropic) {
       const url = urlBase.trim() || preset?.urlBase || "";
@@ -59,9 +62,9 @@ export function ReglagesTuteur({
         setMessage("L'URL de base et le modèle sont requis pour ce fournisseur.");
         return;
       }
-      const validation = validerUrlFournisseur(url);
-      if (!validation.ok) {
-        setMessage(validation.motif);
+      const validationUrl = validerUrlFournisseur(url);
+      if (!validationUrl.ok) {
+        setMessage(validationUrl.motif);
         return;
       }
       nouvelleConfig = { fournisseur, cle: cleTrim, urlBase: url, modele: mod };

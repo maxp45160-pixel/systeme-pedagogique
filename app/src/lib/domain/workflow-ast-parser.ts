@@ -447,6 +447,10 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
     relatif.startsWith("lib/store/") &&
     (relatif.includes("action") || contenu.includes('"use server"') || contenu.includes("'use server'"));
 
+  const estFichierUi =
+    (relatif.startsWith("components/") || (relatif.startsWith("app/") && !relatif.startsWith("app/api/"))) &&
+    (relatif.endsWith(".tsx") || relatif.endsWith(".jsx"));
+
   // 1. Détection des déclarations d'actions serveur
   if (estFichierActions) {
     for (const statement of sf.statements) {
@@ -486,7 +490,7 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
 
   // 2. Détection de composants de modale autonomes (ex: modale-*.tsx)
   const nomFichier = relatif.split("/").pop() ?? "";
-  if (nomFichier.startsWith("modale-") && nomFichier.endsWith(".tsx")) {
+  if (estFichierUi && nomFichier.startsWith("modale-") && nomFichier.endsWith(".tsx")) {
     const base = nomFichier.replace(/^modale-|\.tsx$/g, "").replace(/-/g, " ");
     const titre = base.charAt(0).toUpperCase() + base.slice(1);
     modales.push({
@@ -495,7 +499,7 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
       fichier: relatif,
       estTiroir: false,
     });
-  } else if (nomFichier.startsWith("tiroir-") && nomFichier.endsWith(".tsx")) {
+  } else if (estFichierUi && nomFichier.startsWith("tiroir-") && nomFichier.endsWith(".tsx")) {
     const base = nomFichier.replace(/^tiroir-|\.tsx$/g, "").replace(/-/g, " ");
     const titre = base.charAt(0).toUpperCase() + base.slice(1);
     modales.push({
@@ -506,19 +510,20 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
     });
   }
 
-  // 3. Détection de surfaces interactives de domaine
+  // 3. Détection de surfaces interactives de domaine (Couche 4 UI uniquement)
   const estDossierMetier =
-    relatif.startsWith("components/atelier/") ||
-    relatif.startsWith("components/dashboard/") ||
-    relatif.startsWith("components/seances/") ||
-    relatif.startsWith("components/exercices/") ||
-    relatif.startsWith("components/adaptive/") ||
-    relatif.startsWith("components/tuteur/") ||
-    relatif.startsWith("components/profil/") ||
-    relatif.startsWith("components/demarrer/") ||
-    relatif.startsWith("components/layout/") ||
-    relatif.startsWith("components/referentiel/") ||
-    relatif.startsWith("components/competences/");
+    estFichierUi &&
+    (relatif.startsWith("components/atelier/") ||
+      relatif.startsWith("components/dashboard/") ||
+      relatif.startsWith("components/seances/") ||
+      relatif.startsWith("components/exercices/") ||
+      relatif.startsWith("components/adaptive/") ||
+      relatif.startsWith("components/tuteur/") ||
+      relatif.startsWith("components/profil/") ||
+      relatif.startsWith("components/demarrer/") ||
+      relatif.startsWith("components/layout/") ||
+      relatif.startsWith("components/referentiel/") ||
+      relatif.startsWith("components/competences/"));
 
   if (estDossierMetier) {
     for (const statement of sf.statements) {
@@ -612,7 +617,7 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
       }
     }
 
-    // JSX Elements
+    // JSX Elements (Couche 4 UI)
     if (ts.isJsxElement(node) || ts.isJsxSelfClosingElement(node)) {
       const elem = ts.isJsxElement(node) ? node.openingElement : node;
       const tagName = elem.tagName.getText(sf);
@@ -685,8 +690,9 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
       }
     }
 
-    // Détection d'onglets (const onglets = [...], tabs = [...])
+    // Détection d'onglets (const onglets = [...], tabs = [...]) dans les composants UI
     if (
+      estFichierUi &&
       ts.isVariableDeclaration(node) &&
       (node.name.getText(sf).toLowerCase().includes("onglet") ||
         node.name.getText(sf).toLowerCase().includes("tabs"))
@@ -752,119 +758,143 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
     if (contenu.includes("abandon")) variantesSearchParams.push(`${route}?abandon`);
   }
 
-  // 5. Détection des micro-interactions riches par motif et analyse AST
+  // 5. Détection des micro-interactions riches (Couche 4 UI uniquement)
   const microInteractions: MicroInteractionAst[] = [];
   const slugFichier = slugId(relatif);
 
-  // 5.1. Canvas 2D / Graphe D3
-  if (relatif.includes("graphe") || contenu.includes("forceSimulation") || contenu.includes("<canvas") || contenu.includes("d3-force")) {
-    microInteractions.push(
-      {
-        id: `micro:${slugFichier}-canvas-clic`,
-        type: "canvas",
-        libelle: "Sélection & Centrage de fiche",
-        declencheur: "Clic sur un nœud compétence ou domaine",
-        fichier: relatif,
-        badge: "Canvas 2D",
-      },
-      {
-        id: `micro:${slugFichier}-canvas-drag`,
-        type: "canvas",
-        libelle: "Repositionnement dynamique",
-        declencheur: "Glisser-déposer de nœud (forces D3)",
-        fichier: relatif,
-        badge: "D3 Force",
-      },
-      {
-        id: `micro:${slugFichier}-canvas-zoom`,
-        type: "canvas",
-        libelle: "Zoom & Navigation spatiale",
-        declencheur: "Molette / Pincement sur le canvas",
-        fichier: relatif,
-        badge: "Zoom 2D",
-      },
-    );
-  }
+  if (estFichierUi) {
+    // 5.1. Canvas 2D / Graphe D3
+    if (
+      relatif.includes("graphe") &&
+      (contenu.includes("<canvas") || contenu.includes("forceSimulation") || contenu.includes("d3-force"))
+    ) {
+      microInteractions.push(
+        {
+          id: `micro:${slugFichier}-canvas-clic`,
+          type: "canvas",
+          libelle: "Sélection & Centrage de fiche",
+          declencheur: "Clic sur un nœud compétence ou domaine",
+          fichier: relatif,
+          badge: "Canvas 2D",
+        },
+        {
+          id: `micro:${slugFichier}-canvas-drag`,
+          type: "canvas",
+          libelle: "Repositionnement dynamique",
+          declencheur: "Glisser-déposer de nœud (forces D3)",
+          fichier: relatif,
+          badge: "D3 Force",
+        },
+        {
+          id: `micro:${slugFichier}-canvas-zoom`,
+          type: "canvas",
+          libelle: "Zoom & Navigation spatiale",
+          declencheur: "Molette / Pincement sur le canvas",
+          fichier: relatif,
+          badge: "Zoom 2D",
+        },
+      );
+    }
 
-  // 5.2. Pomodoro & Timers de concentration
-  if (relatif.includes("pomodoro") || contenu.includes("Pomodoro") || (relatif.includes("seance") && contenu.includes("dureeMinutes"))) {
-    microInteractions.push(
-      {
-        id: `micro:${slugFichier}-pomodoro-focus`,
-        type: "pomodoro",
-        libelle: "Cycle de concentration (25 min)",
-        declencheur: "Lancement du cycle de travail",
-        fichier: relatif,
-        badge: "Focus",
-      },
-      {
-        id: `micro:${slugFichier}-pomodoro-pause`,
-        type: "pomodoro",
-        libelle: "Pause de récupération (5 min)",
-        declencheur: "Bascule automatique ou clic pause",
-        fichier: relatif,
-        badge: "Pause",
-      },
-      {
-        id: `micro:${slugFichier}-pomodoro-reset`,
-        type: "pomodoro",
-        libelle: "Réinitialisation du cycle",
-        declencheur: "Remise à zéro du chronomètre",
-        fichier: relatif,
-        badge: "Chrono",
-      },
-    );
-  }
+    // 5.2. Pomodoro & Timers de concentration
+    if (
+      relatif.includes("pomodoro") ||
+      contenu.includes("<Pomodoro") ||
+      /<[A-Za-z0-9_]*Pomodoro/.test(contenu) ||
+      (relatif.includes("seance") && contenu.includes("dureeMinutes") && contenu.includes("compteur"))
+    ) {
+      microInteractions.push(
+        {
+          id: `micro:${slugFichier}-pomodoro-focus`,
+          type: "pomodoro",
+          libelle: "Cycle de concentration (25 min)",
+          declencheur: "Lancement du cycle de travail",
+          fichier: relatif,
+          badge: "Focus",
+        },
+        {
+          id: `micro:${slugFichier}-pomodoro-pause`,
+          type: "pomodoro",
+          libelle: "Pause de récupération (5 min)",
+          declencheur: "Bascule automatique ou clic pause",
+          fichier: relatif,
+          badge: "Pause",
+        },
+        {
+          id: `micro:${slugFichier}-pomodoro-reset`,
+          type: "pomodoro",
+          libelle: "Réinitialisation du cycle",
+          declencheur: "Remise à zéro du chronomètre",
+          fichier: relatif,
+          badge: "Chrono",
+        },
+      );
+    }
 
-  // 5.3. Tuteur IA & Paliers d'indices
-  if (relatif.includes("tuteur") || contenu.includes("Tuteur") || contenu.includes("chat-tuteur")) {
-    microInteractions.push(
-      {
-        id: `micro:${slugFichier}-tuteur-p1`,
-        type: "tuteur",
-        libelle: "Indice Palier 1 (Maïeutique)",
-        declencheur: "Question d'orientation sans révélation",
-        fichier: relatif,
-        badge: "Palier 1/3",
-      },
-      {
-        id: `micro:${slugFichier}-tuteur-p2`,
-        type: "tuteur",
-        libelle: "Indice Palier 2 (Méthode)",
-        declencheur: "Rappel théorique & démarche",
-        fichier: relatif,
-        badge: "Palier 2/3",
-      },
-      {
-        id: `micro:${slugFichier}-tuteur-p3`,
-        type: "tuteur",
-        libelle: "Indice Palier 3 (Amorce)",
-        declencheur: "Amorce guidée du premier calcul",
-        fichier: relatif,
-        badge: "Palier 3/3",
-      },
-      {
-        id: `micro:${slugFichier}-tuteur-ton`,
-        type: "tuteur",
-        libelle: "Ajustement du ton pédagogique",
-        declencheur: "Sélection socratique / directif / bienveillant",
-        fichier: relatif,
-        badge: "Posture",
-      },
-      {
-        id: `micro:${slugFichier}-tuteur-feedback`,
-        type: "tuteur",
-        libelle: "Vote d'utilité de l'explication",
-        declencheur: "Feedback sur la clarté du tuteur",
-        fichier: relatif,
-        badge: "Feedback",
-      },
-    );
-  }
+    // 5.3. Tuteur IA & Paliers d'indices
+    const estComposantTuteur =
+      relatif.startsWith("components/tuteur/") ||
+      relatif.includes("bilan-assiste") ||
+      relatif.includes("formulaire-bilan") ||
+      relatif.includes("bilan-redige") ||
+      contenu.includes("<ChatTuteur") ||
+      contenu.includes("<TiroirTuteur");
 
-  // 5.4. Accordéons, Paliers & Ressources d'Exercices
-  if (relatif.includes("exercice") || relatif.includes("focus-acte") || contenu.includes("afficherIndices") || contenu.includes("aide")) {
-    if (contenu.includes("Indices") || contenu.includes("indices") || contenu.includes("Aide") || contenu.includes("aide")) {
+    if (estComposantTuteur) {
+      microInteractions.push(
+        {
+          id: `micro:${slugFichier}-tuteur-p1`,
+          type: "tuteur",
+          libelle: "Indice Palier 1 (Maïeutique)",
+          declencheur: "Question d'orientation sans révélation",
+          fichier: relatif,
+          badge: "Palier 1/3",
+        },
+        {
+          id: `micro:${slugFichier}-tuteur-p2`,
+          type: "tuteur",
+          libelle: "Indice Palier 2 (Méthode)",
+          declencheur: "Rappel théorique & démarche",
+          fichier: relatif,
+          badge: "Palier 2/3",
+        },
+        {
+          id: `micro:${slugFichier}-tuteur-p3`,
+          type: "tuteur",
+          libelle: "Indice Palier 3 (Amorce)",
+          declencheur: "Amorce guidée du premier calcul",
+          fichier: relatif,
+          badge: "Palier 3/3",
+        },
+        {
+          id: `micro:${slugFichier}-tuteur-ton`,
+          type: "tuteur",
+          libelle: "Ajustement du ton pédagogique",
+          declencheur: "Sélection socratique / directif / bienveillant",
+          fichier: relatif,
+          badge: "Posture",
+        },
+        {
+          id: `micro:${slugFichier}-tuteur-feedback`,
+          type: "tuteur",
+          libelle: "Vote d'utilité de l'explication",
+          declencheur: "Feedback sur la clarté du tuteur",
+          fichier: relatif,
+          badge: "Feedback",
+        },
+      );
+    }
+
+    // 5.4. Accordéons, Paliers & Ressources d'Exercices
+    const aAccordeonJsx =
+      relatif.includes("panneau-pliable") ||
+      relatif.includes("glossaire") ||
+      contenu.includes("<PanneauPliable") ||
+      contenu.includes("<Glossaire") ||
+      contenu.includes("<details") ||
+      (relatif.includes("vue-exercice") && (contenu.includes("indices") || contenu.includes("aide")));
+
+    if (aAccordeonJsx) {
       microInteractions.push(
         {
           id: `micro:${slugFichier}-aide-accordeon`,
@@ -884,30 +914,41 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
         },
       );
     }
-  }
 
-  // 5.5. Médias & Pièces jointes
-  if (contenu.includes("televersement") || contenu.includes("pieceJointe") || contenu.includes("pdf") || contenu.includes("audio")) {
-    microInteractions.push({
-      id: `micro:${slugFichier}-media-upload`,
-      type: "media",
-      libelle: "Téléversement de support / pièce jointe",
-      declencheur: "Sélection de document PDF ou image",
-      fichier: relatif,
-      badge: "Storage",
-    });
-  }
+    // 5.5. Médias & Pièces jointes
+    const aUploadMedia =
+      contenu.includes('type="file"') ||
+      contenu.includes("type='file'") ||
+      (relatif.includes("espace-documentaire") && contenu.includes("televerser")) ||
+      relatif.includes("workspace-note-support") ||
+      relatif.includes("capture-notes");
 
-  // 5.6. Raccourcis Clavier
-  if (contenu.includes("keydown") || contenu.includes("addEventListener")) {
-    microInteractions.push({
-      id: `micro:${slugFichier}-clavier-echap`,
-      type: "clavier",
-      libelle: "Fermeture par touche Échap",
-      declencheur: "Touche Échap sur overlay",
-      fichier: relatif,
-      badge: "Clavier",
-    });
+    if (aUploadMedia) {
+      microInteractions.push({
+        id: `micro:${slugFichier}-media-upload`,
+        type: "media",
+        libelle: "Téléversement de support / pièce jointe",
+        declencheur: "Sélection de document PDF ou image",
+        fichier: relatif,
+        badge: "Storage",
+      });
+    }
+
+    // 5.6. Raccourcis Clavier
+    const aRaccourciClavier =
+      (contenu.includes("keydown") || contenu.includes("addEventListener('keydown'") || contenu.includes('addEventListener("keydown"')) &&
+      (relatif.includes("modale") || relatif.includes("tour") || relatif.includes("espace-documentaire") || relatif.includes("chat") || relatif.includes("outil-seance") || relatif.includes("graphe"));
+
+    if (aRaccourciClavier) {
+      microInteractions.push({
+        id: `micro:${slugFichier}-clavier-echap`,
+        type: "clavier",
+        libelle: "Fermeture par touche Échap",
+        declencheur: "Touche Échap sur overlay",
+        fichier: relatif,
+        badge: "Clavier",
+      });
+    }
   }
 
   // Redirection pure (ex: pages d'anciennes URLs)
@@ -980,7 +1021,12 @@ export function resoudreImportsComposants(analyses: Map<string, FichierAstAnalys
       const fichier = importVers.get(imp);
       if (fichier && !visites.has(fichier)) {
         visites.add(fichier);
-        resultats.add(fichier);
+        const estUi =
+          (fichier.startsWith("components/") || (fichier.startsWith("app/") && !fichier.startsWith("app/api/"))) &&
+          (fichier.endsWith(".tsx") || fichier.endsWith(".jsx"));
+        if (estUi) {
+          resultats.add(fichier);
+        }
         const sous = collecterComposantsRec(fichier, visites);
         for (const s of sous) resultats.add(s);
       }

@@ -163,11 +163,13 @@ export function CarteProchaineAction({
     // un mot à la place.
     return (
       <Carte accent>
-        <EtatVide
-          titre="Aucune action à recommander pour l'instant"
-          message="Soit tout a déjà été proposé récemment et écarté, soit chaque compétence active a épuisé ses exercices. Capture une note opérationnelle pour engager un travail, ou reviens plus tard."
-          action={actionPrincipale ?? <Link href="/seances" className={classesLienBouton("secondaire")}>Ouvrir le cahier</Link>}
-        />
+        <div data-tour="action-prioritaire">
+          <EtatVide
+            titre="Aucune action à recommander pour l'instant"
+            message="Soit tout a déjà été proposé récemment et écarté, soit chaque compétence active a épuisé ses exercices. Capture une note opérationnelle pour engager un travail, ou reviens plus tard."
+            action={actionPrincipale ?? <Link href="/seances" className={classesLienBouton("secondaire")}>Ouvrir le cahier</Link>}
+          />
+        </div>
       </Carte>
     );
   }

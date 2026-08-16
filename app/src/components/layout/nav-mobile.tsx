@@ -12,7 +12,10 @@ export function NavMobile() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-bordure bg-surface/95 backdrop-blur-sm lg:hidden">
+    <nav
+      data-tour="navigation-rail"
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-bordure bg-surface/95 backdrop-blur-sm lg:hidden"
+    >
       {/*
         Nombre de colonnes dérivé de NAV_MOBILE, pas une classe Tailwind
         interpolée : le scanner de classes de Tailwind lit le texte source,

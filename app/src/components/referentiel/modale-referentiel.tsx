@@ -244,13 +244,14 @@ export function ModaleReferentiel({
         }
 
         // Création automatique du thème transversal global correspondant au sujet initial
-        if (tousLesCodes.length >= 2 && sujet.trim().length > 0) {
+        const codesUniques = [...new Set(tousLesCodes)];
+        if (codesUniques.length >= 1 && sujet.trim().length > 0) {
           try {
             setProgressionEcriture("Création du thème transversal…");
             await creerTheme({
               libelle: sujet.trim().slice(0, 100),
-              intention: `Thème initial généré pour « ${sujet.trim()} »`.slice(0, 500),
-              codes: tousLesCodes.slice(0, 30),
+              intention: `Thème transversal initial pour « ${sujet.trim()} »`.slice(0, 500),
+              codes: codesUniques.slice(0, 500),
               origine: "tuteur",
             });
           } catch {
