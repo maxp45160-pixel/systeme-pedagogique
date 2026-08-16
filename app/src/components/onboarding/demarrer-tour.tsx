@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { GuideTour, type EtapeTour } from "./guide-tour";
 import { useOnboarding } from "./onboarding-context";
 
-const TOUR_DEMARRER_ID = "demarrer_v1";
+export const TOUR_DEMARRER_ID = "demarrer_v2";
 
 const ETAPES_DEMARRER: EtapeTour[] = [
   {
@@ -46,21 +46,15 @@ export function DemarrerTour({
 }) {
   const { tourActif, lancerTour, terminerTour, estTourTermine } =
     useOnboarding();
-  const [initialise, setInitialise] = useState(false);
 
   useEffect(() => {
-    setInitialise(true);
-  }, []);
-
-  useEffect(() => {
-    if (!initialise) return;
     if (autoDemarrage && !estTourTermine(TOUR_DEMARRER_ID)) {
       const timer = setTimeout(() => {
         lancerTour(TOUR_DEMARRER_ID);
-      }, 500);
+      }, 350);
       return () => clearTimeout(timer);
     }
-  }, [autoDemarrage, initialise, estTourTermine, lancerTour]);
+  }, [autoDemarrage, estTourTermine, lancerTour]);
 
   const actif = tourActif === TOUR_DEMARRER_ID;
 

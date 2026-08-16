@@ -75,6 +75,16 @@ export interface SurfaceAst {
   badge?: string;
 }
 
+export interface MicroInteractionAst {
+  id: string;
+  type: "canvas" | "accordéon" | "pomodoro" | "tuteur" | "media" | "clavier" | "micro-action";
+  libelle: string;
+  declencheur: string;
+  fichier: string;
+  badge?: string;
+  cible?: string;
+}
+
 export interface FichierAstAnalyse {
   chemin: string;
   relatif: string; // ex: "components/atelier/espace-documentaire.tsx"
@@ -87,6 +97,7 @@ export interface FichierAstAnalyse {
   boutons: BoutonTriggerAst[];
   onglets: OngletAst[];
   surfaces: SurfaceAst[];
+  microInteractions: MicroInteractionAst[];
   estPageRoute: boolean;
   route?: string;
   variantesSearchParams: string[];
@@ -741,6 +752,164 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
     if (contenu.includes("abandon")) variantesSearchParams.push(`${route}?abandon`);
   }
 
+  // 5. Détection des micro-interactions riches par motif et analyse AST
+  const microInteractions: MicroInteractionAst[] = [];
+  const slugFichier = slugId(relatif);
+
+  // 5.1. Canvas 2D / Graphe D3
+  if (relatif.includes("graphe") || contenu.includes("forceSimulation") || contenu.includes("<canvas") || contenu.includes("d3-force")) {
+    microInteractions.push(
+      {
+        id: `micro:${slugFichier}-canvas-clic`,
+        type: "canvas",
+        libelle: "Sélection & Centrage de fiche",
+        declencheur: "Clic sur un nœud compétence ou domaine",
+        fichier: relatif,
+        badge: "Canvas 2D",
+      },
+      {
+        id: `micro:${slugFichier}-canvas-drag`,
+        type: "canvas",
+        libelle: "Repositionnement dynamique",
+        declencheur: "Glisser-déposer de nœud (forces D3)",
+        fichier: relatif,
+        badge: "D3 Force",
+      },
+      {
+        id: `micro:${slugFichier}-canvas-zoom`,
+        type: "canvas",
+        libelle: "Zoom & Navigation spatiale",
+        declencheur: "Molette / Pincement sur le canvas",
+        fichier: relatif,
+        badge: "Zoom 2D",
+      },
+    );
+  }
+
+  // 5.2. Pomodoro & Timers de concentration
+  if (relatif.includes("pomodoro") || contenu.includes("Pomodoro") || (relatif.includes("seance") && contenu.includes("dureeMinutes"))) {
+    microInteractions.push(
+      {
+        id: `micro:${slugFichier}-pomodoro-focus`,
+        type: "pomodoro",
+        libelle: "Cycle de concentration (25 min)",
+        declencheur: "Lancement du cycle de travail",
+        fichier: relatif,
+        badge: "Focus",
+      },
+      {
+        id: `micro:${slugFichier}-pomodoro-pause`,
+        type: "pomodoro",
+        libelle: "Pause de récupération (5 min)",
+        declencheur: "Bascule automatique ou clic pause",
+        fichier: relatif,
+        badge: "Pause",
+      },
+      {
+        id: `micro:${slugFichier}-pomodoro-reset`,
+        type: "pomodoro",
+        libelle: "Réinitialisation du cycle",
+        declencheur: "Remise à zéro du chronomètre",
+        fichier: relatif,
+        badge: "Chrono",
+      },
+    );
+  }
+
+  // 5.3. Tuteur IA & Paliers d'indices
+  if (relatif.includes("tuteur") || contenu.includes("Tuteur") || contenu.includes("chat-tuteur")) {
+    microInteractions.push(
+      {
+        id: `micro:${slugFichier}-tuteur-p1`,
+        type: "tuteur",
+        libelle: "Indice Palier 1 (Maïeutique)",
+        declencheur: "Question d'orientation sans révélation",
+        fichier: relatif,
+        badge: "Palier 1/3",
+      },
+      {
+        id: `micro:${slugFichier}-tuteur-p2`,
+        type: "tuteur",
+        libelle: "Indice Palier 2 (Méthode)",
+        declencheur: "Rappel théorique & démarche",
+        fichier: relatif,
+        badge: "Palier 2/3",
+      },
+      {
+        id: `micro:${slugFichier}-tuteur-p3`,
+        type: "tuteur",
+        libelle: "Indice Palier 3 (Amorce)",
+        declencheur: "Amorce guidée du premier calcul",
+        fichier: relatif,
+        badge: "Palier 3/3",
+      },
+      {
+        id: `micro:${slugFichier}-tuteur-ton`,
+        type: "tuteur",
+        libelle: "Ajustement du ton pédagogique",
+        declencheur: "Sélection socratique / directif / bienveillant",
+        fichier: relatif,
+        badge: "Posture",
+      },
+      {
+        id: `micro:${slugFichier}-tuteur-feedback`,
+        type: "tuteur",
+        libelle: "Vote d'utilité de l'explication",
+        declencheur: "Feedback sur la clarté du tuteur",
+        fichier: relatif,
+        badge: "Feedback",
+      },
+    );
+  }
+
+  // 5.4. Accordéons, Paliers & Ressources d'Exercices
+  if (relatif.includes("exercice") || relatif.includes("focus-acte") || contenu.includes("afficherIndices") || contenu.includes("aide")) {
+    if (contenu.includes("Indices") || contenu.includes("indices") || contenu.includes("Aide") || contenu.includes("aide")) {
+      microInteractions.push(
+        {
+          id: `micro:${slugFichier}-aide-accordeon`,
+          type: "accordéon",
+          libelle: "Déplier l'aide méthodologique",
+          declencheur: "Clic sur 'Besoin d'aide ?'",
+          fichier: relatif,
+          badge: "Accordéon",
+        },
+        {
+          id: `micro:${slugFichier}-aide-memoire`,
+          type: "accordéon",
+          libelle: "Consulter l'aide-mémoire",
+          declencheur: "Ouverture des définitions & formules",
+          fichier: relatif,
+          badge: "Ressource",
+        },
+      );
+    }
+  }
+
+  // 5.5. Médias & Pièces jointes
+  if (contenu.includes("televersement") || contenu.includes("pieceJointe") || contenu.includes("pdf") || contenu.includes("audio")) {
+    microInteractions.push({
+      id: `micro:${slugFichier}-media-upload`,
+      type: "media",
+      libelle: "Téléversement de support / pièce jointe",
+      declencheur: "Sélection de document PDF ou image",
+      fichier: relatif,
+      badge: "Storage",
+    });
+  }
+
+  // 5.6. Raccourcis Clavier
+  if (contenu.includes("keydown") || contenu.includes("addEventListener")) {
+    microInteractions.push({
+      id: `micro:${slugFichier}-clavier-echap`,
+      type: "clavier",
+      libelle: "Fermeture par touche Échap",
+      declencheur: "Touche Échap sur overlay",
+      fichier: relatif,
+      badge: "Clavier",
+    });
+  }
+
   // Redirection pure (ex: pages d'anciennes URLs)
   const sansBruit = contenu
     .replace(/^import\s+.*$/gm, "")
@@ -764,6 +933,7 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
     boutons,
     onglets,
     surfaces,
+    microInteractions,
     estPageRoute: estPage,
     route,
     variantesSearchParams,

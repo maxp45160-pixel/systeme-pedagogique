@@ -65,9 +65,16 @@ export function ModaleDangerCompte({
     }
   }
 
-  function nettoyerStockageClient() {
+  function nettoyerStockageClient(mode: ModeReinitialisationCompte) {
     try {
-      effacerConfigTuteur(compteId);
+      // La clé API du tuteur est un réglage navigateur indépendant des données
+      // d'apprentissage : elle survit à un « reset » (l'utilisateur reste
+      // connecté et va re-configurer son référentiel avec l'IA). Elle n'est
+      // effacée que lors d'une suppression totale du compte, où l'isolation
+      // par compte la rend orpheline.
+      if (mode === "supprimer_et_deconnecter") {
+        effacerConfigTuteur(compteId);
+      }
       window.localStorage.removeItem(`graphe:reglages:${compteId}`);
       window.localStorage.removeItem(`atelier:dossiers:${compteId}`);
       window.localStorage.removeItem("dossiers");
@@ -83,11 +90,17 @@ export function ModaleDangerCompte({
     setErreur(null);
 
     try {
-      nettoyerStockageClient();
+      nettoyerStockageClient(mode);
       const resultat = await reinitialiserDonneesCompteAction(mode);
       if (resultat?.succes) {
         onFermer();
-        window.location.reload();
+        // Après un reset, le référentiel est vide : on renvoie directement sur
+        // l'écran d'amorçage (`/demarrer`), qui est l'état d'un compte neuf.
+        // `window.location.reload()` laissait l'utilisateur sur `/compte` sans
+        // lui dire quoi faire ensuite. Le mode « supprimer_et_deconnecter » ne
+        // passe pas par ici : le serveur redirige vers `/login` et le client ne
+        // reçoit jamais `resultat`.
+        window.location.href = "/demarrer";
       }
     } catch (err) {
       setErreur(

@@ -3,12 +3,12 @@ import { scannerUxJourney } from "./workflow-ux-scanner";
 import { parcourirWorkflow, statistiquesGraphe } from "./workflow-graphe";
 
 describe("scannerUxJourney (dynamique AST)", () => {
-  it("construit dynamiquement le graphe complet du parcours UX sans aucun registre codé en dur", async () => {
-    const graphe = await scannerUxJourney();
+  it("construit dynamiquement le graphe atomique ultra-détaillé sans aucun registre codé en dur", async () => {
+    const graphe = await scannerUxJourney({ mode: "atomique" });
     const resultat = parcourirWorkflow(graphe, "page:/");
     const stats = statistiquesGraphe(resultat, graphe);
 
-    expect(stats.totalNoeuds).toBeGreaterThan(50);
+    expect(stats.totalNoeuds).toBeGreaterThan(120);
     expect(stats.atteignables).toBe(stats.totalNoeuds);
     expect(resultat.inatteignables).toHaveLength(0);
 
@@ -46,8 +46,42 @@ describe("scannerUxJourney (dynamique AST)", () => {
     expect(idsNoeuds).toContain("ux:exercice-mesurer");
     expect(idsNoeuds).toContain("ux:exercice-bilan-final");
 
+    // Micro-interactions détectées (Canvas, Pomodoro, Tuteur, Accordéons)
+    const microNoeuds = graphe.noeuds.filter((n) => n.id.startsWith("micro:"));
+    expect(microNoeuds.length).toBeGreaterThan(5);
+
     // Déclencheurs atomiques
     const liensAvecDeclencheur = graphe.liens.filter((l) => Boolean(l.declencheur));
     expect(liensAvecDeclencheur.length).toBeGreaterThan(50);
+  }, 20000);
+
+  it("construit une vue de synthèse (Macro) épurée et articulée sur le funnel de valeur pédagogique", async () => {
+    const graphe = await scannerUxJourney({ mode: "macro" });
+    const resultat = parcourirWorkflow(graphe, "page:/");
+    const stats = statistiquesGraphe(resultat, graphe);
+
+    // La vue macro doit être compacte (8 à 14 macro-pôles)
+    expect(stats.totalNoeuds).toBeGreaterThanOrEqual(8);
+    expect(stats.totalNoeuds).toBeLessThanOrEqual(14);
+    expect(stats.atteignables).toBe(stats.totalNoeuds);
+    expect(resultat.inatteignables).toHaveLength(0);
+
+    const ids = new Set(graphe.noeuds.map((n) => n.id));
+    expect(ids).toContain("page:/");
+    expect(ids).toContain("modal:nouvelle-donnee");
+    expect(ids).toContain("page:/seances");
+    expect(ids).toContain("page:/exercices/{id}");
+    expect(ids).toContain("ux:exercice-bilan-final");
+    expect(ids).toContain("page:/atelier");
+    expect(ids).toContain("page:/progression");
+    expect(ids).toContain("page:/compte");
+    expect(ids).toContain("tiroir:tuteur");
+
+    // Vérifier les transitions directrices de valeur
+    const clefsLiens = new Set(graphe.liens.map((l) => `${l.source}→${l.target}`));
+    expect(clefsLiens).toContain("page:/→modal:nouvelle-donnee");
+    expect(clefsLiens).toContain("page:/seances→page:/exercices/{id}");
+    expect(clefsLiens).toContain("page:/exercices/{id}→ux:exercice-bilan-final");
+    expect(clefsLiens).toContain("ux:exercice-bilan-final→page:/");
   }, 20000);
 });
