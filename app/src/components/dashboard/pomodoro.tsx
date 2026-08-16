@@ -288,7 +288,7 @@ export function Pomodoro({ compteId }: { compteId: string }) {
           <div
             role="status"
             aria-live="assertive"
-            className="mt-3 rounded-lg border border-succes/40 bg-succes-faible px-3 py-2 text-center text-xs font-medium text-succes animate-pulse"
+            className="mt-3 rounded-lg border border-succes/40 bg-succes-faible px-3 py-2 text-center text-xs font-medium text-succes"
           >
             {LIBELLES[signalFin]} terminée · {LIBELLES[etat.phase].toLocaleLowerCase("fr-FR")} lancée
           </div>
@@ -386,7 +386,7 @@ export function PastillePomodoroGlobale({ compteId }: { compteId: string }) {
   return (
     <div
       className={cx(
-        "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium shadow-sm transition-all animate-pulse",
+        "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium shadow-sm transition-all",
         estFocus
           ? "border border-primaire/30 bg-primaire-faible text-primaire"
           : "border border-succes/30 bg-succes-faible text-succes",

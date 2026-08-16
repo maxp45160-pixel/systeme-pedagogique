@@ -207,11 +207,11 @@ export function GuideTour({
             <rect x="0" y="0" width="100%" height="100%" fill="white" />
             {rectCible && (
               <rect
-                x={rectCible.left - 6}
-                y={rectCible.top - 6}
-                width={rectCible.width + 12}
-                height={rectCible.height + 12}
-                rx="12"
+                x={rectCible.left - 8}
+                y={rectCible.top - 8}
+                width={rectCible.width + 16}
+                height={rectCible.height + 16}
+                rx="14"
                 fill="black"
               />
             )}
@@ -222,21 +222,21 @@ export function GuideTour({
           y="0"
           width="100%"
           height="100%"
-          fill="rgba(5, 10, 8, 0.78)"
+          fill="rgba(6, 10, 8, 0.82)"
           mask={`url(#mask-spotlight-${tourId})`}
-          className="backdrop-blur-[2px] transition-all duration-300"
+          className="backdrop-blur-[3px] transition-all duration-300"
         />
       </svg>
 
-      {/* Cadre lumineux pulsant autour de la cible */}
+      {/* Cadre net, lumineux et stable (sans clignotement) autour de la cible */}
       {rectCible && (
         <div
-          className="pointer-events-none fixed rounded-xl border-2 border-primaire/80 shadow-[0_0_25px_rgba(42,157,110,0.35)] transition-all duration-300 animate-pulse"
+          className="pointer-events-none fixed rounded-2xl border-2 border-primaire shadow-[0_0_0_4px_rgba(47,111,79,0.25),0_0_35px_rgba(47,111,79,0.35)] transition-all duration-300"
           style={{
-            top: `${rectCible.top - 6}px`,
-            left: `${rectCible.left - 6}px`,
-            width: `${rectCible.width + 12}px`,
-            height: `${rectCible.height + 12}px`,
+            top: `${rectCible.top - 8}px`,
+            left: `${rectCible.left - 8}px`,
+            width: `${rectCible.width + 16}px`,
+            height: `${rectCible.height + 16}px`,
           }}
         />
       )}

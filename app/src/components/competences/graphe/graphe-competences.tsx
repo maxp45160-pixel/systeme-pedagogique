@@ -143,7 +143,7 @@ export function GrapheCompetences({
       if (n.type === "competence") {
         const code = n.id.slice("competence:".length);
         router.push(`/atelier?document=${encodeURIComponent(code)}`);
-      } else if (n.type === "exercice") {
+      } else if (n.type === "exercice" || n.type === "theme") {
         router.push(`/atelier?document=${encodeURIComponent(n.id)}`);
       } else if (n.type === "document") {
         router.push(`/atelier?document=${encodeURIComponent(n.id.slice("document:".length))}`);
@@ -259,6 +259,17 @@ export function GrapheCompetences({
 
     dessinerFond(ctx, largeur, hauteur, camera, palette);
 
+    const survol = survolIdRef.current;
+    const noeudSurvole = survol ? noeudsRef.current.find((n) => n.id === survol) : null;
+    const domainesMisEnValeur = new Set<string>();
+    if (noeudSurvole?.type === "theme") {
+      noeudSurvole.etiquettes
+        .filter((e) => e.startsWith("traverse:"))
+        .forEach((e) => domainesMisEnValeur.add(e.slice("traverse:".length)));
+    } else if (noeudSurvole?.domaineId) {
+      domainesMisEnValeur.add(noeudSurvole.domaineId);
+    }
+
     // Dessin des halos et titres de domaines en arrière-plan
     dessinerGroupementsDomaines(
       ctx,
@@ -269,9 +280,9 @@ export function GrapheCompetences({
       palette,
       contexteCouleur,
       reglages.axeCouleur,
+      domainesMisEnValeur,
     );
 
-    const survol = survolIdRef.current;
     const voisins = new Set<string>();
     if (survol) {
       for (const l of liensRef.current) {

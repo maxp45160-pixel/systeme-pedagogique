@@ -911,7 +911,7 @@ export function EspaceDocumentaire({
                     </h2>
                     {estModifie && (
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-alerte-faible px-2.5 py-0.5 text-[0.6875rem] font-medium text-alerte shrink-0" title="Modifications en attente d’enregistrement">
-                        <span className="size-1.5 rounded-full bg-alerte animate-pulse" />
+                        <span className="size-1.5 rounded-full bg-alerte" />
                         Non enregistré
                       </span>
                     )}

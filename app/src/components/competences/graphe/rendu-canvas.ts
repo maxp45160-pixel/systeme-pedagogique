@@ -263,11 +263,24 @@ export function dessinerNoeud(
 ): void {
   if (n.x === undefined || n.y === undefined) return;
   const { x, y } = projeter(n, largeur, hauteur, camera);
-  const rayonMinimum = n.type === "theme" ? 7 : n.type === "competence" ? 5 : 4;
-  const rayon = Math.max(rayonMinimum, n.rayon * camera.zoom) * (options.survole ? 1.15 : 1);
+  const rayonMinimum = n.type === "theme" ? 8 : n.type === "competence" ? 5 : 4;
+  const rayon = Math.max(rayonMinimum, n.rayon * camera.zoom) * (options.survole ? 1.18 : 1);
 
   ctx.save();
   ctx.globalAlpha = options.estompe ? 0.18 : 1;
+
+  // Anneau orbital pour les thèmes (hub transversal)
+  if (n.type === "theme") {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, rayon + 4 * camera.zoom, 0, Math.PI * 2);
+    ctx.strokeStyle = palette.succes;
+    ctx.lineWidth = Math.max(1, 1.5 * camera.zoom);
+    ctx.globalAlpha = options.survole ? 0.95 : 0.4;
+    ctx.setLineDash([3 * camera.zoom, 3 * camera.zoom]);
+    ctx.stroke();
+    ctx.restore();
+  }
 
   ctx.beginPath();
   if (n.type === "exercice") {
@@ -280,21 +293,22 @@ export function dessinerNoeud(
   } else {
     ctx.arc(x, y, rayon, 0, Math.PI * 2);
   }
-  ctx.fillStyle = couleur;
+  ctx.fillStyle = n.type === "theme" ? palette.succes : couleur;
   ctx.fill();
 
-  if (options.selectionne || options.survole) {
-    ctx.lineWidth = options.selectionne ? 2.5 : 1.5;
-    ctx.strokeStyle = palette.texte;
+  if (options.selectionne || options.survole || n.type === "theme") {
+    ctx.lineWidth = options.selectionne || options.survole ? 2.5 : 1.5;
+    ctx.strokeStyle = n.type === "theme" ? palette.surface : palette.texte;
     ctx.stroke();
   }
   ctx.restore();
 
-  if (options.afficherLibelle && !options.estompe) {
+  const forcerLibelleTheme = n.type === "theme" && camera.zoom >= 0.25;
+  if ((options.afficherLibelle || forcerLibelleTheme) && !options.estompe) {
     ctx.save();
     ctx.globalAlpha = 1;
     ctx.fillStyle = palette.texte;
-    ctx.font = `${Math.max(12, 12 * Math.min(camera.zoom, 1.4))}px var(--police-texte, sans-serif)`;
+    ctx.font = `${n.type === "theme" ? "bold " : ""}${Math.max(11, 12 * Math.min(camera.zoom, 1.4))}px var(--police-texte, sans-serif)`;
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     const libelle = n.libelle.length > 28 ? `${n.libelle.slice(0, 27)}…` : n.libelle;
@@ -317,21 +331,24 @@ export function dessinerTooltip(
 ): void {
   if (n.x === undefined || n.y === undefined) return;
   const { x, y } = projeter(n, largeur, hauteur, camera);
-  const lignes = [n.libelle, ...n.etiquettes.slice(0, 3)];
+  const lignes = [
+    n.libelle,
+    ...n.etiquettes.filter((e) => !e.startsWith("traverse:")).slice(0, 4),
+  ];
   ctx.save();
   ctx.font = "12px var(--police-texte, sans-serif)";
   const largeurTexte = Math.max(...lignes.map((l) => ctx.measureText(l).width));
-  const pad = 8;
-  const boiteX = x + 12;
+  const pad = 9;
+  const boiteX = x + 14;
   const boiteY = y - 10;
   const boiteL = largeurTexte + pad * 2;
-  const boiteH = lignes.length * 17 + pad * 2 - 4;
+  const boiteH = lignes.length * 18 + pad * 2 - 4;
 
   ctx.fillStyle = palette.surface2;
   ctx.strokeStyle = palette.bordure;
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.roundRect(boiteX, boiteY, boiteL, boiteH, 6);
+  ctx.roundRect(boiteX, boiteY, boiteL, boiteH, 8);
   ctx.fill();
   ctx.stroke();
 
@@ -340,13 +357,16 @@ export function dessinerTooltip(
   ctx.textBaseline = "top";
   lignes.forEach((ligne, i) => {
     ctx.fillStyle = i === 0 ? palette.texte : palette.texteAttenue;
-    ctx.fillText(ligne, boiteX + pad, boiteY + pad + i * 17);
+    if (i === 0) ctx.font = "600 12px var(--police-texte, sans-serif)";
+    else ctx.font = "11px var(--police-texte, sans-serif)";
+    ctx.fillText(ligne, boiteX + pad, boiteY + pad + i * 18);
   });
   ctx.restore();
 }
 
 /**
- * Dessine un halo discret et l'étiquette de domaine autour de chaque cluster de compétences.
+ * Dessine un halo discret et l'étiquette de domaine autour de chaque cluster de compétences,
+ * et illumine les domaines reliés quand un thème transversal est survolé.
  */
 export function dessinerGroupementsDomaines(
   ctx: CanvasRenderingContext2D,
@@ -357,6 +377,7 @@ export function dessinerGroupementsDomaines(
   palette: Palette,
   ctxCouleur: ContexteCouleur,
   axeCouleur: AxeCouleur,
+  domainesMisEnValeur?: Set<string>,
 ): void {
   if (axeCouleur !== "domaine") return;
 
@@ -395,29 +416,34 @@ export function dessinerGroupementsDomaines(
 
     const idx = ctxCouleur.indexDomaine.get(domaineId) ?? 0;
     const couleur = couleurDomaine(idx, ctxCouleur.totalDomaines);
+    const estMisEnValeur = Boolean(domainesMisEnValeur?.has(domaineId));
 
     // Halo d'arrière-plan
     ctx.beginPath();
     ctx.arc(x, y, rayonEnglobant, 0, Math.PI * 2);
     ctx.fillStyle = couleur;
-    ctx.globalAlpha = 0.045;
+    ctx.globalAlpha = estMisEnValeur ? 0.12 : 0.045;
     ctx.fill();
 
     ctx.strokeStyle = couleur;
-    ctx.globalAlpha = 0.2;
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4 * camera.zoom, 4 * camera.zoom]);
+    ctx.globalAlpha = estMisEnValeur ? 0.75 : 0.2;
+    ctx.lineWidth = estMisEnValeur ? 2 : 1;
+    if (estMisEnValeur) {
+      ctx.setLineDash([]);
+    } else {
+      ctx.setLineDash([4 * camera.zoom, 4 * camera.zoom]);
+    }
     ctx.stroke();
     ctx.setLineDash([]);
 
     // Nom du domaine au-dessus du groupe
-    if (camera.zoom > 0.35) {
+    if (camera.zoom > 0.35 || estMisEnValeur) {
       const premierNoeud = groupe[0];
       const nomDomaine =
         premierNoeud.etiquettes.find((e) => e.startsWith("domaine:"))?.slice(8) ?? domaineId;
       ctx.font = `600 ${Math.max(10, Math.min(13, 11 * camera.zoom))}px var(--police-texte, sans-serif)`;
-      ctx.fillStyle = palette.texteAttenue;
-      ctx.globalAlpha = Math.min(0.85, Math.max(0.3, camera.zoom * 0.9));
+      ctx.fillStyle = estMisEnValeur ? palette.texte : palette.texteAttenue;
+      ctx.globalAlpha = estMisEnValeur ? 1 : Math.min(0.85, Math.max(0.3, camera.zoom * 0.9));
       ctx.textAlign = "center";
       ctx.textBaseline = "bottom";
       ctx.fillText(nomDomaine, x, y - rayonEnglobant - 4);

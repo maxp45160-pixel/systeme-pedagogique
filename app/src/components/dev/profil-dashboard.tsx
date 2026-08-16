@@ -109,7 +109,7 @@ export function ProfilDashboard({ compteId }: { compteId: string }) {
           <span
             className={cx(
               "size-2 rounded-full",
-              enCours ? "animate-pulse bg-danger" : clientActif ? "bg-succes" : "bg-texte-discret",
+              enCours ? "bg-danger" : clientActif ? "bg-succes" : "bg-texte-discret",
             )}
             aria-hidden
           />

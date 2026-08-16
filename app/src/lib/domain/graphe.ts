@@ -161,12 +161,30 @@ export function construireGraphe(
     const codes = t.codes.filter((c) => codesActifs.has(c));
     if (codes.length < 2) continue;
     const idTheme = `theme:${t.id}`;
+    const domainesTraverses = Array.from(
+      new Set(
+        codes
+          .map((c) => referentiel.parCode.get(c)?.domaine)
+          .filter((d): d is string => Boolean(d)),
+      ),
+    );
+    const nomsDomainesTraverses = domainesTraverses
+      .map((d) => nomsDomaines.get(d) ?? d)
+      .slice(0, 3)
+      .join(", ");
+    const suffixe = domainesTraverses.length > 3 ? "…" : "";
+
     noeuds.push({
       id: idTheme,
       type: "theme",
       libelle: t.libelle,
       domaineId: null,
-      etiquettes: ["type:theme"],
+      etiquettes: [
+        "Thème transversal",
+        `${domainesTraverses.length} domaine${domainesTraverses.length > 1 ? "s" : ""} : ${nomsDomainesTraverses}${suffixe}`,
+        `${codes.length} compétences reliées`,
+        ...domainesTraverses.map((d) => `traverse:${d}`),
+      ],
       poidsAffichage: codes.length,
     });
     for (const c of codes) {

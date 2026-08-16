@@ -160,7 +160,7 @@ export function FormulaireAmorcage({
             <span
               className={cx(
                 "size-2 rounded-full",
-                cleConfiguree ? "bg-succes" : "bg-avertissement animate-pulse",
+                cleConfiguree ? "bg-succes" : "bg-avertissement",
               )}
             />
             <span className="text-xs font-medium text-texte">
@@ -340,7 +340,7 @@ export function FormulaireAmorcage({
             variante="principal"
             className={cx(
               "group px-5 py-2.5 shadow-md transition-all",
-              pret && "ring-2 ring-primaire/30 animate-pulse",
+              pret && "ring-2 ring-primaire/30",
             )}
           >
             <span>{enCours ? "Génération en cours…" : "Générer mon référentiel avec l'IA"}</span>
