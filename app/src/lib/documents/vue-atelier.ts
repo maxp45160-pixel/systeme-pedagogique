@@ -111,12 +111,6 @@ export interface VueDomaineAtelier {
   }>;
   domaine: Domaine;
   skills: Skill[];
-  /**
-   * Tout le référentiel du compte, pour proposer un rattachement (ADR-081).
-   * La modale a besoin des compétences des **autres** domaines : `skills` ne
-   * porte que celles de celui-ci.
-   */
-  skillsReferentiel: Skill[];
   retraits: Record<string, EtatRetrait>;
   domainesExistants: Array<{ id: string; nom: string; prefixe: string }>;
   changements: ChangementReferentiel[];
@@ -368,7 +362,6 @@ export function construireVuesAtelier(
         }),
         domaine,
         skills,
-        skillsReferentiel: referentiel.skills,
         retraits: Object.fromEntries(retraitsParCode(skills, preuvesReferentiel, codesAvecDependances)),
         domainesExistants: referentiel.domaines
           .filter((item) => !item.archive)

@@ -4,12 +4,13 @@ import { BandeauInfo } from "@/components/ui/primitives";
 import type { CompetenceDejaAuReferentiel } from "@/lib/store/referentiel-actions";
 
 /**
- * Dit ce qui n'a pas été créé, et pourquoi.
+ * Dit ce qui a été rattaché plutôt que recréé.
  *
- * Écarter une compétence sans le dire serait pire que la dupliquer : la
- * personne croirait l'avoir ajoutée et la chercherait dans un domaine où elle
- * n'est pas. On nomme donc le code qui existe et son domaine, pour qu'elle
- * puisse aller l'y travailler.
+ * La personne a demandé ces savoir-faire dans ce domaine ; elle les y trouvera.
+ * Mais elle doit savoir **sous quelle forme** : ce sont les compétences
+ * existantes, avec leur code d'origine et leurs preuves, et non de nouvelles.
+ * Le taire laisserait croire à une création, et le premier code affiché —
+ * `STA-01` dans un domaine préfixé `LOG` — passerait pour un bug.
  */
 export function AvisDejaAuReferentiel({
   competences,
@@ -17,13 +18,16 @@ export function AvisDejaAuReferentiel({
   competences: CompetenceDejaAuReferentiel[];
 }) {
   if (competences.length === 0) return null;
+  const rattachees = competences.filter(({ aRattacher }) => aRattacher);
   const archivees = competences.filter(({ archive }) => archive);
   return (
     <BandeauInfo ton="info" taille="compacte">
       <p className="font-medium">
-        {competences.length === 1
-          ? "Une compétence proposée est déjà au référentiel — elle n’a pas été recréée."
-          : `${competences.length} compétences proposées sont déjà au référentiel — elles n’ont pas été recréées.`}
+        {rattachees.length > 0
+          ? rattachees.length === 1
+            ? "Une compétence existait déjà : elle a été rattachée à ce domaine, pas recréée."
+            : `${rattachees.length} compétences existaient déjà : elles ont été rattachées à ce domaine, pas recréées.`
+          : "Ces compétences étaient déjà dans ce domaine : rien n’a changé."}
       </p>
       <ul className="mt-2 space-y-1">
         {competences.map((competence) => (
@@ -33,18 +37,18 @@ export function AvisDejaAuReferentiel({
             {competence.intitule}
             {" — "}
             <span className="text-texte-attenue">
-              {competence.domaineNom}
+              {competence.aRattacher ? `portée par ${competence.domaineNom}` : "déjà ici"}
               {competence.archive ? ", archivée" : ""}
             </span>
           </li>
         ))}
       </ul>
       <p className="mt-2 text-xs text-texte-attenue">
-        Un second code dédoublerait ses preuves : le niveau serait calculé deux fois sur un seul
-        savoir-faire.{" "}
+        Elles gardent leur code d’origine et leurs preuves : un second code dédoublerait la mesure
+        d’un seul savoir-faire.
         {archivees.length > 0
-          ? "Une compétence archivée se désarchive depuis son domaine — la recréer couperait son historique."
-          : "Travaille-la depuis son domaine."}
+          ? " Une compétence archivée reste archivée — elle se désarchive depuis son domaine porteur."
+          : ""}
       </p>
     </BandeauInfo>
   );

@@ -40,7 +40,6 @@ import {
 import { retirerCompetences } from "@/lib/store/referentiel-actions";
 import { retirerTheme } from "@/lib/store/theme-actions";
 import { rattacherCompetences } from "@/lib/store/referentiel-actions";
-import { ModaleRattachement } from "@/components/referentiel/modale-rattachement";
 
 /**
  * Un seul retour, vers l'endroit où l'objet vit réellement.
@@ -733,7 +732,6 @@ function VueDomaine({
   const router = useRouter();
   const [palierNouveau, setPalierNouveau] = useState<string | null>(null);
   const [competenceARetirer, setCompetenceARetirer] = useState<VueDomaineAtelier["competences"][number] | null>(null);
-  const [rattachementOuvert, setRattachementOuvert] = useState(false);
   const [detachement, setDetachement] = useState<string | null>(null);
   const [section, setSection] = useState<"structure" | "progression" | "referentiel">(
     modeInitial === "referentiel" && !vue.domaine.archive ? "referentiel" : "structure",
@@ -879,36 +877,7 @@ function VueDomaine({
               </section>
             ))}
 
-            {compteId && !vue.domaine.archive && (
-              <section className="rounded-xl border border-dashed border-bordure bg-surface/30 px-4 py-3.5">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-texte">Une compétence d’un autre domaine sert celle-ci ?</p>
-                    <p className="mt-0.5 text-xs leading-relaxed text-texte-attenue">
-                      Rattache-la plutôt que de la réécrire : un second code dédoublerait ses preuves.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setRattachementOuvert(true)}
-                    className="shrink-0 rounded-lg border border-bordure-controle bg-surface px-3 py-1.5 text-xs font-medium text-primaire transition-colors hover:bg-primaire-faible cursor-pointer"
-                  >
-                    Rattacher une compétence
-                  </button>
-                </div>
-              </section>
-            )}
           </div>
-        )}
-
-        {rattachementOuvert && (
-          <ModaleRattachement
-            domaineId={vue.domaine.id}
-            domaineNom={vue.nom}
-            competences={vue.skillsReferentiel}
-            nomDomaine={(id) => vue.domainesExistants.find((d) => d.id === id)?.nom ?? id}
-            onFermer={() => setRattachementOuvert(false)}
-          />
         )}
 
         {detachement && (

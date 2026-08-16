@@ -6080,10 +6080,32 @@ de plus de 13 Ko. L'étendre aurait fait porter à un ajout périphérique le ri
 de réécrire tout le chemin d'écriture du référentiel. Le coût assumé : deux
 points d'entrée au lieu d'un.
 
-**Ce qui n'est pas construit.** L'écran qui déclenche le rattachement. L'action
-serveur `rattacherCompetences` existe et le modèle lit les rattachements, mais
-aucun bouton ne les crée encore : le geste se fait pour l'instant par appel
-direct. C'est la suite immédiate, pas une question ouverte.
+**Le rattachement est automatique, et n'a pas d'écran.** ✅ Tranché le 16/08.
+
+Demander « Lire un tableau de données » dans Logistique, c'est demander que ce
+savoir-faire y serve. Le système sait qu'il existe. Lui faire ensuite chercher
+un bouton pour confirmer ce qu'il vient de demander serait lui faire payer une
+limite du modèle, pas un choix. À la création d'une branche comme à une
+révision, une compétence proposée qui existe déjà ailleurs est donc **rattachée
+sans autre geste**.
+
+Trois conséquences assumées :
+
+* **Aucune commande n'est écrite quand il ne reste qu'à rattacher.**
+  `PropositionReferentiel.commande` vaut `null` : une révision vide dans le
+  journal dirait qu'il s'est passé quelque chose qui n'a pas eu lieu.
+* **Un domaine ne peut pas naître sans compétence à lui.** La commande
+  transactionnelle l'exige, et un domaine qui n'emprunterait que des
+  compétences d'ailleurs n'aurait pas de quoi former son propre code. Le refus
+  nomme les existantes et dit quoi faire.
+* **L'écran le dit.** Le bandeau annonce le rattachement et affiche les codes
+  d'origine — sans quoi un `STA-01` apparaissant dans un domaine préfixé `LOG`
+  passerait pour un bug.
+
+Le détachement, lui, garde son bouton : c'est le seul moyen de défaire un
+rattachement automatique qui ne convient pas. Il retire l'appartenance à ce
+domaine, jamais la compétence — la retirer depuis un domaine d'emprunt
+archiverait une compétence portée par un autre, avec ses preuves.
 
 **Ce qui reste ouvert.**
 

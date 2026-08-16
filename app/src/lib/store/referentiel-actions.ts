@@ -69,9 +69,10 @@ export interface ResultatBranche {
   domaineCree: boolean;
   codes: string[];
   /**
-   * Compétences proposées que le référentiel portait déjà ailleurs. Elles
-   * n'ont pas été recréées sous un second code : l'écran doit les nommer,
-   * sinon la personne croit les avoir ajoutées.
+   * Compétences proposées que le référentiel portait déjà. Aucune n'a été
+   * recréée sous un second code ; celles qui venaient d'un autre domaine ont
+   * été **rattachées** à celui-ci. L'écran doit le dire : la personne les a
+   * demandées, elle doit savoir sous quelle forme elle les a obtenues.
    */
   dejaAuReferentiel: CompetenceDejaAuReferentiel[];
 }
@@ -81,13 +82,53 @@ export async function creerBranche(soumission: SoumissionBranche): Promise<Resul
   const referentiel = await lireReferentiel(dorsale);
   const origine = soumission.origine ?? "tuteur";
   const { commande, dejaAuReferentiel } = preparerCreationDomaine({ ...soumission, origine }, referentiel);
-  const resultat = await executerCommande(commande, referentiel, origine, "Branche relue et validée");
+
+  /*
+   * Sans commande, il n'y avait rien de neuf à écrire : toutes les compétences
+   * demandées existaient déjà. Le domaine, lui, existe forcément — une création
+   * sans compétence propre a été refusée en amont.
+   */
+  const resultat = commande
+    ? await executerCommande(commande, referentiel, origine, "Branche relue et validée")
+    : null;
+  const domaineId =
+    resultat?.domaineId ??
+    referentiel.domaines.find(
+      (d) => d.nom.toLocaleLowerCase("fr-FR") === soumission.domaine.trim().toLocaleLowerCase("fr-FR"),
+    )?.id;
+  if (!domaineId) throw new Error(`Domaine introuvable : ${soumission.domaine}`);
+
+  await rattacherAutomatiquement(domaineId, dejaAuReferentiel);
   return {
-    domaineId: resultat.domaineId,
-    domaineCree: commande.type === "creer_domaine",
-    codes: resultat.codes ?? resultat.ajoutees ?? [],
+    domaineId,
+    domaineCree: commande?.type === "creer_domaine",
+    codes: resultat?.codes ?? resultat?.ajoutees ?? [],
     dejaAuReferentiel,
   };
+}
+
+/**
+ * Rattache ce que la personne a demandé et qui existait déjà ailleurs.
+ *
+ * Demander « Lire un tableau de données » dans Logistique, c'est demander que
+ * ce savoir-faire y serve. Le système sait qu'il existe : le recréer
+ * dédoublerait ses preuves, et l'écarter en silence perdrait la demande. Il le
+ * rattache donc, sans autre geste (ADR-081).
+ *
+ * L'échec du rattachement ne défait pas l'écriture qui précède : les
+ * compétences neuves sont créées, et le message dira lesquelles n'ont pas pu
+ * être rattachées. Défaire serait pire — on perdrait un travail réussi pour un
+ * complément manqué.
+ */
+async function rattacherAutomatiquement(
+  domaineId: string,
+  dejaAuReferentiel: CompetenceDejaAuReferentiel[],
+): Promise<void> {
+  const codes = dejaAuReferentiel
+    .filter((competence) => competence.aRattacher && competence.domaineId !== domaineId)
+    .map(({ code }) => code);
+  if (codes.length === 0) return;
+  await rattacherCompetences(domaineId, codes, true);
 }
 
 export interface ResultatRattachement {
@@ -163,6 +204,9 @@ export async function modifierCompetence(code: string, champs: ModificationCompe
     modifications: [{ code, ...champs }],
     retraits: [],
   }, referentiel, "utilisateur");
+  // Une modification produit toujours une commande : elle ne passe pas par le
+  // chemin des ajouts, seul à pouvoir n'avoir rien à écrire.
+  if (!commande) throw new Error(`Rien à modifier pour ${code}.`);
   await executerCommande(commande, referentiel, "utilisateur", `Correction de formulation de ${code}`);
 }
 
@@ -186,12 +230,15 @@ export async function appliquerRevision(soumission: SoumissionRevision): Promise
   const dorsale = await dorsaleCompte();
   const referentiel = await lireReferentiel(dorsale);
   const { commande, dejaAuReferentiel } = preparerRevisionDomaine(soumission, referentiel, "tuteur");
-  const resultat = await executerCommande(commande, referentiel, "tuteur", "Révision assistée relue et validée");
+  const resultat = commande
+    ? await executerCommande(commande, referentiel, "tuteur", "Révision assistée relue et validée")
+    : null;
+  await rattacherAutomatiquement(soumission.domaineId, dejaAuReferentiel);
   return {
-    ajoutes: resultat.ajoutees ?? [],
-    modifiees: resultat.modifiees ?? [],
-    supprimees: resultat.supprimees ?? [],
-    archivees: resultat.archivees ?? [],
+    ajoutes: resultat?.ajoutees ?? [],
+    modifiees: resultat?.modifiees ?? [],
+    supprimees: resultat?.supprimees ?? [],
+    archivees: resultat?.archivees ?? [],
     dejaAuReferentiel,
   };
 }
