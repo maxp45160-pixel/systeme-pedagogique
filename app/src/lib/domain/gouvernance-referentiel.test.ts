@@ -34,7 +34,7 @@ describe("gouvernance du référentiel", () => {
       origine: "tuteur",
       competences: [{ intitule: "Comparer deux positions philosophiques", palier: "intermediaire", importance: 0.5 }],
     }, assemblerReferentiel([domaineExistant], []));
-    expect(commande.type).toBe("ajouter_competences");
+    expect(commande?.type).toBe("ajouter_competences");
   });
 
   /*
@@ -58,7 +58,8 @@ describe("gouvernance du référentiel", () => {
     }, assemblerReferentiel([statistiques], [existante]));
 
     expect(commande).toMatchObject({ type: "creer_domaine" });
-    expect(commande.type === "creer_domaine" && commande.competences.map((c) => c.intitule)).toEqual([
+    const creation = commande?.type === "creer_domaine" ? commande : null;
+    expect(creation?.competences.map((competence) => competence.intitule)).toEqual([
       "Dimensionner un stock de sécurité",
     ]);
     expect(dejaAuReferentiel).toEqual([
@@ -68,11 +69,12 @@ describe("gouvernance du référentiel", () => {
         domaineId: "statistiques",
         domaineNom: "Statistiques",
         archive: false,
+        aRattacher: true,
       },
     ]);
   });
 
-  it("nomme les compétences existantes plutôt que de créer un domaine vide", () => {
+  it("refuse de faire naître un domaine sans aucune compétence à lui", () => {
     const statistiques = domaine("statistiques", "Statistiques", "STA");
     const existante = skill("STA-01", "Lire un tableau de données", "statistiques");
     expect(() => preparerCreationDomaine({
@@ -82,6 +84,46 @@ describe("gouvernance du référentiel", () => {
       origine: "tuteur",
       competences: [{ intitule: "lire un tableau de données", palier: "fondamentaux", importance: 0.6 }],
     }, assemblerReferentiel([statistiques], [existante]))).toThrow("STA-01 (Statistiques)");
+  });
+
+  /*
+   * Le geste attendu : la personne demande ce savoir-faire dans ce domaine.
+   * Il existe ailleurs, donc rien n'est écrit — et il n'y a rien non plus à
+   * lui faire faire de plus. Le rattachement suit tout seul.
+   */
+  it("n'écrit aucune commande quand il ne reste qu'à rattacher", () => {
+    const statistiques = domaine("statistiques", "Statistiques", "STA");
+    const logistique = domaine("logistique", "Logistique", "LOG");
+    const existante = skill("STA-01", "Lire un tableau de données", "statistiques");
+    const { commande, dejaAuReferentiel } = preparerCreationDomaine({
+      domaine: "Logistique",
+      prefixe: "LOG",
+      description: "",
+      origine: "tuteur",
+      competences: [{ intitule: "Lire un tableau de données", palier: "fondamentaux", importance: 0.6 }],
+    }, assemblerReferentiel([statistiques, logistique], [existante]));
+
+    expect(commande).toBeNull();
+    expect(dejaAuReferentiel).toMatchObject([{ code: "STA-01", aRattacher: true }]);
+  });
+
+  /*
+   * Une compétence déjà portée par CE domaine n'a rien à rattacher : elle y
+   * est. La proposition se contente de la nommer, sans lever d'erreur.
+   */
+  it("ne rattache rien quand la compétence est déjà portée par ce domaine", () => {
+    const logistique = domaine("logistique", "Logistique", "LOG");
+    const existante = skill("LOG-01", "Dimensionner un stock de sécurité", "logistique");
+    const { commande, dejaAuReferentiel } = preparerCreationDomaine({
+      domaine: "Logistique",
+      prefixe: "LOG",
+      description: "",
+      origine: "tuteur",
+      competences: [{ intitule: "Dimensionner un stock de sécurité", palier: "fondamentaux", importance: 0.6 }],
+    }, assemblerReferentiel([logistique], [existante]));
+
+    expect(commande).toBeNull();
+    expect(dejaAuReferentiel).toMatchObject([{ code: "LOG-01", aRattacher: false }]);
   });
 
   /*

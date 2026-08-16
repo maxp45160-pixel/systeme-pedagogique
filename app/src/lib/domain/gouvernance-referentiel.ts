@@ -19,11 +19,10 @@ import {
 } from "./referentiel-compte";
 
 /**
- * Une compétence proposée que le référentiel porte déjà, ailleurs.
+ * Une compétence proposée que le référentiel porte déjà.
  *
  * Ce n'est pas une erreur : la proposition est légitime, c'est le savoir-faire
- * qui existe. On ne crée pas un second code — cela dédoublerait ses preuves —
- * et on nomme celui qui existe, pour que la personne aille l'y travailler.
+ * qui existe. On ne crée pas un second code — cela dédoublerait ses preuves.
  */
 export interface CompetenceDejaAuReferentiel {
   intitule: string;
@@ -31,15 +30,24 @@ export interface CompetenceDejaAuReferentiel {
   domaineId: string;
   domaineNom: string;
   archive: boolean;
+  /**
+   * Vraie quand la compétence est portée par un **autre** domaine : demander
+   * ce savoir-faire ici, c'est demander qu'il y serve. Le rattachement suit
+   * donc automatiquement (ADR-081). Fausse quand elle est déjà portée par ce
+   * domaine : il n'y a rien à faire.
+   */
+  aRattacher: boolean;
 }
 
 /**
- * Ce que produit une préparation : la commande transactionnelle, et ce qui a
- * été écarté parce qu'il existait déjà. Les deux voyagent ensemble — écarter
- * sans le dire ferait disparaître une proposition sans que personne le sache.
+ * Ce que produit une préparation.
+ *
+ * `commande` est `null` quand il n'y a rien à écrire — toutes les compétences
+ * proposées existaient déjà, et seul le rattachement reste à faire. Écrire une
+ * commande vide ferait une révision sans objet dans le journal.
  */
 export interface PropositionReferentiel {
-  commande: CommandeReferentiel;
+  commande: CommandeReferentiel | null;
   dejaAuReferentiel: CompetenceDejaAuReferentiel[];
 }
 
@@ -145,17 +153,18 @@ function preparerAjouts(
       importance: normaliserImportance(competence.importance),
       prerequis: [...new Set(competence.prerequis ?? [])],
     };
-    lever(validerCompetence(candidate, referentiel, domaineId));
     const cle = candidate.intitule.toLocaleLowerCase("fr-FR");
     if (vues.has(cle)) throw new Error(`« ${candidate.intitule} » apparaît deux fois dans la proposition.`);
     vues.add(cle);
 
     /*
-     * Le savoir-faire existe déjà, dans un autre domaine : on ne lui fabrique
-     * pas un second code. `validerCompetence` a déjà levé le cas du même
-     * domaine, qui est une erreur de saisie ; celui-ci n'en est pas une, c'est
-     * une compétence partagée que le référentiel ne sait pas encore porter à
-     * deux endroits.
+     * Le savoir-faire existe déjà : on ne lui fabrique pas un second code, qui
+     * dédoublerait ses preuves. Le contrôle passe **avant** la validation —
+     * une compétence qu'on ne crée pas n'a pas à voir son palier ni son
+     * importance validés.
+     *
+     * Demander ce savoir-faire dans ce domaine, c'est demander qu'il y serve :
+     * le rattachement suit, sans autre geste (ADR-081).
      */
     const existante = competenceHomonyme(candidate.intitule, referentiel);
     if (existante) {
@@ -165,20 +174,18 @@ function preparerAjouts(
         domaineId: existante.domaine,
         domaineNom: referentiel.domainesParId.get(existante.domaine)?.nom ?? existante.domaine,
         archive: existante.archive,
+        aRattacher: existante.domaine !== domaineId,
       });
       continue;
     }
 
+    lever(validerCompetence(candidate, referentiel, domaineId));
     ajouts.push({ ...candidate, prerequis: candidate.prerequis ?? [], ordre: competence.ordre ?? index, origine });
   }
 
-  if (ajouts.length === 0 && dejaAuReferentiel.length > 0) {
-    const liste = dejaAuReferentiel.map(({ code, domaineNom }) => `${code} (${domaineNom})`).join(", ");
-    throw new Error(
-      `Rien à ajouter : ces compétences sont déjà au référentiel — ${liste}. Travaille-les là où elles se trouvent plutôt que d'en créer un double.`,
-    );
+  if (ajouts.length === 0 && dejaAuReferentiel.length === 0) {
+    throw new Error("Une commande d'ajout doit porter au moins une compétence.");
   }
-  if (ajouts.length === 0) throw new Error("Une commande d'ajout doit porter au moins une compétence.");
   return { ajouts, dejaAuReferentiel };
 }
 
@@ -192,7 +199,10 @@ export function preparerCreationDomaine(
   if (existant) {
     const { ajouts, dejaAuReferentiel } = preparerAjouts(entree.competences, referentiel, existant.id, entree.origine);
     return {
-      commande: { type: "ajouter_competences", domaineId: existant.id, competences: ajouts },
+      // Rien de neuf à écrire : il ne reste que des rattachements.
+      commande: ajouts.length
+        ? { type: "ajouter_competences", domaineId: existant.id, competences: ajouts }
+        : null,
       dejaAuReferentiel,
     };
   }
@@ -200,6 +210,17 @@ export function preparerCreationDomaine(
   lever(validerDomaine({ nom, prefixe, description: entree.description }, referentiel));
   const domaineId = slugifier(nom);
   const { ajouts, dejaAuReferentiel } = preparerAjouts(entree.competences, referentiel, domaineId, entree.origine);
+  /*
+   * Un domaine naît avec au moins une compétence à lui — la commande
+   * transactionnelle l'exige, et un domaine qui n'emprunterait que des
+   * compétences d'ailleurs n'aurait pas de quoi former son propre code.
+   */
+  if (ajouts.length === 0) {
+    const liste = dejaAuReferentiel.map(({ code, domaineNom }) => `${code} (${domaineNom})`).join(", ");
+    throw new Error(
+      `« ${nom} » ne peut pas naître sans compétence à lui : toutes celles proposées existent déjà — ${liste}. Ajoute-lui au moins une compétence propre ; les autres se rattacheront ensuite.`,
+    );
+  }
   return {
     commande: {
       type: "creer_domaine",
