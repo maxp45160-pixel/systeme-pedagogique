@@ -18,11 +18,14 @@ import {
   nouvelIdCommande,
   preparerCreationDomaine,
   preparerRevisionDomaine,
+  type CompetenceDejaAuReferentiel,
   type AjoutCompetenceCommande,
   type CommandeReferentiel,
   type EnveloppeCommandeReferentiel,
   type ResultatCommandeReferentiel,
 } from "@/lib/domain/gouvernance-referentiel";
+
+export type { CompetenceDejaAuReferentiel };
 import { normaliserImportance, normaliserPalier, validerCompetence } from "@/lib/domain/referentiel-compte";
 import type { OrigineReferentiel, Palier, Referentiel } from "@/lib/domain/types";
 
@@ -65,18 +68,25 @@ export interface ResultatBranche {
   domaineId: string;
   domaineCree: boolean;
   codes: string[];
+  /**
+   * Compétences proposées que le référentiel portait déjà ailleurs. Elles
+   * n'ont pas été recréées sous un second code : l'écran doit les nommer,
+   * sinon la personne croit les avoir ajoutées.
+   */
+  dejaAuReferentiel: CompetenceDejaAuReferentiel[];
 }
 
 export async function creerBranche(soumission: SoumissionBranche): Promise<ResultatBranche> {
   const dorsale = await dorsaleCompte();
   const referentiel = await lireReferentiel(dorsale);
   const origine = soumission.origine ?? "tuteur";
-  const commande = preparerCreationDomaine({ ...soumission, origine }, referentiel);
+  const { commande, dejaAuReferentiel } = preparerCreationDomaine({ ...soumission, origine }, referentiel);
   const resultat = await executerCommande(commande, referentiel, origine, "Branche relue et validée");
   return {
     domaineId: resultat.domaineId,
     domaineCree: commande.type === "creer_domaine",
     codes: resultat.codes ?? resultat.ajoutees ?? [],
+    dejaAuReferentiel,
   };
 }
 
@@ -93,7 +103,7 @@ export async function modifierCompetence(code: string, champs: ModificationCompe
   const referentiel = await lireReferentiel(dorsale);
   const skill = referentiel.parCode.get(code);
   if (!skill) throw new Error(`Compétence inconnue : ${code}`);
-  const commande = preparerRevisionDomaine({
+  const { commande } = preparerRevisionDomaine({
     domaineId: skill.domaine,
     ajouts: [],
     modifications: [{ code, ...champs }],
@@ -115,18 +125,20 @@ export interface ResultatRevision {
   modifiees: string[];
   supprimees: string[];
   archivees: string[];
+  dejaAuReferentiel: CompetenceDejaAuReferentiel[];
 }
 
 export async function appliquerRevision(soumission: SoumissionRevision): Promise<ResultatRevision> {
   const dorsale = await dorsaleCompte();
   const referentiel = await lireReferentiel(dorsale);
-  const commande = preparerRevisionDomaine(soumission, referentiel, "tuteur");
+  const { commande, dejaAuReferentiel } = preparerRevisionDomaine(soumission, referentiel, "tuteur");
   const resultat = await executerCommande(commande, referentiel, "tuteur", "Révision assistée relue et validée");
   return {
     ajoutes: resultat.ajoutees ?? [],
     modifiees: resultat.modifiees ?? [],
     supprimees: resultat.supprimees ?? [],
     archivees: resultat.archivees ?? [],
+    dejaAuReferentiel,
   };
 }
 

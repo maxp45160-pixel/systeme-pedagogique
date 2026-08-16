@@ -324,6 +324,41 @@ export function validerDomaine(
   return erreurs;
 }
 
+/**
+ * La compétence du référentiel qui porte déjà cet intitulé, où qu'elle soit.
+ *
+ * Le contrôle de doublon était borné au domaine : créer « Lire un tableau de
+ * données » dans Statistiques puis dans Logistique passait, et produisait deux
+ * codes, deux flux de preuves et deux niveaux pour un seul savoir-faire. Ce que
+ * le commentaire du contrôle disait vouloir éviter — dédoubler les preuves d'un
+ * même savoir-faire — se produisait dès qu'on changeait de domaine.
+ *
+ * Le rapprochement est **exact** : intitulé identique, casse et espaces mis à
+ * part. Rapprocher des intitulés voisins fusionnerait des savoir-faire
+ * distincts — « Modéliser un flux » n'a pas le même sens en Logistique et en
+ * Développement — et le système n'a rien pour en juger. Cette appréciation
+ * reste humaine.
+ *
+ * Les compétences archivées comptent : leur intitulé reste résoluble et leurs
+ * preuves existent (ADR-027). En recréer une sous un code neuf couperait
+ * l'historique en deux.
+ */
+export function competenceHomonyme(
+  intitule: string,
+  referentiel: Referentiel,
+  codeIgnore?: string,
+): Skill | null {
+  const recherche = intitule.trim().toLocaleLowerCase("fr-FR");
+  if (!recherche) return null;
+  return (
+    referentiel.skills.find(
+      (skill) =>
+        skill.code !== codeIgnore &&
+        skill.intitule.trim().toLocaleLowerCase("fr-FR") === recherche,
+    ) ?? null
+  );
+}
+
 export function validerCompetence(
   candidat: CompetenceCandidate,
   referentiel: Referentiel,
@@ -351,12 +386,9 @@ export function validerCompetence(
   // Doublon d'intitulé dans le même domaine : deux compétences identiques
   // dédoubleraient les preuves d'un même savoir-faire et fausseraient la
   // couverture.
-  const nu = intitule.toLowerCase();
-  for (const s of referentiel.skills) {
-    if (s.code === codeIgnore) continue;
-    if (s.domaine === domaineId && s.intitule.trim().toLowerCase() === nu) {
-      erreurs.push(`« ${s.code} » porte déjà cet intitulé dans ce domaine.`);
-    }
+  const collision = competenceHomonyme(intitule, referentiel, codeIgnore);
+  if (collision && collision.domaine === domaineId) {
+    erreurs.push(`« ${collision.code} » porte déjà cet intitulé dans ce domaine.`);
   }
 
   for (const p of candidat.prerequis ?? []) {

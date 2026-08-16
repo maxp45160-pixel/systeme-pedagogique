@@ -6006,6 +6006,29 @@ migration que rien ne justifie encore. Deux états seulement — *à trier* et
    domaine est un vrai rattachement — qui compte alors dans la couverture du
    domaine et dans les scores — ou une simple étiquette de lecture, auquel cas
    un thème le fait déjà sans toucher au schéma.
+
+   ✅ **La duplication, elle, est fermée le 16/08, sans migration.** Le contrôle
+   de doublon d'intitulé était borné au domaine — `s.domaine === domaineId`
+   dans `validerCompetence`. Créer « Lire un tableau de données » dans
+   Statistiques puis dans Logistique passait, et produisait **deux codes, deux
+   flux de preuves et deux niveaux pour un seul savoir-faire** : exactement ce
+   que le commentaire du contrôle disait vouloir éviter. `competenceHomonyme`
+   cherche désormais dans tout le référentiel ; une compétence déjà présente
+   ailleurs n'est **pas recréée**, et `PropositionReferentiel` remonte la liste
+   des écartées avec leur code et leur domaine, jusqu'à l'écran. Le
+   rapprochement est **exact** : rapprocher des intitulés voisins fusionnerait
+   des savoir-faire distincts, et cette appréciation reste humaine. Les
+   compétences archivées comptent — en recréer une sous un code neuf couperait
+   son historique (ADR-027).
+
+   *Ce que ça laisse en l'état :* la compétence partagée reste invisible depuis
+   le second domaine. C'est précisément ce que trancherait la question
+   ci-dessus. Le message la nomme, avec son domaine, pour qu'elle soit
+   travaillée là où elle est.
+
+   *Vérifié au passage :* `calculerEtatGlobal` itère sur les compétences, pas
+   sur les domaines. Un rattachement multiple ne créerait donc **aucun double
+   comptage du score global** ; seul `agregerDomaine` filtre par domaine.
 2. 🔬 **Quatre lieux suffisent-ils ?** *Test de réfutation :* si une personne
    redemande « où est ma fiche ? » après ce changement, ou si la boîte « à
    trier » ne se vide jamais, c'est que le rattachement coûte trop cher et qu'il

@@ -12,10 +12,36 @@ import {
   normaliserPalier,
   normaliserPrefixe,
   slugifier,
+  competenceHomonyme,
   validerCompetence,
   validerDomaine,
   type CompetenceCandidate,
 } from "./referentiel-compte";
+
+/**
+ * Une compétence proposée que le référentiel porte déjà, ailleurs.
+ *
+ * Ce n'est pas une erreur : la proposition est légitime, c'est le savoir-faire
+ * qui existe. On ne crée pas un second code — cela dédoublerait ses preuves —
+ * et on nomme celui qui existe, pour que la personne aille l'y travailler.
+ */
+export interface CompetenceDejaAuReferentiel {
+  intitule: string;
+  code: string;
+  domaineId: string;
+  domaineNom: string;
+  archive: boolean;
+}
+
+/**
+ * Ce que produit une préparation : la commande transactionnelle, et ce qui a
+ * été écarté parce qu'il existait déjà. Les deux voyagent ensemble — écarter
+ * sans le dire ferait disparaître une proposition sans que personne le sache.
+ */
+export interface PropositionReferentiel {
+  commande: CommandeReferentiel;
+  dejaAuReferentiel: CompetenceDejaAuReferentiel[];
+}
 
 export interface AjoutCompetenceCommande {
   intitule: string;
@@ -107,9 +133,12 @@ function preparerAjouts(
   referentiel: Referentiel,
   domaineId: string,
   origine: OrigineReferentiel,
-): AjoutCompetenceCommande[] {
+): { ajouts: AjoutCompetenceCommande[]; dejaAuReferentiel: CompetenceDejaAuReferentiel[] } {
   const vues = new Set<string>();
-  const ajouts = brutes.filter((competence) => competence.intitule.trim()).map((competence, index) => {
+  const dejaAuReferentiel: CompetenceDejaAuReferentiel[] = [];
+  const ajouts: AjoutCompetenceCommande[] = [];
+
+  for (const [index, competence] of brutes.filter(({ intitule }) => intitule.trim()).entries()) {
     const candidate: CompetenceCandidate = {
       intitule: competence.intitule.trim(),
       palier: normaliserPalier(competence.palier),
@@ -120,31 +149,64 @@ function preparerAjouts(
     const cle = candidate.intitule.toLocaleLowerCase("fr-FR");
     if (vues.has(cle)) throw new Error(`« ${candidate.intitule} » apparaît deux fois dans la proposition.`);
     vues.add(cle);
-    return { ...candidate, prerequis: candidate.prerequis ?? [], ordre: competence.ordre ?? index, origine };
-  });
+
+    /*
+     * Le savoir-faire existe déjà, dans un autre domaine : on ne lui fabrique
+     * pas un second code. `validerCompetence` a déjà levé le cas du même
+     * domaine, qui est une erreur de saisie ; celui-ci n'en est pas une, c'est
+     * une compétence partagée que le référentiel ne sait pas encore porter à
+     * deux endroits.
+     */
+    const existante = competenceHomonyme(candidate.intitule, referentiel);
+    if (existante) {
+      dejaAuReferentiel.push({
+        intitule: candidate.intitule,
+        code: existante.code,
+        domaineId: existante.domaine,
+        domaineNom: referentiel.domainesParId.get(existante.domaine)?.nom ?? existante.domaine,
+        archive: existante.archive,
+      });
+      continue;
+    }
+
+    ajouts.push({ ...candidate, prerequis: candidate.prerequis ?? [], ordre: competence.ordre ?? index, origine });
+  }
+
+  if (ajouts.length === 0 && dejaAuReferentiel.length > 0) {
+    const liste = dejaAuReferentiel.map(({ code, domaineNom }) => `${code} (${domaineNom})`).join(", ");
+    throw new Error(
+      `Rien à ajouter : ces compétences sont déjà au référentiel — ${liste}. Travaille-les là où elles se trouvent plutôt que d'en créer un double.`,
+    );
+  }
   if (ajouts.length === 0) throw new Error("Une commande d'ajout doit porter au moins une compétence.");
-  return ajouts;
+  return { ajouts, dejaAuReferentiel };
 }
 
 export function preparerCreationDomaine(
   entree: { domaine: string; prefixe: string; description: string; competences: CompetenceBrute[]; origine: OrigineReferentiel },
   referentiel: Referentiel,
-): CommandeReferentiel {
+): PropositionReferentiel {
   const nom = entree.domaine.trim();
   const existant = referentiel.domaines.find((domaine) => domaine.nom.toLocaleLowerCase("fr-FR") === nom.toLocaleLowerCase("fr-FR"))
     ?? referentiel.domainesParId.get(slugifier(nom));
-  if (existant) return {
-    type: "ajouter_competences",
-    domaineId: existant.id,
-    competences: preparerAjouts(entree.competences, referentiel, existant.id, entree.origine),
-  };
+  if (existant) {
+    const { ajouts, dejaAuReferentiel } = preparerAjouts(entree.competences, referentiel, existant.id, entree.origine);
+    return {
+      commande: { type: "ajouter_competences", domaineId: existant.id, competences: ajouts },
+      dejaAuReferentiel,
+    };
+  }
   const prefixe = normaliserPrefixe(entree.prefixe, nom);
   lever(validerDomaine({ nom, prefixe, description: entree.description }, referentiel));
   const domaineId = slugifier(nom);
+  const { ajouts, dejaAuReferentiel } = preparerAjouts(entree.competences, referentiel, domaineId, entree.origine);
   return {
-    type: "creer_domaine",
-    domaine: { id: domaineId, nom, prefixe, description: entree.description.trim(), ordre: referentiel.domaines.length, origine: entree.origine },
-    competences: preparerAjouts(entree.competences, referentiel, domaineId, entree.origine),
+    commande: {
+      type: "creer_domaine",
+      domaine: { id: domaineId, nom, prefixe, description: entree.description.trim(), ordre: referentiel.domaines.length, origine: entree.origine },
+      competences: ajouts,
+    },
+    dejaAuReferentiel,
   };
 }
 
@@ -158,7 +220,7 @@ export function preparerRevisionDomaine(
   },
   referentiel: Referentiel,
   origine: OrigineReferentiel,
-): CommandeReferentiel {
+): PropositionReferentiel {
   const domaine = referentiel.domainesParId.get(entree.domaineId);
   if (!domaine) throw new Error(`Domaine inconnu : ${entree.domaineId}`);
   const retraits = [...new Set(entree.retraits)];
@@ -189,17 +251,23 @@ export function preparerRevisionDomaine(
   }
   const nom = entree.domaine?.nom?.trim();
   if (nom) lever(validerDomaine({ nom, prefixe: domaine.prefixe, description: entree.domaine?.description ?? domaine.description }, referentiel, domaine.id));
+  const { ajouts, dejaAuReferentiel } = entree.ajouts.length
+    ? preparerAjouts(entree.ajouts, referentiel, domaine.id, origine)
+    : { ajouts: [], dejaAuReferentiel: [] };
   return {
-    type: "reviser_domaine",
-    domaineId: domaine.id,
-    domaine: entree.domaine ? {
-      ...(nom ? { nom } : {}),
-      ...(entree.domaine.description !== undefined ? { description: entree.domaine.description.trim() } : {}),
-      ...(entree.domaine.ordre !== undefined ? { ordre: entree.domaine.ordre } : {}),
-    } : undefined,
-    ajouts: entree.ajouts.length ? preparerAjouts(entree.ajouts, referentiel, domaine.id, origine) : [],
-    modifications,
-    retraits,
+    commande: {
+      type: "reviser_domaine",
+      domaineId: domaine.id,
+      domaine: entree.domaine ? {
+        ...(nom ? { nom } : {}),
+        ...(entree.domaine.description !== undefined ? { description: entree.domaine.description.trim() } : {}),
+        ...(entree.domaine.ordre !== undefined ? { ordre: entree.domaine.ordre } : {}),
+      } : undefined,
+      ajouts,
+      modifications,
+      retraits,
+    },
+    dejaAuReferentiel,
   };
 }
 
