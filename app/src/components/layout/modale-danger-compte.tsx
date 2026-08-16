@@ -75,9 +75,29 @@ export function ModaleDangerCompte({
       if (mode === "supprimer_et_deconnecter") {
         effacerConfigTuteur(compteId);
       }
-      window.localStorage.removeItem(`graphe:reglages:${compteId}`);
-      window.localStorage.removeItem(`atelier:dossiers:${compteId}`);
-      window.localStorage.removeItem("dossiers");
+      const cleTuteurAconserver = `systeme-pedagogique:cle-tuteur:${compteId}`;
+
+      // Nettoyage exhaustif de toutes les entrées localStorage liées au compte (tours, graphe, ateliers, profilage...)
+      const clesASupprimer: string[] = [];
+      for (let i = 0; i < window.localStorage.length; i++) {
+        const k = window.localStorage.key(i);
+        if (!k) continue;
+        if (
+          k.includes(compteId) ||
+          k.startsWith("systeme-pedagogique:tour:") ||
+          k.startsWith("systeme-pedagogique:profiling:") ||
+          k === "dossiers"
+        ) {
+          if (mode === "reset" && k === cleTuteurAconserver) {
+            continue;
+          }
+          clesASupprimer.push(k);
+        }
+      }
+      for (const k of clesASupprimer) {
+        window.localStorage.removeItem(k);
+      }
+
       window.sessionStorage.clear();
     } catch {
       // Ignorer si stockage inaccessible

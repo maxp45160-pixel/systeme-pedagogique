@@ -26,4 +26,27 @@ describe("cleTour & isolation par compte", () => {
 
     expect(tourA).not.toBe(tourB);
   });
+
+  it("permet de cibler et purger les clés de tours associées à un compte lors d'un reset", () => {
+    const compte = "user-test-reset";
+    const cles = [
+      cleTour("demarrer_v2", compte),
+      cleTour("dashboard_v1", compte),
+      `systeme-pedagogique:cle-tuteur:${compte}`,
+      `graphe:reglages:${compte}`,
+      `systeme-pedagogique:tour:dashboard_v1:autre-compte`,
+    ];
+
+    const filtreSuppression = (k: string) =>
+      k.includes(compte) && k !== `systeme-pedagogique:cle-tuteur:${compte}`;
+
+    const supprimees = cles.filter(filtreSuppression);
+
+    expect(supprimees).toContain(cleTour("demarrer_v2", compte));
+    expect(supprimees).toContain(cleTour("dashboard_v1", compte));
+    expect(supprimees).toContain(`graphe:reglages:${compte}`);
+    expect(supprimees).not.toContain(`systeme-pedagogique:cle-tuteur:${compte}`);
+    expect(supprimees).not.toContain(`systeme-pedagogique:tour:dashboard_v1:autre-compte`);
+  });
 });
+

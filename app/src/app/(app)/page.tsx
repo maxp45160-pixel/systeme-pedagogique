@@ -240,7 +240,7 @@ async function ContenuTableauDeBord({ instant }: { instant: ContexteInstant }) {
         {seanceActive ? (
           <Carte accent className="relative overflow-hidden">
             <div className="absolute inset-x-0 top-0 h-1 bg-primaire" aria-hidden />
-            <div className="px-5 py-5 sm:px-6">
+            <div className="px-5 py-5 sm:px-6" data-tour="action-prioritaire">
               <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-primaire">Action prioritaire</p>
               <h2 className="mt-2 font-serif text-2xl font-medium">
                 {seancesActives.length > 1 ? "Reprendre la dernière séance" : "Reprendre la séance"}
