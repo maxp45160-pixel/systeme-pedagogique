@@ -72,8 +72,35 @@ function comparerDomaines(a: Domaine, b: Domaine): number {
  *
  * Les quatre vues sont recalculées à chaque lecture et jamais stockées (P1).
  */
-export function assemblerReferentiel(domaines: Domaine[], skills: Skill[]): Referentiel {
-  const tries = [...skills].sort(comparerSkills);
+export function assemblerReferentiel(
+  domaines: Domaine[],
+  skills: Skill[],
+  /**
+   * Rattachements lus dans `competence_domaines`. Absents, chaque compétence ne
+   * sert que son domaine porteur — c'est l'état de tout compte qui n'a jamais
+   * rattaché quoi que ce soit, et le comportement d'avant ADR-081.
+   */
+  rattachements: Array<{ code: string; domaine: string }> = [],
+): Referentiel {
+  const secondairesParCode = new Map<string, string[]>();
+  const domainesConnus = new Set(domaines.map(({ id }) => id));
+  for (const { code, domaine } of rattachements) {
+    // Un rattachement vers un domaine disparu ne se répare pas en silence : on
+    // l'ignore, comme les prérequis inconnus, plutôt que d'inventer un domaine.
+    if (!domainesConnus.has(domaine)) continue;
+    const deja = secondairesParCode.get(code) ?? [];
+    if (!deja.includes(domaine)) deja.push(domaine);
+    secondairesParCode.set(code, deja);
+  }
+
+  const tries = [...skills]
+    .map((skill) => ({
+      ...skill,
+      domainesSecondaires: (secondairesParCode.get(skill.code) ?? []).filter(
+        (domaine) => domaine !== skill.domaine,
+      ),
+    }))
+    .sort(comparerSkills);
   // Le périmètre de travail : ni archivée, ni désactivée. Les deux drapeaux
   // sont distincts — désactiver est réversible d'un clic, archiver acte qu'une
   // compétence porte des preuves et ne peut plus être supprimée (ADR-027).
@@ -324,6 +351,41 @@ export function validerDomaine(
   return erreurs;
 }
 
+/**
+ * La compétence du référentiel qui porte déjà cet intitulé, où qu'elle soit.
+ *
+ * Le contrôle de doublon était borné au domaine : créer « Lire un tableau de
+ * données » dans Statistiques puis dans Logistique passait, et produisait deux
+ * codes, deux flux de preuves et deux niveaux pour un seul savoir-faire. Ce que
+ * le commentaire du contrôle disait vouloir éviter — dédoubler les preuves d'un
+ * même savoir-faire — se produisait dès qu'on changeait de domaine.
+ *
+ * Le rapprochement est **exact** : intitulé identique, casse et espaces mis à
+ * part. Rapprocher des intitulés voisins fusionnerait des savoir-faire
+ * distincts — « Modéliser un flux » n'a pas le même sens en Logistique et en
+ * Développement — et le système n'a rien pour en juger. Cette appréciation
+ * reste humaine.
+ *
+ * Les compétences archivées comptent : leur intitulé reste résoluble et leurs
+ * preuves existent (ADR-027). En recréer une sous un code neuf couperait
+ * l'historique en deux.
+ */
+export function competenceHomonyme(
+  intitule: string,
+  referentiel: Referentiel,
+  codeIgnore?: string,
+): Skill | null {
+  const recherche = intitule.trim().toLocaleLowerCase("fr-FR");
+  if (!recherche) return null;
+  return (
+    referentiel.skills.find(
+      (skill) =>
+        skill.code !== codeIgnore &&
+        skill.intitule.trim().toLocaleLowerCase("fr-FR") === recherche,
+    ) ?? null
+  );
+}
+
 export function validerCompetence(
   candidat: CompetenceCandidate,
   referentiel: Referentiel,
@@ -351,12 +413,9 @@ export function validerCompetence(
   // Doublon d'intitulé dans le même domaine : deux compétences identiques
   // dédoubleraient les preuves d'un même savoir-faire et fausseraient la
   // couverture.
-  const nu = intitule.toLowerCase();
-  for (const s of referentiel.skills) {
-    if (s.code === codeIgnore) continue;
-    if (s.domaine === domaineId && s.intitule.trim().toLowerCase() === nu) {
-      erreurs.push(`« ${s.code} » porte déjà cet intitulé dans ce domaine.`);
-    }
+  const collision = competenceHomonyme(intitule, referentiel, codeIgnore);
+  if (collision && collision.domaine === domaineId) {
+    erreurs.push(`« ${collision.code} » porte déjà cet intitulé dans ce domaine.`);
   }
 
   for (const p of candidat.prerequis ?? []) {

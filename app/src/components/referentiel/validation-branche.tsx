@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition, useEffect, useRef } from "react";
-import { creerBranche } from "@/lib/store/referentiel-actions";
+import { creerBranche, type CompetenceDejaAuReferentiel } from "@/lib/store/referentiel-actions";
+import { AvisDejaAuReferentiel } from "./avis-deja-au-referentiel";
 import { normaliserPalier } from "@/lib/domain/referentiel-compte";
 import { BandeauInfo, Bouton, cx } from "@/components/ui/primitives";
 import type { OrigineReferentiel, Palier } from "@/lib/domain/types";
@@ -54,6 +55,7 @@ export function ValidationBranche({
 }) {
   const [enCours, demarrer] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
+  const [dejaAuReferentiel, setDejaAuReferentiel] = useState<CompetenceDejaAuReferentiel[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [domaine, setDomaine] = useState(initiale?.domaine ?? "");
@@ -118,6 +120,7 @@ export function ValidationBranche({
 
   function soumettre() {
     setErreur(null);
+    setDejaAuReferentiel([]);
     demarrer(async () => {
       try {
         const r = await creerBranche({
@@ -131,6 +134,7 @@ export function ValidationBranche({
           })),
           origine,
         });
+        setDejaAuReferentiel(r.dejaAuReferentiel);
         surEnregistre?.(r.codes);
       } catch (e) {
         setErreur(e instanceof Error ? e.message : "Enregistrement impossible.");
@@ -340,6 +344,8 @@ export function ValidationBranche({
           <p className="text-danger">{erreur}</p>
         </BandeauInfo>
       )}
+
+      <AvisDejaAuReferentiel competences={dejaAuReferentiel} />
 
       {/* Barre d'action */}
       <div className="sticky bottom-0 z-10 -mx-5 -mb-4 mt-4 flex items-center justify-end gap-3 border-t border-bordure bg-surface/95 backdrop-blur-sm px-5 py-3.5">

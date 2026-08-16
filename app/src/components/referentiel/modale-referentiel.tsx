@@ -24,7 +24,8 @@ import { BandeauInfo, Bouton } from "@/components/ui/primitives";
 import { Modale } from "@/components/ui/modale";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import type { PropositionReferentiel } from "@/lib/tutor/proposition";
-import { creerBranche } from "@/lib/store/referentiel-actions";
+import { creerBranche, type CompetenceDejaAuReferentiel } from "@/lib/store/referentiel-actions";
+import { AvisDejaAuReferentiel } from "./avis-deja-au-referentiel";
 import { creerTheme } from "@/lib/store/theme-actions";
 import { ReglagesTuteur } from "@/components/tuteur/reglages-tuteur";
 import { ChargementGeneration } from "@/components/ui/chargement-generation";
@@ -81,6 +82,7 @@ export function ModaleReferentiel({
   const [prefixes, setPrefixes] = useState<Record<number, string>>({});
   const [progressionEcriture, setProgressionEcriture] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [dejaAuReferentiel, setDejaAuReferentiel] = useState<CompetenceDejaAuReferentiel[]>([]);
   const [enCours, demarrer] = useTransition();
   const abandonRef = useRef<AbortController | null>(null);
 
@@ -222,6 +224,7 @@ export function ModaleReferentiel({
         .filter(({ i }) => garde[`b${i}`]);
 
       const tousLesCodes: string[] = [];
+      const deja: CompetenceDejaAuReferentiel[] = [];
 
       try {
         for (const [rang, { b, i }] of retenues.entries()) {
@@ -237,6 +240,7 @@ export function ModaleReferentiel({
           if (res?.codes) {
             tousLesCodes.push(...res.codes);
           }
+          deja.push(...(res?.dejaAuReferentiel ?? []));
         }
 
         // Création automatique du thème transversal global correspondant au sujet initial
@@ -258,7 +262,13 @@ export function ModaleReferentiel({
         setProgressionEcriture(null);
         router.refresh();
         surEnregistre?.();
-        onFermer();
+        /*
+         * On ne referme pas quand des compétences ont été écartées : la modale
+         * est le seul endroit où le dire, et la fermer ferait disparaître
+         * l'information au moment même où elle compte.
+         */
+        if (deja.length > 0) setDejaAuReferentiel(deja);
+        else onFermer();
       } catch (e) {
         setProgressionEcriture(null);
         setErreur(
@@ -401,6 +411,8 @@ export function ModaleReferentiel({
                   <p className="text-danger">{erreur}</p>
                 </BandeauInfo>
               )}
+
+              <AvisDejaAuReferentiel competences={dejaAuReferentiel} />
 
               {relecture.branches.map((b, i) => (
                 <section key={i} className="rounded-md border border-bordure px-3 py-2.5">

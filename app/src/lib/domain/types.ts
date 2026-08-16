@@ -164,7 +164,21 @@ export interface Skill {
    * jamais proposé par le tuteur.
    */
   code: string;
+  /**
+   * Le domaine **porteur** : il donne le code et porte la gouvernance
+   * (retrait, archivage, succession). Une compétence n'en a jamais qu'un.
+   */
   domaine: DomaineId;
+  /**
+   * Domaines supplémentaires que cette compétence sert (ADR-081).
+   *
+   * Un savoir-faire partagé — « Lire un tableau de données » en Statistiques
+   * comme en Logistique — s'y rattache **sans être dupliqué** : un second code
+   * dédoublerait ses preuves. Les rattachements comptent dans la couverture
+   * des domaines concernés, jamais dans le score global, qui somme sur les
+   * compétences et non sur les domaines.
+   */
+  domainesSecondaires?: DomaineId[];
   intitule: string;
   palier: Palier;
   /** Codes des compétences prérequises (indicatif, jamais bloquant). */

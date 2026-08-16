@@ -85,6 +85,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [070](#adr-070) | Un projet est une note, pas une entité : la machinerie de « Produire » est retirée | ✅ Acceptée (15/08) — remplace [067](#adr-067) et [068](#adr-068) |
 | [074](#adr-074) | Rôle applicatif et suspension d'accès, portés par RLS | ✅ Acceptée (16/08) — ferme la question ouverte d'[019](#adr-019) |
 | [080](#adr-080) | L'Atelier a quatre lieux, et aucun dossier | ✅ Acceptée (16/08) |
+| [081](#adr-081) | Une compétence sert plusieurs domaines, avec un porteur unique | ✅ Acceptée (16/08) — amende [065](#adr-065) |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -6006,10 +6007,96 @@ migration que rien ne justifie encore. Deux états seulement — *à trier* et
    domaine est un vrai rattachement — qui compte alors dans la couverture du
    domaine et dans les scores — ou une simple étiquette de lecture, auquel cas
    un thème le fait déjà sans toucher au schéma.
+
+   ✅ **La duplication, elle, est fermée le 16/08, sans migration.** Le contrôle
+   de doublon d'intitulé était borné au domaine — `s.domaine === domaineId`
+   dans `validerCompetence`. Créer « Lire un tableau de données » dans
+   Statistiques puis dans Logistique passait, et produisait **deux codes, deux
+   flux de preuves et deux niveaux pour un seul savoir-faire** : exactement ce
+   que le commentaire du contrôle disait vouloir éviter. `competenceHomonyme`
+   cherche désormais dans tout le référentiel ; une compétence déjà présente
+   ailleurs n'est **pas recréée**, et `PropositionReferentiel` remonte la liste
+   des écartées avec leur code et leur domaine, jusqu'à l'écran. Le
+   rapprochement est **exact** : rapprocher des intitulés voisins fusionnerait
+   des savoir-faire distincts, et cette appréciation reste humaine. Les
+   compétences archivées comptent — en recréer une sous un code neuf couperait
+   son historique (ADR-027).
+
+   *Ce que ça laisse en l'état :* la compétence partagée reste invisible depuis
+   le second domaine. C'est précisément ce que trancherait la question
+   ci-dessus. Le message la nomme, avec son domaine, pour qu'elle soit
+   travaillée là où elle est.
+
+   *Vérifié au passage :* `calculerEtatGlobal` itère sur les compétences, pas
+   sur les domaines. Un rattachement multiple ne créerait donc **aucun double
+   comptage du score global** ; seul `agregerDomaine` filtre par domaine.
 2. 🔬 **Quatre lieux suffisent-ils ?** *Test de réfutation :* si une personne
    redemande « où est ma fiche ? » après ce changement, ou si la boîte « à
    trier » ne se vide jamais, c'est que le rattachement coûte trop cher et qu'il
    faut un geste de tri plus direct qu'« ouvrir la fiche et ajouter un lien ».
+
+---
+
+## ADR-081 — Une compétence sert plusieurs domaines, avec un porteur unique ✅
+
+**Date.** 16/08/2026. **Tranchée par Maxime**, qui a demandé le porteur unique.
+Amende [ADR-065](#adr-065) — le référentiel n'est plus strictement
+`Domaine → Compétences` — et ferme la question ouverte n°1 d'[ADR-080](#adr-080).
+
+**Contexte.** Créer un domaine faisait redéclarer des savoir-faire déjà connus.
+Le contrôle de doublon d'intitulé était borné au domaine, donc « Lire un tableau
+de données » repartait sous un second code dès qu'on changeait de domaine :
+deux flux de preuves et deux niveaux pour une seule capacité. L'étape 1 a fermé
+la duplication le même jour, mais la compétence partagée restait invisible
+depuis le domaine qui la réclamait.
+
+**Décision.**
+
+* **Le porteur reste unique.** `competences.domaine` ne change pas, et reste
+  `NOT NULL`. Trois raisons, toutes dans le code : le **code** vient du préfixe
+  du domaine (`STA-01`) et il lui faut un seul propriétaire ; la gouvernance
+  d'ADR-065 lève `« ${code} n'appartient pas au domaine »` pour le retrait,
+  l'archivage et la succession ; la migration reste **additive**, donc sans
+  réécriture du chemin d'écriture existant.
+* **Les rattachements vivent dans `competence_domaines`** (`user_id, code,
+  domaine`). Ce sont des lectures supplémentaires, jamais une seconde propriété.
+* **Un rattachement vers le porteur est refusé**, par trigger en base et à
+  l'assemblage : il compterait la compétence deux fois dans sa propre
+  couverture.
+* **La couverture d'un domaine inclut ses rattachées.** Une compétence partagée
+  informe réellement les deux domaines qu'elle sert.
+* **Le score global ne change pas.** Vérifié avant d'écrire quoi que ce soit :
+  `calculerEtatGlobal` somme sur les **compétences**, jamais sur les domaines.
+  Seul `agregerDomaine` filtrait par domaine. Un test le fige — le score, la
+  couverture et le nombre de preuves sont identiques avec et sans rattachement.
+* **L'écriture reste transactionnelle.** `rattacher_competences_domaine` reprend
+  les garanties d'ADR-065 — idempotence par `request_id`, version optimiste,
+  journal append-only, drapeau `app.referentiel_command` — et les politiques RLS
+  appellent `compte_actif()` (ADR-074).
+
+**Pourquoi une fonction séparée plutôt qu'un type de commande de plus.**
+`appliquer_commande_referentiel` liste ses types autorisés dans un bloc unique
+de plus de 13 Ko. L'étendre aurait fait porter à un ajout périphérique le risque
+de réécrire tout le chemin d'écriture du référentiel. Le coût assumé : deux
+points d'entrée au lieu d'un.
+
+**Ce qui n'est pas construit.** L'écran qui déclenche le rattachement. L'action
+serveur `rattacherCompetences` existe et le modèle lit les rattachements, mais
+aucun bouton ne les crée encore : le geste se fait pour l'instant par appel
+direct. C'est la suite immédiate, pas une question ouverte.
+
+**Ce qui reste ouvert.**
+
+1. 🔬 **Le rapprochement exact suffit-il ?** Deux personnes écrivent rarement le
+   même intitulé au caractère près. *Test de réfutation :* si des doublons
+   quasi-identiques apparaissent malgré l'étape 1, c'est qu'il faut proposer un
+   rapprochement au moment de la saisie — proposer, jamais décider : fusionner
+   « Modéliser un flux » de Logistique et de Développement serait une faute que
+   le système n'a pas les moyens de juger.
+2. ❓ **Un rattachement doit-il peser autant que le porteur dans la
+   recommandation ?** Aujourd'hui le moteur ne distingue pas. *Qui tranche :*
+   Maxime. *Ce qui bloque :* aucun usage réel à observer — aucun rattachement
+   n'existe encore.
 
 ---
 

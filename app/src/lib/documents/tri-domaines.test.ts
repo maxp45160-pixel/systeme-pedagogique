@@ -12,6 +12,7 @@ function creerDomaineFactice(partiel: Partial<VueDomaineAtelier> & { id: string;
     id: partiel.id,
     nom: partiel.nom,
     description: partiel.description ?? "",
+    skillsReferentiel: partiel.skillsReferentiel ?? [],
     competences: partiel.competences ?? [
       { code: `${partiel.id}-01`, titre: "Comp 1", palier: "fondamentaux", niveau: null, score: null, confiance: "nulle", nombrePreuves: 0 },
       { code: `${partiel.id}-02`, titre: "Comp 2", palier: "fondamentaux", niveau: null, score: null, confiance: "nulle", nombrePreuves: 0 },

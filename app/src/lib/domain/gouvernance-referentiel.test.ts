@@ -15,7 +15,7 @@ const skill = (code: string, intitule: string, domaineId: string): Skill => ({
 
 describe("gouvernance du référentiel", () => {
   it("produit une création atomique avec identifiant et préfixe normalisés", () => {
-    const commande = preparerCreationDomaine({
+    const { commande } = preparerCreationDomaine({
       domaine: "Philosophie morale",
       prefixe: "phi",
       description: "Évaluer des raisonnements moraux.",
@@ -27,7 +27,7 @@ describe("gouvernance du référentiel", () => {
 
   it("rattache une branche à un domaine existant", () => {
     const domaineExistant = domaine("philosophie", "Philosophie", "PHI");
-    const commande = preparerCreationDomaine({
+    const { commande } = preparerCreationDomaine({
       domaine: "philosophie",
       prefixe: "AUTRE",
       description: "",
@@ -35,6 +35,73 @@ describe("gouvernance du référentiel", () => {
       competences: [{ intitule: "Comparer deux positions philosophiques", palier: "intermediaire", importance: 0.5 }],
     }, assemblerReferentiel([domaineExistant], []));
     expect(commande.type).toBe("ajouter_competences");
+  });
+
+  /*
+   * Le défaut que cette étape corrige : le contrôle de doublon était borné au
+   * domaine, donc un savoir-faire déjà au référentiel repartait sous un second
+   * code dès qu'on changeait de domaine — deux flux de preuves pour une seule
+   * capacité.
+   */
+  it("ne recrée pas une compétence que le référentiel porte déjà dans un autre domaine", () => {
+    const statistiques = domaine("statistiques", "Statistiques", "STA");
+    const existante = skill("STA-01", "Lire un tableau de données", "statistiques");
+    const { commande, dejaAuReferentiel } = preparerCreationDomaine({
+      domaine: "Logistique",
+      prefixe: "LOG",
+      description: "Piloter une chaîne logistique.",
+      origine: "tuteur",
+      competences: [
+        { intitule: "Lire un tableau de données", palier: "fondamentaux", importance: 0.6 },
+        { intitule: "Dimensionner un stock de sécurité", palier: "intermediaire", importance: 0.8 },
+      ],
+    }, assemblerReferentiel([statistiques], [existante]));
+
+    expect(commande).toMatchObject({ type: "creer_domaine" });
+    expect(commande.type === "creer_domaine" && commande.competences.map((c) => c.intitule)).toEqual([
+      "Dimensionner un stock de sécurité",
+    ]);
+    expect(dejaAuReferentiel).toEqual([
+      {
+        intitule: "Lire un tableau de données",
+        code: "STA-01",
+        domaineId: "statistiques",
+        domaineNom: "Statistiques",
+        archive: false,
+      },
+    ]);
+  });
+
+  it("nomme les compétences existantes plutôt que de créer un domaine vide", () => {
+    const statistiques = domaine("statistiques", "Statistiques", "STA");
+    const existante = skill("STA-01", "Lire un tableau de données", "statistiques");
+    expect(() => preparerCreationDomaine({
+      domaine: "Logistique",
+      prefixe: "LOG",
+      description: "Piloter une chaîne logistique.",
+      origine: "tuteur",
+      competences: [{ intitule: "lire un tableau de données", palier: "fondamentaux", importance: 0.6 }],
+    }, assemblerReferentiel([statistiques], [existante]))).toThrow("STA-01 (Statistiques)");
+  });
+
+  /*
+   * Une compétence archivée garde ses preuves (ADR-027) et son intitulé reste
+   * résoluble : la recréer sous un code neuf couperait l'historique en deux.
+   */
+  it("compte une compétence archivée comme déjà au référentiel", () => {
+    const statistiques = domaine("statistiques", "Statistiques", "STA");
+    const archivee = { ...skill("STA-01", "Lire un tableau de données", "statistiques"), archive: true };
+    const { dejaAuReferentiel } = preparerCreationDomaine({
+      domaine: "Logistique",
+      prefixe: "LOG",
+      description: "Piloter une chaîne logistique.",
+      origine: "tuteur",
+      competences: [
+        { intitule: "Lire un tableau de données", palier: "fondamentaux", importance: 0.6 },
+        { intitule: "Dimensionner un stock de sécurité", palier: "intermediaire", importance: 0.8 },
+      ],
+    }, assemblerReferentiel([statistiques], [archivee]));
+    expect(dejaAuReferentiel).toMatchObject([{ code: "STA-01", archive: true }]);
   });
 
   it("refuse un ajout dépendant d'une compétence retirée dans le même geste", () => {

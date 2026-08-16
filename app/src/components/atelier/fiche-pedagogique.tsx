@@ -39,6 +39,8 @@ import {
 } from "./modale-confirmation-suppression";
 import { retirerCompetences } from "@/lib/store/referentiel-actions";
 import { retirerTheme } from "@/lib/store/theme-actions";
+import { rattacherCompetences } from "@/lib/store/referentiel-actions";
+import { ModaleRattachement } from "@/components/referentiel/modale-rattachement";
 
 /**
  * Un seul retour, vers l'endroit où l'objet vit réellement.
@@ -731,6 +733,8 @@ function VueDomaine({
   const router = useRouter();
   const [palierNouveau, setPalierNouveau] = useState<string | null>(null);
   const [competenceARetirer, setCompetenceARetirer] = useState<VueDomaineAtelier["competences"][number] | null>(null);
+  const [rattachementOuvert, setRattachementOuvert] = useState(false);
+  const [detachement, setDetachement] = useState<string | null>(null);
   const [section, setSection] = useState<"structure" | "progression" | "referentiel">(
     modeInitial === "referentiel" && !vue.domaine.archive ? "referentiel" : "structure",
   );
@@ -819,17 +823,35 @@ function VueDomaine({
                             </span>
                           </div>
                           <h4 className="mt-2 text-sm font-semibold leading-snug group-hover:text-primaire">{competence.titre}</h4>
+                          {competence.rattachee && (
+                            <p className="mt-1.5 inline-flex items-center gap-1 rounded-md bg-accent/10 px-1.5 py-0.5 text-[0.625rem] font-medium text-accent">
+                              Portée par {competence.porteurNom}
+                            </p>
+                          )}
                         </div>
                         <p className="mt-3 text-[0.6875rem] text-texte-discret">
                           {competence.nombrePreuves} preuve{competence.nombrePreuves > 1 ? "s" : ""} · confiance {LIBELLES_CONFIANCE[competence.confiance].toLowerCase()}
                         </p>
                       </button>
 
+                      {/*
+                        Une rattachée ne se retire pas d'ici : elle appartient à
+                        un autre domaine, et la retirer effacerait ses preuves
+                        pour tout le monde. Elle se détache — le porteur ne
+                        bouge pas (ADR-081).
+                      */}
                       {!vue.domaine.archive && (
-                        <BoutonSuppressionCarte
-                          titre="Retirer cette compétence"
-                          onClick={() => setCompetenceARetirer(competence)}
-                        />
+                        competence.rattachee ? (
+                          <BoutonSuppressionCarte
+                            titre={`Détacher ${competence.code} de ce domaine`}
+                            onClick={() => setDetachement(competence.code)}
+                          />
+                        ) : (
+                          <BoutonSuppressionCarte
+                            titre="Retirer cette compétence"
+                            onClick={() => setCompetenceARetirer(competence)}
+                          />
+                        )
                       )}
                     </div>
                   ))}
@@ -856,7 +878,54 @@ function VueDomaine({
                 </div>
               </section>
             ))}
+
+            {compteId && !vue.domaine.archive && (
+              <section className="rounded-xl border border-dashed border-bordure bg-surface/30 px-4 py-3.5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-texte">Une compétence d’un autre domaine sert celle-ci ?</p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-texte-attenue">
+                      Rattache-la plutôt que de la réécrire : un second code dédoublerait ses preuves.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setRattachementOuvert(true)}
+                    className="shrink-0 rounded-lg border border-bordure-controle bg-surface px-3 py-1.5 text-xs font-medium text-primaire transition-colors hover:bg-primaire-faible cursor-pointer"
+                  >
+                    Rattacher une compétence
+                  </button>
+                </div>
+              </section>
+            )}
           </div>
+        )}
+
+        {rattachementOuvert && (
+          <ModaleRattachement
+            domaineId={vue.domaine.id}
+            domaineNom={vue.nom}
+            competences={vue.skillsReferentiel}
+            nomDomaine={(id) => vue.domainesExistants.find((d) => d.id === id)?.nom ?? id}
+            onFermer={() => setRattachementOuvert(false)}
+          />
+        )}
+
+        {detachement && (
+          <ModaleConfirmationSuppression
+            titre="Détacher la compétence"
+            nomElement={detachement}
+            typeElement="competence"
+            mode="suppression"
+            explication="La compétence cesse de servir ce domaine. Elle reste intacte dans son domaine porteur, avec son code et ses preuves."
+            texteBoutonConfirmer="Détacher"
+            onConfirmer={async () => {
+              await rattacherCompetences(vue.domaine.id, [detachement], false);
+              setDetachement(null);
+              router.refresh();
+            }}
+            onFermer={() => setDetachement(null)}
+          />
         )}
 
         {competenceARetirer && (

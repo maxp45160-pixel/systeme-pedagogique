@@ -196,6 +196,26 @@ CREATE TABLE IF NOT EXISTS public.competences (
     REFERENCES public.competences(user_id, code) DEFERRABLE INITIALLY IMMEDIATE
 );
 
+-- Domaines supplémentaires servis par une compétence (ADR-081).
+--
+-- Le porteur reste `competences.domaine` : il donne le code et porte la
+-- gouvernance d'ADR-065. Un rattachement est une lecture de plus — la
+-- compétence devient visible depuis ce domaine et compte dans sa couverture —
+-- jamais une seconde propriété, et jamais un second code.
+--
+-- Un rattachement vers le porteur est refusé par
+-- `public.rattachement_hors_porteur()` : il compterait la compétence deux fois
+-- dans sa propre couverture.
+CREATE TABLE IF NOT EXISTS public.competence_domaines (
+  user_id     UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  code        TEXT NOT NULL,
+  domaine     TEXT NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, code, domaine),
+  FOREIGN KEY (user_id, code) REFERENCES public.competences(user_id, code) ON DELETE CASCADE,
+  FOREIGN KEY (user_id, domaine) REFERENCES public.domaines(user_id, id) ON DELETE CASCADE
+);
+
 -- --------------------------------------------------------------------
 -- 3. Preuves de compétence (SkillEvidence) — journal append-only
 -- --------------------------------------------------------------------

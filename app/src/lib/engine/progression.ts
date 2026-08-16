@@ -76,7 +76,16 @@ export function agregerDomaine(
   etats: SkillState[],
   domaines: Domaine[] = [],
 ): AgregatDomaine {
-  const duDomaine = etats.filter((e) => e.skill.domaine === domaine);
+  /*
+   * Porteur **et** rattachées (ADR-081). Une compétence partagée informe
+   * réellement les deux domaines qu'elle sert : l'écarter du second sous-
+   * estimerait sa couverture. Ce n'est pas un double comptage — `calculerEtatGlobal`
+   * somme sur les compétences, jamais sur les domaines, donc le score global
+   * ne voit qu'une fois chaque compétence.
+   */
+  const duDomaine = etats.filter(
+    (e) => e.skill.domaine === domaine || (e.skill.domainesSecondaires ?? []).includes(domaine),
+  );
   const evalues = duDomaine.filter((e) => e.statut === "evalue" && e.score !== null);
   const preuves = duDomaine.reduce((s, e) => s + e.preuves.length, 0);
   // Le référentiel est propre au compte (ADR-026) : à défaut de libellé, on
@@ -136,7 +145,7 @@ export function calculerEtatGlobal(
   // depuis ADR-026 le référentiel est propre au compte. `domaines` ne sert plus
   // qu'à ordonner et à nommer.
   const rang = new Map(domaines.map((d, i) => [d.id, i]));
-  const presents = [...new Set(etats.map((e) => e.skill.domaine))].sort(
+  const presents = [...new Set(etats.flatMap((e) => [e.skill.domaine, ...(e.skill.domainesSecondaires ?? [])]))].sort(
     (a, b) => (rang.get(a) ?? Number.MAX_SAFE_INTEGER) - (rang.get(b) ?? Number.MAX_SAFE_INTEGER),
   );
   const parDomaine = presents.map((id) => agregerDomaine(id, etats, domaines));
