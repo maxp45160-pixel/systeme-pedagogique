@@ -21,15 +21,22 @@ export function PanneauExerciceAtelier({
   elements: ElementAtelier[];
   ouvrirElement: (id: string) => void;
 }) {
-  const partiesDossier = element.dossier.split("/").map((p) => p.trim()).filter(Boolean);
-  const nomDomaine = partiesDossier.find((p) => p !== "Domaines" && p !== "Transversal") ?? partiesDossier[0];
-  const domaineEl = nomDomaine
+  /*
+   * Le domaine se lit sur l'élément, plus dans son chemin de dossier.
+   *
+   * On le déduisait en découpant `Domaines/Algèbre/Exercices` et en cherchant
+   * un domaine dont le **nom** correspondait au segment du milieu : deux
+   * domaines homonymes, ou un domaine renommé, et le lien tombait à côté.
+   * `domaineId` est celui que porte l'exercice en base.
+   */
+  const domaineId = element.rangement.domaineId ?? element.domaineId;
+  const domaineEl = domaineId
     ? elements.find(
-        (el) =>
-          el.type === "domaine" &&
-          ((el.vuePedagogique?.kind === "domaine" && el.vuePedagogique.nom === nomDomaine) || el.titre === nomDomaine),
+        (el) => el.type === "domaine" && el.vuePedagogique?.kind === "domaine" && el.vuePedagogique.id === domaineId,
       )
     : null;
+  const nomDomaine =
+    domaineEl?.vuePedagogique?.kind === "domaine" ? domaineEl.vuePedagogique.nom : domaineId;
 
   return (
     <div className="space-y-5 p-4">
@@ -125,7 +132,7 @@ export function PanneauExerciceAtelier({
         </div>
         {element.tentatives.length === 0 ? (
           <p className="mt-2 text-xs leading-relaxed text-texte-discret">
-            Aucune tentative enregistrée. S'exercer dans le cahier générera la première preuve.
+            Aucune tentative enregistrée. S’exercer dans le cahier générera la première preuve.
           </p>
         ) : (
           <ul className="mt-2 space-y-2">

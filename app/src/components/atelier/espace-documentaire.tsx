@@ -39,13 +39,12 @@ import {
 } from "@/lib/store/document-actions";
 import type { VueDomaineAtelier, VueCompetenceAtelier } from "@/lib/documents/vue-atelier";
 import { FichePedagogiqueAtelier, PanneauPedagogiqueAtelier } from "./fiche-pedagogique";
-import { FilArianeAtelier } from "./fil-ariane-atelier";
 import type { CalibrageModale, CompetenceModale } from "@/components/exercices/proprietes-generation";
 import type { DonneesSeance } from "@/components/seances/concepteur-seance";
-import { cheminsDepuisDefinition } from "@/lib/documents/chemins-atelier";
-import { construireArbreDossiers, trouverNoeudDossier } from "@/lib/documents/arbre-atelier";
+import { rangerDocument, type RangementAtelier } from "@/lib/documents/rangement-atelier";
 import { EditeurDirect } from "./editeur-document";
-import { VueTousLesDomaines, VueTransversale, VueCategorieTransversale, EnteteVueAtelier } from "./vues-synthese-atelier";
+import { VueTousLesDomaines, EnteteVueAtelier, type VueAtelier } from "./vues-synthese-atelier";
+import { VueRessources, VueThemes } from "./vues-ressources-atelier";
 import { PanneauExerciceAtelier } from "./panneaux-document-atelier";
 import type { ElementAtelier } from "./types-atelier";
 
@@ -87,18 +86,30 @@ function formaterDateDocument(element: ElementAtelier): string | null {
   }
 }
 
-function documentDepuisAnalyse(document: ReturnType<typeof analyserDocumentMarkdown>): ElementAtelier {
+function documentDepuisAnalyse(
+  document: ReturnType<typeof analyserDocumentMarkdown>,
+  rangementPrecedent?: RangementAtelier,
+): ElementAtelier {
   const definition = document.type ? definitionTypeDocument(document.type) : null;
-  const chemins = cheminsDepuisDefinition(definition, document.frontMatter);
   const estPreuve = document.type === "preuve" || document.id.startsWith("preuve-");
+  /*
+   * Les rattachements ne se recalculent pas côté client : ils viennent des
+   * liens résolus par le serveur contre le référentiel du compte. Réécrire
+   * `rangement` depuis le seul Markdown ferait tomber la ressource dans « à
+   * trier » à chaque enregistrement, alors qu'elle cite bien des compétences.
+   */
+  const rangement = rangementPrecedent ?? rangerDocument({
+    estPreuve,
+    role: document.frontMatter.role,
+    competencesCitees: [],
+  });
   return {
     id: document.id,
     titre: document.titre,
     type: document.type ?? (estPreuve ? "preuve" : "document"),
     typeLibelle: definition?.libelle ?? (estPreuve ? "Preuve" : document.type ?? "Document"),
     categorie: definition?.categorie ?? (estPreuve ? "action" : "connaissance"),
-    dossier: chemins.dossier,
-    dossiersSecondaires: chemins.dossiersSecondaires,
+    rangement,
     contenuMd: document.contenuMd,
     contenuCharge: true,
     schemaCompatible: document.schemaCompatible,
@@ -113,17 +124,75 @@ function documentDepuisAnalyse(document: ReturnType<typeof analyserDocumentMarkd
   };
 }
 
+/**
+ * Les vues de l'Atelier, qui ne sont pas des fiches.
+ *
+ * `transversal` a disparu avec le second classement qu'il ouvrait ; `themes` et
+ * `ressources` prennent sa place, et chacun ne montre qu'une seule famille
+ * d'objets.
+ */
+const VUES_ATELIER = new Set<string>(["domaines", "themes", "ressources", "graphe", "domaines-archives"]);
+
+const TITRES_VUES: Record<string, string> = {
+  domaines: "Domaines",
+  themes: "Thèmes",
+  ressources: "Ressources",
+  graphe: "Graphe",
+  "domaines-archives": "Domaines archivés",
+};
+
+/**
+ * Le retour, qui remplace le fil d'Ariane.
+ *
+ * Le fil d'Ariane dépliait `Domaines / Algèbre / Compétences / Fondamentaux` —
+ * quatre segments dont trois n'existaient que dans le code qui venait de les
+ * calculer. Il ne reste que ce que la base sait dire : la zone d'où l'on vient,
+ * et le domaine quand il y en a un.
+ */
+function RetourAtelier({
+  element,
+  ouvrirElement,
+  changerVue,
+}: {
+  element: ElementAtelier;
+  ouvrirElement: (id: string) => void;
+  changerVue: (vue: VueAtelier) => void;
+}) {
+  const { zone, domaineId } = element.rangement;
+  const cible =
+    zone === "domaine" && domaineId
+      ? { libelle: "Retour au domaine", action: () => ouvrirElement(`domaine:${domaineId}`) }
+      : zone === "theme"
+        ? { libelle: "Retour aux thèmes", action: () => changerVue("themes") }
+        : zone === "ressource"
+          ? { libelle: "Retour aux ressources", action: () => changerVue("ressources") }
+          : { libelle: "Retour aux domaines", action: () => changerVue("domaines") };
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      <button
+        type="button"
+        onClick={cible.action}
+        className="flex shrink-0 items-center gap-1.5 rounded-lg border border-bordure-controle bg-surface px-2.5 py-1.5 text-xs font-medium text-texte-attenue transition-colors hover:text-texte cursor-pointer"
+      >
+        <span aria-hidden>←</span>
+        <span>{cible.libelle}</span>
+      </button>
+      <span className="truncate font-serif text-lg font-medium text-texte">{element.titre}</span>
+    </div>
+  );
+}
+
 function trouverElement(id: string, liste: ElementAtelier[]): ElementAtelier | undefined {
   if (!id) return undefined;
-  if (id === "domaines" || id === "transversal" || id === "domaines-archives" || id === "graphe") {
-    const titre = id === "transversal" ? "Transversal" : id === "domaines-archives" ? "Domaines archivés" : id === "graphe" ? "Constellation" : "Domaines";
+  if (VUES_ATELIER.has(id)) {
+    const titre = TITRES_VUES[id] ?? "Domaines";
     return {
       id,
       titre,
       type: "liste-domaines",
       typeLibelle: titre,
       categorie: "connaissance",
-      dossier: titre,
+      rangement: { zone: "domaine", rattachements: [] },
       contenuMd: "",
       contenuCharge: true,
       frontMatter: {},
@@ -157,7 +226,6 @@ export function EspaceDocumentaire({
   elements: elementsInitials,
   couleursDomaines,
   documentDemande,
-  dossierDemande,
   modeInitial,
   graphe,
   generation,
@@ -167,7 +235,6 @@ export function EspaceDocumentaire({
   /** Teinte par domaine, partagée avec le graphe pour qu'un domaine ait une seule couleur. */
   couleursDomaines: Record<string, string>;
   documentDemande?: string;
-  dossierDemande?: string;
   modeInitial?: "referentiel";
   graphe: { donnees: DonneesGraphe; compteId: string };
   generation: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
@@ -177,18 +244,8 @@ export function EspaceDocumentaire({
   const [elements, setElements] = useState(elementsInitials);
   const selectionInitiale = useMemo(() => {
     if (documentDemande) {
-      if (
-        documentDemande === "domaines" ||
-        documentDemande === "transversal" ||
-        documentDemande === "domaines-archives" ||
-        documentDemande === "graphe"
-      ) {
-        return documentDemande;
-      }
+      if (VUES_ATELIER.has(documentDemande)) return documentDemande;
       return trouverElement(documentDemande, elementsInitials)?.id ?? "domaines";
-    }
-    if (dossierDemande) {
-      return `dossier:${dossierDemande}`;
     }
     /*
       L'Atelier ouvre sur le corpus, pas sur un écran d'accueil.
@@ -204,7 +261,7 @@ export function EspaceDocumentaire({
       compétences, les exercices et les notes.
     */
     return "domaines";
-  }, [documentDemande, dossierDemande, elementsInitials]);
+  }, [documentDemande, elementsInitials]);
   const [selection, setSelection] = useState<string | null>(selectionInitiale);
   const [brouillons, setBrouillons] = useState<Record<string, string>>({});
   const [snapshotApercu, setSnapshotApercu] = useState<SnapshotDocument | null>(null);
@@ -243,11 +300,7 @@ export function EspaceDocumentaire({
   const [piecesJointesParDocument, setPiecesJointesParDocument] = useState<Record<string, PieceJointeDocument[]>>({});
 
   const selectionnee =
-    selection === "domaines" ||
-    selection === "transversal" ||
-    selection === "domaines-archives" ||
-    selection === "graphe" ||
-    selection === "constellation"
+    selection && VUES_ATELIER.has(selection)
       ? null
       : selection
       ? (trouverElement(selection, elements) ?? null)
@@ -300,8 +353,8 @@ export function EspaceDocumentaire({
       : selectionnee.liens
     : [];
   const fichesLiables = elements
-    .filter((element) => element.id !== selectionId && element.id !== "domaines" && element.id !== "transversal" && element.id !== "domaines-archives" && element.id !== "graphe")
-    .sort((a, b) => (a.dossier || "").localeCompare(b.dossier || "") || a.titre.localeCompare(b.titre, "fr"));
+    .filter((element) => element.id !== selectionId && !VUES_ATELIER.has(element.id))
+    .sort((a, b) => a.titre.localeCompare(b.titre, "fr"));
   const documentSupportId = selectionnee?.frontMatter.role === "support" ? selectionnee.id : null;
 
   useEffect(() => {
@@ -341,7 +394,7 @@ export function EspaceDocumentaire({
         setElements((anciens) => anciens.map((ancien) => ancien.id === elementId
           ? {
             ...ancien,
-            ...documentDepuisAnalyse(analyse),
+            ...documentDepuisAnalyse(analyse, ancien.rangement),
             contenuCharge: true,
             updatedAt: resultat.updatedAt ?? ancien.updatedAt,
             snapshots: ancien.snapshots,
@@ -362,12 +415,9 @@ export function EspaceDocumentaire({
       if (typeof window === "undefined") return;
       const params = new URLSearchParams(window.location.search);
       const docParam = params.get("document");
-      const dossierParam = params.get("dossier");
       if (docParam) {
         const el = trouverElement(docParam, elements);
         setSelection(el ? el.id : docParam);
-      } else if (dossierParam) {
-        setSelection(`dossier:${dossierParam}`);
       } else {
         setSelection("domaines");
       }
@@ -386,30 +436,15 @@ export function EspaceDocumentaire({
     }
   }, [selection, elements, chargerContenuDocument]);
 
-  function revenirGrapheGlobal(opts?: { remplacerHistorique?: boolean } | unknown) {
-    setSelection("graphe");
+  /**
+   * Bascule entre les quatre entrées. Le graphe en est une : la même matière,
+   * regardée autrement — pas une destination séparée.
+   */
+  function changerVue(vue: VueAtelier) {
+    setSelection(vue);
     setCibleLien("");
     setSnapshotApercu(null);
-    const nouvelleUrl = "/atelier?document=graphe";
-    const remplacer = typeof opts === "object" && opts !== null && "remplacerHistorique" in opts && Boolean((opts as { remplacerHistorique?: boolean }).remplacerHistorique);
-    if (remplacer) {
-      window.history.replaceState({ documentId: "graphe" }, "", nouvelleUrl);
-    } else {
-      window.history.pushState({ documentId: "graphe" }, "", nouvelleUrl);
-    }
-  }
-
-  function revenirAccueilAtelier(opts?: { remplacerHistorique?: boolean } | unknown) {
-    setSelection("domaines");
-    setCibleLien("");
-    setSnapshotApercu(null);
-    const nouvelleUrl = "/atelier";
-    const remplacer = typeof opts === "object" && opts !== null && "remplacerHistorique" in opts && Boolean((opts as { remplacerHistorique?: boolean }).remplacerHistorique);
-    if (remplacer) {
-      window.history.replaceState(null, "", nouvelleUrl);
-    } else {
-      window.history.pushState(null, "", nouvelleUrl);
-    }
+    window.history.pushState({ documentId: vue }, "", `/atelier?document=${vue}`);
   }
 
   function trouverCible(cible: string): ElementAtelier | undefined {
@@ -436,31 +471,7 @@ export function EspaceDocumentaire({
     return map;
   }, [elements]);
 
-  /*
-   * Construit sur `elements`, plus sur `elementsVisibles`.
-   *
-   * Tant que l'explorateur affichait l'arbre, le filtrer par la recherche avait
-   * un sens : on rétrécissait ce qu'on parcourait. Mais cet arbre sert aussi
-   * les vues transversales et le fil d'Ariane, qui restent affichés derrière la
-   * recherche — les alimenter avec un arbre filtré les viderait pendant qu'on
-   * tape. La recherche a maintenant sa propre liste ; l'arbre garde tout.
-   */
-  const arbreDossiers = useMemo(() => construireArbreDossiers(elements), [elements]);
-  const racineTransversale = trouverNoeudDossier(arbreDossiers, "Transversal");
-  const dossierSelectionne = selection?.startsWith("dossier:")
-    ? (trouverNoeudDossier(arbreDossiers, selection.slice("dossier:".length)) ?? {
-        nom: selection.slice("dossier:".length).split("/").pop() ?? "",
-        chemin: selection.slice("dossier:".length),
-        enfants: [],
-        elements: [],
-      })
-    : null;
-
   function ouvrirElement(id: string, opts?: { remplacerHistorique?: boolean } | unknown) {
-    if (id.startsWith("dossier:")) {
-      ouvrirDossier(id.slice("dossier:".length));
-      return;
-    }
     const element = trouverElement(id, elements);
     if (!element) {
       const cleanId = id.replace(/^(exercice|document):/, "");
@@ -482,13 +493,6 @@ export function EspaceDocumentaire({
     }
     if (element.source === "projection" || element.contenuCharge) return;
     chargerContenuDocument(element.id);
-  }
-
-  function ouvrirDossier(chemin: string) {
-    setSelection(`dossier:${chemin}`);
-    setCibleLien("");
-    setSnapshotApercu(null);
-    window.history.pushState({ dossier: chemin }, "", `/atelier?dossier=${encodeURIComponent(chemin)}`);
   }
 
   function ouvrirSnapshot(snapshotId: string) {
@@ -664,7 +668,7 @@ export function EspaceDocumentaire({
             : element.snapshots;
           return {
             ...element,
-            ...documentDepuisAnalyse(analyse),
+            ...documentDepuisAnalyse(analyse, element.rangement),
             contenuCharge: true,
             contenuMd: contenuActuel,
             ...(resultat?.updatedAt ? { updatedAt: resultat.updatedAt } : {}),
@@ -705,16 +709,6 @@ export function EspaceDocumentaire({
         plus de savoir dans quel dossier calculé elle a été rangée.
       */}
       <div className="flex items-center gap-3 border-b border-bordure bg-surface-2/50 px-4 py-2.5 shrink-0">
-        {selection && (
-          <button
-            type="button"
-            onClick={revenirAccueilAtelier}
-            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-bordure-controle bg-surface px-2.5 py-1.5 text-xs font-medium text-texte-attenue transition-colors hover:text-texte cursor-pointer"
-          >
-            <span aria-hidden>←</span>
-            <span className="hidden sm:inline">Accueil Atelier</span>
-          </button>
-        )}
         <div className="relative min-w-0 flex-1">
           <label className="sr-only" htmlFor="recherche-atelier">
             Rechercher dans l’Atelier (Ctrl+K)
@@ -788,56 +782,34 @@ export function EspaceDocumentaire({
           : "lg:grid-cols-[1fr]",
       )}>
         <main className="flex h-full min-w-0 flex-1 flex-col min-h-0 overflow-hidden bg-surface">
-          {selection === "graphe" || selection === "constellation" ? (
+          {selection === "graphe" ? (
 
             <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface">
               <EnteteVueAtelier
-                titre="Constellation"
-                description="Navigation relationnelle dans le graphe des compétences et documents"
+                titre="Graphe"
+                description="La même matière, vue par ses liens : compétences, exercices et ressources."
                 vue="graphe"
-                onChangerVue={(v) => {
-                  if (v === "graphe") revenirGrapheGlobal();
-                  else ouvrirElement(v);
-                }}
+                onChangerVue={changerVue}
               />
               <div className="flex min-h-0 flex-1 flex-col p-4">
                 <GrapheCompetences donnees={graphe.donnees} compteId={graphe.compteId} ouvrirElement={ouvrirElement} />
               </div>
             </div>
-          ) : selection === "transversal" ? (
-            <VueTransversale
-              racine={racineTransversale}
-              ouvrirDossier={ouvrirDossier}
+          ) : selection === "themes" ? (
+            <VueThemes
+              elements={elements}
               ouvrirElement={ouvrirElement}
-              revenirGrapheGlobal={revenirGrapheGlobal}
+              changerVue={changerVue}
               compteId={graphe.compteId}
               competencesParCode={competencesParCode}
               domainesExistants={domainesExistants}
             />
-          ) : dossierSelectionne ? (
-            <VueCategorieTransversale
-              noeud={dossierSelectionne}
-              arbreDossiers={arbreDossiers}
+          ) : selection === "ressources" ? (
+            <VueRessources
               elements={elements}
-              ouvrirDossier={ouvrirDossier}
               ouvrirElement={ouvrirElement}
-              revenirTransversal={() => {
-                const parties = dossierSelectionne.chemin.split("/").map((p) => p.trim()).filter(Boolean);
-                if (parties.length > 1) {
-                  const parentChemin = parties.slice(0, -1).join("/");
-                  if (parentChemin === "Transversal") ouvrirElement("transversal");
-                  else if (parentChemin === "Domaines") ouvrirElement("domaines");
-                  else if (parentChemin === "Domaines archivés" || parentChemin === "Archivés") ouvrirElement("domaines-archives");
-                  else ouvrirDossier(parentChemin);
-                } else {
-                  ouvrirElement("transversal");
-                }
-              }}
-              revenirGrapheGlobal={revenirGrapheGlobal}
-              compteId={graphe.compteId}
-              generation={generation}
+              changerVue={changerVue}
               competencesParCode={competencesParCode}
-              domainesExistants={domainesExistants}
             />
           ) : selection === "domaines" || selection === "domaines-archives" ? (
             <VueTousLesDomaines
@@ -850,7 +822,7 @@ export function EspaceDocumentaire({
                 })
                 .map((el) => el.vuePedagogique as VueDomaineAtelier)}
               ouvrirElement={ouvrirElement}
-              revenirGrapheGlobal={revenirGrapheGlobal}
+              changerVue={changerVue}
               selection={selection}
               compteId={graphe.compteId}
               domainesExistants={domainesExistants}
@@ -859,12 +831,8 @@ export function EspaceDocumentaire({
             <FichePedagogiqueAtelier
               vue={selectionnee.vuePedagogique}
               titre={selectionnee.titre}
-              dossier={selectionnee.dossier}
               ouvrirElement={ouvrirElement}
-              ouvrirDossier={ouvrirDossier}
-              arbreDossiers={arbreDossiers}
               elements={elements}
-              revenirGraphe={revenirAccueilAtelier}
               compteId={graphe.compteId}
               modeInitial={modeInitial}
               generation={generation}
@@ -873,14 +841,10 @@ export function EspaceDocumentaire({
           ) : selectionnee ? (
             <>
               <div className="flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure/50 px-6 shrink-0 bg-surface">
-                <FilArianeAtelier
-                  dossier={selectionnee.dossier}
-                  titreCourant={selectionnee.titre}
-                  revenirGraphe={revenirAccueilAtelier}
+                <RetourAtelier
+                  element={selectionnee}
                   ouvrirElement={ouvrirElement}
-                  ouvrirDossier={ouvrirDossier}
-                  arbreDossiers={arbreDossiers}
-                  elements={elements}
+                  changerVue={changerVue}
                 />
               </div>
 
@@ -895,12 +859,12 @@ export function EspaceDocumentaire({
                         </span>
                       ) : selectionnee.lectureSeule ? (
                         <span className="rounded bg-surface-2 px-1.5 py-0.5 text-texte-attenue">
-                          projection
+                          Lecture seule
                         </span>
                       ) : null}
                       {selectionnee.schemaCompatible === false && (
                         <span className="rounded bg-alerte-faible px-1.5 py-0.5 font-medium text-alerte">
-                          contrat inconnu
+                          Format non reconnu
                         </span>
                       )}
                     </div>
@@ -1155,7 +1119,7 @@ export function EspaceDocumentaire({
                 .filter((el) => !(el.vuePedagogique as VueDomaineAtelier).domaine.archive)
                 .map((el) => el.vuePedagogique as VueDomaineAtelier)}
               ouvrirElement={ouvrirElement}
-              revenirGrapheGlobal={revenirGrapheGlobal}
+              changerVue={changerVue}
               selection="domaines"
               compteId={graphe.compteId}
               domainesExistants={domainesExistants}
@@ -1496,8 +1460,7 @@ function ResultatsRecherche({
                   className={cx(
                     "size-4 shrink-0",
                     !element.domaineId && "text-texte-discret",
-                    // Une projection est en lecture seule : même atténuation que
-                    // dans l'ancien explorateur.
+                    // Ce qui est en lecture seule s'affiche atténué.
                     element.source === "projection" && "opacity-70",
                   )}
                 />
@@ -1505,7 +1468,6 @@ function ResultatsRecherche({
                   <span className="block truncate text-sm">{element.titre}</span>
                   <span className="block truncate text-[0.6875rem] text-texte-discret">
                     {element.typeLibelle}
-                    {element.dossier ? ` · ${element.dossier}` : ""}
                   </span>
                 </span>
               </button>
