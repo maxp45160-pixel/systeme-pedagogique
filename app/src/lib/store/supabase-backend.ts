@@ -99,6 +99,10 @@ export function profilVersUser(
   return {
     id: String(ligne.id),
     prenom: texte(ligne.prenom, defaut.prenom),
+    avatarUrl:
+      typeof ligne.avatar_url === "string" && ligne.avatar_url.trim().length > 0
+        ? ligne.avatar_url.trim()
+        : defaut.avatarUrl,
     formation: texte(ligne.formation, defaut.formation),
     objectifMoyenTerme: texte(ligne.objectif_moyen_terme, defaut.objectifMoyenTerme),
     objectifLongTerme: texte(ligne.objectif_long_terme, defaut.objectifLongTerme),

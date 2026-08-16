@@ -8,7 +8,9 @@ import { CompteMobile } from "@/components/layout/compte";
 import { ProfilPage } from "@/components/dev/profil-page";
 import { ProfilWrapper } from "@/components/dev/profil-wrapper";
 import { ProfilTracker } from "@/components/dev/profil-tracker";
+import { ProfilFlottant } from "@/components/dev/profil-flottant";
 import { TuteurGlobal } from "@/components/tuteur/tuteur-global";
+import { resoudreIdentite } from "@/lib/domain/identite";
 import { FournisseurIntention } from "@/components/intention/contexte-intention";
 import { PastillePomodoroGlobale } from "@/components/dashboard/pomodoro";
 
@@ -39,13 +41,11 @@ export default async function AppLayout({
   if (acces?.suspenduLe) redirect("/suspendu");
   const administrateur = acces?.role === "admin";
 
+  const identite = resoudreIdentite(compte);
   const session = {
     courriel: compte.email ?? null,
-    nom:
-      (compte.user_metadata?.full_name as string | undefined) ??
-      (compte.user_metadata?.name as string | undefined) ??
-      null,
-    avatar: (compte.user_metadata?.avatar_url as string | undefined) ?? null,
+    nom: identite.nom,
+    avatar: identite.avatarUrl,
     // Identifiant du compte — isole la clé API saisie côté client (voir
     // `cle-client.ts` et `cleParCompte`).
     compteId: compte.id,
@@ -97,6 +97,7 @@ export default async function AppLayout({
       </div>
 
       <NavMobile />
+      <ProfilFlottant compteId={compte.id} />
       {/*
         Le tiroir du tuteur, monté hors du flux : `Suspense` le laisse streamer
         après la page, l'assemblage de son contexte ne retarde donc aucun rendu.

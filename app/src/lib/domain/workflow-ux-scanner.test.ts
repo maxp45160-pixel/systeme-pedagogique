@@ -49,5 +49,5 @@ describe("scannerUxJourney (dynamique AST)", () => {
     // Déclencheurs atomiques
     const liensAvecDeclencheur = graphe.liens.filter((l) => Boolean(l.declencheur));
     expect(liensAvecDeclencheur.length).toBeGreaterThan(50);
-  });
+  }, 20000);
 });

@@ -10,7 +10,8 @@
  * Invisible : ce composant ne rend rien, il se contente de poser des écouteurs.
  */
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 import { enregistrerInteraction } from "@/lib/profiling/client";
 import { useProfilageEnCours } from "@/lib/profiling/utiliser-enregistrement";
 
@@ -84,6 +85,18 @@ function extraireLibelle(cible: HTMLElement): string {
 
 export function ProfilTracker({ compteId }: { compteId: string }) {
   const actif = useProfilageEnCours(compteId);
+  const pathname = usePathname();
+  const dernierPathname = useRef<string | null>(null);
+
+  // Capture les navigations Next.js App Router (pushState / transitions de page)
+  useEffect(() => {
+    if (!actif || !pathname) return;
+    if (dernierPathname.current !== pathname) {
+      dernierPathname.current = pathname;
+      enregistrerInteraction(compteId, "navigation", pathname, 0);
+    }
+  }, [actif, pathname, compteId]);
+
   useEffect(() => {
     if (!actif) return;
     function handleClick(e: MouseEvent) {
@@ -98,18 +111,10 @@ export function ProfilTracker({ compteId }: { compteId: string }) {
       enregistrerInteraction(compteId, "clic", libelle, 0);
     }
 
-    function handleNavigation() {
-      enregistrerInteraction(compteId, "navigation", window.location.pathname, 0);
-    }
-
-    // Popstate capte les navigations back/forward.
-    window.addEventListener("popstate", handleNavigation);
-
     // Les clics sont capturés au niveau document.
     document.addEventListener("click", handleClick, true);
 
     return () => {
-      window.removeEventListener("popstate", handleNavigation);
       document.removeEventListener("click", handleClick, true);
     };
   }, [actif, compteId]);

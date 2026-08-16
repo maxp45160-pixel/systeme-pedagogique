@@ -1,10 +1,10 @@
-import Link from "next/link";
 import type { Carriere } from "@/lib/engine/carriere";
 import type { EtatGlobal } from "@/lib/engine/progression";
 import type { User } from "@/lib/domain/types";
+import type { IdentiteUtilisateur } from "@/lib/domain/identite";
 import { profilDeclare } from "@/lib/domain/profil";
 import { formatDuree } from "@/lib/engine/dates";
-import { BarreProgression, TagConfiance, cx } from "@/components/ui/primitives";
+import { TagConfiance, cx } from "@/components/ui/primitives";
 
 /**
  * L'en-tête du profil : qui, depuis quand, et ce que ça totalise.
@@ -22,23 +22,37 @@ import { BarreProgression, TagConfiance, cx } from "@/components/ui/primitives";
  */
 export function CarteCarriere({
   user,
+  identite,
   carriere,
   global,
 }: {
   user: User;
+  identite?: IdentiteUtilisateur;
   carriere: Carriere;
   global: EtatGlobal;
 }) {
   const profil = profilDeclare(user);
-  const nom = user.prenom.trim() || "Mon profil";
+  const nom = identite?.nom ?? (user.prenom.trim() || "Mon profil");
+  const avatarUrl = identite?.avatarUrl ?? user.avatarUrl;
+  const initiale = identite?.initiale ?? (nom.charAt(0).toUpperCase() || "P");
 
   return (
     <section className="overflow-hidden rounded-xl border border-bordure bg-surface shadow-[var(--ombre-posee)]">
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-bordure bg-surface-2/40 px-5 py-5 sm:px-6">
         <div className="flex min-w-0 items-center gap-4">
-          <span className="grid size-14 shrink-0 place-items-center rounded-xl bg-primaire text-xl font-semibold text-primaire-contraste">
-            {nom.charAt(0).toUpperCase()}
-          </span>
+          {avatarUrl ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={avatarUrl}
+              alt={nom}
+              referrerPolicy="no-referrer"
+              className="size-14 shrink-0 rounded-xl border border-bordure object-cover shadow-sm"
+            />
+          ) : (
+            <span className="grid size-14 shrink-0 place-items-center rounded-xl bg-primaire text-xl font-semibold text-primaire-contraste shadow-sm">
+              {initiale}
+            </span>
+          )}
           <div className="min-w-0">
             <h2 className="truncate font-serif text-2xl font-medium tracking-tight">{nom}</h2>
             {/*
@@ -120,86 +134,5 @@ function Compteur({
       <dd className="chiffres mt-1 text-lg font-semibold tracking-tight">{valeur}</dd>
       {precision && <dd className="mt-0.5 text-[0.625rem] text-primaire">{precision}</dd>}
     </div>
-  );
-}
-
-/**
- * Le classement des domaines — l'équivalent d'un « temps par héros ».
- *
- * Trié par nombre de preuves : c'est la seule mesure d'investissement qui ne
- * dépende pas d'une durée saisie à la main. Un domaine sans preuve reste
- * affiché, avec un tiret plutôt qu'un zéro — l'absence de preuve n'est pas un
- * niveau nul (P3).
- */
-export function ClassementDomaines({ global }: { global: EtatGlobal }) {
-  const domaines = [...global.parDomaine].sort((a, b) => {
-    if (b.preuves !== a.preuves) return b.preuves - a.preuves;
-    return (b.score ?? -1) - (a.score ?? -1);
-  });
-
-  if (domaines.length === 0) return null;
-
-  return (
-    <section className="rounded-xl border border-bordure bg-surface p-5 shadow-[var(--ombre-posee)] sm:p-6">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="font-serif text-lg font-medium">Par domaine</h2>
-        {/*
-          Le lien de gestion vient du bilan de croissance, qui affichait plus
-          bas une seconde grille des mêmes domaines. Elle est retirée : deux
-          listes des mêmes domaines sur un écran obligent à comparer pour
-          comprendre qu'elles disent la même chose.
-        */}
-        <Link
-          href="/atelier?document=domaines"
-          className="text-[0.6875rem] text-texte-attenue underline-offset-2 transition-colors hover:text-primaire hover:underline"
-        >
-          Gérer les domaines
-        </Link>
-      </div>
-      <p className="mt-1 text-xs text-texte-discret">
-        Classés par nombre de preuves accumulées — pas par temps déclaré.
-      </p>
-
-      {/*
-        Chaque ligne mène à la fiche du domaine dans l'Atelier.
-
-        Elle ne l'était pas : on lisait « 9 preuves, 4/10 mesurées » sans aucun
-        moyen d'aller voir lesquelles, alors que la fiche existe et que tout le
-        reste de l'application y renvoie. Le lien porte la ligne entière, pas
-        une flèche en bout de course — c'est le nom du domaine qu'on vise.
-      */}
-      <ul className="mt-4 space-y-1">
-        {domaines.map((domaine) => (
-          <li key={domaine.domaine}>
-            <Link
-              href={`/atelier?document=${encodeURIComponent(`domaine:${domaine.domaine}`)}`}
-              className="group block rounded-lg px-2 py-2 -mx-2 transition-colors hover:bg-surface-2"
-            >
-              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                <span className="min-w-0 truncate text-sm font-medium group-hover:text-primaire">
-                  {domaine.nom}
-                </span>
-                <span className="chiffres text-xs text-texte-discret">
-                  {domaine.preuves} preuve{domaine.preuves > 1 ? "s" : ""} ·{" "}
-                  {domaine.competencesEvaluees}/{domaine.competencesTotal} mesurée
-                  {domaine.competencesEvaluees > 1 ? "s" : ""}
-                  {domaine.score !== null ? ` · ${domaine.score}/100` : " · niveau non établi"}
-                </span>
-              </div>
-              {/*
-                La barre n'est tracée que si un score existe : la rendre à zéro
-                pour un domaine sans preuve montrerait un niveau nul là où il n'y
-                a pas de mesure (P3). Le libellé au-dessus le dit déjà en mots.
-              */}
-              {domaine.score !== null && (
-                <div className="mt-1.5">
-                  <BarreProgression fraction={domaine.score / 100} />
-                </div>
-              )}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </section>
   );
 }

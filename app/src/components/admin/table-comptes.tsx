@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { Modale } from "@/components/ui/modale";
 import { Champ } from "@/components/ui/champ";
 import { Bouton, Etiquette, cx } from "@/components/ui/primitives";
@@ -13,7 +13,9 @@ import {
   refusReactivation,
   refusSuspension,
   type CompteAdministre,
+  type RoleCompte,
 } from "@/lib/domain/acces";
+import { filtrerComptes, type FiltreStatutCompte } from "@/lib/domain/admin-kpi";
 import {
   changerRoleAction,
   reactiverAction,
@@ -21,19 +23,6 @@ import {
   type ResultatActionAcces,
 } from "@/lib/store/acces-actions";
 
-/**
- * La liste des comptes, et les trois gestes qu'on peut poser dessus.
- *
- * Chaque bouton interdit est **désactivé avec sa raison en infobulle**, jamais
- * simplement absent : « pourquoi ne puis-je pas retirer ce rôle » est une
- * question que l'écran doit savoir répondre. Les mêmes règles sont tenues par
- * un trigger PostgreSQL — ce qui est affiché ici est une politesse, ce qui est
- * appliqué là-bas est la garantie.
- *
- * Le retour de chaque action est affiché tel quel, y compris quand la base
- * refuse : le message vient d'elle, et le retraduire ferait deux formulations
- * d'une même règle.
- */
 export function TableComptes({
   comptes,
   moiId,
@@ -41,6 +30,9 @@ export function TableComptes({
   comptes: CompteAdministre[];
   moiId: string;
 }) {
+  const [recherche, setRecherche] = useState("");
+  const [filtreRole, setFiltreRole] = useState<RoleCompte | "tous">("tous");
+  const [filtreStatut, setFiltreStatut] = useState<FiltreStatutCompte>("tous");
   const [retour, setRetour] = useState<ResultatActionAcces | null>(null);
   const [aSuspendre, setASuspendre] = useState<CompteAdministre | null>(null);
   const [enCours, demarrer] = useTransition();
@@ -49,8 +41,64 @@ export function TableComptes({
     demarrer(async () => setRetour(await action()));
   }
 
+  const comptesFiltres = useMemo(() => {
+    return filtrerComptes(comptes, {
+      recherche,
+      role: filtreRole,
+      statut: filtreStatut,
+    });
+  }, [comptes, recherche, filtreRole, filtreStatut]);
+
   return (
-    <>
+    <div className="space-y-4">
+      {/* Barre d'outils : recherche & filtres */}
+      <div className="flex flex-col gap-3 rounded-xl border border-bordure bg-surface p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative flex-1">
+          <input
+            type="text"
+            placeholder="Rechercher par prénom, email ou identifiant..."
+            value={recherche}
+            onChange={(e) => setRecherche(e.target.value)}
+            className="w-full rounded-lg border border-bordure bg-fond px-3.5 py-2 text-sm text-texte placeholder:text-texte-discret focus:border-primaire focus:outline-none focus:ring-1 focus:ring-primaire"
+          />
+          {recherche && (
+            <button
+              type="button"
+              onClick={() => setRecherche("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-texte-discret hover:text-texte"
+            >
+              Effacer
+            </button>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={filtreRole}
+            onChange={(e) => setFiltreRole(e.target.value as RoleCompte | "tous")}
+            aria-label="Filtrer par rôle"
+            className="rounded-lg border border-bordure bg-fond px-3 py-2 text-xs text-texte focus:border-primaire focus:outline-none"
+          >
+            <option value="tous">Tous les rôles</option>
+            <option value="admin">Administrateurs ({comptes.filter((c) => c.role === "admin").length})</option>
+            <option value="membre">Membres ({comptes.filter((c) => c.role === "membre").length})</option>
+          </select>
+
+          <select
+            value={filtreStatut}
+            onChange={(e) => setFiltreStatut(e.target.value as FiltreStatutCompte)}
+            aria-label="Filtrer par statut"
+            className="rounded-lg border border-bordure bg-fond px-3 py-2 text-xs text-texte focus:border-primaire focus:outline-none"
+          >
+            <option value="tous">Tous les statuts</option>
+            <option value="actifs">Actifs (ouverts)</option>
+            <option value="inactifs">Inactifs (&gt; 30j / sans activité)</option>
+            <option value="recents">Récents (&lt; 7j)</option>
+            <option value="suspendus">Suspendus</option>
+          </select>
+        </div>
+      </div>
+
       {retour && (
         <p
           role="status"
@@ -63,19 +111,23 @@ export function TableComptes({
         </p>
       )}
 
-      <ul className="divide-y divide-bordure overflow-hidden rounded-xl border border-bordure bg-surface">
-        {comptes.map((compte) => {
+      {comptesFiltres.length === 0 ? (
+        <div className="rounded-xl border border-bordure bg-surface p-8 text-center text-sm text-texte-discret">
+          Aucun compte ne correspond aux filtres appliqués.
+        </div>
+      ) : (
+        <ul className="divide-y divide-bordure overflow-hidden rounded-xl border border-bordure bg-surface shadow-sm">
+          {comptesFiltres.map((compte) => {
           const suspendu = estSuspendu(compte);
           const moi = compte.userId === moiId;
           const refusRole = refusChangementRole(
             compte,
             compte.role === "admin" ? "membre" : "admin",
             moiId,
-            comptes,
           );
           const refusCoupure = suspendu
             ? refusReactivation(compte)
-            : refusSuspension(compte, moiId, comptes);
+            : refusSuspension(compte, moiId);
 
           return (
             <li key={compte.userId} className="px-4 py-3.5 sm:px-5">
@@ -154,7 +206,8 @@ export function TableComptes({
             </li>
           );
         })}
-      </ul>
+        </ul>
+      )}
 
       {aSuspendre && (
         <ModaleSuspension
@@ -168,7 +221,7 @@ export function TableComptes({
           }}
         />
       )}
-    </>
+    </div>
   );
 }
 

@@ -104,6 +104,7 @@ function Avatar({
         <img
           src={session.avatar}
           alt=""
+          referrerPolicy="no-referrer"
           className={cx(cote, "rounded-full object-cover ring-1 ring-[var(--rail-bordure)]")}
         />
       ) : (

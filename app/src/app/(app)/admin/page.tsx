@@ -1,65 +1,160 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { EntetePage } from "@/components/layout/entete-page";
 import { SqueletteContenu } from "@/components/layout/squelette";
-import { BandeauInfo } from "@/components/ui/primitives";
-import { TableComptes } from "@/components/admin/table-comptes";
+import { CockpitAdmin } from "@/components/admin/cockpit-admin";
 import { estAdministrateur, lireAccesCourant, listerComptes } from "@/lib/store/acces";
+import { calculerStatistiquesAdmin } from "@/lib/domain/admin-kpi";
+import { obtenirDiagnosticSysteme } from "@/lib/store/systeme";
+import { scannerWorkflow } from "@/lib/domain/workflow-scanner";
+import { scannerUxJourney } from "@/lib/domain/workflow-ux-scanner";
+import {
+  parcourirWorkflow,
+  statistiquesGraphe,
+  type GrapheWorkflow,
+} from "@/lib/domain/workflow-graphe";
+import {
+  exporterDOT,
+  exporterJSON,
+  matriceAdjacence,
+} from "@/lib/domain/workflow-export";
+import type { DonneesPerspectiveGraphe } from "@/components/dev/graphe-workflow";
 
-/**
- * Le panel d'administration (ADR-074).
- *
- * ## Ce qu'il montre, et ce qu'il ne montrera jamais
- *
- * Qui existe, depuis quand, ce que son travail totalise, et si son accès est
- * ouvert. Rien de plus : aucun énoncé d'exercice, aucune preuve, aucune note,
- * aucun document. Un administrateur n'est pas un lecteur privilégié du travail
- * des autres — les données personnelles ne se partagent pas sans consentement
- * explicite (P8), et un rôle n'est pas un consentement.
- *
- * Les compteurs affichés viennent d'une fonction SQL qui ne renvoie que des
- * nombres. Il n'existe aucun chemin, depuis cet écran, vers le contenu d'un
- * autre compte.
- *
- * ## `notFound` et non `redirect`
- *
- * Un non-administrateur ne doit pas apprendre que cette page existe. Une
- * redirection vers l'accueil le lui dirait. L'autorisation réelle, elle, ne
- * dépend pas de ce test : `admin_comptes()` refuse d'elle-même, et les
- * politiques de `comptes_acces` n'acceptent d'écriture que d'un admin.
- */
-export default async function PageAdmin() {
+export const metadata: Metadata = {
+  title: "Cockpit Administrateur — Système pédagogique",
+  robots: { index: false, follow: false },
+};
+
+export const dynamic = "force-dynamic";
+
+function perspectiveVide(): DonneesPerspectiveGraphe {
+  return {
+    noeuds: [],
+    liens: [],
+    inatteignables: [],
+    profondeurs: {},
+    stats: {
+      totalNoeuds: 0,
+      totalLiens: 0,
+      atteignables: 0,
+      inatteignables: 0,
+      degreSortantMoyen: 0,
+      degreEntrantMoyen: 0,
+      puits: [],
+      sources: [],
+      diametreBFS: 0,
+    },
+    dot: "",
+    jsonExport: {
+      format: "workflow-graphe",
+      version: 1,
+      racine: "page:/",
+      noeuds: [],
+      liens: [],
+      inatteignables: [],
+      profondeurs: {},
+      statistiques: {
+        totalNoeuds: 0,
+        totalLiens: 0,
+        atteignables: 0,
+        inatteignables: 0,
+        diametreBFS: 0,
+      },
+    },
+    matriceNoeuds: [],
+    matriceData: [],
+  };
+}
+
+function preparerPerspective(
+  graphe: GrapheWorkflow,
+  titre: string,
+): DonneesPerspectiveGraphe {
+  if (graphe.noeuds.length === 0) {
+    return perspectiveVide();
+  }
+
+  const resultat = parcourirWorkflow(graphe, "page:/");
+  const stats = statistiquesGraphe(resultat, graphe);
+
+  const profondeurs: Record<string, number> = {};
+  for (const [id, p] of resultat.profondeurs) {
+    profondeurs[id] = p;
+  }
+
+  const dot = exporterDOT(resultat.noeuds, resultat.liens, {
+    titre,
+    stats,
+    avecLibelles: true,
+    avecLibellesAretes: true,
+    avecConditions: true,
+  });
+  const jsonExport = exporterJSON(resultat, graphe);
+  const matrice = matriceAdjacence(resultat.noeuds, resultat.liens);
+
+  return {
+    noeuds: resultat.noeuds,
+    liens: resultat.liens,
+    inatteignables: resultat.inatteignables,
+    profondeurs,
+    stats,
+    dot,
+    jsonExport,
+    matriceNoeuds: matrice.noeuds,
+    matriceData: matrice.matrice,
+  };
+}
+
+export default async function PageAdmin(props: {
+  searchParams?: Promise<{ onglet?: string }>;
+}) {
+  const params = props.searchParams ? await props.searchParams : undefined;
   return (
     <>
       <EntetePage
-        titre="Comptes et accès"
-        sousTitre="Qui a un compte, ce que son travail totalise, et qui peut encore entrer."
+        titre="Cockpit d'Administration"
+        sousTitre="Pilotage global, KPIs d'activité, sécurité des accès, diagnostic système et outils de développement."
       />
       <Suspense fallback={<SqueletteContenu />}>
-        <ContenuAdmin />
+        <ContenuAdmin onglet={params?.onglet} />
       </Suspense>
     </>
   );
 }
 
-async function ContenuAdmin() {
+const GRAPHE_VIDE: GrapheWorkflow = { noeuds: [], liens: [] };
+
+async function ContenuAdmin({ onglet }: { onglet?: string }) {
   const [admin, acces] = await Promise.all([estAdministrateur(), lireAccesCourant()]);
   if (!admin || !acces) notFound();
 
-  const comptes = await listerComptes();
+  const chargerWorkflow = onglet === "workflow";
+
+  const [comptes, diagnostic, grapheArch, grapheUxMacro, grapheUxAtomique] =
+    await Promise.all([
+      listerComptes(),
+      obtenirDiagnosticSysteme(),
+      chargerWorkflow ? scannerWorkflow() : Promise.resolve(GRAPHE_VIDE),
+      chargerWorkflow ? scannerUxJourney({ mode: "macro" }) : Promise.resolve(GRAPHE_VIDE),
+      chargerWorkflow ? scannerUxJourney({ mode: "atomique" }) : Promise.resolve(GRAPHE_VIDE),
+    ]);
+
+  const kpis = calculerStatistiquesAdmin(comptes);
+
+  const perspectivesWorkflow = {
+    architecture: preparerPerspective(grapheArch, "Architecture Code (AST)"),
+    ux: preparerPerspective(grapheUxMacro, "Parcours UX Synthèse (Macro)"),
+    uxAtomique: preparerPerspective(grapheUxAtomique, "Parcours UX Atomique"),
+  };
 
   return (
-    <div className="space-y-5">
-      <BandeauInfo>
-        <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-info" aria-hidden />
-        <p className="text-texte-attenue">
-          <strong className="font-medium text-info">Suspendre coupe la lecture, pas les données.</strong>{" "}
-          Un compte suspendu ne lit plus une seule ligne de son travail — les politiques de la base
-          le refusent — mais rien n&apos;est supprimé : rouvrir l&apos;accès rend tout en l&apos;état.
-        </p>
-      </BandeauInfo>
-
-      <TableComptes comptes={comptes} moiId={acces.userId} />
-    </div>
+    <CockpitAdmin
+      comptes={comptes}
+      moiId={acces.userId}
+      kpis={kpis}
+      diagnostic={diagnostic}
+      perspectivesWorkflow={perspectivesWorkflow}
+    />
   );
 }

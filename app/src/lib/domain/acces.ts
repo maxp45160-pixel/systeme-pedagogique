@@ -70,12 +70,11 @@ export function refusChangementRole(
   cible: CompteAdministre,
   nouveauRole: RoleCompte,
   moiId: string,
-  comptes: readonly CompteAdministre[],
 ): RefusAcces {
   if (cible.role === nouveauRole) return "Ce compte a déjà ce rôle.";
   if (cible.userId === moiId) return "Tu ne peux pas modifier ton propre rôle.";
-  if (cible.role === "admin" && nouveauRole !== "admin" && dernierAdmin(cible, comptes)) {
-    return "C'est le dernier administrateur actif.";
+  if (cible.role === "admin" && nouveauRole !== "admin") {
+    return "Un administrateur ne peut pas être rétrogradé.";
   }
   return null;
 }
@@ -83,25 +82,17 @@ export function refusChangementRole(
 export function refusSuspension(
   cible: CompteAdministre,
   moiId: string,
-  comptes: readonly CompteAdministre[],
 ): RefusAcces {
   if (estSuspendu(cible)) return "Ce compte est déjà suspendu.";
   if (cible.userId === moiId) return "Tu ne peux pas suspendre ton propre accès.";
-  if (cible.role === "admin" && dernierAdmin(cible, comptes)) {
-    return "C'est le dernier administrateur actif.";
+  if (cible.role === "admin") {
+    return "Un administrateur ne peut pas être suspendu.";
   }
   return null;
 }
 
 export function refusReactivation(cible: CompteAdministre): RefusAcces {
   return estSuspendu(cible) ? null : "Ce compte n'est pas suspendu.";
-}
-
-/** Actif au sens du panel : admin **et** non suspendu — un admin suspendu n'administre plus. */
-function dernierAdmin(cible: CompteAdministre, comptes: readonly CompteAdministre[]): boolean {
-  return !comptes.some(
-    (c) => c.userId !== cible.userId && c.role === "admin" && !estSuspendu(c),
-  );
 }
 
 /** Un motif de suspension est facultatif, mais jamais un blanc déguisé. */

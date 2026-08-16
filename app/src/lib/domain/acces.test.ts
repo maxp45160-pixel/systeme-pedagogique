@@ -41,62 +41,48 @@ describe("refusChangementRole", () => {
   const moi = compte({ userId: "moi", role: "admin" });
 
   it("refuse de changer son propre rôle", () => {
-    const comptes = [moi, compte({ userId: "autre", role: "admin" })];
-    expect(refusChangementRole(moi, "membre", "moi", comptes)).toMatch(/ton propre rôle/);
+    expect(refusChangementRole(moi, "membre", "moi")).toMatch(/ton propre rôle/);
   });
 
-  it("refuse de retirer le dernier administrateur actif", () => {
-    const seul = compte({ userId: "seul", role: "admin" });
-    const comptes = [seul, compte({ userId: "membre" })];
-    expect(refusChangementRole(seul, "membre", "moi", comptes)).toMatch(/dernier administrateur/);
-  });
-
-  it("compte un administrateur suspendu comme absent", () => {
-    const actif = compte({ userId: "actif", role: "admin" });
-    const suspendu = compte({ userId: "endormi", role: "admin", suspenduLe: "2026-08-01" });
-    expect(refusChangementRole(actif, "membre", "moi", [actif, suspendu])).toMatch(
-      /dernier administrateur/,
+  it("refuse formellement de rétrograder un administrateur", () => {
+    const adminA = compte({ userId: "maxime", role: "admin" });
+    expect(refusChangementRole(adminA, "membre", "autre_admin")).toMatch(
+      /administrateur ne peut pas être rétrogradé/,
     );
   });
 
-  it("laisse retirer un administrateur quand un autre reste actif", () => {
-    const cible = compte({ userId: "cible", role: "admin" });
-    const comptes = [cible, compte({ userId: "moi", role: "admin" })];
-    expect(refusChangementRole(cible, "membre", "moi", comptes)).toBeNull();
-  });
-
-  it("laisse promouvoir un membre", () => {
-    const cible = compte({ userId: "cible" });
-    expect(refusChangementRole(cible, "admin", "moi", [cible])).toBeNull();
+  it("laisse promouvoir un membre en administrateur", () => {
+    const cible = compte({ userId: "cible", role: "membre" });
+    expect(refusChangementRole(cible, "admin", "moi")).toBeNull();
   });
 
   it("refuse un rôle déjà porté", () => {
     const cible = compte({ userId: "cible", role: "admin" });
-    expect(refusChangementRole(cible, "admin", "moi", [cible])).toMatch(/déjà ce rôle/);
+    expect(refusChangementRole(cible, "admin", "moi")).toMatch(/déjà ce rôle/);
   });
 });
 
 describe("refusSuspension", () => {
   it("refuse de se suspendre soi-même", () => {
     const moi = compte({ userId: "moi", role: "admin" });
-    expect(refusSuspension(moi, "moi", [moi, compte({ userId: "b", role: "admin" })])).toMatch(
-      /ton propre accès/,
+    expect(refusSuspension(moi, "moi")).toMatch(/ton propre accès/);
+  });
+
+  it("refuse formellement de suspendre un administrateur", () => {
+    const adminA = compte({ userId: "maxime", role: "admin" });
+    expect(refusSuspension(adminA, "autre_admin")).toMatch(
+      /administrateur ne peut pas être suspendu/,
     );
   });
 
-  it("refuse de suspendre le dernier administrateur", () => {
-    const seul = compte({ userId: "seul", role: "admin" });
-    expect(refusSuspension(seul, "moi", [seul])).toMatch(/dernier administrateur/);
-  });
-
   it("laisse suspendre un membre", () => {
-    const cible = compte({ userId: "cible" });
-    expect(refusSuspension(cible, "moi", [cible])).toBeNull();
+    const cible = compte({ userId: "cible", role: "membre" });
+    expect(refusSuspension(cible, "moi")).toBeNull();
   });
 
   it("refuse de suspendre deux fois", () => {
     const cible = compte({ userId: "cible", suspenduLe: "2026-08-16" });
-    expect(refusSuspension(cible, "moi", [cible])).toMatch(/déjà suspendu/);
+    expect(refusSuspension(cible, "moi")).toMatch(/déjà suspendu/);
   });
 });
 

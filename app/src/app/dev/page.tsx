@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function DevPage() {
-  redirect("/dev/workflow");
+  redirect("/admin?onglet=workflow");
 }

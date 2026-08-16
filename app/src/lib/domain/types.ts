@@ -125,6 +125,7 @@ export interface Domaine {
 export interface User {
   id: string;
   prenom: string;
+  avatarUrl?: string;
   formation: string;
   objectifMoyenTerme: string;
   objectifLongTerme: string;

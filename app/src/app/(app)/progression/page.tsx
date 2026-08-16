@@ -1,6 +1,8 @@
 import { Suspense } from "react";
 import { chargerContexte } from "@/lib/store/context";
 import { chargerThemes } from "@/lib/store/themes";
+import { compteCourant } from "@/lib/supabase/server";
+import { resoudreIdentite } from "@/lib/domain/identite";
 import { SqueletteContenu } from "@/components/layout/squelette";
 import { calculerActivite } from "@/lib/engine/historique";
 import { resumeCarriere } from "@/lib/engine/carriere";
@@ -9,7 +11,7 @@ import { ensemblesProposes } from "@/lib/engine/ensembles";
 import { EntetePage } from "@/components/layout/entete-page";
 import { CarteEtatGlobal } from "@/components/dashboard/etat-global";
 import { CarteActivite } from "@/components/dashboard/activite";
-import { CarteCarriere, ClassementDomaines } from "@/components/progression/carte-carriere";
+import { CarteCarriere } from "@/components/progression/carte-carriere";
 import { BilanCroissanceLie } from "@/components/progression/bilan-croissance-lie";
 import { Glossaire } from "@/components/ui/glossaire";
 import { TitreSection } from "@/components/ui/primitives";
@@ -47,7 +49,12 @@ export default async function PageProgression() {
 }
 
 async function ContenuProgression() {
-  const [ctx, themes] = await Promise.all([chargerContexte(), chargerThemes()]);
+  const [ctx, themes, compte] = await Promise.all([
+    chargerContexte(),
+    chargerThemes(),
+    compteCourant(),
+  ]);
+  const identite = resoudreIdentite(compte, ctx.donnees.user);
 
   // `dureesEstimees`, et non `donnees.exercises` : le plafond du temps retenu
   // pour un abandon doit connaître aussi les diagnostics et les exercices sortis
@@ -108,12 +115,15 @@ async function ContenuProgression() {
 
   return (
     <div className="space-y-6 [&>*]:min-w-0">
-      <CarteCarriere user={ctx.donnees.user} carriere={carriere} global={ctx.global} />
+      <CarteCarriere
+        user={ctx.donnees.user}
+        identite={identite}
+        carriere={carriere}
+        global={ctx.global}
+      />
 
       {/* Une année pleine, étalée sur toute la largeur de la carte. */}
       <CarteActivite activite={activite} now={ctx.now} semaines={52} cellule={16} />
-
-      <ClassementDomaines global={ctx.global} />
 
       <CarteEtatGlobal global={ctx.global} etats={ctx.etats} />
 

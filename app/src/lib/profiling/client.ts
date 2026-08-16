@@ -117,6 +117,12 @@ export function definirEnregistrement(compteId: string, actif: boolean): void {
     viderMesuresClient(compteId);
   }
   poserDrapeau(CLE_ENREGISTREMENT, compteId, actif);
+
+  if (typeof document !== "undefined") {
+    document.cookie = `profilage_enregistrement=${actif ? "1" : "0"}; path=/; max-age=${
+      actif ? 86400 : 0
+    }; SameSite=Lax`;
+  }
 }
 
 /**
@@ -131,34 +137,59 @@ export function abonnerProfilageClient(ecouteur: () => void): () => void {
   const w = window as unknown as { __profilageEcouteurs?: Set<() => void> };
   if (!w.__profilageEcouteurs) w.__profilageEcouteurs = new Set();
   w.__profilageEcouteurs.add(ecouteur);
+  const handleStorage = (e: StorageEvent) => {
+    if (e.key?.includes("profilage")) ecouteur();
+  };
+  window.addEventListener("storage", handleStorage);
   return () => {
     w.__profilageEcouteurs?.delete(ecouteur);
+    window.removeEventListener("storage", handleStorage);
   };
 }
 
 const CLE_RENDUS = "profilage-rendus";
 const CLE_INTERACTIONS = "profilage-interactions";
 
-const MAX_RENDUS = 200;
-const MAX_INTERACTIONS = 100;
+const MAX_RENDUS = 500;
+const MAX_INTERACTIONS = 200;
 
 function lire<T>(cle: string, compteId: string, defaut: T): T {
   if (!profilageClientActif(compteId)) return defaut;
   try {
-    const brut = sessionStorage.getItem(cleCompte(cle, compteId));
+    const brut = localStorage.getItem(cleCompte(cle, compteId));
     return brut ? (JSON.parse(brut) as T) : defaut;
   } catch {
     return defaut;
   }
 }
 
+let notificationEnAttente = false;
+function notifierEcouteurs(): void {
+  if (notificationEnAttente || typeof window === "undefined") return;
+  notificationEnAttente = true;
+  requestAnimationFrame(() => {
+    notificationEnAttente = false;
+    const ecouteurs = (
+      window as unknown as { __profilageEcouteurs?: Set<() => void> }
+    ).__profilageEcouteurs;
+    ecouteurs?.forEach((fn) => {
+      try {
+        fn();
+      } catch {
+        // ignore
+      }
+    });
+  });
+}
+
 function ecrire<T>(cle: string, compteId: string, valeur: T): void {
   if (!profilageClientActif(compteId)) return;
   try {
-    sessionStorage.setItem(cleCompte(cle, compteId), JSON.stringify(valeur));
+    localStorage.setItem(cleCompte(cle, compteId), JSON.stringify(valeur));
   } catch {
-    // sessionStorage plein ou indisponible : on ignore.
+    // localStorage plein ou indisponible : on ignore.
   }
+  notifierEcouteurs();
 }
 
 /** Callback React Profiler — enregistre chaque rendu. */
@@ -181,7 +212,7 @@ export const onRenderProfil = (compteId: string): ProfilerOnRenderCallback => (
     rendus: 1,
     horodatage: Date.now(),
   });
-  // On ne garde que les 200 dernières mesures.
+  // On ne garde que les 500 dernières mesures.
   ecrire(CLE_RENDUS, compteId, rendus.slice(-MAX_RENDUS));
 };
 
@@ -197,6 +228,13 @@ export function enregistrerInteraction(
   const interactions = lire<MesureInteraction[]>(CLE_INTERACTIONS, compteId, []);
   interactions.push({ type, libelle, dureeMs, horodatage: Date.now() });
   ecrire(CLE_INTERACTIONS, compteId, interactions.slice(-MAX_INTERACTIONS));
+}
+
+/** Renvoie le nombre total de mesures enregistrées côté client. */
+export function totalMesuresClient(compteId: string): number {
+  const r = lire<MesureRendu[]>(CLE_RENDUS, compteId, []);
+  const i = lire<MesureInteraction[]>(CLE_INTERACTIONS, compteId, []);
+  return r.length + i.length;
 }
 
 /** Renvoie les mesures de rendu, agrégées par composant. */
@@ -242,8 +280,8 @@ export function interactionsActuelles(compteId: string): MesureInteraction[] {
 export function viderMesuresClient(compteId: string): void {
   if (typeof window === "undefined") return;
   try {
-    sessionStorage.removeItem(cleCompte(CLE_RENDUS, compteId));
-    sessionStorage.removeItem(cleCompte(CLE_INTERACTIONS, compteId));
+    localStorage.removeItem(cleCompte(CLE_RENDUS, compteId));
+    localStorage.removeItem(cleCompte(CLE_INTERACTIONS, compteId));
   } catch {
     // ignore
   }

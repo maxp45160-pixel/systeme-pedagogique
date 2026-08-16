@@ -100,13 +100,29 @@ export function PanneauCompte({
       </Section>
 
       <Section titre="Compte et synchronisation">
-        <div className="flex items-center gap-2">
-          <span aria-hidden className="size-2 shrink-0 rounded-full bg-succes" />
-          <span className="text-xs text-texte-attenue">
-            Connecté — données synchronisées sur ton compte ({courriel ?? "compte sans courriel"}).
-          </span>
+        <div className="flex items-center gap-3">
+          {profil.avatarUrl ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={profil.avatarUrl}
+              alt=""
+              referrerPolicy="no-referrer"
+              className="size-10 shrink-0 rounded-full border border-bordure object-cover"
+            />
+          ) : (
+            <span className="grid size-10 shrink-0 place-items-center rounded-full bg-primaire text-sm font-semibold text-primaire-contraste">
+              {profil.prenom?.charAt(0).toUpperCase() || "C"}
+            </span>
+          )}
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium text-texte">{profil.prenom || "Compte"}</p>
+            <div className="flex items-center gap-1.5 text-xs text-texte-attenue">
+              <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-succes" />
+              <span className="truncate">{courriel ?? "compte sans courriel"}</span>
+            </div>
+          </div>
         </div>
-        <form action={seDeconnecter} className="mt-3">
+        <form action={seDeconnecter} className="mt-4">
           <Bouton type="submit" variante="secondaire" taille="compacte">
             Se déconnecter
           </Bouton>

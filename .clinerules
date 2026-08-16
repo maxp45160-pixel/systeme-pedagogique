@@ -1,0 +1,89 @@
+# Règles Cline — Système pédagogique
+
+## Environnement d'exécution (CRITIQUE)
+
+- **Système d'exploitation** : Windows
+- **Shell** : PowerShell
+- **Répertoire de travail fixe** : Racine du projet (`c:\Users\hupch\Documents\max`)
+- **RÈGLE ABSOLUE** : **NE JAMAIS UTILISER DE COMMANDE `cd`**.
+  - Cline réinitialise le répertoire de travail à la racine pour chaque commande.
+  - Les commandes chaînées avec `cd ... && ...` échouent sur PowerShell.
+  - N'utilisez pas de commandes bash incompatibles (`cat`, `grep`, `export`, `&&`, etc.).
+
+---
+
+## Commandes depuis la racine
+
+Toutes les commandes doivent être exécutées **directement depuis la racine du dépôt** :
+
+```bash
+# Lancer tous les tests Vitest
+npm test
+
+# Lancer un fichier de test spécifique
+npm test -- src/lib/domain/seance.test.ts
+
+# Lancer la vérification complète (TypeScript + ESLint + Vitest)
+npm run verify
+
+# Lancer le build Next.js (typecheck de production)
+npm run build
+
+# Lancer le serveur de développement
+npm run dev
+
+# Installer les dépendances
+npm install --workspaces
+```
+
+---
+
+## Formatage du Tool Calling & Modèles (DeepSeek / Reasoning)
+
+1. **Hygiène des balises XML** :
+   - Ne **JAMAIS** insérer de tokens spéciaux ou de balises internes de réflexion/DSML (ex: `</｜｜DSML｜｜>`, `<｜DSML｜>`, etc.) dans les balises XML ou les paramètres d'outils (`<path>`, `<command>`, etc.).
+   - Les chemins de fichiers doivent être propres, sans espaces superflus ni balises parasites :
+     - Correct : `<path>app/src/lib/domain/seance.ts</path>`
+     - Incorrect : `<path>app/src/lib/domain/seance.ts</｜｜DSML｜｜></path>`
+
+2. **Chemins de fichiers** :
+   - Tous les fichiers applicatifs se trouvent sous le préfixe `app/` (ex: `app/src/lib/domain/...`, `app/src/components/...`).
+   - Toujours spécifier le chemin relatif complet depuis la racine.
+
+3. **Édition de fichiers (`replace_in_file`, `write_to_file`)** :
+   - Toujours renseigner l'ensemble des paramètres requis (`path`, `diff` ou `content`).
+   - S'assurer que le bloc cible `SEARCH` correspond exactement aux lignes du fichier existant avant de proposer un `REPLACE`.
+
+---
+
+## Architecture & Invariants métier
+
+Consulter obligatoirement `PRODUCT.md` avant toute décision produit et `ARCHITECTURE_DECISIONS.md` avant toute modification architecturale.
+
+### Les six couches
+| # | Couche | Règle |
+|---|---|---|
+| 0 | **Ignore** | Garde-fous du système |
+| 1 | **Connaît** | Stocké, jamais calculé |
+| 2 | **Observe** | Constaté, jamais fabriqué |
+| 3 | **Décide** | Dérivé, recalculable (ne jamais stocker) |
+| 4 | **Fait faire** | Interface utilisateur |
+| 5 | **Fait des données**| Infrastructure & persistance |
+
+**Frontière stricte** : Les couches 1 et 2 ne se recalculent pas, la couche 3 ne se stocke pas.
+
+### Garde-fous essentiels
+- Ne pas stocker ce qui est dérivable.
+- Ne jamais inventer ni fabriquer de données à partir de données invalides.
+- Toute mesure doit avoir une source explicite.
+- Le tuteur produit du contenu, jamais de mesures ni de codes de compétence non déclarés.
+- Une compétence avec des preuves est archivée, jamais supprimée.
+- RLS Supabase est la barrière d'autorisation de confiance : ne jamais exposer `service_role` côté client.
+- La logique métier non triviale vit dans `app/src/lib/domain/` ou `app/src/lib/engine/`, jamais dans les composants React.
+
+### Fichiers protégés
+Ne jamais modifier silencieusement :
+- `.env.local`
+- `app/supabase/schema.sql`
+- `app/data/00_instructions/`
+- `AGENTS.md`, `CLAUDE.md`, `ARCHITECTURE_DECISIONS.md` (sauf instruction explicite)

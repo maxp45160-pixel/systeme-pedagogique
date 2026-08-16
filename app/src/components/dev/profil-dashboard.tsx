@@ -65,6 +65,7 @@ export function ProfilDashboard({ compteId }: { compteId: string }) {
 
   const rafraichirMaintenant = useCallback(() => setRafraichir((n) => n + 1), []);
   const { enCours, basculer } = useEnregistrement(compteId, rafraichirMaintenant);
+  const [copie, setCopie] = useState(false);
 
   const vider = async () => {
     viderMesuresClient(compteId);
@@ -78,6 +79,27 @@ export function ProfilDashboard({ compteId }: { compteId: string }) {
 
   const rendus = rendusActuels(compteId);
   const interactions = interactionsActuelles(compteId);
+
+  const copierJson = async () => {
+    const exportData = {
+      horodatage: new Date().toISOString(),
+      compteId,
+      client: {
+        totalRendus: rendus.total,
+        rendusParComposant: rendus.parComposant,
+        interactions,
+      },
+      serveur,
+    };
+
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(exportData, null, 2));
+      setCopie(true);
+      setTimeout(() => setCopie(false), 2000);
+    } catch {
+      // Fallback
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -99,7 +121,7 @@ export function ProfilDashboard({ compteId }: { compteId: string }) {
                 : "Enregistrement à l'arrêt"}
           </span>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => void basculer()}
             className={cx(
@@ -116,6 +138,17 @@ export function ProfilDashboard({ compteId }: { compteId: string }) {
             className="rounded-md border border-bordure-forte bg-surface px-3 py-1.5 text-xs font-medium text-texte transition-colors hover:bg-surface-2"
           >
             Rafraîchir
+          </button>
+          <button
+            type="button"
+            onClick={() => void copierJson()}
+            className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+              copie
+                ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                : "border-bordure-forte bg-surface text-texte hover:bg-surface-2"
+            }`}
+          >
+            {copie ? "✓ Copié !" : "Copier JSON"}
           </button>
           <button
             onClick={vider}

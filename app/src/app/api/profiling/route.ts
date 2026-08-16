@@ -18,30 +18,28 @@ import {
 } from "@/lib/profiling/server";
 import { supabaseConfigure } from "@/lib/supabase/config";
 import { compteCourant } from "@/lib/supabase/server";
+import { estAdministrateur } from "@/lib/store/acces";
 
-/**
- * Ces trois verbes ne vérifiaient AUCUNE session.
- *
- * Le seul filtre était `proxy.ts`, qui se décrit lui-même comme un contrôle
- * optimiste et qui **sort par un `return` anticipé** quand Supabase n'est pas
- * configuré : la protection dépendait donc d'un chemin qui a le droit de ne
- * pas s'exécuter. `POST` active la collecte de mesures au runtime, `GET` les
- * expose, `DELETE` les efface — trois gestes qui n'ont rien à faire hors
- * session, sur une route qui n'est pas derrière `(app)`.
- *
- * Le proxy est une commodité : l'autorisation se prouve aussi dans la route.
- */
-async function refusSiAnonyme(): Promise<Response | null> {
+async function refusAcces(): Promise<Response | null> {
   if (!supabaseConfigure) {
+    if (process.env.NODE_ENV === "development") return null;
     return Response.json({ erreur: "configuration-supabase-absente" }, { status: 503 });
   }
   const compte = await compteCourant();
-  if (compte) return null;
-  return Response.json({ erreur: "non-authentifie" }, { status: 401 });
+  if (!compte) {
+    return Response.json({ erreur: "non-authentifie" }, { status: 401 });
+  }
+
+  const admin = await estAdministrateur();
+  if (!admin && process.env.NODE_ENV !== "development") {
+    return Response.json({ erreur: "acces-interdit" }, { status: 403 });
+  }
+
+  return null;
 }
 
 export async function GET() {
-  const refus = await refusSiAnonyme();
+  const refus = await refusAcces();
   if (refus) return refus;
 
   const actif = profilageActif();
@@ -94,7 +92,7 @@ export async function GET() {
  * rendu disponible au démarrage.
  */
 export async function POST(requete: Request) {
-  const refus = await refusSiAnonyme();
+  const refus = await refusAcces();
   if (refus) return refus;
 
   let corps: { action?: string };
@@ -123,7 +121,7 @@ export async function POST(requete: Request) {
 
 /** `DELETE` — vide le registre sans toucher à l'état d'enregistrement. */
 export async function DELETE() {
-  const refus = await refusSiAnonyme();
+  const refus = await refusAcces();
   if (refus) return refus;
 
   viderRegistre();

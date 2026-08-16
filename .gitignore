@@ -47,10 +47,14 @@ next-env.d.ts
 # Fichier de permissions local Claude Code — personnel, ne doit pas être partagé
 .claude/settings.local.json
 
+# Données locales et historique de sessions Cline
+.cline/
+
 # Local MCP configuration
 .mcp.json
 
 # Artefacts du CLI Supabase — état d'un poste, jamais du dépôt.
 /app/supabase/.branches
 /app/supabase/.temp
+
 

@@ -58,19 +58,41 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
+DECLARE
+  v_nom text;
+  v_avatar text;
 BEGIN
+  v_nom := COALESCE(
+    NULLIF(NEW.raw_user_meta_data->>'full_name', ''),
+    NULLIF(NEW.raw_user_meta_data->>'name', ''),
+    NULLIF(CONCAT_WS(' ', NULLIF(NEW.raw_user_meta_data->>'given_name', ''), NULLIF(NEW.raw_user_meta_data->>'family_name', '')), ''),
+    NULLIF(NEW.raw_user_meta_data->>'user_name', ''),
+    SPLIT_PART(NEW.email, '@', 1)
+  );
+
+  v_avatar := COALESCE(
+    NULLIF(NEW.raw_user_meta_data->>'avatar_url', ''),
+    NULLIF(NEW.raw_user_meta_data->>'picture', ''),
+    NULLIF(NEW.raw_user_meta_data->>'avatar', '')
+  );
+
   INSERT INTO public.profiles (id, email, prenom, avatar_url)
   VALUES (
     NEW.id,
     NEW.email,
-    COALESCE(
-      NULLIF(NEW.raw_user_meta_data->>'full_name', ''),
-      NULLIF(NEW.raw_user_meta_data->>'name', ''),
-      SPLIT_PART(NEW.email, '@', 1)
-    ),
-    NEW.raw_user_meta_data->>'avatar_url'
+    v_nom,
+    v_avatar
   )
-  ON CONFLICT (id) DO NOTHING;
+  ON CONFLICT (id) DO UPDATE
+  SET
+    email = EXCLUDED.email,
+    prenom = CASE
+      WHEN public.profiles.prenom IS NULL OR public.profiles.prenom = '' OR public.profiles.prenom = 'Utilisateur'
+      THEN EXCLUDED.prenom
+      ELSE public.profiles.prenom
+    END,
+    avatar_url = COALESCE(public.profiles.avatar_url, EXCLUDED.avatar_url);
+
   RETURN NEW;
 END;
 $$;
@@ -1128,11 +1150,9 @@ GRANT EXECUTE ON FUNCTION public.est_admin(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.compte_actif(UUID) TO authenticated;
 
 -- Deux interdits tenus en base, et non par l'écran : se couper soi-même
--- l'accès, et retirer le dernier administrateur actif.
+-- l'accès, et rétrograder ou suspendre un administrateur.
 CREATE OR REPLACE FUNCTION public.garde_comptes_acces()
 RETURNS TRIGGER LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
-DECLARE
-  v_autres_admins INTEGER;
 BEGIN
   IF OLD.user_id = auth.uid()
      AND (NEW.role IS DISTINCT FROM OLD.role
@@ -1140,13 +1160,9 @@ BEGIN
     RAISE EXCEPTION 'Un administrateur ne peut pas modifier son propre accès.' USING ERRCODE = '42501';
   END IF;
 
-  IF OLD.role = 'admin' AND OLD.suspendu_le IS NULL
-     AND (NEW.role <> 'admin' OR NEW.suspendu_le IS NOT NULL) THEN
-    SELECT COUNT(*) INTO v_autres_admins FROM public.comptes_acces
-    WHERE role = 'admin' AND suspendu_le IS NULL AND user_id <> OLD.user_id;
-    IF v_autres_admins = 0 THEN
-      RAISE EXCEPTION 'Le dernier administrateur ne peut pas être retiré.' USING ERRCODE = '42501';
-    END IF;
+  IF auth.uid() IS NOT NULL AND OLD.role = 'admin'
+     AND (NEW.role <> 'admin' OR (NEW.suspendu_le IS NOT NULL AND OLD.suspendu_le IS NULL)) THEN
+    RAISE EXCEPTION 'Un administrateur ne peut pas être rétrogradé ou suspendu depuis l''application.' USING ERRCODE = '42501';
   END IF;
 
   RETURN NEW;
