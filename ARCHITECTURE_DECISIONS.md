@@ -5618,6 +5618,122 @@ faire depuis le tableau de bord, `storage.protect_delete` interdisant le
 
 ---
 
+## ADR-075 — Une séance ne passe plus par une note : le sujet libre est résolu avant de composer ✅
+
+**Date.** 16/08/2026. **Tranchée par Maxime.** Amende
+[ADR-070](#adr-070) (le projet reste une note ; la séance ne l'est plus) et
+prolonge [ADR-053](#adr-053).
+
+**Contexte.** Depuis le tableau de bord, « Choisir un travail » créait une
+**note opérationnelle** de type `seance`, puis renvoyait sur
+`/atelier?note=<id>` où la composition s'ouvrait par-dessus une fiche
+Intention / Déroulé / Bilan. Trois défauts constatés à l'usage :
+
+1. la fiche déclarait `domaine: "transversal"` et aucun thème. `ConcepteurSeance`
+   n'avait donc rien à quoi se raccrocher et retombait sur `themesSuggeres[0]`,
+   c'est-à-dire la prochaine action du moteur. Taper « Philosophie » proposait
+   une séance sur « identifier composants et boucles de rétroaction d'un système
+   industriel » : **le sujet écrit n'entrait nulle part dans la composition** ;
+2. fermer la composition ramenait sur cette fiche, écran que personne n'avait
+   demandé et qui ne portait aucune décision ;
+3. un document était écrit **avant** qu'une séance existe — un objet de plus à
+   ranger dans l'Atelier pour chaque intention, même abandonnée.
+
+**Décision.**
+
+* **Une séance ne crée plus de note.** Le tableau de bord va droit au
+  compositeur, par la destination qui existait déjà :
+  `/seances?composer=1&…` ([ADR-073](#adr-073)). L'unique écriture est la
+  `LearningSession`, au clic « Démarrer ». Le projet, lui, garde sa fiche.
+* **Une priorité recommandée porte son code** : elle passe par
+  `urlComposition([code], "")`, sans résolution — il n'y a rien à deviner.
+* **Un sujet libre est résolu avant de composer.** « Autre sujet » enchaîne sur
+  `ModaleTheme` (`POST /api/themes/resoudre`) : le tuteur désigne des
+  compétences **existantes**, la personne relit et décoche, le thème est
+  enregistré, et la composition s'ouvre sur cette portée via
+  `urlCompositionTheme(themeId, intention)`.
+* **L'URL transporte l'identifiant du thème, pas ses codes.** Un thème est une
+  portée (`{type: "theme"}`), pas une liste imposée : recopier ses codes en
+  ferait des `codesImposes` et priverait le moteur du choix qu'il doit faire à
+  l'intérieur du thème — et `BesoinDeclare.themeId` serait perdu.
+
+**Ce qui n'a pas été supprimé.** Le type documentaire `seance` reste déclaré
+dans `FORMATS_PAR_ROLE`, et `WorkspaceNoteOperationnelle` sait toujours l'ouvrir :
+les fiches déjà écrites doivent continuer à s'afficher. Ce qui disparaît est
+la **création** de ces fiches, et le fait qu'on y atterrisse. La constante
+`FORMATS_OPERATIONNELS_DISPONIBLES` n'avait plus de sens — séance et projet ne
+sont plus deux formats du même document — et a été retirée.
+
+**Conséquence assumée.** Une séance composée depuis le tableau de bord n'a plus
+de section Intention ni Bilan rédigées à la main. L'intention déclarée survit
+dans `BesoinDeclare.intention` (champ facultatif du compositeur), et le déroulé
+n'a jamais eu besoin d'être recopié : les activités sont dans la séance.
+
+**Ce qui reste ouvert.**
+
+1. ❓ **Que faire des fiches `seance` déjà écrites ?** Elles restent lisibles et
+   éditables, sans plus être produites. *Qui tranche :* Maxime. *Ce qui bloque :*
+   savoir si l'une d'elles porte du texte qu'on tient à garder.
+2. 🔬 **La résolution par le tuteur suffit-elle sur un sujet hors référentiel ?**
+   `ModaleTheme` refuse le rapprochement forcé et propose d'ajouter des
+   compétences. *Test de réfutation :* si « Philosophie » sur un référentiel qui
+   ne la couvre pas mène plus souvent à l'abandon qu'à la création d'une branche,
+   c'est que le refus arrive trop tard dans le geste.
+
+---
+
+## ADR-076 — Un projet a son espace de travail : la fiche est une structure, pas un pavé ✅
+
+**Date.** 16/08/2026. **Tranchée par Maxime.** Prolonge
+[ADR-070](#adr-070) (un projet est une note) sans la remettre en cause : le
+projet reste un document, il cesse d'être *affiché* comme un document
+quelconque.
+
+**Contexte.** `ouvrirProjetCompose` écrit trois sections auto-générées —
+Énoncé, Étapes, Critères d'évaluation — dans un format qu'il maîtrise
+entièrement. `WorkspaceNoteOperationnelle` les rendait en **texte brut** :
+`**Compétences visées**`, `[[LOG-01]]` et les puces `- ` s'affichaient
+littéralement. Un projet de six compétences et cinq jalons se lisait comme un
+fichier de configuration, alors qu'un rendu Markdown existait déjà dans le
+projet (`components/ui/markdown.tsx`) et n'était simplement pas appelé.
+
+**Décision.**
+
+* **Un `WorkspaceProjet` dédié**, choisi sur `type === "projet"` à l'entrée de
+  l'Atelier. Il lit la fiche comme une structure (`analyserFicheProjet`) et rend
+  chaque pièce pour ce qu'elle est : brief en prose, compétences en pastilles
+  menant à leur fiche, jalons en étapes cochables, critères en cartes. Les deux
+  sections à remplir restent des champs.
+* **On relit le Markdown, on ne duplique pas la structure.** La fiche est la
+  source (P1) : elle s'exporte, se relit hors de l'application et se corrige à
+  la main. Stocker jalons et critères en front-matter donnerait deux vérités dès
+  la première correction manuelle. Le parseur lit exactement ce que
+  `remplirFicheProjet` écrit, et un test tient les deux formats ensemble — si le
+  writer change, le test tombe.
+* **L'avancement est une déclaration, pas une mesure** (P5,
+  [ADR-064](#adr-064)). Cocher un jalon écrit son index dans
+  `projet_jalons_faits`, dans le front-matter de la fiche : aucune table, aucune
+  migration, et l'export reste complet. Aucune preuve, aucun niveau, aucun score
+  n'en découle — l'écran le dit à côté des cases.
+
+**Corrigé au passage.** `classesChamp` appliquait `h-9` à tous les champs, y
+compris les `<textarea>` : `rows` était écrasé, et un brief de six lignes
+s'affichait dans une fente d'une ligne et demie. Les appelants qui l'avaient
+remarqué compensaient un par un avec `className="min-h-32"`. La hauteur d'un
+multiligne revient à `rows`.
+
+**Ce qui reste ouvert.**
+
+1. ❓ **Faut-il une vue liste des projets en cours ?** Le workspace montre un
+   projet ; rien ne montre les projets ouverts et leur avancement. *Qui
+   tranche :* Maxime. *Ce qui bloque :* savoir si plusieurs projets coexistent
+   réellement.
+2. 🔬 **La déclaration d'avancement se suffit-elle ?** *Test de réfutation :* si
+   des cases sont cochées sans que la section « Travail réalisé » avance jamais,
+   c'est que cocher a remplacé écrire, et non accompagné.
+
+---
+
 ## Comment modifier ce registre
 
 1. Une décision ✅ ne se retire pas : elle passe en 🔄 **Remplacée**, avec le

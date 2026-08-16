@@ -140,6 +140,33 @@ function domaineUnique(codes: string[], referentiel: Referentiel): string {
   return [...domaines][0];
 }
 
+export interface CompetenceLisible {
+  code: string;
+  intitule: string;
+  domaine: string;
+  domaineNom: string;
+}
+
+/**
+ * Le référentiel actif, réduit à ce qu'un écran a besoin de montrer.
+ *
+ * Une lecture, pas une commande — mais elle vit ici parce qu'un composant
+ * client ne peut pas appeler `lireReferentiel` directement. Les modales qui
+ * n'ont qu'un `compteId` (le parcours projet, ouvert depuis le `+` comme depuis
+ * le tableau de bord) affichaient jusqu'ici le code brut d'une compétence,
+ * faute de connaître son intitulé : « LOG-14 » ne dit pas ce qu'on va
+ * travailler.
+ */
+export async function lireCompetencesActives(): Promise<CompetenceLisible[]> {
+  const referentiel = await lireReferentiel();
+  return referentiel.actifs.map((skill) => ({
+    code: skill.code,
+    intitule: skill.intitule,
+    domaine: skill.domaine,
+    domaineNom: referentiel.domainesParId.get(skill.domaine)?.nom ?? skill.domaine,
+  }));
+}
+
 export async function basculerActive(code: string, active: boolean): Promise<void> {
   await basculerActives([code], active);
 }

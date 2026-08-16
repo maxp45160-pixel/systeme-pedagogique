@@ -14,11 +14,12 @@
  * n'a confirmées.
  */
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { PropositionContenuActivite, PropositionTheme } from "@/lib/tutor/outils";
 import type { EvaluationCriterion } from "@/lib/domain/adaptive-learning";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import { ouvrirProjetCompose } from "@/lib/store/projets-actions";
+import { lireCompetencesActives, type CompetenceLisible } from "@/lib/store/referentiel-actions";
 import {
   COMPETENCES_MAX,
   DUREE_PROJET_MAX,
@@ -50,7 +51,15 @@ export function ModaleNouveauProjet({ accountId }: { accountId: string }) {
 
 interface CompetenceDesignee {
   code: string;
-  intitule: string;
+  /**
+   * Qui l'a mise là.
+   *
+   * Le tuteur désigne, la personne complète. Les distinguer n'est pas
+   * décoratif : ce qui vient du tuteur est une proposition qu'on relit, ce
+   * qu'on ajoute soi-même est une décision déjà prise — et la justification
+   * affichée au-dessus ne parle que des premières.
+   */
+  origine: "tuteur" | "utilisateur";
 }
 
 /**
@@ -82,11 +91,75 @@ export function ParcoursNouveauProjet({
   const [enCours, setEnCours] = useState(false);
   const [progression, setProgression] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [catalogue, setCatalogue] = useState<CompetenceLisible[] | null>(null);
+  const [recherche, setRecherche] = useState("");
 
+  /*
+   * Le référentiel actif, pour nommer ce que le tuteur désigne et pour offrir
+   * ce qu'il n'a pas désigné. Chargé une fois, à l'ouverture : le ciblage dure
+   * plusieurs secondes, la liste sera là bien avant l'écran qui l'utilise. Un
+   * échec ne bloque rien — on retombe sur le code seul, qui reste exact.
+   */
+  useEffect(() => {
+    let vivant = true;
+    lireCompetencesActives()
+      .then((competences) => {
+        if (vivant) setCatalogue(competences);
+      })
+      .catch(() => {
+        if (vivant) setCatalogue([]);
+      });
+    return () => {
+      vivant = false;
+    };
+  }, []);
+
+  const parCode = useMemo(
+    () => new Map((catalogue ?? []).map((competence) => [competence.code, competence])),
+    [catalogue],
+  );
+
+  /*
+   * Plus de `.slice(0, COMPETENCES_MAX)` ici : une coupe muette faisait mentir
+   * l'écran, qui montrait huit lignes actives pour six codes envoyés. Le
+   * plafond est tenu par les deux gestes qui pourraient le franchir — remettre
+   * et ajouter — tous deux fermés quand la liste est pleine.
+   */
   const codesRetenus = (designees ?? [])
     .map((competence) => competence.code)
-    .filter((code) => !retirees.has(code))
-    .slice(0, COMPETENCES_MAX);
+    .filter((code) => !retirees.has(code));
+
+  const complet = codesRetenus.length >= COMPETENCES_MAX;
+  const dejaCitees = new Set((designees ?? []).map((competence) => competence.code));
+  const terme = recherche.trim().toLowerCase();
+  /*
+   * Les candidates à l'ajout : tout le référentiel actif sauf ce qui est déjà
+   * dans la liste. Filtrées seulement quand on tape — afficher les 77 d'un coup
+   * transformerait le geste « j'en veux une de plus » en inventaire à trier,
+   * exactement ce que le compositeur de séance a retiré.
+   */
+  const candidates =
+    terme.length === 0
+      ? []
+      : (catalogue ?? [])
+          .filter((competence) => !dejaCitees.has(competence.code))
+          .filter(
+            (competence) =>
+              competence.intitule.toLowerCase().includes(terme) ||
+              competence.code.toLowerCase().includes(terme) ||
+              competence.domaineNom.toLowerCase().includes(terme),
+          )
+          .slice(0, 8);
+
+  function ajouter(code: string) {
+    setDesignees((actuelles) => [...(actuelles ?? []), { code, origine: "utilisateur" }]);
+    setRetirees((actuelles) => {
+      const suivantes = new Set(actuelles);
+      suivantes.delete(code);
+      return suivantes;
+    });
+    setRecherche("");
+  }
 
   /** Étape 1 : la phrase devient des codes existants, jamais des codes neufs. */
   async function cibler() {
@@ -127,9 +200,16 @@ export function ParcoursNouveauProjet({
                 "Aucune compétence de ton référentiel ne correspond à cette description. Crée d'abord la branche correspondante depuis l'Atelier.",
               );
             }
-            setDesignees(theme.codes.map((code) => ({ code, intitule: code })));
+            setDesignees(theme.codes.map((code) => ({ code, origine: "tuteur" as const })));
             setJustification(theme.justification ?? "");
-            setRetirees(new Set());
+            /*
+              Le tuteur désigne ce qu'il trouve — rien ne le borne à
+              `COMPETENCES_MAX`, et il en rend régulièrement plus. Le surplus
+              est mis de côté ici, explicitement : le couper en silence à
+              l'envoi affichait huit compétences actives sous un message
+              disant qu'il y en avait six. Elles restent là, échangeables.
+            */
+            setRetirees(new Set(theme.codes.slice(COMPETENCES_MAX)));
           } else if (type === "erreur") {
             recu = true;
             throw new Error((JSON.parse(donnees) as { message: string }).message);
@@ -280,15 +360,51 @@ export function ParcoursNouveauProjet({
           {justification && (
             <BandeauInfo taille="compacte">« {justification} »</BandeauInfo>
           )}
+          {designees.length > COMPETENCES_MAX && (
+            <BandeauInfo ton="info" taille="compacte">
+              <p>
+                Le tuteur en a désigné {designees.length}. Un projet en porte{" "}
+                {COMPETENCES_MAX} au plus : les {designees.length - COMPETENCES_MAX} dernières
+                sont mises de côté ci-dessous. Échange-les si ce ne sont pas les bonnes.
+              </p>
+            </BandeauInfo>
+          )}
           <ul className="space-y-2" data-testid="competences-designees">
             {designees.map((competence) => {
               const retiree = retirees.has(competence.code);
+              const connue = parCode.get(competence.code);
               return (
-                <li key={competence.code} className="flex items-center justify-between gap-3 rounded-md border border-bordure px-3 py-2">
-                  <Etiquette ton={retiree ? undefined : "primaire"}>{competence.code}</Etiquette>
+                <li key={competence.code} className="flex items-start justify-between gap-3 rounded-md border border-bordure px-3 py-2">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Etiquette ton={retiree ? undefined : "primaire"}>{competence.code}</Etiquette>
+                      {competence.origine === "utilisateur" && (
+                        <span className="text-[0.6875rem] uppercase tracking-wide text-texte-discret">
+                          ajoutée par toi
+                        </span>
+                      )}
+                    </div>
+                    {/*
+                      L'intitulé, s'il est connu. Pas de repli inventé : une
+                      compétence dont le référentiel n'a rien à dire n'affiche
+                      que son code, qui reste exact.
+                    */}
+                    {connue && (
+                      <p className={retiree ? "mt-1 text-sm text-texte-discret line-through" : "mt-1 text-sm"}>
+                        {connue.intitule}
+                      </p>
+                    )}
+                    {connue && (
+                      <p className="mt-0.5 text-[0.6875rem] text-texte-discret">{connue.domaineNom}</p>
+                    )}
+                  </div>
                   <Bouton
                     type="button"
                     variante="discret"
+                    // Remettre une compétence quand six sont déjà retenues
+                    // dépasserait le plafond que le serveur refuse.
+                    disabled={retiree && complet}
+                    title={retiree && complet ? `Maximum atteint : ${COMPETENCES_MAX} compétences.` : undefined}
                     onClick={() => setRetirees((actuelles) => {
                       const suivantes = new Set(actuelles);
                       if (retiree) suivantes.delete(competence.code);
@@ -302,10 +418,65 @@ export function ParcoursNouveauProjet({
               );
             })}
           </ul>
+
+          {/*
+            Ajouter ce que le tuteur n'a pas vu.
+
+            Il ne désigne que ce que la description laissait entendre ; une
+            compétence qu'on veut mobiliser sans l'avoir écrite n'a aucune
+            raison d'être hors d'atteinte. On ne peut choisir que dans le
+            référentiel actif — le geste ajoute une compétence au projet, il
+            n'en crée aucune (le serveur refuse d'ailleurs tout code hors
+            référentiel).
+          */}
+          <div className="space-y-2 border-t border-bordure pt-3">
+            <Champ
+              label="Ajouter une compétence"
+              value={recherche}
+              onChange={(event) => setRecherche(event.target.value)}
+              disabled={complet || catalogue === null}
+              placeholder="Cherche par intitulé, code ou domaine"
+              aide={
+                catalogue === null
+                  ? "Lecture de ton référentiel…"
+                  : complet
+                    ? `Maximum atteint : ${COMPETENCES_MAX} compétences par projet. Retires-en une pour en ajouter une autre.`
+                    : "Seules les compétences déjà au référentiel peuvent être mobilisées."
+              }
+            />
+            {candidates.length > 0 && (
+              <ul className="space-y-1" data-testid="competences-candidates">
+                {candidates.map((competence) => (
+                  <li key={competence.code}>
+                    <button
+                      type="button"
+                      onClick={() => ajouter(competence.code)}
+                      className="flex w-full items-baseline gap-2 rounded-md border border-bordure px-3 py-2 text-left text-sm transition-colors hover:border-primaire/40 hover:bg-primaire-faible/35"
+                    >
+                      <span className="font-mono text-[0.6875rem] text-texte-discret">
+                        {competence.code}
+                      </span>
+                      <span className="min-w-0 flex-1">{competence.intitule}</span>
+                      <span className="text-[0.6875rem] text-texte-discret">
+                        {competence.domaineNom}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {terme.length > 0 && candidates.length === 0 && catalogue !== null && !complet && (
+              <p className="text-xs text-texte-attenue">
+                Aucune compétence active ne correspond. Si le sujet n&apos;est couvert par
+                aucune, il faut d&apos;abord étendre le référentiel depuis l&apos;Atelier.
+              </p>
+            )}
+          </div>
+
           <p className="text-xs text-texte-attenue">
-            {codesRetenus.length} compétence(s) retenue(s). Chacune recevra son critère
-            d&apos;évaluation ; une compétence qu&apos;aucun critère démontré ne porte ne recevra
-            aucune preuve.
+            {codesRetenus.length} compétence(s) retenue(s) sur {COMPETENCES_MAX} au plus. Chacune
+            recevra son critère d&apos;évaluation ; une compétence qu&apos;aucun critère démontré
+            ne porte ne recevra aucune preuve.
           </p>
         </div>
       </Modale>

@@ -1,23 +1,54 @@
 "use client";
 
-import { useState, useTransition } from "react";
+/**
+ * Choisir un travail depuis le tableau de bord.
+ *
+ * ## Ce qui a été retiré, et pourquoi
+ *
+ * Une séance passait par une **note opérationnelle** : le clic créait une fiche
+ * « Séance d'exercices », l'écran partait sur `/atelier?note=…`, et la
+ * composition s'ouvrait par-dessus. Trois conséquences, toutes mauvaises :
+ *
+ *  - la fiche déclarait `domaine: "transversal"` et aucun thème, donc
+ *    `ConcepteurSeance` retombait sur `themesSuggeres[0]` — la prochaine action
+ *    du moteur. Taper « Philosophie » donnait une séance sur tout autre chose :
+ *    le sujet écrit n'entrait nulle part dans la composition ;
+ *  - fermer la composition renvoyait sur cette fiche — un formulaire
+ *    Intention / Déroulé / Bilan que personne n'avait demandé ;
+ *  - un document était écrit avant même qu'une séance existe.
+ *
+ * Le sujet libre passe maintenant par `ModaleTheme` : le tuteur désigne des
+ * compétences **existantes** (`/api/themes/resoudre`, jamais de code inventé —
+ * ADR-053), on relit, et le thème enregistré devient la portée de la séance.
+ * Une priorité recommandée, elle, connaît déjà son code : elle va droit au
+ * compositeur.
+ *
+ * Rien n'est écrit avant la validation finale : ni note, ni séance. Le seul
+ * objet créé par le chemin « autre sujet » est le thème, et il l'est après
+ * relecture explicite.
+ */
+
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ParcoursNouveauProjet } from "@/components/projets/modale-nouveau-projet";
+import { ModaleTheme } from "@/components/seances/modale-theme";
 import { IconeFleche } from "@/components/ui/icones";
 import { Modale } from "@/components/ui/modale";
 import { Bouton, Carte, cx } from "@/components/ui/primitives";
-import { creerNoteAction } from "@/lib/store/document-actions";
-import {
-  FORMATS_OPERATIONNELS_A_VENIR,
-  FORMATS_OPERATIONNELS_DISPONIBLES,
-} from "@/lib/documents/roles-note";
+import { urlComposition, urlCompositionTheme } from "@/lib/domain/intention";
+import { FORMATS_OPERATIONNELS_A_VENIR } from "@/lib/documents/roles-note";
 
-type FormatTravail = (typeof FORMATS_OPERATIONNELS_DISPONIBLES)[number];
+/**
+ * Séance et projet ne sont plus deux formats du même document : la séance
+ * compose, le projet garde sa fiche. La liste vit donc ici et non dans
+ * `roles-note.ts`, qui ne décrit que les notes.
+ */
+const FORMATS_TRAVAIL = [
+  { valeur: "seance", libelle: "Séance de travail" },
+  { valeur: "projet", libelle: "Projet" },
+] as const;
 
-const LIBELLE_FORMAT: Record<FormatTravail, string> = {
-  seance: "Séance de travail",
-  projet: "Projet",
-};
+type FormatTravail = (typeof FORMATS_TRAVAIL)[number]["valeur"];
 
 export interface RecommandationTravail {
   code: string;
@@ -30,9 +61,14 @@ export interface RecommandationTravail {
 /** Entrée dédiée au travail : les notes support restent dans `CaptureNotes`. */
 export function ChoixTravail({
   recommandations,
+  competences,
+  domaines,
   compteId,
 }: {
   recommandations: RecommandationTravail[];
+  /** Le référentiel actif, pour afficher lisiblement ce que le tuteur désigne. */
+  competences: { code: string; intitule: string; domaine: string }[];
+  domaines: { id: string; nom: string; prefixe: string }[];
   compteId: string;
 }) {
   const router = useRouter();
@@ -42,32 +78,38 @@ export function ChoixTravail({
   const [format, setFormat] = useState<FormatTravail>("seance");
   const [projetOuvert, setProjetOuvert] = useState(false);
   const [intentionProjet, setIntentionProjet] = useState("");
-  const [erreur, setErreur] = useState<string | null>(null);
-  const [enCours, demarrer] = useTransition();
+  const [resolutionOuverte, setResolutionOuverte] = useState(false);
+
+  const competencesParCode = useMemo(
+    () =>
+      new Map(
+        competences.map((competence) => [
+          competence.code,
+          { intitule: competence.intitule, domaine: competence.domaine },
+        ]),
+      ),
+    [competences],
+  );
 
   const recommandationSelectionnee = cible
     ? recommandations.find((recommandation) => recommandation.code === cible)
     : undefined;
   const sujetLibre = autreSujet.trim();
   const libelleCible = recommandationSelectionnee?.intitule ?? (cible === "autre" ? sujetLibre : "");
-  const domaineCible = recommandationSelectionnee?.domaineId ?? "transversal";
 
   function ouvrir(cibleInitiale: string) {
     setOuverte(true);
     setCible(cibleInitiale);
     setAutreSujet("");
     setFormat("seance");
-    setErreur(null);
   }
 
   function commencer() {
     if (!libelleCible) return;
-    setErreur(null);
 
     /*
       Le projet passe par son propre parcours : le tuteur désigne les
-      compétences, la personne confirme, puis il rédige le sujet. La séance
-      n'a besoin de rien de tout cela — elle se compose à l'ouverture.
+      compétences, la personne confirme, puis il rédige le sujet.
     */
     if (format === "projet") {
       setIntentionProjet(libelleCible);
@@ -76,23 +118,19 @@ export function ChoixTravail({
       return;
     }
 
-    demarrer(async () => {
-      try {
-        // Le libellé sert de repère technique au document produit par le
-        // parcours ; l'utilisateur ne choisit plus un titre ni un contexte.
-        const fiche = await creerNoteAction(
-          "operationnel",
-          "seance",
-          `Séance de travail — ${libelleCible}`,
-          { contexte: libelleCible, domaine: domaineCible },
-        );
-        setOuverte(false);
-        router.push(`/atelier?note=${encodeURIComponent(fiche.id)}`);
-        router.refresh();
-      } catch (cause) {
-        setErreur(cause instanceof Error ? cause.message : "Le travail n'a pas pu démarrer.");
-      }
-    });
+    /*
+      Une priorité recommandée porte déjà son code : la portée est connue, il
+      n'y a rien à résoudre. Un sujet libre, lui, n'est pour l'instant qu'une
+      phrase — il faut le traduire en compétences existantes avant de composer,
+      sinon le compositeur retomberait sur la recommandation générale et
+      ignorerait ce qui vient d'être écrit.
+    */
+    if (recommandationSelectionnee) {
+      router.push(urlComposition([recommandationSelectionnee.code], ""));
+      return;
+    }
+
+    setResolutionOuverte(true);
   }
 
   return (
@@ -151,7 +189,26 @@ export function ChoixTravail({
         />
       )}
 
-      {ouverte && !projetOuvert && (
+      {/*
+        La résolution remplace la modale de choix plutôt que de s'empiler
+        par-dessus : c'est la même décision qui continue, pas une seconde.
+      */}
+      {resolutionOuverte && (
+        <ModaleTheme
+          compteId={compteId}
+          competencesParCode={competencesParCode}
+          domainesExistants={domaines}
+          intentionInitiale={sujetLibre}
+          onFermer={() => setResolutionOuverte(false)}
+          onCree={(theme) => {
+            setResolutionOuverte(false);
+            setOuverte(false);
+            router.push(urlCompositionTheme(theme.id, sujetLibre));
+          }}
+        />
+      )}
+
+      {ouverte && !projetOuvert && !resolutionOuverte && (
         <Modale
           titre="Nouveau travail"
           sousTitre="Décris le sujet : il devient directement le travail à ouvrir."
@@ -160,14 +217,10 @@ export function ChoixTravail({
           pied={
             <>
               <Bouton variante="secondaire" onClick={() => setOuverte(false)}>Annuler</Bouton>
-              <Bouton
-                variante="principal"
-                onClick={commencer}
-                disabled={!libelleCible}
-                enChargement={enCours}
-                className={cx(enCours && "pointer-events-none")}
-              >
-                Commencer
+              <Bouton variante="principal" onClick={commencer} disabled={!libelleCible}>
+                {cible === "autre" && format === "seance"
+                  ? "Chercher dans mes compétences"
+                  : "Commencer"}
               </Bouton>
             </>
           }
@@ -191,11 +244,17 @@ export function ChoixTravail({
               <p className="mt-1 rounded-lg border border-primaire/35 bg-primaire-faible/35 px-3 py-2.5 text-sm font-medium">
                 {cible === "autre" ? sujetLibre || "Décris ton sujet ci-dessus" : libelleCible}
               </p>
+              {cible === "autre" && format === "seance" && (
+                <p className="mt-1.5 text-xs text-texte-discret">
+                  Le tuteur cherchera les compétences existantes qui couvrent ce sujet. Tu
+                  relis avant que quoi que ce soit ne parte.
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-texte-discret">Type de travail</p>
               <div className="grid gap-2 sm:grid-cols-2">
-                {FORMATS_OPERATIONNELS_DISPONIBLES.map((valeur) => (
+                {FORMATS_TRAVAIL.map(({ valeur, libelle }) => (
                   <button
                     key={valeur}
                     type="button"
@@ -208,7 +267,7 @@ export function ChoixTravail({
                         : "border-bordure bg-surface-2 hover:border-primaire/35",
                     )}
                   >
-                    {LIBELLE_FORMAT[valeur]}
+                    {libelle}
                   </button>
                 ))}
               </div>
@@ -222,7 +281,6 @@ export function ChoixTravail({
                 ))}
               </div>
             </div>
-            {erreur && <p className="rounded-lg bg-danger-faible px-3 py-2 text-xs text-danger">{erreur}</p>}
           </div>
         </Modale>
       )}

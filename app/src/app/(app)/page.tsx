@@ -265,7 +265,20 @@ async function ContenuTableauDeBord({ instant }: { instant: ContexteInstant }) {
         rien, un travail produit des preuves.
       */}
       <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
-        <ChoixTravail recommandations={recommandationsTravail} compteId={ctx.donnees.user.id} />
+        <ChoixTravail
+          recommandations={recommandationsTravail}
+          competences={ctx.referentiel.actifs.map((skill) => ({
+            code: skill.code,
+            intitule: skill.intitule,
+            domaine: skill.domaine,
+          }))}
+          domaines={ctx.referentiel.domaines.map((domaine) => ({
+            id: domaine.id,
+            nom: domaine.nom,
+            prefixe: domaine.prefixe,
+          }))}
+          compteId={ctx.donnees.user.id}
+        />
         <CaptureNotes recommandations={recommandationsDocumentaires} />
       </div>
 

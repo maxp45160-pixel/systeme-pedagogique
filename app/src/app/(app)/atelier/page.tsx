@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { EntetePage } from "@/components/layout/entete-page";
 import { WorkspaceNoteOperationnelle } from "@/components/atelier/workspace-note-operationnelle";
 import { WorkspaceNoteSupport } from "@/components/atelier/workspace-note-support";
+import { WorkspaceProjet } from "@/components/atelier/workspace-projet";
 import { EspaceDocumentaire, type ElementAtelier } from "@/components/atelier/espace-documentaire";
 import { definitionTypeDocument } from "@/lib/documents/types-documents";
 import { lireApercusDocuments, lireApercusSnapshots, lireDocument } from "@/lib/store/documents";
@@ -46,6 +47,20 @@ export default async function PageAtelier(props: {
           contenuInitial={fiche.contenuMd}
           updatedAtInitial={fiche.updatedAt}
           piecesInitiales={await lirePiecesJointes(fiche.id).catch(() => [])}
+        />
+      );
+    }
+    /*
+     * Un projet a son propre espace de travail : ses trois sections
+     * auto-écrites sont une structure (sujet, jalons, critères), pas du texte
+     * à afficher tel quel (ADR-076).
+     */
+    if (analyse.type === "projet") {
+      return (
+        <WorkspaceProjet
+          id={fiche.id}
+          contenuInitial={fiche.contenuMd}
+          updatedAtInitial={fiche.updatedAt}
         />
       );
     }
