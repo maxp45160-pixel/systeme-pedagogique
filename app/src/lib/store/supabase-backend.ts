@@ -25,6 +25,7 @@ import type {
   SkillEvidence,
   User,
 } from "@/lib/domain/types";
+import type { Theme } from "@/lib/domain/theme";
 import type { Collections } from "./db";
 
 /** Collections tabulaires — `user` est traité à part (table `profiles`). */
@@ -124,17 +125,18 @@ export function profilVersUser(
 /* Chargement groupé (RPC `charger_tout`)                              */
 /* ------------------------------------------------------------------ */
 
-/** Ce que `charger_tout` doit rapporter : profil, données, référentiel. */
+/** Ce que `charger_tout` doit rapporter : profil, données, référentiel, thèmes. */
 export interface ResultatRPC {
   collections: Collections;
   domaines: Domaine[];
   competences: Skill[];
+  themes: Theme[];
 }
 
 /**
  * Clés attendues dans la charge utile de `charger_tout`, hors `profile`.
  *
- * Toute table ajoutée aux `Collections` s'ajoute ici **et** dans la fonction
+ * Toute table ajoutée aux `Collections` ou référentiel s'ajoute ici **et** dans la fonction
  * SQL (`supabase/schema.sql` § 8bis).
  */
 export const CLES_RPC = [
@@ -145,6 +147,7 @@ export const CLES_RPC = [
   "refus_recommandations",
   "domaines",
   "competences",
+  "themes",
 ] as const;
 
 /**
@@ -199,6 +202,7 @@ export function convertirResultatRPC(
     },
     domaines: convertirListe<Domaine>("domaines"),
     competences: convertirListe<Skill>("competences"),
+    themes: convertirListe<Theme>("themes"),
   };
 }
 

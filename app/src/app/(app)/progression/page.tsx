@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { chargerContexte } from "@/lib/store/context";
-import { chargerThemes } from "@/lib/store/themes";
 import { compteCourant } from "@/lib/supabase/server";
 import { resoudreIdentite } from "@/lib/domain/identite";
 import { SqueletteContenu } from "@/components/layout/squelette";
@@ -49,11 +48,11 @@ export default async function PageProgression() {
 }
 
 async function ContenuProgression() {
-  const [ctx, themes, compte] = await Promise.all([
+  const [ctx, compte] = await Promise.all([
     chargerContexte(),
-    chargerThemes(),
     compteCourant(),
   ]);
+  const themes = ctx.themes;
   const identite = resoudreIdentite(compte, ctx.donnees.user);
 
   // `dureesEstimees`, et non `donnees.exercises` : le plafond du temps retenu

@@ -10,7 +10,6 @@ import { reconstruireIndexDepuisApercus } from "@/lib/documents/index";
 import { analyserDocumentMarkdown } from "@/lib/documents/markdown";
 import { regrouperTentativesParExercice } from "@/lib/documents/workspace";
 import { chargerContexte } from "@/lib/store/context";
-import { chargerThemes } from "@/lib/store/themes";
 import { construireGraphe } from "@/lib/domain/graphe";
 import { construireVuesAtelier } from "@/lib/documents/vue-atelier";
 import { lireChangementsReferentiel } from "@/lib/store/referentiel";
@@ -63,15 +62,15 @@ export default async function PageAtelier(props: {
     );
   }
 
-  const [aperçus, snapshots, contexte, themes, contenuInitial, changementsReferentiel, donneesSeance] = await Promise.all([
+  const [aperçus, snapshots, contexte, contenuInitial, changementsReferentiel, donneesSeance] = await Promise.all([
     lireApercusDocuments(),
     lireApercusSnapshots(),
     chargerContexte(),
-    chargerThemes(),
     documentDemande ? lireDocument(documentDemande).catch(() => null) : Promise.resolve(null),
     lireChangementsReferentiel(),
     chargerDonneesSeance(),
   ]);
+  const themes = contexte.themes;
   const referentiel = contexte.referentiel;
   const exercices = contexte.donnees.exercises;
   const domainesVisibles = new Set(

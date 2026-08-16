@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 describe("réinitialisation et purge de compte", () => {
   it("normalise la phrase de validation indépendamment de la casse et des accents", () => {

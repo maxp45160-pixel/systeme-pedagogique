@@ -15,6 +15,8 @@ import { ligneVersEntite, verifier } from "./supabase-backend";
 import { mesurer } from "@/lib/profiling/server";
 import type { Theme } from "@/lib/domain/theme";
 
+import { chargerContexte } from "./context";
+
 export async function lireThemes(dorsaleFournie?: DorsaleCompte): Promise<Theme[]> {
   const { supabase, userId } = dorsaleFournie ?? (await dorsaleCompte());
 
@@ -27,10 +29,11 @@ export async function lireThemes(dorsaleFournie?: DorsaleCompte): Promise<Theme[
 }
 
 /**
- * Lecture mémoïsée par requête — même règle que `chargerReferentiel` : à
- * appeler en lecture, jamais depuis une Server Function d'écriture qui a déjà
- * sa dorsale en main.
+ * Lecture mémoïsée par requête — connectée au contexte complet.
+ *
+ * S'appuie sur `chargerContexte()` pour bénéficier de la RPC groupée
+ * `charger_tout` et de la déduplication de requête.
  */
 export const chargerThemes = cache(
-  async (): Promise<Theme[]> => lireThemes(await dorsaleCompte()),
+  async (): Promise<Theme[]> => (await chargerContexte()).themes,
 );

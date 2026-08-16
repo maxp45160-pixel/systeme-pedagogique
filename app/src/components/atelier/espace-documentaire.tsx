@@ -683,31 +683,6 @@ export function EspaceDocumentaire({
 
   return (
     <section className="relative -mx-2 flex flex-col overflow-hidden rounded-xl border border-bordure bg-surface shadow-[var(--ombre-levee)] lg:-mx-6 2xl:-mx-8 lg:h-[calc(100vh-12.5rem)] lg:min-h-[34rem]">
-      {selectionnee && (
-        <div className="flex items-center justify-end border-b border-bordure bg-surface px-3 py-1.5 2xl:hidden">
-          <button
-            type="button"
-            onClick={() => setContexteOuvert(true)}
-            className="rounded-lg border border-bordure-controle bg-surface-2 px-3 py-1.5 text-xs font-medium text-texte hover:bg-surface-3 transition-colors cursor-pointer"
-            aria-expanded={contexteOuvert}
-          >
-            Ouvrir le volet de contexte
-          </button>
-        </div>
-      )}
-      {selectionnee && !panneauDroitVisible && (
-        <div className="hidden 2xl:flex items-center justify-end border-b border-bordure bg-surface px-4 py-1.5">
-          <button
-            type="button"
-            onClick={() => setPanneauDroitVisible(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-bordure bg-surface-2 px-2.5 py-1 text-xs font-medium text-texte-attenue hover:text-texte hover:bg-surface-3 transition-colors cursor-pointer"
-            title="Afficher le volet de contexte"
-          >
-            <span>Afficher le contexte</span>
-            <span aria-hidden>→</span>
-          </button>
-        </div>
-      )}
       {contexteOuvert && (
         <button
           type="button"
@@ -748,10 +723,36 @@ export function EspaceDocumentaire({
             className="w-full rounded-lg border border-bordure-controle bg-surface px-3 py-1.5 text-xs outline-none transition-colors placeholder:text-texte-discret focus:border-primaire"
           />
         </div>
-        {recherche.trim() && (
+        {recherche.trim() ? (
           <span className="shrink-0 text-xs text-texte-discret">
             {elementsVisibles.length} résultat{elementsVisibles.length > 1 ? "s" : ""}
           </span>
+        ) : null}
+
+        {selectionnee && (
+          <>
+            <button
+              type="button"
+              onClick={() => setContexteOuvert(true)}
+              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-bordure-controle bg-surface px-2.5 py-1.5 text-xs font-medium text-texte-attenue transition-colors hover:bg-surface-3 hover:text-texte cursor-pointer 2xl:hidden"
+              aria-expanded={contexteOuvert}
+              title="Ouvrir le volet de contexte"
+            >
+              <span>Contexte</span>
+              <span aria-hidden>→</span>
+            </button>
+            {!panneauDroitVisible && (
+              <button
+                type="button"
+                onClick={() => setPanneauDroitVisible(true)}
+                className="hidden shrink-0 items-center gap-1.5 rounded-lg border border-bordure-controle bg-surface px-2.5 py-1.5 text-xs font-medium text-texte-attenue transition-colors hover:bg-surface-3 hover:text-texte cursor-pointer 2xl:inline-flex"
+                title="Afficher le volet de contexte"
+              >
+                <span>Afficher le contexte</span>
+                <span aria-hidden>→</span>
+              </button>
+            )}
+          </>
         )}
       </div>
 

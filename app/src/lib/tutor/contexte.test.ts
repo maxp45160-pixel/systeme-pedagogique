@@ -98,6 +98,7 @@ function construireCtxDeTest(
     preuvesEffectives: [],
     now,
     refus: { codes: new Set(), exercices: new Set() },
+    themes: [],
     adaptiveLegacy: adaptLegacyActivities("test", exercises, attempts),
   };
 }

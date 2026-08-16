@@ -588,6 +588,11 @@ CREATE POLICY "snapshots_creation_compte"
   ON public.document_snapshots FOR INSERT
   TO authenticated
   WITH CHECK ((select auth.uid()) = user_id);
+DROP POLICY IF EXISTS "snapshots_suppression_compte" ON public.document_snapshots;
+CREATE POLICY "snapshots_suppression_compte"
+  ON public.document_snapshots FOR DELETE
+  TO authenticated
+  USING ((select auth.uid()) = user_id);
 
 ALTER TABLE public.document_attachments ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "pieces_jointes_lecture_compte" ON public.document_attachments;
@@ -1015,7 +1020,7 @@ CREATE INDEX IF NOT EXISTS document_attachments_user_document_idx
 -- Data API. `service_role` reste disponible uniquement côté serveur.
 REVOKE ALL ON TABLE public.documents, public.document_links, public.document_snapshots, public.document_attachments FROM anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.documents, public.document_links TO authenticated;
-GRANT SELECT, INSERT ON TABLE public.document_snapshots TO authenticated;
+GRANT SELECT, INSERT, DELETE ON TABLE public.document_snapshots TO authenticated;
 GRANT SELECT, INSERT, DELETE ON TABLE public.document_attachments TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.documents, public.document_links TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.document_snapshots TO service_role;
@@ -1067,7 +1072,8 @@ BEGIN
     'refus_recommandations',
                    COALESCE((SELECT json_agg(row_to_json(r)) FROM refus_recommandations r WHERE r.user_id = uid), '[]'::json),
     'domaines',    COALESCE((SELECT json_agg(row_to_json(d)) FROM domaines d WHERE d.user_id = uid), '[]'::json),
-    'competences', COALESCE((SELECT json_agg(row_to_json(c)) FROM competences c WHERE c.user_id = uid), '[]'::json)
+    'competences', COALESCE((SELECT json_agg(row_to_json(c)) FROM competences c WHERE c.user_id = uid), '[]'::json),
+    'themes',      COALESCE((SELECT json_agg(row_to_json(t)) FROM themes t WHERE t.user_id = uid), '[]'::json)
   ) INTO resultat;
 
   RETURN resultat;

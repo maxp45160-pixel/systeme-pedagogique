@@ -28,6 +28,8 @@ import { evaluerMaitrises, type Maitrise } from "@/lib/engine/maitrise";
 import { mesurer, mesurerSync } from "@/lib/profiling/server";
 import { assemblerReferentiel } from "@/lib/domain/referentiel-compte";
 import type { Referentiel, SkillState } from "@/lib/domain/types";
+import type { Theme } from "@/lib/domain/theme";
+import { lireThemes } from "./themes";
 import { adaptLegacyActivities } from "@/lib/domain/legacy-activity-adapter";
 
 export interface Contexte {
@@ -97,6 +99,8 @@ export interface Contexte {
    * ensemble. Une seule implémentation de la règle, deux lecteurs.
    */
   refus: { codes: Set<string>; exercices: Set<string> };
+  /** Thèmes enregistrés du compte (chantier « thèmes », ADR-053). */
+  themes: Theme[];
   /** Adaptation en lecture seule : aucune copie ni double écriture du legacy. */
   adaptiveLegacy: ReturnType<typeof adaptLegacyActivities>;
 }
@@ -107,28 +111,32 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
 
   // ── Chemin rapide : une seule RPC pour tout ──
   //
-  // `chargerToutRPC` ramène les 7 tables en un seul aller-retour réseau.
+  // `chargerToutRPC` ramène les 8 tables en un seul aller-retour réseau.
   // Si la fonction SQL n'existe pas encore, elle renvoie `null` et le
   // chemin lent prend le relais — aucune casse.
   const rpc = await chargerToutRPC();
 
   let donneesBrutes: Collections;
   let referentiel: Referentiel;
+  let themes: Theme[];
 
   if (rpc) {
     donneesBrutes = rpc.collections;
     referentiel = assemblerReferentiel(rpc.domaines, rpc.competences);
+    themes = rpc.themes;
   } else {
     // ── Chemin lent : requêtes parallèles séparées ──
     // `chargerReferentiel` et non `lireReferentiel` : mémoïsé par requête, il ne
     // relit pas domaines et compétences si un autre appelant les a déjà demandés
     // dans le même rendu (voir `store/referentiel.ts`).
-    const [d, r] = await Promise.all([
+    const [d, r, t] = await Promise.all([
       mesurer("lireTout", () => lireTout()),
       mesurer("lireReferentiel", () => chargerReferentiel()),
+      mesurer("lireThemes", () => lireThemes()),
     ]);
     donneesBrutes = d;
     referentiel = r;
+    themes = t;
   }
 
   const preuvesEffectives = donneesBrutes.evidence;
@@ -269,6 +277,7 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
     preuvesEffectives,
     now,
     refus,
+    themes,
     adaptiveLegacy: adaptLegacyActivities(
       donnees.user.id,
       exercicesActifs,

@@ -280,6 +280,37 @@ describe("charge utile de charger_tout", () => {
     ]);
   });
 
+  it("convertit les thèmes rapportés par la RPC", () => {
+    const resultat = convertirResultatRPC(
+      chargeComplete({
+        themes: [
+          {
+            id: "thm-1",
+            user_id: "compte-1",
+            libelle: "Architecture",
+            codes: ["ARC-01"],
+            origine: "utilisateur",
+            cree_le: "2026-08-16",
+            archive: false,
+          },
+        ],
+      }),
+      defautProfil,
+    );
+
+    expect(resultat).not.toBeNull();
+    expect(resultat!.themes).toEqual([
+      {
+        id: "thm-1",
+        libelle: "Architecture",
+        codes: ["ARC-01"],
+        origine: "utilisateur",
+        creeLe: "2026-08-16",
+        archive: false,
+      },
+    ]);
+  });
+
   it("refuse une charge utile amputée d'une clé plutôt que d'inventer une liste vide", () => {
     for (const cle of CLES_RPC) {
       const ampute = chargeComplete();

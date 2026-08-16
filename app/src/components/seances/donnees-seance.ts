@@ -1,7 +1,6 @@
 import "server-only";
 
 import { chargerContexte } from "@/lib/store/context";
-import { chargerThemes } from "@/lib/store/themes";
 import { calibragesPourModale } from "@/components/exercices/proprietes-generation";
 import type { DonneesSeance } from "./concepteur-seance";
 
@@ -19,7 +18,7 @@ import type { DonneesSeance } from "./concepteur-seance";
  * coûte pas un second chargement — `chargerContexte` est mémorisé par requête.
  */
 export async function chargerDonneesSeance(): Promise<DonneesSeance> {
-  const [ctx, themes] = await Promise.all([chargerContexte(), chargerThemes()]);
+  const ctx = await chargerContexte();
   return {
     etats: ctx.etats,
     actifs: ctx.referentiel.actifs,
@@ -30,7 +29,7 @@ export async function chargerDonneesSeance(): Promise<DonneesSeance> {
     recommandations: ctx.recommandations,
     contexteDocumentaire: Array.from(ctx.contexteDocumentaire.entries()),
     domaines: ctx.referentiel.domaines.map((d) => ({ id: d.id, nom: d.nom, prefixe: d.prefixe })),
-    themes,
+    themes: ctx.themes,
     compteId: ctx.donnees.user.id,
   };
 }
