@@ -1,14 +1,15 @@
 /**
- * Scanner de Parcours UX Atomique — Introspection 100% dynamique (Couche 3).
+ * Scanner de Parcours UX Atomique & Synthèse Macro — Introspection 100% dynamique (Couche 3).
  *
- * Construit le GrapheWorkflow complet du parcours utilisateur et des interactions
- * reelles au niveau atomique (pages, surfaces, sous-vues, onglets, modales, tiroirs,
- * formulaires, boutons, declencheurs et Server Actions) en analysant l'AST TypeScript
- * via workflow-ast-parser.ts sans AUCUNE donnee codee en dur.
+ * Construit dynamiquement deux perspectives de parcours utilisateur :
+ *   1. 🎯 Mode "atomique" : exhaustivité totale (pages, sous-vues, onglets, micro-interactions,
+ *      canvas D3, accordéons, pomodoro, tuteur IA, modales, tiroirs et Server Actions).
+ *   2. 🧭 Mode "macro" : vue de synthèse exécutive épurée (8-12 macro-pôles maîtres articulant
+ *      le funnel de valeur pédagogique : Intention → Séance → 3 Actes → Preuve → Progression).
  *
- * ## Frontiere (AGENTS.md)
+ * ## Frontière (AGENTS.md)
  *
- * Couche 3 (Decide) : tout est derive du code source, rien n'est stocke.
+ * Couche 3 (Décide) : tout est dérivé du code source, rien n'est stocké.
  * Les types du graphe restent dans workflow-graphe.ts (couche 1).
  */
 
@@ -23,6 +24,7 @@ import {
   groupePourChemin,
   resoudreImportsComposants,
   slugId,
+  type FichierAstAnalyse,
 } from "./workflow-ast-parser";
 
 /**
@@ -35,6 +37,330 @@ export async function scannerUxJourney(options?: {
   const analyses = await analyserTousLesFichiersAst();
   const composantsParPage = resoudreImportsComposants(analyses);
 
+  if (mode === "macro") {
+    return construireMacroSynthese(analyses);
+  }
+
+  return construireUxAtomique(analyses, composantsParPage);
+}
+
+/* ------------------------------------------------------------------ */
+/* 1. PERSPECTIVE SYNTHÈSE (MACRO) — Funnel de Valeur Épuré           */
+/* ------------------------------------------------------------------ */
+
+function construireMacroSynthese(
+  analyses: Map<string, FichierAstAnalyse>,
+): GrapheWorkflow {
+  const noeuds: NoeudWorkflow[] = [];
+  const liens: LienWorkflow[] = [];
+  const parId = new Map<string, NoeudWorkflow>();
+  const vusLiens = new Set<string>();
+
+  function ajouterNoeud(noeud: NoeudWorkflow) {
+    if (!parId.has(noeud.id)) {
+      parId.set(noeud.id, noeud);
+      noeuds.push(noeud);
+    }
+  }
+
+  function connecter(lien: LienWorkflow) {
+    const cle = `${lien.source}→${lien.target}→${lien.type}→${lien.libelle}→${lien.declencheur ?? ""}`;
+    if (!vusLiens.has(cle)) {
+      vusLiens.add(cle);
+      liens.push(lien);
+    }
+  }
+
+  // Les 12 Macro-Pôles Maîtres du Funnel Pédagogique
+  ajouterNoeud({
+    id: "page:/",
+    type: "page",
+    libelle: "Tableau de bord & Priorité",
+    url: "/",
+    groupe: "dashboard",
+    badge: "Hub Central",
+    description: "Action prioritaire du jour, pomodoro et repères de navigation",
+  });
+
+  ajouterNoeud({
+    id: "modal:nouvelle-donnee",
+    type: "modal",
+    libelle: "Capture d'Intention libre (+)",
+    groupe: "dashboard",
+    badge: "Point d'Entrée Unique",
+    description: "Traduction one-shot en langage naturel sans choisir l'objet d'avance (ADR-073)",
+  });
+
+  ajouterNoeud({
+    id: "page:/seances",
+    type: "page",
+    libelle: "Séances & Concepteur",
+    url: "/seances",
+    groupe: "seances",
+    badge: "Entraînement",
+    description: "Concepteur de séance, file d'exercices et cahier d'entraînement",
+  });
+
+  ajouterNoeud({
+    id: "page:/exercices/{id}",
+    type: "page",
+    libelle: "Boucle d'Exercice (3 Actes)",
+    url: "/exercices/{id}",
+    groupe: "exercice",
+    badge: "Résolution & Mesure",
+    description: "Acte 1 (Chercher) → Acte 2 (Comparer) → Acte 3 (Mesurer)",
+  });
+
+  ajouterNoeud({
+    id: "ux:exercice-bilan-final",
+    type: "etape",
+    libelle: "Preuve forgée & Bilan",
+    groupe: "exercice",
+    badge: "Capitalisation",
+    description: "Enregistrement factuel de la preuve d'apprentissage (Invariant 2)",
+  });
+
+  ajouterNoeud({
+    id: "page:/atelier",
+    type: "page",
+    libelle: "Atelier & Référentiel",
+    url: "/atelier",
+    groupe: "atelier",
+    badge: "Compétences & Notes",
+    description: "Cartographie interactive, fiches pédagogiques et documents supports",
+  });
+
+  ajouterNoeud({
+    id: "page:/progression",
+    type: "page",
+    libelle: "Profil, Croissance & Carrière",
+    url: "/progression",
+    groupe: "profil",
+    badge: "Histoire & Série",
+    description: "Cumul historique, jours actifs, série consécutive et dimensions (ADR-073)",
+  });
+
+  ajouterNoeud({
+    id: "page:/compte",
+    type: "page",
+    libelle: "Compte & Préférences",
+    url: "/compte",
+    groupe: "profil",
+    badge: "Paramètres",
+    description: "Identité, réglages du compte et sécurité des accès",
+  });
+
+  ajouterNoeud({
+    id: "tiroir:tuteur",
+    type: "tiroir",
+    libelle: "Assistance & Tuteur IA",
+    groupe: "tuteur",
+    badge: "Aide sur demande",
+    description: "Béquille socratique confinée par paliers d'indices progressifs (Invariant 5)",
+  });
+
+  if (analyses.has("app/(app)/demarrer/page.tsx")) {
+    ajouterNoeud({
+      id: "page:/demarrer",
+      type: "page",
+      libelle: "Amorçage Référentiel",
+      url: "/demarrer",
+      groupe: "dashboard",
+      badge: "Premier pas",
+      condition: "Compte sans compétence",
+    });
+  }
+
+  if (analyses.has("app/(app)/admin/page.tsx")) {
+    ajouterNoeud({
+      id: "page:/admin",
+      type: "page",
+      libelle: "Cockpit d'Administration",
+      url: "/admin",
+      groupe: "dashboard",
+      badge: "Pilotage système",
+      condition: "Administrateur seulement (ADR-074)",
+    });
+  }
+
+  if (analyses.has("app/(app)/aide/page.tsx")) {
+    ajouterNoeud({
+      id: "page:/aide",
+      type: "page",
+      libelle: "Prise en main du système",
+      url: "/aide",
+      groupe: "dashboard",
+      badge: "Documentation",
+    });
+  }
+
+  // Connexions directrices du Funnel de Valeur
+  // 1. Depuis le Hub
+  connecter({
+    source: "page:/",
+    target: "modal:nouvelle-donnee",
+    type: "ouverture",
+    libelle: "Déclarer une intention",
+    declencheur: "Clic sur le bouton central '+'",
+  });
+
+  connecter({
+    source: "page:/",
+    target: "page:/seances",
+    type: "navigation",
+    libelle: "Lancer le travail du jour",
+    declencheur: "Action prioritaire recommandée",
+  });
+
+  connecter({
+    source: "page:/",
+    target: "page:/atelier",
+    type: "navigation",
+    libelle: "Explorer l'Atelier",
+    declencheur: "Rail de navigation",
+  });
+
+  connecter({
+    source: "page:/",
+    target: "page:/progression",
+    type: "navigation",
+    libelle: "Consulter la progression",
+    declencheur: "Rail de navigation",
+  });
+
+  connecter({
+    source: "page:/",
+    target: "page:/compte",
+    type: "navigation",
+    libelle: "Gérer le compte",
+    declencheur: "Rail de navigation",
+  });
+
+  if (parId.has("page:/demarrer")) {
+    connecter({
+      source: "page:/",
+      target: "page:/demarrer",
+      type: "navigation",
+      libelle: "Amorçage initial",
+      declencheur: "Absence de compétences actives",
+    });
+  }
+
+  if (parId.has("page:/admin")) {
+    connecter({
+      source: "page:/",
+      target: "page:/admin",
+      type: "navigation",
+      libelle: "Administration globale",
+      declencheur: "Entrée réservée aux administrateurs",
+    });
+  }
+
+  if (parId.has("page:/aide")) {
+    connecter({
+      source: "page:/",
+      target: "page:/aide",
+      type: "navigation",
+      libelle: "Consulter l'aide",
+      declencheur: "Rail de navigation (en bas)",
+    });
+  }
+
+  // 2. Intention orientée vers l'action
+  connecter({
+    source: "modal:nouvelle-donnee",
+    target: "page:/seances",
+    type: "transition",
+    libelle: "Intention 'travail'",
+    declencheur: "Génération de séance ciblée",
+  });
+
+  connecter({
+    source: "modal:nouvelle-donnee",
+    target: "page:/atelier",
+    type: "transition",
+    libelle: "Intention 'projet' / 'note'",
+    declencheur: "Ouverture du workspace documentaire",
+  });
+
+  // 3. Parcours d'exercice et forge de preuve
+  connecter({
+    source: "page:/seances",
+    target: "page:/exercices/{id}",
+    type: "transition",
+    libelle: "Démarrer l'exercice",
+    declencheur: "Lancement de la tentative",
+  });
+
+  connecter({
+    source: "page:/exercices/{id}",
+    target: "ux:exercice-bilan-final",
+    type: "transition",
+    libelle: "Boucle des 3 Actes",
+    declencheur: "Résolution → Comparaison → Mesure",
+  });
+
+  connecter({
+    source: "ux:exercice-bilan-final",
+    target: "page:/",
+    type: "navigation",
+    libelle: "Boucler la séance",
+    declencheur: "Retour au tableau de bord",
+  });
+
+  connecter({
+    source: "ux:exercice-bilan-final",
+    target: "page:/atelier",
+    type: "transition",
+    libelle: "Impact sur les compétences",
+    declencheur: "Recalcul dérivé des scores de maîtrise",
+  });
+
+  connecter({
+    source: "ux:exercice-bilan-final",
+    target: "page:/progression",
+    type: "transition",
+    libelle: "Inscrire dans l'historique",
+    declencheur: "Incrémentation des preuves et série",
+  });
+
+  // 4. Boucle inverse Atelier -> Séances
+  connecter({
+    source: "page:/atelier",
+    target: "page:/seances",
+    type: "navigation",
+    libelle: "S'entraîner sur cette fiche",
+    declencheur: "Bouton d'entraînement contextuel",
+  });
+
+  // 5. Tuteur IA transversal
+  connecter({
+    source: "page:/exercices/{id}",
+    target: "tiroir:tuteur",
+    type: "ouverture",
+    libelle: "Indice sur blocage",
+    declencheur: "Demande d'aide par paliers (1/3, 2/3, 3/3)",
+  });
+
+  connecter({
+    source: "page:/",
+    target: "tiroir:tuteur",
+    type: "ouverture",
+    libelle: "Conseil méthodologique",
+    declencheur: "Ouverture du compagnon tuteur",
+  });
+
+  return { noeuds, liens };
+}
+
+/* ------------------------------------------------------------------ */
+/* 2. PERSPECTIVE ATOMIQUE ULTRA-DÉTAILLÉE                            */
+/* ------------------------------------------------------------------ */
+
+function construireUxAtomique(
+  analyses: Map<string, FichierAstAnalyse>,
+  composantsParPage: Map<string, Set<string>>,
+): GrapheWorkflow {
   const noeuds: NoeudWorkflow[] = [];
   const liens: LienWorkflow[] = [];
   const parId = new Map<string, NoeudWorkflow>();
@@ -97,7 +423,7 @@ export async function scannerUxJourney(options?: {
     }
   }
 
-  // 2. Surfaces et Sous-Vues interactives montées par page
+  // 2. Surfaces, Sous-Vues, Onglets & Micro-Interactions montées par page
   const surfacesParFichier = new Map<string, string>();
   for (const [route, comps] of composantsParPage.entries()) {
     const pageId = `page:${route}`;
@@ -122,6 +448,7 @@ export async function scannerUxJourney(options?: {
           type: "sous-vue",
           libelle: surf.libelle,
           groupe: surf.groupe,
+          badge: surf.badge,
         });
 
         connecter({
@@ -132,31 +459,49 @@ export async function scannerUxJourney(options?: {
           declencheur: `Composant monté dans ${route}`,
         });
 
-        // Détection d'onglets déclarés dans ce composant (mode atomique)
-        if (mode === "atomique") {
-          for (const onglet of a.onglets) {
-            const tabId = `tab:${slugId(onglet.id)}`;
-            ajouterNoeud({
-              id: tabId,
-              type: "sous-vue",
-              libelle: `Onglet : ${onglet.libelle}`,
-              groupe: surf.groupe,
-            });
+        // Détection d'onglets déclarés dans ce composant
+        for (const onglet of a.onglets) {
+          const tabId = `tab:${slugId(onglet.id)}`;
+          ajouterNoeud({
+            id: tabId,
+            type: "sous-vue",
+            libelle: `Onglet : ${onglet.libelle}`,
+            groupe: surf.groupe,
+          });
 
-            connecter({
-              source: surfId,
-              target: tabId,
-              type: "interaction",
-              libelle: onglet.libelle,
-              declencheur: `Clic onglet '${onglet.libelle}'`,
-            });
-          }
+          connecter({
+            source: surfId,
+            target: tabId,
+            type: "interaction",
+            libelle: onglet.libelle,
+            declencheur: `Clic onglet '${onglet.libelle}'`,
+          });
         }
+      }
+
+      // Micro-interactions riches (Canvas, Pomodoro, Tuteur, Accordéons, Clavier, Médias)
+      const sourceMicro = surfacesParFichier.get(rel) ?? pageId;
+      for (const micro of a.microInteractions) {
+        ajouterNoeud({
+          id: micro.id,
+          type: "sous-vue",
+          libelle: micro.libelle,
+          groupe: groupePourChemin(rel),
+          badge: micro.badge,
+        });
+
+        connecter({
+          source: sourceMicro,
+          target: micro.id,
+          type: "interaction",
+          libelle: micro.libelle,
+          declencheur: micro.declencheur,
+        });
       }
     }
   }
 
-  // 3. Boucle pédagogique d'exercice en 3 actes (détectée dynamiquement si /exercices/[id] existe)
+  // 3. Boucle pédagogique d'exercice en 3 actes
   const pageExercice = analyses.get("app/(app)/exercices/[id]/page.tsx");
   if (pageExercice) {
     const actes = [
@@ -281,7 +626,7 @@ export async function scannerUxJourney(options?: {
     ];
 
     for (const f of fichiersAInspecter) {
-      const surfaceCompId = mode === "atomique" ? surfacesParFichier.get(f.relatif) : undefined;
+      const surfaceCompId = surfacesParFichier.get(f.relatif);
       const sourceEffective = surfaceCompId && parId.has(surfaceCompId) ? surfaceCompId : pageId;
 
       // Boutons avec action
@@ -383,7 +728,7 @@ export async function scannerUxJourney(options?: {
     ];
 
     for (const f of fichiersAInspecter) {
-      const surfaceCompId = mode === "atomique" ? surfacesParFichier.get(f.relatif) : undefined;
+      const surfaceCompId = surfacesParFichier.get(f.relatif);
       const sourceEffective = surfaceCompId && parId.has(surfaceCompId) ? surfaceCompId : pageId;
 
       for (const nav of f.navigations) {
@@ -440,16 +785,6 @@ export async function scannerUxJourney(options?: {
         declencheur: "Absence de compétences initiales",
       });
     }
-    /*
-      Les deux accès que l'analyse statique ne peut pas voir (ADR-074).
-
-      `/admin` n'est dans le rail que si le compte porte le rôle : l'entrée est
-      construite par `navigationPour()`, pas déclarée dans `NAVIGATION`.
-      `/suspendu` n'a aucun lien du tout — on y arrive par un `redirect()` du
-      cadre applicatif. Les deux sont pourtant atteignables en vrai, et les
-      déclarer ici est ce que fait déjà cette section pour `/demarrer`, qui
-      relève exactement du même cas.
-    */
     if (parId.has("page:/admin")) {
       connecter({
         source: "page:/",

@@ -87,7 +87,13 @@ export function ModaleDangerCompte({
       const resultat = await reinitialiserDonneesCompteAction(mode);
       if (resultat?.succes) {
         onFermer();
-        window.location.reload();
+        // Après un reset, le référentiel est vide : on renvoie directement sur
+        // l'écran d'amorçage (`/demarrer`), qui est l'état d'un compte neuf.
+        // `window.location.reload()` laissait l'utilisateur sur `/compte` sans
+        // lui dire quoi faire ensuite. Le mode « supprimer_et_deconnecter » ne
+        // passe pas par ici : le serveur redirige vers `/login` et le client ne
+        // reçoit jamais `resultat`.
+        window.location.href = "/demarrer";
       }
     } catch (err) {
       setErreur(

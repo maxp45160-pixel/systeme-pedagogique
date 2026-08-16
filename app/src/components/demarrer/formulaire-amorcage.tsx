@@ -9,7 +9,8 @@ import { ModaleReferentiel } from "@/components/referentiel/modale-referentiel";
 import { IconeFleche } from "@/components/ui/icones";
 import { ReglagesTuteur } from "@/components/tuteur/reglages-tuteur";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
-import { DemarrerTour } from "@/components/onboarding/demarrer-tour";
+import { DemarrerTour, TOUR_DEMARRER_ID } from "@/components/onboarding/demarrer-tour";
+import { useOnboarding } from "@/components/onboarding/onboarding-context";
 
 interface ExempleSujet {
   label: string;
@@ -31,20 +32,28 @@ const PREFERENCES_SUGGESTIONS = [
 
 const EXEMPLES: ExempleSujet[] = [
   {
-    emoji: "💻",
+    emoji: "🌐",
     label: "Développement Web",
-    sujet: "Développement Web moderne (TypeScript, React, Next.js, API, bases de données)",
-    objectif: "Concevoir et déployer des applications web complètes et robustes de bout en bout",
-    pointDeDepart: "Notions de JavaScript / autodidacte",
-    preferences: ["Pratique & Code d'abord", "Cas concrets métier"],
+    sujet: "Architecture web moderne, React, TypeScript, APIs et bases de données",
+    objectif: "Concevoir et déployer des applications web complètes en autonomie",
+    pointDeDepart: "Notions de base en programmation",
+    preferences: ["Pratique & Code d'abord", "Explications pas-à-pas"],
   },
   {
     emoji: "⚖️",
     label: "Droit & Fiscalité",
-    sujet: "Droit des affaires, des contrats et optimisation fiscale",
-    objectif: "Rédiger et analyser des contrats commerciaux et sécuriser des opérations sans risque juridique",
-    pointDeDepart: "Débutant en droit commercial",
-    preferences: ["Cas concrets métier", "Explications pas-à-pas"],
+    sujet: "Droit fiscal des entreprises, TVA, IS et restructurations juridiques",
+    objectif: "Sécuriser des montages juridiques et optimiser la conformité fiscale",
+    pointDeDepart: "Formation initiale en droit ou gestion",
+    preferences: ["Cas concrets métier", "Rigueur théorique & Fondations"],
+  },
+  {
+    emoji: "🤖",
+    label: "Data & IA",
+    sujet: "Machine Learning, LLMs, pipelines de données et évaluation de modèles",
+    objectif: "Extraire des enseignements de jeux de données complexes et modéliser des prédictions métier",
+    pointDeDepart: "Bases en programmation ou statistiques",
+    preferences: ["Pratique & Code d'abord", "Cas concrets métier"],
   },
   {
     emoji: "🇬🇧",
@@ -53,14 +62,6 @@ const EXEMPLES: ExempleSujet[] = [
     objectif: "Animer des réunions, argumenter et négocier avec aisance avec des interlocuteurs anglophones",
     pointDeDepart: "Niveau intermédiaire (B1/B2)",
     preferences: ["Pratique & Code d'abord", "Format synthétique & Rapide"],
-  },
-  {
-    emoji: "📊",
-    label: "Data & IA appliquée",
-    sujet: "Analyse de données, Python pour la data et modèles de Machine Learning",
-    objectif: "Extraire des enseignements de jeux de données complexes et modéliser des prédictions métier",
-    pointDeDepart: "Bases en programmation ou statistiques",
-    preferences: ["Pratique & Code d'abord", "Cas concrets métier"],
   },
   {
     emoji: "📐",
@@ -90,6 +91,7 @@ export function FormulaireAmorcage({
   compteId: string;
 }) {
   const router = useRouter();
+  const { lancerTour } = useOnboarding();
   const [enCours, demarrer] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
   const [validationOuverte, setValidationOuverte] = useState(false);
@@ -147,7 +149,18 @@ export function FormulaireAmorcage({
             Étape 1 sur 2 · Ton axe d&apos;apprentissage
           </span>
         </div>
-        <span className="text-xs text-texte-discret">Configuration initiale en 2 min</span>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => lancerTour(TOUR_DEMARRER_ID)}
+            className="flex items-center gap-1 text-xs font-medium text-primaire hover:underline cursor-pointer"
+          >
+            <span>✨</span>
+            <span>Visite guidée</span>
+          </button>
+          <span className="text-xs text-texte-discret">·</span>
+          <span className="text-xs text-texte-discret">Configuration en 2 min</span>
+        </div>
       </div>
 
       {/* État de la clé IA */}

@@ -142,8 +142,9 @@ export function GuideTour({
       };
     }
 
-    const marge = 16;
-    const largeurBulle = 380;
+    const marge = 20;
+    const largeurBulle = 400;
+    const hauteurBulleEstimee = 290;
     const position = etape.position || "bottom";
 
     let top = 0;
@@ -161,7 +162,7 @@ export function GuideTour({
         );
         break;
       case "top":
-        top = Math.max(marge, rectCible.top - marge - 220);
+        top = Math.max(marge, rectCible.top - marge - hauteurBulleEstimee);
         left = Math.max(
           marge,
           Math.min(
@@ -172,16 +173,22 @@ export function GuideTour({
         break;
       case "right":
         left = Math.min(rectCible.right + marge, window.innerWidth - largeurBulle - marge);
-        top = Math.max(marge, Math.min(rectCible.top, window.innerHeight - 250));
+        top = rectCible.top > window.innerHeight / 2
+          ? Math.max(marge, rectCible.bottom - hauteurBulleEstimee)
+          : Math.max(marge, rectCible.top);
         break;
       case "left":
         left = Math.max(marge, rectCible.left - largeurBulle - marge);
-        top = Math.max(marge, Math.min(rectCible.top, window.innerHeight - 250));
+        // Si l'élément cible est vers le bas de la fenêtre (ex: tuteur flottant),
+        // on aligne le bas de la bulle avec le haut ou le bas de la cible pour qu'elle reste bien au-dessus
+        top = rectCible.top > window.innerHeight / 2
+          ? Math.max(marge, rectCible.bottom - hauteurBulleEstimee)
+          : Math.max(marge, rectCible.top);
         break;
     }
 
-    // Garde la bulle dans la fenêtre visible
-    top = Math.max(marge, Math.min(top, window.innerHeight - 260));
+    // Garde la bulle strictement DANS la fenêtre visible (avec marge en haut et en bas)
+    top = Math.max(marge, Math.min(top, window.innerHeight - hauteurBulleEstimee - marge));
 
     return {
       top: `${top}px`,

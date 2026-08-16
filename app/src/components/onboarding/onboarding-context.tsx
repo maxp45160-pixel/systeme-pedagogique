@@ -42,14 +42,14 @@ export function FournisseurOnboarding({
 
   const estTourTermine = useCallback(
     (tourId: string): boolean => {
-      if (!estMonte || typeof window === "undefined") return true;
+      if (typeof window === "undefined") return false;
       try {
         return window.localStorage.getItem(cleTour(tourId, compteId)) === "1";
       } catch {
         return false;
       }
     },
-    [compteId, estMonte],
+    [compteId],
   );
 
   const terminerTour = useCallback(
