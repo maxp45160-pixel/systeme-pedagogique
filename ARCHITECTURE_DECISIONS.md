@@ -83,6 +83,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [068](#adr-068) | Une preuve de projet s'adosse à un critère porteur, jamais à la cible entière | 🔄 Remplacée par [070](#adr-070) |
 | [069](#adr-069) | L'agent écrit ce qui est réversible ; le journal d'actions est la contrepartie | 🔬 Hypothèse (15/08) |
 | [070](#adr-070) | Un projet est une note, pas une entité : la machinerie de « Produire » est retirée | ✅ Acceptée (15/08) — remplace [067](#adr-067) et [068](#adr-068) |
+| [074](#adr-074) | Rôle applicatif et suspension d'accès, portés par RLS | ✅ Acceptée (16/08) — ferme la question ouverte d'[019](#adr-019) |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -795,6 +796,9 @@ produit.
 « ne pas corriger ce widget » à « ne pas le remettre dans le produit ». La forme
 change, le fond est identique : c'est l'outil de coordination de l'équipe, il ne
 se discute pas au titre de l'expérience utilisateur.
+
+> ✅ **Question RLS fermée le 16/08/2026 par [ADR-074](#adr-074).** La table et
+> ses politiques sont supprimées ; le bucket `dev-todos` passe en privé.
 
 **Conséquence sur la question ouverte d'ADR-010.** Le statut de
 `clement.peyredieu` devient sans objet **côté rendu** — le widget n'est plus
@@ -5334,6 +5338,14 @@ la duplication — les deux défauts sont indépendants.
 
 ## ADR-073 — On déclare un besoin, le système choisit l'objet : le point d'entrée `+` ✅
 
+> ⚠️ **Amendée le 16/08/2026 par [ADR-074](#adr-074).** Deux des treize modales
+> retirées sont revenues sur le tableau de bord — « Choisir un travail » et la
+> capture de ressource. Le principe tient : on ne demande pas quel *objet*
+> créer. Mais ces deux gestes-là ont un objet déjà nommé, et les faire passer
+> par une phrase à traduire ajoutait un aller-retour au modèle pour retomber
+> sur la même destination. Le `+` garde ce qu'il fait de mieux : les besoins
+> qui ne se rangent pas d'avance — projet, extension du référentiel.
+
 **Date :** 16/08/2026. **Tranchée explicitement par Maxime** (« suppression,
 réduction, fusion » — l'utilisateur déclare son intention, le système s'adapte).
 Applique P5 (le tuteur produit du contenu, pas des mesures) à la création, et
@@ -5511,6 +5523,98 @@ est mesuré mais non traité.
    réfutation :* si l'on se met à taper des mots qui sont dans le corps d'une
    note sans la trouver, c'est l'index qu'il faut élargir, pas l'arbre qu'il
    faut rétablir.
+
+---
+
+<a name="adr-074"></a>
+## ADR-074 — Rôle applicatif et suspension d'accès, portés par RLS ✅
+
+**Date.** 16/08/2026. **Tranchée par Maxime.** Ferme la question restée ouverte
+dans [ADR-019](#adr-019).
+
+**Contexte.** Sept comptes réels, tous égaux, chacun isolé par `user_id`. Rien
+ne disait qui existe, et la seule façon de couper un accès était de supprimer le
+compte dans le tableau de bord Supabase — ce qui emporte ses preuves. Un audit
+mené le même jour a par ailleurs trouvé deux surfaces ouvertes :
+
+* `public.dev_todos` portait toujours `FOR ALL TO authenticated USING (true)`,
+  héritée d'[ADR-010](#adr-010) : tout compte connecté lisait et modifiait les
+  notes de tous les autres. [ADR-019](#adr-019) laissait la question
+  explicitement ouverte, [ADR-063](#adr-063) déclarait la table supprimée — elle
+  ne l'était que dans le code ;
+* le bucket `dev-todos` était `public = true` : ses images étaient lisibles par
+  URL, sans compte du tout.
+
+Le reste de l'audit n'a rien trouvé : RLS active sur les seize tables, aucun
+`service_role` dans le code, le proxy répond `401` en JSON sur `/api/*` pour un
+visiteur anonyme, `getClaims()` vérifie la signature localement
+([ADR-022](#adr-022)), et les deux points de retour (`/login`, `/auth/callback`)
+n'acceptent qu'un chemin interne comme destination.
+
+**Décision.** Une table, `comptes_acces`, porte deux notions : `role`
+(`membre` | `admin`) et `suspendu_le`. Les séparer aurait produit deux tables
+jointes systématiquement.
+
+**La suspension est une règle de base de données, pas d'interface.** Toutes les
+politiques des tables métier appellent `public.compte_actif()` en plus de leur
+clause d'isolation : un compte suspendu ne lit aucune ligne, quel que soit son
+chemin d'accès, son jeton fût-il encore valide. La migration pose cette clause
+en relisant chaque politique depuis `pg_policies` et en la recréant — réécrire
+vingt politiques à la main aurait été vingt occasions d'en changer une par
+accident. **Toute politique ajoutée après coup doit la porter** : celle qui
+l'oublie rouvre la lecture aux comptes suspendus.
+
+**Ce qu'un administrateur voit.** L'identité (`profiles`), l'état d'accès, et
+des **compteurs** produits par `admin_comptes()`. Aucun énoncé, aucune preuve,
+aucune note, aucun document : un rôle n'est pas un consentement (P8). Il
+n'existe aucun chemin, depuis cet écran, vers le contenu d'un autre compte.
+
+**Deux interdits tenus par un trigger**, pas par l'écran : modifier son propre
+accès, et retirer le dernier administrateur actif. Le second referme la porte de
+l'intérieur — le rôle ne s'accorde que depuis ce panel. Les mêmes règles sont
+redites en TypeScript (`lib/domain/acces.ts`) pour désactiver le bouton **avant**
+le clic, avec sa raison : un garde-fou qui n'apparaît qu'en erreur PostgreSQL
+n'est pas une interface.
+
+**`service_role` reste facultatif.** RLS coupe la lecture ; elle n'invalide pas
+le jeton. `SUPABASE_SERVICE_ROLE_KEY`, si elle est posée, permet en plus de
+révoquer la session à la source (`lib/supabase/admin-api.ts`, `server-only`).
+Sans elle, la suspension s'applique quand même et l'écran dit que la session
+ouverte survivra jusqu'à son expiration. Faire de la révocation une condition de
+la suspension aurait rendu la fonction principale dépendante d'un secret
+optionnel.
+
+**L'inscription reste ouverte.** N'importe qui crée un compte et travaille
+immédiatement ; l'administrateur voit les arrivées et peut couper après coup.
+Une validation préalable ferait de l'administrateur un goulot dès le second
+utilisateur.
+
+**Vérifié en base**, sur le projet réel : un compte actif lit ses 51 preuves et
+ses 62 compétences ; le même compte suspendu (dans une transaction annulée)
+n'en lit aucune ; un non-administrateur ne voit qu'un profil et reçoit `42501`
+sur `admin_comptes()` ; le trigger a refusé la suspension du dernier
+administrateur, en situation.
+
+**Aussi dans ce lot.** `dev_todos` est supprimée, ses deux politiques de storage
+avec ; le bucket `dev-todos` passe en privé — sa suppression définitive doit se
+faire depuis le tableau de bord, `storage.protect_delete` interdisant le
+`DELETE` en SQL.
+
+### Ce qui reste ouvert
+
+1. ❓ **La protection contre les mots de passe compromis est désactivée.**
+   L'advisor Supabase le signale : la vérification HaveIBeenPwned à
+   l'inscription n'est pas active. *Qui tranche :* Maxime — c'est un réglage du
+   tableau de bord Auth, il ne peut pas être posé depuis le dépôt.
+2. ❓ **L'entrée `/admin` est absente de la barre mobile.** Y ajouter une
+   cinquième entrée déplacerait les quatre autres pour tout le monde, y compris
+   ceux qui ne la verront jamais. *Ce qui bloque :* rien, sinon l'absence de
+   besoin constaté — l'URL directe suffit aujourd'hui.
+3. 🔬 **La suspension suffit-elle sans révocation de session ?** Sans
+   `service_role`, la personne suspendue voit une application vide jusqu'à
+   l'expiration de son jeton, puis l'écran `/suspendu`. *Test de réfutation :*
+   si une suspension réelle produit une incompréhension, c'est que la clé doit
+   être déployée.
 
 ---
 

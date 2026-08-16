@@ -7,6 +7,10 @@ import { SqueletteContenu } from "@/components/layout/squelette";
 import { calculerActivite } from "@/lib/engine/historique";
 import { EntetePage } from "@/components/layout/entete-page";
 import { CarteProchaineAction } from "@/components/dashboard/prochaine-action";
+import { CaptureNotes } from "@/components/dashboard/capture-notes";
+import { ChoixTravail } from "@/components/dashboard/choix-travail";
+import { lireApercusDocuments } from "@/lib/store/documents";
+import { recommanderActionsDocumentaires } from "@/lib/documents/recommandations";
 import { IconeFleche } from "@/components/ui/icones";
 import { BandeauInfo, Bouton, Carte, classesLienBouton } from "@/components/ui/primitives";
 import { abandonnerExercice } from "@/lib/store/actions";
@@ -81,11 +85,35 @@ async function ContenuTableauDeBord({ instant }: { instant: ContexteInstant }) {
     Les travaux ouverts d'une autre famille rejoignent le bandeau « en cours »
     plus bas, au lieu d'un second bandeau qui dirait la même chose ailleurs.
 
-    Les aperçus documentaires ne sont plus lus ici : ils n'alimentaient que les
-    pistes de `CaptureNotes`, et déposer une ressource passe maintenant par le
-    `+`. Une lecture de moins à chaque ouverture du tableau de bord.
+    Les aperçus documentaires sont relus ici : ils alimentent les pistes de
+    `CaptureNotes`, dont le dépôt de ressource est revenu sur cet écran.
   */
-  const action = await chargerActionProposee(ctx, instant);
+  const [action, aperçusDocuments] = await Promise.all([
+    chargerActionProposee(ctx, instant),
+    lireApercusDocuments(),
+  ]);
+  const recommandationsDocumentaires = recommanderActionsDocumentaires(aperçusDocuments);
+
+  /*
+    Les deux priorités que `ChoixTravail` propose comme cibles.
+
+    Mêmes recommandations que la carte d'action juste au-dessus — c'est
+    volontaire : le bouton propose de travailler ce que le moteur recommande,
+    et « autre sujet » reste ouvert à côté.
+  */
+  const recommandationsTravail = (
+    action?.kind === "exercice" ? action.recommandations : ctx.recommandations
+  )
+    .slice(0, 2)
+    .map((recommandation) => ({
+      code: recommandation.etat.skill.code,
+      intitule: recommandation.etat.skill.intitule,
+      domaineId: recommandation.etat.skill.domaine,
+      domaineNom:
+        ctx.referentiel.domainesParId.get(recommandation.etat.skill.domaine)?.nom ??
+        recommandation.etat.skill.domaine,
+      raison: recommandation.raison,
+    }));
 
   // `dureesEstimees`, et non `donnees.exercises` : le plafond du temps retenu
   // pour un abandon doit connaître aussi les diagnostics et les exercices sortis
@@ -222,6 +250,23 @@ async function ContenuTableauDeBord({ instant }: { instant: ContexteInstant }) {
             reservesInstant={action?.reserves ?? []}
           />
         )}
+      </div>
+
+      {/*
+        Les deux gestes de création dont l'objet est déjà connu, rendus
+        directement — les cartes d'origine, reprises telles quelles.
+
+        Les faire passer par le `+` obligeait à formuler en phrase un besoin
+        déjà nommé, puis à attendre une traduction pour retomber sur la même
+        destination. Le `+` garde ce qu'il sait faire de mieux : les besoins
+        qui ne se rangent pas d'avance — projet, extension du référentiel.
+
+        Deux intentions distinctes, deux cartes : une note support ne mesure
+        rien, un travail produit des preuves.
+      */}
+      <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
+        <ChoixTravail recommandations={recommandationsTravail} compteId={ctx.donnees.user.id} />
+        <CaptureNotes recommandations={recommandationsDocumentaires} />
       </div>
 
       {/*

@@ -440,6 +440,34 @@ export async function scannerUxJourney(options?: {
         declencheur: "Absence de compétences initiales",
       });
     }
+    /*
+      Les deux accès que l'analyse statique ne peut pas voir (ADR-074).
+
+      `/admin` n'est dans le rail que si le compte porte le rôle : l'entrée est
+      construite par `navigationPour()`, pas déclarée dans `NAVIGATION`.
+      `/suspendu` n'a aucun lien du tout — on y arrive par un `redirect()` du
+      cadre applicatif. Les deux sont pourtant atteignables en vrai, et les
+      déclarer ici est ce que fait déjà cette section pour `/demarrer`, qui
+      relève exactement du même cas.
+    */
+    if (parId.has("page:/admin")) {
+      connecter({
+        source: "page:/",
+        target: "page:/admin",
+        type: "navigation",
+        libelle: "Comptes et accès",
+        declencheur: "Entrée de rail, comptes administrateurs seulement",
+      });
+    }
+    if (parId.has("page:/suspendu")) {
+      connecter({
+        source: "page:/",
+        target: "page:/suspendu",
+        type: "navigation",
+        libelle: "Accès suspendu",
+        declencheur: "Redirection du cadre applicatif quand l'accès est fermé",
+      });
+    }
   }
 
   if (parId.has("page:/login") && parId.has("page:/")) {

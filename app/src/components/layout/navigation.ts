@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 import {
   IconeAmpoule,
+  IconeCle,
   IconeCompetences,
   IconeDocuments,
   IconeExercices,
@@ -112,6 +113,33 @@ export const NAVIGATION: GroupeNav[] = [
  * Une seule liste éditable ferme ce risque.
  */
 export const NAV_MOBILE: Entree[] = NAVIGATION.flatMap((groupe) => groupe.entrees);
+
+/**
+ * L'entrée d'administration, réservée aux comptes qui portent le rôle.
+ *
+ * Elle rejoint le groupe détaché du bas plutôt que d'ouvrir un quatrième pôle :
+ * administrer n'est pas une des trois choses qu'on vient faire ici. Elle reste
+ * absente de la barre mobile — y ajouter une cinquième entrée déplacerait les
+ * quatre autres pour tout le monde, y compris ceux qui ne la verront jamais ;
+ * `/admin` reste atteignable par son URL.
+ *
+ * Rien de tout cela n'autorise quoi que ce soit : la page se vérifie
+ * elle-même, et la base refuse indépendamment de ce qui est affiché.
+ */
+const ENTREE_ADMIN: Entree = {
+  href: "/admin",
+  libelle: "Comptes et accès",
+  court: "Comptes",
+  icone: IconeCle,
+};
+
+export function navigationPour(administrateur: boolean): GroupeNav[] {
+  if (!administrateur) return NAVIGATION;
+
+  return NAVIGATION.map((groupe) =>
+    groupe.aPart ? { ...groupe, entrees: [...groupe.entrees, ENTREE_ADMIN] } : groupe,
+  );
+}
 
 /**
  * Une destination est « active » si l'URL courante l'égale ou en descend —

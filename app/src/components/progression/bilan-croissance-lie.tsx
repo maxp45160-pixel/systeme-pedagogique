@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { BilanCroissance } from "./bilan-croissance";
 import type { ResumeCroissance } from "@/lib/engine/croissance";
-import type { VueDomaineAtelier, VueThemeAtelier } from "@/lib/documents/vue-atelier";
 import type { EnsemblePropose } from "@/lib/engine/ensembles";
 
 /**
@@ -19,14 +18,10 @@ import type { EnsemblePropose } from "@/lib/engine/ensembles";
  */
 export function BilanCroissanceLie({
   resume,
-  domaines,
-  themes,
   ensemblesSuggeres,
   intitules,
 }: {
   resume: ResumeCroissance;
-  domaines: VueDomaineAtelier[];
-  themes: VueThemeAtelier[];
   ensemblesSuggeres: EnsemblePropose[];
   intitules: Record<string, string>;
 }) {
@@ -35,8 +30,6 @@ export function BilanCroissanceLie({
   return (
     <BilanCroissance
       resume={resume}
-      domaines={domaines}
-      themes={themes}
       ensemblesSuggeres={ensemblesSuggeres}
       intitules={intitules}
       ouvrirElement={(id) => router.push(`/atelier?document=${encodeURIComponent(id)}`)}

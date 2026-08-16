@@ -2,15 +2,23 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { estActif, NAVIGATION } from "./navigation";
+import { estActif, navigationPour } from "./navigation";
 import { cx } from "@/components/ui/primitives";
 import { BasculeRail } from "./bascule-rail";
 import { Compte, type EtatSession } from "./compte";
 import { PastillePomodoroGlobale } from "@/components/dashboard/pomodoro";
 import { BoutonIntentionRail } from "@/components/intention/bouton-intention";
 
-export function Sidebar({ session }: { session: EtatSession }) {
+export function Sidebar({
+  session,
+  administrateur = false,
+}: {
+  session: EtatSession;
+  /** Ajoute l'entrée « Comptes et accès ». Affichage seulement — voir `navigationPour`. */
+  administrateur?: boolean;
+}) {
   const pathname = usePathname();
+  const groupes = navigationPour(administrateur);
 
   return (
     // Rabat de carnet « forêt » : sombre et constant dans les deux thèmes, il
@@ -40,7 +48,7 @@ export function Sidebar({ session }: { session: EtatSession }) {
           <BoutonIntentionRail />
         </div>
 
-        {NAVIGATION.map((groupe) => (
+        {groupes.map((groupe) => (
           <div
             key={groupe.titre}
             className={cx(

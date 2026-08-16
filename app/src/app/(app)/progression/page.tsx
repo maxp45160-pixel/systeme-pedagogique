@@ -2,17 +2,12 @@ import { Suspense } from "react";
 import { chargerContexte } from "@/lib/store/context";
 import { chargerThemes } from "@/lib/store/themes";
 import { SqueletteContenu } from "@/components/layout/squelette";
-import { calculerActivite, evenementsRecents } from "@/lib/engine/historique";
+import { calculerActivite } from "@/lib/engine/historique";
 import { resumeCarriere } from "@/lib/engine/carriere";
 import { resumeCroissance } from "@/lib/engine/croissance";
 import { ensemblesProposes } from "@/lib/engine/ensembles";
-import { construireVuesAtelier } from "@/lib/documents/vue-atelier";
-import { reconstruireIndexDepuisApercus } from "@/lib/documents/index";
-import { lireApercusDocuments } from "@/lib/store/documents";
-import { lireChangementsReferentiel } from "@/lib/store/referentiel";
 import { EntetePage } from "@/components/layout/entete-page";
 import { CarteEtatGlobal } from "@/components/dashboard/etat-global";
-import { CarteProgressionRecente } from "@/components/dashboard/progression-recente";
 import { CarteActivite } from "@/components/dashboard/activite";
 import { CarteCarriere, ClassementDomaines } from "@/components/progression/carte-carriere";
 import { BilanCroissanceLie } from "@/components/progression/bilan-croissance-lie";
@@ -52,14 +47,8 @@ export default async function PageProgression() {
 }
 
 async function ContenuProgression() {
-  const [ctx, themes, aperçus, changementsReferentiel] = await Promise.all([
-    chargerContexte(),
-    chargerThemes(),
-    lireApercusDocuments(),
-    lireChangementsReferentiel(),
-  ]);
+  const [ctx, themes] = await Promise.all([chargerContexte(), chargerThemes()]);
 
-  const evenements = evenementsRecents(ctx.preuvesEffectives, ctx.referentiel.parCode, 12, ctx.now);
   // `dureesEstimees`, et non `donnees.exercises` : le plafond du temps retenu
   // pour un abandon doit connaître aussi les diagnostics et les exercices sortis
   // du périmètre, que la liste filtrée n'expose pas (ADR-071).
@@ -84,36 +73,27 @@ async function ContenuProgression() {
     skillsParCode: ctx.referentiel.parCode,
     dureesEstimees: ctx.dureesEstimees,
     now: ctx.now,
+    /*
+      La fenêtre passe de 8 à 12 preuves : c'est celle que tenait la carte
+      « Progression récente », retirée juste en dessous. Les deux appelaient
+      `evenementsRecents` sur les mêmes preuves, avec le même moteur, et
+      rendaient la même liste à deux endroits d'un même écran. Reprendre la
+      fenêtre la plus large ne perd donc aucune ligne.
+    */
+    limiteEvenements: 12,
   });
 
   /*
-   * Les vues de l'Atelier servent au niveau « Ce que je construis » du bilan :
-   * il y nomme les domaines et les thèmes vers lesquels le travail converge.
-   * L'index documentaire est reconstruit ici pour la même raison qu'à
-   * l'Atelier — les vues en ont besoin pour rattacher les fiches.
-   */
-  const index = reconstruireIndexDepuisApercus(aperçus, [
-    ...ctx.referentiel.skills.map((skill) => skill.code),
-    ...ctx.donnees.exercises.flatMap((exercice) => [exercice.id, `exercice:${exercice.id}`]),
-  ]);
-  const codesAvecDependances = new Set<string>([
-    ...ctx.donnees.exercises.flatMap((exercice) => exercice.competences),
-    ...themes.flatMap((theme) => theme.codes),
-    ...ctx.donnees.sessions.flatMap((session) => session.skillCodes),
-    ...index.entrants.keys(),
-  ]);
-  const vues = construireVuesAtelier(
-    ctx.referentiel,
-    ctx.etats,
-    ctx.donnees.exercises,
-    ctx.donnees.attempts,
-    index,
-    ctx.preuvesEffectives,
-    changementsReferentiel,
-    codesAvecDependances,
-    themes,
-  );
+    Les vues de l'Atelier ne sont plus construites ici.
 
+    Elles servaient au niveau « Ce que tu construis », qui rendait une grille
+    des domaines et une grille des thèmes — deux secondes vues de ce que la
+    page classe déjà plus haut et de ce que l'Atelier tient par ailleurs. Avec
+    elles disparaissent la relecture du corpus documentaire, la reconstruction
+    de l'index des liens et la lecture du journal du référentiel : trois
+    chargements que cet écran payait à chaque ouverture pour deux grilles qui
+    n'apprenaient rien.
+  */
   const ensemblesSuggeres = ensemblesProposes({
     sessions: ctx.donnees.sessions,
     exercices: ctx.donnees.exercises,
@@ -139,30 +119,24 @@ async function ContenuProgression() {
 
       {/*
         Le bilan de croissance, repris de l'accueil de l'Atelier : ce que la
-        journée et la semaine ont produit, les paliers franchis, les ensembles
-        que le travail dessine.
+        journée et la semaine ont produit, et les paliers franchis.
       */}
       <section>
         <TitreSection>Ce que le travail récent a produit</TitreSection>
         <BilanCroissanceLie
           resume={croissance}
-          domaines={vues.domaines}
-          themes={vues.themes}
           ensemblesSuggeres={ensemblesSuggeres}
           intitules={intitules}
         />
       </section>
 
       {/*
-        La progression récente n'est plus dépliable : elle était au repos
-        derrière un `<details>` parce qu'elle encombrait l'écran d'entrée. Sur
-        une page qu'on ouvre pour la lire, la replier n'aurait plus de raison —
-        et la fenêtre passe de 6 à 12 preuves, puisque la place existe.
+        « Dernières preuves » vivait ici, sous la forme d'une seconde liste des
+        mêmes événements que le niveau 2 du bilan — même source, même moteur,
+        même ordre, à douze lignes contre huit. Le niveau 2 en dit davantage :
+        il distingue une première mesure d'un palier franchi. C'est lui qu'on
+        garde, avec la fenêtre de douze.
       */}
-      <section>
-        <TitreSection>Dernières preuves</TitreSection>
-        <CarteProgressionRecente evenements={evenements} />
-      </section>
 
       {/*
         Le vocabulaire du produit. Preuve, niveau, autonomie, confiance,

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Carriere } from "@/lib/engine/carriere";
 import type { EtatGlobal } from "@/lib/engine/progression";
 import type { User } from "@/lib/domain/types";
@@ -87,12 +88,17 @@ export function CarteCarriere({
         />
       </dl>
 
+      {/*
+        La couverture du référentiel tenait ici en fin de ligne, et de nouveau
+        dans « Détail des mesures » sous le libellé « Référentiel couvert ».
+        Elle ne reste qu'à ce second endroit, où elle est cliquable et rangée
+        avec les autres mesures. Ce qui subsiste ici est le seul fait que cette
+        carte soit seule à connaître : depuis quand.
+      */}
       {carriere.debut !== null && carriere.joursDepuisDebut !== null && (
         <p className="border-t border-bordure px-5 py-3 text-xs text-texte-discret sm:px-6">
           Première preuve il y a {carriere.joursDepuisDebut} jour
-          {carriere.joursDepuisDebut > 1 ? "s" : ""} · {global.competencesEvaluees} compétence
-          {global.competencesEvaluees > 1 ? "s" : ""} mesurée
-          {global.competencesEvaluees > 1 ? "s" : ""} sur {global.competencesTotal}
+          {carriere.joursDepuisDebut > 1 ? "s" : ""}
         </p>
       )}
     </section>
@@ -135,33 +141,62 @@ export function ClassementDomaines({ global }: { global: EtatGlobal }) {
 
   return (
     <section className="rounded-xl border border-bordure bg-surface p-5 shadow-[var(--ombre-posee)] sm:p-6">
-      <h2 className="font-serif text-lg font-medium">Par domaine</h2>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="font-serif text-lg font-medium">Par domaine</h2>
+        {/*
+          Le lien de gestion vient du bilan de croissance, qui affichait plus
+          bas une seconde grille des mêmes domaines. Elle est retirée : deux
+          listes des mêmes domaines sur un écran obligent à comparer pour
+          comprendre qu'elles disent la même chose.
+        */}
+        <Link
+          href="/atelier?document=domaines"
+          className="text-[0.6875rem] text-texte-attenue underline-offset-2 transition-colors hover:text-primaire hover:underline"
+        >
+          Gérer les domaines
+        </Link>
+      </div>
       <p className="mt-1 text-xs text-texte-discret">
         Classés par nombre de preuves accumulées — pas par temps déclaré.
       </p>
 
-      <ul className="mt-4 space-y-3">
+      {/*
+        Chaque ligne mène à la fiche du domaine dans l'Atelier.
+
+        Elle ne l'était pas : on lisait « 9 preuves, 4/10 mesurées » sans aucun
+        moyen d'aller voir lesquelles, alors que la fiche existe et que tout le
+        reste de l'application y renvoie. Le lien porte la ligne entière, pas
+        une flèche en bout de course — c'est le nom du domaine qu'on vise.
+      */}
+      <ul className="mt-4 space-y-1">
         {domaines.map((domaine) => (
           <li key={domaine.domaine}>
-            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-              <span className="min-w-0 truncate text-sm font-medium">{domaine.nom}</span>
-              <span className="chiffres text-xs text-texte-discret">
-                {domaine.preuves} preuve{domaine.preuves > 1 ? "s" : ""} ·{" "}
-                {domaine.competencesEvaluees}/{domaine.competencesTotal} mesurée
-                {domaine.competencesEvaluees > 1 ? "s" : ""}
-                {domaine.score !== null ? ` · ${domaine.score}/100` : " · niveau non établi"}
-              </span>
-            </div>
-            {/*
-              La barre n'est tracée que si un score existe : la rendre à zéro
-              pour un domaine sans preuve montrerait un niveau nul là où il n'y
-              a pas de mesure (P3). Le libellé au-dessus le dit déjà en mots.
-            */}
-            {domaine.score !== null && (
-              <div className="mt-1.5">
-                <BarreProgression fraction={domaine.score / 100} />
+            <Link
+              href={`/atelier?document=${encodeURIComponent(`domaine:${domaine.domaine}`)}`}
+              className="group block rounded-lg px-2 py-2 -mx-2 transition-colors hover:bg-surface-2"
+            >
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                <span className="min-w-0 truncate text-sm font-medium group-hover:text-primaire">
+                  {domaine.nom}
+                </span>
+                <span className="chiffres text-xs text-texte-discret">
+                  {domaine.preuves} preuve{domaine.preuves > 1 ? "s" : ""} ·{" "}
+                  {domaine.competencesEvaluees}/{domaine.competencesTotal} mesurée
+                  {domaine.competencesEvaluees > 1 ? "s" : ""}
+                  {domaine.score !== null ? ` · ${domaine.score}/100` : " · niveau non établi"}
+                </span>
               </div>
-            )}
+              {/*
+                La barre n'est tracée que si un score existe : la rendre à zéro
+                pour un domaine sans preuve montrerait un niveau nul là où il n'y
+                a pas de mesure (P3). Le libellé au-dessus le dit déjà en mots.
+              */}
+              {domaine.score !== null && (
+                <div className="mt-1.5">
+                  <BarreProgression fraction={domaine.score / 100} />
+                </div>
+              )}
+            </Link>
           </li>
         ))}
       </ul>

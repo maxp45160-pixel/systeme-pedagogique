@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { compteCourant } from "@/lib/supabase/server";
+import { lireAccesCourant } from "@/lib/store/acces";
 import { Sidebar } from "@/components/layout/sidebar";
 import { NavMobile } from "@/components/layout/nav-mobile";
 import { CompteMobile } from "@/components/layout/compte";
@@ -26,6 +27,18 @@ export default async function AppLayout({
   const compte = await compteCourant();
   if (!compte) redirect("/login");
 
+  /*
+    Un accès suspendu sort du cadre applicatif (ADR-074).
+
+    Ce n'est pas la barrière — RLS l'est, et un compte suspendu ne lirait de
+    toute façon aucune ligne. C'est ce qui évite d'afficher une application
+    intégralement vide, sans un mot pour dire pourquoi. La lecture est mémoïsée
+    par requête : elle ne coûte qu'un aller-retour, une fois par rendu.
+  */
+  const acces = await lireAccesCourant();
+  if (acces?.suspenduLe) redirect("/suspendu");
+  const administrateur = acces?.role === "admin";
+
   const session = {
     courriel: compte.email ?? null,
     nom:
@@ -46,7 +59,7 @@ export default async function AppLayout({
     */
     <FournisseurIntention compteId={session.compteId}>
     <div className="flex min-h-screen">
-      <Sidebar session={session} />
+      <Sidebar session={session} administrateur={administrateur} />
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/*

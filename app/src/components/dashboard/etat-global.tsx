@@ -1,24 +1,23 @@
 import Link from "next/link";
 import type { EtatGlobal } from "@/lib/engine/progression";
 import type { SkillState } from "@/lib/domain/types";
-import {
-  Carte,
-  CorpsCarte,
-  EnTeteCarte,
-  NombrePreuves,
-  Statistique,
-  TagConfiance,
-} from "@/components/ui/primitives";
+import { Carte, CorpsCarte, EnTeteCarte, Statistique } from "@/components/ui/primitives";
 import { Depliant, Reserves } from "@/components/ui/explication";
 import { RepartitionNiveaux } from "@/components/charts";
 
 /**
- * « Où en suis-je ? »
+ * Ce que valent les mesures — pas ce qu'elles totalisent.
  *
- * Deux nombres, jamais un seul : le score global dit l'avancement sur le
- * référentiel complet, le niveau moyen dit la qualité là où c'est mesuré.
- * Le premier seul paraîtrait sévère, le second seul surestimerait la
- * couverture — les afficher ensemble est la seule présentation honnête.
+ * Le score global, la confiance et le nombre de preuves ne sont plus ici : ils
+ * ouvrent la page, dans l'en-tête du profil. Cette carte les répétait mot pour
+ * mot deux blocs plus bas, si bien que le même « 42 / 100 » apparaissait deux
+ * fois sur un écran — deux affichages d'une seule valeur, dont l'un finit
+ * toujours par diverger.
+ *
+ * La règle des deux nombres tient toujours : le score dit l'avancement sur le
+ * référentiel complet, le niveau moyen dit la qualité là où c'est mesuré, et
+ * l'un sans l'autre ment. Ils restent tous deux sur cet écran — à une carte de
+ * distance, pas en double.
  */
 export function CarteEtatGlobal({
   global,
@@ -36,33 +35,10 @@ export function CarteEtatGlobal({
 
   return (
     <Carte>
-      <EnTeteCarte
-        titre="État global"
-        legende="Indicateur de suivi, pas une note"
-        action={<TagConfiance confiance={global.confiance} />}
-      />
+      <EnTeteCarte titre="Détail des mesures" legende="Indicateurs de suivi, pas des notes" />
 
       <CorpsCarte>
         <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
-          <div>
-            <div className="text-[0.6875rem] uppercase tracking-wide text-texte-discret">
-              Progression globale
-            </div>
-            <div className="chiffres mt-1 flex items-baseline gap-1.5">
-              <span
-                className={`text-3xl font-semibold tracking-tight ${
-                  aucunePreuve ? "text-texte-discret" : "text-primaire"
-                }`}
-              >
-                {global.scoreGlobal ?? "—"}
-              </span>
-              <span className="text-sm text-texte-attenue">/ 100</span>
-            </div>
-            <div className="mt-1">
-              <NombrePreuves n={global.nombrePreuves} />
-            </div>
-          </div>
-
           <Statistique
             libelle="Niveau moyen mesuré"
             valeur={global.niveauMoyen}

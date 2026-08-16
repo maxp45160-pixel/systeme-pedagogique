@@ -51,6 +51,14 @@ export const IconeExercices = ({ className }: Props) => (
   </Svg>
 );
 
+/** L'administration des comptes et des accès — voir `app/(app)/admin`. */
+export const IconeCle = ({ className }: Props) => (
+  <Svg className={className}>
+    <circle cx="8" cy="15" r="4" />
+    <path d="M10.85 12.15 20 3M17 6l2.5 2.5M14 9l2.5 2.5" />
+  </Svg>
+);
+
 /** Le point d'entrée unique de création — voir `components/intention`. */
 export const IconePlus = ({ className }: Props) => (
   <Svg className={className}>

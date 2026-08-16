@@ -38,6 +38,10 @@ Supabase est la source de vérité des données.
 RLS est la barrière d'autorisation de confiance.
 Ne jamais exposer `service_role` côté client.
 
+Toute politique RLS sur une table métier doit appeler `public.compte_actif()`
+en plus de sa clause d'isolation : sans elle, un compte suspendu lit à nouveau
+(ADR-074).
+
 Le moteur ne connaît pas le référentiel : il reçoit les compétences en paramètre.
 
 ---

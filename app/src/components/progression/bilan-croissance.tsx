@@ -1,7 +1,6 @@
 "use client";
 
 import type { ResumeCroissance, FenetreCroissance } from "@/lib/engine/croissance";
-import type { VueDomaineAtelier, VueThemeAtelier } from "@/lib/documents/vue-atelier";
 import { EnsemblesSuggeres } from "@/components/atelier/ensembles-suggeres";
 import type { EnsemblePropose } from "@/lib/engine/ensembles";
 import { CodeCompetence, Etiquette, cx } from "@/components/ui/primitives";
@@ -18,23 +17,19 @@ import { formatDateRelative, formatDuree } from "@/lib/engine/dates";
  * Trois niveaux de lecture, dans l'ordre où on se les pose :
  *   1. **Ce que j'ai fait** — l'activité brute, deux fenêtres ;
  *   2. **Ce que ça a changé** — les niveaux avant/après, les paliers franchis ;
- *   3. **Ce que je construis** — les ensembles auxquels le travail contribue.
+ *   3. **Ce que le travail dessine** — les regroupements qu'il suggère.
  *
- * Aucun calcul ici : tout arrive dérivé de `resumeCroissance` et de
- * `construireVuesAtelier`. Un composant qui recalculerait une mesure serait un
+ * Aucun calcul ici : tout arrive dérivé de `resumeCroissance` et
+ * d'`ensemblesProposes`. Un composant qui recalculerait une mesure serait un
  * second endroit où la règle vit.
  */
 export function BilanCroissance({
   resume,
-  domaines,
-  themes,
   ensemblesSuggeres,
   intitules,
   ouvrirElement,
 }: {
   resume: ResumeCroissance;
-  domaines: VueDomaineAtelier[];
-  themes: VueThemeAtelier[];
   ensemblesSuggeres: EnsemblePropose[];
   intitules: Record<string, string>;
   /** Ouvre une fiche dans l'Atelier — c'est là que vivent les éléments cités. */
@@ -44,13 +39,7 @@ export function BilanCroissance({
     <div className="space-y-8">
       <NiveauActivite resume={resume} />
       <NiveauCroissance resume={resume} ouvrirElement={ouvrirElement} />
-      <NiveauConstruction
-        domaines={domaines}
-        themes={themes}
-        ensemblesSuggeres={ensemblesSuggeres}
-        intitules={intitules}
-        ouvrirElement={ouvrirElement}
-      />
+      <NiveauConstruction ensemblesSuggeres={ensemblesSuggeres} intitules={intitules} />
     </div>
   );
 }
@@ -260,163 +249,38 @@ function NiveauCroissance({
 }
 
 /* ------------------------------------------------------------------ */
-/* Niveau 3 — Ce que je construis                                      */
+/* Niveau 3 — Ce que le travail dessine                                */
 /* ------------------------------------------------------------------ */
 
 /**
- * Les ensembles auxquels le travail contribue.
+ * Les groupes que les co-occurrences suggèrent — et rien d'autre.
  *
- * Thèmes d'abord, domaines ensuite : un thème traverse les domaines, c'est lui
- * qui montre qu'une compétence sert à plusieurs choses. Le domaine reste la
- * partition stricte du référentiel — utile, mais moins parlante sur ce qu'on
- * est en train de construire.
+ * Ce niveau montrait aussi une grille des domaines et une grille des thèmes.
+ * Les deux étaient des secondes vues : les domaines sont classés plus haut sur
+ * la même page, les thèmes ont leurs fiches dans l'Atelier. Il fallait les
+ * comparer pour s'apercevoir qu'elles ne disaient rien de neuf.
+ *
+ * Ce qui reste ne se lit nulle part ailleurs : une proposition de regroupement
+ * déduite du travail réel, sous la règle anti-circularité d'`ensembles.ts`. Ce
+ * n'est pas une vue, c'est la seule partie de cet écran qui demande quelque
+ * chose — et la section disparaît d'elle-même quand il n'y a rien à proposer.
  */
 function NiveauConstruction({
-  domaines,
-  themes,
   ensemblesSuggeres,
   intitules,
-  ouvrirElement,
 }: {
-  domaines: VueDomaineAtelier[];
-  themes: VueThemeAtelier[];
   ensemblesSuggeres: EnsemblePropose[];
   intitules: Record<string, string>;
-  ouvrirElement: (id: string) => void;
 }) {
-  const vivants = [...domaines]
-    .filter((domaine) => !domaine.domaine.archive)
-    .sort((a, b) => (b.derniereActivite ?? "").localeCompare(a.derniereActivite ?? ""));
+  if (ensemblesSuggeres.length === 0) return null;
 
   return (
     <section>
-      <TitreNiveau numero={3} titre="Ce que tu construis" />
-
-      {/*
-        Les suggestions passent avant les ensembles existants : c'est la seule
-        partie de cet écran qui demande quelque chose, et elle se tâira d'
-        elle-même dès qu'il n'y a rien à proposer.
-      */}
+      <TitreNiveau numero={3} titre="Ce que le travail dessine" />
       <div className="mt-3">
         <EnsemblesSuggeres propositions={ensemblesSuggeres} intitules={intitules} />
       </div>
-
-      {themes.length > 0 && (
-        <div className="mt-5">
-          <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret">
-            Ensembles transversaux
-          </p>
-          <div className="mt-2 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {themes.map((theme) => (
-              <CarteEnsemble
-                key={theme.id}
-                titre={theme.libelle}
-                etiquette="Thème"
-                detail={`${theme.competences.length} compétence${theme.competences.length > 1 ? "s" : ""} · ${theme.domaines.length} domaine${theme.domaines.length > 1 ? "s" : ""}`}
-                mesurees={theme.nombreEvaluees}
-                total={theme.competences.length}
-                derniereActivite={theme.derniereActivite}
-                onOuvrir={() => ouvrirElement(`theme:${theme.id}`)}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="mt-5">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret">
-            Domaines
-          </p>
-          {/*
-            La gestion du référentiel reste accessible, mais elle n'est plus
-            l'écran d'entrée : c'est un lien discret, pas une grille de cartes
-            avec son bouton de création.
-          */}
-          <button
-            type="button"
-            onClick={() => ouvrirElement("domaines")}
-            className="text-[0.6875rem] text-texte-attenue underline-offset-2 transition-colors hover:text-primaire hover:underline cursor-pointer"
-          >
-            Gérer les domaines
-          </button>
-        </div>
-
-        {vivants.length === 0 ? (
-          <p className="mt-2 rounded-xl border border-dashed border-bordure-contraste bg-surface px-4 py-6 text-center text-xs text-texte-discret">
-            Aucun domaine pour l&apos;instant.
-          </p>
-        ) : (
-          <div className="mt-2 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {vivants.map((domaine) => (
-              <CarteEnsemble
-                key={domaine.id}
-                titre={domaine.nom}
-                etiquette="Domaine"
-                detail={`${domaine.nombrePreuves} preuve${domaine.nombrePreuves > 1 ? "s" : ""} · ${domaine.nombreExercices} exercice${domaine.nombreExercices > 1 ? "s" : ""}`}
-                mesurees={domaine.nombreEvaluees}
-                total={domaine.competences.length}
-                derniereActivite={domaine.derniereActivite}
-                onOuvrir={() => ouvrirElement(`domaine:${domaine.id}`)}
-              />
-            ))}
-          </div>
-        )}
-      </div>
     </section>
-  );
-}
-
-function CarteEnsemble({
-  titre,
-  etiquette,
-  detail,
-  mesurees,
-  total,
-  derniereActivite,
-  onOuvrir,
-}: {
-  titre: string;
-  etiquette: string;
-  detail: string;
-  mesurees: number;
-  total: number;
-  derniereActivite: string | null;
-  onOuvrir: () => void;
-}) {
-  const ratio = total > 0 ? Math.round((mesurees / total) * 100) : 0;
-
-  return (
-    <button
-      type="button"
-      onClick={onOuvrir}
-      className="group flex h-full w-full flex-col justify-between rounded-xl border border-bordure bg-surface p-4 text-left shadow-[var(--ombre-posee)] transition-all duration-200 hover:-translate-y-0.5 hover:border-primaire/40 hover:shadow-[var(--ombre-levee)] cursor-pointer"
-    >
-      <div>
-        <span className="text-[0.625rem] font-semibold uppercase tracking-wider text-texte-discret">
-          {etiquette}
-        </span>
-        <h4 className="mt-1 font-serif text-base font-medium leading-snug text-texte group-hover:text-primaire">
-          {titre}
-        </h4>
-        <p className="mt-1 text-[0.6875rem] text-texte-attenue">{detail}</p>
-      </div>
-
-      <div className="mt-4 space-y-1.5 border-t border-bordure pt-3">
-        <div className="flex items-center justify-between text-[0.6875rem] text-texte-discret">
-          <span>Mesurées</span>
-          <span className="chiffres font-medium text-texte">
-            {mesurees}/{total}
-          </span>
-        </div>
-        <div className="h-1 w-full overflow-hidden rounded-full bg-surface-3">
-          <div className="h-full rounded-full bg-primaire transition-all duration-300" style={{ width: `${ratio}%` }} />
-        </div>
-        <p className="text-[0.625rem] text-texte-discret">
-          {derniereActivite ? `Dernière activité ${formatDateRelative(derniereActivite)}` : "Aucune activité"}
-        </p>
-      </div>
-    </button>
   );
 }
 
