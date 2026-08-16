@@ -201,6 +201,7 @@ export function groupePourChemin(relatif: string): GroupeWorkflow {
   if (
     r.startsWith("app/(app)/atelier") ||
     r.startsWith("components/atelier") ||
+    r.startsWith("components/projets") ||
     r.startsWith("components/referentiel") ||
     r.startsWith("components/competences")
   ) {
@@ -211,7 +212,12 @@ export function groupePourChemin(relatif: string): GroupeWorkflow {
   }
   if (
     r.startsWith("app/(app)/profil") ||
+    r.startsWith("app/(app)/progression") ||
+    r.startsWith("app/(app)/admin") ||
+    r.startsWith("app/(app)/compte") ||
     r.startsWith("components/profil") ||
+    r.startsWith("components/progression") ||
+    r.startsWith("components/admin") ||
     r.startsWith("components/compte") ||
     r.startsWith("components/layout")
   ) {
@@ -805,13 +811,8 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
       );
     }
 
-    // 5.2. Pomodoro & Timers de concentration
-    if (
-      relatif.includes("pomodoro") ||
-      contenu.includes("<Pomodoro") ||
-      /<[A-Za-z0-9_]*Pomodoro/.test(contenu) ||
-      (relatif.includes("seance") && contenu.includes("dureeMinutes") && contenu.includes("compteur"))
-    ) {
+    // 5.2. Pomodoro & Timers de concentration (Composant dédié unique)
+    if (relatif.endsWith("pomodoro.tsx")) {
       microInteractions.push(
         {
           id: `micro:${slugFichier}-pomodoro-focus`,

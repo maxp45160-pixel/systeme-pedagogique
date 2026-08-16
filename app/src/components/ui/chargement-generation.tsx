@@ -31,6 +31,9 @@ export function ChargementGeneration({
 }) {
   const [pourcentage, setPourcentage] = useState(0);
   const [etapeIndex, setEtapeIndex] = useState(0);
+  const [secondesEcoulees, setSecondesEcoulees] = useState(0);
+
+  const nbEtapes = etapes.length;
 
   useEffect(() => {
     const tempsDebut = Date.now();
@@ -38,23 +41,24 @@ export function ChargementGeneration({
     // Actualisation fluide (toutes les 100 ms) basée sur une asymptote lisse
     const intervalPourcent = setInterval(() => {
       const ecouleSec = (Date.now() - tempsDebut) / 1000;
+      setSecondesEcoulees(Math.floor(ecouleSec));
       // Progression asymptotique naturelle : 94 * (1 - e^(-t / duree))
       const val = Math.min(
         94,
         Math.round(94 * (1 - Math.exp(-ecouleSec / dureeAsymptoteSec))),
       );
-      setPourcentage((prev) => Math.max(prev, val));
+      setPourcentage((prev) => (prev < val ? val : prev));
     }, 100);
 
     const intervalEtape = setInterval(() => {
-      setEtapeIndex((prev) => (prev < etapes.length - 1 ? prev + 1 : prev));
+      setEtapeIndex((prev) => (prev < nbEtapes - 1 ? prev + 1 : prev));
     }, 2600);
 
     return () => {
       clearInterval(intervalPourcent);
       clearInterval(intervalEtape);
     };
-  }, [etapes, dureeAsymptoteSec]);
+  }, [nbEtapes, dureeAsymptoteSec]);
 
   const texteCourant = progressionServeur ?? etapes[etapeIndex];
 
@@ -78,6 +82,11 @@ export function ChargementGeneration({
             style={{ width: `${pourcentage}%` }}
           />
         </div>
+        {secondesEcoulees >= 25 && (
+          <p className="text-[0.6875rem] text-texte-discret pt-1">
+            En attente de la réponse complète du fournisseur IA ({secondesEcoulees} s écoulées)…
+          </p>
+        )}
       </div>
 
       {onArreter && (

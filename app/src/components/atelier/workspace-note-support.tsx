@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type ChangeEvent, type DragEvent } from "react";
-import { CoquilleWorkspace } from "@/components/seances/coquille-workspace";
+import { CoquilleWorkspace } from "@/components/atelier/coquille-workspace";
 import { BandeauInfo, Bouton, cx } from "@/components/ui/primitives";
 import { analyserDocumentMarkdown } from "@/lib/documents/markdown";
 import { definitionTypeDocument, type PieceJointeDocument } from "@/lib/documents/types-documents";

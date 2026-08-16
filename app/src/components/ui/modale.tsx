@@ -58,7 +58,7 @@ const FOCUSABLES = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(",");
 
-export type LargeurModale = "md" | "xl" | "2xl" | "3xl" | "4xl";
+export type LargeurModale = "md" | "xl" | "2xl" | "3xl" | "4xl" | "5xl" | "6xl";
 
 const LARGEURS: Record<LargeurModale, string> = {
   md: "max-w-md",
@@ -66,6 +66,8 @@ const LARGEURS: Record<LargeurModale, string> = {
   "2xl": "max-w-2xl",
   "3xl": "max-w-3xl",
   "4xl": "max-w-4xl",
+  "5xl": "max-w-5xl",
+  "6xl": "max-w-6xl",
 };
 
 /**

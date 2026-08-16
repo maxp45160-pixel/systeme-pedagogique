@@ -6,7 +6,7 @@ import { estActif, navigationPour } from "./navigation";
 import { cx } from "@/components/ui/primitives";
 import { BasculeRail } from "./bascule-rail";
 import { Compte, type EtatSession } from "./compte";
-import { PastillePomodoroGlobale } from "@/components/dashboard/pomodoro";
+import { PastillePomodoroGlobale } from "@/components/seances/pomodoro";
 import { BoutonIntentionRail } from "@/components/intention/bouton-intention";
 
 export function Sidebar({

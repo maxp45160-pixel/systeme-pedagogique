@@ -34,9 +34,9 @@
  * clic « Démarrer » ou « Planifier ».
  */
 
-import { useMemo, useState, useTransition, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Bouton, Carte, cx } from "@/components/ui/primitives";
+import { BandeauInfo, Bouton, Carte, cx, Etiquette } from "@/components/ui/primitives";
 import { Champ } from "@/components/ui/champ";
 import { Modale } from "@/components/ui/modale";
 import type {
@@ -74,7 +74,7 @@ import {
   creerSeance,
   type EntreePlanification,
 } from "@/lib/store/seance-actions";
-import { BoutonGenerer } from "@/components/exercices/bouton-generer";
+import { ModaleExercice } from "@/components/exercices/modale-exercice";
 import {
   competencesPourModale,
   type CalibrageModale,
@@ -198,6 +198,10 @@ export function ConcepteurSeance({
   const router = useRouter();
   const [ouvert, setOuvert] = useState(ouvertParDefaut);
   const [phase, setPhase] = useState<Phase>("besoin");
+  const [generationCibles, setGenerationCibles] = useState<{
+    codeInitial: string;
+    codes?: string[];
+  } | null>(null);
 
   function fermer() {
     setOuvert(false);
@@ -341,19 +345,11 @@ export function ConcepteurSeance({
   }
 
   function besoinCourant(): BesoinDeclare {
-    // Un thème enregistré n'impose aucun code (voir composerSeance : il
-    // fournit une PORTÉE, pas une liste imposée, ADR-053) — mais la personne
-    // a explicitement nommé ces compétences en créant le thème, donc elles
-    // sont bien ce qu'elle vise. `codesImposes` reste la source pour les
-    // thèmes ciblés (une seule compétence, ADR-049).
     const codesVises =
       theme?.portee.type === "theme" ? theme.portee.codes : theme?.codesImposes ?? [];
     const themeId = theme?.portee.type === "theme" ? theme.portee.themeId : undefined;
 
     return {
-      // Absente plutôt que chaîne vide : un champ laissé vide n'est pas une
-      // intention déclarée, et `ecartBesoinRealise` ne doit pas afficher des
-      // guillemets autour de rien.
       ...(intention.trim() ? { intention: intention.trim() } : {}),
       codesVises,
       tempsDisponibleMin: tempsMin,
@@ -368,8 +364,6 @@ export function ConcepteurSeance({
       setErreur(refus);
       return;
     }
-    // Le nombre proposé s'applique une fois le temps connu — pas à chaque
-    // frappe, sinon le champ bougerait sous les yeux pendant la saisie.
     if (!nombreTouche && conseil) setNombreExercices(conseil.nombre);
     setErreur(null);
     setPhase("composition");
@@ -377,12 +371,6 @@ export function ConcepteurSeance({
 
   /**
    * Écrit la séance, puis la démarre si on la veut tout de suite.
-   *
-   * Deux sorties et non deux boutons qui feraient deux choses différentes :
-   * « Démarrer » planifie et démarre dans la foulée (le cas courant, celui que
-   * « ça part » désigne) ; « Planifier pour plus tard » s'arrête après
-   * l'écriture. Une séance planifiée sans date reste démarrable depuis son
-   * déroulé — rien n'est enfermé.
    */
   async function enregistrer(demarrer: boolean) {
     if (!composition) return;
@@ -407,9 +395,6 @@ export function ConcepteurSeance({
           ? { planifieePour: new Date(planifieePour).toISOString() }
           : {}),
       };
-      // Une écriture, pas « planifier puis démarrer » : si le mode « en-cours »
-      // échoue (une autre séance est déjà ouverte), `creerSeance` refuse AVANT
-      // d'écrire — aucune séance planifiée orpheline n'est laissée derrière.
       const id = await creerSeance(entree, demarrer ? "en-cours" : "planifiee");
       await surSeanceCreee?.({ id, activites: entree.activites, codesVises: besoin.codesVises });
       if (demarrer) {
@@ -439,60 +424,94 @@ export function ConcepteurSeance({
       {ouvert && (
         <Modale
           titre="Composer une séance"
-          sousTitre="Le sujet est déjà choisi. Indique un temps — le reste est dérivé et modifiable."
+          sousTitre="Configure le temps et prépare ton programme de travail sur-mesure."
           onFermer={fermer}
-          largeur="2xl"
-          /*
-           * Les actions sont calculées ici plutôt que dans les étapes : le pied
-           * de la modale vit hors du défilement, et la composition est
-           * précisément l'écran assez long pour que « Démarrer la séance »
-           * finisse hors de vue. Les deux sorties anticipées de
-           * `EtapeComposition` sont reproduites à l'identique — sans quoi le
-           * pied proposerait de démarrer une séance qui n'existe pas.
-           */
+          largeur="3xl"
           pied={
             phase === "besoin" ? (
-              <Bouton
-                type="button"
-                onClick={passerComposition}
-                variante="principal"
-                disabled={theme === null}
-                title={
-                  theme !== null
-                    ? undefined
-                    : "Aucun domaine ou thème exploitable n'est disponible pour composer."
-                }
-              >
-                Voir la composition
-              </Bouton>
+              <div className="flex w-full items-center justify-between gap-2">
+                <Bouton type="button" onClick={fermer} variante="secondaire">
+                  Annuler
+                </Bouton>
+                <Bouton
+                  type="button"
+                  onClick={passerComposition}
+                  variante="principal"
+                  disabled={theme === null}
+                  title={
+                    theme !== null
+                      ? undefined
+                      : "Aucun domaine ou thème exploitable n'est disponible pour composer."
+                  }
+                >
+                  <span>Voir la composition</span>
+                  <span aria-hidden>→</span>
+                </Bouton>
+              </div>
             ) : !theme ? null : !composition ? (
               <Bouton type="button" onClick={() => setPhase("besoin")} variante="secondaire">
-                Ajuster les paramètres
+                ← Paramètres
               </Bouton>
             ) : (
               <div className="flex w-full items-center justify-between gap-2">
                 <Bouton type="button" onClick={() => setPhase("besoin")} variante="secondaire">
-                  Ajuster les paramètres
+                  <span>← Paramètres</span>
                 </Bouton>
                 <Bouton
                   type="button"
                   onClick={() => enregistrer(true)}
                   enChargement={enregistrement}
-                  /*
-                   * Une séance sans AUCUN exercice retenu ne peut pas être
-                   * écrite : les places « à générer » ne deviennent des
-                   * activités qu'une fois créées ET relues dans la composition
-                   * (même règle que `motifRefusActivites` côté serveur).
-                   */
                   disabled={composition.activites.length === 0}
                   variante="principal"
+                  className="shadow-xs"
                 >
-                  Démarrer la séance
+                  <span>Démarrer la séance</span>
                 </Bouton>
               </div>
             )
           }
         >
+          {/* Barre de navigation d'étapes visuelle */}
+          <div className="mb-4 flex items-center justify-between border-b border-bordure pb-3.5">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPhase("besoin")}
+                className={cx(
+                  "flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold transition-all cursor-pointer",
+                  phase === "besoin"
+                    ? "bg-primaire text-primaire-contraste shadow-xs"
+                    : "bg-surface-2 text-texte-attenue hover:text-texte",
+                )}
+              >
+                <span className="flex size-4 items-center justify-center rounded-full bg-white/20 text-[0.625rem]">
+                  1
+                </span>
+                <span>Paramètres & Temps</span>
+              </button>
+              <span className="text-xs text-texte-discret">→</span>
+              <button
+                type="button"
+                onClick={passerComposition}
+                disabled={theme === null}
+                className={cx(
+                  "flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold transition-all",
+                  phase === "composition"
+                    ? "bg-primaire text-primaire-contraste shadow-xs"
+                    : "bg-surface-2 text-texte-attenue hover:text-texte cursor-pointer",
+                )}
+              >
+                <span className="flex size-4 items-center justify-center rounded-full bg-white/20 text-[0.625rem]">
+                  2
+                </span>
+                <span>Composition & Exercices</span>
+              </button>
+            </div>
+            <span className="text-[0.6875rem] font-medium text-texte-discret">
+              {phase === "besoin" ? "Étape 1/2" : "Étape 2/2"}
+            </span>
+          </div>
+
           {phase === "besoin" ? (
             <EtapeBesoin
               themePrincipal={themePrincipal}
@@ -518,6 +537,7 @@ export function ConcepteurSeance({
             <EtapeComposition
               composition={composition}
               theme={theme}
+              tempsMin={tempsMin}
               conseil={conseil}
               nombreExercices={nombreExercices}
               refusDemande={refusDemande}
@@ -527,15 +547,28 @@ export function ConcepteurSeance({
               }}
               planifieePour={planifieePour}
               setPlanifieePour={setPlanifieePour}
-              competencesModale={competencesModale}
-              calibragesModale={calibragesModale}
-              compteId={compteId}
               enregistrement={enregistrement}
               erreur={erreur}
               planifier={() => enregistrer(false)}
+              onDeclencherGeneration={(cibles) => setGenerationCibles(cibles)}
             />
           )}
         </Modale>
+      )}
+
+      {/* Modale de génération d'exercice connectée directement */}
+      {generationCibles && (
+        <ModaleExercice
+          onFermer={() => setGenerationCibles(null)}
+          competences={competencesModale}
+          competenceInitiale={generationCibles.codeInitial}
+          competencesCibles={generationCibles.codes}
+          calibrages={calibragesModale}
+          compteId={compteId}
+          surEnregistre={() => {
+            router.refresh();
+          }}
+        />
       )}
     </>
   );
@@ -570,14 +603,13 @@ function EtapeBesoin({
 }) {
   if (!themePrincipal) {
     return (
-      <div className="space-y-3 pt-4">
+      <div className="space-y-3 pt-2">
         <Carte>
           <div className="px-4 py-8 text-center">
             <p className="text-sm font-medium">Aucun thème à proposer</p>
             <p className="mx-auto mt-1 max-w-md text-xs text-texte-attenue">
               Le moteur n&apos;a rien à recommander : soit le référentiel est vide, soit
-              toutes les compétences actives ont été écartées récemment. Rien n&apos;est
-              proposé par défaut — il n&apos;y aurait aucune raison derrière.
+              toutes les compétences actives ont été écartées récemment.
             </p>
           </div>
         </Carte>
@@ -586,45 +618,67 @@ function EtapeBesoin({
   }
 
   return (
-    <div className="space-y-5 pt-4">
-      <Carte>
-        <div className="px-4 py-3.5">
-          <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-primaire">
+    <div className="space-y-5 pt-2">
+      {/* Hero Card thématique */}
+      <div className="rounded-xl border border-primaire/30 bg-gradient-to-br from-surface to-surface-2 p-4 shadow-xs">
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center rounded-md bg-primaire-faible px-2 py-0.5 text-[0.6875rem] font-semibold uppercase tracking-wider text-primaire">
             {sourceTheme}
-          </p>
-          <p className="mt-1 text-sm font-medium">{themePrincipal.libelle}</p>
-          <p className="mt-0.5 text-[0.6875rem] text-texte-discret">{themePrincipal.detail}</p>
+          </span>
         </div>
-      </Carte>
+        <h3 className="mt-2 text-base font-semibold tracking-tight text-texte">
+          {themePrincipal.libelle}
+        </h3>
+        <p className="mt-1 text-xs leading-relaxed text-texte-attenue">
+          {themePrincipal.detail}
+        </p>
+      </div>
 
-      <div className="space-y-2">
-        <label className="block text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
-          Temps disponible (minutes)
-        </label>
-        <div className="flex flex-wrap gap-2">
-          {[
-            { temps: 15, libelle: "15 min (Express)" },
-            { temps: 30, libelle: "30 min (Équilibré)" },
-            { temps: 45, libelle: "45 min (Approfondi)" },
-            { temps: 60, libelle: "60 min (Standard)" },
-          ].map((preset) => (
-            <button
-              key={preset.temps}
-              type="button"
-              onClick={() => setTemps(String(preset.temps))}
-              className={cx(
-                "rounded-md border px-3 py-1.5 text-xs font-medium transition-all cursor-pointer",
-                temps === String(preset.temps)
-                  ? "border-primaire bg-primaire-faible text-primaire font-semibold shadow-xs"
-                  : "border-bordure bg-surface hover:bg-surface-2 text-texte-attenue hover:text-texte",
-              )}
-            >
-              {preset.libelle}
-            </button>
-          ))}
+      {/* Sélection du temps */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <label className="text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret">
+            Temps disponible pour la séance
+          </label>
+          <span className="text-xs font-mono font-medium text-primaire">
+            {temps} minutes
+          </span>
         </div>
+
+        {/* Puces de presets rapides */}
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {[
+            { temps: 15, titre: "15 min", badge: "Express" },
+            { temps: 30, titre: "30 min", badge: "Équilibré" },
+            { temps: 45, titre: "45 min", badge: "Approfondi" },
+            { temps: 60, titre: "60 min", badge: "Standard" },
+          ].map((preset) => {
+            const actif = temps === String(preset.temps);
+            return (
+              <button
+                key={preset.temps}
+                type="button"
+                onClick={() => setTemps(String(preset.temps))}
+                className={cx(
+                  "flex flex-col items-center justify-center rounded-xl border p-2.5 transition-all cursor-pointer text-center",
+                  actif
+                    ? "border-primaire bg-primaire-faible/70 text-primaire ring-1 ring-primaire shadow-xs font-semibold"
+                    : "border-bordure bg-surface hover:bg-surface-2 text-texte-attenue hover:text-texte",
+                )}
+              >
+                <span className="text-xs font-bold">
+                  {preset.titre}
+                </span>
+                <span className="mt-0.5 text-[0.625rem] text-texte-discret">
+                  {preset.badge}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
         <Champ
-          label=""
+          label="Durée personnalisée (minutes)"
           type="number"
           min={DUREE_ESTIMEE_MIN}
           max={TEMPS_DECLARE_MAX}
@@ -633,43 +687,40 @@ function EtapeBesoin({
           aide={
             conseil
               ? conseil.explication
-              : "Aucune durée de référence encore observée : tu fixeras le nombre d'exercices à l'étape suivante."
+              : "Aucune durée de référence observée : tu fixeras le nombre d'exercices à l'étape suivante."
           }
         />
       </div>
 
-      {/*
-        L'intention rédigée reste possible, mais repliée et facultative : c'est
-        elle qui rendait la composition plus longue que la séance. Son absence
-        ne retire rien à l'écart besoin/réalisé, qui compare le thème et le
-        temps — pas la phrase.
-      */}
+      {/* Intention facultative */}
       {intentionOuverte ? (
-        <Champ
-          label="Pourquoi cette séance ? (facultatif)"
-          multiligne
-          rows={2}
-          value={intention}
-          onChange={(e) => setIntention(e.target.value)}
-          placeholder="Ex. : avant l'examen de jeudi."
-          aide="Conservée telle quelle, pour que tu puisses la relire plus tard."
-        />
+        <div className="rounded-xl border border-bordure bg-surface p-3.5 shadow-xs">
+          <Champ
+            label="Pourquoi cette séance ? (facultatif)"
+            multiligne
+            rows={2}
+            value={intention}
+            onChange={(e) => setIntention(e.target.value)}
+            placeholder="Ex. : Révision avant l'examen de vendredi, focus sur les biais..."
+            aide="Conservée telle quelle dans ton journal de travail."
+          />
+        </div>
       ) : (
         <button
           type="button"
           onClick={() => setIntentionOuverte(true)}
-          className="text-xs text-primaire hover:underline"
+          className="inline-flex items-center gap-1 text-xs font-medium text-primaire hover:underline cursor-pointer"
         >
-          + Noter pourquoi (facultatif)
+          <span>+</span>
+          <span>Ajouter une note d&apos;intention (facultatif)</span>
         </button>
       )}
 
       {erreur && (
-        <p role="alert" className="text-xs text-danger">
-          {erreur}
-        </p>
+        <BandeauInfo ton="danger" taille="compacte">
+          <p className="text-xs text-danger">{erreur}</p>
+        </BandeauInfo>
       )}
-
     </div>
   );
 }
@@ -681,127 +732,262 @@ function EtapeBesoin({
 function EtapeComposition({
   composition,
   theme,
+  tempsMin,
   conseil,
   nombreExercices,
   refusDemande,
   setNombreExercices,
   planifieePour,
   setPlanifieePour,
-  competencesModale,
-  calibragesModale,
-  compteId,
   enregistrement,
   erreur,
   planifier,
+  onDeclencherGeneration,
 }: {
   composition: CompositionSeance | null;
   theme: ThemeSeance | null;
+  tempsMin: number;
   conseil: ReturnType<typeof nombreExercicesConseille>;
   nombreExercices: number;
   refusDemande: string | null;
   setNombreExercices: (v: number) => void;
   planifieePour: string;
   setPlanifieePour: (v: string) => void;
-  competencesModale: CompetenceModale[];
-  calibragesModale: Record<string, CalibrageModale>;
-  compteId: string;
   enregistrement: boolean;
   erreur: string | null;
   planifier: () => void;
+  onDeclencherGeneration: (cibles: { codeInitial: string; codes?: string[] }) => void;
 }) {
   if (!theme) return null;
 
   if (!composition) {
     return (
-      <div className="space-y-4 pt-4">
-        <p role="alert" className="text-xs text-danger">
-          {refusDemande ?? "Cette composition est incohérente. Reviens au besoin et ajuste la durée."}
-        </p>
+      <div className="space-y-4 pt-2">
+        <BandeauInfo ton="danger">
+          <p className="text-xs text-danger">
+            {refusDemande ?? "Cette composition est incohérente. Reviens au besoin et ajuste la durée."}
+          </p>
+        </BandeauInfo>
       </div>
     );
   }
 
   const vide = composition.activites.length === 0 && composition.manquants.length === 0;
-  // Une séance sans AUCUN exercice retenu ne peut pas être écrite : les places
-  // « à générer » ne deviennent des activités qu'une fois créées ET relues dans
-  // la composition (même règle que `motifRefusActivites` côté serveur).
   const sansExerciceDisponible = composition.activites.length === 0;
+  const dureeRetenue = composition.activites.reduce((acc, a) => acc + a.dureeEstimeeMin, 0);
 
   return (
-    <div className="space-y-4 pt-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <div className="space-y-5 pt-2">
+      {/* En-tête : rappel du thème + sélecteur d'exercices */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-bordure bg-surface-2/50 p-3.5">
         <div className="min-w-0">
-          <p className="text-sm font-medium">{theme.libelle}</p>
-          <p className="text-[0.6875rem] text-texte-discret">{theme.detail}</p>
+          <div className="flex items-center gap-1.5">
+            <span className="rounded bg-primaire-faible px-2 py-0.5 text-[0.6875rem] font-semibold text-primaire">
+              Thème ciblé
+            </span>
+          </div>
+          <p className="mt-1 text-sm font-semibold text-texte">{theme.libelle}</p>
+          <p className="text-xs text-texte-discret">{theme.detail}</p>
         </div>
-        <div className="w-36 shrink-0">
-          <Champ
-            label="Exercices"
-            type="number"
-            min={EXERCICES_PAR_SEANCE_MIN}
-            max={EXERCICES_PAR_SEANCE_MAX}
-            value={String(nombreExercices)}
-            onChange={(e) => setNombreExercices(Math.min(EXERCICES_PAR_SEANCE_MAX, Math.max(EXERCICES_PAR_SEANCE_MIN, Number(e.target.value) || EXERCICES_PAR_SEANCE_MIN)))}
-            aide={conseil ? `Conseillé : ${conseil.nombre}` : "À fixer toi-même"}
-          />
+        <div className="flex items-center gap-3">
+          <div className="flex flex-col items-end">
+            <label className="text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret">
+              Exercices demandés
+            </label>
+            <div className="mt-1 flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() =>
+                  setNombreExercices(
+                    Math.max(EXERCICES_PAR_SEANCE_MIN, nombreExercices - 1),
+                  )
+                }
+                disabled={nombreExercices <= EXERCICES_PAR_SEANCE_MIN}
+                aria-label="Moins d'exercices"
+                className="flex size-7 items-center justify-center rounded-lg border border-bordure bg-surface text-sm font-bold text-texte transition-colors hover:bg-surface-2 disabled:opacity-40 cursor-pointer"
+              >
+                −
+              </button>
+              <span className="w-8 text-center font-mono text-sm font-bold">
+                {nombreExercices}
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  setNombreExercices(
+                    Math.min(EXERCICES_PAR_SEANCE_MAX, nombreExercices + 1),
+                  )
+                }
+                disabled={nombreExercices >= EXERCICES_PAR_SEANCE_MAX}
+                aria-label="Plus d'exercices"
+                className="flex size-7 items-center justify-center rounded-lg border border-bordure bg-surface text-sm font-bold text-texte transition-colors hover:bg-surface-2 disabled:opacity-40 cursor-pointer"
+              >
+                +
+              </button>
+            </div>
+            {conseil && (
+              <span className="mt-0.5 text-[0.625rem] text-texte-discret">
+                Conseillé : {conseil.nombre}
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
-      {composition.explication.map((l, i) => (
-        <p key={i} className="text-xs text-texte-attenue">
-          {l}
-        </p>
-      ))}
-
-      {composition.activites.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-sm font-medium">Exercices retenus</p>
-          {composition.activites.map((a) => (
-            <LigneActivite key={a.ref} activite={a} />
-          ))}
-        </div>
-      )}
-
-      {composition.manquants.length > 0 && (
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-medium">
-              À rédiger — {composition.manquants.length} exercice
-              {composition.manquants.length > 1 ? "s" : ""} manquant
-              {composition.manquants.length > 1 ? "s" : ""}
-            </p>
-            {/*
-              Un seul bouton pour tout le lot plutôt qu'un par compétence : la
-              route et `genererExercices` font déjà un seul appel modèle pour
-              N demandes (borné à EXERCICES_PAR_LOT_MAX). Générer un par un
-              est une lenteur d'interface, pas une contrainte du moteur.
-            */}
-            <BoutonGenerer
-              competences={competencesModale}
-              competenceInitiale={composition.manquants[0].code}
-              competencesCibles={composition.manquants.map((m) => m.code)}
-              calibrages={calibragesModale}
-              compteId={compteId}
-              libelle={`Générer les ${composition.manquants.length} exercice${composition.manquants.length > 1 ? "s" : ""} manquant${composition.manquants.length > 1 ? "s" : ""}`}
-              variante="secondaire"
-            />
+      {/* Grille de 3 métriques de synthèse */}
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+        {/* Exercices disponibles */}
+        <div className="rounded-xl border border-bordure bg-surface p-3 shadow-xs">
+          <div className="text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret">
+            Exercices prêts
           </div>
-          {composition.manquants.map((m) => (
-            <LigneManquant key={m.code} manquant={m} />
-          ))}
-          <p className="text-[0.6875rem] text-texte-discret">
-            Génère et relis chaque exercice avant de démarrer : rien n&apos;est écrit sans
-            ta validation. Les manquants non générés ne feront pas partie de la séance.
+          <div className="mt-1 flex items-baseline gap-1.5">
+            <span
+              className={cx(
+                "font-mono text-xl font-bold",
+                composition.activites.length > 0 ? "text-succes" : "text-alerte",
+              )}
+            >
+              {composition.activites.length}
+            </span>
+            <span className="text-xs text-texte-attenue">
+              / {nombreExercices} demandé{nombreExercices > 1 ? "s" : ""}
+            </span>
+          </div>
+          <p className="mt-1 text-[0.6875rem] text-texte-discret">
+            {composition.activites.length === 0
+              ? "0 déjà en bibliothèque"
+              : `${composition.activites.length} prêt${composition.activites.length > 1 ? "s" : ""} à jouer`}
           </p>
         </div>
+
+        {/* Durée estimée */}
+        <div className="rounded-xl border border-bordure bg-surface p-3 shadow-xs">
+          <div className="text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret">
+            Durée retenue
+          </div>
+          <div className="mt-1 flex items-baseline gap-1.5">
+            <span className="font-mono text-xl font-bold text-texte">
+              {dureeRetenue} min
+            </span>
+            <span className="text-xs text-texte-attenue">/ cible {tempsMin} min</span>
+          </div>
+          <p className="mt-1 text-[0.6875rem] text-texte-discret">
+            {composition.manquants.length > 0
+              ? `+ ${composition.manquants.length} exercice${composition.manquants.length > 1 ? "s" : ""} à créer`
+              : "Durée calibrée"}
+          </p>
+        </div>
+
+        {/* À rédiger */}
+        <div
+          className={cx(
+            "rounded-xl border p-3 shadow-xs",
+            composition.manquants.length > 0
+              ? "border-primaire/40 bg-primaire-faible/30"
+              : "border-succes/40 bg-succes-faible/30",
+          )}
+        >
+          <div className="text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret">
+            À rédiger avec l&apos;IA
+          </div>
+          <div className="mt-1 flex items-baseline gap-1.5">
+            <span
+              className={cx(
+                "font-mono text-xl font-bold",
+                composition.manquants.length > 0 ? "text-primaire" : "text-succes",
+              )}
+            >
+              {composition.manquants.length}
+            </span>
+            <span className="text-xs text-texte-attenue">
+              manquant{composition.manquants.length > 1 ? "s" : ""}
+            </span>
+          </div>
+          <p className="mt-1 text-[0.6875rem] text-texte-discret">
+            {composition.manquants.length > 0
+              ? "Génération IA en 1 clic"
+              : "Tous les exercices sont prêts"}
+          </p>
+        </div>
+      </div>
+
+      {/* Liste des exercices retenus */}
+      {composition.activites.length > 0 && (
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-texte-discret">
+              Exercices retenus ({composition.activites.length})
+            </h4>
+            <span className="text-[0.6875rem] font-medium text-succes">
+              Prêts pour la séance
+            </span>
+          </div>
+          <div className="space-y-2">
+            {composition.activites.map((a) => (
+              <LigneActivite key={a.ref} activite={a} />
+            ))}
+          </div>
+        </div>
       )}
 
+      {/* Section des exercices à rédiger / manquants */}
+      {composition.manquants.length > 0 && (
+        <div className="space-y-3 rounded-xl border border-primaire/30 bg-surface p-4 shadow-xs">
+          <div className="flex flex-wrap items-center justify-between gap-2.5">
+            <div>
+              <h4 className="flex items-center gap-1.5 text-sm font-semibold text-texte">
+                <span>À rédiger</span>
+                <span className="rounded-full bg-primaire-faible px-2 py-0.5 text-xs font-bold text-primaire">
+                  {composition.manquants.length} manquant
+                  {composition.manquants.length > 1 ? "s" : ""}
+                </span>
+              </h4>
+              <p className="mt-0.5 text-[0.6875rem] text-texte-attenue">
+                Génère et valide ces exercices avec le tuteur pour les intégrer à ta séance.
+              </p>
+            </div>
+            <Bouton
+              type="button"
+              onClick={() => {
+                onDeclencherGeneration({
+                  codeInitial: composition.manquants[0].code,
+                  codes: composition.manquants.map((m) => m.code),
+                });
+              }}
+              variante="principal"
+              className="cursor-pointer text-xs shadow-xs"
+            >
+              <span>Générer les {composition.manquants.length} exercices manquants</span>
+            </Bouton>
+          </div>
+
+          <div className="space-y-2 pt-1">
+            {composition.manquants.map((m) => (
+              <LigneManquant
+                key={m.code}
+                manquant={m}
+                onGenerer={() => {
+                  onDeclencherGeneration({
+                    codeInitial: m.code,
+                    codes: [m.code],
+                  });
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Bandeau d'état et d'orientation */}
       {sansExerciceDisponible && !vide && (
-        <p role="alert" className="text-xs text-danger">
-          Rien ne peut encore démarrer : aucun exercice n&apos;est déjà disponible. Génère
-          au moins un exercice manquant, relis-le — il rejoindra la composition — puis
-          valide. Les exercices non générés ne font pas partie de la séance.
-        </p>
+        <BandeauInfo ton="alerte" taille="compacte">
+          <p className="text-xs">
+            <strong>Génération requise :</strong> aucun exercice n&apos;est encore disponible
+            dans ta bibliothèque. Clique sur <strong>Générer les exercices manquants</strong> ci-dessus
+            pour créer et valider tes exercices avec l&apos;IA.
+          </p>
+        </BandeauInfo>
       )}
 
       {vide && (
@@ -812,11 +998,12 @@ function EtapeComposition({
         </Carte>
       )}
 
-      <details className="rounded-md border border-bordure px-3 py-2">
-        <summary className="cursor-pointer text-xs text-texte-attenue">
-          Planifier pour plus tard plutôt que démarrer maintenant
+      {/* Planifier pour plus tard */}
+      <details className="rounded-xl border border-bordure bg-surface p-3 transition-all">
+        <summary className="flex cursor-pointer items-center gap-2 text-xs font-medium text-texte-attenue hover:text-texte">
+          <span>Planifier pour plus tard plutôt que démarrer maintenant</span>
         </summary>
-        <div className="mt-2">
+        <div className="mt-3 border-t border-bordure pt-3 space-y-3">
           <Champ
             label="Date et heure prévues"
             type="datetime-local"
@@ -824,7 +1011,7 @@ function EtapeComposition({
             onChange={(e) => setPlanifieePour(e.target.value)}
             aide="La séance apparaîtra dans l'historique en « Planifiée », prête à démarrer."
           />
-          <div className="mt-2">
+          <div className="flex justify-end">
             <Bouton
               type="button"
               variante="secondaire"
@@ -839,35 +1026,69 @@ function EtapeComposition({
       </details>
 
       {erreur && (
-        <p role="alert" className="text-xs text-danger">
-          {erreur}
-        </p>
+        <BandeauInfo ton="danger" taille="compacte">
+          <p className="text-xs text-danger">{erreur}</p>
+        </BandeauInfo>
       )}
-
     </div>
   );
 }
 
 function LigneActivite({ activite }: { activite: ActiviteComposee }) {
   return (
-    <div className="rounded-md border border-bordure bg-surface-2/60 p-3">
-      <p className="text-sm font-medium">{activite.libelle}</p>
-      <p className="mt-0.5 text-xs text-texte-discret">
-        {activite.code} · Difficulté {activite.difficulte}/5 · ≈ {activite.dureeEstimeeMin} min
-      </p>
-      <p className="mt-1 text-xs text-texte-attenue">{activite.raison}</p>
+    <div className="rounded-xl border border-bordure bg-surface p-3.5 shadow-xs transition-colors hover:border-primaire/30">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Etiquette mono ton="primaire">
+              {activite.code}
+            </Etiquette>
+            <span className="rounded-md bg-surface-2 px-2 py-0.5 text-[0.6875rem] font-medium text-texte-attenue">
+              Difficulté {activite.difficulte}/5
+            </span>
+            <span className="rounded-md bg-surface-2 px-2 py-0.5 text-[0.6875rem] font-medium text-texte-attenue">
+              ≈ {activite.dureeEstimeeMin} min
+            </span>
+          </div>
+          <h5 className="mt-1.5 text-sm font-semibold text-texte">{activite.libelle}</h5>
+          <p className="mt-1 text-xs leading-relaxed text-texte-attenue">{activite.raison}</p>
+        </div>
+      </div>
     </div>
   );
 }
 
-function LigneManquant({ manquant }: { manquant: ManquantSeance }) {
+function LigneManquant({
+  manquant,
+  onGenerer,
+}: {
+  manquant: ManquantSeance;
+  onGenerer: () => void;
+}) {
   return (
-    <div className="rounded-md border border-dashed border-bordure p-3">
-      <p className="text-sm font-medium">{manquant.intitule}</p>
-      <p className="mt-0.5 text-xs text-texte-discret">
-        {manquant.code} · difficulté cible {manquant.difficulteCible}/5
-      </p>
-      <p className="mt-1 text-xs text-texte-attenue">{manquant.raison}</p>
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-dashed border-bordure bg-surface-2/40 p-3 transition-colors hover:border-primaire/40">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Etiquette mono>{manquant.code}</Etiquette>
+          <span className="rounded-md bg-surface-2 px-1.5 py-0.5 text-[0.6875rem] text-texte-discret">
+            Difficulté cible {manquant.difficulteCible}/5
+          </span>
+        </div>
+        <p className="mt-1 text-xs font-semibold text-texte">{manquant.intitule}</p>
+        <p className="mt-0.5 text-[0.6875rem] text-texte-attenue">{manquant.raison}</p>
+      </div>
+      <div className="shrink-0">
+        <Bouton
+          type="button"
+          taille="petite"
+          variante="secondaire"
+          onClick={onGenerer}
+          className="w-full sm:w-auto text-xs cursor-pointer"
+        >
+          <span>Générer</span>
+        </Bouton>
+      </div>
     </div>
   );
 }
+

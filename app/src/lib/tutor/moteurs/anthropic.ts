@@ -132,6 +132,7 @@ export function moteurAnthropic(cle: string, modele: string): MoteurTuteur {
         // émettre « erreur » ferait afficher un incident là où l'utilisateur a
         // simplement cliqué « Arrêter » ou changé de page.
         if (signal?.aborted) return;
+        console.error(`[anthropic] Exception API Anthropic :`, e);
 
         // Chaîne du plus spécifique au plus général, pour distinguer ce qui
         // vaut la peine d'être réessayé de ce qui ne l'est pas.

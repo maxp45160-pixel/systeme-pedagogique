@@ -113,15 +113,18 @@ function bornerDuree(valeur: number): number {
   return Math.min(POMODORO_MAX, Math.max(POMODORO_MIN, Math.round(valeur)));
 }
 
-export function Pomodoro({ compteId }: { compteId: string }) {
+const EVENT_POMODORO_SYNC = "pedagogie:pomodoro-sync";
+
+/**
+ * Hook Pomodoro partagé — synchronisé à la seconde près entre tous les composants montés.
+ */
+export function usePomodoro(compteId: string) {
   const hydrate = useEstHydrate();
   const cle = cleParCompte("pomodoro", compteId);
 
   const [etat, setEtat] = useState<EtatPersiste>(() => lireSession<EtatPersiste>(cle) ?? etatInitial());
   const [maintenant, setMaintenant] = useState(() => Date.now());
-  const [reglageOuvert, setReglageOuvert] = useState(false);
   const [signalFin, setSignalFin] = useState<PhasePomodoro | null>(null);
-  const intervalle = useRef<ReturnType<typeof setInterval> | null>(null);
   const etatCourant = useRef(etat);
   const effacementSignal = useRef<number | null>(null);
 
@@ -129,29 +132,42 @@ export function Pomodoro({ compteId }: { compteId: string }) {
     etatCourant.current = etat;
   }, [etat]);
 
+  // Synchronisation réactive inter-composants et inter-onglets
+  useEffect(() => {
+    if (!hydrate) return;
+    function surSync() {
+      const e = lireSession<EtatPersiste>(cle);
+      if (e) {
+        setEtat(e);
+        etatCourant.current = e;
+      }
+      setMaintenant(Date.now());
+    }
+    window.addEventListener(EVENT_POMODORO_SYNC, surSync);
+    window.addEventListener("storage", surSync);
+    return () => {
+      window.removeEventListener(EVENT_POMODORO_SYNC, surSync);
+      window.removeEventListener("storage", surSync);
+    };
+  }, [hydrate, cle]);
+
   const enMarche = etat.finPrevue !== undefined;
   const reste = secondesRestantes(etat, maintenant);
   const durees = dureesDe(etat);
 
-  // Persiste à chaque changement d'état — après hydratation seulement, pour ne
-  // pas écraser une valeur lue avant que le composant ait fini de se poser.
-  useEffect(() => {
-    if (!hydrate) return;
-    ecrireSession(cle, etat);
-  }, [hydrate, cle, etat]);
+  function diffuser(prochain: EtatPersiste) {
+    setEtat(prochain);
+    etatCourant.current = prochain;
+    ecrireSession(cle, prochain);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent(EVENT_POMODORO_SYNC));
+    }
+  }
 
-  /*
-   * Le décompte affiché avance chaque seconde tant que le minuteur tourne, et
-   * la bascule focus ↔ pause à zéro se décide dans le CALLBACK du minuteur —
-   * pas dans le corps de l'effet. Un effet qui appelle `setState`
-   * synchroniquement à chaque rendu où `reste` vaut 0 déclenche la cascade de
-   * rendus que React déconseille ; ici, `setEtat` ne s'exécute que depuis le
-   * `setInterval`, un événement externe au rendu, ce qui est exactement ce
-   * pour quoi `useEffect` existe (synchroniser avec une horloge).
-   */
+  // Horloge active quand un cycle tourne
   useEffect(() => {
     if (!enMarche) return;
-    intervalle.current = setInterval(() => {
+    const intervalle = setInterval(() => {
       const instant = Date.now();
       const e = etatCourant.current;
       if (e.finPrevue !== undefined && instant >= e.finPrevue) {
@@ -163,8 +179,7 @@ export function Pomodoro({ compteId }: { compteId: string }) {
           finPrevue: instant + dureesDe(e)[suivante] * 60_000,
           resteAuArret: undefined,
         } satisfies EtatPersiste;
-        etatCourant.current = prochain;
-        setEtat(prochain);
+        diffuser(prochain);
         setSignalFin(phaseTerminee);
         jouerSignalFin();
         if (effacementSignal.current) window.clearTimeout(effacementSignal.current);
@@ -173,7 +188,7 @@ export function Pomodoro({ compteId }: { compteId: string }) {
       setMaintenant(instant);
     }, 1000);
     return () => {
-      if (intervalle.current) clearInterval(intervalle.current);
+      clearInterval(intervalle);
       if (effacementSignal.current) window.clearTimeout(effacementSignal.current);
     };
   }, [enMarche]);
@@ -182,66 +197,98 @@ export function Pomodoro({ compteId }: { compteId: string }) {
     const instant = Date.now();
     setMaintenant(instant);
     setSignalFin(null);
-    setEtat((e) => ({
+    const e = etatCourant.current;
+    const prochain = {
       ...e,
-      // `secondesRestantes` retire la seconde en cours pour afficher 24:59 au
-      // départ ; on la restitue à la reprise d'un minuteur suspendu afin de ne
-      // pas perdre une seconde à chaque cycle pause/reprise.
       finPrevue: instant + (e.resteAuArret ?? dureesDe(e)[e.phase] * 60) * 1000 +
         (e.resteAuArret === undefined ? 0 : 1000),
       resteAuArret: undefined,
-    }));
+    };
+    diffuser(prochain);
   }
 
   function suspendre() {
     const instant = Date.now();
     setMaintenant(instant);
     setSignalFin(null);
-    setEtat((e) => ({
+    const e = etatCourant.current;
+    const prochain = {
       ...e,
       finPrevue: undefined,
       resteAuArret: secondesRestantes(e, instant),
-    }));
+    };
+    diffuser(prochain);
   }
 
   function reinitialiser() {
-    // Les durées réglées survivent : réinitialiser remet le compteur à zéro,
-    // pas les préférences. Effacer les deux d'un même bouton obligerait à
-    // re-régler après chaque cycle interrompu.
     setSignalFin(null);
     setMaintenant(Date.now());
-    setEtat((e) => ({ phase: "focus", ...(e.dureesMin ? { dureesMin: e.dureesMin } : {}) }));
+    const e = etatCourant.current;
+    const prochain = {
+      phase: "focus" as const,
+      ...(e.dureesMin ? { dureesMin: e.dureesMin } : {}),
+    };
+    diffuser(prochain);
   }
 
   function oublierReglages() {
     setSignalFin(null);
-    setEtat(etatInitial());
     effacerSession(cle);
+    diffuser(etatInitial());
   }
 
   function changerPhase(phase: PhasePomodoro) {
     setSignalFin(null);
-    setEtat((e) => ({ ...e, phase, finPrevue: undefined, resteAuArret: undefined }));
+    const e = etatCourant.current;
+    const prochain = { ...e, phase, finPrevue: undefined, resteAuArret: undefined };
+    diffuser(prochain);
   }
 
-  /**
-   * Régler une durée remet le compteur de cette phase à zéro.
-   *
-   * Sans cela, passer la concentration de 25 à 50 minutes laisserait afficher
-   * les 25 minutes d'avant : le nombre saisi et le nombre affiché diraient deux
-   * choses différentes, et on ne saurait pas laquelle fait foi.
-   */
   function reglerDuree(phase: PhasePomodoro, valeur: number) {
     setSignalFin(null);
-    setEtat((e) => {
-      const dureesMin = { ...dureesDe(e), [phase]: bornerDuree(valeur) };
-      return {
-        ...e,
-        dureesMin,
-        ...(e.phase === phase ? { finPrevue: undefined, resteAuArret: undefined } : {}),
-      };
-    });
+    const e = etatCourant.current;
+    const dureesMin = { ...dureesDe(e), [phase]: bornerDuree(valeur) };
+    const prochain = {
+      ...e,
+      dureesMin,
+      ...(e.phase === phase ? { finPrevue: undefined, resteAuArret: undefined } : {}),
+    };
+    diffuser(prochain);
   }
+
+  return {
+    hydrate,
+    etat,
+    enMarche,
+    reste,
+    durees,
+    signalFin,
+    demarrer,
+    suspendre,
+    reinitialiser,
+    oublierReglages,
+    changerPhase,
+    reglerDuree,
+  };
+}
+
+export function Pomodoro({ compteId }: { compteId: string }) {
+  const {
+    hydrate,
+    etat,
+    enMarche,
+    reste,
+    durees,
+    signalFin,
+    demarrer,
+    suspendre,
+    reinitialiser,
+    oublierReglages,
+    changerPhase,
+    reglerDuree,
+  } = usePomodoro(compteId);
+
+  const [reglageOuvert, setReglageOuvert] = useState(false);
 
   // Rien à afficher tant que l'état du navigateur n'est pas connu : le serveur
   // rendrait 25:00 et le client corrigerait aussitôt, un écart d'hydratation
@@ -363,24 +410,10 @@ export function Pomodoro({ compteId }: { compteId: string }) {
  * S'insère dans l'en-tête ou la barre mobile.
  */
 export function PastillePomodoroGlobale({ compteId }: { compteId: string }) {
-  const hydrate = useEstHydrate();
-  const cle = cleParCompte("pomodoro", compteId);
-  const [etat, setEtat] = useState<EtatPersiste>(() => lireSession<EtatPersiste>(cle) ?? etatInitial());
-  const [maintenant, setMaintenant] = useState(() => Date.now());
+  const { hydrate, etat, enMarche, reste } = usePomodoro(compteId);
 
-  useEffect(() => {
-    if (!hydrate) return;
-    const intervalle = setInterval(() => {
-      const e = lireSession<EtatPersiste>(cle);
-      if (e) setEtat(e);
-      setMaintenant(Date.now());
-    }, 1000);
-    return () => clearInterval(intervalle);
-  }, [hydrate, cle]);
+  if (!hydrate || !enMarche) return null;
 
-  if (!hydrate || etat.finPrevue === undefined) return null;
-
-  const reste = secondesRestantes(etat, maintenant);
   const estFocus = etat.phase === "focus";
 
   return (
@@ -398,4 +431,3 @@ export function PastillePomodoroGlobale({ compteId }: { compteId: string }) {
     </div>
   );
 }
-

@@ -30,7 +30,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { CoquilleWorkspace } from "@/components/seances/coquille-workspace";
+import { CoquilleWorkspace } from "@/components/atelier/coquille-workspace";
 import { BandeauInfo, BarreProgression, Bouton, Carte, cx } from "@/components/ui/primitives";
 import { Champ } from "@/components/ui/champ";
 import { Markdown } from "@/components/ui/markdown";

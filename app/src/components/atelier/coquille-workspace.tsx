@@ -3,15 +3,11 @@ import type { ReactNode } from "react";
 import { classesLienBouton } from "@/components/ui/primitives";
 
 /**
- * Le chrome d'un espace de travail du Cahier.
+ * Le chrome d'un espace de travail documentaire de l'Atelier.
  *
- * Même forme que le workspace de séance (`vue-seance-detail`) : plein écran,
- * en-tête collant, et une sortie toujours visible. Un espace de travail qui
- * couvre l'écran sans dire comment en sortir n'est pas un mode focus, c'est une
- * impasse — c'était le défaut des écrans d'activité, qui remplaçaient la page
- * sans rien remettre à la place de la navigation.
+ * Plein écran, en-tête collant, et une sortie toujours visible vers l'Atelier.
  */
-const SORTIE_PAR_DEFAUT = { href: "/seances", libelle: "Sortir vers le cahier" } as const;
+const SORTIE_PAR_DEFAUT = { href: "/atelier", libelle: "Retourner à l'Atelier" } as const;
 
 export function CoquilleWorkspace({
   surtitre,
@@ -23,9 +19,7 @@ export function CoquilleWorkspace({
   surtitre: string;
   titre: string;
   /**
-   * Où mène la sortie. Un espace de travail ouvert depuis l'Atelier doit y
-   * ramener : renvoyer vers le cahier serait déposer l'utilisateur ailleurs
-   * qu'où il a cliqué.
+   * Où mène la sortie. Un espace de travail ouvert depuis l'Atelier ramène à l'Atelier.
    */
   sortie?: { href: string; libelle: string };
   /** Bandeau pleine largeur sous la ligne de titre, dans l'en-tête collant. */

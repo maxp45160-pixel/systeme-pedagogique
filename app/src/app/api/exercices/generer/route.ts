@@ -145,15 +145,6 @@ export async function POST(request: Request) {
       };
 
       try {
-        /*
-         * `envoyer` est passé en relais direct : les événements du moteur
-         * partent vers le navigateur au fil de l'eau.
-         *
-         * Ils étaient auparavant collectés puis rejoués APRÈS l'`await` — donc
-         * la modale ne recevait rien pendant toute la génération, puis tout
-         * d'un coup. Le commentaire promettait une progression que le code ne
-         * diffusait pas.
-         */
         const resultat = await genererExercices(
           moteur,
           ctx.referentiel,

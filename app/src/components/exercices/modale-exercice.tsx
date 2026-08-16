@@ -26,21 +26,16 @@
  *     défaut (ADR-034, P2). La modale affiche alors ce qui cloche.
  */
 
-import { Fragment, useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   BandeauInfo,
   Bouton,
-  Carte,
-  classesLienBouton,
-  CodeCompetence,
   cx,
   Etiquette,
-  SelecteurSegmente,
-  TagConfiance,
 } from "@/components/ui/primitives";
 import { Champ, ChampSelect } from "@/components/ui/champ";
-import { Modale } from "@/components/ui/modale";
+import { Modale, type LargeurModale } from "@/components/ui/modale";
 import { Markdown } from "@/components/ui/markdown";
 import { creerExercice } from "@/lib/store/actions";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
@@ -122,10 +117,13 @@ export function ModaleExercice({
    * jusqu'à `EXERCICES_PAR_LOT_MAX` demandes, mais rien n'empêchait un
    * appelant d'en envoyer plus.
    */
-  const codesLot =
-    competencesCibles && competencesCibles.length > 0
-      ? competencesCibles.slice(0, EXERCICES_PAR_LOT_MAX)
-      : null;
+  const codesLot = useMemo(
+    () =>
+      competencesCibles && competencesCibles.length > 0
+        ? competencesCibles.slice(0, EXERCICES_PAR_LOT_MAX)
+        : null,
+    [competencesCibles],
+  );
   const [code, setCode] = useState(
     propositionInitiale?.competences[0] ?? competenceInitiale,
   );
@@ -136,6 +134,7 @@ export function ModaleExercice({
   const [propositions, setPropositions] = useState<PropositionExercice[]>(
     propositionInitiale ? [propositionInitiale] : [],
   );
+  const [indexActif, setIndexActif] = useState(0);
   /** Index des propositions déjà enregistrées — pas un drapeau global. */
   const [enregistrees, setEnregistrees] = useState<Set<number>>(new Set());
   /**
@@ -161,20 +160,18 @@ export function ModaleExercice({
    * abandonner la génération en cours au démontage : sans quoi le fournisseur
    * continue de rédiger, facturé, pour un texte que plus personne ne lit.
    */
-  useEffect(() => {
-    const controleur = abandonRef;
-    return () => controleur.current?.abort();
-  }, []);
-
   const competence = competences.find((c) => c.code === code);
   // Relu à chaque rendu : c'est ce qui fait suivre le calibrage au sélecteur.
   const cal = calibrages[code] ?? null;
 
-  const generer = useCallback(async (modification?: {
-    proposition: PropositionExercice;
-    index: number;
-    consigne: string;
-  }) => {
+  const generer = useCallback(async (
+    modification?: {
+      proposition: PropositionExercice;
+      index: number;
+      consigne: string;
+    },
+    controleurExplicite?: AbortController,
+  ) => {
     const codesAEnvoyer = modification
       ? modification.proposition.competences.slice(0, 1)
       : codesLot ?? (competence ? [competence.code] : []);
@@ -187,7 +184,8 @@ export function ModaleExercice({
       setEnregistrees(new Set());
     }
 
-    const abandon = new AbortController();
+    const configClient = lireConfigTuteur(compteId) ?? undefined;
+    const abandon = controleurExplicite ?? new AbortController();
     abandonRef.current = abandon;
 
     try {
@@ -197,7 +195,7 @@ export function ModaleExercice({
         body: JSON.stringify({
           competences: codesAEnvoyer,
           theme: theme.trim() || undefined,
-          config: lireConfigTuteur(compteId) ?? undefined,
+          config: configClient,
           ...(modification
             ? {
                 modification: {
@@ -223,14 +221,6 @@ export function ModaleExercice({
       const lecteur = reponse.body.getReader();
       const decodeur = new TextDecoder();
       let tampon = "";
-      /*
-       * Un flux peut se fermer SANS événement terminal — coupure réseau,
-       * réponse tronquée, proxy qui referme. La boucle sortait alors sur `done`
-       * sans rien vérifier, et la modale restait en « génération » pour
-       * toujours : un chargement infini, qui se lit comme un plantage
-       * (audit §2.4). On note donc si un verdict est arrivé, et on le dit quand
-       * il n'est pas venu.
-       */
       let recue = false;
 
       for (;;) {
@@ -257,6 +247,7 @@ export function ModaleExercice({
               setConsigneModification("");
             } else {
               setPropositions(parsed.exercices);
+              setIndexActif(0);
             }
             setPhase("previsualisation");
           } else if (type === "erreur" && donnees) {
@@ -285,18 +276,29 @@ export function ModaleExercice({
   }, [codesLot, competence, theme, compteId]);
 
   /*
-   * Mode lot : la génération part directement à l'ouverture, sans repasser
-   * par le formulaire — le geste est déjà déclaré par le bouton qui l'a
-   * ouverte. Une seule fois par montage (la modale est démontée/remontée à
-   * chaque ouverture, voir `BoutonGenerer`).
+   * Mode lot : la génération part à l'ouverture pour la clé de lot courante.
    */
-  const lotDemarre = useRef(false);
+  const cleLot = codesLot && codesLot.length > 0 ? codesLot.join(",") : "";
+  const genererRef = useRef(generer);
   useEffect(() => {
-    if (codesLot && !lotDemarre.current) {
-      lotDemarre.current = true;
-      void generer();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    genererRef.current = generer;
+  });
+
+  useEffect(() => {
+    if (!cleLot) return;
+    const abandon = new AbortController();
+    abandonRef.current = abandon;
+    void genererRef.current(undefined, abandon);
+    return () => {
+      abandon.abort();
+    };
+  }, [cleLot]);
+
+  // Nettoyage au démontage
+  useEffect(() => {
+    return () => {
+      abandonRef.current?.abort();
+    };
   }, []);
 
   const enregistrer = useCallback(
@@ -351,6 +353,11 @@ export function ModaleExercice({
           router.refresh();
           if (nouvellesEnregistrees.size >= propositions.length) {
             onFermer();
+          } else {
+            const suivant = propositions.findIndex((_, idx) => !nouvellesEnregistrees.has(idx));
+            if (suivant !== -1) {
+              setIndexActif(suivant);
+            }
           }
         }
       } catch (e) {
@@ -367,15 +374,26 @@ export function ModaleExercice({
       enregistrees,
       ouvrirDansCahierApresAcceptation,
       onFermer,
-      propositions.length,
+      propositions,
     ],
   );
+
+  const accepterToutes = useCallback(async () => {
+    for (let i = 0; i < propositions.length; i++) {
+      if (!enregistrees.has(i)) {
+        await enregistrer(propositions[i], i);
+      }
+    }
+  }, [propositions, enregistrees, enregistrer]);
+
+  const toutesEnregistrees = propositions.length > 0 && propositions.every((_, i) => enregistrees.has(i));
+  const manquantesAEnregistrer = propositions.filter((_, i) => !enregistrees.has(i)).length;
 
   return (
     <EnveloppeGeneration
       presentation={presentation}
       onFermer={onFermer}
-      largeur={phase === "previsualisation" ? "4xl" : "2xl"}
+      largeur={phase === "previsualisation" ? "5xl" : "2xl"}
       pied={
         phase === "formulaire" && codesLot ? (
           <>
@@ -396,35 +414,83 @@ export function ModaleExercice({
             </Bouton>
           </>
         ) : phase === "previsualisation" ? (
-          <>
-            {propositions.map((p, i) => !enregistrees.has(i) && (
-              <Fragment key={i}>
+          <div className="flex w-full flex-wrap items-center justify-between gap-3">
+            {/* Stepper de navigation quand il y a plusieurs propositions */}
+            {propositions.length > 1 ? (
+              <div className="flex items-center gap-1.5">
                 <Bouton
+                  type="button"
                   onClick={() => {
-                    setModificationIndex(i);
-                    setConsigneModification("");
+                    setIndexActif((i) => Math.max(0, i - 1));
+                    setModificationIndex(null);
                   }}
+                  disabled={indexActif === 0}
                   variante="secondaire"
-                  disabled={enEcriture !== null || modificationIndex === i}
-                  aria-label={`Modifier la proposition ${i + 1}`}
+                  taille="compacte"
                 >
-                  Modifier
+                  <span>← Précédent</span>
                 </Bouton>
+                <span className="px-1 font-mono text-xs font-semibold text-texte-attenue">
+                  {indexActif + 1} / {propositions.length}
+                </span>
                 <Bouton
-                  onClick={() => void enregistrer(p, i)}
+                  type="button"
+                  onClick={() => {
+                    setIndexActif((i) => Math.min(propositions.length - 1, i + 1));
+                    setModificationIndex(null);
+                  }}
+                  disabled={indexActif === propositions.length - 1}
+                  variante="secondaire"
+                  taille="compacte"
+                >
+                  <span>Suivant →</span>
+                </Bouton>
+              </div>
+            ) : (
+              <div />
+            )}
+
+            {/* Actions droite */}
+            <div className="flex flex-wrap items-center gap-2">
+              {propositions.length > 1 && manquantesAEnregistrer > 0 && (
+                <Bouton
+                  onClick={() => void accepterToutes()}
                   variante="principal"
                   disabled={enEcriture !== null}
-                  enChargement={enEcriture === i}
-                  aria-label={`Accepter la proposition ${i + 1}`}
+                  enChargement={enEcriture !== null}
                 >
-                  Accepter
+                  <span>Tout accepter ({manquantesAEnregistrer})</span>
                 </Bouton>
-              </Fragment>
-            ))}
-            <Bouton onClick={onFermer} variante="secondaire">
-              Fermer
-            </Bouton>
-          </>
+              )}
+              {propositions.length === 1 && !enregistrees.has(0) && (
+                <>
+                  <Bouton
+                    onClick={() => {
+                      setModificationIndex(0);
+                      setConsigneModification("");
+                    }}
+                    variante="secondaire"
+                    disabled={enEcriture !== null || modificationIndex === 0}
+                    aria-label="Modifier la proposition"
+                  >
+                    Modifier avec l&apos;IA
+                  </Bouton>
+                  <Bouton
+                    onClick={() => void enregistrer(propositions[0], 0)}
+                    variante="principal"
+                    disabled={enEcriture !== null}
+                    enChargement={enEcriture === 0}
+                    aria-label="Accepter la proposition"
+                  >
+                    Accepter
+                  </Bouton>
+                </>
+              )}
+              <Bouton onClick={onFermer} variante="secondaire">
+                {toutesEnregistrees ? "Terminer" : "Fermer"}
+              </Bouton>
+            </div>
+          </div>
         ) : undefined
       }
     >
@@ -579,142 +645,298 @@ export function ModaleExercice({
                 </p>
               </BandeauInfo>
             ) : (
-              propositions.map((p, i) => (
-                <div key={i} className="overflow-hidden rounded-md border border-bordure bg-surface-2">
-                  {/* En-tête : titre + métadonnées */}
-                  <div className="border-b border-bordure bg-surface px-3 py-2.5">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <Etiquette ton="primaire">Proposition {i + 1}</Etiquette>
-                      {enregistrees.has(i) && <Etiquette ton="succes">Enregistrée</Etiquette>}
-                    </div>
-                    <h3 className="mt-1.5 text-sm font-semibold leading-snug">{p.titre}</h3>
-                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                      {p.competences.map((c) => (
-                        <Etiquette key={c} mono>
-                          {c}
-                        </Etiquette>
-                      ))}
-                      {p.difficulte && (
-                        <span className="text-[0.6875rem] text-texte-attenue">
-                          difficulté {p.difficulte}/5
-                        </span>
-                      )}
-                      {p.dureeEstimeeMin && (
-                        <span className="text-[0.6875rem] text-texte-attenue">
-                          ≈ {p.dureeEstimeeMin} min
-                        </span>
-                      )}
-                    </div>
-                  </div>
+              (() => {
+                const i = Math.min(indexActif, propositions.length - 1);
+                const p = propositions[i];
+                if (!p) return null;
 
-                  <div className="grid gap-4 px-3 py-3 lg:grid-cols-[minmax(0,1.25fr)_minmax(15rem,0.75fr)]">
-                    <section aria-labelledby={`enonce-${i}`} className="min-w-0">
-                      <p id={`enonce-${i}`} className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
-                        Énoncé
-                      </p>
-                      <div className="prose-exo mt-1 text-xs">
-                        <Markdown contenu={p.enonce} />
-                      </div>
-                    </section>
-
-                    <aside className="min-w-0 space-y-3 border-t border-bordure pt-3 lg:border-l lg:border-t-0 lg:pl-4 lg:pt-0">
-                      {p.indices.length > 0 && (
-                        <section aria-labelledby={`indices-${i}`}>
-                          <p id={`indices-${i}`} className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
-                            Indices ({p.indices.length})
-                          </p>
-                          <ul className="mt-1.5 space-y-1 text-xs text-texte-attenue">
-                            {p.indices.map((ind, j) => (
-                              <li key={j} className="flex items-start gap-1.5">
-                                <span className="mt-0.5 text-texte-discret">{j + 1}.</span>
-                                <span>{ind}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </section>
-                      )}
-
-                      {p.correction && (
-                        <section aria-labelledby={`correction-${i}`}>
-                          <p id={`correction-${i}`} className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
-                            Correction
-                          </p>
-                          <div className="prose-exo mt-1.5 text-xs">
-                            <Markdown contenu={p.correction} />
-                          </div>
-                        </section>
-                      )}
-
-                      {p.criteres.length > 0 && (
-                        <section aria-labelledby={`criteres-${i}`}>
-                          <p id={`criteres-${i}`} className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
-                            Critères d&apos;évaluation
-                          </p>
-                          <ul className="mt-1 space-y-0.5 text-xs text-texte-attenue">
-                            {p.criteres.map((c, j) => (
-                              <li key={j} className="flex items-start gap-1.5">
+                return (
+                  <div className="space-y-4">
+                    {/* Sélecteur d'onglets quand plusieurs exercices sont générés */}
+                    {propositions.length > 1 && (
+                      <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-xl border border-bordure bg-surface-2/60 p-2 shadow-xs">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {propositions.map((prop, idx) => {
+                            const actif = i === idx;
+                            const estEnregistre = enregistrees.has(idx);
+                            return (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => {
+                                  setIndexActif(idx);
+                                  setModificationIndex(null);
+                                }}
+                                className={cx(
+                                  "flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs transition-all cursor-pointer border",
+                                  actif
+                                    ? "border-primaire bg-primaire-faible text-primaire font-semibold shadow-xs"
+                                    : "border-transparent bg-transparent hover:bg-surface text-texte-attenue hover:text-texte",
+                                )}
+                              >
                                 <span
-                                  className={`mt-0.5 size-3 shrink-0 rounded-sm border ${
-                                    enregistrees.has(i)
-                                      ? "border-succes/40 bg-succes-faible"
-                                      : "border-bordure"
-                                  }`}
-                                  aria-hidden
-                                />
-                                <span>
-                                  <span className="font-medium">
-                                    {LIBELLES_DIMENSIONS[c.dimension as Dimension] ?? c.dimension}
-                                  </span>{" "}
-                                  — {c.libelle}
+                                  className={cx(
+                                    "flex size-5 items-center justify-center rounded-full text-[0.625rem] font-bold",
+                                    actif
+                                      ? "bg-primaire text-primaire-contraste"
+                                      : "bg-surface-3 text-texte-discret",
+                                  )}
+                                >
+                                  {idx + 1}
                                 </span>
-                              </li>
-                            ))}
-                          </ul>
-                        </section>
-                      )}
-                    </aside>
-
-                    {modificationIndex === i && !enregistrees.has(i) && (
-                      <div className="rounded-md border border-primaire/20 bg-primaire-faible/50 p-3 lg:col-span-2">
-                        <Champ
-                          label="Que veux-tu modifier ?"
-                          multiligne
-                          rows={3}
-                          value={consigneModification}
-                          onChange={(e) => setConsigneModification(e.target.value)}
-                          placeholder="Ex. Rends l’énoncé plus concret, retire l’ambiguïté du deuxième critère…"
-                          aide="Le tuteur révise cette proposition. Rien n’est enregistré tant que tu ne l’acceptes pas."
-                          autoFocus
-                        />
-                        <div className="mt-3 flex flex-wrap justify-end gap-2">
-                          <Bouton
-                            onClick={() => {
-                              setModificationIndex(null);
-                              setConsigneModification("");
-                            }}
-                            variante="secondaire"
-                            taille="petite"
-                          >
-                            Annuler
-                          </Bouton>
-                          <Bouton
-                            onClick={() => void generer({
-                              proposition: p,
-                              index: i,
-                              consigne: consigneModification.trim(),
-                            })}
-                            variante="principal"
-                            taille="petite"
-                            disabled={!consigneModification.trim()}
-                          >
-                            Appliquer avec l’IA
-                          </Bouton>
+                                <span className="font-mono font-medium">
+                                  {prop.competences[0] ?? `Exo ${idx + 1}`}
+                                </span>
+                                {estEnregistre ? (
+                                  <span className="rounded bg-succes-faible px-1.5 py-0.5 text-[0.625rem] font-bold text-succes">
+                                    ✓ Enregistré
+                                  </span>
+                                ) : (
+                                  <span className="size-1.5 rounded-full bg-primaire/60" />
+                                )}
+                              </button>
+                            );
+                          })}
                         </div>
+                        <span className="px-2 text-[0.6875rem] font-medium text-texte-discret">
+                          {enregistrees.size} / {propositions.length} enregistré{enregistrees.size > 1 ? "s" : ""}
+                        </span>
                       </div>
                     )}
+
+                    {/* Fiche complète de la proposition active */}
+                    <div className="overflow-hidden rounded-xl border border-bordure bg-surface-2 shadow-xs">
+                      {/* En-tête de la proposition */}
+                      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-bordure bg-surface p-4">
+                        <div className="min-w-0 flex-1 space-y-1.5">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <Etiquette ton="primaire">
+                              Proposition {i + 1}
+                              {propositions.length > 1 ? ` sur ${propositions.length}` : ""}
+                            </Etiquette>
+                            {p.competences.map((c) => (
+                              <Etiquette key={c} mono>
+                                {c}
+                              </Etiquette>
+                            ))}
+                            {p.difficulte && (
+                              <span className="rounded-md border border-bordure bg-surface-2 px-2 py-0.5 text-[0.6875rem] font-medium text-texte-attenue">
+                                difficulté {p.difficulte}/5
+                              </span>
+                            )}
+                            {p.dureeEstimeeMin && (
+                              <span className="rounded-md border border-bordure bg-surface-2 px-2 py-0.5 text-[0.6875rem] font-medium text-texte-attenue">
+                                ≈ {p.dureeEstimeeMin} min
+                              </span>
+                            )}
+                            {enregistrees.has(i) && (
+                              <span className="inline-flex items-center gap-1 rounded-md bg-succes-faible px-2 py-0.5 text-[0.6875rem] font-bold text-succes">
+                                ✓ Enregistré
+                              </span>
+                            )}
+                          </div>
+                          <h3 className="text-base font-bold leading-snug tracking-tight text-texte sm:text-lg">
+                            {p.titre}
+                          </h3>
+                        </div>
+
+                        {propositions.length > 1 && !enregistrees.has(i) && (
+                          <div className="flex shrink-0 items-center gap-2">
+                            <Bouton
+                              onClick={() => {
+                                setModificationIndex(modificationIndex === i ? null : i);
+                                setConsigneModification("");
+                              }}
+                              variante="secondaire"
+                              taille="compacte"
+                              disabled={enEcriture !== null}
+                              aria-label={`Modifier la proposition ${i + 1}`}
+                            >
+                              Modifier avec l&apos;IA
+                            </Bouton>
+                            <Bouton
+                              onClick={() => void enregistrer(p, i)}
+                              variante="principal"
+                              taille="compacte"
+                              disabled={enEcriture !== null}
+                              enChargement={enEcriture === i}
+                              aria-label={`Accepter la proposition ${i + 1}`}
+                            >
+                              Accepter cet exercice
+                            </Bouton>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Zone d'édition IA dépliable */}
+                      {modificationIndex === i && !enregistrees.has(i) && (
+                        <div className="border-b border-primaire/30 bg-primaire-faible/40 p-4">
+                          <Champ
+                            label="Que souhaites-tu modifier sur cet exercice ?"
+                            multiligne
+                            rows={2}
+                            value={consigneModification}
+                            onChange={(e) => setConsigneModification(e.target.value)}
+                            placeholder="Ex. : Rends l'énoncé plus concret, simplifie le 2e indice, adapte le barème..."
+                            aide="Le tuteur IA révise cette proposition en conservant les compétences ciblées."
+                            autoFocus
+                          />
+                          <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="text-[0.6875rem] font-medium text-texte-discret">Suggestions :</span>
+                              {[
+                                "Rends l'énoncé plus concret",
+                                "Raccourcis l'énoncé",
+                                "Détaille la correction",
+                                "Indices plus progressifs",
+                              ].map((sug) => (
+                                <button
+                                  key={sug}
+                                  type="button"
+                                  onClick={() => setConsigneModification(sug)}
+                                  className="cursor-pointer rounded border border-bordure bg-surface px-2 py-0.5 text-[0.625rem] text-texte-attenue transition-colors hover:text-texte"
+                                >
+                                  + {sug}
+                                </button>
+                              ))}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Bouton
+                                onClick={() => {
+                                  setModificationIndex(null);
+                                  setConsigneModification("");
+                                }}
+                                variante="secondaire"
+                                taille="petite"
+                              >
+                                Annuler
+                              </Bouton>
+                              <Bouton
+                                onClick={() =>
+                                  void generer({
+                                    proposition: p,
+                                    index: i,
+                                    consigne: consigneModification.trim(),
+                                  })
+                                }
+                                variante="principal"
+                                taille="petite"
+                                disabled={!consigneModification.trim()}
+                              >
+                                Appliquer la révision
+                              </Bouton>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Grille : Énoncé (gauche) + Détails pédagogiques (droite) */}
+                      <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(18rem,0.9fr)]">
+                        {/* Colonne gauche : Énoncé */}
+                        <section
+                          aria-labelledby={`enonce-${i}`}
+                          className="min-w-0 rounded-xl border border-bordure bg-surface p-4 shadow-xs"
+                        >
+                          <div className="flex items-center justify-between border-b border-bordure/60 pb-2">
+                            <p
+                              id={`enonce-${i}`}
+                              className="text-[0.6875rem] font-bold uppercase tracking-wider text-primaire"
+                            >
+                              Énoncé & Consigne
+                            </p>
+                          </div>
+                          <div className="prose-exo mt-3 text-xs leading-relaxed text-texte">
+                            <Markdown contenu={p.enonce} />
+                          </div>
+                        </section>
+
+                        {/* Colonne droite : Indices, Correction & Critères */}
+                        <aside className="min-w-0 space-y-3">
+                          {p.indices.length > 0 && (
+                            <section
+                              aria-labelledby={`indices-${i}`}
+                              className="rounded-xl border border-bordure bg-surface p-3.5 shadow-xs"
+                            >
+                              <div className="flex items-center justify-between border-b border-bordure/60 pb-1.5">
+                                <p
+                                  id={`indices-${i}`}
+                                  className="text-[0.6875rem] font-bold uppercase tracking-wider text-texte-discret"
+                                >
+                                  Indices progressifs ({p.indices.length})
+                                </p>
+                              </div>
+                              <ul className="mt-2 space-y-2 text-xs text-texte-attenue">
+                                {p.indices.map((ind, j) => (
+                                  <li key={j} className="flex items-start gap-2">
+                                    <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-surface-3 text-[0.625rem] font-bold text-texte-discret">
+                                      {j + 1}
+                                    </span>
+                                    <span className="leading-relaxed">{ind}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </section>
+                          )}
+
+                          {p.correction && (
+                            <section
+                              aria-labelledby={`correction-${i}`}
+                              className="rounded-xl border border-bordure bg-surface p-3.5 shadow-xs"
+                            >
+                              <div className="flex items-center justify-between border-b border-bordure/60 pb-1.5">
+                                <p
+                                  id={`correction-${i}`}
+                                  className="text-[0.6875rem] font-bold uppercase tracking-wider text-texte-discret"
+                                >
+                                  Guide de correction & Solution
+                                </p>
+                              </div>
+                              <div className="prose-exo mt-2 max-h-48 overflow-y-auto pr-1 text-xs leading-relaxed text-texte-attenue">
+                                <Markdown contenu={p.correction} />
+                              </div>
+                            </section>
+                          )}
+
+                          {p.criteres.length > 0 && (
+                            <section
+                              aria-labelledby={`criteres-${i}`}
+                              className="rounded-xl border border-bordure bg-surface p-3.5 shadow-xs"
+                            >
+                              <div className="flex items-center justify-between border-b border-bordure/60 pb-1.5">
+                                <p
+                                  id={`criteres-${i}`}
+                                  className="text-[0.6875rem] font-bold uppercase tracking-wider text-texte-discret"
+                                >
+                                  Critères d&apos;évaluation ({p.criteres.length})
+                                </p>
+                              </div>
+                              <ul className="mt-2 space-y-1.5 text-xs text-texte-attenue">
+                                {p.criteres.map((c, j) => (
+                                  <li key={j} className="flex items-start gap-2">
+                                    <span
+                                      className={cx(
+                                        "mt-1 size-2 shrink-0 rounded-full",
+                                        enregistrees.has(i) ? "bg-succes" : "bg-primaire/60",
+                                      )}
+                                      aria-hidden
+                                    />
+                                    <div className="leading-relaxed">
+                                      <span className="font-semibold text-texte">
+                                        {LIBELLES_DIMENSIONS[c.dimension as Dimension] ?? c.dimension}
+                                      </span>{" "}
+                                      — {c.libelle}
+                                    </div>
+                                  </li>
+                                ))}
+                              </ul>
+                            </section>
+                          )}
+                        </aside>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })()
             )}
             {erreur && (
               <BandeauInfo ton="danger" taille="compacte">
@@ -746,13 +968,13 @@ const SOUS_TITRE_GENERATION =
 function EnveloppeGeneration({
   presentation,
   onFermer,
-  largeur,
+  largeur = "2xl",
   pied,
   children,
 }: {
   presentation: "modale" | "inline";
   onFermer: () => void;
-  largeur: "2xl" | "4xl";
+  largeur?: LargeurModale;
   pied?: ReactNode;
   children: ReactNode;
 }) {

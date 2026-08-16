@@ -19,7 +19,7 @@ import { jourDeLaSeance } from "@/lib/domain/pages-cahier";
 import { urlExercice } from "@/lib/domain/navigation-exercice";
 import { formatDateCourte, formatDuree } from "@/lib/engine/dates";
 import { Bouton, Carte, CodeCompetence, EnTeteCarte, Etiquette, EtatVide, classesLienBouton } from "@/components/ui/primitives";
-import { Pomodoro } from "@/components/dashboard/pomodoro";
+import { Pomodoro } from "@/components/seances/pomodoro";
 import { OutilSeance } from "@/components/seances/outil-seance";
 import { MargeCahier } from "@/components/seances/marge-cahier";
 import { lireMarge } from "@/lib/store/marge";
