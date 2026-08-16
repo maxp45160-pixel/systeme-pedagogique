@@ -2,7 +2,11 @@ import "server-only";
 
 import type { Contexte } from "./context";
 import type { LearningActivity } from "@/lib/domain/adaptive-learning";
-import { adaptNotesDocumentaires, adaptNotesOperationnelles } from "@/lib/domain/note-activity-adapter";
+import {
+  adaptNotesDocumentaires,
+  adaptNotesOperationnelles,
+  idDocumentDepuisActivite,
+} from "@/lib/domain/note-activity-adapter";
 import { lireApercusDocuments, lireApercusSnapshots } from "./documents";
 import {
   choisirActionUnifiee,
@@ -85,7 +89,24 @@ export async function chargerActionProposee(
     !ctx.refus.exercices.has(activity.id.replace(/^legacy-exercise:/, ""))
     && !activity.target.skillCodes.some((code) => ctx.refus.codes.has(code)),
   );
-  const activitesNotes = await candidatsNotes(ctx);
+  const activitesNotesBrutes = await candidatsNotes(ctx);
+  const activitesNotes = activitesNotesBrutes.filter((activity) => {
+    const docId = idDocumentDepuisActivite(activity.id);
+    const estRefusee = ctx.refus.exercices.has(activity.id)
+      || (docId !== null && (
+        ctx.refus.exercices.has(docId)
+        || ctx.refus.exercices.has(`note:${docId}`)
+        || ctx.refus.exercices.has(`ressource:${docId}`)
+      ));
+    if (estRefusee) return false;
+    if (
+      activity.target.skillCodes.length > 0
+      && activity.target.skillCodes.every((code) => ctx.refus.codes.has(code))
+    ) {
+      return false;
+    }
+    return true;
+  });
 
   return choisirActionUnifiee({
     accountId: ctx.donnees.user.id,

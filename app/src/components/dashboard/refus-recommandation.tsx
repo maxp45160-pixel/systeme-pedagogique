@@ -68,7 +68,7 @@ export function BoutonRefusRecommandation({
          */
         title={
           exerciceId
-            ? "Écarte cet exercice pendant 7 jours et propose autre chose"
+            ? "Écarte cette suggestion pendant 7 jours et propose autre chose"
             : "Écarte cette compétence pendant 7 jours"
         }
       >

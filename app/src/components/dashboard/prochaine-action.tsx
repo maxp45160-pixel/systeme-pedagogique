@@ -469,7 +469,12 @@ function CarteActionActivite({
               <IconeFleche className="size-4" />
             </Link>
           )}
-          {codeRefusable && <BoutonRefusRecommandation code={codeRefusable} />}
+          {codeRefusable && (
+            <BoutonRefusRecommandation
+              code={codeRefusable}
+              exerciceId={action.activityId}
+            />
+          )}
         </div>
 
         <div className="mt-4 border-t border-bordure pt-3">

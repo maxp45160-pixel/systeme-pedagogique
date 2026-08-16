@@ -37,13 +37,17 @@ import type { ExerciseAttempt, LearningSession } from "@/lib/domain/types";
  * Trois états y figurent, et pas un de plus : une séance terminée n'est pas un
  * geste, elle est une relecture.
  */
+import type { DocumentOperationnelDate } from "@/lib/domain/pages-cahier";
+
 export function OngletsSeancesOuvertes({
   seances,
   tentatives,
+  projets = [],
   jourAffiche,
 }: {
   seances: LearningSession[];
   tentatives: ExerciseAttempt[];
+  projets?: DocumentOperationnelDate[];
   jourAffiche: string;
 }) {
   const ouvertes = seances
@@ -55,10 +59,25 @@ export function OngletsSeancesOuvertes({
     .filter((s) => jourDeLaSeance(s) !== jourAffiche)
     .sort((a, b) => (b.planifieePour ?? b.date).localeCompare(a.planifieePour ?? a.date));
 
-  if (ouvertes.length === 0) return null;
+  const projetsOuverts = projets
+    .filter((p) => !p.fige)
+    .sort((a, b) => (b.updatedAt ?? b.createdAt ?? "").localeCompare(a.updatedAt ?? a.createdAt ?? ""));
+
+  if (ouvertes.length === 0 && projetsOuverts.length === 0) return null;
 
   return (
-    <nav aria-label="Séances ouvertes sur d'autres pages" className="flex flex-wrap gap-2">
+    <nav aria-label="Séances et projets ouverts" className="flex flex-wrap gap-2">
+      {projetsOuverts.map((p) => (
+        <Link
+          key={p.id}
+          href={`/atelier?note=${encodeURIComponent(p.id)}`}
+          className="flex items-center gap-2 rounded-t-md border border-b-0 border-bordure bg-surface-2/40 px-3 py-1.5 text-xs hover:bg-surface-2"
+        >
+          <Etiquette ton="primaire">Projet en cours</Etiquette>
+          <span className="max-w-[16rem] truncate font-medium">{p.titre}</span>
+          <span className="text-texte-discret">Ouvrir →</span>
+        </Link>
+      ))}
       {ouvertes.map((s) => {
         const statut = statutSeance(s);
         const libelle =

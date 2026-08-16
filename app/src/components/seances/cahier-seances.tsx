@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bouton, Carte, CodeCompetence, EnTeteCarte, EtatVide, Etiquette } from "@/components/ui/primitives";
+import { Bouton, Carte, CodeCompetence, EnTeteCarte, EtatVide, Etiquette, classesLienBouton } from "@/components/ui/primitives";
 import { formatDateCourte, formatDuree, cleJour } from "@/lib/engine/dates";
 import {
   avancementSeance,
@@ -39,14 +39,18 @@ import { ajouterNoteSession } from "@/lib/store/actions";
  * qu'on a fait à côté, dans deux densités différentes. Rien n'est masqué, rien
  * n'est agrégé — la distinction est lue, pas fabriquée (P1).
  */
+import type { DocumentOperationnelDate } from "@/lib/domain/pages-cahier";
+
 export function CahierSeances({
   seances,
   donnees,
   recherche,
+  projets = [],
 }: {
   seances: LearningSession[];
   donnees: DonneesSeance;
   recherche?: string;
+  projets?: DocumentOperationnelDate[];
 }) {
   const terme = recherche?.trim().toLocaleLowerCase("fr") ?? "";
   const exercicesParId = new Map(donnees.exercices.map((exercice) => [exercice.id, exercice]));
@@ -68,6 +72,12 @@ export function CahierSeances({
     .filter((s) => correspondRecherche(s, terme, exercicesParId))
     .sort((a, b) => b.date.localeCompare(a.date));
 
+  const projetsFiltres = (projets ?? []).filter((p) => {
+    if (!terme) return false;
+    const texte = [p.titre, p.contexte, ...p.competences].filter(Boolean).join(" ").toLocaleLowerCase("fr");
+    return texte.includes(terme);
+  });
+
   const parJour = new Map<string, LearningSession[]>();
   for (const seance of realisees) {
     const cle = cleJour(seance.date);
@@ -78,15 +88,51 @@ export function CahierSeances({
 
   return (
     <div className="space-y-6">
-      {realisees.length === 0 && (
+      {realisees.length === 0 && projetsFiltres.length === 0 && (
         <Carte>
           <EtatVide
             titre={terme ? "Aucun résultat" : "Aucune séance réalisée"}
             message={terme
-              ? `Aucune séance ne correspond à « ${recherche?.trim()} ».`
+              ? `Aucun élément ne correspond à « ${recherche?.trim()} ».`
               : "Compose ta première séance : une fois terminée, elle rejoint ce cahier."}
           />
         </Carte>
+      )}
+
+      {projetsFiltres.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="font-serif text-base font-medium tracking-tight">
+            Projet{projetsFiltres.length > 1 ? "s" : ""} retrouvé{projetsFiltres.length > 1 ? "s" : ""}
+          </h3>
+          <div className="space-y-3">
+            {projetsFiltres.map((p) => (
+              <Carte key={p.id}>
+                <EnTeteCarte
+                  titre={p.titre}
+                  legende={p.dureeMin ? formatDuree(p.dureeMin) : "Projet"}
+                  action={<Etiquette ton="primaire">Projet</Etiquette>}
+                />
+                <div className="px-5 py-4 space-y-3">
+                  {p.competences.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {p.competences.map((code) => <CodeCompetence key={code} code={code} />)}
+                    </div>
+                  )}
+                  {p.contexte && <p className="text-xs text-texte-attenue line-clamp-2">{p.contexte}</p>}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-bordure/40">
+                    <span className="text-xs text-texte-discret">Espace de travail</span>
+                    <Link
+                      href={`/atelier?note=${encodeURIComponent(p.id)}`}
+                      className={classesLienBouton("principal", "petite")}
+                    >
+                      Ouvrir le projet →
+                    </Link>
+                  </div>
+                </div>
+              </Carte>
+            ))}
+          </div>
+        </div>
       )}
 
       {[...parJour.entries()].map(([cle, liste]) => (

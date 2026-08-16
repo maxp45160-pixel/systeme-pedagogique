@@ -23,13 +23,70 @@
 import { cleJour } from "@/lib/engine/dates";
 import { statutSeance } from "./seance";
 import type { LearningSession } from "./types";
+import type { ApercuDocument, ResumeSnapshotDocument } from "@/lib/documents/types-documents";
 
 /** Une ligne de marge, vue d'ici : seule sa date de rédaction compte. */
 export interface NoteDatee {
   notee?: string;
 }
 
-export interface PageCahier<N extends NoteDatee = NoteDatee> {
+/** Un travail ou projet opérationnel vu par le cahier. */
+export interface DocumentOperationnelDate {
+  id: string;
+  titre: string;
+  type: string;
+  role?: string;
+  contexte?: string;
+  dureeMin?: number;
+  segmentMin?: number;
+  competences: string[];
+  createdAt?: string;
+  updatedAt?: string;
+  fige?: boolean;
+}
+
+export function jourDuDocument(document: { createdAt?: string; updatedAt?: string }): string {
+  const dateStr = document.createdAt ?? document.updatedAt;
+  return cleJour(dateStr ? new Date(dateStr) : new Date());
+}
+
+/**
+ * Extrait les documents opérationnels (projets, études de cas, etc.) pour le cahier.
+ */
+export function extraireDocumentsOperationnels(
+  apercus: readonly ApercuDocument[],
+  snapshots: readonly ResumeSnapshotDocument[] = [],
+): DocumentOperationnelDate[] {
+  const figes = new Set(snapshots.map((s) => s.documentId));
+  return apercus
+    .filter((doc) => doc.frontMatter.role === "operationnel")
+    .map((doc) => {
+      const dureeMin = typeof doc.frontMatter.projet_duree_min === "string"
+        ? Number(doc.frontMatter.projet_duree_min) || undefined
+        : undefined;
+      const competences = typeof doc.frontMatter.projet_competences === "string"
+        ? doc.frontMatter.projet_competences.split(",").map((s) => s.trim()).filter(Boolean)
+        : doc.liens.map((l) => l.cible);
+      const contexte = typeof doc.frontMatter.contexte === "string" ? doc.frontMatter.contexte : undefined;
+      return {
+        id: doc.id,
+        titre: doc.titre,
+        type: doc.type,
+        role: "operationnel",
+        contexte,
+        dureeMin,
+        competences: [...new Set(competences)],
+        createdAt: doc.createdAt,
+        updatedAt: doc.updatedAt,
+        fige: figes.has(doc.id),
+      };
+    });
+}
+
+export interface PageCahier<
+  N extends NoteDatee = NoteDatee,
+  P extends DocumentOperationnelDate = DocumentOperationnelDate,
+> {
   /** Clé du jour, `AAAA-MM-JJ`. */
   jour: string;
   /** Séances composées à la main — les pages écrites du cahier. */
@@ -45,6 +102,8 @@ export interface PageCahier<N extends NoteDatee = NoteDatee> {
   traces: LearningSession[];
   /** Lignes de marge écrites ce jour-là. */
   notes: N[];
+  /** Projets et travaux opérationnels engagés ou mis à jour ce jour-là. */
+  projets: P[];
 }
 
 /**
@@ -76,26 +135,38 @@ export function jourValide(brut: string | undefined): string | null {
  * un cahier qui n'ouvrirait pas sur une page vierge le jour où l'on n'a encore
  * rien fait serait un cahier fermé.
  */
-export function joursDuCahier<N extends NoteDatee>(entrees: {
+export function joursDuCahier<
+  N extends NoteDatee,
+  P extends DocumentOperationnelDate = DocumentOperationnelDate,
+>(entrees: {
   seances: readonly LearningSession[];
   notes: readonly N[];
+  projets?: readonly P[];
   aujourdHui: Date;
 }): string[] {
   const jours = new Set<string>([cleJour(entrees.aujourdHui)]);
   for (const seance of entrees.seances) jours.add(jourDeLaSeance(seance));
   for (const note of entrees.notes) if (note.notee) jours.add(note.notee);
+  for (const projet of entrees.projets ?? []) {
+    jours.add(jourDuDocument(projet));
+  }
   return [...jours].sort();
 }
 
-/** Le contenu d'un jour, dans les deux registres. */
-export function construirePage<N extends NoteDatee>(
+/** Le contenu d'un jour, dans les différents registres. */
+export function construirePage<
+  N extends NoteDatee,
+  P extends DocumentOperationnelDate = DocumentOperationnelDate,
+>(
   jour: string,
   entrees: {
     seances: readonly LearningSession[];
     notes: readonly N[];
+    projets?: readonly P[];
   },
-): PageCahier<N> {
+): PageCahier<N, P> {
   const duJour = entrees.seances.filter((seance) => jourDeLaSeance(seance) === jour);
+  const projetsDuJour = (entrees.projets ?? []).filter((projet) => jourDuDocument(projet) === jour);
   return {
     jour,
     seances: duJour
@@ -105,11 +176,17 @@ export function construirePage<N extends NoteDatee>(
       .filter((seance) => seance.genereAutomatiquement)
       .sort((a, b) => a.date.localeCompare(b.date)),
     notes: entrees.notes.filter((note) => note.notee === jour),
+    projets: projetsDuJour as P[],
   };
 }
 
 export function pageEstVide(page: PageCahier): boolean {
-  return page.seances.length === 0 && page.traces.length === 0 && page.notes.length === 0;
+  return (
+    page.seances.length === 0 &&
+    page.traces.length === 0 &&
+    page.notes.length === 0 &&
+    (page.projets?.length ?? 0) === 0
+  );
 }
 
 /**

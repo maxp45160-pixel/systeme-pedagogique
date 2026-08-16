@@ -477,15 +477,7 @@ export function ConcepteurSeance({
              * Un second pied ici proposerait « Démarrer la séance » pendant
              * qu'on relit un exercice qui n'y est pas encore entré.
              */
-            generationCibles ? (
-              <Bouton
-                type="button"
-                onClick={() => setGenerationCibles(null)}
-                variante="secondaire"
-              >
-                ← Composition
-              </Bouton>
-            ) : phase === "besoin" ? (
+            generationCibles ? null : phase === "besoin" ? (
               <div className="flex w-full items-center justify-between gap-2">
                 <Bouton type="button" onClick={fermer} variante="secondaire">
                   Annuler
@@ -533,10 +525,13 @@ export function ConcepteurSeance({
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setPhase("besoin")}
+                onClick={() => {
+                  setGenerationCibles(null);
+                  setPhase("besoin");
+                }}
                 className={cx(
                   "flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold transition-all cursor-pointer",
-                  phase === "besoin"
+                  phase === "besoin" && !generationCibles
                     ? "bg-primaire text-primaire-contraste shadow-xs"
                     : "bg-surface-2 text-texte-attenue hover:text-texte",
                 )}
@@ -549,11 +544,14 @@ export function ConcepteurSeance({
               <span className="text-xs text-texte-discret">→</span>
               <button
                 type="button"
-                onClick={passerComposition}
+                onClick={() => {
+                  setGenerationCibles(null);
+                  passerComposition();
+                }}
                 disabled={theme === null}
                 className={cx(
                   "flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold transition-all",
-                  phase === "composition"
+                  phase === "composition" && !generationCibles
                     ? "bg-primaire text-primaire-contraste shadow-xs"
                     : "bg-surface-2 text-texte-attenue hover:text-texte cursor-pointer",
                 )}

@@ -1,9 +1,14 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Etiquette, classesLienBouton } from "@/components/ui/primitives";
+import { Carte, CodeCompetence, EnTeteCarte, Etiquette, classesLienBouton } from "@/components/ui/primitives";
 import { cleJour, formatDuree } from "@/lib/engine/dates";
 import { statutSeance, tentativeDeSeance } from "@/lib/domain/seance";
-import { construirePage, pageEstVide, voisinesDeLaPage } from "@/lib/domain/pages-cahier";
+import {
+  construirePage,
+  pageEstVide,
+  voisinesDeLaPage,
+  type DocumentOperationnelDate,
+} from "@/lib/domain/pages-cahier";
 import type { ExerciseAttempt, LearningSession } from "@/lib/domain/types";
 import type { LigneMarge } from "@/lib/documents/marge";
 import type { DonneesSeance } from "@/components/seances/concepteur-seance";
@@ -45,6 +50,7 @@ export function PageCahier({
   tentatives,
   donnees,
   notes,
+  projets = [],
   aujourdHui,
   seanceDeployee,
 }: {
@@ -56,11 +62,12 @@ export function PageCahier({
   tentatives: ExerciseAttempt[];
   donnees: DonneesSeance;
   notes: LigneMarge[];
+  projets?: DocumentOperationnelDate[];
   aujourdHui: Date;
   /** La séance ouverte en plein travail, rendue à sa place dans le déroulé. */
   seanceDeployee?: { id: string; contenu: ReactNode };
 }) {
-  const page = construirePage(jour, { seances, notes });
+  const page = construirePage(jour, { seances, notes, projets });
   const { precedente, suivante } = voisinesDeLaPage(jour, jours);
   const cleAujourdHui = cleJour(aujourdHui);
   const estAujourdHui = jour === cleAujourdHui;
@@ -90,6 +97,20 @@ export function PageCahier({
             donnees={donnees}
           />
         ),
+      )}
+
+      {/* Projets et travaux opérationnels attachés à ce jour */}
+      {page.projets.length > 0 && (
+        <section className="space-y-3">
+          <TitreDeSection>
+            Projet{page.projets.length > 1 ? "s" : ""} & travaux de ce jour
+          </TitreDeSection>
+          <div className="space-y-3">
+            {page.projets.map((projet) => (
+              <ProjetDeLaPage key={projet.id} projet={projet} />
+            ))}
+          </div>
+        </section>
       )}
 
       {/*
@@ -142,6 +163,50 @@ export function PageCahier({
       )}
       </div>
     </div>
+  );
+}
+
+function ProjetDeLaPage({ projet }: { projet: DocumentOperationnelDate }) {
+  return (
+    <Carte>
+      <EnTeteCarte
+        titre={projet.titre}
+        legende={projet.dureeMin ? formatDuree(projet.dureeMin) : "Projet"}
+        action={
+          <Etiquette ton={projet.fige ? "succes" : "primaire"}>
+            {projet.fige ? "Version figée" : "En cours"}
+          </Etiquette>
+        }
+      />
+      <div className="px-5 py-4 space-y-3">
+        {projet.competences.length > 0 && (
+          <div>
+            <p className="mb-1.5 text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret">
+              Compétence{projet.competences.length > 1 ? "s" : ""} visée{projet.competences.length > 1 ? "s" : ""}
+            </p>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {projet.competences.map((code) => (
+                <CodeCompetence key={code} code={code} />
+              ))}
+            </div>
+          </div>
+        )}
+        {projet.contexte && (
+          <p className="text-xs text-texte-attenue line-clamp-2">{projet.contexte}</p>
+        )}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-bordure/40">
+          <span className="text-xs text-texte-discret">
+            {projet.fige ? "Projet archivé" : "Espace de travail ouvert"}
+          </span>
+          <Link
+            href={`/atelier?note=${encodeURIComponent(projet.id)}`}
+            className={classesLienBouton("principal", "petite")}
+          >
+            Ouvrir le projet →
+          </Link>
+        </div>
+      </div>
+    </Carte>
   );
 }
 

@@ -10,12 +10,14 @@ import { PageCahier } from "@/components/seances/page-cahier";
 import { MarquePage } from "@/components/seances/marque-page";
 import { lireMarge } from "@/lib/store/marge";
 import {
+  extraireDocumentsOperationnels,
   jourDeLaSeance,
   joursDuCahier,
   jourValide,
   moisValide,
   pageDOuverture,
 } from "@/lib/domain/pages-cahier";
+import { lireApercusDocuments, lireApercusSnapshots } from "@/lib/store/documents";
 import { moisAffiche } from "@/components/seances/calendrier-cahier";
 import { ConcepteurSeance, type PresetSeance } from "@/components/seances/concepteur-seance";
 import { TEMPS_DECLARE_MAX } from "@/lib/domain/seance";
@@ -211,11 +213,22 @@ async function CompositeurDepuisLien({
 }
 
 async function ResultatsRecherche({ recherche }: { recherche: string }) {
-  const [ctx, donnees] = await Promise.all([chargerContexte(), chargerDonneesSeance()]);
+  const [ctx, donnees, apercusDocs, snapshots] = await Promise.all([
+    chargerContexte(),
+    chargerDonneesSeance(),
+    lireApercusDocuments(),
+    lireApercusSnapshots(),
+  ]);
+  const projets = extraireDocumentsOperationnels(apercusDocs, snapshots);
   return (
     <div className="space-y-4">
       <RechercheCahier recherche={recherche} />
-      <CahierSeances seances={ctx.donnees.sessions} donnees={donnees} recherche={recherche} />
+      <CahierSeances
+        seances={ctx.donnees.sessions}
+        donnees={donnees}
+        recherche={recherche}
+        projets={projets}
+      />
     </div>
   );
 }
@@ -243,15 +256,20 @@ async function ContenuCahier({
   /** Présente quand `composer=1` : le compositeur s'ouvre au-dessus de la page. */
   composition?: DemandeComposition;
 }) {
-  const [ctx, donnees, marge] = await Promise.all([
+  const [ctx, donnees, marge, apercusDocs, snapshots] = await Promise.all([
     chargerContexte(),
     chargerDonneesSeance(),
     lireMarge(),
+    lireApercusDocuments(),
+    lireApercusSnapshots(),
   ]);
+
+  const projets = extraireDocumentsOperationnels(apercusDocs, snapshots);
 
   const jours = joursDuCahier({
     seances: ctx.donnees.sessions,
     notes: marge,
+    projets,
     aujourdHui: ctx.now,
   });
 
@@ -284,6 +302,7 @@ async function ContenuCahier({
       <OngletsSeancesOuvertes
         seances={ctx.donnees.sessions}
         tentatives={ctx.donnees.attempts}
+        projets={projets}
         jourAffiche={jour}
       />
 
@@ -295,6 +314,7 @@ async function ContenuCahier({
         tentatives={ctx.donnees.attempts}
         donnees={donnees}
         notes={marge}
+        projets={projets}
         aujourdHui={ctx.now}
         {...(seanceOuverte
           ? {

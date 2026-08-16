@@ -193,6 +193,42 @@ describe("arbitrage à l'instant T", () => {
     expect(resultat.action.family).toBe("produire");
   });
 
+  it("propose l'action suivante (autre note ou exercice) quand une note n'est plus candidate", () => {
+    const court = exercice("ex-court", "DEV-01", 20);
+    const note1 = noteOperationnelle("projet-1", "projet", ["DEV-01"]);
+    const note2 = noteOperationnelle("projet-2", "projet", ["DEV-01"]);
+
+    // Quand les deux sont candidates, la première est proposée
+    const avecNote1 = choisirActionUnifiee({
+      ...entrees([court], [recommandation("DEV-01", court)], 60),
+      activities: [note1, note2],
+    });
+    expect(avecNote1?.kind).toBe("note");
+    if (avecNote1?.kind === "note") {
+      expect(avecNote1.noteId).toBe("projet-1");
+    }
+
+    // Quand note1 est écartée (exclue des activités), note2 est proposée
+    const sansNote1 = choisirActionUnifiee({
+      ...entrees([court], [recommandation("DEV-01", court)], 60),
+      activities: [note2],
+    });
+    expect(sansNote1?.kind).toBe("note");
+    if (sansNote1?.kind === "note") {
+      expect(sansNote1.noteId).toBe("projet-2");
+    }
+
+    // Quand toutes les notes sont écartées, l'exercice prend le relais immédiatement
+    const sansNotes = choisirActionUnifiee({
+      ...entrees([court], [recommandation("DEV-01", court)], 60),
+      activities: [],
+    });
+    expect(sansNotes?.kind).toBe("exercice");
+    if (sansNotes?.kind === "exercice") {
+      expect(sansNotes.recommandations[0].exercice?.id).toBe("ex-court");
+    }
+  });
+
   it("expose les facteurs d'arbitrage sans inventer de contribution chiffrée", () => {
     const court = exercice("ex-court", "DEV-01", 15);
     const resultat = choisirActionUnifiee(entrees(

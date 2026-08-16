@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   construirePage,
+  extraireDocumentsOperationnels,
   grilleMois,
   jourDeLaSeance,
   jourValide,
@@ -26,6 +27,52 @@ function seance(extra: Partial<LearningSession> = {}): LearningSession {
     ...extra,
   };
 }
+
+import type { ApercuDocument } from "@/lib/documents/types-documents";
+
+describe("extraireDocumentsOperationnels", () => {
+  it("extrait uniquement les documents au rôle opérationnel", () => {
+    const apercus: ApercuDocument[] = [
+      {
+        id: "doc-1",
+        titre: "Projet LLM",
+        type: "projet",
+        tags: [],
+        schema: "pedagogie/v1",
+        schemaCompatible: true,
+        frontMatter: {
+          role: "operationnel",
+          contexte: "Création simulateur",
+          projet_duree_min: "45",
+          projet_competences: "UPL-01, EES-01",
+        },
+        liens: [{ cible: "UPL-01" }, { cible: "EES-01" }],
+        createdAt: "2026-08-16T12:00:00.000Z",
+        updatedAt: "2026-08-16T12:00:00.000Z",
+      },
+      {
+        id: "doc-2",
+        titre: "Note de cours",
+        type: "cours",
+        tags: [],
+        schema: "pedagogie/v1",
+        schemaCompatible: true,
+        frontMatter: { role: "support" },
+        liens: [],
+        createdAt: "2026-08-15T12:00:00.000Z",
+        updatedAt: "2026-08-15T12:00:00.000Z",
+      },
+    ];
+
+    const resultats = extraireDocumentsOperationnels(apercus, []);
+    expect(resultats).toHaveLength(1);
+    expect(resultats[0].id).toBe("doc-1");
+    expect(resultats[0].titre).toBe("Projet LLM");
+    expect(resultats[0].dureeMin).toBe(45);
+    expect(resultats[0].competences).toEqual(["UPL-01", "EES-01"]);
+    expect(resultats[0].fige).toBe(false);
+  });
+});
 
 describe("jourDeLaSeance", () => {
   it("range une séance planifiée sur le jour prévu, pas sur sa date d'écriture", () => {
@@ -62,7 +109,7 @@ describe("joursDuCahier", () => {
     ]);
   });
 
-  it("rassemble séances et notes, sans doublon, du plus ancien au plus récent", () => {
+  it("rassemble séances, notes et projets, sans doublon, du plus ancien au plus récent", () => {
     const jours = joursDuCahier({
       seances: [
         seance({ id: "a", date: "2026-08-14T09:00:00.000Z" }),
@@ -70,9 +117,18 @@ describe("joursDuCahier", () => {
         seance({ id: "c", statut: "planifiee", planifieePour: "2026-08-20T09:00:00.000Z" }),
       ],
       notes: [{ notee: "2026-08-11" }, { notee: "2026-08-14" }, {}],
+      projets: [
+        {
+          id: "p-1",
+          titre: "Projet 1",
+          type: "projet",
+          competences: [],
+          createdAt: "2026-08-12T10:00:00.000Z",
+        },
+      ],
       aujourdHui: AUJOURDHUI,
     });
-    expect(jours).toEqual(["2026-08-11", "2026-08-14", "2026-08-16", "2026-08-20"]);
+    expect(jours).toEqual(["2026-08-11", "2026-08-12", "2026-08-14", "2026-08-16", "2026-08-20"]);
   });
 });
 
@@ -85,6 +141,15 @@ describe("construirePage", () => {
       seance({ id: "autre-jour", date: "2026-08-15T09:00:00.000Z" }),
     ],
     notes: [{ notee: "2026-08-14" }, { notee: "2026-08-15" }],
+    projets: [
+      {
+        id: "proj-1",
+        titre: "Simulateur",
+        type: "projet",
+        competences: ["DEV-01"],
+        createdAt: "2026-08-14T14:00:00.000Z",
+      },
+    ],
   };
 
   it("sépare les séances composées des traces automatiques", () => {
@@ -95,8 +160,11 @@ describe("construirePage", () => {
     expect(page.traces.map((s) => s.id)).toEqual(["trace-2", "trace-1"]);
   });
 
-  it("ne retient que les notes du jour", () => {
-    expect(construirePage("2026-08-14", entrees).notes).toEqual([{ notee: "2026-08-14" }]);
+  it("ne retient que les notes et projets du jour", () => {
+    const page = construirePage("2026-08-14", entrees);
+    expect(page.notes).toEqual([{ notee: "2026-08-14" }]);
+    expect(page.projets).toHaveLength(1);
+    expect(page.projets[0].id).toBe("proj-1");
   });
 
   it("rend une page vide plutôt que rien, pour un jour sans contenu", () => {

@@ -20,20 +20,28 @@ export function ChargementGeneration({
   progressionServeur,
   etapes = ETAPES_DEFAUT,
   dureeAsymptoteSec = 7,
+  pourcentageMinimum = 0,
   onArreter,
   className,
 }: {
   progressionServeur?: string | null;
   etapes?: readonly string[];
   dureeAsymptoteSec?: number;
+  pourcentageMinimum?: number;
   onArreter?: () => void;
   className?: string;
 }) {
-  const [pourcentage, setPourcentage] = useState(0);
+  const [pourcentage, setPourcentage] = useState(pourcentageMinimum);
   const [etapeIndex, setEtapeIndex] = useState(0);
   const [secondesEcoulees, setSecondesEcoulees] = useState(0);
 
   const nbEtapes = etapes.length;
+
+  useEffect(() => {
+    if (pourcentageMinimum > 0) {
+      setPourcentage((prev) => Math.max(prev, pourcentageMinimum));
+    }
+  }, [pourcentageMinimum]);
 
   useEffect(() => {
     const tempsDebut = Date.now();
@@ -47,20 +55,25 @@ export function ChargementGeneration({
         94,
         Math.round(94 * (1 - Math.exp(-ecouleSec / dureeAsymptoteSec))),
       );
-      setPourcentage((prev) => (prev < val ? val : prev));
+      setPourcentage((prev) => Math.max(prev, val, pourcentageMinimum));
     }, 100);
 
+    const intervalMs = Math.max(
+      1600,
+      Math.round((dureeAsymptoteSec * 1000) / Math.max(1, nbEtapes)),
+    );
     const intervalEtape = setInterval(() => {
       setEtapeIndex((prev) => (prev < nbEtapes - 1 ? prev + 1 : prev));
-    }, 2600);
+    }, intervalMs);
 
     return () => {
       clearInterval(intervalPourcent);
       clearInterval(intervalEtape);
     };
-  }, [nbEtapes, dureeAsymptoteSec]);
+  }, [nbEtapes, dureeAsymptoteSec, pourcentageMinimum]);
 
   const texteCourant = progressionServeur ?? etapes[etapeIndex];
+  const seuilAlerteSec = Math.max(25, Math.round(dureeAsymptoteSec * 1.35));
 
   return (
     <div
@@ -82,7 +95,7 @@ export function ChargementGeneration({
             style={{ width: `${pourcentage}%` }}
           />
         </div>
-        {secondesEcoulees >= 25 && (
+        {secondesEcoulees >= seuilAlerteSec && (
           <p className="text-[0.6875rem] text-texte-discret pt-1">
             En attente de la réponse complète du fournisseur IA ({secondesEcoulees} s écoulées)…
           </p>

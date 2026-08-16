@@ -147,12 +147,37 @@ export function ModaleExercice({
    * verrouille, les autres restent enregistrables.
    */
   const [enEcriture, setEnEcriture] = useState<number | null>(null);
+  const [enEcritureTout, setEnEcritureTout] = useState(false);
   const [pourquoi, setPourquoi] = useState(false);
   const [modificationIndex, setModificationIndex] = useState<number | null>(null);
   const [consigneModification, setConsigneModification] = useState("");
   const [progression, setProgression] = useState<string | null>(null);
+  const [exercicesRecus, setExercicesRecus] = useState(0);
   const [erreur, setErreur] = useState<string | null>(null);
   const abandonRef = useRef<AbortController | null>(null);
+
+  const totalExercicesCibles = modificationIndex !== null ? 1 : (codesLot?.length ?? 1);
+
+  const dureeAsymptoteSec = useMemo(() => {
+    if (totalExercicesCibles <= 1) return 8;
+    return Math.max(10, Math.min(60, 5 + totalExercicesCibles * 6));
+  }, [totalExercicesCibles]);
+
+  const etapesGeneration = useMemo(() => {
+    if (totalExercicesCibles <= 1) return ETAPES_GENERATION;
+    return [
+      `Analyse des ${totalExercicesCibles} compétences ciblées…`,
+      "Calibration des niveaux et des difficultés…",
+      `Rédaction des ${totalExercicesCibles} exercices par le tuteur IA…`,
+      "Vérification des critères et correction…",
+      "Finalisation du lot d'exercices…",
+    ];
+  }, [totalExercicesCibles]);
+
+  const pourcentageMinimum = useMemo(() => {
+    if (totalExercicesCibles <= 1 || exercicesRecus === 0) return 0;
+    return Math.min(90, Math.round((exercicesRecus / totalExercicesCibles) * 90));
+  }, [totalExercicesCibles, exercicesRecus]);
 
   /*
    * La modale est montée à l'ouverture et démontée à la fermeture
@@ -178,6 +203,7 @@ export function ModaleExercice({
     if (codesAEnvoyer.length === 0) return;
     setPhase("generation");
     setProgression(null);
+    setExercicesRecus(0);
     setErreur(null);
     if (!modification) {
       setPropositions([]);
@@ -250,13 +276,37 @@ export function ModaleExercice({
               setIndexActif(0);
             }
             setPhase("previsualisation");
+          } else if (type === "proposition" && donnees) {
+            try {
+              const parsed = JSON.parse(donnees) as { genre?: string; exercice?: PropositionExercice };
+              if (parsed.genre === "exercice" && parsed.exercice) {
+                setExercicesRecus((prev) => {
+                  const suivant = prev + 1;
+                  const total = codesAEnvoyer.length;
+                  if (total > 1) {
+                    setProgression(
+                      suivant < total
+                        ? `Exercice ${suivant}/${total} rédigé · En cours pour le suivant…`
+                        : `Les ${total} exercices sont rédigés · Finalisation…`,
+                    );
+                  }
+                  return suivant;
+                });
+              }
+            } catch {
+              /* ignorer erreur json */
+            }
           } else if (type === "erreur" && donnees) {
             const parsed = JSON.parse(donnees) as { message: string };
             recue = true;
             setErreur(parsed.message);
             setPhase(modification ? "previsualisation" : "formulaire");
           } else if (type === "proposition-en-cours") {
-            setProgression("Le tuteur rédige l'exercice — énoncé, indices, correction, critères…");
+            if (codesAEnvoyer.length > 1) {
+              setProgression(`Rédaction des ${codesAEnvoyer.length} exercices par le tuteur IA…`);
+            } else {
+              setProgression("Le tuteur rédige l'exercice — énoncé, indices, correction, critères…");
+            }
           }
         }
       }
@@ -301,54 +351,47 @@ export function ModaleExercice({
     };
   }, []);
 
-  const enregistrer = useCallback(
-    async (p: PropositionExercice, index: number) => {
-      // Un enregistrement en vol verrouille tout : le double-clic ne doit pas
-      // franchir la garde, même si le bouton était déjà rendu.
-      if (enEcriture !== null || enregistrees.has(index)) return;
-      setErreur(null);
-
-      /*
-       * La compétence d'écriture est dérivée de LA proposition, pas de l'état
-       * `code` du formulaire — en mode lot, chaque proposition cible une
-       * compétence différente, et `code`/`competence` ne suivent plus rien.
-       */
+  const enregistrerUneProposition = useCallback(
+    async (p: PropositionExercice, index: number): Promise<string> => {
       const codeCible = p.competences[0];
       const competenceCible = competences.find((c) => c.code === codeCible);
       if (!competenceCible) {
-        setErreur(
+        throw new Error(
           `Compétence ${codeCible ?? "inconnue"} introuvable dans le référentiel — enregistrement refusé.`,
         );
-        return;
       }
 
-      /*
-       * Conversion explicite AVANT l'écriture. Une difficulté ou une durée
-       * illisible arrête l'enregistrement et se dit — elle n'est pas remplacée
-       * par un défaut silencieux (ADR-034, P2). La durée en particulier est ce
-       * dont `tentativeMenee` se sert pour juger qu'une tentative a eu lieu.
-       */
       const conversion = convertirProposition(p);
       if (!conversion.ok) {
-        setErreur(
-          `Cette proposition n'est pas enregistrable — ${conversion.erreurs.join(" ")}`,
+        throw new Error(
+          `Proposition #${index + 1} invalide — ${conversion.erreurs.join(" ")}`,
         );
-        return;
       }
 
+      return creerExercice({
+        ...conversion.valeur,
+        domaine: competenceCible.domaine,
+        origine: "tuteur",
+      });
+    },
+    [competences],
+  );
+
+  const enregistrer = useCallback(
+    async (p: PropositionExercice, index: number) => {
+      if (enEcriture !== null || enEcritureTout || enregistrees.has(index)) return;
+      setErreur(null);
       setEnEcriture(index);
+
       try {
-        const id = await creerExercice({
-          ...conversion.valeur,
-          domaine: competenceCible.domaine,
-          origine: "tuteur",
-        });
+        const id = await enregistrerUneProposition(p, index);
         const nouvellesEnregistrees = new Set(enregistrees).add(index);
         setEnregistrees(nouvellesEnregistrees);
         surEnregistre?.(id);
+
         if (ouvrirDansCahierApresAcceptation) {
           onFermer();
-          router.push(`/seances?composer=1&code=${encodeURIComponent(codeCible)}`);
+          router.push(`/seances?composer=1&code=${encodeURIComponent(p.competences[0] ?? "")}`);
         } else {
           router.refresh();
           if (nouvellesEnregistrees.size >= propositions.length) {
@@ -367,24 +410,61 @@ export function ModaleExercice({
       }
     },
     [
-      competences,
-      router,
-      surEnregistre,
       enEcriture,
+      enEcritureTout,
       enregistrees,
+      enregistrerUneProposition,
+      surEnregistre,
       ouvrirDansCahierApresAcceptation,
       onFermer,
+      router,
       propositions,
     ],
   );
 
   const accepterToutes = useCallback(async () => {
-    for (let i = 0; i < propositions.length; i++) {
-      if (!enregistrees.has(i)) {
-        await enregistrer(propositions[i], i);
+    if (enEcriture !== null || enEcritureTout) return;
+    setErreur(null);
+    setEnEcritureTout(true);
+
+    const ensemble = new Set(enregistrees);
+    const erreurs: string[] = [];
+
+    try {
+      for (let i = 0; i < propositions.length; i++) {
+        if (ensemble.has(i)) continue;
+        try {
+          const id = await enregistrerUneProposition(propositions[i], i);
+          ensemble.add(i);
+          setEnregistrees(new Set(ensemble));
+          if (id) surEnregistre?.(id);
+        } catch (err) {
+          erreurs.push(
+            err instanceof Error ? err.message : `Échec sur la proposition #${i + 1}`,
+          );
+        }
       }
+
+      router.refresh();
+
+      if (erreurs.length > 0) {
+        setErreur(erreurs.join(" · "));
+      } else if (ensemble.size >= propositions.length) {
+        onFermer();
+      }
+    } finally {
+      setEnEcritureTout(false);
     }
-  }, [propositions, enregistrees, enregistrer]);
+  }, [
+    enEcriture,
+    enEcritureTout,
+    enregistrees,
+    propositions,
+    enregistrerUneProposition,
+    surEnregistre,
+    router,
+    onFermer,
+  ]);
 
   const toutesEnregistrees = propositions.length > 0 && propositions.every((_, i) => enregistrees.has(i));
   const manquantesAEnregistrer = propositions.filter((_, i) => !enregistrees.has(i)).length;
@@ -626,8 +706,9 @@ export function ModaleExercice({
           <div className={presentation === "inline" ? "mt-4" : undefined}>
             <ChargementGeneration
               progressionServeur={progression}
-              etapes={ETAPES_GENERATION}
-              dureeAsymptoteSec={7}
+              etapes={etapesGeneration}
+              dureeAsymptoteSec={dureeAsymptoteSec}
+              pourcentageMinimum={pourcentageMinimum}
               onArreter={() => {
                 abandonRef.current?.abort();
                 setPhase(modificationIndex !== null ? "previsualisation" : "formulaire");
@@ -698,9 +779,22 @@ export function ModaleExercice({
                             );
                           })}
                         </div>
-                        <span className="px-2 text-[0.6875rem] font-medium text-texte-discret">
-                          {enregistrees.size} / {propositions.length} enregistré{enregistrees.size > 1 ? "s" : ""}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 text-[0.6875rem] font-medium text-texte-discret">
+                            {enregistrees.size} / {propositions.length} enregistré{enregistrees.size > 1 ? "s" : ""}
+                          </span>
+                          {manquantesAEnregistrer > 0 && (
+                            <Bouton
+                              onClick={() => void accepterToutes()}
+                              variante="principal"
+                              taille="compacte"
+                              disabled={enEcriture !== null || enEcritureTout}
+                              enChargement={enEcritureTout}
+                            >
+                              <span>Tout accepter ({manquantesAEnregistrer})</span>
+                            </Bouton>
+                          )}
+                        </div>
                       </div>
                     )}
 
