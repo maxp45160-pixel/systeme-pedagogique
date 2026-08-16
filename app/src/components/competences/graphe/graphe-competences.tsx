@@ -28,6 +28,7 @@ import {
 import {
   couleurNoeud,
   dessinerFond,
+  dessinerGroupementsDomaines,
   dessinerLien,
   dessinerNoeud,
   dessinerTooltip,
@@ -107,9 +108,30 @@ export function GrapheCompetences({
   /* Filtrage — visibilité, projection des exercices masqués             */
   /* ------------------------------------------------------------------ */
 
+  const domainesDisponibles = useMemo(() => {
+    const map = new Map<string, { id: string; nom: string; total: number }>();
+    for (const n of donnees.noeuds) {
+      if (n.domaineId) {
+        const existant = map.get(n.domaineId) ?? {
+          id: n.domaineId,
+          nom: n.etiquettes.find((e) => e.startsWith("domaine:"))?.slice(8) ?? n.domaineId,
+          total: 0,
+        };
+        if (n.type === "competence") existant.total += 1;
+        map.set(n.domaineId, existant);
+      }
+    }
+    return Array.from(map.values());
+  }, [donnees.noeuds]);
+
   const noeudsVisibles = useMemo(
-    () => donnees.noeuds.filter((n) => reglages.typesNoeudsVisibles[n.type]),
-    [donnees.noeuds, reglages.typesNoeudsVisibles],
+    () =>
+      donnees.noeuds.filter(
+        (n) =>
+          reglages.typesNoeudsVisibles[n.type] &&
+          (!n.domaineId || !reglages.domainesMasques?.[n.domaineId]),
+      ),
+    [donnees.noeuds, reglages.typesNoeudsVisibles, reglages.domainesMasques],
   );
 
   const naviguerVersNoeud = useCallback(
@@ -145,8 +167,7 @@ export function GrapheCompetences({
       (l) =>
         reglages.typesLiensVisibles[l.type] &&
         idsVisibles.has(l.source) &&
-        idsVisibles.has(l.target) &&
-        (l.type !== "similarite" || l.poids >= reglages.seuilSimilarite),
+        idsVisibles.has(l.target),
     );
 
     if (reglages.typesNoeudsVisibles.exercice || !reglages.typesLiensVisibles.exercice) {
@@ -238,6 +259,18 @@ export function GrapheCompetences({
 
     dessinerFond(ctx, largeur, hauteur, camera, palette);
 
+    // Dessin des halos et titres de domaines en arrière-plan
+    dessinerGroupementsDomaines(
+      ctx,
+      noeudsRef.current,
+      largeur,
+      hauteur,
+      camera,
+      palette,
+      contexteCouleur,
+      reglages.axeCouleur,
+    );
+
     const survol = survolIdRef.current;
     const voisins = new Set<string>();
     if (survol) {
@@ -318,7 +351,12 @@ export function GrapheCompetences({
     liensRef.current = liensSimules;
 
     simulationRef.current?.stop();
-    const sim = creerSimulation(noeudsSimules, liensSimules, reglages.forces);
+    const sim = creerSimulation(
+      noeudsSimules,
+      liensSimules,
+      reglages.forces,
+      domainesDisponibles.map((d) => d.id),
+    );
     simulationRef.current = sim;
     sim.stop();
     for (let i = 0; i < 90; i++) sim.tick();
@@ -641,6 +679,7 @@ export function GrapheCompetences({
       {panneauOuvert && (
         <PanneauReglages
           reglages={reglages}
+          domainesDisponibles={domainesDisponibles}
           onChange={changerReglages}
           onFermer={() => setPanneauOuvert(false)}
         />

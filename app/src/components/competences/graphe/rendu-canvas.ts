@@ -344,3 +344,84 @@ export function dessinerTooltip(
   });
   ctx.restore();
 }
+
+/**
+ * Dessine un halo discret et l'étiquette de domaine autour de chaque cluster de compétences.
+ */
+export function dessinerGroupementsDomaines(
+  ctx: CanvasRenderingContext2D,
+  noeuds: NoeudSimule[],
+  largeur: number,
+  hauteur: number,
+  camera: Camera,
+  palette: Palette,
+  ctxCouleur: ContexteCouleur,
+  axeCouleur: AxeCouleur,
+): void {
+  if (axeCouleur !== "domaine") return;
+
+  const parDomaine = new Map<string, NoeudSimule[]>();
+  for (const n of noeuds) {
+    if (n.domaineId && n.x !== undefined && n.y !== undefined) {
+      const liste = parDomaine.get(n.domaineId) ?? [];
+      liste.push(n);
+      parDomaine.set(n.domaineId, liste);
+    }
+  }
+
+  ctx.save();
+  for (const [domaineId, groupe] of parDomaine.entries()) {
+    if (groupe.length === 0) continue;
+
+    let sommeX = 0;
+    let sommeY = 0;
+    for (const n of groupe) {
+      sommeX += n.x!;
+      sommeY += n.y!;
+    }
+    const baryX = sommeX / groupe.length;
+    const baryY = sommeY / groupe.length;
+
+    let maxDistCarre = 0;
+    for (const n of groupe) {
+      const dx = n.x! - baryX;
+      const dy = n.y! - baryY;
+      const distCarre = dx * dx + dy * dy;
+      if (distCarre > maxDistCarre) maxDistCarre = distCarre;
+    }
+
+    const { x, y } = projeter({ x: baryX, y: baryY, rayon: 0 } as NoeudSimule, largeur, hauteur, camera);
+    const rayonEnglobant = Math.max(38, (Math.sqrt(maxDistCarre) + 24) * camera.zoom);
+
+    const idx = ctxCouleur.indexDomaine.get(domaineId) ?? 0;
+    const couleur = couleurDomaine(idx, ctxCouleur.totalDomaines);
+
+    // Halo d'arrière-plan
+    ctx.beginPath();
+    ctx.arc(x, y, rayonEnglobant, 0, Math.PI * 2);
+    ctx.fillStyle = couleur;
+    ctx.globalAlpha = 0.045;
+    ctx.fill();
+
+    ctx.strokeStyle = couleur;
+    ctx.globalAlpha = 0.2;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4 * camera.zoom, 4 * camera.zoom]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Nom du domaine au-dessus du groupe
+    if (camera.zoom > 0.35) {
+      const premierNoeud = groupe[0];
+      const nomDomaine =
+        premierNoeud.etiquettes.find((e) => e.startsWith("domaine:"))?.slice(8) ?? domaineId;
+      ctx.font = `600 ${Math.max(10, Math.min(13, 11 * camera.zoom))}px var(--police-texte, sans-serif)`;
+      ctx.fillStyle = palette.texteAttenue;
+      ctx.globalAlpha = Math.min(0.85, Math.max(0.3, camera.zoom * 0.9));
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.fillText(nomDomaine, x, y - rayonEnglobant - 4);
+    }
+  }
+  ctx.restore();
+}

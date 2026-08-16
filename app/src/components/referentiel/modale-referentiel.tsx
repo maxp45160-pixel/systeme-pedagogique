@@ -25,6 +25,7 @@ import { Modale } from "@/components/ui/modale";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import type { PropositionReferentiel } from "@/lib/tutor/proposition";
 import { creerBranche } from "@/lib/store/referentiel-actions";
+import { creerTheme } from "@/lib/store/theme-actions";
 import { ReglagesTuteur } from "@/components/tuteur/reglages-tuteur";
 import { ChargementGeneration } from "@/components/ui/chargement-generation";
 
@@ -220,18 +221,39 @@ export function ModaleReferentiel({
         .map((b, i) => ({ b, i }))
         .filter(({ i }) => garde[`b${i}`]);
 
+      const tousLesCodes: string[] = [];
+
       try {
         for (const [rang, { b, i }] of retenues.entries()) {
           setProgressionEcriture(`Branche ${rang + 1} sur ${retenues.length} — ${b.domaine}…`);
           // Séquentiel : `creerBranche` relit le référentiel à chaque appel.
-          await creerBranche({
+          const res = await creerBranche({
             domaine: b.domaine,
             prefixe: prefixes[i] ?? b.prefixe,
             description: b.description,
             competences: b.competences.filter((_, j) => garde[`c${i}-${j}`]),
             origine: "tuteur",
           });
+          if (res?.codes) {
+            tousLesCodes.push(...res.codes);
+          }
         }
+
+        // Création automatique du thème transversal global correspondant au sujet initial
+        if (tousLesCodes.length >= 2 && sujet.trim().length > 0) {
+          try {
+            setProgressionEcriture("Création du thème transversal…");
+            await creerTheme({
+              libelle: sujet.trim().slice(0, 100),
+              intention: `Thème initial généré pour « ${sujet.trim()} »`.slice(0, 500),
+              codes: tousLesCodes.slice(0, 30),
+              origine: "tuteur",
+            });
+          } catch {
+            // Un échec de création du thème ne bloque pas l'enregistrement des branches
+          }
+        }
+
         setProgressionEcriture(null);
         router.refresh();
         surEnregistre?.();

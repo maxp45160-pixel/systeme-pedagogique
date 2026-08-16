@@ -337,7 +337,53 @@ export function VueTransversale({
   competencesParCode?: Map<string, { intitule: string; domaine: string }>;
   domainesExistants?: { id: string; nom: string; prefixe: string }[];
 }) {
-  const categories = racine?.enfants ?? [];
+
+  const categoriesPresentes = racine?.enfants ?? [];
+  const nomVersNoeud = new Map(categoriesPresentes.map((c) => [c.nom.toLowerCase(), c]));
+
+  const CATEGORIES_CANONIQUES = [
+    {
+      nom: "Compétences",
+      chemin: "Transversal/Compétences",
+      description: "Toutes les compétences observables découpées par domaine",
+    },
+    {
+      nom: "Thèmes",
+      chemin: "Transversal/Thèmes",
+      description: "Thèmes et projets transversaux reliant plusieurs compétences",
+    },
+    {
+      nom: "Exercices",
+      chemin: "Transversal/Exercices",
+      description: "Exercices et mises en situation d’entraînement",
+    },
+    {
+      nom: "Preuves",
+      chemin: "Transversal/Preuves",
+      description: "Traces et évaluations d’apprentissage enregistrées",
+    },
+    {
+      nom: "Documents",
+      chemin: "Transversal/Documents",
+      description: "Notes de travail, synthèses et fiches opérationnelles",
+    },
+  ];
+
+  const categories = CATEGORIES_CANONIQUES.map((canonique) => {
+    const existant = nomVersNoeud.get(canonique.nom.toLowerCase());
+    return {
+      nom: canonique.nom,
+      chemin: existant?.chemin ?? canonique.chemin,
+      total: existant ? compterElements(existant) : 0,
+      description: canonique.description,
+    };
+  });
+
+  const nomsCanoniques = new Set(CATEGORIES_CANONIQUES.map((c) => c.nom.toLowerCase()));
+  const categoriesSupplementaires = categoriesPresentes.filter(
+    (c) => !nomsCanoniques.has(c.nom.toLowerCase()),
+  );
+
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-surface-2/30">
       <EnteteVueAtelier
@@ -352,20 +398,56 @@ export function VueTransversale({
       <div className="p-6 lg:p-8">
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {categories.map((categorie) => (
-            <button key={categorie.chemin} type="button" onClick={() => ouvrirDossier(categorie.chemin)} className="rounded-xl border border-bordure bg-surface p-5 text-left shadow-[var(--ombre-posee)] transition-all hover:-translate-y-0.5 hover:border-primaire/40 hover:shadow-[var(--ombre-levee)] cursor-pointer">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-xs font-semibold uppercase tracking-[0.1em] text-primaire">Catégorie</span>
-                <span className="chiffres text-xs text-texte-discret">{compterElements(categorie)}</span>
+            <button
+              key={categorie.chemin}
+              type="button"
+              onClick={() => ouvrirDossier(categorie.chemin)}
+              className="flex min-h-[170px] flex-col justify-between rounded-2xl border border-bordure bg-surface p-5 text-left shadow-[var(--ombre-posee)] transition-all duration-200 hover:-translate-y-1 hover:border-primaire/40 hover:shadow-[var(--ombre-levee)] cursor-pointer"
+            >
+              <div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-semibold uppercase tracking-[0.1em] text-primaire">
+                    Catégorie
+                  </span>
+                  <span className="chiffres text-xs text-texte-discret">
+                    {categorie.total} fiche{categorie.total > 1 ? "s" : ""}
+                  </span>
+                </div>
+                <h3 className="mt-3 font-serif text-lg font-medium">{categorie.nom}</h3>
+                <p className="mt-1 text-xs text-texte-attenue leading-relaxed">
+                  {categorie.description}
+                </p>
               </div>
-              <h3 className="mt-3 font-serif text-lg font-medium">{categorie.nom}</h3>
-              <p className="mt-2 text-xs text-texte-discret">Ouvrir la catégorie et ses sous-catégories</p>
+              <div className="mt-4 border-t border-bordure/60 pt-3 text-xs font-medium text-primaire">
+                Ouvrir la catégorie →
+              </div>
+            </button>
+          ))}
+
+          {categoriesSupplementaires.map((categorie) => (
+            <button
+              key={categorie.chemin}
+              type="button"
+              onClick={() => ouvrirDossier(categorie.chemin)}
+              className="flex min-h-[170px] flex-col justify-between rounded-2xl border border-bordure bg-surface p-5 text-left shadow-[var(--ombre-posee)] transition-all duration-200 hover:-translate-y-1 hover:border-primaire/40 hover:shadow-[var(--ombre-levee)] cursor-pointer"
+            >
+              <div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-semibold uppercase tracking-[0.1em] text-primaire">
+                    Sous-dossier
+                  </span>
+                  <span className="chiffres text-xs text-texte-discret">
+                    {compterElements(categorie)}
+                  </span>
+                </div>
+                <h3 className="mt-3 font-serif text-lg font-medium">{categorie.nom}</h3>
+              </div>
+              <div className="mt-4 border-t border-bordure/60 pt-3 text-xs font-medium text-primaire">
+                Ouvrir →
+              </div>
             </button>
           ))}
         </div>
-
-        {categories.length === 0 && (
-          <p className="rounded-xl border border-dashed border-bordure bg-surface p-6 text-sm text-texte-discret">Aucune catégorie transversale n’est encore alimentée.</p>
-        )}
       </div>
     </div>
   );
@@ -625,6 +707,21 @@ export function VueCategorieTransversale({
               </div>
             );
           })}
+
+          {noeud.elements.length === 0 && (
+            <div className="sm:col-span-2 xl:col-span-2 rounded-2xl border border-dashed border-bordure bg-surface/40 p-8 text-center">
+              <p className="font-serif text-base font-medium text-texte">
+                {estThemes
+                  ? "Aucun thème transversal pour le moment"
+                  : "Aucun document dans cette catégorie"}
+              </p>
+              <p className="mt-1.5 text-xs text-texte-attenue max-w-sm mx-auto leading-relaxed">
+                {estThemes
+                  ? "Un thème regroupe des compétences complémentaires issues de plusieurs domaines (ex : « IA multimodale », « Projets de recherche »)."
+                  : "Utilise le bouton ci-contre pour ajouter ton premier élément."}
+              </p>
+            </div>
+          )}
 
           {estThemes && compteId && competencesParCode && (
             <CarteCreationPointillee

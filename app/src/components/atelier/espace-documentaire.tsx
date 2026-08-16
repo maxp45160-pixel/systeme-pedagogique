@@ -448,7 +448,12 @@ export function EspaceDocumentaire({
   const arbreDossiers = useMemo(() => construireArbreDossiers(elements), [elements]);
   const racineTransversale = trouverNoeudDossier(arbreDossiers, "Transversal");
   const dossierSelectionne = selection?.startsWith("dossier:")
-    ? trouverNoeudDossier(arbreDossiers, selection.slice("dossier:".length))
+    ? (trouverNoeudDossier(arbreDossiers, selection.slice("dossier:".length)) ?? {
+        nom: selection.slice("dossier:".length).split("/").pop() ?? "",
+        chemin: selection.slice("dossier:".length),
+        enfants: [],
+        elements: [],
+      })
     : null;
 
   function ouvrirElement(id: string, opts?: { remplacerHistorique?: boolean } | unknown) {

@@ -19,6 +19,8 @@ export type AxeCouleur = "domaine" | "palier" | "maitrise" | "couverture";
 export interface ReglagesGraphe {
   typesNoeudsVisibles: Record<TypeNoeud, boolean>;
   typesLiensVisibles: Record<TypeLien, boolean>;
+  /** Domaines masqués par leur identifiant (ex: { "dom-1": true }) */
+  domainesMasques: Record<string, boolean>;
   axeCouleur: AxeCouleur;
   /** Seuil sous lequel une arête `similarite` n'est pas affichée. */
   seuilSimilarite: number;
@@ -29,6 +31,8 @@ export interface ReglagesGraphe {
     distanceLiens: number;
     /** Force de rappel vers le centre — `forceX/forceY().strength()`. */
     centrage: number;
+    /** Force d'attraction vers le centre du domaine. */
+    regroupementDomaines: number;
   };
   /** Zoom à partir duquel les libellés apparaissent. */
   seuilLibelles: number;
@@ -37,10 +41,11 @@ export interface ReglagesGraphe {
 export const REGLAGES_PAR_DEFAUT: ReglagesGraphe = {
   typesNoeudsVisibles: { competence: true, exercice: false, theme: true, document: true },
   typesLiensVisibles: { prerequis: true, theme: true, exercice: true, similarite: true, document: true },
+  domainesMasques: {},
   axeCouleur: "domaine",
-  seuilSimilarite: 0.15,
-  forces: { repulsion: 220, distanceLiens: 70, centrage: 0.03 },
-  seuilLibelles: 0.6,
+  seuilSimilarite: 0.05,
+  forces: { repulsion: 240, distanceLiens: 75, centrage: 0.025, regroupementDomaines: 0.14 },
+  seuilLibelles: 0.55,
 };
 
 function cle(compteId: string): string {

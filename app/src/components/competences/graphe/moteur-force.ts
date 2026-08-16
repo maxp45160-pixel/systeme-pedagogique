@@ -81,7 +81,40 @@ export function creerSimulation(
   noeuds: NoeudSimule[],
   liens: LienSimule[],
   forces: ReglagesGraphe["forces"],
+  domainesOrdre?: string[],
 ): Simulation<NoeudSimule, LienSimule> {
+  // Calcul des centres polaires pour chaque domaine afin de créer des regroupements naturels
+  const domainesUniques =
+    domainesOrdre ??
+    Array.from(new Set(noeuds.map((n) => n.domaineId).filter((d): d is string => Boolean(d))));
+  const totalDomaines = domainesUniques.length;
+  const rayonCluster = Math.max(130, Math.min(320, totalDomaines * 45));
+
+  const centresDomaines = new Map<string, { x: number; y: number }>();
+  domainesUniques.forEach((domaineId, i) => {
+    const angle = (i / Math.max(1, totalDomaines)) * 2 * Math.PI - Math.PI / 2;
+    centresDomaines.set(domaineId, {
+      x: Math.cos(angle) * rayonCluster,
+      y: Math.sin(angle) * rayonCluster,
+    });
+  });
+
+  // Initialisation des nœuds non positionnés autour du centre de leur domaine
+  noeuds.forEach((n) => {
+    if (n.x === undefined || n.y === undefined) {
+      const center = n.domaineId ? centresDomaines.get(n.domaineId) : null;
+      if (center) {
+        n.x = center.x + (Math.random() - 0.5) * 50;
+        n.y = center.y + (Math.random() - 0.5) * 50;
+      } else {
+        n.x = (Math.random() - 0.5) * 60;
+        n.y = (Math.random() - 0.5) * 60;
+      }
+    }
+  });
+
+  const forceDomaine = forces.regroupementDomaines ?? 0.12;
+
   return forceSimulation(noeuds)
     .force("charge", forceManyBody<NoeudSimule>().strength(-forces.repulsion))
     .force(
@@ -93,11 +126,25 @@ export function creerSimulation(
     )
     .force(
       "collide",
-      forceCollide<NoeudSimule>((n) => n.rayon + 6),
+      forceCollide<NoeudSimule>((n) => n.rayon + 7),
     )
-    .force("x", forceX(0).strength(forces.centrage))
-    .force("y", forceY(0).strength(forces.centrage))
-    .force("center", forceCenter(0, 0).strength(0.02))
+    .force(
+      "x",
+      forceX<NoeudSimule>((n) =>
+        n.domaineId && centresDomaines.has(n.domaineId)
+          ? centresDomaines.get(n.domaineId)!.x
+          : 0,
+      ).strength((n) => (n.domaineId ? forceDomaine : forces.centrage)),
+    )
+    .force(
+      "y",
+      forceY<NoeudSimule>((n) =>
+        n.domaineId && centresDomaines.has(n.domaineId)
+          ? centresDomaines.get(n.domaineId)!.y
+          : 0,
+      ).strength((n) => (n.domaineId ? forceDomaine : forces.centrage)),
+    )
+    .force("center", forceCenter(0, 0).strength(0.015))
     .alphaDecay(0.025)
     .alphaMin(0.005);
 }

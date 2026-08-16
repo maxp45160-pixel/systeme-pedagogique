@@ -30,11 +30,11 @@ import type { PorteeSeance } from "./types";
 import type { ThemeSeance } from "../engine/caf";
 import { slugifier } from "./referentiel-compte";
 
-export const LIBELLE_THEME_MIN = 3;
+export const LIBELLE_THEME_MIN = 1;
 export const LIBELLE_THEME_MAX = 100;
 export const INTENTION_THEME_MAX = 500;
 export const CODES_PAR_THEME_MIN = 1;
-export const CODES_PAR_THEME_MAX = 30;
+export const CODES_PAR_THEME_MAX = 500;
 
 /**
  * Un regroupement de compétences nommé par la personne (ou proposé par le

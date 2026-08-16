@@ -93,8 +93,8 @@ export interface DonneesGraphe {
 /* Construction                                                        */
 /* ------------------------------------------------------------------ */
 
-const SEUIL_SIMILARITE = 0.12;
-const TOP_K_SIMILARITE = 4;
+const SEUIL_SIMILARITE = 0.05;
+const TOP_K_SIMILARITE = 3;
 
 export function construireGraphe(
   referentiel: Referentiel,

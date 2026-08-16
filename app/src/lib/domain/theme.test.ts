@@ -32,8 +32,8 @@ const theme = (codes: string[], extra: Partial<Theme> = {}): Theme => ({
 });
 
 describe("motifRefusTheme", () => {
-  it("refuse un libellé trop court", () => {
-    expect(motifRefusTheme({ libelle: "Ab", codes: ["DEV-01"], origine: "utilisateur" })).toMatch(
+  it("refuse un libellé vide", () => {
+    expect(motifRefusTheme({ libelle: "   ", codes: ["DEV-01"], origine: "utilisateur" })).toMatch(
       /Libellé hors bornes/,
     );
   });
