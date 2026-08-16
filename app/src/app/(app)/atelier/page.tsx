@@ -15,20 +15,18 @@ import { construireGraphe } from "@/lib/domain/graphe";
 import { construireVuesAtelier } from "@/lib/documents/vue-atelier";
 import { lireChangementsReferentiel } from "@/lib/store/referentiel";
 import { calibragesPourModale, competencesPourModale } from "@/components/exercices/proprietes-generation";
-import { cheminsDepuisDefinition } from "@/lib/documents/chemins-atelier";
+import {
+  rangerDocument,
+  rangementDomaine,
+  rangementTheme,
+} from "@/lib/documents/rangement-atelier";
 import { paletteDomaines } from "@/lib/ui/couleurs-domaines";
 import { chargerDonneesSeance } from "@/components/seances/donnees-seance";
 
-const LIBELLES_PALIERS: Record<string, string> = {
-  fondamentaux: "Fondamentaux",
-  intermediaire: "Intermédiaire",
-  avance: "Avancé",
-};
-
 export default async function PageAtelier(props: {
-  searchParams: Promise<{ document?: string; dossier?: string; mode?: string; note?: string }>;
+  searchParams: Promise<{ document?: string; mode?: string; note?: string }>;
 }) {
-  const { document: documentDemande, dossier: dossierDemande, mode, note } = await props.searchParams;
+  const { document: documentDemande, mode, note } = await props.searchParams;
 
   /*
    * L'espace de travail d'une note opérationnelle occupe l'écran entier et n'a
@@ -146,34 +144,33 @@ export default async function PageAtelier(props: {
     const contenuMd = contenuInitial?.id === document.id ? contenuInitial.contenuMd : "";
     const vue = contenuMd ? analyserDocumentMarkdown(document.id, contenuMd) : document;
     const definition = document.type ? definitionTypeDocument(document.type) : null;
-    const cheminsParDefaut = cheminsDepuisDefinition(definition, vue.frontMatter);
     // `transversal` est une absence de domaine déclarée, pas un domaine.
     const domaineDeclare = vue.frontMatter.domaine ?? vue.frontMatter.domain;
     const domaineId =
       typeof domaineDeclare === "string" && domaineDeclare !== "transversal"
         ? domaineDeclare
         : undefined;
-    /*
-     * Une fiche qui déclare son domaine sans déclarer de rôle est une
-     * production du système — la fiche d'un exercice mené, typiquement. Elle se
-     * range dans son domaine, exactement là où la projection qu'elle remplace
-     * se trouvait : on la cherchera à cet endroit, pas dans un dossier
-     * transversal. Les notes capturées, elles, ont un rôle et gardent la racine
-     * que leur donne `cheminsDepuisDefinition`.
-     */
     const domaineConnu = domaineId ? referentiel.domainesParId.get(domaineId) : undefined;
-    const chemins =
-      domaineConnu && !vue.frontMatter.role && definition
-        ? {
-            dossier: `${domaineConnu.archive ? "Domaines archivés" : "Domaines"}/${domaineConnu.nom}/${definition.dossierParDefaut}`,
-            dossiersSecondaires: [],
-          }
-        : cheminsParDefaut;
     const estPreuve = vue.type === "preuve" || document.id.startsWith("preuve-");
-    let titreAffiche = vue.titre;
-    if (estPreuve && (!titreAffiche || titreAffiche === document.id)) {
-      titreAffiche = `Preuve de travail (${document.id.replace(/^preuve-(?:att-)?/, "")})`;
-    }
+    /*
+     * Les rattachements sont lus, jamais devinés : ce sont les codes du
+     * référentiel du compte que la fiche cite réellement. Une ressource qui
+     * n'en cite aucun reste « à trier », et l'Atelier le dit plutôt que de la
+     * ranger arbitrairement quelque part.
+     */
+    const competencesCitees = (index.sortants.get(document.id) ?? []).filter((cible) =>
+      referentiel.codesActifs.has(cible),
+    );
+    const rangement = rangerDocument({
+      estPreuve,
+      domaineConnu: domaineConnu?.id,
+      role: vue.frontMatter.role,
+      competencesCitees,
+    });
+    // Une preuve garde le titre de l'exercice qui l'a produite ; à défaut, un
+    // libellé lisible — jamais son identifiant technique.
+    const titreAffiche =
+      estPreuve && (!vue.titre || vue.titre === document.id) ? "Preuve de travail" : vue.titre;
     return {
       id: document.id,
       titre: titreAffiche,
@@ -181,8 +178,7 @@ export default async function PageAtelier(props: {
       typeLibelle: definition?.libelle ?? (estPreuve ? "Preuve" : vue.type ?? "Document"),
       categorie: definition?.categorie ?? (estPreuve ? "action" : "connaissance"),
       domaineId,
-      dossier: chemins.dossier,
-      dossiersSecondaires: chemins.dossiersSecondaires,
+      rangement,
       contenuMd,
       contenuCharge: Boolean(contenuMd),
       updatedAt: contenuInitial?.id === document.id ? contenuInitial.updatedAt : document.updatedAt,
@@ -206,7 +202,7 @@ export default async function PageAtelier(props: {
       type: "theme",
       typeLibelle: "Thème",
       categorie: "connaissance",
-      dossier: "Transversal/Thèmes",
+      rangement: rangementTheme(),
       contenuMd: [
         `# ${theme.libelle}`,
         "",
@@ -237,7 +233,7 @@ export default async function PageAtelier(props: {
     typeLibelle: "Domaine",
     categorie: "connaissance",
     domaineId: vue.id,
-    dossier: vue.domaine.archive ? `Domaines archivés/${vue.nom}` : `Domaines/${vue.nom}`,
+    rangement: rangementDomaine(vue.id),
     contenuMd: `# ${vue.nom}\n\n${vue.description}`,
     contenuCharge: true,
     frontMatter: { id: vue.id, type: "domaine" },
@@ -261,8 +257,7 @@ export default async function PageAtelier(props: {
     typeLibelle: "Compétence",
     categorie: "action",
     domaineId: skill.domaine,
-    dossier: `${domainesArchives.has(skill.domaine) ? "Domaines archivés" : "Domaines"}/${referentiel.domainesParId.get(skill.domaine)?.nom ?? skill.domaine}/Compétences/${LIBELLES_PALIERS[skill.palier] ?? skill.palier}`,
-    dossiersSecondaires: domainesArchives.has(skill.domaine) ? [] : ["Transversal/Compétences"],
+    rangement: rangementDomaine(skill.domaine),
     contenuMd: [
       `# ${skill.intitule}`,
       "",
@@ -307,8 +302,7 @@ export default async function PageAtelier(props: {
       typeLibelle: "Exercice",
       categorie: "action",
       domaineId: exercice.domaine,
-      dossier: `${domainesArchives.has(exercice.domaine) ? "Domaines archivés" : "Domaines"}/${referentiel.domainesParId.get(exercice.domaine)?.nom ?? exercice.domaine}/Exercices`,
-      dossiersSecondaires: domainesArchives.has(exercice.domaine) ? [] : ["Transversal/Exercices"],
+      rangement: rangementDomaine(exercice.domaine),
       contenuMd: [
         `# ${exercice.titre}`,
         "",
@@ -337,7 +331,6 @@ export default async function PageAtelier(props: {
   ];
   const cleAtelier = [
     documentDemande ?? "",
-    dossierDemande ?? "",
     mode ?? "",
     ...elementsAtelier.map(({ id, updatedAt }) => `${id}:${updatedAt ?? ""}`),
   ].join("|");
@@ -368,7 +361,6 @@ export default async function PageAtelier(props: {
         elements={elementsAtelier}
         couleursDomaines={couleursDomaines}
         documentDemande={documentDemande}
-        dossierDemande={dossierDemande}
         modeInitial={mode === "referentiel" ? "referentiel" : undefined}
         graphe={{
           donnees: graphe,
