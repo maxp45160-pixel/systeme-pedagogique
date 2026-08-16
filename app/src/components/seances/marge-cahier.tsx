@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { Bouton, Carte, EnTeteCarte } from "@/components/ui/primitives";
+import { TraiterLigneMarge } from "@/components/seances/traiter-ligne-marge";
 import { LIGNE_MARGE_MAX, type LigneMarge } from "@/lib/documents/marge";
 import {
   basculerLigneMargeAction,
@@ -16,14 +16,17 @@ import {
  *
  * ⚠️ **Rien de ce qui est écrit ici n'entre dans le moteur.** Une ligne de marge
  * n'est ni une preuve, ni une mesure, ni un niveau : c'est une phrase qu'on
- * s'adresse. « En faire une séance » ne fait que pré-remplir l'intention du
- * compositeur, qui reste le seul chemin d'écriture d'une `LearningSession`.
+ * s'adresse. « Traiter » la remet au point d'entrée unique (`CaptureIntention`,
+ * ADR-073), qui décide de la forme — séance, ressource, projet, référentiel — et
+ * demande confirmation. Aucune écriture ne part d'ici.
  */
 export function MargeCahier({
   lignes,
+  compteId,
   compacte = false,
 }: {
   lignes: LigneMarge[];
+  compteId: string;
   compacte?: boolean;
 }) {
   const ouvertes = lignes.filter((ligne) => !ligne.faite).length;
@@ -76,14 +79,7 @@ export function MargeCahier({
                 {ligne.texte}
               </span>
 
-              {!ligne.faite && (
-                <Link
-                  href={`/seances?composer=1&intention=${encodeURIComponent(ligne.texte)}`}
-                  className="text-xs font-medium text-primaire hover:underline"
-                >
-                  En faire une séance
-                </Link>
-              )}
+              {!ligne.faite && <TraiterLigneMarge compteId={compteId} texte={ligne.texte} />}
 
               <form action={retirerLigneMargeAction.bind(null, index)}>
                 <button

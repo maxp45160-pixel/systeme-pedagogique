@@ -160,7 +160,22 @@ async function CompositeurDepuisLien({
     .filter((code, index, liste) => liste.indexOf(code) === index);
   const codesActifs = new Set(donnees.actifs.map((skill) => skill.code));
   const codesVises = codesDemandes.filter((code) => codesActifs.has(code));
-  const codeRepli = donnees.recommandations[0]?.etat.skill.code;
+  /*
+   * Le repli sur la première recommandation ne joue QUE si aucune intention
+   * n'accompagne la demande.
+   *
+   * Il jouait toujours, et il mentait : une phrase sans code — « je bloque en
+   * maths » — ouvrait le compositeur sur la compétence en tête du classement,
+   * sans rapport avec la phrase, sous le titre « le sujet est déjà choisi ».
+   * Le texte de la personne servait de décor pendant que le système visait
+   * autre chose.
+   *
+   * Quand une intention est écrite, c'est ELLE le sujet : mieux vaut ouvrir le
+   * compositeur sans cible imposée — il demandera quoi travailler — que d'en
+   * imposer une que rien ne relie à ce qui a été dit (P6, ne rien inventer).
+   */
+  const intentionEcrite = Boolean(intention?.trim());
+  const codeRepli = intentionEcrite ? undefined : donnees.recommandations[0]?.etat.skill.code;
   const codes = codesVises.length > 0 ? codesVises : codeRepli ? [codeRepli] : [];
   const duree = Math.min(
     TEMPS_DECLARE_MAX,

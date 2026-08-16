@@ -47,13 +47,26 @@ const LIBELLES_ACTION: Record<ActionIntention["genre"], string> = {
 export function CaptureIntention({
   compteId,
   onFermer,
+  besoinInitial = "",
 }: {
   compteId: string;
   onFermer: () => void;
+  /**
+   * Le besoin est déjà écrit ailleurs — une ligne de la marge du cahier.
+   *
+   * Le retaper serait redemander ce qui vient d'être dit. Même geste que
+   * `sujetInitial` de `ModaleReferentiel` et `intentionInitiale` du parcours de
+   * projet, que ce composant passe déjà lui-même.
+   *
+   * La traduction n'est PAS lancée d'office : une ligne de marge est griffonnée
+   * en trois mots, et la relire — voire la compléter — avant de la soumettre au
+   * moteur donne une bien meilleure traduction qu'une phrase jetée telle quelle.
+   */
+  besoinInitial?: string;
 }) {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>("saisie");
-  const [besoin, setBesoin] = useState("");
+  const [besoin, setBesoin] = useState(besoinInitial);
   const [traduction, setTraduction] = useState<TraductionIntention | null>(null);
   const [progression, setProgression] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -77,6 +90,7 @@ export function CaptureIntention({
     const controleur = abandonRef;
     return () => controleur.current?.abort();
   }, []);
+
 
   const traduire = useCallback(async () => {
     if (!besoinValide(besoin)) return;

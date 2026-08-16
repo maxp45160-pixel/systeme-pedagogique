@@ -115,7 +115,7 @@ export function PageCahier({
       {estAujourdHui ? (
         <section className="space-y-2">
           <TitreDeSection>En marge</TitreDeSection>
-          <MargeCahier lignes={notes} compacte />
+          <MargeCahier lignes={notes} compteId={donnees.compteId} compacte />
         </section>
       ) : page.notes.length > 0 ? (
         <section className="space-y-1">
