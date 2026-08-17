@@ -44,15 +44,41 @@ describe("scannerUxJourney (dynamique AST)", () => {
     // Surfaces de l'Atelier
     expect(idsNoeuds).toContain("ux:espacedocumentaire");
 
-    // Boucle d'exercice
+    // Boucle d'exercice — deux actes réels (Chercher → Mesurer), plus les
+    // variantes qui les portent (ADR-079, vue-exercice.tsx)
     expect(idsNoeuds).toContain("ux:exercice-chercher");
-    expect(idsNoeuds).toContain("ux:exercice-comparer");
     expect(idsNoeuds).toContain("ux:exercice-mesurer");
-    expect(idsNoeuds).toContain("ux:exercice-bilan-final");
+    expect(idsNoeuds).not.toContain("ux:exercice-comparer");
+    expect(idsNoeuds).not.toContain("ux:exercice-bilan-final");
+    expect(idsNoeuds).toContain("page:/seances?evaluer");
+    expect(idsNoeuds).toContain("page:/seances?bilan");
+    expect(idsNoeuds).toContain("page:/seances?abandon");
+
+    // Cadre partagé : le rail dessert /compte et /aide depuis toutes les pages
+    // du groupe, et le tiroir tuteur / le point d'entrée `+` y sont ouverts.
+    const entrantsParId = new Map<string, number>();
+    for (const l of graphe.liens) {
+      entrantsParId.set(l.target, (entrantsParId.get(l.target) ?? 0) + 1);
+    }
+    expect(entrantsParId.get("page:/compte") ?? 0).toBeGreaterThan(1);
+    expect(entrantsParId.get("page:/aide") ?? 0).toBeGreaterThan(1);
+    expect(entrantsParId.get("tiroir:tuteur") ?? 0).toBeGreaterThan(1);
+    expect(entrantsParId.get("modal:de-quoi-as-tu-besoin") ?? 0).toBeGreaterThan(1);
 
     // Micro-interactions réelles détectées (Canvas, Pomodoro, Tuteur, Accordéons)
     const microNoeuds = graphe.noeuds.filter((n) => n.id.startsWith("micro:"));
     expect(microNoeuds.length).toBeGreaterThan(5);
+    // Les micros heuristiques les plus bruités ont été retirés.
+    const idsMicro = new Set(microNoeuds.map((n) => n.id));
+    expect([...idsMicro].some((id) => id.includes("aide-memoire"))).toBe(false);
+    expect([...idsMicro].some((id) => id.includes("clavier-echap"))).toBe(false);
+
+    // Les actions de clôture d'exercice ne sont plus des puits : elles
+    // redirigent vers /seances (redirection dynamique résolue).
+    const sortants = new Map<string, number>();
+    for (const l of graphe.liens) sortants.set(l.source, (sortants.get(l.source) ?? 0) + 1);
+    expect(sortants.get("action:terminerexercice") ?? 0).toBeGreaterThan(0);
+    expect(sortants.get("action:abandonnerexercice") ?? 0).toBeGreaterThan(0);
 
     // Déclencheurs atomiques
     const liensAvecDeclencheur = graphe.liens.filter((l) => Boolean(l.declencheur));
@@ -72,7 +98,7 @@ describe("scannerUxJourney (dynamique AST)", () => {
 
     const ids = new Set(graphe.noeuds.map((n) => n.id));
     expect(ids).toContain("page:/");
-    expect(ids).toContain("modal:nouvelle-donnee");
+    expect(ids).toContain("modal:de-quoi-as-tu-besoin");
     expect(ids).toContain("page:/seances");
     expect(ids).toContain("ux:exercice-bilan-final");
     expect(ids).toContain("page:/atelier");
@@ -82,7 +108,7 @@ describe("scannerUxJourney (dynamique AST)", () => {
 
     // Vérifier les transitions directrices de valeur
     const clefsLiens = new Set(graphe.liens.map((l) => `${l.source}→${l.target}`));
-    expect(clefsLiens).toContain("page:/→modal:nouvelle-donnee");
+    expect(clefsLiens).toContain("page:/→modal:de-quoi-as-tu-besoin");
     expect(clefsLiens).toContain("page:/seances→ux:exercice-bilan-final");
     expect(clefsLiens).toContain("ux:exercice-bilan-final→page:/");
   }, 20000);

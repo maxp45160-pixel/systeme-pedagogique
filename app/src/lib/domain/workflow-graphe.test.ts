@@ -185,4 +185,24 @@ describe("statistiquesGraphe", () => {
     expect(stats.atteignables).toBe(4);
     expect(stats.totalLiens).toBe(3);
   });
+
+  it("exclut les nœuds heuristiques du compteur de puits", () => {
+    const graphe: GrapheWorkflow = {
+      noeuds: [
+        { id: "a", type: "page", libelle: "A" },
+        { id: "b", type: "page", libelle: "B" },
+        { id: "m", type: "sous-vue", libelle: "Zoom canvas", heuristique: true },
+      ],
+      liens: [
+        { source: "a", target: "b", type: "navigation", libelle: "A→B" },
+        { source: "a", target: "m", type: "interaction", libelle: "Zoom" },
+      ],
+    };
+    const resultat = parcourirWorkflow(graphe, "a");
+    const stats = statistiquesGraphe(resultat, graphe);
+
+    // `b` et `m` sont tous deux des feuilles, mais `m` est une affordance
+    // heuristique : elle ne compte pas comme fin de parcours.
+    expect(stats.puits).toEqual(["b"]);
+  });
 });

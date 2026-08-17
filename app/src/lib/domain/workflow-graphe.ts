@@ -74,6 +74,12 @@ export interface NoeudWorkflow {
   badge?: string;
   /** Description détaillée de l'expérience vécue à cette étape. */
   description?: string;
+  /**
+   * Vrai pour un nœud inféré d'un motif de code (micro-interaction
+   * heuristique) plutôt que d'une déclaration explicite. Ces nœuds restent
+   * affichés mais ne comptent pas comme « fins de parcours ».
+   */
+  heuristique?: boolean;
 }
 
 export interface LienWorkflow {
@@ -213,7 +219,15 @@ export function statistiquesGraphe(
     entrants.set(lien.target, (entrants.get(lien.target) ?? 0) + 1);
   }
 
-  const puits = [...ids].filter((id) => (sortants.get(id) ?? 0) === 0);
+  const parNoeud = new Map(graphe.noeuds.map((n) => [n.id, n]));
+  const puits = [...ids].filter(
+    (id) =>
+      (sortants.get(id) ?? 0) === 0 &&
+      // Un nœud heuristique est une affordance (canvas, chrono, accordéon…),
+      // pas un état terminal : l'exclure rend la métrique « fins de parcours »
+      // fidèle au parcours réel.
+      !parNoeud.get(id)?.heuristique,
+  );
   const sources = [...ids].filter((id) => (entrants.get(id) ?? 0) === 0);
 
   const degreSortantMoyen =

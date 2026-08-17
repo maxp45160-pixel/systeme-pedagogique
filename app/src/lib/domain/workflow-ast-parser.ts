@@ -77,12 +77,19 @@ export interface SurfaceAst {
 
 export interface MicroInteractionAst {
   id: string;
-  type: "canvas" | "accordéon" | "pomodoro" | "tuteur" | "media" | "clavier" | "micro-action";
+  type: "canvas" | "accordéon" | "pomodoro" | "tuteur" | "media";
   libelle: string;
   declencheur: string;
   fichier: string;
   badge?: string;
   cible?: string;
+  /**
+   * Vrai quand la micro-interaction est INFÉRÉE d'un motif de code (canvas,
+   * chronomètre, accordéon…) et non d'une déclaration explicite. Ces nœuds
+   * restent affichés mais ne comptent pas comme « fins de parcours » : ce sont
+   * des affordances, pas des états terminaux.
+   */
+  heuristique?: boolean;
 }
 
 export interface FichierAstAnalyse {
@@ -513,7 +520,17 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
           const corpsTexte = statement.body ? statement.body.getText(sf) : "";
           const mRedir = corpsTexte.match(/redirect\(([^)]+)\)/);
           if (mRedir) {
-            redirection = normaliserUrl(mRedir[1].trim().replace(/^["'`]|["'`]$/g, ""));
+            const argumentRedirection = mRedir[1].trim().replace(/^["'`]|["'`]$/g, "");
+            // Redirections dynamiques connues : `destinationApresExercice` et
+            // `urlExercice` ne mènent qu'au cahier `/seances` (ADR-079,
+            // navigation-exercice.ts). L'étape éventuelle (bilan/abandon/…) est
+            // le littéral passé en argument ; elle s'ignore ici car le graphe
+            // résout les cibles de redirection sur la route de base.
+            if (argumentRedirection.includes("destinationApresExercice") || argumentRedirection.includes("urlExercice")) {
+              redirection = "/seances";
+            } else {
+              redirection = normaliserUrl(argumentRedirection);
+            }
           }
 
           actionsDeclarees.push({
@@ -855,6 +872,7 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
           declencheur: "Clic sur un nœud compétence ou domaine",
           fichier: relatif,
           badge: "Canvas 2D",
+          heuristique: true,
         },
         {
           id: `micro:${slugFichier}-canvas-drag`,
@@ -863,6 +881,7 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
           declencheur: "Glisser-déposer de nœud (forces D3)",
           fichier: relatif,
           badge: "D3 Force",
+          heuristique: true,
         },
         {
           id: `micro:${slugFichier}-canvas-zoom`,
@@ -871,6 +890,7 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
           declencheur: "Molette / Pincement sur le canvas",
           fichier: relatif,
           badge: "Zoom 2D",
+          heuristique: true,
         },
       );
     }
@@ -885,6 +905,7 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
           declencheur: "Lancement du cycle de travail",
           fichier: relatif,
           badge: "Focus",
+          heuristique: true,
         },
         {
           id: `micro:${slugFichier}-pomodoro-pause`,
@@ -893,6 +914,7 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
           declencheur: "Bascule automatique ou clic pause",
           fichier: relatif,
           badge: "Pause",
+          heuristique: true,
         },
         {
           id: `micro:${slugFichier}-pomodoro-reset`,
@@ -901,6 +923,7 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
           declencheur: "Remise à zéro du chronomètre",
           fichier: relatif,
           badge: "Chrono",
+          heuristique: true,
         },
       );
     }
@@ -915,6 +938,7 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
           declencheur: "Clic mode 'Donne-moi un indice'",
           fichier: relatif,
           badge: "Indice",
+          heuristique: true,
         },
         {
           id: `micro:${slugFichier}-mode-corrige`,
@@ -923,6 +947,7 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
           declencheur: "Clic mode 'Corrige mon raisonnement'",
           fichier: relatif,
           badge: "Correction",
+          heuristique: true,
         },
         {
           id: `micro:${slugFichier}-mode-explique`,
@@ -931,6 +956,7 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
           declencheur: "Clic mode 'Explique-moi'",
           fichier: relatif,
           badge: "Concept",
+          heuristique: true,
         },
         {
           id: `micro:${slugFichier}-mode-lacunes`,
@@ -939,6 +965,7 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
           declencheur: "Clic mode 'Fais le point sur mes lacunes'",
           fichier: relatif,
           badge: "Diagnostic",
+          heuristique: true,
         },
       );
     } else if (relatif.endsWith("vue-exercice.tsx")) {
@@ -950,6 +977,7 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
           declencheur: "Clic 'Besoin d'un indice ?'",
           fichier: relatif,
           badge: "Indice",
+          heuristique: true,
         },
         {
           id: `micro:${slugFichier}-aide-contextuelle-consigne`,
@@ -958,38 +986,29 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
           declencheur: "Clic 'Comprendre la consigne'",
           fichier: relatif,
           badge: "Consigne",
+          heuristique: true,
         },
       );
     }
 
-    // 5.4. Accordéons, Paliers & Ressources d'Exercices
+    // 5.4. Accordéons & contenus repliables
     const aAccordeonJsx =
       relatif.includes("panneau-pliable") ||
       relatif.includes("glossaire") ||
       contenu.includes("<PanneauPliable") ||
       contenu.includes("<Glossaire") ||
-      contenu.includes("<details") ||
-      (relatif.includes("vue-exercice") && (contenu.includes("indices") || contenu.includes("aide")));
+      contenu.includes("<details");
 
     if (aAccordeonJsx) {
-      microInteractions.push(
-        {
-          id: `micro:${slugFichier}-aide-accordeon`,
-          type: "accordéon",
-          libelle: "Déplier l'aide méthodologique",
-          declencheur: "Clic sur 'Besoin d'aide ?'",
-          fichier: relatif,
-          badge: "Accordéon",
-        },
-        {
-          id: `micro:${slugFichier}-aide-memoire`,
-          type: "accordéon",
-          libelle: "Consulter l'aide-mémoire",
-          declencheur: "Ouverture des définitions & formules",
-          fichier: relatif,
-          badge: "Ressource",
-        },
-      );
+      microInteractions.push({
+        id: `micro:${slugFichier}-accordion`,
+        type: "accordéon",
+        libelle: "Déplier un contenu repliable",
+        declencheur: "Clic sur un contenu replié",
+        fichier: relatif,
+        badge: "Accordéon",
+        heuristique: true,
+      });
     }
 
     // 5.5. Médias & Pièces jointes
@@ -1008,22 +1027,7 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
         declencheur: "Sélection de document PDF ou image",
         fichier: relatif,
         badge: "Storage",
-      });
-    }
-
-    // 5.6. Raccourcis Clavier
-    const aRaccourciClavier =
-      (contenu.includes("keydown") || contenu.includes("addEventListener('keydown'") || contenu.includes('addEventListener("keydown"')) &&
-      (relatif.includes("modale") || relatif.includes("tour") || relatif.includes("espace-documentaire") || relatif.includes("chat") || relatif.includes("outil-seance") || relatif.includes("graphe"));
-
-    if (aRaccourciClavier) {
-      microInteractions.push({
-        id: `micro:${slugFichier}-clavier-echap`,
-        type: "clavier",
-        libelle: "Fermeture par touche Échap",
-        declencheur: "Touche Échap sur overlay",
-        fichier: relatif,
-        badge: "Clavier",
+        heuristique: true,
       });
     }
   }

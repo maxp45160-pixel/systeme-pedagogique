@@ -119,14 +119,14 @@ const FORME_LIBELLE: Record<TypeNoeudWorkflow, string> = {
 
 const GROUPES_CONFIG: Record<
   GroupeWorkflow,
-  { libelle: string; couleur: string; icone: string; x: number; y: number }
+  { libelle: string; couleur: string; x: number; y: number }
 > = {
-  dashboard: { libelle: "Dashboard & Pilotage", couleur: "#3b82f6", icone: "🎯", x: -200, y: -160 },
-  atelier: { libelle: "Atelier Documentaire", couleur: "#059669", icone: "🎨", x: 260, y: -180 },
-  seances: { libelle: "Séances & Concepteur", couleur: "#8b5cf6", icone: "📋", x: -260, y: 180 },
-  exercice: { libelle: "Boucle 3 Actes Exercice", couleur: "#f59e0b", icone: "⚡", x: 220, y: 190 },
-  tuteur: { libelle: "Compagnon Tuteur IA", couleur: "#06b6d4", icone: "🤖", x: -460, y: 0 },
-  profil: { libelle: "Profil & Compte", couleur: "#64748b", icone: "⚙️", x: 500, y: 0 },
+  dashboard: { libelle: "Dashboard & Pilotage", couleur: "#3b82f6", x: -200, y: -160 },
+  atelier: { libelle: "Atelier Documentaire", couleur: "#059669", x: 260, y: -180 },
+  seances: { libelle: "Séances & Concepteur", couleur: "#8b5cf6", x: -260, y: 180 },
+  exercice: { libelle: "Boucle Exercice", couleur: "#f59e0b", x: 220, y: 190 },
+  tuteur: { libelle: "Compagnon Tuteur IA", couleur: "#06b6d4", x: -460, y: 0 },
+  profil: { libelle: "Profil & Compte", couleur: "#64748b", x: 500, y: 0 },
 };
 
 const STYLE_LIEN: Record<
@@ -1060,7 +1060,10 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
                 <div className="grid grid-cols-2 gap-x-3 gap-y-1">
                   {(Object.keys(GROUPES_CONFIG) as GroupeWorkflow[]).map((g) => (
                     <div key={g} className="flex items-center gap-1.5">
-                      <span>{GROUPES_CONFIG[g].icone}</span>
+                      <span
+                        className="size-2.5 rounded-sm"
+                        style={{ background: GROUPES_CONFIG[g].couleur }}
+                      />
                       <span className="truncate">{GROUPES_CONFIG[g].libelle}</span>
                     </div>
                   ))}
@@ -1191,13 +1194,17 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
                             GROUPES_CONFIG[noeudSelectionne.groupe]?.couleur ?? "#64748b",
                         }}
                       >
-                        {GROUPES_CONFIG[noeudSelectionne.groupe]?.icone}{" "}
                         {GROUPES_CONFIG[noeudSelectionne.groupe]?.libelle}
                       </span>
                     )}
                     {noeudSelectionne.badge && (
                       <span className="inline-block rounded-sm border border-bordure bg-surface px-1.5 py-0.5 text-[0.65rem] font-medium text-texte-attenue">
-                        🏷️ {noeudSelectionne.badge}
+                        {noeudSelectionne.badge}
+                      </span>
+                    )}
+                    {noeudSelectionne.heuristique && (
+                      <span className="inline-block rounded-sm border border-dashed border-bordure px-1.5 py-0.5 text-[0.65rem] font-medium text-texte-discret">
+                        heuristique
                       </span>
                     )}
                   </div>
@@ -1303,7 +1310,10 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
                         }
                         className="accent-primaire"
                       />
-                      <span>{GROUPES_CONFIG[g].icone}</span>
+                      <span
+                        className="size-2.5 rounded-sm"
+                        style={{ background: GROUPES_CONFIG[g].couleur }}
+                      />
                       <span>{GROUPES_CONFIG[g].libelle}</span>
                     </label>
                   ))}

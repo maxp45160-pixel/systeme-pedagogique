@@ -23,6 +23,8 @@ import {
   baseRoute,
   groupePourChemin,
   resoudreImportsComposants,
+  resoudreNavigationPartagee,
+  resoudreSurfacesPartagees,
   slugId,
   type FichierAstAnalyse,
 } from "./workflow-ast-parser";
@@ -83,12 +85,12 @@ function construireMacroSynthese(
   });
 
   ajouterNoeud({
-    id: "modal:nouvelle-donnee",
+    id: "modal:de-quoi-as-tu-besoin",
     type: "modal",
     libelle: "Capture d'Intention libre (+)",
     groupe: "dashboard",
     badge: "Point d'Entrée Unique",
-    description: "Traduction one-shot en langage naturel sans choisir l'objet d'avance (ADR-073)",
+    description: "Traduction one-shot en langage naturel sans choisir l'objet d'avance — modale « De quoi as-tu besoin ? » du rail (ADR-073)",
   });
 
   ajouterNoeud({
@@ -188,7 +190,7 @@ function construireMacroSynthese(
   // 1. Depuis le Hub
   connecter({
     source: "page:/",
-    target: "modal:nouvelle-donnee",
+    target: "modal:de-quoi-as-tu-besoin",
     type: "ouverture",
     libelle: "Déclarer une intention",
     declencheur: "Clic sur le bouton central '+'",
@@ -258,7 +260,7 @@ function construireMacroSynthese(
 
   // 2. Intention orientée vers l'action
   connecter({
-    source: "modal:nouvelle-donnee",
+    source: "modal:de-quoi-as-tu-besoin",
     target: "page:/seances",
     type: "transition",
     libelle: "Intention 'travail'",
@@ -266,7 +268,7 @@ function construireMacroSynthese(
   });
 
   connecter({
-    source: "modal:nouvelle-donnee",
+    source: "modal:de-quoi-as-tu-besoin",
     target: "page:/atelier",
     type: "transition",
     libelle: "Intention 'projet' / 'note'",
@@ -464,7 +466,7 @@ function construireUxAtomique(
         }
       }
 
-      // Micro-interactions riches (Canvas, Pomodoro, Tuteur, Accordéons, Clavier, Médias)
+      // Micro-interactions riches (Canvas, Pomodoro, Tuteur, Accordéons, Médias)
       const sourceMicro = surfacesParFichier.get(rel) ?? pageId;
       for (const micro of a.microInteractions) {
         ajouterNoeud({
@@ -473,6 +475,7 @@ function construireUxAtomique(
           libelle: micro.libelle,
           groupe: groupePourChemin(rel),
           badge: micro.badge,
+          heuristique: micro.heuristique,
         });
 
         connecter({
@@ -486,70 +489,139 @@ function construireUxAtomique(
     }
   }
 
-  // 3. Boucle pédagogique d'exercice en 3 actes
-  // Elle se joue dans le cahier du workspace `/seances` (ADR-079) : l'exercice
-  // n'a plus de fiche autonome, la séance est le point d'entrée unique.
-  const pageSeances = analyses.get("app/(app)/seances/page.tsx");
-  if (pageSeances) {
-    const actes = [
-      { id: "ux:exercice-chercher", libelle: "Acte 1 : Chercher", badge: "Résolution" },
-      { id: "ux:exercice-comparer", libelle: "Acte 2 : Comparer", badge: "Correction" },
-      { id: "ux:exercice-mesurer", libelle: "Acte 3 : Mesurer", badge: "Auto-évaluation" },
-      { id: "ux:exercice-bilan-final", libelle: "Bilan & Preuve forgée", badge: "Preuve" },
-    ];
+  // 3. Boucle pédagogique d'exercice — fidèle au code (ADR-079)
+  // Le vrai parcours tient dans le workspace de séance : deux actes
+  // (Chercher → Mesurer) dont les transitions sont portées par les variantes
+  // de `searchParams` que `vue-exercice.tsx` lit réellement (`evaluer`,
+  // `bilan`, `abandon`). On ne modélise donc aucune étape inventée : les
+  // nœuds de variantes sont dérivés (section 1) et les actions réelles
+  // (terminer/abandonner) se résolvent vers `/seances`.
+  const seances = analyses.get("app/(app)/seances/page.tsx");
+  if (seances) {
+    const sessionId = "page:/seances?session";
+    const evaluerId = "page:/seances?evaluer";
+    const bilanId = "page:/seances?bilan";
+    const abandonId = "page:/seances?abandon";
 
-    for (const acte of actes) {
-      ajouterNoeud({
-        id: acte.id,
-        type: "etape",
-        libelle: acte.libelle,
-        groupe: "exercice",
-        badge: acte.badge,
+    ajouterNoeud({
+      id: "ux:exercice-chercher",
+      type: "etape",
+      libelle: "Acte 1 : Chercher",
+      groupe: "exercice",
+      badge: "Résolution",
+    });
+    ajouterNoeud({
+      id: "ux:exercice-mesurer",
+      type: "etape",
+      libelle: "Acte 2 : Mesurer",
+      groupe: "exercice",
+      badge: "Auto-évaluation",
+    });
+
+    // Le workspace de séance ouvre l'acte de résolution.
+    if (parId.has(sessionId)) {
+      connecter({
+        source: sessionId,
+        target: "ux:exercice-chercher",
+        type: "interaction",
+        libelle: "Acte 1 : Chercher",
+        declencheur: "Tentative en cours dans le workspace",
       });
     }
 
+    // Chercher → Mesurer : le lien « Demander la correction » navigue vers
+    // `urlExercice(exercice.id, navigation, 'evaluer')` (vue-exercice.tsx).
+    if (parId.has(evaluerId)) {
+      connecter({
+        source: "ux:exercice-chercher",
+        target: evaluerId,
+        type: "navigation",
+        libelle: "Demander la correction au tuteur",
+        declencheur: "urlExercice(…, 'evaluer')",
+      });
+    }
+
+    if (parId.has(evaluerId)) {
+      connecter({
+        source: evaluerId,
+        target: "ux:exercice-mesurer",
+        type: "interaction",
+        libelle: "Acte 2 : Mesurer",
+        declencheur: "Évaluation du bilan proposé par le tuteur",
+      });
+    }
+
+    // Mesurer → Bilan : l'auto-évaluation validée clôt la tentative
+    // (`terminerExercice` → destinationApresExercice(…, "bilan")).
     connecter({
-      source: "page:/seances",
-      target: "ux:exercice-chercher",
-      type: "interaction",
-      libelle: "Démarrer tentative",
-      declencheur: "Top départ de la tentative",
-    });
-    connecter({
-      source: "ux:exercice-chercher",
-      target: "ux:exercice-comparer",
+      source: "ux:exercice-mesurer",
+      target: bilanId,
       type: "transition",
-      libelle: "Passer à la comparaison",
-      declencheur: "Clic 'Afficher la correction'",
-    });
-    connecter({
-      source: "ux:exercice-comparer",
-      target: "ux:exercice-mesurer",
-      type: "transition",
-      libelle: "Passer à l'évaluation",
-      declencheur: "Clic 'Passer à l'évaluation'",
+      libelle: "Enregistrer la preuve",
+      declencheur: "Auto-évaluation validée → terminerExercice",
     });
     connecter({
       source: "ux:exercice-mesurer",
-      target: "ux:exercice-bilan-final",
-      type: "transition",
-      libelle: "Enregistrer la preuve",
-      declencheur: "Validation auto-évaluation",
+      target: "action:terminerexercice",
+      type: "soumission",
+      libelle: "terminerExercice",
+      declencheur: "Soumission du bilan",
     });
-    connecter({
-      source: "ux:exercice-bilan-final",
-      target: "page:/",
-      type: "navigation",
-      libelle: "Retour dashboard",
-      declencheur: "Clic 'Continuer vers le dashboard'",
-    });
-    connecter({
-      source: "ux:exercice-bilan-final",
-      target: "page:/atelier",
-      type: "navigation",
-      libelle: "Voir dans l'Atelier",
-      declencheur: "Clic 'Voir dans l'Atelier'",
-    });
+
+    // Abandon disponible dans les deux actes (`BoutonAbandon` →
+    // `abandonnerExercice` → destinationApresExercice(…, "abandon")).
+    for (const acteId of ["ux:exercice-chercher", "ux:exercice-mesurer"] as const) {
+      connecter({
+        source: acteId,
+        target: "action:abandonnerexercice",
+        type: "soumission",
+        libelle: "abandonnerExercice",
+        declencheur: "Clic 'Abandonner cette tentative'",
+      });
+      connecter({
+        source: acteId,
+        target: abandonId,
+        type: "transition",
+        libelle: "Tentative abandonnée",
+        declencheur: "Aucune preuve enregistrée",
+      });
+    }
+
+    // Sorties réelles du bilan (CarteImpact → LienApresImpact).
+    if (parId.has(bilanId)) {
+      connecter({
+        source: bilanId,
+        target: sessionId,
+        type: "navigation",
+        libelle: "Reprendre la séance (Exercice suivant)",
+        declencheur: "LienApresImpact avec séance",
+      });
+      connecter({
+        source: bilanId,
+        target: "page:/",
+        type: "navigation",
+        libelle: "Prochaine action recommandée",
+        declencheur: "LienApresImpact sans séance",
+      });
+      connecter({
+        source: bilanId,
+        target: "page:/atelier?document",
+        type: "navigation",
+        libelle: "Voir la fiche compétence",
+        declencheur: "Chip compétence du bilan",
+      });
+    }
+
+    // Sorties réelles de l'abandon (bandeau → « Reprendre dans une séance »).
+    if (parId.has(abandonId)) {
+      connecter({
+        source: abandonId,
+        target: "page:/seances",
+        type: "navigation",
+        libelle: "Reprendre dans une séance",
+        declencheur: "Composer une séance ciblée",
+      });
+    }
   }
 
   // 4. Modales & Tiroirs réels
@@ -753,15 +825,6 @@ function construireUxAtomique(
         declencheur: "Menu navigation / Carte séances",
       });
     }
-    if (parId.has("page:/projets")) {
-      connecter({
-        source: "page:/",
-        target: "page:/projets",
-        type: "navigation",
-        libelle: "Ouvrir les Projets",
-        declencheur: "Menu navigation / Carte projets",
-      });
-    }
     if (parId.has("page:/demarrer")) {
       connecter({
         source: "page:/",
@@ -799,6 +862,65 @@ function construireUxAtomique(
       libelle: "Connexion réussie",
       declencheur: "Authentification validée",
     });
+  }
+
+  // 8. Cadre partagé — navigation persistante et surfaces du layout (rail,
+  // barre mobile, tiroir tuteur, point d'entrée `+`). Elles ne vivent pas
+  // dans les pages : sans cette passe, `/compte`, `/aide` ou le tiroir
+  // sembleraient inaccessibles depuis la plupart des écrans. `connecter`
+  // déduplique déjà une arête identique (source→cible→libellé→déclencheur),
+  // y compris quand deux dossiers de layouts s'imbriquent.
+  const navPartagee = resoudreNavigationPartagee(analyses);
+  const surfacesPartagees = resoudreSurfacesPartagees(analyses);
+
+  for (const a of analyses.values()) {
+    if (!a.estPageRoute || !a.route || a.estRedirectionPure) continue;
+    if (a.route.startsWith("/dev")) continue;
+
+    const sourceId = `page:${a.route}`;
+    if (!parId.has(sourceId)) continue;
+
+    for (const [dossier, cibles] of navPartagee.entries()) {
+      if (!a.relatif.startsWith(`${dossier}/`)) continue;
+      for (const cible of cibles) {
+        const targetId = `page:${cible}`;
+        if (!parId.has(targetId) || targetId === sourceId) continue;
+        connecter({
+          source: sourceId,
+          target: targetId,
+          type: "navigation",
+          libelle: "Navigation persistante",
+          declencheur: "Rail / barre mobile du cadre",
+        });
+      }
+    }
+
+    for (const [dossier, ids] of surfacesPartagees.entries()) {
+      if (!a.relatif.startsWith(`${dossier}/`)) continue;
+      for (const id of ids) {
+        if (!parId.has(id)) {
+          // Surface déclarée par le layout mais montée par aucune page
+          // inspectée : on la crée pour refléter le cadre réel.
+          const porteur = [...analyses.values()].find((fa) =>
+            fa.modales.some((m) => m.id === id),
+          );
+          const modale = porteur?.modales.find((m) => m.id === id);
+          ajouterNoeud({
+            id,
+            type: modale?.estTiroir ? "tiroir" : "modal",
+            libelle: modale?.titre ?? id,
+            groupe: porteur ? groupePourChemin(porteur.relatif) : undefined,
+          });
+        }
+        connecter({
+          source: sourceId,
+          target: id,
+          type: "ouverture",
+          libelle: "Ouvrir depuis le cadre",
+          declencheur: "Bouton du cadre partagé",
+        });
+      }
+    }
   }
 
   return { noeuds, liens };

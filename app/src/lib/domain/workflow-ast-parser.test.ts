@@ -210,3 +210,68 @@ export default async function Layout() {
     expect(resultat.get("app/(app)")).not.toContain("modal:competence");
   });
 });
+
+describe("actions serveur — redirections dynamiques connues", () => {
+  it("résout `redirect(await destinationApresExercice(…))` vers le cahier /seances", () => {
+    const actions = analyser(
+      "lib/store/actions-exemple.ts",
+      `"use server";
+import { destinationApresExercice } from "./actions";
+export async function terminerExercice(exerciceId: string) {
+  const dorsale = await dorsaleCompte();
+  redirect(await destinationApresExercice(exerciceId, "bilan", navigation, dorsale));
+}`,
+    );
+
+    const action = actions.actionsDeclarees.find((a) => a.nom === "terminerExercice");
+    expect(action?.redirection).toBe("/seances");
+  });
+
+  it("laisse les redirections statiques intactes", () => {
+    const actions = analyser(
+      "lib/store/actions-exemple.ts",
+      `"use server";
+export async function allerAuCahier() {
+  redirect("/seances");
+}`,
+    );
+
+    const action = actions.actionsDeclarees.find((a) => a.nom === "allerAuCahier");
+    expect(action?.redirection).toBe("/seances");
+  });
+});
+
+describe("micro-interactions heuristiques", () => {
+  it("marque un accordéon détecté comme heuristique et le libelle honnêtement", () => {
+    const composant = analyser(
+      "components/exercices/mon-composant.tsx",
+      `export function Composant() {
+  return (
+    <details>
+      <summary>Contenu</summary>
+      <p>Détail</p>
+    </details>
+  );
+}`,
+    );
+
+    const accordeons = composant.microInteractions.filter((m) => m.type === "accordéon");
+    expect(accordeons).toHaveLength(1);
+    expect(accordeons[0].heuristique).toBe(true);
+    expect(accordeons[0].id).toContain("-accordion");
+    expect(accordeons[0].libelle).toBe("Déplier un contenu repliable");
+  });
+
+  it("ne produit plus les micros `aide-memoire` ni `clavier-echap`", () => {
+    const composant = analyser(
+      "components/atelier/espace-documentaire.tsx",
+      `export function Espace() {
+  return <div onKeyDown={() => {}}><details>X</details></div>;
+}`,
+    );
+
+    const ids = composant.microInteractions.map((m) => m.id);
+    expect(ids.some((id) => id.includes("aide-memoire"))).toBe(false);
+    expect(ids.some((id) => id.includes("clavier-echap"))).toBe(false);
+  });
+});
