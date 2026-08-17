@@ -34,13 +34,6 @@ export const LIBELLES_TRIS_DOMAINES: Record<TriDomaine, string> = {
   ordre: "Ordre du référentiel",
 };
 
-export const OPTIONS_STATUTS_DOMAINES: Array<{ cle: FiltreStatutDomaine; libelle: string }> = [
-  { cle: "tous", libelle: "Tous" },
-  { cle: "en-cours", libelle: "En cours" },
-  { cle: "non-demarre", libelle: "Non démarrés" },
-  { cle: "complete", libelle: "Complétés" },
-];
-
 /** Calcule le ratio de couverture d'un domaine dans [0, 1]. */
 export function calculerRatioCouverture(domaine: VueDomaineAtelier): number {
   const total = domaine.competences.length;

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   besoinValide,
   urlComposition,
-  urlCompositionTheme,
   validerActionIntention,
   validerTraductionIntention,
 } from "./intention";
@@ -183,19 +182,5 @@ describe("urlComposition", () => {
 
   it("omet l'intention quand elle est vide", () => {
     expect(urlComposition(["LOG-01"], "   ")).toBe("/seances?composer=1&code=LOG-01");
-  });
-});
-
-describe("urlCompositionTheme", () => {
-  it("passe l'identifiant du thème, jamais ses codes", () => {
-    expect(urlCompositionTheme("philosophie", "Philosophie")).toBe(
-      "/seances?composer=1&theme=philosophie&intention=Philosophie",
-    );
-  });
-
-  it("omet l'intention quand elle est vide", () => {
-    expect(urlCompositionTheme("philosophie", "  ")).toBe(
-      "/seances?composer=1&theme=philosophie",
-    );
   });
 });

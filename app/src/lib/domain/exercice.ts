@@ -121,15 +121,6 @@ export function compterTentatives(
 }
 
 /**
- * Un exercice de diagnostic est livré avec le logiciel : il n'appartient pas au
- * compte et ne se retire pas ligne à ligne. Le retirer du flux passe par le
- * périmètre de la compétence (`competences.active`), pas par l'exercice.
- */
-export function estRetirable(exercice: Exercise): boolean {
-  return exercice.origine !== "seed" && !exercice.diagnostic;
-}
-
-/**
  * Résout un exercice par identifiant, d'abord dans les exercices stockés du
  * compte, puis dans les diagnostics livrés avec le logiciel.
  *

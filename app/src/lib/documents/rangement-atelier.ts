@@ -34,8 +34,6 @@ export interface RangementAtelier {
   rattachements: string[];
 }
 
-export const ZONE_PAR_DEFAUT: ZoneAtelier = "ressource";
-
 /**
  * Une preuve ne se range pas.
  *
@@ -87,9 +85,4 @@ export function rangerDocument(parametres: {
 /** Une ressource que personne n'a encore reliée à une compétence. */
 export function estATrier(rangement: RangementAtelier): boolean {
   return rangement.zone === "ressource" && rangement.rattachements.length === 0;
-}
-
-/** Ce qui apparaît dans le corpus consultable. Les preuves n'y sont pas. */
-export function apparaitDansCorpus(rangement: RangementAtelier): boolean {
-  return rangement.zone !== "hors-corpus";
 }

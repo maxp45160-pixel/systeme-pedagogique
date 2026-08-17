@@ -18,7 +18,7 @@
  */
 
 import { ORDRE_PALIERS } from "./types";
-import type { Domaine, DomaineId, OrigineReferentiel, Palier, Referentiel, Skill } from "./types";
+import type { Domaine, DomaineId, Palier, Referentiel, Skill } from "./types";
 
 /* ------------------------------------------------------------------ */
 /* Assemblage                                                          */
@@ -515,48 +515,4 @@ export function scinderRetraits(
   }
 
   return { supprimees, archivees };
-}
-
-/* ------------------------------------------------------------------ */
-/* Construction                                                        */
-/* ------------------------------------------------------------------ */
-
-export function construireDomaine(
-  candidat: DomaineCandidat,
-  origine: OrigineReferentiel,
-  ordre: number,
-): Domaine {
-  return {
-    id: slugifier(candidat.nom),
-    nom: candidat.nom.trim(),
-    prefixe: candidat.prefixe,
-    description: candidat.description.trim(),
-    ordre,
-    version: 1,
-    archive: false,
-    origine,
-  };
-}
-
-export function construireCompetences(
-  candidates: CompetenceCandidate[],
-  domaine: Domaine,
-  referentiel: Referentiel,
-  origine: OrigineReferentiel,
-): Skill[] {
-  const codes = attribuerCodes(domaine.prefixe, referentiel.parCode.keys(), candidates.length);
-  const depart = referentiel.skills.filter((s) => s.domaine === domaine.id).length;
-
-  return candidates.map((c, i) => ({
-    code: codes[i],
-    domaine: domaine.id,
-    intitule: c.intitule.trim(),
-    palier: c.palier,
-    prerequis: c.prerequis ?? [],
-    importance: c.importance,
-    ordre: depart + i,
-    active: true,
-    archive: false,
-    origine,
-  }));
 }

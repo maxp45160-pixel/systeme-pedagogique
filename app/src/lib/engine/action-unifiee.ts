@@ -42,12 +42,6 @@ export interface ContexteInstant {
 export const TEMPS_PAR_DEFAUT_MIN = 25;
 export const CAPACITE_PAR_DEFAUT: MentalCapacity = "standard";
 
-export const LIBELLES_CAPACITE: Record<MentalCapacity, string> = {
-  faible: "Faible — rester léger",
-  standard: "Standard",
-  elevee: "Élevée — je peux approfondir",
-};
-
 export const LIBELLES_FAMILLE = {
   explorer: "Explorer",
   entrainer: "S'entraîner",

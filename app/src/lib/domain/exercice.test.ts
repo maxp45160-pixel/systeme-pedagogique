@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   compterTentatives,
-  estRetirable,
   usageExercice,
   motifRefusExercice,
   DIFFICULTE_MAX,
@@ -10,7 +9,7 @@ import {
   DUREE_ESTIMEE_MIN,
   type ContenuExercice,
 } from "./exercice";
-import type { Exercise, ExerciseAttempt } from "./types";
+import type { ExerciseAttempt } from "./types";
 
 /*
  * Cycle de vie d'un exercice — calque d'ADR-027 (02/08/2026).
@@ -42,24 +41,6 @@ function tent(
   };
 }
 
-function exo(options: Partial<Exercise> = {}): Exercise {
-  return {
-    id: "ex-1",
-    titre: "Exercice",
-    domaine: "developpement",
-    type: "application",
-    difficulte: 2,
-    competences: ["DEV-01"],
-    dureeEstimeeMin: 25,
-    enonce: "…",
-    indices: [],
-    correction: "…",
-    criteres: [],
-    origine: "tuteur",
-    ...options,
-  };
-}
-
 describe("compterTentatives", () => {
   it("compte les abandons aussi : ils figurent au journal", () => {
     // Contrairement à la calibration, qui les écarte parce qu'ils ne MESURENT
@@ -73,18 +54,6 @@ describe("compterTentatives", () => {
     expect(compterTentatives("ex-1", tentatives)).toBe(2);
     expect(compterTentatives("ex-2", tentatives)).toBe(1);
     expect(compterTentatives("ex-3", tentatives)).toBe(0);
-  });
-});
-
-describe("estRetirable", () => {
-  it("refuse les exercices livrés avec le logiciel", () => {
-    expect(estRetirable(exo({ origine: "seed" }))).toBe(false);
-    expect(estRetirable(exo({ diagnostic: true }))).toBe(false);
-  });
-
-  it("accepte ceux qui appartiennent au compte", () => {
-    expect(estRetirable(exo({ origine: "tuteur" }))).toBe(true);
-    expect(estRetirable(exo({ origine: "manuel" }))).toBe(true);
   });
 });
 

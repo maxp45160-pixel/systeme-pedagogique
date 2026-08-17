@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  apparaitDansCorpus,
   estATrier,
   rangementDomaine,
   rangementTheme,
@@ -16,7 +15,6 @@ describe("rangement de l'Atelier", () => {
       competencesCitees: ["DEV-01"],
     });
     expect(rangement.zone).toBe("hors-corpus");
-    expect(apparaitDansCorpus(rangement)).toBe(false);
   });
 
   /*

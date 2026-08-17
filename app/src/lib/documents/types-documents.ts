@@ -203,7 +203,3 @@ export type TypeDocument = keyof typeof TYPES_DOCUMENTS;
 export function definitionTypeDocument(type: string): DefinitionTypeDocument | null {
   return TYPES_DOCUMENTS[type] ?? null;
 }
-
-export function estTypeDocument(type: string): type is TypeDocument {
-  return type in TYPES_DOCUMENTS;
-}

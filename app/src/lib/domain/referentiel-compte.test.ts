@@ -3,8 +3,6 @@ import {
   assemblerReferentiel,
   attribuerCodes,
   comparerCodes,
-  construireCompetences,
-  construireDomaine,
   libelleDomaine,
   modeRetrait,
   retraitsParCode,
@@ -21,7 +19,6 @@ import {
 } from "./referentiel-compte";
 import {
   REFERENTIEL_VIDE,
-  DOMAINES_TEST,
   REFERENTIEL_TEST,
   domaineDeTest,
   referentielDe,
@@ -415,52 +412,5 @@ describe("assemblage", () => {
   it("le libellé d'un domaine retombe sur son identifiant, jamais sur une invention", () => {
     expect(libelleDomaine(REFERENTIEL_TEST, "developpement")).toBe("Développement logiciel");
     expect(libelleDomaine(REFERENTIEL_TEST, "philosophie")).toBe("philosophie");
-  });
-});
-
-describe("construction depuis une proposition", () => {
-  it("attribue les codes depuis le préfixe, sans jamais lire ceux du tuteur", () => {
-    const domaine = construireDomaine(
-      { nom: "Philosophie morale", prefixe: "PHI", description: "  Éthique appliquée.  " },
-      "tuteur",
-      2,
-    );
-    expect(domaine.id).toBe("philosophie-morale");
-    expect(domaine.description).toBe("Éthique appliquée.");
-    expect(domaine.origine).toBe("tuteur");
-
-    const skills = construireCompetences(
-      [
-        { intitule: "Reconstruire un argument sous forme canonique", palier: "fondamentaux", importance: 0.9 },
-        { intitule: "Distinguer un dilemme moral d'un conflit de valeurs", palier: "intermediaire", importance: 0.8 },
-      ],
-      domaine,
-      REFERENTIEL_TEST,
-      "tuteur",
-    );
-
-    expect(skills.map((s) => s.code)).toEqual(["PHI-01", "PHI-02"]);
-    expect(skills.every((s) => s.domaine === "philosophie-morale")).toBe(true);
-    expect(skills.every((s) => s.active && !s.archive)).toBe(true);
-    expect(skills.map((s) => s.ordre)).toEqual([0, 1]);
-  });
-
-  it("poursuit la numérotation d'un domaine existant plutôt que de la reprendre à 1", () => {
-    const domaine = domaineDeTest("developpement", "Développement logiciel", "DEV", 0);
-    const skills = construireCompetences(
-      [{ intitule: "Un nouveau savoir-faire mesurable", palier: "avance", importance: 0.7 }],
-      domaine,
-      REFERENTIEL_TEST,
-      "tuteur",
-    );
-    expect(skills[0].code).toBe("DEV-07");
-    expect(skills[0].ordre).toBe(6);
-  });
-
-  it("les domaines de la fixture restent intacts après construction", () => {
-    // `construireCompetences` ne doit rien muter : le référentiel passé sert de
-    // source de vérité pour les codes déjà pris, pas de brouillon.
-    expect(DOMAINES_TEST.map((d) => d.id)).toEqual(["developpement", "statistiques"]);
-    expect(REFERENTIEL_TEST.parCode.has("PHI-01")).toBe(false);
   });
 });

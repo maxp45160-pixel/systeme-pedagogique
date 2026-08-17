@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FORMATS_PAR_ROLE, formatAutorise, roleDuFormat } from "./roles-note";
+import { FORMATS_PAR_ROLE, formatAutorise } from "./roles-note";
 import { definitionTypeDocument } from "./types-documents";
 
 describe("formats de note par rôle", () => {
@@ -25,13 +25,8 @@ describe("formats de note par rôle", () => {
 
   it("refuse un format inconnu quel que soit le rôle", () => {
     expect(formatAutorise("operationnel", "preuve")).toBe(false);
-    expect(roleDuFormat("preuve")).toBeNull();
-    expect(roleDuFormat("inexistant")).toBeNull();
-  });
-
-  it("retrouve le rôle d'un format", () => {
-    expect(roleDuFormat("seance")).toBe("operationnel");
-    expect(roleDuFormat("cours")).toBe("support");
+    expect(formatAutorise("support", "preuve")).toBe(false);
+    expect(formatAutorise("operationnel", "inexistant")).toBe(false);
   });
 });
 

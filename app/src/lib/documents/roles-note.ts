@@ -32,14 +32,6 @@ export interface FormatNote {
  * il n'est simplement plus proposé nulle part.
  */
 
-/** Formats connus mais reportés dans l'interface principale. */
-export const FORMATS_OPERATIONNELS_A_VENIR: readonly FormatNote[] = [
-  { valeur: "etude-de-cas", libelle: "Étude de cas" },
-  { valeur: "redaction", libelle: "Rédaction" },
-  { valeur: "schema", libelle: "Schéma" },
-  { valeur: "experimentation", libelle: "Expérimentation" },
-];
-
 /** Les libellés sont ceux du formulaire : le contrôle et le menu partent d'ici. */
 export const FORMATS_PAR_ROLE: Record<RoleNote, readonly FormatNote[]> = {
   support: [
@@ -68,11 +60,4 @@ const VALEURS_PAR_ROLE: Record<RoleNote, ReadonlySet<string>> = {
 
 export function formatAutorise(role: RoleNote, type: string): boolean {
   return VALEURS_PAR_ROLE[role].has(type);
-}
-
-/** Le rôle qui accepte ce format, s'il n'y en a qu'un. */
-export function roleDuFormat(type: string): RoleNote | null {
-  if (VALEURS_PAR_ROLE.support.has(type)) return "support";
-  if (VALEURS_PAR_ROLE.operationnel.has(type)) return "operationnel";
-  return null;
 }
