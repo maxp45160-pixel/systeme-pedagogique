@@ -41,12 +41,64 @@ export interface PreuveAtelier {
   autonomie: string;
   qualite: string;
   niveauPreuve: string;
+  /**
+   * Le document de production, quand il existe **vraiment**.
+   *
+   * `source.document.documentId` est la référence explicite exigée par le
+   * §2 ; à défaut, `production.ts` écrit la preuve d'une tentative sous
+   * `preuve-<idTentative>`, ce que `source.ref` permet de reconstituer. Dans
+   * les deux cas la cible n'est retenue que si l'index la contient : une
+   * preuve historique sans document reste affichée, simplement pas cliquable.
+   */
+  documentId: string | null;
 }
 
 export interface DocumentLieAtelier {
   id: string;
   titre: string;
   type: string;
+}
+
+/*
+ * Il y a eu ici un `CandidatRelationAtelier` : une liste de compétences du
+ * compte, classées par co-mobilisation observée puis par ordre des paliers, que
+ * la fiche offrait à choisir. Elle imposait une saisie, et surtout elle ne
+ * pouvait proposer que ce qui existait déjà — or un prérequis manquant est
+ * précisément ce qui manque au référentiel. Le tuteur propose désormais des
+ * compétences qui n'existent pas encore (`lib/tutor/relations-referentiel.ts`),
+ * et la personne valide ligne à ligne.
+ */
+
+/**
+ * Les types de documents qui ne sont pas des supports.
+ *
+ * Une fiche d'exercice et un document de preuve citent la compétence, donc
+ * `index.entrants` les rend — mais ils portent une mesure, et la fiche les
+ * nomme déjà ailleurs, avec cette mesure. « Ressources » ne garde que ce qu'on
+ * lit pour travailler.
+ */
+const TYPES_NON_SUPPORT = new Set(["exercice", "preuve"]);
+
+function estSupport(document: { id: string; type: string }): boolean {
+  if (TYPES_NON_SUPPORT.has(document.type)) return false;
+  /* Les preuves d'avant le champ `type` ne se reconnaissent qu'à leur identifiant. */
+  return !document.id.startsWith("preuve-") && !document.id.startsWith("exercice:");
+}
+
+/**
+ * Le document de production d'une preuve, s'il existe dans le corpus.
+ *
+ * Deux chemins, dans cet ordre : la référence explicite portée par la mesure,
+ * puis la convention d'écriture de `production.ts` (`preuve-<idTentative>`, où
+ * l'identifiant de tentative est `source.ref` d'une preuve d'exercice).
+ * L'identifiant n'est renvoyé que si le document est réellement indexé — un id
+ * calculé qui ne désigne rien serait une valeur fabriquée.
+ */
+function documentDeLaPreuve(preuve: SkillEvidence, index: IndexDocumentaire): string | null {
+  const explicite = preuve.source.document?.documentId;
+  const candidat = explicite ?? (preuve.source.kind === "exercice" ? `preuve-${preuve.source.ref}` : null);
+  if (!candidat) return null;
+  return index.parId.has(candidat) ? candidat : null;
 }
 
 export interface VueCompetenceAtelier {
@@ -84,7 +136,25 @@ export interface VueCompetenceAtelier {
   ensemblesDisponibles: Array<{ id: string; libelle: string; codes: string[] }>;
   exercices: ExerciceLieAtelier[];
   preuves: PreuveAtelier[];
+  /**
+   * Les supports seulement.
+   *
+   * `index.entrants` rend tout ce qui cite le code, fiches d'exercice et
+   * documents de preuve compris : ils réapparaissaient sous « Documents liés »
+   * alors que `exercices` et `preuves` les nomment déjà, chacun avec ses
+   * mesures. Une ressource associée est un support — note, cours, fiche de
+   * travail — pas une trace de production.
+   */
   documents: DocumentLieAtelier[];
+  /**
+   * Les domaines vivants du compte, pour nommer la destination d'une relation.
+   *
+   * Une relation proposée par le tuteur dit dans quel domaine sa compétence doit
+   * vivre — un identifiant. L'écran doit pouvoir écrire « Créer dans
+   * Mathématiques » plutôt que « Créer dans maths-appliquees », sans quoi la
+   * personne valide une création dont elle ne lit pas la destination.
+   */
+  domainesExistants: Array<{ id: string; nom: string }>;
 }
 
 export interface VueDomaineAtelier {
@@ -232,6 +302,14 @@ export function construireVuesAtelier(
   exercices: VueExerciceProjectionAtelier[];
 } {
   const domainesVivants = new Set(referentiel.skills.filter((skill) => !skill.archive).map((skill) => skill.domaine));
+  /*
+   * Calculée une fois, partagée par référence : la même liste sur soixante-dix
+   * fiches, pas soixante-dix copies. Un domaine archivé n'accueille rien, donc
+   * il n'est pas une destination proposable.
+   */
+  const domainesVivantsLisibles = referentiel.domaines
+    .filter((domaine) => !domaine.archive)
+    .map((domaine) => ({ id: domaine.id, nom: domaine.nom }));
   const competences: VueCompetenceAtelier[] = etats.map((etat) => {
     const domaine = referentiel.domainesParId.get(etat.skill.domaine);
     const exercicesLies = exercices
@@ -244,7 +322,19 @@ export function construireVuesAtelier(
         id: document!.id,
         titre: document!.titre,
         type: document!.type ?? "document",
-      }));
+      }))
+      .filter((document) => estSupport(document));
+
+    const connexes = competencesConnexes({
+      skill: etat.skill,
+      actifs: referentiel.actifs,
+      skillsParCode: referentiel.parCode,
+      exercices,
+      preuves: preuvesReferentiel,
+    });
+    const suivantes = referentiel.actifs
+      .filter((skill) => skill.prerequis.includes(etat.skill.code))
+      .map((skill) => skill.code);
 
     return {
       kind: "competence",
@@ -266,16 +356,8 @@ export function construireVuesAtelier(
         valeur,
       })),
       prerequis: etat.skill.prerequis,
-      suivantes: referentiel.actifs
-        .filter((skill) => skill.prerequis.includes(etat.skill.code))
-        .map((skill) => skill.code),
-      connexes: competencesConnexes({
-        skill: etat.skill,
-        actifs: referentiel.actifs,
-        skillsParCode: referentiel.parCode,
-        exercices,
-        preuves: preuvesReferentiel,
-      }),
+      suivantes,
+      connexes,
       /*
        * Le parcours rejoue l'historique : deux `computeSkillState` par étape.
        * Borné à 8 — au-delà, une frise ne se lit plus, et le coût serait payé
@@ -309,8 +391,10 @@ export function construireVuesAtelier(
         autonomie: preuve.autonomie,
         qualite: preuve.qualite,
         niveauPreuve: preuve.niveauPreuve,
+        documentId: documentDeLaPreuve(preuve, index),
       })),
       documents,
+      domainesExistants: domainesVivantsLisibles,
     };
   });
 

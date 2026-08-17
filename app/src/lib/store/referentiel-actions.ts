@@ -24,7 +24,12 @@ import {
   type EnveloppeCommandeReferentiel,
   type ResultatCommandeReferentiel,
 } from "@/lib/domain/gouvernance-referentiel";
-import { normaliserImportance, normaliserPalier, validerCompetence } from "@/lib/domain/referentiel-compte";
+import {
+  competenceHomonyme,
+  normaliserImportance,
+  normaliserPalier,
+  validerCompetence,
+} from "@/lib/domain/referentiel-compte";
 import type { OrigineReferentiel, Palier, Referentiel } from "@/lib/domain/types";
 
 async function executerCommande(
@@ -206,6 +211,145 @@ export async function modifierCompetence(code: string, champs: ModificationCompe
   // chemin des ajouts, seul à pouvoir n'avoir rien à écrire.
   if (!commande) throw new Error(`Rien à modifier pour ${code}.`);
   await executerCommande(commande, referentiel, "utilisateur", `Correction de formulation de ${code}`);
+}
+
+/**
+ * Une arête de progression, dans un sens et un seul : `amont` est prérequis de `aval`.
+ *
+ * Le référentiel ne stocke que `competences.prerequis` : une « compétence
+ * suivante » n'existe pas en base, c'est la même arête lue à l'envers. Déclarer
+ * un prérequis P sur C, c'est `relier(P, C)` ; déclarer une suite N à C, c'est
+ * `relier(C, N)`. Une seule implémentation pour les deux gestes, donc une seule
+ * validation — l'ADR-027 vaut aussi pour les arêtes.
+ *
+ * Le sens inverse est refusé : deux compétences prérequis l'une de l'autre ne
+ * décrivent aucun ordre d'apprentissage, et `validerCompetence` ne voit pas le
+ * cycle puisqu'il n'examine qu'une compétence à la fois.
+ */
+export async function relierCompetences(amont: string, aval: string): Promise<void> {
+  if (amont === aval) throw new Error("Une compétence ne peut pas être son propre prérequis.");
+  const referentiel = await lireReferentiel(await dorsaleCompte());
+  const skillAmont = referentiel.parCode.get(amont);
+  const skillAval = referentiel.parCode.get(aval);
+  if (!skillAmont) throw new Error(`Compétence inconnue : ${amont}`);
+  if (!skillAval) throw new Error(`Compétence inconnue : ${aval}`);
+  if (skillAmont.prerequis.includes(aval)) {
+    throw new Error(
+      `${aval} est déjà un prérequis de ${amont} : déclarer l'inverse fermerait la boucle.`,
+    );
+  }
+  if (skillAval.prerequis.includes(amont)) return;
+  await modifierCompetence(aval, { prerequis: [...skillAval.prerequis, amont] });
+}
+
+export interface RelationAAppliquer {
+  /** La compétence lue, celle dont la fiche est ouverte. */
+  code: string;
+  sens: "prerequis" | "suivante";
+  /** Le code que le tuteur a désigné, s'il en a désigné un. */
+  codeExistant: string | null;
+  intitule: string;
+  palier: string;
+  /** Le domaine où la compétence doit vivre si elle doit être créée. */
+  domaineId: string | null;
+}
+
+export interface ResultatRelationAppliquee {
+  /** Le code effectivement relié — existant ou fraîchement attribué. */
+  codeRelie: string;
+  /** `true` si la compétence n'existait pas et vient d'entrer au référentiel. */
+  creee: boolean;
+}
+
+/**
+ * Écrit une relation que le tuteur a proposée et que la personne a validée.
+ *
+ * Trois issues, dans cet ordre — c'est l'arbitrage qui empêche les domaines
+ * d'enfler :
+ *
+ * 1. **le tuteur a désigné un code existant** ⇒ on relie, rien n'est créé ;
+ * 2. **l'intitulé est celui d'une compétence déjà au référentiel**, quel que
+ *    soit son domaine ⇒ on relie celle-là. `competenceHomonyme` cherche dans
+ *    `referentiel.skills` entier, donc un prérequis de logistique qui existe
+ *    déjà en mathématiques ne se recrée pas ;
+ * 3. **elle n'existe pas** ⇒ elle est créée **dans le domaine que le tuteur a
+ *    nommé**, pas dans celui de la fiche ouverte. Une compétence de maths va
+ *    dans Maths ; l'arête traverse les domaines, ce que `prerequis` autorise
+ *    déjà.
+ *
+ * Sans domaine plaçable, on refuse : ranger par défaut dans le domaine courant
+ * est exactement le mécanisme qui produit les domaines immenses. Créer un
+ * domaine reste une décision explicite, prise ailleurs.
+ *
+ * Une relation à la fois : une commande `reviser_domaine` ne porte qu'un
+ * domaine, et une validation ligne à ligne n'a pas besoin de lots.
+ */
+export async function appliquerRelationProposee(
+  relation: RelationAAppliquer,
+): Promise<ResultatRelationAppliquee> {
+  const intitule = relation.intitule.trim();
+  if (!intitule) throw new Error("Une relation sans intitulé ne peut pas être écrite.");
+
+  const referentiel = await lireReferentiel(await dorsaleCompte());
+  if (!referentiel.parCode.has(relation.code)) {
+    throw new Error(`Compétence inconnue : ${relation.code}`);
+  }
+
+  const designee =
+    relation.codeExistant && referentiel.parCode.has(relation.codeExistant)
+      ? relation.codeExistant
+      : null;
+  const homonyme = designee ? null : competenceHomonyme(intitule, referentiel);
+  let codeRelie = designee ?? homonyme?.code ?? null;
+  let creee = false;
+
+  if (!codeRelie) {
+    if (!relation.domaineId || !referentiel.domainesParId.has(relation.domaineId)) {
+      throw new Error(
+        `« ${intitule} » ne se rattache à aucun domaine existant. Crée le domaine d'abord, puis relance la proposition.`,
+      );
+    }
+    const resultat = await appliquerRevision({
+      domaineId: relation.domaineId,
+      ajouts: [
+        {
+          intitule,
+          palier: relation.palier,
+          /*
+           * Importance au milieu de l'échelle : le tuteur ne la propose pas, et
+           * la déduire du voisinage serait fabriquer une mesure. Elle se règle
+           * ensuite dans la révision du domaine.
+           */
+          importance: "0.5",
+        },
+      ],
+      modifications: [],
+      retraits: [],
+    });
+    /* Un intitulé déjà pris a été dévié vers `dejaAuReferentiel` sans rien créer. */
+    codeRelie = resultat.ajoutes[0] ?? resultat.dejaAuReferentiel[0]?.code ?? null;
+    creee = resultat.ajoutes.length > 0;
+    if (!codeRelie) throw new Error(`La création de « ${intitule} » n'a rendu aucun code.`);
+  }
+
+  if (relation.sens === "prerequis") {
+    await relierCompetences(codeRelie, relation.code);
+  } else {
+    await relierCompetences(relation.code, codeRelie);
+  }
+
+  return { codeRelie, creee };
+}
+
+/** Retire l'arête `amont → aval`. Voir `relierCompetences` pour le sens. */
+export async function delierCompetences(amont: string, aval: string): Promise<void> {
+  const referentiel = await lireReferentiel(await dorsaleCompte());
+  const skillAval = referentiel.parCode.get(aval);
+  if (!skillAval) throw new Error(`Compétence inconnue : ${aval}`);
+  if (!skillAval.prerequis.includes(amont)) return;
+  await modifierCompetence(aval, {
+    prerequis: skillAval.prerequis.filter((code) => code !== amont),
+  });
 }
 
 export interface SoumissionRevision {

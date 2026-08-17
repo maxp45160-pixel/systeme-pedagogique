@@ -12,13 +12,14 @@ import type {
   VueExerciceProjectionAtelier,
   VuePedagogiqueAtelier,
   DocumentLieAtelier,
+  PreuveAtelier,
 } from "@/lib/documents/vue-atelier";
 import { CodeCompetence, cx } from "@/components/ui/primitives";
 import type { EtapeParcours } from "@/lib/engine/parcours";
 import { urlComposerAutonome } from "@/lib/domain/navigation-exercice";
 import { AppartenanceEnsembles } from "./appartenance-ensembles";
+import { RelationsCompetence } from "./relations-competence";
 import {
-  IconeCompetences,
   IconeDocuments,
   IconeExercices,
   IconeFleche,
@@ -42,38 +43,12 @@ import { retirerCompetences } from "@/lib/store/referentiel-actions";
 import { retirerTheme } from "@/lib/store/theme-actions";
 import { rattacherCompetences } from "@/lib/store/referentiel-actions";
 
-/**
- * Un seul retour, vers l'endroit où l'objet vit réellement.
- *
- * Le fil d'Ariane affichait un chemin de dossiers qui n'existait dans aucune
- * table — `Domaines / Algèbre / Compétences / Fondamentaux`. Ce qu'il faisait
- * d'utile, revenir en arrière, tient en un bouton.
+/*
+ * Le retour vit dans la barre supérieure de l'Atelier — `RetourAtelier`, dans
+ * `espace-documentaire.tsx`. Les fiches en rendaient un second, collant, juste
+ * en dessous : deux rangées de chrome pour une seule navigation, et sur un
+ * domaine celui du haut ne pouvait rien faire. Il n'en reste qu'un.
  */
-function RetourVersAtelier({
-  libelle,
-  titreCourant,
-  onRetour,
-}: {
-  libelle: string;
-  titreCourant: string;
-  onRetour: () => void;
-}) {
-  return (
-    <div className="flex min-w-0 items-center gap-3">
-      <button
-        type="button"
-        onClick={onRetour}
-        className="flex shrink-0 items-center gap-1.5 rounded-lg border border-bordure-controle bg-surface px-2.5 py-1.5 text-xs font-medium text-texte-attenue transition-colors hover:text-texte cursor-pointer"
-      >
-        <span aria-hidden>←</span>
-        <span className="max-w-[12rem] truncate">{libelle}</span>
-      </button>
-      <span className="truncate font-serif text-lg font-medium text-texte">{titreCourant}</span>
-    </div>
-  );
-}
-
-type Onglet = "progression" | "relations";
 
 const LIBELLES_PALIERS: Record<string, string> = {
   fondamentaux: "Fondamentaux",
@@ -125,23 +100,78 @@ function Indicateur({ libelle, valeur, precision }: { libelle: string; valeur: s
   );
 }
 
-function CarteAssociee({
-  titre,
-  compteur,
-  children,
-}: {
-  titre: string;
-  compteur: number;
-  children: React.ReactNode;
-}) {
+/**
+ * Une mesure, posée sans boîte et sur deux lignes.
+ *
+ * Les quatre encarts bordés et ombrés pesaient autant que les sections qui
+ * portent le raisonnement, pour quatre nombres — et trois lignes chacun, ce que
+ * la hauteur d'un écran ne permet plus. Le nombre et sa précision partagent
+ * désormais la même ligne.
+ */
+function Mesure({ libelle, valeur, precision }: { libelle: string; valeur: string; precision: string }) {
   return (
-    <section className="min-w-0 rounded-xl border border-bordure bg-surface shadow-[var(--ombre-posee)]">
-      <div className="flex items-center justify-between border-b border-bordure px-4 py-3">
-        <h3 className="text-sm font-semibold text-texte">{titre}</h3>
-        <span className="chiffres rounded-full bg-surface-2 px-2.5 py-1 text-xs text-texte-discret">{compteur}</span>
-      </div>
-      <div className="p-3">{children}</div>
-    </section>
+    <div className="min-w-0 px-4">
+      <p className="text-[0.625rem] font-semibold uppercase tracking-[0.12em] text-texte-discret">{libelle}</p>
+      <p className="mt-1 flex min-w-0 items-baseline gap-1.5">
+        <span className="chiffres shrink-0 text-base font-semibold tracking-tight text-texte">{valeur}</span>
+        <span className="truncate text-[0.6875rem] text-texte-discret">{precision}</span>
+      </p>
+    </div>
+  );
+}
+
+/** Les onglets du volet droit : une nature d'élément par onglet. */
+type VoletCompetence = "preuves" | "exercices" | "ressources" | "relations";
+
+/**
+ * Une preuve, cliquable quand elle a un document.
+ *
+ * `documentId` n'est renseigné que si le corpus contient réellement la
+ * production — voir `documentDeLaPreuve`. Sans lui, la ligne garde exactement
+ * la même mise en forme mais n'est pas un bouton : rien ne suggère un clic qui
+ * ne mènerait nulle part.
+ */
+function PreuveLiee({
+  preuve,
+  ouvrirElement,
+}: {
+  preuve: PreuveAtelier;
+  ouvrirElement: (id: string) => void;
+}) {
+  const corps = (
+    <>
+      <span className="flex items-start justify-between gap-2">
+        <span className="min-w-0 text-xs font-medium leading-snug text-texte">{preuve.contexte}</span>
+        <span
+          className={cx(
+            "shrink-0 rounded px-1.5 py-0.5 text-[0.625rem]",
+            preuve.resultat === "reussi"
+              ? "bg-succes-faible text-succes"
+              : preuve.resultat === "partiel"
+                ? "bg-info-faible text-info"
+                : "bg-danger-faible text-danger",
+          )}
+        >
+          {preuve.resultat === "reussi" ? "Solide" : preuve.resultat === "partiel" ? "Partiel" : "À revoir"}
+        </span>
+      </span>
+      <span className="mt-1 block text-[0.6875rem] text-texte-discret">
+        {dateCourte(preuve.date)} · preuve {preuve.niveauPreuve} · {preuve.autonomie}
+      </span>
+    </>
+  );
+
+  if (!preuve.documentId) {
+    return <div className="rounded-lg border border-bordure bg-surface px-3 py-2.5">{corps}</div>;
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => ouvrirElement(preuve.documentId!)}
+      className="block w-full rounded-lg border border-bordure bg-surface px-3 py-2.5 text-left transition-colors hover:border-primaire/40 hover:bg-surface-2 cursor-pointer"
+    >
+      {corps}
+    </button>
   );
 }
 
@@ -165,28 +195,24 @@ function VueCompetence({
   donneesSeance?: DonneesSeance;
 }) {
   const router = useRouter();
-  const [onglet, setOnglet] = useState<Onglet>("progression");
+  const [volet, setVolet] = useState<VoletCompetence>("preuves");
   const [documentASupprimer, setDocumentASupprimer] = useState<DocumentLieAtelier | null>(null);
   const [creationNoteEnCours, demarrerCreationNote] = useTransition();
+  const prochainExercice = vue.exercices[0];
   /*
-   * Deux onglets, là où il y en avait quatre.
+   * Plus d'onglets : un seul flux.
    *
-   * « Vue d'ensemble » montrait les deux dimensions les plus fortes et les deux
-   * plus faibles — c'est-à-dire les extrêmes de la liste que « Progression »
-   * affichait **en entier**, juste à côté. Même donnée, deux onglets, et il
-   * fallait deviner lequel des deux répondait à « où j'en suis ».
+   * Il y en a eu quatre, puis deux — « Progression » et « Relations &
+   * ressources ». Deux onglets, c'est deux clics pour savoir lequel répond à sa
+   * question, et une fiche coupée en deux moitiés qui parlent du même objet.
+   * Tout se lit maintenant en descendant, dans l'ordre où on se le demande :
+   * où j'en suis, ce qui manque, ce que ça a donné, à quoi ça tient.
    *
-   * « Notes & ressources » listait `vue.documents`, que « Relations » listait
-   * déjà sous « Documents & ressources ». La seule chose que l'onglet ajoutait
-   * — créer et supprimer une note liée — est reprise ici.
-   *
-   * Restent les deux questions qu'on se pose vraiment sur une compétence : où
-   * j'en suis, et à quoi elle tient.
+   * Le volet Contexte, lui, ne s'ouvre plus sur une compétence
+   * (`espace-documentaire.tsx`) : il redisait le code, le domaine, le palier,
+   * la dernière preuve, les mêmes barres de performance et la même prochaine
+   * action. La fiche récupère sa largeur.
    */
-  const onglets: Array<{ id: Onglet; libelle: string }> = [
-    { id: "progression", libelle: "Progression" },
-    { id: "relations", libelle: "Relations & ressources" },
-  ];
 
   async function creerNotePourCompetence() {
     demarrerCreationNote(async () => {
@@ -221,32 +247,50 @@ function VueCompetence({
     });
   }
 
+  /*
+   * Deux volets, pour que la fiche tienne dans l'écran.
+   *
+   * En un seul flux vertical, « Éléments associés » finissait sous la ligne de
+   * flottaison : il fallait défiler pour savoir si une compétence avait des
+   * preuves. La lecture — ce qui reste à démontrer, la performance, le parcours
+   * — occupe le volet gauche ; les listes tiennent à droite sous des onglets,
+   * une nature par onglet. Chaque volet défile pour lui seul, la page ne défile
+   * plus.
+   */
+  const volets: Array<{ id: VoletCompetence; libelle: string; compteur: number }> = [
+    { id: "preuves", libelle: "Preuves", compteur: vue.preuves.length },
+    { id: "exercices", libelle: "Exercices", compteur: vue.exercices.length },
+    { id: "ressources", libelle: "Ressources", compteur: vue.documents.length },
+    { id: "relations", libelle: "Relations", compteur: vue.prerequis.length + vue.suivantes.length },
+  ];
+
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto bg-surface-2/40">
-      <div className="sticky top-0 z-10 flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure bg-surface px-6 shrink-0">
-        <RetourVersAtelier
-          libelle={vue.domaineNom}
-          titreCourant={vue.code}
-          onRetour={() => ouvrirElement(`domaine:${vue.domaineId}`)}
-        />
-      </div>
-      <header className="border-b border-bordure bg-surface px-6 py-5 lg:px-8">
-        <div className="flex flex-wrap items-start justify-between gap-5">
-          <div className="flex min-w-0 items-start gap-3.5">
-            <span className="grid size-14 shrink-0 place-items-center rounded-2xl border border-primaire/20 bg-primaire-faible text-primaire">
-              <IconeCompetences className="size-7" />
-            </span>
-            <div className="min-w-0">
-              <h2 className="font-serif text-[2rem] font-medium leading-tight tracking-tight text-texte">{titre}</h2>
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                <span className="rounded-md bg-info-faible px-2.5 py-1 text-xs font-medium text-info">Compétence</span>
-                <span className="rounded-md bg-alerte-faible px-2.5 py-1 text-xs font-medium text-alerte">{LIBELLES_PALIERS[vue.palier] ?? vue.palier}</span>
-                <span className="rounded-md bg-primaire-faible px-2.5 py-1 text-xs font-medium text-primaire">Confiance {LIBELLES_CONFIANCE[vue.confiance]}</span>
-              </div>
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-y-auto bg-surface-2/40 lg:overflow-hidden">
+      {/*
+        L'en-tête ne porte plus qu'une action. Il y avait « Lancer une séance
+        ciblée » ici, le même bouton dans le volet Contexte, et « Générer un
+        exercice » deux fois : le geste secondaire reste, mais dans l'onglet
+        Exercices où il a un sens de proximité.
+      */}
+      <header className="shrink-0 border-b border-bordure bg-surface px-6 py-4 lg:px-8">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <CodeCompetence code={vue.code} />
+              <span className="text-texte-discret">{vue.domaineNom}</span>
+              <span aria-hidden className="text-bordure-contraste">·</span>
+              <span className="text-texte-discret">{LIBELLES_PALIERS[vue.palier] ?? vue.palier}</span>
+              <span aria-hidden className="text-bordure-contraste">·</span>
+              <span className="text-texte-discret">
+                Confiance {LIBELLES_CONFIANCE[vue.confiance].toLowerCase()}
+              </span>
             </div>
+            <h2 className="mt-2 max-w-3xl font-serif text-[1.375rem] font-medium leading-snug tracking-tight text-texte">
+              {titre}
+            </h2>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 shrink-0">
+          <div className="shrink-0">
             {donneesSeance ? (
               <ConcepteurSeance
                 {...donneesSeance}
@@ -285,186 +329,223 @@ function VueCompetence({
         </div>
       </header>
 
-      <div className="px-6 pt-5 lg:px-8">
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Indicateur libelle="Niveau actuel" valeur={vue.niveau === null ? "Non évalué" : `${vue.niveau} / 5`} precision={vue.niveau === null ? "Aucune preuve directe" : NIVEAUX[vue.niveau].nom} />
-          <Indicateur libelle="Preuves" valeur={String(vue.nombrePreuves)} precision={`${vue.nombreContextes} contexte${vue.nombreContextes > 1 ? "s" : ""} distinct${vue.nombreContextes > 1 ? "s" : ""}`} />
-          <Indicateur libelle="Robustesse" valeur={pourcentage(vue.robustesse)} precision="Solidité de l’acquis" />
-          <Indicateur libelle="Dernière activité" valeur={dateCourte(vue.dernierePreuve)} precision={`${vue.exercices.length} exercice${vue.exercices.length > 1 ? "s" : ""} associé${vue.exercices.length > 1 ? "s" : ""}`} />
-        </div>
+      {/* Les mesures sur une rangée : où j'en suis, sans défiler. */}
+      <section
+        aria-label="Mesures de la compétence"
+        className="grid shrink-0 grid-cols-2 gap-y-3 border-b border-bordure bg-surface px-3 py-3 lg:px-5 xl:grid-cols-4 xl:divide-x xl:divide-bordure"
+      >
+        <Mesure
+          libelle="Niveau actuel"
+          valeur={vue.niveau === null ? "Non évalué" : `${vue.niveau} / 5`}
+          precision={vue.niveau === null ? "Aucune preuve directe" : NIVEAUX[vue.niveau].nom}
+        />
+        <Mesure
+          libelle="Preuves"
+          valeur={String(vue.nombrePreuves)}
+          precision={`${vue.nombreContextes} contexte${vue.nombreContextes > 1 ? "s" : ""} distinct${vue.nombreContextes > 1 ? "s" : ""}`}
+        />
+        <Mesure libelle="Robustesse" valeur={pourcentage(vue.robustesse)} precision="Solidité de l’acquis" />
+        <Mesure
+          libelle="Dernière activité"
+          valeur={dateCourte(vue.dernierePreuve)}
+          precision={`${vue.exercices.length} exercice${vue.exercices.length > 1 ? "s" : ""} associé${vue.exercices.length > 1 ? "s" : ""}`}
+        />
+      </section>
 
-        <div className="mt-5 flex gap-1 overflow-x-auto border-b border-bordure" role="tablist" aria-label="Sections de la compétence">
-          {onglets.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              role="tab"
-              aria-selected={onglet === item.id}
-              onClick={() => setOnglet(item.id)}
-              className={cx(
-                "shrink-0 border-b-2 px-4 py-3 text-sm font-medium transition-colors cursor-pointer",
-                onglet === item.id ? "border-primaire text-primaire" : "border-transparent text-texte-discret hover:text-texte",
-              )}
-            >
-              {item.libelle}
-            </button>
-          ))}
-        </div>
-      </div>
+      <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
+        {/* Volet de lecture : ce que la mesure veut dire. */}
+        <div className="min-h-0 space-y-5 overflow-y-auto px-6 py-5 lg:border-r lg:border-bordure lg:px-7">
+          <ResteADemontrer vue={vue} prochainExercice={prochainExercice} ouvrirElement={ouvrirElement} />
 
-      <div className="space-y-5 px-6 py-6 lg:px-8">
-        {onglet === "progression" && (
-          <>
-            <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
-              <ResteADemontrer vue={vue} />
-
-              <div className="rounded-xl border border-bordure bg-surface p-5 shadow-[var(--ombre-posee)]">
-                <h3 className="font-serif text-lg font-medium">Performance détaillée</h3>
-                <p className="mt-1 text-xs text-texte-discret">Calculée depuis les preuves observées ; aucune valeur n’est stockée.</p>
-                {/*
-                  Les barres portent déjà ce que « points forts » et « axes à
-                  remobiliser » disaient en extrayant les deux extrêmes. Le
-                  classement reste lisible — les dimensions sont ordonnées — sans
-                  qu'il faille deux encarts pour montrer quatre lignes d'une
-                  liste affichée en entier juste en dessous.
-                */}
-                <div className="mt-5 space-y-3">{vue.dimensions.map((dimension) => <Barre key={dimension.id} valeur={dimension.valeur} libelle={dimension.libelle} />)}</div>
-              </div>
-              <div className="rounded-xl border border-bordure bg-surface p-5 shadow-[var(--ombre-posee)]">
-                <h3 className="font-serif text-lg font-medium">Parcours</h3>
-                <p className="mt-1 text-xs text-texte-discret">Ce que chaque preuve a changé, rejoué depuis le journal.</p>
-                <FriseParcours etapes={vue.parcours} />
-              </div>
-            </section>
-
-            <section>
-              <div className="mb-2 flex items-center justify-between">
-                <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-texte-discret">Éléments associés</h3>
-                <span className="text-[0.6875rem] text-texte-discret">liens réels uniquement</span>
-              </div>
-              <div className="grid gap-3 xl:grid-cols-3">
-                <CarteAssociee titre="Exercices" compteur={vue.exercices.length}>
-                  {vue.exercices.length ? (
-                    <ul className="space-y-1">
-                      {vue.exercices.slice(0, 4).map((exercice) => (
-                        <li key={exercice.id}>
-                          <button
-                            type="button"
-                            onClick={() => ouvrirElement(`exercice:${exercice.id}`)}
-                            className="block w-full rounded-lg px-2 py-2 text-left hover:bg-surface-2 cursor-pointer"
-                          >
-                            <span className="block truncate text-xs font-medium text-texte">{exercice.titre}</span>
-                            <span className="mt-0.5 block text-[0.625rem] text-texte-discret">
-                              Difficulté {exercice.difficulte} · {exercice.dureeMin} min · {exercice.tentatives} tentative{exercice.tentatives > 1 ? "s" : ""}
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="px-2 py-3 text-xs text-texte-discret">Aucun exercice relié.</p>
-                  )}
-
-                  {generation && compteId && (
-                    <div className="mt-2 border-t border-bordure/60 pt-2">
-                      <BoutonGenerer
-                        competences={generation.competences}
-                        competenceInitiale={vue.code}
-                        calibrages={generation.calibrages}
-                        compteId={compteId}
-                        libelle="+ Générer un exercice"
-                        variante="secondaire"
-                        pleineLargeur
-                        className="text-xs font-medium text-primaire hover:underline"
-                      />
-                    </div>
-                  )}
-                </CarteAssociee>
-                <CarteAssociee titre="Preuves" compteur={vue.preuves.length}>
-                  {vue.preuves.length ? <ul className="space-y-1">{vue.preuves.slice(0, 4).map((preuve) => <li key={preuve.id} className="rounded-lg px-2 py-2"><span className="flex items-center justify-between gap-2 text-xs"><span className="truncate font-medium">{preuve.contexte}</span><span className={cx("shrink-0 rounded px-1.5 py-0.5 text-[0.625rem]", preuve.resultat === "reussi" ? "bg-succes-faible text-succes" : preuve.resultat === "partiel" ? "bg-info-faible text-info" : "bg-danger-faible text-danger")}>{preuve.resultat === "reussi" ? "Solide" : preuve.resultat === "partiel" ? "Partiel" : "À revoir"}</span></span><span className="mt-0.5 block text-[0.625rem] text-texte-discret">{dateCourte(preuve.date)} · preuve {preuve.niveauPreuve}</span></li>)}</ul> : <p className="px-2 py-3 text-xs text-texte-discret">Aucune preuve directe.</p>}
-                </CarteAssociee>
-                <CarteAssociee titre="Documents liés" compteur={vue.documents.length}>
-                  {vue.documents.length ? <ul className="space-y-1">{vue.documents.slice(0, 5).map((document) => <li key={document.id}><button type="button" onClick={() => ouvrirElement(document.id)} className="block w-full rounded-lg px-2 py-2 text-left hover:bg-surface-2"><span className="block truncate text-xs font-medium">{document.titre}</span><span className="mt-0.5 block text-[0.625rem] capitalize text-texte-discret">{document.type}</span></button></li>)}</ul> : <p className="px-2 py-3 text-xs text-texte-discret">Aucune note ou ressource liée.</p>}
-                </CarteAssociee>
-              </div>
-            </section>
-          </>
-        )}
-
-        {onglet === "relations" && (
-          <>
-          <section className="rounded-xl border border-bordure bg-surface p-5 shadow-[var(--ombre-posee)]">
-            <div className="text-center">
-              <span className="inline-flex rounded-xl bg-primaire px-4 py-2 text-sm font-semibold text-primaire-contraste">{titre}</span>
-            </div>
+          <div className="rounded-xl border border-bordure bg-surface p-5 shadow-[var(--ombre-posee)]">
+            <h3 className="font-serif text-lg font-medium">Le détail de vos résultats</h3>
+            <p className="mt-1 text-xs text-texte-discret">
+              Calculée depuis les preuves observées ; aucune valeur n’est stockée.
+            </p>
             {/*
-              Deux colonnes, plus trois : la colonne « Documents & ressources »
-              redisait, en liste compacte, les cartes rendues juste en dessous.
-              Les documents ne sont plus nommés deux fois sur le même écran.
+              Les barres portent déjà ce que « points forts » et « axes à
+              remobiliser » disaient en extrayant les deux extrêmes. Le
+              classement reste lisible — les dimensions sont ordonnées — sans
+              qu'il faille deux encarts pour montrer quatre lignes d'une liste
+              affichée en entier juste en dessous.
             */}
-            <div className="mt-6 grid gap-5 md:grid-cols-2">
-              <Relations titre="Prérequis" ids={vue.prerequis} ouvrirElement={ouvrirElement} elements={elements} />
-              <Relations titre="Compétences suivantes" ids={vue.suivantes} ouvrirElement={ouvrirElement} elements={elements} />
+            <div className="mt-5 space-y-3">
+              {vue.dimensions.map((dimension) => (
+                <Barre key={dimension.id} valeur={dimension.valeur} libelle={dimension.libelle} />
+              ))}
             </div>
+          </div>
 
-            <div className="mt-4">
-              <AppartenanceEnsembles vue={vue} ouvrirElement={ouvrirElement} />
-            </div>
+          <div className="rounded-xl border border-bordure bg-surface p-5 shadow-[var(--ombre-posee)]">
+            <h3 className="font-serif text-lg font-medium">Parcours</h3>
+            <p className="mt-1 text-xs text-texte-discret">
+              Ce que chaque preuve a changé, rejoué depuis le journal.
+            </p>
+            <FriseParcours etapes={vue.parcours} />
+          </div>
+        </div>
 
-            <CoMobilisees vue={vue} ouvrirElement={ouvrirElement} />
-          </section>
-
-          {/*
-            Les notes et ressources liées, reprises de l'onglet qu'elles
-            occupaient seules. Une ressource EST une relation de la compétence :
-            elles se lisent dans le même mouvement que les prérequis et les
-            compétences suivantes.
-          */}
-          <section className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {vue.documents.map((document) => (
-              <div key={document.id} className="group relative">
-                <button
-                  type="button"
-                  onClick={() => ouvrirElement(document.id)}
-                  className="flex h-full w-full flex-col justify-between rounded-xl border border-bordure bg-surface p-4 text-left shadow-[var(--ombre-posee)] transition-all hover:-translate-y-0.5 hover:border-primaire/40 hover:shadow-[var(--ombre-levee)] cursor-pointer"
-                >
-                  <div>
-                    <div className="flex items-center justify-between pr-8">
-                      <IconeDocuments className="size-5 text-primaire" />
-                    </div>
-                    <h3 className="mt-3 text-sm font-semibold text-texte">{document.titre}</h3>
-                  </div>
-                  <p className="mt-2 text-xs capitalize text-texte-discret">{document.type}</p>
-                </button>
-
-                <BoutonSuppressionCarte
-                  titre="Supprimer cette note"
-                  onClick={() => setDocumentASupprimer(document)}
-                />
-              </div>
+        {/* Volet des éléments : une nature par onglet, plus de listes mélangées. */}
+        <div className="flex min-h-0 flex-col border-t border-bordure lg:border-t-0">
+          <div
+            role="tablist"
+            aria-label="Éléments liés à la compétence"
+            className="flex shrink-0 gap-1 overflow-x-auto border-b border-bordure bg-surface px-4"
+          >
+            {volets.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                role="tab"
+                aria-selected={volet === item.id}
+                onClick={() => setVolet(item.id)}
+                className={cx(
+                  "flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2.5 text-xs font-medium transition-colors cursor-pointer",
+                  volet === item.id
+                    ? "border-primaire text-primaire"
+                    : "border-transparent text-texte-discret hover:text-texte",
+                )}
+              >
+                <span>{item.libelle}</span>
+                <span className="chiffres rounded-full bg-surface-2 px-1.5 py-0.5 text-[0.625rem] text-texte-discret">
+                  {item.compteur}
+                </span>
+              </button>
             ))}
+          </div>
 
-            <button
-              type="button"
-              disabled={creationNoteEnCours}
-              onClick={creerNotePourCompetence}
-              className="group flex min-h-[120px] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-bordure bg-surface/30 p-5 text-center shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-primaire hover:bg-surface hover:shadow-xs cursor-pointer disabled:opacity-50"
-            >
-              <span className="grid size-8 place-items-center rounded-full bg-surface-2 text-base font-semibold text-texte-discret transition-colors group-hover:bg-primaire-faible group-hover:text-primaire">
-                {creationNoteEnCours ? "…" : "+"}
-              </span>
-              <div className="min-w-0">
-                <span className="block text-xs font-semibold text-texte transition-colors group-hover:text-primaire">
-                  {creationNoteEnCours ? "Création en cours..." : "Créer une note liée"}
-                </span>
-                <span className="mt-0.5 block text-[0.6875rem] text-texte-discret">
-                  Associer une fiche de travail à {vue.code}
-                </span>
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+            {volet === "preuves" && (
+              <>
+                <p className="mb-3 text-[0.6875rem] leading-relaxed text-texte-discret">
+                  Chaque preuve ouvre le document produit au moment de la mesure, quand il existe.
+                </p>
+                {vue.preuves.length ? (
+                  <ul className="space-y-1">
+                    {vue.preuves.map((preuve) => (
+                      <li key={preuve.id}>
+                        {/*
+                          Une preuve historique sans document reste lisible mais
+                          n'est pas cliquable : mieux vaut un lien absent qu'un
+                          lien qui ne mène nulle part.
+                        */}
+                        <PreuveLiee preuve={preuve} ouvrirElement={ouvrirElement} />
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="px-2.5 py-3 text-xs text-texte-discret">Aucune preuve directe.</p>
+                )}
+              </>
+            )}
+
+            {volet === "exercices" && (
+              <>
+                {vue.exercices.length ? (
+                  <ul className="space-y-1">
+                    {vue.exercices.map((exercice) => (
+                      <li key={exercice.id}>
+                        <button
+                          type="button"
+                          onClick={() => ouvrirElement(`exercice:${exercice.id}`)}
+                          className="block w-full rounded-lg border border-bordure bg-surface px-3 py-2.5 text-left transition-colors hover:border-primaire/40 hover:bg-surface-2 cursor-pointer"
+                        >
+                          <span className="block text-xs font-medium leading-snug text-texte">
+                            {exercice.titre}
+                          </span>
+                          <span className="mt-1 block text-[0.6875rem] text-texte-discret">
+                            Difficulté {exercice.difficulte} · {exercice.dureeMin} min ·{" "}
+                            {exercice.tentatives} tentative{exercice.tentatives > 1 ? "s" : ""}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="px-2.5 py-3 text-xs text-texte-discret">Aucun exercice relié.</p>
+                )}
+                {generation && compteId && (
+                  <div className="mt-3 border-t border-bordure/60 pt-3">
+                    <BoutonGenerer
+                      competences={generation.competences}
+                      competenceInitiale={vue.code}
+                      calibrages={generation.calibrages}
+                      compteId={compteId}
+                      libelle="+ Générer un exercice"
+                      variante="secondaire"
+                      pleineLargeur
+                      className="text-xs font-medium text-primaire hover:underline"
+                    />
+                  </div>
+                )}
+              </>
+            )}
+
+            {volet === "ressources" && (
+              <>
+                <p className="mb-3 text-[0.6875rem] leading-relaxed text-texte-discret">
+                  Les supports de travail seulement : les exercices et les preuves ont leur onglet.
+                </p>
+                {vue.documents.length ? (
+                  <ul className="space-y-1">
+                    {vue.documents.map((document) => (
+                      <li key={document.id} className="group relative">
+                        <button
+                          type="button"
+                          onClick={() => ouvrirElement(document.id)}
+                          className="block w-full rounded-lg border border-bordure bg-surface py-2.5 pl-3 pr-9 text-left transition-colors hover:border-primaire/40 hover:bg-surface-2 cursor-pointer"
+                        >
+                          <span className="block text-xs font-medium leading-snug text-texte">
+                            {document.titre}
+                          </span>
+                          <span className="mt-1 block text-[0.6875rem] capitalize text-texte-discret">
+                            {document.type}
+                          </span>
+                        </button>
+                        <BoutonSuppressionCarte
+                          titre="Supprimer cette note"
+                          onClick={() => setDocumentASupprimer(document)}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="px-2.5 py-3 text-xs text-texte-discret">Aucun support lié.</p>
+                )}
+                <div className="mt-3 border-t border-bordure/60 pt-3">
+                  <button
+                    type="button"
+                    disabled={creationNoteEnCours}
+                    onClick={creerNotePourCompetence}
+                    className="text-xs font-medium text-primaire hover:underline cursor-pointer disabled:opacity-50"
+                  >
+                    {creationNoteEnCours ? "Création en cours…" : "+ Créer une note liée"}
+                  </button>
+                </div>
+              </>
+            )}
+
+            {volet === "relations" && (
+              <div className="space-y-6">
+                {/*
+                  `compteId` sert à relire la configuration du tuteur côté
+                  navigateur : la clé du fournisseur est isolée par compte.
+                */}
+                {compteId && (
+                  <RelationsCompetence
+                    vue={vue}
+                    elements={elements}
+                    compteId={compteId}
+                    domaines={vue.domainesExistants}
+                    ouvrirElement={ouvrirElement}
+                  />
+                )}
+                <AppartenanceEnsembles vue={vue} ouvrirElement={ouvrirElement} />
+                <CoMobilisees vue={vue} ouvrirElement={ouvrirElement} />
               </div>
-            </button>
-          </section>
-          </>
-        )}
+            )}
+          </div>
+        </div>
       </div>
 
       {documentASupprimer && (
@@ -505,7 +586,7 @@ function VueCompetence({
  */
 function FriseParcours({ etapes }: { etapes: EtapeParcours[] }) {
   if (etapes.length === 0) {
-    return <p className="mt-4 text-xs text-texte-discret">Aucune preuve : rien n’est affiché tant qu’il n’y a rien à montrer.</p>;
+    return <p className="mt-4 text-xs text-texte-discret">Rien à afficher pour l’instant. Faites un exercice pour démarrer.</p>;
   }
 
   return (
@@ -557,18 +638,41 @@ function FriseParcours({ etapes }: { etapes: EtapeParcours[] }) {
  * quelqu'un vient chercher après avoir regardé son niveau : ce qui manque pour
  * qu'il bouge.
  */
-function ResteADemontrer({ vue }: { vue: VueCompetenceAtelier }) {
+function ResteADemontrer({
+  vue,
+  prochainExercice,
+  ouvrirElement,
+}: {
+  vue: VueCompetenceAtelier;
+  /** L'aperçu remplace le doublon que le volet Contexte affichait sous « Prochaine action ». */
+  prochainExercice?: VueCompetenceAtelier["exercices"][number];
+  ouvrirElement?: (id: string) => void;
+}) {
   const rien = !vue.prochaineEtape && vue.contradictions === 0 && vue.reserves.length === 0;
-  if (rien) return null;
+  if (rien && !prochainExercice) return null;
 
   return (
-    <div className="rounded-xl border border-bordure bg-surface p-5 shadow-[var(--ombre-posee)]">
-      <h3 className="font-serif text-lg font-medium">Ce qu’il reste à démontrer</h3>
+    <div className="rounded-xl border border-bordure bg-surface p-6 shadow-[var(--ombre-posee)]">
+      <h3 className="font-serif text-lg font-medium">Ce qui reste à travailler</h3>
 
       {vue.prochaineEtape && (
-        <p className="mt-3 rounded-lg border border-alerte/30 bg-alerte-faible/40 px-3 py-2.5 text-sm leading-relaxed text-texte">
+        <p className="mt-3 rounded-lg border border-alerte/30 bg-alerte-faible/40 px-3.5 py-3 text-sm leading-relaxed text-texte">
           {vue.prochaineEtape}
         </p>
+      )}
+
+      {prochainExercice && ouvrirElement && (
+        <button
+          type="button"
+          onClick={() => ouvrirElement(`exercice:${prochainExercice.id}`)}
+          className="mt-3 flex w-full items-center justify-between gap-3 rounded-lg border border-bordure bg-surface-2/50 px-3.5 py-2.5 text-left transition-colors hover:border-primaire/40 hover:bg-surface-2 cursor-pointer"
+        >
+          <span className="min-w-0">
+            <span className="block text-xs font-semibold text-primaire">Aperçu de l’exercice suivant</span>
+            <span className="mt-0.5 block truncate text-xs text-texte-attenue">{prochainExercice.titre}</span>
+          </span>
+          <IconeFleche className="size-3.5 shrink-0 text-primaire" />
+        </button>
       )}
 
       {vue.contradictions > 0 && (
@@ -648,75 +752,11 @@ function CoMobilisees({
   );
 }
 
-/* ------------------------------------------------------------------ */
-
-function Relations({
-  titre,
-  ids,
-  ouvrirElement,
-  elements,
-}: {
-  titre: string;
-  ids: string[];
-  ouvrirElement: (id: string) => void;
-  elements?: ElementAtelier[];
-}) {
-  return (
-    <div className="rounded-xl border border-bordure bg-surface-2/30 p-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-texte-discret">
-          {titre}
-        </h3>
-        <span className="chiffres rounded-full bg-surface px-2 py-0.5 text-[0.6875rem] font-semibold text-texte-discret">
-          {ids.length}
-        </span>
-      </div>
-      <div className="mt-3 space-y-1.5">
-        {ids.map((id) => {
-          const cleanId = id.replace(/^(competence|document|exercice|domaine|theme):/, "");
-          const el = elements?.find(
-            (e) =>
-              e.id === id ||
-              e.id === cleanId ||
-              e.id.replace(/^(competence|document|exercice|domaine|theme):/, "") === cleanId,
-          );
-          const libelle = el?.titre && el.titre !== id ? el.titre : null;
-          const estCode = /^[A-Z0-9_-]+$/.test(cleanId) && cleanId.length <= 15;
-
-          return (
-            <button
-              key={id}
-              type="button"
-              onClick={() => ouvrirElement(id)}
-              className="group flex w-full flex-col justify-between gap-1 rounded-lg border border-bordure bg-surface p-2.5 text-left text-xs transition-all hover:border-primaire/40 hover:bg-surface-2 cursor-pointer shadow-xs"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className={cx(estCode ? "font-mono font-semibold text-primaire text-xs" : "font-medium text-texte truncate")}>
-                  {cleanId}
-                </span>
-                {el?.typeLibelle && (
-                  <span className="shrink-0 rounded bg-surface-2 px-1.5 py-0.5 text-[0.625rem] text-texte-discret capitalize">
-                    {el.typeLibelle}
-                  </span>
-                )}
-              </div>
-              {libelle && (
-                <span className="truncate text-[0.6875rem] text-texte-attenue group-hover:text-texte transition-colors">
-                  {libelle}
-                </span>
-              )}
-            </button>
-          );
-        })}
-        {ids.length === 0 && (
-          <p className="py-3 text-xs text-texte-discret text-center italic">
-            Aucun élément déclaré.
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
+/*
+ * `Relations` a disparu avec l'onglet qu'il occupait : il affichait deux cadres
+ * que rien dans l'interface ne pouvait remplir. Les prérequis et les suites se
+ * lisent et s'écrivent maintenant dans `relations-competence.tsx`.
+ */
 
 function VueDomaine({
   vue,
@@ -753,15 +793,8 @@ function VueDomaine({
   ];
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-surface-2/40">
-      <div className="sticky top-0 z-10 flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure bg-surface px-6 shrink-0">
-        <RetourVersAtelier
-          libelle={vue.domaine.archive ? "Domaines archivés" : "Domaines"}
-          titreCourant={vue.nom}
-          onRetour={() => ouvrirElement(vue.domaine.archive ? "domaines-archives" : "domaines")}
-        />
-      </div>
       <header className="border-b border-bordure bg-surface px-6 py-5 lg:px-8">
-        <div className="flex items-start gap-4"><span className="grid size-14 place-items-center rounded-2xl bg-primaire-faible text-primaire"><IconeDocuments className="size-7" /></span><div><div className="flex flex-wrap items-center gap-2"><p className="text-xs font-semibold uppercase tracking-[0.12em] text-primaire">Fiche mère</p>{vue.domaine.archive && <span className="rounded-full bg-surface-3 px-2 py-0.5 text-[0.6875rem] font-semibold text-texte-discret">Archivé</span>}</div><h2 className="font-serif text-[2.2rem] font-medium tracking-tight">{vue.nom}</h2>{vue.description && <p className="mt-3 max-w-3xl text-base leading-relaxed text-texte-attenue">{vue.description}</p>}{vue.domaine.archive && <p className="mt-3 max-w-3xl rounded-lg border border-bordure bg-surface-2 px-3 py-2 text-xs leading-relaxed text-texte-discret">Ce domaine reste consultable, mais il est exclu du pilotage actif, du graphe principal et des suggestions.</p>}</div></div>
+        <div className="flex items-start gap-4"><span className="grid size-14 place-items-center rounded-2xl bg-primaire-faible text-primaire"><IconeDocuments className="size-7" /></span><div><div className="flex flex-wrap items-center gap-2"><p className="text-xs font-semibold uppercase tracking-[0.12em] text-primaire">Fiche mère</p>{vue.domaine.archive && <span className="rounded-full bg-surface-3 px-2 py-0.5 text-[0.6875rem] font-semibold text-texte-discret">Archivé</span>}</div><h2 className="font-serif text-[2.2rem] font-medium tracking-tight">{vue.nom}</h2>{vue.description && <p className="mt-3 max-w-3xl text-base leading-relaxed text-texte-attenue">{vue.description}</p>}{vue.domaine.archive && <p className="mt-3 max-w-3xl rounded-lg border border-bordure bg-surface-2 px-3 py-2 text-xs leading-relaxed text-texte-discret">Il reste consultable, mais on ne vous proposera plus rien dessus.</p>}</div></div>
       </header>
       <div className="border-b border-bordure bg-surface px-6 lg:px-8">
         <div className="flex gap-1 overflow-x-auto" role="tablist" aria-label="Sections du domaine">
@@ -949,7 +982,7 @@ function VueDomaine({
           <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
             <div className="rounded-xl border border-bordure bg-surface p-5 shadow-[var(--ombre-posee)]">
               <h3 className="font-serif text-xl font-medium">Radar du domaine</h3>
-              <p className="mt-1 text-xs text-texte-discret">Un axe par compétence ; une absence de preuve reste une absence de mesure.</p>
+              <p className="mt-1 text-xs text-texte-discret">Un axe par compétence. Les axes vides ne sont pas des lacunes : rien n’a encore été testé.</p>
               <div className="mt-4"><Radar axes={axes} taille={320} libelle={`Radar par compétence du domaine ${vue.nom}`} /></div>
             </div>
             <div className="rounded-xl border border-bordure bg-surface p-5 shadow-[var(--ombre-posee)]">
@@ -1028,15 +1061,6 @@ function VueTheme({
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-surface-2/40">
-      {/* Barre supérieure fil d'Ariane */}
-      <div className="sticky top-0 z-10 flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure bg-surface px-6 shrink-0">
-        <RetourVersAtelier
-          libelle="Thèmes"
-          titreCourant={vue.libelle}
-          onRetour={() => ouvrirElement("themes")}
-        />
-      </div>
-
       {/* Bannière d'en-tête du thème */}
       <header className="border-b border-bordure bg-surface px-6 py-6 lg:px-8">
         <div className="flex flex-wrap items-start justify-between gap-6">
@@ -1487,14 +1511,6 @@ function VueExercice({
 }) {
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-surface-2/40">
-      <div className="sticky top-0 z-10 flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure bg-surface px-6 shrink-0">
-        <RetourVersAtelier
-          libelle={vue.domaineNom}
-          titreCourant={vue.titre}
-          onRetour={() => ouvrirElement(`domaine:${vue.domaineId}`)}
-        />
-      </div>
-
       <header className="border-b border-bordure bg-surface px-6 py-6 lg:px-8">
         <div className="flex flex-wrap items-start justify-between gap-5">
           <div className="flex min-w-0 items-start gap-4">
@@ -1655,6 +1671,11 @@ export function FichePedagogiqueAtelier({
         elements={elements}
         compteId={compteId}
         generation={generation}
+        /*
+         * La séance ciblée n'existait que dans le volet Contexte : sans ce
+         * passage, retirer le volet supprimait le geste au lieu du doublon.
+         */
+        donneesSeance={donneesSeance}
       />
     );
   }
@@ -1693,19 +1714,44 @@ export function FichePedagogiqueAtelier({
   );
 }
 
+/**
+ * Le volet de contexte a-t-il quelque chose à dire sur cet objet ?
+ *
+ * L'Atelier posait le cadre du volet — en-tête « Contexte », bouton de
+ * fermeture, boutons d'ouverture dans la barre haute — avant de savoir s'il y
+ * avait un contenu à y mettre. Une compétence n'en a plus.
+ */
+export function panneauPedagogiqueUtile(vue: VuePedagogiqueAtelier): boolean {
+  return vue.kind !== "competence";
+}
+
+/*
+ * `compteId` et `generation` ne servaient qu'au volet des compétences, qui a
+ * disparu : le volet ne génère plus d'exercice, il ne fait que décrire.
+ */
 export function PanneauPedagogiqueAtelier({
   vue,
   ouvrirElement,
-  compteId,
-  generation,
   donneesSeance,
 }: {
   vue: VuePedagogiqueAtelier;
   ouvrirElement: (id: string) => void;
-  compteId: string;
-  generation: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
   donneesSeance?: DonneesSeance;
 }) {
+  /*
+   * Une compétence n'a plus de volet.
+   *
+   * Il reprenait, un pouce à droite de la fiche : le code, le domaine, le
+   * palier et la dernière preuve (déjà dans l'en-tête et les mesures), les
+   * mêmes barres de performance, la même prochaine étape, et deux raccourcis
+   * vers l'exercice et la ressource que les cartes listent nommément. Rien à
+   * garder, et 22 rem de largeur rendus à la fiche.
+   *
+   * `estPanneauUtile` dit dehors ce que ce `null` dit ici, pour que l'Atelier
+   * n'affiche ni le cadre vide ni les boutons qui l'ouvrent.
+   */
+  if (vue.kind === "competence") return null;
+
   if (vue.kind === "theme") {
     const paliersCompteurs = {
       fondamentaux: vue.competences.filter((c) => c.palier === "fondamentaux").length,
@@ -1860,7 +1906,7 @@ export function PanneauPedagogiqueAtelier({
         )}
 
         <div className="rounded-xl border border-bordure bg-surface p-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-texte-discret">Paliers de compétences</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-texte-discret">Niveaux</p>
           <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
             <div className="rounded-lg bg-surface-2 p-2">
               <span className="block text-[0.625rem] text-texte-discret">Fondam.</span>
@@ -1887,133 +1933,6 @@ export function PanneauPedagogiqueAtelier({
     );
   }
 
-  const prochainExercice = vue.exercices[0];
-  return (
-    <div className="space-y-4 p-4">
-      {/* 1. Bloc Séance ciblée / CTA principal en tête */}
-      {donneesSeance && (
-        <div className="rounded-xl border border-primaire/30 bg-primaire-faible/35 p-4 shadow-xs">
-          <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-primaire">
-            Entraînement ciblé
-          </p>
-          <p className="mt-1 text-xs leading-relaxed text-texte-attenue">
-            Lance une séance personnalisée ciblée sur <span className="font-semibold text-texte">{vue.code}</span>.
-          </p>
-          <div className="mt-3">
-            <ConcepteurSeance
-              {...donneesSeance}
-              preset={{
-                libelle: `Compétence : ${vue.code}`,
-                codesVises: [vue.code],
-                dureeCibleMin: 30,
-                nombreExercices: 3,
-                domaine: vue.domaineId,
-              }}
-              libelle="Lancer une séance ciblée"
-              pleineLargeur
-              variante="principal"
-              icone={<IconeFleche className="size-3.5" />}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primaire px-3.5 py-2.5 text-xs font-semibold text-texte-inverse shadow-xs hover:bg-primaire-survol transition-colors cursor-pointer"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* 2. Informations de la compétence */}
-      <div className="rounded-xl border border-bordure bg-surface p-4">
-        <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-texte-discret">Informations</p>
-        <dl className="mt-3 space-y-2 text-xs">
-          <div className="flex justify-between gap-3">
-            <dt className="text-texte-discret">Code</dt>
-            <dd className="font-mono font-medium text-texte">{vue.code}</dd>
-          </div>
-          <div className="flex justify-between gap-3">
-            <dt className="text-texte-discret">Domaine</dt>
-            <dd className="text-right font-medium text-texte">{vue.domaineNom}</dd>
-          </div>
-          <div className="flex justify-between gap-3">
-            <dt className="text-texte-discret">Palier</dt>
-            <dd className="font-medium text-texte">{LIBELLES_PALIERS[vue.palier]}</dd>
-          </div>
-          <div className="flex justify-between gap-3">
-            <dt className="text-texte-discret">Dernière preuve</dt>
-            <dd className="font-medium text-texte">{dateCourte(vue.dernierePreuve)}</dd>
-          </div>
-        </dl>
-      </div>
-
-      {/* 3. Performances détaillées */}
-      <div className="rounded-xl border border-bordure bg-surface p-4">
-        <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-texte-discret">Performances détaillées</p>
-        <div className="mt-3 space-y-3">
-          {vue.dimensions.map((dimension) => (
-            <Barre key={dimension.id} valeur={dimension.valeur} libelle={dimension.libelle} />
-          ))}
-        </div>
-      </div>
-
-      {/* 4. Prochaine action recommandée */}
-      <section className="rounded-xl border border-alerte/30 bg-alerte-faible p-4">
-        <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-alerte">Prochaine action</p>
-        <p className="mt-2 text-sm font-medium leading-snug text-texte">{vue.prochaineEtape}</p>
-        {prochainExercice ? (
-          <button
-            type="button"
-            onClick={() => ouvrirElement(`exercice:${prochainExercice.id}`)}
-            className="mt-3 flex w-full items-center justify-between rounded-lg bg-surface px-3 py-2 text-xs font-semibold text-primaire shadow-[var(--ombre-posee)] hover:bg-surface-2 cursor-pointer"
-          >
-            <span>Aperçu de l’exercice</span>
-            <IconeFleche className="size-3.5" />
-          </button>
-        ) : (
-          <div className="mt-3">
-            <BoutonGenerer
-              competences={generation.competences}
-              competenceInitiale={vue.code}
-              calibrages={generation.calibrages}
-              compteId={compteId}
-              libelle="Générer un exercice"
-            />
-          </div>
-        )}
-      </section>
-
-      {/* 5. Actions utiles */}
-      <div className="border-t border-bordure pt-4">
-        <p className="text-xs font-semibold text-texte-attenue">Actions utiles</p>
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          {prochainExercice ? (
-            <button
-              type="button"
-              onClick={() => ouvrirElement(`exercice:${prochainExercice.id}`)}
-              className="rounded-lg border border-bordure-controle bg-surface px-3 py-2 text-center text-[0.6875rem] font-medium hover:bg-surface-2 cursor-pointer"
-            >
-              <IconeExercices className="mx-auto mb-1 size-4" />
-              Aperçu
-            </button>
-          ) : (
-            <span className="rounded-lg border border-dashed border-bordure bg-surface-2 px-3 py-2 text-center text-[0.6875rem] text-texte-discret">
-              <IconeExercices className="mx-auto mb-1 size-4" />
-              À générer ci-dessus
-            </span>
-          )}
-          {vue.documents[0] ? (
-            <button
-              type="button"
-              onClick={() => ouvrirElement(vue.documents[0].id)}
-              className="rounded-lg border border-bordure-controle bg-surface px-3 py-2 text-center text-[0.6875rem] font-medium hover:bg-surface-2 cursor-pointer"
-            >
-              <IconeDocuments className="mx-auto mb-1 size-4" />
-              Ressource
-            </button>
-          ) : (
-            <span className="rounded-lg border border-dashed border-bordure bg-surface-2 px-3 py-2 text-center text-[0.6875rem] text-texte-discret">
-              <IconeDocuments className="mx-auto mb-1 size-4" />
-              Aucun lien
-            </span>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+  /* Tous les types ont leur branche ; ce retour ferme le typage. */
+  return null;
 }

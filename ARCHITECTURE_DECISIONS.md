@@ -86,6 +86,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [074](#adr-074) | Rôle applicatif et suspension d'accès, portés par RLS | ✅ Acceptée (16/08) — ferme la question ouverte d'[019](#adr-019) |
 | [080](#adr-080) | L'Atelier a quatre lieux, et aucun dossier | ✅ Acceptée (16/08) |
 | [081](#adr-081) | Une compétence sert plusieurs domaines, avec un porteur unique | ✅ Acceptée (16/08) — amende [065](#adr-065) |
+| [082](#adr-082) | Une relation se propose ; le domaine de sa cible s'arbitre | 🔬 Hypothèse (17/08) |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -6141,6 +6142,104 @@ archiverait une compétence portée par un autre, avec ses preuves.
    recommandation ?** Aujourd'hui le moteur ne distingue pas. *Qui tranche :*
    Maxime. *Ce qui bloque :* aucun usage réel à observer — aucun rattachement
    n'existe encore.
+
+## ADR-082 — Une relation se propose ; le domaine de sa cible s'arbitre 🔬
+
+**Date.** 17/08/2026, chantier de rendu de l'Atelier.
+
+**Ce qui manquait, dans les mots de Maxime.** « Ça c'est vide et pas
+remplissable donc je vois pas l'intérêt en l'état » — les cadres « Prérequis »
+et « Compétences suivantes » de la fiche compétence. Puis : « faire en sorte que
+la déclaration de prérequis et compétences soit intelligente et ne demande pas
+d'input (généré par IA, validé par utilisateur). Les compétences prérequises et
+suivantes ne doivent pas forcément être existantes. »
+
+### Le constat
+
+`competences.prerequis` ne s'écrivait qu'à l'import d'un référentiel. Aucun
+écran ne le remplissait : ni `ModaleCompetence`, ni la révision de domaine, qui
+laissent le champ tel quel. Les deux cadres étaient donc structurellement vides
+sur tout référentiel construit dans l'application — et le graphe des
+compétences avec eux, puisque `prerequis` est son arête orientée
+(`lib/domain/graphe.ts`).
+
+Une première version proposait de choisir parmi les compétences du compte,
+classées par co-mobilisation observée puis par ordre des paliers. Elle a été
+retirée pour deux raisons : elle imposait une saisie, et surtout **elle ne
+pouvait proposer que ce qui existait déjà** — or un prérequis manquant est
+précisément ce qui manque au référentiel.
+
+### La question qui décide de tout
+
+Si le tuteur peut proposer une compétence inexistante, **dans quel domaine
+entre-t-elle ?** Sans réponse, la réponse par défaut est « celui de la fiche
+ouverte », et les domaines enflent jusqu'à ne plus décrire quoi que ce soit :
+les mathématiques d'un problème de logistique deviennent de la logistique.
+
+Deux faits rendent une meilleure réponse possible :
+
+1. **le domaine est une propriété de la compétence, pas de l'arête.**
+   `validerCompetence` n'exige d'un prérequis que d'exister — une arête traverse
+   déjà les domaines sans rien casser ;
+2. **le dédoublonnage est déjà global.** `competenceHomonyme` cherche dans
+   `referentiel.skills` entier, et `preparerAjouts` dévie tout homonyme vers
+   `dejaAuReferentiel` au lieu de créer. Un prérequis qui existe ailleurs se
+   rattache ; il ne se recrée pas.
+
+### Ce qui est décidé
+
+Le tuteur propose, la personne valide ligne à ligne, et chaque proposition porte
+un **intitulé**, un **palier** et un **domaine existant** — jamais un code.
+`OUTIL_RELATIONS` ferme deux `enum` : les codes actifs du compte pour
+`codeExistant` (désigner sans frapper, ADR-026/031), et les domaines vivants
+pour `domaineId` (placer sans inventer). Cinq propositions au maximum de chaque
+côté.
+
+À l'écriture, `appliquerRelationProposee` tranche dans cet ordre :
+
+| Cas | Effet |
+| --- | --- |
+| Le tuteur a désigné un code existant | On relie. Rien n'est créé. |
+| L'intitulé est celui d'une compétence déjà au référentiel, **quel que soit son domaine** | On relie celle-là. |
+| Elle n'existe pas, et le tuteur a nommé un domaine existant | Création **dans ce domaine**, puis l'arête. |
+| Elle n'existe pas, et aucun domaine ne convient | **Refus.** La proposition s'affiche « demanderait un nouveau domaine ». |
+
+Le quatrième cas est l'ADR. C'est lui qui empêche l'inflation : rien ne tombe
+dans le domaine courant faute de mieux, et créer un domaine reste une décision
+explicite prise ailleurs. Le protocole du tuteur le dit dans ces termes (§9 de
+`00_SYSTEME_PROTOCOLE_REFERENTIEL.txt`) : « n'invente pas de domaine, et ne range
+pas par défaut dans le domaine de la compétence lue ».
+
+L'écriture réutilise les commandes existantes — `reviser_domaine` pour la
+création, `modifierCompetence` pour l'arête. Aucune migration : le schéma
+acceptait déjà `prerequis` en modification.
+
+`relierCompetences(amont, aval)` est la seule implémentation d'écriture d'arête,
+dans les deux sens : « suivante » est la même arête lue à l'envers, puisque le
+référentiel ne stocke que `prerequis`. Elle refuse le sens inverse quand il est
+déjà déclaré — `validerCompetence` n'examine qu'une compétence à la fois et ne
+voit pas le cycle.
+
+### Ce que cela coûte
+
+Une création par relation validée : une commande `reviser_domaine` par domaine
+touché, puisqu'une commande ne porte qu'un domaine. Séquentiel, un clic à la
+fois — ce qui est cohérent avec une validation ligne à ligne.
+
+L'importance d'une compétence créée par ce chemin est fixée à 0,5. Le tuteur ne
+la propose pas, et la déduire du voisinage serait fabriquer une mesure. Elle se
+règle ensuite dans la révision du domaine.
+
+### Test de réfutation
+
+Si, après usage réel, les domaines grossissent quand même — parce que le tuteur
+nomme complaisamment le domaine de la fiche ouverte plutôt que d'omettre le
+champ — alors l'`enum` des domaines doit exclure le domaine courant pour les
+propositions nouvelles, et le forcer à choisir ailleurs ou à s'abstenir. À
+surveiller : le nombre de compétences par domaine avant et après les premières
+sessions de déclaration.
+
+---
 
 ---
 

@@ -266,3 +266,99 @@ describe("construireVuesAtelier", () => {
     });
   });
 });
+
+describe("vue d'une compétence — ce que l'Atelier a le droit de montrer", () => {
+  /** L'index tel que le corpus le rend après un passage : fiche, preuve, et une note. */
+  function indexAvecDocuments(): IndexDocumentaire {
+    const documents = [
+      { id: "exercice-flux", titre: "Diagnostiquer un flux", type: "exercice" },
+      { id: "preuve-tentative-1", titre: "Preuve de travail", type: "preuve" },
+      { id: "note-log-01", titre: "Note sur LOG-01", type: "note" },
+    ];
+    return {
+      documents: documents as unknown as IndexDocumentaire["documents"],
+      parId: new Map(
+        documents.map((document) => [document.id, document]),
+      ) as unknown as IndexDocumentaire["parId"],
+      liens: [],
+      sortants: new Map(),
+      entrants: new Map([[competence.code, documents.map((document) => document.id)]]),
+    };
+  }
+
+  it("ne garde que les supports dans les ressources associées", () => {
+    const vues = construireVuesAtelier(
+      referentiel,
+      [etat(competence, [preuve]), etat(suivante)],
+      [exercice],
+      [tentative],
+      indexAvecDocuments(),
+    );
+
+    /*
+     * La fiche d'exercice et la preuve citent la compétence, donc `entrants` les
+     * rend — mais `exercices` et `preuves` les nomment déjà avec leurs mesures.
+     */
+    expect(vues.competences[0].documents.map((document) => document.id)).toEqual(["note-log-01"]);
+  });
+
+  it("rend une preuve cliquable seulement si son document existe", () => {
+    const vues = construireVuesAtelier(
+      referentiel,
+      [etat(competence, [preuve]), etat(suivante)],
+      [exercice],
+      [tentative],
+      indexAvecDocuments(),
+    );
+
+    /* `source.ref` vaut `tentative-1`, et `production.ts` écrit `preuve-tentative-1`. */
+    expect(vues.competences[0].preuves[0].documentId).toBe("preuve-tentative-1");
+  });
+
+  it("ne fabrique pas de cible quand la preuve n'a produit aucun document", () => {
+    const vues = construireVuesAtelier(
+      referentiel,
+      [etat(competence, [preuve]), etat(suivante)],
+      [exercice],
+      [tentative],
+      index,
+    );
+
+    expect(vues.competences[0].preuves[0].documentId).toBeNull();
+  });
+
+  it("nomme les domaines vivants où une relation peut créer une compétence", () => {
+    const vues = construireVuesAtelier(
+      referentiel,
+      [etat(competence, [preuve]), etat(suivante)],
+      [exercice],
+      [tentative],
+      index,
+    );
+
+    /*
+     * L'écran doit pouvoir écrire « Créer dans Logistique » plutôt que
+     * « Créer dans logistique » : la personne valide une création dont elle
+     * lit la destination.
+     */
+    expect(vues.competences[0].domainesExistants).toEqual([{ id: "logistique", nom: "Logistique" }]);
+  });
+
+  it("n'offre pas un domaine archivé comme destination", () => {
+    const archive: Referentiel = {
+      ...referentiel,
+      domaines: [{ ...referentiel.domaines[0], archive: true }],
+    };
+
+    const vues = construireVuesAtelier(
+      archive,
+      [etat(competence, [preuve]), etat(suivante)],
+      [exercice],
+      [tentative],
+      index,
+    );
+
+    /* Un domaine archivé n'accueille rien : le proposer serait proposer une impasse. */
+    expect(vues.competences[0].domainesExistants).toEqual([]);
+  });
+});

@@ -9,6 +9,7 @@ import { lireApercusDocuments, lireApercusSnapshots, lireDocument } from "@/lib/
 import { lirePiecesJointes } from "@/lib/store/document-attachments";
 import { reconstruireIndexDepuisApercus } from "@/lib/documents/index";
 import { analyserDocumentMarkdown } from "@/lib/documents/markdown";
+import { documentEnLectureSeule, estDocumentPreuve } from "@/lib/documents/nature-document";
 import { regrouperTentativesParExercice } from "@/lib/documents/workspace";
 import { chargerContexte } from "@/lib/store/context";
 import { construireGraphe } from "@/lib/domain/graphe";
@@ -151,7 +152,7 @@ export default async function PageAtelier(props: {
         ? domaineDeclare
         : undefined;
     const domaineConnu = domaineId ? referentiel.domainesParId.get(domaineId) : undefined;
-    const estPreuve = vue.type === "preuve" || document.id.startsWith("preuve-");
+    const estPreuve = estDocumentPreuve({ id: document.id, type: vue.type });
     /*
      * Les rattachements sont lus, jamais devinés : ce sont les codes du
      * référentiel du compte que la fiche cite réellement. Une ressource qui
@@ -190,7 +191,7 @@ export default async function PageAtelier(props: {
       snapshots: snapshotsParDocument.get(document.id) ?? [],
       tentatives: [],
       source: "document",
-      lectureSeule: estPreuve,
+      lectureSeule: documentEnLectureSeule({ id: document.id, type: vue.type }),
     };
   });
 
@@ -354,7 +355,7 @@ export default async function PageAtelier(props: {
     <>
       <EntetePage
         titre="Atelier"
-        sousTitre="Un corpus documentaire relié à tes compétences, tes productions et tes preuves."
+        sousTitre="Vos cours, vos notes et vos travaux, rangés par sujet."
       />
       <EspaceDocumentaire
         key={cleAtelier}

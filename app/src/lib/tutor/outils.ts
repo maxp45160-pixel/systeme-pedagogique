@@ -174,6 +174,29 @@ export const OUTIL_EVOLUTION = "proposer_evolution";
 export const OUTIL_REVISION = "proposer_revision";
 
 /**
+ * Les arêtes de progression d'une compétence — prérequis et suites.
+ *
+ * `competences.prerequis` était la seule donnée du référentiel que **aucun
+ * écran** ne savait remplir : les deux cadres de la fiche restaient vides, et le
+ * graphe avec eux. Un champ de saisie libre aurait laissé écrire un code
+ * inexistant ; une liste déroulante aurait interdit ce que la personne demande
+ * — qu'un prérequis n'existe pas encore.
+ *
+ * D'où la forme de cet outil : chaque proposition porte **un intitulé, un
+ * palier et un domaine**, et rien d'autre. Le tuteur ne frappe aucun code — s'il
+ * reconnaît une compétence de la liste, il le dit dans `codeExistant`, dont
+ * l'`enum` est fermé sur les codes du compte ; sinon l'application décide, à
+ * l'écriture, entre rattacher un homonyme et créer.
+ *
+ * `domaineId` est un `enum` des domaines existants, et il compte autant que les
+ * codes : sans lui, tout prérequis venu d'ailleurs — les maths d'un problème de
+ * logistique — atterrirait dans le domaine de la fiche ouverte, et les domaines
+ * grossiraient sans que rien ne l'arbitre. Une proposition sans domaine
+ * plaçable n'est pas créée : elle s'affiche comme demandant un domaine neuf.
+ */
+export const OUTIL_RELATIONS = "proposer_relations";
+
+/**
  * Un référentiel entier — plusieurs branches d'un seul geste.
  *
  * `proposer_referentiel` rend **une** branche. Un sujet un peu large n'en tient
@@ -841,6 +864,97 @@ export function outilReferentielComplet(): OutilTuteur {
  * ce domaine — voir `OUTIL_REVISION` pour la distinction frapper / désigner.
  * Le préfixe du domaine n'est pas modifiable : il engendre les codes.
  */
+/**
+ * L'outil des relations — voir `OUTIL_RELATIONS` pour le pourquoi de la forme.
+ *
+ * Deux `enum` fermés, pour deux interdits différents :
+ *
+ * - `codeExistant` sur les codes actifs du compte : désigner sans frapper ;
+ * - `domaineId` sur les domaines existants : placer sans en inventer.
+ *
+ * Le second est celui qu'on serait tenté d'ouvrir « pour laisser le tuteur
+ * proposer un domaine ». Ce serait rendre l'inflation exprimable.
+ */
+export function outilsRelations(codesActifs: string[], domainesIds: string[]): OutilTuteur {
+  const codeExistant: SchemaJson =
+    codesActifs.length > 0
+      ? {
+          type: "string",
+          enum: codesActifs,
+          description:
+            "Code d'une compétence déjà au référentiel, si cette relation en désigne une. Sinon, omets ce champ.",
+        }
+      : { type: "string", description: "Aucune compétence existante à désigner." };
+
+  const domaineId: SchemaJson =
+    domainesIds.length > 0
+      ? {
+          type: "string",
+          enum: domainesIds,
+          description:
+            "Domaine existant où cette compétence doit vivre. Omets ce champ si aucun ne convient — n'en invente pas.",
+        }
+      : { type: "string", description: "Aucun domaine existant." };
+
+  const relation: SchemaJson = {
+    type: "object",
+    // Aucun champ pour frapper un code neuf : l'interdit d'ADR-026/031 tient.
+    properties: {
+      codeExistant,
+      intitule: {
+        type: "string",
+        description: "Savoir-faire observable, pas un sujet. Obligatoire, même si tu désignes un code.",
+      },
+      palier: { type: "string", enum: [...PALIERS] },
+      domaineId,
+      justification: {
+        type: "string",
+        description: "Une phrase : pourquoi cette relation, en partant de la compétence lue.",
+      },
+    },
+    required: ["intitule", "palier", "justification"],
+    additionalProperties: false,
+  };
+
+  return {
+    nom: OUTIL_RELATIONS,
+    description:
+      "Propose les prérequis et les suites logiques d'une compétence. Tu n'écris rien : la personne valide chaque relation séparément. Les compétences que tu proposes peuvent ne pas encore exister — leur code sera attribué par l'application. Tu ne peux désigner que des codes et des domaines de la liste.",
+    schema: {
+      type: "object",
+      properties: {
+        resume: {
+          type: "string",
+          description: "Une à trois phrases : la logique de progression que tu proposes.",
+        },
+        prerequis: {
+          type: "array",
+          maxItems: MAX_RELATIONS_PROPOSEES,
+          items: relation,
+          description: "Ce qu'il faut savoir faire AVANT la compétence lue.",
+        },
+        suivantes: {
+          type: "array",
+          maxItems: MAX_RELATIONS_PROPOSEES,
+          items: relation,
+          description: "Ce que la compétence lue ouvre, une fois acquise.",
+        },
+      },
+      /*
+       * Les deux listes sont exigées, à la différence d'`OUTIL_REVISION` où les
+       * sections sont facultatives parce qu'une révision peut ne toucher qu'un
+       * champ. Ici l'outil est seul armé, donc `tool_choice` force l'appel : un
+       * modèle qui ne rend que les champs obligatoires renvoyait `resume` et
+       * rien d'autre, et la validation rejetait l'appel entier — « le tuteur
+       * n'a proposé aucune relation exploitable » alors qu'il avait répondu.
+       * Une liste vide reste exprimable, et se lit comme « rien de ce côté ».
+       */
+      required: ["resume", "prerequis", "suivantes"],
+      additionalProperties: false,
+    },
+  };
+}
+
 export function outilsRevision(codesVivants: string[]): OutilTuteur {
   // Un `enum: []` n'admettrait aucune valeur et rendrait `modifications` et
   // `retraits` inexprimables — ce qui est correct sur un domaine vide, mais
@@ -1153,6 +1267,7 @@ export type PropositionRecue =
   | { genre: "evaluation-projet"; evaluation: PropositionEvaluationProjet }
   | { genre: "evolution"; evolution: PropositionEvolution }
   | { genre: "revision"; revision: PropositionRevision }
+  | { genre: "relations"; relations: PropositionRelations }
   | { genre: "referentiel-complet"; resume: string; branches: PropositionReferentiel[]; ecartees: number }
   | { genre: "theme"; theme: PropositionTheme }
   | { genre: "intention"; traduction: TraductionIntention };
@@ -1187,6 +1302,32 @@ export interface PropositionRevision {
   }[];
   retraits: { code: string; justification: string }[];
 }
+
+/**
+ * Une relation proposée, pas encore écrite.
+ *
+ * `codeExistant` DÉSIGNE — son `enum` est fermé sur les codes du compte. Les
+ * trois autres champs décrivent une compétence qui n'existe peut-être pas : son
+ * code, si elle doit être créée, sera attribué par l'application (ADR-026).
+ * `domaineId` est `null` quand le tuteur n'a su nommer aucun domaine existant :
+ * la proposition reste lisible mais ne s'applique pas.
+ */
+export interface RelationProposee {
+  codeExistant: string | null;
+  intitule: string;
+  palier: string;
+  domaineId: string | null;
+  justification: string;
+}
+
+export interface PropositionRelations {
+  resume: string;
+  prerequis: RelationProposee[];
+  suivantes: RelationProposee[];
+}
+
+/** Cinq de chaque côté : au-delà, on ne relit plus, on coche. */
+export const MAX_RELATIONS_PROPOSEES = 5;
 
 /**
  * Une évolution proposée. Tout en chaînes, comme les autres — sauf `evolution`,
@@ -1850,6 +1991,91 @@ function validerReferentielComplet(entree: Record<string, unknown>): Proposition
  * effectivement reçu. Un schéma sans `enum` — domaine vide — rend un ensemble
  * vide, donc toute désignation est rejetée, ce qui est correct.
  */
+/**
+ * Les ensembles que le schéma de relations a réellement énumérés.
+ *
+ * Même précaution que `codesDuSchemaRevision` : on relit ce que le fournisseur
+ * a reçu, sans liste parallèle. C'est la deuxième couche d'ADR-031 — un
+ * fournisseur qui ignore l'`enum` ne doit pas passer pour autant.
+ */
+function ensemblesDuSchemaRelations(outils: OutilTuteur[]): {
+  codes: Set<string>;
+  domaines: Set<string>;
+} {
+  const outil = outils.find((o) => o.nom === OUTIL_RELATIONS);
+  const relation = outil?.schema.properties?.prerequis?.items;
+  return {
+    codes: new Set(relation?.properties?.codeExistant?.enum ?? []),
+    domaines: new Set(relation?.properties?.domaineId?.enum ?? []),
+  };
+}
+
+/**
+ * Valide des relations proposées, contre les codes et domaines connus.
+ *
+ * Ce qui est **écarté ligne à ligne**, à la différence de `validerRevision` qui
+ * rejette l'appel entier : une relation est indépendante des autres, et perdre
+ * la quatrième ne fausse pas la lecture des trois premières. Une révision, elle,
+ * décrit un référentiel d'ensemble — d'où la différence.
+ *
+ * - **intitulé ou justification vide** ⇒ rien à relire, rien à valider ;
+ * - **`codeExistant` hors de l'`enum`** ⇒ le champ est ignoré, pas la ligne :
+ *   l'intitulé reste exploitable, et l'écriture retrouvera l'homonyme ;
+ * - **`domaineId` hors de l'`enum`** ⇒ ramené à `null`, ce qui affiche la
+ *   proposition comme demandant un domaine neuf plutôt que de la placer au
+ *   hasard.
+ *
+ * Ce qui n'est pas vérifié ici : la longueur des intitulés et l'existence des
+ * cibles à l'écriture. `validerCompetence` le fait. Une règle, une autorité.
+ */
+function validerRelations(
+  entree: Record<string, unknown>,
+  connus: { codes: Set<string>; domaines: Set<string> },
+): PropositionRecue | null {
+  const resume = texte(entree.resume);
+
+  const lire = (brutes: unknown): RelationProposee[] => {
+    if (!Array.isArray(brutes)) return [];
+    const relations: RelationProposee[] = [];
+    for (const brut of brutes) {
+      if (relations.length >= MAX_RELATIONS_PROPOSEES) break;
+      const o = objet(brut);
+      if (!o) continue;
+      const intitule = texte(o.intitule);
+      const justification = texte(o.justification);
+      if (!intitule || !justification) continue;
+      const codeBrut = texte(o.codeExistant);
+      const domaineBrut = texte(o.domaineId);
+      relations.push({
+        codeExistant: connus.codes.has(codeBrut) ? codeBrut : null,
+        intitule,
+        palier: texte(o.palier),
+        domaineId: connus.domaines.has(domaineBrut) ? domaineBrut : null,
+        justification,
+      });
+    }
+    return relations;
+  };
+
+  /*
+   * Absent n'est pas vide.
+   *
+   * Une compétence peut n'avoir aucune relation à proposer — c'est une réponse,
+   * et l'écran sait la dire côté par côté. Rejeter les deux listes vides
+   * renvoyait « la proposition est arrivée incomplète », qui accuse le
+   * fournisseur d'une panne alors que le tuteur avait répondu.
+   *
+   * Ce qui reste rejeté : les deux clés absentes ou non-tableaux. Là, l'appel ne
+   * porte aucune des deux réponses attendues, et le schéma les exige.
+   */
+  if (!Array.isArray(entree.prerequis) && !Array.isArray(entree.suivantes)) return null;
+
+  return {
+    genre: "relations",
+    relations: { resume, prerequis: lire(entree.prerequis), suivantes: lire(entree.suivantes) },
+  };
+}
+
 function codesDuSchemaRevision(outils: OutilTuteur[]): Set<string> {
   const revision = outils.find((o) => o.nom === OUTIL_REVISION);
   const codes = revision?.schema.properties?.retraits?.items?.properties?.code?.enum ?? [];
@@ -2043,6 +2269,8 @@ export function validerAppelOutil(
       return validerEvolution(donnees);
     case OUTIL_REVISION:
       return validerRevision(donnees, codesDuSchemaRevision(outils));
+    case OUTIL_RELATIONS:
+      return validerRelations(donnees, ensemblesDuSchemaRelations(outils));
     case OUTIL_REFERENTIEL_COMPLET:
       return validerReferentielComplet(donnees);
     case OUTIL_THEME:

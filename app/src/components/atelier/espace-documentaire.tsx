@@ -9,6 +9,11 @@ import { IconeFleche, IconeRecherche } from "@/components/ui/icones";
 import { IconeDocument } from "@/components/ui/icone-document";
 import { createNavigateurClient } from "@/lib/supabase/client";
 import { analyserDocumentMarkdown } from "@/lib/documents/markdown";
+import {
+  documentEnLectureSeule,
+  estDocumentPreuve,
+  estFicheExercice,
+} from "@/lib/documents/nature-document";
 import { formatDateCourte } from "@/lib/engine/dates";
 import {
   separerFrontMatterEtCorps,
@@ -40,7 +45,11 @@ import {
   supprimerNoteSupportAction,
 } from "@/lib/store/document-actions";
 import type { VueDomaineAtelier, VueCompetenceAtelier } from "@/lib/documents/vue-atelier";
-import { FichePedagogiqueAtelier, PanneauPedagogiqueAtelier } from "./fiche-pedagogique";
+import {
+  FichePedagogiqueAtelier,
+  PanneauPedagogiqueAtelier,
+  panneauPedagogiqueUtile,
+} from "./fiche-pedagogique";
 import type { CalibrageModale, CompetenceModale } from "@/components/exercices/proprietes-generation";
 import type { DonneesSeance } from "@/components/seances/concepteur-seance";
 import { rangerDocument, type RangementAtelier } from "@/lib/documents/rangement-atelier";
@@ -90,7 +99,7 @@ function documentDepuisAnalyse(
   rangementPrecedent?: RangementAtelier,
 ): ElementAtelier {
   const definition = document.type ? definitionTypeDocument(document.type) : null;
-  const estPreuve = document.type === "preuve" || document.id.startsWith("preuve-");
+  const estPreuve = estDocumentPreuve(document);
   /*
    * Les rattachements ne se recalculent pas côté client : ils viennent des
    * liens résolus par le serveur contre le référentiel du compte. Réécrire
@@ -119,7 +128,7 @@ function documentDepuisAnalyse(
     snapshots: [],
     tentatives: [],
     source: "document",
-    lectureSeule: estPreuve,
+    lectureSeule: documentEnLectureSeule(document),
   };
 }
 
@@ -147,6 +156,12 @@ const TITRES_VUES: Record<string, string> = {
  * quatre segments dont trois n'existaient que dans le code qui venait de les
  * calculer. Il ne reste que ce que la base sait dire : la zone d'où l'on vient,
  * et le domaine quand il y en a un.
+ *
+ * C'est **le seul** retour de l'Atelier : les fiches en rendaient un second,
+ * collant, quatre rems plus bas. Sur un domaine, le premier ne pouvait rien
+ * faire — `rangement.domaineId` d'un domaine est le domaine lui-même, donc
+ * « Retour au domaine » ramenait à l'écran affiché. Un domaine remonte
+ * maintenant à sa liste, et une fiche nomme le domaine où elle vit.
  */
 function RetourAtelier({
   element,
@@ -157,15 +172,64 @@ function RetourAtelier({
   ouvrirElement: (id: string) => void;
   changerVue: (vue: VueAtelier) => void;
 }) {
+  const vue = element.vuePedagogique;
   const { zone, domaineId } = element.rangement;
-  const cible =
-    zone === "domaine" && domaineId
-      ? { libelle: "Retour au domaine", action: () => ouvrirElement(`domaine:${domaineId}`) }
-      : zone === "theme"
-        ? { libelle: "Retour aux thèmes", action: () => changerVue("themes") }
-        : zone === "ressource"
-          ? { libelle: "Retour aux ressources", action: () => changerVue("ressources") }
-          : { libelle: "Retour aux domaines", action: () => changerVue("domaines") };
+
+  /*
+   * La destination se lit d'abord sur la vue pédagogique, qui sait de quel
+   * objet il s'agit ; `rangement` ne sert que pour les documents bruts.
+   */
+  const cible = (() => {
+    if (vue?.kind === "domaine") {
+      /* `domaines-archives` est une vue de l'Atelier sans onglet : elle passe par `ouvrirElement`. */
+      const liste = vue.domaine.archive ? "domaines-archives" : "domaines";
+      return {
+        libelle: vue.domaine.archive ? "Domaines archivés" : "Domaines",
+        titre: vue.nom,
+        action: () => ouvrirElement(liste),
+      };
+    }
+    if (vue?.kind === "theme") {
+      return { libelle: "Thèmes", titre: vue.libelle, action: () => changerVue("themes") };
+    }
+    if (vue?.kind === "competence") {
+      return {
+        libelle: vue.domaineNom,
+        titre: vue.code,
+        action: () => ouvrirElement(`domaine:${vue.domaineId}`),
+      };
+    }
+    if (vue?.kind === "exercice") {
+      return {
+        libelle: vue.domaineNom,
+        titre: vue.titre,
+        action: () => ouvrirElement(`domaine:${vue.domaineId}`),
+      };
+    }
+    if (zone === "domaine" && domaineId) {
+      return {
+        libelle: "Retour au domaine",
+        titre: element.titre,
+        action: () => ouvrirElement(`domaine:${domaineId}`),
+      };
+    }
+    if (zone === "theme") {
+      return { libelle: "Retour aux thèmes", titre: element.titre, action: () => changerVue("themes") };
+    }
+    if (zone === "ressource") {
+      return {
+        libelle: "Retour aux ressources",
+        titre: element.titre,
+        action: () => changerVue("ressources"),
+      };
+    }
+    return {
+      libelle: "Retour aux domaines",
+      titre: element.titre,
+      action: () => changerVue("domaines"),
+    };
+  })();
+
   return (
     <div className="flex min-w-0 items-center gap-3">
       <button
@@ -174,9 +238,9 @@ function RetourAtelier({
         className="flex shrink-0 items-center gap-1.5 rounded-lg border border-bordure-controle bg-surface px-2.5 py-1.5 text-xs font-medium text-texte-attenue transition-colors hover:text-texte cursor-pointer"
       >
         <span aria-hidden>←</span>
-        <span>{cible.libelle}</span>
+        <span className="max-w-[12rem] truncate">{cible.libelle}</span>
       </button>
-      <span className="truncate font-serif text-lg font-medium text-texte">{element.titre}</span>
+      <span className="truncate font-serif text-lg font-medium text-texte">{cible.titre}</span>
     </div>
   );
 }
@@ -306,6 +370,15 @@ export function EspaceDocumentaire({
       ? (trouverElement(selection, elements) ?? null)
       : null;
   const selectionId = selectionnee?.id;
+  /*
+   * Le volet de contexte ne se montre que s'il a un contenu propre. Sur une
+   * fiche compétence il ne faisait que redire la fiche : ni le cadre, ni les
+   * boutons qui l'ouvrent n'ont lieu d'être.
+   */
+  const contexteDisponible = Boolean(
+    selectionnee &&
+      (!selectionnee.vuePedagogique || panneauPedagogiqueUtile(selectionnee.vuePedagogique)),
+  );
   const role = selectionnee?.frontMatter?.role;
   const roleLibelle = role === "support" ? "Support" : role === "operationnel" ? "Opérationnel" : null;
   const dateAffichee = selectionnee ? formaterDateDocument(selectionnee) : null;
@@ -692,7 +765,7 @@ export function EspaceDocumentaire({
 
   return (
     <section className="relative -mx-2 flex flex-col overflow-hidden rounded-xl border border-bordure bg-surface shadow-[var(--ombre-levee)] lg:-mx-6 2xl:-mx-8 lg:h-[calc(100vh-12.5rem)] lg:min-h-[34rem]">
-      {contexteOuvert && (
+      {contexteOuvert && contexteDisponible && (
         <button
           type="button"
           className="fixed inset-0 z-40 bg-black/35 backdrop-blur-[1px] 2xl:hidden"
@@ -784,7 +857,7 @@ export function EspaceDocumentaire({
             </span>
           ) : null}
 
-          {selectionnee && (
+          {contexteDisponible && (
             <>
               <button
                 type="button"
@@ -835,7 +908,7 @@ export function EspaceDocumentaire({
 
       <div className={cx(
         "flex flex-1 min-h-0 flex-col lg:grid lg:h-full transition-all duration-300",
-        selectionnee && panneauDroitVisible
+        contexteDisponible && panneauDroitVisible
           ? "lg:grid-cols-[1fr] 2xl:grid-cols-[minmax(0,1fr)_22rem]"
           : "lg:grid-cols-[1fr]",
       )}>
@@ -895,9 +968,17 @@ export function EspaceDocumentaire({
                 <div className="min-w-0 space-y-1">
                   {(selectionnee.lectureSeule || selectionnee.schemaCompatible === false) && (
                     <div className="flex flex-wrap items-center gap-2 text-xs">
-                      {selectionnee.type === "preuve" || selectionnee.id.startsWith("preuve-") ? (
+                      {estDocumentPreuve(selectionnee) ? (
                         <span className="rounded-md bg-info-faible px-2 py-0.5 font-medium text-info">
                           Preuve conservée · Lecture seule
+                        </span>
+                      ) : estFicheExercice(selectionnee) ? (
+                        /*
+                          Dire où l'énoncé se corrige vraiment : sans cette
+                          phrase, « Lecture seule » ressemble à une panne.
+                        */
+                        <span className="rounded-md bg-info-faible px-2 py-0.5 font-medium text-info">
+                          Fiche produite depuis l’exercice · se corrige dans l’exercice
                         </span>
                       ) : selectionnee.lectureSeule ? (
                         <span className="rounded bg-surface-2 px-1.5 py-0.5 text-texte-attenue">
@@ -1171,7 +1252,7 @@ export function EspaceDocumentaire({
           )}
         </main>
 
-        {selectionnee && (
+        {selectionnee && contexteDisponible && (
           <aside
             key={contexteOuvert ? "ouvert" : "ferme"}
             className={cx(
@@ -1204,8 +1285,6 @@ export function EspaceDocumentaire({
               <PanneauPedagogiqueAtelier
                 vue={selectionnee.vuePedagogique}
                 ouvrirElement={ouvrirElement}
-                compteId={graphe.compteId}
-                generation={generation}
                 donneesSeance={donneesSeance}
               />
             ) : selectionnee.type === "exercice" ? (
