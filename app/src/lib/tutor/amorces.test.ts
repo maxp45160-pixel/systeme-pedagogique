@@ -4,7 +4,6 @@ import {
   amorceExercice,
   amorceIndice,
   amorceMethode,
-  amorceVerification,
 } from "./amorces";
 
 /*
@@ -59,10 +58,5 @@ describe("amorces d'aide contextuelle pour la résolution", () => {
     expect(a).toContain("démarche type");
   });
 
-  it("génère une amorce de vérification de démarche", () => {
-    const a = amorceVerification("DEV-05");
-    expect(a).toContain("DEV-05");
-    expect(a).toContain("bonne voie");
-  });
 });
 

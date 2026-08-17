@@ -10,11 +10,9 @@
 import type { MoteurTuteur } from "./moteurs";
 import { lireErreurMoteur, lireOutilsActifs, messageSansOutils } from "./moteurs";
 import {
-  outilEvaluationProjet,
   outilGenerationActivite,
   type FamilleContenuAdaptatif,
   type PropositionContenuActivite,
-  type PropositionEvaluationProjet,
 } from "./outils";
 
 export type CapaciteMentaleDeclaree = "faible" | "standard" | "elevee";
@@ -53,33 +51,6 @@ export interface ContratGenerationActivite {
   versionContrat: number;
 }
 
-export type TypeArtefactFige =
-  | "contenu-copie"
-  | "fichier-importe"
-  | "export"
-  | "commit-immuable";
-
-export interface ArtefactFigeProjet {
-  id: string;
-  type: TypeArtefactFige;
-  contenu: string;
-}
-
-export interface AideObserveeProjet {
-  type: "indice" | "tuteur" | "ressource" | "autre";
-  description: string;
-  ressourceId: string | null;
-}
-
-export interface DemandeEvaluationProjet {
-  titre: string;
-  brief: string;
-  artefact: ArtefactFigeProjet;
-  criteres: CritereContratProjet[];
-  ressourcesAutorisees: RessourceAutoriseeActivite[];
-  aidesObservees: AideObserveeProjet[];
-}
-
 export interface ResultatPropositionTuteur<T> {
   proposition: T | null;
   evenements: { evenement: string; donnees: unknown }[];
@@ -88,7 +59,6 @@ export interface ResultatPropositionTuteur<T> {
 }
 
 const TEXTE_COURT_MAX = 1_000;
-const TEXTE_LONG_MAX = 100_000;
 const LISTE_MAX = 40;
 
 function objet(valeur: unknown): Record<string, unknown> | null {
@@ -203,45 +173,6 @@ export function erreursContratGenerationActivite(
   return erreurs;
 }
 
-export function erreursDemandeEvaluationProjet(
-  demande: DemandeEvaluationProjet,
-): string[] {
-  const erreurs: string[] = [];
-  if (!texteValide(demande.titre)) erreurs.push("titre invalide");
-  if (!texteValide(demande.brief, 8_000)) erreurs.push("brief invalide");
-  if (!verifierCriteres(demande.criteres) || demande.criteres.length === 0) {
-    erreurs.push("critères invalides");
-  }
-  if (!verifierRessources(demande.ressourcesAutorisees)) erreurs.push("ressources invalides");
-
-  const artefact = objet(demande.artefact);
-  if (
-    !artefact ||
-    !texteValide(demande.artefact.id) ||
-    !["contenu-copie", "fichier-importe", "export", "commit-immuable"].includes(
-      demande.artefact.type,
-    ) ||
-    !texteValide(demande.artefact.contenu, TEXTE_LONG_MAX)
-  ) {
-    erreurs.push("artefact figé invalide");
-  }
-
-  if (
-    !Array.isArray(demande.aidesObservees) ||
-    demande.aidesObservees.length > LISTE_MAX ||
-    demande.aidesObservees.some(
-      (aide) =>
-        !objet(aide) ||
-        !["indice", "tuteur", "ressource", "autre"].includes(aide.type) ||
-        !texteValide(aide.description, 4_000) ||
-        !(aide.ressourceId === null || texteValide(aide.ressourceId)),
-    )
-  ) {
-    erreurs.push("aides observées invalides");
-  }
-  return erreurs;
-}
-
 export function construirePromptGenerationActivite(
   contrat: ContratGenerationActivite,
 ): string {
@@ -260,27 +191,6 @@ export function construirePromptGenerationActivite(
     "<contrat_serveur>",
     JSON.stringify(contrat),
     "</contrat_serveur>",
-  ].join("\n");
-}
-
-export function construirePromptEvaluationProjet(
-  demande: DemandeEvaluationProjet,
-): string {
-  const contrat = {
-    criteres: demande.criteres,
-    ressourcesAutorisees: demande.ressourcesAutorisees,
-    aidesObservees: demande.aidesObservees,
-  };
-  return [
-    "Tu proposes une lecture critère par critère d'un mini-projet à partir d'un artefact figé.",
-    "TU N'ENREGISTRES RIEN. Ta sortie n'est ni une évaluation finale ni une preuve.",
-    "La personne doit valider, modifier ou rejeter chaque critère avant toute écriture.",
-    "Juge uniquement ce que l'artefact contient. Ce qui manque devient non démontré ou une réserve ; ne le complète pas.",
-    "Une ressource déclarée d'usage normal n'est pas une perte d'autonomie. N'attribue toutefois aucune autonomie : le système et la personne la déterminent à partir des événements structurés.",
-    "N'attribue ni niveau de compétence, ni score global, ni qualité de preuve. Appelle l'outil armé une seule fois.",
-    "<contrat_evaluation_serveur>",
-    JSON.stringify(contrat),
-    "</contrat_evaluation_serveur>",
   ].join("\n");
 }
 
@@ -336,67 +246,5 @@ export async function genererContenuActivite(
         : propositions.length > 1
           ? "Le tuteur a produit plusieurs contenus alors qu'un seul était demandé. Aucun n'a été retenu."
           : "Le tuteur n'a produit aucun contenu d'activité exploitable."));
-  return { proposition, evenements, outilsActifs, erreur };
-}
-
-export async function proposerEvaluationProjet(
-  moteur: MoteurTuteur,
-  demande: DemandeEvaluationProjet,
-  signal?: AbortSignal,
-  diffuser?: (evenement: string, donnees: unknown) => void,
-): Promise<ResultatPropositionTuteur<PropositionEvaluationProjet>> {
-  const erreurs = erreursDemandeEvaluationProjet(demande);
-  if (erreurs.length > 0) {
-    return { proposition: null, evenements: [], outilsActifs: true, erreur: erreurContrat(erreurs) };
-  }
-
-  const evenements: { evenement: string; donnees: unknown }[] = [];
-  const propositions: PropositionEvaluationProjet[] = [];
-  let outilsActifs = true;
-  /** La panne annoncée par le moteur — clé refusée, quota, modèle absent. */
-  let panne: string | null = null;
-  const envoyer = (evenement: string, donnees: unknown) => {
-    evenements.push({ evenement, donnees });
-    // Le texte libre pourrait recopier l'artefact ; seule la sortie structurée
-    // et les événements de progression sont relayés.
-    if (evenement !== "texte") diffuser?.(evenement, donnees);
-    const actifs = lireOutilsActifs(evenement, donnees);
-    if (actifs !== null) outilsActifs = actifs;
-    panne = panne ?? lireErreurMoteur(evenement, donnees);
-    const proposition = objet(donnees);
-    if (evenement === "proposition" && proposition?.genre === "evaluation-projet") {
-      propositions.push(proposition.evaluation as PropositionEvaluationProjet);
-    }
-  };
-
-  await moteur.repondre({
-    systemeStable: construirePromptEvaluationProjet(demande),
-    systemeProfil: "",
-    messages: [
-      {
-        role: "user",
-        content: [
-          `Projet : ${demande.titre}`,
-          `Brief : ${demande.brief}`,
-          `<artefact_fige id=${JSON.stringify(demande.artefact.id)} type=${JSON.stringify(demande.artefact.type)}>`,
-          demande.artefact.contenu,
-          "</artefact_fige>",
-        ].join("\n"),
-      },
-    ],
-    outils: [outilEvaluationProjet(demande.criteres)],
-    signal,
-    envoyer,
-  });
-
-  const proposition = propositions.length === 1 ? propositions[0] : null;
-  const erreur = proposition
-    ? null
-    : (panne ??
-      (!outilsActifs
-        ? messageSansOutils("la proposition d'évaluation du projet")
-        : propositions.length > 1
-          ? "Le tuteur a produit plusieurs évaluations alors qu'une seule était demandée. Aucune n'a été retenue."
-          : "Le tuteur n'a produit aucune proposition d'évaluation exploitable."));
   return { proposition, evenements, outilsActifs, erreur };
 }

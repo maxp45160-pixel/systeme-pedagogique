@@ -87,29 +87,6 @@ export interface ListeAdjacence {
   predecesseurs: Record<string, string[]>;
 }
 
-/**
- * Construit les listes d'adjacence (successeurs et prédécesseurs).
- *
- * Les listes sont dédupliquées : deux liens entre les mêmes nœuds ne
- * produisent qu'une seule entrée.
- */
-export function listeAdjacence(liens: LienWorkflow[]): ListeAdjacence {
-  const successeurs: Record<string, string[]> = {};
-  const predecesseurs: Record<string, string[]> = {};
-
-  for (const lien of liens) {
-    const succ = successeurs[lien.source] ?? [];
-    if (!succ.includes(lien.target)) succ.push(lien.target);
-    successeurs[lien.source] = succ;
-
-    const pred = predecesseurs[lien.target] ?? [];
-    if (!pred.includes(lien.source)) pred.push(lien.source);
-    predecesseurs[lien.target] = pred;
-  }
-
-  return { successeurs, predecesseurs };
-}
-
 /* ------------------------------------------------------------------ */
 /* Format DOT (Graphviz)                                               */
 /* ------------------------------------------------------------------ */
@@ -315,33 +292,5 @@ export function exporterJSON(
       inatteignables: resultat.inatteignables.length,
       diametreBFS: Math.max(0, ...resultat.profondeurs.values()),
     },
-  };
-}
-
-/* ------------------------------------------------------------------ */
-/* Export combiné                                                      */
-/* ------------------------------------------------------------------ */
-
-export interface ExportComplet {
-  json: ExportJSON;
-  dot: string;
-  matrice: MatriceAdjacence;
-  liste: ListeAdjacence;
-}
-
-/**
- * Produit tous les formats d'un coup — le point d'entrée unique pour un
- * script d'analyse ou une page de développement.
- */
-export function exporterWorkflowComplet(
-  resultat: ResultatBFS,
-  graphe: GrapheWorkflow,
-  racine = "page:/",
-): ExportComplet {
-  return {
-    json: exporterJSON(resultat, graphe, racine),
-    dot: exporterDOT(resultat.noeuds, resultat.liens),
-    matrice: matriceAdjacence(resultat.noeuds, resultat.liens),
-    liste: listeAdjacence(resultat.liens),
   };
 }

@@ -58,10 +58,4 @@ export function amorceMethode(codeCompetence?: string): string {
     : "Peux-tu me rappeler les notions théoriques clés et la démarche type pour aborder cet exercice ?";
 }
 
-/** Vérification du début de raisonnement sans dévoiler la solution. */
-export function amorceVerification(codeCompetence?: string): string {
-  return codeCompetence
-    ? `Voici mon début de raisonnement sur ${codeCompetence}, peux-tu me dire si je suis sur la bonne voie sans me donner la réponse ?\n\n`
-    : "Voici mon début de raisonnement, peux-tu me dire si je suis sur la bonne voie sans me donner la réponse ?\n\n";
-}
 

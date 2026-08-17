@@ -3,8 +3,6 @@ import { parcourirWorkflow, type GrapheWorkflow } from "./workflow-graphe";
 import {
   exporterDOT,
   exporterJSON,
-  exporterWorkflowComplet,
-  listeAdjacence,
   matriceAdjacence,
 } from "./workflow-export";
 
@@ -81,22 +79,6 @@ describe("matriceAdjacence", () => {
     const { matrice, nombreAretes } = matriceAdjacence(noeuds, liens);
     expect(matrice).toEqual([[0]]);
     expect(nombreAretes).toBe(0);
-  });
-});
-
-describe("listeAdjacence", () => {
-  it("construit les successeurs et prédécesseurs dédupliqués", () => {
-    const liens = [
-      { source: "a", target: "b", type: "navigation" as const, libelle: "A→B" },
-      { source: "a", target: "b", type: "navigation" as const, libelle: "A→B (2)" },
-      { source: "b", target: "c", type: "navigation" as const, libelle: "B→C" },
-    ];
-    const { successeurs, predecesseurs } = listeAdjacence(liens);
-
-    expect(successeurs.a).toEqual(["b"]);
-    expect(successeurs.b).toEqual(["c"]);
-    expect(predecesseurs.b).toEqual(["a"]);
-    expect(predecesseurs.c).toEqual(["b"]);
   });
 });
 
@@ -202,32 +184,5 @@ describe("exporterJSON", () => {
     const relu = JSON.parse(JSON.stringify(json)) as typeof json;
     expect(relu.noeuds).toHaveLength(json.noeuds.length);
     expect(relu.liens).toHaveLength(json.liens.length);
-  });
-});
-
-describe("exporterWorkflowComplet", () => {
-  it("produit tous les formats d'un coup", () => {
-    const resultat = parcourirWorkflow(GRAPHE_TEST, "page:/");
-    const complet = exporterWorkflowComplet(resultat, GRAPHE_TEST, "page:/");
-
-    expect(complet.json.format).toBe("workflow-graphe");
-    expect(complet.dot).toContain("digraph workflow {");
-    expect(complet.matrice.noeuds.length).toBe(resultat.noeuds.length);
-    expect(complet.matrice.matrice.length).toBe(resultat.noeuds.length);
-    expect(complet.liste.successeurs).toBeDefined();
-    expect(complet.liste.predecesseurs).toBeDefined();
-  });
-
-  it("la matrice est carrée et binaire", () => {
-    const resultat = parcourirWorkflow(GRAPHE_TEST, "page:/");
-    const complet = exporterWorkflowComplet(resultat, GRAPHE_TEST, "page:/");
-    const n = complet.matrice.noeuds.length;
-    expect(complet.matrice.matrice).toHaveLength(n);
-    for (const ligne of complet.matrice.matrice) {
-      expect(ligne).toHaveLength(n);
-      for (const valeur of ligne) {
-        expect(valeur === 0 || valeur === 1).toBe(true);
-      }
-    }
   });
 });

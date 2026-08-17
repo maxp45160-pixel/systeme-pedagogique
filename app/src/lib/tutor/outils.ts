@@ -1522,17 +1522,6 @@ export function parsePropositionContenuActivite(
   return recue?.genre === "contenu-activite" ? recue.contenu : null;
 }
 
-/** Revalide une proposition d'évaluation sérialisée avant revue humaine. */
-export function parsePropositionEvaluationProjet(
-  valeur: unknown,
-  criterionIds: readonly string[],
-): PropositionEvaluationProjet | null {
-  const entree = objet(valeur);
-  if (!entree) return null;
-  const recue = validerEvaluationProjet(entree, new Set(criterionIds));
-  return recue?.genre === "evaluation-projet" ? recue.evaluation : null;
-}
-
 function idsCriteresEvaluation(outils: OutilTuteur[]): Set<string> {
   const outil = outils.find((o) => o.nom === OUTIL_EVALUATION_PROJET);
   const ids = outil?.schema.properties?.criteres?.items?.properties?.critere_id?.enum ?? [];

@@ -292,23 +292,6 @@ export function groupePourChemin(relatif: string): GroupeWorkflow {
   return "dashboard";
 }
 
-export function couleurGroupe(groupe: GroupeWorkflow): string {
-  switch (groupe) {
-    case "dashboard":
-      return "#2f6f4f22";
-    case "seances":
-      return "#3b82f622";
-    case "exercice":
-      return "#f59e0b22";
-    case "atelier":
-      return "#8b5cf622";
-    case "tuteur":
-      return "#06b6d422";
-    case "profil":
-      return "#64748b22";
-  }
-}
-
 export function cheminVersRoute(relatifApp: string): string | null {
   const norm = relatifApp.replace(/\\/g, "/");
   const match = norm.match(/(?:^|\/)(page)\.(tsx|ts|js|jsx)$/);
@@ -329,17 +312,6 @@ export function cheminVersRoute(relatifApp: string): string | null {
   }).join("/");
 
   return route === "" ? "/" : route;
-}
-
-export function routeVersId(route: string): string {
-  if (route === "/") return "page:/";
-  const sanitized = route
-    .replace(/^\//, "")
-    .replace(/[{}]/g, "")
-    .replace(/\//g, "-")
-    .replace(/\?/g, "-")
-    .replace(/=/g, "-");
-  return `page:/${sanitized}`;
 }
 
 const cacheContenus = new Map<string, { mtimeMs: number; contenu: string }>();

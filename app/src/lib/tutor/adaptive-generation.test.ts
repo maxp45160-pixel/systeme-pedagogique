@@ -2,13 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import type { MoteurTuteur } from "./moteurs";
 import {
-  construirePromptEvaluationProjet,
   construirePromptGenerationActivite,
   erreursContratGenerationActivite,
   genererContenuActivite,
-  proposerEvaluationProjet,
   type ContratGenerationActivite,
-  type DemandeEvaluationProjet,
 } from "./adaptive-generation";
 import {
   OUTIL_EVALUATION_PROJET,
@@ -106,21 +103,6 @@ const CONTENU_PROJET = {
     conseils_realisation: ["Relie chaque paramètre à sa source."],
     consigne_soumission: "Relis les critères puis soumets une version figée.",
   },
-};
-
-const DEMANDE_EVALUATION: DemandeEvaluationProjet = {
-  titre: "Dimensionner l'accueil d'un atelier",
-  brief: PRODUCTION.objectif,
-  artefact: {
-    id: "snapshot-1",
-    type: "contenu-copie",
-    contenu: "J'estime les arrivées à 12/h et je retiens deux postes car…",
-  },
-  criteres: PRODUCTION.contratEvaluation,
-  ressourcesAutorisees: PRODUCTION.ressourcesAutorisees,
-  aidesObservees: [
-    { type: "ressource", description: "Formulaire consulté", ressourceId: "formulaire" },
-  ],
 };
 
 const EVALUATION = {
@@ -256,55 +238,5 @@ describe("génération adaptative one-shot", () => {
     const resultat = await genererContenuActivite(moteur, incoherent);
     expect(appele).toBe(false);
     expect(resultat.proposition).toBeNull();
-  });
-});
-
-describe("proposition d'évaluation projet", () => {
-  it("rappelle qu'elle n'est ni finale ni probante", () => {
-    const prompt = construirePromptEvaluationProjet(DEMANDE_EVALUATION);
-    expect(prompt).toContain("n'est ni une évaluation finale ni une preuve");
-    expect(prompt).toContain("N'attribue ni niveau de compétence");
-    expect(prompt).toContain("ressource déclarée d'usage normal n'est pas une perte d'autonomie");
-  });
-
-  it("retient une proposition exhaustive sans produire de preuve", async () => {
-    const resultat = await proposerEvaluationProjet(
-      moteurQuiAppelle(OUTIL_EVALUATION_PROJET, EVALUATION),
-      DEMANDE_EVALUATION,
-    );
-    expect(resultat.erreur).toBeNull();
-    expect(resultat.proposition?.criteres).toHaveLength(2);
-    expect(resultat.proposition).not.toHaveProperty("qualitePreuve");
-    expect(resultat.proposition).not.toHaveProperty("autonomie");
-  });
-
-  it("refuse un simple lien modifiable comme artefact figé", async () => {
-    let appele = false;
-    const moteur = { async repondre() { appele = true; } } as unknown as MoteurTuteur;
-    const demande = {
-      ...DEMANDE_EVALUATION,
-      artefact: { id: "https://example.test/doc", type: "lien-modifiable", contenu: "" },
-    } as unknown as DemandeEvaluationProjet;
-    const resultat = await proposerEvaluationProjet(moteur, demande);
-    expect(appele).toBe(false);
-    expect(resultat.erreur).toContain("artefact figé invalide");
-  });
-
-  it("ne relaie pas la prose susceptible de recopier l'artefact", async () => {
-    const moteur = {
-      async repondre({ envoyer }) {
-        envoyer("texte", { delta: DEMANDE_EVALUATION.artefact.contenu });
-        const proposition = validerAppelOutil(
-          OUTIL_EVALUATION_PROJET,
-          EVALUATION,
-          [outilEvaluationProjet(PRODUCTION.contratEvaluation)],
-        );
-        envoyer("proposition", proposition);
-      },
-    } as MoteurTuteur;
-    const diffuses: string[] = [];
-    await proposerEvaluationProjet(moteur, DEMANDE_EVALUATION, undefined, (e) => diffuses.push(e));
-    expect(diffuses).not.toContain("texte");
-    expect(diffuses).toContain("proposition");
   });
 });
