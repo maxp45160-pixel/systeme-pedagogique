@@ -87,15 +87,16 @@ export function reponseSuffisante(reponse: string | null | undefined): boolean {
 /**
  * Pourquoi le bilan est fermé, ou `null` s'il est ouvert.
  *
- * Le message nomme **le bouton** à cliquer, pas l'intention : la zone de
- * réponse exige un « Enregistrer le brouillon » explicite (choix délibéré de
- * `zone-reponse.tsx`), donc du texte à l'écran ne suffit pas — c'est ce que la
- * base porte qui compte. Sans ce détail, le message enverrait l'utilisateur
- * regarder un champ qu'il a déjà rempli.
+ * La condition porte sur ce que la BASE porte (`attempts.reponse`), et non sur
+ * le texte à l'écran : la zone de réponse enregistre automatiquement, mais la
+ * valeur figée ici vient du rendu serveur. Un message qui dirait seulement
+ * « rédige ta réponse » enverrait l'utilisateur regarder un champ qu'il a déjà
+ * rempli. Le message dit donc ce qui manque : la trace à partir de laquelle le
+ * tuteur fera la correction.
  */
 export function motifBlocageBilan(reponse: string | null | undefined): string | null {
   if (reponseSuffisante(reponse)) return null;
-  return "Le bilan demande ta réponse écrite. Rédige-la puis clique « Enregistrer le brouillon » : c'est la trace du raisonnement, et c'est elle que le tuteur relira pour te proposer une correction.";
+  return "Le bilan demande ta réponse écrite. Rédige-la : elle est enregistrée automatiquement, et c'est cette trace que le tuteur relira pour te proposer une correction.";
 }
 
 export interface SoumissionTerminerExercice {

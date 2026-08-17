@@ -497,10 +497,11 @@ export async function VueExercice(props: {
               tuteur — ou le blocage qui l'empêche — reste déployé.
 
               La condition `reponseSuffisante` porte sur `enCours.reponse` —
-              ce que la BASE porte — et non sur le texte à l'écran :
-              `zone-reponse.tsx` exige un « Enregistrer le brouillon »
-              explicite. D'où le message, qui nomme le bouton plutôt que
-              l'intention.
+              ce que la BASE porte — et non sur le texte à l'écran : la zone
+              de réponse enregistre automatiquement en base, mais cette
+              valeur-là est figée au rendu serveur. La navigation vers le
+              bilan relit la base. D'où le message, qui dit que la trace
+              écrite manque.
 
               Mesuré le 07/08/2026 : 16 des 37 tentatives terminées n'avaient
               aucune réponse. La règle change donc réellement le parcours, et

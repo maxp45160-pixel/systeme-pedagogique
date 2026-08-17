@@ -28,8 +28,7 @@ describe("reponseSuffisante", () => {
   });
 
   it("refuse une réponse faite d'espaces et de sauts de ligne", () => {
-    // Le brouillon est enregistré par un clic explicite : un champ « nettoyé »
-    // puis enregistré ne doit pas rouvrir le bilan.
+    // Un champ « nettoyé » de toute frappe réelle ne doit pas rouvrir le bilan.
     expect(reponseSuffisante("   \n\t  \r\n ")).toBe(false);
   });
 
@@ -54,15 +53,15 @@ describe("motifBlocageBilan", () => {
     expect(motifBlocageBilan("une démarche")).toBeNull();
   });
 
-  it("nomme le bouton à cliquer, pas seulement l'intention", () => {
+  it("dit ce qui manque — la trace écrite, pas un geste d'enregistrement", () => {
     /*
-     * `zone-reponse.tsx` exige un « Enregistrer le brouillon » explicite : le
-     * texte à l'écran ne suffit pas, c'est ce que la base porte qui compte.
-     * Un message qui dirait seulement « rédige ta réponse » enverrait
-     * l'utilisateur regarder un champ qu'il a déjà rempli.
+     * La zone de réponse enregistre automatiquement en base : il n'y a plus de
+     * bouton à nommer. Le message dit donc que la réponse est manquante et
+     * qu'elle est enregistrée d'elle-même — c'est ce que la base portera que le
+     * tuteur lira, pas un prétendu texte à l'écran.
      */
     const motif = motifBlocageBilan("");
-    expect(motif).toContain("Enregistrer le brouillon");
+    expect(motif).toContain("enregistrée automatiquement");
   });
 });
 
@@ -101,7 +100,7 @@ describe("motifRefusTerminerExercice", () => {
 
   it("refuse une réponse absente — l'ouverture du bilan reste verrouillée", () => {
     const motif = motifRefusTerminerExercice({ ...avant, reponse: "   " }, soumission);
-    expect(motif).toContain("Enregistrer le brouillon");
+    expect(motif).toContain("enregistrée automatiquement");
   });
 
   it("accepte une soumission cohérente", () => {
