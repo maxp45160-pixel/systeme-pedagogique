@@ -166,6 +166,325 @@
     }
   }
 
+  /*
+    Le cahier relié — la page cesse d'être une carte posée sur le bureau.
+
+    Trois pièces, et chacune répond à une question que la carte laissait sans
+    réponse : où est la reliure (à quoi ce feuillet tient-il ?), combien de
+    feuillets restent dessous (le cahier a-t-il une épaisseur ?), et où l'on en
+    est dans la semaine (la tranche, rendue en TSX).
+
+    La grille tient deux colonnes : le dos, et le feuillet. Sur mobile le dos se
+    réduit — un pouce de large suffit à dire « relié », et l'écran appartient au
+    texte.
+
+    ⚠️ `align-items: start` : sans lui, les colonnes s'étirent à la hauteur de la
+    rangée et la pile de feuillets déborde sous une page courte, en un grand
+    aplat beige qui ne représente rien.
+  */
+  .cahier-relie {
+    position: relative;
+    display: grid;
+    grid-template-columns: 2.5rem minmax(0, 1fr);
+    align-items: stretch;
+  }
+  @media (max-width: 640px) {
+    /* Assez large pour porter le ruban, assez étroit pour laisser l'écran au texte. */
+    .cahier-relie {
+      grid-template-columns: 1.75rem minmax(0, 1fr);
+    }
+  }
+
+  .reliure {
+    position: relative;
+    border-radius: var(--coin-carte) 0 0 var(--coin-carte);
+    background: linear-gradient(90deg, var(--rail-2), var(--rail) 55%, var(--rail-2));
+    box-shadow: inset -1px 0 0 var(--rail-bordure), var(--ombre-posee);
+  }
+  /* La surpiqûre du dos toilé. Décorative, donc en pseudo-élément. */
+  .reliure::before {
+    content: "";
+    position: absolute;
+    inset: 0.9rem auto 0.9rem 50%;
+    border-left: 1.5px dashed var(--rail-texte-discret);
+    opacity: 0.45;
+  }
+
+  /*
+    Les feuillets restants, sous celui qu'on lit. Deux suffisent : au troisième,
+    l'œil ne compte plus, il voit une ombre sale.
+  */
+  .pile-feuillets {
+    position: relative;
+    /*
+      La pile épouse la hauteur du feuillet, jamais celle de la rangée : étirée,
+      elle peignait un aplat de papier sous une page courte.
+    */
+    align-self: start;
+  }
+  .pile-feuillets::before,
+  .pile-feuillets::after {
+    content: "";
+    position: absolute;
+    inset: 0.25rem -0.3rem -0.3rem 0.1rem;
+    border-radius: 0 var(--coin-carte) var(--coin-carte) 0;
+    background: var(--surface-2);
+    box-shadow: 0 1px 0 var(--bordure);
+    pointer-events: none;
+  }
+  .pile-feuillets::after {
+    inset: 0.5rem -0.6rem -0.6rem 0.2rem;
+    opacity: 0.7;
+  }
+
+  /*
+    Le feuillet relié : mêmes réglure et marge que `.page-cahier`, mais attaché
+    au dos — pas de bord gauche, pas de coins à gauche, et le pli qui court
+    contre la reliure.
+
+    ⚠️ La réglure est redéclarée telle quelle : `background-image` ne se cumule
+    pas d'une règle à l'autre, et le pli doit passer AU-DESSUS d'elle.
+  */
+  .page-cahier.reliee {
+    position: relative;
+    z-index: 1;
+    border-left: 0;
+    border-radius: 0 var(--coin-carte) var(--coin-carte) 0;
+    background-image:
+      linear-gradient(90deg, var(--pli), transparent 3rem),
+      repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent 25px,
+        var(--reglure) 25px,
+        var(--reglure) 26px
+      );
+  }
+
+  /*
+    Le tour de page — la scène, la feuille, et ce qui la rend crédible.
+
+    Trois choses font le papier, et la rotation est la moins importante des
+    trois : c'est le **lustre** qui balaie la feuille pendant qu'elle pivote, et
+    l'**ombre** qu'elle jette sur le feuillet qui se découvre, qui donnent
+    l'épaisseur. Une rotation seule ressemble à un carton qui tourne.
+
+    Le calque est posé par `tourne-page.tsx` : il est décoratif, jamais lu, et
+    disparaît dès la rotation finie.
+  */
+  .tourne-page {
+    position: relative;
+    perspective: 2400px;
+    perspective-origin: 12% 45%;
+  }
+
+  /*
+    L'hôte occupe exactement la scène sans jamais la couvrir : les coordonnées
+    du calque sont mesurées dans son repère, pas dans celui de la page.
+  */
+  .hote-du-tour {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    /*
+      La feuille reste dans le cadre du feuillet. Sans cette coupe, elle passe
+      par-dessus la reliure et la barre latérale pendant qu'elle pivote : un
+      grand pan de papier qui traverse l'écran, là où le geste ne devrait
+      appartenir qu'à la page.
+    */
+    overflow: hidden;
+    border-radius: 0 var(--coin-carte) var(--coin-carte) 0;
+  }
+
+  .feuillet-tournant {
+    position: absolute;
+    z-index: 20;
+    transform-style: preserve-3d;
+    transform-origin: left center;
+    pointer-events: none;
+    will-change: transform;
+  }
+  /*
+    Revenir en arrière, c'est le même geste par l'autre bord : la feuille se
+    soulève côté tranche et part vers la droite. Trois pièces basculent
+    ensemble — la charnière, le sens du reflet, le côté de l'ombre — et les
+    dissocier donnerait une feuille qui pivote d'un côté en s'ombrant de
+    l'autre.
+  */
+  .feuillet-tournant.vers-la-droite {
+    transform-origin: right center;
+  }
+
+  .face-feuillet {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    backface-visibility: hidden;
+    border: 1px solid var(--bordure);
+    border-left: 0;
+    border-radius: 0 var(--coin-carte) var(--coin-carte) 0;
+    background-color: var(--surface);
+    background-image:
+      linear-gradient(90deg, var(--pli), transparent 3rem),
+      repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent 25px,
+        var(--reglure) 25px,
+        var(--reglure) 26px
+      );
+    box-shadow: var(--ombre-levee);
+  }
+
+  /*
+    Le dos de la feuille : réglé, vierge, et son pli du côté opposé — c'est le
+    même papier vu de l'autre face, pas une seconde feuille.
+  */
+  .face-feuillet.verso {
+    transform: rotateY(180deg);
+    background-image:
+      linear-gradient(270deg, var(--pli), transparent 3rem),
+      repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent 25px,
+        var(--reglure) 25px,
+        var(--reglure) 26px
+      );
+    filter: brightness(0.97);
+  }
+
+  /*
+    Le voile : la feuille vierge posée sous celle qui tourne, le temps que le
+    serveur rende le feuillet rejoint. Même papier, même réglure, aucun
+    contenu — c'est une page pas encore écrite, pas un écran de chargement.
+  */
+  .voile-feuillet {
+    position: absolute;
+    z-index: 18;
+    pointer-events: none;
+    border: 1px solid var(--bordure);
+    border-left: 0;
+    border-radius: 0 var(--coin-carte) var(--coin-carte) 0;
+    background-color: var(--surface);
+    background-image:
+      linear-gradient(90deg, var(--pli), transparent 3rem),
+      repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent 25px,
+        var(--reglure) 25px,
+        var(--reglure) 26px
+      );
+  }
+
+  /* La photo du feuillet quitté, recopiée telle quelle et jamais interactive. */
+  .photo-feuillet {
+    position: absolute;
+    inset: 0;
+    padding: 1.25rem 1rem 2.5rem 1.35rem;
+    pointer-events: none;
+  }
+  @media (min-width: 640px) {
+    .photo-feuillet {
+      padding: 1.25rem 1.5rem 2.5rem 3.5rem;
+    }
+  }
+
+  /*
+    Le lustre : le reflet qui court sur la feuille pendant qu'elle se soulève.
+    Il assombrit près du pli, éclaircit vers le milieu — un reflet, pas un
+    voile. Les valeurs sont volontairement basses : au-delà, ce n'est plus la
+    feuille qu'on regarde bouger, c'est la tache.
+  */
+  .lustre-feuillet {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    pointer-events: none;
+    background: linear-gradient(
+      100deg,
+      rgb(0 0 0 / 0.14) 0%,
+      rgb(0 0 0 / 0.03) 26%,
+      rgb(255 255 255 / 0.1) 52%,
+      rgb(0 0 0 / 0.04) 80%,
+      rgb(0 0 0 / 0.12) 100%
+    );
+  }
+  .lustre-feuillet.vers-la-droite {
+    background: linear-gradient(
+      260deg,
+      rgb(0 0 0 / 0.14) 0%,
+      rgb(0 0 0 / 0.03) 26%,
+      rgb(255 255 255 / 0.1) 52%,
+      rgb(0 0 0 / 0.04) 80%,
+      rgb(0 0 0 / 0.12) 100%
+    );
+  }
+
+  /*
+    L'ombre portée par la feuille sur le feuillet qui se découvre. Elle tient
+    contre la reliure, là où deux papiers se touchent, et s'éteint au tiers.
+  */
+  .ombre-du-pli {
+    position: absolute;
+    z-index: 19;
+    opacity: 0;
+    pointer-events: none;
+    border-radius: 0 var(--coin-carte) var(--coin-carte) 0;
+    background: linear-gradient(90deg, rgb(0 0 0 / 0.34), rgb(0 0 0 / 0.08) 22%, transparent 40%);
+  }
+  .ombre-du-pli.vers-la-droite {
+    background: linear-gradient(270deg, rgb(0 0 0 / 0.34), rgb(0 0 0 / 0.08) 22%, transparent 40%);
+  }
+
+  /*
+    Le ruban : le marque-page cousu en tête de cahier.
+
+    Il remplace un bouton « Aujourd'hui » perdu dans une rangée de quatre par le
+    geste que l'objet possède déjà — on tire le ruban pour revenir à la page où
+    l'on écrit. La découpe en V est celle d'un signet, pas un ornement : c'est
+    elle qui le distingue d'une étiquette collée.
+  */
+  .ruban-marque-page {
+    position: absolute;
+    top: -0.65rem;
+    /*
+      Sur la reliure, pas sur la page : un ruban est cousu au dos, et posé sur
+      le coin haut-droit il recouvrait la navigation du feuillet. La valeur le
+      centre sur la colonne du dos (2,5 rem de large), d'où le décalage négatif.
+    */
+    left: -2.2rem;
+    z-index: 3;
+    width: 1.9rem;
+    padding: 0.5rem 0 1.05rem;
+    text-align: center;
+    color: var(--primaire-contraste);
+    background: linear-gradient(180deg, var(--primaire-fort), var(--primaire));
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 82%, 0 100%);
+    box-shadow: var(--ombre-levee);
+    font-size: 0.625rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    transition: transform 0.22s var(--courbe-sortie);
+  }
+  .ruban-marque-page > span {
+    writing-mode: vertical-rl;
+    display: inline-block;
+  }
+  a.ruban-marque-page:hover,
+  a.ruban-marque-page:focus-visible {
+    transform: translateY(0.3rem);
+  }
+  @media (max-width: 640px) {
+    /* Le dos est plus étroit sur mobile : le ruban se cale dessus, rétréci. */
+    .ruban-marque-page {
+      left: -1.6rem;
+      width: 1.4rem;
+      font-size: 0.5625rem;
+    }
+  }
+
   /* Prose sobre pour les énoncés et corrections d'exercices. */
   .prose-exo {
     line-height: 1.7;

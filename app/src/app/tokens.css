@@ -137,6 +137,13 @@
     jamais concurrencer le texte qu'elle porte.
   */
   --reglure: rgb(38 33 23 / 0.06);
+  /*
+    Le pli — l'ombre que porte une feuille contre la reliure. C'est ce qui
+    distingue un cahier relié d'une feuille volante : sans lui, la page flotte.
+    Plus soutenu que la réglure, car il doit se lire sur trois centimètres de
+    dégradé et non sur un trait.
+  */
+  --pli: rgb(38 33 23 / 0.10);
 
   /* ── Ombres · trois niveaux d'élévation, pas un de plus ───────── */
   --ombre-posee: 0 1px 0 rgb(201 189 159 / 0.6), 0 1px 2px rgb(38 33 23 / 0.04);
@@ -218,6 +225,8 @@
   --grille: rgb(240 234 221 / 0.03);
   --marge: #57342c;
   --reglure: rgb(240 234 221 / 0.055);
+  /* En sombre, le pli est une vraie ombre : le papier est éteint, pas éclairé. */
+  --pli: rgb(0 0 0 / 0.45);
 
   --ombre-posee: 0 1px 0 rgb(0 0 0 / 0.4), 0 1px 2px rgb(0 0 0 / 0.25);
   --ombre-levee: 0 2px 4px -1px rgb(0 0 0 / 0.5), 0 4px 12px -2px rgb(0 0 0 / 0.35);

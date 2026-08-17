@@ -39,6 +39,34 @@ export type EtapeRecherche = {
   abandon?: string;
 };
 
+/*
+  Les panneaux des intercalaires.
+  ------------------------------------------------------------------
+  Sur mobile, un panneau flottant ancré à sa languette sortirait de
+  l'écran : il devient une nappe `fixed`, large de la fenêtre. Au-delà,
+  il s'ancre à sa languette — et l'ancrage suit l'alignement des
+  languettes elles-mêmes :
+
+   - **sur la page du cahier**, elles commencent à gauche (les onglets
+     d'un séparateur) : le panneau s'ouvre donc à partir du bord gauche.
+     Le centrer sur une languette de gauche le faisait déborder du cadre,
+     que `overflow-hidden` coupait net ;
+   - **en plein écran**, elles sont centrées comme le reste du bandeau :
+     le panneau l'est aussi.
+
+  ⚠️ Les quatre variantes sont écrites en toutes lettres : Tailwind lit
+  les classes dans la source, une chaîne assemblée à l'exécution ne
+  produirait aucun style.
+*/
+const CLASSES_PANNEAU_BASE =
+  "fixed left-4 right-4 top-28 z-30 mt-2 shadow-xl sm:absolute sm:right-auto sm:top-auto";
+const CLASSES_PANNEAU_CADRE = "rounded-lg border border-bordure bg-surface p-3";
+
+const PANNEAU_LARGE_GAUCHE = "sm:left-0 sm:translate-x-0 sm:w-[min(34rem,calc(100vw-6rem))]";
+const PANNEAU_LARGE_CENTRE = "sm:left-1/2 sm:-translate-x-1/2 sm:w-[min(34rem,calc(100vw-2rem))]";
+const PANNEAU_ETROIT_GAUCHE = "sm:left-0 sm:translate-x-0 sm:w-[min(24rem,calc(100vw-6rem))]";
+const PANNEAU_ETROIT_CENTRE = "sm:left-1/2 sm:-translate-x-1/2 sm:w-[min(24rem,calc(100vw-2rem))]";
+
 const LIBELLES_STATUT = {
   planifiee: { texte: "Planifiée", ton: "info" as const },
   "en-cours": { texte: "En cours", ton: "primaire" as const },
@@ -162,6 +190,11 @@ export async function VueSeanceDetail({
   const jourDeLaPage = jourDeLaSeance(seance);
   const urlSeance = `/seances?session=${encodeURIComponent(seance.id)}`;
 
+  // Les languettes suivent le bandeau : à gauche sur la page, centrées en
+  // plein écran — et leurs panneaux s'ancrent du même côté.
+  const panneauLarge = `${CLASSES_PANNEAU_BASE} ${CLASSES_PANNEAU_CADRE} ${plein ? PANNEAU_LARGE_CENTRE : PANNEAU_LARGE_GAUCHE}`;
+  const panneauMinuteur = `${CLASSES_PANNEAU_BASE} ${plein ? PANNEAU_ETROIT_CENTRE : PANNEAU_ETROIT_GAUCHE}`;
+
   return (
     <div
       className={
@@ -219,20 +252,31 @@ export async function VueSeanceDetail({
           </div>
         </div>
         {statut === "en-cours" && (
-          <div className="border-t border-bordure/60 px-4 py-2 sm:px-6">
+          /*
+            Les outils de la séance sont les intercalaires du cahier : des
+            languettes posées sur la ligne, alignées à gauche comme les onglets
+            d'un séparateur. Ils étaient une barre de pastilles centrée et
+            flottante — le vocabulaire d'une application posée sur la page, pas
+            celui de l'objet qui la porte.
+          */
+          <div className={`px-4 sm:px-6 ${plein ? "mx-auto w-full max-w-7xl" : ""}`}>
             <nav
               aria-label="Outils de séance"
-              className="mx-auto flex w-fit max-w-full flex-wrap items-center justify-center gap-1 rounded-xl border border-bordure bg-surface/95 p-1 shadow-sm backdrop-blur"
+              className={`flex max-w-full flex-wrap items-end gap-0.5 border-b border-bordure ${
+                plein ? "justify-center" : ""
+              }`}
             >
               <OutilSeance
+                variante="intercalaire"
                 libelle="Exercices"
-                contenuClassName="fixed left-4 right-4 top-28 z-30 mt-2 rounded-lg border border-bordure bg-surface p-3 shadow-xl sm:absolute sm:left-1/2 sm:right-auto sm:top-auto sm:w-[min(34rem,calc(100vw-2rem))] sm:-translate-x-1/2"
+                contenuClassName={panneauLarge}
               >
                 <ListeActivites activites={activites} parId={parId} avancement={avancement} seanceId={seance.id} plein={plein} compacte />
               </OutilSeance>
               <OutilSeance
+                variante="intercalaire"
                 libelle="Pomodoro"
-                contenuClassName="fixed left-4 right-4 top-28 z-30 mt-2 shadow-xl sm:absolute sm:left-1/2 sm:right-auto sm:top-auto sm:w-[min(24rem,calc(100vw-2rem))] sm:-translate-x-1/2"
+                contenuClassName={panneauMinuteur}
               >
                 <Pomodoro compteId={ctx.donnees.user.id} />
               </OutilSeance>
@@ -243,8 +287,9 @@ export async function VueSeanceDetail({
                 était l'annotation d'une séance déjà terminée.
               */}
               <OutilSeance
+                variante="intercalaire"
                 libelle="Marge"
-                contenuClassName="fixed left-4 right-4 top-28 z-30 mt-2 rounded-lg border border-bordure bg-surface p-3 shadow-xl sm:absolute sm:left-1/2 sm:right-auto sm:top-auto sm:w-[min(34rem,calc(100vw-2rem))] sm:-translate-x-1/2"
+                contenuClassName={panneauLarge}
               >
                 <MargeCahier lignes={marge} compteId={ctx.donnees.user.id} compacte />
               </OutilSeance>
@@ -258,6 +303,7 @@ export async function VueSeanceDetail({
                   competencesModale={competencesPourModale(ctx.referentiel.actifs)}
                   calibragesModale={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
                   libelle="Tuteur IA"
+                  declencheur="intercalaire"
                 />
               )}
             </nav>

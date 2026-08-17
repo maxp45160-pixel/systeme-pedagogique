@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   construirePage,
   extraireDocumentsOperationnels,
+  feuilletsDeLaPage,
+  feuilletsParJour,
+  folioDuFeuillet,
   grilleMois,
   jourDeLaSeance,
   jourValide,
@@ -10,7 +13,10 @@ import {
   moisValide,
   pageDOuverture,
   pageEstVide,
+  rangDOuverture,
+  rangValide,
   voisinesDeLaPage,
+  voisinsDuFeuillet,
 } from "./pages-cahier";
 import type { LearningSession } from "./types";
 
@@ -171,6 +177,169 @@ describe("construirePage", () => {
     const page = construirePage("2026-08-01", entrees);
     expect(pageEstVide(page)).toBe(true);
     expect(page.jour).toBe("2026-08-01");
+  });
+});
+
+describe("feuilletsDeLaPage", () => {
+  const entrees = {
+    seances: [
+      seance({ id: "seance-matin", date: "2026-08-14T09:00:00.000Z" }),
+      seance({ id: "seance-soir", date: "2026-08-14T18:00:00.000Z" }),
+      seance({ id: "trace", date: "2026-08-14T11:00:00.000Z", genereAutomatiquement: true }),
+    ],
+    notes: [{ notee: "2026-08-14" }],
+    projets: [],
+  };
+
+  it("donne un feuillet par séance, puis un feuillet de clôture", () => {
+    // La coupe suit une frontière qui existe déjà dans les données : une
+    // séance a un début, une fin, une durée.
+    const feuillets = feuilletsDeLaPage(construirePage("2026-08-14", entrees));
+    expect(feuillets.map((f) => f.type)).toEqual(["seance", "seance", "cloture"]);
+    expect(feuillets.map((f) => f.rang)).toEqual([1, 2, 3]);
+    expect(feuillets.every((f) => f.total === 3)).toBe(true);
+    expect(feuillets.every((f) => f.jour === "2026-08-14")).toBe(true);
+  });
+
+  it("porte les traces, notes et projets sur le feuillet de clôture", () => {
+    const feuillets = feuilletsDeLaPage(construirePage("2026-08-14", entrees));
+    const cloture = feuillets.at(-1);
+    if (cloture?.type !== "cloture") throw new Error("le dernier feuillet doit être la clôture");
+    expect(cloture.traces.map((s) => s.id)).toEqual(["trace"]);
+    expect(cloture.notes).toEqual([{ notee: "2026-08-14" }]);
+    expect(cloture.projets).toEqual([]);
+  });
+
+  it("n'ajoute pas de clôture quand le jour n'a que ses séances", () => {
+    const feuillets = feuilletsDeLaPage(
+      construirePage("2026-08-14", { seances: [seance({ id: "seule" })], notes: [] }),
+    );
+    expect(feuillets).toHaveLength(1);
+    expect(feuillets[0].type).toBe("seance");
+  });
+
+  it("rend un feuillet unique pour un jour vierge : c'est là qu'on écrit", () => {
+    const feuillets = feuilletsDeLaPage(construirePage("2026-08-01", entrees));
+    expect(feuillets).toHaveLength(1);
+    expect(feuillets[0]).toMatchObject({ type: "cloture", rang: 1, total: 1 });
+  });
+});
+
+describe("rangValide", () => {
+  it("accepte un rang entier à partir de 1 et refuse le reste sans rien deviner", () => {
+    expect(rangValide("1")).toBe(1);
+    expect(rangValide("12")).toBe(12);
+    expect(rangValide("0")).toBeNull();
+    expect(rangValide("-2")).toBeNull();
+    expect(rangValide("1.5")).toBeNull();
+    expect(rangValide("dernier")).toBeNull();
+    expect(rangValide(undefined)).toBeNull();
+  });
+});
+
+describe("rangDOuverture", () => {
+  it("ouvre au premier feuillet quand l'URL n'en désigne aucun", () => {
+    expect(rangDOuverture(null, 3)).toBe(1);
+  });
+
+  it("ramène un rang hors bornes dans le jour plutôt que de rendre une page vide", () => {
+    // Une séance supprimée depuis, ou un lien recopié à la main.
+    expect(rangDOuverture(9, 3)).toBe(3);
+    expect(rangDOuverture(1, 3)).toBe(1);
+    expect(rangDOuverture(2, 1)).toBe(1);
+  });
+});
+
+describe("voisinsDuFeuillet", () => {
+  const jours = ["2026-08-11", "2026-08-14", "2026-08-16"];
+  const nombres = new Map([
+    ["2026-08-11", 2],
+    ["2026-08-14", 3],
+    ["2026-08-16", 1],
+  ]);
+  const compter = (jour: string) => nombres.get(jour) ?? 1;
+
+  it("tourne à l'intérieur du jour tant qu'il reste des feuillets", () => {
+    expect(voisinsDuFeuillet({ jour: "2026-08-14", rang: 2 }, jours, compter)).toEqual({
+      precedent: { jour: "2026-08-14", rang: 1 },
+      suivant: { jour: "2026-08-14", rang: 3 },
+    });
+  });
+
+  it("passe au jour suivant après le dernier feuillet, et y entre par le premier", () => {
+    expect(voisinsDuFeuillet({ jour: "2026-08-14", rang: 3 }, jours, compter).suivant).toEqual({
+      jour: "2026-08-16",
+      rang: 1,
+    });
+  });
+
+  it("remonte au jour précédent par son dernier feuillet", () => {
+    // On arrive par la fin, comme dans un cahier qu'on remonte.
+    expect(voisinsDuFeuillet({ jour: "2026-08-14", rang: 1 }, jours, compter).precedent).toEqual({
+      jour: "2026-08-11",
+      rang: 2,
+    });
+  });
+
+  it("n'a pas de voisin au-delà des bords du cahier", () => {
+    expect(voisinsDuFeuillet({ jour: "2026-08-11", rang: 1 }, jours, compter).precedent).toBeNull();
+    expect(voisinsDuFeuillet({ jour: "2026-08-16", rang: 1 }, jours, compter).suivant).toBeNull();
+  });
+
+  it("borne un rang hors limites avant de chercher les voisins", () => {
+    expect(voisinsDuFeuillet({ jour: "2026-08-14", rang: 99 }, jours, compter)).toEqual({
+      precedent: { jour: "2026-08-14", rang: 2 },
+      suivant: { jour: "2026-08-16", rang: 1 },
+    });
+  });
+});
+
+describe("feuilletsParJour", () => {
+  it("compte les feuillets de chaque jour en une seule construction", () => {
+    const entrees = {
+      seances: [
+        seance({ id: "a", date: "2026-08-14T09:00:00.000Z" }),
+        seance({ id: "b", date: "2026-08-14T18:00:00.000Z" }),
+        seance({ id: "trace", date: "2026-08-14T11:00:00.000Z", genereAutomatiquement: true }),
+        seance({ id: "c", date: "2026-08-16T09:00:00.000Z" }),
+      ],
+      notes: [{ notee: "2026-08-11" }],
+    };
+    expect(feuilletsParJour(["2026-08-11", "2026-08-14", "2026-08-16"], entrees)).toEqual(
+      new Map([
+        ["2026-08-11", 1],
+        ["2026-08-14", 3],
+        ["2026-08-16", 1],
+      ]),
+    );
+  });
+});
+
+describe("folioDuFeuillet", () => {
+  const jours = ["2026-08-11", "2026-08-14", "2026-08-16"];
+  const nombres = new Map([
+    ["2026-08-11", 2],
+    ["2026-08-14", 3],
+    ["2026-08-16", 1],
+  ]);
+
+  it("numérote le cahier entier, pas le jour", () => {
+    expect(folioDuFeuillet({ jour: "2026-08-11", rang: 1 }, jours, nombres)).toEqual({
+      folio: 1,
+      total: 6,
+    });
+    expect(folioDuFeuillet({ jour: "2026-08-14", rang: 2 }, jours, nombres)).toEqual({
+      folio: 4,
+      total: 6,
+    });
+    expect(folioDuFeuillet({ jour: "2026-08-16", rang: 1 }, jours, nombres)).toEqual({
+      folio: 6,
+      total: 6,
+    });
+  });
+
+  it("borne un rang hors limites au lieu de rendre un folio impossible", () => {
+    expect(folioDuFeuillet({ jour: "2026-08-14", rang: 12 }, jours, nombres).folio).toBe(5);
   });
 });
 

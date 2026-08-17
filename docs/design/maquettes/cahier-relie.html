@@ -1,0 +1,956 @@
+<title>Cahier relié</title>
+
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   Jetons — repris de app/src/app/tokens.css (rampe neutre chaude,
+   vert forêt, prune). Rien d'inventé ici : la maquette parle la
+   même langue que l'application.
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  --neutre-50:#fffdf8; --neutre-100:#f6f2e9; --neutre-200:#efe9db;
+  --neutre-300:#e2d9c6; --neutre-400:#c9bd9f; --neutre-500:#91856d;
+  --neutre-600:#726853; --neutre-700:#5b5240; --neutre-800:#3a3427;
+  --neutre-900:#262117;
+
+  --fond:var(--neutre-100);
+  --surface:var(--neutre-50);
+  --surface-2:var(--neutre-200);
+  --bordure:var(--neutre-300);
+  --bordure-forte:var(--neutre-400);
+  --texte:var(--neutre-900);
+  --texte-attenue:var(--neutre-700);
+  --texte-discret:var(--neutre-600);
+
+  --primaire:#2f6b4f; --primaire-fort:#265a41; --primaire-faible:#e4eee6;
+  --primaire-contraste:#ffffff;
+  --accent:#6d4a7c;
+  --succes:#3d7a2b; --info:#2a6f97; --info-faible:#e8f0f4;
+  --alerte:#9a5a13; --danger:#a83232;
+
+  --grille:rgb(38 33 23 / .035);
+  --marge:#ddb9ab;
+  --reglure:rgb(38 33 23 / .06);
+
+  --papier-haut:#fffdf8;
+  --papier-bas:#f7f2e6;
+  --pli:rgb(38 33 23 / .10);
+  --tranche:rgb(38 33 23 / .12);
+  --ombre-page:0 1px 0 rgb(201 189 159 / .6), 0 18px 40px -18px rgb(38 33 23 / .35);
+  --ombre-levee:0 2px 4px -1px rgb(38 33 23 / .08), 0 4px 12px -2px rgb(38 33 23 / .06);
+  --bureau:radial-gradient(120% 90% at 50% 0%, rgb(255 253 248 / .55), transparent 60%);
+
+  --rail:#223528; --rail-2:#1a2a20; --rail-bordure:#31463a;
+  --rail-texte:#e9e4d6; --rail-texte-attenue:#a9bcae; --rail-texte-discret:#7f9585;
+
+  --coin-net:.25rem; --coin-doux:.375rem; --coin-carte:.75rem;
+  --pas-corps:.9375rem;
+  --courbe:cubic-bezier(.16,1,.3,1);
+
+  --serif:"Fraunces","Iowan Old Style","Hoefler Text",Georgia,"Times New Roman",serif;
+  --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --neutre-50:#f0eadd; --neutre-100:#d6cdb9; --neutre-200:#b7ac96;
+    --neutre-300:#968b73; --neutre-400:#776e5a; --neutre-500:#4a4234;
+    --neutre-600:#352f25; --neutre-700:#2a251d; --neutre-800:#201c16;
+    --neutre-900:#17140f;
+
+    --fond:var(--neutre-900); --surface:var(--neutre-800);
+    --surface-2:var(--neutre-700); --bordure:var(--neutre-600);
+    --bordure-forte:var(--neutre-500);
+    --texte:var(--neutre-50); --texte-attenue:var(--neutre-200);
+    --texte-discret:var(--neutre-300);
+
+    --primaire:#6fae86; --primaire-fort:#8bc4a0; --primaire-faible:#1c2c22;
+    --primaire-contraste:#12241a;
+    --accent:#c39ad2;
+    --succes:#7cbf5f; --info:#5fb0dc; --info-faible:#0e2130;
+    --alerte:#d99a3f; --danger:#e07a6a;
+
+    --grille:rgb(240 234 221 / .03);
+    --marge:#7d4a3d;
+    --reglure:rgb(240 234 221 / .055);
+
+    --papier-haut:#221e17;
+    --papier-bas:#1b1812;
+    --pli:rgb(0 0 0 / .45);
+    --tranche:rgb(0 0 0 / .5);
+    --ombre-page:0 1px 0 rgb(0 0 0 / .4), 0 20px 44px -20px rgb(0 0 0 / .75);
+    --ombre-levee:0 2px 4px -1px rgb(0 0 0 / .5), 0 4px 12px -2px rgb(0 0 0 / .35);
+    --bureau:radial-gradient(120% 90% at 50% 0%, rgb(240 234 221 / .045), transparent 60%);
+  }
+}
+
+:root[data-theme="dark"] {
+  --neutre-50:#f0eadd; --neutre-100:#d6cdb9; --neutre-200:#b7ac96;
+  --neutre-300:#968b73; --neutre-400:#776e5a; --neutre-500:#4a4234;
+  --neutre-600:#352f25; --neutre-700:#2a251d; --neutre-800:#201c16;
+  --neutre-900:#17140f;
+
+  --fond:var(--neutre-900); --surface:var(--neutre-800);
+  --surface-2:var(--neutre-700); --bordure:var(--neutre-600);
+  --bordure-forte:var(--neutre-500);
+  --texte:var(--neutre-50); --texte-attenue:var(--neutre-200);
+  --texte-discret:var(--neutre-300);
+
+  --primaire:#6fae86; --primaire-fort:#8bc4a0; --primaire-faible:#1c2c22;
+  --primaire-contraste:#12241a;
+  --accent:#c39ad2;
+  --succes:#7cbf5f; --info:#5fb0dc; --info-faible:#0e2130;
+  --alerte:#d99a3f; --danger:#e07a6a;
+
+  --grille:rgb(240 234 221 / .03);
+  --marge:#7d4a3d;
+  --reglure:rgb(240 234 221 / .055);
+
+  --papier-haut:#221e17;
+  --papier-bas:#1b1812;
+  --pli:rgb(0 0 0 / .45);
+  --tranche:rgb(0 0 0 / .5);
+  --ombre-page:0 1px 0 rgb(0 0 0 / .4), 0 20px 44px -20px rgb(0 0 0 / .75);
+  --ombre-levee:0 2px 4px -1px rgb(0 0 0 / .5), 0 4px 12px -2px rgb(0 0 0 / .35);
+  --bureau:radial-gradient(120% 90% at 50% 0%, rgb(240 234 221 / .045), transparent 60%);
+}
+
+/* ═══════════════════════════ Socle ═══════════════════════════ */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: var(--pas-corps);
+  line-height: 1.5;
+  color: var(--texte);
+  background-color: var(--fond);
+  background-image:
+    var(--bureau),
+    linear-gradient(var(--grille) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grille) 1px, transparent 1px);
+  background-size: auto, 26px 26px, 26px 26px;
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible { outline: 2px solid var(--primaire); outline-offset: 2px; border-radius: var(--coin-net); }
+
+.souligne { position: relative; }
+.souligne::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -.2em;
+  height: .42em; background: var(--primaire); opacity: .85; pointer-events: none;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20150%2010'%20preserveAspectRatio='none'%3E%3Cpath%20d='M2%206%20C%2028%202%2C%2052%209%2C%2078%205%20S%20126%203%2C%20148%206'%20fill='none'%20stroke='black'%20stroke-width='2.5'%20stroke-linecap='round'/%3E%3C/svg%3E") no-repeat center / 100% 100%;
+  mask: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20150%2010'%20preserveAspectRatio='none'%3E%3Cpath%20d='M2%206%20C%2028%202%2C%2052%209%2C%2078%205%20S%20126%203%2C%20148%206'%20fill='none'%20stroke='black'%20stroke-width='2.5'%20stroke-linecap='round'/%3E%3C/svg%3E") no-repeat center / 100% 100%;
+}
+
+/* ═════════════════════ Cadre de la page ═════════════════════ */
+
+.enveloppe {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: clamp(1.25rem, 3vw, 2.75rem) clamp(.75rem, 2.5vw, 2rem) 4rem;
+  display: flex; flex-direction: column; gap: 1.5rem;
+}
+
+.chapeau { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 1rem; }
+.chapeau h1 { margin: 0; font-family: var(--serif); font-size: clamp(1.5rem, 3.4vw, 2rem); font-weight: 500; letter-spacing: -.015em; }
+.chapeau p { margin: .55rem 0 0; max-width: 48ch; font-size: .8125rem; color: var(--texte-attenue); }
+.commandes { display: flex; gap: .5rem; align-items: center; }
+
+/* ═══════════════════ Le cahier comme objet ═══════════════════ */
+
+.cahier {
+  position: relative;
+  display: grid;
+  grid-template-columns: 2.75rem minmax(0, 1fr) 2.5rem;
+  perspective: 2400px;
+  perspective-origin: 12% 45%;
+}
+
+.reliure {
+  position: relative;
+  border-radius: var(--coin-carte) 0 0 var(--coin-carte);
+  background: linear-gradient(90deg, var(--rail-2), var(--rail) 55%, var(--rail-2));
+  box-shadow: inset -1px 0 0 var(--rail-bordure), var(--ombre-page);
+  overflow: hidden;
+}
+.reliure::before {
+  content: ""; position: absolute; inset: .9rem auto .9rem 50%;
+  width: 0; border-left: 1.5px dashed var(--rail-texte-discret); opacity: .5;
+}
+.anneaux { position: absolute; inset: 1.35rem 0; display: flex; flex-direction: column; justify-content: space-between; align-items: center; pointer-events: none; }
+.anneau {
+  width: 1.15rem; height: .34rem; border-radius: 999px;
+  background: linear-gradient(180deg, var(--rail-texte-attenue), var(--rail-bordure));
+  box-shadow: 0 1px 0 rgb(0 0 0 / .35); opacity: .75;
+}
+
+.scene { position: relative; transform-style: preserve-3d; min-height: 34rem; }
+.scene::before, .scene::after {
+  content: ""; position: absolute; inset: .28rem -.3rem -.3rem .1rem;
+  border-radius: 0 var(--coin-carte) var(--coin-carte) 0;
+  background: var(--papier-bas); box-shadow: 0 1px 0 var(--tranche); z-index: 0;
+}
+.scene::after { inset: .56rem -.6rem -.6rem .2rem; opacity: .72; }
+
+.page {
+  position: relative; z-index: 1;
+  border-radius: 0 var(--coin-carte) var(--coin-carte) 0;
+  background-color: var(--papier-haut);
+  background-image:
+    linear-gradient(90deg, var(--pli), transparent 3.5rem),
+    repeating-linear-gradient(to bottom, transparent 0, transparent 25px, var(--reglure) 25px, var(--reglure) 26px);
+  box-shadow: var(--ombre-page);
+  padding: 1.5rem 1.5rem 3rem 3.25rem;
+  min-height: 34rem;
+}
+.page::before {
+  content: ""; position: absolute; inset-block: 0; left: 2.5rem; width: 1px;
+  background: var(--marge); opacity: .55; pointer-events: none;
+}
+@media (max-width: 720px) {
+  .cahier { grid-template-columns: 1.25rem minmax(0,1fr) 0; }
+  .page { padding: 1.25rem 1rem 2.75rem 1.35rem; }
+  .page::before { display: none; }
+  .anneaux { inset: 1rem 0; }
+  .anneau { width: .55rem; }
+}
+
+/* Folio : le numéro au pied de page. Il compte les feuillets, pas
+   les jours — c'est lui qui rend la pagination honnête. */
+.folio {
+  position: absolute;
+  right: 1.5rem; bottom: 1rem;
+  font-family: var(--mono); font-size: .6875rem;
+  color: var(--texte-discret);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ══════════════════ Tranche : jours et feuillets ═════════════ */
+
+.tranche { display: flex; flex-direction: column; gap: .55rem; padding: 2.6rem .35rem 0; }
+.groupe-jour { display: flex; flex-direction: column; gap: .18rem; }
+.onglet {
+  appearance: none; border: 0; padding: 0; height: .3rem; width: 100%;
+  border-radius: 0 999px 999px 0;
+  background: var(--bordure-forte); opacity: .5; cursor: pointer;
+  transition: opacity .18s var(--courbe), background-color .18s var(--courbe), height .18s var(--courbe);
+}
+.onglet:hover { opacity: .95; }
+.onglet[data-type="cloture"] { height: .18rem; opacity: .32; }
+.onglet[aria-current="true"] { height: .5rem; background: var(--primaire); opacity: 1; }
+.tranche-legende {
+  writing-mode: vertical-rl; margin-top: .8rem; font-size: .625rem;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--texte-discret);
+}
+@media (max-width: 720px) { .tranche { display: none; } }
+
+/* ════════════════════ Marque-page (ruban) ═══════════════════ */
+
+.ruban {
+  position: absolute; top: -.65rem; right: 2.75rem; z-index: 3;
+  width: 2.1rem; padding: .55rem 0 1.15rem; text-align: center;
+  color: var(--primaire-contraste);
+  background: linear-gradient(180deg, var(--primaire-fort), var(--primaire));
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 82%, 0 100%);
+  box-shadow: var(--ombre-levee);
+  font-size: .625rem; letter-spacing: .1em; text-transform: uppercase;
+  cursor: pointer; border: 0;
+  transition: transform .22s var(--courbe);
+}
+.ruban span { writing-mode: vertical-rl; display: inline-block; }
+.ruban:hover, .ruban:focus-visible { transform: translateY(.3rem); }
+@media (max-width: 720px) { .ruban { right: .9rem; } }
+
+/* ═══════════════════ En-tête d'un feuillet ══════════════════ */
+
+.entete {
+  display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between;
+  gap: .75rem; padding-bottom: .75rem; border-bottom: 1px solid var(--bordure);
+}
+.date-page { margin: 0; font-family: var(--serif); font-size: clamp(1.35rem, 3vw, 1.75rem); font-weight: 500; letter-spacing: -.02em; }
+.date-page::first-letter { text-transform: uppercase; }
+
+/* Feuillet de suite : la date n'est plus criée, elle est rappelée.
+   Un jour ne recommence pas trois fois. */
+.date-rappel {
+  margin: 0; font-family: var(--serif); font-size: 1.0625rem; font-weight: 500;
+  color: var(--texte-discret);
+}
+.date-rappel::first-letter { text-transform: uppercase; }
+.suite {
+  display: inline-flex; align-items: center; gap: .35rem;
+  font-family: var(--sans); font-size: .625rem; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--texte-discret);
+}
+.titre-feuillet {
+  margin: .15rem 0 0; font-family: var(--serif); font-size: clamp(1.2rem, 2.6vw, 1.5rem);
+  font-weight: 500; letter-spacing: -.015em; text-wrap: balance;
+}
+.sous-date { margin: .7rem 0 0; font-size: .75rem; color: var(--texte-discret); }
+.nav-pages { display: flex; align-items: center; gap: .4rem; }
+
+/* Le compteur de feuillets du jour : des points, un par feuillet. */
+.feuillets-du-jour { display: inline-flex; align-items: center; gap: .28rem; margin-left: .2rem; }
+.point-feuillet {
+  appearance: none; border: 0; padding: 0; cursor: pointer;
+  width: .4rem; height: .4rem; border-radius: 999px;
+  background: var(--bordure-forte); opacity: .55;
+  transition: opacity .16s var(--courbe), background-color .16s var(--courbe), transform .16s var(--courbe);
+}
+.point-feuillet:hover { opacity: 1; transform: scale(1.25); }
+.point-feuillet[aria-current="true"] { background: var(--primaire); opacity: 1; }
+
+/* ═══════════════════════ Contrôles ══════════════════════════ */
+
+.bouton {
+  appearance: none; font: inherit; font-size: .75rem; font-weight: 500; line-height: 1.2;
+  padding: .4rem .65rem; border-radius: var(--coin-doux);
+  border: 1px solid var(--bordure-forte); background: var(--surface); color: var(--texte);
+  cursor: pointer;
+  transition: border-color .16s var(--courbe), background-color .16s var(--courbe), transform .16s var(--courbe);
+}
+.bouton:hover { border-color: var(--primaire); }
+.bouton:active { transform: translateY(1px); }
+.bouton[disabled] { opacity: .4; cursor: default; }
+.bouton[disabled]:hover { border-color: var(--bordure-forte); }
+.bouton.principal { background: var(--primaire); border-color: var(--primaire); color: var(--primaire-contraste); }
+.bouton.principal:hover { background: var(--primaire-fort); border-color: var(--primaire-fort); }
+.bouton.fleche { font-size: .875rem; padding: .3rem .6rem; }
+
+.etiquette {
+  display: inline-flex; align-items: center; gap: .3rem;
+  font-size: .6875rem; font-weight: 500; padding: .12rem .45rem; border-radius: 999px;
+  border: 1px solid var(--bordure-forte); color: var(--texte-attenue); background: var(--surface);
+}
+.etiquette.primaire { color: var(--primaire); border-color: color-mix(in srgb, var(--primaire) 45%, transparent); background: var(--primaire-faible); }
+.etiquette.succes  { color: var(--succes);  border-color: color-mix(in srgb, var(--succes) 45%, transparent); }
+.etiquette.info    { color: var(--info);    border-color: color-mix(in srgb, var(--info) 45%, transparent); background: var(--info-faible); }
+.etiquette.danger  { color: var(--danger);  border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
+
+.code {
+  font-family: var(--mono); font-size: .75rem; padding: .1rem .35rem;
+  border-radius: var(--coin-net); border: 1px solid var(--bordure);
+  background: var(--surface-2); color: var(--primaire);
+}
+
+.titre-section {
+  margin: 0 0 .5rem; font-size: .6875rem; font-weight: 600;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--texte-discret);
+}
+
+/* ══════════════ Corps du feuillet ══════════════ */
+
+.corps { display: flex; flex-direction: column; gap: 1.75rem; padding-top: 1.35rem; }
+
+.seance { position: relative; padding: 0 0 0 1rem; border-left: 2px solid var(--primaire); }
+.seance-entete { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .6rem; }
+.seance-meta { font-size: .75rem; color: var(--texte-discret); }
+
+.jauge { display: flex; gap: .2rem; margin-top: .55rem; }
+.segment { height: .25rem; flex: 1; border-radius: 999px; background: var(--bordure); }
+.segment[data-etat="fait"] { background: var(--succes); }
+.segment[data-etat="courant"] { background: linear-gradient(90deg, var(--primaire) 45%, var(--bordure) 45%); }
+
+.intercalaires {
+  display: flex; gap: .25rem; margin: 1rem 0 0; padding: 0 0 0 .1rem;
+  border-bottom: 1px solid var(--bordure);
+}
+.intercalaire {
+  appearance: none; border: 1px solid transparent; border-bottom: 0; background: transparent;
+  font: inherit; font-size: .75rem; color: var(--texte-attenue);
+  padding: .35rem .7rem; border-radius: var(--coin-doux) var(--coin-doux) 0 0;
+  cursor: pointer; position: relative; top: 1px;
+  transition: background-color .16s var(--courbe), color .16s var(--courbe);
+}
+.intercalaire:hover { color: var(--texte); background: color-mix(in srgb, var(--surface-2) 60%, transparent); }
+.intercalaire[aria-selected="true"] {
+  background: var(--surface); border-color: var(--bordure); color: var(--texte);
+  font-weight: 600; box-shadow: 0 -1px 0 var(--primaire) inset;
+}
+
+.volet { padding-top: 1rem; }
+.volet[hidden] { display: none; }
+
+.exercice-tete { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin-bottom: .5rem; }
+.exercice h4 {
+  margin: 0 0 .5rem; font-family: var(--serif); font-size: 1.25rem; font-weight: 500;
+  letter-spacing: -.01em; text-wrap: balance;
+}
+.enonce { font-size: .875rem; line-height: 1.75; color: var(--texte-attenue); max-width: 64ch; }
+.enonce ol { margin: .8rem 0 0; padding-left: 1.15rem; }
+.enonce li + li { margin-top: .3rem; }
+
+.donnees { margin-top: 1rem; width: 100%; border-collapse: collapse; font-size: .8125rem; font-variant-numeric: tabular-nums; }
+.donnees caption {
+  text-align: left; font-size: .6875rem; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--texte-discret); padding-bottom: .35rem;
+}
+.donnees td { padding: .32rem 0; border-bottom: 1px dotted var(--bordure-forte); }
+.donnees td:last-child { text-align: right; font-weight: 600; }
+
+.consigne {
+  margin-top: 1.15rem; padding: .85rem 1rem; border-radius: var(--coin-doux);
+  border: 1px solid color-mix(in srgb, var(--primaire) 30%, transparent);
+  background: color-mix(in srgb, var(--primaire-faible) 70%, transparent);
+  font-size: .8125rem; color: var(--texte-attenue);
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem;
+}
+
+.pomodoro { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; }
+.cadran { position: relative; width: 5.5rem; height: 5.5rem; }
+.cadran svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.cadran .piste { fill: none; stroke: var(--bordure); stroke-width: 6; }
+.cadran .arc { fill: none; stroke: var(--primaire); stroke-width: 6; stroke-linecap: round; }
+.cadran output { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--mono); font-size: 1rem; font-variant-numeric: tabular-nums; }
+
+.lignes-marge { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.lignes-marge li {
+  display: flex; align-items: baseline; gap: .55rem; padding: .3rem 0; font-size: .8125rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--bordure) 55%, transparent);
+}
+.lignes-marge input { accent-color: var(--primaire); }
+.lignes-marge .faite { text-decoration: line-through; color: var(--texte-discret); }
+
+.fil { display: flex; flex-direction: column; gap: .6rem; }
+.bulle { max-width: 52ch; padding: .6rem .8rem; border-radius: var(--coin-carte); font-size: .8125rem; }
+.bulle.moi { align-self: flex-end; background: var(--primaire); color: var(--primaire-contraste); }
+.bulle.tuteur { background: var(--surface-2); border: 1px solid var(--bordure); }
+
+.traces { list-style: none; margin: 0; padding: 0; }
+.traces li {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: .5rem; padding: .45rem 0; font-size: .8125rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--bordure) 60%, transparent);
+}
+.traces li:last-child { border-bottom: 0; }
+
+.vide { font-style: italic; color: var(--texte-discret); font-size: .875rem; padding: 1.5rem 0; }
+
+/* ═══════════════ Le tourne-page ═══════════════ */
+
+.feuillet-tournant {
+  position: absolute; inset: 0; z-index: 4;
+  transform-style: preserve-3d; transform-origin: left center;
+  pointer-events: none; will-change: transform;
+}
+.face {
+  position: absolute; inset: 0; backface-visibility: hidden;
+  border-radius: 0 var(--coin-carte) var(--coin-carte) 0; overflow: hidden;
+  background-color: var(--papier-haut);
+  background-image:
+    linear-gradient(90deg, var(--pli), transparent 3.5rem),
+    repeating-linear-gradient(to bottom, transparent 0, transparent 25px, var(--reglure) 25px, var(--reglure) 26px);
+  box-shadow: var(--ombre-page);
+}
+.face .contenu { padding: 1.5rem 1.5rem 3rem 3.25rem; }
+@media (max-width: 720px) { .face .contenu { padding: 1.25rem 1rem 2.75rem 1.35rem; } }
+.face.verso {
+  transform: rotateY(180deg);
+  background-image:
+    linear-gradient(270deg, var(--pli), transparent 3.5rem),
+    repeating-linear-gradient(to bottom, transparent 0, transparent 25px, var(--reglure) 25px, var(--reglure) 26px);
+  filter: brightness(.97);
+}
+
+.lustre {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  background: linear-gradient(100deg,
+    rgb(0 0 0 / .28) 0%, rgb(0 0 0 / .06) 22%,
+    rgb(255 255 255 / .12) 48%, rgb(0 0 0 / .10) 78%, rgb(0 0 0 / .3) 100%);
+}
+.ombre-portee {
+  position: absolute; inset: 0; z-index: 2; pointer-events: none; opacity: 0;
+  background: linear-gradient(90deg, rgb(0 0 0 / .55), rgb(0 0 0 / .12) 35%, transparent 62%);
+  border-radius: 0 var(--coin-carte) var(--coin-carte) 0;
+}
+
+@keyframes encre { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.corps.encre > * { animation: encre .34s var(--courbe) backwards; }
+.corps.encre > *:nth-child(1) { animation-delay: .04s; }
+.corps.encre > *:nth-child(2) { animation-delay: .10s; }
+.corps.encre > *:nth-child(3) { animation-delay: .16s; }
+.corps.encre > *:nth-child(4) { animation-delay: .22s; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+</style>
+
+<div class="enveloppe">
+
+  <header class="chapeau">
+    <h1 class="souligne">Cahier</h1>
+    <div class="commandes">
+      <button class="bouton" type="button" id="bascule-theme">Thème</button>
+    </div>
+  </header>
+
+  <div class="cahier">
+    <div class="reliure" aria-hidden="true">
+      <div class="anneaux">
+        <span class="anneau"></span><span class="anneau"></span>
+        <span class="anneau"></span><span class="anneau"></span>
+        <span class="anneau"></span><span class="anneau"></span>
+        <span class="anneau"></span><span class="anneau"></span>
+      </div>
+    </div>
+
+    <div class="scene" id="scene">
+      <button class="ruban" type="button" id="marque-page" title="Revenir à la page du jour">
+        <span>Aujourd&rsquo;hui</span>
+      </button>
+      <div class="ombre-portee" id="ombre-portee"></div>
+      <article class="page" id="page" aria-live="polite"></article>
+    </div>
+
+    <nav class="tranche" id="tranche" aria-label="Feuillets du cahier"></nav>
+  </div>
+
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   Données — reprises des captures, plus un jour chargé (14 août,
+   deux séances) pour montrer ce que devient un jour dense.
+   ═══════════════════════════════════════════════════════════════ */
+
+const JOURS = [
+  {
+    cle: "2026-08-12",
+    libelle: "mercredi 12 août 2026",
+    seances: [],
+    traces: [
+      { titre: "Loi de Little sur une ligne d'assemblage", duree: "18 min", etat: "Réussi", ton: "succes" },
+      { titre: "Lecture — chapitre 4, files d'attente", duree: "25 min", etat: "Lu", ton: "" },
+    ],
+    notes: [
+      { texte: "Revoir la différence entre stock de sécurité et stock d'alerte", faite: true },
+      { texte: "Demander au tuteur un exercice sur les ruptures", faite: false },
+    ],
+  },
+  {
+    cle: "2026-08-14",
+    libelle: "vendredi 14 août 2026",
+    seances: [
+      {
+        statut: "Terminée", ton: "succes",
+        titre: "Dimensionnement de stock — série de trois",
+        meta: "52 min · 3 / 3 traité",
+        segments: ["fait", "fait", "fait"],
+        resume: "« Je veux arrêter de confondre le coût de possession et le coût de passation. »",
+        bilan: "Les trois exercices tiennent. Le point de commande reste posé au jugé sur le dernier.",
+      },
+      {
+        statut: "Abandonnée", ton: "danger",
+        titre: "Prévision de la demande — lissage exponentiel",
+        meta: "14 min · 1 / 4 traité",
+        segments: ["fait", "vide", "vide", "vide"],
+        resume: "« Reprise le soir, sans avoir la tête à ça. »",
+        bilan: "Arrêtée au deuxième exercice. À recomposer entière, pas à reprendre.",
+      },
+    ],
+    traces: [
+      { titre: "Quiz éclair — unités et conversions", duree: "6 min", etat: "Partiel", ton: "info" },
+    ],
+    notes: [
+      { texte: "La formule de Wilson : retenir que S monte et h descend", faite: true },
+    ],
+  },
+  {
+    cle: "2026-08-16",
+    libelle: "dimanche 16 août 2026",
+    aujourdhui: true,
+    seances: [
+      {
+        statut: "En cours", ton: "primaire",
+        titre: "Quantité économique et point de commande",
+        meta: "≈ 25 min · 0 / 1 traité",
+        segments: ["courant"],
+        resume: "« Je bloque dès qu'il faut décider quand recommander. »",
+        atelier: true,
+      },
+    ],
+    traces: [],
+    notes: [
+      { texte: "Vérifier si 250 jours ouvrés change le point de commande", faite: false },
+      { texte: "Noter la formule EOQ dans le carnet de formules", faite: false },
+    ],
+  },
+];
+
+/* ─────────────────────────────────────────────────────────────
+   Les feuillets : la liste plate que la navigation traverse.
+   Une séance = un feuillet. Le reste du jour = un feuillet de
+   clôture, présent seulement s'il porte quelque chose (ou si le
+   jour n'a aucune séance — une page vierge reste une page).
+   ───────────────────────────────────────────────────────────── */
+
+function construireFeuillets(jours) {
+  const feuillets = [];
+  jours.forEach((jour, indexJour) => {
+    const duJour = [];
+    jour.seances.forEach((seance) => duJour.push({ type: "seance", jour, indexJour, seance }));
+    const clotureUtile = jour.traces.length > 0 || jour.notes.length > 0 || jour.aujourdhui;
+    if (clotureUtile || duJour.length === 0) duJour.push({ type: "cloture", jour, indexJour });
+    duJour.forEach((feuillet, i) => {
+      feuillet.rang = i + 1;
+      feuillet.totalDuJour = duJour.length;
+      feuillet.folio = feuillets.length + 1;
+      feuillets.push(feuillet);
+    });
+  });
+  return feuillets;
+}
+
+const FEUILLETS = construireFeuillets(JOURS);
+const TOTAL = FEUILLETS.length;
+const INDEX_AUJOURDHUI = FEUILLETS.findIndex((f) => f.jour.aujourdhui);
+
+let indexCourant = INDEX_AUJOURDHUI;
+let ongletActif = "exercices";
+let enTransition = false;
+
+const scene = document.getElementById("scene");
+const page = document.getElementById("page");
+const ombrePortee = document.getElementById("ombre-portee");
+const tranche = document.getElementById("tranche");
+
+/* ─────────────────────── Rendu d'un feuillet ─────────────────── */
+
+function gabaritPage(feuillet) {
+  const index = FEUILLETS.indexOf(feuillet);
+  const precedent = index > 0;
+  const suivant = index < TOTAL - 1;
+  const premierDuJour = feuillet.rang === 1;
+
+  const points = feuillet.totalDuJour > 1
+    ? `<span class="feuillets-du-jour" role="group" aria-label="Feuillets de ce jour">${
+        Array.from({ length: feuillet.totalDuJour }, (_, i) => `
+          <button class="point-feuillet" type="button"
+                  data-feuillet="${index - (feuillet.rang - 1) + i}"
+                  aria-current="${i + 1 === feuillet.rang}"
+                  aria-label="Feuillet ${i + 1} sur ${feuillet.totalDuJour}"></button>`).join("")
+      }</span>`
+    : "";
+
+  const titre = premierDuJour
+    ? `<h2 class="date-page souligne">${feuillet.jour.libelle}</h2>
+       ${feuillet.jour.aujourdhui ? '<p class="sous-date">La page du jour.</p>' : ""}
+       ${points ? `<p class="sous-date" style="margin-top:.55rem">${feuillet.totalDuJour} feuillets ${points}</p>` : ""}`
+    : `<p class="suite">↳ Suite</p>
+       <p class="date-rappel">${feuillet.jour.libelle}</p>
+       <h2 class="titre-feuillet">${feuillet.type === "seance" ? feuillet.seance.titre : "Clôture du jour"}</h2>
+       ${points ? `<p class="sous-date" style="margin-top:.5rem">Feuillet ${feuillet.rang} sur ${feuillet.totalDuJour} ${points}</p>` : ""}`;
+
+  const corps = feuillet.type === "seance"
+    ? gabaritSeance(feuillet.seance, premierDuJour)
+    : gabaritCloture(feuillet.jour);
+
+  return `
+    <header class="entete">
+      <div>${titre}</div>
+      <nav class="nav-pages" aria-label="Feuillets du cahier">
+        <button class="bouton fleche" type="button" data-tourner="-1" ${precedent ? "" : "disabled"} aria-label="Feuillet précédent">←</button>
+        <button class="bouton fleche" type="button" data-tourner="1" ${suivant ? "" : "disabled"} aria-label="Feuillet suivant">→</button>
+        <button class="bouton" type="button" data-jour="-1" ${feuillet.indexJour > 0 ? "" : "disabled"}>Jour précédent</button>
+        <button class="bouton" type="button" data-aujourdhui>Aujourd&rsquo;hui</button>
+      </nav>
+    </header>
+
+    <div class="corps encre">
+      ${corps}
+      ${renvoi}
+    </div>
+
+    <p class="folio">${feuillet.folio} / ${TOTAL}</p>
+  `;
+}
+
+function gabaritSeance(seance, avecTitre) {
+  const segments = seance.segments
+    .map((etat) => `<span class="segment" data-etat="${etat}"></span>`).join("");
+
+  return `
+    <section class="seance">
+      <div class="seance-entete">
+        <div>
+          ${avecTitre ? `<h3 style="margin:0;font-family:var(--serif);font-size:1.0625rem;font-weight:500">${seance.titre}</h3>` : ""}
+          <p class="seance-meta" style="margin:${avecTitre ? ".2rem" : "0"} 0 0">${seance.meta}</p>
+        </div>
+        <span class="etiquette ${seance.ton}">${seance.statut}</span>
+      </div>
+      <div class="jauge" role="img" aria-label="${seance.meta}">${segments}</div>
+      ${seance.resume ? `<p class="seance-meta" style="margin-top:.7rem;font-style:italic">${seance.resume}</p>` : ""}
+      ${seance.bilan ? `<p class="seance-meta" style="margin-top:.35rem">${seance.bilan}</p>` : ""}
+      ${seance.atelier ? gabaritAtelier() : ""}
+    </section>
+  `;
+}
+
+function gabaritCloture(jour) {
+  const traces = jour.traces.length ? `
+    <section>
+      <p class="titre-section">Aussi ce jour-là</p>
+      <ul class="traces">
+        ${jour.traces.map((t) => `
+          <li>
+            <span>${t.titre} <span class="seance-meta">· ${t.duree}</span></span>
+            <span class="etiquette ${t.ton}">${t.etat}</span>
+          </li>`).join("")}
+      </ul>
+    </section>` : "";
+
+  const marge = jour.aujourdhui ? `
+    <section>
+      <p class="titre-section">En marge</p>
+      <ul class="lignes-marge">
+        ${jour.notes.map((n) => `
+          <li>
+            <input type="checkbox" ${n.faite ? "checked" : ""} aria-label="${n.faite ? "Fait" : "À faire"}">
+            <span class="${n.faite ? "faite" : ""}">${n.texte}</span>
+          </li>`).join("")}
+      </ul>
+      <div style="display:flex;gap:.4rem;margin-top:.6rem">
+        <input class="bouton" style="flex:1;text-align:left;cursor:text" placeholder="Écrire en marge…" aria-label="Écrire en marge">
+        <button class="bouton" type="button">Noter</button>
+      </div>
+    </section>`
+    : jour.notes.length ? `
+    <section>
+      <p class="titre-section">Noté ce jour-là</p>
+      <ul class="lignes-marge">
+        ${jour.notes.map((n) => `<li><span class="${n.faite ? "faite" : ""}">${n.texte}</span></li>`).join("")}
+      </ul>
+    </section>` : "";
+
+  if (!traces && !marge) {
+    return `<p class="vide">Rien n&rsquo;a été écrit ce jour-là.</p>`;
+  }
+  return traces + marge;
+}
+
+function gabaritAtelier() {
+  const onglets = [
+    ["exercices", "Exercices"],
+    ["pomodoro", "Pomodoro"],
+    ["marge", "Marge"],
+    ["tuteur", "Tuteur IA"],
+  ];
+
+  return `
+    <div class="intercalaires" role="tablist" aria-label="Intercalaires de la séance">
+      ${onglets.map(([cle, libelle]) => `
+        <button class="intercalaire" type="button" role="tab"
+                id="onglet-${cle}" aria-controls="volet-${cle}"
+                aria-selected="${cle === ongletActif}" data-onglet="${cle}">${libelle}</button>`).join("")}
+    </div>
+
+    <div class="volet" role="tabpanel" id="volet-exercices" aria-labelledby="onglet-exercices" ${ongletActif === "exercices" ? "" : "hidden"}>
+      <div class="exercice">
+        <div class="exercice-tete">
+          <span class="etiquette">Logistique industrielle</span>
+          <span class="etiquette">Difficulté 2 / 5</span>
+          <span class="etiquette info">Diagnostic</span>
+          <span class="code">LOG-01</span>
+        </div>
+        <h4>Quantité économique et point de commande</h4>
+        <div class="enonce">
+          <p>Un distributeur écoule une référence à raison de 12 000 unités par an, de façon régulière et prévisible. Chaque passation de commande coûte 80 €, tous frais confondus. Le coût de possession est estimé à 6 € par unité et par an. Le fournisseur livre en 10 jours ouvrés et l&rsquo;entreprise travaille 250 jours ouvrés par an.</p>
+          <ol>
+            <li>Détermine la quantité économique de commande.</li>
+            <li>Combien de commandes seront passées par an, et quel sera le coût annuel total de gestion du stock ?</li>
+            <li>À quel niveau de stock faut-il déclencher une commande ?</li>
+          </ol>
+        </div>
+
+        <table class="donnees">
+          <caption>Données</caption>
+          <tbody>
+            <tr><td>Demande annuelle D</td><td>12 000 unités</td></tr>
+            <tr><td>Coût de passation S</td><td>80 € / commande</td></tr>
+            <tr><td>Coût de possession h</td><td>6 € / unité / an</td></tr>
+            <tr><td>Délai de livraison</td><td>10 jours ouvrés</td></tr>
+            <tr><td>Jours ouvrés par an</td><td>250</td></tr>
+          </tbody>
+        </table>
+
+        <div class="consigne">
+          <span>Cherche avant de demander de l&rsquo;aide. La résolution reste la tienne ; le tuteur intervient quand tu en as besoin.</span>
+          <button class="bouton principal" type="button">Commencer l&rsquo;exercice →</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="volet" role="tabpanel" id="volet-pomodoro" aria-labelledby="onglet-pomodoro" ${ongletActif === "pomodoro" ? "" : "hidden"}>
+      <div class="pomodoro">
+        <div class="cadran">
+          <svg viewBox="0 0 100 100" aria-hidden="true">
+            <circle class="piste" cx="50" cy="50" r="44"></circle>
+            <circle class="arc" cx="50" cy="50" r="44" stroke-dasharray="276.5" stroke-dashoffset="76"></circle>
+          </svg>
+          <output>18:42</output>
+        </div>
+        <div>
+          <p class="titre-section" style="margin-bottom:.35rem">Cycle en cours</p>
+          <p class="seance-meta">Deuxième cycle de 25 minutes. Une pause de 5 minutes suivra.</p>
+          <div style="display:flex;gap:.4rem;margin-top:.7rem">
+            <button class="bouton" type="button">Mettre en pause</button>
+            <button class="bouton" type="button">Terminer le cycle</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="volet" role="tabpanel" id="volet-marge" aria-labelledby="onglet-marge" ${ongletActif === "marge" ? "" : "hidden"}>
+      <p class="titre-section">En marge, pendant la séance</p>
+      <ul class="lignes-marge">
+        <li><input type="checkbox" checked aria-label="Fait"><span class="faite">Retrouver la formule de Wilson</span></li>
+        <li><input type="checkbox" aria-label="À faire"><span>Vérifier l&rsquo;unité de h avant de conclure</span></li>
+        <li><input type="checkbox" aria-label="À faire"><span>Le point de commande dépend-il de Q* ?</span></li>
+      </ul>
+    </div>
+
+    <div class="volet" role="tabpanel" id="volet-tuteur" aria-labelledby="onglet-tuteur" ${ongletActif === "tuteur" ? "" : "hidden"}>
+      <div class="fil">
+        <div class="bulle moi">Je trouve Q* = 632, mais je ne sais pas quoi faire du délai de 10 jours.</div>
+        <div class="bulle tuteur">Ton Q* est bon. Le délai ne change pas la quantité commandée — il change le moment. Combien d&rsquo;unités partent du stock en une journée ouvrée ?</div>
+      </div>
+    </div>
+  `;
+}
+
+/* ─────────── La tranche : feuillets groupés par jour ─────────── */
+
+function rendreTranche() {
+  const groupes = JOURS.map((jour, indexJour) => {
+    const duJour = FEUILLETS.filter((f) => f.indexJour === indexJour);
+    return `
+      <div class="groupe-jour" role="group" aria-label="${jour.libelle}">
+        ${duJour.map((f) => `
+          <button class="onglet" type="button"
+                  data-feuillet="${FEUILLETS.indexOf(f)}"
+                  data-type="${f.type}"
+                  aria-current="${FEUILLETS.indexOf(f) === indexCourant}"
+                  title="${jour.libelle}${f.type === "seance" ? " — " + f.seance.titre : " — clôture"}"></button>`).join("")}
+      </div>`;
+  }).join("");
+  tranche.innerHTML = groupes + '<span class="tranche-legende">Feuillets</span>';
+}
+
+/* ─────────────────── Le tourne-page ─────────────────── */
+
+const DUREE = 520;
+
+function tourner(direction) { allerA(indexCourant + direction); }
+
+function tournerJour(direction) {
+  const jourVise = FEUILLETS[indexCourant].indexJour + direction;
+  const cible = direction > 0
+    ? FEUILLETS.findIndex((f) => f.indexJour === jourVise)
+    : FEUILLETS.findIndex((f) => f.indexJour === jourVise);
+  if (cible >= 0) allerA(cible);
+}
+
+function allerA(cible) {
+  if (enTransition || cible === indexCourant || cible < 0 || cible >= TOTAL) return;
+  const direction = cible > indexCourant ? 1 : -1;
+  const reduit = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  if (reduit) { indexCourant = cible; peindre(); return; }
+
+  enTransition = true;
+
+  /* La feuille qui pivote porte, sur son recto :
+     - vers l'avant : le feuillet qu'on quitte (il se retourne à gauche) ;
+     - vers l'arrière : celui qu'on rejoint (il revient de la gauche). */
+  const contenuFeuille = direction === 1 ? page.innerHTML : gabaritPage(FEUILLETS[cible]);
+
+  const feuille = document.createElement("div");
+  feuille.className = "feuillet-tournant";
+  feuille.innerHTML = `
+    <div class="face recto"><div class="contenu">${contenuFeuille}</div><div class="lustre"></div></div>
+    <div class="face verso"><div class="lustre"></div></div>
+  `;
+  scene.appendChild(feuille);
+
+  if (direction === 1) { indexCourant = cible; peindre({ animer: false }); }
+
+  const depart = direction === 1 ? 0 : -180;
+  const arrivee = direction === 1 ? -180 : 0;
+
+  feuille.animate(
+    [{ transform: `rotateY(${depart}deg)` }, { transform: `rotateY(${arrivee}deg)` }],
+    { duration: DUREE, easing: "cubic-bezier(.36,.06,.24,1)", fill: "forwards" },
+  );
+  feuille.querySelectorAll(".lustre").forEach((l) => l.animate(
+    [{ opacity: 0 }, { opacity: .55, offset: .5 }, { opacity: 0 }],
+    { duration: DUREE, easing: "ease-in-out" },
+  ));
+  ombrePortee.animate(
+    [{ opacity: 0 }, { opacity: .5, offset: .45 }, { opacity: 0 }],
+    { duration: DUREE, easing: "ease-out" },
+  );
+
+  setTimeout(() => {
+    feuille.remove();
+    if (direction === -1) { indexCourant = cible; peindre(); }
+    else { document.querySelector(".corps")?.classList.add("encre"); }
+    enTransition = false;
+  }, DUREE);
+}
+
+/* ─────────────────────────── Peinture ────────────────────────── */
+
+function peindre({ animer = true } = {}) {
+  page.innerHTML = gabaritPage(FEUILLETS[indexCourant]);
+  if (!animer) document.querySelector(".corps")?.classList.remove("encre");
+  rendreTranche();
+}
+
+/* ────────────────────────── Interactions ─────────────────────── */
+
+document.addEventListener("click", (evenement) => {
+  const tourne = evenement.target.closest("[data-tourner]");
+  if (tourne) { tourner(Number(tourne.dataset.tourner)); return; }
+
+  const saut = evenement.target.closest("[data-jour]");
+  if (saut) { tournerJour(Number(saut.dataset.jour)); return; }
+
+  if (evenement.target.closest("[data-aujourdhui]")) { allerA(INDEX_AUJOURDHUI); return; }
+
+  const feuillet = evenement.target.closest("[data-feuillet]");
+  if (feuillet) { allerA(Number(feuillet.dataset.feuillet)); return; }
+
+  const intercalaire = evenement.target.closest("[data-onglet]");
+  if (intercalaire) {
+    ongletActif = intercalaire.dataset.onglet;
+    document.querySelectorAll("[data-onglet]").forEach((bouton) => {
+      const actif = bouton.dataset.onglet === ongletActif;
+      bouton.setAttribute("aria-selected", String(actif));
+      document.getElementById(`volet-${bouton.dataset.onglet}`).hidden = !actif;
+    });
+  }
+});
+
+document.getElementById("marque-page").addEventListener("click", () => allerA(INDEX_AUJOURDHUI));
+
+document.getElementById("bascule-theme").addEventListener("click", () => {
+  const racine = document.documentElement;
+  const sombreActif = racine.dataset.theme
+    ? racine.dataset.theme === "dark"
+    : window.matchMedia("(prefers-color-scheme: dark)").matches;
+  racine.dataset.theme = sombreActif ? "light" : "dark";
+});
+
+document.addEventListener("keydown", (evenement) => {
+  if (evenement.target.matches("input, textarea")) return;
+  if (evenement.key === "ArrowLeft") evenement.shiftKey ? tournerJour(-1) : tourner(-1);
+  if (evenement.key === "ArrowRight") evenement.shiftKey ? tournerJour(1) : tourner(1);
+});
+
+peindre();
+</script>

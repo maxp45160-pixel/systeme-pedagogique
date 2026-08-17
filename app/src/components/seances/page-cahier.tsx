@@ -5,9 +5,13 @@ import { cleJour, formatDuree } from "@/lib/engine/dates";
 import { statutSeance, tentativeDeSeance } from "@/lib/domain/seance";
 import {
   construirePage,
-  pageEstVide,
-  voisinesDeLaPage,
+  feuilletsDeLaPage,
+  folioDuFeuillet,
+  rangDOuverture,
+  voisinsDuFeuillet,
   type DocumentOperationnelDate,
+  type Feuillet,
+  type PositionFeuillet,
 } from "@/lib/domain/pages-cahier";
 import type { ExerciseAttempt, LearningSession } from "@/lib/domain/types";
 import type { LigneMarge } from "@/lib/documents/marge";
@@ -16,35 +20,43 @@ import { CarteSeance } from "@/components/seances/file-seances";
 import { LigneCahier } from "@/components/seances/cahier-seances";
 import { MargeCahier } from "@/components/seances/marge-cahier";
 import { CalendrierCahier } from "@/components/seances/calendrier-cahier";
+import { TournePage } from "@/components/seances/tourne-page";
 
 /**
- * Une page du cahier : un jour, et tout ce qu'il porte.
+ * Un feuillet du cahier : un jour, et ce qu'on en lit d'un seul tenant.
  *
- * ## Ce que la page remplace
+ * ## Ce que le feuillet remplace
  *
- * Le hub déroulait tout l'historique d'un coup, précédé d'un champ de
- * recherche. Il n'y avait pas de page, donc rien à tourner et rien à rouvrir là
- * où l'on s'était arrêté. Ici, on ouvre un jour, on tourne vers le précédent ou
- * le suivant, et le marque-page ramène à la dernière page consultée.
+ * Le hub déroulait tout l'historique d'un coup — rien à tourner, rien à rouvrir
+ * là où l'on s'était arrêté. La page-jour a réglé cela, mais un jour à trois
+ * séances tenait sur trois écrans de haut : « tourner la page » ne voulait plus
+ * dire grand-chose, et la séance ouverte se battait avec les traces et la marge
+ * pour l'attention.
  *
- * ## Deux registres sur la même page
+ * Un jour porte donc désormais **un à plusieurs feuillets**, découpés sur une
+ * frontière qui existe déjà dans les données : une séance en vaut un, le reste
+ * du jour tient sur le feuillet de clôture. La règle et sa justification vivent
+ * dans `feuilletsDeLaPage` — ici, on ne fait que rendre ce qu'elle décide.
+ *
+ * ## Deux registres sur le même jour
  *
  * Une séance composée est une page écrite : ce qu'on a voulu, ce qu'on en a
- * tiré. Un exercice clos hors séance est une trace en marge — au 16/08/2026,
- * 45 des 51 lignes de `sessions` en sont, et les rendre à l'identique noyait
- * les vraies séances. La séparation est lue (`genereAutomatiquement`), jamais
- * fabriquée.
+ * tiré. Un exercice clos hors séance est une trace — au 16/08/2026, 45 des 51
+ * lignes de `sessions` en sont. La séparation est lue
+ * (`genereAutomatiquement`), jamais fabriquée.
  *
  * ## La marge du jour
  *
- * Elle ne s'écrit que sur la page du jour. Écrire sur une page passée
- * daterait la ligne du jour qu'on regarde et non de celui où on l'a écrite —
- * une date fausse sur un fait daté (P2). Les pages passées restent
- * annotables : c'est ce que fait déjà le champ de chaque séance.
+ * Elle ne s'écrit que sur la page du jour. Écrire sur une page passée daterait
+ * la ligne du jour qu'on regarde et non de celui où on l'a écrite — une date
+ * fausse sur un fait daté (P2). Les pages passées restent annotables : c'est ce
+ * que fait déjà le champ de chaque séance.
  */
 export function PageCahier({
   jour,
   jours,
+  rang,
+  nombresDeFeuillets,
   mois,
   seances,
   tentatives,
@@ -56,6 +68,10 @@ export function PageCahier({
 }: {
   jour: string;
   jours: string[];
+  /** Le rang demandé dans l'URL, brut : il peut être périmé, on le borne ici. */
+  rang: number | null;
+  /** Combien de feuillets porte chaque jour — construit une fois par le serveur. */
+  nombresDeFeuillets: ReadonlyMap<string, number>;
   /** Le mois ouvert dans le calendrier — pas forcément celui de la page. */
   mois: string;
   seances: LearningSession[];
@@ -68,81 +84,342 @@ export function PageCahier({
   seanceDeployee?: { id: string; contenu: ReactNode };
 }) {
   const page = construirePage(jour, { seances, notes, projets });
-  const { precedente, suivante } = voisinesDeLaPage(jour, jours);
+  const feuillets = feuilletsDeLaPage(page);
+  const rangOuvert = rangDOuverture(rang, feuillets.length);
+  const feuillet = feuillets[rangOuvert - 1];
+
+  const nombreDe = (cible: string) => Math.max(1, nombresDeFeuillets.get(cible) ?? 1);
+  const { precedent, suivant } = voisinsDuFeuillet({ jour, rang: rangOuvert }, jours, nombreDe);
+  const { folio, total } = folioDuFeuillet({ jour, rang: rangOuvert }, jours, nombresDeFeuillets);
+
   const cleAujourdHui = cleJour(aujourdHui);
   const estAujourdHui = jour === cleAujourdHui;
 
   return (
-    <div className="page-cahier px-4 py-5 sm:pl-14 sm:pr-6">
-      <EnTetePage
-        jour={jour}
-        precedente={precedente}
-        suivante={suivante}
-        estAujourdHui={estAujourdHui}
-        cleAujourdHui={cleAujourdHui}
-        calendrier={
-          <CalendrierCahier jour={jour} mois={mois} jours={jours} aujourdHui={aujourdHui} />
-        }
-      />
+    <div className="cahier-relie">
+      {/* Le dos toilé : ce à quoi le feuillet tient. Purement décoratif. */}
+      <div className="reliure" aria-hidden />
 
-      <div className="space-y-6 pt-5">
-      {page.seances.map((seance) =>
-        seanceDeployee?.id === seance.id ? (
-          <div key={seance.id}>{seanceDeployee.contenu}</div>
+      {/*
+        Le calque du tour de page se pose ici : il doit couvrir le feuillet et
+        rien d'autre, reliure et ruban compris hors de son cadre.
+      */}
+      <TournePage>
+      <div className="pile-feuillets relative">
+        {/*
+          Le ruban : lien vers la page du jour tant qu'on lit ailleurs, simple
+          repère cousu une fois qu'on y est.
+        */}
+        {estAujourdHui ? (
+          <span className="ruban-marque-page" title="La page du jour" aria-hidden>
+            <span>Aujourd’hui</span>
+          </span>
         ) : (
-          <SeanceDeLaPage
-            key={seance.id}
-            seance={seance}
-            tentatives={tentatives}
-            donnees={donnees}
-          />
-        ),
-      )}
+          <Link
+            href={lienFeuillet({ jour: cleAujourdHui, rang: 1 })}
+            className="ruban-marque-page"
+            title="Revenir à la page du jour"
+          >
+            <span>Aujourd’hui</span>
+          </Link>
+        )}
 
-      {/* Projets et travaux opérationnels attachés à ce jour */}
-      {page.projets.length > 0 && (
+        {/*
+          La clé porte le feuillet, pas le jour : passer du feuillet 1 au 2 d'un
+          même jour rejoue l'apparition, sinon le contenu changerait sans que
+          rien ne dise qu'on a tourné.
+        */}
+        <div
+          key={`${jour}-${rangOuvert}`}
+          /* L'identité du feuillet : `TournePage` s'en sert pour savoir quand
+             la page rejointe est réellement à l'écran. */
+          data-feuillet={`${jour}-${rangOuvert}`}
+          className="page-cahier reliee apparition relative min-h-[28rem] px-4 py-5 pb-10 sm:pl-14 sm:pr-6"
+        >
+          <EnTeteFeuillet
+            feuillet={feuillet}
+            precedent={precedent}
+            suivant={suivant}
+            estAujourdHui={estAujourdHui}
+            calendrier={
+              <CalendrierCahier jour={jour} mois={mois} jours={jours} aujourdHui={aujourdHui} />
+            }
+          />
+
+          <div className="space-y-6 pt-5">
+            {feuillet.type === "seance" ? (
+              seanceDeployee?.id === feuillet.seance.id ? (
+                <div>{seanceDeployee.contenu}</div>
+              ) : (
+                <SeanceDuFeuillet
+                  seance={feuillet.seance}
+                  tentatives={tentatives}
+                  donnees={donnees}
+                />
+              )
+            ) : (
+              <ClotureDuJour
+                feuillet={feuillet}
+                donnees={donnees}
+                notes={notes}
+                estAujourdHui={estAujourdHui}
+              />
+            )}
+          </div>
+
+          {/*
+            Le folio compte les feuillets du cahier entier, jamais des pixels :
+            c'est le seul repère qui ne bouge pas quand un autre jour se remplit.
+          */}
+          <p className="chiffres absolute bottom-3 right-4 font-mono text-[0.6875rem] text-texte-discret sm:right-6">
+            {folio} / {total}
+          </p>
+        </div>
+      </div>
+      </TournePage>
+    </div>
+  );
+}
+
+/** Le lien d'un feuillet. Le rang 1 reste implicite : une URL n'a pas à porter un défaut. */
+function lienFeuillet(position: PositionFeuillet): string {
+  const base = `/seances?jour=${encodeURIComponent(position.jour)}`;
+  return position.rang > 1 ? `${base}&f=${position.rang}` : base;
+}
+
+/**
+ * L'en-tête d'un feuillet.
+ *
+ * Le premier feuillet du jour porte la date en grand, soulignée à la main :
+ * c'est le premier geste qu'on fait dans un cahier. Les suivants la rappellent
+ * en petit et donnent leur propre titre — un jour ne recommence pas trois fois.
+ */
+function EnTeteFeuillet({
+  feuillet,
+  precedent,
+  suivant,
+  estAujourdHui,
+  calendrier,
+}: {
+  feuillet: Feuillet<LigneMarge, DocumentOperationnelDate>;
+  precedent: PositionFeuillet | null;
+  suivant: PositionFeuillet | null;
+  estAujourdHui: boolean;
+  calendrier: ReactNode;
+}) {
+  const premierDuJour = feuillet.rang === 1;
+
+  return (
+    /*
+      La navigation est alignée en haut, et l'en-tête a une hauteur plancher.
+
+      Alignée en bas, elle suivait la hauteur du bloc de gauche — qui change
+      d'un feuillet à l'autre : une date en grand ici, un rappel surmonté d'un
+      titre de séance là. Les flèches se déplaçaient donc de quelques pixels à
+      chaque page tournée, sous le curseur de qui en tourne plusieurs. Un
+      contrôle qu'on utilise en rafale doit rester exactement où on l'a laissé.
+    */
+    <div className="flex min-h-[5.25rem] flex-wrap items-start justify-between gap-3 border-b border-bordure pb-3">
+      <div className="min-w-0">
+        {premierDuJour ? (
+          <>
+            <h2 className="souligne inline-block font-serif text-2xl font-medium tracking-tight first-letter:capitalize">
+              {libelleJour(feuillet.jour)}
+            </h2>
+            {estAujourdHui && <p className="mt-2 text-xs text-texte-discret">La page du jour.</p>}
+          </>
+        ) : (
+          <>
+            <p className="text-[0.625rem] font-semibold uppercase tracking-wider text-texte-discret">
+              Suite
+            </p>
+            <p className="font-serif text-base font-medium text-texte-discret first-letter:capitalize">
+              {libelleJour(feuillet.jour)}
+            </p>
+            <h2 className="mt-0.5 font-serif text-xl font-medium tracking-tight">
+              {titreDuFeuillet(feuillet)}
+            </h2>
+          </>
+        )}
+
+        {feuillet.total > 1 && (
+          <PointsDeFeuillets jour={feuillet.jour} rang={feuillet.rang} total={feuillet.total} />
+        )}
+      </div>
+
+      <nav aria-label="Feuillets du cahier" className="flex shrink-0 items-center gap-2">
+        {/*
+          `data-tourne` désigne les liens que `TournePage` anime. Les autres —
+          le calendrier, le ruban, un détail de séance — naviguent normalement :
+          on ne tourne une page que quand on tourne vraiment une page.
+        */}
+        {precedent ? (
+          <Link
+            href={lienFeuillet(precedent)}
+            data-tourne="arriere"
+            aria-label="Feuillet précédent"
+            title="Feuillet précédent"
+            className={classesLienBouton("secondaire", "petite")}
+          >
+            ←
+          </Link>
+        ) : (
+          /*
+            Aux bords du cahier, la flèche reste en place, éteinte. Un « Début »
+            écrit à sa place changeait la largeur de la rangée, et le bouton
+            d'à côté se déplaçait — la même gêne que le décalage vertical, sur
+            l'autre axe.
+          */
+          <span
+            aria-disabled
+            title="Début du cahier"
+            className={`${classesLienBouton("secondaire", "petite")} pointer-events-none opacity-40`}
+          >
+            ←
+          </span>
+        )}
+        {suivant ? (
+          <Link
+            href={lienFeuillet(suivant)}
+            data-tourne="avant"
+            aria-label="Feuillet suivant"
+            title="Feuillet suivant"
+            className={classesLienBouton("secondaire", "petite")}
+          >
+            →
+          </Link>
+        ) : (
+          <span
+            aria-disabled
+            title="Dernier feuillet"
+            className={`${classesLienBouton("secondaire", "petite")} pointer-events-none opacity-40`}
+          >
+            →
+          </span>
+        )}
+        {/* Le retour au jour n'est plus ici : c'est le ruban qui le porte. */}
+        {calendrier}
+      </nav>
+    </div>
+  );
+}
+
+/** Combien de feuillets porte ce jour, et où l'on en est — un point par feuillet. */
+function PointsDeFeuillets({
+  jour,
+  rang,
+  total,
+}: {
+  jour: string;
+  rang: number;
+  total: number;
+}) {
+  return (
+    <p className="mt-2 flex items-center gap-2 text-xs text-texte-discret">
+      <span>
+        Feuillet {rang} sur {total}
+      </span>
+      <span className="flex items-center gap-1">
+        {Array.from({ length: total }, (_, index) => {
+          const cible = index + 1;
+          const ouvert = cible === rang;
+          return (
+            <Link
+              key={cible}
+              href={lienFeuillet({ jour, rang: cible })}
+              data-tourne={cible > rang ? "avant" : cible < rang ? "arriere" : undefined}
+              aria-current={ouvert ? "page" : undefined}
+              aria-label={`Feuillet ${cible} sur ${total}`}
+              title={`Feuillet ${cible}`}
+              className={`size-1.5 rounded-full transition-colors ${
+                ouvert ? "bg-primaire" : "bg-bordure-forte hover:bg-primaire/60"
+              }`}
+            />
+          );
+        })}
+      </span>
+    </p>
+  );
+}
+
+/**
+ * Une séance sur son feuillet : la carte de relecture si elle est refermée, la
+ * carte d'action si elle attend encore quelque chose. Le choix se lit sur le
+ * statut, et les deux rendus sont ceux qui existent déjà ailleurs.
+ */
+function SeanceDuFeuillet({
+  seance,
+  tentatives,
+  donnees,
+}: {
+  seance: LearningSession;
+  tentatives: ExerciseAttempt[];
+  donnees: DonneesSeance;
+}) {
+  const statut = statutSeance(seance);
+  if (statut === "terminee" || statut === "abandonnee") {
+    return <LigneCahier seance={seance} donnees={donnees} />;
+  }
+  return <CarteSeance seance={seance} tentatives={tentatives} />;
+}
+
+/**
+ * Le feuillet de clôture : ce que le jour porte en dehors de ses séances.
+ *
+ * Les traces et la marge ne sont pas encartées — ce sont des lignes écrites sur
+ * la page. Une carte posée sur du papier réglé donnerait une feuille collée sur
+ * la feuille.
+ */
+function ClotureDuJour({
+  feuillet,
+  donnees,
+  notes,
+  estAujourdHui,
+}: {
+  feuillet: Extract<Feuillet<LigneMarge, DocumentOperationnelDate>, { type: "cloture" }>;
+  donnees: DonneesSeance;
+  notes: LigneMarge[];
+  estAujourdHui: boolean;
+}) {
+  const vide =
+    feuillet.traces.length === 0 && feuillet.projets.length === 0 && feuillet.notes.length === 0;
+
+  return (
+    <>
+      {feuillet.projets.length > 0 && (
         <section className="space-y-3">
           <TitreDeSection>
-            Projet{page.projets.length > 1 ? "s" : ""} & travaux de ce jour
+            Projet{feuillet.projets.length > 1 ? "s" : ""} &amp; travaux de ce jour
           </TitreDeSection>
           <div className="space-y-3">
-            {page.projets.map((projet) => (
-              <ProjetDeLaPage key={projet.id} projet={projet} />
+            {feuillet.projets.map((projet) => (
+              <ProjetDuFeuillet key={projet.id} projet={projet} />
             ))}
           </div>
         </section>
       )}
 
-      {/*
-        Les traces et la marge ne sont pas encartées : ce sont des lignes
-        écrites sur la page. Une carte posée sur du papier réglé donnerait une
-        feuille collée sur la feuille.
-      */}
-      {page.traces.length > 0 && (
+      {feuillet.traces.length > 0 && (
         <section className="space-y-1">
           <TitreDeSection>Aussi ce jour-là</TitreDeSection>
           <ul className="divide-y divide-bordure/60">
-            {page.traces.map((trace) => (
+            {feuillet.traces.map((trace) => (
               <TraceHorsSeance key={trace.id} seance={trace} donnees={donnees} />
             ))}
           </ul>
         </section>
       )}
 
-      {/*
-        La marge en bas de page, comme dans un cahier : on écrit à côté de ce
-        qu'on a fait, pas avant de l'avoir fait.
-      */}
       {estAujourdHui ? (
         <section className="space-y-2">
           <TitreDeSection>En marge</TitreDeSection>
           <MargeCahier lignes={notes} compteId={donnees.compteId} compacte />
         </section>
-      ) : page.notes.length > 0 ? (
+      ) : feuillet.notes.length > 0 ? (
         <section className="space-y-1">
           <TitreDeSection>Noté ce jour-là</TitreDeSection>
           <ul className="space-y-1.5">
-            {page.notes.map((note, index) => (
+            {feuillet.notes.map((note, index) => (
               <li
                 key={`${index}-${note.texte}`}
                 className={`text-sm ${note.faite ? "text-texte-discret line-through" : ""}`}
@@ -154,19 +431,14 @@ export function PageCahier({
         </section>
       ) : null}
 
-      {pageEstVide(page) && (
-        <p className="py-6 text-sm italic text-texte-discret">
-          {estAujourdHui
-            ? "Page vierge. Note ce sur quoi tu bloques, ou compose une séance."
-            : "Rien n’a été écrit ce jour-là."}
-        </p>
+      {vide && !estAujourdHui && (
+        <p className="py-6 text-sm italic text-texte-discret">Rien n’a été écrit ce jour-là.</p>
       )}
-      </div>
-    </div>
+    </>
   );
 }
 
-function ProjetDeLaPage({ projet }: { projet: DocumentOperationnelDate }) {
+function ProjetDuFeuillet({ projet }: { projet: DocumentOperationnelDate }) {
   return (
     <Carte>
       <EnTeteCarte
@@ -210,95 +482,7 @@ function ProjetDeLaPage({ projet }: { projet: DocumentOperationnelDate }) {
   );
 }
 
-function EnTetePage({
-  jour,
-  precedente,
-  suivante,
-  estAujourdHui,
-  cleAujourdHui,
-  calendrier,
-}: {
-  jour: string;
-  precedente: string | null;
-  suivante: string | null;
-  estAujourdHui: boolean;
-  cleAujourdHui: string;
-  calendrier: ReactNode;
-}) {
-  const lien = (cible: string) => `/seances?jour=${encodeURIComponent(cible)}`;
-
-  return (
-    <div className="flex flex-wrap items-end justify-between gap-3 border-b border-bordure pb-3">
-      <div className="min-w-0">
-        {/*
-          La date, écrite en tête de page et soulignée à la main : c'est le
-          premier geste qu'on fait dans un cahier, et c'est ce qui dit qu'on
-          regarde une page et non une liste.
-        */}
-        <h2 className="souligne inline-block font-serif text-2xl font-medium tracking-tight first-letter:capitalize">
-          {libelleJour(jour)}
-        </h2>
-        {estAujourdHui && (
-          <p className="mt-2 text-xs text-texte-discret">La page du jour.</p>
-        )}
-      </div>
-
-      <nav aria-label="Pages du cahier" className="flex items-center gap-2">
-        {precedente ? (
-          <Link
-            href={lien(precedente)}
-            aria-label="Page précédente"
-            title="Page précédente"
-            className={classesLienBouton("secondaire", "petite")}
-          >
-            ←
-          </Link>
-        ) : (
-          <span className="text-xs text-texte-discret">Début</span>
-        )}
-        {suivante && (
-          <Link
-            href={lien(suivante)}
-            aria-label="Page suivante"
-            title="Page suivante"
-            className={classesLienBouton("secondaire", "petite")}
-          >
-            →
-          </Link>
-        )}
-        {!estAujourdHui && (
-          <Link href={lien(cleAujourdHui)} className={classesLienBouton("secondaire", "petite")}>
-            Aujourd’hui
-          </Link>
-        )}
-        {calendrier}
-      </nav>
-    </div>
-  );
-}
-
-/**
- * Une séance sur sa page : la carte de relecture si elle est refermée, la carte
- * d'action si elle attend encore quelque chose. Le choix se lit sur le statut,
- * et les deux rendus sont ceux qui existent déjà ailleurs.
- */
-function SeanceDeLaPage({
-  seance,
-  tentatives,
-  donnees,
-}: {
-  seance: LearningSession;
-  tentatives: ExerciseAttempt[];
-  donnees: DonneesSeance;
-}) {
-  const statut = statutSeance(seance);
-  if (statut === "terminee" || statut === "abandonnee") {
-    return <LigneCahier seance={seance} donnees={donnees} />;
-  }
-  return <CarteSeance seance={seance} tentatives={tentatives} />;
-}
-
-/** L'intitulé d'une rubrique de la page — discret, il ne concurrence pas la date. */
+/** L'intitulé d'une rubrique du feuillet — discret, il ne concurrence pas la date. */
 function TitreDeSection({ children }: { children: ReactNode }) {
   return (
     <h3 className="text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret">
@@ -348,6 +532,21 @@ function TraceHorsSeance({
       </div>
     </li>
   );
+}
+
+/**
+ * Le titre d'un feuillet de suite.
+ *
+ * Une séance n'a pas de titre stocké : on prend l'intention déclarée quand elle
+ * existe, sinon le décompte d'activités — le même libellé que la carte de
+ * relecture, pour ne pas inventer un nom que la séance n'a pas (P6).
+ */
+function titreDuFeuillet(feuillet: Feuillet<LigneMarge, DocumentOperationnelDate>): string {
+  if (feuillet.type === "cloture") return "Clôture du jour";
+  const intention = feuillet.seance.besoinDeclare?.intention?.trim();
+  if (intention) return intention;
+  const activites = feuillet.seance.activites.length;
+  return `Séance — ${activites} activité${activites > 1 ? "s" : ""}`;
 }
 
 function libelleJour(jour: string): string {

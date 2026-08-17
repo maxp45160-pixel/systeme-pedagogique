@@ -1,5 +1,6 @@
 /**
- * Le cahier a des pages, et une page est un jour.
+ * Le cahier a des pages, et une page est un jour — qu'un jour chargé étale sur
+ * plusieurs feuillets (voir `feuilletsDeLaPage`, plus bas).
  *
  * ## Pourquoi le jour, et pourquoi rien n'est stocké
  *
@@ -187,6 +188,182 @@ export function pageEstVide(page: PageCahier): boolean {
     page.notes.length === 0 &&
     (page.projets?.length ?? 0) === 0
   );
+}
+
+/* ------------------------------------------------------------------ */
+/* Feuillets — un jour porte une à plusieurs pages                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Un feuillet : ce qu'on lit d'un seul tenant avant de tourner.
+ *
+ * ## Pourquoi le jour ne suffit plus
+ *
+ * Un jour calme tient sur une page. Un jour à trois séances tenait, lui, sur
+ * une page de trois écrans de haut — où « tourner la page » ne voulait plus
+ * rien dire, et où la séance ouverte se battait avec les traces et la marge
+ * pour l'attention.
+ *
+ * ## La coupe est lue, jamais calculée
+ *
+ * Une **séance** a un début, une fin, une durée, un bilan : c'est une frontière
+ * qui existe déjà dans les données, et elle vaut un feuillet. Le reste du jour
+ * — traces hors séance, projets, marge — tient sur un feuillet de **clôture**.
+ *
+ * Découper à la hauteur produirait une coupe différente selon l'écran, le zoom
+ * et la longueur d'un énoncé : une frontière fabriquée, donc fausse (P1). Le
+ * rang d'un feuillet doit pouvoir vivre dans une URL et désigner demain la même
+ * chose qu'aujourd'hui.
+ */
+export type Feuillet<
+  N extends NoteDatee = NoteDatee,
+  P extends DocumentOperationnelDate = DocumentOperationnelDate,
+> = {
+  jour: string;
+  /** Position dans le jour, à partir de 1 — ce qui voyage dans l'URL. */
+  rang: number;
+  /** Nombre de feuillets que porte ce jour. */
+  total: number;
+} & (
+  | { type: "seance"; seance: LearningSession }
+  | { type: "cloture"; traces: LearningSession[]; notes: N[]; projets: P[] }
+);
+
+/**
+ * Les feuillets d'un jour, dans l'ordre où on les tourne.
+ *
+ * Le feuillet de clôture n'apparaît que s'il porte quelque chose — sauf sur un
+ * jour sans aucune séance, où il est le feuillet unique : une page vierge reste
+ * une page, c'est là qu'on écrit.
+ */
+export function feuilletsDeLaPage<
+  N extends NoteDatee,
+  P extends DocumentOperationnelDate = DocumentOperationnelDate,
+>(page: PageCahier<N, P>): Feuillet<N, P>[] {
+  const cloture = {
+    type: "cloture" as const,
+    traces: page.traces,
+    notes: page.notes,
+    projets: page.projets ?? [],
+  };
+  const clotureUtile =
+    cloture.traces.length > 0 || cloture.notes.length > 0 || cloture.projets.length > 0;
+
+  const contenus: Array<
+    { type: "seance"; seance: LearningSession } | typeof cloture
+  > = page.seances.map((seance) => ({ type: "seance" as const, seance }));
+  if (clotureUtile || contenus.length === 0) contenus.push(cloture);
+
+  return contenus.map((contenu, index) => ({
+    ...contenu,
+    jour: page.jour,
+    rang: index + 1,
+    total: contenus.length,
+  }));
+}
+
+/** Le rang lu dans l'URL. Un rang n'est ni négatif, ni décimal, ni deviné. */
+export function rangValide(brut: string | undefined): number | null {
+  if (!brut || !/^\d+$/.test(brut)) return null;
+  const rang = Number(brut);
+  return rang >= 1 ? rang : null;
+}
+
+/**
+ * Le rang sur lequel ouvrir le jour.
+ *
+ * Un rang hors bornes — une séance supprimée depuis, un lien recopié à la main
+ * — ne doit pas rendre une page vide : on retombe sur le dernier feuillet
+ * existant plutôt que sur rien.
+ */
+export function rangDOuverture(rang: number | null, total: number): number {
+  if (total < 1) return 1;
+  if (!rang) return 1;
+  return Math.min(Math.max(rang, 1), total);
+}
+
+/** Où l'on se trouve dans le cahier : un jour, et un rang dans ce jour. */
+export interface PositionFeuillet {
+  jour: string;
+  rang: number;
+}
+
+/**
+ * Le feuillet précédent et le suivant, en traversant les jours.
+ *
+ * Tourner ne s'arrête pas au bord d'un jour : au dernier feuillet, la page
+ * suivante est le premier feuillet du jour d'après ; au premier, la précédente
+ * est le **dernier** feuillet du jour d'avant — on arrive par la fin, comme
+ * dans un cahier qu'on remonte.
+ *
+ * Le comptage est passé en paramètre : ce module ne va pas chercher les données
+ * lui-même, et l'appelant sait déjà combien de feuillets porte chaque jour.
+ */
+export function voisinsDuFeuillet(
+  position: PositionFeuillet,
+  jours: readonly string[],
+  nombreDeFeuillets: (jour: string) => number,
+): { precedent: PositionFeuillet | null; suivant: PositionFeuillet | null } {
+  const { precedente, suivante } = voisinesDeLaPage(position.jour, jours);
+  const total = Math.max(1, nombreDeFeuillets(position.jour));
+  const rang = rangDOuverture(position.rang, total);
+
+  const precedent = rang > 1
+    ? { jour: position.jour, rang: rang - 1 }
+    : precedente
+      ? { jour: precedente, rang: Math.max(1, nombreDeFeuillets(precedente)) }
+      : null;
+
+  const suivant = rang < total
+    ? { jour: position.jour, rang: rang + 1 }
+    : suivante
+      ? { jour: suivante, rang: 1 }
+      : null;
+
+  return { precedent, suivant };
+}
+
+/**
+ * Combien de feuillets porte chaque jour du cahier.
+ *
+ * Une seule construction pour tout le cahier : la navigation et le folio ont
+ * besoin des voisins, et recompter jour par jour au fil des clics reviendrait
+ * à relire toutes les séances à chaque flèche.
+ */
+export function feuilletsParJour<
+  N extends NoteDatee,
+  P extends DocumentOperationnelDate = DocumentOperationnelDate,
+>(
+  jours: readonly string[],
+  entrees: {
+    seances: readonly LearningSession[];
+    notes: readonly N[];
+    projets?: readonly P[];
+  },
+): Map<string, number> {
+  return new Map(
+    jours.map((jour) => [jour, feuilletsDeLaPage(construirePage(jour, entrees)).length]),
+  );
+}
+
+/**
+ * Le folio : le numéro du feuillet dans le cahier entier, et le total.
+ *
+ * C'est le seul repère qui ne bouge pas quand un jour se remplit ailleurs dans
+ * la page — il compte des feuillets, pas des pixels.
+ */
+export function folioDuFeuillet(
+  position: PositionFeuillet,
+  jours: readonly string[],
+  nombres: ReadonlyMap<string, number>,
+): { folio: number; total: number } {
+  const nombreDe = (jour: string) => Math.max(1, nombres.get(jour) ?? 1);
+  const total = jours.reduce((somme, jour) => somme + nombreDe(jour), 0);
+  const avant = jours
+    .filter((candidat) => candidat < position.jour)
+    .reduce((somme, jour) => somme + nombreDe(jour), 0);
+  const rang = rangDOuverture(position.rang, nombreDe(position.jour));
+  return { folio: avant + rang, total };
 }
 
 /**

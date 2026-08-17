@@ -10,12 +10,17 @@ import { PageCahier } from "@/components/seances/page-cahier";
 import { MarquePage } from "@/components/seances/marque-page";
 import { lireMarge } from "@/lib/store/marge";
 import {
+  construirePage,
   extraireDocumentsOperationnels,
+  feuilletsDeLaPage,
+  feuilletsParJour,
   jourDeLaSeance,
   joursDuCahier,
   jourValide,
   moisValide,
   pageDOuverture,
+  rangDOuverture,
+  rangValide,
 } from "@/lib/domain/pages-cahier";
 import { lireApercusDocuments, lireApercusSnapshots } from "@/lib/store/documents";
 import { moisAffiche } from "@/components/seances/calendrier-cahier";
@@ -36,7 +41,9 @@ import { TEMPS_DECLARE_MAX } from "@/lib/domain/seance";
  *  - `composer=1` — le compositeur, ouvert AU-DESSUS de la page. Ce n'est pas
  *    une route à part : elle rendait sa propre coquille, et la refermer sans
  *    composer laissait sur un écran vide sans retour ;
- *  - `jour` / `mois` — la page ouverte, et le mois du calendrier ;
+ *  - `jour` / `f` / `mois` — la page ouverte, le feuillet de ce jour, et le
+ *    mois du calendrier. `f` est implicite au rang 1 : une URL ne porte pas un
+ *    défaut ;
  *  - `session` sans `focus` — la séance se déroule sur la page de son jour.
  *
  * Sans rien : le marque-page rouvre la dernière page consultée.
@@ -51,6 +58,7 @@ export default async function PageSeances(props: {
     abandon?: string;
     q?: string;
     jour?: string;
+    f?: string;
     mois?: string;
     focus?: string;
     composer?: string;
@@ -100,6 +108,7 @@ export default async function PageSeances(props: {
       <Suspense fallback={<SqueletteContenu />}>
         <ContenuCahier
           jourDemande={recherche.jour}
+          feuilletDemande={recherche.f}
           moisDemande={recherche.mois}
           session={session}
           exercice={exercice}
@@ -242,6 +251,7 @@ async function ResultatsRecherche({ recherche }: { recherche: string }) {
  */
 async function ContenuCahier({
   jourDemande,
+  feuilletDemande,
   moisDemande,
   session,
   exercice,
@@ -249,6 +259,7 @@ async function ContenuCahier({
   composition,
 }: {
   jourDemande?: string;
+  feuilletDemande?: string;
   moisDemande?: string;
   session?: string;
   exercice?: string;
@@ -284,6 +295,31 @@ async function ContenuCahier({
   const jourExplicite = jourValide(jourDemande) ?? (seanceOuverte ? jourDeLaSeance(seanceOuverte) : null);
   const jour = jourExplicite ?? pageDOuverture(null, jours, ctx.now);
 
+  /*
+   * Un jour porte un à plusieurs feuillets (`feuilletsDeLaPage`). Le comptage
+   * est fait ici, une fois pour tout le cahier : la navigation d'un feuillet à
+   * l'autre a besoin de savoir combien en porte le jour voisin, et le refaire à
+   * chaque flèche relirait toutes les séances.
+   */
+  const entreesDuCahier = { seances: ctx.donnees.sessions, notes: marge, projets };
+  const nombresDeFeuillets = feuilletsParJour(jours, entreesDuCahier);
+  const feuilletsDuJour = feuilletsDeLaPage(construirePage(jour, entreesDuCahier));
+
+  /*
+   * Le rang affiché, par ordre d'autorité : celui de la séance ouverte — on
+   * arrive sur SON feuillet, pas sur le premier du jour — puis celui demandé
+   * dans l'URL, borné au jour pour qu'un lien périmé n'ouvre pas du vide.
+   */
+  const rangDeLaSeance = seanceOuverte
+    ? feuilletsDuJour.findIndex(
+        (feuillet) => feuillet.type === "seance" && feuillet.seance.id === seanceOuverte.id,
+      ) + 1
+    : 0;
+  const rang = rangDOuverture(
+    rangDeLaSeance > 0 ? rangDeLaSeance : rangValide(feuilletDemande),
+    feuilletsDuJour.length,
+  );
+
   return (
     <div className="space-y-8">
       {/*
@@ -293,22 +329,36 @@ async function ContenuCahier({
       <MarquePage
         compteId={ctx.donnees.user.id}
         jour={jour}
+        rang={rang}
         jours={jours}
         reprendre={jourExplicite === null}
       />
 
       {composition && <CompositeurDepuisLien {...composition} />}
 
-      <OngletsSeancesOuvertes
-        seances={ctx.donnees.sessions}
-        tentatives={ctx.donnees.attempts}
-        projets={projets}
-        jourAffiche={jour}
-      />
+      {/*
+        La rangée d'onglets garde sa place, même vide.
+
+        Elle ne montre que ce qui est ouvert AILLEURS que sur la page affichée :
+        elle disparaît donc dès qu'on tourne vers le jour de la séance en cours,
+        et tout le cahier remontait de trois centimètres — flèches comprises,
+        sous le curseur de qui feuillette. Le trou réservé coûte une ligne ; le
+        cahier qui saute coûte le geste.
+      */}
+      <div className="min-h-8">
+        <OngletsSeancesOuvertes
+          seances={ctx.donnees.sessions}
+          tentatives={ctx.donnees.attempts}
+          projets={projets}
+          jourAffiche={jour}
+        />
+      </div>
 
       <PageCahier
         jour={jour}
         jours={jours}
+        rang={rang}
+        nombresDeFeuillets={nombresDeFeuillets}
         mois={moisAffiche(moisValide(moisDemande), jour)}
         seances={ctx.donnees.sessions}
         tentatives={ctx.donnees.attempts}

@@ -483,6 +483,31 @@ export function classesLienBouton(
 }
 
 /**
+ * Intercalaire — l'onglet d'un séparateur de cahier.
+ *
+ * Les outils du workspace étaient une barre de boutons flottante posée sur la
+ * page : quatre pastilles qui disaient « application », pas « cahier ». Un
+ * intercalaire dit la même chose en une forme que l'objet possède déjà — une
+ * languette qui monte de la ligne, arrondie en haut seulement, ouverte en bas
+ * parce qu'elle appartient à ce qu'elle sépare.
+ *
+ * Une seule implémentation, consommée par `OutilSeance` et `TiroirTuteur` :
+ * deux recettes divergentes pour le même objet, c'est exactement le défaut que
+ * `classesLienBouton` existe pour empêcher.
+ *
+ * ⚠️ `-mb-px` : la languette doit mordre la ligne qui la porte, sinon elle
+ * flotte un pixel au-dessus et le dessin se casse.
+ */
+export function classesIntercalaire(actif = false): string {
+  return cx(
+    "relative -mb-px inline-flex cursor-pointer items-center gap-1.5 rounded-t-md border border-b-0 px-3 py-1.5 text-xs transition-colors",
+    actif
+      ? "border-bordure bg-surface font-semibold text-texte shadow-[inset_0_-1px_0_var(--primaire)]"
+      : "border-transparent text-texte-attenue hover:bg-surface-2/60 hover:text-texte",
+  );
+}
+
+/**
  * Bouton d'action, seule primitive de bouton de l'application.
  *
  * `type="button"` par défaut — un `<button>` natif dans un `<form>` vaut

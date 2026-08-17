@@ -20,7 +20,7 @@
 
 import { useState } from "react";
 import { ChatTuteur, type EtatContexteTuteur } from "@/components/tuteur/chat";
-import { classesLienBouton, cx } from "@/components/ui/primitives";
+import { classesIntercalaire, classesLienBouton, cx } from "@/components/ui/primitives";
 import { Modale } from "@/components/ui/modale";
 import { IconeMessage } from "@/components/ui/icones";
 import type {
@@ -71,8 +71,12 @@ export function TiroirTuteur({
   competencesModale: CompetenceModale[];
   calibragesModale: Record<string, CalibrageModale>;
   libelle?: string;
-  /** `flottant` : bouton rond global. `bouton` : bouton en ligne. `barre-contextuelle` : actions directes. */
-  declencheur?: "bouton" | "flottant" | "barre-contextuelle";
+  /**
+   * `flottant` : bouton rond global. `bouton` : bouton en ligne.
+   * `barre-contextuelle` : actions directes. `intercalaire` : la languette du
+   * cahier, pour la rangée d'outils d'une séance en cours.
+   */
+  declencheur?: "bouton" | "flottant" | "barre-contextuelle" | "intercalaire";
   /** Liste d'actions prédéfinies à afficher en barre contextuelle. */
   actionsContextuelles?: ActionContextuelleTuteur[];
 }) {
@@ -121,7 +125,13 @@ export function TiroirTuteur({
           aria-label={flottant ? libelle : undefined}
           title={flottant ? libelle : undefined}
           data-tour={flottant ? "tuteur-flottant" : undefined}
-          className={flottant ? CLASSES_FLOTTANT : classesLienBouton("secondaire", "petite")}
+          className={
+            flottant
+              ? CLASSES_FLOTTANT
+              : declencheur === "intercalaire"
+                ? classesIntercalaire(ouvert)
+                : classesLienBouton("secondaire", "petite")
+          }
         >
           {flottant ? (
             <IconeMessage className="size-5" />

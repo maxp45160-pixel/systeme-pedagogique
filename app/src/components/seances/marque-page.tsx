@@ -10,9 +10,13 @@ import { pageDOuverture } from "@/lib/domain/pages-cahier";
  *
  * Deux gestes, et un seul composant parce qu'ils partagent la même clé :
  *
- *  - **poser** — sur une page ouverte, on retient le jour regardé ;
- *  - **reprendre** — arrivé sur `/seances` sans jour, on va chercher le
- *    dernier.
+ *  - **poser** — sur un feuillet ouvert, on retient le jour ET le rang ;
+ *  - **reprendre** — arrivé sur `/seances` sans jour, on va chercher le dernier.
+ *
+ * Le rang compte autant que le jour depuis qu'un jour porte plusieurs
+ * feuillets : rouvrir une journée à trois séances sur la première alors qu'on
+ * s'était arrêté à la troisième, c'est perdre exactement ce qu'un marque-page
+ * sert à garder.
  *
  * ## Pourquoi côté client
  *
@@ -33,12 +37,15 @@ import { pageDOuverture } from "@/lib/domain/pages-cahier";
 export function MarquePage({
   compteId,
   jour,
+  rang,
   jours,
   /** Vrai quand l'URL ne portait aucun jour : c'est le seul cas où l'on redirige. */
   reprendre = false,
 }: {
   compteId: string;
   jour: string;
+  /** Le feuillet ouvert dans ce jour, déjà borné par le serveur. */
+  rang: number;
   /** Les pages qui existent. Un marque-page qui n'en désigne aucune est périmé. */
   jours: string[];
   reprendre?: boolean;
@@ -54,15 +61,49 @@ export function MarquePage({
        * appliquerait s'il voyait `localStorage` : un marque-page périmé — le
        * jour d'une séance annulée depuis — ne doit pas rouvrir une page vide.
        */
-      const voulue = pageDOuverture(lireLocal<string>(cle), jours, new Date());
-      if (voulue !== jour) {
-        router.replace(`/seances?jour=${encodeURIComponent(voulue)}`);
+      const pose = lirePose(cle);
+      const voulue = pageDOuverture(pose?.jour, jours, new Date());
+      /*
+       * Le rang n'est pas revalidé ici : le composant ne sait pas combien de
+       * feuillets porte le jour visé, et deviner produirait un mauvais rang
+       * plutôt qu'aucun. Le serveur le bornera (`rangDOuverture`) — un rang
+       * périmé retombe sur le dernier feuillet, jamais sur du vide.
+       */
+      const rangVoulu = voulue === pose?.jour ? Math.max(1, pose.rang) : 1;
+      if (voulue !== jour || rangVoulu !== rang) {
+        router.replace(lienFeuillet(voulue, rangVoulu));
         return;
       }
     }
 
-    ecrireLocal(cle, jour);
-  }, [compteId, jour, jours, reprendre, router]);
+    ecrireLocal(cle, { jour, rang });
+  }, [compteId, jour, rang, jours, reprendre, router]);
 
   return null;
+}
+
+interface PoseMarquePage {
+  jour: string;
+  rang: number;
+}
+
+/**
+ * Le marque-page tel qu'il a été posé.
+ *
+ * Les marque-pages écrits avant les feuillets sont une simple chaîne de
+ * caractères : on les lit encore, au rang 1. Les jeter obligerait à rouvrir le
+ * cahier au jour courant la première fois — une régression silencieuse pour qui
+ * l'avait posé ailleurs.
+ */
+function lirePose(cle: string): PoseMarquePage | null {
+  const brut = lireLocal<string | PoseMarquePage>(cle);
+  if (!brut) return null;
+  if (typeof brut === "string") return { jour: brut, rang: 1 };
+  if (typeof brut.jour !== "string") return null;
+  return { jour: brut.jour, rang: typeof brut.rang === "number" ? brut.rang : 1 };
+}
+
+function lienFeuillet(jour: string, rang: number): string {
+  const base = `/seances?jour=${encodeURIComponent(jour)}`;
+  return rang > 1 ? `${base}&f=${rang}` : base;
 }
