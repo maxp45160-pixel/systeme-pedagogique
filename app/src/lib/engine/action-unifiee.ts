@@ -161,6 +161,41 @@ function remettreEnTete(
  */
 export function choisirActionUnifiee(entrees: EntreesActionUnifiee): ActionUnifiee | null {
   const recommandations = [...entrees.recommandations];
+
+  /*
+   * Un exercice retiré de la file par `recommander` ne doit pas réapparaître
+   * par la porte de l'arbitrage.
+   *
+   * `recommander` exclut un exercice non abouti (partiel ou échec sans progrès
+   * démontré) tant qu'aucune réussite ne le suit sur la compétence, et
+   * n'attache à chaque compétence que l'exercice qu'il sanctionne aujourd'hui.
+   * Or `activities` contient TOUT le corpus d'exercices : sans ce filtre,
+   * l'exercice qu'on vient de rater restait candidat et pouvait être retenu en
+   * tête. `remettreEnTete` ne trouvant alors aucune recommandation qui le porte,
+   * l'arbitre retombait sur `kind: "activite"` et la carte réaffichait le même
+   * exercice que la personne venait de faire — la règle ADR-066-P4, réintroduite
+   * par l'arbitre au lieu d'être reproduite.
+   *
+   * Les notes et ressources (préfixes `note:`/`ressource:`) passent : elles ne
+   * sont pas gouvernées par cette règle d'exercice.
+   */
+  const exercicesSanctionnes = new Set(
+    recommandations
+      .map((r) => r.exercice?.id)
+      .filter((id): id is string => Boolean(id)),
+  );
+  /*
+   * Une tentative en cours (reprise) reste un candidat légitime même si sa
+   * compétence est hors de la file haute : ce n'est pas un nouveau passage
+   * d'un exercice non abouti, c'est la poursuite d'un travail engagé.
+   */
+  const ouvertes = new Set(entrees.openRuns.map((run) => run.activityId));
+  const activites = entrees.activities.filter((activity) => {
+    if (!activity.id.startsWith(PREFIXE_EXERCICE)) return true;
+    if (ouvertes.has(activity.id)) return true;
+    return exercicesSanctionnes.has(activity.id.slice(PREFIXE_EXERCICE.length));
+  });
+
   const proposition = recommendLearningAction({
     context: {
       accountId: entrees.accountId,
@@ -169,7 +204,7 @@ export function choisirActionUnifiee(entrees: EntreesActionUnifiee): ActionUnifi
       intent: "systeme",
       declaredAt: entrees.declaredAt,
     },
-    activities: entrees.activities,
+    activities: activites,
     openRuns: entrees.openRuns,
     historicalRuns: entrees.historicalRuns ?? [],
     generationRequests: entrees.generationRequests ?? [],

@@ -240,4 +240,47 @@ describe("arbitrage à l'instant T", () => {
     expect(resultat.facteurs.map((f) => f.kind)).toContain("temps");
     expect(resultat.facteurs.every((f) => !("contribution" in f))).toBe(true);
   });
+
+  /*
+   * Un exercice que `recommander` a retiré de la file (non abouti — partiel ou
+   * échec — sans progrès démontré) ne doit pas réapparaître par la porte de
+   * l'arbitrage. Avant le correctif, `activities` portait tout le corpus et
+   * l'exercice restait candidat ; sa compétence étant absente de la file, il
+   * était retenu en tête sous forme d'« activité » (CarteActionActivite) — la
+   * carte réaffichait le même exercice que la personne venait de faire.
+   */
+  it("un exercice exclu de la file ne réapparaît pas par la porte de l'arbitrage", () => {
+    // DEV-01 vient d'être fait en partiel : `recommander` laisse la compétence
+    // dans la file mais avec `exercice: null` — son exercice n'est plus proposé.
+    const retrouve = exercice("ex-dev01", "DEV-01", 20);
+    const resultat = choisirActionUnifiee({
+      ...entrees([retrouve], [recommandation("DEV-01", null)], 30),
+    });
+
+    // L'exercice rejeté ne doit jamais être proposé comme action isolée.
+    expect(resultat?.kind).toBe("exercice");
+    if (resultat?.kind !== "exercice") throw new Error("branche inattendue");
+    expect(resultat.recommandations[0].exercice).toBeNull();
+    expect(
+      resultat.recommandations.some((r) => r.exercice?.id === "ex-dev01"),
+    ).toBe(false);
+  });
+
+  it("l'exercice sanctionné par la file l'emporte quand le corpus contient aussi un exercice écarté", () => {
+    const sanctionne = exercice("ex-dev02", "DEV-02", 15);
+    const ecarte = exercice("ex-dev01", "DEV-01", 10);
+    const resultat = choisirActionUnifiee({
+      ...entrees(
+        [sanctionne, ecarte],
+        [recommandation("DEV-02", sanctionne), recommandation("DEV-01", null)],
+        30,
+      ),
+    });
+
+    if (resultat?.kind !== "exercice") throw new Error("branche inattendue");
+    expect(resultat.recommandations[0].exercice?.id).toBe("ex-dev02");
+    expect(
+      resultat.recommandations.some((r) => r.exercice?.id === "ex-dev01"),
+    ).toBe(false);
+  });
 });

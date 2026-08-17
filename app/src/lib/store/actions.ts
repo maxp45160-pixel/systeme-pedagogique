@@ -710,11 +710,26 @@ export async function refuserRecommandation(
   exerciceId?: string,
 ): Promise<void> {
   const dorsale = await dorsaleCompte();
+  /*
+   * Un refus d'exercice est enregistré sous l'identifiant d'exercice NU
+   * (`diag-log-01`), jamais sous l'identifiant d'activité legacy
+   * (`legacy-exercise:diag-log-01`). C'est ce que `recommander`
+   * (`choisirExercice`) et `chargerActionProposee` comparent à leur filtre —
+   * stocker le préfixe rendait le refus inopérant : l'exercice refusé
+   * réapparaissait dès le rafraîchissement.
+   *
+   * Les notes et ressources (préfixes `note:`/`ressource:`) ne sont pas
+   * touchées : elles sont filtrées par leur propre identifiant d'activité.
+   */
+  const idExercice = exerciceId?.startsWith("legacy-exercise:")
+    ? exerciceId.slice("legacy-exercise:".length)
+    : exerciceId ?? null;
+
   const { error } = await dorsale.supabase.from("refus_recommandations").insert({
     id: nouvelId("ref"),
     user_id: dorsale.userId,
     code,
-    exercice_id: exerciceId ?? null,
+    exercice_id: idExercice,
     date: new Date().toISOString(),
   });
   verifier("enregistrement du refus de recommandation", error);
