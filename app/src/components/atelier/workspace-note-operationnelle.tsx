@@ -19,7 +19,6 @@ import {
   ligneExerciceSeance,
 } from "@/lib/documents/journal-seance";
 import { sauvegarderDocumentAction } from "@/lib/store/document-actions";
-import { urlComposerAutonome } from "@/lib/domain/navigation-exercice";
 
 export interface WorkspaceNoteOperationnelleProps {
   /** Identifiant canonique de la fiche, repris dans l'URL de l'Atelier. */
