@@ -6,11 +6,7 @@ import { cache } from "react";
 import { revalidatePath } from "next/cache";
 import { dorsaleCompte, type DorsaleCompte } from "./db";
 import { ligneVersEntite, verifier } from "./supabase-backend";
-import {
-  reconstruireIndexDocumentaire,
-  reconstruireIndexDepuisApercus,
-  type IndexDocumentaire,
-} from "@/lib/documents/index";
+import { reconstruireIndexDocumentaire } from "@/lib/documents/index";
 import { validerTailleMarkdown } from "@/lib/documents/archive";
 import { analyserDocumentMarkdown, SCHEMA_MARKDOWN, type FrontMatter } from "@/lib/documents/markdown";
 import type {
@@ -208,16 +204,6 @@ export const lireApercusSnapshots = cache(async (): Promise<ResumeSnapshotDocume
   );
 });
 
-export async function lireIndexDocumentaire(): Promise<IndexDocumentaire> {
-  return reconstruireIndexDocumentaire(await lireDocuments());
-}
-
-export async function lireIndexDocumentaireLeger(
-  ciblesConnues: Iterable<string> = [],
-): Promise<IndexDocumentaire> {
-  return reconstruireIndexDepuisApercus(await lireApercusDocuments(), ciblesConnues);
-}
-
 async function synchroniserLiens(
   contenu: LigneDocument[],
   dorsaleFournie?: DorsaleCompte,
@@ -355,17 +341,6 @@ export async function modifierDocument(
   }
   revalidatePath("/atelier");
   return { modifie, snapshot, updatedAt };
-}
-
-/**
- * Rejoue explicitement l'index dérivé. Cette opération est idempotente et
- * constitue le point d'entrée du futur rebuild après perte de la base d'index.
- */
-export async function reconstruireLiensDocuments(): Promise<void> {
-  const dorsale = await dorsaleCompte();
-  const documents = await lireDocumentsDepuisDorsale(dorsale);
-  await synchroniserLiens(documents, dorsale);
-  revalidatePath("/atelier");
 }
 
 export async function creerSnapshotDocument(

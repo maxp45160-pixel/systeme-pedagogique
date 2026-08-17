@@ -278,20 +278,12 @@ export async function lireCompetencesActives(): Promise<CompetenceLisible[]> {
   }));
 }
 
-export async function basculerActive(code: string, active: boolean): Promise<void> {
-  await basculerActives([code], active);
-}
-
 export async function basculerActives(codes: string[], active: boolean): Promise<void> {
   if (codes.length === 0) return;
   const dorsale = await dorsaleCompte();
   const referentiel = await lireReferentiel(dorsale);
   const domaineId = domaineUnique(codes, referentiel);
   await executerCommande({ type: "activer_competences", domaineId, codes: [...new Set(codes)], active }, referentiel, "utilisateur", active ? "Remise au périmètre" : "Sortie du périmètre");
-}
-
-export async function archiverCompetence(code: string): Promise<void> {
-  await retirerCompetences([code]);
 }
 
 export async function desarchiverCompetence(code: string): Promise<void> {
@@ -372,10 +364,5 @@ export async function modifierProfil(champs: ModificationProfil): Promise<void> 
   const { error } = await dorsale.supabase.from("profiles").update(ligne).eq("id", dorsale.userId);
   verifier("modification du profil", error);
   revalidatePath("/", "layout");
-}
-
-export async function chargerProfilAction() {
-  const { lire } = await import("./db");
-  return lire("user");
 }
 

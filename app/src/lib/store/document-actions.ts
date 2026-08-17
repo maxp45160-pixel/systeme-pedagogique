@@ -2,12 +2,7 @@
 
 import { creerDepuisTemplate } from "@/lib/documents/markdown";
 import { formatAutorise, type RoleNote } from "@/lib/documents/roles-note";
-import {
-  nomFichierMarkdown,
-  validerDocumentMarkdown,
-  validerLotDocumentsMarkdown,
-} from "@/lib/documents/archive";
-import { creerDocument, creerDocuments, lireApercusDocuments, lireDocument, lireDocuments, modifierDocument, supprimerDocument } from "./documents";
+import { creerDocument, lireDocument, modifierDocument, supprimerDocument } from "./documents";
 import { dorsaleCompte, nouvelId } from "./db";
 import { ligneVersEntite, verifier } from "./supabase-backend";
 import type { SnapshotDocument, ResumeSnapshotDocument } from "@/lib/documents/types-documents";
@@ -23,16 +18,6 @@ export interface MetadonneesNote {
   contexte: string;
   domaine: string;
   themeId?: string;
-}
-
-export async function creerDocumentAction(
-  type: string,
-  id: string,
-  titre: string,
-): Promise<{ id: string; contenuMd: string }> {
-  const contenuMd = creerDepuisTemplate(type, id, titre);
-  await creerDocument(id, contenuMd);
-  return { id, contenuMd };
 }
 
 export async function creerDocumentBrutAction(
@@ -176,48 +161,6 @@ export async function lireDocumentAction(
 ): Promise<{ id: string; contenuMd: string; updatedAt?: string }> {
   const document = await lireDocument(id);
   return { id: document.id, contenuMd: document.contenuMd, updatedAt: document.updatedAt };
-}
-
-/**
- * Importe un document Markdown sans remplacer silencieusement un document
- * existant. Les liens sont reconstruits par `creerDocument` après l'insertion.
- */
-export async function importerDocumentAction(
-  nomFichier: string,
-  contenuMd: string,
-): Promise<{ id: string; contenuMd: string }> {
-  const importe = validerDocumentMarkdown(nomFichier, contenuMd);
-  const documents = await lireApercusDocuments();
-  if (documents.some((document) => document.id === importe.id)) {
-    throw new Error(`Import Markdown refusé : le document « ${importe.id} » existe déjà.`);
-  }
-
-  await creerDocument(importe.id, importe.contenuMd);
-  return { id: importe.id, contenuMd: importe.contenuMd };
-}
-
-export async function exporterDocumentsMarkdownAction(): Promise<
-  Array<{ nomFichier: string; contenuMd: string }>
-> {
-  const documents = await lireDocuments();
-  return documents.map((document) => ({
-    nomFichier: nomFichierMarkdown(document.id),
-    contenuMd: document.contenuMd,
-  }));
-}
-
-/** Valide tout le lot avant la première écriture pour éviter un import partiel. */
-export async function importerDocumentsAction(
-  fichiers: Array<{ nomFichier: string; contenuMd: string }>,
-): Promise<{ importes: number }> {
-  const documents = await lireApercusDocuments();
-  const importes = validerLotDocumentsMarkdown(
-    fichiers,
-    documents.map((document) => document.id),
-  );
-
-  await creerDocuments(importes.map(({ id, contenuMd }) => ({ id, contenuMd })));
-  return { importes: importes.length };
 }
 
 export async function lireSnapshotAction(
