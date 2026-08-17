@@ -91,7 +91,7 @@ export default async function PageSeances(props: {
   if (recherche.q?.trim()) {
     return (
       <>
-        <EntetePage titre="Cahier" sousTitre="Ce que la recherche retrouve, tous jours confondus." />
+        <EntetePage titre="Cahier" sousTitre="Tous les résultats, toutes dates confondues." />
         <Suspense fallback={<SqueletteContenu />}>
           <ResultatsRecherche recherche={recherche.q} />
         </Suspense>
@@ -103,7 +103,7 @@ export default async function PageSeances(props: {
     <>
       <EntetePage
         titre="Cahier"
-        sousTitre="Travaille une séance, puis retrouve l’essentiel de ce que tu en as tiré."
+        sousTitre="Faites une séance, puis retrouvez ici l’essentiel de ce que vous en avez tiré."
       />
       <Suspense fallback={<SqueletteContenu />}>
         <ContenuCahier

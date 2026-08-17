@@ -202,7 +202,7 @@ export function ModaleEdition({
         />
 
         <div>
-          <p className="text-xs font-medium">Critères d&apos;évaluation</p>
+          <p className="text-xs font-medium">Ce qui est attendu</p>
           <p className="mt-0.5 text-[0.6875rem] text-texte-discret">
             Ce sont eux qui produisent les dimensions de la preuve. En retirer un change ce que
             l&apos;exercice mesure.

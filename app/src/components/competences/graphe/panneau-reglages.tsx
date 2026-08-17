@@ -60,7 +60,7 @@ export function PanneauReglages({
     <div className="absolute inset-y-0 right-0 z-20 flex w-[min(20rem,88%)] flex-col overflow-y-auto border-l border-bordure bg-surface-2/98 text-sm shadow-2xl backdrop-blur-md">
       <div className="sticky top-0 z-10 flex items-center justify-between border-b border-bordure bg-surface-2 px-4 py-3.5">
         <div>
-          <p className="font-semibold text-texte">Filtres de la constellation</p>
+          <p className="font-semibold text-texte">Ce qu&apos;on affiche</p>
           <p className="text-[11px] text-texte-discret">{totalCompetences} compétences réparties</p>
         </div>
         <button
@@ -216,7 +216,7 @@ export function PanneauReglages({
               onChange={(e) => basculerTousLiens(e.target.checked)}
               className="size-3.5 accent-[var(--primaire)] cursor-pointer"
             />
-            <span className="text-texte font-medium">Afficher les liens relationnels</span>
+            <span className="text-texte font-medium">Afficher les liens entre compétences</span>
           </label>
         </section>
       </div>

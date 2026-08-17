@@ -100,7 +100,7 @@ function BarreEtapes({ renseignees, total }: { renseignees: number; total: numbe
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between gap-3 text-[0.6875rem] text-texte-attenue">
-        <span>Sections renseignées</span>
+        <span>Parties remplies</span>
         <span className="chiffres font-medium">{renseignees} / {total}</span>
       </div>
       <BarreProgression
@@ -246,7 +246,7 @@ export function WorkspaceNoteOperationnelle({
       {!noteOperationnelle ? (
         <div className="mx-auto max-w-3xl">
           <BandeauInfo ton="danger">
-            <p>Cette fiche n’est pas une note opérationnelle éditable.</p>
+            <p>Cette fiche ne se modifie pas ici.</p>
           </BandeauInfo>
         </div>
       ) : (

@@ -958,7 +958,7 @@ export function ModaleExercice({
                                   id={`criteres-${i}`}
                                   className="text-[0.6875rem] font-bold uppercase tracking-wider text-texte-discret"
                                 >
-                                  Critères d&apos;évaluation ({p.criteres.length})
+                                  Ce qui est attendu ({p.criteres.length})
                                 </p>
                               </div>
                               <ul className="mt-2 space-y-1.5 text-xs text-texte-attenue">

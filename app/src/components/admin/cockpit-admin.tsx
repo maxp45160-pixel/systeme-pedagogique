@@ -62,12 +62,12 @@ export function CockpitAdmin({
     });
   }
 
-  const onglets: { id: OngletAdmin; libelle: string; icone: string; badge?: string | number }[] = [
-    { id: "kpi", libelle: "Tableau de bord KPIs", icone: "📊" },
-    { id: "comptes", libelle: "Comptes & Accès", icone: "👥", badge: comptes.length },
-    { id: "diagnostic", libelle: "Diagnostic & Sécurité", icone: "🛡️" },
-    { id: "workflow", libelle: "Visualisation Workflow", icone: "🗺️" },
-    { id: "profil", libelle: "Profilage Performance", icone: "⚡" },
+  const onglets: { id: OngletAdmin; libelle: string; badge?: string | number }[] = [
+    { id: "kpi", libelle: "Indicateurs" },
+    { id: "comptes", libelle: "Comptes et accès", badge: comptes.length },
+    { id: "diagnostic", libelle: "Diagnostic et sécurité" },
+    { id: "workflow", libelle: "Workflow" },
+    { id: "profil", libelle: "Performance" },
   ];
 
   return (
@@ -88,7 +88,6 @@ export function CockpitAdmin({
                     : "text-texte-discret hover:bg-surface hover:text-texte"
                 }`}
               >
-                <span>{o.icone}</span>
                 <span>{o.libelle}</span>
                 {o.badge !== undefined && (
                   <span

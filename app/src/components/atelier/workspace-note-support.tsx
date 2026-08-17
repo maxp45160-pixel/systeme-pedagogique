@@ -173,7 +173,7 @@ export function WorkspaceNoteSupport({
                 </ul>
               )}
             </section>
-            <p className="text-xs leading-relaxed text-texte-discret">La ressource est conservée dans l’Atelier. Elle soutient ton travail ; elle ne devient pas une preuve sans validation.</p>
+            <p className="text-xs leading-relaxed text-texte-discret">La ressource reste dans l’Atelier. C’est un support de travail : ça ne compte pas comme un exercice.</p>
           </aside>
         </div>
       )}

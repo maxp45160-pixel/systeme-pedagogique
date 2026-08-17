@@ -35,37 +35,42 @@ export function CarteEtatGlobal({
 
   return (
     <Carte>
-      <EnTeteCarte titre="Détail des mesures" legende="Indicateurs de suivi, pas des notes" />
+      <EnTeteCarte titre="Où vous en êtes" legende="Des repères, pas des notes" />
 
       <CorpsCarte>
         <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
           <Statistique
-            libelle="Niveau moyen mesuré"
+            libelle="Niveau moyen"
             valeur={global.niveauMoyen}
             unite="/ 5"
             precision={
               global.competencesEvaluees > 0
                 ? `sur ${global.competencesEvaluees} compétence${global.competencesEvaluees > 1 ? "s" : ""}`
-                : "aucune compétence évaluée"
+                : "pas encore de mesure"
             }
           />
 
           <Link
             href="/atelier?document=domaines"
             className="group block rounded-md p-1 -m-1 transition-colors hover:bg-surface-2 cursor-pointer"
-            title="Explorer la couverture par domaine dans l'Atelier"
+            title="Voir le détail par sujet dans l'Atelier"
           >
             <Statistique
-              libelle="Référentiel couvert"
+              libelle="Compétences déjà testées"
               valeur={`${global.competencesEvaluees}/${global.competencesTotal}`}
-              precision="compétences avec au moins une preuve →"
+              precision="au moins un exercice fait →"
             />
           </Link>
 
           <Statistique
-            libelle="Robustesse moyenne"
-            valeur={global.robustesseMoyenne === null ? null : global.robustesseMoyenne.toFixed(2)}
-            precision="solidité des acquis, de 0 à 1"
+            libelle="Ancrage des acquis"
+            valeur={
+              global.robustesseMoyenne === null
+                ? null
+                : `${Math.round(global.robustesseMoyenne * 100)}`
+            }
+            unite="%"
+            precision="à quel point c'est solide"
           />
         </div>
 
@@ -74,22 +79,22 @@ export function CarteEtatGlobal({
             <Link
               href="/atelier?document=domaines"
               className="group block rounded-lg p-2 -m-2 transition-colors hover:bg-surface-2 cursor-pointer"
-              title="Voir la répartition par domaine dans l'Atelier"
+              title="Voir le détail par sujet dans l'Atelier"
             >
               <div className="mb-2 flex items-center justify-between text-[0.6875rem] uppercase tracking-wide text-texte-discret">
                 <span>Répartition des niveaux</span>
-                <span className="text-primaire text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">Explorer les domaines →</span>
+                <span className="text-primaire text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">Voir par sujet →</span>
               </div>
               <RepartitionNiveaux compte={repartition} />
             </Link>
             <div className="flex items-end gap-x-6">
               <Statistique
-                libelle="Compétences actives"
+                libelle="Travaillées ce mois-ci"
                 valeur={global.competencesActives}
-                precision="preuve de moins de 30 jours"
+                precision="sur les 30 derniers jours"
               />
               <Statistique
-                libelle="Récemment travaillées"
+                libelle="En progrès"
                 valeur={global.competencesAmeliorees}
                 precision="réussite sur 30 jours"
               />
@@ -98,7 +103,7 @@ export function CarteEtatGlobal({
         )}
 
         <div className="mt-4 border-t border-bordure pt-3">
-          <Depliant resume="Comment ce score est-il calculé ?">
+          <Depliant resume="D'où viennent ces chiffres ?">
             <div className="rounded-md border border-bordure bg-surface-2 p-3 text-xs">
               {global.facteurs.length > 0 && (
                 <dl className="space-y-1">

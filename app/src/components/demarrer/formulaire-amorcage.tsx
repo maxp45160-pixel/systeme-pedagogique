@@ -6,7 +6,7 @@ import { modifierProfil } from "@/lib/store/referentiel-actions";
 import { BandeauInfo, Bouton, cx } from "@/components/ui/primitives";
 import { Champ } from "@/components/ui/champ";
 import { ModaleReferentiel } from "@/components/referentiel/modale-referentiel";
-import { IconeFleche } from "@/components/ui/icones";
+import { IconeAmpoule, IconeFleche, IconeValide } from "@/components/ui/icones";
 import { ReglagesTuteur } from "@/components/tuteur/reglages-tuteur";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import { DemarrerTour, TOUR_DEMARRER_ID } from "@/components/onboarding/demarrer-tour";
@@ -14,7 +14,6 @@ import { useOnboarding } from "@/components/onboarding/onboarding-context";
 
 interface ExempleSujet {
   label: string;
-  emoji: string;
   sujet: string;
   objectif: string;
   pointDeDepart?: string;
@@ -22,62 +21,56 @@ interface ExempleSujet {
 }
 
 const PREFERENCES_SUGGESTIONS = [
-  { label: "Pratique & Code d'abord", emoji: "💻" },
-  { label: "Cas concrets métier", emoji: "🎯" },
-  { label: "Explications pas-à-pas", emoji: "🪜" },
-  { label: "Rigueur théorique & Fondations", emoji: "📚" },
-  { label: "Format synthétique & Rapide", emoji: "⚡" },
-  { label: "Questions & Feedback réguliers", emoji: "🔄" },
+  { label: "Pratiquer d'abord" },
+  { label: "Des cas concrets" },
+  { label: "Pas à pas" },
+  { label: "Les fondations d'abord" },
+  { label: "Court et rapide" },
+  { label: "Beaucoup de questions" },
 ];
 
 const EXEMPLES: ExempleSujet[] = [
   {
-    emoji: "🌐",
     label: "Développement Web",
     sujet: "Architecture web moderne, React, TypeScript, APIs et bases de données",
     objectif: "Concevoir et déployer des applications web complètes en autonomie",
     pointDeDepart: "Notions de base en programmation",
-    preferences: ["Pratique & Code d'abord", "Explications pas-à-pas"],
+    preferences: ["Pratiquer d'abord", "Pas à pas"],
   },
   {
-    emoji: "⚖️",
     label: "Droit & Fiscalité",
     sujet: "Droit fiscal des entreprises, TVA, IS et restructurations juridiques",
     objectif: "Sécuriser des montages juridiques et optimiser la conformité fiscale",
     pointDeDepart: "Formation initiale en droit ou gestion",
-    preferences: ["Cas concrets métier", "Rigueur théorique & Fondations"],
+    preferences: ["Des cas concrets", "Les fondations d'abord"],
   },
   {
-    emoji: "🤖",
     label: "Data & IA",
     sujet: "Machine Learning, LLMs, pipelines de données et évaluation de modèles",
     objectif: "Extraire des enseignements de jeux de données complexes et modéliser des prédictions métier",
     pointDeDepart: "Bases en programmation ou statistiques",
-    preferences: ["Pratique & Code d'abord", "Cas concrets métier"],
+    preferences: ["Pratiquer d'abord", "Des cas concrets"],
   },
   {
-    emoji: "🇬🇧",
     label: "Anglais professionnel",
     sujet: "Anglais professionnel, communication en entreprise et négociation internationale",
     objectif: "Animer des réunions, argumenter et négocier avec aisance avec des interlocuteurs anglophones",
     pointDeDepart: "Niveau intermédiaire (B1/B2)",
-    preferences: ["Pratique & Code d'abord", "Format synthétique & Rapide"],
+    preferences: ["Pratiquer d'abord", "Court et rapide"],
   },
   {
-    emoji: "📐",
     label: "Mathématiques",
     sujet: "Algèbre linéaire, analyse réelle et probabilités appliquées",
     objectif: "Résoudre des problèmes complexes et préparer des concours techniques",
     pointDeDepart: "Niveau scientifique / prépa",
-    preferences: ["Rigueur théorique & Fondations", "Explications pas-à-pas"],
+    preferences: ["Les fondations d'abord", "Pas à pas"],
   },
   {
-    emoji: "🎸",
     label: "Musique & MAO",
     sujet: "Harmonie musicale, composition, mixage et production sur DAW",
     objectif: "Composer et finaliser des morceaux musicaux cohérents et masterisés",
     pointDeDepart: "Pratique instrumentale autonome",
-    preferences: ["Pratique & Code d'abord", "Format synthétique & Rapide"],
+    preferences: ["Pratiquer d'abord", "Court et rapide"],
   },
 ];
 
@@ -100,8 +93,8 @@ export function FormulaireAmorcage({
   const [objectif, setObjectif] = useState(objectifMoyenTerme);
   const [pointDeDepart, setPointDeDepart] = useState("");
   const [preferencesChoisies, setPreferencesChoisies] = useState<string[]>([
-    "Pratique & Code d'abord",
-    "Cas concrets métier",
+    "Pratiquer d'abord",
+    "Des cas concrets",
   ]);
   // La lecture de la clé ne se fait pas à l'initialisation : pendant le SSR,
   // `lireConfigTuteur` retourne toujours `null` (pas de `window`), et lire le
@@ -167,11 +160,10 @@ export function FormulaireAmorcage({
             onClick={() => lancerTour(TOUR_DEMARRER_ID)}
             className="flex items-center gap-1 text-xs font-medium text-primaire hover:underline cursor-pointer"
           >
-            <span>✨</span>
             <span>Visite guidée</span>
           </button>
           <span className="text-xs text-texte-discret">·</span>
-          <span className="text-xs text-texte-discret">Configuration en 2 min</span>
+          <span className="text-xs text-texte-discret">2 minutes et on commence</span>
         </div>
       </div>
 
@@ -223,7 +215,8 @@ export function FormulaireAmorcage({
         className="rounded-xl border border-bordure/80 bg-surface-2/60 p-4"
       >
         <p className="text-xs font-medium text-texte mb-2 flex items-center gap-1.5">
-          <span>💡 Exemples d&apos;inspiration (remplissage en 1 clic) :</span>
+          <IconeAmpoule className="size-3.5 text-primaire" />
+          <span>Exemples, pour remplir en un clic :</span>
         </p>
         <div className="flex flex-wrap gap-2">
           {EXEMPLES.map((ex) => (
@@ -238,7 +231,6 @@ export function FormulaireAmorcage({
                   : "border-bordure bg-surface text-texte-attenue hover:border-primaire/40 hover:text-texte hover:bg-surface-2",
               )}
             >
-              <span>{ex.emoji}</span>
               <span>{ex.label}</span>
             </button>
           ))}
@@ -257,7 +249,8 @@ export function FormulaireAmorcage({
             </span>
             {sujetValide && (
               <span className="text-xs font-medium text-primaire flex items-center gap-1">
-                ✓ Prêt
+                <IconeValide className="size-3.5" />
+                Prêt
               </span>
             )}
           </div>
@@ -280,7 +273,8 @@ export function FormulaireAmorcage({
             </span>
             {objectifValide && (
               <span className="text-xs font-medium text-primaire flex items-center gap-1">
-                ✓ Prêt
+                <IconeValide className="size-3.5" />
+                Prêt
               </span>
             )}
           </div>
@@ -329,9 +323,8 @@ export function FormulaireAmorcage({
                         : "border-bordure bg-surface text-texte-attenue hover:border-primaire/40 hover:text-texte hover:bg-surface-2",
                     )}
                   >
-                    <span>{pref.emoji}</span>
                     <span>{pref.label}</span>
-                    {selectionne && <span className="text-[0.625rem] font-bold">✓</span>}
+                    {selectionne && <IconeValide className="size-3" />}
                   </button>
                 );
               })}

@@ -374,7 +374,7 @@ export async function VueSeanceDetail({
                 <Carte accent>
                   <div className="px-5 py-8 text-center">
                     <h2 id="titre-seance-a-conclure" tabIndex={-1} className="font-serif text-xl font-medium outline-none">Toutes les activités sont traitées</h2>
-                    <p className="mt-2 text-sm text-texte-attenue">La séance reste ouverte tant que tu ne la termines pas explicitement.</p>
+                    <p className="mt-2 text-sm text-texte-attenue">Elle reste ouverte tant que vous ne la clôturez pas.</p>
                     {peutTerminer && (
                       <form action={terminerSeance.bind(null, seance.id)} className="mt-4">
                         <Bouton type="submit" variante="principal">Terminer la séance</Bouton>

@@ -22,6 +22,7 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { BandeauInfo, Bouton } from "@/components/ui/primitives";
 import { Modale } from "@/components/ui/modale";
+import { IconeAmpoule } from "@/components/ui/icones";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import type { PropositionReferentiel } from "@/lib/tutor/proposition";
 import { creerBranche } from "@/lib/store/referentiel-actions";
@@ -295,7 +296,7 @@ export function ModaleReferentiel({
         <>
           {guideEtape && (
             <div className="mb-4 rounded-xl border border-primaire/30 bg-primaire/10 px-4 py-3 text-xs text-texte flex items-center gap-2.5">
-              <span className="text-base" aria-hidden>💡</span>
+              <IconeAmpoule className="size-4 shrink-0 text-primaire" aria-hidden />
               <p className="leading-relaxed">{guideEtape}</p>
             </div>
           )}
@@ -331,7 +332,7 @@ export function ModaleReferentiel({
                 <div className="rounded-xl border border-primaire/30 bg-surface-2/60 p-4">
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-xs font-semibold text-texte">
-                      🔑 Configuration du tuteur IA :
+                      Configuration du tuteur IA
                     </p>
                     {aCleConfiguree && !etat.message && (
                       <button

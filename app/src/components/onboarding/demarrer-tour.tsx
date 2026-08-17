@@ -10,9 +10,9 @@ const ETAPES_DEMARRER: EtapeTour[] = [
   {
     id: "cle-ia",
     cibleSelector: '[data-tour="cle-ia"]',
-    titre: "🔑 Clé IA : Prête à l'emploi",
+    titre: "Votre clé IA",
     description:
-      "Le tuteur fonctionne avec ton fournisseur IA préféré (Mistral, Groq gratuit, Anthropic, OpenAI). Configure ta clé ici si ce n'est pas déjà fait : elle reste sécurisée dans ton navigateur.",
+      "Le tuteur a besoin d'une clé pour écrire vos exercices (Mistral, Groq gratuit, Anthropic, OpenAI). Renseignez-la ici : elle reste dans votre navigateur, elle n'est jamais envoyée ailleurs.",
     position: "bottom",
     badge: "1/3 · Tuteur IA",
     boutonTexte: "Voir les exemples",
@@ -20,9 +20,9 @@ const ETAPES_DEMARRER: EtapeTour[] = [
   {
     id: "exemples-inspiration",
     cibleSelector: '[data-tour="exemples-inspiration"]',
-    titre: "💡 Exemples en 1 clic",
+    titre: "Des exemples tout prêts",
     description:
-      "Gagne du temps : choisis un exemple concret (Développement Web, Data & IA, Droit...) pour pré-remplir instantanément ton sujet et ton objectif.",
+      "Choisissez un exemple proche de votre sujet : le formulaire se remplit tout seul, vous n'avez plus qu'à ajuster.",
     position: "bottom",
     badge: "2/3 · Inspiration",
     boutonTexte: "Personnaliser",
@@ -30,12 +30,12 @@ const ETAPES_DEMARRER: EtapeTour[] = [
   {
     id: "style-apprentissage",
     cibleSelector: '[data-tour="style-apprentissage"]',
-    titre: "⚡ Ton style d'apprentissage",
+    titre: "Comment préférez-vous vous entraîner ?",
     description:
-      "Indique en 1 clic comment tu souhaites que le tuteur t'enseigne (pratique & code, cas concrets, rigueur théorique, pas-à-pas). L'IA adaptera immédiatement ses explications et exercices !",
+      "Dites-nous comment vous apprenez le mieux : en pratiquant, avec des cas concrets, pas à pas, ou en partant de la théorie. Les exercices suivront.",
     position: "top",
-    badge: "3/3 · Sur-mesure",
-    boutonTexte: "C'est parti !",
+    badge: "3/3 · Votre façon d'apprendre",
+    boutonTexte: "C'est parti",
   },
 ];
 

@@ -39,8 +39,8 @@ export default async function PageDemarrer() {
   return (
     <>
       <EntetePage
-        titre="Sur quoi veux-tu progresser ?"
-        sousTitre="Ce système mesure des savoir-faire à partir de preuves. Il ne sait pas encore lesquels te concernent — c'est la seule chose qu'il ne peut pas déduire."
+        titre="Sur quoi voulez-vous progresser ?"
+        sousTitre="Dites-nous sur quoi vous voulez progresser. On construit le parcours à partir de là."
       />
 
       {/*

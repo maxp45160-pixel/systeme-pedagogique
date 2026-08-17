@@ -197,7 +197,6 @@ export function ModaleCompetence({
                     className="flex w-full items-center justify-between text-left text-xs text-texte-attenue hover:text-primaire cursor-pointer transition-colors"
                   >
                     <span className="flex items-center gap-2 font-medium">
-                      <span>✨</span>
                       <span>Suggérer des compétences avec le tuteur IA</span>
                     </span>
                     <span className="text-texte-discret">Déplier →</span>

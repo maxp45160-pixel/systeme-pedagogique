@@ -215,7 +215,7 @@ export function WorkspaceProjet({ id, contenuInitial, updatedAtInitial }: Worksp
         {/* ---- Les compétences ------------------------------------------ */}
         {fiche.competences.length > 0 && (
           <section className="space-y-2">
-            <h2 className="font-serif text-lg font-medium">Ce que ce projet mobilise</h2>
+            <h2 className="font-serif text-lg font-medium">Ce que ce projet fait travailler</h2>
             <ul className="grid gap-2 sm:grid-cols-2">
               {fiche.competences.map((competence) => (
                 <li key={competence.code}>

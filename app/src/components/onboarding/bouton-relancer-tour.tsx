@@ -25,7 +25,7 @@ export function BoutonRelancerTour({
 
   return (
     <Bouton type="button" onClick={relancer} variante="secondaire" taille="petite">
-      <span>🧭 {libelle}</span>
+      <span>{libelle}</span>
     </Bouton>
   );
 }

@@ -43,7 +43,7 @@ export function ChoixTravail({ compteId }: { compteId: string }) {
           <div className="flex items-center justify-between gap-2">
             <div>
               <h3 className="text-sm font-semibold tracking-tight text-texte">Choisir un travail</h3>
-              <p className="text-xs text-texte-attenue mt-0.5">Entraînement ponctuel ou production de projet</p>
+              <p className="text-xs text-texte-attenue mt-0.5">Un exercice rapide, ou un vrai projet ?</p>
             </div>
           </div>
 

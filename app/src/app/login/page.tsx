@@ -4,9 +4,9 @@ import { supabaseConfigure } from "@/lib/supabase/config";
 import { Carte } from "@/components/ui/primitives";
 
 export const metadata: Metadata = {
-  title: "Connexion & Découverte",
+  title: "Connexion",
   description:
-    "Centre de pilotage personnel du développement de compétences : génération d'exercices, évaluation continue et suivi longitudinal.",
+    "Maîtrisez n'importe quel sujet par la pratique. Des exercices sur vos sujets, des résultats mesurés sur ce que vous savez vraiment faire.",
 };
 
 /**
@@ -48,7 +48,7 @@ export default async function PageConnexion({
             Système pédagogique
           </h1>
           <p className="mt-2 text-base text-texte-attenue sm:text-lg">
-            Suivi longitudinal des compétences & apprentissage adaptatif
+            Apprendre par la pratique, et voir où vous en êtes vraiment
           </p>
         </header>
 
@@ -58,12 +58,12 @@ export default async function PageConnexion({
           <section className="space-y-6 lg:col-span-7">
             <div className="space-y-3">
               <h2 className="font-serif text-xl font-medium text-texte">
-                Pilotez votre progression avec des preuves tangibles
+                Progressez pour de vrai, pas au feeling
               </h2>
               <p className="text-sm leading-relaxed text-texte-attenue">
-                Une approche rigoureuse pour l&apos;ingénierie des compétences complexes :
-                chaque niveau de maîtrise s&apos;appuie sur des démonstrations concrètes et
-                observées, sans fabrication arbitraire de données.
+                Vous vous entraînez, on note ce que vous savez faire. Chaque niveau
+                affiché vient d&apos;un exercice que vous avez réellement fait. Rien
+                n&apos;est inventé.
               </p>
             </div>
 
@@ -77,7 +77,7 @@ export default async function PageConnexion({
                   Génération
                 </h3>
                 <p className="mt-1 text-xs leading-relaxed text-texte-discret">
-                  Exercices contextualisés et séances calibrées selon votre temps réel.
+                  Des exercices sur vos sujets, dans le temps que vous avez.
                 </p>
               </div>
 
@@ -89,7 +89,7 @@ export default async function PageConnexion({
                   Évaluation
                 </h3>
                 <p className="mt-1 text-xs leading-relaxed text-texte-discret">
-                  Mesure continue et preuves tangibles archivées de façon immuable.
+                  Chaque exercice laisse une trace. Rien ne s&apos;efface.
                 </p>
               </div>
 
@@ -101,28 +101,28 @@ export default async function PageConnexion({
                   Adaptation
                 </h3>
                 <p className="mt-1 text-xs leading-relaxed text-texte-discret">
-                  Recommandations ciblées sur vos faiblesses réelles pour progresser.
+                  On vous propose ensuite ce qui n&apos;est pas encore acquis.
                 </p>
               </div>
             </div>
 
-            {/* Invariants & Garanties de confiance */}
+            {/* Invariants et garanties de confiance */}
             <div className="rounded-xl border border-bordure bg-surface-2/60 p-4">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-texte">
-                Principes fondamentaux & Confidentialité
+                Ce sur quoi on ne transige pas
               </h3>
               <ul className="mt-2 space-y-1.5 text-xs text-texte-attenue">
                 <li className="flex items-center gap-2">
                   <span className="size-1.5 rounded-full bg-primaire" />
-                  <span><strong>Souveraineté des données :</strong> Vos preuves restent strictement privées et cloisonnées à votre compte.</span>
+                  <span><strong>Privé :</strong> personne d&apos;autre que vous ne voit vos résultats.</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="size-1.5 rounded-full bg-primaire" />
-                  <span><strong>Absence de preuve ≠ zéro :</strong> Aucune notation artificielle sans observation réelle.</span>
+                  <span><strong>Pas de note inventée :</strong> tant que vous n&apos;avez rien montré, on affiche un tiret, pas un zéro.</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="size-1.5 rounded-full bg-primaire" />
-                  <span><strong>Persistance immuable :</strong> Vos compétences validées et votre historique sont conservés dans le temps.</span>
+                  <span><strong>Rien ne se perd :</strong> vos acquis restent là, même six mois après.</span>
                 </li>
               </ul>
             </div>
@@ -132,9 +132,9 @@ export default async function PageConnexion({
           <section className="lg:col-span-5" aria-label="Formulaire d'accès">
             <Carte className="p-6">
               <div className="mb-4">
-                <h2 className="text-base font-medium text-texte">Accéder à votre espace</h2>
+                <h2 className="text-base font-medium text-texte">Se connecter</h2>
                 <p className="mt-0.5 text-xs text-texte-discret">
-                  Identifiez-vous pour retrouver votre carnet d&apos;apprentissage.
+                  Content de vous revoir. Votre carnet vous attend.
                 </p>
               </div>
 
@@ -157,52 +157,51 @@ export default async function PageConnexion({
               )}
 
               <p className="mt-4 text-center text-[0.6875rem] leading-relaxed text-texte-discret">
-                Vos preuves de compétence restent privées : elles ne sont lisibles que par
-                votre compte.
+                Vos résultats sont privés : personne d&apos;autre que vous ne peut les lire.
               </p>
             </Carte>
           </section>
         </div>
 
-        {/* Section FAQ & Présentation approfondie pour les visiteurs et l'indexation */}
+        {/* Section FAQ et présentation approfondie pour les visiteurs et l'indexation */}
         <section className="mt-16 border-t border-bordure pt-10">
           <h2 className="text-center font-serif text-xl font-medium text-texte sm:text-2xl">
-            Questions fréquentes sur le système
+            Questions fréquentes
           </h2>
           <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2">
             <div className="rounded-xl border border-bordure bg-surface p-5">
               <h3 className="text-sm font-semibold text-texte">
-                Qu&apos;est-ce que le suivi longitudinal des compétences ?
+                En quoi c&apos;est différent d&apos;un test de niveau ?
               </h3>
               <p className="mt-2 text-xs leading-relaxed text-texte-attenue">
-                Contrairement à une évaluation ponctuelle, le suivi longitudinal observe l&apos;évolution de vos compétences au fil des séances, des révisions et des projets, garantissant une rétention durable dans le temps.
+                Un test vous note un jour donné. Ici, on suit ce que vous savez faire au fil des semaines : ce que vous avez démontré reste, ce que vous n&apos;avez pas encore montré reste ouvert.
               </p>
             </div>
 
             <div className="rounded-xl border border-bordure bg-surface p-5">
               <h3 className="text-sm font-semibold text-texte">
-                Comment sont générés les exercices et séances ?
+                D&apos;où viennent les exercices ?
               </h3>
               <p className="mt-2 text-xs leading-relaxed text-texte-attenue">
-                Le moteur pédagogique analyse vos forces et faiblesses réelles pour vous proposer des exercices adaptés à votre niveau et calibrés sur votre créneau horaire disponible.
+                Ils sont écrits sur mesure pour vos sujets, à votre niveau du moment, et taillés pour le temps dont vous disposez.
               </p>
             </div>
 
             <div className="rounded-xl border border-bordure bg-surface p-5">
               <h3 className="text-sm font-semibold text-texte">
-                Mes données personnelles sont-elles partagées ?
+                Mes données sont-elles privées ?
               </h3>
               <p className="mt-2 text-xs leading-relaxed text-texte-attenue">
-                Non. Votre référentiel et vos preuves d&apos;apprentissage appartiennent exclusivement à votre compte et sont protégés au niveau de la base de données via PostgreSQL Row-Level Security.
+                100 % privé : vos notes, vos exercices et vos résultats n&apos;appartiennent qu&apos;à vous. Rien n&apos;est partagé sans votre accord explicite.
               </p>
             </div>
 
             <div className="rounded-xl border border-bordure bg-surface p-5">
               <h3 className="text-sm font-semibold text-texte">
-                Puis-je personnaliser mon référentiel de compétences ?
+                Puis-je organiser mes compétences comme je veux ?
               </h3>
               <p className="mt-2 text-xs leading-relaxed text-texte-attenue">
-                Oui. Le système vous permet de structurer vos propres domaines, thèmes et codes de compétences selon vos objectifs d&apos;apprentissage ou votre parcours d&apos;ingénierie.
+                Oui. Vous créez vos propres sujets et compétences, vous les renommez, vous les rangez. Tout se modifie à tout moment.
               </p>
             </div>
           </div>

@@ -63,7 +63,7 @@ export function CarteProfil({ user }: { user: User }) {
                 </dd>
               </div>
             )}
-            {p.plan && <dt className="pt-1 text-texte-discret">Plan de travail déclaré</dt>}
+            {p.plan && <dt className="pt-1 text-texte-discret">Votre objectif</dt>}
           </dl>
         )}
 

@@ -1248,9 +1248,8 @@ function EtapeComposition({
       {sansExerciceDisponible && !vide && (
         <BandeauInfo ton="alerte" taille="compacte">
           <p className="text-xs">
-            <strong>Génération requise :</strong> aucun exercice n&apos;est encore disponible
-            dans ta bibliothèque. Clique sur <strong>Générer les exercices manquants</strong> ci-dessus
-            pour créer et valider tes exercices avec l&apos;IA.
+            <strong>Il manque des exercices :</strong> rien n&apos;est encore prêt pour ce thème.
+            Cliquez sur <strong>Générer les exercices manquants</strong> ci-dessus pour en créer.
           </p>
         </BandeauInfo>
       )}

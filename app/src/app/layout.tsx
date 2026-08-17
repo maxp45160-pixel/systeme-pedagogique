@@ -21,26 +21,26 @@ const siteUrl =
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Système pédagogique — Suivi longitudinal des compétences",
+    default: "Système pédagogique — apprendre par la pratique",
     template: "%s | Système pédagogique",
   },
   description:
-    "Centre de pilotage et d'apprentissage adaptatif : génération d'exercices ciblés, évaluation continue et suivi longitudinal des compétences en ingénierie des systèmes complexes.",
+    "Maîtrisez n'importe quel sujet par la pratique : des exercices sur mesure, et un niveau qui reflète ce que vous savez vraiment faire.",
   keywords: [
     "système pédagogique",
-    "suivi longitudinal des compétences",
-    "apprentissage adaptatif",
-    "ingénierie des systèmes complexes",
-    "évaluation pédagogique",
-    "référentiel de compétences",
+    "apprendre par la pratique",
+    "exercices sur mesure",
+    "suivi des compétences",
+    "progression mesurée",
+    "auto-formation",
     "tuteur pédagogique",
   ],
   authors: [{ name: "Système Pédagogique" }],
   creator: "Système Pédagogique",
   openGraph: {
-    title: "Système pédagogique — Suivi longitudinal des compétences",
+    title: "Système pédagogique — apprendre par la pratique",
     description:
-      "Génération d'exercices ciblés, évaluation continue et suivi longitudinal du développement de compétences.",
+      "Des exercices sur vos sujets, et un niveau qui reflète ce que vous savez vraiment faire.",
     url: siteUrl,
     siteName: "Système Pédagogique",
     locale: "fr_FR",
@@ -48,9 +48,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary",
-    title: "Système pédagogique — Suivi longitudinal des compétences",
+    title: "Système pédagogique — apprendre par la pratique",
     description:
-      "Centre de pilotage et d'apprentissage adaptatif des compétences en ingénierie des systèmes.",
+      "Maîtrisez n'importe quel sujet par la pratique, et voyez où vous en êtes vraiment.",
   },
   robots: {
     index: true,

@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     return Response.json(
       {
         erreur: "tentative-introuvable",
-        message: "Cette tentative n'existe pas, ou n'appartient pas à ton compte.",
+        message: "Cet exercice n'existe pas, ou n'appartient pas à votre compte.",
       },
       { status: 404 },
     );
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     return Response.json(
       {
         erreur: "tentative-close",
-        message: "Cette tentative est déjà close : sa mesure est écrite, une correction ne la changerait pas.",
+        message: "Cet exercice est déjà terminé. Refaites-en un pour progresser dessus.",
       },
       { status: 400 },
     );
@@ -77,7 +77,7 @@ export async function POST(request: Request) {
       {
         erreur: "reponse-vide",
         message:
-          "Il n'y a rien à corriger : enregistre d'abord ta réponse écrite. Le tuteur juge ce que la réponse contient, pas ce qu'on devine de l'intention.",
+          "Il n'y a rien à corriger : écrivez d'abord votre réponse. Le tuteur juge ce qui est écrit, pas ce qu'il devine.",
       },
       { status: 400 },
     );
@@ -96,7 +96,7 @@ export async function POST(request: Request) {
     return Response.json(
       {
         erreur: "reponse-trop-longue",
-        message: `Ta réponse dépasse ${REPONSE_MAX_CARACTERES} caractères. Plutôt que d'en corriger un morceau en te laissant croire au tout, le tuteur s'abstient : remplis le bilan à la main.`,
+        message: `Réponse trop longue (plus de ${REPONSE_MAX_CARACTERES} caractères). Gardez l'essentiel : c'est ce qui compte. Sinon, remplissez le bilan à la main.`,
       },
       { status: 400 },
     );
@@ -171,7 +171,7 @@ export async function POST(request: Request) {
       } catch (e) {
         if (abandon.signal.aborted) return;
         envoyer("erreur", {
-          message: e instanceof Error ? e.message : "Erreur inattendue pendant la correction.",
+          message: e instanceof Error ? e.message : "Quelque chose n'a pas fonctionné pendant la correction.",
         });
       } finally {
         try {

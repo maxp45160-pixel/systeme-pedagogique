@@ -38,7 +38,7 @@ export default async function PageProgression() {
     <>
       <EntetePage
         titre="Progression"
-        sousTitre="Ce que les preuves accumulées disent de ton niveau — et ce qu'elles ne disent pas encore."
+        sousTitre="Ce que vos exercices disent de votre niveau — et ce qu'ils ne disent pas encore."
       />
       <Suspense fallback={<SqueletteContenu />}>
         <ContenuProgression />

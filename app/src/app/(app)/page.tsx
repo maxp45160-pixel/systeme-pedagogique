@@ -45,7 +45,7 @@ export default async function TableauDeBord(props: {
  * familles (ADR-070), c'est le seul travail qui puisse rester ouvert.
  */
 function titreExercicesEnCours(exercices: number): string {
-  return exercices === 1 ? "Tu as un exercice en cours" : `Tu as ${exercices} exercices en cours`;
+  return exercices === 1 ? "Vous avez un exercice en cours" : `Vous avez ${exercices} exercices en cours`;
 }
 
 async function ContenuTableauDeBord({
@@ -116,19 +116,19 @@ async function ContenuTableauDeBord({
             Tableau de bord
           </h1>
           <p className="mt-0.5 text-xs text-texte-attenue">
-            Ta priorité en avant — le reste suit, accessible en retrait.
+            Ce qu&apos;il y a de mieux à faire maintenant, et le reste juste en dessous.
           </p>
         </div>
 
         <Link
           href="/progression"
           className="group flex flex-wrap items-center gap-2.5 rounded-full border border-bordure bg-surface px-3.5 py-1.5 text-xs text-texte-attenue shadow-xs transition-colors hover:border-primaire/40 hover:text-texte"
-          title="Consulter le détail de ma progression"
+          title="Voir le détail de ma progression"
         >
           {aucunePreuve && (
             <span className="flex items-center gap-1.5 font-medium text-info">
               <span className="size-1.5 rounded-full bg-info" aria-hidden />
-              Diagnostic requis
+              À tester
             </span>
           )}
           <span>
@@ -136,7 +136,7 @@ async function ContenuTableauDeBord({
           </span>
           <span className="text-bordure-contraste" aria-hidden>·</span>
           <span>
-            <strong className="font-medium text-texte">{ctx.global.nombrePreuves}</strong> preuve{ctx.global.nombrePreuves > 1 ? "s" : ""}
+            <strong className="font-medium text-texte">{ctx.global.nombrePreuves}</strong> exercice{ctx.global.nombrePreuves > 1 ? "s" : ""}
           </span>
           <span className="text-bordure-contraste" aria-hidden>·</span>
           <span>
@@ -226,21 +226,21 @@ async function ContenuTableauDeBord({
           <div className="flex items-center gap-2.5 min-w-0">
             <span className="size-2 rounded-full bg-info shrink-0" aria-hidden />
             <div className="min-w-0 text-xs">
-              <span className="font-semibold text-info">Diagnostic initial en cours</span>
+              <span className="font-semibold text-info">On apprend à vous connaître</span>
               <span className="text-texte-attenue ml-2 hidden sm:inline">
-                Aucun niveau ne s&apos;affiche tant que les premières preuves n&apos;ont pas été observées.
+                Aucun niveau ne s&apos;affiche tant que vous n&apos;avez pas fait vos premiers exercices.
               </span>
             </div>
           </div>
           <div className="flex items-center gap-4 text-xs">
             <span className="text-texte-discret hidden md:inline">
-              <strong className="font-medium text-texte">{ctx.referentiel.actifs.length}</strong> compétences prêtes
+              <strong className="font-medium text-texte">{ctx.referentiel.actifs.length}</strong> compétences prêtes à travailler
             </span>
             <Link
               href="/progression"
               className="flex items-center gap-1 font-medium text-primaire hover:underline"
             >
-              Comprendre la calibration
+              Comment ça marche
               <IconeFleche className="size-3" />
             </Link>
           </div>
@@ -250,11 +250,11 @@ async function ContenuTableauDeBord({
           <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1 text-xs">
             <span>
               <strong className="font-medium text-texte">{ctx.global.nombrePreuves}</strong>{" "}
-              <span className="text-texte-discret">preuve{ctx.global.nombrePreuves > 1 ? "s" : ""}</span>
+              <span className="text-texte-discret">exercice{ctx.global.nombrePreuves > 1 ? "s" : ""} fait{ctx.global.nombrePreuves > 1 ? "s" : ""}</span>
             </span>
             <span>
               <strong className="font-medium text-texte">{ctx.referentiel.actifs.length}</strong>{" "}
-              <span className="text-texte-discret">compétences actives</span>
+              <span className="text-texte-discret">compétences suivies</span>
             </span>
             <span>
               <strong className="font-medium text-texte">{activite.joursActifs30}</strong>{" "}

@@ -426,7 +426,6 @@ export function PastillePomodoroGlobale({ compteId }: { compteId: string }) {
       )}
       title={`Pomodoro (${LIBELLES[etat.phase]}) en cours`}
     >
-      <span>{estFocus ? "⏱️" : "☕"}</span>
       <span className="font-mono tabular-nums font-semibold">{formaterMMSS(reste)}</span>
     </div>
   );

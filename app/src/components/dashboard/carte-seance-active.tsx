@@ -69,7 +69,7 @@ export function CarteSeanceActive({
               <Bouton
                 type="submit"
                 variante="secondaire"
-                title="Abandonne cette séance pour revenir aux recommandations du moteur"
+                title="Quitter cette séance et revoir les suggestions"
               >
                 Passer la séance
               </Bouton>

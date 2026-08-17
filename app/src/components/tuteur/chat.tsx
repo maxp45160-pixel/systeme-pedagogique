@@ -50,8 +50,8 @@ import type {
  * on attend est la différence entre patienter et croire à une panne.
  */
 const LIBELLE_OUTIL: Record<string, string> = {
-  [OUTIL_EXERCICE]: "Le tuteur rédige un exercice — énoncé, consigne, critères…",
-  [OUTIL_REFERENTIEL]: "Le tuteur compose une branche de compétences…",
+  [OUTIL_EXERCICE]: "On vous écrit un exercice — énoncé, consigne, ce qui est attendu…",
+  [OUTIL_REFERENTIEL]: "On découpe votre sujet en étapes…",
 };
 
 /** Les six modes rapides — « Donne-moi un exercice » a disparu (lot 1.4). */

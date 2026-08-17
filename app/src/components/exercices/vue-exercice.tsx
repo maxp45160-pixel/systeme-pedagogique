@@ -181,7 +181,7 @@ export async function VueExercice(props: {
         <BandeauInfo ton="info" className="mb-4">
         <div>
           <FocusActe cle={`abandon-${derniereAbandonnee?.id ?? exercice.id}`} cible="titre-abandon-exercice" />
-          <p id="titre-abandon-exercice" tabIndex={-1} className="text-sm font-medium text-info outline-none">Aucune preuve enregistrée</p>
+          <p id="titre-abandon-exercice" tabIndex={-1} className="text-sm font-medium text-info outline-none">Cet exercice ne compte pas</p>
           <p className="mt-1 text-xs text-texte-attenue">
             {abandonDelibere ? (
               <>
@@ -605,7 +605,7 @@ export async function VueExercice(props: {
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-bordure px-1 py-2">
               <div className="min-w-0">
                 <p className="text-xs font-medium">Abandonner</p>
-                <p className="text-micro text-texte-attenue">Aucune preuve ne sera écrite.</p>
+                <p className="text-micro text-texte-attenue">Cet exercice ne comptera pas.</p>
               </div>
               <BoutonAbandon
                 attemptId={enCours.id}

@@ -11,6 +11,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { BandeauInfo, Bouton, cx } from "@/components/ui/primitives";
 import { Modale } from "@/components/ui/modale";
+import { IconeFermer } from "@/components/ui/icones";
 import { ModaleCompetence } from "@/components/referentiel/modale-competence";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import type { PropositionTheme } from "@/lib/tutor/outils";
@@ -315,7 +316,7 @@ export function ModaleTheme({
                 : "text-texte-discret hover:text-texte",
             )}
           >
-            🪄 Assisté par IA
+            Assisté par IA
           </button>
           <button
             type="button"
@@ -327,7 +328,7 @@ export function ModaleTheme({
                 : "text-texte-discret hover:text-texte",
             )}
           >
-            ✍️ Sélection par domaine
+            Choisir moi-même
           </button>
         </div>
       )}
@@ -732,7 +733,7 @@ export function ModaleTheme({
             className="p-1 text-xs text-texte-attenue hover:text-texte cursor-pointer"
             aria-label="Fermer"
           >
-            ✕
+            <IconeFermer className="size-3.5" />
           </button>
         </div>
         {contenu}

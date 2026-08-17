@@ -104,14 +104,14 @@ export function FormulaireBilan({
   );
   const autonomiePrevue = `${autonomieCalculee} — ${
     autonomieCalculee === "A0"
-      ? "solution fournie"
+      ? "solution donnée"
       : autonomieCalculee === "A1"
-        ? "fortement guidé"
+        ? "beaucoup aidé"
         : autonomieCalculee === "A2"
-          ? "quelques indices nécessaires"
+          ? "quelques indices"
           : autonomieCalculee === "A3"
-            ? "résolution autonome"
-            : "autonome avec initiative méthodologique"
+            ? "seul"
+            : "seul, avec ma propre méthode"
   }`;
 
   const soumettre = useCallback(() => {
@@ -121,12 +121,12 @@ export function FormulaireBilan({
     // nu doit rester explicitement à décider, y compris quand la relecture du
     // tuteur a échoué ou a été abandonnée.
     if (resultat === null) {
-      setErreur("Choisis un résultat global avant d'enregistrer la preuve.");
+      setErreur("Dites d'abord comment ça s'est passé.");
       return;
     }
 
     if (!tousRenseignes) {
-      setErreur("Renseigne chaque critère avant d'enregistrer la preuve.");
+      setErreur("Il reste des points à évaluer.");
       return;
     }
 
@@ -193,7 +193,7 @@ export function FormulaireBilan({
     <div className="space-y-5">
       {/* Résultat global */}
       <div>
-        <div className="mb-2 text-xs font-medium">Comment évalues-tu ta résolution ?</div>
+        <div className="mb-2 text-xs font-medium">Ça a donné quoi ?</div>
         <div className="grid gap-1.5 sm:grid-cols-3">
           {RESULTATS.map((r) => (
             <button
@@ -419,9 +419,9 @@ export function FormulaireBilan({
         </label>
       </div>
 
-      {/* Ce qui sera enregistré — annoncé avant l'écriture, pas après. */}
+      {/* Ce qu'on retient — annoncé avant l'écriture, pas après. */}
       <div className="rounded-md border border-bordure-controle bg-surface-2 px-3 py-2.5 text-[0.6875rem] text-texte-attenue">
-        <p className="font-medium text-texte">Ce qui sera enregistré</p>
+        <p className="font-medium text-texte">Ce qu&apos;on retient de cet exercice</p>
         <ul className="mt-1 space-y-0.5">
           <li>
             · Une preuve directe pour <strong>{exercice.competences[0]}</strong>

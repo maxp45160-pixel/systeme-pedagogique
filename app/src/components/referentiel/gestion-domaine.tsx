@@ -345,8 +345,8 @@ export function GestionDomaine({
       )}
 
       <section className="rounded-carte border border-bordure bg-surface p-4">
-        <h3 className="text-sm font-semibold">Historique de gouvernance</h3>
-        <p className="mt-1 text-xs text-texte-discret">Journal append-only des commandes validées sur ce domaine.</p>
+        <h3 className="text-sm font-semibold">Historique des modifications</h3>
+        <p className="mt-1 text-xs text-texte-discret">Tout ce qui a changé sur ce sujet, dans l’ordre.</p>
         {changements.length ? (
           <ol className="mt-3 divide-y divide-bordure">
             {changements.slice(0, 20).map((changement) => (
@@ -359,7 +359,7 @@ export function GestionDomaine({
               </li>
             ))}
           </ol>
-        ) : <p className="mt-3 text-xs text-texte-discret">Aucun changement journalisé depuis l’activation de la gouvernance.</p>}
+        ) : <p className="mt-3 text-xs text-texte-discret">Aucune modification pour l’instant.</p>}
       </section>
     </div>
   );

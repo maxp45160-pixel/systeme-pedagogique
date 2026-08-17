@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { modifierProfil } from "@/lib/store/referentiel-actions";
 import { BandeauInfo, Bouton } from "@/components/ui/primitives";
 import { Champ } from "@/components/ui/champ";
+import { IconeValide } from "@/components/ui/icones";
 
 /**
  * Jetons de famille écrits par l'ancien sélecteur, retiré le 15/08/2026 avec
@@ -18,12 +19,12 @@ import { Champ } from "@/components/ui/champ";
 const PREFIXE_FAMILLE = "adaptive:family:";
 
 const PREFERENCES_SUGGESTIONS = [
-  { label: "Pratique & Code d'abord", emoji: "💻" },
-  { label: "Cas concrets métier", emoji: "🎯" },
-  { label: "Explications pas-à-pas", emoji: "🪜" },
-  { label: "Rigueur théorique & Fondations", emoji: "📚" },
-  { label: "Format synthétique & Rapide", emoji: "⚡" },
-  { label: "Questions & Feedback réguliers", emoji: "🔄" },
+  { label: "Pratiquer d'abord" },
+  { label: "Des cas concrets" },
+  { label: "Pas à pas" },
+  { label: "Les fondations d'abord" },
+  { label: "Court et rapide" },
+  { label: "Beaucoup de questions" },
 ];
 
 /**
@@ -135,9 +136,8 @@ export function FormulaireProfil({
                       : "border-bordure bg-surface text-texte-attenue hover:border-primaire/40 hover:text-texte"
                   }`}
                 >
-                  <span>{sug.emoji}</span>
                   <span>{sug.label}</span>
-                  {active && <span className="text-[0.625rem] font-bold">✓</span>}
+                  {active && <IconeValide className="size-3" />}
                 </button>
               );
             })}

@@ -347,7 +347,7 @@ export function ModaleRevision({
                             {/* Le geste DÉRIVÉ, annoncé avant le clic (ADR-027). */}
                             <span className="mt-1 block text-[0.6875rem] text-texte-discret">
                               {modeRetrait === "suppression" ? (
-                                <>Suppression définitive (aucun historique). Le code ne sera pas réattribué.</>
+                                <>Suppression définitive. Ce code ne sera pas réutilisé.</>
                               ) : (
                                 <>
                                   Archivage ({preuves} preuve{preuves > 1 ? "s" : ""}{preuves === 0 ? ", autre dépendance conservée" : ""}) — l’historique

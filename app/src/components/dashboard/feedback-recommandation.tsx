@@ -96,7 +96,7 @@ export function FeedbackRecommandation({
 
   return (
     <div className="flex items-center gap-1.5 text-xs text-texte-discret">
-      <span>Suggestion pertinente ?</span>
+      <span>C&apos;était utile ?</span>
       <button
         type="button"
         onClick={() => enregistrer("pertinent")}
@@ -113,4 +113,4 @@ export function FeedbackRecommandation({
       </button>
     </div>
   );
-}
+}

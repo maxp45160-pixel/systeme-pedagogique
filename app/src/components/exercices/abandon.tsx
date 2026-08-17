@@ -66,7 +66,7 @@ export function BoutonAbandon({
       {/* L'annonce du geste, avant qu'il ne se produise (ADR-027). */}
       <BandeauInfo ton="info" taille="compacte">
         <p className="text-texte-attenue">
-          <span className="font-medium text-texte">Aucune preuve ne sera écrite.</span> Un
+          <span className="font-medium text-texte">Cet exercice ne comptera pas.</span> Un
           abandon n{"'"}est pas un échec : un échec est une mesure, il suppose qu{"'"}on ait
           essayé. Ton niveau sur {codes.join(", ")} restera inchangé.
           <br />

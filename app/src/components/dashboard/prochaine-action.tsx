@@ -52,7 +52,7 @@ function BlocInstant({
     <div className="mt-3 border-t border-bordure/60 pt-2">
       {facteurs.length > 0 && (
         <>
-          <p className="mb-1.5 text-texte-attenue">Pour le moment présent :</p>
+          <p className="mb-1.5 text-texte-attenue">En ce moment :</p>
           <ul className="space-y-1">
             {facteurs.map((facteur, i) => (
               <li key={`${facteur.kind}-${i}`} className="text-texte-attenue">
@@ -159,8 +159,8 @@ export function CarteProchaineAction({
       <Carte accent>
         <div data-tour="action-prioritaire">
           <EtatVide
-            titre="Aucune action à recommander pour l'instant"
-            message="Soit tout a déjà été proposé récemment et écarté, soit chaque compétence active a épuisé ses exercices. Capture une note opérationnelle pour engager un travail, ou reviens plus tard."
+            titre="Rien à vous proposer pour l'instant"
+            message="Vous avez fait le tour pour le moment. Ajoutez un cours ou une note, et on repart de là."
             action={actionPrincipale ?? <Link href="/seances" className={classesLienBouton("secondaire")}>Ouvrir le cahier</Link>}
           />
         </div>
@@ -192,7 +192,7 @@ export function CarteProchaineAction({
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="size-1.5 rounded-full bg-primaire" aria-hidden />
             <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-primaire mr-1">
-              Prochaine meilleure action
+              Votre priorité du jour
             </span>
             <Etiquette ton="primaire" mono>
               {etat.skill.code}
@@ -221,7 +221,7 @@ export function CarteProchaineAction({
             <span className="font-medium truncate">{etat.skill.intitule}</span>
             <span className="chiffres text-[0.6875rem] text-texte-discret">
               {etat.niveau === null
-                ? "Niveau inconnu — jamais évaluée"
+                ? "Pas encore testée"
                 : `Niveau ${etat.niveau}/5 · confiance ${etat.confiance}`}
             </span>
           </div>
@@ -258,29 +258,18 @@ export function CarteProchaineAction({
 
           <div className="flex flex-wrap items-center gap-3">
             <FeedbackRecommandation code={etat.skill.code} compteId={compteId} />
-            <Depliant resume="Pourquoi cette action ?">
+            <Depliant resume="Pourquoi maintenant ?">
               <div className="mt-2 rounded-md border border-bordure bg-surface-2 p-2.5 text-xs">
                 <p className="mb-1.5 text-texte-attenue">
-                  Facteurs pris en compte pour {etat.skill.code}, du plus au moins déterminant :
+                  Les deux raisons principales :
                 </p>
-                <dl className="space-y-0.5">
-                  {principale.facteurs.map((f, i) => (
-                    <div
-                      key={i}
-                      className="flex items-baseline justify-between gap-3 border-b border-bordure/60 pb-0.5 last:border-0"
-                    >
-                      <dt className="text-texte-attenue">{f.libelle}</dt>
-                      <dd
-                        className={`chiffres shrink-0 font-medium ${
-                          f.contribution < 0 ? "text-texte-discret" : ""
-                        }`}
-                      >
-                        {f.contribution > 0 ? "+" : ""}
-                        {Math.round(f.contribution)}
-                      </dd>
-                    </div>
+                <ul className="space-y-0.5">
+                  {principale.facteurs.slice(0, 2).map((f, i) => (
+                    <li key={i} className="text-texte-attenue">
+                      · {f.libelle}
+                    </li>
                   ))}
-                </dl>
+                </ul>
 
                 <BlocInstant facteurs={facteursInstant} reserves={reservesInstant} />
 
@@ -289,8 +278,8 @@ export function CarteProchaineAction({
                     <p className="mb-1 text-texte-attenue">
                       Difficulté {principale.difficulteCible}/5 —{" "}
                       {principale.calibration.difficulteConseillee === null
-                        ? "déduite du niveau :"
-                        : "dérivée de tes tentatives :"}
+                        ? "d'après votre niveau :"
+                        : "d'après vos exercices précédents :"}
                     </p>
                     <ul className="space-y-0.5">
                       {principale.calibration.verdicts.map((v) => (
@@ -305,7 +294,7 @@ export function CarteProchaineAction({
 
                 {alternatives.length > 0 && (
                   <>
-                    <p className="mt-2 mb-1 text-texte-attenue">Suivantes dans la file :</p>
+                    <p className="mt-2 mb-1 text-texte-attenue">Ensuite :</p>
                     <ul className="space-y-0.5">
                       {alternatives.slice(0, 3).map((r) => (
                         <li key={r.etat.skill.code} className="flex items-baseline gap-2">
@@ -378,7 +367,7 @@ function CarteActionActivite({
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="size-1.5 rounded-full bg-primaire" aria-hidden />
             <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-primaire mr-1">
-              Prochaine meilleure action
+              Votre priorité du jour
             </span>
             <Etiquette ton="primaire">{LIBELLES_FAMILLE[action.family]}</Etiquette>
             <Etiquette>≈ {formatDuree(action.durationMinutes)}</Etiquette>

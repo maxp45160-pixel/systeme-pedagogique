@@ -45,7 +45,7 @@ interface Etape {
 const ETAPES: Etape[] = [
   {
     numero: 1,
-    titre: "Déclarer ce que tu veux travailler",
+    titre: "Dire ce que vous voulez travailler",
     ou: "Écran de démarrage",
     vois:
       "Trois champs : le sujet de ta formation, l'objectif que tu vises à moyen terme, celui à long terme. Rien d'autre — pas d'assistant en douze étapes.",
@@ -57,7 +57,7 @@ const ETAPES: Etape[] = [
   },
   {
     numero: 2,
-    titre: "Reconnaître ton référentiel",
+    titre: "Vérifier votre liste de compétences",
     ou: "Atelier",
     vois:
       "Tes domaines, et dans chacun les compétences avec leur code (ex. LOG-01). La plupart n'ont pas encore de niveau : un tiret, pas un zéro. C'est normal — rien n'a encore été démontré.",
@@ -69,7 +69,7 @@ const ETAPES: Etape[] = [
   },
   {
     numero: 3,
-    titre: "Composer ta première séance",
+    titre: "Composer votre première séance",
     ou: "Cahier",
     vois:
       "Le compositeur : les compétences que tu peux viser, le nombre d'exercices, le temps dont tu disposes. En dessous, la file des séances en cours ou planifiées.",
@@ -137,7 +137,7 @@ const VOCABULAIRE: Terme[] = [
   {
     mot: "Niveau",
     definition:
-      "Le résultat du calcul fait sur les preuves d'une compétence. Il n'est pas stocké : il est recalculé, donc il change dès qu'une preuve s'ajoute.",
+      "Ce que vos exercices disent de votre maîtrise. Il bouge dès que vous faites un nouvel exercice.",
   },
   {
     mot: "Autonomie",
@@ -214,7 +214,7 @@ export default function PageAide() {
     <>
       <EntetePage
         titre="Prendre en main le système"
-        sousTitre="Ce que tu vois, ce que tu fais, et ce que le système en fait — écran par écran."
+        sousTitre="Comment ça marche, écran par écran."
       />
 
       <div className="mx-auto max-w-3xl space-y-10">

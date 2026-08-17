@@ -106,8 +106,8 @@ export function CaptureNotes({
         <div className="p-4 sm:p-5">
           <div className="flex items-center justify-between gap-2">
             <div>
-              <h3 className="text-sm font-semibold tracking-tight text-texte">Renseigner une donnée</h3>
-              <p className="text-xs text-texte-attenue mt-0.5">Enrichir le corpus documentaire & notes de support</p>
+              <h3 className="text-sm font-semibold tracking-tight text-texte">Poser une note ou un cours</h3>
+              <p className="text-xs text-texte-attenue mt-0.5">Garder sous la main ce que vous lisez ou apprenez</p>
             </div>
           </div>
 
@@ -168,8 +168,8 @@ export function CaptureNotes({
 
       {ouverte && (
         <Modale
-          titre="Nouvelle donnée"
-          sousTitre="Cette fiche enrichit ton contexte documentaire ; elle ne mesure aucune compétence."
+          titre="Nouvelle note"
+          sousTitre="On la garde pour plus tard. Ça ne change pas votre niveau."
           largeur="md"
           onFermer={() => setOuverte(false)}
           pied={
@@ -242,7 +242,7 @@ export function CaptureNotes({
               </label>
             ) : (
               <div className="rounded-lg border border-bordure bg-surface-2 px-3 py-2.5 text-sm">
-                <p className="text-xs font-semibold uppercase tracking-wide text-texte-discret">Format classé automatiquement</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-texte-discret">Rangé automatiquement</p>
                 <p className="mt-1 font-medium">
                   {recommandationSelectionnee?.formatLibelle ?? FORMATS_PAR_ROLE.support.find((option) => option.valeur === format)?.libelle}
                 </p>
