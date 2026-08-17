@@ -709,6 +709,7 @@ export function ModaleExercice({
               etapes={etapesGeneration}
               dureeAsymptoteSec={dureeAsymptoteSec}
               pourcentageMinimum={pourcentageMinimum}
+              modeApercu="exercice"
               onArreter={() => {
                 abandonRef.current?.abort();
                 setPhase(modificationIndex !== null ? "previsualisation" : "formulaire");

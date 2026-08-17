@@ -14,6 +14,7 @@ const ETAPES_DEFAUT = [
  * Composant partagé de chargement pour toutes les générations IA :
  *  - Barre de progression continue ultra-fluide avec pourcentage (asymptote naturelle).
  *  - Textes d'étapes dynamiques synchronisés ou message du serveur.
+ *  - Mode squelette prédictif optionnel pour éliminer le Cumulative Layout Shift (CLS).
  *  - Bouton d'annulation (Arrêter).
  */
 export function ChargementGeneration({
@@ -21,6 +22,7 @@ export function ChargementGeneration({
   etapes = ETAPES_DEFAUT,
   dureeAsymptoteSec = 7,
   pourcentageMinimum = 0,
+  modeApercu = "simple",
   onArreter,
   className,
 }: {
@@ -28,6 +30,7 @@ export function ChargementGeneration({
   etapes?: readonly string[];
   dureeAsymptoteSec?: number;
   pourcentageMinimum?: number;
+  modeApercu?: "simple" | "exercice" | "bilan";
   onArreter?: () => void;
   className?: string;
 }) {
@@ -98,6 +101,39 @@ export function ChargementGeneration({
         )}
       </div>
 
+      {modeApercu === "exercice" && (
+        <div className="mt-6 w-full max-w-lg space-y-3 rounded-lg border border-bordure/60 bg-surface-2/40 p-4 text-left animate-pulse" aria-hidden>
+          <div className="flex items-center gap-2">
+            <div className="h-4 w-20 rounded bg-surface-3" />
+            <div className="h-4 w-24 rounded bg-surface-3" />
+            <div className="h-4 w-16 rounded bg-surface-3" />
+          </div>
+          <div className="h-5 w-3/4 rounded bg-surface-3" />
+          <div className="space-y-1.5 pt-1">
+            <div className="h-3 w-full rounded bg-surface-3/80" />
+            <div className="h-3 w-5/6 rounded bg-surface-3/80" />
+            <div className="h-3 w-2/3 rounded bg-surface-3/80" />
+          </div>
+          <div className="pt-2">
+            <div className="h-3 w-28 rounded bg-surface-3" />
+            <div className="mt-1.5 h-12 w-full rounded bg-surface-3/50 border border-bordure/40" />
+          </div>
+        </div>
+      )}
+
+      {modeApercu === "bilan" && (
+        <div className="mt-6 w-full max-w-lg space-y-3 rounded-lg border border-bordure/60 bg-surface-2/40 p-4 text-left animate-pulse" aria-hidden>
+          <div className="flex items-center justify-between">
+            <div className="h-4 w-32 rounded bg-surface-3" />
+            <div className="h-4 w-20 rounded bg-surface-3" />
+          </div>
+          <div className="space-y-2 pt-1">
+            <div className="h-10 w-full rounded bg-surface-3/60 border border-bordure/40" />
+            <div className="h-10 w-full rounded bg-surface-3/60 border border-bordure/40" />
+          </div>
+        </div>
+      )}
+
       {onArreter && (
         <Bouton
           onClick={onArreter}
@@ -111,3 +147,4 @@ export function ChargementGeneration({
     </div>
   );
 }
+

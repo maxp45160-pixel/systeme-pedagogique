@@ -278,14 +278,31 @@ const TON_CONFIANCE: Record<Confiance, Ton> = {
 };
 
 /**
- * La confiance accompagne systématiquement tout indicateur chiffré
- * (protocole anti-hallucination §10 et §14).
+ * Ce que la confiance dit — et ce qu'elle ne dit pas.
+ *
+ * Elle porte sur **les preuves**, pas sur la personne : combien il y en a, sur
+ * combien de contextes, à quelle distance dans le temps. Une confiance faible
+ * n'est donc pas un mauvais niveau, c'est un niveau mal établi — les deux se
+ * corrigent par des gestes opposés (refaire un exercice du même genre pour la
+ * confiance, monter en difficulté pour le niveau).
+ *
+ * L'étiquette seule laissait les deux se confondre : elle est affichée à côté
+ * de la jauge de niveau, dans le même bandeau, et rien ne disait qu'on ne lit
+ * pas la même chose. L'explication est portée par `title` (survol) et par un
+ * texte hors écran (lecteurs d'écran) plutôt que par une ligne de plus : le
+ * bandeau est déjà dense, et cette précision n'est utile qu'une fois.
  */
+const AIDE_CONFIANCE =
+  "La confiance mesure l'assise des preuves — leur nombre, leur variété, leur fraîcheur — pas le niveau atteint. Une confiance faible signale qu'il manque des mesures, pas que la compétence est faible.";
+
 export function TagConfiance({ confiance }: { confiance: Confiance }) {
   return (
-    <Etiquette ton={TON_CONFIANCE[confiance]}>
-      Confiance&nbsp;: {confiance === "nulle" ? "non évaluable" : confiance}
-    </Etiquette>
+    <span title={AIDE_CONFIANCE} className="inline-flex">
+      <Etiquette ton={TON_CONFIANCE[confiance]}>
+        Confiance&nbsp;: {confiance === "nulle" ? "non évaluable" : confiance}
+        <span className="sr-only"> — {AIDE_CONFIANCE}</span>
+      </Etiquette>
+    </span>
   );
 }
 

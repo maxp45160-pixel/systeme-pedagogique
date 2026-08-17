@@ -368,8 +368,17 @@ const ChatInput = memo(function ChatInput({
         ))}
       </div>
 
+      {/*
+        Point d'entrée du focus quand le chat est monté dans une modale.
+
+        `Modale` focalise le premier élément focalisable du panneau : ici les
+        boutons de mode, qui ne servent qu'à pré-remplir la saisie. Ouvrir le
+        tiroir pour poser une question devait donc commencer par une
+        tabulation. L'attribut désigne le champ ; hors modale il est inerte.
+      */}
       <textarea
         ref={champRef}
+        data-focus-initial
         value={saisie}
         onChange={(e) => setSaisie(e.target.value)}
         onKeyDown={(e) => {

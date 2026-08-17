@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { chargerContexte } from "@/lib/store/context";
 import { LienRetour } from "@/components/ui/lien-retour";
 import { libelleDomaine } from "@/lib/domain/referentiel-compte";
-import { DIFFICULTES } from "@/lib/domain/types";
+import { DIFFICULTES, type Difficulte } from "@/lib/domain/types";
 import { demarrerTentative } from "@/lib/store/actions";
 import {
   BandeauInfo,
@@ -204,30 +204,46 @@ export async function VueExercice(props: {
             La tentative reste au journal : elle explique pourquoi aucune difficulté
             n&apos;est conseillée pour le prochain exercice.
           </p>
-          {!props.integree && <div className="mt-2 flex flex-wrap items-center gap-2">
-            <Link href={lienCompositeur} className={classesLienBouton("principal", "petite")}>
-              Reprendre dans une séance
-            </Link>
-            {etatInitialTuteur && (
-              <TiroirTuteur
-                etatInitial={etatInitialTuteur}
-                exerciceCible={exercice.id}
-                amorce={amorceExercice(exercice.competences[0] ?? "", {
-                  difficulteConseillee: ctx.calibrations.get(exercice.competences[0] ?? "")
-                    ?.difficulteConseillee,
-                  dimensionFaible:
-                    ctx.calibrations.get(exercice.competences[0] ?? "")?.dimensionFaible
-                      ?.dimension ?? null,
-                })}
-                codesCompetences={codesCompetences}
-                compteId={ctx.donnees.user.id}
-                domainesExistants={domainesExistants}
-                competencesModale={competencesPourModale(ctx.referentiel.actifs)}
-                calibragesModale={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
-                libelle="En demander un autre au tuteur"
-              />
-            )}
-          </div>}
+          {!props.integree && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {navigation ? (
+                <Link
+                  href={`/seances?session=${encodeURIComponent(navigation.seanceId)}`}
+                  className={classesLienBouton("principal", "petite")}
+                >
+                  Continuer la séance
+                </Link>
+              ) : (
+                <Link href={lienCompositeur} className={classesLienBouton("principal", "petite")}>
+                  Reprendre dans une séance
+                </Link>
+              )}
+              {etatInitialTuteur && (
+                <TiroirTuteur
+                  etatInitial={etatInitialTuteur}
+                  exerciceCible={exercice.id}
+                  amorce={amorceExercice(exercice.competences[0] ?? "", {
+                    difficulteConseillee: Math.max(
+                      1,
+                      (ctx.calibrations.get(exercice.competences[0] ?? "")?.difficulteConseillee ?? 2) - 1,
+                    ) as Difficulte,
+                    dimensionFaible:
+                      ctx.calibrations.get(exercice.competences[0] ?? "")?.dimensionFaible
+                        ?.dimension ?? null,
+                  })}
+                  codesCompetences={codesCompetences}
+                  compteId={ctx.donnees.user.id}
+                  domainesExistants={domainesExistants}
+                  competencesModale={competencesPourModale(ctx.referentiel.actifs)}
+                  calibragesModale={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
+                  libelle="En demander un plus abordable"
+                />
+              )}
+              <Link href="/seances" className={classesLienBouton("secondaire", "petite")}>
+                Cahier des séances
+              </Link>
+            </div>
+          )}
         </div>
         </BandeauInfo>
       )}
@@ -246,16 +262,33 @@ export async function VueExercice(props: {
               impact={impact}
               lienCompetence={!props.integree}
               actions={
-                <>
+                <div className="flex flex-wrap items-center gap-2 pt-1">
                   {navigation ? (
                     <LienApresImpact
                       href={`/seances?session=${encodeURIComponent(navigation.seanceId)}`}
                       libelle="Reprendre la séance (Exercice suivant)"
+                      variante="principal"
                     />
                   ) : (
-                    <LienApresImpact href="/" libelle="Prochaine action recommandée" />
+                    <LienApresImpact
+                      href="/"
+                      libelle="Prochaine action recommandée"
+                      variante="principal"
+                    />
                   )}
-                </>
+                  {exercice.competences[0] && (
+                    <LienApresImpact
+                      href={`/atelier?document=${encodeURIComponent(exercice.competences[0])}`}
+                      libelle="Voir la fiche dans l'Atelier"
+                      variante="secondaire"
+                    />
+                  )}
+                  <LienApresImpact
+                    href="/seances"
+                    libelle="Cahier des séances"
+                    variante="discret"
+                  />
+                </div>
               }
             />
           </div>
@@ -427,6 +460,7 @@ export async function VueExercice(props: {
                   attemptId={enCours.id}
                   valeur={enCours.reponse}
                   compteId={ctx.donnees.user.id}
+                  urlCorrection={urlExercice(exercice.id, navigation, "evaluer")}
                 />
                 {/*
                   Le tiroir porte l'identifiant de l'exercice : le tuteur reçoit

@@ -79,6 +79,20 @@ export function PanneauExplication({
               }.`}
         </p>
 
+        {/*
+          Deux lignes voisines, deux choses différentes : le niveau dit jusqu'où
+          la démonstration est allée, la confiance dit à quel point on peut s'y
+          fier. Côte à côte dans la même liste, elles se lisaient comme deux
+          notes — d'où cette précision, affichée seulement quand la confiance
+          figure réellement parmi les facteurs.
+        */}
+        {explication.facteurs.some((f) => f.libelle === "Confiance") && (
+          <p className="mt-1 text-texte-discret">
+            Le niveau dit ce qui a été démontré ; la confiance dit combien de
+            preuves l&apos;établissent, et depuis combien de temps.
+          </p>
+        )}
+
         {explication.reserves.length > 0 && (
           <ul className="mt-2 space-y-1">
             {explication.reserves.map((r, i) => (

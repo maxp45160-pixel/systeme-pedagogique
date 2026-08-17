@@ -123,10 +123,27 @@ export function Modale({
    * Mémorisé au montage, rendu au démontage. Sans cela, fermer une modale
    * laisse le focus sur `<body>` : la tabulation suivante repart du haut de la
    * page, et l'on a perdu l'endroit où l'on travaillait.
+   *
+   * Deux précautions que la version simple n'avait pas :
+   *
+   * - **L'élément peut avoir disparu.** Une modale qui enregistre remplace
+   *   souvent la zone d'où elle est partie (le bouton « Générer » cède la place
+   *   à la fiche). Rendre le focus à un nœud détaché le renvoie silencieusement
+   *   sur `<body>` — même perte qu'avant, mais invisible. On vérifie donc qu'il
+   *   est encore dans le document.
+   * - **Le rendu de fermeture n'est pas fini.** Restituer dans le nettoyage
+   *   d'effet, c'est le faire avant que React ait posé l'écran suivant, qui
+   *   peut redéplacer le focus. Un `requestAnimationFrame` laisse passer cette
+   *   image et repose le focus après.
    */
   useEffect(() => {
     const declencheur = document.activeElement as HTMLElement | null;
-    return () => declencheur?.focus?.();
+    return () => {
+      if (!declencheur?.focus) return;
+      requestAnimationFrame(() => {
+        if (document.contains(declencheur)) declencheur.focus();
+      });
+    };
   }, []);
 
   /*
@@ -148,12 +165,21 @@ export function Modale({
     };
   }, []);
 
-  // Le focus entre dans la modale — sur le panneau lui-même si rien d'autre
-  // n'est focalisable, pour que `Échap` et la tabulation partent d'ici.
+  /*
+   * Le focus entre dans la modale — sur le panneau lui-même si rien d'autre
+   * n'est focalisable, pour que `Échap` et la tabulation partent d'ici.
+   *
+   * `[data-focus-initial]` laisse le contenu désigner son point d'entrée. Le
+   * premier focalisable dans l'ordre du document n'est pas toujours celui par
+   * lequel on veut commencer : dans le tiroir du tuteur, ce sont les boutons de
+   * mode, alors que la seule chose à faire en ouvrant est d'écrire. L'appelant
+   * pose l'attribut, la primitive garde la règle.
+   */
   useEffect(() => {
     const panneau = panneauRef.current;
     if (!panneau) return;
-    const premier = panneau.querySelector<HTMLElement>(FOCUSABLES);
+    const designe = panneau.querySelector<HTMLElement>("[data-focus-initial]");
+    const premier = designe ?? panneau.querySelector<HTMLElement>(FOCUSABLES);
     (premier ?? panneau).focus();
   }, [monte]);
 

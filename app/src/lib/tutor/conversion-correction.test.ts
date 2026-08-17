@@ -165,4 +165,17 @@ describe("convertirCorrection", () => {
     const r = convertirCorrection(correction([]), 1);
     expect(r.ok).toBe(false);
   });
+
+  it("gère de manière défensive un objet de correction mal formé sans lever d'exception", () => {
+    const r1 = convertirCorrection(null as unknown as PropositionCorrection, 1);
+    expect(r1.ok).toBe(false);
+
+    const r2 = convertirCorrection({
+      resultat: "reussi",
+      appreciations: null as unknown as { critere: string; valeur: string; justification: string }[],
+      bilan: null as unknown as { pointsForts: string; pointsBloquants: string; aRetravailler: string[] },
+    } as unknown as PropositionCorrection, 1);
+    expect(r2.ok).toBe(false);
+  });
 });
+

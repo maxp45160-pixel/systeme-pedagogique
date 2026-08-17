@@ -196,12 +196,20 @@ function LigneCompetence({
   );
 }
 
-/** Le bouton principal des cartes d'impact — même style partout. */
-export function LienApresImpact({ href, libelle }: { href: string; libelle: string }) {
+/** Les liens d'action des cartes d'impact — styles uniformes. */
+export function LienApresImpact({
+  href,
+  libelle,
+  variante = "principal",
+}: {
+  href: string;
+  libelle: string;
+  variante?: "principal" | "secondaire" | "discret";
+}) {
   return (
-    <Link href={href} className={classesLienBouton("principal", "normale")}>
+    <Link href={href} className={classesLienBouton(variante, "normale")}>
       <span>{libelle}</span>
-      <span aria-hidden className="ml-1">→</span>
+      {variante === "principal" && <span aria-hidden className="ml-1">→</span>}
     </Link>
   );
 }

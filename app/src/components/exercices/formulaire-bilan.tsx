@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import type { Dimension, Exercise } from "@/lib/domain/types";
 import { LIBELLES_DIMENSIONS } from "@/lib/domain/types";
 import { terminerExercice } from "@/lib/store/actions";
@@ -114,7 +114,7 @@ export function FormulaireBilan({
             : "autonome avec initiative méthodologique"
   }`;
 
-  function soumettre() {
+  const soumettre = useCallback(() => {
     setErreur(null);
 
     // Une absence de verdict n'est pas une réussite implicite. Le formulaire
@@ -173,7 +173,21 @@ export function FormulaireBilan({
         setErreur(e instanceof Error ? e.message : "Enregistrement impossible.");
       }
     });
-  }
+  }, [
+    resultat, tousRenseignes, exercice, criteres, attemptId,
+    duree, notes, aide, propositionInitiale, navigation,
+  ]);
+
+  useEffect(() => {
+    function onTouche(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault();
+        soumettre();
+      }
+    }
+    window.addEventListener("keydown", onTouche);
+    return () => window.removeEventListener("keydown", onTouche);
+  }, [soumettre]);
 
   return (
     <div className="space-y-5">
@@ -332,7 +346,7 @@ export function FormulaireBilan({
       {bilanRedige && <BilanRedigeVue bilan={bilanRedige} />}
 
       {/*
-        Aide extérieure — plafonne l'autonomie enregistrée (ADR-033).
+        Aide extérieure — calibrage de l'autonomie enregistrée (ADR-033 / ADR-057).
 
         ⚠️ Ce bloc et la durée restent HORS du repli, même quand le tuteur a
         proposé un verdict. Ce n'est pas un oubli : l'aide extérieure est un
@@ -344,7 +358,7 @@ export function FormulaireBilan({
         <div className="mb-2 text-xs font-medium">
           As-tu eu besoin d&apos;aide extérieure ?
           <span className="ml-1.5 font-normal text-texte-discret">
-            — cela plafonne l&apos;autonomie enregistrée
+            — déclarer une aide calibre l&apos;outil sans jugement de valeur
           </span>
         </div>
         <div className="grid gap-1.5 sm:grid-cols-2">
@@ -366,13 +380,13 @@ export function FormulaireBilan({
         </div>
         <p className="mt-1.5 text-[0.625rem] text-texte-discret">
           {aide === "aucune" &&
-            "Aucune aide extérieure : l'autonomie sera déduite des seuls indices consultés."}
+            "Aucune aide extérieure : l'autonomie est déduite des seuls indices internes consultés."}
           {aide === "documentation" &&
-            "Documentation consultée : l'autonomie est plafonnée à A2 — quelques indices nécessaires."}
+            "Documentation ou cours consultés : autonomie calibrée à A2 (indices/supports nécessaires)."}
           {aide === "assistant-ia" &&
-            "Assistant IA sollicité : l'autonomie est plafonnée à A1 — solution fortement guidée."}
+            "Assistant IA sollicité : autonomie calibrée à A1 (résolution fortement guidée)."}
           {aide === "correction" &&
-            "Correction obtenue : l'autonomie est plafonnée à A0 — solution fournie."}
+            "Correction obtenue : autonomie calibrée à A0 (solution fournie)."}
         </p>
       </div>
 
@@ -423,7 +437,7 @@ export function FormulaireBilan({
             {aide !== "aucune" && (
               <>
                 {" "}
-                — plafonnée par l&apos;aide déclarée : {LIBELLE_AIDE[aide]}
+                — calibrée par l&apos;aide déclarée : {LIBELLE_AIDE[aide]}
               </>
             )}
           </li>
@@ -441,7 +455,7 @@ export function FormulaireBilan({
         </BandeauInfo>
       )}
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-3">
         <Bouton
           onClick={soumettre}
           disabled={resultat === null || !tousRenseignes || enCours}
@@ -453,6 +467,12 @@ export function FormulaireBilan({
               ? "Accepter et enregistrer"
               : "Enregistrer la preuve"}
         </Bouton>
+        {resultat !== null && tousRenseignes && (
+          <span className="hidden sm:flex items-center gap-1 text-[0.6875rem] text-texte-discret">
+            <kbd className="rounded border border-bordure bg-surface-2 px-1 py-0.5 font-mono text-[0.625rem]">Ctrl+Entrée</kbd>
+            <span>pour enregistrer</span>
+          </span>
+        )}
         {resultat === null && (
           <span className="text-xs text-texte-discret">
             Choisis le résultat global de ta résolution pour continuer.

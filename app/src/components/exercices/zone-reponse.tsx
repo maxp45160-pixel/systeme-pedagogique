@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { enregistrerReponse } from "@/lib/store/actions";
 import { useEstHydrate } from "@/lib/ui/hydratation";
 import { cleParCompte, ecrireSession, effacerSession, lireSession } from "@/lib/ui/stockage-session";
@@ -58,6 +59,8 @@ export function ZoneReponse(proprietes: {
   attemptId: string;
   valeur: string;
   compteId: string;
+  urlCorrection?: string;
+  onDemanderCorrection?: () => void;
 }) {
   // `sessionStorage` n'existe pas côté serveur : on attend l'hydratation pour
   // partir du bon texte dès le premier rendu réel, plutôt que d'afficher la
@@ -84,12 +87,17 @@ function ZoneHydrate({
   attemptId,
   valeur,
   compteId,
+  urlCorrection,
+  onDemanderCorrection,
 }: {
   attemptId: string;
   /** Dernière réponse enregistrée en base (valeur figée au rendu serveur). */
   valeur: string;
   compteId: string;
+  urlCorrection?: string;
+  onDemanderCorrection?: () => void;
 }) {
+  const router = useRouter();
   const cle = cleParCompte(`brouillon-reponse:${attemptId}`, compteId);
 
   const [texte, setTexte] = useState<string>(() => lireSession<string>(cle) ?? valeur);
@@ -225,6 +233,28 @@ function ZoneHydrate({
     return () => window.removeEventListener("beforeunload", avantFermeture);
   }, [texte, enregistre, forcer]);
 
+  /*
+   * Raccourci de passage à l'acte suivant.
+   *
+   * L'écriture est **attendue** avant la navigation : c'est la valeur en base
+   * qui déverrouille le bilan (`reponseSuffisante`), pas celle à l'écran.
+   * Partir sans attendre ferait tomber sur un écran qui dit « pas de réponse »
+   * alors qu'elle vient d'être tapée.
+   */
+  async function allerCorriger() {
+    ecrireFilet(texteRef.current);
+    await enregistrerMaintenant();
+    if (onDemanderCorrection) onDemanderCorrection();
+    else if (urlCorrection) router.push(urlCorrection);
+  }
+
+  function gererToucheClavier(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (!(e.ctrlKey || e.metaKey) || e.key !== "Enter") return;
+    if (!urlCorrection && !onDemanderCorrection) return;
+    e.preventDefault();
+    void allerCorriger();
+  }
+
   return (
     <div>
       <textarea
@@ -236,24 +266,34 @@ function ZoneHydrate({
           // n'a pas expiré. Un envoi déjà en vol garde son propre état.
           if (!envoiEnVol.current) setEtat(suivant === enregistre ? "enregistre" : "modifie");
         }}
+        onKeyDown={gererToucheClavier}
         onBlur={forcer}
         rows={10}
         placeholder="Hypothèses, méthode, calculs, résultat, interprétation, limites…"
         className="h-[15.5rem] w-full resize-y rounded-md border border-bordure-controle bg-surface px-3 py-2 font-mono text-xs leading-relaxed placeholder:text-texte-discret lg:h-[min(32rem,calc(100dvh-16rem))]"
       />
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        <span aria-live="polite" className="text-[0.625rem] text-texte-discret">
-          {etat === "envoi"
-            ? "Enregistrement…"
-            : etat === "modifie"
-              ? "Modifications non encore enregistrées"
-              : etat === "echec"
-                ? "Enregistrement en échec — nouvelle tentative dans quelques secondes"
-                : "Enregistré"}
-        </span>
-        <span className="text-[0.625rem] text-texte-discret">
-          Le contenu n&apos;est pas corrigé automatiquement — il sert de trace de ton raisonnement.
-        </span>
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[0.625rem] text-texte-discret">
+        <div className="flex flex-wrap items-center gap-2">
+          <span aria-live="polite">
+            {etat === "envoi"
+              ? "Enregistrement…"
+              : etat === "modifie"
+                ? "Modifications non encore enregistrées"
+                : etat === "echec"
+                  ? "Enregistrement en échec — nouvelle tentative dans quelques secondes"
+                  : "Enregistré"}
+          </span>
+          <span aria-hidden>·</span>
+          <span>
+            Le contenu n&apos;est pas corrigé automatiquement — il sert de trace de ton raisonnement.
+          </span>
+        </div>
+        {(urlCorrection || onDemanderCorrection) && (
+          <div className="hidden sm:flex items-center gap-1">
+            <kbd className="rounded border border-bordure bg-surface-2 px-1 py-0.5 font-mono text-[0.625rem]">Ctrl+Entrée</kbd>
+            <span>demander la correction</span>
+          </div>
+        )}
       </div>
 
       {erreur && etat === "echec" && (

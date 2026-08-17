@@ -91,7 +91,11 @@ export function convertirCorrection(
 ): Conversion<CorrectionEnregistrable> {
   const erreurs: string[] = [];
 
-  const resultat = versResultat(p.resultat);
+  if (!p || typeof p !== "object") {
+    return { ok: false, erreurs: ["Proposition de correction vide ou non structurée."] };
+  }
+
+  const resultat = versResultat(typeof p.resultat === "string" ? p.resultat : "");
   if (resultat === null) {
     erreurs.push(
       `Résultat illisible : « ${p.resultat} ». Attendu réussi, partiel ou échec — aucune valeur n'est déduite à sa place.`,
@@ -101,8 +105,11 @@ export function convertirCorrection(
   const appreciations: Record<number, ValeurAppreciation> = {};
   const justifications: Record<number, string> = {};
 
-  for (const a of p.appreciations) {
-    const numero = Number.parseInt(a.critere.trim(), 10);
+  const appreciationsBrutes = Array.isArray(p.appreciations) ? p.appreciations : [];
+  for (const a of appreciationsBrutes) {
+    if (!a || typeof a !== "object") continue;
+    const critereTexte = typeof a.critere === "string" || typeof a.critere === "number" ? String(a.critere).trim() : "";
+    const numero = Number.parseInt(critereTexte, 10);
     if (!Number.isInteger(numero) || numero < 1 || numero > nombreDeCriteres) {
       erreurs.push(
         `Numéro de critère hors liste : « ${a.critere} ». L'exercice en compte ${nombreDeCriteres}.`,
@@ -118,7 +125,11 @@ export function convertirCorrection(
       continue;
     }
 
-    const valeur = versAppreciation(a.valeur);
+    const valeur = versAppreciation(
+      typeof a.valeur === "string" || typeof a.valeur === "number"
+        ? String(a.valeur)
+        : "",
+    );
     if (valeur === null) {
       erreurs.push(
         `Appréciation illisible sur le critère ${numero} : « ${a.valeur} ». L'échelle n'a que trois positions, et aucune n'est déduite à sa place.`,
@@ -127,7 +138,7 @@ export function convertirCorrection(
     }
 
     appreciations[index] = valeur;
-    justifications[index] = a.justification.trim();
+    justifications[index] = typeof a.justification === "string" ? a.justification.trim() : "";
   }
 
   // La couverture exhaustive : un critère oublié laisserait un formulaire à
@@ -144,13 +155,23 @@ export function convertirCorrection(
 
   if (erreurs.length > 0) return { ok: false, erreurs };
 
+  const bilanBrut = p.bilan && typeof p.bilan === "object" ? p.bilan : { pointsForts: "", pointsBloquants: "", aRetravailler: [] };
+  const bilan: BilanRedige = {
+    pointsForts: typeof bilanBrut.pointsForts === "string" ? bilanBrut.pointsForts : "",
+    pointsBloquants: typeof bilanBrut.pointsBloquants === "string" ? bilanBrut.pointsBloquants : "",
+    aRetravailler: Array.isArray(bilanBrut.aRetravailler)
+      ? bilanBrut.aRetravailler.map((item) => (typeof item === "string" ? item.trim() : "")).filter(Boolean)
+      : [],
+  };
+
   return {
     ok: true,
     valeur: {
       resultat: resultat as ResultatBilan,
       appreciations,
       justifications,
-      bilan: p.bilan,
+      bilan,
     },
   };
 }
+

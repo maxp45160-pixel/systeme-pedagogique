@@ -141,29 +141,45 @@ export function convertirProposition(
 ): Conversion<ExerciceEnregistrable> {
   const erreurs: string[] = [];
 
-  const titre = p.titre.trim();
+  if (!p || typeof p !== "object") {
+    return { ok: false, erreurs: ["Proposition vide ou non structurée."] };
+  }
+
+  const titre = typeof p.titre === "string" ? p.titre.trim() : "";
   if (!titre) erreurs.push("Le titre est vide.");
 
-  const enonce = p.enonce.trim();
+  const enonce = typeof p.enonce === "string" ? p.enonce.trim() : "";
   if (!enonce) erreurs.push("L'énoncé est vide.");
 
-  const correction = p.correction.trim();
+  const correction = typeof p.correction === "string" ? p.correction.trim() : "";
   if (!correction) erreurs.push("La correction est vide.");
 
-  const competences = p.competences.map((c) => c.trim()).filter(Boolean);
+  const competences = Array.isArray(p.competences)
+    ? p.competences
+        .map((c) => (typeof c === "string" ? c.trim() : ""))
+        .filter(Boolean)
+    : [];
   if (competences.length === 0) erreurs.push("Aucune compétence ciblée.");
 
-  const type = versType(p.type);
+  const type = versType(typeof p.type === "string" ? p.type : "");
   if (type === null) erreurs.push(`Type d'exercice illisible : « ${p.type} ».`);
 
-  const difficulte = versDifficulte(p.difficulte);
+  const difficulte = versDifficulte(
+    typeof p.difficulte === "string" || typeof p.difficulte === "number"
+      ? String(p.difficulte)
+      : "",
+  );
   if (difficulte === null) {
     erreurs.push(
       `Difficulté illisible : « ${p.difficulte} ». Attendu un entier de 1 à 5 — aucune valeur n'est déduite à sa place.`,
     );
   }
 
-  const dureeEstimeeMin = versDuree(p.dureeEstimeeMin);
+  const dureeEstimeeMin = versDuree(
+    typeof p.dureeEstimeeMin === "string" || typeof p.dureeEstimeeMin === "number"
+      ? String(p.dureeEstimeeMin)
+      : "",
+  );
   if (dureeEstimeeMin === null) {
     erreurs.push(
       `Durée estimée illisible : « ${p.dureeEstimeeMin} ». C'est elle qui permet de juger si une tentative a eu lieu, elle ne peut pas être supposée.`,
@@ -173,10 +189,12 @@ export function convertirProposition(
   // Un critère dont la dimension est inconnue est écarté et signalé — il ne
   // vaut pas de rejeter l'exercice entier, mais il ne passe pas en silence.
   const criteres: { dimension: Dimension; libelle: string }[] = [];
-  for (const c of p.criteres) {
-    const libelle = c.libelle.trim();
+  const criteresBruts = Array.isArray(p.criteres) ? p.criteres : [];
+  for (const c of criteresBruts) {
+    if (!c || typeof c !== "object") continue;
+    const libelle = typeof c.libelle === "string" ? c.libelle.trim() : "";
     if (!libelle) continue;
-    const dimension = versDimension(c.dimension);
+    const dimension = versDimension(typeof c.dimension === "string" ? c.dimension : "");
     if (dimension === null) {
       erreurs.push(`Critère « ${libelle} » : dimension inconnue « ${c.dimension} ».`);
       continue;
@@ -185,12 +203,18 @@ export function convertirProposition(
   }
   if (criteres.length === 0) erreurs.push("Aucun critère exploitable.");
 
-  const intention = versIntention(p.intention ?? "");
+  const intention = versIntention(typeof p.intention === "string" ? p.intention : "");
   if (intention === null) {
     erreurs.push(`Intention illisible : « ${p.intention} ».`);
   }
 
   if (erreurs.length > 0) return { ok: false, erreurs };
+
+  const indices = Array.isArray(p.indices)
+    ? p.indices
+        .map((i) => (typeof i === "string" ? i.trim() : ""))
+        .filter(Boolean)
+    : [];
 
   return {
     ok: true,
@@ -201,10 +225,11 @@ export function convertirProposition(
       competences,
       dureeEstimeeMin: dureeEstimeeMin as number,
       enonce,
-      indices: p.indices.map((i) => i.trim()).filter(Boolean),
+      indices,
       correction,
       criteres,
       ...(intention ? { intention } : {}),
     },
   };
 }
+

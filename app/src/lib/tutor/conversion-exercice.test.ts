@@ -213,4 +213,20 @@ describe("convertirProposition", () => {
     if (r.ok) return;
     expect(r.erreurs.join(" ")).toContain("Intention illisible");
   });
+
+  it("gère de manière défensive un objet mal formé sans lever d'exception", () => {
+    const r1 = convertirProposition(null as unknown as PropositionExercice);
+    expect(r1.ok).toBe(false);
+
+    const r2 = convertirProposition({
+      ...proposition(),
+      competences: "LOG-10" as unknown as string[],
+      indices: null as unknown as string[],
+      criteres: null as unknown as { dimension: string; libelle: string }[],
+    } as unknown as PropositionExercice);
+    expect(r2.ok).toBe(false);
+    if (r2.ok) return;
+    expect(r2.erreurs.length).toBeGreaterThan(0);
+  });
 });
+
