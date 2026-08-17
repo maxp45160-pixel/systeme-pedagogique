@@ -105,12 +105,6 @@ export const IconeDocuments = ({ className }: Props) => (
   </Svg>
 );
 
-export const IconeChevron = ({ className }: Props) => (
-  <Svg className={className}>
-    <path d="M9 6l6 6-6 6" />
-  </Svg>
-);
-
 export const IconeDossier = ({ className }: Props) => (
   <Svg className={className}>
     <path d="M3 7V6a2 2 0 0 1 2-2h4.5L12 6h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />

@@ -103,43 +103,6 @@ export function BarreVuesAtelier({
   );
 }
 
-export function EnteteVueAtelier({
-  surtitre = "Atelier",
-  titre,
-  description,
-  vue,
-  onChangerVue,
-}: {
-  surtitre?: string;
-  titre: string;
-  description?: string;
-  vue: VueAtelier;
-  onChangerVue: (v: VueAtelier) => void;
-}) {
-  return (
-    <div className="flex h-[4.25rem] items-center justify-between gap-3 border-b border-bordure bg-surface px-6 shrink-0">
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-texte-discret leading-none">
-            {surtitre}
-          </p>
-          <h2 className="mt-0.5 font-serif text-2xl font-medium tracking-tight leading-tight text-texte truncate">
-            {titre}
-          </h2>
-        </div>
-      </div>
-      <div className="flex items-center gap-3 shrink-0">
-        {description && (
-          <span className="text-xs text-texte-discret hidden sm:inline max-w-sm lg:max-w-md xl:max-w-xl truncate">
-            {description}
-          </span>
-        )}
-        <BarreVuesAtelier vue={vue} onChanger={onChangerVue} />
-      </div>
-    </div>
-  );
-}
-
 export function VueTousLesDomaines({
   domaines,
   ouvrirElement,

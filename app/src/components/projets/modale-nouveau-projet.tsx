@@ -37,18 +37,6 @@ const LIBELLE_VISEE: Record<ViseeProjet, string> = {
   integration: "Intégrer plusieurs compétences",
 };
 
-export function ModaleNouveauProjet({ accountId }: { accountId: string }) {
-  const [ouverte, setOuverte] = useState(false);
-  return (
-    <>
-      <Bouton type="button" onClick={() => setOuverte(true)} data-testid="ouvrir-modale-projet">
-        Créer un projet
-      </Bouton>
-      {ouverte && <ParcoursNouveauProjet accountId={accountId} onFermer={() => setOuverte(false)} />}
-    </>
-  );
-}
-
 interface CompetenceDesignee {
   code: string;
   /**

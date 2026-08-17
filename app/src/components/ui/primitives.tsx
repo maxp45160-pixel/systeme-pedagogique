@@ -289,15 +289,6 @@ export function TagConfiance({ confiance }: { confiance: Confiance }) {
   );
 }
 
-/** « Basé sur N preuves » — jamais un chiffre sans son assise. */
-export function NombrePreuves({ n }: { n: number }) {
-  return (
-    <span className="text-xs text-texte-discret">
-      {n === 0 ? "Aucune preuve" : `Basé sur ${n} preuve${n > 1 ? "s" : ""}`}
-    </span>
-  );
-}
-
 /* ------------------------------------------------------------------ */
 /* Indicateurs                                                         */
 /* ------------------------------------------------------------------ */

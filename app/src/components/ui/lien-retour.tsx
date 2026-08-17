@@ -49,32 +49,3 @@ export function LienRetour({
     </div>
   );
 }
-
-export function BoutonRetour({
-  onClick,
-  libelle = "Retour",
-}: {
-  onClick?: () => void;
-  libelle?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={
-        onClick ??
-        (() => {
-          if (typeof window !== "undefined") {
-            window.history.back();
-          }
-        })
-      }
-      className="inline-flex items-center gap-1.5 rounded-lg border border-bordure bg-surface px-2.5 py-1.5 text-xs font-semibold text-texte-attenue transition-all duration-150 hover:bg-surface-2 hover:text-primaire hover:border-primaire/40 cursor-pointer shadow-xs shrink-0"
-      title="Revenir en arrière (Raccourci : bouton retour souris)"
-      aria-label="Revenir en arrière"
-    >
-      <span className="text-xs font-bold" aria-hidden>←</span>
-      <span>{libelle}</span>
-    </button>
-  );
-}
-
