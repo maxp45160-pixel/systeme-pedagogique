@@ -448,12 +448,13 @@ CREATE TABLE IF NOT EXISTS public.sessions (
 -- --------------------------------------------------------------------
 
 -- `exercice_id` NULL = refus de la compétence entière. Renseigné, le refus
--- ne porte que sur l'exercice proposé : la compétence reste recommandable
--- avec un autre exercice.
+-- ne porte que sur l'activité proposée (exercice, note, ressource) : la
+-- compétence reste recommandable avec une autre. `code` NULL = l'activité
+-- n'en mobilisait aucune : seule elle sort de la file.
 CREATE TABLE IF NOT EXISTS public.refus_recommandations (
   id          TEXT NOT NULL,
   user_id     UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  code        TEXT NOT NULL,
+  code        TEXT,
   exercice_id TEXT,
   date        TEXT NOT NULL,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),

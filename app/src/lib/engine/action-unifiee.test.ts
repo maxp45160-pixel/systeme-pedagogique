@@ -242,6 +242,44 @@ describe("arbitrage à l'instant T", () => {
   });
 
   /*
+   * Une note sans aucun lien vers un code actif (skillCodes vide) reste une
+   * action proposable : son travail est engagé, sa famille est connue. C'est
+   * exactement le cas où le bouton « Passer » était masqué — la carte ne
+   * trouvait pas de code à refuser, et la suggestion ne pouvait pas être
+   * écartée. Le refus est porté par l'identifiant d'activité seul.
+   */
+  it("une note sans code de compétence reste proposable par l'arbitrage", () => {
+    const note = noteOperationnelle("note-libre", "projet", []);
+    const resultat = choisirActionUnifiee({
+      ...entrees([], [recommandation("DEV-01", null)], 60),
+      activities: [note],
+    });
+    if (resultat?.kind !== "note") throw new Error("branche inattendue");
+    expect(resultat.action.activityId).toBe(idActiviteNote("note-libre"));
+    expect(resultat.action.target.skillCodes).toEqual([]);
+  });
+
+  it("la note sans code, écartée, laisse la place à l'exercice suivant", () => {
+    const court = exercice("ex-court", "DEV-01", 20);
+    const note = noteOperationnelle("note-libre", "projet", []);
+
+    // Seule candidate, elle est proposée.
+    const seule = choisirActionUnifiee({
+      ...entrees([], [recommandation("DEV-01", court)], 60),
+      activities: [note],
+    });
+    expect(seule?.kind).toBe("note");
+
+    // Passée (absente des activités), l'exercice de la file prend le relais.
+    const sansNote = choisirActionUnifiee(
+      entrees([court], [recommandation("DEV-01", court)], 60),
+    );
+    expect(sansNote?.kind).toBe("exercice");
+    if (sansNote?.kind !== "exercice") throw new Error("branche inattendue");
+    expect(sansNote.recommandations[0].exercice?.id).toBe("ex-court");
+  });
+
+  /*
    * Un exercice que `recommander` a retiré de la file (non abouti — partiel ou
    * échec — sans progrès démontré) ne doit pas réapparaître par la porte de
    * l'arbitrage. Avant le correctif, `activities` portait tout le corpus et

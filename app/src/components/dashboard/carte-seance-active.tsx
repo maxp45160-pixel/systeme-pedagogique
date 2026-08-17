@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { IconeExercices, IconeFeuille, IconeFleche } from "@/components/ui/icones";
-import { Bouton, Carte, CodeCompetence, Etiquette, classesLienBouton } from "@/components/ui/primitives";
+import { Carte, CodeCompetence, Etiquette, classesLienBouton } from "@/components/ui/primitives";
+import { PasserSeance } from "@/components/dashboard/passer-seance";
 import { formatDuree } from "@/lib/engine/dates";
-import { abandonnerSeance } from "@/lib/store/seance-actions";
 import type { LearningSession, Referentiel } from "@/lib/domain/types";
 
 export function CarteSeanceActive({
@@ -65,15 +65,7 @@ export function CarteSeanceActive({
                 </Link>
               </span>
             )}
-            <form action={abandonnerSeance.bind(null, seance.id)}>
-              <Bouton
-                type="submit"
-                variante="secondaire"
-                title="Quitter cette séance et revoir les suggestions"
-              >
-                Passer la séance
-              </Bouton>
-            </form>
+            <PasserSeance seanceId={seance.id} />
           </div>
         </div>
 

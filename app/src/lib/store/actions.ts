@@ -699,17 +699,28 @@ export async function modifierExercice(soumission: SoumissionEditionExercice): P
  * Il est stocké en base (et non en localStorage) pour que le moteur de
  * recommandation puisse le prendre en compte au prochain calcul.
  *
- * `exerciceId` fixe la portée : l'exercice proposé, ou — s'il est absent
- * parce qu'aucun exercice n'était proposé — la compétence entière.
+ * `exerciceId` fixe la portée : l'activité proposée (exercice, note,
+ * ressource). Il est absent — parce qu'aucune activité n'était proposée,
+ * comme dans le repli « Générer un exercice » — le refus porte alors sur la
+ * compétence entière (`code` seul). Une activité sans code de compétence
+ * reste passable : `code` est alors absent et seul `exerciceId` porte le
+ * refus.
  *
  * L'expiration (7 jours) est gérée à la lecture, jamais à l'écriture : on
  * n'efface pas un fait passé, on cesse de le prendre en compte.
  */
 export async function refuserRecommandation(
-  code: string,
+  code?: string,
   exerciceId?: string,
 ): Promise<void> {
   const dorsale = await dorsaleCompte();
+
+  if (!code && !exerciceId) {
+    throw new Error(
+      "Ce refus n'a pas de cible : renseigne une compétence ou une activité.",
+    );
+  }
+
   /*
    * Un refus d'exercice est enregistré sous l'identifiant d'exercice NU
    * (`diag-log-01`), jamais sous l'identifiant d'activité legacy
@@ -728,7 +739,7 @@ export async function refuserRecommandation(
   const { error } = await dorsale.supabase.from("refus_recommandations").insert({
     id: nouvelId("ref"),
     user_id: dorsale.userId,
-    code,
+    code: code ?? null,
     exercice_id: idExercice,
     date: new Date().toISOString(),
   });

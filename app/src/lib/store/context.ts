@@ -223,17 +223,23 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
   // Refus de recommandation (R1) : ce que l'utilisateur a passé est écarté de
   // la file pour 7 jours. L'expiration est gérée ici, à la lecture.
   //
-  // Deux portées, distinguées par la présence de `exerciceId` : l'exercice
-  // seul (cas normal, la compétence reste recommandable autrement) ou la
+  // Deux portées, distinguées par la présence de `exerciceId` : l'activité
+  // seule (cas normal, la compétence reste recommandable autrement) ou la
   // compétence entière (refus antérieurs au 07/08/2026, et refus posés quand
-  // aucun exercice n'était proposé).
+  // aucune activité n'était proposée). Une activité sans code de compétence
+  // tombe dans le premier cas : `code` absent, `exerciceId` porteur.
   const maintenant = now.getTime();
   const EXPIRATION_REFUS_MS = 7 * 24 * 60 * 60 * 1000;
   const refusFrais = (donneesBrutes.refusRecommandations ?? []).filter(
     (r) => maintenant - new Date(r.date).getTime() < EXPIRATION_REFUS_MS,
   );
   const refus = {
-    codes: new Set(refusFrais.filter((r) => !r.exerciceId).map((r) => r.code)),
+    codes: new Set(
+      refusFrais
+        .filter((r) => !r.exerciceId)
+        .map((r) => r.code)
+        .filter((code): code is string => Boolean(code)),
+    ),
     exercices: new Set(
       refusFrais.map((r) => r.exerciceId).filter((id): id is string => Boolean(id)),
     ),

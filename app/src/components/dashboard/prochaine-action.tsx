@@ -374,12 +374,10 @@ function CarteActionActivite({
             {action.segmented && <Etiquette ton="info">Reprenable plus tard</Etiquette>}
           </div>
 
-          {codeRefusable && (
-            <BoutonRefusRecommandation
-              code={codeRefusable}
-              exerciceId={action.activityId}
-            />
-          )}
+          <BoutonRefusRecommandation
+            code={codeRefusable}
+            exerciceId={action.activityId}
+          />
         </div>
 
         <h2 className="mt-2 font-serif text-lg sm:text-xl font-medium leading-snug tracking-tight">

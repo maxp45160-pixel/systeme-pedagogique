@@ -369,10 +369,49 @@ export async function terminerSeance(seanceId: string): Promise<void> {
 export async function abandonnerSeance(seanceId: string): Promise<void> {
   const dorsale = await dorsaleCompte();
   const seance = await seanceDuCompte(seanceId, dorsale);
+
+  if (statutSeance(seance) === "abandonnee") {
+    redirect(`/seances?session=${encodeURIComponent(seanceId)}`);
+  }
+
+  await ecrireAbandon(seance, dorsale);
+  revalidatePath("/", "layout");
+  redirect("/seances");
+}
+
+/**
+ * Abandon d'une séance depuis le tableau de bord.
+ *
+ * La même écriture que `abandonnerSeance` — le corps commun est
+ * `ecrireAbandon` — mais sans redirection : on reste sur le tableau de bord,
+ * dont la carte « séance en cours » laisse place à la prochaine suggestion
+ * (le re-rendu est déclenché par `revalidatePath`, ADR-024).
+ *
+ * L'idempotence de `ecrireAbandon` s'applique ici aussi : un abandon déjà écrit
+ * ne réécrit rien et ne lève pas (ADR-072).
+ */
+export async function abandonnerSeanceDepuisTableauDeBord(
+  seanceId: string,
+): Promise<void> {
+  const dorsale = await dorsaleCompte();
+  const seance = await seanceDuCompte(seanceId, dorsale);
+  await ecrireAbandon(seance, dorsale);
+  revalidatePath("/", "layout");
+}
+
+/**
+ * Corps commun de l'abandon d'une séance : gardes de statut, clôture des
+ * tentatives encore ouvertes, puis écriture de la séance. Aucune redirection :
+ * c'est l'appelant qui décide où aller.
+ */
+async function ecrireAbandon(
+  seance: LearningSession,
+  dorsale: DorsaleCompte,
+): Promise<void> {
   const statut = statutSeance(seance);
 
   if (statut === "abandonnee") {
-    redirect(`/seances?session=${encodeURIComponent(seanceId)}`);
+    return;
   }
   if (statut === "terminee") {
     throw new Error(
@@ -426,7 +465,7 @@ export async function abandonnerSeance(seanceId: string): Promise<void> {
 
   await modifier(
     "sessions",
-    seanceId,
+    seance.id,
     {
       statut: "abandonnee",
       resultat: resumeSeanceAbandonnee(avancement),
@@ -434,8 +473,6 @@ export async function abandonnerSeance(seanceId: string): Promise<void> {
     },
     dorsale,
   );
-  revalidatePath("/", "layout");
-  redirect("/seances");
 }
 
 /**

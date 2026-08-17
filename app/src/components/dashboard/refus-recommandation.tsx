@@ -10,10 +10,12 @@
  * Le refus est un fait observé : il ne modifie pas le moteur, il le filtre.
  * Le moteur reste pur et testé — il reçoit les ensembles de refus.
  *
- * Portée : l'exercice proposé. La compétence reste recommandable avec un
- * autre exercice ; elle ne sort de la file que si tous les siens ont été
- * passés. Sans `exerciceId` — cas du repli « Générer un exercice », où rien
- * n'est proposé — le refus porte sur la compétence entière.
+ * Portée : l'action proposée. Une activité (exercice, note, ressource) est
+ * écartée pour elle-même via son `exerciceId` — sa compétence reste
+ * recommandable avec autre chose. Sans `exerciceId` — cas du repli « Générer
+ * un exercice », où rien n'est proposé — le refus porte sur la compétence
+ * entière (`code` seul). Une activité sans code de compétence reste passable :
+ * le refus n'a alors que son identifiant, et c'est elle seule qui sort.
  *
  * Aucun état « déjà passé » n'est gardé ici : `router.refresh()` remplace la
  * carte par la suivante, et c'est ce remplacement qui est le retour visible.
@@ -30,8 +32,9 @@ export function BoutonRefusRecommandation({
   code,
   exerciceId,
 }: {
-  code: string;
-  /** Exercice proposé, s'il y en a un. Absent : le refus porte sur la compétence. */
+  /** Compétence proposée, si l'action en mobilise une. Absente : le refus porte sur l'activité. */
+  code?: string;
+  /** Activité proposée, s'il y en a une. Absente : le refus porte sur la compétence. */
   exerciceId?: string;
 }) {
   const router = useRouter();
