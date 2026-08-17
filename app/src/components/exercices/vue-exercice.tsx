@@ -357,7 +357,7 @@ export async function VueExercice(props: {
         <div
           className={
             enCours
-              ? "min-h-0 space-y-4 lg:col-start-1 lg:row-start-1 lg:max-h-[calc(100dvh-3rem)] lg:overflow-y-auto lg:overscroll-contain lg:pr-1"
+              ? "min-h-0 space-y-4 lg:col-start-1 lg:row-start-1 lg:max-h-[calc(100dvh-3rem)] lg:overflow-y-auto lg:pr-1"
               : "space-y-4"
           }
         >
