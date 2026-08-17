@@ -17,7 +17,6 @@ describe("scannerWorkflow", () => {
       expect(idsNoeuds).toContain("page:/");
       expect(idsNoeuds).toContain("page:/atelier");
       expect(idsNoeuds).toContain("page:/seances");
-      expect(idsNoeuds).toContain("page:/exercices/{id}");
       expect(idsNoeuds).toContain("page:/atelier?document");
 
       // Vérifier la présence d'actions serveur réelles

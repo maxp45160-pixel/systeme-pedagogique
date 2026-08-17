@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { ElementAtelier } from "./types-atelier";
+import { urlComposerAutonome } from "@/lib/domain/navigation-exercice";
 
 /**
  * Panneau latéral spécialisé pour les projections d'exercice.
@@ -159,7 +160,9 @@ export function PanneauExerciceAtelier({
 
       <div className="border-t border-bordure pt-4">
         <Link
-          href={`/exercices/${element.id.replace(/^exercice:/, "")}`}
+          href={element.vuePedagogique?.kind === "exercice"
+            ? urlComposerAutonome(element.vuePedagogique.competences[0]?.code, element.vuePedagogique.dureeEstimeeMin)
+            : "/seances"}
           className="flex w-full items-center justify-center gap-2 rounded-lg bg-primaire px-4 py-2.5 text-xs font-semibold text-texte-inverse shadow hover:bg-primaire-survol transition-colors"
         >
           <span>S’exercer dans le cahier</span>

@@ -19,6 +19,7 @@ import {
   ligneExerciceSeance,
 } from "@/lib/documents/journal-seance";
 import { sauvegarderDocumentAction } from "@/lib/store/document-actions";
+import { urlComposerAutonome } from "@/lib/domain/navigation-exercice";
 
 export interface WorkspaceNoteOperationnelleProps {
   /** Identifiant canonique de la fiche, repris dans l'URL de l'Atelier. */
@@ -69,7 +70,7 @@ function Journal({ corps }: { corps: string }) {
                 Exercice
               </span>
               <Link
-                href={`/exercices/${encodeURIComponent(ligne.cible)}`}
+                href="/seances"
                 className="font-medium text-primaire hover:underline"
               >
                 {ligne.libelle}

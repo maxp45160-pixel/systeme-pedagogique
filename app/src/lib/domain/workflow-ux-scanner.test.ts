@@ -38,7 +38,6 @@ describe("scannerUxJourney (dynamique AST)", () => {
     expect(idsNoeuds).toContain("page:/");
     expect(idsNoeuds).toContain("page:/atelier");
     expect(idsNoeuds).toContain("page:/seances");
-    expect(idsNoeuds).toContain("page:/exercices/{id}");
     expect(idsNoeuds).toContain("page:/demarrer");
     expect(idsNoeuds).toContain("page:/login");
 
@@ -75,7 +74,6 @@ describe("scannerUxJourney (dynamique AST)", () => {
     expect(ids).toContain("page:/");
     expect(ids).toContain("modal:nouvelle-donnee");
     expect(ids).toContain("page:/seances");
-    expect(ids).toContain("page:/exercices/{id}");
     expect(ids).toContain("ux:exercice-bilan-final");
     expect(ids).toContain("page:/atelier");
     expect(ids).toContain("page:/progression");
@@ -85,8 +83,7 @@ describe("scannerUxJourney (dynamique AST)", () => {
     // Vérifier les transitions directrices de valeur
     const clefsLiens = new Set(graphe.liens.map((l) => `${l.source}→${l.target}`));
     expect(clefsLiens).toContain("page:/→modal:nouvelle-donnee");
-    expect(clefsLiens).toContain("page:/seances→page:/exercices/{id}");
-    expect(clefsLiens).toContain("page:/exercices/{id}→ux:exercice-bilan-final");
+    expect(clefsLiens).toContain("page:/seances→ux:exercice-bilan-final");
     expect(clefsLiens).toContain("ux:exercice-bilan-final→page:/");
   }, 20000);
 });

@@ -173,8 +173,6 @@ export function baseRoute(url: string): string {
   if (!query) return base;
 
   if (query.includes("session=")) return `${base}?session`;
-  if (query.includes("run=")) return `${base}?run`;
-  if (query.includes("generation=")) return `${base}?generation`;
   if (query.includes("document=")) return `${base}?document`;
   if (query.includes("note=")) return `${base}?note`;
   if (query.includes("correction=")) return `${base}?correction`;
@@ -194,8 +192,6 @@ export function baseRoute(url: string): string {
  */
 export const CLES_VARIANTS = [
   "session",
-  "run",
-  "generation",
   "document",
   "note",
   "correction",
@@ -263,7 +259,6 @@ export function groupePourChemin(relatif: string): GroupeWorkflow {
     return "seances";
   }
   if (
-    r.startsWith("app/(app)/exercices") ||
     r.startsWith("components/exercices") ||
     r.startsWith("components/bilan")
   ) {
@@ -546,12 +541,7 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
           const corpsTexte = statement.body ? statement.body.getText(sf) : "";
           const mRedir = corpsTexte.match(/redirect\(([^)]+)\)/);
           if (mRedir) {
-            const arg = mRedir[1].trim();
-            if (arg.includes("pole") || arg.includes("poleDuTravail")) {
-              redirection = "/seances?run";
-            } else {
-              redirection = normaliserUrl(arg.replace(/^["'`]|["'`]$/g, ""));
-            }
+            redirection = normaliserUrl(mRedir[1].trim().replace(/^["'`]|["'`]$/g, ""));
           }
 
           actionsDeclarees.push({

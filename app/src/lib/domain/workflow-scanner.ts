@@ -59,8 +59,8 @@ export async function scannerWorkflow(): Promise<GrapheWorkflow> {
 
   // 0. Clés de variantes réellement ciblées par des navigations ou
   // redirections, toutes sources confondues. Elles complètent les clés lues
-  // par chaque page (`searchParams`) : une route ciblée par `?run=` ou
-  // `?generation=` est un vrai mode, même si la page le laisse transiter.
+  // par chaque page (`searchParams`) : une route ciblée par `?session=` ou
+  // `?note=` est un vrai mode, même si la page le laisse transiter.
   const clesCibleesParRoute = new Map<string, Set<string>>();
   function noterCible(url: string) {
     const [base, query] = url.split("?");

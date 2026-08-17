@@ -86,19 +86,13 @@ function lienActivite(action: RecommendedLearningAction, instant?: ContexteInsta
    */
   const noteId = action.activityId ? idDocumentDepuisActivite(action.activityId) : null;
   if (noteId) return `/atelier?note=${encodeURIComponent(noteId)}`;
-  // Le contexte d'instant voyage avec le lien : c'est lui qui a fixé la durée
-  // et la taille de segment du contrat, et l'écran suivant doit pouvoir le
-  // reconstruire à l'identique — rien n'ayant été enregistré.
-  const mode = `focus=${action.proposedMode.focus}`
-    + `&guidance=${action.proposedMode.guidance}`
-    + `&tools=${action.proposedMode.toolPower}`
-    + (instant ? `&temps=${instant.tempsMin}&capacite=${instant.capacite}` : "");
-  // Un projet ouvert se reprend dans son pôle, pas dans le cahier (ADR-067).
-  const pole = action.family === "produire" ? "/projets" : "/seances";
-  if (action.runId) return `${pole}?run=${encodeURIComponent(action.runId)}&${mode}`;
-  if (action.generationRequestId) {
-    return `/seances?generation=${encodeURIComponent(action.generationRequestId)}&${mode}`;
-  }
+  /*
+   * Les exécutions et demandes de génération n'ont plus de surface : la
+   * machinerie « Produire » est retirée (ADR-070) et l'arbitrage ne reçoit
+   * aucune demande de génération. Leurs URLs — `?run=` et `?generation=` —
+   * n'étaient lues par aucun écran, et le pôle `/projets` n'existe plus.
+   * Le cahier reste le point d'entrée neutre.
+   */
   return "/seances";
 }
 

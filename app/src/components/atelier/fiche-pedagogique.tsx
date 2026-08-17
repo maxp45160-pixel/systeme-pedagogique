@@ -15,6 +15,7 @@ import type {
 } from "@/lib/documents/vue-atelier";
 import { CodeCompetence, cx } from "@/components/ui/primitives";
 import type { EtapeParcours } from "@/lib/engine/parcours";
+import { urlComposerAutonome } from "@/lib/domain/navigation-exercice";
 import { AppartenanceEnsembles } from "./appartenance-ensembles";
 import {
   IconeCompetences,
@@ -1387,7 +1388,7 @@ function VueTheme({
                           {ex.tentatives} tentative{ex.tentatives > 1 ? "s" : ""}
                         </span>
                         <Link
-                          href={`/exercices/${ex.id}`}
+                          href={urlComposerAutonome(vue.prochaineActionRecommandee?.code ?? vue.competences[0]?.code, ex.dureeMin)}
                           className="inline-flex items-center gap-1 rounded-md bg-primaire-faible px-2.5 py-1 text-xs font-semibold text-primaire hover:bg-primaire hover:text-white transition-colors"
                         >
                           <span>S’exercer</span>
@@ -1430,7 +1431,7 @@ function VueTheme({
                       {ex.tentatives} tentative{ex.tentatives > 1 ? "s" : ""}
                     </span>
                     <Link
-                      href={`/exercices/${ex.id}`}
+                      href={urlComposerAutonome(vue.prochaineActionRecommandee?.code ?? vue.competences[0]?.code, ex.dureeMin)}
                       className="inline-flex items-center gap-1.5 rounded-lg bg-primaire px-3.5 py-1.5 text-xs font-semibold text-texte-inverse shadow-sm hover:bg-primaire-survol transition-colors"
                     >
                       <span>S’exercer</span>
@@ -1522,7 +1523,7 @@ function VueExercice({
           </div>
 
           <Link
-            href={`/exercices/${vue.id}`}
+            href={urlComposerAutonome(vue.competences[0]?.code, vue.dureeEstimeeMin)}
             className="inline-flex items-center gap-2 rounded-xl bg-primaire px-5 py-3 text-sm font-semibold text-texte-inverse shadow hover:bg-primaire-survol transition-colors"
           >
             <span>S’exercer dans le cahier</span>
@@ -1808,7 +1809,7 @@ export function PanneauPedagogiqueAtelier({
           </dl>
         </div>
         <Link
-          href={`/exercices/${vue.id}`}
+          href={urlComposerAutonome(vue.competences[0]?.code, vue.dureeEstimeeMin)}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-primaire px-4 py-2.5 text-xs font-semibold text-texte-inverse shadow hover:bg-primaire-survol transition-colors"
         >
           <span>S’exercer dans le cahier</span>

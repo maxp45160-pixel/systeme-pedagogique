@@ -32,6 +32,24 @@ export function urlExercice(
   if (etape) params.set(etape, "1");
 
   if (contexte) return `/seances?${params.toString()}`;
-  const suffixe = params.toString();
-  return `/exercices/${encodeURIComponent(exerciceId)}${suffixe ? `?${suffixe}` : ""}`;
+  /*
+   * Sans séance, un exercice n'a plus de fiche propre : la séance est le point
+   * d'entrée unique (ADR-079). `etape` sans `session` ne se lit nulle part, et
+   * l'ancienne route `/exercices/{id}` (un repli de redirection) a été retirée.
+   */
+  return "/seances";
+}
+
+/**
+ * Le compositeur de séance prérempli par un exercice autonome.
+ *
+ * Un exercice n'ouvre plus de fiche : il demande une séance (ADR-079). Cette
+ * URL garde le préremplissage que l'ancien repli `/exercices/{id}` assurait —
+ * le code de la compétence visée et la durée estimée.
+ */
+export function urlComposerAutonome(
+  code: string | undefined,
+  dureeEstimeeMin: number | undefined,
+): string {
+  return `/seances?composer=1${code ? `&code=${encodeURIComponent(code)}` : ""}&temps=${dureeEstimeeMin ?? 45}`;
 }

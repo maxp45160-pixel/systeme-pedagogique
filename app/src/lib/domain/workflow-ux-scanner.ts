@@ -102,16 +102,6 @@ function construireMacroSynthese(
   });
 
   ajouterNoeud({
-    id: "page:/exercices/{id}",
-    type: "page",
-    libelle: "Boucle d'Exercice (3 Actes)",
-    url: "/exercices/{id}",
-    groupe: "exercice",
-    badge: "Résolution & Mesure",
-    description: "Acte 1 (Chercher) → Acte 2 (Comparer) → Acte 3 (Mesurer)",
-  });
-
-  ajouterNoeud({
     id: "ux:exercice-bilan-final",
     type: "etape",
     libelle: "Preuve forgée & Bilan",
@@ -284,16 +274,11 @@ function construireMacroSynthese(
   });
 
   // 3. Parcours d'exercice et forge de preuve
+  // La boucle des 3 Actes se joue désormais dans la séance (ADR-079) : le
+  // cahier du workspace `/seances` tient la résolution, la comparaison et la
+  // mesure, il n'y a plus de fiche d'exercice autonome.
   connecter({
     source: "page:/seances",
-    target: "page:/exercices/{id}",
-    type: "transition",
-    libelle: "Démarrer l'exercice",
-    declencheur: "Lancement de la tentative",
-  });
-
-  connecter({
-    source: "page:/exercices/{id}",
     target: "ux:exercice-bilan-final",
     type: "transition",
     libelle: "Boucle des 3 Actes",
@@ -335,7 +320,7 @@ function construireMacroSynthese(
 
   // 5. Tuteur IA transversal
   connecter({
-    source: "page:/exercices/{id}",
+    source: "page:/seances",
     target: "tiroir:tuteur",
     type: "ouverture",
     libelle: "Indice sur blocage",
@@ -502,8 +487,10 @@ function construireUxAtomique(
   }
 
   // 3. Boucle pédagogique d'exercice en 3 actes
-  const pageExercice = analyses.get("app/(app)/exercices/[id]/page.tsx");
-  if (pageExercice) {
+  // Elle se joue dans le cahier du workspace `/seances` (ADR-079) : l'exercice
+  // n'a plus de fiche autonome, la séance est le point d'entrée unique.
+  const pageSeances = analyses.get("app/(app)/seances/page.tsx");
+  if (pageSeances) {
     const actes = [
       { id: "ux:exercice-chercher", libelle: "Acte 1 : Chercher", badge: "Résolution" },
       { id: "ux:exercice-comparer", libelle: "Acte 2 : Comparer", badge: "Correction" },
@@ -522,7 +509,7 @@ function construireUxAtomique(
     }
 
     connecter({
-      source: "page:/exercices/{id}",
+      source: "page:/seances",
       target: "ux:exercice-chercher",
       type: "interaction",
       libelle: "Démarrer tentative",

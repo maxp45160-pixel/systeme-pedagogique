@@ -20,6 +20,7 @@ import {
 } from "@/lib/documents/wysiwyg-markdown";
 import { BUCKET_PIECES_JOINTES, MAX_PDF_OCTETS, MIME_PDF, nomPdfValide } from "@/lib/documents/pieces-jointes";
 import type { DonneesGraphe } from "@/lib/domain/graphe";
+import { urlComposerAutonome } from "@/lib/domain/navigation-exercice";
 import { GrapheCompetences } from "@/components/competences/graphe/graphe-competences";
 import {
   definitionTypeDocument,
@@ -475,7 +476,7 @@ export function EspaceDocumentaire({
     if (!element) {
       const cleanId = id.replace(/^(exercice|document):/, "");
       if (id.startsWith("exercice:") || /^[0-9a-f]{8}-[0-9a-f]{4}/i.test(cleanId)) {
-        router.push(`/exercices/${cleanId}`);
+        router.push("/seances");
       }
       return;
     }
@@ -954,7 +955,9 @@ export function EspaceDocumentaire({
 
                   {selectionnee.type === "exercice" && (
                     <Link
-                      href={`/exercices/${selectionnee.id.replace(/^exercice:/, "")}`}
+                      href={selectionnee.vuePedagogique?.kind === "exercice"
+                        ? urlComposerAutonome(selectionnee.vuePedagogique.competences[0]?.code, selectionnee.vuePedagogique.dureeEstimeeMin)
+                        : "/seances"}
                       className="inline-flex items-center gap-1.5 rounded-md bg-primaire px-3 py-1.5 text-xs font-semibold text-texte-inverse shadow-sm hover:bg-primaire-survol transition-colors"
                     >
                       <span>S’exercer dans le cahier</span>

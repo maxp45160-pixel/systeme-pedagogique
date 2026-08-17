@@ -20,6 +20,7 @@ import { PanneauPliable } from "@/components/ui/panneau-pliable";
 import { Markdown } from "@/components/ui/markdown";
 import { BilanAssiste } from "@/components/exercices/bilan-assiste";
 import { BoutonAbandon } from "@/components/exercices/abandon";
+import { BoutonEditer } from "@/components/exercices/bouton-editer";
 import { ZoneReponse } from "@/components/exercices/zone-reponse";
 import { FocusActe } from "@/components/exercices/focus-acte";
 import { motifBlocageBilan, reponseSuffisante } from "@/lib/domain/tentative";
@@ -305,6 +306,16 @@ export async function VueExercice(props: {
               </Link>
             );
           })}
+          {/*
+            Corriger un exercice (ADR-047). Rendu par la fiche, comme
+            `BoutonGenerer` : la fiche est un composant serveur et ne porte ni
+            état ni `onClick`. Masqué pendant une tentative — modifier l'énoncé
+            en cours de mesure rendrait la preuve illisible — et en lecture
+            seule (tentative archivée).
+          */}
+          {!props.lectureSeule && !enCours && (
+            <BoutonEditer exercice={exercice} tentatives={tentatives.length} />
+          )}
         </div>
 
       </header>

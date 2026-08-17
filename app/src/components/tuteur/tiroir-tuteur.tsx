@@ -4,8 +4,8 @@
  * Tiroir du tuteur — le chat en panneau coulissant (lot 3).
  *
  * Le tuteur n'est plus une destination de navigation : il devient un tiroir,
- * ouvert là où poser une question a un sens — pendant une tentative
- * (`/exercices/[id]`), ou sur une fiche compétence (`/competences/[code]`).
+ * ouvert là où poser une question a un sens — pendant une tentative (workspace
+ * `/seances`), ou sur une fiche compétence (`/competences/[code]`).
  *
  * Le tiroir garde l'énoncé visible pendant la demande d'aide.
  *

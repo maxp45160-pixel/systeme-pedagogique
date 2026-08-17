@@ -16,6 +16,7 @@ import { BandeauInfo, Bouton, classesLienBouton } from "@/components/ui/primitiv
 import { abandonnerExercice } from "@/lib/store/actions";
 import { statutSeance } from "@/lib/domain/seance";
 import { chargerActionProposee } from "@/lib/store/adaptive-learning";
+import { urlComposerAutonome } from "@/lib/domain/navigation-exercice";
 import {
   lireContexteInstant,
   type ContexteInstant,
@@ -158,7 +159,7 @@ async function ContenuTableauDeBord({
                 >
                   <div className="flex flex-wrap items-baseline gap-2 min-w-0">
                     <Link
-                      href={`/exercices/${exercice.id}`}
+                      href={urlComposerAutonome(exercice.competences[0], exercice.dureeEstimeeMin)}
                       className="font-semibold text-primaire hover:underline truncate"
                     >
                       {exercice.titre}
@@ -169,7 +170,7 @@ async function ContenuTableauDeBord({
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <Link
-                      href={`/exercices/${exercice.id}`}
+                      href={urlComposerAutonome(exercice.competences[0], exercice.dureeEstimeeMin)}
                       className={`${classesLienBouton("principal")} !py-0.5 !px-2 !text-xs`}
                     >
                       Reprendre →
