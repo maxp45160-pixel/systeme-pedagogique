@@ -22,8 +22,11 @@ import type {
 import {
   analyserTousLesFichiersAst,
   baseRoute,
+  CLES_VARIANTS,
   groupePourChemin,
   resoudreImportsComposants,
+  resoudreNavigationPartagee,
+  resoudreSurfacesPartagees,
   slugId,
 } from "./workflow-ast-parser";
 
@@ -54,6 +57,29 @@ export async function scannerWorkflow(): Promise<GrapheWorkflow> {
     }
   }
 
+  // 0. Clés de variantes réellement ciblées par des navigations ou
+  // redirections, toutes sources confondues. Elles complètent les clés lues
+  // par chaque page (`searchParams`) : une route ciblée par `?run=` ou
+  // `?generation=` est un vrai mode, même si la page le laisse transiter.
+  const clesCibleesParRoute = new Map<string, Set<string>>();
+  function noterCible(url: string) {
+    const [base, query] = url.split("?");
+    if (!query) return;
+    for (const cle of CLES_VARIANTS) {
+      if (query === cle || query.startsWith(`${cle}=`)) {
+        const set = clesCibleesParRoute.get(base) ?? new Set<string>();
+        set.add(cle);
+        clesCibleesParRoute.set(base, set);
+      }
+    }
+  }
+  for (const a of analyses.values()) {
+    for (const nav of a.navigations) noterCible(nav.cible);
+    for (const act of a.actionsDeclarees) {
+      if (act.redirection) noterCible(act.redirection);
+    }
+  }
+
   // 1. Déclarer les pages et sous-routes canoniques
   for (const a of analyses.values()) {
     if (!a.estPageRoute || !a.route || a.estRedirectionPure) continue;
@@ -68,13 +94,22 @@ export async function scannerWorkflow(): Promise<GrapheWorkflow> {
       groupe: groupePourChemin(a.relatif),
     });
 
+    const cles = new Set<string>();
     for (const varRoute of a.variantesSearchParams ?? []) {
+      const cle = varRoute.split("?")[1];
+      if (cle) cles.add(cle);
+    }
+    for (const cle of clesCibleesParRoute.get(a.route) ?? []) {
+      cles.add(cle);
+    }
+
+    for (const cle of cles) {
+      const varRoute = `${a.route}?${cle}`;
       const varId = `page:${varRoute}`;
-      const nomVar = varRoute.split("?")[1] ?? "";
       ajouterNoeud({
         id: varId,
         type: "page",
-        libelle: `${a.titrePage ?? a.route} (${nomVar})`,
+        libelle: `${a.titrePage ?? a.route} (${cle})`,
         url: varRoute,
         groupe: groupePourChemin(a.relatif),
       });
@@ -83,7 +118,7 @@ export async function scannerWorkflow(): Promise<GrapheWorkflow> {
         source: pageId,
         target: varId,
         type: "transition",
-        libelle: `Mode ${nomVar}`,
+        libelle: `Mode ${cle}`,
       });
       connecter({
         source: varId,
@@ -128,6 +163,37 @@ export async function scannerWorkflow(): Promise<GrapheWorkflow> {
             });
           }
         }
+      }
+    }
+  }
+
+  // Surfaces du cadre partagé (layout) : modales et tiroirs montés par le
+  // layout, donc disponibles sur toutes les pages du groupe de routes — le
+  // tuteur flottant, le point d'entrée `+`. Même cause que la navigation
+  // persistante : sans cette passe, seules les pages qui importent leur
+  // fichier sembleraient pouvoir les ouvrir.
+  const surfacesPartagees = resoudreSurfacesPartagees(analyses);
+  for (const a of analyses.values()) {
+    if (!a.estPageRoute || !a.route || a.estRedirectionPure) continue;
+    if (a.route.startsWith("/dev")) continue;
+
+    const sourceId = `page:${a.route}`;
+    for (const [dossier, ids] of surfacesPartagees.entries()) {
+      if (!a.relatif.startsWith(`${dossier}/`)) continue;
+      for (const id of ids) {
+        if (!parId.has(id)) continue;
+        connecter({
+          source: sourceId,
+          target: id,
+          type: "ouverture",
+          libelle: "Sur le cadre",
+        });
+        connecter({
+          source: id,
+          target: sourceId,
+          type: "retour",
+          libelle: "Fermer",
+        });
       }
     }
   }
@@ -225,6 +291,32 @@ export async function scannerWorkflow(): Promise<GrapheWorkflow> {
           type: "navigation",
           libelle: cible,
         });
+      }
+    }
+  }
+
+  // 5. Navigation persistante du cadre (rail + barre mobile) — déclarée dans
+  // les layouts partagés, présente sur toutes les pages du groupe de routes.
+  // Sans cette passe, `/aide`, `/compte` ou `/progression` sembleraient
+  // inaccessibles depuis la plupart des pages alors qu'ils sont sur toutes.
+  const navPartagee = resoudreNavigationPartagee(analyses);
+  for (const a of analyses.values()) {
+    if (!a.estPageRoute || !a.route || a.estRedirectionPure) continue;
+    if (a.route.startsWith("/dev")) continue;
+
+    const sourceId = `page:${a.route}`;
+    for (const [dossier, cibles] of navPartagee.entries()) {
+      if (!a.relatif.startsWith(`${dossier}/`)) continue;
+      for (const cible of cibles) {
+        const targetId = `page:${cible}`;
+        if (parId.has(targetId) && targetId !== sourceId) {
+          connecter({
+            source: sourceId,
+            target: targetId,
+            type: "navigation",
+            libelle: "Navigation persistante",
+          });
+        }
       }
     }
   }

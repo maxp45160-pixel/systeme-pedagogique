@@ -91,6 +91,8 @@ export interface FichierAstAnalyse {
   contenu: string;
   imports: string[];
   navigations: NavigationAst[];
+  /** Destinations de navigation déclarées en données (tableaux d'objets à `href`). */
+  destinationsPartagees: string[];
   modales: ModaleAst[];
   actionsDeclarees: ActionServeurAst[];
   actionsInvoquees: string[];
@@ -180,6 +182,75 @@ export function baseRoute(url: string): string {
   if (query.includes("bilan=")) return `${base}?bilan`;
   if (query.includes("abandon=")) return `${base}?abandon`;
   return base;
+}
+
+/**
+ * Les clés de variantes de requête que le graphe sait représenter.
+ *
+ * Une variante `route?clé` n'est déclarée que si elle est lue par la page
+ * (`searchParams`) ou réellement ciblée par une navigation/redirection —
+ * jamais sur la seule présence du mot dans le texte source, qui fabriquait
+ * des modes inexistants (`/suspendu?document`, `/progression?bilan`, …).
+ */
+export const CLES_VARIANTS = [
+  "session",
+  "run",
+  "generation",
+  "document",
+  "note",
+  "correction",
+  "evaluer",
+  "bilan",
+  "abandon",
+] as const;
+
+/**
+ * Extrait les clés de `searchParams` réellement lues par une page.
+ *
+ * Lit la déclaration de propriété `searchParams` du type des props (inline ou
+ * interface nommée), dépaquette `Promise<T>` le cas échéant, et collecte les
+ * noms des membres de l'objet. C'est la source de vérité des variantes :
+ * `searchParams: { session?, correction?, … }` déclare les modes que la page
+ * sait afficher.
+ */
+export function extraireClesSearchParams(sf: ts.SourceFile): string[] {
+  const cles = new Set<string>();
+
+  function collecterDepuis(typeNode: ts.TypeNode | undefined) {
+    if (!typeNode) return;
+    let t = typeNode;
+    if (ts.isTypeReferenceNode(t)) {
+      if (t.typeName.getText(sf) !== "Promise" || !t.typeArguments || t.typeArguments.length !== 1) {
+        return;
+      }
+      t = t.typeArguments[0];
+    }
+    if (!ts.isTypeLiteralNode(t)) return;
+    for (const membre of t.members) {
+      if (ts.isPropertySignature(membre) && membre.name) {
+        const cle = membre.name.getText(sf).replace(/^['"]|['"]$/g, "");
+        if (cle) cles.add(cle);
+      }
+    }
+  }
+
+  function visiter(node: ts.Node) {
+    if (ts.isTypeLiteralNode(node) || ts.isInterfaceDeclaration(node)) {
+      for (const membre of node.members) {
+        if (
+          ts.isPropertySignature(membre) &&
+          membre.name &&
+          membre.name.getText(sf) === "searchParams"
+        ) {
+          collecterDepuis(membre.type);
+        }
+      }
+    }
+    ts.forEachChild(node, visiter);
+  }
+  visiter(sf);
+
+  return [...cles];
 }
 
 export function groupePourChemin(relatif: string): GroupeWorkflow {
@@ -447,6 +518,7 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
   const onglets: OngletAst[] = [];
   const surfaces: SurfaceAst[] = [];
   const variantesSearchParams: string[] = [];
+  const destinationsPartagees: string[] = [];
   let titrePage: string | undefined;
 
   const estFichierActions =
@@ -758,19 +830,49 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
     ts.forEachChild(node, visiter);
   }
 
+  // Destinations de navigation déclarées en données, hors JSX : structures
+  // portant une propriété `href` littérale (ex: `NAVIGATION` dans
+  // components/layout/navigation.ts, dont les routes sont nichées dans des
+  // groupes `entrees`). Le rail et la barre mobile rendent ces routes sur
+  // CHAQUE page du groupe `(app)` — un scanner de pages seules ne peut pas
+  // les voir, elles ne vivent pas dans les pages.
+  for (const statement of sf.statements) {
+    if (!ts.isVariableStatement(statement)) continue;
+    for (const decl of statement.declarationList.declarations) {
+      if (!ts.isIdentifier(decl.name) || !decl.initializer) continue;
+      const collecterHrefs = (node: ts.Node) => {
+        if (ts.isObjectLiteralExpression(node)) {
+          for (const prop of node.properties) {
+            if (!ts.isPropertyAssignment(prop) || prop.name.getText(sf) !== "href") continue;
+            const init = prop.initializer;
+            let valeur: string | undefined;
+            if (ts.isStringLiteral(init) || ts.isNoSubstitutionTemplateLiteral(init)) {
+              valeur = init.text;
+            } else if (ts.isTemplateExpression(init)) {
+              valeur = normaliserUrl(init.getText(sf).slice(1, -1));
+            }
+            if (valeur && valeur.startsWith("/")) {
+              destinationsPartagees.push(valeur);
+            }
+          }
+        }
+        ts.forEachChild(node, collecterHrefs);
+      };
+      collecterHrefs(decl.initializer);
+    }
+  }
+
   visiter(sf);
 
-  // Détection des variantes de searchParams pour les pages
-  if (estPage) {
-    if (contenu.includes("session")) variantesSearchParams.push(`${route}?session`);
-    if (contenu.includes("run")) variantesSearchParams.push(`${route}?run`);
-    if (contenu.includes("generation")) variantesSearchParams.push(`${route}?generation`);
-    if (contenu.includes("document")) variantesSearchParams.push(`${route}?document`);
-    if (contenu.includes("note")) variantesSearchParams.push(`${route}?note`);
-    if (contenu.includes("correction")) variantesSearchParams.push(`${route}?correction`);
-    if (contenu.includes("evaluer")) variantesSearchParams.push(`${route}?evaluer`);
-    if (contenu.includes("bilan")) variantesSearchParams.push(`${route}?bilan`);
-    if (contenu.includes("abandon")) variantesSearchParams.push(`${route}?abandon`);
+  // Détection des variantes de searchParams pour les pages : uniquement les
+  // clés que la page lit réellement dans son type de props. Un mot présent
+  // dans le texte source ne crée pas un mode (voir `CLES_VARIANTS`).
+  if (estPage && route) {
+    for (const cle of extraireClesSearchParams(sf)) {
+      if ((CLES_VARIANTS as readonly string[]).includes(cle)) {
+        variantesSearchParams.push(`${route}?${cle}`);
+      }
+    }
   }
 
   // 5. Détection des micro-interactions riches (Couche 4 UI uniquement)
@@ -981,6 +1083,7 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
     contenu,
     imports,
     navigations,
+    destinationsPartagees: [...new Set(destinationsPartagees)],
     modales,
     actionsDeclarees,
     actionsInvoquees: [...new Set(actionsInvoquees)],
@@ -1055,4 +1158,167 @@ export function resoudreImportsComposants(analyses: Map<string, FichierAstAnalys
   }
 
   return composantsParPage;
+}
+
+/**
+ * Navigation persistante du cadre partagé — rail desktop et barre mobile.
+ *
+ * Les pages ne déclarent pas elles-mêmes le rail : il vit dans les layouts
+ * (`app/(app)/layout.tsx` rend `Sidebar` + `NavMobile` + le pied de compte).
+ * Un scanner qui ne regarde que les pages et leurs composants le rend donc
+ * invisible — d'où des graphes où `/aide`, `/compte` ou `/progression`
+ * semblent inaccessibles alors qu'ils sont atteignables depuis toutes les
+ * pages du groupe.
+ *
+ * Retourne, pour chaque dossier de layout (`app/(app)`, …), les destinations
+ * de navigation persistante joignables depuis toute page qu'il enveloppe :
+ * les liens `<Link>` du layout et de ses composants, plus les tableaux de
+ * navigation déclarés en données (`destinationsPartagees`). Les `redirect`
+ * du layout (`/login`, `/suspendu`) n'y entrent pas — ce sont des gardes,
+ * pas des destinations.
+ */
+export function resoudreNavigationPartagee(
+  analyses: Map<string, FichierAstAnalyse>,
+): Map<string, Set<string>> {
+  const importVers = new Map<string, string>();
+  for (const relatif of analyses.keys()) {
+    const sansExt = relatif.replace(/\.(tsx?|jsx?)$/, "");
+    importVers.set(sansExt, relatif);
+    if (relatif.endsWith("/index.tsx") || relatif.endsWith("/index.ts")) {
+      importVers.set(sansExt.replace(/\/index$/, ""), relatif);
+    }
+  }
+
+  function collecterImportsRec(relatif: string, visites = new Set<string>()): Set<string> {
+    const resultats = new Set<string>();
+    const a = analyses.get(relatif);
+    if (!a) return resultats;
+    for (const imp of a.imports) {
+      const fichier = importVers.get(imp);
+      if (fichier && !visites.has(fichier)) {
+        visites.add(fichier);
+        resultats.add(fichier);
+        for (const sous of collecterImportsRec(fichier, visites)) {
+          resultats.add(sous);
+        }
+      }
+    }
+    return resultats;
+  }
+
+  function collecterCibles(f: FichierAstAnalyse, cibles: Set<string>) {
+    for (const nav of f.navigations) {
+      if (nav.type !== "link") continue;
+      cibles.add(baseRoute(nav.cible));
+    }
+    for (const dest of f.destinationsPartagees) {
+      cibles.add(baseRoute(dest));
+    }
+  }
+
+  const parDossier = new Map<string, Set<string>>();
+  for (const a of analyses.values()) {
+    if (!a.relatif.startsWith("app/") || a.relatif.startsWith("app/api/")) continue;
+    const nomFichier = a.relatif.split("/").pop() ?? "";
+    if (nomFichier !== "layout.tsx" && nomFichier !== "layout.ts") continue;
+
+    const dossier = a.relatif.replace(/\/layout\.tsx?$/, "");
+    const cibles = new Set<string>();
+    collecterCibles(a, cibles);
+    for (const fichier of collecterImportsRec(a.relatif)) {
+      const fa = analyses.get(fichier);
+      if (fa) collecterCibles(fa, cibles);
+    }
+
+    if (cibles.size === 0) continue;
+    const existantes = parDossier.get(dossier) ?? new Set<string>();
+    for (const c of cibles) existantes.add(c);
+    parDossier.set(dossier, existantes);
+  }
+
+  return parDossier;
+}
+
+/**
+ * Surfaces (modales et tiroirs) du cadre partagé — la contrepartie de
+ * `resoudreNavigationPartagee` pour les fenêtres.
+ *
+ * Le layout monte des surfaces que toute page du groupe porte : le bouton
+ * flottant du tuteur (`tiroir:tuteur`, « accessible de partout ») et le point
+ * d'entrée `+` du rail (`modal:de-quoi-as-tu-besoin`). Un scanner de pages
+ * seules les rattache seulement aux pages qui importent leur fichier — le
+ * reste du graphe les croit absentes.
+ *
+ * Retourne, pour chaque dossier de layout, les identifiants des modales et
+ * tiroirs déclarés par le layout ou par ses composants (imports transitifs).
+ *
+ * Seules les surfaces du cadre lui-même sont retenues : un tiroir (panneau
+ * flottant) ou une modale déclarée en JSX par un composant courant. Une modale
+ * dédiée (`modale-*.tsx`) importée par le sous-arbre du layout n'est pas pour
+ * autant du cadre — elle peut être imbriquée dans un tiroir ou un parcours
+ * (ex. la compétence et l'exercice ouverts depuis le chat du tuteur) et n'est
+ * pas accessible depuis toutes les pages.
+ */
+export function resoudreSurfacesPartagees(
+  analyses: Map<string, FichierAstAnalyse>,
+): Map<string, Set<string>> {
+  const importVers = new Map<string, string>();
+  for (const relatif of analyses.keys()) {
+    const sansExt = relatif.replace(/\.(tsx?|jsx?)$/, "");
+    importVers.set(sansExt, relatif);
+    if (relatif.endsWith("/index.tsx") || relatif.endsWith("/index.ts")) {
+      importVers.set(sansExt.replace(/\/index$/, ""), relatif);
+    }
+  }
+
+  function collecterImportsRec(relatif: string, visites = new Set<string>()): Set<string> {
+    const resultats = new Set<string>();
+    const a = analyses.get(relatif);
+    if (!a) return resultats;
+    for (const imp of a.imports) {
+      const fichier = importVers.get(imp);
+      if (fichier && !visites.has(fichier)) {
+        visites.add(fichier);
+        resultats.add(fichier);
+        for (const sous of collecterImportsRec(fichier, visites)) {
+          resultats.add(sous);
+        }
+      }
+    }
+    return resultats;
+  }
+
+  function estSurfaceDeCadre(f: FichierAstAnalyse, m: ModaleAst): boolean {
+    if (m.estTiroir) return true;
+    const nomFichier = f.relatif.split("/").pop() ?? "";
+    return !nomFichier.startsWith("modale-");
+  }
+
+  function collecterSurfaces(f: FichierAstAnalyse, ids: Set<string>) {
+    for (const modale of f.modales) {
+      if (estSurfaceDeCadre(f, modale)) ids.add(modale.id);
+    }
+  }
+
+  const parDossier = new Map<string, Set<string>>();
+  for (const a of analyses.values()) {
+    if (!a.relatif.startsWith("app/") || a.relatif.startsWith("app/api/")) continue;
+    const nomFichier = a.relatif.split("/").pop() ?? "";
+    if (nomFichier !== "layout.tsx" && nomFichier !== "layout.ts") continue;
+
+    const dossier = a.relatif.replace(/\/layout\.tsx?$/, "");
+    const ids = new Set<string>();
+    collecterSurfaces(a, ids);
+    for (const fichier of collecterImportsRec(a.relatif)) {
+      const fa = analyses.get(fichier);
+      if (fa) collecterSurfaces(fa, ids);
+    }
+
+    if (ids.size === 0) continue;
+    const existantes = parDossier.get(dossier) ?? new Set<string>();
+    for (const id of ids) existantes.add(id);
+    parDossier.set(dossier, existantes);
+  }
+
+  return parDossier;
 }

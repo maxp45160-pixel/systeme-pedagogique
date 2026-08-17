@@ -34,4 +34,32 @@ describe("scannerWorkflow", () => {
     },
     25000,
   );
+
+  it(
+    "modélise la navigation persistante du cadre (rail + barre mobile)",
+    async () => {
+      const graphe = await scannerWorkflow();
+      const resultat = parcourirWorkflow(graphe, "page:/");
+      const atteignables = new Set(resultat.noeuds.map((n) => n.id));
+
+      // Le rail rend ces destinations sur TOUTES les pages du groupe `(app)` :
+      // elles ne peuvent plus sembler inaccessibles.
+      expect(atteignables).toContain("page:/aide");
+      expect(atteignables).toContain("page:/compte");
+      expect(atteignables).toContain("page:/progression");
+      expect(atteignables).toContain("page:/atelier");
+
+      // Une page du groupe porte des arêtes de navigation persistante explicites.
+      const liensPersistants = graphe.liens.filter(
+        (l) => l.source === "page:/seances" && l.libelle === "Navigation persistante",
+      );
+      expect(liensPersistants.map((l) => l.target)).toContain("page:/aide");
+      expect(liensPersistants.map((l) => l.target)).toContain("page:/compte");
+
+      // `/compte` devient joignable depuis la racine sans passer par un profil.
+      expect(atteignables).toContain("page:/compte");
+      expect(resultat.profondeurs.get("page:/compte")).toBeLessThanOrEqual(1);
+    },
+    25000,
+  );
 });
