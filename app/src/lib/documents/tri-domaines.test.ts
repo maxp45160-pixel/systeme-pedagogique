@@ -3,7 +3,6 @@ import type { VueDomaineAtelier } from "./vue-atelier";
 import {
   calculerRatioCouverture,
   filtrerEtTrierDomaines,
-  type OptionsFiltrageDomaines,
 } from "./tri-domaines";
 
 function creerDomaineFactice(partiel: Partial<VueDomaineAtelier> & { id: string; nom: string }): VueDomaineAtelier {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, type ReactNode } from "react";
+import { useState, useTransition } from "react";
 import { Modale } from "@/components/ui/modale";
 import { Bouton, cx } from "@/components/ui/primitives";
 
@@ -52,7 +52,6 @@ export interface ModaleConfirmationSuppressionProps {
 export function ModaleConfirmationSuppression({
   titre,
   nomElement,
-  typeElement,
   mode = "suppression",
   explication,
   onConfirmer,

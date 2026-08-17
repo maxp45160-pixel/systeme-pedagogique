@@ -31,7 +31,6 @@ const CLASSE_CARTE =
 export function VueRessources({
   elements,
   ouvrirElement,
-  changerVue,
   competencesParCode,
 }: {
   elements: ElementAtelier[];
@@ -197,7 +196,6 @@ function CarteRessource({
 export function VueThemes({
   elements,
   ouvrirElement,
-  changerVue,
   compteId,
   competencesParCode,
   domainesExistants,

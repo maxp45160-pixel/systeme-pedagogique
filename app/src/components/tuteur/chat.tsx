@@ -336,11 +336,16 @@ const ChatInput = memo(function ChatInput({
   saisieInitiale: string;
 }) {
   const [saisie, setSaisie] = useState(saisieInitiale);
+  const [saisieInitialePrecedente, setSaisieInitialePrecedente] = useState(saisieInitiale);
   const champRef = useRef<HTMLTextAreaElement>(null);
+
+  if (saisieInitiale !== saisieInitialePrecedente) {
+    setSaisieInitialePrecedente(saisieInitiale);
+    setSaisie(saisieInitiale);
+  }
 
   useEffect(() => {
     if (saisieInitiale) {
-      setSaisie(saisieInitiale);
       champRef.current?.focus();
     }
   }, [saisieInitiale]);

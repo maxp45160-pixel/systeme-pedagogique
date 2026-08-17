@@ -235,7 +235,6 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
   const {
     noeuds,
     liens,
-    inatteignables,
     profondeurs,
     stats,
     dot,
@@ -282,7 +281,7 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
   });
 
   // Filtres par type de liens
-  const [typesLiens, setTypesLiens] = useState<Record<TypeLienWorkflow, boolean>>({
+  const [typesLiens] = useState<Record<TypeLienWorkflow, boolean>>({
     navigation: true,
     ouverture: true,
     transition: true,

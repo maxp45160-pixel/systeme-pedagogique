@@ -385,9 +385,9 @@ export function EspaceDocumentaire({
   }, [elements, recherche]);
 
   const chargerContenuDocument = useCallback((elementId: string) => {
-    setMessage(null);
     demarrerTransition(async () => {
       try {
+        setMessage(null);
         const resultat = await lireDocumentAction(elementId);
         const analyse = analyserDocumentMarkdown(elementId, resultat.contenuMd);
         setElements((anciens) => anciens.map((ancien) => ancien.id === elementId
@@ -506,13 +506,13 @@ export function EspaceDocumentaire({
     });
   }
 
-  const synchroniserContenu = useCallback((nouveauCorps?: string) => {
+  function synchroniserContenu(nouveauCorps?: string) {
     if (!selectionnee) return;
     const corpsActuel = nouveauCorps ?? (editeurRef.current ? domVersMarkdown(editeurRef.current) : "");
     const { frontmatterBrut } = separerFrontMatterEtCorps(brouillon);
     const documentComplet = recomposerDocumentComplet(frontmatterBrut, corpsActuel);
     setBrouillons((anciens) => ({ ...anciens, [selectionnee.id]: documentComplet }));
-  }, [brouillon, selectionnee]);
+  }
 
   function executerFormatage(commande: string, valeur?: string) {
     if (!selectionnee || selectionnee.lectureSeule) return;
@@ -1146,7 +1146,7 @@ export function EspaceDocumentaire({
                         onRaccourci={gererRaccourcisClavier}
                         onSelectionChange={rafraichirEtatFormatage}
                         onOuvrirWikilien={ouvrirElement}
-                        editeurRef={editeurRef}
+                        ref={editeurRef}
                       />
                     </div>
                   )}

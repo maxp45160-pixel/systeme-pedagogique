@@ -26,7 +26,7 @@
  * provoquerait la cascade de rendus que React déconseille.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Bouton, Carte, EnTeteCarte, cx } from "@/components/ui/primitives";
 import { cleParCompte, ecrireSession, effacerSession, lireSession } from "@/lib/ui/stockage-session";
 import { useEstHydrate } from "@/lib/ui/hydratation";
@@ -155,14 +155,14 @@ export function usePomodoro(compteId: string) {
   const reste = secondesRestantes(etat, maintenant);
   const durees = dureesDe(etat);
 
-  function diffuser(prochain: EtatPersiste) {
+  const diffuser = useCallback((prochain: EtatPersiste) => {
     setEtat(prochain);
     etatCourant.current = prochain;
     ecrireSession(cle, prochain);
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent(EVENT_POMODORO_SYNC));
     }
-  }
+  }, [cle]);
 
   // Horloge active quand un cycle tourne
   useEffect(() => {
@@ -191,7 +191,7 @@ export function usePomodoro(compteId: string) {
       clearInterval(intervalle);
       if (effacementSignal.current) window.clearTimeout(effacementSignal.current);
     };
-  }, [enMarche]);
+  }, [enMarche, diffuser]);
 
   function demarrer() {
     const instant = Date.now();

@@ -37,11 +37,7 @@ export function ChargementGeneration({
 
   const nbEtapes = etapes.length;
 
-  useEffect(() => {
-    if (pourcentageMinimum > 0) {
-      setPourcentage((prev) => Math.max(prev, pourcentageMinimum));
-    }
-  }, [pourcentageMinimum]);
+  const pourcentageAffiche = Math.max(pourcentage, pourcentageMinimum);
 
   useEffect(() => {
     const tempsDebut = Date.now();
@@ -86,13 +82,13 @@ export function ChargementGeneration({
         <div className="flex items-center justify-between text-xs font-medium text-texte-attenue">
           <span className="truncate">{texteCourant}</span>
           <span className="chiffres ml-3 shrink-0 font-semibold text-texte">
-            {pourcentage}%
+            {pourcentageAffiche}%
           </span>
         </div>
         <div className="h-2 w-full overflow-hidden rounded-full bg-surface-3">
           <div
             className="h-full rounded-full bg-primaire transition-all duration-300 ease-out"
-            style={{ width: `${pourcentage}%` }}
+            style={{ width: `${pourcentageAffiche}%` }}
           />
         </div>
         {secondesEcoulees >= seuilAlerteSec && (

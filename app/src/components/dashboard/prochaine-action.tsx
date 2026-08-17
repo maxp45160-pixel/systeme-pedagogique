@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Recommandation } from "@/lib/engine/recommend";
-import { DIFFICULTES, LIBELLES_DIMENSIONS, type Referentiel } from "@/lib/domain/types";
+import { DIFFICULTES, type Referentiel } from "@/lib/domain/types";
 import { libelleDomaine } from "@/lib/domain/referentiel-compte";
 import {
   idDocumentDepuisActivite,

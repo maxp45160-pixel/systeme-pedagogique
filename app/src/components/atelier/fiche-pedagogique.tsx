@@ -29,11 +29,10 @@ import { GestionDomaine } from "@/components/referentiel/gestion-domaine";
 import { ModaleCompetence } from "@/components/referentiel/modale-competence";
 import { BoutonGenerer } from "@/components/exercices/bouton-generer";
 import type { CalibrageModale, CompetenceModale } from "@/components/exercices/proprietes-generation";
-import { BoutonRetour } from "@/components/ui/lien-retour";
 import { Markdown } from "@/components/ui/markdown";
 import { ConcepteurSeance, type DonneesSeance } from "@/components/seances/concepteur-seance";
 import type { ElementAtelier } from "./types-atelier";
-import { creerDocumentBrutAction, sauvegarderDocumentAction, supprimerDocumentAction } from "@/lib/store/document-actions";
+import { creerDocumentBrutAction, supprimerDocumentAction } from "@/lib/store/document-actions";
 import {
   BoutonSuppressionCarte,
   ModaleConfirmationSuppression,

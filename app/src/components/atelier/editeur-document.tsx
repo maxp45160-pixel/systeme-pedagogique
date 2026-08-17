@@ -13,7 +13,7 @@ export interface EditeurDirectProps {
   onRaccourci: (event: React.KeyboardEvent<HTMLDivElement>) => void;
   onSelectionChange?: () => void;
   onOuvrirWikilien?: (cible: string) => void;
-  editeurRef: React.RefObject<HTMLDivElement | null>;
+  ref?: React.Ref<HTMLDivElement | null>;
 }
 
 /**
@@ -33,9 +33,21 @@ export function EditeurDirect({
   onRaccourci,
   onSelectionChange,
   onOuvrirWikilien,
-  editeurRef,
+  ref,
 }: EditeurDirectProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+
+  const setRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      containerRef.current = el;
+      if (typeof ref === "function") {
+        ref(el);
+      } else if (ref) {
+        ref.current = el;
+      }
+    },
+    [ref],
+  );
 
   useEffect(() => {
     if (!containerRef.current || !contenuCharge) return;
@@ -70,12 +82,7 @@ export function EditeurDirect({
 
   return (
     <div
-      ref={(el) => {
-        containerRef.current = el;
-        if (editeurRef) {
-          (editeurRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
-        }
-      }}
+      ref={setRef}
       contentEditable={!lectureSeule}
       suppressContentEditableWarning
       onInput={handleInput}

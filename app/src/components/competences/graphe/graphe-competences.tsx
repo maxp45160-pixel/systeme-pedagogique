@@ -196,7 +196,7 @@ export function GrapheCompetences({
       }
     }
     return [...reels, ...projetes];
-  }, [donnees.liens, reglages.typesLiensVisibles, reglages.typesNoeudsVisibles.exercice, idsVisibles, reglages.seuilSimilarite]);
+  }, [donnees.liens, reglages.typesLiensVisibles, reglages.typesNoeudsVisibles.exercice, idsVisibles]);
 
   // Une compétence isolée (sans prérequis, thème ni exercice) reste affichée
   // — c'est une information vraie, pas un défaut à masquer (règle centrale
@@ -241,12 +241,12 @@ export function GrapheCompetences({
     };
   }, []);
 
-  const zoomer = useCallback((facteur: number) => {
+  function zoomer(facteur: number) {
     const camera = cameraRef.current;
     const nouveauZoom = Math.min(2.5, Math.max(0.15, camera.zoom * facteur));
     cameraRef.current = { ...camera, zoom: nouveauZoom };
     dessinerRef.current();
-  }, []);
+  }
 
   const dessiner = useCallback(() => {
     const canvas = canvasRef.current;
@@ -325,7 +325,7 @@ export function GrapheCompetences({
   // dans un effet et non pendant le rendu : écrire `current` au rendu viole la
   // règle react-hooks/refs et produit un résultat incohérent selon l'ordre de
   // rendu (React peut appeler le corps du composant plusieurs fois).
-  const dessinerRef = useRef(dessiner);
+  const dessinerRef = useRef<() => void>(() => {});
   useEffect(() => {
     dessinerRef.current = dessiner;
   }, [dessiner]);
@@ -386,7 +386,7 @@ export function GrapheCompetences({
     return () => {
       sim.stop();
     };
-  }, [noeudsAAfficher, liensAffiches, reglages.forces, ajusterCamera]);
+  }, [noeudsAAfficher, liensAffiches, reglages.forces, ajusterCamera, domainesDisponibles]);
 
   /* ------------------------------------------------------------------ */
   /* Redimensionnement — DPR géré, ResizeObserver plutôt que du polling  */

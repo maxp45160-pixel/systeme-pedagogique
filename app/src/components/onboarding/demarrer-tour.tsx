@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { GuideTour, type EtapeTour } from "./guide-tour";
 import { useOnboarding } from "./onboarding-context";
 

@@ -10,7 +10,7 @@
  */
 
 import { useMemo } from "react";
-import type { TypeLien, TypeNoeud } from "@/lib/domain/graphe";
+import type { TypeLien } from "@/lib/domain/graphe";
 import type { ReglagesGraphe } from "./reglages-graphe";
 import { couleurDomaine, indexerDomaines } from "@/lib/ui/couleurs-domaines";
 

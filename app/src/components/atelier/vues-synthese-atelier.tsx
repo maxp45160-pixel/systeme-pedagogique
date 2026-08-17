@@ -13,7 +13,6 @@ import { archiverDomaine } from "@/lib/store/referentiel-actions";
 import { formatDateRelative } from "@/lib/engine/dates";
 import {
   filtrerEtTrierDomaines,
-  LIBELLES_TRIS_DOMAINES,
   type TriDomaine,
 } from "@/lib/documents/tri-domaines";
 
@@ -144,7 +143,6 @@ export function EnteteVueAtelier({
 export function VueTousLesDomaines({
   domaines,
   ouvrirElement,
-  changerVue,
   selection,
   compteId,
   domainesExistants = [],

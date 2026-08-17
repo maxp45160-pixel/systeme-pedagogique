@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { GuideTour, type EtapeTour } from "./guide-tour";
 import { useOnboarding } from "./onboarding-context";
 
@@ -55,24 +55,17 @@ export function DashboardTour({
   /** Si vrai et que le tour n'a jamais été fait, il démarre automatiquement */
   autoDemarrage?: boolean;
 }) {
-  const { tourActif, lancerTour, terminerTour, fermerTour, estTourTermine } =
+  const { tourActif, lancerTour, terminerTour, estTourTermine } =
     useOnboarding();
-  const [initialise, setInitialise] = useState(false);
 
   useEffect(() => {
-    setInitialise(true);
-  }, []);
-
-  useEffect(() => {
-    if (!initialise) return;
-    if (autoDemarrage && !estTourTermine(TOUR_DASHBOARD_ID)) {
-      // Court délai pour laisser le temps au DOM de se peindre
-      const timer = setTimeout(() => {
-        lancerTour(TOUR_DASHBOARD_ID);
-      }, 600);
-      return () => clearTimeout(timer);
-    }
-  }, [autoDemarrage, initialise, estTourTermine, lancerTour]);
+    if (!autoDemarrage || estTourTermine(TOUR_DASHBOARD_ID)) return;
+    // Court délai pour laisser le temps au DOM de se peindre
+    const timer = setTimeout(() => {
+      lancerTour(TOUR_DASHBOARD_ID);
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [autoDemarrage, estTourTermine, lancerTour]);
 
   const actif = tourActif === TOUR_DASHBOARD_ID;
 
