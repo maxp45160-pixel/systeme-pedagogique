@@ -169,7 +169,7 @@ export function ModaleExercice({
       `Analyse des ${totalExercicesCibles} compétences ciblées…`,
       "Calibration des niveaux et des difficultés…",
       `Rédaction des ${totalExercicesCibles} exercices par le tuteur IA…`,
-      "Vérification des critères et correction…",
+      "Vérification des critères d'évaluation…",
       "Finalisation du lot d'exercices…",
     ];
   }, [totalExercicesCibles]);
@@ -305,7 +305,7 @@ export function ModaleExercice({
             if (codesAEnvoyer.length > 1) {
               setProgression(`Rédaction des ${codesAEnvoyer.length} exercices par le tuteur IA…`);
             } else {
-              setProgression("Le tuteur rédige l'exercice — énoncé, indices, correction, critères…");
+              setProgression("Le tuteur rédige l'exercice — énoncé, consigne, critères…");
             }
           }
         }
@@ -871,7 +871,7 @@ export function ModaleExercice({
                             rows={2}
                             value={consigneModification}
                             onChange={(e) => setConsigneModification(e.target.value)}
-                            placeholder="Ex. : Rends l'énoncé plus concret, simplifie le 2e indice, adapte le barème..."
+                            placeholder="Ex. : Rends l'énoncé plus concret, précise la consigne, adapte le barème..."
                             aide="Le tuteur IA révise cette proposition en conservant les compétences ciblées."
                             autoFocus
                           />
@@ -881,8 +881,7 @@ export function ModaleExercice({
                               {[
                                 "Rends l'énoncé plus concret",
                                 "Raccourcis l'énoncé",
-                                "Détaille la correction",
-                                "Indices plus progressifs",
+                                "Précise la consigne",
                               ].map((sug) => (
                                 <button
                                   key={sug}
@@ -944,53 +943,10 @@ export function ModaleExercice({
                           </div>
                         </section>
 
-                        {/* Colonne droite : Indices, Correction & Critères */}
+                        {/* Colonne droite : Critères. Indices et correction restent
+                            invisibles ici — c'est le tuteur qui les délivre pendant
+                            la résolution. */}
                         <aside className="min-w-0 space-y-3">
-                          {p.indices.length > 0 && (
-                            <section
-                              aria-labelledby={`indices-${i}`}
-                              className="rounded-xl border border-bordure bg-surface p-3.5 shadow-xs"
-                            >
-                              <div className="flex items-center justify-between border-b border-bordure/60 pb-1.5">
-                                <p
-                                  id={`indices-${i}`}
-                                  className="text-[0.6875rem] font-bold uppercase tracking-wider text-texte-discret"
-                                >
-                                  Indices progressifs ({p.indices.length})
-                                </p>
-                              </div>
-                              <ul className="mt-2 space-y-2 text-xs text-texte-attenue">
-                                {p.indices.map((ind, j) => (
-                                  <li key={j} className="flex items-start gap-2">
-                                    <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-surface-3 text-[0.625rem] font-bold text-texte-discret">
-                                      {j + 1}
-                                    </span>
-                                    <span className="leading-relaxed">{ind}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            </section>
-                          )}
-
-                          {p.correction && (
-                            <section
-                              aria-labelledby={`correction-${i}`}
-                              className="rounded-xl border border-bordure bg-surface p-3.5 shadow-xs"
-                            >
-                              <div className="flex items-center justify-between border-b border-bordure/60 pb-1.5">
-                                <p
-                                  id={`correction-${i}`}
-                                  className="text-[0.6875rem] font-bold uppercase tracking-wider text-texte-discret"
-                                >
-                                  Guide de correction & Solution
-                                </p>
-                              </div>
-                              <div className="prose-exo mt-2 max-h-48 overflow-y-auto pr-1 text-xs leading-relaxed text-texte-attenue">
-                                <Markdown contenu={p.correction} />
-                              </div>
-                            </section>
-                          )}
-
                           {p.criteres.length > 0 && (
                             <section
                               aria-labelledby={`criteres-${i}`}
@@ -1117,7 +1073,7 @@ const ETAPES_GENERATION = [
   "Analyse du référentiel et des mesures passées…",
   "Calibration du niveau et de la difficulté…",
   "Rédaction de l'énoncé et de la mise en situation…",
-  "Conception des indices et du guide de correction…",
+  "Définition des critères d'évaluation…",
   "Finalisation de la proposition par le tuteur…",
 ];
 

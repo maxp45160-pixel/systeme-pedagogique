@@ -475,7 +475,7 @@ export function extrairePropositionExerciceDuTexte(texte: string): {
 
   const morceaux: string[] = [];
   if (intro) morceaux.push(intro);
-  morceaux.push("> **Exercice interactif prêt.** Les consignes, indices progressifs et corrections sont sécurisés dans le workspace de résolution ci-dessous.");
+  morceaux.push("> **Exercice interactif prêt.** Il s'ouvre dans le workspace de résolution ci-dessous ; le tuteur t'accompagne pendant la résolution.");
   if (pourquoiTexte) morceaux.push(pourquoiTexte);
 
   const texteNettoye = morceaux.join("\n\n");

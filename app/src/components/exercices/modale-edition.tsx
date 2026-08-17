@@ -11,9 +11,13 @@
  * corpus. Le besoin réel est plus simple et plus direct : **corriger**.
  *
  * Le corpus est écrit par un LLM et relu par personne. Sans ce chemin, un
- * énoncé ambigu ou une correction fausse n'avait qu'une issue : l'archivage,
+ * énoncé ambigu ou un critère mal visé n'avait qu'une issue : l'archivage,
  * c'est-à-dire jeter le seul contenu disponible pour une compétence qui, le
  * plus souvent, n'en a aucun autre.
+ *
+ * Ce qui ne s'édite pas ici : les indices et la correction. Ils appartiennent
+ * au tuteur, qui les délivre pendant la résolution ; les exposer à l'édition
+ * les exposait aussi à la lecture. Ils repartent inchangés vers le serveur.
  *
  * ## Ce que l'écran annonce avant le clic
  *
@@ -73,8 +77,6 @@ export function ModaleEdition({
   const [difficulte, setDifficulte] = useState(String(exercice.difficulte));
   const [duree, setDuree] = useState(String(exercice.dureeEstimeeMin));
   const [enonce, setEnonce] = useState(exercice.enonce);
-  const [indices, setIndices] = useState(exercice.indices.join("\n"));
-  const [correction, setCorrection] = useState(exercice.correction);
   const [criteres, setCriteres] = useState(exercice.criteres);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, demarrer] = useTransition();
@@ -85,7 +87,9 @@ export function ModaleEdition({
     dureeEstimeeMin: Number(duree),
     competences: exercice.competences,
     enonce,
-    correction,
+    // Indices et correction ne s'éditent pas ici : c'est le tuteur qui les
+    // délivre pendant la résolution. Ils repartent inchangés.
+    correction: exercice.correction,
     criteres,
   };
   /*
@@ -111,8 +115,8 @@ export function ModaleEdition({
           difficulte: Number(difficulte) as Exercise["difficulte"],
           dureeEstimeeMin: Number(duree),
           enonce,
-          indices: indices.split("\n").filter((i) => i.trim().length > 0),
-          correction,
+          indices: exercice.indices,
+          correction: exercice.correction,
           criteres,
         });
         onFermer();
@@ -125,7 +129,7 @@ export function ModaleEdition({
   return (
     <Modale
       titre="Corriger cet exercice"
-      sousTitre="L'énoncé, les indices, la correction et le calibrage. Les compétences visées ne changent pas ici."
+      sousTitre="L'énoncé, les critères et le calibrage. Les compétences visées ne changent pas ici."
       onFermer={onFermer}
       pied={
         <>
@@ -194,24 +198,6 @@ export function ModaleEdition({
           rows={8}
           value={enonce}
           onChange={(e) => setEnonce(e.target.value)}
-          requis
-        />
-
-        <Champ
-          label="Indices"
-          multiligne
-          rows={3}
-          value={indices}
-          onChange={(e) => setIndices(e.target.value)}
-          aide="Un par ligne, du plus léger au plus explicite. Laisser vide pour n'en proposer aucun."
-        />
-
-        <Champ
-          label="Correction"
-          multiligne
-          rows={8}
-          value={correction}
-          onChange={(e) => setCorrection(e.target.value)}
           requis
         />
 

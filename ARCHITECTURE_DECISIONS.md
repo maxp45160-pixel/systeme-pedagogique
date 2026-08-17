@@ -3184,6 +3184,28 @@ s'exécuter (ADR-027).
    souhaite court-circuite la calibration — l'édition deviendrait un moyen de
    contourner la mesure, ce qui est l'inverse du but.
 
+### Note du 17/08/2026 — les indices et la correction sortent des écrans
+
+`modifierExercice` accepte toujours `indices` et `correction` : le serveur, le
+domaine et la validation ne changent pas, et un exercice sans correction reste
+refusé. Ce qui change est l'exposition.
+
+**Constat.** Les indices et la correction restaient lisibles à la génération
+(aperçu de proposition dans `ModaleExercice`, carte d'exercice du chat) et
+éditables dans `ModaleEdition`. Or c'est le tuteur qui les délivre pendant la
+résolution, et l'autonomie se dérive des indices réellement consultés (ADR-033,
+ADR-046). Un indice lu avant de commencer n'est compté nulle part : la mesure
+d'autonomie devenait fausse par construction, et la correction visible vidait
+l'exercice de son objet.
+
+**Décidé.** Aucun écran hors du parcours de résolution n'affiche les indices ni
+la correction. `ModaleEdition` réémet les valeurs existantes inchangées ; les
+libellés de progression et le bandeau de proposition ne les nomment plus.
+
+**Conséquence assumée.** Une correction fausse n'est plus réparable à la main —
+seule la régénération de l'exercice y répond. Si ce cas devient fréquent, il
+faudra un chemin de correction réservé, pas la réouverture du champ.
+
 ---
 
 <a name="adr-048"></a>

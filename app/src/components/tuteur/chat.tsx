@@ -50,7 +50,7 @@ import type {
  * on attend est la différence entre patienter et croire à une panne.
  */
 const LIBELLE_OUTIL: Record<string, string> = {
-  [OUTIL_EXERCICE]: "Le tuteur rédige un exercice — énoncé, indices, correction, critères…",
+  [OUTIL_EXERCICE]: "Le tuteur rédige un exercice — énoncé, consigne, critères…",
   [OUTIL_REFERENTIEL]: "Le tuteur compose une branche de compétences…",
 };
 
@@ -280,8 +280,7 @@ const MessageBulle = memo(function MessageBulle({
           </div>
           <p className="mt-1.5 font-medium">{e.titre}</p>
           <p className="chiffres mt-0.5 text-texte-attenue">
-            Difficulté {e.difficulte}/5 · ≈ {e.dureeEstimeeMin} min · {e.indices.length} indice(s)
-            · {e.criteres.length} critère(s)
+            Difficulté {e.difficulte}/5 · ≈ {e.dureeEstimeeMin} min · {e.criteres.length} critère(s)
           </p>
           <div className="mt-2.5 flex flex-wrap items-center gap-2">
             {onDemarrerExerciceDirect && (
