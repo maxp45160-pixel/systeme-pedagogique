@@ -883,9 +883,11 @@ BEGIN
       UPDATE public.competences SET archive = true, active = false WHERE user_id = v_uid AND domaine = v_domaine_id;
       UPDATE public.domaines SET archive = true WHERE user_id = v_uid AND id = v_domaine_id;
     ELSE
-      DELETE FROM public.competences WHERE user_id = v_uid AND domaine = v_domaine_id;
-      DELETE FROM public.domaines WHERE user_id = v_uid AND id = v_domaine_id;
-      v_domaine_supprime := true;
+      -- Ne jamais supprimer le domaine : il doit rester archivable.
+      -- On marque seulement les competences comme archivées s'ils ne sont plus actifs.
+      UPDATE public.competences SET archive = true, active = false WHERE user_id = v_uid AND domaine = v_domaine_id;
+      -- Le domaine reste en base avec archive=true, il pourra toujours être restauré.
+      -- On ne supprime pas le domaine (pas de v_domaine_supprime).
     END IF;
   END IF;
 
