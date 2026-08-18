@@ -102,6 +102,16 @@ export interface ArêteCandidate extends CandidatBase {
   aval: string;
   /** De 0 à 1 — sert à ordonner le lot, jamais à décider seul. */
   force: number;
+  /**
+   * D'où vient la proposition.
+   *
+   * - `usage` : co-mobilisation répétée ET ordre observable dans les preuves.
+   *   Le signal fort — il repose sur ce qui s'est réellement passé.
+   * - `redaction` : la place que le tuteur a donnée à chaque compétence dans sa
+   *   branche. Signal **faible** : c'est une intention de rédaction, pas une
+   *   dépendance constatée. Toujours affiché comme tel.
+   */
+  source: "usage" | "redaction";
 }
 
 export interface ScissionCandidate extends CandidatBase {
@@ -261,11 +271,100 @@ export function detecterAretes(entrees: EntreesCandidats): ArêteCandidate[] {
       amont,
       aval,
       force: Math.min(1, occurrences / 4 + similarite / 2),
+      source: "usage",
       motifs,
     });
   }
 
-  return candidats.sort((a, b) => b.force - a.force);
+  return [...candidats, ...aretesDepuisRedaction(entrees, declarees, candidats)].sort(
+    (a, b) => b.force - a.force,
+  );
+}
+
+/**
+ * Les arêtes que la RÉDACTION suggère — la place donnée par le tuteur.
+ *
+ * ## Pourquoi cette source a d'abord été refusée, et pourquoi elle revient
+ *
+ * ADR-056 a retiré du graphe un « backbone séquentiel par domaine » : les
+ * compétences triées par code et **reliées en chaîne**, typées identiquement à
+ * un vrai prérequis, donc dessinées avec la même flèche. Ce chantier a d'abord
+ * conclu que dériver des arêtes de `competences.ordre` refaisait exactement
+ * cela, et s'en est abstenu.
+ *
+ * C'était appliquer ADR-056 trop largement. Ce qu'il interdit est de **poser**
+ * une arête que rien ne soutient. Proposer une arête que la personne valide
+ * ligne à ligne, avec un motif qui dit exactement sur quoi elle repose, est un
+ * autre geste : rien n'entre au référentiel sans un clic, et le motif permet de
+ * refuser en connaissance de cause.
+ *
+ * ## Trois garde-fous qui la distinguent du backbone
+ *
+ * 1. **`source: "redaction"`** voyage avec la proposition et s'affiche : elle
+ *    ne se confond jamais avec une arête tirée de l'usage ;
+ * 2. **`force` plafonnée à 0,3**, sous toute arête d'usage : le lot met
+ *    systématiquement le signal fort devant ;
+ * 3. **seulement entre paliers différents.** Deux compétences consécutives d'un
+ *    même palier ne décrivent qu'un rang d'affichage. Le protocole §3 est
+ *    explicite : `intermediaire` « suppose les fondamentaux acquis ». C'est la
+ *    seule dépendance que la rédaction affirme réellement — et elle ne relie
+ *    que la DERNIÈRE d'un palier à la PREMIÈRE du suivant, pas chaque paire.
+ *
+ * Ce troisième point est ce qui empêche la chaîne : un domaine de treize
+ * compétences produit deux propositions, pas douze.
+ */
+const ORDRE_PALIERS_ARETE = ["fondamentaux", "intermediaire", "avance"] as const;
+export const FORCE_MAX_REDACTION = 0.3;
+
+function aretesDepuisRedaction(
+  entrees: EntreesCandidats,
+  declarees: Set<string>,
+  deja: ArêteCandidate[],
+): ArêteCandidate[] {
+  const { referentiel } = entrees;
+  const dejaProposees = new Set(deja.map((a) => clePaire(a.amont, a.aval)));
+  const candidats: ArêteCandidate[] = [];
+
+  const parDomaine = new Map<string, Skill[]>();
+  for (const skill of referentiel.actifs) {
+    parDomaine.set(skill.domaine, [...(parDomaine.get(skill.domaine) ?? []), skill]);
+  }
+
+  for (const [domaineId, skills] of parDomaine) {
+    // Dernière de chaque palier, et première du palier suivant, par `ordre`.
+    const parPalier = new Map<string, Skill[]>();
+    for (const skill of skills) {
+      parPalier.set(skill.palier, [...(parPalier.get(skill.palier) ?? []), skill]);
+    }
+    for (const liste of parPalier.values()) liste.sort((a, b) => a.ordre - b.ordre);
+
+    for (let i = 0; i < ORDRE_PALIERS_ARETE.length - 1; i++) {
+      const bas = parPalier.get(ORDRE_PALIERS_ARETE[i]);
+      const haut = parPalier.get(ORDRE_PALIERS_ARETE[i + 1]);
+      if (!bas?.length || !haut?.length) continue;
+
+      const amont = bas[bas.length - 1];
+      const aval = haut[0];
+      const cle = clePaire(amont.code, aval.code);
+      if (dejaProposees.has(cle)) continue;
+      if (declarees.has(`${amont.code}->${aval.code}`)) continue;
+      if (declarees.has(`${aval.code}->${amont.code}`)) continue;
+
+      candidats.push({
+        genre: "arete",
+        amont: amont.code,
+        aval: aval.code,
+        force: FORCE_MAX_REDACTION,
+        source: "redaction",
+        motifs: [
+          `Dans « ${domaineId} », ${amont.code} clôt le palier « ${ORDRE_PALIERS_ARETE[i]} » et ${aval.code} ouvre « ${ORDRE_PALIERS_ARETE[i + 1]} ».`,
+          "Signal FAIBLE : c'est la place que la rédaction leur a donnée, pas une dépendance constatée dans vos preuves.",
+        ],
+      });
+    }
+  }
+
+  return candidats;
 }
 
 /* ------------------------------------------------------------------ */

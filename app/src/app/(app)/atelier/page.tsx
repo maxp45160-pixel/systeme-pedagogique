@@ -365,6 +365,12 @@ export default async function PageAtelier(props: {
     intitules: Object.fromEntries(
       contexte.referentiel.skills.map((skill) => [skill.code, skill.intitule]),
     ),
+    metaCompetences: Object.fromEntries(
+      contexte.referentiel.skills.map((skill) => [
+        skill.code,
+        { palier: skill.palier as string, importance: skill.importance },
+      ]),
+    ),
   };
 
   return (

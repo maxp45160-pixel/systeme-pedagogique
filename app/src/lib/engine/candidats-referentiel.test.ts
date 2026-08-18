@@ -197,6 +197,92 @@ describe("detecterAretes", () => {
   });
 });
 
+describe("detecterAretes — la source « rédaction » (ADR-086)", () => {
+  function domaine(codes: [string, string, number][]): EntreesCandidats {
+    return entrees({
+      referentiel: referentiel(
+        codes.map(([code, palier, ordre]) =>
+          skill(code, { palier: palier as Skill["palier"], ordre }),
+        ),
+      ),
+    });
+  }
+
+  it("relie la dernière d'un palier à la première du suivant", () => {
+    const candidats = detecterAretes(
+      domaine([
+        ["LOG-01", "fondamentaux", 0],
+        ["LOG-02", "fondamentaux", 1],
+        ["LOG-03", "intermediaire", 2],
+      ]),
+    );
+    expect(candidats).toHaveLength(1);
+    expect(candidats[0].source).toBe("redaction");
+    expect(candidats[0].amont).toBe("LOG-02");
+    expect(candidats[0].aval).toBe("LOG-03");
+    expect(candidats[0].motifs.join(" ")).toContain("FAIBLE");
+  });
+
+  it("ne CHAÎNE PAS les compétences d'un même palier — c'est ce qu'ADR-056 a retiré", () => {
+    // Un domaine de treize compétences d'un seul palier produirait douze
+    // fausses arêtes si l'adjacence par `ordre` suffisait. Elle ne suffit pas.
+    const candidats = detecterAretes(
+      domaine([
+        ["LOG-01", "fondamentaux", 0],
+        ["LOG-02", "fondamentaux", 1],
+        ["LOG-03", "fondamentaux", 2],
+        ["LOG-04", "fondamentaux", 3],
+      ]),
+    );
+    expect(candidats).toEqual([]);
+  });
+
+  it("produit au plus deux arêtes par domaine, quel que soit le nombre de compétences", () => {
+    const candidats = detecterAretes(
+      domaine([
+        ["LOG-01", "fondamentaux", 0],
+        ["LOG-02", "fondamentaux", 1],
+        ["LOG-03", "intermediaire", 2],
+        ["LOG-04", "intermediaire", 3],
+        ["LOG-05", "avance", 4],
+        ["LOG-06", "avance", 5],
+      ]),
+    );
+    expect(candidats).toHaveLength(2);
+  });
+
+  it("passe derrière une arête d'usage : le signal fort d'abord", () => {
+    const base = domaine([
+      ["LOG-01", "fondamentaux", 0],
+      ["LOG-02", "fondamentaux", 1],
+      ["LOG-03", "intermediaire", 2],
+    ]);
+    const candidats = detecterAretes({
+      ...base,
+      exercices: [
+        exercice("ex-1", ["LOG-01", "LOG-02"]),
+        exercice("ex-2", ["LOG-01", "LOG-02"]),
+      ],
+      preuves: [
+        preuve({ skillCode: "LOG-01", date: "2026-07-01T09:00:00.000Z" }),
+        preuve({ skillCode: "LOG-02", date: "2026-08-01T09:00:00.000Z" }),
+      ],
+    });
+    expect(candidats[0].source).toBe("usage");
+    expect(candidats.at(-1)?.source).toBe("redaction");
+  });
+
+  it("ne repropose pas une arête déjà déclarée", () => {
+    const declaree = entrees({
+      referentiel: referentiel([
+        skill("LOG-02", { palier: "fondamentaux", ordre: 1 }),
+        skill("LOG-03", { palier: "intermediaire", ordre: 2, prerequis: ["LOG-02"] }),
+      ]),
+    });
+    expect(detecterAretes(declaree)).toEqual([]);
+  });
+});
+
 describe("detecterScissions", () => {
   const famille = (cle: string) => ({ cle, libelle: cle, derivee: true });
 

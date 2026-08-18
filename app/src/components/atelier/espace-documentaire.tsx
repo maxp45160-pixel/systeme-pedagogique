@@ -313,7 +313,11 @@ export function EspaceDocumentaire({
   generation: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
   donneesSeance?: DonneesSeance;
   /** Ce que les faits reprochent au referentiel (ADR-086). */
-  entretien: { lot: LotCandidats; intitules: Record<string, string> };
+  entretien: {
+    lot: LotCandidats;
+    intitules: Record<string, string>;
+    metaCompetences: Record<string, { palier: string; importance: number }>;
+  };
 }) {
   const router = useRouter();
   const [elements, setElements] = useState(elementsInitials);
@@ -932,7 +936,7 @@ export function EspaceDocumentaire({
       )}>
         <main className="flex h-full min-w-0 flex-1 flex-col min-h-0 overflow-hidden bg-surface">
           {selection === "entretien" ? (
-            <VueEntretien lot={entretien.lot} intitules={entretien.intitules} />
+            <VueEntretien {...entretien} />
           ) : selection === "graphe" ? (
             <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface p-4">
               <GrapheCompetences donnees={graphe.donnees} compteId={graphe.compteId} ouvrirElement={ouvrirElement} />

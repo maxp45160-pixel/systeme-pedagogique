@@ -6738,22 +6738,35 @@ D'où `detecterReformulations`, cinquième détecteur : la liste des 67 gelées,
 chacune avec les règles enfreintes, les sans-preuve d'abord (elles se corrigent
 sans rien coûter). Sans elle, le gel se découvrirait écran par écran.
 
-### Une source d'arêtes écartée, contre ce que ce document disait
+### La source « rédaction » : d'abord écartée, puis reprise sous garde-fous
 
-Une version antérieure de cet ADR annonçait la « récupération de l'ordre
-intra-branche » comme la source d'arêtes la plus riche disponible. **C'est
-faux, et la correction vaut d'être écrite.**
+Ce chantier a d'abord **refusé** de dériver des arêtes de `competences.ordre`,
+au motif qu'ADR-056 avait retiré du graphe un « backbone séquentiel par
+domaine ». C'était appliquer ADR-056 trop largement, et la correction vaut
+d'être écrite.
 
-L'ordre n'est pas jeté : `competences.ordre` le conserve, et il est distinct
-dans chaque domaine du compte. Mais en dériver des arêtes — relier les
-compétences consécutives — est **exactement** ce qu'ADR-056 a retiré du graphe :
-« un backbone séquentiel par domaine — les compétences triées par code et
-reliées en chaîne dès qu'il n'y avait pas assez de prérequis déclarés ». Le
-protocole §3 est explicite : l'ordre est une progression du plus fondamental au
-plus avancé, pas une chaîne de dépendances.
+Ce qu'ADR-056 interdit, c'est de **poser** une arête que rien ne soutient : le
+backbone était dessiné, typé identiquement à un vrai prérequis, et personne ne
+pouvait savoir qu'il était fabriqué. **Proposer** une arête que la personne
+valide ligne à ligne, avec un motif qui dit exactement sur quoi elle repose, est
+un autre geste — rien n'entre au référentiel sans un clic, et le motif permet de
+refuser en connaissance de cause.
 
-Les sources d'arêtes viables restent donc deux : la co-mobilisation avec ordre
-observable (rend zéro aujourd'hui), et la proposition du tuteur (ADR-082).
+Trois garde-fous la distinguent du backbone :
+
+1. **`source: "redaction"`** voyage avec la proposition et s'affiche à l'écran :
+   elle ne se confond jamais avec une arête tirée de l'usage ;
+2. **`force` plafonnée à 0,3**, sous toute arête d'usage : le lot met
+   systématiquement le signal fort devant ;
+3. **seulement entre paliers différents**, et seulement de la DERNIÈRE d'un
+   palier à la PREMIÈRE du suivant. Deux compétences consécutives d'un même
+   palier ne décrivent qu'un rang d'affichage ; le protocole §3 n'affirme qu'une
+   dépendance — `intermediaire` « suppose les fondamentaux acquis ».
+
+C'est le troisième point qui empêche la chaîne : un domaine de treize
+compétences produit **deux** propositions, pas douze. Sur le référentiel réel :
+**12 arêtes sur 6 domaines**, là où l'adjacence brute en aurait produit près de
+quatre-vingts.
 
 ### Le plafond de domaines — ADR-088, tenu par le schéma
 

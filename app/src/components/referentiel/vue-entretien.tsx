@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import type { LotCandidats } from "@/lib/engine/candidats-referentiel";
 import { Bouton } from "@/components/ui/primitives";
 import { relierCompetencesAction } from "@/lib/store/entretien-actions";
+import { RetravailCompetence } from "./retravail-competence";
 
 /**
  * L'entretien du référentiel — ADR-086.
@@ -103,13 +104,67 @@ function BoutonRelier({ amont, aval }: { amont: string; aval: string }) {
   );
 }
 
+/** Une ligne de reformulation, avec son formulaire dépliable. */
+function LigneReformulation({
+  candidat,
+  meta,
+}: {
+  candidat: LotCandidats["reformulations"][number];
+  meta: { palier: string; importance: number };
+}) {
+  const [ouvert, setOuvert] = useState(false);
+
+  return (
+    <div className="rounded-lg border border-bordure bg-surface-2 p-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <p className="text-sm font-medium text-texte">{candidat.code}</p>
+        <div className="flex shrink-0 items-center gap-2">
+          <span
+            className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+              candidat.aDesPreuves
+                ? "bg-alerte-faible text-alerte"
+                : "bg-surface text-texte-discret border border-bordure"
+            }`}
+          >
+            {candidat.aDesPreuves ? "porte des preuves" : "sans preuve"}
+          </span>
+          <Bouton type="button" onClick={() => setOuvert((o) => !o)}>
+            {ouvert ? "Fermer" : "Retravailler"}
+          </Bouton>
+        </div>
+      </div>
+      <p className="mt-1 text-xs text-texte-attenue">{candidat.intitule}</p>
+      <ul className="mt-2 space-y-1">
+        {candidat.motifs.map((motif) => (
+          <li key={motif} className="text-xs text-texte-attenue">
+            {motif}
+          </li>
+        ))}
+      </ul>
+      {ouvert && (
+        <RetravailCompetence
+          code={candidat.code}
+          intitule={candidat.intitule}
+          palier={meta.palier}
+          importance={meta.importance}
+          aDesPreuves={candidat.aDesPreuves}
+          onFerme={() => setOuvert(false)}
+        />
+      )}
+    </div>
+  );
+}
+
 export function VueEntretien({
   lot,
   intitules,
+  metaCompetences,
 }: {
   lot: LotCandidats;
   /** Intitulé par code, pour lire les lignes sans deviner. */
   intitules: Record<string, string>;
+  /** Palier et importance actuels, pour pré-remplir le retravail. */
+  metaCompetences: Record<string, { palier: string; importance: number }>;
 }) {
   const nom = (code: string) => `${code} — ${intitules[code] ?? code}`;
 
@@ -138,21 +193,10 @@ export function VueEntretien({
           explication="Leur intitulé décrit plusieurs savoir-faire à la fois. Tant qu'il n'est pas réécrit, la compétence ne peut plus être modifiée ni recevoir de prérequis."
         >
           {lot.reformulations.map((c) => (
-            <Ligne
+            <LigneReformulation
               key={c.code}
-              titre={nom(c.code)}
-              motifs={c.motifs}
-              action={
-                <span
-                  className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
-                    c.aDesPreuves
-                      ? "bg-alerte-faible text-alerte"
-                      : "bg-surface text-texte-discret border border-bordure"
-                  }`}
-                >
-                  {c.aDesPreuves ? "porte des preuves" : "sans preuve"}
-                </span>
-              }
+              candidat={c}
+              meta={metaCompetences[c.code] ?? { palier: "fondamentaux", importance: 0.5 }}
             />
           ))}
         </Section>
@@ -166,7 +210,12 @@ export function VueEntretien({
             <Ligne
               key={`${c.amont}->${c.aval}`}
               titre={`${nom(c.amont)}  →  ${nom(c.aval)}`}
-              motifs={c.motifs}
+              motifs={[
+                c.source === "usage"
+                  ? "Signal fort : tiré de ce qui s'est réellement passé."
+                  : "Signal faible : tiré de la rédaction, pas de vos preuves.",
+                ...c.motifs,
+              ]}
               action={<BoutonRelier amont={c.amont} aval={c.aval} />}
             />
           ))}
