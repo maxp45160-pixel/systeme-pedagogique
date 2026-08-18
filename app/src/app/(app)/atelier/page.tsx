@@ -12,6 +12,7 @@ import { analyserDocumentMarkdown } from "@/lib/documents/markdown";
 import { documentEnLectureSeule, estDocumentPreuve } from "@/lib/documents/nature-document";
 import { regrouperTentativesParExercice } from "@/lib/documents/workspace";
 import { chargerContexte } from "@/lib/store/context";
+import { chargerCandidatsReferentiel } from "@/lib/store/candidats-referentiel";
 import { construireGraphe } from "@/lib/domain/graphe";
 import { construireVuesAtelier } from "@/lib/documents/vue-atelier";
 import { lireChangementsReferentiel } from "@/lib/store/referentiel";
@@ -351,6 +352,21 @@ export default async function PageAtelier(props: {
   );
   const couleursDomaines = paletteDomaines(graphe.noeuds.map((noeud) => noeud.domaineId));
 
+  /*
+   * Ce que les faits reprochent au référentiel — ADR-086.
+   *
+   * Calculé ici et non dans `chargerContexte` : cinq détecteurs sur tout le
+   * corpus n'ont rien à faire sur le chemin chaud des autres pages. L'Atelier
+   * est le seul écran qui en affiche le résultat.
+   */
+  const lotEntretien = await chargerCandidatsReferentiel();
+  const entretien = {
+    lot: lotEntretien,
+    intitules: Object.fromEntries(
+      contexte.referentiel.skills.map((skill) => [skill.code, skill.intitule]),
+    ),
+  };
+
   return (
     <>
       <EntetePage
@@ -372,6 +388,7 @@ export default async function PageAtelier(props: {
           calibrages: calibragesPourModale(referentiel.actifs, contexte.calibrations),
         }}
         donneesSeance={donneesSeance}
+      entretien={entretien}
       />
     </>
   );

@@ -6243,6 +6243,629 @@ sessions de déclaration.
 
 ---
 
+## ADR-083 — Le contexte d'une preuve est une famille de situation, jamais un titre 🔬
+
+**Date.** 18/08/2026, chantier de révision du moteur, lot 1.
+
+### Le constat
+
+`lib/store/actions.ts` écrit `contexte: exercice.titre` depuis l'origine. Relevé
+en base le 18/08/2026 : **42 valeurs distinctes pour 52 preuves**.
+
+Or `skill-state.ts` fait porter deux règles fortes sur ce champ :
+
+- le niveau 4 « transfert » exige `contextesL4.size >= 2` ;
+- la confiance passe à moyenne à deux contextes, à forte à trois.
+
+Un titre d'exercice étant presque unique, ces portes s'ouvraient d'elles-mêmes à
+la deuxième preuve. Mesuré sur le compte réel : **17 des 19 compétences à
+plusieurs preuves** franchissaient la porte du transfert.
+
+Le défaut n'était pas visible en test : les fixtures passent des libellés que le
+test choisit lui-même distincts (« Contexte A », « Contexte B »), ce qui décrit
+un monde où le champ est un discriminant. Il ne l'était pas en production. Même
+forme que le défaut d'ADR-030 — 194 tests n'avaient pas vu que les abandons
+s'enregistraient comme des mesures à zéro. **Un test qui fabrique sa donnée ne
+mesure pas la donnée réelle.**
+
+### Ce qui est décidé
+
+Le discriminant devient la **famille de situation** : le couple
+`domaine / type d'exercice` de l'exercice source. Deux problèmes de logistique
+sont la même situation ; un problème et une étude de cas de logistique, non.
+
+C'est la granularité que les données portent réellement. Plus fine, il faudrait
+l'inventer ; plus grossière — le domaine seul — elle confondrait un calcul et
+une étude de cas.
+
+`evidence.contexte` **ne bouge pas** : il reste le libellé lisible, il n'était
+simplement pas un discriminant. Aucune colonne, aucune migration : la famille se
+dérive à la lecture (P1), dans `lib/engine/contexte-situation.ts`.
+
+### Le point d'attache est unique
+
+`chargerContexte` attache la famille à chaque preuve, une fois, sur les
+exercices **bruts** plus `EXERCICES_DIAGNOSTIC` — même raison que
+`tableDureesEstimees` (ADR-071). **24 des 45 preuves d'exercice du compte
+pointent vers un diagnostic qui ne vit que dans `lib/seed/exercises.ts`** : les
+résoudre contre la seule table les aurait toutes envoyées au repli, et le moteur
+aurait recompté des titres.
+
+Le moteur, lui, ne connaît pas le catalogue. Il lit `preuve.familleSituation`
+comme il reçoit les compétences en paramètre.
+
+### Ce qu'on ne fabrique pas
+
+Les **7 preuves `manuel`** du compte pointent vers un fichier de synthèse, pas
+vers un exercice. Elles gardent leur libellé comme clé et le moteur l'inscrit en
+réserve : « N preuve(s) sur M sans exercice source résoluble ». On ne leur
+invente pas une famille — précédent des 29 preuves non retouchées d'ADR-033.
+
+### L'effet, mesuré avant d'être appliqué
+
+| | Avant | Après |
+| --- | --- | --- |
+| Compétences à plus d'une preuve | 19 | 19 |
+| Dont ≥ 2 contextes distincts | **17** | **12** |
+| Preuves repliées sur leur libellé | — | 7 / 52 |
+
+Les cinq compétences qui perdent une revendication de transfert non gagnée :
+`DEB-01`, `DEB-03`, `DEV-03`, `RO-01`, `SYSC-01`. Chacune avait deux preuves
+issues d'exercices du **même domaine et du même type**.
+
+Le moteur dit moins, et plus juste.
+
+### Test de réfutation
+
+Si, après usage, les familles se révèlent **trop grossières** — deux exercices
+d'un même `domaine/type` portant des situations manifestement différentes, au
+point qu'un transfert réel cesse d'être reconnaissable — alors la famille doit
+s'affiner en y ajoutant le thème (`themes.codes`) ou la difficulté. À
+surveiller : le nombre de compétences atteignant le niveau 4 sur les trois mois
+suivants. S'il tombe à zéro alors que des transferts ont visiblement eu lieu, la
+granularité est fautive, pas la règle.
+
+Le risque symétrique — familles trop fines — est écarté par construction : elles
+sont strictement moins nombreuses que les titres.
+
+### Ce que cela ne fait pas
+
+Rien ici ne mesure le moteur lui-même. C'est l'objet des lots suivants, et
+l'ordre est délibéré : mesurer un moteur qui s'appuie sur un signal faussé
+n'aurait rien dit.
+
+---
+
+---
+
+## ADR-084 — Une décision et une prédiction sont des faits datés 🔬
+
+**Date.** 18/08/2026, chantier de révision du moteur, lot 2.
+
+**Ce qui était demandé, dans les mots de Maxime.** « Je veux concevoir un
+système auto apprenant […] j'attends de ce système qu'il tourne de façon
+autonome. »
+
+### Le constat
+
+Le moteur apprend **sur l'utilisateur**, et rien **sur lui-même**. Il affirme
+des choses tous les jours, puis les jette :
+
+| Ce qu'il affirme | Où | Confronté au réel |
+| --- | --- | --- |
+| « cet exercice te prendra 25 minutes » | `dureeDeReference()` | jamais |
+| « la difficulté 4 est la bonne pour toi » | `difficulteVisee()` | jamais |
+| « au 3 septembre, tu sauras encore ça » | `prochaineRevision()` | jamais |
+| « voici la prochaine action, et pourquoi » | `recommander()` | jamais |
+
+Seuls les **refus** étaient conservés — 34 lignes. On sait donc ce que la
+personne a écarté, jamais si le moteur avait raison.
+
+Conséquence directe, et c'est elle qui rend la décision nécessaire :
+l'invariant de `CLAUDE.md` « ne pas modifier les seuils de calibration sans
+données justifiant le changement » est **indécidable**. La donnée n'existe pas.
+Aucun réglage ne peut donc bouger, ni à la main ni tout seul.
+
+### La question de principe
+
+P1 dit « rien de ce qui est dérivable n'est stocké ». Une prédiction
+tombe-t-elle sous le coup de P1 ?
+
+**Non.** Une prédiction n'est pas dérivable après coup : l'état qui l'a produite
+a changé, et le recalculer aujourd'hui donnerait un autre nombre. C'est un fait
+daté, exactement comme `BesoinDeclare` (ADR-050, « le 10/08 à 9 h, elle a écrit
+ceci ») et comme `verdictTuteur` (ADR-046, ce qui avait été proposé). Le
+précédent est posé deux fois ; ceci est la troisième.
+
+Ce qui reste dérivé : **les métriques**. Aucune table ne stocke un score de
+Brier ni une erreur de calibration — `lib/engine/auto-evaluation.ts` (lot 3) les
+recalcule à la lecture. P1 n'est pas affaibli, il est appliqué à la bonne
+frontière.
+
+### Ce qui est décidé
+
+Deux tables append-only, `moteur_decisions` et `moteur_predictions` : RLS avec
+`compte_actif()` (ADR-074), aucune politique `UPDATE` ni `DELETE`, et un
+déclencheur en second verrou pour ce que RLS ne couvre pas (`service_role`,
+console, script). Calque exact de `referentiel_changes` (ADR-065).
+
+**La résolution n'est pas stockée.** Aucune colonne de résultat, aucune table
+d'issues : la prédiction se résout en la joignant au fait qui la tranche.
+
+| Prédiction | Résolue par | Données disponibles au 18/08 |
+| --- | --- | --- |
+| `reussite` | 1re tentative terminée sur la cible après l'émission | oui |
+| `duree` | la même tentative, `duree_min` | **42 tentatives chronométrées** |
+| `retention` | 1re preuve sur la compétence après l'horizon | oui |
+
+C'est la différence de fond avec le modèle générique qui a lancé ce chantier :
+stocker les résultats aurait dupliqué `attempts` et `evidence`, et créé une
+seconde vérité à synchroniser. Une prédiction sans fait résolvant reste **en
+attente**, jamais comptée comme un échec (P2).
+
+**Pas de colonne `status`.** Le modèle d'origine confondait sous ce mot la
+livraison, la réponse de la personne et l'exécution. Ce qu'il advient d'une
+décision se lit dans les faits qui la suivent.
+
+### Quand l'écriture a lieu, et pourquoi là
+
+Au moment où la carte « Prochaine action » est **servie**, dans
+`chargerActionProposee` — pas dans `chargerContexte`, qui sert toutes les pages
+et aurait écrit à chaque ouverture de n'importe quel écran.
+
+Servie, et non cliquée : **une recommandation ignorée est une information**.
+N'inscrire que celles qui sont suivies produirait un journal qui ne peut que
+donner raison au moteur.
+
+`request_id` vaut `jour|type|cible|politique` : le premier affichage du jour
+écrit, les suivants entrent en conflit et ne font rien. Sans cette clé, le
+journal mesurerait le nombre de rafraîchissements de page.
+
+### Le modèle est assumé, pas appris
+
+Les trois fonctions de `prediction.ts` sont des heuristiques **monotones et
+explicites**. Leurs constantes n'ont **aucune donnée derrière elles** — c'est
+l'inverse de la méthode d'ADR-028, et c'est assumé : il n'existe pas de donnée
+avant d'avoir commencé à en produire. `MODELE_VERSION` existe pour que le jour
+où on les corrige, les prédictions d'avant restent identifiables.
+
+Deux refus explicites, tenus par le code et par les tests :
+
+- **aucune p(réussite) sans preuve.** Un 0,5 par défaut confondrait « je ne sais
+  pas » et « une chance sur deux » (P2). Un exercice de diagnostic sert à créer
+  la première mesure, pas à être prédit ;
+- **aucune valeur montrée à l'utilisateur** tant que le lot 3 n'a pas mesuré ces
+  modèles. Ce sont des paris du moteur sur lui-même, pas des mesures sur la
+  personne.
+
+### Ce que cela coûte
+
+Une insertion de plus par jour et par compte sur le tableau de bord, et rien les
+fois suivantes. Le conflit est le cas normal.
+
+Un cas est délibérément non couvert : si l'insertion des prédictions échoue
+après celle de la décision, elles ne sont pas retentées — un `select` de
+rattrapage coûterait un aller-retour à *chaque* rendu pour couvrir une panne
+réseau intra-rendu. Le prix : un échantillon de moins. Il ne corrompt rien.
+
+Une panne du journal ne remonte pas : elle est écrite dans les logs serveur et
+le tableau de bord continue. Le journal sert à observer le moteur, il n'est pas
+le produit.
+
+### Test de réfutation
+
+Si, après trois mois, `auto-evaluation` ne peut toujours pas rendre une seule
+métrique — parce que trop peu de prédictions se résolvent, ou parce que les
+décisions journalisées ne correspondent pas à ce que la personne a réellement
+vu — alors le point d'écriture est mal placé et doit descendre au niveau du
+composant qui rend la carte, ou monter au niveau de l'action de l'utilisateur.
+
+À surveiller : le nombre de prédictions **résolues** rapporté au nombre émises.
+S'il reste sous 20 %, on journalise du bruit.
+
+### Ce que cela ne fait pas
+
+Rien ici ne mesure encore quoi que ce soit, et rien ne s'ajuste tout seul. C'est
+le lot 3 (métriques dérivées) puis le lot 4 (auto-correction sous borne). Ce lot
+ne fait qu'une chose : **cesser de jeter ce que le moteur affirme**.
+
+---
+
+---
+
+## ADR-085 — Le moteur se relit, puis ajuste un seul seuil à la fois 🔬
+
+**Date.** 18/08/2026, chantier de révision du moteur, lots 3 et 4.
+
+### Ce que le lot 2 avait laissé ouvert
+
+ADR-084 fait cesser de jeter ce que le moteur affirme. Il ne mesure rien, et
+rien ne s'ajuste. Ces deux marches-là sont ici.
+
+### Le lot 3 — la mesure, et rien de stocké
+
+`lib/engine/auto-evaluation.ts` rejoue les prédictions inscrites contre les
+faits qui les tranchent et en dérive quatre métriques. **Aucune table.** Ni
+score de Brier, ni courbe de calibration, ni agrégat : tout se recalcule à la
+lecture, comme les niveaux (P1). Une métrique stockée est une métrique qu'on ne
+peut plus réfuter.
+
+Trois règles portent tout le module, et ce sont des refus :
+
+1. **Sous le seuil, `valeur` vaut `null`.** Jamais un nombre approximatif. Un
+   score de Brier sur trois observations n'est pas un score, c'est du bruit avec
+   une décimale. L'interface affiche « Données insuffisantes (n = 7) » et une
+   barre d'avancement — pas une barre à zéro, qui se lirait « mauvais » là où la
+   vérité est « on ne sait pas ».
+2. **Une prédiction non résolue n'est PAS un échec.** Une recommandation
+   ignorée, un exercice jamais tenté, un horizon pas encore atteint : elles
+   restent *en attente*. Les compter comme fausses ferait chuter toutes les
+   métriques parce que la personne n'a pas travaillé — on mesurerait son
+   assiduité, pas la justesse du moteur.
+3. **Une tentative abandonnée ne tranche rien.** `tentativeMenee` porte déjà
+   cette règle pour l'écriture de la preuve (ADR-030) et pour la calibration.
+   Sans elle, une tentative d'une minute sur trente annoncées ferait dire à la
+   métrique que le moteur surestime d'un facteur trente.
+
+Chaque score de Brier porte sa **ligne de base** — prédire toujours le taux
+observé. Sans elle, 0,25 est illisible : excellent sur un phénomène équilibré,
+catastrophique sur un phénomène qui arrive neuf fois sur dix. Un modèle qui ne
+bat pas cette ligne n'apporte rien qu'une moyenne n'apporterait, et c'est le
+seul verdict qui justifie de toucher aux constantes.
+
+### Le lot 4 — l'ajustement, écrit pour empêcher
+
+`lib/engine/reglages.ts` est le seul endroit d'où un seuil du moteur peut
+bouger. Quatre garde-fous, tous testés :
+
+| Garde-fou | Ce qu'il empêche |
+| --- | --- |
+| Registre fermé, avec bornes | qu'un paramètre non prévu soit touché |
+| Pas maximal (20 % de l'amplitude) | qu'un seuil traverse sa borne d'un coup, rendant l'effet inobservable |
+| Une seule proposition à la fois | que deux réglages bougés ensemble deviennent indiscernables |
+| Fenêtre d'observation (14 jours) | que le moteur s'emballe sur une observation unique — le défaut d'ADR-045 |
+
+Et un cinquième, qui est le plus important : **une métrique sous son seuil rend
+`null`, et rien n'est proposé.** C'est ainsi que l'invariant de `CLAUDE.md` —
+« ne pas modifier les seuils de calibration sans données justifiant le
+changement » — passe d'indécidable à tenu par le code.
+
+Rien n'est réécrit dans le code. Les `export const` de `calibration.ts`,
+`spaced.ts` et `recommend.ts` restent les valeurs livrées ; `reglagesEffectifs()`
+superpose le rejeu du journal `moteur_reglages`. Reconstituer l'état d'il y a
+trois semaines ne demande que de rejouer jusqu'à cette date, et annuler un
+ajustement est une ligne de plus — jamais un `DELETE`.
+
+`spaced.ts` tient enfin la promesse écrite en tête de fichier depuis l'origine :
+`creerModeleHeuristique(amplitude)` fabrique un modèle réglé, là où
+`modeleHeuristique` était une constante. L'interface `ModeleRevision` existait
+pour ce jour-là.
+
+### Deux écarts au plan, assumés
+
+Le plan listait cinq paramètres ajustables automatiquement. Il en reste **deux**,
+et c'est un choix, pas un oubli.
+
+- **`FACTEUR_CONFIANCE` retiré du registre.** C'est une TABLE à quatre entrées,
+  pas un scalaire. En bouger une sans les autres change l'ordre entre deux
+  niveaux de confiance : c'est un changement de sens, pas un réglage.
+- **`bonusActionnable` et `signauxConcordants` restent sans règle automatique.**
+  Le plan leur assignait `utilite-recommandation` et « l'oscillation de la
+  difficulté conseillée ». La seconde métrique n'existe pas. Quant à la
+  première, elle exclut déjà les décisions sans exercice : un taux bas ne dit
+  donc pas que le bonus d'actionnabilité est mal réglé, il dit que les exercices
+  proposés ne donnent pas envie — ce que ce bonus ne peut pas corriger. Leur
+  inventer une règle aurait produit un ajustement qui se justifie par une mesure
+  qu'il n'améliore pas.
+
+Les deux restent réglables **à la main**, dans leur borne et au journal.
+
+### Pourquoi l'application reste un geste
+
+Le moteur détecte et propose ; appliquer demande un clic dans `/admin`. Deux
+raisons, toutes deux datées :
+
+- le modèle de prédiction d'ADR-084 n'a **jamais** été confronté au réel.
+  Ajuster sur lui aujourd'hui reviendrait à corriger un instrument avec un
+  instrument non étalonné ;
+- une écriture pendant le rendu d'une page changerait le comportement du moteur
+  sans que personne l'ait vue passer.
+
+Basculer en automatique tient en une ligne le jour où une métrique aura fait ses
+preuves. Le mécanisme, lui, est entier : bornes, pas, fenêtre et journal ne
+changent pas selon qui déclenche.
+
+Le serveur **recalcule** la proposition avant d'écrire et refuse si elle a
+changé depuis l'affichage : le formulaire ne transmet qu'un nom de paramètre.
+Accepter les valeurs du client reviendrait à laisser poser n'importe quel seuil,
+bornes comprises.
+
+### Test de réfutation
+
+Si, après six mois, aucune métrique n'a franchi son seuil — parce que le compte
+unique ne produit pas trente résolutions — alors les seuils sont calibrés pour
+un produit qui n'existe pas, et il faut soit les abaisser en assumant le bruit,
+soit reconnaître que l'auto-correction ne s'applique pas à un usage individuel
+et la réserver à un agrégat multi-comptes.
+
+À surveiller : `n` sur chacune des quatre métriques, trois mois après la
+première prédiction inscrite. `erreur-duree` doit être la première à parler.
+
+### Ce que cela ne fait pas
+
+Aucun seuil n'a bougé, et aucun ne bougera avant qu'une mesure existe. Au
+18/08/2026 les quatre métriques valent `null` et le journal des réglages est
+vide : le moteur se comporte exactement comme avant. C'est le résultat attendu.
+
+---
+
+---
+
+## ADR-086 — L'atomicité tient au schéma, pas à la consigne ; le référentiel se détecte seul 🔬
+
+**Date.** 18/08/2026, chantier de révision du moteur, lot 5.
+
+**Ce qui était demandé, dans les mots de Maxime.** « Que proposes-tu pour cadrer
+le tuteur afin qu'il génère des compétences atomiques ? Comment va-t-on gérer
+les prérequis, les évolutions […] ? Comment la classification automatique en
+domaines va-t-elle se faire ? »
+
+### Le constat, mesuré
+
+Le protocole `00_SYSTEME_PROTOCOLE_REFERENTIEL.txt` §2 posait déjà les bonnes
+règles depuis le 31/07/2026 — savoir-faire observable, prouvable en 20 à
+60 minutes. **Rien ne les appliquait.** `validerCompetence` ne vérifiait que la
+longueur (10 à 200 caractères), le palier, l'importance et l'homonymie exacte.
+
+Relevé en base sur les 115 compétences du compte :
+
+| Défaut | Compétences |
+| --- | --- |
+| Intitulé de plus de 90 caractères | 47 |
+| Deux verbes d'action coordonnés | 28 |
+| Énumération parenthésée de 3 éléments ou plus | 27 |
+| Verbe non observable en tête (« Comprendre… ») | 3 |
+| **Au moins un des quatre** | **67 (58 %)** |
+
+Par origine : **55 des 67 compétences écrites par le tuteur (82 %)** portent une
+conjonction, pour une longueur moyenne de 95 caractères. Et **aucune des 67**
+ne déclare de prérequis, alors que le tuteur les ordonne déjà du plus
+fondamental au plus avancé — cet ordre est jeté à l'enregistrement.
+
+Le cas qui résume tout : LOG-01, 192 caractères, trois verbes, cinq objets — et
+la compétence la **mieux mesurée** du système, avec cinq preuves. Son « niveau 3 »
+moyenne cinq savoir-faire distincts.
+
+`INTITULE_MAX = 200` était le garde-fou d'atomicité. Son message d'erreur disait
+déjà « la compétence est sans doute à découper ». Il était calibré **deux fois
+au-dessus** de la moyenne observée : il ne se déclenchait jamais.
+
+### Ce qui est décidé — le prompt demande, le schéma impose
+
+Une consigne en prose est respectée « la plupart du temps ». Deux moitiés la
+remplacent, et aucune ne se contourne :
+
+1. **Le schéma d'outil rend l'intitulé structurellement atomique.**
+   `proposer_referentiel` n'accepte plus de phrase libre mais trois champs :
+   `verbeAction` (`enum` fermé de 48 verbes observables), `objet` (50 caractères),
+   `precision` (24, facultatif). **C'est l'application qui assemble la phrase.**
+   Un modèle ne peut pas écrire trois verbes dans un champ qui n'en accepte
+   qu'un — même mécanique que les codes, qu'il désigne sans jamais les frapper
+   (ADR-026, ADR-031, ADR-043).
+
+2. **`validerCompetence` gagne quatre refus**, sans IA et testés : longueur,
+   deux verbes coordonnés, énumération parenthésée, verbe non observable.
+
+**Les deux bornes sont dérivées l'une de l'autre, pas choisies.** Un défaut réel
+l'a imposé : avec des bornes posées à la main (objet 60, précision 40), le
+schéma autorisait un intitulé de 96 caractères que le validateur refusait — le
+tuteur pouvait remplir des champs valides et se faire rejeter, donc boucler sans
+jamais produire de branche acceptable. `OBJET_MAX` se calcule désormais depuis
+`INTITULE_MAX_ATOMIQUE` moins le verbe le plus long, et un test tient l'accord au
+pire cas.
+
+### Ce que le durcissement NE fait pas
+
+**Il ne s'applique qu'à un intitulé nouveau ou changé.** 67 compétences
+existantes échouent à ces règles : les valider à chaque écriture gèlerait ces
+67 — on ne pourrait plus régler l'importance ni le palier sans d'abord réécrire
+l'intitulé. Un durcissement qui bloque la correction du passé empêche exactement
+ce qu'il cherche à obtenir. Le passé se corrige par la scission (ADR-087), jamais
+par un refus d'écrire. Même esprit qu'ADR-033, qui n'a pas retouché les 29
+preuves antérieures.
+
+**Une compétence écartée ne fait pas échouer la branche.** La conversion drope la
+ligne fautive et laisse passer les autres. Sans cela, une seule proposition mal
+formée aurait tué toute la branche — avec 52 % d'échec avant durcissement,
+l'amorçage d'un référentiel serait devenu impraticable.
+
+### La détection automatique
+
+`lib/engine/candidats-referentiel.ts` prépare quatre familles de candidats sans
+qu'on les demande. Il **n'écrit rien** : l'écriture reste un clic, par les
+commandes existantes (ADR-082), et passe par `referentiel_changes`.
+
+| Détecteur | Signal | Sur le référentiel réel |
+| --- | --- | --- |
+| Arête manquante | co-mobilisation ≥ 2 **ET** ordre observable | **0** |
+| Compétence à scinder | dimensions divergentes par famille (ADR-083), ou toutes tentatives > 60 min | 0 |
+| Compétence dormante | ni preuve, ni exercice, ni arête | **55 sur 92 actives** |
+| Compétence mal rangée | toutes ses preuves viennent d'un autre domaine | 0 |
+
+**Zéro arête, et c'est le comportement voulu.** Deux paires sont co-mobilisées
+(DEV-03/DEV-04 cinq fois, SYSC-01/SYSC-02 deux fois) et aucune n'a d'ordre
+observable : ni preuve réussie antérieure, ni preuve du tout. Le détecteur se
+tait plutôt que d'orienter au hasard — même règle qu'ADR-056, aucune arête n'est
+fabriquée. La similarité de vocabulaire ne décide jamais seule ; elle renforce
+une paire déjà co-mobilisée.
+
+**55 dormantes**, concentrées exactement où le déséquilibre se lit :
+`developpement-de-produit-web` (12) et les cinq domaines « LLM » (29 à eux
+seuls). C'est le contrepoids direct au 92 actives / 28 mesurées.
+
+**Zéro mal rangée** : le garde-fou exige que *toutes* les preuves viennent d'un
+autre domaine, une simple majorité reflétant le stock d'exercices disponible
+plutôt qu'un mauvais rangement. Aucun faux positif.
+
+### Test de réfutation
+
+Si, après usage, le lot de dormantes est systématiquement ignoré — parce qu'une
+compétence sans preuve est une intention légitime et non une case vide — alors
+le détecteur mesure une ambition et non un défaut, et il doit être retiré plutôt
+qu'affiné. À surveiller : la part de propositions de dormance effectivement
+archivées sur les trois premiers lots.
+
+Si les arêtes restent à zéro après cinquante preuves de plus, c'est que l'ordre
+d'apprentissage ne s'observe pas dans les données de ce produit, et la seule
+source viable reste le tuteur (ADR-082) plus la récupération de l'ordre
+intra-branche.
+
+### Le durcissement complet, et sa contrepartie
+
+Le 18/08/2026, sur décision explicite de Maxime — « je m'en fous que ça gèle les
+compétences existantes ; si elles doivent toutes être reformulées car elles ne
+sont pas adéquates, ainsi soit-il » —, l'exemption sur les intitulés inchangés a
+été **retirée**. L'atomicité s'applique à toute validation.
+
+La portée du gel dépasse ce qu'on croit au premier regard : `relierCompetences`
+passe par `modifierCompetence`, donc par `validerCompetence`. **Déclarer un
+prérequis sur une compétence non atomique échoue** tant qu'elle n'est pas
+réécrite. C'est cohérent — une arête vers un intitulé qui recouvre cinq
+savoir-faire ne décrit aucun ordre d'apprentissage — mais cela rend la
+reformulation bloquante pour le reste.
+
+D'où `detecterReformulations`, cinquième détecteur : la liste des 67 gelées,
+chacune avec les règles enfreintes, les sans-preuve d'abord (elles se corrigent
+sans rien coûter). Sans elle, le gel se découvrirait écran par écran.
+
+### Une source d'arêtes écartée, contre ce que ce document disait
+
+Une version antérieure de cet ADR annonçait la « récupération de l'ordre
+intra-branche » comme la source d'arêtes la plus riche disponible. **C'est
+faux, et la correction vaut d'être écrite.**
+
+L'ordre n'est pas jeté : `competences.ordre` le conserve, et il est distinct
+dans chaque domaine du compte. Mais en dériver des arêtes — relier les
+compétences consécutives — est **exactement** ce qu'ADR-056 a retiré du graphe :
+« un backbone séquentiel par domaine — les compétences triées par code et
+reliées en chaîne dès qu'il n'y avait pas assez de prérequis déclarés ». Le
+protocole §3 est explicite : l'ordre est une progression du plus fondamental au
+plus avancé, pas une chaîne de dépendances.
+
+Les sources d'arêtes viables restent donc deux : la co-mobilisation avec ordre
+observable (rend zéro aujourd'hui), et la proposition du tuteur (ADR-082).
+
+### Le plafond de domaines — ADR-088, tenu par le schéma
+
+`outilReferentielComplet(referentiel)` pose `maxItems: 2` sur les branches dès
+que le compte a un domaine vivant, et le convertisseur revérifie le plafond en
+le relisant depuis le schéma **réellement armé** — un fournisseur qui ignore
+`maxItems` ne passe pas. Sur un compte vide le plafond ne s'applique pas :
+l'amorçage a besoin de poser la structure d'un coup (protocole §6).
+
+Le prompt dit la même chose que le schéma, en nommant la distinction qui
+manquait : un domaine porte un préfixe de code et se gouverne, un thème regroupe
+librement en traversant les domaines.
+
+### La surface
+
+Cinquième vue de l'Atelier, « Entretien », à côté de Domaines, Thèmes,
+Ressources et Graphe. Elle ne recouvre aucune des quatre : les autres montrent
+le référentiel, celle-ci dit ce que les faits lui reprochent.
+
+Une seule écriture y est exposée — la déclaration d'une arête, seul geste non
+destructif et réversible en un clic (`delierCompetences` existe déjà). Les
+quatre autres familles passent par les écrans qui portent déjà leur validation :
+elles engagent un changement de sens, une succession, un archivage ou une
+gouvernance de domaine. Leur donner un bouton ici doublerait la règle au lieu de
+la réutiliser.
+
+---
+
+---
+
+## ADR-087 — Une compétence a plusieurs successeurs ; la scission est sèche 🔬
+
+**Date.** 18/08/2026, lot 5.
+
+**Le constat.** `competences.remplace_par` est mono-valué : il dit « LOG-01
+devient LOG-20 », jamais « LOG-01 devient LOG-20, 21, 22, 23 » — ce que produit
+une atomisation. La colonne compte **zéro ligne** : le mécanisme d'évolution du
+référentiel n'a jamais servi.
+
+**Ce qui est décidé.** `competence_succession`, append-only, 1 → N, avec motif
+obligatoire. `remplace_par` reste la succession 1 → 1 du changement de sens
+(ADR-027). Deux vraies clés étrangères, contrairement au journal du moteur : une
+succession ne doit pas survivre à la disparition de ses deux bouts, et une
+compétence qui en porte porte des preuves, donc s'archive et ne se supprime pas.
+
+**L'écriture passe par une commande du référentiel** (`app.referentiel_command`,
+ADR-065) : sans ce drapeau, une scission pourrait s'écrire hors transaction,
+sans entrée au journal `referentiel_changes`.
+
+**La conséquence, tranchée par Maxime.** Scission **sèche** : les preuves de
+l'ancienne ne bougent pas, les nouvelles démarrent à zéro preuve, niveau `null`.
+Scinder LOG-01 fait donc reculer le tableau de bord — la compétence la mieux
+mesurée du compte disparaît des chiffres. Ce n'est pas une régression, c'est P2
+appliqué, et **l'écran doit annoncer le recul avant de l'appliquer**, sans quoi
+la personne croira à un bug.
+
+La réattribution assistée (proposer, preuve par preuve, laquelle des nouvelles
+l'exercice source démontrait) a été écartée : un écran et une décision par
+preuve pour un gain qui se rattrape en quelques séances.
+
+**Test de réfutation.** Si, après la première scission réelle, le recul du
+tableau de bord décourage d'en faire d'autres, alors la scission sèche est
+inapplicable en pratique et la réattribution assistée redevient nécessaire. À
+surveiller : le nombre de scissions menées dans les deux mois suivant la
+première.
+
+**Ce qui reste.** La commande de scission elle-même n'est pas écrite : la table
+et sa règle existent, l'écran qui les emploie non.
+
+---
+
+---
+
+## ADR-088 — Un domaine n'est pas un thème 🔬
+
+**Date.** 18/08/2026, lot 5.
+
+**Le constat, mesuré.** Un seul sujet — « les LLM » — a produit **cinq domaines
+et 40 compétences, aucune mesurée**, soit 43 % du référentiel actif, pendant que
+deux autres domaines restaient vides. Le prompt demandait « trois à six branches
+pour un sujet large » ; le tuteur a lu « branche » comme « domaine ».
+
+**La distinction qui manquait.** Le projet a les deux objets depuis ADR-053 : un
+domaine porte un préfixe de code et la gouvernance (ADR-065) ; un thème regroupe
+librement en traversant les domaines. « LLM » aurait dû être **un domaine et
+cinq thèmes**.
+
+**Ce qui est décidé.** Le plafond vit dans le **schéma d'outil**, pas dans la
+consigne : `maxItems: 2` sur les branches dès que le compte a un domaine vivant.
+Une phrase se contourne, `maxItems` non. Le convertisseur revérifie le plafond
+en le relisant depuis le schéma réellement armé — deux listes pourraient
+diverger, une seule ne le peut pas (même raisonnement que les codes de
+`proposer_revision`).
+
+Deux et non un : un sujet réellement double existe. Sur un compte **vide** le
+plafond ne s'applique pas — l'amorçage a besoin de poser la structure d'un coup
+(protocole §6).
+
+Le rattachement secondaire (`competence_domaines`, ADR-081, **0 ligne**) reste
+la soupape : une compétence servant deux domaines s'y rattache sans être
+dupliquée.
+
+**Test de réfutation.** Si les comptes butent sur le plafond en ayant
+légitimement besoin de trois domaines, il doit monter. À surveiller : le nombre
+de branches écartées par le plafond sur les dix prochaines propositions de
+référentiel. S'il est nul, le plafond ne sert à rien ; s'il dépasse la moitié,
+il est trop bas.
+
+---
+
+---
+
 ## Comment modifier ce registre
 
 1. Une décision ✅ ne se retire pas : elle passe en 🔄 **Remplacée**, avec le

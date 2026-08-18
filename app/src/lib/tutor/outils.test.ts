@@ -28,6 +28,9 @@ import {
   outilsTuteur,
   validerAppelOutil,
   validerAppelOutilJson,
+  outilReferentielComplet,
+  BRANCHES_MAX_COMPTE_ETABLI,
+  OUTIL_REFERENTIEL_COMPLET,
 } from "./outils";
 import type { Referentiel } from "@/lib/domain/types";
 
@@ -53,7 +56,7 @@ const BRANCHE_ENTIERE = {
   prefixe: "PHI",
   description: "Reconstruction et évaluation d'arguments.",
   competences: [
-    { palier: "fondamentaux", importance: 0.8, intitule: "Sait reconstruire un argument" },
+    { palier: "fondamentaux", importance: 0.8, verbeAction: "structurer", objet: "un argument moral" },
   ],
   justification: "L'utilisateur a dit vouloir travailler ce sujet.",
 };
@@ -157,8 +160,10 @@ describe("validerAppelOutil — ce qui passe", () => {
     const recu = validerAppelOutil(OUTIL_REFERENTIEL, BRANCHE_ENTIERE);
     if (recu?.genre !== "referentiel") throw new Error("genre inattendu");
     expect(recu.branche.prefixe).toBe("PHI");
+    // L'entrée porte trois champs, la sortie porte la phrase : c'est
+    // l'APPLICATION qui assemble l'intitulé, jamais le tuteur (ADR-086).
     expect(recu.branche.competences).toEqual([
-      { palier: "fondamentaux", importance: "0.8", intitule: "Sait reconstruire un argument" },
+      { palier: "fondamentaux", importance: "0.8", intitule: "Structurer un argument moral" },
     ]);
   });
 
@@ -193,13 +198,61 @@ describe("validerAppelOutil — ce qui passe", () => {
 /* Les schémas eux-mêmes                                               */
 /* ------------------------------------------------------------------ */
 
+describe("outilReferentielComplet — le plafond de domaines (ADR-088)", () => {
+  it("plafonne les branches quand le compte a déjà des domaines", () => {
+    // Le plafond vit dans le SCHÉMA, pas dans la consigne : `maxItems` ne se
+    // contourne pas. Mesuré le 18/08/2026 : un seul sujet avait produit cinq
+    // domaines et 40 compétences, aucune mesurée.
+    const outil = outilReferentielComplet(REFERENTIEL);
+    expect(outil.schema.properties?.branches.maxItems).toBe(BRANCHES_MAX_COMPTE_ETABLI);
+    expect(outil.description).toContain("Un domaine n'est PAS un thème");
+  });
+
+  it("ne plafonne pas l'amorçage d'un compte vide", () => {
+    // Un compte neuf n'a rien à surcharger, et poser la structure d'un coup
+    // est le geste normal (protocole §6).
+    const outil = outilReferentielComplet({ ...REFERENTIEL, domaines: [] });
+    expect(outil.schema.properties?.branches.maxItems).toBeUndefined();
+  });
+
+  it("écarte les branches au-delà du plafond au lieu de les accepter", () => {
+    const outil = outilReferentielComplet(REFERENTIEL);
+    const branche = (domaine: string) => ({
+      domaine,
+      prefixe: "XXX",
+      description: "d",
+      competences: [
+        { palier: "fondamentaux", importance: 0.5, verbeAction: "analyser", objet: "un flux" },
+      ],
+      justification: "j",
+    });
+    const recu = validerAppelOutil(
+      OUTIL_REFERENTIEL_COMPLET,
+      { resume: "r", branches: [branche("A"), branche("B"), branche("C"), branche("D")] },
+      [outil],
+    );
+    if (recu?.genre !== "referentiel-complet") throw new Error("genre inattendu");
+    expect(recu.branches).toHaveLength(BRANCHES_MAX_COMPTE_ETABLI);
+    // Annoncé, jamais tu (ADR-036).
+    expect(recu.ecartees).toBe(2);
+  });
+});
+
 describe("outilsTuteur", () => {
   it("n'expose AUCUN champ de code de compétence dans le schéma de branche", () => {
     // Garde-fou d'ADR-026 rendu structurel : un code écrit par le tuteur
     // entrerait en collision, et les preuves suivraient la mauvaise compétence.
     const branche = outilsTuteur(REFERENTIEL).find((o) => o.nom === OUTIL_REFERENTIEL);
     const competence = branche?.schema.properties?.competences.items?.properties ?? {};
-    expect(Object.keys(competence).sort()).toEqual(["importance", "intitule", "palier"]);
+    // ADR-086 : l'intitulé n'est plus une phrase libre mais trois champs,
+    // dont un `enum` fermé de verbes. Aucun champ de code, comme avant.
+    expect(Object.keys(competence).sort()).toEqual([
+      "importance",
+      "objet",
+      "palier",
+      "precision",
+      "verbeAction",
+    ]);
     expect(JSON.stringify(branche?.schema)).not.toContain('"code"');
   });
 
@@ -207,7 +260,7 @@ describe("outilsTuteur", () => {
     const recu = validerAppelOutil(OUTIL_REFERENTIEL, {
       ...BRANCHE_ENTIERE,
       competences: [
-        { palier: "avance", importance: 0.5, intitule: "Sait critiquer", code: "PHI-99" },
+        { palier: "avance", importance: 0.5, verbeAction: "argumenter", objet: "une critique", code: "PHI-99" },
       ],
     });
     if (recu?.genre !== "referentiel") throw new Error("genre inattendu");

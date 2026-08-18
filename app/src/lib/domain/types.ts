@@ -233,6 +233,31 @@ export interface Referentiel {
 }
 
 /**
+ * Famille de situation d'une preuve — ADR-083.
+ *
+ * Ce que le moteur compte quand il compte des « contextes distincts ». Deux
+ * preuves de familles différentes attestent d'un transfert (§11) ; deux preuves
+ * de la même famille, non.
+ *
+ * Le type vit dans le domaine et non dans `lib/engine/contexte-situation.ts`
+ * qui le produit : `SkillEvidence` le porte, et le domaine n'importe jamais le
+ * moteur.
+ */
+export interface FamilleSituation {
+  /** Clé de comparaison. C'est elle, et elle seule, qui départage. */
+  cle: string;
+  /** Libellé lisible — affichage et explications, jamais une comparaison. */
+  libelle: string;
+  /**
+   * `false` quand la famille est un repli sur `SkillEvidence.contexte`, faute
+   * d'exercice source résoluble. Le moteur le porte en réserve : une famille
+   * repliée vaut ce que vaut un libellé libre, c'est-à-dire presque un
+   * identifiant.
+   */
+  derivee: boolean;
+}
+
+/**
  * Preuve directe observée pour une compétence — l'unité de base du système.
  * C'est la SEULE façon dont un niveau peut évoluer.
  */
@@ -256,10 +281,30 @@ export interface SkillEvidence {
   qualite: QualitePreuve;
   resultat: "reussi" | "partiel" | "echec";
   /**
-   * Étiquette de contexte. Deux preuves de contextes différents attestent
-   * d'un transfert (§11) ; deux preuves du même contexte, non.
+   * Étiquette de contexte, écrite au moment de la preuve — le titre de
+   * l'exercice pour une preuve d'exercice.
+   *
+   * ⚠️ Ce n'est PAS le discriminant du transfert depuis ADR-083. Mesuré le
+   * 18/08/2026 : 42 valeurs distinctes pour 52 preuves. Un titre est presque
+   * unique, si bien que « deux contextes distincts » — la porte du niveau 4 et
+   * de la confiance moyenne — était franchi dès la deuxième preuve. Le
+   * discriminant est `familleSituation` ; ce champ reste le libellé lisible.
    */
   contexte: string;
+  /**
+   * Famille de situation — le discriminant réel du transfert (ADR-083).
+   *
+   * **Dérivée, jamais persistée** (P1) : `lib/engine/contexte-situation.ts` la
+   * calcule à la lecture depuis l'exercice source. Elle est attachée en un
+   * seul point, `chargerContexte`, pour la même raison que `tableDureesEstimees`
+   * lit les exercices bruts : une preuve peut venir d'un exercice archivé,
+   * sorti du périmètre, ou livré avec le logiciel (`lib/seed/exercises.ts`).
+   *
+   * Absente = non résolue en amont. Le moteur retombe alors sur `contexte` et
+   * l'inscrit en réserve — il ne fabrique pas une famille qu'aucune donnée ne
+   * dit (précédent ADR-033).
+   */
+  familleSituation?: FamilleSituation;
   /** Dimensions effectivement démontrées, chacune dans [0,1]. */
   dimensions: Partial<Record<Dimension, number>>;
   /** Compétences mobilisées conjointement — condition du niveau 5. */

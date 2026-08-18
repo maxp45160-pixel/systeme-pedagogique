@@ -43,6 +43,7 @@ import type {
 import { AUTONOMIE, LIBELLES_DIMENSIONS, NIVEAUX } from "@/lib/domain/types";
 import type { Calibration } from "./calibration";
 import { computeSkillState } from "./skill-state";
+import { cleContexte } from "./contexte-situation";
 
 /** Rang de confiance, pour dire si elle a monté ou baissé. */
 const RANG_CONFIANCE: Record<Confiance, number> = {
@@ -195,7 +196,11 @@ export function impactTentative(entrees: EntreesImpact): ImpactTravail | null {
     if (!skill) continue;
 
     const { avant, apres, total } = avantApres(skill, preuve, preuves, now);
-    const nouveauContexte = !avant.contextesTestes.includes(preuve.contexte);
+    // Une FAMILLE de situation encore jamais vue, pas un titre inédit
+    // (ADR-083) : `contextesTestes` porte des clés de famille depuis le
+    // 18/08/2026, et comparer un libellé brut aurait rendu ce drapeau
+    // systématiquement vrai.
+    const nouveauContexte = !avant.contextesTestes.includes(cleContexte(preuve));
 
     renforcees.push({
       code: skill.code,

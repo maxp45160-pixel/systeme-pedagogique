@@ -1259,3 +1259,324 @@ $$;
 
 REVOKE ALL ON FUNCTION public.admin_comptes() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.admin_comptes() TO authenticated;
+
+
+-- --------------------------------------------------------------------
+-- 10. Journal du moteur — décisions et prédictions (ADR-084)
+--
+-- Deux tables append-only, HORS de `Collections` et hors de `charger_tout` :
+-- le chemin chaud des pages n'a aucune raison de les lire. Seule
+-- l'auto-évaluation le fait, dans `/admin`.
+--
+-- Posées le 18/08/2026 par `migrations/20260818120000_journal_moteur.sql`,
+-- reprise ici à l'identique — ce fichier reste le schéma de référence.
+-- --------------------------------------------------------------------
+
+-- ---------------------------------------------------------------------
+-- 10.1. Le refus de mutation — deux verrous plutôt qu'un
+--
+-- Aucune politique UPDATE/DELETE n'est posée plus bas, ce qui suffirait pour
+-- un client `authenticated`. Le trigger existe pour ce que RLS ne couvre
+-- pas : une connexion `service_role`, un script de maintenance, une console.
+-- Un journal qui se réécrit ne vaut rien — c'est le même raisonnement que
+-- pour `referentiel_changes` (ADR-065), dont ce déclencheur est le calque.
+-- ---------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.refuser_mutation_journal_moteur()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = ''
+AS $fn$
+BEGIN
+  -- L'immutabilité vaut pendant la vie du compte. La suppression explicite du
+  -- compte doit néanmoins pouvoir cascader ses données personnelles.
+  IF TG_OP = 'DELETE' AND NOT EXISTS (
+    SELECT 1 FROM public.profiles WHERE id = OLD.user_id
+  ) THEN
+    RETURN OLD;
+  END IF;
+  RAISE EXCEPTION 'Le journal du moteur est append-only';
+END;
+$fn$;
+
+-- ---------------------------------------------------------------------
+-- 10.2. Les décisions
+--
+-- Une ligne par action RÉELLEMENT présentée. `request_id` porte
+-- l'idempotence : la clé applicative est (compte, cible, politique, jour),
+-- si bien qu'un rafraîchissement de page ne crée pas de ligne et qu'un
+-- compte actif produit quelques lignes par jour, pas quelques milliers.
+--
+-- Pas de colonne `status`. L'analyse qui a lancé ce chantier confondait sous
+-- ce mot trois choses distinctes — la livraison, la réponse de la personne,
+-- l'exécution. Ce qu'il advient d'une décision se LIT dans les faits qui la
+-- suivent : une tentative sur l'exercice ciblé, un refus dans
+-- `refus_recommandations`, ou rien. Une colonne mutable aurait de toute façon
+-- contredit l'append-only.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.moteur_decisions (
+  user_id           UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  id                UUID NOT NULL DEFAULT gen_random_uuid(),
+  request_id        TEXT NOT NULL,
+  prise_le          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  type              TEXT NOT NULL CHECK (type IN (
+                      'recommandation', 'composition-seance', 'revision-due', 'calibration')),
+  politique_version TEXT NOT NULL CHECK (length(btrim(politique_version)) > 0),
+  -- Volontairement SANS clé étrangère vers `competences`.
+  --
+  -- Une décision est un fait historique : elle doit rester lisible quand la
+  -- compétence visée a été supprimée depuis (ADR-027 l'autorise tant qu'aucune
+  -- preuve n'existe). Même précédent que `themes.codes` et
+  -- `competences.prerequis`, qui n'en portent pas pour cette raison exacte.
+  cible_code        TEXT,
+  -- Exercice ou séance visés. NULL = la décision portait sur la compétence
+  -- seule, cas normal quand aucun exercice n'existe pour elle.
+  cible_ref         TEXT,
+  -- `Facteur[]` tel que `recommend.ts` le produit — libellé, contribution,
+  -- phrase. C'est le « Pourquoi ? » de P3, figé au moment où il a été montré.
+  facteurs          JSONB NOT NULL DEFAULT '[]'::jsonb,
+  -- Empreinte de l'état lu : niveau, confiance, robustesse, nombre de preuves,
+  -- jours depuis la dernière. Pas l'état entier — ce qu'il faut pour rejouer
+  -- la décision et comprendre ce qu'elle voyait.
+  etat_entree       JSONB NOT NULL DEFAULT '{}'::jsonb,
+  PRIMARY KEY (user_id, id),
+  UNIQUE (user_id, request_id)
+);
+
+-- ---------------------------------------------------------------------
+-- 10.3. Les prédictions
+--
+-- Aucune colonne de résolution, aucune table de résultats : la résolution est
+-- DÉRIVÉE en joignant la prédiction au fait qui la tranche.
+--
+--   reussite  → 1re tentative terminée sur `cible_ref` après `emise_le`
+--   duree     → la même tentative, colonne `duree_min` (42 lignes existent déjà)
+--   retention → 1re preuve sur `cible_code` après `horizon_le`
+--
+-- C'est la différence de fond avec le modèle qui a inspiré ce chantier :
+-- stocker les résultats aurait dupliqué `attempts` et `evidence`, et créé une
+-- seconde vérité à synchroniser. Une prédiction sans fait résolvant reste EN
+-- ATTENTE, jamais comptée comme un échec (P2).
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.moteur_predictions (
+  user_id        UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  id             UUID NOT NULL DEFAULT gen_random_uuid(),
+  request_id     TEXT NOT NULL,
+  emise_le       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  type           TEXT NOT NULL CHECK (type IN ('reussite', 'duree', 'retention')),
+  -- Sans clé étrangère, même raison que `moteur_decisions.cible_code`.
+  cible_code     TEXT NOT NULL,
+  -- L'exercice sur lequel porte la prédiction. NULL pour 'retention', qui
+  -- porte sur la compétence et non sur un support.
+  cible_ref      TEXT,
+  -- p(réussite) et p(niveau tenu) dans [0,1] ; minutes attendues pour 'duree'.
+  -- La borne haute n'est pas contrainte ici : une durée n'a pas de maximum, et
+  -- un CHECK conditionnel au type serait un garde-fou déplacé — c'est
+  -- `prediction.ts` qui construit ces valeurs, et lui seul.
+  valeur         DOUBLE PRECISION NOT NULL CHECK (valeur >= 0),
+  -- La date à laquelle la prédiction devient vérifiable. Renseignée pour
+  -- 'retention' (la date due), absente pour les deux autres, qui se résolvent
+  -- à la première tentative.
+  horizon_le     TIMESTAMPTZ,
+  modele_version TEXT NOT NULL CHECK (length(btrim(modele_version)) > 0),
+  -- Les valeurs lues qui ont produit la prédiction (P3 — aucune valeur sans sa
+  -- source). Sans elles, une prédiction fausse ne s'explique pas.
+  entrees        JSONB NOT NULL DEFAULT '{}'::jsonb,
+  decision_id    UUID,
+  PRIMARY KEY (user_id, id),
+  UNIQUE (user_id, request_id),
+  -- Une décision n'est jamais supprimée : la clé étrangère est sûre. NULL est
+  -- admis (MATCH SIMPLE) pour une prédiction émise hors décision.
+  FOREIGN KEY (user_id, decision_id)
+    REFERENCES public.moteur_decisions(user_id, id)
+);
+
+-- ---------------------------------------------------------------------
+-- 10.4. Append-only
+-- ---------------------------------------------------------------------
+DROP TRIGGER IF EXISTS moteur_decisions_append_only ON public.moteur_decisions;
+CREATE TRIGGER moteur_decisions_append_only
+  BEFORE UPDATE OR DELETE ON public.moteur_decisions
+  FOR EACH ROW EXECUTE FUNCTION public.refuser_mutation_journal_moteur();
+
+DROP TRIGGER IF EXISTS moteur_predictions_append_only ON public.moteur_predictions;
+CREATE TRIGGER moteur_predictions_append_only
+  BEFORE UPDATE OR DELETE ON public.moteur_predictions
+  FOR EACH ROW EXECUTE FUNCTION public.refuser_mutation_journal_moteur();
+
+-- ---------------------------------------------------------------------
+-- 10.5. RLS — isolation par compte ET compte actif (ADR-074)
+--
+-- `compte_actif()` en plus de l'isolation : sans elle, un compte suspendu lit
+-- à nouveau. C'est la règle que CLAUDE.md impose à toute table métier, et
+-- l'état réel des politiques en service la respecte partout.
+--
+-- Aucune politique UPDATE ni DELETE : leur absence les interdit.
+-- ---------------------------------------------------------------------
+ALTER TABLE public.moteur_decisions   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.moteur_predictions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "moteur_decisions_lecture_compte" ON public.moteur_decisions;
+CREATE POLICY "moteur_decisions_lecture_compte" ON public.moteur_decisions
+  FOR SELECT TO authenticated
+  USING ((select auth.uid()) = user_id AND public.compte_actif());
+
+DROP POLICY IF EXISTS "moteur_decisions_ecriture_compte" ON public.moteur_decisions;
+CREATE POLICY "moteur_decisions_ecriture_compte" ON public.moteur_decisions
+  FOR INSERT TO authenticated
+  WITH CHECK ((select auth.uid()) = user_id AND public.compte_actif());
+
+DROP POLICY IF EXISTS "moteur_predictions_lecture_compte" ON public.moteur_predictions;
+CREATE POLICY "moteur_predictions_lecture_compte" ON public.moteur_predictions
+  FOR SELECT TO authenticated
+  USING ((select auth.uid()) = user_id AND public.compte_actif());
+
+DROP POLICY IF EXISTS "moteur_predictions_ecriture_compte" ON public.moteur_predictions;
+CREATE POLICY "moteur_predictions_ecriture_compte" ON public.moteur_predictions
+  FOR INSERT TO authenticated
+  WITH CHECK ((select auth.uid()) = user_id AND public.compte_actif());
+
+REVOKE ALL ON TABLE public.moteur_decisions, public.moteur_predictions FROM anon;
+GRANT SELECT, INSERT ON TABLE public.moteur_decisions, public.moteur_predictions TO authenticated;
+REVOKE UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
+  ON TABLE public.moteur_decisions, public.moteur_predictions FROM authenticated;
+
+-- ---------------------------------------------------------------------
+-- 10.6. Index — les lectures réelles
+--
+-- L'auto-évaluation balaie les prédictions d'un compte par type et par date ;
+-- la résolution cherche celles qui portent sur un exercice donné.
+-- ---------------------------------------------------------------------
+CREATE INDEX IF NOT EXISTS moteur_decisions_user_prise_idx
+  ON public.moteur_decisions (user_id, prise_le DESC);
+CREATE INDEX IF NOT EXISTS moteur_predictions_user_type_emise_idx
+  ON public.moteur_predictions (user_id, type, emise_le DESC);
+CREATE INDEX IF NOT EXISTS moteur_predictions_user_cible_idx
+  ON public.moteur_predictions (user_id, cible_ref, emise_le);
+
+
+-- --------------------------------------------------------------------
+-- 11. Journal des reglages du moteur (ADR-085)
+--
+-- La contrepartie de l'auto-correction : chaque ligne porte LA MESURE qui a
+-- justifie le changement, et son effectif. Le rejeu depuis les valeurs par
+-- defaut du code reconstitue n'importe quel etat passe.
+--
+-- Posee le 18/08/2026 par `migrations/20260818140000_journal_reglages.sql`,
+-- reprise ici a l'identique.
+-- --------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS public.moteur_reglages (
+  user_id         UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  id              UUID NOT NULL DEFAULT gen_random_uuid(),
+  applique_le     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  -- Le nom du paramètre, pas sa valeur par défaut : celle-ci vit dans le code
+  -- (`lib/engine/reglages.ts` la relit), et un journal qui la recopierait
+  -- divergerait au premier changement de version.
+  parametre       TEXT NOT NULL CHECK (length(btrim(parametre)) > 0),
+  valeur_avant    DOUBLE PRECISION NOT NULL,
+  valeur_apres    DOUBLE PRECISION NOT NULL,
+  -- La mesure qui justifie. Sans elle, la ligne serait un changement arbitraire
+  -- consigné — c'est-à-dire exactement ce que l'invariant interdit.
+  metrique        TEXT NOT NULL CHECK (length(btrim(metrique)) > 0),
+  n               INTEGER NOT NULL CHECK (n >= 0),
+  valeur_metrique DOUBLE PRECISION NOT NULL,
+  motif           TEXT NOT NULL CHECK (length(btrim(motif)) > 0),
+  PRIMARY KEY (user_id, id),
+  -- Un pas doit changer quelque chose ; une ligne sans effet encombrerait le
+  -- rejeu sans rien reconstituer.
+  CONSTRAINT moteur_reglages_pas_effectif CHECK (valeur_avant <> valeur_apres)
+);
+
+DROP TRIGGER IF EXISTS moteur_reglages_append_only ON public.moteur_reglages;
+CREATE TRIGGER moteur_reglages_append_only
+  BEFORE UPDATE OR DELETE ON public.moteur_reglages
+  FOR EACH ROW EXECUTE FUNCTION public.refuser_mutation_journal_moteur();
+
+ALTER TABLE public.moteur_reglages ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "moteur_reglages_lecture_compte" ON public.moteur_reglages;
+CREATE POLICY "moteur_reglages_lecture_compte" ON public.moteur_reglages
+  FOR SELECT TO authenticated
+  USING ((select auth.uid()) = user_id AND public.compte_actif());
+
+DROP POLICY IF EXISTS "moteur_reglages_ecriture_compte" ON public.moteur_reglages;
+CREATE POLICY "moteur_reglages_ecriture_compte" ON public.moteur_reglages
+  FOR INSERT TO authenticated
+  WITH CHECK ((select auth.uid()) = user_id AND public.compte_actif());
+
+REVOKE ALL ON TABLE public.moteur_reglages FROM anon;
+GRANT SELECT, INSERT ON TABLE public.moteur_reglages TO authenticated;
+REVOKE UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
+  ON TABLE public.moteur_reglages FROM authenticated;
+
+-- Le rejeu lit tout le journal d'un compte, dans l'ordre.
+CREATE INDEX IF NOT EXISTS moteur_reglages_user_applique_idx
+  ON public.moteur_reglages (user_id, applique_le);
+
+
+-- --------------------------------------------------------------------
+-- 12. Succession d'une competence, un vers plusieurs (ADR-087)
+--
+-- `remplace_par` est mono-value et compte zero ligne : il ne peut pas dire
+-- qu'une competence en devient quatre, ce que produit une atomisation.
+-- Une preuve ne bouge JAMAIS : la scission est seche.
+--
+-- Posee le 18/08/2026 par `migrations/20260818160000_competence_succession.sql`.
+-- --------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS public.competence_succession (
+  user_id      UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  ancien_code  TEXT NOT NULL,
+  nouveau_code TEXT NOT NULL,
+  -- Pourquoi la scission. Sans motif, relire une succession ancienne
+  -- demanderait de deviner ce qui l'avait décidée (P3).
+  motif        TEXT NOT NULL CHECK (length(btrim(motif)) > 0),
+  cree_le      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, ancien_code, nouveau_code),
+  -- Les deux clés étrangères sont réelles : contrairement à une décision du
+  -- moteur, une succession ne doit pas survivre à la disparition de ses deux
+  -- bouts. Une compétence qui porte une succession porte des preuves, donc
+  -- s'archive et ne se supprime pas (ADR-027) — la contrainte est tenable.
+  FOREIGN KEY (user_id, ancien_code)  REFERENCES public.competences(user_id, code),
+  FOREIGN KEY (user_id, nouveau_code) REFERENCES public.competences(user_id, code),
+  CONSTRAINT competence_succession_distincts CHECK (ancien_code <> nouveau_code)
+);
+
+-- Append-only : une succession est un fait daté, elle ne se réécrit pas.
+-- Réutilise le déclencheur du journal du moteur (ADR-084) — même règle, même
+-- implémentation, y compris la cascade à la suppression du compte.
+DROP TRIGGER IF EXISTS competence_succession_append_only ON public.competence_succession;
+CREATE TRIGGER competence_succession_append_only
+  BEFORE UPDATE OR DELETE ON public.competence_succession
+  FOR EACH ROW EXECUTE FUNCTION public.refuser_mutation_journal_moteur();
+
+ALTER TABLE public.competence_succession ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "succession_lecture_compte" ON public.competence_succession;
+CREATE POLICY "succession_lecture_compte" ON public.competence_succession
+  FOR SELECT TO authenticated
+  USING ((select auth.uid()) = user_id AND public.compte_actif());
+
+-- L'écriture passe par une commande du référentiel, comme tout le reste :
+-- `app.referentiel_command` est le drapeau posé par `executerCommande`
+-- (ADR-065). Sans lui, une scission pourrait s'écrire hors transaction, sans
+-- entrée au journal `referentiel_changes`.
+DROP POLICY IF EXISTS "succession_commande_compte" ON public.competence_succession;
+CREATE POLICY "succession_commande_compte" ON public.competence_succession
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    (select auth.uid()) = user_id
+    AND public.compte_actif()
+    AND (select current_setting('app.referentiel_command', true)) = 'on'
+  );
+
+REVOKE ALL ON TABLE public.competence_succession FROM anon;
+GRANT SELECT, INSERT ON TABLE public.competence_succession TO authenticated;
+REVOKE UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
+  ON TABLE public.competence_succession FROM authenticated;
+
+-- « Qu'est devenue LOG-01 ? » et « d'où vient LOG-20 ? » : les deux sens.
+CREATE INDEX IF NOT EXISTS competence_succession_ancien_idx
+  ON public.competence_succession (user_id, ancien_code);
+CREATE INDEX IF NOT EXISTS competence_succession_nouveau_idx
+  ON public.competence_succession (user_id, nouveau_code);

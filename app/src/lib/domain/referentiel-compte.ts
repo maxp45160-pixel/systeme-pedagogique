@@ -18,6 +18,7 @@
  */
 
 import { ORDRE_PALIERS } from "./types";
+import { motifsNonAtomique } from "./atomicite";
 import type { Domaine, DomaineId, Palier, Referentiel, Skill } from "./types";
 
 /* ------------------------------------------------------------------ */
@@ -403,6 +404,26 @@ export function validerCompetence(
   if (intitule.length > INTITULE_MAX) {
     erreurs.push(`L'intitulé dépasse ${INTITULE_MAX} caractères — la compétence est sans doute à découper.`);
   }
+
+  /*
+   * L'atomicité — ADR-086, durci le 18/08/2026 sur décision explicite.
+   *
+   * La règle s'applique à TOUTE validation, y compris sur un intitulé que
+   * personne ne touche. 67 des 115 compétences du compte échouent : elles sont
+   * donc gelées jusqu'à reformulation, et c'est l'effet voulu — « si elles
+   * doivent toutes être reformulées car elles ne sont pas adéquates, ainsi
+   * soit-il ».
+   *
+   * ⚠️ Le gel a une portée qu'il faut connaître : `relierCompetences` passe par
+   * `modifierCompetence`, donc par ici. Déclarer un prérequis sur une
+   * compétence non atomique échoue tant qu'elle n'est pas réécrite. C'est
+   * cohérent — une arête vers un intitulé qui recouvre cinq savoir-faire ne
+   * décrit aucun ordre d'apprentissage — mais cela rend la reformulation
+   * bloquante pour le reste. D'où `detecterReformulations`
+   * (`lib/engine/candidats-referentiel.ts`), qui rend la liste actionnable
+   * plutôt que de laisser buter écran par écran.
+   */
+  for (const motif of motifsNonAtomique(intitule)) erreurs.push(motif.message);
   if (!PALIERS.includes(candidat.palier)) {
     erreurs.push(`Palier inconnu : « ${candidat.palier} ».`);
   }

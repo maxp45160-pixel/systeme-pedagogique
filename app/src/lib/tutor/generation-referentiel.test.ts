@@ -106,7 +106,7 @@ const BRANCHE_VALIDE = {
   prefixe: "STO",
   description: "Les sources et la dichotomie du contrôle.",
   competences: [
-    { palier: "fondamentaux", importance: 0.8, intitule: "Distinguer ce qui dépend de soi" },
+    { palier: "fondamentaux", importance: 0.8, verbeAction: "identifier", objet: "ce qui dépend de soi" },
   ],
   justification: "Demandé par l'utilisateur.",
 };
@@ -118,7 +118,22 @@ describe("construirePromptReferentiel", () => {
     // que personne ne relit.
     const prompt = construirePromptReferentiel(REFERENTIEL, "le stoïcisme");
     expect(prompt).toContain("COMMENT DÉCOUPER");
-    expect(prompt).toContain("Une branche par grand thème");
+    expect(prompt).toContain("Quatre à huit compétences par branche");
+  });
+
+  it("plafonne les domaines nouveaux quand le compte en a déjà (ADR-088)", () => {
+    // Le défaut mesuré : « les LLM » avaient produit cinq domaines et
+    // 40 compétences, aucune mesurée. Le prompt le dit, le schéma l'impose.
+    const prompt = construirePromptReferentiel(REFERENTIEL, "les LLM");
+    expect(prompt).toContain("domaines nouveaux au maximum");
+    expect(prompt).toContain("Un DOMAINE n'est pas un THÈME");
+  });
+
+  it("ne plafonne pas l'amorçage d'un compte vide", () => {
+    const vide = { ...REFERENTIEL, domaines: [] };
+    const prompt = construirePromptReferentiel(vide, "les LLM");
+    expect(prompt).toContain("Une branche par grand domaine");
+    expect(prompt).not.toContain("domaines nouveaux au maximum");
   });
 
   it("porte les domaines déjà existants pour ne pas les redoubler", () => {
@@ -189,7 +204,7 @@ describe("validerReferentielComplet — écarter n'est pas accepter à moitié",
         {
           ...BRANCHE_VALIDE,
           competences: [
-            { palier: "avance", importance: 0.5, intitule: "Sait méditer", code: "STO-99" },
+            { palier: "avance", importance: 0.5, verbeAction: "décrire", objet: "une pratique méditative", code: "STO-99" },
           ],
         },
       ],

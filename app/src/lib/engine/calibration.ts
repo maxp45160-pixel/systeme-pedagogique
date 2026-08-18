@@ -287,6 +287,16 @@ export function verdictTentative(
     source: "estimee",
     observations: 0,
   },
+  /**
+   * Le seuil effectif de « réussite trop rapide » — ADR-085.
+   *
+   * Le défaut reste `FRACTION_TROP_FACILE`, la valeur du code. Ce paramètre
+   * n'existe que pour que `reglagesEffectifs()` puisse superposer un
+   * ajustement journalisé. Un appelant qui l'omet obtient le comportement
+   * livré, ce qui est le bon défaut — l'overlay est un remplacement, pas une
+   * correction d'oubli.
+   */
+  fractionTropFacile: number = FRACTION_TROP_FACILE,
 ): VerdictTentative {
   const estimee = exercice.dureeEstimeeMin;
   const reelle = tentative.dureeMin;
@@ -325,7 +335,7 @@ export function verdictTentative(
 
   if (tentative.resultat === "reussi") {
     const sansAide = tentative.indicesUtilises === 0;
-    if (sansAide && fraction !== null && fraction < FRACTION_TROP_FACILE) {
+    if (sansAide && fraction !== null && fraction < fractionTropFacile) {
       return {
         ...base,
         signal: "trop-facile",
@@ -408,7 +418,14 @@ export function calibrer(
   skill: Skill,
   exercices: Exercise[],
   tentatives: ExerciseAttempt[],
+  /** Réglages effectifs — voir `lib/engine/reglages.ts` (ADR-085). */
+  reglages: {
+    fractionTropFacile?: number;
+    signauxConcordants?: number;
+  } = {},
 ): Calibration {
+  const fractionTropFacile = reglages.fractionTropFacile ?? FRACTION_TROP_FACILE;
+  const signauxConcordants = reglages.signauxConcordants ?? SIGNAUX_CONCORDANTS;
   const parId = new Map(exercices.map((e) => [e.id, e]));
 
   // Tentatives terminées portant sur cette compétence, de la plus récente à la
@@ -429,7 +446,7 @@ export function calibrer(
    * fenêtre d'observation de la compétence qu'on est en train de calibrer.
    */
   const verdicts = pertinentes.map(({ t, ex }) =>
-    verdictTentative(t, ex, dureeDeReference(ex, tentatives)),
+    verdictTentative(t, ex, dureeDeReference(ex, tentatives), fractionTropFacile),
   );
   const dimensionFaible = dimensionLaPlusFaible(pertinentes.map((x) => x.t));
 
@@ -456,7 +473,7 @@ export function calibrer(
     ? exploitables.filter((v) => v.signal === exploitable.signal).length
     : 0;
   const sensDemande = exploitable ? AJUSTEMENT[exploitable.signal] : 0;
-  const confirme = concordants >= SIGNAUX_CONCORDANTS;
+  const confirme = concordants >= signauxConcordants;
   const ajustement = sensDemande !== 0 && confirme ? sensDemande : 0;
 
   /*
@@ -550,8 +567,12 @@ export function calibrerToutes(
   etats: SkillState[],
   exercices: Exercise[],
   tentatives: ExerciseAttempt[],
+  /** Réglages effectifs — ADR-085. Omis : les valeurs livrées. */
+  reglages: { fractionTropFacile?: number; signauxConcordants?: number } = {},
 ): Map<string, Calibration> {
   return new Map(
-    etats.map((e) => [e.skill.code, calibrer(e.skill, exercices, tentatives)] as const),
+    etats.map(
+      (e) => [e.skill.code, calibrer(e.skill, exercices, tentatives, reglages)] as const,
+    ),
   );
 }

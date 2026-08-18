@@ -51,6 +51,17 @@ import {
   type PropositionExercice,
   type PropositionReferentiel,
 } from "./proposition";
+// L'atomicité vient du domaine, pas d'une liste locale : le schéma d'outil et
+// le validateur d'écriture doivent nommer les mêmes verbes et les mêmes bornes,
+// sinon le tuteur remplit des champs valides et se fait rejeter (ADR-086).
+import {
+  composerIntitule,
+  motifsNonAtomique,
+  motifsRefusStructure,
+  OBJET_MAX,
+  PRECISION_MAX,
+  VERBES_ACTION,
+} from "@/lib/domain/atomicite";
 
 /* ------------------------------------------------------------------ */
 /* Noms d'outils et description neutre d'un schéma                     */
@@ -290,6 +301,12 @@ export interface SchemaJson {
    * revérifie — un fournisseur qui ignore la contrainte ne doit pas passer.
    */
   maxItems?: number;
+  /**
+   * Longueur maximale d'une chaîne. Le schéma l'annonce ; la conversion la
+   * revérifie (`motifsRefusStructure`) — un fournisseur qui l'ignore ne doit
+   * pas passer. Même contrat que `maxItems` ci-dessus.
+   */
+  maxLength?: number;
   items?: SchemaJson;
   properties?: Record<string, SchemaJson>;
   required?: string[];
@@ -443,9 +460,34 @@ function schemaReferentiel(): SchemaJson {
           properties: {
             palier: { type: "string", enum: [...PALIERS] },
             importance: { type: "number", minimum: 0, maximum: 1 },
-            intitule: { type: "string", description: "Savoir-faire observable, pas un sujet." },
+            // L'intitulé n'est plus une phrase libre — ADR-086.
+            //
+            // Un `enum` fermé de verbes, un objet borné, une précision bornée.
+            // C'est le seul garde-fou d'atomicité qui ne se contourne pas : un
+            // modèle ne peut pas écrire « Modéliser ET résoudre … ET évaluer »
+            // dans un champ qui n'accepte qu'un verbe. Même mécanique que les
+            // codes, qu'il désigne sans jamais les frapper (ADR-026/031/043).
+            //
+            // C'est l'APPLICATION qui assemble la phrase (`composerIntitule`),
+            // si bien que deux compétences proposées dans deux échanges
+            // différents s'écrivent de la même façon.
+            verbeAction: {
+              type: "string",
+              enum: [...VERBES_ACTION],
+              description: "Un seul verbe. Deux verbes, ce sont deux compétences.",
+            },
+            objet: {
+              type: "string",
+              maxLength: OBJET_MAX,
+              description: "Un seul objet, sans énumération. Ex. « un stock de sécurité ».",
+            },
+            precision: {
+              type: "string",
+              maxLength: PRECISION_MAX,
+              description: "Facultatif : la condition qui borne l'objet. Jamais une 2e compétence.",
+            },
           },
-          required: ["palier", "importance", "intitule"],
+          required: ["palier", "importance", "verbeAction", "objet"],
           additionalProperties: false,
         },
         description: "Du plus fondamental au plus avancé.",
@@ -836,11 +878,41 @@ export function outilEvolution(): OutilTuteur {
  * Chaque branche réutilise `schemaReferentiel()` — un seul endroit définit ce
  * qu'est une branche, et l'interdit du champ `code` en hérite gratuitement.
  */
-export function outilReferentielComplet(): OutilTuteur {
+/**
+ * Plafond de branches quand le compte a déjà des domaines — ADR-088.
+ *
+ * Le défaut est mesuré : un seul sujet, « les LLM », a produit **cinq domaines
+ * et 40 compétences, aucune mesurée**, soit 43 % du référentiel actif, pendant
+ * que deux autres domaines restaient vides. Le prompt demandait « trois à six
+ * branches pour un sujet large » et le tuteur a lu « branche » comme
+ * « domaine ».
+ *
+ * Le plafond est porté par le SCHÉMA, pas par la consigne : `maxItems` ne se
+ * contourne pas, une phrase si. Deux et non un — un sujet réellement double
+ * existe — mais le découpage au-delà part en **thèmes** (`themes`, ADR-053),
+ * qui traversent les domaines par construction et n'engagent aucun préfixe de
+ * code ni aucune gouvernance.
+ *
+ * Sur un compte VIDE le plafond ne s'applique pas : il n'y a alors rien à
+ * surcharger, et l'amorçage a besoin de poser la structure d'un coup.
+ */
+export const BRANCHES_MAX_COMPTE_ETABLI = 2;
+
+export function outilReferentielComplet(referentiel?: Referentiel): OutilTuteur {
+  const domainesVivants = (referentiel?.domaines ?? []).filter((d) => !d.archive).length;
+  const branches: SchemaJson = {
+    type: "array",
+    minItems: 1,
+    items: schemaReferentiel(),
+    ...(domainesVivants > 0 ? { maxItems: BRANCHES_MAX_COMPTE_ETABLI } : {}),
+  };
+
   return {
     nom: OUTIL_REFERENTIEL_COMPLET,
     description:
-      "Propose un référentiel complet pour un sujet, découpé en branches cohérentes. Une branche par grand thème : ne mets pas vingt compétences dans un seul domaine, et n'en fais pas dix pour un sujet qui en tient trois. L'application attribue tous les codes.",
+      domainesVivants > 0
+        ? `Propose un référentiel pour un sujet. Ce compte a déjà ${domainesVivants} domaine(s) : n'en crée pas plus de ${BRANCHES_MAX_COMPTE_ETABLI}. Un domaine n'est PAS un thème — pour découper un sujet large, rattache les compétences à un domaine existant ou à un seul domaine neuf, et laisse la personne créer des thèmes ensuite. L'application attribue tous les codes.`
+        : "Propose un référentiel complet pour un sujet, découpé en branches cohérentes. Une branche par grand thème : ne mets pas vingt compétences dans un seul domaine, et n'en fais pas dix pour un sujet qui en tient trois. L'application attribue tous les codes.",
     schema: {
       type: "object",
       properties: {
@@ -849,7 +921,7 @@ export function outilReferentielComplet(): OutilTuteur {
           description:
             "Une à trois phrases : comment tu as découpé le sujet, et pourquoi ce découpage.",
         },
-        branches: { type: "array", minItems: 1, items: schemaReferentiel() },
+        branches,
       },
       required: ["resume", "branches"],
       additionalProperties: false,
@@ -1784,18 +1856,49 @@ function validerExercice(entree: Record<string, unknown>): PropositionRecue | nu
   return { genre: "exercice", exercice };
 }
 
+/**
+ * Assemble une compétence proposée, ou l'écarte — ADR-086.
+ *
+ * Deux filets, dans cet ordre :
+ *
+ * 1. `motifsRefusStructure` vérifie que le verbe est bien de la liste et que
+ *    les bornes tiennent. Le schéma le garantit déjà côté fournisseur, mais un
+ *    modèle sans support d'`enum` peut rendre autre chose ;
+ * 2. `motifsNonAtomique` relit la phrase ASSEMBLÉE. C'est le filet qui compte :
+ *    rien n'empêche d'écrire « un flux et analyser un goulot » dans le champ
+ *    `objet`, et la structure seule ne l'attraperait pas.
+ *
+ * Une compétence écartée ne fait PAS échouer la branche : elle disparaît, et
+ * les autres passent. `preparerAjouts` lève une erreur sur ce qu'il reçoit —
+ * lui laisser un intitulé non atomique tuerait toute la proposition pour une
+ * ligne, alors que 52 % des compétences écrites par le tuteur échouaient à ces
+ * règles avant qu'il reçoive ce schéma.
+ */
+function competenceProposee(
+  entree: Record<string, unknown>,
+): { palier: string; importance: string; intitule: string } | null {
+  const structure = {
+    verbeAction: texte(entree.verbeAction),
+    objet: texte(entree.objet),
+    precision: texte(entree.precision) || undefined,
+  };
+
+  if (motifsRefusStructure(structure).length > 0) return null;
+  const intitule = composerIntitule(structure);
+  if (motifsNonAtomique(intitule).length > 0) return null;
+
+  return {
+    palier: dansEnum(entree.palier, PALIERS),
+    importance: nombreTexte(entree.importance),
+    intitule,
+  };
+}
+
 function validerReferentiel(entree: Record<string, unknown>): PropositionRecue | null {
   const competences = (Array.isArray(entree.competences) ? entree.competences : [])
     .map((c) => {
       const o = objet(c);
-      if (!o) return null;
-      const intitule = texte(o.intitule);
-      if (!intitule) return null;
-      return {
-        palier: dansEnum(o.palier, PALIERS),
-        importance: nombreTexte(o.importance),
-        intitule,
-      };
+      return o ? competenceProposee(o) : null;
     })
     .filter((c): c is { palier: string; importance: string; intitule: string } => c !== null);
 
@@ -1963,7 +2066,10 @@ function validerEvolution(entree: Record<string, unknown>): PropositionRecue | n
  *
  * Zéro branche valide reste un rejet : il n'y a alors rien à relire.
  */
-function validerReferentielComplet(entree: Record<string, unknown>): PropositionRecue | null {
+function validerReferentielComplet(
+  entree: Record<string, unknown>,
+  plafondBranches?: number,
+): PropositionRecue | null {
   const resume = texte(entree.resume);
   const brutes = Array.isArray(entree.branches) ? entree.branches : [];
   if (brutes.length === 0) return null;
@@ -1971,7 +2077,16 @@ function validerReferentielComplet(entree: Record<string, unknown>): Proposition
   const branches: PropositionReferentiel[] = [];
   let ecartees = 0;
 
+  // Le plafond du schéma, revérifié — ADR-088. Un fournisseur qui ignore
+  // `maxItems` rendrait cinq domaines là où deux sont autorisés, et le
+  // référentiel enflerait par le chemin même qui devait l'en empêcher.
+  const plafond = plafondBranches ?? Number.POSITIVE_INFINITY;
+
   for (const brute of brutes) {
+    if (branches.length >= plafond) {
+      ecartees += 1;
+      continue;
+    }
     const o = objet(brute);
     // `validerReferentiel` est réutilisée telle quelle : une seule définition
     // de ce qu'est une branche recevable.
@@ -2272,7 +2387,14 @@ export function validerAppelOutil(
     case OUTIL_RELATIONS:
       return validerRelations(donnees, ensemblesDuSchemaRelations(outils));
     case OUTIL_REFERENTIEL_COMPLET:
-      return validerReferentielComplet(donnees);
+      // Le plafond effectif est relu depuis le schéma REELLEMENT armé, jamais
+      // recalculé : deux sources pourraient diverger, une seule ne le peut pas.
+      // Même raisonnement que les codes de `proposer_revision`.
+      return validerReferentielComplet(
+        donnees,
+        outils.find((o) => o.nom === OUTIL_REFERENTIEL_COMPLET)?.schema.properties?.branches
+          ?.maxItems,
+      );
     case OUTIL_THEME:
       return validerTheme(donnees, codesDuSchemaTheme(outils));
     case OUTIL_INTENTION: {

@@ -33,6 +33,7 @@ import type {
   SkillEvidence,
 } from "@/lib/domain/types";
 import { computeSkillState } from "./skill-state";
+import { cleContexte } from "./contexte-situation";
 
 export interface EtapeParcours {
   preuveId: string;
@@ -94,7 +95,8 @@ export function parcoursCompetence(
         avant.niveau !== null && apres.niveau !== null && apres.niveau > avant.niveau,
       premiereMesure: avant.niveau === null && apres.niveau !== null,
       recul: avant.niveau !== null && apres.niveau !== null && apres.niveau < avant.niveau,
-      nouveauContexte: !avant.contextesTestes.includes(preuve.contexte),
+      // Clé de famille des deux côtés (ADR-083) — voir `impact.ts`.
+      nouveauContexte: !avant.contextesTestes.includes(cleContexte(preuve)),
     });
   }
 

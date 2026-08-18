@@ -7,6 +7,8 @@ import { CockpitAdmin } from "@/components/admin/cockpit-admin";
 import { estAdministrateur, lireAccesCourant, listerComptes } from "@/lib/store/acces";
 import { calculerStatistiquesAdmin } from "@/lib/domain/admin-kpi";
 import { obtenirDiagnosticSysteme } from "@/lib/store/systeme";
+import { chargerEtatMoteur, type EtatMoteur } from "@/lib/store/auto-evaluation";
+import { REGLAGES_PAR_DEFAUT } from "@/lib/engine/reglages";
 import { scannerWorkflow } from "@/lib/domain/workflow-scanner";
 import { scannerUxJourney } from "@/lib/domain/workflow-ux-scanner";
 import {
@@ -125,16 +127,34 @@ export default async function PageAdmin(props: {
 
 const GRAPHE_VIDE: GrapheWorkflow = { noeuds: [], liens: [] };
 
+/**
+ * L'etat rendu tant que l'onglet Moteur n'a pas ete ouvert.
+ *
+ * `metriques` vide, et non quatre metriques a zero : un zero se lirait
+ * comme rien de mesure la ou la verite est pas encore lu. Les reglages, eux,
+ * sont bien ceux du code -- c'est l'etat reel quand le journal est vide.
+ */
+const MOTEUR_NON_CHARGE: EtatMoteur = {
+  metriques: [],
+  reglages: REGLAGES_PAR_DEFAUT,
+  journal: [],
+  proposition: null,
+};
+
 async function ContenuAdmin({ onglet }: { onglet?: string }) {
   const [admin, acces] = await Promise.all([estAdministrateur(), lireAccesCourant()]);
   if (!admin || !acces) notFound();
 
   const chargerWorkflow = onglet === "workflow";
+  // Comme le workflow : cinq lectures pour l'auto-évaluation, dont le journal
+  // du moteur. Aucune raison de les payer sur l'onglet des indicateurs.
+  const chargerMoteur = onglet === "moteur";
 
-  const [comptes, diagnostic, grapheArch, grapheUxMacro, grapheUxAtomique] =
+  const [comptes, diagnostic, etatMoteur, grapheArch, grapheUxMacro, grapheUxAtomique] =
     await Promise.all([
       listerComptes(),
       obtenirDiagnosticSysteme(),
+      chargerMoteur ? chargerEtatMoteur() : Promise.resolve(MOTEUR_NON_CHARGE),
       chargerWorkflow ? scannerWorkflow() : Promise.resolve(GRAPHE_VIDE),
       chargerWorkflow ? scannerUxJourney({ mode: "macro" }) : Promise.resolve(GRAPHE_VIDE),
       chargerWorkflow ? scannerUxJourney({ mode: "atomique" }) : Promise.resolve(GRAPHE_VIDE),
@@ -154,6 +174,7 @@ async function ContenuAdmin({ onglet }: { onglet?: string }) {
       moiId={acces.userId}
       kpis={kpis}
       diagnostic={diagnostic}
+      etatMoteur={etatMoteur}
       perspectivesWorkflow={perspectivesWorkflow}
     />
   );

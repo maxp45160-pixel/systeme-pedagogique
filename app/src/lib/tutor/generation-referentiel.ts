@@ -15,7 +15,11 @@
 import type { Referentiel } from "@/lib/domain/types";
 import type { MoteurTuteur } from "./moteurs";
 import { lireErreurMoteur, lireOutilsActifs, messageSansOutils } from "./moteurs";
-import { outilReferentielComplet, outilsTuteur } from "./outils";
+import {
+  BRANCHES_MAX_COMPTE_ETABLI,
+  outilReferentielComplet,
+  outilsTuteur,
+} from "./outils";
 import type { PropositionReferentiel } from "./proposition";
 
 /* ------------------------------------------------------------------ */
@@ -117,7 +121,17 @@ export function construirePromptReferentiel(referentiel: Referentiel, sujet: str
     "- Du plus fondamental au plus avancé, à l'intérieur de chaque branche.",
     "",
     "COMMENT DÉCOUPER",
-    "- Une branche par grand thème du sujet. Trois à six branches pour un sujet large ; une seule si le sujet est étroit.",
+    // ADR-088 — un domaine n'est pas un thème.
+    //
+    // Mesuré le 18/08/2026 : « les LLM » avaient produit CINQ domaines et
+    // 40 compétences, aucune mesurée, soit 43 % du référentiel actif — pendant
+    // que deux autres domaines restaient vides. L'ancienne consigne disait
+    // « trois à six branches pour un sujet large », et une branche a été lue
+    // comme un domaine.
+    existants.length > 0
+      ? `- UNE branche par domaine, et ${BRANCHES_MAX_COMPTE_ETABLI} domaines nouveaux au maximum : ce compte en a déjà ${existants.length}.`
+      : "- Une branche par grand domaine du sujet. Deux à quatre pour un sujet large ; une seule si le sujet est étroit.",
+    "- Un DOMAINE n'est pas un THÈME. Un domaine porte un préfixe de code et se gouverne ; un thème regroupe librement des compétences en traversant les domaines. Pour découper un sujet large, ne multiplie pas les domaines : propose des compétences que la personne regroupera ensuite en thèmes.",
     "- Quatre à huit compétences par branche. Vingt compétences dans un domaine unique ne se relisent pas.",
     "- Ne propose pas une branche pour un thème que tu ne sais pas remplir de compétences mesurables.",
     "",
@@ -173,7 +187,7 @@ export async function proposerReferentiel(
   await moteur.repondre({
     systemeStable: construirePromptReferentiel(referentiel, sujet),
     systemeProfil: "",
-    outils: [outilReferentielComplet()],
+    outils: [outilReferentielComplet(referentiel)],
     messages: [{ role: "user" as const, content: `Propose un référentiel pour : ${sujet}` }],
     signal,
     envoyer,

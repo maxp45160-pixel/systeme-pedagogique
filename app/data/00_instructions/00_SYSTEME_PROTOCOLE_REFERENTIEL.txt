@@ -28,12 +28,29 @@ QUI EXISTE. Cinq conditions, toutes nécessaires.
   a. UN SAVOIR-FAIRE OBSERVABLE, PAS UN SUJET.
      La formulation doit décrire ce que la personne SAIT FAIRE, observable dans
      une production.
-       oui : « Reconstruire un argument moral sous forme canonique
-              (prémisses explicites, conclusion, forme logique) »
+       oui : « Structurer un argument moral (forme canonique) »
        non : « L'histoire de la philosophie morale »
        non : « Comprendre Kant »   ← « comprendre » ne s'observe pas
      Test : peux-tu écrire une consigne d'exercice dont la réponse démontre
      cette compétence ? Si non, elle n'entre pas.
+
+     TU N'ÉCRIS PLUS LA PHRASE. Depuis le 18/08/2026 (ADR-086), le schéma de
+     proposition demande trois champs et l'application assemble l'intitulé :
+
+       verbeAction  un seul verbe, pris dans la liste fermée du schéma ;
+       objet        un seul objet, 50 caractères au plus, sans énumération ;
+       precision    facultatif, 24 caractères au plus — la condition qui borne
+                    l'objet, JAMAIS une seconde compétence.
+
+     Deux verbes, ce sont deux compétences : propose-les séparément. Une
+     parenthèse qui énumère trois éléments est une liste de compétences
+     déguisée en complément — découpe-la.
+
+     Ce n'est pas une exigence de style. Relevé en base le 18/08/2026 : 67 des
+     115 compétences du compte échouaient à ces règles, dont LOG-01 — trois
+     verbes, cinq objets, 192 caractères — qui était pourtant la compétence la
+     MIEUX mesurée du système. Son niveau unique moyennait cinq savoir-faire
+     distincts, et le moteur ne pouvait donc rien recommander de précis.
 
   b. NOTABLE SUR AU MOINS UNE DIMENSION.
      Les cinq dimensions du protocole d'évaluation §3 sont : comprehension,

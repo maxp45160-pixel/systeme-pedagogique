@@ -26,7 +26,7 @@ import {
 } from "@/lib/domain/types";
 import type { Calibration } from "./calibration";
 import type { ContexteDocumentaire, ResumePreuvesDocumentaires } from "./document-context";
-import { estDue } from "./spaced";
+import { estDue, MODELE_ACTIF, type ModeleRevision } from "./spaced";
 
 export interface Facteur {
   libelle: string;
@@ -123,13 +123,28 @@ export const BONUS_ACTIONNABLE = 10;
  */
 export const PENALITE_PREUVE_DOCUMENTAIRE_SOLIDE = -10;
 
+/**
+ * Ce que `reglagesEffectifs()` peut superposer aux valeurs livrées — ADR-085.
+ *
+ * Un objet et non deux paramètres positionnels : `recommander` en porte déjà
+ * huit, et un neuvième booléen anonyme aurait été illisible au point d'appel.
+ */
+export interface ReglagesRecommandation {
+  bonusActionnable?: number;
+  /** Modèle de révision réglé — `creerModeleHeuristique(amplitude)`. */
+  modeleRevision?: ModeleRevision;
+}
+
 function evaluer(
   etat: SkillState,
   etatsParCode: Map<string, SkillState>,
   now: Date,
   actionnable: boolean,
   documentaire?: ResumePreuvesDocumentaires,
+  reglages: ReglagesRecommandation = {},
 ): { valeur: number; facteurs: Facteur[] } {
+  const bonusActionnable = reglages.bonusActionnable ?? BONUS_ACTIONNABLE;
+  const modeleRevision = reglages.modeleRevision ?? MODELE_ACTIF;
   const facteurs: Facteur[] = [];
 
   // 1. Importance pour l'objectif déclaré — le sens de "l'objectif" dépend du
@@ -185,7 +200,7 @@ function evaluer(
     // attendre, une fragile se révise vite. Le signal devient binaire et fort :
     // « due » pousse fortement, « pas due » laisse respirer.
     const j = etat.joursDepuisDernierePreuve ?? 0;
-    const due = estDue(etat, now);
+    const due = estDue(etat, now, modeleRevision);
     if (due) {
       facteurs.push({
         libelle: "Due pour révision",
@@ -270,7 +285,7 @@ function evaluer(
   if (actionnable) {
     facteurs.push({
       libelle: "Exercice disponible",
-      contribution: BONUS_ACTIONNABLE,
+      contribution: bonusActionnable,
       phrase: "un exercice existe déjà pour la lancer tout de suite",
     });
   }
@@ -425,6 +440,8 @@ export function recommander(
     exercices: new Set(),
   },
   contexteDocumentaire?: ContexteDocumentaire,
+  /** Réglages effectifs — ADR-085. Omis : les valeurs livrées. */
+  reglages: ReglagesRecommandation = {},
 ): Recommandation[] {
   const parCode = new Map(etats.map((e) => [e.skill.code, e]));
 
@@ -457,6 +474,7 @@ export function recommander(
         now,
         exercice !== null,
         contexteDocumentaire?.get(etat.skill.code),
+        reglages,
       );
 
       const recommandation: Recommandation = {

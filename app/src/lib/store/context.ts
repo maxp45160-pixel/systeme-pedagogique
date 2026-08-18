@@ -16,6 +16,12 @@ import type { Collections } from "./db";
 import { lireTout, dorsaleCompte, chargerToutRPC } from "./db";
 import { chargerReferentiel } from "./referentiel";
 import { EXERCICES_DIAGNOSTIC, tableDureesEstimees } from "@/lib/seed/exercises";
+import {
+  attacherFamilles,
+  construireCatalogueSituation,
+} from "@/lib/engine/contexte-situation";
+import { creerModeleHeuristique } from "@/lib/engine/spaced";
+import { chargerReglagesMoteur } from "./reglages-moteur";
 import { computeAllSkillStates } from "@/lib/engine/skill-state";
 import { calculerEtatGlobal, type EtatGlobal } from "@/lib/engine/progression";
 import { recommander, type Recommandation } from "@/lib/engine/recommend";
@@ -139,7 +145,25 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
     themes = t;
   }
 
-  const preuvesEffectives = donneesBrutes.evidence;
+  /*
+   * Le seul point où la famille de situation s'attache (ADR-083).
+   *
+   * Sur les exercices BRUTS, et sur `EXERCICES_DIAGNOSTIC` : même raison que
+   * `tableDureesEstimees` vingt lignes plus bas (ADR-071). Une preuve peut
+   * venir d'un exercice archivé, sorti du périmètre, ou jamais stocké — 24 des
+   * 45 preuves d'exercice du compte réel pointent vers un diagnostic qui ne vit
+   * que dans `lib/seed/exercises.ts`. Les résoudre contre la liste filtrée les
+   * enverrait au repli, et le moteur recompterait des titres.
+   *
+   * Les exercices du compte passent en premier : le catalogue garde le premier
+   * vu, et un diagnostic recopié en base doit l'emporter sur sa version
+   * d'origine.
+   */
+  const catalogueSituation = construireCatalogueSituation([
+    ...donneesBrutes.exercises,
+    ...EXERCICES_DIAGNOSTIC,
+  ]);
+  const preuvesEffectives = attacherFamilles(donneesBrutes.evidence, catalogueSituation);
 
   // Les exercices de diagnostic font partie du logiciel, pas du journal :
   // ils sont toujours disponibles, sans étape d'initialisation.
@@ -208,10 +232,25 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
     (e) => !e.archive && !idsHorsPerimetreOuverts.has(e.id),
   );
 
+  /*
+   * Les réglages effectifs — ADR-085.
+   *
+   * Les `export const` de `calibration.ts`, `spaced.ts` et `recommend.ts`
+   * restent les valeurs livrées ; ce qui suit les superpose quand le journal
+   * `moteur_reglages` porte un ajustement. Tant qu'il est vide — c'est le cas
+   * aujourd'hui — cet appel rend exactement les défauts, et le moteur se
+   * comporte comme avant.
+   */
+  const reglages = await mesurer("chargerReglagesMoteur", () => chargerReglagesMoteur());
+  const modeleRevision = creerModeleHeuristique(reglages.amplitudeRobustesse);
+
   // Calculées AVANT la recommandation : c'est la calibration qui fixe la
   // difficulté visée, donc l'exercice retenu (ADR-028).
   const calibrations = mesurerSync("calibrerToutes", () =>
-    calibrerToutes(etats, exercicesActifs, donnees.attempts),
+    calibrerToutes(etats, exercicesActifs, donnees.attempts, {
+      fractionTropFacile: reglages.fractionTropFacile,
+      signauxConcordants: reglages.signauxConcordants,
+    }),
     { exercices: exercicesActifs.length, tentatives: donnees.attempts.length },
   );
 
@@ -255,6 +294,7 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
       now,
       refus,
       contexteDocumentaire,
+      { bonusActionnable: reglages.bonusActionnable, modeleRevision },
     ),
     { exercices: exercicesActifs.length, tentatives: donnees.attempts.length },
   );

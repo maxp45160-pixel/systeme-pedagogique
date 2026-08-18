@@ -19,6 +19,7 @@ import {
   type SkillState,
 } from "@/lib/domain/types";
 import { facteurRecence, joursDepuis, joursEntre } from "./dates";
+import { cleContexte, familleIndeterminee } from "./contexte-situation";
 
 const DIMENSIONS: Dimension[] = [
   "comprehension",
@@ -87,7 +88,7 @@ function niveauSoutenu(preuves: SkillEvidence[]): AppuiNiveau[] {
   const l4 = reussies.filter(
     (e) => autonomieAuMoins(e, "A3") && dim(e, "transfert") >= 0.6,
   );
-  const contextesL4 = new Set(l4.map((e) => e.contexte));
+  const contextesL4 = new Set(l4.map(cleContexte));
   if (l4.length >= 2 && contextesL4.size >= 2) {
     appuis.push({
       niveau: 4,
@@ -302,7 +303,10 @@ export function computeSkillState(
     .filter((e) => e.skillCode === skill.code && estRecevable(e))
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  const contextesTestes = [...new Set(preuves.map((e) => e.contexte))];
+  // Des FAMILLES de situation, pas des titres d'exercice (ADR-083). C'est la
+  // seule ligne qui décide de ce que « deux contextes distincts » veut dire,
+  // et donc de la porte du niveau 4 comme de celle de la confiance.
+  const contextesTestes = [...new Set(preuves.map(cleContexte))];
   const derniere = preuves.at(-1) ?? null;
   const joursDepuisDernierePreuve = derniere ? joursDepuis(derniere.date, now) : null;
 
@@ -380,7 +384,20 @@ export function computeSkillState(
     );
   }
   if (contextesTestes.length === 1 && preuves.length > 1) {
-    reserves.push("Toutes les preuves proviennent du même contexte : le transfert n'est pas établi.");
+    reserves.push(
+      "Toutes les preuves proviennent de la même famille de situation : le transfert n'est pas établi.",
+    );
+  }
+  // Une famille repliée vaut ce que vaut un libellé libre — presque un
+  // identifiant. Le dire plutôt que de laisser ces preuves gonfler un niveau
+  // en silence, ce qu'elles ont fait jusqu'au 18/08/2026 (ADR-083).
+  const repliees = preuves.filter(familleIndeterminee).length;
+  if (repliees > 0) {
+    reserves.push(
+      repliees === preuves.length
+        ? `Aucune des ${preuves.length} preuves n'a d'exercice source résoluble : les contextes sont comptés sur leur libellé, qui les distingue presque toujours.`
+        : `${repliees} preuve(s) sur ${preuves.length} sans exercice source résoluble : leur contexte est compté sur le libellé, non sur la famille de situation.`,
+    );
   }
   if (preuves.length === 1) {
     reserves.push("Évaluation fondée sur une preuve unique (instructions §11).");

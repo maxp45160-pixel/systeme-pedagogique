@@ -13,6 +13,8 @@ import {
   type ActionUnifiee,
   type ContexteInstant,
 } from "@/lib/engine/action-unifiee";
+import { emettre } from "@/lib/engine/prediction";
+import { journaliserEmission } from "./journal-moteur";
 
 /**
  * L'arbitrage de la prochaine action, côté serveur.
@@ -108,7 +110,7 @@ export async function chargerActionProposee(
     return true;
   });
 
-  return choisirActionUnifiee({
+  const action = choisirActionUnifiee({
     accountId: ctx.donnees.user.id,
     instant,
     declaredAt,
@@ -118,4 +120,47 @@ export async function chargerActionProposee(
     activities: [...activitesLegacy, ...activitesNotes],
     openRuns: ctx.adaptiveLegacy.openRuns,
   });
+
+  await journaliserActionServie(ctx, action);
+  return action;
+}
+
+/*
+ * L'inscription au journal du moteur — ADR-084.
+ *
+ * Ici, et pas dans `chargerContexte` : le contexte sert toutes les pages, alors
+ * qu'une décision n'est prise qu'au moment où le tableau de bord propose
+ * quelque chose. L'y mettre aurait fait écrire une ligne à chaque ouverture de
+ * n'importe quel écran.
+ *
+ * Au moment où l'action est **servie**, pas quand la personne clique : une
+ * recommandation ignorée est une information. N'inscrire que celles qui sont
+ * suivies produirait un journal qui ne peut que donner raison au moteur.
+ *
+ * Seul `kind: "exercice"` est journalisé. Une note ouverte n'est pas une
+ * décision du moteur de compétences : elle ne porte ni difficulté visée, ni
+ * calibration, ni état de compétence, et les trois prédictions n'auraient rien
+ * sur quoi s'asseoir. On préfère un journal partiel et honnête à un journal
+ * complet et fabriqué (P2).
+ */
+async function journaliserActionServie(
+  ctx: Contexte,
+  action: ActionUnifiee | null,
+): Promise<void> {
+  if (action?.kind !== "exercice") return;
+
+  const retenue = action.recommandations[0];
+  if (!retenue) return;
+
+  await journaliserEmission(
+    emettre({
+      now: ctx.now,
+      etat: retenue.etat,
+      difficulteVisee: retenue.difficulteCible,
+      calibration: retenue.calibration,
+      exercice: retenue.exercice,
+      facteurs: retenue.facteurs,
+      tentatives: ctx.donnees.attempts,
+    }),
+  );
 }

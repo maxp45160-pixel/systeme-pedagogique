@@ -148,7 +148,10 @@ export interface ModeleRevision {
  * sur cette fonction, pour qu'un facteur ne puisse pas diverger entre le
  * calcul et l'affichage (P3 — aucun nombre sans sa source).
  */
-function facteursHeuristiques(etat: SkillState): FacteurIntervalle[] {
+function facteursHeuristiques(
+  etat: SkillState,
+  amplitudeRobustesse: number = AMPLITUDE_ROBUSTESSE,
+): FacteurIntervalle[] {
   const facteurs: FacteurIntervalle[] = [];
 
   const fNiveau = FACTEUR_NIVEAU[etat.niveau ?? 0] ?? 1;
@@ -162,7 +165,7 @@ function facteursHeuristiques(etat: SkillState): FacteurIntervalle[] {
   facteurs.push({
     libelle: "Robustesse",
     valeur: robustesse.toFixed(2),
-    multiplicateur: 1 + robustesse * AMPLITUDE_ROBUSTESSE,
+    multiplicateur: 1 + robustesse * amplitudeRobustesse,
   });
 
   facteurs.push({
@@ -189,18 +192,39 @@ function facteursHeuristiques(etat: SkillState): FacteurIntervalle[] {
  * elle est « à diagnostiquer ». Les deux flux sont distincts — la
  * recommandation traite le diagnostic par son propre bloc.
  */
-export const modeleHeuristique: ModeleRevision = {
-  intervalle(etat) {
-    if (etat.preuves.length === 0) return null;
-    const facteurs = facteursHeuristiques(etat);
-    const intervalle = facteurs.reduce(
-      (acc, f) => acc * f.multiplicateur,
-      INTERVALLE_BASE_JOURS,
-    );
-    return Math.max(1, Math.round(intervalle));
-  },
-  facteurs: facteursHeuristiques,
-};
+/**
+ * Fabrique un modèle heuristique réglé — ADR-085.
+ *
+ * C'est ici que `ModeleRevision` tient enfin la promesse écrite en tête de
+ * fichier : le modèle n'est plus une constante, c'est une valeur qu'on
+ * construit. `AMPLITUDE_ROBUSTESSE` reste le défaut, et
+ * `reglagesEffectifs()` fournit l'amplitude ajustée quand le journal en porte
+ * une.
+ *
+ * Un seul paramètre pour l'instant, et pas quatre. `FACTEUR_CONFIANCE` et
+ * `FACTEUR_NIVEAU` sont des TABLES, pas des scalaires : en bouger une entrée
+ * sans les autres change l'ordre entre deux niveaux de confiance, ce qui est
+ * un changement de sens et non un réglage. Le plan les listait ; les inscrire
+ * au registre aurait donné une auto-correction qui ne sait pas ce qu'elle fait.
+ */
+export function creerModeleHeuristique(
+  amplitudeRobustesse: number = AMPLITUDE_ROBUSTESSE,
+): ModeleRevision {
+  const facteurs = (etat: SkillState) => facteursHeuristiques(etat, amplitudeRobustesse);
+  return {
+    intervalle(etat) {
+      if (etat.preuves.length === 0) return null;
+      const intervalle = facteurs(etat).reduce(
+        (acc, f) => acc * f.multiplicateur,
+        INTERVALLE_BASE_JOURS,
+      );
+      return Math.max(1, Math.round(intervalle));
+    },
+    facteurs,
+  };
+}
+
+export const modeleHeuristique: ModeleRevision = creerModeleHeuristique();
 
 /* ------------------------------------------------------------------ */
 /**
@@ -219,8 +243,13 @@ export const MODELE_ACTIF: ModeleRevision = modeleHeuristique;
  * pas à réviser. `due` ne vaut donc vrai que si une preuve existe ET que
  * l'intervalle est dépassé.
  */
-export function estDue(etat: SkillState, now: Date = new Date()): boolean {
-  const intervalle = MODELE_ACTIF.intervalle(etat);
+export function estDue(
+  etat: SkillState,
+  now: Date = new Date(),
+  /** Modèle réglé — `creerModeleHeuristique(amplitude)`. Omis : le modèle livré. */
+  modele: ModeleRevision = MODELE_ACTIF,
+): boolean {
+  const intervalle = modele.intervalle(etat);
   if (intervalle === null) return false;
   const ecoules = etat.joursDepuisDernierePreuve ?? joursDepuis(etat.dernierePreuve ?? "", now);
   return ecoules >= intervalle;
@@ -230,8 +259,12 @@ export function estDue(etat: SkillState, now: Date = new Date()): boolean {
  * Point d'entrée unique : tout ce qu'un appelant a besoin de savoir sur la
  * révision d'une compétence, avec la justification de chaque facteur.
  */
-export function prochaineRevision(etat: SkillState, now: Date = new Date()): ProchaineRevision {
-  const intervalle = MODELE_ACTIF.intervalle(etat);
+export function prochaineRevision(
+  etat: SkillState,
+  now: Date = new Date(),
+  modele: ModeleRevision = MODELE_ACTIF,
+): ProchaineRevision {
+  const intervalle = modele.intervalle(etat);
   const joursEcoules = etat.joursDepuisDernierePreuve ?? joursDepuis(etat.dernierePreuve ?? "", now);
 
   if (intervalle === null) {
@@ -246,7 +279,7 @@ export function prochaineRevision(etat: SkillState, now: Date = new Date()): Pro
   }
 
   const due = joursEcoules >= intervalle;
-  const facteurs = MODELE_ACTIF.facteurs(etat);
+  const facteurs = modele.facteurs(etat);
 
   const raison = due
     ? `Due pour révision : ${joursEcoules} jours écoulés pour un intervalle de ${intervalle} jours.`

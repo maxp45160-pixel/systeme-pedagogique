@@ -55,6 +55,8 @@ import type { DonneesSeance } from "@/components/seances/concepteur-seance";
 import { rangerDocument, type RangementAtelier } from "@/lib/documents/rangement-atelier";
 import { EditeurDirect } from "./editeur-document";
 import { VueTousLesDomaines, BarreVuesAtelier, type VueAtelier } from "./vues-synthese-atelier";
+import { VueEntretien } from "@/components/referentiel/vue-entretien";
+import type { LotCandidats } from "@/lib/engine/candidats-referentiel";
 import { VueRessources, VueThemes } from "./vues-ressources-atelier";
 import { PanneauExerciceAtelier } from "./panneaux-document-atelier";
 import { LIBELLES_TRIS_DOMAINES, type TriDomaine } from "@/lib/documents/tri-domaines";
@@ -139,7 +141,14 @@ function documentDepuisAnalyse(
  * `ressources` prennent sa place, et chacun ne montre qu'une seule famille
  * d'objets.
  */
-const VUES_ATELIER = new Set<string>(["domaines", "themes", "ressources", "graphe", "domaines-archives"]);
+const VUES_ATELIER = new Set<string>([
+  "domaines",
+  "themes",
+  "ressources",
+  "graphe",
+  "domaines-archives",
+  "entretien",
+]);
 
 const TITRES_VUES: Record<string, string> = {
   domaines: "Domaines",
@@ -293,6 +302,7 @@ export function EspaceDocumentaire({
   graphe,
   generation,
   donneesSeance,
+  entretien,
 }: {
   elements: ElementAtelier[];
   /** Teinte par domaine, partagée avec le graphe pour qu'un domaine ait une seule couleur. */
@@ -302,6 +312,8 @@ export function EspaceDocumentaire({
   graphe: { donnees: DonneesGraphe; compteId: string };
   generation: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
   donneesSeance?: DonneesSeance;
+  /** Ce que les faits reprochent au referentiel (ADR-086). */
+  entretien: { lot: LotCandidats; intitules: Record<string, string> };
 }) {
   const router = useRouter();
   const [elements, setElements] = useState(elementsInitials);
@@ -782,7 +794,13 @@ export function EspaceDocumentaire({
         {!selectionnee ? (
           <div className="flex items-center gap-3">
             <BarreVuesAtelier
-              vue={(["domaines", "themes", "ressources", "graphe"].includes(selection ?? "") ? selection : "domaines") as VueAtelier}
+              vue={
+                (["domaines", "themes", "ressources", "graphe", "entretien"].includes(
+                  selection ?? "",
+                )
+                  ? selection
+                  : "domaines") as VueAtelier
+              }
               onChanger={changerVue}
             />
           </div>
@@ -913,7 +931,9 @@ export function EspaceDocumentaire({
           : "lg:grid-cols-[1fr]",
       )}>
         <main className="flex h-full min-w-0 flex-1 flex-col min-h-0 overflow-hidden bg-surface">
-          {selection === "graphe" ? (
+          {selection === "entretien" ? (
+            <VueEntretien lot={entretien.lot} intitules={entretien.intitules} />
+          ) : selection === "graphe" ? (
             <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface p-4">
               <GrapheCompetences donnees={graphe.donnees} compteId={graphe.compteId} ouvrirElement={ouvrirElement} />
             </div>

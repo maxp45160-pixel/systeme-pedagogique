@@ -5,21 +5,31 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { CompteAdministre } from "@/lib/domain/acces";
 import type { StatistiquesAdmin } from "@/lib/domain/admin-kpi";
 import type { DiagnosticSysteme } from "@/lib/store/systeme";
+import type { EtatMoteur } from "@/lib/store/auto-evaluation";
 import type { DonneesPerspectiveGraphe } from "@/components/dev/graphe-workflow";
 import { KpiDashboard } from "./kpi-dashboard";
 import { TableComptes } from "./table-comptes";
 import { DiagnosticSystemeView } from "./diagnostic-systeme";
+import { MetriquesMoteur } from "./metriques-moteur";
 import { GrapheWorkflowViz } from "@/components/dev/graphe-workflow";
 import { ProfilDashboard } from "@/components/dev/profil-dashboard";
 import { BandeauInfo } from "@/components/ui/primitives";
 
-export type OngletAdmin = "kpi" | "comptes" | "diagnostic" | "workflow" | "profil";
+export type OngletAdmin =
+  | "kpi"
+  | "comptes"
+  | "moteur"
+  | "diagnostic"
+  | "workflow"
+  | "profil";
 
 export interface DonneesCockpitAdmin {
   comptes: CompteAdministre[];
   moiId: string;
   kpis: StatistiquesAdmin;
   diagnostic: DiagnosticSysteme;
+  /** Le moteur jugé sur ses propres prédictions (ADR-085). */
+  etatMoteur: EtatMoteur;
   perspectivesWorkflow: {
     architecture: DonneesPerspectiveGraphe;
     ux: DonneesPerspectiveGraphe;
@@ -32,6 +42,7 @@ export function CockpitAdmin({
   moiId,
   kpis,
   diagnostic,
+  etatMoteur,
   perspectivesWorkflow,
 }: DonneesCockpitAdmin) {
   const router = useRouter();
@@ -42,6 +53,7 @@ export function CockpitAdmin({
   const ongletActifBrut = searchParams.get("onglet");
   const ongletActif: OngletAdmin =
     ongletActifBrut === "comptes" ||
+    ongletActifBrut === "moteur" ||
     ongletActifBrut === "diagnostic" ||
     ongletActifBrut === "workflow" ||
     ongletActifBrut === "profil"
@@ -65,6 +77,17 @@ export function CockpitAdmin({
   const onglets: { id: OngletAdmin; libelle: string; badge?: string | number }[] = [
     { id: "kpi", libelle: "Indicateurs" },
     { id: "comptes", libelle: "Comptes et accès", badge: comptes.length },
+    {
+      id: "moteur",
+      libelle: "Moteur",
+      // Absent tant que l'onglet n'a pas été ouvert : les métriques sont
+      // chargées paresseusement, et un « 0 » dirait « rien de mesuré » là où
+      // la vérité est « pas encore lu ».
+      badge:
+        etatMoteur.metriques.length > 0
+          ? etatMoteur.metriques.filter((m) => m.valeur !== null).length
+          : undefined,
+    },
     { id: "diagnostic", libelle: "Diagnostic et sécurité" },
     { id: "workflow", libelle: "Workflow" },
     { id: "profil", libelle: "Performance" },
@@ -127,6 +150,8 @@ export function CockpitAdmin({
             <TableComptes comptes={comptes} moiId={moiId} />
           </div>
         )}
+
+        {ongletActif === "moteur" && <MetriquesMoteur {...etatMoteur} />}
 
         {ongletActif === "diagnostic" && <DiagnosticSystemeView diagnostic={diagnostic} />}
 

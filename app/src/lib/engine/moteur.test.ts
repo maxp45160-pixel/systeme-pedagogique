@@ -1,4 +1,8 @@
 import { describe, expect, it } from "vitest";
+import {
+  attacherFamilles,
+  construireCatalogueSituation,
+} from "./contexte-situation";
 import { computeSkillState, computeAllSkillStates } from "./skill-state";
 import { calculerEtatGlobal } from "./progression";
 import { recommander } from "./recommend";
@@ -120,6 +124,73 @@ describe("niveau — plafonds du protocole d'évaluation §4", () => {
       preuve({ jours: 5, contexte: "Contexte B", dims: { comprehension: 0.9, application: 0.9, transfert: 0.8 } }),
     ]);
     expect(deuxContextes.niveau).toBe(4);
+  });
+
+  /*
+   * ADR-083 — le test qui manquait, et son absence coûtait cinq niveaux.
+   *
+   * Le test ci-dessus passe deux libellés qu'il choisit lui-même distincts.
+   * En production le libellé était le TITRE de l'exercice, presque toujours
+   * unique : 42 valeurs pour 52 preuves. « Deux contextes distincts » était
+   * donc satisfait par construction, et 17 des 19 compétences à plusieurs
+   * preuves franchissaient la porte du transfert. Il en reste 12.
+   *
+   * Les fixtures reprennent LOG-03, relue en base le 18/08/2026 : deux
+   * exercices de calcul en logistique, deux titres, une seule situation.
+   */
+  it("le niveau 4 compte des familles de situation, pas des titres (ADR-083)", () => {
+    const catalogue = construireCatalogueSituation([
+      { id: "log-calcul-a", domaine: "logistique", type: "calcul" },
+      { id: "log-calcul-b", domaine: "logistique", type: "calcul" },
+      { id: "log-etude", domaine: "logistique", type: "etude-de-cas" },
+    ]);
+    const dims = { comprehension: 0.9, application: 0.9, transfert: 0.8 };
+    const depuis = (ref: string, contexte: string, jours: number): SkillEvidence => ({
+      ...preuve({ jours, contexte, dims }),
+      source: { kind: "exercice", ref },
+    });
+
+    const memeFamille = etat(
+      attacherFamilles(
+        [
+          depuis("log-calcul-a", "Quantité économique et point de commande", 30),
+          depuis("log-calcul-b", "Stock de sécurité sous demande variable", 5),
+        ],
+        catalogue,
+      ),
+    );
+    expect(memeFamille.contextesTestes).toHaveLength(1);
+    expect(memeFamille.niveau).toBe(3);
+
+    const deuxFamilles = etat(
+      attacherFamilles(
+        [
+          depuis("log-calcul-a", "Quantité économique et point de commande", 30),
+          depuis("log-etude", "Analyse d'un réseau de distribution", 5),
+        ],
+        catalogue,
+      ),
+    );
+    expect(deuxFamilles.contextesTestes).toHaveLength(2);
+    expect(deuxFamilles.niveau).toBe(4);
+  });
+
+  it("dit en réserve combien de preuves n'ont pas d'exercice source résoluble", () => {
+    // Les 7 preuves `manuel` du compte : leur contexte reste compté sur le
+    // libellé. Le moteur ne le cache pas (P3).
+    const catalogue = construireCatalogueSituation([
+      { id: "log-calcul-a", domaine: "logistique", type: "calcul" },
+    ]);
+    const e = etat(
+      attacherFamilles(
+        [
+          { ...preuve({ jours: 30, contexte: "Titre A" }), source: { kind: "exercice", ref: "log-calcul-a" } },
+          { ...preuve({ jours: 5, contexte: "Titre B" }), source: { kind: "manuel", ref: "synthese.md" } },
+        ],
+        catalogue,
+      ),
+    );
+    expect(e.explication.reserves.join(" ")).toContain("1 preuve(s) sur 2");
   });
 
   it("le niveau 5 exige une preuve intégrée combinant plusieurs compétences", () => {

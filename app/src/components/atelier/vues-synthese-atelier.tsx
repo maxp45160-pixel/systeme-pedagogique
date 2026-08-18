@@ -61,7 +61,10 @@ export function CarteCreationPointillee({
  * ne se recouvrent pas — le référentiel, les sélections, les ressources, et la
  * même matière vue en graphe.
  */
-export type VueAtelier = "domaines" | "themes" | "ressources" | "graphe";
+// « entretien » est le cinquieme lieu, ajoute le 18/08/2026 (ADR-086). Il ne
+// recouvre aucun des quatre autres : les autres MONTRENT le referentiel, il
+// dit ce que les faits reprochent au referentiel.
+export type VueAtelier = "domaines" | "themes" | "ressources" | "graphe" | "entretien";
 
 export function BarreVuesAtelier({
   vue,
@@ -75,6 +78,7 @@ export function BarreVuesAtelier({
     { cle: "themes" as const, libelle: "Thèmes" },
     { cle: "ressources" as const, libelle: "Ressources" },
     { cle: "graphe" as const, libelle: "Graphe" },
+    { cle: "entretien" as const, libelle: "Entretien" },
   ];
   return (
     <div
