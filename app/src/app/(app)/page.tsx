@@ -55,7 +55,10 @@ async function ContenuTableauDeBord({
   instant: ContexteInstant;
   dateJour: string;
 }) {
-  const ctx = await chargerContexte();
+  const [ctx, aperçusDocuments] = await Promise.all([
+    chargerContexte(),
+    lireApercusDocuments(),
+  ]);
 
   // Compte neuf : il n'y a rien à mettre sur ce tableau de bord, et une grille
   // de tirets ne dit pas quoi faire. On envoie construire le référentiel — la
@@ -64,10 +67,7 @@ async function ContenuTableauDeBord({
     redirect("/demarrer");
   }
 
-  const [action, aperçusDocuments] = await Promise.all([
-    chargerActionProposee(ctx, instant),
-    lireApercusDocuments(),
-  ]);
+  const action = await chargerActionProposee(ctx, instant);
   const recommandationsDocumentaires = recommanderActionsDocumentaires(aperçusDocuments);
 
   const activite = calculerActivite(

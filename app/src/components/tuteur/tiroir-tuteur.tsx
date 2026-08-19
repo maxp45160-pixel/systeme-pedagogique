@@ -18,7 +18,7 @@
  * masqué là où une entrée contextuelle, mieux renseignée, existe déjà.
  */
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { ChatTuteur, type EtatContexteTuteur } from "@/components/tuteur/chat";
 import { classesIntercalaire, classesLienBouton, cx } from "@/components/ui/primitives";
 import { Modale } from "@/components/ui/modale";
@@ -27,6 +27,10 @@ import type {
   CalibrageModale,
   CompetenceModale,
 } from "@/components/exercices/proprietes-generation";
+import {
+  chargerDonneesTuteurGlobal,
+  type DonneesTuteurGlobal,
+} from "@/lib/tutor/actions";
 
 const CLASSES_FLOTTANT = cx(
   "fixed bottom-20 right-4 z-40 flex size-12 items-center justify-center lg:bottom-6 lg:right-6",
@@ -41,35 +45,34 @@ export interface ActionContextuelleTuteur {
 }
 
 export function TiroirTuteur({
-  etatInitial,
+  etatInitial: etatInitialProp,
   competenceCiblee,
   amorce,
   exerciceCible,
-  codesCompetences,
-  compteId,
-  domainesExistants,
-  competencesModale,
-  calibragesModale,
+  codesCompetences: codesCompetencesProp,
+  compteId: compteIdProp,
+  domainesExistants: domainesExistantsProp,
+  competencesModale: competencesModaleProp,
+  calibragesModale: calibragesModaleProp,
   libelle = "Demander de l'aide au tuteur",
   declencheur = "bouton",
   actionsContextuelles,
 }: {
-  etatInitial: EtatContexteTuteur;
+  etatInitial?: EtatContexteTuteur;
   competenceCiblee?: string;
   /** Brouillon explicite à placer dans la saisie, sans envoi automatique. */
   amorce?: string;
   exerciceCible?: string;
-  codesCompetences: string[];
-  compteId: string;
+  codesCompetences?: string[];
+  compteId?: string;
   /** Domaines existants — le chat ouvre la modale de compétences in situ. */
-  domainesExistants: { id: string; nom: string; prefixe: string }[];
+  domainesExistants?: { id: string; nom: string; prefixe: string }[];
   /**
    * Compétences actives et calibrages — le chat ouvre aussi la modale
-   * d'exercice in situ (audit §2.3). Obligatoires : un exercice proposé dans
-   * le tiroir doit pouvoir s'enregistrer depuis le tiroir.
+   * d'exercice in situ (audit §2.3).
    */
-  competencesModale: CompetenceModale[];
-  calibragesModale: Record<string, CalibrageModale>;
+  competencesModale?: CompetenceModale[];
+  calibragesModale?: Record<string, CalibrageModale>;
   libelle?: string;
   /**
    * `flottant` : bouton rond global. `bouton` : bouton en ligne.
@@ -82,13 +85,34 @@ export function TiroirTuteur({
 }) {
   const [ouvert, setOuvert] = useState(false);
   const [amorceCourante, setAmorceCourante] = useState<string | undefined>(amorce);
+  const [donneesLazy, setDonneesLazy] = useState<DonneesTuteurGlobal | null>(null);
+  const [enChargement, startTransition] = useTransition();
+
   const flottant = declencheur === "flottant";
   const barre = declencheur === "barre-contextuelle";
+  const besoinLazy = !etatInitialProp && flottant;
 
   function ouvrirAvecAmorce(texteAmorce?: string) {
     setAmorceCourante(texteAmorce ?? amorce);
     setOuvert(true);
+    if (besoinLazy && !donneesLazy) {
+      startTransition(async () => {
+        try {
+          const res = await chargerDonneesTuteurGlobal();
+          setDonneesLazy(res);
+        } catch (e) {
+          console.error("Erreur chargement tuteur global:", e);
+        }
+      });
+    }
   }
+
+  const etatInitial = etatInitialProp ?? donneesLazy?.etatInitial;
+  const codesCompetences = codesCompetencesProp ?? donneesLazy?.codesCompetences ?? [];
+  const compteId = compteIdProp ?? donneesLazy?.compteId ?? "";
+  const domainesExistants = domainesExistantsProp ?? donneesLazy?.domainesExistants ?? [];
+  const competencesModale = competencesModaleProp ?? donneesLazy?.competencesModale ?? [];
+  const calibragesModale = calibragesModaleProp ?? donneesLazy?.calibragesModale ?? {};
 
   return (
     <>
@@ -142,13 +166,6 @@ export function TiroirTuteur({
       )}
 
       {ouvert && (
-        /*
-         * Un tiroir reste une modale : `aria-modal` promet que ce qui est
-         * derrière n'existe plus, et cette promesse n'était pas tenue — ni
-         * `Échap`, ni piège de focus, ni restitution. `Modale` la tient, et
-         * `className` déplace le panneau contre le bord droit plutôt que de
-         * dupliquer la coquille (audit §1.4d).
-         */
         <Modale
           titre="Tuteur IA"
           sousTitre="Il reçoit les protocoles du système et l'état réel de tes compétences."
@@ -156,19 +173,9 @@ export function TiroirTuteur({
           position="laterale"
           onFermer={() => setOuvert(false)}
         >
-          <>
-            <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {etatInitial ? (
               <ChatTuteur
-                /*
-                 * Remonter quand on change d'exercice.
-                 *
-                 * `ChatTuteur` lit son historique dans l'initialiseur de
-                 * `useState` — une seule fois. Sans cette clé, passer d'un
-                 * exercice à l'autre sans fermer le tiroir garderait les
-                 * messages du précédent en mémoire tout en écrivant sous la
-                 * nouvelle clé de session : le fil du nouvel exercice serait
-                 * écrasé par celui de l'ancien.
-                 */
                 key={exerciceCible ?? "general"}
                 etatInitial={etatInitial}
                 competenceCiblee={competenceCiblee}
@@ -180,11 +187,21 @@ export function TiroirTuteur({
                 competencesModale={competencesModale}
                 calibragesModale={calibragesModale}
               />
-            </div>
-          </>
+            ) : enChargement ? (
+              <div className="flex h-64 items-center justify-center p-6 text-center text-xs text-texte-discret">
+                <div className="space-y-2">
+                  <div className="size-5 animate-spin rounded-full border-2 border-primaire border-t-transparent mx-auto" />
+                  <p>Préparation du contexte pédagogique…</p>
+                </div>
+              </div>
+            ) : (
+              <div className="p-6 text-center text-xs text-danger">
+                Impossible de charger le contexte du tuteur.
+              </div>
+            )}
+          </div>
         </Modale>
       )}
     </>
   );
 }
-

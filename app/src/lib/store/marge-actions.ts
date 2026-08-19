@@ -42,7 +42,9 @@ async function ecrireLignes(
   if (existant === null) await creerDocument(ID_MARGE, suivant);
   else if (suivant !== existant) await modifierDocument(ID_MARGE, suivant);
 
-  revalidatePath("/", "layout");
+  revalidatePath("/seances");
+  revalidatePath("/atelier");
+  revalidatePath("/");
 }
 
 /** Appelée par `<form action={noterDansLaMarge}>`. */

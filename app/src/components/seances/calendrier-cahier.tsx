@@ -11,24 +11,14 @@ const JOURS_SEMAINE = ["L", "M", "M", "J", "V", "S", "D"];
  * proche en proche, inutile pour retrouver « le mardi où j'ai travaillé les
  * flux ». Le calendrier répond à cette question-là, et il dit lesquels des
  * jours portent une page plutôt que de laisser chercher.
- *
- * ## Un bouton, pas un bandeau
- *
- * Il occupait toute la largeur sous l'en-tête, replié dans un `<details>` :
- * une barre pleine page pour un geste qu'on ne fait pas à chaque visite. Il
- * redevient ce qu'il doit être — un petit bouton près de la navigation, qui
- * ouvre une grille flottante. La mécanique du panneau est celle des outils du
- * workspace (`OutilSeance`) : refermé au clic extérieur et à Échap, et une
- * seule implémentation pour les deux.
- *
- * Un jour sans contenu reste cliquable : il ouvre une page vierge qui le dit.
- * L'interdire obligerait à deviner où l'on a le droit d'aller.
  */
 export function CalendrierCahier({
   jour,
   mois,
   jours,
   aujourdHui,
+  onChangerJour,
+  onChangerMois,
 }: {
   /** La page ouverte, mise en évidence dans la grille. */
   jour: string;
@@ -37,10 +27,10 @@ export function CalendrierCahier({
   /** Les jours qui portent une page. */
   jours: string[];
   aujourdHui: Date;
+  onChangerJour?: (jour: string) => void;
+  onChangerMois?: (mois: string) => void;
 }) {
   const semaines = grilleMois(mois, jours, aujourdHui);
-  // Le jour ouvert voyage avec la navigation de mois : changer de mois ne doit
-  // pas changer la page qu'on regarde, seulement ce qu'on survole.
   const lienMois = (cible: string) =>
     `/seances?jour=${encodeURIComponent(jour)}&mois=${encodeURIComponent(cible)}`;
 
@@ -51,21 +41,45 @@ export function CalendrierCahier({
     >
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
-          <Link
-            href={lienMois(moisDecale(mois, -1))}
-            aria-label="Mois précédent"
-            className="rounded px-2 py-1 text-xs text-texte-attenue hover:bg-surface-3"
-          >
-            ←
-          </Link>
+          {onChangerMois ? (
+            <button
+              type="button"
+              onClick={() => onChangerMois(moisDecale(mois, -1))}
+              aria-label="Mois précédent"
+              className="rounded px-2 py-1 text-xs text-texte-attenue hover:bg-surface-3 transition-colors"
+            >
+              ←
+            </button>
+          ) : (
+            <Link
+              href={lienMois(moisDecale(mois, -1))}
+              aria-label="Mois précédent"
+              className="rounded px-2 py-1 text-xs text-texte-attenue hover:bg-surface-3"
+            >
+              ←
+            </Link>
+          )}
+
           <span className="text-xs font-medium capitalize">{libelleMois(mois)}</span>
-          <Link
-            href={lienMois(moisDecale(mois, 1))}
-            aria-label="Mois suivant"
-            className="rounded px-2 py-1 text-xs text-texte-attenue hover:bg-surface-3"
-          >
-            →
-          </Link>
+
+          {onChangerMois ? (
+            <button
+              type="button"
+              onClick={() => onChangerMois(moisDecale(mois, 1))}
+              aria-label="Mois suivant"
+              className="rounded px-2 py-1 text-xs text-texte-attenue hover:bg-surface-3 transition-colors"
+            >
+              →
+            </button>
+          ) : (
+            <Link
+              href={lienMois(moisDecale(mois, 1))}
+              aria-label="Mois suivant"
+              className="rounded px-2 py-1 text-xs text-texte-attenue hover:bg-surface-3"
+            >
+              →
+            </Link>
+          )}
         </div>
 
         <table className="w-full table-fixed border-separate border-spacing-0.5 text-center">
@@ -87,28 +101,41 @@ export function CalendrierCahier({
               <tr key={index}>
                 {semaine.map((jourCase) => {
                   const ouvert = jourCase.jour === jour;
+                  const classesCase = [
+                    "flex aspect-square items-center justify-center rounded text-xs transition-colors",
+                    jourCase.dansLeMois ? "" : "text-texte-discret/50",
+                    ouvert
+                      ? "bg-primaire font-semibold text-surface"
+                      : jourCase.aContenu
+                        ? "bg-primaire-faible font-medium text-primaire hover:bg-surface-3"
+                        : "hover:bg-surface-3",
+                    jourCase.estAujourdHui && !ouvert
+                      ? "ring-1 ring-inset ring-primaire"
+                      : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ");
+
                   return (
                     <td key={jourCase.jour}>
-                      <Link
-                        href={`/seances?jour=${encodeURIComponent(jourCase.jour)}`}
-                        aria-current={ouvert ? "page" : undefined}
-                        className={[
-                          "flex aspect-square items-center justify-center rounded text-xs",
-                          jourCase.dansLeMois ? "" : "text-texte-discret/50",
-                          ouvert
-                            ? "bg-primaire font-semibold text-surface"
-                            : jourCase.aContenu
-                              ? "bg-primaire-faible font-medium text-primaire hover:bg-surface-3"
-                              : "hover:bg-surface-3",
-                          jourCase.estAujourdHui && !ouvert
-                            ? "ring-1 ring-inset ring-primaire"
-                            : "",
-                        ]
-                          .filter(Boolean)
-                          .join(" ")}
-                      >
-                        {Number(jourCase.jour.slice(8, 10))}
-                      </Link>
+                      {onChangerJour ? (
+                        <button
+                          type="button"
+                          onClick={() => onChangerJour(jourCase.jour)}
+                          aria-current={ouvert ? "page" : undefined}
+                          className={`w-full ${classesCase}`}
+                        >
+                          {Number(jourCase.jour.slice(8, 10))}
+                        </button>
+                      ) : (
+                        <Link
+                          href={`/seances?jour=${encodeURIComponent(jourCase.jour)}`}
+                          aria-current={ouvert ? "page" : undefined}
+                          className={classesCase}
+                        >
+                          {Number(jourCase.jour.slice(8, 10))}
+                        </Link>
+                      )}
                     </td>
                   );
                 })}

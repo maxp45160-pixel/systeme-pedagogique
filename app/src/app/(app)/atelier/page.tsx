@@ -77,13 +77,14 @@ export default async function PageAtelier(props: {
     );
   }
 
-  const [aperçus, snapshots, contexte, contenuInitial, changementsReferentiel, donneesSeance] = await Promise.all([
+  const [aperçus, snapshots, contexte, contenuInitial, changementsReferentiel, donneesSeance, lotEntretien] = await Promise.all([
     lireApercusDocuments(),
     lireApercusSnapshots(),
     chargerContexte(),
     documentDemande ? lireDocument(documentDemande).catch(() => null) : Promise.resolve(null),
     lireChangementsReferentiel(),
     chargerDonneesSeance(),
+    chargerCandidatsReferentiel(),
   ]);
   const themes = contexte.themes;
   const referentiel = contexte.referentiel;
@@ -359,7 +360,6 @@ export default async function PageAtelier(props: {
    * corpus n'ont rien à faire sur le chemin chaud des autres pages. L'Atelier
    * est le seul écran qui en affiche le résultat.
    */
-  const lotEntretien = await chargerCandidatsReferentiel();
   const entretien = {
     lot: lotEntretien,
     intitules: Object.fromEntries(

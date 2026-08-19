@@ -99,13 +99,7 @@ export default async function AppLayout({
 
           <NavMobile />
           <ProfilFlottant compteId={compte.id} />
-          {/*
-            Le tiroir du tuteur, monté hors du flux : `Suspense` le laisse streamer
-            après la page, l'assemblage de son contexte ne retarde donc aucun rendu.
-          */}
-          <Suspense fallback={null}>
-            <TuteurGlobal />
-          </Suspense>
+          <TuteurGlobal />
         </div>
       </FournisseurIntention>
     </FournisseurOnboarding>

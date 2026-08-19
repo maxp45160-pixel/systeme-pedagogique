@@ -4,10 +4,8 @@ import { SqueletteContenu } from "@/components/layout/squelette";
 import { EntetePage } from "@/components/layout/entete-page";
 import { chargerDonneesSeance } from "@/components/seances/donnees-seance";
 import { VueSeanceDetail, type EtapeRecherche } from "@/components/seances/vue-seance-detail";
-import { OngletsSeancesOuvertes } from "@/components/seances/file-seances";
 import { CahierSeances, RechercheCahier } from "@/components/seances/cahier-seances";
-import { PageCahier } from "@/components/seances/page-cahier";
-import { MarquePage } from "@/components/seances/marque-page";
+import { CahierInteractif } from "@/components/seances/cahier-interactif";
 import { lireMarge } from "@/lib/store/marge";
 import {
   construirePage,
@@ -17,36 +15,20 @@ import {
   jourDeLaSeance,
   joursDuCahier,
   jourValide,
-  moisValide,
   pageDOuverture,
   rangDOuverture,
   rangValide,
 } from "@/lib/domain/pages-cahier";
 import { lireApercusDocuments, lireApercusSnapshots } from "@/lib/store/documents";
-import { moisAffiche } from "@/components/seances/calendrier-cahier";
 import { ConcepteurSeance, type PresetSeance } from "@/components/seances/concepteur-seance";
 import { TEMPS_DECLARE_MAX } from "@/lib/domain/seance";
 
 /**
  * Pôle Cahier (ADR-061, étendu par ADR-062, refondu par ADR-079).
  *
- * Le cahier a des pages, et une page est un jour. Ce n'était pas le cas : le
- * hub déroulait tout l'historique d'un coup, et le workspace était un calque
- * plein écran qui le **remplaçait** — travailler, c'était sortir du cahier.
- *
- * Les paramètres, par ordre d'autorité :
- *
- *  - `focus=1` avec `session` — le plein écran, un MODE de concentration ;
- *  - `q` — l'index : la recherche traverse les jours et ne tourne pas de page ;
- *  - `composer=1` — le compositeur, ouvert AU-DESSUS de la page. Ce n'est pas
- *    une route à part : elle rendait sa propre coquille, et la refermer sans
- *    composer laissait sur un écran vide sans retour ;
- *  - `jour` / `f` / `mois` — la page ouverte, le feuillet de ce jour, et le
- *    mois du calendrier. `f` est implicite au rang 1 : une URL ne porte pas un
- *    défaut ;
- *  - `session` sans `focus` — la séance se déroule sur la page de son jour.
- *
- * Sans rien : le marque-page rouvre la dernière page consultée.
+ * Le cahier a des pages, et une page est un jour.
+ * Le rendu initial serveur rassemble toutes les données temporelles, puis
+ * la navigation entre les feuillets s'effectue instantanément côté client (0 ms).
  */
 export default async function PageSeances(props: {
   searchParams: Promise<{
@@ -138,18 +120,6 @@ export interface DemandeComposition {
 
 /**
  * Le compositeur ouvert par un lien (`composer=1`).
- *
- * ⚠️ **Ce n'était plus une page, c'était un cul-de-sac.** La route rendait sa
- * propre coquille — un titre et un bouton — puis ouvrait la modale par-dessus.
- * Refermer la modale sans composer laissait donc face à un écran quasi vide,
- * sans cahier, sans page, sans retour : le seul geste restant était de rouvrir
- * ce qu'on venait de fermer.
- *
- * Le compositeur s'ouvre désormais **au-dessus du cahier**, dont la page reste
- * dessous. Fermer rend la main au cahier au lieu de laisser nulle part, et
- * `retourEnFermant` ramène en plus à l'écran d'où l'on venait — le tableau de
- * bord, un exercice, une fiche — puisque c'est de là qu'on a demandé à
- * composer.
  */
 async function CompositeurDepuisLien({
   codesParametres,
@@ -158,33 +128,14 @@ async function CompositeurDepuisLien({
   temps,
 }: DemandeComposition) {
   const donnees = await chargerDonneesSeance();
-  /*
-   * Un thème demandé passe avant les codes : il porte une portée nommée, que
-   * `ConcepteurSeance` sait déjà préférer au reste (`themeDuThemeInitial`).
-   * Un identifiant inconnu ou archivé n'est pas une erreur — on retombe sur le
-   * chemin par codes plutôt que d'ouvrir un écran vide.
-   */
   const themeInitial = themeDemande
     ? donnees.themes.find((theme) => theme.id === themeDemande && !theme.archive)
     : undefined;
-  const codesDemandes =(Array.isArray(codesParametres) ? codesParametres : codesParametres ? [codesParametres] : [])
+  const codesDemandes = (Array.isArray(codesParametres) ? codesParametres : codesParametres ? [codesParametres] : [])
     .filter((code, index, liste) => liste.indexOf(code) === index);
   const codesActifs = new Set(donnees.actifs.map((skill) => skill.code));
   const codesVises = codesDemandes.filter((code) => codesActifs.has(code));
-  /*
-   * Le repli sur la première recommandation ne joue QUE si aucune intention
-   * n'accompagne la demande.
-   *
-   * Il jouait toujours, et il mentait : une phrase sans code — « je bloque en
-   * maths » — ouvrait le compositeur sur la compétence en tête du classement,
-   * sans rapport avec la phrase, sous le titre « le sujet est déjà choisi ».
-   * Le texte de la personne servait de décor pendant que le système visait
-   * autre chose.
-   *
-   * Quand une intention est écrite, c'est ELLE le sujet : mieux vaut ouvrir le
-   * compositeur sans cible imposée — il demandera quoi travailler — que d'en
-   * imposer une que rien ne relie à ce qui a été dit (P6, ne rien inventer).
-   */
+
   const intentionEcrite = Boolean(intention?.trim());
   const codeRepli = intentionEcrite ? undefined : donnees.recommandations[0]?.etat.skill.code;
   const codes = codesVises.length > 0 ? codesVises : codeRepli ? [codeRepli] : [];
@@ -196,8 +147,7 @@ async function CompositeurDepuisLien({
     const skill = donnees.actifs.find((candidate) => candidate.code === code);
     return skill ? [skill.domaine] : [];
   }))];
-  // `themeDuPreset` prime sur `themeDuThemeInitial` dans le compositeur : un
-  // preset construit ici masquerait le thème demandé.
+
   const preset: PresetSeance | undefined = !themeInitial && codes.length > 0
     ? {
         libelle: codes.length === 1 ? `Compétence : ${codes[0]}` : "Séance ciblée",
@@ -245,9 +195,8 @@ async function ResultatsRecherche({ recherche }: { recherche: string }) {
 /**
  * Le cahier, ouvert sur une page.
  *
- * L'ordre de lecture : les onglets qui dépassent (ce qui est ouvert ailleurs),
- * la page elle-même, puis la recherche tout en bas — c'est l'index d'un cahier,
- * et un index se consulte quand on n'a pas trouvé en feuilletant.
+ * Toutes les données sont assemblées ici une seule fois, puis confiées
+ * au conteneur interactif pour un feuilletage instantané côté client.
  */
 async function ContenuCahier({
   jourDemande,
@@ -284,32 +233,16 @@ async function ContenuCahier({
     aujourdHui: ctx.now,
   });
 
-  /*
-   * Le jour affiché, par ordre d'autorité : celui demandé, celui de la séance
-   * ouverte, puis le jour courant. Ouvrir une séance amène donc sur SA page —
-   * c'est ce qui raccroche le travail au cahier.
-   */
   const seanceOuverte = session
     ? ctx.donnees.sessions.find((candidate) => candidate.id === session)
     : undefined;
   const jourExplicite = jourValide(jourDemande) ?? (seanceOuverte ? jourDeLaSeance(seanceOuverte) : null);
   const jour = jourExplicite ?? pageDOuverture(null, jours, ctx.now);
 
-  /*
-   * Un jour porte un à plusieurs feuillets (`feuilletsDeLaPage`). Le comptage
-   * est fait ici, une fois pour tout le cahier : la navigation d'un feuillet à
-   * l'autre a besoin de savoir combien en porte le jour voisin, et le refaire à
-   * chaque flèche relirait toutes les séances.
-   */
   const entreesDuCahier = { seances: ctx.donnees.sessions, notes: marge, projets };
   const nombresDeFeuillets = feuilletsParJour(jours, entreesDuCahier);
   const feuilletsDuJour = feuilletsDeLaPage(construirePage(jour, entreesDuCahier));
 
-  /*
-   * Le rang affiché, par ordre d'autorité : celui de la séance ouverte — on
-   * arrive sur SON feuillet, pas sur le premier du jour — puis celui demandé
-   * dans l'URL, borné au jour pour qu'un lien périmé n'ouvre pas du vide.
-   */
   const rangDeLaSeance = seanceOuverte
     ? feuilletsDuJour.findIndex(
         (feuillet) => feuillet.type === "seance" && feuillet.seance.id === seanceOuverte.id,
@@ -321,76 +254,36 @@ async function ContenuCahier({
   );
 
   return (
-    <div className="space-y-8">
-      {/*
-        Le marque-page ne redirige que si rien d'autre ne désigne la page : un
-        jour demandé l'emporte sur la mémoire, et demander à composer aussi —
-        le compositeur s'ouvre au-dessus de la page courante, et lui substituer
-        la dernière page consultée abandonnerait le geste demandé.
-      */}
-      <MarquePage
-        compteId={ctx.donnees.user.id}
-        jour={jour}
-        rang={rang}
-        jours={jours}
-        reprendre={jourExplicite === null && !composition}
-      />
-
-      {composition && <CompositeurDepuisLien {...composition} />}
-
-      {/*
-        La rangée d'onglets garde sa place, même vide.
-
-        Elle ne montre que ce qui est ouvert AILLEURS que sur la page affichée :
-        elle disparaît donc dès qu'on tourne vers le jour de la séance en cours,
-        et tout le cahier remontait de trois centimètres — flèches comprises,
-        sous le curseur de qui feuillette. Le trou réservé coûte une ligne ; le
-        cahier qui saute coûte le geste.
-      */}
-      <div className="min-h-8">
-        <OngletsSeancesOuvertes
-          seances={ctx.donnees.sessions}
-          tentatives={ctx.donnees.attempts}
-          projets={projets}
-          jourAffiche={jour}
-        />
-      </div>
-
-      <PageCahier
-        jour={jour}
-        jours={jours}
-        rang={rang}
-        nombresDeFeuillets={nombresDeFeuillets}
-        mois={moisAffiche(moisValide(moisDemande), jour)}
-        seances={ctx.donnees.sessions}
-        tentatives={ctx.donnees.attempts}
-        donnees={donnees}
-        notes={marge}
-        projets={projets}
-        aujourdHui={ctx.now}
-        {...(seanceOuverte
+    <CahierInteractif
+      compteId={ctx.donnees.user.id}
+      jourInitial={jour}
+      jourExplicite={jourExplicite !== null}
+      feuilletInitial={rang}
+      moisInitial={moisDemande}
+      jours={jours}
+      nombresDeFeuilletsMap={Array.from(nombresDeFeuillets.entries())}
+      seances={ctx.donnees.sessions}
+      tentatives={ctx.donnees.attempts}
+      donnees={donnees}
+      notes={marge}
+      projets={projets}
+      aujourdHuiIso={ctx.now.toISOString()}
+      compositeur={composition ? <CompositeurDepuisLien {...composition} /> : undefined}
+      seanceDeployee={
+        seanceOuverte
           ? {
-              seanceDeployee: {
-                id: seanceOuverte.id,
-                contenu: (
-                  <VueSeanceDetail
-                    id={seanceOuverte.id}
-                    exerciceDemande={exercice}
-                    recherche={recherche}
-                    plein={false}
-                  />
-                ),
-              },
+              id: seanceOuverte.id,
+              contenu: (
+                <VueSeanceDetail
+                  id={seanceOuverte.id}
+                  exerciceDemande={exercice}
+                  recherche={recherche}
+                  plein={false}
+                />
+              ),
             }
-          : {})}
-      />
-
-      <section className="space-y-2 border-t border-bordure pt-6">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-texte-discret">
-          Chercher dans tout le cahier
-        </h2>
-        <RechercheCahier />
-      </section>
-    </div>
+          : undefined
+      }
+    />
   );
 }
