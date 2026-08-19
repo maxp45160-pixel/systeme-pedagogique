@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { CompteAdministre } from "@/lib/domain/acces";
@@ -14,6 +15,7 @@ import { MetriquesMoteur } from "./metriques-moteur";
 import { GrapheWorkflowViz } from "@/components/dev/graphe-workflow";
 import { ProfilDashboard } from "@/components/dev/profil-dashboard";
 import { BandeauInfo } from "@/components/ui/primitives";
+import { IconeAmpoule } from "@/components/ui/icones";
 
 export type OngletAdmin =
   | "kpi"
@@ -95,6 +97,50 @@ export function CockpitAdmin({
 
   return (
     <div className="space-y-6">
+      {/* Barre d'accès direct et test (réservée aux admins) */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-bordure bg-surface px-4 py-3 shadow-xs">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-texte">Accès directs & Tests :</span>
+          <span className="text-[0.6875rem] text-texte-attenue hidden sm:inline">
+            Tester les parcours sans réinitialiser de compte
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/demarrer?apercu=1"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-primaire/40 bg-primaire/10 px-2.5 py-1 text-xs font-semibold text-primaire transition-colors hover:bg-primaire/20"
+            title="Tester l'écran d'accueil et le diagnostic d'amorçage pour nouveaux utilisateurs"
+          >
+            <IconeAmpoule className="size-3.5" />
+            <span>Tester l&apos;Amorçage (/demarrer)</span>
+          </Link>
+          <Link
+            href="/aide"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-bordure bg-surface-2 px-2.5 py-1 text-xs font-medium text-texte-attenue transition-colors hover:text-texte hover:bg-surface"
+          >
+            <span>Aide (/aide)</span>
+          </Link>
+          <Link
+            href="/compte"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-bordure bg-surface-2 px-2.5 py-1 text-xs font-medium text-texte-attenue transition-colors hover:text-texte hover:bg-surface"
+          >
+            <span>Réglages (/compte)</span>
+          </Link>
+          <Link
+            href="/atelier"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-bordure bg-surface-2 px-2.5 py-1 text-xs font-medium text-texte-attenue transition-colors hover:text-texte hover:bg-surface"
+          >
+            <span>Atelier (/atelier)</span>
+          </Link>
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-bordure bg-surface-2 px-2.5 py-1 text-xs font-medium text-texte-attenue transition-colors hover:text-texte hover:bg-surface"
+          >
+            <span>Tableau de bord (/)</span>
+          </Link>
+        </div>
+      </div>
+
       {/* Barre de navigation des onglets */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-bordure pb-4">
         <nav className="flex flex-wrap gap-1.5" aria-label="Navigation Cockpit Admin">
@@ -105,9 +151,9 @@ export function CockpitAdmin({
                 key={o.id}
                 type="button"
                 onClick={() => changerOnglet(o.id)}
-                className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-medium transition-all ${
+                className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-medium transition-all cursor-pointer ${
                   actif
-                    ? "bg-primaire text-primaire-contraste shadow-sm"
+                    ? "bg-primaire text-primaire-contraste shadow-sm font-semibold"
                     : "text-texte-discret hover:bg-surface hover:text-texte"
                 }`}
               >

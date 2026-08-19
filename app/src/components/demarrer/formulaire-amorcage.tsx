@@ -11,6 +11,8 @@ import { ReglagesTuteur } from "@/components/tuteur/reglages-tuteur";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import { DemarrerTour, TOUR_DEMARRER_ID } from "@/components/onboarding/demarrer-tour";
 import { useOnboarding } from "@/components/onboarding/onboarding-context";
+import { AssistantOrientationProfil } from "@/components/profil/assistant-orientation-profil";
+import type { ProfilSynthetise } from "@/lib/domain/assistant-orientation";
 
 interface ExempleSujet {
   label: string;
@@ -89,6 +91,8 @@ export function FormulaireAmorcage({
   const [erreur, setErreur] = useState<string | null>(null);
   const [validationOuverte, setValidationOuverte] = useState(false);
 
+  const [modeGuide, setModeGuide] = useState(true);
+
   const [sujet, setSujet] = useState("");
   const [objectif, setObjectif] = useState(objectifMoyenTerme);
   const [pointDeDepart, setPointDeDepart] = useState("");
@@ -96,11 +100,8 @@ export function FormulaireAmorcage({
     "Pratiquer d'abord",
     "Des cas concrets",
   ]);
-  // La lecture de la clé ne se fait pas à l'initialisation : pendant le SSR,
-  // `lireConfigTuteur` retourne toujours `null` (pas de `window`), et lire le
-  // `localStorage` au premier rendu client produirait un mismatch d'hydratation
-  // si une clé existe. On part sur `false` (l'état du serveur) et on synchronise
-  // après montage.
+  const [planGenere, setPlanGenere] = useState<string>("");
+
   const [cleConfiguree, setCleConfiguree] = useState(false);
 
   useEffect(() => {
@@ -120,12 +121,22 @@ export function FormulaireAmorcage({
     setObjectif(ex.objectif);
     if (ex.pointDeDepart) setPointDeDepart(ex.pointDeDepart);
     if (ex.preferences) setPreferencesChoisies(ex.preferences);
+    setModeGuide(false);
   }
 
   function basculerPreference(pref: string) {
     setPreferencesChoisies((prev) =>
       prev.includes(pref) ? prev.filter((p) => p !== pref) : [...prev, pref],
     );
+  }
+
+  function appliquerSyntheseOrientation(profil: ProfilSynthetise) {
+    setSujet(profil.sujet);
+    setObjectif(profil.objectifMoyenTerme);
+    setPointDeDepart(profil.formation);
+    setPreferencesChoisies(profil.preferencesPedagogiques);
+    if (profil.plan) setPlanGenere(profil.plan);
+    setModeGuide(false);
   }
 
   function soumettre() {
@@ -137,6 +148,7 @@ export function FormulaireAmorcage({
           objectifLongTerme: objectifLongTerme || undefined,
           formation: pointDeDepart.trim() || undefined,
           preferencesPedagogiques: preferencesChoisies,
+          plan: planGenere || undefined,
         });
         setValidationOuverte(true);
       } catch (e) {
@@ -151,7 +163,7 @@ export function FormulaireAmorcage({
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-bordure/60 pb-3">
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center rounded-full bg-primaire/15 px-2.5 py-0.5 text-[0.6875rem] font-semibold uppercase tracking-wider text-primaire">
-            Étape 1 sur 2 · Ton axe d&apos;apprentissage
+            Étape 1 sur 2 · Votre axe d&apos;apprentissage
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -163,7 +175,7 @@ export function FormulaireAmorcage({
             <span>Visite guidée</span>
           </button>
           <span className="text-xs text-texte-discret">·</span>
-          <span className="text-xs text-texte-discret">2 minutes et on commence</span>
+          <span className="text-xs text-texte-discret">2 minutes pour commencer</span>
         </div>
       </div>
 
@@ -209,173 +221,212 @@ export function FormulaireAmorcage({
         )}
       </div>
 
-      {/* Chips d'exemples d'inspiration */}
-      <div
-        data-tour="exemples-inspiration"
-        className="rounded-xl border border-bordure/80 bg-surface-2/60 p-4"
-      >
-        <p className="text-xs font-medium text-texte mb-2 flex items-center gap-1.5">
-          <IconeAmpoule className="size-3.5 text-primaire" />
-          <span>Exemples, pour remplir en un clic :</span>
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {EXEMPLES.map((ex) => (
-            <button
-              key={ex.label}
-              type="button"
-              onClick={() => choisirExemple(ex)}
-              className={cx(
-                "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all shadow-xs",
-                sujet === ex.sujet
-                  ? "border-primaire bg-primaire/15 text-primaire"
-                  : "border-bordure bg-surface text-texte-attenue hover:border-primaire/40 hover:text-texte hover:bg-surface-2",
-              )}
-            >
-              <span>{ex.label}</span>
-            </button>
-          ))}
-        </div>
+      {/* Commutateur de mode (Assistant interactif vs Saisie directe) */}
+      <div className="flex items-center justify-between gap-2 rounded-xl bg-surface-2/40 border border-bordure/70 p-1.5">
+        <button
+          type="button"
+          onClick={() => setModeGuide(true)}
+          className={cx(
+            "flex-1 rounded-lg py-2 text-xs font-medium transition-all text-center",
+            modeGuide
+              ? "bg-surface text-texte shadow-xs font-semibold"
+              : "text-texte-attenue hover:text-texte",
+          )}
+        >
+          Diagnostic guidé (3 questions simples)
+        </button>
+        <button
+          type="button"
+          onClick={() => setModeGuide(false)}
+          className={cx(
+            "flex-1 rounded-lg py-2 text-xs font-medium transition-all text-center",
+            !modeGuide
+              ? "bg-surface text-texte shadow-xs font-semibold"
+              : "text-texte-attenue hover:text-texte",
+          )}
+        >
+          Saisie directe
+        </button>
       </div>
 
-      {/* Formulaire avec indicateurs d'étapes */}
-      <div className="space-y-5">
-        <div className="relative">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs font-semibold text-texte flex items-center gap-1.5">
-              <span className="flex size-5 items-center justify-center rounded-full bg-surface-2 border border-bordure text-[0.6875rem] font-mono">
-                1
-              </span>
-              Le sujet à maîtriser
-            </span>
-            {sujetValide && (
-              <span className="text-xs font-medium text-primaire flex items-center gap-1">
-                <IconeValide className="size-3.5" />
-                Prêt
-              </span>
-            )}
-          </div>
-          <Champ
-            label=""
-            value={sujet}
-            onChange={(e) => setSujet(e.target.value)}
-            placeholder="Ex : développement web, droit fiscal, lutherie, philosophie morale…"
-            aide="Écris-le avec tes propres mots. Le tuteur IA le découpera ensuite en compétences mesurables."
-          />
-        </div>
-
-        <div className="relative">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs font-semibold text-texte flex items-center gap-1.5">
-              <span className="flex size-5 items-center justify-center rounded-full bg-surface-2 border border-bordure text-[0.6875rem] font-mono">
-                2
-              </span>
-              Pour quoi faire (ton objectif concret)
-            </span>
-            {objectifValide && (
-              <span className="text-xs font-medium text-primaire flex items-center gap-1">
-                <IconeValide className="size-3.5" />
-                Prêt
-              </span>
-            )}
-          </div>
-          <Champ
-            label=""
-            value={objectif}
-            onChange={(e) => setObjectif(e.target.value)}
-            placeholder="Ex : préparer un concours, changer de métier, mener un projet en autonomie…"
-            aide="Permet de calibrer l'importance de chaque compétence selon ton ambition réelle."
-          />
-        </div>
-
-        {/* Section 3 : Style d'apprentissage et point de départ */}
-        <div
-          data-tour="style-apprentissage"
-          className="relative rounded-xl border border-bordure/80 bg-surface-2/40 p-4 space-y-3.5 shadow-xs"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-texte flex items-center gap-1.5">
-              <span className="flex size-5 items-center justify-center rounded-full bg-surface border border-bordure text-[0.6875rem] font-mono">
-                3
-              </span>
-              Ton style d&apos;apprentissage (calibrage direct du tuteur IA)
-            </span>
-            <span className="text-[0.6875rem] text-texte-discret">
-              Optionnel · Sélection en 1 clic
-            </span>
-          </div>
-
-          <div>
-            <label className="text-[0.6875rem] font-medium text-texte-attenue mb-1.5 block">
-              Comment préfères-tu apprendre ?
-            </label>
+      {modeGuide ? (
+        <AssistantOrientationProfil
+          sujetInitial={sujet}
+          formationInitiale={pointDeDepart}
+          preferencesInitiales={preferencesChoisies}
+          surSyntheseAppliquee={appliquerSyntheseOrientation}
+        />
+      ) : (
+        <>
+          {/* Chips d'exemples d'inspiration */}
+          <div
+            data-tour="exemples-inspiration"
+            className="rounded-xl border border-bordure/80 bg-surface-2/60 p-4"
+          >
+            <p className="text-xs font-medium text-texte mb-2 flex items-center gap-1.5">
+              <IconeAmpoule className="size-3.5 text-primaire" />
+              <span>Exemples, pour remplir en un clic :</span>
+            </p>
             <div className="flex flex-wrap gap-2">
-              {PREFERENCES_SUGGESTIONS.map((pref) => {
-                const selectionne = preferencesChoisies.includes(pref.label);
-                return (
-                  <button
-                    key={pref.label}
-                    type="button"
-                    onClick={() => basculerPreference(pref.label)}
-                    className={cx(
-                      "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-all shadow-xs",
-                      selectionne
-                        ? "border-primaire bg-primaire/15 text-primaire font-semibold ring-1 ring-primaire/30"
-                        : "border-bordure bg-surface text-texte-attenue hover:border-primaire/40 hover:text-texte hover:bg-surface-2",
-                    )}
-                  >
-                    <span>{pref.label}</span>
-                    {selectionne && <IconeValide className="size-3" />}
-                  </button>
-                );
-              })}
+              {EXEMPLES.map((ex) => (
+                <button
+                  key={ex.label}
+                  type="button"
+                  onClick={() => choisirExemple(ex)}
+                  className={cx(
+                    "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all shadow-xs",
+                    sujet === ex.sujet
+                      ? "border-primaire bg-primaire/15 text-primaire"
+                      : "border-bordure bg-surface text-texte-attenue hover:border-primaire/40 hover:text-texte hover:bg-surface-2",
+                  )}
+                >
+                  <span>{ex.label}</span>
+                </button>
+              ))}
             </div>
           </div>
 
-          <div>
-            <Champ
-              label="Ton point de départ / contexte (facultatif)"
-              value={pointDeDepart}
-              onChange={(e) => setPointDeDepart(e.target.value)}
-              placeholder="Ex : débutant complet, autodidacte, reconversion, junior, étudiant..."
-              aide="Transmis au tuteur pour qu'il adapte son vocabulaire et ses analogies sans inventer de diplôme."
-            />
+          {/* Formulaire avec indicateurs d'étapes */}
+          <div className="space-y-5">
+            <div className="relative">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-semibold text-texte flex items-center gap-1.5">
+                  <span className="flex size-5 items-center justify-center rounded-full bg-surface-2 border border-bordure text-[0.6875rem] font-mono">
+                    1
+                  </span>
+                  Le sujet à maîtriser
+                </span>
+                {sujetValide && (
+                  <span className="text-xs font-medium text-primaire flex items-center gap-1">
+                    <IconeValide className="size-3.5" />
+                    Prêt
+                  </span>
+                )}
+              </div>
+              <Champ
+                label=""
+                value={sujet}
+                onChange={(e) => setSujet(e.target.value)}
+                placeholder="Ex : développement web, droit fiscal, lutherie, philosophie morale…"
+                aide="Écris-le avec tes propres mots. Le tuteur IA le découpera ensuite en compétences mesurables."
+              />
+            </div>
+
+            <div className="relative">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-semibold text-texte flex items-center gap-1.5">
+                  <span className="flex size-5 items-center justify-center rounded-full bg-surface-2 border border-bordure text-[0.6875rem] font-mono">
+                    2
+                  </span>
+                  Pour quoi faire (ton objectif concret)
+                </span>
+                {objectifValide && (
+                  <span className="text-xs font-medium text-primaire flex items-center gap-1">
+                    <IconeValide className="size-3.5" />
+                    Prêt
+                  </span>
+                )}
+              </div>
+              <Champ
+                label=""
+                value={objectif}
+                onChange={(e) => setObjectif(e.target.value)}
+                placeholder="Ex : préparer un concours, changer de métier, mener un projet en autonomie…"
+                aide="Permet de calibrer l'importance de chaque compétence selon ton ambition réelle."
+              />
+            </div>
+
+            {/* Section 3 : Style d'apprentissage et point de départ */}
+            <div
+              data-tour="style-apprentissage"
+              className="relative rounded-xl border border-bordure/80 bg-surface-2/40 p-4 space-y-3.5 shadow-xs"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-texte flex items-center gap-1.5">
+                  <span className="flex size-5 items-center justify-center rounded-full bg-surface border border-bordure text-[0.6875rem] font-mono">
+                    3
+                  </span>
+                  Ton style d&apos;apprentissage (calibrage direct du tuteur IA)
+                </span>
+                <span className="text-[0.6875rem] text-texte-discret">
+                  Optionnel · Sélection en 1 clic
+                </span>
+              </div>
+
+              <div>
+                <label className="text-[0.6875rem] font-medium text-texte-attenue mb-1.5 block">
+                  Comment préfères-tu apprendre ?
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {PREFERENCES_SUGGESTIONS.map((pref) => {
+                    const selectionne = preferencesChoisies.includes(pref.label);
+                    return (
+                      <button
+                        key={pref.label}
+                        type="button"
+                        onClick={() => basculerPreference(pref.label)}
+                        className={cx(
+                          "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-all shadow-xs",
+                          selectionne
+                            ? "border-primaire bg-primaire/15 text-primaire font-semibold ring-1 ring-primaire/30"
+                            : "border-bordure bg-surface text-texte-attenue hover:border-primaire/40 hover:text-texte hover:bg-surface-2",
+                        )}
+                      >
+                        <span>{pref.label}</span>
+                        {selectionne && <IconeValide className="size-3" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <Champ
+                  label="Ton point de départ / contexte (facultatif)"
+                  value={pointDeDepart}
+                  onChange={(e) => setPointDeDepart(e.target.value)}
+                  placeholder="Ex : débutant complet, autodidacte, reconversion, junior, étudiant..."
+                  aide="Transmis au tuteur pour qu'il adapte son vocabulaire et ses analogies sans inventer de diplôme."
+                />
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {erreur && (
-        <BandeauInfo ton="alerte" taille="compacte">
-          <p className="text-alerte">{erreur}</p>
-        </BandeauInfo>
-      )}
-
-      {/* Bouton d'action interactif */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-bordure/60">
-        <div className="flex items-center gap-3">
-          <Bouton
-            onClick={soumettre}
-            disabled={!pret || enCours}
-            variante="principal"
-            className={cx(
-              "group px-5 py-2.5 shadow-md transition-all",
-              pret && "ring-2 ring-primaire/30",
-            )}
-          >
-            <span>{enCours ? "Génération en cours…" : "Générer mon référentiel avec l'IA"}</span>
-            <IconeFleche className="size-3.5 transition-transform group-hover:translate-x-1" />
-          </Bouton>
-
-          {!pret && (
-            <span className="text-xs text-texte-discret">
-              Remplis le sujet et l&apos;objectif pour continuer.
-            </span>
+          {erreur && (
+            <BandeauInfo ton="alerte" taille="compacte">
+              <p className="text-alerte">{erreur}</p>
+            </BandeauInfo>
           )}
-        </div>
 
-        <span className="text-xs text-texte-discret">
-          Rien n&apos;est enregistré sans ta validation.
-        </span>
-      </div>
+          {/* Bouton d'action interactif */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-bordure/60">
+            <div className="flex items-center gap-3">
+              <Bouton
+                onClick={soumettre}
+                disabled={!pret || enCours}
+                variante="principal"
+                className={cx(
+                  "group px-5 py-2.5 shadow-md transition-all",
+                  pret && "ring-2 ring-primaire/30",
+                )}
+              >
+                <span>{enCours ? "Génération en cours…" : "Générer mon référentiel avec l'IA"}</span>
+                <IconeFleche className="size-3.5 transition-transform group-hover:translate-x-1" />
+              </Bouton>
+
+              {!pret && (
+                <span className="text-xs text-texte-discret">
+                  Remplis le sujet et l&apos;objectif pour continuer.
+                </span>
+              )}
+            </div>
+
+            <span className="text-xs text-texte-discret">
+              Rien n&apos;est enregistré sans ta validation.
+            </span>
+          </div>
+        </>
+      )}
 
       {validationOuverte && (
         <ModaleReferentiel

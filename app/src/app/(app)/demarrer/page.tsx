@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { chargerContexte } from "@/lib/store/context";
+import { estAdministrateur } from "@/lib/store/acces";
 import { EntetePage } from "@/components/layout/entete-page";
-import { Carte } from "@/components/ui/primitives";
+import { BandeauInfo, Carte } from "@/components/ui/primitives";
 import { FormulaireAmorcage } from "@/components/demarrer/formulaire-amorcage";
+import { IconeAmpoule, IconeFleche } from "@/components/ui/icones";
 
 /**
  * Amorçage d'un compte neuf (ADR-026).
@@ -13,21 +15,21 @@ import { FormulaireAmorcage } from "@/components/demarrer/formulaire-amorcage";
  * choses que le système ne peut pas dériver — le sujet, l'objectif, le point de
  * départ — puis passe la main au tuteur.
  *
- * Trois champs, pas un assistant en douze étapes : le référentiel se construit
- * dans la conversation qui suit, pas dans un formulaire. Ces trois réponses
- * servent à la rendre possible — sans objectif déclaré, l'importance d'une
- * compétence ne se rapporte à rien (protocole du référentiel §4).
- *
- * Écrit dans `profiles.formation` et les deux objectifs : c'est le premier
- * chemin d'écriture vers ces colonnes, qui existaient depuis l'origine sans que
- * rien ne les renseigne (ADR-009, prérequis matériel).
+ * Pour les administrateurs, l'accès reste possible via `?apercu=1` afin de
+ * tester et prévisualiser l'expérience d'amorçage sans devoir recréer de compte.
  */
-export default async function PageDemarrer() {
-  const ctx = await chargerContexte();
+export default async function PageDemarrer(props: {
+  searchParams?: Promise<{ apercu?: string; preview?: string }>;
+}) {
+  const params = props.searchParams ? await props.searchParams : undefined;
+  const modeApercu = params?.apercu === "1" || params?.preview === "1";
 
-  // Le référentiel existe déjà : il n'y a rien à amorcer. On ne réaffiche pas
-  // un écran d'accueil à quelqu'un qui travaille depuis des semaines.
-  if (ctx.referentiel.skills.length > 0) {
+  const [ctx, admin] = await Promise.all([chargerContexte(), estAdministrateur()]);
+  const accesApercuAdmin = modeApercu && admin;
+
+  // Le référentiel existe déjà : il n'y a rien à amorcer sauf si un administrateur
+  // inspecte ou teste l'écran en mode aperçu.
+  if (ctx.referentiel.skills.length > 0 && !accesApercuAdmin) {
     redirect("/atelier");
   }
 
@@ -38,6 +40,28 @@ export default async function PageDemarrer() {
 
   return (
     <>
+      {accesApercuAdmin && ctx.referentiel.skills.length > 0 && (
+        <div className="mb-4">
+          <BandeauInfo ton="info" taille="compacte">
+            <div className="flex flex-wrap items-center justify-between gap-2 w-full">
+              <span className="text-xs flex items-center gap-1.5">
+                <IconeAmpoule className="size-3.5 text-info shrink-0" />
+                <span>
+                  <strong>Mode test administrateur</strong> : Vous visualisez l&apos;écran d&apos;amorçage sans réinitialiser votre compte existant.
+                </span>
+              </span>
+              <Link
+                href="/admin"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-primaire hover:underline"
+              >
+                <span>Retour au Cockpit Admin</span>
+                <IconeFleche className="size-3" />
+              </Link>
+            </div>
+          </BandeauInfo>
+        </div>
+      )}
+
       <EntetePage
         titre="Sur quoi voulez-vous progresser ?"
         sousTitre="Dites-nous sur quoi vous voulez progresser. On construit le parcours à partir de là."
@@ -68,12 +92,6 @@ export default async function PageDemarrer() {
 
       {/*
         Ce qui vient après, dit maintenant plutôt que découvert plus tard.
-
-        C'est le seul écran que tout nouveau compte traverse : c'est donc ici,
-        et nulle part ailleurs, qu'on peut apprendre le geste central du produit
-        — le `+`. Sans cette phrase, le point d'entrée unique est un bouton de
-        plus dans un rail, et l'utilisateur retombe sur l'habitude qu'on vient
-        de retirer : chercher, dans un menu, l'objet qu'il faudrait créer.
       */}
       <div className="mt-6 rounded-xl border border-bordure bg-surface-2/50 px-5 py-4">
         <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret">

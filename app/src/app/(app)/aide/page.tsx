@@ -10,23 +10,16 @@ import {
 } from "@/components/ui/primitives";
 import { NIVEAUX } from "@/lib/domain/types";
 import { BoutonRelancerTour } from "@/components/onboarding/bouton-relancer-tour";
+import { chargerContexte } from "@/lib/store/context";
 
 /**
- * Tutoriel d'entrée : ce qu'un compte neuf doit comprendre avant de travailler.
+ * Tutoriel d'entrée et documentation pédagogique : ce que chaque compte doit
+ * comprendre pour travailler efficacement.
  *
- * Statique et sans état — rien n'est lu en base. Ce que la page décrit est le
- * fonctionnement du produit, pas les données du compte : elle ne doit donc
- * jamais afficher de mesure ni d'exemple chiffré, qui passerait pour une
- * donnée réelle. L'échelle de niveaux est le seul contenu importé
- * (`NIVEAUX`) : c'est une constante du protocole, pas une mesure, et la
- * recopier ici la ferait diverger du moteur.
- *
- * Trois blocs, dans l'ordre où un débutant en a besoin :
- *  1. le parcours écran par écran — ce que tu vois / fais / ce qu'il en fait ;
- *  2. le vocabulaire, sans lequel les écrans restent opaques ;
- *  3. les questions fréquentes, en `<details>` natif — pas de composant
- *     client, pas de JavaScript, et le contenu reste trouvable par la
- *     recherche du navigateur même replié.
+ * Les liens s'adaptent dynamiquement à l'état du compte : un compte neuf est
+ * guidé vers l'amorçage (`/demarrer`), tandis qu'un compte établi est orienté
+ * vers son profil (`/compte`) ou son tableau de bord (`/`) sans redirection
+ * forcée vers l'Atelier.
  */
 
 interface Etape {
@@ -42,142 +35,120 @@ interface Etape {
   lien?: { href: string; libelle: string };
 }
 
-const ETAPES: Etape[] = [
-  {
-    numero: 1,
-    titre: "Dire ce que vous voulez travailler",
-    ou: "Écran de démarrage",
-    vois:
-      "Trois champs : le sujet de ta formation, l'objectif que tu vises à moyen terme, celui à long terme. Rien d'autre — pas d'assistant en douze étapes.",
-    fais:
-      "Tu réponds aux trois. Ce sont les seules choses que le système ne peut pas déduire : sans objectif déclaré, l'importance d'une compétence ne se rapporte à rien.",
-    effet:
-      "Le tuteur ouvre une conversation et construit ton référentiel à partir de tes réponses : des domaines, puis des compétences codées à l'intérieur. Tu valides ce qui entre.",
-    lien: { href: "/demarrer", libelle: "Ouvrir l'écran de démarrage" },
-  },
-  {
-    numero: 2,
-    titre: "Vérifier votre liste de compétences",
-    ou: "Atelier",
-    vois:
-      "Tes domaines, et dans chacun les compétences avec leur code (ex. LOG-01). La plupart n'ont pas encore de niveau : un tiret, pas un zéro. C'est normal — rien n'a encore été démontré.",
-    fais:
-      "Tu ouvres deux ou trois fiches pour voir de quoi elles parlent. Tu corriges ce qui est faux : une compétence mal formulée s'édite, une hors sujet s'archive, une manquante s'ajoute.",
-    effet:
-      "Le référentiel appartient à ton compte : le modifier ne casse rien. Une compétence déjà soutenue par des preuves est archivée, jamais supprimée — effacer l'objet effacerait l'historique posé dessus.",
-    lien: { href: "/atelier", libelle: "Ouvrir l'Atelier" },
-  },
-  {
-    numero: 3,
-    titre: "Composer votre première séance",
-    ou: "Cahier",
-    vois:
-      "Le compositeur : les compétences que tu peux viser, le nombre d'exercices, le temps dont tu disposes. En dessous, la file des séances en cours ou planifiées.",
-    fais:
-      "Tu choisis une ou deux compétences et tu déclares ton temps réel. Vise court pour la première fois : mieux vaut une séance finie qu'une séance abandonnée.",
-    effet:
-      "Le tuteur génère les exercices, calibrés sur les compétences visées et sur la durée. Il produit du contenu — jamais de mesure, et jamais un code de compétence qu'il aurait inventé.",
-    lien: { href: "/seances", libelle: "Ouvrir le Cahier" },
-  },
-  {
-    numero: 4,
-    titre: "Dérouler la séance",
-    ou: "Cahier · séance en cours",
-    vois:
-      "Un exercice à la fois : l'énoncé, ta zone de réponse, puis la correction, puis l'évaluation.",
-    fais:
-      "Tu réponds sans t'aider, tu compares à la correction, puis tu évalues honnêtement : c'est ton autonomie réelle sur cet exercice qui donne sa valeur à la preuve. Te surnoter fausse tout ce qui suit.",
-    effet:
-      "Chaque exercice évalué devient une preuve rattachée à sa compétence, avec sa source. Un exercice sauté ou une séance abandonnée ne produisent aucune preuve : rien ne bouge, et c'est voulu.",
-  },
-  {
-    numero: 5,
-    titre: "Lire ce que ça a changé",
-    ou: "Tableau de bord",
-    vois:
-      "La prochaine action proposée, et l'état de ce que tu travailles. Les niveaux ne sont pas stockés : ils sont recalculés à partir des preuves à chaque affichage.",
-    fais:
-      "Tu suis la prochaine action, ou tu retournes composer. En cas de doute sur un niveau, tu ouvres la fiche : les preuves qui le soutiennent sont listées.",
-    effet:
-      "La boucle recommence à l'étape 3, mais mieux ciblée. Une faiblesse ne disparaît pas avec le temps : seule une nouvelle démonstration la lève.",
-    lien: { href: "/", libelle: "Ouvrir le tableau de bord" },
-  },
-];
-
-const PREMIERE_HEURE: string[] = [
-  "Renseigner sujet et objectifs sur l'écran de démarrage.",
-  "Laisser le tuteur proposer un premier référentiel, et le relire.",
-  "Archiver ce qui est hors sujet, ajouter une compétence oubliée.",
-  "Composer une séance courte sur une seule compétence.",
-  "La dérouler jusqu'au bout, en s'évaluant honnêtement.",
-  "Revenir au tableau de bord et suivre la prochaine action.",
-];
-
-interface Terme {
-  mot: string;
-  definition: string;
+function construireEtapes(compteNeuf: boolean): Etape[] {
+  return [
+    {
+      numero: 1,
+      titre: "Dire ce que vous voulez travailler",
+      ou: compteNeuf ? "Écran de démarrage" : "Profil d'apprentissage & Atelier",
+      vois:
+        "Votre sujet d'apprentissage, vos objectifs concret et votre point de départ.",
+      fais:
+        "Vous répondez au diagnostic express ou remplissez les champs. Sans objectif déclaré, l'importance d'une compétence ne se rapporte à rien.",
+      effet:
+        "Le tuteur découpe votre référentiel à partir de vos réponses : des domaines, puis des compétences codées à l'intérieur. Vous validez ce qui entre.",
+      lien: compteNeuf
+        ? { href: "/demarrer", libelle: "Ouvrir l'écran de démarrage" }
+        : { href: "/compte", libelle: "Revoir mon profil d'apprentissage" },
+    },
+    {
+      numero: 2,
+      titre: "Vérifier votre liste de compétences",
+      ou: "Atelier",
+      vois:
+        "Vos domaines, et dans chacun les compétences avec leur code (ex. LOG-01). La plupart n'ont pas encore de niveau : un tiret, pas un zéro. C'est normal — rien n'a encore été démontré.",
+      fais:
+        "Vous ouvrez deux ou trois fiches pour voir de quoi elles parlent. Vous corrigez ce qui est faux : une compétence mal formulée s'édite, une hors sujet s'archive, une manquante s'ajoute.",
+      effet:
+        "Le référentiel appartient à votre compte : le modifier ne casse rien. Une compétence déjà soutenue par des preuves est archivée, jamais supprimée — effacer l'objet effacerait l'historique posé dessus.",
+      lien: { href: "/atelier", libelle: "Ouvrir l'Atelier" },
+    },
+    {
+      numero: 3,
+      titre: "Composer votre première séance",
+      ou: "Cahier",
+      vois:
+        "Le compositeur : les compétences que vous pouvez viser, le nombre d'exercices, le temps dont vous disposez. En dessous, la file des séances en cours ou planifiées.",
+      fais:
+        "Vous choisissez une ou deux compétences et vous déclarez votre temps réel. Visez court pour la première fois : mieux vaut une séance finie qu'une séance abandonnée.",
+      effet:
+        "Le tuteur génère les exercices, calibrés sur les compétences visées et sur la durée. Il produit du contenu — jamais de mesure, et jamais un code de compétence qu'il aurait inventé.",
+      lien: { href: "/seances", libelle: "Ouvrir le Cahier" },
+    },
+    {
+      numero: 4,
+      titre: "Dérouler la séance",
+      ou: "Cahier · séance en cours",
+      vois:
+        "Un exercice à la fois : l'énoncé, votre zone de réponse, puis la correction, puis l'évaluation.",
+      fais:
+        "Vous répondez sans vous aider, vous comparez à la correction, puis vous évaluez honnêtement : c'est votre autonomie réelle sur cet exercice qui donne sa valeur à la preuve. Vous surnoter fausse tout ce qui suit.",
+      effet:
+        "Chaque exercice évalué devient une preuve rattachée à sa compétence, avec sa source. Un exercice sauté ou une séance abandonnée ne produisent aucune preuve : rien ne bouge, et c'est voulu.",
+    },
+    {
+      numero: 5,
+      titre: "Lire ce que ça a changé",
+      ou: "Tableau de bord",
+      vois:
+        "La prochaine action proposée, et l'état de ce que vous travaillez. Les niveaux ne sont pas stockés : ils sont recalculés à partir des preuves à chaque affichage.",
+      fais:
+        "Vous suivez la prochaine action, ou vous retournez composer. En cas de doute sur un niveau, vous ouvrez la fiche : les preuves qui le soutiennent sont listées.",
+      effet:
+        "Chaque niveau affiché porte sa justification : en ouvrant la fiche d'une compétence, vous lisez les preuves exactes qui soutiennent son niveau.",
+      lien: { href: "/", libelle: "Ouvrir le Tableau de bord" },
+    },
+  ];
 }
 
-const VOCABULAIRE: Terme[] = [
+const PREMIERE_HEURE = [
+  "Renseigner votre sujet et vos objectifs lors de l'amorçage.",
+  "Laisser le tuteur proposer le premier référentiel et le valider.",
+  "Lancer la première séance de 20 minutes avec 2 exercices.",
+  "Évaluer honnêtement votre autonomie pour chaque exercice.",
+  "Regarder votre Tableau de bord : vos premiers niveaux soutenu apparaissent.",
+];
+
+const VOCABULAIRE = [
   {
-    mot: "Domaine",
+    mot: "Référentiel",
     definition:
-      "Un regroupement de compétences, propre à ton compte. Il porte un préfixe de code (ex. « LOG ») dont héritent ses compétences.",
+      "L'ensemble structuré de vos domaines et de vos compétences. Il est personnel à votre compte et peut évoluer à tout moment.",
   },
   {
     mot: "Compétence",
     definition:
-      "Un savoir-faire précis, identifié par un code (ex. LOG-01). C'est l'unité que le système mesure : tout le reste s'y rattache.",
+      "Un savoir-faire observable et démontrable (ex. LOG-01). Elle ne porte pas de note brute stockée, mais un niveau dérivé de vos preuves.",
   },
   {
     mot: "Preuve",
     definition:
-      "Un fait observé qui soutient un niveau : une évaluation d'exercice, ou une démonstration saisie à la main. Une preuve garde toujours sa source.",
-  },
-  {
-    mot: "Niveau",
-    definition:
-      "Ce que vos exercices disent de votre maîtrise. Il bouge dès que vous faites un nouvel exercice.",
-  },
-  {
-    mot: "Autonomie",
-    definition:
-      "Le degré d'aide dont tu as eu besoin sur un exercice, de « solution fournie » à « autonome avec initiative ». C'est le facteur qui pèse le plus sur la valeur d'une preuve.",
+      "Une trace concrète d'activité réussie (exercice évalué, résolution autonome) rattachée à une compétence avec sa date et son degré d'autonomie.",
   },
   {
     mot: "Séance",
     definition:
-      "Un ensemble d'exercices déroulé en une fois, sur un temps déclaré. C'est le seul endroit où des preuves se créent par le travail.",
+      "Un épisode de travail cadré dans le temps contenant un ou plusieurs exercices. Une seule séance est active à la fois par compte.",
   },
   {
-    mot: "Référentiel",
+    mot: "Tuteur IA",
     definition:
-      "L'ensemble de tes domaines et compétences. Il t'appartient, se modifie à tout moment, et n'est jamais partagé sans ton accord explicite.",
-  },
-  {
-    mot: "Tuteur",
-    definition:
-      "L'assistant qui rédige les exercices, les corrections et les propositions de compétences. Il produit du contenu, jamais des mesures.",
+      "Le moteur qui génère vos exercices et explications. Il ne produit aucune mesure sur vous et respecte strictement vos consignes déclarées.",
   },
 ];
 
-interface Question {
-  q: string;
-  r: string;
-}
-
-const QUESTIONS: Question[] = [
+const QUESTIONS = [
   {
     q: "Pourquoi certaines compétences n'affichent-elles aucun niveau ?",
     r: "Parce qu'aucune preuve ne les soutient encore. Une absence de preuve n'est pas un zéro : le système préfère un tiret à un chiffre inventé. Le niveau apparaît à la première évaluation.",
   },
   {
     q: "D'où vient le niveau affiché sur une fiche de compétence ?",
-    r: "Uniquement des preuves enregistrées — évaluations d'exercices et preuves saisies à la main. Chaque mesure garde sa source, consultable depuis la fiche.",
+    r: "Uniquement des preuves enregistrées — évaluations d'exercices et résolutions. Chaque mesure garde sa source, consultable depuis la fiche.",
   },
   {
     q: "Que se passe-t-il si je m'évalue trop généreusement ?",
-    r: "Le niveau monte sans que la compétence suive, et les séances suivantes te proposeront un travail trop dur, calé sur un niveau que tu n'as pas. L'évaluation honnête n'est pas une politesse : c'est ce qui rend le reste utilisable.",
+    r: "Le niveau monte sans que la compétence suive, et les séances suivantes vous proposeront un travail trop dur. L'évaluation honnête est ce qui rend le parcours fiable.",
   },
   {
     q: "Une faiblesse peut-elle disparaître toute seule avec le temps ?",
@@ -185,31 +156,23 @@ const QUESTIONS: Question[] = [
   },
   {
     q: "Le tuteur peut-il modifier mes niveaux ?",
-    r: "Non. Il produit du contenu — exercices, explications, propositions de compétences — jamais des mesures. Il ne crée pas non plus de code de compétence : il choisit dans la liste que le serveur lui fournit.",
+    r: "Non. Il produit du contenu — exercices, explications, propositions de compétences — jamais des mesures.",
   },
   {
     q: "Que se passe-t-il si j'abandonne une séance en cours ?",
     r: "Elle reste dans la file du Cahier et se reprend plus tard. Les exercices non évalués ne produisent aucune preuve, donc aucun niveau ne bouge.",
   },
   {
-    q: "Puis-je supprimer une compétence ou un exercice ?",
-    r: "Tant qu'il n'y a ni preuve ni tentative, oui. Dès qu'il en existe une, l'élément est archivé et non supprimé : effacer l'objet effacerait aussi l'historique qui s'appuie dessus.",
-  },
-  {
-    q: "Le temps estimé d'un exercice mesure-t-il ma performance ?",
-    r: "Non. Il sert à calibrer une séance sur le temps disponible, rien d'autre, et n'entre dans aucun calcul de niveau.",
-  },
-  {
-    q: "Mon référentiel est-il partagé avec d'autres comptes ?",
-    r: "Non. Il appartient à ton compte, et les données personnelles ne sont jamais partagées sans un accord explicite de ta part.",
-  },
-  {
-    q: "Par où recommencer quand je ne sais pas quoi faire ?",
-    r: "Par le tableau de bord : il propose la prochaine action à partir de l'état réel du référentiel. S'il ne propose rien, c'est qu'il manque des preuves — compose une séance depuis le Cahier.",
+    q: "Puis-je modifier ou étendre mon référentiel plus tard ?",
+    r: "Oui, à tout moment depuis l'Atelier ou le bouton '+' : vous pouvez ajouter des compétences, réviser un domaine ou ajuster votre profil dans Compte.",
   },
 ];
 
-export default function PageAide() {
+export default async function PageAide() {
+  const ctx = await chargerContexte();
+  const compteNeuf = ctx.referentiel.skills.length === 0;
+  const etapes = construireEtapes(compteNeuf);
+
   return (
     <>
       <EntetePage
@@ -218,19 +181,19 @@ export default function PageAide() {
       />
 
       <div className="mx-auto max-w-3xl space-y-10">
-        <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-primaire/30 bg-primaire/10 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-primaire/30 bg-primaire/10 p-4 shadow-xs">
           <div className="space-y-0.5">
             <p className="text-sm font-semibold text-texte">Visite guidée interactive</p>
             <p className="text-xs text-texte-attenue">
-              Besoin d&apos;un rappel des commandes principales ? Relance le tour pas-à-pas sur le Tableau de bord.
+              Besoin d&apos;un rappel des commandes principales ? Relancez le tour pas-à-pas sur le Tableau de bord.
             </p>
           </div>
           <BoutonRelancerTour libelle="Lancer la visite guidée" />
         </div>
 
         <BandeauInfo ton="primaire">
-          Le principe tient en une phrase : <strong>le système ne mesure que ce que tu as
-          démontré</strong>. Tout ce qui suit découle de là — le tuteur écrit les exercices, tes
+          Le principe tient en une phrase : <strong>le système ne mesure que ce que vous avez
+          démontré</strong>. Tout ce qui suit découle de là — le tuteur écrit les exercices, vos
           évaluations produisent les preuves, les preuves produisent les niveaux.
         </BandeauInfo>
 
@@ -240,7 +203,7 @@ export default function PageAide() {
           </TitreSection>
 
           <ol className="space-y-4">
-            {ETAPES.map((etape) => (
+            {etapes.map((etape) => (
               <li key={etape.numero}>
                 <Carte>
                   <EnTeteCarte
@@ -248,8 +211,8 @@ export default function PageAide() {
                     legende={etape.ou}
                   />
                   <CorpsCarte className="space-y-3">
-                    <LigneEtape libelle="Tu vois" texte={etape.vois} />
-                    <LigneEtape libelle="Tu fais" texte={etape.fais} />
+                    <LigneEtape libelle="Vous voyez" texte={etape.vois} />
+                    <LigneEtape libelle="Vous faites" texte={etape.fais} />
                     <LigneEtape libelle="Le système" texte={etape.effet} />
                     {etape.lien && (
                       <Link
@@ -268,7 +231,7 @@ export default function PageAide() {
 
         <section>
           <TitreSection legende="À faire dans l'ordre, une seule fois.">
-            Ta première heure
+            Votre première heure
           </TitreSection>
 
           <Carte>
@@ -286,12 +249,32 @@ export default function PageAide() {
                   </li>
                 ))}
               </ol>
-              <Link
-                href="/demarrer"
-                className={`${classesLienBouton("principal", "normale")} mt-4`}
-              >
-                Commencer maintenant
-              </Link>
+
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                {compteNeuf ? (
+                  <Link
+                    href="/demarrer"
+                    className={classesLienBouton("principal", "normale")}
+                  >
+                    Commencer mon amorçage
+                  </Link>
+                ) : (
+                  <>
+                    <Link
+                      href="/"
+                      className={classesLienBouton("principal", "normale")}
+                    >
+                      Accéder à mon Tableau de bord
+                    </Link>
+                    <Link
+                      href="/compte"
+                      className={classesLienBouton("secondaire", "normale")}
+                    >
+                      Modifier mon profil
+                    </Link>
+                  </>
+                )}
+              </div>
             </CorpsCarte>
           </Carte>
         </section>
@@ -345,7 +328,7 @@ export default function PageAide() {
         </section>
 
         <section>
-          <TitreSection legende="Clique sur une question pour dérouler la réponse.">
+          <TitreSection legende="Cliquez sur une question pour dérouler la réponse.">
             Questions fréquentes
           </TitreSection>
 

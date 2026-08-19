@@ -1,35 +1,37 @@
 "use client";
 
-import { useState } from "react";
-import { Bouton, SelecteurSegmente } from "@/components/ui/primitives";
+import { useState, type ComponentType } from "react";
+import { Bouton, SelecteurSegmente, cx } from "@/components/ui/primitives";
 import { seDeconnecter } from "@/lib/supabase/actions";
 import { exporterJournal } from "@/lib/store/export";
-import { IconeValide } from "@/components/ui/icones";
+import {
+  IconeAmpoule,
+  IconeCle,
+  IconeDocuments,
+  IconeTheme,
+  IconeValide,
+} from "@/components/ui/icones";
 import { FormulaireProfil } from "@/components/profil/formulaire-profil";
 import { ModaleDangerCompte } from "@/components/layout/modale-danger-compte";
 import { appliquerTheme, lireChoixTheme, type ChoixTheme } from "@/components/layout/theme";
 import type { User } from "@/lib/domain/types";
 import { ReglagesTuteur } from "@/components/tuteur/reglages-tuteur";
 
-/**
- * Les réglages du compte, sur une page — et non plus dans une modale à onglets.
- *
- * Ce qui vivait ici : une modale « Compte et réglages » à trois onglets, qui en
- * ouvrait une deuxième (« Danger compte »), qui en ouvrait une troisième
- * (« Supprimer ou réinitialiser les données »). Trois modales empilées pour des
- * réglages qu'on ne consulte pas au milieu d'un travail — et qui, du coup, ne
- * pouvaient être ni mises en signet, ni ouvertes dans un onglet, ni retrouvées
- * par l'historique du navigateur.
- *
- * Les trois onglets deviennent trois sections empilées : sur une page, il n'y a
- * plus de raison de cacher deux tiers du contenu pour tenir dans une fenêtre.
- * La zone de danger garde sa modale de confirmation, elle : c'est une garde
- * avant une action irréversible, pas un rangement.
- *
- * `profil` est chargé par le serveur et passé en prop — l'ancienne modale allait
- * le chercher elle-même dans un effet, avec sa phase « Chargement du profil… »
- * à chaque ouverture.
- */
+type OngletCompte = "profil" | "tuteur" | "preferences" | "donnees";
+
+interface OngletDef {
+  id: OngletCompte;
+  libelle: string;
+  icone: ComponentType<{ className?: string }>;
+}
+
+const ONGLETS: OngletDef[] = [
+  { id: "profil", libelle: "Profil d'apprentissage", icone: IconeAmpoule },
+  { id: "tuteur", libelle: "Tuteur IA & Clé", icone: IconeCle },
+  { id: "preferences", libelle: "Apparence & Compte", icone: IconeTheme },
+  { id: "donnees", libelle: "Sauvegarde & Données", icone: IconeDocuments },
+];
+
 export function PanneauCompte({
   profil,
   compteId,
@@ -39,6 +41,7 @@ export function PanneauCompte({
   compteId: string;
   courriel: string | null;
 }) {
+  const [onglet, setOnglet] = useState<OngletCompte>("profil");
   const [exportEnCours, setExportEnCours] = useState(false);
   const [messageExport, setMessageExport] = useState<string | null>(null);
   const [modaleDangerOuverte, setModaleDangerOuverte] = useState(false);
@@ -71,94 +74,168 @@ export function PanneauCompte({
 
   return (
     <div className="space-y-6">
-      <Section titre="Profil d'apprentissage">
-        <FormulaireProfil
-          formation={nonRenseigne(profil.formation)}
-          objectifMoyenTerme={nonRenseigne(profil.objectifMoyenTerme)}
-          objectifLongTerme={nonRenseigne(profil.objectifLongTerme)}
-          preferencesPedagogiques={profil.preferencesPedagogiques ?? []}
-          plan={profil.plan}
-        />
-      </Section>
+      {/* Barre d'onglets stylée en pastilles segmentées */}
+      <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-bordure bg-surface-2/50 p-1.5 shadow-xs">
+        {ONGLETS.map((tab) => {
+          const Icone = tab.icone;
+          const estActif = onglet === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setOnglet(tab.id)}
+              className={cx(
+                "inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-medium transition-all cursor-pointer",
+                estActif
+                  ? "bg-surface text-texte font-semibold shadow-xs border border-bordure/80"
+                  : "text-texte-attenue hover:text-texte hover:bg-surface/50",
+              )}
+              aria-pressed={estActif}
+            >
+              <Icone
+                className={cx(
+                  "size-3.5 shrink-0",
+                  estActif ? "text-primaire" : "text-texte-discret",
+                )}
+              />
+              <span>{tab.libelle}</span>
+            </button>
+          );
+        })}
+      </div>
 
-      <Section titre="Tuteur IA">
-        <ReglagesTuteur compteId={compteId} />
-      </Section>
+      {/* Surface principale avec contenu élégant */}
+      <div className="rounded-2xl border border-bordure bg-surface p-5 sm:p-7 shadow-xs">
+        {onglet === "profil" && (
+          <FormulaireProfil
+            formation={nonRenseigne(profil.formation)}
+            objectifMoyenTerme={nonRenseigne(profil.objectifMoyenTerme)}
+            objectifLongTerme={nonRenseigne(profil.objectifLongTerme)}
+            preferencesPedagogiques={profil.preferencesPedagogiques ?? []}
+            plan={profil.plan}
+          />
+        )}
 
-      <Section titre="Apparence">
-        <ChoixApparence />
-      </Section>
-
-      <Section titre="Compte et synchronisation">
-        <div className="flex items-center gap-3">
-          {profil.avatarUrl ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              src={profil.avatarUrl}
-              alt=""
-              referrerPolicy="no-referrer"
-              className="size-10 shrink-0 rounded-full border border-bordure object-cover"
-            />
-          ) : (
-            <span className="grid size-10 shrink-0 place-items-center rounded-full bg-primaire text-sm font-semibold text-primaire-contraste">
-              {profil.prenom?.charAt(0).toUpperCase() || "C"}
-            </span>
-          )}
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-texte">{profil.prenom || "Compte"}</p>
-            <div className="flex items-center gap-1.5 text-xs text-texte-attenue">
-              <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-succes" />
-              <span className="truncate">{courriel ?? "compte sans courriel"}</span>
+        {onglet === "tuteur" && (
+          <div className="space-y-5">
+            <div className="border-b border-bordure/60 pb-3.5">
+              <h3 className="text-sm font-semibold text-texte">Configuration du Tuteur IA</h3>
+              <p className="text-xs text-texte-attenue mt-0.5">
+                Renseignez votre clé d&apos;API pour la génération d&apos;exercices et l&apos;aide en direct.
+                Elle est stockée localement dans votre navigateur et n&apos;est jamais partagée.
+              </p>
+            </div>
+            <div className="max-w-xl">
+              <ReglagesTuteur compteId={compteId} />
             </div>
           </div>
-        </div>
-        <form action={seDeconnecter} className="mt-4">
-          <Bouton type="submit" variante="secondaire" taille="compacte">
-            Se déconnecter
-          </Bouton>
-        </form>
-      </Section>
-
-      <Section titre="Sauvegarde et journal">
-        <p className="text-xs leading-relaxed text-texte-attenue">
-          Télécharge l&apos;intégralité de ton journal en JSON — preuves, séances, exercices,
-          tentatives, compétences, documents de l&apos;atelier et profil. C&apos;est ta copie
-          souveraine hors ligne.
-        </p>
-        <Bouton
-          variante="secondaire"
-          taille="compacte"
-          onClick={telechargerArchive}
-          enChargement={exportEnCours}
-          className="mt-2.5"
-        >
-          Exporter mon journal JSON
-        </Bouton>
-        {messageExport && (
-          <p className="mt-2 flex items-start gap-1.5 text-xs text-texte">
-            <IconeValide className="mt-0.5 size-3.5 shrink-0 text-succes" />
-            <span>{messageExport}</span>
-          </p>
         )}
-      </Section>
 
-      <section className="rounded-xl border border-danger/30 bg-danger-faible/30 px-5 py-4 sm:px-6">
-        <h2 className="text-[0.6875rem] font-semibold uppercase tracking-wider text-danger">
-          Zone de danger — réinitialisation et données
-        </h2>
-        <p className="mt-2 text-xs leading-relaxed text-texte-attenue">
-          Réinitialise l&apos;ensemble de tes données d&apos;apprentissage ou supprime
-          définitivement toutes les informations de ton compte.
-        </p>
-        <Bouton
-          variante="danger"
-          taille="compacte"
-          onClick={() => setModaleDangerOuverte(true)}
-          className="mt-2.5"
-        >
-          Réinitialiser ou supprimer mes données…
-        </Bouton>
-      </section>
+        {onglet === "preferences" && (
+          <div className="space-y-6 divide-y divide-bordure/60">
+            {/* Ligne 1 : Thème */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6">
+              <div className="space-y-0.5">
+                <h4 className="text-sm font-semibold text-texte">Thème d&apos;affichage</h4>
+                <p className="text-xs text-texte-attenue">
+                  Basculez entre le mode clair, sombre ou suivez automatiquement les réglages système.
+                </p>
+              </div>
+              <div className="shrink-0">
+                <ChoixApparence />
+              </div>
+            </div>
+
+            {/* Ligne 2 : Identité & Session */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-6">
+              <div className="flex items-center gap-3.5 min-w-0">
+                {profil.avatarUrl ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={profil.avatarUrl}
+                    alt=""
+                    referrerPolicy="no-referrer"
+                    className="size-11 shrink-0 rounded-full border border-bordure object-cover shadow-xs"
+                  />
+                ) : (
+                  <span className="grid size-11 shrink-0 place-items-center rounded-full bg-primaire text-sm font-semibold text-primaire-contraste shadow-xs">
+                    {profil.prenom?.charAt(0).toUpperCase() || "C"}
+                  </span>
+                )}
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-texte">
+                    {profil.prenom || "Compte"}
+                  </p>
+                  <div className="flex items-center gap-1.5 text-xs text-texte-attenue">
+                    <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-succes" />
+                    <span className="truncate">{courriel ?? "compte sans courriel"}</span>
+                  </div>
+                </div>
+              </div>
+
+              <form action={seDeconnecter} className="shrink-0">
+                <Bouton type="submit" variante="secondaire" taille="compacte">
+                  Se déconnecter
+                </Bouton>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {onglet === "donnees" && (
+          <div className="space-y-6 divide-y divide-bordure/60">
+            {/* Ligne 1 : Sauvegarde & Export */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6">
+              <div className="space-y-1">
+                <h4 className="text-sm font-semibold text-texte">
+                  Sauvegarde & Export souverain du journal
+                </h4>
+                <p className="text-xs text-texte-attenue max-w-lg leading-relaxed">
+                  Téléchargez l&apos;intégralité de vos données en JSON — preuves, séances, exercices,
+                  compétences, documents et profil. C&apos;est votre copie souveraine hors ligne.
+                </p>
+                {messageExport && (
+                  <p className="mt-2 flex items-center gap-1.5 text-xs text-succes font-medium">
+                    <IconeValide className="size-3.5 shrink-0" />
+                    <span>{messageExport}</span>
+                  </p>
+                )}
+              </div>
+              <Bouton
+                variante="secondaire"
+                taille="compacte"
+                onClick={telechargerArchive}
+                enChargement={exportEnCours}
+                className="shrink-0 shadow-xs"
+              >
+                Exporter mon journal JSON
+              </Bouton>
+            </div>
+
+            {/* Ligne 2 : Zone de danger */}
+            <div className="pt-6">
+              <div className="rounded-xl border border-danger/30 bg-danger-faible/20 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-0.5">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-danger">
+                    Zone de danger — réinitialisation des données
+                  </h4>
+                  <p className="text-xs text-texte-attenue">
+                    Réinitialisez l&apos;ensemble de votre parcours ou supprimez définitivement vos données.
+                  </p>
+                </div>
+                <Bouton
+                  variante="danger"
+                  taille="compacte"
+                  onClick={() => setModaleDangerOuverte(true)}
+                  className="shrink-0"
+                >
+                  Réinitialiser mes données…
+                </Bouton>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {modaleDangerOuverte && (
         <ModaleDangerCompte compteId={compteId} onFermer={() => setModaleDangerOuverte(false)} />
@@ -167,27 +244,10 @@ export function PanneauCompte({
   );
 }
 
-function Section({ titre, children }: { titre: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-xl border border-bordure bg-surface px-5 py-4 sm:px-6">
-      <h2 className="text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret">
-        {titre}
-      </h2>
-      <div className="mt-3">{children}</div>
-    </section>
-  );
-}
-
 /* ------------------------------------------------------------------ */
 /* Choix d'apparence                                                  */
 /* ------------------------------------------------------------------ */
 
-/*
- * Clés en chaîne, pas `ChoixTheme` directement : `SelecteurSegmente` est
- * générique sur une clé `string`, et `ChoixTheme` porte `null` (« suivre le
- * système ») — la conversion se fait aux deux frontières de `ChoixApparence`
- * plutôt que d'élargir le composant partagé pour ce seul cas.
- */
 type CleApparence = "clair" | "dark" | "systeme";
 
 const APPARENCES: { cle: CleApparence; theme: ChoixTheme; libelle: string }[] = [
@@ -196,13 +256,6 @@ const APPARENCES: { cle: CleApparence; theme: ChoixTheme; libelle: string }[] = 
   { cle: "systeme", theme: null, libelle: "Système" },
 ];
 
-/**
- * Choix du thème — clair, sombre, ou suivre le système.
- *
- * Lecture du stockage à l'initialisation, pas dans un effet : `lireChoixTheme`
- * retombe sur `null` si le stockage est indisponible, et le composant n'est
- * rendu qu'après hydratation de la page de compte.
- */
 function ChoixApparence() {
   const [choix, setChoix] = useState<ChoixTheme>(lireChoixTheme);
 

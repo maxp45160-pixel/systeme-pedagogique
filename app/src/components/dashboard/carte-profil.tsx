@@ -3,17 +3,15 @@ import { Carte, EnTeteCarte, Etiquette } from "@/components/ui/primitives";
 import type { User } from "@/lib/domain/types";
 
 /**
- * Carte Profil, aujourd'hui en tête de `/compte`.
+ * Carte synthétique du Profil d'apprentissage, en tête de `/compte`.
  *
- * Montre ce que le profil déclare réellement et ce qui manque, sans en inventer
- * (ADR-029). N'ouvre plus rien : elle a cessé d'être un composant client le
- * jour où son unique interaction — ouvrir la modale de réglages — a disparu
- * avec la modale.
+ * Affiche clairement ce qui est déclaré, le style pédagogique et ce qui manque,
+ * sans inventer de fausse métrique (ADR-029).
  */
 export function CarteProfil({ user }: { user: User }) {
   const p = profilDeclare(user);
   const manquants: string[] = [];
-  if (!p.formation) manquants.push("la formation");
+  if (!p.formation) manquants.push("la formation / point de départ");
   if (!p.objectifMoyenTerme) manquants.push("un objectif à moyen terme");
   if (!p.objectifLongTerme) manquants.push("un objectif à long terme");
   if (p.preferencesPedagogiques.length === 0) manquants.push("des préférences pédagogiques");
@@ -22,67 +20,75 @@ export function CarteProfil({ user }: { user: User }) {
   return (
     <Carte>
       <EnTeteCarte
-        titre="Profil"
+        titre="Profil d'apprentissage actif"
         action={
-          <Etiquette ton={p.vide ? "info" : "succes"}>
-            {p.vide ? "À compléter" : "Renseigné"}
+          <Etiquette ton={p.vide ? "info" : manquants.length === 0 ? "succes" : "neutre"}>
+            {p.vide ? "À initialiser" : manquants.length === 0 ? "Complet" : "Partiel"}
           </Etiquette>
         }
       />
-      <div className="px-5 py-4">
+      <div className="px-5 py-4 space-y-3">
         {p.vide ? (
-          <p className="text-xs text-texte-attenue">
-            Rien n&apos;a encore été déclaré. Le tuteur ne suppose ni diplôme ni objectif :
-            c&apos;est ce qui manque qui guide ce qu&apos;il faudrait dire.
+          <p className="text-xs leading-relaxed text-texte-attenue">
+            Rien n&apos;a encore été déclaré. Utilisez le diagnostic express ou le formulaire
+            ci-dessous pour définir vos objectifs et votre méthode.
           </p>
         ) : (
-          <dl className="space-y-1.5 text-xs">
-            {p.formation && (
-              <div className="flex gap-2">
-                <dt className="shrink-0 text-texte-discret">Formation</dt>
-                <dd className="text-texte-attenue">{p.formation}</dd>
-              </div>
-            )}
-            {p.objectifMoyenTerme && (
-              <div className="flex gap-2">
-                <dt className="shrink-0 text-texte-discret">Moyen terme</dt>
-                <dd className="text-texte-attenue">{p.objectifMoyenTerme}</dd>
-              </div>
-            )}
-            {p.objectifLongTerme && (
-              <div className="flex gap-2">
-                <dt className="shrink-0 text-texte-discret">Long terme</dt>
-                <dd className="text-texte-attenue">{p.objectifLongTerme}</dd>
-              </div>
-            )}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 text-xs">
+            <div className="rounded-lg bg-surface-2/40 border border-bordure/60 p-3 space-y-1">
+              <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret block">
+                Objectif moyen terme
+              </span>
+              <p className="font-medium text-texte leading-snug">
+                {p.objectifMoyenTerme || "Non renseigné"}
+              </p>
+            </div>
+
+            <div className="rounded-lg bg-surface-2/40 border border-bordure/60 p-3 space-y-1">
+              <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret block">
+                Point de départ / Formation
+              </span>
+              <p className="text-texte-attenue leading-snug">
+                {p.formation || "Non renseigné"}
+              </p>
+            </div>
+
             {p.preferencesPedagogiques.length > 0 && (
-              <div className="flex gap-2">
-                <dt className="shrink-0 text-texte-discret">Préférences</dt>
-                <dd className="text-texte-attenue">
-                  {p.preferencesPedagogiques.join(" · ")}
-                </dd>
+              <div className="sm:col-span-2 rounded-lg bg-surface-2/40 border border-bordure/60 p-3 space-y-1.5">
+                <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret block">
+                  Préférences & Style d&apos;apprentissage
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {p.preferencesPedagogiques.map((pref) => (
+                    <span
+                      key={pref}
+                      className="inline-flex items-center rounded-md bg-surface border border-bordure/80 px-2 py-0.5 text-[0.6875rem] font-medium text-texte shadow-xs"
+                    >
+                      {pref}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
-            {p.plan && <dt className="pt-1 text-texte-discret">Votre objectif</dt>}
-          </dl>
+
+            {p.plan && (
+              <div className="sm:col-span-2 rounded-lg bg-surface-2/40 border border-bordure/60 p-3 space-y-1">
+                <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret block">
+                  Plan de travail déclaré
+                </span>
+                <p className="text-xs text-texte-attenue line-clamp-2 leading-relaxed">
+                  {p.plan}
+                </p>
+              </div>
+            )}
+          </div>
         )}
 
         {!p.vide && manquants.length > 0 && (
-          <p className="mt-2 text-[0.6875rem] text-texte-discret">
-            Il manque : {manquants.join(", ")}.
+          <p className="text-[0.6875rem] text-texte-discret">
+            Champs optionnels non déclarés : {manquants.join(", ")}.
           </p>
         )}
-
-        {/*
-          Plus de bouton d'ouverture de modale : la carte vit désormais sur
-          `/compte`, juste au-dessus du formulaire qu'elle désignait. Le lien
-          pointe l'ancre du formulaire plutôt que d'ouvrir une seconde surface.
-        */}
-        <p className="mt-3 text-[0.6875rem] text-texte-discret">
-          {p.vide
-            ? "Renseigne-le dans le formulaire ci-dessous."
-            : "Modifiable dans le formulaire ci-dessous."}
-        </p>
       </div>
     </Carte>
   );
