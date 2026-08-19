@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { CoquilleWorkspace } from "@/components/atelier/coquille-workspace";
+import { CoquilleWorkspace, sortieWorkspace } from "@/components/atelier/coquille-workspace";
 import { ConcepteurSeance, type DonneesSeance } from "@/components/seances/concepteur-seance";
 import { BarreProgression, BandeauInfo, Bouton } from "@/components/ui/primitives";
 import { Champ } from "@/components/ui/champ";
@@ -35,6 +35,7 @@ export interface WorkspaceNoteOperationnelleProps {
    * d'entrée et recueille ses liens.
    */
   donneesSeance?: DonneesSeance;
+  retour?: string;
 }
 
 /** Section où la note inscrit ce que la composition a retenu. */
@@ -123,6 +124,7 @@ export function WorkspaceNoteOperationnelle({
   contenuInitial,
   updatedAtInitial,
   donneesSeance,
+  retour,
 }: WorkspaceNoteOperationnelleProps) {
   const analyseInitiale = useMemo(
     () => analyserDocumentMarkdown(id, contenuInitial),
@@ -240,7 +242,7 @@ export function WorkspaceNoteOperationnelle({
     <CoquilleWorkspace
       surtitre={surtitre}
       titre={titre}
-      sortie={{ href: "/atelier", libelle: "Retourner à l’Atelier" }}
+      sortie={sortieWorkspace(retour)}
       barre={<BarreEtapes renseignees={renseignees} total={sectionsSaisies.length} />}
     >
       {!noteOperationnelle ? (

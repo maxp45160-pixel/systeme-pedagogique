@@ -288,6 +288,56 @@ export interface PositionFeuillet {
   rang: number;
 }
 
+/** Trouve la position précise (jour et rang de feuillet) d'une séance dans le cahier. */
+export function positionDeLaSeance(
+  seance: LearningSession,
+  entrees: {
+    seances: readonly LearningSession[];
+    notes?: readonly NoteDatee[];
+    projets?: readonly DocumentOperationnelDate[];
+  },
+): PositionFeuillet {
+  const jour = jourDeLaSeance(seance);
+  const page = construirePage(jour, {
+    seances: entrees.seances,
+    notes: entrees.notes ?? [],
+    projets: entrees.projets ?? [],
+  });
+  const feuillets = feuilletsDeLaPage(page);
+  const index = feuillets.findIndex(
+    (feuillet) => feuillet.type === "seance" && feuillet.seance.id === seance.id,
+  );
+  return {
+    jour,
+    rang: index >= 0 ? index + 1 : 1,
+  };
+}
+
+/** Trouve la position précise (jour et rang de feuillet) d'un projet dans le cahier. */
+export function positionDuProjet(
+  projet: DocumentOperationnelDate,
+  entrees: {
+    seances: readonly LearningSession[];
+    notes?: readonly NoteDatee[];
+    projets?: readonly DocumentOperationnelDate[];
+  },
+): PositionFeuillet {
+  const jour = jourDuDocument(projet);
+  const page = construirePage(jour, {
+    seances: entrees.seances,
+    notes: entrees.notes ?? [],
+    projets: entrees.projets ?? [],
+  });
+  const feuillets = feuilletsDeLaPage(page);
+  const index = feuillets.findIndex(
+    (feuillet) => feuillet.type === "cloture" && (feuillet.projets ?? []).some((p) => p.id === projet.id),
+  );
+  return {
+    jour,
+    rang: index >= 0 ? index + 1 : (feuillets.length || 1),
+  };
+}
+
 /**
  * Le feuillet précédent et le suivant, en traversant les jours.
  *

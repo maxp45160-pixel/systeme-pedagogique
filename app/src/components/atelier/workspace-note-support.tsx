@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type ChangeEvent, type DragEvent } from "react";
-import { CoquilleWorkspace } from "@/components/atelier/coquille-workspace";
+import { CoquilleWorkspace, sortieWorkspace } from "@/components/atelier/coquille-workspace";
 import { BandeauInfo, Bouton, cx } from "@/components/ui/primitives";
 import { analyserDocumentMarkdown } from "@/lib/documents/markdown";
 import { definitionTypeDocument, type PieceJointeDocument } from "@/lib/documents/types-documents";
@@ -14,6 +14,7 @@ export interface WorkspaceNoteSupportProps {
   contenuInitial: string;
   updatedAtInitial?: string;
   piecesInitiales: PieceJointeDocument[];
+  retour?: string;
 }
 
 const CONSIGNES_PAR_TYPE: Record<string, string> = {
@@ -31,6 +32,7 @@ export function WorkspaceNoteSupport({
   contenuInitial,
   updatedAtInitial,
   piecesInitiales,
+  retour,
 }: WorkspaceNoteSupportProps) {
   const analyse = useMemo(() => analyserDocumentMarkdown(id, contenuInitial), [id, contenuInitial]);
   const definition = analyse.type ? definitionTypeDocument(analyse.type) : null;
@@ -103,7 +105,7 @@ export function WorkspaceNoteSupport({
     <CoquilleWorkspace
       surtitre={definition ? `Fiche de travail · ${definition.libelle}` : "Fiche de travail"}
       titre={analyse.titre || "Ressource documentaire"}
-      sortie={{ href: "/", libelle: "Retourner au tableau de bord" }}
+      sortie={sortieWorkspace(retour)}
     >
       {!estSupport ? (
         <div className="mx-auto max-w-3xl">

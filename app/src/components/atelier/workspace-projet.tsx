@@ -30,7 +30,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { CoquilleWorkspace } from "@/components/atelier/coquille-workspace";
+import { CoquilleWorkspace, sortieWorkspace } from "@/components/atelier/coquille-workspace";
 import { BandeauInfo, BarreProgression, Bouton, Carte, cx } from "@/components/ui/primitives";
 import { Champ } from "@/components/ui/champ";
 import { Markdown } from "@/components/ui/markdown";
@@ -52,6 +52,7 @@ export interface WorkspaceProjetProps {
   id: string;
   contenuInitial: string;
   updatedAtInitial?: string;
+  retour?: string;
 }
 
 const LIBELLE_VISEE: Record<string, string> = {
@@ -60,7 +61,7 @@ const LIBELLE_VISEE: Record<string, string> = {
   integration: "Intégrer plusieurs compétences",
 };
 
-export function WorkspaceProjet({ id, contenuInitial, updatedAtInitial }: WorkspaceProjetProps) {
+export function WorkspaceProjet({ id, contenuInitial, updatedAtInitial, retour }: WorkspaceProjetProps) {
   const [contenu, setContenu] = useState(contenuInitial);
   const [updatedAt, setUpdatedAt] = useState(updatedAtInitial);
   const [enregistrement, setEnregistrement] = useState(false);
@@ -149,7 +150,7 @@ export function WorkspaceProjet({ id, contenuInitial, updatedAtInitial }: Worksp
     <CoquilleWorkspace
       surtitre="Projet"
       titre={analyse.titre || "Projet"}
-      sortie={{ href: "/atelier", libelle: "Retourner à l’Atelier" }}
+      sortie={sortieWorkspace(retour)}
       barre={
         totalJalons > 0 ? (
           <div className="space-y-1.5">

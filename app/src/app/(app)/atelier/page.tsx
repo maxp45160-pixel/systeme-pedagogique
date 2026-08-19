@@ -26,9 +26,9 @@ import { paletteDomaines } from "@/lib/ui/couleurs-domaines";
 import { chargerDonneesSeance } from "@/components/seances/donnees-seance";
 
 export default async function PageAtelier(props: {
-  searchParams: Promise<{ document?: string; mode?: string; note?: string }>;
+  searchParams: Promise<{ document?: string; mode?: string; note?: string; retour?: string }>;
 }) {
-  const { document: documentDemande, mode, note } = await props.searchParams;
+  const { document: documentDemande, mode, note, retour } = await props.searchParams;
 
   /*
    * L'espace de travail d'une note opérationnelle occupe l'écran entier et n'a
@@ -47,6 +47,7 @@ export default async function PageAtelier(props: {
           contenuInitial={fiche.contenuMd}
           updatedAtInitial={fiche.updatedAt}
           piecesInitiales={await lirePiecesJointes(fiche.id).catch(() => [])}
+          retour={retour}
         />
       );
     }
@@ -61,6 +62,7 @@ export default async function PageAtelier(props: {
           id={fiche.id}
           contenuInitial={fiche.contenuMd}
           updatedAtInitial={fiche.updatedAt}
+          retour={retour}
         />
       );
     }
@@ -73,6 +75,7 @@ export default async function PageAtelier(props: {
         contenuInitial={fiche.contenuMd}
         updatedAtInitial={fiche.updatedAt}
         donneesSeance={estSeance ? await chargerDonneesSeance() : undefined}
+        retour={retour}
       />
     );
   }

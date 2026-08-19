@@ -161,9 +161,16 @@ export function CahierInteractif({
         <OngletsSeancesOuvertes
           seances={seances}
           tentatives={tentatives}
+          notes={notes}
           projets={projets}
           jourAffiche={jour}
-          onChangerJour={(j) => allerAuFeuillet({ jour: j, rang: 1 }, j > jour ? "avant" : "arriere")}
+          rangAffiche={rang}
+          onNaviguer={(pos) =>
+            allerAuFeuillet(
+              pos,
+              pos.jour > jour || (pos.jour === jour && pos.rang > rang) ? "avant" : "arriere",
+            )
+          }
         />
       </div>
 

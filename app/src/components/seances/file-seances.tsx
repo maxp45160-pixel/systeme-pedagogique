@@ -9,7 +9,15 @@ import {
 } from "@/components/ui/primitives";
 import { formatDateCourte } from "@/lib/engine/dates";
 import { avancementSeance, peutReprendreSeance, statutSeance } from "@/lib/domain/seance";
-import { jourDeLaSeance } from "@/lib/domain/pages-cahier";
+import {
+  jourDeLaSeance,
+  jourDuDocument,
+  positionDeLaSeance,
+  positionDuProjet,
+  type DocumentOperationnelDate,
+  type NoteDatee,
+  type PositionFeuillet,
+} from "@/lib/domain/pages-cahier";
 import {
   abandonnerSeance,
   annulerSeance,
@@ -25,33 +33,58 @@ import type { ExerciseAttempt, LearningSession } from "@/lib/domain/types";
  * ou projets en cours sur d'autres dates, sans jamais passer sur plusieurs
  * lignes pour garantir une hauteur constante et zéro saut d'interface (CLS = 0).
  */
-import type { DocumentOperationnelDate } from "@/lib/domain/pages-cahier";
-
 export function OngletsSeancesOuvertes({
   seances,
   tentatives,
+  notes = [],
   projets = [],
   jourAffiche,
+  rangAffiche,
+  onNaviguer,
   onChangerJour,
 }: {
   seances: LearningSession[];
   tentatives: ExerciseAttempt[];
+  notes?: NoteDatee[];
   projets?: DocumentOperationnelDate[];
   jourAffiche: string;
+  rangAffiche?: number;
+  onNaviguer?: (position: PositionFeuillet) => void;
   onChangerJour?: (jour: string) => void;
 }) {
+  const entrees = { seances, notes, projets };
+
   const ouvertes = seances
     .filter((s) => {
       const statut = statutSeance(s);
       if (statut === "en-cours" || statut === "planifiee") return true;
       return peutReprendreSeance(s, avancementSeance(s, tentatives));
     })
-    .filter((s) => jourDeLaSeance(s) !== jourAffiche)
-    .sort((a, b) => (b.planifieePour ?? b.date).localeCompare(a.planifieePour ?? a.date));
+    .map((s) => ({ seance: s, pos: positionDeLaSeance(s, entrees) }))
+    .filter(({ pos }) =>
+      rangAffiche !== undefined
+        ? !(pos.jour === jourAffiche && pos.rang === rangAffiche)
+        : pos.jour !== jourAffiche,
+    )
+    .sort((a, b) =>
+      (b.seance.planifieePour ?? b.seance.date).localeCompare(
+        a.seance.planifieePour ?? a.seance.date,
+      ),
+    );
 
   const projetsOuverts = projets
     .filter((p) => !p.fige)
-    .sort((a, b) => (b.updatedAt ?? b.createdAt ?? "").localeCompare(a.updatedAt ?? a.createdAt ?? ""));
+    .map((p) => ({ projet: p, pos: positionDuProjet(p, entrees) }))
+    .filter(({ pos }) =>
+      rangAffiche !== undefined
+        ? !(pos.jour === jourAffiche && pos.rang === rangAffiche)
+        : pos.jour !== jourAffiche,
+    )
+    .sort((a, b) =>
+      (b.projet.updatedAt ?? b.projet.createdAt ?? "").localeCompare(
+        a.projet.updatedAt ?? a.projet.createdAt ?? "",
+      ),
+    );
 
   if (ouvertes.length === 0 && projetsOuverts.length === 0) return null;
 
@@ -60,18 +93,46 @@ export function OngletsSeancesOuvertes({
       aria-label="Séances et projets ouverts"
       className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5"
     >
-      {projetsOuverts.map((p) => (
-        <Link
-          key={p.id}
-          href={`/atelier?note=${encodeURIComponent(p.id)}`}
-          className="flex shrink-0 items-center gap-2 rounded-t-md border border-b-0 border-bordure bg-surface-2/40 px-3 py-1.5 text-xs hover:bg-surface-2 transition-colors"
-        >
-          <Etiquette ton="primaire">Projet en cours</Etiquette>
-          <span className="max-w-[13rem] truncate font-medium">{p.titre}</span>
-          <span className="text-texte-discret">Ouvrir →</span>
-        </Link>
-      ))}
-      {ouvertes.map((s) => {
+      {projetsOuverts.map(({ projet: p, pos }) => {
+        const dateProjet = p.updatedAt ?? p.createdAt;
+        const href = pos.rang > 1 ? `/seances?jour=${encodeURIComponent(pos.jour)}&f=${pos.rang}` : `/seances?jour=${encodeURIComponent(pos.jour)}`;
+
+        if (onNaviguer || onChangerJour) {
+          return (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => (onNaviguer ? onNaviguer(pos) : onChangerJour?.(pos.jour))}
+              className="flex shrink-0 items-center gap-2 rounded-t-md border border-b-0 border-bordure bg-surface-2/40 px-3 py-1.5 text-xs hover:bg-surface-2 transition-colors text-left"
+            >
+              <Etiquette ton="primaire">Projet en cours</Etiquette>
+              <span className="max-w-[13rem] truncate font-medium">{p.titre}</span>
+              {dateProjet && (
+                <span className="text-texte-discret shrink-0">
+                  {formatDateCourte(dateProjet)}
+                </span>
+              )}
+            </button>
+          );
+        }
+
+        return (
+          <Link
+            key={p.id}
+            href={href}
+            className="flex shrink-0 items-center gap-2 rounded-t-md border border-b-0 border-bordure bg-surface-2/40 px-3 py-1.5 text-xs hover:bg-surface-2"
+          >
+            <Etiquette ton="primaire">Projet en cours</Etiquette>
+            <span className="max-w-[13rem] truncate font-medium">{p.titre}</span>
+            {dateProjet && (
+              <span className="text-texte-discret shrink-0">
+                {formatDateCourte(dateProjet)}
+              </span>
+            )}
+          </Link>
+        );
+      })}
+      {ouvertes.map(({ seance: s, pos }) => {
         const statut = statutSeance(s);
         const libelle =
           statut === "en-cours" ? "En cours" : statut === "planifiee" ? "Planifiée" : "En suspens";
@@ -80,14 +141,14 @@ export function OngletsSeancesOuvertes({
           s.besoinDeclare?.intention ||
           (s.activites.length === 1 ? s.activites[0]?.libelle : null) ||
           `${s.activites.length} activité${s.activites.length > 1 ? "s" : ""}`;
-        const jourCible = jourDeLaSeance(s);
+        const href = pos.rang > 1 ? `/seances?jour=${encodeURIComponent(pos.jour)}&f=${pos.rang}` : `/seances?jour=${encodeURIComponent(pos.jour)}`;
 
-        if (onChangerJour) {
+        if (onNaviguer || onChangerJour) {
           return (
             <button
               key={s.id}
               type="button"
-              onClick={() => onChangerJour(jourCible)}
+              onClick={() => (onNaviguer ? onNaviguer(pos) : onChangerJour?.(pos.jour))}
               className="flex shrink-0 items-center gap-2 rounded-t-md border border-b-0 border-bordure bg-surface-2/40 px-3 py-1.5 text-xs hover:bg-surface-2 transition-colors text-left"
             >
               <Etiquette ton={ton}>{libelle}</Etiquette>
@@ -102,7 +163,7 @@ export function OngletsSeancesOuvertes({
         return (
           <Link
             key={s.id}
-            href={`/seances?jour=${encodeURIComponent(jourCible)}`}
+            href={href}
             className="flex shrink-0 items-center gap-2 rounded-t-md border border-b-0 border-bordure bg-surface-2/40 px-3 py-1.5 text-xs hover:bg-surface-2"
           >
             <Etiquette ton={ton}>{libelle}</Etiquette>
@@ -139,7 +200,7 @@ export function CarteSeance({
     `${s.activites.length} activité${s.activites.length > 1 ? "s" : ""}`;
 
   return (
-    <Carte ton={enCours ? "primaire" : undefined}>
+    <Carte accent={enCours}>
       <EnTeteCarte
         titre={titre}
         legende={
@@ -202,7 +263,7 @@ export function CarteSeance({
           <div className="flex items-center gap-2">
             {planifiee && (
               <form action={demarrerSeance.bind(null, s.id)}>
-                <Bouton type="submit" ton="principal" taille="petite">
+                <Bouton type="submit" variante="principal" taille="petite">
                   Démarrer
                 </Bouton>
               </form>
@@ -217,21 +278,21 @@ export function CarteSeance({
             )}
             {reprenable && (
               <form action={reprendreSeance.bind(null, s.id)}>
-                <Bouton type="submit" ton="principal" taille="petite">
+                <Bouton type="submit" variante="principal" taille="petite">
                   Reprendre
                 </Bouton>
               </form>
             )}
             {planifiee && (
               <form action={annulerSeance.bind(null, s.id)}>
-                <Bouton type="submit" ton="secondaire" taille="petite">
+                <Bouton type="submit" variante="secondaire" taille="petite">
                   Annuler
                 </Bouton>
               </form>
             )}
             {enCours && (
               <form action={abandonnerSeance.bind(null, s.id)}>
-                <Bouton type="submit" ton="secondaire" taille="petite">
+                <Bouton type="submit" variante="secondaire" taille="petite">
                   Abandonner
                 </Bouton>
               </form>

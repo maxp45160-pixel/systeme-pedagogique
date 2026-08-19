@@ -122,7 +122,7 @@ export function CahierSeances({
                   <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-bordure/40">
                     <span className="text-xs text-texte-discret">Espace de travail</span>
                     <Link
-                      href={`/atelier?note=${encodeURIComponent(p.id)}`}
+                      href={`/atelier?note=${encodeURIComponent(p.id)}&retour=${encodeURIComponent(recherche ? `/seances?q=${encodeURIComponent(recherche)}` : "/seances")}`}
                       className={classesLienBouton("principal", "petite")}
                     >
                       Ouvrir le projet →

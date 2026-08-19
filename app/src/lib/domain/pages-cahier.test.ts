@@ -13,6 +13,8 @@ import {
   moisValide,
   pageDOuverture,
   pageEstVide,
+  positionDeLaSeance,
+  positionDuProjet,
   rangDOuverture,
   rangValide,
   voisinesDeLaPage,
@@ -422,3 +424,33 @@ describe("pageDOuverture", () => {
     expect(pageDOuverture(null, jours, AUJOURDHUI)).toBe("2026-08-16");
   });
 });
+
+describe("positionDeLaSeance et positionDuProjet", () => {
+  const seance1 = seance({ id: "ses-1", date: "2026-08-16T09:00:00.000Z" });
+  const seance2 = seance({ id: "ses-2", date: "2026-08-16T14:00:00.000Z" });
+  const projet1 = {
+    id: "proj-1",
+    titre: "Simulateur LLM",
+    type: "projet",
+    competences: ["DEV-01"],
+    createdAt: "2026-08-16T15:00:00.000Z",
+  };
+
+  it("calcule le rang exact de chaque séance sur le jour", () => {
+    const entrees = { seances: [seance1, seance2], notes: [], projets: [projet1] };
+    expect(positionDeLaSeance(seance1, entrees)).toEqual({ jour: "2026-08-16", rang: 1 });
+    expect(positionDeLaSeance(seance2, entrees)).toEqual({ jour: "2026-08-16", rang: 2 });
+  });
+
+  it("calcule le rang exact du feuillet de clôture pour un projet", () => {
+    const entrees = { seances: [seance1, seance2], notes: [], projets: [projet1] };
+    // Le projet se trouve sur le feuillet de clôture (rang 3, après les 2 séances)
+    expect(positionDuProjet(projet1, entrees)).toEqual({ jour: "2026-08-16", rang: 3 });
+  });
+
+  it("calcule le rang 1 pour un projet sur un jour sans séance", () => {
+    const entrees = { seances: [], notes: [], projets: [projet1] };
+    expect(positionDuProjet(projet1, entrees)).toEqual({ jour: "2026-08-16", rang: 1 });
+  });
+});
+

@@ -403,7 +403,7 @@ function ClotureDuJour({
           </TitreDeSection>
           <div className="space-y-3">
             {feuillet.projets.map((projet) => (
-              <ProjetDuFeuillet key={projet.id} projet={projet} />
+              <ProjetDuFeuillet key={projet.id} projet={projet} jour={feuillet.jour} />
             ))}
           </div>
         </section>
@@ -448,7 +448,8 @@ function ClotureDuJour({
   );
 }
 
-function ProjetDuFeuillet({ projet }: { projet: DocumentOperationnelDate }) {
+function ProjetDuFeuillet({ projet, jour }: { projet: DocumentOperationnelDate; jour: string }) {
+  const retourUrl = `/seances?jour=${encodeURIComponent(jour)}`;
   return (
     <Carte>
       <EnTeteCarte
@@ -481,7 +482,7 @@ function ProjetDuFeuillet({ projet }: { projet: DocumentOperationnelDate }) {
             {projet.fige ? "Projet archivé" : "Espace de travail ouvert"}
           </span>
           <Link
-            href={`/atelier?note=${encodeURIComponent(projet.id)}`}
+            href={`/atelier?note=${encodeURIComponent(projet.id)}&retour=${encodeURIComponent(retourUrl)}`}
             className={classesLienBouton("principal", "petite")}
           >
             Ouvrir le projet →

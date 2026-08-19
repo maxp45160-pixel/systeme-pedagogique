@@ -7,7 +7,18 @@ import { classesLienBouton } from "@/components/ui/primitives";
  *
  * Plein écran, en-tête collant, et une sortie toujours visible vers l'Atelier.
  */
-const SORTIE_PAR_DEFAUT = { href: "/atelier", libelle: "Retourner à l'Atelier" } as const;
+const SORTIE_PAR_DEFAUT = { href: "/atelier", libelle: "Retourner à l’Atelier" } as const;
+
+export function sortieWorkspace(retour?: string): { href: string; libelle: string } {
+  if (!retour) return SORTIE_PAR_DEFAUT;
+  if (retour.startsWith("/seances")) {
+    return { href: retour, libelle: "Retourner au Cahier" };
+  }
+  if (retour === "/" || retour.startsWith("/?")) {
+    return { href: retour, libelle: "Retourner au tableau de bord" };
+  }
+  return { href: retour, libelle: "Retour" };
+}
 
 export function CoquilleWorkspace({
   surtitre,

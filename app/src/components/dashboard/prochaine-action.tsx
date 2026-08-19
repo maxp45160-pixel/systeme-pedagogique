@@ -85,7 +85,7 @@ function lienActivite(action: RecommendedLearningAction, instant?: ContexteInsta
    * inutilisé dans une URL partageable laisse croire qu'il fait quelque chose.
    */
   const noteId = action.activityId ? idDocumentDepuisActivite(action.activityId) : null;
-  if (noteId) return `/atelier?note=${encodeURIComponent(noteId)}`;
+  if (noteId) return `/atelier?note=${encodeURIComponent(noteId)}&retour=${encodeURIComponent("/")}`;
   /*
    * Les exécutions et demandes de génération n'ont plus de surface : la
    * machinerie « Produire » est retirée (ADR-070) et l'arbitrage ne reçoit
