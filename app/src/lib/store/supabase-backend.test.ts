@@ -311,6 +311,43 @@ describe("charge utile de charger_tout", () => {
     ]);
   });
 
+  it("convertit les réglages moteur rapportés par la RPC", () => {
+    const resultat = convertirResultatRPC(
+      chargeComplete({
+        moteur_reglages: [
+          {
+            id: "reg-1",
+            user_id: "compte-1",
+            applique_le: "2026-08-19T10:00:00Z",
+            parametre: "fractionTropFacile",
+            valeur_avant: 0.6,
+            valeur_apres: 0.5,
+            metrique: "erreur-duree",
+            n: 10,
+            valeur_metrique: 0.35,
+            motif: "Ajustement de calibration",
+          },
+        ],
+      }),
+      defautProfil,
+    );
+
+    expect(resultat).not.toBeNull();
+    expect(resultat!.moteurReglages).toEqual([
+      {
+        id: "reg-1",
+        appliqueLe: "2026-08-19T10:00:00Z",
+        parametre: "fractionTropFacile",
+        valeurAvant: 0.6,
+        valeurApres: 0.5,
+        metrique: "erreur-duree",
+        n: 10,
+        valeurMetrique: 0.35,
+        motif: "Ajustement de calibration",
+      },
+    ]);
+  });
+
   it("refuse une charge utile amputée d'une clé plutôt que d'inventer une liste vide", () => {
     for (const cle of CLES_RPC) {
       const ampute = chargeComplete();

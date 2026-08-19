@@ -26,6 +26,7 @@ import type {
   User,
 } from "@/lib/domain/types";
 import type { Theme } from "@/lib/domain/theme";
+import type { AjustementInscrit, NomParametre } from "@/lib/engine/reglages";
 import type { Collections } from "./db";
 
 /** Collections tabulaires — `user` est traité à part (table `profiles`). */
@@ -125,12 +126,13 @@ export function profilVersUser(
 /* Chargement groupé (RPC `charger_tout`)                              */
 /* ------------------------------------------------------------------ */
 
-/** Ce que `charger_tout` doit rapporter : profil, données, référentiel, thèmes. */
+/** Ce que `charger_tout` doit rapporter : profil, données, référentiel, thèmes, réglages moteur. */
 export interface ResultatRPC {
   collections: Collections;
   domaines: Domaine[];
   competences: Skill[];
   themes: Theme[];
+  moteurReglages: AjustementInscrit[];
 }
 
 /**
@@ -148,6 +150,7 @@ export const CLES_RPC = [
   "domaines",
   "competences",
   "themes",
+  "moteur_reglages",
 ] as const;
 
 /**
@@ -191,6 +194,20 @@ export function convertirResultatRPC(
       ligneVersEntite<T>(l),
     );
 
+  const moteurReglages: AjustementInscrit[] = (
+    (charge.moteur_reglages as Record<string, unknown>[] | null) ?? []
+  ).map((l) => ({
+    id: String(l.id),
+    appliqueLe: String(l.applique_le),
+    parametre: String(l.parametre) as NomParametre,
+    valeurAvant: Number(l.valeur_avant),
+    valeurApres: Number(l.valeur_apres),
+    metrique: String(l.metrique),
+    n: Number(l.n),
+    valeurMetrique: Number(l.valeur_metrique),
+    motif: String(l.motif),
+  }));
+
   return {
     collections: {
       user,
@@ -203,6 +220,7 @@ export function convertirResultatRPC(
     domaines: convertirListe<Domaine>("domaines"),
     competences: convertirListe<Skill>("competences"),
     themes: convertirListe<Theme>("themes"),
+    moteurReglages,
   };
 }
 
