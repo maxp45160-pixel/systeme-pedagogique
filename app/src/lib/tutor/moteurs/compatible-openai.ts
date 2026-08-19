@@ -96,9 +96,9 @@ function messageErreurHttp(statut: number, corps: string): string {
   switch (statut) {
     case 401:
     case 403:
-      return "Clé refusée par le fournisseur. Vérifie TUTEUR_CLE dans app/.env.local.";
+      return "Clé refusée par le fournisseur. Vérifie la clé API enregistrée dans les réglages du tuteur.";
     case 404:
-      return "Modèle ou URL introuvable. Vérifie TUTEUR_MODELE et TUTEUR_URL_BASE.";
+      return "Modèle ou URL introuvable. Vérifie le modèle et l'URL du fournisseur dans les réglages du tuteur.";
     case 413:
       return "Contexte trop long pour ce modèle. Choisis un modèle à fenêtre plus large.";
     case 429:

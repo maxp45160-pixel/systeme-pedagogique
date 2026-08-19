@@ -28,6 +28,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Bouton, Carte, EnTeteCarte, cx } from "@/components/ui/primitives";
+import { IconeFermer } from "@/components/ui/icones";
 import { cleParCompte, ecrireSession, effacerSession, lireSession } from "@/lib/ui/stockage-session";
 import { useEstHydrate } from "@/lib/ui/hydratation";
 
@@ -410,7 +411,7 @@ export function Pomodoro({ compteId }: { compteId: string }) {
  * S'insère dans l'en-tête ou la barre mobile.
  */
 export function PastillePomodoroGlobale({ compteId }: { compteId: string }) {
-  const { hydrate, etat, enMarche, reste } = usePomodoro(compteId);
+  const { hydrate, etat, enMarche, reste, reinitialiser } = usePomodoro(compteId);
 
   if (!hydrate || !enMarche) return null;
 
@@ -419,7 +420,7 @@ export function PastillePomodoroGlobale({ compteId }: { compteId: string }) {
   return (
     <div
       className={cx(
-        "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium shadow-sm transition-all",
+        "flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium shadow-sm transition-all",
         estFocus
           ? "border border-primaire/30 bg-primaire-faible text-primaire"
           : "border border-succes/30 bg-succes-faible text-succes",
@@ -427,6 +428,15 @@ export function PastillePomodoroGlobale({ compteId }: { compteId: string }) {
       title={`Pomodoro (${LIBELLES[etat.phase]}) en cours`}
     >
       <span className="font-mono tabular-nums font-semibold">{formaterMMSS(reste)}</span>
+      <button
+        type="button"
+        onClick={reinitialiser}
+        aria-label="Fermer le minuteur"
+        title="Fermer le minuteur"
+        className={cx("rounded-full p-0.5 transition-opacity hover:opacity-70", estFocus ? "text-primaire" : "text-succes")}
+      >
+        <IconeFermer className="size-3.5" />
+      </button>
     </div>
   );
 }

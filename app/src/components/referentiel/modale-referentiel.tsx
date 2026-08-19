@@ -304,17 +304,47 @@ export function ModaleReferentiel({
           {etat.phase === "saisie" && (
             <div className="space-y-4">
               {etat.message && (
-                <BandeauInfo ton="alerte" taille="compacte">
-                  <div>
-                    <p className="font-semibold text-alerte">Clé IA requise pour la proposition</p>
-                    <p className="mt-1 text-xs text-texte-attenue">
-                      Renseigne ta clé API ci-dessous (ex : <strong>Groq</strong> gratuit, <strong>Mistral</strong> ou <strong>Anthropic</strong>) pour que le tuteur découpe ton sujet en compétences.
+                /*
+                 * Le bandeau dit la vraie cause. Avant ce correctif, `etat.message`
+                 * ne servait QUE de booléen : le texte affiché était fixe (« Clé IA
+                 * requise pour la proposition »), et une panne transitoire du
+                 * fournisseur (quota 429, timeout, flux SSE coupé) était donc
+                 * montrée comme une clé à remplacer — alors qu'elle était présente.
+                 * On ne garde l'accusation de clé que lorsqu'aucune clé n'est
+                 * effectivement configurée.
+                 */
+                <BandeauInfo ton={aCleConfiguree ? "danger" : "alerte"} taille="compacte">
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className={`font-semibold ${aCleConfiguree ? "text-danger" : "text-alerte"}`}
+                    >
+                      {aCleConfiguree
+                        ? "La proposition a échoué"
+                        : "Clé IA requise pour la proposition"}
                     </p>
+                    <p className="mt-1 text-xs text-texte-attenue">{etat.message}</p>
+                    {aCleConfiguree && (
+                      <Bouton
+                        variante="secondaire"
+                        taille="petite"
+                        className="mt-2"
+                        onClick={() => void proposer()}
+                      >
+                        Relancer la proposition
+                      </Bouton>
+                    )}
                   </div>
                 </BandeauInfo>
               )}
 
-              {aCleConfiguree && !etat.message && !afficherReglagesCle ? (
+              {/*
+               * Le formulaire de clé ne se déploie pas sur une erreur : il ne
+               * s'ouvre que sans clé configurée, ou sur demande explicite
+               * (« Modifier la clé »). Une panne transitoire du fournisseur ne
+               * doit pas redemander une clé déjà présente — elle dit son
+               * message et propose « Relancer la proposition ».
+               */}
+              {aCleConfiguree && !afficherReglagesCle ? (
                 <div className="flex items-center justify-between rounded-lg border border-bordure bg-surface-2/40 px-3 py-2 text-xs">
                   <div className="flex items-center gap-2">
                     <span className="size-2 rounded-full bg-succes" />
@@ -334,7 +364,7 @@ export function ModaleReferentiel({
                     <p className="text-xs font-semibold text-texte">
                       Configuration du tuteur IA
                     </p>
-                    {aCleConfiguree && !etat.message && (
+                    {aCleConfiguree && (
                       <button
                         type="button"
                         onClick={() => setAfficherReglagesCle(false)}

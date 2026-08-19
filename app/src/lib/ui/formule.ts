@@ -15,6 +15,13 @@
  * Ce qui n'est pas couvert (matrices, intégrales, alignements) est rendu tel
  * quel, allégé de ses commandes : dégradé lisible, jamais une erreur.
  *
+ * Au-delà de la table, le module couvre les constructions qui rendaient la
+ * formule illisible : environnements (`\begin{cases}`, `\begin{pmatrix}`…)
+ * convertis en texte délimité, accents (`\bar`, `\vec`, `\hat`) portés par le
+ * symbole, coefficients binomiaux, ensembles usuels (`\mathbb{R}` → ℝ),
+ * accolades d'ensemble préservées. Le nom d'une commande inconnue ne se
+ * réécrit jamais comme du texte — il tombe, et le groupe reste.
+ *
  * Comme `markdown-blocs.ts`, ce module vit dans `lib/` et non dans le JSX :
  * Vitest ne prend que `src/**\/*.test.ts` en environnement node. Toute boucle
  * qui avance un index y consomme au moins un caractère par tour (ADR-039).
@@ -94,7 +101,144 @@ const SYMBOLES: Record<string, string> = {
   Phi: "Φ",
   Psi: "Ψ",
   Omega: "Ω",
+  // Relations, délimiteurs et opérateurs fréquents — sans eux, le tuteur écrit
+  // « P(A mid B) » et la lecture voit un mot anglais au milieu d'une formule.
+  mid: "|",
+  vert: "|",
+  lvert: "|",
+  rvert: "|",
+  Vert: "‖",
+  lVert: "‖",
+  rVert: "‖",
+  parallel: "∥",
+  simeq: "≃",
+  cong: "≅",
+  ll: "≪",
+  gg: "≫",
+  preceq: "⪯",
+  succeq: "⪰",
+  subseteq: "⊆",
+  supset: "⊃",
+  supseteq: "⊇",
+  nsubseteq: "⊈",
+  nsupseteq: "⊅",
+  land: "∧",
+  lor: "∨",
+  wedge: "∧",
+  vee: "∨",
+  neg: "¬",
+  perp: "⊥",
+  angle: "∠",
+  prime: "′",
+  degree: "°",
+  emptyset: "∅",
+  varnothing: "∅",
+  setminus: "∖",
+  circ: "∘",
+  star: "∗",
+  ast: "∗",
+  bullet: "∙",
+  oplus: "⊕",
+  ominus: "⊖",
+  otimes: "⊗",
+  // Flèches et implications courantes.
+  longrightarrow: "→",
+  longleftarrow: "←",
+  Longrightarrow: "⇒",
+  Longleftarrow: "⇐",
+  longleftrightarrow: "↔",
+  uparrow: "↑",
+  downarrow: "↓",
+  updownarrow: "↕",
+  mapsto: "↦",
+  hookrightarrow: "↪",
+  gets: "←",
+  implies: "⇒",
+  iff: "⇔",
+  because: "∵",
+  therefore: "∴",
+  // Environnements orphelins (ouverture sans fermeture) : le nom ne doit
+  // jamais réapparaître comme du texte.
+  begin: "",
+  end: "",
 };
+
+/**
+ * Accents LaTeX appliqués à un groupe → marques combinantes Unicode portées
+ * par le dernier caractère du groupe rendu.
+ *
+ * Sans elles, `\overline{x}` ressortait « overlinex » : le nom de la commande
+ * restait collé au symbole, illisible. `x̄`, `v⃗`, `x̂` se lisent d'un coup d'œil.
+ */
+const ACCENTS: Record<string, string> = {
+  bar: "\u0304",
+  overline: "\u0304",
+  vec: "\u20D7",
+  hat: "\u0302",
+  widehat: "\u0302",
+  tilde: "\u0303",
+  widetilde: "\u0303",
+  dot: "\u0307",
+  ddot: "\u0308",
+};
+
+/**
+ * Délimiteurs usuels des environnements `\begin{…}…\end{…}`.
+ * Tout environnement inconnu (align, gathered, equation…) garde son corps sans
+ * délimiteur ajouté. L'accolade de `cases` se met entre `\uE000`/`\uE001` pour
+ * survivre à l'effacement global des accolades de regroupement, exactement
+ * comme les accolades d'ensemble.
+ */
+function delimiteursEnvironnement(nom: string): [string, string] {
+  const stable = nom.replace(/\*+$/, "");
+  switch (stable) {
+    case "cases":
+      return ["\uE000 ", " \uE001"];
+    case "matrix":
+    case "pmatrix":
+    case "smallmatrix":
+      return ["( ", " )"];
+    case "bmatrix":
+      return ["[ ", " ]"];
+    case "vmatrix":
+      return ["| ", " |"];
+    case "Vmatrix":
+      return ["‖ ", " ‖"];
+    default:
+      return ["", ""];
+  }
+}
+
+/**
+ * Un environnement inconnu ne doit jamais réapparaître sous son nom brut
+ * (`\begin{pmatrix}` produisait « beginpmatrix »). On le réécrit en son corps
+ * couplé à son délimiteur, colonnes séparées par deux espaces, lignes par ` ; `.
+ */
+function corpsEnvironnement(nom: string, corps: string): string {
+  // Environnements imbriqués : traiter l'intérieur avant le séparateur de ligne,
+  // sans quoi une matrice interne porterait les `&` du niveau externe.
+  const net = rendreEnvironnements(corps).replace(/\\\\/g, " ; ").replace(/&/g, "  ").trim();
+  const [ouvre, ferme] = delimiteursEnvironnement(nom);
+  const rendu = `${ouvre}${net}${ferme}`.trim();
+  return rendu.length > 0 ? rendu : "";
+}
+
+/**
+ * Prépasse les environnements `\begin{nom} … \end{nom}`.
+ *
+ * Le nom du délimiteur fermant est réutilisé par rétro-référence : un
+ * `\end{align}` ne ferme pas un `\begin{cases}`. Une ouverture jamais fermée
+ * (flux SSE écourté) est consommée jusqu'à la fin du texte, sans bloquer.
+ */
+function rendreEnvironnements(src: string): string {
+  let t = src.replace(/\\begin\{([A-Za-z*]+)\}([\s\S]*?)\\end\{\1\}/g, (_brut, nom, corps) =>
+    corpsEnvironnement(String(nom), String(corps)),
+  );
+  t = t.replace(/\\begin\{([A-Za-z*]+)\}([\s\S]*?)(?=\\begin\{|$)/g, (_brut, nom, corps) =>
+    corpsEnvironnement(String(nom), String(corps)),
+  );
+  return t;
+}
 
 /** Exposants disponibles en Unicode. Une lettre absente reste en notation `^`. */
 const EXPOSANTS: Record<string, string> = {
@@ -200,6 +344,51 @@ function developperCommandesAGroupes(src: string): string {
       }
     }
 
+    // `\binom{n}{k}` → `C(n, k)` : plus lisible que « binomnk », l'ancien rendu.
+    const binom = /^\\binom\s*/.exec(reste);
+    if (binom) {
+      const haut = groupeApres(src, i + binom[0].length);
+      const bas = haut ? groupeApres(src, haut.fin) : null;
+      if (haut && bas) {
+        sortie += `C(${developperCommandesAGroupes(haut.contenu)}, ${developperCommandesAGroupes(bas.contenu)})`;
+        i = bas.fin;
+        continue;
+      }
+    }
+
+    // Accents `\bar{x}`, `\vec{F}`, `\hat{x}` : la commande disparaît, la marque
+    // combinante se porte sur le symbole. `\overline` est tenté avant `\bar`,
+    // dont il est préfixe.
+    const accent = /^\\(?:overline|widehat|widetilde|bar|vec|hat|tilde|ddot|dot)\s*/.exec(reste);
+    if (accent) {
+      const arg = groupeApres(src, i + accent[0].length);
+      if (arg) {
+        const nom = accent[0].slice(1).trim();
+        sortie += developperCommandesAGroupes(arg.contenu) + ACCENTS[nom];
+        i = arg.fin;
+        continue;
+      }
+    }
+    // `\mathbb{R}` → ℝ (ensembles usuels des mathématiques), sinon le texte nu.
+    const ensemble = /^\\mathbb\s*/.exec(reste);
+    if (ensemble) {
+      const arg = groupeApres(src, i + ensemble[0].length);
+      if (arg) {
+        const lettres: Record<string, string> = {
+          R: "ℝ",
+          N: "ℕ",
+          Z: "ℤ",
+          Q: "ℚ",
+          C: "ℂ",
+        };
+        const cle = arg.contenu.trim();
+        sortie += Object.hasOwn(lettres, cle)
+          ? lettres[cle]
+          : developperCommandesAGroupes(arg.contenu);
+        i = arg.fin;
+        continue;
+      }
+    }
     // `\text{...}`, `\mathrm{...}` et consorts : la commande tombe, le contenu reste.
     const habillage = /^\\(?:text|textrm|textbf|textit|mathrm|mathbf|mathit|operatorname)\s*/.exec(
       reste,
@@ -256,6 +445,13 @@ export function latexVersTexte(latex: string): string {
 
   // Délimiteurs extensibles et espacements : bruit pur.
   t = t.replace(/\\(?:left|right|big|Big|bigg|Bigg)\s*/g, "");
+  // Accolades d'ensemble échappées (`\{ … \}`) : mises de côté le temps du
+  // passage pour survivre à l'effacement des accolades de regroupement, puis
+  // réintégrées à la fin. Sans cela `\left\{ x \right\}` affichait « \ x \ ».
+  t = t.replace(/\\{/g, "\uE000").replace(/\\}/g, "\uE001");
+  // Environnements `\begin{…}…\end{…}` AVANT la coupure des `\\` : les fins de
+  // lignes d'une matrice ou d'un `cases` sont précisément ces `\\`.
+  t = rendreEnvironnements(t);
   t = t.replace(/\\(?:quad|qquad)/g, "  ");
   t = t.replace(/\\[,;:!]/g, " ");
   t = t.replace(/\\\\/g, "\n");
@@ -270,8 +466,10 @@ export function latexVersTexte(latex: string): string {
 
   t = appliquerExposantsEtIndices(t);
 
-  // Les accolades restantes ne portent plus de sens une fois les groupes résolus.
+  // Les accolades de regroupement n'ont plus de sens une fois les groupes
+  // résolus ; on les efface, puis on réintègre les accolades d'ensemble.
   t = t.replace(/[{}]/g, "");
+  t = t.replace(/\uE000/g, "{").replace(/\uE001/g, "}");
   t = t.replace(/[ \t]{2,}/g, " ");
 
   return t.trim();

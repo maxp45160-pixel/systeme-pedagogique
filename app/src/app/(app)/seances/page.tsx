@@ -323,15 +323,17 @@ async function ContenuCahier({
   return (
     <div className="space-y-8">
       {/*
-        Le marque-page ne redirige que si aucun jour n'était demandé : demander
-        une page explicitement doit toujours l'emporter sur la mémoire.
+        Le marque-page ne redirige que si rien d'autre ne désigne la page : un
+        jour demandé l'emporte sur la mémoire, et demander à composer aussi —
+        le compositeur s'ouvre au-dessus de la page courante, et lui substituer
+        la dernière page consultée abandonnerait le geste demandé.
       */}
       <MarquePage
         compteId={ctx.donnees.user.id}
         jour={jour}
         rang={rang}
         jours={jours}
-        reprendre={jourExplicite === null}
+        reprendre={jourExplicite === null && !composition}
       />
 
       {composition && <CompositeurDepuisLien {...composition} />}

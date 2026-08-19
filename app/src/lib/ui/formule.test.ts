@@ -34,11 +34,55 @@ describe("latexVersTexte", () => {
     expect(latexVersTexte("\\text{demande} \\times \\text{délai}")).toBe("demande × délai");
   });
 
+  it("pose une barre au-dessus du groupe — overline et bar", () => {
+    expect(latexVersTexte("\\overline{x}")).toBe("x\u0304");
+    expect(latexVersTexte("\\bar{z}")).toBe("z\u0304");
+  });
+
+  it("porte vecteur, chapeau et tilde sur le symbole", () => {
+    expect(latexVersTexte("\\vec{F} = m \\cdot \\vec{a}")).toBe("F\u20D7 = m · a\u20D7");
+    expect(latexVersTexte("\\hat{x}")).toBe("x\u0302");
+    expect(latexVersTexte("\\tilde{x}")).toBe("x\u0303");
+  });
+
+  it("développe un coefficient binomial en C(n, k)", () => {
+    expect(latexVersTexte("\\binom{n}{k}")).toBe("C(n, k)");
+  });
+
+    it("rend les ensembles usuels — \\mathbb{R} → ℝ", () => {
+    expect(latexVersTexte("x \\in \\mathbb{R}")).toBe("x ∈ ℝ");
+    expect(latexVersTexte("n \\in \\mathbb{N}")).toBe("n ∈ ℕ");
+  });
+  it("convertit mid et vert en barre verticale", () => {
+    expect(latexVersTexte("P(A \\mid B)")).toBe("P(A | B)");
+    expect(latexVersTexte("\\{x \\mid x > 2\\}")).toBe("{x | x > 2}");
+  });
+
+  it("préserve les accolades d'ensemble sans barre oblique résiduelle", () => {
+    expect(latexVersTexte("\\left\\{ x \\right\\}")).toBe("{ x }");
+  });
+
+  it("transforme une matrice en texte lisible — sans `begin` ni `&`", () => {
+    expect(latexVersTexte("\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}")).toBe(
+      "( a b ; c d )",
+    );
+  });
+
+  it("transforme un environnement cases en texte lisible", () => {
+    expect(
+      latexVersTexte("\\begin{cases} x & \\text{si } a \\\\ y & \\text{sinon} \\end{cases}"),
+    ).toBe("{ x si a ; y sinon }");
+  });
+
+  it("une ouverture d'environnement jamais fermée reste lisible — flux écourté", () => {
+    expect(latexVersTexte("\\begin{pmatrix} a & b")).toBe("( a b )");
+  });
+
   it("ne rend jamais vide une formule qu'il ne couvre pas", () => {
-    const exotique = "\\begin{pmatrix} a & b \\end{pmatrix}";
-    const rendu = latexVersTexte(exotique);
+    const inconnue = "\\totalement{inconnue}";
+    const rendu = latexVersTexte(inconnue);
     expect(rendu).not.toBe("");
-    expect(rendu).toContain("a & b");
+    expect(rendu).toContain("inconnue");
   });
 
   it("ne bloque pas sur une accolade jamais fermée — flux SSE tronqué", () => {

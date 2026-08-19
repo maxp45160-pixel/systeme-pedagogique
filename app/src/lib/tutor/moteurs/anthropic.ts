@@ -152,7 +152,7 @@ export function moteurAnthropic(cle: string, modele: string): MoteurTuteur {
         // vaut la peine d'être réessayé de ce qui ne l'est pas.
         let message = "Erreur inattendue lors de l'appel au tuteur.";
         if (e instanceof Anthropic.AuthenticationError) {
-          message = "Clé API refusée. Vérifie la clé du moteur Anthropic dans app/.env.local.";
+          message = "Clé API refusée. Vérifie la clé Anthropic enregistrée dans les réglages du tuteur.";
         } else if (e instanceof Anthropic.NotFoundError) {
           message = `Modèle introuvable (${modele}). Vérifie que ton compte y a accès.`;
         } else if (e instanceof Anthropic.RateLimitError) {
