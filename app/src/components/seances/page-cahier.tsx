@@ -58,8 +58,8 @@ export function PageCahier({
   aujourdHui: Date;
   /** La séance ouverte en plein travail, rendue à sa place dans le déroulé. */
   seanceDeployee?: { id: string; contenu: ReactNode };
-  onChangerFeuillet?: (cible: PositionFeuillet, sens?: "avant" | "arriere") => void;
-  onChangerMois?: (mois: string) => void;
+  onChangerFeuillet: (cible: PositionFeuillet, sens?: "avant" | "arriere") => void;
+  onChangerMois: (mois: string) => void;
   refTourne?: Ref<TournePageHandle>;
 }) {
   const page = construirePage(jour, { seances, notes, projets });
@@ -82,30 +82,22 @@ export function PageCahier({
       <TournePage ref={refTourne}>
         <div className="pile-feuillets relative">
           {/*
-            Le ruban : lien vers la page du jour tant qu'on lit ailleurs, simple
+            Le ruban : bouton vers la page du jour tant qu'on lit ailleurs, simple
             repère cousu une fois qu'on y est.
           */}
           {estAujourdHui ? (
             <span className="ruban-marque-page" title="La page du jour" aria-hidden>
               <span>Aujourd’hui</span>
             </span>
-          ) : onChangerFeuillet ? (
+          ) : (
             <button
               type="button"
               onClick={() => onChangerFeuillet({ jour: cleAujourdHui, rang: 1 }, cleAujourdHui > jour ? "avant" : "arriere")}
-              className="ruban-marque-page"
+              className="ruban-marque-page cursor-pointer"
               title="Revenir à la page du jour"
             >
               <span>Aujourd’hui</span>
             </button>
-          ) : (
-            <Link
-              href={lienFeuillet({ jour: cleAujourdHui, rang: 1 })}
-              className="ruban-marque-page"
-              title="Revenir à la page du jour"
-            >
-              <span>Aujourd’hui</span>
-            </Link>
           )}
 
           {/*
@@ -130,10 +122,8 @@ export function PageCahier({
                   mois={mois}
                   jours={jours}
                   aujourdHui={aujourdHui}
-                  onChangerJour={
-                    onChangerFeuillet
-                      ? (j) => onChangerFeuillet({ jour: j, rang: 1 }, j > jour ? "avant" : "arriere")
-                      : undefined
+                  onChangerJour={(j) =>
+                    onChangerFeuillet({ jour: j, rang: 1 }, j > jour ? "avant" : "arriere")
                   }
                   onChangerMois={onChangerMois}
                 />
@@ -197,7 +187,7 @@ function EnTeteFeuillet({
   suivant: PositionFeuillet | null;
   estAujourdHui: boolean;
   calendrier: ReactNode;
-  onChangerFeuillet?: (cible: PositionFeuillet, sens?: "avant" | "arriere") => void;
+  onChangerFeuillet: (cible: PositionFeuillet, sens?: "avant" | "arriere") => void;
 }) {
   const premierDuJour = feuillet.rang === 1;
 
@@ -237,26 +227,15 @@ function EnTeteFeuillet({
 
       <nav aria-label="Feuillets du cahier" className="flex shrink-0 items-center gap-2">
         {precedent ? (
-          onChangerFeuillet ? (
-            <button
-              type="button"
-              onClick={() => onChangerFeuillet(precedent, "arriere")}
-              aria-label="Feuillet précédent"
-              title="Feuillet précédent"
-              className={classesLienBouton("secondaire", "petite")}
-            >
-              ←
-            </button>
-          ) : (
-            <Link
-              href={lienFeuillet(precedent)}
-              aria-label="Feuillet précédent"
-              title="Feuillet précédent"
-              className={classesLienBouton("secondaire", "petite")}
-            >
-              ←
-            </Link>
-          )
+          <button
+            type="button"
+            onClick={() => onChangerFeuillet(precedent, "arriere")}
+            aria-label="Feuillet précédent"
+            title="Feuillet précédent"
+            className={`${classesLienBouton("secondaire", "petite")} cursor-pointer`}
+          >
+            ←
+          </button>
         ) : (
           <span
             aria-disabled
@@ -267,26 +246,15 @@ function EnTeteFeuillet({
           </span>
         )}
         {suivant ? (
-          onChangerFeuillet ? (
-            <button
-              type="button"
-              onClick={() => onChangerFeuillet(suivant, "avant")}
-              aria-label="Feuillet suivant"
-              title="Feuillet suivant"
-              className={classesLienBouton("secondaire", "petite")}
-            >
-              →
-            </button>
-          ) : (
-            <Link
-              href={lienFeuillet(suivant)}
-              aria-label="Feuillet suivant"
-              title="Feuillet suivant"
-              className={classesLienBouton("secondaire", "petite")}
-            >
-              →
-            </Link>
-          )
+          <button
+            type="button"
+            onClick={() => onChangerFeuillet(suivant, "avant")}
+            aria-label="Feuillet suivant"
+            title="Feuillet suivant"
+            className={`${classesLienBouton("secondaire", "petite")} cursor-pointer`}
+          >
+            →
+          </button>
         ) : (
           <span
             aria-disabled
@@ -312,7 +280,7 @@ function PointsDeFeuillets({
   jour: string;
   rang: number;
   total: number;
-  onChangerFeuillet?: (cible: PositionFeuillet, sens?: "avant" | "arriere") => void;
+  onChangerFeuillet: (cible: PositionFeuillet, sens?: "avant" | "arriere") => void;
 }) {
   return (
     <p className="mt-2 flex items-center gap-2 text-xs text-texte-discret">
@@ -323,28 +291,15 @@ function PointsDeFeuillets({
         {Array.from({ length: total }, (_, index) => {
           const cible = index + 1;
           const ouvert = cible === rang;
-          const classesPoint = `size-1.5 rounded-full transition-colors ${
+          const classesPoint = `size-1.5 rounded-full transition-colors cursor-pointer ${
             ouvert ? "bg-primaire" : "bg-bordure-forte hover:bg-primaire/60"
           }`;
 
-          if (onChangerFeuillet) {
-            return (
-              <button
-                key={cible}
-                type="button"
-                onClick={() => onChangerFeuillet({ jour, rang: cible }, cible > rang ? "avant" : "arriere")}
-                aria-current={ouvert ? "page" : undefined}
-                aria-label={`Feuillet ${cible} sur ${total}`}
-                title={`Feuillet ${cible}`}
-                className={classesPoint}
-              />
-            );
-          }
-
           return (
-            <Link
+            <button
               key={cible}
-              href={lienFeuillet({ jour, rang: cible })}
+              type="button"
+              onClick={() => onChangerFeuillet({ jour, rang: cible }, cible > rang ? "avant" : "arriere")}
               aria-current={ouvert ? "page" : undefined}
               aria-label={`Feuillet ${cible} sur ${total}`}
               title={`Feuillet ${cible}`}

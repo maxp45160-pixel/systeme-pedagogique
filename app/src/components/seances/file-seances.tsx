@@ -41,7 +41,6 @@ export function OngletsSeancesOuvertes({
   jourAffiche,
   rangAffiche,
   onNaviguer,
-  onChangerJour,
 }: {
   seances: LearningSession[];
   tentatives: ExerciseAttempt[];
@@ -49,8 +48,7 @@ export function OngletsSeancesOuvertes({
   projets?: DocumentOperationnelDate[];
   jourAffiche: string;
   rangAffiche?: number;
-  onNaviguer?: (position: PositionFeuillet) => void;
-  onChangerJour?: (jour: string) => void;
+  onNaviguer: (position: PositionFeuillet) => void;
 }) {
   const entrees = { seances, notes, projets };
 
@@ -95,32 +93,12 @@ export function OngletsSeancesOuvertes({
     >
       {projetsOuverts.map(({ projet: p, pos }) => {
         const dateProjet = p.updatedAt ?? p.createdAt;
-        const href = pos.rang > 1 ? `/seances?jour=${encodeURIComponent(pos.jour)}&f=${pos.rang}` : `/seances?jour=${encodeURIComponent(pos.jour)}`;
-
-        if (onNaviguer || onChangerJour) {
-          return (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => (onNaviguer ? onNaviguer(pos) : onChangerJour?.(pos.jour))}
-              className="flex shrink-0 items-center gap-2 rounded-t-md border border-b-0 border-bordure bg-surface-2/40 px-3 py-1.5 text-xs hover:bg-surface-2 transition-colors text-left"
-            >
-              <Etiquette ton="primaire">Projet en cours</Etiquette>
-              <span className="max-w-[13rem] truncate font-medium">{p.titre}</span>
-              {dateProjet && (
-                <span className="text-texte-discret shrink-0">
-                  {formatDateCourte(dateProjet)}
-                </span>
-              )}
-            </button>
-          );
-        }
-
         return (
-          <Link
+          <button
             key={p.id}
-            href={href}
-            className="flex shrink-0 items-center gap-2 rounded-t-md border border-b-0 border-bordure bg-surface-2/40 px-3 py-1.5 text-xs hover:bg-surface-2"
+            type="button"
+            onClick={() => onNaviguer(pos)}
+            className="flex shrink-0 items-center gap-2 rounded-t-md border border-b-0 border-bordure bg-surface-2/40 px-3 py-1.5 text-xs hover:bg-surface-2 transition-colors text-left cursor-pointer"
           >
             <Etiquette ton="primaire">Projet en cours</Etiquette>
             <span className="max-w-[13rem] truncate font-medium">{p.titre}</span>
@@ -129,7 +107,7 @@ export function OngletsSeancesOuvertes({
                 {formatDateCourte(dateProjet)}
               </span>
             )}
-          </Link>
+          </button>
         );
       })}
       {ouvertes.map(({ seance: s, pos }) => {
@@ -141,37 +119,20 @@ export function OngletsSeancesOuvertes({
           s.besoinDeclare?.intention ||
           (s.activites.length === 1 ? s.activites[0]?.libelle : null) ||
           `${s.activites.length} activité${s.activites.length > 1 ? "s" : ""}`;
-        const href = pos.rang > 1 ? `/seances?jour=${encodeURIComponent(pos.jour)}&f=${pos.rang}` : `/seances?jour=${encodeURIComponent(pos.jour)}`;
-
-        if (onNaviguer || onChangerJour) {
-          return (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => (onNaviguer ? onNaviguer(pos) : onChangerJour?.(pos.jour))}
-              className="flex shrink-0 items-center gap-2 rounded-t-md border border-b-0 border-bordure bg-surface-2/40 px-3 py-1.5 text-xs hover:bg-surface-2 transition-colors text-left"
-            >
-              <Etiquette ton={ton}>{libelle}</Etiquette>
-              <span className="max-w-[13rem] truncate font-medium">{titre}</span>
-              <span className="text-texte-discret shrink-0">
-                {formatDateCourte(s.planifieePour ?? s.date)}
-              </span>
-            </button>
-          );
-        }
 
         return (
-          <Link
+          <button
             key={s.id}
-            href={href}
-            className="flex shrink-0 items-center gap-2 rounded-t-md border border-b-0 border-bordure bg-surface-2/40 px-3 py-1.5 text-xs hover:bg-surface-2"
+            type="button"
+            onClick={() => onNaviguer(pos)}
+            className="flex shrink-0 items-center gap-2 rounded-t-md border border-b-0 border-bordure bg-surface-2/40 px-3 py-1.5 text-xs hover:bg-surface-2 transition-colors text-left cursor-pointer"
           >
             <Etiquette ton={ton}>{libelle}</Etiquette>
             <span className="max-w-[13rem] truncate font-medium">{titre}</span>
             <span className="text-texte-discret shrink-0">
               {formatDateCourte(s.planifieePour ?? s.date)}
             </span>
-          </Link>
+          </button>
         );
       })}
     </nav>

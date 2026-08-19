@@ -12,69 +12,12 @@ import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import { DemarrerTour, TOUR_DEMARRER_ID } from "@/components/onboarding/demarrer-tour";
 import { useOnboarding } from "@/components/onboarding/onboarding-context";
 import { AssistantOrientationProfil } from "@/components/profil/assistant-orientation-profil";
-import type { ProfilSynthetise } from "@/lib/domain/assistant-orientation";
-
-interface ExempleSujet {
-  label: string;
-  sujet: string;
-  objectif: string;
-  pointDeDepart?: string;
-  preferences?: string[];
-}
-
-const PREFERENCES_SUGGESTIONS = [
-  { label: "Pratiquer d'abord" },
-  { label: "Des cas concrets" },
-  { label: "Pas à pas" },
-  { label: "Les fondations d'abord" },
-  { label: "Court et rapide" },
-  { label: "Beaucoup de questions" },
-];
-
-const EXEMPLES: ExempleSujet[] = [
-  {
-    label: "Développement Web",
-    sujet: "Architecture web moderne, React, TypeScript, APIs et bases de données",
-    objectif: "Concevoir et déployer des applications web complètes en autonomie",
-    pointDeDepart: "Notions de base en programmation",
-    preferences: ["Pratiquer d'abord", "Pas à pas"],
-  },
-  {
-    label: "Droit & Fiscalité",
-    sujet: "Droit fiscal des entreprises, TVA, IS et restructurations juridiques",
-    objectif: "Sécuriser des montages juridiques et optimiser la conformité fiscale",
-    pointDeDepart: "Formation initiale en droit ou gestion",
-    preferences: ["Des cas concrets", "Les fondations d'abord"],
-  },
-  {
-    label: "Data & IA",
-    sujet: "Machine Learning, LLMs, pipelines de données et évaluation de modèles",
-    objectif: "Extraire des enseignements de jeux de données complexes et modéliser des prédictions métier",
-    pointDeDepart: "Bases en programmation ou statistiques",
-    preferences: ["Pratiquer d'abord", "Des cas concrets"],
-  },
-  {
-    label: "Anglais professionnel",
-    sujet: "Anglais professionnel, communication en entreprise et négociation internationale",
-    objectif: "Animer des réunions, argumenter et négocier avec aisance avec des interlocuteurs anglophones",
-    pointDeDepart: "Niveau intermédiaire (B1/B2)",
-    preferences: ["Pratiquer d'abord", "Court et rapide"],
-  },
-  {
-    label: "Mathématiques",
-    sujet: "Algèbre linéaire, analyse réelle et probabilités appliquées",
-    objectif: "Résoudre des problèmes complexes et préparer des concours techniques",
-    pointDeDepart: "Niveau scientifique / prépa",
-    preferences: ["Les fondations d'abord", "Pas à pas"],
-  },
-  {
-    label: "Musique & MAO",
-    sujet: "Harmonie musicale, composition, mixage et production sur DAW",
-    objectif: "Composer et finaliser des morceaux musicaux cohérents et masterisés",
-    pointDeDepart: "Pratique instrumentale autonome",
-    preferences: ["Pratiquer d'abord", "Court et rapide"],
-  },
-];
+import {
+  PREFERENCES_APPRENTISSAGE,
+  SUGGESTIONS_DOMAINES,
+  type ProfilSynthetise,
+  type SuggestionDomaine,
+} from "@/lib/domain/assistant-orientation";
 
 export function FormulaireAmorcage({
   objectifMoyenTerme,
@@ -116,11 +59,11 @@ export function FormulaireAmorcage({
   const objectifValide = objectif.trim().length > 2;
   const pret = sujetValide && objectifValide;
 
-  function choisirExemple(ex: ExempleSujet) {
-    setSujet(ex.sujet);
-    setObjectif(ex.objectif);
-    if (ex.pointDeDepart) setPointDeDepart(ex.pointDeDepart);
-    if (ex.preferences) setPreferencesChoisies(ex.preferences);
+  function choisirExemple(ex: SuggestionDomaine) {
+    setSujet(ex.sujetExemple);
+    setObjectif(ex.objectifExemple);
+    if (ex.pointDeDepartExemple) setPointDeDepart(ex.pointDeDepartExemple);
+    if (ex.preferencesExemples) setPreferencesChoisies(ex.preferencesExemples);
     setModeGuide(false);
   }
 
@@ -268,19 +211,19 @@ export function FormulaireAmorcage({
               <span>Exemples, pour remplir en un clic :</span>
             </p>
             <div className="flex flex-wrap gap-2">
-              {EXEMPLES.map((ex) => (
+              {SUGGESTIONS_DOMAINES.map((dom) => (
                 <button
-                  key={ex.label}
+                  key={dom.id}
                   type="button"
-                  onClick={() => choisirExemple(ex)}
+                  onClick={() => choisirExemple(dom)}
                   className={cx(
                     "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all shadow-xs",
-                    sujet === ex.sujet
-                      ? "border-primaire bg-primaire/15 text-primaire"
+                    sujet === dom.sujetExemple
+                      ? "border-primaire bg-primaire/15 text-primaire font-semibold"
                       : "border-bordure bg-surface text-texte-attenue hover:border-primaire/40 hover:text-texte hover:bg-surface-2",
                   )}
                 >
-                  <span>{ex.label}</span>
+                  <span>{dom.nom}</span>
                 </button>
               ))}
             </div>
@@ -358,13 +301,13 @@ export function FormulaireAmorcage({
                   Comment préfères-tu apprendre ?
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  {PREFERENCES_SUGGESTIONS.map((pref) => {
-                    const selectionne = preferencesChoisies.includes(pref.label);
+                  {PREFERENCES_APPRENTISSAGE.map((pref) => {
+                    const selectionne = preferencesChoisies.includes(pref.libelle);
                     return (
                       <button
-                        key={pref.label}
+                        key={pref.id}
                         type="button"
-                        onClick={() => basculerPreference(pref.label)}
+                        onClick={() => basculerPreference(pref.libelle)}
                         className={cx(
                           "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-all shadow-xs",
                           selectionne
@@ -372,7 +315,7 @@ export function FormulaireAmorcage({
                             : "border-bordure bg-surface text-texte-attenue hover:border-primaire/40 hover:text-texte hover:bg-surface-2",
                         )}
                       >
-                        <span>{pref.label}</span>
+                        <span>{pref.libelle}</span>
                         {selectionne && <IconeValide className="size-3" />}
                       </button>
                     );

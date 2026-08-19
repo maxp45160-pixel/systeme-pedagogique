@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from "react";
 import type { LearningSession, ExerciseAttempt } from "@/lib/domain/types";
 import type { LigneMarge } from "@/lib/documents/marge";
 import type { DonneesSeance } from "@/components/seances/concepteur-seance";
@@ -70,8 +70,11 @@ export function CahierInteractif({
   seanceDeployee?: { id: string; contenu: ReactNode };
 }) {
   const tourneRef = useRef<TournePageHandle>(null);
-  const nombresDeFeuillets = new Map(nombresDeFeuilletsMap);
-  const aujourdHui = new Date(aujourdHuiIso);
+  const nombresDeFeuillets = useMemo(
+    () => new Map(nombresDeFeuilletsMap),
+    [nombresDeFeuilletsMap],
+  );
+  const aujourdHui = useMemo(() => new Date(aujourdHuiIso), [aujourdHuiIso]);
 
   // Initialisation immédiate : si le jour n'a pas été demandé explicitement dans l'URL,
   // on vérifie le marque-page local sans provoquer de double rendu serveur.

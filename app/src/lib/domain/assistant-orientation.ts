@@ -28,6 +28,8 @@ export interface SuggestionDomaine {
   nom: string;
   sujetExemple: string;
   objectifExemple: string;
+  pointDeDepartExemple?: string;
+  preferencesExemples?: string[];
 }
 
 export const NIVEAUX_DEPART: NiveauDepartOption[] = [
@@ -94,38 +96,50 @@ export const SUGGESTIONS_DOMAINES: SuggestionDomaine[] = [
   {
     id: "web",
     nom: "Développement Web",
-    sujetExemple: "Architecture web moderne, React, TypeScript et APIs",
+    sujetExemple: "Architecture web moderne, React, TypeScript, APIs et bases de données",
     objectifExemple: "Concevoir et déployer des applications web complètes en autonomie",
+    pointDeDepartExemple: "Notions de base en programmation ou reconversion",
+    preferencesExemples: ["Pratiquer d'abord", "Pas à pas"],
   },
   {
     id: "data-ia",
     nom: "Data & IA",
-    sujetExemple: "Machine Learning, Python, pipelines de données et prompt engineering",
+    sujetExemple: "Machine Learning, LLMs, Python, pipelines de données et prompt engineering",
     objectifExemple: "Analyser des données complexes et intégrer des modèles d'IA",
+    pointDeDepartExemple: "Bases en programmation ou statistiques",
+    preferencesExemples: ["Pratiquer d'abord", "Des cas concrets"],
   },
   {
     id: "droit",
     nom: "Droit & Fiscalité",
-    sujetExemple: "Droit des affaires, fiscalité d'entreprise et contrats",
+    sujetExemple: "Droit des affaires, fiscalité d'entreprise, TVA, IS et contrats",
     objectifExemple: "Sécuriser des montages juridiques et maîtriser la conformité",
+    pointDeDepartExemple: "Formation initiale en droit ou gestion",
+    preferencesExemples: ["Des cas concrets", "Les fondations d'abord"],
   },
   {
     id: "langues",
     nom: "Anglais pro",
     sujetExemple: "Anglais professionnel, communication et négociation internationale",
     objectifExemple: "Animer des réunions et négocier avec aisance en anglais",
+    pointDeDepartExemple: "Niveau intermédiaire (B1/B2)",
+    preferencesExemples: ["Pratiquer d'abord", "Court et rapide"],
   },
   {
     id: "maths",
     nom: "Maths & Logique",
-    sujetExemple: "Algèbre linéaire, probabilités et raisonnement logique",
+    sujetExemple: "Algèbre linéaire, probabilités appliquées et raisonnement formel",
     objectifExemple: "Résoudre des problèmes formels et structurer le raisonnement",
+    pointDeDepartExemple: "Niveau scientifique / prépa",
+    preferencesExemples: ["Les fondations d'abord", "Pas à pas"],
   },
   {
-    id: "oratoire",
+    id: "communication",
     nom: "Communication",
     sujetExemple: "Prise de parole en public, argumentation et persuasion",
     objectifExemple: "Captiver un auditoire et défendre des idées avec clarté",
+    pointDeDepartExemple: "Pratique informelle / professionnel",
+    preferencesExemples: ["Pratiquer d'abord", "Court et rapide"],
   },
 ];
 

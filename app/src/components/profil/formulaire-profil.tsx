@@ -7,18 +7,12 @@ import { BandeauInfo, Bouton, Etiquette, cx } from "@/components/ui/primitives";
 import { Champ } from "@/components/ui/champ";
 import { IconeAmpoule, IconeValide } from "@/components/ui/icones";
 import { AssistantOrientationProfil } from "./assistant-orientation-profil";
-import type { ProfilSynthetise } from "@/lib/domain/assistant-orientation";
+import {
+  PREFERENCES_APPRENTISSAGE,
+  type ProfilSynthetise,
+} from "@/lib/domain/assistant-orientation";
 
 const PREFIXE_FAMILLE = "adaptive:family:";
-
-const PREFERENCES_SUGGESTIONS = [
-  { label: "Pratiquer d'abord" },
-  { label: "Des cas concrets" },
-  { label: "Pas à pas" },
-  { label: "Les fondations d'abord" },
-  { label: "Court et rapide" },
-  { label: "Beaucoup de questions" },
-];
 
 export function FormulaireProfil({
   formation,
@@ -173,13 +167,13 @@ export function FormulaireProfil({
             Préférences pédagogiques (sélection rapide)
           </label>
           <div className="flex flex-wrap gap-1.5 mb-2.5">
-            {PREFERENCES_SUGGESTIONS.map((sug) => {
-              const active = lignesPrefs.includes(sug.label);
+            {PREFERENCES_APPRENTISSAGE.map((pref) => {
+              const active = lignesPrefs.includes(pref.libelle);
               return (
                 <button
-                  key={sug.label}
+                  key={pref.id}
                   type="button"
-                  onClick={() => basculerSuggestion(sug.label)}
+                  onClick={() => basculerSuggestion(pref.libelle)}
                   className={cx(
                     "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-all shadow-xs",
                     active
@@ -187,7 +181,7 @@ export function FormulaireProfil({
                       : "border-bordure bg-surface text-texte-attenue hover:border-primaire/40 hover:text-texte hover:bg-surface-2",
                   )}
                 >
-                  <span>{sug.label}</span>
+                  <span>{pref.libelle}</span>
                   {active && <IconeValide className="size-3" />}
                 </button>
               );
