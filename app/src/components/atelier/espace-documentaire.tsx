@@ -967,6 +967,9 @@ export function EspaceDocumentaire({
                   return !vue.domaine.archive;
                 })
                 .map((el) => el.vuePedagogique as VueDomaineAtelier)}
+              tousLesDomaines={elements
+                .filter((el) => el.type === "domaine" && el.vuePedagogique)
+                .map((el) => el.vuePedagogique as VueDomaineAtelier)}
               ouvrirElement={ouvrirElement}
               changerVue={changerVue}
               selection={selection}
@@ -1639,6 +1642,12 @@ function ResultatsRecherche({
                     <span className="rounded bg-surface-2 px-1.5 py-0.5 font-medium text-texte-attenue">
                       {element.typeLibelle}
                     </span>
+                    {element.vuePedagogique?.kind === "domaine" &&
+                      (element.vuePedagogique as VueDomaineAtelier).domaine.archive && (
+                        <span className="rounded bg-surface-3 px-1.5 py-0.5 text-[10px] font-medium text-texte-discret">
+                          Archivé
+                        </span>
+                      )}
                     {element.source === "projection" && (
                       <span className="text-[10px] text-texte-attenue">Lecture seule</span>
                     )}

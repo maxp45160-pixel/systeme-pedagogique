@@ -9,12 +9,13 @@ import {
   BoutonSuppressionCarte,
   ModaleConfirmationSuppression,
 } from "./modale-confirmation-suppression";
-import { archiverDomaine } from "@/lib/store/referentiel-actions";
+import { archiverDomaine, restaurerDomaine } from "@/lib/store/referentiel-actions";
 import { formatDateRelative } from "@/lib/engine/dates";
 import {
   filtrerEtTrierDomaines,
   type TriDomaine,
 } from "@/lib/documents/tri-domaines";
+import { BoutonRestaurationCarte } from "./modale-confirmation-suppression";
 
 export function CarteCreationPointillee({
   titre,
@@ -114,6 +115,7 @@ export function VueTousLesDomaines({
   compteId,
   domainesExistants = [],
   tri = "recent",
+  tousLesDomaines,
 }: {
   domaines: VueDomaineAtelier[];
   ouvrirElement: (id: string) => void;
@@ -122,12 +124,26 @@ export function VueTousLesDomaines({
   compteId?: string;
   domainesExistants?: { id: string; nom: string; prefixe: string }[];
   tri?: TriDomaine;
+  tousLesDomaines?: VueDomaineAtelier[];
 }) {
   const router = useRouter();
   const [modaleCreationOuverte, setModaleCreationOuverte] = useState(false);
   const [domaineASupprimer, setDomaineASupprimer] = useState<VueDomaineAtelier | null>(null);
+  const [domaineARestaurer, setDomaineARestaurer] = useState<VueDomaineAtelier | null>(null);
 
   const estArchives = selection === "domaines-archives";
+
+  const nombreActifs = tousLesDomaines
+    ? tousLesDomaines.filter((d) => !d.domaine.archive).length
+    : !estArchives
+    ? domaines.length
+    : 0;
+
+  const nombreArchives = tousLesDomaines
+    ? tousLesDomaines.filter((d) => d.domaine.archive).length
+    : estArchives
+    ? domaines.length
+    : 0;
 
   const domainesAffiches = useMemo(() => {
     return filtrerEtTrierDomaines(domaines, { tri });
@@ -136,6 +152,69 @@ export function VueTousLesDomaines({
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-y-auto bg-surface-2/30">
       <div className="p-5 sm:p-6 lg:p-8">
+        {/* Sélecteur de statut : Actifs / Archivés */}
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-bordure pb-4">
+          <div
+            className="flex items-center gap-1 rounded-lg border border-bordure bg-surface-2 p-1 text-xs"
+            role="tablist"
+            aria-label="Statut des domaines"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={!estArchives}
+              onClick={() => ouvrirElement("domaines")}
+              className={cx(
+                "flex items-center gap-2 rounded-md px-3 py-1.5 font-medium transition-all cursor-pointer",
+                !estArchives
+                  ? "bg-surface text-primaire shadow-xs font-semibold"
+                  : "text-texte-discret hover:text-texte hover:bg-surface/50",
+              )}
+            >
+              <span>Actifs</span>
+              <span className="rounded-full bg-surface-3 px-1.5 py-0.5 text-[10px] font-mono text-texte-discret">
+                {nombreActifs}
+              </span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={estArchives}
+              onClick={() => ouvrirElement("domaines-archives")}
+              className={cx(
+                "flex items-center gap-2 rounded-md px-3 py-1.5 font-medium transition-all cursor-pointer",
+                estArchives
+                  ? "bg-surface text-primaire shadow-xs font-semibold"
+                  : "text-texte-discret hover:text-texte hover:bg-surface/50",
+              )}
+            >
+              <span>Archivés</span>
+              <span className="rounded-full bg-surface-3 px-1.5 py-0.5 text-[10px] font-mono text-texte-discret">
+                {nombreArchives}
+              </span>
+            </button>
+          </div>
+
+          {estArchives && (
+            <button
+              type="button"
+              onClick={() => ouvrirElement("domaines")}
+              className="text-xs text-texte-discret hover:text-texte hover:underline cursor-pointer"
+            >
+              ← Revenir aux domaines actifs
+            </button>
+          )}
+        </div>
+
+        {estArchives && domainesAffiches.length > 0 && (
+          <div className="mb-6 rounded-xl border border-bordure bg-surface p-4 text-xs text-texte-attenue shadow-xs">
+            <p className="font-semibold text-texte">Domaines archivés</p>
+            <p className="mt-1 leading-relaxed text-texte-discret">
+              Ces domaines et leurs compétences sont retirés du pilotage actif. Toutes les observations d’apprentissage restent conservées en mémoire. Vous pouvez ouvrir un domaine ou le restaurer directement pour le réintégrer.
+            </p>
+          </div>
+        )}
+
         {/* Grille des domaines */}
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {domainesAffiches.map((domaine) => {
@@ -147,12 +226,22 @@ export function VueTousLesDomaines({
                 <button
                   type="button"
                   onClick={() => ouvrirElement(`domaine:${domaine.id}`)}
-                  className="flex h-full w-full flex-col justify-between rounded-xl border border-bordure bg-surface p-5 text-left shadow-[var(--ombre-posee)] transition-all duration-200 hover:-translate-y-1 hover:border-primaire/40 hover:shadow-[var(--ombre-levee)] cursor-pointer"
+                  className={cx(
+                    "flex h-full w-full flex-col justify-between rounded-xl border border-bordure bg-surface p-5 text-left shadow-[var(--ombre-posee)] transition-all duration-200 hover:-translate-y-1 hover:border-primaire/40 hover:shadow-[var(--ombre-levee)] cursor-pointer",
+                    estArchives && "opacity-90 hover:opacity-100",
+                  )}
                 >
                   <div>
                     <div className="flex items-center justify-between gap-3 pr-8">
-                      <span className="rounded-md bg-primaire-faible px-2.5 py-1 text-xs font-semibold text-primaire">
-                        Domaine
+                      <span
+                        className={cx(
+                          "rounded-md px-2.5 py-1 text-xs font-semibold",
+                          estArchives
+                            ? "bg-surface-3 text-texte-discret"
+                            : "bg-primaire-faible text-primaire",
+                        )}
+                      >
+                        {estArchives ? "Domaine archivé" : "Domaine"}
                       </span>
                       <span className="chiffres text-xs text-texte-discret">
                         {total} compétence{total > 1 ? "s" : ""}
@@ -171,10 +260,18 @@ export function VueTousLesDomaines({
                   <div className="mt-5 border-t border-bordure pt-3 space-y-2">
                     <div className="flex items-center justify-between text-xs text-texte-discret">
                       <span>Couverture</span>
-                      <span className="chiffres font-medium text-texte">{ratio}% ({evaluees}/{total})</span>
+                      <span className="chiffres font-medium text-texte">
+                        {ratio}% ({evaluees}/{total})
+                      </span>
                     </div>
                     <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-3">
-                      <div className="h-full rounded-full bg-primaire transition-all duration-300" style={{ width: `${ratio}%` }} />
+                      <div
+                        className={cx(
+                          "h-full rounded-full transition-all duration-300",
+                          estArchives ? "bg-texte-discret" : "bg-primaire",
+                        )}
+                        style={{ width: `${ratio}%` }}
+                      />
                     </div>
                     <div className="flex items-center justify-between text-[11px] text-texte-discret pt-0.5">
                       <span>Dernière activité</span>
@@ -185,7 +282,12 @@ export function VueTousLesDomaines({
                   </div>
                 </button>
 
-                {!estArchives && (
+                {estArchives ? (
+                  <BoutonRestaurationCarte
+                    titre="Restaurer ce domaine"
+                    onClick={() => setDomaineARestaurer(domaine)}
+                  />
+                ) : (
                   <BoutonSuppressionCarte
                     titre="Archiver ce domaine"
                     onClick={() => setDomaineASupprimer(domaine)}
@@ -194,6 +296,22 @@ export function VueTousLesDomaines({
               </div>
             );
           })}
+
+          {estArchives && domainesAffiches.length === 0 && (
+            <div className="col-span-full rounded-2xl border border-dashed border-bordure bg-surface/40 p-8 text-center">
+              <p className="font-serif text-sm font-semibold text-texte">Aucun domaine archivé</p>
+              <p className="mt-1 text-xs text-texte-discret">
+                Tous vos domaines sont actuellement dans votre espace actif.
+              </p>
+              <button
+                type="button"
+                onClick={() => ouvrirElement("domaines")}
+                className="mt-4 inline-flex items-center gap-1.5 text-xs font-medium text-primaire hover:underline cursor-pointer"
+              >
+                <span>Revenir aux domaines actifs</span>
+              </button>
+            </div>
+          )}
 
           {!estArchives && compteId && (
             <CarteCreationPointillee
@@ -219,6 +337,23 @@ export function VueTousLesDomaines({
             router.refresh();
           }}
           onFermer={() => setDomaineASupprimer(null)}
+        />
+      )}
+
+      {domaineARestaurer && (
+        <ModaleConfirmationSuppression
+          titre="Restaurer le domaine"
+          nomElement={domaineARestaurer.nom}
+          typeElement="domaine"
+          mode="restauration"
+          explication="Ce domaine et ses compétences associées seront remis dans votre référentiel actif."
+          texteBoutonConfirmer="Restaurer"
+          onConfirmer={async () => {
+            await restaurerDomaine(domaineARestaurer.id);
+            setDomaineARestaurer(null);
+            router.refresh();
+          }}
+          onFermer={() => setDomaineARestaurer(null)}
         />
       )}
 

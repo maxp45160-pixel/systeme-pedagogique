@@ -38,11 +38,42 @@ export function BoutonSuppressionCarte({
   );
 }
 
+export function BoutonRestaurationCarte({
+  onClick,
+  titre = "Restaurer cet élément",
+  className,
+}: {
+  onClick: (e: React.MouseEvent) => void;
+  titre?: string;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick(e);
+      }}
+      className={cx(
+        "absolute right-3 top-3 z-10 grid size-7 place-items-center rounded-lg border border-transparent text-texte-discret opacity-0 transition-all duration-150 group-hover:opacity-70 hover:!opacity-100 hover:border-primaire/30 hover:bg-primaire-faible hover:text-primaire focus:opacity-100 cursor-pointer",
+        className,
+      )}
+      title={titre}
+      aria-label={titre}
+    >
+      <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+        <path d="M3 3v5h5" />
+      </svg>
+    </button>
+  );
+}
+
 export interface ModaleConfirmationSuppressionProps {
   titre: string;
   nomElement: string;
   typeElement: "domaine" | "competence" | "theme" | "document" | "exercice";
-  mode?: "suppression" | "archivage";
+  mode?: "suppression" | "archivage" | "restauration";
   explication?: string;
   onConfirmer: () => Promise<void> | void;
   onFermer: () => void;
@@ -62,9 +93,18 @@ export function ModaleConfirmationSuppression({
   const [erreur, setErreur] = useState<string | null>(null);
 
   const estArchivage = mode === "archivage";
-  const libelleBouton = texteBoutonConfirmer ?? (estArchivage ? "Confirmer l’archivage" : "Supprimer définitivement");
+  const estRestauration = mode === "restauration";
+  const libelleBouton =
+    texteBoutonConfirmer ??
+    (estRestauration
+      ? "Confirmer la restauration"
+      : estArchivage
+      ? "Confirmer l’archivage"
+      : "Supprimer définitivement");
 
-  const messageParDefaut = estArchivage
+  const messageParDefaut = estRestauration
+    ? "Cet élément et ses compétences rattachées seront réintégrés dans votre espace actif."
+    : estArchivage
     ? "Cet élément contient des données ou un historique d’apprentissage. Il sera archivé en toute sécurité : ses observations restent conservées et ne sont jamais supprimées."
     : "Cet élément ne porte aucun historique ni observation directe. Il sera retiré de votre espace.";
 
@@ -99,7 +139,7 @@ export function ModaleConfirmationSuppression({
           </Bouton>
           <Bouton
             type="button"
-            variante="danger"
+            variante={estRestauration ? "principal" : "danger"}
             disabled={enCours}
             enChargement={enCours}
             onClick={executer}

@@ -14,7 +14,7 @@ import type {
   DocumentLieAtelier,
   ObservationAtelier,
 } from "@/lib/documents/vue-atelier";
-import { CodeCompetence, cx } from "@/components/ui/primitives";
+import { Bouton, CodeCompetence, cx } from "@/components/ui/primitives";
 import type { EtapeParcours } from "@/lib/engine/parcours";
 import { urlComposerAutonome } from "@/lib/domain/navigation-exercice";
 import { AppartenanceEnsembles } from "./appartenance-ensembles";
@@ -39,9 +39,8 @@ import {
   BoutonSuppressionCarte,
   ModaleConfirmationSuppression,
 } from "./modale-confirmation-suppression";
-import { retirerCompetences } from "@/lib/store/referentiel-actions";
+import { retirerCompetences, rattacherCompetences, restaurerDomaine } from "@/lib/store/referentiel-actions";
 import { retirerTheme } from "@/lib/store/theme-actions";
-import { rattacherCompetences } from "@/lib/store/referentiel-actions";
 
 /*
  * Le retour vit dans la barre supérieure de l'Atelier — `RetourAtelier`, dans
@@ -789,6 +788,7 @@ function VueDomaine({
   modeInitial?: "referentiel";
 }) {
   const router = useRouter();
+  const [restaurationEnCours, demarrerRestauration] = useTransition();
   const [palierNouveau, setPalierNouveau] = useState<string | null>(null);
   const [competenceARetirer, setCompetenceARetirer] = useState<VueDomaineAtelier["competences"][number] | null>(null);
   const [detachement, setDetachement] = useState<string | null>(null);
@@ -812,7 +812,54 @@ function VueDomaine({
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-surface-2/40">
       <header className="border-b border-bordure bg-surface px-6 py-5 lg:px-8">
-        <div className="flex items-start gap-4"><span className="grid size-14 place-items-center rounded-2xl bg-primaire-faible text-primaire"><IconeDocuments className="size-7" /></span><div><div className="flex flex-wrap items-center gap-2"><p className="text-xs font-semibold uppercase tracking-[0.12em] text-primaire">Fiche mère</p>{vue.domaine.archive && <span className="rounded-full bg-surface-3 px-2 py-0.5 text-[0.6875rem] font-semibold text-texte-discret">Archivé</span>}</div><h2 className="font-serif text-[2.2rem] font-medium tracking-tight">{vue.nom}</h2>{vue.description && <p className="mt-3 max-w-3xl text-base leading-relaxed text-texte-attenue">{vue.description}</p>}{vue.domaine.archive && <p className="mt-3 max-w-3xl rounded-lg border border-bordure bg-surface-2 px-3 py-2 text-xs leading-relaxed text-texte-discret">Il reste consultable, mais on ne vous proposera plus rien dessus.</p>}</div></div>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <span className="grid size-14 place-items-center rounded-2xl bg-primaire-faible text-primaire shrink-0">
+              <IconeDocuments className="size-7" />
+            </span>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primaire">Fiche mère</p>
+                {vue.domaine.archive && (
+                  <span className="rounded-full bg-surface-3 px-2 py-0.5 text-[0.6875rem] font-semibold text-texte-discret">
+                    Archivé
+                  </span>
+                )}
+              </div>
+              <h2 className="font-serif text-[2.2rem] font-medium tracking-tight text-texte">{vue.nom}</h2>
+              {vue.description && (
+                <p className="mt-3 max-w-3xl text-base leading-relaxed text-texte-attenue">{vue.description}</p>
+              )}
+            </div>
+          </div>
+
+          {vue.domaine.archive && (
+            <div className="flex items-center gap-2 shrink-0">
+              <Bouton
+                variante="principal"
+                taille="normale"
+                enChargement={restaurationEnCours}
+                disabled={restaurationEnCours}
+                onClick={() => {
+                  demarrerRestauration(async () => {
+                    await restaurerDomaine(vue.domaine.id);
+                    router.refresh();
+                  });
+                }}
+              >
+                Restaurer ce domaine
+              </Bouton>
+            </div>
+          )}
+        </div>
+
+        {vue.domaine.archive && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-bordure bg-surface-2 px-3.5 py-2.5 text-xs text-texte-attenue">
+            <p>
+              Ce domaine est archivé : ses compétences sont sorties du pilotage actif, mais toutes ses observations historiques restent protégées en base de données.
+            </p>
+          </div>
+        )}
       </header>
       <div className="border-b border-bordure bg-surface px-6 lg:px-8">
         <div className="flex gap-1 overflow-x-auto" role="tablist" aria-label="Sections du domaine">
