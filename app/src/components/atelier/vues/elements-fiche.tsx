@@ -5,47 +5,27 @@ import type { ObservationAtelier } from "@/lib/documents/vue-atelier";
 import { cx } from "@/components/ui/primitives";
 
 export const LIBELLES_PALIERS: Record<string, string> = {
-  fondamentaux: "Fondamentaux",
-  intermediaire: "Intermédiaire",
-  avance: "Avancé",
+  fondamentaux: "Poser les bases",
+  intermediaire: "Mettre en pratique",
+  avance: "Approfondir",
 };
 
-export const LIBELLES_CONFIANCE: Record<string, string> = {
-  nulle: "Aucune",
-  faible: "Faible",
-  moyenne: "Moyenne",
-  forte: "Forte",
+export const LIBELLES_REPERES: Record<string, string> = {
+  nulle: "À découvrir",
+  faible: "Premiers repères",
+  moyenne: "En bonne voie",
+  forte: "Repère solide",
 };
+
+export function libelleImportance(valeur: number): string {
+  if (valeur >= 0.75) return "À garder au centre";
+  if (valeur >= 0.35) return "À garder en vue";
+  return "Pour aller plus loin";
+}
 
 export function dateCourte(date: string | null): string {
   if (!date) return "Aucune activité";
   return formatDateCourte(date);
-}
-
-export function pourcentage(valeur: number | null): string {
-  return valeur === null ? "—" : `${Math.round(valeur * 100)} %`;
-}
-
-export function libelleResultatObservation(resultat: "reussi" | "partiel" | "echec"): string {
-  return resultat === "reussi" ? "Réussie" : resultat === "partiel" ? "Partielle" : "À revoir";
-}
-
-export function Barre({ valeur, libelle }: { valeur: number; libelle: string }) {
-  const estEvalue = valeur > 0;
-  return (
-    <div className="grid grid-cols-[9rem_minmax(0,1fr)_3.25rem] items-center gap-4 text-sm">
-      <span className="truncate text-texte-attenue">{libelle}</span>
-      <span className="h-2 overflow-hidden rounded-full bg-surface-3">
-        <span
-          className={cx("block h-full rounded-full", estEvalue ? "bg-primaire" : "bg-transparent")}
-          style={{ width: `${Math.round(valeur * 100)}%` }}
-        />
-      </span>
-      <span className={cx("chiffres text-right font-medium", estEvalue ? "text-texte" : "text-texte-discret")}>
-        {Math.round(valeur * 100)}%
-      </span>
-    </div>
-  );
 }
 
 export function Indicateur({ libelle, valeur, precision }: { libelle: string; valeur: string; precision: string }) {
@@ -74,7 +54,7 @@ export function Mesure({ libelle, valeur, precision }: { libelle: string; valeur
 }
 
 /**
- * Une observation, cliquable quand elle a un document.
+ * Une trace de travail, cliquable quand elle a un document.
  */
 export function ObservationLiee({
   observation,
@@ -101,7 +81,7 @@ export function ObservationLiee({
         </span>
       </span>
       <span className="mt-1 block text-[0.6875rem] text-texte-discret">
-        {dateCourte(observation.date)} · observation {observation.niveauObservation} · {observation.autonomie}
+        {dateCourte(observation.date)} · trace de travail
       </span>
     </>
   );

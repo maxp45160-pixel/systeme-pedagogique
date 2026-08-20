@@ -2179,6 +2179,10 @@ function validerRevision(
     if (!o) return null;
     const intitule = texte(o.intitule);
     if (!intitule) return null;
+    // Les créations passent par le même garde-fou que les branches : une
+    // proposition historique trop large est écartée ici et ne doit pas faire
+    // échouer toute la validation au clic.
+    if (motifsNonAtomique(intitule).length > 0) continue;
     ajouts.push({
       intitule,
       palier: dansEnum(o.palier, PALIERS),

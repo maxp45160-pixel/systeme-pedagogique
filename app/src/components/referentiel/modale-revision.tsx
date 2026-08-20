@@ -35,6 +35,7 @@ import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import type { PropositionRevision } from "@/lib/tutor/outils";
 import { ChargementGeneration } from "@/components/ui/chargement-generation";
 import { appliquerRevision } from "@/lib/store/referentiel-actions";
+import { LIBELLES_PALIERS, libelleImportance } from "@/components/atelier/vues/elements-fiche";
 
 export interface CompetenceRevisable {
   code: string;
@@ -42,6 +43,7 @@ export interface CompetenceRevisable {
   palier: string;
   observations: number;
   modeRetrait: "suppression" | "archivage";
+  reformulationManuelleRequise?: boolean;
 }
 
 type Etat =
@@ -147,7 +149,11 @@ export function ModaleRevision({
             // Ajouts et reformulations cochés ; retraits DÉCOCHÉS.
             const initial: Record<string, boolean> = {};
             recue.ajouts.forEach((_, i) => (initial[`a${i}`] = true));
-            recue.modifications.forEach((m) => (initial[`m${m.code}`] = true));
+            recue.modifications.forEach((m) => {
+              initial[`m${m.code}`] = !competences.find(
+                (competence) => competence.code === m.code,
+              )?.reformulationManuelleRequise;
+            });
             recue.retraits.forEach((r) => (initial[`r${r.code}`] = false));
             verdictRecu = true;
             setGarde(initial);
@@ -230,7 +236,7 @@ export function ModaleRevision({
   return (
     <Modale
       titre={`Réviser « ${domaineNom} »`}
-      sousTitre="Dis ce qui ne va pas. Le tuteur propose, tu coches ce que tu gardes. Les codes existants ne changent jamais."
+      sousTitre="Dis ce que tu veux faire évoluer. Le tuteur te propose un avant/après ; tu gardes seulement ce qui te convient. Rien ne change avant ta validation."
       onFermer={onFermer}
     >
       <>
@@ -243,20 +249,20 @@ export function ModaleRevision({
             )}
             <label className="block">
               <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
-                Ce que tu veux changer
+                Ce que tu veux faire évoluer
               </span>
               <textarea
                 value={demande}
                 onChange={(e) => setDemande(e.target.value)}
                 rows={3}
-                placeholder="Ce référentiel ne couvre plus mes besoins : recentre-le sur les flux et retire ce qui relève du stock."
+                placeholder="Ce parcours ne m'aide plus : recentre-le sur ce que je veux savoir faire et mets de côté ce qui ne me sert plus."
                 className="mt-1 w-full rounded-md border border-bordure-controle bg-surface px-2 py-1.5 text-sm placeholder:text-texte-discret"
               />
             </label>
             <p className="text-[0.6875rem] text-texte-discret">
-              {competences.length} compétence{competences.length > 1 ? "s" : ""} vivante
-              {competences.length > 1 ? "s" : ""} dans cette branche. Les compétences archivées
-              ne sont pas touchées.
+              {competences.length} repère{competences.length > 1 ? "s" : ""} déjà présent
+              {competences.length > 1 ? "s" : ""} dans ce parcours. Les éléments mis de côté
+              ne sont pas touchés.
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <Bouton
@@ -315,9 +321,9 @@ export function ModaleRevision({
             {p.retraits.length > 0 && (
               <section>
                 <h3 className="text-xs font-medium">
-                  Retraits
+                  À mettre de côté
                   <span className="ml-1.5 font-normal text-texte-discret">
-                    — décochés par défaut, c{"'"}est le geste le moins réversible
+                    — décochés par défaut, car c{"'"}est le geste le moins facile à annuler
                   </span>
                 </h3>
                 <ul className="mt-2 space-y-2">
@@ -339,20 +345,18 @@ export function ModaleRevision({
                             className="mt-0.5 shrink-0"
                           />
                           <span className="min-w-0 flex-1">
-                            <span className="text-xs font-medium">{r.code}</span>{" "}
-                            <span className="text-xs">{intitulesParCode.get(r.code)}</span>
+                            <span className="text-xs font-medium">{intitulesParCode.get(r.code) ?? "Repère sans intitulé"}</span>
                             <span className="mt-0.5 block text-[0.6875rem] text-texte-attenue">
                               {r.justification}
                             </span>
                             {/* Le geste DÉRIVÉ, annoncé avant le clic (ADR-027). */}
                             <span className="mt-1 block text-[0.6875rem] text-texte-discret">
                               {modeRetrait === "suppression" ? (
-                                <>Suppression définitive. Ce code ne sera pas réutilisé.</>
+                                <>Retrait définitif du parcours. Ce repère ne sera pas réutilisé.</>
                               ) : (
                                 <>
-                                  Archivage ({observations} observation{observations > 1 ? "s" : ""}{observations === 0 ? ", autre dépendance conservée" : ""}) — l’historique
-                                  reste résoluble. Tu devras la
-                                  désarchiver pour la remettre au périmètre.
+                                  Mise de côté ({observations} trace{observations > 1 ? "s" : ""} de travail{observations === 0 ? ", autre trace conservée" : ""}) — tes traces restent
+                                  intactes. Tu pourras remettre ce repère dans le parcours plus tard.
                                 </>
                               )}
                             </span>
@@ -365,7 +369,7 @@ export function ModaleRevision({
               </section>
             )}
 
-            {/* 2. Les reformulations, avec le compte d'observations qu'elles emportent. */}
+            {/* 2. Les reformulations, avec le compte de traces qu'elles emportent. */}
             {p.modifications.length > 0 && (
               <section>
                 <h3 className="text-xs font-medium">Reformulations</h3>
@@ -387,7 +391,7 @@ export function ModaleRevision({
                             className="mt-0.5 shrink-0"
                           />
                           <span className="min-w-0 flex-1">
-                            <span className="text-xs font-medium">{m.code}</span>
+                            <span className="text-xs font-medium">{intitulesParCode.get(m.code) ?? "Repère sans intitulé"}</span>
                             {m.intitule && (
                               <span className="mt-0.5 block text-[0.6875rem]">
                                 <span className="text-texte-discret line-through">
@@ -398,15 +402,20 @@ export function ModaleRevision({
                             )}
                             {(m.palier || m.importance) && (
                               <span className="mt-0.5 block text-[0.6875rem] text-texte-attenue">
-                                {m.palier && <>palier → {m.palier} </>}
-                                {m.importance && <>importance → {m.importance}</>}
+                                {m.palier && <>Étape → {LIBELLES_PALIERS[m.palier] ?? "Étape à préciser"} </>}
+                                {m.importance && <>Place dans le parcours → {libelleImportance(Number.parseFloat(m.importance))}</>}
                               </span>
                             )}
-                            {/* Renommer ne casse rien, mais réécrit le sens de l'historique. */}
+                            {/* Le titre relit les traces déjà conservées : on l'annonce avant validation. */}
                             {observations > 0 && (
                               <span className="mt-1 block text-[0.6875rem] text-texte-discret">
-                                {observations} observation{observations > 1 ? "s" : ""} porte
-                                {observations > 1 ? "nt" : ""} déjà cet intitulé au journal.
+                                {observations} trace{observations > 1 ? "s" : ""} de travail porte
+                                {observations > 1 ? "nt" : ""} déjà cet intitulé.
+                              </span>
+                            )}
+                            {competences.find((competence) => competence.code === m.code)?.reformulationManuelleRequise && (
+                              <span className="mt-1 block text-[0.6875rem] text-alerte">
+                                À reformuler manuellement avant de modifier ce repère.
                               </span>
                             )}
                           </span>
@@ -422,9 +431,9 @@ export function ModaleRevision({
             {p.ajouts.length > 0 && (
               <section>
                 <h3 className="text-xs font-medium">
-                  Ajouts
+                  Nouvelles étapes
                   <span className="ml-1.5 font-normal text-texte-discret">
-                    — les codes seront attribués à l{"'"}enregistrement
+                    — elles rejoindront le parcours après ta validation
                   </span>
                 </h3>
                 <ul className="mt-2 space-y-2">
@@ -440,8 +449,15 @@ export function ModaleRevision({
                         <span className="min-w-0 flex-1">
                           <span className="text-xs">{a.intitule}</span>
                           <span className="mt-0.5 block text-[0.6875rem] text-texte-discret">
-                            palier {a.palier || "fondamentaux"} · importance {a.importance || "0.5"}
-                            {a.prerequis.length > 0 && <> · s{"'"}appuie sur {a.prerequis.join(", ")}</>}
+                            Étape {LIBELLES_PALIERS[a.palier || "fondamentaux"] ?? "à préciser"} · {libelleImportance(Number.parseFloat(a.importance || "0.5"))}
+                            {a.prerequis.length > 0 && (
+                              <>
+                                {" · Pour avancer, il est utile d'avoir déjà : "}
+                                {a.prerequis
+                                  .map((code) => intitulesParCode.get(code) ?? "un repère existant")
+                                  .join(", ")}
+                              </>
+                            )}
                           </span>
                         </span>
                       </label>
@@ -451,17 +467,17 @@ export function ModaleRevision({
               </section>
             )}
 
-            {/* Le pied : exactement ce qui sera écrit. */}
+            {/* Le pied : exactement ce qui changera après validation. */}
             <div className="rounded-md border border-bordure-controle bg-surface-2 px-3 py-2.5 text-[0.6875rem] text-texte-attenue">
-              <p className="font-medium text-texte">Ce qui sera écrit</p>
+              <p className="font-medium text-texte">Ce qui changera</p>
               <p className="mt-1">
                 {compte.ajouts} ajout{compte.ajouts > 1 ? "s" : ""} · {compte.modifs} reformulation
-                {compte.modifs > 1 ? "s" : ""} · <strong>{compte.supprimees} suppression
-                {compte.supprimees > 1 ? "s" : ""}</strong> · <strong>{compte.archivees} archivage
-                {compte.archivees > 1 ? "s" : ""}</strong>
+                {compte.modifs > 1 ? "s" : ""} · <strong>{compte.supprimees} retrait
+                {compte.supprimees > 1 ? "s" : ""}</strong> · <strong>{compte.archivees} mise
+                {compte.archivees > 1 ? "s" : ""} de côté</strong>
               </p>
               <p className="mt-1">
-                Aucun code existant n{"'"}est modifié : c{"'"}est la clé étrangère des observations.
+                Les repères existants gardent leurs traces de travail. Tu peux relire chaque changement avant de le valider.
               </p>
             </div>
 
@@ -474,7 +490,7 @@ export function ModaleRevision({
                 }
                 variante="principal"
               >
-                {enCours ? "Application…" : "Appliquer ce qui est coché"}
+                {enCours ? "Validation…" : "Valider ce qui est coché"}
               </Bouton>
               <button
                 type="button"

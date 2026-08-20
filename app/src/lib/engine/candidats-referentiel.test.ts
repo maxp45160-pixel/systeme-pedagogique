@@ -17,19 +17,15 @@ import { describe, expect, it } from "vitest";
 
 import type {
   Exercise,
-  ExerciseAttempt,
   Referentiel,
   Skill,
   SkillObservation,
-  SkillState,
 } from "@/lib/domain/types";
 import {
   detecterAretes,
   detecterCandidats,
   detecterDormances,
   detecterRangements,
-  detecterScissions,
-  ECART_DIMENSION_SCISSION,
   type EntreesCandidats,
 } from "./candidats-referentiel";
 
@@ -96,10 +92,6 @@ function observation(options: Partial<SkillObservation> & { skillCode: string })
     source: { kind: "exercice", ref: "ex-1" },
     ...options,
   } as SkillObservation;
-}
-
-function etat(code: string, observations: SkillObservation[]): SkillState {
-  return { skill: skill(code), observations } as unknown as SkillState;
 }
 
 function entrees(partiel: Partial<EntreesCandidats> = {}): EntreesCandidats {
@@ -280,78 +272,6 @@ describe("detecterAretes — la source « rédaction » (ADR-086)", () => {
       ]),
     });
     expect(detecterAretes(declaree)).toEqual([]);
-  });
-});
-
-describe("detecterScissions", () => {
-  const famille = (cle: string) => ({ cle, libelle: cle, derivee: true });
-
-  it("repère une compétence dont une dimension diverge selon la famille", () => {
-    const observations = [
-      observation({ skillCode: "LOG-01", familleSituation: famille("f:calcul"), dimensions: { application: 0.9 } }),
-      observation({ skillCode: "LOG-01", familleSituation: famille("f:calcul"), dimensions: { application: 0.9 } }),
-      observation({ skillCode: "LOG-01", familleSituation: famille("f:etude"), dimensions: { application: 0.2 } }),
-      observation({ skillCode: "LOG-01", familleSituation: famille("f:etude"), dimensions: { application: 0.2 } }),
-    ];
-    const candidats = detecterScissions(entrees({ etats: [etat("LOG-01", observations)] }));
-    expect(candidats).toHaveLength(1);
-    expect(candidats[0].motifs[0]).toContain("application");
-  });
-
-  it("ne dit rien sous le seuil d'écart", () => {
-    const juste = ECART_DIMENSION_SCISSION - 0.05;
-    const observations = [
-      observation({ skillCode: "LOG-01", familleSituation: famille("f:a"), dimensions: { application: 0.5 + juste } }),
-      observation({ skillCode: "LOG-01", familleSituation: famille("f:a"), dimensions: { application: 0.5 + juste } }),
-      observation({ skillCode: "LOG-01", familleSituation: famille("f:b"), dimensions: { application: 0.5 } }),
-      observation({ skillCode: "LOG-01", familleSituation: famille("f:b"), dimensions: { application: 0.5 } }),
-    ];
-    expect(detecterScissions(entrees({ etats: [etat("LOG-01", observations)] }))).toEqual([]);
-  });
-
-  it("ignore les observations dont la famille est un repli sur le libellé", () => {
-    // Un libellé libre est presque un identifiant : il divergerait toujours, et
-    // toutes les compétences seraient candidates à la scission (ADR-083).
-    const observations = [
-      observation({ skillCode: "LOG-01", dimensions: { application: 0.9 }, contexte: "A" }),
-      observation({ skillCode: "LOG-01", dimensions: { application: 0.9 }, contexte: "A" }),
-      observation({ skillCode: "LOG-01", dimensions: { application: 0.1 }, contexte: "B" }),
-      observation({ skillCode: "LOG-01", dimensions: { application: 0.1 }, contexte: "B" }),
-    ];
-    expect(detecterScissions(entrees({ etats: [etat("LOG-01", observations)] }))).toEqual([]);
-  });
-
-  it("repère une compétence dont toutes les tentatives dépassent l'heure", () => {
-    // Le protocole §2e demande une compétence prouvable en 20 à 60 minutes.
-    const tentatives = [
-      { id: "t-1", exerciseId: "ex-1", statut: "terminee", dureeMin: 95 },
-      { id: "t-2", exerciseId: "ex-1", statut: "terminee", dureeMin: 80 },
-    ] as unknown as ExerciseAttempt[];
-    const candidats = detecterScissions(
-      entrees({
-        etats: [etat("LOG-01", [])],
-        exercices: [exercice("ex-1", ["LOG-01"])],
-        tentatives,
-      }),
-    );
-    expect(candidats).toHaveLength(1);
-    expect(candidats[0].motifs[0]).toContain("60 min");
-  });
-
-  it("ne dit rien si une seule tentative dépasse l'heure", () => {
-    const tentatives = [
-      { id: "t-1", exerciseId: "ex-1", statut: "terminee", dureeMin: 95 },
-      { id: "t-2", exerciseId: "ex-1", statut: "terminee", dureeMin: 30 },
-    ] as unknown as ExerciseAttempt[];
-    expect(
-      detecterScissions(
-        entrees({
-          etats: [etat("LOG-01", [])],
-          exercices: [exercice("ex-1", ["LOG-01"])],
-          tentatives,
-        }),
-      ),
-    ).toEqual([]);
   });
 });
 

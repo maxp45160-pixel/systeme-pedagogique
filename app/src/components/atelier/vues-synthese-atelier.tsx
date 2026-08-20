@@ -55,14 +55,14 @@ export function CarteCreationPointillee({
 }
 
 /**
- * Les quatre entrées de l'Atelier.
+ * Les trois entrées de l'Atelier.
  *
  * « Transversal » a disparu : c'était un second classement des mêmes objets,
  * où chaque compétence apparaissait une deuxième fois. Restent quatre lieux qui
  * ne se recouvrent pas — le référentiel, les sélections, les ressources, et la
  * même matière vue en graphe.
  */
-export type VueAtelier = "domaines" | "ressources" | "graphe" | "entretien";
+export type VueAtelier = "domaines" | "ressources" | "graphe";
 
 export function BarreVuesAtelier({
   vue,
@@ -75,7 +75,6 @@ export function BarreVuesAtelier({
     { cle: "domaines" as const, libelle: "Domaines" },
     { cle: "ressources" as const, libelle: "Ressources" },
     { cle: "graphe" as const, libelle: "Graphe" },
-    { cle: "entretien" as const, libelle: "Entretien" },
   ];
   return (
     <div

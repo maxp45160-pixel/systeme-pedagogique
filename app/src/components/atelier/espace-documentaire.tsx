@@ -44,7 +44,11 @@ import {
   supprimerPieceJointeAction,
   supprimerNoteSupportAction,
 } from "@/lib/store/document-actions";
-import type { VueDomaineAtelier, VueCompetenceAtelier } from "@/lib/documents/vue-atelier";
+import type {
+  EntretienDomaineAtelier,
+  VueDomaineAtelier,
+  VueCompetenceAtelier,
+} from "@/lib/documents/vue-atelier";
 import {
   FichePedagogiqueAtelier,
   PanneauPedagogiqueAtelier,
@@ -55,8 +59,6 @@ import type { DonneesSeance } from "@/components/seances/concepteur-seance";
 import { rangerDocument, type RangementAtelier } from "@/lib/documents/rangement-atelier";
 import { EditeurDirect } from "./editeur-document";
 import { VueTousLesDomaines, BarreVuesAtelier, type VueAtelier } from "./vues-synthese-atelier";
-import { VueEntretien } from "@/components/referentiel/vue-entretien";
-import type { LotCandidats } from "@/lib/engine/candidats-referentiel";
 import { VueRessources } from "./vues-ressources-atelier";
 import { PanneauExerciceAtelier } from "./panneaux-document-atelier";
 import { LIBELLES_TRIS_DOMAINES, type TriDomaine } from "@/lib/documents/tri-domaines";
@@ -146,7 +148,6 @@ const VUES_ATELIER = new Set<string>([
   "ressources",
   "graphe",
   "domaines-archives",
-  "entretien",
 ]);
 
 const TITRES_VUES: Record<string, string> = {
@@ -282,7 +283,6 @@ export function EspaceDocumentaire({
   elements: elementsInitials,
   couleursDomaines,
   documentDemande,
-  modeInitial,
   graphe,
   generation,
   donneesSeance,
@@ -292,16 +292,10 @@ export function EspaceDocumentaire({
   /** Teinte par domaine, partagée avec le graphe pour qu'un domaine ait une seule couleur. */
   couleursDomaines: Record<string, string>;
   documentDemande?: string;
-  modeInitial?: "referentiel";
   graphe: { donnees: DonneesGraphe; compteId: string };
   generation: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
   donneesSeance?: DonneesSeance;
-  /** Ce que les faits reprochent au referentiel (ADR-086). */
-  entretien: {
-    lot: LotCandidats;
-    intitules: Record<string, string>;
-    metaCompetences: Record<string, { palier: string; importance: number }>;
-  };
+  entretien: EntretienDomaineAtelier;
 }) {
   const router = useRouter();
   const [elements, setElements] = useState(elementsInitials);
@@ -995,7 +989,7 @@ export function EspaceDocumentaire({
           <div className="flex items-center gap-3">
             <BarreVuesAtelier
               vue={
-                (["domaines", "ressources", "graphe", "entretien"].includes(
+                (["domaines", "ressources", "graphe"].includes(
                   selection ?? "",
                 )
                   ? selection
@@ -1186,9 +1180,7 @@ export function EspaceDocumentaire({
           : "lg:grid-cols-[1fr]",
       )}>
         <main className="flex h-full min-w-0 flex-1 flex-col min-h-0 overflow-hidden bg-surface">
-          {selection === "entretien" ? (
-            <VueEntretien {...entretien} />
-          ) : selection === "graphe" ? (
+          {selection === "graphe" ? (
             <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface p-4">
               <GrapheCompetences donnees={graphe.donnees} compteId={graphe.compteId} ouvrirElement={ouvrirElement} />
             </div>
@@ -1229,9 +1221,9 @@ export function EspaceDocumentaire({
               ouvrirElement={ouvrirElement}
               elements={elements}
               compteId={graphe.compteId}
-              modeInitial={modeInitial}
               generation={generation}
               donneesSeance={donneesSeance}
+              entretien={entretien}
               onRestaurerDomaine={onRestaurerDomaine}
             />
           ) : selectionnee ? (
