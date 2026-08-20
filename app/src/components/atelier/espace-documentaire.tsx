@@ -25,7 +25,6 @@ import {
 } from "@/lib/documents/wysiwyg-markdown";
 import { BUCKET_PIECES_JOINTES, MAX_PDF_OCTETS, MIME_PDF, nomPdfValide } from "@/lib/documents/pieces-jointes";
 import type { DonneesGraphe } from "@/lib/domain/graphe";
-import type { ElementGlobal } from "@/lib/domain/carte-globale";
 import { urlComposerAutonome } from "@/lib/domain/navigation-exercice";
 import { GrapheCompetences } from "@/components/competences/graphe/graphe-competences";
 import {
@@ -301,7 +300,6 @@ export function EspaceDocumentaire({
   documentDemande,
   modeInitial,
   graphe,
-  pistesGlobales,
   generation,
   donneesSeance,
   entretien,
@@ -312,7 +310,6 @@ export function EspaceDocumentaire({
   documentDemande?: string;
   modeInitial?: "referentiel";
   graphe: { donnees: DonneesGraphe; compteId: string };
-  pistesGlobales: ElementGlobal[];
   generation: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
   donneesSeance?: DonneesSeance;
   /** Ce que les faits reprochent au referentiel (ADR-086). */
@@ -1400,8 +1397,6 @@ export function EspaceDocumentaire({
               changerVue={changerVue}
               selection={statutFiltre === "archives" || selection === "domaines-archives" ? "domaines-archives" : "domaines"}
               compteId={graphe.compteId}
-              domainesExistants={domainesExistants}
-              pistesGlobales={pistesGlobales}
               tri={triDomaines}
               onArchiver={onArchiverDomaine}
               onRestaurer={onRestaurerDomaine}
@@ -1705,8 +1700,6 @@ export function EspaceDocumentaire({
               changerVue={changerVue}
               selection="domaines"
               compteId={graphe.compteId}
-              domainesExistants={domainesExistants}
-              pistesGlobales={pistesGlobales}
             />
           )}
         </main>

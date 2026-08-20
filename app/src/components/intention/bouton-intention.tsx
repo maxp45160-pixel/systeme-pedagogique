@@ -60,3 +60,34 @@ export function BoutonIntentionMobile() {
     </button>
   );
 }
+
+/** Déclencheur principal du tableau de bord, quand l'utilisateur sait qu'il a un besoin. */
+export function BoutonIntentionDashboard() {
+  const { ouvrir } = useIntention();
+
+  return (
+    <section className="rounded-2xl border border-primaire/35 bg-primaire/[0.06] p-4 shadow-xs sm:p-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+        <div className="min-w-0">
+          <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-primaire">
+            Point de départ
+          </p>
+          <h2 className="mt-1 font-serif text-lg font-medium leading-tight text-texte sm:text-xl">
+            Un besoin en tête ?
+          </h2>
+          <p className="mt-1 text-xs leading-relaxed text-texte-attenue sm:text-sm">
+            Décris-le comme tu le dirais à voix haute. Le système te proposera la bonne suite.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => ouvrir()}
+          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-primaire px-4 py-2.5 text-sm font-semibold text-surface shadow-sm transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primaire focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+        >
+          Déclarer un besoin
+          <IconePlus className="size-4" />
+        </button>
+      </div>
+    </section>
+  );
+}

@@ -145,6 +145,15 @@ describe("construirePromptReferentiel", () => {
     expect(construirePromptReferentiel(REFERENTIEL_VIDE, "x")).toContain("aucun, le référentiel est vide");
   });
 
+  it("cadre une vue d'ensemble débutante sans accepter une branche isolée", () => {
+    const prompt = construirePromptReferentiel(
+      REFERENTIEL_VIDE,
+      "Je veux apprendre la physique, je suis un gros noob",
+    );
+    expect(prompt).toContain("vue d'ensemble pour débutant");
+    expect(prompt).toContain("Ne réduis jamais cette demande à une seule compétence isolée");
+  });
+
   it("n'autorise pas le tuteur à écrire un code", () => {
     expect(construirePromptReferentiel(REFERENTIEL, "le stoïcisme")).toContain(
       "L'application attribue",

@@ -47,6 +47,7 @@ export default async function PageSeances(props: {
     code?: string | string[];
     theme?: string;
     intention?: string;
+    "sans-theme"?: string;
     temps?: string;
   }>;
 }) {
@@ -101,6 +102,7 @@ export default async function PageSeances(props: {
                   codesParametres: recherche.code,
                   themeDemande: recherche.theme,
                   intention: recherche.intention,
+                  sansTheme: recherche["sans-theme"],
                   temps: recherche.temps,
                 },
               }
@@ -116,6 +118,7 @@ export interface DemandeComposition {
   themeDemande?: string;
   intention?: string;
   temps?: string;
+  sansTheme?: string;
 }
 
 /**
@@ -126,6 +129,7 @@ async function CompositeurDepuisLien({
   themeDemande,
   intention,
   temps,
+  sansTheme,
 }: DemandeComposition) {
   const donnees = await chargerDonneesSeance();
   const themeInitial = themeDemande
@@ -164,6 +168,7 @@ async function CompositeurDepuisLien({
       preset={preset}
       themeInitial={themeInitial}
       contexteInitial={intention}
+      sansThemeInitial={sansTheme === "1"}
       ouvertParDefaut
       retourEnFermant
       libelle="Composer une séance"

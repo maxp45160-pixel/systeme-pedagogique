@@ -31,6 +31,7 @@ import { AvisDejaAuReferentiel } from "./avis-deja-au-referentiel";
 import { creerTheme } from "@/lib/store/theme-actions";
 import { ReglagesTuteur } from "@/components/tuteur/reglages-tuteur";
 import { ChargementGeneration } from "@/components/ui/chargement-generation";
+import { analyserDemandeReferentiel } from "@/lib/domain/intention";
 
 const ETAPES_REFERENTIEL = [
   "Analyse du sujet et identification des axes majeurs…",
@@ -285,12 +286,13 @@ export function ModaleReferentiel({
 
   const relecture = etat.phase === "relecture" ? etat : null;
   const retenues = relecture ? relecture.branches.filter((_, i) => garde[`b${i}`]).length : 0;
+  const cadrage = analyserDemandeReferentiel(sujet);
 
   return (
     <>
       <Modale
-        titre="Ajouter un référentiel"
-        sousTitre="Nomme un sujet ; le tuteur le découpe en branches. Tu relis, tu décoches, tu enregistres. Les codes sont attribués à l'enregistrement."
+        titre="Préciser le domaine à apprendre"
+        sousTitre="Décris le domaine ou le sujet. Le système propose une organisation de compétences ; tu relis avant de l’ajouter à ton Atelier."
         onFermer={fermer}
       >
         <>
@@ -389,7 +391,7 @@ export function ModaleReferentiel({
               <div className="border-t border-bordure/60 pt-3">
                 <label className="block mb-3">
                   <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
-                    Sujet
+                    Domaine ou sujet
                   </span>
                   <input
                     value={sujet}
@@ -403,7 +405,7 @@ export function ModaleReferentiel({
                   disabled={sujet.trim().length === 0}
                   variante="principal"
                 >
-                  Générer le référentiel avec cette clé
+                  Proposer une organisation
                 </Bouton>
               </div>
             </div>
@@ -426,7 +428,16 @@ export function ModaleReferentiel({
           {relecture && (
             <div className="space-y-4">
               <div className="rounded-md border border-bordure-controle bg-surface-2 px-3 py-2.5">
-                <p className="text-xs text-texte-attenue">{relecture.resume}</p>
+                <p className="text-xs text-texte-attenue">
+                  Le système propose {relecture.branches.length} domaine
+                  {relecture.branches.length > 1 ? "s" : ""} à relire.
+                </p>
+                {cadrage.nombreDomaines && cadrage.nombreDomaines !== relecture.branches.length && (
+                  <p className="mt-1 text-[0.6875rem] text-alerte">
+                    Tu demandais {cadrage.nombreDomaines} domaines ; la proposition actuelle n’en
+                    contient que {relecture.branches.length}. Reformule si ce découpage ne convient pas.
+                  </p>
+                )}
                 {/* Une liste tronquée en silence se lirait comme complète (ADR-036). */}
                 {relecture.ecartees > 0 && (
                   <p className="mt-1 text-[0.6875rem] text-texte-discret">

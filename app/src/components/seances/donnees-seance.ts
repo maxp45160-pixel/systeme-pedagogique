@@ -28,7 +28,13 @@ export async function chargerDonneesSeance(): Promise<DonneesSeance> {
     calibragesModale: calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations),
     recommandations: ctx.recommandations,
     contexteDocumentaire: Array.from(ctx.contexteDocumentaire.entries()),
-    domaines: ctx.referentiel.domaines.map((d) => ({ id: d.id, nom: d.nom, prefixe: d.prefixe })),
+    domaines: ctx.referentiel.domaines
+      .filter(
+        (domaine) =>
+          !domaine.archive &&
+          ctx.referentiel.actifs.some((skill) => skill.domaine === domaine.id),
+      )
+      .map((d) => ({ id: d.id, nom: d.nom, prefixe: d.prefixe })),
     themes: ctx.themes,
     compteId: ctx.donnees.user.id,
   };

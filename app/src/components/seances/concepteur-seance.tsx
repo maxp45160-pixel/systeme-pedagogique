@@ -124,6 +124,8 @@ export interface DonneesSeance {
   contexteInitial?: string;
   /** Thème choisi dans la fiche qui a lancé la composition. */
   themeInitial?: Theme;
+  /** Ouvre une séance générale sans sélectionner la première recommandation. */
+  sansThemeInitial?: boolean;
   /** Libellé du bouton déclencheur. */
   libelle?: string;
   /** Le bouton occupe toute la largeur de son conteneur. */
@@ -187,6 +189,7 @@ export function ConcepteurSeance({
   domaineInitial,
   contexteInitial,
   themeInitial,
+  sansThemeInitial = false,
   libelle = "Composer une séance",
   pleineLargeur = false,
   variante = "principal",
@@ -291,6 +294,21 @@ export function ConcepteurSeance({
     [domaines],
   );
 
+  const themeSansSujet = useMemo<ThemeSeance | null>(() => {
+    if (!sansThemeInitial) return null;
+    const domainesActifs = [...new Set(actifs.map((skill) => skill.domaine))].filter((id) =>
+      domaines.some((domaine) => domaine.id === id),
+    );
+    if (domainesActifs.length === 0) return null;
+    return {
+      cle: "sans-sujet",
+      libelle: "Aucun thème imposé",
+      detail: "Le moteur choisira dans les compétences actives ; tu peux cibler un sujet si tu le souhaites.",
+      portee: { type: "transverse", domaines: domainesActifs },
+      codesImposes: [],
+    };
+  }, [actifs, domaines, sansThemeInitial]);
+
   /**
    * N'importe quelle compétence active, visée seule.
    *
@@ -315,7 +333,12 @@ export function ConcepteurSeance({
    * reste le repli des anciennes fiches qui n'ont pas encore de thème.
    */
   const themePrincipal: ThemeSeance | null =
-    themeChoisi ?? themeDuPreset ?? themeDuThemeInitial ?? themeDuDomaine ?? themesSug[0] ?? null;
+    themeChoisi ??
+    themeDuPreset ??
+    themeDuThemeInitial ??
+    themeDuDomaine ??
+    themeSansSujet ??
+    (sansThemeInitial ? null : themesSug[0] ?? null);
 
   const theme = themePrincipal;
 
@@ -620,7 +643,9 @@ export function ConcepteurSeance({
                       ? "Thème choisi"
                       : themeDuDomaine
                         ? "Domaine choisi"
-                        : "Prochaine action"
+                        : themeSansSujet
+                          ? "Aucun sujet imposé"
+                          : "Prochaine action"
               }
               suggestions={themesSug}
               themesEnregistres={themesDuCompte}
@@ -819,7 +844,7 @@ function EtapeBesoin({
           </span>
         </div>
         <h3 className="mt-2 text-base font-semibold tracking-tight text-texte">
-          {themePrincipal.libelle}
+              {themePrincipal.libelle}
         </h3>
         <p className="mt-1 text-xs leading-relaxed text-texte-attenue">
           {themePrincipal.detail}
@@ -830,7 +855,11 @@ function EtapeBesoin({
           className="mt-2 text-xs text-primaire underline-offset-2 hover:underline"
           aria-expanded={choixOuvert}
         >
-          {choixOuvert ? "Garder ce sujet" : "Choisir un autre sujet"}
+          {choixOuvert
+            ? "Garder ce sujet"
+            : sourceTheme === "Aucun sujet imposé"
+              ? "Choisir un sujet"
+              : "Choisir un autre sujet"}
         </button>
       </div>
 
@@ -1049,7 +1078,7 @@ function EtapeComposition({
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
             <span className="rounded bg-primaire-faible px-2 py-0.5 text-[0.6875rem] font-semibold text-primaire">
-              Thème ciblé
+              {theme.cle === "sans-sujet" ? "Sujet libre" : "Thème ciblé"}
             </span>
           </div>
           <p className="mt-1 text-sm font-semibold text-texte">{theme.libelle}</p>

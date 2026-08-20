@@ -13,6 +13,7 @@
  */
 
 import type { Referentiel } from "@/lib/domain/types";
+import { analyserDemandeReferentiel } from "@/lib/domain/intention";
 import type { MoteurTuteur } from "./moteurs";
 import { lireErreurMoteur, lireOutilsActifs, messageSansOutils } from "./moteurs";
 import {
@@ -105,6 +106,27 @@ export interface ResultatReferentiel {
  */
 export function construirePromptReferentiel(referentiel: Referentiel, sujet: string): string {
   const existants = referentiel.domaines.filter((d) => !d.archive).map((d) => d.nom);
+  const cadrage = analyserDemandeReferentiel(sujet);
+  const contraintesExplicites = [
+    cadrage.nombreDomaines
+      ? `- La personne demande exactement ${cadrage.nombreDomaines} domaine${cadrage.nombreDomaines > 1 ? "s" : ""} : respecte ce nombre, sauf si une branche est réellement inexploitable.`
+      : null,
+    cadrage.nombreCompetences
+      ? `- La personne demande environ ${cadrage.nombreCompetences} compétence${cadrage.nombreCompetences > 1 ? "s" : ""} : vise ce volume, sans remplir artificiellement les branches.`
+      : null,
+    cadrage.granularite
+      ? `- Granularité demandée : ${cadrage.granularite}. ${
+          cadrage.granularite === "fine"
+            ? "Découpe les savoir-faire en unités observables étroites."
+            : cadrage.granularite === "large"
+              ? "Garde des capacités plus englobantes, sans les transformer en sujet vague."
+              : "Garde un niveau de découpage équilibré et directement exploitable."
+        }`
+      : null,
+    cadrage.portee === "large"
+      ? `- La demande porte sur une vue d'ensemble${cadrage.niveau === "debutant" ? " pour débutant" : ""} : propose plusieurs domaines cohérents et au moins trois compétences observables dans chaque branche. Ne réduis jamais cette demande à une seule compétence isolée.`
+      : null,
+  ].filter((contrainte): contrainte is string => contrainte !== null);
 
   return [
     "Tu es le tuteur du système pédagogique. Tu proposes un référentiel complet pour un sujet, découpé en branches.",
@@ -119,6 +141,9 @@ export function construirePromptReferentiel(referentiel: Referentiel, sujet: str
     "- Chaque compétence est exerçable par un des types d'exercice.",
     "- Chaque compétence est prouvable en 20 à 60 minutes.",
     "- Du plus fondamental au plus avancé, à l'intérieur de chaque branche.",
+    ...(contraintesExplicites.length > 0
+      ? ["", "CONTRAINTES EXPLICITES DE LA PERSONNE", ...contraintesExplicites]
+      : []),
     "",
     "COMMENT DÉCOUPER",
     // ADR-088 — un domaine n'est pas un thème.
@@ -133,6 +158,9 @@ export function construirePromptReferentiel(referentiel: Referentiel, sujet: str
       : "- Une branche par grand domaine du sujet. Deux à quatre pour un sujet large ; une seule si le sujet est étroit.",
     "- Un DOMAINE n'est pas un THÈME. Un domaine porte un préfixe de code et se gouverne ; un thème regroupe librement des compétences en traversant les domaines. Pour découper un sujet large, ne multiplie pas les domaines : propose des compétences que la personne regroupera ensuite en thèmes.",
     "- Quatre à huit compétences par branche. Vingt compétences dans un domaine unique ne se relisent pas.",
+    cadrage.portee === "large"
+      ? "- Pour cette vue d'ensemble, couvre le socle puis une progression courte : plusieurs compétences fondamentales, intermédiaires et une ouverture vers la suite dans chaque branche."
+      : "",
     "- Ne propose pas une branche pour un thème que tu ne sais pas remplir de compétences mesurables.",
     "",
     "L'application attribue tous les codes, à l'enregistrement. Tu n'en écris aucun.",
@@ -187,7 +215,7 @@ export async function proposerReferentiel(
   await moteur.repondre({
     systemeStable: construirePromptReferentiel(referentiel, sujet),
     systemeProfil: "",
-    outils: [outilReferentielComplet(referentiel)],
+    outils: [outilReferentielComplet(referentiel, sujet)],
     messages: [{ role: "user" as const, content: `Propose un référentiel pour : ${sujet}` }],
     signal,
     envoyer,

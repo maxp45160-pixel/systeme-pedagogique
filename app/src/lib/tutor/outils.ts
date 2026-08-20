@@ -42,6 +42,7 @@ import {
 // La validation d'une intention vit au domaine, pas ici : c'est elle qui décide
 // ce qu'est une action exécutable, et elle est tenue par ses propres tests.
 import {
+  analyserDemandeReferentiel,
   GENRES_INTENTION,
   validerTraductionIntention,
   type TraductionIntention,
@@ -445,7 +446,7 @@ function schemaExercice(domaines: string[]): SchemaJson {
  * compétence, sans erreur visible. Le prompt l'interdisait ; le schéma le rend
  * inexprimable.
  */
-function schemaReferentiel(): SchemaJson {
+function schemaReferentiel(minCompetences = 1): SchemaJson {
   return {
     type: "object",
     properties: {
@@ -454,7 +455,7 @@ function schemaReferentiel(): SchemaJson {
       description: { type: "string", description: "Une phrase : ce que la branche couvre." },
       competences: {
         type: "array",
-        minItems: 1,
+        minItems: minCompetences,
         items: {
           type: "object",
           properties: {
@@ -898,12 +899,17 @@ export function outilEvolution(): OutilTuteur {
  */
 export const BRANCHES_MAX_COMPTE_ETABLI = 2;
 
-export function outilReferentielComplet(referentiel?: Referentiel): OutilTuteur {
+export function outilReferentielComplet(
+  referentiel?: Referentiel,
+  sujet = "",
+): OutilTuteur {
   const domainesVivants = (referentiel?.domaines ?? []).filter((d) => !d.archive).length;
+  const cadrage = analyserDemandeReferentiel(sujet);
+  const vueEnsemble = cadrage.portee === "large";
   const branches: SchemaJson = {
     type: "array",
-    minItems: 1,
-    items: schemaReferentiel(),
+    minItems: vueEnsemble ? 2 : 1,
+    items: schemaReferentiel(vueEnsemble ? 3 : 1),
     ...(domainesVivants > 0 ? { maxItems: BRANCHES_MAX_COMPTE_ETABLI } : {}),
   };
 
@@ -911,8 +917,8 @@ export function outilReferentielComplet(referentiel?: Referentiel): OutilTuteur 
     nom: OUTIL_REFERENTIEL_COMPLET,
     description:
       domainesVivants > 0
-        ? `Propose un référentiel pour un sujet. Ce compte a déjà ${domainesVivants} domaine(s) : n'en crée pas plus de ${BRANCHES_MAX_COMPTE_ETABLI}. Un domaine n'est PAS un thème — pour découper un sujet large, rattache les compétences à un domaine existant ou à un seul domaine neuf, et laisse la personne créer des thèmes ensuite. L'application attribue tous les codes.`
-        : "Propose un référentiel complet pour un sujet, découpé en branches cohérentes. Une branche par grand thème : ne mets pas vingt compétences dans un seul domaine, et n'en fais pas dix pour un sujet qui en tient trois. L'application attribue tous les codes.",
+        ? `Propose un référentiel pour un sujet. Ce compte a déjà ${domainesVivants} domaine(s) : n'en crée pas plus de ${BRANCHES_MAX_COMPTE_ETABLI}. Un domaine n'est PAS un thème — pour découper un sujet large, rattache les compétences à un domaine existant ou à un seul domaine neuf, et laisse la personne créer des thèmes ensuite. L'application attribue tous les codes.${vueEnsemble ? " Cette demande est une vue d'ensemble : renvoie au moins deux branches et trois compétences observables par branche." : ""}`
+        : `Propose un référentiel complet pour un sujet, découpé en branches cohérentes. Une branche par grand thème : ne mets pas vingt compétences dans un seul domaine, et n'en fais pas dix pour un sujet qui en tient trois. L'application attribue tous les codes.${vueEnsemble ? " Cette demande est une vue d'ensemble : renvoie au moins deux branches et trois compétences observables par branche." : ""}`,
     schema: {
       type: "object",
       properties: {
@@ -1157,7 +1163,7 @@ export function outilTheme(codesActifs: string[]): OutilTuteur {
 /**
  * L'outil de traduction d'un besoin exprimé en une action déjà connue.
  *
- * Le schéma porte l'essentiel du cadrage, pas le prompt : les trois genres sont
+ * Le schéma porte l'essentiel du cadrage, pas le prompt : les quatre genres sont
  * un `enum`, les codes en sont un autre, et il n'existe aucun champ par lequel
  * une quatrième famille d'action pourrait entrer. Un modèle qui « inventerait »
  * un projet ou une évaluation ne produirait pas un appel valide.
@@ -1187,7 +1193,7 @@ export function outilIntention(codesActifs: string[]): OutilTuteur {
         type: "string",
         enum: [...GENRES_INTENTION],
         description:
-          "travail = s'entraîner sur des compétences existantes ; projet = produire un artefact qui mobilise plusieurs compétences à la fois ; note = déposer une ressource ou un contexte, sans mesure ; referentiel = le sujet n'existe pas encore au référentiel et il faut d'abord le décrire.",
+          "travail = préparer une séance d'entraînement sur des compétences existantes ; projet = produire un artefact qui mobilise plusieurs compétences à la fois ; note = garder une ressource, un PDF, un cours ou un contexte, sans mesure ; referentiel = ajouter ou structurer un sujet absent du référentiel ; clarification = poser une question quand deux destinations restent réellement possibles.",
       },
       titre: {
         type: "string",
@@ -1201,12 +1207,12 @@ export function outilIntention(codesActifs: string[]): OutilTuteur {
         type: "array",
         items: code,
         description:
-          "Compétences visées, uniquement pour un travail. Vide pour une note ou une extension de référentiel.",
+          "Compétences visées pour un travail ciblé. Vide pour une séance générale sans sujet, une note, une extension du référentiel ou une clarification.",
       },
       sujet: {
         type: "string",
         description:
-          "Le sujet en clair. Obligatoire pour referentiel (ce sur quoi une branche sera proposée) et pour projet (ce qui sera produit) — ces deux parcours partent d'une phrase, pas de codes.",
+          "Le sujet en clair. Pour referentiel, recopie l’intitulé précis d’une compétence demandée ou la demande complète de domaine (nombre de domaines, granularité, nombre de compétences compris). Pour projet, recopie ce qui sera produit. Pour clarification, écris la question à poser.",
       },
     },
     /*
@@ -1226,7 +1232,7 @@ export function outilIntention(codesActifs: string[]): OutilTuteur {
   return {
     nom: OUTIL_INTENTION,
     description:
-      "Traduis le besoin exprimé en une action que le système sait déjà exécuter. Tu n'exécutes rien : la personne relit et confirme. Ne rapproche pas de force — si aucune compétence active ne couvre le sujet, dis-le en proposant une extension du référentiel plutôt qu'un travail sur des compétences voisines.",
+      "Traduis le besoin exprimé en une action que le système sait déjà exécuter, ou pose une question si la destination est réellement ambiguë. Tu n'exécutes rien : la personne relit et confirme. Ne rapproche pas de force — si aucune compétence active ne couvre le sujet, dis-le en proposant une extension du référentiel plutôt qu'un travail sur des compétences voisines.",
     schema: {
       type: "object",
       properties: {
@@ -1894,7 +1900,10 @@ function competenceProposee(
   };
 }
 
-function validerReferentiel(entree: Record<string, unknown>): PropositionRecue | null {
+function validerReferentiel(
+  entree: Record<string, unknown>,
+  competencesMinimum = 1,
+): PropositionRecue | null {
   const competences = (Array.isArray(entree.competences) ? entree.competences : [])
     .map((c) => {
       const o = objet(c);
@@ -1903,7 +1912,7 @@ function validerReferentiel(entree: Record<string, unknown>): PropositionRecue |
     .filter((c): c is { palier: string; importance: string; intitule: string } => c !== null);
 
   const domaine = texte(entree.domaine);
-  if (!domaine || competences.length === 0) return null;
+  if (!domaine || competences.length < competencesMinimum) return null;
 
   return {
     genre: "referentiel",
@@ -2069,6 +2078,7 @@ function validerEvolution(entree: Record<string, unknown>): PropositionRecue | n
 function validerReferentielComplet(
   entree: Record<string, unknown>,
   plafondBranches?: number,
+  competencesMinimum = 1,
 ): PropositionRecue | null {
   const resume = texte(entree.resume);
   const brutes = Array.isArray(entree.branches) ? entree.branches : [];
@@ -2090,7 +2100,7 @@ function validerReferentielComplet(
     const o = objet(brute);
     // `validerReferentiel` est réutilisée telle quelle : une seule définition
     // de ce qu'est une branche recevable.
-    const recu = o ? validerReferentiel(o) : null;
+    const recu = o ? validerReferentiel(o, competencesMinimum) : null;
     if (recu?.genre === "referentiel") branches.push(recu.branche);
     else ecartees += 1;
   }
@@ -2394,6 +2404,8 @@ export function validerAppelOutil(
         donnees,
         outils.find((o) => o.nom === OUTIL_REFERENTIEL_COMPLET)?.schema.properties?.branches
           ?.maxItems,
+        outils.find((o) => o.nom === OUTIL_REFERENTIEL_COMPLET)?.schema.properties?.branches
+          ?.items?.properties?.competences?.minItems,
       );
     case OUTIL_THEME:
       return validerTheme(donnees, codesDuSchemaTheme(outils));

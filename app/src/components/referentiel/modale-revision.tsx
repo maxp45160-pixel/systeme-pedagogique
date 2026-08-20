@@ -271,7 +271,7 @@ export function ModaleRevision({
                 onClick={onSaisieManuelle}
                 className="text-[0.6875rem] text-texte-attenue underline-offset-2 hover:text-texte hover:underline"
               >
-                Ajouter une compétence à la main
+                Décrire un nouveau besoin
               </button>
             </div>
           </div>

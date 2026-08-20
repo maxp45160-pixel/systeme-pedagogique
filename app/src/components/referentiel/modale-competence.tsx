@@ -78,6 +78,7 @@ export function ModaleCompetence({
   domaineInitial,
   brancheInitiale,
   sujetInitial = "",
+  modeCible,
   descriptionInitiale = "",
   justificationInitiale = "",
   suggestionAutomatique = false,
@@ -89,6 +90,8 @@ export function ModaleCompetence({
   compteId: string;
   /** Domaine pré-rempli — quand on ouvre depuis une carte de domaine. */
   domaineInitial?: string;
+  /** Cible explicite du besoin : la modale demande alors seulement le domaine de rattachement. */
+  modeCible?: "domaine" | "competence";
   /** Branche pré-remplie — quand on ouvre depuis une proposition du tuteur. */
   brancheInitiale?: BrancheInitiale;
   /** Sujet déjà déclaré avant l'ouverture de la modale (sans valoir proposition). */
@@ -105,9 +108,13 @@ export function ModaleCompetence({
   surEnregistre?: () => void;
 }) {
   const router = useRouter();
+  const competenceSeule = modeCible === "competence";
   const estDomaineExistant = Boolean(domaineInitial);
+  const [domaineCible, setDomaineCible] = useState(
+    domaineInitial ?? brancheInitiale?.domaine ?? "",
+  );
   const domaineConnu = domainesExistants.find(
-    (d) => d.nom.toLowerCase() === (domaineInitial ?? "").trim().toLowerCase(),
+    (d) => d.nom.toLowerCase() === domaineCible.trim().toLowerCase(),
   );
 
   const [mode, setMode] = useState<ModeCreation>(() => {
@@ -117,7 +124,9 @@ export function ModaleCompetence({
     return "ia";
   });
 
-  const [intention, setIntention] = useState(sujetInitial || domaineInitial || "");
+  const [intention, setIntention] = useState(
+    sujetInitial || domaineInitial || brancheInitiale?.competences[0]?.intitule || "",
+  );
   const [etat, setEtat] = useState<Etat>(() => {
     if (brancheInitiale && brancheInitiale.competences.length > 0) {
       return {
@@ -191,6 +200,12 @@ export function ModaleCompetence({
     if (!manuelPrefixeManuelRef.current) {
       setManuelPrefixe(genererPrefixeAuto(valeur));
     }
+  }
+
+  function gererChangementDomaineCible(valeur: string) {
+    setDomaineCible(valeur);
+    setManuelDomaine(valeur);
+    setIaDomaine(valeur);
   }
 
   function gererChangementIaDomaine(valeur: string) {
@@ -326,8 +341,10 @@ export function ModaleCompetence({
 
   function enregistrerIa() {
     const retenues = iaCompetences.filter((_, idx) => iaGarde[idx]);
-    const nomFinal = (estDomaineExistant ? domaineInitial : iaDomaine) ?? "";
-    const prefixeFinal = (domaineConnu ? domaineConnu.prefixe : iaPrefixe) ?? "";
+    const nomFinal = (competenceSeule ? domaineCible : estDomaineExistant ? domaineInitial : iaDomaine) ?? "";
+    const prefixeFinal = competenceSeule
+      ? domaineConnu?.prefixe ?? ""
+      : (domaineConnu ? domaineConnu.prefixe : iaPrefixe) ?? "";
 
     if (retenues.length === 0 || nomFinal.trim().length === 0) return;
     setErreurAction(null);
@@ -338,7 +355,7 @@ export function ModaleCompetence({
         const r = await creerBranche({
           domaine: nomFinal.trim(),
           prefixe: prefixeFinal.trim(),
-          description: iaDescription.trim(),
+          description: competenceSeule ? "" : iaDescription.trim(),
           competences: retenues.map((c) => ({
             intitule: c.intitule.trim(),
             palier: c.palier,
@@ -373,12 +390,14 @@ export function ModaleCompetence({
   }
 
   const retenuesManuelles = manuelLignes.filter((l) => l.intitule.trim().length > 0);
-  const domaineManuelFinal = (estDomaineExistant ? domaineInitial : manuelDomaine) ?? "";
+  const domaineManuelFinal = (competenceSeule ? domaineCible : estDomaineExistant ? domaineInitial : manuelDomaine) ?? "";
   const pretManuel = domaineManuelFinal.trim().length > 2 && retenuesManuelles.length > 0;
 
   function enregistrerManuel() {
     if (!pretManuel) return;
-    const prefixeFinal = (domaineConnu ? domaineConnu.prefixe : manuelPrefixe) ?? "";
+    const prefixeFinal = competenceSeule
+      ? domaineConnu?.prefixe ?? ""
+      : (domaineConnu ? domaineConnu.prefixe : manuelPrefixe) ?? "";
     setErreurAction(null);
     setDejaAuReferentiel([]);
 
@@ -387,7 +406,7 @@ export function ModaleCompetence({
         const r = await creerBranche({
           domaine: domaineManuelFinal.trim(),
           prefixe: prefixeFinal.trim(),
-          description: manuelDescription.trim(),
+          description: competenceSeule ? "" : manuelDescription.trim(),
           competences: retenuesManuelles.map((l) => ({
             intitule: l.intitule.trim(),
             palier: l.palier,
@@ -409,10 +428,10 @@ export function ModaleCompetence({
     });
   }
 
-  const titreModale = estDomaineExistant
+  const titreModale = estDomaineExistant || competenceSeule
     ? "Ajouter une compétence"
     : "Nouveau domaine d’apprentissage";
-  const sousTitreModale = estDomaineExistant
+  const sousTitreModale = estDomaineExistant || competenceSeule
     ? `Ajoute une compétence observable et mesurable au domaine.`
     : "Définis une nouvelle branche du référentiel et ses compétences.";
 
@@ -469,7 +488,7 @@ export function ModaleCompetence({
               </BandeauInfo>
             )}
 
-            {pistesGlobales.length > 0 && !estDomaineExistant && (
+            {pistesGlobales.length > 0 && !estDomaineExistant && !competenceSeule && (
               <div className="rounded-xl border border-bordure bg-surface-2/40 p-3">
                 <p className="text-xs font-semibold text-texte">Besoin d’une piste ?</p>
                 <p className="mt-0.5 text-xs text-texte-discret">
@@ -490,21 +509,43 @@ export function ModaleCompetence({
               </div>
             )}
 
-            {estDomaineExistant && (
-              <div className="flex items-center justify-between rounded-lg border border-bordure bg-surface-2/60 px-3 py-2 text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="rounded bg-primaire-faible px-2 py-0.5 font-mono text-[0.6875rem] font-semibold text-primaire">
-                    {domaineConnu?.prefixe ?? "DOM"}
-                  </span>
-                  <span className="font-semibold text-texte">{domaineInitial}</span>
-                </div>
-                <span className="text-[0.6875rem] text-texte-discret">Domaine cible</span>
+            {(estDomaineExistant || competenceSeule) && (
+              <div className="rounded-lg border border-bordure bg-surface-2/60 px-3 py-2 text-xs">
+                {competenceSeule && !estDomaineExistant ? (
+                  <label className="block">
+                    <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
+                      Domaine de rattachement
+                    </span>
+                    <input
+                      list="domaines-existants-competence"
+                      value={domaineCible}
+                      onChange={(e) => gererChangementDomaineCible(e.target.value)}
+                      placeholder="Choisir un domaine existant"
+                      className="mt-1 w-full rounded-md border border-bordure-controle bg-surface px-2.5 py-1.5 text-sm text-texte placeholder:text-texte-discret focus:border-primaire focus:outline-none"
+                    />
+                    <datalist id="domaines-existants-competence">
+                      {domainesExistants.map((domaine) => (
+                        <option key={domaine.id} value={domaine.nom} />
+                      ))}
+                    </datalist>
+                  </label>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="rounded bg-primaire-faible px-2 py-0.5 font-mono text-[0.6875rem] font-semibold text-primaire">
+                        {domaineConnu?.prefixe ?? "DOM"}
+                      </span>
+                      <span className="font-semibold text-texte">{domaineCible}</span>
+                    </div>
+                    <span className="text-[0.6875rem] text-texte-discret">Domaine cible</span>
+                  </div>
+                )}
               </div>
             )}
 
             <label className="block">
               <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
-                {estDomaineExistant
+                {estDomaineExistant || competenceSeule
                   ? "Sujet ou intention pour ce domaine"
                   : "Objectif ou sujet du domaine"}
               </span>
@@ -513,7 +554,7 @@ export function ModaleCompetence({
                 onChange={(e) => setIntention(e.target.value)}
                 rows={3}
                 placeholder={
-                  estDomaineExistant
+                  estDomaineExistant || competenceSeule
                     ? "ex : Manipulation d'arbres binaires, analyse de complexité et optimisation..."
                     : "ex : Cryptographie moderne, architectures distribuées, protocoles décentralisés..."
                 }
@@ -557,8 +598,28 @@ export function ModaleCompetence({
         {/* MODE IA : Relecture de la proposition */}
         {mode === "ia" && etat.phase === "relecture" && (
           <div className="space-y-4">
-            {estDomaineExistant ? (
-              <div className="flex items-center justify-between rounded-xl border border-bordure bg-surface-2/60 p-3.5">
+              {estDomaineExistant || competenceSeule ? (
+              <div className="rounded-xl border border-bordure bg-surface-2/60 p-3.5">
+                {competenceSeule && !estDomaineExistant ? (
+                  <label className="block">
+                    <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
+                      Domaine de rattachement
+                    </span>
+                    <input
+                      list="domaines-existants-competence-relecture"
+                      value={domaineCible}
+                      onChange={(e) => gererChangementDomaineCible(e.target.value)}
+                      placeholder="Choisir un domaine existant"
+                      className="mt-1 w-full rounded-md border border-bordure-controle bg-surface px-2.5 py-1.5 text-sm text-texte placeholder:text-texte-discret focus:border-primaire focus:outline-none"
+                    />
+                    <datalist id="domaines-existants-competence-relecture">
+                      {domainesExistants.map((domaine) => (
+                        <option key={domaine.id} value={domaine.nom} />
+                      ))}
+                    </datalist>
+                  </label>
+                ) : (
+                  <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <span className="rounded-lg bg-primaire-faible px-2.5 py-1 font-mono text-xs font-semibold text-primaire">
                     {domaineConnu?.prefixe ?? "DOM"}
@@ -568,13 +629,15 @@ export function ModaleCompetence({
                       Domaine cible
                     </p>
                     <h3 className="font-serif text-sm font-semibold text-texte">
-                      {domaineInitial}
+                      {domaineCible}
                     </h3>
                   </div>
                 </div>
                 <span className="rounded-full bg-surface px-2.5 py-1 text-[0.6875rem] font-medium text-texte-discret">
                   Rattaché
                 </span>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="space-y-3 rounded-xl border border-bordure bg-surface-2/30 p-3.5">
@@ -696,14 +759,14 @@ export function ModaleCompetence({
                 disabled={
                   enCours ||
                   nbIaGardees === 0 ||
-                  (!estDomaineExistant && iaDomaine.trim().length === 0)
+                  (competenceSeule ? domaineCible.trim().length === 0 : !estDomaineExistant && iaDomaine.trim().length === 0)
                 }
                 variante="principal"
                 className="flex-1 justify-center"
               >
                 {enCours
                   ? "Enregistrement…"
-                  : !estDomaineExistant
+                  : !estDomaineExistant && !competenceSeule
                   ? `Créer le domaine (${nbIaGardees} compétence${nbIaGardees > 1 ? "s" : ""})`
                   : `Ajouter les compétences (${nbIaGardees})`}
               </Bouton>
@@ -722,8 +785,28 @@ export function ModaleCompetence({
         {/* MODE MANUEL : Formulaire direct */}
         {mode === "manuel" && (
           <div className="space-y-4">
-            {estDomaineExistant ? (
-              <div className="flex items-center justify-between rounded-xl border border-bordure bg-surface-2/60 p-3.5">
+            {estDomaineExistant || competenceSeule ? (
+              <div className="rounded-xl border border-bordure bg-surface-2/60 p-3.5">
+                {competenceSeule && !estDomaineExistant ? (
+                  <label className="block">
+                    <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
+                      Domaine de rattachement
+                    </span>
+                    <input
+                      list="domaines-existants-competence-manuel"
+                      value={domaineCible}
+                      onChange={(e) => gererChangementDomaineCible(e.target.value)}
+                      placeholder="Choisir un domaine existant"
+                      className="mt-1 w-full rounded-md border border-bordure-controle bg-surface px-2.5 py-1.5 text-sm text-texte placeholder:text-texte-discret focus:border-primaire focus:outline-none"
+                    />
+                    <datalist id="domaines-existants-competence-manuel">
+                      {domainesExistants.map((domaine) => (
+                        <option key={domaine.id} value={domaine.nom} />
+                      ))}
+                    </datalist>
+                  </label>
+                ) : (
+                  <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <span className="rounded-lg bg-primaire-faible px-2.5 py-1 font-mono text-xs font-semibold text-primaire">
                     {domaineConnu?.prefixe ?? "DOM"}
@@ -733,13 +816,15 @@ export function ModaleCompetence({
                       Domaine cible
                     </p>
                     <h3 className="font-serif text-sm font-semibold text-texte">
-                      {domaineInitial}
+                      {domaineCible}
                     </h3>
                   </div>
                 </div>
                 <span className="rounded-full bg-surface px-2.5 py-1 text-[0.6875rem] font-medium text-texte-discret">
                   Rattaché
                 </span>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="space-y-3 rounded-xl border border-bordure bg-surface-2/30 p-3.5">
@@ -927,7 +1012,7 @@ export function ModaleCompetence({
               >
                 {enCours
                   ? "Enregistrement…"
-                  : !estDomaineExistant
+                  : !estDomaineExistant && !competenceSeule
                   ? retenuesManuelles.length > 1
                     ? `Créer le domaine et ses ${retenuesManuelles.length} compétences`
                     : "Créer le domaine"

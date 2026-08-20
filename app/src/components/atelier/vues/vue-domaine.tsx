@@ -314,7 +314,6 @@ export function VueDomaine({
                 domaineId={vue.domaine.id}
                 domaineNom={vue.domaine.nom}
                 competences={vue.skills.filter((skill) => !skill.archive).map((skill) => ({ code: skill.code, intitule: skill.intitule, palier: skill.palier, observations: vue.retraits[skill.code]?.observations ?? 0, modeRetrait: vue.retraits[skill.code]?.mode ?? "suppression" }))}
-                domainesExistants={vue.domainesExistants}
                 compteId={compteId}
               />
             </div>

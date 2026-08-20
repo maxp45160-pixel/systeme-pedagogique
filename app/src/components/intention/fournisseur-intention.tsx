@@ -13,9 +13,11 @@ import { ContexteIntention } from "./contexte-intention";
 export function FournisseurIntention({
   compteId,
   children,
+  domainesExistants = [],
 }: {
   compteId: string;
   children: ReactNode;
+  domainesExistants?: { id: string; nom: string; prefixe: string }[];
 }) {
   const [ouverte, setOuverte] = useState(false);
   const [besoin, setBesoin] = useState<string | undefined>(undefined);
@@ -35,6 +37,7 @@ export function FournisseurIntention({
       {ouverte && (
         <CaptureIntention
           compteId={compteId}
+          domainesExistants={domainesExistants}
           besoinInitial={besoin ?? ""}
           onFermer={fermer}
         />

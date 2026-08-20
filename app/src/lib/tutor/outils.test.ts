@@ -215,6 +215,15 @@ describe("outilReferentielComplet — le plafond de domaines (ADR-088)", () => {
     expect(outil.schema.properties?.branches.maxItems).toBeUndefined();
   });
 
+  it("renforce la structure pour une vue d'ensemble débutante", () => {
+    const outil = outilReferentielComplet(
+      { ...REFERENTIEL, domaines: [] },
+      "Je veux apprendre la physique, je suis un gros noob",
+    );
+    expect(outil.schema.properties?.branches.minItems).toBe(2);
+    expect(outil.schema.properties?.branches.items?.properties?.competences?.minItems).toBe(3);
+  });
+
   it("écarte les branches au-delà du plafond au lieu de les accepter", () => {
     const outil = outilReferentielComplet(REFERENTIEL);
     const branche = (domaine: string) => ({

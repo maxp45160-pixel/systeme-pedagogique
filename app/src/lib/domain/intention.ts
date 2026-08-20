@@ -11,7 +11,7 @@
  * ## Ce que ce fichier n'est pas
  *
  * Ce n'est pas une nouvelle entité. Rien n'est persisté : une intention est
- * traduite, exécutée, et disparaît. Les trois genres ci-dessous pointent tous
+ * traduite, exécutée, et disparaît. Les quatre genres ci-dessous pointent tous
  * vers une surface qui existait déjà — le compositeur de séance, la création de
  * note, la proposition de branche. Aucun écran ne naît de ce fichier.
  *
@@ -38,15 +38,136 @@ import { EXERCICES_PAR_LOT_MAX } from "./exercice";
  * - `note` — déposer une ressource ou un contexte. Ne mesure rien (P5).
  * - `referentiel` — le sujet demandé n'existe pas encore : il faut d'abord des
  *   compétences pour pouvoir mesurer quoi que ce soit.
+ * - `clarification` — les indices ne suffisent pas à distinguer deux gestes
+ *   qui ne mènent pas au même écran ; le tuteur pose alors une question.
  *
  * Il n'y a délibérément **pas** de genre « reprendre » : un travail déjà ouvert
  * est un fait lu en base, pas une intention à interpréter. Le tableau de bord
  * le signale lui-même, sans passer par le modèle — le faire proposer
  * reviendrait à laisser le tuteur affirmer un état du compte.
  */
-export const GENRES_INTENTION = ["travail", "projet", "note", "referentiel"] as const;
+export const GENRES_INTENTION = [
+  "travail",
+  "projet",
+  "note",
+  "referentiel",
+  "clarification",
+] as const;
 
 export type GenreIntention = (typeof GENRES_INTENTION)[number];
+
+export type GranulariteReferentiel = "fine" | "standard" | "large";
+
+export interface DemandeReferentiel {
+  /** Domaine/branches à structurer, ou compétence précise à ajouter. */
+  type: "domaine" | "competence";
+  /** Vrai uniquement quand la personne a formulé explicitement cette cible. */
+  explicite: boolean;
+  /** Intitulés repris mot pour mot quand la personne en a fourni. */
+  intitules: string[];
+  nombreDomaines?: number;
+  nombreCompetences?: number;
+  granularite?: GranulariteReferentiel;
+  /** Vue d'ensemble demandée, par opposition à une capacité ciblée. */
+  portee?: "large" | "ciblee";
+  /** Niveau explicitement déclaré par la personne. */
+  niveau?: "debutant";
+}
+
+const NOMBRES = new Map<string, number>([
+  ["un", 1],
+  ["une", 1],
+  ["deux", 2],
+  ["trois", 3],
+  ["quatre", 4],
+  ["cinq", 5],
+  ["six", 6],
+]);
+
+function nombreDemande(valeur: string): number | undefined {
+  const propre = valeur.toLowerCase();
+  const numerique = Number(propre);
+  if (Number.isInteger(numerique) && numerique > 0 && numerique <= 8) return numerique;
+  return NOMBRES.get(propre);
+}
+
+function intitulésExplicites(besoin: string): string[] {
+  const trouves: string[] = [];
+  const motifs = [
+    /compétences?\s+(?:intitulée?s?|nommée?s?|appelée?s?)?\s*[«"]([^»"]+)[»"]/giu,
+    /compétences?\s*:\s*[«"]([^»"]+)[»"]/giu,
+  ];
+  for (const motif of motifs) {
+    for (const correspondance of besoin.matchAll(motif)) {
+      const intitule = correspondance[1]?.trim();
+      if (intitule && !trouves.includes(intitule)) trouves.push(intitule);
+    }
+  }
+  const objectif = /\bapprendre\s+à\s+([^.!?]+)[.!?]?$/iu.exec(besoin);
+  const intituleObjectif = objectif?.[1]?.trim();
+  if (intituleObjectif && !trouves.includes(intituleObjectif)) {
+    trouves.push(intituleObjectif.charAt(0).toUpperCase() + intituleObjectif.slice(1));
+  }
+  return trouves.slice(0, 12);
+}
+
+/**
+ * Lit les contraintes explicites d’une demande de référentiel.
+ *
+ * Ce n’est pas une classification sémantique : la fonction ne déduit pas un
+ * domaine à partir d’un mot. Elle ne fait que conserver les formes que la
+ * personne a écrites elle-même — notamment un intitulé entre guillemets — afin
+ * que l’écran ouvre la bonne relecture.
+ */
+export function analyserDemandeReferentiel(besoin: string): DemandeReferentiel {
+  const texte = besoin.trim();
+  const intitules = intitulésExplicites(texte);
+  const demandeCompetence =
+    /\b(?:ajoute|ajouter|crée|créer|définis|définir|inscris|inscrire)\b[\s\S]{0,60}\bcompétences?\b/iu.test(
+      texte,
+    ) || /\bcompétences?\b[\s\S]{0,60}\b(?:intitulée?s?|nommée?s?|appelée?s?)\b/iu.test(texte);
+  const objectifCompetence = /\bapprendre\s+à\s+[^.!?]+[.!?]?$/iu.test(texte);
+
+  const domaines = /\b(\d+|un|une|deux|trois|quatre|cinq|six)\s+(?:domaines?|branches?|axes?)\b/iu.exec(
+    texte,
+  );
+  const competences = /\b(\d+|deux|trois|quatre|cinq|six)\s+compétences?\b/iu.exec(
+    texte,
+  );
+
+  let granularite: GranulariteReferentiel | undefined;
+  if (/\b(?:fine|fin|atomique|détaillée|détaillé)\b/iu.test(texte)) granularite = "fine";
+  else if (/\b(?:large|macro|grossière|grossier)\b/iu.test(texte)) granularite = "large";
+  else if (/\b(?:standard|équilibrée|équilibré)\b/iu.test(texte)) granularite = "standard";
+
+  const niveauDebutant = /\b(?:débutant(?:e)?|novice|noob)\b/iu.test(texte);
+  const verbeApprentissage = /\b(?:apprendre|découvrir|étudier|explorer|se former|me former)\b/iu.test(
+    texte,
+  );
+  const demandeVueEnsemble =
+    /\b(?:apprendre|découvrir|étudier|explorer|se former|me former)\b[\s\S]{0,80}\b(?:la|le|les|l')\s+[\p{L}\d]/iu.test(
+      texte,
+    ) || (niveauDebutant && verbeApprentissage);
+
+  return {
+    type: demandeCompetence || objectifCompetence ? "competence" : "domaine",
+    explicite:
+      demandeCompetence ||
+      objectifCompetence ||
+      demandeVueEnsemble ||
+      Boolean(domaines || competences || granularite),
+    intitules,
+    ...(domaines?.[1] && nombreDemande(domaines[1])
+      ? { nombreDomaines: nombreDemande(domaines[1]) }
+      : {}),
+    ...(competences?.[1] && nombreDemande(competences[1])
+      ? { nombreCompetences: nombreDemande(competences[1]) }
+      : {}),
+    ...(granularite ? { granularite } : {}),
+    ...(demandeVueEnsemble ? { portee: "large" as const } : {}),
+    ...(niveauDebutant ? { niveau: "debutant" as const } : {}),
+  };
+}
 
 /* ------------------------------------------------------------------ */
 /* L'action traduite                                                   */
@@ -65,8 +186,8 @@ export interface ActionIntention {
    */
   codes: string[];
   /**
-   * Le sujet en clair, pour les genres qui n'ont pas de code à viser.
-   * Obligatoire pour `referentiel`, facultatif ailleurs.
+   * Le sujet en clair, pour les genres qui n'ont pas de code à viser. Pour une
+   * clarification, c'est la question affichée à la personne.
    */
   sujet: string;
 }
@@ -108,9 +229,9 @@ function texte(valeur: unknown, max: number): string {
  * Valide une action rendue par le modèle contre les codes réellement actifs.
  *
  * Rend `null` plutôt qu'une action rabotée quand il manque ce qui la rend
- * exécutable : un travail sans compétence visée n'a rien à composer. Fabriquer
- * une valeur de repli à partir d'une donnée invalide est précisément ce qu'on
- * s'interdit — l'appelant annonce l'échec et laisse la saisie manuelle.
+ * exécutable. Une séance générale peut ne viser aucun code : le compositeur
+ * laisse alors le sujet ouvert. Elle doit toutefois porter un `sujet` explicite
+ * afin de ne pas confondre ce cas avec une sortie incomplète du modèle.
  *
  * Un code hors de l'ensemble actif est écarté sans faire tomber l'action : le
  * reste de la désignation peut rester bon. Mais si l'écrémage vide la liste
@@ -156,7 +277,9 @@ export function validerActionIntention(
    */
   const sujet = texte(entree.sujet, TITRE_MAX) || (genre === "travail" ? "" : titre);
 
-  if (genre === "travail" && codes.length === 0) return null;
+  if (genre === "travail" && codes.length === 0 && !sujet) return null;
+  if (genre === "clarification" && codes.length > 0) return null;
+  if (genre === "clarification" && !texte(entree.sujet, TITRE_MAX)) return null;
 
   return { genre, titre, pourquoi, codes, sujet };
 }
@@ -206,10 +329,33 @@ export function validerTraductionIntention(
  * unique n'invente aucune destination, il en réutilise une. `intention` porte
  * la phrase de l'utilisateur, que le compositeur affiche comme titre proposé.
  */
-export function urlComposition(codes: string[], intention: string): string {
+export function urlComposition(
+  codes: string[],
+  intention: string,
+  options: { sansTheme?: boolean } = {},
+): string {
   const parametres = new URLSearchParams({ composer: "1" });
   for (const code of codes.slice(0, EXERCICES_PAR_LOT_MAX)) parametres.append("code", code);
   const t = intention.trim();
   if (t) parametres.set("intention", t);
+  if (options.sansTheme) parametres.set("sans-theme", "1");
   return `/seances?${parametres.toString()}`;
+}
+
+/**
+ * Reconnaît uniquement la formulation d'une séance sans cible déclarée.
+ *
+ * « Créer une séance sur les stocks » reste une séance ciblée : le complément
+ * désigne son sujet. En revanche « créer une séance » doit ouvrir le
+ * compositeur sans sélectionner la première recommandation à la place de la
+ * personne.
+ */
+export function demandeSeanceSansSujet(besoin: string): boolean {
+  const texte = besoin.trim();
+  const correspondance = /\b(?:crée?r?|compose?r?|prépare?r?|planifie?r?|lance?r?)\s+(?:moi\s+)?(?:une\s+)?séance\b([\s\S]*)$/iu.exec(
+    texte,
+  );
+  if (!correspondance) return false;
+  const complément = correspondance[1]?.trim().replace(/^[.!?]+/, "").trim() ?? "";
+  return complément === "" || /^(?:d['’]entraînement|de travail)$/iu.test(complément);
 }

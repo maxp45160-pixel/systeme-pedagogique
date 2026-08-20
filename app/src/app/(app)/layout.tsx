@@ -13,6 +13,7 @@ import { resoudreIdentite } from "@/lib/domain/identite";
 import { FournisseurIntention } from "@/components/intention/fournisseur-intention";
 import { FournisseurOnboarding } from "@/components/onboarding/onboarding-context";
 import { PastillePomodoroGlobale } from "@/components/seances/pomodoro";
+import { chargerReferentiel } from "@/lib/store/referentiel";
 
 /**
  * Cadre du carnet : rail de navigation, marge.
@@ -38,6 +39,7 @@ export default async function AppLayout({
   */
   const acces = await lireAccesCourant();
   if (acces?.suspenduLe) redirect("/suspendu");
+  const referentiel = await chargerReferentiel();
   const administrateur = acces?.role === "admin";
 
   const identite = resoudreIdentite(compte);
@@ -56,7 +58,12 @@ export default async function AppLayout({
       vivent dans le rail et dans la barre mobile.
     */
     <FournisseurOnboarding compteId={session.compteId}>
-      <FournisseurIntention compteId={session.compteId}>
+      <FournisseurIntention
+        compteId={session.compteId}
+        domainesExistants={referentiel.domaines
+          .filter((domaine) => !domaine.archive)
+          .map(({ id, nom, prefixe }) => ({ id, nom, prefixe }))}
+      >
         <div className="flex min-h-screen">
           <Sidebar session={session} administrateur={administrateur} />
 

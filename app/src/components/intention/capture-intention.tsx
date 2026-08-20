@@ -10,11 +10,14 @@ import { ChargementGeneration } from "@/components/ui/chargement-generation";
 import { creerNoteAction } from "@/lib/store/document-actions";
 import { FORMATS_PAR_ROLE } from "@/lib/documents/roles-note";
 import { ModaleReferentiel } from "@/components/referentiel/modale-referentiel";
+import { ModaleCompetence } from "@/components/referentiel/modale-competence";
 import { ParcoursNouveauProjet } from "@/components/projets/modale-nouveau-projet";
 import { enregistrerBesoinCourtTerme } from "@/lib/store/objectifs-actions";
 import {
   BESOIN_MAX,
+  analyserDemandeReferentiel,
   besoinValide,
+  demandeSeanceSansSujet,
   urlComposition,
   type ActionIntention,
   type TraductionIntention,
@@ -39,19 +42,51 @@ const PLACEHOLDER = "Ex. j'ai un contrôle sur les stocks vendredi et je bloque 
 type Phase = "saisie" | "traduction" | "proposition";
 
 const LIBELLES_ACTION: Record<ActionIntention["genre"], string> = {
-  travail: "S'entraîner",
-  projet: "Produire",
-  note: "Ressource",
-  referentiel: "Référentiel",
+  travail: "Séance d’entraînement",
+  projet: "Parcours projet",
+  note: "Fiche de référence",
+  referentiel: "Intégration au référentiel",
+  clarification: "Question de précision",
 };
+
+const CTA_ACTION: Record<ActionIntention["genre"], string> = {
+  travail: "Préparer la séance",
+  projet: "Construire le projet",
+  note: "Créer la fiche",
+  referentiel: "Préparer l’intégration",
+  clarification: "Répondre à la question",
+};
+
+const RESULTAT_ACTION: Record<ActionIntention["genre"], string> = {
+  travail: "Une séance sera préparée à partir des compétences repérées.",
+  projet: "Le parcours de projet reprendra ton besoin et reciblera les compétences utiles.",
+  note: "Une fiche sera créée dans ton Atelier avec ton besoin comme contexte.",
+  referentiel: "Le sujet sera situé avant qu’une éventuelle compétence soit proposée.",
+  clarification: "Rien ne sera créé avant ta réponse.",
+};
+
+function domaineMentionne(
+  besoin: string,
+  domaines: { nom: string }[],
+): string | undefined {
+  const normaliser = (valeur: string) =>
+    valeur
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+  const texte = normaliser(besoin);
+  return domaines.find((domaine) => texte.includes(normaliser(domaine.nom)))?.nom;
+}
 
 export function CaptureIntention({
   compteId,
   onFermer,
   besoinInitial = "",
+  domainesExistants = [],
 }: {
   compteId: string;
   onFermer: () => void;
+  domainesExistants?: { id: string; nom: string; prefixe: string }[];
   /**
    * Le besoin est déjà écrit ailleurs — une ligne de la marge du cahier.
    *
@@ -72,6 +107,11 @@ export function CaptureIntention({
   const [progression, setProgression] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enExecution, setEnExecution] = useState(false);
+  const [competenceDemande, setCompetenceDemande] = useState<{
+    sujet: string;
+    intitules: string[];
+    domaine?: string;
+  } | null>(null);
 
   /*
    * L'extension du référentiel passe la main à la proposition de référentiel
@@ -92,9 +132,9 @@ export function CaptureIntention({
     return () => controleur.current?.abort();
   }, []);
 
-
-  const traduire = useCallback(async () => {
-    if (!besoinValide(besoin)) return;
+  const traduire = useCallback(async (besoinA = besoin) => {
+    const demande = besoinA.trim();
+    if (!besoinValide(demande)) return;
     setPhase("traduction");
     setProgression(null);
     setErreur(null);
@@ -107,7 +147,7 @@ export function CaptureIntention({
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          besoin: besoin.trim(),
+          besoin: demande,
           config: lireConfigTuteur(compteId) ?? undefined,
         }),
         signal: abandon.signal,
@@ -163,9 +203,11 @@ export function CaptureIntention({
           }
         }
       }
-    } catch {
-      if (!abandon.signal.aborted) {
-        setErreur("Traduction interrompue.");
+    } catch (cause) {
+      const estAbandon =
+        abandon.signal.aborted || (cause instanceof DOMException && cause.name === "AbortError");
+      if (!estAbandon) {
+        setErreur("Le tuteur n’a pas répondu. Vérifie sa configuration puis relance la traduction.");
         setPhase("saisie");
       }
     }
@@ -183,12 +225,33 @@ export function CaptureIntention({
     async (action: ActionIntention) => {
       setErreur(null);
 
+      const demandeReferentiel = analyserDemandeReferentiel(besoin);
+      if (demandeReferentiel.explicite && demandeReferentiel.type === "competence") {
+        setCompetenceDemande({
+          sujet: besoin.trim(),
+          intitules: demandeReferentiel.intitules,
+          domaine: domaineMentionne(besoin, domainesExistants),
+        });
+        return;
+      }
+
+      if (demandeReferentiel.type === "domaine" && demandeReferentiel.portee === "large") {
+        setSujetBranche(besoin.trim());
+        return;
+      }
+
+      if (action.genre === "clarification") return;
+
       if (action.genre === "travail") {
+        const seanceSansSujet = demandeSeanceSansSujet(besoin);
+        const codes = seanceSansSujet ? [] : action.codes;
         setEnExecution(true);
         try {
-          await enregistrerBesoinCourtTerme(besoin, action.codes);
+          await enregistrerBesoinCourtTerme(besoin, codes);
           onFermer();
-          router.push(urlComposition(action.codes, action.titre));
+          router.push(
+            urlComposition(codes, besoin, { sansTheme: seanceSansSujet }),
+          );
         } catch (cause) {
           setErreur(cause instanceof Error ? cause.message : "Le besoin n'a pas pu être pris en compte.");
         } finally {
@@ -203,7 +266,10 @@ export function CaptureIntention({
       }
 
       if (action.genre === "referentiel") {
-        setSujetBranche(action.sujet || action.titre);
+        // La proposition de branches doit recevoir la formulation originale :
+        // elle contient parfois un nombre de domaines, une granularité ou un
+        // nombre de compétences que le titre de l’action résumée perdrait.
+        setSujetBranche(besoin.trim());
         return;
       }
 
@@ -226,14 +292,51 @@ export function CaptureIntention({
         setEnExecution(false);
       }
     },
-    [besoin, onFermer, router],
+    [besoin, domainesExistants, onFermer, router],
   );
+
+  function repondreAQuestion(reponse: string) {
+    const precision = reponse.trim();
+    if (!besoinValide(precision)) return;
+    const demande = `${besoin}\nPrécision : ${precision}`.slice(0, BESOIN_MAX);
+    setBesoin(demande);
+    setTraduction(null);
+    void traduire(demande);
+  }
 
   if (projetDemande !== null) {
     return (
       <ParcoursNouveauProjet
         accountId={compteId}
         intentionInitiale={projetDemande}
+        onFermer={onFermer}
+      />
+    );
+  }
+
+  if (competenceDemande !== null) {
+    return (
+      <ModaleCompetence
+        compteId={compteId}
+        domainesExistants={domainesExistants}
+        modeCible="competence"
+        domaineInitial={competenceDemande.domaine}
+        sujetInitial={competenceDemande.intitules.length === 0 ? competenceDemande.sujet : ""}
+        brancheInitiale={
+          competenceDemande.intitules.length > 0
+            ? {
+                domaine: competenceDemande.domaine ?? "",
+                prefixe: "",
+                description: "",
+                justification: "Intitulé repris de ta demande.",
+                competences: competenceDemande.intitules.map((intitule) => ({
+                  intitule,
+                  palier: "fondamentaux",
+                  importance: "0.5",
+                })),
+              }
+            : undefined
+        }
         onFermer={onFermer}
       />
     );
@@ -262,8 +365,12 @@ export function CaptureIntention({
             <Bouton variante="secondaire" onClick={onFermer}>
               Annuler
             </Bouton>
-            <Bouton variante="principal" onClick={traduire} disabled={!besoinValide(besoin)}>
-              Traduire en action
+            <Bouton
+              variante="principal"
+              onClick={() => void traduire()}
+              disabled={!besoinValide(besoin)}
+            >
+              Voir ce que le système propose
             </Bouton>
           </>
         ) : phase === "proposition" ? (
@@ -317,8 +424,8 @@ export function CaptureIntention({
             className="w-full resize-none rounded-lg border border-bordure-controle bg-surface px-3 py-2.5 text-sm outline-none focus:border-primaire"
           />
           <p className="text-xs text-texte-discret">
-            Un besoin, pas un objet : le système décide s&apos;il faut s&apos;entraîner, déposer une
-            ressource, ou étendre le référentiel.
+            Un besoin, pas un objet : le système explique s&apos;il faut s&apos;entraîner, produire,
+            garder une ressource ou étendre ton Atelier.
           </p>
           {erreur && (
             <p className="rounded-lg bg-danger-faible px-3 py-2 text-xs text-danger">{erreur}</p>
@@ -328,11 +435,23 @@ export function CaptureIntention({
 
       {phase === "proposition" && traduction && (
         <div className="space-y-4">
-          <PropositionPrincipale
-            action={traduction.action}
-            enExecution={enExecution}
-            onExecuter={() => void executer(traduction.action)}
-          />
+          <p className="text-sm text-texte-attenue">
+            Voici la traduction de ton besoin. Vérifie le résultat et l’action proposée avant de
+            lancer quoi que ce soit.
+          </p>
+          {traduction.action.genre === "clarification" ? (
+            <QuestionClarification
+              action={traduction.action}
+              enExecution={enExecution}
+              onRepondre={repondreAQuestion}
+            />
+          ) : (
+            <PropositionPrincipale
+              action={traduction.action}
+              enExecution={enExecution}
+              onExecuter={() => void executer(traduction.action)}
+            />
+          )}
 
           {traduction.alternatives.length > 0 && (
             <div>
@@ -366,6 +485,7 @@ export function CaptureIntention({
           )}
         </div>
       )}
+
     </Modale>
   );
 }
@@ -388,10 +508,18 @@ function PropositionPrincipale({
       <p className="mt-1.5 text-sm text-texte-attenue">{action.pourquoi}</p>
 
       {action.codes.length > 0 && (
-        <p className="mt-2.5 font-mono text-[0.6875rem] text-texte-discret">
-          {action.codes.join(" · ")}
+        <p className="mt-3 text-xs text-texte-attenue">
+          {action.codes.length} compétence{action.codes.length > 1 ? "s" : ""} de ton Atelier
+          sera{action.codes.length > 1 ? "ont" : ""} mobilisée{action.codes.length > 1 ? "s" : ""}.
         </p>
       )}
+
+      <div className="mt-3 border-t border-primaire/20 pt-3">
+        <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret">
+          Ce qui va se passer
+        </p>
+        <p className="mt-1 text-sm text-texte-attenue">{RESULTAT_ACTION[action.genre]}</p>
+      </div>
 
       <Bouton
         variante="principal"
@@ -399,7 +527,45 @@ function PropositionPrincipale({
         enChargement={enExecution}
         className={cx("mt-4", enExecution && "pointer-events-none")}
       >
-        Lancer
+        {CTA_ACTION[action.genre]}
+      </Bouton>
+    </div>
+  );
+}
+
+function QuestionClarification({
+  action,
+  enExecution,
+  onRepondre,
+}: {
+  action: ActionIntention;
+  enExecution: boolean;
+  onRepondre: (reponse: string) => void;
+}) {
+  const [reponse, setReponse] = useState("");
+
+  return (
+    <div className="rounded-xl border border-primaire/35 bg-primaire-faible/35 p-4">
+      <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-primaire">
+        Question de précision
+      </p>
+      <p className="mt-2 font-serif text-lg font-medium">{action.sujet || action.titre}</p>
+      <p className="mt-1.5 text-sm text-texte-attenue">{action.pourquoi}</p>
+      <textarea
+        value={reponse}
+        onChange={(event) => setReponse(event.target.value.slice(0, 300))}
+        rows={2}
+        placeholder="Réponds en quelques mots…"
+        className="mt-4 w-full resize-none rounded-lg border border-bordure-controle bg-surface px-3 py-2.5 text-sm outline-none focus:border-primaire"
+      />
+      <Bouton
+        variante="principal"
+        onClick={() => onRepondre(reponse)}
+        disabled={!besoinValide(reponse) || enExecution}
+        enChargement={enExecution}
+        className="mt-3"
+      >
+        Répondre
       </Bouton>
     </div>
   );

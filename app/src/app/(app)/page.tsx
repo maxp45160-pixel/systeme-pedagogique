@@ -18,6 +18,7 @@ import {
   type ContexteInstant,
 } from "@/lib/engine/action-unifiee";
 import { DashboardTour } from "@/components/onboarding/dashboard-tour";
+import { BoutonIntentionDashboard } from "@/components/intention/bouton-intention";
 
 export default async function TableauDeBord(props: {
   searchParams: Promise<{ temps?: string; capacite?: string }>;
@@ -136,6 +137,8 @@ async function ContenuTableauDeBord({
           <IconeFleche className="size-3 text-texte-discret transition-transform group-hover:translate-x-0.5 group-hover:text-primaire" />
         </Link>
       </div>
+
+      <BoutonIntentionDashboard />
 
       {/* Alerte si des exercices sont déjà en cours */}
       {enCours.length > 0 && (

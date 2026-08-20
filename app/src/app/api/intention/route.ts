@@ -3,7 +3,12 @@ import { choisirConfiguration, creerMoteur } from "@/lib/tutor/moteurs";
 import type { ConfigTuteurClient } from "@/lib/tutor/cle-client";
 import { envTuteur } from "@/lib/tutor/env-requete";
 import { traduireIntention, type CompetenceCandidate } from "@/lib/tutor/intention";
-import { besoinValide } from "@/lib/domain/intention";
+import {
+  analyserDemandeReferentiel,
+  besoinValide,
+  demandeSeanceSansSujet,
+  type TraductionIntention,
+} from "@/lib/domain/intention";
 import { serialiserProfilDeclare } from "@/lib/domain/profil";
 
 /**
@@ -128,7 +133,22 @@ export async function POST(request: Request) {
           return;
         }
 
-        envoyer("proposition", { traduction: resultat.traduction });
+        const cadrage = analyserDemandeReferentiel(besoin);
+        const traduction =
+          demandeSeanceSansSujet(besoin)
+            ? forcerSeanceSansSujet(resultat.traduction, besoin)
+            : resultat.traduction &&
+          cadrage.explicite &&
+          (cadrage.type === "competence" || cadrage.portee === "large")
+            ? forcerExtensionReferentiel(
+                resultat.traduction,
+                besoin,
+                cadrage.type === "competence",
+                cadrage.intitules,
+              )
+            : resultat.traduction;
+
+        envoyer("proposition", { traduction });
       } catch (e) {
         if (abandon.signal.aborted) return;
         envoyer("erreur", {
@@ -154,4 +174,54 @@ export async function POST(request: Request) {
       connection: "keep-alive",
     },
   });
+}
+
+function forcerSeanceSansSujet(
+  traduction: TraductionIntention | null,
+  besoin: string,
+): TraductionIntention {
+  return {
+    ...(traduction ?? { alternatives: [] }),
+    action: {
+      ...(traduction?.action ?? {
+        genre: "travail" as const,
+        titre: "Préparer une séance",
+        pourquoi: "Aucun sujet n’a été imposé.",
+      }),
+      genre: "travail",
+      titre: "Préparer une séance",
+      pourquoi: "Aucun sujet n’a été imposé : tu choisiras la portée dans le compositeur.",
+      codes: [],
+      sujet: besoin.trim(),
+    },
+  };
+}
+
+function forcerExtensionReferentiel(
+  traduction: TraductionIntention,
+  besoin: string,
+  competence: boolean,
+  intitules: string[],
+): TraductionIntention {
+  const sujet = besoin.trim();
+  const libelle =
+    competence && intitules.length === 1
+      ? `Ajouter la compétence « ${intitules[0]} »`
+      : competence
+        ? "Ajouter les compétences précisées dans la demande"
+        : "Structurer le domaine demandé";
+
+  return {
+    ...traduction,
+    action: {
+      ...traduction.action,
+      genre: "referentiel",
+      titre: libelle,
+      pourquoi: competence
+        ? "La demande désigne explicitement une ou plusieurs compétences à ajouter."
+        : "La demande porte sur une vue d’ensemble qui doit être organisée avant l’apprentissage.",
+      codes: [],
+      sujet,
+    },
+  };
 }

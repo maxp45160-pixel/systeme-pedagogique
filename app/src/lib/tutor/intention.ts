@@ -4,7 +4,7 @@
  * Même mécanique que `generation-referentiel.ts` : un prompt court, un outil
  * confiné, et un `envoyer` qui collecte au lieu de diffuser. La différence est
  * dans ce qui est demandé — ici le tuteur ne rédige aucun contenu, il *choisit
- * une action* parmi trois que le système sait déjà exécuter.
+ * une action parmi quatre que le système sait déjà exécuter.
  *
  * ## Pourquoi le modèle et pas des mots-clés
  *
@@ -12,7 +12,7 @@
  * échoue sur « je bloque depuis deux jours et j'ai un contrôle vendredi » —
  * exactement la phrase qu'on veut accepter. Le langage libre est le point de
  * l'exercice, pas un confort ; la contrainte est reportée sur le schéma, qui
- * n'admet que trois genres et des codes énumérés.
+ * n'admet que quatre genres et des codes énumérés.
  *
  * ## Ce que le tuteur ne fait pas ici
  *
@@ -26,7 +26,11 @@
  * et propose les destinations manuelles.
  */
 
-import type { TraductionIntention } from "@/lib/domain/intention";
+import {
+  analyserDemandeReferentiel,
+  demandeSeanceSansSujet,
+  type TraductionIntention,
+} from "@/lib/domain/intention";
 import type { Referentiel } from "@/lib/domain/types";
 import type { MoteurTuteur } from "./moteurs";
 import { lireErreurMoteur, lireOutilsActifs, messageSansOutils } from "./moteurs";
@@ -82,11 +86,16 @@ export function construirePromptIntention(
     "TU N'EXÉCUTES RIEN. La personne relit ta proposition et confirme.",
     "",
     "COMMENT CHOISIR",
-    "- Un besoin qui porte sur un savoir-faire déjà au référentiel est un `travail`.",
+    "- Un besoin qui porte sur un savoir-faire déjà au référentiel est un `travail` : il prépare une séance d'entraînement.",
+    "- Une demande comme « créer une séance » sans sujet ni compétence est aussi un `travail`, mais avec `codes` vide et le besoin recopié dans `sujet` : ne choisis aucune compétence à la place de la personne.",
     "- Un besoin qui vise un livrable — un rapport, un dossier, une maquette, une analyse à rendre — est un `projet`.",
-    "- Un besoin qui apporte une ressource, un cours, un énoncé, un document à garder est une `note`.",
+    "- Un besoin qui apporte une ressource, un cours, un énoncé, un PDF ou un document à garder est une `note`.",
     "- Un besoin dont le sujet n'est couvert par aucune compétence de la liste ci-dessous est un `referentiel`.",
-    "- Dans le doute entre deux lectures, choisis la plus probable et mets l'autre en alternative.",
+    "- Si la personne demande explicitement d'ajouter une compétence précise — surtout avec un intitulé entre guillemets — garde cet intitulé dans `sujet` et ne transforme pas la demande en nouveau domaine.",
+    "- Si elle donne un nombre de domaines, de compétences ou une granularité, conserve ces contraintes dans `sujet` ; elles seront utilisées pour la proposition.",
+    "- Si elle demande une séance, identifie-la comme `travail`; si elle demande un projet à produire, comme `projet`; si elle demande d'ajouter un PDF ou une ressource, comme `note`.",
+    "- Dans le doute réel entre deux gestes différents (par exemple garder un PDF ou en extraire une compétence), utilise `clarification`, mets la question précise dans `sujet`, et mets au maximum deux actions possibles dans `alternatives`.",
+    "- N'utilise pas `clarification` pour une demande large mais compréhensible comme « apprendre la physique » : c'est une extension de référentiel, avec une organisation de départ.",
     "",
     "CE QUE TU NE FAIS PAS",
     "- Tu ne rapproches pas de force : deux compétences qui « ont l'air proches » du sujet ne le couvrent pas.",
@@ -170,6 +179,52 @@ export async function traduireIntention(
     signal,
     envoyer,
   });
+
+  /*
+   * Repli déterministe quand le tuteur a compris qu’il n’y avait pas de code
+   * local, mais a tout de même tenté un `travail` sans compétence. La demande
+   * explicite « apprendre à … » ou « ajouter une compétence … » suffit à
+   * ouvrir la relecture de compétence ; elle ne permet ni de fabriquer un
+   * code, ni de choisir un domaine à la place de la personne.
+   */
+  const cadrage = analyserDemandeReferentiel(besoin);
+  if (traduction === null && demandeSeanceSansSujet(besoin)) {
+    traduction = {
+      action: {
+        genre: "travail",
+        titre: "Préparer une séance",
+        pourquoi: "Aucun sujet n’a été imposé : tu choisiras la portée dans le compositeur.",
+        codes: [],
+        sujet: besoin.trim(),
+      },
+      alternatives: [],
+    };
+  }
+  if (
+    traduction === null &&
+    cadrage.explicite &&
+    (cadrage.type === "competence" || cadrage.portee === "large")
+  ) {
+    const titres = cadrage.intitules;
+    traduction = {
+      action: {
+        genre: "referentiel",
+        titre:
+          cadrage.type === "competence" && titres.length === 1
+            ? `Ajouter la compétence « ${titres[0]} »`
+            : cadrage.type === "competence"
+              ? "Ajouter la compétence décrite dans la demande"
+              : "Structurer le domaine demandé",
+        pourquoi:
+          cadrage.type === "competence"
+            ? "La demande décrit une compétence qui n’est pas encore disponible dans ton Atelier."
+            : "La demande porte sur une vue d’ensemble qui doit être organisée avant l’apprentissage.",
+        codes: [],
+        sujet: besoin.trim(),
+      },
+      alternatives: [],
+    };
+  }
 
   // Deux pannes derrière une même absence de traduction : un modèle qui n'a
   // rien rendu d'exploitable, et un fournisseur sans outils. La seconde ne se

@@ -4,8 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { cx } from "@/components/ui/primitives";
 import type { VueDomaineAtelier } from "@/lib/documents/vue-atelier";
-import type { ElementGlobal } from "@/lib/domain/carte-globale";
-import { ModaleCompetence } from "@/components/referentiel/modale-competence";
+import { useIntention } from "@/components/intention/contexte-intention";
 import {
   BoutonSuppressionCarte,
   ModaleConfirmationSuppression,
@@ -114,28 +113,23 @@ export function VueTousLesDomaines({
   ouvrirElement,
   selection,
   compteId,
-  domainesExistants = [],
   tri = "recent",
   onArchiver,
   onRestaurer,
   onSupprimer,
-  pistesGlobales = [],
 }: {
   domaines: VueDomaineAtelier[];
   ouvrirElement: (id: string) => void;
   changerVue: (vue: VueAtelier) => void;
   selection?: string | null;
   compteId?: string;
-  domainesExistants?: { id: string; nom: string; prefixe: string }[];
   tri?: TriDomaine;
   onArchiver?: (domaineId: string) => void;
   onRestaurer?: (domaineId: string) => void;
   onSupprimer?: (domaineId: string) => void;
-  /** Repères proposés uniquement au moment de créer une branche locale. */
-  pistesGlobales?: ElementGlobal[];
 }) {
   const router = useRouter();
-  const [modaleCreationOuverte, setModaleCreationOuverte] = useState(false);
+  const { ouvrir } = useIntention();
   const [domaineAArchiver, setDomaineAArchiver] = useState<VueDomaineAtelier | null>(null);
   const [domaineARestaurer, setDomaineARestaurer] = useState<VueDomaineAtelier | null>(null);
   const [domaineASupprimer, setDomaineASupprimer] = useState<VueDomaineAtelier | null>(null);
@@ -259,9 +253,9 @@ export function VueTousLesDomaines({
 
           {!estArchives && compteId && (
             <CarteCreationPointillee
-              titre="Ajouter un domaine"
-              description="Créer une nouvelle branche de compétences"
-              onClick={() => setModaleCreationOuverte(true)}
+              titre="Décrire un nouveau besoin"
+              description="Le système situera la nouvelle branche dans ton Atelier"
+              onClick={() => ouvrir()}
             />
           )}
         </div>
@@ -324,18 +318,6 @@ export function VueTousLesDomaines({
         />
       )}
 
-      {modaleCreationOuverte && compteId && (
-        <ModaleCompetence
-          compteId={compteId}
-          domainesExistants={domainesExistants}
-          pistesGlobales={pistesGlobales}
-          onFermer={() => setModaleCreationOuverte(false)}
-          surEnregistre={() => {
-            setModaleCreationOuverte(false);
-            router.refresh();
-          }}
-        />
-      )}
     </div>
   );
 }

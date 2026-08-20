@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  analyserDemandeReferentiel,
   besoinValide,
+  demandeSeanceSansSujet,
   urlComposition,
   validerActionIntention,
   validerTraductionIntention,
@@ -32,6 +34,53 @@ describe("besoinValide", () => {
 
   it("accepte une phrase", () => {
     expect(besoinValide("j'ai un contrôle sur les stocks vendredi")).toBe(true);
+  });
+});
+
+describe("analyserDemandeReferentiel", () => {
+  it("préserve l’intitulé explicite d’une compétence", () => {
+    expect(
+      analyserDemandeReferentiel('Ajoute une compétence intitulée "Effectuer une addition".'),
+    ).toEqual({
+      type: "competence",
+      explicite: true,
+      intitules: ["Effectuer une addition"],
+    });
+  });
+
+  it("conserve le nombre de domaines et la granularité demandés", () => {
+    expect(analyserDemandeReferentiel("Crée 2 domaines avec une granularité fine.")).toEqual({
+      type: "domaine",
+      explicite: true,
+      intitules: [],
+      nombreDomaines: 2,
+      granularite: "fine",
+    });
+  });
+
+  it("reconnaît un objectif précis formulé avec apprendre à", () => {
+    expect(analyserDemandeReferentiel("Je veux apprendre à faire des additions")).toEqual({
+      type: "competence",
+      explicite: true,
+      intitules: ["Faire des additions"],
+    });
+  });
+
+  it("reconnaît une demande de vue d'ensemble", () => {
+    expect(analyserDemandeReferentiel("Je veux apprendre la physique")).toEqual({
+      type: "domaine",
+      explicite: true,
+      intitules: [],
+      portee: "large",
+    });
+  });
+
+  it("conserve le niveau débutant pour cadrer la progression", () => {
+    expect(analyserDemandeReferentiel("Je veux apprendre la physique, je suis un gros noob")).toMatchObject({
+      type: "domaine",
+      portee: "large",
+      niveau: "debutant",
+    });
   });
 });
 
@@ -75,6 +124,15 @@ describe("validerActionIntention", () => {
 
   it("refuse un travail dont l'écrémage a vidé les codes", () => {
     expect(validerActionIntention(action({ codes: ["XXX-99"] }), CODES)).toBeNull();
+  });
+
+  it("accepte une séance générale sans code quand le sujet est explicite", () => {
+    const valide = validerActionIntention(
+      action({ genre: "travail", codes: [], sujet: "Créer une séance" }),
+      CODES,
+    );
+    expect(valide?.genre).toBe("travail");
+    expect(valide?.codes).toEqual([]);
   });
 
   it("plafonne les codes au lot d'exercices", () => {
@@ -123,6 +181,30 @@ describe("validerActionIntention", () => {
       CODES,
     );
     expect(valide?.genre).toBe("note");
+  });
+
+  it("accepte une clarification sans compétence désignée", () => {
+    const valide = validerActionIntention(
+      action({
+        genre: "clarification",
+        titre: "Préciser le format souhaité",
+        pourquoi: "PDF à conserver ou contenu à transformer : le geste n'est pas le même.",
+        codes: [],
+        sujet: "Veux-tu conserver le PDF ou en extraire les compétences ?",
+      }),
+      CODES,
+    );
+    expect(valide?.genre).toBe("clarification");
+    expect(valide?.sujet).toContain("PDF");
+  });
+
+  it("refuse une clarification qui désigne des compétences", () => {
+    expect(
+      validerActionIntention(
+        action({ genre: "clarification", codes: ["LOG-01"], sujet: "Quel format ?" }),
+        CODES,
+      ),
+    ).toBeNull();
   });
 
   it("refuse autre chose qu'un objet", () => {
@@ -182,5 +264,22 @@ describe("urlComposition", () => {
 
   it("omet l'intention quand elle est vide", () => {
     expect(urlComposition(["LOG-01"], "   ")).toBe("/seances?composer=1&code=LOG-01");
+  });
+
+  it("porte explicitement l'absence de sujet pour une séance générale", () => {
+    expect(urlComposition([], "créer une séance", { sansTheme: true })).toBe(
+      "/seances?composer=1&intention=cr%C3%A9er+une+s%C3%A9ance&sans-theme=1",
+    );
+  });
+});
+
+describe("demandeSeanceSansSujet", () => {
+  it("reconnaît la création d'une séance sans choisir sa cible", () => {
+    expect(demandeSeanceSansSujet("Créer une séance")).toBe(true);
+    expect(demandeSeanceSansSujet("Composer une séance d'entraînement")).toBe(true);
+  });
+
+  it("conserve le sujet quand la séance est ciblée", () => {
+    expect(demandeSeanceSansSujet("Créer une séance sur les stocks")).toBe(false);
   });
 });
