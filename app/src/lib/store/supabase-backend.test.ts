@@ -187,14 +187,19 @@ describe("profil", () => {
     preferencesPedagogiques: [],
   };
 
-  it("retombe sur les valeurs par défaut quand la colonne est vide", () => {
-    const user = profilVersUser(
-      { id: "compte-1", prenom: "Alice", formation: "  ", preferences_pedagogiques: null },
+  it("refuse une colonne invalide au lieu de fabriquer une valeur de remplacement", () => {
+    expect(() => profilVersUser(
+      {
+        id: "compte-1",
+        prenom: "Alice",
+        formation: "  ",
+        objectif_moyen_terme: "MT",
+        objectif_long_terme: "LT",
+        debut_suivi: "2026-07-26",
+        preferences_pedagogiques: [],
+      },
       defaut,
-    );
-    expect(user.prenom).toBe("Alice");
-    expect(user.formation).toBe("Formation à renseigner");
-    expect(user.preferencesPedagogiques).toEqual([]);
+    )).toThrow(/profile\.formation/);
   });
 
   it("préserve les valeurs renseignées", () => {
@@ -222,15 +227,31 @@ describe("profil", () => {
     });
   });
 
-  it("laisse le plan absent plutôt que de lui inventer un repli", () => {
-    // Un plan vide en base n'est pas un plan : le tuteur ne doit pas recevoir
-    // une intention que la personne n'a pas écrite.
-    expect(profilVersUser({ id: "compte-1", plan: "   " }, defaut).plan).toBeUndefined();
-    expect(profilVersUser({ id: "compte-1" }, defaut).plan).toBeUndefined();
+  it("laisse un plan NULL absent et refuse un texte vide présent", () => {
+    const ligne = {
+      id: "compte-1",
+      prenom: "Alice",
+      formation: "Formation",
+      objectif_moyen_terme: "MT",
+      objectif_long_terme: "LT",
+      debut_suivi: "2026-07-26",
+      preferences_pedagogiques: [],
+    };
+    expect(profilVersUser({ ...ligne, plan: null }, defaut).plan).toBeUndefined();
+    expect(() => profilVersUser({ ...ligne, plan: "   " }, defaut)).toThrow(/profile\.plan/);
   });
 
   it("remonte le plan déclaré", () => {
-    const user = profilVersUser({ id: "compte-1", plan: "Consolider la logique." }, defaut);
+    const user = profilVersUser({
+      id: "compte-1",
+      prenom: "Alice",
+      formation: "Formation",
+      objectif_moyen_terme: "MT",
+      objectif_long_terme: "LT",
+      debut_suivi: "2026-07-26",
+      preferences_pedagogiques: [],
+      plan: "Consolider la logique.",
+    }, defaut);
     expect(user.plan).toBe("Consolider la logique.");
   });
 });
@@ -258,7 +279,15 @@ describe("charge utile de charger_tout", () => {
   };
 
   const chargeComplete = (surcharge: Record<string, unknown> = {}) => ({
-    profile: { id: "compte-1", prenom: "Maxime" },
+    profile: {
+      id: "compte-1",
+      prenom: "Maxime",
+      formation: "BUT QLIO",
+      objectif_moyen_terme: "Master ITI",
+      objectif_long_terme: "Recherche",
+      debut_suivi: "2026-07-24",
+      preferences_pedagogiques: [],
+    },
     ...Object.fromEntries(CLES_RPC.map((cle) => [cle, []])),
     ...surcharge,
   });
@@ -273,9 +302,8 @@ describe("charge utile de charger_tout", () => {
       defautProfil,
     );
 
-    expect(resultat).not.toBeNull();
-    expect(resultat!.collections.user.prenom).toBe("Maxime");
-    expect(resultat!.collections.refusRecommandations).toEqual([
+    expect(resultat.collections.user.prenom).toBe("Maxime");
+    expect(resultat.collections.refusRecommandations).toEqual([
       { id: "ref-1", code: "DEV-01", exerciceId: "ex-1", date: "2026-08-07" },
     ]);
   });
@@ -298,8 +326,7 @@ describe("charge utile de charger_tout", () => {
       defautProfil,
     );
 
-    expect(resultat).not.toBeNull();
-    expect(resultat!.themes).toEqual([
+    expect(resultat.themes).toEqual([
       {
         id: "thm-1",
         libelle: "Architecture",
@@ -332,8 +359,7 @@ describe("charge utile de charger_tout", () => {
       defautProfil,
     );
 
-    expect(resultat).not.toBeNull();
-    expect(resultat!.moteurReglages).toEqual([
+    expect(resultat.moteurReglages).toEqual([
       {
         id: "reg-1",
         appliqueLe: "2026-08-19T10:00:00Z",
@@ -352,28 +378,60 @@ describe("charge utile de charger_tout", () => {
     for (const cle of CLES_RPC) {
       const ampute = chargeComplete();
       delete (ampute as Record<string, unknown>)[cle];
-      expect(convertirResultatRPC(ampute, defautProfil), `clé « ${cle} » absente`).toBeNull();
+      expect(
+        () => convertirResultatRPC(ampute, defautProfil),
+        `clé « ${cle} » absente`,
+      ).toThrow(/charger_tout/);
     }
   });
 
   it("accepte une liste vide quand la clé est présente — l'absence de donnée est une donnée", () => {
     const resultat = convertirResultatRPC(chargeComplete(), defautProfil);
-    expect(resultat).not.toBeNull();
-    expect(resultat!.collections.refusRecommandations).toEqual([]);
-    expect(resultat!.competences).toEqual([]);
+    expect(resultat.collections.refusRecommandations).toEqual([]);
+    expect(resultat.competences).toEqual([]);
+    expect(resultat.competenceDomaines).toEqual([]);
   });
 
   it("refuse ce qui n'est pas un objet", () => {
-    expect(convertirResultatRPC(null, defautProfil)).toBeNull();
-    expect(convertirResultatRPC([], defautProfil)).toBeNull();
-    expect(convertirResultatRPC("{}", defautProfil)).toBeNull();
+    expect(() => convertirResultatRPC(null, defautProfil)).toThrow(/charger_tout/);
+    expect(() => convertirResultatRPC([], defautProfil)).toThrow(/charger_tout/);
+    expect(() => convertirResultatRPC("{}", defautProfil)).toThrow(/charger_tout/);
   });
 
   it("retombe sur le profil neutre quand la ligne `profiles` n'existe pas encore", () => {
     // Le trigger `handle_new_user` peut n'avoir pas encore écrit : ce n'est pas
     // une charge utile amputée, `profile` est bien présent, à null.
     const resultat = convertirResultatRPC(chargeComplete({ profile: null }), defautProfil);
-    expect(resultat!.collections.user).toEqual(defautProfil);
+    expect(resultat.collections.user).toEqual(defautProfil);
+  });
+
+  it("charge les rattachements competence_domaines", () => {
+    const resultat = convertirResultatRPC(chargeComplete({
+      competence_domaines: [
+        { user_id: "compte-1", code: "DEV-01", domaine: "gestion" },
+      ],
+    }), defautProfil);
+    expect(resultat.competenceDomaines).toEqual([
+      { code: "DEV-01", domaine: "gestion" },
+    ]);
+  });
+
+  it("refuse les nombres encodés en texte au lieu de les convertir", () => {
+    expect(() => convertirResultatRPC(chargeComplete({
+      moteur_reglages: [
+        {
+          id: "reg-1",
+          applique_le: "2026-08-19T10:00:00Z",
+          parametre: "fractionTropFacile",
+          valeur_avant: "0.6",
+          valeur_apres: 0.5,
+          metrique: "erreur-duree",
+          n: 10,
+          valeur_metrique: 0.35,
+          motif: "Ajustement",
+        },
+      ],
+    }), defautProfil)).toThrow(/valeurAvant/);
   });
 });
 

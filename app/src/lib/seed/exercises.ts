@@ -1119,23 +1119,24 @@ function soumettre() {
 
 export async function terminerExercice(soumission) {
   // ... construit une ou plusieurs observations à partir de la soumission
-  for (const [index, code] of exercice.competences.entries()) {
-    const observation = {
+  const observations = exercice.competences.map((code, index) => ({
       skillCode: code,
       niveauObservation: index === 0 ? "A" : "B",
       // ...
-    };
-    await ajouter("observations", observation);
-  }
+  }));
+  await cloreExerciceAtomiquement({ tentative, observations, seance });
 }
 \`\`\`
 
 \`\`\`ts
-// écrit réellement dans la base
-export async function ajouter(nom, element) {
-  const { supabase, userId } = await dorsaleCompte();
-  const { error } = await supabase.from(TABLES[nom]).insert(entiteVersLigne(element, userId));
-  return element;
+// demande à PostgreSQL l'unique transaction de clôture
+export async function cloreExerciceAtomiquement(cloture) {
+  const { supabase } = await dorsaleCompte();
+  const { error } = await supabase.rpc("clore_exercice", {
+    p_tentative: cloture.tentative,
+    p_observations: cloture.observations,
+    p_seance: cloture.seance,
+  });
 }
 \`\`\`
 
@@ -1149,11 +1150,11 @@ Dans Next.js, \`"use client"\` et \`"use server"\` délimitent deux mondes : ce 
       "Le passage d'un monde à l'autre se fait à l'appel d'une fonction marquée \"use server\" — repère cet appel précis dans le premier extrait.",
       "Regarde ce que fait la boucle sur exercice.competences dans le deuxième extrait.",
     ],
-    correction: `Le trajet : clic → \`soumettre()\` côté navigateur → appel à \`terminerExercice(...)\` : c'est **cet appel précis** qui bascule côté serveur, parce que la fonction est marquée \`"use server"\` → dans \`terminerExercice\`, construction de la ou des observations et appel à \`ajouter("observations", observation)\` → dans la fonction \`ajouter\`, l'appel \`supabase.from(...).insert(...)\` est la ligne, et seulement elle, qui touche réellement la base.
+    correction: `Le trajet : clic → \`soumettre()\` côté navigateur → appel à \`terminerExercice(...)\` : c'est **cet appel précis** qui bascule côté serveur, parce que la fonction est marquée \`"use server"\` → dans \`terminerExercice\`, construction de la ou des observations et de la séance → appel à \`cloreExerciceAtomiquement(...)\` → \`supabase.rpc("clore_exercice", ...)\` transmet le tout à PostgreSQL, qui clôt la tentative et écrit ses observations obligatoires dans une seule transaction.
 
 **Annexe.** Un exercice peut viser plusieurs compétences à la fois. La première reçoit une observation directe (niveau A), les suivantes une observation indirecte (niveau B) — la boucle sur \`exercice.competences\` écrit une observation par compétence ciblée.
 
-**Ce que ça apprend :** situer précisément la ligne où un client cesse de parler à lui-même et commence à parler à un serveur (puis à une base) est la compétence de lecture d'architecture la plus rentable sur ce genre de projet.`,
+**Ce que ça apprend :** situer précisément la ligne où un client cesse de parler à lui-même et commence à parler à un serveur (puis la frontière où PostgreSQL garantit l'atomicité est la compétence de lecture d'architecture la plus rentable sur ce genre de projet.`,
     criteres: [
       { dimension: "comprehension", libelle: "J'ai situé correctement la frontière client / serveur" },
       { dimension: "application", libelle: "J'ai tracé le trajet complet jusqu'à l'écriture réelle en base" },

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Exercise, ExerciseAttempt } from "@/lib/domain/types";
 import { analyserDocumentMarkdown } from "./markdown";
-import { construireDocumentProductionPreuve } from "./production";
+import { construireDocumentProductionPreuve, memeProductionHorsHorodatage } from "./production";
 
 const exercice: Exercise = {
   id: "exo-transport",
@@ -54,6 +54,15 @@ describe("document de production devenu preuve", () => {
     expect(document.corps).toContain(tentative.notes ?? "");
     expect(document.contenuMd).not.toContain("application: 1");
     expect(document.contenuMd).not.toContain("resultat: reussi");
+  });
+
+  it("réutilise une capture rejouée seulement si le contenu hors date est identique", () => {
+    const premier = "created_at: 2026-08-20T10:00:00Z\nproduced_at: 2026-08-20T10:00:00Z\nRéponse A";
+    const rejeu = "created_at: 2026-08-20T10:01:00Z\nproduced_at: 2026-08-20T10:01:00Z\nRéponse A";
+    const different = "created_at: 2026-08-20T10:01:00Z\nproduced_at: 2026-08-20T10:01:00Z\nRéponse B";
+
+    expect(memeProductionHorsHorodatage(premier, rejeu)).toBe(true);
+    expect(memeProductionHorsHorodatage(premier, different)).toBe(false);
   });
 });
 

@@ -12,6 +12,7 @@ import { dorsaleCompte, type DorsaleCompte } from "./db";
 import { ligneVersEntite, verifier } from "./supabase-backend";
 import { mesurer } from "@/lib/profiling/server";
 import type { Theme } from "@/lib/domain/theme";
+import { validerLignesSupabase, validerTheme } from "./validation-supabase";
 
 export async function lireThemes(dorsaleFournie?: DorsaleCompte): Promise<Theme[]> {
   const { supabase, userId } = dorsaleFournie ?? (await dorsaleCompte());
@@ -21,5 +22,6 @@ export async function lireThemes(dorsaleFournie?: DorsaleCompte): Promise<Theme[
   );
   verifier("lecture des thèmes", error);
 
-  return ((data ?? []) as Record<string, unknown>[]).map((l) => ligneVersEntite<Theme>(l));
+  return validerLignesSupabase(data, "themes").map((l, index) =>
+    validerTheme(ligneVersEntite<Theme>(l), `themes[${index}]`));
 }

@@ -26,6 +26,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ajouter, dorsaleCompte, lire, modifier, nouvelId, type DorsaleCompte } from "./db";
 import { verifier } from "./supabase-backend";
+import { cloreExerciceAtomiquement } from "./cloture-exercice";
 import {
   avancementSeance,
   exercicesDeLaSeance,
@@ -433,8 +434,7 @@ async function ecrireAbandon(
 
   const date = new Date().toISOString();
   const tentatives = await lire("attempts", dorsale);
-  const exercices = await lire("exercises", dorsale);
-  const parId = new Map(exercices.map((e) => [e.id, e]));
+  const parId = await catalogueExercices(dorsale);
   const prevus = new Set(exercicesDeLaSeance(seance));
 
   /*
@@ -457,12 +457,38 @@ async function ecrireAbandon(
     const duree = exercice
       ? dureeRetenue({ statut: "abandonnee", dureeMin: ecouleMin }, exercice.dureeEstimeeMin) ?? 1
       : Math.max(1, ecouleMin);
-    await modifier(
-      "attempts",
-      tentative.id,
-      { fin: date, dureeMin: duree, statut: "abandonnee" as const },
-      dorsale,
+    const activite = seance.activites.find(
+      (item) => item.type === "exercice" && item.ref === tentative.exerciseId,
     );
+    if (!activite) {
+      throw new Error(`Séance incohérente : activité absente pour ${tentative.exerciseId}.`);
+    }
+
+    await cloreExerciceAtomiquement({
+      tentative: {
+        id: tentative.id,
+        exerciseId: tentative.exerciseId,
+        fin: date,
+        dureeMin: duree,
+        statut: "abandonnee",
+      },
+      observations: [],
+      // Cette charge n'est insérée que si la séance hôte disparaît entre les
+      // lectures. Dans le cas normal, `seance.id` est verrouillée et tient déjà
+      // l'unique entrée de journal.
+      seance: {
+        id: nouvelId("ses"),
+        date,
+        dureeMin: duree,
+        domaines: exercice ? [exercice.domaine] : seance.domaines,
+        skillCodes: exercice ? exercice.competences : seance.skillCodes,
+        activites: [activite],
+        resultat: "Tentative abandonnée — aucune observation enregistrée",
+        genereAutomatiquement: true,
+      },
+      seanceIdContexte: seance.id,
+      seanceHoteRequise: true,
+    }, dorsale);
   }
 
   // Relu après les clôtures : les durées qui viennent d'être écrites font

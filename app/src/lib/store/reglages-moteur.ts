@@ -14,13 +14,12 @@ import "server-only";
 
 import { cache } from "react";
 import { dorsaleCompte, type DorsaleCompte } from "./db";
-import { verifier } from "./supabase-backend";
+import { ligneVersEntite, verifier } from "./supabase-backend";
+import { validerAjustement, validerLignesSupabase } from "./validation-supabase";
 import { mesurer } from "@/lib/profiling/server";
 import {
   reglagesEffectifs,
-  REGLAGES_PAR_DEFAUT,
   type AjustementInscrit,
-  type NomParametre,
   type PropositionAjustement,
   type Reglages,
 } from "@/lib/engine/reglages";
@@ -44,17 +43,8 @@ export async function lireJournalReglages(
   );
   verifier("lecture du journal des réglages", error);
 
-  return ((data ?? []) as Record<string, unknown>[]).map((l) => ({
-    id: String(l.id),
-    appliqueLe: String(l.applique_le),
-    parametre: String(l.parametre) as NomParametre,
-    valeurAvant: Number(l.valeur_avant),
-    valeurApres: Number(l.valeur_apres),
-    metrique: String(l.metrique),
-    n: Number(l.n),
-    valeurMetrique: Number(l.valeur_metrique),
-    motif: String(l.motif),
-  }));
+  return validerLignesSupabase(data, "moteurReglages").map((ligne, index) =>
+    validerAjustement(ligneVersEntite(ligne), `moteurReglages[${index}]`));
 }
 
 /**
@@ -64,18 +54,12 @@ export async function lireJournalReglages(
  * la recommandation. Une lecture de plus, sur une table qui compte zéro ligne
  * tant qu'aucun ajustement n'a eu lieu.
  *
- * **Une panne ne fait pas tomber la page** : sans journal lisible, le moteur
- * tourne avec les valeurs livrées, qui sont un état parfaitement valide — et
- * c'est même le seul repli honnête, puisque c'est celui qui est testé.
+ * Une panne ou une ligne invalide est remontée. Remplacer un journal illisible
+ * par les valeurs livrées ferait passer un état inconnu pour un compte qui n'a
+ * jamais ajusté ses réglages.
  */
-export const chargerReglagesMoteur = cache(async (): Promise<Reglages> => {
-  try {
-    return reglagesEffectifs(await lireJournalReglages());
-  } catch (erreur) {
-    console.error("[reglages-moteur] lecture ignorée, valeurs livrées :", erreur);
-    return { ...REGLAGES_PAR_DEFAUT };
-  }
-});
+export const chargerReglagesMoteur = cache(async (): Promise<Reglages> =>
+  reglagesEffectifs(await lireJournalReglages()));
 
 /* ------------------------------------------------------------------ */
 /* Écriture                                                            */

@@ -1004,6 +1004,172 @@ CREATE POLICY "referentiel_commande_modification" ON public.competences FOR UPDA
 CREATE POLICY "referentiel_commande_suppression" ON public.competences FOR DELETE TO authenticated
   USING ((select auth.uid()) = user_id AND (select current_setting('app.referentiel_command', true)) = 'on');
 
+-- Domaines secondaires du référentiel (ADR-081) : même frontière de commande
+-- transactionnelle et même isolation RLS que le porteur.
+comment on table public.competence_domaines is
+  'Domaines supplémentaires servis par une compétence. Le domaine porteur reste competences.domaine : il donne le code et porte la gouvernance.';
+
+create index if not exists competence_domaines_domaine_idx
+  on public.competence_domaines (user_id, domaine);
+
+-- Un rattachement vers le domaine porteur compterait la compétence deux fois
+-- dans sa propre couverture. La clause vit ici plutôt que dans la seule
+-- fonction : la base reste vraie même si un autre chemin écrit un jour.
+create or replace function public.rattachement_hors_porteur()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if exists (
+    select 1 from public.competences c
+    where c.user_id = new.user_id and c.code = new.code and c.domaine = new.domaine
+  ) then
+    raise exception '% est déjà portée par le domaine « % » : un rattachement ne se superpose pas au porteur.', new.code, new.domaine;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists competence_domaines_hors_porteur on public.competence_domaines;
+create trigger competence_domaines_hors_porteur
+  before insert or update on public.competence_domaines
+  for each row execute function public.rattachement_hors_porteur();
+
+alter table public.competence_domaines enable row level security;
+
+-- Mêmes barrières que `competences` : isolation par compte, `compte_actif()`
+-- pour qu'un compte suspendu cesse de lire (ADR-074), et écriture réservée au
+-- chemin transactionnel du référentiel (ADR-065).
+drop policy if exists referentiel_lecture_compte on public.competence_domaines;
+create policy referentiel_lecture_compte on public.competence_domaines
+  for select using ((select auth.uid()) = user_id and public.compte_actif());
+
+drop policy if exists referentiel_commande_insertion on public.competence_domaines;
+create policy referentiel_commande_insertion on public.competence_domaines
+  for insert with check (
+    (select auth.uid()) = user_id
+    and (select current_setting('app.referentiel_command', true)) = 'on'
+    and public.compte_actif()
+  );
+
+drop policy if exists referentiel_commande_suppression on public.competence_domaines;
+create policy referentiel_commande_suppression on public.competence_domaines
+  for delete using (
+    (select auth.uid()) = user_id
+    and (select current_setting('app.referentiel_command', true)) = 'on'
+    and public.compte_actif()
+  );
+
+grant select, insert, delete on public.competence_domaines to authenticated;
+
+-- Le geste de rattachement, transactionnel comme les autres.
+--
+-- Il ne rejoint pas `appliquer_commande_referentiel` : cette fonction liste ses
+-- types autorisés dans un bloc unique de plus de 13 Ko, et l'étendre ferait
+-- porter à un ajout périphérique le risque de réécrire tout le chemin
+-- d'écriture du référentiel. Les garanties d'ADR-065 sont reprises ici telles
+-- quelles : idempotence par `request_id`, version optimiste, journal
+-- append-only, drapeau de commande.
+create or replace function public.rattacher_competences_domaine(
+  p_request_id text,
+  p_expected_version integer,
+  p_origine text,
+  p_motif text,
+  p_domaine_id text,
+  p_codes text[],
+  p_rattache boolean
+)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = public
+as $$
+DECLARE
+  v_uid UUID := auth.uid();
+  v_version_avant INTEGER;
+  v_version_apres INTEGER;
+  v_resultat JSONB;
+  v_code TEXT;
+  v_porteur TEXT;
+  v_touches JSONB := '[]'::JSONB;
+BEGIN
+  IF v_uid IS NULL THEN RAISE EXCEPTION 'Authentification requise.' USING ERRCODE = '42501'; END IF;
+  IF length(btrim(coalesce(p_request_id, ''))) = 0 THEN RAISE EXCEPTION 'request_id obligatoire.'; END IF;
+  IF p_origine NOT IN ('utilisateur', 'tuteur', 'migration', 'manuel') THEN RAISE EXCEPTION 'Origine inconnue : %', p_origine; END IF;
+  IF length(btrim(coalesce(p_motif, ''))) = 0 THEN RAISE EXCEPTION 'Le motif est obligatoire.'; END IF;
+  IF coalesce(array_length(p_codes, 1), 0) = 0 THEN RAISE EXCEPTION 'Aucune compétence à rattacher.'; END IF;
+
+  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_uid::TEXT || ':request:' || p_request_id, 0));
+
+  SELECT diff -> 'resultat' INTO v_resultat
+  FROM public.referentiel_changes
+  WHERE user_id = v_uid AND request_id = p_request_id;
+  IF FOUND THEN RETURN v_resultat; END IF;
+
+  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_uid::TEXT || ':' || p_domaine_id, 0));
+
+  SELECT version INTO v_version_avant FROM public.domaines
+  WHERE user_id = v_uid AND id = p_domaine_id;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Domaine inconnu : %', p_domaine_id; END IF;
+  IF p_expected_version IS NOT NULL AND p_expected_version <> v_version_avant THEN
+    RAISE EXCEPTION 'Le domaine a changé depuis ta lecture (version % attendue, % en base).', p_expected_version, v_version_avant;
+  END IF;
+
+  PERFORM pg_catalog.set_config('app.referentiel_command', 'on', true);
+
+  FOREACH v_code IN ARRAY p_codes LOOP
+    SELECT domaine INTO v_porteur FROM public.competences
+    WHERE user_id = v_uid AND code = v_code;
+    IF NOT FOUND THEN RAISE EXCEPTION 'Compétence inconnue : %', v_code; END IF;
+    IF v_porteur = p_domaine_id THEN
+      RAISE EXCEPTION '% est déjà portée par ce domaine.', v_code;
+    END IF;
+
+    IF p_rattache THEN
+      INSERT INTO public.competence_domaines (user_id, code, domaine)
+      VALUES (v_uid, v_code, p_domaine_id)
+      ON CONFLICT DO NOTHING;
+    ELSE
+      DELETE FROM public.competence_domaines
+      WHERE user_id = v_uid AND code = v_code AND domaine = p_domaine_id;
+    END IF;
+    v_touches := v_touches || to_jsonb(v_code);
+  END LOOP;
+
+  UPDATE public.domaines SET version = version + 1
+  WHERE user_id = v_uid AND id = p_domaine_id
+  RETURNING version INTO v_version_apres;
+
+  v_resultat := jsonb_build_object(
+    'domaineId', p_domaine_id,
+    'version', v_version_apres,
+    'rattachees', CASE WHEN p_rattache THEN v_touches ELSE '[]'::JSONB END,
+    'detachees', CASE WHEN p_rattache THEN '[]'::JSONB ELSE v_touches END
+  );
+
+  INSERT INTO public.referentiel_changes (user_id, request_id, domaine_id, type, version_avant, version_apres, origine, motif, diff)
+  VALUES (
+    v_uid, p_request_id, p_domaine_id,
+    CASE WHEN p_rattache THEN 'rattacher_competences' ELSE 'detacher_competences' END,
+    v_version_avant, v_version_apres, p_origine, btrim(p_motif),
+    jsonb_build_object('resultat', v_resultat)
+  );
+
+  RETURN v_resultat;
+END;
+$$;
+
+revoke all on function public.rattacher_competences_domaine(text, integer, text, text, text, text[], boolean) from public, anon;
+grant execute on function public.rattacher_competences_domaine(text, integer, text, text, text, text[], boolean) to authenticated;
+
+-- Une fonction de trigger n'a pas à être appelable depuis l'API REST.
+-- Le trigger s'exécute sans passer par le GRANT ; seul l'accès direct se ferme.
+revoke execute on function public.rattachement_hors_porteur() from public;
+revoke execute on function public.rattachement_hors_porteur() from anon;
+revoke execute on function public.rattachement_hors_porteur() from authenticated;
+
 -- Accès le plus fréquent : l'état d'une compétence se recalcule à partir de
 -- toutes ses observations.
 CREATE INDEX IF NOT EXISTS observations_user_skill_idx
@@ -1067,12 +1233,531 @@ GRANT EXECUTE ON FUNCTION public.appliquer_commande_referentiel(TEXT, INTEGER, T
 REVOKE ALL ON FUNCTION public.refuser_mutation_gouvernance_referentiel() FROM PUBLIC, anon, authenticated;
 
 -- --------------------------------------------------------------------
--- 8bis. Chargement groupé — les huit tables du compte en un aller-retour
+-- 8bis. Clôture atomique d'exercice et provenance exacte (lot 2)
+-- --------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION public.verifier_cloture_tentative_atomique()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+BEGIN
+  IF OLD.statut = 'en-cours'
+     AND NEW.statut IN ('terminee', 'abandonnee')
+     AND COALESCE(current_setting('app.cloture_exercice', true), '') <> 'on'
+  THEN
+    RAISE EXCEPTION
+      'La clôture de la tentative % doit passer par clore_exercice().', NEW.id
+      USING ERRCODE = 'P0001';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.verifier_cloture_tentative_atomique()
+  FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS attempts_cloture_atomique ON public.attempts;
+CREATE TRIGGER attempts_cloture_atomique
+BEFORE UPDATE ON public.attempts
+FOR EACH ROW
+EXECUTE FUNCTION public.verifier_cloture_tentative_atomique();
+
+CREATE OR REPLACE FUNCTION public.verifier_source_observation_exacte()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+DECLARE
+  v_tentative public.attempts%ROWTYPE;
+BEGIN
+  IF COALESCE(current_setting('app.cloture_exercice', true), '') <> 'on' THEN
+    RAISE EXCEPTION
+      'Toute nouvelle observation doit être écrite par clore_exercice().'
+      USING ERRCODE = 'P0001';
+  END IF;
+
+  IF jsonb_typeof(NEW.source) IS DISTINCT FROM 'object'
+     OR NEW.source->>'kind' IS DISTINCT FROM 'exercice'
+     OR COALESCE(NEW.source->>'ref', '') = ''
+     OR jsonb_typeof(NEW.source->'trace') IS DISTINCT FROM 'object'
+     OR NEW.source->'trace'->>'kind' IS DISTINCT FROM 'tentative'
+     OR COALESCE(NEW.source->'trace'->>'ref', '') = ''
+  THEN
+    RAISE EXCEPTION
+      'La provenance de l''observation % ne désigne pas une tentative exacte.', NEW.id
+      USING ERRCODE = '22023';
+  END IF;
+
+  SELECT a.*
+  INTO v_tentative
+  FROM public.attempts AS a
+  WHERE a.user_id = NEW.user_id
+    AND a.id = NEW.source->'trace'->>'ref';
+
+  IF NOT FOUND
+     OR v_tentative.statut IS DISTINCT FROM 'terminee'
+     OR v_tentative.exercise_id IS DISTINCT FROM NEW.source->>'ref'
+  THEN
+    RAISE EXCEPTION
+      'La provenance de l''observation % ne correspond pas à une tentative terminée du même exercice.', NEW.id
+      USING ERRCODE = '23514';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.verifier_source_observation_exacte()
+  FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS observations_source_exacte ON public.observations;
+CREATE TRIGGER observations_source_exacte
+BEFORE INSERT ON public.observations
+FOR EACH ROW
+EXECUTE FUNCTION public.verifier_source_observation_exacte();
+
+CREATE OR REPLACE FUNCTION public.verifier_session_exercice_atomique()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+BEGIN
+  IF NEW.genere_automatiquement
+     AND EXISTS (
+       SELECT 1
+       FROM jsonb_array_elements(NEW.activites) AS activites(activite)
+       WHERE activite->>'type' = 'exercice'
+     )
+     AND COALESCE(current_setting('app.cloture_exercice', true), '') <> 'on'
+  THEN
+    RAISE EXCEPTION
+      'Une séance automatique d''exercice doit être écrite par clore_exercice().'
+      USING ERRCODE = 'P0001';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.verifier_session_exercice_atomique()
+  FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS sessions_exercice_atomique ON public.sessions;
+CREATE TRIGGER sessions_exercice_atomique
+BEFORE INSERT ON public.sessions
+FOR EACH ROW
+EXECUTE FUNCTION public.verifier_session_exercice_atomique();
+
+CREATE OR REPLACE FUNCTION public.clore_exercice(
+  p_tentative JSONB,
+  p_observations JSONB,
+  p_seance JSONB,
+  p_seance_id_contexte TEXT DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = ''
+AS $$
+DECLARE
+  v_uid UUID := auth.uid();
+  v_tentative public.attempts%ROWTYPE;
+  v_id TEXT;
+  v_exercice_id TEXT;
+  v_statut TEXT;
+  v_fin TEXT;
+  v_duree INTEGER;
+  v_resultat TEXT;
+  v_seance_id TEXT;
+  v_seance_hote_requise BOOLEAN := false;
+  v_seance_creee BOOLEAN := false;
+  v_nombre_observations INTEGER := 0;
+BEGIN
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'Authentification requise.' USING ERRCODE = '42501';
+  END IF;
+
+  IF jsonb_typeof(p_tentative) IS DISTINCT FROM 'object' THEN
+    RAISE EXCEPTION 'p_tentative doit être un objet JSON.' USING ERRCODE = '22023';
+  END IF;
+  IF jsonb_typeof(p_observations) IS DISTINCT FROM 'array' THEN
+    RAISE EXCEPTION 'p_observations doit être un tableau JSON.' USING ERRCODE = '22023';
+  END IF;
+  IF jsonb_typeof(p_seance) IS DISTINCT FROM 'object' THEN
+    RAISE EXCEPTION 'p_seance doit être un objet JSON.' USING ERRCODE = '22023';
+  END IF;
+
+  v_id := p_tentative->>'id';
+  v_exercice_id := p_tentative->>'exerciseId';
+  v_statut := p_tentative->>'statut';
+  v_fin := p_tentative->>'fin';
+
+  IF COALESCE(v_id, '') = ''
+     OR COALESCE(v_exercice_id, '') = ''
+     OR v_statut NOT IN ('terminee', 'abandonnee')
+     OR COALESCE(v_fin, '') = ''
+     OR jsonb_typeof(p_tentative->'dureeMin') IS DISTINCT FROM 'number'
+     OR (p_tentative->>'dureeMin') !~ '^[0-9]+$'
+  THEN
+    RAISE EXCEPTION 'Clôture de tentative invalide.' USING ERRCODE = '22023';
+  END IF;
+
+  BEGIN
+    PERFORM v_fin::timestamptz;
+  EXCEPTION WHEN invalid_datetime_format OR datetime_field_overflow THEN
+    RAISE EXCEPTION 'Date de fin de tentative invalide.' USING ERRCODE = '22007';
+  END;
+
+  v_duree := (p_tentative->>'dureeMin')::integer;
+  IF v_duree < 0 THEN
+    RAISE EXCEPTION 'Durée de tentative invalide.' USING ERRCODE = '22023';
+  END IF;
+
+  SELECT a.*
+  INTO v_tentative
+  FROM public.attempts AS a
+  WHERE a.user_id = v_uid AND a.id = v_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Tentative introuvable.' USING ERRCODE = 'P0002';
+  END IF;
+  IF v_tentative.exercise_id IS DISTINCT FROM v_exercice_id THEN
+    RAISE EXCEPTION 'La tentative ne correspond pas à l''exercice.' USING ERRCODE = '23514';
+  END IF;
+
+  IF v_tentative.statut <> 'en-cours' THEN
+    IF v_tentative.statut = 'abandonnee' AND v_statut = 'abandonnee' THEN
+      RETURN jsonb_build_object(
+        'appliquee', false,
+        'tentativeId', v_id,
+        'observations', 0,
+        'seanceId', NULL,
+        'seanceCreee', false
+      );
+    END IF;
+    RAISE EXCEPTION 'Cette tentative est déjà close.' USING ERRCODE = '23514';
+  END IF;
+
+  IF p_tentative ? 'notes'
+     AND p_tentative->'notes' <> 'null'::jsonb
+     AND jsonb_typeof(p_tentative->'notes') IS DISTINCT FROM 'string'
+  THEN
+    RAISE EXCEPTION 'Les notes de tentative sont invalides.' USING ERRCODE = '22023';
+  END IF;
+  IF p_tentative ? 'verdictTuteur'
+     AND p_tentative->'verdictTuteur' <> 'null'::jsonb
+     AND jsonb_typeof(p_tentative->'verdictTuteur') IS DISTINCT FROM 'object'
+  THEN
+    RAISE EXCEPTION 'Le verdict du tuteur est invalide.' USING ERRCODE = '22023';
+  END IF;
+
+  IF p_tentative ? 'seanceHoteRequise' THEN
+    IF jsonb_typeof(p_tentative->'seanceHoteRequise') IS DISTINCT FROM 'boolean' THEN
+      RAISE EXCEPTION 'Le marqueur de séance hôte est invalide.' USING ERRCODE = '22023';
+    END IF;
+    v_seance_hote_requise := (p_tentative->>'seanceHoteRequise')::boolean;
+  END IF;
+
+  IF v_statut = 'terminee' THEN
+    v_resultat := p_tentative->>'resultat';
+    IF v_resultat NOT IN ('reussi', 'partiel', 'echec')
+       OR jsonb_typeof(p_tentative->'evaluation') IS DISTINCT FROM 'object'
+       OR jsonb_array_length(p_observations) = 0
+    THEN
+      RAISE EXCEPTION 'Une tentative terminée exige un résultat, une évaluation et des observations.'
+        USING ERRCODE = '22023';
+    END IF;
+
+    IF EXISTS (
+      SELECT 1
+      FROM jsonb_each(p_tentative->'evaluation') AS dimension(cle, valeur)
+      WHERE cle NOT IN ('comprehension', 'application', 'transfert', 'integration', 'justification')
+         OR jsonb_typeof(valeur) <> 'number'
+         OR (valeur #>> '{}')::numeric < 0
+         OR (valeur #>> '{}')::numeric > 1
+    ) THEN
+      RAISE EXCEPTION 'Une dimension de l''évaluation est invalide.' USING ERRCODE = '22023';
+    END IF;
+
+    IF EXISTS (
+      SELECT 1
+      FROM jsonb_array_elements(p_observations) AS observations(observation)
+      WHERE jsonb_typeof(observation) <> 'object'
+         OR COALESCE(observation->>'id', '') = ''
+         OR COALESCE(observation->>'skillCode', '') = ''
+         OR observation->>'date' IS DISTINCT FROM v_fin
+         OR observation->>'type' NOT IN (
+              'exercice', 'explication', 'code', 'calcul', 'projet',
+              'correction-erreur', 'transfert', 'etude-de-cas'
+            )
+         OR observation->>'niveauObservation' NOT IN ('A', 'B')
+         OR observation->>'autonomie' NOT IN ('A0', 'A1', 'A2', 'A3', 'A4')
+         OR observation->>'qualite' NOT IN ('faible', 'moyenne', 'forte')
+         OR observation->>'resultat' IS DISTINCT FROM v_resultat
+         OR COALESCE(observation->>'contexte', '') = ''
+         OR jsonb_typeof(observation->'dimensions') IS DISTINCT FROM 'object'
+         OR observation->'dimensions' IS DISTINCT FROM p_tentative->'evaluation'
+         OR jsonb_typeof(observation->'source') IS DISTINCT FROM 'object'
+         OR observation->'source'->>'kind' IS DISTINCT FROM 'exercice'
+         OR observation->'source'->>'ref' IS DISTINCT FROM v_exercice_id
+         OR (
+              observation ? 'competencesCombinees'
+              AND jsonb_typeof(observation->'competencesCombinees') IS DISTINCT FROM 'array'
+            )
+         OR (
+              observation ? 'commentaire'
+              AND observation->'commentaire' <> 'null'::jsonb
+              AND jsonb_typeof(observation->'commentaire') IS DISTINCT FROM 'string'
+            )
+    ) THEN
+      RAISE EXCEPTION 'Une observation obligatoire est invalide.' USING ERRCODE = '22023';
+    END IF;
+
+    IF EXISTS (
+      SELECT 1
+      FROM jsonb_array_elements(p_observations) AS observations(observation),
+           LATERAL jsonb_each(observation->'dimensions') AS dimension(cle, valeur)
+      WHERE cle NOT IN ('comprehension', 'application', 'transfert', 'integration', 'justification')
+         OR jsonb_typeof(valeur) <> 'number'
+         OR (valeur #>> '{}')::numeric < 0
+         OR (valeur #>> '{}')::numeric > 1
+    ) THEN
+      RAISE EXCEPTION 'Une dimension d''observation est invalide.' USING ERRCODE = '22023';
+    END IF;
+
+    IF EXISTS (
+      SELECT 1
+      FROM jsonb_array_elements(p_observations) AS observations(observation)
+      WHERE observation ? 'competencesCombinees'
+        AND EXISTS (
+          SELECT 1
+          FROM jsonb_array_elements(observation->'competencesCombinees') AS codes(code)
+          WHERE jsonb_typeof(code) <> 'string' OR COALESCE(code #>> '{}', '') = ''
+        )
+    ) THEN
+      RAISE EXCEPTION 'Une compétence combinée est invalide.' USING ERRCODE = '22023';
+    END IF;
+
+    IF (
+      SELECT count(*)
+      FROM jsonb_array_elements(p_observations) AS observations(observation)
+    ) <> (
+      SELECT count(DISTINCT observation->>'skillCode')
+      FROM jsonb_array_elements(p_observations) AS observations(observation)
+    ) THEN
+      RAISE EXCEPTION 'Une compétence ne peut recevoir deux observations dans la même clôture.'
+        USING ERRCODE = '23505';
+    END IF;
+  ELSE
+    IF jsonb_array_length(p_observations) <> 0 THEN
+      RAISE EXCEPTION 'Une tentative abandonnée ne produit aucune observation.'
+        USING ERRCODE = '23514';
+    END IF;
+  END IF;
+
+  IF COALESCE(p_seance->>'id', '') = ''
+     OR p_seance->>'date' IS DISTINCT FROM v_fin
+     OR jsonb_typeof(p_seance->'dureeMin') IS DISTINCT FROM 'number'
+     OR (p_seance->>'dureeMin') !~ '^[0-9]+$'
+     OR (p_seance->>'dureeMin')::integer IS DISTINCT FROM v_duree
+     OR jsonb_typeof(p_seance->'domaines') IS DISTINCT FROM 'array'
+     OR jsonb_typeof(p_seance->'skillCodes') IS DISTINCT FROM 'array'
+     OR jsonb_typeof(p_seance->'activites') IS DISTINCT FROM 'array'
+     OR p_seance->'genereAutomatiquement' IS DISTINCT FROM 'true'::jsonb
+  THEN
+    RAISE EXCEPTION 'La séance de journal est invalide.' USING ERRCODE = '22023';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM jsonb_array_elements(p_seance->'activites') AS activites(activite)
+    WHERE activite->>'type' = 'exercice'
+      AND activite->>'ref' = v_exercice_id
+      AND COALESCE(activite->>'libelle', '') <> ''
+  ) THEN
+    RAISE EXCEPTION 'La séance ne journalise pas l''exercice clos.' USING ERRCODE = '23514';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM jsonb_array_elements(p_seance->'domaines') AS domaines(domaine)
+    WHERE jsonb_typeof(domaine) <> 'string' OR COALESCE(domaine #>> '{}', '') = ''
+  ) OR EXISTS (
+    SELECT 1
+    FROM jsonb_array_elements(p_seance->'skillCodes') AS codes(code)
+    WHERE jsonb_typeof(code) <> 'string' OR COALESCE(code #>> '{}', '') = ''
+  ) THEN
+    RAISE EXCEPTION 'Les rattachements de la séance sont invalides.' USING ERRCODE = '22023';
+  END IF;
+
+  IF v_statut = 'terminee' AND (
+    jsonb_array_length(p_observations) <> jsonb_array_length(p_seance->'skillCodes')
+    OR EXISTS (
+      SELECT 1
+      FROM jsonb_array_elements_text(p_seance->'skillCodes') AS codes(code)
+      WHERE NOT EXISTS (
+        SELECT 1
+        FROM jsonb_array_elements(p_observations) AS observations(observation)
+        WHERE observation->>'skillCode' = code
+      )
+    )
+  ) THEN
+    RAISE EXCEPTION 'Les observations obligatoires ne couvrent pas toutes les compétences de la séance.'
+      USING ERRCODE = '23514';
+  END IF;
+
+  IF v_seance_hote_requise THEN
+    IF COALESCE(p_seance_id_contexte, '') = '' THEN
+      RAISE EXCEPTION 'La séance hôte explicite est requise.' USING ERRCODE = '22023';
+    END IF;
+
+    SELECT s.id
+    INTO v_seance_id
+    FROM public.sessions AS s
+    WHERE s.user_id = v_uid
+      AND s.id = p_seance_id_contexte
+      AND EXISTS (
+        SELECT 1
+        FROM jsonb_array_elements(s.activites) AS activites(activite)
+        WHERE activite->>'type' = 'exercice'
+          AND activite->>'ref' = v_exercice_id
+      )
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'La séance hôte explicite est introuvable ou incohérente.'
+        USING ERRCODE = '23514';
+    END IF;
+  ELSE
+    SELECT s.id
+    INTO v_seance_id
+    FROM public.sessions AS s
+    WHERE s.user_id = v_uid
+      AND s.statut = 'en-cours'
+      AND EXISTS (
+        SELECT 1
+        FROM jsonb_array_elements(s.activites) AS activites(activite)
+        WHERE activite->>'type' = 'exercice'
+          AND activite->>'ref' = v_exercice_id
+      )
+    ORDER BY (s.id = p_seance_id_contexte) DESC, s.date DESC, s.id DESC
+    LIMIT 1
+    FOR UPDATE;
+  END IF;
+
+  PERFORM set_config('app.cloture_exercice', 'on', true);
+
+  UPDATE public.attempts
+  SET fin = v_fin,
+      duree_min = v_duree,
+      evaluation = CASE
+        WHEN v_statut = 'terminee' THEN p_tentative->'evaluation'
+        ELSE evaluation
+      END,
+      resultat = CASE
+        WHEN v_statut = 'terminee' THEN v_resultat
+        ELSE resultat
+      END,
+      statut = v_statut,
+      notes = CASE
+        WHEN p_tentative ? 'notes' THEN p_tentative->>'notes'
+        ELSE notes
+      END,
+      verdict_tuteur = CASE
+        WHEN p_tentative ? 'verdictTuteur' THEN p_tentative->'verdictTuteur'
+        ELSE verdict_tuteur
+      END
+  WHERE user_id = v_uid AND id = v_id;
+
+  IF v_statut = 'terminee' THEN
+    INSERT INTO public.observations (
+      id, user_id, skill_code, date, type, niveau_observation, autonomie,
+      qualite, resultat, contexte, dimensions, competences_combinees, source,
+      commentaire
+    )
+    SELECT
+      observation->>'id',
+      v_uid,
+      observation->>'skillCode',
+      observation->>'date',
+      observation->>'type',
+      observation->>'niveauObservation',
+      observation->>'autonomie',
+      observation->>'qualite',
+      observation->>'resultat',
+      observation->>'contexte',
+      observation->'dimensions',
+      CASE
+        WHEN observation ? 'competencesCombinees'
+        THEN ARRAY(
+          SELECT jsonb_array_elements_text(observation->'competencesCombinees')
+        )
+        ELSE NULL
+      END,
+      jsonb_set(
+        observation->'source',
+        '{trace}',
+        jsonb_build_object('kind', 'tentative', 'ref', v_id),
+        true
+      ),
+      observation->>'commentaire'
+    FROM jsonb_array_elements(p_observations) AS observations(observation);
+
+    GET DIAGNOSTICS v_nombre_observations = ROW_COUNT;
+  END IF;
+
+  IF v_seance_id IS NULL THEN
+    v_seance_id := p_seance->>'id';
+    INSERT INTO public.sessions (
+      id, user_id, date, duree_min, domaines, skill_codes, activites,
+      resultat, difficulte, apprentissage_principal, prochaine_action,
+      note_personnelle, genere_automatiquement, statut, planifiee_pour,
+      besoin_declare, blueprint
+    ) VALUES (
+      v_seance_id,
+      v_uid,
+      p_seance->>'date',
+      (p_seance->>'dureeMin')::integer,
+      ARRAY(SELECT jsonb_array_elements_text(p_seance->'domaines')),
+      ARRAY(SELECT jsonb_array_elements_text(p_seance->'skillCodes')),
+      p_seance->'activites',
+      p_seance->>'resultat',
+      p_seance->>'difficulte',
+      p_seance->>'apprentissagePrincipal',
+      p_seance->>'prochaineAction',
+      p_seance->>'notePersonnelle',
+      true,
+      p_seance->>'statut',
+      p_seance->>'planifieePour',
+      p_seance->'besoinDeclare',
+      p_seance->'blueprint'
+    );
+    v_seance_creee := true;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'appliquee', true,
+    'tentativeId', v_id,
+    'observations', v_nombre_observations,
+    'seanceId', v_seance_id,
+    'seanceCreee', v_seance_creee
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.clore_exercice(JSONB, JSONB, JSONB, TEXT)
+  FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.clore_exercice(JSONB, JSONB, JSONB, TEXT)
+  TO authenticated;
+
+-- --------------------------------------------------------------------
+-- 8ter. Chargement groupé — toutes les données du compte en un aller-retour
 --
--- Sept requêtes parallèles coûtaient ~750 ms de latence cumulée ; cette
+-- Les requêtes parallèles coûtaient ~750 ms de latence cumulée ; cette
 -- RPC les ramène à un seul aller-retour. `chargerToutRPC` (lib/store/db.ts)
--- l'appelle et se replie sur les lectures séparées si elle est absente
--- **ou si sa charge utile ne porte pas toutes les clés attendues**.
+-- l'appelle et se replie sur les lectures séparées seulement si elle est
+-- absente. Une charge présente mais invalide est refusée explicitement.
 --
 -- Cette fonction a longtemps vécu uniquement dans Supabase Studio : elle a
 -- dérivé du schéma en oubliant `refus_recommandations`, et « Passer une
@@ -1101,6 +1786,8 @@ BEGIN
                    COALESCE((SELECT json_agg(row_to_json(r)) FROM refus_recommandations r WHERE r.user_id = uid), '[]'::json),
     'domaines',    COALESCE((SELECT json_agg(row_to_json(d)) FROM domaines d WHERE d.user_id = uid), '[]'::json),
     'competences', COALESCE((SELECT json_agg(row_to_json(c)) FROM competences c WHERE c.user_id = uid), '[]'::json),
+    'competence_domaines',
+                   COALESCE((SELECT json_agg(row_to_json(cd)) FROM competence_domaines cd WHERE cd.user_id = uid), '[]'::json),
     'themes',      COALESCE((SELECT json_agg(row_to_json(t)) FROM themes t WHERE t.user_id = uid), '[]'::json),
     'moteur_reglages',
                    COALESCE((SELECT json_agg(row_to_json(m)) FROM (SELECT * FROM public.moteur_reglages WHERE user_id = uid ORDER BY applique_le ASC) m), '[]'::json)

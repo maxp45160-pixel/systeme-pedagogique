@@ -15,7 +15,10 @@ import type {
   ResumeSnapshotDocument,
   SnapshotDocument,
 } from "@/lib/documents/types-documents";
-import type { DocumentProductionPreuve } from "@/lib/documents/production";
+import {
+  memeProductionHorsHorodatage,
+  type DocumentProductionPreuve,
+} from "@/lib/documents/production";
 import { supprimerStockagePiecesJointes } from "./document-attachments";
 
 const TABLE_DOCUMENTS = "documents";
@@ -404,9 +407,50 @@ export async function capturerDocumentProduction(
   captureReason: string,
 ): Promise<{ documentId: string; snapshotId: string }> {
   const dorsale = await dorsaleCompte();
-  await creerDocument(production.id, production.contenuMd, dorsale);
+  const identifiant = verifierIdentifiant(production.id);
+  const { data: existant, error: lectureErreur } = await dorsale.supabase
+    .from(TABLE_DOCUMENTS)
+    .select("contenu_md")
+    .eq("user_id", dorsale.userId)
+    .eq("id", identifiant)
+    .maybeSingle();
+  verifier("lecture de la production déjà capturée", lectureErreur);
+
+  if (existant) {
+    // Une RPC peut échouer après cette capture, puis être rejouée. La date de
+    // la nouvelle soumission change, pas la production. On réutilise le
+    // snapshot déjà figé uniquement si tout le contenu hors horodatage est
+    // identique ; une réponse ou un support différent est refusé explicitement.
+    if (
+      typeof existant.contenu_md !== "string" ||
+      !memeProductionHorsHorodatage(existant.contenu_md, production.contenuMd)
+    ) {
+      throw new Error(
+        `La production ${identifiant} existe déjà avec un contenu différent : clôture refusée.`,
+      );
+    }
+
+    const { data: snapshotExistant, error: snapshotErreur } = await dorsale.supabase
+      .from(TABLE_SNAPSHOTS)
+      .select("id")
+      .eq("user_id", dorsale.userId)
+      .eq("document_id", identifiant)
+      .order("version", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    verifier("lecture du snapshot de production existant", snapshotErreur);
+    if (snapshotExistant) {
+      if (typeof snapshotExistant.id !== "string" || snapshotExistant.id.length === 0) {
+        throw new Error(`Snapshot invalide pour la production ${identifiant}.`);
+      }
+      return { documentId: identifiant, snapshotId: snapshotExistant.id };
+    }
+  } else {
+    await creerDocument(identifiant, production.contenuMd, dorsale);
+  }
+
   const snapshot = await creerSnapshotDocument(production.id, captureReason, dorsale);
-  return { documentId: production.id, snapshotId: snapshot.id };
+  return { documentId: identifiant, snapshotId: snapshot.id };
 }
 
 /**

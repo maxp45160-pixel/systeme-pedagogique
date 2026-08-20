@@ -57,16 +57,18 @@ describe("rattachement d'une compétence à plusieurs domaines", () => {
    * propre couverture. La base l'interdit par trigger ; l'assemblage ne doit pas
    * le laisser passer non plus si une ligne ancienne traînait.
    */
-  it("ignore un rattachement vers le domaine porteur ou vers un domaine disparu", () => {
-    const referentiel = assemblerReferentiel(
+  it("refuse un rattachement vers le domaine porteur ou vers un domaine disparu", () => {
+    expect(() => assemblerReferentiel(
       [STATISTIQUES, LOGISTIQUE],
       [PARTAGEE],
-      [
-        { code: "STA-01", domaine: "statistiques" },
-        { code: "STA-01", domaine: "domaine-supprime" },
-      ],
-    );
-    expect(referentiel.parCode.get("STA-01")?.domainesSecondaires).toEqual([]);
+      [{ code: "STA-01", domaine: "statistiques" }],
+    )).toThrow(/domaine porteur/);
+
+    expect(() => assemblerReferentiel(
+      [STATISTIQUES, LOGISTIQUE],
+      [PARTAGEE],
+      [{ code: "STA-01", domaine: "domaine-supprime" }],
+    )).toThrow(/domaine absent/);
   });
 
   it("compte la compétence rattachée dans la couverture du second domaine", () => {

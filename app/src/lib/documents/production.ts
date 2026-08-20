@@ -7,6 +7,17 @@ export interface DocumentProductionPreuve {
   exerciseId: string;
 }
 
+/**
+ * Compare deux captures d'une même tentative sans confondre l'heure du clic de
+ * rejeu avec le contenu produit. Tous les autres octets restent significatifs.
+ */
+export function memeProductionHorsHorodatage(a: string, b: string): boolean {
+  const sansHorodatage = (contenu: string) => contenu
+    .replace(/^created_at: .*$/m, "created_at: <date>")
+    .replace(/^produced_at: .*$/m, "produced_at: <date>");
+  return sansHorodatage(a) === sansHorodatage(b);
+}
+
 function listeMarkdown(valeurs: string[]): string {
   return valeurs.map((valeur) => `- [[${valeur}]]`).join("\n");
 }

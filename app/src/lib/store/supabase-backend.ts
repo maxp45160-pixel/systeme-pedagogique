@@ -17,17 +17,23 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   Domaine,
-  Exercise,
-  ExerciseAttempt,
-  LearningSession,
-  RefusRecommandation,
   Skill,
-  SkillObservation,
   User,
 } from "@/lib/domain/types";
 import type { Theme } from "@/lib/domain/theme";
-import type { AjustementInscrit, NomParametre } from "@/lib/engine/reglages";
+import type { AjustementInscrit } from "@/lib/engine/reglages";
 import type { Collections } from "./db";
+import {
+  DonneeSupabaseInvalide,
+  validerAjustement,
+  validerCompetence,
+  validerDomaine,
+  validerEntiteSupabase,
+  validerRattachement,
+  validerTheme,
+  validerUser,
+  type RattachementDomaine,
+} from "./validation-supabase";
 
 /** Collections tabulaires — `user` est traité à part (table `profiles`). */
 export type CleListe = Exclude<keyof Collections, "user">;
@@ -87,35 +93,30 @@ export function entiteVersLigne(
 /* ------------------------------------------------------------------ */
 
 /**
- * Le profil ne suit pas la règle générale : il est fusionné avec les valeurs
- * par défaut, car un compte fraîchement créé par le trigger SQL n'a ni
- * formation ni objectifs renseignés, et l'interface doit rester lisible.
+ * Le profil ne suit pas la règle générale parce que ses colonnes ne portent
+ * pas toutes les mêmes noms que `User`. Une ligne présente est néanmoins
+ * validée sans repli : une valeur invalide venue de Supabase ne doit jamais
+ * devenir une valeur plausible fabriquée. Le profil neutre ne sert qu'au cas
+ * distinct où aucune ligne n'existe encore pendant la création du compte.
  */
 export function profilVersUser(
   ligne: Record<string, unknown>,
   defaut: User,
 ): User {
-  const texte = (v: unknown, repli: string) =>
-    typeof v === "string" && v.trim().length > 0 ? v : repli;
-
-  return {
-    id: String(ligne.id),
-    prenom: texte(ligne.prenom, defaut.prenom),
-    avatarUrl:
-      typeof ligne.avatar_url === "string" && ligne.avatar_url.trim().length > 0
-        ? ligne.avatar_url.trim()
-        : defaut.avatarUrl,
-    formation: texte(ligne.formation, defaut.formation),
-    objectifMoyenTerme: texte(ligne.objectif_moyen_terme, defaut.objectifMoyenTerme),
-    objectifLongTerme: texte(ligne.objectif_long_terme, defaut.objectifLongTerme),
-    debutSuivi: texte(ligne.debut_suivi, defaut.debutSuivi),
-    preferencesPedagogiques: Array.isArray(ligne.preferences_pedagogiques)
-      ? (ligne.preferences_pedagogiques as string[])
-      : (defaut.preferencesPedagogiques ?? []),
-    // Le plan n'a pas de repli : non déclaré, il reste absent. Un texte par
-    // défaut serait une intention prêtée à la personne.
-    plan: typeof ligne.plan === "string" && ligne.plan.trim().length > 0 ? ligne.plan : undefined,
-  };
+  if (
+    !Array.isArray(ligne.preferences_pedagogiques) ||
+    ligne.preferences_pedagogiques.some((preference) => typeof preference !== "string")
+  ) {
+    throw new DonneeSupabaseInvalide(
+      "profile.preferencesPedagogiques",
+      "tableau de textes attendu",
+    );
+  }
+  const user = ligneVersEntite<User>(ligne);
+  if (user.id !== defaut.id) {
+    throw new DonneeSupabaseInvalide("profile.id", `identifiant du compte ${defaut.id} attendu`);
+  }
+  return validerUser(user);
 }
 
 // La traduction inverse (User → colonnes `profiles`) n'existe pas : aucun
@@ -131,6 +132,7 @@ export interface ResultatRPC {
   collections: Collections;
   domaines: Domaine[];
   competences: Skill[];
+  competenceDomaines: RattachementDomaine[];
   themes: Theme[];
   moteurReglages: AjustementInscrit[];
 }
@@ -149,6 +151,7 @@ export const CLES_RPC = [
   "refus_recommandations",
   "domaines",
   "competences",
+  "competence_domaines",
   "themes",
   "moteur_reglages",
 ] as const;
@@ -156,9 +159,10 @@ export const CLES_RPC = [
 /**
  * Charge utile de `charger_tout` → entités du domaine.
  *
- * Renvoie `null` — et n'invente rien — dès qu'une clé attendue manque : le
- * code appelant se replie alors sur les lectures séparées, qui, elles, lisent
- * bien toutes les tables.
+ * Refuse explicitement toute clé manquante ou valeur invalide. Le repli vers
+ * les lectures séparées est réservé au seul cas où la fonction SQL n'existe
+ * pas encore ; une charge utile présente mais incohérente n'est pas une panne
+ * de transport et ne doit pas être masquée.
  *
  * C'est le garde-fou qui manquait. La fonction SQL a vécu deux mois sans
  * renvoyer `refus_recommandations` ; la conversion fabriquait un `[]` pour la
@@ -173,53 +177,65 @@ export const CLES_RPC = [
 export function convertirResultatRPC(
   brut: unknown,
   defautProfil: User,
-): ResultatRPC | null {
-  if (!brut || typeof brut !== "object" || Array.isArray(brut)) return null;
+): ResultatRPC {
+  if (!brut || typeof brut !== "object" || Array.isArray(brut)) {
+    throw new DonneeSupabaseInvalide("charger_tout", "objet JSON attendu");
+  }
   const charge = brut as Record<string, unknown>;
 
   const manquantes = CLES_RPC.filter((cle) => !(cle in charge));
   if (manquantes.length > 0) {
-    console.warn(
-      `[store] charger_tout : clés absentes de la charge utile (${manquantes.join(", ")})` +
-        " — repli sur les lectures séparées. La fonction SQL a dérivé du schéma.",
+    throw new DonneeSupabaseInvalide(
+      "charger_tout",
+      `clés présentes (${manquantes.join(", ")} absente${manquantes.length > 1 ? "s" : ""})`,
     );
-    return null;
   }
 
   const profilBrut = charge.profile as Record<string, unknown> | null;
   const user: User = profilBrut ? profilVersUser(profilBrut, defautProfil) : defautProfil;
 
-  const convertirListe = <T>(cle: string): T[] =>
-    ((charge[cle] as Record<string, unknown>[] | null) ?? []).map((l) =>
-      ligneVersEntite<T>(l),
-    );
+  const lignes = (cle: string): Record<string, unknown>[] => {
+    const valeur = charge[cle];
+    if (!Array.isArray(valeur)) {
+      throw new DonneeSupabaseInvalide(`charger_tout.${cle}`, "tableau attendu");
+    }
+    return valeur.map((ligne, index) => {
+      if (!ligne || typeof ligne !== "object" || Array.isArray(ligne)) {
+        throw new DonneeSupabaseInvalide(`charger_tout.${cle}[${index}]`, "ligne objet attendue");
+      }
+      return ligne as Record<string, unknown>;
+    });
+  };
 
-  const moteurReglages: AjustementInscrit[] = (
-    (charge.moteur_reglages as Record<string, unknown>[] | null) ?? []
-  ).map((l) => ({
-    id: String(l.id),
-    appliqueLe: String(l.applique_le),
-    parametre: String(l.parametre) as NomParametre,
-    valeurAvant: Number(l.valeur_avant),
-    valeurApres: Number(l.valeur_apres),
-    metrique: String(l.metrique),
-    n: Number(l.n),
-    valeurMetrique: Number(l.valeur_metrique),
-    motif: String(l.motif),
-  }));
+  const convertirCollection = <K extends CleListe>(cle: string, nom: K): Collections[K] =>
+    lignes(cle).map((ligne, index) =>
+      validerEntiteSupabase(nom, ligneVersEntite(ligne), index),
+    ) as Collections[K];
+
+  const domaines = lignes("domaines").map((ligne, index) =>
+    validerDomaine(ligneVersEntite(ligne), `domaines[${index}]`));
+  const competences = lignes("competences").map((ligne, index) =>
+    validerCompetence(ligneVersEntite(ligne), `competences[${index}]`));
+  const competenceDomaines = lignes("competence_domaines").map((ligne, index) =>
+    validerRattachement(ligneVersEntite(ligne), `competenceDomaines[${index}]`));
+  const themes = lignes("themes").map((ligne, index) =>
+    validerTheme(ligneVersEntite(ligne), `themes[${index}]`));
+  const moteurReglages = lignes("moteur_reglages").map((ligne, index) =>
+    validerAjustement(ligneVersEntite(ligne), `moteurReglages[${index}]`));
 
   return {
     collections: {
       user,
-      observations: convertirListe<SkillObservation>("observations"),
-      exercises: convertirListe<Exercise>("exercises"),
-      attempts: convertirListe<ExerciseAttempt>("attempts"),
-      sessions: convertirListe<LearningSession>("sessions"),
-      refusRecommandations: convertirListe<RefusRecommandation>("refus_recommandations"),
+      observations: convertirCollection("observations", "observations"),
+      exercises: convertirCollection("exercises", "exercises"),
+      attempts: convertirCollection("attempts", "attempts"),
+      sessions: convertirCollection("sessions", "sessions"),
+      refusRecommandations: convertirCollection("refus_recommandations", "refusRecommandations"),
     },
-    domaines: convertirListe<Domaine>("domaines"),
-    competences: convertirListe<Skill>("competences"),
-    themes: convertirListe<Theme>("themes"),
+    domaines,
+    competences,
+    competenceDomaines,
+    themes,
     moteurReglages,
   };
 }

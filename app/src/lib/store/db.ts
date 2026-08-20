@@ -32,6 +32,7 @@ import {
   type ClientSupabase,
   type ResultatRPC,
 } from "./supabase-backend";
+import { validerEntiteSupabase, validerLignesSupabase } from "./validation-supabase";
 import type {
   Exercise,
   ExerciseAttempt,
@@ -141,8 +142,8 @@ export async function lire<K extends keyof Collections>(
   });
   verifier(`lecture de « ${nom} »`, error);
 
-  return ((data ?? []) as Record<string, unknown>[]).map((l) =>
-    ligneVersEntite(l),
+  return validerLignesSupabase(data, nom).map((l, index) =>
+    validerEntiteSupabase(nom as CleListe, ligneVersEntite(l), index),
   ) as Collections[K];
 }
 
@@ -213,7 +214,9 @@ export async function modifier<K extends CleListe>(
     .maybeSingle();
   verifier(`mise à jour de « ${nom} »`, error);
 
-  return data ? (ligneVersEntite(data) as Collections[K][number]) : null;
+  return data
+    ? (validerEntiteSupabase(nom, ligneVersEntite(data)) as Collections[K][number])
+    : null;
 }
 
 export async function lireTout(): Promise<Collections> {
@@ -249,31 +252,26 @@ export type { ResultatRPC };
 /**
  * Charge toutes les données du compte en un seul appel RPC.
  *
- * Renvoie `null` si la fonction SQL n'existe pas encore en base **ou si sa
- * charge utile ne porte pas toutes les clés attendues** — le code appelant se
- * rabat alors sur `lireTout` + `chargerReferentiel`.
+ * Renvoie `null` uniquement si la fonction SQL n'existe pas encore en base.
+ * Une erreur d'exécution ou une charge utile invalide est refusée : relire les
+ * mêmes données par un autre chemin ne réparerait rien et masquerait la cause.
  */
 export async function chargerToutRPC(): Promise<ResultatRPC | null> {
   const dorsale = await dorsaleCompte();
   const { supabase, userId, courriel } = dorsale;
   const defaut = profilNeutre(userId, courriel);
 
-  try {
-    const { data, error } = await mesurer("rpc:charger_tout", () =>
-      supabase.rpc("charger_tout"),
-    );
+  const { data, error } = await mesurer("rpc:charger_tout", () =>
+    supabase.rpc("charger_tout"),
+  );
 
-    if (error) {
-      // La fonction n'existe pas encore — fallback silencieux.
-      console.warn("[profiling] charger_tout RPC indisponible, fallback :", error.message);
-      return null;
-    }
-
-    return convertirResultatRPC(data, defaut);
-  } catch (e) {
-    console.warn("[profiling] charger_tout RPC erreur :", e);
+  if (error?.code === "PGRST202" || error?.code === "42883") {
+    console.warn("[profiling] charger_tout RPC absente, fallback :", error.message);
     return null;
   }
+  verifier("chargement groupé", error);
+
+  return convertirResultatRPC(data, defaut);
 }
 
 /** Identifiant lisible et trié chronologiquement. */

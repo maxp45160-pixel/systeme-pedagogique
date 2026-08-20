@@ -310,15 +310,25 @@ export interface SkillObservation {
   /** Compétences mobilisées conjointement — condition du niveau 5. */
   competencesCombinees?: string[];
   /**
-   * Origine vérifiable : id de tentative, de projet ou de session.
+   * Origine vérifiable.
    *
-   * `document` et `snapshot` sont optionnels pour préserver les observations
-   * historiques créées avant le corpus documentaire. Quand ils existent, le
-   * snapshot identifie exactement le contenu produit au moment de la mesure.
+   * `ref` garde l'id de l'exercice pour les observations d'exercice :
+   * ADR-083 en dérive la famille de situation et les observations historiques
+   * ont été conservées sans provenance supposée au cutover du lot 1.
+   *
+   * Toute nouvelle observation d'exercice porte en plus `trace`, qui désigne
+   * exactement la tentative réellement à son origine. Le champ reste
+   * optionnel dans le type pour rendre les lignes historiques lisibles — son
+   * absence n'est jamais comblée à la lecture.
+   *
+   * `document` est lui aussi optionnel pour préserver les observations créées
+   * avant le corpus documentaire. Quand il existe, le snapshot identifie
+   * exactement le contenu produit au moment de la mesure.
    */
   source: {
     kind: "exercice" | "projet" | "session" | "tuteur" | "manuel";
     ref: string;
+    trace?: { kind: "tentative"; ref: string };
     document?: { documentId: string; snapshotId: string };
   };
   commentaire?: string;

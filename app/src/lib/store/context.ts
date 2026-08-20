@@ -130,7 +130,11 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
 
   if (rpc) {
     donneesBrutes = rpc.collections;
-    referentiel = assemblerReferentiel(rpc.domaines, rpc.competences);
+    referentiel = assemblerReferentiel(
+      rpc.domaines,
+      rpc.competences,
+      rpc.competenceDomaines,
+    );
     themes = rpc.themes;
     moteurReglages = rpc.moteurReglages;
   } else {
@@ -240,7 +244,8 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
    *
    * Si la RPC `charger_tout` a rapporté `moteurReglages`, ils sont dérivés
    * immédiatement de façon synchrone (0 ms de latence réseau).
-   * Sinon, fallback sur `chargerReglagesMoteur()`.
+   * Si la RPC est réellement absente, le chemin de lecture séparé passe par
+   * `chargerReglagesMoteur()` avec les mêmes validateurs stricts.
    */
   const reglages = moteurReglages
     ? reglagesEffectifs(moteurReglages)

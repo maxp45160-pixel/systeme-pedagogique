@@ -21,6 +21,7 @@ vi.mock("./db", () => ({
   nouvelId: mocks.nouvelId,
 }));
 vi.mock("./supabase-backend", () => ({ verifier: vi.fn() }));
+vi.mock("./cloture-exercice", () => ({ cloreExerciceAtomiquement: vi.fn() }));
 vi.mock("@/lib/seed/exercises", () => ({ EXERCICES_DIAGNOSTIC: [] }));
 
 import { creerSeanceFocusExercice } from "./seance-actions";

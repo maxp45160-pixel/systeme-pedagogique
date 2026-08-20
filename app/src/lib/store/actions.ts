@@ -17,8 +17,9 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { ajouter, ajouterPlusieurs, dorsaleCompte, lire, modifier, nouvelId } from "./db";
+import { ajouter, dorsaleCompte, lire, modifier, nouvelId } from "./db";
 import { verifier } from "./supabase-backend";
+import { cloreExerciceAtomiquement } from "./cloture-exercice";
 import { capturerDocumentProduction, inscrireFicheExercice } from "./documents";
 import { lireReferentiel } from "./referentiel";
 import {
@@ -30,7 +31,6 @@ import {
   dureeRetenue,
   motifRefusTerminerExercice,
 } from "@/lib/domain/tentative";
-import { seanceHoteDeLExercice } from "@/lib/domain/seance";
 import {
   urlExercice,
   type ContexteNavigationExercice,
@@ -81,15 +81,6 @@ import type {
  * exactes prises séparément. Le workspace sait dans quelle séance il déroule ;
  * il le dit plutôt qu'on ne le devine.
  */
-async function appartientAUneSeanceEnCours(
-  exerciceId: string,
-  dorsale: Awaited<ReturnType<typeof dorsaleCompte>>,
-  seanceIdContexte?: string,
-): Promise<boolean> {
-  const seances = await lire("sessions", dorsale);
-  return seanceHoteDeLExercice(exerciceId, seances, seanceIdContexte) !== null;
-}
-
 export async function demarrerTentative(exerciseId: string): Promise<void> {
   const dorsale = await dorsaleCompte();
   const existantes = await lire("attempts", dorsale);
@@ -253,31 +244,25 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
       exercice.dureeEstimeeMin,
     ) ?? soumission.dureeMin;
 
-  // Lu une fois pour les deux branches de sortie : dans une séance, c'est la
-  // séance qui tient le journal (ADR-048).
-  const dansUneSeance = await appartientAUneSeanceEnCours(
-    exercice.id,
-    dorsale,
-    soumission.navigation?.seanceId,
-  );
-
-  // La tentative renvoyée est celle qui vient d'être écrite : `indicesUtilises`
-  // s'y lit sans relecture, et c'est lui qui détermine l'autonomie observée.
-  const tentative = await modifier("attempts", soumission.attemptId, {
+  // Projection locale du fait qui sera écrit. Elle sert à figer la production
+  // documentaire avant la transaction, puis la RPC verrouille et vérifie la
+  // tentative réelle avant d'accepter exactement ces valeurs.
+  const tentative: ExerciseAttempt = {
+    ...avant,
     fin: date,
     dureeMin: duree,
     evaluation: soumission.evaluation,
     resultat: soumission.resultat,
-    statut: (menee ? "terminee" : "abandonnee") as "terminee" | "abandonnee",
+    statut: menee ? "terminee" : "abandonnee",
     notes: soumission.notes,
-  }, dorsale);
-  if (!tentative) throw new Error("Tentative introuvable");
+    verdictTuteur:
+      menee && soumission.verdictTuteur
+        ? { ...soumission.verdictTuteur, date }
+        : avant.verdictTuteur,
+  };
 
   if (!menee) {
-    // Le journal d'activité, lui, enregistre ce qui s'est passé : la minute
-    // passée est un fait, et la taire ferait disparaître l'abandon du suivi.
-    // Sauf dans une séance : l'entrée de journal existe déjà, c'est elle.
-    if (!dansUneSeance) await ajouter("sessions", {
+    const session = {
       id: nouvelId("ses"),
       date,
       dureeMin: duree,
@@ -288,7 +273,21 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
       difficulte: `Difficulté ${exercice.difficulte}/5 · ${duree} min sur ${exercice.dureeEstimeeMin} estimées`,
       notePersonnelle: soumission.notes,
       genereAutomatiquement: true,
-    } satisfies LearningSession, dorsale);
+    } satisfies LearningSession;
+
+    await cloreExerciceAtomiquement({
+      tentative: {
+        id: tentative.id,
+        exerciseId: tentative.exerciseId,
+        fin: date,
+        dureeMin: duree,
+        statut: "abandonnee",
+        notes: soumission.notes,
+      },
+      observations: [],
+      seance: session,
+      seanceIdContexte: soumission.navigation?.seanceId,
+    }, dorsale);
 
     revalidatePath("/", "layout");
     redirect(await destinationApresExercice(exercice.id, "abandon", soumission.navigation, dorsale));
@@ -308,14 +307,6 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
   const provenanceDocument = await capturerDocumentProduction(
     production,
     `preuve issue de la tentative ${tentative.id}`,
-  );
-
-  // La fiche de l'exercice, elle, reste éditoriale : une par exercice, enrichie
-  // d'une ligne à chaque passage. Elle prend dans l'arbre la place que tenait
-  // la projection en lecture seule, et se laisse annoter.
-  await inscrireFicheExercice(
-    construireFicheExercice(exercice, tentative, date),
-    (contenuMd) => ajouterPassageFiche(contenuMd, tentative),
   );
 
   // Une observation par compétence ciblée. Les compétences secondaires sont
@@ -345,6 +336,7 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
     source: {
       kind: "exercice" as const,
       ref: exercice.id,
+      trace: { kind: "tentative" as const, ref: tentative.id },
       document: provenanceDocument,
     },
     commentaire: [
@@ -356,11 +348,8 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
       .filter(Boolean)
       .join(" · ") || undefined,
   }));
-  await ajouterPlusieurs("observations", observations, dorsale);
-
-  // Une entrée de journal est produite automatiquement (instructions §15 :
-  // la maintenance du système se fait en arrière-plan) — sauf si l'exercice
-  // appartient à une séance en cours, qui est déjà cette entrée (ADR-048).
+  // La séance est toujours fournie à la transaction. PostgreSQL l'insère
+  // seulement si aucune séance en cours ne journalise déjà cet exercice.
   const session: LearningSession = {
     id: nouvelId("ses"),
     date,
@@ -380,53 +369,34 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
     notePersonnelle: soumission.notes,
     genereAutomatiquement: true,
   };
-  if (!dansUneSeance) await ajouter("sessions", session, dorsale);
 
-  await archiverVerdict(soumission, date, dorsale);
+  await cloreExerciceAtomiquement({
+    tentative: {
+      id: tentative.id,
+      exerciseId: tentative.exerciseId,
+      fin: date,
+      dureeMin: duree,
+      statut: "terminee",
+      evaluation: soumission.evaluation,
+      resultat: soumission.resultat,
+      notes: soumission.notes,
+      verdictTuteur: tentative.verdictTuteur,
+    },
+    observations,
+    seance: session,
+    seanceIdContexte: soumission.navigation?.seanceId,
+  }, dorsale);
+
+  // La fiche est éditoriale et explicitement best-effort. Elle vient après la
+  // transaction obligatoire ; son échec interne ne transforme pas une clôture
+  // réussie en resoumission et ne peut donc pas doubler le journal.
+  await inscrireFicheExercice(
+    construireFicheExercice(exercice, tentative, date),
+    (contenuMd) => ajouterPassageFiche(contenuMd, tentative),
+  );
 
   revalidatePath("/", "layout");
   redirect(await destinationApresExercice(exercice.id, "bilan", soumission.navigation, dorsale));
-}
-
-/**
- * Archive le verdict du tuteur — **sans jamais faire échouer le bilan**.
- *
- * Deux raisons, et la seconde est la vraie.
- *
- * 1. `attempts.verdict_tuteur` peut manquer sur une base dont le schéma de
- *    référence n'est pas à jour : l'écriture échouerait.
- * 2. Surtout : **un conseil perdu ne doit pas empêcher l'écriture d'une
- *    Observation.** L'Observation est la seule mesure que ce produit garantit ; le
- *    verdict est un commentaire à côté. Les lier ferait dépendre la mesure
- *    d'un texte, ce qui est l'inverse de tout ce que le moteur défend.
- *
- * D'où l'ordre : l'Observation et le journal sont déjà écrits quand cette fonction
- * s'exécute, et son échec est avalé après avoir été journalisé. Un verdict
- * absent se lit comme un bilan rempli sans assistance — ce qui est vrai du
- * point de vue de la mesure.
- */
-async function archiverVerdict(
-  soumission: SoumissionExercice,
-  date: string,
-  dorsale: Awaited<ReturnType<typeof dorsaleCompte>>,
-): Promise<void> {
-  if (!soumission.verdictTuteur) return;
-  try {
-    await modifier(
-      "attempts",
-      soumission.attemptId,
-      { verdictTuteur: { ...soumission.verdictTuteur, date } },
-      dorsale,
-    );
-  } catch (e) {
-    // Journalisé et non tu : un verdict qui disparaît en silence redeviendrait
-    // le défaut que ce lot corrige, une couche plus bas.
-    console.warn(
-      `[verdict] archivage impossible pour ${soumission.attemptId} — l'Observation, elle, est écrite. ` +
-        `Si « verdict_tuteur » est inconnue, applique le schéma de référence courant.`,
-      e,
-    );
-  }
 }
 
 /**
@@ -496,18 +466,7 @@ export async function abandonnerExercice(
     ) ?? 1;
 
   if (decision.action === "abandonner") {
-    const tentative = await modifier(
-      "attempts",
-      attemptId,
-      { fin: date, dureeMin: duree, statut: "abandonnee" as const },
-      dorsale,
-    );
-    if (!tentative) throw new Error("Tentative introuvable");
-
-    // Dans une séance, l'entrée de journal existe déjà : c'est la séance (ADR-048).
-    if (!(await appartientAUneSeanceEnCours(exercice.id, dorsale, navigation?.seanceId))) await ajouter(
-      "sessions",
-      {
+    const session = {
         id: nouvelId("ses"),
         date,
         dureeMin: duree,
@@ -517,9 +476,20 @@ export async function abandonnerExercice(
         resultat: "Tentative abandonnée — aucune observation enregistrée",
         difficulte: `Difficulté ${exercice.difficulte}/5 · ${duree} min sur ${exercice.dureeEstimeeMin} estimées`,
         genereAutomatiquement: true,
-      } satisfies LearningSession,
-      dorsale,
-    );
+      } satisfies LearningSession;
+
+    await cloreExerciceAtomiquement({
+      tentative: {
+        id: attemptId,
+        exerciseId,
+        fin: date,
+        dureeMin: duree,
+        statut: "abandonnee",
+      },
+      observations: [],
+      seance: session,
+      seanceIdContexte: navigation?.seanceId,
+    }, dorsale);
   }
 
   revalidatePath("/", "layout");

@@ -85,21 +85,43 @@ export function assemblerReferentiel(
 ): Referentiel {
   const secondairesParCode = new Map<string, string[]>();
   const domainesConnus = new Set(domaines.map(({ id }) => id));
+  const skillsParCode = new Map(skills.map((skill) => [skill.code, skill]));
+
+  for (const skill of skills) {
+    if (!domainesConnus.has(skill.domaine)) {
+      throw new Error(
+        `Référentiel invalide : le domaine porteur « ${skill.domaine} » de « ${skill.code} » est absent.`,
+      );
+    }
+  }
+
   for (const { code, domaine } of rattachements) {
-    // Un rattachement vers un domaine disparu ne se répare pas en silence : on
-    // l'ignore, comme les prérequis inconnus, plutôt que d'inventer un domaine.
-    if (!domainesConnus.has(domaine)) continue;
+    const skill = skillsParCode.get(code);
+    if (!skill) {
+      throw new Error(`Référentiel invalide : le rattachement vise la compétence absente « ${code} ».`);
+    }
+    if (!domainesConnus.has(domaine)) {
+      throw new Error(`Référentiel invalide : le rattachement vise le domaine absent « ${domaine} ».`);
+    }
+    if (domaine === skill.domaine) {
+      throw new Error(
+        `Référentiel invalide : « ${code} » est rattachée une seconde fois à son domaine porteur « ${domaine} ».`,
+      );
+    }
     const deja = secondairesParCode.get(code) ?? [];
-    if (!deja.includes(domaine)) deja.push(domaine);
+    if (deja.includes(domaine)) {
+      throw new Error(
+        `Référentiel invalide : le rattachement « ${code} » → « ${domaine} » est dupliqué.`,
+      );
+    }
+    deja.push(domaine);
     secondairesParCode.set(code, deja);
   }
 
   const tries = [...skills]
     .map((skill) => ({
       ...skill,
-      domainesSecondaires: (secondairesParCode.get(skill.code) ?? []).filter(
-        (domaine) => domaine !== skill.domaine,
-      ),
+      domainesSecondaires: secondairesParCode.get(skill.code) ?? [],
     }))
     .sort(comparerSkills);
   // Le périmètre de travail : ni archivée, ni désactivée. Les deux drapeaux

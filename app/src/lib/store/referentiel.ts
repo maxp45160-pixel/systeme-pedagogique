@@ -21,6 +21,12 @@ import { mesurer } from "@/lib/profiling/server";
 import { assemblerReferentiel } from "@/lib/domain/referentiel-compte";
 import type { Domaine, Referentiel, Skill } from "@/lib/domain/types";
 import type { ChangementReferentiel } from "@/lib/domain/gouvernance-referentiel";
+import {
+  validerCompetence,
+  validerDomaine,
+  validerLignesSupabase,
+  validerRattachement,
+} from "./validation-supabase";
 
 export async function lireReferentiel(
   dorsaleFournie?: DorsaleCompte,
@@ -39,9 +45,12 @@ export async function lireReferentiel(
   verifier("lecture des rattachements de compétences", rattachements.error);
 
   return assemblerReferentiel(
-    ((domaines.data ?? []) as Record<string, unknown>[]).map((l) => ligneVersEntite<Domaine>(l)),
-    ((competences.data ?? []) as Record<string, unknown>[]).map((l) => ligneVersEntite<Skill>(l)),
-    (rattachements.data ?? []) as Array<{ code: string; domaine: string }>,
+    validerLignesSupabase(domaines.data, "domaines").map((l, index) =>
+      validerDomaine(ligneVersEntite<Domaine>(l), `domaines[${index}]`)),
+    validerLignesSupabase(competences.data, "competences").map((l, index) =>
+      validerCompetence(ligneVersEntite<Skill>(l), `competences[${index}]`)),
+    validerLignesSupabase(rattachements.data, "competenceDomaines").map((l, index) =>
+      validerRattachement(ligneVersEntite(l), `competenceDomaines[${index}]`)),
   );
 }
 
