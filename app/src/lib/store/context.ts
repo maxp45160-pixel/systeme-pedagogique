@@ -22,6 +22,7 @@ import {
 } from "@/lib/engine/contexte-situation";
 import { creerModeleHeuristique } from "@/lib/engine/spaced";
 import { chargerReglagesMoteur } from "./reglages-moteur";
+import { reglagesEffectifs, type AjustementInscrit } from "@/lib/engine/reglages";
 import { computeAllSkillStates } from "@/lib/engine/skill-state";
 import { calculerEtatGlobal, type EtatGlobal } from "@/lib/engine/progression";
 import { recommander, type Recommandation } from "@/lib/engine/recommend";
@@ -125,11 +126,13 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
   let donneesBrutes: Collections;
   let referentiel: Referentiel;
   let themes: Theme[];
+  let moteurReglages: AjustementInscrit[] | null = null;
 
   if (rpc) {
     donneesBrutes = rpc.collections;
     referentiel = assemblerReferentiel(rpc.domaines, rpc.competences);
     themes = rpc.themes;
+    moteurReglages = rpc.moteurReglages;
   } else {
     // ── Chemin lent : requêtes parallèles séparées ──
     // `chargerReferentiel` et non `lireReferentiel` : mémoïsé par requête, il ne
@@ -235,13 +238,13 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
   /*
    * Les réglages effectifs — ADR-085.
    *
-   * Les `export const` de `calibration.ts`, `spaced.ts` et `recommend.ts`
-   * restent les valeurs livrées ; ce qui suit les superpose quand le journal
-   * `moteur_reglages` porte un ajustement. Tant qu'il est vide — c'est le cas
-   * aujourd'hui — cet appel rend exactement les défauts, et le moteur se
-   * comporte comme avant.
+   * Si la RPC `charger_tout` a rapporté `moteurReglages`, ils sont dérivés
+   * immédiatement de façon synchrone (0 ms de latence réseau).
+   * Sinon, fallback sur `chargerReglagesMoteur()`.
    */
-  const reglages = await mesurer("chargerReglagesMoteur", () => chargerReglagesMoteur());
+  const reglages = moteurReglages
+    ? reglagesEffectifs(moteurReglages)
+    : await mesurer("chargerReglagesMoteur", () => chargerReglagesMoteur());
   const modeleRevision = creerModeleHeuristique(reglages.amplitudeRobustesse);
 
   // Calculées AVANT la recommandation : c'est la calibration qui fixe la
