@@ -9,8 +9,15 @@ import { createContext, useContext } from "react";
  * la barre mobile et la marge du cahier ouvrent tous la même instance unique.
  */
 
+export type ContexteIntentionType = "general" | "domaine";
+
+export interface OptionsIntention {
+  besoinInitial?: string;
+  contexte?: ContexteIntentionType;
+}
+
 export interface EtatIntention {
-  ouvrir: (besoinInitial?: string) => void;
+  ouvrir: (besoinOuOptions?: string | OptionsIntention, options?: OptionsIntention) => void;
   ouverte: boolean;
 }
 
@@ -23,3 +30,4 @@ export function useIntention(): EtatIntention {
   }
   return valeur;
 }
+

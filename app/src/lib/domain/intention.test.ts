@@ -82,6 +82,13 @@ describe("analyserDemandeReferentiel", () => {
       niveau: "debutant",
     });
   });
+
+  it("cadre obligatoirement en domaine explicite lorsque le contexte est domaine", () => {
+    const resultat = analyserDemandeReferentiel("Comptabilité générale", "domaine");
+    expect(resultat.type).toBe("domaine");
+    expect(resultat.explicite).toBe(true);
+    expect(resultat.portee).toBe("large");
+  });
 });
 
 describe("validerActionIntention", () => {

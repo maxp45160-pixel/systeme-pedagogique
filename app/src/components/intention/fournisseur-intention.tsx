@@ -2,7 +2,11 @@
 
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { CaptureIntention } from "./capture-intention";
-import { ContexteIntention } from "./contexte-intention";
+import {
+  ContexteIntention,
+  type ContexteIntentionType,
+  type OptionsIntention,
+} from "./contexte-intention";
 
 /**
  * Le fournisseur d'intention monte la modale unique CaptureIntention (`+` / ADR-073).
@@ -21,14 +25,34 @@ export function FournisseurIntention({
 }) {
   const [ouverte, setOuverte] = useState(false);
   const [besoin, setBesoin] = useState<string | undefined>(undefined);
-  const ouvrir = useCallback((besoinInitial?: string) => {
-    setBesoin(besoinInitial);
-    setOuverte(true);
-  }, []);
+  const [contexte, setContexte] = useState<ContexteIntentionType>("general");
+
+  const ouvrir = useCallback(
+    (besoinOuOptions?: string | OptionsIntention, options?: OptionsIntention) => {
+      let b: string | undefined;
+      let c: ContexteIntentionType = "general";
+
+      if (typeof besoinOuOptions === "string") {
+        b = besoinOuOptions;
+        if (options?.contexte) c = options.contexte;
+      } else if (besoinOuOptions && typeof besoinOuOptions === "object") {
+        b = besoinOuOptions.besoinInitial;
+        if (besoinOuOptions.contexte) c = besoinOuOptions.contexte;
+      }
+
+      setBesoin(b);
+      setContexte(c);
+      setOuverte(true);
+    },
+    [],
+  );
+
   const fermer = useCallback(() => {
     setOuverte(false);
     setBesoin(undefined);
+    setContexte("general");
   }, []);
+
   const valeur = useMemo(() => ({ ouvrir, ouverte }), [ouvrir, ouverte]);
 
   return (
@@ -39,9 +63,11 @@ export function FournisseurIntention({
           compteId={compteId}
           domainesExistants={domainesExistants}
           besoinInitial={besoin ?? ""}
+          contexte={contexte}
           onFermer={fermer}
         />
       )}
     </ContexteIntention.Provider>
   );
 }
+

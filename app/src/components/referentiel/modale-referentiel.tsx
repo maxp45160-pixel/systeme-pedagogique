@@ -519,29 +519,3 @@ export function ModaleReferentiel({
   );
 }
 
-/**
- * Le déclencheur historique — un bouton, puis la modale.
- *
- * Il ne porte plus aucune logique : tout ce qu'il faisait vit dans
- * `ModaleReferentiel`, que le point d'entrée `+` monte aussi de son côté.
- */
-export function BoutonCreerReferentiel({
-  compteId,
-  libelle = "+ Référentiel",
-}: {
-  compteId: string;
-  libelle?: string;
-}) {
-  const [ouverte, setOuverte] = useState(false);
-
-  return (
-    <>
-      <Bouton onClick={() => setOuverte(true)} variante="secondaire" taille="petite" disabled={ouverte}>
-        {libelle}
-      </Bouton>
-      {ouverte && (
-        <ModaleReferentiel compteId={compteId} onFermer={() => setOuverte(false)} />
-      )}
-    </>
-  );
-}

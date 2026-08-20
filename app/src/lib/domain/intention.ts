@@ -119,14 +119,16 @@ function intitulésExplicites(besoin: string): string[] {
  * personne a écrites elle-même — notamment un intitulé entre guillemets — afin
  * que l’écran ouvre la bonne relecture.
  */
-export function analyserDemandeReferentiel(besoin: string): DemandeReferentiel {
+export function analyserDemandeReferentiel(besoin: string, contexte?: string): DemandeReferentiel {
   const texte = besoin.trim();
   const intitules = intitulésExplicites(texte);
   const demandeCompetence =
-    /\b(?:ajoute|ajouter|crée|créer|définis|définir|inscris|inscrire)\b[\s\S]{0,60}\bcompétences?\b/iu.test(
+    contexte !== "domaine" &&
+    (/\b(?:ajoute|ajouter|crée|créer|définis|définir|inscris|inscrire)\b[\s\S]{0,60}\bcompétences?\b/iu.test(
       texte,
-    ) || /\bcompétences?\b[\s\S]{0,60}\b(?:intitulée?s?|nommée?s?|appelée?s?)\b/iu.test(texte);
-  const objectifCompetence = /\bapprendre\s+à\s+[^.!?]+[.!?]?$/iu.test(texte);
+    ) || /\bcompétences?\b[\s\S]{0,60}\b(?:intitulée?s?|nommée?s?|appelée?s?)\b/iu.test(texte));
+  const objectifCompetence =
+    contexte !== "domaine" && /\bapprendre\s+à\s+[^.!?]+[.!?]?$/iu.test(texte);
 
   const domaines = /\b(\d+|un|une|deux|trois|quatre|cinq|six)\s+(?:domaines?|branches?|axes?)\b/iu.exec(
     texte,
@@ -145,6 +147,7 @@ export function analyserDemandeReferentiel(besoin: string): DemandeReferentiel {
     texte,
   );
   const demandeVueEnsemble =
+    contexte === "domaine" ||
     /\b(?:apprendre|découvrir|étudier|explorer|se former|me former)\b[\s\S]{0,80}\b(?:la|le|les|l')\s+[\p{L}\d]/iu.test(
       texte,
     ) || (niveauDebutant && verbeApprentissage);
@@ -152,6 +155,7 @@ export function analyserDemandeReferentiel(besoin: string): DemandeReferentiel {
   return {
     type: demandeCompetence || objectifCompetence ? "competence" : "domaine",
     explicite:
+      contexte === "domaine" ||
       demandeCompetence ||
       objectifCompetence ||
       demandeVueEnsemble ||

@@ -30,6 +30,8 @@ import {
   type TraductionIntention,
 } from "@/lib/domain/intention";
 
+import type { ContexteIntentionType } from "./contexte-intention";
+
 /**
  * Le point d'entrée unique de création.
  *
@@ -45,6 +47,8 @@ import {
  */
 
 const PLACEHOLDER = "Ex. j'ai un contrôle sur les stocks vendredi et je bloque sur le calcul de coût";
+const PLACEHOLDER_DOMAINE =
+  "Ex. La gestion financière d’entreprise, la physique quantique, l'espagnol des affaires...";
 
 type Phase = "saisie" | "traduction" | "proposition";
 
@@ -121,6 +125,7 @@ export function CaptureIntention({
   onFermer,
   besoinInitial = "",
   domainesExistants = [],
+  contexte = "general",
 }: {
   compteId: string;
   onFermer: () => void;
@@ -137,6 +142,7 @@ export function CaptureIntention({
    * moteur donne une bien meilleure traduction qu'une phrase jetée telle quelle.
    */
   besoinInitial?: string;
+  contexte?: ContexteIntentionType;
 }) {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>("saisie");
@@ -186,6 +192,7 @@ export function CaptureIntention({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           besoin: demande,
+          contexte,
           config: lireConfigTuteur(compteId) ?? undefined,
         }),
         signal: abandon.signal,
@@ -269,7 +276,12 @@ export function CaptureIntention({
     async (action: ActionIntention) => {
       setErreur(null);
 
-      const demandeReferentiel = analyserDemandeReferentiel(besoin);
+      if (contexte === "domaine") {
+        setSujetBranche(action.sujet || action.titre || besoin.trim());
+        return;
+      }
+
+      const demandeReferentiel = analyserDemandeReferentiel(besoin, contexte);
       if (demandeReferentiel.explicite && demandeReferentiel.type === "competence") {
         setCompetenceDemande({
           sujet: besoin.trim(),
@@ -336,7 +348,7 @@ export function CaptureIntention({
         setEnExecution(false);
       }
     },
-    [besoin, domainesExistants, onFermer, router],
+    [besoin, contexte, domainesExistants, onFermer, router],
   );
 
   function repondreAQuestion(reponse: string) {
@@ -397,10 +409,16 @@ export function CaptureIntention({
     );
   }
 
+  const estContexteDomaine = contexte === "domaine";
+
   return (
     <Modale
-      titre="De quoi as-tu besoin ?"
-      sousTitre="Décris ton objectif ou clique sur une suggestion. Le système choisit l’action appropriée."
+      titre={estContexteDomaine ? "Quel domaine souhaites-tu ajouter ?" : "De quoi as-tu besoin ?"}
+      sousTitre={
+        estContexteDomaine
+          ? "Décris le domaine ou la discipline. Le système structurera une proposition de compétences pour ton Atelier."
+          : "Décris ton objectif ou clique sur une suggestion. Le système choisit l’action appropriée."
+      }
       largeur="xl"
       onFermer={onFermer}
       pied={
@@ -414,7 +432,7 @@ export function CaptureIntention({
               onClick={() => void traduire()}
               disabled={!besoinValide(besoin)}
             >
-              Analyser mon besoin
+              {estContexteDomaine ? "Structurer le domaine" : "Analyser mon besoin"}
               <IconeFleche className="size-4" />
             </Bouton>
           </>
@@ -465,37 +483,43 @@ export function CaptureIntention({
                 }
               }}
               rows={3}
-              placeholder={PLACEHOLDER}
+              placeholder={estContexteDomaine ? PLACEHOLDER_DOMAINE : PLACEHOLDER}
               autoFocus
               className="w-full resize-none rounded-xl border border-bordure-controle bg-surface px-3.5 py-3 text-sm outline-none transition-all placeholder:text-texte-discret focus:border-primaire focus:ring-1 focus:ring-primaire/20"
             />
             <div className="mt-1 flex items-center justify-between text-[0.6875rem] text-texte-discret">
-              <span>Un besoin libre, le moteur choisira le format adapté</span>
+              <span>
+                {estContexteDomaine
+                  ? "Un domaine ou sujet libre, le moteur structurera les branches de compétences"
+                  : "Un besoin libre, le moteur choisira le format adapté"}
+              </span>
               <span>Entrée pour analyser · Maj+Entrée nouvelle ligne</span>
             </div>
           </div>
 
-          <div>
-            <p className="mb-2 text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-attenue">
-              Suggestions d’amorçage rapide :
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {SUGGESTIONS_RAPIDES.map(({ libelle, prompt, Icone }) => (
-                <button
-                  key={libelle}
-                  type="button"
-                  onClick={() => {
-                    setBesoin(prompt);
-                    void traduire(prompt);
-                  }}
-                  className="group flex items-center gap-2.5 rounded-lg border border-bordure bg-surface-2/60 px-3 py-2 text-left text-xs transition-colors hover:border-primaire/40 hover:bg-primaire-faible/30"
-                >
-                  <Icone className="size-4 text-primaire shrink-0 transition-transform group-hover:scale-110" />
-                  <span className="font-medium text-texte group-hover:text-primaire">{libelle}</span>
-                </button>
-              ))}
+          {!estContexteDomaine && (
+            <div>
+              <p className="mb-2 text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-attenue">
+                Suggestions d’amorçage rapide :
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {SUGGESTIONS_RAPIDES.map(({ libelle, prompt, Icone }) => (
+                  <button
+                    key={libelle}
+                    type="button"
+                    onClick={() => {
+                      setBesoin(prompt);
+                      void traduire(prompt);
+                    }}
+                    className="group flex items-center gap-2.5 rounded-lg border border-bordure bg-surface-2/60 px-3 py-2 text-left text-xs transition-colors hover:border-primaire/40 hover:bg-primaire-faible/30"
+                  >
+                    <Icone className="size-4 text-primaire shrink-0 transition-transform group-hover:scale-110" />
+                    <span className="font-medium text-texte group-hover:text-primaire">{libelle}</span>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {erreur && (
             <p className="rounded-lg bg-danger-faible px-3 py-2 text-xs text-danger">{erreur}</p>

@@ -42,6 +42,8 @@ const CANDIDATES_MAX = 12;
 interface CorpsIntention {
   /** Le besoin, en langage libre. */
   besoin?: string;
+  /** Contexte d'origine de la demande (ex: "domaine"). */
+  contexte?: string;
   /** Config saisie côté client (réglages). Prime sur les variables serveur. */
   config?: ConfigTuteurClient;
 }
@@ -126,6 +128,7 @@ export async function POST(request: Request) {
             envoyer(evenement, donnees);
           },
           serialiserProfilDeclare(ctx.donnees.user),
+          corps.contexte,
         );
 
         if (resultat.erreur) {
@@ -133,20 +136,22 @@ export async function POST(request: Request) {
           return;
         }
 
-        const cadrage = analyserDemandeReferentiel(besoin);
+        const cadrage = analyserDemandeReferentiel(besoin, corps.contexte);
         const traduction =
-          demandeSeanceSansSujet(besoin)
-            ? forcerSeanceSansSujet(resultat.traduction, besoin)
-            : resultat.traduction &&
-          cadrage.explicite &&
-          (cadrage.type === "competence" || cadrage.portee === "large")
-            ? forcerExtensionReferentiel(
-                resultat.traduction,
-                besoin,
-                cadrage.type === "competence",
-                cadrage.intitules,
-              )
-            : resultat.traduction;
+          corps.contexte === "domaine"
+            ? forcerDomaineReferentiel(resultat.traduction, besoin)
+            : demandeSeanceSansSujet(besoin)
+              ? forcerSeanceSansSujet(resultat.traduction, besoin)
+              : resultat.traduction &&
+                cadrage.explicite &&
+                (cadrage.type === "competence" || cadrage.portee === "large")
+                ? forcerExtensionReferentiel(
+                    resultat.traduction,
+                    besoin,
+                    cadrage.type === "competence",
+                    cadrage.intitules,
+                  )
+                : resultat.traduction;
 
         envoyer("proposition", { traduction });
       } catch (e) {
@@ -174,6 +179,26 @@ export async function POST(request: Request) {
       connection: "keep-alive",
     },
   });
+}
+
+function forcerDomaineReferentiel(
+  traduction: TraductionIntention | null,
+  besoin: string,
+): TraductionIntention {
+  const sujet = besoin.trim();
+  return {
+    ...(traduction ?? { alternatives: [] }),
+    action: {
+      ...(traduction?.action ?? {
+        codes: [],
+      }),
+      genre: "referentiel",
+      titre: `Structurer le domaine « ${sujet} »`,
+      pourquoi: "Ce domaine sera découpé en compétences pour enrichir ton Atelier.",
+      codes: [],
+      sujet,
+    },
+  };
 }
 
 function forcerSeanceSansSujet(

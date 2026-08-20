@@ -79,12 +79,25 @@ export interface ResultatIntention {
 export function construirePromptIntention(
   candidates: CompetenceCandidate[],
   referentielVide: boolean,
+  contexte?: string,
 ): string {
+  const consigneContexte =
+    contexte === "domaine"
+      ? [
+          "CONTEXTE D'OUVERTURE : La personne souhaite explicitement créer ou structurer un nouveau domaine d'apprentissage.",
+          "- L'action principale DOIT obligatoirement être de genre `referentiel`.",
+          "- Ne propose en aucun cas un `travail` (séance d'entraînement), une `note` ou un `projet` comme action principale.",
+          "- `sujet` doit contenir le nom ou la description du domaine demandé.",
+          "",
+        ]
+      : [];
+
   return [
     "Tu es le moteur d'orientation du système pédagogique. Une personne exprime un besoin en une phrase ; tu le traduis en une action que le système sait exécuter.",
     "",
     "TU N'EXÉCUTES RIEN. La personne relit ta proposition et confirme.",
     "",
+    ...consigneContexte,
     "COMMENT CHOISIR",
     "- Un besoin qui porte sur un savoir-faire déjà au référentiel est un `travail` : il prépare une séance d'entraînement.",
     "- Une demande comme « créer une séance » sans sujet ni compétence est aussi un `travail`, mais avec `codes` vide et le besoin recopié dans `sujet` : ne choisis aucune compétence à la place de la personne.",
@@ -135,6 +148,7 @@ export async function traduireIntention(
   signal?: AbortSignal,
   diffuser?: (evenement: string, donnees: unknown) => void,
   profilDeclare = "",
+  contexte?: string,
 ): Promise<ResultatIntention> {
   let traduction: TraductionIntention | null = null;
   let outilsActifs = true;
@@ -172,7 +186,7 @@ export async function traduireIntention(
   const codesArmes = [...referentiel.codesActifs];
 
   await moteur.repondre({
-    systemeStable: construirePromptIntention(candidates, codesArmes.length === 0),
+    systemeStable: construirePromptIntention(candidates, codesArmes.length === 0, contexte),
     systemeProfil: profilDeclare,
     messages: [{ role: "user" as const, content: besoin }],
     outils: [outilIntention(codesArmes)],
@@ -187,8 +201,8 @@ export async function traduireIntention(
    * ouvrir la relecture de compétence ; elle ne permet ni de fabriquer un
    * code, ni de choisir un domaine à la place de la personne.
    */
-  const cadrage = analyserDemandeReferentiel(besoin);
-  if (traduction === null && demandeSeanceSansSujet(besoin)) {
+  const cadrage = analyserDemandeReferentiel(besoin, contexte);
+  if (contexte !== "domaine" && traduction === null && demandeSeanceSansSujet(besoin)) {
     traduction = {
       action: {
         genre: "travail",
@@ -202,23 +216,27 @@ export async function traduireIntention(
   }
   if (
     traduction === null &&
-    cadrage.explicite &&
-    (cadrage.type === "competence" || cadrage.portee === "large")
+    (contexte === "domaine" ||
+      (cadrage.explicite && (cadrage.type === "competence" || cadrage.portee === "large")))
   ) {
     const titres = cadrage.intitules;
     traduction = {
       action: {
         genre: "referentiel",
         titre:
-          cadrage.type === "competence" && titres.length === 1
-            ? `Ajouter la compétence « ${titres[0]} »`
-            : cadrage.type === "competence"
-              ? "Ajouter la compétence décrite dans la demande"
-              : "Structurer le domaine demandé",
+          contexte === "domaine"
+            ? `Structurer le domaine « ${besoin.trim()} »`
+            : cadrage.type === "competence" && titres.length === 1
+              ? `Ajouter la compétence « ${titres[0]} »`
+              : cadrage.type === "competence"
+                ? "Ajouter la compétence décrite dans la demande"
+                : "Structurer le domaine demandé",
         pourquoi:
-          cadrage.type === "competence"
-            ? "La demande décrit une compétence qui n’est pas encore disponible dans ton Atelier."
-            : "La demande porte sur une vue d’ensemble qui doit être organisée avant l’apprentissage.",
+          contexte === "domaine"
+            ? "Ce domaine sera découpé en compétences pour enrichir ton Atelier."
+            : cadrage.type === "competence"
+              ? "La demande décrit une compétence qui n’est pas encore disponible dans ton Atelier."
+              : "La demande porte sur une vue d’ensemble qui doit être organisée avant l’apprentissage.",
         codes: [],
         sujet: besoin.trim(),
       },

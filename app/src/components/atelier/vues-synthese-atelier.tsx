@@ -249,9 +249,9 @@ export function VueTousLesDomaines({
 
           {!estArchives && compteId && (
             <CarteCreationPointillee
-              titre="Décrire un nouveau besoin"
-              description="Le système situera la nouvelle branche dans ton Atelier"
-              onClick={() => ouvrir()}
+              titre="Nouveau domaine"
+              description="Structurer un nouveau domaine et ses compétences avec le tuteur"
+              onClick={() => ouvrir({ contexte: "domaine" })}
             />
           )}
         </div>

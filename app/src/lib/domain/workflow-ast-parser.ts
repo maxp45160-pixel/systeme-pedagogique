@@ -557,8 +557,15 @@ function valeurPropJsx(
         if (ts.isStringLiteral(expr) || ts.isNoSubstitutionTemplateLiteral(expr)) {
           return expr.text;
         }
-        if (ts.isTemplateExpression(expr)) {
-          return normaliserUrl(expr.getText(sf).slice(1, -1));
+        if (ts.isConditionalExpression(expr)) {
+          const falseExpr = expr.whenFalse;
+          if (ts.isStringLiteral(falseExpr) || ts.isNoSubstitutionTemplateLiteral(falseExpr)) {
+            return falseExpr.text;
+          }
+          const trueExpr = expr.whenTrue;
+          if (ts.isStringLiteral(trueExpr) || ts.isNoSubstitutionTemplateLiteral(trueExpr)) {
+            return trueExpr.text;
+          }
         }
         if (ts.isIdentifier(expr)) {
           const nom = expr.text;
