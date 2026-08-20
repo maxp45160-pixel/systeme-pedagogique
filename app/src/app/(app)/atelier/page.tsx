@@ -1,8 +1,6 @@
 import { notFound } from "next/navigation";
 import { EntetePage } from "@/components/layout/entete-page";
-import { WorkspaceNoteOperationnelle } from "@/components/atelier/workspace-note-operationnelle";
-import { WorkspaceNoteSupport } from "@/components/atelier/workspace-note-support";
-import { WorkspaceProjet } from "@/components/atelier/workspace-projet";
+import { WorkspaceDocument } from "@/components/atelier/workspace-document";
 import { EspaceDocumentaire, type ElementAtelier } from "@/components/atelier/espace-documentaire";
 import { definitionTypeDocument } from "@/lib/documents/types-documents";
 import { lireApercusDocuments, lireApercusSnapshots, lireDocument } from "@/lib/store/documents";
@@ -31,50 +29,28 @@ export default async function PageAtelier(props: {
   const { document: documentDemande, mode, note, retour } = await props.searchParams;
 
   /*
-   * L'espace de travail d'une note opérationnelle occupe l'écran entier et n'a
-   * besoin que de sa fiche. On coupe court avant le chargement du corpus, du
-   * contexte et du graphe : les payer pour ne rien en afficher ralentirait
-   * l'ouverture sans rien apporter.
+   * L'espace de travail documentaire unifié occupe l'écran entier.
+   * On coupe court avant le chargement du corpus global pour une réactivité maximale.
    */
   if (note) {
     const fiche = await lireDocument(note).catch(() => null);
     if (!fiche) notFound();
     const analyse = analyserDocumentMarkdown(fiche.id, fiche.contenuMd);
-    if (analyse.frontMatter.role === "support") {
-      return (
-        <WorkspaceNoteSupport
-          id={fiche.id}
-          contenuInitial={fiche.contenuMd}
-          updatedAtInitial={fiche.updatedAt}
-          piecesInitiales={await lirePiecesJointes(fiche.id).catch(() => [])}
-          retour={retour}
-        />
-      );
-    }
-    /*
-     * Un projet a son propre espace de travail : ses trois sections
-     * auto-écrites sont une structure (sujet, jalons, critères), pas du texte
-     * à afficher tel quel (ADR-076).
-     */
-    if (analyse.type === "projet") {
-      return (
-        <WorkspaceProjet
-          id={fiche.id}
-          contenuInitial={fiche.contenuMd}
-          updatedAtInitial={fiche.updatedAt}
-          retour={retour}
-        />
-      );
-    }
-    // Seule la branche « séance » a besoin du classement et du stock
-    // d'exercices : les autres se composent d'elles-mêmes.
+    const estSupport = analyse.frontMatter.role === "support";
     const estSeance = analyse.type === "seance";
+
+    const [pieces, donneesSeance] = await Promise.all([
+      estSupport ? lirePiecesJointes(fiche.id).catch(() => []) : Promise.resolve([]),
+      estSeance ? chargerDonneesSeance() : Promise.resolve(undefined),
+    ]);
+
     return (
-      <WorkspaceNoteOperationnelle
+      <WorkspaceDocument
         id={fiche.id}
         contenuInitial={fiche.contenuMd}
         updatedAtInitial={fiche.updatedAt}
-        donneesSeance={estSeance ? await chargerDonneesSeance() : undefined}
+        piecesInitiales={pieces}
+        donneesSeance={donneesSeance}
         retour={retour}
       />
     );

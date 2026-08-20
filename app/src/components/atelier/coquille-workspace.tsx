@@ -1,3 +1,6 @@
+"use client";
+
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { classesLienBouton } from "@/components/ui/primitives";
@@ -37,6 +40,15 @@ export function CoquilleWorkspace({
   barre?: ReactNode;
   children: ReactNode;
 }) {
+  const router = useRouter();
+
+  const handleRetour = (e: React.MouseEvent) => {
+    if (sortie.href === "/atelier" && typeof window !== "undefined" && window.history.length > 1) {
+      e.preventDefault();
+      router.back();
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-surface">
       <header className="sticky top-0 z-20 border-b border-bordure bg-surface/95 backdrop-blur">
@@ -45,7 +57,11 @@ export function CoquilleWorkspace({
             <p className="text-[0.6875rem] uppercase tracking-wider text-texte-discret">{surtitre}</p>
             <h1 className="mt-0.5 truncate font-serif text-lg font-medium">{titre}</h1>
           </div>
-          <Link href={sortie.href} className={classesLienBouton("secondaire", "petite")}>
+          <Link
+            href={sortie.href}
+            onClick={handleRetour}
+            className={classesLienBouton("secondaire", "petite")}
+          >
             {sortie.libelle}
           </Link>
           {barre && <div className="basis-full">{barre}</div>}

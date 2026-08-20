@@ -129,7 +129,7 @@ export function VueRessources({
                       competencesParCode={competencesParCode}
                       ouvrirElement={ouvrirElement}
                       onArchiver={() => setRessourceAArchiver(element)}
-                      libelleAction="Rattacher à une compétence"
+                      libelleAction="Ouvrir la ressource"
                     />
                   ))}
                 </div>
@@ -284,7 +284,7 @@ function CarteRessource({
           <h3 className="mt-3.5 font-serif text-sm font-semibold leading-snug text-texte transition-colors group-hover:text-primaire">
             {element.titre}
           </h3>
-          {rattachements.length > 0 && (
+          {rattachements.length > 0 ? (
             <ul className="mt-2.5 flex flex-wrap gap-1.5">
               {rattachements.slice(0, 3).map((code) => (
                 <li
@@ -301,6 +301,12 @@ function CarteRessource({
                 </li>
               )}
             </ul>
+          ) : (
+            !estArchive && (
+              <p className="mt-2.5 text-[0.6875rem] text-texte-discret italic">
+                Non rattachée
+              </p>
+            )
           )}
         </div>
         <div className="mt-4 flex items-center justify-between border-t border-bordure/60 pt-3 text-xs text-texte-discret">

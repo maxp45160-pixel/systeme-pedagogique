@@ -1,3 +1,6 @@
+"use client";
+
+import { useRef, type WheelEvent, type MouseEvent } from "react";
 import Link from "next/link";
 import {
   Bouton,
@@ -49,6 +52,37 @@ export function OngletsSeancesOuvertes({
   rangAffiche?: number;
   onNaviguer: (position: PositionFeuillet) => void;
 }) {
+  const navRef = useRef<HTMLElement>(null);
+  const isDragging = useRef(false);
+  const startX = useRef(0);
+  const scrollLeftStart = useRef(0);
+
+  const handleWheel = (e: WheelEvent<HTMLElement>) => {
+    if (e.deltaY !== 0 && navRef.current) {
+      navRef.current.scrollLeft += e.deltaY;
+    }
+  };
+
+  const handleMouseDown = (e: MouseEvent<HTMLElement>) => {
+    isDragging.current = true;
+    startX.current = e.pageX;
+    scrollLeftStart.current = navRef.current?.scrollLeft ?? 0;
+  };
+
+  const handleMouseLeave = () => {
+    isDragging.current = false;
+  };
+
+  const handleMouseUp = () => {
+    isDragging.current = false;
+  };
+
+  const handleMouseMove = (e: MouseEvent<HTMLElement>) => {
+    if (!isDragging.current || !navRef.current) return;
+    const walk = (e.pageX - startX.current) * 1.2;
+    navRef.current.scrollLeft = scrollLeftStart.current - walk;
+  };
+
   const entrees = { seances, notes, projets };
 
   const ouvertes = seances
@@ -87,8 +121,14 @@ export function OngletsSeancesOuvertes({
 
   return (
     <nav
+      ref={navRef}
+      onWheel={handleWheel}
+      onMouseDown={handleMouseDown}
+      onMouseLeave={handleMouseLeave}
+      onMouseUp={handleMouseUp}
+      onMouseMove={handleMouseMove}
       aria-label="Séances et projets ouverts"
-      className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5"
+      className="flex items-center gap-2 overflow-x-auto overscroll-contain no-scrollbar py-0.5 w-full min-w-0 cursor-grab active:cursor-grabbing"
     >
       {projetsOuverts.map(({ projet: p, pos }) => {
         const dateProjet = p.updatedAt ?? p.createdAt;

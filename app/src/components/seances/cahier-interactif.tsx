@@ -160,7 +160,7 @@ export function CahierInteractif({
       {compositeur}
 
       {/* Onglets qui dépassent du cahier pour les séances ouvertes ailleurs */}
-      <div className="h-9 flex items-center">
+      <div className="h-9 flex items-center w-full min-w-0 overflow-hidden">
         <OngletsSeancesOuvertes
           seances={seances}
           tentatives={tentatives}

@@ -1050,7 +1050,7 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
       contenu.includes('type="file"') ||
       contenu.includes("type='file'") ||
       (relatif.includes("espace-documentaire") && contenu.includes("televerser")) ||
-      relatif.includes("workspace-note-support") ||
+      relatif.includes("workspace-document") ||
       relatif.includes("capture-notes");
 
     if (aUploadMedia) {

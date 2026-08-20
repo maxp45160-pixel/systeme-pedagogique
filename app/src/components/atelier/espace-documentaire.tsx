@@ -1482,7 +1482,7 @@ export function EspaceDocumentaire({
 
                   {selectionnee.frontMatter.role === "operationnel" && selectionnee.source === "document" && (
                     <Link
-                      href={`/atelier?note=${encodeURIComponent(selectionnee.id)}`}
+                      href={`/atelier?note=${encodeURIComponent(selectionnee.id)}&retour=${encodeURIComponent(`/atelier?document=${encodeURIComponent(selectionnee.id)}`)}`}
                       className="inline-flex items-center gap-1.5 rounded-md bg-primaire px-3 py-1.5 text-xs font-semibold text-texte-inverse shadow-sm hover:bg-primaire-survol transition-colors"
                     >
                       <span>Travailler cette fiche</span>
@@ -1797,7 +1797,7 @@ export function EspaceDocumentaire({
                 <div className="rounded-lg border border-bordure bg-surface p-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-xs font-semibold uppercase tracking-wider text-texte-discret">
-                      Relations
+                      Liens & Compétences
                     </h3>
                     {liensCourants.length > 0 && (
                       <span className="text-[0.6875rem] text-texte-discret font-medium">
@@ -1845,7 +1845,7 @@ export function EspaceDocumentaire({
                     {!selectionnee.lectureSeule && selectionnee.contenuCharge && selectionnee.schemaCompatible !== false && fichesLiables.length > 0 && (
                       <div className="border-t border-bordure pt-3 mt-3">
                         <label className="block text-[0.6875rem] font-medium text-texte-attenue mb-1.5" htmlFor="ajouter-lien-fiche">
-                          Ajouter un lien vers une fiche
+                          Rattacher une compétence ou ressource
                         </label>
                         <div className="flex gap-1.5">
                           {(() => {
@@ -1861,7 +1861,7 @@ export function EspaceDocumentaire({
                                 onChange={(event) => setCibleLien(event.target.value)}
                                 className="min-w-0 flex-1 rounded-md border border-bordure bg-surface-2 px-2.5 py-1.5 text-xs text-texte outline-none focus:border-primaire cursor-pointer"
                               >
-                                <option value="">Choisir une fiche…</option>
+                                <option value="">Sélectionner une cible…</option>
                                 {competences.length > 0 && (
                                   <optgroup label="Compétences">
                                     {competences.map((fiche) => (
