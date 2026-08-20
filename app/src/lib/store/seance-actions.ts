@@ -35,6 +35,7 @@ import {
   peutReprendreSeance,
   resumeSeance,
   resumeSeanceAbandonnee,
+  seanceEnCoursPour,
   statutSeance,
 } from "@/lib/domain/seance";
 import { dureeRetenue } from "@/lib/domain/tentative";
@@ -190,6 +191,12 @@ export async function creerSeanceFocusExercice(exerciceId: string): Promise<stri
   const dorsale = await dorsaleCompte();
   const exercice = (await catalogueExercices(dorsale)).get(exerciceId);
   if (!exercice || exercice.archive) throw new Error("Cet exercice n'est plus disponible.");
+
+  // Le CTA peut être soumis une seconde fois avant que la redirection du
+  // premier appel soit visible. Reprendre la séance déjà ouverte fait converger
+  // les deux appels vers un seul journal, au lieu de laisser un doublon en cours.
+  const existante = seanceEnCoursPour(exerciceId, await lire("sessions", dorsale));
+  if (existante) return existante.id;
 
   const maintenant = new Date().toISOString();
   const codePrincipal = exercice.competences[0];
