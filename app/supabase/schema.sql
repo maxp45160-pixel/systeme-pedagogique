@@ -857,7 +857,7 @@ BEGIN
   END IF;
 
   IF v_type = 'desarchiver_competence' THEN
-    UPDATE public.competences SET archive = false
+    UPDATE public.competences SET archive = false, active = true
     WHERE user_id = v_uid AND domaine = v_domaine_id AND code = p_commande ->> 'code';
     IF NOT FOUND THEN RAISE EXCEPTION 'Compétence inconnue dans ce domaine.'; END IF;
   END IF;
@@ -910,7 +910,7 @@ BEGIN
 
   IF v_type = 'restaurer_domaine' THEN
     UPDATE public.domaines SET archive = false WHERE user_id = v_uid AND id = v_domaine_id;
-    UPDATE public.competences SET archive = false, active = false
+    UPDATE public.competences SET archive = false, active = true
     WHERE user_id = v_uid AND domaine = v_domaine_id;
   END IF;
 
