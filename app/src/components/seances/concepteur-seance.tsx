@@ -56,7 +56,6 @@ import {
   TEMPS_DECLARE_MAX,
 } from "@/lib/domain/seance";
 import { DUREE_ESTIMEE_MIN } from "@/lib/domain/exercice";
-import { themeVersThemeSeance, themesEnregistres, type Theme } from "@/lib/domain/theme";
 import {
   composerSeance,
   nombreExercicesConseille,
@@ -113,8 +112,6 @@ export interface DonneesSeance {
   /** Résumés documentaires sérialisables, issus du même contexte serveur. */
   contexteDocumentaire: [string, ResumeObservationsDocumentaires][];
   domaines: { id: string; nom: string; prefixe: string }[];
-  /** Thèmes enregistrés du compte (chantier « thèmes », ADR-053). */
-  themes: Theme[];
   compteId: string;
   /** Pré-remplit le compositeur (ex. « Refaire cette séance »). */
   preset?: PresetSeance;
@@ -122,8 +119,6 @@ export interface DonneesSeance {
   domaineInitial?: string;
   /** Contexte déclaré dans la fiche qui a lancé la composition. */
   contexteInitial?: string;
-  /** Thème choisi dans la fiche qui a lancé la composition. */
-  themeInitial?: Theme;
   /** Ouvre une séance générale sans sélectionner la première recommandation. */
   sansThemeInitial?: boolean;
   /** Libellé du bouton déclencheur. */
@@ -183,12 +178,10 @@ export function ConcepteurSeance({
   recommandations,
   contexteDocumentaire: contexteDocumentaireSerialise,
   domaines,
-  themes,
   compteId,
   preset,
   domaineInitial,
   contexteInitial,
-  themeInitial,
   sansThemeInitial = false,
   libelle = "Composer une séance",
   pleineLargeur = false,
@@ -265,28 +258,10 @@ export function ConcepteurSeance({
     [actifs],
   );
 
-  const themeDuThemeInitial = useMemo(
-    () => (themeInitial ? themeVersThemeSeance(themeInitial, referentielLeger) : null),
-    [themeInitial, referentielLeger],
-  );
-
   /**
    * Le sujet choisi à la main, qui prime sur toutes les sources dérivées.
-   *
-   * Le compositeur affichait « Le sujet est déjà choisi » et n'offrait aucun
-   * moyen d'en changer : ouvert sans code, il retombait sur la tête du
-   * classement, et la seule sortie pour travailler autre chose était de fermer
-   * la modale et de repasser par un autre écran. Une valeur dérivée reste
-   * modifiable — c'est la règle du reste de cet écran (le nombre d'exercices,
-   * le temps), elle manquait au sujet lui-même.
    */
   const [themeChoisi, setThemeChoisi] = useState<ThemeSeance | null>(null);
-
-  /** Les thèmes enregistrés du compte, convertis en portées de séance. */
-  const themesDuCompte = useMemo(
-    () => themesEnregistres(themes, referentielLeger),
-    [themes, referentielLeger],
-  );
 
   /** Un domaine entier — la portée la plus large qu'on puisse viser. */
   const themesDeDomaine = useMemo(
@@ -335,7 +310,6 @@ export function ConcepteurSeance({
   const themePrincipal: ThemeSeance | null =
     themeChoisi ??
     themeDuPreset ??
-    themeDuThemeInitial ??
     themeDuDomaine ??
     themeSansSujet ??
     (sansThemeInitial ? null : themesSug[0] ?? null);
@@ -411,16 +385,13 @@ export function ConcepteurSeance({
   }
 
   function besoinCourant(): BesoinDeclare {
-    const codesVises =
-      theme?.portee.type === "theme" ? theme.portee.codes : theme?.codesImposes ?? [];
-    const themeId = theme?.portee.type === "theme" ? theme.portee.themeId : undefined;
+    const codesVises = theme?.codesImposes ?? [];
 
     return {
       ...(intention.trim() ? { intention: intention.trim() } : {}),
       codesVises,
       tempsDisponibleMin: tempsMin,
       declareLe: new Date().toISOString(),
-      ...(themeId ? { themeId } : {}),
     };
   }
 
@@ -639,16 +610,13 @@ export function ConcepteurSeance({
                   ? "Sujet choisi"
                   : themeDuPreset
                     ? "Séance précédente"
-                    : themeDuThemeInitial
-                      ? "Thème choisi"
-                      : themeDuDomaine
-                        ? "Domaine choisi"
-                        : themeSansSujet
-                          ? "Aucun sujet imposé"
-                          : "Prochaine action"
+                    : themeDuDomaine
+                      ? "Domaine choisi"
+                      : themeSansSujet
+                        ? "Aucun sujet imposé"
+                        : "Prochaine action"
               }
               suggestions={themesSug}
-              themesEnregistres={themesDuCompte}
               themesDeDomaine={themesDeDomaine}
               themesDeCompetence={themesDeCompetence}
               surChoisirTheme={setThemeChoisi}
@@ -769,7 +737,6 @@ function EtapeBesoin({
   themePrincipal,
   sourceTheme,
   suggestions,
-  themesEnregistres: themesDuCompte,
   themesDeDomaine,
   themesDeCompetence,
   surChoisirTheme,
@@ -785,7 +752,6 @@ function EtapeBesoin({
   themePrincipal: ThemeSeance | null;
   sourceTheme: string;
   suggestions: ThemeSeance[];
-  themesEnregistres: ThemeSeance[];
   themesDeDomaine: ThemeSeance[];
   themesDeCompetence: ThemeSeance[];
   surChoisirTheme: (theme: ThemeSeance | null) => void;
@@ -873,16 +839,6 @@ function EtapeBesoin({
               surChoisirTheme(theme);
               setChoixOuvert(false);
             }}
-          />
-          <ListeSujets
-            titre="Tes thèmes enregistrés"
-            sujets={themesDuCompte}
-            actif={themePrincipal.cle}
-            surChoisir={(theme) => {
-              surChoisirTheme(theme);
-              setChoixOuvert(false);
-            }}
-            vide="Aucun thème enregistré pour l'instant."
           />
           <ListeSujets
             titre="Un domaine entier"

@@ -46,7 +46,6 @@
  */
 
 import type { Exercise, Referentiel, SkillState } from "./types";
-import type { Theme } from "./theme";
 import type { IndexDocumentaire } from "@/lib/documents/index";
 import {
   calculerSimilaritesTextuelles,
@@ -57,7 +56,7 @@ import {
 /* Types exportés — consommés par le composant Canvas                  */
 /* ------------------------------------------------------------------ */
 
-export type TypeNoeud = "competence" | "exercice" | "theme" | "document";
+export type TypeNoeud = "competence" | "exercice" | "document";
 // Extensible sans réécriture : "note" | "projet" | "document" | "cours" (lot 2, hors chantier).
 
 export interface NoeudGraphe {
@@ -65,7 +64,6 @@ export interface NoeudGraphe {
   id: string;
   type: TypeNoeud;
   libelle: string;
-  /** `null` pour un thème : il peut traverser plusieurs domaines par nature. */
   domaineId: string | null;
   /** Étiquettes dérivées — domaine, palier, niveau, couverture. Extensible. */
   etiquettes: string[];
@@ -73,7 +71,7 @@ export interface NoeudGraphe {
   poidsAffichage: number;
 }
 
-export type TypeLien = "prerequis" | "theme" | "exercice" | "similarite" | "document";
+export type TypeLien = "prerequis" | "exercice" | "similarite" | "document";
 
 export interface LienGraphe {
   source: string;
@@ -100,7 +98,6 @@ export function construireGraphe(
   referentiel: Referentiel,
   etats: SkillState[],
   exercices: Exercise[],
-  themes: Theme[],
   indexDocumentaire?: IndexDocumentaire,
 ): DonneesGraphe {
   const codesActifs = referentiel.codesActifs;
@@ -151,44 +148,6 @@ export function construireGraphe(
         poids: 1,
         oriente: true,
       });
-    }
-  }
-
-  // ── Nœuds thème + liens (hub non orienté, réel — ADR-053) ──
-  // Un thème avec un seul code actif n'apporte aucun lien : il n'entre pas dans le graphe.
-  for (const t of themes) {
-    if (t.archive) continue;
-    const codes = t.codes.filter((c) => codesActifs.has(c));
-    if (codes.length < 2) continue;
-    const idTheme = `theme:${t.id}`;
-    const domainesTraverses = Array.from(
-      new Set(
-        codes
-          .map((c) => referentiel.parCode.get(c)?.domaine)
-          .filter((d): d is string => Boolean(d)),
-      ),
-    );
-    const nomsDomainesTraverses = domainesTraverses
-      .map((d) => nomsDomaines.get(d) ?? d)
-      .slice(0, 3)
-      .join(", ");
-    const suffixe = domainesTraverses.length > 3 ? "…" : "";
-
-    noeuds.push({
-      id: idTheme,
-      type: "theme",
-      libelle: t.libelle,
-      domaineId: null,
-      etiquettes: [
-        "Thème transversal",
-        `${domainesTraverses.length} domaine${domainesTraverses.length > 1 ? "s" : ""} : ${nomsDomainesTraverses}${suffixe}`,
-        `${codes.length} compétences reliées`,
-        ...domainesTraverses.map((d) => `traverse:${d}`),
-      ],
-      poidsAffichage: codes.length,
-    });
-    for (const c of codes) {
-      ajouter({ source: idTheme, target: codeVersId(c), type: "theme", poids: 0.6, oriente: false });
     }
   }
 

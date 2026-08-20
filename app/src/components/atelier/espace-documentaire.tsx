@@ -44,7 +44,7 @@ import {
   supprimerPieceJointeAction,
   supprimerNoteSupportAction,
 } from "@/lib/store/document-actions";
-import type { VueDomaineAtelier, VueCompetenceAtelier, VueThemeAtelier } from "@/lib/documents/vue-atelier";
+import type { VueDomaineAtelier, VueCompetenceAtelier } from "@/lib/documents/vue-atelier";
 import {
   FichePedagogiqueAtelier,
   PanneauPedagogiqueAtelier,
@@ -57,7 +57,7 @@ import { EditeurDirect } from "./editeur-document";
 import { VueTousLesDomaines, BarreVuesAtelier, type VueAtelier } from "./vues-synthese-atelier";
 import { VueEntretien } from "@/components/referentiel/vue-entretien";
 import type { LotCandidats } from "@/lib/engine/candidats-referentiel";
-import { VueRessources, VueThemes } from "./vues-ressources-atelier";
+import { VueRessources } from "./vues-ressources-atelier";
 import { PanneauExerciceAtelier } from "./panneaux-document-atelier";
 import { LIBELLES_TRIS_DOMAINES, type TriDomaine } from "@/lib/documents/tri-domaines";
 import type { ElementAtelier } from "./types-atelier";
@@ -143,7 +143,6 @@ function documentDepuisAnalyse(
  */
 const VUES_ATELIER = new Set<string>([
   "domaines",
-  "themes",
   "ressources",
   "graphe",
   "domaines-archives",
@@ -152,7 +151,6 @@ const VUES_ATELIER = new Set<string>([
 
 const TITRES_VUES: Record<string, string> = {
   domaines: "Domaines",
-  themes: "Thèmes",
   ressources: "Ressources",
   graphe: "Graphe",
   "domaines-archives": "Domaines archivés",
@@ -198,9 +196,6 @@ function RetourAtelier({
         action: () => ouvrirElement(liste),
       };
     }
-    if (vue?.kind === "theme") {
-      return { libelle: "Thèmes", titre: vue.libelle, action: () => changerVue("themes") };
-    }
     if (vue?.kind === "competence") {
       return {
         libelle: vue.domaineNom,
@@ -221,9 +216,6 @@ function RetourAtelier({
         titre: element.titre,
         action: () => ouvrirElement(`domaine:${domaineId}`),
       };
-    }
-    if (zone === "theme") {
-      return { libelle: "Retour aux thèmes", titre: element.titre, action: () => changerVue("themes") };
     }
     if (zone === "ressource") {
       return {
@@ -277,9 +269,9 @@ function trouverElement(id: string, liste: ElementAtelier[]): ElementAtelier | u
       lectureSeule: true,
     };
   }
-  const cleanId = id.replace(/^(competence|document|exercice|domaine|theme):/, "");
+  const cleanId = id.replace(/^(competence|document|exercice|domaine):/, "");
   return liste.find((element) => {
-    const elementCleanId = element.id.replace(/^(competence|document|exercice|domaine|theme):/, "");
+    const elementCleanId = element.id.replace(/^(competence|document|exercice|domaine):/, "");
     return (
       element.id === id ||
       elementCleanId === cleanId ||
@@ -287,7 +279,6 @@ function trouverElement(id: string, liste: ElementAtelier[]): ElementAtelier | u
       element.id === `domaine:${cleanId}` ||
       element.id === `competence:${cleanId}` ||
       element.id === `document:${cleanId}` ||
-      element.id === `theme:${cleanId}` ||
       element.frontMatter?.exercice === cleanId ||
       element.frontMatter?.exercice === id
     );
@@ -382,23 +373,6 @@ export function EspaceDocumentaire({
           };
         }
 
-        // Thème dont toutes les compétences sont dans ce domaine
-        if (
-          el.type === "theme" &&
-          el.sortants.length > 0 &&
-          el.sortants.every((c) => codesDuDomaine.has(c))
-        ) {
-          const vueTheme =
-            el.vuePedagogique?.kind === "theme"
-              ? ({ ...el.vuePedagogique, archive: true } as VueThemeAtelier)
-              : el.vuePedagogique;
-          return {
-            ...el,
-            frontMatter: { ...el.frontMatter, archive: true },
-            vuePedagogique: vueTheme,
-          };
-        }
-
         return el;
       });
     });
@@ -457,23 +431,6 @@ export function EspaceDocumentaire({
           };
         }
 
-        // Thème dont toutes les compétences sont dans ce domaine
-        if (
-          el.type === "theme" &&
-          el.sortants.length > 0 &&
-          el.sortants.every((c) => codesDuDomaine.has(c))
-        ) {
-          const vueTheme =
-            el.vuePedagogique?.kind === "theme"
-              ? ({ ...el.vuePedagogique, archive: false } as VueThemeAtelier)
-              : el.vuePedagogique;
-          return {
-            ...el,
-            frontMatter: { ...el.frontMatter, archive: false },
-            vuePedagogique: vueTheme,
-          };
-        }
-
         return el;
       });
     });
@@ -489,116 +446,6 @@ export function EspaceDocumentaire({
             (el.vuePedagogique as VueDomaineAtelier).domaine.id === domaineId
           ),
       ),
-    );
-  }, []);
-
-  const onArchiverTheme = useCallback((themeId: string) => {
-    setElements((anciens) => {
-      const codesDuTheme = new Set<string>();
-      for (const el of anciens) {
-        if (el.id === `theme:${themeId}` || el.id === themeId) {
-          el.sortants.forEach((c) => codesDuTheme.add(c));
-          if (el.vuePedagogique?.kind === "theme") {
-            el.vuePedagogique.competences.forEach((c) => codesDuTheme.add(c.code));
-          }
-        }
-      }
-
-      return anciens.map((el) => {
-        // Thème lui-même
-        if (el.id === `theme:${themeId}` || el.id === themeId) {
-          const vueTheme =
-            el.vuePedagogique?.kind === "theme"
-              ? ({ ...el.vuePedagogique, archive: true } as VueThemeAtelier)
-              : el.vuePedagogique;
-          return {
-            ...el,
-            frontMatter: { ...el.frontMatter, archive: true },
-            vuePedagogique: vueTheme,
-          };
-        }
-
-        // Compétence appartenant à ce thème
-        if (el.type === "competence" && el.vuePedagogique?.kind === "competence" && codesDuTheme.has(el.vuePedagogique.code)) {
-          return {
-            ...el,
-            frontMatter: { ...el.frontMatter, archive: true },
-          };
-        }
-
-        // Document / Preuve / Ressource liée à ce thème ou citant ses compétences
-        if (
-          el.type === "document" &&
-          (el.frontMatter.theme === themeId ||
-            (Array.isArray(el.frontMatter.themes) && el.frontMatter.themes.includes(themeId)) ||
-            (el.sortants.length > 0 && el.sortants.every((c) => codesDuTheme.has(c))))
-        ) {
-          return {
-            ...el,
-            frontMatter: { ...el.frontMatter, archive: true },
-          };
-        }
-
-        return el;
-      });
-    });
-  }, []);
-
-  const onRestaurerTheme = useCallback((themeId: string) => {
-    setElements((anciens) => {
-      const codesDuTheme = new Set<string>();
-      for (const el of anciens) {
-        if (el.id === `theme:${themeId}` || el.id === themeId) {
-          el.sortants.forEach((c) => codesDuTheme.add(c));
-          if (el.vuePedagogique?.kind === "theme") {
-            el.vuePedagogique.competences.forEach((c) => codesDuTheme.add(c.code));
-          }
-        }
-      }
-
-      return anciens.map((el) => {
-        // Thème lui-même
-        if (el.id === `theme:${themeId}` || el.id === themeId) {
-          const vueTheme =
-            el.vuePedagogique?.kind === "theme"
-              ? ({ ...el.vuePedagogique, archive: false } as VueThemeAtelier)
-              : el.vuePedagogique;
-          return {
-            ...el,
-            frontMatter: { ...el.frontMatter, archive: false },
-            vuePedagogique: vueTheme,
-          };
-        }
-
-        // Compétence appartenant à ce thème
-        if (el.type === "competence" && el.vuePedagogique?.kind === "competence" && codesDuTheme.has(el.vuePedagogique.code)) {
-          return {
-            ...el,
-            frontMatter: { ...el.frontMatter, archive: false },
-          };
-        }
-
-        // Document / Preuve / Ressource liée à ce thème ou citant ses compétences
-        if (
-          el.type === "document" &&
-          (el.frontMatter.theme === themeId ||
-            (Array.isArray(el.frontMatter.themes) && el.frontMatter.themes.includes(themeId)) ||
-            (el.sortants.length > 0 && el.sortants.every((c) => codesDuTheme.has(c))))
-        ) {
-          return {
-            ...el,
-            frontMatter: { ...el.frontMatter, archive: false },
-          };
-        }
-
-        return el;
-      });
-    });
-  }, []);
-
-  const onSupprimerTheme = useCallback((themeId: string) => {
-    setElements((anciens) =>
-      anciens.filter((el) => el.id !== `theme:${themeId}` && el.id !== themeId),
     );
   }, []);
 
@@ -890,13 +737,6 @@ export function EspaceDocumentaire({
       return { nbActifs: actifs, nbArchives: archives };
     }
 
-    if (vueActuelle === "themes") {
-      const themesList = elements.filter((el) => el.rangement.zone === "theme");
-      const actifs = themesList.filter((el) => !el.frontMatter.archive).length;
-      const archives = themesList.filter((el) => Boolean(el.frontMatter.archive)).length;
-      return { nbActifs: actifs, nbArchives: archives };
-    }
-
     if (vueActuelle === "ressources") {
       const resList = elements.filter((el) => el.rangement.zone === "ressource");
       const actifs = resList.filter((el) => !el.frontMatter.archive).length;
@@ -1162,7 +1002,7 @@ export function EspaceDocumentaire({
           <div className="flex items-center gap-3">
             <BarreVuesAtelier
               vue={
-                (["domaines", "themes", "ressources", "graphe", "entretien"].includes(
+                (["domaines", "ressources", "graphe", "entretien"].includes(
                   selection ?? "",
                 )
                   ? selection
@@ -1180,7 +1020,7 @@ export function EspaceDocumentaire({
         )}
 
         <div className="flex items-center gap-2.5 min-w-0">
-          {!selectionnee && (vueActuelle === "domaines" || vueActuelle === "themes" || vueActuelle === "ressources") && (
+          {!selectionnee && (vueActuelle === "domaines" || vueActuelle === "ressources") && (
             <div className="flex items-center gap-2">
               {vueActuelle === "domaines" && (
                 <div className="flex items-center gap-1.5 shrink-0 text-xs">
@@ -1359,19 +1199,6 @@ export function EspaceDocumentaire({
             <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface p-4">
               <GrapheCompetences donnees={graphe.donnees} compteId={graphe.compteId} ouvrirElement={ouvrirElement} />
             </div>
-          ) : selection === "themes" ? (
-            <VueThemes
-              elements={elements}
-              ouvrirElement={ouvrirElement}
-              changerVue={changerVue}
-              compteId={graphe.compteId}
-              competencesParCode={competencesParCode}
-              domainesExistants={domainesExistants}
-              statut={statutFiltre}
-              onArchiver={onArchiverTheme}
-              onRestaurer={onRestaurerTheme}
-              onSupprimer={onSupprimerTheme}
-            />
           ) : selection === "ressources" ? (
             <VueRessources
               elements={elements}
@@ -2069,9 +1896,7 @@ function ResultatsRecherche({
                     </span>
                     {(element.frontMatter.archive ||
                       (element.vuePedagogique?.kind === "domaine" &&
-                        (element.vuePedagogique as VueDomaineAtelier).domaine.archive) ||
-                      (element.vuePedagogique?.kind === "theme" &&
-                        Boolean((element.vuePedagogique as { archive?: boolean }).archive))) && (
+                        (element.vuePedagogique as VueDomaineAtelier).domaine.archive)) && (
                       <span className="rounded bg-surface-3 px-1.5 py-0.5 text-[10px] font-medium text-texte-discret">
                         Archivé
                       </span>

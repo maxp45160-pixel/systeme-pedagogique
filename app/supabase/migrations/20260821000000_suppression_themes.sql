@@ -1,0 +1,272 @@
+-- ====================================================================
+-- Migration : 20260821000000_suppression_themes.sql
+-- Description : Suppression complète de la table themes et nettoyage des RPCs
+-- ====================================================================
+
+-- 1. Suppression de la table themes
+DROP TABLE IF EXISTS public.themes CASCADE;
+
+-- 2. Mise à jour de charger_tout pour retirer la clé themes
+CREATE OR REPLACE FUNCTION public.charger_tout()
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  uid uuid := auth.uid();
+  resultat json;
+BEGIN
+  SELECT json_build_object(
+    'profile',     (SELECT row_to_json(p) FROM profiles p WHERE p.id = uid),
+    'observations',    COALESCE((SELECT json_agg(row_to_json(e)) FROM observations e WHERE e.user_id = uid), '[]'::json),
+    'exercises',   COALESCE((SELECT json_agg(row_to_json(x)) FROM exercises x WHERE x.user_id = uid), '[]'::json),
+    'attempts',    COALESCE((SELECT json_agg(row_to_json(a)) FROM attempts a WHERE a.user_id = uid), '[]'::json),
+    'sessions',    COALESCE((SELECT json_agg(row_to_json(s)) FROM sessions s WHERE s.user_id = uid), '[]'::json),
+    'refus_recommandations',
+                   COALESCE((SELECT json_agg(row_to_json(r)) FROM refus_recommandations r WHERE r.user_id = uid), '[]'::json),
+    'domaines',    COALESCE((SELECT json_agg(row_to_json(d)) FROM domaines d WHERE d.user_id = uid), '[]'::json),
+    'competences', COALESCE((SELECT json_agg(row_to_json(c)) FROM competences c WHERE c.user_id = uid), '[]'::json),
+    'competence_domaines',
+                   COALESCE((SELECT json_agg(row_to_json(cd)) FROM competence_domaines cd WHERE cd.user_id = uid), '[]'::json),
+    'moteur_reglages',
+                   COALESCE((SELECT json_agg(row_to_json(m)) FROM (SELECT * FROM public.moteur_reglages WHERE user_id = uid ORDER BY applique_le ASC) m), '[]'::json)
+  ) INTO resultat;
+
+  RETURN resultat;
+END;
+$$;
+
+-- 3. Mise à jour de appliquer_commande_referentiel pour retirer les vérifications sur public.themes
+CREATE OR REPLACE FUNCTION public.appliquer_commande_referentiel(
+  p_request_id TEXT,
+  p_commande JSONB,
+  p_expected_version INTEGER DEFAULT NULL,
+  p_origine TEXT DEFAULT 'utilisateur',
+  p_motif TEXT DEFAULT 'Modification du référentiel'
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_uid UUID := auth.uid();
+  v_type TEXT := p_commande ->> 'type';
+  v_domaine_id TEXT;
+  v_version_avant INTEGER;
+  v_version_apres INTEGER;
+  v_prefixe TEXT;
+  v_numero INTEGER;
+  v_code TEXT;
+  v_item JSONB;
+  v_ajouts JSONB := '[]'::JSONB;
+  v_codes_ajoutes JSONB := '[]'::JSONB;
+  v_modifiees JSONB := '[]'::JSONB;
+  v_supprimees JSONB := '[]'::JSONB;
+  v_archivees JSONB := '[]'::JSONB;
+  v_before JSONB;
+  v_after JSONB;
+  v_resultat JSONB;
+  v_preserver BOOLEAN;
+  v_domaine_supprime BOOLEAN := false;
+BEGIN
+  IF v_uid IS NULL THEN RAISE EXCEPTION 'Authentification requise.' USING ERRCODE = '42501'; END IF;
+  IF length(btrim(coalesce(p_request_id, ''))) = 0 THEN RAISE EXCEPTION 'request_id obligatoire.'; END IF;
+  IF p_origine NOT IN ('utilisateur', 'tuteur', 'migration', 'manuel') THEN RAISE EXCEPTION 'Origine inconnue : %', p_origine; END IF;
+  IF length(btrim(coalesce(p_motif, ''))) = 0 THEN RAISE EXCEPTION 'Le motif est obligatoire.'; END IF;
+  IF v_type NOT IN ('creer_domaine', 'ajouter_competences', 'reviser_domaine', 'activer_competences', 'desarchiver_competence', 'retirer_competences', 'archiver_domaine', 'restaurer_domaine', 'remplacer_competence') THEN
+    RAISE EXCEPTION 'Commande inconnue : %', coalesce(v_type, 'NULL');
+  END IF;
+
+  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_uid::TEXT || ':request:' || p_request_id, 0));
+
+  SELECT diff -> 'resultat' INTO v_resultat
+  FROM public.referentiel_changes
+  WHERE user_id = v_uid AND request_id = p_request_id;
+  IF FOUND THEN RETURN v_resultat; END IF;
+
+  PERFORM pg_catalog.set_config('app.referentiel_command', 'on', true);
+  v_domaine_id := CASE WHEN v_type = 'creer_domaine' THEN p_commande #>> '{domaine,id}' ELSE p_commande ->> 'domaineId' END;
+  IF length(btrim(coalesce(v_domaine_id, ''))) = 0 THEN RAISE EXCEPTION 'Identifiant de domaine obligatoire.'; END IF;
+
+  IF v_type = 'creer_domaine' THEN
+    IF p_expected_version IS NOT NULL THEN RAISE EXCEPTION 'Une création ne porte pas de version attendue.'; END IF;
+    IF jsonb_array_length(coalesce(p_commande -> 'competences', '[]'::JSONB)) = 0 THEN RAISE EXCEPTION 'Un domaine doit naître avec au moins une compétence.'; END IF;
+    PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_uid::TEXT || ':' || v_domaine_id, 0));
+    INSERT INTO public.domaines (user_id, id, nom, prefixe, description, ordre, version, archive, origine)
+    VALUES (
+      v_uid, v_domaine_id, btrim(p_commande #>> '{domaine,nom}'), upper(btrim(p_commande #>> '{domaine,prefixe}')),
+      coalesce(p_commande #>> '{domaine,description}', ''), coalesce((p_commande #>> '{domaine,ordre}')::INTEGER, 0),
+      1, false, coalesce(p_commande #>> '{domaine,origine}', p_origine)
+    );
+    v_version_avant := NULL;
+    v_version_apres := 1;
+    v_ajouts := p_commande -> 'competences';
+  ELSE
+    SELECT version, prefixe INTO v_version_avant, v_prefixe
+    FROM public.domaines
+    WHERE user_id = v_uid AND id = v_domaine_id
+    FOR UPDATE;
+    IF NOT FOUND THEN RAISE EXCEPTION 'Domaine inconnu : %', v_domaine_id; END IF;
+    IF p_expected_version IS NULL OR p_expected_version <> v_version_avant THEN
+      RAISE EXCEPTION 'Le domaine a changé depuis son affichage (version attendue %, version actuelle %). Recharge la page.', p_expected_version, v_version_avant USING ERRCODE = '40001';
+    END IF;
+    SELECT jsonb_build_object(
+      'domaine', to_jsonb(d) - 'user_id',
+      'competences', coalesce((SELECT jsonb_agg(to_jsonb(c) - 'user_id' ORDER BY c.code) FROM public.competences c WHERE c.user_id = v_uid AND c.domaine = v_domaine_id), '[]'::JSONB)
+    ) INTO v_before FROM public.domaines d WHERE d.user_id = v_uid AND d.id = v_domaine_id;
+  END IF;
+
+  SELECT prefixe INTO v_prefixe FROM public.domaines WHERE user_id = v_uid AND id = v_domaine_id;
+
+  IF v_type = 'ajouter_competences' THEN v_ajouts := coalesce(p_commande -> 'competences', '[]'::JSONB); END IF;
+
+  IF v_type = 'reviser_domaine' THEN
+    UPDATE public.domaines SET
+      nom = coalesce(nullif(btrim(p_commande #>> '{domaine,nom}'), ''), nom),
+      description = CASE WHEN p_commande #> '{domaine,description}' IS NULL THEN description ELSE coalesce(p_commande #>> '{domaine,description}', '') END,
+      ordre = coalesce((p_commande #>> '{domaine,ordre}')::INTEGER, ordre)
+    WHERE user_id = v_uid AND id = v_domaine_id;
+
+    FOR v_item IN SELECT value FROM jsonb_array_elements(coalesce(p_commande -> 'modifications', '[]'::JSONB)) LOOP
+      IF NOT EXISTS (SELECT 1 FROM public.competences WHERE user_id = v_uid AND domaine = v_domaine_id AND code = v_item ->> 'code') THEN
+        RAISE EXCEPTION '% n''appartient pas au domaine %.', v_item ->> 'code', v_domaine_id;
+      END IF;
+      UPDATE public.competences SET
+        intitule = coalesce(nullif(btrim(v_item ->> 'intitule'), ''), intitule),
+        palier = coalesce(v_item ->> 'palier', palier),
+        importance = coalesce((v_item ->> 'importance')::REAL, importance),
+        prerequis = CASE WHEN v_item ? 'prerequis' THEN ARRAY(SELECT jsonb_array_elements_text(v_item -> 'prerequis')) ELSE prerequis END,
+        ordre = coalesce((v_item ->> 'ordre')::INTEGER, ordre)
+      WHERE user_id = v_uid AND code = v_item ->> 'code';
+      v_modifiees := v_modifiees || jsonb_build_array(v_item ->> 'code');
+    END LOOP;
+    v_ajouts := coalesce(p_commande -> 'ajouts', '[]'::JSONB);
+  END IF;
+
+  IF v_type = 'remplacer_competence' THEN
+    IF NOT EXISTS (SELECT 1 FROM public.competences WHERE user_id = v_uid AND domaine = v_domaine_id AND code = p_commande ->> 'code') THEN
+      RAISE EXCEPTION 'Compétence inconnue dans ce domaine : %', p_commande ->> 'code';
+    END IF;
+    v_ajouts := jsonb_build_array(p_commande -> 'successeur');
+  END IF;
+
+  FOR v_item IN SELECT value FROM jsonb_array_elements(v_ajouts) LOOP
+    IF length(btrim(coalesce(v_item ->> 'intitule', ''))) < 10 THEN RAISE EXCEPTION 'Intitulé de compétence trop court.'; END IF;
+    IF (v_item ->> 'palier') NOT IN ('fondamentaux', 'intermediaire', 'avance') THEN RAISE EXCEPTION 'Palier inconnu.'; END IF;
+    IF (v_item ->> 'importance')::REAL NOT BETWEEN 0 AND 1 THEN RAISE EXCEPTION 'Importance hors bornes.'; END IF;
+    IF EXISTS (
+      SELECT 1 FROM jsonb_array_elements_text(coalesce(v_item -> 'prerequis', '[]'::JSONB)) p(code)
+      WHERE NOT EXISTS (SELECT 1 FROM public.competences c WHERE c.user_id = v_uid AND c.code = p.code)
+    ) THEN RAISE EXCEPTION 'Un prérequis de « % » est inconnu.', v_item ->> 'intitule'; END IF;
+
+    SELECT coalesce(max(substring(code FROM length(v_prefixe) + 2)::INTEGER), 0) + 1 INTO v_numero
+    FROM public.referentiel_codes_emis
+    WHERE user_id = v_uid AND code ~ ('^' || v_prefixe || '-[0-9]+$');
+    v_code := v_prefixe || '-' || lpad(v_numero::TEXT, 2, '0');
+    INSERT INTO public.referentiel_codes_emis (user_id, code, domaine_id) VALUES (v_uid, v_code, v_domaine_id);
+    INSERT INTO public.competences (user_id, code, domaine, intitule, palier, prerequis, importance, ordre, active, archive, origine)
+    VALUES (
+      v_uid, v_code, v_domaine_id, btrim(v_item ->> 'intitule'), v_item ->> 'palier',
+      ARRAY(SELECT jsonb_array_elements_text(coalesce(v_item -> 'prerequis', '[]'::JSONB))),
+      (v_item ->> 'importance')::REAL, coalesce((v_item ->> 'ordre')::INTEGER, 0), true, false,
+      coalesce(v_item ->> 'origine', p_origine)
+    );
+    v_codes_ajoutes := v_codes_ajoutes || jsonb_build_array(v_code);
+  END LOOP;
+
+  IF v_type = 'remplacer_competence' THEN
+    UPDATE public.competences SET remplace_par = v_code, archive = true, active = false
+    WHERE user_id = v_uid AND domaine = v_domaine_id AND code = p_commande ->> 'code';
+    v_archivees := jsonb_build_array(p_commande ->> 'code');
+  END IF;
+
+  IF v_type = 'activer_competences' THEN
+    FOR v_item IN SELECT to_jsonb(value) FROM jsonb_array_elements_text(coalesce(p_commande -> 'codes', '[]'::JSONB)) LOOP
+      v_code := v_item #>> '{}';
+      IF NOT EXISTS (SELECT 1 FROM public.competences WHERE user_id = v_uid AND domaine = v_domaine_id AND code = v_code) THEN RAISE EXCEPTION '% n''appartient pas au domaine %.', v_code, v_domaine_id; END IF;
+      IF coalesce((p_commande ->> 'active')::BOOLEAN, false) AND EXISTS (SELECT 1 FROM public.competences WHERE user_id = v_uid AND code = v_code AND archive) THEN RAISE EXCEPTION '% est archivée : désarchive-la d''abord.', v_code; END IF;
+      UPDATE public.competences SET active = (p_commande ->> 'active')::BOOLEAN WHERE user_id = v_uid AND code = v_code;
+    END LOOP;
+  END IF;
+
+  IF v_type = 'desarchiver_competence' THEN
+    UPDATE public.competences SET archive = false
+    WHERE user_id = v_uid AND domaine = v_domaine_id AND code = p_commande ->> 'code';
+    IF NOT FOUND THEN RAISE EXCEPTION 'Compétence inconnue dans ce domaine.'; END IF;
+  END IF;
+
+  IF v_type IN ('retirer_competences', 'reviser_domaine') THEN
+    FOR v_item IN SELECT to_jsonb(value) FROM jsonb_array_elements_text(
+      CASE WHEN v_type = 'retirer_competences' THEN coalesce(p_commande -> 'codes', '[]'::JSONB) ELSE coalesce(p_commande -> 'retraits', '[]'::JSONB) END
+    ) LOOP
+      v_code := v_item #>> '{}';
+      IF NOT EXISTS (SELECT 1 FROM public.competences WHERE user_id = v_uid AND domaine = v_domaine_id AND code = v_code) THEN RAISE EXCEPTION '% n''appartient pas au domaine %.', v_code, v_domaine_id; END IF;
+      v_preserver :=
+        EXISTS (SELECT 1 FROM public.observations WHERE user_id = v_uid AND skill_code = v_code)
+        OR EXISTS (SELECT 1 FROM public.competences WHERE user_id = v_uid AND (v_code = ANY(prerequis) OR remplace_par = v_code))
+        OR EXISTS (SELECT 1 FROM public.exercises WHERE user_id = v_uid AND v_code = ANY(competences))
+        OR EXISTS (SELECT 1 FROM public.sessions WHERE user_id = v_uid AND v_code = ANY(skill_codes));
+      v_preserver := v_preserver OR EXISTS (SELECT 1 FROM public.document_links WHERE user_id = v_uid AND cible = v_code);
+      IF v_preserver THEN
+        UPDATE public.competences SET archive = true, active = false WHERE user_id = v_uid AND code = v_code;
+        v_archivees := v_archivees || jsonb_build_array(v_code);
+      ELSE
+        DELETE FROM public.competences WHERE user_id = v_uid AND code = v_code;
+        v_supprimees := v_supprimees || jsonb_build_array(v_code);
+      END IF;
+    END LOOP;
+  END IF;
+
+  IF v_type = 'archiver_domaine' THEN
+    SELECT EXISTS (
+      SELECT 1 FROM public.competences c WHERE c.user_id = v_uid AND c.domaine = v_domaine_id AND (
+        EXISTS (SELECT 1 FROM public.observations e WHERE e.user_id = v_uid AND e.skill_code = c.code)
+        OR EXISTS (SELECT 1 FROM public.competences d WHERE d.user_id = v_uid AND (c.code = ANY(d.prerequis) OR d.remplace_par = c.code))
+        OR EXISTS (SELECT 1 FROM public.exercises x WHERE x.user_id = v_uid AND c.code = ANY(x.competences))
+        OR EXISTS (SELECT 1 FROM public.sessions s WHERE s.user_id = v_uid AND c.code = ANY(s.skill_codes))
+        OR EXISTS (SELECT 1 FROM public.document_links l WHERE l.user_id = v_uid AND l.cible = c.code)
+      )
+    ) INTO v_preserver;
+    IF v_preserver THEN
+      UPDATE public.competences SET archive = true, active = false WHERE user_id = v_uid AND domaine = v_domaine_id;
+      UPDATE public.domaines SET archive = true WHERE user_id = v_uid AND id = v_domaine_id;
+    ELSE
+      DELETE FROM public.competences WHERE user_id = v_uid AND domaine = v_domaine_id;
+      DELETE FROM public.domaines WHERE user_id = v_uid AND id = v_domaine_id;
+      v_domaine_supprime := true;
+    END IF;
+  END IF;
+
+  IF v_type = 'restaurer_domaine' THEN
+    UPDATE public.domaines SET archive = false WHERE user_id = v_uid AND id = v_domaine_id;
+    UPDATE public.competences SET archive = false, active = false
+    WHERE user_id = v_uid AND domaine = v_domaine_id;
+  END IF;
+
+  IF NOT v_domaine_supprime AND v_type <> 'creer_domaine' THEN
+    UPDATE public.domaines SET version = version + 1 WHERE user_id = v_uid AND id = v_domaine_id RETURNING version INTO v_version_apres;
+  ELSIF v_domaine_supprime THEN
+    v_version_apres := NULL;
+  END IF;
+
+  IF NOT v_domaine_supprime THEN
+    SELECT jsonb_build_object(
+      'domaine', to_jsonb(d) - 'user_id',
+      'competences', coalesce((SELECT jsonb_agg(to_jsonb(c) - 'user_id' ORDER BY c.code) FROM public.competences c WHERE c.user_id = v_uid AND c.domaine = v_domaine_id), '[]'::JSONB)
+    ) INTO v_after FROM public.domaines d WHERE d.user_id = v_uid AND d.id = v_domaine_id;
+  END IF;
+
+  v_resultat := jsonb_build_object(
+    'domaineId', v_domaine_id, 'version', v_version_apres, 'codes', v_codes_ajoutes,
+    'ajoutees', v_codes_ajoutes, 'modifiees', v_modifiees, 'supprimees', v_supprimees,
+    'archivees', v_archivees, 'domaineSupprime', v_domaine_supprime
+  );
+  IF v_type = 'remplacer_competence' THEN v_resultat := v_resultat || jsonb_build_object('successeur', v_code); END IF;
+
+  INSERT INTO public.referentiel_changes (user_id, request_id, domaine_id, type, version_avant, version_apres, origine, motif, diff)
+  VALUES (v_uid, p_request_id, v_domaine_id, v_type, v_version_avant, v_version_apres, p_origine, btrim(p_motif), jsonb_build_object('avant', v_before, 'apres', v_after, 'resultat', v_resultat));
+  RETURN v_resultat;
+END;
+$$;

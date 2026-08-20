@@ -221,27 +221,6 @@ export const OUTIL_RELATIONS = "proposer_relations";
  */
 export const OUTIL_REFERENTIEL_COMPLET = "proposer_referentiel_complet";
 
-/**
- * ⚠️ `proposer_theme` — résolution d'une intention libre en compétences
- * existantes (chantier « thèmes », 10/08/2026, ADR-053).
- *
- * N'entre PAS dans `outilsTuteur`, sur le même modèle que
- * `proposer_correction` : c'est le 3ᵉ verrou d'ADR-041, transposé ici — un
- * outil qui voyage avec chaque message du chat cesse d'être un chemin confiné.
- * `proposer_theme` n'est armé que sur la route `POST /api/themes/resoudre`.
- *
- * Même distinction frapper/désigner qu'`OUTIL_REVISION` : `codes` est un
- * `enum` fermé, construit côté serveur sur les codes actifs du **compte
- * entier** (pas d'un seul domaine — un thème traverse les domaines par
- * construction). Aucun champ `code` en écriture libre nulle part dans ce
- * schéma.
- *
- * ⚠️ Ne pas « simplifier » cet `enum` en `type: "string"` : ce serait rendre
- * la frappe de code exprimable sur un chemin cross-domaine. Le cas « aucun
- * code actif » est traité par une garde côté route, avant tout appel au
- * tuteur — pas par un assouplissement du schéma.
- */
-export const OUTIL_THEME = "proposer_theme";
 
 /**
  * ⚠️ `traduire_intention` — le point d'entrée unique de création.
@@ -1120,45 +1099,6 @@ export function outilsRevision(codesVivants: string[]): OutilTuteur {
   };
 }
 
-/**
- * L'outil de résolution d'une intention libre en compétences existantes.
- *
- * `codesActifs` est l'ensemble fermé des codes déjà attribués, tous domaines
- * confondus — voir `OUTIL_THEME` pour le raisonnement. Le codeVide se traite
- * en amont : la route `/api/themes/resoudre` refuse d'appeler le tuteur si le
- * référentiel n'a aucune compétence active, donc `codesActifs` n'arrive
- * jamais vide ici en usage normal — cette fonction reste défensive quand même
- * (même repli qu'`outilsRevision`), plutôt que de fabriquer un `enum: []`
- * invalide.
- */
-export function outilTheme(codesActifs: string[]): OutilTuteur {
-  const code: SchemaJson =
-    codesActifs.length > 0
-      ? { type: "string", enum: codesActifs, description: "Code d'une compétence existante." }
-      : { type: "string", description: "Aucune compétence active dans ce compte." };
-
-  return {
-    nom: OUTIL_THEME,
-    description:
-      "Désigne, parmi les compétences existantes, celles qui correspondent à l'intention exprimée par la personne. Tu ne frappes aucun code : uniquement ceux qu'on te donne. Si rien ne correspond vraiment, rends une liste de codes vide plutôt que de rapprocher de force — l'écran proposera alors de créer une compétence.",
-    schema: {
-      type: "object",
-      properties: {
-        libelle: {
-          type: "string",
-          description: "Un nom court pour ce regroupement, ex. « Histoire de l'industrie japonaise ».",
-        },
-        codes: { type: "array", items: code },
-        justification: {
-          type: "string",
-          description: "Pourquoi ces compétences précisément répondent à l'intention.",
-        },
-      },
-      required: ["libelle", "codes", "justification"],
-      additionalProperties: false,
-    },
-  };
-}
 
 /**
  * L'outil de traduction d'un besoin exprimé en une action déjà connue.
@@ -1347,18 +1287,7 @@ export type PropositionRecue =
   | { genre: "revision"; revision: PropositionRevision }
   | { genre: "relations"; relations: PropositionRelations }
   | { genre: "referentiel-complet"; resume: string; branches: PropositionReferentiel[]; ecartees: number }
-  | { genre: "theme"; theme: PropositionTheme }
   | { genre: "intention"; traduction: TraductionIntention };
-
-/**
- * Une résolution de thème proposée. `codes` DÉSIGNE des compétences
- * existantes ; aucun n'est frappé (voir `OUTIL_THEME`).
- */
-export interface PropositionTheme {
-  libelle: string;
-  codes: string[];
-  justification: string;
-}
 
 export interface PropositionRevision {
   resume: string;
@@ -2317,42 +2246,6 @@ function validerRevision(
 /**
  * Les codes actifs tels que le schéma de thème les a énumérés.
  *
- * Même précaution que `codesDuSchemaRevision` : aucune liste parallèle, on
- * relit l'ensemble effectivement reçu par le fournisseur.
- */
-function codesDuSchemaTheme(outils: OutilTuteur[]): Set<string> {
-  const theme = outils.find((o) => o.nom === OUTIL_THEME);
-  const codes = theme?.schema.properties?.codes?.items?.enum ?? [];
-  return new Set(codes);
-}
-
-/**
- * Valide une proposition de thème, contre les codes réellement connus.
- *
- * `libelle` et `justification` sont obligatoires (P3 — un regroupement affiché
- * sans « pourquoi » ne se lit pas). `codes` peut légitimement être vide : c'est
- * le refus demandé — « aucune compétence active ne correspond » — pas une
- * erreur de forme. Un code hors de l'`enum` est écarté, pas rejeté en bloc :
- * le reste de la désignation peut rester valable.
- */
-function validerTheme(
-  entree: Record<string, unknown>,
-  codesConnus: Set<string>,
-): PropositionRecue | null {
-  const libelle = texte(entree.libelle);
-  const justification = texte(entree.justification);
-  if (!libelle || !justification) return null;
-
-  const codes = [
-    ...new Set(
-      listeDeTextes(entree.codes)
-        .map((c) => c.toUpperCase())
-        .filter((c) => codesConnus.has(c)),
-    ),
-  ];
-
-  return { genre: "theme", theme: { libelle, codes, justification } };
-}
 
 /**
  * Valide un appel d'outil et rend la proposition, ou `null`.
@@ -2407,8 +2300,6 @@ export function validerAppelOutil(
         outils.find((o) => o.nom === OUTIL_REFERENTIEL_COMPLET)?.schema.properties?.branches
           ?.items?.properties?.competences?.minItems,
       );
-    case OUTIL_THEME:
-      return validerTheme(donnees, codesDuSchemaTheme(outils));
     case OUTIL_INTENTION: {
       const traduction = validerTraductionIntention(donnees, codesDuSchemaIntention(outils));
       return traduction ? { genre: "intention", traduction } : null;

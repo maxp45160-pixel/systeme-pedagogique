@@ -20,7 +20,7 @@ import {
 } from "./action-recommendation";
 
 const NOW = "2026-08-13T10:00:00.000Z";
-const TARGET = { skillCodes: ["DEV-01"], themeIds: [], goalIds: [] };
+const TARGET = { skillCodes: ["DEV-01"], goalIds: [] };
 
 function activity(
   id: string,
@@ -100,7 +100,6 @@ function goal(overrides: Partial<LearningGoal> = {}): LearningGoal {
     successCriteria: [],
     declaredState: "actif",
     confirmedSkillCodes: ["DEV-01"],
-    confirmedThemeIds: [],
     createdAt: NOW,
     updatedAt: NOW,
     ...overrides,
@@ -223,7 +222,7 @@ describe("cible, objectif et classement", () => {
       rankedSkillStates: [state("DEV-01"), state("DEV-02")],
       activities: [
         activity("secondary", "entrainer"),
-        activity("urgent", "entrainer", { target: { skillCodes: ["DEV-02"], themeIds: [], goalIds: [] } }),
+        activity("urgent", "entrainer", { target: { skillCodes: ["DEV-02"], goalIds: [] } }),
       ],
     }));
     expect(result?.primary.activityId).toBe("urgent");
@@ -235,7 +234,7 @@ describe("cible, objectif et classement", () => {
       rankedSkillStates: [state("DEV-02"), state("DEV-01")],
       activities: [
         activity("dev-01", "entrainer"),
-        activity("dev-02", "entrainer", { target: { skillCodes: ["DEV-02"], themeIds: [], goalIds: [] } }),
+        activity("dev-02", "entrainer", { target: { skillCodes: ["DEV-02"], goalIds: [] } }),
       ],
     }));
     expect(result?.primary.activityId).toBe("dev-02");
@@ -274,7 +273,7 @@ describe("sequencement des familles", () => {
       activities: [
         activity("legacy-exercise", "entrainer"),
         activity("ressource:papier-recherche", "entrainer", {
-          target: { skillCodes: [], themeIds: [], goalIds: [], label: "Papier de recherche" },
+          target: { skillCodes: [], goalIds: [], label: "Papier de recherche" },
           title: "Lire et ficher le papier de recherche — Boucles de rétroaction",
           proofMode: "support-seul",
         }),

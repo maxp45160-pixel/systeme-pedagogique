@@ -39,7 +39,6 @@ const COMPOSANTS: Record<NomIcone, ComposantIcone> = {
   document: IconeDocuments,
   dossier: IconeDossier,
   domaine: IconeDomaine,
-  theme: IconeTheme,
   competence: IconeCompetences,
   note: IconeNote,
   reference: IconeReference,

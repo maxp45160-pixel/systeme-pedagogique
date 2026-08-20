@@ -11,7 +11,6 @@ import {
   type SkillObservation,
   type SkillState,
 } from "@/lib/domain/types";
-import type { Theme } from "@/lib/domain/theme";
 import { retraitsParCode, type EtatRetrait } from "@/lib/domain/referentiel-compte";
 import type { IndexDocumentaire } from "./index";
 import {
@@ -135,10 +134,6 @@ export interface VueCompetenceAtelier {
   contradictions: number;
   /** Réserves du moteur sur cette mesure — déjà rédigées par `computeSkillState`. */
   reserves: string[];
-  /** Les ensembles auxquels cette compétence appartient déjà. */
-  ensembles: Array<{ id: string; libelle: string; nombreCompetences: number }>;
-  /** Les ensembles actifs où elle pourrait entrer — pour l'y ajouter en un clic. */
-  ensemblesDisponibles: Array<{ id: string; libelle: string; codes: string[] }>;
   exercices: ExerciceLieAtelier[];
   observations: ObservationAtelier[];
   /**
@@ -197,51 +192,6 @@ export interface VueDomaineAtelier {
   derniereActivite: string | null;
 }
 
-export interface CompetenceThemeAtelier {
-  code: string;
-  titre: string;
-  domaineId: string;
-  domaineNom: string;
-  palier: string;
-  niveau: NiveauCompetence | null;
-  score: number | null;
-  confiance: Confiance;
-  nombreObservations: number;
-  prochaineEtape?: string;
-  exercicesDisponibles: number;
-}
-
-export interface DomaineThemeAtelier {
-  id: string;
-  nom: string;
-  nombreCompetences: number;
-  nombreEvaluees: number;
-}
-
-export interface VueThemeAtelier {
-  kind: "theme";
-  id: string;
-  libelle: string;
-  intention?: string;
-  origine: "utilisateur" | "tuteur";
-  creeLe: string;
-  archive: boolean;
-  competences: CompetenceThemeAtelier[];
-  domaines: DomaineThemeAtelier[];
-  exercices: ExerciceLieAtelier[];
-  nombreEvaluees: number;
-  nombreObservations: number;
-  nombreExercices: number;
-  scoreMoyen: number | null;
-  tauxCouverture: number;
-  derniereActivite: string | null;
-  prochaineActionRecommandee?: {
-    code: string;
-    titre: string;
-    motif: string;
-    reserves: string[];
-  } | null;
-}
 
 export interface VueExerciceProjectionAtelier {
   kind: "exercice";
@@ -269,7 +219,6 @@ export interface VueExerciceProjectionAtelier {
 export type VuePedagogiqueAtelier =
   | VueCompetenceAtelier
   | VueDomaineAtelier
-  | VueThemeAtelier
   | VueExerciceProjectionAtelier;
 
 function derniereDate(valeurs: Array<string | null>): string | null {
@@ -302,13 +251,11 @@ export function construireVuesAtelier(
   observationsReferentiel: SkillObservation[],
   changementsReferentiel: ChangementReferentiel[],
   codesAvecDependances: ReadonlySet<string>,
-  themes: Theme[],
   etatsCompetences: readonly EtatCompetence[],
   recommandations: readonly Recommandation[],
 ): {
   domaines: VueDomaineAtelier[];
   competences: VueCompetenceAtelier[];
-  themes: VueThemeAtelier[];
   exercices: VueExerciceProjectionAtelier[];
 } {
   const domainesVivants = new Set(referentiel.skills.filter((skill) => !skill.archive).map((skill) => skill.domaine));
@@ -383,21 +330,6 @@ export function construireVuesAtelier(
       parcours: parcoursCompetence(etat.skill, observationsReferentiel, undefined, 8),
       contradictions: etat.contradictions.length,
       reserves: etat.explication.reserves,
-      /*
-       * L'appartenance est dérivée du thème, pas stockée sur la compétence.
-       * C'est ce qui permet à une même compétence d'appartenir à plusieurs
-       * ensembles sans que rien ne l'arbitre — le §6 du cahier des charges.
-       */
-      ensembles: themes
-        .filter((theme) => !theme.archive && theme.codes.includes(etat.skill.code))
-        .map((theme) => ({
-          id: theme.id,
-          libelle: theme.libelle,
-          nombreCompetences: theme.codes.length,
-        })),
-      ensemblesDisponibles: themes
-        .filter((theme) => !theme.archive && !theme.codes.includes(etat.skill.code))
-        .map((theme) => ({ id: theme.id, libelle: theme.libelle, codes: theme.codes })),
       exercices: exercicesLies,
       observations: [...etat.observations].reverse().map((observation) => ({
         id: observation.id,
@@ -484,99 +416,6 @@ export function construireVuesAtelier(
     tentativesParExercice.set(t.exerciseId, list);
   }
 
-  const vuesThemes: VueThemeAtelier[] = themes
-    .filter((t) => !t.archive)
-    .map((theme) => {
-      const skillsDuTheme: CompetenceThemeAtelier[] = theme.codes.flatMap((code) => {
-        const comp = competencesParCode.get(code);
-        const skill = referentiel.parCode.get(code);
-        if (!skill) return [];
-        const domaine = referentiel.domainesParId.get(skill.domaine);
-        const exs = exercices.filter((e) => !e.archive && e.competences.includes(code));
-        return [{
-          code: skill.code,
-          titre: skill.intitule,
-          domaineId: skill.domaine,
-          domaineNom: domaine?.nom ?? skill.domaine,
-          palier: skill.palier,
-          niveau: comp?.niveau ?? null,
-          score: comp?.score ?? null,
-          confiance: comp?.confiance ?? "nulle",
-          nombreObservations: comp?.nombreObservations ?? 0,
-          prochaineEtape: comp?.prochaineEtape,
-          exercicesDisponibles: exs.length,
-        }];
-      });
-
-      const domainesMap = new Map<string, { id: string; nom: string; count: number; evaluees: number }>();
-      for (const comp of skillsDuTheme) {
-        const d = domainesMap.get(comp.domaineId) ?? {
-          id: comp.domaineId,
-          nom: comp.domaineNom,
-          count: 0,
-          evaluees: 0,
-        };
-        d.count++;
-        if (comp.niveau !== null) d.evaluees++;
-        domainesMap.set(comp.domaineId, d);
-      }
-
-      const codesDuThemeSet = new Set(skillsDuTheme.map((c) => c.code));
-      const exercicesDuTheme = exercices
-        .filter((e) => !e.archive && e.competences.some((c) => codesDuThemeSet.has(c)))
-        .map((e) => compterTentatives(e, tentatives));
-
-      const evaluees = skillsDuTheme.filter((c) => c.niveau !== null);
-      const nombreObservations = skillsDuTheme.reduce((acc, c) => acc + c.nombreObservations, 0);
-      const scores = evaluees.map((c) => c.score).filter((s): s is number => s !== null);
-      const scoreMoyen = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
-      const tauxCouverture = skillsDuTheme.length > 0 ? evaluees.length / skillsDuTheme.length : 0;
-
-      const cibleRecommandee = recommandationsAdaptees.find((recommandation) =>
-        codesDuThemeSet.has(recommandation.etat.skill.code),
-      );
-
-      const derniereActivite = derniereDate([
-        ...skillsDuTheme.map((c) => {
-          const comp = competencesParCode.get(c.code);
-          return comp?.derniereObservation ?? null;
-        }),
-        ...exercicesDuTheme.map((e) => e.derniereTentative),
-      ]);
-
-      return {
-        kind: "theme",
-        id: theme.id,
-        libelle: theme.libelle,
-        intention: theme.intention,
-        origine: theme.origine,
-        creeLe: theme.creeLe,
-        archive: theme.archive,
-        competences: skillsDuTheme,
-        domaines: Array.from(domainesMap.values()).map((d) => ({
-          id: d.id,
-          nom: d.nom,
-          nombreCompetences: d.count,
-          nombreEvaluees: d.evaluees,
-        })),
-        exercices: exercicesDuTheme,
-        nombreEvaluees: evaluees.length,
-        nombreObservations,
-        nombreExercices: exercicesDuTheme.length,
-        scoreMoyen,
-        tauxCouverture,
-        derniereActivite,
-        prochaineActionRecommandee: cibleRecommandee
-          ? {
-              code: cibleRecommandee.etat.skill.code,
-              titre: cibleRecommandee.etat.skill.intitule,
-              motif: cibleRecommandee.prioriteLot5.explication,
-              reserves: cibleRecommandee.reservesLot5,
-            }
-          : null,
-      };
-    });
-
   const vuesExercices: VueExerciceProjectionAtelier[] = exercices.map((ex) => {
     const domaine = referentiel.domainesParId.get(ex.domaine);
     const skillsDeLExercice = ex.competences.map((code) => {
@@ -614,5 +453,5 @@ export function construireVuesAtelier(
     };
   });
 
-  return { domaines, competences, themes: vuesThemes, exercices: vuesExercices };
+  return { domaines, competences, exercices: vuesExercices };
 }

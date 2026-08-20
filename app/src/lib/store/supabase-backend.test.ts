@@ -291,36 +291,6 @@ describe("charge utile de charger_tout", () => {
     ]);
   });
 
-  it("convertit les thèmes rapportés par la RPC", () => {
-    const resultat = convertirResultatRPC(
-      chargeComplete({
-        themes: [
-          {
-            id: "thm-1",
-            user_id: "compte-1",
-            libelle: "Architecture",
-            codes: ["ARC-01"],
-            origine: "utilisateur",
-            cree_le: "2026-08-16",
-            archive: false,
-          },
-        ],
-      }),
-      defautProfil,
-    );
-
-    expect(resultat.themes).toEqual([
-      {
-        id: "thm-1",
-        libelle: "Architecture",
-        codes: ["ARC-01"],
-        origine: "utilisateur",
-        creeLe: "2026-08-16",
-        archive: false,
-      },
-    ]);
-  });
-
   it("convertit les réglages moteur rapportés par la RPC", () => {
     const resultat = convertirResultatRPC(
       chargeComplete({

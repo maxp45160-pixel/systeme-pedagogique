@@ -28,7 +28,6 @@ import type { PropositionReferentiel } from "@/lib/tutor/proposition";
 import { creerBranche } from "@/lib/store/referentiel-actions";
 import type { CompetenceDejaAuReferentiel } from "@/lib/domain/gouvernance-referentiel";
 import { AvisDejaAuReferentiel } from "./avis-deja-au-referentiel";
-import { creerTheme } from "@/lib/store/theme-actions";
 import { ReglagesTuteur } from "@/components/tuteur/reglages-tuteur";
 import { ChargementGeneration } from "@/components/ui/chargement-generation";
 import { analyserDemandeReferentiel } from "@/lib/domain/intention";
@@ -244,22 +243,6 @@ export function ModaleReferentiel({
             tousLesCodes.push(...res.codes);
           }
           deja.push(...(res?.dejaAuReferentiel ?? []));
-        }
-
-        // Création automatique du thème transversal global correspondant au sujet initial
-        const codesUniques = [...new Set(tousLesCodes)];
-        if (codesUniques.length >= 1 && sujet.trim().length > 0) {
-          try {
-            setProgressionEcriture("Création du thème transversal…");
-            await creerTheme({
-              libelle: sujet.trim().slice(0, 100),
-              intention: `Thème transversal initial pour « ${sujet.trim()} »`.slice(0, 500),
-              codes: codesUniques.slice(0, 500),
-              origine: "tuteur",
-            });
-          } catch {
-            // Un échec de création du thème ne bloque pas l'enregistrement des branches
-          }
         }
 
         setProgressionEcriture(null);

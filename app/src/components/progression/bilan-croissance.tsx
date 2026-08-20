@@ -1,8 +1,6 @@
 "use client";
 
 import type { ResumeCroissance, FenetreCroissance } from "@/lib/engine/croissance";
-import { EnsemblesSuggeres } from "./ensembles-suggeres";
-import type { EnsemblePropose } from "@/lib/engine/ensembles";
 import { Carte, CodeCompetence, Etiquette, cx } from "@/components/ui/primitives";
 import { formatDateRelative, formatDuree } from "@/lib/engine/dates";
 
@@ -25,13 +23,10 @@ import { formatDateRelative, formatDuree } from "@/lib/engine/dates";
  */
 export function BilanCroissance({
   resume,
-  ensemblesSuggeres,
-  intitules,
   ouvrirElement,
 }: {
   resume: ResumeCroissance;
-  ensemblesSuggeres: EnsemblePropose[];
-  intitules: Record<string, string>;
+  intitules?: Record<string, string>;
   /** Ouvre une fiche dans l'Atelier — c'est là que vivent les éléments cités. */
   ouvrirElement: (id: string) => void;
 }) {
@@ -39,7 +34,6 @@ export function BilanCroissance({
     <div className="space-y-8">
       <NiveauActivite resume={resume} />
       <NiveauCroissance resume={resume} ouvrirElement={ouvrirElement} />
-      <NiveauConstruction ensemblesSuggeres={ensemblesSuggeres} intitules={intitules} />
     </div>
   );
 }
@@ -243,41 +237,7 @@ function NiveauCroissance({
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Niveau 3 — Ce que le travail dessine                                */
-/* ------------------------------------------------------------------ */
 
-/**
- * Les groupes que les co-occurrences suggèrent — et rien d'autre.
- *
- * Ce niveau montrait aussi une grille des domaines et une grille des thèmes.
- * Les deux étaient des secondes vues : les domaines sont classés plus haut sur
- * la même page, les thèmes ont leurs fiches dans l'Atelier. Il fallait les
- * comparer pour s'apercevoir qu'elles ne disaient rien de neuf.
- *
- * Ce qui reste ne se lit nulle part ailleurs : une proposition de regroupement
- * déduite du travail réel, sous la règle anti-circularité d'`ensembles.ts`. Ce
- * n'est pas une vue, c'est la seule partie de cet écran qui demande quelque
- * chose — et la section disparaît d'elle-même quand il n'y a rien à proposer.
- */
-function NiveauConstruction({
-  ensemblesSuggeres,
-  intitules,
-}: {
-  ensemblesSuggeres: EnsemblePropose[];
-  intitules: Record<string, string>;
-}) {
-  if (ensemblesSuggeres.length === 0) return null;
-
-  return (
-    <section>
-      <TitreNiveau numero={3} titre="Ce que le travail dessine" />
-      <div className="mt-3">
-        <EnsemblesSuggeres propositions={ensemblesSuggeres} intitules={intitules} />
-      </div>
-    </section>
-  );
-}
 
 /* ------------------------------------------------------------------ */
 

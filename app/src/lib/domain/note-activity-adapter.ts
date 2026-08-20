@@ -150,7 +150,7 @@ export function adaptNoteOperationnelle(
     title: apercu.titre,
     description: contexte || definition?.libelle || apercu.titre,
     family: famille,
-    target: { skillCodes, themeIds: [], goalIds: [], label: apercu.titre },
+    target: { skillCodes, goalIds: [], label: apercu.titre },
     estimatedDurationMinutes: DUREE_PAR_FAMILLE[famille],
     cognitiveDemand: "standard",
     proofMode: famille === "explorer" ? "support-seul" : "soumission-finale",
@@ -199,7 +199,6 @@ export function adaptNoteDocumentaire(
     family: "entrainer",
     target: {
       skillCodes: codesCompetencesActifs(apercu, options.codesActifs),
-      themeIds: [],
       goalIds: [],
       label: apercu.titre,
     },

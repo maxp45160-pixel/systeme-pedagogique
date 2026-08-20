@@ -71,7 +71,6 @@ function targetIntersects(left: ActivityTarget, right: ActivityTarget): boolean 
   const intersects = (first: readonly string[], second: readonly string[]) =>
     first.some((value) => second.includes(value));
   return intersects(left.skillCodes, right.skillCodes)
-    || intersects(left.themeIds, right.themeIds)
     || intersects(left.goalIds, right.goalIds)
     || (left.label !== undefined && right.label !== undefined && left.label === right.label);
 }
@@ -83,7 +82,6 @@ function targetMatchesReference(
   if (target.kind === "activity") return candidate.activity?.id === target.ref;
   if (target.kind === "run") return candidate.run?.id === target.ref;
   if (target.kind === "skill") return candidate.target.skillCodes.includes(target.ref);
-  if (target.kind === "theme") return candidate.target.themeIds.includes(target.ref);
   return candidate.target.goalIds.includes(target.ref);
 }
 
@@ -104,7 +102,6 @@ function activeGoal(goals: readonly LearningGoal[], accountId: string): Learning
 function goalTarget(goal: LearningGoal): ActivityTarget {
   return {
     skillCodes: goal.confirmedSkillCodes,
-    themeIds: goal.confirmedThemeIds,
     goalIds: [goal.id],
   };
 }

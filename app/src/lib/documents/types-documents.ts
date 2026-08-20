@@ -19,7 +19,6 @@ export type NomIcone =
   | "document"
   | "dossier"
   | "domaine"
-  | "theme"
   | "competence"
   | "note"
   | "reference"
@@ -148,7 +147,6 @@ const definition = (
 /** Registre extensible : ajouter un type ne demande pas de modifier le moteur. */
 export const TYPES_DOCUMENTS: Readonly<Record<string, DefinitionTypeDocument>> = {
   domaine: definition("domaine", "Domaine", "connaissance", "domaine", "Domaines", ["Description", "Sous-domaines"]),
-  theme: definition("theme", "Thème", "connaissance", "theme", "Thèmes", ["Question directrice", "Concepts", "Ressources"]),
   competence: definition("competence", "Compétence", "action", "competence", "Compétences", ["Description", "Critères de réussite"]),
   note: definition("note", "Note", "connaissance", "note", "Connaissances/Notes", ["Contexte", "Idées", "À retenir"]),
   reference: definition("reference", "Référence", "connaissance", "reference", "Références", ["Résumé", "Passages utiles", "Bibliographie"]),

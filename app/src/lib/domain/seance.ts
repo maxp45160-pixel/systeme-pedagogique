@@ -303,10 +303,6 @@ export function motifRefusDemande(demande: DemandeSeance): string | null {
     return "Une séance transverse porte sur au moins deux domaines — sinon elle est mono-domaine, et il faut le dire.";
   }
 
-  if (demande.portee.type === "theme" && demande.portee.codes.length === 0) {
-    return "Un thème sans aucune compétence active n'a rien à composer.";
-  }
-
   return null;
 }
 

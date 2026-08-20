@@ -18,7 +18,6 @@ import { calibragesPourModale, competencesPourModale } from "@/components/exerci
 import {
   rangerDocument,
   rangementDomaine,
-  rangementTheme,
 } from "@/lib/documents/rangement-atelier";
 import { paletteDomaines } from "@/lib/ui/couleurs-domaines";
 import { chargerDonneesSeance } from "@/components/seances/donnees-seance";
@@ -65,7 +64,6 @@ export default async function PageAtelier(props: {
     chargerDonneesSeance(),
     chargerCandidatsReferentiel(),
   ]);
-  const themes = contexte.themes;
   const referentiel = contexte.referentiel;
   const exercices = contexte.donnees.exercises;
   const domainesVisibles = new Set(
@@ -96,7 +94,6 @@ export default async function PageAtelier(props: {
   const tentativesParExercice = regrouperTentativesParExercice(contexte.donnees.attempts);
   const codesAvecDependances = new Set<string>([
     ...exercices.flatMap((exercice) => exercice.competences),
-    ...themes.flatMap((theme) => theme.codes),
     ...contexte.donnees.sessions.flatMap((session) => session.skillCodes),
     ...referentiel.skills.flatMap((skill) => [...skill.prerequis, ...(skill.remplacePar ? [skill.remplacePar] : [])]),
     ...index.entrants.keys(),
@@ -110,12 +107,10 @@ export default async function PageAtelier(props: {
     contexte.observationsEffectives,
     changementsReferentiel,
     codesAvecDependances,
-    themes,
     contexte.carteIndividuelle.competencesLocales,
     contexte.recommandations,
   );
   const vuesCompetences = new Map(vues.competences.map((vue) => [vue.code, vue]));
-  const vuesThemes = new Map(vues.themes.map((vue) => [vue.id, vue]));
   const vuesExercices = new Map(vues.exercices.map((vue) => [vue.id, vue]));
   const snapshotsParDocument = new Map<string, Array<{ id: string; version: number; captureReason: string; capturedAt: string }>>();
   for (const snapshot of snapshots) {
@@ -185,44 +180,6 @@ export default async function PageAtelier(props: {
       tentatives: [],
       source: "document",
       lectureSeule: documentEnLectureSeule({ id: document.id, type: vue.type }),
-    };
-  });
-
-  const projectionsThemes: ElementAtelier[] = themes.map((theme) => {
-    const estArchiveParCompetencesTheme =
-      theme.codes.length > 0 &&
-      theme.codes.every((code) => {
-        const skill = referentiel.parCode.get(code);
-        return skill ? Boolean(skill.archive) : false;
-      });
-    const themeEstArchive = Boolean(theme.archive) || estArchiveParCompetencesTheme;
-
-    return {
-      id: `theme:${theme.id}`,
-      titre: theme.libelle,
-      type: "theme",
-      typeLibelle: "Thème",
-      categorie: "connaissance",
-      rangement: rangementTheme(),
-      contenuMd: [
-        `# ${theme.libelle}`,
-        "",
-        "> Projection en lecture seule du thème enregistré.",
-        "",
-        theme.intention ? `> Intention : ${theme.intention}` : "",
-        theme.codes.length ? "## Compétences couvertes" : "",
-        ...theme.codes.map((code) => `- [[${code}]]`),
-      ].filter(Boolean).join("\n"),
-      contenuCharge: true,
-      frontMatter: { archive: themeEstArchive },
-      liens: theme.codes.map((cible) => ({ cible })),
-      sortants: theme.codes,
-      entrants: [],
-      snapshots: [],
-      tentatives: [],
-      source: "projection",
-      lectureSeule: true,
-      vuePedagogique: vuesThemes.get(theme.id),
     };
   });
 
@@ -329,7 +286,6 @@ export default async function PageAtelier(props: {
     ...projectionsCompetences,
     ...projectionsExercices,
     ...documents,
-    ...projectionsThemes,
   ];
   const cleAtelier = [
     documentDemande ?? "",
@@ -347,7 +303,6 @@ export default async function PageAtelier(props: {
     contexte.referentiel,
     contexte.etats,
     contexte.donnees.exercises,
-    themes,
     index,
   );
   const couleursDomaines = paletteDomaines(graphe.noeuds.map((noeud) => noeud.domaineId));

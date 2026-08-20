@@ -43,7 +43,6 @@ export function PanneauReglages({
   function basculerTousLiens(actif: boolean) {
     const maj: Record<TypeLien, boolean> = {
       prerequis: actif,
-      theme: actif,
       exercice: actif,
       similarite: actif,
       document: actif,
@@ -165,20 +164,6 @@ export function PanneauReglages({
             Autres éléments
           </p>
           <div className="space-y-1.5">
-            <label className="flex min-h-7 items-center gap-2 text-xs cursor-pointer hover:bg-surface-2 rounded-lg px-2 py-1 transition-colors">
-              <input
-                type="checkbox"
-                checked={reglages.typesNoeudsVisibles.theme}
-                onChange={(e) =>
-                  set("typesNoeudsVisibles", {
-                    ...reglages.typesNoeudsVisibles,
-                    theme: e.target.checked,
-                  })
-                }
-                className="size-3.5 accent-[var(--primaire)] cursor-pointer"
-              />
-              <span className="text-texte">Thèmes transversaux</span>
-            </label>
             <label className="flex min-h-7 items-center gap-2 text-xs cursor-pointer hover:bg-surface-2 rounded-lg px-2 py-1 transition-colors">
               <input
                 type="checkbox"

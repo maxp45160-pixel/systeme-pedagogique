@@ -79,7 +79,6 @@ export const STYLE_PAR_TYPE_LIEN: Record<
   { libelle: string; pointille: boolean; fleche: boolean }
 > = {
   prerequis: { libelle: "Prérequis déclaré", pointille: false, fleche: true },
-  theme: { libelle: "Même thème", pointille: false, fleche: false },
   exercice: { libelle: "Ciblées par le même exercice", pointille: false, fleche: false },
   similarite: { libelle: "Proximité de vocabulaire", pointille: true, fleche: false },
   document: { libelle: "Lien Markdown", pointille: false, fleche: true },
@@ -89,8 +88,6 @@ function couleurLien(type: TypeLien, palette: Palette): string {
   switch (type) {
     case "prerequis":
       return palette.primaire;
-    case "theme":
-      return palette.succes;
     case "exercice":
       return palette.texteDiscret;
     case "similarite":
@@ -134,7 +131,6 @@ export function couleurNoeud(
   ctx: ContexteCouleur,
   palette: Palette,
 ): string {
-  if (n.type === "theme") return palette.succes;
   if (n.type === "exercice") return palette.texteDiscret;
   if (n.type === "document") return palette.primaire;
 
@@ -263,28 +259,15 @@ export function dessinerNoeud(
 ): void {
   if (n.x === undefined || n.y === undefined) return;
   const { x, y } = projeter(n, largeur, hauteur, camera);
-  const rayonMinimum = n.type === "theme" ? 8 : n.type === "competence" ? 5 : 4;
+  const rayonMinimum = n.type === "competence" ? 5 : 4;
   const rayon = Math.max(rayonMinimum, n.rayon * camera.zoom) * (options.survole ? 1.18 : 1);
 
   ctx.save();
   ctx.globalAlpha = options.estompe ? 0.18 : 1;
 
-  // Anneau orbital pour les thèmes (hub transversal)
-  if (n.type === "theme") {
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(x, y, rayon + 4 * camera.zoom, 0, Math.PI * 2);
-    ctx.strokeStyle = palette.succes;
-    ctx.lineWidth = Math.max(1, 1.5 * camera.zoom);
-    ctx.globalAlpha = options.survole ? 0.95 : 0.4;
-    ctx.setLineDash([3 * camera.zoom, 3 * camera.zoom]);
-    ctx.stroke();
-    ctx.restore();
-  }
-
   ctx.beginPath();
   if (n.type === "exercice") {
-    // Losange — distinct des disques compétence/thème.
+    // Losange — distinct des disques compétence.
     ctx.moveTo(x, y - rayon);
     ctx.lineTo(x + rayon, y);
     ctx.lineTo(x, y + rayon);
@@ -293,22 +276,21 @@ export function dessinerNoeud(
   } else {
     ctx.arc(x, y, rayon, 0, Math.PI * 2);
   }
-  ctx.fillStyle = n.type === "theme" ? palette.succes : couleur;
+  ctx.fillStyle = couleur;
   ctx.fill();
 
-  if (options.selectionne || options.survole || n.type === "theme") {
+  if (options.selectionne || options.survole) {
     ctx.lineWidth = options.selectionne || options.survole ? 2.5 : 1.5;
-    ctx.strokeStyle = n.type === "theme" ? palette.surface : palette.texte;
+    ctx.strokeStyle = palette.texte;
     ctx.stroke();
   }
   ctx.restore();
 
-  const forcerLibelleTheme = n.type === "theme" && camera.zoom >= 0.25;
-  if ((options.afficherLibelle || forcerLibelleTheme) && !options.estompe) {
+  if (options.afficherLibelle && !options.estompe) {
     ctx.save();
     ctx.globalAlpha = 1;
     ctx.fillStyle = palette.texte;
-    ctx.font = `${n.type === "theme" ? "bold " : ""}${Math.max(11, 12 * Math.min(camera.zoom, 1.4))}px var(--police-texte, sans-serif)`;
+    ctx.font = `${Math.max(11, 12 * Math.min(camera.zoom, 1.4))}px var(--police-texte, sans-serif)`;
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     const libelle = n.libelle.length > 28 ? `${n.libelle.slice(0, 27)}…` : n.libelle;

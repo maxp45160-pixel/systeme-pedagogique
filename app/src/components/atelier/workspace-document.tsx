@@ -167,11 +167,6 @@ export function WorkspaceDocument({
     typeof analyse.frontMatter.contexte === "string"
       ? analyse.frontMatter.contexte
       : undefined;
-  const themeIdDeclare = analyse.frontMatter.theme_id;
-  const themeInitial =
-    typeof themeIdDeclare === "string"
-      ? donneesSeance?.themes.find((theme) => theme.id === themeIdDeclare)
-      : undefined;
   const domaineLibelle = domaineInitial
     ? donneesSeance?.domaines.find((domaine) => domaine.id === domaineInitial)?.nom
     : undefined;
@@ -501,7 +496,7 @@ export function WorkspaceDocument({
           >
             {donneesSeance && (
               <div className="rounded-lg border border-primaire/20 bg-primaire-faible/35 px-4 py-3 text-sm leading-relaxed text-texte-attenue">
-                Cette page est le carnet de ta séance{themeInitial ? ` sur « ${themeInitial.libelle} »` : domaineLibelle ? ` dans « ${domaineLibelle} »` : ""}.
+                Cette page est le carnet de ta séance{domaineLibelle ? ` dans « ${domaineLibelle} »` : ""}.
                 La composition ci-dessous choisira les exercices dans ce périmètre.
               </div>
             )}
@@ -511,7 +506,6 @@ export function WorkspaceDocument({
                 {...donneesSeance}
                 domaineInitial={domaineInitial}
                 contexteInitial={contexteInitial}
-                themeInitial={themeInitial}
                 libelle="Reprendre la composition"
                 ouvertParDefaut
                 surSeanceCreee={inscrireSeance}

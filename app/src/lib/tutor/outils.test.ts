@@ -20,11 +20,9 @@ import {
   OUTIL_EXERCICE,
   OUTIL_REFERENTIEL,
   OUTIL_INTENTION,
-  OUTIL_THEME,
   outilCorrection,
   outilEvolution,
   outilIntention,
-  outilTheme,
   outilsTuteur,
   validerAppelOutil,
   validerAppelOutilJson,
@@ -603,77 +601,6 @@ describe("validerCorrection — les rejets", () => {
   });
 });
 
-/* ------------------------------------------------------------------ */
-/* proposer_theme (chantier « thèmes », ADR-053)                       */
-/* ------------------------------------------------------------------ */
-
-describe("proposer_theme", () => {
-  it("n'entre PAS dans outilsTuteur — armé uniquement sur /api/themes/resoudre", () => {
-    // Même verrou que proposer_correction (ADR-041, 3ᵉ couche) : un outil qui
-    // voyage avec chaque message du chat cesserait d'être un chemin confiné.
-    const referentiel = { domaines: [], actifs: [] } as unknown as Referentiel;
-    const noms = outilsTuteur(referentiel).map((o) => o.nom);
-    expect(noms).not.toContain(OUTIL_THEME);
-  });
-
-  it("codes.items est un enum fermé, jamais type: 'string' — même interdit qu'OUTIL_REVISION", () => {
-    const outil = outilTheme(["LOG-01", "LOG-02"]);
-    expect(outil.schema.properties?.codes?.items).toEqual({
-      type: "string",
-      enum: ["LOG-01", "LOG-02"],
-      description: "Code d'une compétence existante.",
-    });
-  });
-
-  it("dégrade proprement sans fabriquer un enum: [] quand aucun code actif n'est fourni", () => {
-    // Repli défensif : la garde réelle vit dans la route, avant l'appel au
-    // tuteur (voir OUTIL_THEME).
-    const outil = outilTheme([]);
-    expect(outil.schema.properties?.codes?.items?.enum).toBeUndefined();
-  });
-
-  const OUTILS = [outilTheme(["LOG-01", "LOG-02"])];
-  const valider = (entree: Record<string, unknown>) =>
-    validerAppelOutil(OUTIL_THEME, entree, OUTILS);
-
-  it("désigne les codes connus et écarte les inconnus, sans rejeter la proposition", () => {
-    const recu = valider({
-      libelle: "Flux logistiques",
-      codes: ["LOG-01", "LOG-99"],
-      justification: "Les deux compétences couvrent le sujet demandé.",
-    });
-    if (recu?.genre !== "theme") throw new Error("genre inattendu");
-    expect(recu.theme.codes).toEqual(["LOG-01"]);
-  });
-
-  it("accepte une liste de codes vide — c'est le refus demandé, pas une erreur de forme", () => {
-    const recu = valider({
-      libelle: "Sujet hors référentiel",
-      codes: [],
-      justification: "Aucune compétence existante ne correspond.",
-    });
-    if (recu?.genre !== "theme") throw new Error("genre inattendu");
-    expect(recu.theme.codes).toEqual([]);
-  });
-
-  it("rejette sans libellé", () => {
-    expect(valider({ codes: ["LOG-01"], justification: "x" })).toBeNull();
-  });
-
-  it("rejette sans justification", () => {
-    expect(valider({ libelle: "Flux", codes: ["LOG-01"], justification: "" })).toBeNull();
-  });
-
-  it("déduplique les codes désignés deux fois", () => {
-    const recu = valider({
-      libelle: "Flux",
-      codes: ["LOG-01", "log-01"],
-      justification: "x",
-    });
-    if (recu?.genre !== "theme") throw new Error("genre inattendu");
-    expect(recu.theme.codes).toEqual(["LOG-01"]);
-  });
-});
 
 /* ------------------------------------------------------------------ */
 /* traduire_intention — le point d'entrée le plus emprunté             */

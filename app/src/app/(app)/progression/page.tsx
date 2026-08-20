@@ -6,7 +6,6 @@ import { SqueletteContenu } from "@/components/layout/squelette";
 import { calculerActivite } from "@/lib/engine/historique";
 import { resumeCarriere } from "@/lib/engine/carriere";
 import { resumeCroissance } from "@/lib/engine/croissance";
-import { ensemblesProposes } from "@/lib/engine/ensembles";
 import { EntetePage } from "@/components/layout/entete-page";
 import { CarteEtatGlobal } from "@/components/dashboard/etat-global";
 import { CarteActivite } from "@/components/dashboard/activite";
@@ -52,7 +51,6 @@ async function ContenuProgression() {
     chargerContexte(),
     compteCourant(),
   ]);
-  const themes = ctx.themes;
   const identite = resoudreIdentite(compte, ctx.donnees.user);
 
   // `dureesEstimees`, et non `donnees.exercises` : le plafond du temps retenu
@@ -89,25 +87,6 @@ async function ContenuProgression() {
     limiteEvenements: 12,
   });
 
-  /*
-    Les vues de l'Atelier ne sont plus construites ici.
-
-    Elles servaient au niveau « Ce que tu construis », qui rendait une grille
-    des domaines et une grille des thèmes — deux secondes vues de ce que la
-    page classe déjà plus haut et de ce que l'Atelier tient par ailleurs. Avec
-    elles disparaissent la relecture du corpus documentaire, la reconstruction
-    de l'index des liens et la lecture du journal du référentiel : trois
-    chargements que cet écran payait à chaque ouverture pour deux grilles qui
-    n'apprenaient rien.
-  */
-  const ensemblesSuggeres = ensemblesProposes({
-    sessions: ctx.donnees.sessions,
-    exercices: ctx.donnees.exercises,
-    observations: ctx.observationsEffectives,
-    themes,
-    referentiel: ctx.referentiel,
-  }).propositions;
-
   const intitules = Object.fromEntries(
     ctx.referentiel.skills.map((skill) => [skill.code, skill.intitule]),
   );
@@ -136,7 +115,6 @@ async function ContenuProgression() {
         <TitreSection>Ce que le travail récent a produit</TitreSection>
         <BilanCroissanceLie
           resume={croissance}
-          ensemblesSuggeres={ensemblesSuggeres}
           intitules={intitules}
         />
       </section>

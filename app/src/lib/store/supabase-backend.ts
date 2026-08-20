@@ -20,7 +20,6 @@ import type {
   Skill,
   User,
 } from "@/lib/domain/types";
-import type { Theme } from "@/lib/domain/theme";
 import type { AjustementInscrit } from "@/lib/engine/reglages";
 import type { Collections } from "./db";
 import {
@@ -30,7 +29,6 @@ import {
   validerDomaine,
   validerEntiteSupabase,
   validerRattachement,
-  validerTheme,
   validerUser,
   type RattachementDomaine,
 } from "./validation-supabase";
@@ -133,7 +131,6 @@ export interface ResultatRPC {
   domaines: Domaine[];
   competences: Skill[];
   competenceDomaines: RattachementDomaine[];
-  themes: Theme[];
   moteurReglages: AjustementInscrit[];
 }
 
@@ -152,7 +149,6 @@ export const CLES_RPC = [
   "domaines",
   "competences",
   "competence_domaines",
-  "themes",
   "moteur_reglages",
 ] as const;
 
@@ -218,8 +214,6 @@ export function convertirResultatRPC(
     validerCompetence(ligneVersEntite(ligne), `competences[${index}]`));
   const competenceDomaines = lignes("competence_domaines").map((ligne, index) =>
     validerRattachement(ligneVersEntite(ligne), `competenceDomaines[${index}]`));
-  const themes = lignes("themes").map((ligne, index) =>
-    validerTheme(ligneVersEntite(ligne), `themes[${index}]`));
   const moteurReglages = lignes("moteur_reglages").map((ligne, index) =>
     validerAjustement(ligneVersEntite(ligne), `moteurReglages[${index}]`));
 
@@ -235,7 +229,6 @@ export function convertirResultatRPC(
     domaines,
     competences,
     competenceDomaines,
-    themes,
     moteurReglages,
   };
 }

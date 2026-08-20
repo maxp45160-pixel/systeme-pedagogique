@@ -35,8 +35,6 @@ import { evaluerMaitrises, type Maitrise } from "@/lib/engine/maitrise";
 import { mesurer, mesurerSync } from "@/lib/profiling/server";
 import { assemblerReferentiel } from "@/lib/domain/referentiel-compte";
 import type { Referentiel, SkillState } from "@/lib/domain/types";
-import type { Theme } from "@/lib/domain/theme";
-import { lireThemes } from "./themes";
 import { adaptLegacyActivities } from "@/lib/domain/legacy-activity-adapter";
 import {
   chargerCarteGlobale,
@@ -130,8 +128,6 @@ export interface Contexte {
    * ensemble. Une seule implémentation de la règle, deux lecteurs.
    */
   refus: { codes: Set<string>; exercices: Set<string> };
-  /** Thèmes enregistrés du compte (chantier « thèmes », ADR-053). */
-  themes: Theme[];
   /** Adaptation en lecture seule : aucune copie ni double écriture du legacy. */
   adaptiveLegacy: ReturnType<typeof adaptLegacyActivities>;
 }
@@ -156,7 +152,6 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
 
   let donneesBrutes: Collections;
   let referentiel: Referentiel;
-  let themes: Theme[];
   let moteurReglages: AjustementInscrit[] | null = null;
 
   if (rpc) {
@@ -166,21 +161,18 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
       rpc.competences,
       rpc.competenceDomaines,
     );
-    themes = rpc.themes;
     moteurReglages = rpc.moteurReglages;
   } else {
     // ── Chemin lent : requêtes parallèles séparées ──
     // `chargerReferentiel` et non `lireReferentiel` : mémoïsé par requête, il ne
     // relit pas domaines et compétences si un autre appelant les a déjà demandés
     // dans le même rendu (voir `store/referentiel.ts`).
-    const [d, r, t] = await Promise.all([
+    const [d, r] = await Promise.all([
       mesurer("lireTout", () => lireTout()),
       mesurer("lireReferentiel", () => chargerReferentiel()),
-      mesurer("lireThemes", () => lireThemes()),
     ]);
     donneesBrutes = d;
     referentiel = r;
-    themes = t;
   }
 
   /*
@@ -393,7 +385,6 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
     observationsEffectives,
     now,
     refus,
-    themes,
     adaptiveLegacy: adaptLegacyActivities(
       donnees.user.id,
       exercicesActifs,

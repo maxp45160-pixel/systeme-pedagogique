@@ -49,7 +49,6 @@ export interface LienSimule extends Omit<LienGraphe, "source" | "target">, Simul
 
 const RAYON_PAR_TYPE: Record<NoeudGraphe["type"], number> = {
   competence: 6,
-  theme: 10,
   exercice: 4,
   document: 7,
 };
@@ -71,7 +70,6 @@ export function creerNoeudsSimules(noeuds: NoeudGraphe[]): NoeudSimule[] {
  */
 const STRENGTH_PAR_TYPE: Record<LienGraphe["type"], number> = {
   prerequis: 0.9,
-  theme: 0.5,
   exercice: 0.4,
   similarite: 0.15,
   document: 0.55,
@@ -102,37 +100,12 @@ export function creerSimulation(
   // Map pour trouver rapidement les nœuds par ID
   const parId = new Map(noeuds.map((n) => [n.id, n]));
 
-  // Calcul du centre naturel pour chaque nœud (centre du domaine ou barycentre des domaines pour un thème)
+  // Calcul du centre naturel pour chaque nœud (centre du domaine)
   const centresNoeuds = new Map<string, { x: number; y: number }>();
 
   noeuds.forEach((n) => {
     if (n.domaineId && centresDomaines.has(n.domaineId)) {
       centresNoeuds.set(n.id, centresDomaines.get(n.domaineId)!);
-    } else if (n.type === "theme") {
-      // Pour un thème, son centre naturel est le barycentre des compétences qu'il relie
-      const liensDuTheme = liens.filter((l) => {
-        const s = typeof l.source === "string" ? l.source : (l.source as NoeudSimule).id;
-        const t = typeof l.target === "string" ? l.target : (l.target as NoeudSimule).id;
-        return s === n.id || t === n.id;
-      });
-      let sommeX = 0;
-      let sommeY = 0;
-      let nb = 0;
-      for (const l of liensDuTheme) {
-        const cibleId = typeof l.source === "string" ? (l.source === n.id ? (typeof l.target === "string" ? l.target : (l.target as NoeudSimule).id) : l.source) : (l.source as NoeudSimule).id;
-        const cibleNoeud = parId.get(cibleId);
-        if (cibleNoeud?.domaineId && centresDomaines.has(cibleNoeud.domaineId)) {
-          const c = centresDomaines.get(cibleNoeud.domaineId)!;
-          sommeX += c.x;
-          sommeY += c.y;
-          nb++;
-        }
-      }
-      if (nb > 0) {
-        centresNoeuds.set(n.id, { x: sommeX / nb, y: sommeY / nb });
-      } else {
-        centresNoeuds.set(n.id, { x: 0, y: 0 });
-      }
     } else {
       centresNoeuds.set(n.id, { x: 0, y: 0 });
     }
@@ -142,7 +115,7 @@ export function creerSimulation(
   noeuds.forEach((n) => {
     if (n.x === undefined || n.y === undefined) {
       const center = centresNoeuds.get(n.id) ?? { x: 0, y: 0 };
-      const dispersion = n.type === "theme" ? 15 : 50;
+      const dispersion = 50;
       n.x = center.x + (Math.random() - 0.5) * dispersion;
       n.y = center.y + (Math.random() - 0.5) * dispersion;
     }
@@ -156,23 +129,23 @@ export function creerSimulation(
       "link",
       forceLink<NoeudSimule, LienSimule>(liens)
         .id((n) => n.id)
-        .distance((l) => (l.type === "theme" ? forces.distanceLiens * 1.2 : forces.distanceLiens) / Math.max(0.2, l.poids))
+        .distance((l) => forces.distanceLiens / Math.max(0.2, l.poids))
         .strength((l) => STRENGTH_PAR_TYPE[l.type] * Math.max(0.2, l.poids)),
     )
     .force(
       "collide",
-      forceCollide<NoeudSimule>((n) => n.rayon + (n.type === "theme" ? 12 : 7)),
+      forceCollide<NoeudSimule>((n) => n.rayon + 7),
     )
     .force(
       "x",
       forceX<NoeudSimule>((n) => centresNoeuds.get(n.id)?.x ?? 0).strength((n) =>
-        n.domaineId ? forceDomaine : n.type === "theme" ? 0.08 : forces.centrage,
+        n.domaineId ? forceDomaine : forces.centrage,
       ),
     )
     .force(
       "y",
       forceY<NoeudSimule>((n) => centresNoeuds.get(n.id)?.y ?? 0).strength((n) =>
-        n.domaineId ? forceDomaine : n.type === "theme" ? 0.08 : forces.centrage,
+        n.domaineId ? forceDomaine : forces.centrage,
       ),
     )
     .force("center", forceCenter(0, 0).strength(0.015))

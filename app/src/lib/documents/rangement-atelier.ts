@@ -13,14 +13,13 @@
  * | Zone | Ce qu'elle contient | Règle |
  * |---|---|---|
  * | `domaine` | domaines, compétences, exercices, fiches produites | le domaine est déclaré en base |
- * | `theme` | les sélections de compétences | un thème n'est pas un contenant |
  * | `ressource` | cours, papiers, notes, projets, séances | rattachée à des compétences |
  * | `hors-corpus` | les preuves | une preuve est un événement, pas un fichier |
  *
  * Une ressource sans rattachement n'est pas perdue : elle est **à trier**, et
  * l'Atelier lui demande explicitement à quoi la relier.
  */
-export type ZoneAtelier = "domaine" | "theme" | "ressource" | "hors-corpus";
+export type ZoneAtelier = "domaine" | "ressource" | "hors-corpus";
 
 export interface RangementAtelier {
   zone: ZoneAtelier;
@@ -49,10 +48,6 @@ export function rangementPreuve(): RangementAtelier {
 
 export function rangementDomaine(domaineId: string): RangementAtelier {
   return { zone: "domaine", domaineId, rattachements: [] };
-}
-
-export function rangementTheme(): RangementAtelier {
-  return { zone: "theme", rattachements: [] };
 }
 
 export function rangementRessource(rattachements: string[]): RangementAtelier {

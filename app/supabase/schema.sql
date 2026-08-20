@@ -297,25 +297,6 @@ $$;
 -- 3bis. Thèmes — regroupements de compétences traversant les domaines
 --    (chantier « thèmes », 10/08/2026, ADR-053)
 --
--- Pas de FK vers `competences.code` : un code retiré du référentiel après
--- coup doit rester lisible dans un thème passé, et le domaine pur
--- (`themeVersThemeSeance`) filtre les codes disparus à la lecture — même
--- précédent que `competences.prerequis`.
--- --------------------------------------------------------------------
-
-CREATE TABLE IF NOT EXISTS public.themes (
-  user_id      UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  id           TEXT NOT NULL,
-  libelle      TEXT NOT NULL,
-  intention    TEXT,
-  codes        TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
-  origine      TEXT NOT NULL DEFAULT 'utilisateur' CHECK (origine IN ('utilisateur', 'tuteur')),
-  cree_le      TEXT NOT NULL,
-  modifie_le   TEXT,
-  archive      BOOLEAN NOT NULL DEFAULT false,
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  PRIMARY KEY (user_id, id)
-);
 
 -- --------------------------------------------------------------------
 -- 4. Exercices créés par l'utilisateur ou le tuteur
@@ -869,7 +850,6 @@ BEGIN
         EXISTS (SELECT 1 FROM public.observations WHERE user_id = v_uid AND skill_code = v_code)
         OR EXISTS (SELECT 1 FROM public.competences WHERE user_id = v_uid AND (v_code = ANY(prerequis) OR remplace_par = v_code))
         OR EXISTS (SELECT 1 FROM public.exercises WHERE user_id = v_uid AND v_code = ANY(competences))
-        OR EXISTS (SELECT 1 FROM public.themes WHERE user_id = v_uid AND v_code = ANY(codes))
         OR EXISTS (SELECT 1 FROM public.sessions WHERE user_id = v_uid AND v_code = ANY(skill_codes));
       v_preserver := v_preserver OR EXISTS (SELECT 1 FROM public.document_links WHERE user_id = v_uid AND cible = v_code);
       IF v_preserver THEN
@@ -888,7 +868,6 @@ BEGIN
         EXISTS (SELECT 1 FROM public.observations e WHERE e.user_id = v_uid AND e.skill_code = c.code)
         OR EXISTS (SELECT 1 FROM public.competences d WHERE d.user_id = v_uid AND (c.code = ANY(d.prerequis) OR d.remplace_par = c.code))
         OR EXISTS (SELECT 1 FROM public.exercises x WHERE x.user_id = v_uid AND c.code = ANY(x.competences))
-        OR EXISTS (SELECT 1 FROM public.themes t WHERE t.user_id = v_uid AND c.code = ANY(t.codes))
         OR EXISTS (SELECT 1 FROM public.sessions s WHERE s.user_id = v_uid AND c.code = ANY(s.skill_codes))
         OR EXISTS (SELECT 1 FROM public.document_links l WHERE l.user_id = v_uid AND l.cible = c.code)
       )
@@ -956,7 +935,7 @@ BEGIN
 
   FOREACH t IN ARRAY ARRAY[
     'domaines', 'competences', 'observations', 'exercises', 'attempts', 'sessions',
-    'refus_recommandations', 'themes', 'documents', 'document_links'
+    'refus_recommandations', 'documents', 'document_links'
   ]
   LOOP
     EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
@@ -1861,7 +1840,6 @@ BEGIN
     'competences', COALESCE((SELECT json_agg(row_to_json(c)) FROM competences c WHERE c.user_id = uid), '[]'::json),
     'competence_domaines',
                    COALESCE((SELECT json_agg(row_to_json(cd)) FROM competence_domaines cd WHERE cd.user_id = uid), '[]'::json),
-    'themes',      COALESCE((SELECT json_agg(row_to_json(t)) FROM themes t WHERE t.user_id = uid), '[]'::json),
     'moteur_reglages',
                    COALESCE((SELECT json_agg(row_to_json(m)) FROM (SELECT * FROM public.moteur_reglages WHERE user_id = uid ORDER BY applique_le ASC) m), '[]'::json)
   ) INTO resultat;

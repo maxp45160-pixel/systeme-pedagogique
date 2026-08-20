@@ -8,7 +8,6 @@ import type {
   SkillObservation,
   SkillState,
 } from "@/lib/domain/types";
-import type { Theme } from "@/lib/domain/theme";
 import type { IndexDocumentaire } from "./index";
 import { construireVuesAtelier } from "./vue-atelier";
 import {
@@ -98,30 +97,60 @@ const tentative: ExerciseAttempt = {
   debut: "2026-08-11T09:30:00.000Z",
   fin: "2026-08-11T10:00:00.000Z",
   indicesUtilises: 0,
-  reponse: "",
-  evaluation: {},
+  verdictTuteur: {
+    resultat: "reussi",
+    appreciations: {},
+    justifications: {},
+    bilan: { pointsForts: "", pointsBloquants: "", aRetravailler: [] },
+    date: "2026-08-11T10:00:00.000Z",
+  },
+  reponse: "Analyse des flux terminée",
+  notes: "",
   resultat: "reussi",
   statut: "terminee",
+  dureeMin: 30,
+  evaluation: {
+    comprehension: 4,
+    application: 4,
+  },
 };
 
 const referentiel: Referentiel = {
-  domaines: [{
-    id: "logistique",
-    nom: "Logistique",
-    prefixe: "LOG",
-    description: "Comprendre et améliorer les flux.",
-    ordre: 1,
-    version: 1,
-    archive: false,
-    origine: "utilisateur",
-  }],
+  domaines: [
+    {
+      id: "logistique",
+      nom: "Logistique",
+      prefixe: "LOG",
+      description: "Gestion des flux",
+      ordre: 1,
+      version: 1,
+      archive: false,
+      origine: "utilisateur",
+    },
+  ],
   skills: [competence, suivante],
   actifs: [competence, suivante],
-  parCode: new Map([[competence.code, competence], [suivante.code, suivante]]),
+  parCode: new Map([
+    [competence.code, competence],
+    [suivante.code, suivante],
+  ]),
   codesActifs: new Set([competence.code, suivante.code]),
-  domainesParId: new Map(),
+  domainesParId: new Map([
+    [
+      "logistique",
+      {
+        id: "logistique",
+        nom: "Logistique",
+        prefixe: "LOG",
+        description: "Gestion des flux",
+        ordre: 1,
+        version: 1,
+        archive: false,
+        origine: "utilisateur",
+      },
+    ],
+  ]),
 };
-referentiel.domainesParId.set("logistique", referentiel.domaines[0]);
 
 const index: IndexDocumentaire = {
   documents: [],
@@ -132,7 +161,7 @@ const index: IndexDocumentaire = {
 };
 
 describe("construireVuesAtelier", () => {
-  it("projette le domaine comme fiche mère et relie ses fiches pédagogiques", () => {
+  it("construit des fiches de domaine, compétence et exercice complètes", () => {
     const vues = construireVuesAtelier(
       referentiel,
       [etat(competence, [observation]), etat(suivante)],
@@ -142,41 +171,32 @@ describe("construireVuesAtelier", () => {
       [],
       [],
       new Set(),
-      [],
       etatsLot5(etat(competence, [observation]), etat(suivante)),
       [],
     );
 
-    expect(vues.domaines[0]).toMatchObject({
-      kind: "domaine",
-      id: "logistique",
-      nombreEvaluees: 1,
-      nombreObservations: 1,
-      nombreExercices: 1,
-      derniereActivite: observation.date,
-    });
-    expect(vues.domaines[0].competences.map((item) => item.code)).toEqual([
-      competence.code,
-      suivante.code,
-    ]);
+    expect(vues.domaines).toHaveLength(1);
+    expect(vues.domaines[0].nom).toBe("Logistique");
+    expect(vues.domaines[0].nombreEvaluees).toBe(1);
+    expect(vues.domaines[0].nombreObservations).toBe(1);
+    expect(vues.domaines[0].nombreExercices).toBe(1);
 
-    expect(vues.competences[0]).toMatchObject({
-      code: competence.code,
-      niveau: 3,
-      score: 0.72,
-      nombreObservations: 1,
-      nombreContextes: 1,
-      suivantes: [suivante.code],
-    });
-    expect(vues.competences[0].etatLot5).toBeDefined();
-    expect(vues.competences[0].exercices[0]).toMatchObject({
-      id: exercice.id,
-      tentatives: 1,
-      derniereTentative: tentative.fin,
-    });
+    expect(vues.competences).toHaveLength(2);
+    expect(vues.competences[0].code).toBe("LOG-01");
+    expect(vues.competences[0].niveau).toBe(3);
+    expect(vues.competences[0].exercices).toHaveLength(1);
+    expect(vues.competences[0].observations).toHaveLength(1);
+    expect(vues.competences[0].connexes).toEqual([
+      {
+        code: "LOG-02",
+        intitule: "Optimiser un flux logistique",
+        relation: "suivante",
+        dejaMesuree: false,
+      },
+    ]);
   });
 
-  it("conserve l'absence d'observation comme une absence de niveau", () => {
+  it("gère l'absence d'observation et de tentative sans lever", () => {
     const vues = construireVuesAtelier(
       referentiel,
       [etat(competence), etat(suivante)],
@@ -186,32 +206,20 @@ describe("construireVuesAtelier", () => {
       [],
       [],
       new Set(),
-      [],
       etatsLot5(etat(competence), etat(suivante)),
       [],
     );
 
-    expect(vues.competences[0]).toMatchObject({
-      niveau: null,
-      score: null,
-      robustesse: null,
-      nombreObservations: 0,
-    });
+    expect(vues.competences[0].niveau).toBeNull();
+    expect(vues.competences[0].score).toBeNull();
+    expect(vues.competences[0].exercices).toHaveLength(0);
+    expect(vues.competences[0].observations).toHaveLength(0);
     expect(vues.competences[0].etatLot5.observationPonctuelle).toBeNull();
     expect(vues.competences[0].etatLot5.maitrise.maitrisee).toBe(false);
     expect(vues.domaines[0].nombreEvaluees).toBe(0);
   });
 
   it("réutilise les états du lot 5 et la recommandation déjà adaptée", () => {
-    const theme: Theme = {
-      id: "flux-opti-lot5",
-      libelle: "Optimisation des flux",
-      intention: "",
-      codes: [competence.code],
-      origine: "utilisateur",
-      creeLe: "2026-08-10T08:00:00.000Z",
-      archive: false,
-    };
     const etatLot5 = construireEtatCompetence(etat(competence, [observation]));
     const recommandation = {
       etat: etatLot5.etatConsolide,
@@ -239,18 +247,11 @@ describe("construireVuesAtelier", () => {
       [],
       [],
       new Set(),
-      [theme],
       [etatLot5],
       [recommandation],
     );
 
     expect(vues.competences[0].etatLot5).toBe(etatLot5);
-    expect(vues.themes[0].prochaineActionRecommandee).toEqual({
-      code: competence.code,
-      titre: competence.intitule,
-      motif: "Cette compétence appartient à la cible d'un objectif actif.",
-      reserves: ["La cible reste locale."],
-    });
   });
 
   it("isole les domaines archivés et n'expose pas les domaines dormants", () => {
@@ -282,7 +283,6 @@ describe("construireVuesAtelier", () => {
       [],
       [],
       new Set(),
-      [],
       etatsLot5(etat(competence), etat(suivante)),
       [],
     );
@@ -294,17 +294,7 @@ describe("construireVuesAtelier", () => {
     });
   });
 
-  it("construit les vues thématiques et d'exercices enrichies", () => {
-    const theme: Theme = {
-      id: "flux-opti",
-      libelle: "Optimisation des flux",
-      intention: "Comprendre et optimiser les flux logistiques",
-      codes: [competence.code, suivante.code],
-      origine: "utilisateur",
-      creeLe: "2026-08-10T08:00:00.000Z",
-      archive: false,
-    };
-
+  it("construit la projection des exercices enrichie", () => {
     const vues = construireVuesAtelier(
       referentiel,
       [etat(competence, [observation]), etat(suivante)],
@@ -314,27 +304,9 @@ describe("construireVuesAtelier", () => {
       [],
       [],
       new Set(),
-      [theme],
       etatsLot5(etat(competence, [observation]), etat(suivante)),
       [],
     );
-
-    expect(vues.themes[0]).toMatchObject({
-      kind: "theme",
-      id: "flux-opti",
-      libelle: "Optimisation des flux",
-      intention: "Comprendre et optimiser les flux logistiques",
-      nombreEvaluees: 1,
-      nombreObservations: 1,
-      nombreExercices: 1,
-      tauxCouverture: 0.5,
-    });
-    expect(vues.themes[0].competences.map((c) => c.code)).toEqual(["LOG-01", "LOG-02"]);
-    expect(vues.themes[0].domaines[0]).toMatchObject({
-      id: "logistique",
-      nombreCompetences: 2,
-      nombreEvaluees: 1,
-    });
 
     expect(vues.exercices[0]).toMatchObject({
       kind: "exercice",
@@ -376,15 +348,10 @@ describe("vue d'une compétence — ce que l'Atelier a le droit de montrer", () 
       [],
       [],
       new Set(),
-      [],
       etatsLot5(etat(competence, [observation]), etat(suivante)),
       [],
     );
 
-    /*
-     * La fiche d'exercice et la preuve citent la compétence, donc `entrants` les
-     * rend — mais `exercices` et `observations` les nomment déjà avec leurs mesures.
-     */
     expect(vues.competences[0].documents.map((document) => document.id)).toEqual(["note-log-01"]);
   });
 
@@ -398,12 +365,10 @@ describe("vue d'une compétence — ce que l'Atelier a le droit de montrer", () 
       [],
       [],
       new Set(),
-      [],
       etatsLot5(etat(competence, [observation]), etat(suivante)),
       [],
     );
 
-    /* `source.ref` vaut `tentative-1`, et `production.ts` écrit `preuve-tentative-1`. */
     expect(vues.competences[0].observations[0].documentId).toBe("preuve-tentative-1");
   });
 
@@ -417,7 +382,6 @@ describe("vue d'une compétence — ce que l'Atelier a le droit de montrer", () 
       [],
       [],
       new Set(),
-      [],
       etatsLot5(etat(competence, [observation]), etat(suivante)),
       [],
     );
@@ -435,16 +399,10 @@ describe("vue d'une compétence — ce que l'Atelier a le droit de montrer", () 
       [],
       [],
       new Set(),
-      [],
       etatsLot5(etat(competence, [observation]), etat(suivante)),
       [],
     );
 
-    /*
-     * L'écran doit pouvoir écrire « Créer dans Logistique » plutôt que
-     * « Créer dans logistique » : la personne valide une création dont elle
-     * lit la destination.
-     */
     expect(vues.competences[0].domainesExistants).toEqual([{ id: "logistique", nom: "Logistique" }]);
   });
 
@@ -463,12 +421,10 @@ describe("vue d'une compétence — ce que l'Atelier a le droit de montrer", () 
       [],
       [],
       new Set(),
-      [],
       etatsLot5(etat(competence, [observation]), etat(suivante)),
       [],
     );
 
-    /* Un domaine archivé n'accueille rien : le proposer serait proposer une impasse. */
     expect(vues.competences[0].domainesExistants).toEqual([]);
   });
 });

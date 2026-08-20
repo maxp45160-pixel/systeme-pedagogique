@@ -23,7 +23,7 @@ export function adaptLegacyExercise(accountId: string, exercise: Exercise): Lear
     title: exercise.titre,
     description: exercise.enonce,
     family: "entrainer",
-    target: { skillCodes: exercise.competences, themeIds: [], goalIds: [] },
+    target: { skillCodes: exercise.competences, goalIds: [] },
     estimatedDurationMinutes: exercise.dureeEstimeeMin,
     cognitiveDemand: cognitiveDemand(exercise),
     proofMode: "soumission-finale",

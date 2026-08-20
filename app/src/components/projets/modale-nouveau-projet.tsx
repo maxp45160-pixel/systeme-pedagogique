@@ -15,7 +15,8 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import type { PropositionContenuActivite, PropositionTheme } from "@/lib/tutor/outils";
+import type { PropositionContenuActivite } from "@/lib/tutor/outils";
+import type { TraductionIntention } from "@/lib/domain/intention";
 import type { EvaluationCriterion } from "@/lib/domain/adaptive-learning";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import { ouvrirProjetCompose } from "@/lib/store/projets-actions";
@@ -168,10 +169,10 @@ export function ParcoursNouveauProjet({
     setErreur(null);
     setProgression(null);
     try {
-      const reponse = await fetch("/api/themes/resoudre", {
+      const reponse = await fetch("/api/intention", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ texte: texteIntention, config: lireConfigTuteur(accountId) ?? undefined }),
+        body: JSON.stringify({ besoin: texteIntention, config: lireConfigTuteur(accountId) ?? undefined }),
       });
       if (!reponse.ok || !reponse.body) {
         const corps = await reponse.json().catch(() => null) as { message?: string } | null;
@@ -194,16 +195,16 @@ export function ParcoursNouveauProjet({
           if (!donnees) continue;
           if (type === "proposition") {
             recu = true;
-            const theme = (JSON.parse(donnees) as { theme: PropositionTheme | null }).theme;
-            if (!theme) throw new Error("Le tuteur n'a rendu aucun ciblage exploitable.");
-            if (theme.codes.length === 0) {
+            const proposition = (JSON.parse(donnees) as { proposition: TraductionIntention | null }).proposition;
+            const codes = proposition?.action?.codes ?? [];
+            if (codes.length === 0) {
               throw new Error(
                 "Aucune compétence de ton référentiel ne correspond à cette description. Crée d'abord la branche correspondante depuis l'Atelier.",
               );
             }
-            setDesignees(theme.codes.map((code) => ({ code, origine: "tuteur" as const })));
-            setJustification(theme.justification ?? "");
-            setRetirees(new Set(theme.codes.slice(COMPETENCES_MAX)));
+            setDesignees(codes.map((code) => ({ code, origine: "tuteur" as const })));
+            setJustification(proposition?.action?.pourquoi ?? "");
+            setRetirees(new Set(codes.slice(COMPETENCES_MAX)));
             setIntentionCiblee(texteIntention);
             setEtape(2);
           } else if (type === "erreur") {

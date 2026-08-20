@@ -107,12 +107,6 @@ export async function reinitialiserDonneesCompteAction(
     .eq("user_id", userId);
   verifier("purge des exercices", errExercices);
 
-  const { error: errThemes } = await dorsale.supabase
-    .from("themes")
-    .delete()
-    .eq("user_id", userId);
-  verifier("purge des thèmes", errThemes);
-
   // 4. Suppression du référentiel (compétences et domaines)
   const { error: errCompetences } = await dorsale.supabase
     .from("competences")

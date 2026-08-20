@@ -39,8 +39,8 @@ export interface ReglagesGraphe {
 }
 
 export const REGLAGES_PAR_DEFAUT: ReglagesGraphe = {
-  typesNoeudsVisibles: { competence: true, exercice: false, theme: true, document: true },
-  typesLiensVisibles: { prerequis: true, theme: true, exercice: true, similarite: true, document: true },
+  typesNoeudsVisibles: { competence: true, exercice: false, document: true },
+  typesLiensVisibles: { prerequis: true, exercice: true, similarite: true, document: true },
   domainesMasques: {},
   axeCouleur: "domaine",
   seuilSimilarite: 0.05,

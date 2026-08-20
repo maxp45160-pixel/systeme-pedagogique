@@ -72,7 +72,7 @@ export function BoutonRestaurationCarte({
 export interface ModaleConfirmationSuppressionProps {
   titre: string;
   nomElement: string;
-  typeElement: "domaine" | "competence" | "theme" | "document" | "exercice";
+  typeElement: "domaine" | "competence" | "document" | "exercice";
   mode?: "suppression" | "archivage" | "restauration";
   explication?: string;
   onConfirmer: () => Promise<void> | void;

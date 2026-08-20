@@ -9,7 +9,6 @@ import Link from "next/link";
 import { IconeFleche } from "@/components/ui/icones";
 import { VueCompetence } from "./vues/vue-competence";
 import { VueDomaine } from "./vues/vue-domaine";
-import { VueTheme } from "./vues/vue-theme";
 import { VueExercice } from "./vues/vue-exercice";
 
 export { VueDomaine };
@@ -62,20 +61,6 @@ export function FichePedagogiqueAtelier({
     );
   }
 
-  if (vue.kind === "theme") {
-    return (
-      <VueTheme
-        key={vue.id}
-        vue={vue}
-        titre={titre}
-        ouvrirElement={ouvrirElement}
-        compteId={compteId}
-        generation={generation}
-        donneesSeance={donneesSeance}
-      />
-    );
-  }
-
   return (
     <VueExercice
       key={vue.id}
@@ -102,83 +87,6 @@ export function PanneauPedagogiqueAtelier({
   donneesSeance?: DonneesSeance;
 }) {
   if (vue.kind === "competence") return null;
-
-  if (vue.kind === "theme") {
-    const paliersCompteurs = {
-      fondamentaux: vue.competences.filter((c) => c.palier === "fondamentaux").length,
-      intermediaire: vue.competences.filter((c) => c.palier === "intermediaire").length,
-      avance: vue.competences.filter((c) => c.palier === "avance").length,
-    };
-
-    return (
-      <div className="space-y-5 p-4">
-        <div>
-          <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-accent">Thème transversal</p>
-          <h3 className="mt-1 font-serif text-lg font-medium text-texte">{vue.libelle}</h3>
-        </div>
-
-        {/* Prochaine action recommandée */}
-        {vue.prochaineActionRecommandee && (
-          <section className="rounded-xl border border-alerte/30 bg-alerte-faible p-4 shadow-xs">
-            <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-alerte">Prochaine action recommandée</p>
-            <p className="mt-2 text-sm font-semibold leading-snug text-texte">{vue.prochaineActionRecommandee.titre}</p>
-            <p className="mt-1 text-xs text-texte-attenue">{vue.prochaineActionRecommandee.motif}</p>
-            {vue.prochaineActionRecommandee.reserves.map((reserve) => (
-              <p key={reserve} className="mt-1 text-xs text-texte-discret">{reserve}</p>
-            ))}
-            <button
-              type="button"
-              onClick={() => ouvrirElement(vue.prochaineActionRecommandee!.code)}
-              className="mt-3 flex w-full items-center justify-between rounded-lg bg-surface px-3 py-2 text-xs font-semibold text-primaire shadow-xs hover:bg-surface-2 transition-colors cursor-pointer"
-            >
-              <span>Travailler cette compétence</span>
-              <IconeFleche className="size-3.5" />
-            </button>
-          </section>
-        )}
-
-        {/* Répartition par domaine */}
-        <div className="rounded-xl border border-bordure bg-surface p-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-texte-discret">Couverture par domaine</p>
-          <div className="mt-3 space-y-3">
-            {vue.domaines.map((d) => {
-              const ratio = d.nombreCompetences > 0 ? Math.round((d.nombreEvaluees / d.nombreCompetences) * 100) : 0;
-              return (
-                <div key={d.id} className="space-y-1">
-                  <div className="flex justify-between text-xs">
-                    <span className="font-medium text-texte truncate">{d.nom}</span>
-                    <span className="text-texte-discret">{d.nombreEvaluees}/{d.nombreCompetences} ({ratio}%)</span>
-                  </div>
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-3">
-                    <div className="h-full rounded-full bg-primaire transition-all" style={{ width: `${ratio}%` }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Synthèse par paliers */}
-        <div className="rounded-xl border border-bordure bg-surface p-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-texte-discret">Répartition par palier</p>
-          <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
-            <div className="rounded-lg bg-surface-2 p-2">
-              <span className="block text-[0.625rem] text-texte-discret">Fondam.</span>
-              <span className="chiffres font-semibold text-texte">{paliersCompteurs.fondamentaux}</span>
-            </div>
-            <div className="rounded-lg bg-surface-2 p-2">
-              <span className="block text-[0.625rem] text-texte-discret">Interm.</span>
-              <span className="chiffres font-semibold text-texte">{paliersCompteurs.intermediaire}</span>
-            </div>
-            <div className="rounded-lg bg-surface-2 p-2">
-              <span className="block text-[0.625rem] text-texte-discret">Avancé</span>
-              <span className="chiffres font-semibold text-texte">{paliersCompteurs.avance}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   if (vue.kind === "exercice") {
     return (

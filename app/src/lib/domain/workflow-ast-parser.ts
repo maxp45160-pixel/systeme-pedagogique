@@ -259,11 +259,6 @@ export function extraireClesSearchParams(sf: ts.SourceFile): string[] {
 export function groupePourChemin(relatif: string): GroupeWorkflow {
   const r = relatif.toLowerCase().replace(/\\/g, "/");
 
-  // Thèmes et gestion transversale du référentiel
-  if (r.includes("modale-theme") || r.includes("theme-actions")) {
-    return "atelier";
-  }
-
   // Séances & Cahier
   if (
     r.startsWith("app/(app)/seances") ||
@@ -794,7 +789,7 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
       }
 
       // Actions invoquées via await ou startTransition
-      for (const m of node.getText(sf).matchAll(/([A-Za-z0-9_]+Action|[A-Za-z0-9_]+Seance|[A-Za-z0-9_]+Exercice|[A-Za-z0-9_]+Branche|[A-Za-z0-9_]+Note|[A-Za-z0-9_]+Document|[A-Za-z0-9_]+Theme|[A-Za-z0-9_]+Profil)\s*\(/g)) {
+      for (const m of node.getText(sf).matchAll(/([A-Za-z0-9_]+Action|[A-Za-z0-9_]+Seance|[A-Za-z0-9_]+Exercice|[A-Za-z0-9_]+Branche|[A-Za-z0-9_]+Note|[A-Za-z0-9_]+Document|[A-Za-z0-9_]+Profil)\s*\(/g)) {
         actionsInvoquees.push(m[1]);
       }
     }

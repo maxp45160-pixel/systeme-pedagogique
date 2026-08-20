@@ -35,7 +35,6 @@ export async function chargerDonneesSeance(): Promise<DonneesSeance> {
           ctx.referentiel.actifs.some((skill) => skill.domaine === domaine.id),
       )
       .map((d) => ({ id: d.id, nom: d.nom, prefixe: d.prefixe })),
-    themes: ctx.themes,
     compteId: ctx.donnees.user.id,
   };
 }

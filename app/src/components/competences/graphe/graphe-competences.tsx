@@ -143,7 +143,7 @@ export function GrapheCompetences({
       if (n.type === "competence") {
         const code = n.id.slice("competence:".length);
         router.push(`/atelier?document=${encodeURIComponent(code)}`);
-      } else if (n.type === "exercice" || n.type === "theme") {
+      } else if (n.type === "exercice") {
         router.push(`/atelier?document=${encodeURIComponent(n.id)}`);
       } else if (n.type === "document") {
         router.push(`/atelier?document=${encodeURIComponent(n.id.slice("document:".length))}`);
@@ -262,11 +262,7 @@ export function GrapheCompetences({
     const survol = survolIdRef.current;
     const noeudSurvole = survol ? noeudsRef.current.find((n) => n.id === survol) : null;
     const domainesMisEnValeur = new Set<string>();
-    if (noeudSurvole?.type === "theme") {
-      noeudSurvole.etiquettes
-        .filter((e) => e.startsWith("traverse:"))
-        .forEach((e) => domainesMisEnValeur.add(e.slice("traverse:".length)));
-    } else if (noeudSurvole?.domaineId) {
+    if (noeudSurvole?.domaineId) {
       domainesMisEnValeur.add(noeudSurvole.domaineId);
     }
 
@@ -448,7 +444,7 @@ export function GrapheCompetences({
       if (n.x === undefined || n.y === undefined) continue;
       const px = largeur / 2 + (n.x + camera.x) * camera.zoom;
       const py = hauteur / 2 + (n.y + camera.y) * camera.zoom;
-      const rayonMinimum = n.type === "theme" ? 7 : n.type === "competence" ? 5 : 4;
+      const rayonMinimum = n.type === "competence" ? 5 : 4;
       const rayon = Math.max(rayonMinimum, n.rayon * camera.zoom);
       const d = Math.hypot(xEcran - px, yEcran - py);
       if (d <= rayon + 2 && d < meilleureDistance) {

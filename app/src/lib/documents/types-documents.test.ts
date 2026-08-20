@@ -5,7 +5,6 @@ const NOMS_ICONES: readonly NomIcone[] = [
   "document",
   "dossier",
   "domaine",
-  "theme",
   "competence",
   "note",
   "reference",

@@ -67,7 +67,7 @@ export function PanneauExerciceAtelier({
           compEl: elements.find((el) => el.id === code),
         }));
         const competencesCibles = sortantsElements.filter(({ code, compEl }) => {
-          return compEl?.type === "competence" || (!code.startsWith("preuve-") && !code.startsWith("exercice:") && !code.startsWith("note-") && !code.startsWith("document:") && !code.startsWith("theme:") && !code.startsWith("domaine:"));
+          return compEl?.type === "competence" || (!code.startsWith("preuve-") && !code.startsWith("exercice:") && !code.startsWith("note-") && !code.startsWith("document:") && !code.startsWith("domaine:"));
         });
         const documentsAssocies = sortantsElements.filter(({ code }) => !competencesCibles.some((c) => c.code === code));
 

@@ -8,7 +8,6 @@
  * n'est fabriqué pour permettre au moteur de continuer.
  */
 
-import type { Theme } from "@/lib/domain/theme";
 import type {
   Domaine,
   Exercise,
@@ -269,7 +268,6 @@ function validerBesoin(valeur: unknown, chemin: string): void {
   textes(besoin.codesVises, `${chemin}.codesVises`);
   nombre(besoin.tempsDisponibleMin, `${chemin}.tempsDisponibleMin`, { min: 0, entier: true });
   date(besoin.declareLe, `${chemin}.declareLe`);
-  optionnel(besoin, "themeId", chemin, texte);
 }
 
 function validerBlueprint(valeur: unknown, chemin: string): void {
@@ -277,13 +275,9 @@ function validerBlueprint(valeur: unknown, chemin: string): void {
   nombre(blueprint.dureeCibleMin, `${chemin}.dureeCibleMin`, { min: 0, entier: true });
   nombre(blueprint.nombreExercices, `${chemin}.nombreExercices`, { min: 0, entier: true });
   const portee = objet(blueprint.portee, `${chemin}.portee`);
-  const type = enumeration(portee.type, ["mono", "transverse", "theme"] as const, `${chemin}.portee.type`);
+  const type = enumeration(portee.type, ["mono", "transverse"] as const, `${chemin}.portee.type`);
   if (type === "mono") texte(portee.domaine, `${chemin}.portee.domaine`);
   if (type === "transverse") textes(portee.domaines, `${chemin}.portee.domaines`);
-  if (type === "theme") {
-    texte(portee.themeId, `${chemin}.portee.themeId`);
-    textes(portee.codes, `${chemin}.portee.codes`);
-  }
   tableau(blueprint.cibles, `${chemin}.cibles`).forEach((item, index) => {
     const cible = objet(item, `${chemin}.cibles[${index}]`);
     texte(cible.code, `${chemin}.cibles[${index}].code`);
@@ -373,19 +367,6 @@ export function validerRattachement(
   texte(rattachement.code, `${chemin}.code`);
   texte(rattachement.domaine, `${chemin}.domaine`);
   return rattachement as unknown as RattachementDomaine;
-}
-
-export function validerTheme(valeur: unknown, chemin = "themes"): Theme {
-  const theme = objet(valeur, chemin);
-  texte(theme.id, `${chemin}.id`);
-  texte(theme.libelle, `${chemin}.libelle`);
-  optionnel(theme, "intention", chemin, (v, c) => texte(v, c, true));
-  textes(theme.codes, `${chemin}.codes`);
-  enumeration(theme.origine, ["utilisateur", "tuteur"] as const, `${chemin}.origine`);
-  date(theme.creeLe, `${chemin}.creeLe`);
-  optionnel(theme, "modifieLe", chemin, date);
-  booleen(theme.archive, `${chemin}.archive`);
-  return theme as unknown as Theme;
 }
 
 export function validerAjustement(valeur: unknown, chemin = "moteurReglages"): AjustementInscrit {

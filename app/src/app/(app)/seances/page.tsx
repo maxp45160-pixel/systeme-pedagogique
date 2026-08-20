@@ -45,7 +45,6 @@ export default async function PageSeances(props: {
     focus?: string;
     composer?: string;
     code?: string | string[];
-    theme?: string;
     intention?: string;
     "sans-theme"?: string;
     temps?: string;
@@ -100,7 +99,6 @@ export default async function PageSeances(props: {
             ? {
                 composition: {
                   codesParametres: recherche.code,
-                  themeDemande: recherche.theme,
                   intention: recherche.intention,
                   sansTheme: recherche["sans-theme"],
                   temps: recherche.temps,
@@ -115,7 +113,6 @@ export default async function PageSeances(props: {
 
 export interface DemandeComposition {
   codesParametres?: string | string[];
-  themeDemande?: string;
   intention?: string;
   temps?: string;
   sansTheme?: string;
@@ -126,15 +123,11 @@ export interface DemandeComposition {
  */
 async function CompositeurDepuisLien({
   codesParametres,
-  themeDemande,
   intention,
   temps,
   sansTheme,
 }: DemandeComposition) {
   const donnees = await chargerDonneesSeance();
-  const themeInitial = themeDemande
-    ? donnees.themes.find((theme) => theme.id === themeDemande && !theme.archive)
-    : undefined;
   const codesDemandes = (Array.isArray(codesParametres) ? codesParametres : codesParametres ? [codesParametres] : [])
     .filter((code, index, liste) => liste.indexOf(code) === index);
   const codesActifs = new Set(donnees.actifs.map((skill) => skill.code));
@@ -152,7 +145,7 @@ async function CompositeurDepuisLien({
     return skill ? [skill.domaine] : [];
   }))];
 
-  const preset: PresetSeance | undefined = !themeInitial && codes.length > 0
+  const preset: PresetSeance | undefined = codes.length > 0
     ? {
         libelle: codes.length === 1 ? `Compétence : ${codes[0]}` : "Séance ciblée",
         codesVises: codes,
@@ -166,7 +159,6 @@ async function CompositeurDepuisLien({
     <ConcepteurSeance
       {...donnees}
       preset={preset}
-      themeInitial={themeInitial}
       contexteInitial={intention}
       sansThemeInitial={sansTheme === "1"}
       ouvertParDefaut

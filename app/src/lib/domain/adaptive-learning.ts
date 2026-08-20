@@ -74,7 +74,6 @@ export type WorkspaceTool = (typeof WORKSPACE_TOOLS)[number];
 
 export interface ActivityTarget {
   skillCodes: string[];
-  themeIds: string[];
   goalIds: string[];
   /** Libelle explicite pour un sujet qui n'a pas encore de lien confirme. */
   label?: string;
@@ -82,7 +81,6 @@ export interface ActivityTarget {
 
 export type ActionTarget =
   | { kind: "skill"; ref: string }
-  | { kind: "theme"; ref: string }
   | { kind: "goal"; ref: string }
   | { kind: "activity"; ref: string }
   | { kind: "run"; ref: string };
@@ -106,7 +104,6 @@ export interface LearningGoal {
   successCriteria: GoalSuccessCriterion[];
   declaredState: "brouillon" | "actif" | "en-pause" | "atteint" | "abandonne";
   confirmedSkillCodes: string[];
-  confirmedThemeIds: string[];
   createdAt: string;
   updatedAt: string;
 }

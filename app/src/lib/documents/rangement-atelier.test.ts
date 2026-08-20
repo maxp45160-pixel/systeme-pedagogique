@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   estATrier,
   rangementDomaine,
-  rangementTheme,
   rangerDocument,
 } from "./rangement-atelier";
 
@@ -60,7 +59,5 @@ describe("rangement de l'Atelier", () => {
     expect(rangement.rattachements).toEqual(["DEV-02", "RO-01"]);
 
     expect(rangementDomaine("logistique").zone).toBe("domaine");
-    expect(rangementTheme().zone).toBe("theme");
-    expect(rangementTheme().rattachements).toEqual([]);
   });
 });
