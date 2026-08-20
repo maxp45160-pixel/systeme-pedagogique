@@ -1,19 +1,16 @@
 "use client";
 
-import { IconePlus } from "@/components/ui/icones";
+import { useState, type FormEvent } from "react";
+import {
+  IconeAmpoule,
+  IconeCompetences,
+  IconeExercices,
+  IconeFleche,
+  IconeNote,
+  IconePlus,
+  IconeProjet,
+} from "@/components/ui/icones";
 import { useIntention } from "./contexte-intention";
-
-/**
- * Les deux déclencheurs du point d'entrée `+`.
- *
- * Deux composants et non un seul paramétré : le rail et la barre mobile n'ont
- * ni la même forme, ni le même rôle visuel — l'un est une entrée de liste
- * dominante, l'autre est le centre de gravité de la barre. Un composant unique
- * finirait en empilement de variantes pour deux usages qui ne convergent pas.
- *
- * Le libellé est le même dans les deux : « Nouveau besoin », pas « Créer ».
- * Ce bouton ne demande pas quoi créer — c'est tout l'objet du chantier.
- */
 
 const LIBELLE = "Nouveau besoin";
 
@@ -38,10 +35,6 @@ export function BoutonIntentionRail() {
 
 /**
  * Déclencheur mobile, au centre de la barre inférieure.
- *
- * Rendu comme une pastille en relief plutôt qu'un onglet : ce n'est pas une
- * destination, et le montrer comme les autres entrées laisserait croire qu'il
- * y a une page derrière.
  */
 export function BoutonIntentionMobile() {
   const { ouvrir } = useIntention();
@@ -61,33 +54,89 @@ export function BoutonIntentionMobile() {
   );
 }
 
-/** Déclencheur principal du tableau de bord, quand l'utilisateur sait qu'il a un besoin. */
+const SUGGESTIONS_AMORCAGE = [
+  {
+    libelle: "Séance express 15 min",
+    prompt: "Je veux faire une séance courte de 15 minutes pour m'entraîner",
+    Icone: IconeExercices,
+  },
+  {
+    libelle: "Réviser mes points faibles",
+    prompt: "Je veux retravailler mes compétences les plus fragiles",
+    Icone: IconeCompetences,
+  },
+  {
+    libelle: "Créer une fiche de cours",
+    prompt: "Je souhaite créer une fiche de synthèse pour résumer mon cours",
+    Icone: IconeNote,
+  },
+  {
+    libelle: "Lancer un projet",
+    prompt: "Je veux construire un projet pratique",
+    Icone: IconeProjet,
+  },
+];
+
+/**
+ * Déclencheur principal du tableau de bord.
+ *
+ * Conçu comme une barre de chat IA interactive avec bouton d'envoi intégré
+ * et suggestions d'amorçage rapide en un clic.
+ */
 export function BoutonIntentionDashboard() {
   const { ouvrir } = useIntention();
+  const [saisie, setSaisie] = useState("");
+
+  const gererSoumission = (e: FormEvent) => {
+    e.preventDefault();
+    ouvrir(saisie.trim() || undefined);
+  };
 
   return (
-    <section className="rounded-2xl border border-primaire/35 bg-primaire/[0.06] p-4 shadow-xs sm:p-5">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-        <div className="min-w-0">
-          <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-primaire">
-            Point de départ
-          </p>
-          <h2 className="mt-1 font-serif text-lg font-medium leading-tight text-texte sm:text-xl">
-            Un besoin en tête ?
-          </h2>
-          <p className="mt-1 text-xs leading-relaxed text-texte-attenue sm:text-sm">
-            Décris-le comme tu le dirais à voix haute. Le système te proposera la bonne suite.
-          </p>
-        </div>
+    <div className="space-y-2" data-tour="nouveau-besoin">
+      {/* Vraie barre de prompt IA immersive avec bouton d'action intégré */}
+      <form
+        onSubmit={gererSoumission}
+        className="group relative flex items-center rounded-xl border border-bordure bg-surface p-1.5 sm:p-2 shadow-xs transition-all hover:border-primaire/50 focus-within:border-primaire focus-within:ring-2 focus-within:ring-primaire/20"
+      >
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primaire/15 text-primaire transition-transform group-focus-within:scale-105">
+          <IconeAmpoule className="size-4" />
+        </span>
+
+        <input
+          type="text"
+          value={saisie}
+          onChange={(e) => setSaisie(e.target.value)}
+          placeholder="Décrivez ce que vous souhaitez apprendre ou préparer aujourd’hui..."
+          className="w-full bg-transparent px-3 py-1.5 text-xs sm:text-sm text-texte placeholder:text-texte-discret focus:outline-none"
+        />
+
         <button
-          type="button"
-          onClick={() => ouvrir()}
-          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-primaire px-4 py-2.5 text-sm font-semibold text-surface shadow-sm transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primaire focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+          type="submit"
+          className="flex items-center gap-1.5 rounded-lg bg-primaire px-3.5 py-1.5 text-xs font-medium text-surface shadow-xs transition-all hover:bg-primaire/90 active:scale-95 shrink-0 cursor-pointer"
         >
-          Déclarer un besoin
-          <IconePlus className="size-4" />
+          <span>Exprimer</span>
+          <IconeFleche className="size-3.5" />
         </button>
+      </form>
+
+      {/* Raccourcis d'inspiration / Chips */}
+      <div className="flex flex-wrap items-center gap-1.5 px-1">
+        <span className="text-[0.6875rem] font-medium text-texte-discret mr-1">
+          Suggestions :
+        </span>
+        {SUGGESTIONS_AMORCAGE.map(({ libelle, prompt, Icone }) => (
+          <button
+            key={libelle}
+            type="button"
+            onClick={() => ouvrir(prompt)}
+            className="group/chip inline-flex items-center gap-1.5 rounded-full border border-bordure bg-surface/80 px-2.5 py-0.5 text-[0.6875rem] text-texte-attenue transition-all hover:border-primaire/40 hover:bg-surface hover:text-texte cursor-pointer shadow-2xs"
+          >
+            <Icone className="size-3 text-texte-discret transition-colors group-hover/chip:text-primaire" />
+            <span>{libelle}</span>
+          </button>
+        ))}
       </div>
-    </section>
+    </div>
   );
 }

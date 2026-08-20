@@ -251,6 +251,12 @@ export function CaptureIntention({
     }
   }, [besoin, compteId]);
 
+  useEffect(() => {
+    if (besoinInitial && besoinValide(besoinInitial.trim())) {
+      void traduire(besoinInitial.trim());
+    }
+  }, [besoinInitial, traduire]);
+
   /**
    * Exécute l'action retenue.
    *

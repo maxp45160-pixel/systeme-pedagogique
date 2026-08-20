@@ -7,6 +7,9 @@ import { SquelettePage } from "@/components/layout/squelette";
 import { calculerActivite } from "@/lib/engine/historique";
 import { CarteSeanceActive } from "@/components/dashboard/carte-seance-active";
 import { CarteProchaineAction } from "@/components/dashboard/prochaine-action";
+import { PistesAlternatives } from "@/components/dashboard/pistes-alternatives";
+import { SyntheseReferentiel } from "@/components/dashboard/synthese-referentiel";
+import { MiniActivite } from "@/components/dashboard/mini-activite";
 import { IconeFleche } from "@/components/ui/icones";
 import { BandeauInfo, Bouton, classesLienBouton } from "@/components/ui/primitives";
 import { abandonnerExercice } from "@/lib/store/actions";
@@ -98,10 +101,12 @@ async function ContenuTableauDeBord({
     })
     .sort((a, b) => a.depuis - b.depuis);
 
+  const recommandationsFile = action?.kind === "exercice" ? action.recommandations : ctx.recommandations;
+
   return (
     <div className="space-y-3.5 sm:space-y-4">
       {/* En-tête épuré avec résumé de progression intégré */}
-      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-bordure/40 pb-3">
+      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-bordure/40 pb-2.5">
         <div className="min-w-0">
           <div className="font-serif text-xs italic text-texte-discret">{dateJour}</div>
           <h1 className="font-serif text-xl sm:text-2xl font-medium leading-tight tracking-tight">
@@ -117,12 +122,6 @@ async function ContenuTableauDeBord({
           className="group flex flex-wrap items-center gap-2.5 rounded-full border border-bordure bg-surface px-3.5 py-1.5 text-xs text-texte-attenue shadow-xs transition-colors hover:border-primaire/40 hover:text-texte"
           title="Voir le détail de ma progression"
         >
-          {aucuneObservation && (
-            <span className="flex items-center gap-1.5 font-medium text-info">
-              <span className="size-1.5 rounded-full bg-info" aria-hidden />
-              À tester
-            </span>
-          )}
           <span>
             <strong className="font-medium text-texte">{ctx.referentiel.actifs.length}</strong> compétences
           </span>
@@ -138,129 +137,100 @@ async function ContenuTableauDeBord({
         </Link>
       </div>
 
+      {/* Déclencheur d'intention compact */}
       <BoutonIntentionDashboard />
 
-      {/* Alerte si des exercices sont déjà en cours */}
-      {enCours.length > 0 && (
-        <BandeauInfo ton="primaire">
-          <div className="min-w-0" data-testid="travaux-en-cours">
-            <p className="text-xs font-semibold">{titreExercicesEnCours(enCours.length)}</p>
-            <ul className="mt-1.5 space-y-1.5">
-              {enCours.map(({ id, exercice, depuis }) => (
-                <li
-                  key={exercice.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primaire/20 bg-surface/80 px-2.5 py-1.5 text-xs shadow-xs"
-                >
-                  <div className="flex flex-wrap items-baseline gap-2 min-w-0">
-                    <Link
-                      href={urlComposerAutonome(exercice.competences[0], exercice.dureeEstimeeMin)}
-                      className="font-semibold text-primaire hover:underline truncate"
+      {/* Grille principale asymétrique : Flux d'action (gauche) + Repères contextuels (droite) */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:gap-5 items-start">
+        {/* Colonne gauche : Focus d'action immédiat & Pistes alternatives */}
+        <div className="space-y-3.5 sm:space-y-4 lg:col-span-7 xl:col-span-8 min-w-0">
+          {/* Alerte si des exercices sont déjà en cours */}
+          {enCours.length > 0 && (
+            <BandeauInfo ton="primaire">
+              <div className="min-w-0" data-testid="travaux-en-cours">
+                <p className="text-xs font-semibold">{titreExercicesEnCours(enCours.length)}</p>
+                <ul className="mt-1.5 space-y-1.5">
+                  {enCours.map(({ id, exercice, depuis }) => (
+                    <li
+                      key={exercice.id}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primaire/20 bg-surface/80 px-2.5 py-1.5 text-xs shadow-xs"
                     >
-                      {exercice.titre}
-                    </Link>
-                    <span className="text-[0.6875rem] text-texte-discret">
-                      commencé il y a {formatDuree(depuis)} · {exercice.competences.join(", ")}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <Link
-                      href={urlComposerAutonome(exercice.competences[0], exercice.dureeEstimeeMin)}
-                      className={`${classesLienBouton("principal")} !py-0.5 !px-2 !text-xs`}
-                    >
-                      Reprendre →
-                    </Link>
-                    <form action={abandonnerExercice.bind(null, id, exercice.id, depuis, undefined)}>
-                      <Bouton type="submit" variante="secondaire" taille="petite">
-                        Abandonner
-                      </Bouton>
-                    </form>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </BandeauInfo>
-      )}
+                      <div className="flex flex-wrap items-baseline gap-2 min-w-0">
+                        <Link
+                          href={urlComposerAutonome(exercice.competences[0], exercice.dureeEstimeeMin)}
+                          className="font-semibold text-primaire hover:underline truncate"
+                        >
+                          {exercice.titre}
+                        </Link>
+                        <span className="text-[0.6875rem] text-texte-discret">
+                          commencé il y a {formatDuree(depuis)} · {exercice.competences.join(", ")}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Link
+                          href={urlComposerAutonome(exercice.competences[0], exercice.dureeEstimeeMin)}
+                          className={`${classesLienBouton("principal")} !py-0.5 !px-2 !text-xs`}
+                        >
+                          Reprendre →
+                        </Link>
+                        <form action={abandonnerExercice.bind(null, id, exercice.id, depuis, undefined)}>
+                          <Bouton type="submit" variante="secondaire" taille="petite">
+                            Abandonner
+                          </Bouton>
+                        </form>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </BandeauInfo>
+          )}
 
-      {/* Action prioritaire (reprise de séance ou action recommandée) */}
-      <div className="[&>*]:min-w-0">
-        {seanceActive ? (
-          <CarteSeanceActive
-            seance={seanceActive}
-            totalSeancesOuvertes={seancesActives.length}
+          {/* Action prioritaire (reprise de séance ou action recommandée) */}
+          <div className="[&>*]:min-w-0">
+            {seanceActive ? (
+              <CarteSeanceActive
+                seance={seanceActive}
+                totalSeancesOuvertes={seancesActives.length}
+                referentiel={ctx.referentiel}
+                now={ctx.now}
+              />
+            ) : (
+              <CarteProchaineAction
+                recommandations={recommandationsFile}
+                referentiel={ctx.referentiel}
+                now={ctx.now}
+                compteId={ctx.donnees.user.id}
+                instant={instant}
+                activite={
+                  action?.kind === "activite" || action?.kind === "note" ? action.action : undefined
+                }
+                facteursInstant={action?.facteurs ?? []}
+                reservesInstant={action?.reserves ?? []}
+              />
+            )}
+          </div>
+
+          {/* Pistes alternatives suggérées */}
+          <PistesAlternatives
+            recommandations={recommandationsFile}
             referentiel={ctx.referentiel}
-            now={ctx.now}
           />
-        ) : (
-          <CarteProchaineAction
-            recommandations={action?.kind === "exercice" ? action.recommandations : ctx.recommandations}
+        </div>
+
+        {/* Colonne droite : Repères contextuels passifs (Vision du Référentiel + Continuité) */}
+        <div className="space-y-3.5 sm:space-y-4 lg:col-span-5 xl:col-span-4 min-w-0">
+          <SyntheseReferentiel
             referentiel={ctx.referentiel}
-            now={ctx.now}
-            compteId={ctx.donnees.user.id}
-            instant={instant}
-            activite={
-              action?.kind === "activite" || action?.kind === "note" ? action.action : undefined
-            }
-            facteursInstant={action?.facteurs ?? []}
-            reservesInstant={action?.reserves ?? []}
+            global={ctx.global}
+            etats={ctx.etats}
           />
-        )}
+
+          <MiniActivite activite={activite} now={ctx.now} />
+        </div>
       </div>
-
-
-      {/* Bandeau d'état du diagnostic et repère de progression */}
-      {aucuneObservation ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-info/20 bg-info-faible/30 px-4 py-3 sm:px-5">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <span className="size-2 rounded-full bg-info shrink-0" aria-hidden />
-            <div className="min-w-0 text-xs">
-              <span className="font-semibold text-info">On apprend à vous connaître</span>
-              <span className="text-texte-attenue ml-2 hidden sm:inline">
-                Aucun niveau ne s&apos;affiche tant que vous n&apos;avez pas fait vos premiers exercices.
-              </span>
-            </div>
-          </div>
-          <div className="flex items-center gap-4 text-xs">
-            <span className="text-texte-discret hidden md:inline">
-              <strong className="font-medium text-texte">{ctx.referentiel.actifs.length}</strong> compétences prêtes à travailler
-            </span>
-            <Link
-              href="/progression"
-              className="flex items-center gap-1 font-medium text-primaire hover:underline"
-            >
-              Comment ça marche
-              <IconeFleche className="size-3" />
-            </Link>
-          </div>
-        </div>
-      ) : (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-bordure bg-surface px-4 py-3 sm:px-5">
-          <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1 text-xs">
-            <span>
-              <strong className="font-medium text-texte">{ctx.global.nombreObservations}</strong>{" "}
-              <span className="text-texte-discret">exercice{ctx.global.nombreObservations > 1 ? "s" : ""} fait{ctx.global.nombreObservations > 1 ? "s" : ""}</span>
-            </span>
-            <span>
-              <strong className="font-medium text-texte">{ctx.referentiel.actifs.length}</strong>{" "}
-              <span className="text-texte-discret">compétences suivies</span>
-            </span>
-            <span>
-              <strong className="font-medium text-texte">{activite.joursActifs30}</strong>{" "}
-              <span className="text-texte-discret">jour{activite.joursActifs30 > 1 ? "s" : ""} actif{activite.joursActifs30 > 1 ? "s" : ""} sur 30</span>
-            </span>
-          </div>
-          <Link
-            href="/progression"
-            className="flex items-center gap-1 text-xs font-medium text-primaire hover:underline"
-          >
-            Voir ma progression
-            <IconeFleche className="size-3" />
-          </Link>
-        </div>
-      )}
 
       <DashboardTour autoDemarrage={aucuneObservation} />
     </div>
   );
 }
-

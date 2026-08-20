@@ -193,22 +193,15 @@ export function CarteProchaineAction({
               <span className="size-1.5 rounded-full bg-primaire animate-pulse" aria-hidden />
               Priorité du jour
             </span>
-            <div className="flex items-center gap-1">
-              <Etiquette ton="primaire" mono>
-                {etat.skill.code}
-              </Etiquette>
-              <Etiquette>{libelleDomaine(referentiel, etat.skill.domaine)}</Etiquette>
-            </div>
+            <Etiquette>{libelleDomaine(referentiel, etat.skill.domaine)}</Etiquette>
             <span className="text-bordure-contraste" aria-hidden>·</span>
             <div className="flex items-center gap-1.5 text-xs text-texte-attenue">
               <span className="font-medium text-texte">
                 Diff. {exercice?.difficulte ?? difficulteCible}/5
               </span>
-              <span>({DIFFICULTES[exercice?.difficulte ?? difficulteCible]})</span>
               <span className="text-bordure-contraste" aria-hidden>·</span>
               <span>≈ {formatDuree(dureeEstimeeMin)}</span>
             </div>
-            {etat.observations.length === 0 && <Etiquette ton="info">Diagnostic</Etiquette>}
             {revision.due && <Etiquette ton="alerte">Révision due</Etiquette>}
           </div>
 
@@ -216,74 +209,86 @@ export function CarteProchaineAction({
         </div>
 
         <h2 className="mt-3 font-serif text-lg sm:text-xl font-medium leading-snug tracking-tight text-texte">
-          {exercice ? exercice.titre : etat.prochaineEtape}
+          {exercice ? exercice.titre : etat.skill.intitule}
         </h2>
 
-        <p className="mt-1.5 max-w-2xl text-xs sm:text-sm text-texte-attenue leading-relaxed">{raison}</p>
+        {exercice ? (
+          <p className="mt-1 text-xs text-texte-attenue">
+            Compétence : <strong className="font-medium text-texte">{etat.skill.intitule}</strong>
+          </p>
+        ) : (
+          <p className="mt-1 text-xs sm:text-sm text-texte-attenue leading-relaxed">
+            {etat.prochaineEtape}
+          </p>
+        )}
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-bordure/60 pt-3">
-          <div className="flex flex-wrap items-center gap-2">
-            {actionPrincipale ?? (exercice ? (
-              <form action={demarrerExerciceEnFocus.bind(null, exercice.id)}>
-                <Bouton type="submit" variante="principal" className="shadow-xs">
-                  Commencer l’exercice
+        <div className="mt-4 border-t border-bordure/60 pt-3 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              {actionPrincipale ?? (exercice ? (
+                <form action={demarrerExerciceEnFocus.bind(null, exercice.id)}>
+                  <Bouton type="submit" variante="principal" className="shadow-xs">
+                    Commencer l’exercice
+                    <IconeFleche className="size-4" />
+                  </Bouton>
+                </form>
+              ) : (
+                <Link
+                  href={`/seances?composer=1&code=${encodeURIComponent(etat.skill.code)}&temps=${encodeURIComponent(String(instant?.tempsMin ?? dureeEstimeeMin))}`}
+                  className={classesLienBouton("principal")}
+                >
+                  Composer une séance
                   <IconeFleche className="size-4" />
-                </Bouton>
-              </form>
-            ) : (
+                </Link>
+              ))}
               <Link
-                href={`/seances?composer=1&code=${encodeURIComponent(etat.skill.code)}&temps=${encodeURIComponent(String(instant?.tempsMin ?? dureeEstimeeMin))}`}
-                className={classesLienBouton("principal")}
+                href={`/atelier?document=${encodeURIComponent(etat.skill.code)}`}
+                className={classesLienBouton("secondaire")}
               >
-                Composer une séance
-                <IconeFleche className="size-4" />
+                Fiche compétence
               </Link>
-            ))}
-            <Link
-              href={`/atelier?document=${encodeURIComponent(etat.skill.code)}`}
-              className={classesLienBouton("secondaire")}
-            >
-              Fiche compétence
-            </Link>
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <FeedbackRecommandation code={etat.skill.code} compteId={compteId} />
-            <Depliant resume="Pourquoi cette recommandation ?">
-              <div className="mt-2 rounded-lg border border-bordure bg-surface-2 p-3 text-xs shadow-2xs space-y-2">
-                <div>
+          <Depliant resume="Pourquoi cette recommandation ?" className="w-full">
+            <div className="mt-2.5 rounded-xl border border-bordure bg-surface-2 p-3.5 text-xs shadow-2xs space-y-3">
+              <div>
+                <p className="font-semibold text-texte mb-1.5 flex items-center gap-1.5">
+                  <span className="size-1.5 rounded-full bg-primaire" aria-hidden />
+                  Facteurs déterminants :
+                </p>
+                <ul className="space-y-1 text-texte-attenue pl-3">
+                  {principale.facteurs.slice(0, 2).map((f, i) => (
+                    <li key={i}>• {f.libelle}</li>
+                  ))}
+                </ul>
+              </div>
+
+              <BlocInstant facteurs={facteursInstant} reserves={reservesInstant} />
+
+              {principale.calibration && principale.calibration.verdicts.length > 0 && (
+                <div className="border-t border-bordure/60 pt-2.5">
                   <p className="font-semibold text-texte mb-1">
-                    Facteurs dominants :
+                    Difficulté {principale.difficulteCible}/5 —{" "}
+                    {principale.calibration.difficulteConseillee === null
+                      ? "d'après votre niveau :"
+                      : "d'après vos exercices précédents :"}
                   </p>
-                  <ul className="space-y-0.5 text-texte-attenue">
-                    {principale.facteurs.slice(0, 2).map((f, i) => (
-                      <li key={i}>· {f.libelle}</li>
+                  <ul className="space-y-1 text-texte-attenue pl-3">
+                    {principale.calibration.verdicts.map((v) => (
+                      <li key={v.exerciceId}>
+                        • <span className="font-medium text-texte">{v.titre}</span> (diff. {v.difficulte}) — {v.raison}
+                      </li>
                     ))}
                   </ul>
                 </div>
+              )}
 
-                <BlocInstant facteurs={facteursInstant} reserves={reservesInstant} />
-
-                {principale.calibration && principale.calibration.verdicts.length > 0 && (
-                  <div className="border-t border-bordure/60 pt-2">
-                    <p className="font-semibold text-texte mb-1">
-                      Difficulté {principale.difficulteCible}/5 —{" "}
-                      {principale.calibration.difficulteConseillee === null
-                        ? "d'après votre niveau :"
-                        : "d'après vos exercices précédents :"}
-                    </p>
-                    <ul className="space-y-0.5 text-texte-attenue">
-                      {principale.calibration.verdicts.map((v) => (
-                        <li key={v.exerciceId}>
-                          · <span className="font-medium text-texte">{v.titre}</span> (diff. {v.difficulte}) — {v.raison}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+              <div className="border-t border-bordure/60 pt-2 flex justify-end">
+                <FeedbackRecommandation code={etat.skill.code} compteId={compteId} />
               </div>
-            </Depliant>
-          </div>
+            </div>
+          </Depliant>
         </div>
       </div>
     </Carte>
@@ -369,37 +374,40 @@ function CarteActionActivite({
           </div>
         )}
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-bordure/60 pt-3">
-          <div className="flex items-center gap-2">
-            {action.activityId && idExerciceDepuisActivite(action.activityId) ? (
-              <form
-                action={demarrerExerciceEnFocus.bind(
-                  null,
-                  idExerciceDepuisActivite(action.activityId)!,
-                )}
-              >
-                <Bouton type="submit" variante="principal" className="shadow-xs">
+        <div className="mt-4 border-t border-bordure/60 pt-3 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              {action.activityId && idExerciceDepuisActivite(action.activityId) ? (
+                <form
+                  action={demarrerExerciceEnFocus.bind(
+                    null,
+                    idExerciceDepuisActivite(action.activityId)!,
+                  )}
+                >
+                  <Bouton type="submit" variante="principal" className="shadow-xs">
+                    {libelle}
+                    <IconeFleche className="size-4" />
+                  </Bouton>
+                </form>
+              ) : (
+                <Link href={lienActivite(action, instant)} className={classesLienBouton("principal")}>
                   {libelle}
                   <IconeFleche className="size-4" />
-                </Bouton>
-              </form>
-            ) : (
-              <Link href={lienActivite(action, instant)} className={classesLienBouton("principal")}>
-                {libelle}
-                <IconeFleche className="size-4" />
-              </Link>
-            )}
+                </Link>
+              )}
+            </div>
           </div>
 
-          <Depliant resume="Pourquoi cette recommandation ?">
-            <div className="mt-2 rounded-lg border border-bordure bg-surface-2 p-3 text-xs shadow-2xs">
-              <p className="font-semibold text-texte mb-1">
+          <Depliant resume="Pourquoi cette recommandation ?" className="w-full">
+            <div className="mt-2.5 rounded-xl border border-bordure bg-surface-2 p-3.5 text-xs shadow-2xs space-y-2">
+              <p className="font-semibold text-texte mb-1 flex items-center gap-1.5">
+                <span className="size-1.5 rounded-full bg-primaire" aria-hidden />
                 Facteurs déterminants :
               </p>
-              <ul className="space-y-0.5 text-texte-attenue">
+              <ul className="space-y-1 text-texte-attenue pl-3">
                 {facteursInstant.map((facteur, i) => (
                   <li key={`${facteur.kind}-${i}`}>
-                    · {facteur.label}
+                    • {facteur.label}
                   </li>
                 ))}
               </ul>
