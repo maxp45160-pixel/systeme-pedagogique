@@ -1,11 +1,21 @@
 # PRODUCT.md — Système pédagogique
 
-**Version 3.0 — 13/08/2026.** Fusion de `PRODUCT_VISION.md` et
+**Version 3.1 — 20/08/2026.** Les contrats de la refonte Twiny ont été validés
+explicitement par Maxime le 20/08/2026 et sont consignés par ADR-089 à ADR-095.
+Ils remplacent uniquement les contrats courants qu'ils contredisent ; les
+observations, métriques et récits historiques restent inchangés.
+
+**Version précédente : 3.0 — 13/08/2026.** Fusion de `PRODUCT_VISION.md` et
 `PRODUCT_PRINCIPLES.md` (v1.0, 27/07), dont les démonstrations détaillées
 restent dans l'historique git. Document vivant : toute modification doit
 préciser ce qui passe d'une catégorie à l'autre.
 
-**Mouvement de cette version.** Décision humaine : la boucle centrée sur
+**Mouvement de la version 3.1.** La carte de référence devient un catalogue
+global partagé assorti d'un overlay privé par compte. Le vocabulaire courant
+distingue désormais Activité, Preuve, Observation et État ; l'actuelle table
+`evidence` porte sémantiquement des Observations et sera renommée au lot 1.
+
+**Mouvement de la version 3.0.** Décision humaine : la boucle centrée sur
 l'exercice devient un moteur d'actions d'apprentissage adaptatif (ADR-066).
 Trois familles avaient été retenues en v1 — Explorer, S'entraîner, Produire.
 🔄 **Explorer a été retirée le 15/08/2026 (ADR-070)** ; **Produire a changé de
@@ -30,11 +40,13 @@ les construire ne démontre pas qu'ils sont efficaces.
 ## 1. Ce que le produit est
 
 Une **boucle d'actions d'apprentissage** : contexte déclaré + objectifs +
-profil dérivé → meilleure action étayée maintenant → activité → observations
-et production → preuve éventuelle → recalcul.
+profil dérivé → meilleure action étayée maintenant → activité → preuve
+éventuelle → observation → état recalculé.
 
-Le noyau robuste reste `SkillEvidence → SkillState → recommandation`, mais
-le geste **probant** reste l'exercice, mais il n'est pas le seul geste
+Le noyau implémenté reste, jusqu'au lot 1,
+`SkillEvidence → SkillState → recommandation`. Dans le vocabulaire cible,
+`SkillEvidence` porte aujourd'hui des Observations. Le geste **probant** reste
+l'exercice, mais il n'est pas le seul geste
 d'apprentissage : le **mini-projet** existe, sous forme de note opérationnelle
 (ADR-070). Il produit du travail et du contexte, pas encore une mesure — la
 question de son contrat de preuve se rouvrira quand un projet aura été mené à
@@ -44,10 +56,10 @@ réordonne la file sans qu'aucune table ne l'assiste.
 
 Autour d'elle, un **instrument de mesure** dont la fonction première est de
 **refuser d'affirmer ce qu'il ne peut pas prouver**. L'utilisateur travaille,
-le système conserve les déclarations, observations, productions, preuves et
-feedbacks ; il en **dérive** niveaux, tendances et prochaine action. Le
-« jumeau numérique » est cette vue recalculée, jamais un profil stocké. Rien de
-ce qui peut être recalculé n'est persisté.
+le système conserve les déclarations, activités, traces, observations,
+productions et feedbacks ; il en **dérive** niveaux, tendances et prochaine
+action. Le « jumeau numérique » est cette vue recalculée, jamais un profil
+stocké. Rien de ce qui peut être recalculé n'est persisté.
 
 La recommandation n'est jamais présentée comme absolument optimale. Elle est la
 **meilleure action étayée maintenant**, accompagnée de son pourquoi et de ses
@@ -66,6 +78,20 @@ Ce n'est pas un tracker d'habitudes, pas un LMS, pas un outil de révision. La
 distinction tient en une phrase : **un tracker enregistre ce que tu déclares
 avoir fait ; ce système enregistre ce qui a été observé, et en tire ce qu'il
 peut honnêtement en tirer — souvent moins que ce qu'on aimerait.**
+
+### Glossaire courant
+
+**Activité → Preuve → Observation → État** : l'Activité est le geste réalisé ;
+la Preuve est la trace durable vérifiable, ou sa référence durable ;
+l'Observation est le constat structuré et sourcé tiré de cette trace ; l'État
+est l'estimation recalculée à partir des Observations. Le niveau observé d'un
+constat ponctuel reste distinct de la maîtrise consolidée à travers plusieurs
+Observations (ADR-090, ADR-091 et ADR-095).
+
+Les mentions historiques de « preuve » peuvent désigner l'actuelle table
+`evidence` ou le type `SkillEvidence`, donc une **Observation** dans le nouveau
+vocabulaire. Elles sont conservées telles quelles pour ne pas réécrire
+l'histoire des décisions.
 
 ## 2. Ce que le produit n'est pas
 
@@ -222,12 +248,17 @@ la seconde avait produit une exécution planifiée, jamais démarrée, et aucune
 preuve. L'exercice redevient le geste unique, non par principe mais faute d'un
 usage qui justifie les autres.
 ✅ **Le contexte immédiat est déclaré, jamais deviné** : temps disponible,
-capacité mentale ressentie, intention, cible facultative et note verbatim. Les
-objectifs structurés et leurs liens vers compétences ou thèmes sont eux aussi
-des faits confirmés par la personne.
-✅ **Le profil enrichi est une vue dérivée.** Tendances, niveau, préférences
-inférées et recommandation se recalculent depuis les faits. Une préférence
-n'entre dans le déclaré qu'après confirmation explicite.
+capacité mentale ressentie, intention, cible facultative et note verbatim.
+✅ **Les objectifs sont des faits structurés multiples** (ADR-094). Ils sont
+datés, priorisés, dotés d'un horizon et d'un statut, et ciblent un domaine, un
+élément ou une relation. Les textes historiques sont conservés verbatim sans
+extraction ni rattachement automatique.
+✅ **Les états et vues personnelles sont dérivés** (ADR-091). `État`,
+`KnowledgeState`, `SkillState`, carte individuelle, espace actif, tendances,
+préférences inférées et recommandation se recalculent depuis les faits. Aucun
+stockage autoritatif n'est permis ; un cache jetable et reconstructible
+demanderait une mesure et une nouvelle décision. Une préférence n'entre dans le
+déclaré qu'après confirmation explicite.
 ✅ **La recommandation est explicable et révisable**, jamais dite absolument
 optimale : une action, ses facteurs, ses contraintes et ses réserves, dans la
 carte existante et son dépliant « Pourquoi cette action plutôt qu'une autre ? ».
@@ -251,19 +282,41 @@ ligne exigeait.
 ✅ **La validation de ce chantier reste gratuite pour l'instant** : aucun
 environnement Supabase payant n'est créé. Les migrations et fixtures sont
 préparées localement ; toute dépense future exigera un nouvel accord explicite.
-✅ **Le référentiel appartient au compte** (ADR-026, 31/07) : il n'existe aucune
-liste universelle de compétences. Un compte démarre vide, déclare son sujet et
-son objectif, puis corrige et valide une première branche éditable dans
-`/demarrer` avant d'ouvrir Compétences (ADR-063). Le tuteur reste disponible en
-tiroir contextuel ; il n'est pas une destination du parcours. Le périmètre reste un
-frein utile, mais par compte (`competences.active`) et non plus global.
+✅ **La carte globale est partagée ; la relation du compte reste privée**
+(ADR-089, qui remplace ADR-026). La carte est un catalogue générique, versionné,
+sourcé, extensible et non exhaustif des savoirs humains. Elle s'enrichit
+progressivement selon les besoins plutôt que d'être préconstruite dans son
+ensemble. Chaque compte possède un overlay privé — sélections, éléments locaux,
+objectifs, événements et observations —, jamais une copie de la carte. Aucun
+élément privé ni aucune donnée personnelle n'est publié globalement sans
+validation humaine explicite et provenance ; aucune compétence locale n'est
+fusionnée automatiquement.
+L'amorçage actuellement implémenté reste privé au compte : la personne déclare
+son sujet et son objectif, puis corrige et valide une première branche dans
+`/demarrer` avant d'ouvrir Compétences (ADR-063). La bascule vers la carte
+globale est progressive et suit les lots de
+[`TWINY_MIGRATION.md`](docs/architecture/TWINY_MIGRATION.md) ; le code actuel
+ne doit pas être présenté comme si la cible était déjà construite.
+✅ **La carte ouvre des horizons sans imposer un périmètre.** Elle sert à
+situer la personne, relier les éléments et explorer les voisinages pertinents.
+La découverte ou la proposition d'un élément ne l'ajoute jamais
+automatiquement aux sélections ni à l'espace actif du compte.
 ✅ **Une preuve n'est jamais orpheline** (ADR-027) : une compétence sans preuve
 se supprime, une compétence qui en porte s'archive — jamais l'inverse.
 ✅ **Le score porte sur ce qui est mesuré** (ADR-006) ; la couverture dit le
 reste.
-✅ **La connaissance n'a pas de profondeur maximale** (ADR-058) : thèmes et
-sous-thèmes appartiennent à une même hiérarchie ; les notes servent la boucle
-et apparaissent dans le graphe. La persistance reste à construire.
+✅ **Une Connaissance est un élément déclaré, pas un document** (ADR-092). Elle
+peut référencer des ressources ; aucune note, ressource ou partie du corpus
+n'est convertie automatiquement en Connaissance. La connaissance n'a pas de
+profondeur maximale (ADR-058) : thèmes et sous-thèmes appartiennent à une même
+hiérarchie.
+✅ **Les relations déclarées et calculées n'ont pas le même statut** (ADR-093).
+Une relation validée et sourcée peut être persistée ; similarités et inférences
+restent dérivées. Une proposition du tuteur n'entre pas dans la carte globale
+sans validation humaine explicite.
+✅ **Niveau observé et maîtrise consolidée restent distincts** (ADR-095). Les
+seuils actuels ne changent pas sans données ; la future interface distinguera
+une performance ponctuelle d'une maîtrise étayée dans la durée.
 ✅ **Une séance créée conduit au workspace focus** (ADR-059), sans créer une
 nouvelle entité à côté de `LearningSession`.
 ✅ **Observer le maximum pertinent** (ADR-060) : chaque signal recueilli doit

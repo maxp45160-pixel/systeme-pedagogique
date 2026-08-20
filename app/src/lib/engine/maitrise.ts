@@ -9,13 +9,13 @@
  *
  * Ce module dérive un prédicat, et rien d'autre. **Aucune colonne, aucun
  * stockage** (P1) : la maîtrise se recalcule à chaque lecture, comme le niveau
- * dont elle dépend. Une preuve contradictoire écrite demain la retire d'elle-même.
+ * dont elle dépend. Une observation contradictoire écrite demain la retire d'elle-même.
  *
  * ## Pourquoi le seuil est 4 et non 5
  *
  * Le niveau 5 de `niveauSoutenu` exige `competencesCombinees.length >= 1`, que
  * `terminerExercice` n'écrit que pour un exercice visant **plusieurs**
- * compétences. Mesuré le 07/08/2026 : **les 47 preuves du compte l'ont à
+ * compétences. Mesuré le 07/08/2026 : **les 47 observations du compte l'ont à
  * `null`** — 2 exercices multi-compétences existent, aucune tentative terminée
  * ne porte sur eux. Poser la maîtrise à 5, ce serait bâtir une fonctionnalité
  * qui ne se déclencherait jamais : l'erreur exacte des six entités mortes
@@ -38,10 +38,10 @@
  *
  * La clause de confiance absorbe gratuitement, sans qu'on l'écrive :
  *
- * - une **preuve contradictoire** fait chuter l'échelon (`skill-state.ts`) ⇒
+ * - une **observation contradictoire** fait chuter l'échelon (`skill-state.ts`) ⇒
  *   pas maîtrisée. C'est P4 lu correctement : une faiblesse ne disparaît pas
  *   sans démonstration ;
- * - une **dernière preuve de plus de 120 jours** fait chuter l'échelon ⇒ la
+ * - une **dernière observation de plus de 120 jours** fait chuter l'échelon ⇒ la
  *   péremption est gratuite ;
  * - un **contexte unique** ne peut donner ni le niveau 4 ni une confiance
  *   ≥ moyenne ;
@@ -95,7 +95,7 @@ export function estMaitrisee(etat: SkillState): boolean {
  * Le prédicat, avec de quoi l'expliquer.
  *
  * L'explication ne cite que des valeurs mesurées — niveau, confiance, nombre
- * de contextes, nombre de preuves. Elle n'introduit aucun chiffre propre :
+ * de contextes, nombre d'observations. Elle n'introduit aucun chiffre propre :
  * c'est P3 (aucune valeur sans source) appliqué à un dérivé de dérivés.
  */
 export function evaluerMaitrise(etat: SkillState): Maitrise {
@@ -106,26 +106,26 @@ export function evaluerMaitrise(etat: SkillState): Maitrise {
     libelle: "Niveau atteint",
     valeur:
       etat.niveau === null
-        ? "aucune preuve directe — rien n'est conclu"
+        ? "aucune observation directe — rien n'est conclu"
         : `${etat.niveau} — ${NIVEAUX[etat.niveau].nom} (seuil de maîtrise : ${NIVEAU_MAITRISE})`,
   });
 
   facteurs.push({
     libelle: "Confiance",
-    valeur: `${etat.confiance} — ${etat.explication.nombrePreuves} preuve(s) sur ${etat.contextesTestes.length} contexte(s)`,
+    valeur: `${etat.confiance} — ${etat.explication.nombreObservations} observation(s) sur ${etat.contextesTestes.length} contexte(s)`,
   });
 
   if (etat.contradictions.length > 0) {
     facteurs.push({
-      libelle: "Preuves contradictoires",
+      libelle: "Observations contradictoires",
       valeur: `${etat.contradictions.length} — elles abaissent la confiance, pas le niveau (P4)`,
     });
   }
 
-  if (etat.joursDepuisDernierePreuve !== null) {
+  if (etat.joursDepuisDerniereObservation !== null) {
     facteurs.push({
-      libelle: "Dernière preuve",
-      valeur: `il y a ${etat.joursDepuisDernierePreuve} jour(s)`,
+      libelle: "Dernière observation",
+      valeur: `il y a ${etat.joursDepuisDerniereObservation} jour(s)`,
     });
   }
 
@@ -138,7 +138,7 @@ export function evaluerMaitrise(etat: SkillState): Maitrise {
         ? `Maîtrisée : niveau ${etat.niveau} tenu sur ${etat.contextesTestes.length} contextes, avec une confiance ${etat.confiance}.`
         : `Pas encore maîtrisée. ${ceQuiManque(etat)}`,
       facteurs,
-      nombrePreuves: etat.explication.nombrePreuves,
+      nombreObservations: etat.explication.nombreObservations,
       reserves: etat.explication.reserves,
     },
   };
@@ -149,22 +149,22 @@ export function evaluerMaitrise(etat: SkillState): Maitrise {
  *
  * L'ordre des tests suit celui du prédicat : on annonce le premier obstacle
  * réel, pas une liste. Un écran qui dirait « il manque le niveau ET la
- * confiance » sur une compétence sans aucune preuve serait exact et inutile.
+ * confiance » sur une compétence sans aucune observation serait exact et inutile.
  */
 function ceQuiManque(etat: SkillState): string {
   if (etat.niveau === null) {
-    return "Aucune preuve directe : l'absence de mesure n'est pas une maîtrise.";
+    return "Aucune observation directe : l'absence de mesure n'est pas une maîtrise.";
   }
   if (etat.niveau < NIVEAU_MAITRISE) {
     return `Niveau ${etat.niveau} — il faut atteindre ${NIVEAU_MAITRISE} (${NIVEAUX[NIVEAU_MAITRISE].nom}), c'est-à-dire réussir en autonomie dans deux contextes distincts.`;
   }
   if (etat.contradictions.length > 0) {
-    return `Le niveau ${etat.niveau} est atteint, mais ${etat.contradictions.length} preuve(s) contradictoire(s) maintiennent la confiance à « faible ».`;
+    return `Le niveau ${etat.niveau} est atteint, mais ${etat.contradictions.length} observation(s) contradictoire(s) maintiennent la confiance à « faible ».`;
   }
-  if (etat.joursDepuisDernierePreuve !== null && etat.joursDepuisDernierePreuve > 120) {
-    return `Le niveau ${etat.niveau} est atteint, mais la dernière preuve date de ${etat.joursDepuisDernierePreuve} jours : la confiance est retombée.`;
+  if (etat.joursDepuisDerniereObservation !== null && etat.joursDepuisDerniereObservation > 120) {
+    return `Le niveau ${etat.niveau} est atteint, mais la dernière observation date de ${etat.joursDepuisDerniereObservation} jours : la confiance est retombée.`;
   }
-  return `Le niveau ${etat.niveau} est atteint, mais la confiance reste « ${etat.confiance} » — il faut plus de preuves, ou plus de contextes distincts.`;
+  return `Le niveau ${etat.niveau} est atteint, mais la confiance reste « ${etat.confiance} » — il faut plus d'observations, ou plus de contextes distincts.`;
 }
 
 /** La maîtrise de chaque état, indexée par code. Une passe, aucun tri. */

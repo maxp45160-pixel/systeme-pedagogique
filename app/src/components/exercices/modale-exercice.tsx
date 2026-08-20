@@ -81,7 +81,7 @@ export function ModaleExercice({
    *
    * Sert à l'élargissement d'une compétence maîtrisée (ADR-042) : le contexte
    * proposé par le tuteur devient le thème de l'exercice. Un contexte n'est pas
-   * un objet de base — `SkillEvidence.contexte` est le titre de l'exercice —
+   * un objet de base — `SkillObservation.contexte` est le titre de l'exercice —
    * donc il n'a pas d'autre endroit où vivre que là.
    */
   themeInitial?: string;

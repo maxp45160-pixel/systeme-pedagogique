@@ -32,7 +32,7 @@ export async function creerDocumentBrutAction(
  * Capture orientée depuis le tableau de bord.
  *
  * Le rôle décrit l'intention de la fiche, pas une mesure : une note
- * opérationnelle ne devient une preuve qu'après une évaluation validée.
+ * opérationnelle ne produit une Observation qu'après une évaluation validée.
  */
 export async function creerNoteAction(
   role: RoleNote,

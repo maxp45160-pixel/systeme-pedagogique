@@ -60,7 +60,7 @@ function construireEtapes(compteNeuf: boolean): Etape[] {
       fais:
         "Vous ouvrez deux ou trois fiches pour voir de quoi elles parlent. Vous corrigez ce qui est faux : une compétence mal formulée s'édite, une hors sujet s'archive, une manquante s'ajoute.",
       effet:
-        "Le référentiel appartient à votre compte : le modifier ne casse rien. Une compétence déjà soutenue par des preuves est archivée, jamais supprimée — effacer l'objet effacerait l'historique posé dessus.",
+        "Le référentiel appartient à votre compte : le modifier ne casse rien. Une compétence déjà soutenue par des observations est archivée, jamais supprimée — effacer l'objet effacerait l'historique posé dessus.",
       lien: { href: "/atelier", libelle: "Ouvrir l'Atelier" },
     },
     {
@@ -82,20 +82,20 @@ function construireEtapes(compteNeuf: boolean): Etape[] {
       vois:
         "Un exercice à la fois : l'énoncé, votre zone de réponse, puis la correction, puis l'évaluation.",
       fais:
-        "Vous répondez sans vous aider, vous comparez à la correction, puis vous évaluez honnêtement : c'est votre autonomie réelle sur cet exercice qui donne sa valeur à la preuve. Vous surnoter fausse tout ce qui suit.",
+        "Vous répondez sans vous aider, vous comparez à la correction, puis vous évaluez honnêtement : c'est votre autonomie réelle sur cet exercice qui donne sa valeur à l'observation. Vous surnoter fausse tout ce qui suit.",
       effet:
-        "Chaque exercice évalué devient une preuve rattachée à sa compétence, avec sa source. Un exercice sauté ou une séance abandonnée ne produisent aucune preuve : rien ne bouge, et c'est voulu.",
+        "Chaque exercice évalué devient une observation rattachée à sa compétence, avec sa source. Un exercice sauté ou une séance abandonnée ne produisent aucune observation : rien ne bouge, et c'est voulu.",
     },
     {
       numero: 5,
       titre: "Lire ce que ça a changé",
       ou: "Tableau de bord",
       vois:
-        "La prochaine action proposée, et l'état de ce que vous travaillez. Les niveaux ne sont pas stockés : ils sont recalculés à partir des preuves à chaque affichage.",
+        "La prochaine action proposée, et l'état de ce que vous travaillez. Les niveaux ne sont pas stockés : ils sont recalculés à partir des observations à chaque affichage.",
       fais:
-        "Vous suivez la prochaine action, ou vous retournez composer. En cas de doute sur un niveau, vous ouvrez la fiche : les preuves qui le soutiennent sont listées.",
+        "Vous suivez la prochaine action, ou vous retournez composer. En cas de doute sur un niveau, vous ouvrez la fiche : les observations qui le soutiennent sont listées.",
       effet:
-        "Chaque niveau affiché porte sa justification : en ouvrant la fiche d'une compétence, vous lisez les preuves exactes qui soutiennent son niveau.",
+        "Chaque niveau affiché porte sa justification : en ouvrant la fiche d'une compétence, vous lisez les observations exactes qui soutiennent son niveau.",
       lien: { href: "/", libelle: "Ouvrir le Tableau de bord" },
     },
   ];
@@ -118,10 +118,10 @@ const VOCABULAIRE = [
   {
     mot: "Compétence",
     definition:
-      "Un savoir-faire observable et démontrable (ex. LOG-01). Elle ne porte pas de note brute stockée, mais un niveau dérivé de vos preuves.",
+      "Un savoir-faire observable et démontrable (ex. LOG-01). Elle ne porte pas de note brute stockée, mais un niveau dérivé de vos observations.",
   },
   {
-    mot: "Preuve",
+    mot: "Observation",
     definition:
       "Une trace concrète d'activité réussie (exercice évalué, résolution autonome) rattachée à une compétence avec sa date et son degré d'autonomie.",
   },
@@ -140,11 +140,11 @@ const VOCABULAIRE = [
 const QUESTIONS = [
   {
     q: "Pourquoi certaines compétences n'affichent-elles aucun niveau ?",
-    r: "Parce qu'aucune preuve ne les soutient encore. Une absence de preuve n'est pas un zéro : le système préfère un tiret à un chiffre inventé. Le niveau apparaît à la première évaluation.",
+    r: "Parce qu'aucune observation ne les soutient encore. Une absence d'observation n'est pas un zéro : le système préfère un tiret à un chiffre inventé. Le niveau apparaît à la première évaluation.",
   },
   {
     q: "D'où vient le niveau affiché sur une fiche de compétence ?",
-    r: "Uniquement des preuves enregistrées — évaluations d'exercices et résolutions. Chaque mesure garde sa source, consultable depuis la fiche.",
+    r: "Uniquement des observations enregistrées — évaluations d'exercices et résolutions. Chaque mesure garde sa source, consultable depuis la fiche.",
   },
   {
     q: "Que se passe-t-il si je m'évalue trop généreusement ?",
@@ -152,7 +152,7 @@ const QUESTIONS = [
   },
   {
     q: "Une faiblesse peut-elle disparaître toute seule avec le temps ?",
-    r: "Non. Tant qu'aucune nouvelle démonstration ne vient la contredire, elle reste. Le seul moyen de la lever est de refaire la preuve.",
+    r: "Non. Tant qu'aucune nouvelle démonstration ne vient la contredire, elle reste. Le seul moyen de la lever est de refaire l'observation.",
   },
   {
     q: "Le tuteur peut-il modifier mes niveaux ?",
@@ -160,7 +160,7 @@ const QUESTIONS = [
   },
   {
     q: "Que se passe-t-il si j'abandonne une séance en cours ?",
-    r: "Elle reste dans la file du Cahier et se reprend plus tard. Les exercices non évalués ne produisent aucune preuve, donc aucun niveau ne bouge.",
+    r: "Elle reste dans la file du Cahier et se reprend plus tard. Les exercices non évalués ne produisent aucune observation, donc aucun niveau ne bouge.",
   },
   {
     q: "Puis-je modifier ou étendre mon référentiel plus tard ?",
@@ -194,7 +194,7 @@ export default async function PageAide() {
         <BandeauInfo ton="primaire">
           Le principe tient en une phrase : <strong>le système ne mesure que ce que vous avez
           démontré</strong>. Tout ce qui suit découle de là — le tuteur écrit les exercices, vos
-          évaluations produisent les preuves, les preuves produisent les niveaux.
+          évaluations produisent les observations, les observations produisent les niveaux.
         </BandeauInfo>
 
         <section>

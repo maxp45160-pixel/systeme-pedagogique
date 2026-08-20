@@ -7,7 +7,7 @@
  *
  * ⚠️ Rappel ADR-007 : le critère de sélection d'un fournisseur n'est pas le
  * prix mais la fidélité au protocole. Le tuteur reçoit ~8 700 jetons de
- * protocole anti-hallucination et sa sortie entre dans la chaîne de preuves
+ * protocole anti-hallucination et sa sortie entre dans la chaîne d'observations
  * (P8). Un modèle qui suit mal un préfixe long ne dégrade pas le confort : il
  * corrompt les données. Passer le test de réfutation avant d'adopter un moteur.
  */
@@ -210,7 +210,7 @@ export function moteurCompatibleOpenAI(
           messages: [
             // Séparer stable et profil en deux messages system : le préfixe
             // stable est identique d'un tour à l'autre, maximisant le cache
-            // hit. Le profil (variable à chaque requête si une preuve change)
+            // hit. Le profil (variable à chaque requête si une observation change)
             // vient après et ne casse pas le préfixe caché.
             { role: "system", content: systemeStable },
             { role: "system", content: systemeProfil },

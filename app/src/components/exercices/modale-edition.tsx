@@ -21,7 +21,7 @@
  *
  * ## Ce que l'écran annonce avant le clic
  *
- * Le nombre de tentatives déjà portées. Corriger n'efface aucune preuve — elles
+ * Le nombre de tentatives déjà portées. Corriger n'efface aucune observation — elles
  * mesurent une tentative sur l'énoncé d'alors, et les retoucher serait réécrire
  * l'histoire (P4). Mais la personne doit savoir que l'exercice qu'elle modifie
  * a déjà servi, comme le retrait annonce son mode avant de s'exécuter (ADR-027).
@@ -156,7 +156,7 @@ export function ModaleEdition({
         {tentatives > 0 && (
           <BandeauInfo ton="info" taille="compacte">
             <p className="text-xs text-texte-attenue">
-              Cet exercice porte {tentatives} tentative{tentatives > 1 ? "s" : ""}. Les preuves
+              Cet exercice porte {tentatives} tentative{tentatives > 1 ? "s" : ""}. Les observations
               déjà écrites ne changent pas : elles mesurent ce qui a été fait sur l&apos;énoncé
               d&apos;alors. La date de modification sera enregistrée pour que le journal reste
               lisible.
@@ -204,7 +204,7 @@ export function ModaleEdition({
         <div>
           <p className="text-xs font-medium">Ce qui est attendu</p>
           <p className="mt-0.5 text-[0.6875rem] text-texte-discret">
-            Ce sont eux qui produisent les dimensions de la preuve. En retirer un change ce que
+            Ce sont eux qui produisent les dimensions de l&apos;observation. En retirer un change ce que
             l&apos;exercice mesure.
           </p>
           <ul className="mt-2 space-y-2">

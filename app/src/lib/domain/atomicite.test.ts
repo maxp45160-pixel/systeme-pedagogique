@@ -48,7 +48,7 @@ function regles(intitule: string): string[] {
 
 describe("motifsNonAtomique — sur les intitulés réels du compte", () => {
   it("attrape les trois défauts de LOG-01, la compétence la mieux mesurée", () => {
-    // Cinq preuves, un seul niveau affiché, cinq savoir-faire dedans.
+    // Cinq observations, un seul niveau affiché, cinq savoir-faire dedans.
     expect(regles(LOG_01).sort()).toEqual(
       ["deux-verbes", "enumeration", "longueur"].sort(),
     );

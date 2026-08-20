@@ -37,13 +37,13 @@ import type {
   ExerciseAttempt,
   LearningSession,
   RefusRecommandation,
-  SkillEvidence,
+  SkillObservation,
   User,
 } from "@/lib/domain/types";
 
 export interface Collections {
   user: User;
-  evidence: SkillEvidence[];
+  observations: SkillObservation[];
   exercises: Exercise[];
   attempts: ExerciseAttempt[];
   sessions: LearningSession[];
@@ -110,7 +110,7 @@ export const dorsaleCompte = cache(async (): Promise<DorsaleCompte> => {
 const ORDRE_PAR_DEFAUT: Partial<Record<CleListe, { colonne: "debut" | "date"; asc: boolean }>> = {
   attempts: { colonne: "debut", asc: true },
   sessions: { colonne: "date", asc: true },
-  evidence: { colonne: "date", asc: true },
+  observations: { colonne: "date", asc: true },
 };
 
 export async function lire<K extends keyof Collections>(
@@ -179,7 +179,7 @@ export async function ajouterPlusieurs<K extends CleListe>(
  * l'entité telle qu'elle existe désormais en base — le tout en une requête.
  *
  * Réservé aux entités qui ont un cycle de vie propre (tentative en cours, note
- * de séance). Les preuves, elles, ne sont jamais modifiées après écriture :
+ * de séance). Les observations, elles, ne sont jamais modifiées après écriture :
  * c'est ce qui rend l'historique auditable.
  *
  * Seuls les champs présents dans `champs` sont écrits — `entiteVersLigne` omet
@@ -218,16 +218,16 @@ export async function modifier<K extends CleListe>(
 
 export async function lireTout(): Promise<Collections> {
   const dorsale = await dorsaleCompte();
-  const [user, evidence, exercises, attempts, sessions, refusRecommandations] =
+  const [user, observations, exercises, attempts, sessions, refusRecommandations] =
     await Promise.all([
       lire("user", dorsale),
-      lire("evidence", dorsale),
+      lire("observations", dorsale),
       lire("exercises", dorsale),
       lire("attempts", dorsale),
       lire("sessions", dorsale),
       lire("refusRecommandations", dorsale),
     ]);
-  return { user, evidence, exercises, attempts, sessions, refusRecommandations };
+  return { user, observations, exercises, attempts, sessions, refusRecommandations };
 }
 
 /* ------------------------------------------------------------------ */

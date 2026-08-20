@@ -18,7 +18,7 @@ import {
  * règles que ce qui sort du tuteur.
  *
  * Une ligne = une compétence de remplacement. Une seule ligne réécrit sur
- * place ; plusieurs scindent, et la scission est **sèche** — les preuves
+ * place ; plusieurs scindent, et la scission est **sèche** — les observations
  * restent sur l'ancienne, les nouvelles démarrent à zéro. L'écran l'annonce
  * avant, sans quoi le recul du tableau de bord passerait pour un bug.
  */
@@ -42,14 +42,14 @@ export function RetravailCompetence({
   intitule,
   palier,
   importance,
-  aDesPreuves,
+  aDesObservations,
   onFerme,
 }: {
   code: string;
   intitule: string;
   palier: string;
   importance: number;
-  aDesPreuves: boolean;
+  aDesObservations: boolean;
   onFerme: () => void;
 }) {
   const [lignes, setLignes] = useState<Ligne[]>([ligneVide(palier, importance)]);
@@ -173,9 +173,9 @@ export function RetravailCompetence({
           <strong className="font-medium text-alerte">
             {lignes.length} compétences remplaceront {code}.
           </strong>{" "}
-          {aDesPreuves
-            ? "Elle porte des preuves : elle sera archivée avec tout son historique, et les nouvelles démarreront à zéro preuve, sans niveau. Votre tableau de bord reculera — c'est voulu, une mesure ne se transfère pas."
-            : "Elle ne porte aucune preuve : elle sera simplement retirée."}
+          {aDesObservations
+            ? "Elle porte des observations : elle sera archivée avec tout son historique, et les nouvelles démarreront à zéro observation, sans niveau. Votre tableau de bord reculera — c'est voulu, une mesure ne se transfère pas."
+            : "Elle ne porte aucune observation : elle sera simplement retirée."}
         </p>
       )}
 

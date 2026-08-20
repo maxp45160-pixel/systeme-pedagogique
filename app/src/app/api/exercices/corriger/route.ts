@@ -60,7 +60,7 @@ export async function POST(request: Request) {
     );
   }
 
-  // Une tentative close a déjà produit sa preuve — ou son abandon. La corriger
+  // Une tentative close a déjà produit sa observation — ou son abandon. La corriger
   // n'aurait aucun effet sur ce qui est écrit, et ferait croire l'inverse.
   if (tentative.statut !== "en-cours") {
     return Response.json(

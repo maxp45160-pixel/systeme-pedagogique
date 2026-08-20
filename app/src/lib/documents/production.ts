@@ -15,7 +15,7 @@ function listeMarkdown(valeurs: string[]): string {
  * Conserve la production et son contexte dans un document durable.
  *
  * Le bilan, les dimensions et l'autonomie ne sont volontairement pas copiés
- * dans le Markdown : ce sont des mesures de `SkillEvidence`, pas du contenu
+ * dans le Markdown : ce sont des mesures de `SkillObservation`, pas du contenu
  * déclaré. Le document garde uniquement ce qui a été produit et le support
  * exact qui a conduit à la production.
  */

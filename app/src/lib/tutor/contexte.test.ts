@@ -84,7 +84,7 @@ function construireCtxDeTest(
         objectifLongTerme: "Chercheur",
         debutSuivi: now.toISOString(),
       },
-      evidence: [],
+      observations: [],
       exercises,
       attempts,
       sessions: [],
@@ -95,7 +95,7 @@ function construireCtxDeTest(
     global,
     recommandations,
     contexteDocumentaire: new Map(),
-    preuvesEffectives: [],
+    observationsEffectives: [],
     now,
     refus: { codes: new Set(), exercices: new Set() },
     themes: [],
@@ -505,9 +505,9 @@ describe("construireContexte — compte sans référentiel", () => {
     expect(systemeProfil).not.toContain("Colonnes :");
   });
 
-  it("interdit les propositions de preuve et d'exercice tant qu'aucune compétence n'existe", async () => {
+  it("interdit les propositions d'observation et d'exercice tant qu'aucune compétence n'existe", async () => {
     const { systemeProfil } = await construireContexte(construireCtxDeTest(REFERENTIEL_VIDE));
-    expect(systemeProfil).toContain("Ne propose ni preuve ni exercice");
+    expect(systemeProfil).toContain("Ne propose ni observation ni exercice");
   });
 
   it("transmet quand même les objectifs déclarés — ils fondent l'importance des compétences", async () => {

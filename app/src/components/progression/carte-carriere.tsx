@@ -13,7 +13,7 @@ import { TagConfiance, cx } from "@/components/ui/primitives";
  *
  * Pas de « niveau de carrière », pas de rang, pas de titre débloqué. Ces
  * mécaniques classent un joueur à partir du **temps passé** ; ici le seul
- * classement légitime vient des preuves, et il existe déjà : c'est le score
+ * classement légitime vient des observations, et il existe déjà : c'est le score
  * global. Ajouter un second nombre, calculé sur les minutes, donnerait deux
  * réponses concurrentes à « où j'en suis » — dont une qui monterait en laissant
  * simplement l'application ouverte.
@@ -93,7 +93,7 @@ export function CarteCarriere({
         <Compteur libelle="Temps travaillé" valeur={carriere.minutesTotal > 0 ? formatDuree(carriere.minutesTotal) : "—"} />
         <Compteur libelle="Séances" valeur={String(carriere.seancesTotal)} />
         <Compteur libelle="Exercices menés" valeur={String(carriere.exercicesMenes)} />
-        <Compteur libelle="Preuves" valeur={String(carriere.preuvesTotal)} />
+        <Compteur libelle="Observations" valeur={String(carriere.observationsTotal)} />
         <Compteur libelle="Jours actifs" valeur={String(carriere.joursActifsTotal)} />
         <Compteur
           libelle="Meilleure série"
@@ -111,7 +111,7 @@ export function CarteCarriere({
       */}
       {carriere.debut !== null && carriere.joursDepuisDebut !== null && (
         <p className="border-t border-bordure px-5 py-3 text-xs text-texte-discret sm:px-6">
-          Première preuve il y a {carriere.joursDepuisDebut} jour
+          Première observation il y a {carriere.joursDepuisDebut} jour
           {carriere.joursDepuisDebut > 1 ? "s" : ""}
         </p>
       )}

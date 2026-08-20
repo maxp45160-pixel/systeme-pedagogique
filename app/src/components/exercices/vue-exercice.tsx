@@ -57,7 +57,7 @@ export async function VueExercice(props: {
   }>;
   navigation?: ContexteNavigationExercice;
   integree?: boolean;
-  /** Affiche une tentative archivée sans permettre de créer une nouvelle preuve. */
+  /** Affiche une tentative archivée sans permettre de créer une nouvelle observation. */
   lectureSeule?: boolean;
   etatInitialTuteurFourni?: Awaited<ReturnType<typeof construireEtatInitialTuteur>>;
 }) {
@@ -119,7 +119,7 @@ export async function VueExercice(props: {
     ? impactTentative({
       exercice,
       tentative: derniereTerminee,
-      preuves: ctx.preuvesEffectives,
+      observations: ctx.observationsEffectives,
       skillsParCode: ctx.referentiel.parCode,
       calibrations: ctx.calibrations,
       now: ctx.now,
@@ -166,14 +166,14 @@ export async function VueExercice(props: {
       {!props.integree && <LienRetour href="/seances" libelle="Toutes les séances" />}
 
       {/*
-        Abandon : aucune preuve écrite, et il faut le dire.
+        Abandon : aucune observation écrite, et il faut le dire.
 
         Le silence serait pire que le zéro qu'on vient de refuser d'écrire —
         l'utilisateur croirait sa mesure enregistrée. On annonce ce qui n'a pas
         été fait, et pourquoi (P3 : aucune valeur sans source, y compris quand
         la valeur est « rien »).
 
-        Exclusif avec le bandeau « Preuve enregistrée » ci-dessous — un seul
+        Exclusif avec le bandeau « Observation enregistrée » ci-dessous — un seul
         verdict sur cette tentative peut être vrai, l'URL ne doit pas pouvoir
         afficher les deux.
       */}
@@ -305,7 +305,7 @@ export async function VueExercice(props: {
           <Etiquette>≈ {formatDuree(exercice.dureeEstimeeMin)}</Etiquette>
           {exercice.diagnostic && <Etiquette ton="info">Diagnostic</Etiquette>}
           {/*
-            Une correction du contenu se signale (ADR-047). Une preuve ancienne
+            Une correction du contenu se signale (ADR-047). Une observation ancienne
             mesure une tentative sur l'énoncé d'ALORS : sans cette étiquette, le
             journal paraîtrait cohérent alors que le support a changé.
           */}
@@ -343,7 +343,7 @@ export async function VueExercice(props: {
             Corriger un exercice (ADR-047). Rendu par la fiche, comme
             `BoutonGenerer` : la fiche est un composant serveur et ne porte ni
             état ni `onClick`. Masqué pendant une tentative — modifier l'énoncé
-            en cours de mesure rendrait la preuve illisible — et en lecture
+            en cours de mesure rendrait l'observation illisible — et en lecture
             seule (tentative archivée).
           */}
           {!props.lectureSeule && !enCours && (
@@ -415,7 +415,7 @@ export async function VueExercice(props: {
                 Prends le temps de chercher avant de demander de l&apos;aide. La résolution reste
                 la tienne ; le tuteur intervient seulement quand tu en as besoin.
               </p>
-              {cible?.preuves.length === 0 && (
+              {cible?.observations.length === 0 && (
                 <p className="mt-2 text-xs text-texte-attenue">
                   Il s&apos;agit du premier diagnostic sur {exercice.competences[0]}. L&apos;objectif
                   n&apos;est pas de réussir mais de situer ton niveau réel : une réponse partielle est
@@ -551,7 +551,7 @@ export async function VueExercice(props: {
                     <EnTeteCarte
                       id="titre-mesurer"
                       titre="Évaluation"
-                      legende="C'est cette étape qui produit la preuve"
+                      legende="C'est cette étape qui produit l'observation"
                     />
                     <div className="px-4 py-3.5">
                       {/*
@@ -584,7 +584,7 @@ export async function VueExercice(props: {
                       </p>
                       <p className="mt-2 text-xs text-texte-discret">
                         Si tu ne veux pas mener cet exercice, clos-le franchement : aucune
-                        preuve ne sera écrite, et ton niveau restera inchangé. Le bouton
+                        observation ne sera écrite, et ton niveau restera inchangé. Le bouton
                         « Abandonner cette tentative » est disponible en bas de page, dans
                         les trois actes.
                       </p>

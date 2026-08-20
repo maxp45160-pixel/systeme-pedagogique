@@ -130,7 +130,7 @@ describe("motifRefusExercice", () => {
   /*
    * Les deux nombres dont le moteur se sert comme d'une règle. La difficulté
    * amorce `difficulteConseillee` ; la durée est ce à quoi `tentativeMenee`
-   * compare une tentative pour décider si une preuve s'écrit. Les laisser
+   * compare une tentative pour décider si une observation s'écrit. Les laisser
    * entrer sans contrôle, c'est le défaut du 02/08/2026 (colonne TEXT) déplacé
    * d'un cran.
    */

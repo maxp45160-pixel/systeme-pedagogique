@@ -38,8 +38,8 @@ const VIVANTES = [
 ] as unknown as Skill[];
 
 const RETRAITS = new Map<string, EtatRetrait>([
-  ["LOG-01", { preuves: 3, mode: "archivage" }],
-  ["LOG-02", { preuves: 0, mode: "suppression" }],
+  ["LOG-01", { observations: 3, mode: "archivage" }],
+  ["LOG-02", { observations: 0, mode: "suppression" }],
 ]);
 
 const OUTILS = [outilsRevision(["LOG-01", "LOG-02"])];
@@ -74,10 +74,10 @@ describe("construirePromptRevision", () => {
     expect(prompt).toContain("LOG-02 — Calculer un stock de sécurité");
   });
 
-  it("liste le nombre de preuves de chacune — un retrait s'annonce avant le clic", () => {
+  it("liste le nombre d'observations de chacune — un retrait s'annonce avant le clic", () => {
     const prompt = construirePromptRevision(DOMAINE, VIVANTES, RETRAITS, "recentre");
-    expect(prompt).toContain("3 preuve(s)");
-    expect(prompt).toContain("0 preuve(s)");
+    expect(prompt).toContain("3 observation(s)");
+    expect(prompt).toContain("0 observation(s)");
   });
 
   it("ne liste aucune compétence d'un autre domaine", () => {

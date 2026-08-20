@@ -16,13 +16,13 @@
  * d'abord. Les mettre en tête et décochés, c'est la sécurité qu'on ajoute
  * au-dessus d'ADR-027 — qui exige seulement d'annoncer le geste.
  *
- * Chaque retrait affiche le **nombre de preuves** et le **geste dérivé** qui en
+ * Chaque retrait affiche le **nombre d'observations** et le **geste dérivé** qui en
  * découle, jamais un choix. Chaque reformulation l'affiche aussi, pour une
  * raison moins évidente : renommer ne casse rien, mais **réécrit le sens de
- * l'historique**. Une preuve enregistrée sur « Sait reconstruire un argument »
- * se lira désormais comme preuve de « Sait critiquer un sophisme ». ADR-027
+ * l'historique**. Une observation enregistrée sur « Sait reconstruire un argument »
+ * se lira désormais comme observation de « Sait critiquer un sophisme ». ADR-027
  * autorise déjà d'éditer un intitulé — mais à l'unité. En masse, il faut voir
- * combien de preuves chaque ligne emporte.
+ * combien d'observations chaque ligne emporte.
  *
  * Comme pour l'évolution : l'appel réseau part du **clic**, jamais d'un effet.
  */
@@ -40,7 +40,7 @@ export interface CompetenceRevisable {
   code: string;
   intitule: string;
   palier: string;
-  preuves: number;
+  observations: number;
   modeRetrait: "suppression" | "archivage";
 }
 
@@ -60,7 +60,7 @@ export function ModaleRevision({
 }: {
   domaineId: string;
   domaineNom: string;
-  /** Les vivantes, avec leur compte de preuves — pour l'annonce avant clic. */
+  /** Les vivantes, avec leur compte d'observations — pour l'annonce avant clic. */
   competences: CompetenceRevisable[];
   compteId: string;
   onFermer: () => void;
@@ -86,7 +86,7 @@ export function ModaleRevision({
     return () => controleur.current?.abort();
   }, []);
 
-  const preuvesParCode = new Map(competences.map((c) => [c.code, c.preuves]));
+  const observationsParCode = new Map(competences.map((c) => [c.code, c.observations]));
   const intitulesParCode = new Map(competences.map((c) => [c.code, c.intitule]));
 
   /** Lancée depuis un clic, jamais depuis un effet. */
@@ -322,8 +322,8 @@ export function ModaleRevision({
                 </h3>
                 <ul className="mt-2 space-y-2">
                   {p.retraits.map((r) => {
-                    const preuves = preuvesParCode.get(r.code) ?? 0;
-                    const modeRetrait = competences.find((competence) => competence.code === r.code)?.modeRetrait ?? (preuves > 0 ? "archivage" : "suppression");
+                    const observations = observationsParCode.get(r.code) ?? 0;
+                    const modeRetrait = competences.find((competence) => competence.code === r.code)?.modeRetrait ?? (observations > 0 ? "archivage" : "suppression");
                     return (
                       <li
                         key={r.code}
@@ -350,7 +350,7 @@ export function ModaleRevision({
                                 <>Suppression définitive. Ce code ne sera pas réutilisé.</>
                               ) : (
                                 <>
-                                  Archivage ({preuves} preuve{preuves > 1 ? "s" : ""}{preuves === 0 ? ", autre dépendance conservée" : ""}) — l’historique
+                                  Archivage ({observations} observation{observations > 1 ? "s" : ""}{observations === 0 ? ", autre dépendance conservée" : ""}) — l’historique
                                   reste résoluble. Tu devras la
                                   désarchiver pour la remettre au périmètre.
                                 </>
@@ -365,13 +365,13 @@ export function ModaleRevision({
               </section>
             )}
 
-            {/* 2. Les reformulations, avec le compte de preuves qu'elles emportent. */}
+            {/* 2. Les reformulations, avec le compte d'observations qu'elles emportent. */}
             {p.modifications.length > 0 && (
               <section>
                 <h3 className="text-xs font-medium">Reformulations</h3>
                 <ul className="mt-2 space-y-2">
                   {p.modifications.map((m) => {
-                    const preuves = preuvesParCode.get(m.code) ?? 0;
+                    const observations = observationsParCode.get(m.code) ?? 0;
                     return (
                       <li
                         key={m.code}
@@ -403,10 +403,10 @@ export function ModaleRevision({
                               </span>
                             )}
                             {/* Renommer ne casse rien, mais réécrit le sens de l'historique. */}
-                            {preuves > 0 && (
+                            {observations > 0 && (
                               <span className="mt-1 block text-[0.6875rem] text-texte-discret">
-                                {preuves} preuve{preuves > 1 ? "s" : ""} porte
-                                {preuves > 1 ? "nt" : ""} déjà cet intitulé au journal.
+                                {observations} observation{observations > 1 ? "s" : ""} porte
+                                {observations > 1 ? "nt" : ""} déjà cet intitulé au journal.
                               </span>
                             )}
                           </span>
@@ -461,7 +461,7 @@ export function ModaleRevision({
                 {compte.archivees > 1 ? "s" : ""}</strong>
               </p>
               <p className="mt-1">
-                Aucun code existant n{"'"}est modifié : c{"'"}est la clé étrangère des preuves.
+                Aucun code existant n{"'"}est modifié : c{"'"}est la clé étrangère des observations.
               </p>
             </div>
 

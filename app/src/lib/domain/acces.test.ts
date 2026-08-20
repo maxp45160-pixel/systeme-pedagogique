@@ -19,7 +19,7 @@ function compte(partiel: Partial<CompteAdministre> & { userId: string }): Compte
     suspenduLe: null,
     motif: null,
     creeLe: null,
-    preuves: 0,
+    observations: 0,
     exercices: 0,
     seances: 0,
     competences: 0,

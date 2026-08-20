@@ -65,7 +65,7 @@ export function ModaleConfirmationSuppression({
   const libelleBouton = texteBoutonConfirmer ?? (estArchivage ? "Confirmer l’archivage" : "Supprimer définitivement");
 
   const messageParDefaut = estArchivage
-    ? "Cet élément contient des données ou un historique d’apprentissage. Il sera archivé en toute sécurité : ses preuves restent conservées et ne sont jamais supprimées."
+    ? "Cet élément contient des données ou un historique d’apprentissage. Il sera archivé en toute sécurité : ses observations restent conservées et ne sont jamais supprimées."
     : "Cet élément ne porte aucun historique ni observation directe. Il sera retiré de votre espace.";
 
   function executer() {

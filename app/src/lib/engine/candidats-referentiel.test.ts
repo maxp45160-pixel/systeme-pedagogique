@@ -20,7 +20,7 @@ import type {
   ExerciseAttempt,
   Referentiel,
   Skill,
-  SkillEvidence,
+  SkillObservation,
   SkillState,
 } from "@/lib/domain/types";
 import {
@@ -82,12 +82,12 @@ function exercice(id: string, competences: string[], options: Partial<Exercise> 
 }
 
 let compteur = 0;
-function preuve(options: Partial<SkillEvidence> & { skillCode: string }): SkillEvidence {
+function observation(options: Partial<SkillObservation> & { skillCode: string }): SkillObservation {
   return {
-    id: `ev-${++compteur}`,
+    id: `obs-${++compteur}`,
     date: "2026-08-01T09:00:00.000Z",
     type: "exercice",
-    niveauPreuve: "A",
+    niveauObservation: "A",
     autonomie: "A3",
     qualite: "moyenne",
     resultat: "reussi",
@@ -95,18 +95,18 @@ function preuve(options: Partial<SkillEvidence> & { skillCode: string }): SkillE
     dimensions: {},
     source: { kind: "exercice", ref: "ex-1" },
     ...options,
-  } as SkillEvidence;
+  } as SkillObservation;
 }
 
-function etat(code: string, preuves: SkillEvidence[]): SkillState {
-  return { skill: skill(code), preuves } as unknown as SkillState;
+function etat(code: string, observations: SkillObservation[]): SkillState {
+  return { skill: skill(code), observations } as unknown as SkillState;
 }
 
 function entrees(partiel: Partial<EntreesCandidats> = {}): EntreesCandidats {
   return {
     referentiel: referentiel([]),
     etats: [],
-    preuves: [],
+    observations: [],
     exercices: [],
     tentatives: [],
     seances: [],
@@ -122,12 +122,12 @@ describe("detecterAretes", () => {
 
   it("n'invente AUCUNE arête sans ordre observable", () => {
     // Le cas réel : DEV-03 et DEV-04 sont co-mobilisées cinq fois, et aucune
-    // n'a de preuve réussie antérieure à l'autre. Le détecteur se tait.
+    // n'a d'observation réussie antérieure à l'autre. Le détecteur se tait.
     const candidats = detecterAretes(
       entrees({
         referentiel: deux,
         exercices: [exercice("ex-1", ["LOG-01", "LOG-02"]), exercice("ex-2", ["LOG-01", "LOG-02"])],
-        preuves: [preuve({ skillCode: "LOG-01", resultat: "echec" })],
+        observations: [observation({ skillCode: "LOG-01", resultat: "echec" })],
       }),
     );
     expect(candidats).toEqual([]);
@@ -138,9 +138,9 @@ describe("detecterAretes", () => {
       entrees({
         referentiel: deux,
         exercices: [exercice("ex-1", ["LOG-01", "LOG-02"])],
-        preuves: [
-          preuve({ skillCode: "LOG-01", date: "2026-07-01T09:00:00.000Z" }),
-          preuve({ skillCode: "LOG-02", date: "2026-08-01T09:00:00.000Z" }),
+        observations: [
+          observation({ skillCode: "LOG-01", date: "2026-07-01T09:00:00.000Z" }),
+          observation({ skillCode: "LOG-02", date: "2026-08-01T09:00:00.000Z" }),
         ],
       }),
     );
@@ -152,9 +152,9 @@ describe("detecterAretes", () => {
       entrees({
         referentiel: deux,
         exercices: [exercice("ex-1", ["LOG-01", "LOG-02"]), exercice("ex-2", ["LOG-01", "LOG-02"])],
-        preuves: [
-          preuve({ skillCode: "LOG-01", date: "2026-07-01T09:00:00.000Z", resultat: "reussi" }),
-          preuve({ skillCode: "LOG-02", date: "2026-08-01T09:00:00.000Z" }),
+        observations: [
+          observation({ skillCode: "LOG-01", date: "2026-07-01T09:00:00.000Z", resultat: "reussi" }),
+          observation({ skillCode: "LOG-02", date: "2026-08-01T09:00:00.000Z" }),
         ],
       }),
     );
@@ -168,9 +168,9 @@ describe("detecterAretes", () => {
     const declaree = referentiel([skill("LOG-01"), skill("LOG-02", { prerequis: ["LOG-01"] })]);
     const communs = {
       exercices: [exercice("ex-1", ["LOG-01", "LOG-02"]), exercice("ex-2", ["LOG-01", "LOG-02"])],
-      preuves: [
-        preuve({ skillCode: "LOG-01", date: "2026-07-01T09:00:00.000Z" }),
-        preuve({ skillCode: "LOG-02", date: "2026-08-01T09:00:00.000Z" }),
+      observations: [
+        observation({ skillCode: "LOG-01", date: "2026-07-01T09:00:00.000Z" }),
+        observation({ skillCode: "LOG-02", date: "2026-08-01T09:00:00.000Z" }),
       ],
     };
     expect(detecterAretes(entrees({ referentiel: declaree, ...communs }))).toEqual([]);
@@ -187,9 +187,9 @@ describe("detecterAretes", () => {
           { date: "2026-07-01", skillCodes: ["LOG-01", "LOG-02"] },
           { date: "2026-07-05", skillCodes: ["LOG-01", "LOG-02"] },
         ],
-        preuves: [
-          preuve({ skillCode: "LOG-01", date: "2026-07-01T09:00:00.000Z" }),
-          preuve({ skillCode: "LOG-02", date: "2026-08-01T09:00:00.000Z" }),
+        observations: [
+          observation({ skillCode: "LOG-01", date: "2026-07-01T09:00:00.000Z" }),
+          observation({ skillCode: "LOG-02", date: "2026-08-01T09:00:00.000Z" }),
         ],
       }),
     );
@@ -263,9 +263,9 @@ describe("detecterAretes — la source « rédaction » (ADR-086)", () => {
         exercice("ex-1", ["LOG-01", "LOG-02"]),
         exercice("ex-2", ["LOG-01", "LOG-02"]),
       ],
-      preuves: [
-        preuve({ skillCode: "LOG-01", date: "2026-07-01T09:00:00.000Z" }),
-        preuve({ skillCode: "LOG-02", date: "2026-08-01T09:00:00.000Z" }),
+      observations: [
+        observation({ skillCode: "LOG-01", date: "2026-07-01T09:00:00.000Z" }),
+        observation({ skillCode: "LOG-02", date: "2026-08-01T09:00:00.000Z" }),
       ],
     });
     expect(candidats[0].source).toBe("usage");
@@ -287,38 +287,38 @@ describe("detecterScissions", () => {
   const famille = (cle: string) => ({ cle, libelle: cle, derivee: true });
 
   it("repère une compétence dont une dimension diverge selon la famille", () => {
-    const preuves = [
-      preuve({ skillCode: "LOG-01", familleSituation: famille("f:calcul"), dimensions: { application: 0.9 } }),
-      preuve({ skillCode: "LOG-01", familleSituation: famille("f:calcul"), dimensions: { application: 0.9 } }),
-      preuve({ skillCode: "LOG-01", familleSituation: famille("f:etude"), dimensions: { application: 0.2 } }),
-      preuve({ skillCode: "LOG-01", familleSituation: famille("f:etude"), dimensions: { application: 0.2 } }),
+    const observations = [
+      observation({ skillCode: "LOG-01", familleSituation: famille("f:calcul"), dimensions: { application: 0.9 } }),
+      observation({ skillCode: "LOG-01", familleSituation: famille("f:calcul"), dimensions: { application: 0.9 } }),
+      observation({ skillCode: "LOG-01", familleSituation: famille("f:etude"), dimensions: { application: 0.2 } }),
+      observation({ skillCode: "LOG-01", familleSituation: famille("f:etude"), dimensions: { application: 0.2 } }),
     ];
-    const candidats = detecterScissions(entrees({ etats: [etat("LOG-01", preuves)] }));
+    const candidats = detecterScissions(entrees({ etats: [etat("LOG-01", observations)] }));
     expect(candidats).toHaveLength(1);
     expect(candidats[0].motifs[0]).toContain("application");
   });
 
   it("ne dit rien sous le seuil d'écart", () => {
     const juste = ECART_DIMENSION_SCISSION - 0.05;
-    const preuves = [
-      preuve({ skillCode: "LOG-01", familleSituation: famille("f:a"), dimensions: { application: 0.5 + juste } }),
-      preuve({ skillCode: "LOG-01", familleSituation: famille("f:a"), dimensions: { application: 0.5 + juste } }),
-      preuve({ skillCode: "LOG-01", familleSituation: famille("f:b"), dimensions: { application: 0.5 } }),
-      preuve({ skillCode: "LOG-01", familleSituation: famille("f:b"), dimensions: { application: 0.5 } }),
+    const observations = [
+      observation({ skillCode: "LOG-01", familleSituation: famille("f:a"), dimensions: { application: 0.5 + juste } }),
+      observation({ skillCode: "LOG-01", familleSituation: famille("f:a"), dimensions: { application: 0.5 + juste } }),
+      observation({ skillCode: "LOG-01", familleSituation: famille("f:b"), dimensions: { application: 0.5 } }),
+      observation({ skillCode: "LOG-01", familleSituation: famille("f:b"), dimensions: { application: 0.5 } }),
     ];
-    expect(detecterScissions(entrees({ etats: [etat("LOG-01", preuves)] }))).toEqual([]);
+    expect(detecterScissions(entrees({ etats: [etat("LOG-01", observations)] }))).toEqual([]);
   });
 
-  it("ignore les preuves dont la famille est un repli sur le libellé", () => {
+  it("ignore les observations dont la famille est un repli sur le libellé", () => {
     // Un libellé libre est presque un identifiant : il divergerait toujours, et
     // toutes les compétences seraient candidates à la scission (ADR-083).
-    const preuves = [
-      preuve({ skillCode: "LOG-01", dimensions: { application: 0.9 }, contexte: "A" }),
-      preuve({ skillCode: "LOG-01", dimensions: { application: 0.9 }, contexte: "A" }),
-      preuve({ skillCode: "LOG-01", dimensions: { application: 0.1 }, contexte: "B" }),
-      preuve({ skillCode: "LOG-01", dimensions: { application: 0.1 }, contexte: "B" }),
+    const observations = [
+      observation({ skillCode: "LOG-01", dimensions: { application: 0.9 }, contexte: "A" }),
+      observation({ skillCode: "LOG-01", dimensions: { application: 0.9 }, contexte: "A" }),
+      observation({ skillCode: "LOG-01", dimensions: { application: 0.1 }, contexte: "B" }),
+      observation({ skillCode: "LOG-01", dimensions: { application: 0.1 }, contexte: "B" }),
     ];
-    expect(detecterScissions(entrees({ etats: [etat("LOG-01", preuves)] }))).toEqual([]);
+    expect(detecterScissions(entrees({ etats: [etat("LOG-01", observations)] }))).toEqual([]);
   });
 
   it("repère une compétence dont toutes les tentatives dépassent l'heure", () => {
@@ -356,7 +356,7 @@ describe("detecterScissions", () => {
 });
 
 describe("detecterDormances", () => {
-  it("repère une compétence sans preuve, sans exercice et sans arête", () => {
+  it("repère une compétence sans observation, sans exercice et sans arête", () => {
     const candidats = detecterDormances(
       entrees({ referentiel: referentiel([skill("LLM-01")]) }),
     );
@@ -366,7 +366,7 @@ describe("detecterDormances", () => {
 
   it("épargne une compétence rattachée à quoi que ce soit", () => {
     const cas: Partial<EntreesCandidats>[] = [
-      { preuves: [preuve({ skillCode: "LLM-01" })] },
+      { observations: [observation({ skillCode: "LLM-01" })] },
       { exercices: [exercice("ex-1", ["LLM-01"])] },
       { referentiel: referentiel([skill("LLM-01"), skill("LLM-02", { prerequis: ["LLM-01"] })]) },
     ];
@@ -383,14 +383,14 @@ describe("detecterDormances", () => {
 });
 
 describe("detecterRangements", () => {
-  it("repère une compétence dont TOUTES les preuves viennent d'un autre domaine", () => {
+  it("repère une compétence dont TOUTES les observations viennent d'un autre domaine", () => {
     const candidats = detecterRangements(
       entrees({
         referentiel: referentiel([skill("LOG-01", { domaine: "logistique" })]),
         exercices: [exercice("ex-1", ["LOG-01"], { domaine: "statistiques" })],
-        preuves: [
-          preuve({ skillCode: "LOG-01", source: { kind: "exercice", ref: "ex-1" } }),
-          preuve({ skillCode: "LOG-01", source: { kind: "exercice", ref: "ex-1" } }),
+        observations: [
+          observation({ skillCode: "LOG-01", source: { kind: "exercice", ref: "ex-1" } }),
+          observation({ skillCode: "LOG-01", source: { kind: "exercice", ref: "ex-1" } }),
         ],
       }),
     );
@@ -406,10 +406,10 @@ describe("detecterRangements", () => {
           exercice("ex-1", ["LOG-01"], { domaine: "statistiques" }),
           exercice("ex-2", ["LOG-01"], { domaine: "logistique" }),
         ],
-        preuves: [
-          preuve({ skillCode: "LOG-01", source: { kind: "exercice", ref: "ex-1" } }),
-          preuve({ skillCode: "LOG-01", source: { kind: "exercice", ref: "ex-1" } }),
-          preuve({ skillCode: "LOG-01", source: { kind: "exercice", ref: "ex-2" } }),
+        observations: [
+          observation({ skillCode: "LOG-01", source: { kind: "exercice", ref: "ex-1" } }),
+          observation({ skillCode: "LOG-01", source: { kind: "exercice", ref: "ex-1" } }),
+          observation({ skillCode: "LOG-01", source: { kind: "exercice", ref: "ex-2" } }),
         ],
       }),
     );
@@ -423,9 +423,9 @@ describe("detecterRangements", () => {
           skill("LOG-01", { domaine: "logistique", domainesSecondaires: ["statistiques"] }),
         ]),
         exercices: [exercice("ex-1", ["LOG-01"], { domaine: "statistiques" })],
-        preuves: [
-          preuve({ skillCode: "LOG-01", source: { kind: "exercice", ref: "ex-1" } }),
-          preuve({ skillCode: "LOG-01", source: { kind: "exercice", ref: "ex-1" } }),
+        observations: [
+          observation({ skillCode: "LOG-01", source: { kind: "exercice", ref: "ex-1" } }),
+          observation({ skillCode: "LOG-01", source: { kind: "exercice", ref: "ex-1" } }),
         ],
       }),
     );

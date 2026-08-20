@@ -1,14 +1,14 @@
 /**
- * Dérivation des qualificatifs d'une preuve, à partir de ce qui a été observé.
+ * Dérivation des qualificatifs d'une observation, à partir de ce qui a été observé.
  *
  * Ces trois règles étaient dans `lib/store/actions.ts`, donc derrière
  * `"use server"` — intestables, alors qu'elles sont le point d'entrée de
- * *toute* preuve écrite par l'interface. Elles sont pures et sans I/O : leur
+ * *toute* observation écrite par l'interface. Elles sont pures et sans I/O : leur
  * place est ici, avec le reste du moteur, chacune citant le paragraphe du
  * protocole qui l'impose.
  */
 
-import type { Autonomie, QualitePreuve } from "@/lib/domain/types";
+import type { Autonomie, QualiteObservation } from "@/lib/domain/types";
 
 /**
  * Autonomie déduite du nombre d'indices réellement consultés.
@@ -53,7 +53,7 @@ export type AideExterne = "aucune" | "documentation" | "assistant-ia" | "correct
  * Formulations montrées à l'utilisateur et consignées dans le commentaire.
  *
  * Une seule source : le libellé du bouton cliqué et celui du commentaire
- * enregistré doivent être le même texte, sans quoi relire une preuve ancienne
+ * enregistré doivent être le même texte, sans quoi relire une observation ancienne
  * demanderait de deviner à quelle option elle correspondait.
  */
 export const LIBELLE_AIDE: Record<AideExterne, string> = {
@@ -95,12 +95,12 @@ export function autonomieObservee(
 }
 
 /**
- * Qualité d'une preuve issue d'un exercice — §6, via la difficulté affichée.
+ * Qualité d'une observation issue d'un exercice — §6, via la difficulté affichée.
  */
 export function qualiteDepuisDifficulte(
   difficulte: number,
   autonomie: Autonomie,
-): QualitePreuve {
+): QualiteObservation {
   if (autonomie === "A0" || autonomie === "A1") return "faible";
   if (difficulte >= 4 && (autonomie === "A3" || autonomie === "A4")) return "forte";
   if (difficulte <= 1) return "faible";

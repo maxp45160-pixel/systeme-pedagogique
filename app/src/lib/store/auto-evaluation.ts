@@ -48,11 +48,11 @@ export interface EtatMoteur {
 export async function chargerMetriquesMoteur(): Promise<MetriqueMoteur[]> {
   const dorsale = await dorsaleCompte();
 
-  const [predictions, decisions, tentatives, preuves, exercices] = await Promise.all([
+  const [predictions, decisions, tentatives, observations, exercices] = await Promise.all([
     lirePredictionsMoteur(dorsale),
     lireDecisionsMoteur(dorsale),
     lire("attempts", dorsale),
-    lire("evidence", dorsale),
+    lire("observations", dorsale),
     lire("exercises", dorsale),
   ]);
 
@@ -67,7 +67,7 @@ export async function chargerMetriquesMoteur(): Promise<MetriqueMoteur[]> {
     predictions,
     decisions,
     tentatives,
-    preuves,
+    observations,
     exercicesParId,
   });
 }

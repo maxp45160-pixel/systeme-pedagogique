@@ -171,7 +171,7 @@ export function basculerLigneMarge(lignes: readonly LigneMarge[], index: number)
 /**
  * Retire une ligne.
  *
- * Une ligne de marge se supprime — ce n'est ni une preuve, ni une tentative, ni
+ * Une ligne de marge se supprime — ce n'est ni une observation, ni une tentative, ni
  * une mesure. C'est une note qu'on a prise pour soi, et P4 (« une faiblesse ne
  * disparaît pas sans nouvelle démonstration ») ne parle pas de cela : rien dans
  * le moteur ne lit la marge.

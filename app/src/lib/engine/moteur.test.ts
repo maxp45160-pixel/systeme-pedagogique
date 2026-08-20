@@ -13,7 +13,7 @@ import {
   evenementsRecents,
   type EvenementProgression,
 } from "./historique";
-import { autonomieDepuisIndices, autonomieObservee } from "./preuve";
+import { autonomieDepuisIndices, autonomieObservee } from "./observation";
 import { DUREE_ESTIMEE_MAX } from "@/lib/domain/exercice";
 import {
   DOMAINES_TEST,
@@ -29,8 +29,8 @@ import type {
   Exercise,
   ExerciseAttempt,
   LearningSession,
-  QualitePreuve,
-  SkillEvidence,
+  QualiteObservation,
+  SkillObservation,
 } from "@/lib/domain/types";
 
 /*
@@ -48,23 +48,23 @@ function ilYa(jours: number): string {
 
 let compteur = 0;
 
-function preuve(options: {
+function observation(options: {
   skill?: string;
   jours?: number;
   autonomie?: Autonomie;
-  qualite?: QualitePreuve;
-  resultat?: SkillEvidence["resultat"];
+  qualite?: QualiteObservation;
+  resultat?: SkillObservation["resultat"];
   contexte?: string;
   dims?: Partial<Record<Dimension, number>>;
-  type?: SkillEvidence["type"];
+  type?: SkillObservation["type"];
   combinees?: string[];
-}): SkillEvidence {
+}): SkillObservation {
   return {
-    id: `ev-${++compteur}`,
+    id: `obs-${++compteur}`,
     skillCode: options.skill ?? "STAT-01",
     date: ilYa(options.jours ?? 1),
     type: options.type ?? "exercice",
-    niveauPreuve: "A",
+    niveauObservation: "A",
     autonomie: options.autonomie ?? "A3",
     qualite: options.qualite ?? "moyenne",
     resultat: options.resultat ?? "reussi",
@@ -82,14 +82,14 @@ const DOMAINE_PILOTE = "developpement";
 
 const STAT01 = SKILL_PAR_CODE.get("STAT-01")!;
 
-function etat(preuves: SkillEvidence[], now = MAINTENANT) {
-  return computeSkillState(STAT01, preuves, now);
+function etat(observations: SkillObservation[], now = MAINTENANT) {
+  return computeSkillState(STAT01, observations, now);
 }
 
 /* ------------------------------------------------------------------ */
 
 describe("niveau — plafonds du protocole d'évaluation §4", () => {
-  it("ne produit aucun niveau sans preuve directe (anti-hallucination §7)", () => {
+  it("ne produit aucun niveau sans observation directe (anti-hallucination §7)", () => {
     const e = etat([]);
     expect(e.niveau).toBeNull();
     expect(e.score).toBeNull();
@@ -100,28 +100,28 @@ describe("niveau — plafonds du protocole d'évaluation §4", () => {
   });
 
   it("une réussite autonome isolée ne suffit pas pour le niveau 3 (instructions §11)", () => {
-    const e = etat([preuve({ autonomie: "A3", dims: { comprehension: 0.9, application: 0.9 } })]);
+    const e = etat([observation({ autonomie: "A3", dims: { comprehension: 0.9, application: 0.9 } })]);
     expect(e.niveau).toBeLessThan(3);
   });
 
   it("deux réussites autonomes concordantes atteignent le niveau 3", () => {
     const e = etat([
-      preuve({ jours: 30, autonomie: "A3", dims: { comprehension: 0.9, application: 0.85 } }),
-      preuve({ jours: 5, autonomie: "A3", dims: { comprehension: 0.9, application: 0.85 } }),
+      observation({ jours: 30, autonomie: "A3", dims: { comprehension: 0.9, application: 0.85 } }),
+      observation({ jours: 5, autonomie: "A3", dims: { comprehension: 0.9, application: 0.85 } }),
     ]);
     expect(e.niveau).toBe(3);
   });
 
   it("le niveau 4 exige deux contextes distincts, pas seulement du transfert déclaré", () => {
     const memeContexte = etat([
-      preuve({ jours: 30, contexte: "Contexte A", dims: { comprehension: 0.9, application: 0.9, transfert: 0.8 } }),
-      preuve({ jours: 5, contexte: "Contexte A", dims: { comprehension: 0.9, application: 0.9, transfert: 0.8 } }),
+      observation({ jours: 30, contexte: "Contexte A", dims: { comprehension: 0.9, application: 0.9, transfert: 0.8 } }),
+      observation({ jours: 5, contexte: "Contexte A", dims: { comprehension: 0.9, application: 0.9, transfert: 0.8 } }),
     ]);
     expect(memeContexte.niveau).toBe(3);
 
     const deuxContextes = etat([
-      preuve({ jours: 30, contexte: "Contexte A", dims: { comprehension: 0.9, application: 0.9, transfert: 0.8 } }),
-      preuve({ jours: 5, contexte: "Contexte B", dims: { comprehension: 0.9, application: 0.9, transfert: 0.8 } }),
+      observation({ jours: 30, contexte: "Contexte A", dims: { comprehension: 0.9, application: 0.9, transfert: 0.8 } }),
+      observation({ jours: 5, contexte: "Contexte B", dims: { comprehension: 0.9, application: 0.9, transfert: 0.8 } }),
     ]);
     expect(deuxContextes.niveau).toBe(4);
   });
@@ -131,9 +131,9 @@ describe("niveau — plafonds du protocole d'évaluation §4", () => {
    *
    * Le test ci-dessus passe deux libellés qu'il choisit lui-même distincts.
    * En production le libellé était le TITRE de l'exercice, presque toujours
-   * unique : 42 valeurs pour 52 preuves. « Deux contextes distincts » était
+   * unique : 42 valeurs pour 52 observations. « Deux contextes distincts » était
    * donc satisfait par construction, et 17 des 19 compétences à plusieurs
-   * preuves franchissaient la porte du transfert. Il en reste 12.
+   * observations franchissaient la porte du transfert. Il en reste 12.
    *
    * Les fixtures reprennent LOG-03, relue en base le 18/08/2026 : deux
    * exercices de calcul en logistique, deux titres, une seule situation.
@@ -145,8 +145,8 @@ describe("niveau — plafonds du protocole d'évaluation §4", () => {
       { id: "log-etude", domaine: "logistique", type: "etude-de-cas" },
     ]);
     const dims = { comprehension: 0.9, application: 0.9, transfert: 0.8 };
-    const depuis = (ref: string, contexte: string, jours: number): SkillEvidence => ({
-      ...preuve({ jours, contexte, dims }),
+    const depuis = (ref: string, contexte: string, jours: number): SkillObservation => ({
+      ...observation({ jours, contexte, dims }),
       source: { kind: "exercice", ref },
     });
 
@@ -175,8 +175,8 @@ describe("niveau — plafonds du protocole d'évaluation §4", () => {
     expect(deuxFamilles.niveau).toBe(4);
   });
 
-  it("dit en réserve combien de preuves n'ont pas d'exercice source résoluble", () => {
-    // Les 7 preuves `manuel` du compte : leur contexte reste compté sur le
+  it("dit en réserve combien d'observations n'ont pas d'exercice source résoluble", () => {
+    // Les 7 observations `manuel` du compte : leur contexte reste compté sur le
     // libellé. Le moteur ne le cache pas (P3).
     const catalogue = construireCatalogueSituation([
       { id: "log-calcul-a", domaine: "logistique", type: "calcul" },
@@ -184,26 +184,26 @@ describe("niveau — plafonds du protocole d'évaluation §4", () => {
     const e = etat(
       attacherFamilles(
         [
-          { ...preuve({ jours: 30, contexte: "Titre A" }), source: { kind: "exercice", ref: "log-calcul-a" } },
-          { ...preuve({ jours: 5, contexte: "Titre B" }), source: { kind: "manuel", ref: "synthese.md" } },
+          { ...observation({ jours: 30, contexte: "Titre A" }), source: { kind: "exercice", ref: "log-calcul-a" } },
+          { ...observation({ jours: 5, contexte: "Titre B" }), source: { kind: "manuel", ref: "synthese.md" } },
         ],
         catalogue,
       ),
     );
-    expect(e.explication.reserves.join(" ")).toContain("1 preuve(s) sur 2");
+    expect(e.explication.reserves.join(" ")).toContain("1 observation(s) sur 2");
   });
 
-  it("le niveau 5 exige une preuve intégrée combinant plusieurs compétences", () => {
+  it("le niveau 5 exige une observation intégrée combinant plusieurs compétences", () => {
     const sansIntegration = etat([
-      preuve({ jours: 40, contexte: "A", dims: { comprehension: 1, application: 1, transfert: 0.9 } }),
-      preuve({ jours: 20, contexte: "B", dims: { comprehension: 1, application: 1, transfert: 0.9 } }),
-      preuve({ jours: 2, contexte: "C", dims: { comprehension: 1, application: 1, transfert: 0.9 } }),
+      observation({ jours: 40, contexte: "A", dims: { comprehension: 1, application: 1, transfert: 0.9 } }),
+      observation({ jours: 20, contexte: "B", dims: { comprehension: 1, application: 1, transfert: 0.9 } }),
+      observation({ jours: 2, contexte: "C", dims: { comprehension: 1, application: 1, transfert: 0.9 } }),
     ]);
     expect(sansIntegration.niveau).toBe(4);
 
     const avecIntegration = etat([
-      ...sansIntegration.preuves,
-      preuve({
+      ...sansIntegration.observations,
+      observation({
         jours: 1,
         contexte: "Projet",
         type: "projet",
@@ -214,10 +214,10 @@ describe("niveau — plafonds du protocole d'évaluation §4", () => {
     expect(avecIntegration.niveau).toBe(5);
   });
 
-  it("ignore les preuves de niveau C et D (anti-hallucination §2)", () => {
-    const deduites: SkillEvidence[] = [
-      { ...preuve({}), niveauPreuve: "C" },
-      { ...preuve({}), niveauPreuve: "D" },
+  it("ignore les observations de niveau C et D (anti-hallucination §2)", () => {
+    const deduites: SkillObservation[] = [
+      { ...observation({}), niveauObservation: "C" },
+      { ...observation({}), niveauObservation: "D" },
     ];
     expect(etat(deduites).niveau).toBeNull();
   });
@@ -226,28 +226,28 @@ describe("niveau — plafonds du protocole d'évaluation §4", () => {
 describe("régression — protocole d'évaluation §9", () => {
   it("un échec isolé baisse la confiance, pas le niveau", () => {
     const base = [
-      preuve({ jours: 40, contexte: "A" }),
-      preuve({ jours: 20, contexte: "B" }),
+      observation({ jours: 40, contexte: "A" }),
+      observation({ jours: 20, contexte: "B" }),
     ];
     const avant = etat(base);
-    const apres = etat([...base, preuve({ jours: 1, resultat: "echec", dims: { comprehension: 0.5, application: 0.2 } })]);
+    const apres = etat([...base, observation({ jours: 1, resultat: "echec", dims: { comprehension: 0.5, application: 0.2 } })]);
 
     expect(apres.niveau).toBe(avant.niveau);
     expect(apres.contradictions).toHaveLength(1);
-    // La preuve contradictoire est conservée, jamais supprimée (§6).
-    expect(apres.preuves).toHaveLength(3);
+    // L'observation contradictoire est conservée, jamais supprimée (§6).
+    expect(apres.observations).toHaveLength(3);
   });
 
   it("abaisse le niveau d'un palier après deux échecs autonomes consécutifs", () => {
     const base = [
-      preuve({ jours: 60, contexte: "A" }),
-      preuve({ jours: 45, contexte: "B" }),
+      observation({ jours: 60, contexte: "A" }),
+      observation({ jours: 45, contexte: "B" }),
     ];
     const avant = etat(base);
     const apres = etat([
       ...base,
-      preuve({ jours: 10, resultat: "echec", autonomie: "A3", dims: { application: 0.2 } }),
-      preuve({ jours: 2, resultat: "echec", autonomie: "A3", dims: { application: 0.2 } }),
+      observation({ jours: 10, resultat: "echec", autonomie: "A3", dims: { application: 0.2 } }),
+      observation({ jours: 2, resultat: "echec", autonomie: "A3", dims: { application: 0.2 } }),
     ]);
 
     expect(avant.niveau).not.toBeNull();
@@ -259,12 +259,12 @@ describe("régression — protocole d'évaluation §9", () => {
 describe("récence — protocole d'évaluation §7", () => {
   it("l'ancienneté dégrade la confiance et la robustesse, jamais le niveau acquis", () => {
     const recentes = [
-      preuve({ jours: 20, contexte: "A" }),
-      preuve({ jours: 5, contexte: "B" }),
+      observation({ jours: 20, contexte: "A" }),
+      observation({ jours: 5, contexte: "B" }),
     ];
     const anciennes = [
-      preuve({ jours: 400, contexte: "A" }),
-      preuve({ jours: 380, contexte: "B" }),
+      observation({ jours: 400, contexte: "A" }),
+      observation({ jours: 380, contexte: "B" }),
     ];
 
     const r = etat(recentes);
@@ -272,7 +272,7 @@ describe("récence — protocole d'évaluation §7", () => {
 
     expect(a.niveau).toBe(r.niveau);
     expect(a.robustesse!).toBeLessThan(r.robustesse!);
-    expect(a.explication.reserves.join(" ")).toContain("Dernière preuve il y a");
+    expect(a.explication.reserves.join(" ")).toContain("Dernière observation il y a");
   });
 });
 
@@ -302,7 +302,7 @@ describe("autonomie observée — protocole d'évaluation §5", () => {
 /*
  * ADR-033 — fermeture d'ADR-008.
  *
- * `indicesUtilises` ne comptait que les indices INTERNES. Deux preuves de
+ * `indicesUtilises` ne comptait que les indices INTERNES. Deux observations de
  * production portaient « A3 — résolution autonome » alors que leur commentaire
  * disait « j'ai eu besoin de l'aide de Claude » et « j'ai regardé sur
  * internet ». La personne était honnête ; l'instrument était sourd. P8 était le
@@ -348,8 +348,8 @@ describe("périmètre actif — par compte depuis ADR-026", () => {
     expect(SKILLS_ACTIFS.every((s) => SKILL_PAR_CODE.has(s.code))).toBe(true);
   });
 
-  it("`parCode` couvre aussi les compétences hors périmètre — sinon leurs preuves perdraient leur intitulé", () => {
-    // La garantie que porte `historique.ts` : une preuve ancienne sur une
+  it("`parCode` couvre aussi les compétences hors périmètre — sinon leurs observations perdraient leur intitulé", () => {
+    // La garantie que porte `historique.ts` : une observation ancienne sur une
     // compétence désactivée doit rester lisible (P4).
     expect(SKILL_PAR_CODE.has("STAT-01")).toBe(true);
     expect(REFERENTIEL_TEST.codesActifs.has("STAT-01")).toBe(false);
@@ -357,7 +357,7 @@ describe("périmètre actif — par compte depuis ADR-026", () => {
 
   it("une compétence archivée sort du périmètre même si elle est active", () => {
     // Les deux drapeaux sont indépendants : `archive` prime, parce qu'il acte
-    // qu'une compétence porte des preuves et ne peut plus être supprimée.
+    // qu'une compétence porte des observations et ne peut plus être supprimée.
     const r = referentielDe([
       skillDeTest("DEV-01", "developpement", "fondamentaux", 1, 0, [], {
         active: true,
@@ -374,15 +374,15 @@ describe("périmètre actif — par compte depuis ADR-026", () => {
     const global = calculerEtatGlobal(etats, MAINTENANT, DOMAINES_TEST);
     expect(global.parDomaine).toHaveLength(1);
     expect(global.parDomaine[0].domaine).toBe(DOMAINE_PILOTE);
-    // Et sans preuve, toujours pas de zéro fabriqué.
+    // Et sans observation, toujours pas de zéro fabriqué.
     expect(global.scoreGlobal).toBeNull();
   });
 
-  it("une preuve hors périmètre n'entre dans aucun agrégat", () => {
-    const horsPerimetre = [preuve({ skill: "STAT-01", jours: 1 })];
+  it("une observation hors périmètre n'entre dans aucun agrégat", () => {
+    const horsPerimetre = [observation({ skill: "STAT-01", jours: 1 })];
     const etats = computeAllSkillStates(SKILLS_ACTIFS, horsPerimetre, MAINTENANT);
     const global = calculerEtatGlobal(etats, MAINTENANT, DOMAINES_TEST);
-    expect(global.nombrePreuves).toBe(0);
+    expect(global.nombreObservations).toBe(0);
     expect(global.scoreGlobal).toBeNull();
   });
 });
@@ -390,16 +390,16 @@ describe("périmètre actif — par compte depuis ADR-026", () => {
 describe("evenementsRecents — équivalence avec le rejeu naïf", () => {
   /**
    * Implémentation de référence : copie littérale de la boucle quadratique
-   * d'origine. Elle rejoue le journal preuve par preuve sur le tableau complet.
+   * d'origine. Elle rejoue le journal observation par observation sur le tableau complet.
    * Le test ne vérifie pas une propriété choisie après coup — il vérifie que la
    * version optimisée rend exactement ce que rendait celle qu'elle remplace.
    */
   function evenementsRecentsNaif(
-    preuves: SkillEvidence[],
+    observations: SkillObservation[],
     limite: number,
     now: Date,
   ): EvenementProgression[] {
-    const triees = [...preuves].sort((a, b) => a.date.localeCompare(b.date));
+    const triees = [...observations].sort((a, b) => a.date.localeCompare(b.date));
     const evenements: EvenementProgression[] = [];
 
     for (let i = 0; i < triees.length; i++) {
@@ -430,26 +430,26 @@ describe("evenementsRecents — équivalence avec le rejeu naïf", () => {
 
   // Jeu volontairement piégeux : plusieurs compétences entrelacées, deux dates
   // strictement identiques (l'ordre relatif doit tenir au tri stable), un code
-  // hors référentiel, et une preuve non recevable.
-  const jeu: SkillEvidence[] = [
+  // hors référentiel, et une observation non recevable.
+  const jeu: SkillObservation[] = [
     ...Array.from({ length: 12 }, (_, k) =>
-      preuve({ skill: "DEV-01", jours: 40 - k, contexte: `dev1-${k}` }),
+      observation({ skill: "DEV-01", jours: 40 - k, contexte: `dev1-${k}` }),
     ),
     ...Array.from({ length: 9 }, (_, k) =>
-      preuve({ skill: "DEV-02", jours: 38 - k * 2, contexte: `dev2-${k}` }),
+      observation({ skill: "DEV-02", jours: 38 - k * 2, contexte: `dev2-${k}` }),
     ),
     ...Array.from({ length: 7 }, (_, k) =>
-      preuve({ skill: "DEV-03", jours: 30 - k * 3, resultat: "echec", contexte: `dev3-${k}` }),
+      observation({ skill: "DEV-03", jours: 30 - k * 3, resultat: "echec", contexte: `dev3-${k}` }),
     ),
-    // Deux preuves à la même date, sur deux compétences différentes.
-    preuve({ skill: "DEV-04", jours: 9, contexte: "meme-date-a" }),
-    preuve({ skill: "DEV-05", jours: 9, contexte: "meme-date-b" }),
-    // Deux preuves à la même date, sur la MÊME compétence.
-    preuve({ skill: "DEV-06", jours: 4, contexte: "meme-date-c" }),
-    preuve({ skill: "DEV-06", jours: 4, contexte: "meme-date-d" }),
+    // Deux observations à la même date, sur deux compétences différentes.
+    observation({ skill: "DEV-04", jours: 9, contexte: "meme-date-a" }),
+    observation({ skill: "DEV-05", jours: 9, contexte: "meme-date-b" }),
+    // Deux observations à la même date, sur la MÊME compétence.
+    observation({ skill: "DEV-06", jours: 4, contexte: "meme-date-c" }),
+    observation({ skill: "DEV-06", jours: 4, contexte: "meme-date-d" }),
     // Hors référentiel : ne doit apparaître nulle part, ni occuper de place.
-    preuve({ skill: "CODE-INEXISTANT", jours: 2, contexte: "fantome" }),
-    preuve({ skill: "STAT-01", jours: 6, contexte: "hors-perimetre-mais-connue" }),
+    observation({ skill: "CODE-INEXISTANT", jours: 2, contexte: "fantome" }),
+    observation({ skill: "STAT-01", jours: 6, contexte: "hors-perimetre-mais-connue" }),
   ];
 
   for (const limite of [1, 3, 8, 200]) {
@@ -460,9 +460,9 @@ describe("evenementsRecents — équivalence avec le rejeu naïf", () => {
     });
   }
 
-  it("une limite supérieure au nombre de preuves rend tout le journal recevable", () => {
+  it("une limite supérieure au nombre d'observations rend tout le journal recevable", () => {
     const tous = evenementsRecents(jeu, SKILL_PAR_CODE, 10_000, MAINTENANT);
-    // Toutes les preuves sauf celle dont le code n'existe pas au référentiel.
+    // Toutes les observations sauf celle dont le code n'existe pas au référentiel.
     expect(tous).toHaveLength(jeu.length - 1);
   });
 
@@ -489,14 +489,14 @@ describe("evenementsRecents — équivalence avec le rejeu naïf", () => {
     expect([...dates].sort((a, b) => b.localeCompare(a))).toEqual(dates);
   });
 
-  it("rend une liste vide sans preuve, et supporte une limite nulle", () => {
+  it("rend une liste vide sans observation, et supporte une limite nulle", () => {
     expect(evenementsRecents([], SKILL_PAR_CODE, 8, MAINTENANT)).toEqual([]);
     expect(evenementsRecents(jeu, SKILL_PAR_CODE, 0, MAINTENANT)).toEqual([]);
   });
 });
 
 describe("score global — protocole d'évaluation §12 et ADR-006", () => {
-  it("vaut null sans aucune preuve, jamais 0", () => {
+  it("vaut null sans aucune observation, jamais 0", () => {
     const etats = computeAllSkillStates(SKILLS, [], MAINTENANT);
     const global = calculerEtatGlobal(etats, MAINTENANT, DOMAINES_TEST);
     expect(global.scoreGlobal).toBeNull();
@@ -515,13 +515,13 @@ describe("score global — protocole d'évaluation §12 et ADR-006", () => {
   });
 
   it("une couverture faible plafonne la confiance sans écraser le score", () => {
-    const preuves = [
-      preuve({ skill: "STAT-01", jours: 30, contexte: "A" }),
-      preuve({ skill: "STAT-01", jours: 20, contexte: "B" }),
-      preuve({ skill: "STAT-01", jours: 10, contexte: "C" }),
-      preuve({ skill: "STAT-01", jours: 2, contexte: "D" }),
+    const observations = [
+      observation({ skill: "STAT-01", jours: 30, contexte: "A" }),
+      observation({ skill: "STAT-01", jours: 20, contexte: "B" }),
+      observation({ skill: "STAT-01", jours: 10, contexte: "C" }),
+      observation({ skill: "STAT-01", jours: 2, contexte: "D" }),
     ];
-    const etats = computeAllSkillStates(SKILLS, preuves, MAINTENANT);
+    const etats = computeAllSkillStates(SKILLS, observations, MAINTENANT);
     const global = calculerEtatGlobal(etats, MAINTENANT, DOMAINES_TEST);
 
     // Le doute sur une couverture partielle s'exprime par la confiance et par
@@ -540,19 +540,19 @@ describe("score global — protocole d'évaluation §12 et ADR-006", () => {
   });
 
   it("ajouter une compétence non mesurée ne déplace pas le score", () => {
-    const preuves = [
-      preuve({ skill: "DEV-01", jours: 20, contexte: "A" }),
-      preuve({ skill: "DEV-01", jours: 5, contexte: "B" }),
+    const observations = [
+      observation({ skill: "DEV-01", jours: 20, contexte: "A" }),
+      observation({ skill: "DEV-01", jours: 5, contexte: "B" }),
     ];
     const avant = calculerEtatGlobal(
-      computeAllSkillStates([SKILLS[0]], preuves, MAINTENANT),
+      computeAllSkillStates([SKILLS[0]], observations, MAINTENANT),
       MAINTENANT,
       DOMAINES_TEST,
     );
     const apres = calculerEtatGlobal(
       computeAllSkillStates(
         [SKILLS[0], skillDeTest("DEV-99", "developpement", "avance", 1, 99)],
-        preuves,
+        observations,
         MAINTENANT,
       ),
       MAINTENANT,
@@ -566,8 +566,8 @@ describe("score global — protocole d'évaluation §12 et ADR-006", () => {
 
   it("le score n'excède jamais 5 et reste à une décimale", () => {
     const parfait = etat([
-      preuve({ jours: 30, contexte: "A", qualite: "forte", autonomie: "A4", dims: { comprehension: 1, application: 1, transfert: 1, integration: 1, justification: 1 } }),
-      preuve({ jours: 10, contexte: "B", qualite: "forte", autonomie: "A4", dims: { comprehension: 1, application: 1, transfert: 1, integration: 1, justification: 1 } }),
+      observation({ jours: 30, contexte: "A", qualite: "forte", autonomie: "A4", dims: { comprehension: 1, application: 1, transfert: 1, integration: 1, justification: 1 } }),
+      observation({ jours: 10, contexte: "B", qualite: "forte", autonomie: "A4", dims: { comprehension: 1, application: 1, transfert: 1, integration: 1, justification: 1 } }),
     ]);
     expect(parfait.score!).toBeLessThanOrEqual(5);
     expect(parfait.score).toBe(Math.round(parfait.score! * 10) / 10);
@@ -577,7 +577,7 @@ describe("score global — protocole d'évaluation §12 et ADR-006", () => {
 /*
  * Le bloc « expérience — non-farmable par construction » (5 tests) a été retiré
  * le 28/07/2026 avec la mécanique d'XP elle-même (ADR-017). La garantie qu'il
- * protégeait — un XP ne peut exister sans preuve source — n'a plus d'objet :
+ * protégeait — un XP ne peut exister sans observation source — n'a plus d'objet :
  * ce n'est pas un garde-fou affaibli, c'est une mécanique supprimée.
  */
 
@@ -618,11 +618,11 @@ describe("recommandation — protocole d'évaluation §16", () => {
   });
 
   it("déclasse une compétence travaillée à l'instant au profit d'une autre", () => {
-    const preuves = [
-      preuve({ skill: "STAT-01", jours: 0 }),
-      preuve({ skill: "STAT-01", jours: 0, contexte: "B" }),
+    const observations = [
+      observation({ skill: "STAT-01", jours: 0 }),
+      observation({ skill: "STAT-01", jours: 0, contexte: "B" }),
     ];
-    const etats = computeAllSkillStates(SKILLS, preuves, MAINTENANT);
+    const etats = computeAllSkillStates(SKILLS, observations, MAINTENANT);
     const [premiere] = recommander(etats, [], []);
     expect(premiere.etat.skill.code).not.toBe("STAT-01");
   });
@@ -637,40 +637,40 @@ describe("recommandation — protocole d'évaluation §16", () => {
    * avec une autre horloge) pouvaient diverger.
    *
    * Pour que `now` soit effectif, `estDue` doit recompter les jours écoulés
-   * depuis `dernierePreuve` plutôt que lire `joursDepuisDernierePreuve` (qui est
-   * figé à la création de l'état). On force donc `joursDepuisDernierePreuve` à
+   * depuis `derniereObservation` plutôt que lire `joursDepuisDerniereObservation` (qui est
+   * figé à la création de l'état). On force donc `joursDepuisDerniereObservation` à
    * `null` : c'est le chemin où le paramètre `now` change effectivement le
    * résultat.
    */
   it("`now` passé en paramètre gouverne le facteur « Due pour révision »", () => {
-    // DEV-01 avec une preuve vieille de 5 jours par rapport à MAINTENANT.
+    // DEV-01 avec une observation vieille de 5 jours par rapport à MAINTENANT.
     // Intervalle = 1 (niveau 2, robustesse faible, confiance faible).
-    const preuves = [preuve({ skill: "DEV-01", jours: 5 })];
-    const etats = computeAllSkillStates(SKILLS, preuves, MAINTENANT);
-    // Force `joursDepuisDernierePreuve` à null : `estDue` recompte avec `now`.
+    const observations = [observation({ skill: "DEV-01", jours: 5 })];
+    const etats = computeAllSkillStates(SKILLS, observations, MAINTENANT);
+    // Force `joursDepuisDerniereObservation` à null : `estDue` recompte avec `now`.
     const etatsSansJours = etats.map((e) => ({
       ...e,
-      joursDepuisDernierePreuve: null,
+      joursDepuisDerniereObservation: null,
     }));
 
-    // Avec `now` = MAINTENANT (5 jours après la preuve) : due.
+    // Avec `now` = MAINTENANT (5 jours après l'observation) : due.
     const rMaintenant = recommander(etatsSansJours, [], [], 10, undefined, MAINTENANT);
     const rDev01 = rMaintenant.find((r) => r.etat.skill.code === "DEV-01")!;
     const facteurDue = rDev01.facteurs.find((f) => f.libelle === "Due pour révision");
     expect(facteurDue).toBeDefined();
 
-    // Avec `now` = jour de la preuve (0 jour écoulé) : pas due.
-    const jourPreuve = new Date(MAINTENANT.getTime() - 5 * JOUR);
-    const rJourPreuve = recommander(etatsSansJours, [], [], 10, undefined, jourPreuve);
-    const rDev01PasDue = rJourPreuve.find((r) => r.etat.skill.code === "DEV-01")!;
+    // Avec `now` = jour de l'observation (0 jour écoulé) : pas due.
+    const jourObservation = new Date(MAINTENANT.getTime() - 5 * JOUR);
+    const rJourObservation = recommander(etatsSansJours, [], [], 10, undefined, jourObservation);
+    const rDev01PasDue = rJourObservation.find((r) => r.etat.skill.code === "DEV-01")!;
     const facteurPasDue = rDev01PasDue.facteurs.find((f) => f.libelle === "Due pour révision");
     expect(facteurPasDue).toBeUndefined();
   });
 
-  it("tient compte d'une preuve documentaire récente et contextualisée", () => {
-    const preuves = [
+  it("tient compte d'une observation documentaire récente et contextualisée", () => {
+    const observations = [
       {
-        ...preuve({ skill: "STAT-01", jours: 10, contexte: "Cours" }),
+        ...observation({ skill: "STAT-01", jours: 10, contexte: "Cours" }),
         source: {
           kind: "exercice" as const,
           ref: "ex-cours",
@@ -678,7 +678,7 @@ describe("recommandation — protocole d'évaluation §16", () => {
         },
       },
       {
-        ...preuve({ skill: "STAT-01", jours: 1, contexte: "Projet" }),
+        ...observation({ skill: "STAT-01", jours: 1, contexte: "Projet" }),
         source: {
           kind: "projet" as const,
           ref: "projet-1",
@@ -686,8 +686,8 @@ describe("recommandation — protocole d'évaluation §16", () => {
         },
       },
     ];
-    const etats = computeAllSkillStates(SKILLS, preuves, MAINTENANT);
-    const contexteDocumentaire = construireContexteDocumentaire(preuves);
+    const etats = computeAllSkillStates(SKILLS, observations, MAINTENANT);
+    const contexteDocumentaire = construireContexteDocumentaire(observations);
     const recommandation = recommander(
       etats,
       [],
@@ -701,15 +701,15 @@ describe("recommandation — protocole d'évaluation §16", () => {
 
     expect(
       recommandation.facteurs.find(
-        (facteur) => facteur.libelle === "Preuve documentaire contextualisée",
+        (facteur) => facteur.libelle === "Observation documentaire contextualisée",
       ),
     ).toMatchObject({ contribution: -10 });
   });
 
   it("ne protège pas une compétence après une dernière production échouée", () => {
-    const preuves = [
+    const observations = [
       {
-        ...preuve({ skill: "STAT-01", jours: 10, contexte: "Cours" }),
+        ...observation({ skill: "STAT-01", jours: 10, contexte: "Cours" }),
         source: {
           kind: "exercice" as const,
           ref: "ex-cours",
@@ -717,7 +717,7 @@ describe("recommandation — protocole d'évaluation §16", () => {
         },
       },
       {
-        ...preuve({ skill: "STAT-01", jours: 1, contexte: "Projet", resultat: "echec" }),
+        ...observation({ skill: "STAT-01", jours: 1, contexte: "Projet", resultat: "echec" }),
         source: {
           kind: "projet" as const,
           ref: "projet-1",
@@ -726,19 +726,19 @@ describe("recommandation — protocole d'évaluation §16", () => {
       },
     ];
     const recommandation = recommander(
-      computeAllSkillStates(SKILLS, preuves, MAINTENANT),
+      computeAllSkillStates(SKILLS, observations, MAINTENANT),
       [],
       [],
       10,
       undefined,
       MAINTENANT,
       undefined,
-      construireContexteDocumentaire(preuves),
+      construireContexteDocumentaire(observations),
     ).find((r) => r.etat.skill.code === "STAT-01")!;
 
     expect(
       recommandation.facteurs.some(
-        (facteur) => facteur.libelle === "Preuve documentaire contextualisée",
+        (facteur) => facteur.libelle === "Observation documentaire contextualisée",
       ),
     ).toBe(false);
   });
@@ -801,8 +801,8 @@ describe("actionnabilité — un exercice disponible départage, sans jamais pé
     // DEV-05 : déjà évaluée, pratiquée à l'instant (donc "laisser respirer",
     // -15), MAIS elle a un exercice disponible (+10). L'écart réel doit
     // l'emporter sur le bonus modeste.
-    const preuves = [preuve({ skill: "DEV-05", jours: 0, resultat: "reussi" })];
-    const etats = computeAllSkillStates(SKILLS, preuves, MAINTENANT);
+    const observations = [observation({ skill: "DEV-05", jours: 0, resultat: "reussi" })];
+    const etats = computeAllSkillStates(SKILLS, observations, MAINTENANT);
 
     const exerciceDev05: Exercise = {
       id: "ex-dev05",
@@ -885,9 +885,9 @@ describe("choix de l'exercice — un résultat non abouti ne redonne pas le mêm
   function propose(
     exercices: Exercise[],
     tentatives: ExerciseAttempt[],
-    preuves: SkillEvidence[] = [],
+    observations: SkillObservation[] = [],
   ): Exercise | null {
-    const etats = computeAllSkillStates(SKILLS, preuves, MAINTENANT);
+    const etats = computeAllSkillStates(SKILLS, observations, MAINTENANT);
     const classement = recommander(
       etats,
       exercices,
@@ -906,27 +906,27 @@ describe("choix de l'exercice — un résultat non abouti ne redonne pas le mêm
 
   it("un exercice échoué ne revient pas tant qu'aucun progrès n'est démontré", () => {
     const ex = exo("ex-1", 2);
-    const echec = preuve({ skill: "STAT-01", jours: 3, resultat: "echec" });
+    const echec = observation({ skill: "STAT-01", jours: 3, resultat: "echec" });
     expect(propose([ex], [tent("ex-1", "echec", 3)], [echec])).toBeNull();
   });
 
   it("il revient dès qu'une réussite postérieure le suit sur la compétence", () => {
     const ex = exo("ex-1", 2);
-    const preuves = [
-      preuve({ skill: "STAT-01", jours: 5, resultat: "echec" }),
-      preuve({ skill: "STAT-01", jours: 1, resultat: "reussi", contexte: "Contexte B" }),
+    const observations = [
+      observation({ skill: "STAT-01", jours: 5, resultat: "echec" }),
+      observation({ skill: "STAT-01", jours: 1, resultat: "reussi", contexte: "Contexte B" }),
     ];
-    const propose1 = propose([ex], [tent("ex-1", "echec", 5)], preuves);
+    const propose1 = propose([ex], [tent("ex-1", "echec", 5)], observations);
     expect(propose1?.id).toBe("ex-1");
   });
 
   it("une réussite ANTÉRIEURE à l'échec ne suffit pas — le progrès doit être postérieur", () => {
     const ex = exo("ex-1", 2);
-    const preuves = [
-      preuve({ skill: "STAT-01", jours: 9, resultat: "reussi" }),
-      preuve({ skill: "STAT-01", jours: 3, resultat: "echec", contexte: "Contexte B" }),
+    const observations = [
+      observation({ skill: "STAT-01", jours: 9, resultat: "reussi" }),
+      observation({ skill: "STAT-01", jours: 3, resultat: "echec", contexte: "Contexte B" }),
     ];
-    expect(propose([ex], [tent("ex-1", "echec", 3)], preuves)).toBeNull();
+    expect(propose([ex], [tent("ex-1", "echec", 3)], observations)).toBeNull();
   });
 
   /*
@@ -947,17 +947,17 @@ describe("choix de l'exercice — un résultat non abouti ne redonne pas le mêm
     // d'écart. `exercice: null` fait retomber l'interface sur « Générer un
     // exercice » — la sortie voulue, pas une impasse muette.
     const ex = exo("ex-1", 2);
-    const partiel = preuve({ skill: "STAT-01", jours: 3, resultat: "partiel" });
+    const partiel = observation({ skill: "STAT-01", jours: 3, resultat: "partiel" });
     expect(propose([ex], [tent("ex-1", "partiel", 3)], [partiel])).toBeNull();
   });
 
   it("un partiel revient dès qu'une réussite postérieure le suit sur la compétence", () => {
     const ex = exo("ex-1", 2);
-    const preuves = [
-      preuve({ skill: "STAT-01", jours: 5, resultat: "partiel" }),
-      preuve({ skill: "STAT-01", jours: 1, resultat: "reussi", contexte: "Contexte B" }),
+    const observations = [
+      observation({ skill: "STAT-01", jours: 5, resultat: "partiel" }),
+      observation({ skill: "STAT-01", jours: 1, resultat: "reussi", contexte: "Contexte B" }),
     ];
-    expect(propose([ex], [tent("ex-1", "partiel", 5)], preuves)?.id).toBe("ex-1");
+    expect(propose([ex], [tent("ex-1", "partiel", 5)], observations)?.id).toBe("ex-1");
   });
 
   it("un abandon ne compte pas : l'exercice reste proposable", () => {
@@ -973,19 +973,19 @@ describe("choix de l'exercice — un résultat non abouti ne redonne pas le mêm
     // départager : une réussite postérieure au partiel le débloque, sans quoi
     // ce test ne prouverait plus rien depuis le lot 5 (`ex-vu` serait déjà
     // exclu par `recommandable`, et `ex-neuf` resterait seul par défaut).
-    const preuves = [
-      preuve({ skill: "STAT-01", jours: 5, resultat: "partiel" }),
-      preuve({ skill: "STAT-01", jours: 1, resultat: "reussi", contexte: "Contexte B" }),
+    const observations = [
+      observation({ skill: "STAT-01", jours: 5, resultat: "partiel" }),
+      observation({ skill: "STAT-01", jours: 1, resultat: "reussi", contexte: "Contexte B" }),
     ];
     expect(
-      propose([dejaTente, neuf], [tent("ex-vu", "partiel", 5)], preuves)?.id,
+      propose([dejaTente, neuf], [tent("ex-vu", "partiel", 5)], observations)?.id,
     ).toBe("ex-neuf");
   });
 
   it("sans candidat, la recommandation n'invente pas d'exercice", () => {
     // C'est le repli assumé : l'interface bascule alors sur « demander un
     // exercice au tuteur » plutôt que de resservir ce qui vient d'échouer.
-    const echec = preuve({ skill: "STAT-01", jours: 3, resultat: "echec" });
+    const echec = observation({ skill: "STAT-01", jours: 3, resultat: "echec" });
     expect(propose([exo("ex-1", 2)], [tent("ex-1", "echec", 3)], [echec])).toBeNull();
   });
 });
@@ -1218,7 +1218,7 @@ describe("activiteSurFenetre — mesure réellement bornée par la période", ()
    *
    * `att-mst5fis8-rfsu6`, 15/08/2026 : exercice ouvert le 14 à 18 h 15, abandonné
    * le 15 à 11 h 11, `duree_min = 1015`, `statut = abandonnee`. L'accueil
-   * affichait « TRAVAILLÉ 16 h 55 · EXERCICES 0 · PREUVES 0 » et la carte
+   * affichait « TRAVAILLÉ 16 h 55 · EXERCICES 0 · OBSERVATIONS 0 » et la carte
    * annuelle peignait une journée entière de travail qui n'a pas eu lieu.
    */
   describe("temps retenu d'une tentative abandonnée", () => {

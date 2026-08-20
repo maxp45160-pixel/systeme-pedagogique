@@ -3,20 +3,20 @@
  *
  * ## Le défaut que ce module corrige
  *
- * La fin d'un exercice affichait « Preuve enregistrée — DEV-01 : niveau 3/5,
+ * La fin d'un exercice affichait « Observation enregistrée — DEV-01 : niveau 3/5,
  * confiance moyenne ». Deux nombres, pris à l'instant, sans dire **ce qu'ils
  * étaient avant**. La personne venait de travailler quarante minutes et ne
  * pouvait pas savoir si quelque chose avait bougé.
  *
  * Tout ce qu'il faut pour le dire existait déjà : `evenementsRecents` calcule
- * le niveau avant et après une preuve par rejeu du journal, `calibrer` connaît
+ * le niveau avant et après une observation par rejeu du journal, `calibrer` connaît
  * la dimension la plus faible, et le verdict du tuteur est archivé depuis
  * ADR-046. Aucun de ces trois n'était lu à cet endroit.
  *
  * ## Ce que ce module n'est pas
  *
  * **Rien n'est stocké.** L'impact est recalculé à chaque lecture depuis les
- * preuves — c'est P1, et c'est aussi ce qui garantit qu'un impact affiché
+ * observations — c'est P1, et c'est aussi ce qui garantit qu'un impact affiché
  * correspond toujours au journal présent : il ne peut pas dériver.
  *
  * **Aucune phrase n'est écrite par le tuteur.** Chaque ligne rendue ici est
@@ -24,7 +24,7 @@
  * Le tuteur ne mesure pas (P5) ; ce qu'il avait écrit au moment du bilan est
  * repris tel quel, à part, comme un commentaire — jamais comme une conclusion.
  *
- * **Ce module ne juge pas la personne.** Une preuve qui ne déplace aucun niveau
+ * **Ce module ne juge pas la personne.** Une observation qui ne déplace aucun niveau
  * n'est pas un échec : elle confirme. Le dire explicitement vaut mieux que de
  * n'afficher que les franchissements, qui donneraient l'illusion d'une courbe
  * toujours montante — même raison qu'`evenementsRecents`.
@@ -36,9 +36,9 @@ import type {
   Exercise,
   ExerciseAttempt,
   NiveauCompetence,
-  NiveauPreuve,
+  NiveauObservation,
   Skill,
-  SkillEvidence,
+  SkillObservation,
 } from "@/lib/domain/types";
 import { AUTONOMIE, LIBELLES_DIMENSIONS, NIVEAUX } from "@/lib/domain/types";
 import type { Calibration } from "./calibration";
@@ -58,16 +58,16 @@ export interface CompetenceRenforcee {
   intitule: string;
   niveauAvant: NiveauCompetence | null;
   niveauApres: NiveauCompetence | null;
-  /** Vrai si cette preuve a fait franchir un palier. */
+  /** Vrai si cette observation a fait franchir un palier. */
   franchissement: boolean;
   confianceAvant: Confiance;
   confianceApres: Confiance;
   /** A pour la compétence principale de l'exercice, B pour les autres. */
-  niveauPreuve: NiveauPreuve;
-  /** Vrai si cette preuve inaugure un contexte que la compétence n'avait pas. */
+  niveauObservation: NiveauObservation;
+  /** Vrai si cette observation inaugure un contexte que la compétence n'avait pas. */
   nouveauContexte: boolean;
-  /** Nombre de preuves après celle-ci — dit combien pèse le total. */
-  nombrePreuves: number;
+  /** Nombre d'observations après celle-ci — dit combien pèse le total. */
+  nombreObservations: number;
 }
 
 export interface ImpactTravail {
@@ -92,58 +92,58 @@ export interface EntreesImpact {
   exercice: Exercise;
   tentative: ExerciseAttempt;
   /** Le journal complet du compte. Le module y retrouve seul ce qui appartient à cette tentative. */
-  preuves: readonly SkillEvidence[];
-  /** Tout le référentiel, archivées comprises : une preuve ancienne doit rester lisible (P4). */
+  observations: readonly SkillObservation[];
+  /** Tout le référentiel, archivées comprises : une observation ancienne doit rester lisible (P4). */
   skillsParCode: ReadonlyMap<string, Skill>;
   calibrations?: ReadonlyMap<string, Calibration>;
   now?: Date;
 }
 
 /**
- * Les preuves écrites par cette tentative.
+ * Les observations écrites par cette tentative.
  *
- * `terminerExercice` horodate la tentative et ses preuves avec **la même**
+ * `terminerExercice` horodate la tentative et ses observations avec **la même**
  * chaîne ISO, produite une seule fois. C'est cette égalité qui les rattache,
  * et non `source.ref` — qui porte l'identifiant de l'exercice, donc désigne
  * aussi les tentatives précédentes du même exercice (ADR-066, amendement du
- * 14/08 : « `evidence.source.ref` reste l'identifiant de l'exercice »).
+ * 14/08 : « `observations.source.ref` reste l'identifiant de l'exercice »).
  *
  * Le filtre sur `source.ref` reste, en second : deux gestes distincts pourraient
  * théoriquement partager la milliseconde, et on préfère rendre trop peu que
- * d'attribuer à ce travail une preuve qu'il n'a pas produite.
+ * d'attribuer à ce travail une observation qu'il n'a pas produite.
  */
-function preuvesDeLaTentative(
-  preuves: readonly SkillEvidence[],
+function observationsDeLaTentative(
+  observations: readonly SkillObservation[],
   exercice: Exercise,
   tentative: ExerciseAttempt,
-): SkillEvidence[] {
+): SkillObservation[] {
   if (!tentative.fin) return [];
-  return preuves.filter(
-    (preuve) =>
-      preuve.date === tentative.fin &&
-      preuve.source.kind === "exercice" &&
-      preuve.source.ref === exercice.id,
+  return observations.filter(
+    (observation) =>
+      observation.date === tentative.fin &&
+      observation.source.kind === "exercice" &&
+      observation.source.ref === exercice.id,
   );
 }
 
 /**
- * L'état d'une compétence juste avant et juste après une preuve donnée.
+ * L'état d'une compétence juste avant et juste après une observation donnée.
  *
  * Même technique qu'`evenementsRecents` : `computeSkillState` filtre déjà sur
- * `skillCode`, donc l'historique tronqué au rang de la preuve **est** l'état
+ * `skillCode`, donc l'historique tronqué au rang de l'observation **est** l'état
  * d'alors. Rien n'est stocké ; on rejoue.
  */
 function avantApres(
   skill: Skill,
-  preuve: SkillEvidence,
-  preuves: readonly SkillEvidence[],
+  observation: SkillObservation,
+  observations: readonly SkillObservation[],
   now: Date,
 ) {
-  const historique = preuves
+  const historique = observations
     .filter((item) => item.skillCode === skill.code)
     .sort((a, b) => a.date.localeCompare(b.date));
-  const rang = historique.findIndex((item) => item.id === preuve.id);
-  // Preuve absente du journal fourni : on ne fabrique pas d'état « avant ».
+  const rang = historique.findIndex((item) => item.id === observation.id);
+  // Observation absente du journal fourni : on ne fabrique pas d'état « avant ».
   const coupe = rang === -1 ? historique.length : rang;
   return {
     avant: computeSkillState(skill, historique.slice(0, coupe), now),
@@ -164,22 +164,22 @@ function part(valeur: number): string {
 /**
  * Ce que cette tentative a changé.
  *
- * Rend `null` quand elle n'a produit aucune preuve — une tentative abandonnée,
+ * Rend `null` quand elle n'a produit aucune observation — une tentative abandonnée,
  * typiquement. C'est volontaire : « absence de mesure n'est pas un zéro » (P2)
  * s'applique aussi à l'affichage. Un écran d'impact vide serait moins honnête
  * que pas d'écran du tout, et l'abandon a déjà son propre message.
  */
 export function impactTentative(entrees: EntreesImpact): ImpactTravail | null {
-  const { exercice, tentative, preuves, skillsParCode, calibrations } = entrees;
+  const { exercice, tentative, observations, skillsParCode, calibrations } = entrees;
   const now = entrees.now ?? new Date();
 
   if (tentative.statut !== "terminee") return null;
-  const produites = preuvesDeLaTentative(preuves, exercice, tentative);
+  const produites = observationsDeLaTentative(observations, exercice, tentative);
   if (produites.length === 0) return null;
 
   /*
    * L'ordre suit celui de l'exercice, pas celui du journal : la cible
-   * principale doit rester en tête, c'est elle qui porte la preuve directe.
+   * principale doit rester en tête, c'est elle qui porte l'observation directe.
    */
   const rangCible = new Map(exercice.competences.map((code, index) => [code, index]));
   const triees = [...produites].sort(
@@ -191,16 +191,16 @@ export function impactTentative(entrees: EntreesImpact): ImpactTravail | null {
   const renforcees: CompetenceRenforcee[] = [];
   const consequences: string[] = [];
 
-  for (const preuve of triees) {
-    const skill = skillsParCode.get(preuve.skillCode);
+  for (const observation of triees) {
+    const skill = skillsParCode.get(observation.skillCode);
     if (!skill) continue;
 
-    const { avant, apres, total } = avantApres(skill, preuve, preuves, now);
+    const { avant, apres, total } = avantApres(skill, observation, observations, now);
     // Une FAMILLE de situation encore jamais vue, pas un titre inédit
     // (ADR-083) : `contextesTestes` porte des clés de famille depuis le
     // 18/08/2026, et comparer un libellé brut aurait rendu ce drapeau
     // systématiquement vrai.
-    const nouveauContexte = !avant.contextesTestes.includes(cleContexte(preuve));
+    const nouveauContexte = !avant.contextesTestes.includes(cleContexte(observation));
 
     renforcees.push({
       code: skill.code,
@@ -210,9 +210,9 @@ export function impactTentative(entrees: EntreesImpact): ImpactTravail | null {
       franchissement: avant.niveau !== apres.niveau,
       confianceAvant: avant.confiance,
       confianceApres: apres.confiance,
-      niveauPreuve: preuve.niveauPreuve,
+      niveauObservation: observation.niveauObservation,
       nouveauContexte,
-      nombrePreuves: total,
+      nombreObservations: total,
     });
 
     /* ---- Ce que le journal dit de différent, compétence par compétence ---- */
@@ -228,24 +228,24 @@ export function impactTentative(entrees: EntreesImpact): ImpactTravail | null {
       );
     } else if (apres.niveau !== null) {
       consequences.push(
-        `${skill.intitule} reste au niveau ${apres.niveau} : cette preuve le confirme sans le déplacer.`,
+        `${skill.intitule} reste au niveau ${apres.niveau} : cette observation le confirme sans le déplacer.`,
       );
     }
 
     const ecartConfiance = RANG_CONFIANCE[apres.confiance] - RANG_CONFIANCE[avant.confiance];
     if (ecartConfiance > 0) {
       consequences.push(
-        `La confiance sur ${skill.code} passe de « ${avant.confiance} » à « ${apres.confiance} » — ${total} preuve${total > 1 ? "s" : ""} au total.`,
+        `La confiance sur ${skill.code} passe de « ${avant.confiance} » à « ${apres.confiance} » — ${total} observation${total > 1 ? "s" : ""} au total.`,
       );
     } else if (ecartConfiance < 0) {
       consequences.push(
-        `La confiance sur ${skill.code} redescend de « ${avant.confiance} » à « ${apres.confiance} » : les preuves ne concordent pas encore.`,
+        `La confiance sur ${skill.code} redescend de « ${avant.confiance} » à « ${apres.confiance} » : les observations ne concordent pas encore.`,
       );
     }
 
     /*
      * Une contradiction est une information, pas une faute. Elle apparaît
-     * quand une preuve s'oppose à la tendance dominante — la taire donnerait un
+     * quand une observation s'oppose à la tendance dominante — la taire donnerait un
      * état plus lisse que ce que le journal contient réellement (§5 du
      * protocole d'évaluation).
      */
@@ -258,12 +258,12 @@ export function impactTentative(entrees: EntreesImpact): ImpactTravail | null {
 
   /* ---- Ce qui a été observé pendant le travail ---- */
 
-  const observations: string[] = [];
+  const faitsObserves: string[] = [];
   const principale = triees[0];
 
   if (principale) {
     const autonomie = AUTONOMIE[principale.autonomie];
-    observations.push(
+    faitsObserves.push(
       tentative.indicesUtilises === 0
         ? `Autonomie ${principale.autonomie} — ${autonomie.libelle.toLowerCase()}, aucun indice consulté.`
         : `Autonomie ${principale.autonomie} — ${autonomie.libelle.toLowerCase()}, ${tentative.indicesUtilises} indice${tentative.indicesUtilises > 1 ? "s" : ""} consulté${tentative.indicesUtilises > 1 ? "s" : ""}.`,
@@ -272,7 +272,7 @@ export function impactTentative(entrees: EntreesImpact): ImpactTravail | null {
 
   const nouveaux = renforcees.filter((item) => item.nouveauContexte);
   if (nouveaux.length > 0) {
-    observations.push(
+    faitsObserves.push(
       `Contexte nouveau pour ${nouveaux.map((item) => item.code).join(", ")} : c'est la variété des contextes qui atteste un transfert, pas leur nombre.`,
     );
   }
@@ -286,7 +286,7 @@ export function impactTentative(entrees: EntreesImpact): ImpactTravail | null {
   const calibration = principale ? calibrations?.get(principale.skillCode) : undefined;
   const faible = calibration?.dimensionFaible;
   if (faible) {
-    observations.push(
+    faitsObserves.push(
       faible.observations >= 2
         ? `${libelleDimension(faible.dimension)} reste ton point bas sur ${calibration!.skillCode} : ${part(faible.moyenne)} sur ${faible.observations} tentatives.`
         : `${libelleDimension(faible.dimension)} est la dimension la plus basse de cette tentative (${part(faible.moyenne)}) — une seule observation, à confirmer.`,
@@ -295,7 +295,7 @@ export function impactTentative(entrees: EntreesImpact): ImpactTravail | null {
 
   const bilan = tentative.verdictTuteur?.bilan;
   if (bilan?.pointsBloquants.trim()) {
-    observations.push(bilan.pointsBloquants.trim());
+    faitsObserves.push(bilan.pointsBloquants.trim());
   }
 
   return {
@@ -307,7 +307,7 @@ export function impactTentative(entrees: EntreesImpact): ImpactTravail | null {
       indicesUtilises: tentative.indicesUtilises,
     },
     renforcees,
-    observations,
+    observations: faitsObserves,
     consequences,
     aRetravailler: bilan?.aRetravailler.filter((ligne) => ligne.trim().length > 0) ?? [],
   };
@@ -340,9 +340,9 @@ export function impactCumule(impacts: readonly ImpactTravail[]): {
         niveauAvant: deja.niveauAvant,
         confianceAvant: deja.confianceAvant,
         franchissement: deja.niveauAvant !== item.niveauApres,
-        // Une preuve directe l'emporte : la compétence a bien été visée de front
+        // Une observation directe l'emporte : la compétence a bien été visée de front
         // au moins une fois dans la séance.
-        niveauPreuve: deja.niveauPreuve === "A" || item.niveauPreuve === "A" ? "A" : item.niveauPreuve,
+        niveauObservation: deja.niveauObservation === "A" || item.niveauObservation === "A" ? "A" : item.niveauObservation,
         nouveauContexte: deja.nouveauContexte || item.nouveauContexte,
       });
     }

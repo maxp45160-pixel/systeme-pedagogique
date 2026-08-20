@@ -3,14 +3,14 @@
  *
  * Module pur, testable sans base — et c'est le point : la règle vivait
  * jusqu'ici nulle part, donc partout. Le bilan s'ouvrait sur une tentative
- * vide, l'utilisateur cochait ses critères de mémoire, et la preuve écrite
+ * vide, l'utilisateur cochait ses critères de mémoire, et l'observation écrite
  * ne s'appuyait sur aucune trace relisible.
  *
  * Mesuré le 07/08/2026 : **16 des 37 tentatives terminées ne portent aucune
  * réponse écrite**. Ce n'est donc pas une formalité qu'on ajoute, c'est un
  * changement de parcours. Il a une contrepartie obligatoire, `abandonnerExercice`
  * (lib/store/actions.ts) : une tentative qu'on ne veut pas mener doit pouvoir se
- * clore sans réponse — elle n'écrit aucune preuve de toute façon.
+ * clore sans réponse — elle n'écrit aucune observation de toute façon.
  *
  * ⚠️ Aucun seuil de longueur n'est posé, et c'est délibéré (CLAUDE.md §8 : pas
  * de seuil sans données). Le jour où l'usage montre qu'on tape « . » pour
@@ -29,12 +29,12 @@ import { DUREE_ESTIMEE_MAX } from "@/lib/domain/exercice";
  * d'HORLOGE : début de la tentative, fin du geste de clôture. Observé le
  * 15/08/2026 sur `att-mst5fis8-rfsu6` — exercice ouvert le 14 à 18 h 15, abandonné
  * le 15 à 11 h 11, `duree_min = 1015`, `statut = abandonnee`. L'accueil affichait
- * « TRAVAILLÉ 16 h 55 · EXERCICES 0 · PREUVES 0 » et la carte annuelle peignait
+ * « TRAVAILLÉ 16 h 55 · EXERCICES 0 · OBSERVATIONS 0 » et la carte annuelle peignait
  * une journée entière de travail qui n'a pas eu lieu.
  *
  * Deux plafonds, parce que la question n'est pas la même des deux côtés :
  *
- * - **tentative abandonnée** → `dureeEstimeeMin`. Elle ne produit aucune preuve
+ * - **tentative abandonnée** → `dureeEstimeeMin`. Elle ne produit aucune observation
  *   (ADR-030) ; le temps qu'on lui retient ne peut pas dépasser ce que
  *   l'exercice était censé demander. On ne l'efface pas pour autant : un abandon
  *   après 5 minutes reste 5 minutes travaillées, et le jour reste actif.
@@ -109,8 +109,8 @@ export interface SoumissionTerminerExercice {
  *
  * `terminerExercice` (lib/store/actions.ts) est une Server Function, donc un
  * point d'entrée public : rejouer une soumission pouvait écrire une seconde
- * preuve pour la même tentative, et un couple tentative/exercice incohérent
- * attribuait la preuve aux compétences du mauvais exercice. `dureeMin`, qui
+ * observation pour la même tentative, et un couple tentative/exercice incohérent
+ * attribuait l'observation aux compétences du mauvais exercice. `dureeMin`, qui
  * alimente `tentativeMenee`, n'était pas validé non plus.
  *
  * Le vivre ici — module pur, testable sans base, partagé avec l'écriture —
@@ -122,11 +122,11 @@ export function motifRefusTerminerExercice(
   soumission: SoumissionTerminerExercice,
 ): string | null {
   // Une tentative close ne se rejoue pas : sinon la soumission réécrirait une
-  // seconde preuve pour la même tentative.
+  // second'observation pour la même tentative.
   if (avant.statut !== "en-cours") {
     return "Cette tentative est déjà clôturée : elle ne peut être soumise qu'une fois.";
   }
-  // Le couple doit concorder : la preuve est attribuée aux compétences de
+  // Le couple doit concorder : l'observation est attribuée aux compétences de
   // l'exercice porté par la tentative.
   if (avant.exerciseId !== soumission.exerciseId) {
     return "La tentative ne correspond pas à cet exercice : la soumission est rejetée.";
@@ -138,7 +138,7 @@ export function motifRefusTerminerExercice(
     return "La durée renseignée est invalide : elle doit être un nombre strictement positif.";
   }
   // La réponse écrite reste la condition d'ouverture du bilan, donc d'écriture
-  // de la preuve — l'interface peut être contournée, pas la règle.
+  // de l'observation — l'interface peut être contournée, pas la règle.
   if (!reponseSuffisante(avant.reponse)) {
     return motifBlocageBilan(avant.reponse);
   }
@@ -164,7 +164,7 @@ export function motifRefusTerminerExercice(
  * - `ignorer` — elle est **déjà** `abandonnee` : rien à écrire, on navigue.
  *   C'est ce cas qui rend la fonction idempotente ;
  * - `refuser` — incohérence réelle : tentative déjà `terminee` (elle porte une
- *   preuve, l'abandonner la contredirait) ou couple tentative/exercice faux.
+ *   observation, l'abandonner la contredirait) ou couple tentative/exercice faux.
  */
 export type DecisionAbandonExercice =
   | { action: "abandonner" }
@@ -185,7 +185,7 @@ export function deciderAbandonExercice(
   }
   // Déjà abandonnée : le résultat demandé est déjà en base. Aucune écriture.
   if (avant.statut === "abandonnee") return { action: "ignorer" };
-  // Terminée : elle porte une évaluation, donc potentiellement une preuve.
+  // Terminée : elle porte une évaluation, donc potentiellement une observation.
   // L'abandon ne défait pas une mesure (P4).
   if (avant.statut === "terminee") {
     return {

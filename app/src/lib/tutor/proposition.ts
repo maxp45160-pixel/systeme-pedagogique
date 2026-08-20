@@ -497,7 +497,7 @@ export function extrairePropositionExerciceDuTexte(texte: string): {
  * être rejeté en silence.
  *
  * **Aucun code de compétence n'est lu ici**, et c'est délibéré : le gabarit
- * interdit au tuteur d'en écrire. Un code est la clé étrangère des preuves ;
+ * interdit au tuteur d'en écrire. Un code est la clé étrangère des observations ;
  * l'application les attribue à partir du préfixe du domaine.
  */
 export interface PropositionReferentiel {

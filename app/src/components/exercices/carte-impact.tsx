@@ -15,7 +15,7 @@ import { formatDuree } from "@/lib/engine/dates";
 /**
  * « Je vois exactement ce que ce travail vient d'ajouter. »
  *
- * Cette carte remplace le bandeau « Preuve enregistrée — niveau 3/5, confiance
+ * Cette carte remplace le bandeau « Observation enregistrée — niveau 3/5, confiance
  * moyenne », qui donnait deux nombres sans dire ce qu'ils étaient avant.
  *
  * Elle n'affiche **que** ce que `impactTentative` a dérivé : aucune valeur n'est
@@ -150,8 +150,8 @@ function LigneCompetence({
       <div className="flex flex-wrap items-center gap-2">
         <CodeCompetence code={competence.code} />
         <span className="min-w-0 flex-1 truncate text-xs font-medium">{competence.intitule}</span>
-        {competence.niveauPreuve === "B" && (
-          <Etiquette>Preuve indirecte</Etiquette>
+        {competence.niveauObservation === "B" && (
+          <Etiquette>Observation indirecte</Etiquette>
         )}
         {competence.franchissement && <Etiquette ton="succes">Palier franchi</Etiquette>}
       </div>
@@ -177,7 +177,7 @@ function LigneCompetence({
           <TagConfiance confiance={competence.confianceApres} />
         </span>
         <span className="text-texte-discret">
-          {competence.nombrePreuves} preuve{competence.nombrePreuves > 1 ? "s" : ""}
+          {competence.nombreObservations} observation{competence.nombreObservations > 1 ? "s" : ""}
         </span>
       </div>
     </>

@@ -177,7 +177,7 @@ export function adaptNoteOperationnelle(
  *
  * La ressource reste la fiche canonique et son PDF reste son support. Le
  * candidat dérivé demande un geste de lecture, de structuration et
- * d'application ; il ne fabrique aucune preuve à partir de la capture.
+ * d'application ; il ne fabrique aucune observation à partir de la capture.
  */
 export function adaptNoteDocumentaire(
   accountId: string,
@@ -205,7 +205,7 @@ export function adaptNoteDocumentaire(
     },
     estimatedDurationMinutes: travail.duree,
     cognitiveDemand: "standard",
-    // Le travail produit une fiche éditoriale ; une preuve n'existe qu'après
+    // Le travail produit une fiche éditoriale ; une observation n'existe qu'après
     // une validation explicite, jamais au moment de l'ajout de la ressource.
     proofMode: "support-seul",
     workspace: "exercice-trois-actes",

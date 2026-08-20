@@ -52,7 +52,7 @@ function calibration(surcharge: Partial<Calibration> = {}): Calibration {
     signal: "calibre",
     dimensionFaible: null,
     verdicts: [],
-    explication: { resume: "", facteurs: [], nombrePreuves: 0, reserves: [] },
+    explication: { resume: "", facteurs: [], nombreObservations: 0, reserves: [] },
     ...surcharge,
   };
 }

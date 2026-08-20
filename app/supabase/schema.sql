@@ -140,7 +140,7 @@ REVOKE EXECUTE ON FUNCTION public.touch_updated_at() FROM PUBLIC, anon, authenti
 -- arbre sans qu'une ligne de code soit écrite pour lui.
 --
 -- Deux règles portées par le schéma plutôt que par l'application :
---   * le `code` est IMMUABLE — c'est la clé étrangère des preuves ;
+--   * le `code` est IMMUABLE — c'est la clé étrangère des observations ;
 --   * un domaine qui porte encore des compétences ne peut pas être effacé
 --     (ON DELETE RESTRICT) : la cascade se décide, elle ne s'improvise pas.
 -- --------------------------------------------------------------------
@@ -177,12 +177,12 @@ CREATE TABLE IF NOT EXISTS public.competences (
   ordre               INTEGER NOT NULL DEFAULT 0,
   -- Périmètre de travail, par compte : traduction d'ADR-020, dont le
   -- `DOMAINE_PILOTE` global disparaît. Une compétence hors périmètre n'est
-  -- ni calculée ni affichée ; ses preuves restent intactes.
+  -- ni calculée ni affichée ; ses observations restent intactes.
   active              BOOLEAN NOT NULL DEFAULT true,
-  -- Archivée = retirée du référentiel de travail SANS perdre ses preuves.
-  -- C'est le seul retrait possible dès qu'une preuve existe (P4, ADR-027).
+  -- Archivée = retirée du référentiel de travail SANS perdre ses observations.
+  -- C'est le seul retrait possible dès qu'une observation existe (P4, ADR-027).
   archive             BOOLEAN NOT NULL DEFAULT false,
-  -- Un changement de sens crée un successeur ; il ne réécrit jamais les preuves.
+  -- Un changement de sens crée un successeur ; il ne réécrit jamais les observations.
   remplace_par        TEXT,
   hypothese_initiale  JSONB,
   origine             TEXT NOT NULL DEFAULT 'utilisateur',
@@ -217,16 +217,16 @@ CREATE TABLE IF NOT EXISTS public.competence_domaines (
 );
 
 -- --------------------------------------------------------------------
--- 3. Preuves de compétence (SkillEvidence) — journal append-only
+-- 3. Observations de compétence (SkillObservation) — journal append-only
 -- --------------------------------------------------------------------
 
-CREATE TABLE IF NOT EXISTS public.evidence (
+CREATE TABLE IF NOT EXISTS public.observations (
   id                     TEXT NOT NULL,
   user_id                UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   skill_code             TEXT NOT NULL,
   date                   TEXT NOT NULL,
   type                   TEXT NOT NULL,
-  niveau_preuve          TEXT NOT NULL,
+  niveau_observation          TEXT NOT NULL,
   autonomie              TEXT NOT NULL,
   qualite                TEXT NOT NULL,
   resultat               TEXT NOT NULL,
@@ -239,41 +239,41 @@ CREATE TABLE IF NOT EXISTS public.evidence (
   PRIMARY KEY (user_id, id)
 );
 
--- Une preuve n'est jamais orpheline (ADR-027).
+-- Une observation n'est jamais orpheline (ADR-027).
 --
--- Avant ADR-026 le lien preuve → compétence n'était qu'une chaîne libre, et
--- `lib/engine/historique.ts` faisait `if (!skill) continue` : une preuve dont
+-- Avant ADR-026 le lien observation → compétence n'était qu'une chaîne libre, et
+-- `lib/engine/historique.ts` faisait `if (!skill) continue` : une observation dont
 -- le code avait disparu du référentiel s'effaçait de l'historique EN SILENCE.
 -- La contrainte déplace cette garantie dans la base, qui seule peut l'appliquer
 -- à des codes produits par l'utilisateur.
 --
 -- Posée sous condition : sur une base antérieure à la migration du référentiel,
--- les preuves existent avant les compétences. On refuse alors de la créer
+-- les observations existent avant les compétences. On refuse alors de la créer
 -- plutôt que de faire échouer tout le fichier — le schéma reste réexécutable.
 DO $$
 DECLARE
   orphelines INTEGER;
 BEGIN
   IF EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'evidence_competence_fk'
+    SELECT 1 FROM pg_constraint WHERE conname = 'observations_competence_fk'
   ) THEN
     RETURN;
   END IF;
 
   SELECT COUNT(*) INTO orphelines
-  FROM public.evidence e
+  FROM public.observations e
   LEFT JOIN public.competences c
     ON c.user_id = e.user_id AND c.code = e.skill_code
   WHERE c.code IS NULL;
 
   IF orphelines = 0 THEN
-    ALTER TABLE public.evidence
-      ADD CONSTRAINT evidence_competence_fk
+    ALTER TABLE public.observations
+      ADD CONSTRAINT observations_competence_fk
       FOREIGN KEY (user_id, skill_code)
       REFERENCES public.competences(user_id, code);
   ELSE
     RAISE NOTICE
-      'evidence_competence_fk NON posée : % preuve(s) sans compétence correspondante. Appliquer la migration du référentiel, puis réexécuter ce fichier.',
+      'observations_competence_fk NON posée : % observation(s) sans compétence correspondante. Appliquer la migration du référentiel, puis réexécuter ce fichier.',
       orphelines;
   END IF;
 END;
@@ -328,11 +328,11 @@ CREATE TABLE IF NOT EXISTS public.exercises (
   criteres            JSONB NOT NULL DEFAULT '[]'::jsonb,
   diagnostic          BOOLEAN,
   origine             TEXT NOT NULL DEFAULT 'manuel',
-  -- Retrait sans perte de preuves (calque ADR-027). Un exercice sans
+  -- Retrait sans perte d'observations (calque ADR-027). Un exercice sans
   -- tentative se supprime ; un exercice qui en porte s'archive.
   archive             BOOLEAN NOT NULL DEFAULT FALSE,
   -- Dernière correction du contenu (ADR-047). NULL si jamais retouché. Sert à
-  -- signaler qu'une preuve ancienne porte sur un énoncé qui a changé depuis.
+  -- signaler qu'une observation ancienne porte sur un énoncé qui a changé depuis.
   -- Voir `supabase/migration-exercice-edition.sql` pour une base en service.
   modifie_le          TEXT,
   -- Pourquoi il a été écrit, pas pourquoi il est servi (voir types.ts). NULL
@@ -852,7 +852,7 @@ BEGIN
       v_code := v_item #>> '{}';
       IF NOT EXISTS (SELECT 1 FROM public.competences WHERE user_id = v_uid AND domaine = v_domaine_id AND code = v_code) THEN RAISE EXCEPTION '% n''appartient pas au domaine %.', v_code, v_domaine_id; END IF;
       v_preserver :=
-        EXISTS (SELECT 1 FROM public.evidence WHERE user_id = v_uid AND skill_code = v_code)
+        EXISTS (SELECT 1 FROM public.observations WHERE user_id = v_uid AND skill_code = v_code)
         OR EXISTS (SELECT 1 FROM public.competences WHERE user_id = v_uid AND (v_code = ANY(prerequis) OR remplace_par = v_code))
         OR EXISTS (SELECT 1 FROM public.exercises WHERE user_id = v_uid AND v_code = ANY(competences))
         OR EXISTS (SELECT 1 FROM public.themes WHERE user_id = v_uid AND v_code = ANY(codes))
@@ -871,7 +871,7 @@ BEGIN
   IF v_type = 'archiver_domaine' THEN
     SELECT EXISTS (
       SELECT 1 FROM public.competences c WHERE c.user_id = v_uid AND c.domaine = v_domaine_id AND (
-        EXISTS (SELECT 1 FROM public.evidence e WHERE e.user_id = v_uid AND e.skill_code = c.code)
+        EXISTS (SELECT 1 FROM public.observations e WHERE e.user_id = v_uid AND e.skill_code = c.code)
         OR EXISTS (SELECT 1 FROM public.competences d WHERE d.user_id = v_uid AND (c.code = ANY(d.prerequis) OR d.remplace_par = c.code))
         OR EXISTS (SELECT 1 FROM public.exercises x WHERE x.user_id = v_uid AND c.code = ANY(x.competences))
         OR EXISTS (SELECT 1 FROM public.themes t WHERE t.user_id = v_uid AND c.code = ANY(t.codes))
@@ -927,7 +927,7 @@ $$;
 -- 8. RLS + index, appliqués uniformément aux tables de données
 --
 -- `domaines` et `competences` entrent dans la même boucle que les autres :
--- le référentiel est une donnée personnelle comme les preuves, pas une
+-- le référentiel est une donnée personnelle comme les observations, pas une
 -- table de référence partagée.
 -- --------------------------------------------------------------------
 
@@ -941,7 +941,7 @@ BEGIN
   DROP POLICY IF EXISTS "document_links_isolation_par_compte" ON public.document_links;
 
   FOREACH t IN ARRAY ARRAY[
-    'domaines', 'competences', 'evidence', 'exercises', 'attempts', 'sessions',
+    'domaines', 'competences', 'observations', 'exercises', 'attempts', 'sessions',
     'refus_recommandations', 'themes', 'documents', 'document_links'
   ]
   LOOP
@@ -1005,9 +1005,9 @@ CREATE POLICY "referentiel_commande_suppression" ON public.competences FOR DELET
   USING ((select auth.uid()) = user_id AND (select current_setting('app.referentiel_command', true)) = 'on');
 
 -- Accès le plus fréquent : l'état d'une compétence se recalcule à partir de
--- toutes ses preuves.
-CREATE INDEX IF NOT EXISTS evidence_user_skill_idx
-  ON public.evidence (user_id, skill_code);
+-- toutes ses observations.
+CREATE INDEX IF NOT EXISTS observations_user_skill_idx
+  ON public.observations (user_id, skill_code);
 
 CREATE INDEX IF NOT EXISTS attempts_user_exercise_idx
   ON public.attempts (user_id, exercise_id);
@@ -1093,7 +1093,7 @@ DECLARE
 BEGIN
   SELECT json_build_object(
     'profile',     (SELECT row_to_json(p) FROM profiles p WHERE p.id = uid),
-    'evidence',    COALESCE((SELECT json_agg(row_to_json(e)) FROM evidence e WHERE e.user_id = uid), '[]'::json),
+    'observations',    COALESCE((SELECT json_agg(row_to_json(e)) FROM observations e WHERE e.user_id = uid), '[]'::json),
     'exercises',   COALESCE((SELECT json_agg(row_to_json(x)) FROM exercises x WHERE x.user_id = uid), '[]'::json),
     'attempts',    COALESCE((SELECT json_agg(row_to_json(a)) FROM attempts a WHERE a.user_id = uid), '[]'::json),
     'sessions',    COALESCE((SELECT json_agg(row_to_json(s)) FROM sessions s WHERE s.user_id = uid), '[]'::json),
@@ -1236,7 +1236,7 @@ CREATE OR REPLACE FUNCTION public.admin_comptes()
 RETURNS TABLE (
   user_id UUID, email TEXT, prenom TEXT, plan TEXT, role TEXT,
   suspendu_le TIMESTAMPTZ, motif TEXT, cree_le TIMESTAMPTZ,
-  preuves BIGINT, exercices BIGINT, seances BIGINT, competences BIGINT,
+  observations BIGINT, exercices BIGINT, seances BIGINT, competences BIGINT,
   derniere_activite TIMESTAMPTZ
 )
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
@@ -1247,12 +1247,12 @@ BEGIN
 
   RETURN QUERY
   SELECT a.user_id, p.email, p.prenom, p.plan, a.role, a.suspendu_le, a.motif, a.created_at,
-    (SELECT COUNT(*) FROM public.evidence e WHERE e.user_id = a.user_id),
+    (SELECT COUNT(*) FROM public.observations e WHERE e.user_id = a.user_id),
     (SELECT COUNT(*) FROM public.exercises x WHERE x.user_id = a.user_id),
     (SELECT COUNT(*) FROM public.sessions s WHERE s.user_id = a.user_id),
     (SELECT COUNT(*) FROM public.competences c WHERE c.user_id = a.user_id),
     GREATEST(
-      (SELECT MAX(e.created_at) FROM public.evidence e WHERE e.user_id = a.user_id),
+      (SELECT MAX(e.created_at) FROM public.observations e WHERE e.user_id = a.user_id),
       (SELECT MAX(t.created_at) FROM public.attempts t WHERE t.user_id = a.user_id),
       (SELECT MAX(s.created_at) FROM public.sessions s WHERE s.user_id = a.user_id))
   FROM public.comptes_acces a
@@ -1329,7 +1329,7 @@ CREATE TABLE IF NOT EXISTS public.moteur_decisions (
   --
   -- Une décision est un fait historique : elle doit rester lisible quand la
   -- compétence visée a été supprimée depuis (ADR-027 l'autorise tant qu'aucune
-  -- preuve n'existe). Même précédent que `themes.codes` et
+  -- observation n'existe). Même précédent que `themes.codes` et
   -- `competences.prerequis`, qui n'en portent pas pour cette raison exacte.
   cible_code        TEXT,
   -- Exercice ou séance visés. NULL = la décision portait sur la compétence
@@ -1338,7 +1338,7 @@ CREATE TABLE IF NOT EXISTS public.moteur_decisions (
   -- `Facteur[]` tel que `recommend.ts` le produit — libellé, contribution,
   -- phrase. C'est le « Pourquoi ? » de P3, figé au moment où il a été montré.
   facteurs          JSONB NOT NULL DEFAULT '[]'::jsonb,
-  -- Empreinte de l'état lu : niveau, confiance, robustesse, nombre de preuves,
+  -- Empreinte de l'état lu : niveau, confiance, robustesse, nombre d'observations,
   -- jours depuis la dernière. Pas l'état entier — ce qu'il faut pour rejouer
   -- la décision et comprendre ce qu'elle voyait.
   etat_entree       JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -1354,10 +1354,10 @@ CREATE TABLE IF NOT EXISTS public.moteur_decisions (
 --
 --   reussite  → 1re tentative terminée sur `cible_ref` après `emise_le`
 --   duree     → la même tentative, colonne `duree_min` (42 lignes existent déjà)
---   retention → 1re preuve sur `cible_code` après `horizon_le`
+--   retention → 1re observation sur `cible_code` après `horizon_le`
 --
 -- C'est la différence de fond avec le modèle qui a inspiré ce chantier :
--- stocker les résultats aurait dupliqué `attempts` et `evidence`, et créé une
+-- stocker les résultats aurait dupliqué `attempts` et `observations`, et créé une
 -- seconde vérité à synchroniser. Une prédiction sans fait résolvant reste EN
 -- ATTENTE, jamais comptée comme un échec (P2).
 -- ---------------------------------------------------------------------
@@ -1523,7 +1523,7 @@ CREATE INDEX IF NOT EXISTS moteur_reglages_user_applique_idx
 --
 -- `remplace_par` est mono-value et compte zero ligne : il ne peut pas dire
 -- qu'une competence en devient quatre, ce que produit une atomisation.
--- Une preuve ne bouge JAMAIS : la scission est seche.
+-- Une observation ne bouge JAMAIS : la scission est seche.
 --
 -- Posee le 18/08/2026 par `migrations/20260818160000_competence_succession.sql`.
 -- --------------------------------------------------------------------
@@ -1539,7 +1539,7 @@ CREATE TABLE IF NOT EXISTS public.competence_succession (
   PRIMARY KEY (user_id, ancien_code, nouveau_code),
   -- Les deux clés étrangères sont réelles : contrairement à une décision du
   -- moteur, une succession ne doit pas survivre à la disparition de ses deux
-  -- bouts. Une compétence qui porte une succession porte des preuves, donc
+  -- bouts. Une compétence qui porte une succession porte des observations, donc
   -- s'archive et ne se supprime pas (ADR-027) — la contrainte est tenable.
   FOREIGN KEY (user_id, ancien_code)  REFERENCES public.competences(user_id, code),
   FOREIGN KEY (user_id, nouveau_code) REFERENCES public.competences(user_id, code),

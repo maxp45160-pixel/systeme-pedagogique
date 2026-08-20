@@ -36,7 +36,7 @@ export interface CompteAdministre {
   suspenduLe: string | null;
   motif: string | null;
   creeLe: string | null;
-  preuves: number;
+  observations: number;
   exercices: number;
   seances: number;
   competences: number;

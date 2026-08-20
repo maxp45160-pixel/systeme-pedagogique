@@ -24,7 +24,7 @@
  * ⚠️ **Aucune fonction de ce module ne produit d'indice sur la personne.**
  * L'écart est rendu sous la forme des deux valeurs qui le composent, jamais
  * d'un score agrégé. Un « indice de biais » serait un nombre porté sur
- * quelqu'un, sans preuve, et fabriqué à partir d'une seule observation — la
+ * quelqu'un, sans observation, et fabriqué à partir d'une seule observation — la
  * forme exacte de ce que P2 et P3 interdisent.
  */
 

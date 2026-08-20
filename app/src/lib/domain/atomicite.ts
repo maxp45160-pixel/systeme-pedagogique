@@ -21,7 +21,7 @@
  * | **Au moins un des quatre** | **67 (58 %)** |
  *
  * Le cas qui résume tout — LOG-01, 192 caractères, et la compétence la **mieux
- * mesurée** du système avec cinq preuves :
+ * mesurée** du système avec cinq observations :
  *
  * > « Modéliser **et** résoudre un problème de gestion de stock à demande
  * > déterministe **ou** variable (quantité économique**,** point de commande**,**

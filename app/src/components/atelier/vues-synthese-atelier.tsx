@@ -211,7 +211,7 @@ export function VueTousLesDomaines({
           nomElement={domaineASupprimer.nom}
           typeElement="domaine"
           mode="archivage"
-          explication="Ce domaine et ses compétences seront retirés du pilotage actif. Toutes les preuves d'apprentissage et historiques restent fidèlement conservés dans le système."
+          explication="Ce domaine et ses compétences seront retirés du pilotage actif. Toutes les observations d'apprentissage et historiques restent fidèlement conservés dans le système."
           texteBoutonConfirmer="Confirmer l’archivage"
           onConfirmer={async () => {
             await archiverDomaine(domaineASupprimer.id);

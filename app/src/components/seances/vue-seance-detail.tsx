@@ -143,7 +143,7 @@ export async function VueSeanceDetail({
     return impactTentative({
       exercice,
       tentative,
-      preuves: ctx.preuvesEffectives,
+      observations: ctx.observationsEffectives,
       skillsParCode: ctx.referentiel.parCode,
       calibrations: ctx.calibrations,
       now: ctx.now,
@@ -161,7 +161,7 @@ export async function VueSeanceDetail({
         const impact = impactTentative({
           exercice,
           tentative,
-          preuves: ctx.preuvesEffectives,
+          observations: ctx.observationsEffectives,
           skillsParCode: ctx.referentiel.parCode,
           calibrations: ctx.calibrations,
           now: ctx.now,
@@ -393,7 +393,7 @@ export async function VueSeanceDetail({
               )}
               {/*
                 La porte de sortie d'une séance qu'on ne veut pas mener. Elle
-                n'efface rien : les exercices déjà menés gardent leurs preuves,
+                n'efface rien : les exercices déjà menés gardent leurs observations,
                 et la séance reste relisible. Sans elle, une séance ouverte au
                 mauvais moment restait ouverte indéfiniment.
               */}
@@ -437,7 +437,7 @@ export async function VueSeanceDetail({
                 {/*
                   L'impact cumulé n'est présenté qu'à la clôture normale. Sur
                   une séance abandonnée, il enroberait le travail dans un bilan
-                  de séance « réussie » que personne n'a validé — les preuves
+                  de séance « réussie » que personne n'a validé — les observations
                   des exercices menés existent, elles se lisent exercice par
                   exercice ci-dessous.
                 */}
@@ -473,7 +473,7 @@ export async function VueSeanceDetail({
                       {typeof seance.dureeMin === "number" && <p className="text-texte-attenue">Durée observée : {formatDuree(seance.dureeMin)}</p>}
                       {statut === "abandonnee" && (
                         <p className="text-texte-attenue">
-                          Ce qui a été mené garde ses preuves : un abandon ne retire rien.
+                          Ce qui a été mené garde ses observations : un abandon ne retire rien.
                         </p>
                       )}
                       {reprenable && (

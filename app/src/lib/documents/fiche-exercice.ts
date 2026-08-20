@@ -14,7 +14,7 @@ import { ajouterDansSection } from "./sections-markdown";
  * ## Ce qu'elle n'est pas
  *
  * Ce n'est pas une preuve. La preuve reste `preuve-<tentative>` : un document
- * figé par snapshot, une tentative à la fois, cité par `SkillEvidence`. La
+ * figé par snapshot, une tentative à la fois, cité par `SkillObservation`. La
  * fiche, elle, est éditoriale et vivante — une par exercice, enrichie à chaque
  * passage.
  *
@@ -54,8 +54,8 @@ function listeMarkdown(valeurs: readonly string[]): string[] {
  * Une ligne de passage : ce qui a été observé, daté, et où le retrouver.
  *
  * Le résultat est nommé tel quel — « réussi », « partiel », « échoué » — sans
- * être traduit en valeur. Le lien mène à la preuve figée, qui elle porte la
- * mesure.
+ * être traduit en valeur. Le lien mène à la preuve figée, qui porte la
+ * production d'origine ; l'Observation structurée reste dans le journal.
  */
 export function lignePassage(tentative: ExerciseAttempt): string {
   const jour = (tentative.fin ?? tentative.debut).slice(0, 10);

@@ -80,11 +80,11 @@ export async function reinitialiserDonneesCompteAction(
   verifier("purge des documents", errDocs);
 
   // 3. Suppression des traces d'apprentissage et du journal
-  const { error: errPreuves } = await dorsale.supabase
-    .from("evidence")
+  const { error: errObservations } = await dorsale.supabase
+    .from("observations")
     .delete()
     .eq("user_id", userId);
-  verifier("purge des preuves", errPreuves);
+  verifier("purge des observations", errObservations);
 
   const { error: errTentatives } = await dorsale.supabase
     .from("attempts")

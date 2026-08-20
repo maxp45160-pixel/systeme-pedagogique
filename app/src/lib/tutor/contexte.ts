@@ -157,7 +157,7 @@ export interface SectionContexte {
 export interface ContextePedagogique {
   /** Bloc stable : protocoles. Mis en cache par l'API. */
   systemeStable: string;
-  /** Bloc variable : profil courant dérivé des preuves. */
+  /** Bloc variable : profil courant dérivé des observations. */
   systemeProfil: string;
   /**
    * Outils par lesquels le tuteur propose (lot 3.2).
@@ -213,13 +213,13 @@ async function lireFichier(relatif: string): Promise<string | null> {
  * Sérialise l'état des compétences pour le tuteur.
  *
  * Chaque ligne porte le niveau, la confiance, la robustesse et le nombre de
- * preuves — de sorte que le tuteur puisse raisonner sur la fiabilité de
+ * observations — de sorte que le tuteur puisse raisonner sur la fiabilité de
  * l'évaluation et non seulement sur le niveau affiché.
  */
 function serialiserProfil(ctx: Contexte): string {
   const lignes: string[] = [];
 
-  lignes.push("# ÉTAT COURANT DU PROFIL (calculé à partir du journal de preuves)");
+  lignes.push("# ÉTAT COURANT DU PROFIL (calculé à partir du journal d'observations)");
   lignes.push("");
   lignes.push(`Date : ${formatDateCourte(ctx.now.toISOString())}`);
 
@@ -240,7 +240,7 @@ function serialiserProfil(ctx: Contexte): string {
       `Ta tâche est de construire ce référentiel AVEC l'utilisateur, pas de le deviner. Interroge-le d'abord sur ce qu'il veut savoir faire et dans quel but ; propose ensuite une première branche avec l'outil ${OUTIL_REFERENTIEL}.`,
     );
     lignes.push(
-      "Ne propose ni preuve ni exercice tant qu'aucune compétence n'existe : ils n'auraient rien à quoi se rattacher.",
+      "Ne propose ni observation ni exercice tant qu'aucune compétence n'existe : ils n'auraient rien à quoi se rattacher.",
     );
     lignes.push("");
     lignes.push(serialiserProfilDeclare(ctx.donnees.user));
@@ -249,14 +249,14 @@ function serialiserProfil(ctx: Contexte): string {
 
   lignes.push(
     `Progression globale : ${
-      ctx.global.scoreGlobal === null ? "non calculable (aucune preuve)" : `${ctx.global.scoreGlobal}/100`
+      ctx.global.scoreGlobal === null ? "non calculable (aucune observation)" : `${ctx.global.scoreGlobal}/100`
     } · confiance ${ctx.global.confiance}`,
   );
   lignes.push(
-    `Couverture : ${ctx.global.competencesEvaluees}/${ctx.global.competencesTotal} compétences évaluées · ${ctx.global.nombrePreuves} preuve(s) directe(s)`,
+    `Couverture : ${ctx.global.competencesEvaluees}/${ctx.global.competencesTotal} compétences évaluées · ${ctx.global.nombreObservations} observation(s) directe(s)`,
   );
   lignes.push(
-    `Périmètre de travail : seules les compétences listées ci-dessous sont suivies. N'emploie aucun autre code dans une proposition de preuve ou d'exercice — il serait rejeté. Pour en ajouter une, appelle ${OUTIL_REFERENTIEL} ; l'utilisateur validera.`,
+    `Périmètre de travail : seules les compétences listées ci-dessous sont suivies. N'emploie aucun autre code dans une proposition d'observation ou d'exercice — il serait rejeté. Pour en ajouter une, appelle ${OUTIL_REFERENTIEL} ; l'utilisateur validera.`,
   );
   lignes.push("");
 
@@ -274,12 +274,12 @@ function serialiserProfil(ctx: Contexte): string {
   // chaque ligne : même information, plusieurs milliers de caractères de moins
   // dans le contexte envoyé au modèle.
   lignes.push(
-    "Colonnes : code | niveau/5 | score/5 | confiance | robustesse | preuves/contextes | jours depuis la dernière preuve | intitulé",
+    "Colonnes : code | niveau/5 | score/5 | confiance | robustesse | observations/contextes | jours depuis la dernière observation | intitulé",
   );
   lignes.push(
-    "« — » = aucune preuve, donc aucune valeur dérivable (ce n'est pas un zéro). Le suffixe « ?D » marque une hypothèse issue de la formation déclarée, non vérifiée, de niveau de preuve D — elle n'autorise aucun niveau affiché.",
+    "« — » = aucune observation, donc aucune valeur dérivable (ce n'est pas un zéro). Le suffixe « ?D » marque une hypothèse issue de la formation déclarée, non vérifiée, de niveau d'observation D — elle n'autorise aucun niveau affiché.",
   );
-  lignes.push("« ⚠n » = n preuve(s) contradictoire(s) conservée(s) : confiance réduite, niveau maintenu.");
+  lignes.push("« ⚠n » = n observation(s) contradictoire(s) conservée(s) : confiance réduite, niveau maintenu.");
   lignes.push("");
 
   // Seuls les domaines du périmètre actif : un en-tête suivi de rien laisserait
@@ -291,7 +291,7 @@ function serialiserProfil(ctx: Contexte): string {
     const etats = ctx.etats.filter((e) => e.skill.domaine === domaine.id);
     lignes.push(`## ${domaine.nom.toUpperCase()}`);
     for (const e of etats) {
-      if (e.preuves.length === 0) {
+      if (e.observations.length === 0) {
         const hyp = e.skill.hypotheseInitiale ? " ?D" : "";
         lignes.push(`${e.skill.code} | —${hyp} | ${e.skill.intitule}`);
         continue;
@@ -300,7 +300,7 @@ function serialiserProfil(ctx: Contexte): string {
       lignes.push(
         `${e.skill.code} | ${e.niveau} | ${e.score?.toFixed(1)} | ${e.confiance} | ${e.robustesse?.toFixed(
           2,
-        )} | ${e.preuves.length}/${e.contextesTestes.length} | ${e.joursDepuisDernierePreuve}j${contra} | ${
+        )} | ${e.observations.length}/${e.contextesTestes.length} | ${e.joursDepuisDerniereObservation}j${contra} | ${
           e.skill.intitule
         }`,
       );
@@ -312,7 +312,7 @@ function serialiserProfil(ctx: Contexte): string {
 }
 
 function serialiserRecent(ctx: Contexte): string {
-  const recentes = [...ctx.preuvesEffectives]
+  const recentes = [...ctx.observationsEffectives]
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 12);
   if (recentes.length === 0) {
@@ -321,7 +321,7 @@ function serialiserRecent(ctx: Contexte): string {
   // Le libellé de l'autonomie (« A3 — Résolution autonome ») n'est pas répété
   // ici : le protocole d'évaluation §5, déjà dans le contexte, les définit.
   const lignes = [
-    "# TRAVAIL RÉCENT (12 dernières preuves)",
+    "# TRAVAIL RÉCENT (12 dernières observations)",
     "",
     "Colonnes : date | compétence | type | résultat | autonomie (§5) | qualité | contexte | commentaire de l'utilisateur",
     "",
@@ -351,7 +351,7 @@ const COMPETENCES_TRAJECTOIRE_MAX = 8;
  * ## Ce qui manquait
  *
  * Le contexte ne portait qu'une photographie : une ligne par compétence avec
- * son niveau du jour, les 12 dernières preuves, et une calibration tirée d'au
+ * son niveau du jour, les 12 dernières observations, et une calibration tirée d'au
  * plus 3 tentatives réduites à une phrase. Sur cette base, aucun modèle ne peut
  * répondre à « est-ce que cette erreur revient ? » — non parce qu'il raisonne
  * mal, mais parce que l'information n'était pas là.
@@ -375,7 +375,7 @@ const COMPETENCES_TRAJECTOIRE_MAX = 8;
  */
 function serialiserTrajectoire(ctx: Contexte): string | null {
   const skillsParCode = new Map(ctx.referentiel.skills.map((s) => [s.code, s]));
-  const evenements = evenementsRecents(ctx.preuvesEffectives, skillsParCode, 10, ctx.now);
+  const evenements = evenementsRecents(ctx.observationsEffectives, skillsParCode, 10, ctx.now);
 
   // Les points à retravailler, par compétence, du plus ancien au plus récent.
   // C'est la matière de « cette erreur revient » : un même point qui réapparaît
@@ -658,7 +658,7 @@ function serialiserExerciceEnCours(ctx: Contexte, exerciceId?: string): string {
     // solution arrivait d'un bloc, et la tentative ne mesurait plus rien.
     // Ici, et seulement ici, la gradation reprend le dessus : ce bloc n'existe
     // que si un exercice est ouvert.
-    "AIDE PAS À PAS, PAS DE SOLUTION D'EMBLÉE. Une étape à la fois, dans cet ordre : questionner ce qui bloque, faire expliciter l'hypothèse ou la méthode, donner un indice, corriger partiellement. Termine par une question qui rend la main. Ne livre la résolution complète que sur demande explicite, ou après plusieurs tentatives infructueuses — l'autonomie observée est ce qui fonde la preuve, et une solution donnée trop tôt la détruit.",
+    "AIDE PAS À PAS, PAS DE SOLUTION D'EMBLÉE. Une étape à la fois, dans cet ordre : questionner ce qui bloque, faire expliciter l'hypothèse ou la méthode, donner un indice, corriger partiellement. Termine par une question qui rend la main. Ne livre la résolution complète que sur demande explicite, ou après plusieurs tentatives infructueuses — l'autonomie observée est ce qui fonde l'observation, et une solution donnée trop tôt la détruit.",
     "",
     `Titre : ${cible.titre}`,
     `Compétence(s) : ${cible.competences.join(", ")}`,
@@ -668,7 +668,7 @@ function serialiserExerciceEnCours(ctx: Contexte, exerciceId?: string): string {
   if (tentative) {
     const total = cible.indices.length;
     lignes.push(
-      `Indices consultés : ${tentative.indicesUtilises} sur ${total}. NE DONNE PAS un indice plus explicite que ceux qui restent fermés — la personne a choisi de ne pas les ouvrir, et l'autonomie observée est ce qui fonde sa preuve.`,
+      `Indices consultés : ${tentative.indicesUtilises} sur ${total}. NE DONNE PAS un indice plus explicite que ceux qui restent fermés — la personne a choisi de ne pas les ouvrir, et l'autonomie observée est ce qui fonde sa observation.`,
     );
   }
 
@@ -684,7 +684,7 @@ function serialiserExerciceEnCours(ctx: Contexte, exerciceId?: string): string {
   }
 
   // La correction n'est JAMAIS transmise : le tuteur la recopierait sur
-  // demande, et la preuve produite ne vaudrait plus rien.
+  // demande, et l'observation produite ne vaudrait plus rien.
   return lignes.join("\n");
 }
 
@@ -773,7 +773,7 @@ jamais qu'une chose « a été ajoutée » ou « mise à jour » : tu proposes, 
    Le profil dit ce que la personne pense savoir et vise ; les compétences
    disent ce qui a été démontré. Quand les deux divergent nettement — un
    objectif qui suppose un niveau que rien n'étaye, une formation déclarée sur
-   un domaine dont les preuves sont faibles —, nomme l'écart, une fois,
+   un domaine dont les observations sont faibles —, nomme l'écart, une fois,
    factuellement, en citant les deux côtés. Ce n'est pas un jugement : c'est
    l'information la plus utile que tu puisses rendre, et personne d'autre n'est
    placé pour la voir. N'en fais pas un refrain.

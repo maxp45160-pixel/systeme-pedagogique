@@ -203,7 +203,7 @@ export function CarteProchaineAction({
               {DIFFICULTES[exercice?.difficulte ?? difficulteCible]}
             </Etiquette>
             <Etiquette>≈ {formatDuree(dureeEstimeeMin)}</Etiquette>
-            {etat.preuves.length === 0 && <Etiquette ton="info">Diagnostic</Etiquette>}
+            {etat.observations.length === 0 && <Etiquette ton="info">Diagnostic</Etiquette>}
             {revision.due && <Etiquette ton="alerte">Révision due</Etiquette>}
           </div>
 

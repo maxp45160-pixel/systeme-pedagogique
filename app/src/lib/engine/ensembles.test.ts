@@ -6,7 +6,7 @@ import type {
   Difficulte,
   Exercise,
   LearningSession,
-  SkillEvidence,
+  SkillObservation,
 } from "@/lib/domain/types";
 
 /*
@@ -52,13 +52,13 @@ function exercice(competences: string[], archive = false): Exercise {
   };
 }
 
-function preuve(skill: string, combinees: string[], refExercice: string): SkillEvidence {
+function observation(skill: string, combinees: string[], refExercice: string): SkillObservation {
   return {
-    id: `ev-${++compteur}`,
+    id: `obs-${++compteur}`,
     skillCode: skill,
     date: "2026-08-10T08:00:00.000Z",
     type: "exercice",
-    niveauPreuve: "A",
+    niveauObservation: "A",
     autonomie: "A3",
     qualite: "moyenne",
     resultat: "reussi",
@@ -85,18 +85,18 @@ const base = { themes: [] as Theme[], referentiel: REFERENTIEL_TEST };
 /* ------------------------------------------------------------------ */
 
 describe("pairesObservees — compter des sources, pas des occurrences", () => {
-  it("ne compte qu'une source pour les preuves d'un même exercice", () => {
+  it("ne compte qu'une source pour les observations d'un même exercice", () => {
     /*
-      Un exercice à trois compétences écrit trois preuves qui se citent
+      Un exercice à trois compétences écrit trois observations qui se citent
       mutuellement. Les compter séparément ferait passer un seul travail pour
       trois observations concordantes.
     */
     const paires = pairesObservees({
       sessions: [],
       exercices: [],
-      preuves: [
-        preuve("DEV-01", ["DEV-02"], "ex-partage"),
-        preuve("DEV-02", ["DEV-01"], "ex-partage"),
+      observations: [
+        observation("DEV-01", ["DEV-02"], "ex-partage"),
+        observation("DEV-02", ["DEV-01"], "ex-partage"),
       ],
       codesRetenus: CODES_ACTIFS,
     });
@@ -110,7 +110,7 @@ describe("pairesObservees — compter des sources, pas des occurrences", () => {
     const paires = pairesObservees({
       sessions: [seance(["DEV-01", "STAT-01"])],
       exercices: [],
-      preuves: [],
+      observations: [],
       codesRetenus: CODES_ACTIFS,
     });
 
@@ -121,7 +121,7 @@ describe("pairesObservees — compter des sources, pas des occurrences", () => {
     const paires = pairesObservees({
       sessions: [],
       exercices: [exercice(["DEV-01", "DEV-02"], true)],
-      preuves: [],
+      observations: [],
       codesRetenus: CODES_ACTIFS,
     });
 
@@ -132,7 +132,7 @@ describe("pairesObservees — compter des sources, pas des occurrences", () => {
     const paires = pairesObservees({
       sessions: [seance(["DEV-01", "DEV-02"])],
       exercices: [exercice(["DEV-01", "DEV-02"])],
-      preuves: [],
+      observations: [],
       codesRetenus: CODES_ACTIFS,
     });
 
@@ -147,7 +147,7 @@ describe("ensemblesProposes — la règle anti-circularité", () => {
       ...base,
       sessions: [seance(["DEV-01", "DEV-02", "DEV-03", "DEV-04"])],
       exercices: [],
-      preuves: [],
+      observations: [],
     });
 
     expect(resultat.propositions).toEqual([]);
@@ -161,7 +161,7 @@ describe("ensemblesProposes — la règle anti-circularité", () => {
       ...base,
       sessions: [seance(["DEV-01", "DEV-02"]), seance(["DEV-01", "DEV-02"])],
       exercices: [],
-      preuves: [],
+      observations: [],
     });
 
     expect(resultat.propositions).toHaveLength(1);
@@ -179,7 +179,7 @@ describe("ensemblesProposes — la règle anti-circularité", () => {
         seance(["DEV-02", "DEV-03"]),
       ],
       exercices: [],
-      preuves: [],
+      observations: [],
     });
 
     expect(resultat.propositions).toHaveLength(1);
@@ -192,7 +192,7 @@ describe("ensemblesProposes — la règle anti-circularité", () => {
       themes: [theme(["DEV-01", "DEV-02", "DEV-03"])],
       sessions: [seance(["DEV-01", "DEV-02"]), seance(["DEV-01", "DEV-02"])],
       exercices: [],
-      preuves: [],
+      observations: [],
     });
 
     expect(resultat.propositions).toEqual([]);
@@ -204,7 +204,7 @@ describe("ensemblesProposes — la règle anti-circularité", () => {
       themes: [theme(["DEV-01", "DEV-02"], true)],
       sessions: [seance(["DEV-01", "DEV-02"]), seance(["DEV-01", "DEV-02"])],
       exercices: [],
-      preuves: [],
+      observations: [],
     });
 
     expect(resultat.propositions).toHaveLength(1);
@@ -215,7 +215,7 @@ describe("ensemblesProposes — la règle anti-circularité", () => {
       ...base,
       sessions: [seance(["DEV-01", "DEV-02"]), seance(["DEV-01", "DEV-02"])],
       exercices: [],
-      preuves: [],
+      observations: [],
     });
 
     expect(resultat.propositions[0].motif).toContain("2 travaux distincts");
@@ -226,7 +226,7 @@ describe("ensemblesProposes — la règle anti-circularité", () => {
       ...base,
       sessions: [seance(["DEV-01"])],
       exercices: [exercice(["DEV-02"])],
-      preuves: [],
+      observations: [],
     });
 
     expect(resultat.propositions).toEqual([]);
@@ -245,7 +245,7 @@ describe("ensemblesProposes — la règle anti-circularité", () => {
         seance(["DEV-05", "DEV-06"]),
       ],
       exercices: [],
-      preuves: [],
+      observations: [],
     });
 
     expect(resultat.propositions).toHaveLength(2);

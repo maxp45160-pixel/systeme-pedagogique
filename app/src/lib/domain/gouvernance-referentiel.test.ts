@@ -40,7 +40,7 @@ describe("gouvernance du référentiel", () => {
   /*
    * Le défaut que cette étape corrige : le contrôle de doublon était borné au
    * domaine, donc un savoir-faire déjà au référentiel repartait sous un second
-   * code dès qu'on changeait de domaine — deux flux de preuves pour une seule
+   * code dès qu'on changeait de domaine — deux flux d'observations pour une seule
    * capacité.
    */
   it("ne recrée pas une compétence que le référentiel porte déjà dans un autre domaine", () => {
@@ -127,7 +127,7 @@ describe("gouvernance du référentiel", () => {
   });
 
   /*
-   * Une compétence archivée garde ses preuves (ADR-027) et son intitulé reste
+   * Une compétence archivée garde ses observations (ADR-027) et son intitulé reste
    * résoluble : la recréer sous un code neuf couperait l'historique en deux.
    */
   it("compte une compétence archivée comme déjà au référentiel", () => {

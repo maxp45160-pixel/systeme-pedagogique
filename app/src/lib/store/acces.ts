@@ -65,7 +65,7 @@ export async function estAdministrateur(): Promise<boolean> {
  * Passe par la fonction SQL et non par une lecture de tables : RLS interdit —
  * à raison — de lire les lignes d'autrui depuis le client, et c'est exactement
  * ce qu'il faut pour compter. La fonction ne renvoie que des nombres et
- * l'identité ; aucun énoncé, aucune preuve, aucun document n'en sort (P8).
+ * l'identité ; aucun énoncé, aucune observation, aucun document n'en sort (P8).
  */
 export async function listerComptes(): Promise<CompteAdministre[]> {
   const { supabase } = await dorsaleCompte();
@@ -82,7 +82,7 @@ export async function listerComptes(): Promise<CompteAdministre[]> {
     suspenduLe: (l.suspendu_le as string | null) ?? null,
     motif: (l.motif as string | null) ?? null,
     creeLe: (l.cree_le as string | null) ?? null,
-    preuves: Number(l.preuves ?? 0),
+    observations: Number(l.observations ?? 0),
     exercices: Number(l.exercices ?? 0),
     seances: Number(l.seances ?? 0),
     competences: Number(l.competences ?? 0),

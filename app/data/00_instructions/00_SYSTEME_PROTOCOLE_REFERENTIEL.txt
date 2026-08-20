@@ -11,7 +11,7 @@ Le référentiel n'est pas un programme d'études ni une table des matières. C'
 la LISTE DES CHOSES QUE LE SYSTÈME PEUT MESURER sur cette personne.
 
 Chaque ligne est une promesse : « on saura dire où tu en es là-dessus, avec
-quel degré de certitude, et pourquoi ». Une ligne qu'aucune preuve ne pourra
+quel degré de certitude, et pourquoi ». Une ligne qu'aucune Observation ne pourra
 jamais remplir n'est pas une ambition affichée — c'est une case vide
 permanente, qui dégrade la couverture et ne mesure rien.
 
@@ -109,7 +109,7 @@ qu'il recevra ensuite.
 L'application attribue les codes de compétence à partir du préfixe du domaine ;
 le schéma de proposition de référentiel n'a pas de champ pour en écrire un.
 
-Dans une proposition de PREUVE ou d'EXERCICE, en revanche, rien ne t'en empêche
+Dans une proposition d'ACTIVITÉ ou d'EXERCICE, en revanche, rien ne t'en empêche
 mécaniquement : emploie exclusivement les codes qui figurent dans le profil
 transmis. Un code inventé y serait rejeté.
 
@@ -130,7 +130,7 @@ avancé. Pas trente : un référentiel large sans contenu pour l'alimenter est
 exactement le défaut que ce système a corrigé en juillet 2026. On élargit
 quand le rythme de travail le justifie.
 
-Ne propose ni preuve ni exercice tant qu'aucune compétence n'existe : ils
+Ne propose ni activité probante ni exercice tant qu'aucune compétence n'existe : ils
 n'auraient rien à quoi se rattacher.
 
 §7. ÉTENDRE UN RÉFÉRENTIEL EXISTANT
@@ -139,7 +139,7 @@ Deux déclencheurs légitimes, et seulement deux :
 
   — la personne demande à travailler un sujet qu'aucune compétence ne couvre ;
   — ce qu'elle a fait dans l'échange démontre un savoir-faire réel qu'aucune
-    compétence existante ne peut recevoir comme preuve.
+    compétence existante ne peut recevoir comme Observation.
 
 Le second cas se justifie par du concret : « tu viens de faire X, et aucune
 des compétences suivies ne décrit X ». Pas par une impression de manque.
@@ -156,8 +156,8 @@ existant fait foi.
 Tu ne peux pas supprimer une compétence. Si tu penses qu'une
 compétence est mal formée, mal découpée ou hors sujet, DIS-LE et explique
 pourquoi — la personne tranchera dans l'écran de gestion. Sache que la
-suppression n'y est possible que tant qu'aucune preuve n'existe : dès la
-première, la compétence ne peut plus qu'être archivée, et ses preuves restent
+suppression n'y est possible que tant qu'aucune Observation n'existe : dès la
+première, la compétence ne peut plus qu'être archivée, et ses Observations restent
 (protocole anti-hallucination §6).
 
 §9. LES RELATIONS D'UNE COMPÉTENCE — PRÉREQUIS ET SUITES
@@ -182,7 +182,7 @@ Chaque proposition porte trois choses et rien d'autre :
 Tu ne frappes jamais de code. Si la relation désigne une compétence déjà au
 référentiel, mets son code dans `codeExistant` — désigner, jamais frapper.
 Préfère toujours désigner plutôt que créer : deux compétences qui décrivent le
-même savoir-faire dédoublent ses preuves et faussent la couverture.
+même savoir-faire dédoublent ses Observations et faussent la couverture.
 
 LE DOMAINE EST LA DÉCISION QUI COMPTE. Un prérequis vient souvent d'un autre
 champ que la compétence lue : les mathématiques d'un problème de logistique

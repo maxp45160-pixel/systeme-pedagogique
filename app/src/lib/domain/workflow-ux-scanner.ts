@@ -5,7 +5,7 @@
  *   1. 🎯 Mode "atomique" : exhaustivité totale (pages, sous-vues, onglets, micro-interactions,
  *      canvas D3, accordéons, pomodoro, tuteur IA, modales, tiroirs et Server Actions).
  *   2. 🧭 Mode "macro" : vue de synthèse exécutive épurée (8-12 macro-pôles maîtres articulant
- *      le funnel de valeur pédagogique : Intention → Séance → 3 Actes → Preuve → Progression).
+ *      le funnel de valeur pédagogique : Intention → Séance → 3 Actes → Observation → Progression).
  *
  * ## Frontière (AGENTS.md)
  *
@@ -106,10 +106,10 @@ function construireMacroSynthese(
   ajouterNoeud({
     id: "ux:exercice-bilan-final",
     type: "etape",
-    libelle: "Preuve forgée & Bilan",
+    libelle: "Observation forgée & Bilan",
     groupe: "exercice",
     badge: "Capitalisation",
-    description: "Enregistrement factuel de la preuve d'apprentissage (Invariant 2)",
+    description: "Enregistrement factuel de l'observation d'apprentissage (Invariant 2)",
   });
 
   ajouterNoeud({
@@ -275,7 +275,7 @@ function construireMacroSynthese(
     declencheur: "Ouverture du workspace documentaire",
   });
 
-  // 3. Parcours d'exercice et forge de preuve
+  // 3. Parcours d'exercice et forge d'observation
   // La boucle des 3 Actes se joue désormais dans la séance (ADR-079) : le
   // cahier du workspace `/seances` tient la résolution, la comparaison et la
   // mesure, il n'y a plus de fiche d'exercice autonome.
@@ -308,7 +308,7 @@ function construireMacroSynthese(
     target: "page:/progression",
     type: "transition",
     libelle: "Inscrire dans l'historique",
-    declencheur: "Incrémentation des preuves et série",
+    declencheur: "Incrémentation des observations et série",
   });
 
   // 4. Boucle inverse Atelier -> Séances
@@ -557,7 +557,7 @@ function construireUxAtomique(
       source: "ux:exercice-mesurer",
       target: bilanId,
       type: "transition",
-      libelle: "Enregistrer la preuve",
+      libelle: "Enregistrer l'observation",
       declencheur: "Auto-évaluation validée → terminerExercice",
     });
     connecter({
@@ -583,7 +583,7 @@ function construireUxAtomique(
         target: abandonId,
         type: "transition",
         libelle: "Tentative abandonnée",
-        declencheur: "Aucune preuve enregistrée",
+        declencheur: "Aucune observation enregistrée",
       });
     }
 

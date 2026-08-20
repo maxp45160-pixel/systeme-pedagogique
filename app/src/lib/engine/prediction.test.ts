@@ -5,7 +5,7 @@
  * l'exige : une prédiction est un pari, pas une mesure. Deux risques, et le
  * second est celui qui ruinerait le chantier entier :
  *
- * - **fabriquer** une probabilité là où aucune preuve n'existe. Un 0,5 par
+ * - **fabriquer** une probabilité là où aucune observation n'existe. Un 0,5 par
  *   défaut confondrait « je ne sais pas » et « une chance sur deux » (P2), et
  *   la métrique de calibration serait ensuite calculée sur des paris que le
  *   moteur n'avait aucun droit de prendre ;
@@ -45,10 +45,10 @@ function ilYa(jours: number): string {
 function etat(options: {
   niveau?: number | null;
   robustesse?: number | null;
-  preuves?: number;
+  observations?: number;
   joursDepuis?: number | null;
 }): SkillState {
-  const nombre = options.preuves ?? 2;
+  const nombre = options.observations ?? 2;
   return {
     skill: { code: "LOG-01", intitule: "Test", domaine: "logistique" },
     niveau: options.niveau === undefined ? 3 : options.niveau,
@@ -56,15 +56,15 @@ function etat(options: {
     confiance: "moyenne",
     robustesse: options.robustesse === undefined ? 0.5 : options.robustesse,
     dimensions: {},
-    preuves: Array.from({ length: nombre }, () => ({ date: ilYa(5) })),
+    observations: Array.from({ length: nombre }, () => ({ date: ilYa(5) })),
     contextesTestes: ["exercice:logistique/calcul"],
-    dernierePreuve: nombre > 0 ? ilYa(5) : null,
-    joursDepuisDernierePreuve:
+    derniereObservation: nombre > 0 ? ilYa(5) : null,
+    joursDepuisDerniereObservation:
       options.joursDepuis === undefined ? 5 : options.joursDepuis,
     contradictions: [],
     prochaineEtape: "",
     statut: nombre > 0 ? "evalue" : "non-evalue",
-    explication: { resume: "", facteurs: [], nombrePreuves: nombre, reserves: [] },
+    explication: { resume: "", facteurs: [], nombreObservations: nombre, reserves: [] },
   } as unknown as SkillState;
 }
 
@@ -83,8 +83,8 @@ function tentative(dureeMin: number): Pick<
 /* ------------------------------------------------------------------ */
 
 describe("predireReussite", () => {
-  it("ne prédit RIEN sans preuve — l'absence de mesure n'est pas une chance sur deux", () => {
-    expect(predireReussite(etat({ niveau: null, preuves: 0 }), 2)).toBeNull();
+  it("ne prédit RIEN sans observation — l'absence de mesure n'est pas une chance sur deux", () => {
+    expect(predireReussite(etat({ niveau: null, observations: 0 }), 2)).toBeNull();
   });
 
   it("rend la probabilité calibrée quand la difficulté tombe sur celle du niveau", () => {
@@ -139,9 +139,9 @@ describe("predireDuree", () => {
 });
 
 describe("predireRetention", () => {
-  it("ne prédit rien sur une compétence sans preuve — il n'y a rien à retenir", () => {
+  it("ne prédit rien sur une compétence sans observation — il n'y a rien à retenir", () => {
     expect(
-      predireRetention(etat({ niveau: null, preuves: 0, robustesse: null }), MAINTENANT),
+      predireRetention(etat({ niveau: null, observations: 0, robustesse: null }), MAINTENANT),
     ).toBeNull();
   });
 
@@ -239,7 +239,7 @@ describe("emettre", () => {
     // personne dont on ne sait rien.
     const { predictions } = emettre({
       ...commun,
-      etat: etat({ niveau: null, preuves: 0, robustesse: null, joursDepuis: null }),
+      etat: etat({ niveau: null, observations: 0, robustesse: null, joursDepuis: null }),
       exercice: EXERCICE,
     });
     expect(predictions.map((p) => p.type)).toEqual(["duree"]);

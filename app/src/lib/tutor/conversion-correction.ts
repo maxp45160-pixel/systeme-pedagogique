@@ -18,7 +18,7 @@
  *    échouer la conversion entière. Un formulaire à moitié rempli ressemble à
  *    un formulaire rempli — c'est le « demi-exercice accepté » d'ADR-031
  *    transposé au bilan. Et un bilan à moitié rempli qu'on valide écrit une
- *    preuve dont les dimensions manquent.
+ *    observation dont les dimensions manquent.
  * 2. **Le tuteur numérote à partir de 1, le formulaire indexe à partir de 0.**
  *    La bascule vit ici, une seule fois, testée. Éparpillée dans un composant,
  *    elle serait hors de portée de Vitest (ADR-039).

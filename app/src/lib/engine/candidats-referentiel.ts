@@ -30,7 +30,7 @@
  * ## Aucune arête n'est fabriquée
  *
  * Même règle que `lib/domain/graphe.ts` (ADR-056) : chaque candidat cite les
- * faits qui le motivent. Un candidat sans preuve n'est pas produit — il vaut
+ * faits qui le motivent. Un candidat sans observation n'est pas produit — il vaut
  * mieux un lot vide qu'un lot plausible.
  */
 
@@ -39,7 +39,7 @@ import type {
   ExerciseAttempt,
   Referentiel,
   Skill,
-  SkillEvidence,
+  SkillObservation,
   SkillState,
   Dimension,
 } from "@/lib/domain/types";
@@ -73,8 +73,8 @@ export const SEUIL_SIMILARITE = 0.25;
  */
 export const ECART_DIMENSION_SCISSION = 0.4;
 
-/** Preuves nécessaires de CHAQUE côté de l'écart. Une seule ne prouve rien. */
-export const PREUVES_PAR_FAMILLE_MINIMUM = 2;
+/** Observations nécessaires de CHAQUE côté de l'écart. Une seule ne prouve rien. */
+export const OBSERVATIONS_PAR_FAMILLE_MINIMUM = 2;
 
 /**
  * Minutes au-delà desquelles une compétence dépasse ce que le protocole §2e
@@ -105,7 +105,7 @@ export interface ArêteCandidate extends CandidatBase {
   /**
    * D'où vient la proposition.
    *
-   * - `usage` : co-mobilisation répétée ET ordre observable dans les preuves.
+   * - `usage` : co-mobilisation répétée ET ordre observable dans les observations.
    *   Le signal fort — il repose sur ce qui s'est réellement passé.
    * - `redaction` : la place que le tuteur a donnée à chaque compétence dans sa
    *   branche. Signal **faible** : c'est une intention de rédaction, pas une
@@ -118,7 +118,7 @@ export interface ScissionCandidate extends CandidatBase {
   genre: "scission";
   code: string;
   /** Les familles de situation où la compétence se comporte différemment. */
-  familles: { cle: string; preuves: number; dimension: Dimension; moyenne: number }[];
+  familles: { cle: string; observations: number; dimension: Dimension; moyenne: number }[];
 }
 
 export interface DormanceCandidate extends CandidatBase {
@@ -133,8 +133,8 @@ export interface ReformulationCandidate extends CandidatBase {
   intitule: string;
   /** Les règles enfreintes, pour que le tuteur sache quoi redécouper. */
   regles: string[];
-  /** Vrai si des preuves existent : la reformulation devient une scission. */
-  aDesPreuves: boolean;
+  /** Vrai si des observations existent : la reformulation devient une scission. */
+  aDesObservations: boolean;
 }
 
 export interface RangementCandidate extends CandidatBase {
@@ -142,7 +142,7 @@ export interface RangementCandidate extends CandidatBase {
   code: string;
   domaineActuel: string;
   domaineObserve: string;
-  preuves: number;
+  observations: number;
 }
 
 export type CandidatReferentiel =
@@ -155,7 +155,7 @@ export type CandidatReferentiel =
 export interface EntreesCandidats {
   referentiel: Referentiel;
   etats: SkillState[];
-  preuves: SkillEvidence[];
+  observations: SkillObservation[];
   exercices: Exercise[];
   tentatives: ExerciseAttempt[];
   /** Codes co-mobilisés par séance — `LearningSession.skillCodes`. */
@@ -178,7 +178,7 @@ function clePaire(a: string, b: string): string {
  *
  * 1. **co-mobilisation répétée** — deux codes ensemble dans `competences` d'un
  *    exercice ou `skillCodes` d'une séance, au moins deux fois ;
- * 2. **ordre stable** — l'une a une preuve réussie avant la première preuve de
+ * 2. **ordre stable** — l'une a une observation réussie avant la première observation de
  *    l'autre. C'est ce qui oriente l'arête ; sans lui on saurait qu'il y a un
  *    lien, pas dans quel sens.
  *
@@ -187,7 +187,7 @@ function clePaire(a: string, b: string): string {
  * renforcer une paire déjà co-mobilisée.
  */
 export function detecterAretes(entrees: EntreesCandidats): ArêteCandidate[] {
-  const { referentiel, preuves, exercices, seances } = entrees;
+  const { referentiel, observations, exercices, seances } = entrees;
 
   const actifs = new Set(referentiel.actifs.map((s) => s.code));
   const declarees = new Set<string>();
@@ -211,15 +211,15 @@ export function detecterAretes(entrees: EntreesCandidats): ArêteCandidate[] {
     }
   }
 
-  // Première preuve réussie, et première preuve tout court, par compétence.
+  // Première observation réussie, et première observation tout court, par compétence.
   const premiereReussite = new Map<string, string>();
-  const premierePreuve = new Map<string, string>();
-  for (const preuve of [...preuves].sort((a, b) => a.date.localeCompare(b.date))) {
-    if (!premierePreuve.has(preuve.skillCode)) {
-      premierePreuve.set(preuve.skillCode, preuve.date);
+  const premiereObservation = new Map<string, string>();
+  for (const observation of [...observations].sort((a, b) => a.date.localeCompare(b.date))) {
+    if (!premiereObservation.has(observation.skillCode)) {
+      premiereObservation.set(observation.skillCode, observation.date);
     }
-    if (preuve.resultat === "reussi" && !premiereReussite.has(preuve.skillCode)) {
-      premiereReussite.set(preuve.skillCode, preuve.date);
+    if (observation.resultat === "reussi" && !premiereReussite.has(observation.skillCode)) {
+      premiereReussite.set(observation.skillCode, observation.date);
     }
   }
 
@@ -241,15 +241,15 @@ export function detecterAretes(entrees: EntreesCandidats): ArêteCandidate[] {
     // L'ordre : celle qui est démontrée en premier est l'amont présumé.
     const reussiteA = premiereReussite.get(a);
     const reussiteB = premiereReussite.get(b);
-    const preuveA = premierePreuve.get(a);
-    const preuveB = premierePreuve.get(b);
+    const observationA = premiereObservation.get(a);
+    const observationB = premiereObservation.get(b);
 
     let amont: string | null = null;
     let aval: string | null = null;
-    if (reussiteA && preuveB && reussiteA < preuveB) {
+    if (reussiteA && observationB && reussiteA < observationB) {
       amont = a;
       aval = b;
-    } else if (reussiteB && preuveA && reussiteB < preuveA) {
+    } else if (reussiteB && observationA && reussiteB < observationA) {
       amont = b;
       aval = a;
     }
@@ -260,7 +260,7 @@ export function detecterAretes(entrees: EntreesCandidats): ArêteCandidate[] {
     const similarite = similarites.get(cle) ?? 0;
     const motifs = [
       `Co-mobilisées ${occurrences} fois dans un même exercice ou une même séance.`,
-      `${amont} a été démontrée avant la première preuve de ${aval}.`,
+      `${amont} a été démontrée avant la première observation de ${aval}.`,
     ];
     if (similarite > 0) {
       motifs.push(`Vocabulaire proche (${similarite.toFixed(2)}) — signal secondaire.`);
@@ -358,7 +358,7 @@ function aretesDepuisRedaction(
         source: "redaction",
         motifs: [
           `Dans « ${domaineId} », ${amont.code} clôt le palier « ${ORDRE_PALIERS_ARETE[i]} » et ${aval.code} ouvre « ${ORDRE_PALIERS_ARETE[i + 1]} ».`,
-          "Signal FAIBLE : c'est la place que la rédaction leur a donnée, pas une dépendance constatée dans vos preuves.",
+          "Signal FAIBLE : c'est la place que la rédaction leur a donnée, pas une dépendance constatée dans vos observations.",
         ],
       });
     }
@@ -390,13 +390,13 @@ const DIMENSIONS: Dimension[] = [
  *
  * 1. **dimensions divergentes selon la famille de situation** (ADR-083). Une
  *    même compétence à 0,9 en application dans une famille et 0,2 dans une
- *    autre, avec au moins deux preuves de chaque côté, ne mesure pas la même
+ *    autre, avec au moins deux observations de chaque côté, ne mesure pas la même
  *    chose des deux côtés ;
  * 2. **durées au-delà de ce que le protocole §2e autorise** — « prouvable en
  *    20 à 60 minutes ». Une compétence dont toutes les tentatives menées
  *    dépassent l'heure est trop large par définition du protocole.
  *
- * Les preuves repliées sur leur libellé (`familleIndeterminee`) sont écartées :
+ * Les observations repliées sur leur libellé (`familleIndeterminee`) sont écartées :
  * leur « famille » est presque un identifiant, et divergerait toujours.
  */
 export function detecterScissions(entrees: EntreesCandidats): ScissionCandidate[] {
@@ -409,15 +409,15 @@ export function detecterScissions(entrees: EntreesCandidats): ScissionCandidate[
     const familles: ScissionCandidate["familles"] = [];
 
     // --- Signal 1 : dimensions divergentes par famille ---
-    const parFamille = new Map<string, SkillEvidence[]>();
-    for (const preuve of etat.preuves) {
-      if (familleIndeterminee(preuve)) continue;
-      const cle = cleContexte(preuve);
-      parFamille.set(cle, [...(parFamille.get(cle) ?? []), preuve]);
+    const parFamille = new Map<string, SkillObservation[]>();
+    for (const observation of etat.observations) {
+      if (familleIndeterminee(observation)) continue;
+      const cle = cleContexte(observation);
+      parFamille.set(cle, [...(parFamille.get(cle) ?? []), observation]);
     }
 
     const eligibles = [...parFamille.entries()].filter(
-      ([, ps]) => ps.length >= PREUVES_PAR_FAMILLE_MINIMUM,
+      ([, ps]) => ps.length >= OBSERVATIONS_PAR_FAMILLE_MINIMUM,
     );
 
     for (const dimension of DIMENSIONS) {
@@ -430,11 +430,11 @@ export function detecterScissions(entrees: EntreesCandidats): ScissionCandidate[
             ? null
             : {
                 cle,
-                preuves: valeurs.length,
+                observations: valeurs.length,
                 moyenne: valeurs.reduce((s, v) => s + v, 0) / valeurs.length,
               };
         })
-        .filter((m): m is { cle: string; preuves: number; moyenne: number } => m !== null);
+        .filter((m): m is { cle: string; observations: number; moyenne: number } => m !== null);
 
       if (moyennes.length < 2) continue;
       const triees = [...moyennes].sort((a, b) => a.moyenne - b.moyenne);
@@ -455,7 +455,7 @@ export function detecterScissions(entrees: EntreesCandidats): ScissionCandidate[
       const exercice = exercicesParId.get(t.exerciseId);
       return exercice?.competences.includes(etat.skill.code) ?? false;
     });
-    if (menees.length >= PREUVES_PAR_FAMILLE_MINIMUM) {
+    if (menees.length >= OBSERVATIONS_PAR_FAMILLE_MINIMUM) {
       const toutesLongues = menees.every((t) => (t.dureeMin ?? 0) > DUREE_MAX_PROTOCOLE);
       if (toutesLongues) {
         const mediane = [...menees.map((t) => t.dureeMin ?? 0)].sort((a, b) => a - b)[
@@ -484,17 +484,17 @@ export function detecterScissions(entrees: EntreesCandidats): ScissionCandidate[
  * Les compétences actives que rien ne rattache à quoi que ce soit.
  *
  * Le contrepoids direct au 92 actives / 28 mesurées. Une compétence sans
- * preuve, sans exercice, sans arête et sans thème depuis trois mois n'est pas
+ * observation, sans exercice, sans arête et sans thème depuis trois mois n'est pas
  * une ambition affichée : c'est une case vide permanente, ce que le protocole
  * §1 nomme précisément comme le défaut à éviter.
  *
  * Sortie : une proposition d'ARCHIVAGE, jamais de suppression — même sans
- * preuve, c'est à la personne de trancher (ADR-027).
+ * observation, c'est à la personne de trancher (ADR-027).
  */
 export function detecterDormances(entrees: EntreesCandidats): DormanceCandidate[] {
-  const { referentiel, preuves, exercices, now } = entrees;
+  const { referentiel, observations, exercices, now } = entrees;
 
-  const avecPreuve = new Set(preuves.map((p) => p.skillCode));
+  const avecObservation = new Set(observations.map((p) => p.skillCode));
   const avecExercice = new Set(exercices.flatMap((e) => e.competences));
   const dansUneArete = new Set<string>();
   for (const skill of referentiel.skills) {
@@ -506,7 +506,7 @@ export function detecterDormances(entrees: EntreesCandidats): DormanceCandidate[
 
   const candidats: DormanceCandidate[] = [];
   for (const skill of referentiel.actifs) {
-    if (avecPreuve.has(skill.code)) continue;
+    if (avecObservation.has(skill.code)) continue;
     if (avecExercice.has(skill.code)) continue;
     if (dansUneArete.has(skill.code)) continue;
 
@@ -519,7 +519,7 @@ export function detecterDormances(entrees: EntreesCandidats): DormanceCandidate[
       code: skill.code,
       joursSansRien,
       motifs: [
-        "Aucune preuve, aucun exercice, aucune relation déclarée.",
+        "Aucune observation, aucun exercice, aucune relation déclarée.",
         "Elle compte dans la couverture sans que rien ne puisse la mesurer (protocole §1).",
       ],
     });
@@ -534,19 +534,19 @@ export function detecterDormances(entrees: EntreesCandidats): DormanceCandidate[
 /* ------------------------------------------------------------------ */
 
 /**
- * Les compétences dont les preuves viennent systématiquement d'ailleurs.
+ * Les compétences dont les observations viennent systématiquement d'ailleurs.
  *
  * Le signal que la classification en domaines a dérivé, rendu mesurable par
- * ADR-083 : chaque preuve d'exercice porte désormais le domaine de son
- * exercice source. Une compétence de « logistique » dont toutes les preuves
+ * ADR-083 : chaque observation d'exercice porte désormais le domaine de son
+ * exercice source. Une compétence de « logistique » dont toutes les observations
  * viennent d'exercices de « statistiques » est rangée au mauvais endroit.
  *
  * Sortie : un RATTACHEMENT ou un déplacement à valider — jamais un déplacement
- * appliqué, qui changerait le code (donc casserait les preuves) ou la
+ * appliqué, qui changerait le code (donc casserait les observations) ou la
  * gouvernance du domaine porteur (ADR-081, ADR-065).
  */
 export function detecterRangements(entrees: EntreesCandidats): RangementCandidate[] {
-  const { referentiel, preuves, exercices } = entrees;
+  const { referentiel, observations, exercices } = entrees;
   const exercicesParId = new Map(exercices.map((e) => [e.id, e]));
   const candidats: RangementCandidate[] = [];
 
@@ -554,9 +554,9 @@ export function detecterRangements(entrees: EntreesCandidats): RangementCandidat
     const domainesObserves = new Map<string, number>();
     let total = 0;
 
-    for (const preuve of preuves) {
-      if (preuve.skillCode !== skill.code) continue;
-      const exercice = exercicesParId.get(preuve.source.ref);
+    for (const observation of observations) {
+      if (observation.skillCode !== skill.code) continue;
+      const exercice = exercicesParId.get(observation.source.ref);
       if (!exercice) continue;
       total += 1;
       domainesObserves.set(
@@ -565,12 +565,12 @@ export function detecterRangements(entrees: EntreesCandidats): RangementCandidat
       );
     }
 
-    if (total < PREUVES_PAR_FAMILLE_MINIMUM) continue;
+    if (total < OBSERVATIONS_PAR_FAMILLE_MINIMUM) continue;
     const dominant = [...domainesObserves.entries()].sort((a, b) => b[1] - a[1])[0];
     if (!dominant) continue;
     const [domaineObserve, occurrences] = dominant;
     if (domaineObserve === skill.domaine) continue;
-    // Toutes les preuves, pas la majorité : une majorité peut refléter le stock
+    // Toutes les observations, pas la majorité : une majorité peut refléter le stock
     // d'exercices disponible plutôt qu'un mauvais rangement.
     if (occurrences !== total) continue;
     // Déjà rattachée : le rangement est assumé (ADR-081).
@@ -581,9 +581,9 @@ export function detecterRangements(entrees: EntreesCandidats): RangementCandidat
       code: skill.code,
       domaineActuel: skill.domaine,
       domaineObserve,
-      preuves: total,
+      observations: total,
       motifs: [
-        `Ses ${total} preuves viennent toutes d'exercices de « ${domaineObserve} », ` +
+        `Ses ${total} observations viennent toutes d'exercices de « ${domaineObserve} », ` +
           `alors qu'elle est portée par « ${skill.domaine} ».`,
         "Un rattachement suffit : elle compte dans les deux couvertures sans être dupliquée (ADR-081).",
       ],
@@ -611,38 +611,38 @@ export function detecterRangements(entrees: EntreesCandidats): RangementCandidat
  * est là, chaque ligne porte les règles enfreintes, et le tuteur peut proposer
  * un redécoupage.
  *
- * `aDesPreuves` change la nature du geste : sans preuve, l'intitulé se réécrit
+ * `aDesObservations` change la nature du geste : sans observation, l'intitulé se réécrit
  * franchement ; avec, la compétence a un historique et sa réécriture est une
  * **scission** (ADR-087) — l'ancienne est archivée, les nouvelles démarrent à
- * zéro preuve, et l'écran doit annoncer ce recul avant de l'appliquer.
+ * zéro observation, et l'écran doit annoncer ce recul avant de l'appliquer.
  */
 export function detecterReformulations(entrees: EntreesCandidats): ReformulationCandidate[] {
-  const { referentiel, preuves } = entrees;
-  const avecPreuve = new Set(preuves.map((p) => p.skillCode));
+  const { referentiel, observations } = entrees;
+  const avecObservation = new Set(observations.map((p) => p.skillCode));
   const candidats: ReformulationCandidate[] = [];
 
   for (const skill of referentiel.actifs) {
     const motifs = motifsNonAtomique(skill.intitule);
     if (motifs.length === 0) continue;
 
-    const aDesPreuves = avecPreuve.has(skill.code);
+    const aDesObservations = avecObservation.has(skill.code);
     candidats.push({
       genre: "reformulation",
       code: skill.code,
       intitule: skill.intitule,
       regles: motifs.map((m) => m.regle),
-      aDesPreuves,
+      aDesObservations,
       motifs: [
         ...motifs.map((m) => m.message),
-        aDesPreuves
-          ? "Elle porte des preuves : la réécriture est une scission, et les preuves restent sur l'ancienne (ADR-087)."
-          : "Aucune preuve : l'intitulé se réécrit sans rien perdre.",
+        aDesObservations
+          ? "Elle porte des observations : la réécriture est une scission, et les observations restent sur l'ancienne (ADR-087)."
+          : "Aucune observation : l'intitulé se réécrit sans rien perdre.",
       ],
     });
   }
 
-  // Les gelées SANS preuve d'abord : elles se corrigent sans rien coûter.
-  return candidats.sort((a, b) => Number(a.aDesPreuves) - Number(b.aDesPreuves));
+  // Les gelées SANS observation d'abord : elles se corrigent sans rien coûter.
+  return candidats.sort((a, b) => Number(a.aDesObservations) - Number(b.aDesObservations));
 }
 
 /* ------------------------------------------------------------------ */

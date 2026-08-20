@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { competencesConnexes, parcoursCompetence } from "./parcours";
 import { REFERENTIEL_TEST } from "@/lib/domain/referentiel.fixture";
-import type { Difficulte, Exercise, SkillEvidence } from "@/lib/domain/types";
+import type { Difficulte, Exercise, SkillObservation } from "@/lib/domain/types";
 
 /*
  * Ce que ces tests protègent : le parcours est rejoué, pas raconté, et une
@@ -19,19 +19,19 @@ function ilYa(jours: number): string {
 
 let compteur = 0;
 
-function preuve(options: {
+function observation(options: {
   skill: string;
   jours: number;
   contexte?: string;
-  resultat?: SkillEvidence["resultat"];
+  resultat?: SkillObservation["resultat"];
   combinees?: string[];
-}): SkillEvidence {
+}): SkillObservation {
   return {
-    id: `ev-${++compteur}`,
+    id: `obs-${++compteur}`,
     skillCode: options.skill,
     date: ilYa(options.jours),
     type: "exercice",
-    niveauPreuve: "A",
+    niveauObservation: "A",
     autonomie: "A3",
     qualite: "moyenne",
     resultat: options.resultat ?? "reussi",
@@ -62,14 +62,14 @@ function exercice(id: string, competences: string[], archive = false): Exercise 
 
 /* ------------------------------------------------------------------ */
 
-describe("parcoursCompetence — le niveau avant chaque preuve", () => {
+describe("parcoursCompetence — le niveau avant chaque observation", () => {
   it("rend le parcours du plus récent au plus ancien", () => {
     const parcours = parcoursCompetence(
       DEV01,
       [
-        preuve({ skill: "DEV-01", jours: 30 }),
-        preuve({ skill: "DEV-01", jours: 10 }),
-        preuve({ skill: "DEV-01", jours: 1 }),
+        observation({ skill: "DEV-01", jours: 30 }),
+        observation({ skill: "DEV-01", jours: 10 }),
+        observation({ skill: "DEV-01", jours: 1 }),
       ],
       MAINTENANT,
     );
@@ -79,8 +79,8 @@ describe("parcoursCompetence — le niveau avant chaque preuve", () => {
     expect(parcours[1].date > parcours[2].date).toBe(true);
   });
 
-  it("marque la toute première preuve comme première mesure, pas comme progression", () => {
-    const parcours = parcoursCompetence(DEV01, [preuve({ skill: "DEV-01", jours: 1 })], MAINTENANT);
+  it("marque la toute première observation comme première mesure, pas comme progression", () => {
+    const parcours = parcoursCompetence(DEV01, [observation({ skill: "DEV-01", jours: 1 })], MAINTENANT);
 
     expect(parcours[0].niveauAvant).toBeNull();
     expect(parcours[0].premiereMesure).toBe(true);
@@ -92,8 +92,8 @@ describe("parcoursCompetence — le niveau avant chaque preuve", () => {
     const parcours = parcoursCompetence(
       DEV01,
       [
-        preuve({ skill: "DEV-01", jours: 30, contexte: "A" }),
-        preuve({ skill: "DEV-01", jours: 10, contexte: "B" }),
+        observation({ skill: "DEV-01", jours: 30, contexte: "A" }),
+        observation({ skill: "DEV-01", jours: 10, contexte: "B" }),
       ],
       MAINTENANT,
     );
@@ -106,9 +106,9 @@ describe("parcoursCompetence — le niveau avant chaque preuve", () => {
     const parcours = parcoursCompetence(
       DEV01,
       [
-        preuve({ skill: "DEV-01", jours: 30, contexte: "Contexte A" }),
-        preuve({ skill: "DEV-01", jours: 10, contexte: "Contexte A" }),
-        preuve({ skill: "DEV-01", jours: 1, contexte: "Contexte B" }),
+        observation({ skill: "DEV-01", jours: 30, contexte: "Contexte A" }),
+        observation({ skill: "DEV-01", jours: 10, contexte: "Contexte A" }),
+        observation({ skill: "DEV-01", jours: 1, contexte: "Contexte B" }),
       ],
       MAINTENANT,
     );
@@ -118,10 +118,10 @@ describe("parcoursCompetence — le niveau avant chaque preuve", () => {
     expect(parcours[2].nouveauContexte).toBe(true);  // la première de toutes
   });
 
-  it("ignore les preuves des autres compétences", () => {
+  it("ignore les observations des autres compétences", () => {
     const parcours = parcoursCompetence(
       DEV01,
-      [preuve({ skill: "DEV-02", jours: 5 }), preuve({ skill: "DEV-01", jours: 1 })],
+      [observation({ skill: "DEV-02", jours: 5 }), observation({ skill: "DEV-01", jours: 1 })],
       MAINTENANT,
     );
 
@@ -129,15 +129,15 @@ describe("parcoursCompetence — le niveau avant chaque preuve", () => {
   });
 
   it("borne le nombre d'étapes rejouées", () => {
-    const preuves = Array.from({ length: 20 }, (_, i) => preuve({ skill: "DEV-01", jours: 20 - i }));
-    const parcours = parcoursCompetence(DEV01, preuves, MAINTENANT, 5);
+    const observations = Array.from({ length: 20 }, (_, i) => observation({ skill: "DEV-01", jours: 20 - i }));
+    const parcours = parcoursCompetence(DEV01, observations, MAINTENANT, 5);
 
     expect(parcours).toHaveLength(5);
     // Ce sont les cinq DERNIÈRES qui sont rendues.
-    expect(parcours[0].date).toBe(preuves[19].date);
+    expect(parcours[0].date).toBe(observations[19].date);
   });
 
-  it("ne rend rien sans preuve, plutôt qu'une étape à zéro", () => {
+  it("ne rend rien sans observation, plutôt qu'une étape à zéro", () => {
     expect(parcoursCompetence(DEV01, [], MAINTENANT)).toEqual([]);
   });
 });
@@ -155,7 +155,7 @@ describe("competencesConnexes — déclaré d'abord, observé ensuite", () => {
       ...commun,
       skill: cible,
       exercices: [],
-      preuves: [],
+      observations: [],
     });
 
     for (const code of cible.prerequis) {
@@ -184,7 +184,7 @@ describe("competencesConnexes — déclaré d'abord, observé ensuite", () => {
         exercice("ex-2", ["DEV-01", "DEV-02"]),
         exercice("ex-3", ["DEV-01", "DEV-03"]),
       ],
-      preuves: [],
+      observations: [],
     });
 
     const co = connexes.filter((item) => item.relation === "co-mobilisee");
@@ -194,12 +194,12 @@ describe("competencesConnexes — déclaré d'abord, observé ensuite", () => {
     expect(co.find((item) => item.code === "DEV-03")?.occurrences).toBe(1);
   });
 
-  it("compte aussi les compétences nommées sur une même preuve", () => {
+  it("compte aussi les compétences nommées sur une même observation", () => {
     const connexes = competencesConnexes({
       ...commun,
       skill: DEV01,
       exercices: [],
-      preuves: [preuve({ skill: "DEV-01", jours: 1, combinees: ["DEV-02"] })],
+      observations: [observation({ skill: "DEV-01", jours: 1, combinees: ["DEV-02"] })],
     });
 
     expect(connexes.find((item) => item.code === "DEV-02")?.occurrences).toBe(1);
@@ -210,7 +210,7 @@ describe("competencesConnexes — déclaré d'abord, observé ensuite", () => {
       ...commun,
       skill: DEV01,
       exercices: [exercice("ex-1", ["DEV-01", "DEV-02"], true)],
-      preuves: [],
+      observations: [],
     });
 
     expect(connexes.filter((item) => item.relation === "co-mobilisee")).toEqual([]);
@@ -224,7 +224,7 @@ describe("competencesConnexes — déclaré d'abord, observé ensuite", () => {
       ...commun,
       skill: cible,
       exercices: [exercice("ex-1", [cible.code, prerequis])],
-      preuves: [],
+      observations: [],
     });
 
     const occurrences = connexes.filter((item) => item.code === prerequis);
@@ -239,7 +239,7 @@ describe("competencesConnexes — déclaré d'abord, observé ensuite", () => {
       ...commun,
       skill: DEV01,
       exercices: [exercice("ex-1", ["DEV-01", "DEV-04"])],
-      preuves: [],
+      observations: [],
     });
 
     const dev04 = connexes.filter((item) => item.code === "DEV-04");
@@ -252,7 +252,7 @@ describe("competencesConnexes — déclaré d'abord, observé ensuite", () => {
       ...commun,
       skill: DEV01,
       exercices: [exercice("ex-1", ["DEV-01"])],
-      preuves: [],
+      observations: [],
     });
 
     expect(connexes.find((item) => item.code === "DEV-01")).toBeUndefined();
@@ -263,7 +263,7 @@ describe("competencesConnexes — déclaré d'abord, observé ensuite", () => {
       ...commun,
       skill: DEV01,
       exercices: [exercice("ex-1", ["DEV-01", "DEV-02", "DEV-03"])],
-      preuves: [preuve({ skill: "DEV-02", jours: 3 })],
+      observations: [observation({ skill: "DEV-02", jours: 3 })],
     });
 
     expect(connexes.find((item) => item.code === "DEV-02")?.dejaMesuree).toBe(true);

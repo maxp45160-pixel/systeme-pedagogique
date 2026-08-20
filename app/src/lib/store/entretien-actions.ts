@@ -42,7 +42,7 @@ export interface ResultatRetravail {
   mode: "reecriture" | "scission";
   /** Intitulés effectivement écrits, assemblés par l'application. */
   intitules: string[];
-  /** Vrai quand l'ancienne compétence a été archivée avec ses preuves. */
+  /** Vrai quand l'ancienne compétence a été archivée avec ses observations. */
   ancienneArchivee: boolean;
 }
 
@@ -50,17 +50,17 @@ export interface ResultatRetravail {
  * Retravaille une compétence gelée par les règles d'atomicité.
  *
  * Deux chemins, et c'est le NOMBRE de remplaçantes qui les sépare, pas la
- * présence de preuves :
+ * présence d'observations :
  *
- * - **une seule** → réécriture. L'intitulé change, le code reste, les preuves
+ * - **une seule** → réécriture. L'intitulé change, le code reste, les observations
  *   restent attachées. C'est le cas d'une formulation maladroite d'un
  *   savoir-faire unique ;
  * - **plusieurs** → scission (ADR-087). L'ancienne est retirée — archivée si
- *   elle porte des preuves, supprimée sinon (ADR-027, la règle est dérivée du
- *   nombre de preuves, pas choisie ici) — et les remplaçantes sont créées.
+ *   elle porte des observations, supprimée sinon (ADR-027, la règle est dérivée du
+ *   nombre d'observations, pas choisie ici) — et les remplaçantes sont créées.
  *
- * ⚠️ **Les preuves ne bougent pas.** Après une scission, les remplaçantes
- * démarrent à zéro preuve, niveau `null`, et l'ancienne garde tout son
+ * ⚠️ **Les observations ne bougent pas.** Après une scission, les remplaçantes
+ * démarrent à zéro observation, niveau `null`, et l'ancienne garde tout son
  * historique sous son code archivé. Le tableau de bord recule le jour où on
  * scinde la compétence la mieux mesurée : c'est P2 appliqué, pas une
  * régression, et l'écran l'annonce avant d'appliquer.
@@ -114,10 +114,10 @@ export async function retravaillerCompetence(
     return { mode: "reecriture", intitules, ancienneArchivee: false };
   }
 
-  // `modeRetrait` dérive archivage ou suppression du nombre de preuves : on ne
+  // `modeRetrait` dérive archivage ou suppression du nombre d'observations : on ne
   // choisit pas, on lit (ADR-027). Sans ce comptage, une compétence mesurée
   // pourrait être annoncée comme supprimée alors qu'elle a été archivée.
-  const preuves = await compterPreuves(code);
+  const observations = await compterObservations(code);
 
   const resultat = await appliquerRevision({
     domaineId: ancienne.domaine,
@@ -139,19 +139,19 @@ export async function retravaillerCompetence(
   return {
     mode: "scission",
     intitules,
-    ancienneArchivee: modeRetrait(preuves) === "archivage",
+    ancienneArchivee: modeRetrait(observations) === "archivage",
   };
 }
 
-/** Le nombre de preuves d'une compétence — la seule donnée qui décide du retrait. */
-async function compterPreuves(code: string): Promise<number> {
+/** Le nombre d'observations d'une compétence — la seule donnée qui décide du retrait. */
+async function compterObservations(code: string): Promise<number> {
   const { supabase, userId } = await dorsaleCompte();
   const { count, error } = await supabase
-    .from("evidence")
+    .from("observations")
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId)
     .eq("skill_code", code);
-  verifier("comptage des preuves d'une compétence", error);
+  verifier("comptage des observations d'une compétence", error);
   return count ?? 0;
 }
 

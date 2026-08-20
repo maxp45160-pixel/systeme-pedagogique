@@ -9,7 +9,7 @@ import {
   prochaineRevision,
 } from "./spaced";
 import { REFERENTIEL_TEST } from "@/lib/domain/referentiel.fixture";
-import type { Autonomie, Dimension, QualitePreuve, SkillEvidence } from "@/lib/domain/types";
+import type { Autonomie, Dimension, QualiteObservation, SkillObservation } from "@/lib/domain/types";
 
 /*
  * Ces tests vérifient que la répétition espacée (méthode A') dérive bien
@@ -31,20 +31,20 @@ function ilYa(jours: number): string {
 
 let compteur = 0;
 
-function preuve(options: {
+function observation(options: {
   jours?: number;
   autonomie?: Autonomie;
-  qualite?: QualitePreuve;
-  resultat?: SkillEvidence["resultat"];
+  qualite?: QualiteObservation;
+  resultat?: SkillObservation["resultat"];
   contexte?: string;
   dims?: Partial<Record<Dimension, number>>;
-}): SkillEvidence {
+}): SkillObservation {
   return {
-    id: `ev-spaced-${++compteur}`,
+    id: `obs-spaced-${++compteur}`,
     skillCode: "DEV-01",
     date: ilYa(options.jours ?? 1),
     type: "exercice",
-    niveauPreuve: "A",
+    niveauObservation: "A",
     autonomie: options.autonomie ?? "A3",
     qualite: options.qualite ?? "moyenne",
     resultat: options.resultat ?? "reussi",
@@ -56,8 +56,8 @@ function preuve(options: {
 
 const DEV01 = REFERENTIEL_TEST.parCode.get("DEV-01")!;
 
-function etat(preuves: SkillEvidence[], now = MAINTENANT) {
-  return computeSkillState(DEV01, preuves, now);
+function etat(observations: SkillObservation[], now = MAINTENANT) {
+  return computeSkillState(DEV01, observations, now);
 }
 
 function intervalle(e: ReturnType<typeof etat>): number | null {
@@ -67,14 +67,14 @@ function intervalle(e: ReturnType<typeof etat>): number | null {
 /* ------------------------------------------------------------------ */
 
 describe("intervalle — dérivé de l'état, jamais stocké (P1)", () => {
-  it("vaut null sans aucune preuve : à diagnostiquer, pas à réviser", () => {
+  it("vaut null sans aucune observation : à diagnostiquer, pas à réviser", () => {
     expect(intervalle(etat([]))).toBeNull();
   });
 
   it("une compétence fraîche se révise très vite", () => {
-    // Une seule preuve récente : niveau 2, robustesse faible, confiance faible.
+    // Une seule observation récente : niveau 2, robustesse faible, confiance faible.
     // L'intervalle est le produit des facteurs, arrondi — il reste court.
-    const e = etat([preuve({ jours: 1 })]);
+    const e = etat([observation({ jours: 1 })]);
     expect(e.niveau).toBe(2);
     expect(intervalle(e)!).toBeLessThanOrEqual(2);
   });
@@ -82,8 +82,8 @@ describe("intervalle — dérivé de l'état, jamais stocké (P1)", () => {
   it("l'intervalle croît avec le niveau — chaque palier double (protocole §4)", () => {
     // Niveau 3 : deux réussites autonomes concordantes (instructions §11).
     const e = etat([
-      preuve({ jours: 30, contexte: "A" }),
-      preuve({ jours: 5, contexte: "B" }),
+      observation({ jours: 30, contexte: "A" }),
+      observation({ jours: 5, contexte: "B" }),
     ]);
     expect(e.niveau).toBe(3);
     // Niveau 3 → ×4 ; robustesse et confiance moyennes → intervalle > base.
@@ -91,24 +91,24 @@ describe("intervalle — dérivé de l'état, jamais stocké (P1)", () => {
   });
 
   it("la robustesse allonge l'intervalle — c'est le proxy de stabilité (§13)", () => {
-    const fragile = etat([preuve({ jours: 1 })]);
+    const fragile = etat([observation({ jours: 1 })]);
     const robuste = etat([
-      preuve({ jours: 60, contexte: "A" }),
-      preuve({ jours: 30, contexte: "B" }),
-      preuve({ jours: 10, contexte: "C" }),
-      preuve({ jours: 2, contexte: "D" }),
+      observation({ jours: 60, contexte: "A" }),
+      observation({ jours: 30, contexte: "B" }),
+      observation({ jours: 10, contexte: "C" }),
+      observation({ jours: 2, contexte: "D" }),
     ]);
     expect(robuste.robustesse!).toBeGreaterThan(fragile.robustesse!);
     expect(intervalle(robuste)!).toBeGreaterThan(intervalle(fragile)!);
   });
 
   it("la confiance module l'intervalle — faible révise plus tôt, forte plus tard (§10)", () => {
-    const faible = etat([preuve({ jours: 1 })]);
+    const faible = etat([observation({ jours: 1 })]);
     const forte = etat([
-      preuve({ jours: 30, contexte: "A", qualite: "forte", autonomie: "A4" }),
-      preuve({ jours: 20, contexte: "B", qualite: "forte", autonomie: "A4" }),
-      preuve({ jours: 10, contexte: "C", qualite: "forte", autonomie: "A4" }),
-      preuve({ jours: 2, contexte: "D", qualite: "forte", autonomie: "A4" }),
+      observation({ jours: 30, contexte: "A", qualite: "forte", autonomie: "A4" }),
+      observation({ jours: 20, contexte: "B", qualite: "forte", autonomie: "A4" }),
+      observation({ jours: 10, contexte: "C", qualite: "forte", autonomie: "A4" }),
+      observation({ jours: 2, contexte: "D", qualite: "forte", autonomie: "A4" }),
     ]);
     expect(forte.confiance).toBe("forte");
     expect(intervalle(forte)!).toBeGreaterThan(intervalle(faible)!);
@@ -116,7 +116,7 @@ describe("intervalle — dérivé de l'état, jamais stocké (P1)", () => {
 
   it("l'intervalle est borné à 1 jour minimum — jamais 0", () => {
     // Même avec un échec récent (facteur 0,5), l'intervalle ne descend pas sous 1.
-    const e = etat([preuve({ jours: 1, resultat: "echec", dims: { application: 0.2 } })]);
+    const e = etat([observation({ jours: 1, resultat: "echec", dims: { application: 0.2 } })]);
     expect(intervalle(e)!).toBeGreaterThanOrEqual(1);
   });
 });
@@ -127,7 +127,7 @@ describe("réaction à la performance — variante A'", () => {
     // (P3 : le nombre affiché et le calcul tiennent ensemble). L'intervalle
     // lui-même dépend aussi du niveau et de la robustesse, qui diffèrent entre
     // un « reussi » et un « echec » — on ne compare donc pas les intervalles.
-    const echec = etat([preuve({ jours: 1, resultat: "echec", dims: { application: 0.2 } })]);
+    const echec = etat([observation({ jours: 1, resultat: "echec", dims: { application: 0.2 } })]);
     const facteurResultat = MODELE_ACTIF.facteurs(echec).find(
       (f) => f.libelle === "Dernier résultat",
     );
@@ -139,7 +139,7 @@ describe("réaction à la performance — variante A'", () => {
     // (P3 : le nombre affiché et le calcul tiennent ensemble). L'intervalle
     // lui-même dépend aussi du niveau et de la robustesse, qui diffèrent entre
     // un « reussi » et un « partiel » — on ne compare donc pas les intervalles.
-    const partiel = etat([preuve({ jours: 1, resultat: "partiel" })]);
+    const partiel = etat([observation({ jours: 1, resultat: "partiel" })]);
     const facteurResultat = MODELE_ACTIF.facteurs(partiel).find(
       (f) => f.libelle === "Dernier résultat",
     );
@@ -148,30 +148,30 @@ describe("réaction à la performance — variante A'", () => {
 });
 
 describe("estDue — la compétence est-elle à réviser aujourd'hui ?", () => {
-  it("n'est jamais due sans preuve : à diagnostiquer, pas à réviser", () => {
+  it("n'est jamais due sans observation : à diagnostiquer, pas à réviser", () => {
     expect(estDue(etat([]), MAINTENANT)).toBe(false);
   });
 
   it("est due quand l'intervalle est dépassé", () => {
     // Niveau 2, robustesse faible, confiance faible → intervalle 1 jour.
-    // Une preuve vieille de 5 jours dépasse l'intervalle.
-    const e = etat([preuve({ jours: 5 })]);
+    // Une observation vieille de 5 jours dépasse l'intervalle.
+    const e = etat([observation({ jours: 5 })]);
     expect(estDue(e, MAINTENANT)).toBe(true);
   });
 
   it("n'est pas due tant que l'intervalle n'est pas atteint", () => {
-    // Preuve du jour : 0 jour écoulé, intervalle ≥ 1 → pas due.
-    const e = etat([preuve({ jours: 0 })]);
+    // Observation du jour : 0 jour écoulé, intervalle ≥ 1 → pas due.
+    const e = etat([observation({ jours: 0 })]);
     expect(estDue(e, MAINTENANT)).toBe(false);
   });
 
   it("une compétence robuste n'est pas due après quelques jours", () => {
     // Niveau 3, robustesse élevée → intervalle de plusieurs jours.
     const e = etat([
-      preuve({ jours: 30, contexte: "A", qualite: "forte", autonomie: "A4" }),
-      preuve({ jours: 20, contexte: "B", qualite: "forte", autonomie: "A4" }),
-      preuve({ jours: 10, contexte: "C", qualite: "forte", autonomie: "A4" }),
-      preuve({ jours: 2, contexte: "D", qualite: "forte", autonomie: "A4" }),
+      observation({ jours: 30, contexte: "A", qualite: "forte", autonomie: "A4" }),
+      observation({ jours: 20, contexte: "B", qualite: "forte", autonomie: "A4" }),
+      observation({ jours: 10, contexte: "C", qualite: "forte", autonomie: "A4" }),
+      observation({ jours: 2, contexte: "D", qualite: "forte", autonomie: "A4" }),
     ]);
     expect(intervalle(e)!).toBeGreaterThan(2);
     expect(estDue(e, MAINTENANT)).toBe(false);
@@ -180,7 +180,7 @@ describe("estDue — la compétence est-elle à réviser aujourd'hui ?", () => {
 
 describe("prochaineRevision — point d'entrée unique, avec justification (P3)", () => {
   it("rend une raison et des facteurs pour une compétence évaluée", () => {
-    const e = etat([preuve({ jours: 5 })]);
+    const e = etat([observation({ jours: 5 })]);
     const r = prochaineRevision(e, MAINTENANT);
     expect(r.facteurs.length).toBeGreaterThan(0);
     expect(r.raison).toContain("jour");
@@ -190,7 +190,7 @@ describe("prochaineRevision — point d'entrée unique, avec justification (P3)"
     }
   });
 
-  it("rend une raison explicite pour une compétence sans preuve", () => {
+  it("rend une raison explicite pour une compétence sans observation", () => {
     const r = prochaineRevision(etat([]), MAINTENANT);
     expect(r.due).toBe(false);
     expect(r.raison).toContain("diagnostiquer");
@@ -198,15 +198,15 @@ describe("prochaineRevision — point d'entrée unique, avec justification (P3)"
   });
 
   it("les facteurs affichés sont exactement ceux du calcul (source unique)", () => {
-    const e = etat([preuve({ jours: 5 })]);
+    const e = etat([observation({ jours: 5 })]);
     const r = prochaineRevision(e, MAINTENANT);
     const produit = r.facteurs.reduce((acc, f) => acc * f.multiplicateur, INTERVALLE_BASE_JOURS);
     expect(r.intervalleJours).toBe(Math.max(1, Math.round(produit)));
   });
 
-  it("porte le champ `sansPreuve` — vrai sans preuve, faux avec", () => {
-    expect(prochaineRevision(etat([]), MAINTENANT).sansPreuve).toBe(true);
-    expect(prochaineRevision(etat([preuve({ jours: 5 })]), MAINTENANT).sansPreuve).toBe(false);
+  it("porte le champ `sansObservation` — vrai sans observation, faux avec", () => {
+    expect(prochaineRevision(etat([]), MAINTENANT).sansObservation).toBe(true);
+    expect(prochaineRevision(etat([observation({ jours: 5 })]), MAINTENANT).sansObservation).toBe(false);
   });
 });
 

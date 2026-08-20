@@ -59,17 +59,17 @@ export function KpiDashboard({ kpis }: { kpis: StatistiquesAdmin }) {
           </div>
         </div>
 
-        {/* Preuves & Compétences */}
+        {/* Observations & Compétences */}
         <div className="relative overflow-hidden rounded-xl border border-bordure bg-surface p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-texte-discret">
-              Preuves de Maîtrise
+              Observations de Maîtrise
             </span>
             <span className="inline-flex items-center rounded-full bg-surface-2 px-2 py-0.5 text-xs font-medium text-texte">
-              ~{kpis.moyennePreuves}/compte
+              ~{kpis.moyenneObservations}/compte
             </span>
           </div>
-          <p className="mt-3 text-3xl font-bold tracking-tight text-texte">{kpis.totalPreuves}</p>
+          <p className="mt-3 text-3xl font-bold tracking-tight text-texte">{kpis.totalObservations}</p>
           <div className="mt-2 flex items-center gap-3 text-xs text-texte-attenue">
             <span>{kpis.totalCompetences} compétences travaillées</span>
           </div>
@@ -152,7 +152,7 @@ export function KpiDashboard({ kpis }: { kpis: StatistiquesAdmin }) {
         <div className="rounded-xl border border-bordure bg-surface p-6 shadow-sm">
           <h3 className="text-base font-semibold text-texte">Comptes les Plus Actifs</h3>
           <p className="mt-1 text-xs text-texte-discret">
-            Classés par nombre cumulé de séances et preuves acquises.
+            Classés par nombre cumulé de séances et observations acquises.
           </p>
 
           <div className="mt-4 divide-y divide-bordure/60">
@@ -169,7 +169,7 @@ export function KpiDashboard({ kpis }: { kpis: StatistiquesAdmin }) {
                   </div>
                   <div className="text-right">
                     <span className="inline-flex items-center rounded-md bg-surface-2 px-2 py-1 text-xs font-medium text-texte">
-                      {c.seances} séances · {c.preuves} preuves
+                      {c.seances} séances · {c.observations} observations
                     </span>
                   </div>
                 </div>

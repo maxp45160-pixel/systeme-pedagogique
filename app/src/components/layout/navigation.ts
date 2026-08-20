@@ -56,7 +56,7 @@ export const NAVIGATION: GroupeNav[] = [
        * La progression est une destination, pas un bloc du tableau de bord.
        *
        * Elle y vivait sous « Vue d'ensemble » : activité sur un an, état global,
-       * dernières preuves, glossaire. Quatre lectures qu'on traversait pour
+       * dernières observations, glossaire. Quatre lectures qu'on traversait pour
        * atteindre l'action du jour, alors qu'on ne les ouvre pas dans le même
        * geste. Elle reste sous « Piloter » — c'est la même question, « où j'en
        * suis », posée sur un autre horizon.

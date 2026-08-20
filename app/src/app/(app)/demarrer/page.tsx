@@ -105,7 +105,7 @@ export default async function PageDemarrer(props: {
           </li>
           <li>
             <span className="font-medium text-texte">2. Le tableau de bord te propose une action.</span>{" "}
-            Une seule — celle qui produira la prochaine preuve.
+            Une seule — celle qui produira la prochaine observation.
           </li>
           <li>
             <span className="font-medium text-texte">

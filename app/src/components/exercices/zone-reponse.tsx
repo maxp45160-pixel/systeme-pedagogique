@@ -43,7 +43,7 @@ import { cleParCompte, ecrireSession, effacerSession, lireSession } from "@/lib/
  *   lieu de rester en plan jusqu'à la frappe suivante.
  *
  * Ce n'est pas une dorsale de plus : la seule source reste Supabase (ADR-015),
- * et le filet en `sessionStorage` n'entre jamais dans le calcul d'une preuve.
+ * et le filet en `sessionStorage` n'entre jamais dans le calcul d'une observation.
  */
 
 /** Assez court pour ne rien perdre d'une navigation, assez long pour ne pas sérialiser à chaque touche. */

@@ -22,7 +22,7 @@ import type {
   LearningSession,
   RefusRecommandation,
   Skill,
-  SkillEvidence,
+  SkillObservation,
   User,
 } from "@/lib/domain/types";
 import type { Theme } from "@/lib/domain/theme";
@@ -33,7 +33,7 @@ import type { Collections } from "./db";
 export type CleListe = Exclude<keyof Collections, "user">;
 
 export const TABLES: Record<CleListe, string> = {
-  evidence: "evidence",
+  observations: "observations",
   exercises: "exercises",
   attempts: "attempts",
   sessions: "sessions",
@@ -142,7 +142,7 @@ export interface ResultatRPC {
  * SQL (`supabase/schema.sql` § 8bis).
  */
 export const CLES_RPC = [
-  "evidence",
+  "observations",
   "exercises",
   "attempts",
   "sessions",
@@ -211,7 +211,7 @@ export function convertirResultatRPC(
   return {
     collections: {
       user,
-      evidence: convertirListe<SkillEvidence>("evidence"),
+      observations: convertirListe<SkillObservation>("observations"),
       exercises: convertirListe<Exercise>("exercises"),
       attempts: convertirListe<ExerciseAttempt>("attempts"),
       sessions: convertirListe<LearningSession>("sessions"),

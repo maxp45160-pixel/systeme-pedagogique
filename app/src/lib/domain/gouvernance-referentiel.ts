@@ -22,7 +22,7 @@ import {
  * Une compétence proposée que le référentiel porte déjà.
  *
  * Ce n'est pas une erreur : la proposition est légitime, c'est le savoir-faire
- * qui existe. On ne crée pas un second code — cela dédoublerait ses preuves.
+ * qui existe. On ne crée pas un second code — cela dédoublerait ses observations.
  */
 export interface CompetenceDejaAuReferentiel {
   intitule: string;
@@ -159,7 +159,7 @@ function preparerAjouts(
 
     /*
      * Le savoir-faire existe déjà : on ne lui fabrique pas un second code, qui
-     * dédoublerait ses preuves. Le contrôle passe **avant** la validation —
+     * dédoublerait ses observations. Le contrôle passe **avant** la validation —
      * une compétence qu'on ne crée pas n'a pas à voir son palier ni son
      * importance validés.
      *

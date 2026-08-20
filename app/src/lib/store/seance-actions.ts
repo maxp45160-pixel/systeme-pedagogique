@@ -11,7 +11,7 @@
  *
  * L'avancement d'une séance — qui est fait, qui reste — n'est écrit nulle part.
  * Il se dérive des tentatives à chaque lecture (`avancementSeance`), comme les
- * niveaux se dérivent des preuves (P1). Une colonne « exercices terminés »
+ * niveaux se dérivent des observations (P1). Une colonne « exercices terminés »
  * aurait été une seconde vérité, libre de diverger de la première au premier
  * abandon non enregistré.
  *
@@ -304,7 +304,7 @@ export async function demarrerSeance(seanceId: string): Promise<void> {
  * Clôt une séance et range au journal ce qui s'est passé.
  *
  * Le résultat compte, il ne juge pas (`resumeSeance`) : chaque exercice porte
- * déjà son propre résultat et sa propre preuve. Poser une appréciation sur
+ * déjà son propre résultat et sa propre observation. Poser une appréciation sur
  * l'ensemble serait une mesure de plus, sans rien pour l'étayer.
  *
  * `dureeMin` reste absente si aucune tentative n'a été menée. Zéro serait faux :
@@ -353,7 +353,7 @@ export async function terminerSeance(seanceId: string): Promise<void> {
  * n'a pas continué, pas qu'on a échoué — les confondre poserait un jugement sur
  * un renoncement (P2, P3).
  *
- * **Aucune preuve, ni aucune destruction de preuve.** Les exercices déjà menés
+ * **Aucune observation, ni aucune destruction d'observation.** Les exercices déjà menés
  * gardent les leurs : ce qui a été démontré reste démontré (P4).
  *
  * `dureeMin` reste `null` si rien n'a été ouvert, et c'est ce que `seanceALieu`

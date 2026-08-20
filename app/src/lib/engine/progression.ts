@@ -34,28 +34,28 @@ const CONFIANCE_PAR_RANG: Confiance[] = ["nulle", "faible", "moyenne", "forte"];
 export interface AgregatDomaine {
   domaine: DomaineId;
   nom: string;
-  /** `null` si aucune preuve dans ce domaine. */
+  /** `null` si aucune observation dans ce domaine. */
   score: number | null;
   niveauMoyen: number | null;
   competencesTotal: number;
   competencesEvaluees: number;
-  preuves: number;
+  observations: number;
   confiance: Confiance;
 }
 
 export interface EtatGlobal {
-  /** Sur 100, ou `null` si aucune preuve n'existe. Jamais 0 par défaut. */
+  /** Sur 100, ou `null` si aucune observation n'existe. Jamais 0 par défaut. */
   scoreGlobal: number | null;
   /** Niveau moyen sur les compétences évaluées, sur 5. */
   niveauMoyen: number | null;
   confiance: Confiance;
   competencesTotal: number;
   competencesEvaluees: number;
-  /** Compétences dont une preuve date de moins de 30 jours. */
+  /** Compétences dont une observation date de moins de 30 jours. */
   competencesActives: number;
   /** Compétences dont le niveau a progressé sur les 30 derniers jours. */
   competencesAmeliorees: number;
-  nombrePreuves: number;
+  nombreObservations: number;
   robustesseMoyenne: number | null;
   parDomaine: AgregatDomaine[];
   /** Explication affichable derrière « Pourquoi ce score ? ». */
@@ -87,7 +87,7 @@ export function agregerDomaine(
     (e) => e.skill.domaine === domaine || (e.skill.domainesSecondaires ?? []).includes(domaine),
   );
   const evalues = duDomaine.filter((e) => e.statut === "evalue" && e.score !== null);
-  const preuves = duDomaine.reduce((s, e) => s + e.preuves.length, 0);
+  const observations = duDomaine.reduce((s, e) => s + e.observations.length, 0);
   // Le référentiel est propre au compte (ADR-026) : à défaut de libellé, on
   // affiche l'identifiant plutôt que d'inventer un nom.
   const nom = domaines.find((d) => d.id === domaine)?.nom ?? domaine;
@@ -100,7 +100,7 @@ export function agregerDomaine(
       niveauMoyen: null,
       competencesTotal: duDomaine.length,
       competencesEvaluees: 0,
-      preuves,
+      observations,
       confiance: "nulle",
     };
   }
@@ -122,7 +122,7 @@ export function agregerDomaine(
       Math.round((evalues.reduce((s, e) => s + (e.niveau ?? 0), 0) / evalues.length) * 10) / 10,
     competencesTotal: duDomaine.length,
     competencesEvaluees: evalues.length,
-    preuves,
+    observations,
     confiance: moyenneConfiance(duDomaine),
   };
 }
@@ -134,7 +134,7 @@ export function calculerEtatGlobal(
 ): EtatGlobal {
   const total = etats.length;
   const evalues = etats.filter((e) => e.statut === "evalue" && e.score !== null);
-  const nombrePreuves = etats.reduce((s, e) => s + e.preuves.length, 0);
+  const nombreObservations = etats.reduce((s, e) => s + e.observations.length, 0);
 
   // Seuls les domaines réellement représentés dans `etats` : le périmètre de
   // travail peut n'en couvrir qu'un, et afficher des domaines vides ferait
@@ -150,9 +150,9 @@ export function calculerEtatGlobal(
   );
   const parDomaine = presents.map((id) => agregerDomaine(id, etats, domaines));
 
-  // Aucune preuve nulle part : le score n'existe pas. On ne renvoie pas 0,
+  // Aucune observation nulle part : le score n'existe pas. On ne renvoie pas 0,
   // qui prétendrait avoir mesuré (protocole anti-hallucination §7 et §14).
-  if (nombrePreuves === 0) {
+  if (nombreObservations === 0) {
     return {
       scoreGlobal: null,
       niveauMoyen: null,
@@ -161,12 +161,12 @@ export function calculerEtatGlobal(
       competencesEvaluees: 0,
       competencesActives: 0,
       competencesAmeliorees: 0,
-      nombrePreuves: 0,
+      nombreObservations: 0,
       robustesseMoyenne: null,
       parDomaine,
       facteurs: [],
       reserves: [
-        "Aucune preuve directe n'a encore été enregistrée.",
+        "Aucune observation directe n'a encore été enregistrée.",
         "Le score global sera calculable dès le premier diagnostic réalisé.",
       ],
     };
@@ -174,8 +174,8 @@ export function calculerEtatGlobal(
 
   // ADR-006 — le score porte sur les seules compétences mesurées.
   //
-  // Des preuves peuvent exister sans qu'aucune compétence n'atteigne le statut
-  // « evalue » (hypothèses, preuves irrecevables) : le score est alors `null`,
+  // Des observations peuvent exister sans qu'aucune compétence n'atteigne le statut
+  // « evalue » (hypothèses, observations irrecevables) : le score est alors `null`,
   // pas 0. Une somme de poids nulle n'est pas un score nul.
   const poidsMesure = evalues.reduce((s, e) => s + e.skill.importance, 0);
   const acquis = evalues.reduce((s, e) => s + e.skill.importance * ((e.score ?? 0) / 5), 0);
@@ -189,13 +189,13 @@ export function calculerEtatGlobal(
       : Math.round((evalues.reduce((s, e) => s + (e.niveau ?? 0), 0) / evalues.length) * 10) / 10;
 
   const competencesActives = etats.filter(
-    (e) => e.joursDepuisDernierePreuve !== null && e.joursDepuisDernierePreuve <= 30,
+    (e) => e.joursDepuisDerniereObservation !== null && e.joursDepuisDerniereObservation <= 30,
   ).length;
 
-  // « Améliorée » = au moins une preuve récente qui soutient le niveau courant.
+  // « Améliorée » = au moins une observation récente qui soutient le niveau courant.
   const competencesAmeliorees = etats.filter((e) => {
     if (e.niveau === null || e.niveau === 0) return false;
-    return e.preuves.some(
+    return e.observations.some(
       (p) =>
         p.resultat === "reussi" &&
         (now.getTime() - new Date(p.date).getTime()) / JOUR_MS <= 30,
@@ -224,7 +224,7 @@ export function calculerEtatGlobal(
   const domainesVierges = parDomaine.filter((d) => d.competencesEvaluees === 0);
   if (domainesVierges.length > 0) {
     reserves.push(
-      `${domainesVierges.length} domaine(s) sans aucune preuve : ${domainesVierges
+      `${domainesVierges.length} domaine(s) sans aucune observation : ${domainesVierges
         .map((d) => d.nom)
         .join(", ")}.`,
     );
@@ -247,12 +247,12 @@ export function calculerEtatGlobal(
     competencesEvaluees: evalues.length,
     competencesActives,
     competencesAmeliorees,
-    nombrePreuves,
+    nombreObservations,
     robustesseMoyenne,
     parDomaine,
     facteurs: [
       { libelle: "Compétences évaluées", valeur: `${evalues.length} / ${total}` },
-      { libelle: "Preuves directes enregistrées", valeur: `${nombrePreuves}` },
+      { libelle: "Observations directes enregistrées", valeur: `${nombreObservations}` },
       {
         libelle: "Niveau moyen là où mesuré",
         valeur: niveauMoyen === null ? "—" : `${niveauMoyen} / 5`,

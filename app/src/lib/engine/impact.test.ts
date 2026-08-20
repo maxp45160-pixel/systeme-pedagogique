@@ -7,14 +7,14 @@ import type {
   Dimension,
   Exercise,
   ExerciseAttempt,
-  SkillEvidence,
+  SkillObservation,
 } from "@/lib/domain/types";
 
 /*
  * Ce que ces tests protègent : l'impact est **dérivé**, jamais fabriqué.
  *
  * Trois garanties, chacune héritée d'un principe déjà défendu ailleurs dans le
- * moteur — une tentative sans preuve ne dit rien (P2), une preuve qui ne
+ * moteur — une tentative sans observation ne dit rien (P2), une observation qui ne
  * déplace pas le niveau reste affichée (elle confirme), et aucune phrase ne
  * sort sans une valeur du moteur derrière elle (P3).
  */
@@ -29,22 +29,22 @@ function ilYa(jours: number): string {
 
 let compteur = 0;
 
-function preuve(options: {
+function observation(options: {
   skill: string;
   date: string;
   autonomie?: Autonomie;
-  resultat?: SkillEvidence["resultat"];
+  resultat?: SkillObservation["resultat"];
   contexte?: string;
   dims?: Partial<Record<Dimension, number>>;
-  niveauPreuve?: "A" | "B";
+  niveauObservation?: "A" | "B";
   refExercice?: string;
-}): SkillEvidence {
+}): SkillObservation {
   return {
-    id: `ev-${++compteur}`,
+    id: `obs-${++compteur}`,
     skillCode: options.skill,
     date: options.date,
     type: "exercice",
-    niveauPreuve: options.niveauPreuve ?? "A",
+    niveauObservation: options.niveauObservation ?? "A",
     autonomie: options.autonomie ?? "A3",
     qualite: "moyenne",
     resultat: options.resultat ?? "reussi",
@@ -101,19 +101,19 @@ describe("impactTentative — ce qui n'a rien mesuré ne rend rien", () => {
     const resultat = impactTentative({
       exercice: exercice({ competences: ["DEV-01"] }),
       tentative: tentative({ fin, statut: "abandonnee" }),
-      preuves: [],
+      observations: [],
       skillsParCode: SKILLS,
       now: MAINTENANT,
     });
     expect(resultat).toBeNull();
   });
 
-  it("rend null quand aucune preuve ne porte l'horodatage de la tentative", () => {
+  it("rend null quand aucune observation ne porte l'horodatage de la tentative", () => {
     const resultat = impactTentative({
       exercice: exercice({ competences: ["DEV-01"] }),
       tentative: tentative({ fin: ilYa(0) }),
-      // Preuve du même exercice, mais d'une tentative antérieure.
-      preuves: [preuve({ skill: "DEV-01", date: ilYa(9) })],
+      // Observation du même exercice, mais d'une tentative antérieure.
+      observations: [observation({ skill: "DEV-01", date: ilYa(9) })],
       skillsParCode: SKILLS,
       now: MAINTENANT,
     });
@@ -124,11 +124,11 @@ describe("impactTentative — ce qui n'a rien mesuré ne rend rien", () => {
 describe("impactTentative — le niveau avant et après", () => {
   it("annonce une première mesure comme telle, jamais comme une progression", () => {
     const fin = ilYa(0);
-    const produite = preuve({ skill: "DEV-01", date: fin });
+    const produite = observation({ skill: "DEV-01", date: fin });
     const resultat = impactTentative({
       exercice: exercice({ competences: ["DEV-01"] }),
       tentative: tentative({ fin }),
-      preuves: [produite],
+      observations: [produite],
       skillsParCode: SKILLS,
       now: MAINTENANT,
     })!;
@@ -139,17 +139,17 @@ describe("impactTentative — le niveau avant et après", () => {
     expect(resultat.consequences.join(" ")).toContain("mesurée pour la première fois");
   });
 
-  it("dit qu'un niveau inchangé est confirmé, au lieu de taire la preuve", () => {
+  it("dit qu'un niveau inchangé est confirmé, au lieu de taire l'observation", () => {
     const fin = ilYa(0);
     const anterieures = [
-      preuve({ skill: "DEV-01", date: ilYa(30) }),
-      preuve({ skill: "DEV-01", date: ilYa(20) }),
+      observation({ skill: "DEV-01", date: ilYa(30) }),
+      observation({ skill: "DEV-01", date: ilYa(20) }),
     ];
-    const produite = preuve({ skill: "DEV-01", date: fin });
+    const produite = observation({ skill: "DEV-01", date: fin });
     const resultat = impactTentative({
       exercice: exercice({ competences: ["DEV-01"] }),
       tentative: tentative({ fin }),
-      preuves: [...anterieures, produite],
+      observations: [...anterieures, produite],
       skillsParCode: SKILLS,
       now: MAINTENANT,
     })!;
@@ -158,17 +158,17 @@ describe("impactTentative — le niveau avant et après", () => {
     if (!item.franchissement) {
       expect(resultat.consequences.join(" ")).toContain("sans le déplacer");
     }
-    // Quoi qu'il arrive au niveau, la preuve est comptée.
-    expect(item.nombrePreuves).toBe(3);
+    // Quoi qu'il arrive au niveau, l'observation est comptée.
+    expect(item.nombreObservations).toBe(3);
   });
 
   it("compte le franchissement à partir du journal, pas d'un champ stocké", () => {
     const fin = ilYa(0);
-    const produite = preuve({ skill: "DEV-01", date: fin, contexte: "Contexte B" });
+    const produite = observation({ skill: "DEV-01", date: fin, contexte: "Contexte B" });
     const resultat = impactTentative({
       exercice: exercice({ competences: ["DEV-01"] }),
       tentative: tentative({ fin }),
-      preuves: [preuve({ skill: "DEV-01", date: ilYa(30) }), produite],
+      observations: [observation({ skill: "DEV-01", date: ilYa(30) }), produite],
       skillsParCode: SKILLS,
       now: MAINTENANT,
     })!;
@@ -179,32 +179,32 @@ describe("impactTentative — le niveau avant et après", () => {
 });
 
 describe("impactTentative — les compétences secondaires", () => {
-  it("garde la cible principale en tête et distingue preuve directe et indirecte", () => {
+  it("garde la cible principale en tête et distingue observation directe et indirecte", () => {
     const fin = ilYa(0);
     const resultat = impactTentative({
       exercice: exercice({ competences: ["DEV-02", "DEV-01"] }),
       tentative: tentative({ fin }),
-      preuves: [
-        preuve({ skill: "DEV-01", date: fin, niveauPreuve: "B" }),
-        preuve({ skill: "DEV-02", date: fin, niveauPreuve: "A" }),
+      observations: [
+        observation({ skill: "DEV-01", date: fin, niveauObservation: "B" }),
+        observation({ skill: "DEV-02", date: fin, niveauObservation: "A" }),
       ],
       skillsParCode: SKILLS,
       now: MAINTENANT,
     })!;
 
     expect(resultat.renforcees.map((item) => item.code)).toEqual(["DEV-02", "DEV-01"]);
-    expect(resultat.renforcees[0].niveauPreuve).toBe("A");
-    expect(resultat.renforcees[1].niveauPreuve).toBe("B");
+    expect(resultat.renforcees[0].niveauObservation).toBe("A");
+    expect(resultat.renforcees[1].niveauObservation).toBe("B");
   });
 
-  it("ignore une preuve dont la compétence est absente du référentiel fourni", () => {
+  it("ignore une observation dont la compétence est absente du référentiel fourni", () => {
     const fin = ilYa(0);
     const resultat = impactTentative({
       exercice: exercice({ competences: ["DEV-01"] }),
       tentative: tentative({ fin }),
-      preuves: [
-        preuve({ skill: "DEV-01", date: fin }),
-        preuve({ skill: "INCONNU-99", date: fin }),
+      observations: [
+        observation({ skill: "DEV-01", date: fin }),
+        observation({ skill: "INCONNU-99", date: fin }),
       ],
       skillsParCode: SKILLS,
       now: MAINTENANT,
@@ -215,12 +215,12 @@ describe("impactTentative — les compétences secondaires", () => {
 });
 
 describe("impactTentative — les observations citent leur source", () => {
-  it("dérive l'autonomie de la preuve et le nombre d'indices de la tentative", () => {
+  it("dérive l'autonomie de l'observation et le nombre d'indices de la tentative", () => {
     const fin = ilYa(0);
     const resultat = impactTentative({
       exercice: exercice({ competences: ["DEV-01"] }),
       tentative: tentative({ fin, indices: 2 }),
-      preuves: [preuve({ skill: "DEV-01", date: fin, autonomie: "A2" })],
+      observations: [observation({ skill: "DEV-01", date: fin, autonomie: "A2" })],
       skillsParCode: SKILLS,
       now: MAINTENANT,
     })!;
@@ -235,9 +235,9 @@ describe("impactTentative — les observations citent leur source", () => {
     const resultat = impactTentative({
       exercice: exercice({ competences: ["DEV-01"] }),
       tentative: tentative({ fin }),
-      preuves: [
-        preuve({ skill: "DEV-01", date: ilYa(20), contexte: "Contexte A" }),
-        preuve({ skill: "DEV-01", date: fin, contexte: "Contexte B" }),
+      observations: [
+        observation({ skill: "DEV-01", date: ilYa(20), contexte: "Contexte A" }),
+        observation({ skill: "DEV-01", date: fin, contexte: "Contexte B" }),
       ],
       skillsParCode: SKILLS,
       now: MAINTENANT,
@@ -264,7 +264,7 @@ describe("impactTentative — les observations citent leur source", () => {
           date: fin,
         },
       }),
-      preuves: [preuve({ skill: "DEV-01", date: fin })],
+      observations: [observation({ skill: "DEV-01", date: fin })],
       skillsParCode: SKILLS,
       now: MAINTENANT,
     })!;
@@ -283,13 +283,13 @@ describe("impactTentative — les observations citent leur source", () => {
         signal: null,
         dimensionFaible: { dimension: "transfert" as Dimension, moyenne: 0.3, observations: 1 },
         verdicts: [],
-        explication: { resume: "", facteurs: [], nombrePreuves: 1, reserves: [] },
+        explication: { resume: "", facteurs: [], nombreObservations: 1, reserves: [] },
       }],
     ]);
     const resultat = impactTentative({
       exercice: exercice({ competences: ["DEV-01"] }),
       tentative: tentative({ fin }),
-      preuves: [preuve({ skill: "DEV-01", date: fin })],
+      observations: [observation({ skill: "DEV-01", date: fin })],
       skillsParCode: SKILLS,
       calibrations,
       now: MAINTENANT,
@@ -305,11 +305,11 @@ describe("impactCumule — une séance", () => {
   it("fusionne une compétence travaillée deux fois en un seul écart", () => {
     const premier = ilYa(1);
     const second = ilYa(0);
-    const preuves = [
-      preuve({ skill: "DEV-01", date: premier }),
-      preuve({ skill: "DEV-01", date: second, contexte: "Contexte B" }),
+    const observations = [
+      observation({ skill: "DEV-01", date: premier }),
+      observation({ skill: "DEV-01", date: second, contexte: "Contexte B" }),
     ];
-    const commun = { skillsParCode: SKILLS, preuves, now: MAINTENANT };
+    const commun = { skillsParCode: SKILLS, observations, now: MAINTENANT };
 
     const a = impactTentative({
       ...commun,

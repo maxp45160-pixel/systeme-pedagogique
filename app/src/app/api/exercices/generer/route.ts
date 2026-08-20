@@ -98,7 +98,7 @@ export async function POST(request: Request) {
   const ctx = await chargerContexte();
 
   // Les compétences demandées doivent appartenir au périmètre actif : un
-  // exercice attaché à une compétence inexistante produirait des preuves que
+  // exercice attaché à une compétence inexistante produirait des observations que
   // rien ne lirait. `creerExercice` refuse déjà, mais on le dit ici avant de
   // dépenser une génération.
   const demandes = codes.flatMap((code) => {

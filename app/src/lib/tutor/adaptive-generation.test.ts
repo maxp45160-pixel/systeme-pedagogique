@@ -23,7 +23,7 @@ const EXPLORATION: ContratGenerationActivite = {
   dureeEstimeeMin: 20,
   demandeCognitive: "faible",
   workspace: "exploration-guidee",
-  modePreuve: "aucune",
+  modeObservation: "aucune",
   contraintes: ["Pas de calcul avant l'intuition"],
   ressourcesAutorisees: [{ id: "cours-files", libelle: "Cours sur les files", usage: "normal" }],
   contratEvaluation: [],
@@ -37,7 +37,7 @@ const PRODUCTION: ContratGenerationActivite = {
   dureeEstimeeMin: 45,
   demandeCognitive: "standard",
   workspace: "mini-projet",
-  modePreuve: "soumission-finale",
+  modeObservation: "soumission-finale",
   contraintes: ["Justifier chaque hypothèse"],
   ressourcesAutorisees: [
     { id: "formulaire", libelle: "Formulaire de référence", usage: "normal" },
@@ -173,7 +173,7 @@ describe("outils adaptatifs fermés", () => {
     const outil = outilEvaluationProjet(PRODUCTION.contratEvaluation);
     const ids = outil.schema.properties?.criteres?.items?.properties?.critere_id?.enum;
     expect(ids).toEqual(["transfert", "justification"]);
-    expect(outil.schema.properties).not.toHaveProperty("qualite_preuve");
+    expect(outil.schema.properties).not.toHaveProperty("qualite_observation");
     expect(outil.schema.properties).not.toHaveProperty("autonomie");
     expect(outil.schema.properties).not.toHaveProperty("niveau_competence");
     expect(outil.schema.properties).not.toHaveProperty("score_global");
@@ -233,7 +233,7 @@ describe("génération adaptative one-shot", () => {
         appele = true;
       },
     } as unknown as MoteurTuteur;
-    const incoherent = { ...EXPLORATION, modePreuve: "soumission-finale" as const };
+    const incoherent = { ...EXPLORATION, modeObservation: "soumission-finale" as const };
     expect(erreursContratGenerationActivite(incoherent)).toContain("contrat d'exploration incohérent");
     const resultat = await genererContenuActivite(moteur, incoherent);
     expect(appele).toBe(false);

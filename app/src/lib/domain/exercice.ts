@@ -21,7 +21,7 @@ import type { Exercise, ExerciseAttempt } from "./types";
  *
  * Ces deux valeurs ne sont pas des métadonnées d'affichage. La difficulté est
  * le point de départ de `difficulteConseillee` ; la durée est ce à quoi
- * `tentativeMenee` compare une tentative pour décider si une preuve s'écrit.
+ * `tentativeMenee` compare une tentative pour décider si une observation s'écrit.
  * Elles étaient bornées à trois endroits qui ne se parlaient pas — le schéma
  * de l'outil du tuteur, la conversion, et nulle part à l'écriture. La borne
  * haute de la conversion (480) était le double de celle du schéma (240) : ce
@@ -83,7 +83,7 @@ export function motifRefusExercice(contenu: ContenuExercice): string | null {
    * Difficulté et durée ne sont pas des métadonnées d'affichage : ce sont les
    * unités de mesure du moteur. La difficulté est le point de départ de
    * `difficulteConseillee` ; la durée est ce à quoi `tentativeMenee` compare
-   * une tentative pour décider si une preuve s'écrit. Les bornes sont celles du
+   * une tentative pour décider si une observation s'écrit. Les bornes sont celles du
    * schéma de l'outil du tuteur — ce qui entre en base doit être ce qu'il avait
    * le droit de proposer.
    */
@@ -145,7 +145,7 @@ export function trouverExercice(
  * Statut d'usage d'un exercice, dérivé de ses tentatives — jamais stocké (P1).
  *
  * `acquis` n'est pas « maîtrisé » : c'est « au moins une tentative réussie ».
- * La maîtrise est une propriété de la compétence, dérivée des preuves par
+ * La maîtrise est une propriété de la compétence, dérivée des observations par
  * `skill-state.ts`, pas une étiquette posée sur un exercice.
  */
 export type UsageExercice = "a-faire" | "en-cours" | "acquis" | "travaille";

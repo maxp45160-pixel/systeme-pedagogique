@@ -121,12 +121,12 @@ function LigneReformulation({
         <div className="flex shrink-0 items-center gap-2">
           <span
             className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-              candidat.aDesPreuves
+              candidat.aDesObservations
                 ? "bg-alerte-faible text-alerte"
                 : "bg-surface text-texte-discret border border-bordure"
             }`}
           >
-            {candidat.aDesPreuves ? "porte des preuves" : "sans preuve"}
+            {candidat.aDesObservations ? "porte des observations" : "sans observation"}
           </span>
           <Bouton type="button" onClick={() => setOuvert((o) => !o)}>
             {ouvert ? "Fermer" : "Retravailler"}
@@ -147,7 +147,7 @@ function LigneReformulation({
           intitule={candidat.intitule}
           palier={meta.palier}
           importance={meta.importance}
-          aDesPreuves={candidat.aDesPreuves}
+          aDesObservations={candidat.aDesObservations}
           onFerme={() => setOuvert(false)}
         />
       )}
@@ -176,7 +176,7 @@ export function VueEntretien({
             <strong className="font-medium text-texte">
               Ce que les faits disent de votre référentiel.
             </strong>{" "}
-            Le système relit vos preuves, vos exercices et vos séances, et
+            Le système relit vos observations, vos exercices et vos séances, et
             prépare ces propositions sans qu&apos;on les lui demande. Il
             n&apos;écrit rien : chaque ligne attend un geste.
           </p>
@@ -213,7 +213,7 @@ export function VueEntretien({
               motifs={[
                 c.source === "usage"
                   ? "Signal fort : tiré de ce qui s'est réellement passé."
-                  : "Signal faible : tiré de la rédaction, pas de vos preuves.",
+                  : "Signal faible : tiré de la rédaction, pas de vos observations.",
                 ...c.motifs,
               ]}
               action={<BoutonRelier amont={c.amont} aval={c.aval} />}
@@ -234,7 +234,7 @@ export function VueEntretien({
         <Section
           titre="Compétences dormantes"
           compte={lot.dormances.length}
-          explication="Ni preuve, ni exercice, ni relation. Elles comptent dans la couverture sans que rien ne puisse les mesurer."
+          explication="Ni observation, ni exercice, ni relation. Elles comptent dans la couverture sans que rien ne puisse les mesurer."
         >
           {lot.dormances.map((c) => (
             <Ligne key={c.code} titre={nom(c.code)} motifs={c.motifs} />
@@ -244,7 +244,7 @@ export function VueEntretien({
         <Section
           titre="Compétences mal rangées"
           compte={lot.rangements.length}
-          explication="Toutes leurs preuves viennent d'exercices d'un autre domaine. Un rattachement suffit : elles comptent dans les deux couvertures sans être dupliquées."
+          explication="Toutes leurs observations viennent d'exercices d'un autre domaine. Un rattachement suffit : elles comptent dans les deux couvertures sans être dupliquées."
         >
           {lot.rangements.map((c) => (
             <Ligne key={c.code} titre={nom(c.code)} motifs={c.motifs} />

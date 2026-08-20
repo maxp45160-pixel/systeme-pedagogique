@@ -38,7 +38,7 @@ import type {
   Exercise,
   LearningSession,
   Referentiel,
-  SkillEvidence,
+  SkillObservation,
 } from "@/lib/domain/types";
 import type { Theme } from "@/lib/domain/theme";
 
@@ -67,7 +67,7 @@ export interface EnsemblePropose {
 export interface EntreesEnsembles {
   sessions: readonly LearningSession[];
   exercices: readonly Exercise[];
-  preuves: readonly SkillEvidence[];
+  observations: readonly SkillObservation[];
   themes: readonly Theme[];
   referentiel: Referentiel;
   sourcesMinimum?: number;
@@ -86,14 +86,14 @@ export interface ResultatEnsembles {
  *
  * Trois sources, toutes déjà en base et sans consommateur jusqu'ici : les
  * compétences d'une séance, celles d'un exercice, et les `competencesCombinees`
- * d'une preuve. Chacune porte son identifiant, ce qui permet de compter des
+ * d'une observation. Chacune porte son identifiant, ce qui permet de compter des
  * sources **distinctes** plutôt que des occurrences — deux tentatives du même
  * exercice ne font pas deux observations.
  */
 export function pairesObservees(entrees: {
   sessions: readonly LearningSession[];
   exercices: readonly Exercise[];
-  preuves: readonly SkillEvidence[];
+  observations: readonly SkillObservation[];
   codesRetenus: ReadonlySet<string>;
 }): PaireObservee[] {
   const paires = new Map<string, Set<string>>();
@@ -116,17 +116,17 @@ export function pairesObservees(entrees: {
     if (exercice.archive) continue;
     enregistrer(exercice.competences, `exercice:${exercice.id}`);
   }
-  for (const preuve of entrees.preuves) {
-    const combinees = preuve.competencesCombinees ?? [];
+  for (const observation of entrees.observations) {
+    const combinees = observation.competencesCombinees ?? [];
     if (combinees.length === 0) continue;
     /*
-     * La source d'une preuve est son travail d'origine, pas la preuve.
+     * La source d'une observation est son travail d'origine, pas l'observation.
      *
-     * Un exercice à trois compétences écrit trois preuves qui se citent
+     * Un exercice à trois compétences écrit trois observations qui se citent
      * mutuellement : les compter séparément ferait passer un seul travail pour
      * trois observations concordantes.
      */
-    enregistrer([preuve.skillCode, ...combinees], `${preuve.source.kind}:${preuve.source.ref}`);
+    enregistrer([observation.skillCode, ...combinees], `${observation.source.kind}:${observation.source.ref}`);
   }
 
   return [...paires.entries()].map(([cle, sources]) => {
@@ -186,7 +186,7 @@ export function ensemblesProposes(entrees: EntreesEnsembles): ResultatEnsembles 
   const paires = pairesObservees({
     sessions: entrees.sessions,
     exercices: entrees.exercices,
-    preuves: entrees.preuves,
+    observations: entrees.observations,
     codesRetenus,
   });
 

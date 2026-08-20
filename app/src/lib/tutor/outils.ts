@@ -112,7 +112,7 @@ export const JUSTIFICATION_MAX = 400;
  * mesure est corrompue à l'entrée de la chaîne. Elle ne bouge pas.
  *
  * Le bilan rédigé, lui, **ne porte aucune mesure**. Il n'est attaché à aucun
- * critère, il n'entre dans aucune preuve, il ne pré-remplit rien. C'est du
+ * critère, il n'entre dans aucune observation, il ne pré-remplit rien. C'est du
  * conseil, et un conseil de 400 caractères ne dit pas « ce qui pose problème,
  * pourquoi, et quoi faire ». Le borner court reviendrait à refuser la demande
  * plutôt qu'à la sécuriser.
@@ -157,7 +157,7 @@ export const OUTIL_EVOLUTION = "proposer_evolution";
  * que l'interdit d'origine ne faisait pas :
  *
  * > **Frapper un code** = produire un identifiant que l'application n'a pas
- * > attribué. Interdit : collision, preuves qui suivent la mauvaise
+ * > attribué. Interdit : collision, observations qui suivent la mauvaise
  * > compétence, sans erreur visible (ADR-026).
  * >
  * > **Désigner un code** = pointer l'un des identifiants que l'application a
@@ -268,7 +268,7 @@ export const OUTIL_INTENTION = "traduire_intention";
  * requête one-shot après avoir fixé la famille, les cibles, les contraintes,
  * les ressources et le contrat d'évaluation. Le tuteur ne peut donc produire
  * que le contenu du workspace, puis éventuellement une proposition de lecture
- * d'un artefact figé. Il n'écrit ni activité, ni évaluation finale, ni preuve.
+ * d'un artefact figé. Il n'écrit ni activité, ni évaluation finale, ni observation.
  */
 export const OUTIL_EXPLORATION_ADAPTATIVE = "proposer_exploration_adaptative";
 export const OUTIL_MINI_PROJET_ADAPTATIF = "proposer_mini_projet_adaptatif";
@@ -439,9 +439,9 @@ function schemaExercice(domaines: string[]): SchemaJson {
 /**
  * ⚠️ Aucun champ `code` ici, et ce n'est pas un oubli.
  *
- * Le code est la clé étrangère des preuves. L'application l'attribue depuis le
+ * Le code est la clé étrangère des observations. L'application l'attribue depuis le
  * préfixe du domaine (ADR-026). Un code écrit par le tuteur entrerait en
- * collision avec un code existant et les preuves suivraient la mauvaise
+ * collision avec un code existant et les observations suivraient la mauvaise
  * compétence, sans erreur visible. Le prompt l'interdisait ; le schéma le rend
  * inexprimable.
  */
@@ -609,7 +609,7 @@ function schemaJalonsActivite(): SchemaJson {
         resultat_attendu: {
           type: "string",
           description:
-            "Production observable attendue à ce jalon. Ce jalon reste une observation, jamais une preuve par lui-même.",
+            "Production observable attendue à ce jalon. Ce jalon reste une observation, jamais une observation par lui-même.",
         },
       },
       required: ["titre", "consigne", "resultat_attendu"],
@@ -652,7 +652,7 @@ function schemaExplorationAdaptative(): SchemaJson {
           synthese_facultative: {
             type: "string",
             description:
-              "Invitation facultative à synthétiser. Elle soutient l'apprentissage mais ne produit aucune preuve.",
+              "Invitation facultative à synthétiser. Elle soutient l'apprentissage mais ne produit aucune observation.",
           },
         },
         required: ["introduction", "parcours", "synthese_facultative"],
@@ -750,7 +750,7 @@ function schemaEvaluationProjet(idsCriteres: string[]): SchemaJson {
       synthese: {
         type: "string",
         description:
-          "Synthèse de la proposition. N'attribue ni niveau, ni qualité de preuve, ni autonomie.",
+          "Synthèse de la proposition. N'attribue ni niveau, ni qualité d'observation, ni autonomie.",
       },
       reserves: {
         type: "array",
@@ -794,7 +794,7 @@ export function outilGenerationActivite(
     return {
       nom: OUTIL_EXPLORATION_ADAPTATIVE,
       description:
-        "Rédige uniquement le contenu d'une exploration guidée dont le contrat est déjà fixé par le serveur. Tu n'enregistres rien et tu ne produis aucune preuve.",
+        "Rédige uniquement le contenu d'une exploration guidée dont le contrat est déjà fixé par le serveur. Tu n'enregistres rien et tu ne produis aucune observation.",
       schema: schemaExplorationAdaptative(),
     };
   }
@@ -812,7 +812,7 @@ export function outilGenerationActivite(
  *
  * Les identifiants viennent exclusivement du contrat serveur et voyagent dans
  * un `enum`. Le schéma ne comporte volontairement aucun niveau de compétence,
- * score, qualité de preuve ou autonomie : ces décisions restent humaines et
+ * score, qualité d'observation ou autonomie : ces décisions restent humaines et
  * applicatives après revue.
  */
 export function outilEvaluationProjet(
@@ -822,7 +822,7 @@ export function outilEvaluationProjet(
   return {
     nom: OUTIL_EVALUATION_PROJET,
     description:
-      "Propose une lecture critère par critère d'un artefact figé. Tu n'enregistres rien : la personne valide, modifie ou rejette chaque ligne avant toute évaluation finale ou preuve.",
+      "Propose une lecture critère par critère d'un artefact figé. Tu n'enregistres rien : la personne valide, modifie ou rejette chaque ligne avant toute évaluation finale ou observation.",
     schema: schemaEvaluationProjet(ids),
   };
 }
@@ -851,7 +851,7 @@ export function outilEvolution(): OutilTuteur {
         raisonnement: {
           type: "string",
           description:
-            "Ce que les preuves montrent, et ce qu'elles ne montrent pas. Cite les valeurs qui t'ont été données ; n'en ajoute aucune.",
+            "Ce que les observations montrent, et ce qu'elles ne montrent pas. Cite les valeurs qui t'ont été données ; n'en ajoute aucune.",
         },
         intitule: {
           type: "string",
@@ -1093,7 +1093,7 @@ export function outilsRevision(codesVivants: string[]): OutilTuteur {
         retraits: {
           type: "array",
           description:
-            "L'application décide seule entre suppression et archivage, selon les preuves enregistrées : ne le propose pas.",
+            "L'application décide seule entre suppression et archivage, selon les observations enregistrées : ne le propose pas.",
           items: {
             type: "object",
             properties: {
@@ -1478,7 +1478,7 @@ export type PropositionContenuActivite =
 
 /**
  * Lecture proposée par le tuteur. Ce type ne représente ni une évaluation
- * finale ni une preuve : aucune écriture n'est possible depuis ce module.
+ * finale ni une observation : aucune écriture n'est possible depuis ce module.
  */
 export interface PropositionEvaluationProjet {
   criteres: {

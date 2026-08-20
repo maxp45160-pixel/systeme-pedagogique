@@ -5,7 +5,7 @@ import type {
   ExerciseAttempt,
   Referentiel,
   Skill,
-  SkillEvidence,
+  SkillObservation,
   SkillState,
 } from "@/lib/domain/types";
 import type { Theme } from "@/lib/domain/theme";
@@ -34,12 +34,12 @@ const suivante: Skill = {
   ordre: 2,
 };
 
-const preuve: SkillEvidence = {
-  id: "preuve-1",
+const observation: SkillObservation = {
+  id: "observation-1",
   skillCode: competence.code,
   date: "2026-08-11T10:00:00.000Z",
   type: "etude-de-cas",
-  niveauPreuve: "A",
+  niveauObservation: "A",
   autonomie: "A3",
   qualite: "forte",
   resultat: "reussi",
@@ -48,27 +48,27 @@ const preuve: SkillEvidence = {
   source: { kind: "exercice", ref: "tentative-1" },
 };
 
-const etat = (skill: Skill, preuves: SkillEvidence[] = []): SkillState => ({
+const etat = (skill: Skill, observations: SkillObservation[] = []): SkillState => ({
   skill,
-  niveau: preuves.length > 0 ? 3 : null,
-  score: preuves.length > 0 ? 0.72 : null,
-  confiance: preuves.length > 0 ? "moyenne" : "nulle",
-  robustesse: preuves.length > 0 ? 0.6 : null,
+  niveau: observations.length > 0 ? 3 : null,
+  score: observations.length > 0 ? 0.72 : null,
+  confiance: observations.length > 0 ? "moyenne" : "nulle",
+  robustesse: observations.length > 0 ? 0.6 : null,
   dimensions: {
-    comprehension: preuves.length > 0 ? 0.7 : 0,
-    application: preuves.length > 0 ? 0.8 : 0,
+    comprehension: observations.length > 0 ? 0.7 : 0,
+    application: observations.length > 0 ? 0.8 : 0,
     transfert: 0,
     integration: 0,
     justification: 0,
   },
-  preuves,
-  contextesTestes: preuves.length > 0 ? ["transport"] : [],
-  dernierePreuve: preuves.at(-1)?.date ?? null,
-  joursDepuisDernierePreuve: preuves.length > 0 ? 1 : null,
+  observations,
+  contextesTestes: observations.length > 0 ? ["transport"] : [],
+  derniereObservation: observations.at(-1)?.date ?? null,
+  joursDepuisDerniereObservation: observations.length > 0 ? 1 : null,
   contradictions: [],
-  prochaineEtape: preuves.length > 0 ? "Tester dans un autre contexte" : "Produire une première preuve",
-  explication: { resume: "", facteurs: [], nombrePreuves: preuves.length, reserves: [] },
-  statut: preuves.length > 0 ? "evalue" : "non-evalue",
+  prochaineEtape: observations.length > 0 ? "Tester dans un autre contexte" : "Produire une première observation",
+  explication: { resume: "", facteurs: [], nombreObservations: observations.length, reserves: [] },
+  statut: observations.length > 0 ? "evalue" : "non-evalue",
 });
 
 const exercice: Exercise = {
@@ -129,7 +129,7 @@ describe("construireVuesAtelier", () => {
   it("projette le domaine comme fiche mère et relie ses fiches pédagogiques", () => {
     const vues = construireVuesAtelier(
       referentiel,
-      [etat(competence, [preuve]), etat(suivante)],
+      [etat(competence, [observation]), etat(suivante)],
       [exercice],
       [tentative],
       index,
@@ -139,9 +139,9 @@ describe("construireVuesAtelier", () => {
       kind: "domaine",
       id: "logistique",
       nombreEvaluees: 1,
-      nombrePreuves: 1,
+      nombreObservations: 1,
       nombreExercices: 1,
-      derniereActivite: preuve.date,
+      derniereActivite: observation.date,
     });
     expect(vues.domaines[0].competences.map((item) => item.code)).toEqual([
       competence.code,
@@ -152,7 +152,7 @@ describe("construireVuesAtelier", () => {
       code: competence.code,
       niveau: 3,
       score: 0.72,
-      nombrePreuves: 1,
+      nombreObservations: 1,
       nombreContextes: 1,
       suivantes: [suivante.code],
     });
@@ -163,7 +163,7 @@ describe("construireVuesAtelier", () => {
     });
   });
 
-  it("conserve l'absence de preuve comme une absence de niveau", () => {
+  it("conserve l'absence d'observation comme une absence de niveau", () => {
     const vues = construireVuesAtelier(
       referentiel,
       [etat(competence), etat(suivante)],
@@ -176,7 +176,7 @@ describe("construireVuesAtelier", () => {
       niveau: null,
       score: null,
       robustesse: null,
-      nombrePreuves: 0,
+      nombreObservations: 0,
     });
     expect(vues.domaines[0].nombreEvaluees).toBe(0);
   });
@@ -229,7 +229,7 @@ describe("construireVuesAtelier", () => {
 
     const vues = construireVuesAtelier(
       referentiel,
-      [etat(competence, [preuve]), etat(suivante)],
+      [etat(competence, [observation]), etat(suivante)],
       [exercice],
       [tentative],
       index,
@@ -245,7 +245,7 @@ describe("construireVuesAtelier", () => {
       libelle: "Optimisation des flux",
       intention: "Comprendre et optimiser les flux logistiques",
       nombreEvaluees: 1,
-      nombrePreuves: 1,
+      nombreObservations: 1,
       nombreExercices: 1,
       tauxCouverture: 0.5,
     });
@@ -289,7 +289,7 @@ describe("vue d'une compétence — ce que l'Atelier a le droit de montrer", () 
   it("ne garde que les supports dans les ressources associées", () => {
     const vues = construireVuesAtelier(
       referentiel,
-      [etat(competence, [preuve]), etat(suivante)],
+      [etat(competence, [observation]), etat(suivante)],
       [exercice],
       [tentative],
       indexAvecDocuments(),
@@ -297,40 +297,40 @@ describe("vue d'une compétence — ce que l'Atelier a le droit de montrer", () 
 
     /*
      * La fiche d'exercice et la preuve citent la compétence, donc `entrants` les
-     * rend — mais `exercices` et `preuves` les nomment déjà avec leurs mesures.
+     * rend — mais `exercices` et `observations` les nomment déjà avec leurs mesures.
      */
     expect(vues.competences[0].documents.map((document) => document.id)).toEqual(["note-log-01"]);
   });
 
-  it("rend une preuve cliquable seulement si son document existe", () => {
+  it("rend une observation cliquable seulement si son document existe", () => {
     const vues = construireVuesAtelier(
       referentiel,
-      [etat(competence, [preuve]), etat(suivante)],
+      [etat(competence, [observation]), etat(suivante)],
       [exercice],
       [tentative],
       indexAvecDocuments(),
     );
 
     /* `source.ref` vaut `tentative-1`, et `production.ts` écrit `preuve-tentative-1`. */
-    expect(vues.competences[0].preuves[0].documentId).toBe("preuve-tentative-1");
+    expect(vues.competences[0].observations[0].documentId).toBe("preuve-tentative-1");
   });
 
-  it("ne fabrique pas de cible quand la preuve n'a produit aucun document", () => {
+  it("ne fabrique pas de cible quand l'Observation n'a produit aucun document", () => {
     const vues = construireVuesAtelier(
       referentiel,
-      [etat(competence, [preuve]), etat(suivante)],
+      [etat(competence, [observation]), etat(suivante)],
       [exercice],
       [tentative],
       index,
     );
 
-    expect(vues.competences[0].preuves[0].documentId).toBeNull();
+    expect(vues.competences[0].observations[0].documentId).toBeNull();
   });
 
   it("nomme les domaines vivants où une relation peut créer une compétence", () => {
     const vues = construireVuesAtelier(
       referentiel,
-      [etat(competence, [preuve]), etat(suivante)],
+      [etat(competence, [observation]), etat(suivante)],
       [exercice],
       [tentative],
       index,
@@ -352,7 +352,7 @@ describe("vue d'une compétence — ce que l'Atelier a le droit de montrer", () 
 
     const vues = construireVuesAtelier(
       archive,
-      [etat(competence, [preuve]), etat(suivante)],
+      [etat(competence, [observation]), etat(suivante)],
       [exercice],
       [tentative],
       index,

@@ -27,7 +27,7 @@ export type { LotCandidats };
  * périmètre : un exercice hors périmètre ne doit ni faire compter une
  * co-mobilisation, ni sauver une compétence de la dormance. C'est l'inverse du
  * choix fait pour la famille de situation (ADR-083), et pour une raison
- * opposée : là il s'agissait de RÉSOUDRE une preuve passée, ici de décrire
+ * opposée : là il s'agissait de RÉSOUDRE une observation passée, ici de décrire
  * l'état de travail présent.
  */
 export async function chargerCandidatsReferentiel(): Promise<LotCandidats> {
@@ -36,7 +36,7 @@ export async function chargerCandidatsReferentiel(): Promise<LotCandidats> {
   return detecterCandidats({
     referentiel: ctx.referentiel,
     etats: ctx.etats,
-    preuves: ctx.preuvesEffectives,
+    observations: ctx.observationsEffectives,
     exercices: ctx.donnees.exercises,
     tentatives: ctx.donnees.attempts,
     seances: ctx.donnees.sessions.map((s) => ({

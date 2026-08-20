@@ -21,9 +21,9 @@ function etat(surcharge: Partial<SkillState> = {}): SkillState {
     confiance: "nulle",
     robustesse: null,
     dimensions: {} as SkillState["dimensions"],
-    preuves: [],
+    observations: [],
     contextesTestes: [],
-    dernierePreuve: null,
+    derniereObservation: null,
     ...surcharge,
   } as SkillState;
 }

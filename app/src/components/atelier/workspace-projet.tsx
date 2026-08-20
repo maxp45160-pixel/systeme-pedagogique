@@ -23,7 +23,7 @@
  * ## Ce qu'il ne fait pas
  *
  * **Cocher un jalon ne mesure rien** (P5, ADR-064). C'est une déclaration
- * d'avancement, écrite dans le front-matter de la fiche ; aucune preuve,
+ * d'avancement, écrite dans le front-matter de la fiche ; aucune Observation,
  * aucun niveau, aucun score n'en découle. La barre de progression compte des
  * étapes déclarées, et le dit.
  */
@@ -241,7 +241,7 @@ export function WorkspaceProjet({ id, contenuInitial, updatedAtInitial, retour }
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h2 className="font-serif text-lg font-medium">Les étapes</h2>
               <p className="text-[0.6875rem] text-texte-discret">
-                Cocher une étape déclare qu&apos;elle est faite — aucune preuve n&apos;en découle.
+                Cocher une étape déclare qu&apos;elle est faite — aucune Observation n&apos;en découle.
               </p>
             </div>
             <ol className="space-y-2">
@@ -380,7 +380,7 @@ export function WorkspaceProjet({ id, contenuInitial, updatedAtInitial, retour }
             <p className="text-xs text-texte-discret">
               {renseignees} section{renseignees > 1 ? "s" : ""} renseignée
               {renseignees > 1 ? "s" : ""} sur {sectionsSaisies.length}. Ce travail ne devient une
-              preuve qu&apos;après une évaluation validée.
+              Observation qu&apos;après une évaluation validée.
             </p>
             <Bouton type="submit" variante="principal" enChargement={enregistrement}>
               Enregistrer le projet

@@ -24,9 +24,9 @@ const CLASSE_CARTE =
  * Une seule liste, coupée par la seule distinction qui change ce qu'on doit
  * faire : est-ce que cette ressource sert une compétence, ou est-ce qu'elle
  * attend encore qu'on le dise ? Les catégories transversales qui vivaient ici
- * — Compétences, Exercices, Preuves, Documents — étaient un second référentiel
+ * — Compétences, Exercices, Observations, Documents — étaient un second référentiel
  * posé à côté du vrai : chaque compétence y apparaissait une seconde fois, et
- * les preuves y occupaient la place des documents qu'on cherchait vraiment.
+ * les observations y occupaient la place des documents qu'on cherchait vraiment.
  */
 export function VueRessources({
   elements,

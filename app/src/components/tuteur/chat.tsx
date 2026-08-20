@@ -46,7 +46,7 @@ import type {
  * Ce qu'on affiche pendant qu'un outil se remplit.
  *
  * Nommer l'outil plutôt que dire « en cours » : la rédaction d'un exercice
- * prend nettement plus longtemps que celle d'une preuve, et savoir laquelle
+ * prend nettement plus longtemps que celle d'une observation, et savoir laquelle
  * on attend est la différence entre patienter et croire à une panne.
  */
 const LIBELLE_OUTIL: Record<string, string> = {
@@ -418,7 +418,7 @@ const ChatInput = memo(function ChatInput({
           {onReinitialiser && !enCours && (
             <Bouton
               onClick={onReinitialiser}
-              title="Efface les messages affichés. Tes preuves et tes exercices ne sont pas touchés."
+              title="Efface les messages affichés. Tes observations et tes exercices ne sont pas touchés."
               variante="secondaire"
               taille="petite"
             >
@@ -1153,7 +1153,7 @@ function ChatHydrate({
                 <p className="text-sm font-medium">Le tuteur connaît ton profil</p>
                 <p className="mx-auto mt-1 max-w-md text-xs leading-relaxed text-texte-attenue">
                   Il reçoit les protocoles du système et l{"'"}état réel de tes{" "}
-                  {codesCompetences.length} compétences, calculé depuis tes preuves. Il ne peut
+                  {codesCompetences.length} compétences, calculé depuis tes observations. Il ne peut
                   pas modifier ton profil : il propose des mises à jour que tu valides.
                 </p>
               </div>
@@ -1312,7 +1312,7 @@ function ChatHydrate({
             <ul className="mt-1.5 space-y-1">
               <li>· Écrire dans ton profil — il propose, tu valides.</li>
               <li>· Se souvenir d{"'"}une séance absente du contexte ci-dessus.</li>
-              <li>· Affirmer une maîtrise que les preuves ne soutiennent pas.</li>
+              <li>· Affirmer une maîtrise que les observations ne soutiennent pas.</li>
             </ul>
           </div>
         </div>

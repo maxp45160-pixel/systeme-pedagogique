@@ -115,12 +115,12 @@ function niveauDeEtiquettes(n: NoeudGraphe): number | null {
   const tag = n.etiquettes.find((e) => e.startsWith("niveau:"));
   if (!tag) return null;
   const valeur = tag.slice("niveau:".length);
-  if (valeur === "aucune-preuve") return null;
+  if (valeur === "aucune-observation") return null;
   const n2 = Number(valeur);
   return Number.isFinite(n2) ? n2 : null;
 }
 
-/** Rouge (faible) → vert (maîtrisé), gris si aucune preuve. */
+/** Rouge (faible) → vert (maîtrisé), gris si aucune observation. */
 function couleurMaitrise(niveau: number | null, palette: Palette): string {
   if (niveau === null) return palette.texteDiscret;
   const t = niveau / 5;

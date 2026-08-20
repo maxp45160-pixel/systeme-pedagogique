@@ -10,7 +10,7 @@
  * La confirmation n'est pas une formalité qu'on pourrait retirer : le tuteur
  * ne frappe aucun code, il n'en désigne que parmi ceux que le serveur lui
  * donne, et un rattachement de compétence n'entre qu'après validation humaine.
- * Sans elle, un projet produirait des preuves sur des compétences que personne
+ * Sans elle, un projet produirait des observations sur des compétences que personne
  * n'a confirmées.
  */
 
@@ -610,7 +610,7 @@ export function ParcoursNouveauProjet({
                 <p className="text-xs text-texte-attenue">
                   {codesRetenus.length} compétence(s) retenue(s) sur {COMPETENCES_MAX} au plus. Chacune
                   recevra son critère d&apos;évaluation ; une compétence qu&apos;aucun critère démontré
-                  ne porte ne recevra aucune preuve.
+                  ne porte ne recevra aucune observation.
                 </p>
               </div>
             )}

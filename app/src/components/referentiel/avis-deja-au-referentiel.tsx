@@ -8,7 +8,7 @@ import type { CompetenceDejaAuReferentiel } from "@/lib/domain/gouvernance-refer
  *
  * La personne a demandé ces savoir-faire dans ce domaine ; elle les y trouvera.
  * Mais elle doit savoir **sous quelle forme** : ce sont les compétences
- * existantes, avec leur code d'origine et leurs preuves, et non de nouvelles.
+ * existantes, avec leur code d'origine et leurs observations, et non de nouvelles.
  * Le taire laisserait croire à une création, et le premier code affiché —
  * `STA-01` dans un domaine préfixé `LOG` — passerait pour un bug.
  */
@@ -44,7 +44,7 @@ export function AvisDejaAuReferentiel({
         ))}
       </ul>
       <p className="mt-2 text-xs text-texte-attenue">
-        Elles gardent leur code d’origine et leurs preuves : un second code dédoublerait la mesure
+        Elles gardent leur code d’origine et leurs observations : un second code dédoublerait la mesure
         d’un seul savoir-faire.
         {archivees.length > 0
           ? " Une compétence archivée reste archivée — elle se désarchive depuis son domaine porteur."

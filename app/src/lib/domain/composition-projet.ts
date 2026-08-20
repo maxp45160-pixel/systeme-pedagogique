@@ -125,7 +125,7 @@ export function idCritereProjet(skillCode: string): string {
  * Le contrat d'évaluation d'un projet composé.
  *
  * Un critère par compétence visée, portant son code : c'est ce rattachement
- * qui rend la preuve attribuable (ADR-068). Sans lui, la compétence figurerait
+ * qui rend l'observation attribuable (ADR-068). Sans lui, la compétence figurerait
  * dans la cible sans que rien ne puisse dire si elle a été démontrée.
  *
  * Le tuteur ne fabrique pas ces critères : ils sont posés par le système à

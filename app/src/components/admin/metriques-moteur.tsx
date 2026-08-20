@@ -92,7 +92,7 @@ function Carte({ metrique }: { metrique: MetriqueMoteur }) {
  * reviendrait à corriger un instrument avec un instrument non étalonné ; et une
  * écriture pendant le rendu changerait le comportement du moteur sans que
  * personne l&apos;ait vue passer. Passer en automatique tiendra en une ligne le
- * jour où une métrique aura fait ses preuves.
+ * jour où une métrique aura fait ses observations.
  */
 function Proposition({ proposition }: { proposition: EtatMoteur["proposition"] }) {
   if (!proposition) return null;
@@ -192,7 +192,7 @@ export function MetriquesMoteur({
           Chaque fois qu&apos;une action est proposée, le moteur inscrit ce
           qu&apos;il prédit — chances de réussite, durée attendue, rétention à
           l&apos;horizon. Ces prédictions sont ensuite rejouées contre les
-          tentatives et les preuves réellement enregistrées.
+          tentatives et les observations réellement enregistrées.
         </p>
         <p className="mt-3 text-sm text-texte-attenue">
           Rien n&apos;est stocké ici : les quatre métriques se recalculent à

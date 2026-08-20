@@ -241,7 +241,7 @@ describe("outilReferentielComplet — le plafond de domaines (ADR-088)", () => {
 describe("outilsTuteur", () => {
   it("n'expose AUCUN champ de code de compétence dans le schéma de branche", () => {
     // Garde-fou d'ADR-026 rendu structurel : un code écrit par le tuteur
-    // entrerait en collision, et les preuves suivraient la mauvaise compétence.
+    // entrerait en collision, et les observations suivraient la mauvaise compétence.
     const branche = outilsTuteur(REFERENTIEL).find((o) => o.nom === OUTIL_REFERENTIEL);
     const competence = branche?.schema.properties?.competences.items?.properties ?? {};
     // ADR-086 : l'intitulé n'est plus une phrase libre mais trois champs,
@@ -683,7 +683,7 @@ describe("validerAppelOutil — traduire_intention", () => {
   const TRAVAIL = {
     genre: "travail",
     titre: "Deux exercices sur le stock de sécurité",
-    pourquoi: "La compétence n'a aucune preuve récente.",
+    pourquoi: "La compétence n'a aucune observation récente.",
     codes: ["LOG-01"],
     sujet: "",
   };

@@ -2,7 +2,7 @@
  * Ce que ces tests protègent.
  *
  * Cette conversion est la dernière barrière avant qu'un verdict du tuteur ne
- * remplisse le formulaire qui écrit une preuve. Le défaut qu'elle doit rendre
+ * remplisse le formulaire qui écrit une observation. Le défaut qu'elle doit rendre
  * impossible a un nom et une date : le 02/08/2026, une valeur venue de la
  * dorsale a été rabattue sur un nombre plausible, et deux compétences se sont
  * vu conseiller la difficulté 5 sur la foi d'un partiel obtenu à difficulté 1
@@ -109,7 +109,7 @@ describe("convertirCorrection", () => {
   it("refuse quand un critère n'est pas couvert", () => {
     /*
      * Une correction partielle ne se distingue pas d'une correction complète
-     * une fois affichée : le bouton « Accepter » écrirait une preuve dont les
+     * une fois affichée : le bouton « Accepter » écrirait une observation dont les
      * dimensions manquent. C'est le demi-exercice d'ADR-031, au bilan.
      */
     const r = convertirCorrection(correction([{ critere: "1", valeur: "1", justification: "x" }]), 3);

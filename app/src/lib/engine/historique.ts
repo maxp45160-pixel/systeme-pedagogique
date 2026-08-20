@@ -2,9 +2,9 @@
  * Reconstitution de l'historique par rejeu du journal.
  *
  * Aucune progression n'est stockée : pour savoir qu'une compétence est passée
- * du niveau 2 au niveau 3, on recalcule son état avant et après la preuve
+ * du niveau 2 au niveau 3, on recalcule son état avant et après l'observation
  * concernée. C'est plus coûteux qu'un champ « niveau précédent », mais cela
- * garantit qu'un historique affiché correspond toujours aux preuves présentes
+ * garantit qu'un historique affiché correspond toujours aux observations présentes
  * — il ne peut pas dériver.
  */
 
@@ -14,7 +14,7 @@ import type {
   LearningSession,
   NiveauCompetence,
   Skill,
-  SkillEvidence,
+  SkillObservation,
 } from "@/lib/domain/types";
 import { seanceALieu, tentativeDeSeance } from "@/lib/domain/seance";
 import { dureeRetenue } from "@/lib/domain/tentative";
@@ -32,41 +32,41 @@ export interface EvenementProgression {
   domaine: DomaineId;
   niveauAvant: NiveauCompetence | null;
   niveauApres: NiveauCompetence | null;
-  /** Vrai si cette preuve a fait franchir un palier. */
+  /** Vrai si cette observation a fait franchir un palier. */
   franchissement: boolean;
-  resultat: SkillEvidence["resultat"];
-  type: SkillEvidence["type"];
+  resultat: SkillObservation["resultat"];
+  type: SkillObservation["type"];
   contexte: string;
   commentaire?: string;
 }
 
 /**
- * Liste les preuves les plus récentes en indiquant leur effet réel sur le
- * niveau. Une preuve qui ne change rien est conservée dans la liste : le
+ * Liste les observations les plus récentes en indiquant leur effet réel sur le
+ * niveau. Une observation qui ne change rien est conservée dans la liste : le
  * travail sans franchissement de palier est une information utile, pas un
  * échec à masquer.
  */
 export function evenementsRecents(
-  preuves: SkillEvidence[],
+  observations: SkillObservation[],
   // `ReadonlyMap` : cette fonction ne fait que lire le référentiel, et
   // l'exiger mutable obligeait ses appelants à en recopier un.
   skillsParCode: ReadonlyMap<string, Skill>,
   limite = 8,
   now: Date = new Date(),
 ): EvenementProgression[] {
-  const triees = [...preuves].sort((a, b) => a.date.localeCompare(b.date));
+  const triees = [...observations].sort((a, b) => a.date.localeCompare(b.date));
 
   // `computeSkillState` commence par filtrer sur `skillCode` : l'état « avant »
   // calculé sur `triees.slice(0, i)` vaut donc exactement l'état calculé sur le
-  // seul historique de cette compétence, tronqué au rang qu'y occupe la preuve.
+  // seul historique de cette compétence, tronqué au rang qu'y occupe l'observation.
   // On regroupe une fois par compétence en mémorisant ce rang, puis on ne dérive
-  // que les `limite` preuves réellement rendues.
+  // que les `limite` observations réellement rendues.
   //
-  // La version précédente dérivait les n preuves — deux `computeSkillState` et
+  // La version précédente dérivait les n observations — deux `computeSkillState` et
   // deux copies du tableau complet chacune — pour n'en garder que `limite` à la
   // dernière ligne. Sur le journal, qui ne fait que croître et demande 200
   // évènements, ce coût était quadratique.
-  const parCode = new Map<string, SkillEvidence[]>();
+  const parCode = new Map<string, SkillObservation[]>();
   const rangDansSaCompetence = new Array<number>(triees.length);
 
   for (let i = 0; i < triees.length; i++) {
@@ -83,35 +83,35 @@ export function evenementsRecents(
   const evenements: EvenementProgression[] = [];
 
   for (let i = triees.length - 1; i >= 0 && evenements.length < limite; i--) {
-    const preuve = triees[i];
+    const observation = triees[i];
     // `skillsParCode` doit couvrir TOUT le référentiel du compte, archivées
     // comprises — c'est `Referentiel.parCode`, pas `actifs`. Une compétence
-    // sortie du périmètre garde ses preuves, et son historique doit rester
+    // sortie du périmètre garde ses observations, et son historique doit rester
     // lisible (P4).
-    const skill = skillsParCode.get(preuve.skillCode);
-    // Preuve hors référentiel : ignorée sans consommer de place dans la liste.
-    // Depuis ADR-027 la clé étrangère `evidence_competence_fk` rend ce cas
+    const skill = skillsParCode.get(observation.skillCode);
+    // Observation hors référentiel : ignorée sans consommer de place dans la liste.
+    // Depuis ADR-027 la clé étrangère `observations_competence_fk` rend ce cas
     // impossible en base ; le garde reste pour les journaux importés et les
     // tests.
     if (!skill) continue;
 
-    const historique = parCode.get(preuve.skillCode)!;
+    const historique = parCode.get(observation.skillCode)!;
     const rang = rangDansSaCompetence[i];
     const avant = computeSkillState(skill, historique.slice(0, rang), now);
     const apres = computeSkillState(skill, historique.slice(0, rang + 1), now);
 
     evenements.push({
-      date: preuve.date,
-      skillCode: preuve.skillCode,
+      date: observation.date,
+      skillCode: observation.skillCode,
       intitule: skill.intitule,
       domaine: skill.domaine,
       niveauAvant: avant.niveau,
       niveauApres: apres.niveau,
       franchissement: avant.niveau !== apres.niveau,
-      resultat: preuve.resultat,
-      type: preuve.type,
-      contexte: preuve.contexte,
-      commentaire: preuve.commentaire,
+      resultat: observation.resultat,
+      type: observation.type,
+      contexte: observation.contexte,
+      commentaire: observation.commentaire,
     });
   }
 

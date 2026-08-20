@@ -89,7 +89,7 @@ export async function modifierTheme(id: string, modification: ModificationTheme)
  *
  * `besoin_declare` est du JSONB de premier niveau côté colonne, donc pas
  * filtrable en une clause SQL simple sans opérateur `->>` : on relit la seule
- * colonne nécessaire et on compte côté code — même choix que `compterPreuves`
+ * colonne nécessaire et on compte côté code — même choix que `compterObservations`
  * dans `referentiel-actions.ts`, pour ne pas tirer les colonnes lourdes
  * (`blueprint`, `activites`) d'une table qui peut grossir.
  */

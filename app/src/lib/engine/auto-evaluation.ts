@@ -29,7 +29,7 @@
 import type {
   Exercise,
   ExerciseAttempt,
-  SkillEvidence,
+  SkillObservation,
 } from "@/lib/domain/types";
 import type { TypePrediction } from "./prediction";
 import { tentativeMenee } from "./calibration";
@@ -107,7 +107,7 @@ export interface Resolution {
   prediction: PredictionInscrite;
   observe: number;
   /** Ce qui a tranché — P3, pour pouvoir remonter au fait. */
-  source: { kind: "tentative" | "preuve"; ref: string; date: string };
+  source: { kind: "tentative" | "observation"; ref: string; date: string };
 }
 
 export type NomMetrique =
@@ -187,7 +187,7 @@ function tentativeResolvante(
  * Résout les prédictions de réussite.
  *
  * Une tentative **abandonnée** ne tranche rien : `tentativeMenee` porte déjà
- * cette règle pour l'écriture de la preuve (ADR-030) et pour la calibration.
+ * cette règle pour l'écriture de l'observation (ADR-030) et pour la calibration.
  * Une troisième lecture du même fait n'aurait aucune raison de diverger.
  */
 export function resoudreReussites(
@@ -238,29 +238,29 @@ export function resoudreDurees(
 /**
  * Résout les prédictions de rétention.
  *
- * L'affirmation testée : **la première preuve enregistrée après l'horizon n'est
- * pas un échec**. Tant que l'horizon n'est pas passé, ou qu'aucune preuve n'est
+ * L'affirmation testée : **la première observation enregistrée après l'horizon n'est
+ * pas un échec**. Tant que l'horizon n'est pas passé, ou qu'aucune observation n'est
  * venue, la prédiction reste en attente — c'est le cas dominant, et ce n'en est
  * pas moins la seule lecture honnête.
  */
 export function resoudreRetentions(
   predictions: PredictionInscrite[],
-  preuves: SkillEvidence[],
+  observations: SkillObservation[],
 ): Resolution[] {
   const resolutions: Resolution[] = [];
   for (const prediction of predictions) {
     if (prediction.type !== "retention" || prediction.horizonLe === null) continue;
 
-    const apres = preuves
+    const apres = observations
       .filter((p) => p.skillCode === prediction.cibleCode && p.date > prediction.horizonLe!)
       .sort((a, b) => a.date.localeCompare(b.date));
-    const preuve = apres[0];
-    if (!preuve) continue;
+    const observation = apres[0];
+    if (!observation) continue;
 
     resolutions.push({
       prediction,
-      observe: preuve.resultat === "echec" ? 0 : 1,
-      source: { kind: "preuve", ref: preuve.id, date: preuve.date },
+      observe: observation.resultat === "echec" ? 0 : 1,
+      source: { kind: "observation", ref: observation.id, date: observation.date },
     });
   }
   return resolutions;
@@ -480,20 +480,20 @@ export interface EntreesAutoEvaluation {
   predictions: PredictionInscrite[];
   decisions: DecisionInscrite[];
   tentatives: ExerciseAttempt[];
-  preuves: SkillEvidence[];
+  observations: SkillObservation[];
   /** Sert à écarter les tentatives abandonnées. Exercices bruts, seed compris. */
   exercicesParId: Map<string, Pick<Exercise, "dureeEstimeeMin">>;
 }
 
 /** Les quatre métriques, recalculées de bout en bout. Rien n'est stocké. */
 export function evaluerMoteur(entrees: EntreesAutoEvaluation): MetriqueMoteur[] {
-  const { predictions, decisions, tentatives, preuves, exercicesParId } = entrees;
+  const { predictions, decisions, tentatives, observations, exercicesParId } = entrees;
 
   const parType = (type: TypePrediction) => predictions.filter((p) => p.type === type);
 
   const reussites = resoudreReussites(predictions, tentatives, exercicesParId);
   const durees = resoudreDurees(predictions, tentatives, exercicesParId);
-  const retentions = resoudreRetentions(predictions, preuves);
+  const retentions = resoudreRetentions(predictions, observations);
 
   return [
     metriqueDuree(durees, parType("duree").length - durees.length),

@@ -8,7 +8,7 @@ import { RepartitionNiveaux } from "@/components/charts";
 /**
  * Ce que valent les mesures — pas ce qu'elles totalisent.
  *
- * Le score global, la confiance et le nombre de preuves ne sont plus ici : ils
+ * Le score global, la confiance et le nombre d'observations ne sont plus ici : ils
  * ouvrent la page, dans l'en-tête du profil. Cette carte les répétait mot pour
  * mot deux blocs plus bas, si bien que le même « 42 / 100 » apparaissait deux
  * fois sur un écran — deux affichages d'une seule valeur, dont l'un finit
@@ -31,7 +31,7 @@ export function CarteEtatGlobal({
     if (e.niveau !== null) repartition[e.niveau] = (repartition[e.niveau] ?? 0) + 1;
   }
 
-  const aucunePreuve = global.nombrePreuves === 0;
+  const aucuneObservation = global.nombreObservations === 0;
 
   return (
     <Carte>
@@ -74,7 +74,7 @@ export function CarteEtatGlobal({
           />
         </div>
 
-        {!aucunePreuve && (
+        {!aucuneObservation && (
           <div className="mt-4 grid gap-4 sm:grid-cols-2 [&>*]:min-w-0">
             <Link
               href="/atelier?document=domaines"

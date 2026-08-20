@@ -12,7 +12,7 @@ import type {
   VueExerciceProjectionAtelier,
   VuePedagogiqueAtelier,
   DocumentLieAtelier,
-  PreuveAtelier,
+  ObservationAtelier,
 } from "@/lib/documents/vue-atelier";
 import { CodeCompetence, cx } from "@/components/ui/primitives";
 import type { EtapeParcours } from "@/lib/engine/parcours";
@@ -121,53 +121,53 @@ function Mesure({ libelle, valeur, precision }: { libelle: string; valeur: strin
 }
 
 /** Les onglets du volet droit : une nature d'élément par onglet. */
-type VoletCompetence = "preuves" | "exercices" | "ressources" | "relations";
+type VoletCompetence = "observations" | "exercices" | "ressources" | "relations";
 
 /**
- * Une preuve, cliquable quand elle a un document.
+ * Une observation, cliquable quand elle a un document.
  *
  * `documentId` n'est renseigné que si le corpus contient réellement la
- * production — voir `documentDeLaPreuve`. Sans lui, la ligne garde exactement
+ * production — voir `documentDeLaObservation`. Sans lui, la ligne garde exactement
  * la même mise en forme mais n'est pas un bouton : rien ne suggère un clic qui
  * ne mènerait nulle part.
  */
-function PreuveLiee({
-  preuve,
+function ObservationLiee({
+  observation,
   ouvrirElement,
 }: {
-  preuve: PreuveAtelier;
+  observation: ObservationAtelier;
   ouvrirElement: (id: string) => void;
 }) {
   const corps = (
     <>
       <span className="flex items-start justify-between gap-2">
-        <span className="min-w-0 text-xs font-medium leading-snug text-texte">{preuve.contexte}</span>
+        <span className="min-w-0 text-xs font-medium leading-snug text-texte">{observation.contexte}</span>
         <span
           className={cx(
             "shrink-0 rounded px-1.5 py-0.5 text-[0.625rem]",
-            preuve.resultat === "reussi"
+            observation.resultat === "reussi"
               ? "bg-succes-faible text-succes"
-              : preuve.resultat === "partiel"
+              : observation.resultat === "partiel"
                 ? "bg-info-faible text-info"
                 : "bg-danger-faible text-danger",
           )}
         >
-          {preuve.resultat === "reussi" ? "Solide" : preuve.resultat === "partiel" ? "Partiel" : "À revoir"}
+          {observation.resultat === "reussi" ? "Solide" : observation.resultat === "partiel" ? "Partiel" : "À revoir"}
         </span>
       </span>
       <span className="mt-1 block text-[0.6875rem] text-texte-discret">
-        {dateCourte(preuve.date)} · preuve {preuve.niveauPreuve} · {preuve.autonomie}
+        {dateCourte(observation.date)} · observation {observation.niveauObservation} · {observation.autonomie}
       </span>
     </>
   );
 
-  if (!preuve.documentId) {
+  if (!observation.documentId) {
     return <div className="rounded-lg border border-bordure bg-surface px-3 py-2.5">{corps}</div>;
   }
   return (
     <button
       type="button"
-      onClick={() => ouvrirElement(preuve.documentId!)}
+      onClick={() => ouvrirElement(observation.documentId!)}
       className="block w-full rounded-lg border border-bordure bg-surface px-3 py-2.5 text-left transition-colors hover:border-primaire/40 hover:bg-surface-2 cursor-pointer"
     >
       {corps}
@@ -195,7 +195,7 @@ function VueCompetence({
   donneesSeance?: DonneesSeance;
 }) {
   const router = useRouter();
-  const [volet, setVolet] = useState<VoletCompetence>("preuves");
+  const [volet, setVolet] = useState<VoletCompetence>("observations");
   const [documentASupprimer, setDocumentASupprimer] = useState<DocumentLieAtelier | null>(null);
   const [creationNoteEnCours, demarrerCreationNote] = useTransition();
   const prochainExercice = vue.exercices[0];
@@ -210,7 +210,7 @@ function VueCompetence({
    *
    * Le volet Contexte, lui, ne s'ouvre plus sur une compétence
    * (`espace-documentaire.tsx`) : il redisait le code, le domaine, le palier,
-   * la dernière preuve, les mêmes barres de performance et la même prochaine
+   * la dernière observation, les mêmes barres de performance et la même prochaine
    * action. La fiche récupère sa largeur.
    */
 
@@ -252,13 +252,13 @@ function VueCompetence({
    *
    * En un seul flux vertical, « Éléments associés » finissait sous la ligne de
    * flottaison : il fallait défiler pour savoir si une compétence avait des
-   * preuves. La lecture — ce qui reste à démontrer, la performance, le parcours
+   * observations. La lecture — ce qui reste à démontrer, la performance, le parcours
    * — occupe le volet gauche ; les listes tiennent à droite sous des onglets,
    * une nature par onglet. Chaque volet défile pour lui seul, la page ne défile
    * plus.
    */
   const volets: Array<{ id: VoletCompetence; libelle: string; compteur: number }> = [
-    { id: "preuves", libelle: "Preuves", compteur: vue.preuves.length },
+    { id: "observations", libelle: "Observations", compteur: vue.observations.length },
     { id: "exercices", libelle: "Exercices", compteur: vue.exercices.length },
     { id: "ressources", libelle: "Ressources", compteur: vue.documents.length },
     { id: "relations", libelle: "Relations", compteur: vue.prerequis.length + vue.suivantes.length },
@@ -337,17 +337,17 @@ function VueCompetence({
         <Mesure
           libelle="Niveau actuel"
           valeur={vue.niveau === null ? "Non évalué" : `${vue.niveau} / 5`}
-          precision={vue.niveau === null ? "Aucune preuve directe" : NIVEAUX[vue.niveau].nom}
+          precision={vue.niveau === null ? "Aucune observation directe" : NIVEAUX[vue.niveau].nom}
         />
         <Mesure
-          libelle="Preuves"
-          valeur={String(vue.nombrePreuves)}
+          libelle="Observations"
+          valeur={String(vue.nombreObservations)}
           precision={`${vue.nombreContextes} contexte${vue.nombreContextes > 1 ? "s" : ""} distinct${vue.nombreContextes > 1 ? "s" : ""}`}
         />
         <Mesure libelle="Robustesse" valeur={pourcentage(vue.robustesse)} precision="Solidité de l’acquis" />
         <Mesure
           libelle="Dernière activité"
-          valeur={dateCourte(vue.dernierePreuve)}
+          valeur={dateCourte(vue.derniereObservation)}
           precision={`${vue.exercices.length} exercice${vue.exercices.length > 1 ? "s" : ""} associé${vue.exercices.length > 1 ? "s" : ""}`}
         />
       </section>
@@ -360,7 +360,7 @@ function VueCompetence({
           <div className="rounded-xl border border-bordure bg-surface p-5 shadow-[var(--ombre-posee)]">
             <h3 className="font-serif text-lg font-medium">Le détail de vos résultats</h3>
             <p className="mt-1 text-xs text-texte-discret">
-              Calculée depuis les preuves observées ; aucune valeur n’est stockée.
+              Calculée depuis les observations observées ; aucune valeur n’est stockée.
             </p>
             {/*
               Les barres portent déjà ce que « points forts » et « axes à
@@ -379,7 +379,7 @@ function VueCompetence({
           <div className="rounded-xl border border-bordure bg-surface p-5 shadow-[var(--ombre-posee)]">
             <h3 className="font-serif text-lg font-medium">Parcours</h3>
             <p className="mt-1 text-xs text-texte-discret">
-              Ce que chaque preuve a changé, rejoué depuis le journal.
+              Ce que chaque observation a changé, rejoué depuis le journal.
             </p>
             <FriseParcours etapes={vue.parcours} />
           </div>
@@ -415,26 +415,26 @@ function VueCompetence({
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-            {volet === "preuves" && (
+            {volet === "observations" && (
               <>
                 <p className="mb-3 text-[0.6875rem] leading-relaxed text-texte-discret">
-                  Chaque preuve ouvre le document produit au moment de la mesure, quand il existe.
+                  Chaque observation ouvre le document produit au moment de la mesure, quand il existe.
                 </p>
-                {vue.preuves.length ? (
+                {vue.observations.length ? (
                   <ul className="space-y-1">
-                    {vue.preuves.map((preuve) => (
-                      <li key={preuve.id}>
+                    {vue.observations.map((observation) => (
+                      <li key={observation.id}>
                         {/*
-                          Une preuve historique sans document reste lisible mais
+                          Une observation historique sans document reste lisible mais
                           n'est pas cliquable : mieux vaut un lien absent qu'un
                           lien qui ne mène nulle part.
                         */}
-                        <PreuveLiee preuve={preuve} ouvrirElement={ouvrirElement} />
+                        <ObservationLiee observation={observation} ouvrirElement={ouvrirElement} />
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="px-2.5 py-3 text-xs text-texte-discret">Aucune preuve directe.</p>
+                  <p className="px-2.5 py-3 text-xs text-texte-discret">Aucune observation directe.</p>
                 )}
               </>
             )}
@@ -484,7 +484,7 @@ function VueCompetence({
             {volet === "ressources" && (
               <>
                 <p className="mb-3 text-[0.6875rem] leading-relaxed text-texte-discret">
-                  Les supports de travail seulement : les exercices et les preuves ont leur onglet.
+                  Les supports de travail seulement : les exercices et les observations ont leur onglet.
                 </p>
                 {vue.documents.length ? (
                   <ul className="space-y-1">
@@ -573,14 +573,14 @@ function VueCompetence({
 /* ------------------------------------------------------------------ */
 
 /**
- * La frise des preuves, avec ce que chacune a changé.
+ * La frise des observations, avec ce que chacune a changé.
  *
  * L'ancien « Historique récent » listait un contexte et une date : il disait
  * qu'il s'était passé quelque chose, jamais ce que ça avait changé. Le niveau
- * d'avant chaque preuve est pourtant calculable, et `parcoursCompetence` le
+ * d'avant chaque observation est pourtant calculable, et `parcoursCompetence` le
  * rejoue.
  *
- * Une preuve qui n'a rien déplacé reste affichée, sans mise en avant : ne
+ * Une observation qui n'a rien déplacé reste affichée, sans mise en avant : ne
  * montrer que les progressions donnerait l'illusion d'une courbe toujours
  * montante, et ferait disparaître le travail de consolidation.
  */
@@ -592,7 +592,7 @@ function FriseParcours({ etapes }: { etapes: EtapeParcours[] }) {
   return (
     <ol className="mt-4 space-y-4 border-l border-bordure pl-4">
       {etapes.map((etape) => (
-        <li key={etape.preuveId} className="relative">
+        <li key={etape.observationId} className="relative">
           <span
             className={cx(
               "absolute -left-[1.18rem] top-1 size-2 rounded-full border-2 border-surface",
@@ -678,7 +678,7 @@ function ResteADemontrer({
       {vue.contradictions > 0 && (
         <p className="mt-3 text-xs leading-relaxed text-texte-attenue">
           <strong className="font-medium">
-            {vue.contradictions} preuve{vue.contradictions > 1 ? "s" : ""} s’oppose
+            {vue.contradictions} observation{vue.contradictions > 1 ? "s" : ""} s’oppose
             {vue.contradictions > 1 ? "nt" : ""} à la tendance
           </strong>{" "}
           — le niveau en tient compte, et la confiance aussi. Une contradiction est une
@@ -704,7 +704,7 @@ function ResteADemontrer({
  * Les compétences que le travail a reliées à celle-ci.
  *
  * Un fait observé, pas une proximité devinée : ces compétences ont été mises
- * en jeu par les mêmes exercices ou nommées sur les mêmes preuves. Le compte
+ * en jeu par les mêmes exercices ou nommées sur les mêmes observations. Le compte
  * est affiché pour que le lien porte sa propre source (P3).
  */
 function CoMobilisees({
@@ -819,8 +819,8 @@ function VueDomaine({
         {section !== "referentiel" && (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Indicateur libelle="Compétences" valeur={String(vue.competences.length)} precision={`${vue.nombreEvaluees} sur ${vue.competences.length} compétence${vue.competences.length > 1 ? "s" : ""} évaluée${vue.nombreEvaluees > 1 ? "s" : ""}`} />
-            <Indicateur libelle="Couverture" valeur={`${Math.round(couverture * 100)} %`} precision="Compétences avec preuve" />
-            <Indicateur libelle="Preuves" valeur={String(vue.nombrePreuves)} precision="Observations conservées" />
+            <Indicateur libelle="Couverture" valeur={`${Math.round(couverture * 100)} %`} precision="Compétences avec observation" />
+            <Indicateur libelle="Observations" valeur={String(vue.nombreObservations)} precision="Observations conservées" />
             <Indicateur libelle="Exercices" valeur={String(vue.nombreExercices)} precision={`Dernière activité : ${dateCourte(vue.derniereActivite)}`} />
           </div>
         )}
@@ -862,13 +862,13 @@ function VueDomaine({
                           )}
                         </div>
                         <p className="mt-3 text-[0.6875rem] text-texte-discret">
-                          {competence.nombrePreuves} preuve{competence.nombrePreuves > 1 ? "s" : ""} · confiance {LIBELLES_CONFIANCE[competence.confiance].toLowerCase()}
+                          {competence.nombreObservations} observation{competence.nombreObservations > 1 ? "s" : ""} · confiance {LIBELLES_CONFIANCE[competence.confiance].toLowerCase()}
                         </p>
                       </button>
 
                       {/*
                         Une rattachée ne se retire pas d'ici : elle appartient à
-                        un autre domaine, et la retirer effacerait ses preuves
+                        un autre domaine, et la retirer effacerait ses observations
                         pour tout le monde. Elle se détache — le porteur ne
                         bouge pas (ADR-081).
                       */}
@@ -920,7 +920,7 @@ function VueDomaine({
             nomElement={detachement}
             typeElement="competence"
             mode="suppression"
-            explication="La compétence cesse de servir ce domaine. Elle reste intacte dans son domaine porteur, avec son code et ses preuves."
+            explication="La compétence cesse de servir ce domaine. Elle reste intacte dans son domaine porteur, avec son code et ses observations."
             texteBoutonConfirmer="Détacher"
             onConfirmer={async () => {
               await rattacherCompetences(vue.domaine.id, [detachement], false);
@@ -936,13 +936,13 @@ function VueDomaine({
             titre="Retirer la compétence"
             nomElement={`${competenceARetirer.code} : ${competenceARetirer.titre}`}
             typeElement="competence"
-            mode={competenceARetirer.nombrePreuves > 0 ? "archivage" : "suppression"}
+            mode={competenceARetirer.nombreObservations > 0 ? "archivage" : "suppression"}
             explication={
-              competenceARetirer.nombrePreuves > 0
-                ? "Cette compétence possède des preuves d’apprentissage. Elle sera archivée sans perte d’historique : ses données restent protégées."
+              competenceARetirer.nombreObservations > 0
+                ? "Cette compétence possède des observations d’apprentissage. Elle sera archivée sans perte d’historique : ses données restent protégées."
                 : "Cette compétence ne possède aucune observation directe. Elle sera retirée du référentiel."
             }
-            texteBoutonConfirmer={competenceARetirer.nombrePreuves > 0 ? "Confirmer l’archivage" : "Supprimer la compétence"}
+            texteBoutonConfirmer={competenceARetirer.nombreObservations > 0 ? "Confirmer l’archivage" : "Supprimer la compétence"}
             onConfirmer={async () => {
               await retirerCompetences([competenceARetirer.code]);
               setCompetenceARetirer(null);
@@ -989,10 +989,10 @@ function VueDomaine({
               <h3 className="font-serif text-xl font-medium">Lecture</h3>
               <dl className="mt-4 space-y-3 text-sm">
                 <div className="flex justify-between gap-3"><dt className="text-texte-discret">Mesurées</dt><dd className="font-semibold">{vue.nombreEvaluees}/{vue.competences.length}</dd></div>
-                <div className="flex justify-between gap-3"><dt className="text-texte-discret">Preuves</dt><dd className="font-semibold">{vue.nombrePreuves}</dd></div>
+                <div className="flex justify-between gap-3"><dt className="text-texte-discret">Observations</dt><dd className="font-semibold">{vue.nombreObservations}</dd></div>
                 <div className="flex justify-between gap-3"><dt className="text-texte-discret">Dernière activité</dt><dd className="text-right font-semibold">{dateCourte(vue.derniereActivite)}</dd></div>
               </dl>
-              {axes.some((axe) => axe.valeur === null) && <p className="mt-5 rounded-lg bg-info-faible p-3 text-xs leading-relaxed text-info">Les axes sans preuve sont affichés pour situer la couverture ; ils ne signalent pas une faiblesse.</p>}
+              {axes.some((axe) => axe.valeur === null) && <p className="mt-5 rounded-lg bg-info-faible p-3 text-xs leading-relaxed text-info">Les axes sans observation sont affichés pour situer la couverture ; ils ne signalent pas une faiblesse.</p>}
             </div>
           </section>
         )}
@@ -1007,7 +1007,7 @@ function VueDomaine({
               <BoutonReviser
                 domaineId={vue.domaine.id}
                 domaineNom={vue.domaine.nom}
-                competences={vue.skills.filter((skill) => !skill.archive).map((skill) => ({ code: skill.code, intitule: skill.intitule, palier: skill.palier, preuves: vue.retraits[skill.code]?.preuves ?? 0, modeRetrait: vue.retraits[skill.code]?.mode ?? "suppression" }))}
+                competences={vue.skills.filter((skill) => !skill.archive).map((skill) => ({ code: skill.code, intitule: skill.intitule, palier: skill.palier, observations: vue.retraits[skill.code]?.observations ?? 0, modeRetrait: vue.retraits[skill.code]?.mode ?? "suppression" }))}
                 domainesExistants={vue.domainesExistants}
                 compteId={compteId}
               />
@@ -1190,8 +1190,8 @@ function VueTheme({
             precision={`${vue.nombreEvaluees} sur ${vue.competences.length} compétence${vue.competences.length > 1 ? "s" : ""} évaluée${vue.competences.length > 1 ? "s" : ""}`}
           />
           <Indicateur
-            libelle="Preuves directes"
-            valeur={String(vue.nombrePreuves)}
+            libelle="Observations directes"
+            valeur={String(vue.nombreObservations)}
             precision="Observations réelles accumulées"
           />
           <Indicateur
@@ -1251,12 +1251,12 @@ function VueTheme({
                   <dd className="font-semibold">{vue.competences.length}</dd>
                 </div>
                 <div className="flex justify-between gap-3">
-                  <dt className="text-texte-discret">Évaluées avec preuve</dt>
+                  <dt className="text-texte-discret">Évaluées avec observation</dt>
                   <dd className="font-semibold">{vue.nombreEvaluees} ({Math.round(vue.tauxCouverture * 100)}%)</dd>
                 </div>
                 <div className="flex justify-between gap-3">
-                  <dt className="text-texte-discret">Preuves directes</dt>
-                  <dd className="font-semibold">{vue.nombrePreuves}</dd>
+                  <dt className="text-texte-discret">Observations directes</dt>
+                  <dd className="font-semibold">{vue.nombreObservations}</dd>
                 </div>
                 <div className="flex justify-between gap-3">
                   <dt className="text-texte-discret">Exercices prêts</dt>
@@ -1364,7 +1364,7 @@ function VueTheme({
 
                   <div className="mt-4 flex items-center justify-between border-t border-bordure/60 pt-2.5 text-[0.6875rem] text-texte-discret">
                     <span>
-                      {comp.nombrePreuves} preuve{comp.nombrePreuves > 1 ? "s" : ""} · {LIBELLES_CONFIANCE[comp.confiance]?.toLowerCase() ?? "aucune"}
+                      {comp.nombreObservations} observation{comp.nombreObservations > 1 ? "s" : ""} · {LIBELLES_CONFIANCE[comp.confiance]?.toLowerCase() ?? "aucune"}
                     </span>
                     <span className="font-medium text-primaire opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                       Consulter →
@@ -1633,7 +1633,7 @@ function VueExercice({
             </div>
           ) : (
             <p className="mt-4 text-xs text-texte-discret">
-              Aucune tentative enregistrée sur cet exercice. Lance une session pour enregistrer ta première preuve.
+              Aucune tentative enregistrée sur cet exercice. Lance une session pour enregistrer ta première observation.
             </p>
           )}
         </section>
@@ -1742,7 +1742,7 @@ export function PanneauPedagogiqueAtelier({
    * Une compétence n'a plus de volet.
    *
    * Il reprenait, un pouce à droite de la fiche : le code, le domaine, le
-   * palier et la dernière preuve (déjà dans l'en-tête et les mesures), les
+   * palier et la dernière observation (déjà dans l'en-tête et les mesures), les
    * mêmes barres de performance, la même prochaine étape, et deux raccourcis
    * vers l'exercice et la ressource que les cartes listent nommément. Rien à
    * garder, et 22 rem de largeur rendus à la fiche.

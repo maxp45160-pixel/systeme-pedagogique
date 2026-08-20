@@ -3,8 +3,9 @@
 
 # 1. OBJECTIF
 
-Évaluer la progression de façon progressive, fondée sur des preuves,
-contextualisée, répétée, prudente, orientée vers le transfert. Le but n'est
+Évaluer la progression de façon progressive, fondée sur des Preuves
+vérifiables et des Observations sourcées, contextualisée, répétée, prudente,
+orientée vers le transfert. Le but n'est
 pas une note artificiellement précise mais une estimation de ce que
 l'utilisateur est réellement capable de faire.
 
@@ -39,7 +40,7 @@ sont suivies séparément (§5, §13).
 
 # 4. ÉCHELLE DE NIVEAU
 
-- **0 — Exposition.** Notion rencontrée ; preuve insuffisante pour conclure.
+- **0 — Exposition.** Notion rencontrée ; Observations insuffisantes pour conclure.
 - **1 — Compréhension.** Explique ou reconnaît le concept.
 - **2 — Application guidée.** Applique la méthode avec aide.
 - **3 — Application autonome.** Résout un problème standard sans aide
@@ -84,7 +85,7 @@ l'optimisme : personne ne se déclare A1.
 
 ---
 
-# 6. QUALITÉ DE LA PREUVE
+# 6. QUALITÉ DE L'OBSERVATION
 
 - **Faible** — réponse isolée, exercice très guidé, question de mémoire.
 - **Moyenne** — exercice autonome, problème standard, explication correcte.
@@ -97,9 +98,9 @@ l'optimisme : personne ne se déclare A1.
 
 Confiance qualitative — faible, moyenne, forte — ou valeur entre 0 et 1.
 
-- **Augmente** : preuves convergentes, contextes différents, autonomie
+- **Augmente** : Observations convergentes, contextes différents, autonomie
   élevée, compétence récente et répétée.
-- **Diminue** : preuves anciennes, contradictoires, dépendantes d'indices,
+- **Diminue** : Observations anciennes, contradictoires, dépendantes d'indices,
   compétence non réutilisée.
 
 L'ancienneté fait baisser la confiance, jamais le niveau acquis (§9).
@@ -110,9 +111,9 @@ L'ancienneté fait baisser la confiance, jamais le niveau acquis (§9).
 
 Une compétence ne progresse pas uniquement parce qu'une réponse est
 correcte. Avant d'augmenter un niveau, vérifie : quelle compétence est
-évaluée, quelle preuve justifie l'évolution, quel était le niveau
+évaluée, quelle Observation justifie l'évolution, quel était le niveau
 précédent, si la performance est reproductible, si le contexte est
-comparable, et si une autre preuve la contredit.
+comparable, et si une autre Observation la contredit.
 
 ---
 
@@ -122,7 +123,7 @@ Une mauvaise performance n'est pas automatiquement une régression :
 difficulté, fatigue, contexte nouveau, erreur ponctuelle ou oubli temporaire
 l'expliquent aussi.
 
-Baisse le niveau seulement si : plusieurs preuves montrent une difficulté,
+Baisse le niveau seulement si : plusieurs Observations montrent une difficulté,
 une compétence autrefois maîtrisée n'est plus mobilisable, ou une erreur
 fondamentale persiste. Sinon, baisse la confiance, pas le niveau.
 

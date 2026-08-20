@@ -10,34 +10,34 @@
  *
  * Il ne fabrique aucun palier, aucun rang, aucun titre. Tout ce qui suit est un
  * **comptage de faits déjà écrits** : des séances tenues, des tentatives
- * terminées, des preuves enregistrées, des jours où quelque chose a eu lieu.
+ * terminées, des observations enregistrées, des jours où quelque chose a eu lieu.
  * Un « niveau de carrière » calculé à partir de ces totaux serait une mesure
  * inventée, et l'invariant est clair : le score global existe déjà et se
- * dérive des preuves, pas du temps passé (P2, P6).
+ * dérive des observations, pas du temps passé (P2, P6).
  *
  * `null` plutôt que `0` partout où l'absence est réelle : une carrière qui n'a
  * pas commencé n'a pas une durée de zéro jour, elle n'a pas de durée.
  */
 
-import type { ExerciseAttempt, LearningSession, SkillEvidence } from "@/lib/domain/types";
+import type { ExerciseAttempt, LearningSession, SkillObservation } from "@/lib/domain/types";
 import { seanceALieu } from "@/lib/domain/seance";
 import { cleJour, joursDepuis } from "./dates";
 
 export interface Carriere {
-  /** Date de la toute première preuve, ou `null` si aucune n'existe. */
+  /** Date de la toute première observation, ou `null` si aucune n'existe. */
   debut: string | null;
-  /** Jours écoulés depuis cette première preuve. `null` sans preuve. */
+  /** Jours écoulés depuis cette première observation. `null` sans observation. */
   joursDepuisDebut: number | null;
   /** Minutes observées, toutes séances confondues. */
   minutesTotal: number;
   /** Séances qui ont eu lieu — une séance seulement planifiée n'en est pas une. */
   seancesTotal: number;
-  /** Tentatives menées à terme. Un abandon ne produit pas de preuve (ADR-030). */
+  /** Tentatives menées à terme. Un abandon ne produit pas d'observation (ADR-030). */
   exercicesMenes: number;
-  preuvesTotal: number;
-  /** Jours distincts portant au moins une preuve. */
+  observationsTotal: number;
+  /** Jours distincts portant au moins une observation. */
   joursActifsTotal: number;
-  /** Plus longue suite de jours consécutifs avec au moins une preuve. */
+  /** Plus longue suite de jours consécutifs avec au moins une observation. */
   meilleureSerie: number;
   /**
    * Suite en cours, comptée jusqu'à aujourd'hui inclus.
@@ -53,19 +53,19 @@ export interface Carriere {
 export interface EntreesCarriere {
   sessions: readonly LearningSession[];
   tentatives: readonly ExerciseAttempt[];
-  preuves: readonly SkillEvidence[];
+  observations: readonly SkillObservation[];
   now?: Date;
 }
 
 /**
- * Les jours distincts portant une preuve, triés du plus ancien au plus récent.
+ * Les jours distincts portant une observation, triés du plus ancien au plus récent.
  *
- * Les preuves — et non les séances — parce que c'est la preuve qui atteste
+ * Les observations — et non les séances — parce que c'est l'observation qui atteste
  * qu'un travail a eu lieu. Une séance ouverte puis abandonnée ne fait pas un
  * jour actif.
  */
-function joursAvecPreuve(preuves: readonly SkillEvidence[]): string[] {
-  return [...new Set(preuves.map((preuve) => cleJour(preuve.date)))].sort();
+function joursAvecObservation(observations: readonly SkillObservation[]): string[] {
+  return [...new Set(observations.map((observation) => cleJour(observation.date)))].sort();
 }
 
 /** Le jour suivant une clé `AAAA-MM-JJ`, dans la même convention. */
@@ -114,19 +114,19 @@ function series(jours: string[], now: Date): { meilleure: number; enCours: numbe
  * Le cumul d'une pratique.
  *
  * Les tentatives comptées sont celles de statut `terminee` : une tentative
- * abandonnée ne produit pas de preuve, donc elle ne compte pas comme un
+ * abandonnée ne produit pas d'observation, donc elle ne compte pas comme un
  * exercice mené — c'est la même règle que `resumeCroissance`.
  */
 export function resumeCarriere(entrees: EntreesCarriere): Carriere {
   const now = entrees.now ?? new Date();
 
-  const jours = joursAvecPreuve(entrees.preuves);
+  const jours = joursAvecObservation(entrees.observations);
   const { meilleure, enCours } = series(jours, now);
 
-  const debut = entrees.preuves.length > 0
-    ? entrees.preuves.reduce(
-        (plusAncienne, preuve) => (preuve.date < plusAncienne ? preuve.date : plusAncienne),
-        entrees.preuves[0].date,
+  const debut = entrees.observations.length > 0
+    ? entrees.observations.reduce(
+        (plusAncienne, observation) => (observation.date < plusAncienne ? observation.date : plusAncienne),
+        entrees.observations[0].date,
       )
     : null;
 
@@ -143,7 +143,7 @@ export function resumeCarriere(entrees: EntreesCarriere): Carriere {
     minutesTotal: seancesTenues.reduce((total, session) => total + (session.dureeMin ?? 0), 0),
     seancesTotal: seancesTenues.length,
     exercicesMenes: entrees.tentatives.filter((tentative) => tentative.statut === "terminee").length,
-    preuvesTotal: entrees.preuves.length,
+    observationsTotal: entrees.observations.length,
     joursActifsTotal: jours.length,
     meilleureSerie: meilleure,
     serieEnCours: enCours,

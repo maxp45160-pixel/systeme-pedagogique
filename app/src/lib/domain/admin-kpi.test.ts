@@ -11,7 +11,7 @@ function compte(partiel: Partial<CompteAdministre> & { userId: string }): Compte
     suspenduLe: null,
     motif: null,
     creeLe: null,
-    preuves: 0,
+    observations: 0,
     exercices: 0,
     seances: 0,
     competences: 0,
@@ -30,7 +30,7 @@ describe("calculerStatistiquesAdmin", () => {
     expect(kpis.comptesSuspendus).toBe(0);
     expect(kpis.totalAdmins).toBe(0);
     expect(kpis.totalMembres).toBe(0);
-    expect(kpis.moyennePreuves).toBe(0);
+    expect(kpis.moyenneObservations).toBe(0);
     expect(kpis.tauxEngagement).toBe(0);
     expect(kpis.topActifs).toEqual([]);
     expect(kpis.derniersInscrits).toEqual([]);
@@ -44,7 +44,7 @@ describe("calculerStatistiquesAdmin", () => {
       role: "admin",
       creeLe: "2026-08-14T10:00:00Z", // 2j avant
       derniereActivite: "2026-08-16T08:00:00Z", // aujourd'hui
-      preuves: 10,
+      observations: 10,
       exercices: 5,
       seances: 4,
       competences: 6,
@@ -56,7 +56,7 @@ describe("calculerStatistiquesAdmin", () => {
       role: "membre",
       creeLe: "2026-07-01T10:00:00Z", // >30j avant
       derniereActivite: "2026-08-01T10:00:00Z", // 15j avant
-      preuves: 2,
+      observations: 2,
       exercices: 1,
       seances: 1,
       competences: 2,
@@ -69,7 +69,7 @@ describe("calculerStatistiquesAdmin", () => {
       suspenduLe: "2026-08-10T10:00:00Z",
       creeLe: "2026-08-05T10:00:00Z", // 11j avant
       derniereActivite: null,
-      preuves: 0,
+      observations: 0,
       exercices: 0,
       seances: 0,
       competences: 0,
@@ -83,12 +83,12 @@ describe("calculerStatistiquesAdmin", () => {
     expect(kpis.totalAdmins).toBe(1);
     expect(kpis.totalMembres).toBe(2);
 
-    expect(kpis.totalPreuves).toBe(12);
+    expect(kpis.totalObservations).toBe(12);
     expect(kpis.totalExercices).toBe(6);
     expect(kpis.totalSeances).toBe(5);
     expect(kpis.totalCompetences).toBe(8);
 
-    expect(kpis.moyennePreuves).toBe(4); // 12 / 3 = 4
+    expect(kpis.moyenneObservations).toBe(4); // 12 / 3 = 4
     expect(kpis.moyenneExercices).toBe(2); // 6 / 3 = 2
     expect(kpis.moyenneSeances).toBe(1.7); // 5 / 3 = 1.666 -> 1.7
 

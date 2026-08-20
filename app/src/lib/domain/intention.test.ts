@@ -12,7 +12,7 @@ function action(surcharge: Record<string, unknown> = {}) {
   return {
     genre: "travail",
     titre: "Trois exercices sur le calcul de coût",
-    pourquoi: "Deux compétences sans preuve récente répondent au besoin exprimé.",
+    pourquoi: "Deux compétences sans observation récente répondent au besoin exprimé.",
     codes: ["LOG-01"],
     sujet: "",
     ...surcharge,

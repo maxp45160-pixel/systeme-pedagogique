@@ -9,7 +9,7 @@
  *
  * Corriger exige pourtant de la lire. Sans elle, le tuteur ne corrigerait pas :
  * il improviserait un barème, et un barème improvisé qui remplit un formulaire
- * qui écrit une preuve est très exactement ce que ce système existe pour
+ * qui écrit une observation est très exactement ce que ce système existe pour
  * empêcher.
  *
  * L'exception est donc **scopée**, par six verrous qui sont tous du code :

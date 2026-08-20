@@ -133,7 +133,7 @@ export function PanneauExerciceAtelier({
         </div>
         {element.tentatives.length === 0 ? (
           <p className="mt-2 text-xs leading-relaxed text-texte-discret">
-            Aucune tentative enregistrée. S’exercer dans le cahier générera la première preuve.
+            Aucune tentative enregistrée. S’exercer dans le cahier générera la première observation.
           </p>
         ) : (
           <ul className="mt-2 space-y-2">

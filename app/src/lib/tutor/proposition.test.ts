@@ -30,7 +30,7 @@ describe("exerciceComplet", () => {
 /*                                                                     */
 /* Troisième gabarit. Il porte une contrainte que les deux autres      */
 /* n'ont pas : le tuteur n'y écrit AUCUN code de compétence. Un code   */
-/* est la clé étrangère des preuves — le laisser inventer par un       */
+/* est la clé étrangère des observations — le laisser inventer par un       */
 /* modèle ouvrirait la porte aux collisions silencieuses.              */
 /* ------------------------------------------------------------------ */
 

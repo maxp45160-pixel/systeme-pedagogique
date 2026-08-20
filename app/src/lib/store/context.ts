@@ -7,7 +7,7 @@
  *
  * Depuis ADR-026 le référentiel fait partie des données lues, et non plus d'un
  * module compilé : c'est ici qu'il entre dans le moteur, exactement comme les
- * preuves. Le moteur, lui, ne connaît toujours aucun référentiel — il reçoit
+ * observations. Le moteur, lui, ne connaît toujours aucun référentiel — il reçoit
  * les compétences en paramètre.
  */
 
@@ -83,19 +83,19 @@ export interface Contexte {
    * valeurs que `computeSkillState` a déjà produites.
    */
   maitrises: Map<string, Maitrise>;
-  /** Provenance documentaire dérivée des preuves, sans lecture supplémentaire. */
+  /** Provenance documentaire dérivée des observations, sans lecture supplémentaire. */
   contexteDocumentaire: ContexteDocumentaire;
   /**
-   * Les preuves qui comptent pour le moteur.
+   * Les observations qui comptent pour le moteur.
    *
    * Elles étaient filtrées par un journal de rectifications, retiré le
    * 15/08/2026 avec la boucle qui le portait (ADR-071) : la table
-   * `evidence_status_events` n'a jamais existé en production. Le champ reste
-   * distinct de `donnees.evidence` parce qu'il nomme une intention — ce qui
+   * Ce journal de rectifications n'a jamais existé en production. Le champ reste
+   * distinct de `donnees.observations` parce qu'il nomme une intention — ce qui
    * entre dans le calcul — et qu'un futur mécanisme d'invalidation reprendrait
    * exactement cette place, sans avoir à retoucher ses consommateurs.
    */
-  preuvesEffectives: Collections["evidence"];
+  observationsEffectives: Collections["observations"];
   now: Date;
   /**
    * Refus de recommandation (R1) encore frais, expiration déjà appliquée.
@@ -152,9 +152,9 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
    * Le seul point où la famille de situation s'attache (ADR-083).
    *
    * Sur les exercices BRUTS, et sur `EXERCICES_DIAGNOSTIC` : même raison que
-   * `tableDureesEstimees` vingt lignes plus bas (ADR-071). Une preuve peut
+   * `tableDureesEstimees` vingt lignes plus bas (ADR-071). Une observation peut
    * venir d'un exercice archivé, sorti du périmètre, ou jamais stocké — 24 des
-   * 45 preuves d'exercice du compte réel pointent vers un diagnostic qui ne vit
+   * 45 observations d'exercice du compte réel pointent vers un diagnostic qui ne vit
    * que dans `lib/seed/exercises.ts`. Les résoudre contre la liste filtrée les
    * enverrait au repli, et le moteur recompterait des titres.
    *
@@ -166,13 +166,13 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
     ...donneesBrutes.exercises,
     ...EXERCICES_DIAGNOSTIC,
   ]);
-  const preuvesEffectives = attacherFamilles(donneesBrutes.evidence, catalogueSituation);
+  const observationsEffectives = attacherFamilles(donneesBrutes.observations, catalogueSituation);
 
   // Les exercices de diagnostic font partie du logiciel, pas du journal :
   // ils sont toujours disponibles, sans étape d'initialisation.
   //
   // Filtrés sur le périmètre du compte : proposer un exercice sur une
-  // compétence qui n'est ni calculée ni affichée produirait une preuve que rien
+  // compétence qui n'est ni calculée ni affichée produirait une observation que rien
   // ne lirait. Un compte dont le référentiel est étranger au lot livré — une
   // arborescence de philosophie, par exemple — n'en reçoit aucun, et son
   // amorçage passe entièrement par le tuteur (ADR-004). C'est ce qui rend le
@@ -220,8 +220,8 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
   const dureesEstimees = tableDureesEstimees(donneesBrutes.exercises);
 
   const etats = mesurerSync("computeAllSkillStates", () =>
-    computeAllSkillStates(referentiel.actifs, preuvesEffectives, now),
-    { competences: referentiel.actifs.length, preuves: preuvesEffectives.length },
+    computeAllSkillStates(referentiel.actifs, observationsEffectives, now),
+    { competences: referentiel.actifs.length, observations: observationsEffectives.length },
   );
   const global = mesurerSync("calculerEtatGlobal", () =>
     calculerEtatGlobal(etats, now, referentiel.domaines),
@@ -257,10 +257,10 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
     { exercices: exercicesActifs.length, tentatives: donnees.attempts.length },
   );
 
-  // Les documents ne sont pas relus sur le chemin chaud : la preuve porte déjà
+  // Les documents ne sont pas relus sur le chemin chaud : l'observation porte déjà
   // le lien vers son document et son snapshot. On ne dérive ici que le résumé
   // nécessaire au classement pédagogique.
-  const contexteDocumentaire = construireContexteDocumentaire(preuvesEffectives);
+  const contexteDocumentaire = construireContexteDocumentaire(observationsEffectives);
 
   // Refus de recommandation (R1) : ce que l'utilisateur a passé est écarté de
   // la file pour 7 jours. L'expiration est gérée ici, à la lecture.
@@ -323,7 +323,7 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
     calibrations,
     maitrises,
     contexteDocumentaire,
-    preuvesEffectives,
+    observationsEffectives,
     now,
     refus,
     themes,

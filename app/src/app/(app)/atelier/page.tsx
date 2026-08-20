@@ -131,7 +131,7 @@ export default async function PageAtelier(props: {
     exercices,
     contexte.donnees.attempts,
     index,
-    contexte.preuvesEffectives,
+    contexte.observationsEffectives,
     changementsReferentiel,
     codesAvecDependances,
     themes,

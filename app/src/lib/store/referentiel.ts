@@ -51,7 +51,7 @@ export async function lireReferentiel(
  * ⚠️ **C'est celle-ci qu'il faut appeler**, pas `lireReferentiel` directement.
  * Deux appelants faisaient chacun leur propre `lireReferentiel` dans la même
  * requête — `chargerContexte` et l'ancien `chargerRetraits` — et domaines,
- * compétences et preuves étaient lus deux fois par rendu. `chargerReferentiel`
+ * compétences et observations étaient lus deux fois par rendu. `chargerReferentiel`
  * existait déjà, mémoïsé, et n'était utilisé nulle part.
  *
  * `lireReferentiel` reste exportée pour les Server Functions d'écriture, qui

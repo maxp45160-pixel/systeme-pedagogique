@@ -45,7 +45,7 @@ export default async function PageSuspendu() {
         )}
 
         <p className="mt-4 text-xs leading-relaxed text-texte-discret">
-          Rien n&apos;a été supprimé : le référentiel, les preuves, les exercices et les documents
+          Rien n&apos;a été supprimé : le référentiel, les observations, les exercices et les documents
           sont conservés en l&apos;état et redeviennent lisibles dès la réouverture de l&apos;accès.
         </p>
 

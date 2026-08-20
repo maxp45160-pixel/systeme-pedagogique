@@ -40,7 +40,7 @@ export function Depliant({
   );
 }
 
-/** Rend une trace de calcul : facteurs, assise en preuves, réserves. */
+/** Rend une trace de calcul : facteurs, assise en observations, réserves. */
 export function PanneauExplication({
   explication,
   titre = "Pourquoi ce résultat ?",
@@ -72,10 +72,10 @@ export function PanneauExplication({
         )}
 
         <p className="mt-3 text-texte-discret">
-          {explication.nombrePreuves === 0
-            ? "Aucune preuve directe."
-            : `Calculé à partir de ${explication.nombrePreuves} preuve${
-                explication.nombrePreuves > 1 ? "s" : ""
+          {explication.nombreObservations === 0
+            ? "Aucune observation directe."
+            : `Calculé à partir de ${explication.nombreObservations} observation${
+                explication.nombreObservations > 1 ? "s" : ""
               }.`}
         </p>
 
@@ -89,7 +89,7 @@ export function PanneauExplication({
         {explication.facteurs.some((f) => f.libelle === "Confiance") && (
           <p className="mt-1 text-texte-discret">
             Le niveau dit ce qui a été démontré ; la confiance dit combien de
-            preuves l&apos;établissent, et depuis combien de temps.
+            observations l&apos;établissent, et depuis combien de temps.
           </p>
         )}
 

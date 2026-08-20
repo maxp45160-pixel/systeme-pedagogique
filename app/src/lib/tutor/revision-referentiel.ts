@@ -12,12 +12,12 @@
  *    pouvoir les DÉSIGNER. Ce n'est pas les laisser en frapper : l'`enum` du
  *    schéma est fermé sur ces codes-là, et rien d'autre n'est exprimable (voir
  *    `OUTIL_REVISION`) ;
- * 2. **le nombre de preuves de chacune**, parce qu'un retrait s'annonce avant
+ * 2. **le nombre d'observations de chacune**, parce qu'un retrait s'annonce avant
  *    le clic (ADR-027). Le tuteur ne décide pas entre suppression et archivage
  *    — l'application le dérive — mais il doit savoir qu'une compétence à neuf
- *    preuves ne se retire pas à la légère.
+ *    observations ne se retire pas à la légère.
  *
- * Le compte de preuves vient de `retraitsParCode`, **déjà calculé** par la page
+ * Le compte d'observations vient de `retraitsParCode`, **déjà calculé** par la page
  * du domaine : aucune requête supplémentaire.
  *
  * ⚠️ Les compétences archivées ne sont pas listées. Elles ne sont ni dans
@@ -44,8 +44,8 @@ export function construirePromptRevision(
   demande: string,
 ): string {
   const lignes = vivantes.map((s) => {
-    const preuves = retraits.get(s.code)?.preuves ?? 0;
-    return `- ${s.code} — ${s.intitule} (palier ${s.palier}, importance ${s.importance}) — ${preuves} preuve(s)`;
+    const observations = retraits.get(s.code)?.observations ?? 0;
+    return `- ${s.code} — ${s.intitule} (palier ${s.palier}, importance ${s.importance}) — ${observations} observation(s)`;
   });
 
   return [
@@ -67,7 +67,7 @@ export function construirePromptRevision(
     "- Tu peux ajouter, reformuler et retirer. Ne propose pas de tout refaire quand une reformulation suffit.",
     "- Pour ajouter : chaque intitulé est un savoir-faire observable et non un sujet, notable sur au moins une dimension, testable dans deux contextes, exerçable par un type d'exercice, et prouvable en 20 à 60 minutes.",
     "- Pour reformuler : ne mets que les champs qui changent, et désigne la compétence par son code.",
-    "- Pour retirer : donne toujours un motif. **L'application décide seule entre suppression et archivage, selon les preuves enregistrées** — ne le propose pas, et ne recommande pas de retirer une compétence qui porte des preuves sans raison forte.",
+    "- Pour retirer : donne toujours un motif. **L'application décide seule entre suppression et archivage, selon les observations enregistrées** — ne le propose pas, et ne recommande pas de retirer une compétence qui porte des observations sans raison forte.",
     "- Tu ne peux désigner que les codes ci-dessus. Les compétences que tu ajoutes n'ont pas de code : l'application les attribue.",
     "",
     "Appelle l'outil proposer_revision UNE fois. Ne recopie pas le contenu de l'appel dans ta réponse.",

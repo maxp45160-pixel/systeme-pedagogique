@@ -139,7 +139,7 @@ export async function lireDocument(id: string): Promise<LigneDocument> {
  * Supprime une note qui n'a encore rien démontré.
  *
  * La règle n'est pas le rôle, c'est la preuve. Une fiche ayant produit un
- * snapshot reste conservée : le snapshot porte une observation historique et la
+ * snapshot reste conservée : le snapshot porte une preuve historique et la
  * FK documentaire la protège déjà contre une suppression silencieuse. Tant
  * qu'aucun snapshot n'existe, la fiche n'est qu'une intention déclarée — et une
  * intention se retire.
@@ -420,7 +420,7 @@ export async function capturerDocumentProduction(
  * l'est déjà par `capturerDocumentProduction`, sur le document de preuve.
  *
  * L'échec n'est pas propagé. Cette écriture accompagne la fin d'un exercice ;
- * la preuve et la mesure, elles, sont déjà enregistrées. Faire échouer la
+ * la preuve et l'Observation, elles, sont déjà enregistrées. Faire échouer la
  * clôture parce qu'une fiche documentaire n'a pas pu s'écrire ferait perdre à
  * la personne un travail réellement accompli.
  */

@@ -2,10 +2,10 @@
  * Ce que ces tests protègent.
  *
  * `reponseSuffisante` est la condition d'ouverture du bilan, donc la condition
- * d'écriture d'une preuve. Deux risques symétriques :
+ * d'écriture d'une observation. Deux risques symétriques :
  *
  * - trop laxiste — une chaîne d'espaces rouvrirait le parcours d'avant, où une
- *   preuve s'écrivait sans qu'aucune trace ne la justifie ;
+ *   observation s'écrivait sans qu'aucune trace ne la justifie ;
  * - trop strict — un seuil de longueur inventé refuserait une réponse d'un mot
  *   qui est parfois la bonne réponse (un résultat de calcul), et un seuil posé
  *   sans données se déplace au premier désaccord (ADR-028).
@@ -77,7 +77,7 @@ describe("motifRefusTerminerExercice", () => {
   it("refuse une tentative déjà clôturée — on ne rejoue pas une soumission", () => {
     /*
      * `terminerExercice` est une Server Function publique : rejouer la
-     * soumission réécrirait une seconde preuve pour la même tentative (audit
+     * soumission réécrirait une second'observation pour la même tentative (audit
      * §2.1). Le statut doit donc être vérifié, pas présumé.
      */
     const motif = motifRefusTerminerExercice({ ...avant, statut: "terminee" }, soumission);
@@ -85,7 +85,7 @@ describe("motifRefusTerminerExercice", () => {
     expect(motif).toContain("clôturée");
   });
 
-  it("refuse un couple tentative/exercice incohérent — la preuve suivrait le mauvais exercice", () => {
+  it("refuse un couple tentative/exercice incohérent — l'observation suivrait le mauvais exercice", () => {
     const motif = motifRefusTerminerExercice(avant, { ...soumission, exerciseId: "ex-2" });
     expect(motif).toBeTruthy();
     expect(motif).toContain("ne correspond pas");
@@ -114,7 +114,7 @@ describe("motifRefusTerminerExercice", () => {
  * `dureeMin` est du temps d'HORLOGE. Le 15/08/2026, `att-mst5fis8-rfsu6` portait
  * 1015 minutes pour un exercice ouvert la veille au soir et abandonné le matin.
  * Deux plafonds, parce que la question n'est pas la même : un abandon n'écrit
- * aucune preuve, une tentative menée en écrit une et sa durée sert de référence.
+ * aucune observation, une tentative menée en écrit une et sa durée sert de référence.
  */
 describe("dureeRetenue", () => {
   const ESTIMEE = 20;

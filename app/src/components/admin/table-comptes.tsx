@@ -151,7 +151,7 @@ export function TableComptes({
                     dit jamais quoi.
                   */}
                   <p className="chiffres mt-1 text-[0.6875rem] text-texte-discret">
-                    {compte.preuves} preuve{compte.preuves > 1 ? "s" : ""} · {compte.competences}{" "}
+                    {compte.observations} observation{compte.observations > 1 ? "s" : ""} · {compte.competences}{" "}
                     compétence{compte.competences > 1 ? "s" : ""} · {compte.exercices} exercice
                     {compte.exercices > 1 ? "s" : ""} · {compte.seances} séance
                     {compte.seances > 1 ? "s" : ""}
@@ -265,7 +265,7 @@ function ModaleSuspension({
     >
       <div className="space-y-3">
         <p className="text-sm text-texte-attenue">
-          {nom} ne pourra plus lire son référentiel, ses preuves, ses exercices ni ses documents
+          {nom} ne pourra plus lire son référentiel, ses observations, ses exercices ni ses documents
           tant que l&apos;accès reste fermé. Tout revient en l&apos;état à la réouverture.
         </p>
         <Champ

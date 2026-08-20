@@ -4,7 +4,7 @@
  * Sert au travail **en cours** qui ne mérite pas encore d'être écrit en base :
  * une conversation avec le tuteur, un brouillon d'exercice. Ce n'est pas une
  * dorsale — la seule reste Supabase (ADR-015) — et rien de ce qui est ici
- * n'entre dans le calcul d'une preuve ou d'un niveau.
+ * n'entre dans le calcul d'une observation ou d'un niveau.
  *
  * `sessionStorage` et non `localStorage` : la portée d'un onglet correspond à
  * celle d'une séance de travail, et rien ne survit à sa fermeture. Persister

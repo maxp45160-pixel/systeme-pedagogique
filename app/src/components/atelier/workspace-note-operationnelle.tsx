@@ -117,7 +117,7 @@ function BarreEtapes({ renseignees, total }: { renseignees: number; total: numbe
  *
  * Le rôle de cette surface est éditorial : elle prépare une production dans
  * les sections déclarées par le registre. Elle ne fabrique ni mesure, ni
- * score, ni preuve ; ces observations restent sur le parcours d'évaluation.
+ * score, ni Observation ; ces Observations restent sur le parcours d'évaluation.
  */
 export function WorkspaceNoteOperationnelle({
   id,
@@ -262,7 +262,7 @@ export function WorkspaceNoteOperationnelle({
           <div className="rounded-lg border border-primaire/20 bg-primaire-faible/35 px-4 py-3 text-sm leading-relaxed text-texte-attenue">
             {donneesSeance
               ? `Cette page est le carnet de ta séance${themeInitial ? ` sur « ${themeInitial.libelle} »` : domaineLibelle ? ` dans « ${domaineLibelle} »` : ""}. La composition ci-dessous choisira les exercices dans ce périmètre, puis le déroulé se mettra à jour tout seul.`
-              : "Cette fiche cadre une production. Décris ton travail dans chaque section ; elle ne devient une preuve qu’après une évaluation validée."}
+              : "Cette fiche cadre une production. Décris ton travail dans chaque section ; elle ne produit une Observation qu’après une évaluation validée."}
           </div>
 
           {donneesSeance && (

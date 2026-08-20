@@ -13,7 +13,7 @@
  * répartition posée par P5 : le tuteur propose, la personne décide.
  *
  * L'attribution des codes vit également ici, et non côté tuteur. Un code est la
- * clé étrangère des preuves : le laisser inventer par un modèle ouvrirait la
+ * clé étrangère des observations : le laisser inventer par un modèle ouvrirait la
  * porte aux collisions et aux doublons silencieux.
  */
 
@@ -104,7 +104,7 @@ export function assemblerReferentiel(
     .sort(comparerSkills);
   // Le périmètre de travail : ni archivée, ni désactivée. Les deux drapeaux
   // sont distincts — désactiver est réversible d'un clic, archiver acte qu'une
-  // compétence porte des preuves et ne peut plus être supprimée (ADR-027).
+  // compétence porte des observations et ne peut plus être supprimée (ADR-027).
   const actifs = tries.filter((s) => s.active && !s.archive);
 
   return {
@@ -112,7 +112,7 @@ export function assemblerReferentiel(
     skills: tries,
     actifs,
     // Toutes les compétences, archivées comprises : `historique.ts` doit
-    // pouvoir résoudre l'intitulé d'une preuve ancienne dont la compétence a
+    // pouvoir résoudre l'intitulé d'une observation ancienne dont la compétence a
     // été retirée du périmètre.
     parCode: new Map(tries.map((s) => [s.code, s])),
     codesActifs: new Set(actifs.map((s) => s.code)),
@@ -124,7 +124,7 @@ export function assemblerReferentiel(
  * Référentiel d'un compte qui n'en a pas encore.
  *
  * Ce n'est pas un cas dégradé : c'est l'état normal d'un compte neuf depuis
- * ADR-026. L'interface doit le distinguer d'un référentiel sans preuve — le
+ * ADR-026. L'interface doit le distinguer d'un référentiel sans observation — le
  * premier envoie construire, le second envoie mesurer.
  */
 /**
@@ -133,7 +133,7 @@ export function assemblerReferentiel(
  * Remplace la fonction homonyme de `lib/domain/referentiel.ts`, qui lisait une
  * table globale. Elle prend désormais le référentiel du compte : deux comptes
  * peuvent employer le même identifiant pour des domaines différents, et rien ne
- * garantit qu'un domaine existe encore quand une preuve ancienne le mentionne.
+ * garantit qu'un domaine existe encore quand une observation ancienne le mentionne.
  */
 export function libelleDomaine(referentiel: Referentiel, id: DomaineId): string {
   return referentiel.domainesParId.get(id)?.nom ?? id;
@@ -264,7 +264,7 @@ export function normaliserImportance(brut: string | number): number {
  *
  * Reprend toujours après le plus grand numéro **déjà attribué**, jamais dans un
  * trou laissé par une suppression : réattribuer « PHI-02 » à une autre
- * compétence ferait pointer les preuves de l'ancienne sur la nouvelle.
+ * compétence ferait pointer les observations de l'ancienne sur la nouvelle.
  */
 export function prochainCode(prefixe: string, codesExistants: Iterable<string>): string {
   const motif = new RegExp(`^${prefixe}-(\\d+)$`);
@@ -357,8 +357,8 @@ export function validerDomaine(
  *
  * Le contrôle de doublon était borné au domaine : créer « Lire un tableau de
  * données » dans Statistiques puis dans Logistique passait, et produisait deux
- * codes, deux flux de preuves et deux niveaux pour un seul savoir-faire. Ce que
- * le commentaire du contrôle disait vouloir éviter — dédoubler les preuves d'un
+ * codes, deux flux d'observations et deux niveaux pour un seul savoir-faire. Ce que
+ * le commentaire du contrôle disait vouloir éviter — dédoubler les observations d'un
  * même savoir-faire — se produisait dès qu'on changeait de domaine.
  *
  * Le rapprochement est **exact** : intitulé identique, casse et espaces mis à
@@ -368,7 +368,7 @@ export function validerDomaine(
  * reste humaine.
  *
  * Les compétences archivées comptent : leur intitulé reste résoluble et leurs
- * preuves existent (ADR-027). En recréer une sous un code neuf couperait
+ * observations existent (ADR-027). En recréer une sous un code neuf couperait
  * l'historique en deux.
  */
 export function competenceHomonyme(
@@ -432,7 +432,7 @@ export function validerCompetence(
   }
 
   // Doublon d'intitulé dans le même domaine : deux compétences identiques
-  // dédoubleraient les preuves d'un même savoir-faire et fausseraient la
+  // dédoubleraient les observations d'un même savoir-faire et fausseraient la
   // couverture.
   const collision = competenceHomonyme(intitule, referentiel, codeIgnore);
   if (collision && collision.domaine === domaineId) {
@@ -457,19 +457,19 @@ export function validerCompetence(
 export type ModeRetrait = "suppression" | "archivage";
 
 /**
- * Quel retrait s'applique à une compétence, **dérivé** du nombre de preuves.
+ * Quel retrait s'applique à une compétence, **dérivé** du nombre d'observations.
  *
- * Ce n'est pas un choix offert à l'utilisateur : une preuve ne disparaît pas
- * (P4, anti-hallucination §6). Sans preuve, la ligne s'efface franchement ;
+ * Ce n'est pas un choix offert à l'utilisateur : une observation ne disparaît pas
+ * (P4, anti-hallucination §6). Sans observation, la ligne s'efface franchement ;
  * dès la première, seul l'archivage reste — la compétence sort du périmètre,
  * son intitulé reste résoluble et l'historique reste lisible.
  */
-export function modeRetrait(nombreDePreuves: number): ModeRetrait {
-  return nombreDePreuves === 0 ? "suppression" : "archivage";
+export function modeRetrait(nombreDeObservations: number): ModeRetrait {
+  return nombreDeObservations === 0 ? "suppression" : "archivage";
 }
 
 export interface EtatRetrait {
-  preuves: number;
+  observations: number;
   /** Autre dépendance conservée (exercice, séance, thème, prérequis ou succession). */
   dependances?: number;
   mode: ModeRetrait;
@@ -477,29 +477,29 @@ export interface EtatRetrait {
 
 /**
  * Pour chaque compétence, le geste de retrait qui s'appliquerait et le nombre
- * de preuves en jeu — l'écran de gestion doit l'annoncer AVANT le clic
+ * d'observations en jeu — l'écran de gestion doit l'annoncer AVANT le clic
  * (ADR-027).
  *
  * Fonction pure, et c'est le point. C'était une lecture serveur
  * (`chargerRetraits`) qui refaisait `lireReferentiel` **et** un `SELECT *` sur
- * les preuves, alors que la page venait déjà de charger les deux via
- * `chargerContexte`. Domaines, compétences et preuves étaient donc lus deux
+ * les observations, alors que la page venait déjà de charger les deux via
+ * `chargerContexte`. Domaines, compétences et observations étaient donc lus deux
  * fois par rendu, et l'écran de gestion était le plus lent du produit.
  */
 export function retraitsParCode(
   skills: Skill[],
-  preuves: { skillCode: string }[],
+  observations: { skillCode: string }[],
   codesAvecDependances: ReadonlySet<string> = new Set(),
 ): Map<string, EtatRetrait> {
   const parCode = new Map<string, number>();
-  for (const p of preuves) parCode.set(p.skillCode, (parCode.get(p.skillCode) ?? 0) + 1);
+  for (const p of observations) parCode.set(p.skillCode, (parCode.get(p.skillCode) ?? 0) + 1);
 
   return new Map(
     skills.map((s) => {
       const n = parCode.get(s.code) ?? 0;
       const dependance = codesAvecDependances.has(s.code);
       return [s.code, {
-        preuves: n,
+        observations: n,
         ...(dependance ? { dependances: 1 } : {}),
         mode: n > 0 || dependance ? "archivage" : "suppression",
       }];
@@ -515,23 +515,23 @@ export function retraitsParCode(
  * divergence serait invisible : les deux chemins « marcheraient », l'un
  * effaçant ce que l'autre archive.
  *
- * ⚠️ Le mode de chaque code est décidé par **ses** preuves, jamais par celles
- * du lot. Un code sans preuve part en suppression même si dix autres du même
+ * ⚠️ Le mode de chaque code est décidé par **ses** observations, jamais par celles
+ * du lot. Un code sans observation part en suppression même si dix autres du même
  * geste en portent — sinon un retrait groupé archiverait des lignes vides, et
  * le référentiel enflerait d'archives qui ne protègent rien.
  *
- * Un code absent du compteur est traité comme sans preuve : c'est ce que
- * `compterPreuves` produit — il ne rend que les codes qui en ont.
+ * Un code absent du compteur est traité comme sans observation : c'est ce que
+ * `compterObservations` produit — il ne rend que les codes qui en ont.
  */
 export function scinderRetraits(
   codes: string[],
-  preuvesParCode: Map<string, number>,
+  observationsParCode: Map<string, number>,
 ): { supprimees: string[]; archivees: string[] } {
   const supprimees: string[] = [];
   const archivees: string[] = [];
 
   for (const code of codes) {
-    if (modeRetrait(preuvesParCode.get(code) ?? 0) === "suppression") supprimees.push(code);
+    if (modeRetrait(observationsParCode.get(code) ?? 0) === "suppression") supprimees.push(code);
     else archivees.push(code);
   }
 

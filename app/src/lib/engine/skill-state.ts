@@ -1,5 +1,5 @@
 /**
- * Dérivation de l'état d'une compétence à partir de ses seules preuves.
+ * Dérivation de l'état d'une compétence à partir de ses seules observations.
  *
  * Chaque règle ci-dessous cite le fichier de protocole qui l'impose.
  * Aucune valeur n'est stockée : appeler cette fonction est la seule façon
@@ -9,13 +9,13 @@
 import {
   AUTONOMIE,
   POIDS_DIMENSIONS,
-  QUALITE_PREUVE,
+  QUALITE_OBSERVATION,
   type Confiance,
   type Dimension,
   type Explication,
   type NiveauCompetence,
   type Skill,
-  type SkillEvidence,
+  type SkillObservation,
   type SkillState,
 } from "@/lib/domain/types";
 import { facteurRecence, joursDepuis, joursEntre } from "./dates";
@@ -31,17 +31,17 @@ const DIMENSIONS: Dimension[] = [
 
 const ORDRE_AUTONOMIE = ["A0", "A1", "A2", "A3", "A4"] as const;
 
-function autonomieAuMoins(e: SkillEvidence, min: (typeof ORDRE_AUTONOMIE)[number]): boolean {
+function autonomieAuMoins(e: SkillObservation, min: (typeof ORDRE_AUTONOMIE)[number]): boolean {
   return ORDRE_AUTONOMIE.indexOf(e.autonomie) >= ORDRE_AUTONOMIE.indexOf(min);
 }
 
-function dim(e: SkillEvidence, d: Dimension): number {
+function dim(e: SkillObservation, d: Dimension): number {
   return e.dimensions[d] ?? 0;
 }
 
-/** Une preuve ne compte que si elle est directe (A) ou indirecte (B) — anti-hallucination §2. */
-function estRecevable(e: SkillEvidence): boolean {
-  return e.niveauPreuve === "A" || e.niveauPreuve === "B";
+/** Une observation ne compte que si elle est directe (A) ou indirecte (B) — anti-hallucination §2. */
+function estRecevable(e: SkillObservation): boolean {
+  return e.niveauObservation === "A" || e.niveauObservation === "B";
 }
 
 /* ------------------------------------------------------------------ */
@@ -50,38 +50,38 @@ function estRecevable(e: SkillEvidence): boolean {
 
 interface AppuiNiveau {
   niveau: NiveauCompetence;
-  preuves: SkillEvidence[];
+  observations: SkillObservation[];
   raison: string;
 }
 
 /**
- * Détermine le niveau le plus élevé réellement soutenu par les preuves.
+ * Détermine le niveau le plus élevé réellement soutenu par les observations.
  *
  * Protocole d'évaluation §4 pour la définition de chaque palier,
  * instructions §11 pour la règle de corroboration.
  */
-function niveauSoutenu(preuves: SkillEvidence[]): AppuiNiveau[] {
-  const reussies = preuves.filter((e) => e.resultat === "reussi");
-  const nonEchouees = preuves.filter((e) => e.resultat !== "echec");
+function niveauSoutenu(observations: SkillObservation[]): AppuiNiveau[] {
+  const reussies = observations.filter((e) => e.resultat === "reussi");
+  const nonEchouees = observations.filter((e) => e.resultat !== "echec");
   const appuis: AppuiNiveau[] = [];
 
   // Niveau 1 — l'utilisateur peut expliquer ou reconnaître le concept.
   const l1 = nonEchouees.filter((e) => dim(e, "comprehension") >= 0.6);
   if (l1.length > 0) {
-    appuis.push({ niveau: 1, preuves: l1, raison: "compréhension démontrée" });
+    appuis.push({ niveau: 1, observations: l1, raison: "compréhension démontrée" });
   }
 
   // Niveau 2 — application de la méthode avec aide.
   const l2 = reussies.filter((e) => dim(e, "application") >= 0.6 && autonomieAuMoins(e, "A1"));
   if (l2.length > 0) {
-    appuis.push({ niveau: 2, preuves: l2, raison: "méthode appliquée avec accompagnement" });
+    appuis.push({ niveau: 2, observations: l2, raison: "méthode appliquée avec accompagnement" });
   }
 
   // Niveau 3 — problème standard résolu sans aide significative.
-  // Instructions §11 : une réussite isolée ne vaut jamais maîtrise → 2 preuves.
+  // Instructions §11 : une réussite isolée ne vaut jamais maîtrise → 2 observations.
   const l3 = reussies.filter((e) => dim(e, "application") >= 0.7 && autonomieAuMoins(e, "A3"));
   if (l3.length >= 2) {
-    appuis.push({ niveau: 3, preuves: l3, raison: "deux résolutions autonomes concordantes" });
+    appuis.push({ niveau: 3, observations: l3, raison: "deux résolutions autonomes concordantes" });
   }
 
   // Niveau 4 — transfert : réussite autonome dans un contexte DISTINCT.
@@ -92,7 +92,7 @@ function niveauSoutenu(preuves: SkillEvidence[]): AppuiNiveau[] {
   if (l4.length >= 2 && contextesL4.size >= 2) {
     appuis.push({
       niveau: 4,
-      preuves: l4,
+      observations: l4,
       raison: `transfert démontré sur ${contextesL4.size} contextes distincts`,
     });
   }
@@ -105,7 +105,7 @@ function niveauSoutenu(preuves: SkillEvidence[]): AppuiNiveau[] {
       dim(e, "justification") >= 0.6,
   );
   if (l5.length >= 1) {
-    appuis.push({ niveau: 5, preuves: l5, raison: "compétences combinées avec justification" });
+    appuis.push({ niveau: 5, observations: l5, raison: "compétences combinées avec justification" });
   }
 
   return appuis;
@@ -116,12 +116,12 @@ function niveauSoutenu(preuves: SkillEvidence[]): AppuiNiveau[] {
  *
  * Une mauvaise performance isolée ne fait PAS baisser le niveau : elle baisse
  * la confiance. Le niveau ne recule que si une difficulté est confirmée par
- * plusieurs preuves — ici : les deux preuves les plus récentes sont des échecs
+ * plusieurs observations — ici : les deux observations les plus récentes sont des échecs
  * en autonomie réelle (A2+), ce qui indique une compétence non mobilisable.
  */
-function difficulteConfirmee(preuvesTriees: SkillEvidence[]): boolean {
-  if (preuvesTriees.length < 3) return false;
-  const deuxDernieres = preuvesTriees.slice(-2);
+function difficulteConfirmee(observationsTriees: SkillObservation[]): boolean {
+  if (observationsTriees.length < 3) return false;
+  const deuxDernieres = observationsTriees.slice(-2);
   return deuxDernieres.every((e) => e.resultat === "echec" && autonomieAuMoins(e, "A2"));
 }
 
@@ -131,37 +131,37 @@ function difficulteConfirmee(preuvesTriees: SkillEvidence[]): boolean {
 
 /** Protocole anti-hallucination §10 et protocole d'évaluation §7. */
 function calculerConfiance(
-  preuves: SkillEvidence[],
+  observations: SkillObservation[],
   contextes: number,
   contradictions: number,
-  joursDernierePreuve: number | null,
+  joursDerniereObservation: number | null,
 ): { valeur: Confiance; raisons: string[] } {
   const raisons: string[] = [];
-  if (preuves.length === 0) return { valeur: "nulle", raisons: ["aucune preuve directe"] };
+  if (observations.length === 0) return { valeur: "nulle", raisons: ["aucune observation directe"] };
 
-  const autonomes = preuves.filter((e) => autonomieAuMoins(e, "A3")).length;
+  const autonomes = observations.filter((e) => autonomieAuMoins(e, "A3")).length;
 
   let echelon: number; // 1 faible · 2 moyenne · 3 forte
-  if (preuves.length >= 4 && contextes >= 3 && autonomes >= 2) {
+  if (observations.length >= 4 && contextes >= 3 && autonomes >= 2) {
     echelon = 3;
-    raisons.push(`${preuves.length} preuves sur ${contextes} contextes, dont ${autonomes} autonomes`);
-  } else if (preuves.length >= 2 && contextes >= 2) {
+    raisons.push(`${observations.length} observations sur ${contextes} contextes, dont ${autonomes} autonomes`);
+  } else if (observations.length >= 2 && contextes >= 2) {
     echelon = 2;
-    raisons.push(`${preuves.length} preuves cohérentes sur ${contextes} contextes`);
+    raisons.push(`${observations.length} observations cohérentes sur ${contextes} contextes`);
   } else {
     echelon = 1;
     raisons.push(
-      preuves.length === 1 ? "une seule preuve disponible" : "preuves peu diversifiées",
+      observations.length === 1 ? "une seule observation disponible" : "observations peu diversifiées",
     );
   }
 
   if (contradictions > 0) {
     echelon -= 1;
-    raisons.push(`${contradictions} preuve(s) contradictoire(s) conservée(s)`);
+    raisons.push(`${contradictions} observation(s) contradictoire(s) conservée(s)`);
   }
-  if (joursDernierePreuve !== null && joursDernierePreuve > 120) {
+  if (joursDerniereObservation !== null && joursDerniereObservation > 120) {
     echelon -= 1;
-    raisons.push(`dernière preuve il y a ${joursDernierePreuve} jours`);
+    raisons.push(`dernière observation il y a ${joursDerniereObservation} jours`);
   }
 
   const valeur: Confiance = echelon >= 3 ? "forte" : echelon === 2 ? "moyenne" : "faible";
@@ -174,26 +174,26 @@ function calculerConfiance(
 
 /**
  * Indice de robustesse — protocole d'évaluation §13.
- * Prend en compte : nombre de preuves, diversité des contextes, autonomie,
+ * Prend en compte : nombre d'observations, diversité des contextes, autonomie,
  * récence, réussite après délai, transfert.
  *
  * Volontairement distinct du niveau : « Niveau 4 / Robustesse faible » doit
  * rester un état affichable (§13 le donne en exemple).
  */
 function calculerRobustesse(
-  preuves: SkillEvidence[],
+  observations: SkillObservation[],
   contextes: number,
   now: Date,
 ): { valeur: number; facteurs: { libelle: string; valeur: string; poids: number }[] } {
-  const reussies = preuves.filter((e) => e.resultat === "reussi");
+  const reussies = observations.filter((e) => e.resultat === "reussi");
 
   const fNombre = Math.min(1, reussies.length / 5);
   const fContextes = Math.min(1, contextes / 3);
   const fAutonomie =
-    preuves.length === 0
+    observations.length === 0
       ? 0
-      : preuves.reduce((s, e) => s + AUTONOMIE[e.autonomie].poids, 0) / preuves.length;
-  const derniere = preuves.at(-1);
+      : observations.reduce((s, e) => s + AUTONOMIE[e.autonomie].poids, 0) / observations.length;
+  const derniere = observations.at(-1);
   const fRecence = derniere ? facteurRecence(derniere.date, now) : 0;
 
   // Réussite après délai : deux réussites espacées de plus de 21 jours.
@@ -210,7 +210,7 @@ function calculerRobustesse(
     : 0;
 
   const facteurs = [
-    { libelle: "Nombre de preuves réussies", valeur: `${reussies.length}`, poids: 0.25, v: fNombre },
+    { libelle: "Nombre d'observations réussies", valeur: `${reussies.length}`, poids: 0.25, v: fNombre },
     { libelle: "Diversité des contextes", valeur: `${contextes}`, poids: 0.2, v: fContextes },
     { libelle: "Autonomie moyenne", valeur: fAutonomie.toFixed(2), poids: 0.2, v: fAutonomie },
     { libelle: "Récence", valeur: fRecence.toFixed(2), poids: 0.15, v: fRecence },
@@ -230,17 +230,17 @@ function calculerRobustesse(
 /* ------------------------------------------------------------------ */
 
 /**
- * Chaque dimension est la moyenne des preuves qui la documentent, pondérée
+ * Chaque dimension est la moyenne des observations qui la documentent, pondérée
  * par autonomie × qualité × récence (protocole d'évaluation §12).
  * Les échecs y participent : c'est ce qui rend le score honnête.
  */
 function calculerDimensions(
-  preuves: SkillEvidence[],
+  observations: SkillObservation[],
   now: Date,
 ): Record<Dimension, number> {
   const out = {} as Record<Dimension, number>;
   for (const d of DIMENSIONS) {
-    const pertinentes = preuves.filter((e) => e.dimensions[d] !== undefined);
+    const pertinentes = observations.filter((e) => e.dimensions[d] !== undefined);
     if (pertinentes.length === 0) {
       out[d] = 0;
       continue;
@@ -249,7 +249,7 @@ function calculerDimensions(
     let den = 0;
     for (const e of pertinentes) {
       const poids =
-        AUTONOMIE[e.autonomie].poids * QUALITE_PREUVE[e.qualite].poids * facteurRecence(e.date, now);
+        AUTONOMIE[e.autonomie].poids * QUALITE_OBSERVATION[e.qualite].poids * facteurRecence(e.date, now);
       num += dim(e, d) * poids;
       den += poids;
     }
@@ -296,22 +296,22 @@ function prochaineEtape(niveau: NiveauCompetence | null, contextes: number): str
 
 export function computeSkillState(
   skill: Skill,
-  toutesPreuves: SkillEvidence[],
+  toutesObservations: SkillObservation[],
   now: Date = new Date(),
 ): SkillState {
-  const preuves = toutesPreuves
+  const observations = toutesObservations
     .filter((e) => e.skillCode === skill.code && estRecevable(e))
     .sort((a, b) => a.date.localeCompare(b.date));
 
   // Des FAMILLES de situation, pas des titres d'exercice (ADR-083). C'est la
   // seule ligne qui décide de ce que « deux contextes distincts » veut dire,
   // et donc de la porte du niveau 4 comme de celle de la confiance.
-  const contextesTestes = [...new Set(preuves.map(cleContexte))];
-  const derniere = preuves.at(-1) ?? null;
-  const joursDepuisDernierePreuve = derniere ? joursDepuis(derniere.date, now) : null;
+  const contextesTestes = [...new Set(observations.map(cleContexte))];
+  const derniere = observations.at(-1) ?? null;
+  const joursDepuisDerniereObservation = derniere ? joursDepuis(derniere.date, now) : null;
 
-  // Aucune preuve : on ne fabrique NI niveau NI score (anti-hallucination §7).
-  if (preuves.length === 0) {
+  // Aucune observation : on ne fabrique NI niveau NI score (anti-hallucination §7).
+  if (observations.length === 0) {
     const hypothese = skill.hypotheseInitiale;
     return {
       skill,
@@ -320,54 +320,54 @@ export function computeSkillState(
       confiance: "nulle",
       robustesse: null,
       dimensions: { comprehension: 0, application: 0, transfert: 0, integration: 0, justification: 0 },
-      preuves: [],
+      observations: [],
       contextesTestes: [],
-      dernierePreuve: null,
-      joursDepuisDernierePreuve: null,
+      derniereObservation: null,
+      joursDepuisDerniereObservation: null,
       contradictions: [],
       prochaineEtape: prochaineEtape(null, 0),
       statut: hypothese ? "hypothese" : "non-evalue",
       explication: {
         resume: hypothese
-          ? "Aucune preuve directe. Une hypothèse existe mais n'autorise aucun niveau."
-          : "Aucune preuve directe. Compétence non évaluée.",
+          ? "Aucune observation directe. Une hypothèse existe mais n'autorise aucun niveau."
+          : "Aucune observation directe. Compétence non évaluée.",
         facteurs: hypothese
-          ? [{ libelle: "Hypothèse (preuve de niveau D)", valeur: hypothese.justification }]
+          ? [{ libelle: "Hypothèse (observation de niveau D)", valeur: hypothese.justification }]
           : [],
-        nombrePreuves: 0,
+        nombreObservations: 0,
         reserves: [
-          "Aucun niveau ne peut être affirmé sans preuve directe (protocole anti-hallucination §7).",
+          "Aucun niveau ne peut être affirmé sans observation directe (protocole anti-hallucination §7).",
         ],
       },
     };
   }
 
   // Contradictions conservées, jamais supprimées (anti-hallucination §5 et §6).
-  const aReussi = preuves.some((e) => e.resultat === "reussi");
-  const contradictions = aReussi ? preuves.filter((e) => e.resultat === "echec") : [];
+  const aReussi = observations.some((e) => e.resultat === "reussi");
+  const contradictions = aReussi ? observations.filter((e) => e.resultat === "echec") : [];
 
-  const appuis = niveauSoutenu(preuves);
+  const appuis = niveauSoutenu(observations);
   let niveau: NiveauCompetence = appuis.length > 0
     ? (Math.max(...appuis.map((a) => a.niveau)) as NiveauCompetence)
     : 0;
 
   const reserves: string[] = [];
-  if (difficulteConfirmee(preuves) && niveau > 1) {
+  if (difficulteConfirmee(observations) && niveau > 1) {
     niveau = (niveau - 1) as NiveauCompetence;
     reserves.push(
-      "Niveau abaissé d'un palier : les deux dernières preuves sont des échecs en autonomie (protocole d'évaluation §9).",
+      "Niveau abaissé d'un palier : les deux dernières observations sont des échecs en autonomie (protocole d'évaluation §9).",
     );
   }
 
   const { valeur: confiance, raisons: raisonsConfiance } = calculerConfiance(
-    preuves,
+    observations,
     contextesTestes.length,
     contradictions.length,
-    joursDepuisDernierePreuve,
+    joursDepuisDerniereObservation,
   );
 
-  const robustesse = calculerRobustesse(preuves, contextesTestes.length, now);
-  const dimensions = calculerDimensions(preuves, now);
+  const robustesse = calculerRobustesse(observations, contextesTestes.length, now);
+  const dimensions = calculerDimensions(observations, now);
 
   // Score macro — protocole d'évaluation §12, sur 5, une décimale.
   const brut = DIMENSIONS.reduce((s, d) => s + POIDS_DIMENSIONS[d] * dimensions[d], 0);
@@ -375,32 +375,32 @@ export function computeSkillState(
 
   if (contradictions.length > 0) {
     reserves.push(
-      `${contradictions.length} preuve(s) contradictoire(s) conservée(s) : la confiance a été réduite plutôt que le niveau.`,
+      `${contradictions.length} observation(s) contradictoire(s) conservée(s) : la confiance a été réduite plutôt que le niveau.`,
     );
   }
-  if (joursDepuisDernierePreuve !== null && joursDepuisDernierePreuve > 120) {
+  if (joursDepuisDerniereObservation !== null && joursDepuisDerniereObservation > 120) {
     reserves.push(
-      `Dernière preuve il y a ${joursDepuisDernierePreuve} jours : le niveau reste acquis, la confiance baisse.`,
+      `Dernière observation il y a ${joursDepuisDerniereObservation} jours : le niveau reste acquis, la confiance baisse.`,
     );
   }
-  if (contextesTestes.length === 1 && preuves.length > 1) {
+  if (contextesTestes.length === 1 && observations.length > 1) {
     reserves.push(
-      "Toutes les preuves proviennent de la même famille de situation : le transfert n'est pas établi.",
+      "Toutes les observations proviennent de la même famille de situation : le transfert n'est pas établi.",
     );
   }
   // Une famille repliée vaut ce que vaut un libellé libre — presque un
-  // identifiant. Le dire plutôt que de laisser ces preuves gonfler un niveau
+  // identifiant. Le dire plutôt que de laisser ces observations gonfler un niveau
   // en silence, ce qu'elles ont fait jusqu'au 18/08/2026 (ADR-083).
-  const repliees = preuves.filter(familleIndeterminee).length;
+  const repliees = observations.filter(familleIndeterminee).length;
   if (repliees > 0) {
     reserves.push(
-      repliees === preuves.length
-        ? `Aucune des ${preuves.length} preuves n'a d'exercice source résoluble : les contextes sont comptés sur leur libellé, qui les distingue presque toujours.`
-        : `${repliees} preuve(s) sur ${preuves.length} sans exercice source résoluble : leur contexte est compté sur le libellé, non sur la famille de situation.`,
+      repliees === observations.length
+        ? `Aucune des ${observations.length} observations n'a d'exercice source résoluble : les contextes sont comptés sur leur libellé, qui les distingue presque toujours.`
+        : `${repliees} observation(s) sur ${observations.length} sans exercice source résoluble : leur contexte est compté sur le libellé, non sur la famille de situation.`,
     );
   }
-  if (preuves.length === 1) {
-    reserves.push("Évaluation fondée sur une preuve unique (instructions §11).");
+  if (observations.length === 1) {
+    reserves.push("Évaluation fondée sur une observation unique (instructions §11).");
   }
 
   const explication: Explication = {
@@ -410,7 +410,7 @@ export function computeSkillState(
             .filter((a) => a.niveau <= niveau)
             .map((a) => a.raison)
             .join(" · ")}.`
-        : "Preuves insuffisantes pour dépasser le niveau 0 (exposition).",
+        : "Observations insuffisantes pour dépasser le niveau 0 (exposition).",
     facteurs: [
       ...DIMENSIONS.map((d) => ({
         libelle: d,
@@ -421,7 +421,7 @@ export function computeSkillState(
       { libelle: "Modulation par la confiance", valeur: `×${MODULATION_CONFIANCE[confiance]}` },
       { libelle: "Base de la confiance", valeur: raisonsConfiance.join(" ; ") },
     ],
-    nombrePreuves: preuves.length,
+    nombreObservations: observations.length,
     reserves,
   };
 
@@ -432,10 +432,10 @@ export function computeSkillState(
     confiance,
     robustesse: robustesse.valeur,
     dimensions,
-    preuves,
+    observations,
     contextesTestes,
-    dernierePreuve: derniere?.date ?? null,
-    joursDepuisDernierePreuve,
+    derniereObservation: derniere?.date ?? null,
+    joursDepuisDerniereObservation,
     contradictions,
     prochaineEtape: prochaineEtape(niveau, contextesTestes.length),
     statut: "evalue",
@@ -446,8 +446,8 @@ export function computeSkillState(
 /** Dérive l'état de toutes les compétences en une passe. */
 export function computeAllSkillStates(
   skills: Skill[],
-  preuves: SkillEvidence[],
+  observations: SkillObservation[],
   now: Date = new Date(),
 ): SkillState[] {
-  return skills.map((s) => computeSkillState(s, preuves, now));
+  return skills.map((s) => computeSkillState(s, observations, now));
 }

@@ -188,7 +188,7 @@ export function CockpitAdmin({
                   Protection des pairs et isolation des données :
                 </strong>{" "}
                 Un administrateur ne peut ni se couper son propre accès, ni rétrograder ou suspendre un
-                autre administrateur. Les données privées (exercices, preuves, notes) restent
+                autre administrateur. Les données privées (exercices, observations, notes) restent
                 strictement confidentielles (Principe P8).
               </p>
             </BandeauInfo>

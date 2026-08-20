@@ -38,7 +38,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [023](#adr-023) | Cache des données inter-requêtes | 🗑️ Écartée par [024](#adr-024) (31/07) |
 | [024](#adr-024) | Le cache de navigation est celui de Next, et l'invalidation est uniforme | ✅ Acceptée (31/07) |
 | [025](#adr-025) | La traçabilité peut être repliée, jamais retirée | ✅ Acceptée (31/07) |
-| [026](#adr-026) | Le référentiel est une donnée par compte, construite par le tuteur | ✅ Acceptée (31/07) |
+| [026](#adr-026) | Le référentiel est une donnée par compte, construite par le tuteur | 🔄 Remplacée par [ADR-089](#adr-089) (20/08) |
 | [027](#adr-027) | Suppression ou archivage : une preuve n'est jamais orpheline | ✅ Acceptée (31/07) |
 | [028](#adr-028) | Le 3ᵉ maillon : la difficulté et l'angle sont dérivés des tentatives | ✅ Acceptée (31/07) |
 | [029](#adr-029) | Aucun profil n'est écrit dans les protocoles | ✅ Acceptée (31/07) |
@@ -87,6 +87,19 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [080](#adr-080) | L'Atelier a quatre lieux, et aucun dossier | ✅ Acceptée (16/08) |
 | [081](#adr-081) | Une compétence sert plusieurs domaines, avec un porteur unique | ✅ Acceptée (16/08) — amende [065](#adr-065) |
 | [082](#adr-082) | Une relation se propose ; le domaine de sa cible s'arbitre | 🔬 Hypothèse (17/08) |
+| [083](#adr-083) | Le contexte d'une preuve est une famille de situation, jamais un titre | 🔬 Hypothèse (18/08) |
+| [084](#adr-084) | Une décision et une prédiction sont des faits datés | 🔬 Hypothèse (18/08) |
+| [085](#adr-085) | Le moteur se relit, puis ajuste un seul seuil à la fois | 🔬 Hypothèse (18/08) |
+| [086](#adr-086) | L'atomicité tient au schéma, pas à la consigne ; le référentiel se détecte seul | 🔬 Hypothèse (18/08) |
+| [087](#adr-087) | Une compétence a plusieurs successeurs ; la scission est sèche | 🔬 Hypothèse (18/08) |
+| [088](#adr-088) | Un domaine n'est pas un thème | 🔬 Hypothèse (18/08) |
+| [089](#adr-089) | Carte globale partagée et overlay privé | ✅ Acceptée (20/08) |
+| [090](#adr-090) | Une preuve est une trace ; l'actuel `evidence` devient Observation | ✅ Acceptée (20/08) |
+| [091](#adr-091) | États et vues personnelles restent dérivés | ✅ Acceptée (20/08) |
+| [092](#adr-092) | Une Connaissance est un élément déclaré, pas un document | ✅ Acceptée (20/08) |
+| [093](#adr-093) | Relations déclarées et relations calculées ne partagent pas le même statut | ✅ Acceptée (20/08) |
+| [094](#adr-094) | Les objectifs sont des faits structurés multiples | ✅ Acceptée (20/08) |
+| [095](#adr-095) | Niveau observé et maîtrise consolidée sont distincts | ✅ Acceptée (20/08) |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -1301,7 +1314,12 @@ l'apparence est un réglage parmi les autres, au même endroit partout.
 ---
 
 <a name="adr-026"></a>
-## ADR-026 — Le référentiel est une donnée par compte, construite par le tuteur ✅
+## ADR-026 — Le référentiel est une donnée par compte, construite par le tuteur 🔄
+
+> **Remplacée le 20/08/2026 par [ADR-089](#adr-089).** Le texte ci-dessous
+> conserve le vocabulaire et la décision historiques du 31/07 ; la propriété
+> du compte porte désormais sur son overlay privé, pas sur une copie de la
+> carte globale.
 
 **Date.** 31/07/2026. **Tranchée par Maxime.** Ferme [ADR-009](#adr-009),
 remplace [ADR-020](#adr-020).
@@ -6874,6 +6892,228 @@ légitimement besoin de trois domaines, il doit monter. À surveiller : le nombr
 de branches écartées par le plafond sur les dix prochaines propositions de
 référentiel. S'il est nul, le plafond ne sert à rien ; s'il dépasse la moitié,
 il est trop bas.
+
+---
+
+---
+
+<a name="adr-089"></a>
+## ADR-089 — Carte globale partagée et overlay privé ✅
+
+**Date.** 20/08/2026.
+
+**Validation.** Décision acceptée par validation humaine explicite de Maxime
+dans le chat du lot 0.
+
+### Contexte
+
+ADR-026 attribuait à chaque compte un référentiel autonome afin d'empêcher
+qu'un compte subisse les choix d'un autre. Cette garantie reste nécessaire,
+mais une collection de référentiels isolés ne permet ni de situer une personne
+dans un espace plus large, ni d'explorer des voisinages, ni d'ouvrir des
+horizons au-delà de son périmètre courant.
+
+### Décision
+
+La carte globale est un catalogue partagé, générique, versionné, sourcé,
+extensible et non exhaustif des savoirs humains. Elle sert à situer, relier,
+explorer les voisinages pertinents et proposer des horizons ; elle ne prétend
+ni tout contenir ni définir un programme universel.
+
+Chaque compte entretient un **overlay privé** : sa relation personnelle à la
+carte, jamais une copie de celle-ci. L'overlay comprend notamment ses
+sélections, éléments locaux, objectifs, événements et observations ainsi que
+les états qui en sont calculés. Sa partie persistée ne contient que les faits
+déclarés ou observés ; les états restent régis par [ADR-091](#adr-091).
+
+La propriété du compte décidée par ADR-026 est préservée sur cet overlay. Un
+élément local ou une donnée personnelle ne remonte jamais dans la carte globale
+sans validation humaine explicite et provenance. Le tuteur peut proposer ; il
+ne publie pas. Aucune fusion automatique de compétences locales n'est permise.
+
+### Conséquences
+
+- ADR-026 est remplacée, sans réécriture de son contexte historique.
+- Découvrir un élément global ne l'ajoute pas automatiquement à l'espace actif
+  ni aux sélections du compte.
+- L'isolation et le consentement restent des contraintes de données, de RLS et
+  d'interface ; la carte partagée ne rend aucune donnée personnelle publique.
+- La traduction en tables, services ou migrations appartient aux lots futurs.
+
+---
+
+<a name="adr-090"></a>
+## ADR-090 — Une preuve est une trace ; l'actuel `evidence` devient Observation ✅
+
+**Date.** 20/08/2026.
+
+**Validation.** Décision acceptée par validation humaine explicite de Maxime
+dans le chat du lot 0.
+
+### Contexte
+
+Le type `SkillEvidence` et la table `evidence` portent aujourd'hui des constats
+structurés qui alimentent le moteur. Le modèle cible réserve au contraire
+**Preuve** à la trace vérifiable située en amont : réponse, tentative,
+production, snapshot ou référence durable vers un tel artefact.
+
+### Décision
+
+L'actuel `evidence` représente sémantiquement une **Observation**. Le lot 1
+réalise une rupture complète : table active, types, propriétés, collections,
+paramètres, résultats RPC, actions, moteur et tests passent au vocabulaire
+Observation.
+
+Les 52 lignes existantes sont conservées avec leurs identifiants, dates, clés
+étrangères et protections. Il n'y aura ni alias TypeScript, ni vue SQL
+`evidence`, ni double lecture ou double écriture, ni période de coexistence
+technique. Le nom `Evidence`/`Preuve` est réservé au futur concept de trace
+brute ; cette décision n'impose pas de lui créer une table.
+
+### Continuité historique
+
+Les anciennes ADR gardent le mot « preuve » dans son sens historique. Elles ne
+sont pas réécrites : lorsqu'elles parlent de la table ou du type actuels, il
+faut les lire comme des mentions de l'Observation dans le vocabulaire cible.
+
+La provenance complète et la transaction de clôture d'exercice ne font pas
+partie de cette rupture ; elles relèvent du lot 2. Le contrat opératoire et les
+critères de sortie sont centralisés dans
+[`TWINY_MIGRATION.md`](docs/architecture/TWINY_MIGRATION.md).
+
+---
+
+<a name="adr-091"></a>
+## ADR-091 — États et vues personnelles restent dérivés ✅
+
+**Date.** 20/08/2026.
+
+**Validation.** Décision acceptée par validation humaine explicite de Maxime
+dans le chat du lot 0.
+
+### Décision
+
+[ADR-001](#adr-001) s'applique sans exception au modèle cible : `État`,
+`KnowledgeState`, `SkillState`, carte individuelle et espace actif sont
+calculés à la demande depuis les faits déclarés et observés. Ils ne constituent
+jamais une vérité autoritative persistée.
+
+Un cache ne pourrait être introduit qu'après mesure d'un problème réel et par
+une nouvelle décision. Il devrait être jetable, reconstructible et ne jamais
+devenir une seconde source de vérité.
+
+### Conséquences
+
+- L'arbitrage « à déterminer » sur la persistance d'`État` est fermé.
+- L'overlay privé peut inclure ces vues dans l'expérience utilisateur sans les
+  stocker comme faits.
+- Changer une règle de calcul doit permettre le rejeu de l'historique sans
+  migration des états.
+
+---
+
+<a name="adr-092"></a>
+## ADR-092 — Une Connaissance est un élément déclaré, pas un document ✅
+
+**Date.** 20/08/2026.
+
+**Validation.** Décision acceptée par validation humaine explicite de Maxime
+dans le chat du lot 0.
+
+### Décision
+
+Une **Connaissance** est un élément déclaré de la carte. Elle peut référencer
+une ou plusieurs ressources documentaires qui la définissent, l'illustrent ou
+l'étayent. Un document, une note ou une ressource n'est toutefois jamais
+automatiquement une Connaissance.
+
+Le corpus existant n'est pas converti automatiquement. Toute création ou tout
+rattachement sémantique demande un geste explicite et une provenance ; une
+proximité de texte ne suffit pas.
+
+### Conséquences
+
+- Le modèle métier distingue contenu déclaré, ressource et trace d'activité.
+- Cette décision ne prescrit aucune table ni migration documentaire.
+
+---
+
+<a name="adr-093"></a>
+## ADR-093 — Relations déclarées et relations calculées ne partagent pas le même statut ✅
+
+**Date.** 20/08/2026.
+
+**Validation.** Décision acceptée par validation humaine explicite de Maxime
+dans le chat du lot 0.
+
+### Décision
+
+Une relation déclarée, validée et sourcée est un fait de la carte et peut être
+persistée avec sa provenance. Une similarité, une proximité ou un
+rapprochement inféré est une vue dérivée : il se recalcule et ne devient pas
+une relation déclarée par simple répétition.
+
+Une proposition du tuteur reste une proposition. Elle n'est publiée dans la
+carte globale qu'après validation humaine explicite et enregistrement de sa
+provenance. Cette frontière prolonge [ADR-056](#adr-056),
+[ADR-082](#adr-082) et [ADR-089](#adr-089).
+
+### Conséquences
+
+- L'interface doit distinguer les relations établies des rapprochements
+  calculés.
+- Le modèle métier n'impose pas une structure de stockage particulière.
+
+---
+
+<a name="adr-094"></a>
+## ADR-094 — Les objectifs sont des faits structurés multiples ✅
+
+**Date.** 20/08/2026.
+
+**Validation.** Décision acceptée par validation humaine explicite de Maxime
+dans le chat du lot 0.
+
+### Décision
+
+Un compte peut porter plusieurs objectifs. Chaque objectif est un fait déclaré,
+daté et structuré avec une cible typée — domaine, élément ou relation —, une
+priorité, un horizon, un statut et les dates utiles à son cycle de vie.
+
+Les objectifs historiques sont conservés verbatim. Aucun texte antérieur n'est
+interprété, découpé ou rattaché automatiquement à une cible : une extraction
+automatique inventerait une intention que la personne n'a pas confirmée.
+
+### Conséquences
+
+- Les objectifs orientent les vues et recommandations sans devenir des états.
+- La forme de persistance et les événements de parcours relèvent du lot 4.
+
+---
+
+<a name="adr-095"></a>
+## ADR-095 — Niveau observé et maîtrise consolidée sont distincts ✅
+
+**Date.** 20/08/2026.
+
+**Validation.** Décision acceptée par validation humaine explicite de Maxime
+dans le chat du lot 0.
+
+### Décision
+
+Le **niveau observé** décrit ce qu'une observation ponctuelle permet d'affirmer.
+La **maîtrise consolidée** est une vue dérivée à travers plusieurs observations,
+leurs contextes, leur qualité et leur fraîcheur. Une performance isolée ne
+devient donc pas une maîtrise durable.
+
+Les seuils actuels restent inchangés. Ils ne peuvent évoluer qu'à partir de
+données qui justifient le changement, conformément aux garde-fous existants.
+
+### Conséquences
+
+- Les futures interfaces distingueront explicitement le ponctuel du consolidé.
+- Le renommage du lot 1 doit préserver le comportement du moteur ; il ne
+  constitue pas une recalibration.
 
 ---
 

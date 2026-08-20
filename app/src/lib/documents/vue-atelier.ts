@@ -8,7 +8,7 @@ import {
   type NiveauCompetence,
   type Referentiel,
   type Skill,
-  type SkillEvidence,
+  type SkillObservation,
   type SkillState,
 } from "@/lib/domain/types";
 import type { Theme } from "@/lib/domain/theme";
@@ -32,7 +32,7 @@ export interface ExerciceLieAtelier {
   derniereTentative: string | null;
 }
 
-export interface PreuveAtelier {
+export interface ObservationAtelier {
   id: string;
   date: string;
   type: string;
@@ -40,7 +40,7 @@ export interface PreuveAtelier {
   contexte: string;
   autonomie: string;
   qualite: string;
-  niveauPreuve: string;
+  niveauObservation: string;
   /**
    * Le document de production, quand il existe **vraiment**.
    *
@@ -48,7 +48,7 @@ export interface PreuveAtelier {
    * §2 ; à défaut, `production.ts` écrit la preuve d'une tentative sous
    * `preuve-<idTentative>`, ce que `source.ref` permet de reconstituer. Dans
    * les deux cas la cible n'est retenue que si l'index la contient : une
-   * preuve historique sans document reste affichée, simplement pas cliquable.
+   * Observation historique sans document reste affichée, simplement pas cliquable.
    */
   documentId: string | null;
 }
@@ -86,17 +86,17 @@ function estSupport(document: { id: string; type: string }): boolean {
 }
 
 /**
- * Le document de production d'une preuve, s'il existe dans le corpus.
+ * La Preuve documentaire d'une Observation, si elle existe dans le corpus.
  *
  * Deux chemins, dans cet ordre : la référence explicite portée par la mesure,
  * puis la convention d'écriture de `production.ts` (`preuve-<idTentative>`, où
- * l'identifiant de tentative est `source.ref` d'une preuve d'exercice).
+ * l'identifiant de tentative est `source.ref` d'une Observation d'exercice).
  * L'identifiant n'est renvoyé que si le document est réellement indexé — un id
  * calculé qui ne désigne rien serait une valeur fabriquée.
  */
-function documentDeLaPreuve(preuve: SkillEvidence, index: IndexDocumentaire): string | null {
-  const explicite = preuve.source.document?.documentId;
-  const candidat = explicite ?? (preuve.source.kind === "exercice" ? `preuve-${preuve.source.ref}` : null);
+function documentPreuveDeLObservation(observation: SkillObservation, index: IndexDocumentaire): string | null {
+  const explicite = observation.source.document?.documentId;
+  const candidat = explicite ?? (observation.source.kind === "exercice" ? `preuve-${observation.source.ref}` : null);
   if (!candidat) return null;
   return index.parId.has(candidat) ? candidat : null;
 }
@@ -111,9 +111,9 @@ export interface VueCompetenceAtelier {
   score: number | null;
   confiance: Confiance;
   robustesse: number | null;
-  nombrePreuves: number;
+  nombreObservations: number;
   nombreContextes: number;
-  dernierePreuve: string | null;
+  derniereObservation: string | null;
   prochaineEtape: string;
   dimensions: Array<{ id: Dimension; libelle: string; valeur: number }>;
   prerequis: string[];
@@ -126,7 +126,7 @@ export interface VueCompetenceAtelier {
   connexes: CompetenceConnexe[];
   /** L'histoire de la compétence, du plus récent au plus ancien, avec les niveaux. */
   parcours: EtapeParcours[];
-  /** Preuves qui s'opposent à la tendance dominante (§5 du protocole). */
+  /** Observations qui s'opposent à la tendance dominante (§5 du protocole). */
   contradictions: number;
   /** Réserves du moteur sur cette mesure — déjà rédigées par `computeSkillState`. */
   reserves: string[];
@@ -135,13 +135,13 @@ export interface VueCompetenceAtelier {
   /** Les ensembles actifs où elle pourrait entrer — pour l'y ajouter en un clic. */
   ensemblesDisponibles: Array<{ id: string; libelle: string; codes: string[] }>;
   exercices: ExerciceLieAtelier[];
-  preuves: PreuveAtelier[];
+  observations: ObservationAtelier[];
   /**
    * Les supports seulement.
    *
    * `index.entrants` rend tout ce qui cite le code, fiches d'exercice et
    * documents de preuve compris : ils réapparaissaient sous « Documents liés »
-   * alors que `exercices` et `preuves` les nomment déjà, chacun avec ses
+   * alors que `exercices` et `observations` les nomment déjà, chacun avec ses
    * mesures. Une ressource associée est un support — note, cours, fiche de
    * travail — pas une trace de production.
    */
@@ -169,7 +169,7 @@ export interface VueDomaineAtelier {
     niveau: NiveauCompetence | null;
     score: number | null;
     confiance: Confiance;
-    nombrePreuves: number;
+    nombreObservations: number;
     /**
      * Vraie quand la compétence sert ce domaine sans en être portée
      * (ADR-081). Son code vient d'ailleurs, et elle ne s'y retire pas : elle
@@ -185,7 +185,7 @@ export interface VueDomaineAtelier {
   domainesExistants: Array<{ id: string; nom: string; prefixe: string }>;
   changements: ChangementReferentiel[];
   nombreEvaluees: number;
-  nombrePreuves: number;
+  nombreObservations: number;
   nombreExercices: number;
   derniereActivite: string | null;
 }
@@ -199,7 +199,7 @@ export interface CompetenceThemeAtelier {
   niveau: NiveauCompetence | null;
   score: number | null;
   confiance: Confiance;
-  nombrePreuves: number;
+  nombreObservations: number;
   prochaineEtape?: string;
   exercicesDisponibles: number;
 }
@@ -223,7 +223,7 @@ export interface VueThemeAtelier {
   domaines: DomaineThemeAtelier[];
   exercices: ExerciceLieAtelier[];
   nombreEvaluees: number;
-  nombrePreuves: number;
+  nombreObservations: number;
   nombreExercices: number;
   scoreMoyen: number | null;
   tauxCouverture: number;
@@ -291,7 +291,7 @@ export function construireVuesAtelier(
   exercices: Exercise[],
   tentatives: ExerciseAttempt[],
   index: IndexDocumentaire,
-  preuvesReferentiel: SkillEvidence[] = [],
+  observationsReferentiel: SkillObservation[] = [],
   changementsReferentiel: ChangementReferentiel[] = [],
   codesAvecDependances: ReadonlySet<string> = new Set(),
   themes: Theme[] = [],
@@ -330,7 +330,7 @@ export function construireVuesAtelier(
       actifs: referentiel.actifs,
       skillsParCode: referentiel.parCode,
       exercices,
-      preuves: preuvesReferentiel,
+      observations: observationsReferentiel,
     });
     const suivantes = referentiel.actifs
       .filter((skill) => skill.prerequis.includes(etat.skill.code))
@@ -346,9 +346,9 @@ export function construireVuesAtelier(
       score: etat.score,
       confiance: etat.confiance,
       robustesse: etat.robustesse,
-      nombrePreuves: etat.preuves.length,
+      nombreObservations: etat.observations.length,
       nombreContextes: etat.contextesTestes.length,
-      dernierePreuve: etat.dernierePreuve,
+      derniereObservation: etat.derniereObservation,
       prochaineEtape: etat.prochaineEtape,
       dimensions: Object.entries(etat.dimensions).map(([id, valeur]) => ({
         id: id as Dimension,
@@ -363,7 +363,7 @@ export function construireVuesAtelier(
        * Borné à 8 — au-delà, une frise ne se lit plus, et le coût serait payé
        * pour chaque compétence de l'Atelier à chaque rendu.
        */
-      parcours: parcoursCompetence(etat.skill, preuvesReferentiel, undefined, 8),
+      parcours: parcoursCompetence(etat.skill, observationsReferentiel, undefined, 8),
       contradictions: etat.contradictions.length,
       reserves: etat.explication.reserves,
       /*
@@ -382,16 +382,16 @@ export function construireVuesAtelier(
         .filter((theme) => !theme.archive && !theme.codes.includes(etat.skill.code))
         .map((theme) => ({ id: theme.id, libelle: theme.libelle, codes: theme.codes })),
       exercices: exercicesLies,
-      preuves: [...etat.preuves].reverse().map((preuve) => ({
-        id: preuve.id,
-        date: preuve.date,
-        type: preuve.type,
-        resultat: preuve.resultat,
-        contexte: preuve.contexte,
-        autonomie: preuve.autonomie,
-        qualite: preuve.qualite,
-        niveauPreuve: preuve.niveauPreuve,
-        documentId: documentDeLaPreuve(preuve, index),
+      observations: [...etat.observations].reverse().map((observation) => ({
+        id: observation.id,
+        date: observation.date,
+        type: observation.type,
+        resultat: observation.resultat,
+        contexte: observation.contexte,
+        autonomie: observation.autonomie,
+        qualite: observation.qualite,
+        niveauObservation: observation.niveauObservation,
+        documentId: documentPreuveDeLObservation(observation, index),
       })),
       documents,
       domainesExistants: domainesVivantsLisibles,
@@ -438,7 +438,7 @@ export function construireVuesAtelier(
             niveau: item?.niveau ?? null,
             score: item?.score ?? null,
             confiance: item?.confiance ?? "nulle",
-            nombrePreuves: item?.nombrePreuves ?? 0,
+            nombreObservations: item?.nombreObservations ?? 0,
             ...(rattachee
               ? { rattachee: true, porteurNom: referentiel.domainesParId.get(skill.domaine)?.nom ?? skill.domaine }
               : {}),
@@ -446,15 +446,15 @@ export function construireVuesAtelier(
         }),
         domaine,
         skills,
-        retraits: Object.fromEntries(retraitsParCode(skills, preuvesReferentiel, codesAvecDependances)),
+        retraits: Object.fromEntries(retraitsParCode(skills, observationsReferentiel, codesAvecDependances)),
         domainesExistants: referentiel.domaines
           .filter((item) => !item.archive)
           .map((item) => ({ id: item.id, nom: item.nom, prefixe: item.prefixe })),
         changements: changementsReferentiel.filter((changement) => changement.domaineId === domaine.id),
         nombreEvaluees: items.filter((item) => item.niveau !== null).length,
-        nombrePreuves: items.reduce((total, item) => total + item.nombrePreuves, 0),
+        nombreObservations: items.reduce((total, item) => total + item.nombreObservations, 0),
         nombreExercices: exercicesDomaine.length,
-        derniereActivite: derniereDate(items.map((item) => item.dernierePreuve)),
+        derniereActivite: derniereDate(items.map((item) => item.derniereObservation)),
       };
     });
 
@@ -484,7 +484,7 @@ export function construireVuesAtelier(
           niveau: comp?.niveau ?? null,
           score: comp?.score ?? null,
           confiance: comp?.confiance ?? "nulle",
-          nombrePreuves: comp?.nombrePreuves ?? 0,
+          nombreObservations: comp?.nombreObservations ?? 0,
           prochaineEtape: comp?.prochaineEtape,
           exercicesDisponibles: exs.length,
         }];
@@ -509,7 +509,7 @@ export function construireVuesAtelier(
         .map((e) => compterTentatives(e, tentatives));
 
       const evaluees = skillsDuTheme.filter((c) => c.niveau !== null);
-      const nombrePreuves = skillsDuTheme.reduce((acc, c) => acc + c.nombrePreuves, 0);
+      const nombreObservations = skillsDuTheme.reduce((acc, c) => acc + c.nombreObservations, 0);
       const scores = evaluees.map((c) => c.score).filter((s): s is number => s !== null);
       const scoreMoyen = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
       const tauxCouverture = skillsDuTheme.length > 0 ? evaluees.length / skillsDuTheme.length : 0;
@@ -521,7 +521,7 @@ export function construireVuesAtelier(
       const derniereActivite = derniereDate([
         ...skillsDuTheme.map((c) => {
           const comp = competencesParCode.get(c.code);
-          return comp?.dernierePreuve ?? null;
+          return comp?.derniereObservation ?? null;
         }),
         ...exercicesDuTheme.map((e) => e.derniereTentative),
       ]);
@@ -543,7 +543,7 @@ export function construireVuesAtelier(
         })),
         exercices: exercicesDuTheme,
         nombreEvaluees: evaluees.length,
-        nombrePreuves,
+        nombreObservations,
         nombreExercices: exercicesDuTheme.length,
         scoreMoyen,
         tauxCouverture,

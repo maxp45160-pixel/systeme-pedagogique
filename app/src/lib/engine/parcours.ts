@@ -5,14 +5,14 @@
  *
  * La fiche compétence affichait un « Historique récent » plat : un contexte,
  * une date, un type. Elle disait *qu'il s'était passé quelque chose*, jamais
- * *ce que cela avait changé* — alors que le niveau d'avant chaque preuve est
+ * *ce que cela avait changé* — alors que le niveau d'avant chaque observation est
  * calculable, et l'est déjà ailleurs (`evenementsRecents`, `impactTentative`).
  *
  * Elle listait aussi les prérequis et les compétences suivantes, deux relations
  * **déclarées** que 17 compétences sur 77 portent. Rien ne disait ce que
  * l'activité, elle, avait relié : les compétences réellement travaillées
  * ensemble. Cette donnée existe depuis toujours — un exercice porte plusieurs
- * codes, une preuve porte ses `competencesCombinees` — et n'avait aucun
+ * codes, une observation porte ses `competencesCombinees` — et n'avait aucun
  * consommateur.
  *
  * ## Ce que ce module refuse de faire
@@ -30,65 +30,65 @@ import type {
   Exercise,
   NiveauCompetence,
   Skill,
-  SkillEvidence,
+  SkillObservation,
 } from "@/lib/domain/types";
 import { computeSkillState } from "./skill-state";
 import { cleContexte } from "./contexte-situation";
 
 export interface EtapeParcours {
-  preuveId: string;
+  observationId: string;
   date: string;
   contexte: string;
-  type: SkillEvidence["type"];
-  resultat: SkillEvidence["resultat"];
+  type: SkillObservation["type"];
+  resultat: SkillObservation["resultat"];
   autonomie: Autonomie;
   niveauAvant: NiveauCompetence | null;
   niveauApres: NiveauCompetence | null;
   /** Monte d'un palier. Ni une première mesure, ni un recul. */
   progression: boolean;
-  /** La compétence n'avait aucun niveau avant cette preuve. */
+  /** La compétence n'avait aucun niveau avant cette observation. */
   premiereMesure: boolean;
   /** Le niveau a reculé — un fait, pas une faute (P4 : une faiblesse ne disparaît pas seule). */
   recul: boolean;
-  /** Cette preuve inaugure un contexte que la compétence n'avait pas encore. */
+  /** Cette observation inaugure un contexte que la compétence n'avait pas encore. */
   nouveauContexte: boolean;
 }
 
 /**
  * Le parcours d'une compétence, du plus récent au plus ancien.
  *
- * Chaque étape porte le niveau **d'avant** et **d'après** sa preuve, obtenus en
+ * Chaque étape porte le niveau **d'avant** et **d'après** sa observation, obtenus en
  * rejouant l'historique tronqué. `computeSkillState` filtre déjà sur
- * `skillCode` : l'historique coupé au rang d'une preuve est exactement l'état
+ * `skillCode` : l'historique coupé au rang d'une observation est exactement l'état
  * qui précédait — c'est ce qui rend le rejeu exact plutôt qu'approché.
  *
  * `limite` borne le coût : deux `computeSkillState` par étape rendue.
  */
 export function parcoursCompetence(
   skill: Skill,
-  preuves: readonly SkillEvidence[],
+  observations: readonly SkillObservation[],
   now: Date = new Date(),
   limite = 12,
 ): EtapeParcours[] {
-  const historique = preuves
-    .filter((preuve) => preuve.skillCode === skill.code)
+  const historique = observations
+    .filter((observation) => observation.skillCode === skill.code)
     .sort((a, b) => a.date.localeCompare(b.date));
 
   const etapes: EtapeParcours[] = [];
   const depart = Math.max(0, historique.length - limite);
 
   for (let rang = historique.length - 1; rang >= depart; rang--) {
-    const preuve = historique[rang];
+    const observation = historique[rang];
     const avant = computeSkillState(skill, historique.slice(0, rang), now);
     const apres = computeSkillState(skill, historique.slice(0, rang + 1), now);
 
     etapes.push({
-      preuveId: preuve.id,
-      date: preuve.date,
-      contexte: preuve.contexte,
-      type: preuve.type,
-      resultat: preuve.resultat,
-      autonomie: preuve.autonomie,
+      observationId: observation.id,
+      date: observation.date,
+      contexte: observation.contexte,
+      type: observation.type,
+      resultat: observation.resultat,
+      autonomie: observation.autonomie,
       niveauAvant: avant.niveau,
       niveauApres: apres.niveau,
       progression:
@@ -96,7 +96,7 @@ export function parcoursCompetence(
       premiereMesure: avant.niveau === null && apres.niveau !== null,
       recul: avant.niveau !== null && apres.niveau !== null && apres.niveau < avant.niveau,
       // Clé de famille des deux côtés (ADR-083) — voir `impact.ts`.
-      nouveauContexte: !avant.contextesTestes.includes(cleContexte(preuve)),
+      nouveauContexte: !avant.contextesTestes.includes(cleContexte(observation)),
     });
   }
 
@@ -111,7 +111,7 @@ export interface CompetenceConnexe {
   relation: RelationCompetence;
   /** Nombre de travaux qui ont mis les deux en jeu. Absent hors co-mobilisation. */
   occurrences?: number;
-  /** Vrai si la compétence porte au moins une preuve — « déjà connue ». */
+  /** Vrai si la compétence porte au moins une observation — « déjà connue ». */
   dejaMesuree: boolean;
 }
 
@@ -122,7 +122,7 @@ export interface EntreesConnexes {
   skillsParCode: ReadonlyMap<string, Skill>;
   exercices: readonly Exercise[];
   /** Le journal complet — sert à compter les co-mobilisations et à dire ce qui est mesuré. */
-  preuves: readonly SkillEvidence[];
+  observations: readonly SkillObservation[];
   /** Nombre maximum de co-mobilisées rendues. */
   limiteCoMobilisees?: number;
 }
@@ -132,17 +132,17 @@ export interface EntreesConnexes {
  *
  * Les prérequis et les suivantes viennent du référentiel — des liens que
  * quelqu'un a posés. Les co-mobilisées viennent du travail : deux compétences
- * visées par le même exercice, ou nommées ensemble sur une même preuve.
+ * visées par le même exercice, ou nommées ensemble sur une même observation.
  *
  * Une compétence déjà déclarée prérequis ou suivante n'est pas répétée en
  * co-mobilisée : la relation déclarée est plus précise, et deux entrées pour un
  * même voisin feraient croire à deux liens.
  */
 export function competencesConnexes(entrees: EntreesConnexes): CompetenceConnexe[] {
-  const { skill, actifs, skillsParCode, exercices, preuves } = entrees;
+  const { skill, actifs, skillsParCode, exercices, observations } = entrees;
   const limite = entrees.limiteCoMobilisees ?? 6;
 
-  const mesurees = new Set(preuves.map((preuve) => preuve.skillCode));
+  const mesurees = new Set(observations.map((observation) => observation.skillCode));
   const resoudre = (code: string, relation: RelationCompetence, occurrences?: number): CompetenceConnexe | null => {
     const cible = skillsParCode.get(code);
     if (!cible) return null;
@@ -167,8 +167,8 @@ export function competencesConnexes(entrees: EntreesConnexes): CompetenceConnexe
    * Deux sources d'observation, comptées ensemble.
    *
    * Un exercice qui vise trois compétences les met en jeu dans le même travail,
-   * qu'une preuve l'ait ou non enregistré. `competencesCombinees` couvre le cas
-   * inverse — une preuve qui nomme des compétences absentes de l'énoncé.
+   * qu'une observation l'ait ou non enregistré. `competencesCombinees` couvre le cas
+   * inverse — une observation qui nomme des compétences absentes de l'énoncé.
    */
   const occurrences = new Map<string, number>();
   const compter = (code: string) => {
@@ -180,9 +180,9 @@ export function competencesConnexes(entrees: EntreesConnexes): CompetenceConnexe
     if (exercice.archive || !exercice.competences.includes(skill.code)) continue;
     for (const code of exercice.competences) compter(code);
   }
-  for (const preuve of preuves) {
-    if (preuve.skillCode !== skill.code) continue;
-    for (const code of preuve.competencesCombinees ?? []) compter(code);
+  for (const observation of observations) {
+    if (observation.skillCode !== skill.code) continue;
+    for (const code of observation.competencesCombinees ?? []) compter(code);
   }
 
   const coMobilisees = [...occurrences.entries()]

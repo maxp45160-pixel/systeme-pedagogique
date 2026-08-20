@@ -14,7 +14,7 @@ import { retraitsParCode } from "@/lib/domain/referentiel-compte";
  * silence — le lecteur SSE déréférencerait un champ absent.
  *
  * Le corps ne porte que `domaineId` et la demande : les compétences, leurs
- * codes et leurs comptes de preuves sont relus côté serveur, sous RLS. C'est ce
+ * codes et leurs comptes d'observations sont relus côté serveur, sous RLS. C'est ce
  * qui fait que l'`enum` du schéma ne peut contenir que des codes réellement
  * attribués à ce compte, dans ce domaine.
  */
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
   // Les compétences vivantes du domaine : ni archivées, ni d'ailleurs. C'est
   // exactement l'ensemble que l'`enum` du schéma énumérera.
   const vivantes = ctx.referentiel.skills.filter((s) => s.domaine === domaineId && !s.archive);
-  const retraits = retraitsParCode(vivantes, ctx.preuvesEffectives);
+  const retraits = retraitsParCode(vivantes, ctx.observationsEffectives);
 
   // Point d'entree unique : la config client est validee avant de toucher
   // l'environnement du serveur (SSRF, voir lib/tutor/url-fournisseur.ts).

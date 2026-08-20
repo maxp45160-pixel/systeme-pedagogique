@@ -4,12 +4,12 @@
  * Ces types transcrivent les fichiers `data/00_instructions/` :
  * - échelle de niveau 0-5 ....... protocole d'évaluation §4
  * - autonomie A0-A4 ............. protocole d'évaluation §5
- * - qualité de preuve ........... protocole d'évaluation §6
+ * - qualité d'observation ............ protocole d'évaluation §6
  * - confiance ................... protocole anti-hallucination §10
- * - hiérarchie des preuves A-D .. protocole anti-hallucination §2
+ * - hiérarchie des observations A-D .. protocole anti-hallucination §2
  *
  * Règle structurante : rien de ce qui est *dérivable* n'est stocké.
- * Le disque ne contient que des faits observés (preuves, tentatives,
+ * Le disque ne contient que des faits observés (observations, tentatives,
  * sessions). Niveaux et scores sont recalculés à la lecture
  * par `lib/engine/`.
  */
@@ -22,7 +22,7 @@
 export type NiveauCompetence = 0 | 1 | 2 | 3 | 4 | 5;
 
 export const NIVEAUX: Record<NiveauCompetence, { nom: string; description: string }> = {
-  0: { nom: "Exposition", description: "La notion a été rencontrée. Preuve insuffisante pour conclure à une compréhension." },
+  0: { nom: "Exposition", description: "La notion a été rencontrée. Observation insuffisante pour conclure à une compréhension." },
   1: { nom: "Compréhension", description: "Peut expliquer, reconnaître ou distinguer le concept." },
   2: { nom: "Application guidée", description: "Peut appliquer la méthode avec aide, cadre connu ou exemple." },
   3: { nom: "Application autonome", description: "Résout un problème standard sans aide significative." },
@@ -30,7 +30,7 @@ export const NIVEAUX: Record<NiveauCompetence, { nom: string; description: strin
   5: { nom: "Intégration", description: "Combine plusieurs compétences, compare des approches et analyse les limites." },
 };
 
-/** Protocole d'évaluation §5 — niveau d'autonomie observé sur une preuve. */
+/** Protocole d'évaluation §5 — niveau d'autonomie observé sur une observation. */
 export type Autonomie = "A0" | "A1" | "A2" | "A3" | "A4";
 
 export const AUTONOMIE: Record<Autonomie, { libelle: string; poids: number }> = {
@@ -41,10 +41,10 @@ export const AUTONOMIE: Record<Autonomie, { libelle: string; poids: number }> = 
   A4: { libelle: "Autonome avec initiative méthodologique", poids: 1 },
 };
 
-/** Protocole d'évaluation §6 — qualité intrinsèque de la preuve. */
-export type QualitePreuve = "faible" | "moyenne" | "forte";
+/** Protocole d'évaluation §6 — qualité intrinsèque de l'observation. */
+export type QualiteObservation = "faible" | "moyenne" | "forte";
 
-export const QUALITE_PREUVE: Record<QualitePreuve, { libelle: string; poids: number }> = {
+export const QUALITE_OBSERVATION: Record<QualiteObservation, { libelle: string; poids: number }> = {
   faible: { libelle: "Réponse isolée, exercice très guidé ou question de mémoire", poids: 0.35 },
   moyenne: { libelle: "Exercice autonome, problème standard ou explication correcte", poids: 0.7 },
   forte: { libelle: "Problème nouveau, transfert, projet ou intégration interdisciplinaire", poids: 1 },
@@ -54,11 +54,11 @@ export const QUALITE_PREUVE: Record<QualitePreuve, { libelle: string; poids: num
 export type Confiance = "nulle" | "faible" | "moyenne" | "forte";
 
 /**
- * Protocole anti-hallucination §2 — hiérarchie des preuves.
- * A preuve directe · B preuve indirecte · C déduction · D hypothèse.
+ * Protocole anti-hallucination §2 — hiérarchie des observations.
+ * A — observation directe · B — observation indirecte · C — déduction · D — hypothèse.
  * C et D ne doivent jamais être présentés comme des faits certains.
  */
-export type NiveauPreuve = "A" | "B" | "C" | "D";
+export type NiveauObservation = "A" | "B" | "C" | "D";
 
 /** Dimensions d'évaluation — protocole d'évaluation §3 et §12. */
 export type Dimension =
@@ -155,12 +155,12 @@ export const ORDRE_PALIERS: Palier[] = ["fondamentaux", "intermediaire", "avance
 
 /**
  * Une compétence du référentiel du compte (tables `domaines` / `competences`).
- * Ne porte AUCUN état de progression : celui-ci est dérivé des preuves.
+ * Ne porte AUCUN état de progression : celui-ci est dérivé des observations.
  */
 export interface Skill {
   /**
    * Code du référentiel, ex. « LOG-02 ». **Immuable** : c'est la clé étrangère
-   * des preuves. Attribué par l'application à partir du préfixe du domaine,
+   * des observations. Attribué par l'application à partir du préfixe du domaine,
    * jamais proposé par le tuteur.
    */
   code: string;
@@ -174,7 +174,7 @@ export interface Skill {
    *
    * Un savoir-faire partagé — « Lire un tableau de données » en Statistiques
    * comme en Logistique — s'y rattache **sans être dupliqué** : un second code
-   * dédoublerait ses preuves. Les rattachements comptent dans la couverture
+   * dédoublerait ses observations. Les rattachements comptent dans la couverture
    * des domaines concernés, jamais dans le score global, qui somme sur les
    * compétences et non sur les domaines.
    */
@@ -193,20 +193,20 @@ export interface Skill {
   /**
    * Périmètre de travail du compte (ADR-026, remplace le `DOMAINE_PILOTE`
    * global d'ADR-020). Hors périmètre : ni calculée, ni affichée, ni transmise
-   * au tuteur. Ses preuves restent intactes.
+   * au tuteur. Ses observations restent intactes.
    */
   active: boolean;
   /**
-   * Retirée du référentiel de travail **sans perdre ses preuves** (ADR-027).
-   * C'est le seul retrait possible dès qu'une preuve existe : une compétence
-   * sans preuve se supprime franchement.
+   * Retirée du référentiel de travail **sans perdre ses observations** (ADR-027).
+   * C'est le seul retrait possible dès qu'une observation existe : une compétence
+   * sans observation se supprime franchement.
    */
   archive: boolean;
   /** Successeur explicite lorsque le savoir-faire change de sens. */
   remplacePar?: string;
   origine: OrigineReferentiel;
   /**
-   * Hypothèse de départ issue de la formation déclarée — preuve de niveau D.
+   * Hypothèse de départ issue de la formation déclarée — observation de niveau D.
    * N'autorise aucun niveau affiché : sert uniquement à ordonner les diagnostics.
    */
   hypotheseInitiale?: {
@@ -226,21 +226,21 @@ export interface Referentiel {
   skills: Skill[];
   /** Le périmètre de travail : `active && !archive`. */
   actifs: Skill[];
-  /** Toutes les compétences, archivées comprises — résout les preuves anciennes. */
+  /** Toutes les compétences, archivées comprises — résout les observations anciennes. */
   parCode: Map<string, Skill>;
   codesActifs: Set<string>;
   domainesParId: Map<DomaineId, Domaine>;
 }
 
 /**
- * Famille de situation d'une preuve — ADR-083.
+ * Famille de situation d'une observation — ADR-083.
  *
  * Ce que le moteur compte quand il compte des « contextes distincts ». Deux
- * preuves de familles différentes attestent d'un transfert (§11) ; deux preuves
+ * observations de familles différentes attestent d'un transfert (§11) ; deux observations
  * de la même famille, non.
  *
  * Le type vit dans le domaine et non dans `lib/engine/contexte-situation.ts`
- * qui le produit : `SkillEvidence` le porte, et le domaine n'importe jamais le
+ * qui le produit : `SkillObservation` le porte, et le domaine n'importe jamais le
  * moteur.
  */
 export interface FamilleSituation {
@@ -249,7 +249,7 @@ export interface FamilleSituation {
   /** Libellé lisible — affichage et explications, jamais une comparaison. */
   libelle: string;
   /**
-   * `false` quand la famille est un repli sur `SkillEvidence.contexte`, faute
+   * `false` quand la famille est un repli sur `SkillObservation.contexte`, faute
    * d'exercice source résoluble. Le moteur le porte en réserve : une famille
    * repliée vaut ce que vaut un libellé libre, c'est-à-dire presque un
    * identifiant.
@@ -258,10 +258,10 @@ export interface FamilleSituation {
 }
 
 /**
- * Preuve directe observée pour une compétence — l'unité de base du système.
+ * Observation structurée pour une compétence — l'unité de base du système.
  * C'est la SEULE façon dont un niveau peut évoluer.
  */
-export interface SkillEvidence {
+export interface SkillObservation {
   id: string;
   skillCode: string;
   /** Date d'observation (ISO). */
@@ -276,18 +276,18 @@ export interface SkillEvidence {
     | "transfert"
     | "etude-de-cas";
   /** Protocole anti-hallucination §2. Le moteur n'accepte que A et B. */
-  niveauPreuve: NiveauPreuve;
+  niveauObservation: NiveauObservation;
   autonomie: Autonomie;
-  qualite: QualitePreuve;
+  qualite: QualiteObservation;
   resultat: "reussi" | "partiel" | "echec";
   /**
-   * Étiquette de contexte, écrite au moment de la preuve — le titre de
-   * l'exercice pour une preuve d'exercice.
+   * Étiquette de contexte, écrite au moment de l'observation — le titre de
+   * l'exercice pour une observation d'exercice.
    *
    * ⚠️ Ce n'est PAS le discriminant du transfert depuis ADR-083. Mesuré le
-   * 18/08/2026 : 42 valeurs distinctes pour 52 preuves. Un titre est presque
+   * 18/08/2026 : 42 valeurs distinctes pour 52 observations. Un titre est presque
    * unique, si bien que « deux contextes distincts » — la porte du niveau 4 et
-   * de la confiance moyenne — était franchi dès la deuxième preuve. Le
+   * de la confiance moyenne — était franchi dès la deuxième observation. Le
    * discriminant est `familleSituation` ; ce champ reste le libellé lisible.
    */
   contexte: string;
@@ -297,7 +297,7 @@ export interface SkillEvidence {
    * **Dérivée, jamais persistée** (P1) : `lib/engine/contexte-situation.ts` la
    * calcule à la lecture depuis l'exercice source. Elle est attachée en un
    * seul point, `chargerContexte`, pour la même raison que `tableDureesEstimees`
-   * lit les exercices bruts : une preuve peut venir d'un exercice archivé,
+   * lit les exercices bruts : une observation peut venir d'un exercice archivé,
    * sorti du périmètre, ou livré avec le logiciel (`lib/seed/exercises.ts`).
    *
    * Absente = non résolue en amont. Le moteur retombe alors sur `contexte` et
@@ -312,7 +312,7 @@ export interface SkillEvidence {
   /**
    * Origine vérifiable : id de tentative, de projet ou de session.
    *
-   * `document` et `snapshot` sont optionnels pour préserver les preuves
+   * `document` et `snapshot` sont optionnels pour préserver les observations
    * historiques créées avant le corpus documentaire. Quand ils existent, le
    * snapshot identifie exactement le contenu produit au moment de la mesure.
    */
@@ -383,10 +383,10 @@ export interface Exercise {
   diagnostic?: boolean;
   origine: "seed" | "tuteur" | "manuel";
   /**
-   * Retiré du flux sans perte de preuves (calque ADR-027).
+   * Retiré du flux sans perte d'observations (calque ADR-027).
    *
    * Un exercice archivé sort de la recommandation et de la calibration, mais
-   * les preuves qu'il a produites restent au journal — sinon le retrait
+   * les observations qu'il a produites restent au journal — sinon le retrait
    * réécrirait le passé. Absent sur les exercices de diagnostic, qui sont
    * livrés avec le logiciel et ne se retirent pas un par un.
    */
@@ -397,10 +397,10 @@ export interface Exercise {
    * Absente tant que l'exercice n'a pas été retouché — et sur une base dont le
    * schéma de référence n'est pas à jour.
    *
-   * Elle existe pour une raison précise : une preuve mesure une tentative sur
+   * Elle existe pour une raison précise : une observation mesure une tentative sur
    * l'énoncé **d'alors**. Corriger le texte ne rend pas cette mesure fausse,
    * mais il rend l'exercice affiché différent de celui qui a été fait. Qui
-   * relit une preuve ancienne doit pouvoir savoir que le support a changé
+   * relit une observation ancienne doit pouvoir savoir que le support a changé
    * depuis — sinon le journal paraît cohérent alors qu'il ne l'est plus.
    */
   modifieLe?: string;
@@ -530,14 +530,14 @@ export type StatutSeance = "planifiee" | "en-cours" | "terminee" | "abandonnee";
  * Ce que la personne DÉCLARE vouloir, avant de travailler.
  *
  * C'est un fait observé — « le 10/08 à 9 h, elle a écrit ceci » — au même titre
- * qu'une tentative ou une preuve, et c'est la seule raison pour laquelle il a le
+ * qu'une tentative ou une observation, et c'est la seule raison pour laquelle il a le
  * droit d'être stocké (P1). Ce n'est PAS une mesure sur la personne : rien ici
  * n'est noté, agrégé ou comparé à un barème.
  *
  * Ce qu'on en tire — l'écart entre le déclaré et le réalisé — est **dérivé** à
  * la lecture par `ecartBesoinRealise`, et affiché avec les deux valeurs qui le
  * composent. Il n'existe volontairement aucun « indice de biais » : ce serait un
- * nombre sur quelqu'un, sans preuve, exactement ce que P3 interdit.
+ * nombre sur quelqu'un, sans observation, exactement ce que P3 interdit.
  */
 export interface BesoinDeclare {
   /**
@@ -675,25 +675,25 @@ export interface LearningSession {
 export interface Explication {
   resume: string;
   facteurs: { libelle: string; valeur: string; poids?: number }[];
-  nombrePreuves: number;
-  /** Réserves à afficher : preuves anciennes, contradictions, contexte unique. */
+  nombreObservations: number;
+  /** Réserves à afficher : observations anciennes, contradictions, contexte unique. */
   reserves: string[];
 }
 
 export interface SkillState {
   skill: Skill;
-  /** `null` tant qu'aucune preuve directe n'existe — jamais 0 par défaut. */
+  /** `null` tant qu'aucune observation directe n'existe — jamais 0 par défaut. */
   niveau: NiveauCompetence | null;
   score: number | null;
   confiance: Confiance;
   robustesse: number | null;
   dimensions: Record<Dimension, number>;
-  preuves: SkillEvidence[];
+  observations: SkillObservation[];
   contextesTestes: string[];
-  dernierePreuve: string | null;
-  joursDepuisDernierePreuve: number | null;
-  /** Preuves qui s'opposent à la tendance dominante (§5 gestion des contradictions). */
-  contradictions: SkillEvidence[];
+  derniereObservation: string | null;
+  joursDepuisDerniereObservation: number | null;
+  /** Observations qui s'opposent à la tendance dominante (§5 gestion des contradictions). */
+  contradictions: SkillObservation[];
   prochaineEtape: string;
   explication: Explication;
   statut: "non-evalue" | "hypothese" | "evalue";

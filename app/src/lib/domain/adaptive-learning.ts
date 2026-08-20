@@ -128,7 +128,7 @@ export interface EvaluationCriterion {
   /**
    * Compétence que ce critère démontre, prise dans la cible de l'activité.
    *
-   * C'est ce lien qui rend une preuve attribuable. Un projet mobilisant cinq
+   * C'est ce lien qui rend une observation attribuable. Un projet mobilisant cinq
    * compétences ne les démontre pas toutes du seul fait d'avoir été rendu :
    * sans critère porteur, une compétence ne reçoit rien. Le champ reste
    * facultatif car un contrat peut porter des critères de qualité générale,

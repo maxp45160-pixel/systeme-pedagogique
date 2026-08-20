@@ -8,7 +8,7 @@
  * Le facteur « fréquence des erreurs » du §16 a été retiré le 28/07/2026 avec
  * l'entité `ErrorItem` (ADR-014) : il n'a jamais rien pondéré, la table étant
  * restée vide. Il sera reposé sous sa vraie forme — une difficulté dérivée des
- * preuves — quand le maillon « ajustement des exercices » sera traité.
+ * observations — quand le maillon « ajustement des exercices » sera traité.
  *
  * Deux garde-fous :
  * - §16 « ne travaille pas uniquement les compétences les plus faibles » :
@@ -25,7 +25,7 @@ import {
   type SkillState,
 } from "@/lib/domain/types";
 import type { Calibration } from "./calibration";
-import type { ContexteDocumentaire, ResumePreuvesDocumentaires } from "./document-context";
+import type { ContexteDocumentaire, ResumeObservationsDocumentaires } from "./document-context";
 import { estDue, MODELE_ACTIF, type ModeleRevision } from "./spaced";
 
 export interface Facteur {
@@ -117,11 +117,11 @@ export const BONUS_ACTIONNABLE = 10;
 /**
  * Pondération provisoire de l'hypothèse documentaire (ADR-064).
  *
- * Elle ne s'active que si la dernière preuve est elle-même documentaire,
+ * Elle ne s'active que si la dernière observation est elle-même documentaire,
  * récente selon le modèle de répétition espacée, et déjà contextualisée. Elle
- * ne peut donc pas masquer une révision due ni une compétence sans preuve.
+ * ne peut donc pas masquer une révision due ni une compétence sans observation.
  */
-export const PENALITE_PREUVE_DOCUMENTAIRE_SOLIDE = -10;
+export const PENALITE_OBSERVATION_DOCUMENTAIRE_SOLIDE = -10;
 
 /**
  * Ce que `reglagesEffectifs()` peut superposer aux valeurs livrées — ADR-085.
@@ -140,7 +140,7 @@ function evaluer(
   etatsParCode: Map<string, SkillState>,
   now: Date,
   actionnable: boolean,
-  documentaire?: ResumePreuvesDocumentaires,
+  documentaire?: ResumeObservationsDocumentaires,
   reglages: ReglagesRecommandation = {},
 ): { valeur: number; facteurs: Facteur[] } {
   const bonusActionnable = reglages.bonusActionnable ?? BONUS_ACTIONNABLE;
@@ -161,7 +161,7 @@ function evaluer(
         : "elle sert ton objectif de parcours",
   });
 
-  // 2. Absence totale de preuve — le cas dominant au démarrage.
+  // 2. Absence totale d'observation — le cas dominant au démarrage.
   //
   // Au jour 0 tous les autres facteurs sont nuls : il faut bien un ordre pour
   // départager les compétences jamais testées. Jusqu'au 31/07/2026 c'était
@@ -172,7 +172,7 @@ function evaluer(
   // son rang dans le domaine ensuite. Les fondamentaux passent avant l'avancé,
   // ce que le plan supprimé faisait déjà, mais sans avoir à le réécrire pour
   // chaque nouveau domaine.
-  if (etat.preuves.length === 0) {
+  if (etat.observations.length === 0) {
     const rangPalier = Math.max(0, ORDRE_PALIERS.indexOf(etat.skill.palier));
     const bonusPalier = 30 - rangPalier * 10;
     const bonusOrdre = Math.max(0, 10 - etat.skill.ordre);
@@ -199,7 +199,7 @@ function evaluer(
     // robustesse, confiance, dernier résultat) : une compétence robuste peut
     // attendre, une fragile se révise vite. Le signal devient binaire et fort :
     // « due » pousse fortement, « pas due » laisse respirer.
-    const j = etat.joursDepuisDernierePreuve ?? 0;
+    const j = etat.joursDepuisDerniereObservation ?? 0;
     const due = estDue(etat, now, modeleRevision);
     if (due) {
       facteurs.push({
@@ -216,14 +216,14 @@ function evaluer(
       });
     }
 
-    const dernierePreuveEstDocumentaire =
-      documentaire?.derniereDate && etat.dernierePreuve
+    const derniereObservationEstDocumentaire =
+      documentaire?.derniereDate && etat.derniereObservation
         ? new Date(documentaire.derniereDate).getTime() ===
-          new Date(etat.dernierePreuve).getTime()
+          new Date(etat.derniereObservation).getTime()
         : false;
     if (
       !due &&
-      dernierePreuveEstDocumentaire &&
+      derniereObservationEstDocumentaire &&
       documentaire !== undefined &&
       documentaire.nombre >= 2 &&
       documentaire.reussites >= 2 &&
@@ -231,19 +231,19 @@ function evaluer(
       documentaire.contextes.length >= 2
     ) {
       facteurs.push({
-        libelle: "Preuve documentaire contextualisée",
-        contribution: PENALITE_PREUVE_DOCUMENTAIRE_SOLIDE,
+        libelle: "Observation documentaire contextualisée",
+        contribution: PENALITE_OBSERVATION_DOCUMENTAIRE_SOLIDE,
         phrase:
           "elle dispose d'une production récente, conservée et déjà démontrée dans plusieurs contextes",
       });
     }
 
-    // 5. Confiance faible malgré des preuves : évaluation à consolider.
+    // 5. Confiance faible malgré des observations : évaluation à consolider.
     if (etat.confiance === "faible") {
       facteurs.push({
         libelle: "Confiance faible",
         contribution: 12,
-        phrase: "l'évaluation actuelle repose sur trop peu de preuves pour être fiable",
+        phrase: "l'évaluation actuelle repose sur trop peu d'observations pour être fiable",
       });
     }
 
@@ -320,7 +320,7 @@ function terminees(exerciceId: string, tentatives: ExerciseAttempt[]): ExerciseA
  *     simplement plus une recommandation.
  *
  *  2. DERNIÈRE TENTATIVE ÉCHOUÉE OU PARTIELLE — il ne revient qu'après un
- *     **progrès démontré** sur la compétence visée : une preuve en réussite
+ *     **progrès démontré** sur la compétence visée : une observation en réussite
  *     postérieure. C'est P4 lu dans l'autre sens — une faiblesse ne disparaît
  *     pas sans démonstration, et elle ne se remesure pas non plus sans qu'il y
  *     ait quelque chose de nouveau à mesurer. Reproposer le même exercice qui
@@ -349,7 +349,7 @@ function terminees(exerciceId: string, tentatives: ExerciseAttempt[]): ExerciseA
  *
  *  3. JAMAIS TENTÉ — candidat sans condition.
  *
- * Rien n'est stocké : tout se dérive des tentatives et des preuves (P1).
+ * Rien n'est stocké : tout se dérive des tentatives et des observations (P1).
  */
 function recommandable(
   exercice: Exercise,
@@ -361,7 +361,7 @@ function recommandable(
   if (passees.some((t) => t.resultat === "reussi")) return false;
 
   const depuis = dateTentative(passees[0]);
-  return etat.preuves.some((p) => p.resultat === "reussi" && p.date > depuis);
+  return etat.observations.some((p) => p.resultat === "reussi" && p.date > depuis);
 }
 
 /**
@@ -387,8 +387,8 @@ function choisirExercice(
     return { exercice: null, toutRefuse: recommandables.length > 0 };
   }
 
-  // Priorité aux diagnostics tant que la compétence n'a aucune preuve.
-  if (etat.preuves.length === 0) {
+  // Priorité aux diagnostics tant que la compétence n'a aucune observation.
+  if (etat.observations.length === 0) {
     const diag = candidats.find((ex) => ex.diagnostic);
     if (diag) return { exercice: diag, toutRefuse: false };
   }

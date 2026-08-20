@@ -107,7 +107,7 @@ function goal(overrides: Partial<LearningGoal> = {}): LearningGoal {
   };
 }
 
-function state(code: string, lastEvidence: string | null = null): SkillState {
+function state(code: string, lastObservation: string | null = null): SkillState {
   return {
     skill: {
       code,
@@ -121,19 +121,19 @@ function state(code: string, lastEvidence: string | null = null): SkillState {
       archive: false,
       origine: "utilisateur",
     },
-    niveau: lastEvidence ? 2 : null,
-    score: lastEvidence ? 2 : null,
-    confiance: lastEvidence ? "faible" : "nulle",
-    robustesse: lastEvidence ? 0.5 : null,
+    niveau: lastObservation ? 2 : null,
+    score: lastObservation ? 2 : null,
+    confiance: lastObservation ? "faible" : "nulle",
+    robustesse: lastObservation ? 0.5 : null,
     dimensions: { comprehension: 0.5, application: 0.5, transfert: 0, integration: 0, justification: 0 },
-    preuves: [],
+    observations: [],
     contextesTestes: [],
-    dernierePreuve: lastEvidence,
-    joursDepuisDernierePreuve: lastEvidence ? 1 : null,
+    derniereObservation: lastObservation,
+    joursDepuisDerniereObservation: lastObservation ? 1 : null,
     contradictions: [],
     prochaineEtape: "Diagnostiquer",
-    explication: { resume: "", facteurs: [], nombrePreuves: 0, reserves: [] },
-    statut: lastEvidence ? "evalue" : "non-evalue",
+    explication: { resume: "", facteurs: [], nombreObservations: 0, reserves: [] },
+    statut: lastObservation ? "evalue" : "non-evalue",
   };
 }
 
@@ -258,7 +258,7 @@ describe("sequencement des familles", () => {
       sequencingSignals: [signal("difficulte-comprehension")],
     }));
     expect(result?.primary.family).toBe("explorer");
-    expect(result?.primary.reservations.join(" ")).toContain("aucune preuve");
+    expect(result?.primary.reservations.join(" ")).toContain("aucune observation");
   });
 
   it("traduit l'intention pratiquer vers la famille entrainer", () => {
@@ -285,7 +285,7 @@ describe("sequencement des familles", () => {
     expect(result?.factors.some((factor) => factor.kind === "ressource-documentaire")).toBe(true);
   });
 
-  it("fait suivre une exploration plus recente que la preuve par pratique ou production", () => {
+  it("fait suivre une exploration plus recente que l'observation par pratique ou production", () => {
     const exploreRun: ActivityRun = {
       id: "run-explore",
       accountId: "account-a",

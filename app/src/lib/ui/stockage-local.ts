@@ -17,7 +17,7 @@
  * ⚠️ **Toute clé passe par `cleParCompte`** (ADR-029) : deux comptes sur le même
  * navigateur ne doivent jamais se voir, fût-ce à travers une date.
  *
- * Rien de ce qui est ici n'entre dans le calcul d'une preuve ou d'un niveau, et
+ * Rien de ce qui est ici n'entre dans le calcul d'une observation ou d'un niveau, et
  * la dorsale reste Supabase (ADR-015).
  */
 

@@ -9,7 +9,7 @@ import {
   versChamp,
   versColonne,
 } from "./supabase-backend";
-import type { SkillEvidence, LearningSession, User } from "@/lib/domain/types";
+import type { SkillObservation, LearningSession, User } from "@/lib/domain/types";
 
 /**
  * La traduction camelCase ↔ snake_case n'est vérifiée par aucun compilateur :
@@ -20,7 +20,7 @@ import type { SkillEvidence, LearningSession, User } from "@/lib/domain/types";
 describe("conversion des noms", () => {
   it("traduit les champs du domaine en colonnes", () => {
     expect(versColonne("skillCode")).toBe("skill_code");
-    expect(versColonne("niveauPreuve")).toBe("niveau_preuve");
+    expect(versColonne("niveauObservation")).toBe("niveau_observation");
     expect(versColonne("competencesCombinees")).toBe("competences_combinees");
     expect(versColonne("apprentissagePrincipal")).toBe("apprentissage_principal");
     expect(versColonne("genereAutomatiquement")).toBe("genere_automatiquement");
@@ -29,7 +29,7 @@ describe("conversion des noms", () => {
 
   it("est réversible sur tous les champs persistés", () => {
     const champs = [
-      "skillCode", "skillCodes", "niveauPreuve", "competencesCombinees",
+      "skillCode", "skillCodes", "niveauObservation", "competencesCombinees",
       "exerciseId", "indicesUtilises", "verdictTuteur", "causeProbable",
       "planifieePour", "besoinDeclare",
       "dureeMin", "dureeEstimeeMin", "apprentissagePrincipal", "prochaineAction",
@@ -43,15 +43,15 @@ describe("conversion des noms", () => {
 });
 
 describe("ligne SQL → entité", () => {
-  it("restitue une preuve sans toucher au contenu imbriqué", () => {
-    const preuve = ligneVersEntite<SkillEvidence>({
-      id: "ev-1",
+  it("restitue une observation sans toucher au contenu imbriqué", () => {
+    const observation = ligneVersEntite<SkillObservation>({
+      id: "obs-1",
       user_id: "00000000-0000-0000-0000-000000000001",
       created_at: "2026-07-25T10:00:00Z",
       skill_code: "STAT-02",
       date: "2026-07-25",
       type: "exercice",
-      niveau_preuve: "A",
+      niveau_observation: "A",
       autonomie: "seul",
       qualite: "correcte",
       resultat: "reussi",
@@ -61,10 +61,10 @@ describe("ligne SQL → entité", () => {
       source: { kind: "exercice", ref: "att-9" },
     });
 
-    expect(preuve.skillCode).toBe("STAT-02");
-    expect(preuve.niveauPreuve).toBe("A");
-    expect(preuve.source).toEqual({ kind: "exercice", ref: "att-9" });
-    expect(preuve.dimensions).toEqual({ comprehension: 0.8, miseEnOeuvre: 0.6 });
+    expect(observation.skillCode).toBe("STAT-02");
+    expect(observation.niveauObservation).toBe("A");
+    expect(observation.source).toEqual({ kind: "exercice", ref: "att-9" });
+    expect(observation.dimensions).toEqual({ comprehension: 0.8, miseEnOeuvre: 0.6 });
   });
 
   it("écarte les colonnes techniques", () => {
@@ -132,11 +132,11 @@ describe("entité → ligne SQL", () => {
 
   it("fait l'aller-retour sans perte", () => {
     const origine = {
-      id: "ev-7",
+      id: "obs-7",
       skillCode: "SYS-01",
       date: "2026-07-26",
       type: "projet",
-      niveauPreuve: "B",
+      niveauObservation: "B",
       autonomie: "aide-ponctuelle",
       qualite: "partielle",
       resultat: "partiel",
@@ -153,11 +153,11 @@ describe("entité → ligne SQL", () => {
 
   it("préserve la provenance du document et de son snapshot", () => {
     const origine = {
-      id: "ev-8",
+      id: "obs-8",
       skillCode: "STAT-02",
       date: "2026-07-26",
       type: "exercice",
-      niveauPreuve: "A",
+      niveauObservation: "A",
       autonomie: "seul",
       qualite: "correcte",
       resultat: "reussi",
@@ -384,7 +384,7 @@ describe("remontée des erreurs", () => {
 
   it("relance en nommant le contexte — jamais d'échec silencieux", () => {
     const lever = () =>
-      verifier("lecture de « evidence »", { message: "permission denied", code: "42501" });
+      verifier("lecture de « observations »", { message: "permission denied", code: "42501" });
 
     expect(lever).toThrow(Error);
     // Le message doit permettre de situer la panne sans relire le code.
@@ -392,7 +392,7 @@ describe("remontée des erreurs", () => {
       lever();
     } catch (e) {
       const message = (e as Error).message;
-      expect(message).toContain("evidence");
+      expect(message).toContain("observations");
       expect(message).toContain("42501");
       expect(message).toContain("permission denied");
     }

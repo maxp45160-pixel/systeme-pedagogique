@@ -355,7 +355,7 @@ describe("motifRefusBlueprint — la même règle, plus les cibles", () => {
   });
 
   it("applique les refus de la demande : une seule implémentation", () => {
-    // La preuve que les deux ne peuvent pas diverger : le message est le même.
+    // L'observation que les deux ne peuvent pas diverger : le message est le même.
     const casse = { ...BLUEPRINT, nombreExercices: 0, cibles: [] };
     expect(motifRefusBlueprint(casse)).toBe(motifRefusDemande(casse));
   });

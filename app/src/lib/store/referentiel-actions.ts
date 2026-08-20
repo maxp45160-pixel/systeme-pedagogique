@@ -115,7 +115,7 @@ export async function creerBranche(soumission: SoumissionBranche): Promise<Resul
  *
  * Demander « Lire un tableau de données » dans Logistique, c'est demander que
  * ce savoir-faire y serve. Le système sait qu'il existe : le recréer
- * dédoublerait ses preuves, et l'écarter en silence perdrait la demande. Il le
+ * dédoublerait ses observations, et l'écarter en silence perdrait la demande. Il le
  * rattache donc, sans autre geste (ADR-081).
  *
  * L'échec du rattachement ne défait pas l'écriture qui précède : les
@@ -145,7 +145,7 @@ export interface ResultatRattachement {
  *
  * Le domaine porteur ne bouge pas : il garde le code et la gouvernance. Ce
  * geste ajoute une lecture — la compétence devient visible depuis ce domaine et
- * compte dans sa couverture (ADR-081). Aucun code n'est créé, aucune preuve
+ * compte dans sa couverture (ADR-081). Aucun code n'est créé, aucune observation
  * n'est dupliquée.
  */
 export async function rattacherCompetences(

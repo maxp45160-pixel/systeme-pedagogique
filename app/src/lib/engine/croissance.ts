@@ -31,7 +31,7 @@ import type {
   ExerciseAttempt,
   LearningSession,
   Skill,
-  SkillEvidence,
+  SkillObservation,
 } from "@/lib/domain/types";
 import { activiteSurFenetre, calculerActivite, evenementsRecents, type EvenementProgression } from "./historique";
 import { cleJour, joursDepuis } from "./dates";
@@ -41,7 +41,7 @@ import { cleJour, joursDepuis } from "./dates";
  *
  * `EvenementProgression.franchissement` vaut « le niveau n'est plus le même »,
  * ce qui inclut `null → 0` : une compétence rencontrée pour la première fois,
- * dont le protocole dit qu'elle est au niveau 0 — *Exposition, preuve
+ * dont le protocole dit qu'elle est au niveau 0 — *Exposition, observation
  * insuffisante pour conclure à une compréhension*. Compter cela comme un palier
  * franchi ferait d'une absence de résultat une progression, et gonflerait le
  * compteur exactement là où il doit être sévère.
@@ -66,10 +66,10 @@ export interface FenetreCroissance {
   seances: number;
   /** Tentatives réellement menées à terme, jamais les abandons. */
   exercicesMenes: number;
-  preuves: number;
-  /** Codes travaillés, dans l'ordre de leur première preuve de la fenêtre. */
+  observations: number;
+  /** Codes travaillés, dans l'ordre de leur première observation de la fenêtre. */
   competencesTravaillees: string[];
-  /** Preuves ayant fait MONTER d'un palier. Ni les premières mesures, ni les reculs. */
+  /** Observations ayant fait MONTER d'un palier. Ni les premières mesures, ni les reculs. */
   franchissements: number;
   /** Compétences mesurées pour la première fois de leur histoire. */
   premieresMesures: number;
@@ -78,7 +78,7 @@ export interface FenetreCroissance {
 export interface ResumeCroissance {
   jour: FenetreCroissance;
   semaine: FenetreCroissance;
-  /** Les preuves récentes avec leur effet réel, du plus récent au plus ancien. */
+  /** Les observations récentes avec leur effet réel, du plus récent au plus ancien. */
   evenements: EvenementProgression[];
   /** Vrai quand rien n'a été fait ni aujourd'hui ni sur les 7 derniers jours. */
   vide: boolean;
@@ -87,8 +87,8 @@ export interface ResumeCroissance {
 export interface EntreesCroissance {
   sessions: readonly LearningSession[];
   tentatives: readonly ExerciseAttempt[];
-  preuves: readonly SkillEvidence[];
-  /** Tout le référentiel, archivées comprises : une preuve ancienne reste lisible (P4). */
+  observations: readonly SkillObservation[];
+  /** Tout le référentiel, archivées comprises : une observation ancienne reste lisible (P4). */
   skillsParCode: ReadonlyMap<string, Skill>;
   /**
    * `dureeEstimeeMin` par exercice — le plafond du temps retenu pour une
@@ -102,39 +102,39 @@ export interface EntreesCroissance {
   limiteEvenements?: number;
 }
 
-/** Les preuves du jour calendaire courant. */
-function duJour(preuves: readonly SkillEvidence[], now: Date): SkillEvidence[] {
+/** Les observations du jour calendaire courant. */
+function duJour(observations: readonly SkillObservation[], now: Date): SkillObservation[] {
   const aujourdhui = cleJour(now);
-  return preuves.filter((preuve) => cleJour(preuve.date) === aujourdhui);
+  return observations.filter((observation) => cleJour(observation.date) === aujourdhui);
 }
 
-/** Les preuves des `jours` dernières tranches de 24 h. */
-function deLaFenetre(preuves: readonly SkillEvidence[], jours: number, now: Date): SkillEvidence[] {
-  return preuves.filter((preuve) => joursDepuis(preuve.date, now) <= jours);
+/** Les observations des `jours` dernières tranches de 24 h. */
+function deLaFenetre(observations: readonly SkillObservation[], jours: number, now: Date): SkillObservation[] {
+  return observations.filter((observation) => joursDepuis(observation.date, now) <= jours);
 }
 
 /**
- * Une preuve inaugure-t-elle la mesure de sa compétence ?
+ * Une observation inaugure-t-elle la mesure de sa compétence ?
  *
  * Comparée à **tout** le journal, pas seulement à la fenêtre : une compétence
  * mesurée le mois dernier et retravaillée aujourd'hui n'est pas une première.
  */
 function premieres(
-  dansLaFenetre: readonly SkillEvidence[],
-  toutes: readonly SkillEvidence[],
+  dansLaFenetre: readonly SkillObservation[],
+  toutes: readonly SkillObservation[],
 ): number {
   const premiereParCode = new Map<string, string>();
-  for (const preuve of toutes) {
-    const connue = premiereParCode.get(preuve.skillCode);
-    if (!connue || preuve.date < connue) premiereParCode.set(preuve.skillCode, preuve.date);
+  for (const observation of toutes) {
+    const connue = premiereParCode.get(observation.skillCode);
+    if (!connue || observation.date < connue) premiereParCode.set(observation.skillCode, observation.date);
   }
-  return dansLaFenetre.filter((preuve) => premiereParCode.get(preuve.skillCode) === preuve.date).length;
+  return dansLaFenetre.filter((observation) => premiereParCode.get(observation.skillCode) === observation.date).length;
 }
 
 function construireFenetre(options: {
   libelle: string;
-  preuvesFenetre: readonly SkillEvidence[];
-  toutesPreuves: readonly SkillEvidence[];
+  observationsFenetre: readonly SkillObservation[];
+  toutesObservations: readonly SkillObservation[];
   evenements: readonly EvenementProgression[];
   dansLaFenetre: (date: string) => boolean;
   tentatives: readonly ExerciseAttempt[];
@@ -143,8 +143,8 @@ function construireFenetre(options: {
   seances: number;
 }): FenetreCroissance {
   const codes: string[] = [];
-  for (const preuve of [...options.preuvesFenetre].sort((a, b) => a.date.localeCompare(b.date))) {
-    if (!codes.includes(preuve.skillCode)) codes.push(preuve.skillCode);
+  for (const observation of [...options.observationsFenetre].sort((a, b) => a.date.localeCompare(b.date))) {
+    if (!codes.includes(observation.skillCode)) codes.push(observation.skillCode);
   }
 
   return {
@@ -158,12 +158,12 @@ function construireFenetre(options: {
         tentative.fin !== undefined &&
         options.dansLaFenetre(tentative.fin),
     ).length,
-    preuves: options.preuvesFenetre.length,
+    observations: options.observationsFenetre.length,
     competencesTravaillees: codes,
     franchissements: options.evenements.filter(
       (evenement) => estProgression(evenement) && options.dansLaFenetre(evenement.date),
     ).length,
-    premieresMesures: premieres(options.preuvesFenetre, options.toutesPreuves),
+    premieresMesures: premieres(options.observationsFenetre, options.toutesObservations),
   };
 }
 
@@ -171,21 +171,21 @@ export function resumeCroissance(entrees: EntreesCroissance): ResumeCroissance {
   const now = entrees.now ?? new Date();
   const sessions = [...entrees.sessions];
   const tentatives = [...entrees.tentatives];
-  const preuves = [...entrees.preuves];
+  const observations = [...entrees.observations];
 
   /*
    * Les événements sont dérivés une seule fois, sur la fenêtre la plus large.
    *
-   * `evenementsRecents` rejoue le journal — deux `computeSkillState` par preuve
-   * rendue. Le limiter au nombre de preuves de la semaine évite de payer le
+   * `evenementsRecents` rejoue le journal — deux `computeSkillState` par observation
+   * rendue. Le limiter au nombre d'observations de la semaine évite de payer le
    * rejeu de tout l'historique pour n'en afficher que quelques lignes.
    */
-  const preuvesSemaine = deLaFenetre(preuves, 7, now);
+  const observationsSemaine = deLaFenetre(observations, 7, now);
   const limite = Math.max(
     entrees.limiteEvenements ?? 8,
-    preuvesSemaine.length,
+    observationsSemaine.length,
   );
-  const evenements = evenementsRecents(preuves, entrees.skillsParCode, limite, now);
+  const evenements = evenementsRecents(observations, entrees.skillsParCode, limite, now);
 
   const dureesEstimees = new Map(entrees.dureesEstimees ?? []);
   const activite = calculerActivite(sessions, now, tentatives, dureesEstimees);
@@ -194,8 +194,8 @@ export function resumeCroissance(entrees: EntreesCroissance): ResumeCroissance {
 
   const jour = construireFenetre({
     libelle: "Aujourd'hui",
-    preuvesFenetre: duJour(preuves, now),
-    toutesPreuves: preuves,
+    observationsFenetre: duJour(observations, now),
+    toutesObservations: observations,
     evenements,
     dansLaFenetre: (date) => cleJour(date) === aujourdhui,
     tentatives,
@@ -206,8 +206,8 @@ export function resumeCroissance(entrees: EntreesCroissance): ResumeCroissance {
 
   const septJours = construireFenetre({
     libelle: "7 derniers jours",
-    preuvesFenetre: preuvesSemaine,
-    toutesPreuves: preuves,
+    observationsFenetre: observationsSemaine,
+    toutesObservations: observations,
     evenements,
     dansLaFenetre: (date) => joursDepuis(date, now) <= 7,
     tentatives,
@@ -222,6 +222,6 @@ export function resumeCroissance(entrees: EntreesCroissance): ResumeCroissance {
     evenements: evenements.slice(0, entrees.limiteEvenements ?? 8),
     // Le vide se juge sur la semaine, pas sur le jour : ne rien avoir fait
     // depuis ce matin n'est pas ne rien avoir construit.
-    vide: septJours.preuves === 0 && septJours.exercicesMenes === 0 && septJours.minutes === 0,
+    vide: septJours.observations === 0 && septJours.exercicesMenes === 0 && septJours.minutes === 0,
   };
 }

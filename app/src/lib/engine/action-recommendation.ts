@@ -254,7 +254,7 @@ function latestExplorationDate(
 function latestProofDate(target: ActivityTarget, states: readonly SkillState[]): string | null {
   const dates = states
     .filter((state) => target.skillCodes.length === 0 || target.skillCodes.includes(state.skill.code))
-    .map((state) => state.dernierePreuve)
+    .map((state) => state.derniereObservation)
     .filter((date): date is string => date !== null)
     .sort((left, right) => right.localeCompare(left));
   return dates[0] ?? null;
@@ -356,7 +356,7 @@ function rankCandidate(
 
   const reservations: string[] = [];
   if (capacityFit < 2) reservations.push("La demande cognitive estimee depasse la capacite declaree.");
-  if (candidate.proofMode === "support-seul") reservations.push("Cette action soutient l'apprentissage mais ne produit aucune preuve de niveau.");
+  if (candidate.proofMode === "support-seul") reservations.push("Cette action soutient l'apprentissage mais ne produit aucune observation de niveau.");
   if (candidate.source === "generation") reservations.push("Le contenu sera propose dans un schema ferme et ne sera enregistre qu'apres acceptation.");
   if (candidate.segmented) reservations.push("Seul un segment est propose ; le travail restera ouvert apres cette seance.");
 

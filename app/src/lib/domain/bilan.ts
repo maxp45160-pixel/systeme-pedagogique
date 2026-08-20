@@ -32,7 +32,7 @@ export const APPRECIATIONS: { valeur: ValeurAppreciation; libelle: string }[] = 
   { valeur: 1, libelle: "Oui" },
 ];
 
-/** Résultat global d'une tentative — le même vocabulaire que `SkillEvidence.resultat`. */
+/** Résultat global d'une tentative — le même vocabulaire que `SkillObservation.resultat`. */
 export type ResultatBilan = "reussi" | "partiel" | "echec";
 
 /**

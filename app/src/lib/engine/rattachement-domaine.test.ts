@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { agregerDomaine, calculerEtatGlobal } from "./progression";
 import { computeAllSkillStates } from "./skill-state";
 import { assemblerReferentiel } from "@/lib/domain/referentiel-compte";
-import type { Domaine, Skill, SkillEvidence } from "@/lib/domain/types";
+import type { Domaine, Skill, SkillObservation } from "@/lib/domain/types";
 
 const MAINTENANT = new Date("2026-08-16T12:00:00.000Z");
 
@@ -16,12 +16,12 @@ const skill = (code: string, intitule: string, domaineId: string): Skill => ({
   ordre: 0, active: true, archive: false, origine: "utilisateur",
 });
 
-const preuve = (code: string): SkillEvidence => ({
-  id: `ev-${code}`,
+const observation = (code: string): SkillObservation => ({
+  id: `obs-${code}`,
   skillCode: code,
   date: "2026-08-15T12:00:00.000Z",
   type: "exercice",
-  niveauPreuve: "A",
+  niveauObservation: "A",
   autonomie: "A3",
   qualite: "moyenne",
   resultat: "reussi",
@@ -75,17 +75,17 @@ describe("rattachement d'une compétence à plusieurs domaines", () => {
       [PARTAGEE, PROPRE],
       [{ code: "STA-01", domaine: "logistique" }],
     );
-    const etats = computeAllSkillStates(referentiel.actifs, [preuve("STA-01")], MAINTENANT);
+    const etats = computeAllSkillStates(referentiel.actifs, [observation("STA-01")], MAINTENANT);
 
     const stats = agregerDomaine("statistiques", etats, referentiel.domaines);
     const logistique = agregerDomaine("logistique", etats, referentiel.domaines);
 
     // La couverture du second domaine inclut la compétence rattachée, et ses
-    // preuves y remontent : c'est bien la même mesure qui informe les deux.
+    // observations y remontent : c'est bien la même mesure qui informe les deux.
     expect(stats.competencesTotal).toBe(1);
     expect(logistique.competencesTotal).toBe(2);
-    expect(logistique.preuves).toBe(1);
-    expect(stats.preuves).toBe(1);
+    expect(logistique.observations).toBe(1);
+    expect(stats.observations).toBe(1);
   });
 
   /*
@@ -101,17 +101,17 @@ describe("rattachement d'une compétence à plusieurs domaines", () => {
       [PARTAGEE, PROPRE],
       [{ code: "STA-01", domaine: "logistique" }],
     );
-    const preuves = [preuve("STA-01")];
+    const observations = [observation("STA-01")];
 
     const globalSans = calculerEtatGlobal(
-      computeAllSkillStates(sans.actifs, preuves, MAINTENANT), MAINTENANT, sans.domaines,
+      computeAllSkillStates(sans.actifs, observations, MAINTENANT), MAINTENANT, sans.domaines,
     );
     const globalAvec = calculerEtatGlobal(
-      computeAllSkillStates(avec.actifs, preuves, MAINTENANT), MAINTENANT, avec.domaines,
+      computeAllSkillStates(avec.actifs, observations, MAINTENANT), MAINTENANT, avec.domaines,
     );
 
     expect(globalAvec.scoreGlobal).toBe(globalSans.scoreGlobal);
     expect(globalAvec.competencesTotal).toBe(globalSans.competencesTotal);
-    expect(globalAvec.nombrePreuves).toBe(globalSans.nombrePreuves);
+    expect(globalAvec.nombreObservations).toBe(globalSans.nombreObservations);
   });
 });

@@ -28,7 +28,7 @@ export function Carte({
    * c'est l'enfant interactif qui porte le focus et le clic, jamais elle.
    */
   interactive?: boolean;
-  /** Identifiant d'ancrage (ex. `#preuve-manuelle` pour un lien ciblé). */
+  /** Identifiant d'ancrage (ex. `#observation-manuelle` pour un lien ciblé). */
   id?: string;
 }) {
   return (
@@ -280,7 +280,7 @@ const TON_CONFIANCE: Record<Confiance, Ton> = {
 /**
  * Ce que la confiance dit — et ce qu'elle ne dit pas.
  *
- * Elle porte sur **les preuves**, pas sur la personne : combien il y en a, sur
+ * Elle porte sur **les observations**, pas sur la personne : combien il y en a, sur
  * combien de contextes, à quelle distance dans le temps. Une confiance faible
  * n'est donc pas un mauvais niveau, c'est un niveau mal établi — les deux se
  * corrigent par des gestes opposés (refaire un exercice du même genre pour la
@@ -293,7 +293,7 @@ const TON_CONFIANCE: Record<Confiance, Ton> = {
  * bandeau est déjà dense, et cette précision n'est utile qu'une fois.
  */
 const AIDE_CONFIANCE =
-  "La confiance mesure l'assise des preuves — leur nombre, leur variété, leur fraîcheur — pas le niveau atteint. Une confiance faible signale qu'il manque des mesures, pas que la compétence est faible.";
+  "La confiance mesure l'assise des observations — leur nombre, leur variété, leur fraîcheur — pas le niveau atteint. Une confiance faible signale qu'il manque des mesures, pas que la compétence est faible.";
 
 export function TagConfiance({ confiance }: { confiance: Confiance }) {
   return (

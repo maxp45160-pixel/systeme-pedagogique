@@ -61,7 +61,7 @@ export const FACTEUR_NIVEAU: Record<number, number> = {
  * Robustesse 0 → ×1 (fragile, réviser tôt) ; robustesse 1 → ×(1+AMPLITUDE).
  *
  * La robustesse est le proxy de stabilité du système (protocole d'évaluation
- * §13 : nombre de preuves, diversité des contextes, autonomie, récence,
+ * §13 : nombre d'observations, diversité des contextes, autonomie, récence,
  * réussite après délai, transfert). Une robustesse 0,8 multiplie l'intervalle
  * par 3,4 — c'est le signal dominant, comme il se doit.
  */
@@ -69,7 +69,7 @@ export const AMPLITUDE_ROBUSTESSE = 3;
 
 /**
  * Multiplicateur selon la confiance (protocole anti-hallucination §10).
- * Une confiance faible signifie peu de preuves ou des contradictions : on
+ * Une confiance faible signifie peu d'observations ou des contradictions : on
  * révise plus tôt pour consolider. Une confiance forte permet d'attendre.
  */
 export const FACTEUR_CONFIANCE: Record<string, number> = {
@@ -80,7 +80,7 @@ export const FACTEUR_CONFIANCE: Record<string, number> = {
 };
 
 /**
- * Multiplicateur selon le résultat de la dernière preuve (variante A').
+ * Multiplicateur selon le résultat de la dernière observation (variante A').
  * Un échec récent rapproche la révision (on revient vérifier vite) ; une
  * réussite autonome laisse l'intervalle plein.
  */
@@ -105,21 +105,21 @@ export interface ProchaineRevision {
   due: boolean;
   /** Intervalle calculé, en jours. */
   intervalleJours: number;
-  /** Jours écoulés depuis la dernière preuve. */
+  /** Jours écoulés depuis la dernière observation. */
   joursEcoules: number | null;
   /** Facteurs qui composent l'intervalle, pour le « Pourquoi ? ». */
   facteurs: FacteurIntervalle[];
   /** Phrase de synthèse, construite depuis les facteurs réels. */
   raison: string;
   /**
-   * La compétence n'a aucune preuve : elle est à diagnostiquer, pas à réviser.
+   * La compétence n'a aucune observation : elle est à diagnostiquer, pas à réviser.
    *
    * Champ explicite, distinct d'une sentinelle sur `intervalleJours` : un
    * modèle FSRS rendant `0` casserait l'affichage si la détection se faisait
    * par `intervalleJours === 0`. L'interface `ModeleRevision` promet la
    * substituabilité — la sentinelle ne la supporte pas.
    */
-  sansPreuve: boolean;
+  sansObservation: boolean;
 }
 
 /**
@@ -131,7 +131,7 @@ export interface ProchaineRevision {
  * `intervalle` depuis une probabilité de rappel `R = e^(−t/S)` et un seuil.
  */
 export interface ModeleRevision {
-  /** Intervalle en jours, ou `null` si la compétence n'a aucune preuve. */
+  /** Intervalle en jours, ou `null` si la compétence n'a aucune observation. */
   intervalle(etat: SkillState): number | null;
   /** Facteurs explicatifs, pour l'affichage « Pourquoi ? ». */
   facteurs(etat: SkillState): FacteurIntervalle[];
@@ -174,8 +174,8 @@ function facteursHeuristiques(
     multiplicateur: FACTEUR_CONFIANCE[etat.confiance] ?? 1,
   });
 
-  // Dernier résultat : la dernière preuve triée par date.
-  const derniere = etat.preuves.at(-1);
+  // Dernier résultat : la dernière observation triée par date.
+  const derniere = etat.observations.at(-1);
   facteurs.push({
     libelle: "Dernier résultat",
     valeur: derniere ? derniere.resultat : "—",
@@ -188,7 +188,7 @@ function facteursHeuristiques(
 /**
  * Méthode A' — l'intervalle est le produit des facteurs dérivés de l'état.
  *
- * `null` si la compétence n'a aucune preuve : elle n'est pas « à réviser »,
+ * `null` si la compétence n'a aucune observation : elle n'est pas « à réviser »,
  * elle est « à diagnostiquer ». Les deux flux sont distincts — la
  * recommandation traite le diagnostic par son propre bloc.
  */
@@ -213,7 +213,7 @@ export function creerModeleHeuristique(
   const facteurs = (etat: SkillState) => facteursHeuristiques(etat, amplitudeRobustesse);
   return {
     intervalle(etat) {
-      if (etat.preuves.length === 0) return null;
+      if (etat.observations.length === 0) return null;
       const intervalle = facteurs(etat).reduce(
         (acc, f) => acc * f.multiplicateur,
         INTERVALLE_BASE_JOURS,
@@ -239,8 +239,8 @@ export const MODELE_ACTIF: ModeleRevision = modeleHeuristique;
 /**
  * La compétence est-elle due pour révision aujourd'hui ?
  *
- * Une compétence sans preuve n'est jamais « due » : elle est à diagnostiquer,
- * pas à réviser. `due` ne vaut donc vrai que si une preuve existe ET que
+ * Une compétence sans observation n'est jamais « due » : elle est à diagnostiquer,
+ * pas à réviser. `due` ne vaut donc vrai que si une observation existe ET que
  * l'intervalle est dépassé.
  */
 export function estDue(
@@ -251,7 +251,7 @@ export function estDue(
 ): boolean {
   const intervalle = modele.intervalle(etat);
   if (intervalle === null) return false;
-  const ecoules = etat.joursDepuisDernierePreuve ?? joursDepuis(etat.dernierePreuve ?? "", now);
+  const ecoules = etat.joursDepuisDerniereObservation ?? joursDepuis(etat.derniereObservation ?? "", now);
   return ecoules >= intervalle;
 }
 
@@ -265,7 +265,7 @@ export function prochaineRevision(
   modele: ModeleRevision = MODELE_ACTIF,
 ): ProchaineRevision {
   const intervalle = modele.intervalle(etat);
-  const joursEcoules = etat.joursDepuisDernierePreuve ?? joursDepuis(etat.dernierePreuve ?? "", now);
+  const joursEcoules = etat.joursDepuisDerniereObservation ?? joursDepuis(etat.derniereObservation ?? "", now);
 
   if (intervalle === null) {
     return {
@@ -273,8 +273,8 @@ export function prochaineRevision(
       intervalleJours: 0,
       joursEcoules,
       facteurs: [],
-      raison: "Aucune preuve : compétence à diagnostiquer, pas à réviser.",
-      sansPreuve: true,
+      raison: "Aucune observation : compétence à diagnostiquer, pas à réviser.",
+      sansObservation: true,
     };
   }
 
@@ -291,7 +291,7 @@ export function prochaineRevision(
     joursEcoules,
     facteurs,
     raison,
-    sansPreuve: false,
+    sansObservation: false,
   };
 }
 

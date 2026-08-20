@@ -547,7 +547,7 @@ describe("dureeDeReference — le réel prime sur l'estimation", () => {
 
   it("tentativeMenee garde l'estimation — ADR-030 n'est pas desserré", () => {
     /*
-     * La règle de la preuve ne change pas de repère. Elle tranche le plus
+     * La règle de l'observation ne change pas de repère. Elle tranche le plus
      * souvent au PREMIER passage, quand aucune observation n'existe, et rien
      * dans les données du 09/08 ne la met en cause : une seule réussite sous
      * 25 %. La desserrer d'un côté est ce que CLAUDE.md interdit.
@@ -603,17 +603,17 @@ describe("le maillon est effectivement bouclé", () => {
 });
 
 /*
- * `tentativeMenee` — la règle partagée avec l'écriture de la preuve.
+ * `tentativeMenee` — la règle partagée avec l'écriture de l'observation.
  *
  * Elle gouvernait la calibration de la difficulté depuis ADR-028 et rien
  * d'autre. Le 01/08/2026, la boucle a tourné en entier pour la première fois
  * et l'a montré : deux exercices générés par le tuteur, abandonnés en 1 minute
- * sur 20 et 25 estimées, ont produit des preuves à toutes dimensions nulles.
+ * sur 20 et 25 estimées, ont produit des observations à toutes dimensions nulles.
  * DEV-01 est tombé de 2,7 à 2,3 sur un exercice que personne n'avait fait.
  *
  * Ces cas-là sont donc, eux aussi, des tentatives réelles.
  */
-describe("tentativeMenee — aucune preuve sur une tentative qui n'a pas eu lieu", () => {
+describe("tentativeMenee — aucune observation sur une tentative qui n'a pas eu lieu", () => {
   it("1 min sur 20 estimées, échec ⇒ non menée (ex-msahsloc, DEV-01, 01/08/2026)", () => {
     const ex = exercice("ex-msahsloc-w2cwx", 1, 20, ["DEV-01"], 1);
     expect(tentativeMenee({ resultat: "echec", dureeMin: 1 }, ex)).toBe(false);

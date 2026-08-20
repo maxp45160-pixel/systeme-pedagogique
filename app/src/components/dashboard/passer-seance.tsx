@@ -86,7 +86,7 @@ export function PasserSeance({
           <div className="space-y-2 text-sm text-texte-attenue">
             <p>
               Ce qui a été mené reste au journal : les exercices déjà terminés
-              gardent leurs preuves, et la séance reste relisible. Les tentatives
+              gardent leurs observations, et la séance reste relisible. Les tentatives
               encore ouvertes seront clôturées sans conclusion.
             </p>
             <p>

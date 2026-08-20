@@ -16,7 +16,7 @@ import type {
   Difficulte,
   Exercise,
   ExerciseAttempt,
-  SkillEvidence,
+  SkillObservation,
 } from "@/lib/domain/types";
 
 /*
@@ -58,13 +58,13 @@ function exercice(
 }
 
 let compteur = 0;
-function preuve(skillCode: string, jours: number): SkillEvidence {
+function observation(skillCode: string, jours: number): SkillObservation {
   return {
-    id: `ev-${++compteur}`,
+    id: `obs-${++compteur}`,
     skillCode,
     date: new Date(MAINTENANT.getTime() - jours * 86_400_000).toISOString(),
     type: "exercice",
-    niveauPreuve: "A",
+    niveauObservation: "A",
     autonomie: "A3",
     qualite: "moyenne",
     resultat: "reussi",
@@ -74,10 +74,10 @@ function preuve(skillCode: string, jours: number): SkillEvidence {
   };
 }
 
-const etats = (preuves: SkillEvidence[] = []) =>
+const etats = (observations: SkillObservation[] = []) =>
   computeAllSkillStates(
     SKILLS_TEST.filter((s) => s.active),
-    preuves,
+    observations,
     MAINTENANT,
   );
 
@@ -91,11 +91,11 @@ const composer = (
   demande: Partial<DemandeSeance> = {},
   exercices: Exercise[] = [],
   tentatives: ExerciseAttempt[] = [],
-  preuves: SkillEvidence[] = [],
+  observations: SkillObservation[] = [],
 ) =>
   composerSeance(
     { ...DEMANDE, ...demande },
-    etats(preuves),
+    etats(observations),
     exercices,
     tentatives,
     undefined,
@@ -424,9 +424,9 @@ describe("composerSeance — la propriété qui protège du défaut rapporté", 
      * travaillés, et le corpus ne se remplirait jamais. La séance doit rendre
      * un manquant — c'est lui qui devient la commande passée au tuteur.
      */
-    const preuves = [preuve("DEV-05", 1)];
+    const observations = [observation("DEV-05", 1)];
     const exercices = [exercice("ex-dev05", ["DEV-05"])];
-    const c = composer({ nombreExercices: 1 }, exercices, [], preuves);
+    const c = composer({ nombreExercices: 1 }, exercices, [], observations);
 
     expect(c.activites).toEqual([]);
     expect(c.manquants).toHaveLength(1);
@@ -436,9 +436,9 @@ describe("composerSeance — la propriété qui protège du défaut rapporté", 
   it("retient tout de même l'exercice existant dès qu'il reste une place pour lui", () => {
     // La règle n'est pas « ignorer ce qui existe » : c'est « ne pas s'y rabattre
     // au détriment de ce qui n'a jamais été mesuré ».
-    const preuves = [preuve("DEV-05", 400)];
+    const observations = [observation("DEV-05", 400)];
     const exercices = [exercice("ex-dev05", ["DEV-05"])];
-    const c = composer({ nombreExercices: 6 }, exercices, [], preuves);
+    const c = composer({ nombreExercices: 6 }, exercices, [], observations);
     expect(c.activites.map((a) => a.ref)).toContain("ex-dev05");
   });
 });

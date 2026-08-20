@@ -45,13 +45,13 @@ function etat(code: string): SkillState {
     confiance: "nulle",
     robustesse: null,
     dimensions: { comprehension: 0, application: 0, transfert: 0, integration: 0, justification: 0 },
-    preuves: [],
+    observations: [],
     contextesTestes: [],
-    dernierePreuve: null,
-    joursDepuisDernierePreuve: null,
+    derniereObservation: null,
+    joursDepuisDerniereObservation: null,
     contradictions: [],
     prochaineEtape: "Diagnostiquer",
-    explication: { resume: "", facteurs: [], nombrePreuves: 0, reserves: [] },
+    explication: { resume: "", facteurs: [], nombreObservations: 0, reserves: [] },
     statut: "non-evalue",
   };
 }

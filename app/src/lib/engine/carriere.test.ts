@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { resumeCarriere } from "./carriere";
-import type { ExerciseAttempt, LearningSession, SkillEvidence } from "@/lib/domain/types";
+import type { ExerciseAttempt, LearningSession, SkillObservation } from "@/lib/domain/types";
 
 const NOW = new Date("2026-08-16T12:00:00Z");
 
-function preuve(date: string): SkillEvidence {
-  return { id: `p-${date}`, skillCode: "LOG-01", date } as unknown as SkillEvidence;
+function observation(date: string): SkillObservation {
+  return { id: `p-${date}`, skillCode: "LOG-01", date } as unknown as SkillObservation;
 }
 
 function seance(surcharge: Partial<LearningSession> = {}): LearningSession {
@@ -26,24 +26,24 @@ function tentative(statut: ExerciseAttempt["statut"]): ExerciseAttempt {
 
 describe("resumeCarriere — une carrière qui n'a pas commencé", () => {
   it("ne fabrique ni date de début ni durée", () => {
-    const c = resumeCarriere({ sessions: [], tentatives: [], preuves: [], now: NOW });
+    const c = resumeCarriere({ sessions: [], tentatives: [], observations: [], now: NOW });
     expect(c.debut).toBeNull();
     expect(c.joursDepuisDebut).toBeNull();
   });
 
   it("compte zéro série — là le zéro est exact", () => {
-    const c = resumeCarriere({ sessions: [], tentatives: [], preuves: [], now: NOW });
+    const c = resumeCarriere({ sessions: [], tentatives: [], observations: [], now: NOW });
     expect(c.meilleureSerie).toBe(0);
     expect(c.serieEnCours).toBe(0);
   });
 });
 
 describe("resumeCarriere — totaux", () => {
-  it("retient la preuve la plus ancienne comme début", () => {
+  it("retient l'observation la plus ancienne comme début", () => {
     const c = resumeCarriere({
       sessions: [],
       tentatives: [],
-      preuves: [preuve("2026-08-14T10:00:00Z"), preuve("2026-06-01T10:00:00Z"), preuve("2026-07-02T10:00:00Z")],
+      observations: [observation("2026-08-14T10:00:00Z"), observation("2026-06-01T10:00:00Z"), observation("2026-07-02T10:00:00Z")],
       now: NOW,
     });
     expect(c.debut).toBe("2026-06-01T10:00:00Z");
@@ -58,7 +58,7 @@ describe("resumeCarriere — totaux", () => {
         seance({ id: "c", statut: "en-cours", dureeMin: 20 }),
       ],
       tentatives: [],
-      preuves: [],
+      observations: [],
       now: NOW,
     });
     expect(c.seancesTotal).toBe(2);
@@ -69,7 +69,7 @@ describe("resumeCarriere — totaux", () => {
     const c = resumeCarriere({
       sessions: [seance({ statut: "terminee" })],
       tentatives: [],
-      preuves: [],
+      observations: [],
       now: NOW,
     });
     expect(c.seancesTotal).toBe(1);
@@ -80,7 +80,7 @@ describe("resumeCarriere — totaux", () => {
     const c = resumeCarriere({
       sessions: [],
       tentatives: [tentative("terminee"), tentative("abandonnee"), tentative("en-cours"), tentative("terminee")],
-      preuves: [],
+      observations: [],
       now: NOW,
     });
     expect(c.exercicesMenes).toBe(2);
@@ -88,11 +88,11 @@ describe("resumeCarriere — totaux", () => {
 });
 
 describe("resumeCarriere — séries", () => {
-  it("compte les jours distincts, pas les preuves", () => {
+  it("compte les jours distincts, pas les observations", () => {
     const c = resumeCarriere({
       sessions: [],
       tentatives: [],
-      preuves: [preuve("2026-08-16T08:00:00Z"), preuve("2026-08-16T19:00:00Z")],
+      observations: [observation("2026-08-16T08:00:00Z"), observation("2026-08-16T19:00:00Z")],
       now: NOW,
     });
     expect(c.joursActifsTotal).toBe(1);
@@ -103,12 +103,12 @@ describe("resumeCarriere — séries", () => {
     const c = resumeCarriere({
       sessions: [],
       tentatives: [],
-      preuves: [
-        preuve("2026-07-01T10:00:00Z"),
-        preuve("2026-07-02T10:00:00Z"),
-        preuve("2026-07-03T10:00:00Z"),
+      observations: [
+        observation("2026-07-01T10:00:00Z"),
+        observation("2026-07-02T10:00:00Z"),
+        observation("2026-07-03T10:00:00Z"),
         // trou
-        preuve("2026-07-10T10:00:00Z"),
+        observation("2026-07-10T10:00:00Z"),
       ],
       now: NOW,
     });
@@ -119,28 +119,28 @@ describe("resumeCarriere — séries", () => {
     const c = resumeCarriere({
       sessions: [],
       tentatives: [],
-      preuves: [preuve("2026-07-01T10:00:00Z"), preuve("2026-07-02T10:00:00Z")],
+      observations: [observation("2026-07-01T10:00:00Z"), observation("2026-07-02T10:00:00Z")],
       now: NOW,
     });
     expect(c.serieEnCours).toBe(0);
   });
 
-  it("garde la série en cours quand la dernière preuve date d'hier", () => {
+  it("garde la série en cours quand la dernière observation date d'hier", () => {
     // Sinon la série tomberait à zéro chaque matin pour qui travaille le soir.
     const c = resumeCarriere({
       sessions: [],
       tentatives: [],
-      preuves: [preuve("2026-08-14T21:00:00Z"), preuve("2026-08-15T21:00:00Z")],
+      observations: [observation("2026-08-14T21:00:00Z"), observation("2026-08-15T21:00:00Z")],
       now: NOW,
     });
     expect(c.serieEnCours).toBe(2);
   });
 
-  it("garde la série en cours quand la dernière preuve est du jour", () => {
+  it("garde la série en cours quand la dernière observation est du jour", () => {
     const c = resumeCarriere({
       sessions: [],
       tentatives: [],
-      preuves: [preuve("2026-08-15T21:00:00Z"), preuve("2026-08-16T09:00:00Z")],
+      observations: [observation("2026-08-15T21:00:00Z"), observation("2026-08-16T09:00:00Z")],
       now: NOW,
     });
     expect(c.serieEnCours).toBe(2);
@@ -150,7 +150,7 @@ describe("resumeCarriere — séries", () => {
     const c = resumeCarriere({
       sessions: [],
       tentatives: [],
-      preuves: [preuve("2026-07-31T10:00:00Z"), preuve("2026-08-01T10:00:00Z")],
+      observations: [observation("2026-07-31T10:00:00Z"), observation("2026-08-01T10:00:00Z")],
       now: NOW,
     });
     expect(c.meilleureSerie).toBe(2);

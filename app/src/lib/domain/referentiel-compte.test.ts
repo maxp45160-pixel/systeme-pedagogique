@@ -128,7 +128,7 @@ describe("prefixesDistincts — la création multi-branches d'un seul geste", ()
 });
 
 describe("scinderRetraits — ADR-027 appliquée à un lot", () => {
-  it("sépare selon les preuves de chaque code", () => {
+  it("sépare selon les observations de chaque code", () => {
     const { supprimees, archivees } = scinderRetraits(
       ["A-01", "A-02"],
       new Map([["A-02", 3]]),
@@ -137,15 +137,15 @@ describe("scinderRetraits — ADR-027 appliquée à un lot", () => {
     expect(archivees).toEqual(["A-02"]);
   });
 
-  it("ne change pas le mode d'un code parce qu'un autre du lot porte des preuves", () => {
+  it("ne change pas le mode d'un code parce qu'un autre du lot porte des observations", () => {
     // Sinon un retrait groupé archiverait des lignes vides, et le référentiel
     // enflerait d'archives qui ne protègent rien.
     const { supprimees } = scinderRetraits(["A-01", "A-02"], new Map([["A-02", 9]]));
     expect(supprimees).toContain("A-01");
   });
 
-  it("traite un code inconnu du compteur comme sans preuve", () => {
-    // `compterPreuves` ne rend que les codes qui en ont : l'absence EST le zéro.
+  it("traite un code inconnu du compteur comme sans observation", () => {
+    // `compterObservations` ne rend que les codes qui en ont : l'absence EST le zéro.
     const { supprimees } = scinderRetraits(["A-99"], new Map());
     expect(supprimees).toEqual(["A-99"]);
   });
@@ -206,7 +206,7 @@ describe("attribution des codes — jamais laissée au tuteur", () => {
   });
 
   it("ne réutilise jamais un numéro laissé libre par une suppression", () => {
-    // Réattribuer « PHI-02 » ferait pointer les preuves de l'ancienne
+    // Réattribuer « PHI-02 » ferait pointer les observations de l'ancienne
     // compétence sur la nouvelle : l'historique deviendrait faux en silence.
     expect(prochainCode("PHI", ["PHI-01", "PHI-03"])).toBe("PHI-04");
   });
@@ -348,46 +348,46 @@ describe("validation d'une compétence", () => {
   });
 });
 
-describe("retrait — ADR-027, une preuve n'est jamais orpheline", () => {
-  it("supprime franchement une compétence sans preuve", () => {
+describe("retrait — ADR-027, une observation n'est jamais orpheline", () => {
+  it("supprime franchement une compétence sans observation", () => {
     expect(modeRetrait(0)).toBe("suppression");
   });
 
-  it("archive dès la première preuve — jamais un choix offert", () => {
+  it("archive dès la première observation — jamais un choix offert", () => {
     // P4 et anti-hallucination §6 : une faiblesse ne disparaît pas. Le mode est
-    // DÉRIVÉ du nombre de preuves, pas arbitré par l'utilisateur.
+    // DÉRIVÉ du nombre d'observations, pas arbitré par l'utilisateur.
     expect(modeRetrait(1)).toBe("archivage");
     expect(modeRetrait(26)).toBe("archivage");
   });
 
   /*
    * `retraitsParCode` remplace la lecture serveur `chargerRetraits`, qui
-   * refaisait `lireReferentiel` et un `SELECT *` sur les preuves alors que la
+   * refaisait `lireReferentiel` et un `SELECT *` sur les observations alors que la
    * page venait de charger les deux. Devenue pure, elle se teste sans base —
    * et c'est cette table qui fonde l'annonce faite AVANT le clic.
    */
   it("dérive le geste et le compte pour chaque compétence, y compris à zéro", () => {
     const skills = REFERENTIEL_TEST.skills.slice(0, 3);
-    const preuves = [
+    const observations = [
       { skillCode: skills[0].code },
       { skillCode: skills[0].code },
       { skillCode: skills[1].code },
     ];
-    const table = retraitsParCode(skills, preuves);
+    const table = retraitsParCode(skills, observations);
 
-    expect(table.get(skills[0].code)).toEqual({ preuves: 2, mode: "archivage" });
-    expect(table.get(skills[1].code)).toEqual({ preuves: 1, mode: "archivage" });
-    // Une compétence sans preuve figure quand même : son absence de la table
-    // se lirait comme « pas d'information », alors que c'est « aucune preuve ».
-    expect(table.get(skills[2].code)).toEqual({ preuves: 0, mode: "suppression" });
+    expect(table.get(skills[0].code)).toEqual({ observations: 2, mode: "archivage" });
+    expect(table.get(skills[1].code)).toEqual({ observations: 1, mode: "archivage" });
+    // Une compétence sans observation figure quand même : son absence de la table
+    // se lirait comme « pas d'information », alors que c'est « aucune observation ».
+    expect(table.get(skills[2].code)).toEqual({ observations: 0, mode: "suppression" });
     expect(table.size).toBe(3);
   });
 
-  it("ignore une preuve dont le code n'est pas dans la liste fournie", () => {
+  it("ignore une observation dont le code n'est pas dans la liste fournie", () => {
     const skills = REFERENTIEL_TEST.skills.slice(0, 1);
     const table = retraitsParCode(skills, [{ skillCode: "CODE-ABSENT" }]);
     expect(table.size).toBe(1);
-    expect(table.get(skills[0].code)?.preuves).toBe(0);
+    expect(table.get(skills[0].code)?.observations).toBe(0);
   });
 });
 

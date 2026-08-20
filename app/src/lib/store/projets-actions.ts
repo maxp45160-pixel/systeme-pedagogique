@@ -9,7 +9,7 @@
  * sept tables dédiées, avec commande transactionnelle, versionnement optimiste
  * et snapshots d'artefacts — puis écrivait *en plus* une fiche dans l'Atelier.
  * La fiche portait déjà l'énoncé, les étapes et les critères ; l'exécution
- * portait le contrat et une preuve qui n'a jamais été produite.
+ * portait le contrat et une observation qui n'a jamais été produite.
  *
  * **La fiche suffit.** Un projet est une note opérationnelle de type `projet`,
  * exactement comme une séance est une note opérationnelle de type `seance` : le
@@ -18,7 +18,7 @@
  * de nouveau. Zéro table.
  *
  * Ce que cette version ne fait pas, et l'assume : elle ne transforme pas un
- * projet en preuve. Le contrat d'évaluation reste écrit dans la fiche, lisible,
+ * projet en observation. Le contrat d'évaluation reste écrit dans la fiche, lisible,
  * mais aucune mesure n'en est dérivée. Cette question se tranchera quand un
  * projet aura été mené jusqu'au bout au moins une fois — pas avant.
  */

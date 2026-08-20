@@ -191,7 +191,7 @@ export function PanneauCompte({
                   Sauvegarde & Export souverain du journal
                 </h4>
                 <p className="text-xs text-texte-attenue max-w-lg leading-relaxed">
-                  Téléchargez l&apos;intégralité de vos données en JSON — preuves, séances, exercices,
+                  Téléchargez l&apos;intégralité de vos données en JSON — observations, séances, exercices,
                   compétences, documents et profil. C&apos;est votre copie souveraine hors ligne.
                 </p>
                 {messageExport && (

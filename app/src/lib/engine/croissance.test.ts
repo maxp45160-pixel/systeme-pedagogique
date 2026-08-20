@@ -5,7 +5,7 @@ import { DUREE_ESTIMEE_MAX } from "@/lib/domain/exercice";
 import type {
   ExerciseAttempt,
   LearningSession,
-  SkillEvidence,
+  SkillObservation,
 } from "@/lib/domain/types";
 
 /*
@@ -39,13 +39,13 @@ const AVANT_HIER = aLHeureLocale(-2, 8);
 
 let compteur = 0;
 
-function preuve(skill: string, date: string): SkillEvidence {
+function observation(skill: string, date: string): SkillObservation {
   return {
-    id: `ev-${++compteur}`,
+    id: `obs-${++compteur}`,
     skillCode: skill,
     date,
     type: "exercice",
-    niveauPreuve: "A",
+    niveauObservation: "A",
     autonomie: "A3",
     qualite: "moyenne",
     resultat: "reussi",
@@ -92,15 +92,15 @@ describe("resumeCroissance — les deux fenêtres", () => {
     const resume = resumeCroissance({
       sessions: [],
       tentatives: [tentative(hierSoir)],
-      preuves: [preuve("DEV-01", hierSoir)],
+      observations: [observation("DEV-01", hierSoir)],
       skillsParCode: SKILLS,
       now: MAINTENANT,
     });
 
-    expect(resume.jour.preuves).toBe(0);
+    expect(resume.jour.observations).toBe(0);
     expect(resume.jour.exercicesMenes).toBe(0);
     // La fenêtre glissante, elle, le voit.
-    expect(resume.semaine.preuves).toBe(1);
+    expect(resume.semaine.observations).toBe(1);
     expect(resume.semaine.exercicesMenes).toBe(1);
   });
 
@@ -109,15 +109,15 @@ describe("resumeCroissance — les deux fenêtres", () => {
     const resume = resumeCroissance({
       sessions: [seance(ceMatin)],
       tentatives: [tentative(ceMatin)],
-      preuves: [preuve("DEV-01", ceMatin)],
+      observations: [observation("DEV-01", ceMatin)],
       skillsParCode: SKILLS,
       now: MAINTENANT,
     });
 
-    expect(resume.jour.preuves).toBe(1);
+    expect(resume.jour.observations).toBe(1);
     expect(resume.jour.exercicesMenes).toBe(1);
     expect(resume.jour.minutes).toBe(20);
-    expect(resume.semaine.preuves).toBe(1);
+    expect(resume.semaine.observations).toBe(1);
   });
 
   it("ignore une tentative abandonnée (P2 : elle n'a rien mesuré)", () => {
@@ -125,7 +125,7 @@ describe("resumeCroissance — les deux fenêtres", () => {
     const resume = resumeCroissance({
       sessions: [],
       tentatives: [tentative(ceMatin, "abandonnee")],
-      preuves: [],
+      observations: [],
       skillsParCode: SKILLS,
       now: MAINTENANT,
     });
@@ -142,7 +142,7 @@ describe("resumeCroissance — ce qui a changé", () => {
     const resume = resumeCroissance({
       sessions: [],
       tentatives: [],
-      preuves: [preuve("DEV-01", ancien), preuve("DEV-01", ceMatin)],
+      observations: [observation("DEV-01", ancien), observation("DEV-01", ceMatin)],
       skillsParCode: SKILLS,
       now: MAINTENANT,
     });
@@ -156,7 +156,7 @@ describe("resumeCroissance — ce qui a changé", () => {
     const resume = resumeCroissance({
       sessions: [],
       tentatives: [],
-      preuves: [preuve("DEV-02", ceMatin)],
+      observations: [observation("DEV-02", ceMatin)],
       skillsParCode: SKILLS,
       now: MAINTENANT,
     });
@@ -168,10 +168,10 @@ describe("resumeCroissance — ce qui a changé", () => {
     const resume = resumeCroissance({
       sessions: [],
       tentatives: [],
-      preuves: [
-        preuve("DEV-02", aLHeureLocale(0, 9)),
-        preuve("DEV-01", aLHeureLocale(0, 8)),
-        preuve("DEV-01", aLHeureLocale(0, 9)),
+      observations: [
+        observation("DEV-02", aLHeureLocale(0, 9)),
+        observation("DEV-01", aLHeureLocale(0, 8)),
+        observation("DEV-01", aLHeureLocale(0, 9)),
       ],
       skillsParCode: SKILLS,
       now: MAINTENANT,
@@ -184,9 +184,9 @@ describe("resumeCroissance — ce qui a changé", () => {
     const resume = resumeCroissance({
       sessions: [],
       tentatives: [],
-      preuves: [
-        preuve("DEV-01", AVANT_HIER),
-        preuve("DEV-01", CE_MATIN),
+      observations: [
+        observation("DEV-01", AVANT_HIER),
+        observation("DEV-01", CE_MATIN),
       ],
       skillsParCode: SKILLS,
       now: MAINTENANT,
@@ -206,12 +206,12 @@ describe("resumeCroissance — l'écran vide", () => {
     const resume = resumeCroissance({
       sessions: [seance(avantHier)],
       tentatives: [tentative(avantHier)],
-      preuves: [preuve("DEV-01", avantHier)],
+      observations: [observation("DEV-01", avantHier)],
       skillsParCode: SKILLS,
       now: MAINTENANT,
     });
 
-    expect(resume.jour.preuves).toBe(0);
+    expect(resume.jour.observations).toBe(0);
     expect(resume.vide).toBe(false);
   });
 
@@ -219,13 +219,13 @@ describe("resumeCroissance — l'écran vide", () => {
     const resume = resumeCroissance({
       sessions: [],
       tentatives: [],
-      preuves: [preuve("DEV-01", aLHeureLocale(-75, 8))],
+      observations: [observation("DEV-01", aLHeureLocale(-75, 8))],
       skillsParCode: SKILLS,
       now: MAINTENANT,
     });
 
     expect(resume.vide).toBe(true);
-    expect(resume.semaine.preuves).toBe(0);
+    expect(resume.semaine.observations).toBe(0);
   });
 });
 
@@ -234,8 +234,8 @@ describe("resumeCroissance — un palier franchi n'est pas une rencontre", () =>
     const resume = resumeCroissance({
       sessions: [],
       tentatives: [],
-      // Une seule preuve : la compétence passe de « non mesurée » à un niveau.
-      preuves: [preuve("DEV-02", CE_MATIN)],
+      // Une seule observation : la compétence passe de « non mesurée » à un niveau.
+      observations: [observation("DEV-02", CE_MATIN)],
       skillsParCode: SKILLS,
       now: MAINTENANT,
     });
@@ -255,7 +255,7 @@ describe("resumeCroissance — un palier franchi n'est pas une rencontre", () =>
  *
  * C'est cet écran qui a rendu le défaut visible : le 15/08/2026, l'accueil de
  * l'Atelier affichait « AUJOURD'HUI · TRAVAILLÉ 16 h 55 · EXERCICES 0 ·
- * PREUVES 0 » pour `att-mst5fis8-rfsu6`, un exercice ouvert la veille au soir et
+ * OBSERVATIONS 0 » pour `att-mst5fis8-rfsu6`, un exercice ouvert la veille au soir et
  * abandonné le matin — `duree_min = 1015`.
  */
 describe("resumeCroissance — temps retenu d'un abandon", () => {
@@ -270,7 +270,7 @@ describe("resumeCroissance — temps retenu d'un abandon", () => {
     const resume = resumeCroissance({
       sessions: [seance(CE_MATIN, 1015)],
       tentatives: [nuitOuverte],
-      preuves: [],
+      observations: [],
       skillsParCode: SKILLS,
       dureesEstimees: new Map([["ex-1", 60]]),
       now: MAINTENANT,
@@ -286,7 +286,7 @@ describe("resumeCroissance — temps retenu d'un abandon", () => {
     const resume = resumeCroissance({
       sessions: [seance(CE_MATIN, 1015)],
       tentatives: [nuitOuverte],
-      preuves: [],
+      observations: [],
       skillsParCode: SKILLS,
       now: MAINTENANT,
     });
@@ -298,7 +298,7 @@ describe("resumeCroissance — temps retenu d'un abandon", () => {
     const resume = resumeCroissance({
       sessions: [seance(CE_MATIN)],
       tentatives: [tentative(CE_MATIN)],
-      preuves: [],
+      observations: [],
       skillsParCode: SKILLS,
       dureesEstimees: new Map([["ex-1", 15]]),
       now: MAINTENANT,

@@ -192,8 +192,8 @@ export const CHAMP_JALONS_FAITS = "projet_jalons_faits";
  * Les jalons cochés, tels que déclarés.
  *
  * ⚠️ **Ce n'est pas une mesure** (P5, ADR-064). Cocher un jalon dit « je
- * considère cette étape faite » ; aucune preuve, aucun niveau, aucun score n'en
- * découle. Seule une évaluation validée produit une preuve.
+ * considère cette étape faite » ; aucune Observation, aucun niveau, aucun score n'en
+ * découle. Seule une évaluation validée produit une Observation.
  *
  * Les index sont ceux des jalons dans la fiche, à partir de 1 — un index reste
  * lisible dans le front-matter exporté, contrairement à un identifiant opaque,

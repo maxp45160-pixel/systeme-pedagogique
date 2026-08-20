@@ -13,6 +13,24 @@ Lire `ARCHITECTURE_DECISIONS.md` avant toute modification architecturale.
 
 Ne jamais transformer une analyse Codex en décision validée.
 
+## Architecture cible en cours de conception
+
+Le modèle métier cible est décrit dans :
+
+`docs/architecture/TWINY_MODEL.md`
+
+Ce document est une architecture métier cible, pas un schéma SQL à implémenter
+littéralement.
+
+Le code actuel reste la vérité de l'état effectivement implémenté.
+
+Toute migration doit commencer par comparer les deux.
+
+Aucun concept du modèle cible ne doit devenir automatiquement une table, un
+service ou une entité persistée.
+
+Ne jamais effectuer une refonte big bang.
+
 ---
 
 ## Les six couches

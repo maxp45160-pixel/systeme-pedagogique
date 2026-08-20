@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     dureeEstimeeMin: composition.dureeMin,
     demandeCognitive: composition.capacite,
     workspace: "mini-projet",
-    modePreuve: "soumission-finale",
+    modeObservation: "soumission-finale",
     contraintes: composition.contraintes,
     ressourcesAutorisees: [],
     // Les critères sont posés par le système, pas par le tuteur : il les reçoit

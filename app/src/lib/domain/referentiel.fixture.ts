@@ -11,7 +11,7 @@
  *     paliers, avec des prérequis et des importances distinctes ;
  *   * un domaine hors périmètre (`statistiques`, STAT-01) portant une
  *     `hypotheseInitiale`, pour vérifier qu'une hypothèse ne devient jamais un
- *     niveau et qu'une preuve hors périmètre n'entre dans aucun agrégat.
+ *     niveau et qu'une observation hors périmètre n'entre dans aucun agrégat.
  *
  * Les valeurs d'`importance`, de `palier` et de `prerequis` reprennent celles du
  * référentiel historique migré : les assertions numériques gardent le même sens

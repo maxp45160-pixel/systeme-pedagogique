@@ -69,7 +69,7 @@ export interface NoeudGraphe {
   domaineId: string | null;
   /** Étiquettes dérivées — domaine, palier, niveau, couverture. Extensible. */
   etiquettes: string[];
-  /** Pilote le rayon affiché — un fait compté (preuves, codes), jamais une mesure. */
+  /** Pilote le rayon affiché — un fait compté (observations, codes), jamais une mesure. */
   poidsAffichage: number;
 }
 
@@ -122,9 +122,9 @@ export function construireGraphe(
       etiquettes: [
         `domaine:${e.skill.domaine}`,
         `palier:${e.skill.palier}`,
-        e.niveau === null ? "niveau:aucune-preuve" : `niveau:${e.niveau}`,
+        e.niveau === null ? "niveau:aucune-observation" : `niveau:${e.niveau}`,
       ],
-      poidsAffichage: e.preuves.length,
+      poidsAffichage: e.observations.length,
     });
   }
 

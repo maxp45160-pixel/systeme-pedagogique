@@ -39,8 +39,8 @@ export interface StatistiquesAdmin {
   /** Ayant eu une activité dans les 30 derniers jours */
   actifs30j: number;
 
-  /** Total cumulé de toutes les preuves */
-  totalPreuves: number;
+  /** Total cumulé de toutes les observations */
+  totalObservations: number;
   /** Total cumulé de tous les exercices créés */
   totalExercices: number;
   /** Total cumulé de toutes les séances menées */
@@ -48,8 +48,8 @@ export interface StatistiquesAdmin {
   /** Total cumulé des compétences déclarées */
   totalCompetences: number;
 
-  /** Moyenne de preuves par compte actif (arrondie à 1 décimale) */
-  moyennePreuves: number;
+  /** Moyenne d'observations par compte actif (arrondie à 1 décimale) */
+  moyenneObservations: number;
   /** Moyenne d'exercices par compte actif (arrondie à 1 décimale) */
   moyenneExercices: number;
   /** Moyenne de séances par compte actif (arrondie à 1 décimale) */
@@ -94,7 +94,7 @@ export function calculerStatistiquesAdmin(
   let actifs7j = 0;
   let actifs30j = 0;
 
-  let totalPreuves = 0;
+  let totalObservations = 0;
   let totalExercices = 0;
   let totalSeances = 0;
   let totalCompetences = 0;
@@ -116,12 +116,12 @@ export function calculerStatistiquesAdmin(
     if (c.role === "admin") totalAdmins++;
     else totalMembres++;
 
-    totalPreuves += c.preuves;
+    totalObservations += c.observations;
     totalExercices += c.exercices;
     totalSeances += c.seances;
     totalCompetences += c.competences;
 
-    if (c.seances > 0 || c.exercices > 0 || c.preuves > 0) {
+    if (c.seances > 0 || c.exercices > 0 || c.observations > 0) {
       comptesEngages++;
     }
 
@@ -149,7 +149,7 @@ export function calculerStatistiquesAdmin(
   }
 
   const denominateur = totalComptes > 0 ? totalComptes : 1;
-  const moyennePreuves = Math.round((totalPreuves / denominateur) * 10) / 10;
+  const moyenneObservations = Math.round((totalObservations / denominateur) * 10) / 10;
   const moyenneExercices = Math.round((totalExercices / denominateur) * 10) / 10;
   const moyenneSeances = Math.round((totalSeances / denominateur) * 10) / 10;
   const tauxEngagement = totalComptes > 0 ? Math.round((comptesEngages / totalComptes) * 100) : 0;
@@ -184,11 +184,11 @@ export function calculerStatistiquesAdmin(
     nouveaux30j,
     actifs7j,
     actifs30j,
-    totalPreuves,
+    totalObservations,
     totalExercices,
     totalSeances,
     totalCompetences,
-    moyennePreuves,
+    moyenneObservations,
     moyenneExercices,
     moyenneSeances,
     tauxEngagement,

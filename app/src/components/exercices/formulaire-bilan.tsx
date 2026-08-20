@@ -5,7 +5,7 @@ import type { Dimension, Exercise } from "@/lib/domain/types";
 import { LIBELLES_DIMENSIONS } from "@/lib/domain/types";
 import { terminerExercice } from "@/lib/store/actions";
 import { BandeauInfo, Bouton, cx } from "@/components/ui/primitives";
-import { autonomieObservee, LIBELLE_AIDE, type AideExterne } from "@/lib/engine/preuve";
+import { autonomieObservee, LIBELLE_AIDE, type AideExterne } from "@/lib/engine/observation";
 import { APPRECIATIONS, RESULTATS, type ResultatBilan } from "@/lib/domain/bilan";
 import type { BilanRedige } from "@/lib/tutor/conversion-correction";
 import { BilanRedigeVue } from "@/components/exercices/bilan-redige";
@@ -29,7 +29,7 @@ const AIDES: { valeur: AideExterne; libelle: string }[] = [
  * Évaluation après lecture de la correction.
  *
  * L'utilisateur juge sa performance critère par critère ; le système en tire
- * les dimensions de la preuve. Il ne choisit PAS son niveau d'autonomie :
+ * les dimensions de l'observation. Il ne choisit PAS son niveau d'autonomie :
  * celui-ci est déduit du nombre d'indices réellement consultés, donc observé
  * et non déclaré.
  */
@@ -424,10 +424,10 @@ export function FormulaireBilan({
         <p className="font-medium text-texte">Ce qu&apos;on retient de cet exercice</p>
         <ul className="mt-1 space-y-0.5">
           <li>
-            · Une preuve directe pour <strong>{exercice.competences[0]}</strong>
+            · Une observation directe pour <strong>{exercice.competences[0]}</strong>
             {exercice.competences.length > 1 && (
               <>
-                , et une preuve indirecte pour {exercice.competences.slice(1).join(", ")}
+                , et une observation indirecte pour {exercice.competences.slice(1).join(", ")}
               </>
             )}
           </li>
@@ -444,7 +444,7 @@ export function FormulaireBilan({
           <li>· Une entrée de journal datée</li>
         </ul>
         <p className="mt-1.5">
-          Le niveau n{"'"}évoluera que si cette preuve le justifie au regard du protocole
+          Le niveau n{"'"}évoluera que si cette observation le justifie au regard du protocole
           d{"'"}évaluation. Une réussite isolée ne suffit pas à dépasser le niveau 2.
         </p>
       </div>
@@ -465,7 +465,7 @@ export function FormulaireBilan({
             ? "Enregistrement…"
             : assiste
               ? "Accepter et enregistrer"
-              : "Enregistrer la preuve"}
+              : "Enregistrer l'observation"}
         </Bouton>
         {resultat !== null && tousRenseignes && (
           <span className="hidden sm:flex items-center gap-1 text-[0.6875rem] text-texte-discret">

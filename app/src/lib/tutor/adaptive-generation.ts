@@ -4,7 +4,7 @@
  * Ces deux chemins sont one-shot et sans écriture. Le serveur fixe le contrat
  * avant l'appel ; le tuteur ne remplit que les champs éditoriaux exposés par
  * l'outil fermé. Une proposition d'évaluation n'est ni une évaluation finale,
- * ni une preuve : elle doit être validée humainement critère par critère.
+ * ni une observation : elle doit être validée humainement critère par critère.
  */
 
 import type { MoteurTuteur } from "./moteurs";
@@ -17,7 +17,7 @@ import {
 
 export type CapaciteMentaleDeclaree = "faible" | "standard" | "elevee";
 export type WorkspaceAdaptatif = "exploration-guidee" | "mini-projet";
-export type ModePreuveActivite = "aucune" | "soumission-finale" | "jalon-contractualise";
+export type ModeObservationActivite = "aucune" | "soumission-finale" | "jalon-contractualise";
 
 export interface CibleActiviteAdaptive {
   code: string;
@@ -44,7 +44,7 @@ export interface ContratGenerationActivite {
   dureeEstimeeMin: number;
   demandeCognitive: CapaciteMentaleDeclaree;
   workspace: WorkspaceAdaptatif;
-  modePreuve: ModePreuveActivite;
+  modeObservation: ModeObservationActivite;
   contraintes: string[];
   ressourcesAutorisees: RessourceAutoriseeActivite[];
   contratEvaluation: CritereContratProjet[];
@@ -156,7 +156,7 @@ export function erreursContratGenerationActivite(
   if (
     contrat.famille === "explorer" &&
     (contrat.workspace !== "exploration-guidee" ||
-      contrat.modePreuve !== "aucune" ||
+      contrat.modeObservation !== "aucune" ||
       contrat.contratEvaluation.length !== 0)
   ) {
     erreurs.push("contrat d'exploration incohérent");
@@ -164,7 +164,7 @@ export function erreursContratGenerationActivite(
   if (
     contrat.famille === "produire" &&
     (contrat.workspace !== "mini-projet" ||
-      !["soumission-finale", "jalon-contractualise"].includes(contrat.modePreuve) ||
+      !["soumission-finale", "jalon-contractualise"].includes(contrat.modeObservation) ||
       contrat.contratEvaluation.length === 0)
   ) {
     erreurs.push("contrat de production incohérent");
@@ -178,8 +178,8 @@ export function construirePromptGenerationActivite(
 ): string {
   const consigneFamille =
     contrat.famille === "explorer"
-      ? "Construis un parcours d'exploration guidée. Il soutient la compréhension mais ne constitue jamais une preuve et ne doit contenir ni correction ni notation."
-      : "Construis un mini-projet reprenable. Les jalons décrivent le travail et ses productions observables ; ils ne deviennent pas des preuves sauf si le contrat serveur le prévoit explicitement.";
+      ? "Construis un parcours d'exploration guidée. Il soutient la compréhension mais ne constitue jamais une observation et ne doit contenir ni correction ni notation."
+      : "Construis un mini-projet reprenable. Les jalons décrivent le travail et ses productions observables ; ils ne deviennent pas des observations sauf si le contrat serveur le prévoit explicitement.";
 
   return [
     "Tu es le rédacteur de contenu du système pédagogique adaptatif.",

@@ -76,7 +76,7 @@ async function ContenuTableauDeBord({
     ctx.donnees.attempts,
     ctx.dureesEstimees,
   );
-  const aucunePreuve = ctx.global.nombrePreuves === 0;
+  const aucuneObservation = ctx.global.nombreObservations === 0;
 
   const seancesActives = [...ctx.donnees.sessions]
     .filter((seance) => statutSeance(seance) === "en-cours")
@@ -125,7 +125,7 @@ async function ContenuTableauDeBord({
           className="group flex flex-wrap items-center gap-2.5 rounded-full border border-bordure bg-surface px-3.5 py-1.5 text-xs text-texte-attenue shadow-xs transition-colors hover:border-primaire/40 hover:text-texte"
           title="Voir le détail de ma progression"
         >
-          {aucunePreuve && (
+          {aucuneObservation && (
             <span className="flex items-center gap-1.5 font-medium text-info">
               <span className="size-1.5 rounded-full bg-info" aria-hidden />
               À tester
@@ -136,7 +136,7 @@ async function ContenuTableauDeBord({
           </span>
           <span className="text-bordure-contraste" aria-hidden>·</span>
           <span>
-            <strong className="font-medium text-texte">{ctx.global.nombrePreuves}</strong> exercice{ctx.global.nombrePreuves > 1 ? "s" : ""}
+            <strong className="font-medium text-texte">{ctx.global.nombreObservations}</strong> exercice{ctx.global.nombreObservations > 1 ? "s" : ""}
           </span>
           <span className="text-bordure-contraste" aria-hidden>·</span>
           <span>
@@ -221,7 +221,7 @@ async function ContenuTableauDeBord({
       </div>
 
       {/* Bandeau d'état du diagnostic et repère de progression */}
-      {aucunePreuve ? (
+      {aucuneObservation ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-info/20 bg-info-faible/30 px-4 py-3 sm:px-5">
           <div className="flex items-center gap-2.5 min-w-0">
             <span className="size-2 rounded-full bg-info shrink-0" aria-hidden />
@@ -249,8 +249,8 @@ async function ContenuTableauDeBord({
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-bordure bg-surface px-4 py-3 sm:px-5">
           <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1 text-xs">
             <span>
-              <strong className="font-medium text-texte">{ctx.global.nombrePreuves}</strong>{" "}
-              <span className="text-texte-discret">exercice{ctx.global.nombrePreuves > 1 ? "s" : ""} fait{ctx.global.nombrePreuves > 1 ? "s" : ""}</span>
+              <strong className="font-medium text-texte">{ctx.global.nombreObservations}</strong>{" "}
+              <span className="text-texte-discret">exercice{ctx.global.nombreObservations > 1 ? "s" : ""} fait{ctx.global.nombreObservations > 1 ? "s" : ""}</span>
             </span>
             <span>
               <strong className="font-medium text-texte">{ctx.referentiel.actifs.length}</strong>{" "}
@@ -271,7 +271,7 @@ async function ContenuTableauDeBord({
         </div>
       )}
 
-      <DashboardTour autoDemarrage={aucunePreuve} />
+      <DashboardTour autoDemarrage={aucuneObservation} />
     </div>
   );
 }

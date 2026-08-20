@@ -72,7 +72,7 @@ describe("fiche d'exercice", () => {
   });
 
   /*
-   * La fiche est éditoriale, la preuve est la mesure. Recopier ici le niveau,
+   * La fiche est éditoriale, la preuve est la trace et l'Observation la mesure. Recopier ici le niveau,
    * les dimensions ou l'autonomie ferait du Markdown une seconde autorité sur
    * ce qui a été mesuré.
    */

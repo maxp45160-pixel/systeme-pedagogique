@@ -69,7 +69,7 @@ function NiveauActivite({ resume }: { resume: ResumeCroissance }) {
 }
 
 function CarteFenetre({ fenetre, accent = false }: { fenetre: FenetreCroissance; accent?: boolean }) {
-  const rien = fenetre.preuves === 0 && fenetre.exercicesMenes === 0 && fenetre.minutes === 0;
+  const rien = fenetre.observations === 0 && fenetre.exercicesMenes === 0 && fenetre.minutes === 0;
 
   return (
     <div
@@ -89,7 +89,7 @@ function CarteFenetre({ fenetre, accent = false }: { fenetre: FenetreCroissance;
           <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
             <Mesure libelle="Travaillé" valeur={fenetre.minutes > 0 ? formatDuree(fenetre.minutes) : "—"} />
             <Mesure libelle="Exercices" valeur={String(fenetre.exercicesMenes)} />
-            <Mesure libelle="Preuves" valeur={String(fenetre.preuves)} />
+            <Mesure libelle="Observations" valeur={String(fenetre.observations)} />
             <Mesure libelle="Compétences" valeur={String(fenetre.competencesTravaillees.length)} />
           </dl>
 
@@ -177,7 +177,7 @@ function NiveauCroissance({
 
       {evenements.length === 0 ? (
         <p className="mt-3 rounded-xl border border-dashed border-bordure-contraste bg-surface px-4 py-6 text-center text-xs text-texte-discret">
-          Aucune preuve enregistrée pour l&apos;instant. Rien ne s&apos;affiche avant qu&apos;il y en ait une.
+          Aucune observation enregistrée pour l&apos;instant. Rien ne s&apos;affiche avant qu&apos;il y en ait une.
         </p>
       ) : (
         <ul className="mt-3 divide-y divide-bordure overflow-hidden rounded-xl border border-bordure bg-surface">
@@ -196,7 +196,7 @@ function NiveauCroissance({
                         Une première mesure n'est pas une progression.
                         Écrire « Niveau — → 0 · Palier franchi » faisait passer une
                         rencontre pour un progrès : le niveau 0 est
-                        « Exposition — preuve insuffisante pour conclure ».
+                        « Exposition — observation insuffisante pour conclure ».
                       */
                       <span className="chiffres text-sm font-medium">
                         Première mesure — niveau <span className="text-info">{evenement.niveauApres}</span>

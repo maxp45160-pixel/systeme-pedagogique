@@ -69,7 +69,7 @@ describe("une note opérationnelle devient un candidat", () => {
     expect(segment("experimentation")).toBeUndefined();
   });
 
-  it("n'attend aucune preuve d'une exploration", () => {
+  it("n'attend aucune observation d'une exploration", () => {
     const explorer = adaptNoteOperationnelle("compte-1", apercu({ type: "experimentation" }), OPTIONS);
     expect(explorer?.proofMode).toBe("support-seul");
     expect(explorer?.evaluationContract.scope).toBe("aucune");
@@ -77,7 +77,7 @@ describe("une note opérationnelle devient un candidat", () => {
 });
 
 describe("une ressource support devient un travail documentaire", () => {
-  it("propose un geste adapté au type sans créer de preuve", () => {
+  it("propose un geste adapté au type sans créer d'observation", () => {
     const activite = adaptNoteDocumentaire(
       "compte-1",
       apercu({
@@ -131,7 +131,7 @@ describe("ce qui n'est pas un candidat", () => {
    * moteur sur une nature qu'on n'a pas su déterminer.
    */
   it("écarte un format qui n'appartient à aucune famille", () => {
-    const inconnu = apercu({ type: "preuve", frontMatter: { role: "operationnel" } });
+    const inconnu = apercu({ type: "observation", frontMatter: { role: "operationnel" } });
     expect(adaptNoteOperationnelle("compte-1", inconnu, OPTIONS)).toBeNull();
   });
 

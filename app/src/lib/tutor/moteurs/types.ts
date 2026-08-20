@@ -54,7 +54,7 @@ export type EnvoyerEvenement = (evenement: string, donnees: unknown) => void;
 export interface DemandeTuteur {
   /** Préfixe stable : protocoles + cadre d'intervention. Mis en cache si le moteur le sait. */
   systemeStable: string;
-  /** Bloc variable : profil dérivé des preuves. */
+  /** Bloc variable : profil dérivé des observations. */
   systemeProfil: string;
   messages: MessageTuteur[];
   /**

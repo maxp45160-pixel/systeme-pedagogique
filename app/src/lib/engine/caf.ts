@@ -9,7 +9,7 @@
  * | Modèle CAF        | Ce qui le porte dans ce dépôt                        |
  * |-------------------|------------------------------------------------------|
  * | *Student model*   | `SkillState` — niveau, confiance, robustesse, contextes |
- * | *Evidence model*  | `criteres`, `Dimension`, `engine/preuve.ts`, `maitrise.ts` |
+ * | *Observation model* | `criteres`, `Dimension`, `engine/observation.ts`, `maitrise.ts` |
  * | *Task model*      | `Exercise` — type, difficulté, compétences, durée      |
  * | *Assembly model*  | **rien** — ce fichier                                  |
  *

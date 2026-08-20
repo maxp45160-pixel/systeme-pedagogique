@@ -176,12 +176,12 @@ function borner(n: number): Difficulte {
  *
  * ⚠️ Cette fonction porte la règle pour **deux** chemins qui doivent dire la
  * même chose : la calibration de la difficulté (`verdictTentative`, ci-dessous)
- * et l'écriture de la preuve (`terminerExercice`, `lib/store/actions.ts`). Le
+ * et l'écriture de l'observation (`terminerExercice`, `lib/store/actions.ts`). Le
  * second l'a longtemps ignorée : le 01/08/2026, une tentative abandonnée en
- * 1 minute sur 20 estimées a été enregistrée comme une preuve à toutes
+ * 1 minute sur 20 estimées a été enregistrée comme une observation à toutes
  * dimensions nulles, faisant tomber DEV-01 de 2,7 à 2,3. Le garde-fou existait
  * ici et nulle part ailleurs ; « l'absence de mesure n'est pas un zéro » (P2)
- * était donc tenu pour la difficulté et rompu pour le journal de preuves.
+ * était donc tenu pour la difficulté et rompu pour le journal d'observations.
  */
 export function tentativeMenee(
   tentative: Pick<ExerciseAttempt, "resultat" | "dureeMin">,
@@ -217,7 +217,7 @@ export function tentativeMenee(
  * à 2 minutes tirerait la moyenne assez bas pour rendre tout le reste « lent ».
  *
  * ⚠️ Cette référence ne sert QU'à juger le calibrage. `tentativeMenee` — la
- * règle qui décide si une preuve s'écrit (ADR-030) — continue de lire
+ * règle qui décide si une observation s'écrit (ADR-030) — continue de lire
  * `dureeEstimeeMin`, et ce n'est pas un oubli : elle se pose une autre question
  * (« la tentative a-t-elle eu lieu ? »), elle tranche le plus souvent au
  * PREMIER passage, quand aucune observation n'existe encore, et rien dans les
@@ -314,7 +314,7 @@ export function verdictTentative(
 
   // 1. L'exercice a-t-il été tenté ? Une durée dérisoire invalide tout le reste.
   //    La règle vit dans `tentativeMenee` : elle est partagée avec l'écriture
-  //    de la preuve, qui doit dire exactement la même chose.
+  //    de l'observation, qui doit dire exactement la même chose.
   if (!tentativeMenee(tentative, exercice)) {
     return {
       ...base,
@@ -557,7 +557,7 @@ export function calibrer(
             : `Difficulté ${difficulteConseillee} conseillée : le dernier exercice exploitable était bien calibré.`
         : "Aucune difficulté dérivable des tentatives.",
       facteurs,
-      nombrePreuves: verdicts.length,
+      nombreObservations: verdicts.length,
       reserves,
     },
   };

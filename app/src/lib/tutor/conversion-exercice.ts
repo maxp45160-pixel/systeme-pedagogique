@@ -20,7 +20,7 @@
  * `tentativeMenee` se sert pour décider si une tentative a **eu lieu** (seuil de
  * 25 %, `lib/engine/calibration.ts`). La fabriquer ne produit pas seulement un
  * exercice approximatif : elle corrompt la détection d'abandon, donc le journal
- * de preuves. C'est exactement le défaut qu'ADR-030 a corrigé.
+ * d'observations. C'est exactement le défaut qu'ADR-030 a corrigé.
  *
  * Module **pur** : aucune entrée/sortie, aucun accès base. Il ne valide pas le
  * périmètre des compétences — `creerExercice` s'en charge contre le référentiel

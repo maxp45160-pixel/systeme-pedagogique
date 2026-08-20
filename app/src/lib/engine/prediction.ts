@@ -21,7 +21,7 @@
  * `BesoinDeclare` (ADR-050) et `verdictTuteur` (ADR-046).
  *
  * Sa **résolution**, elle, reste dérivée : aucune colonne de résultat, aucune
- * table d'issues. La tentative et la preuve qui tranchent existent déjà.
+ * table d'issues. La tentative et l'observation qui tranchent existent déjà.
  *
  * ## Le modèle est assumé, pas appris
  *
@@ -121,7 +121,7 @@ export type TypePrediction = "reussite" | "duree" | "retention";
  * L'empreinte de l'état au moment de décider.
  *
  * Pas l'état entier : ce qu'il faut pour relire la décision et comprendre ce
- * qu'elle voyait. Les preuves elles-mêmes ne sont pas recopiées — elles sont
+ * qu'elle voyait. Les observations elles-mêmes ne sont pas recopiées — elles sont
  * immuables et toujours là.
  */
 export interface EmpreinteEtat {
@@ -129,10 +129,10 @@ export interface EmpreinteEtat {
   score: number | null;
   confiance: Confiance;
   robustesse: number | null;
-  nombrePreuves: number;
+  nombreObservations: number;
   /** Familles de situation distinctes (ADR-083), pas titres d'exercice. */
   contextes: number;
-  joursDepuisDernierePreuve: number | null;
+  joursDepuisDerniereObservation: number | null;
   difficulteVisee: Difficulte;
   /** D'où vient la difficulté visée — P3, et c'est ce qu'on veut mesurer. */
   sourceDifficulte: "calibration" | "niveau";
@@ -195,7 +195,7 @@ function difficulteAttendue(niveau: number | null): Difficulte {
 /**
  * p(réussite) sur un exercice de difficulté donnée.
  *
- * `null` **quand aucune preuve n'existe** : sans niveau dérivé, il n'y a rien
+ * `null` **quand aucune observation n'existe** : sans niveau dérivé, il n'y a rien
  * pour asseoir une probabilité, et en fabriquer une à 0,5 serait exactement ce
  * que P2 interdit — confondre « je ne sais pas » et « une chance sur deux ».
  * Un exercice de diagnostic sert à créer la première mesure, pas à être prédit.
@@ -221,7 +221,7 @@ export function predireReussite(
       // connaissance, pas ce que vaut la personne. Elle servira à segmenter la
       // calibration (« le moteur est-il moins bon quand il sait moins ? »).
       confiance: etat.confiance,
-      nombrePreuves: etat.preuves.length,
+      nombreObservations: etat.observations.length,
     },
   };
 }
@@ -256,12 +256,12 @@ export function predireDuree(
 /**
  * p(le niveau tient jusqu'à la date due).
  *
- * L'affirmation rendue vérifiable est celle-ci : **la première preuve
+ * L'affirmation rendue vérifiable est celle-ci : **la première observation
  * enregistrée après l'horizon n'est pas un échec**. C'est la promesse implicite
  * de la répétition espacée — si le moteur dit « pas avant 12 jours », il dit
  * qu'à 12 jours la compétence tient encore.
  *
- * `null` sans preuve : `prochaineRevision` rend alors `sansPreuve`, et une
+ * `null` sans observation : `prochaineRevision` rend alors `sansObservation`, et une
  * compétence à diagnostiquer n'a pas de rétention à prédire.
  */
 export function predireRetention(
@@ -269,12 +269,12 @@ export function predireRetention(
   now: Date,
 ): { valeur: number; horizonLe: string; entrees: Record<string, unknown> } | null {
   const revision = prochaineRevision(etat, now);
-  // `joursEcoules` est typé nullable : `sansPreuve` le rend normalement
+  // `joursEcoules` est typé nullable : `sansObservation` le rend normalement
   // impossible ici, mais un modèle de révision substitué (l'interface
   // `ModeleRevision` le promet) pourrait le rendre nul autrement. Sans lui,
   // aucun horizon n'est calculable — et un horizon fabriqué rendrait la
   // prédiction irréfutable, donc inutile.
-  if (revision.sansPreuve || etat.robustesse === null || revision.joursEcoules === null) {
+  if (revision.sansObservation || etat.robustesse === null || revision.joursEcoules === null) {
     return null;
   }
 
@@ -362,9 +362,9 @@ export function emettre(options: {
       score: etat.score,
       confiance: etat.confiance,
       robustesse: etat.robustesse,
-      nombrePreuves: etat.preuves.length,
+      nombreObservations: etat.observations.length,
       contextes: etat.contextesTestes.length,
-      joursDepuisDernierePreuve: etat.joursDepuisDernierePreuve,
+      joursDepuisDerniereObservation: etat.joursDepuisDerniereObservation,
       difficulteVisee,
       sourceDifficulte: calibration?.difficulteConseillee != null ? "calibration" : "niveau",
     },

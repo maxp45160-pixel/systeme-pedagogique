@@ -2,7 +2,7 @@
  * Registre des types documentaires.
  *
  * Un type décrit du contenu déclaré. Il ne porte jamais de niveau, de score
- * ou de mesure : ces éléments restent dans le domaine des preuves observées.
+ * ou de mesure : ces éléments restent dans les Observations structurées.
  */
 
 import type { FrontMatter, LienMarkdown } from "./markdown";
@@ -118,7 +118,7 @@ export interface ResumeSnapshotDocument {
 
 export type NatureSnapshot = "preuve" | "revision";
 
-/** Le motif de capture distingue une preuve observée d'une révision éditoriale. */
+/** Le motif de capture distingue une preuve figée d'une révision éditoriale. */
 export function natureSnapshot(captureReason: string): NatureSnapshot {
   return captureReason.toLocaleLowerCase("fr").startsWith("preuve") ? "preuve" : "revision";
 }

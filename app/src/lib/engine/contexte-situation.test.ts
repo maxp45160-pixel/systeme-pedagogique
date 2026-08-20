@@ -4,10 +4,10 @@
  * Une seule ligne du moteur décide de ce que « deux contextes distincts »
  * signifie, et deux portes en dépendent : le niveau 4 « transfert » et la
  * confiance moyenne puis forte. Jusqu'au 18/08/2026 cette ligne comptait des
- * **titres d'exercice** — 42 valeurs distinctes pour 52 preuves en base. Les
- * portes s'ouvraient donc d'elles-mêmes à la deuxième preuve.
+ * **titres d'exercice** — 42 valeurs distinctes pour 52 observations en base. Les
+ * portes s'ouvraient donc d'elles-mêmes à la deuxième observation.
  *
- * Les fixtures ne sont pas inventées : ce sont les exercices et les preuves
+ * Les fixtures ne sont pas inventées : ce sont les exercices et les observations
  * réels du compte, relus en base le 18/08/2026. DEB-02 est le cas qui garde
  * son transfert (deux types d'exercice), LOG-03 celui qui le perd (deux titres,
  * une seule famille).
@@ -15,7 +15,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import type { Exercise, SkillEvidence } from "@/lib/domain/types";
+import type { Exercise, SkillObservation } from "@/lib/domain/types";
 import {
   attacherFamilles,
   cleContexte,
@@ -48,20 +48,20 @@ const CATALOGUE = construireCatalogueSituation([
 
 let compteur = 0;
 
-function preuve(ref: string, contexte: string): SkillEvidence {
+function observation(ref: string, contexte: string): SkillObservation {
   return {
-    id: `ev-${++compteur}`,
+    id: `obs-${++compteur}`,
     skillCode: "TEST-01",
     date: "2026-08-01T10:00:00.000Z",
     type: "exercice",
-    niveauPreuve: "A",
+    niveauObservation: "A",
     autonomie: "A3",
     qualite: "moyenne",
     resultat: "reussi",
     contexte,
     dimensions: {},
     source: { kind: "exercice", ref },
-  } as SkillEvidence;
+  } as SkillObservation;
 }
 
 /* ------------------------------------------------------------------ */
@@ -85,7 +85,7 @@ describe("construireCatalogueSituation", () => {
 
 describe("familleSituation", () => {
   it("dérive la famille du couple domaine / type de l'exercice source", () => {
-    const famille = familleSituation(preuve("ex-deb-a", "Un titre quelconque"), CATALOGUE);
+    const famille = familleSituation(observation("ex-deb-a", "Un titre quelconque"), CATALOGUE);
     expect(famille.derivee).toBe(true);
     expect(famille.cle).toBe("exercice:developpement-logiciel-pour-debutants/probleme");
   });
@@ -93,27 +93,27 @@ describe("familleSituation", () => {
   it("donne la MÊME clé à deux exercices de même domaine et même type", () => {
     // Le cœur d'ADR-083 : deux titres différents, une seule situation.
     const a = familleSituation(
-      preuve("diag-log-01", "Quantité économique et point de commande"),
+      observation("diag-log-01", "Quantité économique et point de commande"),
       CATALOGUE,
     );
     const b = familleSituation(
-      preuve("ex-log-b", "Stock de sécurité sous demande variable"),
+      observation("ex-log-b", "Stock de sécurité sous demande variable"),
       CATALOGUE,
     );
     expect(a.cle).toBe(b.cle);
   });
 
   it("distingue deux types d'exercice du même domaine", () => {
-    const a = familleSituation(preuve("ex-deb-a", "T1"), CATALOGUE);
-    const b = familleSituation(preuve("ex-deb-b", "T2"), CATALOGUE);
+    const a = familleSituation(observation("ex-deb-a", "T1"), CATALOGUE);
+    const b = familleSituation(observation("ex-deb-b", "T2"), CATALOGUE);
     expect(a.cle).not.toBe(b.cle);
   });
 
   it("se replie sur le libellé quand l'exercice source est introuvable", () => {
-    // Les 7 preuves `manuel` du compte réel : leur `source.ref` est un fichier
+    // Les 7 observations `manuel` du compte réel : leur `source.ref` est un fichier
     // de synthèse. On ne leur fabrique pas une famille (précédent ADR-033).
     const famille = familleSituation(
-      preuve("synthese_profil_competences_2026-07-25.md", "Rappel actif — z-score"),
+      observation("synthese_profil_competences_2026-07-25.md", "Rappel actif — z-score"),
       CATALOGUE,
     );
     expect(famille.derivee).toBe(false);
@@ -121,16 +121,16 @@ describe("familleSituation", () => {
   });
 
   it("normalise la casse et les espaces du repli, sans les confondre avec une famille dérivée", () => {
-    const a = familleSituation(preuve("absent", "  Analyse D'un Flux  "), CATALOGUE);
-    const b = familleSituation(preuve("absent", "analyse d'un flux"), CATALOGUE);
+    const a = familleSituation(observation("absent", "  Analyse D'un Flux  "), CATALOGUE);
+    const b = familleSituation(observation("absent", "analyse d'un flux"), CATALOGUE);
     expect(a.cle).toBe(b.cle);
     expect(a.cle.startsWith("libre:")).toBe(true);
   });
 });
 
 describe("attacherFamilles", () => {
-  it("copie la preuve au lieu de la muter — rien d'ajouté ici ne doit pouvoir être réécrit", () => {
-    const origine = preuve("ex-deb-a", "T");
+  it("copie l'observation au lieu de la muter — rien d'ajouté ici ne doit pouvoir être réécrit", () => {
+    const origine = observation("ex-deb-a", "T");
     const [enrichie] = attacherFamilles([origine], CATALOGUE);
     expect(origine.familleSituation).toBeUndefined();
     expect(enrichie.familleSituation?.derivee).toBe(true);
@@ -141,14 +141,14 @@ describe("cleContexte", () => {
   it("retombe sur le libellé quand aucune famille n'a été attachée", () => {
     // Le comportement d'avant ADR-083, conservé pour ce qu'on ne sait pas
     // expliquer — et signalé par `familleIndeterminee`.
-    const nue = preuve("ex-deb-a", "Un titre");
+    const nue = observation("ex-deb-a", "Un titre");
     expect(cleContexte(nue)).toBe("libre:un titre");
     expect(familleIndeterminee(nue)).toBe(true);
     expect(libelleContexte(nue)).toBe("Un titre");
   });
 
   it("préfère la famille attachée au libellé", () => {
-    const [enrichie] = attacherFamilles([preuve("ex-deb-a", "Un titre")], CATALOGUE);
+    const [enrichie] = attacherFamilles([observation("ex-deb-a", "Un titre")], CATALOGUE);
     expect(cleContexte(enrichie)).toBe(
       "exercice:developpement-logiciel-pour-debutants/probleme",
     );

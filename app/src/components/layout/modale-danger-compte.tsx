@@ -183,7 +183,7 @@ export function ModaleDangerCompte({
           </div>
           <ul className="space-y-1.5 text-xs text-texte-attenue list-disc list-inside">
             <li>Référentiel de compétences (domaines, codes et compétences créées)</li>
-            <li>Preuves de compétence et historique de maîtrise</li>
+            <li>Observations de compétence et historique de maîtrise</li>
             <li>Séances d&apos;apprentissage et tentatives d&apos;exercices</li>
             <li>Exercices personnalisés créés dans le compte</li>
             <li>Documents, notes et pièces jointes de l&apos;Atelier</li>

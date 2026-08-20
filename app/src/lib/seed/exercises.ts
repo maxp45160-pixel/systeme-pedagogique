@@ -811,17 +811,17 @@ export const AUTONOMIE: Record<Autonomie, { libelle: string; poids: number }> = 
 };
 
 /**
- * Hiérarchie des preuves. A preuve directe · B preuve indirecte · C déduction
+ * Hiérarchie des observations. A observation directe · B observation indirecte · C déduction
  * · D hypothèse. C et D ne doivent jamais être présentées comme des faits certains.
  */
-export type NiveauPreuve = "A" | "B" | "C" | "D";
+export type NiveauObservation = "A" | "B" | "C" | "D";
 \`\`\`
 
-Et la fonction qui, ailleurs dans le moteur, se sert de ce type pour rejeter les preuves faibles :
+Et la fonction qui, ailleurs dans le moteur, se sert de ce type pour rejeter les observations faibles :
 
 \`\`\`ts
-function estRecevable(e: SkillEvidence): boolean {
-  return e.niveauPreuve === "A" || e.niveauPreuve === "B";
+function estRecevable(e: SkillObservation): boolean {
+  return e.niveauObservation === "A" || e.niveauObservation === "B";
 }
 \`\`\`
 
@@ -830,7 +830,7 @@ function estRecevable(e: SkillEvidence): boolean {
 **Questions :**
 1. Que vaut \`AUTONOMIE["A2"].poids\` ?
 2. Pourquoi \`AUTONOMIE["A5"]\` est-il refusé par TypeScript avant même l'exécution, alors qu'un simple objet JavaScript \`{A0: ..., A1: ...}\` ne refuserait rien ?
-3. \`NiveauPreuve\` inclut C et D alors que \`estRecevable\` ne les accepte jamais. Pourquoi garder dans le type des valeurs qu'on n'accepte jamais, plutôt que de les retirer ?`,
+3. \`NiveauObservation\` inclut C et D alors que \`estRecevable\` ne les accepte jamais. Pourquoi garder dans le type des valeurs qu'on n'accepte jamais, plutôt que de les retirer ?`,
     indices: [
       "Un Record<Clé, Valeur> est un objet dont TypeScript connaît les clés à l'avance — que se passe-t-il quand tu demandes une clé hors de cet ensemble ?",
       "Compare ce que fait le compilateur (avant l'exécution) et ce que ferait le moteur JavaScript à l'exécution sur un objet nu.",
@@ -840,7 +840,7 @@ function estRecevable(e: SkillEvidence): boolean {
 
 **2.** TypeScript vérifie les clés d'un \`Record<Autonomie, ...>\` contre le type union \`Autonomie\` à la compilation : \`"A5"\` n'appartenant pas à \`"A0"|"A1"|"A2"|"A3"|"A4"\`, l'accès est une erreur de compilation, avant toute exécution. Un objet JS nu n'a aucune de ces garanties : \`objet["A5"]\` renverrait simplement \`undefined\` à l'exécution, silencieusement.
 
-**3.** \`estRecevable\` a besoin que C et D existent *dans le type* pour pouvoir les **rejeter explicitement** dans son test. Les supprimer du type reviendrait à supprimer le garde-fou lui-même : plus rien n'empêcherait une future preuve d'être écrite avec un niveau non fiable, faute de pouvoir même le nommer pour le refuser.
+**3.** \`estRecevable\` a besoin que C et D existent *dans le type* pour pouvoir les **rejeter explicitement** dans son test. Les supprimer du type reviendrait à supprimer le garde-fou lui-même : plus rien n'empêcherait une future observation d'être écrite avec un niveau non fiable, faute de pouvoir même le nommer pour le refuser.
 
 **Ce que ça apprend :** un type union borne les valeurs possibles à la compilation, avant même que le programme tourne — c'est un garde-fou, pas juste de la documentation.`,
     criteres: [
@@ -861,7 +861,7 @@ function estRecevable(e: SkillEvidence): boolean {
     dureeEstimeeMin: 15,
     diagnostic: true,
     origine: "seed",
-    enonce: `Extrait réel de \`lib/engine/preuve.ts\` :
+    enonce: `Extrait réel de \`lib/engine/observation.ts\` :
 
 \`\`\`ts
 /**
@@ -916,28 +916,28 @@ Une fonction pure ne dépend que de ses arguments et ne modifie rien à l'extér
 \`\`\`ts
 const ORDRE_AUTONOMIE = ["A0", "A1", "A2", "A3", "A4"] as const;
 
-function autonomieAuMoins(e: SkillEvidence, min: (typeof ORDRE_AUTONOMIE)[number]): boolean {
+function autonomieAuMoins(e: SkillObservation, min: (typeof ORDRE_AUTONOMIE)[number]): boolean {
   return ORDRE_AUTONOMIE.indexOf(e.autonomie) >= ORDRE_AUTONOMIE.indexOf(min);
 }
 
-function niveauSoutenu(preuves: SkillEvidence[]): AppuiNiveau[] {
-  const reussies = preuves.filter((e) => e.resultat === "reussi");
-  const nonEchouees = preuves.filter((e) => e.resultat !== "echec");
+function niveauSoutenu(observations: SkillObservation[]): AppuiNiveau[] {
+  const reussies = observations.filter((e) => e.resultat === "reussi");
+  const nonEchouees = observations.filter((e) => e.resultat !== "echec");
   const appuis: AppuiNiveau[] = [];
 
   const l1 = nonEchouees.filter((e) => dim(e, "comprehension") >= 0.6);
-  if (l1.length > 0) appuis.push({ niveau: 1, preuves: l1, raison: "compréhension démontrée" });
+  if (l1.length > 0) appuis.push({ niveau: 1, observations: l1, raison: "compréhension démontrée" });
 
   const l2 = reussies.filter((e) => dim(e, "application") >= 0.6 && autonomieAuMoins(e, "A1"));
-  if (l2.length > 0) appuis.push({ niveau: 2, preuves: l2, raison: "méthode appliquée avec accompagnement" });
+  if (l2.length > 0) appuis.push({ niveau: 2, observations: l2, raison: "méthode appliquée avec accompagnement" });
 
   const l3 = reussies.filter((e) => dim(e, "application") >= 0.7 && autonomieAuMoins(e, "A3"));
-  if (l3.length >= 2) appuis.push({ niveau: 3, preuves: l3, raison: "deux résolutions autonomes concordantes" });
+  if (l3.length >= 2) appuis.push({ niveau: 3, observations: l3, raison: "deux résolutions autonomes concordantes" });
 
   const l4 = reussies.filter((e) => autonomieAuMoins(e, "A3") && dim(e, "transfert") >= 0.6);
   const contextesL4 = new Set(l4.map((e) => e.contexte));
   if (l4.length >= 2 && contextesL4.size >= 2) {
-    appuis.push({ niveau: 4, preuves: l4, raison: \`transfert démontré sur \${contextesL4.size} contextes distincts\` });
+    appuis.push({ niveau: 4, observations: l4, raison: \`transfert démontré sur \${contextesL4.size} contextes distincts\` });
   }
 
   return appuis;
@@ -947,7 +947,7 @@ function niveauSoutenu(preuves: SkillEvidence[]): AppuiNiveau[] {
 Et comment l'appelant s'en sert :
 
 \`\`\`ts
-const appuis = niveauSoutenu(preuves);
+const appuis = niveauSoutenu(observations);
 let niveau = appuis.length > 0 ? Math.max(...appuis.map((a) => a.niveau)) : 0;
 \`\`\`
 
@@ -957,14 +957,14 @@ let niveau = appuis.length > 0 ? Math.max(...appuis.map((a) => a.niveau)) : 0;
 3. Pourquoi la fonction retourne-t-elle *tous* les paliers soutenus (un tableau) plutôt qu'un seul niveau ?`,
     indices: [
       "Compte-les un par un dans l'ordre du code : reussies, nonEchouees, puis un par palier.",
-      ".size d'un Set compte les valeurs distinctes — que se passe-t-il si deux preuves ont exactement le même contexte ?",
+      ".size d'un Set compte les valeurs distinctes — que se passe-t-il si deux observations ont exactement le même contexte ?",
       "Regarde ce que fait l'appelant avec le tableau retourné : que perdrait-il si la fonction ne renvoyait qu'un seul niveau ?",
     ],
     correction: `**1.** Au moins six \`.filter\` explicites (\`reussies\`, \`nonEchouees\`, un par palier \`l1\`…\`l4\`), plus un \`.map\` sur un filtre pour \`contextesL4\`. L'important est la justification de chacun, pas le compte exact.
 
-**2.** \`.size\` d'un \`Set\` compte les valeurs **distinctes** : deux preuves du même contexte ne comptent que pour 1. Exiger \`size >= 2\` garantit que le transfert est démontré dans des situations réellement différentes — deux réussites dans le même contexte ne prouvent que de la répétition, pas un transfert.
+**2.** \`.size\` d'un \`Set\` compte les valeurs **distinctes** : deux observations du même contexte ne comptent que pour 1. Exiger \`size >= 2\` garantit que le transfert est démontré dans des situations réellement différentes — deux réussites dans le même contexte ne prouvent que de la répétition, pas un transfert.
 
-**3.** Un niveau peut être soutenu par plusieurs paliers à la fois. L'appelant prend ensuite \`Math.max\` sur les niveaux soutenus : retourner un tableau garde toute l'information (quelles preuves soutiennent quoi) au lieu de la perdre en ne renvoyant qu'un nombre.
+**3.** Un niveau peut être soutenu par plusieurs paliers à la fois. L'appelant prend ensuite \`Math.max\` sur les niveaux soutenus : retourner un tableau garde toute l'information (quelles observations soutiennent quoi) au lieu de la perdre en ne renvoyant qu'un nombre.
 
 **Ce que ça apprend :** \`.filter\`, \`.map\`, \`new Set()\` sont les trois outils qui reviennent dans presque tout code métier en TypeScript. Les repérer, c'est pouvoir lire n'importe quel fichier de ce genre sans en connaître le détail à l'avance.`,
     criteres: [
@@ -991,24 +991,24 @@ let niveau = appuis.length > 0 ? Math.max(...appuis.map((a) => a.niveau)) : 0;
 /**
  * Une mauvaise performance isolée ne fait PAS baisser le niveau : elle baisse
  * la confiance. Le niveau ne recule que si une difficulté est confirmée par
- * plusieurs preuves — ici : les deux preuves les plus récentes sont des
+ * plusieurs observations — ici : les deux observations les plus récentes sont des
  * échecs en autonomie réelle (A2+).
  */
-function difficulteConfirmee(preuvesTriees: SkillEvidence[]): boolean {
-  if (preuvesTriees.length < 3) return false;
-  const deuxDernieres = preuvesTriees.slice(-2);
+function difficulteConfirmee(observationsTriees: SkillObservation[]): boolean {
+  if (observationsTriees.length < 3) return false;
+  const deuxDernieres = observationsTriees.slice(-2);
   return deuxDernieres.every((e) => e.resultat === "echec" && autonomieAuMoins(e, "A2"));
 }
 
-export function computeSkillState(skill: Skill, toutesPreuves: SkillEvidence[], now = new Date()): SkillState {
-  const preuves = toutesPreuves
+export function computeSkillState(skill: Skill, toutesObservations: SkillObservation[], now = new Date()): SkillState {
+  const observations = toutesObservations
     .filter((e) => e.skillCode === skill.code && estRecevable(e))
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  const appuis = niveauSoutenu(preuves);
+  const appuis = niveauSoutenu(observations);
   let niveau = appuis.length > 0 ? Math.max(...appuis.map((a) => a.niveau)) : 0;
 
-  if (difficulteConfirmee(preuves) && niveau > 1) {
+  if (difficulteConfirmee(observations) && niveau > 1) {
     niveau = niveau - 1;
   }
   // ... calcul de la confiance, de la robustesse, des dimensions, puis du score.
@@ -1016,25 +1016,25 @@ export function computeSkillState(skill: Skill, toutesPreuves: SkillEvidence[], 
 }
 \`\`\`
 
-Enchaîner plusieurs fonctions pures (niveau → confiance → robustesse → score) est un **pipeline**. Le comprendre, c'est pouvoir prédire l'effet d'une preuve avant de l'enregistrer.
+Enchaîner plusieurs fonctions pures (niveau → confiance → robustesse → score) est un **pipeline**. Le comprendre, c'est pouvoir prédire l'effet d'une observation avant de l'enregistrer.
 
-**Exercice :** fabrique à la main (sur papier) 3 preuves fictives pour une compétence de ton choix, avec des dates, une \`autonomie\`, un \`resultat\`, des \`dimensions\`. Calcule à la main le niveau soutenu, et vérifie si \`difficulteConfirmee\` s'applique. Écris ensuite un test dans le style des tests déjà présents dans \`lib/engine/*.test.ts\` (regarde-en un pour le format d'une preuve de test) qui vérifie ta prédiction, et lance-le.
+**Exercice :** fabrique à la main (sur papier) 3 observations fictives pour une compétence de ton choix, avec des dates, une \`autonomie\`, un \`resultat\`, des \`dimensions\`. Calcule à la main le niveau soutenu, et vérifie si \`difficulteConfirmee\` s'applique. Écris ensuite un test dans le style des tests déjà présents dans \`lib/engine/*.test.ts\` (regarde-en un pour le format d'une observation de test) qui vérifie ta prédiction, et lance-le.
 
-**Question annexe :** dans quel cas précis le niveau peut-il *baisser* ? Pourquoi une seule mauvaise preuve ne suffit-elle jamais ?`,
+**Question annexe :** dans quel cas précis le niveau peut-il *baisser* ? Pourquoi une seule mauvaise observation ne suffit-elle jamais ?`,
     indices: [
-      "Commence par écrire les 3 preuves sur papier avant d'ouvrir un éditeur — c'est l'exercice réel, pas le test lui-même.",
-      "Pour que difficulteConfirmee s'applique, il faut au moins 3 preuves triées par date, et les 2 dernières doivent être des échecs en A2 ou plus.",
+      "Commence par écrire les 3 observations sur papier avant d'ouvrir un éditeur — c'est l'exercice réel, pas le test lui-même.",
+      "Pour que difficulteConfirmee s'applique, il faut au moins 3 observations triées par date, et les 2 dernières doivent être des échecs en A2 ou plus.",
       "Une régression de niveau et une baisse de confiance sont deux mécanismes différents dans ce moteur — ne les confonds pas.",
     ],
     correction: `Il n'y a pas de résultat unique ici : le but est de vérifier ta prédiction contre le test que tu écris toi-même, c'est ça l'exercice.
 
-**Question annexe.** Le niveau ne baisse que si \`difficulteConfirmee\` est vraie, c'est-à-dire si les **deux dernières preuves**, et seulement elles, sont des échecs en autonomie réelle (A2 ou plus), avec au moins 3 preuves au total. Une preuve isolée n'y suffit jamais : c'est la **confiance** qui encaisse une mauvaise performance isolée, pas le niveau — pour éviter qu'un jour difficile n'efface un acquis réel.
+**Question annexe.** Le niveau ne baisse que si \`difficulteConfirmee\` est vraie, c'est-à-dire si les **deux dernières observations**, et seulement elles, sont des échecs en autonomie réelle (A2 ou plus), avec au moins 3 observations au total. Une observation isolée n'y suffit jamais : c'est la **confiance** qui encaisse une mauvaise performance isolée, pas le niveau — pour éviter qu'un jour difficile n'efface un acquis réel.
 
 **Ce que ça apprend :** enchaîner plusieurs fonctions pures est ce qu'on appelle un pipeline. Le dérouler à la main, étape par étape, est la seule façon fiable de prédire ce qu'un changement va produire avant de l'exécuter.`,
     criteres: [
       { dimension: "application", libelle: "J'ai construit et fait passer un test qui vérifie ma prédiction manuelle" },
       { dimension: "transfert", libelle: "J'ai identifié correctement la condition de régression du niveau, sans la confondre avec la confiance" },
-      { dimension: "justification", libelle: "J'ai expliqué pourquoi une preuve isolée ne fait jamais baisser un niveau" },
+      { dimension: "justification", libelle: "J'ai expliqué pourquoi une observation isolée ne fait jamais baisser un niveau" },
     ],
   },
 
@@ -1062,12 +1062,12 @@ export function calculerEtatGlobal(etats: SkillState[], now = new Date()): EtatG
 
 Et un document produit du même dépôt, tel quel :
 
-> \`calculerEtatGlobal\` calcule Σ importance × (score/5) ÷ Σ importance × 100 sur toutes les compétences du périmètre. Les compétences sans preuve entrent au **numérateur pour 0** et au **dénominateur pour leur importance pleine** : non mesuré y vaut exactement zéro, ce que le protocole interdit.
+> \`calculerEtatGlobal\` calcule Σ importance × (score/5) ÷ Σ importance × 100 sur toutes les compétences du périmètre. Les compétences sans observation entrent au **numérateur pour 0** et au **dénominateur pour leur importance pleine** : non mesuré y vaut exactement zéro, ce que le protocole interdit.
 >
 > Deux conséquences : le score est **anti-corrélé à l'ambition** — élargir le référentiel fait baisser le score sans qu'aucune compétence n'ait été perdue ; et un instrument dont la vertu est de ne pas confondre ignorance et incompétence peut afficher un score très bas en confondant exactement les deux.
 
 **Questions :**
-1. \`e.score ?? 0\` : une compétence sans preuve a \`e.score === null\`. Que devient-elle dans ce calcul ?
+1. \`e.score ?? 0\` : une compétence sans observation a \`e.score === null\`. Que devient-elle dans ce calcul ?
 2. Explique avec tes mots pourquoi élargir le référentiel (ajouter des compétences non mesurées) fait *baisser* \`scoreGlobal\`, sans qu'aucune compétence existante n'ait changé.
 3. Ce document range volontairement ce point en « question ouverte », pas en « bug à corriger ». Pourquoi ce n'est pas simplement un bug à corriger tout de suite — quel est le risque à « juste » exclure les non-mesurées du calcul, en passant, dans un autre chantier ?`,
     indices: [
@@ -1083,7 +1083,7 @@ Et un document produit du même dépôt, tel quel :
 
 **Ce que ça apprend :** un principe écrit dans un document et son application dans le code sont deux choses différentes, qui peuvent diverger sans que personne ne mente. Savoir repérer l'écart — et savoir le classer « en attente d'arbitrage » plutôt que « bug » — est une compétence à part entière.`,
     criteres: [
-      { dimension: "comprehension", libelle: "J'ai expliqué correctement ce que devient une compétence sans preuve dans le calcul" },
+      { dimension: "comprehension", libelle: "J'ai expliqué correctement ce que devient une compétence sans observation dans le calcul" },
       { dimension: "justification", libelle: "J'ai expliqué pourquoi élargir un référentiel peut faire baisser un score sans rien perdre" },
       { dimension: "integration", libelle: "J'ai distingué une question ouverte d'un bug à corriger tout de suite, et dit pourquoi" },
     ],
@@ -1118,14 +1118,14 @@ function soumettre() {
 "use server";
 
 export async function terminerExercice(soumission) {
-  // ... construit une ou plusieurs preuves à partir de la soumission
+  // ... construit une ou plusieurs observations à partir de la soumission
   for (const [index, code] of exercice.competences.entries()) {
-    const preuve = {
+    const observation = {
       skillCode: code,
-      niveauPreuve: index === 0 ? "A" : "B",
+      niveauObservation: index === 0 ? "A" : "B",
       // ...
     };
-    await ajouter("evidence", preuve);
+    await ajouter("observations", observation);
   }
 }
 \`\`\`
@@ -1143,21 +1143,21 @@ Dans Next.js, \`"use client"\` et \`"use server"\` délimitent deux mondes : ce 
 
 **Exercice :** dessine (sur papier, en texte, peu importe) le trajet complet d'un clic sur le bouton de soumission : quelle fonction appelle quelle fonction, qu'est-ce qui s'exécute dans le navigateur, qu'est-ce qui s'exécute sur le serveur, à quel moment la donnée part réellement vers la base.
 
-**Question annexe :** pourquoi \`terminerExercice\` peut-elle écrire *plusieurs* preuves pour un seul exercice ?`,
+**Question annexe :** pourquoi \`terminerExercice\` peut-elle écrire *plusieurs* observations pour un seul exercice ?`,
     indices: [
       "Cherche dans le dépôt réel où soumettre() est défini, et remonte la chaîne d'appels jusqu'à la ligne qui touche effectivement la base.",
       "Le passage d'un monde à l'autre se fait à l'appel d'une fonction marquée \"use server\" — repère cet appel précis dans le premier extrait.",
       "Regarde ce que fait la boucle sur exercice.competences dans le deuxième extrait.",
     ],
-    correction: `Le trajet : clic → \`soumettre()\` côté navigateur → appel à \`terminerExercice(...)\` : c'est **cet appel précis** qui bascule côté serveur, parce que la fonction est marquée \`"use server"\` → dans \`terminerExercice\`, construction de la ou des preuves et appel à \`ajouter("evidence", preuve)\` → dans la fonction \`ajouter\`, l'appel \`supabase.from(...).insert(...)\` est la ligne, et seulement elle, qui touche réellement la base.
+    correction: `Le trajet : clic → \`soumettre()\` côté navigateur → appel à \`terminerExercice(...)\` : c'est **cet appel précis** qui bascule côté serveur, parce que la fonction est marquée \`"use server"\` → dans \`terminerExercice\`, construction de la ou des observations et appel à \`ajouter("observations", observation)\` → dans la fonction \`ajouter\`, l'appel \`supabase.from(...).insert(...)\` est la ligne, et seulement elle, qui touche réellement la base.
 
-**Annexe.** Un exercice peut viser plusieurs compétences à la fois. La première reçoit une preuve directe (niveau A), les suivantes une preuve indirecte (niveau B) — la boucle sur \`exercice.competences\` écrit une preuve par compétence ciblée.
+**Annexe.** Un exercice peut viser plusieurs compétences à la fois. La première reçoit une observation directe (niveau A), les suivantes une observation indirecte (niveau B) — la boucle sur \`exercice.competences\` écrit une observation par compétence ciblée.
 
 **Ce que ça apprend :** situer précisément la ligne où un client cesse de parler à lui-même et commence à parler à un serveur (puis à une base) est la compétence de lecture d'architecture la plus rentable sur ce genre de projet.`,
     criteres: [
       { dimension: "comprehension", libelle: "J'ai situé correctement la frontière client / serveur" },
       { dimension: "application", libelle: "J'ai tracé le trajet complet jusqu'à l'écriture réelle en base" },
-      { dimension: "justification", libelle: "J'ai expliqué pourquoi un exercice peut écrire plusieurs preuves" },
+      { dimension: "justification", libelle: "J'ai expliqué pourquoi un exercice peut écrire plusieurs observations" },
     ],
   },
 

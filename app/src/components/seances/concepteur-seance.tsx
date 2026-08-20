@@ -68,7 +68,7 @@ import {
   type ThemeSeance,
 } from "@/lib/engine/caf";
 import type { Calibration } from "@/lib/engine/calibration";
-import type { ResumePreuvesDocumentaires } from "@/lib/engine/document-context";
+import type { ResumeObservationsDocumentaires } from "@/lib/engine/document-context";
 import type { Recommandation } from "@/lib/engine/recommend";
 import {
   creerSeance,
@@ -111,7 +111,7 @@ export interface DonneesSeance {
    */
   recommandations: Recommandation[];
   /** Résumés documentaires sérialisables, issus du même contexte serveur. */
-  contexteDocumentaire: [string, ResumePreuvesDocumentaires][];
+  contexteDocumentaire: [string, ResumeObservationsDocumentaires][];
   domaines: { id: string; nom: string; prefixe: string }[];
   /** Thèmes enregistrés du compte (chantier « thèmes », ADR-053). */
   themes: Theme[];

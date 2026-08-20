@@ -1,24 +1,24 @@
 import { describe, expect, it } from "vitest";
-import type { SkillEvidence } from "@/lib/domain/types";
+import type { SkillObservation } from "@/lib/domain/types";
 import { construireContexteDocumentaire } from "./document-context";
 
-function preuve(
+function observation(
   id: string,
   options: {
     skillCode?: string;
     date?: string;
     contexte?: string;
-    sourceKind?: SkillEvidence["source"]["kind"];
-    type?: SkillEvidence["type"];
+    sourceKind?: SkillObservation["source"]["kind"];
+    type?: SkillObservation["type"];
     document?: boolean;
   } = {},
-): SkillEvidence {
+): SkillObservation {
   return {
     id,
     skillCode: options.skillCode ?? "DEV-01",
     date: options.date ?? "2026-08-10",
     type: options.type ?? "exercice",
-    niveauPreuve: "A",
+    niveauObservation: "A",
     autonomie: "A3",
     qualite: "forte",
     resultat: "reussi",
@@ -37,14 +37,14 @@ function preuve(
 describe("construireContexteDocumentaire", () => {
   it("agrège les productions documentaires par compétence", () => {
     const contexte = construireContexteDocumentaire([
-      preuve("ev-1", { date: "2026-08-01", contexte: "Transport" }),
-      preuve("ev-2", {
+      observation("obs-1", { date: "2026-08-01", contexte: "Transport" }),
+      observation("obs-2", {
         date: "2026-08-10",
         contexte: "Atelier",
         sourceKind: "projet",
         type: "projet",
       }),
-      preuve("ev-3", { skillCode: "STAT-01", contexte: "Analyse" }),
+      observation("obs-3", { skillCode: "STAT-01", contexte: "Analyse" }),
     ]);
 
     expect(contexte.get("DEV-01")).toEqual({
@@ -53,7 +53,7 @@ describe("construireContexteDocumentaire", () => {
       derniereDate: "2026-08-10",
       dernierResultat: "reussi",
       contextes: ["Transport", "Atelier"],
-      typesPreuve: ["exercice", "projet"],
+      typesObservation: ["exercice", "projet"],
       typesSource: ["exercice", "projet"],
     });
     expect(contexte.get("STAT-01")?.nombre).toBe(1);
@@ -61,8 +61,8 @@ describe("construireContexteDocumentaire", () => {
 
   it("ignore une provenance absente ou une date illisible", () => {
     const contexte = construireContexteDocumentaire([
-      preuve("ev-sans-document", { document: false }),
-      preuve("ev-date-invalide", { date: "pas-une-date" }),
+      observation("obs-sans-document", { document: false }),
+      observation("obs-date-invalide", { date: "pas-une-date" }),
     ]);
 
     expect(contexte.size).toBe(0);

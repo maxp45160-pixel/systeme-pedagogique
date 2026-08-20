@@ -7,11 +7,11 @@
  *
  * - trop strict, il ne se déclenche jamais et la fonctionnalité est morte à la
  *   naissance — c'est ce qui serait arrivé avec un seuil à 5 (voir le module) ;
- * - trop laxiste, il déclare « sue » une compétence dont la dernière preuve a
- *   six mois, ou qui porte une preuve contradictoire. Ce serait P4 renversé :
+ * - trop laxiste, il déclare « sue » une compétence dont la dernière observation a
+ *   six mois, ou qui porte une observation contradictoire. Ce serait P4 renversé :
  *   une faiblesse disparaîtrait sans démonstration.
  *
- * Les fixtures ne sont pas inventées. Elles reproduisent les preuves réelles de
+ * Les fixtures ne sont pas inventées. Elles reproduisent les observations réelles de
  * `DEB-01` et `RO-01` lues en base le 07/08/2026 — les deux seules compétences
  * du compte qui atteignent le niveau 4. C'est la méthode d'ADR-028 : un seuil
  * calé sur des observations tient, un seuil calé sur une intuition se déplace
@@ -22,7 +22,7 @@ import { describe, expect, it } from "vitest";
 
 import { computeSkillState } from "./skill-state";
 import { estMaitrisee, evaluerMaitrise, evaluerMaitrises, NIVEAU_MAITRISE } from "./maitrise";
-import type { Dimension, Skill, SkillEvidence } from "@/lib/domain/types";
+import type { Dimension, Skill, SkillObservation } from "@/lib/domain/types";
 
 const MAINTENANT = new Date("2026-08-07T12:00:00.000Z");
 const JOUR = 86_400_000;
@@ -42,19 +42,19 @@ const DEB_01 = {
 
 let compteur = 0;
 
-function preuve(options: {
+function observation(options: {
   jours?: number;
-  autonomie?: SkillEvidence["autonomie"];
-  resultat?: SkillEvidence["resultat"];
+  autonomie?: SkillObservation["autonomie"];
+  resultat?: SkillObservation["resultat"];
   contexte?: string;
   dims?: Partial<Record<Dimension, number>>;
-}): SkillEvidence {
+}): SkillObservation {
   return {
-    id: `ev-${++compteur}`,
+    id: `obs-${++compteur}`,
     skillCode: "DEB-01",
     date: ilYa(options.jours ?? 1),
     type: "exercice",
-    niveauPreuve: "A",
+    niveauObservation: "A",
     autonomie: options.autonomie ?? "A3",
     qualite: "moyenne",
     resultat: options.resultat ?? "reussi",
@@ -67,43 +67,43 @@ function preuve(options: {
       justification: 1,
     },
     source: { kind: "exercice", ref: "ex-test" },
-  } as SkillEvidence;
+  } as SkillObservation;
 }
 
-/** Les deux preuves réelles de DEB-01, au 07/08/2026. */
-function preuvesReellesDeb01(): SkillEvidence[] {
+/** Les deux observations réelles de DEB-01, au 07/08/2026. */
+function observationsReellesDeb01(): SkillObservation[] {
   return [
-    preuve({
+    observation({
       jours: 4,
       contexte: "Organiser une rotation de champions dans une partie de League of Legends",
     }),
-    preuve({ jours: 1, contexte: "Organiser une quête dans le Royaume d'Eldoria" }),
+    observation({ jours: 1, contexte: "Organiser une quête dans le Royaume d'Eldoria" }),
   ];
 }
 
-function etat(preuves: SkillEvidence[], now = MAINTENANT) {
-  return computeSkillState(DEB_01, preuves, now);
+function etat(observations: SkillObservation[], now = MAINTENANT) {
+  return computeSkillState(DEB_01, observations, now);
 }
 
 /* ------------------------------------------------------------------ */
 
 describe("estMaitrisee — le prédicat", () => {
-  it("ne déclare jamais maîtrisée une compétence sans preuve", () => {
+  it("ne déclare jamais maîtrisée une compétence sans observation", () => {
     // L'absence de mesure n'est pas une maîtrise, comme elle n'est pas un zéro (P2).
     const e = etat([]);
     expect(e.niveau).toBeNull();
     expect(estMaitrisee(e)).toBe(false);
   });
 
-  it("déclare maîtrisées les preuves réelles de DEB-01", () => {
+  it("déclare maîtrisées les observations réelles de DEB-01", () => {
     /*
      * Le test qui justifie l'existence du module. Deux réussites autonomes A3
      * avec transfert 1 sur deux contextes distincts — le niveau 4 est atteint,
-     * la confiance est « moyenne » (2 preuves, 2 contextes). Si ce cas ne
+     * la confiance est « moyenne » (2 observations, 2 contextes). Si ce cas ne
      * passait pas, le prédicat ne se déclencherait sur AUCUNE donnée réelle du
      * compte, et la fonctionnalité serait morte à la naissance.
      */
-    const e = etat(preuvesReellesDeb01());
+    const e = etat(observationsReellesDeb01());
     expect(e.niveau).toBe(4);
     expect(e.confiance).toBe("moyenne");
     expect(estMaitrisee(e)).toBe(true);
@@ -113,21 +113,21 @@ describe("estMaitrisee — le prédicat", () => {
     // Un contexte unique ne peut donner ni le niveau 4 ni une confiance
     // ≥ moyenne : la clause de confiance l'absorbe sans qu'on l'écrive.
     const e = etat([
-      preuve({ jours: 4, contexte: "Même contexte" }),
-      preuve({ jours: 1, contexte: "Même contexte" }),
+      observation({ jours: 4, contexte: "Même contexte" }),
+      observation({ jours: 1, contexte: "Même contexte" }),
     ]);
     expect(estMaitrisee(e)).toBe(false);
   });
 
-  it("ne déclare pas maîtrisée une compétence portant une preuve contradictoire", () => {
+  it("ne déclare pas maîtrisée une compétence portant une observation contradictoire", () => {
     /*
      * P4 : une faiblesse ne disparaît pas sans démonstration. La contradiction
      * fait chuter l'échelon de confiance, pas le niveau — et c'est la clause de
      * confiance du prédicat qui en tire la conséquence, gratuitement.
      */
     const e = etat([
-      ...preuvesReellesDeb01(),
-      preuve({
+      ...observationsReellesDeb01(),
+      observation({
         jours: 0,
         resultat: "echec",
         contexte: "Troisième contexte",
@@ -139,11 +139,11 @@ describe("estMaitrisee — le prédicat", () => {
     expect(estMaitrisee(e)).toBe(false);
   });
 
-  it("ne déclare pas maîtrisée une compétence dont la dernière preuve a plus de 120 jours", () => {
+  it("ne déclare pas maîtrisée une compétence dont la dernière observation a plus de 120 jours", () => {
     // La péremption est gratuite : `calculerConfiance` abaisse déjà l'échelon.
     const e = etat([
-      preuve({ jours: 400, contexte: "Contexte A" }),
-      preuve({ jours: 300, contexte: "Contexte B" }),
+      observation({ jours: 400, contexte: "Contexte A" }),
+      observation({ jours: 300, contexte: "Contexte B" }),
     ]);
     expect(e.niveau).toBe(4);
     expect(e.confiance).toBe("faible");
@@ -153,7 +153,7 @@ describe("estMaitrisee — le prédicat", () => {
   it("traite le seuil comme un plancher, pas comme une égalité", () => {
     // Une compétence de niveau 5 est maîtrisée elle aussi. Écrire `=== 4`
     // aurait « démaîtrisé » une compétence en progressant.
-    const e = etat(preuvesReellesDeb01());
+    const e = etat(observationsReellesDeb01());
     expect(e.niveau).toBeGreaterThanOrEqual(NIVEAU_MAITRISE);
     expect(estMaitrisee({ ...e, niveau: 5 })).toBe(true);
   });
@@ -163,24 +163,24 @@ describe("estMaitrisee — le prédicat", () => {
 
 describe("evaluerMaitrise — ce qui est dit", () => {
   it("nomme ce qui manque plutôt que de dire « niveau insuffisant »", () => {
-    const m = evaluerMaitrise(etat([preuve({ jours: 1 })]));
+    const m = evaluerMaitrise(etat([observation({ jours: 1 })]));
     expect(m.maitrisee).toBe(false);
     expect(m.manque).not.toBeNull();
     expect(m.manque).toContain("deux contextes distincts");
   });
 
-  it("dit qu'aucune preuve n'a été apportée, sans parler de niveau", () => {
+  it("dit qu'aucune observation n'a été apportée, sans parler de niveau", () => {
     // « Niveau 0 insuffisant » serait exact et faux d'esprit : il n'y a pas de
     // niveau 0, il y a une absence de mesure.
     const m = evaluerMaitrise(etat([]));
-    expect(m.manque).toContain("Aucune preuve directe");
+    expect(m.manque).toContain("Aucune observation directe");
   });
 
   it("distingue une confiance retombée d'un niveau non atteint", () => {
     const m = evaluerMaitrise(
       etat([
-        preuve({ jours: 400, contexte: "Contexte A" }),
-        preuve({ jours: 300, contexte: "Contexte B" }),
+        observation({ jours: 400, contexte: "Contexte A" }),
+        observation({ jours: 300, contexte: "Contexte B" }),
       ]),
     );
     expect(m.manque).toContain("est atteint");
@@ -191,10 +191,10 @@ describe("evaluerMaitrise — ce qui est dit", () => {
     /*
      * L'argument central du module au regard de CLAUDE.md §8. L'explication ne
      * doit citer que des valeurs déjà dérivées — niveau, confiance, contextes,
-     * preuves. Le seul nombre qu'elle nomme est `NIVEAU_MAITRISE`, qui n'est
+     * observations. Le seul nombre qu'elle nomme est `NIVEAU_MAITRISE`, qui n'est
      * pas un seuil de mesure mais le nom d'un palier existant.
      */
-    const m = evaluerMaitrise(etat(preuvesReellesDeb01()));
+    const m = evaluerMaitrise(etat(observationsReellesDeb01()));
     const texte = [m.explication.resume, ...m.explication.facteurs.map((f) => `${f.valeur}`)].join(" ");
     const nombres = texte.match(/\d+(?:[.,]\d+)?/g) ?? [];
     const attendus = new Set(["4", "2", "1", String(NIVEAU_MAITRISE)]);
@@ -206,18 +206,18 @@ describe("evaluerMaitrise — ce qui est dit", () => {
   it("cite la contradiction dans les facteurs quand il y en a une", () => {
     const m = evaluerMaitrise(
       etat([
-        ...preuvesReellesDeb01(),
-        preuve({ jours: 0, resultat: "echec", contexte: "C", dims: { comprehension: 0 } }),
+        ...observationsReellesDeb01(),
+        observation({ jours: 0, resultat: "echec", contexte: "C", dims: { comprehension: 0 } }),
       ]),
     );
     const libelles = m.explication.facteurs.map((f) => f.libelle);
-    expect(libelles).toContain("Preuves contradictoires");
+    expect(libelles).toContain("Observations contradictoires");
   });
 });
 
 describe("evaluerMaitrises", () => {
   it("indexe par code", () => {
-    const m = evaluerMaitrises([etat(preuvesReellesDeb01())]);
+    const m = evaluerMaitrises([etat(observationsReellesDeb01())]);
     expect(m.get("DEB-01")?.maitrisee).toBe(true);
   });
 });

@@ -194,7 +194,7 @@ export function LegendeActivite() {
 
 export interface AxeRadar {
   libelle: string;
-  /** `null` si le domaine n'a aucune preuve : l'axe reste au centre, marqué. */
+  /** `null` si le domaine n'a aucune observation : l'axe reste au centre, marqué. */
   valeur: number | null;
 }
 
@@ -203,7 +203,7 @@ export interface AxeRadar {
  * cahier des charges). Deux sens distincts selon l'appelant : un axe par
  * compétence (page domaine) ou un axe par domaine (synthèse de progression).
  *
- * Les axes sans preuve sont tracés à zéro ET listés en texte sous le
+ * Les axes sans observation sont tracés à zéro ET listés en texte sous le
  * graphique, pour qu'un creux ne soit pas lu comme une faiblesse mesurée.
  *
  * `libelle` est requis — pas déduit en interne. Le composant a longtemps
@@ -303,7 +303,7 @@ export function Radar({
           >
             <title>
               {a.valeur === null
-                ? `${a.libelle} — aucune preuve`
+                ? `${a.libelle} — aucune observation`
                 : `${a.libelle} — ${a.valeur}/100`}
             </title>
           </circle>

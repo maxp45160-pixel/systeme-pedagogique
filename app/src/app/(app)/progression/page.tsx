@@ -28,9 +28,9 @@ import { TitreSection } from "@/components/ui/primitives";
  * ## Ce que cette page ne fait pas
  *
  * Elle ne classe pas. Pas de niveau de profil, pas de rang, pas de titre gagné
- * à l'ancienneté : le seul classement du produit vient des preuves, et c'est le
+ * à l'ancienneté : le seul classement du produit vient des observations, et c'est le
  * score global. Les totaux affichés comptent des faits — séances tenues,
- * exercices menés, preuves enregistrées, jours actifs — sans jamais s'agréger
+ * exercices menés, observations enregistrées, jours actifs — sans jamais s'agréger
  * en une note parallèle qui monterait toute seule avec le temps passé.
  */
 export default async function PageProgression() {
@@ -68,21 +68,21 @@ async function ContenuProgression() {
   const carriere = resumeCarriere({
     sessions: ctx.donnees.sessions,
     tentatives: ctx.donnees.attempts,
-    preuves: ctx.preuvesEffectives,
+    observations: ctx.observationsEffectives,
     now: ctx.now,
   });
 
   const croissance = resumeCroissance({
     sessions: ctx.donnees.sessions,
     tentatives: ctx.donnees.attempts,
-    preuves: ctx.preuvesEffectives,
+    observations: ctx.observationsEffectives,
     skillsParCode: ctx.referentiel.parCode,
     dureesEstimees: ctx.dureesEstimees,
     now: ctx.now,
     /*
-      La fenêtre passe de 8 à 12 preuves : c'est celle que tenait la carte
+      La fenêtre passe de 8 à 12 observations : c'est celle que tenait la carte
       « Progression récente », retirée juste en dessous. Les deux appelaient
-      `evenementsRecents` sur les mêmes preuves, avec le même moteur, et
+      `evenementsRecents` sur les mêmes observations, avec le même moteur, et
       rendaient la même liste à deux endroits d'un même écran. Reprendre la
       fenêtre la plus large ne perd donc aucune ligne.
     */
@@ -103,7 +103,7 @@ async function ContenuProgression() {
   const ensemblesSuggeres = ensemblesProposes({
     sessions: ctx.donnees.sessions,
     exercices: ctx.donnees.exercises,
-    preuves: ctx.preuvesEffectives,
+    observations: ctx.observationsEffectives,
     themes,
     referentiel: ctx.referentiel,
   }).propositions;
@@ -140,7 +140,7 @@ async function ContenuProgression() {
       </section>
 
       {/*
-        « Dernières preuves » vivait ici, sous la forme d'une seconde liste des
+        « Dernières observations » vivait ici, sous la forme d'une seconde liste des
         mêmes événements que le niveau 2 du bilan — même source, même moteur,
         même ordre, à douze lignes contre huit. Le niveau 2 en dit davantage :
         il distingue une première mesure d'un palier franchi. C'est lui qu'on
@@ -148,7 +148,7 @@ async function ContenuProgression() {
       */}
 
       {/*
-        Le vocabulaire du produit. Preuve, niveau, autonomie, confiance,
+        Le vocabulaire du produit. Observation, niveau, autonomie, confiance,
         robustesse : cinq mots qui gouvernent tout ce qui est affiché plus haut,
         et dont c'est ici la place — au pied des mesures qu'ils définissent.
       */}

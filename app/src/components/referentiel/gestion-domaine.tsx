@@ -9,7 +9,7 @@
  * d'action groupée, édition inline, sortie/remise au périmètre,
  * archiver/supprimer (ADR-027), dossier des compétences archivées.
  *
- * La conséquence est affichée avant le clic : une compétence sans preuve ni
+ * La conséquence est affichée avant le clic : une compétence sans observation ni
  * dépendance historique peut être supprimée ; sinon elle est archivée. Aucun
  * choix technique n'est offert à la personne : le mode est dérivé.
  */
@@ -130,7 +130,7 @@ export function GestionDomaine({
       {!domaine.archive && (
         <p className="rounded-md border border-bordure bg-surface-2 px-3 py-2 text-[0.6875rem] text-texte-discret">
           {domaineDoitArchiver
-            ? "Ce domaine porte un historique ou des dépendances : le retrait archivera toute la branche, sans supprimer ses preuves."
+            ? "Ce domaine porte un historique ou des dépendances : le retrait archivera toute la branche, sans supprimer ses observations."
             : "Ce domaine ne porte aucun historique conservé : le retrait supprimera atomiquement le domaine et ses compétences. Les codes ne seront jamais réattribués."}
         </p>
       )}
@@ -213,7 +213,7 @@ export function GestionDomaine({
           <p className="mt-1.5 text-[0.6875rem] text-texte-attenue">
             « Retirer » effacerait {aSupprimer.length} ligne
             {aSupprimer.length > 1 ? "s" : ""} sans historique et archiverait {aArchiver.length}{" "}
-            compétence{aArchiver.length > 1 ? "s" : ""} qui en portent. Les preuves restent en
+            compétence{aArchiver.length > 1 ? "s" : ""} qui en portent. Les observations restent en
             base et les dépendances restent résolubles.
           </p>
         </div>
@@ -227,7 +227,7 @@ export function GestionDomaine({
       ) : (
         <ul className="divide-y divide-bordure rounded-carte border border-bordure bg-surface">
           {vivantes.map((s) => {
-            const retrait = retraits[s.code] ?? { preuves: 0, mode: "suppression" as const };
+            const retrait = retraits[s.code] ?? { observations: 0, mode: "suppression" as const };
             const enEdition = edite === s.code;
 
             return (
@@ -257,7 +257,7 @@ export function GestionDomaine({
                       )}
                       <span className="chiffres text-[0.6875rem] text-texte-discret">
                         importance {s.importance} ·{" "}
-                        {retrait.preuves === 0 ? "aucune preuve" : `${retrait.preuves} preuve${retrait.preuves > 1 ? "s" : ""}`}
+                        {retrait.observations === 0 ? "aucune observation" : `${retrait.observations} observation${retrait.observations > 1 ? "s" : ""}`}
                         {retrait.dependances ? " · dépendance historique" : ""}
                       </span>
                     </div>
@@ -316,7 +316,7 @@ export function GestionDomaine({
                   {archivees.length} compétence{archivees.length > 1 ? "s" : ""} archivée
                   {archivees.length > 1 ? "s" : ""}
                 </span>
-                <span className="text-texte-discret">— preuves conservées</span>
+                <span className="text-texte-discret">— observations conservées</span>
               </>
             }
           >
@@ -383,7 +383,7 @@ function FormulaireRemplacement({
   const [importance, setImportance] = useState(String(skill.importance));
   return (
     <div className="mt-3 space-y-2 rounded-lg border border-alerte/30 bg-alerte-faible/40 p-3">
-      <p className="text-xs leading-relaxed text-texte-attenue">Un changement de savoir-faire ne réécrit pas les anciennes preuves : un nouveau code sera attribué et {skill.code} sera archivée avec un lien de succession.</p>
+      <p className="text-xs leading-relaxed text-texte-attenue">Un changement de savoir-faire ne réécrit pas les anciennes observations : un nouveau code sera attribué et {skill.code} sera archivée avec un lien de succession.</p>
       <Champ label="Nouvel intitulé" value={intitule} onChange={(event) => setIntitule(event.target.value)} />
       <div className="flex flex-wrap items-center gap-2 text-xs">
         <ChampSelect label="Palier" taille="compacte" value={palier} onChange={(event) => setPalier(event.target.value as Palier)} options={OPTIONS_PALIER} />
@@ -436,7 +436,7 @@ function FormulaireEdition({
           />
         </label>
         <span className="text-texte-discret">
-          le code {skill.code} n{"'"}est pas modifiable — les preuves s{"'"}y rattachent
+          le code {skill.code} n{"'"}est pas modifiable — les observations s{"'"}y rattachent
         </span>
       </div>
       <div className="flex gap-1.5">

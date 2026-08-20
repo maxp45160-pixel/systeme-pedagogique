@@ -13,12 +13,12 @@
  * - **résoudre contre une tentative abandonnée.** Une durée de 1 minute sur 30
  *   annoncées dirait « le moteur surestime d'un facteur 30 » alors que
  *   l'exercice n'a pas été fait — exactement la faute qu'ADR-030 a corrigée sur
- *   le chemin des preuves.
+ *   le chemin des observations.
  */
 
 import { describe, expect, it } from "vitest";
 
-import type { Exercise, ExerciseAttempt, SkillEvidence } from "@/lib/domain/types";
+import type { Exercise, ExerciseAttempt, SkillObservation } from "@/lib/domain/types";
 import {
   evaluerMoteur,
   mediane,
@@ -69,13 +69,13 @@ function tentative(options: Partial<ExerciseAttempt> = {}): ExerciseAttempt {
   } as ExerciseAttempt;
 }
 
-function preuve(options: Partial<SkillEvidence> = {}): SkillEvidence {
+function observation(options: Partial<SkillObservation> = {}): SkillObservation {
   return {
     id: `e-${Math.random().toString(36).slice(2)}`,
     skillCode: "LOG-01",
     date: "2026-08-20T09:00:00.000Z",
     type: "exercice",
-    niveauPreuve: "A",
+    niveauObservation: "A",
     autonomie: "A3",
     qualite: "moyenne",
     resultat: "reussi",
@@ -83,7 +83,7 @@ function preuve(options: Partial<SkillEvidence> = {}): SkillEvidence {
     dimensions: {},
     source: { kind: "exercice", ref: "ex-1" },
     ...options,
-  } as SkillEvidence;
+  } as SkillObservation;
 }
 
 /* ------------------------------------------------------------------ */
@@ -143,15 +143,15 @@ describe("résolution — ce qui tranche une prédiction", () => {
     expect(resolutions[0].observe).toBe(0);
   });
 
-  it("ne résout la rétention qu'avec une preuve postérieure à l'horizon", () => {
+  it("ne résout la rétention qu'avec une observation postérieure à l'horizon", () => {
     const p = prediction({
       type: "retention",
       cibleRef: null,
       horizonLe: "2026-08-15T00:00:00.000Z",
     });
-    expect(resoudreRetentions([p], [preuve({ date: "2026-08-10T09:00:00.000Z" })]))
+    expect(resoudreRetentions([p], [observation({ date: "2026-08-10T09:00:00.000Z" })]))
       .toHaveLength(0);
-    const apres = resoudreRetentions([p], [preuve({ date: "2026-08-20T09:00:00.000Z" })]);
+    const apres = resoudreRetentions([p], [observation({ date: "2026-08-20T09:00:00.000Z" })]);
     expect(apres).toHaveLength(1);
     expect(apres[0].observe).toBe(1);
   });
@@ -162,7 +162,7 @@ describe("résolution — ce qui tranche une prédiction", () => {
       cibleRef: null,
       horizonLe: "2026-08-15T00:00:00.000Z",
     });
-    const resolutions = resoudreRetentions([p], [preuve({ resultat: "echec" })]);
+    const resolutions = resoudreRetentions([p], [observation({ resultat: "echec" })]);
     expect(resolutions[0].observe).toBe(0);
   });
 });
@@ -180,7 +180,7 @@ describe("evaluerMoteur — la règle du seuil", () => {
     predictions: [],
     decisions: [],
     tentatives: [],
-    preuves: [],
+    observations: [],
     exercicesParId: EXERCICES,
   };
 
@@ -314,7 +314,7 @@ describe("utilite-recommandation", () => {
       predictions: [],
       decisions,
       tentatives: [tentative({ exerciseId: "ex-5" }), tentative({ exerciseId: "ex-6" })],
-      preuves: [],
+      observations: [],
       exercicesParId: EXERCICES,
     }).find((m) => m.nom === "utilite-recommandation")!;
 

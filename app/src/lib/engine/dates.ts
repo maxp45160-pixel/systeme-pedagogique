@@ -13,8 +13,8 @@ export function joursDepuis(date: string, now: Date = new Date()): number {
 }
 
 /**
- * Facteur de récence dans [0,1] : 1 pour une preuve du jour, décroissance
- * douce, plancher à 0,3 pour ne jamais annuler une preuve ancienne.
+ * Facteur de récence dans [0,1] : 1 pour une observation du jour, décroissance
+ * douce, plancher à 0,3 pour ne jamais annuler une observation ancienne.
  *
  * Protocole d'évaluation §7 : l'ancienneté fait baisser la CONFIANCE.
  * Elle ne retire jamais le niveau acquis (§9).

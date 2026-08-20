@@ -11,7 +11,7 @@
  * Toutes appellent `revalidatePath("/", "layout")` (ADR-024). Une écriture peut
  * déplacer un niveau, un score global et une recommandation à la fois : à 77
  * lignes en base, invalider tout coûte moins cher que de raisonner, à chaque
- * ajout, sur les écrans qu'une preuve touche. Cette uniformité est aussi ce qui
+ * ajout, sur les écrans qu'une observation touche. Cette uniformité est aussi ce qui
  * rend sûr le cache routeur client de `next.config.ts`.
  */
 
@@ -41,7 +41,7 @@ import {
   LIBELLE_AIDE,
   qualiteDepuisDifficulte,
   type AideExterne,
-} from "@/lib/engine/preuve";
+} from "@/lib/engine/observation";
 import { construireDocumentProductionPreuve } from "@/lib/documents/production";
 import { ajouterPassageFiche, construireFicheExercice } from "@/lib/documents/fiche-exercice";
 import { tentativeMenee } from "@/lib/engine/calibration";
@@ -52,7 +52,7 @@ import type {
   Exercise,
   ExerciseAttempt,
   LearningSession,
-  SkillEvidence,
+  SkillObservation,
   TypeExercice,
   VerdictTuteur,
 } from "@/lib/domain/types";
@@ -172,7 +172,7 @@ async function destinationApresExercice(
   if (!navigation) return urlExercice(exerciceId, undefined, etape);
 
   // Cette validation intervient après les écritures pédagogiques : un contexte
-  // périmé ne peut donc jamais faire perdre une tentative ou une preuve.
+  // périmé ne peut donc jamais faire perdre une tentative ou une observation.
   const seances = await lire("sessions", dorsale);
   const valide = seances.some(
     (seance) =>
@@ -183,10 +183,10 @@ async function destinationApresExercice(
 }
 
 /**
- * Clôture une tentative et écrit la ou les preuves correspondantes.
+ * Clôture une tentative et écrit la ou les observations correspondantes.
  *
  * C'est le seul chemin par lequel une compétence peut évoluer depuis
- * l'interface. La preuve porte l'autonomie observée, la qualité déduite de
+ * l'interface. L'Observation porte l'autonomie observée, la qualité déduite de
  * la difficulté, et pointe vers la tentative qui la justifie
  * (protocole anti-hallucination §4, traçabilité).
  */
@@ -202,7 +202,7 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
    *
    * La fonction écrivait d'abord la tentative puis lisait la valeur de retour
    * pour connaître `indicesUtilises`. Un refus placé après aurait laissé une
-   * tentative close, avec sa durée et son évaluation, sans preuve pour
+   * tentative close, avec sa durée et son évaluation, sans observation pour
    * l'expliquer — une trace à moitié écrite, plus difficile à lire qu'une
    * absence de trace.
    *
@@ -221,19 +221,19 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
   const date = new Date().toISOString();
 
   /*
-   * Une tentative qui n'a pas eu lieu ne produit aucune preuve.
+   * Une tentative qui n'a pas eu lieu ne produit aucune observation.
    *
    * `tentativeMenee` (lib/engine/calibration.ts) porte la règle : sous 25 % de
    * la durée estimée, sans réussite, on ne peut rien conclure. Elle gouvernait
    * la calibration de la difficulté depuis ADR-028 et **pas** l'écriture de la
-   * preuve — d'où, le 01/08/2026, une preuve à toutes dimensions nulles écrite
+   * l'Observation — d'où, le 01/08/2026, une Observation à toutes dimensions nulles écrite
    * depuis un abandon d'1 minute sur 20 estimées, qui a fait tomber DEV-01 de
    * 2,7 à 2,3. « L'absence de mesure n'est pas un zéro » (P2) était tenu d'un
    * côté et rompu de l'autre.
    *
    * La tentative reste écrite en base : c'est un fait observé, et `verdictTentative`
    * la lit pour expliquer pourquoi aucune difficulté n'est conseillée. Seul le
-   * journal de preuves — la chaîne qui fait bouger un niveau — la refuse.
+   * journal des Observations — la chaîne qui fait bouger un niveau — la refuse.
    */
   const menee = tentativeMenee(
     { resultat: soumission.resultat, dureeMin: soumission.dureeMin },
@@ -302,7 +302,7 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
   const qualite = qualiteDepuisDifficulte(exercice.difficulte, autonomie);
 
   // La réponse est une production durable avant d'être une mesure. On la
-  // conserve dans le corpus puis on fige exactement cet état : l'évidence
+  // conserve dans le corpus puis on fige exactement cet état : la Preuve
   // pointera vers le snapshot, jamais vers un contenu éditable ultérieur.
   const production = construireDocumentProductionPreuve(exercice, tentative, date);
   const provenanceDocument = await capturerDocumentProduction(
@@ -318,10 +318,10 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
     (contenuMd) => ajouterPassageFiche(contenuMd, tentative),
   );
 
-  // Une preuve par compétence ciblée. Les compétences secondaires sont
-  // enregistrées comme preuve indirecte (niveau B), pas directe.
-  const preuves: SkillEvidence[] = exercice.competences.map((code, index) => ({
-    id: nouvelId("ev"),
+  // Une observation par compétence ciblée. Les compétences secondaires sont
+  // enregistrées comme observation indirecte (niveau B), pas directe.
+  const observations: SkillObservation[] = exercice.competences.map((code, index) => ({
+    id: nouvelId("obs"),
     skillCode: code,
     date,
     type:
@@ -332,7 +332,7 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
           : exercice.type === "calcul"
             ? "calcul" as const
             : "exercice" as const,
-    niveauPreuve: (index === 0 ? "A" : "B") as "A" | "B",
+    niveauObservation: (index === 0 ? "A" : "B") as "A" | "B",
     autonomie,
     qualite,
     resultat: soumission.resultat,
@@ -356,7 +356,7 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
       .filter(Boolean)
       .join(" · ") || undefined,
   }));
-  await ajouterPlusieurs("evidence", preuves, dorsale);
+  await ajouterPlusieurs("observations", observations, dorsale);
 
   // Une entrée de journal est produite automatiquement (instructions §15 :
   // la maintenance du système se fait en arrière-plan) — sauf si l'exercice
@@ -396,11 +396,11 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
  * 1. `attempts.verdict_tuteur` peut manquer sur une base dont le schéma de
  *    référence n'est pas à jour : l'écriture échouerait.
  * 2. Surtout : **un conseil perdu ne doit pas empêcher l'écriture d'une
- *    preuve.** La preuve est la seule chose que ce produit garantit ; le
+ *    Observation.** L'Observation est la seule mesure que ce produit garantit ; le
  *    verdict est un commentaire à côté. Les lier ferait dépendre la mesure
  *    d'un texte, ce qui est l'inverse de tout ce que le moteur défend.
  *
- * D'où l'ordre : la preuve et le journal sont déjà écrits quand cette fonction
+ * D'où l'ordre : l'Observation et le journal sont déjà écrits quand cette fonction
  * s'exécute, et son échec est avalé après avoir été journalisé. Un verdict
  * absent se lit comme un bilan rempli sans assistance — ce qui est vrai du
  * point de vue de la mesure.
@@ -422,7 +422,7 @@ async function archiverVerdict(
     // Journalisé et non tu : un verdict qui disparaît en silence redeviendrait
     // le défaut que ce lot corrige, une couche plus bas.
     console.warn(
-      `[verdict] archivage impossible pour ${soumission.attemptId} — la preuve, elle, est écrite. ` +
+      `[verdict] archivage impossible pour ${soumission.attemptId} — l'Observation, elle, est écrite. ` +
         `Si « verdict_tuteur » est inconnue, applique le schéma de référence courant.`,
       e,
     );
@@ -433,7 +433,7 @@ async function archiverVerdict(
  * Clôt une tentative sans en rien conclure — le troisième chemin de clôture.
  *
  * Il en existait deux, et tous deux passaient par `terminerExercice` : la
- * preuve écrite, et l'abandon *dérivé* d'une durée dérisoire (`tentativeMenee`,
+ * Observation écrite, et l'abandon *dérivé* d'une durée dérisoire (`tentativeMenee`,
  * ADR-030). Les deux exigent une évaluation, donc un bilan ouvert, donc
  * — depuis la règle de la réponse écrite — une réponse rédigée. Une tentative
  * qu'on ne veut pas mener n'aurait plus eu de sortie : elle serait restée
@@ -442,7 +442,7 @@ async function archiverVerdict(
  *
  * Ce que cette fonction n'écrit pas est aussi important que ce qu'elle écrit :
  *
- * - **aucune preuve.** L'abandon n'est pas un échec. Un échec est une mesure,
+ * - **aucune observation.** L'abandon n'est pas un échec. Un échec est une mesure,
  *   il exige qu'on ait essayé ; un abandon dit seulement qu'on n'a pas essayé.
  *   Les confondre ferait tomber un niveau sur un renoncement (P2, et c'est
  *   exactement le défaut du 01/08/2026 corrigé par ADR-030).
@@ -484,7 +484,7 @@ export async function abandonnerExercice(
    * C'est ce chemin qui a produit `att-mst5fis8-rfsu6` : exercice ouvert le
    * 14/08/2026 à 18 h 15, abandonné le 15 à 11 h 11, `duree_min = 1015`.
    * `dureeMin` est du temps d'horloge, pas du temps travaillé ; une tentative
-   * abandonnée n'écrit aucune preuve, et le temps qu'on lui retient ne peut pas
+   * abandonnée n'écrit aucune observation, et le temps qu'on lui retient ne peut pas
    * dépasser ce que l'exercice était censé demander. Le repli à 1 min pour une
    * valeur inexploitable est conservé — il n'invente rien, il note qu'il s'est
    * passé quelque chose de bref.
@@ -514,7 +514,7 @@ export async function abandonnerExercice(
         domaines: [exercice.domaine],
         skillCodes: exercice.competences,
         activites: [{ type: "exercice", ref: exercice.id, libelle: exercice.titre }],
-        resultat: "Tentative abandonnée — aucune preuve enregistrée",
+        resultat: "Tentative abandonnée — aucune observation enregistrée",
         difficulte: `Difficulté ${exercice.difficulte}/5 · ${duree} min sur ${exercice.dureeEstimeeMin} estimées`,
         genereAutomatiquement: true,
       } satisfies LearningSession,
@@ -571,7 +571,7 @@ export async function creerExercice(soumission: SoumissionExerciceManuel): Promi
   const dorsale = await dorsaleCompte();
   const referentiel = await lireReferentiel(dorsale);
 
-  // Un exercice attaché à une compétence inexistante produirait des preuves que
+  // Un exercice attaché à une compétence inexistante produirait des observations que
   // rien ne lirait — exactement ce que `dansLePerimetre` filtre déjà côté
   // lecture, mais refusé ici à l'écriture plutôt que masqué à l'affichage.
   const inconnues = soumission.competences.filter((c) => !referentiel.codesActifs.has(c));
@@ -621,7 +621,7 @@ export type SoumissionEditionExercice = Omit<SoumissionExerciceManuel, "origine"
  *
  * ## Ce qui ne se modifie pas, et pourquoi
  *
- * - **`id`** — c'est ce que les preuves et le journal citent (`source.ref`).
+ * - **`id`** — c'est ce que les observations et le journal citent (`source.ref`).
  * - **`origine`** — le fait qu'un énoncé ait été rédigé par le tuteur ne cesse
  *   pas d'être vrai parce qu'on en corrige une phrase (ADR-004). Le champ dit
  *   d'où vient l'exercice, pas qui l'a retouché en dernier.
@@ -630,7 +630,7 @@ export type SoumissionEditionExercice = Omit<SoumissionExerciceManuel, "origine"
  *
  * ## Ce que l'édition NE répare PAS
  *
- * Les preuves déjà écrites. Elles portent la mesure d'une tentative sur
+ * Les observations déjà écrites. Elles portent la mesure d'une tentative sur
  * l'énoncé **d'alors**, et corriger le texte ne les rend ni plus ni moins
  * justes — les retoucher serait réécrire l'histoire (P4). D'où `modifieLe` :
  * qui relira cet exercice saura qu'il a changé depuis, et l'écran d'édition

@@ -9,7 +9,7 @@
  * « travailler le stoïcisme » traverse cinq domaines (FTS, MEJ, ECV, LRS, AMS),
  * et « japonais + toyotisme » n'a même pas de domaine commun. Le thème couvre
  * ce cas sans toucher au domaine, qui reste la source du préfixe de code
- * (ADR-026) et la cible de la clé étrangère des preuves.
+ * (ADR-026) et la cible de la clé étrangère des observations.
  *
  * ## Pourquoi ce n'est pas une table d'arêtes compétence↔compétence
  *
@@ -70,7 +70,7 @@ export interface NouveauTheme {
  * Identifiant stable d'un thème, dérivé de son libellé.
  *
  * Même mécanique que les codes de compétence : jamais frappé par le tuteur,
- * toujours attribué côté application. Un thème n'a pas de FK de preuve à
+ * toujours attribué côté application. Un thème n'a pas de FK d'observation à
  * protéger comme un code de compétence — une collision se résout par suffixe
  * numérique plutôt que par un motif à deux lettres (pas de préfixe de domaine
  * à réutiliser ici).

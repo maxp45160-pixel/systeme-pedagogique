@@ -15,7 +15,7 @@ import {
  * écrit, pas sur son historique.
  *
  * ⚠️ **Rien de ce qui est écrit ici n'entre dans le moteur.** Une ligne de marge
- * n'est ni une preuve, ni une mesure, ni un niveau : c'est une phrase qu'on
+ * n'est ni une observation, ni une mesure, ni un niveau : c'est une phrase qu'on
  * s'adresse. « Traiter » la remet au point d'entrée unique (`CaptureIntention`,
  * ADR-073), qui décide de la forme — séance, ressource, projet, référentiel — et
  * demande confirmation. Aucune écriture ne part d'ici.
@@ -61,7 +61,7 @@ export function MargeCahier({
             <li key={`${index}-${ligne.texte}`} className="flex flex-wrap items-center gap-2 py-2">
               {/*
                 Cocher est une déclaration, pas une mesure (P5) : « je considère
-                que c'est traité ». Aucune preuve, aucun niveau n'en découle.
+                que c'est traité ». Aucune observation, aucun niveau n'en découle.
               */}
               <form action={basculerLigneMargeAction.bind(null, index)}>
                 <button
