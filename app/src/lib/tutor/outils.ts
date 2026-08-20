@@ -253,6 +253,7 @@ export const OUTIL_INTENTION = "traduire_intention";
 export const OUTIL_EXPLORATION_ADAPTATIVE = "proposer_exploration_adaptative";
 export const OUTIL_MINI_PROJET_ADAPTATIF = "proposer_mini_projet_adaptatif";
 export const OUTIL_EVALUATION_PROJET = "proposer_evaluation_projet";
+export const OUTIL_EVALUATION_EXPLICATION = "proposer_evaluation_explication";
 
 export const APPRECIATIONS_PROJET = [
   "non-demontre",
@@ -807,6 +808,62 @@ export function outilEvaluationProjet(
   };
 }
 
+/**
+ * Outil one-shot d'évaluation de compréhension d'un concept par auto-explication.
+ */
+export function outilEvaluationExplication(): OutilTuteur {
+  return {
+    nom: OUTIL_EVALUATION_EXPLICATION,
+    description:
+      "Évalue l'auto-explication d'un concept par l'apprenant. Vérifie la compréhension réelle, les points clés maîtrisés et les éléments manquants.",
+    schema: {
+      type: "object",
+      properties: {
+        resultat: {
+          type: "string",
+          enum: ["reussi", "partiel", "echec"],
+          description: "reussi = concept compris et expliqué correctement ; partiel = intuition présente mais imprécisions importantes ; echec = contre-sens ou hors sujet",
+        },
+        score_comprehension: {
+          type: "number",
+          description: "Note de 0.0 à 1.0 évaluant la clarté et l'exactitude de la compréhension conceptuelle.",
+        },
+        score_justification: {
+          type: "number",
+          description: "Note de 0.0 à 1.0 évaluant la capacité à expliquer le pourquoi et le comment.",
+        },
+        points_cles: {
+          type: "array",
+          items: { type: "string" },
+          description: "Aspects clés du concept qui ont été correctement expliqués.",
+        },
+        points_manquants: {
+          type: "array",
+          items: { type: "string" },
+          description: "Aspects importants omis, imprécis ou erronés.",
+        },
+        feedback_formatif: {
+          type: "string",
+          description: "Commentaire pédagogique concis et constructif.",
+        },
+        conseil_suivant: {
+          type: "string",
+          description: "Conseil court pour l'étape suivante.",
+        },
+      },
+      required: [
+        "resultat",
+        "score_comprehension",
+        "score_justification",
+        "points_cles",
+        "points_manquants",
+        "feedback_formatif",
+        "conseil_suivant",
+      ],
+    },
+  };
+}
+
 /** Les trois évolutions possibles d'une compétence maîtrisée (ADR-042). */
 export const EVOLUTIONS = ["successeur", "elargissement", "retrait"] as const;
 
@@ -1277,12 +1334,23 @@ function dansEnum(valeur: unknown, valeurs: readonly string[]): string {
  * cartes du chat, le formulaire de création et l'écran de validation du
  * référentiel ne changent pas. La bascule est interne au tuteur.
  */
+export interface PropositionEvaluationExplication {
+  resultat: "reussi" | "partiel" | "echec";
+  scoreComprehension: number;
+  scoreJustification: number;
+  pointsCles: string[];
+  pointsManquants: string[];
+  feedbackFormatif: string;
+  conseilSuivant: string;
+}
+
 export type PropositionRecue =
   | { genre: "exercice"; exercice: PropositionExercice }
   | { genre: "referentiel"; branche: PropositionReferentiel }
   | { genre: "correction"; correction: PropositionCorrection }
   | { genre: "contenu-activite"; contenu: PropositionContenuActivite }
   | { genre: "evaluation-projet"; evaluation: PropositionEvaluationProjet }
+  | { genre: "evaluation-explication"; evaluation: PropositionEvaluationExplication }
   | { genre: "evolution"; evolution: PropositionEvolution }
   | { genre: "revision"; revision: PropositionRevision }
   | { genre: "relations"; relations: PropositionRelations }
@@ -1752,6 +1820,63 @@ function validerEvaluationProjet(
   }
 
   return { genre: "evaluation-projet", evaluation: { criteres, synthese, reserves } };
+}
+
+function validerEvaluationExplication(
+  entree: Record<string, unknown>,
+): PropositionRecue | null {
+  if (
+    !clesExactes(entree, [
+      "resultat",
+      "score_comprehension",
+      "score_justification",
+      "points_cles",
+      "points_manquants",
+      "feedback_formatif",
+      "conseil_suivant",
+    ])
+  ) {
+    return null;
+  }
+
+  const resultat = dansEnum(entree.resultat, ["reussi", "partiel", "echec"] as const);
+  if (!resultat) return null;
+
+  const scoreComp = typeof entree.score_comprehension === "number" ? entree.score_comprehension : null;
+  const scoreJust = typeof entree.score_justification === "number" ? entree.score_justification : null;
+  if (scoreComp === null || scoreComp < 0 || scoreComp > 1) return null;
+  if (scoreJust === null || scoreJust < 0 || scoreJust > 1) return null;
+
+  if (!Array.isArray(entree.points_cles) || !Array.isArray(entree.points_manquants)) return null;
+  const pointsCles: string[] = [];
+  for (const item of entree.points_cles) {
+    const p = texteBorne(item, 500);
+    if (p === null) return null;
+    pointsCles.push(p);
+  }
+  const pointsManquants: string[] = [];
+  for (const item of entree.points_manquants) {
+    const p = texteBorne(item, 500);
+    if (p === null) return null;
+    pointsManquants.push(p);
+  }
+
+  const feedbackFormatif = texteBorne(entree.feedback_formatif, 1_500);
+  const conseilSuivant = texteBorne(entree.conseil_suivant, 800);
+  if (feedbackFormatif === null || conseilSuivant === null) return null;
+
+  return {
+    genre: "evaluation-explication",
+    evaluation: {
+      resultat: resultat as "reussi" | "partiel" | "echec",
+      scoreComprehension: Math.round(scoreComp * 100) / 100,
+      scoreJustification: Math.round(scoreJust * 100) / 100,
+      pointsCles,
+      pointsManquants,
+      feedbackFormatif,
+      conseilSuivant,
+    },
+  };
 }
 
 function validerExercice(entree: Record<string, unknown>): PropositionRecue | null {
@@ -2287,6 +2412,8 @@ export function validerAppelOutil(
       return validerMiniProjetAdaptatif(donnees);
     case OUTIL_EVALUATION_PROJET:
       return validerEvaluationProjet(donnees, idsCriteresEvaluation(outils));
+    case OUTIL_EVALUATION_EXPLICATION:
+      return validerEvaluationExplication(donnees);
     case OUTIL_EVOLUTION:
       return validerEvolution(donnees);
     case OUTIL_REVISION:

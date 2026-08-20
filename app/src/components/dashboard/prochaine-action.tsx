@@ -232,6 +232,14 @@ export function CarteProchaineAction({
                     <IconeFleche className="size-4" />
                   </Bouton>
                 </form>
+              ) : etat.niveau === 0 ? (
+                <Link
+                  href={`/expliquer?code=${encodeURIComponent(etat.skill.code)}`}
+                  className={classesLienBouton("principal")}
+                >
+                  Expliquer le concept
+                  <IconeFleche className="size-4" />
+                </Link>
               ) : (
                 <Link
                   href={`/seances?composer=1&code=${encodeURIComponent(etat.skill.code)}&temps=${encodeURIComponent(String(instant?.tempsMin ?? dureeEstimeeMin))}`}
