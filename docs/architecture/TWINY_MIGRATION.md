@@ -704,3 +704,80 @@ nouvelle vers sa source exacte sans réécrire les 52 lignes historiques, rendre
 la clôture atomique, valider les données Supabase avant leur entrée dans le
 moteur et intégrer `competence_domaines` au chargement. Ne commencer ni carte
 globale, ni overlay, ni objectif structuré, ni état persisté, ni bascule UI.
+
+### Passage de relais — lot 2 terminé — 20/08/2026
+
+**État réel : lot 2 terminé.** La révision applicative
+`a11728c86cc199c6a9e19559c42cee2b7bcff24c` a été publiée sur `master`, puis
+déployée avec un statut Vercel `success` avant l'activation des gardes SQL. Les
+deux migrations distantes effectives sont
+`20260820124601_twiny_lot_2_provenance_transaction_chargement` et
+`20260820130527_activer_frontiere_cloture_lot_2`. Le déploiement en deux phases
+évite qu'une ancienne version du client rencontre les gardes avant de savoir
+appeler la nouvelle RPC.
+
+**Décisions humaines appliquées.** Les 53 Observations antérieures au lot 2
+n'ont reçu aucune provenance inventée. Pour toute nouvelle Observation issue
+d'un exercice, `source.ref` conserve l'identifiant d'exercice exigé par le
+contrat existant et `source.trace = { kind: "tentative", ref: tentativeId }`
+désigne la tentative exacte. Aucun concept cible n'est devenu une nouvelle
+table ou entité, `LearningSession` reste la séance métier, le moteur reçoit
+toujours le référentiel en paramètre et aucun seuil, score ou état dérivable
+n'a été modifié ou persisté. Aucun statut d'architecture n'a été promu.
+
+**Frontière transactionnelle.** `clore_exercice(jsonb,jsonb,jsonb,text)` est
+une RPC `SECURITY INVOKER`. Sous RLS et `auth.uid()`, une seule transaction
+verrouille la tentative, la clôt, écrit toutes ses Observations obligatoires et
+journalise au plus une séance. Une tentative terminée sans Observation est
+refusée ; une tentative abandonnée n'en accepte aucune. Le rejeu d'un abandon
+est sans effet et une tentative déjà terminée ne peut pas être soumise deux
+fois. Trois triggers interdisent désormais de contourner cette frontière par
+une clôture directe, une insertion directe d'Observation ou une séance
+automatique d'exercice directe.
+
+**Validation et chargement.** Les résultats Supabase sont validés à la
+frontière store vers domaine/moteur, y compris les chemins RPC et de repli. Une
+donnée invalide provoque une erreur explicite ; aucun défaut ou remplacement
+n'est fabriqué. `charger_tout()` charge maintenant `competence_domaines` et le
+référentiel les assemble avec des contrôles explicites des rattachements
+invalides, dupliqués ou incohérents. Le repli n'est utilisé que lorsque la RPC
+est absente, pas pour masquer une réponse invalide.
+
+**Mesures et tests.** Après activation, les trois triggers sont présents. Les
+écritures directes des trois catégories ont été refusées dans une transaction
+annulée. Une clôture RPC d'abandon a réussi, n'a produit aucune Observation ni
+double séance, puis son rejeu a répondu sans nouvelle écriture ; toutes les
+lignes de test ont été annulées. Les essais préparatoires avaient aussi validé
+la clôture terminée avec provenance injectée, le rollback sur échec partiel et
+l'isolation inter-comptes. L'état réel reste : 53 Observations, 60 tentatives,
+61 séances, zéro `competence_domaines`. L'empreinte des Observations est restée
+`66972bffbae433b06ede89e9c2826757`. La séance résiduelle
+`ses-mt1du9ou-6zd68`, créée avant le correctif du lot 1, est toujours
+`en-cours`. Avant publication : 40 tests ciblés, puis 1 241 tests sur 86
+fichiers, `verify` réussi avec les cinq avertissements préexistants, build de
+28 pages réussi et `git diff --check` propre hors avertissements LF/CRLF.
+
+**Advisors post-activation.** Aucun nouvel avis n'est attribuable au lot 2.
+Sécurité conserve les quatre avis antérieurs : trois fonctions administratives
+`SECURITY DEFINER` exécutables par les utilisateurs authentifiés et la
+protection contre les mots de passe compromis désactivée. Performance conserve
+deux clés étrangères non indexées, sept `auth_rls_initplan`, quatre index non
+utilisés et les politiques permissives multiples de `profiles`. Ces éléments
+sont hors périmètre et n'ont pas été modifiés.
+
+**Retour arrière compatible.** En cas de retour applicatif, supprimer d'abord
+les trois triggers `attempts_cloture_atomique`,
+`observations_source_exacte` et `sessions_exercice_atomique`, puis redéployer
+la révision publiée précédente
+`2757ed5d61eea24f44720b353105da6fdbe0ff5b`. Une fois l'ancien client actif,
+les fonctions/RPC additives peuvent être retirées et `charger_tout()` restauré
+sans la clé `competence_domaines` si nécessaire. Ne réécrire ni supprimer les
+Observations créées entre-temps : leur `source.ref` reste lisible par l'ancien
+contrat et leur `source.trace` est additive. Aucun rollback de données ni
+backfill de provenance historique n'est autorisé.
+
+**Passage au lot 3.** Le lot 3 n'est pas commencé. Son cadrage doit repartir du
+modèle cible et faire l'objet de décisions humaines propres ; ce passage de
+relais n'autorise ni carte globale, ni overlay privé, ni objectifs structurés,
+ni scores ou états persistés, ni bascule UI, ni conversion automatique du
+corpus en Connaissances.
