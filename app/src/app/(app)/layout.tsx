@@ -10,7 +10,7 @@ import { ProfilTracker } from "@/components/dev/profil-tracker";
 import { ProfilFlottant } from "@/components/dev/profil-flottant";
 import { TuteurGlobal } from "@/components/tuteur/tuteur-global";
 import { resoudreIdentite } from "@/lib/domain/identite";
-import { FournisseurIntention } from "@/components/intention/contexte-intention";
+import { FournisseurIntention } from "@/components/intention/fournisseur-intention";
 import { FournisseurOnboarding } from "@/components/onboarding/onboarding-context";
 import { PastillePomodoroGlobale } from "@/components/seances/pomodoro";
 

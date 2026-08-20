@@ -133,8 +133,8 @@ export default async function Layout() {
       `<Modale titre="De quoi as-tu besoin ?" />`,
     );
 
-    const contexte = analyser(
-      "components/intention/contexte-intention.tsx",
+    const fournisseur = analyser(
+      "components/intention/fournisseur-intention.tsx",
       `import { CaptureIntention } from "./capture-intention";
 export function FournisseurIntention() { return <CaptureIntention />; }`,
     );
@@ -142,7 +142,7 @@ export function FournisseurIntention() { return <CaptureIntention />; }`,
     const layout = analyser(
       "app/(app)/layout.tsx",
       `
-import { FournisseurIntention } from "@/components/intention/contexte-intention";
+import { FournisseurIntention } from "@/components/intention/fournisseur-intention";
 export default async function Layout() {
   return <FournisseurIntention />;
 }
@@ -151,7 +151,7 @@ export default async function Layout() {
 
     const analyses = new Map<string, FichierAstAnalyse>();
     analyses.set("components/intention/capture-intention.tsx", capture);
-    analyses.set("components/intention/contexte-intention.tsx", contexte);
+    analyses.set("components/intention/fournisseur-intention.tsx", fournisseur);
     analyses.set("app/(app)/layout.tsx", layout);
 
     const resultat = resoudreSurfacesPartagees(analyses);
