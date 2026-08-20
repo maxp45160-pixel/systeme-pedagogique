@@ -154,10 +154,9 @@ export interface ReponsesOrientation {
 export interface ProfilSynthetise {
   sujet: string;
   formation: string;
-  objectifMoyenTerme: string;
-  objectifLongTerme: string;
+  intentionDeDepart: string;
   preferencesPedagogiques: string[];
-  plan: string;
+  rythmePropose: string;
 }
 
 /**
@@ -176,24 +175,20 @@ export function synthetiserProfilDeterministe(
     "Point de départ en cours de définition";
 
   // Formuler un objectif moyen terme pertinent selon le sujet et le niveau
-  let objectifMoyenTerme = "";
+  let intentionDeDepart = "";
   if (sujetPropre) {
     if (niveau?.id === "debutant") {
-      objectifMoyenTerme = `Acquérir les fondamentaux solides et réussir mes premiers exercices autonomes sur ${sujetPropre}`;
+      intentionDeDepart = `Acquérir les fondamentaux solides et réussir mes premiers exercices autonomes sur ${sujetPropre}`;
     } else if (niveau?.id === "autodidacte") {
-      objectifMoyenTerme = `Combler les angles morts, structurer mes connaissances et gagner en rigueur sur ${sujetPropre}`;
+      intentionDeDepart = `Combler les angles morts, structurer mes connaissances et gagner en rigueur sur ${sujetPropre}`;
     } else if (niveau?.id === "professionnel") {
-      objectifMoyenTerme = `Maîtriser les savoir-faire opérationnels avancés et les appliquer directement à mes projets sur ${sujetPropre}`;
+      intentionDeDepart = `Maîtriser les savoir-faire opérationnels avancés et les appliquer directement à mes projets sur ${sujetPropre}`;
     } else {
-      objectifMoyenTerme = `Développer une pratique autonome et rigoureuse sur ${sujetPropre}`;
+      intentionDeDepart = `Développer une pratique autonome et rigoureuse sur ${sujetPropre}`;
     }
   } else {
-    objectifMoyenTerme = "Consolider mes compétences et mesurer ma progression réelle";
+    intentionDeDepart = "Consolider mes compétences et mesurer ma progression réelle";
   }
-
-  const objectifLongTerme = sujetPropre
-    ? `Atteindre une autonomie complète et un haut niveau d'expertise sur ${sujetPropre}`
-    : "Maîtrise approfondie et durable";
 
   const preferencesPedagogiques =
     reponses.preferencesChoisies.length > 0
@@ -201,7 +196,7 @@ export function synthetiserProfilDeterministe(
       : ["Pratiquer d'abord", "Des cas concrets"];
 
   const heures = reponses.rythmeHebdoHeures ?? 2;
-  const plan = [
+  const rythmePropose = [
     `Priorité : consolider les compétences clés de ${sujetPropre || "mon parcours"}.`,
     `Rythme visé : environ ${heures}h par semaine en séances régulières.`,
     `Approche : ${preferencesPedagogiques.join(", ")}.`,
@@ -210,9 +205,8 @@ export function synthetiserProfilDeterministe(
   return {
     sujet: sujetPropre,
     formation,
-    objectifMoyenTerme,
-    objectifLongTerme,
+    intentionDeDepart,
     preferencesPedagogiques,
-    plan,
+    rythmePropose,
   };
 }

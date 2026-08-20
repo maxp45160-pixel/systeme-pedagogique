@@ -5,7 +5,7 @@
  *
  * Le tuteur n'est plus une destination de navigation : il devient un tiroir,
  * ouvert là où poser une question a un sens — pendant une tentative (workspace
- * `/seances`), ou sur une fiche compétence (`/competences/[code]`).
+ * `/seances`), ou depuis l’Atelier.
  *
  * Le tiroir garde l'énoncé visible pendant la demande d'aide.
  *
@@ -15,7 +15,7 @@
  * Depuis le 07/08/2026 le tiroir a aussi un déclencheur **flottant**, monté
  * globalement (`tuteur-global.tsx`) : le bouton rond en bas à droite ouvre le
  * panneau sans faire perdre la page en cours. Il est
- * masqué là où une entrée contextuelle, mieux renseignée, existe déjà.
+ * contextuel reste disponible depuis le nouveau hub Atelier.
  */
 
 import { useState, useTransition } from "react";

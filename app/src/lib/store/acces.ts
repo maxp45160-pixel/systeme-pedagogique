@@ -77,7 +77,6 @@ export async function listerComptes(): Promise<CompteAdministre[]> {
     userId: l.user_id as string,
     email: (l.email as string | null) ?? null,
     prenom: (l.prenom as string | null) ?? null,
-    plan: (l.plan as string | null) ?? null,
     role: typeof l.role === "string" && estRoleConnu(l.role) ? l.role : "membre",
     suspenduLe: (l.suspendu_le as string | null) ?? null,
     motif: (l.motif as string | null) ?? null,

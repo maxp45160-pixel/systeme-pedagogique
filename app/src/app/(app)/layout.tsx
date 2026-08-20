@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { compteCourant } from "@/lib/supabase/server";
 import { lireAccesCourant } from "@/lib/store/acces";
@@ -18,8 +17,7 @@ import { PastillePomodoroGlobale } from "@/components/seances/pomodoro";
 /**
  * Cadre du carnet : rail de navigation, marge.
  *
- * Le groupe `(app)` n'apparaît pas dans les URL : `/competences` reste
- * `/competences`. Il sépare seulement les pages qui ont besoin du cadre de
+ * Le groupe `(app)` n'apparaît pas dans les URL. Il sépare les pages qui ont besoin du cadre de
  * celles qui n'en veulent pas (connexion, retour OAuth).
  */
 export default async function AppLayout({

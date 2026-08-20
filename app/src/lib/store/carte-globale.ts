@@ -2,18 +2,24 @@ import "server-only";
 
 import { cache } from "react";
 
-import type { CarteGlobale, SelectionCarteGlobale } from "@/lib/domain/carte-globale";
+import type {
+  CarteGlobale,
+  CorrespondanceCarteGlobale,
+  SelectionCarteGlobale,
+} from "@/lib/domain/carte-globale";
 import { dorsaleCompte, type DorsaleCompte } from "./db";
 import { ligneVersEntite, verifier } from "./supabase-backend";
 import {
   validerElementGlobal,
   validerRelationGlobale,
   validerSelectionCarteGlobale,
+  validerCorrespondanceCarteGlobale,
 } from "./validation-carte-globale";
 import { validerLignesSupabase } from "./validation-supabase";
 
 const COLONNES_ELEMENT = "id,type,nom,description,statut,provenance,version,valide_le";
 const COLONNES_RELATION = "id,source_id,cible_id,type,statut,provenance,version,valide_le";
+const COLONNES_CORRESPONDANCE = "competence_code,element_global_id,acteur,provenance,rattache_le";
 
 export async function lireCarteGlobale(
   dorsaleFournie?: DorsaleCompte,
@@ -60,5 +66,24 @@ export async function lireSelectionsCarteGlobale(
   );
 }
 
+export async function lireCorrespondancesCarteGlobale(
+  dorsaleFournie?: DorsaleCompte,
+): Promise<CorrespondanceCarteGlobale[]> {
+  const { supabase, userId } = dorsaleFournie ?? (await dorsaleCompte());
+  const { data, error } = await supabase
+    .from("carte_globale_correspondances")
+    .select(COLONNES_CORRESPONDANCE)
+    .eq("user_id", userId)
+    .order("rattache_le", { ascending: true });
+  verifier("lecture des correspondances locales et globales", error);
+  return validerLignesSupabase(data, "carteGlobale.correspondances").map((ligne, index) =>
+    validerCorrespondanceCarteGlobale(
+      ligneVersEntite(ligne),
+      `carteGlobale.correspondances[${index}]`,
+    ),
+  );
+}
+
 export const chargerCarteGlobale = cache(lireCarteGlobale);
 export const chargerSelectionsCarteGlobale = cache(lireSelectionsCarteGlobale);
+export const chargerCorrespondancesCarteGlobale = cache(lireCorrespondancesCarteGlobale);

@@ -21,6 +21,7 @@ import { Markdown } from "@/components/ui/markdown";
 import { BilanAssiste } from "@/components/exercices/bilan-assiste";
 import { BoutonAbandon } from "@/components/exercices/abandon";
 import { BoutonEditer } from "@/components/exercices/bouton-editer";
+import { BoutonRetirerExercice } from "@/components/exercices/bouton-retirer";
 import { ZoneReponse } from "@/components/exercices/zone-reponse";
 import { FocusActe } from "@/components/exercices/focus-acte";
 import { motifBlocageBilan, reponseSuffisante } from "@/lib/domain/tentative";
@@ -347,7 +348,17 @@ export async function VueExercice(props: {
             seule (tentative archivée).
           */}
           {!props.lectureSeule && !enCours && (
-            <BoutonEditer exercice={exercice} tentatives={tentatives.length} />
+            <>
+              <BoutonEditer exercice={exercice} tentatives={tentatives.length} />
+              {!tentatives.some((tentative) => tentative.statut === "en-cours") && (
+                <BoutonRetirerExercice
+                  exerciceId={exercice.id}
+                  titre={exercice.titre}
+                  tentatives={tentatives.length}
+                  destination={navigation ? `/seances?session=${encodeURIComponent(navigation.seanceId)}` : "/atelier"}
+                />
+              )}
+            </>
           )}
         </div>
 

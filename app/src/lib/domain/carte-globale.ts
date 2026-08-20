@@ -9,7 +9,13 @@
 export const TYPES_ELEMENT_GLOBAL = ["domaine", "connaissance", "competence"] as const;
 export type TypeElementGlobal = (typeof TYPES_ELEMENT_GLOBAL)[number];
 
-export const TYPES_RELATION_GLOBALE = ["PART_OF", "RELATED_TO"] as const;
+export const TYPES_RELATION_GLOBALE = [
+  "PART_OF",
+  "PREREQUISITE_OF",
+  "RELATED_TO",
+  "APPLIED_IN",
+  "ENABLES",
+] as const;
 export type TypeRelationGlobale = (typeof TYPES_RELATION_GLOBALE)[number];
 
 export type StatutGlobal = "publie" | "retire";
@@ -44,6 +50,14 @@ export interface RelationGlobale {
 export interface SelectionCarteGlobale {
   elementId: string;
   selectionneLe: string;
+}
+
+export interface CorrespondanceCarteGlobale {
+  competenceCode: string;
+  elementGlobalId: string;
+  acteur: "personne" | "systeme";
+  provenance: ProvenanceGlobale;
+  rattacheLe: string;
 }
 
 export interface CarteGlobale {

@@ -143,8 +143,8 @@ export function navigationPour(administrateur: boolean): GroupeNav[] {
 
 /**
  * Une destination est « active » si l'URL courante l'égale ou en descend —
- * `/competences/domaine/x` active l'entrée `/competences`, mais une autre route
- * n'active pas `/`. Partagée entre le rail (desktop) et la barre basse
+ * une route enfant active son entrée parente, mais une autre route n'active
+ * pas `/`. Partagée entre le rail (desktop) et la barre basse
  * (mobile) : les deux doivent s'accorder sur la même page courante, pas
  * chacune sa propre règle.
  */

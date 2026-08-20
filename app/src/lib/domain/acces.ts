@@ -30,7 +30,6 @@ export interface CompteAdministre {
   userId: string;
   email: string | null;
   prenom: string | null;
-  plan: string | null;
   role: RoleCompte;
   /** ISO, ou `null` si l'accès est ouvert. */
   suspenduLe: string | null;

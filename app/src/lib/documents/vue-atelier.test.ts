@@ -75,6 +75,8 @@ const etat = (skill: Skill, observations: SkillObservation[] = []): SkillState =
   statut: observations.length > 0 ? "evalue" : "non-evalue",
 });
 
+const etatsLot5 = (...etats: SkillState[]) => etats.map(construireEtatCompetence);
+
 const exercice: Exercise = {
   id: "exercice-flux",
   titre: "Diagnostiquer un flux",
@@ -137,6 +139,12 @@ describe("construireVuesAtelier", () => {
       [exercice],
       [tentative],
       index,
+      [],
+      [],
+      new Set(),
+      [],
+      etatsLot5(etat(competence, [observation]), etat(suivante)),
+      [],
     );
 
     expect(vues.domaines[0]).toMatchObject({
@@ -175,6 +183,12 @@ describe("construireVuesAtelier", () => {
       [],
       [],
       index,
+      [],
+      [],
+      new Set(),
+      [],
+      etatsLot5(etat(competence), etat(suivante)),
+      [],
     );
 
     expect(vues.competences[0]).toMatchObject({
@@ -265,6 +279,12 @@ describe("construireVuesAtelier", () => {
       [],
       [],
       index,
+      [],
+      [],
+      new Set(),
+      [],
+      etatsLot5(etat(competence), etat(suivante)),
+      [],
     );
 
     expect(vues.domaines.map((domaine) => domaine.id)).toEqual(["logistique", "archive"]);
@@ -295,6 +315,8 @@ describe("construireVuesAtelier", () => {
       [],
       new Set(),
       [theme],
+      etatsLot5(etat(competence, [observation]), etat(suivante)),
+      [],
     );
 
     expect(vues.themes[0]).toMatchObject({
@@ -351,6 +373,12 @@ describe("vue d'une compétence — ce que l'Atelier a le droit de montrer", () 
       [exercice],
       [tentative],
       indexAvecDocuments(),
+      [],
+      [],
+      new Set(),
+      [],
+      etatsLot5(etat(competence, [observation]), etat(suivante)),
+      [],
     );
 
     /*
@@ -367,6 +395,12 @@ describe("vue d'une compétence — ce que l'Atelier a le droit de montrer", () 
       [exercice],
       [tentative],
       indexAvecDocuments(),
+      [],
+      [],
+      new Set(),
+      [],
+      etatsLot5(etat(competence, [observation]), etat(suivante)),
+      [],
     );
 
     /* `source.ref` vaut `tentative-1`, et `production.ts` écrit `preuve-tentative-1`. */
@@ -380,6 +414,12 @@ describe("vue d'une compétence — ce que l'Atelier a le droit de montrer", () 
       [exercice],
       [tentative],
       index,
+      [],
+      [],
+      new Set(),
+      [],
+      etatsLot5(etat(competence, [observation]), etat(suivante)),
+      [],
     );
 
     expect(vues.competences[0].observations[0].documentId).toBeNull();
@@ -392,6 +432,12 @@ describe("vue d'une compétence — ce que l'Atelier a le droit de montrer", () 
       [exercice],
       [tentative],
       index,
+      [],
+      [],
+      new Set(),
+      [],
+      etatsLot5(etat(competence, [observation]), etat(suivante)),
+      [],
     );
 
     /*
@@ -414,6 +460,12 @@ describe("vue d'une compétence — ce que l'Atelier a le droit de montrer", () 
       [exercice],
       [tentative],
       index,
+      [],
+      [],
+      new Set(),
+      [],
+      etatsLot5(etat(competence, [observation]), etat(suivante)),
+      [],
     );
 
     /* Un domaine archivé n'accueille rien : le proposer serait proposer une impasse. */

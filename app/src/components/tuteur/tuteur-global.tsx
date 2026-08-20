@@ -8,16 +8,10 @@
  * lors du premier clic, afin de ne pas ralentir le chargement initial du layout.
  */
 
-import { HorsPageContextuelle } from "@/components/tuteur/hors-page-contextuelle";
 import { TiroirTuteur } from "@/components/tuteur/tiroir-tuteur";
 
 export function TuteurGlobal() {
   return (
-    <HorsPageContextuelle>
-      <TiroirTuteur
-        declencheur="flottant"
-        libelle="Ouvrir le tuteur"
-      />
-    </HorsPageContextuelle>
+    <TiroirTuteur declencheur="flottant" libelle="Ouvrir le tuteur" />
   );
 }

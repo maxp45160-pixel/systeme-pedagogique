@@ -1120,3 +1120,120 @@ local n'était disponible pour une vérification interactive desktop/mobile.
 **Hors périmètre.** Aucun changement DB, migration SQL, seuil ou calibration,
 référentiel global/local, objectif historique, navigation générale,
 LearningSession, donnée privée ou historique n'est inclus.
+
+### Lot 7 — activation du nouveau produit — 20/08/2026
+
+Ce relais décrit l'état réellement atteint. Il ne transforme pas une
+infrastructure locale ou une analyse en décision d'architecture validée.
+
+**État Supabase vérifié avant mutation.** Le projet
+`vxkjzzshlqulexydgfpc` était actif en `eu-central-1` et enregistré jusqu'à la
+migration distante `20260820191500_durcissement_rls_initplan_politiques`. Les
+compteurs lus en lecture seule étaient : 53 Observations, 60 tentatives, 61
+séances, 0 élément global, 0 relation globale, 0 sélection globale, 0 objectif
+structuré, 0 parcours, 0 événement et 0 ligne `competence_domaines`. La table
+`evidence` est absente. Les huit profils portaient encore les champs
+historiques : 7 valeurs non vides pour `objectif_moyen_terme`, 1 pour
+`objectif_long_terme` et 1 pour `plan`.
+
+La seule dépendance SQL restante aux anciens champs était `admin_comptes()`
+qui exposait `plan`. La migration destructive cible donc ces colonnes et cette
+fonction, sans toucher aux Observations, tentatives, séances, exercices,
+documents, snapshots, compétences privées, domaines privés ni journaux.
+
+**Chemin applicatif activé localement.**
+
+- Les relations globales acceptent `PART_OF`, `PREREQUISITE_OF`, `RELATED_TO`,
+  `APPLIED_IN` et `ENABLES`. La fonction canonique refuse les types inconnus,
+  les auto-relations et les incohérences prévues ; toute publication reste
+  sourcée et gouvernée.
+- `carte_globale_correspondances` est la plus petite relation privée retenue
+  pour le rapprochement explicite d'une compétence locale et d'un élément
+  global. Elle est isolée par compte, porte un acteur et une provenance, n'est
+  pas publiée et peut être retirée sans supprimer de fait historique.
+- Progression expose les sections `Ma carte`, `Explorer`, `Objectifs` et
+  `Parcours`. Explorer permet la recherche, la sélection privée, le
+  rattachement confirmé et la création d'un objectif depuis un élément ou une
+  relation. La gestion structurée couvre plusieurs objectifs, leurs cibles,
+  priorité, horizon, échéance et cycle de vie, ainsi que les parcours et le
+  rattachement d'une `LearningSession` existante.
+- Le moteur ne rend une cible globale actionnable localement qu'après une
+  correspondance explicite. Il conserve une réserve lorsqu'elle manque et
+  réordonne la recommandation sans modifier score, seuil ou Observation. Le
+  tuteur reçoit les objectifs et parcours actifs avec leur formulation exacte.
+- Le profil applicatif ne lit plus les trois anciens champs. Les trois routes
+  historiques `/competences` ont été retirées ; l'Atelier est le chemin
+  canonique pour les compétences privées. Les paramètres Twiny nécessaires aux
+  vues sont désormais obligatoires : aucune reconstruction de secours du lot 6
+  ne subsiste.
+
+**Migrations locales.** Trois migrations de référence sont présentes et
+alignées avec `app/supabase/schema.sql` :
+
+1. `20260820190000_twiny_lot_7_correspondances_relations.sql` — relations et
+   correspondances privées ;
+2. `20260820193000_twiny_lot_7_observations_append_only.sql` — politiques
+   lecture/insert, trigger de refus et purge contrôlée ;
+3. `20260820194000_twiny_lot_7_remove_profile_legacy_objectives.sql` — retrait
+   des trois colonnes historiques et remplacement de `admin_comptes()`.
+
+Elles ne sont pas appliquées en production à cette date. L'appel de mutation
+Supabase a été refusé par le contrôle de sécurité parce qu'il s'agit d'une
+modification persistante du schéma, de RLS et d'une fonction sensible. Aucun
+contournement n'a été tenté. L'application distante exige une confirmation
+explicite portant sur ces trois migrations et le projet nommé ci-dessus.
+
+**Catalogue global : proposition, pas publication.** Le catalogue distant est
+encore vide ; aucun contenu n'a été inventé ni semé silencieusement. La
+proposition compacte à soumettre à Maxime contient 18 repères génériques :
+
+- domaines : Développement logiciel, Algorithmique, Données et statistiques,
+  Produits web ;
+- connaissances : Décomposition de problème, Fonctions testables, Structures
+  de données, Modélisation de données, Statistiques descriptives, Contraintes
+  et scénarios ;
+- compétences : décomposer un problème en sous-problèmes exécutables, écrire
+  une fonction à partir d'une spécification, choisir une structure de données,
+  analyser une complexité simple, modéliser les données d'une fonctionnalité,
+  construire un parcours web testable, interpréter une distribution et ses
+  indicateurs, comparer des scénarios sous contraintes.
+
+Les sources proposées sont la [MDN JavaScript Guide](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide), le
+[tutoriel Python officiel](https://docs.python.org/3/tutorial/), le
+[NIST/SEMATECH e-Handbook of Statistical Methods](https://www.itl.nist.gov/div898/handbook/)
+et la [spécification WCAG 2.2 du W3C](https://www.w3.org/TR/WCAG22/). Chaque
+élément et chaque relation devra porter une référence dans sa provenance ; la
+liste et les liens restent à valider avant publication. Le compte
+`maxime.peyredieu@gmail.com` (`d4210770-e9ed-44d8-be57-36d2151f896a`) a été
+identifié en lecture seule, mais aucun curateur n'est encore configuré : sa
+désignation doit être confirmée avec le contenu.
+
+**Observations append-only.** Le schéma local révoque les droits
+`UPDATE`/`DELETE` de la Data API, conserve la lecture et l'insertion contrôlée
+par `cloture_exercice()`, et réserve la suppression complète à
+`purger_observations_compte()` après authentification et contexte de purge. Le
+trigger bloque toute modification individuelle hors de ce chemin. Le refus
+doit encore être testé sur la base distante après application autorisée ; les
+compteurs historiques de production restent donc à vérifier après migration.
+
+**Vérifications locales.** TypeScript et les tests ciblés passent après le
+retrait du fallback et l'ajout du cas de correspondance explicite. La suite
+complète précédente passait avec 91 fichiers et 1 264 tests ; le nouveau cas
+porte la cible à 1 265 tests. Le build local ne rencontre plus l'erreur des
+Server Actions, mais l'environnement courant ne peut pas télécharger les
+polices Google utilisées par `next/font`. Le build avec réseau et le smoke test
+de production restent à faire.
+
+**Ce qui a changé pour l'utilisateur.** En local, Progression devient le hub
+visible de la carte personnelle : exploration globale, sélection privée,
+rattachement explicite, objectifs multiples et parcours sont accessibles au
+même endroit. Une cible globale reliée peut rendre une compétence locale
+actionnable et expliquer la priorité affichée, sans fabriquer d'état global.
+Le profil et le tuteur utilisent le nouveau contrat structuré.
+
+**Ce qui reste encore impossible.** La carte globale de production reste vide
+tant que le contenu exact n'a pas reçu `GO contenu` et qu'un curateur humain
+n'a pas été confirmé. Les trois migrations ne sont pas encore déployées ; les
+refus RLS append-only, l'isolation entre les deux comptes après migration, le
+smoke test réel et la vérification finale de production ne peuvent donc pas
+être affirmés.

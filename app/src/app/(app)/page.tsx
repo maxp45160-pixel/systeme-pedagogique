@@ -7,6 +7,7 @@ import { SquelettePage } from "@/components/layout/squelette";
 import { calculerActivite } from "@/lib/engine/historique";
 import { CarteSeanceActive } from "@/components/dashboard/carte-seance-active";
 import { CarteProchaineAction } from "@/components/dashboard/prochaine-action";
+import { PilotageTwiny } from "@/components/dashboard/pilotage-twiny";
 import { CaptureNotes } from "@/components/dashboard/capture-notes";
 import { ChoixTravail } from "@/components/dashboard/choix-travail";
 import { lireApercusDocuments } from "@/lib/store/documents";
@@ -187,6 +188,12 @@ async function ContenuTableauDeBord({
           </div>
         </BandeauInfo>
       )}
+
+      <PilotageTwiny
+        carte={ctx.carteIndividuelle}
+        espace={ctx.espaceActif}
+        recommandation={ctx.recommandations[0]}
+      />
 
       {/* Action prioritaire (reprise de séance ou action recommandée) */}
       <div className="[&>*]:min-w-0">

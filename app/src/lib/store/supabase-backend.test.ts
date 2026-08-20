@@ -181,8 +181,6 @@ describe("profil", () => {
     id: "compte-1",
     prenom: "alice",
     formation: "Formation à renseigner",
-    objectifMoyenTerme: "MT",
-    objectifLongTerme: "LT",
     debutSuivi: "2026-07-26",
     preferencesPedagogiques: [],
   };
@@ -193,8 +191,6 @@ describe("profil", () => {
         id: "compte-1",
         prenom: "Alice",
         formation: "  ",
-        objectif_moyen_terme: "MT",
-        objectif_long_terme: "LT",
         debut_suivi: "2026-07-26",
         preferences_pedagogiques: [],
       },
@@ -208,8 +204,6 @@ describe("profil", () => {
         id: "compte-1",
         prenom: "Maxime",
         formation: "BUT QLIO",
-        objectif_moyen_terme: "Master ITI",
-        objectif_long_terme: "Recherche",
         debut_suivi: "2026-07-24",
         preferences_pedagogiques: ["Calcul manuel + Python"],
       },
@@ -219,40 +213,21 @@ describe("profil", () => {
       id: "compte-1",
       prenom: "Maxime",
       formation: "BUT QLIO",
-      objectifMoyenTerme: "Master ITI",
-      objectifLongTerme: "Recherche",
       debutSuivi: "2026-07-24",
       preferencesPedagogiques: ["Calcul manuel + Python"],
-      plan: undefined,
     });
   });
 
-  it("laisse un plan NULL absent et refuse un texte vide présent", () => {
+  it("refuse une préférence mal formée venue de Supabase", () => {
     const ligne = {
       id: "compte-1",
       prenom: "Alice",
       formation: "Formation",
-      objectif_moyen_terme: "MT",
-      objectif_long_terme: "LT",
       debut_suivi: "2026-07-26",
       preferences_pedagogiques: [],
     };
-    expect(profilVersUser({ ...ligne, plan: null }, defaut).plan).toBeUndefined();
-    expect(() => profilVersUser({ ...ligne, plan: "   " }, defaut)).toThrow(/profile\.plan/);
-  });
-
-  it("remonte le plan déclaré", () => {
-    const user = profilVersUser({
-      id: "compte-1",
-      prenom: "Alice",
-      formation: "Formation",
-      objectif_moyen_terme: "MT",
-      objectif_long_terme: "LT",
-      debut_suivi: "2026-07-26",
-      preferences_pedagogiques: [],
-      plan: "Consolider la logique.",
-    }, defaut);
-    expect(user.plan).toBe("Consolider la logique.");
+    expect(profilVersUser(ligne, defaut).formation).toBe("Formation");
+    expect(() => profilVersUser({ ...ligne, preferences_pedagogiques: [" "] }, defaut)).toThrow(/profile\.preferencesPedagogiques/);
   });
 });
 
@@ -272,8 +247,6 @@ describe("charge utile de charger_tout", () => {
     id: "compte-1",
     prenom: "alice",
     formation: "Formation à renseigner",
-    objectifMoyenTerme: "MT",
-    objectifLongTerme: "LT",
     debutSuivi: "2026-07-26",
     preferencesPedagogiques: [],
   };
@@ -283,8 +256,6 @@ describe("charge utile de charger_tout", () => {
       id: "compte-1",
       prenom: "Maxime",
       formation: "BUT QLIO",
-      objectif_moyen_terme: "Master ITI",
-      objectif_long_terme: "Recherche",
       debut_suivi: "2026-07-24",
       preferences_pedagogiques: [],
     },

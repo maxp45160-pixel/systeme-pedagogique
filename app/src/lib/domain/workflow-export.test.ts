@@ -109,10 +109,10 @@ describe("exporterDOT", () => {
 
   it("échappe les caractères réservés dans les identifiants", () => {
     const noeuds = [
-      { id: "page:/competences/{code}", type: "page" as const, libelle: "Fiche" },
+      { id: "page:/atelier/{code}", type: "page" as const, libelle: "Fiche" },
     ];
     const dot = exporterDOT(noeuds, [], { avecLibelles: false });
-    expect(dot).toContain('"page:/competences/{code}"');
+    expect(dot).toContain('"page:/atelier/{code}"');
   });
 
   it("marque les arêtes conditionnelles en pointillés", () => {

@@ -20,12 +20,8 @@ import {
 } from "@/lib/domain/assistant-orientation";
 
 export function FormulaireAmorcage({
-  objectifMoyenTerme,
-  objectifLongTerme,
   compteId,
 }: {
-  objectifMoyenTerme: string;
-  objectifLongTerme: string;
   compteId: string;
 }) {
   const router = useRouter();
@@ -37,13 +33,12 @@ export function FormulaireAmorcage({
   const [modeGuide, setModeGuide] = useState(true);
 
   const [sujet, setSujet] = useState("");
-  const [objectif, setObjectif] = useState(objectifMoyenTerme);
+  const [intention, setIntention] = useState("");
   const [pointDeDepart, setPointDeDepart] = useState("");
   const [preferencesChoisies, setPreferencesChoisies] = useState<string[]>([
     "Pratiquer d'abord",
     "Des cas concrets",
   ]);
-  const [planGenere, setPlanGenere] = useState<string>("");
 
   const [cleConfiguree, setCleConfiguree] = useState(false);
 
@@ -56,12 +51,12 @@ export function FormulaireAmorcage({
   const [panneauCleOuvert, setPanneauCleOuvert] = useState(false);
 
   const sujetValide = sujet.trim().length > 2;
-  const objectifValide = objectif.trim().length > 2;
-  const pret = sujetValide && objectifValide;
+  const intentionValide = intention.trim().length > 2;
+  const pret = sujetValide && intentionValide;
 
   function choisirExemple(ex: SuggestionDomaine) {
     setSujet(ex.sujetExemple);
-    setObjectif(ex.objectifExemple);
+    setIntention(ex.objectifExemple);
     if (ex.pointDeDepartExemple) setPointDeDepart(ex.pointDeDepartExemple);
     if (ex.preferencesExemples) setPreferencesChoisies(ex.preferencesExemples);
     setModeGuide(false);
@@ -75,10 +70,9 @@ export function FormulaireAmorcage({
 
   function appliquerSyntheseOrientation(profil: ProfilSynthetise) {
     setSujet(profil.sujet);
-    setObjectif(profil.objectifMoyenTerme);
+    setIntention(profil.intentionDeDepart);
     setPointDeDepart(profil.formation);
     setPreferencesChoisies(profil.preferencesPedagogiques);
-    if (profil.plan) setPlanGenere(profil.plan);
     setModeGuide(false);
   }
 
@@ -87,11 +81,8 @@ export function FormulaireAmorcage({
     demarrer(async () => {
       try {
         await modifierProfil({
-          objectifMoyenTerme: objectif,
-          objectifLongTerme: objectifLongTerme || undefined,
           formation: pointDeDepart.trim() || undefined,
           preferencesPedagogiques: preferencesChoisies,
-          plan: planGenere || undefined,
         });
         setValidationOuverte(true);
       } catch (e) {
@@ -261,9 +252,9 @@ export function FormulaireAmorcage({
                   <span className="flex size-5 items-center justify-center rounded-full bg-surface-2 border border-bordure text-[0.6875rem] font-mono">
                     2
                   </span>
-                  Pour quoi faire (ton objectif concret)
+                  Ton intention de départ
                 </span>
-                {objectifValide && (
+                {intentionValide && (
                   <span className="text-xs font-medium text-primaire flex items-center gap-1">
                     <IconeValide className="size-3.5" />
                     Prêt
@@ -272,10 +263,10 @@ export function FormulaireAmorcage({
               </div>
               <Champ
                 label=""
-                value={objectif}
-                onChange={(e) => setObjectif(e.target.value)}
+                value={intention}
+                onChange={(e) => setIntention(e.target.value)}
                 placeholder="Ex : préparer un concours, changer de métier, mener un projet en autonomie…"
-                aide="Permet de calibrer l'importance de chaque compétence selon ton ambition réelle."
+                aide="Cette phrase guide la construction du référentiel. Après validation, rattache-la à un objectif structuré dans Twiny."
               />
             </div>
 
@@ -359,7 +350,7 @@ export function FormulaireAmorcage({
 
               {!pret && (
                 <span className="text-xs text-texte-discret">
-                  Remplis le sujet et l&apos;objectif pour continuer.
+                  Remplis le sujet et ton intention pour continuer.
                 </span>
               )}
             </div>

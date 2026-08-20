@@ -22,7 +22,6 @@ import {
 } from "@/lib/engine/parcours";
 import type { ChangementReferentiel } from "@/lib/domain/gouvernance-referentiel";
 import {
-  construireEtatCompetence,
   type EtatCompetence,
   type RecommandationAdaptee,
 } from "@/lib/engine/vues-twiny";
@@ -300,12 +299,12 @@ export function construireVuesAtelier(
   exercices: Exercise[],
   tentatives: ExerciseAttempt[],
   index: IndexDocumentaire,
-  observationsReferentiel: SkillObservation[] = [],
-  changementsReferentiel: ChangementReferentiel[] = [],
-  codesAvecDependances: ReadonlySet<string> = new Set(),
-  themes: Theme[] = [],
-  etatsCompetences: readonly EtatCompetence[] = [],
-  recommandations: readonly Recommandation[] = [],
+  observationsReferentiel: SkillObservation[],
+  changementsReferentiel: ChangementReferentiel[],
+  codesAvecDependances: ReadonlySet<string>,
+  themes: Theme[],
+  etatsCompetences: readonly EtatCompetence[],
+  recommandations: readonly Recommandation[],
 ): {
   domaines: VueDomaineAtelier[];
   competences: VueCompetenceAtelier[];
@@ -413,7 +412,7 @@ export function construireVuesAtelier(
       })),
       documents,
       domainesExistants: domainesVivantsLisibles,
-      etatLot5: etatsCompetencesParCode.get(etat.skill.code) ?? construireEtatCompetence(etat),
+      etatLot5: etatsCompetencesParCode.get(etat.skill.code)!,
     };
   });
 

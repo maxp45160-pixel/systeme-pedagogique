@@ -291,12 +291,15 @@ objectifs, événements et observations —, jamais une copie de la carte. Aucun
 élément privé ni aucune donnée personnelle n'est publié globalement sans
 validation humaine explicite et provenance ; aucune compétence locale n'est
 fusionnée automatiquement.
-L'amorçage actuellement implémenté reste privé au compte : la personne déclare
-son sujet et son objectif, puis corrige et valide une première branche dans
-`/demarrer` avant d'ouvrir Compétences (ADR-063). La bascule vers la carte
-globale est progressive et suit les lots de
-[`TWINY_MIGRATION.md`](docs/architecture/TWINY_MIGRATION.md) ; le code actuel
-ne doit pas être présenté comme si la cible était déjà construite.
+L'amorçage reste privé au compte : la personne déclare son sujet et son
+intention de départ dans `/demarrer`, sans transformer cette déclaration en
+objectif structuré ni en mesure. La Progression est le hub du nouveau chemin :
+`Ma carte`, `Explorer`, `Objectifs` et `Parcours` composent l'overlay privé,
+permettent un rapprochement local explicite et rendent une cible globale
+actionnable seulement après confirmation. Le catalogue de production reste
+volontairement vide jusqu'à validation de son contenu et désignation d'un
+curateur ; le statut réellement déployé est suivi dans
+[`TWINY_MIGRATION.md`](docs/architecture/TWINY_MIGRATION.md).
 ✅ **La carte ouvre des horizons sans imposer un périmètre.** Elle sert à
 situer la personne, relier les éléments et explorer les voisinages pertinents.
 La découverte ou la proposition d'un élément ne l'ajoute jamais

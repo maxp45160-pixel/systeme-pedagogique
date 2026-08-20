@@ -88,12 +88,24 @@ function libelleResultat(resultat: "reussi" | "partiel" | "echec"): string {
 
 function BlocEspaceActif({ espace }: { espace?: EspaceActif }) {
   if (!espace) return null;
+  const originePrioritaire = espace.elements.find(
+    (element) => element.origine === "parcours" || element.origine === "objectif",
+  );
+  const origineLibelle = originePrioritaire?.origine === "parcours" ? "un parcours actif" : "un objectif actif";
 
   return (
     <div className="mt-3 border-t border-bordure/60 pt-2">
       <p className="mb-1.5 text-texte-attenue">
         Votre espace actif · {espace.elements.length} élément{espace.elements.length > 1 ? "s" : ""} sur {espace.limite}
       </p>
+      {originePrioritaire && (
+        <p className="mb-2 text-texte-attenue">
+          Priorité expliquée par {origineLibelle}.{" "}
+          <Link href={`/progression#${originePrioritaire.origine === "objectif" ? "objectifs" : "parcours"}`} className="font-medium text-primaire hover:underline">
+            Gérer cette priorité
+          </Link>
+        </p>
+      )}
       {espace.elements.length > 0 ? (
         <ol className="space-y-1">
           {espace.elements.slice(0, 5).map((element, index) => {
@@ -104,7 +116,13 @@ function BlocEspaceActif({ espace }: { espace?: EspaceActif }) {
                 <span className="mr-1.5 text-texte-discret">{index + 1}.</span>
                 <span className="font-medium">{element.libelle}</span>
                 <span className="ml-1.5 text-texte-discret">
-                  {element.type === "element-global" ? "repère global" : "référentiel local"}
+                  {element.type === "element-global"
+                    ? "repère global"
+                    : element.origine === "parcours"
+                      ? "parcours actif"
+                      : element.origine === "objectif"
+                        ? "objectif actif"
+                        : "référentiel local"}
                 </span>
               </>
             );

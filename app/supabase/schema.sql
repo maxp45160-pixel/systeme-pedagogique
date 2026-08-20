@@ -27,13 +27,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   prenom                    TEXT NOT NULL DEFAULT 'Utilisateur',
   avatar_url                TEXT,
   formation                 TEXT NOT NULL DEFAULT 'Formation à renseigner',
-  objectif_moyen_terme      TEXT NOT NULL DEFAULT 'Objectif à moyen terme à renseigner',
-  objectif_long_terme       TEXT NOT NULL DEFAULT 'Objectif à long terme à renseigner',
   debut_suivi               TEXT NOT NULL DEFAULT CURRENT_DATE::text,
   preferences_pedagogiques  TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
-  -- Plan de travail rédigé par la personne. Sans défaut et nullable : un plan
-  -- non déclaré doit rester absent, pas se voir prêter une intention.
-  plan                      TEXT,
   created_at                TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at                TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -978,6 +973,64 @@ BEGIN
   END LOOP;
 END;
 $$;
+
+-- Les Observations sont lisibles par leur compte, mais ne peuvent être
+-- insérées que pendant `clore_exercice()` et ne peuvent jamais être modifiées
+-- ou supprimées individuellement via la Data API.
+DROP POLICY IF EXISTS "isolation_par_compte" ON public.observations;
+DROP POLICY IF EXISTS "observations_lecture_compte" ON public.observations;
+DROP POLICY IF EXISTS "observations_cloture_insertion" ON public.observations;
+CREATE POLICY "observations_lecture_compte" ON public.observations
+  FOR SELECT TO authenticated
+  USING ((select auth.uid()) = user_id AND (select public.compte_actif()));
+CREATE POLICY "observations_cloture_insertion" ON public.observations
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    (select auth.uid()) = user_id
+    AND (select public.compte_actif())
+    AND (select current_setting('app.cloture_exercice', true)) = 'on'
+  );
+REVOKE ALL ON TABLE public.observations FROM anon, authenticated;
+GRANT SELECT, INSERT ON TABLE public.observations TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.observations TO service_role;
+
+CREATE OR REPLACE FUNCTION public.verifier_observations_append_only()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+BEGIN
+  IF COALESCE(current_setting('app.purge_compte', true), '') <> 'on' THEN
+    RAISE EXCEPTION 'Les Observations sont append-only : aucune modification ni suppression individuelle.'
+      USING ERRCODE = '42501';
+  END IF;
+  RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.verifier_observations_append_only() FROM PUBLIC, anon, authenticated;
+DROP TRIGGER IF EXISTS observations_append_only ON public.observations;
+CREATE TRIGGER observations_append_only
+BEFORE UPDATE OR DELETE ON public.observations
+FOR EACH ROW EXECUTE FUNCTION public.verifier_observations_append_only();
+
+CREATE OR REPLACE FUNCTION public.purger_observations_compte()
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_uid UUID := auth.uid();
+BEGIN
+  IF v_uid IS NULL OR NOT public.compte_actif(v_uid) THEN
+    RAISE EXCEPTION 'Compte authentifie actif requis.' USING ERRCODE = '42501';
+  END IF;
+  PERFORM pg_catalog.set_config('app.purge_compte', 'on', true);
+  DELETE FROM public.observations WHERE user_id = v_uid;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.purger_observations_compte() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.purger_observations_compte() TO authenticated;
 
 ALTER TABLE public.referentiel_codes_emis ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.referentiel_changes ENABLE ROW LEVEL SECURITY;
@@ -1938,7 +1991,7 @@ DROP POLICY IF EXISTS "profil_admin_lecture" ON public.profiles;
 -- Ce que le panel affiche : identité, accès, et des compteurs. Aucun contenu.
 CREATE OR REPLACE FUNCTION public.admin_comptes()
 RETURNS TABLE (
-  user_id UUID, email TEXT, prenom TEXT, plan TEXT, role TEXT,
+  user_id UUID, email TEXT, prenom TEXT, role TEXT,
   suspendu_le TIMESTAMPTZ, motif TEXT, cree_le TIMESTAMPTZ,
   observations BIGINT, exercices BIGINT, seances BIGINT, competences BIGINT,
   derniere_activite TIMESTAMPTZ
@@ -1950,7 +2003,7 @@ BEGIN
   END IF;
 
   RETURN QUERY
-  SELECT a.user_id, p.email, p.prenom, p.plan, a.role, a.suspendu_le, a.motif, a.created_at,
+  SELECT a.user_id, p.email, p.prenom, a.role, a.suspendu_le, a.motif, a.created_at,
     (SELECT COUNT(*) FROM public.observations e WHERE e.user_id = a.user_id),
     (SELECT COUNT(*) FROM public.exercises x WHERE x.user_id = a.user_id),
     (SELECT COUNT(*) FROM public.sessions s WHERE s.user_id = a.user_id),
@@ -2377,7 +2430,7 @@ create table if not exists public.carte_globale_relations (
   id uuid primary key default gen_random_uuid(),
   source_id uuid not null references public.carte_globale_elements(id) on delete restrict,
   cible_id uuid not null references public.carte_globale_elements(id) on delete restrict,
-  type text not null check (type in ('PART_OF', 'RELATED_TO')),
+  type text not null check (type in ('PART_OF', 'PREREQUISITE_OF', 'RELATED_TO', 'APPLIED_IN', 'ENABLES')),
   statut text not null default 'publie' check (statut in ('publie', 'retire')),
   provenance jsonb not null check (public.provenance_carte_globale_valide(provenance)),
   version integer not null default 1 check (version > 0),
@@ -2464,6 +2517,23 @@ create table if not exists public.carte_globale_selections (
 create index if not exists carte_globale_selections_element_idx
   on public.carte_globale_selections (element_id);
 
+-- Correspondance privée explicitement déclarée entre une compétence locale et
+-- un élément global. Elle n'est ni une sélection ni une mesure.
+create table if not exists public.carte_globale_correspondances (
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  competence_code text not null,
+  element_global_id uuid not null references public.carte_globale_elements(id) on delete restrict,
+  acteur text not null check (acteur in ('personne', 'systeme')),
+  provenance jsonb not null check (public.provenance_carte_globale_valide(provenance)),
+  rattache_le timestamptz not null default now(),
+  primary key (user_id, competence_code, element_global_id),
+  foreign key (user_id, competence_code)
+    references public.competences(user_id, code) on delete cascade
+);
+
+create index if not exists carte_globale_correspondances_element_idx
+  on public.carte_globale_correspondances (element_global_id);
+
 -- ---------------------------------------------------------------------------
 -- 6. RLS et privileges : global lisible, overlay strictement personnel
 -- ---------------------------------------------------------------------------
@@ -2473,6 +2543,7 @@ alter table public.carte_globale_elements enable row level security;
 alter table public.carte_globale_relations enable row level security;
 alter table public.carte_globale_changes enable row level security;
 alter table public.carte_globale_selections enable row level security;
+alter table public.carte_globale_correspondances enable row level security;
 
 drop policy if exists carte_globale_curateur_lecture_soi on public.carte_globale_curateurs;
 create policy carte_globale_curateur_lecture_soi
@@ -2633,12 +2704,26 @@ create policy carte_globale_selections_suppression_compte
   for delete to authenticated
   using ((select auth.uid()) = user_id and (select public.compte_actif()));
 
+drop policy if exists carte_globale_correspondances_lecture_compte on public.carte_globale_correspondances;
+create policy carte_globale_correspondances_lecture_compte
+  on public.carte_globale_correspondances for select to authenticated
+  using ((select auth.uid()) = user_id and (select public.compte_actif()));
+drop policy if exists carte_globale_correspondances_creation_compte on public.carte_globale_correspondances;
+create policy carte_globale_correspondances_creation_compte
+  on public.carte_globale_correspondances for insert to authenticated
+  with check ((select auth.uid()) = user_id and (select public.compte_actif()));
+drop policy if exists carte_globale_correspondances_suppression_compte on public.carte_globale_correspondances;
+create policy carte_globale_correspondances_suppression_compte
+  on public.carte_globale_correspondances for delete to authenticated
+  using ((select auth.uid()) = user_id and (select public.compte_actif()));
+
 revoke all on table
   public.carte_globale_curateurs,
   public.carte_globale_elements,
   public.carte_globale_relations,
   public.carte_globale_changes,
-  public.carte_globale_selections
+  public.carte_globale_selections,
+  public.carte_globale_correspondances
 from public, anon, authenticated;
 
 grant select on public.carte_globale_curateurs to authenticated;
@@ -2646,6 +2731,7 @@ grant select, insert, update on public.carte_globale_elements to authenticated;
 grant select, insert, update on public.carte_globale_relations to authenticated;
 grant select, insert on public.carte_globale_changes to authenticated;
 grant select, insert, delete on public.carte_globale_selections to authenticated;
+grant select, insert, delete on public.carte_globale_correspondances to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 7. Commande unique : validation humaine, provenance et journal atomiques
@@ -2837,7 +2923,7 @@ begin
       v_cible_id := nullif(p_commande #>> '{relation,cibleId}', '')::uuid;
       v_relation_type := p_commande #>> '{relation,type}';
 
-      if v_relation_type not in ('PART_OF', 'RELATED_TO') then
+      if v_relation_type not in ('PART_OF', 'PREREQUISITE_OF', 'RELATED_TO', 'APPLIED_IN', 'ENABLES') then
         raise exception 'Type de relation globale invalide.' using errcode = '22023';
       end if;
       if v_source_id = v_cible_id then
@@ -2874,10 +2960,50 @@ begin
         ) then
           raise exception 'PART_OF creerait un cycle.' using errcode = '23514';
         end if;
-      elsif v_source_id::text > v_cible_id::text then
+      elsif v_relation_type = 'RELATED_TO' then
         v_objet_id := v_source_id;
         v_source_id := v_cible_id;
         v_cible_id := v_objet_id;
+      elsif v_relation_type = 'PREREQUISITE_OF' then
+        if not exists (
+          select 1 from public.carte_globale_elements e
+          where e.id = v_source_id and e.type in ('connaissance', 'competence')
+        ) or not exists (
+          select 1 from public.carte_globale_elements e
+          where e.id = v_cible_id and e.type in ('connaissance', 'competence')
+        ) then
+          raise exception 'PREREQUISITE_OF relie deux connaissances ou competences.' using errcode = '22023';
+        end if;
+        if exists (
+          with recursive reach(id) as (
+            select v_cible_id
+            union
+            select r.cible_id from public.carte_globale_relations r
+            join reach x on x.id = r.source_id
+            where r.type = 'PREREQUISITE_OF' and r.statut = 'publie'
+          ) select 1 from reach where id = v_source_id
+        ) then
+          raise exception 'PREREQUISITE_OF creerait un cycle.' using errcode = '23514';
+        end if;
+      elsif v_relation_type = 'APPLIED_IN' then
+        if not exists (
+          select 1 from public.carte_globale_elements e
+          where e.id = v_source_id and e.type in ('connaissance', 'competence')
+        ) or not exists (
+          select 1 from public.carte_globale_elements e
+          where e.id = v_cible_id and e.type in ('domaine', 'connaissance', 'competence')
+        ) then
+          raise exception 'APPLIED_IN vise un element apprenant vers un contexte.' using errcode = '22023';
+        end if;
+      elsif v_relation_type = 'ENABLES' then
+        if not exists (
+          select 1 from public.carte_globale_elements e
+          where e.id = v_source_id and e.type in ('connaissance', 'competence')
+        ) or not exists (
+          select 1 from public.carte_globale_elements e where e.id = v_cible_id
+        ) then
+          raise exception 'ENABLES vise deux elements globaux.' using errcode = '22023';
+        end if;
       end if;
 
       insert into public.carte_globale_relations (

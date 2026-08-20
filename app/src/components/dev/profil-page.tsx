@@ -4,7 +4,7 @@
  * Zone de profilage nommée d'après la route courante.
  *
  * Montée dans le layout `(app)` autour du contenu principal, elle enregistre
- * chaque rendu avec un `id` du type `page:/competences` au lieu du générique
+ * chaque rendu avec un `id` du type `page:/atelier` au lieu du générique
  * `app`. Cela donne une ligne par page dans le tableau « rendus par
  * composant », sans toucher aux pages elles-mêmes.
  */

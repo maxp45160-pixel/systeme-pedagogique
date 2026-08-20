@@ -15,6 +15,11 @@ import { BilanCroissanceLie } from "@/components/progression/bilan-croissance-li
 import { Glossaire } from "@/components/ui/glossaire";
 import { TitreSection } from "@/components/ui/primitives";
 import { CarteIndividuelleTwiny } from "@/components/progression/carte-individuelle-twiny";
+import {
+  ExplorerCarteGlobale,
+  GestionObjectifsParcours,
+  NavigationTwiny,
+} from "@/components/progression/gestion-twiny";
 
 /**
  * Le profil : ce que la pratique a totalisé, et ce qu'elle a produit récemment.
@@ -115,6 +120,9 @@ async function ContenuProgression() {
 
   return (
     <div className="space-y-6 [&>*]:min-w-0">
+      <NavigationTwiny />
+
+      <section id="ma-carte" className="scroll-mt-6">
       <CarteCarriere
         user={ctx.donnees.user}
         identite={identite}
@@ -130,6 +138,23 @@ async function ContenuProgression() {
       <CarteIndividuelleTwiny
         carte={ctx.carteIndividuelle}
         espace={ctx.espaceActif}
+      />
+      </section>
+
+      <ExplorerCarteGlobale
+        carte={ctx.carteGlobale}
+        selections={ctx.carteIndividuelle.selectionsGlobales}
+        correspondances={ctx.carteIndividuelle.correspondancesGlobales}
+        competences={ctx.referentiel.skills}
+      />
+
+      <GestionObjectifsParcours
+        carte={ctx.carteGlobale}
+        domaines={ctx.referentiel.domaines}
+        competences={ctx.referentiel.skills}
+        objectifs={ctx.carteIndividuelle.objectifs}
+        parcours={ctx.carteIndividuelle.parcours}
+        sessions={ctx.donnees.sessions}
       />
 
       {/*

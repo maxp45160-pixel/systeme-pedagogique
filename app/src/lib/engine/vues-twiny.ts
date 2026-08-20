@@ -16,6 +16,7 @@ import type {
 } from "@/lib/domain/types";
 import type {
   CarteGlobale,
+  CorrespondanceCarteGlobale,
   ElementGlobal,
   RelationGlobale,
   SelectionCarteGlobale,
@@ -98,6 +99,7 @@ export interface CarteIndividuelle {
   elementsGlobaux: ElementGlobal[];
   relationsGlobales: RelationGlobale[];
   selectionsGlobales: SelectionCarteGlobale[];
+  correspondancesGlobales: CorrespondanceCarteGlobale[];
   domainesLocaux: Domaine[];
   competencesLocales: EtatCompetence[];
   etatsConnaissance: Map<string, EtatConnaissance>;
@@ -109,6 +111,7 @@ export interface CarteIndividuelle {
 export interface EntreesCarteIndividuelle {
   carteGlobale: CarteGlobale;
   selectionsGlobales: readonly SelectionCarteGlobale[];
+  correspondancesGlobales: readonly CorrespondanceCarteGlobale[];
   domainesLocaux: readonly Domaine[];
   etatsLocaux: readonly SkillState[];
   objectifs: readonly Objectif[];
@@ -128,6 +131,9 @@ export function construireCarteIndividuelle(
   entrees: EntreesCarteIndividuelle,
 ): CarteIndividuelle {
   const idsElements = new Set(entrees.selectionsGlobales.map((selection) => selection.elementId));
+  for (const correspondance of entrees.correspondancesGlobales) {
+    idsElements.add(correspondance.elementGlobalId);
+  }
   const idsRelations = new Set<string>();
   for (const objectif of entrees.objectifs) {
     ajouterReferenceGlobale(objectif.cible, idsElements, idsRelations);
@@ -166,7 +172,12 @@ export function construireCarteIndividuelle(
       .filter((element) => element.type === "connaissance")
       .map((element) => [element.id, construireEtatConnaissance(element)]),
   );
-  if (elementsGlobaux.some((element) => element.type === "competence")) {
+  const elementsAvecCorrespondance = new Set(
+    entrees.correspondancesGlobales.map((correspondance) => correspondance.elementGlobalId),
+  );
+  if (elementsGlobaux.some(
+    (element) => element.type === "competence" && !elementsAvecCorrespondance.has(element.id),
+  )) {
     reserves.push(
       "Une compétence globale ne reçoit aucun état sans rapprochement local explicite.",
     );
@@ -176,6 +187,7 @@ export function construireCarteIndividuelle(
     elementsGlobaux,
     relationsGlobales,
     selectionsGlobales: [...entrees.selectionsGlobales],
+    correspondancesGlobales: [...entrees.correspondancesGlobales],
     domainesLocaux: [...entrees.domainesLocaux],
     competencesLocales: entrees.etatsLocaux.map(construireEtatCompetence),
     etatsConnaissance,
@@ -208,6 +220,60 @@ export interface EspaceActif {
   relationsGlobales: RelationGlobale[];
   codesCompetences: string[];
   reserves: string[];
+}
+
+export interface ResumePilotageTwiny {
+  priorite: {
+    origine: "objectif" | "parcours";
+    id: string;
+    libelle: string;
+  } | null;
+  objectifsActifs: number;
+  parcoursActifs: number;
+  selectionsGlobales: number;
+  correspondances: number;
+  elementsActifs: number;
+}
+
+/**
+ * Projection compacte du même état que la carte et la recommandation. Le
+ * tableau de bord ne maintient ainsi aucun second état de pilotage.
+ */
+export function resumerPilotageTwiny(
+  carte: CarteIndividuelle,
+  espace: EspaceActif,
+): ResumePilotageTwiny {
+  const origine = espace.elements.find(
+    (element) =>
+      (element.origine === "parcours" || element.origine === "objectif")
+      && element.referenceOrigine,
+  );
+  let priorite: ResumePilotageTwiny["priorite"] = null;
+
+  if (origine?.origine === "parcours") {
+    const parcours = carte.parcours.find(
+      (item) => item.id === origine.referenceOrigine && item.statut === "actif" && !item.archiveLe,
+    );
+    if (parcours) {
+      priorite = { origine: "parcours", id: parcours.id, libelle: parcours.contexte };
+    }
+  } else if (origine?.origine === "objectif") {
+    const objectif = carte.objectifs.find(
+      (item) => item.id === origine.referenceOrigine && item.statut === "actif" && !item.archiveLe,
+    );
+    if (objectif) {
+      priorite = { origine: "objectif", id: objectif.id, libelle: objectif.formulation };
+    }
+  }
+
+  return {
+    priorite,
+    objectifsActifs: carte.objectifs.filter((item) => item.statut === "actif" && !item.archiveLe).length,
+    parcoursActifs: carte.parcours.filter((item) => item.statut === "actif" && !item.archiveLe).length,
+    selectionsGlobales: carte.selectionsGlobales.length,
+    correspondances: carte.correspondancesGlobales.length,
+    elementsActifs: espace.elements.length,
+  };
 }
 
 export interface EntreesEspaceActif {
@@ -248,6 +314,12 @@ export function construireEspaceActif(entrees: EntreesEspaceActif): EspaceActif 
 
   const globauxParId = new Map(entrees.carte.elementsGlobaux.map((element) => [element.id, element]));
   const relationsParId = new Map(entrees.carte.relationsGlobales.map((relation) => [relation.id, relation]));
+  const correspondancesParElement = new Map<string, string[]>();
+  for (const correspondance of entrees.carte.correspondancesGlobales) {
+    const codes = correspondancesParElement.get(correspondance.elementGlobalId) ?? [];
+    codes.push(correspondance.competenceCode);
+    correspondancesParElement.set(correspondance.elementGlobalId, codes);
+  }
   const competencesParCode = new Map(
     entrees.carte.competencesLocales.map((etat) => [etat.code, etat]),
   );
@@ -312,6 +384,9 @@ export function construireEspaceActif(entrees: EntreesEspaceActif): EspaceActif 
       referenceOrigine,
       actionnable: false,
     });
+    for (const code of correspondancesParElement.get(elementId) ?? []) {
+      ajouterCompetence(code, origine, referenceOrigine ?? elementId);
+    }
   };
 
   const ajouterCible = (

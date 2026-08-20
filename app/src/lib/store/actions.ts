@@ -24,6 +24,7 @@ import { capturerDocumentProduction, inscrireFicheExercice } from "./documents";
 import { lireReferentiel } from "./referentiel";
 import {
   motifRefusExercice,
+  modeRetraitExercice,
   trouverExercice,
 } from "@/lib/domain/exercice";
 import {
@@ -656,6 +657,51 @@ export async function modifierExercice(soumission: SoumissionEditionExercice): P
   );
 
   revalidatePath("/", "layout");
+}
+
+export interface ResultatRetraitExercice {
+  tentatives: number;
+  mode: "suppression" | "archivage";
+}
+
+/**
+ * Retire un exercice non conforme sans effacer l'historique qui le cite
+ * (ADR-035). Le mode est dérivé des tentatives, jamais choisi par l'interface.
+ */
+export async function retirerExercice(exerciceId: string): Promise<ResultatRetraitExercice> {
+  const dorsale = await dorsaleCompte();
+  const exercice = await exerciceDuCompte(exerciceId, dorsale);
+  if (exercice.diagnostic) {
+    throw new Error("Un exercice de diagnostic livré avec l’application ne se retire pas.");
+  }
+
+  const { count, error: erreurComptage } = await dorsale.supabase
+    .from("attempts")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", dorsale.userId)
+    .eq("exercise_id", exerciceId);
+  verifier("comptage des tentatives de l’exercice", erreurComptage);
+
+  const tentatives = count ?? 0;
+  const mode = modeRetraitExercice(tentatives);
+  if (mode === "suppression") {
+    const { error } = await dorsale.supabase
+      .from("exercises")
+      .delete()
+      .eq("user_id", dorsale.userId)
+      .eq("id", exercice.id);
+    verifier("suppression de l’exercice", error);
+  } else {
+    const { error } = await dorsale.supabase
+      .from("exercises")
+      .update({ archive: true })
+      .eq("user_id", dorsale.userId)
+      .eq("id", exercice.id);
+    verifier("archivage de l’exercice", error);
+  }
+
+  revalidatePath("/", "layout");
+  return { tentatives, mode };
 }
 
 /* ------------------------------------------------------------------ */

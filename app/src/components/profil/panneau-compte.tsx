@@ -109,10 +109,7 @@ export function PanneauCompte({
         {onglet === "profil" && (
           <FormulaireProfil
             formation={nonRenseigne(profil.formation)}
-            objectifMoyenTerme={nonRenseigne(profil.objectifMoyenTerme)}
-            objectifLongTerme={nonRenseigne(profil.objectifLongTerme)}
             preferencesPedagogiques={profil.preferencesPedagogiques ?? []}
-            plan={profil.plan}
           />
         )}
 

@@ -3,7 +3,7 @@
 /**
  * « Voici une proposition de référentiel pour le stoïcisme, en 5 thèmes. »
  *
- * Le manque était double sur `/competences` : aucun point d'entrée pour ajouter
+ * Le manque était double dans l'ancien écran du référentiel : aucun point d'entrée pour ajouter
  * une branche neuve — `+ Compétence` n'existe que sur une carte de domaine
  * existant — et la suggestion ne produisait qu'**une** branche, là où un sujet
  * un peu large en demande plusieurs.

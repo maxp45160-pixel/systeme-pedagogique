@@ -6,7 +6,6 @@ function compte(partiel: Partial<CompteAdministre> & { userId: string }): Compte
   return {
     email: null,
     prenom: null,
-    plan: null,
     role: "membre",
     suspenduLe: null,
     motif: null,

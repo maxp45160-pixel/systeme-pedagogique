@@ -513,20 +513,14 @@ export async function remplacerCompetence(
 
 export interface ModificationProfil {
   formation?: string;
-  objectifMoyenTerme?: string;
-  objectifLongTerme?: string;
   preferencesPedagogiques?: string[];
-  plan?: string;
 }
 
 export async function modifierProfil(champs: ModificationProfil): Promise<void> {
   const dorsale = await dorsaleCompte();
   const ligne: Record<string, unknown> = {};
   if (champs.formation !== undefined) ligne.formation = champs.formation.trim();
-  if (champs.objectifMoyenTerme !== undefined) ligne.objectif_moyen_terme = champs.objectifMoyenTerme.trim();
-  if (champs.objectifLongTerme !== undefined) ligne.objectif_long_terme = champs.objectifLongTerme.trim();
   if (champs.preferencesPedagogiques !== undefined) ligne.preferences_pedagogiques = champs.preferencesPedagogiques.map((preference) => preference.trim()).filter(Boolean);
-  if (champs.plan !== undefined) ligne.plan = champs.plan.trim();
   if (Object.keys(ligne).length === 0) return;
   const { error } = await dorsale.supabase.from("profiles").update(ligne).eq("id", dorsale.userId);
   verifier("modification du profil", error);

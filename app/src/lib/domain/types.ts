@@ -127,8 +127,6 @@ export interface User {
   prenom: string;
   avatarUrl?: string;
   formation: string;
-  objectifMoyenTerme: string;
-  objectifLongTerme: string;
   /** Date d'initialisation du système (ISO). */
   debutSuivi: string;
   /**
@@ -137,14 +135,6 @@ export interface User {
    * il ne les infère jamais lui-même.
    */
   preferencesPedagogiques?: string[];
-  /**
-   * Plan de travail détaillé, écrit par l'utilisateur (Chantier 14).
-   *
-   * Ce que la personne veut accomplir, dans quel ordre, avec quel contexte.
-   * Transmis au tuteur et au moteur de recommandation pour pondérer
-   * l'importance des compétences selon le plan déclaré.
-   */
-  plan?: string;
 }
 
 /** Position dans l'arbre de progression du domaine. */
@@ -184,8 +174,8 @@ export interface Skill {
   /** Codes des compétences prérequises (indicatif, jamais bloquant). */
   prerequis: string[];
   /**
-   * Importance pour l'objectif déclaré du compte (`objectifMoyenTerme`),
-   * de 0 à 1. Utilisée par le moteur de recommandation (§16).
+   * Importance déclarée dans le référentiel du compte, de 0 à 1. Utilisée par
+   * le moteur de recommandation (§16).
    */
   importance: number;
   /** Rang déclaré dans le domaine — départage les compétences d'un même palier. */

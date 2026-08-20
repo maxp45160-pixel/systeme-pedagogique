@@ -30,6 +30,7 @@ import { BoutonReviser } from "@/components/referentiel/bouton-reviser";
 import { GestionDomaine } from "@/components/referentiel/gestion-domaine";
 import { ModaleCompetence } from "@/components/referentiel/modale-competence";
 import { BoutonGenerer } from "@/components/exercices/bouton-generer";
+import { BoutonRetirerExercice } from "@/components/exercices/bouton-retirer";
 import type { CalibrageModale, CompetenceModale } from "@/components/exercices/proprietes-generation";
 import { Markdown } from "@/components/ui/markdown";
 import { ConcepteurSeance, type DonneesSeance } from "@/components/seances/concepteur-seance";
@@ -1580,6 +1581,8 @@ function VueExercice({
   ouvrirElement: (id: string) => void;
   elements?: ElementAtelier[];
 }) {
+  const router = useRouter();
+
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-surface-2/40">
       <header className="border-b border-bordure bg-surface px-6 py-6 lg:px-8">
@@ -1609,13 +1612,26 @@ function VueExercice({
             </div>
           </div>
 
-          <Link
-            href={urlComposerAutonome(vue.competences[0]?.code, vue.dureeEstimeeMin)}
-            className="inline-flex items-center gap-2 rounded-xl bg-primaire px-5 py-3 text-sm font-semibold text-texte-inverse shadow hover:bg-primaire-survol transition-colors"
-          >
-            <span>S’exercer dans le cahier</span>
-            <IconeFleche className="size-4" />
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href={urlComposerAutonome(vue.competences[0]?.code, vue.dureeEstimeeMin)}
+              className="inline-flex items-center gap-2 rounded-xl bg-primaire px-5 py-3 text-sm font-semibold text-texte-inverse shadow hover:bg-primaire-survol transition-colors"
+            >
+              <span>S’exercer dans le cahier</span>
+              <IconeFleche className="size-4" />
+            </Link>
+            {!vue.tentatives.some((tentative) => tentative.statut === "en-cours") && (
+              <BoutonRetirerExercice
+                exerciceId={vue.id}
+                titre={vue.titre}
+                tentatives={vue.nombreTentatives}
+                onRetire={() => {
+                  ouvrirElement(`domaine:${vue.domaineId}`);
+                  router.refresh();
+                }}
+              />
+            )}
+          </div>
         </div>
       </header>
 

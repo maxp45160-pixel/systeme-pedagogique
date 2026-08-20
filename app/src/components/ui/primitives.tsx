@@ -175,7 +175,7 @@ export interface OptionSegmentee<T extends string> {
  * Sélecteur segmenté — un état parmi plusieurs, montrés côte à côte.
  *
  * Trois copies visuellement identiques existaient (bascule de vue sur
- * `/competences`, sélecteur de période, choix d'apparence), mais deux natures
+ * sélecteur de référentiel, sélecteur de période, choix d'apparence), mais deux natures
  * différentes se cachaient dessous : un état **partageable par URL** (un
  * `<Link>`, on doit pouvoir l'ouvrir dans un nouvel onglet ou le mettre en
  * favori) et une **préférence locale** (un `<button aria-pressed>`, elle ne

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import {
   motifRefusProvenanceGlobale,
+  type CorrespondanceCarteGlobale,
   type CommandeCarteGlobale,
   type ProvenanceGlobale,
   type ResultatCommandeCarteGlobale,
@@ -44,14 +45,14 @@ async function executerCommande(
   return resultat;
 }
 
-export function publierElementGlobal(
+export async function publierElementGlobal(
   element: Extract<CommandeCarteGlobale, { type: "publier_element" }>["element"],
   provenance: ProvenanceGlobale,
 ): Promise<ResultatCommandeCarteGlobale> {
   return executerCommande({ type: "publier_element", element }, 0, provenance);
 }
 
-export function corrigerElementGlobal(
+export async function corrigerElementGlobal(
   id: string,
   version: number,
   modification: { nom: string; description: string },
@@ -60,7 +61,7 @@ export function corrigerElementGlobal(
   return executerCommande({ type: "corriger_element", id, ...modification }, version, provenance);
 }
 
-export function retirerElementGlobal(
+export async function retirerElementGlobal(
   id: string,
   version: number,
   provenance: ProvenanceGlobale,
@@ -68,14 +69,14 @@ export function retirerElementGlobal(
   return executerCommande({ type: "retirer_element", id }, version, provenance);
 }
 
-export function publierRelationGlobale(
+export async function publierRelationGlobale(
   relation: Extract<CommandeCarteGlobale, { type: "publier_relation" }>["relation"],
   provenance: ProvenanceGlobale,
 ): Promise<ResultatCommandeCarteGlobale> {
   return executerCommande({ type: "publier_relation", relation }, 0, provenance);
 }
 
-export function retirerRelationGlobale(
+export async function retirerRelationGlobale(
   id: string,
   version: number,
   provenance: ProvenanceGlobale,
@@ -103,5 +104,60 @@ export async function deselectionnerElementGlobal(elementId: string): Promise<vo
     .eq("user_id", userId)
     .eq("element_id", elementId);
   verifier("retrait d’une sélection globale", error);
+  revalidatePath("/", "layout");
+}
+
+export async function rattacherCompetenceElementGlobal(
+  competenceCode: string,
+  elementGlobalId: string,
+  provenance: CorrespondanceCarteGlobale["provenance"] = {
+    type: "declaration-utilisateur",
+    reference: "Rattachement confirmé depuis Explorer",
+  },
+): Promise<void> {
+  if (!competenceCode.trim() || !elementGlobalId.trim()) {
+    throw new Error("La compétence locale et l’élément global sont obligatoires.");
+  }
+  const refus = motifRefusProvenanceGlobale(provenance);
+  if (refus) throw new Error(refus);
+  const { supabase, userId } = await dorsaleCompte();
+  const { data: existante, error: erreurLecture } = await supabase
+    .from("carte_globale_correspondances")
+    .select("competence_code")
+    .eq("user_id", userId)
+    .eq("competence_code", competenceCode.trim())
+    .eq("element_global_id", elementGlobalId.trim())
+    .maybeSingle();
+  verifier("lecture du rattachement local et global", erreurLecture);
+  if (!existante) {
+    const { error } = await supabase
+    .from("carte_globale_correspondances")
+    .insert(
+      {
+        user_id: userId,
+        competence_code: competenceCode.trim(),
+        element_global_id: elementGlobalId.trim(),
+        acteur: "personne",
+        provenance,
+      },
+      { defaultToNull: false },
+    );
+    verifier("rattachement d’une compétence à un élément global", error);
+  }
+  revalidatePath("/", "layout");
+}
+
+export async function retirerCorrespondanceCompetenceElementGlobal(
+  competenceCode: string,
+  elementGlobalId: string,
+): Promise<void> {
+  const { supabase, userId } = await dorsaleCompte();
+  const { error } = await supabase
+    .from("carte_globale_correspondances")
+    .delete()
+    .eq("user_id", userId)
+    .eq("competence_code", competenceCode)
+    .eq("element_global_id", elementGlobalId);
+  verifier("retrait d’une correspondance locale et globale", error);
   revalidatePath("/", "layout");
 }

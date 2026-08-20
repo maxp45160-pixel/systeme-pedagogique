@@ -76,6 +76,7 @@ function construireCtxDeTest(
   const carteIndividuelle = construireCarteIndividuelle({
     carteGlobale: { elements: [], relations: [] },
     selectionsGlobales: [],
+    correspondancesGlobales: [],
     domainesLocaux: referentiel.domaines,
     etatsLocaux: etats,
     objectifs: [],
@@ -93,8 +94,6 @@ function construireCtxDeTest(
         id: "test",
         prenom: "Test",
         formation: "BUT QLIO",
-        objectifMoyenTerme: "Master ITI",
-        objectifLongTerme: "Chercheur",
         debutSuivi: now.toISOString(),
       },
       observations: [],
@@ -107,6 +106,7 @@ function construireCtxDeTest(
     etatsParCode: new Map(etats.map((e) => [e.skill.code, e])),
     global,
     recommandations,
+    carteGlobale: { elements: [], relations: [] },
     carteIndividuelle,
     espaceActif,
     contexteDocumentaire: new Map(),
@@ -525,9 +525,9 @@ describe("construireContexte — compte sans référentiel", () => {
     expect(systemeProfil).toContain("Ne propose ni observation ni exercice");
   });
 
-  it("transmet quand même les objectifs déclarés — ils fondent l'importance des compétences", async () => {
+  it("n'invente aucun objectif structuré quand le compte n'en a pas", async () => {
     const { systemeProfil } = await construireContexte(construireCtxDeTest(REFERENTIEL_VIDE));
-    expect(systemeProfil).toContain("Master ITI");
+    expect(systemeProfil).toContain("Aucun objectif ou parcours actif n'est déclaré");
   });
 
   it("le gabarit d'exercice n'invente aucun domaine quand il n'y en a pas", async () => {
@@ -634,8 +634,6 @@ describe("aucun profil ne fuit d'un compte à l'autre (ADR-029)", () => {
         user: {
           ...ctx.donnees.user,
           formation: "Formation à renseigner",
-          objectifMoyenTerme: "Objectif à moyen terme à renseigner",
-          objectifLongTerme: "Objectif à long terme à renseigner",
           preferencesPedagogiques: [],
         },
       },
@@ -656,7 +654,7 @@ describe("aucun profil ne fuit d'un compte à l'autre (ADR-029)", () => {
     expect(tout).not.toContain("QLIO");
     expect(tout).not.toMatch(/Master ITI/);
     // Et l'interdiction d'inventer doit être présente, pas seulement l'absence.
-    expect(tout).toContain("N'INVENTE NI DIPLÔME NI OBJECTIF");
+    expect(tout).toContain("N'INVENTE PAS");
   });
 
   it("les instructions principales ne portent plus aucun profil ni référentiel figé", async () => {

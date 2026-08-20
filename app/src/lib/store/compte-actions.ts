@@ -80,10 +80,7 @@ export async function reinitialiserDonneesCompteAction(
   verifier("purge des documents", errDocs);
 
   // 3. Suppression des traces d'apprentissage et du journal
-  const { error: errObservations } = await dorsale.supabase
-    .from("observations")
-    .delete()
-    .eq("user_id", userId);
+  const { error: errObservations } = await dorsale.supabase.rpc("purger_observations_compte");
   verifier("purge des observations", errObservations);
 
   const { error: errTentatives } = await dorsale.supabase
@@ -145,8 +142,6 @@ export async function reinitialiserDonneesCompteAction(
       email: courriel ?? `${userId}@compte.local`,
       prenom: prenomRepli,
       formation: "Formation à renseigner",
-      objectif_moyen_terme: "Objectif à moyen terme à renseigner",
-      objectif_long_terme: "Objectif à long terme à renseigner",
       debut_suivi: new Date().toISOString().slice(0, 10),
       preferences_pedagogiques: [],
     });

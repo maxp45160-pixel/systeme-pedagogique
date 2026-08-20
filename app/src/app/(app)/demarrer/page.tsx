@@ -12,7 +12,7 @@ import { IconeAmpoule, IconeFleche } from "@/components/ui/icones";
  *
  * Un compte démarre sans référentiel : il n'y a rien à mesurer, et le tableau
  * de bord n'aurait que des tirets à montrer. Cet écran demande les trois seules
- * choses que le système ne peut pas dériver — le sujet, l'objectif, le point de
+ * choses que le système ne peut pas dériver — le sujet, l'intention, le point de
  * départ — puis passe la main au tuteur.
  *
  * Pour les administrateurs, l'accès reste possible via `?apercu=1` afin de
@@ -32,11 +32,6 @@ export default async function PageDemarrer(props: {
   if (ctx.referentiel.skills.length > 0 && !accesApercuAdmin) {
     redirect("/atelier");
   }
-
-  const u = ctx.donnees.user;
-  // Les valeurs par défaut de `profiles` sont des libellés, pas des réponses :
-  // les proposer comme contenu initial ferait passer un trou pour une donnée.
-  const nonRenseigne = (v: string) => (v.includes("à renseigner") ? "" : v);
 
   return (
     <>
@@ -83,9 +78,7 @@ export default async function PageDemarrer(props: {
       <Carte>
         <div className="px-5 py-4">
           <FormulaireAmorcage
-            objectifMoyenTerme={nonRenseigne(u.objectifMoyenTerme)}
-            objectifLongTerme={nonRenseigne(u.objectifLongTerme)}
-            compteId={u.id}
+            compteId={ctx.donnees.user.id}
           />
         </div>
       </Carte>

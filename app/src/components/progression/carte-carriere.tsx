@@ -56,14 +56,13 @@ export function CarteCarriere({
           <div className="min-w-0">
             <h2 className="truncate font-serif text-2xl font-medium tracking-tight">{nom}</h2>
             {/*
-              La formation et l'objectif sont affichés s'ils sont déclarés, et
+              La formation est affichée si elle est déclarée, et
               tus sinon — `profilDeclare` distingue déjà une valeur d'un libellé
               par défaut. Un profil vide ne doit pas se lire comme un profil
               rempli de tirets.
             */}
             <p className="mt-0.5 truncate text-xs text-texte-attenue">
               {profil.formation || "Formation non déclarée"}
-              {profil.objectifMoyenTerme ? ` · ${profil.objectifMoyenTerme}` : ""}
             </p>
           </div>
         </div>

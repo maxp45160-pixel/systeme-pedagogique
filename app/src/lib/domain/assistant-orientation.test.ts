@@ -28,9 +28,9 @@ describe("Assistant d'orientation — diagnostic et synthèse", () => {
 
     expect(res.sujet).toBe("React & TypeScript");
     expect(res.formation).toContain("Débutant complet");
-    expect(res.objectifMoyenTerme).toContain("fondamentaux");
+    expect(res.intentionDeDepart).toContain("fondamentaux");
     expect(res.preferencesPedagogiques).toEqual(["Pratiquer d'abord", "Pas à pas"]);
-    expect(res.plan).toContain("3h par semaine");
+    expect(res.rythmePropose).toContain("3h par semaine");
   });
 
   it("synthétise un profil avec point de départ personnalisé", () => {
@@ -42,7 +42,7 @@ describe("Assistant d'orientation — diagnostic et synthèse", () => {
     });
 
     expect(res.formation).toBe("Juriste d'entreprise en reconversion");
-    expect(res.objectifMoyenTerme).toContain("opérationnels");
+    expect(res.intentionDeDepart).toContain("opérationnels");
     expect(res.preferencesPedagogiques).toEqual(["Des cas concrets"]);
   });
 
@@ -53,8 +53,8 @@ describe("Assistant d'orientation — diagnostic et synthèse", () => {
     });
 
     expect(res.formation).toBe("Point de départ en cours de définition");
-    expect(res.objectifMoyenTerme).not.toBe("");
+    expect(res.intentionDeDepart).not.toBe("");
     expect(res.preferencesPedagogiques.length).toBeGreaterThan(0);
-    expect(res.plan).toContain("par semaine");
+    expect(res.rythmePropose).toContain("par semaine");
   });
 });

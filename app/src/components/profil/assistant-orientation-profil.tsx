@@ -280,7 +280,7 @@ export function AssistantOrientationProfil({
                   Rythme hebdomadaire souhaité
                 </span>
                 <span className="text-[0.75rem] text-texte-attenue">
-                  Volume indicatif pour structurer votre plan de travail.
+                  Volume indicatif pour préparer votre premier parcours.
                 </span>
               </div>
               <span className="rounded-lg bg-surface border border-bordure px-2.5 py-1 text-xs font-mono font-semibold text-primaire">
@@ -313,9 +313,9 @@ export function AssistantOrientationProfil({
 
             <div className="space-y-2.5 text-xs">
               <div className="rounded-lg bg-surface p-3 border border-bordure/60">
-                <span className="font-semibold text-texte block mb-0.5">Objectif moyen terme</span>
+                <span className="font-semibold text-texte block mb-0.5">Intention de départ</span>
                 <p className="text-texte-attenue leading-relaxed">
-                  {syntheseApercu.objectifMoyenTerme}
+                  {syntheseApercu.intentionDeDepart}
                 </p>
               </div>
 

@@ -12,10 +12,7 @@ export function CarteProfil({ user }: { user: User }) {
   const p = profilDeclare(user);
   const manquants: string[] = [];
   if (!p.formation) manquants.push("la formation / point de départ");
-  if (!p.objectifMoyenTerme) manquants.push("un objectif à moyen terme");
-  if (!p.objectifLongTerme) manquants.push("un objectif à long terme");
   if (p.preferencesPedagogiques.length === 0) manquants.push("des préférences pédagogiques");
-  if (!p.plan) manquants.push("un plan de travail");
 
   return (
     <Carte>
@@ -30,26 +27,26 @@ export function CarteProfil({ user }: { user: User }) {
       <div className="px-5 py-4 space-y-3">
         {p.vide ? (
           <p className="text-xs leading-relaxed text-texte-attenue">
-            Rien n&apos;a encore été déclaré. Utilisez le diagnostic express ou le formulaire
-            ci-dessous pour définir vos objectifs et votre méthode.
+            Rien n&apos;a encore été déclaré. Renseignez votre point de départ ici, puis créez
+            vos objectifs structurés dans Twiny.
           </p>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 text-xs">
             <div className="rounded-lg bg-surface-2/40 border border-bordure/60 p-3 space-y-1">
               <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret block">
-                Objectif moyen terme
+                Point de départ / Formation
               </span>
               <p className="font-medium text-texte leading-snug">
-                {p.objectifMoyenTerme || "Non renseigné"}
+                {p.formation || "Non renseigné"}
               </p>
             </div>
 
             <div className="rounded-lg bg-surface-2/40 border border-bordure/60 p-3 space-y-1">
               <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret block">
-                Point de départ / Formation
+                Objectifs structurés
               </span>
               <p className="text-texte-attenue leading-snug">
-                {p.formation || "Non renseigné"}
+                À gérer dans Twiny, avec une cible et un horizon explicites.
               </p>
             </div>
 
@@ -71,16 +68,6 @@ export function CarteProfil({ user }: { user: User }) {
               </div>
             )}
 
-            {p.plan && (
-              <div className="sm:col-span-2 rounded-lg bg-surface-2/40 border border-bordure/60 p-3 space-y-1">
-                <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret block">
-                  Plan de travail déclaré
-                </span>
-                <p className="text-xs text-texte-attenue line-clamp-2 leading-relaxed">
-                  {p.plan}
-                </p>
-              </div>
-            )}
           </div>
         )}
 

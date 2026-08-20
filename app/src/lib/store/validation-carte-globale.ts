@@ -3,6 +3,7 @@ import {
   TYPES_RELATION_GLOBALE,
   motifRefusProvenanceGlobale,
   type ElementGlobal,
+  type CorrespondanceCarteGlobale,
   type ProvenanceGlobale,
   type RelationGlobale,
   type ResultatCommandeCarteGlobale,
@@ -115,6 +116,20 @@ export function validerSelectionCarteGlobale(
   return {
     elementId: texte(selection.elementId, `${chemin}.elementId`),
     selectionneLe: date(selection.selectionneLe, `${chemin}.selectionneLe`),
+  };
+}
+
+export function validerCorrespondanceCarteGlobale(
+  valeur: unknown,
+  chemin = "correspondanceCarteGlobale",
+): CorrespondanceCarteGlobale {
+  const correspondance = objet(valeur, chemin);
+  return {
+    competenceCode: texte(correspondance.competenceCode, `${chemin}.competenceCode`),
+    elementGlobalId: texte(correspondance.elementGlobalId, `${chemin}.elementGlobalId`),
+    acteur: enumeration(correspondance.acteur, ["personne", "systeme"] as const, `${chemin}.acteur`),
+    provenance: validerProvenanceGlobale(correspondance.provenance, `${chemin}.provenance`),
+    rattacheLe: date(correspondance.rattacheLe, `${chemin}.rattacheLe`),
   };
 }
 

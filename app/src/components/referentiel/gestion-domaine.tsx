@@ -3,8 +3,8 @@
 /**
  * Gestion d'un domaine et de ses compétences — pour la sous-page domaine.
  *
- * R5 : la page `/competences` est épurée (grands champs seulement), et la
- * gestion se fait ici, dans la sous-page domaine. Ce composant reprend les
+ * Le référentiel privé se gère depuis l'Atelier, dans la fiche de domaine. Ce
+ * composant reprend les
  * fonctionnalités de `GestionReferentiel` : sélection multiple, barre
  * d'action groupée, édition inline, sortie/remise au périmètre,
  * archiver/supprimer (ADR-027), dossier des compétences archivées.
