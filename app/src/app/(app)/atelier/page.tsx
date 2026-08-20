@@ -23,9 +23,9 @@ import { paletteDomaines } from "@/lib/ui/couleurs-domaines";
 import { chargerDonneesSeance } from "@/components/seances/donnees-seance";
 
 export default async function PageAtelier(props: {
-  searchParams: Promise<{ document?: string; mode?: string; note?: string; retour?: string }>;
+  searchParams: Promise<{ document?: string; note?: string; retour?: string }>;
 }) {
-  const { document: documentDemande, mode, note, retour } = await props.searchParams;
+  const { document: documentDemande, note, retour } = await props.searchParams;
 
   /*
    * L'espace de travail documentaire unifié occupe l'écran entier.
@@ -289,7 +289,6 @@ export default async function PageAtelier(props: {
   ];
   const cleAtelier = [
     documentDemande ?? "",
-    mode ?? "",
     ...elementsAtelier.map(({ id, updatedAt }) => `${id}:${updatedAt ?? ""}`),
   ].join("|");
 
@@ -308,22 +307,16 @@ export default async function PageAtelier(props: {
   const couleursDomaines = paletteDomaines(graphe.noeuds.map((noeud) => noeud.domaineId));
 
   /*
-   * Ce que les faits reprochent au référentiel — ADR-086.
+   * Pistes contextuelles pour les domaines.
    *
-   * Calculé ici et non dans `chargerContexte` : cinq détecteurs sur tout le
-   * corpus n'ont rien à faire sur le chemin chaud des autres pages. L'Atelier
-   * est le seul écran qui en affiche le résultat.
+   * Calculé ici et non dans `chargerContexte` : les détecteurs ne doivent pas
+   * alourdir les autres pages. Les domaines affichent ces résultats comme des
+   * pistes de lecture.
    */
   const entretien = {
     lot: lotEntretien,
     intitules: Object.fromEntries(
       contexte.referentiel.skills.map((skill) => [skill.code, skill.intitule]),
-    ),
-    metaCompetences: Object.fromEntries(
-      contexte.referentiel.skills.map((skill) => [
-        skill.code,
-        { palier: skill.palier as string, importance: skill.importance },
-      ]),
     ),
   };
 
@@ -338,7 +331,6 @@ export default async function PageAtelier(props: {
         elements={elementsAtelier}
         couleursDomaines={couleursDomaines}
         documentDemande={documentDemande}
-        modeInitial={mode === "referentiel" ? "referentiel" : undefined}
         graphe={{
           donnees: graphe,
           compteId: contexte.donnees.user.id,
@@ -348,7 +340,7 @@ export default async function PageAtelier(props: {
           calibrages: calibragesPourModale(referentiel.actifs, contexte.calibrations),
         }}
         donneesSeance={donneesSeance}
-      entretien={entretien}
+        entretien={entretien}
       />
     </>
   );

@@ -3,12 +3,11 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AUTONOMIE, NIVEAUX } from "@/lib/domain/types";
-import { formatDateCourte } from "@/lib/engine/dates";
 import type {
   VueCompetenceAtelier,
   DocumentLieAtelier,
 } from "@/lib/documents/vue-atelier";
+import type { ElementAtelier } from "../types-atelier";
 import { CodeCompetence, cx } from "@/components/ui/primitives";
 import type { EtapeParcours } from "@/lib/engine/parcours";
 import { RelationsCompetence } from "../relations-competence";
@@ -16,21 +15,17 @@ import { IconeFleche } from "@/components/ui/icones";
 import { BoutonGenerer } from "@/components/exercices/bouton-generer";
 import type { CalibrageModale, CompetenceModale } from "@/components/exercices/proprietes-generation";
 import { ConcepteurSeance, type DonneesSeance } from "@/components/seances/concepteur-seance";
-import type { ElementAtelier } from "../types-atelier";
 import { creerDocumentBrutAction, supprimerDocumentAction } from "@/lib/store/document-actions";
 import {
   BoutonSuppressionCarte,
   ModaleConfirmationSuppression,
 } from "../modale-confirmation-suppression";
 import {
-  Barre,
   Mesure,
   ObservationLiee,
   dateCourte,
-  pourcentage,
-  libelleResultatObservation,
   LIBELLES_PALIERS,
-  LIBELLES_CONFIANCE,
+  LIBELLES_REPERES,
 } from "./elements-fiche";
 
 /** Les onglets du volet droit : une nature d'élément par onglet. */
@@ -66,18 +61,18 @@ export function VueCompetence({
         const codeNettoye = vue.code.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-");
         const idRandom = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
         const id = `note-${codeNettoye}-${idRandom}`;
-        const titreDoc = `Note sur ${vue.code} : ${titre}`;
+        const titreDoc = `Note sur ${titre}`;
         const contenuInitial = [
           "---",
           `titre: "${titreDoc}"`,
           "type: note",
           "role: support",
-          `contexte: "Compétence ${vue.code}"`,
+          `contexte: "${titre}"`,
           `domaine: "${vue.domaineNom || "transversal"}"`,
           "---",
           `# ${titreDoc}`,
           "",
-          `Fiche de travail et observations associées à la compétence [[${vue.code}]].`,
+          `Fiche de travail et traces associées à « ${titre} ».`,
           "",
           "## Notes",
           "",
@@ -94,10 +89,10 @@ export function VueCompetence({
   }
 
   const volets: Array<{ id: VoletCompetence; libelle: string; compteur: number }> = [
-    { id: "observations", libelle: "Observations", compteur: vue.observations.length },
+    { id: "observations", libelle: "Traces", compteur: vue.observations.length },
     { id: "exercices", libelle: "Exercices", compteur: vue.exercices.length },
-    { id: "ressources", libelle: "Ressources", compteur: vue.documents.length },
-    { id: "relations", libelle: "Relations", compteur: vue.prerequis.length + vue.suivantes.length },
+    { id: "ressources", libelle: "Supports", compteur: vue.documents.length },
+    { id: "relations", libelle: "Autour", compteur: vue.connexes.filter((item) => item.relation === "co-mobilisee").length },
   ];
 
   return (
@@ -107,13 +102,12 @@ export function VueCompetence({
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2 text-xs">
-              <CodeCompetence code={vue.code} />
               <span className="text-texte-discret">{vue.domaineNom}</span>
               <span aria-hidden className="text-bordure-contraste">·</span>
               <span className="text-texte-discret">{LIBELLES_PALIERS[vue.palier] ?? vue.palier}</span>
               <span aria-hidden className="text-bordure-contraste">·</span>
               <span className="text-texte-discret">
-                État consolidé · confiance {LIBELLES_CONFIANCE[vue.confiance].toLowerCase()}
+                {LIBELLES_REPERES[vue.confiance] ?? "À découvrir"}
               </span>
             </div>
             <h2 className="mt-2 max-w-3xl font-serif text-[1.375rem] font-medium leading-snug tracking-tight text-texte">
@@ -126,7 +120,7 @@ export function VueCompetence({
               <ConcepteurSeance
                 {...donneesSeance}
                 preset={{
-                  libelle: `Compétence : ${vue.code}`,
+                  libelle: `Travailler : ${titre}`,
                   codesVises: [vue.code],
                   dureeCibleMin: 30,
                   nombreExercices: 3,
@@ -160,36 +154,26 @@ export function VueCompetence({
         </div>
       </header>
 
-      {/* Mesures de la compétence */}
+      {/* Repères simples pour se situer */}
       <section
-        aria-label="Mesures de la compétence"
-        className="grid shrink-0 grid-cols-2 gap-y-3 border-b border-bordure bg-surface px-3 py-3 lg:px-5 xl:grid-cols-5 xl:divide-x xl:divide-bordure"
+        aria-label="Repères de la compétence"
+        className="grid shrink-0 grid-cols-2 gap-y-3 border-b border-bordure bg-surface px-3 py-3 lg:grid-cols-4 lg:px-5 lg:divide-x lg:divide-bordure"
       >
         <Mesure
-          libelle="Observation ponctuelle"
-          valeur={vue.etatLot5.observationPonctuelle ? formatDateCourte(vue.etatLot5.observationPonctuelle.date) : "Non mesurée"}
-          precision={vue.etatLot5.observationPonctuelle
-            ? `${libelleResultatObservation(vue.etatLot5.observationPonctuelle.resultat)} · ${AUTONOMIE[vue.etatLot5.observationPonctuelle.autonomie].libelle}`
-            : "Aucune observation directe"}
+          libelle="Repère actuel"
+          valeur={LIBELLES_REPERES[vue.confiance] ?? "À découvrir"}
+          precision={vue.prochaineEtape ?? "Le parcours peut avancer"}
         />
         <Mesure
-          libelle="État consolidé"
-          valeur={vue.etatLot5.etatConsolide.niveau === null ? "Non mesuré" : `${vue.etatLot5.etatConsolide.niveau} / 5`}
-          precision={vue.etatLot5.etatConsolide.niveau === null
-            ? "Aucune mesure à consolider"
-            : `${NIVEAUX[vue.etatLot5.etatConsolide.niveau].nom} · confiance ${LIBELLES_CONFIANCE[vue.etatLot5.etatConsolide.confiance].toLowerCase()}`}
-        />
-        <Mesure
-          libelle="Maîtrise"
-          valeur={vue.etatLot5.maitrise.maitrisee ? "Établie" : "Non établie"}
-          precision={vue.etatLot5.maitrise.manque ?? "Les observations soutiennent cette maîtrise."}
-        />
-        <Mesure
-          libelle="Observations"
+          libelle="Traces de travail"
           valeur={String(vue.nombreObservations)}
-          precision={`${vue.nombreContextes} contexte${vue.nombreContextes > 1 ? "s" : ""} distinct${vue.nombreContextes > 1 ? "s" : ""}`}
+          precision={vue.nombreObservations === 0 ? "Pas encore de trace" : "Constats gardés en mémoire"}
         />
-        <Mesure libelle="Robustesse" valeur={pourcentage(vue.robustesse)} precision="Solidité de l’acquis" />
+        <Mesure
+          libelle="Situations vues"
+          valeur={String(vue.nombreContextes)}
+          precision={vue.nombreContextes > 0 ? "contextes différents" : "Aucun contexte encore"}
+        />
         <Mesure
           libelle="Dernière activité"
           valeur={dateCourte(vue.derniereObservation)}
@@ -198,29 +182,9 @@ export function VueCompetence({
       </section>
 
       <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
-        {/* Volet de lecture : ce que la mesure veut dire. */}
+        {/* Volet de lecture : la prochaine étape, sans tableau de scores. */}
         <div className="min-h-0 space-y-5 overflow-y-auto px-6 py-5 lg:border-r lg:border-bordure lg:px-7">
           <ResteADemontrer vue={vue} prochainExercice={prochainExercice} ouvrirElement={ouvrirElement} />
-
-          <div className="rounded-xl border border-bordure bg-surface p-5 shadow-[var(--ombre-posee)]">
-            <h3 className="font-serif text-lg font-medium">Le détail de vos résultats</h3>
-            <p className="mt-1 text-xs text-texte-discret">
-              Calculée depuis les observations observées ; aucune valeur n’est stockée.
-            </p>
-            <div className="mt-5 space-y-3">
-              {vue.dimensions.map((dimension) => (
-                <Barre key={dimension.id} valeur={dimension.valeur} libelle={dimension.libelle} />
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-bordure bg-surface p-5 shadow-[var(--ombre-posee)]">
-            <h3 className="font-serif text-lg font-medium">Évolution de la compétence</h3>
-            <p className="mt-1 text-xs text-texte-discret">
-              Ce que chaque observation a changé, rejoué depuis le journal.
-            </p>
-            <FriseParcours etapes={vue.parcours} />
-          </div>
         </div>
 
         {/* Volet des éléments */}
@@ -256,7 +220,7 @@ export function VueCompetence({
             {volet === "observations" && (
               <>
                 <p className="mb-3 text-[0.6875rem] leading-relaxed text-texte-discret">
-                  Chaque observation ouvre le document produit au moment de la mesure, quand il existe.
+                  Chaque trace ouvre le document produit au moment du travail, quand il existe.
                 </p>
                 {vue.observations.length ? (
                   <ul className="space-y-1">
@@ -267,7 +231,7 @@ export function VueCompetence({
                     ))}
                   </ul>
                 ) : (
-                  <p className="px-2.5 py-3 text-xs text-texte-discret">Aucune observation directe.</p>
+                  <p className="px-2.5 py-3 text-xs text-texte-discret">Aucune trace directe.</p>
                 )}
               </>
             )}
@@ -317,7 +281,7 @@ export function VueCompetence({
             {volet === "ressources" && (
               <>
                 <p className="mb-3 text-[0.6875rem] leading-relaxed text-texte-discret">
-                  Les supports de travail seulement : les exercices et les observations ont leur onglet.
+                  Les supports de travail seulement : les exercices et les traces ont leur onglet.
                 </p>
                 {vue.documents.length ? (
                   <ul className="space-y-1">
@@ -396,52 +360,6 @@ export function VueCompetence({
   );
 }
 
-function FriseParcours({ etapes }: { etapes: EtapeParcours[] }) {
-  if (etapes.length === 0) {
-    return <p className="mt-4 text-xs text-texte-discret">Rien à afficher pour l’instant. Faites un exercice pour démarrer.</p>;
-  }
-
-  return (
-    <ol className="mt-4 space-y-4 border-l border-bordure pl-4">
-      {etapes.map((etape) => (
-        <li key={etape.observationId} className="relative">
-          <span
-            className={cx(
-              "absolute -left-[1.18rem] top-1 size-2 rounded-full border-2 border-surface",
-              etape.progression ? "bg-succes" : etape.recul ? "bg-alerte" : etape.premiereMesure ? "bg-info" : "bg-primaire",
-            )}
-          />
-          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            {etape.premiereMesure ? (
-              <span className="chiffres text-xs font-semibold text-info">
-                Première mesure — niveau {etape.niveauApres}
-              </span>
-            ) : etape.progression || etape.recul ? (
-              <span className="chiffres text-xs font-semibold">
-                Niveau {etape.niveauAvant} <span aria-hidden className="text-texte-discret">→</span>{" "}
-                <span className={etape.progression ? "text-succes" : "text-alerte"}>{etape.niveauApres}</span>
-              </span>
-            ) : (
-              <span className="text-xs font-medium text-texte-attenue">
-                {etape.resultat === "reussi" ? "Réussi, niveau confirmé" : etape.resultat === "partiel" ? "Partiellement réussi" : "Non abouti"}
-              </span>
-            )}
-            {etape.nouveauContexte && !etape.premiereMesure && (
-              <span className="rounded border border-bordure px-1.5 py-0.5 text-[0.5625rem] uppercase tracking-wide text-texte-discret">
-                Contexte inédit
-              </span>
-            )}
-          </div>
-          <p className="mt-0.5 text-xs">{etape.contexte}</p>
-          <p className="mt-0.5 text-[0.625rem] text-texte-discret">
-            {dateCourte(etape.date)} · {etape.type} · autonomie {etape.autonomie}
-          </p>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
 function ResteADemontrer({
   vue,
   prochainExercice,
@@ -452,11 +370,21 @@ function ResteADemontrer({
   ouvrirElement?: (id: string) => void;
 }) {
   const rien = !vue.prochaineEtape && vue.contradictions === 0 && vue.reserves.length === 0;
-  if (rien && !prochainExercice) return null;
+  if (rien && !prochainExercice) {
+    return (
+      <div className="rounded-xl border border-bordure bg-surface p-5 shadow-[var(--ombre-posee)]">
+        <h3 className="font-serif text-lg font-medium">Rien à signaler pour l’instant</h3>
+        <p className="mt-2 text-sm leading-relaxed text-texte-attenue">
+          Les traces conservées ne font pas ressortir de suite particulière. Tu peux relire les traces
+          de travail ou lancer une séance quand tu veux.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-xl border border-bordure bg-surface p-6 shadow-[var(--ombre-posee)]">
-      <h3 className="font-serif text-lg font-medium">Ce qui reste à travailler</h3>
+      <h3 className="font-serif text-lg font-medium">Ce qui peut venir ensuite</h3>
 
       {vue.prochaineEtape && (
         <p className="mt-3 rounded-lg border border-alerte/30 bg-alerte-faible/40 px-3.5 py-3 text-sm leading-relaxed text-texte">
@@ -471,7 +399,7 @@ function ResteADemontrer({
           className="mt-3 flex w-full items-center justify-between gap-3 rounded-lg border border-bordure bg-surface-2/50 px-3.5 py-2.5 text-left transition-colors hover:border-primaire/40 hover:bg-surface-2 cursor-pointer"
         >
           <span className="min-w-0">
-            <span className="block text-xs font-semibold text-primaire">Exercice associé</span>
+            <span className="block text-xs font-semibold text-primaire">Pour avancer</span>
             <span className="mt-0.5 block truncate text-xs text-texte-attenue">{prochainExercice.titre}</span>
           </span>
           <IconeFleche className="size-3.5 shrink-0 text-primaire" />
@@ -481,11 +409,10 @@ function ResteADemontrer({
       {vue.contradictions > 0 && (
         <p className="mt-3 text-xs leading-relaxed text-texte-attenue">
           <strong className="font-medium">
-            {vue.contradictions} observation{vue.contradictions > 1 ? "s" : ""} s’oppose
-            {vue.contradictions > 1 ? "nt" : ""} à la tendance
+            {vue.contradictions} trace{vue.contradictions > 1 ? "s" : ""} ne va
+            {vue.contradictions > 1 ? "nt" : ""} pas toutes dans le même sens.
           </strong>{" "}
-          — le niveau en tient compte, et la confiance aussi. Une contradiction est une
-          information, pas une faute.
+          C’est une information à regarder, pas une faute.
         </p>
       )}
 
@@ -519,8 +446,8 @@ function CoMobilisees({
         Souvent travaillées avec
       </h3>
       <p className="mt-1 text-[0.6875rem] text-texte-discret">
-        Observé dans ton travail, pas déclaré : ces compétences ont été mises en jeu par les
-        mêmes exercices.
+        Vu dans ton travail, pas déduit d’un intitulé : ces repères apparaissent dans les mêmes
+        exercices.
       </p>
       <ul className="mt-3 grid gap-2 sm:grid-cols-2">
         {observees.map((item) => (
@@ -530,14 +457,13 @@ function CoMobilisees({
               onClick={() => ouvrirElement(item.code)}
               className="flex w-full items-center gap-2 rounded-lg border border-bordure bg-surface-2 px-3 py-2 text-left transition-colors hover:border-primaire/40 hover:bg-surface-3 cursor-pointer"
             >
-              <CodeCompetence code={item.code} />
               <span className="min-w-0 flex-1 truncate text-xs">{item.intitule}</span>
               <span className="shrink-0 text-[0.625rem] text-texte-discret">
                 {item.occurrences}×
               </span>
               {!item.dejaMesuree && (
                 <span className="shrink-0 rounded border border-bordure px-1.5 py-0.5 text-[0.5625rem] uppercase tracking-wide text-texte-discret">
-                  Jamais mesurée
+                  Pas encore rencontré
                 </span>
               )}
             </button>

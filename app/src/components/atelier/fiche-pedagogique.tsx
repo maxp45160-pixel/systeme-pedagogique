@@ -1,6 +1,7 @@
 "use client";
 
 import type { VuePedagogiqueAtelier } from "@/lib/documents/vue-atelier";
+import type { EntretienDomaineAtelier } from "@/lib/documents/vue-atelier";
 import type { ElementAtelier } from "./types-atelier";
 import type { CalibrageModale, CompetenceModale } from "@/components/exercices/proprietes-generation";
 import { ConcepteurSeance, type DonneesSeance } from "@/components/seances/concepteur-seance";
@@ -10,6 +11,7 @@ import { IconeFleche } from "@/components/ui/icones";
 import { VueCompetence } from "./vues/vue-competence";
 import { VueDomaine } from "./vues/vue-domaine";
 import { VueExercice } from "./vues/vue-exercice";
+import { LIBELLES_PALIERS } from "./vues/elements-fiche";
 
 export { VueDomaine };
 
@@ -19,9 +21,9 @@ export function FichePedagogiqueAtelier({
   ouvrirElement,
   elements,
   compteId,
-  modeInitial,
   generation,
   donneesSeance,
+  entretien,
   onRestaurerDomaine,
 }: {
   vue: VuePedagogiqueAtelier;
@@ -29,9 +31,9 @@ export function FichePedagogiqueAtelier({
   ouvrirElement: (id: string) => void;
   elements?: ElementAtelier[];
   compteId: string;
-  modeInitial?: "referentiel";
   generation?: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
   donneesSeance?: DonneesSeance;
+  entretien?: EntretienDomaineAtelier;
   onRestaurerDomaine?: (domaineId: string) => void;
 }) {
   if (vue.kind === "competence") {
@@ -55,7 +57,7 @@ export function FichePedagogiqueAtelier({
         vue={vue}
         ouvrirElement={ouvrirElement}
         compteId={compteId}
-        modeInitial={modeInitial}
+        entretien={entretien}
         onRestaurerDomaine={onRestaurerDomaine}
       />
     );
@@ -137,7 +139,7 @@ export function PanneauPedagogiqueAtelier({
     return (
       <div className="space-y-5 p-4">
         <div>
-          <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-texte-discret">Structure du domaine</p>
+          <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-texte-discret">Ton parcours</p>
           <h3 className="mt-1 font-serif text-lg font-medium">{vue.nom}</h3>
         </div>
 
@@ -168,27 +170,27 @@ export function PanneauPedagogiqueAtelier({
         )}
 
         <div className="rounded-xl border border-bordure bg-surface p-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-texte-discret">Niveaux</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-texte-discret">Étapes</p>
           <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
             <div className="rounded-lg bg-surface-2 p-2">
-              <span className="block text-[0.625rem] text-texte-discret">Fondam.</span>
+              <span className="block text-[0.625rem] text-texte-discret">{LIBELLES_PALIERS.fondamentaux}</span>
               <span className="chiffres font-semibold text-texte">{paliersCompteurs.fondamentaux}</span>
             </div>
             <div className="rounded-lg bg-surface-2 p-2">
-              <span className="block text-[0.625rem] text-texte-discret">Interm.</span>
+              <span className="block text-[0.625rem] text-texte-discret">{LIBELLES_PALIERS.intermediaire}</span>
               <span className="chiffres font-semibold text-texte">{paliersCompteurs.intermediaire}</span>
             </div>
             <div className="rounded-lg bg-surface-2 p-2">
-              <span className="block text-[0.625rem] text-texte-discret">Avancé</span>
+              <span className="block text-[0.625rem] text-texte-discret">{LIBELLES_PALIERS.avance}</span>
               <span className="chiffres font-semibold text-texte">{paliersCompteurs.avance}</span>
             </div>
           </div>
         </div>
 
         <div className="rounded-xl border border-bordure bg-surface-2/60 p-4">
-          <p className="text-xs font-semibold">Organisation réelle</p>
+          <p className="text-xs font-semibold">Comment le parcours est rangé</p>
           <p className="mt-2 text-xs leading-relaxed text-texte-discret">
-            Cette fiche mère regroupe les compétences du domaine. Les paliers les ordonnent ; ils ne créent pas de nouvelle entité.
+            Les repères de ce domaine sont regroupés ici par étape. Cela aide à voir ce qui est déjà rencontré et ce qui peut venir ensuite.
           </p>
         </div>
       </div>

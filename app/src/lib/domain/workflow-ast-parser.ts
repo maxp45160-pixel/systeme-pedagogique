@@ -291,7 +291,6 @@ export function groupePourChemin(relatif: string): GroupeWorkflow {
     r.includes("referentiel-actions") ||
     r.includes("document-actions") ||
     r.includes("projets-actions") ||
-    r.includes("entretien-actions") ||
     r.includes("carte-globale-actions")
   ) {
     return "atelier";

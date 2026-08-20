@@ -3,9 +3,9 @@
  *
  * ## Ce que ce module fait, et la limite qu'il ne franchit pas
  *
- * Il dérive, à partir des seuls faits déjà enregistrés, quatre familles de
- * candidats : des arêtes manquantes, des compétences trop larges, des
- * compétences dormantes, et des compétences mal rangées. Il **prépare des
+ * Il dérive, à partir des seuls faits déjà enregistrés, trois familles de
+ * candidats : des arêtes manquantes, des compétences dormantes, et des
+ * compétences mal rangées. Il **prépare des
  * propositions sans qu'on les demande**.
  *
  * Il n'écrit rien. L'écriture reste un clic, par les commandes existantes
@@ -41,11 +41,9 @@ import type {
   Skill,
   SkillObservation,
   SkillState,
-  Dimension,
 } from "@/lib/domain/types";
 import { calculerSimilaritesTextuelles } from "./similarite-textuelle";
 import { motifsNonAtomique } from "@/lib/domain/atomicite";
-import { cleContexte, familleIndeterminee } from "./contexte-situation";
 import { joursDepuis } from "./dates";
 
 /* ------------------------------------------------------------------ */
@@ -64,23 +62,8 @@ export const CO_MOBILISATIONS_MINIMUM = 2;
 /** Similarité de vocabulaire au-delà de laquelle deux intitulés se ressemblent. */
 export const SEUIL_SIMILARITE = 0.25;
 
-/**
- * Écart de dimension au-delà duquel une compétence se comporte comme deux.
- *
- * 0,4 sur [0,1] : un écart de moins de quatre dixièmes entre deux familles de
- * situation entre dans la variabilité ordinaire d'une même compétence. Au-delà,
- * ce n'est plus la même chose qu'on mesure.
- */
-export const ECART_DIMENSION_SCISSION = 0.4;
-
-/** Observations nécessaires de CHAQUE côté de l'écart. Une seule ne prouve rien. */
+/** Observations minimales avant de proposer un rangement. */
 export const OBSERVATIONS_PAR_FAMILLE_MINIMUM = 2;
-
-/**
- * Minutes au-delà desquelles une compétence dépasse ce que le protocole §2e
- * autorise (« prouvable en 20 à 60 minutes »).
- */
-export const DUREE_MAX_PROTOCOLE = 60;
 
 /** Jours sans rien avant qu'une compétence soit dite dormante. */
 export const JOURS_DORMANCE = 90;
@@ -114,13 +97,6 @@ export interface ArêteCandidate extends CandidatBase {
   source: "usage" | "redaction";
 }
 
-export interface ScissionCandidate extends CandidatBase {
-  genre: "scission";
-  code: string;
-  /** Les familles de situation où la compétence se comporte différemment. */
-  familles: { cle: string; observations: number; dimension: Dimension; moyenne: number }[];
-}
-
 export interface DormanceCandidate extends CandidatBase {
   genre: "dormance";
   code: string;
@@ -133,7 +109,7 @@ export interface ReformulationCandidate extends CandidatBase {
   intitule: string;
   /** Les règles enfreintes, pour que le tuteur sache quoi redécouper. */
   regles: string[];
-  /** Vrai si des observations existent : la reformulation devient une scission. */
+  /** Vrai si des observations existent : l'historique doit rester attaché. */
   aDesObservations: boolean;
 }
 
@@ -147,7 +123,6 @@ export interface RangementCandidate extends CandidatBase {
 
 export type CandidatReferentiel =
   | ArêteCandidate
-  | ScissionCandidate
   | DormanceCandidate
   | RangementCandidate
   | ReformulationCandidate;
@@ -368,116 +343,7 @@ function aretesDepuisRedaction(
 }
 
 /* ------------------------------------------------------------------ */
-/* 2. Compétences à scindre                                            */
-/* ------------------------------------------------------------------ */
-
-const DIMENSIONS: Dimension[] = [
-  "comprehension",
-  "application",
-  "transfert",
-  "integration",
-  "justification",
-];
-
-/**
- * Les compétences que la MESURE dit trop larges.
- *
- * C'est le seul test d'atomicité qui ne soit pas du style — les règles de forme
- * de `lib/domain/atomicite.ts` attrapent un intitulé mal écrit, pas une
- * compétence bien écrite qui recouvre deux savoir-faire.
- *
- * Deux signaux, indépendants :
- *
- * 1. **dimensions divergentes selon la famille de situation** (ADR-083). Une
- *    même compétence à 0,9 en application dans une famille et 0,2 dans une
- *    autre, avec au moins deux observations de chaque côté, ne mesure pas la même
- *    chose des deux côtés ;
- * 2. **durées au-delà de ce que le protocole §2e autorise** — « prouvable en
- *    20 à 60 minutes ». Une compétence dont toutes les tentatives menées
- *    dépassent l'heure est trop large par définition du protocole.
- *
- * Les observations repliées sur leur libellé (`familleIndeterminee`) sont écartées :
- * leur « famille » est presque un identifiant, et divergerait toujours.
- */
-export function detecterScissions(entrees: EntreesCandidats): ScissionCandidate[] {
-  const { etats, exercices, tentatives } = entrees;
-  const exercicesParId = new Map(exercices.map((e) => [e.id, e]));
-  const candidats: ScissionCandidate[] = [];
-
-  for (const etat of etats) {
-    const motifs: string[] = [];
-    const familles: ScissionCandidate["familles"] = [];
-
-    // --- Signal 1 : dimensions divergentes par famille ---
-    const parFamille = new Map<string, SkillObservation[]>();
-    for (const observation of etat.observations) {
-      if (familleIndeterminee(observation)) continue;
-      const cle = cleContexte(observation);
-      parFamille.set(cle, [...(parFamille.get(cle) ?? []), observation]);
-    }
-
-    const eligibles = [...parFamille.entries()].filter(
-      ([, ps]) => ps.length >= OBSERVATIONS_PAR_FAMILLE_MINIMUM,
-    );
-
-    for (const dimension of DIMENSIONS) {
-      const moyennes = eligibles
-        .map(([cle, ps]) => {
-          const valeurs = ps
-            .map((p) => p.dimensions[dimension])
-            .filter((v): v is number => v !== undefined);
-          return valeurs.length === 0
-            ? null
-            : {
-                cle,
-                observations: valeurs.length,
-                moyenne: valeurs.reduce((s, v) => s + v, 0) / valeurs.length,
-              };
-        })
-        .filter((m): m is { cle: string; observations: number; moyenne: number } => m !== null);
-
-      if (moyennes.length < 2) continue;
-      const triees = [...moyennes].sort((a, b) => a.moyenne - b.moyenne);
-      const bas = triees[0];
-      const haut = triees[triees.length - 1];
-      if (haut.moyenne - bas.moyenne < ECART_DIMENSION_SCISSION) continue;
-
-      motifs.push(
-        `En « ${dimension} », ${haut.moyenne.toFixed(2)} sur ${haut.cle} contre ` +
-          `${bas.moyenne.toFixed(2)} sur ${bas.cle} : ce ne sont pas les mêmes savoir-faire.`,
-      );
-      familles.push({ ...haut, dimension }, { ...bas, dimension });
-    }
-
-    // --- Signal 2 : durées au-delà du protocole ---
-    const menees = tentatives.filter((t) => {
-      if (t.statut !== "terminee" || t.dureeMin === undefined) return false;
-      const exercice = exercicesParId.get(t.exerciseId);
-      return exercice?.competences.includes(etat.skill.code) ?? false;
-    });
-    if (menees.length >= OBSERVATIONS_PAR_FAMILLE_MINIMUM) {
-      const toutesLongues = menees.every((t) => (t.dureeMin ?? 0) > DUREE_MAX_PROTOCOLE);
-      if (toutesLongues) {
-        const mediane = [...menees.map((t) => t.dureeMin ?? 0)].sort((a, b) => a - b)[
-          Math.floor(menees.length / 2)
-        ];
-        motifs.push(
-          `Les ${menees.length} tentatives menées dépassent toutes ${DUREE_MAX_PROTOCOLE} min ` +
-            `(médiane ${mediane} min) : le protocole §2e demande une compétence prouvable en 20 à 60 min.`,
-        );
-      }
-    }
-
-    if (motifs.length > 0) {
-      candidats.push({ genre: "scission", code: etat.skill.code, familles, motifs });
-    }
-  }
-
-  return candidats;
-}
-
-/* ------------------------------------------------------------------ */
-/* 3. Compétences dormantes                                            */
+/* 2. Compétences dormantes                                            */
 /* ------------------------------------------------------------------ */
 
 /**
@@ -611,10 +477,8 @@ export function detecterRangements(entrees: EntreesCandidats): RangementCandidat
  * est là, chaque ligne porte les règles enfreintes, et le tuteur peut proposer
  * un redécoupage.
  *
- * `aDesObservations` change la nature du geste : sans observation, l'intitulé se réécrit
- * franchement ; avec, la compétence a un historique et sa réécriture est une
- * **scission** (ADR-087) — l'ancienne est archivée, les nouvelles démarrent à
- * zéro observation, et l'écran doit annoncer ce recul avant de l'appliquer.
+ * `aDesObservations` signale simplement que l'historique doit rester attaché
+ * lorsque l'intitulé est reformulé.
  */
 export function detecterReformulations(entrees: EntreesCandidats): ReformulationCandidate[] {
   const { referentiel, observations } = entrees;
@@ -635,7 +499,7 @@ export function detecterReformulations(entrees: EntreesCandidats): Reformulation
       motifs: [
         ...motifs.map((m) => m.message),
         aDesObservations
-          ? "Elle porte des observations : la réécriture est une scission, et les observations restent sur l'ancienne (ADR-087)."
+          ? "Elle porte des observations : les traces resteront attachées à cette compétence."
           : "Aucune observation : l'intitulé se réécrit sans rien perdre.",
       ],
     });
@@ -651,7 +515,6 @@ export function detecterReformulations(entrees: EntreesCandidats): Reformulation
 
 export interface LotCandidats {
   aretes: ArêteCandidate[];
-  scissions: ScissionCandidate[];
   dormances: DormanceCandidate[];
   rangements: RangementCandidate[];
   reformulations: ReformulationCandidate[];
@@ -662,19 +525,16 @@ export interface LotCandidats {
 /** Le lot complet, préparé sans qu'on l'ait demandé. Rien n'est écrit. */
 export function detecterCandidats(entrees: EntreesCandidats): LotCandidats {
   const aretes = detecterAretes(entrees);
-  const scissions = detecterScissions(entrees);
   const dormances = detecterDormances(entrees);
   const rangements = detecterRangements(entrees);
   const reformulations = detecterReformulations(entrees);
   return {
     aretes,
-    scissions,
     dormances,
     rangements,
     reformulations,
     total:
       aretes.length +
-      scissions.length +
       dormances.length +
       rangements.length +
       reformulations.length,

@@ -101,7 +101,6 @@ export function VueExercice({
               >
                 <div className="min-w-0 flex-1 pr-2">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-semibold text-primaire">{comp.code}</span>
                     <span className="rounded bg-surface-3 px-1.5 py-0.5 text-[0.625rem] text-texte-discret">
                       {LIBELLES_PALIERS[comp.palier] ?? comp.palier}
                     </span>

@@ -125,7 +125,7 @@ export function profilVersUser(
 /* Chargement groupé (RPC `charger_tout`)                              */
 /* ------------------------------------------------------------------ */
 
-/** Ce que `charger_tout` doit rapporter : profil, données, référentiel, thèmes, réglages moteur. */
+/** Ce que `charger_tout` doit rapporter : profil, données, référentiel et réglages moteur. */
 export interface ResultatRPC {
   collections: Collections;
   domaines: Domaine[];
@@ -137,8 +137,9 @@ export interface ResultatRPC {
 /**
  * Clés attendues dans la charge utile de `charger_tout`, hors `profile`.
  *
- * Toute table ajoutée aux `Collections` ou référentiel s'ajoute ici **et** dans la fonction
- * SQL (`supabase/schema.sql` § 8bis).
+ * Toute table ajoutée aux `Collections` ou au référentiel s'ajoute ici **et** dans la
+ * fonction SQL (`supabase/schema.sql` § 8bis). `themes` est volontairement absent :
+ * cette entité a été retirée de l'application et des versions courantes de la RPC.
  */
 export const CLES_RPC = [
   "observations",

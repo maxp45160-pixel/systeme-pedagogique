@@ -260,7 +260,10 @@ export function CaptureIntention({
 
   useEffect(() => {
     if (besoinInitial && besoinValide(besoinInitial.trim())) {
-      void traduire(besoinInitial.trim());
+      const minuterie = window.setTimeout(() => {
+        void traduire(besoinInitial.trim());
+      }, 0);
+      return () => window.clearTimeout(minuterie);
     }
   }, [besoinInitial, traduire]);
 

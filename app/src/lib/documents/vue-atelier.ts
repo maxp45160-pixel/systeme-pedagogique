@@ -11,6 +11,7 @@ import {
   type SkillObservation,
   type SkillState,
 } from "@/lib/domain/types";
+import type { LotCandidats } from "@/lib/engine/candidats-referentiel";
 import { retraitsParCode, type EtatRetrait } from "@/lib/domain/referentiel-compte";
 import type { IndexDocumentaire } from "./index";
 import {
@@ -172,6 +173,9 @@ export interface VueDomaineAtelier {
     score: number | null;
     confiance: Confiance;
     nombreObservations: number;
+    importance: number;
+    prerequis: string[];
+    suivantes: string[];
     /**
      * Vraie quand la compétence sert ce domaine sans en être portée
      * (ADR-081). Son code vient d'ailleurs, et elle ne s'y retire pas : elle
@@ -192,6 +196,93 @@ export interface VueDomaineAtelier {
   derniereActivite: string | null;
 }
 
+export interface EntretienDomaineAtelier {
+  lot: LotCandidats;
+  intitules: Record<string, string>;
+}
+
+export interface PisteDomaineAtelier {
+  code?: string;
+  titre: string;
+  motif: string;
+}
+
+export function construirePistesDomaine(
+  vue: VueDomaineAtelier,
+  entretien?: EntretienDomaineAtelier,
+): Array<{ titre: string; items: PisteDomaineAtelier[] }> {
+  if (!entretien) return [];
+
+  const codes = new Set(vue.competences.map((competence) => competence.code));
+  const intitule = (code: string) => entretien.intitules[code] ?? "Repère sans intitulé";
+  const pistesAExplorerParCode = new Map<string, PisteDomaineAtelier>();
+  const ajouterPisteAExplorer = (piste: PisteDomaineAtelier & { code: string }) => {
+    const precedente = pistesAExplorerParCode.get(piste.code);
+    if (!precedente) {
+      pistesAExplorerParCode.set(piste.code, piste);
+      return;
+    }
+    const motifs = new Set([precedente.motif, piste.motif].filter(Boolean));
+    pistesAExplorerParCode.set(piste.code, {
+      ...precedente,
+      motif: [...motifs].join(" · "),
+    });
+  };
+
+  entretien.lot.reformulations
+    .filter((candidat) => codes.has(candidat.code))
+    .forEach((candidat) =>
+      ajouterPisteAExplorer({
+        code: candidat.code,
+        titre: intitule(candidat.code),
+        motif: candidat.motifs[0] ?? "L’intitulé mérite d’être reformulé.",
+      }),
+    );
+  entretien.lot.dormances
+    .filter((candidat) => codes.has(candidat.code))
+    .forEach((candidat) =>
+      ajouterPisteAExplorer({
+        code: candidat.code,
+        titre: intitule(candidat.code),
+        motif: candidat.motifs[0] ?? "Aucune activité ou relation ne l’éclaire encore.",
+      }),
+    );
+  entretien.lot.rangements
+    .filter(
+      (candidat) =>
+        codes.has(candidat.code) &&
+        (candidat.domaineActuel === vue.domaine.id || candidat.domaineObserve === vue.domaine.id),
+    )
+    .forEach((candidat) =>
+      ajouterPisteAExplorer({
+        code: candidat.code,
+        titre: intitule(candidat.code),
+        motif: candidat.motifs[0] ?? "Les observations viennent d’un autre domaine.",
+      }),
+    );
+
+  const familles: Array<{ titre: string; items: PisteDomaineAtelier[] }> = [
+    {
+      titre: "Ce qui va souvent ensemble",
+      items: entretien.lot.aretes
+        .filter(
+          (candidat) =>
+            candidat.source === "usage" &&
+            (codes.has(candidat.amont) || codes.has(candidat.aval)),
+        )
+        .map((candidat) => ({
+          titre: `${intitule(candidat.amont)} → ${intitule(candidat.aval)}`,
+          motif: candidat.motifs[0] ?? "Co-mobilisation répétée avec ordre observé.",
+        })),
+    },
+    {
+      titre: "À explorer",
+      items: [...pistesAExplorerParCode.values()],
+    },
+  ];
+
+  return familles.filter((famille) => famille.items.length > 0);
+}
 
 export interface VueExerciceProjectionAtelier {
   kind: "exercice";
@@ -258,7 +349,11 @@ export function construireVuesAtelier(
   competences: VueCompetenceAtelier[];
   exercices: VueExerciceProjectionAtelier[];
 } {
-  const domainesVivants = new Set(referentiel.skills.filter((skill) => !skill.archive).map((skill) => skill.domaine));
+  const domainesVivants = new Set(
+    referentiel.skills
+      .filter((skill) => !skill.archive)
+      .flatMap((skill) => [skill.domaine, ...(skill.domainesSecondaires ?? [])]),
+  );
   /*
    * Calculée une fois, partagée par référence : la même liste sur soixante-dix
    * fiches, pas soixante-dix copies. Un domaine archivé n'accueille rien, donc
@@ -351,7 +446,6 @@ export function construireVuesAtelier(
   const domaines: VueDomaineAtelier[] = referentiel.domaines
     .filter((domaine) => domaine.archive || domainesVivants.has(domaine.id))
     .map((domaine) => {
-      const items = competences.filter((competence) => competence.domaineId === domaine.id);
       const skills = referentiel.skills.filter((skill) => skill.domaine === domaine.id);
       const skillsAffichees = domaine.archive
         ? skills.filter((skill) => !skill.archive)
@@ -369,9 +463,10 @@ export function construireVuesAtelier(
               (skill.domainesSecondaires ?? []).includes(domaine.id) &&
               referentiel.codesActifs.has(skill.code),
           );
-      const codes = new Set(skillsAffichees.map((skill) => skill.code));
+      const codesDomaine = new Set([...skillsAffichees, ...rattachees].map((skill) => skill.code));
+      const items = competences.filter((competence) => codesDomaine.has(competence.code));
       const exercicesDomaine = exercices.filter(
-        (exercice) => !exercice.archive && exercice.competences.some((code) => codes.has(code)),
+        (exercice) => !exercice.archive && exercice.competences.some((code) => codesDomaine.has(code)),
       );
       return {
         kind: "domaine",
@@ -389,6 +484,11 @@ export function construireVuesAtelier(
             score: item?.score ?? null,
             confiance: item?.confiance ?? "nulle",
             nombreObservations: item?.nombreObservations ?? 0,
+            importance: skill.importance,
+            prerequis: skill.prerequis,
+            suivantes: referentiel.actifs
+              .filter((suivante) => suivante.prerequis.includes(skill.code))
+              .map((suivante) => suivante.code),
             ...(rattachee
               ? { rattachee: true, porteurNom: referentiel.domainesParId.get(skill.domaine)?.nom ?? skill.domaine }
               : {}),
