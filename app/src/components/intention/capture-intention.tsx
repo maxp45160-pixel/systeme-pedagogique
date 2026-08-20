@@ -4,7 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Modale } from "@/components/ui/modale";
 import { Bouton, cx } from "@/components/ui/primitives";
-import { IconeFleche } from "@/components/ui/icones";
+import {
+  IconeAmpoule,
+  IconeCompetences,
+  IconeExercices,
+  IconeFleche,
+  IconeNote,
+  IconeProjet,
+} from "@/components/ui/icones";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import { ChargementGeneration } from "@/components/ui/chargement-generation";
 import { creerNoteAction } from "@/lib/store/document-actions";
@@ -64,6 +71,37 @@ const RESULTAT_ACTION: Record<ActionIntention["genre"], string> = {
   referentiel: "Le sujet sera situé avant qu’une éventuelle compétence soit proposée.",
   clarification: "Rien ne sera créé avant ta réponse.",
 };
+
+const ICONE_PAR_GENRE: Record<ActionIntention["genre"], React.ComponentType<{ className?: string }>> = {
+  travail: IconeExercices,
+  projet: IconeProjet,
+  note: IconeNote,
+  referentiel: IconeCompetences,
+  clarification: IconeAmpoule,
+};
+
+const SUGGESTIONS_RAPIDES = [
+  {
+    libelle: "Séance express 15 min",
+    prompt: "Je veux faire une séance courte de 15 minutes pour m'entraîner",
+    Icone: IconeExercices,
+  },
+  {
+    libelle: "Réviser mes points faibles",
+    prompt: "Je veux retravailler mes compétences les plus fragiles",
+    Icone: IconeCompetences,
+  },
+  {
+    libelle: "Créer une fiche de cours",
+    prompt: "Je souhaite créer une fiche de synthèse pour résumer mon cours",
+    Icone: IconeNote,
+  },
+  {
+    libelle: "Lancer un projet",
+    prompt: "J'aimerais démarrer un nouveau projet pratique",
+    Icone: IconeProjet,
+  },
+] as const;
 
 function domaineMentionne(
   besoin: string,
@@ -356,7 +394,7 @@ export function CaptureIntention({
   return (
     <Modale
       titre="De quoi as-tu besoin ?"
-      sousTitre="Décris-le comme tu le dirais à voix haute. Le système choisit quoi faire — tu confirmes."
+      sousTitre="Décris ton objectif ou clique sur une suggestion. Le système choisit l’action appropriée."
       largeur="xl"
       onFermer={onFermer}
       pied={
@@ -370,7 +408,8 @@ export function CaptureIntention({
               onClick={() => void traduire()}
               disabled={!besoinValide(besoin)}
             >
-              Voir ce que le système propose
+              Analyser mon besoin
+              <IconeFleche className="size-4" />
             </Bouton>
           </>
         ) : phase === "proposition" ? (
@@ -406,27 +445,52 @@ export function CaptureIntention({
       )}
 
       {phase === "saisie" && (
-        <div className="space-y-3">
-          <textarea
-            value={besoin}
-            onChange={(event) => setBesoin(event.target.value.slice(0, BESOIN_MAX))}
-            onKeyDown={(event) => {
-              // Entrée valide, Maj+Entrée passe à la ligne : la saisie courante
-              // est une phrase, pas un paragraphe.
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                void traduire();
-              }
-            }}
-            rows={3}
-            placeholder={PLACEHOLDER}
-            autoFocus
-            className="w-full resize-none rounded-lg border border-bordure-controle bg-surface px-3 py-2.5 text-sm outline-none focus:border-primaire"
-          />
-          <p className="text-xs text-texte-discret">
-            Un besoin, pas un objet : le système explique s&apos;il faut s&apos;entraîner, produire,
-            garder une ressource ou étendre ton Atelier.
-          </p>
+        <div className="space-y-4">
+          <div>
+            <textarea
+              value={besoin}
+              onChange={(event) => setBesoin(event.target.value.slice(0, BESOIN_MAX))}
+              onKeyDown={(event) => {
+                // Entrée valide, Maj+Entrée passe à la ligne : la saisie courante
+                // est une phrase, pas un paragraphe.
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  void traduire();
+                }
+              }}
+              rows={3}
+              placeholder={PLACEHOLDER}
+              autoFocus
+              className="w-full resize-none rounded-xl border border-bordure-controle bg-surface px-3.5 py-3 text-sm outline-none transition-all placeholder:text-texte-discret focus:border-primaire focus:ring-1 focus:ring-primaire/20"
+            />
+            <div className="mt-1 flex items-center justify-between text-[0.6875rem] text-texte-discret">
+              <span>Un besoin libre, le moteur choisira le format adapté</span>
+              <span>Entrée pour analyser · Maj+Entrée nouvelle ligne</span>
+            </div>
+          </div>
+
+          <div>
+            <p className="mb-2 text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-attenue">
+              Suggestions d’amorçage rapide :
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {SUGGESTIONS_RAPIDES.map(({ libelle, prompt, Icone }) => (
+                <button
+                  key={libelle}
+                  type="button"
+                  onClick={() => {
+                    setBesoin(prompt);
+                    void traduire(prompt);
+                  }}
+                  className="group flex items-center gap-2.5 rounded-lg border border-bordure bg-surface-2/60 px-3 py-2 text-left text-xs transition-colors hover:border-primaire/40 hover:bg-primaire-faible/30"
+                >
+                  <Icone className="size-4 text-primaire shrink-0 transition-transform group-hover:scale-110" />
+                  <span className="font-medium text-texte group-hover:text-primaire">{libelle}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {erreur && (
             <p className="rounded-lg bg-danger-faible px-3 py-2 text-xs text-danger">{erreur}</p>
           )}
@@ -454,28 +518,36 @@ export function CaptureIntention({
           )}
 
           {traduction.alternatives.length > 0 && (
-            <div>
-              <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret">
-                Ou bien
+            <div className="pt-1">
+              <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret mb-2">
+                Autres pistes possibles
               </p>
-              <div className="mt-2 grid gap-2">
-                {traduction.alternatives.map((alternative, index) => (
-                  <button
-                    key={`${alternative.genre}-${index}`}
-                    type="button"
-                    disabled={enExecution}
-                    onClick={() => void executer(alternative)}
-                    className="group flex items-start justify-between gap-3 rounded-xl border border-bordure bg-surface-2 p-3 text-left transition-colors hover:border-primaire/35 hover:bg-primaire-faible/35 disabled:opacity-50"
-                  >
-                    <span className="min-w-0">
-                      <span className="block text-sm font-medium">{alternative.titre}</span>
-                      <span className="mt-1 block text-xs text-texte-discret">
-                        {LIBELLES_ACTION[alternative.genre]} · {alternative.pourquoi}
-                      </span>
-                    </span>
-                    <IconeFleche className="mt-0.5 size-3.5 shrink-0 text-texte-discret group-hover:text-primaire" />
-                  </button>
-                ))}
+              <div className="grid gap-2">
+                {traduction.alternatives.map((alternative, index) => {
+                  const IconeAlt = ICONE_PAR_GENRE[alternative.genre] ?? IconeAmpoule;
+                  return (
+                    <button
+                      key={`${alternative.genre}-${index}`}
+                      type="button"
+                      disabled={enExecution}
+                      onClick={() => void executer(alternative)}
+                      className="group flex items-start justify-between gap-3 rounded-xl border border-bordure bg-surface-2 p-3 text-left transition-colors hover:border-primaire/35 hover:bg-primaire-faible/35 disabled:opacity-50"
+                    >
+                      <div className="flex items-start gap-2.5 min-w-0">
+                        <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded bg-surface text-texte-discret group-hover:text-primaire">
+                          <IconeAlt className="size-3" />
+                        </span>
+                        <div className="min-w-0">
+                          <span className="block text-sm font-medium text-texte group-hover:text-primaire">{alternative.titre}</span>
+                          <span className="mt-0.5 block text-xs text-texte-discret">
+                            {LIBELLES_ACTION[alternative.genre]} · {alternative.pourquoi}
+                          </span>
+                        </div>
+                      </div>
+                      <IconeFleche className="mt-1 size-3.5 shrink-0 text-texte-discret group-hover:text-primaire group-hover:translate-x-0.5 transition-transform" />
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -499,35 +571,48 @@ function PropositionPrincipale({
   enExecution: boolean;
   onExecuter: () => void;
 }) {
+  const IconeGenre = ICONE_PAR_GENRE[action.genre] ?? IconeAmpoule;
+
   return (
-    <div className="rounded-xl border border-primaire/35 bg-primaire-faible/35 p-4">
-      <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-primaire">
-        {LIBELLES_ACTION[action.genre]}
-      </p>
-      <p className="mt-2 font-serif text-lg font-medium">{action.titre}</p>
-      <p className="mt-1.5 text-sm text-texte-attenue">{action.pourquoi}</p>
+    <div className="rounded-xl border border-primaire/40 bg-primaire-faible/25 p-4 sm:p-5 shadow-xs">
+      <div className="flex items-center gap-2">
+        <span className="flex size-6 items-center justify-center rounded-md bg-primaire/15 text-primaire">
+          <IconeGenre className="size-3.5" />
+        </span>
+        <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-primaire">
+          {LIBELLES_ACTION[action.genre]}
+        </span>
+      </div>
+
+      <h3 className="mt-2.5 font-serif text-lg sm:text-xl font-medium tracking-tight text-texte">
+        {action.titre}
+      </h3>
+      <p className="mt-1 text-xs sm:text-sm text-texte-attenue leading-relaxed">{action.pourquoi}</p>
 
       {action.codes.length > 0 && (
-        <p className="mt-3 text-xs text-texte-attenue">
-          {action.codes.length} compétence{action.codes.length > 1 ? "s" : ""} de ton Atelier
-          sera{action.codes.length > 1 ? "ont" : ""} mobilisée{action.codes.length > 1 ? "s" : ""}.
-        </p>
+        <div className="mt-3 flex items-center gap-1.5 text-xs text-primaire font-medium">
+          <IconeCompetences className="size-3.5 shrink-0" />
+          <span>
+            {action.codes.length} compétence{action.codes.length > 1 ? "s" : ""} de ton Atelier mobilisée{action.codes.length > 1 ? "s" : ""}
+          </span>
+        </div>
       )}
 
-      <div className="mt-3 border-t border-primaire/20 pt-3">
+      <div className="mt-3.5 rounded-lg border border-primaire/20 bg-surface/60 p-3">
         <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret">
           Ce qui va se passer
         </p>
-        <p className="mt-1 text-sm text-texte-attenue">{RESULTAT_ACTION[action.genre]}</p>
+        <p className="mt-1 text-xs sm:text-sm text-texte-attenue">{RESULTAT_ACTION[action.genre]}</p>
       </div>
 
       <Bouton
         variante="principal"
         onClick={onExecuter}
         enChargement={enExecution}
-        className={cx("mt-4", enExecution && "pointer-events-none")}
+        className={cx("mt-4 w-full sm:w-auto", enExecution && "pointer-events-none")}
       >
         {CTA_ACTION[action.genre]}
+        <IconeFleche className="size-4" />
       </Bouton>
     </div>
   );
@@ -545,18 +630,23 @@ function QuestionClarification({
   const [reponse, setReponse] = useState("");
 
   return (
-    <div className="rounded-xl border border-primaire/35 bg-primaire-faible/35 p-4">
-      <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-primaire">
-        Question de précision
-      </p>
-      <p className="mt-2 font-serif text-lg font-medium">{action.sujet || action.titre}</p>
-      <p className="mt-1.5 text-sm text-texte-attenue">{action.pourquoi}</p>
+    <div className="rounded-xl border border-primaire/40 bg-primaire-faible/25 p-4 sm:p-5 shadow-xs">
+      <div className="flex items-center gap-2">
+        <span className="flex size-6 items-center justify-center rounded-md bg-primaire/15 text-primaire">
+          <IconeAmpoule className="size-3.5" />
+        </span>
+        <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-primaire">
+          Question de précision
+        </span>
+      </div>
+      <p className="mt-2.5 font-serif text-lg font-medium text-texte">{action.sujet || action.titre}</p>
+      <p className="mt-1 text-xs sm:text-sm text-texte-attenue leading-relaxed">{action.pourquoi}</p>
       <textarea
         value={reponse}
         onChange={(event) => setReponse(event.target.value.slice(0, 300))}
         rows={2}
         placeholder="Réponds en quelques mots…"
-        className="mt-4 w-full resize-none rounded-lg border border-bordure-controle bg-surface px-3 py-2.5 text-sm outline-none focus:border-primaire"
+        className="mt-3.5 w-full resize-none rounded-xl border border-bordure-controle bg-surface px-3.5 py-2.5 text-sm outline-none focus:border-primaire"
       />
       <Bouton
         variante="principal"
@@ -566,6 +656,7 @@ function QuestionClarification({
         className="mt-3"
       >
         Répondre
+        <IconeFleche className="size-4" />
       </Bouton>
     </div>
   );

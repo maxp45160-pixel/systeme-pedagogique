@@ -172,7 +172,7 @@ export function CarteProchaineAction({
 
   return (
     <Carte accent className="relative overflow-hidden">
-      {/* Épine pine en haut : signale la carte prioritaire de l'écran. */}
+      {/* Épine en haut : signale la carte prioritaire de l'écran. */}
       <div className="absolute inset-x-0 top-0 h-1 bg-primaire" aria-hidden />
       {/* Filigrane botanique : discret, purement décoratif. */}
       <IconeFeuille
@@ -187,21 +187,27 @@ export function CarteProchaineAction({
         data-competence={etat.skill.code}
         data-exercice={exercice?.id}
       >
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="size-1.5 rounded-full bg-primaire" aria-hidden />
-            <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-primaire mr-1">
-              Votre priorité du jour
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-primaire/15 px-2.5 py-0.5 text-[0.6875rem] font-semibold uppercase tracking-wider text-primaire">
+              <span className="size-1.5 rounded-full bg-primaire animate-pulse" aria-hidden />
+              Priorité du jour
             </span>
-            <Etiquette ton="primaire" mono>
-              {etat.skill.code}
-            </Etiquette>
-            <Etiquette>{libelleDomaine(referentiel, etat.skill.domaine)}</Etiquette>
-            <Etiquette className="chiffres">
-              Diff. {exercice?.difficulte ?? difficulteCible}/5 ·{" "}
-              {DIFFICULTES[exercice?.difficulte ?? difficulteCible]}
-            </Etiquette>
-            <Etiquette>≈ {formatDuree(dureeEstimeeMin)}</Etiquette>
+            <div className="flex items-center gap-1">
+              <Etiquette ton="primaire" mono>
+                {etat.skill.code}
+              </Etiquette>
+              <Etiquette>{libelleDomaine(referentiel, etat.skill.domaine)}</Etiquette>
+            </div>
+            <span className="text-bordure-contraste" aria-hidden>·</span>
+            <div className="flex items-center gap-1.5 text-xs text-texte-attenue">
+              <span className="font-medium text-texte">
+                Diff. {exercice?.difficulte ?? difficulteCible}/5
+              </span>
+              <span>({DIFFICULTES[exercice?.difficulte ?? difficulteCible]})</span>
+              <span className="text-bordure-contraste" aria-hidden>·</span>
+              <span>≈ {formatDuree(dureeEstimeeMin)}</span>
+            </div>
             {etat.observations.length === 0 && <Etiquette ton="info">Diagnostic</Etiquette>}
             {revision.due && <Etiquette ton="alerte">Révision due</Etiquette>}
           </div>
@@ -209,18 +215,18 @@ export function CarteProchaineAction({
           <BoutonRefusRecommandation code={etat.skill.code} exerciceId={exercice?.id} />
         </div>
 
-        <h2 className="mt-2 font-serif text-lg sm:text-xl font-medium leading-snug tracking-tight">
+        <h2 className="mt-3 font-serif text-lg sm:text-xl font-medium leading-snug tracking-tight text-texte">
           {exercice ? exercice.titre : etat.prochaineEtape}
         </h2>
 
-        <p className="mt-1 max-w-2xl text-xs sm:text-sm text-texte-attenue">{raison}</p>
+        <p className="mt-1.5 max-w-2xl text-xs sm:text-sm text-texte-attenue leading-relaxed">{raison}</p>
 
-        <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2.5 border-t border-bordure/60 pt-2.5">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-bordure/60 pt-3">
           <div className="flex flex-wrap items-center gap-2">
             {actionPrincipale ?? (exercice ? (
               <form action={demarrerExerciceEnFocus.bind(null, exercice.id)}>
-                <Bouton type="submit" variante="principal">
-                  Commencer
+                <Bouton type="submit" variante="principal" className="shadow-xs">
+                  Commencer l’exercice
                   <IconeFleche className="size-4" />
                 </Bouton>
               </form>
@@ -237,63 +243,43 @@ export function CarteProchaineAction({
               href={`/atelier?document=${encodeURIComponent(etat.skill.code)}`}
               className={classesLienBouton("secondaire")}
             >
-              Voir la compétence
+              Fiche compétence
             </Link>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
             <FeedbackRecommandation code={etat.skill.code} compteId={compteId} />
-            <Depliant resume="Pourquoi maintenant ?">
-              <div className="mt-2 rounded-md border border-bordure bg-surface-2 p-2.5 text-xs">
-                <p className="mb-1.5 text-texte-attenue">
-                  Les deux raisons principales :
-                </p>
-                <ul className="space-y-0.5">
-                  {principale.facteurs.slice(0, 2).map((f, i) => (
-                    <li key={i} className="text-texte-attenue">
-                      · {f.libelle}
-                    </li>
-                  ))}
-                </ul>
+            <Depliant resume="Pourquoi cette recommandation ?">
+              <div className="mt-2 rounded-lg border border-bordure bg-surface-2 p-3 text-xs shadow-2xs space-y-2">
+                <div>
+                  <p className="font-semibold text-texte mb-1">
+                    Facteurs dominants :
+                  </p>
+                  <ul className="space-y-0.5 text-texte-attenue">
+                    {principale.facteurs.slice(0, 2).map((f, i) => (
+                      <li key={i}>· {f.libelle}</li>
+                    ))}
+                  </ul>
+                </div>
 
                 <BlocInstant facteurs={facteursInstant} reserves={reservesInstant} />
 
                 {principale.calibration && principale.calibration.verdicts.length > 0 && (
-                  <div className="mt-2.5 border-t border-bordure/60 pt-1.5">
-                    <p className="mb-1 text-texte-attenue">
+                  <div className="border-t border-bordure/60 pt-2">
+                    <p className="font-semibold text-texte mb-1">
                       Difficulté {principale.difficulteCible}/5 —{" "}
                       {principale.calibration.difficulteConseillee === null
                         ? "d'après votre niveau :"
                         : "d'après vos exercices précédents :"}
                     </p>
-                    <ul className="space-y-0.5">
+                    <ul className="space-y-0.5 text-texte-attenue">
                       {principale.calibration.verdicts.map((v) => (
-                        <li key={v.exerciceId} className="text-texte-attenue">
-                          · <span className="font-medium">{v.titre}</span> (diff. {v.difficulte})
-                          — {v.raison}
+                        <li key={v.exerciceId}>
+                          · <span className="font-medium text-texte">{v.titre}</span> (diff. {v.difficulte}) — {v.raison}
                         </li>
                       ))}
                     </ul>
                   </div>
-                )}
-
-                {alternatives.length > 0 && (
-                  <>
-                    <p className="mt-2 mb-1 text-texte-attenue">Ensuite :</p>
-                    <ul className="space-y-0.5">
-                      {alternatives.slice(0, 3).map((r) => (
-                        <li key={r.etat.skill.code} className="flex items-baseline gap-2">
-                          <CodeCompetence code={r.etat.skill.code} />
-                          <Link
-                            href={`/atelier?document=${encodeURIComponent(r.etat.skill.code)}`}
-                            className="min-w-0 flex-1 truncate text-texte-attenue hover:text-texte"
-                          >
-                            {r.etat.skill.intitule}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </>
                 )}
               </div>
             </Depliant>
@@ -322,14 +308,14 @@ function CarteActionActivite({
   const estRessource = action.activityId?.startsWith(PREFIXE_ACTIVITE_RESSOURCE) ?? false;
   const codeRefusable = action.target.skillCodes[0];
   const libelle = action.source === "reprise"
-    ? "Reprendre"
+    ? "Reprendre l’activité"
     : action.source === "generation"
       ? "Préparer le contenu"
       : estRessource
         ? "Travailler sur cette ressource"
       : estNote
         ? "Reprendre ce travail"
-        : "Commencer";
+        : "Commencer l’activité";
 
   return (
     <Carte accent className="relative overflow-hidden">
@@ -345,14 +331,14 @@ function CarteActionActivite({
         data-nature={estRessource ? "ressource" : estNote ? "note" : "activite"}
         data-family={action.family}
       >
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="size-1.5 rounded-full bg-primaire" aria-hidden />
-            <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-primaire mr-1">
-              Votre priorité du jour
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-primaire/15 px-2.5 py-0.5 text-[0.6875rem] font-semibold uppercase tracking-wider text-primaire">
+              <span className="size-1.5 rounded-full bg-primaire animate-pulse" aria-hidden />
+              Priorité du jour
             </span>
             <Etiquette ton="primaire">{LIBELLES_FAMILLE[action.family]}</Etiquette>
-            <Etiquette>≈ {formatDuree(action.durationMinutes)}</Etiquette>
+            <span className="text-xs text-texte-attenue">≈ {formatDuree(action.durationMinutes)}</span>
             {action.segmented && <Etiquette ton="info">Reprenable plus tard</Etiquette>}
           </div>
 
@@ -362,18 +348,18 @@ function CarteActionActivite({
           />
         </div>
 
-        <h2 className="mt-2 font-serif text-lg sm:text-xl font-medium leading-snug tracking-tight">
+        <h2 className="mt-3 font-serif text-lg sm:text-xl font-medium leading-snug tracking-tight text-texte">
           {action.title}
         </h2>
 
         {facteursInstant[0] && (
-          <p className="mt-1 max-w-2xl text-xs sm:text-sm text-texte-attenue">{facteursInstant[0].label}</p>
+          <p className="mt-1.5 max-w-2xl text-xs sm:text-sm text-texte-attenue leading-relaxed">{facteursInstant[0].label}</p>
         )}
 
         {action.target.skillCodes.length > 0 && (
-          <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+          <div className="mt-3 flex items-center gap-2 flex-wrap">
             <span className="text-[0.6875rem] font-medium uppercase tracking-wider text-texte-discret">
-              Compétences visées :
+              Compétences ciblées :
             </span>
             <div className="flex flex-wrap gap-1">
               {action.target.skillCodes.map((code) => (
@@ -383,7 +369,7 @@ function CarteActionActivite({
           </div>
         )}
 
-        <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2.5 border-t border-bordure/60 pt-2.5">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-bordure/60 pt-3">
           <div className="flex items-center gap-2">
             {action.activityId && idExerciceDepuisActivite(action.activityId) ? (
               <form
@@ -392,7 +378,7 @@ function CarteActionActivite({
                   idExerciceDepuisActivite(action.activityId)!,
                 )}
               >
-                <Bouton type="submit" variante="principal">
+                <Bouton type="submit" variante="principal" className="shadow-xs">
                   {libelle}
                   <IconeFleche className="size-4" />
                 </Bouton>
@@ -405,14 +391,14 @@ function CarteActionActivite({
             )}
           </div>
 
-          <Depliant resume="Pourquoi cette action ?">
-            <div className="mt-2 rounded-md border border-bordure bg-surface-2 p-2.5 text-xs">
-              <p className="mb-1.5 text-texte-attenue">
-                Facteurs pris en compte, du plus au moins déterminant :
+          <Depliant resume="Pourquoi cette recommandation ?">
+            <div className="mt-2 rounded-lg border border-bordure bg-surface-2 p-3 text-xs shadow-2xs">
+              <p className="font-semibold text-texte mb-1">
+                Facteurs déterminants :
               </p>
-              <ul className="space-y-0.5">
+              <ul className="space-y-0.5 text-texte-attenue">
                 {facteursInstant.map((facteur, i) => (
-                  <li key={`${facteur.kind}-${i}`} className="text-texte-attenue">
+                  <li key={`${facteur.kind}-${i}`}>
                     · {facteur.label}
                   </li>
                 ))}
