@@ -454,6 +454,97 @@ function resoudreValeurConstante(sf: ts.SourceFile, identifiant: string): string
   return undefined;
 }
 
+export function resoudreUrlsDepuisNoeudAst(
+  node: ts.Node | undefined,
+  sf: ts.SourceFile,
+): string[] {
+  if (!node) return [];
+
+  // Dépaqueter JSX Expression
+  if (ts.isJsxExpression(node)) {
+    return resoudreUrlsDepuisNoeudAst(node.expression, sf);
+  }
+
+  // Expression parenthésée
+  if (ts.isParenthesizedExpression(node)) {
+    return resoudreUrlsDepuisNoeudAst(node.expression, sf);
+  }
+
+  // Littéral chaîne simple
+  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+    return [normaliserUrl(node.text)];
+  }
+
+  // Template string `...`
+  if (ts.isTemplateExpression(node)) {
+    return [normaliserUrl(node.getText(sf).slice(1, -1))];
+  }
+
+  // Expression conditionnelle / ternaire (a ? b : c)
+  if (ts.isConditionalExpression(node)) {
+    const urlsTrue = resoudreUrlsDepuisNoeudAst(node.whenTrue, sf);
+    const urlsFalse = resoudreUrlsDepuisNoeudAst(node.whenFalse, sf);
+    return [...urlsTrue, ...urlsFalse];
+  }
+
+  // Appels de fonctions (urlExercice, urlComposerAutonome, destinationApresExercice, etc.)
+  if (ts.isCallExpression(node)) {
+    const texteAppel = node.expression.getText(sf);
+    const argsTexte = node.arguments.map((arg) => arg.getText(sf)).join(" ");
+
+    if (texteAppel.includes("urlExercice") || texteAppel === "urlExercice") {
+      if (argsTexte.includes('"evaluer"') || argsTexte.includes("'evaluer'")) {
+        return ["/seances?evaluer"];
+      }
+      if (argsTexte.includes('"bilan"') || argsTexte.includes("'bilan'")) {
+        return ["/seances?bilan"];
+      }
+      if (argsTexte.includes('"abandon"') || argsTexte.includes("'abandon'")) {
+        return ["/seances?abandon"];
+      }
+      if (argsTexte.includes('"correction"') || argsTexte.includes("'correction'")) {
+        return ["/seances?correction"];
+      }
+      return ["/seances?session={code}"];
+    }
+
+    if (texteAppel.includes("urlComposerAutonome") || texteAppel === "urlComposerAutonome") {
+      return ["/seances?composer=1"];
+    }
+
+    if (texteAppel.includes("destinationApresExercice") || texteAppel === "destinationApresExercice") {
+      if (argsTexte.includes('"bilan"') || argsTexte.includes("'bilan'")) {
+        return ["/seances?bilan"];
+      }
+      if (argsTexte.includes('"abandon"') || argsTexte.includes("'abandon'")) {
+        return ["/seances?abandon"];
+      }
+      return ["/seances"];
+    }
+  }
+
+  // Identifiant (constante ou variable locale)
+  if (ts.isIdentifier(node)) {
+    const nom = node.text;
+    const resolu = resoudreValeurConstante(sf, nom);
+    if (resolu) return [normaliserUrl(resolu)];
+    if (nom === "lienCompositeur" || nom.toLowerCase().includes("compositeur")) {
+      return ["/seances?composer=1"];
+    }
+    if (nom.toLowerCase().includes("urlseance")) {
+      return ["/seances?session={code}"];
+    }
+  }
+
+  // Cas par défaut : si le texte commence par /, tenter de normaliser
+  const texteBrut = node.getText(sf).replace(/^["'`]|["'`]$/g, "").trim();
+  if (texteBrut.startsWith("/")) {
+    return [normaliserUrl(texteBrut)];
+  }
+
+  return [];
+}
+
 function valeurPropJsx(
   elem: ts.JsxOpeningElement | ts.JsxSelfClosingElement,
   nomProp: string,
@@ -738,22 +829,36 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
         }
       }
 
-      // Liens JSX (<Link href="...">, <LienBouton href="...">, <a href="...">)
-      if (tagName === "Link" || tagName === "LienBouton" || tagName === "a") {
-        const href = valeurPropJsx(elem, "href", sf, relatif);
-        const texte = ts.isJsxElement(node) ? extraireTexteNoeudJsx(node, sf) : "";
-        if (href && href.startsWith("/")) {
-          navigations.push({
-            cible: normaliserUrl(href),
-            brute: href,
-            type: "link",
-            declencheur: texte ? `Clic '${texte}'` : undefined,
-          });
-          boutons.push({
-            texte: texte || href,
-            cibleNav: normaliserUrl(href),
-            fichier: relatif,
-          });
+      // Liens & Navigations JSX (Link, LienBouton, LienApresImpact, LienRetour, a, ou prop href / urlCorrection)
+      for (const prop of elem.attributes.properties) {
+        if (ts.isJsxAttribute(prop)) {
+          const nomProp = prop.name.getText(sf);
+          if (nomProp === "href" || nomProp === "urlCorrection" || nomProp === "destination") {
+            const urls = resoudreUrlsDepuisNoeudAst(prop.initializer, sf);
+            let texte = ts.isJsxElement(node) ? extraireTexteNoeudJsx(node, sf) : "";
+            if (!texte) {
+              const libelleAttr =
+                valeurPropJsx(elem, "libelle", sf, relatif) ||
+                valeurPropJsx(elem, "title", sf, relatif) ||
+                valeurPropJsx(elem, "label", sf, relatif);
+              if (libelleAttr) texte = libelleAttr;
+            }
+            for (const u of urls) {
+              if (u && u.startsWith("/")) {
+                navigations.push({
+                  cible: normaliserUrl(u),
+                  brute: u,
+                  type: "link",
+                  declencheur: texte ? `Clic '${texte}'` : undefined,
+                });
+                boutons.push({
+                  texte: texte || u,
+                  cibleNav: normaliserUrl(u),
+                  fichier: relatif,
+                });
+              }
+            }
+          }
         }
       }
 
