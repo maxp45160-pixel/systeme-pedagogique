@@ -137,16 +137,30 @@ export function VueRessources({
             )}
 
             <section>
-              <div className="flex items-baseline justify-between gap-3">
-                <h3 className="font-serif text-lg font-medium text-texte">Rattachées</h3>
-                <span className="chiffres text-xs text-texte-discret">{rattachees.length}</span>
-              </div>
+              {aTrier.length > 0 && (
+                <div className="flex items-baseline justify-between gap-3">
+                  <h3 className="font-serif text-lg font-medium text-texte">Rattachées</h3>
+                  <span className="chiffres text-xs text-texte-discret">{rattachees.length}</span>
+                </div>
+              )}
               {rattachees.length === 0 ? (
-                <p className="mt-4 rounded-2xl border border-dashed border-bordure bg-surface/40 p-6 text-center text-xs text-texte-attenue">
-                  Aucune ressource rattachée pour l’instant.
+                <p
+                  className={cx(
+                    aTrier.length > 0 && "mt-4",
+                    "rounded-2xl border border-dashed border-bordure bg-surface/40 p-6 text-center text-xs text-texte-attenue",
+                  )}
+                >
+                  {aTrier.length > 0
+                    ? "Aucune ressource rattachée pour l’instant."
+                    : "Aucune ressource pour l’instant."}
                 </p>
               ) : (
-                <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                <div
+                  className={cx(
+                    aTrier.length > 0 && "mt-4",
+                    "grid gap-4 sm:grid-cols-2 xl:grid-cols-3",
+                  )}
+                >
                   {rattachees.map((element) => (
                     <CarteRessource
                       key={element.id}
