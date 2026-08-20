@@ -618,3 +618,89 @@ Seulement si tout est vert, marquer le lot 1 terminé et rédiger le prompt du l
 2. Ne pas implémenter le lot 2 dans cette continuation.
 
 **Modèle recommandé pour la continuation.** `gpt-5.6-sol`, effort `xhigh`.
+
+### Passage de relais — lot 1 terminé — 20/08/2026
+
+**État réel : lot 1 terminé.** Le cutover coordonné a été exécuté sur le projet
+Supabase `vxkjzzshlqulexydgfpc`, puis l'application correspondante a été
+déployée. Aucun rollback n'a été appliqué. La révision antérieure reste
+`016cf31c11f5b8b862117bd19dc2b9a3e84a1466` ; la rupture a été livrée par
+`500a002d4acd5b9ed2cdc5d3e64a18e7dad6c123`, puis le correctif de double
+soumission décrit ci-dessous par
+`0a6a26e6198aa2e636588ad43093ac2f15bcb793`.
+
+**Migration distante.** Le fichier local reste
+`app/supabase/migrations/20260820093322_rupture_evidence_vers_observations.sql`.
+Supabase a enregistré la version effective
+`20260820102026_rupture_evidence_vers_observations`. Juste avant l'opération :
+52 lignes, 52 clés distinctes, empreinte
+`d13a921a309fcaa4d1263c8193c60cd2`, zéro orpheline et aucune écriture, session
+active ou verrou concurrent sur la relation. Juste après : mêmes 52 lignes,
+mêmes 52 clés, mêmes bornes, même empreinte et zéro orpheline. L'OID 17515, le
+propriétaire `postgres`, les ACL, la politique `isolation_par_compte`, RLS, les
+contraintes et les index ont été conservés ou renommés comme prévu.
+
+**Contrat RPC et autorisation après cutover.** `charger_tout()` rend la clé
+`observations` et jamais `evidence` ; `admin_comptes()` rend le compteur
+`observations` et jamais `preuves` ;
+`appliquer_commande_referentiel(text,integer,text,text,jsonb)` lit
+`public.observations`. Les propriétés `SECURITY INVOKER/DEFINER`, `search_path`
+et droits `EXECUTE` correspondent au baseline. Sous rôle `authenticated`, le
+compte propriétaire a vu exactement ses 52 observations et zéro observation
+d'un autre compte ; un membre sans observation en a vu zéro et l'appel à
+`admin_comptes()` lui a été refusé ; l'administrateur a vu les 8 comptes et le
+total de 52 observations.
+
+**Déploiements.** La rupture a été déployée en Production à 10:21:19 UTC. Le
+correctif final a été déployé à 10:44:23 UTC, déploiement GitHub `6000627952`,
+sur `https://systeme-pedagogique-23f9nlzdx-ow-team-gang.vercel.app`; l'URL
+canonique reste `https://systeme-pedagogique-nine.vercel.app`. Les deux statuts
+Vercel sont `success`.
+
+**Parcours réels.** Sans session, `/`, `/progression`, `/competences` et
+`/admin` redirigent vers `/login`; la page de connexion répond 200. Avec le
+compte administrateur réel : tableau de bord chargé, progression chargée avec
+52 observations, référentiel chargé via l'Atelier, panneau administrateur
+chargé avec 8 comptes et 52 observations, sans erreur console. Une clôture
+réelle a ensuite produit une tentative `terminee`, une Observation A et une
+séance terminée. L'état final constaté à 10:45:40 UTC est de 53 observations,
+53 clés distinctes, zéro orpheline de compte ou de compétence,
+`public.observations` présente et `public.evidence` absente.
+
+**Incident de parcours et correction.** Un unique clic sur « Commencer » avait
+créé deux séances identiques à trois secondes d'intervalle : l'une terminée par
+le parcours, l'autre restée `en-cours`. Le démarrage focus créait
+inconditionnellement une nouvelle séance. Il réutilise désormais la séance en
+cours que `seanceEnCoursPour` résout pour l'exercice ; deux appels convergent
+donc vers le même identifiant. Le test de régression couvre la réutilisation et
+la création nominale. Les deux lignes produites avant correction restent en
+base : aucune donnée utilisateur n'a été supprimée silencieusement. Le tableau
+de bord expose la ligne résiduelle comme séance à reprendre. Ce défaut était
+présent dans la révision antérieure et le patch ne change ni le moteur ni le
+contrat Observation.
+
+**Vérifications finales.** Tests ciblés : 2 fichiers, 53 tests réussis. Suite
+complète : 84 fichiers, 1 227 tests réussis. `npm run verify --workspace=app`
+réussi avec zéro erreur et les cinq avertissements ESLint préexistants.
+`npm run build --workspace=app` réussi, 28 pages générées. `git diff --check`
+réussi hors avertissements de conversion LF/CRLF du worktree Windows.
+
+**Advisors post-cutover.** Sécurité : les quatre avis préexistants restent
+l'exécution authentifiée de trois fonctions `SECURITY DEFINER` et la protection
+contre les mots de passe compromis désactivée. Performance : deux clés
+étrangères non indexées, sept `auth_rls_initplan` — la cible est maintenant
+`observations` —, quatre index inutilisés et les politiques permissives
+multiples sur `profiles`. Les catégories et comptes sont inchangés ; aucun avis
+hors périmètre n'a été corrigé.
+
+**Aucune décision nouvelle.** Ce lot exécute ADR-090 sans promouvoir le statut
+d'une brique. Il n'ajoute ni provenance exacte, ni transaction de clôture, ni
+validation Supabase générale, ni `competence_domaines` au RPC. Ces travaux
+restent exclusivement ceux du lot 2.
+
+**Prochain lot exact.** Exécuter uniquement le lot 2 « Provenance, transaction,
+validation et chargement » décrit plus haut : faire pointer chaque Observation
+nouvelle vers sa source exacte sans réécrire les 52 lignes historiques, rendre
+la clôture atomique, valider les données Supabase avant leur entrée dans le
+moteur et intégrer `competence_domaines` au chargement. Ne commencer ni carte
+globale, ni overlay, ni objectif structuré, ni état persisté, ni bascule UI.
