@@ -62,10 +62,34 @@ describe("latexVersTexte", () => {
     expect(latexVersTexte("\\left\\{ x \\right\\}")).toBe("{ x }");
   });
 
-  it("transforme une matrice en texte lisible — sans `begin` ni `&`", () => {
-    expect(latexVersTexte("\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}")).toBe(
+  it("transforme une matrice avec séparateurs simples ou doubles et trailing slash", () => {
+    // Cas réel remonté : barre oblique unique ou espaces résiduels après déséchappement JSON
+    expect(latexVersTexte("A = \\begin{pmatrix} 3 & 1 \\ 2 & 4 \\ \\end{pmatrix}")).toBe(
+      "A = ( 3 1 ; 2 4 )",
+    );
+    expect(latexVersTexte("\\begin{pmatrix} 3 & 1 \\\\ 2 & 4 \\\\ \\end{pmatrix}")).toBe(
+      "( 3 1 ; 2 4 )",
+    );
+  });
+
+  it("gère les matrices crochets, déterminants et array", () => {
+    expect(latexVersTexte("\\begin{bmatrix} 1 & 2 \\\\ 3 & 4 \\end{bmatrix}")).toBe(
+      "[ 1 2 ; 3 4 ]",
+    );
+    expect(latexVersTexte("\\det(A) = \\begin{vmatrix} 3 & 1 \\\\ 2 & 4 \\end{vmatrix}")).toBe(
+      "det(A) = | 3 1 ; 2 4 |",
+    );
+    expect(latexVersTexte("\\begin{array}{cc} a & b \\\\ c & d \\end{array}")).toBe(
       "( a b ; c d )",
     );
+  });
+
+  it("convertit les exposants et indices matriciels : transposition, inverse, coefficients", () => {
+    expect(latexVersTexte("A^T")).toBe("Aᵀ");
+    expect(latexVersTexte("A^{-1}")).toBe("A⁻¹");
+    expect(latexVersTexte("I_n")).toBe("Iₙ");
+    expect(latexVersTexte("a_{ij}")).toBe("aᵢⱼ");
+    expect(latexVersTexte("u_{n+1} = 2u_n")).toBe("uₙ₊₁ = 2uₙ");
   });
 
   it("transforme un environnement cases en texte lisible", () => {
@@ -104,6 +128,24 @@ describe("segmenterFormulesEnLigne", () => {
       { formule: false, texte: "soit " },
       { formule: true, texte: "σ²" },
       { formule: false, texte: " ici" },
+    ]);
+  });
+
+  it("reconnaît un environnement LaTeX inline sans délimiteurs explicites", () => {
+    expect(
+      segmenterFormulesEnLigne("Soit A = \\begin{pmatrix} 3 & 1 \\ 2 & 4 \\ \\end{pmatrix} définie"),
+    ).toEqual([
+      { formule: false, texte: "Soit A = " },
+      { formule: true, texte: "( 3 1 ; 2 4 )" },
+      { formule: false, texte: " définie" },
+    ]);
+  });
+
+  it("reconnaît les délimiteurs \\[ … \\] et $$ … $$ inline", () => {
+    expect(segmenterFormulesEnLigne("valeur \\[ x^2 + 1 \\] fin")).toEqual([
+      { formule: false, texte: "valeur " },
+      { formule: true, texte: "x² + 1" },
+      { formule: false, texte: " fin" },
     ]);
   });
 

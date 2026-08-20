@@ -36,6 +36,20 @@ const DELIMITEURS_FORMULE: ReadonlyArray<readonly [string, string]> = [
   ["$$", "$$"],
 ];
 
+function detecterOuvertureFormule(
+  ligne: string,
+): { ouvre: string; ferme: string; estEnvironnement: boolean } | null {
+  const t = ligne.trim();
+  for (const [ouvre, ferme] of DELIMITEURS_FORMULE) {
+    if (t.startsWith(ouvre)) return { ouvre, ferme, estEnvironnement: false };
+  }
+  const matchEnv = /^(?:[A-Za-z0-9_'\s=,.:+\-*/()]+\s*=\s*)?\\begin\{([A-Za-z*]+)\}/.exec(t);
+  if (matchEnv) {
+    return { ouvre: matchEnv[0], ferme: `\\end{${matchEnv[1]}}`, estEnvironnement: true };
+  }
+  return null;
+}
+
 function estSeparateurTableau(ligne: string): boolean {
   return /^\|[\s|:-]+\|$/.test(ligne.trim());
 }
@@ -56,7 +70,7 @@ function ouvreUnBloc(ligne: string): boolean {
     t === "" ||
     t.startsWith("```") ||
     t.startsWith("|") ||
-    DELIMITEURS_FORMULE.some(([ouvre]) => t.startsWith(ouvre)) ||
+    detecterOuvertureFormule(ligne) !== null ||
     t.startsWith(">") ||
     /^#{1,4}\s/.test(ligne) ||
     /^\s*[-*]\s+/.test(ligne) ||
@@ -103,19 +117,19 @@ export function decouperEnBlocs(contenu: string): BlocMarkdown[] {
     /*
      * Formule affichée. Le corps est accumulé jusqu'au délimiteur fermant, ou
      * jusqu'à la fin du texte : le flux SSE livre régulièrement une formule
-     * ouverte mais pas encore close, et un `\[` orphelin ne doit pas bloquer la
+     * ouverte mais pas encore close, et une ouverture orpheline ne doit pas bloquer la
      * boucle. `i` a déjà avancé d'une ligne avant d'entrer dans l'accumulation.
      */
-    const ouverture = DELIMITEURS_FORMULE.find(([ouvre]) => ligne.trim().startsWith(ouvre));
+    const ouverture = detecterOuvertureFormule(ligne);
     if (ouverture) {
-      const [ouvre, ferme] = ouverture;
+      const { ouvre, ferme, estEnvironnement } = ouverture;
       const morceaux: string[] = [];
-      let reste = ligne.trim().slice(ouvre.length);
+      let reste = estEnvironnement ? ligne.trim() : ligne.trim().slice(ouvre.length);
       i++;
       for (;;) {
         const fin = reste.indexOf(ferme);
         if (fin >= 0) {
-          morceaux.push(reste.slice(0, fin));
+          morceaux.push(estEnvironnement ? reste.slice(0, fin + ferme.length) : reste.slice(0, fin));
           break;
         }
         morceaux.push(reste);

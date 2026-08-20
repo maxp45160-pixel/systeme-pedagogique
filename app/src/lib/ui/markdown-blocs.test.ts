@@ -78,6 +78,27 @@ describe("decouperEnBlocs — blocs reconnus", () => {
     ]);
   });
 
+  it("rend les blocs formules \\[ ... \\], $$ ... $$ et \\begin{...}", () => {
+    const markdown =
+      "Texte avant\n\n\\[\n\\frac{a+b}{2}\n\\]\n\n$$\nx^2 + y^2 = 1\n$$\n\n\\begin{pmatrix}\n1 & 2 \\\\\n3 & 4\n\\end{pmatrix}\n\nTexte après";
+    const blocs = decouperEnBlocs(markdown);
+    expect(blocs).toEqual([
+      { genre: "paragraphe", texte: "Texte avant" },
+      { genre: "formule", latex: "\\frac{a+b}{2}" },
+      { genre: "formule", latex: "x^2 + y^2 = 1" },
+      { genre: "formule", latex: "\\begin{pmatrix} 1 & 2 \\\\ 3 & 4 \\end{pmatrix}" },
+      { genre: "paragraphe", texte: "Texte après" },
+    ]);
+  });
+
+  it("reconnaît une équation matricielle comme bloc formule", () => {
+    const markdown = "A = \\begin{pmatrix} 3 & 1 \\ 2 & 4 \\ \\end{pmatrix}";
+    const blocs = decouperEnBlocs(markdown);
+    expect(blocs).toEqual([
+      { genre: "formule", latex: "A = \\begin{pmatrix} 3 & 1 \\ 2 & 4 \\ \\end{pmatrix}" },
+    ]);
+  });
+
   it("ne rend rien pour un texte vide", () => {
     expect(decouperEnBlocs("")).toEqual([]);
     expect(decouperEnBlocs("\n\n")).toEqual([]);

@@ -48,12 +48,17 @@ const SYMBOLES: Record<string, string> = {
   sum: "∑",
   prod: "∏",
   int: "∫",
+  iint: "∬",
+  iiint: "∭",
+  oint: "∮",
   partial: "∂",
   nabla: "∇",
   forall: "∀",
   exists: "∃",
+  nexists: "∄",
   in: "∈",
   notin: "∉",
+  ni: "∋",
   subset: "⊂",
   cup: "∪",
   cap: "∩",
@@ -61,11 +66,44 @@ const SYMBOLES: Record<string, string> = {
   to: "→",
   leftarrow: "←",
   Rightarrow: "⇒",
+  Leftarrow: "⇐",
   leftrightarrow: "↔",
+  Leftrightarrow: "⇔",
   ldots: "…",
   dots: "…",
   cdots: "⋯",
+  vdots: "⋮",
+  ddots: "⋱",
   percent: "%",
+  // Fonctions et opérateurs usuels (algèbre linéaire, analyse, trigo).
+  det: "det",
+  ker: "ker",
+  dim: "dim",
+  rg: "rg",
+  rank: "rank",
+  tr: "tr",
+  trace: "trace",
+  cos: "cos",
+  sin: "sin",
+  tan: "tan",
+  cosh: "cosh",
+  sinh: "sinh",
+  tanh: "tanh",
+  arccos: "arccos",
+  arcsin: "arcsin",
+  arctan: "arctan",
+  exp: "exp",
+  ln: "ln",
+  log: "log",
+  lim: "lim",
+  min: "min",
+  max: "max",
+  sup: "sup",
+  inf: "inf",
+  gcd: "gcd",
+  deg: "deg",
+  top: "⊤",
+  bot: "⊥",
   // Repli : `\sqrt` dont l'argument n'est pas encore arrivé par le flux SSE.
   sqrt: "√",
   alpha: "α",
@@ -77,17 +115,22 @@ const SYMBOLES: Record<string, string> = {
   zeta: "ζ",
   eta: "η",
   theta: "θ",
+  vartheta: "ϑ",
   kappa: "κ",
   lambda: "λ",
   mu: "μ",
   nu: "ν",
   xi: "ξ",
   pi: "π",
+  varpi: "ϖ",
   rho: "ρ",
+  varrho: "ϱ",
   sigma: "σ",
+  varsigma: "ς",
   tau: "τ",
+  upsilon: "υ",
   phi: "φ",
-  varphi: "φ",
+  varphi: "ϕ",
   chi: "χ",
   psi: "ψ",
   omega: "ω",
@@ -98,6 +141,7 @@ const SYMBOLES: Record<string, string> = {
   Xi: "Ξ",
   Pi: "Π",
   Sigma: "Σ",
+  Upsilon: "Υ",
   Phi: "Φ",
   Psi: "Ψ",
   Omega: "Ω",
@@ -174,6 +218,7 @@ const ACCENTS: Record<string, string> = {
   bar: "\u0304",
   overline: "\u0304",
   vec: "\u20D7",
+  overrightarrow: "\u20D7",
   hat: "\u0302",
   widehat: "\u0302",
   tilde: "\u0303",
@@ -193,10 +238,12 @@ function delimiteursEnvironnement(nom: string): [string, string] {
   const stable = nom.replace(/\*+$/, "");
   switch (stable) {
     case "cases":
+    case "Bmatrix":
       return ["\uE000 ", " \uE001"];
     case "matrix":
     case "pmatrix":
     case "smallmatrix":
+    case "array":
       return ["( ", " )"];
     case "bmatrix":
       return ["[ ", " ]"];
@@ -215,11 +262,41 @@ function delimiteursEnvironnement(nom: string): [string, string] {
  * couplé à son délimiteur, colonnes séparées par deux espaces, lignes par ` ; `.
  */
 function corpsEnvironnement(nom: string, corps: string): string {
-  // Environnements imbriqués : traiter l'intérieur avant le séparateur de ligne,
-  // sans quoi une matrice interne porterait les `&` du niveau externe.
-  const net = rendreEnvironnements(corps).replace(/\\\\/g, " ; ").replace(/&/g, "  ").trim();
+  // Pour \begin{array}{cc}..., éliminer la spécification de colonnes
+  let nettoye = corps.replace(/^\s*\{[lcr|:\s*]+\}\s*/i, "");
+
+  // Environnements imbriqués : traiter l'intérieur d'abord
+  nettoye = rendreEnvironnements(nettoye);
+
+  // Normalisation des séparateurs de lignes LaTeX :
+  // - \\ éventuellement suivi de [opt] comme \\[6pt]
+  // - \cr ou \newline
+  // - une barre oblique \ suivie d'un espace ou de fin (cas des chaînes JSON déséchappées où \\ est devenu \ )
+  const sepCanonique = "\uE002";
+  nettoye = nettoye.replace(/\\\\(?:\s*\[[^\]]*\])?|\\cr\b|\\newline\b/g, sepCanonique);
+  nettoye = nettoye.replace(/\\(?:\s+|$)/g, `${sepCanonique} `);
+
+  // Découper sur le séparateur canonique ou sur les retours à la ligne
+  const lignesBrutes = nettoye.split(new RegExp(`[${sepCanonique}\r\n]+`));
+  const lignesFiltrees: string[] = [];
+
+  for (const ligne of lignesBrutes) {
+    const lTrim = ligne.trim();
+    if (lTrim.length === 0) continue;
+
+    // Découper les colonnes sur &
+    const cellules = lTrim
+      .split("&")
+      .map((c) => c.trim())
+      .filter((c) => c.length > 0);
+    if (cellules.length > 0) {
+      lignesFiltrees.push(cellules.join(" "));
+    }
+  }
+
   const [ouvre, ferme] = delimiteursEnvironnement(nom);
-  const rendu = `${ouvre}${net}${ferme}`.trim();
+  const contenu = lignesFiltrees.join(" ; ").trim();
+  const rendu = `${ouvre}${contenu}${ferme}`.trim();
   return rendu.length > 0 ? rendu : "";
 }
 
@@ -254,10 +331,56 @@ const EXPOSANTS: Record<string, string> = {
   "9": "⁹",
   "+": "⁺",
   "-": "⁻",
+  "=": "⁼",
   "(": "⁽",
   ")": "⁾",
-  n: "ⁿ",
+  a: "ᵃ",
+  b: "ᵇ",
+  c: "ᶜ",
+  d: "ᵈ",
+  e: "ᵉ",
+  f: "ᶠ",
+  g: "ᵍ",
+  h: "ʰ",
   i: "ⁱ",
+  j: "ʲ",
+  k: "ᵏ",
+  l: "ˡ",
+  m: "ᵐ",
+  n: "ⁿ",
+  o: "ᵒ",
+  p: "ᵖ",
+  r: "ʳ",
+  s: "ˢ",
+  t: "ᵗ",
+  u: "ᵘ",
+  v: "ᵛ",
+  w: "ʷ",
+  x: "ˣ",
+  y: "ʸ",
+  z: "ᶻ",
+  A: "ᴬ",
+  B: "ᴮ",
+  D: "ᴰ",
+  E: "ᴱ",
+  G: "ᴳ",
+  H: "ᴴ",
+  I: "ᴵ",
+  J: "ᴶ",
+  K: "ᴷ",
+  L: "ᴸ",
+  M: "ᴹ",
+  N: "ᴺ",
+  O: "ᴼ",
+  P: "ᴾ",
+  R: "ᴿ",
+  T: "ᵀ",
+  U: "ᵁ",
+  V: "ⱽ",
+  W: "ᵂ",
+  "*": "﹡",
+  "′": "′",
+  "'": "′",
 };
 
 /** Indices disponibles en Unicode. Même règle : ce qui manque garde le `_`. */
@@ -274,8 +397,26 @@ const INDICES: Record<string, string> = {
   "9": "₉",
   "+": "₊",
   "-": "₋",
+  "=": "₌",
   "(": "₍",
   ")": "₎",
+  a: "ₐ",
+  e: "ₑ",
+  h: "ₕ",
+  i: "ᵢ",
+  j: "ⱼ",
+  k: "ₖ",
+  l: "ₗ",
+  m: "ₘ",
+  n: "ₙ",
+  o: "ₒ",
+  p: "ₚ",
+  r: "ᵣ",
+  s: "ₛ",
+  t: "ₜ",
+  u: "ᵤ",
+  v: "ᵥ",
+  x: "ₓ",
 };
 
 /** Traduit un groupe entier, ou rend `null` si un seul caractère manque. */
@@ -380,6 +521,9 @@ function developperCommandesAGroupes(src: string): string {
           Z: "ℤ",
           Q: "ℚ",
           C: "ℂ",
+          K: "𝕂",
+          P: "ℙ",
+          E: "𝔼",
         };
         const cle = arg.contenu.trim();
         sortie += Object.hasOwn(lettres, cle)
@@ -390,9 +534,10 @@ function developperCommandesAGroupes(src: string): string {
       }
     }
     // `\text{...}`, `\mathrm{...}` et consorts : la commande tombe, le contenu reste.
-    const habillage = /^\\(?:text|textrm|textbf|textit|mathrm|mathbf|mathit|operatorname)\s*/.exec(
-      reste,
-    );
+    const habillage =
+      /^\\(?:text|textrm|textbf|textit|mathrm|mathbf|boldsymbol|bm|mathit|mathsf|mathtt|operatorname|mathcal|mathscr)\s*/.exec(
+        reste,
+      );
     if (habillage) {
       const arg = groupeApres(src, i + habillage[0].length);
       if (arg) {
@@ -479,7 +624,8 @@ export function latexVersTexte(latex: string): string {
 export type SegmentTexte = { formule: boolean; texte: string };
 
 /**
- * Découpe une ligne de prose sur ses formules en ligne : `\(...\)` et `$...$`.
+ * Découpe une ligne de prose sur ses formules en ligne : `\(...\)`, `\[...\]`, `$...$`,
+ * ou environnement LaTeX `\begin{nom}...\end{nom}`.
  *
  * Le `$` est délibérément sévère. « payer 30$ puis 40$ » entourerait un
  * intervalle de prose ; la paire n'est donc retenue que si son contenu porte
@@ -488,14 +634,17 @@ export type SegmentTexte = { formule: boolean; texte: string };
  */
 export function segmenterFormulesEnLigne(texte: string): SegmentTexte[] {
   const segments: SegmentTexte[] = [];
-  const motif = /\\\(([\s\S]*?)\\\)|\$([^$\n]+)\$/g;
+  const motif =
+    /\\\(([\s\S]*?)\\\)|\\\[([\s\S]*?)\\\]|\$\$([^$\n]+?)\$\$|\$([^$\n]+?)\$|(\\begin\{([A-Za-z*]+)\}[\s\S]*?(?:\\end\{\6\}|(?=\\begin\{|$)))/g;
   let curseur = 0;
 
   for (const trouve of texte.matchAll(motif)) {
-    const brut = trouve[1] ?? trouve[2] ?? "";
-    const parenthesee = trouve[1] !== undefined;
-    if (!parenthesee && !/[\\^_]/.test(brut)) continue; // « 30$ … 40$ » reste de la prose
-    if (!parenthesee && /^\s|\s$/.test(brut)) continue;
+    const brut = trouve[1] ?? trouve[2] ?? trouve[3] ?? trouve[4] ?? trouve[5] ?? "";
+    const estDollar = trouve[4] !== undefined;
+
+    // Garde-fou pour le dollar simple : « 30$ puis 40$ » reste de la prose.
+    if (estDollar && !/[\\^_]/.test(brut)) continue;
+    if (estDollar && /^\s|\s$/.test(brut)) continue;
 
     const debut = trouve.index ?? 0;
     if (debut > curseur) segments.push({ formule: false, texte: texte.slice(curseur, debut) });
