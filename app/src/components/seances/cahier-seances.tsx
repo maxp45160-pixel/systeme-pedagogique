@@ -188,59 +188,78 @@ export function LigneCahier({ seance, donnees }: { seance: LearningSession; donn
   const activites = seance.activites.filter((activite) => activite.type === "exercice");
   const abandonnee = statutSeance(seance) === "abandonnee";
 
+  const titre =
+    seance.besoinDeclare?.intention?.trim() ||
+    (activites.length === 1 ? (exercicesParId.get(activites[0]?.ref)?.titre ?? activites[0]?.libelle) : null) ||
+    "Séance d'exercices";
+
+  const nbExercices = `${activites.length} exercice${activites.length > 1 ? "s" : ""}`;
+  const duree = seance.dureeMin !== undefined ? formatDuree(seance.dureeMin) : "durée non notée";
+  const metaLigne = `${nbExercices} · ${duree}`;
+
   return (
     <Carte>
       <EnTeteCarte
-        titre={`${seance.activites.length} activité${seance.activites.length > 1 ? "s" : ""}`}
-        legende={seance.dureeMin !== undefined ? formatDuree(seance.dureeMin) : "durée non notée"}
-        action={abandonnee ? <Etiquette ton="danger">Abandonnée</Etiquette> : undefined}
+        titre={titre}
+        legende={metaLigne}
+        action={
+          abandonnee ? (
+            <Etiquette ton="danger">Abandonnée</Etiquette>
+          ) : (
+            <Etiquette ton="succes">Terminée</Etiquette>
+          )
+        }
       />
-      <div className="px-5 py-4">
-        {seance.skillCodes.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5">
-            {seance.skillCodes.map((code) => <CodeCompetence key={code} code={code} />)}
-          </div>
+      <div className="space-y-4 px-5 py-4">
+        {seance.resultat && (
+          <p className="text-xs text-texte-attenue">
+            {seance.resultat}
+          </p>
         )}
-
-        {seance.besoinDeclare?.intention && (
-          <p className="mt-2 text-xs italic text-texte-attenue">« {seance.besoinDeclare.intention} »</p>
-        )}
-
-        {seance.resultat && <p className="mt-1 text-xs text-texte-discret">{seance.resultat}</p>}
 
         {activites.length > 0 && (
-          <div className="mt-4 space-y-2">
-            <p className="text-xs font-medium">Ce qui a été travaillé</p>
-            {activites.map((activite) => (
-              <TraceExercice
-                key={activite.ref}
-                exercice={exercicesParId.get(activite.ref)}
-                libelle={activite.libelle}
-                tentative={tentativeDeSeance(seance, activite.ref, donnees.tentatives)}
-              />
-            ))}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-texte-discret">
+              Exercices
+            </p>
+            <div className="space-y-1.5">
+              {activites.map((activite) => (
+                <TraceExercice
+                  key={activite.ref}
+                  exercice={exercicesParId.get(activite.ref)}
+                  libelle={activite.libelle}
+                  tentative={tentativeDeSeance(seance, activite.ref, donnees.tentatives)}
+                />
+              ))}
+            </div>
           </div>
         )}
 
-        <form action={ajouterNoteSession.bind(null, seance.id)} className="mt-4 flex flex-col gap-2 sm:flex-row">
-          <label className="sr-only" htmlFor={`note-${seance.id}`}>Note personnelle</label>
-          <input
-            id={`note-${seance.id}`}
-            name="note"
-            type="text"
-            defaultValue={seance.notePersonnelle ?? ""}
-            placeholder="Ce que je retiens, ce que je veux revoir…"
-            className="min-w-0 flex-1 rounded-md border border-bordure-controle bg-surface px-3 py-2 text-xs placeholder:text-texte-discret"
-          />
-          <Bouton type="submit" variante="secondaire" taille="petite">Annoter</Bouton>
-        </form>
+        <div className="space-y-1.5 border-t border-bordure/50 pt-3">
+          <label className="text-xs font-semibold uppercase tracking-wider text-texte-discret" htmlFor={`note-${seance.id}`}>
+            Note de séance
+          </label>
+          <form action={ajouterNoteSession.bind(null, seance.id)} className="flex flex-col gap-2 sm:flex-row">
+            <input
+              id={`note-${seance.id}`}
+              name="note"
+              type="text"
+              defaultValue={seance.notePersonnelle ?? ""}
+              placeholder="Ce que je retiens, ce que je veux revoir…"
+              className="min-w-0 flex-1 rounded-md border border-bordure-controle bg-surface px-3 py-2 text-xs placeholder:text-texte-discret"
+            />
+            <Bouton type="submit" variante="secondaire" taille="petite">
+              Enregistrer
+            </Bouton>
+          </form>
+        </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-bordure/50 pt-3">
           <Link
             href={detailSeanceUrl(seance.id)}
             className="text-xs font-medium text-primaire hover:underline"
           >
-            Voir le détail de la séance
+            Voir le détail de la séance →
           </Link>
           {preset && <ConcepteurSeance {...donnees} preset={preset} libelle="Refaire la séance" />}
         </div>
@@ -258,22 +277,29 @@ function TraceExercice({
   libelle: string;
   tentative?: ExerciseAttempt;
 }) {
-  const resultat = tentative ? libelleResultat(tentative) : "Trace non retrouvée";
+  const resultat = tentative
+    ? libelleResultat(tentative)
+    : { texte: "Non réalisé", ton: "neutre" as const };
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-bordure-controle bg-surface-2 px-3 py-2">
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-bordure-controle/40 bg-surface-2/50 px-3 py-2">
       <span className="min-w-0 text-xs font-medium">{exercice?.titre ?? libelle}</span>
-      <Etiquette ton={tentative?.statut === "terminee" ? "succes" : tentative?.statut === "abandonnee" ? "danger" : "info"}>
-        {resultat}
+      <Etiquette ton={resultat.ton}>
+        {resultat.texte}
       </Etiquette>
     </div>
   );
 }
 
-function libelleResultat(tentative: ExerciseAttempt): string {
-  if (tentative.statut === "abandonnee") return "Abandonné";
-  if (tentative.statut === "en-cours") return "En cours";
-  return tentative.resultat === "reussi" ? "Réussi" : tentative.resultat === "partiel" ? "Partiel" : "Non abouti";
+function libelleResultat(tentative: ExerciseAttempt): {
+  texte: string;
+  ton: "succes" | "alerte" | "danger" | "primaire" | "neutre";
+} {
+  if (tentative.statut === "abandonnee") return { texte: "Abandonné", ton: "danger" };
+  if (tentative.statut === "en-cours") return { texte: "En cours", ton: "primaire" };
+  if (tentative.resultat === "reussi") return { texte: "Réussi", ton: "succes" };
+  if (tentative.resultat === "partiel") return { texte: "Partiel", ton: "alerte" };
+  return { texte: "Non abouti", ton: "danger" };
 }
 
 function detailSeanceUrl(seanceId: string): string {

@@ -24,7 +24,7 @@ export function BoutonIntentionRail() {
   return (
     <button
       type="button"
-      onClick={ouvrir}
+      onClick={() => ouvrir()}
       aria-label={LIBELLE}
       title={LIBELLE}
       data-tour="nouveau-besoin"
@@ -49,7 +49,7 @@ export function BoutonIntentionMobile() {
   return (
     <button
       type="button"
-      onClick={ouvrir}
+      onClick={() => ouvrir()}
       aria-label={LIBELLE}
       data-tour="nouveau-besoin"
       className="flex w-full flex-col items-center justify-center py-1.5"

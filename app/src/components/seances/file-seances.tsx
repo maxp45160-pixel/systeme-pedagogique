@@ -3,7 +3,6 @@ import {
   Bouton,
   Carte,
   classesLienBouton,
-  CodeCompetence,
   EnTeteCarte,
   Etiquette,
 } from "@/components/ui/primitives";
@@ -118,7 +117,7 @@ export function OngletsSeancesOuvertes({
         const titre =
           s.besoinDeclare?.intention ||
           (s.activites.length === 1 ? s.activites[0]?.libelle : null) ||
-          `${s.activites.length} activité${s.activites.length > 1 ? "s" : ""}`;
+          `${s.activites.length} exercice${s.activites.length > 1 ? "s" : ""}`;
 
         return (
           <button
@@ -158,7 +157,7 @@ export function CarteSeance({
   const titre =
     s.besoinDeclare?.intention ||
     (s.activites.length === 1 ? s.activites[0]?.libelle : null) ||
-    `${s.activites.length} activité${s.activites.length > 1 ? "s" : ""}`;
+    "Séance d'exercices";
 
   return (
     <Carte accent={enCours}>
@@ -166,8 +165,8 @@ export function CarteSeance({
         titre={titre}
         legende={
           planifiee
-            ? `Planifiée pour le ${formatDateCourte(s.planifieePour ?? s.date)}`
-            : `Séance du ${formatDateCourte(s.date)}`
+            ? `Planifiée pour le ${formatDateCourte(s.planifieePour ?? s.date)} · ${s.activites.length} exercice${s.activites.length > 1 ? "s" : ""}`
+            : `Séance du ${formatDateCourte(s.date)} · ${s.activites.length} exercice${s.activites.length > 1 ? "s" : ""}`
         }
         action={
           <div className="flex items-center gap-2">
@@ -175,22 +174,13 @@ export function CarteSeance({
               {enCours ? "En cours" : planifiee ? "Planifiée" : "En suspens"}
             </Etiquette>
             <span className="text-xs text-texte-discret">
-              {avancement.menes.length}/{s.activites.length} menée
-              {avancement.menes.length > 1 ? "s" : ""}
+              {avancement.menes.length}/{s.activites.length} fait{avancement.menes.length > 1 ? "s" : ""}
             </span>
           </div>
         }
       />
 
       <div className="space-y-4 px-5 py-4">
-        {s.besoinDeclare?.codesVises && s.besoinDeclare.codesVises.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {s.besoinDeclare.codesVises.map((code) => (
-              <CodeCompetence key={code} code={code} />
-            ))}
-          </div>
-        )}
-
         <div className="space-y-1.5">
           {s.activites.map((act, index) => {
             const faite = avancement.menes.includes(act.ref);

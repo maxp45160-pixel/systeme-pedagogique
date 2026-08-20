@@ -172,7 +172,7 @@ function lienFeuillet(position: PositionFeuillet): string {
 }
 
 /**
- * L'en-tête d'un feuillet.
+ * L'en-tête d'un feuillet — structure stable et constante sur tous les feuillets.
  */
 function EnTeteFeuillet({
   feuillet,
@@ -189,40 +189,35 @@ function EnTeteFeuillet({
   calendrier: ReactNode;
   onChangerFeuillet: (cible: PositionFeuillet, sens?: "avant" | "arriere") => void;
 }) {
-  const premierDuJour = feuillet.rang === 1;
+  const libelleType =
+    feuillet.type === "cloture"
+      ? "Clôture & Projets"
+      : "Séance d'exercices";
 
   return (
-    <div className="flex min-h-[5.25rem] flex-wrap items-start justify-between gap-3 border-b border-bordure pb-3">
+    <div className="flex min-h-[4.5rem] flex-wrap items-start justify-between gap-3 border-b border-bordure pb-3.5">
       <div className="min-w-0">
-        {premierDuJour ? (
-          <>
-            <h2 className="souligne inline-block font-serif text-2xl font-medium tracking-tight first-letter:capitalize">
-              {libelleJour(feuillet.jour)}
-            </h2>
-            {estAujourdHui && <p className="mt-2 text-xs text-texte-discret">La page du jour.</p>}
-          </>
-        ) : (
-          <>
-            <p className="text-[0.625rem] font-semibold uppercase tracking-wider text-texte-discret">
-              Suite
-            </p>
-            <p className="font-serif text-base font-medium text-texte-discret first-letter:capitalize">
-              {libelleJour(feuillet.jour)}
-            </p>
-            <h2 className="mt-0.5 font-serif text-xl font-medium tracking-tight">
-              {titreDuFeuillet(feuillet)}
-            </h2>
-          </>
-        )}
+        <h2 className="souligne inline-block font-serif text-2xl font-medium tracking-tight first-letter:capitalize">
+          {libelleJour(feuillet.jour)}
+        </h2>
 
-        {feuillet.total > 1 && (
-          <PointsDeFeuillets
-            jour={feuillet.jour}
-            rang={feuillet.rang}
-            total={feuillet.total}
-            onChangerFeuillet={onChangerFeuillet}
-          />
-        )}
+        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-texte-discret">
+          {feuillet.total > 1 ? (
+            <>
+              <span>
+                Feuillet {feuillet.rang} sur {feuillet.total} — {libelleType}
+              </span>
+              <PointsDeFeuillets
+                jour={feuillet.jour}
+                rang={feuillet.rang}
+                total={feuillet.total}
+                onChangerFeuillet={onChangerFeuillet}
+              />
+            </>
+          ) : (
+            <span>{estAujourdHui ? "La page du jour." : "Feuillet unique"}</span>
+          )}
+        </div>
       </div>
 
       <nav aria-label="Feuillets du cahier" className="flex shrink-0 items-center gap-2">
@@ -283,32 +278,27 @@ function PointsDeFeuillets({
   onChangerFeuillet: (cible: PositionFeuillet, sens?: "avant" | "arriere") => void;
 }) {
   return (
-    <p className="mt-2 flex items-center gap-2 text-xs text-texte-discret">
-      <span>
-        Feuillet {rang} sur {total}
-      </span>
-      <span className="flex items-center gap-1">
-        {Array.from({ length: total }, (_, index) => {
-          const cible = index + 1;
-          const ouvert = cible === rang;
-          const classesPoint = `size-1.5 rounded-full transition-colors cursor-pointer ${
-            ouvert ? "bg-primaire" : "bg-bordure-forte hover:bg-primaire/60"
-          }`;
+    <span className="inline-flex items-center gap-1">
+      {Array.from({ length: total }, (_, index) => {
+        const cible = index + 1;
+        const ouvert = cible === rang;
+        const classesPoint = `size-1.5 rounded-full transition-colors cursor-pointer ${
+          ouvert ? "bg-primaire" : "bg-bordure-forte hover:bg-primaire/60"
+        }`;
 
-          return (
-            <button
-              key={cible}
-              type="button"
-              onClick={() => onChangerFeuillet({ jour, rang: cible }, cible > rang ? "avant" : "arriere")}
-              aria-current={ouvert ? "page" : undefined}
-              aria-label={`Feuillet ${cible} sur ${total}`}
-              title={`Feuillet ${cible}`}
-              className={classesPoint}
-            />
-          );
-        })}
-      </span>
-    </p>
+        return (
+          <button
+            key={cible}
+            type="button"
+            onClick={() => onChangerFeuillet({ jour, rang: cible }, cible > rang ? "avant" : "arriere")}
+            aria-current={ouvert ? "page" : undefined}
+            aria-label={`Feuillet ${cible} sur ${total}`}
+            title={`Feuillet ${cible}`}
+            className={classesPoint}
+          />
+        );
+      })}
+    </span>
   );
 }
 
@@ -350,11 +340,11 @@ function ClotureDuJour({
     feuillet.traces.length === 0 && feuillet.projets.length === 0 && feuillet.notes.length === 0;
 
   return (
-    <>
+    <div className="space-y-6">
       {feuillet.projets.length > 0 && (
         <section className="space-y-3">
           <TitreDeSection>
-            Projet{feuillet.projets.length > 1 ? "s" : ""} &amp; travaux de ce jour
+            Projet{feuillet.projets.length > 1 ? "s" : ""} de ce jour
           </TitreDeSection>
           <div className="space-y-3">
             {feuillet.projets.map((projet) => (
@@ -365,9 +355,9 @@ function ClotureDuJour({
       )}
 
       {feuillet.traces.length > 0 && (
-        <section className="space-y-1">
-          <TitreDeSection>Aussi ce jour-là</TitreDeSection>
-          <ul className="divide-y divide-bordure/60">
+        <section className="space-y-2">
+          <TitreDeSection>Exercices hors séance</TitreDeSection>
+          <ul className="divide-y divide-bordure/60 rounded-carte border border-bordure bg-surface px-4">
             {feuillet.traces.map((trace) => (
               <TraceHorsSeance key={trace.id} seance={trace} donnees={donnees} />
             ))}
@@ -377,13 +367,13 @@ function ClotureDuJour({
 
       {estAujourdHui ? (
         <section className="space-y-2">
-          <TitreDeSection>En marge</TitreDeSection>
+          <TitreDeSection>Notes du jour</TitreDeSection>
           <MargeCahier lignes={notes} compteId={donnees.compteId} compacte />
         </section>
       ) : feuillet.notes.length > 0 ? (
-        <section className="space-y-1">
-          <TitreDeSection>Noté ce jour-là</TitreDeSection>
-          <ul className="space-y-1.5">
+        <section className="space-y-2">
+          <TitreDeSection>Notes du jour</TitreDeSection>
+          <ul className="space-y-1.5 rounded-carte border border-bordure bg-surface p-4">
             {feuillet.notes.map((note, index) => (
               <li
                 key={`${index}-${note.texte}`}
@@ -399,7 +389,7 @@ function ClotureDuJour({
       {vide && !estAujourdHui && (
         <p className="py-6 text-sm italic text-texte-discret">Rien n’a été écrit ce jour-là.</p>
       )}
-    </>
+    </div>
   );
 }
 
@@ -500,16 +490,7 @@ function TraceHorsSeance({
   );
 }
 
-/**
- * Le titre d'un feuillet de suite.
- */
-function titreDuFeuillet(feuillet: Feuillet<LigneMarge, DocumentOperationnelDate>): string {
-  if (feuillet.type === "cloture") return "Clôture du jour";
-  const intention = feuillet.seance.besoinDeclare?.intention?.trim();
-  if (intention) return intention;
-  const activites = feuillet.seance.activites.length;
-  return `Séance — ${activites} activité${activites > 1 ? "s" : ""}`;
-}
+
 
 function libelleJour(jour: string): string {
   return new Date(`${jour}T12:00:00`).toLocaleDateString("fr-FR", {
