@@ -24,16 +24,23 @@ import {
   type SimulationLinkDatum,
   type SimulationNodeDatum,
 } from "d3-force";
-import type {
-  NoeudWorkflow,
-  LienWorkflow,
-  TypeNoeudWorkflow,
-  TypeLienWorkflow,
-  StatistiquesGraphe,
-  PerspectiveWorkflow,
-  GroupeWorkflow,
+import {
+  parcourirWorkflow,
+  statistiquesGraphe,
+  type NoeudWorkflow,
+  type LienWorkflow,
+  type TypeNoeudWorkflow,
+  type TypeLienWorkflow,
+  type StatistiquesGraphe,
+  type PerspectiveWorkflow,
+  type GroupeWorkflow,
 } from "@/lib/domain/workflow-graphe";
-import type { ExportJSON } from "@/lib/domain/workflow-export";
+import {
+  exporterDOT,
+  exporterJSON,
+  matriceAdjacence,
+  type ExportJSON,
+} from "@/lib/domain/workflow-export";
 
 /* ------------------------------------------------------------------ */
 /* Types internes                                                      */
@@ -259,6 +266,7 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
   const [panneauOuvert, setPanneauOuvert] = useState(true);
   const [selectionId, setSelectionId] = useState<string | null>(null);
   const [copie, setCopie] = useState<string | null>(null);
+  const [afficherCadre, setAfficherCadre] = useState(false);
 
   // Filtres par type de nœuds
   const [typesNoeuds, setTypesNoeuds] = useState<Record<TypeNoeudWorkflow, boolean>>({
@@ -292,6 +300,10 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
 
   /* ── Filtrage ── */
 
+  const nombreLiensCadre = useMemo(() => {
+    return liens.filter((l) => l.cadre).length;
+  }, [liens]);
+
   const noeudsVisibles = useMemo(() => {
     return noeuds.filter((n) => {
       if (!typesNoeuds[n.type]) return false;
@@ -310,10 +322,11 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
       liens.filter(
         (l) =>
           typesLiens[l.type] &&
+          (afficherCadre || !l.cadre) &&
           idsVisibles.has(l.source) &&
           idsVisibles.has(l.target),
       ),
-    [liens, typesLiens, idsVisibles],
+    [liens, typesLiens, afficherCadre, idsVisibles],
   );
 
   /* ── Détail de la sélection ── */
@@ -904,8 +917,12 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
     setTimeout(() => setCopie(null), 1800);
   }, []);
 
-  const matriceFormatee = useMemo(() => {
-    if (!matriceNoeuds.length) return "";
+  const { statsCourantes, dotCourant, jsonExportCourant, matriceFormatee } = useMemo(() => {
+    const toutAffiche =
+      afficherCadre &&
+      Object.values(typesNoeuds).every(Boolean) &&
+      (perspective !== "ux" || Object.values(groupesFiltres).every(Boolean));
+
     const titrePerspective =
       perspective === "architecture"
         ? "Architecture AST"
@@ -913,39 +930,133 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
           ? "Parcours UX Atomique"
           : "Parcours UX Synthèse";
 
-    const enteteStats = [
-      `/*`,
-      `Métriques — ${titrePerspective}`,
-      ``,
-      `|V| nœuds`,
-      `    ${stats.totalNoeuds}`,
-      `|E| arêtes`,
-      `    ${stats.totalLiens}`,
-      `Atteignables`,
-      `    ${stats.atteignables}`,
-      `Inatteignables`,
-      `    ${stats.inatteignables}`,
-      `Diamètre BFS`,
-      `    ${stats.diametreBFS}`,
-      `Degré sortant moy.`,
-      `    ${stats.degreSortantMoyen.toFixed(2)}`,
-      ``,
-      `${stats.puits.length} puits (fins de parcours) :`,
-      ``,
-      ...stats.puits.map((p) => `    • ${p}`),
-      `*/`,
-      ``,
-    ].join("\n");
+    if (toutAffiche && stats.totalNoeuds > 0) {
+      const max = Math.max(...matriceNoeuds.map((n) => n.length), 0);
+      const en_tete =
+        " ".repeat(max + 2) + matriceNoeuds.map((_, i) => String(i).padStart(2)).join(" ");
+      const lignesMatrice = matriceData.map((row, i) => {
+        const nom = matriceNoeuds[i].padEnd(max + 2);
+        return nom + row.map((v) => String(v).padStart(2)).join(" ");
+      });
 
-    const max = Math.max(...matriceNoeuds.map((n) => n.length));
-    const en_tete =
-      " ".repeat(max + 2) + matriceNoeuds.map((_, i) => String(i).padStart(2)).join(" ");
-    const lignesMatrice = matriceData.map((row, i) => {
-      const nom = matriceNoeuds[i].padEnd(max + 2);
-      return nom + row.map((v) => String(v).padStart(2)).join(" ");
-    });
-    return [enteteStats, en_tete, ...lignesMatrice].join("\n");
-  }, [matriceNoeuds, matriceData, stats, perspective]);
+      const enteteStats = [
+        `/*`,
+        `Métriques — ${titrePerspective}`,
+        ``,
+        `|V| nœuds`,
+        `    ${stats.totalNoeuds}`,
+        `|E| arêtes`,
+        `    ${stats.totalLiens}`,
+        `Atteignables`,
+        `    ${stats.atteignables}`,
+        `Inatteignables`,
+        `    ${stats.inatteignables}`,
+        `Diamètre BFS`,
+        `    ${stats.diametreBFS}`,
+        `Degré sortant moy.`,
+        `    ${stats.degreSortantMoyen.toFixed(2)}`,
+        ``,
+        `${stats.puits.length} puits (fins de parcours) :`,
+        ``,
+        ...stats.puits.map((p) => `    • ${p}`),
+        `*/`,
+        ``,
+      ].join("\n");
+
+      return {
+        statsCourantes: stats,
+        dotCourant: dot,
+        jsonExportCourant: jsonExport,
+        matriceFormatee: [enteteStats, en_tete, ...lignesMatrice].join("\n"),
+      };
+    }
+
+    const sousGraphe = { noeuds: noeudsVisibles, liens: liensVisibles };
+    const racine = noeudsVisibles.some((n) => n.id === "page:/")
+      ? "page:/"
+      : (noeudsVisibles[0]?.id ?? "page:/");
+
+    if (noeudsVisibles.length === 0) {
+      return {
+        statsCourantes: stats,
+        dotCourant: "",
+        jsonExportCourant: jsonExport,
+        matriceFormatee: "",
+      };
+    }
+
+    try {
+      const resBfs = parcourirWorkflow(sousGraphe, racine);
+      const st = statistiquesGraphe(resBfs, sousGraphe);
+      const dt = exporterDOT(resBfs.noeuds, resBfs.liens, {
+        titre: `${titrePerspective}${!afficherCadre ? " [Sans cadre]" : ""}`,
+        stats: st,
+        avecLibelles: true,
+        avecLibellesAretes: true,
+        avecConditions: true,
+      });
+      const js = exporterJSON(resBfs, sousGraphe);
+      const mat = matriceAdjacence(resBfs.noeuds, resBfs.liens);
+
+      const max = Math.max(...mat.noeuds.map((n) => n.length), 0);
+      const en_tete =
+        " ".repeat(max + 2) + mat.noeuds.map((_, i) => String(i).padStart(2)).join(" ");
+      const lignesMatrice = mat.matrice.map((row, i) => {
+        const nom = mat.noeuds[i].padEnd(max + 2);
+        return nom + row.map((v) => String(v).padStart(2)).join(" ");
+      });
+
+      const enteteStats = [
+        `/*`,
+        `Métriques — ${titrePerspective} (${!afficherCadre ? "sans cadre" : "filtré"})`,
+        ``,
+        `|V| nœuds`,
+        `    ${st.totalNoeuds}`,
+        `|E| arêtes`,
+        `    ${st.totalLiens}`,
+        `Atteignables`,
+        `    ${st.atteignables}`,
+        `Inatteignables`,
+        `    ${st.inatteignables}`,
+        `Diamètre BFS`,
+        `    ${st.diametreBFS}`,
+        `Degré sortant moy.`,
+        `    ${st.degreSortantMoyen.toFixed(2)}`,
+        ``,
+        `${st.puits.length} puits (fins de parcours) :`,
+        ``,
+        ...st.puits.map((p) => `    • ${p}`),
+        `*/`,
+        ``,
+      ].join("\n");
+
+      return {
+        statsCourantes: st,
+        dotCourant: dt,
+        jsonExportCourant: js,
+        matriceFormatee: [enteteStats, en_tete, ...lignesMatrice].join("\n"),
+      };
+    } catch {
+      return {
+        statsCourantes: stats,
+        dotCourant: dot,
+        jsonExportCourant: jsonExport,
+        matriceFormatee: "",
+      };
+    }
+  }, [
+    afficherCadre,
+    typesNoeuds,
+    groupesFiltres,
+    perspective,
+    stats,
+    dot,
+    jsonExport,
+    matriceNoeuds,
+    matriceData,
+    noeudsVisibles,
+    liensVisibles,
+  ]);
 
   const recentrerCamera = useCallback(() => {
     cameraRef.current = { x: 0, y: 0, zoom: 0.5 };
@@ -1021,6 +1132,18 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
         </div>
 
         <div className="flex items-center gap-2 text-xs text-texte-attenue">
+          <button
+            type="button"
+            onClick={() => setAfficherCadre((v) => !v)}
+            className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+              afficherCadre
+                ? "border-primaire bg-primaire-faible text-primaire"
+                : "border-bordure bg-surface text-texte-attenue hover:bg-surface-2"
+            }`}
+            title="Afficher/masquer les arêtes transversales du cadre (rail, tuteur flottant, modale +)"
+          >
+            {afficherCadre ? "✓ Cadre global inclus" : "Cadre global masqué"}
+          </button>
           <button
             type="button"
             onClick={recentrerCamera}
@@ -1126,28 +1249,28 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
               </h2>
               <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
                 <dt className="text-texte-attenue">|V| nœuds</dt>
-                <dd className="font-mono font-medium">{stats.totalNoeuds}</dd>
+                <dd className="font-mono font-medium">{statsCourantes.totalNoeuds}</dd>
                 <dt className="text-texte-attenue">|E| arêtes</dt>
-                <dd className="font-mono font-medium">{stats.totalLiens}</dd>
+                <dd className="font-mono font-medium">{statsCourantes.totalLiens}</dd>
                 <dt className="text-texte-attenue">Atteignables</dt>
-                <dd className="font-mono font-medium">{stats.atteignables}</dd>
+                <dd className="font-mono font-medium">{statsCourantes.atteignables}</dd>
                 <dt className="text-texte-attenue">Inatteignables</dt>
-                <dd className="font-mono font-medium">{stats.inatteignables}</dd>
+                <dd className="font-mono font-medium">{statsCourantes.inatteignables}</dd>
                 <dt className="text-texte-attenue">Diamètre BFS</dt>
-                <dd className="font-mono font-medium">{stats.diametreBFS}</dd>
+                <dd className="font-mono font-medium">{statsCourantes.diametreBFS}</dd>
                 <dt className="text-texte-attenue">Degré sortant moy.</dt>
                 <dd className="font-mono font-medium">
-                  {stats.degreSortantMoyen.toFixed(2)}
+                  {statsCourantes.degreSortantMoyen.toFixed(2)}
                 </dd>
               </dl>
 
-              {stats.puits.length > 0 && (
+              {statsCourantes.puits.length > 0 && (
                 <div className="mt-2">
                   <p className="text-[0.65rem] font-medium text-alerte">
-                    {stats.puits.length} puits (fins de parcours) :
+                    {statsCourantes.puits.length} puits (fins de parcours) :
                   </p>
                   <ul className="mt-0.5 text-[0.65rem] text-texte-discret">
-                    {stats.puits.map((id) => (
+                    {statsCourantes.puits.map((id) => (
                       <li key={id} className="truncate">
                         • {id}
                       </li>
@@ -1287,6 +1410,30 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
               )}
             </section>
 
+            {/* Filtre Cadre Transversal & Navigation persistante */}
+            <section className="border-b border-bordure px-4 py-3 bg-surface-2/40">
+              <div className="flex items-center justify-between">
+                <h2 className="text-[0.65rem] font-semibold uppercase tracking-wider text-texte-discret">
+                  Cadre & Surfaces Globales
+                </h2>
+                <span className="rounded-full bg-surface px-1.5 py-0.5 text-[0.6rem] font-mono text-texte-attenue border border-bordure">
+                  {nombreLiensCadre} arêtes
+                </span>
+              </div>
+              <p className="mt-1 text-[0.6875rem] text-texte-attenue leading-tight">
+                Rail desktop, barre mobile, bouton tuteur flottant et modale besoin (+).
+              </p>
+              <label className="mt-2.5 flex items-center gap-2.5 text-xs text-texte cursor-pointer font-medium select-none">
+                <input
+                  type="checkbox"
+                  checked={afficherCadre}
+                  onChange={(e) => setAfficherCadre(e.target.checked)}
+                  className="size-3.5 rounded accent-primaire cursor-pointer"
+                />
+                <span>Afficher les arêtes du cadre</span>
+              </label>
+            </section>
+
             {/* Filtres par Sous-systèmes UX (si mode UX) */}
             {perspective === "ux" && (
               <section className="border-b border-bordure px-4 py-3">
@@ -1362,14 +1509,14 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
               </h2>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 <BoutonCopie
-                  onClick={() => copierTexte(dot, "DOT")}
+                  onClick={() => copierTexte(dotCourant, "DOT")}
                   actif={copie === "DOT"}
                 >
                   DOT (Graphviz)
                 </BoutonCopie>
                 <BoutonCopie
                   onClick={() =>
-                    copierTexte(JSON.stringify(jsonExport, null, 2), "JSON")
+                    copierTexte(JSON.stringify(jsonExportCourant, null, 2), "JSON")
                   }
                   actif={copie === "JSON"}
                 >

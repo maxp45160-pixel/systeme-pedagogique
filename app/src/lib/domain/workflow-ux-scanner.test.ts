@@ -65,6 +65,15 @@ describe("scannerUxJourney (dynamique AST)", () => {
     expect(entrantsParId.get("tiroir:tuteur") ?? 0).toBeGreaterThan(1);
     expect(entrantsParId.get("modal:de-quoi-as-tu-besoin") ?? 0).toBeGreaterThan(1);
 
+    // Qualification des arêtes de cadre (cadre: true)
+    const liensCadre = graphe.liens.filter((l) => l.cadre === true);
+    expect(liensCadre.length).toBeGreaterThan(20);
+    expect(liensCadre.every((l) => l.cadre)).toBe(true);
+
+    // Graphe filtré sans cadre : réduction du volume d'arêtes sans détruire le flux
+    const liensSansCadre = graphe.liens.filter((l) => !l.cadre);
+    expect(liensSansCadre.length).toBeLessThan(graphe.liens.length);
+
     // Micro-interactions réelles détectées (Canvas, Pomodoro, Tuteur, Accordéons)
     const microNoeuds = graphe.noeuds.filter((n) => n.id.startsWith("micro:"));
     expect(microNoeuds.length).toBeGreaterThan(5);

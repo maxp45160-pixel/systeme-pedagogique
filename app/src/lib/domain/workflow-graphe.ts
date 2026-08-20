@@ -92,6 +92,8 @@ export interface LienWorkflow {
   declencheur?: string;
   /** Condition d'activation — l'arête n'existe que si la condition est vraie. */
   condition?: string;
+  /** Vrai si l'arête est issue du cadre partagé (rail, barre mobile, surfaces globales). */
+  cadre?: boolean;
 }
 
 export interface GrapheWorkflow {

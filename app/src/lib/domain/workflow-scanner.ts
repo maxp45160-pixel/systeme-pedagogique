@@ -315,6 +315,7 @@ export async function scannerWorkflow(): Promise<GrapheWorkflow> {
             target: targetId,
             type: "navigation",
             libelle: "Navigation persistante",
+            cadre: true,
           });
         }
       }

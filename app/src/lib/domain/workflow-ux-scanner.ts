@@ -906,6 +906,7 @@ function construireUxAtomique(
           type: "navigation",
           libelle: "Navigation persistante",
           declencheur: "Rail / barre mobile du cadre",
+          cadre: true,
         });
       }
     }
@@ -933,6 +934,7 @@ function construireUxAtomique(
           type: "ouverture",
           libelle: "Ouvrir depuis le cadre",
           declencheur: "Bouton du cadre partagé",
+          cadre: true,
         });
       }
     }

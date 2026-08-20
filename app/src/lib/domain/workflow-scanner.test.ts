@@ -54,6 +54,7 @@ describe("scannerWorkflow", () => {
       );
       expect(liensPersistants.map((l) => l.target)).toContain("page:/aide");
       expect(liensPersistants.map((l) => l.target)).toContain("page:/compte");
+      expect(liensPersistants.every((l) => l.cadre === true)).toBe(true);
 
       // `/compte` devient joignable depuis la racine sans passer par un profil.
       expect(atteignables).toContain("page:/compte");
