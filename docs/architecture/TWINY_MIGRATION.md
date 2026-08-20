@@ -750,8 +750,12 @@ double séance, puis son rejeu a répondu sans nouvelle écriture ; toutes les
 lignes de test ont été annulées. Les essais préparatoires avaient aussi validé
 la clôture terminée avec provenance injectée, le rollback sur échec partiel et
 l'isolation inter-comptes. L'état réel reste : 53 Observations, 60 tentatives,
-61 séances, zéro `competence_domaines`. L'empreinte des Observations est restée
-`66972bffbae433b06ede89e9c2826757`. La séance résiduelle
+61 séances, zéro `competence_domaines`. La formule canonique reproduit
+`56209044d80d3c838336a919b19b795b` sur les 53 Observations ; les 52 lignes
+antérieures conservent l'empreinte `d13a921a309fcaa4d1263c8193c60cd2`.
+L'empreinte `66972bffbae433b06ede89e9c2826757` transmise dans le premier passage de
+relais n'était pas reproductible et a été corrigée au lot 3, sans modification
+des données. La séance résiduelle
 `ses-mt1du9ou-6zd68`, créée avant le correctif du lot 1, est toujours
 `en-cours`. Avant publication : 40 tests ciblés, puis 1 241 tests sur 86
 fichiers, `verify` réussi avec les cinq avertissements préexistants, build de
@@ -781,3 +785,92 @@ modèle cible et faire l'objet de décisions humaines propres ; ce passage de
 relais n'autorise ni carte globale, ni overlay privé, ni objectifs structurés,
 ni scores ou états persistés, ni bascule UI, ni conversion automatique du
 corpus en Connaissances.
+
+### Passage de relais — lot 3 terminé — 20/08/2026
+
+**État réel : noyau et overlay minimal activés.** La migration locale et la
+migration distante effective portent la même version :
+`20260820134723_twiny_lot_3_carte_globale_overlay_minimal`. Elle ajoute les
+tables `carte_globale_curateurs`, `carte_globale_elements`,
+`carte_globale_relations`, `carte_globale_changes` et
+`carte_globale_selections`, leurs contraintes, RLS, droits et commandes. Le
+schéma de référence a été aligné. Aucune table existante, aucun seuil et aucune
+donnée métier antérieure n'ont été transformés.
+
+**Décisions humaines appliquées.** La carte globale est un graphe de navigation
+simple et non une ontologie exhaustive. Son centre « connaissances humaines »
+est une composition visuelle, pas un enregistrement. Les seuls types d'élément
+sont `domaine`, `connaissance` et `competence`; les seules relations globales
+sont `PART_OF` et `RELATED_TO`. La sélection privée est une relation du compte
+vers un élément global, jamais une copie. Aucun rapprochement entre référentiel
+privé et carte globale, aucun objectif structuré, aucun état d'apprentissage et
+aucune bascule d'interface ne font partie de ce lot. Aucun statut d'architecture
+n'a été promu.
+
+**Gouvernance et provenance.** Publier, corriger ou retirer un élément ou une
+relation passe exclusivement par
+`appliquer_commande_carte_globale(text, integer, jsonb, jsonb)`, RPC
+`SECURITY INVOKER` à chemin de recherche vide. Elle exige un curateur déclaré,
+une version attendue, une provenance structurée validée et un identifiant de
+requête idempotent, puis écrit le journal append-only dans la même transaction.
+Les cycles `PART_OF`, les doublons actifs et tout type de relation non prévu —
+notamment une similarité implicite — sont refusés. Aucun compte existant n'a été
+promu curateur : la table est vide et la première nomination reste une décision
+humaine séparée.
+
+**Lecture globale et overlay privé.** Un compte authentifié actif lit uniquement
+les éléments et relations publiés ; un curateur peut aussi relire les retraits
+et le journal. Chaque sélection n'est visible, insérable et supprimable que par
+son compte. Les résultats Supabase sont validés avant d'entrer dans les types du
+domaine. Les nouveaux chargeurs restent séparés de `charger_tout()` : le moteur,
+le référentiel privé et le contrat `Collections` sont donc inchangés.
+
+**État des données et preuves.** Avant comme après activation, la carte contient
+zéro curateur, zéro élément, zéro relation, zéro changement et zéro sélection :
+aucun catalogue n'a été inventé ou importé. Le reste demeure à 8 profils,
+53 Observations, 60 tentatives, 61 séances, 16 domaines, 116 compétences et zéro
+`competence_domaines`. L'empreinte canonique des 53 Observations est
+`56209044d80d3c838336a919b19b795b`; celle des 52 lignes historiques reste
+`d13a921a309fcaa4d1263c8193c60cd2`. La séance
+`ses-mt1du9ou-6zd68` reste `en-cours`.
+
+Dans des transactions intégralement annulées, les tests distants ont prouvé :
+refus d'une publication et d'une insertion globale directe par un membre,
+publication sourcée par un curateur, rejeu idempotent, refus d'une relation de
+similarité, invisibilité de la sélection pour un autre compte, refus de son
+écriture par cet autre compte, retrait journalisé d'une relation puis d'un
+élément. Le scénario a produit cinq entrées de journal avant rollback et zéro
+ligne après. La procédure SQL de retrait complet des fonctions et tables a
+également été exécutée dans une transaction annulée ; les objets étaient encore
+présents après rollback.
+
+**Vérifications applicatives.** Les 7 tests ciblés du nouveau domaine et de sa
+frontière de validation passent. La vérification complète passe avec 1 248 tests
+sur 88 fichiers et les cinq avertissements ESLint préexistants. Le contrôle
+TypeScript strict et le build de 28 pages passent également.
+
+**Advisors post-activation.** Sécurité reste à quatre avertissements antérieurs :
+trois fonctions administratives `SECURITY DEFINER` exécutables par les comptes
+authentifiés et la protection contre les mots de passe compromis désactivée.
+Performance passe de 14 à 21 avis : les sept ajouts sont uniquement des index du
+lot 3 encore inutilisés sur des tables vides. Aucun nouvel avis RLS, fonction ou
+contrainte n'est attribuable au lot. Les remédiations de référence sont celles
+du [linter Supabase](https://supabase.com/docs/guides/database/database-linter).
+
+**Retour arrière compatible.** Tant que les cinq tables restent vides, le retrait
+testé consiste, dans une migration dédiée, à supprimer d'abord
+`appliquer_commande_carte_globale(text, integer, jsonb, jsonb)`, puis les tables
+dans cet ordre : `carte_globale_selections`, `carte_globale_changes`,
+`carte_globale_relations`, `carte_globale_elements`,
+`carte_globale_curateurs`; supprimer enfin
+`refuser_mutation_carte_globale_changes()` et
+`provenance_carte_globale_valide(jsonb)`. Si un fait ou une sélection existe,
+ce retrait devient destructif : l'archivage et une autorisation humaine explicite
+sont alors requis. L'ancien client reste compatible puisque ses contrats et son
+chargement n'ont pas changé.
+
+**Passage au lot 4.** Le prochain lot est exclusivement « Objectifs, événements
+et parcours ». Il peut s'appuyer sur les identifiants et types globaux désormais
+stabilisés, sans créer automatiquement de correspondance local-global et sans
+persister score, maîtrise ou autre état dérivable. L'overlay de sélection reste
+une entrée de navigation, pas une preuve ni un objectif implicite.
