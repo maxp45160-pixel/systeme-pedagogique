@@ -257,32 +257,61 @@ export function extraireClesSearchParams(sf: ts.SourceFile): string[] {
 }
 
 export function groupePourChemin(relatif: string): GroupeWorkflow {
-  const r = relatif.toLowerCase();
+  const r = relatif.toLowerCase().replace(/\\/g, "/");
+
+  // Thèmes et gestion transversale du référentiel
+  if (r.includes("modale-theme") || r.includes("theme-actions")) {
+    return "atelier";
+  }
+
+  // Séances & Cahier
   if (
     r.startsWith("app/(app)/seances") ||
     r.startsWith("components/seances") ||
-    r.startsWith("components/adaptive")
+    r.startsWith("components/adaptive") ||
+    r.includes("seance-actions") ||
+    r.includes("marge-actions")
   ) {
     return "seances";
   }
+
+  // Exercices & Résolution
   if (
     r.startsWith("components/exercices") ||
-    r.startsWith("components/bilan")
+    r.startsWith("components/bilan") ||
+    r.includes("lib/store/actions") ||
+    r.includes("exercice-actions") ||
+    r.includes("tentative")
   ) {
     return "exercice";
   }
+
+  // Atelier, Projets & Référentiel
   if (
     r.startsWith("app/(app)/atelier") ||
     r.startsWith("components/atelier") ||
     r.startsWith("components/projets") ||
     r.startsWith("components/referentiel") ||
-    r.startsWith("components/competences")
+    r.startsWith("components/competences") ||
+    r.includes("referentiel-actions") ||
+    r.includes("document-actions") ||
+    r.includes("projets-actions") ||
+    r.includes("entretien-actions") ||
+    r.includes("carte-globale-actions")
   ) {
     return "atelier";
   }
-  if (r.startsWith("components/tuteur")) {
+
+  // Tuteur IA
+  if (
+    r.startsWith("components/tuteur") ||
+    r.includes("lib/tutor") ||
+    r.includes("lib/tuteur")
+  ) {
     return "tuteur";
   }
+
+  // Profil, Admin, Compte & Accès
   if (
     r.startsWith("app/(app)/profil") ||
     r.startsWith("app/(app)/progression") ||
@@ -292,10 +321,15 @@ export function groupePourChemin(relatif: string): GroupeWorkflow {
     r.startsWith("components/progression") ||
     r.startsWith("components/admin") ||
     r.startsWith("components/compte") ||
-    r.startsWith("components/layout")
+    r.startsWith("components/layout") ||
+    r.includes("compte-actions") ||
+    r.includes("acces-actions") ||
+    r.includes("reglages-actions") ||
+    r.includes("objectifs-actions")
   ) {
     return "profil";
   }
+
   return "dashboard";
 }
 

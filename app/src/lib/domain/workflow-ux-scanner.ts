@@ -17,6 +17,7 @@ import type {
   GrapheWorkflow,
   LienWorkflow,
   NoeudWorkflow,
+  TypeNoeudWorkflow,
 } from "./workflow-graphe";
 import {
   analyserTousLesFichiersAst,
@@ -385,19 +386,22 @@ function construireUxAtomique(
     for (const varRoute of a.variantesSearchParams ?? []) {
       const varId = `page:${varRoute}`;
       const nomVar = varRoute.split("?")[1] ?? "";
+      const qual = qualifierVarianteUx(a.route, nomVar, a.titrePage);
+
       ajouterNoeud({
         id: varId,
-        type: "page",
-        libelle: `${a.titrePage ?? a.route} (${nomVar})`,
+        type: qual.type,
+        libelle: qual.libelle,
         url: varRoute,
         groupe: groupePourChemin(a.relatif),
+        badge: qual.badge,
       });
 
       connecter({
         source: pageId,
         target: varId,
         type: "transition",
-        libelle: `Mode ${nomVar}`,
+        libelle: qual.libelleTransition,
         declencheur: `Paramètre URL ?${nomVar}`,
       });
       connecter({
@@ -924,4 +928,99 @@ function construireUxAtomique(
   }
 
   return { noeuds, liens };
+}
+
+/* ------------------------------------------------------------------ */
+/* Helpers de qualification UX                                        */
+/* ------------------------------------------------------------------ */
+
+function qualifierVarianteUx(
+  route: string,
+  nomVar: string,
+  titrePage?: string,
+): {
+  type: TypeNoeudWorkflow;
+  libelle: string;
+  libelleTransition: string;
+  badge?: string;
+} {
+  if (route === "/seances") {
+    switch (nomVar) {
+      case "session":
+        return {
+          type: "etape",
+          libelle: "Séance active (Session)",
+          libelleTransition: "Déroulé de séance",
+          badge: "Session",
+        };
+      case "correction":
+        return {
+          type: "etape",
+          libelle: "Étape : Correction de raisonnement",
+          libelleTransition: "Mode correction",
+          badge: "Correction",
+        };
+      case "evaluer":
+        return {
+          type: "etape",
+          libelle: "Étape : Évaluation du tuteur",
+          libelleTransition: "Mode évaluation",
+          badge: "Auto-évaluation",
+        };
+      case "bilan":
+        return {
+          type: "etape",
+          libelle: "Étape : Bilan d'impact",
+          libelleTransition: "Mode bilan",
+          badge: "Consolidation",
+        };
+      case "abandon":
+        return {
+          type: "etape",
+          libelle: "Étape : Abandon de séance",
+          libelleTransition: "Mode abandon",
+          badge: "Sortie",
+        };
+      default:
+        return {
+          type: "etape",
+          libelle: `Étape : ${nomVar}`,
+          libelleTransition: `Mode ${nomVar}`,
+          badge: nomVar,
+        };
+    }
+  }
+
+  if (route === "/atelier") {
+    switch (nomVar) {
+      case "document":
+        return {
+          type: "sous-vue",
+          libelle: "Fiche : Document & Compétence",
+          libelleTransition: "Mode document",
+          badge: "Document",
+        };
+      case "note":
+        return {
+          type: "sous-vue",
+          libelle: "Fiche : Note & Projet",
+          libelleTransition: "Mode note",
+          badge: "Projet",
+        };
+      default:
+        return {
+          type: "sous-vue",
+          libelle: `Atelier (${nomVar})`,
+          libelleTransition: `Mode ${nomVar}`,
+          badge: nomVar,
+        };
+    }
+  }
+
+  return {
+    type: "sous-vue",
+    libelle: `${titrePage ?? route} (${nomVar})`,
+    libelleTransition: `Mode ${nomVar}`,
+    badge: nomVar,
+  };
 }
