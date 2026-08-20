@@ -876,3 +876,183 @@ et parcours ». Il peut s'appuyer sur les identifiants et types globaux désorma
 stabilisés, sans créer automatiquement de correspondance local-global et sans
 persister score, maîtrise ou autre état dérivable. L'overlay de sélection reste
 une entrée de navigation, pas une preuve ni un objectif implicite.
+
+### Passage de relais — lot 4 terminé — 20/08/2026
+
+**État réel : lot 4 terminé.** Le `GO` explicite de Maxime a validé la plus
+petite forme métier proposée pour ce lot. Cette validation humaine autorise
+l'implémentation ci-dessous ; elle ne promeut aucun statut d'architecture. Le
+lot reste strictement additif : aucune interface générale, aucun moteur, aucun
+profil, aucune séance et aucun historique n'a été basculé.
+
+**Décisions humaines appliquées.** Un compte peut porter plusieurs objectifs
+privés. Un objectif contient une formulation verbatim déclarée par la personne,
+une cible structurée exactement parmi `element-global`, `domaine-local`,
+`competence-locale` et `relation-globale`, une priorité entière de 1 à 5, un
+horizon `court-terme` / `moyen-terme` / `long-terme`, une échéance optionnelle,
+un statut et un versionnement. Il naît `brouillon` ; les transitions vers
+`actif`, `en-pause`, `atteint` ou `abandonne` sont bornées ; l'archivage est un
+fait distinct et ne réécrit pas la formulation.
+
+Un parcours privé est la plus petite persistance justifiée : contexte déclaré,
+cible structurée, statut, dates et lien optionnel vers un objectif du même
+compte. Il ne remplace pas `LearningSession`. Les seuls événements persistés
+sont la création, modification, changement de statut et archivage d'un objectif
+ou d'un parcours, ainsi que `session-rattachee`. Chaque événement porte une
+date, un acteur (`personne` ou `systeme`), un consentement explicite, une
+provenance et une charge utile ; il ne devient jamais une Observation, une
+preuve, une mesure ou une recommandation. Une séance est rattachée par
+référence, jamais copiée et jamais recréée.
+
+Les objectifs sans cible structurée ne sont pas admis par ce nouveau contrat :
+les formulations historiques ne sont donc ni migrées, ni découpées, ni
+interprétées. Une sélection de carte globale ne crée aucun objectif. Une cible
+locale n'est jamais rapprochée automatiquement d'un élément global. Une cible
+ambiguë est refusée avant écriture et une référence absente est refusée par les
+clés étrangères du compte ou de la carte globale.
+
+**Implémentation et migration distante.** Le domaine est dans
+`app/src/lib/domain/objectifs.ts`, les validateurs de frontière dans
+`app/src/lib/store/validation-objectifs.ts`, les lectures dans
+`app/src/lib/store/objectifs.ts` et les écritures atomiques dans
+`app/src/lib/store/objectifs-actions.ts`. Les actions appellent uniquement
+`executer_commande_lot4(text,jsonb,jsonb,text,boolean)`, RPC
+`SECURITY INVOKER`, avec `request_id`, provenance et consentement. La RPC
+verrouille les versions attendues, écrit la ligne métier et l'événement dans la
+même transaction et rejoue le même résultat pour un `request_id` déjà vu. Un
+index unique empêche aussi le double rattachement d'une même séance à un même
+parcours.
+
+Les fichiers locaux sont
+`20260820161556_twiny_lot_4_objectifs_evenements_parcours.sql`,
+`20260820164500_twiny_lot_4_fk_indexes.sql` et
+`20260820170000_twiny_lot_4_cibles_strictes.sql`. Supabase les a enregistrés
+sous les versions effectives
+`20260820143159_twiny_lot_4_objectifs_evenements_parcours`,
+`20260820143613_twiny_lot_4_fk_indexes` et
+`20260820144539_twiny_lot_4_cibles_strictes`. Le schéma de
+référence `app/supabase/schema.sql` contient les mêmes tables, contraintes,
+RLS, fonctions, droits et index.
+
+**Mesures avant / après.** Avant migration : 8 profils, 53 Observations,
+60 tentatives, 61 séances, 16 domaines, 116 compétences, 0
+`competence_domaines`, 0 objectif/parcours/événement et 0 élément, relation,
+curateur ou sélection de la carte globale. Les profils conservaient 7 objectifs
+`objectif_moyen_terme` non placeholders, 1 objectif `objectif_long_terme` non
+placeholder et 1 plan. Après application et après annulation de tous les jeux
+de test : 0 objectif, 0 parcours et 0 événement persistés ; les comptes,
+profils et référentiels restent inchangés. Les Observations restent à 53,
+les tentatives à 60 et les séances à 61. L'empreinte canonique des 53
+Observations reste `56209044d80d3c838336a919b19b795b`, l'empreinte des 52
+historiques reste `d13a921a309fcaa4d1263c8193c60cd2`, et la séance résiduelle
+`ses-mt1du9ou-6zd68` reste `en-cours`.
+
+`charger_tout()` n'a pas été modifié : ses clés restent
+`profile`, `observations`, `exercises`, `attempts`, `sessions`,
+`refus_recommandations`, `domaines`, `competences`, `competence_domaines`,
+`themes` et `moteur_reglages`. Les nouveaux chargeurs sont séparés ; le moteur
+continue de recevoir son référentiel en paramètre.
+
+**Invariants et preuves de test.** Les tests distants, dans des transactions
+annulées, ont couvert deux objectifs pour le même compte, les cycles complets
+objectif/parcours, le rattachement d'une `LearningSession`, l'idempotence avec
+le même événement et le rollback. Un second compte a vu zéro ligne du premier;
+une insertion directe d'objectif a été refusée par RLS. Une cible ambiguë a été
+refusée par la RPC (`22023`) ; une compétence locale inexistante a été refusée
+par la clé étrangère (`23503`). Le scénario complet a produit temporairement
+les événements attendus, puis toutes les lignes ont disparu après `ROLLBACK`.
+Les compteurs après test sont objectifs 0, parcours 0, événements 0,
+Observations 53, tentatives 60, séances 61.
+
+La suite locale passe avec 90 fichiers et 1 255 tests ; `npm run verify` est
+vert avec les cinq avertissements ESLint préexistants et `npm run build`
+génère 28 routes. `git diff --check` est propre hors l'avertissement de
+conversion LF/CRLF du worktree Windows. Les advisors Supabase ne signalent
+aucun nouvel avis de sécurité critique imputable au lot. Les clés étrangères
+Lot 4 initialement signalées sans index sont couvertes par la migration dédiée
+de sept index ; les avis restants concernent des fonctions, politiques ou
+index préexistants / encore inutilisés sur les nouvelles tables vides. Les
+remédiations de référence restent celles du [linter Supabase](https://supabase.com/docs/guides/database/database-linter).
+
+**Écarts conservés.** Les objectifs textuels du profil restent la source
+historique verbatim et ne sont pas dupliqués dans `objectifs`. Aucun écran ne
+consomme encore les nouveaux chargeurs et aucune bascule `/demarrer` n'est
+faite. Aucun état de connaissance, score, tendance, maîtrise, carte
+individuelle, espace actif ou recommandation n'est persisté. Aucun concept du
+lot 5 n'a été commencé.
+
+**Retour arrière compatible.** Le retour applicatif est sans coordination de
+données puisque les consommateurs UI ne sont pas basculés. Si les trois tables
+Lot 4 sont vides, une migration dédiée peut révoquer puis supprimer
+`executer_commande_lot4`, `inscrire_evenement_lot4`, le trigger append-only,
+les tables dans l'ordre `evenements`, `parcours`, `objectifs`, puis les
+fonctions de validation et les index associés. Cette procédure doit être
+exécutée dans une transaction et vérifiée par les compteurs historiques. Si
+une ligne Lot 4 existe, le retrait devient destructif : on archive, on
+désactive les commandes et on demande une autorisation humaine ; on ne supprime
+aucun fait ni aucune Observation.
+
+**Passage exact au lot 5.** Le lot 5 peut seulement calculer à la demande les
+états de connaissance et de compétence, la carte individuelle et un espace
+actif borné, puis adapter la recommandation à ces vues. Il devra repartir des
+Observations validées, de la carte/overlay du lot 3 et des faits privés du lot
+4. Il ne devra persister aucun état autoritatif, score ou cache sans nouvelle
+mesure et décision ; aucun seuil ne devra changer sans données. Ce relais
+n'autorise aucune bascule UI, aucune extraction automatique d'intention et
+aucune conversion des objectifs historiques.
+
+### Passage de relais — lot 5 terminé — 20/08/2026
+
+Le contrat minimal du lot 5 a été explicitement validé par la personne avant
+implémentation. Cette validation autorise le calcul des vues ci-dessous ; elle
+ne promeut aucun statut d'architecture.
+
+**Contrat appliqué.** L'état d'une connaissance globale reste `non-mesure`,
+avec confiance nulle et conclusion absente : les Observations actuelles ciblent
+des compétences locales et aucun rapprochement implicite n'est admis. L'état
+d'une compétence expose séparément la dernière Observation ponctuelle validée,
+l'état consolidé déjà produit par le moteur et la maîtrise existante. Ces vues
+sont calculées à la demande et ne deviennent jamais des faits stockés.
+
+La carte individuelle compose uniquement les éléments, relations et sélections
+globales pertinents, le référentiel local, les objectifs et les parcours du
+compte, ainsi que les réserves explicites. Elle conserve les états locaux
+archivés ou hors périmètre pour l'historique sans les rendre actionnables.
+L'espace actif est borné à 15 entrées et applique l'ordre minimal validé :
+parcours actifs, objectifs actifs, sélections globales, puis classement local
+existant. Un parcours terminé est exclu. Une relation globale ne développe que
+ses extrémités déclarées et ne crée aucun lien avec le référentiel local.
+
+L'adaptation des recommandations ne modifie ni valeur, ni score, ni seuil :
+elle réordonne et borne les recommandations existantes selon l'espace actif.
+En l'absence de correspondance locale explicite, elle conserve le classement
+du moteur et expose la réserve au lieu d'inventer un rapprochement.
+
+**Implémentation.** Les fonctions pures et leurs types vivent dans
+`app/src/lib/engine/vues-twiny.ts`. `app/src/lib/store/context.ts` charge en
+parallèle les lectures déjà séparées des lots 3 et 4, construit les vues et
+adapte la liste finale. `charger_tout()` et `LearningSession` restent
+inchangés. Les cas limites sont couverts dans
+`app/src/lib/engine/vues-twiny.test.ts`, avec l'ajustement de fixture nécessaire
+dans `app/src/lib/tutor/contexte.test.ts`.
+
+**Persistance et isolation.** Aucune table, migration, fonction SQL, écriture
+Supabase ou clé de stockage navigateur n'a été ajoutée. Les vues restent
+privées par construction à partir des lectures RLS du compte courant. Le test
+pur avec deux jeux d'entrées distincts confirme qu'aucun état ne fuit entre
+comptes. Les événements du lot 4 restent séparés et ne sont convertis ni en
+Observation ni en mesure.
+
+**Vérification.** Les tests ciblés passent avec 9 fichiers et 183 tests. La
+vérification complète passe avec 91 fichiers et 1 265 tests ; TypeScript et
+ESLint sont verts, hors cinq avertissements préexistants. Le build Next.js
+réussit et génère 28 routes. `git diff --check` est propre hors les
+avertissements de conversion LF/CRLF du worktree Windows. Les compteurs
+Supabase restent à 53 Observations, 60 tentatives et 61 séances ; les tables des
+lots 3 et 4 restent vides. Les advisors ne montrent aucun nouvel avis imputable
+au lot 5 puisque celui-ci ne modifie pas la base.
+
+**Arrêt de périmètre.** Aucun écran, basculement ou retrait d'ancien chemin n'a
+été commencé. Le lot 6 nécessite un nouveau GO humain ; il pourra brancher ces
+vues dans l'interface et organiser une dépréciation progressive sans changer
+les politiques du moteur par hypothèse.

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   compterTentatives,
+  modeRetraitExercice,
   usageExercice,
   motifRefusExercice,
   DIFFICULTE_MAX,
@@ -54,6 +55,20 @@ describe("compterTentatives", () => {
     expect(compterTentatives("ex-1", tentatives)).toBe(2);
     expect(compterTentatives("ex-2", tentatives)).toBe(1);
     expect(compterTentatives("ex-3", tentatives)).toBe(0);
+  });
+});
+
+describe("modeRetraitExercice — ADR-035, calque d'ADR-027", () => {
+  it("supprime franchement un exercice sans aucune tentative", () => {
+    expect(modeRetraitExercice(0)).toBe("suppression");
+  });
+
+  it("archive dès la première tentative, quelle qu'elle soit", () => {
+    // Une tentative abandonnée suffit : elle figure au journal et cite
+    // l'exercice par son titre. L'effacer laisserait une entrée qui ne résout
+    // plus (idée de `compterTentatives`).
+    expect(modeRetraitExercice(1)).toBe("archivage");
+    expect(modeRetraitExercice(12)).toBe("archivage");
   });
 });
 

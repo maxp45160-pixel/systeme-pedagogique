@@ -38,6 +38,15 @@ import type { Referentiel, SkillState } from "@/lib/domain/types";
 import type { Theme } from "@/lib/domain/theme";
 import { lireThemes } from "./themes";
 import { adaptLegacyActivities } from "@/lib/domain/legacy-activity-adapter";
+import { chargerCarteGlobale, chargerSelectionsCarteGlobale } from "./carte-globale";
+import { chargerObjectifs, chargerParcours } from "./objectifs";
+import {
+  adapterRecommandationsAEspaceActif,
+  construireCarteIndividuelle,
+  construireEspaceActif,
+  type CarteIndividuelle,
+  type EspaceActif,
+} from "@/lib/engine/vues-twiny";
 
 export interface Contexte {
   donnees: Collections;
@@ -72,6 +81,10 @@ export interface Contexte {
   etatsParCode: Map<string, SkillState>;
   global: EtatGlobal;
   recommandations: Recommandation[];
+  /** Overlay privé + faits globaux pertinents, composés à la lecture. */
+  carteIndividuelle: CarteIndividuelle;
+  /** Sous-ensemble borné qui porte la priorité du lot 5. */
+  espaceActif: EspaceActif;
   /**
    * 3ᵉ maillon de la boucle (ADR-028) : ce que les tentatives passées disent du
    * calibrage du prochain exercice. Dérivé à chaque lecture, jamais stocké.
@@ -121,7 +134,13 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
   // `chargerToutRPC` ramène les 8 tables en un seul aller-retour réseau.
   // Si la fonction SQL n'existe pas encore, elle renvoie `null` et le
   // chemin lent prend le relais — aucune casse.
-  const rpc = await chargerToutRPC();
+  const [rpc, carteGlobale, selectionsGlobales, objectifs, parcours] = await Promise.all([
+    chargerToutRPC(),
+    chargerCarteGlobale(),
+    chargerSelectionsCarteGlobale(),
+    chargerObjectifs(),
+    chargerParcours(),
+  ]);
 
   let donneesBrutes: Collections;
   let referentiel: Referentiel;
@@ -223,10 +242,11 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
   // estimation les diagnostics et les exercices sortis du périmètre.
   const dureesEstimees = tableDureesEstimees(donneesBrutes.exercises);
 
-  const etats = mesurerSync("computeAllSkillStates", () =>
-    computeAllSkillStates(referentiel.actifs, observationsEffectives, now),
-    { competences: referentiel.actifs.length, observations: observationsEffectives.length },
+  const etatsCarte = mesurerSync("computeAllSkillStates", () =>
+    computeAllSkillStates(referentiel.skills, observationsEffectives, now),
+    { competences: referentiel.skills.length, observations: observationsEffectives.length },
   );
+  const etats = etatsCarte.filter((etat) => referentiel.codesActifs.has(etat.skill.code));
   const global = mesurerSync("calculerEtatGlobal", () =>
     calculerEtatGlobal(etats, now, referentiel.domaines),
   );
@@ -292,12 +312,12 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
     ),
   };
 
-  const recommandations = mesurerSync("recommander", () =>
+  const recommandationsInitiales = mesurerSync("recommander", () =>
     recommander(
       etats,
       exercicesActifs,
       donnees.attempts,
-      6,
+      etats.length,
       calibrations,
       now,
       refus,
@@ -316,6 +336,23 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
    */
   const maitrises = evaluerMaitrises(etats);
 
+  const carteIndividuelle = construireCarteIndividuelle({
+    carteGlobale,
+    selectionsGlobales,
+    domainesLocaux: referentiel.domaines,
+    etatsLocaux: etatsCarte,
+    objectifs,
+    parcours,
+  });
+  const espaceActif = construireEspaceActif({
+    carte: carteIndividuelle,
+    recommandations: recommandationsInitiales,
+  });
+  const recommandations = adapterRecommandationsAEspaceActif(
+    recommandationsInitiales,
+    espaceActif,
+  );
+
   return {
     donnees,
     exercicesActifs,
@@ -325,6 +362,8 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
     etatsParCode: new Map(etats.map((e) => [e.skill.code, e])),
     global,
     recommandations,
+    carteIndividuelle,
+    espaceActif,
     calibrations,
     maitrises,
     contexteDocumentaire,

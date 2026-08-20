@@ -15,6 +15,10 @@ import { evaluerMaitrises } from "@/lib/engine/maitrise";
 import type { Contexte } from "@/lib/store/context";
 import type { Exercise, ExerciseAttempt } from "@/lib/domain/types";
 import { adaptLegacyActivities } from "@/lib/domain/legacy-activity-adapter";
+import {
+  construireCarteIndividuelle,
+  construireEspaceActif,
+} from "@/lib/engine/vues-twiny";
 
 /*
  * ADR-021 : le protocole d'évaluation complet (§12-17 — score macro,
@@ -69,6 +73,15 @@ function construireCtxDeTest(
   const global = calculerEtatGlobal(etats, now, DOMAINES_TEST);
   const calibrations = calibrerToutes(etats, exercises, attempts);
   const recommandations = recommander(etats, exercises, attempts, 5, calibrations);
+  const carteIndividuelle = construireCarteIndividuelle({
+    carteGlobale: { elements: [], relations: [] },
+    selectionsGlobales: [],
+    domainesLocaux: referentiel.domaines,
+    etatsLocaux: etats,
+    objectifs: [],
+    parcours: [],
+  });
+  const espaceActif = construireEspaceActif({ carte: carteIndividuelle, recommandations });
   return {
     referentiel,
     calibrations,
@@ -94,6 +107,8 @@ function construireCtxDeTest(
     etatsParCode: new Map(etats.map((e) => [e.skill.code, e])),
     global,
     recommandations,
+    carteIndividuelle,
+    espaceActif,
     contexteDocumentaire: new Map(),
     observationsEffectives: [],
     now,

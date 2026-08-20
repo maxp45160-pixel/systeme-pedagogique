@@ -11,6 +11,7 @@
  */
 
 import type { Exercise, ExerciseAttempt } from "./types";
+import { modeRetrait, type ModeRetrait } from "./referentiel-compte";
 
 /* ------------------------------------------------------------------ */
 /* Bornes des deux nombres dont le moteur se sert comme d'une règle     */
@@ -118,6 +119,20 @@ export function compterTentatives(
   tentatives: ExerciseAttempt[],
 ): number {
   return tentatives.filter((t) => t.exerciseId === exerciceId).length;
+}
+
+/**
+ * Le geste de retrait d'un exercice, **dérivé** du nombre de ses tentatives
+ * (ADR-035 — calque exact d'ADR-027).
+ *
+ * Ce n'est pas un choix offert à l'utilisateur : ce qui ne porte aucune trace
+ * s'efface franchement, ce qui en porte s'archive — les observations restent
+ * au journal et l'exercice sort de la recommandation et de la calibration.
+ * Le type (`ModeRetrait`) et la règle (`modeRetrait`) sont importés, pas
+ * redéfinis : deux vocabulaires pour une même règle finiraient par diverger.
+ */
+export function modeRetraitExercice(nombreDeTentatives: number): ModeRetrait {
+  return modeRetrait(nombreDeTentatives);
 }
 
 /**
