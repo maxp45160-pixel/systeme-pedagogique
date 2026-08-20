@@ -5,6 +5,7 @@ import { LienRetour } from "@/components/ui/lien-retour";
 import { libelleDomaine } from "@/lib/domain/referentiel-compte";
 import { DIFFICULTES, type Difficulte } from "@/lib/domain/types";
 import { demarrerTentative } from "@/lib/store/actions";
+import { terminerSeance } from "@/lib/store/seance-actions";
 import {
   BandeauInfo,
   Bouton,
@@ -61,6 +62,10 @@ export async function VueExercice(props: {
   /** Affiche une tentative archivée sans permettre de créer une nouvelle observation. */
   lectureSeule?: boolean;
   etatInitialTuteurFourni?: Awaited<ReturnType<typeof construireEtatInitialTuteur>>;
+  /** L'activité suivante dans la séance en cours, pour enchaîner sans friction. */
+  activiteSuivanteId?: string;
+  /** Vrai si toutes les activités de la séance sont désormais traitées. */
+  seancePeutTerminer?: boolean;
 }) {
   const { id } = await props.params;
   const { correction, evaluer, bilan, abandon } = await props.searchParams;
@@ -205,46 +210,61 @@ export async function VueExercice(props: {
             La tentative reste au journal : elle explique pourquoi aucune difficulté
             n&apos;est conseillée pour le prochain exercice.
           </p>
-          {!props.integree && (
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              {navigation ? (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {navigation ? (
+              props.activiteSuivanteId ? (
+                <Link
+                  href={urlExercice(props.activiteSuivanteId, navigation)}
+                  className={classesLienBouton("principal", "petite")}
+                >
+                  Passer à l’activité suivante →
+                </Link>
+              ) : props.seancePeutTerminer ? (
+                <form action={terminerSeance.bind(null, navigation.seanceId)}>
+                  <Bouton type="submit" variante="principal" taille="petite">
+                    Clôturer la séance →
+                  </Bouton>
+                </form>
+              ) : (
                 <Link
                   href={`/seances?session=${encodeURIComponent(navigation.seanceId)}`}
                   className={classesLienBouton("principal", "petite")}
                 >
                   Continuer la séance
                 </Link>
-              ) : (
-                <Link href={lienCompositeur} className={classesLienBouton("principal", "petite")}>
-                  Reprendre dans une séance
-                </Link>
-              )}
-              {etatInitialTuteur && (
-                <TiroirTuteur
-                  etatInitial={etatInitialTuteur}
-                  exerciceCible={exercice.id}
-                  amorce={amorceExercice(exercice.competences[0] ?? "", {
-                    difficulteConseillee: Math.max(
-                      1,
-                      (ctx.calibrations.get(exercice.competences[0] ?? "")?.difficulteConseillee ?? 2) - 1,
-                    ) as Difficulte,
-                    dimensionFaible:
-                      ctx.calibrations.get(exercice.competences[0] ?? "")?.dimensionFaible
-                        ?.dimension ?? null,
-                  })}
-                  codesCompetences={codesCompetences}
-                  compteId={ctx.donnees.user.id}
-                  domainesExistants={domainesExistants}
-                  competencesModale={competencesPourModale(ctx.referentiel.actifs)}
-                  calibragesModale={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
-                  libelle="En demander un plus abordable"
-                />
-              )}
+              )
+            ) : (
+              <Link href={lienCompositeur} className={classesLienBouton("principal", "petite")}>
+                Reprendre dans une séance
+              </Link>
+            )}
+            {etatInitialTuteur && (
+              <TiroirTuteur
+                etatInitial={etatInitialTuteur}
+                exerciceCible={exercice.id}
+                amorce={amorceExercice(exercice.competences[0] ?? "", {
+                  difficulteConseillee: Math.max(
+                    1,
+                    (ctx.calibrations.get(exercice.competences[0] ?? "")?.difficulteConseillee ?? 2) - 1,
+                  ) as Difficulte,
+                  dimensionFaible:
+                    ctx.calibrations.get(exercice.competences[0] ?? "")?.dimensionFaible
+                      ?.dimension ?? null,
+                })}
+                codesCompetences={codesCompetences}
+                compteId={ctx.donnees.user.id}
+                domainesExistants={domainesExistants}
+                competencesModale={competencesPourModale(ctx.referentiel.actifs)}
+                calibragesModale={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
+                libelle="En demander un plus abordable"
+              />
+            )}
+            {!props.integree && (
               <Link href="/seances" className={classesLienBouton("secondaire", "petite")}>
                 Cahier des séances
               </Link>
-            </div>
-          )}
+            )}
+          </div>
         </div>
         </BandeauInfo>
       )}
@@ -265,30 +285,46 @@ export async function VueExercice(props: {
               actions={
                 <div className="flex flex-wrap items-center gap-2 pt-1">
                   {navigation ? (
-                    <LienApresImpact
-                      href={`/seances?session=${encodeURIComponent(navigation.seanceId)}`}
-                      libelle="Reprendre la séance (Exercice suivant)"
-                      variante="principal"
-                    />
+                    props.activiteSuivanteId ? (
+                      <LienApresImpact
+                        href={urlExercice(props.activiteSuivanteId, navigation)}
+                        libelle="Passer à l’activité suivante"
+                        variante="principal"
+                      />
+                    ) : props.seancePeutTerminer ? (
+                      <form action={terminerSeance.bind(null, navigation.seanceId)}>
+                        <Bouton type="submit" variante="principal">
+                          Clôturer la séance →
+                        </Bouton>
+                      </form>
+                    ) : (
+                      <LienApresImpact
+                        href={`/seances?session=${encodeURIComponent(navigation.seanceId)}`}
+                        libelle="Continuer la séance"
+                        variante="principal"
+                      />
+                    )
                   ) : (
-                    <LienApresImpact
-                      href="/"
-                      libelle="Prochaine action recommandée"
-                      variante="principal"
-                    />
+                    <>
+                      <LienApresImpact
+                        href="/"
+                        libelle="Prochaine action recommandée"
+                        variante="principal"
+                      />
+                      {exercice.competences[0] && (
+                        <LienApresImpact
+                          href={`/atelier?document=${encodeURIComponent(exercice.competences[0])}`}
+                          libelle="Voir la fiche dans l'Atelier"
+                          variante="secondaire"
+                        />
+                      )}
+                      <LienApresImpact
+                        href="/seances"
+                        libelle="Cahier des séances"
+                        variante="discret"
+                      />
+                    </>
                   )}
-                  {exercice.competences[0] && (
-                    <LienApresImpact
-                      href={`/atelier?document=${encodeURIComponent(exercice.competences[0])}`}
-                      libelle="Voir la fiche dans l'Atelier"
-                      variante="secondaire"
-                    />
-                  )}
-                  <LienApresImpact
-                    href="/seances"
-                    libelle="Cahier des séances"
-                    variante="discret"
-                  />
                 </div>
               }
             />

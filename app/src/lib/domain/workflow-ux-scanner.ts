@@ -493,15 +493,18 @@ function construireUxAtomique(
     }
   }
 
-  // 3. Boucle pédagogique d'exercice — fidèle au code (ADR-079)
-  // Le vrai parcours tient dans le workspace de séance : deux actes
-  // (Chercher → Mesurer) dont les transitions sont portées par les variantes
-  // de `searchParams` que `vue-exercice.tsx` lit réellement (`evaluer`,
-  // `bilan`, `abandon`). On ne modélise donc aucune étape inventée : les
-  // nœuds de variantes sont dérivés (section 1) et les actions réelles
-  // (terminer/abandonner) se résolvent vers `/seances`.
+  // Index global des server actions réelles
+  const toutesActions = new Map<string, import("./workflow-ast-parser").ActionServeurAst>();
+  for (const a of analyses.values()) {
+    for (const act of a.actionsDeclarees) {
+      toutesActions.set(act.nom, act);
+    }
+  }
+
+  // 3. Boucle pédagogique d'exercice — dérivée dynamiquement de l'AST de VueExercice
+  const analyseVueExercice = analyses.get("components/exercices/vue-exercice.tsx");
   const seances = analyses.get("app/(app)/seances/page.tsx");
-  if (seances) {
+  if (seances && analyseVueExercice) {
     const sessionId = "page:/seances?session";
     const evaluerId = "page:/seances?evaluer";
     const bilanId = "page:/seances?bilan";
@@ -522,7 +525,7 @@ function construireUxAtomique(
       badge: "Auto-évaluation",
     });
 
-    // Le workspace de séance ouvre l'acte de résolution.
+    // 1. Entrée dans la résolution depuis le workspace
     if (parId.has(sessionId)) {
       connecter({
         source: sessionId,
@@ -533,19 +536,17 @@ function construireUxAtomique(
       });
     }
 
-    // Chercher → Mesurer : le lien « Demander la correction » navigue vers
-    // `urlExercice(exercice.id, navigation, 'evaluer')` (vue-exercice.tsx).
+    // 2. Chercher -> Mesurer (Transitions vers ?evaluer détectées dans l'AST)
     if (parId.has(evaluerId)) {
+      const navEvaluer = analyseVueExercice.navigations.find((n) => n.cible.includes("evaluer"));
       connecter({
         source: "ux:exercice-chercher",
         target: evaluerId,
         type: "navigation",
-        libelle: "Demander la correction au tuteur",
-        declencheur: "urlExercice(…, 'evaluer')",
+        libelle: navEvaluer?.declencheur?.replace(/^Clic '|'$/g, "") || "Demander la correction",
+        declencheur: navEvaluer?.declencheur || "Navigation vers évaluation",
       });
-    }
 
-    if (parId.has(evaluerId)) {
       connecter({
         source: evaluerId,
         target: "ux:exercice-mesurer",
@@ -555,68 +556,85 @@ function construireUxAtomique(
       });
     }
 
-    // Mesurer → Bilan : l'auto-évaluation validée clôt la tentative
-    // (`terminerExercice` → destinationApresExercice(…, "bilan")).
-    connecter({
-      source: "ux:exercice-mesurer",
-      target: bilanId,
-      type: "transition",
-      libelle: "Enregistrer l'observation",
-      declencheur: "Auto-évaluation validée → terminerExercice",
-    });
-    connecter({
-      source: "ux:exercice-mesurer",
-      target: "action:terminerexercice",
-      type: "soumission",
-      libelle: "terminerExercice",
-      declencheur: "Soumission du bilan",
-    });
-
-    // Abandon disponible dans les deux actes (`BoutonAbandon` →
-    // `abandonnerExercice` → destinationApresExercice(…, "abandon")).
-    for (const acteId of ["ux:exercice-chercher", "ux:exercice-mesurer"] as const) {
-      connecter({
-        source: acteId,
-        target: "action:abandonnerexercice",
-        type: "soumission",
-        libelle: "abandonnerExercice",
-        declencheur: "Clic 'Abandonner cette tentative'",
-      });
-      connecter({
-        source: acteId,
-        target: abandonId,
-        type: "transition",
-        libelle: "Tentative abandonnée",
-        declencheur: "Aucune observation enregistrée",
-      });
-    }
-
-    // Sorties réelles du bilan (CarteImpact → LienApresImpact).
+    // 3. Mesurer -> Bilan & Actions de clôture
     if (parId.has(bilanId)) {
       connecter({
-        source: bilanId,
-        target: sessionId,
-        type: "navigation",
-        libelle: "Reprendre la séance (Exercice suivant)",
-        declencheur: "LienApresImpact avec séance",
-      });
-      connecter({
-        source: bilanId,
-        target: "page:/",
-        type: "navigation",
-        libelle: "Prochaine action recommandée",
-        declencheur: "LienApresImpact sans séance",
-      });
-      connecter({
-        source: bilanId,
-        target: "page:/atelier?document",
-        type: "navigation",
-        libelle: "Voir la fiche compétence",
-        declencheur: "Chip compétence du bilan",
+        source: "ux:exercice-mesurer",
+        target: bilanId,
+        type: "transition",
+        libelle: "Enregistrer l'observation",
+        declencheur: "Auto-évaluation validée",
       });
     }
 
-    // Sorties réelles de l'abandon (bandeau → « Reprendre dans une séance »).
+    // Actions serveur réelles invoquées dans VueExercice (terminerExercice, abandonnerExercice, etc.)
+    for (const nomAct of analyseVueExercice.actionsInvoquees) {
+      const act = toutesActions.get(nomAct);
+      if (!act) continue;
+      const actId = act.id;
+
+      if (nomAct === "terminerExercice") {
+        connecter({
+          source: "ux:exercice-mesurer",
+          target: actId,
+          type: "soumission",
+          libelle: act.libelle,
+          declencheur: "Soumission du bilan",
+        });
+      } else if (nomAct === "abandonnerExercice") {
+        for (const acteId of ["ux:exercice-chercher", "ux:exercice-mesurer"] as const) {
+          connecter({
+            source: acteId,
+            target: actId,
+            type: "soumission",
+            libelle: act.libelle,
+            declencheur: "Clic 'Abandonner cette tentative'",
+          });
+          if (parId.has(abandonId)) {
+            connecter({
+              source: acteId,
+              target: abandonId,
+              type: "transition",
+              libelle: "Tentative abandonnée",
+              declencheur: "Aucune observation enregistrée",
+            });
+          }
+        }
+      }
+    }
+
+    // 4. Sorties du Bilan et de l'Abandon dérivées dynamiquement de l'AST
+    const navsBilan = analyseVueExercice.navigations.filter(
+      (n) => n.cible !== "/seances?evaluer" && n.cible !== "/seances?bilan" && n.cible !== "/seances?abandon"
+    );
+
+    if (parId.has(bilanId)) {
+      for (const nav of navsBilan) {
+        const destId = `page:${baseRoute(nav.cible)}`;
+        if (parId.has(destId) && destId !== bilanId && destId !== "page:/seances") {
+          connecter({
+            source: bilanId,
+            target: destId,
+            type: "navigation",
+            libelle: nav.declencheur?.replace(/^Clic '|'$/g, "") || "Continuer",
+            declencheur: nav.declencheur || "Lien post-bilan",
+          });
+        }
+      }
+      if (analyseVueExercice.actionsInvoquees.includes("terminerSeance")) {
+        const actTerminer = toutesActions.get("terminerSeance");
+        if (actTerminer && parId.has(actTerminer.id)) {
+          connecter({
+            source: bilanId,
+            target: actTerminer.id,
+            type: "soumission",
+            libelle: actTerminer.libelle,
+            declencheur: "Dernière activité de la séance traitée",
+          });
+        }
+      }
+    }
+
     if (parId.has(abandonId)) {
       connecter({
         source: abandonId,
@@ -673,13 +691,6 @@ function construireUxAtomique(
   }
 
   // 5. Server Actions réelles et Déclencheurs atomiques
-  const toutesActions = new Map<string, import("./workflow-ast-parser").ActionServeurAst>();
-  for (const a of analyses.values()) {
-    for (const act of a.actionsDeclarees) {
-      toutesActions.set(act.nom, act);
-    }
-  }
-
   for (const [route, comps] of composantsParPage.entries()) {
     const pageId = `page:${route}`;
     const fichiersAInspecter = [
