@@ -436,6 +436,11 @@ export async function desarchiverCompetence(code: string): Promise<void> {
   const skill = referentiel.parCode.get(code);
   if (!skill) throw new Error(`Compétence inconnue : ${code}`);
   await executerCommande({ type: "desarchiver_competence", domaineId: skill.domaine, code }, referentiel, "utilisateur", `Désarchivage de ${code}`);
+  await dorsale.supabase
+    .from("exercises")
+    .update({ archive: false })
+    .eq("user_id", dorsale.userId)
+    .contains("competences", [code]);
 }
 
 export interface ResultatRetraitGroupe {
@@ -449,6 +454,13 @@ export async function retirerCompetences(codes: string[]): Promise<ResultatRetra
   const referentiel = await lireReferentiel(dorsale);
   const domaineId = domaineUnique(codes, referentiel);
   const resultat = await executerCommande({ type: "retirer_competences", domaineId, codes: [...new Set(codes)] }, referentiel, "utilisateur", "Retrait validé de compétences");
+  if (resultat.archivees?.length) {
+    await dorsale.supabase
+      .from("exercises")
+      .update({ archive: true })
+      .eq("user_id", dorsale.userId)
+      .overlaps("competences", resultat.archivees);
+  }
   return { supprimees: resultat.supprimees ?? [], archivees: resultat.archivees ?? [] };
 }
 
@@ -456,7 +468,13 @@ export async function archiverDomaine(domaineId: string): Promise<ResultatComman
   const dorsale = await dorsaleCompte();
   const referentiel = await lireReferentiel(dorsale);
   if (!referentiel.domainesParId.has(domaineId)) throw new Error(`Domaine inconnu : ${domaineId}`);
-  return executerCommande({ type: "archiver_domaine", domaineId }, referentiel, "utilisateur", "Retrait validé du domaine");
+  const resultat = await executerCommande({ type: "archiver_domaine", domaineId }, referentiel, "utilisateur", "Retrait validé du domaine");
+  await dorsale.supabase
+    .from("exercises")
+    .update({ archive: true })
+    .eq("user_id", dorsale.userId)
+    .eq("domaine", domaineId);
+  return resultat;
 }
 
 export async function restaurerDomaine(domaineId: string): Promise<void> {
@@ -464,6 +482,11 @@ export async function restaurerDomaine(domaineId: string): Promise<void> {
   const referentiel = await lireReferentiel(dorsale);
   if (!referentiel.domainesParId.has(domaineId)) throw new Error(`Domaine inconnu : ${domaineId}`);
   await executerCommande({ type: "restaurer_domaine", domaineId }, referentiel, "utilisateur", "Restauration du domaine");
+  await dorsale.supabase
+    .from("exercises")
+    .update({ archive: false })
+    .eq("user_id", dorsale.userId)
+    .eq("domaine", domaineId);
 }
 
 export async function remplacerCompetence(

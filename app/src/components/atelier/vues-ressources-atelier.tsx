@@ -31,12 +31,18 @@ export function VueRessources({
   ouvrirElement,
   competencesParCode,
   statut = "actifs",
+  onArchiver,
+  onRestaurer,
+  onSupprimer,
 }: {
   elements: ElementAtelier[];
   ouvrirElement: (id: string) => void;
   changerVue: (vue: VueAtelier) => void;
   competencesParCode: Map<string, { intitule: string; domaine: string }>;
   statut?: "actifs" | "archives";
+  onArchiver?: (docId: string) => void;
+  onRestaurer?: (docId: string) => void;
+  onSupprimer?: (docId: string) => void;
 }) {
   const router = useRouter();
   const [ressourceAArchiver, setRessourceAArchiver] = useState<ElementAtelier | null>(null);
@@ -171,8 +177,10 @@ export function VueRessources({
           explication="Cette ressource sera retirée de vos ressources actives et rangée dans vos archives. Vous pourrez la restaurer à tout moment."
           texteBoutonConfirmer="Confirmer l’archivage"
           onConfirmer={async () => {
-            await archiverDocumentAction(ressourceAArchiver.id);
+            const id = ressourceAArchiver.id;
+            onArchiver?.(id);
             setRessourceAArchiver(null);
+            await archiverDocumentAction(id);
             router.refresh();
           }}
           onFermer={() => setRessourceAArchiver(null)}
@@ -188,8 +196,10 @@ export function VueRessources({
           explication="Cette ressource sera réintégrée dans vos ressources actives."
           texteBoutonConfirmer="Restaurer"
           onConfirmer={async () => {
-            await restaurerDocumentAction(ressourceARestaurer.id);
+            const id = ressourceARestaurer.id;
+            onRestaurer?.(id);
             setRessourceARestaurer(null);
+            await restaurerDocumentAction(id);
             router.refresh();
           }}
           onFermer={() => setRessourceARestaurer(null)}
@@ -205,8 +215,10 @@ export function VueRessources({
           explication="Cette ressource et ses fichiers joints seront définitivement effacés de votre compte."
           texteBoutonConfirmer="Supprimer définitivement"
           onConfirmer={async () => {
-            await supprimerDocumentAction(ressourceASupprimer.id);
+            const id = ressourceASupprimer.id;
+            onSupprimer?.(id);
             setRessourceASupprimer(null);
+            await supprimerDocumentAction(id);
             router.refresh();
           }}
           onFermer={() => setRessourceASupprimer(null)}
@@ -326,6 +338,9 @@ export function VueThemes({
   competencesParCode,
   domainesExistants,
   statut = "actifs",
+  onArchiver,
+  onRestaurer,
+  onSupprimer,
 }: {
   elements: ElementAtelier[];
   ouvrirElement: (id: string) => void;
@@ -334,6 +349,9 @@ export function VueThemes({
   competencesParCode: Map<string, { intitule: string; domaine: string }>;
   domainesExistants: { id: string; nom: string; prefixe: string }[];
   statut?: "actifs" | "archives";
+  onArchiver?: (themeId: string) => void;
+  onRestaurer?: (themeId: string) => void;
+  onSupprimer?: (themeId: string) => void;
 }) {
   const router = useRouter();
   const [modaleOuverte, setModaleOuverte] = useState(false);
@@ -481,8 +499,10 @@ export function VueThemes({
           explication="Le thème sera déplacé dans vos thèmes archivés. Les compétences qu’il réunissait restent inchangées."
           texteBoutonConfirmer="Confirmer l’archivage"
           onConfirmer={async () => {
-            await archiverTheme(themeAArchiver.id.replace(/^theme:/, ""));
+            const id = themeAArchiver.id.replace(/^theme:/, "");
+            onArchiver?.(id);
             setThemeAArchiver(null);
+            await archiverTheme(id);
             router.refresh();
           }}
           onFermer={() => setThemeAArchiver(null)}
@@ -498,8 +518,10 @@ export function VueThemes({
           explication="Ce thème sera réintégré dans vos thèmes actifs."
           texteBoutonConfirmer="Restaurer"
           onConfirmer={async () => {
-            await restaurerTheme(themeARestaurer.id.replace(/^theme:/, ""));
+            const id = themeARestaurer.id.replace(/^theme:/, "");
+            onRestaurer?.(id);
             setThemeARestaurer(null);
+            await restaurerTheme(id);
             router.refresh();
           }}
           onFermer={() => setThemeARestaurer(null)}
@@ -515,8 +537,10 @@ export function VueThemes({
           explication="Le thème sera définitivement supprimé de la base. Les compétences qu’il réunissait ne changent pas."
           texteBoutonConfirmer="Supprimer définitivement"
           onConfirmer={async () => {
-            await supprimerTheme(themeASupprimer.id.replace(/^theme:/, ""));
+            const id = themeASupprimer.id.replace(/^theme:/, "");
+            onSupprimer?.(id);
             setThemeASupprimer(null);
+            await supprimerTheme(id);
             router.refresh();
           }}
           onFermer={() => setThemeASupprimer(null)}

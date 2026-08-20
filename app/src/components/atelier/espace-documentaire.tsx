@@ -44,7 +44,7 @@ import {
   supprimerPieceJointeAction,
   supprimerNoteSupportAction,
 } from "@/lib/store/document-actions";
-import type { VueDomaineAtelier, VueCompetenceAtelier } from "@/lib/documents/vue-atelier";
+import type { VueDomaineAtelier, VueCompetenceAtelier, VueThemeAtelier } from "@/lib/documents/vue-atelier";
 import {
   FichePedagogiqueAtelier,
   PanneauPedagogiqueAtelier,
@@ -321,6 +321,315 @@ export function EspaceDocumentaire({
 }) {
   const router = useRouter();
   const [elements, setElements] = useState(elementsInitials);
+
+  useEffect(() => {
+    setElements(elementsInitials);
+  }, [elementsInitials]);
+
+  const onArchiverDomaine = useCallback((domaineId: string) => {
+    setElements((anciens) => {
+      const codesDuDomaine = new Set<string>();
+      for (const el of anciens) {
+        if (
+          el.type === "domaine" &&
+          el.vuePedagogique &&
+          (el.vuePedagogique as VueDomaineAtelier).domaine.id === domaineId
+        ) {
+          const vue = el.vuePedagogique as VueDomaineAtelier;
+          vue.competences.forEach((c) => codesDuDomaine.add(c.code));
+        }
+      }
+
+      return anciens.map((el) => {
+        // Domaine lui-même
+        if (
+          el.type === "domaine" &&
+          el.vuePedagogique &&
+          (el.vuePedagogique as VueDomaineAtelier).domaine.id === domaineId
+        ) {
+          const vue = el.vuePedagogique as VueDomaineAtelier;
+          return {
+            ...el,
+            frontMatter: { ...el.frontMatter, archive: true },
+            vuePedagogique: {
+              ...vue,
+              domaine: { ...vue.domaine, archive: true },
+            },
+          };
+        }
+
+        // Compétence de ce domaine
+        if (el.type === "competence" && el.domaineId === domaineId) {
+          return {
+            ...el,
+            frontMatter: { ...el.frontMatter, archive: true },
+          };
+        }
+
+        // Ressource / Document de ce domaine ou dont toutes les compétences citées sont dans ce domaine
+        if (
+          el.domaineId === domaineId ||
+          (el.type === "document" &&
+            el.sortants.length > 0 &&
+            el.sortants.every((c) => codesDuDomaine.has(c)))
+        ) {
+          return {
+            ...el,
+            frontMatter: { ...el.frontMatter, archive: true },
+          };
+        }
+
+        // Thème dont toutes les compétences sont dans ce domaine
+        if (
+          el.type === "theme" &&
+          el.sortants.length > 0 &&
+          el.sortants.every((c) => codesDuDomaine.has(c))
+        ) {
+          const vueTheme =
+            el.vuePedagogique?.kind === "theme"
+              ? ({ ...el.vuePedagogique, archive: true } as VueThemeAtelier)
+              : el.vuePedagogique;
+          return {
+            ...el,
+            frontMatter: { ...el.frontMatter, archive: true },
+            vuePedagogique: vueTheme,
+          };
+        }
+
+        return el;
+      });
+    });
+  }, []);
+
+  const onRestaurerDomaine = useCallback((domaineId: string) => {
+    setElements((anciens) => {
+      const codesDuDomaine = new Set<string>();
+      for (const el of anciens) {
+        if (
+          el.type === "domaine" &&
+          el.vuePedagogique &&
+          (el.vuePedagogique as VueDomaineAtelier).domaine.id === domaineId
+        ) {
+          const vue = el.vuePedagogique as VueDomaineAtelier;
+          vue.competences.forEach((c) => codesDuDomaine.add(c.code));
+        }
+      }
+
+      return anciens.map((el) => {
+        // Domaine lui-même
+        if (
+          el.type === "domaine" &&
+          el.vuePedagogique &&
+          (el.vuePedagogique as VueDomaineAtelier).domaine.id === domaineId
+        ) {
+          const vue = el.vuePedagogique as VueDomaineAtelier;
+          return {
+            ...el,
+            frontMatter: { ...el.frontMatter, archive: false },
+            vuePedagogique: {
+              ...vue,
+              domaine: { ...vue.domaine, archive: false },
+            },
+          };
+        }
+
+        // Compétence de ce domaine
+        if (el.type === "competence" && el.domaineId === domaineId) {
+          return {
+            ...el,
+            frontMatter: { ...el.frontMatter, archive: false },
+          };
+        }
+
+        // Ressource / Document de ce domaine ou dont les compétences sont dans ce domaine
+        if (
+          el.domaineId === domaineId ||
+          (el.type === "document" &&
+            el.sortants.length > 0 &&
+            el.sortants.every((c) => codesDuDomaine.has(c)))
+        ) {
+          return {
+            ...el,
+            frontMatter: { ...el.frontMatter, archive: false },
+          };
+        }
+
+        // Thème dont toutes les compétences sont dans ce domaine
+        if (
+          el.type === "theme" &&
+          el.sortants.length > 0 &&
+          el.sortants.every((c) => codesDuDomaine.has(c))
+        ) {
+          const vueTheme =
+            el.vuePedagogique?.kind === "theme"
+              ? ({ ...el.vuePedagogique, archive: false } as VueThemeAtelier)
+              : el.vuePedagogique;
+          return {
+            ...el,
+            frontMatter: { ...el.frontMatter, archive: false },
+            vuePedagogique: vueTheme,
+          };
+        }
+
+        return el;
+      });
+    });
+  }, []);
+
+  const onSupprimerDomaine = useCallback((domaineId: string) => {
+    setElements((anciens) =>
+      anciens.filter(
+        (el) =>
+          !(
+            el.type === "domaine" &&
+            el.vuePedagogique &&
+            (el.vuePedagogique as VueDomaineAtelier).domaine.id === domaineId
+          ),
+      ),
+    );
+  }, []);
+
+  const onArchiverTheme = useCallback((themeId: string) => {
+    setElements((anciens) => {
+      const codesDuTheme = new Set<string>();
+      for (const el of anciens) {
+        if (el.id === `theme:${themeId}` || el.id === themeId) {
+          el.sortants.forEach((c) => codesDuTheme.add(c));
+          if (el.vuePedagogique?.kind === "theme") {
+            el.vuePedagogique.competences.forEach((c) => codesDuTheme.add(c.code));
+          }
+        }
+      }
+
+      return anciens.map((el) => {
+        // Thème lui-même
+        if (el.id === `theme:${themeId}` || el.id === themeId) {
+          const vueTheme =
+            el.vuePedagogique?.kind === "theme"
+              ? ({ ...el.vuePedagogique, archive: true } as VueThemeAtelier)
+              : el.vuePedagogique;
+          return {
+            ...el,
+            frontMatter: { ...el.frontMatter, archive: true },
+            vuePedagogique: vueTheme,
+          };
+        }
+
+        // Compétence appartenant à ce thème
+        if (el.type === "competence" && el.vuePedagogique?.kind === "competence" && codesDuTheme.has(el.vuePedagogique.code)) {
+          return {
+            ...el,
+            frontMatter: { ...el.frontMatter, archive: true },
+          };
+        }
+
+        // Document / Preuve / Ressource liée à ce thème ou citant ses compétences
+        if (
+          el.type === "document" &&
+          (el.frontMatter.theme === themeId ||
+            (Array.isArray(el.frontMatter.themes) && el.frontMatter.themes.includes(themeId)) ||
+            (el.sortants.length > 0 && el.sortants.every((c) => codesDuTheme.has(c))))
+        ) {
+          return {
+            ...el,
+            frontMatter: { ...el.frontMatter, archive: true },
+          };
+        }
+
+        return el;
+      });
+    });
+  }, []);
+
+  const onRestaurerTheme = useCallback((themeId: string) => {
+    setElements((anciens) => {
+      const codesDuTheme = new Set<string>();
+      for (const el of anciens) {
+        if (el.id === `theme:${themeId}` || el.id === themeId) {
+          el.sortants.forEach((c) => codesDuTheme.add(c));
+          if (el.vuePedagogique?.kind === "theme") {
+            el.vuePedagogique.competences.forEach((c) => codesDuTheme.add(c.code));
+          }
+        }
+      }
+
+      return anciens.map((el) => {
+        // Thème lui-même
+        if (el.id === `theme:${themeId}` || el.id === themeId) {
+          const vueTheme =
+            el.vuePedagogique?.kind === "theme"
+              ? ({ ...el.vuePedagogique, archive: false } as VueThemeAtelier)
+              : el.vuePedagogique;
+          return {
+            ...el,
+            frontMatter: { ...el.frontMatter, archive: false },
+            vuePedagogique: vueTheme,
+          };
+        }
+
+        // Compétence appartenant à ce thème
+        if (el.type === "competence" && el.vuePedagogique?.kind === "competence" && codesDuTheme.has(el.vuePedagogique.code)) {
+          return {
+            ...el,
+            frontMatter: { ...el.frontMatter, archive: false },
+          };
+        }
+
+        // Document / Preuve / Ressource liée à ce thème ou citant ses compétences
+        if (
+          el.type === "document" &&
+          (el.frontMatter.theme === themeId ||
+            (Array.isArray(el.frontMatter.themes) && el.frontMatter.themes.includes(themeId)) ||
+            (el.sortants.length > 0 && el.sortants.every((c) => codesDuTheme.has(c))))
+        ) {
+          return {
+            ...el,
+            frontMatter: { ...el.frontMatter, archive: false },
+          };
+        }
+
+        return el;
+      });
+    });
+  }, []);
+
+  const onSupprimerTheme = useCallback((themeId: string) => {
+    setElements((anciens) =>
+      anciens.filter((el) => el.id !== `theme:${themeId}` && el.id !== themeId),
+    );
+  }, []);
+
+  const onArchiverDocument = useCallback((docId: string) => {
+    setElements((anciens) =>
+      anciens.map((el) => {
+        if (el.id === docId) {
+          return {
+            ...el,
+            frontMatter: { ...el.frontMatter, archive: true },
+          };
+        }
+        return el;
+      }),
+    );
+  }, []);
+
+  const onRestaurerDocument = useCallback((docId: string) => {
+    setElements((anciens) =>
+      anciens.map((el) => {
+        if (el.id === docId) {
+          return {
+            ...el,
+            frontMatter: { ...el.frontMatter, archive: false },
+          };
+        }
+        return el;
+      }),
+    );
+  }, []);
+
+  const onSupprimerDocument = useCallback((docId: string) => {
+    setElements((anciens) => anciens.filter((el) => el.id !== docId));
+  }, []);
   const selectionInitiale = useMemo(() => {
     if (documentDemande) {
       if (VUES_ATELIER.has(documentDemande)) return documentDemande;
@@ -1051,6 +1360,9 @@ export function EspaceDocumentaire({
               competencesParCode={competencesParCode}
               domainesExistants={domainesExistants}
               statut={statutFiltre}
+              onArchiver={onArchiverTheme}
+              onRestaurer={onRestaurerTheme}
+              onSupprimer={onSupprimerTheme}
             />
           ) : selection === "ressources" ? (
             <VueRessources
@@ -1059,6 +1371,9 @@ export function EspaceDocumentaire({
               changerVue={changerVue}
               competencesParCode={competencesParCode}
               statut={statutFiltre}
+              onArchiver={onArchiverDocument}
+              onRestaurer={onRestaurerDocument}
+              onSupprimer={onSupprimerDocument}
             />
           ) : selection === "domaines" || selection === "domaines-archives" ? (
             <VueTousLesDomaines
@@ -1079,6 +1394,9 @@ export function EspaceDocumentaire({
               compteId={graphe.compteId}
               domainesExistants={domainesExistants}
               tri={triDomaines}
+              onArchiver={onArchiverDomaine}
+              onRestaurer={onRestaurerDomaine}
+              onSupprimer={onSupprimerDomaine}
             />
           ) : selectionnee?.vuePedagogique ? (
             <FichePedagogiqueAtelier
@@ -1090,6 +1408,7 @@ export function EspaceDocumentaire({
               modeInitial={modeInitial}
               generation={generation}
               donneesSeance={donneesSeance}
+              onRestaurerDomaine={onRestaurerDomaine}
             />
           ) : selectionnee ? (
             <>

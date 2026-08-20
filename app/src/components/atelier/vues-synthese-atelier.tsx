@@ -115,6 +115,9 @@ export function VueTousLesDomaines({
   compteId,
   domainesExistants = [],
   tri = "recent",
+  onArchiver,
+  onRestaurer,
+  onSupprimer,
 }: {
   domaines: VueDomaineAtelier[];
   ouvrirElement: (id: string) => void;
@@ -124,6 +127,9 @@ export function VueTousLesDomaines({
   domainesExistants?: { id: string; nom: string; prefixe: string }[];
   tri?: TriDomaine;
   tousLesDomaines?: VueDomaineAtelier[];
+  onArchiver?: (domaineId: string) => void;
+  onRestaurer?: (domaineId: string) => void;
+  onSupprimer?: (domaineId: string) => void;
 }) {
   const router = useRouter();
   const [modaleCreationOuverte, setModaleCreationOuverte] = useState(false);
@@ -267,8 +273,10 @@ export function VueTousLesDomaines({
           explication="Ce domaine et ses compétences seront retirés du pilotage actif. Toutes les observations d'apprentissage et historiques restent fidèlement conservés dans le système."
           texteBoutonConfirmer="Confirmer l’archivage"
           onConfirmer={async () => {
-            await archiverDomaine(domaineAArchiver.id);
+            const id = domaineAArchiver.id;
+            onArchiver?.(id);
             setDomaineAArchiver(null);
+            await archiverDomaine(id);
             router.refresh();
           }}
           onFermer={() => setDomaineAArchiver(null)}
@@ -284,8 +292,10 @@ export function VueTousLesDomaines({
           explication="Ce domaine et ses compétences associées seront remis dans votre référentiel actif."
           texteBoutonConfirmer="Restaurer"
           onConfirmer={async () => {
-            await restaurerDomaine(domaineARestaurer.id);
+            const id = domaineARestaurer.id;
+            onRestaurer?.(id);
             setDomaineARestaurer(null);
+            await restaurerDomaine(id);
             router.refresh();
           }}
           onFermer={() => setDomaineARestaurer(null)}
@@ -301,8 +311,10 @@ export function VueTousLesDomaines({
           explication="Cette action supprimera définitivement le domaine et ses compétences du compte. Si un historique ou des dépendances existent, ils seront protégés par les règles du référentiel."
           texteBoutonConfirmer="Supprimer définitivement"
           onConfirmer={async () => {
-            await archiverDomaine(domaineASupprimer.id);
+            const id = domaineASupprimer.id;
+            onSupprimer?.(id);
             setDomaineASupprimer(null);
+            await archiverDomaine(id);
             router.refresh();
           }}
           onFermer={() => setDomaineASupprimer(null)}

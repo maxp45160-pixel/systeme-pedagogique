@@ -179,6 +179,16 @@ export default async function PageAtelier(props: {
     // libellé lisible — jamais son identifiant technique.
     const titreAffiche =
       estPreuve && (!vue.titre || vue.titre === document.id) ? "Preuve de travail" : vue.titre;
+    const toutesSortants = index.sortants.get(document.id) ?? [];
+    const estArchiveParDomaine = domaineConnu ? Boolean(domaineConnu.archive) : false;
+    const estArchiveParCompetences =
+      toutesSortants.length > 0 &&
+      toutesSortants.every((cible) => {
+        const skill = referentiel.parCode.get(cible);
+        return skill ? Boolean(skill.archive) : false;
+      });
+    const estArchive = Boolean(vue.frontMatter.archive) || estArchiveParDomaine || estArchiveParCompetences;
+
     return {
       id: document.id,
       titre: titreAffiche,
@@ -191,7 +201,7 @@ export default async function PageAtelier(props: {
       contenuCharge: Boolean(contenuMd),
       updatedAt: contenuInitial?.id === document.id ? contenuInitial.updatedAt : document.updatedAt,
       schemaCompatible: vue.schemaCompatible,
-      frontMatter: vue.frontMatter,
+      frontMatter: { ...vue.frontMatter, archive: estArchive },
       liens: document.liens,
       sortants: index.sortants.get(document.id) ?? [],
       entrants: index.entrants.get(document.id) ?? [],
@@ -202,33 +212,43 @@ export default async function PageAtelier(props: {
     };
   });
 
-  const projectionsThemes: ElementAtelier[] = themes.map((theme) => ({
-    id: `theme:${theme.id}`,
-    titre: theme.libelle,
-    type: "theme",
-    typeLibelle: "Thème",
-    categorie: "connaissance",
-    rangement: rangementTheme(),
-    contenuMd: [
-      `# ${theme.libelle}`,
-      "",
-      "> Projection en lecture seule du thème enregistré.",
-      "",
-      theme.intention ? `> Intention : ${theme.intention}` : "",
-      theme.codes.length ? "## Compétences couvertes" : "",
-      ...theme.codes.map((code) => `- [[${code}]]`),
-    ].filter(Boolean).join("\n"),
-    contenuCharge: true,
-    frontMatter: { archive: Boolean(theme.archive) },
-    liens: theme.codes.map((cible) => ({ cible })),
-    sortants: theme.codes,
-    entrants: [],
-    snapshots: [],
-    tentatives: [],
-    source: "projection",
-    lectureSeule: true,
-    vuePedagogique: vuesThemes.get(theme.id),
-  }));
+  const projectionsThemes: ElementAtelier[] = themes.map((theme) => {
+    const estArchiveParCompetencesTheme =
+      theme.codes.length > 0 &&
+      theme.codes.every((code) => {
+        const skill = referentiel.parCode.get(code);
+        return skill ? Boolean(skill.archive) : false;
+      });
+    const themeEstArchive = Boolean(theme.archive) || estArchiveParCompetencesTheme;
+
+    return {
+      id: `theme:${theme.id}`,
+      titre: theme.libelle,
+      type: "theme",
+      typeLibelle: "Thème",
+      categorie: "connaissance",
+      rangement: rangementTheme(),
+      contenuMd: [
+        `# ${theme.libelle}`,
+        "",
+        "> Projection en lecture seule du thème enregistré.",
+        "",
+        theme.intention ? `> Intention : ${theme.intention}` : "",
+        theme.codes.length ? "## Compétences couvertes" : "",
+        ...theme.codes.map((code) => `- [[${code}]]`),
+      ].filter(Boolean).join("\n"),
+      contenuCharge: true,
+      frontMatter: { archive: themeEstArchive },
+      liens: theme.codes.map((cible) => ({ cible })),
+      sortants: theme.codes,
+      entrants: [],
+      snapshots: [],
+      tentatives: [],
+      source: "projection",
+      lectureSeule: true,
+      vuePedagogique: vuesThemes.get(theme.id),
+    };
+  });
 
   const projectionsDomaines: ElementAtelier[] = vues.domaines
     .filter((vue) => domainesVisibles.has(vue.id) || vue.domaine.archive)

@@ -775,17 +775,19 @@ function CoMobilisees({
  * lisent et s'écrivent maintenant dans `relations-competence.tsx`.
  */
 
-function VueDomaine({
+export function VueDomaine({
   vue,
   ouvrirElement,
   compteId,
   modeInitial,
+  onRestaurerDomaine,
 }: {
   vue: VueDomaineAtelier;
   ouvrirElement: (id: string) => void;
   elements?: ElementAtelier[];
   compteId: string;
   modeInitial?: "referentiel";
+  onRestaurerDomaine?: (domaineId: string) => void;
 }) {
   const router = useRouter();
   const [restaurationEnCours, demarrerRestauration] = useTransition();
@@ -842,6 +844,7 @@ function VueDomaine({
                 disabled={restaurationEnCours}
                 onClick={() => {
                   demarrerRestauration(async () => {
+                    onRestaurerDomaine?.(vue.domaine.id);
                     await restaurerDomaine(vue.domaine.id);
                     router.refresh();
                   });
@@ -1719,6 +1722,7 @@ export function FichePedagogiqueAtelier({
   modeInitial,
   generation,
   donneesSeance,
+  onRestaurerDomaine,
 }: {
   vue: VuePedagogiqueAtelier;
   titre: string;
@@ -1728,6 +1732,7 @@ export function FichePedagogiqueAtelier({
   modeInitial?: "referentiel";
   generation?: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
   donneesSeance?: DonneesSeance;
+  onRestaurerDomaine?: (domaineId: string) => void;
 }) {
   if (vue.kind === "competence") {
     return (
@@ -1755,6 +1760,7 @@ export function FichePedagogiqueAtelier({
         ouvrirElement={ouvrirElement}
         compteId={compteId}
         modeInitial={modeInitial}
+        onRestaurerDomaine={onRestaurerDomaine}
       />
     );
   }

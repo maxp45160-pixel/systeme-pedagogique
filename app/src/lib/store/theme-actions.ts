@@ -122,23 +122,71 @@ export async function etatRetraitTheme(id: string): Promise<EtatRetraitTheme> {
 
 export async function archiverTheme(id: string): Promise<void> {
   const dorsale = await dorsaleCompte();
+  const { data: themeData, error: themeErr } = await dorsale.supabase
+    .from("themes")
+    .select("codes")
+    .eq("user_id", dorsale.userId)
+    .eq("id", id)
+    .single();
+  verifier("lecture du thème pour archivage", themeErr);
+
   const { error } = await dorsale.supabase
     .from("themes")
     .update({ archive: true, modifie_le: new Date().toISOString() })
     .eq("user_id", dorsale.userId)
     .eq("id", id);
   verifier("archivage du thème", error);
+
+  const codes = ((themeData as { codes?: string[] } | null)?.codes ?? []).filter(Boolean);
+  if (codes.length > 0) {
+    await dorsale.supabase
+      .from("competences")
+      .update({ archive: true, active: false })
+      .eq("user_id", dorsale.userId)
+      .in("code", codes);
+
+    await dorsale.supabase
+      .from("exercises")
+      .update({ archive: true })
+      .eq("user_id", dorsale.userId)
+      .overlaps("competences", codes);
+  }
+
   revalidatePath("/", "layout");
 }
 
 export async function restaurerTheme(id: string): Promise<void> {
   const dorsale = await dorsaleCompte();
+  const { data: themeData, error: themeErr } = await dorsale.supabase
+    .from("themes")
+    .select("codes")
+    .eq("user_id", dorsale.userId)
+    .eq("id", id)
+    .single();
+  verifier("lecture du thème pour restauration", themeErr);
+
   const { error } = await dorsale.supabase
     .from("themes")
     .update({ archive: false, modifie_le: new Date().toISOString() })
     .eq("user_id", dorsale.userId)
     .eq("id", id);
   verifier("restauration du thème", error);
+
+  const codes = ((themeData as { codes?: string[] } | null)?.codes ?? []).filter(Boolean);
+  if (codes.length > 0) {
+    await dorsale.supabase
+      .from("competences")
+      .update({ archive: false })
+      .eq("user_id", dorsale.userId)
+      .in("code", codes);
+
+    await dorsale.supabase
+      .from("exercises")
+      .update({ archive: false })
+      .eq("user_id", dorsale.userId)
+      .overlaps("competences", codes);
+  }
+
   revalidatePath("/", "layout");
 }
 
