@@ -12,8 +12,6 @@ import {
 import { formatDateCourte } from "@/lib/engine/dates";
 import { avancementSeance, peutReprendreSeance, statutSeance } from "@/lib/domain/seance";
 import {
-  jourDeLaSeance,
-  jourDuDocument,
   positionDeLaSeance,
   positionDuProjet,
   type DocumentOperationnelDate,

@@ -79,7 +79,7 @@ export function MargeCahier({
                 {ligne.texte}
               </span>
 
-              {!ligne.faite && <TraiterLigneMarge compteId={compteId} texte={ligne.texte} />}
+              {!ligne.faite && <TraiterLigneMarge texte={ligne.texte} />}
 
               <form action={retirerLigneMargeAction.bind(null, index)}>
                 <button

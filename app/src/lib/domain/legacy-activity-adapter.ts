@@ -1,5 +1,10 @@
 import type { Exercise, ExerciseAttempt } from "./types";
-import type { ActivityRun, LearningActivity, MentalCapacity } from "./adaptive-learning";
+import {
+  idActiviteExercice,
+  type ActivityRun,
+  type LearningActivity,
+  type MentalCapacity,
+} from "./adaptive-learning";
 
 function cognitiveDemand(exercise: Exercise): MentalCapacity {
   if (exercise.difficulte <= 2) return "faible";
@@ -13,7 +18,7 @@ function cognitiveDemand(exercise: Exercise): MentalCapacity {
  */
 export function adaptLegacyExercise(accountId: string, exercise: Exercise): LearningActivity {
   return {
-    id: `legacy-exercise:${exercise.id}`,
+    id: idActiviteExercice(exercise.id),
     accountId,
     title: exercise.titre,
     description: exercise.enonce,
@@ -56,7 +61,7 @@ export function adaptLegacyAttempt(
   return {
     id: `legacy-attempt:${attempt.id}`,
     accountId,
-    activityId: `legacy-exercise:${attempt.exerciseId}`,
+    activityId: idActiviteExercice(attempt.exerciseId),
     activityVersion: 1,
     status: "en-cours",
     currentArtifact: attempt.reponse.trim()

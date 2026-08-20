@@ -2,11 +2,10 @@
  * Rôle d'une note et formats autorisés — une seule déclaration.
  *
  * La règle vivait en double : un `ReadonlySet` de contrôle côté serveur dans
- * `lib/store/document-actions.ts`, et une liste de libellés côté formulaire
- * dans `components/dashboard/capture-notes.tsx`. Deux copies d'une même règle
- * métier dérivent : ajouter un format à l'une sans l'autre produit soit une
- * entrée de menu que le serveur refuse, soit un format acceptable qu'aucun
- * écran ne propose.
+ * `lib/store/document-actions.ts`, et les listes de libellés dans l'Atelier.
+ * Deux copies d'une même règle métier dérivent : ajouter un format à l'une
+ * sans l'autre produit soit une entrée de menu que le serveur refuse, soit un
+ * format acceptable qu'aucun écran ne propose.
  *
  * Elle ne peut pas vivre dans `document-actions.ts` : ce fichier est marqué
  * `"use server"`, où tout export doit être une fonction asynchrone.
@@ -27,7 +26,7 @@ export interface FormatNote {
  *
  * Elle valait quand séance et projet étaient deux formats du même document. Une
  * séance ne produit plus de note : elle va droit au compositeur, qui écrit une
- * `LearningSession` (voir `ChoixTravail`). Le format `seance` reste déclaré
+ * `LearningSession` (voir `ConcepteurSeance`). Le format `seance` reste déclaré
  * ci-dessous parce que les fiches déjà écrites doivent continuer à s'ouvrir —
  * il n'est simplement plus proposé nulle part.
  */

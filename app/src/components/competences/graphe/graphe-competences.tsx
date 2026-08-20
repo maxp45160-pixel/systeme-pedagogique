@@ -599,39 +599,54 @@ export function GrapheCompetences({
         />
 
         <div className="absolute bottom-3 left-3">
-          {legendeOuverte && (
-            <div className="mb-2 max-w-[min(34rem,calc(100vw-5rem))] space-y-2 rounded-xl border border-bordure bg-surface/95 p-3 text-xs text-texte-attenue shadow-lg backdrop-blur-md">
-              <div className="flex flex-wrap gap-x-4 gap-y-2">
-                {(Object.keys(STYLE_PAR_TYPE_LIEN) as TypeLien[])
-                  .filter((t) => reglages.typesLiensVisibles[t])
-                  .map((t) => (
-                    <div key={t} className="flex items-center gap-1.5">
-                      <span
-                        className="inline-block h-0 w-5 border-t-2"
-                        style={{
-                          borderStyle: STYLE_PAR_TYPE_LIEN[t].pointille ? "dashed" : "solid",
-                          borderColor: "var(--texte-attenue)",
-                        }}
-                      />
-                      {STYLE_PAR_TYPE_LIEN[t].libelle}
-                    </div>
-                  ))}
+          {legendeOuverte && (() => {
+            const typesLiensAffiches = (Object.keys(STYLE_PAR_TYPE_LIEN) as TypeLien[]).filter(
+              (t) => reglages.typesLiensVisibles[t],
+            );
+            const aDesLiens = typesLiensAffiches.length > 0;
+            const aDesDomaines =
+              reglages.axeCouleur === "domaine" && contexteCouleur.totalDomaines > 0;
+
+            if (!aDesLiens && !aDesDomaines) return null;
+
+            return (
+              <div className="mb-2 max-w-[min(34rem,calc(100vw-5rem))] space-y-2 rounded-xl border border-bordure bg-surface/95 p-3 text-xs text-texte-attenue shadow-lg backdrop-blur-md">
+                {aDesLiens && (
+                  <div className="flex flex-wrap gap-x-4 gap-y-2">
+                    {typesLiensAffiches.map((t) => (
+                      <div key={t} className="flex items-center gap-1.5">
+                        <span
+                          className="inline-block h-0 w-5 border-t-2"
+                          style={{
+                            borderStyle: STYLE_PAR_TYPE_LIEN[t].pointille ? "dashed" : "solid",
+                            borderColor: "var(--texte-attenue)",
+                          }}
+                        />
+                        {STYLE_PAR_TYPE_LIEN[t].libelle}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {aDesDomaines && (
+                  <div
+                    className={`flex flex-wrap gap-x-3 gap-y-2 ${
+                      aDesLiens ? "border-t border-bordure pt-2" : ""
+                    }`}
+                  >
+                    {[...contexteCouleur.indexDomaine.entries()].map(([id, idx]) => (
+                      <span key={id} className="flex items-center gap-1.5">
+                        <span
+                          className="inline-block size-2.5 rounded-full"
+                          style={{ background: couleurDomaine(idx, contexteCouleur.totalDomaines) }}
+                        />
+                        {id}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
-              {reglages.axeCouleur === "domaine" && contexteCouleur.totalDomaines > 0 && (
-                <div className="flex flex-wrap gap-x-3 gap-y-2 border-t border-bordure pt-2">
-                  {[...contexteCouleur.indexDomaine.entries()].map(([id, idx]) => (
-                    <span key={id} className="flex items-center gap-1.5">
-                      <span
-                        className="inline-block size-2.5 rounded-full"
-                        style={{ background: couleurDomaine(idx, contexteCouleur.totalDomaines) }}
-                      />
-                      {id}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+            );
+          })()}
           <button
             type="button"
             onClick={() => setLegendeOuverte((ouverte) => !ouverte)}

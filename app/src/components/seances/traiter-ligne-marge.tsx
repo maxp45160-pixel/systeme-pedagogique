@@ -11,7 +11,6 @@ import { useIntention } from "@/components/intention/contexte-intention";
 export function TraiterLigneMarge({
   texte,
 }: {
-  compteId?: string;
   texte: string;
 }) {
   const { ouvrir } = useIntention();

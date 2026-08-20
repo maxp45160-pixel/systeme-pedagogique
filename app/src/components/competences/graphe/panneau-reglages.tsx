@@ -56,6 +56,14 @@ export function PanneauReglages({
     [domainesDisponibles],
   );
 
+  const nbDomainesVisibles = useMemo(
+    () => domainesDisponibles.filter((d) => !reglages.domainesMasques?.[d.id]).length,
+    [domainesDisponibles, reglages.domainesMasques],
+  );
+  const tousDomainesVisibles =
+    domainesDisponibles.length > 0 && nbDomainesVisibles === domainesDisponibles.length;
+  const aucunDomaineVisible = nbDomainesVisibles === 0;
+
   return (
     <div className="absolute inset-y-0 right-0 z-20 flex w-[min(20rem,88%)] flex-col overflow-y-auto border-l border-bordure bg-surface-2/98 text-sm shadow-2xl backdrop-blur-md">
       <div className="sticky top-0 z-10 flex items-center justify-between border-b border-bordure bg-surface-2 px-4 py-3.5">
@@ -81,27 +89,37 @@ export function PanneauReglages({
               <p className="font-semibold text-xs text-texte uppercase tracking-wider">
                 Domaines ({domainesDisponibles.length})
               </p>
-              <div className="flex items-center gap-2 text-xs">
-                <button
-                  type="button"
-                  onClick={() => set("domainesMasques", {})}
-                  className="text-primaire hover:underline cursor-pointer font-medium"
-                >
-                  Tous
-                </button>
-                <span className="text-texte-discret">·</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const masques: Record<string, boolean> = {};
-                    domainesDisponibles.forEach((d) => (masques[d.id] = true));
-                    set("domainesMasques", masques);
-                  }}
-                  className="text-texte-discret hover:underline cursor-pointer"
-                >
-                  Aucun
-                </button>
-              </div>
+              {domainesDisponibles.length > 1 && (
+                <div className="flex items-center gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => set("domainesMasques", {})}
+                    className={
+                      tousDomainesVisibles
+                        ? "text-primaire font-semibold cursor-default"
+                        : "text-texte-discret hover:text-texte hover:underline cursor-pointer"
+                    }
+                  >
+                    Tous
+                  </button>
+                  <span className="text-texte-discret">·</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const masques: Record<string, boolean> = {};
+                      domainesDisponibles.forEach((d) => (masques[d.id] = true));
+                      set("domainesMasques", masques);
+                    }}
+                    className={
+                      aucunDomaineVisible
+                        ? "text-primaire font-semibold cursor-default"
+                        : "text-texte-discret hover:text-texte hover:underline cursor-pointer"
+                    }
+                  >
+                    Aucun
+                  </button>
+                </div>
+              )}
             </div>
             <div className="space-y-1 max-h-60 overflow-y-auto pr-1">
               {domainesDisponibles.map((d) => {
@@ -194,17 +212,10 @@ export function PanneauReglages({
 
         {/* 3. LIAISONS ENTRE COMPÉTENCES */}
         <section className="rounded-xl border border-bordure bg-surface/70 p-3">
-          <div className="flex items-center justify-between mb-1.5 pb-1 border-b border-bordure/60">
+          <div className="mb-1.5 pb-1 border-b border-bordure/60">
             <p className="font-semibold text-xs text-texte uppercase tracking-wider">
               Liaisons & Relations
             </p>
-            <button
-              type="button"
-              onClick={() => basculerTousLiens(!liensActifs)}
-              className="text-[0.6875rem] text-primaire hover:underline cursor-pointer font-medium"
-            >
-              {liensActifs ? "Masquer tout" : "Afficher tout"}
-            </button>
           </div>
           <p className="text-[11px] text-texte-discret mb-2 leading-relaxed">
             Affiche les connexions transversales (thèmes, co-ciblages, proximité sémantique).

@@ -22,6 +22,7 @@ import { verifier } from "./supabase-backend";
 import { cloreExerciceAtomiquement } from "./cloture-exercice";
 import { capturerDocumentProduction, inscrireFicheExercice } from "./documents";
 import { lireReferentiel } from "./referentiel";
+import { idExerciceDepuisActivite } from "@/lib/domain/adaptive-learning";
 import {
   motifRefusExercice,
   modeRetraitExercice,
@@ -748,9 +749,7 @@ export async function refuserRecommandation(
    * Les notes et ressources (préfixes `note:`/`ressource:`) ne sont pas
    * touchées : elles sont filtrées par leur propre identifiant d'activité.
    */
-  const idExercice = exerciceId?.startsWith("legacy-exercise:")
-    ? exerciceId.slice("legacy-exercise:".length)
-    : exerciceId ?? null;
+  const idExercice = exerciceId ? (idExerciceDepuisActivite(exerciceId) ?? exerciceId) : null;
 
   const { error } = await dorsale.supabase.from("refus_recommandations").insert({
     id: nouvelId("ref"),

@@ -1,6 +1,10 @@
 import type { Recommandation } from "./recommend";
 import { recommendLearningAction } from "./action-recommendation";
-import { idDocumentDepuisActivite } from "@/lib/domain/adaptive-learning";
+import {
+  estActiviteExercice,
+  idDocumentDepuisActivite,
+  idExerciceDepuisActivite,
+} from "@/lib/domain/adaptive-learning";
 import type { SkillState } from "@/lib/domain/types";
 import type {
   ActivityEvent,
@@ -120,14 +124,6 @@ const OUTILS_PAR_DEFAUT: readonly WorkspaceTool[] = [
   "calculatrice",
 ];
 
-const PREFIXE_EXERCICE = "legacy-exercise:";
-
-function identifiantExercice(action: RecommendedLearningAction): string | null {
-  return action.activityId?.startsWith(PREFIXE_EXERCICE)
-    ? action.activityId.slice(PREFIXE_EXERCICE.length)
-    : null;
-}
-
 /**
  * Remonte de l'action choisie vers la recommandation historique qui la porte.
  *
@@ -139,7 +135,7 @@ function remettreEnTete(
   action: RecommendedLearningAction,
   recommandations: readonly Recommandation[],
 ): Recommandation[] | null {
-  const exerciceId = identifiantExercice(action);
+  const exerciceId = action.activityId ? idExerciceDepuisActivite(action.activityId) : null;
   const index = exerciceId !== null
     ? recommandations.findIndex((r) => r.exercice?.id === exerciceId)
     : -1;
@@ -191,9 +187,10 @@ export function choisirActionUnifiee(entrees: EntreesActionUnifiee): ActionUnifi
    */
   const ouvertes = new Set(entrees.openRuns.map((run) => run.activityId));
   const activites = entrees.activities.filter((activity) => {
-    if (!activity.id.startsWith(PREFIXE_EXERCICE)) return true;
+    if (!estActiviteExercice(activity.id)) return true;
     if (ouvertes.has(activity.id)) return true;
-    return exercicesSanctionnes.has(activity.id.slice(PREFIXE_EXERCICE.length));
+    const exId = idExerciceDepuisActivite(activity.id);
+    return exId !== null && exercicesSanctionnes.has(exId);
   });
 
   const proposition = recommendLearningAction({
@@ -244,7 +241,7 @@ export function choisirActionUnifiee(entrees: EntreesActionUnifiee): ActionUnifi
     return { kind: "note", noteId, action, facteurs: action.factors, reserves: action.reservations };
   }
 
-  if (identifiantExercice(action) !== null || action.family === "entrainer") {
+  if ((action.activityId && idExerciceDepuisActivite(action.activityId) !== null) || action.family === "entrainer") {
     const reordonnee = remettreEnTete(action, recommandations);
     if (reordonnee) {
       return {

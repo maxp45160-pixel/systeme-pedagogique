@@ -14,6 +14,7 @@ export type ActivityFamily = (typeof ACTIVITY_FAMILIES)[number];
  */
 export const PREFIXE_ACTIVITE_NOTE = "note:";
 export const PREFIXE_ACTIVITE_RESSOURCE = "ressource:";
+export const PREFIXE_ACTIVITE_EXERCICE = "legacy-exercise:";
 
 export function idActiviteNote(documentId: string): string {
   return `${PREFIXE_ACTIVITE_NOTE}${documentId}`;
@@ -21,6 +22,21 @@ export function idActiviteNote(documentId: string): string {
 
 export function idActiviteRessource(documentId: string): string {
   return `${PREFIXE_ACTIVITE_RESSOURCE}${documentId}`;
+}
+
+export function idActiviteExercice(exerciceId: string): string {
+  return `${PREFIXE_ACTIVITE_EXERCICE}${exerciceId}`;
+}
+
+export function estActiviteExercice(activityId: string): boolean {
+  return activityId.startsWith(PREFIXE_ACTIVITE_EXERCICE);
+}
+
+/** Rend l'identifiant d'exercice nu, ou `null` si l'activité n'est pas un exercice. */
+export function idExerciceDepuisActivite(activityId: string): string | null {
+  return activityId.startsWith(PREFIXE_ACTIVITE_EXERCICE)
+    ? activityId.slice(PREFIXE_ACTIVITE_EXERCICE.length)
+    : null;
 }
 
 /** Rend l'identifiant de la fiche, ou `null` si le candidat n'est pas documentaire. */

@@ -3,7 +3,9 @@ import type { Recommandation } from "@/lib/engine/recommend";
 import { DIFFICULTES, type Referentiel } from "@/lib/domain/types";
 import { libelleDomaine } from "@/lib/domain/referentiel-compte";
 import {
+  estActiviteExercice,
   idDocumentDepuisActivite,
+  idExerciceDepuisActivite,
   PREFIXE_ACTIVITE_RESSOURCE,
 } from "@/lib/domain/adaptive-learning";
 import { prochaineRevision } from "@/lib/engine/spaced";
@@ -70,10 +72,8 @@ function BlocInstant({
   );
 }
 
-/** Toute action d'apprentissage ouvre désormais le compositeur de séance. */
 function lienActivite(action: RecommendedLearningAction, instant?: ContexteInstant): string {
-  const prefixe = "legacy-exercise:";
-  if (action.activityId?.startsWith(prefixe)) {
+  if (action.activityId && estActiviteExercice(action.activityId)) {
     const code = action.target.skillCodes[0];
     const temps = instant?.tempsMin ?? action.durationMinutes;
     return `/seances?composer=1${code ? `&code=${encodeURIComponent(code)}` : ""}&temps=${temps}`;
@@ -385,11 +385,11 @@ function CarteActionActivite({
 
         <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2.5 border-t border-bordure/60 pt-2.5">
           <div className="flex items-center gap-2">
-            {action.activityId?.startsWith("legacy-exercise:") ? (
+            {action.activityId && idExerciceDepuisActivite(action.activityId) ? (
               <form
                 action={demarrerExerciceEnFocus.bind(
                   null,
-                  action.activityId.slice("legacy-exercise:".length),
+                  idExerciceDepuisActivite(action.activityId)!,
                 )}
               >
                 <Bouton type="submit" variante="principal">

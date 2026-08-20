@@ -165,11 +165,6 @@ export function PageCahier({
   );
 }
 
-/** Le lien d'un feuillet. Le rang 1 reste implicite : une URL n'a pas à porter un défaut. */
-function lienFeuillet(position: PositionFeuillet): string {
-  const base = `/seances?jour=${encodeURIComponent(position.jour)}`;
-  return position.rang > 1 ? `${base}&f=${position.rang}` : base;
-}
 
 /**
  * L'en-tête d'un feuillet — structure stable et constante sur tous les feuillets.
@@ -466,8 +461,8 @@ function TraceHorsSeance({
     : tentative?.resultat === "reussi"
       ? { texte: "Réussi", ton: "succes" as const }
       : tentative?.resultat === "partiel"
-        ? { texte: "Partiel", ton: "info" as const }
-        : { texte: "Non abouti", ton: undefined };
+        ? { texte: "Partiel", ton: "alerte" as const }
+        : { texte: "Non abouti", ton: "danger" as const };
 
   return (
     <li className="flex flex-wrap items-center justify-between gap-2 py-2">

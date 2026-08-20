@@ -1,7 +1,10 @@
 import "server-only";
 
 import type { Contexte } from "./context";
-import type { LearningActivity } from "@/lib/domain/adaptive-learning";
+import {
+  idExerciceDepuisActivite,
+  type LearningActivity,
+} from "@/lib/domain/adaptive-learning";
 import {
   adaptNotesDocumentaires,
   adaptNotesOperationnelles,
@@ -87,10 +90,11 @@ export async function chargerActionProposee(
   // Un exercice écarté (R1) ne doit pas réapparaître par la porte de
   // l'arbitrage : le moteur d'action voit tout le corpus, là où le classement
   // ne voit que la file déjà filtrée.
-  const activitesLegacy = ctx.adaptiveLegacy.activities.filter((activity) =>
-    !ctx.refus.exercices.has(activity.id.replace(/^legacy-exercise:/, ""))
-    && !activity.target.skillCodes.some((code) => ctx.refus.codes.has(code)),
-  );
+  const activitesLegacy = ctx.adaptiveLegacy.activities.filter((activity) => {
+    const exId = idExerciceDepuisActivite(activity.id) ?? activity.id;
+    return !ctx.refus.exercices.has(exId)
+      && !activity.target.skillCodes.some((code) => ctx.refus.codes.has(code));
+  });
   const activitesNotesBrutes = await candidatsNotes(ctx);
   const activitesNotes = activitesNotesBrutes.filter((activity) => {
     const docId = idDocumentDepuisActivite(activity.id);
