@@ -112,19 +112,15 @@ export function VueRessources({
           </section>
         ) : (
           <>
-            <section>
-              <div className="flex items-baseline justify-between gap-3">
-                <h3 className="font-serif text-lg font-medium text-texte">À trier</h3>
-                <span className="chiffres text-xs text-texte-discret">{aTrier.length}</span>
-              </div>
-              <p className="mt-1 text-xs text-texte-attenue">
-                Ces ressources ne servent encore aucune compétence. Ouvre-les pour les rattacher.
-              </p>
-              {aTrier.length === 0 ? (
-                <p className="mt-4 rounded-2xl border border-dashed border-bordure bg-surface/40 p-6 text-center text-xs text-texte-attenue">
-                  Rien en attente. Toutes tes ressources servent au moins une compétence.
+            {aTrier.length > 0 && (
+              <section>
+                <div className="flex items-baseline justify-between gap-3">
+                  <h3 className="font-serif text-lg font-medium text-texte">À trier</h3>
+                  <span className="chiffres text-xs text-texte-discret">{aTrier.length}</span>
+                </div>
+                <p className="mt-1 text-xs text-texte-attenue">
+                  Ces ressources ne servent encore aucune compétence. Ouvre-les pour les rattacher.
                 </p>
-              ) : (
                 <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   {aTrier.map((element) => (
                     <CarteRessource
@@ -137,8 +133,8 @@ export function VueRessources({
                     />
                   ))}
                 </div>
-              )}
-            </section>
+              </section>
+            )}
 
             <section>
               <div className="flex items-baseline justify-between gap-3">
