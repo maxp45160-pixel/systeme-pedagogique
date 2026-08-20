@@ -72,8 +72,8 @@ export function PilotageTwiny({
             {resume.priorite ? "Gérer la priorité" : "Définir un objectif"}
             <IconeFleche className="size-3.5" />
           </Link>
-          <Link href="/progression#explorer" className={classesLienBouton("secondaire")}>
-            Explorer la carte
+          <Link href="/atelier?document=graphe" className={classesLienBouton("secondaire")}>
+            Ouvrir le graphe
           </Link>
         </div>
       </div>

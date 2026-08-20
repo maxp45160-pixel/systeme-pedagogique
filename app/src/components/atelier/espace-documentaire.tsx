@@ -25,6 +25,12 @@ import {
 } from "@/lib/documents/wysiwyg-markdown";
 import { BUCKET_PIECES_JOINTES, MAX_PDF_OCTETS, MIME_PDF, nomPdfValide } from "@/lib/documents/pieces-jointes";
 import type { DonneesGraphe } from "@/lib/domain/graphe";
+import type { Skill } from "@/lib/domain/types";
+import type {
+  CarteGlobale,
+  CorrespondanceCarteGlobale,
+  SelectionCarteGlobale,
+} from "@/lib/domain/carte-globale";
 import { urlComposerAutonome } from "@/lib/domain/navigation-exercice";
 import { GrapheCompetences } from "@/components/competences/graphe/graphe-competences";
 import {
@@ -59,6 +65,7 @@ import { VueEntretien } from "@/components/referentiel/vue-entretien";
 import type { LotCandidats } from "@/lib/engine/candidats-referentiel";
 import { VueRessources, VueThemes } from "./vues-ressources-atelier";
 import { PanneauExerciceAtelier } from "./panneaux-document-atelier";
+import { PistesCarteGlobaleAtelier } from "./pistes-carte-globale";
 import { LIBELLES_TRIS_DOMAINES, type TriDomaine } from "@/lib/documents/tri-domaines";
 import type { ElementAtelier } from "./types-atelier";
 
@@ -300,6 +307,10 @@ export function EspaceDocumentaire({
   documentDemande,
   modeInitial,
   graphe,
+  carteGlobale,
+  selectionsGlobales,
+  correspondancesGlobales,
+  competencesGlobales,
   generation,
   donneesSeance,
   entretien,
@@ -310,6 +321,10 @@ export function EspaceDocumentaire({
   documentDemande?: string;
   modeInitial?: "referentiel";
   graphe: { donnees: DonneesGraphe; compteId: string };
+  carteGlobale: CarteGlobale;
+  selectionsGlobales: SelectionCarteGlobale[];
+  correspondancesGlobales: CorrespondanceCarteGlobale[];
+  competencesGlobales: Skill[];
   generation: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
   donneesSeance?: DonneesSeance;
   /** Ce que les faits reprochent au referentiel (ADR-086). */
@@ -1351,8 +1366,17 @@ export function EspaceDocumentaire({
           {selection === "entretien" ? (
             <VueEntretien {...entretien} />
           ) : selection === "graphe" ? (
-            <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface p-4">
-              <GrapheCompetences donnees={graphe.donnees} compteId={graphe.compteId} ouvrirElement={ouvrirElement} />
+            <div className="flex h-full min-h-0 flex-1 flex-col gap-4 overflow-y-auto bg-surface p-4">
+              <PistesCarteGlobaleAtelier
+                carte={carteGlobale}
+                selections={selectionsGlobales}
+                correspondances={correspondancesGlobales}
+                competences={competencesGlobales}
+                onOuvrirReferentiel={() => changerVue("domaines")}
+              />
+              <div className="min-h-[34rem] shrink-0 overflow-hidden rounded-xl border border-bordure bg-surface">
+                <GrapheCompetences donnees={graphe.donnees} compteId={graphe.compteId} ouvrirElement={ouvrirElement} />
+              </div>
             </div>
           ) : selection === "themes" ? (
             <VueThemes

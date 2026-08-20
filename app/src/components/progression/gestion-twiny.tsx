@@ -63,7 +63,7 @@ export function NavigationTwiny() {
   return (
     <nav aria-label="Sections de Progression" className="flex flex-wrap gap-2 rounded-xl border border-bordure bg-surface-2/50 p-2">
       {[
-        ["ma-carte", "Ma carte"],
+        ["bilan", "Bilan"],
         ["explorer", "Explorer"],
         ["objectifs", "Objectifs"],
         ["parcours", "Parcours"],

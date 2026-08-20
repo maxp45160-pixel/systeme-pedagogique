@@ -293,12 +293,13 @@ validation humaine explicite et provenance ; aucune compétence locale n'est
 fusionnée automatiquement.
 L'amorçage reste privé au compte : la personne déclare son sujet et son
 intention de départ dans `/demarrer`, sans transformer cette déclaration en
-objectif structuré ni en mesure. La Progression est le hub du nouveau chemin :
-`Ma carte`, `Explorer`, `Objectifs` et `Parcours` composent l'overlay privé,
-permettent un rapprochement local explicite et rendent une cible globale
-actionnable seulement après confirmation. Le catalogue de production reste
-volontairement vide jusqu'à validation de son contenu et désignation d'un
-curateur ; le statut réellement déployé est suivi dans
+objectif structuré ni en mesure. La carte personnelle n'a pas de fenêtre
+dupliquée : sa surface canonique est le graphe de l'Atelier, où le référentiel
+local peut évoluer à partir de pistes explicites de la carte globale. La
+Progression conserve le bilan, l'exploration globale, les objectifs et les
+parcours ; elle ne recompose pas une seconde carte personnelle. Le catalogue
+de production reste volontairement vide jusqu'à validation de son contenu et
+désignation d'un curateur ; le statut réellement déployé est suivi dans
 [`TWINY_MIGRATION.md`](docs/architecture/TWINY_MIGRATION.md).
 ✅ **La carte ouvre des horizons sans imposer un périmètre.** Elle sert à
 situer la personne, relier les éléments et explorer les voisinages pertinents.

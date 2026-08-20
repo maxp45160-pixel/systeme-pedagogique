@@ -14,7 +14,6 @@ import { CarteCarriere } from "@/components/progression/carte-carriere";
 import { BilanCroissanceLie } from "@/components/progression/bilan-croissance-lie";
 import { Glossaire } from "@/components/ui/glossaire";
 import { TitreSection } from "@/components/ui/primitives";
-import { CarteIndividuelleTwiny } from "@/components/progression/carte-individuelle-twiny";
 import {
   ExplorerCarteGlobale,
   GestionObjectifsParcours,
@@ -122,7 +121,7 @@ async function ContenuProgression() {
     <div className="space-y-6 [&>*]:min-w-0">
       <NavigationTwiny />
 
-      <section id="ma-carte" className="scroll-mt-6">
+      <section id="bilan" className="scroll-mt-6">
       <CarteCarriere
         user={ctx.donnees.user}
         identite={identite}
@@ -135,10 +134,6 @@ async function ContenuProgression() {
 
       <CarteEtatGlobal global={ctx.global} etats={ctx.etats} />
 
-      <CarteIndividuelleTwiny
-        carte={ctx.carteIndividuelle}
-        espace={ctx.espaceActif}
-      />
       </section>
 
       <ExplorerCarteGlobale

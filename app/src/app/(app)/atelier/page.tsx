@@ -412,6 +412,10 @@ export default async function PageAtelier(props: {
           donnees: graphe,
           compteId: contexte.donnees.user.id,
         }}
+        carteGlobale={contexte.carteGlobale}
+        selectionsGlobales={contexte.carteIndividuelle.selectionsGlobales}
+        correspondancesGlobales={contexte.carteIndividuelle.correspondancesGlobales}
+        competencesGlobales={referentiel.skills}
         generation={{
           competences: competencesPourModale(referentiel.actifs),
           calibrages: calibragesPourModale(referentiel.actifs, contexte.calibrations),

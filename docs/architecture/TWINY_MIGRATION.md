@@ -1066,11 +1066,11 @@ d'architecture et ne vaut pas décision de suppression de données ou de chemins
 **Surfaces basculées.** Le tableau de bord affiche séparément l'Observation
 ponctuelle, l'état consolidé et la maîtrise. L'absence de mesure est libellée
 `Non mesurée` ou `Non mesuré` selon l'objet, sans zéro implicite. La même lecture
-est disponible dans la fiche compétence de l'Atelier. La Progression expose
-`Votre carte personnelle`, une composition privée et dérivée des repères
-globaux, des compétences locales, des objectifs et parcours, des réserves et de
-l'`Espace actif`. Les éléments globaux restent des repères ; ils ne reçoivent
-aucune mesure locale implicite.
+est disponible dans la fiche compétence de l'Atelier. La carte personnelle
+n'est pas une fenêtre dédiée : sa surface canonique est le graphe de
+l'Atelier. La Progression conserve le bilan, l'exploration globale, les
+objectifs et les parcours. Les éléments globaux restent des repères ; ils ne
+reçoivent aucune mesure locale implicite.
 
 Le parcours `/demarrer` conserve les champs historiques et reçoit seulement un
 vocabulaire explicite : `Le sujet à travailler` et le rappel qu'une intention
@@ -1151,7 +1151,7 @@ documents, snapshots, compétences privées, domaines privés ni journaux.
   pour le rapprochement explicite d'une compétence locale et d'un élément
   global. Elle est isolée par compte, porte un acteur et une provenance, n'est
   pas publiée et peut être retirée sans supprimer de fait historique.
-- Progression expose les sections `Ma carte`, `Explorer`, `Objectifs` et
+- Progression expose les sections `Bilan`, `Explorer`, `Objectifs` et
   `Parcours`. Explorer permet la recherche, la sélection privée, le
   rattachement confirmé et la création d'un objectif depuis un élément ou une
   relation. La gestion structurée couvre plusieurs objectifs, leurs cibles,
@@ -1177,11 +1177,12 @@ alignées avec `app/supabase/schema.sql` :
 3. `20260820194000_twiny_lot_7_remove_profile_legacy_objectives.sql` — retrait
    des trois colonnes historiques et remplacement de `admin_comptes()`.
 
-Elles ne sont pas appliquées en production à cette date. L'appel de mutation
-Supabase a été refusé par le contrôle de sécurité parce qu'il s'agit d'une
-modification persistante du schéma, de RLS et d'une fonction sensible. Aucun
-contournement n'a été tenté. L'application distante exige une confirmation
-explicite portant sur ces trois migrations et le projet nommé ci-dessus.
+Les deux premières migrations additives sont appliquées sur le projet distant :
+`twiny_lot_7_correspondances_relations` et
+`twiny_lot_7_observations_append_only`. Elles ont été vérifiées avec les
+compteurs historiques inchangés et les refus `UPDATE`/`DELETE` des Observations.
+La troisième migration, destructive pour les anciens champs de profil, reste
+en attente du déploiement du nouveau code.
 
 **Catalogue global : proposition, pas publication.** Le catalogue distant est
 encore vide ; aucun contenu n'a été inventé ni semé silencieusement. La
@@ -1208,32 +1209,30 @@ liste et les liens restent à valider avant publication. Le compte
 identifié en lecture seule, mais aucun curateur n'est encore configuré : sa
 désignation doit être confirmée avec le contenu.
 
-**Observations append-only.** Le schéma local révoque les droits
+**Observations append-only.** Le schéma local et distant révoquent les droits
 `UPDATE`/`DELETE` de la Data API, conserve la lecture et l'insertion contrôlée
 par `cloture_exercice()`, et réserve la suppression complète à
 `purger_observations_compte()` après authentification et contexte de purge. Le
-trigger bloque toute modification individuelle hors de ce chemin. Le refus
-doit encore être testé sur la base distante après application autorisée ; les
-compteurs historiques de production restent donc à vérifier après migration.
+trigger bloque toute modification individuelle hors de ce chemin. Les tests
+distants transactionnels confirment le refus avec le rôle `authenticated` ; les
+compteurs restent à 53 Observations, 60 tentatives et 61 séances.
 
-**Vérifications locales.** TypeScript et les tests ciblés passent après le
-retrait du fallback et l'ajout du cas de correspondance explicite. La suite
-complète précédente passait avec 91 fichiers et 1 264 tests ; le nouveau cas
-porte la cible à 1 265 tests. Le build local ne rencontre plus l'erreur des
-Server Actions, mais l'environnement courant ne peut pas télécharger les
-polices Google utilisées par `next/font`. Le build avec réseau et le smoke test
-de production restent à faire.
+**Vérifications locales.** TypeScript, ESLint et 1 267 tests passent. Le build
+Next.js de production passe également avec l'accès réseau requis par
+`next/font`. Un correctif ciblé documente la synchronisation de la projection
+Atelier après mutation serveur.
 
-**Ce qui a changé pour l'utilisateur.** En local, Progression devient le hub
-visible de la carte personnelle : exploration globale, sélection privée,
-rattachement explicite, objectifs multiples et parcours sont accessibles au
-même endroit. Une cible globale reliée peut rendre une compétence locale
-actionnable et expliquer la priorité affichée, sans fabriquer d'état global.
-Le profil et le tuteur utilisent le nouveau contrat structuré.
+**Ce qui a changé pour l'utilisateur.** Le tableau de bord résume le pilotage
+Twiny et ouvre directement le graphe de l'Atelier. L'Atelier est la carte
+personnelle : son graphe affiche les pistes issues des repères globaux suivis,
+leurs relations publiées et les correspondances privées avec le référentiel
+local. Depuis cette vue, la personne peut suivre une piste, relier une
+compétence existante ou ouvrir les domaines pour faire évoluer le référentiel.
+La Progression garde le bilan, l'exploration globale, les objectifs et les
+parcours, sans fenêtre « Votre carte personnelle » séparée.
 
 **Ce qui reste encore impossible.** La carte globale de production reste vide
 tant que le contenu exact n'a pas reçu `GO contenu` et qu'un curateur humain
-n'a pas été confirmé. Les trois migrations ne sont pas encore déployées ; les
-refus RLS append-only, l'isolation entre les deux comptes après migration, le
-smoke test réel et la vérification finale de production ne peuvent donc pas
-être affirmés.
+n'a pas été confirmé. Le déploiement du code est bloqué par l'autorisation
+explicite requise avant le push GitHub ; la troisième migration et le smoke test
+authentifié de production restent donc en attente.
