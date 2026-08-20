@@ -209,6 +209,8 @@ async function ContenuTableauDeBord({
             }
             facteursInstant={action?.facteurs ?? []}
             reservesInstant={action?.reserves ?? []}
+            carteIndividuelle={ctx.carteIndividuelle}
+            espaceActif={ctx.espaceActif}
           />
         )}
       </div>

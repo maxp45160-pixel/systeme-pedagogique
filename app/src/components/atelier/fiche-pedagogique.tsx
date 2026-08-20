@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { NIVEAUX } from "@/lib/domain/types";
+import { AUTONOMIE, NIVEAUX } from "@/lib/domain/types";
 import { formatDateCourte, formatDateHeure } from "@/lib/engine/dates";
 import type {
   VueCompetenceAtelier,
@@ -70,6 +70,10 @@ function dateCourte(date: string | null): string {
 
 function pourcentage(valeur: number | null): string {
   return valeur === null ? "—" : `${Math.round(valeur * 100)} %`;
+}
+
+function libelleResultatObservation(resultat: "reussi" | "partiel" | "echec"): string {
+  return resultat === "reussi" ? "Réussie" : resultat === "partiel" ? "Partielle" : "À revoir";
 }
 
 function Barre({ valeur, libelle }: { valeur: number; libelle: string }) {
@@ -282,7 +286,7 @@ function VueCompetence({
               <span className="text-texte-discret">{LIBELLES_PALIERS[vue.palier] ?? vue.palier}</span>
               <span aria-hidden className="text-bordure-contraste">·</span>
               <span className="text-texte-discret">
-                Confiance {LIBELLES_CONFIANCE[vue.confiance].toLowerCase()}
+                État consolidé · confiance {LIBELLES_CONFIANCE[vue.confiance].toLowerCase()}
               </span>
             </div>
             <h2 className="mt-2 max-w-3xl font-serif text-[1.375rem] font-medium leading-snug tracking-tight text-texte">
@@ -329,15 +333,29 @@ function VueCompetence({
         </div>
       </header>
 
-      {/* Les mesures sur une rangée : où j'en suis, sans défiler. */}
+      {/* Les lectures restent séparées : observation ponctuelle, état consolidé et maîtrise. */}
       <section
         aria-label="Mesures de la compétence"
-        className="grid shrink-0 grid-cols-2 gap-y-3 border-b border-bordure bg-surface px-3 py-3 lg:px-5 xl:grid-cols-4 xl:divide-x xl:divide-bordure"
+        className="grid shrink-0 grid-cols-2 gap-y-3 border-b border-bordure bg-surface px-3 py-3 lg:px-5 xl:grid-cols-5 xl:divide-x xl:divide-bordure"
       >
         <Mesure
-          libelle="Niveau actuel"
-          valeur={vue.niveau === null ? "Non évalué" : `${vue.niveau} / 5`}
-          precision={vue.niveau === null ? "Aucune observation directe" : NIVEAUX[vue.niveau].nom}
+          libelle="Observation ponctuelle"
+          valeur={vue.etatLot5.observationPonctuelle ? formatDateCourte(vue.etatLot5.observationPonctuelle.date) : "Non mesurée"}
+          precision={vue.etatLot5.observationPonctuelle
+            ? `${libelleResultatObservation(vue.etatLot5.observationPonctuelle.resultat)} · ${AUTONOMIE[vue.etatLot5.observationPonctuelle.autonomie].libelle}`
+            : "Aucune observation directe"}
+        />
+        <Mesure
+          libelle="État consolidé"
+          valeur={vue.etatLot5.etatConsolide.niveau === null ? "Non mesuré" : `${vue.etatLot5.etatConsolide.niveau} / 5`}
+          precision={vue.etatLot5.etatConsolide.niveau === null
+            ? "Aucune mesure à consolider"
+            : `${NIVEAUX[vue.etatLot5.etatConsolide.niveau].nom} · confiance ${LIBELLES_CONFIANCE[vue.etatLot5.etatConsolide.confiance].toLowerCase()}`}
+        />
+        <Mesure
+          libelle="Maîtrise"
+          valeur={vue.etatLot5.maitrise.maitrisee ? "Établie" : "Non établie"}
+          precision={vue.etatLot5.maitrise.manque ?? "Les observations soutiennent cette maîtrise."}
         />
         <Mesure
           libelle="Observations"
@@ -668,7 +686,7 @@ function ResteADemontrer({
           className="mt-3 flex w-full items-center justify-between gap-3 rounded-lg border border-bordure bg-surface-2/50 px-3.5 py-2.5 text-left transition-colors hover:border-primaire/40 hover:bg-surface-2 cursor-pointer"
         >
           <span className="min-w-0">
-            <span className="block text-xs font-semibold text-primaire">Aperçu de l’exercice suivant</span>
+            <span className="block text-xs font-semibold text-primaire">Exercice associé</span>
             <span className="mt-0.5 block truncate text-xs text-texte-attenue">{prochainExercice.titre}</span>
           </span>
           <IconeFleche className="size-3.5 shrink-0 text-primaire" />
@@ -851,7 +869,7 @@ function VueDomaine({
                           <div className="flex items-start justify-between gap-3 pr-8">
                             <span className="font-mono text-[0.625rem] text-texte-discret">{competence.code}</span>
                             <span className="chiffres rounded-md bg-surface-2 px-2 py-0.5 text-[0.625rem]">
-                              {competence.niveau === null ? "Non évalué" : `Niveau ${competence.niveau}`}
+                              {competence.niveau === null ? "Non mesurée" : `Niveau ${competence.niveau}`}
                             </span>
                           </div>
                           <h4 className="mt-2 text-sm font-semibold leading-snug group-hover:text-primaire">{competence.titre}</h4>
@@ -1273,6 +1291,9 @@ function VueTheme({
                   <p className="font-semibold text-alerte">Prochaine étape conseillée</p>
                   <p className="mt-1 font-medium text-texte">{vue.prochaineActionRecommandee.titre}</p>
                   <p className="mt-0.5 text-texte-discret">{vue.prochaineActionRecommandee.motif}</p>
+                  {vue.prochaineActionRecommandee.reserves.map((reserve) => (
+                    <p key={reserve} className="mt-1 text-texte-discret">{reserve}</p>
+                  ))}
                   <button
                     type="button"
                     onClick={() => ouvrirElement(vue.prochaineActionRecommandee!.code)}
@@ -1348,7 +1369,7 @@ function VueTheme({
                               : "bg-info-faible text-info",
                           )}
                         >
-                          {comp.niveau === null ? "Non évalué" : `Niveau ${comp.niveau} / 5`}
+                          {comp.niveau === null ? "Non mesurée" : `Niveau ${comp.niveau} / 5`}
                         </span>
                       </div>
                     </div>
@@ -1772,6 +1793,9 @@ export function PanneauPedagogiqueAtelier({
             <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-alerte">Prochaine action recommandée</p>
             <p className="mt-2 text-sm font-semibold leading-snug text-texte">{vue.prochaineActionRecommandee.titre}</p>
             <p className="mt-1 text-xs text-texte-attenue">{vue.prochaineActionRecommandee.motif}</p>
+            {vue.prochaineActionRecommandee.reserves.map((reserve) => (
+              <p key={reserve} className="mt-1 text-xs text-texte-discret">{reserve}</p>
+            ))}
             <button
               type="button"
               onClick={() => ouvrirElement(vue.prochaineActionRecommandee!.code)}

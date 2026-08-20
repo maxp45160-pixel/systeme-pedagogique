@@ -11,6 +11,10 @@ import type {
 import type { Theme } from "@/lib/domain/theme";
 import type { IndexDocumentaire } from "./index";
 import { construireVuesAtelier } from "./vue-atelier";
+import {
+  construireEtatCompetence,
+  type RecommandationAdaptee,
+} from "@/lib/engine/vues-twiny";
 
 const competence: Skill = {
   code: "LOG-01",
@@ -156,6 +160,7 @@ describe("construireVuesAtelier", () => {
       nombreContextes: 1,
       suivantes: [suivante.code],
     });
+    expect(vues.competences[0].etatLot5).toBeDefined();
     expect(vues.competences[0].exercices[0]).toMatchObject({
       id: exercice.id,
       tentatives: 1,
@@ -178,7 +183,60 @@ describe("construireVuesAtelier", () => {
       robustesse: null,
       nombreObservations: 0,
     });
+    expect(vues.competences[0].etatLot5.observationPonctuelle).toBeNull();
+    expect(vues.competences[0].etatLot5.maitrise.maitrisee).toBe(false);
     expect(vues.domaines[0].nombreEvaluees).toBe(0);
+  });
+
+  it("réutilise les états du lot 5 et la recommandation déjà adaptée", () => {
+    const theme: Theme = {
+      id: "flux-opti-lot5",
+      libelle: "Optimisation des flux",
+      intention: "",
+      codes: [competence.code],
+      origine: "utilisateur",
+      creeLe: "2026-08-10T08:00:00.000Z",
+      archive: false,
+    };
+    const etatLot5 = construireEtatCompetence(etat(competence, [observation]));
+    const recommandation = {
+      etat: etatLot5.etatConsolide,
+      valeur: 42,
+      facteurs: [],
+      raison: "Classement existant",
+      exercice: null,
+      difficulteCible: 2,
+      dureeEstimeeMin: 30,
+      calibration: null,
+      prioriteLot5: {
+        origine: "objectif",
+        reference: "objectif-1",
+        explication: "Cette compétence appartient à la cible d'un objectif actif.",
+      },
+      reservesLot5: ["La cible reste locale."],
+    } satisfies RecommandationAdaptee;
+
+    const vues = construireVuesAtelier(
+      referentiel,
+      [etat(competence, [observation]), etat(suivante)],
+      [exercice],
+      [tentative],
+      index,
+      [],
+      [],
+      new Set(),
+      [theme],
+      [etatLot5],
+      [recommandation],
+    );
+
+    expect(vues.competences[0].etatLot5).toBe(etatLot5);
+    expect(vues.themes[0].prochaineActionRecommandee).toEqual({
+      code: competence.code,
+      titre: competence.intitule,
+      motif: "Cette compétence appartient à la cible d'un objectif actif.",
+      reserves: ["La cible reste locale."],
+    });
   });
 
   it("isole les domaines archivés et n'expose pas les domaines dormants", () => {

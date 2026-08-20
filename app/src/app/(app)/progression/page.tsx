@@ -14,6 +14,7 @@ import { CarteCarriere } from "@/components/progression/carte-carriere";
 import { BilanCroissanceLie } from "@/components/progression/bilan-croissance-lie";
 import { Glossaire } from "@/components/ui/glossaire";
 import { TitreSection } from "@/components/ui/primitives";
+import { CarteIndividuelleTwiny } from "@/components/progression/carte-individuelle-twiny";
 
 /**
  * Le profil : ce que la pratique a totalisé, et ce qu'elle a produit récemment.
@@ -125,6 +126,11 @@ async function ContenuProgression() {
       <CarteActivite activite={activite} now={ctx.now} semaines={52} cellule={16} />
 
       <CarteEtatGlobal global={ctx.global} etats={ctx.etats} />
+
+      <CarteIndividuelleTwiny
+        carte={ctx.carteIndividuelle}
+        espace={ctx.espaceActif}
+      />
 
       {/*
         Le bilan de croissance, repris de l'accueil de l'Atelier : ce que la

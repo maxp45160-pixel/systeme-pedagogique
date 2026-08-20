@@ -237,7 +237,7 @@ export function FormulaireAmorcage({
                   <span className="flex size-5 items-center justify-center rounded-full bg-surface-2 border border-bordure text-[0.6875rem] font-mono">
                     1
                   </span>
-                  Le sujet à maîtriser
+                  Le sujet à travailler
                 </span>
                 {sujetValide && (
                   <span className="text-xs font-medium text-primaire flex items-center gap-1">
@@ -251,7 +251,7 @@ export function FormulaireAmorcage({
                 value={sujet}
                 onChange={(e) => setSujet(e.target.value)}
                 placeholder="Ex : développement web, droit fiscal, lutherie, philosophie morale…"
-                aide="Écris-le avec tes propres mots. Le tuteur IA le découpera ensuite en compétences mesurables."
+                aide="Écris-le avec tes propres mots. Le tuteur IA le découpera ensuite en compétences mesurables ; cette intention déclarée ne constitue pas encore une mesure."
               />
             </div>
 

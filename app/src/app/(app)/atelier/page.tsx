@@ -135,6 +135,8 @@ export default async function PageAtelier(props: {
     changementsReferentiel,
     codesAvecDependances,
     themes,
+    contexte.carteIndividuelle.competencesLocales,
+    contexte.recommandations,
   );
   const vuesCompetences = new Map(vues.competences.map((vue) => [vue.code, vue]));
   const vuesThemes = new Map(vues.themes.map((vue) => [vue.id, vue]));

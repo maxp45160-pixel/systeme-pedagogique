@@ -21,6 +21,12 @@ import {
   type EtapeParcours,
 } from "@/lib/engine/parcours";
 import type { ChangementReferentiel } from "@/lib/domain/gouvernance-referentiel";
+import {
+  construireEtatCompetence,
+  type EtatCompetence,
+  type RecommandationAdaptee,
+} from "@/lib/engine/vues-twiny";
+import type { Recommandation } from "@/lib/engine/recommend";
 
 export interface ExerciceLieAtelier {
   id: string;
@@ -155,6 +161,8 @@ export interface VueCompetenceAtelier {
    * personne valide une création dont elle ne lit pas la destination.
    */
   domainesExistants: Array<{ id: string; nom: string }>;
+  /** Lecture du lot 5, dérivée à la demande et conservée séparée des faits. */
+  etatLot5: EtatCompetence;
 }
 
 export interface VueDomaineAtelier {
@@ -232,6 +240,7 @@ export interface VueThemeAtelier {
     code: string;
     titre: string;
     motif: string;
+    reserves: string[];
   } | null;
 }
 
@@ -295,6 +304,8 @@ export function construireVuesAtelier(
   changementsReferentiel: ChangementReferentiel[] = [],
   codesAvecDependances: ReadonlySet<string> = new Set(),
   themes: Theme[] = [],
+  etatsCompetences: readonly EtatCompetence[] = [],
+  recommandations: readonly Recommandation[] = [],
 ): {
   domaines: VueDomaineAtelier[];
   competences: VueCompetenceAtelier[];
@@ -310,6 +321,13 @@ export function construireVuesAtelier(
   const domainesVivantsLisibles = referentiel.domaines
     .filter((domaine) => !domaine.archive)
     .map((domaine) => ({ id: domaine.id, nom: domaine.nom }));
+  const etatsCompetencesParCode = new Map(
+    etatsCompetences.map((etat) => [etat.code, etat]),
+  );
+  const recommandationsAdaptees = recommandations.filter(
+    (recommandation): recommandation is RecommandationAdaptee =>
+      "prioriteLot5" in recommandation && "reservesLot5" in recommandation,
+  );
   const competences: VueCompetenceAtelier[] = etats.map((etat) => {
     const domaine = referentiel.domainesParId.get(etat.skill.domaine);
     const exercicesLies = exercices
@@ -395,6 +413,7 @@ export function construireVuesAtelier(
       })),
       documents,
       domainesExistants: domainesVivantsLisibles,
+      etatLot5: etatsCompetencesParCode.get(etat.skill.code) ?? construireEtatCompetence(etat),
     };
   });
 
@@ -514,9 +533,9 @@ export function construireVuesAtelier(
       const scoreMoyen = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
       const tauxCouverture = skillsDuTheme.length > 0 ? evaluees.length / skillsDuTheme.length : 0;
 
-      const nonEvaluees = skillsDuTheme.filter((c) => c.niveau === null);
-      const prioritaires = nonEvaluees.length > 0 ? nonEvaluees : [...skillsDuTheme].sort((a, b) => (a.score ?? 0) - (b.score ?? 0));
-      const cibleRecommandee = prioritaires[0];
+      const cibleRecommandee = recommandationsAdaptees.find((recommandation) =>
+        codesDuThemeSet.has(recommandation.etat.skill.code),
+      );
 
       const derniereActivite = derniereDate([
         ...skillsDuTheme.map((c) => {
@@ -550,9 +569,10 @@ export function construireVuesAtelier(
         derniereActivite,
         prochaineActionRecommandee: cibleRecommandee
           ? {
-              code: cibleRecommandee.code,
-              titre: cibleRecommandee.titre,
-              motif: cibleRecommandee.niveau === null ? "Produire une première observation" : "Consolider la compétence",
+              code: cibleRecommandee.etat.skill.code,
+              titre: cibleRecommandee.etat.skill.intitule,
+              motif: cibleRecommandee.prioriteLot5.explication,
+              reserves: cibleRecommandee.reservesLot5,
             }
           : null,
       };

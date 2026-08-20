@@ -1056,3 +1056,67 @@ au lot 5 puisque celui-ci ne modifie pas la base.
 été commencé. Le lot 6 nécessite un nouveau GO humain ; il pourra brancher ces
 vues dans l'interface et organiser une dépréciation progressive sans changer
 les politiques du moteur par hypothèse.
+
+### Lot 6 — bascule UI minimale — 20/08/2026
+
+Le contrat humain `GO lot 6 — contrat minimal validé` autorise la bascule UI
+minimale ci-dessous. Cette validation humaine ne promeut aucun statut
+d'architecture et ne vaut pas décision de suppression de données ou de chemins.
+
+**Surfaces basculées.** Le tableau de bord affiche séparément l'Observation
+ponctuelle, l'état consolidé et la maîtrise. L'absence de mesure est libellée
+`Non mesurée` ou `Non mesuré` selon l'objet, sans zéro implicite. La même lecture
+est disponible dans la fiche compétence de l'Atelier. La Progression expose
+`Votre carte personnelle`, une composition privée et dérivée des repères
+globaux, des compétences locales, des objectifs et parcours, des réserves et de
+l'`Espace actif`. Les éléments globaux restent des repères ; ils ne reçoivent
+aucune mesure locale implicite.
+
+Le parcours `/demarrer` conserve les champs historiques et reçoit seulement un
+vocabulaire explicite : `Le sujet à travailler` et le rappel qu'une intention
+déclarée ne constitue pas encore une mesure. Aucun objectif historique n'est
+converti.
+
+**Recommandation.** Le tableau de bord consomme la recommandation déjà adaptée
+par le lot 5 et en affiche l'explication de priorité et les réserves utiles.
+La file conserve son ordre et sa borne existants ; la valeur interne de
+classement n'est plus exposée dans les alternatives. Les thèmes de l'Atelier
+utilisent eux aussi la recommandation adaptée quand elle cible le thème ; ils
+ne reconstruisent plus une priorité locale concurrente.
+
+**Espace actif.** La vue reste bornée à 15 éléments et conserve l'ordre du lot
+5. Les compétences locales actionnables ouvrent l'Atelier ; les repères globaux
+et les éléments non actionnables restent informatifs. Les réserves signalent les
+éléments archivés, hors périmètre ou restés hors classement local.
+
+**Compatibilités conservées.** Les routes `/competences`,
+`/competences/[code]` et `/competences/domaine/[id]` gardent leurs redirections
+vers l'Atelier. `LearningSession`, `charger_tout()`, le contrat historique
+`Recommandation` et les champs existants des vues Atelier restent disponibles.
+Les nouveaux paramètres de `construireVuesAtelier` sont optionnels ; sans vue
+lot 5 fournie, l'état est reconstruit à la lecture par le même moteur canonique.
+Aucune donnée historique n'est supprimée.
+
+**Dépréciations effectuées.** Le libellé trompeur `Aperçu de l'exercice
+suivant` devient `Exercice associé` : cette surface historique n'est plus
+présentée comme une prochaine action adaptée. L'ancien tri local des thèmes est
+retiré du chemin canonique et remplacé par la recommandation adaptée ; les
+propriétés et contrats nécessaires au retour arrière restent conservés.
+
+**Échéance de revue et retour arrière.** La revue des fichiers et chemins
+dépréciés est fixée au 19/09/2026. Cette date n'autorise pas leur suppression
+automatique : toute suppression ultérieure exigera un arbitrage humain séparé,
+la vérification de tous les consommateurs et un retour arrière praticable.
+Jusqu'à cette revue, l'ancien contrat reste stocké et lisible pour permettre un
+déploiement mixte sans migration destructive.
+
+**Vérifications du lot.** Les tests ciblés couvrent les vues lot 5 et leur
+transmission à l'Atelier. La suite complète passe avec 91 fichiers et 1 266
+tests ; TypeScript et ESLint passent, avec les cinq avertissements préexistants.
+Le build Next.js passe et génère 28 routes. `git diff --check` est propre hors
+des avertissements de conversion LF/CRLF du worktree Windows. Aucun serveur
+local n'était disponible pour une vérification interactive desktop/mobile.
+
+**Hors périmètre.** Aucun changement DB, migration SQL, seuil ou calibration,
+référentiel global/local, objectif historique, navigation générale,
+LearningSession, donnée privée ou historique n'est inclus.
