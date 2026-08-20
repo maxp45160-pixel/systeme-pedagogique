@@ -1,7 +1,7 @@
 "use client";
 
 import type { ResumeCroissance, FenetreCroissance } from "@/lib/engine/croissance";
-import { EnsemblesSuggeres } from "@/components/atelier/ensembles-suggeres";
+import { EnsemblesSuggeres } from "./ensembles-suggeres";
 import type { EnsemblePropose } from "@/lib/engine/ensembles";
 import { Carte, CodeCompetence, Etiquette, cx } from "@/components/ui/primitives";
 import { formatDateRelative, formatDuree } from "@/lib/engine/dates";

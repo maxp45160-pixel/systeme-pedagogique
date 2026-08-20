@@ -922,6 +922,11 @@ export function EspaceDocumentaire({
   }, [elements]);
 
   function ouvrirElement(id: string, opts?: { remplacerHistorique?: boolean } | unknown) {
+    if (VUES_ATELIER.has(id)) {
+      changerVue(id as VueAtelier);
+      return;
+    }
+
     const element = trouverElement(id, elements);
     if (!element) {
       const cleanId = id.replace(/^(exercice|document):/, "");
@@ -1390,9 +1395,6 @@ export function EspaceDocumentaire({
                   if (statutFiltre === "archives" || selection === "domaines-archives") return vue.domaine.archive;
                   return !vue.domaine.archive;
                 })
-                .map((el) => el.vuePedagogique as VueDomaineAtelier)}
-              tousLesDomaines={elements
-                .filter((el) => el.type === "domaine" && el.vuePedagogique)
                 .map((el) => el.vuePedagogique as VueDomaineAtelier)}
               ouvrirElement={ouvrirElement}
               changerVue={changerVue}

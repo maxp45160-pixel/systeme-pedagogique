@@ -128,7 +128,6 @@ export function VueTousLesDomaines({
   compteId?: string;
   domainesExistants?: { id: string; nom: string; prefixe: string }[];
   tri?: TriDomaine;
-  tousLesDomaines?: VueDomaineAtelier[];
   onArchiver?: (domaineId: string) => void;
   onRestaurer?: (domaineId: string) => void;
   onSupprimer?: (domaineId: string) => void;
