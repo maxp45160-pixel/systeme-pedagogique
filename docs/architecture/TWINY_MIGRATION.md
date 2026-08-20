@@ -788,7 +788,9 @@ corpus en Connaissances.
 
 ### Passage de relais — lot 3 terminé — 20/08/2026
 
-**État réel : noyau et overlay minimal activés.** La migration locale et la
+**État réel : noyau et overlay minimal activés.** La révision applicative
+`65835a78b5c1da93099c36a1c5b686715bea8503` a été publiée sur `master` et son
+déploiement Vercel a atteint le statut `success`. La migration locale et la
 migration distante effective portent la même version :
 `20260820134723_twiny_lot_3_carte_globale_overlay_minimal`. Elle ajoute les
 tables `carte_globale_curateurs`, `carte_globale_elements`,
