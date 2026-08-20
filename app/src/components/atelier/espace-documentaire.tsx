@@ -323,6 +323,9 @@ export function EspaceDocumentaire({
   const [elements, setElements] = useState(elementsInitials);
 
   useEffect(() => {
+    // Le routeur remplace cette projection après une mutation serveur ; l'état local
+    // doit alors abandonner sa copie optimiste au profit de la nouvelle vérité serveur.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setElements(elementsInitials);
   }, [elementsInitials]);
 
