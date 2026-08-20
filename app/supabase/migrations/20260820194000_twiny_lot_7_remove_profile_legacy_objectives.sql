@@ -1,15 +1,13 @@
--- Lot 7 — suppression autorisée du contrat historique d'objectifs du profil.
--- Précondition : le nouveau chemin objectifs/parcours est déployé et vérifié.
--- Les compteurs avant suppression sont consignés dans TWINY_MIGRATION.md.
+-- Lot 7 — compatibilité du contrat d'objectifs du profil.
+--
+-- Les colonnes objectif_moyen_terme et objectif_long_terme restent la source
+-- déclarative du profil : le moteur les lit pour calibrer ses recommandations
+-- internes. Cette migration ne doit donc pas les supprimer, ni supprimer les
+-- données déjà saisies dans les comptes.
 
 begin;
 
 drop function if exists public.admin_comptes();
-
-alter table public.profiles
-  drop column if exists objectif_moyen_terme,
-  drop column if exists objectif_long_terme,
-  drop column if exists plan;
 
 create function public.admin_comptes()
 returns table (

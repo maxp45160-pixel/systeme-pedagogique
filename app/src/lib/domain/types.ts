@@ -127,6 +127,10 @@ export interface User {
   prenom: string;
   avatarUrl?: string;
   formation: string;
+  /** Objectif textuel déclaré à moyen terme lors de l'amorçage. */
+  objectifMoyenTerme: string;
+  /** Objectif textuel déclaré à long terme lors de l'amorçage. */
+  objectifLongTerme: string;
   /** Date d'initialisation du système (ISO). */
   debutSuivi: string;
   /**

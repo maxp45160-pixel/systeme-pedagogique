@@ -217,7 +217,7 @@ export function PanneauCompte({
                     Zone de danger — réinitialisation des données
                   </h4>
                   <p className="text-xs text-texte-attenue">
-                    Réinitialisez l&apos;ensemble de votre parcours ou supprimez définitivement vos données.
+                    Réinitialisez toutes vos données d&apos;apprentissage ou supprimez-les définitivement.
                   </p>
                 </div>
                 <Bouton

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { chargerContexte } from "@/lib/store/context";
+import { valeurDeclaree } from "@/lib/domain/profil";
 import { estAdministrateur } from "@/lib/store/acces";
 import { EntetePage } from "@/components/layout/entete-page";
 import { BandeauInfo, Carte } from "@/components/ui/primitives";
@@ -59,7 +60,7 @@ export default async function PageDemarrer(props: {
 
       <EntetePage
         titre="Sur quoi voulez-vous progresser ?"
-        sousTitre="Dites-nous sur quoi vous voulez progresser. On construit le parcours à partir de là."
+        sousTitre="Écrivez ce que vous voulez pouvoir faire. Nous le traduisons en exercices."
       />
 
       {/*
@@ -72,12 +73,14 @@ export default async function PageDemarrer(props: {
         <Link href="/aide" className="font-medium text-primaire underline underline-offset-2">
           Lis d&apos;abord comment ça marche
         </Link>{" "}
-        — le parcours complet, écran par écran, en quelques minutes.
+        — le fonctionnement complet, écran par écran, en quelques minutes.
       </p>
 
       <Carte>
         <div className="px-5 py-4">
           <FormulaireAmorcage
+            objectifMoyenTerme={valeurDeclaree(ctx.donnees.user.objectifMoyenTerme) ?? ""}
+            objectifLongTerme={valeurDeclaree(ctx.donnees.user.objectifLongTerme) ?? ""}
             compteId={ctx.donnees.user.id}
           />
         </div>

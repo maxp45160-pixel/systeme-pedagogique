@@ -11,6 +11,7 @@ import { creerNoteAction } from "@/lib/store/document-actions";
 import { FORMATS_PAR_ROLE } from "@/lib/documents/roles-note";
 import { ModaleReferentiel } from "@/components/referentiel/modale-referentiel";
 import { ParcoursNouveauProjet } from "@/components/projets/modale-nouveau-projet";
+import { enregistrerBesoinCourtTerme } from "@/lib/store/objectifs-actions";
 import {
   BESOIN_MAX,
   besoinValide,
@@ -183,8 +184,16 @@ export function CaptureIntention({
       setErreur(null);
 
       if (action.genre === "travail") {
-        onFermer();
-        router.push(urlComposition(action.codes, action.titre));
+        setEnExecution(true);
+        try {
+          await enregistrerBesoinCourtTerme(besoin, action.codes);
+          onFermer();
+          router.push(urlComposition(action.codes, action.titre));
+        } catch (cause) {
+          setErreur(cause instanceof Error ? cause.message : "Le besoin n'a pas pu être pris en compte.");
+        } finally {
+          setEnExecution(false);
+        }
         return;
       }
 

@@ -154,7 +154,7 @@ export function AssistantOrientationProfil({
               value={sujet}
               onChange={(e) => setSujet(e.target.value)}
               placeholder="Ex : Architecture React & TypeScript, Droit fiscal, Négociation commerciale, Analyse de données…"
-              aide="Écrivez-le simplement. Le système calibrera le parcours et le découpage à partir de cet intitulé."
+              aide="Écrivez-le simplement. Le système calibrera les exercices et leur progression à partir de cet intitulé."
             />
           </div>
 
@@ -225,7 +225,7 @@ export function AssistantOrientationProfil({
 
           <div className="pt-2">
             <Champ
-              label="Précision sur votre parcours (facultatif)"
+              label="Contexte de départ (facultatif)"
               value={pointDeDepartCustom}
               onChange={(e) => setPointDeDepartCustom(e.target.value)}
               placeholder="Ex : Ancien développeur PHP en reconversion, étudiant en 2e année de droit…"
@@ -280,7 +280,7 @@ export function AssistantOrientationProfil({
                   Rythme hebdomadaire souhaité
                 </span>
                 <span className="text-[0.75rem] text-texte-attenue">
-                  Volume indicatif pour préparer votre premier parcours.
+                  Volume indicatif pour préparer vos premiers exercices.
                 </span>
               </div>
               <span className="rounded-lg bg-surface border border-bordure px-2.5 py-1 text-xs font-mono font-semibold text-primaire">

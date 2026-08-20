@@ -62,6 +62,8 @@ function profilNeutre(id: string, courriel: string | undefined): User {
     id,
     prenom: courriel?.split("@")[0] ?? "Utilisateur",
     formation: "Formation à renseigner",
+    objectifMoyenTerme: "Objectif à moyen terme à renseigner",
+    objectifLongTerme: "Objectif à long terme à renseigner",
     debutSuivi: new Date().toISOString().slice(0, 10),
     preferencesPedagogiques: [],
   };

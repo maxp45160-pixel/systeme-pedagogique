@@ -51,6 +51,10 @@ import {
   type CarteIndividuelle,
   type EspaceActif,
 } from "@/lib/engine/vues-twiny";
+import {
+  construireParcoursInterne,
+  ordonnerSelonParcoursInterne,
+} from "@/lib/engine/parcours-interne";
 import type { CarteGlobale } from "@/lib/domain/carte-globale";
 
 export interface Contexte {
@@ -357,9 +361,18 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
     carte: carteIndividuelle,
     recommandations: recommandationsInitiales,
   });
-  const recommandations = adapterRecommandationsAEspaceActif(
+  const recommandationsLot5 = adapterRecommandationsAEspaceActif(
     recommandationsInitiales,
     espaceActif,
+  );
+  const parcoursInterne = construireParcoursInterne({
+    objectifMoyenTerme: donnees.user.objectifMoyenTerme,
+    objectifLongTerme: donnees.user.objectifLongTerme,
+    recommandations: recommandationsLot5,
+  });
+  const recommandations = ordonnerSelonParcoursInterne(
+    recommandationsLot5,
+    parcoursInterne,
   );
 
   return {

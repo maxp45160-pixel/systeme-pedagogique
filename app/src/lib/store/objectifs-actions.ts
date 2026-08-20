@@ -22,6 +22,8 @@ import { dorsaleCompte } from "./db";
 import { lireObjectifs, lireParcours } from "./objectifs";
 import { verifier } from "./supabase-backend";
 import { validerResultatCommandeLot4 } from "./validation-objectifs";
+import { extraireEcheanceBesoin } from "@/lib/domain/echeance-besoin";
+import { lireReferentiel } from "./referentiel";
 
 function validerRequestId(requestId: string): void {
   if (typeof requestId !== "string" || requestId.trim().length === 0 || requestId.length > 200) {
@@ -84,6 +86,83 @@ export async function creerObjectif(
   if (refus) throw new Error(refus);
   const resultat = await executer({ type: "creer_objectif", ...entree }, requestId, provenance);
   return objectifDepuisCommande(resultat);
+}
+
+/**
+ * Transforme une échéance explicitement écrite dans « Nouveau besoin » en
+ * cible court terme interne. Aucun formulaire d'objectif n'est ouvert : le
+ * clic de confirmation du besoin est le seul accord nécessaire.
+ */
+export async function enregistrerBesoinCourtTerme(
+  formulation: string,
+  codes: string[],
+): Promise<void> {
+  const texte = formulation.trim();
+  const echeanceLe = extraireEcheanceBesoin(texte);
+  if (!echeanceLe) return;
+
+  const referentiel = await lireReferentiel();
+  const codesActifs = new Set(referentiel.actifs.map((skill) => skill.code));
+  const codesValides = [...new Set(codes.map((code) => code.trim().toUpperCase()))]
+    .filter((code) => codesActifs.has(code));
+  if (codesValides.length === 0) return;
+
+  const objectifs = await lireObjectifs();
+  for (const code of codesValides) {
+    const dejaEnregistre = objectifs.some(
+      (objectif) =>
+        objectif.statut === "actif"
+        && objectif.horizon === "court-terme"
+        && objectif.echeanceLe === echeanceLe
+        && objectif.cible.type === "competence-locale"
+        && objectif.cible.code === code
+        && objectif.formulation === texte,
+    );
+    if (dejaEnregistre) continue;
+
+    const requestId = `besoin-court-terme:${crypto.randomUUID()}`;
+    const provenance = {
+      type: "nouveau-besoin",
+      reference: requestId,
+      note: "Cible court terme dérivée d'une échéance écrite dans Nouveau besoin.",
+    } as const;
+    const objectif = await creerObjectif(
+      {
+        formulation: texte,
+        cible: { type: "competence-locale", code },
+        priorite: 5,
+        horizon: "court-terme",
+        echeanceLe,
+      },
+      requestId,
+      provenance,
+    );
+    const actif = await changerStatutObjectif(
+      objectif.id,
+      objectif.version,
+      "actif",
+      objectif.statut,
+      `${requestId}:activer`,
+      provenance,
+    );
+    const parcours = await creerParcours(
+      {
+        objectifId: actif.id,
+        contexte: texte,
+        cible: { type: "competence-locale", code },
+      },
+      `${requestId}:parcours`,
+      provenance,
+    );
+    await changerStatutParcours(
+      parcours.id,
+      parcours.version,
+      "actif",
+      parcours.statut,
+      `${requestId}:activer-parcours`,
+      provenance,
+    );
+  }
 }
 
 export async function modifierObjectif(

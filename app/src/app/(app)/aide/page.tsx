@@ -148,7 +148,7 @@ const QUESTIONS = [
   },
   {
     q: "Que se passe-t-il si je m'évalue trop généreusement ?",
-    r: "Le niveau monte sans que la compétence suive, et les séances suivantes vous proposeront un travail trop dur. L'évaluation honnête est ce qui rend le parcours fiable.",
+    r: "Le niveau monte sans que la compétence suive, et les séances suivantes vous proposeront un travail trop dur. L'évaluation honnête est ce qui rend l'apprentissage fiable.",
   },
   {
     q: "Une faiblesse peut-elle disparaître toute seule avec le temps ?",
@@ -199,7 +199,7 @@ export default async function PageAide() {
 
         <section>
           <TitreSection legende="Cinq étapes. Les quatre dernières se répètent ensuite à chaque séance.">
-            Le parcours
+            Le fonctionnement
           </TitreSection>
 
           <ol className="space-y-4">

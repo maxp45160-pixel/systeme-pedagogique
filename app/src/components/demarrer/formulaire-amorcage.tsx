@@ -20,8 +20,12 @@ import {
 } from "@/lib/domain/assistant-orientation";
 
 export function FormulaireAmorcage({
+  objectifMoyenTerme,
+  objectifLongTerme,
   compteId,
 }: {
+  objectifMoyenTerme: string;
+  objectifLongTerme: string;
   compteId: string;
 }) {
   const router = useRouter();
@@ -33,7 +37,7 @@ export function FormulaireAmorcage({
   const [modeGuide, setModeGuide] = useState(true);
 
   const [sujet, setSujet] = useState("");
-  const [intention, setIntention] = useState("");
+  const [intention, setIntention] = useState(objectifMoyenTerme);
   const [pointDeDepart, setPointDeDepart] = useState("");
   const [preferencesChoisies, setPreferencesChoisies] = useState<string[]>([
     "Pratiquer d'abord",
@@ -82,6 +86,8 @@ export function FormulaireAmorcage({
       try {
         await modifierProfil({
           formation: pointDeDepart.trim() || undefined,
+          objectifMoyenTerme: intention.trim(),
+          objectifLongTerme: objectifLongTerme || undefined,
           preferencesPedagogiques: preferencesChoisies,
         });
         setValidationOuverte(true);
@@ -252,7 +258,7 @@ export function FormulaireAmorcage({
                   <span className="flex size-5 items-center justify-center rounded-full bg-surface-2 border border-bordure text-[0.6875rem] font-mono">
                     2
                   </span>
-                  Ton intention de départ
+                  Ce que tu veux pouvoir faire
                 </span>
                 {intentionValide && (
                   <span className="text-xs font-medium text-primaire flex items-center gap-1">
@@ -266,7 +272,7 @@ export function FormulaireAmorcage({
                 value={intention}
                 onChange={(e) => setIntention(e.target.value)}
                 placeholder="Ex : préparer un concours, changer de métier, mener un projet en autonomie…"
-                aide="Cette phrase guide la construction du référentiel. Après validation, rattache-la à un objectif structuré dans Twiny."
+                aide="Écris-le avec tes mots. Le système traduit cette intention en compétences puis en exercices ; tu n’as pas à définir de cible ni de parcours."
               />
             </div>
 

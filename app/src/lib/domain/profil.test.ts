@@ -18,6 +18,8 @@ function utilisateur(champs: Partial<User> = {}): User {
     id: "u1",
     prenom: "Test",
     formation: "Formation à renseigner",
+    objectifMoyenTerme: "Objectif à moyen terme à renseigner",
+    objectifLongTerme: "Objectif à long terme à renseigner",
     debutSuivi: "2026-07-31",
     preferencesPedagogiques: [],
     ...champs,

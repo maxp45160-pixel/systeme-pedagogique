@@ -8,6 +8,7 @@ import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import type { PropositionReferentiel } from "@/lib/tutor/proposition";
 import { ValidationBranche, type BrancheInitiale } from "./validation-branche";
 import { ChargementGeneration } from "@/components/ui/chargement-generation";
+import type { ElementGlobal } from "@/lib/domain/carte-globale";
 
 export function ModaleCompetence({
   onFermer,
@@ -19,6 +20,7 @@ export function ModaleCompetence({
   descriptionInitiale = "",
   justificationInitiale = "",
   suggestionAutomatique = false,
+  pistesGlobales = [],
   surEnregistre,
 }: {
   onFermer: () => void;
@@ -36,6 +38,8 @@ export function ModaleCompetence({
   justificationInitiale?: string;
   /** Lance immédiatement la suggestion, pour l'amorçage d'un compte neuf. */
   suggestionAutomatique?: boolean;
+  /** Repères globaux proposés seulement pendant la création d'une branche. */
+  pistesGlobales?: ElementGlobal[];
   /** Permet à l'appelant de reprendre son flux après la création. */
   surEnregistre?: () => void;
 }) {
@@ -45,6 +49,18 @@ export function ModaleCompetence({
   const [progression, setProgression] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [modeSuggestionOuvert, setModeSuggestionOuvert] = useState(false);
+
+  function choisirPisteGlobale(piste: ElementGlobal) {
+    setSujet(piste.nom);
+    setInitiale((precedente) => ({
+      domaine: precedente?.domaine ?? domaineInitial ?? "",
+      prefixe: precedente?.prefixe ?? "",
+      description: piste.description || precedente?.description || "",
+      justification: `Piste issue de la carte globale : ${piste.nom}`,
+      competences: precedente?.competences ?? [],
+    }));
+    setModeSuggestionOuvert(true);
+  }
 
   const [initiale, setInitiale] = useState<BrancheInitiale | undefined>(
     brancheInitiale ??
@@ -187,6 +203,27 @@ export function ModaleCompetence({
 
         {phase === "formulaire" && (
           <div className="space-y-4">
+            {pistesGlobales.length > 0 && (
+              <div className="rounded-xl border border-bordure bg-surface-2/40 p-3.5">
+                <p className="text-xs font-semibold text-texte">Besoin d’une piste ?</p>
+                <p className="mt-1 text-xs leading-relaxed text-texte-discret">
+                  Choisis un repère connu ; il préremplit le sujet, sans rien ajouter à ton référentiel.
+                </p>
+                <div className="mt-2.5 flex flex-wrap gap-1.5">
+                  {pistesGlobales.slice(0, 6).map((piste) => (
+                    <button
+                      key={piste.id}
+                      type="button"
+                      onClick={() => choisirPisteGlobale(piste)}
+                      className="rounded-lg border border-bordure bg-surface px-2.5 py-1.5 text-left text-xs text-texte-attenue transition-colors hover:border-primaire/50 hover:text-primaire"
+                    >
+                      {piste.nom}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Volet suggestion du tuteur (repliable et épuré) */}
             {!venuDuTuteur && (
               <div className="rounded-xl border border-bordure bg-surface-2/40 p-3.5">

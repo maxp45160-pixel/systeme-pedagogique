@@ -94,6 +94,8 @@ function construireCtxDeTest(
         id: "test",
         prenom: "Test",
         formation: "BUT QLIO",
+        objectifMoyenTerme: "Objectif à moyen terme à renseigner",
+        objectifLongTerme: "Objectif à long terme à renseigner",
         debutSuivi: now.toISOString(),
       },
       observations: [],

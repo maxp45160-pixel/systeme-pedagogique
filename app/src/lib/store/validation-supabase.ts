@@ -415,6 +415,8 @@ export function validerUser(valeur: unknown, chemin = "profile"): User {
   texte(user.prenom, `${chemin}.prenom`);
   optionnel(user, "avatarUrl", chemin, texte);
   texte(user.formation, `${chemin}.formation`);
+  texte(user.objectifMoyenTerme, `${chemin}.objectifMoyenTerme`);
+  texte(user.objectifLongTerme, `${chemin}.objectifLongTerme`);
   date(user.debutSuivi, `${chemin}.debutSuivi`);
   optionnel(user, "preferencesPedagogiques", chemin, textes);
   return user as unknown as User;

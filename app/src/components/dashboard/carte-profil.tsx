@@ -27,8 +27,8 @@ export function CarteProfil({ user }: { user: User }) {
       <div className="px-5 py-4 space-y-3">
         {p.vide ? (
           <p className="text-xs leading-relaxed text-texte-attenue">
-            Rien n&apos;a encore été déclaré. Renseignez votre point de départ ici, puis créez
-            vos objectifs structurés dans Twiny.
+            Rien n&apos;a encore été déclaré. Votre objectif sera formulé au démarrage, puis utilisé
+            automatiquement pour calibrer les exercices.
           </p>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 text-xs">
@@ -43,10 +43,10 @@ export function CarteProfil({ user }: { user: User }) {
 
             <div className="rounded-lg bg-surface-2/40 border border-bordure/60 p-3 space-y-1">
               <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret block">
-                Objectifs structurés
+                Intention déclarée
               </span>
               <p className="text-texte-attenue leading-snug">
-                À gérer dans Twiny, avec une cible et un horizon explicites.
+                {p.objectifMoyenTerme || p.objectifLongTerme || "Non renseignée"}
               </p>
             </div>
 

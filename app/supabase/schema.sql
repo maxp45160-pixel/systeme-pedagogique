@@ -27,6 +27,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   prenom                    TEXT NOT NULL DEFAULT 'Utilisateur',
   avatar_url                TEXT,
   formation                 TEXT NOT NULL DEFAULT 'Formation à renseigner',
+  objectif_moyen_terme      TEXT NOT NULL DEFAULT 'Objectif à moyen terme à renseigner',
+  objectif_long_terme       TEXT NOT NULL DEFAULT 'Objectif à long terme à renseigner',
   debut_suivi               TEXT NOT NULL DEFAULT CURRENT_DATE::text,
   preferences_pedagogiques  TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
   created_at                TIMESTAMPTZ NOT NULL DEFAULT NOW(),

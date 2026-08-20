@@ -14,11 +14,6 @@ import { CarteCarriere } from "@/components/progression/carte-carriere";
 import { BilanCroissanceLie } from "@/components/progression/bilan-croissance-lie";
 import { Glossaire } from "@/components/ui/glossaire";
 import { TitreSection } from "@/components/ui/primitives";
-import {
-  ExplorerCarteGlobale,
-  GestionObjectifsParcours,
-  NavigationTwiny,
-} from "@/components/progression/gestion-twiny";
 
 /**
  * Le profil : ce que la pratique a totalisé, et ce qu'elle a produit récemment.
@@ -119,8 +114,6 @@ async function ContenuProgression() {
 
   return (
     <div className="space-y-6 [&>*]:min-w-0">
-      <NavigationTwiny />
-
       <section id="bilan" className="scroll-mt-6">
       <CarteCarriere
         user={ctx.donnees.user}
@@ -135,22 +128,6 @@ async function ContenuProgression() {
       <CarteEtatGlobal global={ctx.global} etats={ctx.etats} />
 
       </section>
-
-      <ExplorerCarteGlobale
-        carte={ctx.carteGlobale}
-        selections={ctx.carteIndividuelle.selectionsGlobales}
-        correspondances={ctx.carteIndividuelle.correspondancesGlobales}
-        competences={ctx.referentiel.skills}
-      />
-
-      <GestionObjectifsParcours
-        carte={ctx.carteGlobale}
-        domaines={ctx.referentiel.domaines}
-        competences={ctx.referentiel.skills}
-        objectifs={ctx.carteIndividuelle.objectifs}
-        parcours={ctx.carteIndividuelle.parcours}
-        sessions={ctx.donnees.sessions}
-      />
 
       {/*
         Le bilan de croissance, repris de l'accueil de l'Atelier : ce que la

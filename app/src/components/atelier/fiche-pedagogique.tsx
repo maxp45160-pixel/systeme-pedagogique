@@ -395,7 +395,7 @@ function VueCompetence({
           </div>
 
           <div className="rounded-xl border border-bordure bg-surface p-5 shadow-[var(--ombre-posee)]">
-            <h3 className="font-serif text-lg font-medium">Parcours</h3>
+            <h3 className="font-serif text-lg font-medium">Évolution de la compétence</h3>
             <p className="mt-1 text-xs text-texte-discret">
               Ce que chaque observation a changé, rejoué depuis le journal.
             </p>

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { cx } from "@/components/ui/primitives";
 import type { VueDomaineAtelier } from "@/lib/documents/vue-atelier";
+import type { ElementGlobal } from "@/lib/domain/carte-globale";
 import { ModaleCompetence } from "@/components/referentiel/modale-competence";
 import {
   BoutonSuppressionCarte,
@@ -118,6 +119,7 @@ export function VueTousLesDomaines({
   onArchiver,
   onRestaurer,
   onSupprimer,
+  pistesGlobales = [],
 }: {
   domaines: VueDomaineAtelier[];
   ouvrirElement: (id: string) => void;
@@ -130,6 +132,8 @@ export function VueTousLesDomaines({
   onArchiver?: (domaineId: string) => void;
   onRestaurer?: (domaineId: string) => void;
   onSupprimer?: (domaineId: string) => void;
+  /** Repères proposés uniquement au moment de créer une branche locale. */
+  pistesGlobales?: ElementGlobal[];
 }) {
   const router = useRouter();
   const [modaleCreationOuverte, setModaleCreationOuverte] = useState(false);
@@ -325,6 +329,7 @@ export function VueTousLesDomaines({
         <ModaleCompetence
           compteId={compteId}
           domainesExistants={domainesExistants}
+          pistesGlobales={pistesGlobales}
           onFermer={() => setModaleCreationOuverte(false)}
           surEnregistre={() => {
             setModaleCreationOuverte(false);

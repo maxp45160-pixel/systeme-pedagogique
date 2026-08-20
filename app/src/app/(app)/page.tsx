@@ -7,11 +7,6 @@ import { SquelettePage } from "@/components/layout/squelette";
 import { calculerActivite } from "@/lib/engine/historique";
 import { CarteSeanceActive } from "@/components/dashboard/carte-seance-active";
 import { CarteProchaineAction } from "@/components/dashboard/prochaine-action";
-import { PilotageTwiny } from "@/components/dashboard/pilotage-twiny";
-import { CaptureNotes } from "@/components/dashboard/capture-notes";
-import { ChoixTravail } from "@/components/dashboard/choix-travail";
-import { lireApercusDocuments } from "@/lib/store/documents";
-import { recommanderActionsDocumentaires } from "@/lib/documents/recommandations";
 import { IconeFleche } from "@/components/ui/icones";
 import { BandeauInfo, Bouton, classesLienBouton } from "@/components/ui/primitives";
 import { abandonnerExercice } from "@/lib/store/actions";
@@ -56,10 +51,7 @@ async function ContenuTableauDeBord({
   instant: ContexteInstant;
   dateJour: string;
 }) {
-  const [ctx, aperçusDocuments] = await Promise.all([
-    chargerContexte(),
-    lireApercusDocuments(),
-  ]);
+  const ctx = await chargerContexte();
 
   // Compte neuf : il n'y a rien à mettre sur ce tableau de bord, et une grille
   // de tirets ne dit pas quoi faire. On envoie construire le référentiel — la
@@ -69,8 +61,6 @@ async function ContenuTableauDeBord({
   }
 
   const action = await chargerActionProposee(ctx, instant);
-  const recommandationsDocumentaires = recommanderActionsDocumentaires(aperçusDocuments);
-
   const activite = calculerActivite(
     ctx.donnees.sessions,
     ctx.now,
@@ -189,12 +179,6 @@ async function ContenuTableauDeBord({
         </BandeauInfo>
       )}
 
-      <PilotageTwiny
-        carte={ctx.carteIndividuelle}
-        espace={ctx.espaceActif}
-        recommandation={ctx.recommandations[0]}
-      />
-
       {/* Action prioritaire (reprise de séance ou action recommandée) */}
       <div className="[&>*]:min-w-0">
         {seanceActive ? (
@@ -216,18 +200,10 @@ async function ContenuTableauDeBord({
             }
             facteursInstant={action?.facteurs ?? []}
             reservesInstant={action?.reserves ?? []}
-            carteIndividuelle={ctx.carteIndividuelle}
-            espaceActif={ctx.espaceActif}
           />
         )}
       </div>
 
-
-      {/* Actions secondaires rapides */}
-      <div className="grid gap-3 sm:gap-4 lg:grid-cols-2 [&>*]:min-w-0">
-        <ChoixTravail compteId={ctx.donnees.user.id} />
-        <CaptureNotes recommandations={recommandationsDocumentaires} />
-      </div>
 
       {/* Bandeau d'état du diagnostic et repère de progression */}
       {aucuneObservation ? (

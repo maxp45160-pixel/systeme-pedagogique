@@ -181,6 +181,8 @@ describe("profil", () => {
     id: "compte-1",
     prenom: "alice",
     formation: "Formation à renseigner",
+    objectifMoyenTerme: "Objectif à moyen terme à renseigner",
+    objectifLongTerme: "Objectif à long terme à renseigner",
     debutSuivi: "2026-07-26",
     preferencesPedagogiques: [],
   };
@@ -204,6 +206,8 @@ describe("profil", () => {
         id: "compte-1",
         prenom: "Maxime",
         formation: "BUT QLIO",
+        objectif_moyen_terme: "Objectif moyen terme",
+        objectif_long_terme: "Objectif long terme",
         debut_suivi: "2026-07-24",
         preferences_pedagogiques: ["Calcul manuel + Python"],
       },
@@ -213,6 +217,8 @@ describe("profil", () => {
       id: "compte-1",
       prenom: "Maxime",
       formation: "BUT QLIO",
+      objectifMoyenTerme: "Objectif moyen terme",
+      objectifLongTerme: "Objectif long terme",
       debutSuivi: "2026-07-24",
       preferencesPedagogiques: ["Calcul manuel + Python"],
     });
@@ -223,6 +229,8 @@ describe("profil", () => {
       id: "compte-1",
       prenom: "Alice",
       formation: "Formation",
+      objectif_moyen_terme: "Objectif moyen terme",
+      objectif_long_terme: "Objectif long terme",
       debut_suivi: "2026-07-26",
       preferences_pedagogiques: [],
     };
@@ -247,6 +255,8 @@ describe("charge utile de charger_tout", () => {
     id: "compte-1",
     prenom: "alice",
     formation: "Formation à renseigner",
+    objectifMoyenTerme: "Objectif à moyen terme à renseigner",
+    objectifLongTerme: "Objectif à long terme à renseigner",
     debutSuivi: "2026-07-26",
     preferencesPedagogiques: [],
   };
@@ -256,6 +266,8 @@ describe("charge utile de charger_tout", () => {
       id: "compte-1",
       prenom: "Maxime",
       formation: "BUT QLIO",
+      objectif_moyen_terme: "Objectif moyen terme",
+      objectif_long_terme: "Objectif long terme",
       debut_suivi: "2026-07-24",
       preferences_pedagogiques: [],
     },

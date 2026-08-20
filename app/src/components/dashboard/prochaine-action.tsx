@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Recommandation } from "@/lib/engine/recommend";
-import { AUTONOMIE, DIFFICULTES, type Referentiel } from "@/lib/domain/types";
+import { DIFFICULTES, type Referentiel } from "@/lib/domain/types";
 import { libelleDomaine } from "@/lib/domain/referentiel-compte";
 import {
   idDocumentDepuisActivite,
@@ -14,11 +14,10 @@ import {
   CodeCompetence,
   Etiquette,
   EtatVide,
-  JaugeNiveau,
 } from "@/components/ui/primitives";
 import { Depliant } from "@/components/ui/explication";
 import { IconeFeuille, IconeFleche } from "@/components/ui/icones";
-import { formatDateCourte, formatDuree } from "@/lib/engine/dates";
+import { formatDuree } from "@/lib/engine/dates";
 import { BoutonRefusRecommandation } from "@/components/dashboard/refus-recommandation";
 import { FeedbackRecommandation } from "@/components/dashboard/feedback-recommandation";
 import { demarrerExerciceEnFocus } from "@/lib/store/seance-actions";
@@ -31,11 +30,6 @@ import type {
   RecommendationFactor,
   RecommendedLearningAction,
 } from "@/lib/domain/adaptive-learning";
-import type {
-  CarteIndividuelle,
-  EspaceActif,
-  RecommandationAdaptee,
-} from "@/lib/engine/vues-twiny";
 
 /**
  * Ce que l'arbitrage à l'instant T a pesé, et ce qu'il ne prétend pas savoir.
@@ -69,90 +63,6 @@ function BlocInstant({
       )}
       {reserves.map((reserve, i) => (
         <p key={i} className="mt-1 text-texte-discret">
-          {reserve}
-        </p>
-      ))}
-    </div>
-  );
-}
-
-function estRecommandationAdaptee(
-  recommandation: Recommandation,
-): recommandation is RecommandationAdaptee {
-  return "prioriteLot5" in recommandation && "reservesLot5" in recommandation;
-}
-
-function libelleResultat(resultat: "reussi" | "partiel" | "echec"): string {
-  return resultat === "reussi" ? "Réussie" : resultat === "partiel" ? "Partielle" : "À revoir";
-}
-
-function BlocEspaceActif({ espace }: { espace?: EspaceActif }) {
-  if (!espace) return null;
-  const originePrioritaire = espace.elements.find(
-    (element) => element.origine === "parcours" || element.origine === "objectif",
-  );
-  const origineLibelle = originePrioritaire?.origine === "parcours" ? "un parcours actif" : "un objectif actif";
-
-  return (
-    <div className="mt-3 border-t border-bordure/60 pt-2">
-      <p className="mb-1.5 text-texte-attenue">
-        Votre espace actif · {espace.elements.length} élément{espace.elements.length > 1 ? "s" : ""} sur {espace.limite}
-      </p>
-      {originePrioritaire && (
-        <p className="mb-2 text-texte-attenue">
-          Priorité expliquée par {origineLibelle}.{" "}
-          <Link href={`/progression#${originePrioritaire.origine === "objectif" ? "objectifs" : "parcours"}`} className="font-medium text-primaire hover:underline">
-            Gérer cette priorité
-          </Link>
-        </p>
-      )}
-      {espace.elements.length > 0 ? (
-        <ol className="space-y-1">
-          {espace.elements.slice(0, 5).map((element, index) => {
-            const codeCompetence =
-              element.type === "competence-locale" && element.actionnable ? element.codeCompetence : null;
-            const contenu = (
-              <>
-                <span className="mr-1.5 text-texte-discret">{index + 1}.</span>
-                <span className="font-medium">{element.libelle}</span>
-                <span className="ml-1.5 text-texte-discret">
-                  {element.type === "element-global"
-                    ? "repère global"
-                    : element.origine === "parcours"
-                      ? "parcours actif"
-                      : element.origine === "objectif"
-                        ? "objectif actif"
-                        : "référentiel local"}
-                </span>
-              </>
-            );
-
-            return (
-              <li key={element.cle} className="text-texte-attenue">
-                {codeCompetence ? (
-                  <Link
-                    href={`/atelier?document=${encodeURIComponent(codeCompetence)}`}
-                    className="hover:text-primaire"
-                  >
-                    {contenu}
-                  </Link>
-                ) : (
-                  <span>{contenu}</span>
-                )}
-              </li>
-            );
-          })}
-        </ol>
-      ) : (
-        <p className="text-texte-discret">Aucun élément actif pour le moment.</p>
-      )}
-      {espace.elements.length > 5 && (
-        <p className="mt-1 text-texte-discret">
-          {espace.elements.length - 5} autre{espace.elements.length - 5 > 1 ? "s" : ""} élément{espace.elements.length - 5 > 1 ? "s" : ""} restent dans cet espace.
-        </p>
-      )}
-      {espace.reserves.map((reserve) => (
-        <p key={reserve} className="mt-1 text-texte-discret">
           {reserve}
         </p>
       ))}
@@ -202,8 +112,6 @@ export function CarteProchaineAction({
   activite,
   facteursInstant = [],
   reservesInstant = [],
-  carteIndividuelle,
-  espaceActif,
 }: {
   recommandations: readonly Recommandation[];
   referentiel: Referentiel;
@@ -223,8 +131,6 @@ export function CarteProchaineAction({
   activite?: RecommendedLearningAction;
   facteursInstant?: readonly RecommendationFactor[];
   reservesInstant?: readonly string[];
-  carteIndividuelle?: CarteIndividuelle;
-  espaceActif?: EspaceActif;
 }) {
   const [principale, ...alternatives] = recommandations;
 
@@ -263,10 +169,6 @@ export function CarteProchaineAction({
 
   const { etat, exercice, raison, difficulteCible, dureeEstimeeMin } = principale;
   const revision = prochaineRevision(etat, now);
-  const etatLot5 = carteIndividuelle?.competencesLocales.find((item) => item.code === etat.skill.code);
-  const recommandationAdaptee = estRecommandationAdaptee(principale) ? principale : null;
-  const observationPonctuelle = etatLot5?.observationPonctuelle;
-  const etatConsolide = etatLot5?.etatConsolide ?? etat;
 
   return (
     <Carte accent className="relative overflow-hidden">
@@ -313,43 +215,6 @@ export function CarteProchaineAction({
 
         <p className="mt-1 max-w-2xl text-xs sm:text-sm text-texte-attenue">{raison}</p>
 
-        <div className="mt-2.5 rounded-lg border border-bordure bg-surface-2 px-3 py-2 text-xs">
-          <div className="flex items-center justify-between gap-3">
-            <span className="font-medium truncate">{etat.skill.intitule}</span>
-            <div className="w-16 shrink-0">
-              <JaugeNiveau niveau={etatConsolide.niveau} taille="compacte" />
-            </div>
-          </div>
-          <div className="mt-2 grid gap-2 border-t border-bordure/60 pt-2 sm:grid-cols-3">
-            <div className="min-w-0">
-              <span className="block text-[0.625rem] font-semibold uppercase tracking-wide text-texte-discret">
-                Observation ponctuelle
-              </span>
-              <span className="mt-0.5 block truncate text-texte-attenue">
-                {observationPonctuelle
-                  ? `${formatDateCourte(observationPonctuelle.date)} · ${libelleResultat(observationPonctuelle.resultat)} · ${AUTONOMIE[observationPonctuelle.autonomie].libelle}`
-                  : "Non mesurée"}
-              </span>
-            </div>
-            <div className="min-w-0">
-              <span className="block text-[0.625rem] font-semibold uppercase tracking-wide text-texte-discret">
-                État consolidé
-              </span>
-              <span className="mt-0.5 block truncate text-texte-attenue">
-                {etatConsolide.niveau === null ? "Non mesuré" : `Niveau ${etatConsolide.niveau}/5 · confiance ${etatConsolide.confiance}`}
-              </span>
-            </div>
-            <div className="min-w-0">
-              <span className="block text-[0.625rem] font-semibold uppercase tracking-wide text-texte-discret">
-                Maîtrise
-              </span>
-              <span className="mt-0.5 block truncate text-texte-attenue" title={etatLot5?.maitrise.manque ?? undefined}>
-                {etatLot5?.maitrise.maitrisee ? "Établie" : "Non établie"}
-              </span>
-            </div>
-          </div>
-        </div>
-
         <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2.5 border-t border-bordure/60 pt-2.5">
           <div className="flex flex-wrap items-center gap-2">
             {actionPrincipale ?? (exercice ? (
@@ -392,18 +257,6 @@ export function CarteProchaineAction({
                 </ul>
 
                 <BlocInstant facteurs={facteursInstant} reserves={reservesInstant} />
-
-                {recommandationAdaptee && (
-                  <div className="mt-2.5 border-t border-bordure/60 pt-1.5">
-                    <p className="mb-1 text-texte-attenue">Priorité adaptée :</p>
-                    <p className="text-texte-attenue">{recommandationAdaptee.prioriteLot5.explication}</p>
-                    {recommandationAdaptee.reservesLot5.map((reserve) => (
-                      <p key={reserve} className="mt-1 text-texte-discret">{reserve}</p>
-                    ))}
-                  </div>
-                )}
-
-                <BlocEspaceActif espace={espaceActif} />
 
                 {principale.calibration && principale.calibration.verdicts.length > 0 && (
                   <div className="mt-2.5 border-t border-bordure/60 pt-1.5">

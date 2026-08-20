@@ -64,7 +64,7 @@ export function FormulaireProfil({
         <div>
           <h3 className="text-sm font-semibold text-texte">Point de départ et méthode</h3>
           <p className="text-xs text-texte-attenue">
-            Les objectifs structurés se gèrent dans Twiny, avec un repère et un horizon explicites.
+            Vos objectifs ont été formulés au démarrage. Ici, vous pouvez seulement corriger le contexte d&apos;apprentissage.
           </p>
         </div>
         <Etiquette ton={estRenseigne ? "succes" : "info"}>

@@ -1174,15 +1174,17 @@ alignées avec `app/supabase/schema.sql` :
    correspondances privées ;
 2. `20260820193000_twiny_lot_7_observations_append_only.sql` — politiques
    lecture/insert, trigger de refus et purge contrôlée ;
-3. `20260820194000_twiny_lot_7_remove_profile_legacy_objectives.sql` — retrait
-   des trois colonnes historiques et remplacement de `admin_comptes()`.
+3. `20260820194000_twiny_lot_7_remove_profile_legacy_objectives.sql` — maintien
+   des objectifs textuels du profil et remplacement de `admin_comptes()`.
 
 Les deux premières migrations additives sont appliquées sur le projet distant :
 `twiny_lot_7_correspondances_relations` et
 `twiny_lot_7_observations_append_only`. Elles ont été vérifiées avec les
 compteurs historiques inchangés et les refus `UPDATE`/`DELETE` des Observations.
-La troisième migration, destructive pour les anciens champs de profil, reste
-en attente du déploiement du nouveau code.
+La troisième migration a été rendue compatible avant publication : elle ne
+supprime plus les objectifs déclarés dans `profiles`, désormais utilisés par
+le moteur pour calibrer les recommandations internes. Elle conserve uniquement
+la mise à jour de `admin_comptes()`.
 
 **Catalogue global : proposition, pas publication.** Le catalogue distant est
 encore vide ; aucun contenu n'a été inventé ni semé silencieusement. La

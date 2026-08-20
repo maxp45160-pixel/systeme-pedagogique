@@ -1,8 +1,9 @@
 /**
- * Projection des seules déclarations encore portées par le profil de compte.
+ * Projection des déclarations textuelles portées par le profil de compte.
  *
- * Les objectifs structurés vivent dans `objectifs` et les chemins dans
- * `parcours`. Le profil ne doit donc plus les recopier sous forme de texte.
+ * Les objectifs moyen/long terme restent la formulation humaine de départ.
+ * Le moteur peut en dériver une priorité interne ; il ne transforme pas cette
+ * déclaration en écran de gestion.
  */
 
 import type { User } from "./types";
@@ -19,20 +20,30 @@ export function valeurDeclaree(valeur: string | undefined | null): string | null
 
 export interface ProfilDeclare {
   formation: string | null;
+  objectifMoyenTerme: string | null;
+  objectifLongTerme: string | null;
   preferencesPedagogiques: string[];
   vide: boolean;
 }
 
 export function profilDeclare(user: User): ProfilDeclare {
   const formation = valeurDeclaree(user.formation);
+  const objectifMoyenTerme = valeurDeclaree(user.objectifMoyenTerme);
+  const objectifLongTerme = valeurDeclaree(user.objectifLongTerme);
   const preferencesPedagogiques = (user.preferencesPedagogiques ?? [])
     .map((p) => p.trim())
     .filter((p) => p.length > 0);
 
   return {
     formation,
+    objectifMoyenTerme,
+    objectifLongTerme,
     preferencesPedagogiques,
-    vide: !formation && preferencesPedagogiques.length === 0,
+    vide:
+      !formation
+      && !objectifMoyenTerme
+      && !objectifLongTerme
+      && preferencesPedagogiques.length === 0,
   };
 }
 
@@ -48,6 +59,8 @@ export function serialiserProfilDeclare(user: User): string {
   }
 
   lignes.push(`Formation ou point de départ : ${p.formation ?? "non déclaré — à demander"}`);
+  lignes.push(`Objectif à moyen terme : ${p.objectifMoyenTerme ?? "non déclaré — à demander"}`);
+  lignes.push(`Objectif à long terme : ${p.objectifLongTerme ?? "non déclaré"}`);
   lignes.push(
     "Les lignes ci-dessus sont les déclarations du compte. Ce qui est non déclaré ne doit pas être supposé.",
   );
