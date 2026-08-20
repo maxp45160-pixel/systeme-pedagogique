@@ -31,8 +31,7 @@ import {
   extrairePropositionsReferentiel,
   type PropositionReferentiel,
 } from "@/lib/tutor/proposition";
-import { ModaleCompetence } from "@/components/referentiel/modale-competence";
-import type { BrancheInitiale } from "@/components/referentiel/validation-branche";
+import { ModaleCompetence, type BrancheInitiale } from "@/components/referentiel/modale-competence";
 import { ModaleExercice } from "@/components/exercices/modale-exercice";
 import type { PropositionExercice } from "@/lib/tutor/proposition";
 import { convertirProposition } from "@/lib/tutor/conversion-exercice";

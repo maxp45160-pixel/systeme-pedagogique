@@ -3,7 +3,7 @@
 import type { ResumeCroissance, FenetreCroissance } from "@/lib/engine/croissance";
 import { EnsemblesSuggeres } from "@/components/atelier/ensembles-suggeres";
 import type { EnsemblePropose } from "@/lib/engine/ensembles";
-import { CodeCompetence, Etiquette, cx } from "@/components/ui/primitives";
+import { Carte, CodeCompetence, Etiquette, cx } from "@/components/ui/primitives";
 import { formatDateRelative, formatDuree } from "@/lib/engine/dates";
 
 /**
@@ -72,12 +72,7 @@ function CarteFenetre({ fenetre, accent = false }: { fenetre: FenetreCroissance;
   const rien = fenetre.observations === 0 && fenetre.exercicesMenes === 0 && fenetre.minutes === 0;
 
   return (
-    <div
-      className={cx(
-        "rounded-xl border bg-surface p-5 shadow-[var(--ombre-posee)]",
-        accent ? "border-primaire/35" : "border-bordure",
-      )}
-    >
+    <Carte accent={accent} className="p-5">
       <p className={cx("text-xs font-semibold uppercase tracking-wider", accent ? "text-primaire" : "text-texte-discret")}>
         {fenetre.libelle}
       </p>
@@ -102,7 +97,7 @@ function CarteFenetre({ fenetre, accent = false }: { fenetre: FenetreCroissance;
           )}
         </>
       )}
-    </div>
+    </Carte>
   );
 }
 

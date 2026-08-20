@@ -4,7 +4,7 @@ import type { User } from "@/lib/domain/types";
 import type { IdentiteUtilisateur } from "@/lib/domain/identite";
 import { profilDeclare } from "@/lib/domain/profil";
 import { formatDuree } from "@/lib/engine/dates";
-import { TagConfiance, cx } from "@/components/ui/primitives";
+import { Carte, TagConfiance, cx } from "@/components/ui/primitives";
 
 /**
  * L'en-tête du profil : qui, depuis quand, et ce que ça totalise.
@@ -37,7 +37,7 @@ export function CarteCarriere({
   const initiale = identite?.initiale ?? (nom.charAt(0).toUpperCase() || "P");
 
   return (
-    <section className="overflow-hidden rounded-xl border border-bordure bg-surface shadow-[var(--ombre-posee)]">
+    <Carte className="overflow-hidden">
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-bordure bg-surface-2/40 px-5 py-5 sm:px-6">
         <div className="flex min-w-0 items-center gap-4">
           {avatarUrl ? (
@@ -114,7 +114,7 @@ export function CarteCarriere({
           {carriere.joursDepuisDebut > 1 ? "s" : ""}
         </p>
       )}
-    </section>
+    </Carte>
   );
 }
 

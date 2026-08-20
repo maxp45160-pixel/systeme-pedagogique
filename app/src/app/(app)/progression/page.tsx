@@ -114,19 +114,18 @@ async function ContenuProgression() {
 
   return (
     <div className="space-y-6 [&>*]:min-w-0">
-      <section id="bilan" className="scroll-mt-6">
-      <CarteCarriere
-        user={ctx.donnees.user}
-        identite={identite}
-        carriere={carriere}
-        global={ctx.global}
-      />
+      <section id="bilan" className="scroll-mt-6 space-y-6">
+        <CarteCarriere
+          user={ctx.donnees.user}
+          identite={identite}
+          carriere={carriere}
+          global={ctx.global}
+        />
 
-      {/* Une année pleine, étalée sur toute la largeur de la carte. */}
-      <CarteActivite activite={activite} now={ctx.now} semaines={52} cellule={16} />
+        {/* Une année pleine, étalée sur toute la largeur de la carte. */}
+        <CarteActivite activite={activite} now={ctx.now} semaines={52} cellule={16} />
 
-      <CarteEtatGlobal global={ctx.global} etats={ctx.etats} />
-
+        <CarteEtatGlobal global={ctx.global} etats={ctx.etats} />
       </section>
 
       {/*
