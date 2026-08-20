@@ -120,6 +120,39 @@ export async function etatRetraitTheme(id: string): Promise<EtatRetraitTheme> {
   return { seances, mode: modeRetrait(seances) };
 }
 
+export async function archiverTheme(id: string): Promise<void> {
+  const dorsale = await dorsaleCompte();
+  const { error } = await dorsale.supabase
+    .from("themes")
+    .update({ archive: true, modifie_le: new Date().toISOString() })
+    .eq("user_id", dorsale.userId)
+    .eq("id", id);
+  verifier("archivage du thème", error);
+  revalidatePath("/", "layout");
+}
+
+export async function restaurerTheme(id: string): Promise<void> {
+  const dorsale = await dorsaleCompte();
+  const { error } = await dorsale.supabase
+    .from("themes")
+    .update({ archive: false, modifie_le: new Date().toISOString() })
+    .eq("user_id", dorsale.userId)
+    .eq("id", id);
+  verifier("restauration du thème", error);
+  revalidatePath("/", "layout");
+}
+
+export async function supprimerTheme(id: string): Promise<void> {
+  const dorsale = await dorsaleCompte();
+  const { error } = await dorsale.supabase
+    .from("themes")
+    .delete()
+    .eq("user_id", dorsale.userId)
+    .eq("id", id);
+  verifier("suppression définitive du thème", error);
+  revalidatePath("/", "layout");
+}
+
 /**
  * Retire un thème — supprimé si aucune séance ne le cite, archivé sinon.
  *
@@ -149,3 +182,4 @@ export async function retirerTheme(id: string): Promise<EtatRetraitTheme> {
   revalidatePath("/", "layout");
   return { seances, mode };
 }
+

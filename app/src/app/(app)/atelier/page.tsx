@@ -202,35 +202,33 @@ export default async function PageAtelier(props: {
     };
   });
 
-  const projectionsThemes: ElementAtelier[] = themes
-    .filter((theme) => !theme.archive)
-    .map((theme) => ({
-      id: `theme:${theme.id}`,
-      titre: theme.libelle,
-      type: "theme",
-      typeLibelle: "Thème",
-      categorie: "connaissance",
-      rangement: rangementTheme(),
-      contenuMd: [
-        `# ${theme.libelle}`,
-        "",
-        "> Projection en lecture seule du thème enregistré.",
-        "",
-        theme.intention ? `> Intention : ${theme.intention}` : "",
-        theme.codes.length ? "## Compétences couvertes" : "",
-        ...theme.codes.map((code) => `- [[${code}]]`),
-      ].filter(Boolean).join("\n"),
-      contenuCharge: true,
-      frontMatter: {},
-      liens: theme.codes.map((cible) => ({ cible })),
-      sortants: theme.codes,
-      entrants: [],
-      snapshots: [],
-      tentatives: [],
-      source: "projection",
-      lectureSeule: true,
-      vuePedagogique: vuesThemes.get(theme.id),
-    }));
+  const projectionsThemes: ElementAtelier[] = themes.map((theme) => ({
+    id: `theme:${theme.id}`,
+    titre: theme.libelle,
+    type: "theme",
+    typeLibelle: "Thème",
+    categorie: "connaissance",
+    rangement: rangementTheme(),
+    contenuMd: [
+      `# ${theme.libelle}`,
+      "",
+      "> Projection en lecture seule du thème enregistré.",
+      "",
+      theme.intention ? `> Intention : ${theme.intention}` : "",
+      theme.codes.length ? "## Compétences couvertes" : "",
+      ...theme.codes.map((code) => `- [[${code}]]`),
+    ].filter(Boolean).join("\n"),
+    contenuCharge: true,
+    frontMatter: { archive: Boolean(theme.archive) },
+    liens: theme.codes.map((cible) => ({ cible })),
+    sortants: theme.codes,
+    entrants: [],
+    snapshots: [],
+    tentatives: [],
+    source: "projection",
+    lectureSeule: true,
+    vuePedagogique: vuesThemes.get(theme.id),
+  }));
 
   const projectionsDomaines: ElementAtelier[] = vues.domaines
     .filter((vue) => domainesVisibles.has(vue.id) || vue.domaine.archive)

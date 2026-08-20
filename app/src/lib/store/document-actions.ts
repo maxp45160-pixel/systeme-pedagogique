@@ -1,6 +1,6 @@
 "use server";
 
-import { creerDepuisTemplate } from "@/lib/documents/markdown";
+import { creerDepuisTemplate, definirArchiveFrontMatter } from "@/lib/documents/markdown";
 import { formatAutorise, type RoleNote } from "@/lib/documents/roles-note";
 import { creerDocument, lireDocument, modifierDocument, supprimerDocument } from "./documents";
 import { dorsaleCompte, nouvelId } from "./db";
@@ -96,6 +96,18 @@ export async function supprimerNoteSupportAction(id: string): Promise<void> {
 
 export async function supprimerDocumentAction(id: string): Promise<void> {
   await supprimerDocument(id);
+}
+
+export async function archiverDocumentAction(id: string): Promise<void> {
+  const doc = await lireDocument(id);
+  const nouveauContenu = definirArchiveFrontMatter(doc.contenuMd, true);
+  await modifierDocument(id, nouveauContenu);
+}
+
+export async function restaurerDocumentAction(id: string): Promise<void> {
+  const doc = await lireDocument(id);
+  const nouveauContenu = definirArchiveFrontMatter(doc.contenuMd, false);
+  await modifierDocument(id, nouveauContenu);
 }
 
 export async function preparerTeleversementPdfAction(

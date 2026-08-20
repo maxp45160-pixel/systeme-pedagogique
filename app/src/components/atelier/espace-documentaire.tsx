@@ -374,6 +374,9 @@ export function EspaceDocumentaire({
    */
   const [recherche, setRecherche] = useState("");
   const [triDomaines, setTriDomaines] = useState<TriDomaine>("recent");
+  const [statutFiltre, setStatutFiltre] = useState<"actifs" | "archives">(
+    selectionInitiale === "domaines-archives" ? "archives" : "actifs",
+  );
   const [contexteOuvert, setContexteOuvert] = useState(false);
   const [panneauDroitVisible, setPanneauDroitVisible] = useState(true);
   const [cibleLien, setCibleLien] = useState("");
@@ -507,8 +510,14 @@ export function EspaceDocumentaire({
       if (docParam) {
         const el = trouverElement(docParam, elements);
         setSelection(el ? el.id : docParam);
+        if (docParam === "domaines-archives") {
+          setStatutFiltre("archives");
+        } else if (docParam === "domaines") {
+          setStatutFiltre("actifs");
+        }
       } else {
         setSelection("domaines");
+        setStatutFiltre("actifs");
       }
       setCibleLien("");
       setSnapshotApercu(null);
@@ -531,6 +540,9 @@ export function EspaceDocumentaire({
    */
   function changerVue(vue: VueAtelier) {
     setSelection(vue);
+    if (vue === "domaines") {
+      setStatutFiltre("actifs");
+    }
     setCibleLien("");
     setSnapshotApercu(null);
     window.history.pushState({ documentId: vue }, "", `/atelier?document=${vue}`);
@@ -548,6 +560,40 @@ export function EspaceDocumentaire({
         return { id: v.domaine.id, nom: v.domaine.nom, prefixe: v.domaine.prefixe };
       });
   }, [elements]);
+
+  const vueActuelle =
+    !selection || selection === "domaines" || selection === "domaines-archives"
+      ? "domaines"
+      : selection;
+
+  const { nbActifs, nbArchives } = useMemo(() => {
+    if (vueActuelle === "domaines") {
+      const domainesList = elements.filter((el) => el.type === "domaine" && el.vuePedagogique);
+      const actifs = domainesList.filter(
+        (el) => !(el.vuePedagogique as VueDomaineAtelier).domaine.archive,
+      ).length;
+      const archives = domainesList.filter(
+        (el) => (el.vuePedagogique as VueDomaineAtelier).domaine.archive,
+      ).length;
+      return { nbActifs: actifs, nbArchives: archives };
+    }
+
+    if (vueActuelle === "themes") {
+      const themesList = elements.filter((el) => el.rangement.zone === "theme");
+      const actifs = themesList.filter((el) => !el.frontMatter.archive).length;
+      const archives = themesList.filter((el) => Boolean(el.frontMatter.archive)).length;
+      return { nbActifs: actifs, nbArchives: archives };
+    }
+
+    if (vueActuelle === "ressources") {
+      const resList = elements.filter((el) => el.rangement.zone === "ressource");
+      const actifs = resList.filter((el) => !el.frontMatter.archive).length;
+      const archives = resList.filter((el) => Boolean(el.frontMatter.archive)).length;
+      return { nbActifs: actifs, nbArchives: archives };
+    }
+
+    return { nbActifs: 0, nbArchives: 0 };
+  }, [elements, vueActuelle]);
 
   const competencesParCode = useMemo(() => {
     const map = new Map<string, { intitule: string; domaine: string }>();
@@ -817,23 +863,78 @@ export function EspaceDocumentaire({
         )}
 
         <div className="flex items-center gap-2.5 min-w-0">
-          {!selectionnee && (selection === "domaines" || selection === "domaines-archives" || !selection) && (
-            <div className="flex items-center gap-1.5 shrink-0 text-xs">
-              <label htmlFor="tri-domaines-top" className="text-texte-discret hidden md:inline text-xs">
-                Trier par :
-              </label>
-              <select
-                id="tri-domaines-top"
-                value={triDomaines}
-                onChange={(e) => setTriDomaines(e.target.value as TriDomaine)}
-                className="rounded-lg border border-bordure bg-surface px-2.5 py-1.5 text-xs font-medium text-texte transition-colors hover:border-primaire/40 focus:border-primaire focus:outline-hidden cursor-pointer"
+          {!selectionnee && (vueActuelle === "domaines" || vueActuelle === "themes" || vueActuelle === "ressources") && (
+            <div className="flex items-center gap-2">
+              {vueActuelle === "domaines" && (
+                <div className="flex items-center gap-1.5 shrink-0 text-xs">
+                  <label htmlFor="tri-domaines-top" className="text-texte-discret hidden md:inline text-xs">
+                    Trier par :
+                  </label>
+                  <select
+                    id="tri-domaines-top"
+                    value={triDomaines}
+                    onChange={(e) => setTriDomaines(e.target.value as TriDomaine)}
+                    className="rounded-lg border border-bordure bg-surface px-2.5 py-1.5 text-xs font-medium text-texte transition-colors hover:border-primaire/40 focus:border-primaire focus:outline-hidden cursor-pointer"
+                  >
+                    {Object.entries(LIBELLES_TRIS_DOMAINES).map(([cle, libelle]) => (
+                      <option key={cle} value={cle}>
+                        {libelle}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div
+                className="flex items-center gap-1 rounded-lg border border-bordure bg-surface-2 p-1 text-xs shrink-0"
+                role="tablist"
+                aria-label="Statut"
               >
-                {Object.entries(LIBELLES_TRIS_DOMAINES).map(([cle, libelle]) => (
-                  <option key={cle} value={cle}>
-                    {libelle}
-                  </option>
-                ))}
-              </select>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={statutFiltre === "actifs"}
+                  onClick={() => {
+                    setStatutFiltre("actifs");
+                    if (selection === "domaines-archives") {
+                      changerVue("domaines");
+                    }
+                  }}
+                  className={cx(
+                    "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-all cursor-pointer",
+                    statutFiltre === "actifs"
+                      ? "bg-surface text-primaire shadow-xs font-semibold"
+                      : "text-texte-discret hover:text-texte hover:bg-surface/50",
+                  )}
+                >
+                  <span>Actifs</span>
+                  <span className="rounded-full bg-surface-3 px-1.5 py-0.2 text-[10px] font-mono text-texte-discret">
+                    {nbActifs}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={statutFiltre === "archives"}
+                  onClick={() => {
+                    setStatutFiltre("archives");
+                    if (selection === "domaines" || !selection) {
+                      changerVue("domaines-archives" as VueAtelier);
+                    }
+                  }}
+                  className={cx(
+                    "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-all cursor-pointer",
+                    statutFiltre === "archives"
+                      ? "bg-surface text-primaire shadow-xs font-semibold"
+                      : "text-texte-discret hover:text-texte hover:bg-surface/50",
+                  )}
+                >
+                  <span>Archivés</span>
+                  <span className="rounded-full bg-surface-3 px-1.5 py-0.2 text-[10px] font-mono text-texte-discret">
+                    {nbArchives}
+                  </span>
+                </button>
+              </div>
             </div>
           )}
 
@@ -949,6 +1050,7 @@ export function EspaceDocumentaire({
               compteId={graphe.compteId}
               competencesParCode={competencesParCode}
               domainesExistants={domainesExistants}
+              statut={statutFiltre}
             />
           ) : selection === "ressources" ? (
             <VueRessources
@@ -956,6 +1058,7 @@ export function EspaceDocumentaire({
               ouvrirElement={ouvrirElement}
               changerVue={changerVue}
               competencesParCode={competencesParCode}
+              statut={statutFiltre}
             />
           ) : selection === "domaines" || selection === "domaines-archives" ? (
             <VueTousLesDomaines
@@ -963,7 +1066,7 @@ export function EspaceDocumentaire({
                 .filter((el) => el.type === "domaine" && el.vuePedagogique)
                 .filter((el) => {
                   const vue = el.vuePedagogique as VueDomaineAtelier;
-                  if (selection === "domaines-archives") return vue.domaine.archive;
+                  if (statutFiltre === "archives" || selection === "domaines-archives") return vue.domaine.archive;
                   return !vue.domaine.archive;
                 })
                 .map((el) => el.vuePedagogique as VueDomaineAtelier)}
@@ -972,7 +1075,7 @@ export function EspaceDocumentaire({
                 .map((el) => el.vuePedagogique as VueDomaineAtelier)}
               ouvrirElement={ouvrirElement}
               changerVue={changerVue}
-              selection={selection}
+              selection={statutFiltre === "archives" || selection === "domaines-archives" ? "domaines-archives" : "domaines"}
               compteId={graphe.compteId}
               domainesExistants={domainesExistants}
               tri={triDomaines}
@@ -1642,12 +1745,15 @@ function ResultatsRecherche({
                     <span className="rounded bg-surface-2 px-1.5 py-0.5 font-medium text-texte-attenue">
                       {element.typeLibelle}
                     </span>
-                    {element.vuePedagogique?.kind === "domaine" &&
-                      (element.vuePedagogique as VueDomaineAtelier).domaine.archive && (
-                        <span className="rounded bg-surface-3 px-1.5 py-0.5 text-[10px] font-medium text-texte-discret">
-                          Archivé
-                        </span>
-                      )}
+                    {(element.frontMatter.archive ||
+                      (element.vuePedagogique?.kind === "domaine" &&
+                        (element.vuePedagogique as VueDomaineAtelier).domaine.archive) ||
+                      (element.vuePedagogique?.kind === "theme" &&
+                        Boolean((element.vuePedagogique as { archive?: boolean }).archive))) && (
+                      <span className="rounded bg-surface-3 px-1.5 py-0.5 text-[10px] font-medium text-texte-discret">
+                        Archivé
+                      </span>
+                    )}
                     {element.source === "projection" && (
                       <span className="text-[10px] text-texte-attenue">Lecture seule</span>
                     )}

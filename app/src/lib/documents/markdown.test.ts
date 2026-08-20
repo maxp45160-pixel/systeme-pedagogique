@@ -1,8 +1,33 @@
 import { describe, expect, it } from "vitest";
-import { creerDepuisTemplate, analyserDocumentMarkdown, parserFrontMatter } from "./markdown";
+import {
+  creerDepuisTemplate,
+  analyserDocumentMarkdown,
+  parserFrontMatter,
+  definirArchiveFrontMatter,
+} from "./markdown";
 import { reconstruireIndexDocumentaire, reconstruireIndexDepuisApercus } from "./index";
 
 describe("documents Markdown", () => {
+  it("définit ou met à jour la clé archive dans le front-matter", () => {
+    // Document sans front-matter initial
+    const sansFrontmatter = "# Document brut\n\nCorps du texte";
+    const archive = definirArchiveFrontMatter(sansFrontmatter, true);
+    const parsed1 = analyserDocumentMarkdown("doc-1", archive);
+    expect(parsed1.frontMatter.archive).toBe(true);
+
+    // Document avec frontmatter sans archive
+    const avecFrontmatter = "---\ntype: note\nid: doc-2\n---\n\n# Note\n\nContenu";
+    const archive2 = definirArchiveFrontMatter(avecFrontmatter, true);
+    const parsed2 = analyserDocumentMarkdown("doc-2", archive2);
+    expect(parsed2.frontMatter.archive).toBe(true);
+    expect(parsed2.type).toBe("note");
+
+    // Restauration (archive = false)
+    const desarchive = definirArchiveFrontMatter(archive2, false);
+    const parsed3 = analyserDocumentMarkdown("doc-2", desarchive);
+    expect(parsed3.frontMatter.archive).toBe(false);
+  });
+
   it("parse le front-matter et les wikilinks", () => {
     const contenu = `---
 type: preuve

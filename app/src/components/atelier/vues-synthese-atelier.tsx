@@ -115,7 +115,6 @@ export function VueTousLesDomaines({
   compteId,
   domainesExistants = [],
   tri = "recent",
-  tousLesDomaines,
 }: {
   domaines: VueDomaineAtelier[];
   ouvrirElement: (id: string) => void;
@@ -128,22 +127,11 @@ export function VueTousLesDomaines({
 }) {
   const router = useRouter();
   const [modaleCreationOuverte, setModaleCreationOuverte] = useState(false);
-  const [domaineASupprimer, setDomaineASupprimer] = useState<VueDomaineAtelier | null>(null);
+  const [domaineAArchiver, setDomaineAArchiver] = useState<VueDomaineAtelier | null>(null);
   const [domaineARestaurer, setDomaineARestaurer] = useState<VueDomaineAtelier | null>(null);
+  const [domaineASupprimer, setDomaineASupprimer] = useState<VueDomaineAtelier | null>(null);
 
   const estArchives = selection === "domaines-archives";
-
-  const nombreActifs = tousLesDomaines
-    ? tousLesDomaines.filter((d) => !d.domaine.archive).length
-    : !estArchives
-    ? domaines.length
-    : 0;
-
-  const nombreArchives = tousLesDomaines
-    ? tousLesDomaines.filter((d) => d.domaine.archive).length
-    : estArchives
-    ? domaines.length
-    : 0;
 
   const domainesAffiches = useMemo(() => {
     return filtrerEtTrierDomaines(domaines, { tri });
@@ -152,65 +140,11 @@ export function VueTousLesDomaines({
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-y-auto bg-surface-2/30">
       <div className="p-5 sm:p-6 lg:p-8">
-        {/* Sélecteur de statut : Actifs / Archivés */}
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-bordure pb-4">
-          <div
-            className="flex items-center gap-1 rounded-lg border border-bordure bg-surface-2 p-1 text-xs"
-            role="tablist"
-            aria-label="Statut des domaines"
-          >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={!estArchives}
-              onClick={() => ouvrirElement("domaines")}
-              className={cx(
-                "flex items-center gap-2 rounded-md px-3 py-1.5 font-medium transition-all cursor-pointer",
-                !estArchives
-                  ? "bg-surface text-primaire shadow-xs font-semibold"
-                  : "text-texte-discret hover:text-texte hover:bg-surface/50",
-              )}
-            >
-              <span>Actifs</span>
-              <span className="rounded-full bg-surface-3 px-1.5 py-0.5 text-[10px] font-mono text-texte-discret">
-                {nombreActifs}
-              </span>
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={estArchives}
-              onClick={() => ouvrirElement("domaines-archives")}
-              className={cx(
-                "flex items-center gap-2 rounded-md px-3 py-1.5 font-medium transition-all cursor-pointer",
-                estArchives
-                  ? "bg-surface text-primaire shadow-xs font-semibold"
-                  : "text-texte-discret hover:text-texte hover:bg-surface/50",
-              )}
-            >
-              <span>Archivés</span>
-              <span className="rounded-full bg-surface-3 px-1.5 py-0.5 text-[10px] font-mono text-texte-discret">
-                {nombreArchives}
-              </span>
-            </button>
-          </div>
-
-          {estArchives && (
-            <button
-              type="button"
-              onClick={() => ouvrirElement("domaines")}
-              className="text-xs text-texte-discret hover:text-texte hover:underline cursor-pointer"
-            >
-              ← Revenir aux domaines actifs
-            </button>
-          )}
-        </div>
-
         {estArchives && domainesAffiches.length > 0 && (
           <div className="mb-6 rounded-xl border border-bordure bg-surface p-4 text-xs text-texte-attenue shadow-xs">
             <p className="font-semibold text-texte">Domaines archivés</p>
             <p className="mt-1 leading-relaxed text-texte-discret">
-              Ces domaines et leurs compétences sont retirés du pilotage actif. Toutes les observations d’apprentissage restent conservées en mémoire. Vous pouvez ouvrir un domaine ou le restaurer directement pour le réintégrer.
+              Ces domaines et leurs compétences sont retirés du pilotage actif. Toutes les observations d’apprentissage restent conservées en mémoire. Vous pouvez restaurer un domaine ou le supprimer définitivement s’il ne porte aucun historique à conserver.
             </p>
           </div>
         )}
@@ -232,7 +166,7 @@ export function VueTousLesDomaines({
                   )}
                 >
                   <div>
-                    <div className="flex items-center justify-between gap-3 pr-8">
+                    <div className="flex items-center justify-between gap-3 pr-16">
                       <span
                         className={cx(
                           "rounded-md px-2.5 py-1 text-xs font-semibold",
@@ -283,14 +217,22 @@ export function VueTousLesDomaines({
                 </button>
 
                 {estArchives ? (
-                  <BoutonRestaurationCarte
-                    titre="Restaurer ce domaine"
-                    onClick={() => setDomaineARestaurer(domaine)}
-                  />
+                  <div className="absolute right-3 top-3 z-10 flex items-center gap-1">
+                    <BoutonRestaurationCarte
+                      titre="Restaurer ce domaine"
+                      className="static opacity-0 group-hover:opacity-80 hover:!opacity-100"
+                      onClick={() => setDomaineARestaurer(domaine)}
+                    />
+                    <BoutonSuppressionCarte
+                      titre="Supprimer définitivement ce domaine"
+                      className="static opacity-0 group-hover:opacity-80 hover:!opacity-100"
+                      onClick={() => setDomaineASupprimer(domaine)}
+                    />
+                  </div>
                 ) : (
                   <BoutonSuppressionCarte
                     titre="Archiver ce domaine"
-                    onClick={() => setDomaineASupprimer(domaine)}
+                    onClick={() => setDomaineAArchiver(domaine)}
                   />
                 )}
               </div>
@@ -303,13 +245,6 @@ export function VueTousLesDomaines({
               <p className="mt-1 text-xs text-texte-discret">
                 Tous vos domaines sont actuellement dans votre espace actif.
               </p>
-              <button
-                type="button"
-                onClick={() => ouvrirElement("domaines")}
-                className="mt-4 inline-flex items-center gap-1.5 text-xs font-medium text-primaire hover:underline cursor-pointer"
-              >
-                <span>Revenir aux domaines actifs</span>
-              </button>
             </div>
           )}
 
@@ -323,20 +258,20 @@ export function VueTousLesDomaines({
         </div>
       </div>
 
-      {domaineASupprimer && (
+      {domaineAArchiver && (
         <ModaleConfirmationSuppression
           titre="Archiver le domaine"
-          nomElement={domaineASupprimer.nom}
+          nomElement={domaineAArchiver.nom}
           typeElement="domaine"
           mode="archivage"
           explication="Ce domaine et ses compétences seront retirés du pilotage actif. Toutes les observations d'apprentissage et historiques restent fidèlement conservés dans le système."
           texteBoutonConfirmer="Confirmer l’archivage"
           onConfirmer={async () => {
-            await archiverDomaine(domaineASupprimer.id);
-            setDomaineASupprimer(null);
+            await archiverDomaine(domaineAArchiver.id);
+            setDomaineAArchiver(null);
             router.refresh();
           }}
-          onFermer={() => setDomaineASupprimer(null)}
+          onFermer={() => setDomaineAArchiver(null)}
         />
       )}
 
@@ -354,6 +289,23 @@ export function VueTousLesDomaines({
             router.refresh();
           }}
           onFermer={() => setDomaineARestaurer(null)}
+        />
+      )}
+
+      {domaineASupprimer && (
+        <ModaleConfirmationSuppression
+          titre="Supprimer définitivement le domaine"
+          nomElement={domaineASupprimer.nom}
+          typeElement="domaine"
+          mode="suppression"
+          explication="Cette action supprimera définitivement le domaine et ses compétences du compte. Si un historique ou des dépendances existent, ils seront protégés par les règles du référentiel."
+          texteBoutonConfirmer="Supprimer définitivement"
+          onConfirmer={async () => {
+            await archiverDomaine(domaineASupprimer.id);
+            setDomaineASupprimer(null);
+            router.refresh();
+          }}
+          onFermer={() => setDomaineASupprimer(null)}
         />
       )}
 

@@ -236,3 +236,28 @@ export function creerDepuisTemplate(
     "",
   ].join("\n");
 }
+
+/**
+ * Insère ou met à jour la clé `archive: true/false` dans le frontmatter YAML d'un document Markdown.
+ */
+export function definirArchiveFrontMatter(contenuMd: string, archive: boolean): string {
+  const { frontmatterBrut, corps } = separerFrontMatterEtCorps(contenuMd);
+  if (!frontmatterBrut) {
+    return `---\nschema: ${SCHEMA_MARKDOWN}\narchive: ${archive}\n---\n\n${corps}`;
+  }
+  const brut = frontmatterBrut.slice(4, -4);
+  const lignes = brut.split("\n");
+  let trouve = false;
+  const nouvellesLignes = lignes.map((ligne) => {
+    if (/^archive\s*:/i.test(ligne.trim())) {
+      trouve = true;
+      return `archive: ${archive}`;
+    }
+    return ligne;
+  });
+  if (!trouve) {
+    nouvellesLignes.push(`archive: ${archive}`);
+  }
+  return `---\n${nouvellesLignes.join("\n")}\n---\n\n${corps}`;
+}
+
