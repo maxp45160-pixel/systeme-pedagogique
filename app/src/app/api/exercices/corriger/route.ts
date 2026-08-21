@@ -1,7 +1,6 @@
 import { chargerContexte } from "@/lib/store/context";
-import { choisirConfiguration, creerMoteur } from "@/lib/tutor/moteurs";
+import { resoudreMoteur, repondreParFluxSse } from "@/lib/tutor/reponse-flux";
 import type { ConfigTuteurClient } from "@/lib/tutor/cle-client";
-import { envTuteur } from "@/lib/tutor/env-requete";
 import { corrigerReponse, REPONSE_MAX_CARACTERES } from "@/lib/tutor/correction";
 import { reponseSuffisante } from "@/lib/domain/tentative";
 
@@ -110,87 +109,35 @@ export async function POST(request: Request) {
     );
   }
 
-  // La config client (si présente) prime sur `process.env` : l'utilisateur qui
-  // a saisi sa clé dans les réglages n'a pas à éditer `app/.env.local`.
-  // Point d'entree unique : la config client est validee avant de toucher
-  // l'environnement du serveur (SSRF, voir lib/tutor/url-fournisseur.ts).
-  const resolution = envTuteur(corps.config);
-  if (!resolution.ok) return resolution.reponse;
-  const choix = choisirConfiguration(resolution.env);
-  const moteur = creerMoteur(choix);
+  const resolu = resoudreMoteur(corps.config, {
+    conseil: "Remplis le bilan à la main en attendant.",
+  });
+  if (!resolu.ok) return resolu.reponse;
+  const { moteur } = resolu;
 
-  if (!moteur) {
-    return Response.json(
-      {
-        erreur: "moteur-absent",
-        message:
-          choix.kind === "aucun"
-            ? `${choix.raison} Remplis le bilan à la main en attendant.`
-            : "Aucun moteur de tuteur disponible.",
-      },
-      { status: 503 },
-    );
-  }
+  return repondreParFluxSse(
+    request,
+    async (envoyer, signal) => {
+      const resultat = await corrigerReponse(moteur, exercice, reponse, signal, (evenement, donnees) => {
+        // Même filtre que la route de suggestion : l'événement terminal
+        // s'appelle `proposition` et porte une forme différente de celle du
+        // moteur. Surcharger un événement terminal casse en silence.
+        if (evenement === "proposition") return;
+        envoyer(evenement, donnees);
+      });
 
-  const encodeur = new TextEncoder();
-  const abandon = new AbortController();
-  request.signal.addEventListener("abort", () => abandon.abort(), { once: true });
-
-  const flux = new ReadableStream({
-    async start(controller) {
-      const envoyer = (evenement: string, donnees: unknown) => {
-        if (abandon.signal.aborted) return;
-        controller.enqueue(
-          encodeur.encode(`event: ${evenement}\ndata: ${JSON.stringify(donnees)}\n\n`),
-        );
-      };
-
-      try {
-        const resultat = await corrigerReponse(
-          moteur,
-          exercice,
-          reponse,
-          abandon.signal,
-          // Même filtre que la route de suggestion : l'événement terminal
-          // s'appelle `proposition` et porte une forme différente de celle du
-          // moteur. Surcharger un événement terminal casse en silence.
-          (evenement, donnees) => {
-            if (evenement === "proposition") return;
-            envoyer(evenement, donnees);
-          },
-        );
-
-        if (resultat.erreur) {
-          envoyer("erreur", { message: resultat.erreur });
-          return;
-        }
-
-        // Le verdict part au client pour relecture. Rien n'est écrit ici : la
-        // seule écriture reste `terminerExercice`, déclenchée par un clic (P5).
-        envoyer("proposition", { correction: resultat.correction });
-      } catch (e) {
-        if (abandon.signal.aborted) return;
-        envoyer("erreur", {
-          message: e instanceof Error ? e.message : "Quelque chose n'a pas fonctionné pendant la correction.",
-        });
-      } finally {
-        try {
-          controller.close();
-        } catch {
-          /* flux déjà annulé côté client */
-        }
+      if (resultat.erreur) {
+        envoyer("erreur", { message: resultat.erreur });
+        return;
       }
-    },
-    cancel() {
-      abandon.abort();
-    },
-  });
 
-  return new Response(flux, {
-    headers: {
-      "content-type": "text/event-stream; charset=utf-8",
-      "cache-control": "no-cache, no-transform",
-      connection: "keep-alive",
+      // Le verdict part au client pour relecture. Rien n'est écrit ici : la
+      // seule écriture reste `terminerExercice`, déclenchée par un clic (P5).
+      envoyer("proposition", { correction: resultat.correction });
     },
-  });
+    (e) =>
+      e instanceof Error
+        ? e.message
+        : "Quelque chose n'a pas fonctionné pendant la correction.",
+  );
 }

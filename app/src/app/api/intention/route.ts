@@ -1,7 +1,6 @@
 import { chargerContexte } from "@/lib/store/context";
-import { choisirConfiguration, creerMoteur } from "@/lib/tutor/moteurs";
+import { resoudreMoteur, repondreParFluxSse } from "@/lib/tutor/reponse-flux";
 import type { ConfigTuteurClient } from "@/lib/tutor/cle-client";
-import { envTuteur } from "@/lib/tutor/env-requete";
 import { traduireIntention, type CompetenceCandidate } from "@/lib/tutor/intention";
 import {
   analyserDemandeReferentiel,
@@ -101,31 +100,18 @@ export async function POST(request: Request) {
     );
   }
 
-  // Point d'entrée unique : la config client est validée avant de toucher
-  // l'environnement du serveur (SSRF, voir lib/tutor/url-fournisseur.ts).
-  const resolution = envTuteur(corps.config);
-  if (!resolution.ok) return resolution.reponse;
   /*
    * Profil `rapide` : cette route choisit une action, elle n'écrit aucun
    * contenu et ne produit aucune mesure. Le schéma de `traduire_intention`
    * ferme déjà les genres et les codes désignables — ce qu'un modèle plus petit
    * pourrait inventer est refusé avant d'arriver ici. Voir `ProfilMoteur`.
    */
-  const choix = choisirConfiguration(resolution.env, "rapide");
-  const moteur = creerMoteur(choix);
-
-  if (!moteur) {
-    return Response.json(
-      {
-        erreur: "moteur-absent",
-        message:
-          choix.kind === "aucun"
-            ? `${choix.raison} En attendant, les destinations restent accessibles depuis le menu.`
-            : "Aucun moteur de tuteur disponible.",
-      },
-      { status: 503 },
-    );
-  }
+  const resolu = resoudreMoteur(corps.config, {
+    profil: "rapide",
+    conseil: "En attendant, les destinations restent accessibles depuis le menu.",
+  });
+  if (!resolu.ok) return resolu.reponse;
+  const { moteur, modele } = resolu;
 
   const debutContexte = Date.now();
   const ctx = await chargerContexte();
@@ -142,126 +128,90 @@ export async function POST(request: Request) {
       raison: recommandation.raison,
     }));
 
-  const encodeur = new TextEncoder();
-  const abandon = new AbortController();
-  request.signal.addEventListener("abort", () => abandon.abort(), { once: true });
+  return repondreParFluxSse(request, async (envoyer, signal) => {
+    /*
+     * Les durées passent au client avant tout le reste : quand la traduction
+     * échoue ou traîne, c'est le découpage — lecture du compte contre appel
+     * au fournisseur — qui dit où chercher. L'écran les ignore ; l'onglet
+     * réseau, non.
+     */
+    envoyer("mesure", { etape: "contexte", dureeMs: dureeContexteMs });
+    const debutTraduction = Date.now();
 
-  const flux = new ReadableStream({
-    async start(controller) {
-      const envoyer = (evenement: string, donnees: unknown) => {
-        if (abandon.signal.aborted) return;
-        controller.enqueue(
-          encodeur.encode(`event: ${evenement}\ndata: ${JSON.stringify(donnees)}\n\n`),
-        );
-      };
+    /*
+     * Le relais est filtré sur `proposition`, pour la même raison que dans
+     * `/api/referentiel/suggerer` : le moteur émet `proposition` avec
+     * `{ genre, traduction }`, cette route émet son propre `proposition`
+     * terminal avec `{ traduction }`. Le lecteur SSE de l'écran déréférence
+     * `traduction.action` — une proposition d'un autre genre le ferait
+     * lever. Le reste (`proposition-en-cours`, `proposition-rejetee`…)
+     * passe au fil de l'eau, ce qui est tout l'objet du relais.
+     */
+    const resultat = await traduireIntention(
+      moteur,
+      ctx.referentiel,
+      besoin,
+      candidates,
+      signal,
+      (evenement, donnees) => {
+        if (evenement === "proposition") return;
+        envoyer(evenement, donnees);
+      },
+      serialiserProfilDeclare(ctx.donnees.user),
+      corps.contexte,
+      DELAI_TRADUCTION_MS,
+    );
 
-      /*
-       * Les durées passent au client avant tout le reste : quand la traduction
-       * échoue ou traîne, c'est le découpage — lecture du compte contre appel
-       * au fournisseur — qui dit où chercher. L'écran les ignore ; l'onglet
-       * réseau, non.
-       */
-      envoyer("mesure", { etape: "contexte", dureeMs: dureeContexteMs });
-      const debutTraduction = Date.now();
+    envoyer("mesure", {
+      etape: "traduction",
+      dureeMs: Date.now() - debutTraduction,
+      modele,
+    });
 
-      try {
-        /*
-         * Le relais est filtré sur `proposition`, pour la même raison que dans
-         * `/api/referentiel/suggerer` : le moteur émet `proposition` avec
-         * `{ genre, traduction }`, cette route émet son propre `proposition`
-         * terminal avec `{ traduction }`. Le lecteur SSE de l'écran déréférence
-         * `traduction.action` — une proposition d'un autre genre le ferait
-         * lever. Le reste (`proposition-en-cours`, `proposition-rejetee`…)
-         * passe au fil de l'eau, ce qui est tout l'objet du relais.
-         */
-        const resultat = await traduireIntention(
-          moteur,
-          ctx.referentiel,
-          besoin,
-          candidates,
-          abandon.signal,
-          (evenement, donnees) => {
-            if (evenement === "proposition") return;
-            envoyer(evenement, donnees);
-          },
-          serialiserProfilDeclare(ctx.donnees.user),
-          corps.contexte,
-          DELAI_TRADUCTION_MS,
-        );
+    if (resultat.erreur) {
+      envoyer("erreur", { message: resultat.erreur });
+      return;
+    }
 
-        envoyer("mesure", {
-          etape: "traduction",
-          dureeMs: Date.now() - debutTraduction,
-          modele: choix.kind === "aucun" ? null : choix.modele,
-        });
+    /*
+     * Les cadrages déterministes (`forcer*`) peuvent contredire la
+     * traduction du modèle — c'est leur rôle : ils corrigent des lectures
+     * erronées déjà mesurées. Mais une contradiction silencieuse se vit
+     * comme une incompréhension : « j'ai demandé X, on me propose Y ».
+     * Chaque forçage qui s'applique est donc annoncé à l'écran avant la
+     * proposition, avec sa raison.
+     */
+    // Les deux forçages inconditionnels — contexte « domaine » et séance
+    // sans sujet — sont rendus en court-circuit avant tout appel : ils ne
+    // peuvent plus se présenter ici.
+    const cadrage = analyserDemandeReferentiel(besoin, corps.contexte);
+    let raisonForcage: string | null = null;
+    let traduction: TraductionIntention | null = resultat.traduction;
 
-        if (resultat.erreur) {
-          envoyer("erreur", { message: resultat.erreur });
-          return;
-        }
+    if (
+      resultat.traduction &&
+      cadrage.explicite &&
+      (cadrage.type === "competence" || cadrage.portee === "large")
+    ) {
+      raisonForcage =
+        cadrage.type === "competence"
+          ? "Ta demande désigne explicitement une ou plusieurs compétences à ajouter : elle est traitée comme une extension du référentiel."
+          : "Ta demande porte sur une vue d'ensemble : elle est traitée comme la structuration d'un domaine plutôt que comme un entraînement.";
+      traduction = forcerExtensionReferentiel(
+        resultat.traduction,
+        besoin,
+        cadrage.type === "competence",
+        cadrage.intitules,
+      );
+    }
 
-        /*
-         * Les cadrages déterministes (`forcer*`) peuvent contredire la
-         * traduction du modèle — c'est leur rôle : ils corrigent des lectures
-         * erronées déjà mesurées. Mais une contradiction silencieuse se vit
-         * comme une incompréhension : « j'ai demandé X, on me propose Y ».
-         * Chaque forçage qui s'applique est donc annoncé à l'écran avant la
-         * proposition, avec sa raison.
-         */
-        // Les deux forçages inconditionnels — contexte « domaine » et séance
-        // sans sujet — sont rendus en court-circuit avant tout appel : ils ne
-        // peuvent plus se présenter ici.
-        const cadrage = analyserDemandeReferentiel(besoin, corps.contexte);
-        let raisonForcage: string | null = null;
-        let traduction: TraductionIntention | null = resultat.traduction;
+    if (raisonForcage) {
+      envoyer("avertissement", { message: raisonForcage });
+    }
 
-        if (
-          resultat.traduction &&
-          cadrage.explicite &&
-          (cadrage.type === "competence" || cadrage.portee === "large")
-        ) {
-          raisonForcage =
-            cadrage.type === "competence"
-              ? "Ta demande désigne explicitement une ou plusieurs compétences à ajouter : elle est traitée comme une extension du référentiel."
-              : "Ta demande porte sur une vue d'ensemble : elle est traitée comme la structuration d'un domaine plutôt que comme un entraînement.";
-          traduction = forcerExtensionReferentiel(
-            resultat.traduction,
-            besoin,
-            cadrage.type === "competence",
-            cadrage.intitules,
-          );
-        }
-
-        if (raisonForcage) {
-          envoyer("avertissement", { message: raisonForcage });
-        }
-
-        envoyer("proposition", { traduction });
-      } catch (e) {
-        if (abandon.signal.aborted) return;
-        envoyer("erreur", {
-          message: e instanceof Error ? e.message : "Erreur inattendue lors de la traduction.",
-        });
-      } finally {
-        try {
-          controller.close();
-        } catch {
-          /* flux déjà annulé côté client */
-        }
-      }
-    },
-    cancel() {
-      abandon.abort();
-    },
-  });
-
-  return new Response(flux, {
-    headers: {
-      "content-type": "text/event-stream; charset=utf-8",
-      "cache-control": "no-cache, no-transform",
-      connection: "keep-alive",
-    },
-  });
+    envoyer("proposition", { traduction });
+  }, (e) =>
+    e instanceof Error ? e.message : "Erreur inattendue lors de la traduction.");
 }
 
 /**
