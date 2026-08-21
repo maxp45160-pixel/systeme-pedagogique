@@ -1015,9 +1015,14 @@ export function EspaceDocumentaire({
           />
         )}
 
-        <div className="flex items-center gap-2.5 min-w-0">
+        {/*
+          `flex-wrap` : sur petit écran, tri + statut + recherche ne tiennent
+          pas sur une ligne — sans lui, la section `overflow-hidden` rogne
+          l'onglet « Archivés » et le geste qu'il porte devient introuvable.
+        */}
+        <div className="flex flex-wrap items-center gap-2.5 min-w-0">
           {!selectionnee && (vueActuelle === "domaines" || vueActuelle === "ressources") && (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {vueActuelle === "domaines" && (
                 <div className="flex items-center gap-1.5 shrink-0 text-xs">
                   <label htmlFor="tri-domaines-top" className="text-texte-discret hidden md:inline text-xs">

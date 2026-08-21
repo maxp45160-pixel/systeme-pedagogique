@@ -173,6 +173,14 @@ visible depuis `/login`.
 
 ### 4. Mobile : débordements et safe-area
 
+> **Fait le 21/08/2026** — la cause réelle était double : le groupe
+> tri + statut (`flex items-center gap-2`) **et** son parent direct ne
+> wrapquaient pas, rognés par la section `overflow-hidden`. Deux
+> `flex-wrap` ajoutés dans `espace-documentaire.tsx` ; « Archivés » est
+> désormais entièrement visible à 390 px (vérifié : bord droit 204 ≤ 390).
+> Safe-area posée sur la barre inférieure (`pb-[env(safe-area-inset-bottom)]`)
+> et le bouton flottant tuteur (`bottom-[calc(5rem+env(...))]`).
+
 **Constat.** Sur 390 px : l'onglet « Archivés (0) » de l'Atelier est coupé à
 droite (rangée de filtres trop large) ; la barre inférieure
 (`components/layout/nav-mobile.tsx:17`, `fixed bottom-0`) n'a aucune marge
@@ -215,6 +223,12 @@ base sans aucun feedback (`/atelier?document` = `/atelier` à l'identique) ;
 rend un écran identique à sa page de base sans explication visible.
 
 ### 6. État actif du rail pour `/admin/*`
+
+> **Réfuté le 21/08/2026** — `estActif` applique déjà la règle préfixe
+> (`navigation.ts:151-153`) et la documente comme voulue : « une route enfant
+> active son entrée parente ». Surligner « Comptes et accès » sur
+> `/admin/simulation` est donc correct — l'alternative serait qu'aucune entrée
+> du rail ne soit active sur cette page (état orphelin pire). Rien à faire.
 
 **Constat.** Sur `/admin/simulation`, le rail surligne « Comptes et accès » alors
 que l'écran courant est Simulation. `aria-current` dit faux.

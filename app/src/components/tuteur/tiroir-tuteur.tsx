@@ -34,7 +34,7 @@ import {
 } from "@/lib/tutor/actions";
 
 const CLASSES_FLOTTANT = cx(
-  "fixed bottom-20 right-4 z-[var(--superposition-barre)] flex size-12 items-center justify-center lg:bottom-6 lg:right-6",
+  "fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-[var(--superposition-barre)] flex size-12 items-center justify-center lg:bottom-6 lg:right-6",
   "rounded-full bg-primaire text-primaire-contraste shadow-lg",
   "transition-transform hover:scale-105 active:scale-95",
   "focus:outline-none focus:ring-2 focus:ring-primaire focus:ring-offset-2",
