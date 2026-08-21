@@ -323,6 +323,113 @@ export function validerTraductionIntention(
 }
 
 /* ------------------------------------------------------------------ */
+/* Recadrages déterministes                                            */
+/* ------------------------------------------------------------------ */
+
+export interface TraductionForcee {
+  /** La traduction après recadrage. `null` quand aucun recadrage ne s'applique et que l'entrée était nulle. */
+  traduction: TraductionIntention | null;
+  /**
+   * La raison du recadrage, à annoncer à l'écran avant la proposition.
+   * Non nulle si et seulement si un recadrage s'est appliqué : une
+   * contradiction silencieuse entre le modèle et le déterminisme se vit
+   * comme une incompréhension (« j'ai demandé X, on me propose Y »).
+   */
+  raison: string | null;
+}
+
+/**
+ * Applique les trois recadrages déterministes d'un besoin, dans l'ordre :
+ *
+ * 1. contexte « domaine » — l'écran impose la structuration d'un domaine ;
+ * 2. séance sans sujet — aucune compétence ne peut être choisie à la place
+ *    de la personne ;
+ * 3. demande explicite de compétences ou vue d'ensemble — extension du
+ *    référentiel plutôt qu'entraînement.
+ *
+ * Chaque recadrage REMPLACE chaque champ de l'action (genre, titre, pourquoi,
+ * codes, sujet) tout en conservant les alternatives du modèle quand il en a
+ * produit une. C'est la seule implémentation : la route pré-appel l'utilise
+ * pour ses court-circuits (traduction entrante `null`), et la traduction par
+ * le modèle l'applique après coup sur sa propre lecture.
+ */
+export function forcerTraductionIntention(
+  precedente: TraductionIntention | null,
+  besoin: string,
+  contexte?: string,
+): TraductionForcee {
+  const sujet = besoin.trim();
+
+  if (contexte === "domaine") {
+    return {
+      traduction: {
+        ...(precedente ?? { alternatives: [] }),
+        action: {
+          ...precedente?.action,
+          genre: "referentiel",
+          titre: `Structurer le domaine « ${sujet} »`,
+          pourquoi: "Ce domaine sera découpé en compétences pour enrichir ton Atelier.",
+          codes: [],
+          sujet,
+        },
+      },
+      raison:
+        "Tu écris depuis le point d'entrée « nouveau domaine » : la demande est traitée comme la structuration d'un domaine.",
+    };
+  }
+
+  if (demandeSeanceSansSujet(besoin)) {
+    return {
+      traduction: {
+        alternatives: [],
+        action: {
+          genre: "travail",
+          titre: "Préparer une séance",
+          pourquoi: "Aucun sujet n’a été imposé : tu choisiras la portée dans le compositeur.",
+          codes: [],
+          sujet,
+        },
+      },
+      raison:
+        "Ta demande ne désigne aucun sujet précis : elle est traitée comme la préparation d'une séance libre.",
+    };
+  }
+
+  const cadrage = analyserDemandeReferentiel(besoin, contexte);
+  if (
+    cadrage.explicite &&
+    (cadrage.type === "competence" || cadrage.portee === "large")
+  ) {
+    const competence = cadrage.type === "competence";
+    return {
+      traduction: {
+        ...(precedente ?? { alternatives: [] }),
+        action: {
+          ...precedente?.action,
+          genre: "referentiel",
+          titre:
+            competence && cadrage.intitules.length === 1
+              ? `Ajouter la compétence « ${cadrage.intitules[0]} »`
+              : competence
+                ? "Ajouter les compétences précisées dans la demande"
+                : "Structurer le domaine demandé",
+          pourquoi: competence
+            ? "La demande désigne explicitement une ou plusieurs compétences à ajouter."
+            : "La demande porte sur une vue d’ensemble qui doit être organisée avant l’apprentissage.",
+          codes: [],
+          sujet,
+        },
+      },
+      raison: competence
+        ? "Ta demande désigne explicitement une ou plusieurs compétences à ajouter : elle est traitée comme une extension du référentiel."
+        : "Ta demande porte sur une vue d'ensemble : elle est traitée comme la structuration d'un domaine plutôt que comme un entraînement.",
+    };
+  }
+
+  return { traduction: precedente, raison: null };
+}
+
+/* ------------------------------------------------------------------ */
 /* Destination                                                         */
 /* ------------------------------------------------------------------ */
 

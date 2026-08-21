@@ -26,11 +26,7 @@
  * et propose les destinations manuelles.
  */
 
-import {
-  analyserDemandeReferentiel,
-  demandeSeanceSansSujet,
-  type TraductionIntention,
-} from "@/lib/domain/intention";
+import { forcerTraductionIntention, type TraductionIntention } from "@/lib/domain/intention";
 import type { Referentiel } from "@/lib/domain/types";
 import type { MoteurTuteur } from "./moteurs";
 import { lireErreurMoteur, lireOutilsActifs, messageSansOutils } from "./moteurs";
@@ -58,6 +54,12 @@ export interface ResultatIntention {
   traduction: TraductionIntention | null;
   /** Le fournisseur a-t-il servi les outils ? `true` par défaut (P2). */
   outilsActifs: boolean;
+  /**
+   * La raison du recadrage déterministe appliqué sur la lecture du modèle,
+   * à annoncer à l'écran avant la proposition. Non nulle si et seulement si
+   * un recadrage s'est substitué à la lecture du modèle.
+   */
+  raisonRecadrage: string | null;
   erreur: string | null;
 }
 
@@ -203,54 +205,17 @@ export async function traduireIntention(
   });
 
   /*
-   * Repli déterministe quand le tuteur a compris qu’il n’y avait pas de code
-   * local, mais a tout de même tenté un `travail` sans compétence. La demande
-   * explicite « apprendre à … » ou « ajouter une compétence … » suffit à
-   * ouvrir la relecture de compétence ; elle ne permet ni de fabriquer un
-   * code, ni de choisir un domaine à la place de la personne.
+   * Recadrage déterministe — l'unique implémentation vit dans le domaine
+   * (`forcerTraductionIntention`), partagée avec les court-circuits pré-appel
+   * de la route. Il peut REMPLACER la lecture du modèle quand celle-ci
+   * contredit une forme explicite du besoin : point d'entrée « nouveau
+   * domaine », séance sans sujet, demande explicite de compétences ou vue
+   * d'ensemble. La raison du recadrage remonte à la route, qui l'annonce à
+   * l'écran avant la proposition.
    */
-  const cadrage = analyserDemandeReferentiel(besoin, contexte);
-  if (contexte !== "domaine" && traduction === null && demandeSeanceSansSujet(besoin)) {
-    traduction = {
-      action: {
-        genre: "travail",
-        titre: "Préparer une séance",
-        pourquoi: "Aucun sujet n’a été imposé : tu choisiras la portée dans le compositeur.",
-        codes: [],
-        sujet: besoin.trim(),
-      },
-      alternatives: [],
-    };
-  }
-  if (
-    traduction === null &&
-    (contexte === "domaine" ||
-      (cadrage.explicite && (cadrage.type === "competence" || cadrage.portee === "large")))
-  ) {
-    const titres = cadrage.intitules;
-    traduction = {
-      action: {
-        genre: "referentiel",
-        titre:
-          contexte === "domaine"
-            ? `Structurer le domaine « ${besoin.trim()} »`
-            : cadrage.type === "competence" && titres.length === 1
-              ? `Ajouter la compétence « ${titres[0]} »`
-              : cadrage.type === "competence"
-                ? "Ajouter la compétence décrite dans la demande"
-                : "Structurer le domaine demandé",
-        pourquoi:
-          contexte === "domaine"
-            ? "Ce domaine sera découpé en compétences pour enrichir ton Atelier."
-            : cadrage.type === "competence"
-              ? "La demande décrit une compétence qui n’est pas encore disponible dans ton Atelier."
-              : "La demande porte sur une vue d’ensemble qui doit être organisée avant l’apprentissage.",
-        codes: [],
-        sujet: besoin.trim(),
-      },
-      alternatives: [],
-    };
-  }
+  const forcee = forcerTraductionIntention(traduction, besoin, contexte);
+  traduction = forcee.traduction;
+  const raisonRecadrage = forcee.raison;
 
   // Deux pannes derrière une même absence de traduction : un modèle qui n'a
   // rien rendu d'exploitable, et un fournisseur sans outils. La seconde ne se
@@ -267,5 +232,5 @@ export async function traduireIntention(
             ? `${rejet} Le plus souvent, l'action visait un travail sans désigner aucune compétence existante.`
             : "Aucune action exploitable n'a été produite pour ce besoin.");
 
-  return { traduction, outilsActifs, erreur };
+  return { traduction, outilsActifs, raisonRecadrage, erreur };
 }

@@ -5,8 +5,8 @@ import { describe, expect, it, vi } from "vitest";
  *
  * Deux chemins n'ont jamais eu besoin du modèle : le point d'entrée « nouveau
  * domaine », dont le genre est imposé par l'écran d'où l'on écrit, et la
- * demande de séance sans sujet. Sur les deux, `forcerDomaineReferentiel` et
- * `forcerSeanceSansSujet` réécrivaient CHAQUE champ de l'action produite par le
+ * demande de séance sans sujet. Sur les deux, les recadrages de
+ * `forcerTraductionIntention` réécrivaient CHAQUE champ de l'action produite par le
  * moteur — le compte payait ~90 s pour une réponse intégralement remplacée.
  *
  * Ce que ce test garantit n'est donc pas une forme de sortie : c'est
