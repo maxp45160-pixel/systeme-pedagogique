@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/primitives";
 import { NIVEAUX } from "@/lib/domain/types";
 import { BoutonRelancerTour } from "@/components/onboarding/bouton-relancer-tour";
-import { chargerContexte } from "@/lib/store/context";
+import { chargerReferentiel } from "@/lib/store/referentiel";
 
 /**
  * Tutoriel d'entrée et documentation pédagogique : ce que chaque compte doit
@@ -169,8 +169,13 @@ const QUESTIONS = [
 ];
 
 export default async function PageAide() {
-  const ctx = await chargerContexte();
-  const compteNeuf = ctx.referentiel.skills.length === 0;
+  /*
+   * La seule décision de cette page est « le compte a-t-il des compétences ? ».
+   * `chargerContexte()` calculait états, calibrages et recommandations du moteur
+   * pour un booléen ; le référentiel seul suffit, et il est mémoïsé par requête.
+   */
+  const referentiel = await chargerReferentiel();
+  const compteNeuf = referentiel.skills.length === 0;
   const etapes = construireEtapes(compteNeuf);
 
   return (
