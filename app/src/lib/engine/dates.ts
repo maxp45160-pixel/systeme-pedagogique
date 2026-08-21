@@ -66,3 +66,56 @@ export function cleJour(d: Date | string): string {
     date.getDate(),
   ).padStart(2, "0")}`;
 }
+
+/* ------------------------------------------------------------------ */
+/* Formats affichés                                                    */
+/*                                                                     */
+/* Chaque format rendu à l'écran a un seul point de définition : une   */
+/* locale recopiée à la main dérive en silence d'un écran à l'autre.   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Jour de la semaine + date complète, pour un en-tête de journée.
+ * Accepte une clé de jour `YYYY-MM-DD` ; le midi factice évite le décalage
+ * horaire des dates ISO sans heure.
+ */
+export function formatDateSemaine(jour: string): string {
+  return new Date(`${jour}T12:00:00`).toLocaleDateString("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+/** « janvier 2026 », depuis une clé de mois `YYYY-MM` — l'en-tête d'un calendrier. */
+export function formatMoisAnnee(mois: string): string {
+  return new Date(`${mois}-01T12:00:00`).toLocaleDateString("fr-FR", {
+    month: "long",
+    year: "numeric",
+  });
+}
+
+/** « 12 janvier 2026 » — un fait daté, sans heure ni jour de semaine. */
+export function formatDateComplete(date: string): string {
+  return new Date(date).toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+/** « lundi 12 janvier » — l'en-tête du tableau de bord, qui n'a pas besoin de l'année. */
+export function formatDateAujourdhui(now: Date = new Date()): string {
+  return now.toLocaleDateString("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+}
+
+/** Le format numérique court de la locale — listes et tableaux denses. */
+export function formatDateNumerique(date: string | Date): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return d.toLocaleDateString("fr-FR");
+}

@@ -1,7 +1,7 @@
 import type { ReactNode, Ref } from "react";
 import Link from "next/link";
 import { Carte, CodeCompetence, EnTeteCarte, Etiquette, classesLienBouton } from "@/components/ui/primitives";
-import { cleJour, formatDuree } from "@/lib/engine/dates";
+import { cleJour, formatDateSemaine, formatDuree } from "@/lib/engine/dates";
 import { statutSeance, tentativeDeSeance } from "@/lib/domain/seance";
 import {
   construirePage,
@@ -488,10 +488,5 @@ function TraceHorsSeance({
 
 
 function libelleJour(jour: string): string {
-  return new Date(`${jour}T12:00:00`).toLocaleDateString("fr-FR", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  return formatDateSemaine(jour);
 }

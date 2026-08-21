@@ -1,6 +1,7 @@
 "use client";
 
 import type { StatistiquesAdmin } from "@/lib/domain/admin-kpi";
+import { formatDateNumerique } from "@/lib/engine/dates";
 
 export function KpiDashboard({ kpis }: { kpis: StatistiquesAdmin }) {
   return (
@@ -199,7 +200,7 @@ export function KpiDashboard({ kpis }: { kpis: StatistiquesAdmin }) {
                   </div>
                   <div className="text-right">
                     <span className="text-xs text-texte-discret">
-                      {c.creeLe ? new Date(c.creeLe).toLocaleDateString("fr-FR") : "—"}
+                      {c.creeLe ? formatDateNumerique(c.creeLe) : "—"}
                     </span>
                   </div>
                 </div>

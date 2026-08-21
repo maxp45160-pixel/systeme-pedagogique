@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { grilleMois, moisDecale, moisDuJour } from "@/lib/domain/pages-cahier";
+import { formatMoisAnnee } from "@/lib/engine/dates";
 import { OutilSeance } from "@/components/seances/outil-seance";
 
 const JOURS_SEMAINE = ["L", "M", "M", "J", "V", "S", "D"];
@@ -157,8 +158,5 @@ export function moisAffiche(moisDemande: string | null, jour: string): string {
 }
 
 function libelleMois(mois: string): string {
-  return new Date(`${mois}-01T12:00:00`).toLocaleDateString("fr-FR", {
-    month: "long",
-    year: "numeric",
-  });
+  return formatMoisAnnee(mois);
 }

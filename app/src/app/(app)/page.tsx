@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { chargerContexte } from "@/lib/store/context";
 import { chargerReferentiel } from "@/lib/store/referentiel";
-import { formatDuree } from "@/lib/engine/dates";
+import { formatDateAujourdhui, formatDuree } from "@/lib/engine/dates";
 import { SquelettePage } from "@/components/layout/squelette";
 import { calculerActivite } from "@/lib/engine/historique";
 import { CarteSeanceActive } from "@/components/dashboard/carte-seance-active";
@@ -29,11 +29,7 @@ export default async function TableauDeBord(props: {
 }) {
   const recherche = await props.searchParams;
   const instant = lireContexteInstant(recherche);
-  const dateJour = new Intl.DateTimeFormat("fr-FR", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  }).format(new Date());
+  const dateJour = formatDateAujourdhui();
 
   return (
     <Suspense fallback={<SquelettePage />}>
