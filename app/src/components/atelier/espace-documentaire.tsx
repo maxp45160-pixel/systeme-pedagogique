@@ -72,7 +72,7 @@ import {
   PanneauPedagogiqueAtelier,
   panneauPedagogiqueUtile,
 } from "./fiche-pedagogique";
-import type { CalibrageModale, CompetenceModale } from "@/components/exercices/proprietes-generation";
+import type { CalibrageModale, CompetenceModale } from "@/lib/domain/proprietes-generation";
 import type { DonneesSeance } from "@/components/seances/concepteur-seance";
 import { rangerDocument, type RangementAtelier } from "@/lib/documents/rangement-atelier";
 import { EditeurDirect } from "./editeur-document";

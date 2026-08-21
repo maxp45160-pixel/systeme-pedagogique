@@ -48,7 +48,7 @@ import { EXERCICES_PAR_LOT_MAX } from "@/lib/domain/exercice";
 import type {
   CalibrageModale,
   CompetenceModale,
-} from "./proprietes-generation";
+} from "@/lib/domain/proprietes-generation";
 
 export type { CalibrageModale, CompetenceModale };
 

@@ -12,7 +12,7 @@ import { cx } from "@/components/ui/primitives";
 import { RelationsCompetence } from "../relations-competence";
 import { IconeFleche } from "@/components/ui/icones";
 import { BoutonGenerer } from "@/components/exercices/bouton-generer";
-import type { CalibrageModale, CompetenceModale } from "@/components/exercices/proprietes-generation";
+import type { CalibrageModale, CompetenceModale } from "@/lib/domain/proprietes-generation";
 import { ConcepteurSeance, type DonneesSeance } from "@/components/seances/concepteur-seance";
 import { urlComposerAutonome } from "@/lib/domain/navigation-exercice";
 import { creerDocumentBrutAction, supprimerDocumentAction } from "@/lib/store/document-actions";

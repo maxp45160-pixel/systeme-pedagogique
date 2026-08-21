@@ -42,7 +42,7 @@ import { TiroirTuteur } from "@/components/tuteur/tiroir-tuteur";
 import {
   calibragesPourModale,
   competencesPourModale,
-} from "@/components/exercices/proprietes-generation";
+} from "@/lib/domain/proprietes-generation";
 import {
   urlExercice,
   type ContexteNavigationExercice,

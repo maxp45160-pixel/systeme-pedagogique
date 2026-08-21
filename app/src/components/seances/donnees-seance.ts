@@ -1,7 +1,7 @@
 import "server-only";
 
 import { chargerContexte } from "@/lib/store/context";
-import { calibragesPourModale } from "@/components/exercices/proprietes-generation";
+import { calibragesPourModale } from "@/lib/domain/proprietes-generation";
 import type { DonneesSeance } from "./concepteur-seance";
 
 /**

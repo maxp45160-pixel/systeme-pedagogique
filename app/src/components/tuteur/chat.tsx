@@ -6,7 +6,6 @@ import { BandeauInfo, Bouton, cx, Etiquette, PointActif } from "@/components/ui/
 import { Depliant } from "@/components/ui/explication";
 import { Markdown } from "@/components/ui/markdown";
 import { preparerPromptComplet } from "@/lib/tutor/actions";
-import type { SectionContexte } from "@/lib/tutor/contexte";
 import { MAX_MESSAGES_FENETRE } from "@/lib/tutor/fenetre";
 import { useEstHydrate } from "@/lib/ui/hydratation";
 import {
@@ -39,7 +38,8 @@ import { creerExercice } from "@/lib/store/actions";
 import type {
   CalibrageModale,
   CompetenceModale,
-} from "@/components/exercices/proprietes-generation";
+} from "@/lib/domain/proprietes-generation";
+import type { EtatContexteTuteur } from "@/lib/tutor/etat-contexte";
 
 /**
  * Ce qu'on affiche pendant qu'un outil se remplit.
@@ -77,20 +77,6 @@ interface Message {
    * texte à la relecture est précisément ce qu'on cherche à ne plus faire.
    */
   propositions?: PropositionRecue[];
-}
-
-/**
- * État du contexte pédagogique, assemblé par le serveur et reçu en props.
- *
- * Il était auparavant récupéré au montage par un `fetch("/api/tutor")`, ce qui
- * refaisait — dans une requête HTTP distincte, donc hors du `cache()` de React
- * — le `chargerContexte()` que la page venait déjà de payer.
- */
-export interface EtatContexteTuteur {
-  cleConfiguree: boolean;
-  modele: string;
-  manifeste: SectionContexte[];
-  caracteresTotal: number;
 }
 
 /* ------------------------------------------------------------------ */

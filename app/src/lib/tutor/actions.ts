@@ -8,8 +8,8 @@ import {
   competencesPourModale,
   type CalibrageModale,
   type CompetenceModale,
-} from "@/components/exercices/proprietes-generation";
-import type { EtatContexteTuteur } from "@/components/tuteur/chat";
+} from "@/lib/domain/proprietes-generation";
+import type { EtatContexteTuteur } from "./etat-contexte";
 
 /**
  * Prépare le prompt complet à coller dans Claude.

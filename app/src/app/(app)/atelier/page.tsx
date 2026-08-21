@@ -14,7 +14,7 @@ import { chargerCandidatsReferentiel } from "@/lib/store/candidats-referentiel";
 import { construireGraphe } from "@/lib/domain/graphe";
 import { construireVuesAtelier } from "@/lib/documents/vue-atelier";
 import { lireChangementsReferentiel } from "@/lib/store/referentiel";
-import { calibragesPourModale, competencesPourModale } from "@/components/exercices/proprietes-generation";
+import { calibragesPourModale, competencesPourModale } from "@/lib/domain/proprietes-generation";
 import {
   rangerDocument,
   rangementDomaine,

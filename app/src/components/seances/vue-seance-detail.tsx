@@ -27,7 +27,7 @@ import { lireMarge } from "@/lib/store/marge";
 import { FocusActe } from "@/components/exercices/focus-acte";
 import { TiroirTuteur } from "@/components/tuteur/tiroir-tuteur";
 import { construireEtatInitialTuteur } from "@/lib/tutor/etat-initial";
-import { calibragesPourModale, competencesPourModale } from "@/components/exercices/proprietes-generation";
+import { calibragesPourModale, competencesPourModale } from "@/lib/domain/proprietes-generation";
 import { VueExercice } from "@/components/exercices/vue-exercice";
 import { ResumeExerciceCahier } from "@/components/seances/resume-exercice-cahier";
 import { CarteImpact, LienApresImpact } from "@/components/exercices/carte-impact";

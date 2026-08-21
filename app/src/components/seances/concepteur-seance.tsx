@@ -77,7 +77,7 @@ import {
   competencesPourModale,
   type CalibrageModale,
   type CompetenceModale,
-} from "@/components/exercices/proprietes-generation";
+} from "@/lib/domain/proprietes-generation";
 
 /** Temps proposé par défaut, en minutes. Modifiable au premier écran. */
 const TEMPS_PAR_DEFAUT = 60;

@@ -19,14 +19,15 @@
  */
 
 import { useState, useTransition } from "react";
-import { ChatTuteur, type EtatContexteTuteur } from "@/components/tuteur/chat";
+import { ChatTuteur } from "@/components/tuteur/chat";
+import type { EtatContexteTuteur } from "@/lib/tutor/etat-contexte";
 import { classesIntercalaire, classesLienBouton, cx } from "@/components/ui/primitives";
 import { Modale } from "@/components/ui/modale";
 import { IconeMessage } from "@/components/ui/icones";
 import type {
   CalibrageModale,
   CompetenceModale,
-} from "@/components/exercices/proprietes-generation";
+} from "@/lib/domain/proprietes-generation";
 import {
   chargerDonneesTuteurGlobal,
   type DonneesTuteurGlobal,
