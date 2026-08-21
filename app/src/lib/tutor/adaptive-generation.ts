@@ -1,10 +1,8 @@
 /**
- * Génération de contenu et proposition d'évaluation pour la boucle adaptative.
+ * Génération de contenu pour la boucle adaptative.
  *
- * Ces deux chemins sont one-shot et sans écriture. Le serveur fixe le contrat
- * avant l'appel ; le tuteur ne remplit que les champs éditoriaux exposés par
- * l'outil fermé. Une proposition d'évaluation n'est ni une évaluation finale,
- * ni une observation : elle doit être validée humainement critère par critère.
+ * Chemin one-shot et sans écriture. Le serveur fixe le contrat avant l'appel ;
+ * le tuteur ne remplit que les champs éditoriaux exposés par l'outil fermé.
  */
 
 import type { MoteurTuteur } from "./moteurs";
@@ -17,8 +15,8 @@ import {
 } from "./outils";
 
 export type CapaciteMentaleDeclaree = "faible" | "standard" | "elevee";
-export type WorkspaceAdaptatif = "exploration-guidee" | "mini-projet";
-export type ModeObservationActivite = "aucune" | "soumission-finale" | "jalon-contractualise";
+export type WorkspaceAdaptatif = "mini-projet";
+export type ModeObservationActivite = "soumission-finale" | "jalon-contractualise";
 
 export interface CibleActiviteAdaptive {
   code: string;
@@ -128,7 +126,7 @@ export function erreursContratGenerationActivite(
   contrat: ContratGenerationActivite,
 ): string[] {
   const erreurs: string[] = [];
-  if (!["explorer", "produire"].includes(contrat.famille)) erreurs.push("famille inconnue");
+  if (contrat.famille !== "produire") erreurs.push("famille inconnue");
   if (!texteValide(contrat.objectif, 4_000)) erreurs.push("objectif invalide");
   if (
     !Array.isArray(contrat.competences) ||
@@ -155,14 +153,6 @@ export function erreursContratGenerationActivite(
   if (!verifierCriteres(contrat.contratEvaluation)) erreurs.push("critères invalides");
 
   if (
-    contrat.famille === "explorer" &&
-    (contrat.workspace !== "exploration-guidee" ||
-      contrat.modeObservation !== "aucune" ||
-      contrat.contratEvaluation.length !== 0)
-  ) {
-    erreurs.push("contrat d'exploration incohérent");
-  }
-  if (
     contrat.famille === "produire" &&
     (contrat.workspace !== "mini-projet" ||
       !["soumission-finale", "jalon-contractualise"].includes(contrat.modeObservation) ||
@@ -178,9 +168,7 @@ export function construirePromptGenerationActivite(
   contrat: ContratGenerationActivite,
 ): PromptTuteur {
   const consigneFamille =
-    contrat.famille === "explorer"
-      ? "Construis un parcours d'exploration guidée. Il soutient la compréhension mais ne constitue jamais une observation et ne doit contenir ni correction ni notation."
-      : "Construis un mini-projet reprenable. Les jalons décrivent le travail et ses productions observables ; ils ne deviennent pas des observations sauf si le contrat serveur le prévoit explicitement.";
+    "Construis un mini-projet reprenable. Les jalons décrivent le travail et ses productions observables ; ils ne deviennent pas des observations sauf si le contrat serveur le prévoit explicitement.";
 
   const stable = [
     "Tu es le rédacteur de contenu du système pédagogique adaptatif.",
@@ -242,7 +230,7 @@ export async function genererContenuActivite(
     systemeStable: prompt.stable,
     systemeProfil: prompt.variable,
     messages: [{ role: "user", content: "Rédige maintenant le contenu du workspace prévu." }],
-    outils: [outilGenerationActivite(contrat.famille)],
+    outils: [outilGenerationActivite()],
     signal,
     envoyer,
   });

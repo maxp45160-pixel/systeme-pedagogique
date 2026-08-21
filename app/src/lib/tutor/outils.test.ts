@@ -16,12 +16,10 @@ import {
   RETRAVAILLER_ITEMS_MAX,
   RETRAVAILLER_MAX,
   OUTIL_CORRECTION,
-  OUTIL_EVOLUTION,
   OUTIL_EXERCICE,
   OUTIL_REFERENTIEL,
   OUTIL_INTENTION,
   outilCorrection,
-  outilEvolution,
   outilIntention,
   outilsTuteur,
   validerAppelOutil,
@@ -287,64 +285,9 @@ describe("outilsTuteur", () => {
     expect(exercice?.schema.properties?.domaine.enum).toBeUndefined();
   });
 
-  it("n'expose ni proposer_correction ni proposer_evolution — ils ne passent pas par le chat", () => {
+  it("n'expose pas d'outil hors chat — outilsTuteur ne rend qu'exercice et référentiel", () => {
     const noms = outilsTuteur(REFERENTIEL).map((o) => o.nom);
-    expect(noms).not.toContain(OUTIL_EVOLUTION);
     expect(noms).toEqual([OUTIL_EXERCICE, OUTIL_REFERENTIEL]);
-  });
-
-  it("le schéma d'évolution n'expose AUCUN champ code", () => {
-    // Même interdit qu'ADR-026/031, même raison : un successeur est une
-    // compétence NOUVELLE, son code sort d'`attribuerCodes`.
-    expect(JSON.stringify(outilEvolution().schema)).not.toContain('"code"');
-  });
-
-  it("rejette un successeur sans intitulé", () => {
-    // Une évolution qu'on ne peut pas appliquer n'est pas une proposition,
-    // c'est une phrase : l'écran n'aurait rien à afficher.
-    expect(
-      validerAppelOutil(OUTIL_EVOLUTION, {
-        evolution: "successeur",
-        raisonnement: "Elle est solide.",
-      }),
-    ).toBeNull();
-  });
-
-  it("rejette un élargissement sans contexte", () => {
-    // C'est le contexte qui devient le thème de l'exercice : sans lui,
-    // l'élargissement n'élargit rien.
-    expect(
-      validerAppelOutil(OUTIL_EVOLUTION, {
-        evolution: "elargissement",
-        raisonnement: "Les deux contextes se ressemblent.",
-        intitule: "Peu importe",
-      }),
-    ).toBeNull();
-  });
-
-  it("rejette une évolution sans raisonnement", () => {
-    // Un arbitrage doit pouvoir être instruit (P3).
-    expect(
-      validerAppelOutil(OUTIL_EVOLUTION, { evolution: "retrait", raisonnement: "  " }),
-    ).toBeNull();
-  });
-
-  it("rejette une évolution hors des trois voies", () => {
-    expect(
-      validerAppelOutil(OUTIL_EVOLUTION, { evolution: "fusion", raisonnement: "x" }),
-    ).toBeNull();
-  });
-
-  it("accepte un retrait et ignore ses champs surnuméraires", () => {
-    // Proposer un retrait reste valide ; le reste est du bruit, pas un motif
-    // de rejet.
-    const recu = validerAppelOutil(OUTIL_EVOLUTION, {
-      evolution: "retrait",
-      raisonnement: "Elle sort du périmètre de travail.",
-      intitule: "Quelque chose",
-    });
-    if (recu?.genre !== "evolution") throw new Error("genre inattendu");
-    expect(recu.evolution.intitule).toBe("");
   });
 
   it("n'expose PAS proposer_correction — la correction ne passe pas par le chat", () => {

@@ -136,20 +136,6 @@ export const RETRAVAILLER_MAX = 180;
 export const RETRAVAILLER_ITEMS_MAX = 4;
 
 /**
- * ⚠️ `proposer_evolution` n'entre pas non plus dans `outilsTuteur`.
- *
- * Il ne s'arme que sur une compétence dont `estMaitrisee` est vrai, et la route
- * le revérifie côté serveur. Proposer une évolution sur une compétence qui n'a
- * rien démontré serait exactement l'invention que ce système combat : un
- * « successeur » de quelque chose qui n'est pas su.
- *
- * Et comme `proposer_referentiel`, **son schéma n'a aucun champ `code`**. Un
- * successeur est une compétence NOUVELLE : son code sort d'`attribuerCodes`,
- * comme tous les autres (ADR-026, ADR-031).
- */
-export const OUTIL_EVOLUTION = "proposer_evolution";
-
-/**
  * ⚠️ `proposer_revision` — le point d'architecture du lot C.
  *
  * CLAUDE.md §8 interdit de laisser le tuteur écrire un code de compétence.
@@ -243,26 +229,17 @@ export const OUTIL_REFERENTIEL_COMPLET = "proposer_referentiel_complet";
 export const OUTIL_INTENTION = "traduire_intention";
 
 /**
- * Outils confinés de la boucle adaptative.
+ * Outil confiné de la boucle adaptative.
  *
- * Ils ne sont jamais ajoutés à `outilsTuteur` : le serveur les arme pour une
- * requête one-shot après avoir fixé la famille, les cibles, les contraintes,
- * les ressources et le contrat d'évaluation. Le tuteur ne peut donc produire
- * que le contenu du workspace, puis éventuellement une proposition de lecture
- * d'un artefact figé. Il n'écrit ni activité, ni évaluation finale, ni observation.
+ * Il n'est jamais ajouté à `outilsTuteur` : le serveur l'arme pour une requête
+ * one-shot après avoir fixé les cibles, les contraintes, les ressources et le
+ * contrat d'évaluation. Le tuteur ne peut donc produire que le contenu du
+ * workspace. Il n'écrit ni activité, ni évaluation finale, ni observation.
  */
-export const OUTIL_EXPLORATION_ADAPTATIVE = "proposer_exploration_adaptative";
 export const OUTIL_MINI_PROJET_ADAPTATIF = "proposer_mini_projet_adaptatif";
-export const OUTIL_EVALUATION_PROJET = "proposer_evaluation_projet";
 export const OUTIL_EVALUATION_EXPLICATION = "proposer_evaluation_explication";
 
-export const APPRECIATIONS_PROJET = [
-  "non-demontre",
-  "partiellement-demontre",
-  "demontre",
-] as const;
-
-export type FamilleContenuAdaptatif = "explorer" | "produire";
+export type FamilleContenuAdaptatif = "produire";
 
 /**
  * Sous-ensemble de JSON Schema effectivement employé ici.
@@ -588,8 +565,6 @@ function schemaCorrection(nombreDeCriteres: number): SchemaJson {
 const JALONS_ACTIVITE_MAX = 12;
 const ETAPES_WORKSPACE_MAX = 12;
 const CONSEILS_PROJET_MAX = 8;
-const ELEMENTS_OBSERVES_MAX = 5;
-const RESERVES_EVALUATION_MAX = 6;
 
 function schemaJalonsActivite(): SchemaJson {
   return {
@@ -610,52 +585,6 @@ function schemaJalonsActivite(): SchemaJson {
       required: ["titre", "consigne", "resultat_attendu"],
       additionalProperties: false,
     },
-  };
-}
-
-function schemaExplorationAdaptative(): SchemaJson {
-  return {
-    type: "object",
-    properties: {
-      titre: { type: "string" },
-      description: { type: "string" },
-      brief: { type: "string" },
-      jalons: schemaJalonsActivite(),
-      workspace: {
-        type: "object",
-        properties: {
-          introduction: { type: "string" },
-          parcours: {
-            type: "array",
-            minItems: 1,
-            maxItems: ETAPES_WORKSPACE_MAX,
-            items: {
-              type: "object",
-              properties: {
-                titre: { type: "string" },
-                contenu: { type: "string" },
-                invite_annotation: {
-                  type: "string",
-                  description:
-                    "Invitation facultative à noter une idée ou une question. Chaîne vide si elle n'est pas utile.",
-                },
-              },
-              required: ["titre", "contenu", "invite_annotation"],
-              additionalProperties: false,
-            },
-          },
-          synthese_facultative: {
-            type: "string",
-            description:
-              "Invitation facultative à synthétiser. Elle soutient l'apprentissage mais ne produit aucune observation.",
-          },
-        },
-        required: ["introduction", "parcours", "synthese_facultative"],
-        additionalProperties: false,
-      },
-    },
-    required: ["titre", "description", "brief", "jalons", "workspace"],
-    additionalProperties: false,
   };
 }
 
@@ -706,60 +635,6 @@ function schemaMiniProjetAdaptatif(): SchemaJson {
   };
 }
 
-function schemaEvaluationProjet(idsCriteres: string[]): SchemaJson {
-  const critere: SchemaJson =
-    idsCriteres.length > 0
-      ? { type: "string", enum: idsCriteres }
-      : { type: "string", description: "Aucun critère armé : la requête doit être refusée." };
-
-  return {
-    type: "object",
-    properties: {
-      criteres: {
-        type: "array",
-        minItems: Math.max(1, idsCriteres.length),
-        maxItems: Math.max(1, idsCriteres.length),
-        description:
-          "Une proposition pour chaque critère fourni, exactement une fois. La personne valide ou modifie ensuite chaque ligne.",
-        items: {
-          type: "object",
-          properties: {
-            critere_id: critere,
-            appreciation: { type: "string", enum: [...APPRECIATIONS_PROJET] },
-            justification: {
-              type: "string",
-              description:
-                "Ce que l'artefact figé montre ou ne montre pas pour ce seul critère. N'invente aucun élément absent.",
-            },
-            elements_observes: {
-              type: "array",
-              minItems: 1,
-              maxItems: ELEMENTS_OBSERVES_MAX,
-              items: { type: "string" },
-            },
-          },
-          required: ["critere_id", "appreciation", "justification", "elements_observes"],
-          additionalProperties: false,
-        },
-      },
-      synthese: {
-        type: "string",
-        description:
-          "Synthèse de la proposition. N'attribue ni niveau, ni qualité d'observation, ni autonomie.",
-      },
-      reserves: {
-        type: "array",
-        maxItems: RESERVES_EVALUATION_MAX,
-        items: { type: "string" },
-        description:
-          "Limites de lecture de l'artefact. Une absence d'information reste une réserve, jamais une valeur fabriquée.",
-      },
-    },
-    required: ["criteres", "synthese", "reserves"],
-    additionalProperties: false,
-  };
-}
-
 /**
  * L'outil de correction, pour un exercice donné.
  *
@@ -779,46 +654,15 @@ export function outilCorrection(
 }
 
 /**
- * Outil one-shot de contenu adaptatif. La famille est choisie par le serveur
- * avant l'appel et n'apparaît dans aucun champ modifiable du schéma.
+ * Outil one-shot de contenu adaptatif. Le serveur fixe le contrat avant
+ * l'appel ; il n'apparaît dans aucun champ modifiable du schéma.
  */
-export function outilGenerationActivite(
-  famille: FamilleContenuAdaptatif,
-): OutilTuteur {
-  if (famille === "explorer") {
-    return {
-      nom: OUTIL_EXPLORATION_ADAPTATIVE,
-      description:
-        "Rédige uniquement le contenu d'une exploration guidée dont le contrat est déjà fixé par le serveur. Tu n'enregistres rien et tu ne produis aucune observation.",
-      schema: schemaExplorationAdaptative(),
-    };
-  }
-
+export function outilGenerationActivite(): OutilTuteur {
   return {
     nom: OUTIL_MINI_PROJET_ADAPTATIF,
     description:
       "Rédige uniquement le contenu d'un mini-projet dont les cibles, ressources et critères sont déjà fixés par le serveur. Tu n'enregistres rien et tu ne notes rien.",
     schema: schemaMiniProjetAdaptatif(),
-  };
-}
-
-/**
- * Outil one-shot de proposition d'évaluation d'un projet.
- *
- * Les identifiants viennent exclusivement du contrat serveur et voyagent dans
- * un `enum`. Le schéma ne comporte volontairement aucun niveau de compétence,
- * score, qualité d'observation ou autonomie : ces décisions restent humaines et
- * applicatives après revue.
- */
-export function outilEvaluationProjet(
-  criteres: { id: string }[],
-): OutilTuteur {
-  const ids = [...new Set(criteres.map((c) => c.id.trim()).filter(Boolean))];
-  return {
-    nom: OUTIL_EVALUATION_PROJET,
-    description:
-      "Propose une lecture critère par critère d'un artefact figé. Tu n'enregistres rien : la personne valide, modifie ou rejette chaque ligne avant toute évaluation finale ou observation.",
-    schema: schemaEvaluationProjet(ids),
   };
 }
 
@@ -878,51 +722,6 @@ export function outilEvaluationExplication(): OutilTuteur {
   };
 }
 
-/** Les trois évolutions possibles d'une compétence maîtrisée (ADR-042). */
-export const EVOLUTIONS = ["successeur", "elargissement", "retrait"] as const;
-
-/**
- * L'outil d'évolution d'une compétence maîtrisée.
- *
- * `SchemaJson` ne sait pas exprimer un `oneOf` : les champs conditionnellement
- * requis — `intitule` pour un successeur, `contexte` pour un élargissement —
- * sont vérifiés dans le validateur écrit à la main. C'est la philosophie
- * déclarée du fichier : ce qui n'est pas exprimable dans ce type ne l'est pas
- * dans un schéma non plus, et se valide là où la garantie est réelle.
- */
-export function outilEvolution(): OutilTuteur {
-  return {
-    nom: OUTIL_EVOLUTION,
-    description:
-      "Propose ce que devient une compétence que la personne maîtrise. Trois voies, une seule à la fois : « successeur » (une compétence nouvelle, au palier au-dessus, qui s'appuie sur celle-ci) · « elargissement » (remesurer la même compétence dans un contexte nouveau, quand la maîtrise tient sur des contextes trop proches) · « retrait » (elle n'a plus sa place dans le périmètre). N'affirme rien qui ne figure pas dans ce qui t'a été donné. Tu ne l'appliques pas : la personne arbitre.",
-    schema: {
-      type: "object",
-      properties: {
-        evolution: { type: "string", enum: [...EVOLUTIONS] },
-        raisonnement: {
-          type: "string",
-          description:
-            "Ce que les observations montrent, et ce qu'elles ne montrent pas. Cite les valeurs qui t'ont été données ; n'en ajoute aucune.",
-        },
-        intitule: {
-          type: "string",
-          description:
-            "Successeur uniquement : un savoir-faire observable, pas un sujet. Ne redouble aucun intitulé voisin.",
-        },
-        palier: { type: "string", enum: [...PALIERS] },
-        importance: { type: "number", minimum: 0, maximum: 1 },
-        contexte: {
-          type: "string",
-          description:
-            "Élargissement uniquement : le contexte nouveau où remesurer, formulé comme un thème d'exercice.",
-        },
-      },
-      required: ["evolution", "raisonnement"],
-      additionalProperties: false,
-    },
-  };
-}
-
 /**
  * L'outil de proposition d'un référentiel complet.
  *
@@ -940,9 +739,8 @@ export function outilEvolution(): OutilTuteur {
  *
  * Le plafond est porté par le SCHÉMA, pas par la consigne : `maxItems` ne se
  * contourne pas, une phrase si. Deux et non un — un sujet réellement double
- * existe — mais le découpage au-delà part en **thèmes** (`themes`, ADR-053),
- * qui traversent les domaines par construction et n'engagent aucun préfixe de
- * code ni aucune gouvernance.
+ * existe — mais le découpage au-delà part en domaines neufs explicites,
+ * sans préfixe de code imposé ni gouvernance supplémentaire.
  *
  * Sur un compte VIDE le plafond ne s'applique pas : il n'y a alors rien à
  * surcharger, et l'amorçage a besoin de poser la structure d'un coup.
@@ -1363,9 +1161,7 @@ export type PropositionRecue =
   | { genre: "referentiel"; branche: PropositionReferentiel }
   | { genre: "correction"; correction: PropositionCorrection }
   | { genre: "contenu-activite"; contenu: PropositionContenuActivite }
-  | { genre: "evaluation-projet"; evaluation: PropositionEvaluationProjet }
   | { genre: "evaluation-explication"; evaluation: PropositionEvaluationExplication }
-  | { genre: "evolution"; evolution: PropositionEvolution }
   | { genre: "revision"; revision: PropositionRevision }
   | { genre: "relations"; relations: PropositionRelations }
   | { genre: "referentiel-complet"; resume: string; branches: PropositionReferentiel[]; ecartees: number }
@@ -1419,22 +1215,6 @@ export interface PropositionRelations {
 export const MAX_RELATIONS_PROPOSEES = 5;
 
 /**
- * Une évolution proposée. Tout en chaînes, comme les autres — sauf `evolution`,
- * qui est déjà contraint par l'`enum` et validé ci-dessous.
- *
- * **Aucun champ `code`** : un successeur est une compétence nouvelle, et son
- * code est attribué par l'application (ADR-026).
- */
-export interface PropositionEvolution {
-  evolution: (typeof EVOLUTIONS)[number];
-  raisonnement: string;
-  intitule: string;
-  palier: string;
-  importance: string;
-  contexte: string;
-}
-
-/**
  * Une correction proposée, telle que l'outil la rend — tout en chaînes.
  *
  * Même convention que `PropositionExercice` : la validation garantit la
@@ -1470,15 +1250,6 @@ interface PropositionContenuCommun {
   jalons: PropositionJalonActivite[];
 }
 
-export interface PropositionExplorationAdaptative extends PropositionContenuCommun {
-  famille: "explorer";
-  workspace: {
-    introduction: string;
-    parcours: { titre: string; contenu: string; inviteAnnotation: string }[];
-    syntheseFacultative: string;
-  };
-}
-
 export interface PropositionMiniProjetAdaptatif extends PropositionContenuCommun {
   famille: "produire";
   workspace: {
@@ -1489,24 +1260,7 @@ export interface PropositionMiniProjetAdaptatif extends PropositionContenuCommun
   };
 }
 
-export type PropositionContenuActivite =
-  | PropositionExplorationAdaptative
-  | PropositionMiniProjetAdaptatif;
-
-/**
- * Lecture proposée par le tuteur. Ce type ne représente ni une évaluation
- * finale ni une observation : aucune écriture n'est possible depuis ce module.
- */
-export interface PropositionEvaluationProjet {
-  criteres: {
-    critereId: string;
-    appreciation: (typeof APPRECIATIONS_PROJET)[number];
-    justification: string;
-    elementsObserves: string[];
-  }[];
-  synthese: string;
-  reserves: string[];
-}
+export type PropositionContenuActivite = PropositionMiniProjetAdaptatif;
 
 function clesExactes(
   valeur: Record<string, unknown>,
@@ -1549,66 +1303,6 @@ function validerJalonsActivite(valeur: unknown): PropositionJalonActivite[] | nu
     jalons.push({ titre, consigne, resultatAttendu });
   }
   return jalons;
-}
-
-function validerExplorationAdaptative(
-  entree: Record<string, unknown>,
-): PropositionRecue | null {
-  if (!clesExactes(entree, ["titre", "description", "brief", "jalons", "workspace"])) {
-    return null;
-  }
-  const titre = texteBorne(entree.titre, 160);
-  const description = texteBorne(entree.description, 800);
-  const brief = texteBorne(entree.brief, 8_000);
-  const jalons = validerJalonsActivite(entree.jalons);
-  const workspace = objet(entree.workspace);
-  if (
-    titre === null ||
-    description === null ||
-    brief === null ||
-    jalons === null ||
-    !workspace ||
-    !clesExactes(workspace, ["introduction", "parcours", "synthese_facultative"])
-  ) {
-    return null;
-  }
-
-  const introduction = texteBorne(workspace.introduction, 4_000);
-  const syntheseFacultative = texteBorne(workspace.synthese_facultative, 1_000, false);
-  if (
-    introduction === null ||
-    syntheseFacultative === null ||
-    !Array.isArray(workspace.parcours) ||
-    workspace.parcours.length === 0 ||
-    workspace.parcours.length > ETAPES_WORKSPACE_MAX
-  ) {
-    return null;
-  }
-
-  const parcours: PropositionExplorationAdaptative["workspace"]["parcours"] = [];
-  for (const brute of workspace.parcours) {
-    const etape = objet(brute);
-    if (!etape || !clesExactes(etape, ["titre", "contenu", "invite_annotation"])) {
-      return null;
-    }
-    const titreEtape = texteBorne(etape.titre, 160);
-    const contenu = texteBorne(etape.contenu, 12_000);
-    const inviteAnnotation = texteBorne(etape.invite_annotation, 600, false);
-    if (titreEtape === null || contenu === null || inviteAnnotation === null) return null;
-    parcours.push({ titre: titreEtape, contenu, inviteAnnotation });
-  }
-
-  return {
-    genre: "contenu-activite",
-    contenu: {
-      famille: "explorer",
-      titre,
-      description,
-      brief,
-      jalons,
-      workspace: { introduction, parcours, syntheseFacultative },
-    },
-  };
 }
 
 function validerMiniProjetAdaptatif(
@@ -1701,34 +1395,6 @@ export function parsePropositionContenuActivite(
         : brut;
     })
     : source.jalons;
-  if (familleAttendue === "explorer") {
-    const workspace = objet(source.workspace);
-    const recue = workspace
-      ? validerExplorationAdaptative({
-        titre: source.titre,
-        description: source.description,
-        brief: source.brief,
-        jalons,
-        workspace: {
-          introduction: workspace.introduction,
-          parcours: Array.isArray(workspace.parcours)
-            ? workspace.parcours.map((brut) => {
-              const etape = objet(brut);
-              return etape
-                ? {
-                  titre: etape.titre,
-                  contenu: etape.contenu,
-                  invite_annotation: etape.inviteAnnotation,
-                }
-                : brut;
-            })
-            : workspace.parcours,
-          synthese_facultative: workspace.syntheseFacultative,
-        },
-      })
-      : null;
-    return recue?.genre === "contenu-activite" ? recue.contenu : null;
-  }
   const workspace = objet(source.workspace);
   const recue = workspace
     ? validerMiniProjetAdaptatif({
@@ -1750,90 +1416,6 @@ export function parsePropositionContenuActivite(
     })
     : null;
   return recue?.genre === "contenu-activite" ? recue.contenu : null;
-}
-
-function idsCriteresEvaluation(outils: OutilTuteur[]): Set<string> {
-  const outil = outils.find((o) => o.nom === OUTIL_EVALUATION_PROJET);
-  const ids = outil?.schema.properties?.criteres?.items?.properties?.critere_id?.enum ?? [];
-  return new Set(ids);
-}
-
-function validerEvaluationProjet(
-  entree: Record<string, unknown>,
-  idsAttendus: Set<string>,
-): PropositionRecue | null {
-  if (
-    idsAttendus.size === 0 ||
-    !clesExactes(entree, ["criteres", "synthese", "reserves"]) ||
-    !Array.isArray(entree.criteres) ||
-    entree.criteres.length !== idsAttendus.size
-  ) {
-    return null;
-  }
-
-  const criteres: PropositionEvaluationProjet["criteres"] = [];
-  const vus = new Set<string>();
-  for (const brut of entree.criteres) {
-    const critere = objet(brut);
-    if (
-      !critere ||
-      !clesExactes(critere, [
-        "critere_id",
-        "appreciation",
-        "justification",
-        "elements_observes",
-      ])
-    ) {
-      return null;
-    }
-    const critereId = texteBorne(critere.critere_id, 160);
-    const appreciation = dansEnum(critere.appreciation, APPRECIATIONS_PROJET);
-    const justification = texteBorne(critere.justification, 1_500);
-    if (
-      critereId === null ||
-      !idsAttendus.has(critereId) ||
-      vus.has(critereId) ||
-      !appreciation ||
-      justification === null ||
-      !Array.isArray(critere.elements_observes) ||
-      critere.elements_observes.length === 0 ||
-      critere.elements_observes.length > ELEMENTS_OBSERVES_MAX
-    ) {
-      return null;
-    }
-
-    const elementsObserves: string[] = [];
-    for (const brutElement of critere.elements_observes) {
-      const element = texteBorne(brutElement, 600);
-      if (element === null) return null;
-      elementsObserves.push(element);
-    }
-    vus.add(critereId);
-    criteres.push({
-      critereId,
-      appreciation: appreciation as PropositionEvaluationProjet["criteres"][number]["appreciation"],
-      justification,
-      elementsObserves,
-    });
-  }
-  if (vus.size !== idsAttendus.size) return null;
-
-  const synthese = texteBorne(entree.synthese, 2_000);
-  if (
-    synthese === null ||
-    !Array.isArray(entree.reserves) ||
-    entree.reserves.length > RESERVES_EVALUATION_MAX
-  ) {
-    return null;
-  }
-  const reserves: string[] = [];
-  for (const brute of entree.reserves) {
-    const reserve = texteBorne(brute, 800);
-    if (reserve === null) return null;
-    reserves.push(reserve);
-  }
-
-  return { genre: "evaluation-projet", evaluation: { criteres, synthese, reserves } };
 }
 
 function validerEvaluationExplication(
@@ -2079,49 +1661,6 @@ function validerCorrection(entree: Record<string, unknown>): PropositionRecue | 
       resultat,
       appreciations,
       bilan: { pointsForts, pointsBloquants, aRetravailler },
-    },
-  };
-}
-
-/**
- * Valide une évolution proposée.
- *
- * Les champs conditionnellement requis sont vérifiés ici, faute de `oneOf` dans
- * `SchemaJson`. La règle : une évolution qu'on ne peut pas **appliquer** n'est
- * pas une proposition, c'est une phrase.
- *
- * - `successeur` sans `intitule` : l'écran de validation n'aurait rien à
- *   afficher ni `creerBranche` rien à écrire ;
- * - `elargissement` sans `contexte` : c'est le contexte qui devient le thème de
- *   l'exercice à générer ; sans lui l'élargissement n'élargit rien ;
- * - `retrait` avec un `intitule` : les champs surnuméraires sont ignorés, pas
- *   rejetés — proposer un retrait reste valide, le reste est du bruit.
- *
- * `raisonnement` est requis dans tous les cas : une évolution sans motif ne se
- * relit pas, et c'est un arbitrage que l'utilisateur doit pouvoir instruire (P3).
- */
-function validerEvolution(entree: Record<string, unknown>): PropositionRecue | null {
-  const evolution = dansEnum(entree.evolution, EVOLUTIONS);
-  if (!evolution) return null;
-
-  const raisonnement = texte(entree.raisonnement);
-  if (!raisonnement) return null;
-
-  const intitule = texte(entree.intitule);
-  const contexte = texte(entree.contexte);
-
-  if (evolution === "successeur" && !intitule) return null;
-  if (evolution === "elargissement" && !contexte) return null;
-
-  return {
-    genre: "evolution",
-    evolution: {
-      evolution: evolution as PropositionEvolution["evolution"],
-      raisonnement,
-      intitule: evolution === "retrait" ? "" : intitule,
-      palier: dansEnum(entree.palier, PALIERS),
-      importance: nombreTexte(entree.importance),
-      contexte,
     },
   };
 }
@@ -2420,16 +1959,10 @@ export function validerAppelOutil(
       return validerReferentiel(donnees);
     case OUTIL_CORRECTION:
       return validerCorrection(donnees);
-    case OUTIL_EXPLORATION_ADAPTATIVE:
-      return validerExplorationAdaptative(donnees);
     case OUTIL_MINI_PROJET_ADAPTATIF:
       return validerMiniProjetAdaptatif(donnees);
-    case OUTIL_EVALUATION_PROJET:
-      return validerEvaluationProjet(donnees, idsCriteresEvaluation(outils));
     case OUTIL_EVALUATION_EXPLICATION:
       return validerEvaluationExplication(donnees);
-    case OUTIL_EVOLUTION:
-      return validerEvolution(donnees);
     case OUTIL_REVISION:
       return validerRevision(donnees, codesDuSchemaRevision(outils));
     case OUTIL_RELATIONS:

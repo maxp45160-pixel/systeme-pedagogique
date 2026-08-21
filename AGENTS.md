@@ -115,7 +115,10 @@ Consulter `PRODUCT.md` pour la définition complète des principes.
 - Une tentative abandonnée ne produit pas de preuve.
 - Une séance ne doit pas produire de double entrée dans le journal.
 - Ne pas créer de nouvelle entité pour remplacer `LearningSession`.
-- Toute clé de stockage navigateur doit être isolée par compte.
+- Toute clé de stockage navigateur doit être isolée par compte. Exception
+  documentée (décision du 21/08/2026) : les préférences d'appareil non
+  personnelles `theme` et `rail` restent globales au navigateur — elles ne
+  portent aucune donnée pédagogique ni identifiable.
 - La logique métier non triviale doit vivre dans `lib/`, pas dans un composant.
 - `outilCorrection` reste confiné au chemin de correction prévu.
 - Pas d'émoji dans le frontend : ne jamais utiliser d'émojis dans l'interface utilisateur (boutons, badges, étiquettes, icônes, textes). Utiliser les composants d'icônes SVG (`components/ui/icones.tsx`) ou du texte sobre.
