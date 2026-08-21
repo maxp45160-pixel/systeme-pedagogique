@@ -98,6 +98,24 @@ moins risquée qu'une réorganisation complète des calques.
 
 ### 2. Parcours clé IA sans cul-de-sac
 
+> **Fait le 21/08/2026** — périmètre corrigé après vérification en conditions
+> réelles : la bannière de `/demarrer` ouvre **déjà** un panneau de réglages en
+> ligne (flux testé de bout en bout : panneau → enregistrement → stockage local
+> isolé par compte → bannière verte). Le deep-link bannière → `/compte`
+> prévu ici était donc caduque. Réalisé à la place :
+> 1. `formulaire-amorcage` ne ferme plus le panneau au même tick que le message
+>    de succès (il n'apparaissait jamais) ;
+> 2. `/compte?onglet=<id>&retour=/chemin` : onglet initial validé par liste
+>    blanche, retour validé anti open-redirect — la logique pure vit dans
+>    `lib/domain/onglets-compte.ts`, partagée par la page (serveur) et le
+>    panneau (client) ; un export d'un module `"use client"` appelé depuis le
+>    rendu serveur casse la page (constaté puis corrigé) ;
+> 3. après l'enregistrement d'une clé avec `retour=`, retour automatique à
+>    l'endroit bloqué (`panneau-compte` → `router.push`) ;
+> 4. le bandeau « Aucune clé API configurée » du chat tuteur propose un lien
+>    réel vers `/compte?onglet=tuteur&retour=<chemin courant>` (l'instruction
+>    textuelle seule est retirée).
+
 **Constat.** La bannière « Clé IA non configurée (Mistral, Groq gratuit,
 Anthropic) » est la surface la plus visible de `/demarrer` mais son action ne
 mène nulle part de manière traçable : la saisie vit dans

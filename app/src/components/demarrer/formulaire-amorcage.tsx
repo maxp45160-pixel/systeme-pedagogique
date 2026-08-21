@@ -162,13 +162,16 @@ export function FormulaireAmorcage({
 
         {panneauCleOuvert && (
           <div className="mt-3 border-t border-bordure/60 pt-3">
+            {/*
+              Le panneau reste ouvert après l'enregistrement : fermer au même
+              tick démontait ReglagesTuteur avant tout rendu, et le message
+              « Clé enregistrée avec succès » n'apparaissait jamais. La
+              confirmation reste visible ; l'utilisateur referme lui-même.
+            */}
             <ReglagesTuteur
               compteId={compteId}
               compact
-              surEnregistre={() => {
-                setCleConfiguree(true);
-                setPanneauCleOuvert(false);
-              }}
+              surEnregistre={() => setCleConfiguree(true)}
             />
           </div>
         )}

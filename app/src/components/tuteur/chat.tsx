@@ -1,7 +1,8 @@
 "use client";
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
 import { BandeauInfo, Bouton, cx, Etiquette, PointActif } from "@/components/ui/primitives";
 import { Depliant } from "@/components/ui/explication";
 import { Markdown } from "@/components/ui/markdown";
@@ -1071,6 +1072,7 @@ function ChatHydrate({
     amorce ?? (messages.length === 0 && competenceCiblee ? `Explique-moi ${competenceCiblee}.` : "");
 
   const router = useRouter();
+  const cheminCourant = usePathname();
   const [demarrageDirect, setDemarrageDirect] = useState(false);
 
   const ouvrirBranche = useCallback((b: PropositionReferentiel) => {
@@ -1312,9 +1314,16 @@ function ChatHydrate({
           </p>
           <ol className="mt-2 space-y-1 pl-4 text-texte-attenue">
             <li className="list-decimal">
-              Ouvrir les <strong>réglages</strong> (icône engrenage, en bas du rail) et saisir ta
-              clé API — Mistral, Anthropic, Groq… La clé est stockée dans ton navigateur et
-              n{"'"}est jamais envoyée ailleurs qu{"'"}à la route du tuteur.
+              Ouvrir les{" "}
+              <Link
+                href={`/compte?onglet=tuteur&retour=${encodeURIComponent(cheminCourant ?? "/")}`}
+                className="font-medium text-primaire underline underline-offset-2"
+              >
+                réglages
+              </Link>{" "}
+              (onglet « Tuteur IA &amp; Clé ») et saisir ta clé API — Mistral, Anthropic,
+              Groq… La clé est stockée dans ton navigateur et n{"'"}est jamais envoyée
+              ailleurs qu{"'"}à la route du tuteur.
             </li>
             <li className="list-decimal">
               Utiliser <strong>« Copier le contexte »</strong> et coller le prompt dans Claude.

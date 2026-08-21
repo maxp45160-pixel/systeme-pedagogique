@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ComponentType } from "react";
+import { useRouter } from "next/navigation";
 import { Bouton, SelecteurSegmente, cx } from "@/components/ui/primitives";
 import { seDeconnecter } from "@/lib/supabase/actions";
 import { exporterJournal } from "@/lib/store/export";
@@ -16,8 +17,7 @@ import { ModaleDangerCompte } from "@/components/layout/modale-danger-compte";
 import { appliquerTheme, lireChoixTheme, type ChoixTheme } from "@/components/layout/theme";
 import type { User } from "@/lib/domain/types";
 import { ReglagesTuteur } from "@/components/tuteur/reglages-tuteur";
-
-type OngletCompte = "profil" | "tuteur" | "preferences" | "donnees";
+import type { OngletCompte } from "@/lib/domain/onglets-compte";
 
 interface OngletDef {
   id: OngletCompte;
@@ -36,12 +36,23 @@ export function PanneauCompte({
   profil,
   compteId,
   courriel,
+  ongletInitial,
+  retour,
 }: {
   profil: User;
   compteId: string;
   courriel: string | null;
+  /** Onglet demandé par l'URL (`?onglet=`) — déjà validé côté serveur. */
+  ongletInitial?: OngletCompte;
+  /**
+   * Chemin interne vers lequel revenir après l'enregistrement d'une clé
+   * (`?retour=`) — déjà validé côté serveur. Sans lui, l'enregistrement
+   * reste sur place.
+   */
+  retour?: string;
 }) {
-  const [onglet, setOnglet] = useState<OngletCompte>("profil");
+  const [onglet, setOnglet] = useState<OngletCompte>(ongletInitial ?? "profil");
+  const router = useRouter();
   const [exportEnCours, setExportEnCours] = useState(false);
   const [messageExport, setMessageExport] = useState<string | null>(null);
   const [modaleDangerOuverte, setModaleDangerOuverte] = useState(false);
@@ -123,7 +134,18 @@ export function PanneauCompte({
               </p>
             </div>
             <div className="max-w-xl">
-              <ReglagesTuteur compteId={compteId} />
+              <ReglagesTuteur
+                compteId={compteId}
+                surEnregistre={
+                  retour
+                    ? () => {
+                        // La clé est enregistrée dans ce navigateur : on rend
+                        // à l'utilisateur l'endroit exact où il bloquait.
+                        router.push(retour);
+                      }
+                    : undefined
+                }
+              />
             </div>
           </div>
         )}
