@@ -41,8 +41,11 @@ describe("slugifier / préfixes", () => {
   });
 
   it("dérive un préfixe utilisable quand le tuteur n'en propose pas", () => {
-    expect(prefixeParDefaut("Philosophie morale")).toBe("PHI");
-    expect(prefixeParDefaut("Droit")).toBe("DRO");
+    // Même algorithme que la suggestion affichée à l'écran : deux mots donnent
+    // deux fois deux lettres, un mot seul ses quatre premières.
+    expect(prefixeParDefaut("Philosophie morale")).toBe("PHMO");
+    expect(prefixeParDefaut("Droit")).toBe("DROI");
+    expect(prefixeParDefaut("Cryptographie & Sécurité")).toBe("CRSE");
     // Deux lettres suffisent : « IA » est un préfixe valide, pas un cas à
     // compléter. Une seule est complétée plutôt que rejetée.
     expect(normaliserPrefixe("", "IA")).toBe("IA");
@@ -54,7 +57,7 @@ describe("slugifier / préfixes", () => {
     expect(normaliserPrefixe("P-H-I", "Philosophie")).toBe("PHI");
     expect(normaliserPrefixe("**PHI**", "Philosophie")).toBe("PHI");
     // Illisible : repli sur le nom du domaine, jamais sur une chaîne vide.
-    expect(normaliserPrefixe("123", "Philosophie morale")).toBe("PHI");
+    expect(normaliserPrefixe("123", "Philosophie morale")).toBe("PHMO");
   });
 
   it("normalise palier et importance vers des valeurs du domaine", () => {
@@ -103,7 +106,8 @@ describe("prefixesDistincts — la création multi-branches d'un seul geste", ()
   it("retombe sur le préfixe par défaut quand celui proposé est illisible", () => {
     // `normaliserPrefixe` fait déjà ce repli ; on vérifie qu'il n'est pas
     // court-circuité par le départage.
-    expect(prefixesDistincts([{ nom: "Philosophie", prefixe: "12$" }], [])).toEqual(["PHI"]);
+    // Illisible : repli sur le nom du domaine, jamais sur une chaîne vide.
+    expect(prefixesDistincts([{ nom: "Philosophie", prefixe: "12$" }], [])).toEqual(["PHIL"]);
   });
 
   it("reste déterministe : même entrée, même sortie", () => {
