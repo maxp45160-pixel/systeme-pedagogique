@@ -414,9 +414,20 @@ function ResteADemontrer({
       <h3 className="font-serif text-lg font-medium">Ce qui peut venir ensuite</h3>
 
       {vue.prochaineEtape && (
-        <p className="mt-3 rounded-lg border border-alerte/30 bg-alerte-faible/40 px-3.5 py-3 text-sm leading-relaxed text-texte">
-          {vue.prochaineEtape}
-        </p>
+        <div className="mt-3 space-y-2">
+          <p className="rounded-lg border border-alerte/30 bg-alerte-faible/40 px-3.5 py-3 text-sm leading-relaxed text-texte">
+            {vue.prochaineEtape}
+          </p>
+          {vue.niveau === 0 && (
+            <Link
+              href={`/expliquer?code=${encodeURIComponent(vue.code)}`}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-primaire/30 bg-primaire/10 px-3 py-1.5 text-xs font-medium text-primaire hover:bg-primaire/20 transition-colors"
+            >
+              Expliquer ce concept avec mes mots
+              <IconeFleche className="size-3.5" />
+            </Link>
+          )}
+        </div>
       )}
 
       {prochainExercice && ouvrirElement && (

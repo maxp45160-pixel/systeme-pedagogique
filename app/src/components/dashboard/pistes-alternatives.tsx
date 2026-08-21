@@ -95,6 +95,13 @@ export function PistesAlternatives({
                       Commencer l’exercice →
                     </Bouton>
                   </form>
+                ) : rec.etat.niveau === 0 ? (
+                  <Link
+                    href={`/expliquer?code=${encodeURIComponent(code)}`}
+                    className={`${classesLienBouton("secondaire")} !py-1 !px-2.5 !text-xs`}
+                  >
+                    Expliquer →
+                  </Link>
                 ) : (
                   <Link
                     href={`/seances?composer=1&code=${encodeURIComponent(code)}`}

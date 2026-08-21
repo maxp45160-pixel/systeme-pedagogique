@@ -193,47 +193,41 @@ function RetourAtelier({
       const liste = vue.domaine.archive ? "domaines-archives" : "domaines";
       return {
         libelle: vue.domaine.archive ? "Domaines archivés" : "Domaines",
-        titre: vue.nom,
         action: () => ouvrirElement(liste),
       };
     }
     if (vue?.kind === "competence") {
       return {
         libelle: vue.domaineNom,
-        titre: vue.code,
         action: () => ouvrirElement(`domaine:${vue.domaineId}`),
       };
     }
     if (vue?.kind === "exercice") {
       return {
         libelle: vue.domaineNom,
-        titre: vue.titre,
         action: () => ouvrirElement(`domaine:${vue.domaineId}`),
       };
     }
     if (zone === "domaine" && domaineId) {
       return {
         libelle: "Retour au domaine",
-        titre: element.titre,
         action: () => ouvrirElement(`domaine:${domaineId}`),
       };
     }
     if (zone === "ressource") {
       return {
         libelle: "Retour aux ressources",
-        titre: element.titre,
         action: () => changerVue("ressources"),
       };
     }
     return {
       libelle: "Retour aux domaines",
-      titre: element.titre,
       action: () => changerVue("domaines"),
     };
   })();
 
   return (
-    <div className="flex min-w-0 items-center gap-3">
+    <div className="flex min-w-0 items-center">
       <button
         type="button"
         onClick={cible.action}
@@ -242,7 +236,6 @@ function RetourAtelier({
         <span aria-hidden>←</span>
         <span className="max-w-[12rem] truncate">{cible.libelle}</span>
       </button>
-      <span className="truncate font-serif text-lg font-medium text-texte">{cible.titre}</span>
     </div>
   );
 }
