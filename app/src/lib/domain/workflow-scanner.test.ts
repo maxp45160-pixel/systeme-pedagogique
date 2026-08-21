@@ -30,6 +30,11 @@ describe("scannerWorkflow", () => {
           target: "page:/atelier?document",
         }),
       );
+
+      // Modale imbriquée : le parcours projet, monté par la capture
+      // d'intention (elle-même du cadre), est atteignable depuis la racine.
+      const atteignables = new Set(resultat.noeuds.map((n) => n.id));
+      expect(atteignables).toContain("modal:nouveau-projet");
     },
     25000,
   );

@@ -92,6 +92,44 @@ describe("scannerUxJourney (dynamique AST)", () => {
     // Déclencheurs atomiques
     const liensAvecDeclencheur = graphe.liens.filter((l) => Boolean(l.declencheur));
     expect(liensAvecDeclencheur.length).toBeGreaterThan(50);
+
+    // Le point d'entrée `+` n'est pas un puits : chaque genre d'intention
+    // rejoint sa surface réelle (ADR-073) — au minimum la séance (travail)
+    // et l'Atelier (note), posées par la passe dédiée.
+    const sortiesIntention = graphe.liens.filter(
+      (l) => l.source === "modal:de-quoi-as-tu-besoin",
+    );
+    expect(sortiesIntention.length).toBeGreaterThanOrEqual(2);
+    expect(sortiesIntention.some((l) => l.target === "page:/seances")).toBe(true);
+    expect(sortiesIntention.some((l) => l.target === "page:/atelier")).toBe(true);
+
+    // Toute ouverture du cadre a sa contrepartie Fermer : le tiroir tuteur et
+    // le `+` ne sont pas des états-trappes.
+    const clesRetours = new Set(
+      graphe.liens.filter((l) => l.type === "retour").map((l) => `${l.source}->${l.target}`),
+    );
+    const ouverturesCadre = graphe.liens.filter((l) => l.type === "ouverture" && l.cadre);
+    expect(ouverturesCadre.length).toBeGreaterThan(0);
+    for (const o of ouverturesCadre) {
+      expect(clesRetours.has(`${o.target}->${o.source}`)).toBe(true);
+    }
+
+    // Une sous-vue sans sortie est une affordance : elle est marquée
+    // heuristique et ne compte jamais comme puits.
+    const idsAvecSortie = new Set(graphe.liens.map((l) => l.source));
+    const sousVuesPuits = graphe.noeuds.filter(
+      (n) => n.type === "sous-vue" && !idsAvecSortie.has(n.id) && !n.heuristique,
+    );
+    expect(sousVuesPuits).toHaveLength(0);
+    expect(stats.puits).toHaveLength(0);
+
+    // Modale imbriquée : le parcours projet monté par la capture d'intention
+    // existe, est relié dans les deux sens et donc atteignable.
+    const atteignablesIds = new Set(resultat.noeuds.map((n) => n.id));
+    expect(atteignablesIds).toContain("modal:nouveau-projet");
+    expect(graphe.liens.some((l) => l.type === "ouverture"
+      && ((l.source === "modal:de-quoi-as-tu-besoin" && l.target === "modal:nouveau-projet")
+        || (l.source === "modal:nouveau-projet" && l.target === "modal:de-quoi-as-tu-besoin")))).toBe(true);
   }, 20000);
 
   it("construit une vue de synthèse (Macro) épurée et articulée sur le funnel de valeur pédagogique", async () => {

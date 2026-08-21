@@ -1426,3 +1426,56 @@ export function resoudreSurfacesPartagees(
 
   return parDossier;
 }
+
+/**
+ * Modales imbriquées — une modale peut monter une autre modale.
+ *
+ * La capture d'intention (`+`) ne se contente pas de naviguer : pour un
+ * projet, elle passe la main au parcours de projet ; pour un référentiel, à
+ * la proposition de branches. Ces modales-enfant sont déclarées (fichier
+ * `modale-*.tsx`) mais importées par une autre modale, jamais par une page —
+ * le passage pages → composants les croit donc inexistantes et le graphe les
+ * montre inatteignables alors que le chemin existe.
+ *
+ * Retourne, pour chaque modale parente, les identifiants des modales qu'elle
+ * monte directement (imports directs du fichier qui la déclare — transitif,
+ * le chaînage passerait par des composants ordinaires et sur-relierait).
+ */
+export function resoudreModalesImbriquees(
+  analyses: Map<string, FichierAstAnalyse>,
+): Map<string, Set<string>> {
+  const importVers = new Map<string, string>();
+  for (const relatif of analyses.keys()) {
+    const sansExt = relatif.replace(/\.(tsx?|jsx?)$/, "");
+    importVers.set(sansExt, relatif);
+    if (relatif.endsWith("/index.tsx") || relatif.endsWith("/index.ts")) {
+      importVers.set(sansExt.replace(/\/index$/, ""), relatif);
+    }
+  }
+
+  const modalesParFichier = new Map<string, ModaleAst[]>();
+  for (const a of analyses.values()) {
+    if (a.modales.length > 0) modalesParFichier.set(a.relatif, a.modales);
+  }
+
+  const parParent = new Map<string, Set<string>>();
+  for (const [relatif, modales] of modalesParFichier.entries()) {
+    const a = analyses.get(relatif);
+    if (!a) continue;
+    for (const modale of a.modales) {
+      for (const imp of a.imports) {
+        const fichierEnfant = importVers.get(imp);
+        if (!fichierEnfant || fichierEnfant === relatif) continue;
+        const enfants = modalesParFichier.get(fichierEnfant);
+        if (!enfants) continue;
+        const existants = parParent.get(modale.id) ?? new Set<string>();
+        for (const enfant of enfants) {
+          if (enfant.id !== modale.id) existants.add(enfant.id);
+        }
+        if (existants.size > 0) parParent.set(modale.id, existants);
+      }
+    }
+  }
+
+  return parParent;
+}

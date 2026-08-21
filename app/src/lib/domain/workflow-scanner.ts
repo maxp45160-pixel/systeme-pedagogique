@@ -25,6 +25,7 @@ import {
   CLES_VARIANTS,
   groupePourChemin,
   resoudreImportsComposants,
+  resoudreModalesImbriquees,
   resoudreNavigationPartagee,
   resoudreSurfacesPartagees,
   slugId,
@@ -164,6 +165,30 @@ export async function scannerWorkflow(): Promise<GrapheWorkflow> {
           }
         }
       }
+    }
+  }
+
+  // 2bis. Modales imbriquées — une modale peut monter une autre modale (la
+  // capture d'intention passe la main au parcours de projet ou à la
+  // proposition de référentiel). La passe ci-dessus ne relie que depuis les
+  // pages : la modale-enfant est alors déclarée mais jamais atteinte, et le
+  // graphe la montre inatteignable alors que le chemin existe.
+  for (const [parent, enfants] of resoudreModalesImbriquees(analyses)) {
+    if (!parId.has(parent)) continue;
+    for (const enfant of enfants) {
+      if (!parId.has(enfant)) continue;
+      connecter({
+        source: parent,
+        target: enfant,
+        type: "ouverture",
+        libelle: "Modale imbriquée",
+      });
+      connecter({
+        source: enfant,
+        target: parent,
+        type: "retour",
+        libelle: "Fermer",
+      });
     }
   }
 

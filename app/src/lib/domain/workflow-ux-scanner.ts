@@ -24,6 +24,7 @@ import {
   baseRoute,
   groupePourChemin,
   resoudreImportsComposants,
+  resoudreModalesImbriquees,
   resoudreNavigationPartagee,
   resoudreSurfacesPartagees,
   slugId,
@@ -936,7 +937,141 @@ function construireUxAtomique(
           declencheur: "Bouton du cadre partagé",
           cadre: true,
         });
+        // Contrepartie de l'ouverture : fermer la surface rend l'écran qu'on
+        // avait quitté. Sans cette arête, le tiroir tuteur et le point
+        // d'entrée `+` sont des ouvertures sans retour — un état-trappe dans
+        // le graphe alors que Fermer / Échap existe partout.
+        connecter({
+          source: id,
+          target: sourceId,
+          type: "retour",
+          libelle: "Fermer",
+          declencheur: "Clic 'Fermer' / Échap",
+          cadre: true,
+        });
       }
+    }
+  }
+
+  // 9. Sorties du point d'entrée `+` — la capture d'intention oriente vers
+  // une surface existante (ADR-073) : chaque genre rejoint son destinataire
+  // réel dans `capture-intention.tsx`. Sans cette passe, le geste d'entrée le
+  // plus fréquent est un puits du graphe alors qu'il ne l'est jamais côté
+  // utilisateur. La passe vit après le cadre partagé : c'est lui qui crée le
+  // nœud de la capture quand aucune page ne l'importe. Les cibles vers une
+  // autre modale ne sont connectées que si le nœud existe : une modale-enfant
+  // montée uniquement par cette capture est rattachée par la passe des
+  // modales imbriquées.
+  const intentionId = "modal:de-quoi-as-tu-besoin";
+  if (parId.has(intentionId)) {
+    if (parId.has("page:/seances")) {
+      connecter({
+        source: intentionId,
+        target: "page:/seances",
+        type: "transition",
+        libelle: "Intention « travail »",
+        declencheur: "Bouton « Préparer la séance » — compositeur pré-rempli",
+      });
+    }
+    if (parId.has("page:/atelier")) {
+      connecter({
+        source: intentionId,
+        target: "page:/atelier",
+        type: "transition",
+        libelle: "Intention « note »",
+        declencheur: "Fiche créée puis ouverte dans l'Atelier",
+      });
+    }
+    for (const [cible, libelle, declencheur] of [
+      [
+        "modal:nouveau-projet",
+        "Intention « projet »",
+        "Le parcours de projet prend le relais avec l'intention pré-remplie",
+      ],
+      [
+        "modal:referentiel",
+        "Intention « référentiel »",
+        "Proposition de branches avec le sujet pré-rempli",
+      ],
+      [
+        "modal:competence",
+        "Demande de compétence explicite",
+        "Modale compétence avec branches pré-remplies",
+      ],
+    ] as const) {
+      if (!parId.has(cible)) continue;
+      connecter({
+        source: intentionId,
+        target: cible,
+        type: "ouverture",
+        libelle,
+        declencheur,
+      });
+    }
+  }
+
+  // 10. Modales imbriquées — une modale peut monter une autre modale (la
+  // capture d'intention passe la main au parcours de projet ou à la
+  // proposition de référentiel). La passe des modales réelles ne suit que les
+  // pages : la modale-enfant reste alors déclarée mais jamais reliée — puits
+  // ou inatteignable selon la perspective. L'ouverture déjà posée par la
+  // passe `+` n'est pas doublée ; seul le retour manquant est ajouté.
+  for (const [parent, enfants] of resoudreModalesImbriquees(analyses)) {
+    if (!parId.has(parent)) continue;
+    for (const enfant of enfants) {
+      const porteur = [...analyses.values()].find((fa) =>
+        fa.modales.some((m) => m.id === enfant),
+      );
+      const ast = porteur?.modales.find((m) => m.id === enfant);
+
+      if (!parId.has(enfant)) {
+        ajouterNoeud({
+          id: enfant,
+          type: ast?.estTiroir ? "tiroir" : "modal",
+          libelle: ast?.titre ?? enfant,
+          groupe: porteur ? groupePourChemin(porteur.relatif) : undefined,
+        });
+      }
+
+      const dejaOuverte = liens.some(
+        (l) => l.source === parent && l.target === enfant && l.type === "ouverture",
+      );
+      if (!dejaOuverte) {
+        connecter({
+          source: parent,
+          target: enfant,
+          type: "ouverture",
+          libelle: `Ouvrir ${ast?.titre ?? enfant}`,
+          declencheur: "Montée par la modale parente",
+        });
+      }
+
+      const dejaRetournee = liens.some(
+        (l) => l.source === enfant && l.target === parent && l.type === "retour",
+      );
+      if (!dejaRetournee) {
+        connecter({
+          source: enfant,
+          target: parent,
+          type: "retour",
+          libelle: "Fermer",
+          declencheur: "Clic 'Fermer' / Échap",
+        });
+      }
+    }
+  }
+
+  // 11. Sous-vues sans issue : une affordance inférée du code (widget, panneau,
+  // onglet) n'est pas une fin de parcours — l'utilisateur en sort en naviguant
+  // depuis sa page, pas depuis elle. Même statut que les micro-interactions
+  // heuristiques : affichées, mais non comptées comme puits par
+  // `statistiquesGraphe`. Pages, modales, tiroirs et actions sont toujours
+  // reliés par construction ; seules les sous-vues peuvent tomber à zéro
+  // sortie, et c'est alors le signe d'une affordance, pas d'une impasse.
+  const idsAvecSortie = new Set(liens.map((l) => l.source));
+  for (const n of noeuds) {
+    if (n.type === "sous-vue" && !idsAvecSortie.has(n.id)) {
+      n.heuristique = true;
     }
   }
 
