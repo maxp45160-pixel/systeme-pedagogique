@@ -37,7 +37,12 @@
  * inspections, jamais des preuves (invariant 2).
  */
 
-import type { Difficulte, Exercise, SkillState } from "@/lib/domain/types";
+import type {
+  Difficulte,
+  Exercise,
+  ResultatTentative,
+  SkillState,
+} from "@/lib/domain/types";
 import type { ReglagesRecommandation } from "@/lib/engine/recommend";
 import type { Recommandation } from "@/lib/engine/recommend";
 import type { Scenario, ResultatSimulation } from "./types";
@@ -236,7 +241,7 @@ export interface ActionServie {
   niveauEstime: number | null;
   aptitude: number | null;
   suivie: boolean;
-  resultat: "reussi" | "partiel" | "echec" | null;
+  resultat: ResultatTentative | null;
   menee: boolean;
   dureeMin: number | null;
   dureeEstimeeMin: number;

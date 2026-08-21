@@ -16,7 +16,7 @@
  * à partir d'une donnée invalide »).
  */
 
-import type { Difficulte, Domaine, Exercise, Skill } from "@/lib/domain/types";
+import { RESULTATS_TENTATIVE, type Difficulte, type Domaine, type Exercise, type Skill } from "@/lib/domain/types";
 import type { ProfilApprenant } from "./apprenant";
 import type { EvenementScenario, Scenario } from "./types";
 
@@ -259,7 +259,7 @@ function lireDeroule(
           exigerNombre(e, "dureeMin", chemin, erreurs, { min: 0, max: 1440 });
           if (e.type === "tentative") {
             exigerNombre(e, "indicesUtilises", chemin, erreurs, { min: 0, max: 20 });
-            if (!["reussi", "partiel", "echec"].includes(String(e.resultat))) {
+            if (!(RESULTATS_TENTATIVE as readonly string[]).includes(String(e.resultat))) {
               erreurs.push(`${chemin}.resultat : « reussi », « partiel » ou « echec ».`);
             }
           }

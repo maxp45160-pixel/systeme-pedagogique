@@ -16,6 +16,8 @@
  * composant client et par le constructeur de prompt.
  */
 
+import type { ResultatTentative } from "./types";
+
 /** Valeur d'appréciation d'un critère. Trois positions, jamais un continuum. */
 export type ValeurAppreciation = 0 | 0.5 | 1;
 
@@ -33,7 +35,7 @@ export const APPRECIATIONS: { valeur: ValeurAppreciation; libelle: string }[] = 
 ];
 
 /** Résultat global d'une tentative — le même vocabulaire que `SkillObservation.resultat`. */
-export type ResultatBilan = "reussi" | "partiel" | "echec";
+export type ResultatBilan = ResultatTentative;
 
 /**
  * Les trois résultats, avec l'aide qui les départage.

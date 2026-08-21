@@ -252,6 +252,19 @@ export interface FamilleSituation {
 }
 
 /**
+ * Le résultat d'une tentative — la seule échelle du système.
+ *
+ * Une seule autorité : le type et son énumération vivent ici, et tout le
+ * dépôt (observations, tentatives, bilans, explications, simulations,
+ * validation Supabase, outils tuteur) les relit. Une union réécrite à la
+ * main ailleurs est une copie qui peut diverger en silence — précisément ce
+ * que ce fichier existe pour empêcher.
+ */
+export const RESULTATS_TENTATIVE = ["reussi", "partiel", "echec"] as const;
+
+export type ResultatTentative = (typeof RESULTATS_TENTATIVE)[number];
+
+/**
  * Observation structurée pour une compétence — l'unité de base du système.
  * C'est la SEULE façon dont un niveau peut évoluer.
  */
@@ -273,7 +286,7 @@ export interface SkillObservation {
   niveauObservation: NiveauObservation;
   autonomie: Autonomie;
   qualite: QualiteObservation;
-  resultat: "reussi" | "partiel" | "echec";
+  resultat: ResultatTentative;
   /**
    * Étiquette de contexte, écrite au moment de l'observation — le titre de
    * l'exercice pour une observation d'exercice.
@@ -432,7 +445,7 @@ export interface ExerciseAttempt {
    * qui ne survit qu'à moitié à un renommage est pire que celui qu'il remplace.
    */
   evaluation: Partial<Record<Dimension, number>>;
-  resultat: "reussi" | "partiel" | "echec";
+  resultat: ResultatTentative;
   statut: "en-cours" | "terminee" | "abandonnee";
   notes?: string;
   /**

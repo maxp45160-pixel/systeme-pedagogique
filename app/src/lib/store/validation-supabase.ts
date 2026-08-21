@@ -8,15 +8,16 @@
  * n'est fabriqué pour permettre au moteur de continuer.
  */
 
-import type {
-  Domaine,
-  Exercise,
-  ExerciseAttempt,
-  LearningSession,
-  RefusRecommandation,
-  Skill,
-  SkillObservation,
-  User,
+import {
+  RESULTATS_TENTATIVE,
+  type Domaine,
+  type Exercise,
+  type ExerciseAttempt,
+  type LearningSession,
+  type RefusRecommandation,
+  type Skill,
+  type SkillObservation,
+  type User,
 } from "@/lib/domain/types";
 import {
   PARAMETRE_PAR_NOM,
@@ -179,7 +180,7 @@ export function validerObservation(valeur: unknown, chemin = "observations"): Sk
   enumeration(observation.niveauObservation, ["A", "B"] as const, `${chemin}.niveauObservation`);
   enumeration(observation.autonomie, ["A0", "A1", "A2", "A3", "A4"] as const, `${chemin}.autonomie`);
   enumeration(observation.qualite, ["faible", "moyenne", "forte"] as const, `${chemin}.qualite`);
-  enumeration(observation.resultat, ["reussi", "partiel", "echec"] as const, `${chemin}.resultat`);
+  enumeration(observation.resultat, RESULTATS_TENTATIVE, `${chemin}.resultat`);
   texte(observation.contexte, `${chemin}.contexte`);
   dimensions(observation.dimensions, `${chemin}.dimensions`);
   optionnel(observation, "competencesCombinees", chemin, textes);
@@ -255,7 +256,7 @@ export function validerTentative(valeur: unknown, chemin = "attempts"): Exercise
   nombre(tentative.indicesUtilises, `${chemin}.indicesUtilises`, { min: 0, entier: true });
   texte(tentative.reponse, `${chemin}.reponse`, true);
   dimensions(tentative.evaluation, `${chemin}.evaluation`);
-  enumeration(tentative.resultat, ["reussi", "partiel", "echec"] as const, `${chemin}.resultat`);
+  enumeration(tentative.resultat, RESULTATS_TENTATIVE, `${chemin}.resultat`);
   enumeration(tentative.statut, ["en-cours", "terminee", "abandonnee"] as const, `${chemin}.statut`);
   optionnel(tentative, "notes", chemin, (v, c) => texte(v, c, true));
   if (tentative.verdictTuteur !== undefined) validerVerdict(tentative.verdictTuteur, `${chemin}.verdictTuteur`);

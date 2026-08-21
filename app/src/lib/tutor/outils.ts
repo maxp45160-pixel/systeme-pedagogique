@@ -29,7 +29,11 @@
  * ne doit pas pouvoir faire entrer une proposition mal formée.
  */
 
-import type { Referentiel } from "@/lib/domain/types";
+import {
+  RESULTATS_TENTATIVE,
+  type Referentiel,
+  type ResultatTentative,
+} from "@/lib/domain/types";
 // Le barème vient du domaine, pas d'une constante locale : le prompt et l'écran
 // doivent nommer les mêmes valeurs dans les mêmes termes (`lib/domain/bilan.ts`).
 import { APPRECIATIONS, RESULTATS } from "@/lib/domain/bilan";
@@ -679,7 +683,7 @@ export function outilEvaluationExplication(): OutilTuteur {
       properties: {
         resultat: {
           type: "string",
-          enum: ["reussi", "partiel", "echec"],
+          enum: [...RESULTATS_TENTATIVE],
           description: "reussi = concept compris et expliqué correctement ; partiel = intuition présente mais imprécisions importantes ; echec = contre-sens ou hors sujet",
         },
         score_comprehension: {
@@ -1147,7 +1151,7 @@ function dansEnum(valeur: unknown, valeurs: readonly string[]): string {
  * référentiel ne changent pas. La bascule est interne au tuteur.
  */
 export interface PropositionEvaluationExplication {
-  resultat: "reussi" | "partiel" | "echec";
+  resultat: ResultatTentative;
   scoreComprehension: number;
   scoreJustification: number;
   pointsCles: string[];
@@ -1435,7 +1439,7 @@ function validerEvaluationExplication(
     return null;
   }
 
-  const resultat = dansEnum(entree.resultat, ["reussi", "partiel", "echec"] as const);
+  const resultat = dansEnum(entree.resultat, RESULTATS_TENTATIVE);
   if (!resultat) return null;
 
   const scoreComp = typeof entree.score_comprehension === "number" ? entree.score_comprehension : null;
@@ -1464,7 +1468,7 @@ function validerEvaluationExplication(
   return {
     genre: "evaluation-explication",
     evaluation: {
-      resultat: resultat as "reussi" | "partiel" | "echec",
+      resultat: resultat as ResultatTentative,
       scoreComprehension: Math.round(scoreComp * 100) / 100,
       scoreJustification: Math.round(scoreJust * 100) / 100,
       pointsCles,

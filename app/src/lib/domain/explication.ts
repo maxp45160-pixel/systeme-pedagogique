@@ -6,10 +6,12 @@
  * les exercices d'application guidés.
  */
 
+import type { ResultatTentative } from "./types";
+
 export const EXPLICATION_MIN_CARACTERES = 30;
 export const EXPLICATION_MAX_CARACTERES = 8_000;
 
-export type ResultatExplication = "reussi" | "partiel" | "echec";
+export type ResultatExplication = ResultatTentative;
 
 export interface EvaluationExplication {
   resultat: ResultatExplication;

@@ -54,6 +54,7 @@ import type {
   Exercise,
   ExerciseAttempt,
   LearningSession,
+  ResultatTentative,
   SkillObservation,
   TypeExercice,
   VerdictTuteur,
@@ -113,7 +114,7 @@ export async function enregistrerReponse(attemptId: string, reponse: string): Pr
 export interface SoumissionExercice {
   attemptId: string;
   exerciseId: string;
-  resultat: "reussi" | "partiel" | "echec";
+  resultat: ResultatTentative;
   evaluation: Partial<Record<Dimension, number>>;
   dureeMin: number;
   notes?: string;

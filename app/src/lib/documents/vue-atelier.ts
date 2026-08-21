@@ -7,6 +7,7 @@ import {
   type ExerciseAttempt,
   type NiveauCompetence,
   type Referentiel,
+  type ResultatTentative,
   type Skill,
   type SkillObservation,
   type SkillState,
@@ -37,7 +38,7 @@ export interface ObservationAtelier {
   id: string;
   date: string;
   type: string;
-  resultat: "reussi" | "partiel" | "echec";
+  resultat: ResultatTentative;
   contexte: string;
   autonomie: string;
   qualite: string;
@@ -299,7 +300,7 @@ export interface VueExerciceProjectionAtelier {
   }>;
   tentatives: ExerciseAttempt[];
   nombreTentatives: number;
-  meilleurResultat: "reussi" | "partiel" | "echec" | null;
+  meilleurResultat: ResultatTentative | null;
   derniereTentative: string | null;
 }
 
