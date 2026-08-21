@@ -145,10 +145,25 @@ export async function VueExercice(props: {
   // garder l'énoncé sous les yeux.
   const foldEnonce = Boolean(enCours) && enMesure;
 
+  /*
+   * Suggestion de durée : le temps d'horloge depuis l'ouverture de la
+   * tentative, **plafonné**. Une tentative ouverte la veille et reprise le
+   * lendemain produisait une pré-remplisse de plusieurs centaines de minutes —
+   * un temps d'horloge, pas un temps travaillé (`dureeEstimeeMin` n'est pas
+   * une mesure, et la suggestion ne doit pas en fabriquer une absurde).
+   *
+   * Le plafond de 240 min est celui du garde-fou existant sur les durées
+   * retenues à la clôture : au-delà, la valeur est manifestement du temps
+   * d'horloge et la personne corrigera à la main.
+   */
+  const PLAFOND_DUREE_SUGGEREE_MIN = 240;
   const dureeSuggeree = enCours
-    ? Math.max(
-        1,
-        Math.round((ctx.now.getTime() - new Date(enCours.debut).getTime()) / 60_000),
+    ? Math.min(
+        PLAFOND_DUREE_SUGGEREE_MIN,
+        Math.max(
+          1,
+          Math.round((ctx.now.getTime() - new Date(enCours.debut).getTime()) / 60_000),
+        ),
       )
     : exercice.dureeEstimeeMin;
 

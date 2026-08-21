@@ -103,11 +103,17 @@ export function PistesAlternatives({
                     Expliquer →
                   </Link>
                 ) : (
+                  /*
+                   * Pas d'exercice derrière cette recommandation : le lien mène
+                   * au compositeur, qui proposera la génération avant le
+                   * démarrage — le libellé ne promet que ce qui existe.
+                   */
                   <Link
                     href={`/seances?composer=1&code=${encodeURIComponent(code)}`}
                     className={`${classesLienBouton("secondaire")} !py-1 !px-2.5 !text-xs`}
+                    title="Aucun exercice existe encore : tu pourras les générer puis commencer"
                   >
-                    Composer la séance →
+                    Générer puis commencer →
                   </Link>
                 )}
                 <Link

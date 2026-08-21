@@ -66,6 +66,7 @@ export function ModaleReferentiel({
   compteId,
   sujetInitial = "",
   demarrageAutomatique = false,
+  cleDisponible,
   guideEtape,
   onFermer,
   surEnregistre,
@@ -75,6 +76,13 @@ export function ModaleReferentiel({
   sujetInitial?: string;
   /** Lance la proposition sans attendre un second clic sur le même sujet. */
   demarrageAutomatique?: boolean;
+  /**
+   * Une clé est-elle disponible quelque part (navigateur ou serveur) ?
+   * Absent : on se fie au seul stockage navigateur. Sans clé, le démarrage
+   * automatique ne part pas — l'échec n'arrive qu'après clic sinon, et se
+   * répète à chaque relance.
+   */
+  cleDisponible?: boolean;
   /** Message ou badge d'étape guidée lors d'un onboarding. */
   guideEtape?: string;
   onFermer: () => void;
@@ -91,6 +99,8 @@ export function ModaleReferentiel({
   const [dejaAuReferentiel, setDejaAuReferentiel] = useState<CompetenceDejaAuReferentiel[]>([]);
   const [enCours, demarrer] = useTransition();
   const abandonRef = useRef<AbortController | null>(null);
+  const [afficherReglagesCle, setAfficherReglagesCle] = useState(false);
+  const aCleConfiguree = cleDisponible ?? Boolean(lireConfigTuteur(compteId));
 
   /**
    * Fermer, c'est aussi abandonner la génération en cours (audit §2.4).
@@ -112,6 +122,20 @@ export function ModaleReferentiel({
    */
   const proposer = useCallback(async () => {
     if (sujet.trim().length === 0) return;
+    /*
+     * La clé est vérifiée ICI, au plus près de l'appel — pas dans l'effet de
+     * démarrage automatique : quel que soit le chemin d'entrée (clic, onboarding,
+     * enregistrement d'une clé), aucune requête ne part sans clé, et le
+     * message s'affiche par le même bandeau qu'un échec réseau.
+     */
+    if (!aCleConfiguree) {
+      setEtat({
+        phase: "saisie",
+        message:
+          "Aucune clé IA n'est configurée. Renseigne-en une ci-dessous pour lancer la proposition.",
+      });
+      return;
+    }
     abandonRef.current?.abort();
     const abandon = new AbortController();
     abandonRef.current = abandon;
@@ -191,12 +215,14 @@ export function ModaleReferentiel({
         setEtat({ phase: "saisie", message: "Proposition interrompue." });
       }
     }
-  }, [compteId, sujet]);
+  }, [aCleConfiguree, compteId, sujet]);
 
   /*
    * Le démarrage automatique ne se rejoue pas : sans le drapeau, un rendu
    * déclenché par la progression relancerait une seconde proposition — donc un
-   * second appel facturé pour un seul sujet.
+   * second appel facturé pour un seul sujet. Sans clé, `proposer` s'interrompt
+   * d'elle-même et le message s'affiche — l'échec n'est jamais découvert après
+   * un appel facturé.
    */
   const demarrageLanceRef = useRef(false);
   useEffect(() => {
@@ -204,6 +230,8 @@ export function ModaleReferentiel({
     demarrageLanceRef.current = true;
     void proposer();
   }, [demarrageAutomatique, proposer, sujet]);
+
+  const demarrageBloque = demarrageAutomatique && !aCleConfiguree;
 
   function enregistrer(branches: PropositionReferentiel[]) {
     setErreur(null);
@@ -214,6 +242,14 @@ export function ModaleReferentiel({
 
       const tousLesCodes: string[] = [];
       const deja: CompetenceDejaAuReferentiel[] = [];
+      /*
+       * L'écriture est séquentielle, donc interruptible : onglet fermé, panne
+       * réseau au troisième appel. Sans trace de ce qui est déjà parti, la
+       * personne ne sait pas où elle en est — pire, relancer « Enregistrer »
+       * re-écrirait les mêmes domaines (refusés comme doublons, mais après
+       * coup). On nomme donc chaque branche au fur et à mesure.
+       */
+      const ecrites: string[] = [];
 
       try {
         for (const [rang, { b, i }] of retenues.entries()) {
@@ -230,6 +266,7 @@ export function ModaleReferentiel({
             tousLesCodes.push(...res.codes);
           }
           deja.push(...(res?.dejaAuReferentiel ?? []));
+          ecrites.push(b.domaine);
         }
 
         setProgressionEcriture(null);
@@ -244,15 +281,15 @@ export function ModaleReferentiel({
         else onFermer();
       } catch (e) {
         setProgressionEcriture(null);
-        setErreur(
-          `${e instanceof Error ? e.message : "L'enregistrement a échoué."} Les branches déjà écrites le restent.`,
-        );
+        const cause = e instanceof Error ? e.message : "L'enregistrement a échoué.";
+        const bilan =
+          ecrites.length === 0
+            ? "Aucune branche n'a été écrite : tu peux relancer l'enregistrement sans doublon."
+            : `${ecrites.length} branche(s) déjà écrite(s) et conservée(s) : ${ecrites.join(", ")}. Relancer n'écrira que les restantes.`;
+        setErreur(`${cause} ${bilan}`);
       }
     });
   }
-
-  const [afficherReglagesCle, setAfficherReglagesCle] = useState(false);
-  const aCleConfiguree = Boolean(lireConfigTuteur(compteId));
 
   const relecture = etat.phase === "relecture" ? etat : null;
   const retenues = relecture ? relecture.branches.filter((_, i) => garde[`b${i}`]).length : 0;
@@ -346,6 +383,13 @@ export function ModaleReferentiel({
                       </button>
                     )}
                   </div>
+                  {demarrageBloque && !etat.message && (
+                    <p className="mb-2 text-[0.6875rem] leading-relaxed text-alerte">
+                      Aucune clé IA n&apos;est configurée : la proposition n&apos;a pas été
+                      lancée automatiquement. Renseigne-en une ci-dessous, elle partira
+                      dès l&apos;enregistrement.
+                    </p>
+                  )}
                   <ReglagesTuteur
                     compteId={compteId}
                     compact

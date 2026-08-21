@@ -23,10 +23,13 @@ export function FormulaireAmorcage({
   objectifMoyenTerme,
   objectifLongTerme,
   compteId,
+  cleServeurConfiguree = false,
 }: {
   objectifMoyenTerme: string;
   objectifLongTerme: string;
   compteId: string;
+  /** Une clé est configurée côté serveur : la génération marche sans clé navigateur. */
+  cleServeurConfiguree?: boolean;
 }) {
   const router = useRouter();
   const { lancerTour } = useOnboarding();
@@ -53,6 +56,14 @@ export function FormulaireAmorcage({
     return () => window.clearTimeout(id);
   }, [compteId]);
   const [panneauCleOuvert, setPanneauCleOuvert] = useState(false);
+
+  /*
+   * La clé peut venir du navigateur (localStorage, par compte) OU du serveur
+   * (variables d'environnement). La génération ne se propose que si l'une des
+   * deux existe : sans ce test AVANT soumission, le clic échouait après coup
+   * à chaque maillon — premier risque d'abandon avant la première preuve.
+   */
+  const cleDisponible = cleConfiguree || cleServeurConfiguree;
 
   const sujetValide = sujet.trim().length > 2;
   const intentionValide = intention.trim().length > 2;
@@ -133,8 +144,10 @@ export function FormulaireAmorcage({
               )}
             />
             <span className="text-xs font-medium text-texte">
-              {cleConfiguree
-                ? "Clé IA configurée (prête à générer)"
+              {cleDisponible
+                ? cleConfiguree
+                  ? "Clé IA configurée (prête à générer)"
+                  : "Clé IA configurée côté serveur (prête à générer)"
                 : "Clé IA non configurée (Mistral, Groq gratuit, Anthropic)"}
             </span>
           </div>
@@ -340,14 +353,19 @@ export function FormulaireAmorcage({
 
           {/* Bouton d'action interactif */}
           <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-bordure/60">
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <Bouton
                 onClick={soumettre}
-                disabled={!pret || enCours}
+                disabled={!pret || enCours || !cleDisponible}
                 variante="principal"
+                title={
+                  cleDisponible
+                    ? undefined
+                    : "Configure d'abord une clé IA pour générer le référentiel"
+                }
                 className={cx(
                   "group px-5 py-2.5 shadow-md transition-all",
-                  pret && "ring-2 ring-primaire/30",
+                  pret && cleDisponible && "ring-2 ring-primaire/30",
                 )}
               >
                 <span>{enCours ? "Génération en cours…" : "Générer mon référentiel avec l'IA"}</span>
@@ -358,6 +376,15 @@ export function FormulaireAmorcage({
                 <span className="text-xs text-texte-discret">
                   Remplis le sujet et ton intention pour continuer.
                 </span>
+              )}
+              {pret && !cleDisponible && (
+                <button
+                  type="button"
+                  onClick={() => setPanneauCleOuvert(true)}
+                  className="text-xs font-medium text-primaire hover:underline"
+                >
+                  Renseigner ma clé IA pour continuer
+                </button>
               )}
             </div>
 
@@ -373,6 +400,7 @@ export function FormulaireAmorcage({
           compteId={compteId}
           sujetInitial={sujet.trim()}
           demarrageAutomatique
+          cleDisponible={cleDisponible}
           guideEtape="Étape 2 sur 2 : Relis les compétences découpées par le tuteur. Tu peux en décocher ou valider directement pour lancer ton Tableau de bord !"
           onFermer={() => setValidationOuverte(false)}
           surEnregistre={() => router.replace("/")}

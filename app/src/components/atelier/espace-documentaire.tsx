@@ -799,7 +799,7 @@ export function EspaceDocumentaire({
       try {
         setSnapshotApercu(await lireSnapshotAction(selectionnee.id, snapshotId));
       } catch (erreur) {
-        setMessage(erreur instanceof Error ? erreur.message : "Lecture du snapshot impossible");
+        setMessage(erreur instanceof Error ? erreur.message : "Lecture de la version figée impossible");
       }
     });
   }

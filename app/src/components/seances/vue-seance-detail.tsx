@@ -18,7 +18,8 @@ import {
 import { jourDeLaSeance } from "@/lib/domain/pages-cahier";
 import { urlExercice } from "@/lib/domain/navigation-exercice";
 import { formatDateCourte, formatDuree } from "@/lib/engine/dates";
-import { Bouton, Carte, CodeCompetence, EnTeteCarte, Etiquette, EtatVide, classesLienBouton } from "@/components/ui/primitives";
+import { Carte, CodeCompetence, EnTeteCarte, Etiquette, EtatVide, classesLienBouton } from "@/components/ui/primitives";
+import { ActionSeance } from "@/components/seances/action-seance";
 import { Pomodoro } from "@/components/seances/pomodoro";
 import { OutilSeance } from "@/components/seances/outil-seance";
 import { MargeCahier } from "@/components/seances/marge-cahier";
@@ -323,8 +324,8 @@ export async function VueSeanceDetail({
                   {seance.blueprint ? ` · environ ${formatDuree(seance.blueprint.dureeCibleMin)}` : ""}
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  <form action={demarrerSeance.bind(null, seance.id)}><Bouton type="submit" variante="principal">Démarrer</Bouton></form>
-                  <form action={annulerSeance.bind(null, seance.id)}><Bouton type="submit" variante="danger">Annuler</Bouton></form>
+                  <ActionSeance action={demarrerSeance} seanceId={seance.id} libelle="Démarrer" />
+                  <ActionSeance action={annulerSeance} seanceId={seance.id} libelle="Annuler" variante="danger" />
                 </div>
               </div>
             </Carte>
@@ -352,9 +353,9 @@ export async function VueSeanceDetail({
                     <h2 id="titre-seance-a-conclure" tabIndex={-1} className="font-serif text-xl font-medium outline-none">Toutes les activités sont traitées</h2>
                     <p className="mt-2 text-sm text-texte-attenue">Elle reste ouverte tant que vous ne la clôturez pas.</p>
                     {peutTerminer && (
-                      <form action={terminerSeance.bind(null, seance.id)} className="mt-4">
-                        <Bouton type="submit" variante="principal">Terminer la séance</Bouton>
-                      </form>
+                      <div className="mt-4">
+                        <ActionSeance action={terminerSeance} seanceId={seance.id} libelle="Terminer la séance" />
+                      </div>
                     )}
                   </div>
                 </Carte>
@@ -363,9 +364,7 @@ export async function VueSeanceDetail({
 
             <div className="flex flex-wrap items-center justify-center gap-3 border-t border-bordure pt-5">
               {peutTerminer && exerciceActif && (
-                <form action={terminerSeance.bind(null, seance.id)}>
-                  <Bouton type="submit" variante="principal">Terminer la séance</Bouton>
-                </form>
+                <ActionSeance action={terminerSeance} seanceId={seance.id} libelle="Terminer la séance" />
               )}
               {/*
                 La porte de sortie d'une séance qu'on ne veut pas mener. Elle
@@ -373,11 +372,13 @@ export async function VueSeanceDetail({
                 et la séance reste relisible. Sans elle, une séance ouverte au
                 mauvais moment restait ouverte indéfiniment.
               */}
-              <form action={abandonnerSeance.bind(null, seance.id)}>
-                <Bouton type="submit" variante="secondaire" taille="petite">
-                  Abandonner la séance
-                </Bouton>
-              </form>
+              <ActionSeance
+                action={abandonnerSeance}
+                seanceId={seance.id}
+                libelle="Abandonner la séance"
+                variante="secondaire"
+                taille="petite"
+              />
             </div>
           </div>
         )}
@@ -453,11 +454,14 @@ export async function VueSeanceDetail({
                         </p>
                       )}
                       {reprenable && (
-                        <form action={reprendreSeance.bind(null, seance.id)} className="pt-1">
-                          <Bouton type="submit" variante="principal" taille="petite">
-                            Reprendre là où j’en étais →
-                          </Bouton>
-                        </form>
+                        <div className="pt-1">
+                          <ActionSeance
+                            action={reprendreSeance}
+                            seanceId={seance.id}
+                            libelle="Reprendre là où j’en étais →"
+                            taille="petite"
+                          />
+                        </div>
                       )}
                     </div>
                   </Carte>

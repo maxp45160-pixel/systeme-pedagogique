@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { chargerContexte } from "@/lib/store/context";
+import { chargerReferentiel } from "@/lib/store/referentiel";
 import { formatDuree } from "@/lib/engine/dates";
 import { SquelettePage } from "@/components/layout/squelette";
 import { calculerActivite } from "@/lib/engine/historique";
@@ -11,8 +12,8 @@ import { PistesAlternatives } from "@/components/dashboard/pistes-alternatives";
 import { SyntheseReferentiel } from "@/components/dashboard/synthese-referentiel";
 import { MiniActivite } from "@/components/dashboard/mini-activite";
 import { IconeFleche } from "@/components/ui/icones";
-import { BandeauInfo, Bouton, classesLienBouton } from "@/components/ui/primitives";
-import { abandonnerExercice } from "@/lib/store/actions";
+import { BandeauInfo, classesLienBouton } from "@/components/ui/primitives";
+import { AbandonnerExerciceCarte } from "@/components/dashboard/abandonner-exercice-carte";
 import { statutSeance } from "@/lib/domain/seance";
 import { chargerActionProposee } from "@/lib/store/adaptive-learning";
 import { urlComposerAutonome } from "@/lib/domain/navigation-exercice";
@@ -55,14 +56,24 @@ async function ContenuTableauDeBord({
   instant: ContexteInstant;
   dateJour: string;
 }) {
-  const ctx = await chargerContexte();
-
-  // Compte neuf : il n'y a rien à mettre sur ce tableau de bord, et une grille
-  // de tirets ne dit pas quoi faire. On envoie construire le référentiel — la
-  // seule action possible tant qu'il n'existe pas (ADR-026).
-  if (ctx.referentiel.skills.length === 0) {
+  /*
+   * Compte neuf : il n'y a rien à mettre sur ce tableau de bord, et une grille
+   * de tirets ne dit pas quoi faire. On envoie construire le référentiel — la
+   * seule action possible tant qu'il n'existe pas (ADR-026).
+   *
+   * Le test passe sur une lecture légère du seul référentiel, AVANT
+   * `chargerContexte()` : sur un compte neuf, le contexte complet (états,
+   * recommandations, calibrations…) serait calculé puis jeté à 100 % par la
+   * redirection. `chargerReferentiel` est mémoïsé par requête : sur un compte
+   * établi, l'appel ne coûte rien de plus — `chargerContexte` reprend le
+   * résultat en cache quand il emprunte le chemin lent.
+   */
+  const apercuReferentiel = await chargerReferentiel();
+  if (apercuReferentiel.skills.length === 0) {
     redirect("/demarrer");
   }
+
+  const ctx = await chargerContexte();
 
   const action = await chargerActionProposee(ctx, instant);
   const activite = calculerActivite(
@@ -103,6 +114,15 @@ async function ContenuTableauDeBord({
 
   const recommandationsFile = action?.kind === "exercice" ? action.recommandations : ctx.recommandations;
 
+  /*
+   * La pastille annonce des EXERCICES, elle doit donc en compter — pas les
+   * observations. `nombreObservations` cumule toutes les observations de
+   * toutes les compétences : trois exercices menés deux fois affichaient « 6 ».
+   * Le compte honnête est le nombre d'exercices réellement tentés, dérivé des
+   * tentatives (P3 : le chiffre affiché dit ce qu'il compte).
+   */
+  const exercicesTravailles = new Set(ctx.donnees.attempts.map((a) => a.exerciseId)).size;
+
   return (
     <div className="space-y-3.5 sm:space-y-4">
       {/* En-tête épuré avec résumé de progression intégré */}
@@ -127,7 +147,7 @@ async function ContenuTableauDeBord({
           </span>
           <span className="text-bordure-contraste" aria-hidden>·</span>
           <span>
-            <strong className="font-medium text-texte">{ctx.global.nombreObservations}</strong> exercice{ctx.global.nombreObservations > 1 ? "s" : ""}
+            <strong className="font-medium text-texte">{exercicesTravailles}</strong> exercice{exercicesTravailles > 1 ? "s" : ""}
           </span>
           <span className="text-bordure-contraste" aria-hidden>·</span>
           <span>
@@ -173,11 +193,12 @@ async function ContenuTableauDeBord({
                         >
                           Reprendre →
                         </Link>
-                        <form action={abandonnerExercice.bind(null, id, exercice.id, depuis, undefined)}>
-                          <Bouton type="submit" variante="secondaire" taille="petite">
-                            Abandonner
-                          </Bouton>
-                        </form>
+                        <AbandonnerExerciceCarte
+                          attemptId={id}
+                          exerciceId={exercice.id}
+                          titreExercice={exercice.titre}
+                          dureeMin={depuis}
+                        />
                       </div>
                     </li>
                   ))}

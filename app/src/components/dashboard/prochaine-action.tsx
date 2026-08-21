@@ -241,11 +241,18 @@ export function CarteProchaineAction({
                   <IconeFleche className="size-4" />
                 </Link>
               ) : (
+                /*
+                 * Aucun exercice n'existe encore pour cette compétence : ce lien
+                 * ouvre le compositeur, qui proposera de GÉNÉRER les exercices
+                 * manquants avant de commencer. Le dire au lieu de laisser
+                 * croire qu'un exercice attend déjà (honnêteté du parcours).
+                 */
                 <Link
                   href={`/seances?composer=1&code=${encodeURIComponent(etat.skill.code)}&temps=${encodeURIComponent(String(instant?.tempsMin ?? dureeEstimeeMin))}`}
                   className={classesLienBouton("principal")}
+                  title="Aucun exercice existe encore : tu pourras les générer puis commencer"
                 >
-                  Composer une séance
+                  Générer puis commencer
                   <IconeFleche className="size-4" />
                 </Link>
               ))}

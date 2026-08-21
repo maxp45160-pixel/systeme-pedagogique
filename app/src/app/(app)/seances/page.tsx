@@ -20,8 +20,24 @@ import {
   rangValide,
 } from "@/lib/domain/pages-cahier";
 import { lireApercusDocuments, lireApercusSnapshots } from "@/lib/store/documents";
+import type { DocumentOperationnelDate } from "@/lib/domain/pages-cahier";
 import { ConcepteurSeance, type PresetSeance } from "@/components/seances/concepteur-seance";
 import { TEMPS_DECLARE_MAX } from "@/lib/domain/seance";
+
+/*
+ * Les aperçus documentaires ne servent au cahier qu'à lister les documents
+ * opérationnels (projets) et à poser leur drapeau « figé ». La lecture des
+ * snapshots — une requête de plus à chaque rendu du cahier — est donc
+ * paresseuse : elle ne part que si AU MOINS un document opérationnel existe,
+ * sinon son résultat serait jeté. Les corps Markdown ne voyagent de toute
+ * façon jamais ici (`lireApercusDocuments` est déjà une lecture légère).
+ */
+async function chargerProjetsDuCahier(): Promise<DocumentOperationnelDate[]> {
+  const apercus = await lireApercusDocuments();
+  const operationnels = apercus.some((doc) => doc.frontMatter.role === "operationnel");
+  const snapshots = operationnels ? await lireApercusSnapshots() : [];
+  return extraireDocumentsOperationnels(apercus, snapshots);
+}
 
 /**
  * Pôle Cahier (ADR-061, étendu par ADR-062, refondu par ADR-079).
@@ -169,13 +185,11 @@ async function CompositeurDepuisLien({
 }
 
 async function ResultatsRecherche({ recherche }: { recherche: string }) {
-  const [ctx, donnees, apercusDocs, snapshots] = await Promise.all([
+  const [ctx, donnees, projets] = await Promise.all([
     chargerContexte(),
     chargerDonneesSeance(),
-    lireApercusDocuments(),
-    lireApercusSnapshots(),
+    chargerProjetsDuCahier(),
   ]);
-  const projets = extraireDocumentsOperationnels(apercusDocs, snapshots);
   return (
     <div className="space-y-4">
       <RechercheCahier recherche={recherche} />
@@ -213,15 +227,12 @@ async function ContenuCahier({
   /** Présente quand `composer=1` : le compositeur s'ouvre au-dessus de la page. */
   composition?: DemandeComposition;
 }) {
-  const [ctx, donnees, marge, apercusDocs, snapshots] = await Promise.all([
+  const [ctx, donnees, marge, projets] = await Promise.all([
     chargerContexte(),
     chargerDonneesSeance(),
     lireMarge(),
-    lireApercusDocuments(),
-    lireApercusSnapshots(),
+    chargerProjetsDuCahier(),
   ]);
-
-  const projets = extraireDocumentsOperationnels(apercusDocs, snapshots);
 
   const jours = joursDuCahier({
     seances: ctx.donnees.sessions,

@@ -201,7 +201,13 @@ export function FormulaireBilan({
               type="button"
               onClick={() => setResultat(r.valeur)}
               className={cx(
-                "rounded-md border px-3 py-2 text-left transition-colors",
+                /*
+                 * Le bilan est le geste le plus fréquent du produit, et il se
+                 * fait souvent d'un pouce sur mobile : chaque cible tactile
+                 * garde ~44 px de hauteur, le minimum de confort digital
+                 * (WCAG 2.5.5 AAA / 24 px AA, dépassé volontairement ici).
+                 */
+                "min-h-[2.75rem] rounded-md border px-3 py-2 text-left transition-colors",
                 resultat === r.valeur
                   ? "border-primaire/40 bg-primaire-faible"
                   : "border-bordure hover:bg-surface-2",
@@ -303,14 +309,20 @@ export function FormulaireBilan({
                       {LIBELLES_DIMENSIONS[c.dimension]}
                     </p>
                   </div>
-                  <div className="flex shrink-0 gap-1">
+                  <div className="flex shrink-0 gap-1.5">
                     {APPRECIATIONS.map((a) => (
                       <button
                         key={a.valeur}
                         type="button"
                         onClick={() => setCriteres((p) => ({ ...p, [i]: a.valeur }))}
                         className={cx(
-                          "rounded border px-2 py-1 text-[0.6875rem] font-medium transition-colors",
+                          /*
+                           * Cibles tactiles du geste le plus fréquent : ~44 px
+                           * de haut, comme les boutons de résultat ci-dessus.
+                           * Les anciens px-2 py-1 donnaient des pastilles de
+                           * 20 px, manquées une fois sur deux au pouce.
+                           */
+                          "min-h-[2.75rem] rounded border px-3 py-2 text-xs font-medium transition-colors",
                           criteres[i] === a.valeur
                             ? "border-primaire/40 bg-primaire text-primaire-contraste"
                             : "border-bordure-controle bg-surface text-texte-attenue hover:bg-surface-3",
@@ -368,7 +380,7 @@ export function FormulaireBilan({
               type="button"
               onClick={() => setAide(a.valeur)}
               className={cx(
-                "rounded-md border px-3 py-2 text-left text-xs transition-colors",
+                "min-h-[2.75rem] rounded-md border px-3 py-2 text-left text-xs transition-colors",
                 aide === a.valeur
                   ? "border-primaire/40 bg-primaire-faible text-primaire"
                   : "border-bordure text-texte-attenue hover:bg-surface-2",

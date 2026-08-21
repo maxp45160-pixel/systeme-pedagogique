@@ -19,7 +19,7 @@ const ENTREES: { terme: string; definition: string }[] = [
   {
     terme: "Preuve",
     definition:
-      "La trace durable et vérifiable d’une activité : ta réponse, ta production ou le snapshot qui la conserve. Elle précède toute mesure.",
+      "La trace durable et vérifiable d’une activité : ta réponse, ta production ou la version figée qui la conserve. Elle précède toute mesure.",
   },
   {
     terme: "Observation",

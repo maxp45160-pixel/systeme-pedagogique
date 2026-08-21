@@ -7,6 +7,7 @@ import { EntetePage } from "@/components/layout/entete-page";
 import { BandeauInfo, Carte } from "@/components/ui/primitives";
 import { FormulaireAmorcage } from "@/components/demarrer/formulaire-amorcage";
 import { IconeAmpoule, IconeFleche } from "@/components/ui/icones";
+import { choisirConfiguration } from "@/lib/tutor/moteurs";
 
 /**
  * Amorçage d'un compte neuf (ADR-026).
@@ -78,10 +79,17 @@ export default async function PageDemarrer(props: {
 
       <Carte>
         <div className="px-5 py-4">
+          {/*
+            La présence d'une clé côté SERVEUR est connue ici, pas dans le
+            composant client : sans elle, le formulaire ne peut pas distinguer
+            « aucune clé nulle part » de « clé absente du seul navigateur » — et
+            un déploiement avec clé serveur désactiverait le bouton à tort.
+          */}
           <FormulaireAmorcage
             objectifMoyenTerme={valeurDeclaree(ctx.donnees.user.objectifMoyenTerme) ?? ""}
             objectifLongTerme={valeurDeclaree(ctx.donnees.user.objectifLongTerme) ?? ""}
             compteId={ctx.donnees.user.id}
+            cleServeurConfiguree={choisirConfiguration(process.env).kind !== "aucun"}
           />
         </div>
       </Carte>

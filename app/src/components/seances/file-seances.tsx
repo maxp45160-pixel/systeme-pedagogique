@@ -3,12 +3,12 @@
 import { useRef, type WheelEvent, type MouseEvent } from "react";
 import Link from "next/link";
 import {
-  Bouton,
   Carte,
   classesLienBouton,
   EnTeteCarte,
   Etiquette,
 } from "@/components/ui/primitives";
+import { ActionSeance } from "@/components/seances/action-seance";
 import { formatDateCourte } from "@/lib/engine/dates";
 import { avancementSeance, peutReprendreSeance, statutSeance } from "@/lib/domain/seance";
 import {
@@ -249,13 +249,9 @@ export function CarteSeance({
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-bordure/60 pt-3">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {planifiee && (
-              <form action={demarrerSeance.bind(null, s.id)}>
-                <Bouton type="submit" variante="principal" taille="petite">
-                  Démarrer
-                </Bouton>
-              </form>
+              <ActionSeance action={demarrerSeance} seanceId={s.id} libelle="Démarrer" taille="petite" />
             )}
             {enCours && (
               <Link
@@ -266,25 +262,13 @@ export function CarteSeance({
               </Link>
             )}
             {reprenable && (
-              <form action={reprendreSeance.bind(null, s.id)}>
-                <Bouton type="submit" variante="principal" taille="petite">
-                  Reprendre
-                </Bouton>
-              </form>
+              <ActionSeance action={reprendreSeance} seanceId={s.id} libelle="Reprendre" taille="petite" />
             )}
             {planifiee && (
-              <form action={annulerSeance.bind(null, s.id)}>
-                <Bouton type="submit" variante="secondaire" taille="petite">
-                  Annuler
-                </Bouton>
-              </form>
+              <ActionSeance action={annulerSeance} seanceId={s.id} libelle="Annuler" variante="secondaire" taille="petite" />
             )}
             {enCours && (
-              <form action={abandonnerSeance.bind(null, s.id)}>
-                <Bouton type="submit" variante="secondaire" taille="petite">
-                  Abandonner
-                </Bouton>
-              </form>
+              <ActionSeance action={abandonnerSeance} seanceId={s.id} libelle="Abandonner" variante="secondaire" taille="petite" />
             )}
           </div>
           <Link
