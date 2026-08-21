@@ -12,7 +12,6 @@ import type {
   ElementGlobal,
   SelectionCarteGlobale,
 } from "@/lib/domain/carte-globale";
-import type { Objectif, Parcours } from "@/lib/domain/objectifs";
 import type { Recommandation } from "./recommend";
 import { computeSkillState } from "./skill-state";
 import {
@@ -22,7 +21,6 @@ import {
   construireEtatCompetence,
   construireEtatConnaissance,
   LIMITE_ESPACE_ACTIF,
-  resumerPilotageTwiny,
 } from "./vues-twiny";
 
 const NOW = new Date("2026-08-20T12:00:00.000Z");
@@ -94,41 +92,6 @@ function globalElement(
   };
 }
 
-function objectif(
-  id: string,
-  cible: Objectif["cible"],
-  options: Partial<Pick<Objectif, "priorite" | "statut" | "echeanceLe">> = {},
-): Objectif {
-  return {
-    id,
-    formulation: `Objectif ${id}`,
-    cible,
-    priorite: options.priorite ?? 3,
-    horizon: "court-terme",
-    echeanceLe: options.echeanceLe,
-    statut: options.statut ?? "actif",
-    version: 1,
-    creeLe: `2026-08-${id.endsWith("2") ? "02" : "01"}T08:00:00.000Z`,
-    modifieLe: "2026-08-20T08:00:00.000Z",
-  };
-}
-
-function parcours(
-  id: string,
-  cible: Parcours["cible"],
-  statut: Parcours["statut"] = "actif",
-): Parcours {
-  return {
-    id,
-    contexte: `Parcours ${id}`,
-    cible,
-    statut,
-    version: 1,
-    creeLe: "2026-08-01T08:00:00.000Z",
-    modifieLe: "2026-08-20T08:00:00.000Z",
-  };
-}
-
 function recommandation(etat: SkillState, valeur = 10): Recommandation {
   return {
     etat,
@@ -148,8 +111,6 @@ function carte(options: {
   correspondances?: CorrespondanceCarteGlobale[];
   skills?: Skill[];
   observations?: SkillObservation[];
-  objectifs?: Objectif[];
-  parcours?: Parcours[];
 } = {}) {
   const observations = options.observations ?? [];
   return construireCarteIndividuelle({
@@ -158,8 +119,6 @@ function carte(options: {
     correspondancesGlobales: options.correspondances ?? [],
     domainesLocaux: [DOMAINE],
     etatsLocaux: (options.skills ?? []).map((item) => computeSkillState(item, observations, NOW)),
-    objectifs: options.objectifs ?? [],
-    parcours: options.parcours ?? [],
   });
 }
 
@@ -212,10 +171,12 @@ describe("carte individuelle", () => {
 
     const resultat = carte({
       carteGlobale,
-      selections: [{ elementId: "k-1", selectionneLe: "2026-08-20T09:00:00.000Z" }],
+      selections: [
+        { elementId: "k-1", selectionneLe: "2026-08-20T09:00:00.000Z" },
+        { elementId: "g-1", selectionneLe: "2026-08-20T09:05:00.000Z" },
+      ],
       skills: [archivee],
       observations: [obs],
-      objectifs: [objectif("obj-1", { type: "relation-globale", relationId: "r-1" })],
     });
 
     expect(resultat.elementsGlobaux.map((element) => element.id)).toEqual(["k-1", "g-1"]);
@@ -250,7 +211,7 @@ describe("carte individuelle", () => {
 });
 
 describe("espace actif borné", () => {
-  it("priorise parcours actif, objectifs multiples, sélection puis référentiel", () => {
+  it("priorise la sélection globale puis le classement du référentiel local", () => {
     const skills = [skill("DEV-A"), skill("DEV-B"), skill("DEV-C"), skill("DEV-D")];
     const etats = skills.map((item) => computeSkillState(item, [], NOW));
     const recommandations = etats.map((etat, index) => recommandation(etat, 100 - index));
@@ -258,61 +219,23 @@ describe("espace actif borné", () => {
       carteGlobale: { elements: [globalElement("k-1")], relations: [] },
       selections: [{ elementId: "k-1", selectionneLe: "2026-08-20T09:00:00.000Z" }],
       skills,
-      objectifs: [
-        objectif("obj-1", { type: "competence-locale", code: "DEV-A" }, { priorite: 1 }),
-        objectif("obj-2", { type: "competence-locale", code: "DEV-B" }, { priorite: 5 }),
-      ],
-      parcours: [
-        parcours("p-actif", { type: "competence-locale", code: "DEV-C" }),
-        parcours("p-termine", { type: "competence-locale", code: "DEV-D" }, "termine"),
-      ],
     });
 
     const espace = construireEspaceActif({ carte: vue, recommandations, limite: 4 });
 
     expect(espace.elements.map((element) => element.id)).toEqual([
-      "DEV-C",
-      "DEV-B",
-      "DEV-A",
       "k-1",
+      "DEV-A",
+      "DEV-B",
+      "DEV-C",
     ]);
     expect(espace.elements.map((element) => element.origine)).toEqual([
-      "parcours",
-      "objectif",
-      "objectif",
       "selection-globale",
+      "referentiel-local",
+      "referentiel-local",
+      "referentiel-local",
     ]);
     expect(espace.elements.some((element) => element.id === "DEV-D")).toBe(false);
-  });
-
-  it("résume pour le tableau de bord le même pilotage que l'espace actif", () => {
-    const skills = [skill("DEV-A"), skill("DEV-B")];
-    const globale = globalElement("g-1", "competence");
-    const vue = carte({
-      carteGlobale: { elements: [globale], relations: [] },
-      selections: [{ elementId: globale.id, selectionneLe: "2026-08-20T09:00:00.000Z" }],
-      correspondances: [{
-        competenceCode: "DEV-A",
-        elementGlobalId: globale.id,
-        acteur: "personne",
-        provenance: { type: "utilisateur", reference: "test" },
-        rattacheLe: "2026-08-20T09:00:00.000Z",
-      }],
-      skills,
-      objectifs: [objectif("obj-1", { type: "competence-locale", code: "DEV-A" })],
-      parcours: [parcours("p-1", { type: "competence-locale", code: "DEV-B" })],
-    });
-    const recommandations = vue.competencesLocales.map((etat) => recommandation(etat.etatConsolide));
-    const espace = construireEspaceActif({ carte: vue, recommandations });
-
-    expect(resumerPilotageTwiny(vue, espace)).toEqual({
-      priorite: { origine: "parcours", id: "p-1", libelle: "Parcours p-1" },
-      objectifsActifs: 1,
-      parcoursActifs: 1,
-      selectionsGlobales: 1,
-      correspondances: 1,
-      elementsActifs: espace.elements.length,
-    });
   });
 
   it("reste à quinze éléments et explique la troncature", () => {
@@ -332,10 +255,33 @@ describe("espace actif borné", () => {
     const archivee = skill("DEV-ARCH", { active: false, archive: true });
     const horsPerimetre = skill("DEV-HORS", { active: false });
     const active = skill("DEV-ACTIVE");
+    // Une correspondance privée est le seul chemin restant qui peut désigner une
+    // compétence sortie du périmètre : la carte la garde, l'espace actif la refuse.
+    const globaleArchivee = globalElement("g-arch", "competence");
+    const globaleHors = globalElement("g-hors", "competence");
     const vue = carte({
+      carteGlobale: { elements: [globaleArchivee, globaleHors], relations: [] },
+      selections: [
+        { elementId: "g-arch", selectionneLe: "2026-08-20T09:00:00.000Z" },
+        { elementId: "g-hors", selectionneLe: "2026-08-20T09:01:00.000Z" },
+      ],
+      correspondances: [
+        {
+          competenceCode: "DEV-ARCH",
+          elementGlobalId: "g-arch",
+          acteur: "personne",
+          provenance: { type: "utilisateur", reference: "maxime" },
+          rattacheLe: "2026-08-20T09:00:00.000Z",
+        },
+        {
+          competenceCode: "DEV-HORS",
+          elementGlobalId: "g-hors",
+          acteur: "personne",
+          provenance: { type: "utilisateur", reference: "maxime" },
+          rattacheLe: "2026-08-20T09:01:00.000Z",
+        },
+      ],
       skills: [archivee, horsPerimetre, active],
-      objectifs: [objectif("obj-1", { type: "competence-locale", code: "DEV-ARCH" })],
-      parcours: [parcours("p-1", { type: "competence-locale", code: "DEV-HORS" })],
     });
     const rec = recommandation(computeSkillState(active, [], NOW));
 
@@ -360,7 +306,7 @@ describe("recommandations adaptées", () => {
     const vue = carte({
       carteGlobale: { elements: [globale], relations: [] },
       skills: [local, autre],
-      objectifs: [objectif("obj-1", { type: "element-global", elementId: globale.id })],
+      selections: [{ elementId: globale.id, selectionneLe: "2026-08-20T09:00:00.000Z" }],
       correspondances: [{
         competenceCode: local.code,
         elementGlobalId: globale.id,
@@ -377,10 +323,13 @@ describe("recommandations adaptées", () => {
     expect(vue.competencesLocales.map((etat) => etat.code)).toEqual(["DEV-01", "DEV-02"]);
     expect(espace.codesCompetences).toContain("DEV-01");
     expect(espace.elements.find((element) => element.codeCompetence === "DEV-01"))
-      .toMatchObject({ actionnable: true, origine: "objectif" });
+      .toMatchObject({ actionnable: true, origine: "selection-globale" });
     expect(adaptees[0].etat.skill.code).toBe("DEV-01");
     expect(adaptees[0].valeur).toBe(10);
-    expect(adaptees[0].prioriteLot5).toMatchObject({ origine: "objectif", reference: "obj-1" });
+    expect(adaptees[0].prioriteLot5).toMatchObject({
+      origine: "selection-globale",
+      reference: globale.id,
+    });
   });
 
   it("préserve le classement local si la cible globale n'a aucun rapprochement explicite", () => {
@@ -401,13 +350,22 @@ describe("recommandations adaptées", () => {
     expect(adaptees[0].reservesLot5.join(" ")).toContain("sans rapprochement automatique");
   });
 
-  it("place la cible locale active en tête sans modifier les scores existants", () => {
+  it("place la cible sélectionnée en tête sans modifier les scores existants", () => {
     const a = computeSkillState(skill("DEV-A"), [], NOW);
     const b = computeSkillState(skill("DEV-B"), [], NOW);
     const base = [recommandation(a, 100), recommandation(b, 10)];
+    const globale = globalElement("g-1", "competence");
     const vue = carte({
+      carteGlobale: { elements: [globale], relations: [] },
+      selections: [{ elementId: globale.id, selectionneLe: "2026-08-20T09:00:00.000Z" }],
+      correspondances: [{
+        competenceCode: "DEV-B",
+        elementGlobalId: globale.id,
+        acteur: "personne",
+        provenance: { type: "utilisateur", reference: "maxime" },
+        rattacheLe: "2026-08-20T09:00:00.000Z",
+      }],
       skills: [a.skill, b.skill],
-      objectifs: [objectif("obj-1", { type: "competence-locale", code: "DEV-B" })],
     });
     const espace = construireEspaceActif({ carte: vue, recommandations: base });
 
@@ -416,8 +374,8 @@ describe("recommandations adaptées", () => {
     expect(adaptees.map((item) => item.etat.skill.code)).toEqual(["DEV-B", "DEV-A"]);
     expect(adaptees.map((item) => item.valeur)).toEqual([10, 100]);
     expect(adaptees[0].prioriteLot5).toMatchObject({
-      origine: "objectif",
-      reference: "obj-1",
+      origine: "selection-globale",
+      reference: globale.id,
     });
   });
 });

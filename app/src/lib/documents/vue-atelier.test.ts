@@ -383,9 +383,9 @@ describe("construireVuesAtelier", () => {
       dureeEstimeeMin: 30,
       calibration: null,
       prioriteLot5: {
-        origine: "objectif",
-        reference: "objectif-1",
-        explication: "Cette compétence appartient à la cible d'un objectif actif.",
+        origine: "selection-globale",
+        reference: "g-1",
+        explication: "Cette priorité provient d'une sélection globale explicite.",
       },
       reservesLot5: ["La cible reste locale."],
     } satisfies RecommandationAdaptee;

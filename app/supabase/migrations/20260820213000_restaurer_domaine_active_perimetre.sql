@@ -1,16 +1,25 @@
--- Migration: restaurer_domaine et desarchiver_competence réactivent les compétences au périmètre d'apprentissage (active = true, archive = false)
+-- Migration: restaurer_domaine et desarchiver_competence réactivent les compétences
+-- au périmètre d'apprentissage (active = true, archive = false).
+--
+-- Correctif de gouvernance joint : une surcharge parasite de
+-- appliquer_commande_referentiel (p_request_id, p_commande, p_expected_version,
+-- p_origine, p_motif) existait sur le projet distant en SECURITY DEFINER,
+-- search_path = public et EXECUTE ouvert à anon. Elle contredit le durcissement
+-- de schema.sql et rendait l'appel RPC par arguments nommés ambigu, ce qui
+-- masquait le correctif de désarchivage. Elle est supprimée ici.
+
+DROP FUNCTION IF EXISTS public.appliquer_commande_referentiel(TEXT, JSONB, INTEGER, TEXT, TEXT);
 
 CREATE OR REPLACE FUNCTION public.appliquer_commande_referentiel(
   p_request_id TEXT,
-  p_commande JSONB,
-  p_expected_version INTEGER DEFAULT NULL,
-  p_origine TEXT DEFAULT 'utilisateur',
-  p_motif TEXT DEFAULT 'Mise à jour du référentiel'
-)
-RETURNS JSONB
+  p_expected_version INTEGER,
+  p_origine TEXT,
+  p_motif TEXT,
+  p_commande JSONB
+) RETURNS JSONB
 LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, pg_catalog, pg_temp
+SECURITY INVOKER
+SET search_path = ''
 AS $$
 DECLARE
   v_uid UUID := auth.uid();
@@ -169,7 +178,6 @@ BEGIN
         EXISTS (SELECT 1 FROM public.observations WHERE user_id = v_uid AND skill_code = v_code)
         OR EXISTS (SELECT 1 FROM public.competences WHERE user_id = v_uid AND (v_code = ANY(prerequis) OR remplace_par = v_code))
         OR EXISTS (SELECT 1 FROM public.exercises WHERE user_id = v_uid AND v_code = ANY(competences))
-        OR EXISTS (SELECT 1 FROM public.themes WHERE user_id = v_uid AND v_code = ANY(codes))
         OR EXISTS (SELECT 1 FROM public.sessions WHERE user_id = v_uid AND v_code = ANY(skill_codes));
       v_preserver := v_preserver OR EXISTS (SELECT 1 FROM public.document_links WHERE user_id = v_uid AND cible = v_code);
       IF v_preserver THEN
@@ -188,7 +196,6 @@ BEGIN
         EXISTS (SELECT 1 FROM public.observations e WHERE e.user_id = v_uid AND e.skill_code = c.code)
         OR EXISTS (SELECT 1 FROM public.competences d WHERE d.user_id = v_uid AND (c.code = ANY(d.prerequis) OR d.remplace_par = c.code))
         OR EXISTS (SELECT 1 FROM public.exercises x WHERE x.user_id = v_uid AND c.code = ANY(x.competences))
-        OR EXISTS (SELECT 1 FROM public.themes t WHERE t.user_id = v_uid AND c.code = ANY(t.codes))
         OR EXISTS (SELECT 1 FROM public.sessions s WHERE s.user_id = v_uid AND c.code = ANY(s.skill_codes))
         OR EXISTS (SELECT 1 FROM public.document_links l WHERE l.user_id = v_uid AND l.cible = c.code)
       )
@@ -236,3 +243,6 @@ BEGIN
   RETURN v_resultat;
 END;
 $$;
+
+REVOKE ALL ON FUNCTION public.appliquer_commande_referentiel(TEXT, INTEGER, TEXT, TEXT, JSONB) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.appliquer_commande_referentiel(TEXT, INTEGER, TEXT, TEXT, JSONB) TO authenticated;

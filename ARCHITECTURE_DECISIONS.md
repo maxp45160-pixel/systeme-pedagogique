@@ -98,8 +98,9 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [091](#adr-091) | États et vues personnelles restent dérivés | ✅ Acceptée (20/08) |
 | [092](#adr-092) | Une Connaissance est un élément déclaré, pas un document | ✅ Acceptée (20/08) |
 | [093](#adr-093) | Relations déclarées et relations calculées ne partagent pas le même statut | ✅ Acceptée (20/08) |
-| [094](#adr-094) | Les objectifs sont des faits structurés multiples | ✅ Acceptée (20/08) |
+| [094](#adr-094) | Les objectifs sont des faits structurés multiples | 🔄 Remplacée par [ADR-096](#adr-096) (21/08) |
 | [095](#adr-095) | Niveau observé et maîtrise consolidée sont distincts | ✅ Acceptée (20/08) |
+| [096](#adr-096) | Le parcours est une file d'actions dérivée, pas un objectif stocké | ✅ Acceptée (21/08) |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -7067,7 +7068,11 @@ provenance. Cette frontière prolonge [ADR-056](#adr-056),
 ---
 
 <a name="adr-094"></a>
-## ADR-094 — Les objectifs sont des faits structurés multiples ✅
+## ADR-094 — Les objectifs sont des faits structurés multiples 🔄
+
+> **Remplacée le 21/08/2026 par [ADR-096](#adr-096).** Le texte ci-dessous est
+> conservé tel quel : il décrit ce qui a été décidé et construit, et l'ADR-096
+> dit pourquoi cela a été retiré.
 
 **Date.** 20/08/2026.
 
@@ -7114,6 +7119,66 @@ données qui justifient le changement, conformément aux garde-fous existants.
 - Les futures interfaces distingueront explicitement le ponctuel du consolidé.
 - Le renommage du lot 1 doit préserver le comportement du moteur ; il ne
   constitue pas une recalibration.
+
+---
+
+<a name="adr-096"></a>
+## ADR-096 — Le parcours est une file d'actions dérivée, pas un objectif stocké ✅
+
+**Date.** 21/08/2026.
+
+**Validation.** Décision acceptée par instruction humaine explicite de Maxime
+dans le chat : « le système des objectifs proposés me convient pas », avec
+consigne de supprimer les données et d'appliquer sur Supabase, et volonté
+conservée d'une notion de parcours pour l'utilisateur.
+
+**Remplace** [ADR-094](#adr-094).
+
+### Problème
+
+Le lot 4 a stocké l'intention : un objectif structuré portait une cible typée,
+une priorité, un horizon, un statut et son journal d'événements. Trois tables
+et cinq fonctions SQL ont été construites pour cela.
+
+Deux constats à l'usage :
+
+1. **L'intention déclarée ne payait pas son coût.** En un mois d'usage réel,
+   un seul objectif a été créé, en brouillon, jamais activé. Le classement
+   utile venait d'ailleurs : du moteur de recommandation.
+2. **Le stockage tirait vers la fabrication d'intention.** Le chemin
+   « nouveau besoin » convertissait automatiquement une échéance écrite dans
+   une phrase en objectif structuré actif, ce que l'invariant d'intention
+   interdit explicitement. Stocker l'intention rendait cette dérive naturelle.
+
+### Décision
+
+Le parcours n'est pas un objectif persisté. C'est la **file d'attente des
+actions recommandées** : une vue dérivée, recalculable, jamais stockée.
+
+Elle appartient donc à la couche `Décide` et suit sa règle : elle se recalcule
+à chaque lecture et ne devient jamais un fait.
+
+Sont retirés : les tables `objectifs`, `parcours` et `evenements`, leurs
+fonctions SQL, les modules applicatifs correspondants, la sérialisation des
+objectifs structurés vers le tuteur et la conversion automatique d'un besoin
+en objectif.
+
+Ce qui reste la source d'ordonnancement : le classement explicable du moteur,
+réordonné par les objectifs **textuels** du profil, qui restent des textes
+déclarés et non interprétés en cibles.
+
+### Conséquences
+
+- Une file d'actions ne peut pas être « atteinte », « mise en pause » ou
+  « abandonnée » : ces statuts n'ont plus d'objet et disparaissent.
+- L'espace actif ne connaît plus que deux origines : la sélection globale
+  explicite et le classement du référentiel local.
+- Le tuteur ne reçoit plus d'objectifs structurés. Il ne peut donc plus en
+  citer, ni en déduire un niveau.
+- Un besoin écrit reste une intention : il ouvre la composition et ne laisse
+  aucun fait derrière lui.
+- La surface d'interface de cette file reste à décider. Elle ne doit pas
+  réintroduire un état de pilotage concurrent de la recommandation.
 
 ---
 

@@ -6,7 +6,7 @@ Application de suivi longitudinal des compétences.
 
 Boucle centrale :
 
-génération d'exercices → évaluation → adaptation
+génération de contenu pour développer l'apprentissage → évaluation → adaptation
 
 Lire `PRODUCT.md` avant toute décision produit.
 Lire `ARCHITECTURE_DECISIONS.md` avant toute modification architecturale.
@@ -37,10 +37,6 @@ Supabase est la source de vérité des données.
 
 RLS est la barrière d'autorisation de confiance.
 Ne jamais exposer `service_role` côté client.
-
-Toute politique RLS sur une table métier doit appeler `public.compte_actif()`
-en plus de sa clause d'isolation : sans elle, un compte suspendu lit à nouveau
-(ADR-074).
 
 Le moteur ne connaît pas le référentiel : il reçoit les compétences en paramètre.
 
@@ -75,14 +71,10 @@ Consulter `PRODUCT.md` pour la définition complète des principes.
 - `dureeEstimeeMin` n'est pas une mesure de performance.
 - Une tentative abandonnée ne produit pas de preuve.
 - Une séance ne doit pas produire de double entrée dans le journal.
-- Plusieurs séances peuvent être en cours : rattacher un exercice terminé passe
-  par le contexte explicite du workspace (`seanceHoteDeLExercice`), jamais par
-  déduction seule (ADR-077).
 - Ne pas créer de nouvelle entité pour remplacer `LearningSession`.
 - Toute clé de stockage navigateur doit être isolée par compte.
 - La logique métier non triviale doit vivre dans `lib/`, pas dans un composant.
 - `outilCorrection` reste confiné au chemin de correction prévu.
-- Pas d'émoji dans le frontend : ne jamais utiliser d'émojis dans l'interface utilisateur (boutons, badges, étiquettes, icônes, textes). Utiliser les composants d'icônes SVG (`components/ui/icones.tsx`) ou du texte sobre.
 
 Pour les détails et justifications :
 `ARCHITECTURE_DECISIONS.md`.

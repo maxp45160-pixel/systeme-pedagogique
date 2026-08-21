@@ -19,7 +19,6 @@ import { FORMATS_PAR_ROLE } from "@/lib/documents/roles-note";
 import { ModaleReferentiel } from "@/components/referentiel/modale-referentiel";
 import { ModaleCompetence } from "@/components/referentiel/modale-competence";
 import { ParcoursNouveauProjet } from "@/components/projets/modale-nouveau-projet";
-import { enregistrerBesoinCourtTerme } from "@/lib/store/objectifs-actions";
 import {
   BESOIN_MAX,
   analyserDemandeReferentiel,
@@ -304,9 +303,10 @@ export function CaptureIntention({
       if (action.genre === "travail") {
         const seanceSansSujet = demandeSeanceSansSujet(besoin);
         const codes = seanceSansSujet ? [] : action.codes;
+        // Le besoin reste une intention déclarée : il ouvre la composition et
+        // n'est converti en aucun fait persistant (invariant intention).
         setEnExecution(true);
         try {
-          await enregistrerBesoinCourtTerme(besoin, codes);
           onFermer();
           router.push(
             urlComposition(codes, besoin, { sansTheme: seanceSansSujet }),
