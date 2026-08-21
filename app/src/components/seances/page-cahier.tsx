@@ -23,6 +23,22 @@ import { CalendrierCahier } from "@/components/seances/calendrier-cahier";
 import { TournePage, type TournePageHandle } from "@/components/seances/tourne-page";
 
 /**
+ * Tout ce que les feuillets lisent : séances, traces et documents du compte.
+ *
+ * Ce paquet traversait le serveur, `CahierInteractif`, `PageCahier` puis
+ * chaque composant de feuillet en cinq props individuelles qui ne se
+ * séparaient jamais. Une seule frontière nommée dit la même chose sans
+ * faire défiler une signature à chaque niveau.
+ */
+export interface EntreesCahier {
+  seances: LearningSession[];
+  tentatives: ExerciseAttempt[];
+  donnees: DonneesSeance;
+  notes: LigneMarge[];
+  projets?: DocumentOperationnelDate[];
+}
+
+/**
  * Un feuillet du cahier : un jour, et ce qu'on en lit d'un seul tenant.
  */
 export function PageCahier({
@@ -31,11 +47,7 @@ export function PageCahier({
   rang,
   nombresDeFeuillets,
   mois,
-  seances,
-  tentatives,
-  donnees,
-  notes,
-  projets = [],
+  entrees,
   aujourdHui,
   seanceDeployee,
   onChangerFeuillet,
@@ -50,11 +62,7 @@ export function PageCahier({
   nombresDeFeuillets: ReadonlyMap<string, number>;
   /** Le mois ouvert dans le calendrier — pas forcément celui de la page. */
   mois: string;
-  seances: LearningSession[];
-  tentatives: ExerciseAttempt[];
-  donnees: DonneesSeance;
-  notes: LigneMarge[];
-  projets?: DocumentOperationnelDate[];
+  entrees: EntreesCahier;
   aujourdHui: Date;
   /** La séance ouverte en plein travail, rendue à sa place dans le déroulé. */
   seanceDeployee?: { id: string; contenu: ReactNode };
@@ -62,6 +70,7 @@ export function PageCahier({
   onChangerMois: (mois: string) => void;
   refTourne?: Ref<TournePageHandle>;
 }) {
+  const { seances, tentatives, donnees, notes, projets = [] } = entrees;
   const page = construirePage(jour, { seances, notes, projets });
   const feuillets = feuilletsDeLaPage(page);
   const rangOuvert = rangDOuverture(rang, feuillets.length);

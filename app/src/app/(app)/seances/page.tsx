@@ -270,11 +270,13 @@ async function ContenuCahier({
       moisInitial={moisDemande}
       jours={jours}
       nombresDeFeuilletsMap={Array.from(nombresDeFeuillets.entries())}
-      seances={ctx.donnees.sessions}
-      tentatives={ctx.donnees.attempts}
-      donnees={donnees}
-      notes={marge}
-      projets={projets}
+      entrees={{
+        seances: ctx.donnees.sessions,
+        tentatives: ctx.donnees.attempts,
+        donnees,
+        notes: marge,
+        projets,
+      }}
       aujourdHuiIso={ctx.now.toISOString()}
       compositeur={composition ? <CompositeurDepuisLien {...composition} /> : undefined}
       seanceDeployee={

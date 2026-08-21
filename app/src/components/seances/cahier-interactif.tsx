@@ -1,20 +1,16 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from "react";
-import type { LearningSession, ExerciseAttempt } from "@/lib/domain/types";
-import type { LigneMarge } from "@/lib/documents/marge";
-import type { DonneesSeance } from "@/components/seances/concepteur-seance";
 import {
   moisDuJour,
   moisValide,
   pageDOuverture,
-  type DocumentOperationnelDate,
   type PositionFeuillet,
 } from "@/lib/domain/pages-cahier";
 import { cleMarquePage, ecrireLocal, lireLocal } from "@/lib/ui/stockage-local";
 import { moisAffiche } from "@/components/seances/calendrier-cahier";
 import { OngletsSeancesOuvertes } from "@/components/seances/file-seances";
-import { PageCahier } from "@/components/seances/page-cahier";
+import { PageCahier, type EntreesCahier } from "@/components/seances/page-cahier";
 import { RechercheCahier } from "@/components/seances/cahier-seances";
 import type { TournePageHandle } from "@/components/seances/tourne-page";
 
@@ -44,11 +40,7 @@ export function CahierInteractif({
   moisInitial,
   jours,
   nombresDeFeuilletsMap,
-  seances,
-  tentatives,
-  donnees,
-  notes,
-  projets = [],
+  entrees,
   aujourdHuiIso,
   compositeur,
   seanceDeployee,
@@ -60,15 +52,12 @@ export function CahierInteractif({
   moisInitial?: string;
   jours: string[];
   nombresDeFeuilletsMap: [string, number][];
-  seances: LearningSession[];
-  tentatives: ExerciseAttempt[];
-  donnees: DonneesSeance;
-  notes: LigneMarge[];
-  projets?: DocumentOperationnelDate[];
+  entrees: EntreesCahier;
   aujourdHuiIso: string;
   compositeur?: ReactNode;
   seanceDeployee?: { id: string; contenu: ReactNode };
 }) {
+  const { seances, tentatives, notes, projets = [] } = entrees;
   const tourneRef = useRef<TournePageHandle>(null);
   const nombresDeFeuillets = useMemo(
     () => new Map(nombresDeFeuilletsMap),
@@ -183,11 +172,7 @@ export function CahierInteractif({
         rang={rang}
         nombresDeFeuillets={nombresDeFeuillets}
         mois={mois}
-        seances={seances}
-        tentatives={tentatives}
-        donnees={donnees}
-        notes={notes}
-        projets={projets}
+        entrees={entrees}
         aujourdHui={aujourdHui}
         onChangerFeuillet={allerAuFeuillet}
         onChangerMois={changerMois}
