@@ -1429,3 +1429,42 @@ applied`). Advisors relus ensuite :
   - INFO perf — FK sans index couvrant sur `comptes_acces.suspendu_par` et
     `moteur_predictions(user_id, decision_id)` ; index inutilisés
     `competences_user_created_idx` et `moteur_predictions_user_type_emise_idx`.
+
+### Décisions du 22/08/2026 — suite des advisors
+
+**SECURITY DEFINER (4 WARN) — statu quo justifié.** Lecture des définitions :
+- `est_admin(p_uid)` et `compte_actif(p_uid)` sont les helpers RLS du panel
+  admin (`20260816112000_panel_admin_acces.sql`) : `REVOKE ... FROM PUBLIC,
+  anon` puis `GRANT EXECUTE TO authenticated` y est **délibéré**, et des
+  dizaines de politiques les appellent. Les révoquer casserait le cadre RLS.
+- `admin_comptes()` est appelée en session authentifiée admin
+  (`store/acces.ts`) et porte sa garde interne (`est_admin()` → exception
+  42501 sinon) ; elle ne sort que compteurs et identité (P8).
+- `purger_observations_compte()` est scellée sur `auth.uid()` : purge RGPD de
+  ses propres observations.
+Les quatre warnings sont donc des faux positifs assumés : la garde vit dans
+le corps de la fonction, pas dans les grants.
+
+**Mots de passe fuités (WARN) — impossible sans upgrade.** Activation tentée
+via Management API (`password_hibp_enabled`) : refusée — fonctionnalité
+réservée aux plans Pro+. À activer au passage en Pro, ou ignorer.
+
+**FK sans index (2 INFO) — corrigé.** Migration
+`20260822093000_index_fk_couvrants.sql` appliquée :
+`comptes_acces_suspendu_par_idx` et `moteur_predictions_user_decision_idx`.
+Un troisième warning `unused_index` apparaît ensuite sur ce nouvel index de
+`comptes_acces` : compteur de lectures à zéro depuis sa création, il se
+résorbera à l'usage.
+
+### Retrait de `competences.hypothese_initiale` (22/08/2026)
+
+Décision humaine : archiver puis dropper — la colonne n'était plus jamais
+écrite depuis l'import initial. Les onze valeurs restantes (LOG-01..03,
+PROD-01..04, PROD-06, STAT-01/02/05 — toutes « niveauSuppose 0-1 », cœur ou
+domaine couvert du BUT QLIO) sont archivées verbatim dans l'en-tête de
+`20260822090000_retrait_hypothese_initiale.sql`. Le statut moteur
+« hypothese » (observation de niveau D sans preuve) est retiré avec elle :
+une compétence sans observation est simplement non évaluée — invariant 3,
+absence de preuve ≠ zéro, sans intermédiaire déclaratif. Code touché :
+`types.ts` (champ + union du statut), `skill-state.ts`,
+`contexte.ts` (marqueur « ?D »), `validation-supabase.ts`, fixture et tests.

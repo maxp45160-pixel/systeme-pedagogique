@@ -277,7 +277,7 @@ function serialiserProfil(ctx: Contexte): string {
     "Colonnes : code | niveau/5 | score/5 | confiance | robustesse | observations/contextes | jours depuis la dernière observation | intitulé",
   );
   lignes.push(
-    "« — » = aucune observation, donc aucune valeur dérivable (ce n'est pas un zéro). Le suffixe « ?D » marque une hypothèse issue de la formation déclarée, non vérifiée, de niveau d'observation D — elle n'autorise aucun niveau affiché.",
+    "« — » = aucune observation, donc aucune valeur dérivable (ce n'est pas un zéro).",
   );
   lignes.push("« ⚠n » = n observation(s) contradictoire(s) conservée(s) : confiance réduite, niveau maintenu.");
   lignes.push("");
@@ -292,8 +292,7 @@ function serialiserProfil(ctx: Contexte): string {
     lignes.push(`## ${domaine.nom.toUpperCase()}`);
     for (const e of etats) {
       if (e.observations.length === 0) {
-        const hyp = e.skill.hypotheseInitiale ? " ?D" : "";
-        lignes.push(`${e.skill.code} | —${hyp} | ${e.skill.intitule}`);
+        lignes.push(`${e.skill.code} | — | ${e.skill.intitule}`);
         continue;
       }
       const contra = e.contradictions.length > 0 ? ` ⚠${e.contradictions.length}` : "";

@@ -198,7 +198,6 @@ CREATE TABLE IF NOT EXISTS public.competences (
   archive             BOOLEAN NOT NULL DEFAULT false,
   -- Un changement de sens crée un successeur ; il ne réécrit jamais les observations.
   remplace_par        TEXT,
-  hypothese_initiale  JSONB,
   origine             TEXT NOT NULL DEFAULT 'utilisateur',
   created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (user_id, code),
@@ -2193,6 +2192,9 @@ CREATE INDEX IF NOT EXISTS moteur_predictions_user_type_emise_idx
   ON public.moteur_predictions (user_id, type, emise_le DESC);
 CREATE INDEX IF NOT EXISTS moteur_predictions_user_cible_idx
   ON public.moteur_predictions (user_id, cible_ref, emise_le);
+-- Index couvrant la FK composite (user_id, decision_id) — advisor lint 0001.
+CREATE INDEX IF NOT EXISTS moteur_predictions_user_decision_idx
+  ON public.moteur_predictions (user_id, decision_id);
 
 
 -- --------------------------------------------------------------------
@@ -2253,6 +2255,11 @@ REVOKE UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
 -- Le rejeu lit tout le journal d'un compte, dans l'ordre.
 CREATE INDEX IF NOT EXISTS moteur_reglages_user_applique_idx
   ON public.moteur_reglages (user_id, applique_le);
+
+-- Index couvrant la FK comptes_acces.suspendu_par vers auth.users —
+-- advisor lint 0001 : sans lui, chaque suppression de compte scanne la table.
+CREATE INDEX IF NOT EXISTS comptes_acces_suspendu_par_idx
+  ON public.comptes_acces (suspendu_par);
 
 
 -- --------------------------------------------------------------------

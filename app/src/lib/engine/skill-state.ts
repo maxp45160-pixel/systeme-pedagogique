@@ -316,7 +316,6 @@ export function computeSkillState(
 
   // Aucune observation : on ne fabrique NI niveau NI score (anti-hallucination §7).
   if (observations.length === 0) {
-    const hypothese = skill.hypotheseInitiale;
     return {
       skill,
       niveau: null,
@@ -330,14 +329,10 @@ export function computeSkillState(
       joursDepuisDerniereObservation: null,
       contradictions: [],
       prochaineEtape: prochaineEtape(null, 0, skill.intitule),
-      statut: hypothese ? "hypothese" : "non-evalue",
+      statut: "non-evalue",
       explication: {
-        resume: hypothese
-          ? "Aucune observation directe. Une hypothèse existe mais n'autorise aucun niveau."
-          : "Aucune observation directe. Compétence non évaluée.",
-        facteurs: hypothese
-          ? [{ libelle: "Hypothèse (observation de niveau D)", valeur: hypothese.justification }]
-          : [],
+        resume: "Aucune observation directe. Compétence non évaluée.",
+        facteurs: [],
         nombreObservations: 0,
         reserves: [
           "Aucun niveau ne peut être affirmé sans observation directe (protocole anti-hallucination §7).",

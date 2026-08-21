@@ -347,11 +347,6 @@ export function validerCompetence(valeur: unknown, chemin = "competences"): Skil
   booleen(competence.archive, `${chemin}.archive`);
   optionnel(competence, "remplacePar", chemin, texte);
   enumeration(competence.origine, ["utilisateur", "tuteur", "migration", "manuel"] as const, `${chemin}.origine`);
-  if (competence.hypotheseInitiale !== undefined) {
-    const hypothese = objet(competence.hypotheseInitiale, `${chemin}.hypotheseInitiale`);
-    texte(hypothese.niveauSuppose, `${chemin}.hypotheseInitiale.niveauSuppose`);
-    texte(hypothese.justification, `${chemin}.hypotheseInitiale.justification`);
-  }
   return competence as unknown as Skill;
 }
 

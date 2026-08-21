@@ -199,14 +199,6 @@ export interface Skill {
   /** Successeur explicite lorsque le savoir-faire change de sens. */
   remplacePar?: string;
   origine: OrigineReferentiel;
-  /**
-   * Hypothèse de départ issue de la formation déclarée — observation de niveau D.
-   * N'autorise aucun niveau affiché : sert uniquement à ordonner les diagnostics.
-   */
-  hypotheseInitiale?: {
-    niveauSuppose: string;
-    justification: string;
-  };
 }
 
 /**
@@ -695,5 +687,5 @@ export interface SkillState {
   contradictions: SkillObservation[];
   prochaineEtape: string;
   explication: Explication;
-  statut: "non-evalue" | "hypothese" | "evalue";
+  statut: "non-evalue" | "evalue";
 }

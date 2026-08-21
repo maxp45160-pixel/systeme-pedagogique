@@ -95,8 +95,9 @@ describe("niveau — plafonds du protocole d'évaluation §4", () => {
     expect(e.score).toBeNull();
     expect(e.robustesse).toBeNull();
     expect(e.confiance).toBe("nulle");
-    // STAT-01 porte une hypothèse BUT QLIO : elle ne doit pas devenir un niveau.
-    expect(e.statut).toBe("hypothese");
+    // Sans preuve, une compétence est simplement non évaluée — jamais un zéro,
+    // jamais une hypothèse élevée au rang de mesure.
+    expect(e.statut).toBe("non-evalue");
   });
 
   it("une réussite autonome isolée ne suffit pas pour le niveau 3 (instructions §11)", () => {
