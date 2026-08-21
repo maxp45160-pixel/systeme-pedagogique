@@ -4,8 +4,8 @@
  * Visualisation interactive du graphe de workflow — Canvas + d3-force.
  *
  * Supporte deux perspectives complémentaires :
- *   1. 🎯 Parcours UX (User Journey) : sous-états interactifs, triggers, 3 actes et clusters.
- *   2. 🏛️ Architecture Code (AST) : arborescence filesystem, imports et server actions.
+ *   1. Parcours UX (User Journey) : sous-états interactifs, triggers, 3 actes et clusters.
+ *   2. Architecture Code (AST) : arborescence filesystem, imports et server actions.
  *
  * Fournit le pan/zoom/drag, simulation d3-force, filtres dynamiques, infobulles,
  * inspection des triggers, et export formel (DOT avec clusters, JSON, matrice).
@@ -449,7 +449,7 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
 
       // Libellé de lien si concerné ou zoom élevé
       if (concerne && camera.zoom >= 0.5) {
-        const texteLien = l.declencheur ? `⚡ ${l.declencheur}` : l.libelle;
+        const texteLien = l.declencheur ? `${l.declencheur}` : l.libelle;
         ctx.font = `600 ${Math.max(9, 10 * camera.zoom)}px var(--police-texte, sans-serif)`;
         ctx.fillStyle = palette.texte;
         const mesure = ctx.measureText(texteLien);
@@ -1086,7 +1086,6 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
                   : "text-texte-attenue hover:text-texte"
               }`}
             >
-              <span>🎯</span>
               <span>Parcours Synthèse</span>
               <span className="rounded-full bg-surface-2/40 px-1.5 py-0.2 text-[0.65rem] font-mono">
                 {props.ux?.stats.totalNoeuds ?? "?"}
@@ -1104,7 +1103,6 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
                   : "text-texte-attenue hover:text-texte"
               }`}
             >
-              <span>🔬</span>
               <span>Parcours Atomique</span>
               <span className="rounded-full bg-surface-2/40 px-1.5 py-0.2 text-[0.65rem] font-mono">
                 {props.uxAtomique?.stats.totalNoeuds ?? "?"}
@@ -1122,7 +1120,6 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
                   : "text-texte-attenue hover:text-texte"
               }`}
             >
-              <span>🏛️</span>
               <span>Architecture Code (AST)</span>
               <span className="rounded-full bg-surface-2/40 px-1.5 py-0.2 text-[0.65rem] font-mono">
                 {props.architecture?.stats.totalNoeuds ?? "?"}
@@ -1142,7 +1139,7 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
             }`}
             title="Afficher/masquer les arêtes transversales du cadre (rail, tuteur flottant, modale +)"
           >
-            {afficherCadre ? "✓ Cadre global inclus" : "Cadre global masqué"}
+            {afficherCadre ? "Cadre global inclus" : "Cadre global masqué"}
           </button>
           <button
             type="button"
@@ -1360,7 +1357,7 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
                             </div>
                             {l.declencheur && (
                               <div className="text-primaire font-mono text-[0.625rem]">
-                                ⚡ {l.declencheur}
+                                {l.declencheur}
                               </div>
                             )}
                           </li>
@@ -1386,7 +1383,7 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
                             </div>
                             {l.declencheur && (
                               <div className="text-primaire font-mono text-[0.625rem]">
-                                ⚡ {l.declencheur}
+                                {l.declencheur}
                               </div>
                             )}
                           </li>
@@ -1531,7 +1528,7 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
               </div>
               {copie && (
                 <p className="mt-1.5 text-[0.65rem] text-succes">
-                  ✓ {copie} copié dans le presse-papier
+                  {copie} copié dans le presse-papier
                 </p>
               )}
             </section>

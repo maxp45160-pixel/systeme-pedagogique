@@ -1181,6 +1181,34 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
     !/return\s*(\(?\s*<|<)/.test(sansBruit) &&
     !/<[A-Z]/.test(sansBruit);
 
+  /*
+   * Titre de secours : une page sans `EntetePage` peut quand même se nommer
+   * via la convention Next standard `export const metadata = { title }`.
+   * Sans ce repli, sa route brute (« /expliquer ») sert de libellé — dans le
+   * graphe de workflow comme nulle part ailleurs, mais c'est assez pour
+   * rendre la lecture topologique illisible.
+   */
+  if (!titrePage) {
+    for (const statement of sf.statements) {
+      if (!ts.isVariableStatement(statement)) continue;
+      if (!statement.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)) continue;
+      const declaration = statement.declarationList.declarations.find(
+        (d) => d.name.getText(sf) === "metadata",
+      );
+      const initialisateur = declaration?.initializer;
+      if (initialisateur && ts.isObjectLiteralExpression(initialisateur)) {
+        for (const prop of initialisateur.properties) {
+          if (ts.isPropertyAssignment(prop) && prop.name.getText(sf) === "title") {
+            const valeur = prop.initializer.getText(sf).replace(/^["'`]|["'`]$/g, "");
+            if (valeur) titrePage = valeur;
+            break;
+          }
+        }
+      }
+      if (titrePage) break;
+    }
+  }
+
   return {
     chemin,
     relatif,

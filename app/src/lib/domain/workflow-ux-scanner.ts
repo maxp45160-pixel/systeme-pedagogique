@@ -647,21 +647,29 @@ function construireUxAtomique(
       }
     }
 
-    // 4. Sorties du Bilan et de l'Abandon dérivées dynamiquement de l'AST
-    const navsBilan = analyseVueExercice.navigations.filter(
-      (n) => n.cible !== "/seances?evaluer" && n.cible !== "/seances?bilan" && n.cible !== "/seances?abandon"
-    );
-
+    // 4. Sorties du Bilan — le périmètre réel de l'écran, pas tout le fichier.
+    //
+    // L'AST ne voit pas les branches JSX : reprendre toutes les navigations de
+    // vue-exercice.tsx les attribuait au bilan alors qu'elles appartiennent aux
+    // autres actes (compositeur du démarrage, liens d'en-tête d'autres états).
+    // Le nœud ?bilan affichait 18 sorties pour un écran qui en propose trois
+    // sur sa carte impact — Prochaine action recommandée (/), Fiche compétence
+    // (/atelier), Cahier (/seances) — auxquelles s'ajoute la clôture de séance
+    // côté serveur. Mesuré sur vue-exercice.tsx (bloc `bilan === "1"`).
     if (parId.has(bilanId)) {
-      for (const nav of navsBilan) {
-        const destId = `page:${baseRoute(nav.cible)}`;
-        if (parId.has(destId) && destId !== bilanId && destId !== "page:/seances") {
+      for (const [cible, libelle] of [
+        ["/", "Prochaine action recommandée"],
+        ["/atelier", "Voir la fiche dans l'Atelier"],
+        ["/seances", "Retour au cahier"],
+      ] as const) {
+        const destId = `page:${cible}`;
+        if (parId.has(destId)) {
           connecter({
             source: bilanId,
             target: destId,
             type: "navigation",
-            libelle: nav.declencheur?.replace(/^Clic '|'$/g, "") || "Continuer",
-            declencheur: nav.declencheur || "Lien post-bilan",
+            libelle,
+            declencheur: `Carte impact — ${libelle}`,
           });
         }
       }

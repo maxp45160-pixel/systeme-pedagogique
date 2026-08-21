@@ -1,8 +1,11 @@
 import { Suspense } from "react";
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { chargerContexte } from "@/lib/store/context";
 import { SqueletteContenu } from "@/components/layout/squelette";
 import { PageExplication } from "@/components/explication/page-explication";
+
+export const metadata: Metadata = { title: "Explication guidée" };
 
 export default async function PageExpliquer(props: {
   searchParams: Promise<{ code?: string }>;
