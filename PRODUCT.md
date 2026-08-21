@@ -249,10 +249,14 @@ preuve. L'exercice redevient le geste unique, non par principe mais faute d'un
 usage qui justifie les autres.
 ✅ **Le contexte immédiat est déclaré, jamais deviné** : temps disponible,
 capacité mentale ressentie, intention, cible facultative et note verbatim.
-✅ **Les objectifs sont des faits structurés multiples** (ADR-094). Ils sont
-datés, priorisés, dotés d'un horizon et d'un statut, et ciblent un domaine, un
-élément ou une relation. Les textes historiques sont conservés verbatim sans
-extraction ni rattachement automatique.
+✅ **Le parcours est une file d'actions dérivée** (ADR-096). Le système
+d'objectifs structurés du lot 4 a été retiré le 21/08/2026 après retrait
+humain explicite : il ne convenait pas. Le parcours se dérive des faits
+(recommandations du moteur, ordonnées par l'espace actif) et n'est visible
+que par les actions recommandées — jamais comme surface autonome. Les
+intentions déclarées restent des textes verbatim du profil
+(`objectif_moyen_terme`, `objectif_long_terme`), sans extraction ni
+rattachement automatique.
 ✅ **Les états et vues personnelles sont dérivés** (ADR-091). `État`,
 `KnowledgeState`, `SkillState`, carte individuelle, espace actif, tendances,
 préférences inférées et recommandation se recalculent depuis les faits. Aucun

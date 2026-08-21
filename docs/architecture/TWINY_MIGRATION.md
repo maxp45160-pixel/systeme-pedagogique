@@ -51,9 +51,14 @@ Les décisions suivantes ont reçu la validation humaine explicite de Maxime le
 | [ADR-093](../../ARCHITECTURE_DECISIONS.md#adr-093) | Relations validées et sourcées persistables ; similarités et inférences dérivées. |
 | [ADR-094](../../ARCHITECTURE_DECISIONS.md#adr-094) | Objectifs multiples, datés, priorisés, structurés et à cible typée. |
 | [ADR-095](../../ARCHITECTURE_DECISIONS.md#adr-095) | Niveau observé distinct de la maîtrise consolidée ; seuils inchangés. |
+| [ADR-096](../../ARCHITECTURE_DECISIONS.md#adr-096) | Remplace ADR-094 le 21/08/2026 : retrait du lot 4 (objectifs structurés, parcours et événements persistés) après décision humaine. Le parcours est une file d'actions dérivée, visible uniquement par les actions recommandées. |
 
 Ces ADR n'élèvent aucun statut antérieur. ADR-083 à ADR-088 restent 🔬 ; les
-anciennes ADR conservent leur vocabulaire historique.
+anciennes ADR conservent leur vocabulaire historique. Le lot 4, bien que
+« terminé » dans le journal ci-dessous, a été **retiré le 21/08/2026** : les
+tables `objectifs`, `parcours` et `evenements`, leurs fonctions et le code
+domaine/store correspondants ont été supprimés (migration
+`20260821120000_retrait_objectifs_structures`).
 
 ## 3. Baseline au 20/08/2026
 
@@ -1174,8 +1179,10 @@ alignées avec `app/supabase/schema.sql` :
    correspondances privées ;
 2. `20260820193000_twiny_lot_7_observations_append_only.sql` — politiques
    lecture/insert, trigger de refus et purge contrôlée ;
-3. `20260820194000_twiny_lot_7_remove_profile_legacy_objectives.sql` — maintien
-   des objectifs textuels du profil et remplacement de `admin_comptes()`.
+3. `20260820194000_twiny_lot_7_admin_comptes_observations.sql` — remplacement de
+   `admin_comptes()` après le passage à `observations`. Renommée le 21/08/2026 :
+   elle s'appelait `remove_profile_legacy_objectives` alors qu'elle ne supprime
+   rien et maintient au contraire les objectifs textuels du profil.
 
 Les deux premières migrations additives sont appliquées sur le projet distant :
 `twiny_lot_7_correspondances_relations` et
@@ -1254,7 +1261,7 @@ relais du lot 7 ne correspondaient pas au code ni à Supabase.
   `vues-twiny` et contexte tuteur. `resumerPilotageTwiny` n'avait aucun
   appelant.
 - Trois migrations locales n'étaient pas enregistrées sur le projet distant :
-  `remove_profile_legacy_objectives`, `restaurer_domaine_active_perimetre` et
+  `twiny_lot_7_admin_comptes_observations`, `restaurer_domaine_active_perimetre` et
   `suppression_themes`. La table `themes` était pourtant déjà absente.
 - `app/supabase/schema.sql` contenait deux lignes `+` résiduelles d'un diff :
   le fichier de référence n'était pas rejouable en l'état.
@@ -1308,14 +1315,74 @@ Compteurs métier inchangés après mutation : 53 Observations, 69 séances,
 
 **Ce qui reste ouvert.**
 
-- La surface d'interface du parcours dérivé — la file d'actions recommandées —
-  reste à décider. `engine/parcours-interne.ts` la calcule déjà et ordonne les
-  recommandations, mais n'est exposé nulle part.
-- La migration `remove_profile_legacy_objectives` n'est toujours pas appliquée :
-  `profiles` porte encore `plan`, `objectif_moyen_terme` et
-  `objectif_long_terme`. Ces deux derniers alimentent `parcours-interne.ts` et
-  ne peuvent pas être coupés sans décider ce qui les remplace.
-- Le registre des migrations distant ignore encore `suppression_themes`, dont
-  l'effet est pourtant en place.
+- La surface d'interface du parcours dérivé est tranchée le 21/08/2026 :
+  jamais une vue « parcours » autonome, seulement les trois actions
+  recommandées du tableau de bord. `engine/parcours-interne.ts` reste un
+  ordonnanceur interne sans exposition propre (ADR-096).
+- `profiles` porte encore `plan`, `objectif_moyen_terme` et `objectif_long_terme`.
+  Ces deux derniers alimentent `parcours-interne.ts` et ne peuvent pas être coupés
+  sans décider ce qui les remplace : ce n'est donc pas une dette de migration.
+  La migration qui portait ce nom trompeur a été renommée le 21/08/2026 en
+  `twiny_lot_7_admin_comptes_observations` ; elle reste non appliquée.
+- **Clôture des migrations en suspens — procédure validée localement,
+  exécution distante restante (au 21/08/2026).** La migration
+  `20260820194000_twiny_lot_7_admin_comptes_observations` est vérifiée
+  conforme à `schema.sql` (même définition d'`admin_comptes()`). Trois
+  migrations sont désynchronisées du registre distant :
+
+  | Version locale | État distant réel | Action |
+  |---|---|---|
+  | `20260820213000_restaurer_domaine_active_perimetre` | effet appliqué, non enregistré | `migration repair --status applied` |
+  | `20260821000000_suppression_themes` | effet appliqué, non enregistré | `migration repair --status applied` |
+  | `20260821120000_retrait_objectifs_structures` | effet appliqué selon relais, à vérifier | vérifier puis `repair` si besoin |
+  | `20260820194000_twiny_lot_7_admin_comptes_observations` | **non appliquée** | `db push` |
+
+  Procédure : lier le projet (`supabase link --project-ref
+  vxkjzzshlqulexydgfpc`), lire `supabase migration list`, enregistrer les
+  versions effectives par `migration repair --status applied <version>`,
+  puis `supabase db push` pour la dernière. Contrôle après coup :
+  `admin_comptes()` n'expose plus `plan`, et le registre distant liste les
+  quatre versions.
+
+  ⚠️ **Vérification supplémentaire imposée par la correction du
+  21/08/2026.** Le fichier local `20260821000000_suppression_themes.sql`
+  recréait `charger_tout()` en `SECURITY DEFINER / search_path = public`
+  et `appliquer_commande_referentiel(TEXT, JSONB, INTEGER, TEXT, TEXT)`
+  en `SECURITY DEFINER` — contredisant le durcissement canonique. Si la
+  version d'origine a été appliquée à distance APRÈS
+  `restaurer_domaine_active_perimetre`, l'état distant porte encore ces
+  dérives. À contrôler avant tout autre changement :
+
+  ```sql
+  select p.proname, p.prosecdef, p.proconfig
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public'
+    and p.proname in ('charger_tout', 'appliquer_commande_referentiel');
+  ```
+
+  Attendu : une seule `appliquer_commande_referentiel`
+  (TEXT, INTEGER, TEXT, TEXT, JSONB), `prosecdef = false`,
+  `search_path = ''` ; `charger_tout` `prosecdef = false`. Si ce n'est pas
+  l'état constaté, réaligner sur `schema.sql` avant de poursuivre.
 - Le catalogue global de production reste vide : ni `GO contenu`, ni curateur
   confirmé.
+- **Advisors Supabase — plan de traitement (21/08/2026).** Quatre familles
+  d'avis préexistantes :
+  1. *Fonctions `SECURITY DEFINER` exécutables par `authenticated`*
+     (`est_admin`, `compte_actif`, `admin_comptes`) — **acceptées par
+     conception, à consigner comme telles** : les deux premières sont appelées
+     par les politiques RLS elles-mêmes (donc par le rôle invoking
+     authenticated), la troisième se garde en interne via `est_admin()`.
+     Les trois portent déjà `search_path = public, pg_temp` et sont révoquées
+     à `PUBLIC`/`anon`. Retirer l'exécution casserait les politiques ; ce
+     n'est pas un défaut corrigeable mais un arbitrage assumé.
+  2. *Protection contre les mots de passe compromis désactivée* — **action
+     dashboard uniquement** : Auth → Policies → activer « Leaked password
+     protection ». Aucun SQL.
+  3. *Deux clés étrangères non indexées* + *sept `auth_rls_initplan`* +
+     *politiques permissives multiples sur `profiles`* — nécessitent un
+     relevé frais des advisors **après** la clôture du registre de
+     migrations ci-dessus (l'état distant ayant pu dériver via
+     `suppression_themes`). Correctifs SQL à produire sur relevé, pas à
+     l'aveugle : créer une migration dédiée par lot de remédiation,
+     relancer les deux advisors après application.

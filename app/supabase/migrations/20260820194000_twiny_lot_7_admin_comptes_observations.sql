@@ -1,9 +1,14 @@
--- Lot 7 — compatibilité du contrat d'objectifs du profil.
+-- Lot 7 — `admin_comptes()` recompte sur la table `observations`.
 --
--- Les colonnes objectif_moyen_terme et objectif_long_terme restent la source
--- déclarative du profil : le moteur les lit pour calibrer ses recommandations
--- internes. Cette migration ne doit donc pas les supprimer, ni supprimer les
--- données déjà saisies dans les comptes.
+-- Cette migration s'appelait `remove_profile_legacy_objectives` : le nom
+-- annonçait la suppression de `objectif_moyen_terme` / `objectif_long_terme`,
+-- que son contenu ne fait pas — et ne doit pas faire. Ces colonnes restent la
+-- source déclarative du profil : `lib/engine/parcours-interne.ts` les lit pour
+-- pondérer la pertinence des recommandations. Renommée le 21/08/2026, avant
+-- toute application, pour que le nom dise ce que le fichier fait.
+--
+-- Ce qu'elle fait réellement : recréer `admin_comptes()` après le passage
+-- d'`evidence` à `observations` (migration `rupture_evidence_vers_observations`).
 
 begin;
 

@@ -18,10 +18,10 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [003](#adr-003) | Aucune librairie UI tierce | ✅ Acceptée |
 | [004](#adr-004) | Le contenu pédagogique vient du tuteur | ✅ Acceptée (27/07) |
 | [005](#adr-005) | Le moteur de recommandation est aujourd'hui une file d'attente | 🔬 Hypothèse |
-| [006](#adr-006) | Traitement des compétences non mesurées dans le score global | ❓ Ouverte |
+| [006](#adr-006) | Traitement des compétences non mesurées dans le score global | ✅ Acceptée (31/07), option B — tableau rattrapé le 21/08 |
 | [007](#adr-007) | Tuteur intégré, moteur configurable | ✅ Acceptée (27/07) |
-| [008](#adr-008) | L'autonomie mesurée ignore l'aide externe | ❓ Ouverte |
-| [009](#adr-009) | Généralisation du référentiel | ❓ Ouverte, reportée |
+| [008](#adr-008) | L'autonomie mesurée ignore l'aide externe | 🔄 Fermée par [ADR-033](#adr-033) (01/08) |
+| [009](#adr-009) | Généralisation du référentiel | 🔄 Fermée par [ADR-026](#adr-026) (31/07) |
 | [010](#adr-010) | Widget de TODOs dev partagé entre comptes | 🔄 Remplacée par ADR-019 |
 | [011](#adr-011) | Conservation de l'objet `Exercise` | ❓ Ouverte |
 | [012](#adr-012) | Schéma SQL idempotent sans outil de migration | ✅ Acceptée, fragile |
@@ -83,6 +83,11 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [068](#adr-068) | Une preuve de projet s'adosse à un critère porteur, jamais à la cible entière | 🔄 Remplacée par [070](#adr-070) |
 | [069](#adr-069) | L'agent écrit ce qui est réversible ; le journal d'actions est la contrepartie | 🔬 Hypothèse (15/08) |
 | [070](#adr-070) | Un projet est une note, pas une entité : la machinerie de « Produire » est retirée | ✅ Acceptée (15/08) — remplace [067](#adr-067) et [068](#adr-068) |
+| [075](#adr-075) | Une séance ne passe plus par une note : le sujet libre est résolu avant de composer | ✅ Acceptée (16/08) |
+| [076](#adr-076) | Un projet a son espace de travail : la fiche est une structure, pas un pavé | ✅ Acceptée (16/08) |
+| [077](#adr-077) | Une séance s'abandonne, et plusieurs peuvent être ouvertes : le rattachement cesse d'être déduit | ✅ Acceptée (16/08) |
+| [078](#adr-078) | Le cahier a une marge : un endroit où écrire avant de savoir quoi en faire | ✅ Acceptée (16/08) |
+| [079](#adr-079) | Le cahier a des pages : un jour par page, et le travail s'y déroule | ✅ Acceptée (16/08) |
 | [074](#adr-074) | Rôle applicatif et suspension d'accès, portés par RLS | ✅ Acceptée (16/08) — ferme la question ouverte d'[019](#adr-019) |
 | [080](#adr-080) | L'Atelier a quatre lieux, et aucun dossier | ✅ Acceptée (16/08) |
 | [081](#adr-081) | Une compétence sert plusieurs domaines, avec un porteur unique | ✅ Acceptée (16/08) — amende [065](#adr-065) |
@@ -105,8 +110,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
 lot 1/2 de ce chantier, sur un sujet distinct — voir la note de numérotation en
-tête d'[ADR-053](#adr-053). 075 à 079 ne sont pas encore reprises dans ce
-tableau ; leurs sections font foi.)*
+tête d'[ADR-053](#adr-053). 075 à 079 ont été rattrapées le 21/08.)*
 
 ---
 
@@ -3518,7 +3522,7 @@ laissé en prose. Sans mécanisme précis à réfuter, ce n'est qu'une question.
 ### Ce qui bloque
 
 **a)** Le goulot mesuré au 10/08/2026 reste le corpus : 11 compétences actives
-sur 77 ont un exercice ([PLAN_REFONTE_SEANCES.md §1](PLAN_REFONTE_SEANCES.md)).
+sur 77 ont un exercice (PLAN_REFONTE_SEANCES.md §1, document retiré depuis).
 Un objectif déclaré ne peut réordonner que ce qui existe à classer — tant que
 66 compétences n'ont rien à servir, raffiner le tri ne change rien à l'écran.
 **b)** Aucun signal ne dit si `objectifMoyenTerme` / `objectifLongTerme`, tels
@@ -3686,7 +3690,7 @@ pour 66 compétences actives sur 77 (11 seulement ont un exercice), et la carte
 « Prochaine action » retombait alors sur « Générer un exercice » — visuellement
 indiscernable d'un algorithme qui privilégierait le déjà-fait, alors que le
 vrai obstacle était le corpus, pas le tri. Le diagnostic complet est dans
-[PLAN_REFONTE_SEANCES.md §1](PLAN_REFONTE_SEANCES.md).
+PLAN_REFONTE_SEANCES.md §1 (document retiré depuis).
 
 Deux défauts réels sont restés une fois cette confusion levée — ce sont eux
 que ce lot corrige.
@@ -3785,7 +3789,7 @@ sujets (stoïcisme = 5 domaines, industrie = 5 domaines) — « bosser le
 stoïcisme » n'est pas exprimable aujourd'hui ; et **le graphe existe déjà et
 il est décoratif** — `competences.prerequis TEXT[]` (`schema.sql`), rempli à
 22 %, lu par un seul facteur de `recommend.ts`
-([recommend.ts:220](../app/src/lib/engine/recommend.ts)), et le formulaire
+([recommend.ts:220](app/src/lib/engine/recommend.ts)), et le formulaire
 d'édition du référentiel ne sait même pas l'écrire.
 
 ### La décision
@@ -3803,7 +3807,7 @@ table d'arêtes typées que rien ne lirait.
 
 **Point de conception qui a tout décidé : le thème alimente `PorteeSeance`, pas
 `codesImposes`.** `composerSeance` préfixe `codesImposes` au classement puis
-remplit *n* créneaux ([caf.ts:401](../app/src/lib/engine/caf.ts)) — un thème à
+remplit *n* créneaux ([caf.ts:401](app/src/lib/engine/caf.ts)) — un thème à
 30 codes imposés pour 4 créneaux écraserait le classement, les 4 premiers
 codes gagnant dans un ordre arbitraire. `PorteeSeance` gagne donc une 3ᵉ
 variante, `{ type: "theme", themeId, codes }` : le moteur classe **dans** le
@@ -7177,8 +7181,12 @@ déclarés et non interprétés en cibles.
   citer, ni en déduire un niveau.
 - Un besoin écrit reste une intention : il ouvre la composition et ne laisse
   aucun fait derrière lui.
-- La surface d'interface de cette file reste à décider. Elle ne doit pas
-  réintroduire un état de pilotage concurrent de la recommandation.
+- ✅ **Surface tranchée le 21/08/2026 par Maxime.** La file n'est jamais une
+  surface autonome ni une vue « parcours » : elle n'est visible que par les
+  **trois actions recommandées** du tableau de bord (l'action principale et
+  ses deux alternatives, `prochaine-action.tsx`, `pistes-alternatives.tsx`).
+  `parcours-interne.ts` reste un ordonnanceur interne, sans exposition
+  propre — c'est l'état implémenté, désormais explicite.
 
 ---
 

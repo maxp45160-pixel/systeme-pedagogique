@@ -156,6 +156,23 @@ Pour tout chantier non trivial :
 7. Vérifier avant merge.
 8. Documenter les décisions dans les fichiers appropriés.
 
+**Règle de synchronisation documentaire — non négociable.**
+La documentation fait autorité seulement si elle suit le code :
+
+- Toute décision qui retire, remplace ou contredit un contrat existant met à
+  jour `PRODUCT.md` et/ou `ARCHITECTURE_DECISIONS.md` **dans le même commit**
+  que le changement de code — jamais dans un commit ultérieur.
+- Une fonctionnalité construite puis retirée doit laisser son retrait visible
+  dans la documentation courante (pas seulement dans un journal).
+- Toute migration créée doit refléter son état réel (appliquée / en attente)
+  là où elle est décrite.
+- Avant de conclure un chantier : relire les sections de `PRODUCT.md` et des
+  ADR que le chantier touche, et corriger toute phrase devenue fausse.
+
+Un écart entre la documentation et le code est un défaut, pas une tolérance :
+le 21/08/2026, le journal décrivait une interface inexistante et PRODUCT.md
+décrivait un système retiré la veille. Ne pas reproduire cela.
+
 Toujours diagnostiquer la cause d'un défaut avant de conclure.
 En cas d'incompréhension, la formuler et demander avant de valider une décision.
 Vérifier les affirmations avec la même exigence, quelle que soit leur source.

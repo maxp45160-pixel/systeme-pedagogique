@@ -1,9 +1,8 @@
 /**
  * Génération du contenu d'un projet composé explicitement.
  *
- * Distincte de `/api/activities/generate`, qui ne sait servir qu'une demande
- * **dérivée** du classement du moteur. Ici la personne a désigné ses
- * compétences : la demande n'existe dans aucune file, elle est déclarée.
+ * La personne désigne ses compétences : la demande n'existe dans aucune
+ * file, elle est déclarée.
  *
  * Rien n'est écrit. La proposition rendue n'est qu'un brouillon relu avant
  * acceptation — c'est l'action serveur qui persiste, et seulement si la

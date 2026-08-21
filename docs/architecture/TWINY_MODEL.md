@@ -13,6 +13,14 @@ les décisions humaines explicites consignées par
 [ADR-089 à ADR-095](../../ARCHITECTURE_DECISIONS.md#adr-089). Les ADR portent
 les justifications ; ce modèle n'en recopie que les conséquences métier.
 
+> ⚠️ **Révision du 21/08/2026 (ADR-096).** La forme persistée des objectifs
+> structurés et des parcours (lot 4) a été retirée après retrait humain
+> explicite. Les sections 8, 9 et 10 restent la description du vocabulaire
+> cible ; côté implémenté, le parcours est une file d'actions **dérivée**
+> (recommandations ordonnées), visible uniquement par les actions
+> recommandées, et les intentions déclarées restent des textes verbatim du
+> profil. Aucun concept des sections 8–10 n'est persisté aujourd'hui.
+
 ## Vue de synthèse
 
 ```mermaid
