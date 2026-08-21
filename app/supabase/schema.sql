@@ -2183,13 +2183,12 @@ REVOKE UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
 -- ---------------------------------------------------------------------
 -- 10.6. Index — les lectures réelles
 --
--- L'auto-évaluation balaie les prédictions d'un compte par type et par date ;
--- la résolution cherche celles qui portent sur un exercice donné.
+-- La seule lecture du journal (journal-moteur.ts) filtre par compte et trie
+-- par date d'émission ; la résolution cherche celles qui portent sur un
+-- exercice donné.
 -- ---------------------------------------------------------------------
 CREATE INDEX IF NOT EXISTS moteur_decisions_user_prise_idx
   ON public.moteur_decisions (user_id, prise_le DESC);
-CREATE INDEX IF NOT EXISTS moteur_predictions_user_type_emise_idx
-  ON public.moteur_predictions (user_id, type, emise_le DESC);
 CREATE INDEX IF NOT EXISTS moteur_predictions_user_cible_idx
   ON public.moteur_predictions (user_id, cible_ref, emise_le);
 -- Index couvrant la FK composite (user_id, decision_id) — advisor lint 0001.
