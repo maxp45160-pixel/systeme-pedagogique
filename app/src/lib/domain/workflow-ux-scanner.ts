@@ -68,7 +68,11 @@ function construireMacroSynthese(
   }
 
   function connecter(lien: LienWorkflow) {
-    const cle = `${lien.source}→${lien.target}→${lien.type}→${lien.libelle}→${lien.declencheur ?? ""}`;
+    // Dédup sur le trajet, pas sur le geste : plusieurs boutons d'une même
+    // vue (ou la même navigation déclarée page + composant) produisent des
+    // arêtes jumelles qui ne diffèrent que par leur déclencheur. Les compter
+    // double gonflait les degrés et masquait la topologie réelle.
+    const cle = `${lien.source}→${lien.target}→${lien.type}→${lien.libelle}`;
     if (!vusLiens.has(cle)) {
       vusLiens.add(cle);
       liens.push(lien);
@@ -339,6 +343,37 @@ function construireMacroSynthese(
     declencheur: "Ouverture du compagnon tuteur",
   });
 
+  // 6. Retours au hub — le rail dessert chaque pôle depuis n'importe quel
+  // écran : la consultation n'est pas une impasse du funnel. Sans ces arêtes,
+  // la vue de synthèse décrit un arbre à six impasses là où le parcours réel
+  // est un cycle — et le « retour au tableau de bord » cesse d'être un geste
+  // pensé pour l'utilisateur.
+  for (const pole of ["page:/progression", "page:/compte", "page:/aide", "page:/admin", "page:/demarrer"]) {
+    if (!parId.has(pole)) continue;
+    connecter({
+      source: pole,
+      target: "page:/",
+      type: "navigation",
+      libelle: "Retour au tableau de bord",
+      declencheur: "Rail / barre mobile du cadre",
+      cadre: true,
+    });
+  }
+
+  if (parId.has("tiroir:tuteur")) {
+    for (const hote of ["page:/", "page:/seances"]) {
+      if (!parId.has(hote)) continue;
+      connecter({
+        source: "tiroir:tuteur",
+        target: hote,
+        type: "retour",
+        libelle: "Fermer",
+        declencheur: "Clic 'Fermer' / Échap",
+        cadre: true,
+      });
+    }
+  }
+
   return { noeuds, liens };
 }
 
@@ -363,7 +398,8 @@ function construireUxAtomique(
   }
 
   function connecter(lien: LienWorkflow) {
-    const cle = `${lien.source}→${lien.target}→${lien.type}→${lien.libelle}→${lien.declencheur ?? ""}`;
+    // Même clé que la vue macro : dédup sur le trajet, pas sur le geste.
+    const cle = `${lien.source}→${lien.target}→${lien.type}→${lien.libelle}`;
     if (!vusLiens.has(cle)) {
       vusLiens.add(cle);
       liens.push(lien);
@@ -371,6 +407,11 @@ function construireUxAtomique(
   }
 
   // 1. Pages et sous-routes canoniques (searchParams)
+  // Chaque nœud écran (page ou variante) mémorise le dossier du fichier qui
+  // le porte : la passe du cadre partagé (8) en a besoin pour savoir de quel
+  // layout il dépend — une variante `?document` porte le même rail et les
+  // mêmes surfaces flottantes que sa page de base.
+  const sourcesCadre: { id: string; relatif: string }[] = [];
   for (const a of analyses.values()) {
     if (!a.estPageRoute || !a.route || a.estRedirectionPure) continue;
     if (a.route.startsWith("/dev")) continue;
@@ -383,6 +424,7 @@ function construireUxAtomique(
       url: a.route,
       groupe: groupePourChemin(a.relatif),
     });
+    sourcesCadre.push({ id: pageId, relatif: a.relatif });
 
     for (const varRoute of a.variantesSearchParams ?? []) {
       const varId = `page:${varRoute}`;
@@ -397,6 +439,7 @@ function construireUxAtomique(
         groupe: groupePourChemin(a.relatif),
         badge: qual.badge,
       });
+      sourcesCadre.push({ id: varId, relatif: a.relatif });
 
       connecter({
         source: pageId,
@@ -883,21 +926,20 @@ function construireUxAtomique(
   // 8. Cadre partagé — navigation persistante et surfaces du layout (rail,
   // barre mobile, tiroir tuteur, point d'entrée `+`). Elles ne vivent pas
   // dans les pages : sans cette passe, `/compte`, `/aide` ou le tiroir
-  // sembleraient inaccessibles depuis la plupart des écrans. `connecter`
-  // déduplique déjà une arête identique (source→cible→libellé→déclencheur),
+  // sembleraient inaccessibles depuis la plupart des écrans. La passe couvre
+  // aussi les variantes searchParams (`?document`, `?session`, …) : c'est le
+  // même écran avec un panneau ouvert, le rail y est identique — sans quoi un
+  // mode à douze chemins d'entrée ne montrerait qu'une seule sortie.
+  // `connecter` déduplique déjà une arête identique (source→cible→type→libellé),
   // y compris quand deux dossiers de layouts s'imbriquent.
   const navPartagee = resoudreNavigationPartagee(analyses);
   const surfacesPartagees = resoudreSurfacesPartagees(analyses);
 
-  for (const a of analyses.values()) {
-    if (!a.estPageRoute || !a.route || a.estRedirectionPure) continue;
-    if (a.route.startsWith("/dev")) continue;
-
-    const sourceId = `page:${a.route}`;
-    if (!parId.has(sourceId)) continue;
+  for (const src of sourcesCadre) {
+    const sourceId = src.id;
 
     for (const [dossier, cibles] of navPartagee.entries()) {
-      if (!a.relatif.startsWith(`${dossier}/`)) continue;
+      if (!src.relatif.startsWith(`${dossier}/`)) continue;
       for (const cible of cibles) {
         const targetId = `page:${cible}`;
         if (!parId.has(targetId) || targetId === sourceId) continue;
@@ -913,7 +955,7 @@ function construireUxAtomique(
     }
 
     for (const [dossier, ids] of surfacesPartagees.entries()) {
-      if (!a.relatif.startsWith(`${dossier}/`)) continue;
+      if (!src.relatif.startsWith(`${dossier}/`)) continue;
       for (const id of ids) {
         if (!parId.has(id)) {
           // Surface déclarée par le layout mais montée par aucune page

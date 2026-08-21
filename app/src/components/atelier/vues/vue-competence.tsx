@@ -15,6 +15,7 @@ import { IconeFleche } from "@/components/ui/icones";
 import { BoutonGenerer } from "@/components/exercices/bouton-generer";
 import type { CalibrageModale, CompetenceModale } from "@/components/exercices/proprietes-generation";
 import { ConcepteurSeance, type DonneesSeance } from "@/components/seances/concepteur-seance";
+import { urlComposerAutonome } from "@/lib/domain/navigation-exercice";
 import { creerDocumentBrutAction, supprimerDocumentAction } from "@/lib/store/document-actions";
 import { retirerExercice } from "@/lib/store/actions";
 import {
@@ -145,11 +146,11 @@ export function VueCompetence({
               />
             ) : (
               <Link
-                href="/seances"
+                href={urlComposerAutonome(vue.code, undefined)}
                 className="inline-flex items-center gap-2 rounded-xl bg-primaire px-4 py-2.5 text-xs font-semibold text-texte-inverse shadow-xs hover:bg-primaire-survol transition-colors cursor-pointer"
               >
-                <span>Lancer une séance</span>
-                <span aria-hidden>→</span>
+                <span>Lancer une séance ciblée</span>
+                <IconeFleche className="size-3.5" />
               </Link>
             )}
           </div>
