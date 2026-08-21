@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ElementAtelier } from "./types-atelier";
+import { PREFIXE_PREUVE } from "@/lib/documents/nature-document";
 import { urlComposerAutonome } from "@/lib/domain/navigation-exercice";
 import { BoutonRetirerExercice } from "@/components/exercices/bouton-retirer";
 
@@ -77,7 +78,7 @@ export function PanneauExerciceAtelier({
           compEl: elements.find((el) => el.id === code),
         }));
         const competencesCibles = sortantsElements.filter(({ code, compEl }) => {
-          return compEl?.type === "competence" || (!code.startsWith("preuve-") && !code.startsWith("exercice:") && !code.startsWith("note-") && !code.startsWith("document:") && !code.startsWith("domaine:"));
+          return compEl?.type === "competence" || (!code.startsWith(PREFIXE_PREUVE) && !code.startsWith("exercice:") && !code.startsWith("note-") && !code.startsWith("document:") && !code.startsWith("domaine:"));
         });
         const documentsAssocies = sortantsElements.filter(({ code }) => !competencesCibles.some((c) => c.code === code));
 
@@ -124,7 +125,7 @@ export function PanneauExerciceAtelier({
                       >
                         <span className="truncate flex-1 font-medium text-texte">{compEl?.titre ?? code}</span>
                         <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[0.625rem] text-texte-discret">
-                          {compEl?.typeLibelle ?? (code.startsWith("preuve-") ? "Preuve" : "Document")}
+                          {compEl?.typeLibelle ?? (code.startsWith(PREFIXE_PREUVE) ? "Preuve" : "Document")}
                         </span>
                       </button>
                     </li>

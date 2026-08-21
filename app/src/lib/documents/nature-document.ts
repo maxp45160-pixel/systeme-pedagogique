@@ -7,9 +7,23 @@
  * question qui décide si l'éditeur s'ouvre.
  */
 
+/**
+ * Le préfixe d'id d'une preuve, et comment on la construit depuis sa tentative.
+ *
+ * Écrit en literal à chaque site de construction (`production.ts`,
+ * `explication-actions.ts`) et reconstitué à la lecture (`vue-atelier.ts`),
+ * le lien conventionnel tentative → preuve ne tenait qu'à ce que personne
+ * ne retape le préfixe autrement.
+ */
+export const PREFIXE_PREUVE = "preuve-";
+
+export function idPreuve(idTentative: string): string {
+  return `${PREFIXE_PREUVE}${idTentative}`;
+}
+
 /** Une trace de production : elle atteste d'un fait daté, elle ne se réécrit pas. */
 export function estDocumentPreuve(document: { id: string; type?: string | null }): boolean {
-  return document.type === "preuve" || document.id.startsWith("preuve-");
+  return document.type === "preuve" || document.id.startsWith(PREFIXE_PREUVE);
 }
 
 /**
@@ -24,6 +38,9 @@ export function estDocumentPreuve(document: { id: string; type?: string | null }
 export function estFicheExercice(document: { id: string; type?: string | null }): boolean {
   return document.type === "exercice" || document.id.startsWith("exercice-");
 }
+
+/** Le préfixe d'id d'une fiche d'exercice — posé par `idFicheExercice`. */
+export const PREFIXE_FICHE_EXERCICE = "exercice-";
 
 /**
  * Les documents dérivés d'une donnée qui vit ailleurs.

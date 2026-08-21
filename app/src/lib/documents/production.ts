@@ -1,5 +1,6 @@
 import type { Exercise, ExerciseAttempt } from "@/lib/domain/types";
 import { listeMarkdown } from "./markdown";
+import { idPreuve } from "./nature-document";
 
 export interface DocumentProductionPreuve {
   id: string;
@@ -32,7 +33,7 @@ export function construireDocumentProductionPreuve(
   tentative: ExerciseAttempt,
   produiteLe: string,
 ): DocumentProductionPreuve {
-  const id = `preuve-${tentative.id}`;
+  const id = idPreuve(tentative.id);
   const production = tentative.reponse;
   const notes = tentative.notes?.trim();
 
