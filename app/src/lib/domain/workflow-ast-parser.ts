@@ -318,8 +318,7 @@ export function groupePourChemin(relatif: string): GroupeWorkflow {
     r.startsWith("components/layout") ||
     r.includes("compte-actions") ||
     r.includes("acces-actions") ||
-    r.includes("reglages-actions") ||
-    r.includes("objectifs-actions")
+    r.includes("reglages-actions")
   ) {
     return "profil";
   }

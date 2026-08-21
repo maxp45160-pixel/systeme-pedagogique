@@ -41,7 +41,6 @@ import {
   chargerCorrespondancesCarteGlobale,
   chargerSelectionsCarteGlobale,
 } from "./carte-globale";
-import { chargerObjectifs, chargerParcours } from "./objectifs";
 import {
   adapterRecommandationsAEspaceActif,
   construireCarteIndividuelle,
@@ -141,13 +140,11 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
   // `chargerToutRPC` ramène les 8 tables en un seul aller-retour réseau.
   // Si la fonction SQL n'existe pas encore, elle renvoie `null` et le
   // chemin lent prend le relais — aucune casse.
-  const [rpc, carteGlobale, selectionsGlobales, correspondancesGlobales, objectifs, parcours] = await Promise.all([
+  const [rpc, carteGlobale, selectionsGlobales, correspondancesGlobales] = await Promise.all([
     chargerToutRPC(),
     chargerCarteGlobale(),
     chargerSelectionsCarteGlobale(),
     chargerCorrespondancesCarteGlobale(),
-    chargerObjectifs(),
-    chargerParcours(),
   ]);
 
   let donneesBrutes: Collections;
@@ -346,8 +343,6 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
     correspondancesGlobales,
     domainesLocaux: referentiel.domaines,
     etatsLocaux: etatsCarte,
-    objectifs,
-    parcours,
   });
   const espaceActif = construireEspaceActif({
     carte: carteIndividuelle,

@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { ElementAtelier } from "./types-atelier";
 import { urlComposerAutonome } from "@/lib/domain/navigation-exercice";
+import { BoutonRetirerExercice } from "@/components/exercices/bouton-retirer";
 
 /**
  * Panneau latéral spécialisé pour les projections d'exercice.
@@ -22,6 +24,8 @@ export function PanneauExerciceAtelier({
   elements: ElementAtelier[];
   ouvrirElement: (id: string) => void;
 }) {
+  const router = useRouter();
+
   /*
    * Le domaine se lit sur l'élément, plus dans son chemin de dossier.
    *
@@ -38,6 +42,12 @@ export function PanneauExerciceAtelier({
     : null;
   const nomDomaine =
     domaineEl?.vuePedagogique?.kind === "domaine" ? domaineEl.vuePedagogique.nom : domaineId;
+  const exerciceId =
+    typeof element.frontMatter.exercice === "string"
+      ? element.frontMatter.exercice
+      : element.id.startsWith("exercice:")
+        ? element.id.slice("exercice:".length)
+        : null;
 
   return (
     <div className="space-y-5 p-4">
@@ -125,6 +135,24 @@ export function PanneauExerciceAtelier({
           </>
         );
       })()}
+
+      {exerciceId && (
+        <div className="border-t border-bordure pt-4">
+          <BoutonRetirerExercice
+            exerciceId={exerciceId}
+            titre={element.titre}
+            tentatives={element.tentatives.length}
+            onRetire={() => {
+              if (domaineId) {
+                ouvrirElement(`domaine:${domaineId}`);
+                router.refresh();
+              } else {
+                router.push("/atelier");
+              }
+            }}
+          />
+        </div>
+      )}
 
       <div className="border-t border-bordure pt-4">
         <div className="flex items-baseline justify-between gap-2">

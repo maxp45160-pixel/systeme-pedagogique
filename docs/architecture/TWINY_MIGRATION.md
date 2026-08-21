@@ -1238,3 +1238,84 @@ tant que le contenu exact n'a pas reçu `GO contenu` et qu'un curateur humain
 n'a pas été confirmé. Le déploiement du code est bloqué par l'autorisation
 explicite requise avant le push GitHub ; la troisième migration et le smoke test
 authentifié de production restent donc en attente.
+
+### Relais du 21/08/2026 — état réel vérifié, correctifs, retrait du lot 4
+
+Ce relais corrige d'abord le journal lui-même : plusieurs affirmations du
+relais du lot 7 ne correspondaient pas au code ni à Supabase.
+
+**Écarts constatés entre le journal et la réalité.**
+
+- Le push GitHub n'était pas bloqué : le code du lot 7 était déjà sur `master`,
+  sans rien en attente.
+- L'interface décrite pour Progression — sections `Explorer`, `Objectifs`,
+  `Parcours`, recherche, sélection privée, création d'objectif — n'existait pas.
+  Aucun composant, aucune route API. Le lot 4 ne vivait qu'en types, store,
+  `vues-twiny` et contexte tuteur. `resumerPilotageTwiny` n'avait aucun
+  appelant.
+- Trois migrations locales n'étaient pas enregistrées sur le projet distant :
+  `remove_profile_legacy_objectives`, `restaurer_domaine_active_perimetre` et
+  `suppression_themes`. La table `themes` était pourtant déjà absente.
+- `app/supabase/schema.sql` contenait deux lignes `+` résiduelles d'un diff :
+  le fichier de référence n'était pas rejouable en l'état.
+
+**Correctif de sécurité.** Le projet distant portait deux surcharges de
+`appliquer_commande_referentiel`. La canonique
+`(TEXT, INTEGER, TEXT, TEXT, JSONB)` était conforme : `SECURITY INVOKER`,
+`search_path = ''`, réservée à `authenticated`. La seconde,
+`(TEXT, JSONB, INTEGER, TEXT, TEXT)`, était `SECURITY DEFINER`,
+`search_path = public` et **exécutable par `anon`**. Son garde `v_uid IS NULL`
+bloquait l'exploitation directe, mais l'exposition contredisait le durcissement
+du projet. Les deux surcharges portant le même jeu de noms de paramètres,
+l'appel RPC par arguments nommés était ambigu : c'était la cause réelle du
+désarchivage sans effet, `schema.sql` portant déjà le correctif.
+
+La migration `restaurer_domaine_active_perimetre` supprime la surcharge et
+applique `active = true` à `restaurer_domaine` et `desarchiver_competence`.
+Vérifié après application : une seule fonction, `SECURITY INVOKER`,
+`search_path = ''`, `anon` révoqué, deux réactivations présentes.
+
+Point à noter : la version distante portait `active = false` avec un
+commentaire explicite — « l'activation reste un second geste explicite ».
+L'arbitrage a suivi `schema.sql`, qui est la référence.
+
+**Retrait du lot 4 (ADR-096).** Décision humaine explicite : le système
+d'objectifs proposés ne convient pas. Relevé avant suppression : 1 objectif
+brouillon « Progresser en gestion de stock » (cible domaine-local
+`developpement`), 1 parcours brouillon rattaché, 2 événements de création —
+tous du 20/08/2026, jamais activés.
+
+Supprimés en base : tables `objectifs`, `parcours`, `evenements` ; fonctions
+`executer_commande_lot4`, `inscrire_evenement_lot4`,
+`refuser_mutation_evenements_lot4`, `provenance_lot4_valide`,
+`cible_lot4_valide`. Le cluster était autonome : aucune autre table ni fonction
+ne le référençait. Sections 14 et 15 retirées de `schema.sql`.
+
+Supprimés dans le code : `domain/objectifs.ts`, `store/objectifs.ts`,
+`store/objectifs-actions.ts`, `store/validation-objectifs.ts` et leurs tests.
+`vues-twiny.ts` passe de 577 à 401 lignes : plus d'origine `objectif` ni
+`parcours` dans l'espace actif, plus de `resumerPilotageTwiny`. Le contexte
+tuteur ne sérialise plus d'objectifs structurés.
+
+Dérive corrigée au passage : `enregistrerBesoinCourtTerme` convertissait
+automatiquement une échéance écrite dans « nouveau besoin » en objectif
+structuré actif, ce que l'invariant d'intention interdit. Le besoin ouvre
+désormais la composition sans laisser de fait derrière lui.
+
+**Vérifications.** TypeScript passe. 1 236 tests passent (89 fichiers).
+Compteurs métier inchangés après mutation : 53 Observations, 69 séances,
+109 compétences, 11 documents.
+
+**Ce qui reste ouvert.**
+
+- La surface d'interface du parcours dérivé — la file d'actions recommandées —
+  reste à décider. `engine/parcours-interne.ts` la calcule déjà et ordonne les
+  recommandations, mais n'est exposé nulle part.
+- La migration `remove_profile_legacy_objectives` n'est toujours pas appliquée :
+  `profiles` porte encore `plan`, `objectif_moyen_terme` et
+  `objectif_long_terme`. Ces deux derniers alimentent `parcours-interne.ts` et
+  ne peuvent pas être coupés sans décider ce qui les remplace.
+- Le registre des migrations distant ignore encore `suppression_themes`, dont
+  l'effet est pourtant en place.
+- Le catalogue global de production reste vide : ni `GO contenu`, ni curateur
+  confirmé.

@@ -57,17 +57,15 @@ export function VueExercice({
               <span>S’exercer dans le cahier</span>
               <IconeFleche className="size-4" />
             </Link>
-            {!vue.tentatives.some((tentative) => tentative.statut === "en-cours") && (
-              <BoutonRetirerExercice
-                exerciceId={vue.id}
-                titre={vue.titre}
-                tentatives={vue.nombreTentatives}
-                onRetire={() => {
-                  ouvrirElement(`domaine:${vue.domaineId}`);
-                  router.refresh();
-                }}
-              />
-            )}
+            <BoutonRetirerExercice
+              exerciceId={vue.id}
+              titre={vue.titre}
+              tentatives={vue.nombreTentatives}
+              onRetire={() => {
+                ouvrirElement(`domaine:${vue.domaineId}`);
+                router.refresh();
+              }}
+            />
           </div>
         </div>
       </header>

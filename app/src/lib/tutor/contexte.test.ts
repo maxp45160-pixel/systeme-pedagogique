@@ -79,8 +79,6 @@ function construireCtxDeTest(
     correspondancesGlobales: [],
     domainesLocaux: referentiel.domaines,
     etatsLocaux: etats,
-    objectifs: [],
-    parcours: [],
   });
   const espaceActif = construireEspaceActif({ carte: carteIndividuelle, recommandations });
   return {
@@ -524,11 +522,6 @@ describe("construireContexte — compte sans référentiel", () => {
   it("interdit les propositions d'observation et d'exercice tant qu'aucune compétence n'existe", async () => {
     const { systemeProfil } = await construireContexte(construireCtxDeTest(REFERENTIEL_VIDE));
     expect(systemeProfil).toContain("Ne propose ni observation ni exercice");
-  });
-
-  it("n'invente aucun objectif structuré quand le compte n'en a pas", async () => {
-    const { systemeProfil } = await construireContexte(construireCtxDeTest(REFERENTIEL_VIDE));
-    expect(systemeProfil).toContain("Aucun objectif ou parcours actif n'est déclaré");
   });
 
   it("le gabarit d'exercice n'invente aucun domaine quand il n'y en a pas", async () => {

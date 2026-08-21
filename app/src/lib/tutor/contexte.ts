@@ -12,7 +12,6 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { Contexte } from "@/lib/store/context";
 import type { Referentiel } from "@/lib/domain/types";
-import type { Objectif, Parcours } from "@/lib/domain/objectifs";
 import { serialiserProfilDeclare } from "@/lib/domain/profil";
 import { usageExercice } from "@/lib/domain/exercice";
 import { formatDateCourte } from "@/lib/engine/dates";
@@ -25,32 +24,6 @@ import {
 } from "./outils";
 
 const RACINE_DATA = path.join(process.cwd(), "data");
-
-function serialiserIntentionsTwiny(objectifs: Objectif[], parcours: Parcours[]): string {
-  const actifs = objectifs.filter((objectif) => objectif.statut === "actif");
-  const parcoursActifs = parcours.filter((chemin) => chemin.statut === "actif");
-  const lignes = ["## OBJECTIFS STRUCTURÉS ACTIFS", ""];
-
-  if (actifs.length === 0 && parcoursActifs.length === 0) {
-    lignes.push("Aucun objectif ou parcours actif n'est déclaré. N'en invente pas.");
-    return lignes.join("\n");
-  }
-
-  for (const objectif of actifs) {
-    lignes.push(
-      `- Objectif ${objectif.id} | formulation exacte : ${objectif.formulation} | cible : ${JSON.stringify(objectif.cible)} | priorité : ${objectif.priorite} | horizon : ${objectif.horizon}${objectif.echeanceLe ? ` | échéance : ${objectif.echeanceLe}` : ""}`,
-    );
-  }
-  for (const parcours of parcoursActifs) {
-    lignes.push(
-      `- Parcours ${parcours.id} | contexte : ${parcours.contexte} | cible : ${JSON.stringify(parcours.cible)}${parcours.objectifId ? ` | objectif parent : ${parcours.objectifId}` : ""}`,
-    );
-  }
-  lignes.push(
-    "Ces formulations et cibles sont déclarées par la personne. Tu peux les citer, mais tu ne dois ni les reformuler comme des faits mesurés ni en déduire un niveau.",
-  );
-  return lignes.join("\n");
-}
 
 /**
  * Fichiers de protocole toujours chargés, dans l'ordre où ils sont empilés.
@@ -271,7 +244,6 @@ function serialiserProfil(ctx: Contexte): string {
     );
     lignes.push("");
     lignes.push(serialiserProfilDeclare(ctx.donnees.user));
-    lignes.push(serialiserIntentionsTwiny(ctx.carteIndividuelle.objectifs, ctx.carteIndividuelle.parcours));
     return lignes.join("\n");
   }
 
@@ -296,7 +268,6 @@ function serialiserProfil(ctx: Contexte): string {
   // voyait donc attribuer un diplôme et des objectifs qui n'étaient pas les
   // siens (ADR-029). Retirer ce paragraphe suppose de transmettre le vrai.
   lignes.push(serialiserProfilDeclare(ctx.donnees.user));
-  lignes.push(serialiserIntentionsTwiny(ctx.carteIndividuelle.objectifs, ctx.carteIndividuelle.parcours));
   lignes.push("");
 
   // Les étiquettes de colonne sont données UNE fois plutôt que répétées sur

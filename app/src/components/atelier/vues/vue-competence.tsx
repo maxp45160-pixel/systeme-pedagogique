@@ -16,6 +16,7 @@ import { BoutonGenerer } from "@/components/exercices/bouton-generer";
 import type { CalibrageModale, CompetenceModale } from "@/components/exercices/proprietes-generation";
 import { ConcepteurSeance, type DonneesSeance } from "@/components/seances/concepteur-seance";
 import { creerDocumentBrutAction, supprimerDocumentAction } from "@/lib/store/document-actions";
+import { retirerExercice } from "@/lib/store/actions";
 import {
   BoutonSuppressionCarte,
   ModaleConfirmationSuppression,
@@ -52,6 +53,7 @@ export function VueCompetence({
   const router = useRouter();
   const [volet, setVolet] = useState<VoletCompetence>("observations");
   const [documentASupprimer, setDocumentASupprimer] = useState<DocumentLieAtelier | null>(null);
+  const [exerciceASupprimer, setExerciceASupprimer] = useState<VueCompetenceAtelier["exercices"][number] | null>(null);
   const [creationNoteEnCours, demarrerCreationNote] = useTransition();
   const prochainExercice = vue.exercices[0];
 
@@ -241,11 +243,11 @@ export function VueCompetence({
                 {vue.exercices.length ? (
                   <ul className="space-y-1">
                     {vue.exercices.map((exercice) => (
-                      <li key={exercice.id}>
+                      <li key={exercice.id} className="group relative">
                         <button
                           type="button"
                           onClick={() => ouvrirElement(`exercice:${exercice.id}`)}
-                          className="block w-full rounded-lg border border-bordure bg-surface px-3 py-2.5 text-left transition-colors hover:border-primaire/40 hover:bg-surface-2 cursor-pointer"
+                          className="block w-full rounded-lg border border-bordure bg-surface px-3 py-2.5 pr-10 text-left transition-colors hover:border-primaire/40 hover:bg-surface-2 cursor-pointer"
                         >
                           <span className="block text-xs font-medium leading-snug text-texte">
                             {exercice.titre}
@@ -255,6 +257,10 @@ export function VueCompetence({
                             {exercice.tentatives} tentative{exercice.tentatives > 1 ? "s" : ""}
                           </span>
                         </button>
+                        <BoutonSuppressionCarte
+                          titre="Retirer cet exercice"
+                          onClick={() => setExerciceASupprimer(exercice)}
+                        />
                       </li>
                     ))}
                   </ul>
@@ -354,6 +360,27 @@ export function VueCompetence({
             router.refresh();
           }}
           onFermer={() => setDocumentASupprimer(null)}
+        />
+      )}
+
+      {exerciceASupprimer && (
+        <ModaleConfirmationSuppression
+          titre={exerciceASupprimer.tentatives > 0 ? "Archiver l’exercice" : "Supprimer l’exercice"}
+          nomElement={exerciceASupprimer.titre}
+          typeElement="exercice"
+          mode={exerciceASupprimer.tentatives > 0 ? "archivage" : "suppression"}
+          explication={
+            exerciceASupprimer.tentatives > 0
+              ? `Cet exercice possède ${exerciceASupprimer.tentatives} tentative${exerciceASupprimer.tentatives > 1 ? "s" : ""}. Il sera retiré des exercices proposés, mais son historique restera conservé.`
+              : "Cet exercice ne possède aucune tentative. Il sera supprimé définitivement de ta bibliothèque."
+          }
+          texteBoutonConfirmer={exerciceASupprimer.tentatives > 0 ? "Confirmer l’archivage" : "Supprimer définitivement"}
+          onConfirmer={async () => {
+            await retirerExercice(exerciceASupprimer.id);
+            setExerciceASupprimer(null);
+            router.refresh();
+          }}
+          onFermer={() => setExerciceASupprimer(null)}
         />
       )}
     </div>
