@@ -22,6 +22,7 @@
  * des mesures faites sur un apprenant modèle pour des mesures de production.
  */
 
+import type { Comparaison, RapportCampagne, Serie } from "./campagne";
 import type { ActionServie } from "./parcours-long";
 import type { StatutVerdict, TableauDeBord, Verdict } from "./tableau-de-bord";
 
@@ -252,6 +253,7 @@ export interface ExportAnalyse {
   conclusion: Conclusion;
   verdicts: Verdict[];
   entete: TableauDeBord["entete"];
+  resultatReel: TableauDeBord["resultatReel"];
   objectifs: TableauDeBord["objectifs"];
   croissance: TableauDeBord["croissance"];
   graphe: TableauDeBord["graphe"];
@@ -352,6 +354,7 @@ export function construireExportAnalyse(
     conclusion: redigerConclusion(tableau),
     verdicts: tableau.verdicts,
     entete: tableau.entete,
+    resultatReel: tableau.resultatReel,
     objectifs: tableau.objectifs,
     croissance: tableau.croissance,
     graphe: tableau.graphe,
@@ -379,4 +382,169 @@ export function construireExportAnalyse(
 
 export function ecrireExportAnalyse(analyse: ExportAnalyse): string {
   return JSON.stringify(analyse, null, 2);
+}
+
+/* ------------------------------------------------------------------ */
+/* Campagne                                                            */
+/* ------------------------------------------------------------------ */
+
+export const FORMAT_CAMPAGNE = "simulation-campagne-analyse";
+
+/**
+ * Ce qu'une campagne permet de dire, et qu'un parcours seul ne permettait pas.
+ *
+ * Trois affirmations, et trois seulement :
+ *
+ * - **le moteur bat-il le témoin ?** — sur les mesures externes, celles que le
+ *   moteur ne calcule pas lui-même ;
+ * - **que coûte l'ablation d'un sous-système ?** — la seule façon de nommer le
+ *   fichier responsable d'un écart ;
+ * - **quels constats tiennent d'un profil à l'autre ?** — le reste décrit un
+ *   archétype, pas le produit.
+ */
+export interface ConclusionCampagne {
+  resume: string;
+  /** Une ligne par mesure externe : moteur, témoin, verdict de comparaison. */
+  face: {
+    mesure: string;
+    moteur: string;
+    temoin: string;
+    verdict: Comparaison;
+    lecture: string;
+  }[];
+  /** Effet mesuré du retrait d'un sous-système. */
+  ablations: { bras: string; mesure: string; effet: Comparaison; lecture: string }[];
+  /** Constats qui tiennent sur assez de profils pour parler du moteur. */
+  constatsRetenus: { cle: string; archetypes: string[]; partNonVert: number }[];
+  reserve: string;
+}
+
+function formaterSerie(serie: Serie | null, unite: string): string {
+  if (serie === null) return "non mesuré";
+  const valeur = unite === "part" ? `${(serie.mediane * 100).toFixed(0)} %` : `${serie.mediane}`;
+  const bornes =
+    unite === "part"
+      ? `${(serie.q1 * 100).toFixed(0)}–${(serie.q3 * 100).toFixed(0)} %`
+      : `${serie.q1}–${serie.q3}`;
+  return `${valeur} (interquartile ${bornes}, n=${serie.n})`;
+}
+
+const LECTURE_FACE: Record<Comparaison, string> = {
+  mieux: "Le moteur fait mieux que la meilleure politique naïve, intervalles disjoints.",
+  equivalent:
+    "Les intervalles se recouvrent : sur cette mesure, le classement calculé par le moteur ne se distingue pas d'une politique naïve.",
+  pire: "Une politique naïve fait mieux que le moteur. C'est le constat le plus actionnable de la campagne.",
+  indecidable: "Pas de témoin comparable, ou mesure sans direction souhaitable.",
+};
+
+const LECTURE_ABLATION: Record<Comparaison, string> = {
+  mieux: "Retirer ce sous-système AMÉLIORE la mesure : en l'état, il nuit.",
+  equivalent: "Retirer ce sous-système ne change rien de mesurable : il ne gagne pas sa complexité.",
+  pire: "Retirer ce sous-système dégrade la mesure : il fait bien ce qu'on attend de lui.",
+  indecidable: "Effet non décidable sur cette mesure.",
+};
+
+export function redigerConclusionCampagne(rapport: RapportCampagne): ConclusionCampagne {
+  const externes = rapport.mesures.filter((m) => m.externe);
+
+  const face = externes.map((mesure) => ({
+    mesure: mesure.libelle,
+    moteur: formaterSerie(mesure.moteur, mesure.unite),
+    temoin: mesure.meilleurTemoin
+      ? `${mesure.meilleurTemoin.libelle} — ${formaterSerie(mesure.meilleurTemoin.serie, mesure.unite)}`
+      : "aucun",
+    verdict: mesure.face,
+    lecture: LECTURE_FACE[mesure.face],
+  }));
+
+  const ablations = rapport.mesures.flatMap((mesure) =>
+    mesure.ablations
+      .filter((ablation) => ablation.effet !== "indecidable" && ablation.effet !== "equivalent")
+      .map((ablation) => ({
+        bras: ablation.libelle,
+        mesure: mesure.libelle,
+        effet: ablation.effet,
+        lecture: LECTURE_ABLATION[ablation.effet],
+      })),
+  );
+
+  const perdus = face.filter((f) => f.verdict === "pire").length;
+  const nuls = face.filter((f) => f.verdict === "equivalent").length;
+
+  return {
+    resume:
+      `${rapport.runs} parcours (${rapport.parametres.archetypes.length} archétypes × ` +
+      `${rapport.parametres.graines.length} graines × ${rapport.parametres.bras.length} bras). ` +
+      `Sur ${face.length} mesures externes, le moteur fait mieux que le meilleur témoin naïf ` +
+      `${face.filter((f) => f.verdict === "mieux").length} fois, à égalité ${nuls} fois, moins bien ${perdus} fois.`,
+    face,
+    ablations,
+    constatsRetenus: rapport.stabilite
+      .filter((s) => s.retenu)
+      .map((s) => ({
+        cle: s.cle,
+        archetypes: s.archetypesConcernes,
+        partNonVert: Math.round(s.partNonVert * 100) / 100,
+      })),
+    reserve:
+      "Aucun test d'hypothèse n'est conduit ici : les tirages rejouent un modèle d'apprenant écrit à la main, pas des observations du monde. Deux séries dont les interquartiles se recouvrent sont déclarées équivalentes — sévère à dessein.",
+  };
+}
+
+export interface ExportCampagne {
+  format: typeof FORMAT_CAMPAGNE;
+  version: typeof VERSION_EXPORT;
+  notice: {
+    nature: string;
+    methode: string;
+    unites: Record<string, string>;
+    conventions: string[];
+  };
+  parametres: {
+    graines: number[];
+    archetypes: string[];
+    bras: string[];
+    /** Nombre de parcours réellement déroulés. */
+    parcours: number;
+    dureeMs: number;
+  };
+  conclusion: ConclusionCampagne;
+  mesures: RapportCampagne["mesures"];
+  stabilite: RapportCampagne["stabilite"];
+  /** Une ligne par parcours : de quoi tout recalculer sans nous croire. */
+  lignes: RapportCampagne["lignes"];
+}
+
+export function construireExportCampagne(rapport: RapportCampagne): ExportCampagne {
+  return {
+    format: FORMAT_CAMPAGNE,
+    version: VERSION_EXPORT,
+    notice: {
+      nature:
+        "Campagne de parcours SIMULÉS : apprenants fictifs, référentiel de physique inventé, aucune donnée réelle.",
+      methode:
+        "Chaque parcours est déroulé jour par jour contre les fonctions de production du moteur. Les bras « témoin » remplacent la sélection du moteur par une politique naïve ; les bras « sans-* » retirent un sous-système. Les mesures sont résumées par médiane et interquartile ; deux séries dont les boîtes se recouvrent sont dites équivalentes.",
+      unites: UNITES,
+      conventions: [
+        ...CONVENTIONS,
+        "Une mesure « externe » ne dépend pas du moteur pour être calculée : aptitude réelle, temps passé, objectifs atteints. Les autres sont produites par le moteur lui-même et ne peuvent pas l'arbitrer.",
+        "Un constat n'est retenu que s'il tient sur au moins quatre archétypes.",
+      ],
+    },
+    parametres: {
+      graines: rapport.parametres.graines,
+      archetypes: rapport.parametres.archetypes,
+      bras: rapport.parametres.bras,
+      parcours: rapport.runs,
+      dureeMs: rapport.dureeMs,
+    },
+    conclusion: redigerConclusionCampagne(rapport),
+    mesures: rapport.mesures,
+    stabilite: rapport.stabilite,
+    lignes: rapport.lignes,
+  };
+}
+
+export function ecrireRapportCampagne(rapport: RapportCampagne): string {
+  return JSON.stringify(construireExportCampagne(rapport), null, 2);
 }

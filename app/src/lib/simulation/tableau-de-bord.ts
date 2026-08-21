@@ -57,6 +57,8 @@ export interface Entete {
   joursActifs: number;
   anomalies: number;
   invariants: number;
+  /** Exercices fabriqués en cours de route, faute de disponible. */
+  exercicesGeneres: number;
   dureeCalculMs: number;
 }
 
@@ -149,6 +151,36 @@ export interface BucketFiabilite {
   n: number;
   predit: number;
   observe: number;
+  /**
+   * Faux sous 30 cas : une tranche à n=8 est du bruit, et l'afficher en rouge
+   * ferait passer un hasard pour un défaut.
+   */
+  conclusif: boolean;
+}
+
+/**
+ * Le résultat mesuré HORS du moteur.
+ *
+ * Tout le reste du tableau de bord lit des chiffres que le moteur a lui-même
+ * produits : score global, niveau, compétences maîtrisées. Il se note donc en
+ * partie lui-même. Ce bloc-ci ne contient que des grandeurs qu'il ne calcule
+ * pas — l'aptitude réelle de l'apprenant simulé et le temps passé. C'est la
+ * seule base honnête pour comparer deux bras.
+ */
+export interface ResultatReel {
+  heures: number;
+  aptitudeMoyenneInitiale: number;
+  aptitudeMoyenneFinale: number;
+  gainAptitudeTotal: number;
+  gainAptitudeMoyen: number;
+  /** Points d'aptitude réelle gagnés par heure travaillée. */
+  gainParHeure: number | null;
+  objectifsResolus: number;
+  partObjectifsResolus: number;
+  /** Jours médians entre déclaration et résolution, sur les objectifs résolus. */
+  joursMedianResolution: number | null;
+  couverture: number;
+  exercicesGeneres: number;
 }
 
 export interface Selection {
@@ -231,6 +263,7 @@ export interface LigneCompetence {
 
 export interface TableauDeBord {
   entete: Entete;
+  resultatReel: ResultatReel;
   verdicts: Verdict[];
   objectifs: BilanObjectif[];
   croissance: PointCroissance[];
@@ -538,6 +571,7 @@ function fiabilite(registre: LigneRegistre[]): BucketFiabilite[] {
     buckets.push({
       borne: `${Math.round(BORNES[i] * 100)}–${Math.round(Math.min(1, BORNES[i + 1]) * 100)} %`,
       n: dans.length,
+      conclusif: dans.length >= 30,
       predit: arrondir(moyenne(dans.map((l) => l.prediction.valeur)), 3) as number,
       observe: arrondir(moyenne(dans.map((l) => l.observe as number)), 3) as number,
     });
@@ -921,11 +955,11 @@ function construireVerdicts(
     ),
     verdict(
       "catalogue",
-      "Le catalogue tient-il la distance ?",
-      `${sel.joursSansExercice} jour(s) sans aucun exercice proposable, ${sel.joursTeteVide} jour(s) avec une tête de liste vide, ${pourcent(sel.partCatalogueUtilise)} du catalogue consommé`,
-      "aucun jour à sec, et une tête de liste qui porte un exercice",
-      seuilInverse(sel.joursSansExercice / Math.max(1, entete.jours), 0.01, 0.05),
-      "Un exercice réussi sort définitivement de la file : c'est la première cause d'assèchement sur un parcours long.",
+      "Le catalogue suit-il, ou faut-il fabriquer en urgence ?",
+      `${entete.exercicesGeneres} exercice(s) fabriqué(s) faute de disponible, ${pourcent(sel.partCatalogueUtilise)} du catalogue initial consommé`,
+      "moins d'une proposition sur dix fabriquée dans l'urgence",
+      seuilInverse(entete.exercicesGeneres / Math.max(1, entete.propositions), 0.1, 0.3),
+      "Un exercice réussi sort définitivement de la file : sur un parcours long, la compétence la mieux classée finit par n'avoir plus rien, et c'est le tuteur qui doit produire à la demande.",
     ),
     verdict(
       "invariants",
@@ -970,6 +1004,43 @@ function derouleLisible(resumes: PasResume[]): PasResume[] {
       r.anomalies > 0 ||
       r.jour === resumes.length - 1,
   );
+}
+
+function resultatReel(
+  parcours: ResultatParcoursLong,
+  objectifs: BilanObjectif[],
+  graphe: GrapheFinal,
+  act: Activite,
+): ResultatReel {
+  const codes = Object.keys(parcours.veriteTerrain);
+  const initiales = codes.map((code) => parcours.aptitudeInitiale[code] ?? 0);
+  const finales = codes.map((code) => parcours.veriteTerrain[code] ?? 0);
+  const gains = codes.map(
+    (code, i) => (finales[i] ?? 0) - (parcours.aptitudeInitiale[code] ?? finales[i] ?? 0),
+  );
+  const gainTotal = gains.reduce((s, g) => s + g, 0);
+  const heures = act.minutes / 60;
+  const resolus = objectifs.filter((o) => o.jourAtteint !== null);
+
+  return {
+    heures: Math.round(heures * 10) / 10,
+    aptitudeMoyenneInitiale: arrondir(moyenne(initiales)) ?? 0,
+    aptitudeMoyenneFinale: arrondir(moyenne(finales)) ?? 0,
+    gainAptitudeTotal: arrondir(gainTotal) ?? 0,
+    gainAptitudeMoyen: arrondir(moyenne(gains)) ?? 0,
+    gainParHeure: heures === 0 ? null : arrondir(gainTotal / heures, 3),
+    objectifsResolus: resolus.length,
+    partObjectifsResolus: objectifs.length === 0 ? 0 : resolus.length / objectifs.length,
+    joursMedianResolution: arrondir(
+      mediane(resolus.map((o) => o.joursPourResoudre ?? 0)),
+      1,
+    ),
+    couverture:
+      graphe.noeuds.length === 0
+        ? 0
+        : (graphe.noeuds.length - graphe.jamaisObservees) / graphe.noeuds.length,
+    exercicesGeneres: parcours.exercicesGeneres,
+  };
 }
 
 export function construireTableauDeBord(parcours: ResultatParcoursLong): TableauDeBord {
@@ -1024,11 +1095,13 @@ export function construireTableauDeBord(parcours: ResultatParcoursLong): Tableau
     joursActifs: act.joursActifs,
     anomalies: parcours.resultat.anomalies.length,
     invariants: parcours.resultat.anomalies.filter((a) => a.gravite === "invariant").length,
+    exercicesGeneres: parcours.exercicesGeneres,
     dureeCalculMs: parcours.dureeCalculMs,
   };
 
   return {
     entete,
+    resultatReel: resultatReel(parcours, objectifs, graphe, act),
     verdicts: construireVerdicts(
       entete,
       objectifs,

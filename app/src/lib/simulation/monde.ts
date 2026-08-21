@@ -85,6 +85,8 @@ export interface FenetrePause {
 
 export interface MondeFictif {
   graine: number;
+  /** Identifiant de l'archétype d'apprenant joué. */
+  archetype: string;
   depart: string;
   /** Durée simulée, en jours. Un pas de moteur par jour. */
   jours: number;
@@ -253,27 +255,53 @@ function code(prefixe: string, rang: number): string {
   return `${prefixe}-${String(rang).padStart(2, "0")}`;
 }
 
+/**
+ * Un exercice fabriqué pour une compétence et une difficulté.
+ *
+ * Exporté parce que le parcours en fabrique aussi **en cours de route** : quand
+ * la compétence retenue n'a plus rien de proposable, le produit réel n'attend
+ * pas — il propose « Générer un exercice ». Un parcours qui resterait à sec
+ * mesurerait la pénurie d'un catalogue fixe, pas le comportement du moteur.
+ */
+export function fabriquerExercice(
+  competence: Pick<Skill, "code" | "intitule" | "domaine">,
+  difficulte: Difficulte,
+  reference: string,
+  type: TypeExercice = "probleme",
+  rang = 0,
+): Exercise {
+  return {
+    id: `${competence.code}-D${difficulte}-${reference}`,
+    titre: `${competence.intitule} — niveau ${difficulte}, ${reference}`,
+    domaine: competence.domaine,
+    type,
+    difficulte,
+    competences: [competence.code],
+    dureeEstimeeMin: 15 + difficulte * 8 + (rang % 3) * 3,
+    enonce: `Énoncé de simulation — ${competence.intitule}.`,
+    indices: Array.from({ length: difficulte <= 2 ? 2 : 3 }, (_, i) => `Indice ${i + 1}`),
+    correction: "Correction de simulation.",
+    criteres: [
+      { dimension: "comprehension", libelle: "Comprend la situation" },
+      { dimension: "application", libelle: "Applique la méthode" },
+      { dimension: "justification", libelle: "Justifie le résultat" },
+    ],
+    origine: "manuel",
+  };
+}
+
 function construireExercices(definition: DefinitionDomaine, competences: Skill[]): Exercise[] {
   const parCompetence = competences.flatMap((competence, rang) =>
     DIFFICULTES.flatMap((difficulte) =>
-      VARIANTES.map((variante) => ({
-        id: `${competence.code}-D${difficulte}-V${variante}`,
-        titre: `${competence.intitule} — niveau ${difficulte}, variante ${variante}`,
-        domaine: definition.id,
-        type: definition.types[(rang + difficulte + variante) % definition.types.length],
-        difficulte,
-        competences: [competence.code],
-        dureeEstimeeMin: 15 + difficulte * 8 + (rang % 3) * 3,
-        enonce: `Énoncé de simulation — ${competence.intitule}.`,
-        indices: Array.from({ length: difficulte <= 2 ? 2 : 3 }, (_, i) => `Indice ${i + 1}`),
-        correction: "Correction de simulation.",
-        criteres: [
-          { dimension: "comprehension" as const, libelle: "Comprend la situation" },
-          { dimension: "application" as const, libelle: "Applique la méthode" },
-          { dimension: "justification" as const, libelle: "Justifie le résultat" },
-        ],
-        origine: "manuel" as const,
-      })),
+      VARIANTES.map((variante) =>
+        fabriquerExercice(
+          competence,
+          difficulte,
+          `variante ${variante}`,
+          definition.types[(rang + difficulte + variante) % definition.types.length],
+          rang,
+        ),
+      ),
     ),
   );
 
@@ -370,20 +398,136 @@ function tirerAptitudes(lots: LotReferentiel[], graine: number): Record<string, 
   return aptitude;
 }
 
-export function construireMondeFictif(graine = GRAINE_PAR_DEFAUT): MondeFictif {
+/* ------------------------------------------------------------------ */
+/* Archétypes                                                          */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Six façons d'être l'apprenant.
+ *
+ * Un seul profil rend toute conclusion conditionnelle à ce profil : « le moteur
+ * sert trop dur » veut alors dire « trop dur pour celui-là ». Un constat qui
+ * tient sur quatre archétypes sur six parle du moteur ; un constat isolé décrit
+ * l'archétype.
+ *
+ * `aptitudeFacteur` et `aptitudeDecalage` déplacent la vérité terrain : un
+ * apprenant en difficulté ne diffère pas seulement par son assiduité.
+ */
+export interface Archetype {
+  id: string;
+  libelle: string;
+  description: string;
+  apprentissage: number;
+  tauxIgnore: number;
+  lenteur: number;
+  oubli: number;
+  aptitudeFacteur: number;
+  aptitudeDecalage: number;
+}
+
+export const ARCHETYPES: Archetype[] = [
+  {
+    id: "regulier",
+    libelle: "Régulier",
+    description: "Fait ce qui est proposé trois fois sur quatre, progresse à rythme moyen.",
+    apprentissage: 0.11,
+    tauxIgnore: 0.25,
+    lenteur: 1.05,
+    oubli: 0.4,
+    aptitudeFacteur: 1,
+    aptitudeDecalage: 0,
+  },
+  {
+    id: "assidu",
+    libelle: "Assidu",
+    description: "Ignore une proposition sur dix, travaille vite et oublie peu.",
+    apprentissage: 0.13,
+    tauxIgnore: 0.1,
+    lenteur: 0.95,
+    oubli: 0.3,
+    aptitudeFacteur: 1,
+    aptitudeDecalage: 0,
+  },
+  {
+    id: "irregulier",
+    libelle: "Irrégulier",
+    description: "Ignore deux propositions sur trois : le moteur parle dans le vide la plupart du temps.",
+    apprentissage: 0.1,
+    tauxIgnore: 0.6,
+    lenteur: 1.2,
+    oubli: 0.55,
+    aptitudeFacteur: 1,
+    aptitudeDecalage: 0,
+  },
+  {
+    id: "rapide",
+    libelle: "Rapide",
+    description: "Apprend deux fois plus vite que la moyenne : le moteur suit-il la montée ?",
+    apprentissage: 0.22,
+    tauxIgnore: 0.2,
+    lenteur: 0.8,
+    oubli: 0.25,
+    aptitudeFacteur: 1,
+    aptitudeDecalage: 0.4,
+  },
+  {
+    id: "plafonne",
+    libelle: "Plafonné",
+    description: "Travaille sans progresser : toute montée de niveau observée serait une erreur.",
+    apprentissage: 0.03,
+    tauxIgnore: 0.2,
+    lenteur: 1.1,
+    oubli: 0.35,
+    aptitudeFacteur: 1,
+    aptitudeDecalage: 0,
+  },
+  {
+    id: "en-difficulte",
+    libelle: "En difficulté",
+    description: "Aptitude basse, progression lente, séances longues.",
+    apprentissage: 0.06,
+    tauxIgnore: 0.3,
+    lenteur: 1.5,
+    oubli: 0.55,
+    aptitudeFacteur: 0.65,
+    aptitudeDecalage: 0,
+  },
+];
+
+export const ARCHETYPE_PAR_DEFAUT = ARCHETYPES[0];
+
+export function archetypeParId(id: string): Archetype {
+  return ARCHETYPES.find((a) => a.id === id) ?? ARCHETYPE_PAR_DEFAUT;
+}
+
+export function construireMondeFictif(
+  graine = GRAINE_PAR_DEFAUT,
+  archetype: Archetype = ARCHETYPE_PAR_DEFAUT,
+): MondeFictif {
   const lots = DOMAINES.map(construireLot);
+  const brutes = tirerAptitudes(lots, graine);
+  const aptitude: Record<string, number> = {};
+  for (const [code, valeur] of Object.entries(brutes)) {
+    aptitude[code] =
+      Math.round(
+        Math.min(4.6, Math.max(1, valeur * archetype.aptitudeFacteur + archetype.aptitudeDecalage)) *
+          100,
+      ) / 100;
+  }
+
   return {
     graine,
+    archetype: archetype.id,
     depart: "2026-01-05T08:00:00.000Z",
     jours: JOURS_SIMULES,
     lots,
     pauses: PAUSES,
     profil: {
-      aptitude: tirerAptitudes(lots, graine),
-      apprentissage: 0.11,
-      tauxIgnore: 0.25,
-      lenteur: 1.05,
-      oubli: 0.4,
+      aptitude,
+      apprentissage: archetype.apprentissage,
+      tauxIgnore: archetype.tauxIgnore,
+      lenteur: archetype.lenteur,
+      oubli: archetype.oubli,
     },
   };
 }

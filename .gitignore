@@ -65,3 +65,6 @@ skills-lock.json
 /app/supabase/.temp
 
 
+
+# Rapports de campagne de simulation (volumineux, reproductibles a la graine pres)
+app/.simulation/

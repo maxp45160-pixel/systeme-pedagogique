@@ -22,8 +22,16 @@
 import { useState } from "react";
 import { Bouton, cx } from "@/components/ui/primitives";
 import {
+  agregerCampagne,
+  executerRun,
+  planRapide,
+  type LigneRun,
+  type RapportCampagne,
+} from "@/lib/simulation/campagne";
+import {
   construireExportAnalyse,
   ecrireExportAnalyse,
+  ecrireRapportCampagne,
   redigerConclusion,
   type Conclusion,
   type GraviteConstat,
@@ -36,42 +44,8 @@ import {
 } from "@/lib/simulation/tableau-de-bord";
 import type { GraviteAnomalie } from "@/lib/simulation/types";
 import { Barres, Courbe, GrapheCompetences, LegendeGraphe, Vignette } from "./simulation/graphiques";
-
-/* ------------------------------------------------------------------ */
-/* Petites briques                                                     */
-/* ------------------------------------------------------------------ */
-
-function Chiffre({ libelle, valeur, note }: { libelle: string; valeur: string; note?: string }) {
-  return (
-    <div className="border-l-2 border-bordure pl-3">
-      <div className="text-xs text-texte-discret">{libelle}</div>
-      <div className="text-lg font-medium tabular-nums text-texte">{valeur}</div>
-      {note && <div className="text-xs text-texte-discret">{note}</div>}
-    </div>
-  );
-}
-
-function Section({
-  titre,
-  legende,
-  children,
-}: {
-  titre: string;
-  legende?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="flex flex-col gap-3">
-      <div>
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-texte-discret">
-          {titre}
-        </h2>
-        {legende && <p className="mt-1 text-sm text-texte-attenue">{legende}</p>}
-      </div>
-      {children}
-    </section>
-  );
-}
+import { Chiffre, Section } from "./simulation/briques";
+import { Campagne } from "./simulation/campagne";
 
 const TON_VERDICT: Record<StatutVerdict, string> = {
   ok: "border-succes/40 bg-succes-faible",
@@ -216,6 +190,21 @@ function Bord({ t, conclusion }: { t: TableauDeBord; conclusion: Conclusion }) {
             libelle="Anomalies relevées"
             valeur={`${t.entete.anomalies}`}
             note={`dont ${t.entete.invariants} rupture(s) d'invariant`}
+          />
+          <Chiffre
+            libelle="Gain d'aptitude réelle"
+            valeur={`+${t.resultatReel.gainAptitudeTotal.toFixed(2)}`}
+            note={`${t.resultatReel.gainParHeure ?? "—"} par heure travaillée`}
+          />
+          <Chiffre
+            libelle="Aptitude réelle moyenne"
+            valeur={`${t.resultatReel.aptitudeMoyenneInitiale.toFixed(2)} → ${t.resultatReel.aptitudeMoyenneFinale.toFixed(2)}`}
+            note="ce que le moteur ne voit jamais"
+          />
+          <Chiffre
+            libelle="Exercices fabriqués"
+            valeur={`${t.entete.exercicesGeneres}`}
+            note="faute de disponible, comme le ferait le tuteur"
           />
         </div>
       </Section>
@@ -847,6 +836,46 @@ export function SimulateurParcours() {
   } | null>(null);
   const [enCours, setEnCours] = useState(false);
   const [copie, setCopie] = useState(false);
+  const [campagne, setCampagne] = useState<RapportCampagne | null>(null);
+  const [avancement, setAvancement] = useState<{ fait: number; total: number } | null>(null);
+
+  /**
+   * La campagne déroule des dizaines de parcours : la lancer d'un bloc figerait
+   * l'onglet une demi-minute sans rien dire. Chaque parcours est donc rendu à la
+   * boucle d'événements avant le suivant — le compteur avance, la page reste
+   * vivante, et le résultat est identique puisque rien n'est concurrent.
+   */
+  const lancerCampagne = () => {
+    const plan = planRapide();
+    const lignes: LigneRun[] = [];
+    const debut = Date.now();
+    setCampagne(null);
+    setAvancement({ fait: 0, total: plan.runs.length });
+
+    const suivant = (index: number) => {
+      if (index >= plan.runs.length) {
+        setCampagne(agregerCampagne(plan, lignes, Date.now() - debut));
+        setAvancement(null);
+        return;
+      }
+      lignes.push(executerRun(plan.runs[index]));
+      setAvancement({ fait: index + 1, total: plan.runs.length });
+      window.setTimeout(() => suivant(index + 1), 0);
+    };
+
+    window.setTimeout(() => suivant(0), 40);
+  };
+
+  const telechargerCampagne = () => {
+    if (campagne === null) return;
+    const blob = new Blob([ecrireRapportCampagne(campagne)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const lien = document.createElement("a");
+    lien.href = url;
+    lien.download = `simulation-campagne-${campagne.runs}-parcours.json`;
+    lien.click();
+    URL.revokeObjectURL(url);
+  };
 
   const lancer = () => {
     setEnCours(true);
@@ -899,19 +928,33 @@ export function SimulateurParcours() {
             </Bouton>
           </>
         )}
+        <Bouton onClick={lancerCampagne} enChargement={avancement !== null}>
+          {avancement === null
+            ? "Lancer une campagne (45 parcours)"
+            : `Parcours ${avancement.fait} / ${avancement.total}`}
+        </Bouton>
+        {campagne !== null && (
+          <Bouton variante="discret" onClick={telechargerCampagne}>
+            Exporter la campagne (JSON)
+          </Bouton>
+        )}
         <p className="max-w-3xl text-sm text-texte-attenue">
           Un apprenant fictif part de zéro sur un référentiel de physique qui n&apos;existe nulle
           part ailleurs — mécanique, puis énergie, ondes et thermodynamique, chapitre après
           chapitre. Dix-huit mois sont déroulés jour par jour contre le moteur réel : mêmes
-          fonctions de calcul, mêmes seuils, mêmes règles. Rien n&apos;est lu ni écrit en base.
+          fonctions de calcul, mêmes seuils, mêmes règles. Rien n&apos;est lu ni écrit en base. La
+          campagne rejoue ce parcours sur trois profils, trois graines et cinq bras — un parcours
+          seul ne dit rien de la dispersion, et rien de ce qu&apos;aurait fait une politique naïve.
         </p>
       </div>
 
+      {campagne !== null && <Campagne rapport={campagne} />}
+
       {resultat === null ? (
         <p className="text-sm text-texte-discret">
-          Aucun parcours calculé. Le résultat est déterministe : même graine, même parcours, à la
-          virgule près. L&apos;export JSON porte ses propres unités, ses seuils et ce qu&apos;il ne
-          prouve pas — il se lit sans avoir le code sous les yeux.
+          Aucun parcours détaillé calculé. Le résultat est déterministe : même graine, même
+          parcours, à la virgule près. L&apos;export JSON porte ses propres unités, ses seuils et ce
+          qu&apos;il ne prouve pas — il se lit sans avoir le code sous les yeux.
         </p>
       ) : (
         <Bord t={resultat.tableau} conclusion={redigerConclusion(resultat.tableau)} />

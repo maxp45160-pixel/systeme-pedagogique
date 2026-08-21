@@ -36,7 +36,11 @@ import {
 import { autonomieObservee, qualiteDepuisDifficulte } from "@/lib/engine/observation";
 import { emettre } from "@/lib/engine/prediction";
 import { calculerEtatGlobal } from "@/lib/engine/progression";
-import { recommander, type Recommandation } from "@/lib/engine/recommend";
+import {
+  recommander,
+  type Recommandation,
+  type ReglagesRecommandation,
+} from "@/lib/engine/recommend";
 import { computeAllSkillStates } from "@/lib/engine/skill-state";
 import {
   competencesJamaisRecommandees,
@@ -151,11 +155,34 @@ export interface EtatParcours {
    * résume lui-même chaque pas au vol et n'a besoin que du dernier.
    */
   conserverPas: boolean;
+  /** Nombre de recommandations calculées par pas. Trois, comme le tableau de bord. */
+  limite: number;
+  /**
+   * Calibration branchée ou non.
+   *
+   * Débranchée, `recommander` retombe sur la table par niveau : c'est l'ablation
+   * qui dit ce que la calibration apporte réellement. Les calibrations restent
+   * calculées — les règles d'anomalie les surveillent — mais ne sont pas servies
+   * au moteur de recommandation.
+   */
+  calibrationActive: boolean;
+  /** Réglages effectifs passés à `recommander` (ADR-085). */
+  reglages: ReglagesRecommandation;
 }
 
-export function ouvrir(scenario: Scenario, options?: { conserverPas?: boolean }): EtatParcours {
+export interface OptionsParcours {
+  conserverPas?: boolean;
+  limite?: number;
+  calibrationActive?: boolean;
+  reglages?: ReglagesRecommandation;
+}
+
+export function ouvrir(scenario: Scenario, options?: OptionsParcours): EtatParcours {
   return {
     conserverPas: options?.conserverPas ?? true,
+    limite: options?.limite ?? RECOMMANDATIONS_PAR_PAS,
+    calibrationActive: options?.calibrationActive ?? true,
+    reglages: options?.reglages ?? {},
     scenario,
     catalogue: construireCatalogueSituation(scenario.exercices),
     parId: new Map(scenario.exercices.map((e) => [e.id, e])),
@@ -254,9 +281,12 @@ export function avancer(
     etats,
     scenario.exercices,
     parcours.tentatives,
-    RECOMMANDATIONS_PAR_PAS,
-    calibrations,
+    parcours.limite,
+    parcours.calibrationActive ? calibrations : undefined,
     maintenant,
+    { codes: new Set(), exercices: new Set() },
+    undefined,
+    parcours.reglages,
   );
   const global = calculerEtatGlobal(etats, maintenant, scenario.domaines);
 

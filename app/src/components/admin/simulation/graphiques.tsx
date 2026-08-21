@@ -370,3 +370,51 @@ export function LegendeGraphe() {
     </p>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/* Boîte à quartiles                                                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Une distribution, lue sans supposer une loi.
+ *
+ * Médiane, boîte interquartile, moustaches min–max. Deux boîtes qui se
+ * recouvrent ne se distinguent pas : c'est la seule comparaison que ce module
+ * autorise, et elle se voit à l'œil.
+ */
+export function BoiteQuartiles({
+  serie,
+  bas,
+  haut,
+  ton = "primaire",
+}: {
+  serie: { n: number; mediane: number; q1: number; q3: number; min: number; max: number } | null;
+  bas: number;
+  haut: number;
+  ton?: "primaire" | "neutre";
+}) {
+  if (serie === null) {
+    return <span className="text-xs text-texte-discret">non mesuré</span>;
+  }
+
+  const etendue = haut - bas || 1;
+  const part = (valeur: number) => ((valeur - bas) / etendue) * 100;
+  const couleur = ton === "neutre" ? "bg-texte-discret" : "bg-primaire";
+
+  return (
+    <span className="relative block h-4 w-full rounded bg-surface-2" title={`n=${serie.n}`}>
+      <span
+        className="absolute top-1/2 h-px -translate-y-1/2 bg-bordure-forte"
+        style={{ left: `${part(serie.min)}%`, width: `${Math.max(0.5, part(serie.max) - part(serie.min))}%` }}
+      />
+      <span
+        className={cx("absolute top-1 h-2 rounded-sm opacity-70", couleur)}
+        style={{ left: `${part(serie.q1)}%`, width: `${Math.max(1, part(serie.q3) - part(serie.q1))}%` }}
+      />
+      <span
+        className={cx("absolute top-0.5 h-3 w-0.5", couleur)}
+        style={{ left: `${part(serie.mediane)}%` }}
+      />
+    </span>
+  );
+}
