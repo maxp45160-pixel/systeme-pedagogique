@@ -25,9 +25,10 @@ import { DashboardTour } from "@/components/onboarding/dashboard-tour";
 import { BoutonIntentionDashboard } from "@/components/intention/bouton-intention";
 
 export default async function TableauDeBord(props: {
-  searchParams: Promise<{ temps?: string; capacite?: string }>;
+  searchParams: Promise<{ temps?: string; capacite?: string; explication?: string }>;
 }) {
-  const instant = lireContexteInstant(await props.searchParams);
+  const recherche = await props.searchParams;
+  const instant = lireContexteInstant(recherche);
   const dateJour = new Intl.DateTimeFormat("fr-FR", {
     weekday: "long",
     day: "numeric",
@@ -36,7 +37,11 @@ export default async function TableauDeBord(props: {
 
   return (
     <Suspense fallback={<SquelettePage />}>
-      <ContenuTableauDeBord instant={instant} dateJour={dateJour} />
+      <ContenuTableauDeBord
+        instant={instant}
+        dateJour={dateJour}
+        explicationEnregistree={recherche.explication === "enregistree"}
+      />
     </Suspense>
   );
 }
@@ -52,9 +57,11 @@ function titreExercicesEnCours(exercices: number): string {
 async function ContenuTableauDeBord({
   instant,
   dateJour,
+  explicationEnregistree,
 }: {
   instant: ContexteInstant;
   dateJour: string;
+  explicationEnregistree: boolean;
 }) {
   /*
    * Compte neuf : il n'y a rien à mettre sur ce tableau de bord, et une grille
@@ -125,6 +132,16 @@ async function ContenuTableauDeBord({
 
   return (
     <div className="space-y-3.5 sm:space-y-4">
+      {explicationEnregistree && (
+        <BandeauInfo ton="succes" className="justify-between gap-3">
+          <span>
+            <strong className="font-semibold">Explication enregistrée.</strong> Une observation de compréhension a été ajoutée à votre suivi.
+          </span>
+          <Link href="/" className="shrink-0 font-medium text-primaire hover:underline">
+            Fermer
+          </Link>
+        </BandeauInfo>
+      )}
       {/* En-tête épuré avec résumé de progression intégré */}
       <div className="flex flex-wrap items-end justify-between gap-3 border-b border-bordure/40 pb-2.5">
         <div className="min-w-0">

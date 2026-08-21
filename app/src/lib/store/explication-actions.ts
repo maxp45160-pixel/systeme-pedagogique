@@ -12,8 +12,9 @@ import { ajouter, dorsaleCompte, nouvelId } from "./db";
 import { lireReferentiel } from "./referentiel";
 import { capturerDocumentProduction } from "./documents";
 import type { EvaluationExplication } from "@/lib/domain/explication";
-import type { LearningSession, SkillObservation } from "@/lib/domain/types";
+import type { Exercise, ExerciseAttempt, LearningSession, SkillObservation } from "@/lib/domain/types";
 import { verifierTexteExplication } from "@/lib/domain/explication";
+import { cloreExerciceAtomiquement } from "./cloture-exercice";
 
 export interface EnregistrerExplicationParams {
   skillCode: string;
@@ -47,12 +48,47 @@ export async function enregistrerExplicationAction(
   const dorsale = await dorsaleCompte();
   const dateIso = new Date().toISOString();
   const explicationId = nouvelId("exp");
+  const exerciceId = `feynman-${explicationId}`;
+  const exercice: Exercise = {
+    id: exerciceId,
+    titre: `Expliquer « ${skill.intitule} » avec ses propres mots`,
+    domaine: skill.domaine,
+    type: "rappel",
+    difficulte: 1,
+    competences: [skill.code],
+    dureeEstimeeMin: Math.max(1, dureeMin),
+    enonce: `Reformuler « ${skill.intitule} » avec ses propres mots, puis donner une intuition ou un exemple.`,
+    indices: [],
+    correction: "",
+    criteres: [
+      { dimension: "comprehension", libelle: "Le concept est reformulé avec justesse." },
+      { dimension: "justification", libelle: "L'explication est étayée par une intuition ou un exemple." },
+    ],
+    diagnostic: false,
+    origine: "manuel",
+    // Cette activité ponctuelle a déjà été menée quand elle entre au journal.
+    // L'archiver empêche le moteur de la reproposer tout en gardant sa source.
+    archive: true,
+  };
+  const tentative: ExerciseAttempt = {
+    id: explicationId,
+    exerciseId: exerciceId,
+    debut: dateIso,
+    indicesUtilises: 0,
+    reponse: texteExplication.trim(),
+    evaluation: {
+      comprehension: evaluation.scoreComprehension,
+      justification: evaluation.scoreJustification,
+    },
+    resultat: evaluation.resultat,
+    statut: "en-cours",
+  };
 
   // 1. Capture de la production dans le corpus documentaire
   const documentProduction = {
     id: `preuve-${explicationId}`,
     attemptId: explicationId,
-    exerciseId: skill.code,
+    exerciseId: exerciceId,
     contenuMd: [
       "---",
       "type: preuve",
@@ -116,8 +152,8 @@ export async function enregistrerExplicationAction(
       justification: evaluation.scoreJustification,
     },
     source: {
-      kind: "tuteur",
-      ref: explicationId,
+      kind: "exercice",
+      ref: exerciceId,
       document: provenanceDocument,
     },
     commentaire: evaluation.feedbackFormatif,
@@ -133,8 +169,8 @@ export async function enregistrerExplicationAction(
     activites: [
       {
         type: "exercice",
-        ref: explicationId,
-        libelle: `Auto-explication : ${skill.intitule}`,
+        ref: exerciceId,
+        libelle: exercice.titre,
       },
     ],
     resultat:
@@ -148,10 +184,22 @@ export async function enregistrerExplicationAction(
     genereAutomatiquement: true,
   };
 
-  await Promise.all([
-    ajouter("observations", observation, dorsale),
-    ajouter("sessions", session, dorsale),
-  ]);
+  await ajouter("exercises", exercice, dorsale);
+  await ajouter("attempts", tentative, dorsale);
+
+  await cloreExerciceAtomiquement({
+    tentative: {
+      id: tentative.id,
+      exerciseId: tentative.exerciseId,
+      fin: dateIso,
+      dureeMin: Math.max(1, dureeMin),
+      statut: "terminee",
+      evaluation: tentative.evaluation,
+      resultat: tentative.resultat,
+    },
+    observations: [observation],
+    seance: session,
+  }, dorsale);
 
   revalidatePath("/", "layout");
 

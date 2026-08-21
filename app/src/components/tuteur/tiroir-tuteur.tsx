@@ -90,7 +90,7 @@ export function TiroirTuteur({
 
   const flottant = declencheur === "flottant";
   const barre = declencheur === "barre-contextuelle";
-  const besoinLazy = !etatInitialProp && flottant;
+  const besoinLazy = !etatInitialProp;
 
   function ouvrirAvecAmorce(texteAmorce?: string) {
     setAmorceCourante(texteAmorce ?? amorce);

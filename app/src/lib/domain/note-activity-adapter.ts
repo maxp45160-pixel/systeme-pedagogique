@@ -134,6 +134,7 @@ export function adaptNoteOperationnelle(
   options: { codesActifs: ReadonlySet<string>; documentsFiges: ReadonlySet<string> },
 ): LearningActivity | null {
   if (apercu.frontMatter.role !== "operationnel") return null;
+  if (apercu.frontMatter.archive === true) return null;
   if (options.documentsFiges.has(apercu.id)) return null;
 
   const famille = FAMILLE_PAR_TYPE[apercu.type];
@@ -141,6 +142,11 @@ export function adaptNoteOperationnelle(
 
   const definition = definitionTypeDocument(apercu.type);
   const skillCodes = codesCompetencesActifs(apercu, options.codesActifs);
+  // Une fiche liée uniquement à des compétences archivées n'est plus une
+  // action disponible. Une fiche sans lien reste, elle, une action libre :
+  // l'absence de cible et la disparition de toutes ses cibles ne sont pas le
+  // même fait.
+  if (apercu.liens.length > 0 && skillCodes.length === 0) return null;
   const contexte = typeof apercu.frontMatter.contexte === "string" ? apercu.frontMatter.contexte : "";
   const dateConnue = apercu.createdAt ?? apercu.updatedAt ?? "1970-01-01T00:00:00.000Z";
 
@@ -185,12 +191,15 @@ export function adaptNoteDocumentaire(
   options: { codesActifs: ReadonlySet<string>; documentsFiges: ReadonlySet<string> },
 ): LearningActivity | null {
   if (apercu.frontMatter.role !== "support") return null;
+  if (apercu.frontMatter.archive === true) return null;
   if (options.documentsFiges.has(apercu.id)) return null;
 
   const travail = TRAVAIL_PAR_RESSOURCE[apercu.type];
   if (!travail) return null;
 
   const dateConnue = apercu.createdAt ?? apercu.updatedAt ?? "1970-01-01T00:00:00.000Z";
+  const skillCodes = codesCompetencesActifs(apercu, options.codesActifs);
+  if (apercu.liens.length > 0 && skillCodes.length === 0) return null;
   return {
     id: idActiviteRessource(apercu.id),
     accountId,
@@ -198,7 +207,7 @@ export function adaptNoteDocumentaire(
     description: travail.description,
     family: "entrainer",
     target: {
-      skillCodes: codesCompetencesActifs(apercu, options.codesActifs),
+      skillCodes,
       goalIds: [],
       label: apercu.titre,
     },

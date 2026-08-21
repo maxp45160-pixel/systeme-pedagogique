@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Skill, Domaine } from "@/lib/domain/types";
@@ -12,6 +12,8 @@ import {
 } from "@/lib/domain/explication";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import { enregistrerExplicationAction } from "@/lib/store/explication-actions";
+import { cleParCompte, effacerSession, ecrireSession, lireSession } from "@/lib/ui/stockage-session";
+import { CoquilleWorkspace, sortieWorkspace } from "@/components/atelier/coquille-workspace";
 import {
   Carte,
   Bouton,
@@ -37,11 +39,28 @@ export function PageExplication({
 }) {
   const router = useRouter();
   const [texte, setTexte] = useState("");
+  const cleBrouillon = cleParCompte(`explication:${skill.code}`, compteId);
+  const [brouillonCharge, setBrouillonCharge] = useState(false);
   const [enCoursEvaluation, setEnCoursEvaluation] = useState(false);
   const [evaluation, setEvaluation] = useState<EvaluationExplication | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enEnregistrement, setEnEnregistrement] = useState(false);
   const [termine, setTermine] = useState(false);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      const brouillon = lireSession<string>(cleBrouillon);
+      if (brouillon) setTexte(brouillon);
+      setBrouillonCharge(true);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [cleBrouillon]);
+
+  useEffect(() => {
+    if (!brouillonCharge || termine) return;
+    ecrireSession(cleBrouillon, texte);
+  }, [brouillonCharge, cleBrouillon, termine, texte]);
 
   const nbCaracteres = texte.trim().length;
   const peutEvaluer = nbCaracteres >= EXPLICATION_MIN_CARACTERES;
@@ -126,8 +145,12 @@ export function PageExplication({
         evaluation,
         dureeMin: 10,
       });
+      effacerSession(cleBrouillon);
       setTermine(true);
-      router.refresh();
+      // La validation a déjà revalidé le serveur. Une navigation explicite
+      // rend le fait visible sur le tableau de bord et évite de laisser la
+      // personne sur un formulaire qui ressemble encore à un brouillon.
+      router.replace("/?explication=enregistree");
     } catch (cause) {
       setErreur(cause instanceof Error ? cause.message : "Échec de l'enregistrement.");
     } finally {
@@ -137,7 +160,13 @@ export function PageExplication({
 
   if (termine) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-10">
+      <CoquilleWorkspace
+        surtitre="Méthode Feynman"
+        titre={skill.intitule}
+        compteId={compteId}
+        sortie={sortieWorkspace("/")}
+      >
+        <div className="mx-auto max-w-2xl px-4 py-10">
         <Carte className="p-6 sm:p-8 text-center space-y-5">
           <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-succes/15 text-succes">
             <IconeValide className="size-7" />
@@ -166,11 +195,18 @@ export function PageExplication({
             </Link>
           </div>
         </Carte>
-      </div>
+        </div>
+      </CoquilleWorkspace>
     );
   }
 
   return (
+    <CoquilleWorkspace
+      surtitre="Méthode Feynman · Focus"
+      titre={skill.intitule}
+      compteId={compteId}
+      sortie={sortieWorkspace("/")}
+    >
     <div className="mx-auto max-w-3xl px-4 py-8 space-y-6">
       {/* Fil d'ariane & En-tête */}
       <div className="space-y-2">
@@ -270,6 +306,12 @@ export function PageExplication({
           disabled={enCoursEvaluation || enEnregistrement}
           className="w-full rounded-xl border border-bordure bg-surface p-4 text-sm text-texte placeholder:text-texte-discret focus:border-primaire focus:outline-none focus:ring-1 focus:ring-primaire leading-relaxed resize-y"
         />
+
+        <p className="text-xs text-texte-discret" role="status">
+          {brouillonCharge
+            ? "Le brouillon est conservé dans cet onglet jusqu’à son enregistrement."
+            : "Chargement du brouillon…"}
+        </p>
 
         {erreur && <BandeauInfo ton="alerte">{erreur}</BandeauInfo>}
 
@@ -400,14 +442,13 @@ export function PageExplication({
             >
               {enEnregistrement
                 ? "Enregistrement..."
-                : evaluation.resultat === "reussi"
-                  ? "Valider la compréhension (Niveau 1)"
-                  : "Enregistrer cette tentative"}
+                : "Valider"}
               <IconeValide className="size-4" />
             </Bouton>
           </div>
         </Carte>
       )}
     </div>
+    </CoquilleWorkspace>
   );
 }

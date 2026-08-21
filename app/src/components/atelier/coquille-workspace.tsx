@@ -4,6 +4,9 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { classesLienBouton } from "@/components/ui/primitives";
+import { OutilSeance } from "@/components/seances/outil-seance";
+import { Pomodoro } from "@/components/seances/pomodoro";
+import { TiroirTuteur } from "@/components/tuteur/tiroir-tuteur";
 
 /**
  * Le chrome d'un espace de travail documentaire de l'Atelier.
@@ -26,12 +29,15 @@ export function sortieWorkspace(retour?: string): { href: string; libelle: strin
 export function CoquilleWorkspace({
   surtitre,
   titre,
+  compteId,
   sortie = SORTIE_PAR_DEFAUT,
   barre,
   children,
 }: {
   surtitre: string;
   titre: string;
+  /** Compte courant nécessaire aux outils qui vivent dans le workspace. */
+  compteId?: string;
   /**
    * Où mène la sortie. Un espace de travail ouvert depuis l'Atelier ramène à l'Atelier.
    */
@@ -57,13 +63,26 @@ export function CoquilleWorkspace({
             <p className="text-[0.6875rem] uppercase tracking-wider text-texte-discret">{surtitre}</p>
             <h1 className="mt-0.5 truncate font-serif text-lg font-medium">{titre}</h1>
           </div>
-          <Link
-            href={sortie.href}
-            onClick={handleRetour}
-            className={classesLienBouton("secondaire", "petite")}
-          >
-            {sortie.libelle}
-          </Link>
+          <div className="flex shrink-0 items-center gap-1.5">
+            {compteId && (
+              <>
+                <OutilSeance
+                  libelle="Pomodoro"
+                  contenuClassName="absolute right-0 top-full z-30 mt-2 w-[min(22rem,calc(100vw-2rem))]"
+                >
+                  <Pomodoro compteId={compteId} />
+                </OutilSeance>
+                <TiroirTuteur declencheur="bouton" libelle="Tuteur" />
+              </>
+            )}
+            <Link
+              href={sortie.href}
+              onClick={handleRetour}
+              className={classesLienBouton("secondaire", "petite")}
+            >
+              {sortie.libelle}
+            </Link>
+          </div>
           {barre && <div className="basis-full">{barre}</div>}
         </div>
       </header>

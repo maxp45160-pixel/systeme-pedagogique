@@ -1355,6 +1355,21 @@ Compteurs métier inchangés après mutation : 53 Observations, 69 séances,
   Contrôles après coup passés : `admin_comptes()` n'expose plus `plan` ;
   `charger_tout` `prosecdef = false` ; le registre distant liste les
   quatre versions locales.
+
+### Correctif du 21/08/2026 — archivage d'un domaine persistant
+
+Un contrôle ultérieur du même projet a révélé une dérive de définition :
+`appliquer_commande_referentiel` consultait encore `public.themes`, alors que
+la table avait été supprimée, et pouvait supprimer un domaine sans historique.
+L'appel échouait donc avant sa validation et l'interface ne faisait que retirer
+la carte localement jusqu'au rechargement.
+
+La migration `20260821175518_corriger_archivage_domaine` retire ces références
+obsolètes et archive toujours le domaine (`archive = true`), y compris quand
+ses compétences ne portent encore aucun historique. La migration a été
+appliquée après vérification de la fonction distante et contrôlée par une
+nouvelle lecture de sa définition ; le schéma et les données existantes n'ont
+pas été modifiés hors de cette fonction.
 - Le catalogue global de production reste vide : ni `GO contenu`, ni curateur
   confirmé.
 - **Advisors Supabase — plan de traitement (21/08/2026).** Quatre familles

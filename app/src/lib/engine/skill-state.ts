@@ -269,24 +269,28 @@ const MODULATION_CONFIANCE: Record<Confiance, number> = {
 /* Prochaine étape                                                     */
 /* ------------------------------------------------------------------ */
 
-function prochaineEtape(niveau: NiveauCompetence | null, contextes: number): string {
+function prochaineEtape(
+  niveau: NiveauCompetence | null,
+  contextes: number,
+  intitule: string,
+): string {
   switch (niveau) {
     case null:
-      return "Réaliser un premier diagnostic pour situer le niveau réel.";
+      return `Commencer par un premier exercice sur « ${intitule} » pour établir une observation.`;
     case 0:
-      return "Expliquer le concept avec ses propres mots pour atteindre la compréhension.";
+      return `Expliquer « ${intitule} » avec ses propres mots, puis vérifier l'idée sur un exemple simple.`;
     case 1:
-      return "Appliquer la méthode sur un exercice guidé.";
+      return `Appliquer la méthode de « ${intitule} » sur un exercice guidé.`;
     case 2:
-      return "Résoudre un problème standard sans indice pour démontrer l'autonomie.";
+      return `Reprendre « ${intitule} » sur un problème standard, sans ouvrir d'indice.`;
     case 3:
       return contextes >= 2
-        ? "Confirmer le transfert par une seconde résolution en contexte nouveau."
-        : "Résoudre un problème dans un contexte différent pour démontrer le transfert.";
+        ? `Confirmer le transfert de « ${intitule} » par une seconde résolution en contexte nouveau.`
+        : `Résoudre un problème sur « ${intitule} » dans un contexte différent pour démontrer le transfert.`;
     case 4:
-      return "Mobiliser cette compétence dans un projet combinant plusieurs domaines.";
+      return `Mobiliser « ${intitule} » dans un projet combinant plusieurs domaines.`;
     case 5:
-      return "Entretenir la compétence : la réutiliser après un délai pour confirmer sa robustesse.";
+      return `Entretenir « ${intitule} » : la réutiliser après un délai pour confirmer sa robustesse.`;
   }
 }
 
@@ -325,7 +329,7 @@ export function computeSkillState(
       derniereObservation: null,
       joursDepuisDerniereObservation: null,
       contradictions: [],
-      prochaineEtape: prochaineEtape(null, 0),
+      prochaineEtape: prochaineEtape(null, 0, skill.intitule),
       statut: hypothese ? "hypothese" : "non-evalue",
       explication: {
         resume: hypothese
@@ -437,7 +441,7 @@ export function computeSkillState(
     derniereObservation: derniere?.date ?? null,
     joursDepuisDerniereObservation,
     contradictions,
-    prochaineEtape: prochaineEtape(niveau, contextesTestes.length),
+    prochaineEtape: prochaineEtape(niveau, contextesTestes.length, skill.intitule),
     statut: "evalue",
     explication,
   };

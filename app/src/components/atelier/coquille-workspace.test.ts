@@ -1,5 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { sortieWorkspace } from "./coquille-workspace";
+
+vi.mock("server-only", () => ({}));
 
 describe("sortieWorkspace", () => {
   it("retourne la sortie par défaut vers l'Atelier quand aucun retour n'est fourni", () => {
