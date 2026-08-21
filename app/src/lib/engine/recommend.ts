@@ -26,7 +26,7 @@ import {
 } from "@/lib/domain/types";
 import type { Calibration } from "./calibration";
 import type { ContexteDocumentaire, ResumeObservationsDocumentaires } from "./document-context";
-import { estDue, MODELE_ACTIF, type ModeleRevision } from "./spaced";
+import { estDue, MODELE_ACTIF, prochaineRevision, type ModeleRevision } from "./spaced";
 
 export interface Facteur {
   libelle: string;
@@ -71,6 +71,16 @@ export interface Recommandation {
  * compétence jamais travaillée en exercice. On retombe alors sur le niveau, et
  * la raison affichée le dit (P3 — aucune valeur sans sa source).
  */
+/**
+ * La table par niveau vise un cran au-dessus du niveau démontré.
+ *
+ * Testé le 21/08/2026 : viser le niveau lui-même, ou n'y ajouter un cran
+ * qu'après une réussite, améliore la justesse de l'estimation (écart au réel
+ * 0,79 → 0,65) mais triple le temps d'atteinte des objectifs (51 → 173 jours)
+ * — sans exercice au-dessus de l'acquis, plus rien ne tire vers le haut. Le
+ * cran reste donc, et c'est la calibration qui le corrige quand les faits le
+ * démentent.
+ */
 function difficulteDepuisNiveau(etat: SkillState): Difficulte {
   const n = etat.niveau;
   if (n === null) return 2; // diagnostic : difficulté standard, sans aide
@@ -91,7 +101,24 @@ function difficulteDepuisNiveau(etat: SkillState): Difficulte {
  * dérive sans bruit (ADR-044).
  */
 export function difficulteVisee(etat: SkillState, calibration?: Calibration): Difficulte {
-  return calibration?.difficulteConseillee ?? difficulteDepuisNiveau(etat);
+  const parNiveau = difficulteDepuisNiveau(etat);
+  const conseillee = calibration?.difficulteConseillee;
+  if (conseillee === null || conseillee === undefined) return parNiveau;
+
+  // La calibration AJUSTE, elle ne dérive pas — ajouté le 21/08/2026.
+  //
+  // `difficulteConseillee` part de la difficulté de la dernière tentative
+  // exploitable et lui applique ±1. Elle s'ancre donc sur ce qui a été servi,
+  // jamais sur ce qui est su : une suite de « trop facile » la fait monter de
+  // proche en proche, et plus rien ne la ramène vers le niveau démontré. En
+  // simulation, c'est ainsi qu'on servait du 5 à une compétence de niveau 2.
+  //
+  // Un cran d'écart au plus, dans les deux sens : la calibration garde tout
+  // pouvoir d'ajustement local, elle perd celui de s'éloigner indéfiniment.
+  return Math.min(
+    Math.max(conseillee, Math.max(1, parNiveau - 1)),
+    Math.min(5, parNiveau + 1),
+  ) as Difficulte;
 }
 
 /**
@@ -113,6 +140,16 @@ export function difficulteVisee(etat: SkillState, calibration?: Calibration): Di
  * « Jamais évaluée » (30 à 70) ou « Due pour révision » (40).
  */
 export const BONUS_ACTIONNABLE = 10;
+
+/**
+ * Bornes du facteur de révision — voir le commentaire à son point d'usage.
+ *
+ * Le minimum vaut « due depuis l'instant » ; le maximum, « due depuis au moins
+ * un intervalle complet de retard ». Les deux restent sous « Jamais évaluée »,
+ * qui vaut 60 à 70 sur un palier de fondamentaux.
+ */
+export const REVISION_MINIMUM = 12;
+export const REVISION_MAXIMUM = 32;
 
 /**
  * Pondération provisoire de l'hypothèse documentaire (ADR-064).
@@ -202,10 +239,29 @@ function evaluer(
     const j = etat.joursDepuisDerniereObservation ?? 0;
     const due = estDue(etat, now, modeleRevision);
     if (due) {
+      // Contribution proportionnelle au RETARD, plafonnée — corrigé le 21/08/2026.
+      //
+      // Le plateau à 40 faisait de la révision le facteur dominant dès qu'une
+      // poignée de compétences avaient été observées : mesuré en simulation,
+      // 88 % des actions servies sur dix-huit mois portaient ce facteur, et le
+      // référentiel plafonnait à 82 % de compétences jamais observées — les
+      // chapitres ouverts en cours de route n'obtenaient plus leur tour. Une
+      // compétence due l'est d'autant plus qu'elle l'est depuis longtemps ;
+      // l'être depuis une heure ne vaut pas l'être depuis un mois.
+      //
+      // Le plafond passe sous « Jamais évaluée » (60 à 70) : découvrir passe
+      // avant réviser, réviser passe avant retravailler du frais. L'ablation
+      // « sans révision » reste plus mauvaise sur l'écart au réel (1,20 contre
+      // 0,79) : le facteur garde donc sa raison d'être, il perd sa domination.
+      const revision = prochaineRevision(etat, now, modeleRevision);
+      const retard =
+        revision.intervalleJours > 0
+          ? Math.min(1, Math.max(0, j - revision.intervalleJours) / revision.intervalleJours)
+          : 1;
       facteurs.push({
         libelle: "Due pour révision",
-        contribution: 40,
-        phrase: `elle est due pour révision (${j} jours écoulés)`,
+        contribution: Math.round(REVISION_MINIMUM + retard * (REVISION_MAXIMUM - REVISION_MINIMUM)),
+        phrase: `elle est due pour révision (${j} jours écoulés, intervalle ${revision.intervalleJours} j)`,
       });
     } else {
       // Pénalité : travaillée récemment, laisser respirer.

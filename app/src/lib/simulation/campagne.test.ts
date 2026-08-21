@@ -71,8 +71,10 @@ describe("bras", () => {
       const codesMoteur = moteur.actions.map((a) => a.code).join(",");
       const codesTemoin = temoin.actions.map((a) => a.code).join(",");
       expect(codesTemoin).not.toBe(codesMoteur);
-      // Le tourniquet passe par tout le monde : c'est sa raison d'être.
-      expect(new Set(temoin.actions.map((a) => a.code)).size).toBeGreaterThan(
+      // Le tourniquet passe par tout le monde : c'est sa raison d'être. Le
+      // moteur peut le rejoindre — depuis le rééquilibrage du 21/08/2026, il y
+      // arrive — mais jamais le dépasser.
+      expect(new Set(temoin.actions.map((a) => a.code)).size).toBeGreaterThanOrEqual(
         new Set(moteur.actions.map((a) => a.code)).size,
       );
     },
