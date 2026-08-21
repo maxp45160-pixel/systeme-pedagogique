@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Markdown } from "@/components/ui/markdown";
 import { cx } from "@/components/ui/primitives";
+import dynamic from "next/dynamic";
 import { IconeFleche, IconeRecherche } from "@/components/ui/icones";
 import { IconeDocument } from "@/components/ui/icone-document";
 import { createNavigateurClient } from "@/lib/supabase/client";
@@ -26,7 +27,24 @@ import {
 import { BUCKET_PIECES_JOINTES, MAX_PDF_OCTETS, MIME_PDF, nomPdfValide } from "@/lib/documents/pieces-jointes";
 import type { DonneesGraphe } from "@/lib/domain/graphe";
 import { urlComposerAutonome } from "@/lib/domain/navigation-exercice";
-import { GrapheCompetences } from "@/components/competences/graphe/graphe-competences";
+/*
+ * Le graphe (et `d3-force` avec lui) ne voyage que quand la vue graphe est
+ * ouverte : en import statique, son chunk partait avec l'atelier pour tout le
+ * monde, consulté ou non.
+ */
+const GrapheCompetences = dynamic(
+  () =>
+    import("@/components/competences/graphe/graphe-competences").then(
+      (m) => m.GrapheCompetences,
+    ),
+  {
+    loading: () => (
+      <div className="grid flex-1 place-items-center text-sm text-texte-attenue">
+        Préparation du graphe…
+      </div>
+    ),
+  },
+);
 import {
   definitionTypeDocument,
   natureSnapshot,

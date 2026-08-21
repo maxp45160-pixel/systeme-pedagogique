@@ -13,7 +13,7 @@ import { resoudreIdentite } from "@/lib/domain/identite";
 import { FournisseurIntention } from "@/components/intention/fournisseur-intention";
 import { FournisseurOnboarding } from "@/components/onboarding/onboarding-context";
 import { PastillePomodoroGlobale } from "@/components/seances/pomodoro";
-import { chargerReferentiel } from "@/lib/store/referentiel";
+import { chargerDomaines } from "@/lib/store/referentiel";
 
 /**
  * Cadre du carnet : rail de navigation, marge.
@@ -39,7 +39,13 @@ export default async function AppLayout({
   */
   const acces = await lireAccesCourant();
   if (acces?.suspenduLe) redirect("/suspendu");
-  const referentiel = await chargerReferentiel();
+  /*
+    Le cadre ne lit que les domaines, pas le référentiel complet : c'est la
+    seule chose qu'il en montre (le point d'entrée `+` ci-dessous), et la page
+    reçoit déjà compétences et rattachements par la RPC `charger_tout`.
+    Mémoïsé par requête comme `chargerReferentiel` l'était.
+  */
+  const domaines = await chargerDomaines();
   const administrateur = acces?.role === "admin";
 
   const identite = resoudreIdentite(compte);
@@ -60,7 +66,7 @@ export default async function AppLayout({
     <FournisseurOnboarding compteId={session.compteId}>
       <FournisseurIntention
         compteId={session.compteId}
-        domainesExistants={referentiel.domaines
+        domainesExistants={domaines
           .filter((domaine) => !domaine.archive)
           .map(({ id, nom, prefixe }) => ({ id, nom, prefixe }))}
       >

@@ -443,11 +443,25 @@ export function computeSkillState(
   };
 }
 
-/** Dérive l'état de toutes les compétences en une passe. */
+/**
+ * Dérive l'état de toutes les compétences en une passe.
+ *
+ * Les observations sont groupées par code UNE fois : le filtre complet que
+ * `computeSkillState` refaisait pour chaque compétence faisait du calcul un
+ * O(compétences × observations), premier poste du chemin chaud sur les comptes
+ * chargés. Chaque compétence ne voit plus que ses observations ; son filtre
+ * interne reste, redondant mais sans coût sur un lot déjà restreint.
+ */
 export function computeAllSkillStates(
   skills: Skill[],
   observations: SkillObservation[],
   now: Date = new Date(),
 ): SkillState[] {
-  return skills.map((s) => computeSkillState(s, observations, now));
+  const parCode = new Map<string, SkillObservation[]>();
+  for (const o of observations) {
+    const liste = parCode.get(o.skillCode);
+    if (liste) liste.push(o);
+    else parCode.set(o.skillCode, [o]);
+  }
+  return skills.map((s) => computeSkillState(s, parCode.get(s.code) ?? [], now));
 }

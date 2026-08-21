@@ -71,6 +71,28 @@ export const chargerReferentiel = cache(
   async (): Promise<Referentiel> => lireReferentiel(await dorsaleCompte()),
 );
 
+/**
+ * Lecture des seuls domaines, mémoïsée par requête.
+ *
+ * Le cadre `(app)` n'en fait rien de plus : il nomme les domaines actifs pour
+ * le point d'entrée `+`. Charger le référentiel complet ici aurait coûté trois
+ * aller-retours (domaines, compétences, rattachements) à chaque navigation,
+ * alors que la page, elle, reçoit déjà tout par la RPC `charger_tout`.
+ *
+ * Mémoïsée comme `chargerReferentiel` : un même rendu qui demande deux fois
+ * les domaines ne paie qu'une lecture.
+ */
+export const chargerDomaines = cache(async (): Promise<Domaine[]> => {
+  const { supabase, userId } = await dorsaleCompte();
+  const { data, error } = await mesurer("supabase:domaines", () =>
+    supabase.from("domaines").select("*").eq("user_id", userId),
+  );
+  verifier("lecture des domaines", error);
+  return validerLignesSupabase(data, "domaines").map((l, index) =>
+    validerDomaine(ligneVersEntite<Domaine>(l), `domaines[${index}]`),
+  );
+});
+
 export async function lireChangementsReferentiel(
   dorsaleFournie?: DorsaleCompte,
 ): Promise<ChangementReferentiel[]> {

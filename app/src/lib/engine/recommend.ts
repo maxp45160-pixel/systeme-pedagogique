@@ -298,16 +298,32 @@ function evaluer(
 const dateTentative = (t: ExerciseAttempt): string => t.fin ?? t.debut;
 
 /**
- * Tentatives TERMINÉES sur un exercice, de la plus récente à la plus ancienne.
+ * Tentatives TERMINÉES par exercice, chacune de la plus récente à la plus
+ * ancienne.
  *
  * Les abandons sont écartés ici comme ils le sont dans `calibration.ts` : une
  * tentative interrompue sous le quart de la durée estimée ne dit rien, ni sur
  * l'exercice ni sur la personne. Une tentative en cours n'a pas de résultat.
+ *
+ * L'index est construit UNE fois par appel de `recommander` : le filtrage et le
+ * tri de toutes les tentatives par exercice consulté, refaits à chaque
+ * compétence puis à chaque comparaison du tri, faisaient du classement un
+ * O(compétences × exercices × tentatives).
  */
-function terminees(exerciceId: string, tentatives: ExerciseAttempt[]): ExerciseAttempt[] {
-  return tentatives
-    .filter((t) => t.exerciseId === exerciceId && t.statut === "terminee")
-    .sort((a, b) => dateTentative(b).localeCompare(dateTentative(a)));
+function indexerTerminees(
+  tentatives: ExerciseAttempt[],
+): Map<string, ExerciseAttempt[]> {
+  const parExercice = new Map<string, ExerciseAttempt[]>();
+  for (const t of tentatives) {
+    if (t.statut !== "terminee") continue;
+    const liste = parExercice.get(t.exerciseId);
+    if (liste) liste.push(t);
+    else parExercice.set(t.exerciseId, [t]);
+  }
+  for (const liste of parExercice.values()) {
+    liste.sort((a, b) => dateTentative(b).localeCompare(dateTentative(a)));
+  }
+  return parExercice;
 }
 
 /**
@@ -354,9 +370,9 @@ function terminees(exerciceId: string, tentatives: ExerciseAttempt[]): ExerciseA
 function recommandable(
   exercice: Exercise,
   etat: SkillState,
-  tentatives: ExerciseAttempt[],
+  termineesParExercice: Map<string, ExerciseAttempt[]>,
 ): boolean {
-  const passees = terminees(exercice.id, tentatives);
+  const passees = termineesParExercice.get(exercice.id) ?? [];
   if (passees.length === 0) return true;
   if (passees.some((t) => t.resultat === "reussi")) return false;
 
@@ -375,12 +391,14 @@ function recommandable(
 function choisirExercice(
   etat: SkillState,
   exercices: Exercise[],
-  tentatives: ExerciseAttempt[],
+  termineesParExercice: Map<string, ExerciseAttempt[]>,
   cible: Difficulte,
   exercicesRefuses: Set<string>,
 ): { exercice: Exercise | null; toutRefuse: boolean } {
   const recommandables = exercices.filter(
-    (ex) => ex.competences.includes(etat.skill.code) && recommandable(ex, etat, tentatives),
+    (ex) =>
+      ex.competences.includes(etat.skill.code) &&
+      recommandable(ex, etat, termineesParExercice),
   );
   const candidats = recommandables.filter((ex) => !exercicesRefuses.has(ex.id));
   if (candidats.length === 0) {
@@ -396,16 +414,21 @@ function choisirExercice(
   // À difficulté également adaptée, ce qui n'a jamais été tenté passe devant.
   // Sans cette clé, la file reservait indéfiniment le même exercice partiel
   // alors qu'un exercice neuf attendait au même écart de la cible.
-  const jamaisTente = (ex: Exercise) =>
-    terminees(ex.id, tentatives).length === 0 ? 0 : 1;
-
-  const exercice = candidats.sort(
-    (a, b) =>
-      jamaisTente(a) - jamaisTente(b) ||
-      Math.abs(a.difficulte - cible) - Math.abs(b.difficulte - cible) ||
-      a.dureeEstimeeMin - b.dureeEstimeeMin,
-  )[0];
-  return { exercice, toutRefuse: false };
+  //
+  // Le drapeau est lu AVANT le tri : le recalculer dans le comparateur
+  // refiltrait toutes les tentatives à chaque comparaison.
+  const classe = candidats
+    .map((ex) => ({
+      ex,
+      jamaisTente: (termineesParExercice.get(ex.id)?.length ?? 0) === 0 ? 0 : 1,
+    }))
+    .sort(
+      (a, b) =>
+        a.jamaisTente - b.jamaisTente ||
+        Math.abs(a.ex.difficulte - cible) - Math.abs(b.ex.difficulte - cible) ||
+        a.ex.dureeEstimeeMin - b.ex.dureeEstimeeMin,
+    );
+  return { exercice: classe[0].ex, toutRefuse: false };
 }
 
 function construireRaison(facteurs: Facteur[]): string {
@@ -444,6 +467,7 @@ export function recommander(
   reglages: ReglagesRecommandation = {},
 ): Recommandation[] {
   const parCode = new Map(etats.map((e) => [e.skill.code, e]));
+  const termineesParExercice = indexerTerminees(tentatives);
 
   return etats
     .filter((e) => !refus.codes.has(e.skill.code))
@@ -458,7 +482,7 @@ export function recommander(
       const { exercice, toutRefuse } = choisirExercice(
         etat,
         exercices,
-        tentatives,
+        termineesParExercice,
         cible,
         refus.exercices,
       );

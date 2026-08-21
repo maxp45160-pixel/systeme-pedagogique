@@ -227,10 +227,12 @@ export function tentativeMenee(
 export function dureeDeReference(
   exercice: Pick<Exercise, "id" | "dureeEstimeeMin">,
   tentatives: Pick<ExerciseAttempt, "exerciseId" | "statut" | "dureeMin">[],
+  /** Durées déjà extraites par `indexerTentativesCalibrage` — évite de refiltrer toutes les tentatives par verdict. */
+  dureesParExercice?: Map<string, number[]>,
 ): DureeReference {
-  const durees = dureesMenees(
-    tentatives.filter((t) => t.exerciseId === exercice.id),
-  );
+  const durees = dureesParExercice
+    ? (dureesParExercice.get(exercice.id) ?? [])
+    : dureesMenees(tentatives.filter((t) => t.exerciseId === exercice.id));
 
   if (durees.length >= OBSERVATIONS_DUREE_MINIMUM) {
     return { minutes: mediane(durees), source: "observee", observations: durees.length };
@@ -414,6 +416,66 @@ const AJUSTEMENT: Record<SignalCalibration, number> = {
   "non-tentee": 0,
 };
 
+/**
+ * Ce que plusieurs compétences lisent dans les mêmes tentatives, construit UNE
+ * fois par passage de `calibrerToutes`.
+ *
+ * Sans lui, chaque compétence refiltrait toutes les tentatives (pour les siennes),
+ * reconstruisait la table des exercices, et chaque verdict relisait encore toutes
+ * les tentatives pour la durée de référence — un O(compétences × tentatives) à
+ * grosse constante, premier coût du chemin chaud mesuré sur compte chargé.
+ *
+ * `termineesParCode` ne porte que les tentatives terminées dont l'exercice est
+ * résolu, triées de la plus récente à la plus ancienne : exactement ce que
+ * `calibrer` sélectionnait, au même ordre stable.
+ */
+export interface IndexCalibrage {
+  parId: Map<string, Exercise>;
+  termineesParCode: Map<string, { tentative: ExerciseAttempt; exercice: Exercise }[]>;
+  dureesParExercice: Map<string, number[]>;
+}
+
+export function indexerTentativesCalibrage(
+  exercices: Exercise[],
+  tentatives: ExerciseAttempt[],
+): IndexCalibrage {
+  const parId = new Map(exercices.map((e) => [e.id, e]));
+
+  const termineesParCode = new Map<
+    string,
+    { tentative: ExerciseAttempt; exercice: Exercise }[]
+  >();
+  const dureesBrutes = new Map<string, number[]>();
+  for (const t of tentatives) {
+    if (t.statut !== "terminee") continue;
+    if (typeof t.dureeMin === "number" && Number.isFinite(t.dureeMin) && t.dureeMin > 0) {
+      const durees = dureesBrutes.get(t.exerciseId);
+      if (durees) durees.push(t.dureeMin);
+      else dureesBrutes.set(t.exerciseId, [t.dureeMin]);
+    }
+    const ex = parId.get(t.exerciseId);
+    if (!ex) continue;
+    for (const code of ex.competences) {
+      const liste = termineesParCode.get(code);
+      if (liste) liste.push({ tentative: t, exercice: ex });
+      else termineesParCode.set(code, [{ tentative: t, exercice: ex }]);
+    }
+  }
+
+  const dateDesc = (
+    a: { tentative: ExerciseAttempt },
+    b: { tentative: ExerciseAttempt },
+  ) => (b.tentative.fin ?? b.tentative.debut).localeCompare(a.tentative.fin ?? a.tentative.debut);
+  for (const liste of termineesParCode.values()) liste.sort(dateDesc);
+
+  const dureesParExercice = new Map<string, number[]>();
+  for (const [id, durees] of dureesBrutes) {
+    dureesParExercice.set(id, [...durees].sort((a, b) => a - b));
+  }
+
+  return { parId, termineesParCode, dureesParExercice };
+}
+
 export function calibrer(
   skill: Skill,
   exercices: Exercise[],
@@ -423,21 +485,18 @@ export function calibrer(
     fractionTropFacile?: number;
     signauxConcordants?: number;
   } = {},
+  /** Index partagé de `calibrerToutes` ; construit localement quand il manque. */
+  index: IndexCalibrage = indexerTentativesCalibrage(exercices, tentatives),
 ): Calibration {
   const fractionTropFacile = reglages.fractionTropFacile ?? FRACTION_TROP_FACILE;
   const signauxConcordants = reglages.signauxConcordants ?? SIGNAUX_CONCORDANTS;
-  const parId = new Map(exercices.map((e) => [e.id, e]));
 
   // Tentatives terminées portant sur cette compétence, de la plus récente à la
   // plus ancienne. Une tentative en cours ne dit rien : elle n'a pas de résultat.
-  const pertinentes = tentatives
-    .filter((t) => t.statut === "terminee")
-    .map((t) => ({ t, ex: parId.get(t.exerciseId) }))
-    .filter((x): x is { t: ExerciseAttempt; ex: Exercise } =>
-      Boolean(x.ex && x.ex.competences.includes(skill.code)),
-    )
-    .sort((a, b) => (b.t.fin ?? b.t.debut).localeCompare(a.t.fin ?? a.t.debut))
-    .slice(0, TENTATIVES_RETENUES);
+  const pertinentes = (index.termineesParCode.get(skill.code) ?? []).slice(
+    0,
+    TENTATIVES_RETENUES,
+  );
 
   /*
    * La référence de durée se calcule sur TOUTES les tentatives de l'exercice,
@@ -445,10 +504,15 @@ export function calibrer(
    * « combien de temps cet exercice demande-t-il ? » ne dépend pas de la
    * fenêtre d'observation de la compétence qu'on est en train de calibrer.
    */
-  const verdicts = pertinentes.map(({ t, ex }) =>
-    verdictTentative(t, ex, dureeDeReference(ex, tentatives), fractionTropFacile),
+  const verdicts = pertinentes.map(({ tentative: t, exercice: ex }) =>
+    verdictTentative(
+      t,
+      ex,
+      dureeDeReference(ex, tentatives, index.dureesParExercice),
+      fractionTropFacile,
+    ),
   );
-  const dimensionFaible = dimensionLaPlusFaible(pertinentes.map((x) => x.t));
+  const dimensionFaible = dimensionLaPlusFaible(pertinentes.map((x) => x.tentative));
 
   // La difficulté se règle sur la dernière tentative EXPLOITABLE. Les autres
   // restent affichées — elles expliquent pourquoi il n'y a pas de conseil.
@@ -570,9 +634,13 @@ export function calibrerToutes(
   /** Réglages effectifs — ADR-085. Omis : les valeurs livrées. */
   reglages: { fractionTropFacile?: number; signauxConcordants?: number } = {},
 ): Map<string, Calibration> {
+  // Un seul passage sur les tentatives pour toutes les compétences : l'index
+  // remplace le filtre complet que chaque `calibrer` refaisait chez lui.
+  const index = indexerTentativesCalibrage(exercices, tentatives);
   return new Map(
     etats.map(
-      (e) => [e.skill.code, calibrer(e.skill, exercices, tentatives, reglages)] as const,
+      (e) =>
+        [e.skill.code, calibrer(e.skill, exercices, tentatives, reglages, index)] as const,
     ),
   );
 }
