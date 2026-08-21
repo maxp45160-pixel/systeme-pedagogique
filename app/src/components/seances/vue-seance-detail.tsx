@@ -291,7 +291,7 @@ export async function VueSeanceDetail({
                 libelle="Marge"
                 contenuClassName={panneauLarge}
               >
-                <MargeCahier lignes={marge} compteId={ctx.donnees.user.id} compacte />
+                <MargeCahier lignes={marge} compacte />
               </OutilSeance>
               {etatTuteur && exerciceActif && (
                 <TiroirTuteur

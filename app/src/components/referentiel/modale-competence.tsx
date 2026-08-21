@@ -80,7 +80,6 @@ export function ModaleCompetence({
   sujetInitial = "",
   modeCible,
   descriptionInitiale = "",
-  justificationInitiale = "",
   suggestionAutomatique = false,
   pistesGlobales = [],
   surEnregistre,
@@ -98,8 +97,6 @@ export function ModaleCompetence({
   sujetInitial?: string;
   /** Contexte libre conservé dans le formulaire, toujours modifiable. */
   descriptionInitiale?: string;
-  /** Explication d'un refus du tuteur, informative et non mesurante. */
-  justificationInitiale?: string;
   /** Lance immédiatement la suggestion, pour l'amorçage d'un compte neuf. */
   suggestionAutomatique?: boolean;
   /** Repères globaux proposés seulement pendant la création d'une branche. */

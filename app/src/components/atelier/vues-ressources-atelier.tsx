@@ -15,7 +15,7 @@ import {
   BoutonSuppressionCarte,
   ModaleConfirmationSuppression,
 } from "./modale-confirmation-suppression";
-import { CarteCreationPointillee, type VueAtelier } from "./vues-synthese-atelier";
+import { type VueAtelier } from "./vues-synthese-atelier";
 import type { ElementAtelier } from "./types-atelier";
 
 const CLASSE_CARTE =

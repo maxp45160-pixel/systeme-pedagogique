@@ -21,11 +21,7 @@ import {
   type EtapeParcours,
 } from "@/lib/engine/parcours";
 import type { ChangementReferentiel } from "@/lib/domain/gouvernance-referentiel";
-import {
-  type EtatCompetence,
-  type RecommandationAdaptee,
-} from "@/lib/engine/vues-twiny";
-import type { Recommandation } from "@/lib/engine/recommend";
+import { type EtatCompetence } from "@/lib/engine/vues-twiny";
 
 export interface ExerciceLieAtelier {
   id: string;
@@ -343,7 +339,6 @@ export function construireVuesAtelier(
   changementsReferentiel: ChangementReferentiel[],
   codesAvecDependances: ReadonlySet<string>,
   etatsCompetences: readonly EtatCompetence[],
-  recommandations: readonly Recommandation[],
 ): {
   domaines: VueDomaineAtelier[];
   competences: VueCompetenceAtelier[];
@@ -364,10 +359,6 @@ export function construireVuesAtelier(
     .map((domaine) => ({ id: domaine.id, nom: domaine.nom }));
   const etatsCompetencesParCode = new Map(
     etatsCompetences.map((etat) => [etat.code, etat]),
-  );
-  const recommandationsAdaptees = recommandations.filter(
-    (recommandation): recommandation is RecommandationAdaptee =>
-      "prioriteLot5" in recommandation && "reservesLot5" in recommandation,
   );
   const competences: VueCompetenceAtelier[] = etats.map((etat) => {
     const domaine = referentiel.domainesParId.get(etat.skill.domaine);

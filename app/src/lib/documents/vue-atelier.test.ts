@@ -11,10 +11,7 @@ import type {
 import type { IndexDocumentaire } from "./index";
 import { construirePistesDomaine, construireVuesAtelier } from "./vue-atelier";
 import type { LotCandidats } from "@/lib/engine/candidats-referentiel";
-import {
-  construireEtatCompetence,
-  type RecommandationAdaptee,
-} from "@/lib/engine/vues-twiny";
+import { construireEtatCompetence } from "@/lib/engine/vues-twiny";
 
 const competence: Skill = {
   code: "LOG-01",
@@ -173,7 +170,6 @@ describe("construireVuesAtelier", () => {
       [],
       new Set(),
       etatsLot5(etat(competence, [observation]), etat(suivante)),
-      [],
     );
 
     expect(vues.domaines).toHaveLength(1);
@@ -208,7 +204,6 @@ describe("construireVuesAtelier", () => {
       [],
       new Set(),
       etatsLot5(etat(competence), etat(suivante)),
-      [],
     );
 
     expect(vues.competences[0].niveau).toBeNull();
@@ -257,7 +252,6 @@ describe("construireVuesAtelier", () => {
       [],
       new Set(),
       etatsLot5(etat(competencePartagee, [observation]), etat(suivante)),
-      [],
     );
 
     expect(vues.domaines.map((domaine) => domaine.id)).toEqual([
@@ -283,7 +277,6 @@ describe("construireVuesAtelier", () => {
       [],
       new Set(),
       etatsLot5(etat(competence, [observation]), etat(suivante)),
-      [],
     );
     const lot: LotCandidats = {
       aretes: [
@@ -336,7 +329,6 @@ describe("construireVuesAtelier", () => {
       [],
       new Set(),
       etatsLot5(etat(competence, [observation]), etat(suivante)),
-      [],
     );
     const familles = construirePistesDomaine(vues.domaines[0], {
       lot: {
@@ -371,24 +363,8 @@ describe("construireVuesAtelier", () => {
     expect(familles[0].items[0].motif).toContain("L'intitulé couvre");
   });
 
-  it("réutilise les états du lot 5 et la recommandation déjà adaptée", () => {
+  it("réutilise les états du lot 5 déjà calculés", () => {
     const etatLot5 = construireEtatCompetence(etat(competence, [observation]));
-    const recommandation = {
-      etat: etatLot5.etatConsolide,
-      valeur: 42,
-      facteurs: [],
-      raison: "Classement existant",
-      exercice: null,
-      difficulteCible: 2,
-      dureeEstimeeMin: 30,
-      calibration: null,
-      prioriteLot5: {
-        origine: "selection-globale",
-        reference: "g-1",
-        explication: "Cette priorité provient d'une sélection globale explicite.",
-      },
-      reservesLot5: ["La cible reste locale."],
-    } satisfies RecommandationAdaptee;
 
     const vues = construireVuesAtelier(
       referentiel,
@@ -400,7 +376,6 @@ describe("construireVuesAtelier", () => {
       [],
       new Set(),
       [etatLot5],
-      [recommandation],
     );
 
     expect(vues.competences[0].etatLot5).toBe(etatLot5);
@@ -436,7 +411,6 @@ describe("construireVuesAtelier", () => {
       [],
       new Set(),
       etatsLot5(etat(competence), etat(suivante)),
-      [],
     );
 
     expect(vues.domaines.map((domaine) => domaine.id)).toEqual(["logistique", "archive"]);
@@ -457,7 +431,6 @@ describe("construireVuesAtelier", () => {
       [],
       new Set(),
       etatsLot5(etat(competence, [observation]), etat(suivante)),
-      [],
     );
 
     expect(vues.exercices[0]).toMatchObject({
@@ -501,7 +474,6 @@ describe("vue d'une compétence — ce que l'Atelier a le droit de montrer", () 
       [],
       new Set(),
       etatsLot5(etat(competence, [observation]), etat(suivante)),
-      [],
     );
 
     expect(vues.competences[0].documents.map((document) => document.id)).toEqual(["note-log-01"]);
@@ -518,7 +490,6 @@ describe("vue d'une compétence — ce que l'Atelier a le droit de montrer", () 
       [],
       new Set(),
       etatsLot5(etat(competence, [observation]), etat(suivante)),
-      [],
     );
 
     expect(vues.competences[0].observations[0].documentId).toBe("preuve-tentative-1");
@@ -535,7 +506,6 @@ describe("vue d'une compétence — ce que l'Atelier a le droit de montrer", () 
       [],
       new Set(),
       etatsLot5(etat(competence, [observation]), etat(suivante)),
-      [],
     );
 
     expect(vues.competences[0].observations[0].documentId).toBeNull();
@@ -552,7 +522,6 @@ describe("vue d'une compétence — ce que l'Atelier a le droit de montrer", () 
       [],
       new Set(),
       etatsLot5(etat(competence, [observation]), etat(suivante)),
-      [],
     );
 
     expect(vues.competences[0].domainesExistants).toEqual([{ id: "logistique", nom: "Logistique" }]);
@@ -574,7 +543,6 @@ describe("vue d'une compétence — ce que l'Atelier a le droit de montrer", () 
       [],
       new Set(),
       etatsLot5(etat(competence, [observation]), etat(suivante)),
-      [],
     );
 
     expect(vues.competences[0].domainesExistants).toEqual([]);

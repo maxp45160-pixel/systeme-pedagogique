@@ -44,7 +44,6 @@ import type {
   DemandeSeance,
   Exercise,
   ExerciseAttempt,
-  Referentiel,
   Skill,
   SkillState,
 } from "@/lib/domain/types";
@@ -238,25 +237,6 @@ export function ConcepteurSeance({
     const domaine = domaines.find((item) => item.id === domaineInitial);
     return domaine ? themePourDomaine(domaine.id, domaine.nom) : null;
   }, [domaineInitial, domaines]);
-
-  /*
-   * Référentiel « léger », reconstruit côté client à partir des seules pièces
-   * déjà envoyées par le serveur (`actifs`) — pour convertir le thème choisi
-   * sans faire porter au client un `Referentiel` complet. Seuls `codesActifs`
-   * et `parCode` sont lus par cette conversion ; les autres champs restent
-   * vides, structurellement présents mais inertes.
-   */
-  const referentielLeger: Referentiel = useMemo(
-    () => ({
-      domaines: [],
-      skills: actifs,
-      actifs,
-      parCode: new Map(actifs.map((s) => [s.code, s])),
-      codesActifs: new Set(actifs.map((s) => s.code)),
-      domainesParId: new Map(),
-    }),
-    [actifs],
-  );
 
   /**
    * Le sujet choisi à la main, qui prime sur toutes les sources dérivées.

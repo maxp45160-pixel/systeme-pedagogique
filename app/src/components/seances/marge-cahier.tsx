@@ -22,11 +22,9 @@ import {
  */
 export function MargeCahier({
   lignes,
-  compteId,
   compacte = false,
 }: {
   lignes: LigneMarge[];
-  compteId: string;
   compacte?: boolean;
 }) {
   const ouvertes = lignes.filter((ligne) => !ligne.faite).length;
