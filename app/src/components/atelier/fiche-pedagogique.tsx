@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import type { VuePedagogiqueAtelier } from "@/lib/documents/vue-atelier";
 import type { EntretienDomaineAtelier } from "@/lib/documents/vue-atelier";
 import type { ElementAtelier } from "./types-atelier";
@@ -8,6 +9,7 @@ import { ConcepteurSeance, type DonneesSeance } from "@/components/seances/conce
 import { urlComposerAutonome } from "@/lib/domain/navigation-exercice";
 import Link from "next/link";
 import { IconeFleche } from "@/components/ui/icones";
+import { BoutonRetirerExercice } from "@/components/exercices/bouton-retirer";
 import { VueCompetence } from "./vues/vue-competence";
 import { VueDomaine } from "./vues/vue-domaine";
 import { VueExercice } from "./vues/vue-exercice";
@@ -88,6 +90,8 @@ export function PanneauPedagogiqueAtelier({
   ouvrirElement: (id: string) => void;
   donneesSeance?: DonneesSeance;
 }) {
+  const router = useRouter();
+
   if (vue.kind === "competence") return null;
 
   if (vue.kind === "exercice") {
@@ -125,6 +129,15 @@ export function PanneauPedagogiqueAtelier({
           <span>S’exercer dans le cahier</span>
           <IconeFleche className="size-3.5" />
         </Link>
+        <BoutonRetirerExercice
+          exerciceId={vue.id}
+          titre={vue.titre}
+          tentatives={vue.nombreTentatives}
+          onRetire={() => {
+            ouvrirElement(`domaine:${vue.domaineId}`);
+            router.refresh();
+          }}
+        />
       </div>
     );
   }

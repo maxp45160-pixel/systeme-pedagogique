@@ -380,20 +380,19 @@ export async function VueExercice(props: {
             Corriger un exercice (ADR-047). Rendu par la fiche, comme
             `BoutonGenerer` : la fiche est un composant serveur et ne porte ni
             état ni `onClick`. Masqué pendant une tentative — modifier l'énoncé
-            en cours de mesure rendrait l'observation illisible — et en lecture
-            seule (tentative archivée).
+            en cours de mesure rendrait l'observation illisible. Le retrait
+            reste disponible : avec une tentative, il archive l'exercice sans
+            effacer la trace en cours.
           */}
-          {!props.lectureSeule && !enCours && (
+          {!props.lectureSeule && (
             <>
-              <BoutonEditer exercice={exercice} tentatives={tentatives.length} />
-              {!tentatives.some((tentative) => tentative.statut === "en-cours") && (
-                <BoutonRetirerExercice
-                  exerciceId={exercice.id}
-                  titre={exercice.titre}
-                  tentatives={tentatives.length}
-                  destination={navigation ? `/seances?session=${encodeURIComponent(navigation.seanceId)}` : "/atelier"}
-                />
-              )}
+              {!enCours && <BoutonEditer exercice={exercice} tentatives={tentatives.length} />}
+              <BoutonRetirerExercice
+                exerciceId={exercice.id}
+                titre={exercice.titre}
+                tentatives={tentatives.length}
+                destination={navigation ? `/seances?session=${encodeURIComponent(navigation.seanceId)}` : "/atelier"}
+              />
             </>
           )}
         </div>

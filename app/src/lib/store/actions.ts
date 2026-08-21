@@ -686,19 +686,22 @@ export async function retirerExercice(exerciceId: string): Promise<ResultatRetra
   const tentatives = count ?? 0;
   const mode = modeRetraitExercice(tentatives);
   if (mode === "suppression") {
-    const { error } = await dorsale.supabase
+    const { data, error } = await dorsale.supabase
       .from("exercises")
       .delete()
       .eq("user_id", dorsale.userId)
-      .eq("id", exercice.id);
+      .eq("id", exercice.id)
+      .select("id")
+      .maybeSingle();
     verifier("suppression de l’exercice", error);
+    if (!data) {
+      throw new Error("Suppression de l’exercice impossible : aucune ligne n’a été retirée.");
+    }
   } else {
-    const { error } = await dorsale.supabase
-      .from("exercises")
-      .update({ archive: true })
-      .eq("user_id", dorsale.userId)
-      .eq("id", exercice.id);
-    verifier("archivage de l’exercice", error);
+    const archive = await modifier("exercises", exercice.id, { archive: true }, dorsale);
+    if (!archive) {
+      throw new Error("Archivage de l’exercice impossible : aucune ligne n’a été mise à jour.");
+    }
   }
 
   revalidatePath("/", "layout");
