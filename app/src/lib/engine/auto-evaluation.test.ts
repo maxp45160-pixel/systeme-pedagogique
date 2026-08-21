@@ -322,4 +322,36 @@ describe("utilite-recommandation", () => {
     expect(m.enAttente).toBe(5);
     expect(m.valeur).toBeCloseTo(2 / 20, 5);
   });
+
+  it("n'attribue pas une tentative très postérieure à la recommandation", () => {
+    /*
+     * Le défaut corrigé le 21/08/2026 : le moteur re-proposant le même exercice
+     * chaque jour, une tentative tardive validait toutes les décisions
+     * précédentes. Ici, vingt décisions étalées sur vingt jours et UNE tentative
+     * le dernier jour — seules celles de la semaine qui la précède comptent.
+     */
+    const jour = 86_400_000;
+    const debut = new Date("2026-08-01T09:00:00.000Z").getTime();
+    const decisions: DecisionInscrite[] = Array.from({ length: 20 }, (_, i) => ({
+      id: `d-${i}`,
+      priseLe: new Date(debut + i * jour).toISOString(),
+      type: "recommandation",
+      politiqueVersion: "recommandation-1",
+      cibleCode: "LOG-01",
+      cibleRef: "ex-1",
+    }));
+
+    const m = evaluerMoteur({
+      predictions: [],
+      decisions,
+      tentatives: [tentative({ debut: new Date(debut + 19 * jour).toISOString() })],
+      observations: [],
+      exercicesParId: EXERCICES,
+    }).find((m) => m.nom === "utilite-recommandation")!;
+
+    // Décisions des jours 12 à 18 : sept, à moins de sept jours de la tentative.
+    // Le jour 19 est la tentative elle-même — la décision du matin la précède.
+    expect(m.n).toBe(20);
+    expect(m.valeur).toBeCloseTo(7 / 20, 5);
+  });
 });

@@ -174,39 +174,29 @@ function Reglages({ reglages, journal }: Pick<EtatMoteur, "reglages" | "journal"
   );
 }
 
-export function MetriquesMoteur({
-  metriques,
-  reglages,
-  journal,
-  proposition,
-}: EtatMoteur) {
+export function MetriquesMoteur({ metriques, reglages, journal, proposition }: EtatMoteur) {
   const emises = metriques.reduce((s, m) => s + m.n + m.enAttente, 0);
 
   return (
     <div className="space-y-5">
-      <div className="rounded-xl border border-bordure bg-surface p-5 shadow-sm">
-        <p className="text-sm text-texte-attenue">
-          <strong className="font-medium text-texte">
-            Ce que le moteur a affirmé, confronté à ce qui s&apos;est passé.
-          </strong>{" "}
-          Chaque fois qu&apos;une action est proposée, le moteur inscrit ce
-          qu&apos;il prédit — chances de réussite, durée attendue, rétention à
-          l&apos;horizon. Ces prédictions sont ensuite rejouées contre les
-          tentatives et les observations réellement enregistrées.
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <p className="max-w-3xl text-xs text-texte-attenue">
+          {emises === 0 ? (
+            <>
+              Aucune prédiction inscrite sur ce compte. La première le sera à la
+              prochaine ouverture du tableau de bord.
+            </>
+          ) : (
+            <>
+              Les quatre mesures se recalculent à chaque ouverture, rien n&apos;est
+              stocké. Une prédiction que rien n&apos;a tranchée reste en attente,
+              jamais comptée comme fausse.
+            </>
+          )}
         </p>
-        <p className="mt-3 text-sm text-texte-attenue">
-          Rien n&apos;est stocké ici : les quatre métriques se recalculent à
-          chaque ouverture. Une prédiction que rien n&apos;a encore tranchée
-          reste <strong className="font-medium text-texte">en attente</strong>,
-          jamais comptée comme fausse — sans quoi on mesurerait
-          l&apos;assiduité de l&apos;utilisateur, pas la justesse du moteur.
-        </p>
-        {emises === 0 && (
-          <p className="mt-3 text-xs text-texte-discret">
-            Aucune prédiction inscrite pour l&apos;instant. La première le sera à
-            la prochaine ouverture du tableau de bord.
-          </p>
-        )}
+        <a href="/admin/simulation" className="shrink-0 text-xs text-primaire hover:underline">
+          Voir ce que ces mesures donnent sur un parcours simulé de 18 mois &rarr;
+        </a>
       </div>
 
       <Proposition proposition={proposition} />
@@ -218,13 +208,6 @@ export function MetriquesMoteur({
       </div>
 
       <Reglages reglages={reglages} journal={journal} />
-
-      <p className="text-xs text-texte-discret">
-        Les constantes du modèle de prédiction n&apos;ont aucune donnée derrière
-        elles : elles ont été posées pour être réfutées. Tant qu&apos;une
-        métrique n&apos;a pas atteint son seuil, aucun réglage du moteur ne
-        bouge.
-      </p>
     </div>
   );
 }

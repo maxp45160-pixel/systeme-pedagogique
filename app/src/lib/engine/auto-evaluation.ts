@@ -426,6 +426,45 @@ function metriqueDuree(resolutions: Resolution[], enAttente: number): MetriqueMo
  * Une décision est dite **suivie** quand une tentative a démarré sur l'exercice
  * qu'elle visait après qu'elle a été servie.
  */
+/**
+ * La fenêtre pendant laquelle une tentative peut être attribuée à la
+ * recommandation qui la précède — corrigé le 21/08/2026.
+ *
+ * Sans fenêtre, la métrique comptait comme « suivie » toute décision qu'une
+ * tentative sur le même exercice finissait par suivre, à n'importe quelle
+ * distance. Or le moteur re-propose le même exercice tant qu'il n'a pas été
+ * réussi : une seule tentative validait ainsi les trente décisions des trente
+ * jours précédents. Mesuré en simulation le 21/08/2026 : un apprenant qui
+ * ignore deux propositions sur trois obtenait 99 % de recommandations suivies —
+ * la métrique disait « l'exercice a fini par être fait », pas « la
+ * recommandation a été suivie ».
+ *
+ * Sept jours, et pas vingt-quatre heures : c'est déjà la durée d'expiration
+ * d'un refus (`recommend.ts`), et une recommandation reprise le week-end
+ * suivant reste plausiblement causée par elle. Ce seuil se déplacera si les
+ * données le demandent — pas avant.
+ */
+export const FENETRE_UTILITE_JOURS = 7;
+
+const FENETRE_UTILITE_MS = FENETRE_UTILITE_JOURS * 86_400_000;
+
+/**
+ * La tentative attribuable à une décision : sur l'exercice proposé, après la
+ * décision, et dans la fenêtre. La première suffit — les suivantes ne rendent
+ * pas la recommandation « plus suivie ».
+ */
+function tentativeDansLaFenetre(
+  decision: DecisionInscrite,
+  tentatives: ExerciseAttempt[],
+): boolean {
+  const prise = new Date(decision.priseLe).getTime();
+  return tentatives.some((t) => {
+    if (t.exerciseId !== decision.cibleRef) return false;
+    const debut = new Date(t.debut).getTime();
+    return debut > prise && debut - prise <= FENETRE_UTILITE_MS;
+  });
+}
+
 function metriqueUtilite(
   decisions: DecisionInscrite[],
   tentatives: ExerciseAttempt[],
@@ -454,19 +493,18 @@ function metriqueUtilite(
     };
   }
 
-  const suivies = avecCible.filter((d) =>
-    tentatives.some((t) => t.exerciseId === d.cibleRef && t.debut > d.priseLe),
-  ).length;
+  const suivies = avecCible.filter((d) => tentativeDansLaFenetre(d, tentatives)).length;
   const part = suivies / n;
 
   return {
     ...base,
     valeur: part,
     reference: null,
-    lecture: `${suivies} recommandation(s) sur ${n} ont été suivies d'une tentative sur l'exercice proposé.`,
+    lecture: `${suivies} recommandation(s) sur ${n} ont été suivies d'une tentative sur l'exercice proposé, dans les ${FENETRE_UTILITE_JOURS} jours.`,
     detail: [
       { libelle: "Décisions avec exercice", valeur: `${n}` },
-      { libelle: "Suivies d'une tentative", valeur: `${suivies}` },
+      { libelle: "Suivies dans la fenêtre", valeur: `${suivies}` },
+      { libelle: "Fenêtre retenue", valeur: `${FENETRE_UTILITE_JOURS} jours` },
       { libelle: "Part suivie", valeur: `${(part * 100).toFixed(0)} %` },
     ],
   };
