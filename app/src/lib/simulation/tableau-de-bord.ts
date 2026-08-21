@@ -75,8 +75,30 @@ export interface Verdict {
 }
 
 export interface BilanObjectif extends ObjectifFictif {
-  /** Premier jour où toutes les compétences visées atteignent le niveau requis. */
+  /**
+   * Premier jour où le MOTEUR voit toutes les compétences visées au niveau
+   * requis. C'est une croyance, pas un fait : un moteur sévère l'annonce tard,
+   * un moteur complaisant l'annonce tôt et à tort.
+   */
   jourAtteint: number | null;
+  /**
+   * Premier jour où l'objectif est RÉELLEMENT atteint, lu sur l'aptitude de
+   * l'apprenant simulé — que le moteur ne voit jamais.
+   *
+   * Ajouté le 21/08/2026 : sans lui, « objectifs résolus » et « jours jusqu'à
+   * un objectif » se calculaient sur les niveaux du moteur, et durcir
+   * l'estimation faisait mécaniquement chuter les deux. On mesurait la
+   * complaisance du moteur en croyant mesurer le produit.
+   */
+  jourAtteintReel: number | null;
+  /**
+   * Jours entre la réalité et sa reconnaissance par le moteur.
+   *
+   * Positif : le moteur reconnaît en retard. Négatif : il l'annonce avant que
+   * ce soit vrai — le défaut le plus grave, puisqu'il ferait passer à la suite
+   * quelqu'un qui n'y est pas.
+   */
+  retardReconnaissance: number | null;
   joursPourResoudre: number | null;
   /** Jour où l'objectif, une fois atteint, a cessé de l'être. */
   jourPerdu: number | null;
@@ -179,6 +201,15 @@ export interface ResultatReel {
   partObjectifsResolus: number;
   /** Jours médians entre déclaration et résolution, sur les objectifs résolus. */
   joursMedianResolution: number | null;
+  /** Objectifs réellement atteints — lus sur l'aptitude, pas sur le moteur. */
+  objectifsAtteintsReellement: number;
+  partObjectifsReels: number;
+  joursMedianResolutionReelle: number | null;
+  /**
+   * Retard médian de reconnaissance, en jours. Négatif : le moteur annonce
+   * l'objectif avant qu'il ne soit vrai.
+   */
+  retardMedianReconnaissance: number | null;
   couverture: number;
   exercicesGeneres: number;
 }
@@ -349,6 +380,14 @@ function objectifAtteint(resume: PasResume, objectif: ObjectifFictif): boolean {
   });
 }
 
+/** Le même objectif, lu sur l'aptitude réelle plutôt que sur ce qu'en croit le moteur. */
+function objectifAtteintReellement(resume: PasResume, objectif: ObjectifFictif): boolean {
+  return objectif.competences.every((code) => {
+    const aptitude = resume.aptitudes[code];
+    return aptitude !== undefined && aptitude >= objectif.niveauRequis;
+  });
+}
+
 function bilanObjectifs(
   parcours: ResultatParcoursLong,
   tentativesParCode: Map<string, number>,
@@ -360,11 +399,15 @@ function bilanObjectifs(
 
   return objectifsDuMonde(parcours.monde).map((objectif) => {
     let jourAtteint: number | null = null;
+    let jourAtteintReel: number | null = null;
     let jourPerdu: number | null = null;
 
     for (const resume of parcours.resumes) {
       if (resume.jour < objectif.jourDeclare) continue;
       const atteint = objectifAtteint(resume, objectif);
+      if (jourAtteintReel === null && objectifAtteintReellement(resume, objectif)) {
+        jourAtteintReel = resume.jour;
+      }
       if (atteint && jourAtteint === null) jourAtteint = resume.jour;
       // Une perte n'est comptée qu'après une résolution : « pas encore atteint »
       // et « perdu » ne sont pas la même information.
@@ -386,6 +429,9 @@ function bilanObjectifs(
     return {
       ...objectif,
       jourAtteint,
+      jourAtteintReel,
+      retardReconnaissance:
+        jourAtteint === null || jourAtteintReel === null ? null : jourAtteint - jourAtteintReel,
       joursPourResoudre: jourAtteint === null ? null : jourAtteint - objectif.jourDeclare,
       jourPerdu,
       partFinale: detail.filter((d) => d.atteint).length / Math.max(1, detail.length),
@@ -1021,6 +1067,10 @@ function resultatReel(
   const gainTotal = gains.reduce((s, g) => s + g, 0);
   const heures = act.minutes / 60;
   const resolus = objectifs.filter((o) => o.jourAtteint !== null);
+  const reels = objectifs.filter((o) => o.jourAtteintReel !== null);
+  const retards = objectifs
+    .map((o) => o.retardReconnaissance)
+    .filter((r): r is number => r !== null);
 
   return {
     heures: Math.round(heures * 10) / 10,
@@ -1035,6 +1085,13 @@ function resultatReel(
       mediane(resolus.map((o) => o.joursPourResoudre ?? 0)),
       1,
     ),
+    objectifsAtteintsReellement: reels.length,
+    partObjectifsReels: objectifs.length === 0 ? 0 : reels.length / objectifs.length,
+    joursMedianResolutionReelle: arrondir(
+      mediane(reels.map((o) => (o.jourAtteintReel ?? 0) - o.jourDeclare)),
+      1,
+    ),
+    retardMedianReconnaissance: arrondir(mediane(retards), 1),
     couverture:
       graphe.noeuds.length === 0
         ? 0

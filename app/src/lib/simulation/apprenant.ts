@@ -35,19 +35,39 @@ export interface ProfilApprenant {
    * ce qu'il doit approcher.
    */
   aptitude: Record<string, number>;
-  /** Progrès d'aptitude par tentative menée sur la compétence. */
+  /**
+   * Progrès d'aptitude par tentative menée **au bon niveau de difficulté**.
+   *
+   * Le gain réel est modulé par la pertinence de l'exercice (`gainDApprentissage`) :
+   * jusqu'au 21/08/2026 il était constant, si bien qu'un exercice trivial
+   * rapportait autant qu'un exercice ajusté. La politique « toujours facile »
+   * devenait alors optimale par construction, et la mesure « exercices servis
+   * dans la zone » ne pouvait avoir aucune conséquence — on comparait des
+   * stratégies de difficulté dans un monde où la difficulté ne changeait rien.
+   */
   apprentissage: number;
   /** Part des propositions ignorées — une recommandation n'est pas un ordre. */
   tauxIgnore: number;
   /** Facteur appliqué à la durée estimée de l'exercice. */
   lenteur: number;
   /**
-   * Aptitude acquise perdue par mois sans pratique sur la compétence.
+   * PART de l'acquis perdue par mois sans pratique — corrigé le 21/08/2026.
    *
-   * Absent ou nul, personne n'oublie jamais rien : un parcours long ne montre
-   * alors qu'une montée monotone, et la révision espacée n'a rien à rattraper.
-   * Seul l'ACQUIS s'oublie — jamais l'aptitude de départ, qui n'a pas été
-   * apprise ici et n'a aucune raison de disparaître.
+   * C'était auparavant une quantité absolue de niveaux par mois. Avec 0,4 et des
+   * reprises espacées de deux mois, l'oubli dépassait systématiquement les gains :
+   * mesuré sur 45 parcours, l'apprenant simulé gagnait 0,14 niveau en dix-huit
+   * mois et AUCUN objectif n'était jamais réellement atteint. On ne mesurait plus
+   * un moteur pédagogique, on mesurait un apprenant qui n'apprend pas — et tout
+   * objectif que le moteur déclarait résolu était un faux positif.
+   *
+   * Une part, donc, appliquée à ce qui a été appris : on n'oublie jamais plus
+   * que ce qu'on a acquis, et jamais l'aptitude de départ, qui n'a pas été
+   * apprise ici.
+   *
+   * S'y ajoute la CONSOLIDATION : plus une compétence a été pratiquée, moins
+   * elle se perd (`1 / (1 + pratiques / 4)`). C'est le fait le mieux établi de
+   * la littérature sur l'espacement, et sans lui la répétition espacée n'aurait
+   * rien à démontrer — réviser ne servirait qu'à repousser la même chute.
    */
   oubli?: number;
 }
@@ -107,21 +127,63 @@ export interface Apprenant {
 
 const JOUR_MS = 86_400_000;
 
+/**
+ * Ce qu'une tentative fait apprendre, selon l'écart à l'aptitude et le résultat.
+ *
+ * Deux effets, tous deux nécessaires pour que la difficulté servie ait des
+ * conséquences :
+ *
+ * - **la difficulté désirable** — le gain culmine un demi-niveau AU-DESSUS de
+ *   l'aptitude et retombe des deux côtés. Réviser ce qu'on sait déjà n'apprend
+ *   presque rien ; buter sur trois niveaux au-dessus non plus.
+ * - **l'issue** — une réussite consolide plus qu'un échec, sans que l'échec ne
+ *   rapporte rien : on apprend aussi de ce qui résiste, à condition d'avoir
+ *   cherché.
+ *
+ * Ce n'est pas une loi de l'apprentissage : c'est une hypothèse explicite,
+ * lisible, et qu'on peut remplacer. Elle vaut mieux que l'hypothèse implicite
+ * qu'elle remplace — « la difficulté ne change rien » — qui, elle, était fausse
+ * sans le dire.
+ */
+const ECART_OPTIMAL = 0.5;
+const LARGEUR_ZONE = 1.2;
+
+const RENDEMENT_RESULTAT: Record<"reussi" | "partiel" | "echec", number> = {
+  reussi: 1,
+  partiel: 0.8,
+  echec: 0.5,
+};
+
+export function gainDApprentissage(
+  apprentissage: number,
+  ecartDifficulte: number,
+  resultat: "reussi" | "partiel" | "echec",
+): number {
+  const pertinence = Math.exp(
+    -((ecartDifficulte - ECART_OPTIMAL) ** 2) / (2 * LARGEUR_ZONE ** 2),
+  );
+  return apprentissage * pertinence * RENDEMENT_RESULTAT[resultat];
+}
+
 export function creerApprenant(profil: ProfilApprenant, graine: number): Apprenant {
   const suivant = tirage(graine);
   /** Acquis courant par compétence, déjà amputé des oublis passés. */
   const acquis = new Map<string, number>();
   const dernierePratique = new Map<string, string>();
-  const oubliParMois = profil.oubli ?? 0;
+  const pratiques = new Map<string, number>();
+  const partOubliee = profil.oubli ?? 0;
 
   /** L'acquis restant à `date`, une fois l'oubli du temps écoulé appliqué. */
   const acquisA = (code: string, date?: string): number => {
     const courant = acquis.get(code) ?? 0;
     const depuis = dernierePratique.get(code);
-    if (oubliParMois <= 0 || courant <= 0 || !date || !depuis) return courant;
+    if (partOubliee <= 0 || courant <= 0 || !date || !depuis) return courant;
     const jours = (new Date(date).getTime() - new Date(depuis).getTime()) / JOUR_MS;
     if (jours <= 0) return courant;
-    return Math.max(0, courant - (oubliParMois * jours) / 30);
+
+    // Consolidation : chaque pratique rend l'oubli plus lent.
+    const taux = partOubliee / (1 + (pratiques.get(code) ?? 0) / 4);
+    return Math.max(0, courant * Math.pow(1 - Math.min(0.95, taux), jours / 30));
   };
 
   const jouer = (contexte: {
@@ -135,7 +197,7 @@ export function creerApprenant(profil: ProfilApprenant, graine: number): Apprena
     const base = profil.aptitude[code] ?? 2.5;
     const restant = acquisA(code, contexte.date);
     const aptitude = base + restant;
-    acquis.set(code, restant + profil.apprentissage);
+    pratiques.set(code, (pratiques.get(code) ?? 0) + 1);
     if (contexte.date) dernierePratique.set(code, contexte.date);
 
     // Logistique centrée sur l'aptitude : à difficulté égale à l'aptitude, une
@@ -146,6 +208,13 @@ export function creerApprenant(profil: ProfilApprenant, graine: number): Apprena
 
     const resultat: Jeu["resultat"] =
       tirageResultat < chance ? "reussi" : tirageResultat < chance + 0.25 ? "partiel" : "echec";
+
+    // Le gain dépend de ce qui vient de se passer : il se calcule donc APRÈS le
+    // tirage du résultat, et sur l'écart réel entre l'exercice et l'aptitude.
+    acquis.set(
+      code,
+      restant + gainDApprentissage(profil.apprentissage, -ecart, resultat),
+    );
 
     // Plus c'est dur, plus on consulte : les indices sont le seul signal
     // d'autonomie non déclaratif du produit (protocole §5).

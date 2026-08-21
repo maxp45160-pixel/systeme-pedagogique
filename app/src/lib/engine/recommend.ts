@@ -74,12 +74,12 @@ export interface Recommandation {
 /**
  * La table par niveau vise un cran au-dessus du niveau démontré.
  *
- * Testé le 21/08/2026 : viser le niveau lui-même, ou n'y ajouter un cran
- * qu'après une réussite, améliore la justesse de l'estimation (écart au réel
- * 0,79 → 0,65) mais triple le temps d'atteinte des objectifs (51 → 173 jours)
- * — sans exercice au-dessus de l'acquis, plus rien ne tire vers le haut. Le
- * cran reste donc, et c'est la calibration qui le corrige quand les faits le
- * démentent.
+ * Deux variantes ont été essayées le 21/08/2026 — viser le niveau lui-même, et
+ * n'ajouter le cran qu'après une réussite — sur un modèle d'apprenant depuis
+ * reconnu faux (l'oubli y écrasait les gains, aucun objectif n'y était jamais
+ * réellement atteint). Leurs chiffres ne valent donc rien et ne sont pas
+ * reproduits ici. Le cran reste, et la calibration le corrige quand les faits
+ * le démentent ; la question est rouverte, pas tranchée.
  */
 function difficulteDepuisNiveau(etat: SkillState): Difficulte {
   const n = etat.niveau;
@@ -242,17 +242,21 @@ function evaluer(
       // Contribution proportionnelle au RETARD, plafonnée — corrigé le 21/08/2026.
       //
       // Le plateau à 40 faisait de la révision le facteur dominant dès qu'une
-      // poignée de compétences avaient été observées : mesuré en simulation,
-      // 88 % des actions servies sur dix-huit mois portaient ce facteur, et le
-      // référentiel plafonnait à 82 % de compétences jamais observées — les
-      // chapitres ouverts en cours de route n'obtenaient plus leur tour. Une
-      // compétence due l'est d'autant plus qu'elle l'est depuis longtemps ;
-      // l'être depuis une heure ne vaut pas l'être depuis un mois.
+      // poignée de compétences avaient été observées : 88 % des actions servies
+      // sur dix-huit mois portaient ce facteur, et les chapitres ouverts en
+      // cours de route n'obtenaient plus leur tour. Une compétence due l'est
+      // d'autant plus qu'elle l'est depuis longtemps ; l'être depuis une heure
+      // ne vaut pas l'être depuis un mois.
       //
-      // Le plafond passe sous « Jamais évaluée » (60 à 70) : découvrir passe
-      // avant réviser, réviser passe avant retravailler du frais. L'ablation
-      // « sans révision » reste plus mauvaise sur l'écart au réel (1,20 contre
-      // 0,79) : le facteur garde donc sa raison d'être, il perd sa domination.
+      // Rejoué le 21/08/2026 sur 45 parcours, après correction du modèle
+      // d'apprenant — plateau à 40 contre plafond 12–32 :
+      //   couverture du référentiel .......... 82 % → 96 %
+      //   écart au réel ...................... 1,05 → 0,79
+      //   corrélation de rangs estimé / réel . −0,21 → −0,02
+      //   ablation « sans révision fait mieux » : présente → disparue
+      // Le facteur garde donc sa raison d'être ; il perd sa domination. Le
+      // plafond passe sous « Jamais évaluée » (60 à 70) : découvrir passe avant
+      // réviser.
       const revision = prochaineRevision(etat, now, modeleRevision);
       const retard =
         revision.intervalleJours > 0
