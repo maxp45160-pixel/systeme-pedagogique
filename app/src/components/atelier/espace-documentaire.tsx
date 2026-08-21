@@ -716,15 +716,6 @@ export function EspaceDocumentaire({
     return trouverElement(cible, elements);
   }
 
-  const domainesExistants = useMemo(() => {
-    return elements
-      .filter((el) => el.type === "domaine" && el.vuePedagogique)
-      .map((el) => {
-        const v = el.vuePedagogique as VueDomaineAtelier;
-        return { id: v.domaine.id, nom: v.domaine.nom, prefixe: v.domaine.prefixe };
-      });
-  }, [elements]);
-
   const vueActuelle =
     !selection || selection === "domaines" || selection === "domaines-archives"
       ? "domaines"

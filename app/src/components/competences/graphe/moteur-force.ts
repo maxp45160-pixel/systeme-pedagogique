@@ -97,9 +97,6 @@ export function creerSimulation(
     });
   });
 
-  // Map pour trouver rapidement les nœuds par ID
-  const parId = new Map(noeuds.map((n) => [n.id, n]));
-
   // Calcul du centre naturel pour chaque nœud (centre du domaine)
   const centresNoeuds = new Map<string, { x: number; y: number }>();
 

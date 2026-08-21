@@ -363,7 +363,7 @@ function ClotureDuJour({
       {estAujourdHui ? (
         <section className="space-y-2">
           <TitreDeSection>Notes du jour</TitreDeSection>
-          <MargeCahier lignes={notes} compteId={donnees.compteId} compacte />
+          <MargeCahier lignes={notes} compacte />
         </section>
       ) : feuillet.notes.length > 0 ? (
         <section className="space-y-2">

@@ -8,8 +8,7 @@ import type {
   DocumentLieAtelier,
 } from "@/lib/documents/vue-atelier";
 import type { ElementAtelier } from "../types-atelier";
-import { CodeCompetence, cx } from "@/components/ui/primitives";
-import type { EtapeParcours } from "@/lib/engine/parcours";
+import { cx } from "@/components/ui/primitives";
 import { RelationsCompetence } from "../relations-competence";
 import { IconeFleche } from "@/components/ui/icones";
 import { BoutonGenerer } from "@/components/exercices/bouton-generer";

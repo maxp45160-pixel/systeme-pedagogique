@@ -30,7 +30,6 @@ import {
   IconeRedaction,
   IconeReference,
   IconeSchema,
-  IconeTheme,
 } from "./icones";
 
 type ComposantIcone = (props: { className?: string }) => React.ReactElement;

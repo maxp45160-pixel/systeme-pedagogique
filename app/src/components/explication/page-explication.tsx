@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { Skill, Domaine, SkillState } from "@/lib/domain/types";
+import type { Skill, Domaine } from "@/lib/domain/types";
 import type { EvaluationExplication } from "@/lib/domain/explication";
 import {
   EXPLICATION_MIN_CARACTERES,
@@ -24,18 +24,15 @@ import {
   IconeFleche,
   IconeValide,
   IconeRedaction,
-  IconeCompetences,
 } from "@/components/ui/icones";
 
 export function PageExplication({
   skill,
   domaine,
-  etat,
   compteId,
 }: {
   skill: Skill;
   domaine?: Domaine;
-  etat?: SkillState;
   compteId: string;
 }) {
   const router = useRouter();

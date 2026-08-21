@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Recommandation } from "@/lib/engine/recommend";
-import { DIFFICULTES, type Referentiel } from "@/lib/domain/types";
+import type { Referentiel } from "@/lib/domain/types";
 import { libelleDomaine } from "@/lib/domain/referentiel-compte";
 import {
   estActiviteExercice,
@@ -132,7 +132,7 @@ export function CarteProchaineAction({
   facteursInstant?: readonly RecommendationFactor[];
   reservesInstant?: readonly string[];
 }) {
-  const [principale, ...alternatives] = recommandations;
+  const principale = recommandations[0];
 
   if (activite) {
     return (
@@ -167,7 +167,7 @@ export function CarteProchaineAction({
     );
   }
 
-  const { etat, exercice, raison, difficulteCible, dureeEstimeeMin } = principale;
+  const { etat, exercice, difficulteCible, dureeEstimeeMin } = principale;
   const revision = prochaineRevision(etat, now);
 
   return (

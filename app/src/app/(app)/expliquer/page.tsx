@@ -52,13 +52,11 @@ async function ContenuExpliquer({ code }: { code: string }) {
   }
 
   const domaine = ctx.referentiel.domainesParId.get(skill.domaine);
-  const etat = ctx.etats.find((e) => e.skill.code === skill.code);
 
   return (
     <PageExplication
       skill={skill}
       domaine={domaine}
-      etat={etat}
       compteId={ctx.donnees.user.id}
     />
   );

@@ -1487,7 +1487,7 @@ export function resoudreModalesImbriquees(
   }
 
   const parParent = new Map<string, Set<string>>();
-  for (const [relatif, modales] of modalesParFichier.entries()) {
+  for (const [relatif] of modalesParFichier.entries()) {
     const a = analyses.get(relatif);
     if (!a) continue;
     for (const modale of a.modales) {

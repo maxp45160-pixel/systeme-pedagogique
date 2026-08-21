@@ -281,7 +281,7 @@ export function CaptureIntention({
         setPhase("saisie");
       }
     }
-  }, [besoin, compteId]);
+  }, [besoin, compteId, contexte]);
 
   useEffect(() => {
     if (besoinInitial && besoinValide(besoinInitial.trim())) {
