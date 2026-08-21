@@ -46,21 +46,55 @@ export interface ResultatSuggestion {
 /* ------------------------------------------------------------------ */
 
 /**
+ * Résumé structuré du référentiel existant, pour **ancrer la proposition dans
+ * ce qui est déjà là**.
+ *
+ * Le prompt de suggestion ne montrait que des identifiants de domaine — le
+ * tuteur proposait donc des compétences qui existaient déjà, faute de savoir
+ * ce que le compte porte. Chaque domaine actif est listé avec son préfixe, son
+ * volume et un échantillon d'intitulés ; le plafond garde le prompt court sur
+ * les référentiels denses.
+ *
+ * Fonction pure et testable.
+ */
+export function resumerReferentielExistant(
+  referentiel: Referentiel,
+  intitulesParDomaine = 6,
+): string {
+  const lignes: string[] = [];
+  for (const domaine of referentiel.domaines.filter((d) => !d.archive)) {
+    const actives = referentiel.actifs.filter((s) => s.domaine === domaine.id);
+    // Un domaine sans compétence active n'est pas listé : le proposer comme
+    // rattachement enverrait la branche dans un domaine que rien n'alimente.
+    if (actives.length === 0) continue;
+    const echantillon = actives
+      .slice(0, intitulesParDomaine)
+      .map((s) => `« ${s.intitule} »`)
+      .join(", ");
+    const suite =
+      actives.length > intitulesParDomaine
+        ? `… (+${actives.length - intitulesParDomaine} autres)`
+        : "";
+    lignes.push(
+      `- ${domaine.nom} (${domaine.prefixe}) — ${actives.length} compétence${actives.length > 1 ? "s" : ""} active${actives.length > 1 ? "s" : ""} : ${echantillon}${suite}`,
+    );
+  }
+  return lignes.length > 0 ? lignes.join("\n") : "- Aucun — le référentiel est vide.";
+}
+
+/**
  * Le prompt système de la suggestion de branche.
  *
  * Volontairement court : identité, protocole de rédaction d'une compétence,
- * domaines actifs. Le reste du protocole (évaluation, anti-hallucination) ne
- * sert pas ici : la suggestion ne produit aucune mesure, elle produit du
- * contenu. P5 reformulé — « le tuteur écrit le contenu, jamais la mesure ».
+ * référentiel existant résumé. Le reste du protocole (évaluation,
+ * anti-hallucination) ne sert pas ici : la suggestion ne produit aucune
+ * mesure, elle produit du contenu. P5 reformulé — « le tuteur écrit le
+ * contenu, jamais la mesure ».
  */
 export function construirePromptSuggestion(
   referentiel: Referentiel,
   sujet: string,
 ): string {
-  const domaines = referentiel.domaines
-    .filter((d) => referentiel.actifs.some((s) => s.domaine === d.id))
-    .map((d) => d.id);
-
   return [
     "Tu es le tuteur du système pédagogique. Tu proposes une branche de compétences pour un sujet demandé.",
     "",
@@ -74,7 +108,8 @@ export function construirePromptSuggestion(
     "",
     `Sujet demandé : ${sujet}`,
     "",
-    `Domaines disponibles : ${domaines.length > 0 ? domaines.join(", ") : "aucun — commence par proposer une branche."}`,
+    "RÉFÉRENTIEL EXISTANT DU COMPTE — ne redouble ni ces domaines ni leurs compétences ; si le sujet est déjà couvert par une compétence listée, dis-le plutôt que de proposer un doublon :",
+    resumerReferentielExistant(referentiel),
     "",
     "Appelle l'outil proposer_referentiel UNE fois. Ne recopie pas le contenu de l'appel dans ta réponse.",
   ].join("\n");
@@ -167,9 +202,8 @@ export function construirePromptReferentiel(referentiel: Referentiel, sujet: str
     "",
     `Sujet demandé : ${sujet}`,
     "",
-    `Domaines déjà présents — ne les redouble pas : ${
-      existants.length > 0 ? existants.join(" · ") : "aucun, le référentiel est vide"
-    }`,
+    "RÉFÉRENTIEL EXISTANT DU COMPTE — ne redouble ni ces domaines ni leurs compétences :",
+    resumerReferentielExistant(referentiel),
     "",
     "Appelle l'outil proposer_referentiel_complet UNE fois. Ne recopie pas le contenu de l'appel dans ta réponse.",
   ].join("\n");

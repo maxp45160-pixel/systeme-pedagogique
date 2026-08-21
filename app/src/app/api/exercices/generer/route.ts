@@ -101,9 +101,19 @@ export async function POST(request: Request) {
   // exercice attaché à une compétence inexistante produirait des observations que
   // rien ne lirait. `creerExercice` refuse déjà, mais on le dit ici avant de
   // dépenser une génération.
+  /*
+   * Un code hors périmètre n'est pas retiré en silence : il est écarté de la
+   * demande ET annoncé au client (événement `avertissement`). Sans cela,
+   * demander deux compétences dont une archivée produisait un exercice unique
+   * sans explication — l'utilisateur croyait à un refus partiel du tuteur.
+   */
+  const ignorees: string[] = [];
   const demandes = codes.flatMap((code) => {
     const etat = ctx.etatsParCode.get(code.toUpperCase());
-    if (!etat) return [];
+    if (!etat) {
+      ignorees.push(code);
+      return [];
+    }
     return [
       {
         competence: etat.skill,
@@ -145,6 +155,13 @@ export async function POST(request: Request) {
       };
 
       try {
+        if (ignorees.length > 0) {
+          envoyer("avertissement", {
+            message: `${ignorees.length} compétence${ignorees.length > 1 ? "s" : ""} ignorée${ignorees.length > 1 ? "s" : ""} — hors périmètre actif : ${ignorees.join(", ")}.`,
+            codes: ignorees,
+          });
+        }
+
         const resultat = await genererExercices(
           moteur,
           ctx.referentiel,

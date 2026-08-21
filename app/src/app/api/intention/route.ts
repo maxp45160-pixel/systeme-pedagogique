@@ -136,22 +136,46 @@ export async function POST(request: Request) {
           return;
         }
 
+        /*
+         * Les cadrages déterministes (`forcer*`) peuvent contredire la
+         * traduction du modèle — c'est leur rôle : ils corrigent des lectures
+         * erronées déjà mesurées. Mais une contradiction silencieuse se vit
+         * comme une incompréhension : « j'ai demandé X, on me propose Y ».
+         * Chaque forçage qui s'applique est donc annoncé à l'écran avant la
+         * proposition, avec sa raison.
+         */
         const cadrage = analyserDemandeReferentiel(besoin, corps.contexte);
-        const traduction =
-          corps.contexte === "domaine"
-            ? forcerDomaineReferentiel(resultat.traduction, besoin)
-            : demandeSeanceSansSujet(besoin)
-              ? forcerSeanceSansSujet(resultat.traduction, besoin)
-              : resultat.traduction &&
-                cadrage.explicite &&
-                (cadrage.type === "competence" || cadrage.portee === "large")
-                ? forcerExtensionReferentiel(
-                    resultat.traduction,
-                    besoin,
-                    cadrage.type === "competence",
-                    cadrage.intitules,
-                  )
-                : resultat.traduction;
+        let raisonForcage: string | null = null;
+        let traduction: TraductionIntention | null = resultat.traduction;
+
+        if (corps.contexte === "domaine") {
+          raisonForcage =
+            "Tu écris depuis le point d'entrée « nouveau domaine » : la demande est traitée comme la structuration d'un domaine.";
+          traduction = forcerDomaineReferentiel(resultat.traduction, besoin);
+        } else if (demandeSeanceSansSujet(besoin)) {
+          raisonForcage =
+            "Ta demande ne désigne aucun sujet précis : elle est traitée comme la préparation d'une séance libre.";
+          traduction = forcerSeanceSansSujet(resultat.traduction, besoin);
+        } else if (
+          resultat.traduction &&
+          cadrage.explicite &&
+          (cadrage.type === "competence" || cadrage.portee === "large")
+        ) {
+          raisonForcage =
+            cadrage.type === "competence"
+              ? "Ta demande désigne explicitement une ou plusieurs compétences à ajouter : elle est traitée comme une extension du référentiel."
+              : "Ta demande porte sur une vue d'ensemble : elle est traitée comme la structuration d'un domaine plutôt que comme un entraînement.";
+          traduction = forcerExtensionReferentiel(
+            resultat.traduction,
+            besoin,
+            cadrage.type === "competence",
+            cadrage.intitules,
+          );
+        }
+
+        if (raisonForcage) {
+          envoyer("avertissement", { message: raisonForcage });
+        }
 
         envoyer("proposition", { traduction });
       } catch (e) {

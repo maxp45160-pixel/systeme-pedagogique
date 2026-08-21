@@ -225,9 +225,10 @@ export const OUTIL_REFERENTIEL_COMPLET = "proposer_referentiel_complet";
 /**
  * ⚠️ `traduire_intention` — le point d'entrée unique de création.
  *
- * N'entre PAS dans `outilsTuteur`, pour la même raison que `proposer_theme` :
- * il n'est armé que sur `POST /api/intention`, où le serveur a déjà fixé les
- * codes actifs et le contexte du compte.
+ * N'entre PAS dans `outilsTuteur` : il n'est armé que sur `POST /api/intention`,
+ * où le serveur a déjà fixé les codes actifs et le contexte du compte. Le
+ * confiner à sa route est la même règle que pour `outilCorrection` — un outil
+ * de création n'est jamais monté sur le chemin de résolution.
  *
  * Même distinction frapper / désigner : `codes` est un `enum` fermé sur les
  * codes actifs du compte entier — un besoin exprimé traverse les domaines par

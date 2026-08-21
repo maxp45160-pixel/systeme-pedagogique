@@ -39,6 +39,7 @@ import { Modale, type LargeurModale } from "@/components/ui/modale";
 import { Markdown } from "@/components/ui/markdown";
 import { creerExercice } from "@/lib/store/actions";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
+import { consommerFluxSse } from "@/lib/tutor/flux-sse";
 import { ChargementGeneration } from "@/components/ui/chargement-generation";
 import { convertirProposition } from "@/lib/tutor/conversion-exercice";
 import type { PropositionExercice } from "@/lib/tutor/proposition";
@@ -154,6 +155,12 @@ export function ModaleExercice({
   const [progression, setProgression] = useState<string | null>(null);
   const [exercicesRecus, setExercicesRecus] = useState(0);
   const [erreur, setErreur] = useState<string | null>(null);
+  /**
+   * Information non bloquante venue du flux : compétence ignorée hors
+   * périmètre, lot interrompu après des exercices déjà reçus. Distincte de
+   * `erreur` — quelque chose a été produit, il faut le dire sans tout rejeter.
+   */
+  const [avertissement, setAvertissement] = useState<string | null>(null);
   const abandonRef = useRef<AbortController | null>(null);
 
   const totalExercicesCibles = modificationIndex !== null ? 1 : (codesLot?.length ?? 1);
@@ -163,15 +170,18 @@ export function ModaleExercice({
     return Math.max(10, Math.min(60, 5 + totalExercicesCibles * 6));
   }, [totalExercicesCibles]);
 
+  /**
+   * Une seule étape, la vraie : tout part en un seul appel au fournisseur.
+   * L'ancienne liste en cinq temps (« Analyse du référentiel… », « Calibration… »)
+   * décrivait un pipeline qui n'existe pas — le chargement théâtral contredisait
+   * l'honnêteté affichée partout ailleurs. La progression réelle vient des
+   * événements du flux (`progressionServeur`), qui prime sur ce libellé.
+   */
   const etapesGeneration = useMemo(() => {
-    if (totalExercicesCibles <= 1) return ETAPES_GENERATION;
-    return [
-      `Analyse des ${totalExercicesCibles} compétences ciblées…`,
-      "Calibration des niveaux et des difficultés…",
-      `Rédaction des ${totalExercicesCibles} exercices par le tuteur IA…`,
-      "Vérification des critères d'évaluation…",
-      "Finalisation du lot d'exercices…",
-    ];
+    if (totalExercicesCibles <= 1) {
+      return ["Le tuteur rédige l'exercice — énoncé, consigne, critères…"];
+    }
+    return [`Le tuteur rédige les ${totalExercicesCibles} exercices du lot…`];
   }, [totalExercicesCibles]);
 
   const pourcentageMinimum = useMemo(() => {
@@ -205,6 +215,7 @@ export function ModaleExercice({
     setProgression(null);
     setExercicesRecus(0);
     setErreur(null);
+    setAvertissement(null);
     if (!modification) {
       setPropositions([]);
       setEnregistrees(new Set());
@@ -244,78 +255,94 @@ export function ModaleExercice({
         return;
       }
 
-      const lecteur = reponse.body.getReader();
-      const decodeur = new TextDecoder();
-      let tampon = "";
       let recue = false;
+      /** Compteur local : l'état React serait périmé après le `await`. */
+      let recusLocaux = 0;
 
-      for (;;) {
-        const { done, value } = await lecteur.read();
-        if (done) break;
-        tampon += decodeur.decode(value, { stream: true });
-
-        const evenements = tampon.split("\n\n");
-        tampon = evenements.pop() ?? "";
-
-        for (const bloc of evenements) {
-          const lignes = bloc.split("\n");
-          const type = lignes.find((l) => l.startsWith("event:"))?.slice(6).trim() ?? "message";
-          const donnees = lignes.find((l) => l.startsWith("data:"))?.slice(5).trim();
-
-          if (type === "propositions" && donnees) {
-            const parsed = JSON.parse(donnees) as { exercices: PropositionExercice[] };
-            recue = true;
-            if (modification && parsed.exercices[0]) {
-              setPropositions((liste) => liste.map((proposition, index) =>
-                index === modification.index ? parsed.exercices[0] : proposition,
-              ));
-              setModificationIndex(null);
-              setConsigneModification("");
-            } else {
-              setPropositions(parsed.exercices);
-              setIndexActif(0);
-            }
-            setPhase("previsualisation");
-          } else if (type === "proposition" && donnees) {
-            try {
-              const parsed = JSON.parse(donnees) as { genre?: string; exercice?: PropositionExercice };
-              if (parsed.genre === "exercice" && parsed.exercice) {
-                setExercicesRecus((prev) => {
-                  const suivant = prev + 1;
-                  const total = codesAEnvoyer.length;
-                  if (total > 1) {
-                    setProgression(
-                      suivant < total
-                        ? `Exercice ${suivant}/${total} rédigé · En cours pour le suivant…`
-                        : `Les ${total} exercices sont rédigés · Finalisation…`,
-                    );
-                  }
-                  return suivant;
-                });
+      await consommerFluxSse(reponse, (type, donnees) => {
+        if (type === "propositions") {
+          const parsed = JSON.parse(donnees) as { exercices: PropositionExercice[] };
+          recue = true;
+          if (modification && parsed.exercices[0]) {
+            setPropositions((liste) => liste.map((proposition, index) =>
+              index === modification.index ? parsed.exercices[0] : proposition,
+            ));
+            setModificationIndex(null);
+            setConsigneModification("");
+          } else {
+            // Le lot complet remplace les arrivées partielles accumulées.
+            setPropositions(parsed.exercices);
+            setIndexActif(0);
+          }
+          setPhase("previsualisation");
+        } else if (type === "proposition") {
+          try {
+            const parsed = JSON.parse(donnees) as { genre?: string; exercice?: PropositionExercice };
+            if (parsed.genre === "exercice" && parsed.exercice) {
+              /*
+               * Chaque exercice du lot est conservé dès son arrivée : si le
+               * flux s'interrompt avant l'événement final, ce qui a été rédigé
+               * reste prévisualisable et enregistrable — on ne rejette pas un
+               * lot entier pour une coupure survenue au 3ᵉ exercice.
+               */
+              if (!modification) {
+                const exercice = parsed.exercice;
+                setPropositions((liste) =>
+                  liste.some((p) => p.titre === exercice.titre && p.competences[0] === exercice.competences[0])
+                    ? liste
+                    : [...liste, exercice],
+                );
               }
-            } catch {
-              /* ignorer erreur json */
+              setExercicesRecus((prev) => {
+                const suivant = prev + 1;
+                const total = codesAEnvoyer.length;
+                if (total > 1) {
+                  setProgression(
+                    suivant < total
+                      ? `Exercice ${suivant}/${total} rédigé · En cours pour le suivant…`
+                      : `Les ${total} exercices sont rédigés · Finalisation…`,
+                  );
+                }
+                return suivant;
+              });
+              recusLocaux += 1;
             }
-          } else if (type === "erreur" && donnees) {
+          } catch {
+            /* ignorer erreur json */
+          }
+        } else if (type === "erreur" && donnees) {
+          const parsed = JSON.parse(donnees) as { message: string };
+          recue = true;
+          setErreur(parsed.message);
+          setPhase(modification ? "previsualisation" : "formulaire");
+        } else if (type === "avertissement" && donnees) {
+          try {
             const parsed = JSON.parse(donnees) as { message: string };
-            recue = true;
-            setErreur(parsed.message);
-            setPhase(modification ? "previsualisation" : "formulaire");
-          } else if (type === "proposition-en-cours") {
-            if (codesAEnvoyer.length > 1) {
-              setProgression(`Rédaction des ${codesAEnvoyer.length} exercices par le tuteur IA…`);
-            } else {
-              setProgression("Le tuteur rédige l'exercice — énoncé, consigne, critères…");
-            }
+            setAvertissement(parsed.message);
+          } catch {
+            /* ignorer erreur json */
+          }
+        } else if (type === "proposition-en-cours") {
+          if (codesAEnvoyer.length > 1) {
+            setProgression(`Rédaction des ${codesAEnvoyer.length} exercices par le tuteur IA…`);
+          } else {
+            setProgression("Le tuteur rédige l'exercice — énoncé, consigne, critères…");
           }
         }
-      }
+      });
 
       if (!recue && !abandon.signal.aborted) {
-        setErreur(
-          "Le flux s'est interrompu avant que le tuteur n'ait rendu son exercice. Rien n'a été enregistré — relance la génération.",
-        );
-        setPhase(modification ? "previsualisation" : "formulaire");
+        if (!modification && recusLocaux > 0) {
+          setAvertissement(
+            `Le flux s'est interrompu après ${recusLocaux} exercice${recusLocaux > 1 ? "s" : ""} sur ${codesAEnvoyer.length}. Ce qui a été rédigé est conservé ci-dessous ; relance la génération pour compléter le lot.`,
+          );
+          setPhase("previsualisation");
+        } else {
+          setErreur(
+            "Le flux s'est interrompu avant que le tuteur n'ait rendu son exercice. Rien n'a été enregistré — relance la génération.",
+          );
+          setPhase(modification ? "previsualisation" : "formulaire");
+        }
       }
     } catch {
       if (!abandon.signal.aborted) {
@@ -715,11 +742,21 @@ export function ModaleExercice({
                 setPhase(modificationIndex !== null ? "previsualisation" : "formulaire");
               }}
             />
+            {avertissement && (
+              <BandeauInfo ton="alerte" taille="compacte" className="mt-3">
+                <p className="text-alerte">{avertissement}</p>
+              </BandeauInfo>
+            )}
           </div>
         )}
 
         {phase === "previsualisation" && (
           <div className={presentation === "inline" ? "mt-4 space-y-4" : "space-y-4"}>
+            {avertissement && (
+              <BandeauInfo ton="alerte" taille="compacte">
+                <p className="text-alerte">{avertissement}</p>
+              </BandeauInfo>
+            )}
             {propositions.length === 0 ? (
               <BandeauInfo ton="alerte" taille="compacte">
                 <p className="text-alerte">
@@ -1069,13 +1106,5 @@ function EnveloppeGeneration({
     </section>
   );
 }
-
-const ETAPES_GENERATION = [
-  "Analyse du référentiel et des mesures passées…",
-  "Calibration du niveau et de la difficulté…",
-  "Rédaction de l'énoncé et de la mise en situation…",
-  "Définition des critères d'évaluation…",
-  "Finalisation de la proposition par le tuteur…",
-];
 
 

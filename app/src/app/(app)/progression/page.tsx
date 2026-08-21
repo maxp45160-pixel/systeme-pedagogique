@@ -15,14 +15,16 @@ import { Glossaire } from "@/components/ui/glossaire";
 import { TitreSection } from "@/components/ui/primitives";
 
 /**
- * Le profil : ce que la pratique a totalisé, et ce qu'elle a produit récemment.
+ * La Progression : où j'en suis, ce que le travail a produit, et ce que
+ * valent les mesures.
  *
  * Cette page rassemble trois lectures qui vivaient ailleurs et se cherchaient :
  * le bloc « Vue d'ensemble » du tableau de bord, le bilan de croissance qui
  * servait d'accueil à l'Atelier, et la carte de profil. Aucune n'était à sa
  * place — le tableau de bord doit dire quoi faire maintenant, l'Atelier doit
  * ouvrir sur le corpus. Toutes trois répondent à la même question : où j'en
- * suis.
+ * suis. Elles se lisent maintenant en trois zones hiérarchisées — état
+ * présent, trajectoire, détail des mesures.
  *
  * ## Ce que cette page ne fait pas
  *
@@ -92,40 +94,46 @@ async function ContenuProgression() {
   );
 
   return (
-    <div className="space-y-6 [&>*]:min-w-0">
-      <section id="bilan" className="scroll-mt-6 space-y-6">
-        <CarteCarriere
-          user={ctx.donnees.user}
-          identite={identite}
-          carriere={carriere}
-          global={ctx.global}
-        />
+    <div className="space-y-10 [&>*]:min-w-0">
+      {/*
+        Trois zones hiérarchisées, dans l'ordre où on se les pose :
+
+          1. **Où j'en suis maintenant** — le héros : score global, confiance,
+             et les totaux de carrière qui disent depuis quand.
+          2. **Trajectoire** — la continuité (grille d'activité) et ce que le
+             travail récent a produit (bilan de croissance) : deux lectures du
+             même mouvement, réunies sous un même titre.
+          3. **Le détail des mesures** — niveau moyen, répartition, robustesse :
+             la lecture analytique, pour qui veut comprendre les chiffres.
+
+        Direction visuelle : les tokens existants, aucune couleur ni brique
+        nouvelle. Une refonte « vibrante » avait été envisagée et écartée —
+        ce produit n'est pas un outil de motivation (ADR-017), et l'écran doit
+        porter des faits comptés, pas de l'énergie.
+      */}
+      <CarteCarriere
+        user={ctx.donnees.user}
+        identite={identite}
+        carriere={carriere}
+        global={ctx.global}
+      />
+
+      <section id="trajectoire" className="scroll-mt-6 space-y-4">
+        <TitreSection legende="La continuité et ce que le travail récent a produit">
+          Trajectoire
+        </TitreSection>
 
         {/* Une année pleine, étalée sur toute la largeur de la carte. */}
         <CarteActivite activite={activite} now={ctx.now} semaines={52} cellule={16} />
 
+        {/* Le bilan de croissance, repris de l'accueil de l'Atelier. */}
+        <BilanCroissanceLie resume={croissance} intitules={intitules} />
+      </section>
+
+      <section id="mesures" className="scroll-mt-6 space-y-4">
+        <TitreSection legende="Des repères, pas des notes">Le détail des mesures</TitreSection>
         <CarteEtatGlobal global={ctx.global} etats={ctx.etats} />
       </section>
-
-      {/*
-        Le bilan de croissance, repris de l'accueil de l'Atelier : ce que la
-        journée et la semaine ont produit, et les paliers franchis.
-      */}
-      <section>
-        <TitreSection>Ce que le travail récent a produit</TitreSection>
-        <BilanCroissanceLie
-          resume={croissance}
-          intitules={intitules}
-        />
-      </section>
-
-      {/*
-        « Dernières observations » vivait ici, sous la forme d'une seconde liste des
-        mêmes événements que le niveau 2 du bilan — même source, même moteur,
-        même ordre, à douze lignes contre huit. Le niveau 2 en dit davantage :
-        il distingue une première mesure d'un palier franchi. C'est lui qu'on
-        garde, avec la fenêtre de douze.
-      */}
 
       {/*
         Le vocabulaire du produit. Observation, niveau, autonomie, confiance,

@@ -24,6 +24,7 @@ import { BandeauInfo, Bouton } from "@/components/ui/primitives";
 import { Modale } from "@/components/ui/modale";
 import { IconeAmpoule } from "@/components/ui/icones";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
+import { consommerFluxSse } from "@/lib/tutor/flux-sse";
 import type { PropositionReferentiel } from "@/lib/tutor/proposition";
 import { creerBranche } from "@/lib/store/referentiel-actions";
 import type { CompetenceDejaAuReferentiel } from "@/lib/domain/gouvernance-referentiel";
@@ -32,11 +33,14 @@ import { ReglagesTuteur } from "@/components/tuteur/reglages-tuteur";
 import { ChargementGeneration } from "@/components/ui/chargement-generation";
 import { analyserDemandeReferentiel } from "@/lib/domain/intention";
 
+/**
+ * Une seule étape, la vraie : la proposition part en un seul appel au
+ * fournisseur. L'ancienne liste en quatre temps décrivait un pipeline qui
+ * n'existe pas — le chargement théâtral contredit l'honnêteté affichée
+ * ailleurs. La progression réelle vient du flux (`proposition-en-cours`).
+ */
 const ETAPES_REFERENTIEL = [
-  "Analyse du sujet et identification des axes majeurs…",
-  "Structuration des domaines de compétences…",
-  "Découpage en compétences observables et mesurables…",
-  "Attribution des critères et finalisation du référentiel…",
+  "Le tuteur compose le référentiel — domaines, compétences, critères…",
 ];
 
 type Etat =
@@ -134,9 +138,6 @@ export function ModaleReferentiel({
         return;
       }
 
-      const lecteur = reponse.body.getReader();
-      const decodeur = new TextDecoder();
-      let tampon = "";
       /*
        * Un flux fermé sans événement terminal — coupure, troncature, proxy —
        * laissait la modale en « proposition » indéfiniment (audit §2.4). On
@@ -144,53 +145,39 @@ export function ModaleReferentiel({
        */
       let recue = false;
 
-      for (;;) {
-        const { done, value } = await lecteur.read();
-        if (done) break;
-        tampon += decodeur.decode(value, { stream: true });
-
-        const blocs = tampon.split("\n\n");
-        tampon = blocs.pop() ?? "";
-
-        for (const bloc of blocs) {
-          const lignes = bloc.split("\n");
-          const type = lignes.find((l) => l.startsWith("event:"))?.slice(6).trim() ?? "message";
-          const donnees = lignes.find((l) => l.startsWith("data:"))?.slice(5).trim();
-          if (!donnees) continue;
-
-          if (type === "propositions") {
-            const recu = JSON.parse(donnees) as {
-              resume: string;
-              ecartees: number;
-              branches: PropositionReferentiel[];
-            };
-            const initial: Record<string, boolean> = {};
-            const p: Record<number, string> = {};
-            recu.branches.forEach((b, i) => {
-              initial[`b${i}`] = true;
-              p[i] = b.prefixe;
-              b.competences.forEach((_, j) => (initial[`c${i}-${j}`] = true));
-            });
-            recue = true;
-            setGarde(initial);
-            setPrefixes(p);
-            setEtat({
-              phase: "relecture",
-              resume: recu.resume,
-              ecartees: recu.ecartees,
-              branches: recu.branches,
-            });
-          } else if (type === "erreur") {
-            recue = true;
-            setEtat({
-              phase: "saisie",
-              message: (JSON.parse(donnees) as { message: string }).message,
-            });
-          } else if (type === "proposition-en-cours") {
-            setEtat({ phase: "proposition", progression: "Le tuteur compose le référentiel…" });
-          }
+      await consommerFluxSse(reponse, (type, donnees) => {
+        if (type === "propositions") {
+          const recu = JSON.parse(donnees) as {
+            resume: string;
+            ecartees: number;
+            branches: PropositionReferentiel[];
+          };
+          const initial: Record<string, boolean> = {};
+          const p: Record<number, string> = {};
+          recu.branches.forEach((b, i) => {
+            initial[`b${i}`] = true;
+            p[i] = b.prefixe;
+            b.competences.forEach((_, j) => (initial[`c${i}-${j}`] = true));
+          });
+          recue = true;
+          setGarde(initial);
+          setPrefixes(p);
+          setEtat({
+            phase: "relecture",
+            resume: recu.resume,
+            ecartees: recu.ecartees,
+            branches: recu.branches,
+          });
+        } else if (type === "erreur") {
+          recue = true;
+          setEtat({
+            phase: "saisie",
+            message: (JSON.parse(donnees) as { message: string }).message,
+          });
+        } else if (type === "proposition-en-cours") {
+          setEtat({ phase: "proposition", progression: "Le tuteur compose le référentiel…" });
         }
-      }
+      });
 
       if (!recue && !abandon.signal.aborted) {
         setEtat({

@@ -196,7 +196,6 @@ export async function genererExercices(
   };
 
   const systemeStable = construirePromptGeneration(referentiel, demandes);
-  const systemeProfil = "";
 
   const messages = [
     {
@@ -214,7 +213,7 @@ export async function genererExercices(
 
   await moteur.repondre({
     systemeStable,
-    systemeProfil,
+    systemeProfil: "",
     messages,
     outils: outilsTuteur(referentiel),
     signal,

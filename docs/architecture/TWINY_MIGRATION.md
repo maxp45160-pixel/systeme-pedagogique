@@ -1323,47 +1323,38 @@ Compteurs métier inchangés après mutation : 53 Observations, 69 séances,
   Ces deux derniers alimentent `parcours-interne.ts` et ne peuvent pas être coupés
   sans décider ce qui les remplace : ce n'est donc pas une dette de migration.
   La migration qui portait ce nom trompeur a été renommée le 21/08/2026 en
-  `twiny_lot_7_admin_comptes_observations` ; elle reste non appliquée.
-- **Clôture des migrations en suspens — procédure validée localement,
-  exécution distante restante (au 21/08/2026).** La migration
-  `20260820194000_twiny_lot_7_admin_comptes_observations` est vérifiée
-  conforme à `schema.sql` (même définition d'`admin_comptes()`). Trois
-  migrations sont désynchronisées du registre distant :
+  `twiny_lot_7_admin_comptes_observations` ; appliquée le 21/08/2026,
+  voir la clôture ci-dessous.
+- **Clôture des migrations en suspens — exécutée le 21/08/2026 via MCP
+  Supabase.** La procédure prévue (« repair ×3 puis db push ») a révélé un
+  état distant différent de l'hypothèse : les effets des trois migrations
+  étaient déjà enregistrés au registre, mais sous des versions générées à
+  distance (`20260821082640`, `20260821082808`, `20260821082848`) sans
+  fichier local correspondant. Décision tranchée : le registre reflète
+  exactement les fichiers locaux.
 
-  | Version locale | État distant réel | Action |
-  |---|---|---|
-  | `20260820213000_restaurer_domaine_active_perimetre` | effet appliqué, non enregistré | `migration repair --status applied` |
-  | `20260821000000_suppression_themes` | effet appliqué, non enregistré | `migration repair --status applied` |
-  | `20260821120000_retrait_objectifs_structures` | effet appliqué selon relais, à vérifier | vérifier puis `repair` si besoin |
-  | `20260820194000_twiny_lot_7_admin_comptes_observations` | **non appliquée** | `db push` |
+  Ce qui a été fait, dans cet ordre :
 
-  Procédure : lier le projet (`supabase link --project-ref
-  vxkjzzshlqulexydgfpc`), lire `supabase migration list`, enregistrer les
-  versions effectives par `migration repair --status applied <version>`,
-  puis `supabase db push` pour la dernière. Contrôle après coup :
-  `admin_comptes()` n'expose plus `plan`, et le registre distant liste les
-  quatre versions.
+  1. Contrôle `pg_proc` : la version d'origine de `suppression_themes`
+     avait bien laissé la dérive anticipée — `charger_tout()` en
+     `SECURITY DEFINER / search_path = public`. Corrigée par recréation à
+     l'identique de `schema.sql` (INVOKER implicite,
+     `search_path = public, pg_temp`) ; contenu déjà correct (pas de clé
+     `themes`). `appliquer_commande_referentiel` était conforme : une seule
+     surcharge canonique, `prosecdef = false`, `search_path = ''`.
+  2. Réconciliation du registre : suppression des trois entrées orphelines
+     `20260821082xxx`, inscription des versions locales
+     (`20260820213000_restaurer_domaine_active_perimetre`,
+     `20260821000000_suppression_themes`,
+     `20260821120000_retrait_objectifs_structures`). Effets identiques ;
+     seules les entrées de registre dupliquées sont perdues.
+  3. Application de `20260820194000_twiny_lot_7_admin_comptes_observations`
+     (vérifiée conforme à `schema.sql`, même définition d'`admin_comptes()`
+     sans colonne `plan`), inscrite au registre sous sa version locale.
 
-  ⚠️ **Vérification supplémentaire imposée par la correction du
-  21/08/2026.** Le fichier local `20260821000000_suppression_themes.sql`
-  recréait `charger_tout()` en `SECURITY DEFINER / search_path = public`
-  et `appliquer_commande_referentiel(TEXT, JSONB, INTEGER, TEXT, TEXT)`
-  en `SECURITY DEFINER` — contredisant le durcissement canonique. Si la
-  version d'origine a été appliquée à distance APRÈS
-  `restaurer_domaine_active_perimetre`, l'état distant porte encore ces
-  dérives. À contrôler avant tout autre changement :
-
-  ```sql
-  select p.proname, p.prosecdef, p.proconfig
-  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-  where n.nspname = 'public'
-    and p.proname in ('charger_tout', 'appliquer_commande_referentiel');
-  ```
-
-  Attendu : une seule `appliquer_commande_referentiel`
-  (TEXT, INTEGER, TEXT, TEXT, JSONB), `prosecdef = false`,
-  `search_path = ''` ; `charger_tout` `prosecdef = false`. Si ce n'est pas
-  l'état constaté, réaligner sur `schema.sql` avant de poursuivre.
+  Contrôles après coup passés : `admin_comptes()` n'expose plus `plan` ;
+  `charger_tout` `prosecdef = false` ; le registre distant liste les
+  quatre versions locales.
 - Le catalogue global de production reste vide : ni `GO contenu`, ni curateur
   confirmé.
 - **Advisors Supabase — plan de traitement (21/08/2026).** Quatre familles

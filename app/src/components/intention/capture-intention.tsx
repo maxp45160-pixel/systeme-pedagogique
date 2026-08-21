@@ -13,6 +13,7 @@ import {
   IconeProjet,
 } from "@/components/ui/icones";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
+import { consommerFluxSse } from "@/lib/tutor/flux-sse";
 import { ChargementGeneration } from "@/components/ui/chargement-generation";
 import { creerNoteAction } from "@/lib/store/document-actions";
 import { FORMATS_PAR_ROLE } from "@/lib/documents/roles-note";
@@ -149,6 +150,12 @@ export function CaptureIntention({
   const [traduction, setTraduction] = useState<TraductionIntention | null>(null);
   const [progression, setProgression] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
+  /**
+   * Raison d'un cadrage serveur (`forcer*`) qui a orienté la traduction.
+   * Non bloquant : la proposition reste affichée, mais la personne sait
+   * pourquoi elle ne ressemble pas mot pour mot à sa demande.
+   */
+  const [avertissement, setAvertissement] = useState<string | null>(null);
   const [enExecution, setEnExecution] = useState(false);
   const [competenceDemande, setCompetenceDemande] = useState<{
     sujet: string;
@@ -181,6 +188,7 @@ export function CaptureIntention({
     setPhase("traduction");
     setProgression(null);
     setErreur(null);
+    setAvertissement(null);
 
     const abandon = new AbortController();
     abandonRef.current = abandon;
@@ -207,46 +215,41 @@ export function CaptureIntention({
         return;
       }
 
-      const lecteur = reponse.body.getReader();
-      const decodeur = new TextDecoder();
-      let tampon = "";
-
-      for (;;) {
-        const { done, value } = await lecteur.read();
-        if (done) break;
-        tampon += decodeur.decode(value, { stream: true });
-
-        const evenements = tampon.split("\n\n");
-        tampon = evenements.pop() ?? "";
-
-        for (const bloc of evenements) {
-          const lignes = bloc.split("\n");
-          const type = lignes.find((l) => l.startsWith("event:"))?.slice(6).trim() ?? "message";
-          const donnees = lignes.find((l) => l.startsWith("data:"))?.slice(5).trim();
-
-          if (type === "proposition" && donnees) {
-            const parsed = JSON.parse(donnees) as { traduction: TraductionIntention };
-            setTraduction(parsed.traduction);
-            setPhase("proposition");
-          } else if (type === "erreur" && donnees) {
-            const parsed = JSON.parse(donnees) as { message: string };
-            setErreur(parsed.message);
-            setPhase("saisie");
-          } else if (type === "proposition-rejetee" && donnees) {
-            /*
-             * Le tuteur a bien appelé l'outil, mais sa sortie a été refusée —
-             * un travail sans compétence désignée, un projet sans sujet. Le
-             * message du moteur dit ce qui a été écarté ; l'écran l'affichait
-             * jusqu'ici comme une absence de réponse, ce qui n'est pas la même
-             * panne et ne se corrige pas de la même façon.
-             */
+      await consommerFluxSse(reponse, (type, donnees) => {
+        if (type === "proposition") {
+          const parsed = JSON.parse(donnees) as { traduction: TraductionIntention };
+          setTraduction(parsed.traduction);
+          setPhase("proposition");
+        } else if (type === "erreur") {
+          const parsed = JSON.parse(donnees) as { message: string };
+          setErreur(parsed.message);
+          setPhase("saisie");
+        } else if (type === "avertissement") {
+          /*
+           * Un cadrage serveur a orienté la traduction. Il est annoncé avant
+           * la proposition et reste visible à côté d'elle — la contradiction
+           * silencieuse se vivait comme une incompréhension du tuteur.
+           */
+          try {
             const parsed = JSON.parse(donnees) as { message?: string };
-            if (parsed.message?.trim()) setErreur(parsed.message.trim());
-          } else if (type === "proposition-en-cours") {
-            setProgression("Le moteur choisit l'action qui répond à ton besoin…");
+            if (parsed.message?.trim()) setAvertissement(parsed.message.trim());
+          } catch {
+            /* ignorer erreur json */
           }
+        } else if (type === "proposition-rejetee") {
+          /*
+           * Le tuteur a bien appelé l'outil, mais sa sortie a été refusée —
+           * un travail sans compétence désignée, un projet sans sujet. Le
+           * message du moteur dit ce qui a été écarté ; l'écran l'affichait
+           * jusqu'ici comme une absence de réponse, ce qui n'est pas la même
+           * panne et ne se corrige pas de la même façon.
+           */
+          const parsed = JSON.parse(donnees) as { message?: string };
+          if (parsed.message?.trim()) setErreur(parsed.message.trim());
+        } else if (type === "proposition-en-cours") {
+          setProgression("Le moteur choisit l'action qui répond à ton besoin…");
         }
-      }
+      });
     } catch (cause) {
       const estAbandon =
         abandon.signal.aborted || (cause instanceof DOMException && cause.name === "AbortError");
@@ -536,6 +539,12 @@ export function CaptureIntention({
             Voici la traduction de ton besoin. Vérifie le résultat et l’action proposée avant de
             lancer quoi que ce soit.
           </p>
+          {avertissement && (
+            <div className="rounded-lg border border-alerte/40 bg-alerte-faible/40 px-3 py-2 text-xs text-texte">
+              <p className="font-semibold text-alerte">Ta demande a été recadrée</p>
+              <p className="mt-0.5 leading-relaxed text-texte-attenue">{avertissement}</p>
+            </div>
+          )}
           {traduction.action.genre === "clarification" ? (
             <QuestionClarification
               action={traduction.action}

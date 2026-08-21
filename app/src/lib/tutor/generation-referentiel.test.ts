@@ -18,6 +18,7 @@ import {
   construirePromptReferentiel,
   construirePromptSuggestion,
   proposerReferentiel,
+  resumerReferentielExistant,
   suggererBranche,
 } from "./generation-referentiel";
 import { OUTIL_REFERENTIEL_COMPLET, validerAppelOutil } from "./outils";
@@ -82,7 +83,7 @@ describe("construirePromptSuggestion", () => {
 
   it("dit qu'il n'y a aucun domaine plutôt que d'en inventer un", () => {
     const prompt = construirePromptSuggestion(REFERENTIEL_VIDE, "le stoïcisme");
-    expect(prompt).toContain("aucun");
+    expect(prompt).toContain("Aucun — le référentiel est vide");
   });
 
   it("n'autorise pas le tuteur à écrire un code", () => {
@@ -140,9 +141,10 @@ describe("construirePromptReferentiel", () => {
     const prompt = construirePromptReferentiel(REFERENTIEL, "le stoïcisme");
     expect(prompt).toContain("Logistique");
   });
-
   it("dit que le référentiel est vide plutôt que de laisser la liste blanche", () => {
-    expect(construirePromptReferentiel(REFERENTIEL_VIDE, "x")).toContain("aucun, le référentiel est vide");
+    expect(construirePromptReferentiel(REFERENTIEL_VIDE, "x")).toContain(
+      "Aucun — le référentiel est vide",
+    );
   });
 
   it("cadre une vue d'ensemble débutante sans accepter une branche isolée", () => {
@@ -327,5 +329,42 @@ describe("suggererBranche — rien n'est fabriqué", () => {
       (evenement) => vus.push(evenement),
     );
     expect(vus).toEqual(["proposition-en-cours", "proposition"]);
+  });
+});
+
+describe("resumerReferentielExistant — ancrer la proposition dans ce qui existe", () => {
+  it("liste chaque domaine actif avec son volume et un échantillon d'intitulés", () => {
+    const resume = resumerReferentielExistant(REFERENTIEL);
+    expect(resume).toContain("Logistique (LOG)");
+    expect(resume).toContain("1 compétence active");
+    expect(resume).toContain("« Analyser un flux logistique »");
+  });
+
+  it("ne liste pas un domaine sans compétence active", () => {
+    // « dormant » n'a rien à alimenter : le proposer comme rattachement
+    // enverrait la branche dans un domaine vide.
+    const resume = resumerReferentielExistant(REFERENTIEL);
+    expect(resume).not.toContain("Dormant");
+  });
+
+  it("dit que le référentiel est vide plutôt que de rendre une liste blanche", () => {
+    expect(resumerReferentielExistant(REFERENTIEL_VIDE)).toContain(
+      "Aucun — le référentiel est vide",
+    );
+  });
+
+  it("plafonne l'échantillon d'intitulés par domaine", () => {
+    const refDense = {
+      domaines: [{ id: "d", nom: "Dense", prefixe: "DEN", description: "" }],
+      actifs: Array.from({ length: 9 }, (_, i) => ({
+        code: `DEN-0${i + 1}`,
+        intitule: `Savoir-faire ${i + 1}`,
+        domaine: "d",
+      })),
+    } as unknown as Referentiel;
+    const resume = resumerReferentielExistant(refDense, 6);
+    expect(resume).toContain("9 compétences actives");
+    expect(resume).toContain("(+3 autres)");
+    expect(resume).not.toContain("Savoir-faire 7 »");
   });
 });
