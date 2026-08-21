@@ -97,8 +97,11 @@ l'histoire des décisions.
 
 - **Pas un outil de motivation.** L'XP et les jalons ont été supprimés le
   28/07 (ADR-017) : la vue longitudinale porte le retour de progression. Un
-  score de 10/100 après trois jours de travail sérieux est une information, pas
-  un échec de conception.
+  score de 10/100 après trois jours de travail sérieux est une information,
+  pas un échec de conception. La présentation peut être ample et gratifiante
+  (le profil de carrière d'ADR-098) : ce qui reste interdit, c'est la
+  mécanique inventée — tout nombre affiché se dérive des observations, jamais
+  du temps passé.
 - **Pas un générateur de contenu pédagogique de référence.** Il ne prétend pas
   remplacer un cours ou un enseignant.
 - **Pas un réseau social.** La comparaison entre utilisateurs est en tension
@@ -300,8 +303,12 @@ intention de départ dans `/demarrer`, sans transformer cette déclaration en
 objectif structuré ni en mesure. La carte personnelle n'a pas de fenêtre
 dupliquée : sa surface canonique est le graphe de l'Atelier, où le référentiel
 local peut évoluer à partir de pistes explicites de la carte globale. La
-Progression conserve le bilan, l'exploration globale, les objectifs et les
-parcours ; elle ne recompose pas une seconde carte personnelle. Le catalogue
+Progression est le **profil de carrière** (ADR-098) : elle porte la lecture
+longitudinale — évolution du score rejouée depuis le journal, faits marquants,
+bilan de croissance — sans recomposer une seconde carte personnelle ni porter
+l'exploration globale ; l'exploration et les objectifs ne s'y sont jamais
+trouvés, et la phrase qui l'affirmait ici était une dérive documentaire.
+Le catalogue
 de production reste volontairement vide jusqu'à validation de son contenu et
 désignation d'un curateur ; le statut réellement déployé est suivi dans
 [`TWINY_MIGRATION.md`](docs/architecture/TWINY_MIGRATION.md).

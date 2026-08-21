@@ -1,7 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import type { ResumeCroissance, FenetreCroissance } from "@/lib/engine/croissance";
-import { Carte, CodeCompetence, Etiquette, cx } from "@/components/ui/primitives";
+import { urlComposerAutonome } from "@/lib/domain/navigation-exercice";
+import { Carte, CodeCompetence, classesLienBouton, cx } from "@/components/ui/primitives";
+import { IconeFleche } from "@/components/ui/icones";
 import { formatDateRelative, formatDuree } from "@/lib/engine/dates";
 
 /**
@@ -12,14 +15,12 @@ import { formatDateRelative, formatDuree } from "@/lib/engine/dates";
  * bilan de la semaine qu'il fallait traverser. Un bilan répond à « où j'en
  * suis », pas à « où est ma fiche » — il appartient à `/progression`.
  *
- * Trois niveaux de lecture, dans l'ordre où on se les pose :
- *   1. **Ce que j'ai fait** — l'activité brute, deux fenêtres ;
- *   2. **Ce que ça a changé** — les niveaux avant/après, les paliers franchis ;
- *   3. **Ce que le travail dessine** — les regroupements qu'il suggère.
+ * Deux niveaux de lecture, dans l'ordre où on se les pose :
+ *   1. **Ce que tu as fait** — l'activité brute, deux fenêtres ;
+ *   2. **Ce que ça a changé** — les niveaux avant/après, les paliers franchis.
  *
- * Aucun calcul ici : tout arrive dérivé de `resumeCroissance` et
- * d'`ensemblesProposes`. Un composant qui recalculerait une mesure serait un
- * second endroit où la règle vit.
+ * Aucun calcul ici : tout arrive dérivé de `resumeCroissance`. Un composant
+ * qui recalculerait une mesure serait un second endroit où la règle vit.
  */
 export function BilanCroissance({
   resume,
@@ -45,13 +46,23 @@ export function BilanCroissance({
 function NiveauActivite({ resume }: { resume: ResumeCroissance }) {
   return (
     <section>
-      <TitreNiveau numero={1} titre="Ce que tu as fait" />
+      <TitreNiveau titre="Ce que tu as fait" />
       {resume.vide ? (
-        <p className="mt-3 rounded-xl border border-dashed border-bordure-contraste bg-surface px-4 py-6 text-center text-xs leading-relaxed text-texte-discret">
-          Rien enregistré sur les sept derniers jours.
-          <br />
-          Cet espace se remplit tout seul dès qu&apos;un travail est terminé — tu n&apos;as rien à y ranger.
-        </p>
+        <div className="mt-3 rounded-xl border border-dashed border-bordure-contraste bg-surface px-4 py-6 text-center">
+          <p className="text-xs leading-relaxed text-texte-discret">
+            Rien enregistré sur les sept derniers jours.
+            <br />
+            Cet espace se remplit tout seul dès qu&apos;un travail est terminé — tu n&apos;as rien à y ranger.
+          </p>
+          {/*
+            Le bilan ne se contente pas de constater le vide : il rend le geste
+            suivant atteignable. La boucle génération → évaluation → adaptation
+            repart d'ici, pas seulement du tableau de bord.
+          */}
+          <Link href="/seances?composer=1" className={`${classesLienBouton("principal", "compacte")} mt-3`}>
+            Composer une séance
+          </Link>
+        </div>
       ) : (
         <div className="mt-3 grid gap-4 md:grid-cols-2">
           <CarteFenetre fenetre={resume.jour} accent />
@@ -129,6 +140,9 @@ function estProgression(evenement: ResumeCroissance["evenements"][number]): bool
   );
 }
 
+const EST_PREMIERE_MESURE = (e: ResumeCroissance["evenements"][number]): boolean =>
+  e.niveauAvant === null && e.niveauApres !== null;
+
 function NiveauCroissance({
   resume,
   ouvrirElement,
@@ -140,27 +154,21 @@ function NiveauCroissance({
 
   return (
     <section>
-      <TitreNiveau numero={2} titre="Ce que ça a changé" />
+      <TitreNiveau titre="Ce que ça a changé" legende="Chaque ligne est une observation, et son effet réel sur le niveau." />
 
       {/*
-        Les compteurs de la semaine passent avant la liste : ils répondent en
-        un coup d'œil, la liste explique. L'un sans l'autre laisserait soit une
+        Les compteurs de la semaine ouvrent en grands : ils répondent en un coup
+        d'œil, la liste explique. L'un sans l'autre laisserait soit une
         impression sans détail, soit un détail sans impression.
       */}
       {(semaine.franchissements > 0 || semaine.premieresMesures > 0) && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {semaine.franchissements > 0 && (
-            <Etiquette ton="succes">
-              {semaine.franchissements} palier{semaine.franchissements > 1 ? "s" : ""} franchi
-              {semaine.franchissements > 1 ? "s" : ""} cette semaine
-            </Etiquette>
-          )}
-          {semaine.premieresMesures > 0 && (
-            <Etiquette ton="info">
-              {semaine.premieresMesures} compétence{semaine.premieresMesures > 1 ? "s" : ""} mesurée
-              {semaine.premieresMesures > 1 ? "s" : ""} pour la première fois
-            </Etiquette>
-          )}
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <CompteurSemaine valeur={semaine.franchissements} libelle="palier(s) franchi(s) cette semaine" ton="accent" />
+          <CompteurSemaine
+            valeur={semaine.premieresMesures}
+            libelle="compétence(s) mesurée(s) pour la première fois"
+            ton="info"
+          />
         </div>
       )}
 
@@ -169,85 +177,145 @@ function NiveauCroissance({
           Aucune observation enregistrée pour l&apos;instant. Rien ne s&apos;affiche avant qu&apos;il y en ait une.
         </p>
       ) : (
-        <ul className="mt-3 divide-y divide-bordure overflow-hidden rounded-xl border border-bordure bg-surface">
-          {evenements.map((evenement, index) => (
-            <li key={`${evenement.date}-${evenement.skillCode}-${index}`}>
-              <button
-                type="button"
-                onClick={() => ouvrirElement(evenement.skillCode)}
-                className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-2 cursor-pointer"
+        /*
+          Deux colonnes dès que la largeur le permet : une liste pleine largeur
+          aligne des lignes de trois mots sur mille pixels et étire l'écran en
+          hauteur sans rien dire de plus.
+        */
+        <ul className="mt-3 grid gap-2 md:grid-cols-2">
+          {evenements.map((evenement, index) => {
+            const premiere = EST_PREMIERE_MESURE(evenement);
+            const progression = estProgression(evenement);
+
+            /*
+              La couleur ne porte jamais seule l'information : le rail gauche
+              accélère le balayage (accent = un palier), mais chaque ligne dit
+              aussi sa nature en texte et en chiffres visibles.
+            */
+            const rail = progression
+              ? "border-l-accent"
+              : premiere
+                ? "border-l-info"
+                : evenement.franchissement
+                  ? "border-l-alerte"
+                  : "border-l-bordure";
+
+            return (
+              <li
+                key={`${evenement.date}-${evenement.skillCode}-${index}`}
+                className={`relative rounded-xl border border-bordure border-l-[3px] bg-surface shadow-[var(--ombre-carte)] transition-colors hover:bg-surface-2 ${rail}`}
               >
-                <span className="min-w-0 flex-1">
-                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <CodeCompetence code={evenement.skillCode} />
-                    {evenement.niveauAvant === null && evenement.niveauApres !== null ? (
-                      /*
-                        Une première mesure n'est pas une progression.
-                        Écrire « Niveau — → 0 · Palier franchi » faisait passer une
-                        rencontre pour un progrès : le niveau 0 est
-                        « Exposition — observation insuffisante pour conclure ».
-                      */
-                      <span className="chiffres text-sm font-medium">
-                        Première mesure — niveau <span className="text-info">{evenement.niveauApres}</span>
-                      </span>
-                    ) : estProgression(evenement) ? (
-                      <span className="chiffres text-sm font-medium">
-                        Niveau {evenement.niveauAvant}{" "}
-                        <span aria-hidden className="text-texte-discret">→</span>{" "}
-                        <span className="text-succes">{evenement.niveauApres}</span>
-                      </span>
-                    ) : evenement.franchissement && evenement.niveauAvant !== null && evenement.niveauApres !== null ? (
-                      <span className="chiffres text-sm font-medium">
-                        Niveau {evenement.niveauAvant}{" "}
-                        <span aria-hidden className="text-texte-discret">→</span>{" "}
-                        <span className="text-alerte">{evenement.niveauApres}</span>
-                      </span>
-                    ) : (
-                      <span className="text-sm text-texte-attenue">
-                        {evenement.resultat === "reussi"
-                          ? "Réussi, niveau confirmé"
-                          : evenement.resultat === "partiel"
-                            ? "Partiellement réussi"
-                            : "Non abouti"}
-                      </span>
+                {/*
+                  La ligne entière est cliquable sans l'être par un `<button>`
+                  qui contiendrait un `<Link>` : un lien dans un bouton est un
+                  HTML invalide et une hydrotation qui râle. Le bouton plein
+                  cadre ouvre la fiche ; le lien « Travailler », au-dessus, reste
+                  atteignable séparément.
+                */}
+                <button
+                  type="button"
+                  onClick={() => ouvrirElement(evenement.skillCode)}
+                  className="absolute inset-0 z-0 rounded-xl"
+                  aria-label={`Ouvrir la fiche de ${evenement.skillCode}`}
+                />
+                <div className="relative z-10 flex items-center justify-between gap-3 px-4 py-3">
+                  <span className="pointer-events-none min-w-0 flex-1">
+                    <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <CodeCompetence code={evenement.skillCode} />
+                      {premiere ? (
+                        <span className="text-sm font-medium text-texte">Première mesure</span>
+                      ) : evenement.niveauAvant !== null && evenement.niveauApres !== null ? (
+                        /*
+                          La transition avant/après est le cœur de la ligne :
+                          l'ancien niveau s'efface, le nouveau se lit d'un coup
+                          d'œil. Une redescente prend la teinte d'alerte — une
+                          information honnête, pas une punition.
+                        */
+                        <span className="chiffres flex items-baseline gap-1.5">
+                          <span className="text-sm text-texte-discret">{evenement.niveauAvant}</span>
+                          <IconeFleche className="size-3 self-center text-texte-discret" />
+                          <span className={cx("text-lg font-semibold leading-none", progression ? "text-succes" : "text-alerte")}>
+                            {evenement.niveauApres}
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="text-sm text-texte-attenue">
+                          {evenement.resultat === "reussi"
+                            ? "Réussi, niveau confirmé"
+                            : evenement.resultat === "partiel"
+                              ? "Partiellement réussi"
+                              : "Non abouti"}
+                        </span>
+                      )}
+                    </span>
+                    <span className="mt-0.5 block truncate text-xs font-medium text-texte">
+                      {evenement.intitule}
+                    </span>
+                    <span className="mt-0.5 block truncate text-[0.6875rem] text-texte-discret">
+                      {evenement.contexte}
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 flex-col items-end gap-1.5">
+                    <span className="pointer-events-none text-[0.6875rem] text-texte-discret">
+                      {formatDateRelative(evenement.date)}
+                    </span>
+                    {/*
+                      Une ligne qui n'a pas progressé ne reste pas un point mort :
+                      elle propose le geste qui la fait bouger. Le compositeur est
+                      prérempli avec la compétence concernée — la boucle repart de
+                      l'écran où le recul s'est constaté.
+                    */}
+                    {!progression && !premiere && (
+                      <Link
+                        href={urlComposerAutonome(evenement.skillCode, undefined)}
+                        className="text-[0.6875rem] font-medium text-primaire transition-colors hover:text-primaire-fort hover:underline"
+                      >
+                        Travailler →
+                      </Link>
                     )}
                   </span>
-                  <span className="mt-0.5 block truncate text-xs text-texte-attenue">
-                    {evenement.intitule}
-                  </span>
-                  <span className="mt-0.5 block truncate text-[0.6875rem] text-texte-discret">
-                    {evenement.contexte}
-                  </span>
-                </span>
-                <span className="flex shrink-0 flex-col items-end gap-1">
-                  <span className="text-[0.6875rem] text-texte-discret">
-                    {formatDateRelative(evenement.date)}
-                  </span>
-                  {estProgression(evenement) && <Etiquette ton="succes">Palier franchi</Etiquette>}
-                  {evenement.niveauAvant === null && evenement.niveauApres !== null && (
-                    <Etiquette ton="info">Nouvelle compétence</Etiquette>
-                  )}
-                </span>
-              </button>
-            </li>
-          ))}
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>
   );
 }
 
-
+/** Le compteur de semaine en vignette : un grand chiffre, puis son sens. */
+function CompteurSemaine({
+  valeur,
+  libelle,
+  ton,
+}: {
+  valeur: number;
+  libelle: string;
+  ton: "accent" | "info";
+}) {
+  return (
+    <div
+      className={cx(
+        "rounded-xl border p-4",
+        ton === "accent"
+          ? "border-accent/30 bg-accent/5"
+          : "border-info/25 bg-info-faible",
+      )}
+    >
+      <p className="chiffres text-3xl font-semibold tracking-tight text-texte">{valeur}</p>
+      <p className="mt-1 text-xs leading-snug text-texte-attenue">{libelle}</p>
+    </div>
+  );
+}
 
 /* ------------------------------------------------------------------ */
 
-function TitreNiveau({ numero, titre }: { numero: number; titre: string }) {
+function TitreNiveau({ titre, legende }: { titre: string; legende?: string }) {
   return (
-    <div className="flex items-baseline gap-2.5">
-      <span className="chiffres grid size-6 shrink-0 place-items-center rounded-full bg-surface-3 text-[0.6875rem] font-semibold text-texte-attenue">
-        {numero}
-      </span>
+    <div>
       <h2 className="font-serif text-xl font-medium tracking-tight">{titre}</h2>
+      {legende && <p className="mt-0.5 text-xs text-texte-attenue">{legende}</p>}
     </div>
   );
 }

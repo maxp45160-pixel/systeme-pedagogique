@@ -1,137 +1,189 @@
 import type { Carriere } from "@/lib/engine/carriere";
 import type { EtatGlobal } from "@/lib/engine/progression";
+import { qualificatifScore } from "@/lib/engine/evolution";
 import type { User } from "@/lib/domain/types";
 import type { IdentiteUtilisateur } from "@/lib/domain/identite";
 import { profilDeclare } from "@/lib/domain/profil";
-import { formatDuree } from "@/lib/engine/dates";
-import { Carte, TagConfiance, cx } from "@/components/ui/primitives";
+import { formatDateCourte } from "@/lib/engine/dates";
+import { RepartitionNiveaux } from "@/components/charts";
+import { cx, Etiquette, TagConfiance } from "@/components/ui/primitives";
 
 /**
- * L'en-tête du profil : qui, depuis quand, et ce que ça totalise.
+ * Le héros du profil : qui, depuis quand, et le grand nombre qui résume.
  *
- * ## Ce qu'on affiche, et ce qu'on n'affiche pas
+ * ## La ligne que ce dessin ne franchit pas
  *
- * Pas de « niveau de carrière », pas de rang, pas de titre débloqué. Ces
- * mécaniques classent un joueur à partir du **temps passé** ; ici le seul
- * classement légitime vient des observations, et il existe déjà : c'est le score
- * global. Ajouter un second nombre, calculé sur les minutes, donnerait deux
- * réponses concurrentes à « où j'en suis » — dont une qui monterait en laissant
- * simplement l'application ouverte.
- *
- * Les totaux ci-dessous ne classent rien. Ils comptent ce qui a eu lieu.
+ * L'ampleur visuelle est gratuite ; la mécanique ne l'est pas. Ce que
+ * l'écran montre reste borné à des faits comptés et à des lectures dérivées
+ * d'eux : le score global existe déjà, la confiance aussi, et le
+ * qualificatif (« En construction »…) est une relecture du score, pas une
+ * seconde mesure. Aucun XP, aucun rang calculé sur les minutes, aucun titre
+ * qui monterait en laissant l'application ouverte (ADR-017).
  */
 export function CarteCarriere({
   user,
   identite,
   carriere,
   global,
+  variation7j,
+  repartition,
 }: {
   user: User;
   identite?: IdentiteUtilisateur;
   carriere: Carriere;
   global: EtatGlobal;
+  /** Variation du score sur 7 jours, déjà dérivée par `evolutionScore`. */
+  variation7j?: number | null;
+  /** Compétences par niveau (0-5) — la seule lecture analytique qui reste en bannière. */
+  repartition?: Record<number, number>;
 }) {
   const profil = profilDeclare(user);
   const nom = identite?.nom ?? (user.prenom.trim() || "Mon profil");
   const avatarUrl = identite?.avatarUrl ?? user.avatarUrl;
   const initiale = identite?.initiale ?? (nom.charAt(0).toUpperCase() || "P");
 
+  const score = global.scoreGlobal;
+
   return (
-    <Carte className="overflow-hidden">
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-bordure bg-surface-2/40 px-5 py-5 sm:px-6">
-        <div className="flex min-w-0 items-center gap-4">
-          {avatarUrl ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              src={avatarUrl}
-              alt={nom}
-              referrerPolicy="no-referrer"
-              className="size-14 shrink-0 rounded-xl border border-bordure object-cover shadow-sm"
-            />
-          ) : (
-            <span className="grid size-14 shrink-0 place-items-center rounded-xl bg-primaire text-xl font-semibold text-primaire-contraste shadow-sm">
-              {initiale}
-            </span>
-          )}
-          <div className="min-w-0">
-            <h2 className="truncate font-serif text-2xl font-medium tracking-tight">{nom}</h2>
-            {/*
-              La formation est affichée si elle est déclarée, et
-              tus sinon — `profilDeclare` distingue déjà une valeur d'un libellé
-              par défaut. Un profil vide ne doit pas se lire comme un profil
-              rempli de tirets.
-            */}
-            <p className="mt-0.5 truncate text-xs text-texte-attenue">
-              {profil.formation || "Formation non déclarée"}
-            </p>
-          </div>
+    <section className="overflow-hidden rounded-carte border border-bordure bg-surface shadow-[var(--ombre-carte)]">
+      {/* ── Bannière ─────────────────────────────────────────────── */}
+      <div className="relative border-b border-bordure bg-gradient-to-br from-primaire-faible via-surface to-surface-2 px-5 py-6 sm:px-8">
+        {/* Géométrie décorative — anneaux, même teinte que la marque, jamais porteuse d'information. */}
+        <div aria-hidden className="pointer-events-none absolute -right-20 -top-28 select-none">
+          <div className="size-80 rounded-full border-[26px] border-primaire/5" />
+        </div>
+        <div aria-hidden className="pointer-events-none absolute -right-8 bottom-[-4.5rem] select-none">
+          <div className="size-44 rounded-full border-[18px] border-primaire/5" />
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="text-right">
-            <p className="text-[0.6875rem] uppercase tracking-wide text-texte-discret">
-              Progression globale
-            </p>
-            <p className="chiffres mt-0.5 flex items-baseline justify-end gap-1.5">
+        <div className="relative flex flex-wrap items-center justify-between gap-x-8 gap-y-5">
+          <div className="flex min-w-0 items-center gap-4 sm:gap-5">
+            {avatarUrl ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={avatarUrl}
+                alt={nom}
+                referrerPolicy="no-referrer"
+                className="size-16 shrink-0 rounded-2xl border border-bordure object-cover shadow-[var(--ombre-levee)] sm:size-20"
+              />
+            ) : (
+              <span className="grid size-16 shrink-0 place-items-center rounded-2xl bg-primaire text-2xl font-semibold text-primaire-contraste shadow-[var(--ombre-levee)] sm:size-20 sm:text-3xl">
+                {initiale}
+              </span>
+            )}
+            <div className="min-w-0">
+              <h2 className="truncate font-serif text-2xl font-medium tracking-tight sm:text-3xl">{nom}</h2>
+              {/*
+                La formation est affichée si elle est déclarée, et
+                tus sinon — `profilDeclare` distingue déjà une valeur d'un libellé
+                par défaut. Un profil vide ne doit pas se lire comme un profil
+                rempli de tirets.
+              */}
+              <p className="mt-0.5 truncate text-xs text-texte-attenue sm:text-sm">
+                {profil.formation || "Formation non déclarée"}
+              </p>
+              {carriere.debut !== null && carriere.joursDepuisDebut !== null && (
+                <p className="mt-1.5 text-[0.6875rem] text-texte-discret">
+                  Pratique depuis le {formatDateCourte(carriere.debut)} ·{" "}
+                  {carriere.joursDepuisDebut} jour{carriere.joursDepuisDebut > 1 ? "s" : ""}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-5">
+            <AnneauScore score={score} />
+            <div className="flex flex-col items-start gap-2">
               <span
                 className={cx(
-                  "text-3xl font-semibold tracking-tight",
-                  global.scoreGlobal === null ? "text-texte-discret" : "text-primaire",
+                  "text-sm font-medium",
+                  score === null ? "text-texte-discret" : "text-primaire",
                 )}
               >
-                {global.scoreGlobal ?? "—"}
+                {score === null ? "Pas encore de mesure" : qualificatifScore(score)}
               </span>
-              <span className="text-sm text-texte-attenue">/ 100</span>
-            </p>
+              <TagConfiance confiance={global.confiance} />
+              {variation7j !== null && variation7j !== undefined && (
+                <Etiquette ton={variation7j > 0 ? "succes" : variation7j < 0 ? "alerte" : "neutre"} mono>
+                  {variation7j > 0 ? "+" : ""}
+                  {variation7j} en 7 jours
+                </Etiquette>
+              )}
+            </div>
           </div>
-          <TagConfiance confiance={global.confiance} />
         </div>
       </div>
 
-      <dl className="grid grid-cols-2 gap-px bg-bordure sm:grid-cols-3 lg:grid-cols-6">
-        <Compteur libelle="Temps travaillé" valeur={carriere.minutesTotal > 0 ? formatDuree(carriere.minutesTotal) : "—"} />
-        <Compteur libelle="Séances" valeur={String(carriere.seancesTotal)} />
-        <Compteur libelle="Exercices menés" valeur={String(carriere.exercicesMenes)} />
-        <Compteur libelle="Observations" valeur={String(carriere.observationsTotal)} />
-        <Compteur libelle="Jours actifs" valeur={String(carriere.joursActifsTotal)} />
-        <Compteur
-          libelle="Meilleure série"
-          valeur={carriere.meilleureSerie > 0 ? `${carriere.meilleureSerie} j` : "—"}
-          precision={carriere.serieEnCours > 0 ? `${carriere.serieEnCours} j en cours` : undefined}
-        />
-      </dl>
-
       {/*
-        La couverture du référentiel tenait ici en fin de ligne, et de nouveau
-        dans « Détail des mesures » sous le libellé « Référentiel couvert ».
-        Elle ne reste qu'à ce second endroit, où elle est cliquable et rangée
-        avec les autres mesures. Ce qui subsiste ici est le seul fait que cette
-        carte soit seule à connaître : depuis quand.
+        La répartition des niveaux, en pied de bannière : la seule lecture
+        analytique qui reste ici, parce qu'elle est d'abord un dessin — une
+        collection qui se remplit. `RepartitionNiveaux` répète chaque valeur
+        écrite à côté de sa couleur ; il ne rend rien sans mesure. La bande est
+        centrée : c'est un ornement du héros, pas un tableau.
       */}
-      {carriere.debut !== null && carriere.joursDepuisDebut !== null && (
-        <p className="border-t border-bordure px-5 py-3 text-xs text-texte-discret sm:px-6">
-          Première observation il y a {carriere.joursDepuisDebut} jour
-          {carriere.joursDepuisDebut > 1 ? "s" : ""}
-        </p>
+      {repartition && Object.keys(repartition).length > 0 && (
+        <div className="bg-surface-2/40 px-5 py-3 sm:px-8">
+          <div className="mx-auto w-full max-w-3xl">
+            <RepartitionNiveaux compte={repartition} />
+          </div>
+        </div>
       )}
-    </Carte>
+    </section>
   );
 }
 
-function Compteur({
-  libelle,
-  valeur,
-  precision,
-}: {
-  libelle: string;
-  valeur: string;
-  precision?: string;
-}) {
+/**
+ * L'anneau du score — la conversion parlante du nombre /100.
+ *
+ * Un seul trait, une seule teinte (`--primaire`) : l'anneau dit la même chose
+ * que le chiffre qu'il entoure, jamais autre chose. Sans mesure, il reste
+ * vide plutôt que de feindre un départ à zéro (P2).
+ */
+function AnneauScore({ score }: { score: number | null }) {
+  const rayon = 42;
+  const circonference = 2 * Math.PI * rayon;
+  const rempli = score === null ? 0 : (score / 100) * circonference;
+
   return (
-    <div className="bg-surface px-4 py-3.5">
-      <dt className="text-[0.625rem] uppercase tracking-wide text-texte-discret">{libelle}</dt>
-      <dd className="chiffres mt-1 text-lg font-semibold tracking-tight">{valeur}</dd>
-      {precision && <dd className="mt-0.5 text-[0.625rem] text-primaire">{precision}</dd>}
-    </div>
+    <svg
+      viewBox="0 0 100 100"
+      className="size-24 shrink-0 sm:size-28"
+      role="img"
+      aria-label={
+        score === null
+          ? "Score global : pas encore de mesure"
+          : `Score global : ${score} sur 100`
+      }
+    >
+      <circle cx="50" cy="50" r={rayon} fill="none" stroke="var(--bordure)" strokeWidth="7" opacity="0.6" />
+      {rempli > 0 && (
+        <circle
+          cx="50"
+          cy="50"
+          r={rayon}
+          fill="none"
+          stroke="var(--primaire)"
+          strokeWidth="7"
+          strokeLinecap="round"
+          strokeDasharray={`${rempli} ${circonference}`}
+          transform="rotate(-90 50 50)"
+        />
+      )}
+      <text
+        x="50"
+        y="49"
+        textAnchor="middle"
+        dominantBaseline="central"
+        fontSize="26"
+        fontWeight="600"
+        fill={score === null ? "var(--texte-discret)" : "var(--texte)"}
+        className="chiffres"
+      >
+        {score === null ? "—" : score}
+      </text>
+      <text x="50" y="70" textAnchor="middle" fontSize="9" fill="var(--texte-discret)">
+        / 100
+      </text>
+    </svg>
   );
 }

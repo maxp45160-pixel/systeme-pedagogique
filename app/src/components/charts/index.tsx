@@ -17,6 +17,7 @@
 
 import { useRef, useState } from "react";
 import { cleJour, formatDateCourte } from "@/lib/engine/dates";
+import type { PointEvolution } from "@/lib/engine/evolution";
 
 /* ------------------------------------------------------------------ */
 /* Infobulle partagée                                                  */
@@ -189,6 +190,169 @@ export function LegendeActivite() {
 }
 
 /* ------------------------------------------------------------------ */
+/* Courbe d'évolution du score global                                  */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Géométrie fixe en unités de viewBox, étirée à la largeur de la carte.
+ * `vector-effect="non-scaling-stroke"` garde le trait à 2 px quelle que soit
+ * la déformation — sans lui, une carte étroite épaissirait la ligne.
+ */
+const LARGEUR_COURBE = 560;
+const HAUTEUR_COURBE = 150;
+const MARGE_COURBE = { haut: 10, droite: 34, bas: 8, gauche: 8 };
+
+/**
+ * La trajectoire du score global, point par point où il a changé.
+ *
+ * Une seule teinte (`--primaire`), un axe 0-100 fixe : deux comptes ne sont
+ * jamais comparés par la hauteur, seulement par leur propre histoire. La
+ * valeur courante est répétée en texte à droite du tracé — la couleur et la
+ * position ne portent jamais seules l'information.
+ */
+export function CourbeEvolution({ points }: { points: PointEvolution[] }) {
+  const [survol, setSurvol] = useState<number | null>(null);
+  const [curseur, setCurseur] = useState<{ x: number; y: number } | null>(null);
+
+  if (points.length === 0) return null;
+
+  const t0 = new Date(points[0].date).getTime();
+  const t1 = new Date(points[points.length - 1].date).getTime();
+  const span = Math.max(1, t1 - t0);
+
+  const x = (point: PointEvolution): number => {
+    const part =
+      points.length === 1 ? 1 : (new Date(point.date).getTime() - t0) / span;
+    return MARGE_COURBE.gauche + part * (LARGEUR_COURBE - MARGE_COURBE.gauche - MARGE_COURBE.droite);
+  };
+  // 6 px de marge verticale : un score de 100 ne doit pas toucher le cadre.
+  const y = (score: number): number =>
+    MARGE_COURBE.haut + (1 - score / 100) * (HAUTEUR_COURBE - MARGE_COURBE.haut - MARGE_COURBE.bas);
+
+  const trace = points.map((point) => `${x(point)},${y(point.score)}`).join(" ");
+  const aire = `M${x(points[0])},${HAUTEUR_COURBE - MARGE_COURBE.bas} L${trace.replaceAll(" ", " L")} L${
+    x(points[points.length - 1])
+  },${HAUTEUR_COURBE - MARGE_COURBE.bas} Z`;
+
+  const dernier = points[points.length - 1];
+  const survolee = survol !== null ? points[survol] : null;
+
+  return (
+    <div className="relative">
+      <svg
+        viewBox={`0 0 ${LARGEUR_COURBE} ${HAUTEUR_COURBE}`}
+        className="h-auto w-full"
+        role="img"
+        aria-label={`Évolution du score global : ${points.length} mesure(s), de ${points[0].score} à ${dernier.score} sur 100.`}
+        onMouseLeave={() => {
+          setSurvol(null);
+          setCurseur(null);
+        }}
+        onMouseMove={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+            /*
+             * Le curseur vit en coordonnées de viewBox (l'axe X est du temps,
+             * étiré à la largeur réelle) : on reprojète avant de chercher le
+             * point le plus proche.
+             */
+          const vx = ((e.clientX - rect.left) / rect.width) * LARGEUR_COURBE;
+          let meilleur = 0;
+          for (let i = 1; i < points.length; i++) {
+            if (Math.abs(x(points[i]) - vx) < Math.abs(x(points[meilleur]) - vx)) meilleur = i;
+          }
+          setSurvol(meilleur);
+          setCurseur({ x: e.clientX, y: e.clientY });
+        }}
+      >
+        <defs>
+          <linearGradient id="aire-evolution" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--primaire)" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="var(--primaire)" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+
+        {/* Repères horizontaux discrets — 0, 50 et 100 écrits une fois. */}
+        {[0, 50, 100].map((v) => (
+          <g key={v}>
+            <line
+              x1={MARGE_COURBE.gauche}
+              x2={LARGEUR_COURBE - MARGE_COURBE.droite}
+              y1={y(v)}
+              y2={y(v)}
+              stroke="var(--bordure)"
+              strokeWidth="1"
+              strokeDasharray={v === 50 ? "3 4" : undefined}
+              opacity={v === 50 ? 0.7 : 0.45}
+              vectorEffect="non-scaling-stroke"
+            />
+            <text
+              x={LARGEUR_COURBE - MARGE_COURBE.droite + 5}
+              y={y(v) + 3}
+              fontSize="9"
+              fill="var(--texte-discret)"
+            >
+              {v}
+            </text>
+          </g>
+        ))}
+
+        {points.length > 1 && (
+          <>
+            <path d={aire} fill="url(#aire-evolution)" />
+            <polyline
+              points={trace}
+              fill="none"
+              stroke="var(--primaire)"
+              strokeWidth="2"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          </>
+        )}
+
+        {/* Le dernier point porte sa valeur écrite, au-dessus du tracé : elle
+            ne doit ni mordre la gouttière des axes ni chevaucher le trait. */}
+        <circle cx={x(dernier)} cy={y(dernier.score)} r="3.5" fill="var(--primaire)" />
+        <text
+          x={Math.min(x(dernier) + 4, LARGEUR_COURBE - MARGE_COURBE.droite - 2)}
+          y={Math.max(y(dernier.score) - 10, 12)}
+          fontSize="12"
+          fontWeight="600"
+          textAnchor="end"
+          fill="var(--primaire)"
+          stroke="var(--surface)"
+          strokeWidth="3"
+          paintOrder="stroke"
+          className="chiffres"
+        >
+          {dernier.score}
+        </text>
+
+        {survolee && survol !== null && survol !== points.length - 1 && (
+          <circle
+            cx={x(survolee)}
+            cy={y(survolee.score)}
+            r="3"
+            fill="var(--surface)"
+            stroke="var(--primaire)"
+            strokeWidth="1.5"
+            vectorEffect="non-scaling-stroke"
+          />
+        )}
+      </svg>
+
+      {survolee && survol !== null && curseur && (
+        <Infobulle x={curseur.x} y={curseur.y}>
+          <span className="font-medium">{formatDateCourte(survolee.date)}</span>
+          <span className="chiffres text-texte-attenue"> · {survolee.score} / 100</span>
+        </Infobulle>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Répartition en barres empilées                                      */
 /* ------------------------------------------------------------------ */
 
@@ -206,7 +370,9 @@ export function RepartitionNiveaux({ compte }: { compte: Record<number, number> 
 
   return (
     <div>
-      <div className="flex h-2 gap-[2px] overflow-hidden rounded-full">
+      {/* Piste pleine largeur : les segments se lisent sur un fond visible,
+          jamais comme une couleur flottant au milieu de rien. */}
+      <div className="flex h-2 gap-[2px] overflow-hidden rounded-full bg-bordure/50">
         {segments.map((s) => (
           <div
             key={s.niveau}

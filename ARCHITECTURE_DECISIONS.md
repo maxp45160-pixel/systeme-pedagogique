@@ -7306,6 +7306,83 @@ Deux décisions liées, prises dans le même geste :
 
 ---
 
+<a name="adr-098"></a>
+## ADR-098 — La Progression devient un profil de carrière ✅
+
+**Date.** 21/08/2026. **Tranchée par Maxime.**
+
+**Contexte.** Depuis le pivot Atelier-centrique (ADR-089, ADR-093), `/progression`
+n'était plus qu'une consultation sans objet propre : la grille d'activité
+annuelle répétait le widget Continuité du tableau de bord, la couverture `X/Y`
+répétait la jauge de `SyntheseReferentiel`, et la zone « Le détail des
+mesures » alignait des compteurs qu'aucun geste n'appelait. Demande portée avec
+le chantier : « rendre la page pertinente », puis « presque gamifier, comme une
+carrière Overwatch » — demande déjà formulée à l'occasion d'ADR-073 pour les
+rangs (refusée) et tranchée côté mécaniques par ADR-017 (XP supprimées).
+
+### Décision
+
+La page devient le **profil de carrière** : l'écran qu'on ouvre pour voir ce
+que le travail a produit. Quatre zones — héros (identité, anneau du score,
+qualificatif, répartition des niveaux), faits marquants, poste de lecture
+(inventaire « La pratique » + barres par domaine | courbe du score + trio « Les
+plus travaillées »), bilan de croissance pleine largeur en grille deux
+colonnes.
+
+**La frontière qui rend cela compatible avec ADR-017 : l'ampleur visuelle est
+gratuite, la mécanique ne l'est pas.**
+
+- **Autorisé — la conversion parlante.** Toute traduction d'une métrique reste
+  une fonction déterministe des observations : `qualificatifScore` relit le
+  score /100 (« En construction » < 40 ≤ « En consolidation » < 70 ≤ « Solide »
+  — seuils d'*affichage*, pas des paliers de progression, rien ne s'y
+  accumule), l'anneau dit la même chose que le chiffre qu'il entoure, les
+  « faits marquants » comptent des événements déjà écrits (paliers franchis,
+  premières mesures, meilleure série, ancrage).
+- **Interdit — la mécanique inventée.** Pas d'XP, pas de badge, pas de rang
+  calculé sur le temps passé, aucun nombre qui monterait en laissant
+  l'application ouverte (ADR-073 §totaux).
+
+**Nouveau moteur : `lib/engine/evolution.ts`.** L'évolution du score global est
+rejouée depuis le journal — aucune progression stockée (ADR-001). Même
+convention de rejeu qu'`evenementsRecents` : chaque état intermédiaire est
+calculé avec le `now` du présent, donc le dernier point peut différer
+légèrement du score courant recalculé par `calculerEtatGlobal` ; le héros
+affiche celui-là, la courbe dit la trajectoire. `variation7j` vaut `null`
+sans deux mesures distantes d'au moins sept jours — pas zéro.
+
+**Ce qui disparaît, et où c'est parti.**
+
+| Retiré | Repris par |
+|---|---|
+| Grille d'activité 52 semaines (`CarteActivite`) sur la page | le widget Continuité du tableau de bord, seule surface de la continuité |
+| Couverture `X/Y` dans `CarteEtatGlobal` | `SyntheseReferentiel` (tableau de bord), déjà porteuse |
+| Zone « Le détail des mesures » + `CarteEtatGlobal.tsx` (supprimé) | répartition des niveaux → héros ; facteurs/réserves du score → dépliant replié au pied de la courbe ; détail par compétence → Atelier |
+| Bande de totaux sous le héros (redite) | carte « La pratique », seule surface des totaux |
+
+**Le bilan redevient un chemin vers l'action.** Chaque événement sans
+progression porte un lien « Travailler → » vers le compositeur prérempli
+(`urlComposerAutonome`) ; l'état vide propose de composer une séance. La page
+ne constate plus la boucle génération → évaluation → adaptation, elle y
+renvoie.
+
+### Conséquences
+
+- `PRODUCT.md` §« La carte personnelle » corrigé dans le même commit : la
+  phrase qui donnait à la Progression « l'exploration globale, les objectifs
+  et les parcours » décrivait un état jamais construit — dérive documentaire
+  signalée le jour même.
+- `CarteEtatGlobal` supprimé avec son unique appelant ; `RepartitionNiveaux`
+  gagne une piste visible (une barre sans fond se lisait comme flottante).
+- La promesse « niveau / confiance / robustesse distincts et affichés » tient :
+  confiance et robustesse restent affichés (héros, faits marquants), le niveau
+  l'est par compétence partout ailleurs et en répartition ici ; le *niveau
+  moyen global*, lui, n'a plus d'écran dédié.
+- La page reste garantie atteignable par `workflow-scanner` ; son rôle change,
+  sa route non.
+
+---
+
 ---
 
 ## Comment modifier ce registre
