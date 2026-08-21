@@ -87,6 +87,23 @@ describe("déroulé", () => {
       expect(observation.source?.ref).toBeTruthy();
     }
   });
+
+  it("ne signale pas une calibration changée quand la fenêtre des verdicts glisse", () => {
+    expect(parcours.resultat.anomalies.filter((a) => a.regle === "calibration-sans-tentative"))
+      .toHaveLength(0);
+  });
+
+  it("ne fabrique pas de transfert sur une réussite mono-compétence", () => {
+    const exercices = new Map(parcours.resultat.scenario.exercices.map((e) => [e.id, e]));
+    const observations = parcours.resultat.pas.at(-1)!.observations;
+    const observation = observations.find((o) => {
+      const exercice = exercices.get(o.source.ref);
+      return o.resultat === "reussi" && exercice?.competences.length === 1;
+    });
+
+    expect(observation).toBeDefined();
+    expect(observation?.dimensions.transfert).toBeUndefined();
+  });
 });
 
 describe("tableau de bord", () => {

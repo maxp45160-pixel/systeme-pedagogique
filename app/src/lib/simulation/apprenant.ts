@@ -60,8 +60,12 @@ type Jeu = Omit<
 const DIMENSIONS_REUSSITE: Partial<Record<Dimension, number>> = {
   comprehension: 1,
   application: 1,
-  transfert: 0.8,
   justification: 0.8,
+};
+const DIMENSIONS_INTEGRATION_REUSSIE: Partial<Record<Dimension, number>> = {
+  ...DIMENSIONS_REUSSITE,
+  transfert: 0.8,
+  integration: 0.8,
 };
 const DIMENSIONS_PARTIEL: Partial<Record<Dimension, number>> = {
   comprehension: 0.8,
@@ -167,7 +171,9 @@ export function creerApprenant(profil: ProfilApprenant, graine: number): Apprena
       dureeMin,
       evaluation:
         resultat === "reussi"
-          ? DIMENSIONS_REUSSITE
+          ? contexte.exercice.competences.length > 1
+            ? DIMENSIONS_INTEGRATION_REUSSIE
+            : DIMENSIONS_REUSSITE
           : resultat === "partiel"
             ? DIMENSIONS_PARTIEL
             : DIMENSIONS_ECHEC,

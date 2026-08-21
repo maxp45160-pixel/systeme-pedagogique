@@ -234,6 +234,7 @@ const PAUSES: FenetrePause[] = [
 
 export const JOURS_SIMULES = 540;
 export const GRAINE_PAR_DEFAUT = 20260821;
+const DERIVATION_GRAINE_APTITUDES = 0x6d2b79f5;
 
 /* ------------------------------------------------------------------ */
 /* Construction                                                        */
@@ -353,7 +354,10 @@ function construireLot(definition: DefinitionDomaine, ordre: number): LotReferen
  * ne la voit jamais : c'est la vérité terrain de la simulation.
  */
 function tirerAptitudes(lots: LotReferentiel[], graine: number): Record<string, number> {
-  const suivant = tirage(graine);
+  // Les aptitudes cachées et le comportement de l'apprenant doivent avoir
+  // des flux indépendants : réutiliser la même séquence crée une corrélation
+  // artificielle entre la vérité terrain et les résultats tirés ensuite.
+  const suivant = tirage((graine ^ DERIVATION_GRAINE_APTITUDES) >>> 0);
   const aptitude: Record<string, number> = {};
   for (const lot of lots) {
     for (const competence of lot.competences) {

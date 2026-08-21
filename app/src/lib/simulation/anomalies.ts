@@ -19,7 +19,7 @@ import type { Anomalie } from "./types";
 export interface EtatPrecedent {
   niveaux: Map<string, number | null>;
   nombreObservations: Map<string, number>;
-  nombreVerdicts: Map<string, number>;
+  empreinteVerdicts: Map<string, string>;
   difficulteConseillee: Map<string, number | null>;
   /** Compétence en tête de recommandation, et depuis combien de pas. */
   tete: { code: string; repetitions: number } | null;
@@ -29,7 +29,7 @@ export function etatPrecedentVide(): EtatPrecedent {
   return {
     niveaux: new Map(),
     nombreObservations: new Map(),
-    nombreVerdicts: new Map(),
+    empreinteVerdicts: new Map(),
     difficulteConseillee: new Map(),
     tete: null,
   };
@@ -94,7 +94,7 @@ export function detecterAnomalies(
 
   const niveaux = new Map<string, number | null>();
   const nombreObservations = new Map<string, number>();
-  const nombreVerdicts = new Map<string, number>();
+  const empreinteVerdicts = new Map<string, string>();
   const difficulteConseillee = new Map<string, number | null>();
 
   for (const etat of etats) {
@@ -131,19 +131,22 @@ export function detecterAnomalies(
     }
 
     const calibration = calibrations.get(code);
-    const verdicts = calibration?.verdicts.length ?? 0;
+    const verdicts = calibration?.verdicts ?? [];
+    const empreinte = verdicts
+      .map((v) => `${v.exerciceId}|${v.date}|${v.signal}|${v.difficulte}`)
+      .join(";");
     const conseillee = calibration?.difficulteConseillee ?? null;
-    nombreVerdicts.set(code, verdicts);
+    empreinteVerdicts.set(code, empreinte);
     difficulteConseillee.set(code, conseillee);
 
     // Garde-fou — la difficulté conseillée est dérivée des tentatives : elle ne
     // peut pas bouger si aucune tentative ne s'est ajoutée.
     const difficulteAvant = precedent.difficulteConseillee.get(code);
-    const verdictsAvant = precedent.nombreVerdicts.get(code) ?? 0;
+    const empreinteAvant = precedent.empreinteVerdicts.get(code) ?? "";
     if (
       difficulteAvant !== undefined &&
       difficulteAvant !== conseillee &&
-      verdicts === verdictsAvant
+      empreinte === empreinteAvant
     ) {
       anomalies.push({
         regle: "calibration-sans-tentative",
@@ -208,7 +211,7 @@ export function detecterAnomalies(
 
   return {
     anomalies,
-    etat: { niveaux, nombreObservations, nombreVerdicts, difficulteConseillee, tete: suivi },
+    etat: { niveaux, nombreObservations, empreinteVerdicts, difficulteConseillee, tete: suivi },
   };
 }
 
