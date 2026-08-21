@@ -24,6 +24,7 @@
  */
 
 import type { Skill } from "@/lib/domain/types";
+import { PHRASE_MESURABILITE } from "@/lib/domain/atomicite";
 import type { MoteurTuteur } from "./moteurs";
 import { lireErreurMoteur, lireOutilsActifs, messageSansOutils } from "./moteurs";
 import { outilsRelations, type PropositionRelations } from "./outils";
@@ -89,7 +90,7 @@ export function construirePromptRelations(entree: EntreeRelations): string {
     "- domaineId doit être l'identifiant d'un domaine de la liste. **Si aucun ne convient, omets le champ** : la proposition sera montrée à la personne comme demandant un domaine neuf, ce qu'elle décidera elle-même. N'invente pas de domaine, et ne range pas par défaut dans le domaine de la compétence lue.",
     "- Un prérequis est ce qu'il faut savoir faire AVANT. Une suite est ce que la compétence lue rend possible. Ne mets pas la même compétence des deux côtés.",
     "- Un prérequis est normalement d'un palier inférieur ou égal, une suite d'un palier supérieur ou égal.",
-    "- Chaque intitulé est un savoir-faire observable et non un sujet : notable, testable dans deux contextes, exerçable, prouvable en 20 à 60 minutes.",
+    `- Chaque intitulé doit être mesurable : ${PHRASE_MESURABILITE}.`,
     "- Justifie chaque relation en une phrase, en partant de la compétence lue.",
     "- Cinq propositions maximum de chaque côté. Mieux vaut trois justes que cinq approximatives.",
     "",

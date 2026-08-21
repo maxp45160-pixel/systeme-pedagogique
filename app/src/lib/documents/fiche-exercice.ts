@@ -1,5 +1,6 @@
 import type { Exercise, ExerciseAttempt } from "@/lib/domain/types";
 import { ajouterDansSection } from "./sections-markdown";
+import { listeMarkdown } from "./markdown";
 
 /**
  * La fiche d'un exercice travaillé.
@@ -44,10 +45,6 @@ export const SECTION_CORRECTION = "Correction";
 
 export function idFicheExercice(exerciseId: string): string {
   return `exercice-${exerciseId}`;
-}
-
-function listeMarkdown(valeurs: readonly string[]): string[] {
-  return valeurs.map((valeur) => `- [[${valeur}]]`);
 }
 
 /**

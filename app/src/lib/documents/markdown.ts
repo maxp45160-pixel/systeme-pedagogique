@@ -22,6 +22,17 @@ export interface ExtractionFrontMatter {
 export const REGEX_INLINE_MARKDOWN = /(\[\[[^\]]+\]\]|\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g;
 
 /**
+ * Une liste Markdown de wikiliens — `- [[valeur]]`, une ligne par valeur.
+ *
+ * Les fiches d'exercice et les documents de preuve l'écrivaient chacun de leur
+ * côté ; le format d'un document durable ne doit pas dépendre du module qui
+ * le construit. Le consommateur qui veut un bloc joint les lignes lui-même.
+ */
+export function listeMarkdown(valeurs: readonly string[]): string[] {
+  return valeurs.map((valeur) => `- [[${valeur}]]`);
+}
+
+/**
  * Isole le bloc Frontmatter YAML brut (s'il existe) du corps Markdown.
  *
  * C'est la brique de base de tout parsing de document : `parserFrontMatter`

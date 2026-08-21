@@ -62,6 +62,28 @@
 export const INTITULE_MAX_ATOMIQUE = 90;
 
 /**
+ * Les cinq conditions de mesurabilité du protocole (§2) — l'autorité unique.
+ *
+ * Elles étaient réécrites en prose dans quatre prompts différents et avaient
+ * déjà divergé : « un type d'exercice » ici, « un des types d'exercice » là,
+ * une version abrégée ailleurs. Le prompt demande, le validateur impose — mais
+ * la demande aussi doit avoir une seule source : c'est le même texte que les
+ * écrans, les schémas d'outil et les validateurs décrivent.
+ */
+export const CONDITIONS_MESURABILITE = [
+  "un savoir-faire observable et non un sujet",
+  "notable sur au moins une dimension",
+  "testable dans deux contextes",
+  "exerçable par un des types d'exercice",
+  "prouvable en 20 à 60 minutes",
+] as const;
+
+/** Les cinq conditions citées d'un trait, pour les prompts qui les énumèrent en une phrase. */
+export const PHRASE_MESURABILITE = `${CONDITIONS_MESURABILITE.slice(0, -1).join(
+  ", ",
+)}, et ${CONDITIONS_MESURABILITE[CONDITIONS_MESURABILITE.length - 1]}`;
+
+/**
  * Les verbes d'action observables, en position de tête.
  *
  * Liste **fermée**, et construite depuis le référentiel réel : ce sont les

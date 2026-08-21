@@ -29,8 +29,7 @@
 
 import { APPRECIATIONS, RESULTATS, type ResultatBilan, type ValeurAppreciation } from "@/lib/domain/bilan";
 import type { PropositionCorrection } from "./outils";
-
-export type Conversion<T> = { ok: true; valeur: T } | { ok: false; erreurs: string[] };
+import type { Conversion } from "./conversion";
 
 export interface CorrectionEnregistrable {
   resultat: ResultatBilan;

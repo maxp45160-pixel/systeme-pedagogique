@@ -13,6 +13,7 @@
  */
 
 import type { Referentiel } from "@/lib/domain/types";
+import { CONDITIONS_MESURABILITE } from "@/lib/domain/atomicite";
 import { analyserDemandeReferentiel } from "@/lib/domain/intention";
 import type { MoteurTuteur } from "./moteurs";
 import { lireErreurMoteur, lireOutilsActifs, messageSansOutils } from "./moteurs";
@@ -23,6 +24,8 @@ import {
 } from "./outils";
 import type { PropositionReferentiel } from "./proposition";
 import type { PromptTuteur } from "./prompt";
+
+const [observable, notable, deuxContextes, exercable, prouvable] = CONDITIONS_MESURABILITE;
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -100,11 +103,11 @@ export function construirePromptSuggestion(
     "Tu es le tuteur du système pédagogique. Tu proposes une branche de compétences pour un sujet demandé.",
     "",
     "PROTOCOLE DE RÉDACTION D'UNE COMPÉTENCE",
-    "- Chaque intitulé doit être un savoir-faire observable, pas un sujet.",
-    "- Chaque compétence doit être notable sur au moins une dimension du référentiel.",
-    "- Chaque compétence doit être testable dans deux contextes.",
-    "- Chaque compétence doit être exerçable par un des types d'exercice.",
-    "- Chaque compétence doit être prouvable en 20 à 60 minutes.",
+    `- Chaque intitulé doit être ${observable}.`,
+    `- Chaque compétence doit être ${notable} du référentiel.`,
+    `- Chaque compétence doit être ${deuxContextes}.`,
+    `- Chaque compétence doit être ${exercable}.`,
+    `- Chaque compétence doit être ${prouvable}.`,
     "- Du plus fondamental au plus avancé.",
     "",
     "RÉFÉRENTIEL EXISTANT DU COMPTE — ne redouble ni ces domaines ni leurs compétences ; si le sujet est déjà couvert par une compétence listée, dis-le plutôt que de proposer un doublon :",
@@ -181,11 +184,11 @@ export function construirePromptReferentiel(
     "La personne relit branche par branche, compétence par compétence, et coche ce qu'elle garde.",
     "",
     "PROTOCOLE DE RÉDACTION D'UNE COMPÉTENCE",
-    "- Chaque intitulé est un savoir-faire observable, pas un sujet.",
-    "- Chaque compétence est notable sur au moins une dimension du référentiel.",
-    "- Chaque compétence est testable dans deux contextes.",
-    "- Chaque compétence est exerçable par un des types d'exercice.",
-    "- Chaque compétence est prouvable en 20 à 60 minutes.",
+    `- Chaque intitulé est ${observable}.`,
+    `- Chaque compétence est ${notable} du référentiel.`,
+    `- Chaque compétence est ${deuxContextes}.`,
+    `- Chaque compétence est ${exercable}.`,
+    `- Chaque compétence est ${prouvable}.`,
     "- Du plus fondamental au plus avancé, à l'intérieur de chaque branche.",
     "",
     "COMMENT DÉCOUPER",

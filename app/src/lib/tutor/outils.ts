@@ -64,9 +64,11 @@ import {
   motifsNonAtomique,
   motifsRefusStructure,
   OBJET_MAX,
+  PHRASE_MESURABILITE,
   PRECISION_MAX,
   VERBES_ACTION,
 } from "@/lib/domain/atomicite";
+import { objet } from "./conversion";
 
 /* ------------------------------------------------------------------ */
 /* Noms d'outils et description neutre d'un schéma                     */
@@ -1105,7 +1107,7 @@ export function outilsTuteur(referentiel: Referentiel): OutilTuteur[] {
         // premier suffisait presque : le protocole n'est chargé que sur
         // mots-clés, et « je veux bosser la thermodynamique » n'en porte aucun.
         // Leur place est ici — la description part avec l'outil, donc toujours.
-        "Propose une branche de compétences quand le sujet demandé n'existe pas encore au référentiel. L'application attribue les codes. Chaque intitulé doit être mesurable : un savoir-faire observable et non un sujet, notable sur au moins une dimension, testable dans deux contextes, exerçable par un des types d'exercice, et prouvable en 20 à 60 minutes.",
+        `Propose une branche de compétences quand le sujet demandé n'existe pas encore au référentiel. L'application attribue les codes. Chaque intitulé doit être mesurable : ${PHRASE_MESURABILITE}.`,
       schema: schemaReferentiel(),
     },
   ];
@@ -1129,12 +1131,6 @@ function nombreTexte(valeur: unknown): string {
 function listeDeTextes(valeur: unknown): string[] {
   if (!Array.isArray(valeur)) return [];
   return valeur.map(texte).filter((v) => v.length > 0);
-}
-
-function objet(valeur: unknown): Record<string, unknown> | null {
-  return typeof valeur === "object" && valeur !== null && !Array.isArray(valeur)
-    ? (valeur as Record<string, unknown>)
-    : null;
 }
 
 function dansEnum(valeur: unknown, valeurs: readonly string[]): string {

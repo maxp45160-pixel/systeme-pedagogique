@@ -1,4 +1,5 @@
 import type { Exercise, ExerciseAttempt } from "@/lib/domain/types";
+import { listeMarkdown } from "./markdown";
 
 export interface DocumentProductionPreuve {
   id: string;
@@ -16,10 +17,6 @@ export function memeProductionHorsHorodatage(a: string, b: string): boolean {
     .replace(/^created_at: .*$/m, "created_at: <date>")
     .replace(/^produced_at: .*$/m, "produced_at: <date>");
   return sansHorodatage(a) === sansHorodatage(b);
-}
-
-function listeMarkdown(valeurs: string[]): string {
-  return valeurs.map((valeur) => `- [[${valeur}]]`).join("\n");
 }
 
 /**
@@ -42,7 +39,7 @@ export function construireDocumentProductionPreuve(
   const sections = [
     "## Compétences mobilisées",
     "",
-    listeMarkdown(exercice.competences),
+    listeMarkdown(exercice.competences).join("\n"),
     "",
     "## Support",
     "",
