@@ -14,7 +14,7 @@ export function NavMobile() {
   return (
     <nav
       data-tour="navigation-rail"
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-bordure bg-surface/95 backdrop-blur-sm lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-[var(--superposition-barre)] border-t border-bordure bg-surface/95 backdrop-blur-sm lg:hidden"
     >
       {/*
         Nombre de colonnes dérivé de NAV_MOBILE, pas une classe Tailwind

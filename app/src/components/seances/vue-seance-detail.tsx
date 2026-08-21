@@ -60,7 +60,7 @@ export type EtapeRecherche = {
   produirait aucun style.
 */
 const CLASSES_PANNEAU_BASE =
-  "fixed left-4 right-4 top-28 z-30 mt-2 shadow-xl sm:absolute sm:right-auto sm:top-auto";
+  "fixed left-4 right-4 top-28 z-[var(--superposition-menu)] mt-2 shadow-xl sm:absolute sm:right-auto sm:top-auto";
 const CLASSES_PANNEAU_CADRE = "rounded-lg border border-bordure bg-surface p-3";
 
 const PANNEAU_LARGE_GAUCHE = "sm:left-0 sm:translate-x-0 sm:w-[min(34rem,calc(100vw-6rem))]";
@@ -200,7 +200,7 @@ export async function VueSeanceDetail({
     <div
       className={
         plein
-          ? "fixed inset-0 z-50 overflow-y-auto bg-surface"
+          ? "fixed inset-0 z-[var(--superposition-modale)] overflow-y-auto bg-surface"
           : "overflow-hidden rounded-lg border border-bordure bg-surface"
       }
     >

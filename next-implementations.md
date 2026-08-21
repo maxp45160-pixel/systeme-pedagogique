@@ -35,6 +35,18 @@ reste. Le chantier 3 demande d'abord une décision produit (voir ci-dessous).
 
 ### 1. Échelle de superpositions et conflit tour / modale
 
+> **Fait le 21/08/2026** (non commité à ce jour). Échelle `--superposition-*`
+> ajoutée à `tokens.css` et documentée dans `docs/design/01-tokens.md` ;
+> 13 surfaces converties (`ui/modale`, `guide-tour` avec suppression du
+> `z-[101]`, `nav-mobile`, bouton flottant du tuteur, bandeau dev flottant,
+> infobulle des graphiques, rideau + panneau latéral de l'Atelier,
+> `coquille-workspace`, modale d'orientation profil, panneau et plein écran de
+> séance, calendrier du cahier) ; verrou « un seul overlay » posé dans
+> `fournisseur-intention.tsx`. Vérifié en conditions réelles : pendant le tour,
+> `+` n'ouvre rien ; sans tour, la modale s'ouvre seule à z = 50.
+> Les empilements purement locaux (panneaux absolus dans leur conteneur)
+> restent volontairement inchangés.
+
 **Constat.** Sur `/demarrer`, trois surfaces se superposent : le tour auto
 (`components/onboarding/demarrer-tour.tsx`, backdrop `z-[100]`), la modale
 d'intention (`components/ui/modale.tsx:229`, `z-50`) et la bannière clé IA

@@ -983,7 +983,7 @@ export function EspaceDocumentaire({
       {contexteOuvert && contexteDisponible && (
         <button
           type="button"
-          className="fixed inset-0 z-40 bg-black/35 backdrop-blur-[1px] 2xl:hidden"
+          className="fixed inset-0 z-[var(--superposition-tiroir)] bg-black/35 backdrop-blur-[1px] 2xl:hidden"
           onClick={() => setContexteOuvert(false)}
           aria-label="Fermer le panneau de contexte"
         />
@@ -1531,7 +1531,7 @@ export function EspaceDocumentaire({
             className={cx(
               "min-h-0 overflow-y-auto border-l border-bordure bg-surface shadow-2xl coulissement-droite transition-all duration-200",
               contexteOuvert
-                ? "fixed bottom-4 right-4 top-4 z-50 block w-[min(26rem,calc(100vw-2rem))] rounded-xl border"
+                ? "fixed bottom-4 right-4 top-4 z-[var(--superposition-tiroir)] block w-[min(26rem,calc(100vw-2rem))] rounded-xl border"
                 : "hidden",
               panneauDroitVisible
                 ? "2xl:static 2xl:z-auto 2xl:block 2xl:h-full 2xl:max-h-full 2xl:w-auto 2xl:rounded-none 2xl:border-y-0 2xl:border-r-0 2xl:shadow-none"

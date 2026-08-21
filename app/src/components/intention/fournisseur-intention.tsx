@@ -7,6 +7,7 @@ import {
   type ContexteIntentionType,
   type OptionsIntention,
 } from "./contexte-intention";
+import { useOnboarding } from "@/components/onboarding/onboarding-context";
 
 /**
  * Le fournisseur d'intention monte la modale unique CaptureIntention (`+` / ADR-073).
@@ -26,9 +27,17 @@ export function FournisseurIntention({
   const [ouverte, setOuverte] = useState(false);
   const [besoin, setBesoin] = useState<string | undefined>(undefined);
   const [contexte, setContexte] = useState<ContexteIntentionType>("general");
+  const { tourActif } = useOnboarding();
 
   const ouvrir = useCallback(
     (besoinOuOptions?: string | OptionsIntention, options?: OptionsIntention) => {
+      // Contrat « une seule surface pleine page à la fois » : pendant un
+      // tour actif, la capture ne s'ouvre pas. Sans ce verrou, le guide et
+      // la modale se superposaient — deux masques sombres cumulés, la fiche
+      // du tour flottant au-dessus du titre (audit du 21/08/2026). Le tour
+      // se termine ou se passe d'abord.
+      if (tourActif) return;
+
       let b: string | undefined;
       let c: ContexteIntentionType = "general";
 
@@ -44,7 +53,7 @@ export function FournisseurIntention({
       setContexte(c);
       setOuverte(true);
     },
-    [],
+    [tourActif],
   );
 
   const fermer = useCallback(() => {

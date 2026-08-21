@@ -33,7 +33,7 @@ export function ProfilFlottant({ compteId }: { compteId: string }) {
   return (
     <div
       data-profiling-ignore="true"
-      className="fixed bottom-4 right-4 z-50 flex items-center gap-3 rounded-full border border-danger/30 bg-surface/90 px-4 py-2 text-xs font-medium shadow-lg backdrop-blur-md transition-all sm:bottom-6 sm:right-6"
+      className="fixed bottom-4 right-4 z-[var(--superposition-notification)] flex items-center gap-3 rounded-full border border-danger/30 bg-surface/90 px-4 py-2 text-xs font-medium shadow-lg backdrop-blur-md transition-all sm:bottom-6 sm:right-6"
     >
       <div className="flex items-center gap-2">
         <span className="relative flex h-2.5 w-2.5">

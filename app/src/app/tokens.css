@@ -236,6 +236,23 @@
 /* ══════════════ JETONS SANS THÈME (identiques partout) ═════════ */
 
 :root {
+  /*
+    Superpositions — une échelle, un seul ordre :
+    collant < barre < menu < tiroir < modale < tour < notification.
+    Le 21/08/2026, chaque surface improvisait sa couche (z-30, z-40, z-50,
+    z-[100]) : le tour flottait au-dessus des modales et deux masques
+    sombres se cumulaient. C'est le défaut que cette échelle rend
+    impossible ; le contrat « une seule surface pleine page à la fois »
+    est appliqué par le verrou du fournisseur d'intention.
+  */
+  --superposition-collant: 10;
+  --superposition-barre: 20;
+  --superposition-menu: 30;
+  --superposition-tiroir: 40;
+  --superposition-modale: 50;
+  --superposition-tour: 60;
+  --superposition-notification: 70;
+
   /* ── Typographie réellement consommée par les styles de base ───── */
   --pas-corps: 0.9375rem;
 

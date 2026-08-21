@@ -226,7 +226,7 @@ export function Modale({
   return createPortal(
     <div
       className={cx(
-        "fixed inset-0 z-50 flex bg-black/40 backdrop-blur-sm",
+        "fixed inset-0 z-[var(--superposition-modale)] flex bg-black/40 backdrop-blur-sm",
         position === "laterale"
           ? "justify-end"
           : "items-center justify-center p-4",

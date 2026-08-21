@@ -37,7 +37,7 @@ export function CalendrierCahier({
   return (
     <OutilSeance
       libelle="Aller à une date"
-      contenuClassName="absolute right-0 z-30 mt-2 w-[17rem] rounded-lg border border-bordure bg-surface p-3 shadow-[var(--ombre-surcouche)]"
+      contenuClassName="absolute right-0 z-[var(--superposition-menu)] mt-2 w-[17rem] rounded-lg border border-bordure bg-surface p-3 shadow-[var(--ombre-surcouche)]"
     >
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">

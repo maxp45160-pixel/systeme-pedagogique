@@ -56,7 +56,7 @@ export function CoquilleWorkspace({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-surface">
+    <div className="fixed inset-0 z-[var(--superposition-modale)] overflow-y-auto bg-surface">
       <header className="sticky top-0 z-20 border-b border-bordure bg-surface/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="min-w-0">
