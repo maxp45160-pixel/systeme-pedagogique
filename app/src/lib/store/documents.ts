@@ -115,10 +115,6 @@ async function lireApercusDocumentsDepuisDorsale(
   });
 }
 
-export const lireDocuments = cache(async (): Promise<LigneDocument[]> => {
-  return lireDocumentsDepuisDorsale(await dorsaleCompte());
-});
-
 /** Lecture légère de l'explorateur : aucun corps Markdown n'est transféré. */
 export const lireApercusDocuments = cache(async (): Promise<ApercuDocument[]> => {
   return lireApercusDocumentsDepuisDorsale(await dorsaleCompte());
@@ -269,25 +265,6 @@ export async function creerDocument(
   verifier("création du document", error);
   const documents = await lireDocumentsDepuisDorsale({ supabase, userId, courriel: undefined });
   await synchroniserLiens(documents, { supabase, userId, courriel: undefined }, [identifiant]);
-  revalidatePath("/atelier");
-}
-
-export async function creerDocuments(
-  documentsAInserer: Array<{ id: string; contenuMd: string }>,
-): Promise<void> {
-  if (documentsAInserer.length === 0) return;
-  documentsAInserer.forEach(({ contenuMd }) => validerTailleMarkdown(contenuMd));
-  const dorsale = await dorsaleCompte();
-  const lignes = documentsAInserer.map((document) => ({
-    user_id: dorsale.userId,
-    id: verifierIdentifiant(document.id),
-    contenu_md: document.contenuMd,
-    ...metadataDepuisContenu(document.id, document.contenuMd),
-  }));
-  const { error } = await dorsale.supabase.from(TABLE_DOCUMENTS).insert(lignes);
-  verifier("création groupée des documents", error);
-  const documents = await lireDocumentsDepuisDorsale(dorsale);
-  await synchroniserLiens(documents, dorsale, lignes.map((ligne) => ligne.id));
   revalidatePath("/atelier");
 }
 

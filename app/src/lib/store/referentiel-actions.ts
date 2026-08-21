@@ -19,17 +19,11 @@ import {
   preparerCreationDomaine,
   preparerRevisionDomaine,
   type CompetenceDejaAuReferentiel,
-  type AjoutCompetenceCommande,
   type CommandeReferentiel,
   type EnveloppeCommandeReferentiel,
   type ResultatCommandeReferentiel,
 } from "@/lib/domain/gouvernance-referentiel";
-import {
-  competenceHomonyme,
-  normaliserImportance,
-  normaliserPalier,
-  validerCompetence,
-} from "@/lib/domain/referentiel-compte";
+import { competenceHomonyme } from "@/lib/domain/referentiel-compte";
 import type { OrigineReferentiel, Palier, Referentiel } from "@/lib/domain/types";
 
 async function executerCommande(
@@ -385,16 +379,6 @@ export async function appliquerRevision(soumission: SoumissionRevision): Promise
   };
 }
 
-function domaineUnique(codes: string[], referentiel: Referentiel): string {
-  const domaines = new Set(codes.map((code) => {
-    const skill = referentiel.parCode.get(code);
-    if (!skill) throw new Error(`Compétence inconnue : ${code}`);
-    return skill.domaine;
-  }));
-  if (domaines.size !== 1) throw new Error("Une commande groupée ne peut pas traverser plusieurs domaines.");
-  return [...domaines][0];
-}
-
 export interface CompetenceLisible {
   code: string;
   intitule: string;
@@ -422,48 +406,6 @@ export async function lireCompetencesActives(): Promise<CompetenceLisible[]> {
   }));
 }
 
-export async function basculerActives(codes: string[], active: boolean): Promise<void> {
-  if (codes.length === 0) return;
-  const dorsale = await dorsaleCompte();
-  const referentiel = await lireReferentiel(dorsale);
-  const domaineId = domaineUnique(codes, referentiel);
-  await executerCommande({ type: "activer_competences", domaineId, codes: [...new Set(codes)], active }, referentiel, "utilisateur", active ? "Remise au périmètre" : "Sortie du périmètre");
-}
-
-export async function desarchiverCompetence(code: string): Promise<void> {
-  const dorsale = await dorsaleCompte();
-  const referentiel = await lireReferentiel(dorsale);
-  const skill = referentiel.parCode.get(code);
-  if (!skill) throw new Error(`Compétence inconnue : ${code}`);
-  await executerCommande({ type: "desarchiver_competence", domaineId: skill.domaine, code }, referentiel, "utilisateur", `Désarchivage de ${code}`);
-  await dorsale.supabase
-    .from("exercises")
-    .update({ archive: false })
-    .eq("user_id", dorsale.userId)
-    .contains("competences", [code]);
-}
-
-export interface ResultatRetraitGroupe {
-  supprimees: string[];
-  archivees: string[];
-}
-
-export async function retirerCompetences(codes: string[]): Promise<ResultatRetraitGroupe> {
-  if (codes.length === 0) return { supprimees: [], archivees: [] };
-  const dorsale = await dorsaleCompte();
-  const referentiel = await lireReferentiel(dorsale);
-  const domaineId = domaineUnique(codes, referentiel);
-  const resultat = await executerCommande({ type: "retirer_competences", domaineId, codes: [...new Set(codes)] }, referentiel, "utilisateur", "Retrait validé de compétences");
-  if (resultat.archivees?.length) {
-    await dorsale.supabase
-      .from("exercises")
-      .update({ archive: true })
-      .eq("user_id", dorsale.userId)
-      .overlaps("competences", resultat.archivees);
-  }
-  return { supprimees: resultat.supprimees ?? [], archivees: resultat.archivees ?? [] };
-}
-
 export async function archiverDomaine(domaineId: string): Promise<ResultatCommandeReferentiel> {
   const dorsale = await dorsaleCompte();
   const referentiel = await lireReferentiel(dorsale);
@@ -487,28 +429,6 @@ export async function restaurerDomaine(domaineId: string): Promise<void> {
     .update({ archive: false })
     .eq("user_id", dorsale.userId)
     .eq("domaine", domaineId);
-}
-
-export async function remplacerCompetence(
-  code: string,
-  champs: { intitule: string; palier: Palier; importance: number; prerequis?: string[] },
-): Promise<string> {
-  const dorsale = await dorsaleCompte();
-  const referentiel = await lireReferentiel(dorsale);
-  const skill = referentiel.parCode.get(code);
-  if (!skill) throw new Error(`Compétence inconnue : ${code}`);
-  const candidate = {
-    intitule: champs.intitule.trim(),
-    palier: normaliserPalier(champs.palier),
-    importance: normaliserImportance(champs.importance),
-    prerequis: [...new Set(champs.prerequis ?? skill.prerequis)],
-  };
-  const erreurs = validerCompetence(candidate, referentiel, skill.domaine);
-  if (erreurs.length) throw new Error(erreurs.join(" "));
-  const successeur: AjoutCompetenceCommande = { ...candidate, ordre: skill.ordre, origine: "utilisateur" };
-  const resultat = await executerCommande({ type: "remplacer_competence", domaineId: skill.domaine, code, successeur }, referentiel, "utilisateur", `Changement de sens de ${code}`);
-  if (!resultat.successeur) throw new Error("La transaction n'a pas renvoyé le code successeur.");
-  return resultat.successeur;
 }
 
 export interface ModificationProfil {

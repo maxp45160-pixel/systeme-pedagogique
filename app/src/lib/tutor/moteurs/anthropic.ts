@@ -60,7 +60,7 @@ export function moteurAnthropic(cle: string, modele: string): MoteurTuteur {
           })),
           /*
            * Un seul outil armé = un chemin one-shot (traduire un besoin,
-           * résoudre un thème, rédiger un lot). Là, l'appel n'est pas une option
+           * rédiger un lot). Là, l'appel n'est pas une option
            * offerte au modèle : c'est TOUT ce que la requête attend, et une
            * réponse en prose ne produit rien d'exploitable — l'écran affichait
            * alors « aucune action exploitable » pour un modèle qui avait

@@ -1,11 +1,15 @@
 /**
- * Extraction des blocs structurés émis par le tuteur.
+ * Extraction des blocs structurés émis par le tuteur — filet de sécurité.
  *
- * Deux gabarits, tous deux fixés côté serveur dans `CONSIGNES_INTERFACE`
- * (`lib/tutor/contexte.ts`) :
+ * Deux gabarits : `PROPOSITION D'EXERCICE` (un **exercice** à ajouter au
+ * corpus) et `PROPOSITION DE RÉFÉRENTIEL` (une **branche** de compétences à
+ * valider).
  *
- * - `PROPOSITION D'EXERCICE` ..... → un **exercice** à ajouter au corpus ;
- * - `PROPOSITION DE RÉFÉRENTIEL` → une **branche** de compétences à valider.
+ * Depuis le lot 3.2, les propositions passent par les tool definitions
+ * (`validerAppelOutil` dans `lib/tutor/outils.ts`) et les prompts n'émettent
+ * plus ces blocs markdown. Ces parseurs restent le filet pour deux cas : un
+ * fournisseur compatible OpenAI dont les deux marches d'outils échouent, et
+ * les conversations antérieures à la transition restaurées depuis la session.
  *
  * Ces parseurs sont purement locaux et testables. Ils ne donnent aucun accès en
  * écriture au tuteur (P5) : ils transforment une proposition en formulaire

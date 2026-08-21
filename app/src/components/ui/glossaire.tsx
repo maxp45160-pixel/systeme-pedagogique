@@ -6,9 +6,9 @@ import { Depliant } from "@/components/ui/explication";
  * « Preuve », « Observation », « robustesse », « autonomie A0–A4 »,
  * « confiance », « dimension »
  * sont le cœur du produit et n'étaient expliqués **nulle part**.
- * `PanneauExplication` justifie les *calculs* — d'où vient ce 2,7 — mais jamais
- * les *termes*. Un nouvel arrivant lisait « robustesse 0,42 » sans avoir de
- * quoi savoir si c'est bien.
+ * Les panneaux d'explication justifient les *calculs* — d'où vient ce 2,7 —
+ * mais jamais les *termes*. Un nouvel arrivant lisait « robustesse 0,42 » sans
+ * avoir de quoi savoir si c'est bien.
  *
  * Replié par défaut : c'est un rappel pour qui en a besoin, pas un cours à
  * traverser à chaque visite. Et volontairement court — un glossaire qu'on ne

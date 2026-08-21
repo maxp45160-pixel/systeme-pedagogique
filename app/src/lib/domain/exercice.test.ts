@@ -111,7 +111,7 @@ describe("usageExercice", () => {
  * les reprendre : deux copies, dont la seconde aurait pu être plus permissive
  * sans que rien ne le signale — on aurait pu faire entrer par l'édition ce que
  * la création refuse. C'est la forme du défaut qu'ADR-044 a corrigé pour les
- * retraits et l'audit §2.8 pour `basculerActives`.
+ * retraits et l'audit §2.8 pour l'activation.
  */
 function contenu(surcharge: Partial<ContenuExercice> = {}): ContenuExercice {
   return {

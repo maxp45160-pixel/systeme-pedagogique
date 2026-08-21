@@ -41,28 +41,6 @@ export function comparerSkills(a: Skill, b: Skill): number {
   return a.code.localeCompare(b.code);
 }
 
-const MOTIF_CODE = /^([A-Z]+)-(\d+)$/;
-
-/**
- * Ordre **numérique** d'un code : LOG-01, LOG-02, … LOG-09, LOG-10, LOG-11.
- *
- * `localeCompare` seul range LOG-10 avant LOG-9 dès que la numérotation dépasse
- * le remplissage à deux chiffres — et `attribuerCodes` passe à trois chiffres
- * au-delà de 99. Le préfixe se compare comme du texte, le numéro comme un
- * nombre : les deux parties n'ont pas la même nature.
- *
- * Un code qui n'a pas cette forme retombe sur la comparaison textuelle plutôt
- * que d'être forcé à un nombre : on ne fabrique pas un rang qu'on ne sait pas
- * lire (P2).
- */
-export function comparerCodes(a: string, b: string): number {
-  const ga = MOTIF_CODE.exec(a);
-  const gb = MOTIF_CODE.exec(b);
-  if (!ga || !gb) return a.localeCompare(b);
-  if (ga[1] !== gb[1]) return ga[1].localeCompare(gb[1]);
-  return Number(ga[2]) - Number(gb[2]);
-}
-
 function comparerDomaines(a: Domaine, b: Domaine): number {
   if (a.ordre !== b.ordre) return a.ordre - b.ordre;
   return a.nom.localeCompare(b.nom);
@@ -532,7 +510,7 @@ export function retraitsParCode(
 /**
  * Découpe un lot de codes à retirer selon le geste **dérivé** de chacun.
  *
- * Extraite de `retirerCompetences` pour être partagée avec `appliquerRevision`
+ * Extraite du geste de retrait groupé pour être partagée avec `appliquerRevision`
  * (lot C). Deux copies de la règle d'ADR-027 finiraient par diverger, et la
  * divergence serait invisible : les deux chemins « marcheraient », l'un
  * effaçant ce que l'autre archive.

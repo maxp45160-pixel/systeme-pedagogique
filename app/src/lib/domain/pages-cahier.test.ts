@@ -12,7 +12,6 @@ import {
   moisDecale,
   moisValide,
   pageDOuverture,
-  pageEstVide,
   positionDeLaSeance,
   positionDuProjet,
   rangDOuverture,
@@ -177,8 +176,9 @@ describe("construirePage", () => {
 
   it("rend une page vide plutôt que rien, pour un jour sans contenu", () => {
     const page = construirePage("2026-08-01", entrees);
-    expect(pageEstVide(page)).toBe(true);
     expect(page.jour).toBe("2026-08-01");
+    expect(page.seances).toHaveLength(0);
+    expect(page.notes).toHaveLength(0);
   });
 });
 

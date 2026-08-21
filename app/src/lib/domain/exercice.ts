@@ -68,7 +68,7 @@ export interface ContenuExercice {
  * les reprendre : deux copies d'une même validation, et la seconde aurait pu
  * être plus permissive sans que rien ne le signale — on aurait pu faire entrer
  * par l'édition ce que la création refuse. C'est la forme exacte du défaut
- * qu'ADR-044 a corrigé pour les retraits, et §2.8 pour `basculerActives`.
+ * qu'ADR-044 a corrigé pour les retraits, et §2.8 pour l'activation.
  *
  * Module pur : testable sans base, et la validation appliquée est exactement
  * celle que les tests vérifient.

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   assemblerReferentiel,
   attribuerCodes,
-  comparerCodes,
   libelleDomaine,
   modeRetrait,
   retraitsParCode,
@@ -152,49 +151,6 @@ describe("scinderRetraits — ADR-027 appliquée à un lot", () => {
 
   it("rend deux listes vides pour un lot vide", () => {
     expect(scinderRetraits([], new Map())).toEqual({ supprimees: [], archivees: [] });
-  });
-});
-
-describe("ordre numérique des codes", () => {
-  it("range LOG-09 avant LOG-10, et non l'inverse", () => {
-    const codes = ["LOG-10", "LOG-02", "LOG-09", "LOG-01", "LOG-12"];
-    expect([...codes].sort(comparerCodes)).toEqual([
-      "LOG-01",
-      "LOG-02",
-      "LOG-09",
-      "LOG-10",
-      "LOG-12",
-    ]);
-  });
-
-  it("tient au passage à trois chiffres, là où le remplissage ne suffit plus", () => {
-    // `attribuerCodes` passe à trois chiffres au-delà de 99 : « LOG-100 » et
-    // « LOG-99 » n'ont plus la même longueur, et la comparaison textuelle
-    // rangeait le premier avant le second.
-    expect([...["LOG-100", "LOG-99", "LOG-09"]].sort(comparerCodes)).toEqual([
-      "LOG-09",
-      "LOG-99",
-      "LOG-100",
-    ]);
-  });
-
-  it("groupe par préfixe avant de comparer les numéros", () => {
-    expect([...["STAT-01", "LOG-02", "LOG-01", "DEV-03"]].sort(comparerCodes)).toEqual([
-      "DEV-03",
-      "LOG-01",
-      "LOG-02",
-      "STAT-01",
-    ]);
-  });
-
-  it("retombe sur l'ordre textuel pour un code qu'il ne sait pas lire", () => {
-    // Pas de rang fabriqué pour une forme inattendue : on ne prétend pas
-    // connaître un numéro qu'on n'a pas su extraire (P2).
-    expect([...["LOG-1a", "LOG-01", "ancien"]].sort(comparerCodes)).toEqual([
-      "ancien",
-      "LOG-01",
-      "LOG-1a",
-    ]);
   });
 });
 
