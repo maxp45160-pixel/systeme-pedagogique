@@ -8,7 +8,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
-import { validerAppelOutil } from "../outils";
+import { motifsRefusAppelOutil, validerAppelOutil } from "../outils";
 import type { DemandeTuteur, MoteurTuteur } from "./types";
 
 /** Modèle historique du projet. Surchargeable par `TUTEUR_MODELE`. */
@@ -110,8 +110,16 @@ export function moteurAnthropic(cle: string, modele: string): MoteurTuteur {
           if (proposition) {
             envoyer("proposition", proposition);
           } else {
+            // Même dette que dans `compatible-openai.ts` : un refus muet ne se
+            // corrige pas. Les motifs viennent du même endroit, pour que les
+            // deux moteurs disent la même chose du même refus.
+            const motifs = motifsRefusAppelOutil(bloc.name, JSON.stringify(bloc.input));
             envoyer("proposition-rejetee", {
-              message: `Une proposition (${bloc.name}) est arrivée incomplète et n'a pas été retenue. Redemande-la.`,
+              message:
+                motifs.length > 0
+                  ? `Une proposition (${bloc.name}) a été refusée : ${motifs.join(" ")}`
+                  : `Une proposition (${bloc.name}) est arrivée incomplète et n'a pas été retenue. Redemande-la.`,
+              motifs,
             });
           }
         }

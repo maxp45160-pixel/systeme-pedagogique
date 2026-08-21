@@ -2,11 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import type { MoteurTuteur } from "./moteurs";
 import {
-  construirePromptGenerationActivite,
+  construirePromptGenerationActivite as construirePromptGenerationActiviteBlocs,
   erreursContratGenerationActivite,
   genererContenuActivite,
   type ContratGenerationActivite,
 } from "./adaptive-generation";
+import { promptComplet } from "./prompt";
 import {
   OUTIL_EVALUATION_PROJET,
   OUTIL_EXPLORATION_ADAPTATIVE,
@@ -210,7 +211,7 @@ describe("outils adaptatifs fermés", () => {
 
 describe("génération adaptative one-shot", () => {
   it("porte le contrat serveur sans donner son arbitrage au tuteur", () => {
-    const prompt = construirePromptGenerationActivite(PRODUCTION);
+    const prompt = promptComplet(construirePromptGenerationActiviteBlocs(PRODUCTION));
     expect(prompt).toContain("TU N'ENREGISTRES RIEN");
     expect(prompt).toContain("LOG-10");
     expect(prompt).toContain("Justifier chaque hypothèse");

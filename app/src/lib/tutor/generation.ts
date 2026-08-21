@@ -28,6 +28,7 @@ import type { Calibration } from "@/lib/engine/calibration";
 import type { MoteurTuteur } from "./moteurs";
 import { lireErreurMoteur, lireOutilsActifs, messageSansOutils } from "./moteurs";
 import { outilsTuteur } from "./outils";
+import type { PromptTuteur } from "./prompt";
 import type { PropositionExercice } from "./proposition";
 
 /* ------------------------------------------------------------------ */
@@ -91,12 +92,12 @@ export interface ResultatGeneration {
 export function construirePromptGeneration(
   referentiel: Referentiel,
   demandes: DemandeGeneration[],
-): string {
+): PromptTuteur {
   const domaines = referentiel.domaines
     .filter((d) => referentiel.actifs.some((s) => s.domaine === d.id))
     .map((d) => d.id);
 
-  const lignes: string[] = [
+  const stable: string[] = [
     "Tu es le tuteur du système pédagogique. Tu rédiges des exercices à partir de ce qui a été mesuré.",
     "",
     "PROTOCOLE DE RÉDACTION D'UN EXERCICE",
@@ -109,7 +110,17 @@ export function construirePromptGeneration(
     "CALIBRAGE — LA DIFFICULTÉ N'EST PAS À TON APPRÉCIATION",
     "Elle est dérivée des tentatives réelles. Emploie la difficulté conseillée ; si tu t'en écartes, c'est une erreur.",
     "",
+    `Domaines disponibles : ${domaines.length > 0 ? domaines.join(", ") : "aucun — commence par proposer une branche."}`,
+    "",
+    "Appelle l'outil proposer_exercice UNE fois par exercice demandé. Ne recopie pas le contenu de l'appel dans ta réponse.",
   ];
+
+  /*
+   * La difficulté conseillée et la révision demandée changent à chaque appel :
+   * elles sortent du préfixe mis en cache (`PromptTuteur`). Les protocoles et
+   * la liste des domaines, eux, sont ceux du compte et n'en bougent pas.
+   */
+  const lignes: string[] = [];
 
   for (const d of demandes) {
     const cal = d.calibration;
@@ -134,14 +145,7 @@ export function construirePromptGeneration(
     );
   }
 
-  lignes.push(
-    "",
-    `Domaines disponibles : ${domaines.length > 0 ? domaines.join(", ") : "aucun — commence par proposer une branche."}`,
-    "",
-    "Appelle l'outil proposer_exercice UNE fois par exercice demandé. Ne recopie pas le contenu de l'appel dans ta réponse.",
-  );
-
-  return lignes.join("\n");
+  return { stable: stable.join("\n"), variable: lignes.join("\n") };
 }
 
 /* ------------------------------------------------------------------ */
@@ -195,7 +199,7 @@ export async function genererExercices(
     }
   };
 
-  const systemeStable = construirePromptGeneration(referentiel, demandes);
+  const prompt = construirePromptGeneration(referentiel, demandes);
 
   const messages = [
     {
@@ -212,8 +216,8 @@ export async function genererExercices(
   ];
 
   await moteur.repondre({
-    systemeStable,
-    systemeProfil: "",
+    systemeStable: prompt.stable,
+    systemeProfil: prompt.variable,
     messages,
     outils: outilsTuteur(referentiel),
     signal,

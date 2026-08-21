@@ -13,7 +13,21 @@
 
 import { describe, expect, it } from "vitest";
 
-import { construirePromptGeneration, genererExercices } from "./generation";
+import {
+  construirePromptGeneration as construirePromptGenerationBlocs,
+  genererExercices,
+} from "./generation";
+import { promptComplet } from "./prompt";
+
+/*
+ * Les constructeurs de prompt rendent désormais deux blocs — le préfixe stable
+ * et la demande du moment (`PromptTuteur`). Ces tests portent sur le contenu
+ * des consignes, pas sur le côté de la coupure où elles tombent : ils lisent
+ * donc le prompt assemblé, comme un lecteur humain le lirait.
+ */
+const construirePromptGeneration = (
+  ...args: Parameters<typeof construirePromptGenerationBlocs>
+) => promptComplet(construirePromptGenerationBlocs(...args));
 import type { Calibration } from "@/lib/engine/calibration";
 import type { Referentiel, Skill } from "@/lib/domain/types";
 import type { MoteurTuteur } from "./moteurs";

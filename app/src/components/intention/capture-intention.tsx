@@ -149,6 +149,16 @@ export function CaptureIntention({
   const [besoin, setBesoin] = useState(besoinInitial);
   const [traduction, setTraduction] = useState<TraductionIntention | null>(null);
   const [progression, setProgression] = useState<string | null>(null);
+  /**
+   * Ce que le moteur a déjà écrit, avant d'avoir fini.
+   *
+   * Un appel d'outil n'émet aucun texte : jusqu'ici l'écran restait sur une
+   * animation d'attente pendant tout l'appel, quelle qu'en soit la durée. Le
+   * genre et le titre arrivent pourtant bien avant la fin. Affichés seuls, ils
+   * ne déclenchent rien — aucun bouton d'action n'apparaît tant que la
+   * proposition n'a pas passé la validation terminale.
+   */
+  const [apercu, setApercu] = useState<{ genre?: string; titre?: string } | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   /**
    * Raison d'un cadrage serveur (`forcer*`) qui a orienté la traduction.
@@ -187,6 +197,7 @@ export function CaptureIntention({
     if (!besoinValide(demande)) return;
     setPhase("traduction");
     setProgression(null);
+    setApercu(null);
     setErreur(null);
     setAvertissement(null);
 
@@ -248,6 +259,18 @@ export function CaptureIntention({
           if (parsed.message?.trim()) setErreur(parsed.message.trim());
         } else if (type === "proposition-en-cours") {
           setProgression("Le moteur choisit l'action qui répond à ton besoin…");
+        } else if (type === "proposition-partielle") {
+          /*
+           * Aperçu d'affichage uniquement : il ne remplit jamais `traduction`
+           * et ne change pas de phase. La proposition exécutable reste celle
+           * qui a passé `validerTraductionIntention` côté serveur.
+           */
+          try {
+            const parsed = JSON.parse(donnees) as { genre?: string; titre?: string };
+            if (parsed.genre || parsed.titre) setApercu(parsed);
+          } catch {
+            /* ignorer erreur json */
+          }
         }
       });
     } catch (cause) {
@@ -465,12 +488,32 @@ export function CaptureIntention({
               "Sélection de l'action la plus pertinente…",
               "Finalisation de la proposition…",
             ]}
-            dureeAsymptoteSec={5}
+            /*
+             * 25 s, comme le budget serveur (`DELAI_TRADUCTION_MS`). L'ancien
+             * 5 s décrivait un appel qui en prenait couramment beaucoup plus :
+             * une barre qui ment use plus vite qu'une barre lente.
+             */
+            dureeAsymptoteSec={25}
             onArreter={() => {
               abandonRef.current?.abort();
               setPhase("saisie");
             }}
           />
+          {apercu && (
+            <div className="mx-auto mt-4 max-w-md rounded-xl border border-bordure bg-surface-2/60 p-3 text-center">
+              {apercu.genre && LIBELLES_ACTION[apercu.genre as ActionIntention["genre"]] && (
+                <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-primaire">
+                  {LIBELLES_ACTION[apercu.genre as ActionIntention["genre"]]}
+                </p>
+              )}
+              {apercu.titre && (
+                <p className="mt-1 font-serif text-sm text-texte">{apercu.titre}</p>
+              )}
+              <p className="mt-1.5 text-[0.6875rem] text-texte-discret">
+                Lecture en cours — rien n’est encore validé.
+              </p>
+            </div>
+          )}
         </div>
       )}
 

@@ -74,6 +74,19 @@ export interface DemandeTuteur {
    * Un moteur qui l'ignore reste fonctionnel ; il coûte seulement plus cher.
    */
   signal?: AbortSignal;
+  /**
+   * Budget de temps de CET appel, en millisecondes.
+   *
+   * Le garde-fou du moteur (cinq minutes) protège du silence : il laisse
+   * largement le temps d'un exercice complet, ce qui est le bon ordre de
+   * grandeur pour de la rédaction. Il n'est pas un budget pour autant — sur un
+   * chemin d'orientation, attendre une minute et demie une décision entre cinq
+   * genres n'a aucun sens, et l'écran ne peut rien en faire.
+   *
+   * Absent, le garde-fou du moteur s'applique. Un moteur qui l'ignore reste
+   * fonctionnel ; il rend seulement la main plus tard.
+   */
+  delaiMs?: number;
   envoyer: EnvoyerEvenement;
 }
 

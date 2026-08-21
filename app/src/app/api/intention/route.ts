@@ -39,6 +39,20 @@ export const maxDuration = 300;
  */
 const CANDIDATES_MAX = 12;
 
+/**
+ * Budget de temps de la traduction, côté serveur.
+ *
+ * Le garde-fou du moteur est à cinq minutes : il protège du silence, pas de la
+ * lenteur. Sur ce chemin-ci, une attente d'une minute et demie a été mesurée
+ * pour une décision entre cinq genres — l'écran ne peut rien en faire, et la
+ * personne a déjà abandonné.
+ *
+ * Au-delà de ce budget l'appel est coupé et l'écran le dit, avec le besoin
+ * intact dans la zone de saisie : reformuler ou réessayer reste possible, ce
+ * qu'une attente ouverte n'offrait pas.
+ */
+const DELAI_TRADUCTION_MS = 25_000;
+
 interface CorpsIntention {
   /** Le besoin, en langage libre. */
   besoin?: string;
@@ -61,11 +75,43 @@ export async function POST(request: Request) {
     return Response.json({ erreur: "besoin-invalide" }, { status: 400 });
   }
 
+  /*
+   * Court-circuit déterministe — le moteur n'est pas appelé quand sa réponse
+   * est de toute façon réécrite.
+   *
+   * `forcerDomaineReferentiel` et `forcerSeanceSansSujet` remplacent CHAQUE
+   * champ de l'action : genre, titre, pourquoi, codes, sujet. Il ne restait de
+   * la traduction du modèle que `alternatives`, que l'écran n'affiche pas
+   * quand le genre est imposé. Le compte payait donc la latence complète d'un
+   * appel dont rien n'était conservé.
+   *
+   * Placé AVANT `envTuteur` : ces deux chemins n'ont plus besoin d'un moteur
+   * configuré, donc plus de 503 possible sur eux.
+   */
+  if (corps.contexte === "domaine") {
+    return fluxImmediat(
+      forcerDomaineReferentiel(null, besoin),
+      "Tu écris depuis le point d'entrée « nouveau domaine » : la demande est traitée comme la structuration d'un domaine.",
+    );
+  }
+  if (demandeSeanceSansSujet(besoin)) {
+    return fluxImmediat(
+      forcerSeanceSansSujet(null, besoin),
+      "Ta demande ne désigne aucun sujet précis : elle est traitée comme la préparation d'une séance libre.",
+    );
+  }
+
   // Point d'entrée unique : la config client est validée avant de toucher
   // l'environnement du serveur (SSRF, voir lib/tutor/url-fournisseur.ts).
   const resolution = envTuteur(corps.config);
   if (!resolution.ok) return resolution.reponse;
-  const choix = choisirConfiguration(resolution.env);
+  /*
+   * Profil `rapide` : cette route choisit une action, elle n'écrit aucun
+   * contenu et ne produit aucune mesure. Le schéma de `traduire_intention`
+   * ferme déjà les genres et les codes désignables — ce qu'un modèle plus petit
+   * pourrait inventer est refusé avant d'arriver ici. Voir `ProfilMoteur`.
+   */
+  const choix = choisirConfiguration(resolution.env, "rapide");
   const moteur = creerMoteur(choix);
 
   if (!moteur) {
@@ -81,7 +127,9 @@ export async function POST(request: Request) {
     );
   }
 
+  const debutContexte = Date.now();
   const ctx = await chargerContexte();
+  const dureeContexteMs = Date.now() - debutContexte;
 
   const candidates: CompetenceCandidate[] = ctx.recommandations
     .slice(0, CANDIDATES_MAX)
@@ -107,6 +155,15 @@ export async function POST(request: Request) {
         );
       };
 
+      /*
+       * Les durées passent au client avant tout le reste : quand la traduction
+       * échoue ou traîne, c'est le découpage — lecture du compte contre appel
+       * au fournisseur — qui dit où chercher. L'écran les ignore ; l'onglet
+       * réseau, non.
+       */
+      envoyer("mesure", { etape: "contexte", dureeMs: dureeContexteMs });
+      const debutTraduction = Date.now();
+
       try {
         /*
          * Le relais est filtré sur `proposition`, pour la même raison que dans
@@ -129,7 +186,14 @@ export async function POST(request: Request) {
           },
           serialiserProfilDeclare(ctx.donnees.user),
           corps.contexte,
+          DELAI_TRADUCTION_MS,
         );
+
+        envoyer("mesure", {
+          etape: "traduction",
+          dureeMs: Date.now() - debutTraduction,
+          modele: choix.kind === "aucun" ? null : choix.modele,
+        });
 
         if (resultat.erreur) {
           envoyer("erreur", { message: resultat.erreur });
@@ -144,19 +208,14 @@ export async function POST(request: Request) {
          * Chaque forçage qui s'applique est donc annoncé à l'écran avant la
          * proposition, avec sa raison.
          */
+        // Les deux forçages inconditionnels — contexte « domaine » et séance
+        // sans sujet — sont rendus en court-circuit avant tout appel : ils ne
+        // peuvent plus se présenter ici.
         const cadrage = analyserDemandeReferentiel(besoin, corps.contexte);
         let raisonForcage: string | null = null;
         let traduction: TraductionIntention | null = resultat.traduction;
 
-        if (corps.contexte === "domaine") {
-          raisonForcage =
-            "Tu écris depuis le point d'entrée « nouveau domaine » : la demande est traitée comme la structuration d'un domaine.";
-          traduction = forcerDomaineReferentiel(resultat.traduction, besoin);
-        } else if (demandeSeanceSansSujet(besoin)) {
-          raisonForcage =
-            "Ta demande ne désigne aucun sujet précis : elle est traitée comme la préparation d'une séance libre.";
-          traduction = forcerSeanceSansSujet(resultat.traduction, besoin);
-        } else if (
+        if (
           resultat.traduction &&
           cadrage.explicite &&
           (cadrage.type === "competence" || cadrage.portee === "large")
@@ -193,6 +252,40 @@ export async function POST(request: Request) {
     },
     cancel() {
       abandon.abort();
+    },
+  });
+
+  return new Response(flux, {
+    headers: {
+      "content-type": "text/event-stream; charset=utf-8",
+      "cache-control": "no-cache, no-transform",
+      connection: "keep-alive",
+    },
+  });
+}
+
+/**
+ * Un flux SSE d'un seul tenant, pour une traduction déjà connue.
+ *
+ * Même forme d'événements que le chemin avec moteur — `avertissement` puis
+ * `proposition` — parce que le lecteur de l'écran est le même. Ce qui change
+ * est qu'aucun réseau n'est touché : la réponse part dans la milliseconde.
+ */
+function fluxImmediat(traduction: TraductionIntention, avertissement: string): Response {
+  const encodeur = new TextEncoder();
+  const flux = new ReadableStream({
+    start(controller) {
+      const envoyer = (evenement: string, donnees: unknown) => {
+        controller.enqueue(
+          encodeur.encode(`event: ${evenement}
+data: ${JSON.stringify(donnees)}
+
+`),
+        );
+      };
+      envoyer("avertissement", { message: avertissement });
+      envoyer("proposition", { traduction });
+      controller.close();
     },
   });
 

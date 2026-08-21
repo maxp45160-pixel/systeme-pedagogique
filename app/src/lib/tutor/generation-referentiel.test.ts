@@ -15,8 +15,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  construirePromptReferentiel,
-  construirePromptSuggestion,
+  construirePromptReferentiel as construirePromptReferentielBlocs,
+  construirePromptSuggestion as construirePromptSuggestionBlocs,
   proposerReferentiel,
   resumerReferentielExistant,
   suggererBranche,
@@ -26,6 +26,7 @@ import type { Referentiel, Skill } from "@/lib/domain/types";
 import { REFERENTIEL_VIDE } from "@/lib/domain/referentiel.fixture";
 import type { MoteurTuteur } from "./moteurs";
 import type { PropositionReferentiel } from "./proposition";
+import { promptComplet } from "./prompt";
 
 /* ------------------------------------------------------------------ */
 /* Fixtures                                                            */
@@ -66,6 +67,21 @@ function moteurQuiEmet(evenements: { evenement: string; donnees: unknown }[]): M
 /* ------------------------------------------------------------------ */
 /* Le prompt                                                           */
 /* ------------------------------------------------------------------ */
+
+
+/*
+ * Les constructeurs de prompt rendent désormais deux blocs — le préfixe stable
+ * et la demande du moment (`PromptTuteur`). Ces tests portent sur le contenu
+ * des consignes, pas sur le côté de la coupure où elles tombent : ils lisent
+ * donc le prompt assemblé, comme un lecteur humain le lirait.
+ */
+const construirePromptSuggestion = (
+  ...args: Parameters<typeof construirePromptSuggestionBlocs>
+) => promptComplet(construirePromptSuggestionBlocs(...args));
+
+const construirePromptReferentiel = (
+  ...args: Parameters<typeof construirePromptReferentielBlocs>
+) => promptComplet(construirePromptReferentielBlocs(...args));
 
 describe("construirePromptSuggestion", () => {
   it("porte le sujet demandé tel qu'il a été écrit", () => {

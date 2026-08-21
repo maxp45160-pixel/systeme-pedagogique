@@ -12,7 +12,7 @@
  * corrompt les données. Passer le test de réfutation avant d'adopter un moteur.
  */
 
-import { validerAppelOutilJson } from "../outils";
+import { motifsRefusAppelOutil, validerAppelOutilJson } from "../outils";
 import type { DemandeTuteur, MoteurTuteur } from "./types";
 
 /**
@@ -31,7 +31,53 @@ const MAX_JETONS_SORTIE = 8192;
  * laissent largement le temps d'un exercice complet ; c'est un garde-fou contre
  * le silence, pas une contrainte de débit.
  */
-const DELAI_MAX_MS = 300_000;
+export const DELAI_MAX_MS = 300_000;
+
+/**
+ * Niveau de charge accepté par un fournisseur, mémorisé pour le processus.
+ *
+ * Le repli 400 est une découverte : on envoie la charge riche, on lit le refus,
+ * on renvoie la charge pauvre. Sans mémoire, cette découverte se **repaie à
+ * chaque appel** — une requête complète jetée avant même que le modèle
+ * commence, sur le chemin le plus sensible à la latence.
+ *
+ * En mémoire de processus, jamais persisté : un redémarrage redécouvre, ce qui
+ * est exactement ce qu'il faut si le fournisseur change d'avis. Le niveau ne
+ * remonte jamais dans un même processus — un refus est un fait, pas une
+ * hypothèse.
+ */
+type NiveauCharge = 0 | 1 | 2;
+const niveauConnu = new Map<string, NiveauCharge>();
+
+/** Remise à zéro pour les tests — le registre est un cache, pas un état métier. */
+export function oublierNiveauxCharge(): void {
+  niveauConnu.clear();
+}
+
+/**
+ * Ce qu'on peut lire d'un appel d'outil **avant** sa fin.
+ *
+ * Un appel d'outil n'émet aucun `content` : tant que le flux n'est pas clos,
+ * l'écran n'a rien à montrer et la durée perçue vaut la durée totale. Les
+ * arguments arrivent pourtant en clair, dans l'ordre du schéma — le genre et le
+ * titre sont lisibles bien avant le dernier fragment.
+ *
+ * Lecture par expression régulière et non `JSON.parse` : par construction le
+ * texte accumulé n'est PAS du JSON valide avant le dernier morceau. Cet aperçu
+ * ne sert qu'à l'affichage ; `validerAppelOutilJson` reste seul juge de ce qui
+ * devient une proposition.
+ */
+export function apercuPartiel(texteArguments: string): { genre?: string; titre?: string } | null {
+  const genre = /"genre"\s*:\s*"([^"\\]{1,40})"/.exec(texteArguments)?.[1];
+  const titre = /"titre"\s*:\s*"((?:[^"\\]|\\.){3,200})"/.exec(texteArguments)?.[1];
+  if (!genre && !titre) return null;
+  return {
+    ...(genre ? { genre } : {}),
+    // Les échappements JSON restent tels quels dans un texte partiel : on ne
+    // les interprète pas, on retire seulement les plus courants pour l'écran.
+    ...(titre ? { titre: titre.replace(/\\"/g, '"').replace(/\\n/g, " ") } : {}),
+  };
+}
 
 /**
  * Fragment d'appel d'outil tel qu'il arrive sur le flux.
@@ -129,6 +175,7 @@ export function moteurCompatibleOpenAI(
       outils,
       signal,
       envoyer,
+      delaiMs,
     }: DemandeTuteur) {
       if (signal?.aborted) return;
 
@@ -140,7 +187,10 @@ export function moteurCompatibleOpenAI(
        * un palier gratuit muet bloquait la requête jusqu'au timeout de
        * plateforme, sans qu'aucun événement n'atteigne l'interface.
        */
-      const bornes = [AbortSignal.timeout(DELAI_MAX_MS)];
+      const budget = delaiMs && delaiMs > 0 ? delaiMs : DELAI_MAX_MS;
+      const debutAppel = Date.now();
+      let debutFlux: number | null = null;
+      const bornes = [AbortSignal.timeout(budget)];
       if (signal) bornes.push(signal);
       const arret = AbortSignal.any(bornes);
 
@@ -238,38 +288,52 @@ export function moteurCompatibleOpenAI(
          */
         let outilsActifs = true;
 
-        let reponse = await appeler(payloadMistral);
-        if (reponse.status === 400) {
+        /*
+         * Le niveau de départ est celui que ce fournisseur a déjà accepté dans
+         * ce processus. Aucune requête n'est envoyée pour redécouvrir un refus
+         * connu.
+         */
+        const cleFournisseur = `${base}|${modele}`;
+        let niveau: NiveauCharge = niveauConnu.get(cleFournisseur) ?? 0;
+        let tentatives = 0;
+
+        const chargeSimple = (avecOutils: boolean) => ({
+          model: modele,
+          stream: true,
+          stream_options: { include_usage: true },
+          max_tokens: MAX_JETONS_SORTIE,
+          ...(avecOutils ? { tools: fonctions, tool_choice: choixOutil } : {}),
+          messages: systemeUnique,
+        });
+
+        if (niveau >= 2) outilsActifs = false;
+        tentatives += 1;
+        let reponse = await appeler(
+          niveau === 0 ? payloadMistral : chargeSimple(niveau === 1),
+        );
+        if (reponse.status === 400 && niveau === 0) {
+          niveau = 1;
+          niveauConnu.set(cleFournisseur, niveau);
+          tentatives += 1;
           // 1. Fournisseurs qui refusent `prompt_cache_key` ou le double bloc
           //    système : un seul message système concaténé, outils conservés.
           //    `stream_options` est conservé — sans lui, le décompte de jetons
           //    disparaîtrait de l'interface sans que rien ne le signale, et
           //    c'est précisément ce décompte qui permet de vérifier si le cache
           //    de préfixe sert à quelque chose.
-          reponse = await appeler({
-            model: modele,
-            stream: true,
-            stream_options: { include_usage: true },
-            max_tokens: MAX_JETONS_SORTIE,
-            tools: fonctions,
-            tool_choice: choixOutil,
-            messages: systemeUnique,
-          });
+          reponse = await appeler(chargeSimple(true));
         }
-        if (reponse.status === 400) {
+        if (reponse.status === 400 && niveau === 1) {
+          niveau = 2;
+          niveauConnu.set(cleFournisseur, niveau);
+          tentatives += 1;
           // 2. Fournisseurs sans appel d'outil du tout. On ne perd pas la
           //    conversation pour autant : le tuteur répond en texte et les
           //    parseurs de `proposition.ts` restent le filet, comme avant le
           //    lot 3.2. Ce qui se perd est la *rejetabilité* d'une proposition
           //    tronquée — d'où le repli en dernier recours seulement.
           outilsActifs = false;
-          reponse = await appeler({
-            model: modele,
-            stream: true,
-            stream_options: { include_usage: true },
-            max_tokens: MAX_JETONS_SORTIE,
-            messages: systemeUnique,
-          });
+          reponse = await appeler(chargeSimple(false));
         }
 
         if (!reponse.ok || !reponse.body) {
@@ -294,12 +358,13 @@ export function moteurCompatibleOpenAI(
          */
         const appelsOutil = new Map<
           number,
-          { nom: string; arguments: string; annonce: boolean }
+          { nom: string; arguments: string; annonce: boolean; dernierApercu?: string }
         >();
 
         for (;;) {
           const { done, value } = await lecteur.read();
           if (done) break;
+          debutFlux = debutFlux ?? Date.now();
           tampon += decodeur.decode(value, { stream: true });
 
           // Découpage ligne à ligne : la dernière ligne peut être incomplète
@@ -351,6 +416,20 @@ export function moteurCompatibleOpenAI(
                 envoyer("proposition-en-cours", { outil: courant.nom });
               }
 
+              /*
+               * Aperçu au fil de l'eau. Émis dès que le genre ou le titre
+               * devient lisible, et seulement quand il CHANGE — sans quoi
+               * chaque fragment renverrait le même couple.
+               */
+              const apercu = apercuPartiel(courant.arguments);
+              if (apercu) {
+                const signature = `${apercu.genre ?? ""}|${apercu.titre ?? ""}`;
+                if (signature !== courant.dernierApercu) {
+                  courant.dernierApercu = signature;
+                  envoyer("proposition-partielle", { outil: courant.nom, ...apercu });
+                }
+              }
+
               appelsOutil.set(rang, courant);
             }
 
@@ -368,8 +447,20 @@ export function moteurCompatibleOpenAI(
           if (proposition) {
             envoyer("proposition", proposition);
           } else {
+            /*
+             * « Arrivée incomplète » était la seule chose qu'on savait dire, et
+             * elle était souvent fausse : la proposition arrivait entière et se
+             * faisait refuser sur une règle précise — un objet trop long, un
+             * verbe hors liste. Ni la personne ni le journal ne pouvaient le
+             * savoir, donc personne ne pouvait le corriger.
+             */
+            const motifs = motifsRefusAppelOutil(appel.nom, appel.arguments);
             envoyer("proposition-rejetee", {
-              message: `Une proposition (${appel.nom || "outil inconnu"}) est arrivée incomplète et n'a pas été retenue. Redemande-la.`,
+              message:
+                motifs.length > 0
+                  ? `Une proposition (${appel.nom || "outil inconnu"}) a été refusée : ${motifs.join(" ")}`
+                  : `Une proposition (${appel.nom || "outil inconnu"}) est arrivée incomplète et n'a pas été retenue. Redemande-la.`,
+              motifs,
             });
           }
         }
@@ -385,6 +476,21 @@ export function moteurCompatibleOpenAI(
             categorie: null,
           });
         }
+
+        /*
+         * Les durées, dites et non devinées. Sans elles, « c'est lent » ne se
+         * découpe pas : réseau du fournisseur, file d'attente du palier gratuit,
+         * débit du modèle et repli 400 se ressemblent tous depuis l'écran.
+         * `tentatives` > 1 signale une charge refusée — mémorisée désormais,
+         * donc payée une fois par processus et non à chaque appel.
+         */
+        envoyer("mesure", {
+          etape: "moteur",
+          modele,
+          tentatives,
+          ttftMs: debutFlux === null ? null : debutFlux - debutAppel,
+          totalMs: Date.now() - debutAppel,
+        });
 
         envoyer("fin", {
           stopReason: motifArret,
@@ -413,7 +519,7 @@ export function moteurCompatibleOpenAI(
         const expire = e instanceof DOMException && e.name === "TimeoutError";
         envoyer("erreur", {
           message: expire
-            ? `Le fournisseur n'a rien renvoyé en ${Math.round(DELAI_MAX_MS / 1000)} s. Réessaie, ou bascule sur « copier le contexte ».`
+            ? `Le fournisseur n'a rien renvoyé en ${Math.round(budget / 1000)} s. Réessaie, ou bascule sur « copier le contexte ».`
             : e instanceof Error
               ? `Appel au fournisseur impossible : ${e.message}`
               : "Erreur inattendue lors de l'appel au tuteur.",

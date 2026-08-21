@@ -17,7 +17,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  construirePromptCorrection,
+  construirePromptCorrection as construirePromptCorrectionBlocs,
   corrigerReponse,
   reponseTropPauvrePourUneReussiteAutomatique,
 } from "./correction";
@@ -25,6 +25,7 @@ import { RESULTATS } from "@/lib/domain/bilan";
 import type { Exercise } from "@/lib/domain/types";
 import type { MoteurTuteur } from "./moteurs";
 import type { PropositionCorrection } from "./outils";
+import { promptComplet } from "./prompt";
 
 /* ------------------------------------------------------------------ */
 /* Fixtures                                                            */
@@ -84,6 +85,17 @@ function moteurQuiCapture(capture: { demande?: Record<string, unknown> }): Moteu
 /* ------------------------------------------------------------------ */
 /* Le prompt                                                           */
 /* ------------------------------------------------------------------ */
+
+
+/*
+ * Les constructeurs de prompt rendent désormais deux blocs — le préfixe stable
+ * et la demande du moment (`PromptTuteur`). Ces tests portent sur le contenu
+ * des consignes, pas sur le côté de la coupure où elles tombent : ils lisent
+ * donc le prompt assemblé, comme un lecteur humain le lirait.
+ */
+const construirePromptCorrection = (
+  ...args: Parameters<typeof construirePromptCorrectionBlocs>
+) => promptComplet(construirePromptCorrectionBlocs(...args));
 
 describe("construirePromptCorrection", () => {
   it("porte l'énoncé et la correction de référence", () => {

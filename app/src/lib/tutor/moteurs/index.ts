@@ -13,6 +13,24 @@ import type { MoteurTuteur } from "./types";
 export type { DemandeTuteur, MessageTuteur, MoteurTuteur } from "./types";
 export { lireErreurMoteur, lireOutilsActifs, messageSansOutils } from "./types";
 
+/**
+ * Ce qu'on demande au modèle, et non quel modèle on demande.
+ *
+ * `qualite` — la sortie est du contenu pédagogique et entre dans la chaîne
+ * d'observations (P8) : ADR-007 s'y applique entier, la fidélité au protocole
+ * prime sur tout le reste.
+ *
+ * `rapide` — la sortie est une orientation : un genre parmi cinq et des codes
+ * pris dans un `enum` fermé. Aucune mesure n'en sort, aucun texte n'est
+ * conservé, et le schéma refuse déjà ce qu'un petit modèle pourrait inventer.
+ * Le critère de choix y devient la latence, parce que rien d'autre n'est en
+ * jeu.
+ *
+ * Le profil ne change QUE le nom du modèle : jamais la clé, jamais l'URL,
+ * jamais le fournisseur. Un compte configuré reste configuré.
+ */
+export type ProfilMoteur = "qualite" | "rapide";
+
 export type ChoixMoteur =
   | { kind: "anthropic"; cle: string; modele: string }
   | { kind: "compatible-openai"; cle: string; urlBase: string; modele: string }
@@ -42,13 +60,23 @@ function vide(valeur: string | undefined): boolean {
  */
 export function choisirConfiguration(
   env: Record<string, string | undefined>,
+  profil: ProfilMoteur = "qualite",
 ): ChoixMoteur {
   const demande = env.TUTEUR_MOTEUR?.trim().toLowerCase();
 
   const cleAnthropic = env.ANTHROPIC_API_KEY;
   const cleCompatible = env.TUTEUR_CLE;
   const urlBase = env.TUTEUR_URL_BASE;
-  const modeleDemande = env.TUTEUR_MODELE;
+  /*
+   * Le modèle rapide est une préférence, pas une exigence : sans
+   * `TUTEUR_MODELE_RAPIDE`, le profil `rapide` retombe sur le modèle courant.
+   * Aucun compte existant ne change de comportement tant que la variable n'est
+   * pas renseignée.
+   */
+  const modeleDemande =
+    profil === "rapide" && !vide(env.TUTEUR_MODELE_RAPIDE)
+      ? env.TUTEUR_MODELE_RAPIDE
+      : env.TUTEUR_MODELE;
 
   const compatibleComplet =
     !vide(cleCompatible) && !vide(urlBase) && !vide(modeleDemande);

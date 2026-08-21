@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { choisirConfiguration, creerMoteur, decrireChoix } from "./index";
-import { jetonsLusEnCache } from "./compatible-openai";
+import { apercuPartiel, jetonsLusEnCache } from "./compatible-openai";
 
 /**
  * La sélection du moteur est une fonction pure : elle se teste sans clé, sans
@@ -187,5 +187,91 @@ describe("jetonsLusEnCache", () => {
 
   it("distingue un cache réellement vide d'un cache non renseigné", () => {
     expect(jetonsLusEnCache({ prompt_tokens_details: { cached_tokens: 0 } })).toBe(0);
+  });
+});
+
+/**
+ * Le profil de moteur — un modèle par tâche, pas un moteur par tâche.
+ *
+ * La traduction d'un besoin choisit un genre parmi cinq et des codes pris dans
+ * un `enum` fermé : rien de ce qu'elle produit n'entre dans la chaîne
+ * d'observations. Elle passait pourtant par le modèle qui rédige les exercices,
+ * dont la latence rendait le point d'entrée du produit inutilisable.
+ *
+ * Ce que ces tests verrouillent : le profil ne déplace QUE le nom du modèle.
+ * Une clé ou une URL qui bougerait avec lui serait un second fournisseur
+ * déguisé, avec sa propre surface d'erreur et sa propre SSRF.
+ */
+describe("choisirConfiguration — profil de modèle", () => {
+  it("garde le modèle principal en l'absence de TUTEUR_MODELE_RAPIDE", () => {
+    const choix = choisirConfiguration(GRATUIT, "rapide");
+    expect(choix).toMatchObject({ kind: "compatible-openai", modele: "llama-3.3-70b-versatile" });
+  });
+
+  it("prend le modèle rapide sur le profil rapide, sans changer clé ni URL", () => {
+    const env = { ...GRATUIT, TUTEUR_MODELE_RAPIDE: "llama-3.1-8b-instant" };
+    const rapide = choisirConfiguration(env, "rapide");
+    const qualite = choisirConfiguration(env, "qualite");
+
+    expect(rapide).toMatchObject({
+      kind: "compatible-openai",
+      modele: "llama-3.1-8b-instant",
+      cle: "gsk_test",
+      urlBase: "https://api.groq.com/openai/v1",
+    });
+    expect(qualite).toMatchObject({ modele: "llama-3.3-70b-versatile" });
+  });
+
+  it("ignore un modèle rapide vide plutôt que de le servir tel quel", () => {
+    const choix = choisirConfiguration({ ...GRATUIT, TUTEUR_MODELE_RAPIDE: "   " }, "rapide");
+    expect(choix).toMatchObject({ modele: "llama-3.3-70b-versatile" });
+  });
+
+  it("vaut « qualité » par défaut : les appelants existants ne changent pas", () => {
+    const env = { ...GRATUIT, TUTEUR_MODELE_RAPIDE: "llama-3.1-8b-instant" };
+    expect(choisirConfiguration(env)).toMatchObject({ modele: "llama-3.3-70b-versatile" });
+  });
+
+  it("s'applique aussi au moteur Anthropic", () => {
+    const choix = choisirConfiguration(
+      { ANTHROPIC_API_KEY: "sk-ant-test", TUTEUR_MODELE_RAPIDE: "claude-haiku-4-5" },
+      "rapide",
+    );
+    expect(choix).toMatchObject({ kind: "anthropic", modele: "claude-haiku-4-5" });
+  });
+});
+
+/**
+ * L'aperçu d'un appel d'outil en cours.
+ *
+ * Un appel d'outil n'émet aucun `content` : sans lecture partielle, l'écran
+ * reste muet pendant toute la rédaction et la durée perçue vaut la durée
+ * totale. Le texte lu ici n'est PAS du JSON valide — c'est tout l'objet de la
+ * fonction — et il ne devient jamais une proposition : `validerAppelOutilJson`
+ * reste seul juge à la fermeture du flux.
+ */
+describe("apercuPartiel", () => {
+  it("lit le genre et le titre d'un JSON encore ouvert", () => {
+    const partiel = '{"action":{"genre":"travail","titre":"Réviser le calcul de coût","pourq';
+    expect(apercuPartiel(partiel)).toEqual({
+      genre: "travail",
+      titre: "Réviser le calcul de coût",
+    });
+  });
+
+  it("ne rend rien tant qu'aucun champ n'est refermé", () => {
+    expect(apercuPartiel('{"action":{"genre":"trav')).toBeNull();
+    expect(apercuPartiel("")).toBeNull();
+  });
+
+  it("rend le genre seul quand le titre n'est pas encore arrivé", () => {
+    expect(apercuPartiel('{"action":{"genre":"projet","titre":"Ré')).toEqual({ genre: "projet" });
+  });
+
+  it("ne prend pas un titre tronqué pour un titre complet", () => {
+    // Le guillemet fermant du titre appartient au champ suivant : sans la
+    // borne, un titre coupé serait affiché comme définitif.
+    const partiel = '{"action":{"genre":"note","titre":"Fiche de synthèse","pourquoi":"Parce';
+    expect(apercuPartiel(partiel)?.titre).toBe("Fiche de synthèse");
   });
 });

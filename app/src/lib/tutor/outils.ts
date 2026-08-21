@@ -458,15 +458,28 @@ function schemaReferentiel(minCompetences = 1): SchemaJson {
               enum: [...VERBES_ACTION],
               description: "Un seul verbe. Deux verbes, ce sont deux compétences.",
             },
+            /*
+             * Le budget est répété dans la DESCRIPTION, pas seulement dans
+             * `maxLength`.
+             *
+             * Mesuré le 21/08/2026 : `mistral-large-latest` ignore `maxLength`
+             * et rend des objets de 56 caractères et des précisions de 39. Les
+             * seize compétences d'une proposition étaient alors refusées une à
+             * une, la proposition entière tombait, et l'écran affichait
+             * « Aucun référentiel exploitable n'a été produit » — un refus
+             * total pour une contrainte que le modèle n'avait jamais lue en
+             * français. Un même modèle respecte la borne quand elle est écrite
+             * dans la phrase.
+             */
             objet: {
               type: "string",
               maxLength: OBJET_MAX,
-              description: "Un seul objet, sans énumération. Ex. « un stock de sécurité ».",
+              description: `Un seul objet, sans énumération, ${OBJET_MAX} caractères MAXIMUM. Ex. « un stock de sécurité ». Trop long = compétence refusée.`,
             },
             precision: {
               type: "string",
               maxLength: PRECISION_MAX,
-              description: "Facultatif : la condition qui borne l'objet. Jamais une 2e compétence.",
+              description: `Facultatif : la condition qui borne l'objet, ${PRECISION_MAX} caractères MAXIMUM — deux ou trois mots. Ex. « sous demande variable ». Jamais une 2e compétence. Trop long = compétence refusée ; dans le doute, omets ce champ.`,
             },
           },
           required: ["palier", "importance", "verbeAction", "objet"],
@@ -2439,6 +2452,82 @@ export function validerAppelOutil(
     default:
       return null;
   }
+}
+
+/**
+ * Pourquoi un appel d'outil a été refusé, en français.
+ *
+ * Un validateur qui rend `null` dit « non » sans dire « pourquoi ». Sur le
+ * référentiel complet, ce silence a coûté cher : seize compétences refusées
+ * une à une pour des objets et des précisions trop longs, et un écran qui
+ * annonçait « Aucun référentiel exploitable n'a été produit » — message vrai,
+ * mais qui ne permet ni de corriger le prompt, ni de changer de modèle, ni
+ * même de savoir que la faute est réparable.
+ *
+ * Les motifs eux-mêmes ne sont pas réécrits ici : ce sont ceux de
+ * `lib/domain/atomicite.ts`, la seule autorité sur ce qu'est une compétence
+ * atomique. Cette fonction ne fait que les remonter.
+ *
+ * Bornée à `MOTIFS_REFUS_MAX` : au-delà, on ne lit plus une explication, on
+ * lit un journal. Le total est annoncé séparément.
+ */
+const MOTIFS_REFUS_MAX = 3;
+
+export function motifsRefusAppelOutil(nom: string, argumentsJson: string): string[] {
+  let entree: unknown;
+  try {
+    entree = JSON.parse(argumentsJson);
+  } catch {
+    return [
+      "La réponse n'est pas un JSON complet — le plus souvent une réponse coupée en cours de rédaction.",
+    ];
+  }
+
+  if (nom !== OUTIL_REFERENTIEL_COMPLET && nom !== OUTIL_REFERENTIEL) return [];
+
+  const racine = objet(entree);
+  if (!racine) return [];
+  const branchesBrutes =
+    nom === OUTIL_REFERENTIEL_COMPLET
+      ? Array.isArray(racine.branches)
+        ? racine.branches
+        : []
+      : [racine];
+
+  const motifs: string[] = [];
+  let total = 0;
+
+  for (const brute of branchesBrutes) {
+    const branche = objet(brute);
+    if (!branche) continue;
+    const competences = Array.isArray(branche.competences) ? branche.competences : [];
+    for (const c of competences) {
+      const o = objet(c);
+      if (!o) continue;
+      const structure = {
+        verbeAction: texte(o.verbeAction),
+        objet: texte(o.objet),
+        precision: texte(o.precision) || undefined,
+      };
+      const refus = motifsRefusStructure(structure);
+      const causes =
+        refus.length > 0
+          ? refus
+          : motifsNonAtomique(composerIntitule(structure)).map((m) => m.message);
+      if (causes.length === 0) continue;
+      total += 1;
+      for (const cause of causes) {
+        if (!motifs.includes(cause)) motifs.push(cause);
+      }
+    }
+  }
+
+  if (total === 0) return [];
+  const retenus = motifs.slice(0, MOTIFS_REFUS_MAX);
+  if (motifs.length > MOTIFS_REFUS_MAX || total > retenus.length) {
+    retenus.push(`(${total} compétence${total > 1 ? "s" : ""} refusée${total > 1 ? "s" : ""} au total.)`);
+  }
+  return retenus;
 }
 
 /**

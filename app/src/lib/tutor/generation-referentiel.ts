@@ -22,6 +22,7 @@ import {
   outilsTuteur,
 } from "./outils";
 import type { PropositionReferentiel } from "./proposition";
+import type { PromptTuteur } from "./prompt";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -94,8 +95,8 @@ export function resumerReferentielExistant(
 export function construirePromptSuggestion(
   referentiel: Referentiel,
   sujet: string,
-): string {
-  return [
+): PromptTuteur {
+  const stable = [
     "Tu es le tuteur du système pédagogique. Tu proposes une branche de compétences pour un sujet demandé.",
     "",
     "PROTOCOLE DE RÉDACTION D'UNE COMPÉTENCE",
@@ -106,13 +107,20 @@ export function construirePromptSuggestion(
     "- Chaque compétence doit être prouvable en 20 à 60 minutes.",
     "- Du plus fondamental au plus avancé.",
     "",
-    `Sujet demandé : ${sujet}`,
-    "",
     "RÉFÉRENTIEL EXISTANT DU COMPTE — ne redouble ni ces domaines ni leurs compétences ; si le sujet est déjà couvert par une compétence listée, dis-le plutôt que de proposer un doublon :",
     resumerReferentielExistant(referentiel),
+  ].join("\n");
+
+  // Le sujet est la seule chose qui change d'une suggestion à l'autre : il
+  // sort du préfixe pour que celui-ci puisse être mis en cache (voir
+  // `PromptTuteur`).
+  const variable = [
+    `Sujet demandé : ${sujet}`,
     "",
     "Appelle l'outil proposer_referentiel UNE fois. Ne recopie pas le contenu de l'appel dans ta réponse.",
   ].join("\n");
+
+  return { stable, variable };
 }
 
 /* ------------------------------------------------------------------ */
@@ -139,7 +147,10 @@ export interface ResultatReferentiel {
  * Il porte aussi les domaines existants, pour ne pas reproposer ce qui est
  * déjà là : c'est le même souci que les intitulés voisins d'`evolution.ts`.
  */
-export function construirePromptReferentiel(referentiel: Referentiel, sujet: string): string {
+export function construirePromptReferentiel(
+  referentiel: Referentiel,
+  sujet: string,
+): PromptTuteur {
   const existants = referentiel.domaines.filter((d) => !d.archive).map((d) => d.nom);
   const cadrage = analyserDemandeReferentiel(sujet);
   const contraintesExplicites = [
@@ -163,7 +174,7 @@ export function construirePromptReferentiel(referentiel: Referentiel, sujet: str
       : null,
   ].filter((contrainte): contrainte is string => contrainte !== null);
 
-  return [
+  const stable = [
     "Tu es le tuteur du système pédagogique. Tu proposes un référentiel complet pour un sujet, découpé en branches.",
     "",
     "TU N'ENREGISTRES RIEN.",
@@ -176,9 +187,6 @@ export function construirePromptReferentiel(referentiel: Referentiel, sujet: str
     "- Chaque compétence est exerçable par un des types d'exercice.",
     "- Chaque compétence est prouvable en 20 à 60 minutes.",
     "- Du plus fondamental au plus avancé, à l'intérieur de chaque branche.",
-    ...(contraintesExplicites.length > 0
-      ? ["", "CONTRAINTES EXPLICITES DE LA PERSONNE", ...contraintesExplicites]
-      : []),
     "",
     "COMMENT DÉCOUPER",
     // ADR-088 — un domaine n'est pas un thème.
@@ -193,20 +201,36 @@ export function construirePromptReferentiel(referentiel: Referentiel, sujet: str
       : "- Une branche par grand domaine du sujet. Deux à quatre pour un sujet large ; une seule si le sujet est étroit.",
     "- Un DOMAINE n'est pas un THÈME. Un domaine porte un préfixe de code et se gouverne ; un thème regroupe librement des compétences en traversant les domaines. Pour découper un sujet large, ne multiplie pas les domaines : propose des compétences que la personne regroupera ensuite en thèmes.",
     "- Quatre à huit compétences par branche. Vingt compétences dans un domaine unique ne se relisent pas.",
-    cadrage.portee === "large"
-      ? "- Pour cette vue d'ensemble, couvre le socle puis une progression courte : plusieurs compétences fondamentales, intermédiaires et une ouverture vers la suite dans chaque branche."
-      : "",
     "- Ne propose pas une branche pour un thème que tu ne sais pas remplir de compétences mesurables.",
     "",
     "L'application attribue tous les codes, à l'enregistrement. Tu n'en écris aucun.",
     "",
-    `Sujet demandé : ${sujet}`,
-    "",
     "RÉFÉRENTIEL EXISTANT DU COMPTE — ne redouble ni ces domaines ni leurs compétences :",
     resumerReferentielExistant(referentiel),
+  ].join("\n");
+
+  /*
+   * Tout ce qui dépend du SUJET vit ici : les contraintes explicites lues dans
+   * la demande, la consigne de vue d'ensemble, le sujet lui-même. Laissé dans
+   * le bloc stable, chacun de ces éléments changeait le préfixe à chaque
+   * requête et interdisait tout cache (`PromptTuteur`).
+   */
+  const variable = [
+    ...(contraintesExplicites.length > 0
+      ? ["CONTRAINTES EXPLICITES DE LA PERSONNE", ...contraintesExplicites, ""]
+      : []),
+    ...(cadrage.portee === "large"
+      ? [
+          "- Pour cette vue d'ensemble, couvre le socle puis une progression courte : plusieurs compétences fondamentales, intermédiaires et une ouverture vers la suite dans chaque branche.",
+          "",
+        ]
+      : []),
+    `Sujet demandé : ${sujet}`,
     "",
     "Appelle l'outil proposer_referentiel_complet UNE fois. Ne recopie pas le contenu de l'appel dans ta réponse.",
   ].join("\n");
+
+  return { stable, variable };
 }
 
 /** Propose un référentiel entier, sans conversation. */
@@ -223,9 +247,22 @@ export async function proposerReferentiel(
   let outilsActifs = true;
   /** La panne annoncée par le moteur — clé refusée, quota, modèle absent. */
   let panne: string | null = null;
+  /**
+   * Le refus motivé du validateur, quand il y en a un.
+   *
+   * Sans lui, « Aucun référentiel exploitable n'a été produit » recouvrait deux
+   * situations opposées : un tuteur qui n'a rien proposé, et un tuteur qui a
+   * proposé seize compétences refusées pour une raison précise et réparable.
+   * Même distinction que dans `intention.ts`, même façon de la capturer.
+   */
+  let rejet: string | null = null;
 
   const envoyer = (evenement: string, donnees: unknown) => {
     if (evenement !== "texte") diffuser?.(evenement, donnees);
+    if (evenement === "proposition-rejetee") {
+      const message = (donnees as { message?: unknown } | null)?.message;
+      if (typeof message === "string" && message.trim()) rejet = message.trim();
+    }
 
     const actifs = lireOutilsActifs(evenement, donnees);
     if (actifs !== null) outilsActifs = actifs;
@@ -246,9 +283,11 @@ export async function proposerReferentiel(
     }
   };
 
+  const prompt = construirePromptReferentiel(referentiel, sujet);
+
   await moteur.repondre({
-    systemeStable: construirePromptReferentiel(referentiel, sujet),
-    systemeProfil: "",
+    systemeStable: prompt.stable,
+    systemeProfil: prompt.variable,
     outils: [outilReferentielComplet(referentiel, sujet)],
     messages: [{ role: "user" as const, content: `Propose un référentiel pour : ${sujet}` }],
     signal,
@@ -259,9 +298,10 @@ export async function proposerReferentiel(
     branches.length > 0
       ? null
       : (panne ??
-        (outilsActifs
-          ? "Aucun référentiel exploitable n'a été produit."
-          : messageSansOutils("la proposition de référentiel")));
+        (!outilsActifs
+          ? messageSansOutils("la proposition de référentiel")
+          : (rejet ??
+            "Aucun référentiel exploitable n'a été produit.")));
 
   return { resume, branches, ecartees, outilsActifs, erreur };
 }
@@ -311,8 +351,13 @@ export async function suggererBranche(
     }
   };
 
-  const systemeStable = construirePromptSuggestion(referentiel, sujet);
-  const systemeProfil = profilDeclare;
+  const prompt = construirePromptSuggestion(referentiel, sujet);
+  const systemeStable = prompt.stable;
+  // Le profil déclaré et la demande du moment partagent le bloc variable : ni
+  // l'un ni l'autre n'est stable d'un appel à l'autre.
+  const systemeProfil = [profilDeclare, prompt.variable]
+    .filter((bloc) => bloc.trim() !== "")
+    .join("\n\n");
 
   const messages = [
     {

@@ -32,6 +32,18 @@ export interface ConfigTuteurClient {
   /** URL de base pour les fournisseurs « compatible OpenAI ». */
   urlBase?: string;
   modele?: string;
+  /**
+   * Modèle des chemins d'orientation — traduction d'un besoin, classification.
+   *
+   * Même clé, même fournisseur, même URL : seul le nom du modèle change. Une
+   * décision entre cinq genres contrainte par un `enum` n'a pas besoin du
+   * modèle qui rédige les exercices, et la payer au tarif de latence de
+   * celui-ci rendait le point d'entrée du produit inutilisable.
+   *
+   * Absent, le modèle principal sert partout : le comportement d'un compte déjà
+   * configuré ne change pas.
+   */
+  modeleRapide?: string;
 }
 
 export interface PresetFournisseur {
@@ -40,6 +52,8 @@ export interface PresetFournisseur {
   /** URL de base pré-remplie pour les fournisseurs compatibles OpenAI. */
   urlBase?: string;
   modeleParDefaut?: string;
+  /** Modèle d'orientation pré-rempli — voir `ConfigTuteurClient.modeleRapide`. */
+  modeleRapideParDefaut?: string;
   /** `true` si le fournisseur utilise le moteur Anthropic (SDK dédié). */
   anthropic: boolean;
   aide?: string;
@@ -56,7 +70,22 @@ export const FOURNISSEURS: PresetFournisseur[] = [
     cle: "mistral",
     libelle: "Mistral AI",
     urlBase: "https://api.mistral.ai/v1",
-    modeleParDefaut: "mistral-large-latest",
+    /*
+     * `medium` et non `large` — mesuré le 21/08/2026 sur le compte réel.
+     *
+     * `large` met 12 à 32 s pour rédiger un exercice, dépasse le budget de
+     * l'écran une fois sur trois, et ne rend pas une couverture de critères
+     * meilleure : mêmes dimensions, mêmes nombres de critères. Il ignore par
+     * ailleurs les bornes du schéma (ADR-097), ce qui faisait tomber la
+     * proposition de référentiel entière.
+     *
+     * Ce qu'on perd est la longueur des énoncés — `medium` rédige plus court,
+     * et choisit des instances plus simples quand rien ne l'en empêche. La
+     * relecture humaine reste le garde-fou : aucun exercice n'est enregistré
+     * sans être lu.
+     */
+    modeleParDefaut: "mistral-medium-latest",
+    modeleRapideParDefaut: "mistral-medium-latest",
     anthropic: false,
     aide: "Clé depuis console.mistral.ai → API Keys.",
   },
@@ -65,6 +94,7 @@ export const FOURNISSEURS: PresetFournisseur[] = [
     libelle: "Groq (gratuit)",
     urlBase: "https://api.groq.com/openai/v1",
     modeleParDefaut: "llama-3.3-70b-versatile",
+    modeleRapideParDefaut: "llama-3.1-8b-instant",
     anthropic: false,
     aide: "Clé depuis console.groq.com → API Keys.",
   },
@@ -259,6 +289,9 @@ export function configVersEnv(config: ConfigTuteurClient): ConversionEnv {
         TUTEUR_MOTEUR: "anthropic",
         ANTHROPIC_API_KEY: config.cle.trim(),
         ...(config.modele ? { TUTEUR_MODELE: config.modele.trim() } : {}),
+        ...(config.modeleRapide
+          ? { TUTEUR_MODELE_RAPIDE: config.modeleRapide.trim() }
+          : {}),
       },
     };
   }
@@ -276,6 +309,15 @@ export function configVersEnv(config: ConfigTuteurClient): ConversionEnv {
       TUTEUR_CLE: config.cle.trim(),
       TUTEUR_URL_BASE: validation.url,
       TUTEUR_MODELE: config.modele?.trim() || preset?.modeleParDefaut || "",
+      // Émis seulement s'il vaut quelque chose : une chaîne vide écraserait la
+      // variable serveur pour la remplacer par « rien », ce qui n'est pas la
+      // même chose que « non renseigné ».
+      ...(config.modeleRapide?.trim() || preset?.modeleRapideParDefaut
+        ? {
+            TUTEUR_MODELE_RAPIDE:
+              config.modeleRapide?.trim() || preset?.modeleRapideParDefaut || "",
+          }
+        : {}),
     },
   };
 }

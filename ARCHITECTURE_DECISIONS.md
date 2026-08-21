@@ -106,6 +106,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [094](#adr-094) | Les objectifs sont des faits structurés multiples | 🔄 Remplacée par [ADR-096](#adr-096) (21/08) |
 | [095](#adr-095) | Niveau observé et maîtrise consolidée sont distincts | ✅ Acceptée (20/08) |
 | [096](#adr-096) | Le parcours est une file d'actions dérivée, pas un objectif stocké | ✅ Acceptée (21/08) |
+| [097](#adr-097) | Le modèle se choisit par tâche, pas par compte | ✅ Acceptée (21/08) |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -7187,6 +7188,121 @@ déclarés et non interprétés en cibles.
   ses deux alternatives, `prochaine-action.tsx`, `pistes-alternatives.tsx`).
   `parcours-interne.ts` reste un ordonnanceur interne, sans exposition
   propre — c'est l'état implémenté, désormais explicite.
+
+---
+
+## ADR-097 — Le modèle se choisit par tâche, pas par compte ✅
+
+**Date.** 21/08/2026.
+
+**Validation.** Plan « Fluidifier la traduction d'un besoin » approuvé par
+Maxime le 21/08/2026, sur la contrainte explicite « pour que l'appli
+fonctionne, on a besoin que ce soit fluide et précis » et « il faut une
+solution gratuite en tout cas ».
+
+**Étend** [ADR-007](#adr-007).
+
+### Problème
+
+Un seul modèle servait tous les chemins du tuteur — `TUTEUR_MODELE`, en
+pratique `mistral-large-2512`. Mesuré en usage réel : **~90 s** pour traduire
+un besoin en action, sur le point d'entrée le plus fréquent du produit (le
+bouton `+`). À cette durée, la boucle génération → évaluation → adaptation
+n'est pas utilisable ; la personne abandonne avant la proposition.
+
+Or les chemins n'ont pas la même exigence :
+
+- Rédiger un exercice, une branche de compétences ou une correction produit du
+  **contenu** qui entre dans la chaîne d'observations (P8). ADR-007 s'y applique
+  entier : la fidélité au protocole prime sur le prix comme sur la latence.
+- Traduire un besoin choisit un **genre parmi cinq** et des codes pris dans un
+  `enum` fermé fourni par le serveur. Rien n'en sort qui soit conservé, mesuré
+  ou affirmé ; le schéma refuse déjà ce qu'un modèle plus petit pourrait
+  inventer.
+
+Traiter les deux au même tarif de latence, c'était payer la garantie la plus
+chère là où elle est déjà obtenue autrement.
+
+**Mesuré le 21/08/2026, dans l'application, sur le compte réel** (sept besoins,
+événements `mesure` de `/api/intention`) :
+
+| modèle d'orientation | durée | genre retenu |
+| --- | --- | --- |
+| `mistral-large-latest` | **> 25 s, coupé, 3 fois sur 3** | aucun |
+| `mistral-small-latest` | 1,6 – 3,5 s | **faux sur « fiche de synthèse » : `projet` au lieu de `note`, 2 fois sur 2** |
+| `mistral-medium-latest` | 0,9 – 1,5 s (temps jusqu'au premier fragment) | juste 7 fois sur 7 |
+
+Deux enseignements, qui ne se devinaient pas :
+
+1. La lenteur ne venait ni de la base — 109 compétences, 60 tentatives,
+   53 observations, lues en ~400 ms — ni du code applicatif. Elle venait du
+   **modèle**, et d'un modèle configuré côté navigateur, qui prime sur
+   `app/.env.local` et n'était donc visible dans aucun fichier du dépôt.
+2. Le plus gros modèle n'est pas le plus juste sur cette tâche : sur ce chemin,
+   `medium` est à la fois plus rapide et plus exact que `large`, et `small`
+   confond deux genres. « Rapide » nomme un profil d'usage, pas une taille.
+
+### Décision
+
+Un **profil de moteur** — `qualite` | `rapide` — est passé à
+`choisirConfiguration`. Il ne change **que le nom du modèle** : jamais la clé,
+jamais l'URL de base, jamais le fournisseur. Le profil `rapide` lit
+`TUTEUR_MODELE_RAPIDE` et retombe sur `TUTEUR_MODELE` quand la variable est
+absente — un compte déjà configuré ne change pas de comportement.
+
+Seuls les chemins d'**orientation** demandent `rapide`. Aujourd'hui :
+`/api/intention`. Les chemins de rédaction — `referentiel/proposer`,
+`referentiel/suggerer`, `exercices/generer`, `projets/generer`,
+`exercices/corriger` — restent en `qualite`.
+
+Deux décisions liées, prises dans le même geste :
+
+1. **Un chemin dont la réponse est réécrite n'appelle plus le modèle.** Le
+   contexte « nouveau domaine » et la demande de séance sans sujet imposaient
+   déjà le genre, le titre, le motif, les codes et le sujet côté serveur. La
+   traduction du modèle y était intégralement remplacée : elle est supprimée.
+2. **Un appel d'orientation porte un budget de temps.** Le garde-fou de cinq
+   minutes du moteur protège du silence, pas de la lenteur. `/api/intention`
+   borne son appel à 25 s et le dit, plutôt que de laisser l'écran ouvert.
+
+### Conséquences
+
+- Le critère de sélection d'ADR-007 — la fidélité au protocole, pas le prix —
+  reste la règle **là où la sortie devient une observation**. Le profil
+  `rapide` n'est pas une exception : il nomme le cas où cette sortie n'existe
+  pas.
+- Un modèle rapide se valide comme un moteur : rejouer un jeu de besoins réels
+  et comparer le `genre` retenu. **Un désaccord de genre disqualifie le
+  modèle**, exactement comme un échec au test de réfutation d'ADR-007. C'est ce
+  test qui a écarté `mistral-small-latest` au profit de
+  `mistral-medium-latest`, et non un raisonnement sur la taille.
+- La comparaison se fait **contre la bonne réponse, pas contre le gros modèle** :
+  ici le gros modèle ne répondait pas du tout.
+- Les chemins « nouveau domaine » et « séance sans sujet » n'exigent plus aucun
+  moteur configuré : ils ne peuvent plus répondre 503.
+- Un refus de charge d'un fournisseur (400 sur `prompt_cache_key` ou sur le
+  double bloc système) est mémorisé pour le processus : la découverte est payée
+  une fois, pas à chaque appel.
+- Les durées — lecture du compte, appel du fournisseur, temps jusqu'au premier
+  fragment, nombre de tentatives — sont diffusées en événement `mesure`. Sans
+  elles, « c'est lent » ne se découpe pas.
+- **Un prompt système se coupe en deux** : le préfixe stable (protocoles,
+  barèmes, référentiel du compte) et la demande du moment (sujet, contrat,
+  énoncé, difficulté conseillée). Les cinq chemins de rédaction concaténaient
+  la demande DANS le préfixe : `cacheLu` valait **0 sur les trois chemins de
+  génération**, contre 1968 sur 1998 pour la traduction d’un besoin, qui ne
+  fait pas cette faute. Le partage est porté par `lib/tutor/prompt.ts`.
+- **Une borne de schéma se répète en français.** `maxLength` est ignoré par
+  `mistral-large-latest` : objets de 56 caractères pour 49 admis, précisions
+  de 39 pour 24. Les seize compétences d’une proposition étaient refusées une
+  à une, et l’écran annonçait « Aucun référentiel exploitable n’a été
+  produit ». La même borne écrite dans la description du champ est respectée —
+  vérifié le 21/08/2026, deux sujets sur deux.
+- **Un validateur qui rend `null` doit dire pourquoi.**
+  `motifsRefusAppelOutil` remonte les motifs d’`atomicite.ts` — la seule
+  autorité sur ce qu’est une compétence atomique — jusqu’au message affiché.
+  Un refus muet ne se corrige ni par la personne, ni par le prompt, ni par un
+  changement de modèle.
 
 ---
 

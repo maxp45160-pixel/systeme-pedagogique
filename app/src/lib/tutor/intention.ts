@@ -149,6 +149,13 @@ export async function traduireIntention(
   diffuser?: (evenement: string, donnees: unknown) => void,
   profilDeclare = "",
   contexte?: string,
+  /**
+   * Budget de temps de l'appel, transmis tel quel au moteur.
+   *
+   * Décidé par la route et non ici : c'est elle qui sait ce que l'écran est
+   * prêt à attendre. Absent, le garde-fou du moteur s'applique.
+   */
+  delaiMs?: number,
 ): Promise<ResultatIntention> {
   let traduction: TraductionIntention | null = null;
   let outilsActifs = true;
@@ -191,6 +198,7 @@ export async function traduireIntention(
     messages: [{ role: "user" as const, content: besoin }],
     outils: [outilIntention(codesArmes)],
     signal,
+    delaiMs,
     envoyer,
   });
 

@@ -36,6 +36,7 @@ import type { Exercise } from "@/lib/domain/types";
 import { LIBELLES_DIMENSIONS } from "@/lib/domain/types";
 import { APPRECIATIONS, RESULTATS } from "@/lib/domain/bilan";
 import type { MoteurTuteur } from "./moteurs";
+import type { PromptTuteur } from "./prompt";
 import { lireErreurMoteur, lireOutilsActifs, messageSansOutils } from "./moteurs";
 import { outilCorrection, type PropositionCorrection } from "./outils";
 
@@ -118,25 +119,16 @@ export interface ResultatCorrection {
  */
 export function construirePromptCorrection(
   exercice: Pick<Exercise, "titre" | "enonce" | "correction" | "criteres">,
-): string {
+): PromptTuteur {
   const criteres = exercice.criteres.map(
     (c, i) => `${i + 1}. ${c.libelle} — dimension : ${LIBELLES_DIMENSIONS[c.dimension]}`,
   );
 
-  return [
+  const stable = [
     "Tu es le tuteur du système pédagogique. Tu relis la réponse d'une personne à un exercice et tu rends un verdict, critère par critère.",
     "",
     "TU N'ENREGISTRES RIEN.",
     "Ton verdict est une proposition. La personne le relit, le modifie ou le rejette avant qu'aucune mesure ne soit écrite.",
-    "",
-    `EXERCICE — ${exercice.titre}`,
-    exercice.enonce,
-    "",
-    "CORRECTION DE RÉFÉRENCE (elle t'est donnée pour corriger ; ne la recopie pas dans tes justifications)",
-    exercice.correction,
-    "",
-    "CRITÈRES, dans l'ordre où tu dois les numéroter",
-    ...criteres,
     "",
     "BARÈME PAR CRITÈRE",
     ...APPRECIATIONS.map((a) => `- ${a.valeur} = ${a.libelle}`),
@@ -165,6 +157,25 @@ export function construirePromptCorrection(
     "",
     "Appelle l'outil proposer_correction UNE fois. Ne recopie pas le contenu de l'appel dans ta réponse.",
   ].join("\n");
+
+  /*
+   * L'exercice est la demande : énoncé, correction de référence et critères
+   * changent à chaque correction. Dans le bloc stable, ils cassaient le
+   * préfixe — et sur ce chemin le protocole est long, donc c'est là que le
+   * cache aurait le plus à donner (`PromptTuteur`).
+   */
+  const variable = [
+    `EXERCICE — ${exercice.titre}`,
+    exercice.enonce,
+    "",
+    "CORRECTION DE RÉFÉRENCE (elle t'est donnée pour corriger ; ne la recopie pas dans tes justifications)",
+    exercice.correction,
+    "",
+    "CRITÈRES, dans l'ordre où tu dois les numéroter",
+    ...criteres,
+  ].join("\n");
+
+  return { stable, variable };
 }
 
 /* ------------------------------------------------------------------ */
@@ -217,9 +228,11 @@ export async function corrigerReponse(
     },
   ];
 
+  const prompt = construirePromptCorrection(exercice);
+
   await moteur.repondre({
-    systemeStable: construirePromptCorrection(exercice),
-    systemeProfil: "",
+    systemeStable: prompt.stable,
+    systemeProfil: prompt.variable,
     // Un seul outil, et pas ceux du chat : la correction ne peut pas déraper
     // en création d'exercice ou en proposition de branche.
     outils: [outilCorrection(exercice.criteres)],
