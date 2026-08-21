@@ -1392,3 +1392,21 @@ pas été modifiés hors de cette fonction.
      `suppression_themes`). Correctifs SQL à produire sur relevé, pas à
      l'aveugle : créer une migration dédiée par lot de remédiation,
      relancer les deux advisors après application.
+
+### Retrait du 21/08/2026 - carte globale et competence_succession
+
+Decision humaine explicite apres lecture directe de la base : les six tables
+`carte_globale_*` et `competence_succession` contiennent zero ligne chacune,
+aucun chemin d'ecriture applicatif ne subsiste (actions serveur supprimees le
+même jour) et aucune voie de nomination de curateur n'a jamais existe.
+ADR-099 acte le retrait ; le concept reste decrit dans TWINY_MODEL.md.
+
+La migration `20260821190000_retrait_carte_globale` supprime les sept tables,
+`appliquer_commande_carte_globale(text, integer, jsonb, jsonb)`,
+`refuser_mutation_carte_globale_changes()` et
+`provenance_carte_globale_valide(jsonb)`. Le chemin de lecture
+(`store/carte-globale.ts`, `validation-carte-globale.ts`,
+types `domain/carte-globale.ts`) et la branche globale de `vues-twiny.ts`
+sont retires dans le même commit. L'ordre d'application des drops suit celui du
+plan de retour arriere ci-dessus ; les advisors devront etre relus apres
+application.

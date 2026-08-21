@@ -15,7 +15,6 @@ import { Modale } from "@/components/ui/modale";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import type { PropositionReferentiel } from "@/lib/tutor/proposition";
 import { ChargementGeneration } from "@/components/ui/chargement-generation";
-import type { ElementGlobal } from "@/lib/domain/carte-globale";
 import { creerBranche } from "@/lib/store/referentiel-actions";
 import type { CompetenceDejaAuReferentiel } from "@/lib/domain/gouvernance-referentiel";
 import { AvisDejaAuReferentiel } from "./avis-deja-au-referentiel";
@@ -81,7 +80,6 @@ export function ModaleCompetence({
   modeCible,
   descriptionInitiale = "",
   suggestionAutomatique = false,
-  pistesGlobales = [],
   surEnregistre,
 }: {
   onFermer: () => void;
@@ -99,8 +97,6 @@ export function ModaleCompetence({
   descriptionInitiale?: string;
   /** Lance immédiatement la suggestion, pour l'amorçage d'un compte neuf. */
   suggestionAutomatique?: boolean;
-  /** Repères globaux proposés seulement pendant la création d'une branche. */
-  pistesGlobales?: ElementGlobal[];
   /** Permet à l'appelant de reprendre son flux après la création. */
   surEnregistre?: () => void;
 }) {
@@ -483,27 +479,6 @@ export function ModaleCompetence({
               <BandeauInfo ton="danger" taille="compacte">
                 <p className="text-danger">{etat.message}</p>
               </BandeauInfo>
-            )}
-
-            {pistesGlobales.length > 0 && !estDomaineExistant && !competenceSeule && (
-              <div className="rounded-xl border border-bordure bg-surface-2/40 p-3">
-                <p className="text-xs font-semibold text-texte">Besoin d’une piste ?</p>
-                <p className="mt-0.5 text-xs text-texte-discret">
-                  Choisis un repère pour pré-remplir le sujet :
-                </p>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {pistesGlobales.slice(0, 6).map((piste) => (
-                    <button
-                      key={piste.id}
-                      type="button"
-                      onClick={() => setIntention(piste.nom)}
-                      className="rounded-lg border border-bordure bg-surface px-2.5 py-1 text-xs text-texte-attenue transition-colors hover:border-primaire/50 hover:text-primaire cursor-pointer"
-                    >
-                      {piste.nom}
-                    </button>
-                  ))}
-                </div>
-              </div>
             )}
 
             {(estDomaineExistant || competenceSeule) && (

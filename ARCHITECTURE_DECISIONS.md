@@ -98,7 +98,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [086](#adr-086) | L'atomicité tient au schéma, pas à la consigne ; le référentiel se détecte seul | 🔬 Hypothèse (18/08) |
 | [087](#adr-087) | Une compétence a plusieurs successeurs ; la scission est sèche | 🔬 Hypothèse (18/08) |
 | [088](#adr-088) | Un domaine n'est pas un thème | 🔬 Hypothèse (18/08) |
-| [089](#adr-089) | Carte globale partagée et overlay privé | ✅ Acceptée (20/08) |
+| [089](#adr-089) | Carte globale partagée et overlay privé | 🗑️ Retirée (21/08) — voir [ADR-099](#adr-099) |
 | [090](#adr-090) | Une preuve est une trace ; l'actuel `evidence` devient Observation | ✅ Acceptée (20/08) |
 | [091](#adr-091) | États et vues personnelles restent dérivés | ✅ Acceptée (20/08) |
 | [092](#adr-092) | Une Connaissance est un élément déclaré, pas un document | ✅ Acceptée (20/08) |
@@ -7380,6 +7380,57 @@ renvoie.
   moyen global*, lui, n'a plus d'écran dédié.
 - La page reste garantie atteignable par `workflow-scanner` ; son rôle change,
   sa route non.
+
+---
+
+## ADR-099 - La carte globale est retirée, pas remplacée
+
+**Statut : 🗑️ Retrait acté (21/08/2026).** Décision humaine explicite, prise
+après lecture directe de la base de production.
+
+### Le constat qui déclenche le retrait
+
+Le 21/08/2026, la base live est interrogée directement :
+
+- les six tables `carte_globale_*` contiennent **zéro ligne chacune** — elles
+  n'en ont jamais reçue ;
+- aucun chemin d'écriture applicatif ne subsiste : les actions serveur
+  (`store/carte-globale-actions.ts`) sont supprimées le même jour après
+  vérification qu'aucun composant ni aucune page ne les appelait ;
+- la table `carte_globale_curateurs` n'a jamais eu de voie de nomination
+  (aucun `INSERT`, nulle part) : même un écrivain réintroduit n'aurait rien pu
+  publier ;
+- `competence_succession` partage exactement ce constat : structure complète
+  (RLS, triggers, index), zéro référence dans le code, zéro writer possible.
+
+Le lot 3 avait provisionné le schéma avant d'avoir quoi que ce soit à y mettre.
+C'est l'ordre inverse de celui que le projet s'impose désormais.
+
+### Ce que le retrait emporte
+
+- Les sept tables et la fonction transactionnelle
+  `appliquer_commande_carte_globale` (`20260821190000_retrait_carte_globale.sql`).
+- Le chemin de lecture : `store/carte-globale.ts`, `validation-carte-globale.ts`,
+  les types de `domain/carte-globale.ts`.
+- Dans `vues-twiny.ts`, la branche globale de l'overlay privé et de l'espace
+  actif — structurellement vide depuis l'origine. L'espace actif reste borné à
+  quinze éléments et continue d'ordonner par classement explicable du
+  référentiel local ; il ne compose plus que des faits locaux.
+
+### Ce que le retrait ne remet pas en cause
+
+- **ADR-091 reste valable** : les états personnels restent dérivés, jamais
+  stockés ; ils portent désormais uniquement des faits locaux.
+- **Le concept** d'un catalogue partagé reste décrit dans `TWINY_MODEL.md`.
+  Un retour éventuel repartira du modèle cible — avec un premier contenu réel,
+  un curateur désigné et un besoin démontré avant toute table. L'inverse de
+  l'ordre qui a produit ce schéma mort.
+
+### Test de réfutation
+
+Si une sélection ou une publication globale redevient nécessaire, cet ADR sera
+rouvert avec le contenu initial nommé et le chemin d'écriture défini avant le
+schéma.
 
 ---
 

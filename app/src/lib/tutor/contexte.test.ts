@@ -73,13 +73,7 @@ function construireCtxDeTest(
   const global = calculerEtatGlobal(etats, now, DOMAINES_TEST);
   const calibrations = calibrerToutes(etats, exercises, attempts);
   const recommandations = recommander(etats, exercises, attempts, 5, calibrations);
-  const carteIndividuelle = construireCarteIndividuelle({
-    carteGlobale: { elements: [], relations: [] },
-    selectionsGlobales: [],
-    correspondancesGlobales: [],
-    domainesLocaux: referentiel.domaines,
-    etatsLocaux: etats,
-  });
+  const carteIndividuelle = construireCarteIndividuelle(etats);
   const espaceActif = construireEspaceActif({ carte: carteIndividuelle, recommandations });
   return {
     referentiel,
@@ -106,7 +100,6 @@ function construireCtxDeTest(
     etatsParCode: new Map(etats.map((e) => [e.skill.code, e])),
     global,
     recommandations,
-    carteGlobale: { elements: [], relations: [] },
     carteIndividuelle,
     espaceActif,
     contexteDocumentaire: new Map(),

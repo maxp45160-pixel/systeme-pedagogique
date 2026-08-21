@@ -289,33 +289,20 @@ ligne exigeait.
 ✅ **La validation de ce chantier reste gratuite pour l'instant** : aucun
 environnement Supabase payant n'est créé. Les migrations et fixtures sont
 préparées localement ; toute dépense future exigera un nouvel accord explicite.
-✅ **La carte globale est partagée ; la relation du compte reste privée**
-(ADR-089, qui remplace ADR-026). La carte est un catalogue générique, versionné,
-sourcé, extensible et non exhaustif des savoirs humains. Elle s'enrichit
-progressivement selon les besoins plutôt que d'être préconstruite dans son
-ensemble. Chaque compte possède un overlay privé — sélections, éléments locaux,
-objectifs, événements et observations —, jamais une copie de la carte. Aucun
-élément privé ni aucune donnée personnelle n'est publié globalement sans
-validation humaine explicite et provenance ; aucune compétence locale n'est
-fusionnée automatiquement.
-L'amorçage reste privé au compte : la personne déclare son sujet et son
-intention de départ dans `/demarrer`, sans transformer cette déclaration en
+✅ **La carte globale a été retirée** (21/08/2026, ADR-099). Ses tables
+n'avaient jamais reçu une seule ligne et son chemin d'écriture n'existait plus.
+L'overlay privé du compte porte désormais uniquement des faits locaux — états
+dérivés du référentiel et des observations — jamais une copie d'un catalogue
+externe. L'amorçage reste privé au compte : la personne déclare son sujet et
+son intention de départ dans `/demarrer`, sans transformer cette déclaration en
 objectif structuré ni en mesure. La carte personnelle n'a pas de fenêtre
-dupliquée : sa surface canonique est le graphe de l'Atelier, où le référentiel
-local peut évoluer à partir de pistes explicites de la carte globale. La
-Progression est le **profil de carrière** (ADR-098) : elle porte la lecture
-longitudinale — évolution du score rejouée depuis le journal, faits marquants,
-bilan de croissance — sans recomposer une seconde carte personnelle ni porter
-l'exploration globale ; l'exploration et les objectifs ne s'y sont jamais
-trouvés, et la phrase qui l'affirmait ici était une dérive documentaire.
-Le catalogue
-de production reste volontairement vide jusqu'à validation de son contenu et
-désignation d'un curateur ; le statut réellement déployé est suivi dans
-[`TWINY_MIGRATION.md`](docs/architecture/TWINY_MIGRATION.md).
-✅ **La carte ouvre des horizons sans imposer un périmètre.** Elle sert à
-situer la personne, relier les éléments et explorer les voisinages pertinents.
-La découverte ou la proposition d'un élément ne l'ajoute jamais
-automatiquement aux sélections ni à l'espace actif du compte.
+dupliquée : sa surface canonique est le graphe de l'Atelier. La Progression est
+le **profil de carrière** (ADR-098) : elle porte la lecture longitudinale —
+évolution du score rejouée depuis le journal, faits marquants, bilan de
+croissance. Le *concept* d'un catalogue partagé reste décrit dans
+[`TWINY_MODEL.md`](docs/architecture/TWINY_MODEL.md) ; tout retour repartira du
+modèle cible, avec un contenu initial réel et un curateur désigné avant toute
+table.
 ✅ **Une preuve n'est jamais orpheline** (ADR-027) : une compétence sans preuve
 se supprime, une compétence qui en porte s'archive — jamais l'inverse.
 ✅ **Le score porte sur ce qui est mesuré** (ADR-006) ; la couverture dit le
@@ -327,8 +314,7 @@ profondeur maximale (ADR-058) : thèmes et sous-thèmes appartiennent à une mê
 hiérarchie.
 ✅ **Les relations déclarées et calculées n'ont pas le même statut** (ADR-093).
 Une relation validée et sourcée peut être persistée ; similarités et inférences
-restent dérivées. Une proposition du tuteur n'entre pas dans la carte globale
-sans validation humaine explicite.
+restent dérivées.
 ✅ **Niveau observé et maîtrise consolidée restent distincts** (ADR-095). Les
 seuils actuels ne changent pas sans données ; la future interface distinguera
 une performance ponctuelle d'une maîtrise étayée dans la durée.
