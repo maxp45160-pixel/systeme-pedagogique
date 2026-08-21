@@ -161,20 +161,6 @@ export async function ajouter<K extends CleListe>(
   return element;
 }
 
-/** Insère plusieurs éléments en une seule requête. */
-export async function ajouterPlusieurs<K extends CleListe>(
-  nom: K,
-  elements: Collections[K][number][],
-  dorsaleFournie?: DorsaleCompte,
-): Promise<void> {
-  if (elements.length === 0) return;
-  const { supabase, userId } = dorsaleFournie ?? (await dorsaleCompte());
-  const { error } = await supabase
-    .from(TABLES[nom])
-    .insert(elements.map((e) => entiteVersLigne(e as object, userId)));
-  verifier(`ajout groupé dans « ${nom} »`, error);
-}
-
 /**
  * Met à jour les champs fournis d'un élément identifié par `id`, et renvoie
  * l'entité telle qu'elle existe désormais en base — le tout en une requête.

@@ -182,8 +182,8 @@ export function moteurCompatibleOpenAI(
         }));
 
         /*
-         * Un seul outil armé = un chemin one-shot (traduire un besoin, résoudre
-         * un thème, rédiger un lot d'exercices). L'appel n'y est pas une option
+         * Un seul outil armé = un chemin one-shot (traduire un besoin, rédiger
+         * un lot d'exercices). L'appel n'y est pas une option
          * offerte au modèle : c'est tout ce que la requête attend. En `auto`, un
          * modèle qui répond « voici une séance sur la logistique… » en prose
          * produit zéro proposition, et l'écran ne peut rien dire de mieux que

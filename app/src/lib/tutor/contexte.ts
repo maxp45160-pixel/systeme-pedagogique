@@ -932,8 +932,8 @@ export function contexteEnTexte(c: ContextePedagogique, question: string): strin
 
   return [
     c.systemeStable,
-    "\n\n---\n\n# FORME DES PROPOSITIONS (mode copié-collé)\n\n",
-    "Cette conversation n'a pas d'appel d'outil. Quand tu proposes, écris un bloc ```json contenant { \"outil\": <nom>, \"donnees\": { … } } conforme au schéma correspondant.\n\n",
+    "\n\n---\n\n# FORME DE LA RÉPONSE (mode copié-collé)\n\n",
+    "Cette conversation n'a pas d'appel d'outil : ta réponse est relue par la personne, qui agit elle-même dans l'interface. Réponds en prose lisible — n'écris pas de bloc JSON ni de format machine, rien ne le parse côté application. Les schémas ci-dessous décrivent les champs d'une proposition pour structurer ta réponse, pas pour être recopiés tels quels.\n\n",
     schemas,
     "\n\n---\n\n",
     c.systemeProfil,

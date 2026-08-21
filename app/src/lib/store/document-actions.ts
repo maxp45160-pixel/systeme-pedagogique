@@ -71,10 +71,6 @@ export async function creerNoteAction(
   return { id, contenuMd };
 }
 
-export async function supprimerNoteSupportAction(id: string): Promise<void> {
-  await supprimerDocument(id);
-}
-
 export async function supprimerDocumentAction(id: string): Promise<void> {
   await supprimerDocument(id);
 }

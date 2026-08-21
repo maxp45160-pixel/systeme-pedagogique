@@ -104,23 +104,6 @@ export async function demarrerTentative(exerciseId: string): Promise<void> {
   revalidatePath("/", "layout");
 }
 
-/**
- * `indicesUtilises` est le compteur courant, lu par la page qui rend le bouton.
- * Le passer évite de relire la tentative pour l'incrémenter : une requête au
- * lieu de deux. Deux onglets cliquant à la même seconde perdraient un
- * incrément — un compte est une personne, et la garde optimiste alternative
- * transformerait la perte en indice affiché mais non compté, c'est-à-dire en
- * autonomie surestimée. C'est le défaut connu qu'on refuse d'aggraver (P8).
- */
-export async function debloquerIndice(
-  attemptId: string,
-  indicesUtilises: number,
-): Promise<void> {
-  const dorsale = await dorsaleCompte();
-  await modifier("attempts", attemptId, { indicesUtilises: indicesUtilises + 1 }, dorsale);
-  revalidatePath("/", "layout");
-}
-
 export async function enregistrerReponse(attemptId: string, reponse: string): Promise<void> {
   const dorsale = await dorsaleCompte();
   await modifier("attempts", attemptId, { reponse }, dorsale);

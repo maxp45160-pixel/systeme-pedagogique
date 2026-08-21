@@ -6,7 +6,6 @@
  *
  *   - **matrice d'adjacence** — `A[i][j] = 1` s'il existe une arête du nœud
  *     `i` au nœud `j` (graphe orienté) ;
- *   - **liste d'adjacence** — pour chaque nœud, la liste de ses successeurs ;
  *   - **format DOT** — le format textuel de Graphviz, pour visualisation et
  *     analyse externe (`dot -Tsvg`, `networkx`, etc.) ;
  *   - **JSON** — sérialisation complète, pour consommation par un script.
@@ -74,17 +73,6 @@ export function matriceAdjacence(
   }
 
   return { noeuds: ids, matrice, nombreAretes };
-}
-
-/* ------------------------------------------------------------------ */
-/* Liste d'adjacence                                                   */
-/* ------------------------------------------------------------------ */
-
-export interface ListeAdjacence {
-  /** Pour chaque nœud, la liste ordonnée de ses successeurs. */
-  successeurs: Record<string, string[]>;
-  /** Pour chaque nœud, la liste ordonnée de ses prédécesseurs. */
-  predecesseurs: Record<string, string[]>;
 }
 
 /* ------------------------------------------------------------------ */

@@ -27,18 +27,6 @@ export interface EvaluationExplication {
   conseilSuivant: string;
 }
 
-export interface DemandeEvaluationExplication {
-  skillCode: string;
-  texteExplication: string;
-}
-
-/** Vérifie si le texte soumis possède une longueur suffisante pour être évalué. */
-export function explicationSuffisante(texte: string | null | undefined): boolean {
-  if (!texte) return false;
-  const nettoye = texte.trim();
-  return nettoye.length >= EXPLICATION_MIN_CARACTERES;
-}
-
 /** Valide les bornes autorisées d'une explication. */
 export function verifierTexteExplication(texte: string): { valide: boolean; erreur?: string } {
   const nettoye = texte.trim();

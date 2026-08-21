@@ -954,7 +954,7 @@ export function outilReferentielComplet(
     nom: OUTIL_REFERENTIEL_COMPLET,
     description:
       domainesVivants > 0
-        ? `Propose un référentiel pour un sujet. Ce compte a déjà ${domainesVivants} domaine(s) : n'en crée pas plus de ${BRANCHES_MAX_COMPTE_ETABLI}. Un domaine n'est PAS un thème — pour découper un sujet large, rattache les compétences à un domaine existant ou à un seul domaine neuf, et laisse la personne créer des thèmes ensuite. L'application attribue tous les codes.${vueEnsemble ? " Cette demande est une vue d'ensemble : renvoie au moins deux branches et trois compétences observables par branche." : ""}`
+        ? `Propose un référentiel pour un sujet. Ce compte a déjà ${domainesVivants} domaine(s) : n'en crée pas plus de ${BRANCHES_MAX_COMPTE_ETABLI}. Pour découper un sujet large, rattache les compétences à un domaine existant ou à un seul domaine neuf. L'application attribue tous les codes.${vueEnsemble ? " Cette demande est une vue d'ensemble : renvoie au moins deux branches et trois compétences observables par branche." : ""}`
         : `Propose un référentiel complet pour un sujet, découpé en branches cohérentes. Une branche par grand thème : ne mets pas vingt compétences dans un seul domaine, et n'en fais pas dix pour un sujet qui en tient trois. L'application attribue tous les codes.${vueEnsemble ? " Cette demande est une vue d'ensemble : renvoie au moins deux branches et trois compétences observables par branche." : ""}`,
     schema: {
       type: "object",
@@ -1173,10 +1173,10 @@ export function outilsRevision(codesVivants: string[]): OutilTuteur {
  * corriger le tir ; en rendre deux ou trois lui laisse choisir sans réécrire.
  *
  * `codesActifs` peut arriver vide — un compte neuf. Le schéma retombe alors sur
- * une chaîne libre plutôt qu'un `enum: []` invalide, exactement comme
- * `outilTheme` ; la validation en aval écarte de toute façon tout code inconnu,
- * donc l'ensemble vide écarte tout. Un compte sans référentiel ne peut produire
- * qu'un `referentiel` ou une `note`, et c'est le résultat voulu.
+ * une chaîne libre plutôt qu'un `enum: []` invalide ; la validation en aval
+ * écarte de toute façon tout code inconnu, donc l'ensemble vide écarte tout.
+ * Un compte sans référentiel ne peut produire qu'un `referentiel` ou une
+ * `note`, et c'est le résultat voulu.
  */
 export function outilIntention(codesActifs: string[]): OutilTuteur {
   const code: SchemaJson =
@@ -1253,8 +1253,8 @@ export function outilIntention(codesActifs: string[]): OutilTuteur {
 /**
  * Les codes actifs tels que le schéma d'intention les a énumérés.
  *
- * Même précaution que `codesDuSchemaTheme` : on relit l'ensemble effectivement
- * reçu par le fournisseur plutôt qu'une liste parallèle qui pourrait diverger.
+ * On relit l'ensemble effectivement reçu par le fournisseur plutôt qu'une
+ * liste parallèle qui pourrait diverger.
  */
 function codesDuSchemaIntention(outils: OutilTuteur[]): Set<string> {
   const intention = outils.find((o) => o.nom === OUTIL_INTENTION);

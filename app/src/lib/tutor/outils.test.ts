@@ -203,7 +203,7 @@ describe("outilReferentielComplet — le plafond de domaines (ADR-088)", () => {
     // domaines et 40 compétences, aucune mesurée.
     const outil = outilReferentielComplet(REFERENTIEL);
     expect(outil.schema.properties?.branches.maxItems).toBe(BRANCHES_MAX_COMPTE_ETABLI);
-    expect(outil.description).toContain("Un domaine n'est PAS un thème");
+    expect(outil.description).toContain("rattache les compétences à un domaine existant");
   });
 
   it("ne plafonne pas l'amorçage d'un compte vide", () => {

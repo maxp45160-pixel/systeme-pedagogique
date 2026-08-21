@@ -60,7 +60,7 @@ import {
   lireSnapshotAction,
   sauvegarderDocumentAction,
   supprimerPieceJointeAction,
-  supprimerNoteSupportAction,
+  supprimerDocumentAction,
 } from "@/lib/store/document-actions";
 import type {
   EntretienDomaineAtelier,
@@ -927,7 +927,7 @@ export function EspaceDocumentaire({
     setMessage(null);
     demarrerTransition(async () => {
       try {
-        await supprimerNoteSupportAction(selectionnee.id);
+        await supprimerDocumentAction(selectionnee.id);
         setElements((anciens) => anciens.filter((element) => element.id !== selectionnee.id));
         setSelection(null);
         setCibleLien("");

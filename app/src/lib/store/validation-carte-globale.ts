@@ -6,7 +6,6 @@ import {
   type CorrespondanceCarteGlobale,
   type ProvenanceGlobale,
   type RelationGlobale,
-  type ResultatCommandeCarteGlobale,
   type SelectionCarteGlobale,
 } from "@/lib/domain/carte-globale";
 import { DonneeSupabaseInvalide } from "./validation-supabase";
@@ -130,37 +129,5 @@ export function validerCorrespondanceCarteGlobale(
     acteur: enumeration(correspondance.acteur, ["personne", "systeme"] as const, `${chemin}.acteur`),
     provenance: validerProvenanceGlobale(correspondance.provenance, `${chemin}.provenance`),
     rattacheLe: date(correspondance.rattacheLe, `${chemin}.rattacheLe`),
-  };
-}
-
-export function validerResultatCommandeCarteGlobale(
-  valeur: unknown,
-  chemin = "commandeCarteGlobale",
-): ResultatCommandeCarteGlobale {
-  const resultat = objet(valeur, chemin);
-  const objetType = enumeration(resultat.objetType, ["element", "relation"] as const, `${chemin}.objetType`);
-  const action = enumeration(
-    resultat.action,
-    ["publier_element", "corriger_element", "retirer_element", "publier_relation", "retirer_relation"] as const,
-    `${chemin}.action`,
-  );
-  if (typeof resultat.rejeu !== "boolean") {
-    throw new DonneeSupabaseInvalide(`${chemin}.rejeu`, "booléen attendu");
-  }
-  const actionElement = ["publier_element", "corriger_element", "retirer_element"].includes(action);
-  if ((objetType === "element") !== actionElement) {
-    throw new DonneeSupabaseInvalide(
-      chemin,
-      "le type d’objet doit correspondre à l’action de la commande",
-    );
-  }
-  return {
-    action,
-    objetType,
-    objet:
-      objetType === "element"
-        ? validerElementGlobal(resultat.objet, `${chemin}.objet`)
-        : validerRelationGlobale(resultat.objet, `${chemin}.objet`),
-    rejeu: resultat.rejeu,
   };
 }

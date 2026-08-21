@@ -181,15 +181,6 @@ export function construirePage<
   };
 }
 
-export function pageEstVide(page: PageCahier): boolean {
-  return (
-    page.seances.length === 0 &&
-    page.traces.length === 0 &&
-    page.notes.length === 0 &&
-    (page.projets?.length ?? 0) === 0
-  );
-}
-
 /* ------------------------------------------------------------------ */
 /* Feuillets — un jour porte une à plusieurs pages                      */
 /* ------------------------------------------------------------------ */

@@ -3,7 +3,6 @@ import {
   validerElementGlobal,
   validerProvenanceGlobale,
   validerRelationGlobale,
-  validerResultatCommandeCarteGlobale,
   validerSelectionCarteGlobale,
 } from "./validation-carte-globale";
 
@@ -53,24 +52,5 @@ describe("validation Supabase de la carte globale", () => {
         selectionneLe: "2026-08-20T12:00:00.000Z",
       }),
     ).toEqual({ elementId: element.id, selectionneLe: "2026-08-20T12:00:00.000Z" });
-  });
-
-  it("valide le snapshot renvoyé par la commande transactionnelle", () => {
-    expect(
-      validerResultatCommandeCarteGlobale({
-        action: "publier_element",
-        objetType: "element",
-        objet: element,
-        rejeu: false,
-      }).objet,
-    ).toEqual(element);
-    expect(() =>
-      validerResultatCommandeCarteGlobale({
-        action: "publier_relation",
-        objetType: "element",
-        objet: element,
-        rejeu: false,
-      }),
-    ).toThrow(/correspondre/);
   });
 });
