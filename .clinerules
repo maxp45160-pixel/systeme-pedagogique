@@ -1,96 +1,43 @@
 # Règles Cline — Système pédagogique
 
-## Environnement d'exécution (CRITIQUE)
+Les règles du projet (architecture en six couches, invariants métier,
+garde-fous, commandes, workflow) vivent dans **`AGENTS.md`** : c'est la
+seule source qui fait autorité. Lire ce fichier avant toute décision
+produit (`PRODUCT.md`) ou modification architecturale
+(`ARCHITECTURE_DECISIONS.md`). Cette page ne conserve que ce qui est
+spécifique au harnais Cline.
 
-- **Système d'exploitation** : Windows
-- **Shell** : PowerShell
-- **Répertoire de travail fixe** : Racine du projet (`c:\Users\hupch\Documents\max`)
-- **RÈGLE ABSOLUE** : **NE JAMAIS UTILISER DE COMMANDE `cd`**.
-  - Cline réinitialise le répertoire de travail à la racine pour chaque commande.
-  - Les commandes chaînées avec `cd ... && ...` échouent sur PowerShell.
-  - N'utilisez pas de commandes bash incompatibles (`cat`, `grep`, `export`, `&&`, etc.).
+## Environnement d'exécution
 
----
+- **Système** : Windows, shell PowerShell.
+- **Répertoire de travail** : racine du dépôt (`c:\Users\hupch\Documents\max`),
+  réinitialisée par Cline à chaque commande.
+- **NE JAMAIS UTILISER DE COMMANDE `cd`** — ni de chaînage bash
+  (`&&`, `cat`, `grep`, `export`) incompatible avec PowerShell.
+- Tout fichier applicatif vit sous le préfixe `app/`
+  (ex. `app/src/lib/domain/...`) ; specifier le chemin relatif complet.
 
-## Commandes depuis la racine
+## Commandes
 
-Toutes les commandes doivent être exécutées **directement depuis la racine du dépôt** :
-
-```bash
-# Lancer tous les tests Vitest
-npm test
-
-# Lancer un fichier de test spécifique
-npm test -- src/lib/domain/seance.test.ts
-
-# Lancer la vérification complète (TypeScript + ESLint + Vitest)
-npm run verify
-
-# Lancer le build Next.js (typecheck de production)
-npm run build
-
-# Lancer le serveur de développement
-npm run dev
-
-# Installer les dépendances
+```powershell
+npm test            # tous les tests Vitest
+npm run verify      # TypeScript + ESLint + Vitest
+npm run build       # build Next.js (typecheck production)
+npm run dev         # serveur de développement
 npm install --workspaces
 ```
 
----
+## Protocole tool calling
 
-## Protocole Tool Calling (Robuste pour DeepSeek & Modèles de Raisonnement)
+1. **Format XML strict** : balises d'ouverture et de fermeture exactes,
+   sans token parasite (`</path>`, `</diff>`, `</content>`, `</command>`).
+2. **Un seul appel d'outil par message**, immédiatement utile — ne jamais
+   terminer une réponse intermédiaire par du texte brut sans outil.
+3. **Édition ciblée (`replace_in_file`)** : blocs `SEARCH` courts
+   (5–15 lignes), uniques, avec 1–2 lignes de contexte autour ;
+   relire le fichier avec `read_file` avant chaque édition.
 
-1. **Format XML Strict & Précis** :
-   - Tout appel d'outil doit être formulé en XML standard sans aucun caractère ou token parasite dans les balises d'ouverture et de fermeture.
-   - Les balises doivent impérativement être fermées avec leur nom exact (`</path>`, `</diff>`, `</content>`, `</command>`).
-   - Exemple exact :
-     ```xml
-     <read_file>
-     <path>app/src/lib/domain/seance.ts</path>
-     </read_file>
-     ```
+## Fichiers protégés
 
-2. **Un seul appel d'outil par message** :
-   - Toujours inclure immédiatement un appel d'outil utile lors d'une étape de diagnostic ou de modification. Ne jamais terminer une réponse intermédiaire par du texte brut sans outil pour éviter le blocage de séquence du harness.
-
-3. **Chemins de fichiers & Portée** :
-   - Tous les fichiers applicatifs se trouvent sous le préfixe `app/` (ex: `app/src/lib/domain/...`, `app/src/components/...`).
-   - Toujours spécifier le chemin relatif complet depuis la racine.
-
-4. **Édition ciblée (`replace_in_file`)** :
-   - Spécifier des blocs `SEARCH` courts (5 à 15 lignes max), uniques et contenant 1 à 2 lignes de contexte avant et après pour garantir une correspondance exacte.
-   - Toujours vérifier le contenu actuel du fichier avec `read_file` avant de générer un `replace_in_file`.
-
----
-
-## Architecture & Invariants métier
-
-Consulter obligatoirement `PRODUCT.md` avant toute décision produit et `ARCHITECTURE_DECISIONS.md` avant toute modification architecturale.
-
-### Les six couches
-| # | Couche | Règle |
-|---|---|---|
-| 0 | **Ignore** | Garde-fous du système |
-| 1 | **Connaît** | Stocké, jamais calculé |
-| 2 | **Observe** | Constaté, jamais fabriqué |
-| 3 | **Décide** | Dérivé, recalculable (ne jamais stocker) |
-| 4 | **Fait faire** | Interface utilisateur |
-| 5 | **Fait des données**| Infrastructure & persistance |
-
-**Frontière stricte** : Les couches 1 et 2 ne se recalculent pas, la couche 3 ne se stocke pas.
-
-### Garde-fous essentiels
-- Ne pas stocker ce qui est dérivable.
-- Ne jamais inventer ni fabriquer de données à partir de données invalides.
-- Toute mesure doit avoir une source explicite.
-- Le tuteur produit du contenu, jamais de mesures ni de codes de compétence non déclarés.
-- Une compétence avec des preuves est archivée, jamais supprimée.
-- RLS Supabase est la barrière d'autorisation de confiance : ne jamais exposer `service_role` côté client.
-- La logique métier non triviale vit dans `app/src/lib/domain/` ou `app/src/lib/engine/`, jamais dans les composants React.
-
-### Fichiers protégés
-Ne jamais modifier silencieusement :
-- `.env.local`
-- `app/supabase/schema.sql`
-- `app/data/00_instructions/`
-- `AGENTS.md`, `CLAUDE.md`, `ARCHITECTURE_DECISIONS.md` (sauf instruction explicite)
+Ne jamais modifier silencieusement : `.env.local`,
+`app/supabase/schema.sql`, `app/data/00_instructions/`, `AGENTS.md`.

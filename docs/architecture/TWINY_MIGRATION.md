@@ -1410,3 +1410,22 @@ types `domain/carte-globale.ts`) et la branche globale de `vues-twiny.ts`
 sont retires dans le même commit. L'ordre d'application des drops suit celui du
 plan de retour arriere ci-dessus ; les advisors devront etre relus apres
 application.
+
+**Application effective le 22/08/2026.** La migration était restée
+local-only (jamais poussée au projet) : les six tables `carte_globale_*`
+existaient toujours en base, à zéro ligne chacune — vérifié avant exécution.
+`competence_succession` avait déjà disparu ; les trois fonctions ont été
+retirées par la migration. Historique réparé (`migration repair --status
+applied`). Advisors relus ensuite :
+
+- Disparus : les six avertissements `unused_index` sur `carte_globale_*`.
+- Restants (décision ouverte, non traités) :
+  - WARN sécurité — quatre fonctions `SECURITY DEFINER` exécutables par
+    `authenticated` (`admin_comptes()`, `compte_actif(p_uid)`,
+    `est_admin(p_uid)`, `purger_observations_compte()`) ; à qualifier :
+    helpers RLS légitimes ou surfaces RPC à révoquer ;
+  - WARN auth — protection contre mots de passe fuités désactivée
+    (réglage dashboard Auth) ;
+  - INFO perf — FK sans index couvrant sur `comptes_acces.suspendu_par` et
+    `moteur_predictions(user_id, decision_id)` ; index inutilisés
+    `competences_user_created_idx` et `moteur_predictions_user_type_emise_idx`.
