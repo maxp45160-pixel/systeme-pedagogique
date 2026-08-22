@@ -72,3 +72,17 @@ Les cinq personas convergent sur trois points :
    d'arbitrage : le produit doit-il retenir un fait daté, et sous quelle forme ?
 3. **Le compte est mono-utilisateur** : tout usage « pour quelqu'un d'autre »
    (parent, formateur) n'a nulle part où se poser sans brouiller les données.
+
+## Faits nouveaux du 22/08, postérieurs aux simulations
+
+Inscrits au registre après l'écriture de ces dossiers ; aucun verdict n'en
+change, mais ils touchent la lecture de l'Atelier citée à plusieurs endroits :
+
+- **ADR-105** (❓ proposition) : une carte des savoirs en dépôt, rattachement
+  écrit par une seule personne — rouvre ADR-099 ;
+- **ADR-106** (🔬 hypothèse) : les sous-domaines se dérivent des intitulés
+  (`lib/engine/sous-domaines.ts`), rien ne s'écrit — couche 3 pure.
+
+À relire lors de la prochaine régénération des simulations : le regroupement
+dérivé peut réduire la friction « corpus plat » (S4 académique, R3
+reconversion) sans qu'aucun chantier des plans ne soit nécessaire.
