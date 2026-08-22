@@ -23,7 +23,12 @@ import {
   type EnveloppeCommandeReferentiel,
   type ResultatCommandeReferentiel,
 } from "@/lib/domain/gouvernance-referentiel";
-import { competenceHomonyme } from "@/lib/domain/referentiel-compte";
+import {
+  competenceHomonyme,
+  prefixesDistincts,
+  slugifier,
+  validerDomaine,
+} from "@/lib/domain/referentiel-compte";
 import { parenteCirculaire } from "@/lib/domain/hierarchie-domaines";
 import type {
   OrigineRattachementCarte,
@@ -225,6 +230,118 @@ export async function deplacerDomaine(
   });
   verifier("déplacement du domaine", error);
   revalidatePath("/", "layout");
+}
+
+export interface ResultatScission {
+  sousDomaineId: string;
+  nom: string;
+  prefixe: string;
+  /** Codes dont le tag a bougé du parent vers l'enfant. */
+  transferees: string[];
+  /** Codes qui n'étaient pas tagués sur le parent : ajoutés, pas transférés. */
+  ajoutees: string[];
+}
+
+/**
+ * Crée un sous-domaine et y transfère des tags, en UNE transaction (ADR-108).
+ *
+ * ## Pourquoi une commande dédiée plutôt que trois appels
+ *
+ * Créer le domaine, le rattacher au parent, puis déplacer les tags : trois
+ * commandes successives, et une erreur au milieu laisse un sous-domaine vide et
+ * des compétences à moitié déplacées. C'est exactement le défaut qu'ADR-065
+ * existe pour empêcher. `scinder_domaine` fait les trois ou aucun.
+ *
+ * ## Ce que l'application décide, et que le tuteur ne touche pas
+ *
+ * L'identifiant (`slugifier`) et le préfixe (`prefixesDistincts`) sont calculés
+ * **ici**, à partir du nom lisible. Le tuteur ne propose qu'un nom : les codes
+ * sont attribués par l'application (ADR-026), et un préfixe frappé par un modèle
+ * pourrait entrer en collision avec un domaine existant et produire des codes
+ * ambigus. La base refuse la collision de toute façon ; ce calcul évite d'aller
+ * la chercher.
+ *
+ * ## Ce qui ne bouge pas
+ *
+ * Aucune compétence n'est créée, recodée ni déplacée. `competences.domaine`
+ * reste le namespace de création. Seuls des tags se déplacent, et la visibilité
+ * dans le parent se recalcule par héritage (ADR-107) — c'est ce qui fait qu'une
+ * scission ne change aucun score global ni aucune observation.
+ */
+export async function scinderDomaine(
+  parentId: string,
+  nom: string,
+  description: string,
+  codes: string[],
+): Promise<ResultatScission> {
+  const dorsale = await dorsaleCompte();
+  const referentiel = await lireReferentiel(dorsale);
+
+  const parent = referentiel.domainesParId.get(parentId);
+  if (!parent) throw new Error(`Domaine parent inconnu : ${parentId}`);
+
+  const nomPropre = nom.trim();
+  const demandes = [...new Set(codes)];
+  if (demandes.length === 0) {
+    throw new Error("Une scission doit emporter au moins une compétence.");
+  }
+  for (const code of demandes) {
+    const skill = referentiel.parCode.get(code);
+    if (!skill) throw new Error(`Compétence inconnue : ${code}`);
+    if (skill.archive) throw new Error(`« ${skill.intitule} » est archivée : elle ne se range plus.`);
+  }
+
+  const erreurs = validerDomaine(
+    { nom: nomPropre, prefixe: parent.prefixe, description },
+    referentiel,
+  );
+  /*
+   * Le préfixe est écarté des erreurs relevées : celui passé au validateur est
+   * celui du parent, forcément déjà pris, et c'est `prefixesDistincts` qui en
+   * calcule un libre juste après. Toutes les autres règles — nom vide, nom déjà
+   * pris — restent bloquantes.
+   */
+  const bloquantes = erreurs.filter((erreur) => !erreur.toLowerCase().includes("préfixe"));
+  if (bloquantes.length > 0) throw new Error(bloquantes.join(" "));
+
+  const sousDomaineId = slugifier(nomPropre);
+  if (referentiel.domainesParId.has(sousDomaineId)) {
+    throw new Error(`« ${nomPropre} » existe déjà : une scission crée un domaine neuf.`);
+  }
+  const [prefixe] = prefixesDistincts(
+    [{ nom: nomPropre, prefixe: "" }],
+    referentiel.domaines.map((domaine) => domaine.prefixe),
+  );
+
+  const { data, error } = await dorsale.supabase.rpc("scinder_domaine", {
+    p_request_id: nouvelIdCommande(),
+    p_expected_version: parent.version ?? null,
+    p_origine: "utilisateur",
+    p_motif: `Scission de ${parent.nom} : ${nomPropre} reçoit ${demandes.join(", ")}`,
+    p_parent_id: parentId,
+    p_sous_domaine_id: sousDomaineId,
+    p_nom: nomPropre,
+    p_prefixe: prefixe,
+    p_description: description.trim(),
+    p_codes: demandes,
+  });
+  verifier("scission du domaine", error);
+  revalidatePath("/", "layout");
+
+  const resultat = data as {
+    sousDomaineId: string;
+    nom: string;
+    prefixe: string;
+    transferees?: string[];
+    ajoutees?: string[];
+  };
+  return {
+    sousDomaineId: resultat.sousDomaineId,
+    nom: resultat.nom,
+    prefixe: resultat.prefixe,
+    transferees: resultat.transferees ?? [],
+    ajoutees: resultat.ajoutees ?? [],
+  };
 }
 
 export interface ModificationCompetence {

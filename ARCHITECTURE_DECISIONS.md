@@ -8344,7 +8344,7 @@ encore révélé.
 | `dormance`, `reformulation`, `rangement` | déterministe | inchangés (ADR-086, ADR-107) |
 | `scission` | tuteur | un ou plusieurs sous-domaines nommés, et les codes de chacun |
 | `relation` | tuteur (ADR-082) | prérequis et suites, à l'échelle du référentiel et non d'une fiche |
-| `manque` | tuteur, adossé aux intentions | une compétence absente que l'intention déclarée suppose |
+| `manque` | tuteur, adossé au travail réel et aux intentions | une compétence absente que ce qui a été travaillé ou déclaré suppose |
 
 **Les intentions entrent comme contexte, jamais comme mesure.** Les deux
 textes du profil sont transmis tels quels, sans extraction ni interprétation
@@ -8368,7 +8368,11 @@ reste interdit est de stocker l'**état dérivé** qu'elle décrit.
 **Un refus s'enregistre, et ne revient pas.** Sans cela, le lot se rallume à
 chaque ajout et cesse d'être lu au bout d'une semaine. Le dépôt a déjà ce
 mécanisme pour les recommandations (`refus_recommandations`, filtrage à la
-lecture, expiration) ; il s'applique tel quel.
+lecture) ; le filtrage s'en inspire tel quel — **pas** l'expiration. Le refus
+d'une proposition de structure ne porte aucun délai : décliner un exercice
+aujourd'hui ne dit rien de la semaine prochaine, décliner un découpage dit
+quelque chose de durable. En choisir une durée reviendrait à inventer un
+nombre que cette ADR ne donne pas.
 
 **Une surface unique.** Un écran des propositions, où les six genres arrivent
 ensemble. Ajouter un signal de plus sans surface le rendrait invisible comme
@@ -8427,6 +8431,47 @@ Mesure préalable indispensable : **le taux de rétention par genre**. Sans lui,
 ce test n'est pas exécutable, et il doit donc être enregistré dès le premier
 lot.
 
+### Mise en œuvre (23/08/2026)
+
+La proposition est **construite**, et son statut reste ❓ : aucun des critères
+de réfutation n'a encore de données à lire, et le régime du non-déterminisme
+n'est tranché par personne d'autre que Maxime. Construire n'est pas trancher.
+
+**Arbitrages posés par Maxime le 22/08/2026** (AskUserQuestion, réponses
+explicites — ils précèdent la construction) :
+
+| Question | Réponse retenue |
+|---|---|
+| Genre `manque` (« élargir ») | **Activé, et nourri aussi par le travail réellement fait**, pas seulement par les intentions déclarées. Écart assumé avec le texte ci-dessus, qui le livre désactivé et adossé aux seuls textes du profil. La demande d'origine est une lecture d'activité — « je vois que vous vous intéressez au kanban » — pas une lecture d'objectif. Le risque nommé reste entier et tenu par deux garde-fous : l'`ancrage` cité est obligatoire (la seconde couche de validation écarte tout manque sans lui), et le taux de rétention du genre se mesure dès le premier lot |
+| Surface | **Avis sobre sur le Bureau + écran dédié** (`/atelier/propositions`). Pas d'écran seul |
+| Déclenchement | **À l'ouverture si périmé (tâche de fond) + bouton « relire maintenant »**. Hors du chemin d'écriture |
+
+**Ce qui existe au code :**
+
+- `lib/domain/propositions-referentiel.ts` — les types, l'empreinte, la
+  péremption dérivée, le lot ouvert, la rétention. Pur, sans persistance ;
+- `lib/tutor/outils.ts` (`outilsRelecture`, `validerRelecture`) — le schéma à
+  `enum` fermé et sa seconde couche de validation (ADR-031) ;
+- `lib/tutor/relecture-referentiel.ts` — le prompt et l'appel ; le drapeau
+  d'élargissement y est réappliqué côté serveur après validation de schéma ;
+- `lib/store/propositions-referentiel.ts` et `lib/store/relecture-referentiel.ts`
+  — persistance des faits datés, assemblage du lot : les quatre détecteurs
+  déterministes inchangés, puis les trois genres du tuteur, moins les
+  empreintes refusées ;
+- `app/api/referentiel/relecture/route.ts` — POST hors chemin d'écriture,
+  dégradé en lot déterministe seul si aucun moteur n'est disponible ;
+- `lib/store/referentiel-actions.ts` (`scinderDomaine`) — l'identifiant
+  (`slugifier`) et le préfixe (`prefixesDistincts`) calculés côté application,
+  jamais par le tuteur ;
+- `app/supabase/migrations/20260824090000_relecture_referentiel.sql` — table
+  `propositions_referentiel` + fonction `scinder_domaine`. **Appliquée en
+  production le 23/08/2026**, reprise à l'identique dans `schema.sql`.
+
+**Ce que la mise en œuvre n'a pas fait :** monter un statut, ouvrir un genre
+sans arbitrage, inventer un seuil de déclenchement (les plafonds
+d'affichage existants sont des bornes de lecture), ni toucher aux quatre
+détecteurs déterministes.
+
 ### Questions restant ouvertes
 
 1. **La fréquence réelle.** La péremption dit *qu'*une relecture est due, pas
@@ -8434,8 +8479,9 @@ lot.
    bouton : à trancher sur le coût observé, pas d'avance.
 2. **Le genre `manque` est le plus risqué.** Proposer une compétence absente
    suppose de savoir ce que « X » exige — c'est un jugement de programme, pas
-   une lecture du compte. Il peut être livré désactivé, et n'être ouvert
-   qu'après que les autres genres aient démontré leur taux de rétention.
+   une lecture du compte. Maxime l'a ouvert le 22/08/2026 (voir Mise en œuvre)
+   ; il reste réversible à un coût d'une ligne (`ELARGISSEMENT_ACTIF`) si son
+   taux de rétention ne tient pas.
 
 ---
 

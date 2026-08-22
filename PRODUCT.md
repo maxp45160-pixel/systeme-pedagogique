@@ -374,6 +374,16 @@ Le tuteur peut proposer où une compétence sert, sur une liste fermée de
 domaines existants ; il n'en pose aucun.
 Les preuves et notes supportent le référentiel sans en devenir des entités ; les
 thèmes persistants ont été retirés (ADR-104).
+❓ **Relecture du référentiel entier** (ADR-108, construit le 23/08 — statut
+inchangé, aucune donnée d'usage encore). Le référentiel est relu d'un tenant,
+hors du chemin d'écriture, et produit des propositions que la personne arbitre
+une à une : ranger ce qui existe (un domaine qui porte plusieurs sujets peut se
+découper en un clic), et élargir vers ce qui manque, ancré dans ce qui a été
+réellement travaillé ou déclaré vouloir. Rien ne s'écrit sans un geste ; une
+proposition refusée ne revient pas ; une proposition porte sur l'état lu et
+devient caduque quand cet état change. Le déclenchement reste la péremption
+jamais un seuil de taille ; l'élargissement est ouvert sur arbitrage explicite
+du 22/08/2026 et réversible en une ligne si sa rétention ne tient pas.
 🔬 Le barème `PLAFOND_AIDE` — l'architecture de mesure est décidée par ADR-057,
 mais ses plafonds restent gelés jusqu'à environ 20 bilans terminés et n'ont pas
 encore été confrontés à l'usage.
