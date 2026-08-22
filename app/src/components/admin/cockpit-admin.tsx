@@ -25,6 +25,14 @@ export type OngletAdmin =
   | "workflow"
   | "profil";
 
+/** Pages de la vitrine publique (ADR-114) : ouvertes hors application. */
+const VITRINE_PUBLIQUE = [
+  { href: "/", libelle: "Landing (/)" },
+  { href: "/methode", libelle: "Méthode (/methode)" },
+  { href: "/etudiants", libelle: "Étudiants (/etudiants)" },
+  { href: "/autodidactes", libelle: "Autodidactes (/autodidactes)" },
+];
+
 export interface DonneesCockpitAdmin {
   comptes: CompteAdministre[];
   moiId: string;
@@ -138,6 +146,18 @@ export function CockpitAdmin({
           >
             <span>Tableau de bord (/app)</span>
           </Link>
+          {VITRINE_PUBLIQUE.map((page) => (
+            <Link
+              key={page.href}
+              href={page.href}
+              target="_blank"
+              rel="noopener"
+              title={`${page.libelle} — s'ouvre dans un nouvel onglet (vitrine publique)`}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-bordure bg-surface-2 px-2.5 py-1 text-xs font-medium text-texte-attenue transition-colors hover:text-texte hover:bg-surface"
+            >
+              <span>{page.libelle}</span>
+            </Link>
+          ))}
         </div>
       </div>
 
