@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { FormulaireConnexion } from "./formulaire";
 import { supabaseConfigure } from "@/lib/supabase/config";
+import { IconeMarque } from "@/components/ui/icones";
 import { Carte } from "@/components/ui/primitives";
 
 export const metadata: Metadata = {
@@ -30,19 +31,7 @@ export default async function PageConnexion({
         {/* En-tête principal & Marque */}
         <header className="mb-12 text-center">
           <div className="mx-auto mb-4 flex size-13 items-center justify-center rounded-2xl bg-primaire text-primaire-contraste shadow-sm">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="size-7"
-              aria-hidden
-            >
-              <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z" />
-              <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12" />
-            </svg>
+            <IconeMarque className="size-7" />
           </div>
           <h1 className="font-serif text-3xl font-medium tracking-tight text-texte sm:text-4xl">
             Système pédagogique

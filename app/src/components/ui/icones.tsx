@@ -275,4 +275,60 @@ export const IconeReduire = ({ className }: Props) => (
   </Svg>
 );
 
+/* Repli / dépli du rail — doubles chevrons. */
+export const IconeChevronDoubleGauche = ({ className }: Props) => (
+  <Svg className={className}>
+    <path d="M11 5 4 12l7 7M20 5l-7 7 7 7" />
+  </Svg>
+);
+
+export const IconeChevronDoubleDroit = ({ className }: Props) => (
+  <Svg className={className}>
+    <path d="M13 5l7 7-7 7M4 5l7 7-7 7" />
+  </Svg>
+);
+
+/* Geste de suppression d'un élément de carte. */
+export const IconePoubelle = ({ className }: Props) => (
+  <Svg className={className}>
+    <path d="M3 6h18" />
+    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+    <line x1="10" y1="11" x2="10" y2="17" />
+    <line x1="14" y1="11" x2="14" y2="17" />
+  </Svg>
+);
+
+/* Restauration — flèche circulaire anti-horaire. */
+export const IconeRestaurer = ({ className }: Props) => (
+  <Svg className={className}>
+    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+    <path d="M3 3v5h5" />
+  </Svg>
+);
+
+/* Réglages — engrenage. */
+export const IconeEngrenage = ({ className }: Props) => (
+  <Svg className={className}>
+    <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
+  </Svg>
+);
+
+/* La marque du produit — la pousse, reprise du login et des exports. */
+export const IconeMarque = ({ className }: Props) => (
+  <Svg className={className}>
+    <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z" />
+    <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12" />
+  </Svg>
+);
+
+/* Chargement — anneau partiel ; l'appelant l'anime (animate-spin). */
+export const IconeChargement = ({ className }: Props) => (
+  <Svg className={className}>
+    <circle cx="12" cy="12" r="9" strokeWidth={2.5} className="opacity-25" />
+    <path d="M21 12a9 9 0 0 0-9-9" strokeWidth={2.5} />
+  </Svg>
+);
+
 

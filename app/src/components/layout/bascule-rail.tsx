@@ -1,5 +1,7 @@
 "use client";
 
+import { IconeChevronDoubleDroit, IconeChevronDoubleGauche } from "@/components/ui/icones";
+
 /**
  * Réduction du rail de navigation.
  *
@@ -36,44 +38,8 @@ export function BasculeRail() {
       aria-label="Réduire ou déployer le rail"
       title="Réduire ou déployer le rail"
     >
-      <ChevronsGauche className="size-[15px] rail-reduit:hidden" />
-      <ChevronsDroite className="hidden size-[15px] rail-reduit:block" />
+      <IconeChevronDoubleGauche className="size-[15px] rail-reduit:hidden" />
+      <IconeChevronDoubleDroit className="hidden size-[15px] rail-reduit:block" />
     </button>
-  );
-}
-
-/* Même tracé que le reste du jeu d'icônes : grille 24, trait 1,5, bouts ronds. */
-
-function ChevronsGauche({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden
-    >
-      <path d="M11 5 4 12l7 7M20 5l-7 7 7 7" />
-    </svg>
-  );
-}
-
-function ChevronsDroite({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden
-    >
-      <path d="M13 5l7 7-7 7M4 5l7 7-7 7" />
-    </svg>
   );
 }

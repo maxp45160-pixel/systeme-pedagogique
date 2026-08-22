@@ -1,7 +1,7 @@
 import { Fragment } from "react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import type { Confiance, NiveauCompetence } from "@/lib/domain/types";
-import { IconeFeuille } from "./icones";
+import { IconeChargement, IconeFeuille } from "./icones";
 
 export function cx(...parts: (string | false | null | undefined)[]): string {
   return parts.filter(Boolean).join(" ");
@@ -496,15 +496,6 @@ const TAILLES_BOUTON: Record<TailleBouton, string> = {
   petite: "h-7 px-2.5 text-xs",
 };
 
-function IconeChargement({ className }: { className?: string }) {
-  return (
-    <svg className={cx("animate-spin", className)} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="12" cy="12" r="9" strokeWidth="2.5" className="stroke-current opacity-25" />
-      <path d="M21 12a9 9 0 0 0-9-9" strokeWidth="2.5" strokeLinecap="round" className="stroke-current" />
-    </svg>
-  );
-}
-
 /**
  * Classes visuelles de `Bouton`, pour les rares cas où l'élément ne peut pas
  * être un `<button>` — un `<Link>` de navigation qui doit avoir l'apparence
@@ -598,7 +589,7 @@ export function Bouton({
       )}
       {...reste}
     >
-      {enChargement && <IconeChargement className="size-3.5 shrink-0" />}
+      {enChargement && <IconeChargement className="size-3.5 shrink-0 animate-spin" />}
       {children}
       {enChargement && (
         <span className="sr-only" aria-live="polite">
