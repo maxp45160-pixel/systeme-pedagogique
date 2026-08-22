@@ -19,8 +19,22 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { SUPABASE_ANON_KEY, SUPABASE_URL, supabaseConfigure } from "@/lib/supabase/config";
 
-/** Chemins accessibles sans compte. */
-const PUBLICS = ["/login", "/auth", "/robots.txt", "/sitemap.xml"];
+/**
+ * Chemins accessibles sans compte : vitrine publique (`/`, `/methode`,
+ * `/etudiants`, `/autodidactes`) et routes d'authentification. Les routes
+ * générées `robots.txt` et `sitemap.xml` doivent rester atteignables par les
+ * moteurs malgré le matcher du proxy.
+ */
+const PUBLICS = [
+  "/",
+  "/login",
+  "/auth",
+  "/methode",
+  "/etudiants",
+  "/autodidactes",
+  "/robots.txt",
+  "/sitemap.xml",
+];
 
 function estPublic(chemin: string): boolean {
   return PUBLICS.some((p) => chemin === p || chemin.startsWith(`${p}/`));
@@ -87,7 +101,7 @@ export async function proxy(request: NextRequest) {
 
   if (connecte && chemin === "/login") {
     const versAccueil = request.nextUrl.clone();
-    versAccueil.pathname = "/";
+    versAccueil.pathname = "/app";
     versAccueil.search = "";
     return NextResponse.redirect(versAccueil);
   }

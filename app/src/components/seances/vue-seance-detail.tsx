@@ -567,7 +567,7 @@ export async function VueSeanceDetail({
                         consequences: impactSeance.consequences,
                         aRetravailler: [],
                       }}
-                      actions={<LienApresImpact href="/" libelle="Prochaine action recommandée" />}
+                      actions={<LienApresImpact href="/app" libelle="Prochaine action recommandée" />}
                     />
                   </div>
                 ) : (

@@ -303,7 +303,7 @@ export default async function PageAide() {
                 ) : (
                   <>
                     <Link
-                      href="/"
+                      href="/app"
                       className={classesLienBouton("principal", "normale")}
                     >
                       Accéder à mon Tableau de bord

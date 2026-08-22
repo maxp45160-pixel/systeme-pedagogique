@@ -487,7 +487,7 @@ export function FormulaireAmorcage({
           cleDisponible={cleDisponible}
           guideEtape="Étape 2 sur 2 : Relis les compétences découpées par le tuteur. Tu peux en décocher ou valider directement pour lancer ton Tableau de bord !"
           onFermer={() => setValidationOuverte(false)}
-          surEnregistre={() => router.replace("/")}
+          surEnregistre={() => router.replace("/app")}
         />
       )}
 

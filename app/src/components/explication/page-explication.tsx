@@ -164,7 +164,7 @@ export function PageExplication({
         surtitre="Méthode Feynman"
         titre={skill.intitule}
         compteId={compteId}
-        sortie={sortieWorkspace("/")}
+        sortie={sortieWorkspace("/app")}
       >
         <div className="mx-auto max-w-2xl px-4 py-10">
         <Carte className="p-6 sm:p-8 text-center space-y-5">
@@ -190,7 +190,7 @@ export function PageExplication({
               Passer à un exercice guidé (Niveau 2)
               <IconeFleche className="size-4" />
             </Link>
-            <Link href="/" className={classesLienBouton("secondaire")}>
+            <Link href="/app" className={classesLienBouton("secondaire")}>
               Retour au tableau de bord
             </Link>
           </div>
@@ -205,13 +205,13 @@ export function PageExplication({
       surtitre="Méthode Feynman · Focus"
       titre={skill.intitule}
       compteId={compteId}
-      sortie={sortieWorkspace("/")}
+      sortie={sortieWorkspace("/app")}
     >
     <div className="mx-auto max-w-3xl px-4 py-8 space-y-6">
       {/* Fil d'ariane & En-tête */}
       <div className="space-y-2">
         <div className="flex items-center gap-2 text-xs text-texte-discret">
-          <Link href="/" className="hover:text-texte transition-colors">
+          <Link href="/app" className="hover:text-texte transition-colors">
             Tableau de bord
           </Link>
           <span>/</span>

@@ -133,10 +133,10 @@ export function CockpitAdmin({
             <span>Atelier (/atelier)</span>
           </Link>
           <Link
-            href="/"
+            href="/app"
             className="inline-flex items-center gap-1.5 rounded-lg border border-bordure bg-surface-2 px-2.5 py-1 text-xs font-medium text-texte-attenue transition-colors hover:text-texte hover:bg-surface"
           >
-            <span>Tableau de bord (/)</span>
+            <span>Tableau de bord (/app)</span>
           </Link>
         </div>
       </div>

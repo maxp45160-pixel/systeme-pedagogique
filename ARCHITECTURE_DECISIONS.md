@@ -8636,6 +8636,37 @@ recopie ; mais tout ce que le tuteur lit ne doit pas devenir ce qu'il écrit.
 
 ---
 
+## ADR-114 — Une vitrine publique à la racine ; le carnet se déplace sous `/app` ✅
+
+**Date.** 23/08/2026. **Tranchée par Maxime** — arbitrage validé en session :
+landing marketing à la racine, tableau de bord déplacé vers `/app`.
+
+**Contexte.** L'application était intégralement derrière authentification : la
+seule page publique indexable était `/login`. Aucune acquisition par moteur de
+recherche n'était possible — Google n'a rien à classer sur une page de
+connexion, et la racine du domaine (la place la plus créditrice) hébergeait un
+tableau de bord inaccessible aux anonymes.
+
+### Décision
+
+* **La racine `/` devient une landing publique** dans un nouveau groupe de
+  routes `(public)` : proposition de valeur, boucle en trois temps, deux pages
+  cibles (`/etudiants`, `/autodidactes`) et la méthode (`/methode`). Un compte
+  déjà connecté qui visite `/` est redirigé vers `/app`.
+* **Le tableau de bord vit désormais à `/app`** (groupe `(app)`). Toutes les
+  destinations internes qui pointaient vers `/` sont mises à jour
+  (`proxy.ts`, écran de connexion, retour OAuth, navigation du rail,
+  liens « retour au tableau de bord »). La règle `estActif` perd son cas
+  particulier sur `/`.
+* **Le proxy laisse passer la vitrine** : `/`, `/methode`, `/etudiants`,
+  `/autodidactes` rejoignent `PUBLICS`. Le reste de l'application garde le
+  contrôle optimiste inchangé ; RLS reste la barrière de confiance.
+* **Aucune donnée pédagogique n'est exposée.** La vitrine ne lit que
+  `compteCourant()` pour sa redirection ; sitemap et robots.txt restent
+  publics pour les moteurs.
+
+---
+
 ## Comment modifier ce registre
 
 1. Une décision ✅ ne se retire pas : elle passe en 🔄 **Remplacée**, avec le

@@ -23,7 +23,7 @@ export default async function PageSuspendu() {
   const acces = await lireAccesCourant();
 
   // Accès rouvert (ou jamais fermé) : cette page n'a rien à dire.
-  if (!acces || acces.suspenduLe === null) redirect("/");
+  if (!acces || acces.suspenduLe === null) redirect("/app");
 
   const depuis = formatDateComplete(acces.suspenduLe);
 

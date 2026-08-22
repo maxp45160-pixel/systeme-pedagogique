@@ -2,7 +2,8 @@ import type { MetadataRoute } from "next";
 
 /**
  * Sitemap XML natif Next.js pour Google Search Console.
- * Référence les URLs publiques et prioritaires du système.
+ * Référence les URLs publiques de la vitrine ; l'application elle-même
+ * (`/app` et au-delà) est derrière authentification et n'a rien à indexer.
  */
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl =
@@ -12,18 +13,22 @@ export default function sitemap(): MetadataRoute.Sitemap {
       : "https://systeme-pedagogique-nine.vercel.app");
   const dateMaj = new Date();
 
+  const entree = (
+    chemin: string,
+    priorite: number,
+    frequence: MetadataRoute.Sitemap[number]["changeFrequency"],
+  ): MetadataRoute.Sitemap[number] => ({
+    url: `${baseUrl}${chemin}`,
+    lastModified: dateMaj,
+    changeFrequency: frequence,
+    priority: priorite,
+  });
+
   return [
-    {
-      url: baseUrl,
-      lastModified: dateMaj,
-      changeFrequency: "weekly",
-      priority: 1.0,
-    },
-    {
-      url: `${baseUrl}/login`,
-      lastModified: dateMaj,
-      changeFrequency: "monthly",
-      priority: 0.8,
-    },
+    entree("/", 1.0, "weekly"),
+    entree("/methode", 0.9, "monthly"),
+    entree("/etudiants", 0.9, "monthly"),
+    entree("/autodidactes", 0.9, "monthly"),
+    entree("/login", 0.5, "monthly"),
   ];
 }

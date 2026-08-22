@@ -135,7 +135,7 @@ async function ContenuTableauDeBord({
           <span>
             <strong className="font-semibold">Explication enregistrée.</strong> Une observation de compréhension a été ajoutée à votre suivi.
           </span>
-          <Link href="/" className="shrink-0 font-medium text-primaire hover:underline">
+          <Link href="/app" className="shrink-0 font-medium text-primaire hover:underline">
             Fermer
           </Link>
         </BandeauInfo>

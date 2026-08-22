@@ -130,13 +130,21 @@ l'histoire des décisions.
 
 ## 4. Public
 
+**Vitrine publique (23/08, ADR-114) :** la racine `/` est une landing
+marketing publique, complétée par `/methode`, `/etudiants` et `/autodidactes`.
+Le tableau de bord est à `/app`, derrière authentification. L'acquisition par
+moteur de recherche passe par ces pages publiques ; aucune donnée
+pédagogique n'y circule.
+
 **Aujourd'hui, factuellement (31/07) :** 3 comptes en production. Un
 utilisateur actif (26 preuves sur 22 compétences, 20 tentatives terminées), un
 **compte tiers réellement actif** (3 preuves, 5 tentatives), un compte sans
 aucune activité pédagogique.
 
-**Cible déclarée :** toute personne souhaitant un suivi longitudinal de ses
-compétences avec un parcours personnalisé.
+**Cible déclarée :** les étudiants et les autodidactes qui veulent un suivi
+longitudinal de leurs compétences avec un parcours personnalisé (précision du
+23/08/2026 ; la formulation antérieure visait « toute personne souhaitant un
+suivi longitudinal »).
 
 🔬 **Hypothèse partiellement soutenue :** que le besoin existe au-delà de son
 auteur. *Test de réfutation inchangé : un compte tiers atteint 10 preuves sans

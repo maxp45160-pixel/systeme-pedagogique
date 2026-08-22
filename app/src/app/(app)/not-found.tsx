@@ -27,7 +27,7 @@ export default function IntrouvableApp() {
         </p>
 
         <div className="mt-5 flex flex-wrap items-center gap-2">
-          <Link href="/" className={classesLienBouton("principal")}>
+          <Link href="/app" className={classesLienBouton("principal")}>
             Retour au tableau de bord
           </Link>
         </div>

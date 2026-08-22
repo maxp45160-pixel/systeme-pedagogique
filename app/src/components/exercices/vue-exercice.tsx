@@ -343,7 +343,7 @@ export async function VueExercice(props: {
                   ) : (
                     <>
                       <LienApresImpact
-                        href="/"
+                        href="/app"
                         libelle="Prochaine action recommandée"
                         variante="principal"
                       />
