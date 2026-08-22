@@ -11,6 +11,8 @@ import {
 import {
   avancementSeance,
   ecartBesoinRealise,
+  estModeEpreuve,
+  indicesMasquesEnEpreuve,
   peutReprendreSeance,
   statutSeance,
   tentativeDeSeance,
@@ -21,6 +23,7 @@ import { formatDateCourte, formatDuree } from "@/lib/engine/dates";
 import { Carte, CodeCompetence, EnTeteCarte, Etiquette, EtatVide, classesLienBouton } from "@/components/ui/primitives";
 import { ActionSeance } from "@/components/seances/action-seance";
 import { Pomodoro } from "@/components/seances/pomodoro";
+import { ChronoEpreuve } from "@/components/seances/chrono-epreuve";
 import { OutilSeance } from "@/components/seances/outil-seance";
 import { MargeCahier } from "@/components/seances/marge-cahier";
 import { lireMarge } from "@/lib/store/marge";
@@ -109,6 +112,14 @@ export async function VueSeanceDetail({
   if (!seance) notFound();
 
   const statut = statutSeance(seance);
+  /*
+   * Mode épreuve (22/08/2026) : un fait posé à la création, lu ici pour
+   * l'habillage — chrono affiché, aides du tuteur masquées pendant le déroulé.
+   * Aucune mesure n'en dépend : le déroulé, le bilan et l'autonomie restent
+   * exactement ceux d'une séance ordinaire.
+   */
+  const epreuve = estModeEpreuve(seance);
+  const aidesMasquees = indicesMasquesEnEpreuve(seance);
   /*
    * Une séance abandonnée se relit comme une séance terminée : le déroulé est
    * figé, les traces restent. La seule différence tient à ce qu'on peut encore
@@ -281,6 +292,14 @@ export async function VueSeanceDetail({
         */}
         <div className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2.5 sm:px-6 ${plein ? `mx-auto ${colonnePlein}` : ""}`}>
           <div className="flex min-w-0 items-center gap-2">
+            {epreuve && (
+              <span
+                title="Mode épreuve"
+                className="flex size-5 shrink-0 items-center justify-center rounded-full border border-primaire/30 bg-primaire-faible text-primaire"
+              >
+                <IconeMinuteur className="size-3" />
+              </span>
+            )}
             <h1 className="truncate font-serif text-base font-medium">
               {seance.besoinDeclare?.intention || "Séance"}
             </h1>
@@ -391,23 +410,33 @@ export async function VueSeanceDetail({
               >
                 <MargeCahier lignes={marge} compacte />
               </OutilSeance>
-              {etatTuteur && exerciceActif && (
-                <TiroirTuteur
-                  etatInitial={etatTuteur}
-                  exerciceCible={exerciceActif}
-                  codesCompetences={ctx.etats.map((etat) => etat.skill.code)}
-                  compteId={ctx.donnees.user.id}
-                  domainesExistants={ctx.referentiel.domaines.map((domaine) => ({ id: domaine.id, nom: domaine.nom, prefixe: domaine.prefixe }))}
-                  competencesModale={competencesPourModale(ctx.referentiel.actifs)}
-                  calibragesModale={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
-                  libelle="Tuteur IA"
-                  declencheur="outil"
-                />
-              )}
+                {etatTuteur && exerciceActif && (
+                  <TiroirTuteur
+                    etatInitial={etatTuteur}
+                    exerciceCible={exerciceActif}
+                    codesCompetences={ctx.etats.map((etat) => etat.skill.code)}
+                    compteId={ctx.donnees.user.id}
+                    domainesExistants={ctx.referentiel.domaines.map((domaine) => ({ id: domaine.id, nom: domaine.nom, prefixe: domaine.prefixe }))}
+                    competencesModale={competencesPourModale(ctx.referentiel.actifs)}
+                    calibragesModale={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
+                    libelle="Tuteur IA"
+                    declencheur="outil"
+                    indicesMasques={aidesMasquees}
+                  />
+                )}
             </nav>
           </div>
         )}
       </header>
+
+      {epreuve && statut === "en-cours" && (
+        /*
+          Le chrono du mode épreuve, en bandeau sous l'en-tête. Habillage seul :
+          il réutilise le minuteur Pomodoro et n'écrit rien — la durée du
+          journal reste la somme observée des tentatives à la clôture.
+        */
+        <ChronoEpreuve compteId={ctx.donnees.user.id} />
+      )}
 
       {/*
         La colonne de lecture, la même qu'au Bureau (`--colonne`, 704 px).

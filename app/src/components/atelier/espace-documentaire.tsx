@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Markdown } from "@/components/ui/markdown";
 import { cx, Filigrane } from "@/components/ui/primitives";
 import dynamic from "next/dynamic";
+import { Modale } from "@/components/ui/modale";
 import { IconeFleche, IconeRecherche } from "@/components/ui/icones";
 import { IconeDocument } from "@/components/ui/icone-document";
 import { createNavigateurClient } from "@/lib/supabase/client";
@@ -24,11 +25,21 @@ import {
   ETAT_FORMATAGE_DEFAUT,
   type EtatFormatage,
 } from "@/lib/documents/wysiwyg-markdown";
-import { BUCKET_PIECES_JOINTES, MAX_PDF_OCTETS, MIME_PDF, nomPdfValide } from "@/lib/documents/pieces-jointes";
+import {
+  BUCKET_PIECES_JOINTES,
+  MIME_PDF,
+  erreurFichierPiece,
+  estMimePieceJointe,
+  mimeDepuisNomFichier,
+} from "@/lib/documents/pieces-jointes";
+import { composerSujetLecture } from "@/lib/documents/extraction-pdf";
+import { ModaleReferentiel } from "@/components/referentiel/modale-referentiel";
+import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import type { DonneesGraphe } from "@/lib/domain/graphe";
 import type { GrapheDomaines } from "@/lib/domain/graphe-domaines";
 import type { ArbreSavoirs } from "@/lib/domain/arbre-savoirs";
 import { urlComposerAutonome } from "@/lib/domain/navigation-exercice";
+import { validerUrlRessource } from "@/lib/domain/url-ressource";
 /*
  * Le graphe (et `d3-force` avec lui) ne voyage que quand la vue graphe est
  * ouverte : en import statique, son chunk partait avec l'atelier pour tout le
@@ -73,16 +84,18 @@ import {
   type SnapshotDocument,
 } from "@/lib/documents/types-documents";
 import {
+  creerLienAction,
   lireDocumentAction,
   lirePiecesJointesAction,
-  preparerTeleversementPdfAction,
+  preparerTeleversementPieceAction,
   enregistrerPieceJointeAction,
-  annulerTeleversementPdfAction,
+  annulerTeleversementPieceAction,
   lireSnapshotAction,
   sauvegarderDocumentAction,
   supprimerPieceJointeAction,
   supprimerDocumentAction,
 } from "@/lib/store/document-actions";
+import { extraireTexteSupportAction } from "@/lib/store/extraction-pdf";
 import type {
   VueDomaineAtelier,
   VueCompetenceAtelier,
@@ -95,6 +108,7 @@ import {
 import type { CalibrageModale, CompetenceModale } from "@/lib/domain/proprietes-generation";
 import type { DonneesSeance } from "@/components/seances/concepteur-seance";
 import { rangerDocument, type RangementAtelier } from "@/lib/documents/rangement-atelier";
+import { regrouperFichesParDomaine, type FicheCorpus } from "@/lib/documents/corpus-groupe";
 import { EditeurDirect } from "./editeur-document";
 import { VueTousLesDomaines, BarreVuesAtelier, type VueAtelier } from "./vues-synthese-atelier";
 import { VueRessources } from "./vues-ressources-atelier";
@@ -197,6 +211,17 @@ const TITRES_VUES: Record<string, string> = {
   graphe: "Graphe",
   "domaines-archives": "Domaines archivés",
 };
+
+/*
+ * « Faire lire par le tuteur » (C1) : inactif → extraction → proposition → à
+ * valider / erreur. La proposition passe par la modale existante, qui reste le
+ * seul chemin d'écriture au référentiel, case par case.
+ */
+type EtatLectureTuteur =
+  | { phase: "repos" }
+  | { phase: "extraction"; documentId: string }
+  | { phase: "proposition"; documentId: string; sujet: string }
+  | { phase: "erreur"; documentId: string; message: string };
 
 /**
  * Le retour, qui remplace le fil d'Ariane.
@@ -569,7 +594,9 @@ export function EspaceDocumentaire({
   const [contexteOuvert, setContexteOuvert] = useState(false);
   const [panneauDroitVisible, setPanneauDroitVisible] = useState(true);
   const [cibleLien, setCibleLien] = useState("");
+  const [modaleLienOuverte, setModaleLienOuverte] = useState(false);
   const [piecesJointesParDocument, setPiecesJointesParDocument] = useState<Record<string, PieceJointeDocument[]>>({});
+  const [lectureTuteur, setLectureTuteur] = useState<EtatLectureTuteur>({ phase: "repos" });
 
   const selectionnee =
     selection && VUES_ATELIER.has(selection)
@@ -646,7 +673,7 @@ export function EspaceDocumentaire({
         if (actif) setPiecesJointesParDocument((anciens) => ({ ...anciens, [documentSupportId]: pieces }));
       })
       .catch((erreur: unknown) => {
-        if (actif) setMessage(erreur instanceof Error ? erreur.message : "Lecture des PDF impossible");
+        if (actif) setMessage(erreur instanceof Error ? erreur.message : "Lecture des pièces jointes impossible");
       });
     return () => { actif = false; };
   }, [documentSupportId]);
@@ -779,6 +806,29 @@ export function EspaceDocumentaire({
     return map;
   }, [elements]);
 
+  /*
+   * Le corpus groupé (B.2) est une lecture, jamais un rangement : ces deux
+   * index servent seulement à nommer le groupe du domaine auquel une fiche
+   * sert. Les noms viennent de la base — jamais le mot « classe » ni un code
+   * technique.
+   */
+  const nomsDomaines = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const domaine of domainesExistants) map[domaine.id] = domaine.nom;
+    return map;
+  }, [domainesExistants]);
+
+  const domaineDeCompetence = useMemo(() => {
+    const map: Record<string, string> = {};
+    elements.forEach((el) => {
+      if (el.type === "competence" && el.vuePedagogique) {
+        const v = el.vuePedagogique as VueCompetenceAtelier;
+        if (v.domaineId) map[v.code] = v.domaineId;
+      }
+    });
+    return map;
+  }, [elements]);
+
   function ouvrirElement(id: string, opts?: { remplacerHistorique?: boolean } | unknown) {
     if (VUES_ATELIER.has(id)) {
       changerVue(id as VueAtelier);
@@ -872,55 +922,59 @@ export function EspaceDocumentaire({
     setMessage(`Lien vers « ${cible.titre} » inséré. Enregistre la fiche pour le conserver.`);
   }
 
-  function televerserPdf(event: ChangeEvent<HTMLInputElement>) {
+  function televerserPiece(event: ChangeEvent<HTMLInputElement>) {
     const fichier = event.currentTarget.files?.[0];
     event.currentTarget.value = "";
     if (!fichier || !selectionnee || selectionnee.frontMatter.role !== "support") return;
-    if (!nomPdfValide(fichier.name) || (fichier.type && fichier.type !== MIME_PDF)) {
-      setMessage("Seuls les fichiers PDF peuvent être attachés.");
+    const mime = estMimePieceJointe(fichier.type)
+      ? fichier.type
+      : mimeDepuisNomFichier(fichier.name);
+    const erreur = erreurFichierPiece(fichier);
+    if (erreur) {
+      setMessage(erreur);
       return;
     }
-    if (fichier.size <= 0 || fichier.size > MAX_PDF_OCTETS) {
-      setMessage("Le PDF doit peser entre 1 octet et 10 Mo.");
+    if (!mime) {
+      setMessage("Seuls les fichiers PDF et les images JPEG, PNG ou WebP peuvent être attachés.");
       return;
     }
 
     const documentId = selectionnee.id;
-    setMessage("Téléversement du PDF…");
+    setMessage("Téléversement du fichier…");
     demarrerTransition(async () => {
       let cheminTeleverse: string | null = null;
       try {
         const client = createNavigateurClient();
         if (!client) throw new Error("Supabase n'est pas configuré.");
-        const preparation = await preparerTeleversementPdfAction(documentId, fichier.name);
+        const preparation = await preparerTeleversementPieceAction(documentId, fichier.name, mime);
         cheminTeleverse = preparation.chemin;
         const { error } = await client.storage
           .from(BUCKET_PIECES_JOINTES)
-          .uploadToSignedUrl(preparation.chemin, preparation.token, fichier, { contentType: MIME_PDF });
+          .uploadToSignedUrl(preparation.chemin, preparation.token, fichier, { contentType: mime });
         if (error) throw error;
-        const piece = await enregistrerPieceJointeAction(documentId, preparation.chemin, fichier.name, fichier.size);
+        const piece = await enregistrerPieceJointeAction(documentId, preparation.chemin, fichier.name, fichier.size, mime);
         setPiecesJointesParDocument((anciens) => ({
           ...anciens,
           [documentId]: [piece, ...(anciens[documentId] ?? [])],
         }));
-        setMessage("PDF attaché.");
+        setMessage("Fichier attaché.");
       } catch (erreur) {
         if (cheminTeleverse) {
           try {
-            await annulerTeleversementPdfAction(documentId, cheminTeleverse);
+            await annulerTeleversementPieceAction(documentId, cheminTeleverse);
           } catch {
             // Le nettoyage reste une tentative secondaire : l'erreur initiale
             // est plus utile à la personne qui vient de téléverser le fichier.
           }
         }
-        setMessage(erreur instanceof Error ? erreur.message : "Téléversement du PDF impossible");
+        setMessage(erreur instanceof Error ? erreur.message : "Téléversement du fichier impossible");
       }
     });
   }
 
   function supprimerPieceJointe(piece: PieceJointeDocument) {
     if (!selectionnee || selectionnee.frontMatter.role !== "support") return;
-    if (!window.confirm(`Supprimer le PDF « ${piece.nom} » ?`)) return;
+    if (!window.confirm(`Supprimer « ${piece.nom} » ?`)) return;
     const documentId = selectionnee.id;
     setMessage(null);
     demarrerTransition(async () => {
@@ -930,11 +984,41 @@ export function EspaceDocumentaire({
           ...anciens,
           [documentId]: (anciens[documentId] ?? []).filter((ancienne) => ancienne.id !== piece.id),
         }));
-        setMessage("PDF supprimé.");
+        setMessage("Pièce jointe supprimée.");
       } catch (erreur) {
-        setMessage(erreur instanceof Error ? erreur.message : "Suppression du PDF impossible");
+        setMessage(erreur instanceof Error ? erreur.message : "Suppression de la pièce jointe impossible");
       }
     });
+  }
+
+  /*
+   * Extraction du PDF attaché puis proposition via la modale existante. Le
+   * sujet enrichi porte l'extrait ; la validation case par case reste la seule
+   * écriture au référentiel, et un échec d'extraction est affiché — jamais un
+   * texte fabriqué.
+   */
+  async function lancerLectureTuteur() {
+    if (!selectionnee || lectureTuteur.phase === "extraction") return;
+    const documentId = selectionnee.id;
+    setMessage(null);
+    setLectureTuteur({ phase: "extraction", documentId });
+    try {
+      const resultat = await extraireTexteSupportAction(documentId);
+      setLectureTuteur({
+        phase: "proposition",
+        documentId,
+        sujet: composerSujetLecture(selectionnee.titre, resultat.extrait),
+      });
+    } catch (cause) {
+      setLectureTuteur({
+        phase: "erreur",
+        documentId,
+        message:
+          cause instanceof Error
+            ? cause.message
+            : "La lecture du PDF par le tuteur a échoué.",
+      });
+    }
   }
 
   function supprimerNoteSupport() {
@@ -1072,6 +1156,15 @@ export function EspaceDocumentaire({
               }
               creationInitiale={creationInitiale}
             />
+          )}
+          {!selectionnee && vueActuelle === "ressources" && (
+            <button
+              type="button"
+              onClick={() => setModaleLienOuverte(true)}
+              className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-bordure-controle bg-surface px-3 py-1.5 text-xs font-medium text-primaire transition-colors hover:bg-primaire-faible"
+            >
+              Ajouter un lien
+            </button>
           )}
           {!selectionnee && (vueActuelle === "domaines" || vueActuelle === "ressources") && (
             <div className="flex flex-wrap items-center gap-2">
@@ -1231,6 +1324,8 @@ export function EspaceDocumentaire({
           terme={recherche.trim()}
           elements={elementsVisibles}
           couleursDomaines={couleursDomaines}
+          nomsDomaines={nomsDomaines}
+          domaineDeCompetence={domaineDeCompetence}
           ouvrir={(id) => {
             setRecherche("");
             ouvrirElement(id);
@@ -1269,6 +1364,8 @@ export function EspaceDocumentaire({
               ouvrirElement={ouvrirElement}
               changerVue={changerVue}
               competencesParCode={competencesParCode}
+              nomsDomaines={nomsDomaines}
+              domaineDeCompetence={domaineDeCompetence}
               statut={statutFiltre}
               onArchiver={onArchiverDocument}
               onRestaurer={onRestaurerDocument}
@@ -1436,7 +1533,27 @@ export function EspaceDocumentaire({
                       <Markdown contenu={snapshotApercu.contenuMd} />
                     </div>
                   ) : (
-                    <div className="relative min-h-full rounded-lg border border-bordure bg-surface focus-within:border-primaire transition-colors">
+                    <div className="min-h-full">
+                      {/*
+                        Un lien est une adresse déclarée : elle se montre
+                        telle quelle, cliquable, sans jamais être scrapée ni
+                        transformée en Connaissance. Les notes en dessous
+                        restent un corps libre.
+                      */}
+                      {typeof selectionnee.frontMatter.url === "string" && selectionnee.frontMatter.url && (
+                        <div className="mb-3 flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-lg border border-bordure bg-surface-2/60 px-4 py-2.5 text-xs">
+                          <span className="shrink-0 font-semibold uppercase tracking-wider text-texte-discret">Adresse</span>
+                          <a
+                            href={selectionnee.frontMatter.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="min-w-0 break-all font-medium text-primaire hover:underline"
+                          >
+                            {selectionnee.frontMatter.url}
+                          </a>
+                        </div>
+                      )}
+                      <div className="relative min-h-full rounded-lg border border-bordure bg-surface focus-within:border-primaire transition-colors">
                       {/* Barre d'outils de formatage direct sticky ancrée sur la bordure supérieure avec glissement au survol */}
                       {!selectionnee.lectureSeule && (
                         <div className="group/toolbar sticky top-0 z-30 flex justify-center -mt-px pt-0 px-3 pointer-events-none transition-all duration-300">
@@ -1577,6 +1694,7 @@ export function EspaceDocumentaire({
                         onOuvrirWikilien={ouvrirElement}
                         ref={editeurRef}
                       />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1811,37 +1929,89 @@ export function EspaceDocumentaire({
                       <span className="text-[0.6875rem] text-texte-discret">{piecesJointes?.length ?? "…"}</span>
                     </div>
                     {piecesJointes === undefined ? (
-                      <p className="mt-2 text-xs text-texte-discret">Chargement des PDF…</p>
+                      <p className="mt-2 text-xs text-texte-discret">Chargement des pièces jointes…</p>
                     ) : piecesJointes.length > 0 ? (
                       <ul className="mt-2.5 space-y-1.5">
-                        {piecesJointes.map((piece) => (
-                          <li key={piece.id} className="flex items-center gap-2 rounded-md border border-bordure bg-surface-2/40 px-2.5 py-2 text-xs">
-                            {piece.url ? (
-                              <a href={piece.url} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-primaire hover:underline font-medium" title={piece.nom}>
-                                {piece.nom}
-                              </a>
-                            ) : (
-                              <span className="min-w-0 flex-1 truncate">{piece.nom}</span>
-                            )}
-                            <span className="shrink-0 text-[0.625rem] text-texte-discret">{Math.max(1, Math.round(piece.tailleOctets / 1024))} Ko</span>
-                            {!selectionnee.lectureSeule && (
-                              <button type="button" onClick={() => supprimerPieceJointe(piece)} disabled={enCours} className="shrink-0 text-texte-discret hover:text-danger disabled:opacity-50" aria-label={`Supprimer ${piece.nom}`}>
-                                ×
-                              </button>
-                            )}
-                          </li>
-                        ))}
+                        {piecesJointes.map((piece) => {
+                          const estImage = estMimePieceJointe(piece.mimeType) && piece.mimeType !== "application/pdf";
+                          return (
+                            <li key={piece.id} className="flex items-center gap-2 rounded-md border border-bordure bg-surface-2/40 px-2.5 py-2 text-xs">
+                              {estImage && piece.url ? (
+                                <a href={piece.url} target="_blank" rel="noopener noreferrer" className="shrink-0" title={piece.nom}>
+                                  {/* Photo de cahier : l'app n'affirme rien sur l'image, elle la montre. */}
+                                  <img src={piece.url} alt={piece.nom} className="size-12 rounded-md border border-bordure object-cover" />
+                                </a>
+                              ) : null}
+                              {piece.url ? (
+                                <a href={piece.url} target="_blank" rel="noopener noreferrer" className="min-w-0 flex-1 truncate text-primaire hover:underline font-medium" title={piece.nom}>
+                                  {piece.nom}
+                                </a>
+                              ) : (
+                                <span className="min-w-0 flex-1 truncate">{piece.nom}</span>
+                              )}
+                              <span className="shrink-0 text-[0.625rem] text-texte-discret">{Math.max(1, Math.round(piece.tailleOctets / 1024))} Ko</span>
+                              {!selectionnee.lectureSeule && (
+                                <button type="button" onClick={() => supprimerPieceJointe(piece)} disabled={enCours} className="shrink-0 text-texte-discret hover:text-danger disabled:opacity-50" aria-label={`Supprimer ${piece.nom}`}>
+                                  ×
+                                </button>
+                              )}
+                            </li>
+                          );
+                        })}
                       </ul>
                     ) : (
-                      <p className="mt-2 text-xs text-texte-discret">Aucun PDF attaché.</p>
+                      <p className="mt-2 text-xs text-texte-discret">Aucun fichier attaché.</p>
                     )}
                     {!selectionnee.lectureSeule && selectionnee.schemaCompatible !== false && (
                       <label className="mt-3 inline-flex cursor-pointer rounded-md border border-bordure bg-surface px-2.5 py-1.5 text-xs font-medium text-primaire hover:bg-primaire-faible transition-colors has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50">
-                        Joindre un PDF
-                        <input type="file" accept=".pdf,application/pdf" className="sr-only" onChange={televerserPdf} disabled={enCours} />
+                        Joindre un PDF ou une photo
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
+                          className="sr-only"
+                          onChange={televerserPiece}
+                          disabled={enCours}
+                        />
                       </label>
                     )}
-                    <p className="mt-2 text-[0.6875rem] text-texte-discret">PDF uniquement · 10 Mo max.</p>
+                    <p className="mt-2 text-[0.6875rem] text-texte-discret">PDF, JPEG, PNG ou WebP · 10 Mo max.</p>
+                    {(() => {
+                      const pdfPresent = (piecesJointes ?? []).some((piece) => piece.mimeType === MIME_PDF);
+                      const concerne =
+                        lectureTuteur.phase !== "repos" &&
+                        lectureTuteur.documentId === selectionnee.id;
+                      if (!pdfPresent) return null;
+                      return (
+                        <div className="mt-3 border-t border-bordure pt-3">
+                          <button
+                            type="button"
+                            onClick={() => void lancerLectureTuteur()}
+                            disabled={enCours || (concerne && lectureTuteur.phase === "extraction")}
+                            className="w-full cursor-pointer rounded-md border border-bordure bg-surface px-2.5 py-1.5 text-xs font-medium text-primaire transition-colors hover:bg-primaire-faible disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {concerne && lectureTuteur.phase === "extraction"
+                              ? "Extraction du texte…"
+                              : "Faire lire par le tuteur"}
+                          </button>
+                          <p className="mt-1.5 text-[0.6875rem] leading-relaxed text-texte-discret">
+                            Le tuteur propose des compétences à partir du PDF ; tu
+                            relis case par case avant tout enregistrement.
+                          </p>
+                          {concerne && lectureTuteur.phase === "erreur" && (
+                            <p className="mt-2 text-[0.6875rem] leading-relaxed text-danger">
+                              {lectureTuteur.message}{" "}
+                              <button
+                                type="button"
+                                onClick={() => void lancerLectureTuteur()}
+                                className="cursor-pointer font-medium underline-offset-2 hover:underline"
+                              >
+                                Réessayer
+                              </button>
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
 
@@ -1879,11 +2049,147 @@ export function EspaceDocumentaire({
                   </div>
                 )}
               </div>
-            )}
-          </aside>
+        )}
+      </aside>
         )}
       </div>
+
+      {modaleLienOuverte && (
+        <ModaleAjoutLien
+          competences={generation.competences}
+          onFermer={() => setModaleLienOuverte(false)}
+        />
+      )}
+
+      {lectureTuteur.phase === "proposition" && (
+        <ModaleReferentiel
+          compteId={graphe.compteId}
+          sujetInitial={lectureTuteur.sujet}
+          demarrageAutomatique
+          cleDisponible={Boolean(lireConfigTuteur(graphe.compteId))}
+          guideEtape="Le tuteur lit le PDF attaché et propose des compétences. Rien n'est enregistré sans ta relecture case par case."
+          onFermer={() => setLectureTuteur({ phase: "repos" })}
+        />
+      )}
     </section>
+  );
+}
+
+/**
+ * Formulaire court d'une ressource-lien.
+ *
+ * Une adresse, un titre, un rattachement facultatif à une compétence du
+ * référentiel. Le lien ne nourrit rien et n'est jamais converti en
+ * Connaissance : il reste une fiche que la personne ouvre quand elle veut.
+ */
+function ModaleAjoutLien({
+  competences,
+  onFermer,
+}: {
+  competences: CompetenceModale[];
+  onFermer: () => void;
+}) {
+  const router = useRouter();
+  const [url, setUrl] = useState("");
+  const [titre, setTitre] = useState("");
+  const [codeRattachement, setCodeRattachement] = useState("");
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [enCours, setEnCours] = useState(false);
+
+  async function creer() {
+    const titrePropre = titre.trim();
+    if (!titrePropre) {
+      setErreur("Donne un titre à ce lien.");
+      return;
+    }
+    const resultatUrl = validerUrlRessource(url);
+    if (!resultatUrl.valide) {
+      setErreur(resultatUrl.erreur);
+      return;
+    }
+
+    setEnCours(true);
+    setErreur(null);
+    try {
+      const { id } = await creerLienAction(titrePropre, url, codeRattachement ? [codeRattachement] : []);
+      onFermer();
+      router.push(`/atelier?document=${encodeURIComponent(id)}`);
+      router.refresh();
+    } catch (cause) {
+      setErreur(cause instanceof Error ? cause.message : "Création du lien impossible.");
+      setEnCours(false);
+    }
+  }
+
+  return (
+    <Modale
+      titre="Ajouter un lien"
+      sousTitre="Garde une adresse web avec tes notes. Elle ne sera jamais analysée ni convertie en connaissance."
+      largeur="xl"
+      onFermer={onFermer}
+      pied={
+        <>
+          <button
+            type="button"
+            onClick={onFermer}
+            className="cursor-pointer rounded-lg border border-bordure-controle px-3 py-1.5 text-xs font-medium text-texte-attenue transition-colors hover:bg-surface-2"
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            onClick={() => void creer()}
+            disabled={enCours}
+            className="cursor-pointer rounded-lg bg-primaire px-3 py-1.5 text-xs font-semibold text-texte-inverse transition-colors hover:bg-primaire-survol disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {enCours ? "Enregistrement…" : "Enregistrer le lien"}
+          </button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <label className="block">
+          <span className="text-xs font-medium text-texte">Adresse</span>
+          <input
+            value={url}
+            onChange={(event) => setUrl(event.target.value)}
+            type="url"
+            inputMode="url"
+            className="mt-1.5 w-full rounded-lg border border-bordure-controle bg-surface px-3 py-2 text-sm outline-none transition-colors placeholder:text-texte-discret focus:border-primaire focus:ring-1 focus:ring-primaire/20"
+            placeholder="https://…"
+            autoFocus
+          />
+        </label>
+
+        <label className="block">
+          <span className="text-xs font-medium text-texte">Titre</span>
+          <input
+            value={titre}
+            onChange={(event) => setTitre(event.target.value)}
+            className="mt-1.5 w-full rounded-lg border border-bordure-controle bg-surface px-3 py-2 text-sm outline-none transition-colors placeholder:text-texte-discret focus:border-primaire focus:ring-1 focus:ring-primaire/20"
+            placeholder="Ex. méthode de planification des tournées"
+          />
+        </label>
+
+        <label className="block">
+          <span className="text-xs font-medium text-texte">Rattacher une compétence (facultatif)</span>
+          <select
+            value={codeRattachement}
+            onChange={(event) => setCodeRattachement(event.target.value)}
+            className="mt-1.5 w-full cursor-pointer rounded-lg border border-bordure-controle bg-surface px-3 py-2 text-sm outline-none focus:border-primaire focus:ring-1 focus:ring-primaire/20"
+          >
+            <option value="">Sans rattachement — la fiche restera à trier</option>
+            {competences.map((competence) => (
+              <option key={competence.code} value={competence.code}>
+                {competence.code} — {competence.intitule}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {erreur && <p className="rounded-lg bg-danger-faible px-3 py-2 text-xs text-danger">{erreur}</p>}
+      </div>
+    </Modale>
   );
 }
 
@@ -1891,24 +2197,56 @@ export function EspaceDocumentaire({
  * Ce que l'explorateur de gauche rendait, à plat.
  *
  * L'arbre exigeait de savoir dans quel dossier **calculé** une fiche avait été
- * rangée — `Domaines/X/Compétences/Fondamentaux` n'est écrit nulle part, c'est
+ * rangée — `Domaines/X/Compétences/Fondamentaux` n'existe nulle part, c'est
  * une projection. Une liste de résultats répond à la même question sans
  * demander ce savoir : le chemin y est affiché comme un repère, pas comme un
  * parcours à refaire.
+ *
+ * Les fiches capturées par la personne — notes support et fiches de cours —
+ * se regroupent sous le nom du domaine auquel elles servent (B.2). C'est une
+ * lecture du corpus, pas un rangement : aucune donnée ne bouge.
  */
 function ResultatsRecherche({
   terme,
   elements,
   couleursDomaines,
+  nomsDomaines,
+  domaineDeCompetence,
   ouvrir,
   onFermer,
 }: {
   terme: string;
   elements: ElementAtelier[];
   couleursDomaines: Record<string, string>;
+  nomsDomaines: Record<string, string>;
+  domaineDeCompetence: Record<string, string>;
   ouvrir: (id: string) => void;
   onFermer?: () => void;
 }) {
+  const { groupes, autres } = useMemo(() => {
+    const estFicheCorpus = (element: ElementAtelier): boolean =>
+      element.frontMatter.role === "support" || element.type === "cours";
+    const domaineDe = (element: ElementAtelier): string | null => {
+      if (element.rangement.zone === "domaine" && element.rangement.domaineId) {
+        return element.rangement.domaineId;
+      }
+      const codeRattache = element.rangement.rattachements[0];
+      if (codeRattache && domaineDeCompetence[codeRattache]) return domaineDeCompetence[codeRattache];
+      if (element.domaineId) return element.domaineId;
+      return null;
+    };
+    const groupesCorpus = regrouperFichesParDomaine(elements, {
+      estFicheCorpus,
+      domaineDe,
+      nomDuDomaine: (domaineId) => nomsDomaines[domaineId] ?? null,
+    });
+    const idsGroupes = new Set(groupesCorpus.flatMap((groupe) => groupe.elements.map((el) => el.id)));
+    return {
+      groupes: groupesCorpus.filter((groupe) => groupe.nom !== null),
+      autres: elements.filter((element) => !idsGroupes.has(element.id)),
+    };
+  }, [elements, nomsDomaines, domaineDeCompetence]);
+
   return (
     <div className="absolute inset-x-0 bottom-0 top-[3.5rem] z-30 overflow-y-auto bg-surface/98 backdrop-blur-sm p-4 sm:p-6 space-y-3">
       <div className="flex items-center justify-between border-b border-bordure pb-2 text-xs">
@@ -1933,50 +2271,92 @@ function ResultatsRecherche({
           <p className="mt-1 text-[11px] text-texte-attenue">Essaie un mot-clé, un code de compétence ou un titre.</p>
         </div>
       ) : (
-        <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-          {elements.map((element) => (
-            <li key={element.id}>
-              <button
-                type="button"
-                onClick={() => ouvrir(element.id)}
-                className="group flex w-full items-start gap-3 rounded-xl border border-bordure bg-surface p-3.5 text-left shadow-xs transition-all hover:-translate-y-0.5 hover:border-primaire/40 hover:bg-surface-2/60 hover:shadow-sm cursor-pointer"
-              >
-                <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-surface-2 group-hover:bg-primaire-faible transition-colors">
-                  <IconeDocument
-                    type={element.type}
-                    couleur={element.domaineId ? couleursDomaines[element.domaineId] : undefined}
-                    className={cx(
-                      "size-4 shrink-0",
-                      !element.domaineId && "text-texte-discret group-hover:text-primaire",
-                      element.source === "projection" && "opacity-70",
-                    )}
-                  />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium text-texte group-hover:text-primaire transition-colors">
-                    {element.titre}
-                  </span>
-                  <div className="mt-1 flex items-center gap-2 text-[0.6875rem] text-texte-discret">
-                    <span className="rounded bg-surface-2 px-1.5 py-0.5 font-medium text-texte-attenue">
-                      {element.typeLibelle}
-                    </span>
-                    {(element.frontMatter.archive ||
-                      (element.vuePedagogique?.kind === "domaine" &&
-                        (element.vuePedagogique as VueDomaineAtelier).domaine.archive)) && (
-                      <span className="rounded bg-surface-3 px-1.5 py-0.5 text-[10px] font-medium text-texte-discret">
-                        Archivé
-                      </span>
-                    )}
-                    {element.source === "projection" && (
-                      <span className="text-[10px] text-texte-attenue">Lecture seule</span>
-                    )}
-                  </div>
-                </div>
-              </button>
-            </li>
+        <>
+          {groupes.map((groupe) => (
+            <section key={groupe.cle}>
+              <div className="flex items-baseline justify-between gap-3 pb-2 pt-2">
+                <h3 className="font-serif text-base font-medium text-texte">{groupe.nom}</h3>
+                <span className="chiffres text-xs text-texte-discret">{groupe.elements.length}</span>
+              </div>
+              <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                {groupe.elements.map((element) => (
+                  <li key={element.id}>
+                    <CarteResultat element={element} couleursDomaines={couleursDomaines} ouvrir={ouvrir} />
+                  </li>
+                ))}
+              </ul>
+            </section>
           ))}
-        </ul>
+
+          {autres.length > 0 && (
+            <>
+              {groupes.length > 0 && (
+                <div className="flex items-baseline justify-between gap-3 pb-2 pt-4">
+                  <h3 className="font-serif text-base font-medium text-texte">Autres résultats</h3>
+                  <span className="chiffres text-xs text-texte-discret">{autres.length}</span>
+                </div>
+              )}
+              <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                {autres.map((element) => (
+                  <li key={element.id}>
+                    <CarteResultat element={element} couleursDomaines={couleursDomaines} ouvrir={ouvrir} />
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </>
       )}
     </div>
+  );
+}
+
+function CarteResultat({
+  element,
+  couleursDomaines,
+  ouvrir,
+}: {
+  element: ElementAtelier;
+  couleursDomaines: Record<string, string>;
+  ouvrir: (id: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => ouvrir(element.id)}
+      className="group flex w-full items-start gap-3 rounded-xl border border-bordure bg-surface p-3.5 text-left shadow-xs transition-all hover:-translate-y-0.5 hover:border-primaire/40 hover:bg-surface-2/60 hover:shadow-sm cursor-pointer"
+    >
+      <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-surface-2 group-hover:bg-primaire-faible transition-colors">
+        <IconeDocument
+          type={element.type}
+          couleur={element.domaineId ? couleursDomaines[element.domaineId] : undefined}
+          className={cx(
+            "size-4 shrink-0",
+            !element.domaineId && "text-texte-discret group-hover:text-primaire",
+            element.source === "projection" && "opacity-70",
+          )}
+        />
+      </div>
+      <div className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-medium text-texte group-hover:text-primaire transition-colors">
+          {element.titre}
+        </span>
+        <div className="mt-1 flex items-center gap-2 text-[0.6875rem] text-texte-discret">
+          <span className="rounded bg-surface-2 px-1.5 py-0.5 font-medium text-texte-attenue">
+            {element.typeLibelle}
+          </span>
+          {(element.frontMatter.archive ||
+            (element.vuePedagogique?.kind === "domaine" &&
+              (element.vuePedagogique as VueDomaineAtelier).domaine.archive)) && (
+            <span className="rounded bg-surface-3 px-1.5 py-0.5 text-[10px] font-medium text-texte-discret">
+              Archivé
+            </span>
+          )}
+          {element.source === "projection" && (
+            <span className="text-[10px] text-texte-attenue">Lecture seule</span>
+          )}
+        </div>
+      </div>
+    </button>
   );
 }

@@ -118,10 +118,30 @@ export function PanneauCompte({
       {/* Surface principale avec contenu élégant */}
       <div className="rounded-2xl border border-bordure bg-surface p-5 sm:p-7 shadow-xs">
         {onglet === "profil" && (
-          <FormulaireProfil
-            formation={nonRenseigne(profil.formation)}
-            preferencesPedagogiques={profil.preferencesPedagogiques ?? []}
-          />
+          <div className="space-y-6">
+            <FormulaireProfil
+              formation={nonRenseigne(profil.formation)}
+              preferencesPedagogiques={profil.preferencesPedagogiques ?? []}
+            />
+
+            {/* Arbitrage « pilote ≠ apprenant » : information, pas de fonction. */}
+            <div className="rounded-xl border border-bordure/60 bg-surface-2/40 p-4">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-texte-attenue">
+                Un compte par apprenant
+              </h4>
+              <p className="mt-1.5 max-w-xl text-xs leading-relaxed text-texte-attenue">
+                Chaque compte porte ses propres données pédagogiques — compétences,
+                séances, observations — et elles ne se mélangent pas entre comptes.
+                Pour accompagner plusieurs personnes (un enfant, un élève), créez
+                un compte par personne et basculez en vous déconnectant puis en
+                vous reconnectant.
+              </p>
+              <p className="mt-2 max-w-xl text-xs leading-relaxed text-texte-discret">
+                Vos données ne sont jamais partagées avec un autre compte sans votre
+                consentement explicite.
+              </p>
+            </div>
+          </div>
         )}
 
         {onglet === "tuteur" && (

@@ -6,6 +6,14 @@ import { SqueletteContenu } from "@/components/layout/squelette";
 import { resumeCarriere } from "@/lib/engine/carriere";
 import { resumeCroissance } from "@/lib/engine/croissance";
 import { evolutionScore } from "@/lib/engine/evolution";
+import {
+  agregerDomaine,
+  calculerEtatGlobal,
+} from "@/lib/engine/progression";
+import {
+  lectureDomaine,
+  resoudreFiltreDomaine,
+} from "@/lib/engine/lecture-domaine";
 import { EntetePage } from "@/components/layout/entete-page";
 import { Carte, CorpsCarte, EnTeteCarte } from "@/components/ui/primitives";
 import { Depliant } from "@/components/ui/explication";
@@ -16,6 +24,8 @@ import { CartePratique } from "@/components/progression/carte-pratique";
 import { ComparaisonDomaines } from "@/components/progression/comparaison-domaines";
 import { TopCompetences } from "@/components/progression/top-competences";
 import { BilanCroissanceLie } from "@/components/progression/bilan-croissance-lie";
+import { CarteEnTeteDomaine } from "@/components/progression/carte-en-tete-domaine";
+import { FiltreDomaines } from "@/components/progression/filtre-domaines";
 import { Glossaire } from "@/components/ui/glossaire";
 
 /**
@@ -38,8 +48,19 @@ import { Glossaire } from "@/components/ui/glossaire";
  * est ce qu'aucun autre écran ne montre : l'évolution du score rejouée depuis
  * le journal, les faits marquants de toute la pratique, et le bilan de ce
  * que le travail récent a changé.
+ *
+ * ## Lecture par domaine (`?domaine=`)
+ *
+ * Le paramètre restreint toute la lecture aux compétences d'un domaine. Il
+ * est validé contre les domaines réels du compte : un identifiant inconnu est
+ * ignoré proprement, la page retombe sur sa vue globale plutôt que d'afficher
+ * un périmètre qui n'existe pas.
  */
-export default async function PageProgression() {
+export default async function PageProgression(props: {
+  searchParams: Promise<{ domaine?: string }>;
+}) {
+  const recherche = await props.searchParams;
+
   return (
     <>
       <EntetePage
@@ -47,19 +68,63 @@ export default async function PageProgression() {
         sousTitre="Ce que vos exercices disent de votre niveau — et ce qu'ils ne disent pas encore."
       />
       <Suspense fallback={<SqueletteContenu />}>
-        <ContenuProgression />
+        <ContenuProgression filtreDemande={recherche.domaine} />
       </Suspense>
     </>
   );
 }
 
-async function ContenuProgression() {
+async function ContenuProgression({ filtreDemande }: { filtreDemande?: string }) {
   const [ctx, compte] = await Promise.all([
     chargerContexte(),
     compteCourant(),
   ]);
   const identite = resoudreIdentite(compte, ctx.donnees.user);
 
+  // Validation du filtre AVANT tout calcul : un paramètre invalide ne doit
+  // pas coûter une lecture filtrée ni produire un écran à moitié vide.
+  const filtre = resoudreFiltreDomaine(filtreDemande, ctx.referentiel.domaines);
+  const domainesDuFiltre = ctx.referentiel.domaines
+    .filter((domaine) => !domaine.archive)
+    .map((domaine) => ({ id: domaine.id, nom: domaine.nom }));
+
+  const intitules = Object.fromEntries(
+    ctx.referentiel.skills.map((skill) => [skill.code, skill.intitule]),
+  );
+
+  return (
+    <div className="space-y-8 [&>*]:min-w-0">
+      <FiltreDomaines domaines={domainesDuFiltre} actif={filtre} />
+      {filtre === null ? (
+        <VueGlobale
+          ctx={ctx}
+          identite={identite}
+          intitules={intitules}
+        />
+      ) : (
+        <VueParDomaine
+          ctx={ctx}
+          domaineId={filtre}
+          intitules={intitules}
+        />
+      )}
+      <Glossaire />
+    </div>
+  );
+}
+
+type ContextePage = Awaited<ReturnType<typeof chargerContexte>>;
+
+/** La lecture d'ensemble — inchangée par ce chantier quand aucun filtre n'est posé. */
+function VueGlobale({
+  ctx,
+  identite,
+  intitules,
+}: {
+  ctx: ContextePage;
+  identite?: ReturnType<typeof resoudreIdentite>;
+  intitules: Record<string, string>;
+}) {
   const carriere = resumeCarriere({
     sessions: ctx.donnees.sessions,
     tentatives: ctx.donnees.attempts,
@@ -90,10 +155,6 @@ async function ContenuProgression() {
     now: ctx.now,
   });
 
-  const intitules = Object.fromEntries(
-    ctx.referentiel.skills.map((skill) => [skill.code, skill.intitule]),
-  );
-
   // Répartition des compétences par niveau — la seule lecture du lot « mesures »
   // qui reste sur la page : elle rejoint le héros, où sa place est visuelle.
   const repartition: Record<number, number> = {};
@@ -102,7 +163,7 @@ async function ContenuProgression() {
   }
 
   return (
-    <div className="space-y-8 [&>*]:min-w-0">
+    <>
       {/*
         Trois zones hiérarchisées, dans l'ordre où on se les pose :
 
@@ -142,59 +203,154 @@ async function ContenuProgression() {
         </div>
 
         <div className="space-y-4 min-w-0 lg:col-span-8">
-          {evolution.points.length > 0 && (
-            <Carte>
-              <EnTeteCarte
-                titre="Évolution du score global"
-                legende="Chaque point est une observation qui a déplacé le score — recalculé depuis le journal, jamais stocké."
-              />
-              <CorpsCarte>
-                <CourbeEvolution points={evolution.points} />
-
-                {/*
-                  La méthode reste à portée de clic, repliée : un grand nombre
-                  ne doit pas se présenter comme plus certain qu'il n'est, mais
-                  la démonstration n'a pas à occuper l'écran.
-                */}
-                <div className="mt-4 border-t border-bordure pt-3">
-                  <Depliant resume="D'où viennent ces chiffres ?">
-                    <div className="rounded-md border border-bordure bg-surface-2 p-3 text-xs">
-                      <dl className="space-y-1">
-                        {ctx.global.facteurs.map((f, i) => (
-                          <div
-                            key={i}
-                            className="flex flex-wrap items-baseline justify-between gap-3 border-b border-bordure/60 pb-1 last:border-0"
-                          >
-                            <dt className="text-texte-attenue">{f.libelle}</dt>
-                            <dd className="chiffres font-medium">{f.valeur}</dd>
-                          </div>
-                        ))}
-                      </dl>
-                      <ul className="mt-3 space-y-1 text-texte-discret">
-                        {ctx.global.reserves.map((reserve, i) => (
-                          <li key={i}>· {reserve}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </Depliant>
-                </div>
-              </CorpsCarte>
-            </Carte>
-          )}
-
+          <CourbeEtMethode evolution={evolution} facteurs={ctx.global.facteurs} reserves={ctx.global.reserves} />
           <TopCompetences etats={ctx.etats} />
         </div>
       </div>
 
       {/* Le bilan de croissance, repris de l'accueil de l'Atelier. */}
       <BilanCroissanceLie resume={croissance} intitules={intitules} />
+    </>
+  );
+}
 
-      {/*
-        Le vocabulaire du produit. Observation, niveau, autonomie, confiance,
-        robustesse : cinq mots qui gouvernent tout ce qui est affiché plus haut,
-        et dont c'est ici la place — au pied des mesures qu'ils définissent.
-      */}
-      <Glossaire />
-    </div>
+/**
+ * La lecture d'un seul domaine.
+ *
+ * Chaque section reçoit des données déjà restreintes par `lectureDomaine` :
+ * les composants existants sont réutilisés tels quels, ils ne savent même pas
+ * qu'un filtre existe. Les séances ne sont pas attribuables à un domaine, elles
+ * sortent donc de la carrière et du bilan filtrés — seules les tentatives dont
+ * l'exercice touche le périmètre y entrent, avec leurs durées réelles.
+ */
+function VueParDomaine({
+  ctx,
+  domaineId,
+  intitules,
+}: {
+  ctx: ContextePage;
+  domaineId: string;
+  intitules: Record<string, string>;
+}) {
+  const domaine = ctx.referentiel.domainesParId.get(domaineId)!;
+
+  const lecture = lectureDomaine({
+    domaineId,
+    skills: ctx.referentiel.skills,
+    etats: ctx.etats,
+    observations: ctx.observationsEffectives,
+    exercices: ctx.donnees.exercises,
+    tentatives: ctx.donnees.attempts,
+    now: ctx.now,
+  });
+
+  const agregat = agregerDomaine(domaineId, ctx.etats, ctx.referentiel.domaines);
+
+  const evolution = evolutionScore({
+    observations: lecture.observations,
+    skillsParCode: ctx.referentiel.parCode,
+    now: ctx.now,
+  });
+
+  // Même moteur, journal réduit : les faits marquants comptent ce que CE
+  // domaine a produit, jamais la pratique entière déguisée.
+  const global = calculerEtatGlobal(lecture.etats, ctx.now, ctx.referentiel.domaines);
+
+  const carriere = resumeCarriere({
+    sessions: [],
+    tentatives: lecture.tentatives,
+    observations: lecture.observations,
+    now: ctx.now,
+  });
+
+  const croissance = resumeCroissance({
+    sessions: [],
+    tentatives: lecture.tentatives,
+    observations: lecture.observations,
+    skillsParCode: ctx.referentiel.parCode,
+    dureesEstimees: ctx.dureesEstimees,
+    now: ctx.now,
+    limiteEvenements: 8,
+  });
+
+  return (
+    <>
+      <CarteEnTeteDomaine
+        domaine={domaine}
+        score={agregat.score}
+        competencesMesurees={lecture.competencesMesurees}
+        competencesEnVeille={lecture.competencesEnVeille}
+        observationsTotal={lecture.observations.length}
+        derniereObservation={lecture.derniereObservation}
+        variation7j={evolution.variation7j}
+      />
+
+      <FaitsMarquants evolution={evolution} carriere={carriere} global={global} />
+
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-12 lg:gap-5">
+        <div className="space-y-4 min-w-0 lg:col-span-4">
+          <ComparaisonDomaines parDomaine={[agregat]} />
+        </div>
+
+        <div className="space-y-4 min-w-0 lg:col-span-8">
+          <CourbeEtMethode evolution={evolution} facteurs={global.facteurs} reserves={global.reserves} />
+          <TopCompetences etats={lecture.etats} />
+        </div>
+      </div>
+
+      <BilanCroissanceLie resume={croissance} intitules={intitules} />
+    </>
+  );
+}
+
+/** La courbe du score et sa méthode repliée — partagée par les deux lectures. */
+function CourbeEtMethode({
+  evolution,
+  facteurs,
+  reserves,
+}: {
+  evolution: ReturnType<typeof evolutionScore>;
+  facteurs: Array<{ libelle: string; valeur: string }>;
+  reserves: string[];
+}) {
+  if (evolution.points.length === 0) return null;
+  return (
+    <Carte>
+      <EnTeteCarte
+        titre="Évolution du score"
+        legende="Chaque point est une observation qui a déplacé le score — recalculé depuis le journal, jamais stocké."
+      />
+      <CorpsCarte>
+        <CourbeEvolution points={evolution.points} />
+
+        {/*
+          La méthode reste à portée de clic, repliée : un grand nombre
+          ne doit pas se présenter comme plus certain qu'il n'est, mais
+          la démonstration n'a pas à occuper l'écran.
+        */}
+        <div className="mt-4 border-t border-bordure pt-3">
+          <Depliant resume="D'où viennent ces chiffres ?">
+            <div className="rounded-md border border-bordure bg-surface-2 p-3 text-xs">
+              <dl className="space-y-1">
+                {facteurs.map((f, i) => (
+                  <div
+                    key={i}
+                    className="flex flex-wrap items-baseline justify-between gap-3 border-b border-bordure/60 pb-1 last:border-0"
+                  >
+                    <dt className="text-texte-attenue">{f.libelle}</dt>
+                    <dd className="chiffres font-medium">{f.valeur}</dd>
+                  </div>
+                ))}
+              </dl>
+              <ul className="mt-3 space-y-1 text-texte-discret">
+                {reserves.map((reserve, i) => (
+                  <li key={i}>· {reserve}</li>
+                ))}
+              </ul>
+            </div>
+          </Depliant>
+        </div>
+      </CorpsCarte>
+    </Carte>
   );
 }

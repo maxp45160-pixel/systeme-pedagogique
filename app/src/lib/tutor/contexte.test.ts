@@ -95,6 +95,7 @@ function construireCtxDeTest(
       attempts,
       sessions: [],
       refusRecommandations: [],
+      engagements: [],
     },
     etats,
     etatsParCode: new Map(etats.map((e) => [e.skill.code, e])),

@@ -80,6 +80,67 @@ export const EXERCICES_PAR_SEANCE_MIN = 1;
 export const EXERCICES_PAR_SEANCE_MAX = EXERCICES_PAR_LOT_MAX;
 
 /* ------------------------------------------------------------------ */
+/* Mode épreuve                                                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * La séance a-t-elle été posée en mode épreuve ?
+ *
+ * Lecture pure d'un champ déclaré AU DÉPART (`modeEpreuve`, posé par
+ * `creerSeance`) : rien n'est déduit, rien n'est recalculé. Absent sur les
+ * séances antérieures au 22/08/2026, l'absence vaut « non » — même discipline
+ * que `statutSeance` pour le statut.
+ *
+ * ⚠️ Le moteur ne lit JAMAIS cette fonction : le mode épreuve est un habillage
+ * de séance (chrono, aides masquées), pas une dimension, pas une mesure. Il
+ * n'entre ni dans `recommend`, ni dans le calibrage, ni dans l'autonomie —
+ * celle-ci reste déduite des indices réellement consultés (P2).
+ */
+export function estModeEpreuve(seance: LearningSession): boolean {
+  return seance.modeEpreuve === true;
+}
+
+/**
+ * Les aides de l'exercice doivent-elles être masquées ici ?
+ *
+ * Masquées pendant que la séance se DÉROULE (`en-cours`), rendues à sa
+ * clôture : une séance terminée ou abandonnée se relit, et la relecture a
+ * besoin des aides comme du reste. Une tentative abandonnée ne produit de
+ * toute façon pas de preuve ; le masquage n'a donc rien à protéger après la
+ * fermeture.
+ *
+ * C'est la seule autorité du masquage : l'écran de l'exercice et le journal
+ * appellent cette fonction au lieu de relire `seance.modeEpreuve` à la main,
+ * sinon deux copies finiraient par diverger (ADR-044, ADR-047).
+ */
+export function indicesMasquesEnEpreuve(seance: LearningSession): boolean {
+  return estModeEpreuve(seance) && statutSeance(seance) === "en-cours";
+}
+
+/**
+ * Le refus opposé à toute activation ou retrait du mode épreuve APRÈS création.
+ *
+ * Le mode épreuve se pose quand la séance est composée, avec elle. L'activer
+ * en cours de route transformerait en « épreuve » une séance dont les
+ * premiers exercices ont été menés avec aides — deux régimes dans une même
+ * trace. Le retirer ferait l'inverse. Dans les deux cas, le champ cesserait
+ * d'être un fait déclaré au départ pour devenir un état manipulable.
+ *
+ * `avant` et `apres` sont le même enregistrement avant puis après une écriture
+ * : le garde ne s'applique que si la valeur change — réécrire la même valeur
+ * n'est pas un changement de régime.
+ */
+export function motifRefusChangementModeEpreuve(
+  avant: LearningSession,
+  apres: LearningSession,
+): string | null {
+  if ((avant.modeEpreuve ?? false) !== (apres.modeEpreuve ?? false)) {
+    return "Le mode épreuve se pose à la création de la séance : il ne s'active ni ne se retire ensuite.";
+  }
+  return null;
+}
+
+/* ------------------------------------------------------------------ */
 /* Statut                                                              */
 /* ------------------------------------------------------------------ */
 

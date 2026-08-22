@@ -37,6 +37,7 @@ function creerDomaineFactice(partiel: Partial<VueDomaineAtelier> & { id: string;
     sousDomaines: partiel.sousDomaines ?? { groupes: [], isolees: [] },
     rattachementCarte: partiel.rattachementCarte ?? null,
     classificationCarte: partiel.classificationCarte ?? null,
+    ressources: partiel.ressources ?? [],
   };
 }
 

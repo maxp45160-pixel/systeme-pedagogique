@@ -15,6 +15,7 @@
 import type { Referentiel } from "@/lib/domain/types";
 import { CONDITIONS_MESURABILITE } from "@/lib/domain/atomicite";
 import { analyserDemandeReferentiel } from "@/lib/domain/intention";
+import { separerSujets } from "./sujets";
 import type { MoteurTuteur } from "./moteurs";
 import { lireErreurMoteur, lireOutilsActifs, messageSansOutils } from "./moteurs";
 import {
@@ -218,7 +219,19 @@ export function construirePromptReferentiel(
    * le bloc stable, chacun de ces éléments changeait le préfixe à chaque
    * requête et interdisait tout cache (`PromptTuteur`).
    */
+  const sujets = separerSujets(sujet);
+  const consigneSujetsMultiples =
+    sujets.length > 1
+      ? [
+          "SUJETS MULTIPLES DÉCLARÉS : la personne liste plusieurs sujets d'un coup. Propose UNE branche par sujet déclaré —",
+          `${sujets.map((s) => `« ${s} »`).join(", ")} —`,
+          "et non un découpage thématique interne d'un sujet unique.",
+          "",
+        ]
+      : [];
+
   const variable = [
+    ...consigneSujetsMultiples,
     ...(contraintesExplicites.length > 0
       ? ["CONTRAINTES EXPLICITES DE LA PERSONNE", ...contraintesExplicites, ""]
       : []),

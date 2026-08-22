@@ -86,6 +86,8 @@ export interface ProprietesChat {
   competencesModale: CompetenceModale[];
   /** Calibrages de toutes les compétences, indexés par code — idem. */
   calibragesModale: Record<string, CalibrageModale>;
+  /** Mode épreuve : masque l'entrée « Donne-moi un indice » de la saisie. */
+  indicesMasques?: boolean;
 }
 
 /**
@@ -126,6 +128,7 @@ function ChatHydrate({
   domainesExistants,
   competencesModale,
   calibragesModale,
+  indicesMasques,
 }: {
   /** Manifeste et moteur, calculés côté serveur au rendu de la page. */
   etatInitial: EtatContexteTuteur;
@@ -149,6 +152,8 @@ function ChatHydrate({
   competencesModale: CompetenceModale[];
   /** Calibrages de toutes les compétences, indexés par code — idem. */
   calibragesModale: Record<string, CalibrageModale>;
+  /** Mode épreuve : masque l'entrée « Donne-moi un indice » de la saisie. */
+  indicesMasques?: boolean;
 }) {
   // `etat` ne vient plus d'un chargement asynchrone : il est calculé par le
   // serveur et ne change pas pendant la vie du composant. Pas d'état local.
@@ -831,6 +836,7 @@ function ChatHydrate({
             cleAbsente={cleAbsente}
             usage={usage}
             saisieInitiale={saisieInitiale}
+            indicesMasques={indicesMasques}
           />
         </div>
       </div>

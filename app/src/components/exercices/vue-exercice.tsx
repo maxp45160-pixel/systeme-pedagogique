@@ -26,6 +26,7 @@ import { BoutonRetirerExercice } from "@/components/exercices/bouton-retirer";
 import { ZoneReponse } from "@/components/exercices/zone-reponse";
 import { FocusActe } from "@/components/exercices/focus-acte";
 import { motifBlocageBilan, reponseSuffisante } from "@/lib/domain/tentative";
+import { indicesMasquesEnEpreuve } from "@/lib/domain/seance";
 import { IconeFleche } from "@/components/ui/icones";
 import { formatDateCourte, formatDuree } from "@/lib/engine/dates";
 import { CarteImpact, LienApresImpact } from "@/components/exercices/carte-impact";
@@ -38,7 +39,7 @@ import {
   amorceMethode,
 } from "@/lib/tutor/amorces";
 import { construireEtatInitialTuteur } from "@/lib/tutor/etat-initial";
-import { TiroirTuteur } from "@/components/tuteur/tiroir-tuteur";
+import { TiroirTuteur, type ActionContextuelleTuteur } from "@/components/tuteur/tiroir-tuteur";
 import {
   calibragesPourModale,
   competencesPourModale,
@@ -77,6 +78,26 @@ export async function VueExercice(props: {
   const sessionNavigation = props.navigation
     ? ctx.donnees.sessions.find((session) => session.id === props.navigation?.seanceId)
     : null;
+  /*
+   * Mode épreuve (22/08/2026) : pendant le déroulé d'une séance posée en
+   * conditions réelles, les aides sont masquées — la seule autorité du
+   * masquage est `indicesMasquesEnEpreuve`. Le bilan reste identique :
+   * l'autonomie se dérive toujours des indices RÉELLEMENT consultés, et un
+   * exercice mené sans aide disponible reste une observation comme une autre.
+   */
+  const aidesMasquees = sessionNavigation ? indicesMasquesEnEpreuve(sessionNavigation) : false;
+
+  /*
+   * Mode épreuve : l'action « Besoin d'un indice ? » disparaît pendant le
+   * déroulé. Les autres entrées du tuteur restent — comprendre une consigne ou
+   * relire la méthode n'est pas recevoir la solution.
+   */
+  const actionsTuteur: ActionContextuelleTuteur[] = [
+    { libelle: "Besoin d'un indice ?", amorce: amorceIndice(exercice.competences[0]) },
+    { libelle: "Comprendre la consigne", amorce: amorceConsigne(exercice.competences[0]) },
+    { libelle: "Rappel de méthode", amorce: amorceMethode(exercice.competences[0]) },
+    { libelle: "Poser une question", amorce: "" },
+  ].filter((action) => !(aidesMasquees && /indice/i.test(action.libelle)));
   const tentatives = ctx.donnees.attempts.filter((a) => a.exerciseId === exercice.id);
   const tentativesDeCetteSeance = sessionNavigation
     ? tentatives.filter((a) => a.debut >= sessionNavigation.date)
@@ -510,6 +531,11 @@ export async function VueExercice(props: {
 
         {enCours && (
           <div className="space-y-4 lg:col-start-2 lg:row-start-1">
+            {aidesMasquees && (
+              <p className="text-[0.6875rem] text-texte-discret">
+                Mode épreuve : les aides sont masquées jusqu&apos;à la fin de la séance.
+              </p>
+            )}
             {/*
               Ta réponse — vivante dans l'acte Chercher, repliée dès que le
               bilan du tuteur est ouvert. Elle reste modifiable avant l'envoi
@@ -546,26 +572,10 @@ export async function VueExercice(props: {
                       domainesExistants={domainesExistants}
                       competencesModale={competencesPourModale(ctx.referentiel.actifs)}
                       calibragesModale={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
-                      declencheur="barre-contextuelle"
-                      actionsContextuelles={[
-                        {
-                          libelle: "Besoin d'un indice ?",
-                          amorce: amorceIndice(exercice.competences[0]),
-                        },
-                        {
-                          libelle: "Comprendre la consigne",
-                          amorce: amorceConsigne(exercice.competences[0]),
-                        },
-                        {
-                          libelle: "Rappel de méthode",
-                          amorce: amorceMethode(exercice.competences[0]),
-                        },
-                        {
-                          libelle: "Poser une question",
-                          amorce: "",
-                        },
-                      ]}
-                    />
+                       declencheur="barre-contextuelle"
+                       actionsContextuelles={actionsTuteur}
+                       indicesMasques={aidesMasquees}
+                     />
                   </div>
                 )}
               </div>

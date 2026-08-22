@@ -39,6 +39,11 @@ import {
 } from "@/lib/engine/parcours";
 import type { ChangementReferentiel } from "@/lib/domain/gouvernance-referentiel";
 import { type EtatCompetence } from "@/lib/engine/vues-twiny";
+import {
+  filRessourcesDomaine,
+  type DocumentCorpus,
+  type FilRessource,
+} from "./fils-corpus";
 
 export interface ExerciceLieAtelier {
   id: string;
@@ -229,6 +234,12 @@ export interface VueDomaineAtelier {
    * deplace, rien n'est stocke.
    */
   sousDomaines: DecoupageSousDomaines;
+  /**
+   * Le fil des ressources du domaine (R3) : ce qu'on lit pour travailler,
+   * ordonné par dernière activité DÉRIVÉE du journal — rien n'est stocké.
+   * Une ressource jamais mobilisée reste listée, sans date fabriquée.
+   */
+  ressources: FilRessource[];
 }
 
 export interface VueExerciceProjectionAtelier {
@@ -385,6 +396,35 @@ export function construireVuesAtelier(
     };
   });
 
+  /*
+   * Le corpus du fil des ressources (R3) : dérivé de l'index à chaque lecture,
+   * jamais stocké. Les fiches d'exercice et les preuves portent une mesure —
+   * `estSupport` les sort déjà ; une fiche archivée sort aussi.
+   */
+  const corpus: DocumentCorpus[] = index.documents
+    .filter(
+      (document) =>
+        document.frontMatter?.archive !== true &&
+        estSupport({ id: document.id, type: document.type ?? "document" }),
+    )
+    .map((document) => {
+      const domaineDeclare = document.frontMatter?.domaine;
+      return {
+        id: document.id,
+        titre: document.titre,
+        type: document.type,
+        domaineConnu:
+          typeof domaineDeclare === "string" &&
+          referentiel.domainesParId.has(domaineDeclare)
+            ? domaineDeclare
+            : undefined,
+        role: document.frontMatter?.role,
+        competencesCitees: (index.sortants.get(document.id) ?? []).filter((code) =>
+          referentiel.codesActifs.has(code),
+        ),
+      };
+    });
+
   const domaines: VueDomaineAtelier[] = referentiel.domaines
     .filter((domaine) => domaine.archive || domainesVivants.has(domaine.id))
     .map((domaine) => {
@@ -463,6 +503,12 @@ export function construireVuesAtelier(
               description: domaine.description,
               intitules: [...skillsAffichees, ...rattachees].map((skill) => skill.intitule),
             }),
+        ressources: filRessourcesDomaine({
+          domaineId: domaine.id,
+          codesCompetences: codesDomaine,
+          documents: corpus,
+          observations: observationsReferentiel,
+        }),
       };
     });
 

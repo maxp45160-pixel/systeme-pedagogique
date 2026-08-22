@@ -74,10 +74,16 @@ Ils vivent dans le code et dans les ADR. À l'écran on dit *production*,
 qui compte des objets internes est un écran de maintenance : il n'a pas sa
 place devant quelqu'un qui vient travailler.
 
-Ce n'est pas un tracker d'habitudes, pas un LMS, pas un outil de révision. La
-distinction tient en une phrase : **un tracker enregistre ce que tu déclares
-avoir fait ; ce système enregistre ce qui a été observé, et en tire ce qu'il
-peut honnêtement en tirer — souvent moins que ce qu'on aimerait.**
+Ce n'est pas un tracker d'habitudes, pas un LMS. La distinction tient en une
+phrase : **un tracker enregistre ce que tu déclares avoir fait ; ce système
+enregistre ce qui a été observé, et en tire ce qu'il peut honnêtement en tirer
+— souvent moins que ce qu'on aimerait.**
+
+Sur la révision : le produit ne planifie rien — pas de révision programmée,
+pas de parcours jour-par-jour. Il retient depuis le 22/08/2026 (ADR-107)
+l'**engagement déclaré**, un fait daté extérieur (examen, rendu) qui éclaire
+la priorisation ; c'est un fait que la personne déclare, jamais un programme
+que le système exécute.
 
 ### Glossaire courant
 
@@ -268,7 +274,19 @@ humain explicite : il ne convenait pas. Le parcours se dérive des faits
 que par les actions recommandées — jamais comme surface autonome. Les
 intentions déclarées restent des textes verbatim du profil
 (`objectif_moyen_terme`, `objectif_long_terme`), sans extraction ni
-rattachement automatique.
+rattachement automatique. Nuance du 22/08/2026 : une date détectée dans un
+besoin ouvre le chemin assisté vers l'engagement déclaré (ADR-107) — une
+proposition explicite, jamais une écriture automatique.
+✅ **L'engagement est un fait déclaré, pas un objectif** (ADR-107). Une
+échéance extérieure — examen, rendu — se déclare verbatim avec sa date et
+éclaire la priorisation par un seul facteur de proximité (fenêtre J-21 →
+veille). Elle n'est ni un objectif structuré — ADR-096 reste debout — ni un
+retour au parcours planifié : pas de calendrier, pas de rappels, pas de plan
+jour-par-jour.
+✅ **Le mode épreuve est une déclaration de séance, pas une mesure** (ADR-108).
+Déclaré au départ sur la séance et irréversible, il change l'habillage du
+déroulé — chrono plein écran, indices masqués, correction à la fin — et rien
+au moteur. `LearningSession` reste l'épisode unique (ADR-048).
 ✅ **Les états et vues personnelles sont dérivés** (ADR-091). `État`,
 `KnowledgeState`, `SkillState`, carte individuelle, espace actif, tendances,
 préférences inférées et recommandation se recalculent depuis les faits. Aucun

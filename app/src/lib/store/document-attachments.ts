@@ -1,4 +1,4 @@
-/** Accès serveur aux PDF attachés aux notes support. */
+/** Accès serveur aux fichiers attachés aux notes support (PDF et images). */
 
 import "server-only";
 
@@ -8,9 +8,12 @@ import { verifier } from "./supabase-backend";
 import type { PieceJointeDocument } from "@/lib/documents/types-documents";
 import {
   BUCKET_PIECES_JOINTES,
-  MAX_PDF_OCTETS,
+  MAX_PIECE_OCTETS,
   MIME_PDF,
-  nomPdfValide,
+  estMimePieceJointe,
+  extensionPourMime,
+  mimeDepuisNomFichier,
+  type MimePieceJointe,
 } from "@/lib/documents/pieces-jointes";
 
 const TABLE_PIECES_JOINTES = "document_attachments";
@@ -31,12 +34,16 @@ function verifierIdentifiantDocument(id: string): string {
   return propre;
 }
 
-function normaliserNomPdf(nom: string): string {
+function normaliserNomPiece(nom: string, mimeDeclare: MimePieceJointe): string {
   const dernierSegment = nom.trim().replace(/^.*[\\/]/, "");
-  if (!dernierSegment || !nomPdfValide(dernierSegment)) {
-    throw new Error("Seuls les fichiers PDF peuvent être attachés.");
+  if (!dernierSegment || !mimeDepuisNomFichier(dernierSegment)) {
+    throw new Error("Le nom du fichier doit porter une extension reconnue (.pdf, .jpg, .png ou .webp).");
   }
-  if (dernierSegment.length > 160) throw new Error("Le nom du PDF est trop long.");
+  const mimeParExtension = mimeDepuisNomFichier(dernierSegment);
+  if (mimeParExtension !== mimeDeclare) {
+    throw new Error("L'extension du fichier ne correspond pas à son type déclaré.");
+  }
+  if (dernierSegment.length > 160) throw new Error("Le nom du fichier est trop long.");
   return dernierSegment;
 }
 
@@ -45,7 +52,7 @@ function echapperRegExp(valeur: string): string {
 }
 
 function cheminAttendu(userId: string, documentId: string, chemin: string): boolean {
-  const motif = new RegExp(`^${echapperRegExp(userId)}/${echapperRegExp(documentId)}/[0-9a-f-]{36}\\.pdf$`, "i");
+  const motif = new RegExp(`^${echapperRegExp(userId)}/${echapperRegExp(documentId)}/[0-9a-f-]{36}\\.(pdf|jpg|jpeg|png|webp)$`, "i");
   return motif.test(chemin);
 }
 
@@ -53,7 +60,7 @@ function pieceDepuisLigne(ligne: LignePieceJointe, url?: string): PieceJointeDoc
   return {
     id: ligne.id,
     nom: ligne.file_name,
-    mimeType: MIME_PDF,
+    mimeType: estMimePieceJointe(ligne.mime_type) ? ligne.mime_type : MIME_PDF,
     tailleOctets: ligne.size_bytes,
     creeLe: ligne.created_at,
     ...(url ? { url } : {}),
@@ -74,7 +81,7 @@ async function verifierNoteSupport(
   verifier("lecture de la note support", error);
   const frontmatter = data?.frontmatter;
   if (!frontmatter || typeof frontmatter !== "object" || Array.isArray(frontmatter) || (frontmatter as Record<string, unknown>).role !== "support") {
-    throw new Error("Les PDF peuvent uniquement être attachés à une note support.");
+    throw new Error("Les pièces jointes peuvent uniquement être attachées à une note support.");
   }
   return identifiant;
 }
@@ -90,16 +97,23 @@ async function lireLignes(documentId: string, dorsale: DorsaleCompte): Promise<L
   return (data ?? []) as LignePieceJointe[];
 }
 
-export async function preparerTeleversementPdf(documentId: string, nom: string): Promise<{ chemin: string; token: string }> {
+export async function preparerTeleversementPiece(
+  documentId: string,
+  nom: string,
+  mimeType: MimePieceJointe,
+): Promise<{ chemin: string; token: string }> {
+  if (!estMimePieceJointe(mimeType)) {
+    throw new Error("Seuls les fichiers PDF et les images JPEG, PNG ou WebP peuvent être attachés.");
+  }
   const dorsale = await dorsaleCompte();
   const identifiant = await verifierNoteSupport(documentId, dorsale);
-  normaliserNomPdf(nom);
-  const chemin = `${dorsale.userId}/${identifiant}/${crypto.randomUUID()}.pdf`;
+  normaliserNomPiece(nom, mimeType);
+  const chemin = `${dorsale.userId}/${identifiant}/${crypto.randomUUID()}${extensionPourMime(mimeType)}`;
   const { data, error } = await dorsale.supabase.storage
     .from(BUCKET_PIECES_JOINTES)
     .createSignedUploadUrl(chemin);
-  verifier("préparation du téléversement PDF", error);
-  if (!data?.token) throw new Error("Le téléversement PDF n'a pas pu être préparé.");
+  verifier("préparation du téléversement de la pièce jointe", error);
+  if (!data?.token) throw new Error("Le téléversement n'a pas pu être préparé.");
   return { chemin, token: data.token };
 }
 
@@ -108,13 +122,17 @@ export async function enregistrerPieceJointe(
   chemin: string,
   nom: string,
   tailleOctets: number,
+  mimeType: MimePieceJointe,
 ): Promise<PieceJointeDocument> {
+  if (!estMimePieceJointe(mimeType)) {
+    throw new Error("Seuls les fichiers PDF et les images JPEG, PNG ou WebP peuvent être attachés.");
+  }
   const dorsale = await dorsaleCompte();
   const identifiant = await verifierNoteSupport(documentId, dorsale);
-  const nomNormalise = normaliserNomPdf(nom);
+  const nomNormalise = normaliserNomPiece(nom, mimeType);
   if (!cheminAttendu(dorsale.userId, identifiant, chemin)) throw new Error("Chemin de fichier invalide.");
-  if (!Number.isInteger(tailleOctets) || tailleOctets <= 0 || tailleOctets > MAX_PDF_OCTETS) {
-    throw new Error("Le PDF doit peser entre 1 octet et 10 Mo.");
+  if (!Number.isInteger(tailleOctets) || tailleOctets <= 0 || tailleOctets > MAX_PIECE_OCTETS) {
+    throw new Error("Le fichier doit peser entre 1 octet et 10 Mo.");
   }
 
   const dossier = `${dorsale.userId}/${identifiant}`;
@@ -122,17 +140,17 @@ export async function enregistrerPieceJointe(
   const { data: objets, error: objetsErreur } = await dorsale.supabase.storage
     .from(BUCKET_PIECES_JOINTES)
     .list(dossier, { limit: 100, search: nomObjet });
-  verifier("vérification du PDF téléversé", objetsErreur);
+  verifier("vérification du fichier téléversé", objetsErreur);
   const objet = (objets ?? []).find((candidat) => candidat.name === nomObjet);
-  if (!objet) throw new Error("Le PDF téléversé est introuvable.");
+  if (!objet) throw new Error("Le fichier téléversé est introuvable.");
   const metadata = objet.metadata && typeof objet.metadata === "object"
     ? objet.metadata as Record<string, unknown>
     : {};
   const tailleStockee = typeof metadata.size === "number" ? metadata.size : tailleOctets;
-  const typeStocke = typeof metadata.mimetype === "string" ? metadata.mimetype : MIME_PDF;
-  if (typeStocke !== MIME_PDF || tailleStockee <= 0 || tailleStockee > MAX_PDF_OCTETS) {
+  const typeStocke = typeof metadata.mimetype === "string" ? metadata.mimetype : mimeType;
+  if (typeStocke !== mimeType || tailleStockee <= 0 || tailleStockee > MAX_PIECE_OCTETS) {
     await dorsale.supabase.storage.from(BUCKET_PIECES_JOINTES).remove([chemin]);
-    throw new Error("Le fichier téléversé n'est pas un PDF valide.");
+    throw new Error("Le fichier téléversé ne correspond pas au type déclaré.");
   }
 
   const { data, error } = await dorsale.supabase
@@ -142,7 +160,7 @@ export async function enregistrerPieceJointe(
       document_id: identifiant,
       storage_path: chemin,
       file_name: nomNormalise,
-      mime_type: MIME_PDF,
+      mime_type: mimeType,
       size_bytes: tailleStockee,
     })
     .select("id, document_id, storage_path, file_name, mime_type, size_bytes, created_at")
@@ -150,12 +168,12 @@ export async function enregistrerPieceJointe(
   if (error) {
     await dorsale.supabase.storage.from(BUCKET_PIECES_JOINTES).remove([chemin]);
   }
-  verifier("enregistrement du PDF", error);
+  verifier("enregistrement de la pièce jointe", error);
   revalidatePath("/atelier");
   return pieceDepuisLigne(data as LignePieceJointe);
 }
 
-export async function annulerTeleversementPdf(documentId: string, chemin: string): Promise<void> {
+export async function annulerTeleversementPiece(documentId: string, chemin: string): Promise<void> {
   const dorsale = await dorsaleCompte();
   const identifiant = await verifierNoteSupport(documentId, dorsale);
   if (!cheminAttendu(dorsale.userId, identifiant, chemin)) throw new Error("Chemin de fichier invalide.");
@@ -196,7 +214,7 @@ export async function supprimerPieceJointe(documentId: string, pieceId: string):
   const { error: stockageErreur } = await dorsale.supabase.storage
     .from(BUCKET_PIECES_JOINTES)
     .remove([chemin]);
-  verifier("suppression du PDF", stockageErreur);
+  verifier("suppression de la pèèce jointe", stockageErreur);
   const { error: suppressionErreur } = await dorsale.supabase
     .from(TABLE_PIECES_JOINTES)
     .delete()
@@ -218,5 +236,5 @@ export async function supprimerStockagePiecesJointes(
   const { error } = await dorsale.supabase.storage
     .from(BUCKET_PIECES_JOINTES)
     .remove(lignes.map((ligne) => ligne.storage_path));
-  verifier("suppression des PDF du document", error);
+  verifier("suppression des fichiers du document", error);
 }

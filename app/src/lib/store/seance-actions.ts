@@ -80,6 +80,13 @@ export interface EntreePlanification {
   activites: { type: string; ref: string; libelle: string }[];
   /** Date/heure prévue (ISO). Absente : la séance est composée pour maintenant. */
   planifieePour?: string;
+  /**
+   * Mode épreuve (22/08/2026) : conditions réelles — chrono affiché, aides
+   * masquées pendant le déroulé. Posé ICI et nulle part ailleurs : c'est le
+   * seul chemin d'écriture du champ, aucune mise à jour ultérieure ne peut
+   * l'activer ni le retirer (`motifRefusChangementModeEpreuve`).
+   */
+  modeEpreuve?: boolean;
 }
 
 /** La séance est-elle seulement planifiée ou directement lancée ? */
@@ -160,6 +167,10 @@ export async function creerSeance(
       : {}),
     besoinDeclare: entree.besoin,
     blueprint: entree.blueprint,
+    // Le mode épreuve s'écrit avec la séance, une seule fois, ou pas du tout :
+    // `undefined` est omis par `entiteVersLigne`, donc les séances ordinaires
+    // ne portent aucune trace du mode (même convention que `planifieePour`).
+    ...(entree.modeEpreuve ? { modeEpreuve: true } : {}),
   };
 
   await ajouter("sessions", seance, dorsale);

@@ -10,6 +10,7 @@ import { analyserDocumentMarkdown } from "@/lib/documents/markdown";
 import { documentEnLectureSeule, estDocumentPreuve } from "@/lib/documents/nature-document";
 import { regrouperTentativesParExercice } from "@/lib/documents/workspace";
 import { chargerContexte } from "@/lib/store/context";
+import { dorsaleCompte } from "@/lib/store/db";
 import { construireGraphe } from "@/lib/domain/graphe";
 import { construireGrapheDomaines } from "@/lib/domain/graphe-domaines";
 import { construireArbreSavoirs } from "@/lib/domain/arbre-savoirs";
@@ -43,6 +44,9 @@ export default async function PageAtelier(props: {
       estSupport ? lirePiecesJointes(fiche.id).catch(() => []) : Promise.resolve([]),
       estSeance ? chargerDonneesSeance() : Promise.resolve(undefined),
     ]);
+    // Les repères locaux et la clé du tuteur sont isolés par compte (garde-fou
+    // post-ADR-029) : l'espace de travail a besoin de savoir qui est connecté.
+    const { userId } = await dorsaleCompte();
 
     return (
       <WorkspaceDocument
@@ -52,6 +56,7 @@ export default async function PageAtelier(props: {
         piecesInitiales={pieces}
         donneesSeance={donneesSeance}
         retour={retour}
+        compteId={userId}
       />
     );
   }

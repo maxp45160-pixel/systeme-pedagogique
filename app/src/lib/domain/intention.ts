@@ -430,6 +430,52 @@ export function forcerTraductionIntention(
 }
 
 /* ------------------------------------------------------------------ */
+/* Amorçage — indice projet / référentiel                              */
+/* ------------------------------------------------------------------ */
+
+export type OrientationAmorcage = "projet" | "referentiel";
+
+/**
+ * Pré-sélection de la puce d'orientation à l'amorçage, lue dans la seule
+ * phrase déclarée.
+ *
+ * Ce n'est PAS une classification : la personne change de puce d'un clic, et
+ * le choix reste un indice que le tuteur est libre de contredire. La fonction
+ * ne fait que poser le curseur là où la formulation le suggère — « devenir »,
+ * « préparer » parlent d'un projet à mener ; sinon, organiser des compétences
+ * est le geste par défaut de l'amorçage.
+ */
+export function orientationAmorcage(intention: string): OrientationAmorcage {
+  return /\b(?:devenir|préparer|preparer)\b/iu.test(intention)
+    ? "projet"
+    : "referentiel";
+}
+
+/**
+ * Le domaine proposé comme rattachement d'une fiche, lu dans les codes cités.
+ *
+ * Un code porte le préfixe de son domaine (« PHI-03 » → PHI). Quand TOUS les
+ * codes d'une action partagent le même préfixe, ce domaine est une proposition
+ * de rattachement naturelle — proposée à l'écran, jamais dérivée en silence :
+ * sans confirmation explicite, la fiche reste transversale. Dès que les codes
+ * se dispersent sur plusieurs domaines, ou qu'aucun domaine du compte ne porte
+ * le préfixe, la fonction rend `null` et rien n'est proposé.
+ */
+export function domainePourCodes(
+  codes: readonly string[],
+  domaines: readonly { id: string; nom: string; prefixe: string }[],
+): { id: string; nom: string; prefixe: string } | null {
+  const prefixes = new Set(
+    codes
+      .map((code) => code.split("-")[0]?.trim().toUpperCase() ?? "")
+      .filter((prefixe) => prefixe !== ""),
+  );
+  if (prefixes.size !== 1) return null;
+  const [prefixe] = prefixes;
+  return domaines.find((d) => d.prefixe.toUpperCase() === prefixe) ?? null;
+}
+
+/* ------------------------------------------------------------------ */
 /* Destination                                                         */
 /* ------------------------------------------------------------------ */
 

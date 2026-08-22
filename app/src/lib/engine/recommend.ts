@@ -26,6 +26,14 @@ import {
 } from "@/lib/domain/types";
 import type { Calibration } from "./calibration";
 import type { ContexteDocumentaire, ResumeObservationsDocumentaires } from "./document-context";
+import {
+  estOuvert,
+  fenetreEcheance,
+  FENETRE_ECHEANCE_JOURS,
+  joursRestants,
+  libelleCompte,
+  type Engagement,
+} from "@/lib/domain/engagement";
 import { estDue, MODELE_ACTIF, prochaineRevision, type ModeleRevision } from "./spaced";
 
 export interface Facteur {
@@ -152,6 +160,29 @@ export const REVISION_MINIMUM = 12;
 export const REVISION_MAXIMUM = 32;
 
 /**
+ * Bonus de proximité d'échéance — chantier « fait daté / engagements »
+ * (22/08/2026).
+ *
+ * Une échéance déclarée par la personne (table `engagements`) est le seul fait
+ * du système qui dise QUAND la compétence servira : un examen dans dix jours
+ * donne à ses compétences une urgence qu'aucun niveau dérivé ne connaît. Le
+ * bonus croît linéairement de ~1 (J-21) au maximum (veille), et vaut ZÉRO hors
+ * fenêtre — jamais une pénalité, une échéance lointaine ou dépassée ne dit
+ * rien du travail utile aujourd'hui.
+ *
+ * Calibrage : 25 place ce facteur dans la bande « Due pour révision » (12–32),
+ * sous « Jamais évaluée » (60–70). Il peut départager un quasi-ex-aequo et
+ * faire monter une compétence ciblée, sans pouvoir renverser l'ordre des
+ * fondamentaux jamais évalués. Aucune autre constante n'a bougé.
+ *
+ * ⚠️ Test de réfutation à mener sur données réelles : le taux d'acceptation
+ * des recommandations doit être plus élevé PENDANT la fenêtre que HORS
+ * fenêtre pour les mêmes compétences. Un taux identique signifierait que le
+ * facteur ne décide rien — il serait alors à retirer plutôt qu'à gonfler.
+ */
+export const BONUS_ECHEANCE_MAX = 25;
+
+/**
  * Pondération provisoire de l'hypothèse documentaire (ADR-064).
  *
  * Elle ne s'active que si la dernière observation est elle-même documentaire,
@@ -179,6 +210,8 @@ function evaluer(
   actionnable: boolean,
   documentaire?: ResumeObservationsDocumentaires,
   reglages: ReglagesRecommandation = {},
+  /** Engagements du compte ciblant cette compétence (pré-filtrés par l'appelant). */
+  engagements?: Engagement[],
 ): { valeur: number; facteurs: Facteur[] } {
   const bonusActionnable = reglages.bonusActionnable ?? BONUS_ACTIONNABLE;
   const modeleRevision = reglages.modeleRevision ?? MODELE_ACTIF;
@@ -339,7 +372,46 @@ function evaluer(
     });
   }
 
-  // 9. Actionnable — voir `BONUS_ACTIONNABLE`. Calculé par l'appelant (il faut
+  /*
+   * 9. Proximité d'échéance — voir `BONUS_ECHEANCE_MAX`.
+   *
+   * Le facteur s'applique AUSSI aux compétences jamais évaluées : un examen
+   * dans dix jours sur une compétence sans observation est précisément le cas
+   * où la découverte presse. Plusieurs engagements peuvent cibler la même
+   * compétence — seul le plus proche compte, empiler les bonus reviendrait à
+   * compter plusieurs fois le même fait.
+   *
+   * La phrase porte SA SOURCE : quel engagement, quelle échéance, à quelle
+   * distance. Elle s'affiche telle quelle dans le dépliant « Pourquoi cette
+   * action plutôt qu'une autre ? » — jamais un score muet (P3).
+   */
+  if (engagements && engagements.length > 0) {
+    let meilleure: { libelle: string; echeanceLe: string; jours: number } | null = null;
+    for (const engagement of engagements) {
+      if (!estOuvert(engagement)) continue;
+      if (!engagement.codes.includes(etat.skill.code)) continue;
+      if (!fenetreEcheance(now, engagement.echeanceLe)) continue;
+      const jours = joursRestants(engagement.echeanceLe, now);
+      if (!Number.isFinite(jours) || jours < 0) continue;
+      if (!meilleure || jours < meilleure.jours) {
+        meilleure = { libelle: engagement.libelle, echeanceLe: engagement.echeanceLe, jours };
+      }
+    }
+    if (meilleure) {
+      facteurs.push({
+        libelle: "Proximité d'échéance",
+        contribution: Math.max(
+          1,
+          Math.round(
+            BONUS_ECHEANCE_MAX * (1 - (meilleure.jours - 1) / FENETRE_ECHEANCE_JOURS),
+          ),
+        ),
+        phrase: `engagement déclaré : « ${meilleure.libelle} » — ${libelleCompte(meilleure.jours)} (${meilleure.echeanceLe})`,
+      });
+    }
+  }
+
+  // 10. Actionnable — voir `BONUS_ACTIONNABLE`. Calculé par l'appelant (il faut
   // avoir choisi l'exercice pour le savoir) et simplement injecté ici : cette
   // fonction reste celle qui écrit tous les facteurs, `raison` incluse.
   if (actionnable) {
@@ -525,9 +597,33 @@ export function recommander(
   contexteDocumentaire?: ContexteDocumentaire,
   /** Réglages effectifs — ADR-085. Omis : les valeurs livrées. */
   reglages: ReglagesRecommandation = {},
+  /**
+   * Engagements déclarés du compte — chantier « fait daté » (22/08/2026).
+   *
+   * Le moteur ne les lit jamais lui-même (P1) : il reçoit les faits en
+   * paramètre, comme les compétences et les tentatives. Les clôturés sont
+   * ignorés ici même (`estOuvert`) ; hors fenêtre, ils ne pèsent rien.
+   */
+  engagements?: Engagement[],
 ): Recommandation[] {
   const parCode = new Map(etats.map((e) => [e.skill.code, e]));
   const termineesParExercice = indexerTerminees(tentatives);
+  /*
+   * Index des engagements par compétence ciblée, construit une fois par appel :
+   * filtrer les ouverts par code à l'intérieur d'`evaluer` referait le travail
+   * pour chaque compétence. Une compétence non ciblée reçoit une liste vide —
+   * et le facteur ne pèse rien, exactement comme avant ce paramètre.
+   */
+  const engagementsParCode = new Map<string, Engagement[]>();
+  for (const engagement of engagements ?? []) {
+    if (!estOuvert(engagement)) continue;
+    for (const code of engagement.codes) {
+      if (!parCode.has(code)) continue;
+      const liste = engagementsParCode.get(code);
+      if (liste) liste.push(engagement);
+      else engagementsParCode.set(code, [engagement]);
+    }
+  }
 
   return etats
     .filter((e) => !refus.codes.has(e.skill.code))
@@ -559,6 +655,7 @@ export function recommander(
         exercice !== null,
         contexteDocumentaire?.get(etat.skill.code),
         reglages,
+        engagementsParCode.get(etat.skill.code),
       );
 
       const recommandation: Recommandation = {

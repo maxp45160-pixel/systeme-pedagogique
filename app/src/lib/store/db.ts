@@ -33,6 +33,7 @@ import {
   type ResultatRPC,
 } from "./supabase-backend";
 import { validerEntiteSupabase, validerLignesSupabase } from "./validation-supabase";
+import type { Engagement } from "@/lib/domain/engagement";
 import type {
   Exercise,
   ExerciseAttempt,
@@ -49,6 +50,7 @@ export interface Collections {
   attempts: ExerciseAttempt[];
   sessions: LearningSession[];
   refusRecommandations: RefusRecommandation[];
+  engagements: Engagement[];
 }
 
 /**
@@ -108,10 +110,11 @@ export const dorsaleCompte = cache(async (): Promise<DorsaleCompte> => {
  * l'ordre déterministe à la source, au lieu de le laisser dépendre de la
  * couche UI.
  */
-const ORDRE_PAR_DEFAUT: Partial<Record<CleListe, { colonne: "debut" | "date"; asc: boolean }>> = {
+const ORDRE_PAR_DEFAUT: Partial<Record<CleListe, { colonne: "debut" | "date" | "echeance_le"; asc: boolean }>> = {
   attempts: { colonne: "debut", asc: true },
   sessions: { colonne: "date", asc: true },
   observations: { colonne: "date", asc: true },
+  engagements: { colonne: "echeance_le", asc: true },
 };
 
 export async function lire<K extends keyof Collections>(
@@ -207,7 +210,7 @@ export async function modifier<K extends CleListe>(
 
 export async function lireTout(): Promise<Collections> {
   const dorsale = await dorsaleCompte();
-  const [user, observations, exercises, attempts, sessions, refusRecommandations] =
+  const [user, observations, exercises, attempts, sessions, refusRecommandations, engagements] =
     await Promise.all([
       lire("user", dorsale),
       lire("observations", dorsale),
@@ -215,8 +218,9 @@ export async function lireTout(): Promise<Collections> {
       lire("attempts", dorsale),
       lire("sessions", dorsale),
       lire("refusRecommandations", dorsale),
+      lire("engagements", dorsale),
     ]);
-  return { user, observations, exercises, attempts, sessions, refusRecommandations };
+  return { user, observations, exercises, attempts, sessions, refusRecommandations, engagements };
 }
 
 /* ------------------------------------------------------------------ */

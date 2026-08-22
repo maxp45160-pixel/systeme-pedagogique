@@ -450,6 +450,11 @@ CREATE TABLE IF NOT EXISTS public.sessions (
   -- daté, jamais dérivé : il sort la séance de la file « en suspens »
   -- (`peutReprendreSeance`) sans rien effacer de ce qu'elle porte déjà.
   renoncee_le              TEXT,
+  -- Mode épreuve (22/08/2026) : conditions réelles déclarées AU DÉPART
+  -- (chrono, aides masquées, correction à la fin). NULL = non posé = séance
+  -- ordinaire ; posable uniquement à la création, jamais dérivé, jamais
+  -- modifié — et absent de tout calcul du moteur.
+  mode_epreuve             BOOLEAN,
   besoin_declare           JSONB,
   blueprint                JSONB,
 
@@ -605,8 +610,11 @@ CREATE TABLE IF NOT EXISTS public.document_snapshots (
     REFERENCES public.documents(user_id, id) ON DELETE RESTRICT
 );
 
--- PDF de support : les octets vivent dans Storage, cette table ne conserve
--- que la metadonnee et le chemin prive rattaches a une fiche.
+-- Pièces jointes de support : les octets vivent dans Storage, cette table ne
+-- conserve que la metadonnee et le chemin prive rattaches a une fiche.
+-- Depuis le 22/08/2026 (chantier P2, acceptation passive) : les images
+-- (jpeg/png/webp) sont admises comme pièces documentaires, sans analyse —
+-- l'application n'affirme rien sur leur contenu.
 CREATE TABLE IF NOT EXISTS public.document_attachments (
   user_id      UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   id           UUID NOT NULL DEFAULT gen_random_uuid(),
@@ -614,7 +622,7 @@ CREATE TABLE IF NOT EXISTS public.document_attachments (
   storage_path TEXT NOT NULL,
   file_name    TEXT NOT NULL,
   mime_type    TEXT NOT NULL DEFAULT 'application/pdf'
-    CHECK (mime_type = 'application/pdf'),
+    CHECK (mime_type IN ('application/pdf', 'image/jpeg', 'image/png', 'image/webp')),
   size_bytes   BIGINT NOT NULL CHECK (size_bytes > 0 AND size_bytes <= 10485760),
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (user_id, id),
@@ -666,9 +674,11 @@ CREATE POLICY "pieces_jointes_suppression_compte"
   TO authenticated
   USING ((select auth.uid()) = user_id);
 
--- Bucket prive : aucun PDF ne doit etre accessible par une URL publique.
+-- Bucket prive : aucune piece jointe ne doit etre accessible par une URL
+-- publique. Depuis le 22/08/2026 : PDF et images (acceptation passive P2).
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-VALUES ('document-support', 'document-support', false, 10485760, ARRAY['application/pdf']::text[])
+VALUES ('document-support', 'document-support', false, 10485760,
+        ARRAY['application/pdf', 'image/jpeg', 'image/png', 'image/webp']::text[])
 ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name,
   public = false,
@@ -676,7 +686,7 @@ ON CONFLICT (id) DO UPDATE SET
   allowed_mime_types = EXCLUDED.allowed_mime_types;
 
 DROP POLICY IF EXISTS "document_support_pdfs_insert" ON storage.objects;
-CREATE POLICY "document_support_pdfs_insert"
+CREATE POLICY "document_support_fichiers_insert"
   ON storage.objects FOR INSERT
   TO authenticated
   WITH CHECK (
@@ -691,7 +701,7 @@ CREATE POLICY "document_support_pdfs_insert"
     )
   );
 DROP POLICY IF EXISTS "document_support_pdfs_select" ON storage.objects;
-CREATE POLICY "document_support_pdfs_select"
+CREATE POLICY "document_support_fichiers_select"
   ON storage.objects FOR SELECT
   TO authenticated
   USING (
@@ -699,7 +709,7 @@ CREATE POLICY "document_support_pdfs_select"
     AND (storage.foldername(name))[1] = (select auth.uid()::text)
   );
 DROP POLICY IF EXISTS "document_support_pdfs_delete" ON storage.objects;
-CREATE POLICY "document_support_pdfs_delete"
+CREATE POLICY "document_support_fichiers_delete"
   ON storage.objects FOR DELETE
   TO authenticated
   USING (
@@ -1924,7 +1934,9 @@ BEGIN
     'competence_domaines',
                    COALESCE((SELECT json_agg(row_to_json(cd)) FROM competence_domaines cd WHERE cd.user_id = uid), '[]'::json),
     'moteur_reglages',
-                   COALESCE((SELECT json_agg(row_to_json(m)) FROM (SELECT * FROM public.moteur_reglages WHERE user_id = uid ORDER BY applique_le ASC) m), '[]'::json)
+                   COALESCE((SELECT json_agg(row_to_json(m)) FROM (SELECT * FROM public.moteur_reglages WHERE user_id = uid ORDER BY applique_le ASC) m), '[]'::json),
+    'engagements',
+                   COALESCE((SELECT json_agg(row_to_json(g)) FROM (SELECT * FROM public.engagements WHERE user_id = uid ORDER BY echeance_le ASC, created_at ASC) g), '[]'::json)
   ) INTO resultat;
 
   RETURN resultat;
@@ -1933,6 +1945,39 @@ $$;
 
 REVOKE EXECUTE ON FUNCTION public.charger_tout() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.charger_tout() TO authenticated;
+
+-- Le fait daté (22/08/2026, arbitrage rendu — chantier A du persona
+-- académique). Un engagement est un fait DÉCLARÉ : un événement extérieur
+-- daté (« examen le… », « rendu le… »), jamais une mesure ni un objectif
+-- structuré (ADR-096 reste debout). Tout le reste — J-x, urgence,
+-- couverture — est dérivé à la lecture et ne se stocke pas.
+-- Append-only en pratique : archivage par `cloture_le`, jamais suppression.
+-- Les `codes` ciblés sont validés applicativement contre le référentiel du
+-- compte avant l'écriture.
+CREATE TABLE IF NOT EXISTS public.engagements (
+  id            TEXT NOT NULL,
+  user_id       UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  type          TEXT NOT NULL CHECK (type IN ('examen', 'rendu')),
+  libelle       TEXT NOT NULL CHECK (btrim(libelle) <> ''),
+  echeance_le   TEXT NOT NULL CHECK (echeance_le ~ '^\d{4}-\d{2}-\d{2}$'),
+  codes         TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+  cloture_le    TIMESTAMPTZ,
+  cloture_type  TEXT CHECK (cloture_type IS NULL OR cloture_type IN ('passe', 'reporte')),
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, id),
+  CONSTRAINT engagements_cloture_coherente
+    CHECK ((cloture_le IS NULL) = (cloture_type IS NULL))
+);
+
+DROP POLICY IF EXISTS "isolation_par_compte" ON public.engagements;
+CREATE POLICY "isolation_par_compte" ON public.engagements
+  FOR ALL TO authenticated
+  USING ((select auth.uid()) = user_id AND (select public.compte_actif()))
+  WITH CHECK ((select auth.uid()) = user_id AND (select public.compte_actif()));
+CREATE INDEX IF NOT EXISTS engagements_user_echeance_idx
+  ON public.engagements (user_id, echeance_le);
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.engagements TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.engagements TO service_role;
 
 -- --------------------------------------------------------------------
 -- 9. Rôle applicatif et accès (ADR-074)

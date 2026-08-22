@@ -214,6 +214,62 @@ describe("construireVuesAtelier", () => {
     expect(vues.domaines[0].nombreEvaluees).toBe(0);
   });
 
+  it("expose le fil des ressources du domaine, ordonné par dernière activité dérivée du journal", () => {
+    const ressource = (id: string, titre: string, cible: string) => ({
+      id,
+      contenuMd: "",
+      frontMatter: {},
+      corps: "",
+      titre,
+      type: "cours",
+      typeConnu: null,
+      schema: null,
+      schemaCompatible: true,
+      liens: [{ cible }],
+    });
+    const observationDocumentee: SkillObservation = {
+      ...observation,
+      id: "observation-documentee",
+      date: "2026-08-14T10:00:00.000Z",
+      source: {
+        kind: "exercice",
+        ref: "tentative-2",
+        document: { documentId: "doc-recent", snapshotId: "snap-1" },
+      },
+    };
+    const indexAvecRessources: IndexDocumentaire = {
+      documents: [
+        ressource("doc-vieux", "Cours ancien", suivante.code),
+        ressource("doc-recent", "Cours récent", competence.code),
+      ],
+      parId: new Map(),
+      liens: [],
+      sortants: new Map([
+        ["doc-vieux", [suivante.code]],
+        ["doc-recent", [competence.code]],
+      ]),
+      entrants: new Map(),
+    };
+
+    const vues = construireVuesAtelier(
+      referentiel,
+      [etat(competence, [observation]), etat(suivante)],
+      [],
+      [],
+      indexAvecRessources,
+      [observationDocumentee],
+      [],
+      new Set(),
+      etatsLot5(etat(competence, [observation]), etat(suivante)),
+    );
+
+    const fil = vues.domaines[0].ressources;
+    expect(fil.map((r) => r.documentId)).toEqual(["doc-recent", "doc-vieux"]);
+    expect(fil[0].derniereActivite).toBe("2026-08-14T10:00:00.000Z");
+    // Jamais mobilisée : listée, sans date fabriquée.
+    expect(fil[1].derniereActivite).toBeNull();
+  });
+
   it("compte une compétence rattachée dans la couverture de chaque domaine sans la dupliquer", () => {
     const domaineSecondaire = {
       ...referentiel.domaines[0],

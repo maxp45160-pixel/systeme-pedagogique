@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { Bouton, Carte, CodeCompetence, EnTeteCarte, EtatVide, Etiquette, classesLienBouton } from "@/components/ui/primitives";
 import { RappelNouveauBesoin } from "@/components/intention/bouton-intention";
+import { IconeMinuteur } from "@/components/ui/icones";
 import { formatDateCourte, formatDuree, cleJour } from "@/lib/engine/dates";
 import {
   avancementSeance,
+  estModeEpreuve,
   peutReprendreSeance,
   statutSeance,
   tentativeDeSeance,
@@ -213,11 +215,21 @@ export function LigneCahier({ seance, donnees }: { seance: LearningSession; donn
         titre={titre}
         legende={metaLigne}
         action={
-          abandonnee ? (
-            <Etiquette ton="danger">Abandonnée</Etiquette>
-          ) : (
-            <Etiquette ton="succes">Terminée</Etiquette>
-          )
+          <div className="flex items-center gap-2">
+            {estModeEpreuve(seance) && (
+              <span
+                title="Séance menée en mode épreuve"
+                className="flex size-5 items-center justify-center rounded-full border border-primaire/30 bg-primaire-faible text-primaire"
+              >
+                <IconeMinuteur className="size-3" />
+              </span>
+            )}
+            {abandonnee ? (
+              <Etiquette ton="danger">Abandonnée</Etiquette>
+            ) : (
+              <Etiquette ton="succes">Terminée</Etiquette>
+            )}
+          </div>
         }
       />
       <div className="space-y-4 px-5 py-4">

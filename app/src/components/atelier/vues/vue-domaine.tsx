@@ -231,6 +231,48 @@ export function VueDomaine({
                 </p>
               </section>
             )}
+            {vue.ressources.length > 0 && (
+              /*
+               * Le fil des ressources (R3) : ce qu'on lit pour travailler ce
+               * domaine, du plus récemment mobilisé au plus ancien. L'ordre
+               * vient du journal — rien n'est stocké, aucune date n'est
+               * fabriquée pour une ressource jamais mobilisée.
+               */
+              <section className="rounded-xl border border-bordure bg-surface px-4 py-4">
+                <div className="flex items-baseline justify-between gap-3">
+                  <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-texte-discret">
+                    Ressources
+                  </h3>
+                  <span className="chiffres text-[0.6875rem] text-texte-discret">
+                    {vue.ressources.length}
+                  </span>
+                </div>
+                <p className="mt-1 text-[0.6875rem] leading-relaxed text-texte-attenue">
+                  Ce qu’on lit pour travailler ce domaine, du plus récemment
+                  mobilisé au plus ancien.
+                </p>
+                <ul className="mt-2 divide-y divide-bordure/60">
+                  {vue.ressources.map((ressource) => (
+                    <li key={ressource.documentId}>
+                      <button
+                        type="button"
+                        onClick={() => ouvrirElement(ressource.documentId)}
+                        className="group flex w-full cursor-pointer items-center justify-between gap-3 py-2 text-left"
+                      >
+                        <span className="min-w-0 truncate text-sm font-medium text-texte transition-colors group-hover:text-primaire">
+                          {ressource.titre}
+                        </span>
+                        <span className="shrink-0 text-[0.6875rem] text-texte-discret">
+                          {ressource.derniereActivite
+                            ? `Dernière activité : ${dateCourte(ressource.derniereActivite)}`
+                            : "Jamais mobilisée"}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-bordure bg-surface px-3.5 py-3">
               <div className="inline-flex rounded-lg border border-bordure bg-surface-2 p-0.5">
                 {([

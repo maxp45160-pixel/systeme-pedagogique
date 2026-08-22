@@ -18,7 +18,9 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { cx } from "@/components/ui/primitives";
+import { IconeChevronDroit } from "@/components/ui/icones";
 import type { VueDomaineAtelier } from "@/lib/documents/vue-atelier";
 import {
   FENETRE_ACTIVITE_JOURS,
@@ -66,12 +68,12 @@ function CarteDomaine({
   const ratio = total > 0 ? Math.round((evaluees / total) * 100) : 0;
 
   return (
-    <div className="group relative">
+    <div className="group relative flex h-full flex-col">
       <button
         type="button"
         onClick={() => ouvrirElement(`domaine:${domaine.id}`)}
         className={cx(
-          "flex h-full w-full flex-col justify-between rounded-xl border bg-surface p-5 text-left shadow-[var(--ombre-posee)] transition-all duration-200 hover:-translate-y-1 hover:border-primaire/40 hover:shadow-[var(--ombre-levee)] cursor-pointer",
+          "flex w-full flex-1 flex-col justify-between rounded-xl border bg-surface p-5 text-left shadow-[var(--ombre-posee)] transition-all duration-200 hover:-translate-y-1 hover:border-primaire/40 hover:shadow-[var(--ombre-levee)] cursor-pointer",
           actif && !estArchives ? "border-primaire/40" : "border-bordure",
           estArchives && "opacity-90 hover:opacity-100",
         )}
@@ -140,6 +142,20 @@ function CarteDomaine({
           )}
         </div>
       </button>
+
+      {/*
+        La sortie longitudinale : la même lecture, restreinte à ce domaine,
+        sur la page qui relit au lieu de travailler. Hors du bouton — un lien
+        ne s'imbrique pas dans un bouton — et sous la carte, où il gêne ni le
+        clic de fiche ni les gestes d'archivage.
+      */}
+      <Link
+        href={`/progression?domaine=${encodeURIComponent(domaine.id)}`}
+        className="mt-2 inline-flex items-center gap-1 text-[0.6875rem] font-medium text-texte-discret transition-colors hover:text-primaire"
+      >
+        Voir la progression
+        <IconeChevronDroit className="size-3" />
+      </Link>
 
       {estArchives ? (
         <div className="absolute right-3 top-3 z-10 flex items-center gap-1">

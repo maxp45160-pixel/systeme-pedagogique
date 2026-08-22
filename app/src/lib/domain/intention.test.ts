@@ -3,6 +3,8 @@ import {
   analyserDemandeReferentiel,
   besoinValide,
   demandeSeanceSansSujet,
+  domainePourCodes,
+  orientationAmorcage,
   urlComposition,
   validerActionIntention,
   validerTraductionIntention,
@@ -288,5 +290,42 @@ describe("demandeSeanceSansSujet", () => {
 
   it("conserve le sujet quand la séance est ciblée", () => {
     expect(demandeSeanceSansSujet("Créer une séance sur les stocks")).toBe(false);
+  });
+});
+
+describe("orientationAmorcage", () => {
+  it("présélectionne projet sur une formulation de devenir ou préparation", () => {
+    expect(orientationAmorcage("Devenir développeuse web")).toBe("projet");
+    expect(orientationAmorcage("je veux préparer un concours")).toBe("projet");
+    expect(orientationAmorcage("PREPARER l'agrégation")).toBe("projet");
+  });
+
+  it("reste sur référentiel sinon — l'indice ne force jamais la main", () => {
+    expect(orientationAmorcage("apprendre la physique quantique")).toBe("referentiel");
+    expect(orientationAmorcage("")).toBe("referentiel");
+  });
+
+  it("ne voit pas « devenir » caché dans un autre mot", () => {
+    expect(orientationAmorcage("comprendre le développement durable")).toBe("referentiel");
+  });
+});
+
+describe("domainePourCodes", () => {
+  const DOMAINES = [{ id: "phi", nom: "Philosophie", prefixe: "PHI" }];
+
+  it("propose un domaine pour des codes qui partagent un préfixe", () => {
+    expect(domainePourCodes(["PHI-01", "PHI-02"], DOMAINES)).toEqual(DOMAINES[0]);
+  });
+
+  it("ne propose rien quand les codes se dispersent sur plusieurs domaines", () => {
+    expect(domainePourCodes(["PHI-01", "LOG-02"], DOMAINES)).toBeNull();
+  });
+
+  it("ne propose rien quand aucun domaine du compte ne porte le préfixe", () => {
+    expect(domainePourCodes(["XYZ-01"], DOMAINES)).toBeNull();
+  });
+
+  it("ne propose rien sans code", () => {
+    expect(domainePourCodes([], DOMAINES)).toBeNull();
   });
 });

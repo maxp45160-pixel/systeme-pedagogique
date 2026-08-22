@@ -309,6 +309,8 @@ export function ConcepteurSeance({
   const [nombreTouche, setNombreTouche] = useState(Boolean(preset));
 
   const [planifieePour, setPlanifieePour] = useState("");
+  // Mode épreuve : décision de composition, posée une fois à l'écriture.
+  const [modeEpreuve, setModeEpreuve] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enregistrement, setEnregistrement] = useState(false);
 
@@ -409,6 +411,7 @@ export function ConcepteurSeance({
         ...(planifieePour && !demarrer
           ? { planifieePour: new Date(planifieePour).toISOString() }
           : {}),
+        ...(modeEpreuve ? { modeEpreuve: true } : {}),
       };
       const id = await creerSeance(entree, demarrer ? "en-cours" : "planifiee");
       await surSeanceCreee?.({ id, activites: entree.activites, codesVises: besoin.codesVises });
@@ -619,6 +622,8 @@ export function ConcepteurSeance({
                 setNombreTouche(true);
                 setNombreExercices(v);
               }}
+              modeEpreuve={modeEpreuve}
+              setModeEpreuve={setModeEpreuve}
               planifieePour={planifieePour}
               setPlanifieePour={setPlanifieePour}
               enregistrement={enregistrement}

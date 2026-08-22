@@ -10,8 +10,9 @@ import {
   Etiquette,
 } from "@/components/ui/primitives";
 import { ActionSeance } from "@/components/seances/action-seance";
+import { IconeMinuteur } from "@/components/ui/icones";
 import { formatDateCourte } from "@/lib/engine/dates";
-import { avancementSeance, peutReprendreSeance, statutSeance } from "@/lib/domain/seance";
+import { avancementSeance, estModeEpreuve, peutReprendreSeance, statutSeance } from "@/lib/domain/seance";
 import {
   jourDeLaSeance,
   jourDuDocument,
@@ -144,6 +145,11 @@ function OngletSeance({
           className="flex items-center gap-2 py-1 pl-3 pr-2 text-left cursor-pointer"
         >
           <span className={`size-1.5 rounded-full ${point}`} aria-hidden />
+          {estModeEpreuve(s) && (
+            <span title="Mode épreuve" className="text-primaire" aria-hidden>
+              <IconeMinuteur className="size-3.5" />
+            </span>
+          )}
           <Etiquette ton={statut === "en-cours" ? "primaire" : statut === "planifiee" ? "info" : "danger"}>
             {libelle}
           </Etiquette>
@@ -228,6 +234,14 @@ export function CarteSeance({
         }
         action={
           <div className="flex items-center gap-2">
+            {estModeEpreuve(s) && (
+              <span
+                title="Mode épreuve"
+                className="flex size-5 items-center justify-center rounded-full border border-primaire/30 bg-primaire-faible text-primaire"
+              >
+                <IconeMinuteur className="size-3" />
+              </span>
+            )}
             <Etiquette ton={enCours ? "primaire" : planifiee ? "info" : "danger"}>
               {enCours ? "En cours" : planifiee ? "Planifiée" : "En suspens"}
             </Etiquette>

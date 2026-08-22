@@ -10,6 +10,7 @@ import {
 } from "@/lib/store/document-actions";
 import { IconeDocuments, IconeFleche } from "@/components/ui/icones";
 import { estATrier } from "@/lib/documents/rangement-atelier";
+import { regrouperFichesParDomaine } from "@/lib/documents/corpus-groupe";
 import {
   BoutonRestaurationCarte,
   BoutonSuppressionCarte,
@@ -28,6 +29,8 @@ export function VueRessources({
   elements,
   ouvrirElement,
   competencesParCode,
+  nomsDomaines,
+  domaineDeCompetence,
   statut = "actifs",
   onArchiver,
   onRestaurer,
@@ -37,6 +40,10 @@ export function VueRessources({
   ouvrirElement: (id: string) => void;
   changerVue: (vue: VueAtelier) => void;
   competencesParCode: Map<string, { intitule: string; domaine: string }>;
+  /** Noms des domaines du compte — pour nommer les groupes, jamais un code. */
+  nomsDomaines: Record<string, string>;
+  /** Code de compétence → domaine porteur, pour résoudre le groupe d'une fiche rattachée. */
+  domaineDeCompetence: Record<string, string>;
   statut?: "actifs" | "archives";
   onArchiver?: (docId: string) => void;
   onRestaurer?: (docId: string) => void;
@@ -69,6 +76,26 @@ export function VueRessources({
       archivees: [],
     };
   }, [elements, estArchives]);
+
+  /*
+   * Le regroupement par domaine (B.2) est une LECTURE du corpus : rien n'est
+   * rangé ni déplacé. Une fiche dont le domaine ne se résout pas reste affichée,
+   * hors groupe — jamais rangée de force somewhere.
+   */
+  const groupesRattachees = useMemo(() => {
+    if (estArchives || rattachees.length === 0) return [];
+    return regrouperFichesParDomaine(rattachees, {
+      estFicheCorpus: () => true,
+      domaineDe: (element) => {
+        const codeRattache = element.rangement.rattachements[0];
+        if (codeRattache && domaineDeCompetence[codeRattache]) return domaineDeCompetence[codeRattache];
+        return element.domaineId ?? null;
+      },
+      nomDuDomaine: (domaineId) => nomsDomaines[domaineId] ?? null,
+    });
+  }, [estArchives, rattachees, domaineDeCompetence, nomsDomaines]);
+  const groupesNommes = groupesRattachees.filter((groupe) => groupe.nom !== null);
+  const horsGroupe = groupesRattachees.find((groupe) => groupe.nom === null)?.elements ?? [];
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-surface-2/30">
@@ -152,6 +179,49 @@ export function VueRessources({
                     ? "Aucune ressource rattachée pour l’instant."
                     : "Aucune ressource pour l’instant."}
                 </p>
+              ) : groupesNommes.length > 0 ? (
+                <>
+                  {groupesNommes.map((groupe) => (
+                    <div key={groupe.cle} className={cx(aTrier.length > 0 ? "mt-6" : "mt-4")}>
+                      <div className="flex items-baseline justify-between gap-3">
+                        <h4 className="font-serif text-base font-medium text-texte">{groupe.nom}</h4>
+                        <span className="chiffres text-xs text-texte-discret">{groupe.elements.length}</span>
+                      </div>
+                      <div className="mt-3 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                        {groupe.elements.map((element) => (
+                          <CarteRessource
+                            key={element.id}
+                            element={element}
+                            competencesParCode={competencesParCode}
+                            ouvrirElement={ouvrirElement}
+                            onArchiver={() => setRessourceAArchiver(element)}
+                            libelleAction="Ouvrir"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  {horsGroupe.length > 0 && (
+                    <div className={cx("mt-6", groupesNommes.length > 0 && "border-t border-bordure pt-5")}>
+                      <div className="flex items-baseline justify-between gap-3">
+                        <h4 className="font-serif text-base font-medium text-texte">Autres ressources</h4>
+                        <span className="chiffres text-xs text-texte-discret">{horsGroupe.length}</span>
+                      </div>
+                      <div className="mt-3 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                        {horsGroupe.map((element) => (
+                          <CarteRessource
+                            key={element.id}
+                            element={element}
+                            competencesParCode={competencesParCode}
+                            ouvrirElement={ouvrirElement}
+                            onArchiver={() => setRessourceAArchiver(element)}
+                            libelleAction="Ouvrir"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
               ) : (
                 <div
                   className={cx(
