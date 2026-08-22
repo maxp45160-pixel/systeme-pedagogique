@@ -1,6 +1,7 @@
 import { Fragment } from "react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import type { Confiance, NiveauCompetence } from "@/lib/domain/types";
+import { IconeFeuille } from "./icones";
 
 export function cx(...parts: (string | false | null | undefined)[]): string {
   return parts.filter(Boolean).join(" ");
@@ -43,6 +44,28 @@ export function Carte({
     >
       {children}
     </section>
+  );
+}
+
+/**
+ * Filigrane botanique — le rappel décoratif des grandes surfaces.
+ *
+ * Une feuille en très faible opacité, ancrée en bas à droite d'un conteneur
+ * `relative overflow-hidden`. Purement ornementale : jamais interactive,
+ * jamais porteuse d'information. Le conteneur doit être `isolate` (ou porter
+ * un empilement maîtrisé) si l'appelant veut la feuille derrière son contenu
+ * (`-z-10`) ; dans une carte au contenu enveloppé dans un `relative`, la
+ * position par défaut suffit.
+ */
+export function Filigrane({ className }: { className?: string }) {
+  return (
+    <IconeFeuille
+      aria-hidden
+      className={cx(
+        "pointer-events-none absolute -bottom-8 -right-6 size-36 text-primaire opacity-[0.05]",
+        className,
+      )}
+    />
   );
 }
 

@@ -16,9 +16,10 @@ import {
   CodeCompetence,
   Etiquette,
   EtatVide,
+  Filigrane,
 } from "@/components/ui/primitives";
 import { Depliant } from "@/components/ui/explication";
-import { IconeFeuille, IconeFleche } from "@/components/ui/icones";
+import { IconeFleche } from "@/components/ui/icones";
 import { formatDuree } from "@/lib/engine/dates";
 import { BoutonRefusRecommandation } from "@/components/dashboard/refus-recommandation";
 import { FeedbackRecommandation } from "@/components/dashboard/feedback-recommandation";
@@ -174,10 +175,7 @@ export function CarteProchaineAction({
     <Carte accent className="relative overflow-hidden">
       {/* Épine en haut : signale la carte prioritaire de l'écran. */}
       <div className="absolute inset-x-0 top-0 h-1 bg-primaire" aria-hidden />
-      {/* Filigrane botanique : discret, purement décoratif. */}
-      <IconeFeuille
-        className="pointer-events-none absolute -bottom-8 -right-6 size-36 text-primaire opacity-[0.05]"
-      />
+      <Filigrane />
 
       <div
         className="relative p-4 sm:p-5"
@@ -340,9 +338,7 @@ function CarteActionActivite({
   return (
     <Carte accent className="relative overflow-hidden">
       <div className="absolute inset-x-0 top-0 h-1 bg-primaire" aria-hidden />
-      <IconeFeuille
-        className="pointer-events-none absolute -bottom-8 -right-6 size-36 text-primaire opacity-[0.05]"
-      />
+      <Filigrane />
 
       <div
         className="relative p-4 sm:p-5"

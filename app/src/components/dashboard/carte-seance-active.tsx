@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { IconeFeuille, IconeFleche } from "@/components/ui/icones";
-import { Carte, classesLienBouton } from "@/components/ui/primitives";
+import { IconeFleche } from "@/components/ui/icones";
+import { Carte, classesLienBouton, Filigrane } from "@/components/ui/primitives";
 import { PasserSeance } from "@/components/dashboard/passer-seance";
 import { formatDuree } from "@/lib/engine/dates";
 import type { LearningSession, Referentiel } from "@/lib/domain/types";
@@ -38,9 +38,7 @@ export function CarteSeanceActive({
   return (
     <Carte accent className="relative overflow-hidden">
       <div className="absolute inset-x-0 top-0 h-1 bg-primaire" aria-hidden />
-      <IconeFeuille
-        className="pointer-events-none absolute -bottom-8 -right-6 size-40 text-primaire opacity-[0.05]"
-      />
+      <Filigrane className="size-40" />
 
       <div className="relative p-4 sm:p-5 space-y-3" data-tour="action-prioritaire">
         {/* En-tête épuré */}
