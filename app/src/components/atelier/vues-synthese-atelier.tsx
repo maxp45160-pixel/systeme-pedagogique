@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { cx } from "@/components/ui/primitives";
 import type { VueDomaineAtelier } from "@/lib/documents/vue-atelier";
 import { useIntention } from "@/components/intention/contexte-intention";
+import { RappelNouveauBesoin } from "@/components/intention/bouton-intention";
 import {
   BoutonSuppressionCarte,
   ModaleConfirmationSuppression,
@@ -148,6 +149,16 @@ export function VueTousLesDomaines({
         )}
 
         {/* Grille des domaines */}
+        {/*
+          État vide actif : la ligne nomme le geste d'entrée du funnel et le
+          porte (RappelNouveauBesoin ouvre la capture d'intention unique) —
+          la carte de création reste disponible dessous.
+        */}
+        {!estArchives && domainesAffiches.length === 0 && (
+          <div className="mb-6 rounded-xl border border-dashed border-bordure bg-surface/40 px-6 py-5 text-center">
+            <RappelNouveauBesoin />
+          </div>
+        )}
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {domainesAffiches.map((domaine) => {
             const total = domaine.competences.length;

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Bouton, Carte, CodeCompetence, EnTeteCarte, EtatVide, Etiquette, classesLienBouton } from "@/components/ui/primitives";
+import { RappelNouveauBesoin } from "@/components/intention/bouton-intention";
 import { formatDateCourte, formatDuree, cleJour } from "@/lib/engine/dates";
 import {
   avancementSeance,
@@ -96,6 +97,15 @@ export function CahierSeances({
               ? `Aucun élément ne correspond à « ${recherche?.trim()} ».`
               : "Compose ta première séance : une fois terminée, elle rejoint ce cahier."}
           />
+          {!terme && (
+            /*
+              État vide actif (chantier audit UX) : le geste d'entrée du funnel
+              est nommé ET déclenchable sur place — pas seulement décrit.
+            */
+            <div className="pb-2">
+              <RappelNouveauBesoin />
+            </div>
+          )}
         </Carte>
       )}
 

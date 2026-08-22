@@ -354,6 +354,14 @@ primitives fautives (jamais les composants). Vérifier les contours interactifs 
 
 ### 9. CTA contextuels dans les vides
 
+> **Fait le 22/08/2026.** `RappelNouveauBesoin` (exporté de
+> `components/intention/bouton-intention.tsx`) : une ligne sobre — icône SVG
+> du jeu existant + « Appuyez sur **Nouveau besoin** pour démarrer » — où le
+> mot « Nouveau besoin » est lui-même le déclencheur (`useIntention().ouvrir()`,
+> instance unique, aucune duplication du mécanisme). Posé dans les deux vides :
+> Atelier sans domaine actif (au-dessus de la carte de création, conservée) et
+> Cahier sans séance (sous l'état vide, hors cas recherche). Pas d'emoji.
+
 **Constat.** Atelier et Cahier vides proposent une carte unique mais ne rappellent
 pas le geste primaire du funnel (`+` → intention).
 
