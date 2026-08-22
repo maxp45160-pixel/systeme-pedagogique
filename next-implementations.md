@@ -375,6 +375,13 @@ geste d'entrée du funnel et peut le déclencher localement.
 
 ### 10. Badge dev hors développement
 
+> **Fait le 22/08/2026.** Convention vérifiée dans la doc embarquée
+> (`node_modules/next/dist/docs/.../devIndicators.md`) : l'indicateur n'est
+> rendu qu'en `next dev` — `npm run build && npm start` n'en affiche déjà
+> aucun. `devIndicators: false` posé en plus pour le retirer aussi des
+> captures/démos sur serveur de développement (il chevauchait « Bord » sur
+> mobile) ; les overlays d'erreur restent actifs.
+
 **Constat.** Le badge Next.js DevTools (« N » noir) apparaît dans toutes les
 captures et démos ; il chevauche « Bord » sur mobile.
 

@@ -2,6 +2,16 @@ import type { NextConfig } from "next";
 import path from "path";
 
 const nextConfig: NextConfig = {
+  /*
+    L'indicateur Next.js DevTools (« N ») n'est rendu qu'en `next dev`, jamais
+    en production (`next start`) — doc embarquée
+    `node_modules/next/dist/docs/01-app/03-api-reference/05-config/
+    01-next-config-js/devIndicators.md`. Il chevauchait « Bord » sur mobile
+    dans les captures ; `false` le retire aussi du développement, où il
+    n'apportait rien à ce projet. Les erreurs de compilation et d'exécution
+    restent surfaceées par l'overlay.
+  */
+  devIndicators: false,
   turbopack: {
     root: path.resolve(__dirname, ".."),
   },
