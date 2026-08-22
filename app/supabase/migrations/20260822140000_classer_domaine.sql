@@ -91,3 +91,8 @@ GRANT EXECUTE ON FUNCTION public.classer_domaine(TEXT, TEXT, TEXT, TEXT) TO auth
 
 COMMENT ON FUNCTION public.classer_domaine(TEXT, TEXT, TEXT, TEXT) IS
   'Écrit le classement d''un domaine sur la carte des savoirs. Seul chemin d''écriture des colonnes carte_* : la politique referentiel_commande_modification interdit l''UPDATE direct. p_noeud NULL retire le classement.';
+
+-- PostgREST resout les fonctions par un cache de schema. Sans ce signal, un
+-- appel a `classer_domaine` repond PGRST202 « Could not find the function »
+-- alors qu'elle existe en base -- constate le 22/08/2026.
+NOTIFY pgrst, 'reload schema';

@@ -27,12 +27,32 @@ import {
 import { BUCKET_PIECES_JOINTES, MAX_PDF_OCTETS, MIME_PDF, nomPdfValide } from "@/lib/documents/pieces-jointes";
 import type { DonneesGraphe } from "@/lib/domain/graphe";
 import type { GrapheDomaines } from "@/lib/domain/graphe-domaines";
+import type { ArbreSavoirs } from "@/lib/domain/arbre-savoirs";
 import { urlComposerAutonome } from "@/lib/domain/navigation-exercice";
 /*
  * Le graphe (et `d3-force` avec lui) ne voyage que quand la vue graphe est
  * ouverte : en import statique, son chunk partait avec l'atelier pour tout le
  * monde, consulté ou non.
  */
+/*
+ * Le canevas de l'arbre ne voyage que quand la vue Arbre est ouverte : il
+ * embarque `d3-force`, comme le graphe.
+ */
+const ArbreSavoirsCanvas = dynamic(
+  () =>
+    import("@/components/atelier/vues/arbre-savoirs-canvas").then(
+      (m) => m.ArbreSavoirsCanvas,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="grid h-full place-items-center text-sm text-texte-discret">
+        Préparation de l’arbre…
+      </div>
+    ),
+  },
+);
+
 const GrapheCompetences = dynamic(
   () =>
     import("@/components/competences/graphe/graphe-competences").then(
@@ -164,6 +184,7 @@ function documentDepuisAnalyse(
  */
 const VUES_ATELIER = new Set<string>([
   "domaines",
+  "arbre",
   "ressources",
   "graphe",
   "domaines-archives",
@@ -171,6 +192,7 @@ const VUES_ATELIER = new Set<string>([
 
 const TITRES_VUES: Record<string, string> = {
   domaines: "Domaines",
+  arbre: "Arbre",
   ressources: "Ressources",
   graphe: "Graphe",
   "domaines-archives": "Domaines archivés",
@@ -312,7 +334,7 @@ export function EspaceDocumentaire({
   /** Teinte par domaine, partagée avec le graphe pour qu'un domaine ait une seule couleur. */
   couleursDomaines: Record<string, string>;
   documentDemande?: string;
-  graphe: { donnees: DonneesGraphe; domaines: GrapheDomaines; compteId: string };
+  graphe: { donnees: DonneesGraphe; domaines: GrapheDomaines; arbre: ArbreSavoirs; compteId: string };
   generation: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
   donneesSeance?: DonneesSeance;
   domainesExistants: { id: string; nom: string; prefixe: string }[];
@@ -1015,7 +1037,7 @@ export function EspaceDocumentaire({
           <div className="flex items-center gap-3">
             <BarreVuesAtelier
               vue={
-                (["domaines", "ressources", "graphe"].includes(
+                (["domaines", "arbre", "ressources", "graphe"].includes(
                   selection ?? "",
                 )
                   ? selection
@@ -1224,7 +1246,15 @@ export function EspaceDocumentaire({
           : "lg:grid-cols-[1fr]",
       )}>
         <main className="flex h-full min-w-0 flex-1 flex-col min-h-0 overflow-hidden bg-surface">
-          {selection === "graphe" ? (
+          {selection === "arbre" ? (
+            <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface p-4">
+              <ArbreSavoirsCanvas
+                arbre={graphe.arbre}
+                couleursDomaines={couleursDomaines}
+                ouvrirElement={ouvrirElement}
+              />
+            </div>
+          ) : selection === "graphe" ? (
             <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface p-4">
               {/*
                 Une seule échelle ici : les compétences. La carte des domaines
