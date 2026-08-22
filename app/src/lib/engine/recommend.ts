@@ -395,13 +395,10 @@ function indexerTerminees(
  *     possible depuis sa fiche, et fait monter la robustesse ; ce n'est
  *     simplement plus une recommandation.
  *
- *  2. DERNIÈRE TENTATIVE ÉCHOUÉE OU PARTIELLE — il ne revient qu'après un
+ *  2. DERNIÈRE TENTATIVE EN ÉCHEC SÉVÈRE — il ne revient qu'après un
  *     **progrès démontré** sur la compétence visée : une observation en réussite
- *     postérieure. C'est P4 lu dans l'autre sens — une faiblesse ne disparaît
- *     pas sans démonstration, et elle ne se remesure pas non plus sans qu'il y
- *     ait quelque chose de nouveau à mesurer. Reproposer le même exercice qui
- *     produit le même résultat n'apprend rien de neuf, ni au moteur ni à la
- *     personne.
+ *     postérieure. Un échec ici signifie un contre-sens ou un hors-sujet ;
+ *     reproposer le même exercice sans changement remesurerait la même impasse.
  *
  *     Le déclencheur est une CONDITION, pas un délai. Un minuteur reproposerait
  *     au bout de trois jours un exercice hors de portée, sans que rien n'ait
@@ -409,19 +406,9 @@ function indexerTerminees(
  *     qui donnait le sentiment de tourner en rond. Trois jours ne rendent pas
  *     soluble ce qui ne l'était pas.
  *
- *     ⚠️ Jusqu'au 10/08/2026 (lot 5), seul l'échec était gouverné par cette
- *     règle — un partiel restait candidat indéfiniment, « parce que c'est un
- *     progrès, pas un mur ». Observé en production le même jour : deux
- *     exercices diagnostics (`diag-dev-02`, `diag-tech-01`) ont chacun produit
- *     deux « partiel » à plusieurs JOURS d'écart, sans qu'aucune condition ne
- *     les ait fait sortir de la file entre les deux — le même exercice
- *     reproposé, le même résultat obtenu. C'est la définition même de
- *     « tourner en rond », et P4 ne distingue pas l'échec du partiel : les
- *     deux sont un résultat non abouti, et les deux exigent la même
- *     démonstration avant de revenir. Une compétence qui n'a QUE cet exercice
- *     se retrouve alors sans candidat — et retombe sur le repli « Générer un
- *     exercice », qui est exactement la sortie voulue : proposer autre chose
- *     plutôt que la même impasse.
+ *     Un résultat `partiel` reste au contraire exploitable : il signale qu'il
+ *     y a une prise, et la calibration peut ajuster la difficulté pour rester
+ *     dans une zone de défi utile.
  *
  *  3. JAMAIS TENTÉ — candidat sans condition.
  *
@@ -435,6 +422,10 @@ function recommandable(
   const passees = termineesParExercice.get(exercice.id) ?? [];
   if (passees.length === 0) return true;
   if (passees.some((t) => t.resultat === "reussi")) return false;
+
+  // Un partiel est une progression exploitable : on ne le transforme pas en
+  // mur. Seul le dernier échec sévère attend une réussite postérieure.
+  if (passees[0].resultat !== "echec") return true;
 
   const depuis = dateTentative(passees[0]);
   return etat.observations.some((p) => p.resultat === "reussi" && p.date > depuis);

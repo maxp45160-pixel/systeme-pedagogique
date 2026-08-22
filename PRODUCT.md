@@ -161,7 +161,7 @@ arbitrage.
 | **P5** | Le tuteur n'écrit aucune mesure | Instructions §13 | ✅ Tenu — reformulé le 03/08 (ADR-037) |
 | **P6** | Le protocole est la spécification | — | ✅ Tenu |
 | **P7** | L'honnêteté prime sur la complétude | Anti-halluc. §14 | ✅ Tenu |
-| **P8** | La qualité de la preuve conditionne tout | Anti-halluc. §2 ; éval. §5 et §6 | 🔬 Architecture tranchée par ADR-057 ; `PLAFOND_AIDE` reste à confronter à l'usage |
+| **P8** | La qualité de la preuve conditionne tout | Anti-halluc. §2 ; éval. §5 et §6 | 🔬 Architecture tranchée par ADR-057 ; `PLAFOND_AIDE` reste à confronter à l'usage (barème gelé jusqu'à environ 20 bilans terminés) |
 
 ### P2 — comment il a été rétabli le 31/07
 
@@ -251,7 +251,8 @@ plafonds numériques : P8 reste 🔬 jusqu'à leur confrontation à l'usage.
 ### Décidé
 
 ✅ **Le contenu vient du tuteur**, pas de fichiers écrits à la main (ADR-004).
-✅ **Le moteur du tuteur doit être gratuit** et configurable (ADR-007).
+✅ **Le moteur du tuteur est configurable par environnement** ; aucun fournisseur
+gratuit canonique n'est imposé. Le choix se valide par la mesure (ADR-007).
 ✅ **Construire et utiliser en parallèle** est le mode de travail retenu.
 ✅ **La boucle est le produit** (ADR-066). Son arbitrage — temps disponible,
 capacité déclarée — vit dans la carte d'action et fonctionne sans aucune table.
@@ -355,15 +356,18 @@ observer.
 preuve faible, moyenne ou forte sont des garde-fous de départ, non un barème
 calibré. Les contradictions, rectifications et validations humaines doivent
 être observées avant toute revendication ou modification des seuils.
-🔬 **Gouvernance durable proposée (ADR-065, 13/08).** Le référentiel reste
-strictement `Domaine → Compétences`. Preuves et notes support le servent sans
-en devenir des entités ; les thèmes persistants ont été retirés (ADR-104). Les commandes transactionnelles, versions
-optimistes, codes non réutilisables, succession explicite et journal append-only
-ont été migrés le 13/08 sur autorisation explicite ; le statut n’est pas monté
-par l’agent.
-❓ Quel moteur gratuit exactement (ADR-007) — résolu **par mesure**.
+✅ **Gouvernance transactionnelle** (ADR-065, acceptée le 22/08). Le
+référentiel est gouverné par des commandes serveur, des versions optimistes,
+des codes non réutilisables, une succession explicite et un journal append-only.
+Le statut n'est pas monté par l'agent.
+❓ **Modèle de domaines en transition** (ADR-107). La proposition validée sur
+le métier fait des domaines des tags hiérarchiques, multiples et persistants ;
+le code actuel n'est pas migré et le nommage des compétences reste ouvert.
+Les preuves et notes supportent le référentiel sans en devenir des entités ; les
+thèmes persistants ont été retirés (ADR-104).
 🔬 Le barème `PLAFOND_AIDE` — l'architecture de mesure est décidée par ADR-057,
-mais ses plafonds n'ont pas encore été confrontés à l'usage.
+mais ses plafonds restent gelés jusqu'à environ 20 bilans terminés et n'ont pas
+encore été confrontés à l'usage.
 ✅ Le 3ᵉ maillon est posé (ADR-028) et **a fonctionné le 01/08** (ADR-030) :
 sur DEV-01 et DEV-03, la difficulté produite par le tuteur a suivi exactement
 celle que la calibration conseillait. 🔬 *Reste de la réfutation : « la
