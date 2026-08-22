@@ -24,8 +24,8 @@ import { capturerDocumentProduction, inscrireFicheExercice } from "./documents";
 import { lireReferentiel } from "./referentiel";
 import { idExerciceDepuisActivite } from "@/lib/domain/adaptive-learning";
 import {
+  motifRefusEditionCompetences,
   motifRefusExercice,
-  modeRetraitExercice,
   trouverExercice,
 } from "@/lib/domain/exercice";
 import {
@@ -581,6 +581,11 @@ export type SoumissionEditionExercice = Omit<SoumissionExerciceManuel, "origine"
  * - **`origine`** — le fait qu'un énoncé ait été rédigé par le tuteur ne cesse
  *   pas d'être vrai parce qu'on en corrige une phrase (ADR-004). Le champ dit
  *   d'où vient l'exercice, pas qui l'a retouché en dernier.
+ * - **`competences`** — les changer ferait pointer les observations passées vers
+ *   une autre compétence que celle qu'elles ont mesurée (ADR-047). La règle est
+ *   tenue côté serveur (`motifRefusEditionCompetences`), pas seulement par
+ *   l'écran : une Server Function est un point d'entrée public, et la payload
+ *   écrite ne lit jamais `soumission.competences`.
  * - **`diagnostic`** et **`archive`** — le premier n'appartient pas au compte,
  *   le second a ses propres gestes.
  *
@@ -613,11 +618,14 @@ export async function modifierExercice(soumission: SoumissionEditionExercice): P
   // que le retrait, pour que les deux gestes aient exactement la même surface.
   const avant = await exerciceDuCompte(soumission.exerciceId, dorsale);
 
-  const referentiel = await lireReferentiel(dorsale);
-  const inconnues = soumission.competences.filter((c) => !referentiel.codesActifs.has(c));
-  if (inconnues.length > 0) {
-    throw new Error(`Compétence(s) hors de ton périmètre : ${inconnues.join(", ")}`);
-  }
+  // Les compétences ne se modifient pas (ADR-047) : refus explicite avant
+  // toute écriture, jamais un écart ignoré en silence. L'écran réémet les
+  // valeurs existantes ; ce garde protège le chemin si un client les forge.
+  const refusCompetences = motifRefusEditionCompetences(
+    avant.competences,
+    soumission.competences,
+  );
+  if (refusCompetences) throw new Error(refusCompetences);
 
   await modifier(
     "exercises",
@@ -627,7 +635,6 @@ export async function modifierExercice(soumission: SoumissionEditionExercice): P
       domaine: soumission.domaine,
       type: soumission.type,
       difficulte: soumission.difficulte,
-      competences: soumission.competences,
       dureeEstimeeMin: soumission.dureeEstimeeMin,
       enonce: soumission.enonce,
       indices: soumission.indices.filter((i) => i.trim().length > 0),
@@ -644,52 +651,77 @@ export async function modifierExercice(soumission: SoumissionEditionExercice): P
   revalidatePath("/", "layout");
 }
 
-export interface ResultatRetraitExercice {
-  tentatives: number;
-  mode: "suppression" | "archivage";
-}
-
-/**
- * Retire un exercice non conforme sans effacer l'historique qui le cite
- * (ADR-035). Le mode est dérivé des tentatives, jamais choisi par l'interface.
- */
-export async function retirerExercice(exerciceId: string): Promise<ResultatRetraitExercice> {
-  const dorsale = await dorsaleCompte();
-  const exercice = await exerciceDuCompte(exerciceId, dorsale);
-  if (exercice.diagnostic) {
-    throw new Error("Un exercice de diagnostic livré avec l’application ne se retire pas.");
-  }
-
-  const { count, error: erreurComptage } = await dorsale.supabase
+/** Combien de tentatives stockées portent sur un exercice, tous statuts confondus. */
+async function compterTentativesStockees(
+  exerciceId: string,
+  dorsale: Awaited<ReturnType<typeof dorsaleCompte>>,
+): Promise<number> {
+  const { count, error } = await dorsale.supabase
     .from("attempts")
     .select("id", { count: "exact", head: true })
     .eq("user_id", dorsale.userId)
     .eq("exercise_id", exerciceId);
-  verifier("comptage des tentatives de l’exercice", erreurComptage);
+  verifier("comptage des tentatives de l’exercice", error);
+  return count ?? 0;
+}
 
-  const tentatives = count ?? 0;
-  const mode = modeRetraitExercice(tentatives);
-  if (mode === "suppression") {
-    const { data, error } = await dorsale.supabase
-      .from("exercises")
-      .delete()
-      .eq("user_id", dorsale.userId)
-      .eq("id", exercice.id)
-      .select("id")
-      .maybeSingle();
-    verifier("suppression de l’exercice", error);
-    if (!data) {
-      throw new Error("Suppression de l’exercice impossible : aucune ligne n’a été retirée.");
-    }
-  } else {
-    const archive = await modifier("exercises", exercice.id, { archive: true }, dorsale);
-    if (!archive) {
-      throw new Error("Archivage de l’exercice impossible : aucune ligne n’a été mise à jour.");
-    }
+function refusDiagnostic(exercice: Exercise): void {
+  if (exercice.diagnostic) {
+    throw new Error("Un exercice de diagnostic livré avec l’application ne se retire pas.");
+  }
+}
+
+/**
+ * Supprime un exercice qui ne porte aucune trace (ADR-035, calque d'ADR-027).
+ *
+ * **Refuse** quand des tentatives existent plutôt que de se replier en silence
+ * sur l'archivage : une fonction qui fait autre chose que ce que son nom
+ * annonce est exactement le genre de garde-fou qui s'érode. L'archivage est un
+ * geste distinct (`archiverExercice`) ; c'est lui que l'écran propose quand le
+ * compteur affiché avant le clic n'est pas zéro.
+ */
+export async function supprimerExercice(exerciceId: string): Promise<void> {
+  const dorsale = await dorsaleCompte();
+  const exercice = await exerciceDuCompte(exerciceId, dorsale);
+  refusDiagnostic(exercice);
+
+  const tentatives = await compterTentativesStockees(exerciceId, dorsale);
+  if (tentatives > 0) {
+    throw new Error(
+      `Suppression refusée : cet exercice porte ${tentatives} tentative${tentatives > 1 ? "s" : ""}. Il s’archive au lieu de se supprimer.`,
+    );
+  }
+
+  const { data, error } = await dorsale.supabase
+    .from("exercises")
+    .delete()
+    .eq("user_id", dorsale.userId)
+    .eq("id", exercice.id)
+    .select("id")
+    .maybeSingle();
+  verifier("suppression de l’exercice", error);
+  if (!data) {
+    throw new Error("Suppression de l’exercice impossible : aucune ligne n’a été retirée.");
   }
 
   revalidatePath("/", "layout");
-  return { tentatives, mode };
+}
+
+/**
+ * Archive un exercice qui a servi (ADR-035). Il sort de la recommandation et
+ * de la calibration ; les observations déjà écrites restent au journal.
+ */
+export async function archiverExercice(exerciceId: string): Promise<void> {
+  const dorsale = await dorsaleCompte();
+  const exercice = await exerciceDuCompte(exerciceId, dorsale);
+  refusDiagnostic(exercice);
+
+  const archive = await modifier("exercises", exercice.id, { archive: true }, dorsale);
+  if (!archive) {
+    throw new Error("Archivage de l’exercice impossible : aucune ligne n’a été mise à jour.");
+  }
+
+  revalidatePath("/", "layout");
 }
 
 /* ------------------------------------------------------------------ */

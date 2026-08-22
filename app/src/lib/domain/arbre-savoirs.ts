@@ -19,9 +19,13 @@
  * - **Une région n'apparaît que si un domaine y est classé.** La carte compte
  *   quarante-cinq nœuds ; les afficher tous donnerait un arbre dont l'immense
  *   majorité serait vide, ce qui décrit la carte et non le compte.
- * - **Une compétence rattachée (ADR-081) n'apparaît qu'une fois**, sous son
- *   domaine porteur. Un arbre où le même nœud existe deux fois n'est plus un
- *   arbre, et le dédoublement mentirait sur le nombre de compétences.
+ * - **Une compétence multi-taguée (ADR-107) n'apparaît qu'une fois**, sous son
+ *   premier tag. Un arbre où le même nœud existe deux fois n'est plus un
+ *   arbre, et le dédoublement mentirait sur le nombre de compétences. Les
+ *   autres domaines qu'elle sert se lisent sur sa fiche, pas ici.
+ * - **Une compétence sans tag n'apparaît pas.** Elle est « À classer » : au
+ *   référentiel, mais dans aucun domaine. La montrer sous son domaine de
+ *   création ferait resurgir le porteur qu'ADR-107 retire.
  * - **Aucune arête vers l'avant.** Comme dans `arbre-competences.ts` : les
  *   prérequis déclarés, rien d'autre. Un prérequis dont le code n'existe pas
  *   entre quand même, marqué fantôme — l'information « le chemin s'arrête ici »
@@ -106,14 +110,20 @@ export function construireArbreSavoirs(
     etats.filter((etat) => estMaitrisee(etat)).map((etat) => etat.skill.code),
   );
 
-  /* ── Étage 3 : les compétences, groupées par domaine porteur ────────── */
+  /* ── Étage 3 : les compétences, groupées par leur premier tag ───────── */
+
+  /** Où une compétence se dessine : son premier tag, ou nulle part. */
+  const brancheDe = (etat: SkillState): DomaineId | null =>
+    (etat.skill.tagsDomaine ?? [])[0] ?? null;
 
   const etatsParDomaine = new Map<DomaineId, SkillState[]>();
   for (const etat of etats) {
     if (!codesActifs.has(etat.skill.code)) continue;
-    const liste = etatsParDomaine.get(etat.skill.domaine) ?? [];
+    const branche = brancheDe(etat);
+    if (!branche) continue;
+    const liste = etatsParDomaine.get(branche) ?? [];
     liste.push(etat);
-    etatsParDomaine.set(etat.skill.domaine, liste);
+    etatsParDomaine.set(branche, liste);
   }
 
   /* ── Étage 2 : les domaines vivants ─────────────────────────────────── */
@@ -216,6 +226,8 @@ export function construireArbreSavoirs(
 
   for (const etat of etats) {
     if (!codesActifs.has(etat.skill.code)) continue;
+    const branche = brancheDe(etat);
+    if (!branche) continue;
     for (const code of etat.skill.prerequis) {
       const idPrerequis = `competence:${code}`;
       const estFantome = !presents.has(idPrerequis);
@@ -225,12 +237,12 @@ export function construireArbreSavoirs(
           id: idPrerequis,
           niveau: "competence",
           libelle: connue?.intitule ?? code,
-          /* Sans domaine porteur vivant, il n'a pas de branche : il pend au sien. */
-          parent: `domaine:${etat.skill.domaine}`,
+          /* Sans branche à lui, il pend à celle de la compétence qui le cite. */
+          parent: `domaine:${branche}`,
           etat: "fantome",
           poids: 0,
           actif: false,
-          domaineId: etat.skill.domaine,
+          domaineId: branche,
         });
       }
       liens.push({

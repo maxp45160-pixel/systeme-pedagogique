@@ -98,6 +98,26 @@ const construirePromptCorrection = (
 ) => promptComplet(construirePromptCorrectionBlocs(...args));
 
 describe("construirePromptCorrection", () => {
+  /*
+   * La coupure elle-même. Énoncé, correction et critères changent à chaque
+   * correction : dans le bloc stable, ils cassaient le préfixe mis en cache —
+   * sur ce chemin, le plus long, que le cache aurait le plus à donner (ADR-097).
+   */
+  it("place énoncé, correction de référence et critères HORS du bloc stable", () => {
+    const { stable, variable } = construirePromptCorrectionBlocs(EXERCICE);
+    expect(variable).toContain("Une référence consomme 120 unités");
+    expect(variable).toContain("1,65 × 20 × √2");
+    expect(stable).not.toContain("Une référence consomme 120 unités");
+    expect(stable).not.toContain("1,65 × 20 × √2");
+    expect(stable).not.toContain("Applique la formule au bon horizon");
+  });
+
+  it("laisse barème et consignes dans le bloc stable — c'est ce qui ne change jamais", () => {
+    const { stable } = construirePromptCorrectionBlocs(EXERCICE);
+    expect(stable).toContain("BARÈME PAR CRITÈRE");
+    expect(stable).toContain("TU N'ENREGISTRES RIEN.");
+  });
+
   it("porte l'énoncé et la correction de référence", () => {
     // C'est l'exception à ADR-036, assumée : sans la correction, le tuteur ne
     // corrigerait pas, il improviserait un barème.

@@ -107,6 +107,28 @@ export function motifRefusExercice(contenu: ContenuExercice): string | null {
 }
 
 /**
+ * Les compétences visées ne se modifient pas à l'édition (ADR-047).
+ *
+ * Les changer ferait pointer les observations déjà écrites vers une autre
+ * compétence que celle qu'elles ont mesurée — c'est un autre exercice. La
+ * comparaison vit ici plutôt qu'en ligne dans `modifierExercice`, pour la même
+ * raison que `motifRefusExercice` : une seule autorité, testable sans base.
+ *
+ * L'égalité porte sur l'ensemble, pas sur l'ordre : réordonner les compétences
+ * d'un exercice n'en change pas la cible.
+ */
+export function motifRefusEditionCompetences(
+  avant: readonly string[],
+  soumises: readonly string[],
+): string | null {
+  const identiques =
+    avant.length === soumises.length && avant.every((c) => soumises.includes(c));
+  return identiques
+    ? null
+    : "Les compétences visées ne se modifient pas à l'édition : elles portent ce que tes observations déjà écrites ont mesuré. Pour en viser d'autres, crée un autre exercice.";
+}
+
+/**
  * Toutes les tentatives portant sur un exercice, quel que soit leur statut.
  *
  * Les abandons comptent ici, contrairement à ce que fait la calibration. La

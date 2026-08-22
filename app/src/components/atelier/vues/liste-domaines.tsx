@@ -19,7 +19,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { cx } from "@/components/ui/primitives";
-import type { VueDomaineAtelier } from "@/lib/documents/vue-atelier";
+import type { VueAClasserAtelier, VueDomaineAtelier } from "@/lib/documents/vue-atelier";
 import {
   FENETRE_ACTIVITE_JOURS,
   type GrapheDomaines,
@@ -167,6 +167,7 @@ export function VueTousLesDomaines({
   ouvrirElement,
   selection,
   compteId,
+  aClasser = [],
   tri = "recent",
   onArchiver,
   onRestaurer,
@@ -179,6 +180,8 @@ export function VueTousLesDomaines({
   changerVue: (vue: VueAtelier) => void;
   selection?: string | null;
   compteId?: string;
+  /** Les compétences qu'aucun domaine ne montre (ADR-107). */
+  aClasser?: VueAClasserAtelier[];
   tri?: TriDomaine;
   onArchiver?: (domaineId: string) => void;
   onRestaurer?: (domaineId: string) => void;
@@ -319,6 +322,44 @@ export function VueTousLesDomaines({
                 )}
               </div>
             </section>
+
+            {aClasser.length > 0 && (
+              <section>
+                <div className="mb-3 flex flex-wrap items-baseline gap-2">
+                  <h3 className="font-serif text-base font-semibold text-texte">À classer</h3>
+                  <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[0.625rem] font-semibold text-texte-discret">
+                    {aClasser.length}
+                  </span>
+                  <p className="text-xs text-texte-discret">
+                    Au référentiel, mais dans aucun domaine. Ouvrez-en une pour dire où elle sert.
+                  </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {aClasser.map((competence) => (
+                    <button
+                      key={competence.code}
+                      type="button"
+                      onClick={() => ouvrirElement(competence.code)}
+                      className="flex h-full w-full flex-col justify-between rounded-xl border border-dashed border-bordure bg-surface p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primaire/40 cursor-pointer"
+                    >
+                      <div>
+                        <span className="chiffres rounded-md bg-surface-2 px-2 py-0.5 text-[0.625rem] text-texte-discret">
+                          {competence.code}
+                        </span>
+                        <p className="mt-2 text-sm font-semibold leading-snug text-texte">
+                          {competence.titre}
+                        </p>
+                      </div>
+                      <p className="mt-3 text-[0.6875rem] text-texte-discret">
+                        Code créé dans {competence.domaineCreationNom} ·{" "}
+                        {competence.nombreObservations} trace
+                        {competence.nombreObservations > 1 ? "s" : ""} de travail
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
         )}
       </div>

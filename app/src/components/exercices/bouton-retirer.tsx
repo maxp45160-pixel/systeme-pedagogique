@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { retirerExercice } from "@/lib/store/actions";
+import { supprimerExercice, archiverExercice } from "@/lib/store/actions";
 import { Bouton } from "@/components/ui/primitives";
 import { ModaleConfirmationSuppression } from "@/components/atelier/modale-confirmation-suppression";
 
@@ -47,7 +47,13 @@ export function BoutonRetirerExercice({
           }
           texteBoutonConfirmer={mode === "archivage" ? "Confirmer l’archivage" : "Supprimer définitivement"}
           onConfirmer={async () => {
-            await retirerExercice(exerciceId);
+            // Le mode est dérivé AVANT le clic (ADR-035) ; le serveur, lui,
+            // refuse une suppression qui porterait des tentatives.
+            if (mode === "archivage") {
+              await archiverExercice(exerciceId);
+            } else {
+              await supprimerExercice(exerciceId);
+            }
             setOuvert(false);
             if (onRetire) {
               onRetire();

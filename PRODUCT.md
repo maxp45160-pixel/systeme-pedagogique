@@ -360,9 +360,18 @@ calibré. Les contradictions, rectifications et validations humaines doivent
 référentiel est gouverné par des commandes serveur, des versions optimistes,
 des codes non réutilisables, une succession explicite et un journal append-only.
 Le statut n'est pas monté par l'agent.
-❓ **Modèle de domaines en transition** (ADR-107). La proposition validée sur
-le métier fait des domaines des tags hiérarchiques, multiples et persistants ;
-le code actuel n'est pas migré et le nommage des compétences reste ouvert.
+❓ **Modèle de domaines hiérarchiques** (ADR-107, construit le 23/08 — statut
+inchangé, aucune donnée d'usage encore). Un domaine peut en contenir d'autres,
+sans plafond de profondeur et sans table de sous-domaines : un sous-domaine est
+un domaine avec un parent. Une compétence porte **plusieurs** tags de domaine,
+ou aucun — elle est alors « À classer » : au référentiel, mais dans aucun
+domaine tant qu'une personne ne l'y range pas. Un tag posé sur un sous-domaine
+rend la compétence visible dans tous ses ancêtres par dérivation, jamais par
+une ligne écrite ; déplacer un domaine ne réécrit ni compétence, ni observation,
+ni score. Le domaine qui a produit le code (`LOG-01`) reste un namespace de
+création, plus une propriété : le nommage des futures compétences reste ouvert.
+Le tuteur peut proposer où une compétence sert, sur une liste fermée de
+domaines existants ; il n'en pose aucun.
 Les preuves et notes supportent le référentiel sans en devenir des entités ; les
 thèmes persistants ont été retirés (ADR-104).
 🔬 Le barème `PLAFOND_AIDE` — l'architecture de mesure est décidée par ADR-057,

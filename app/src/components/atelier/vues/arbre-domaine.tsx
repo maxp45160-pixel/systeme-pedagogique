@@ -301,7 +301,7 @@ function NoeudCarte({
         <span className="chiffres text-[0.625rem] text-texte-discret">{noeud.code}</span>
         {noeud.rattachee && (
           <span className="rounded-md bg-accent/10 px-1 py-0.5 text-[0.5625rem] font-medium text-accent">
-            Rattachée
+            Sous-domaine
           </span>
         )}
       </div>

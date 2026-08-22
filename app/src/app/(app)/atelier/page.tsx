@@ -368,6 +368,7 @@ export default async function PageAtelier(props: {
           arbre: arbreSavoirs,
           compteId: contexte.donnees.user.id,
         }}
+        aClasser={vues.aClasser}
         generation={{
           competences: competencesPourModale(referentiel.actifs),
           calibrages: calibragesPourModale(referentiel.actifs, contexte.calibrations),

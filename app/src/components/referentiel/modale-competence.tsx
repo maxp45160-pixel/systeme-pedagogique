@@ -3,7 +3,6 @@
 /**
  * Création d'un domaine ou ajout de compétences au référentiel.
  *
- * Aligné sur l'ergonomie de `ModaleTheme` :
  * - Mode « Assisté par IA » (résolution sémantique, étapes de chargement, relecture avec cases à cocher).
  * - Mode « Choisir moi-même » (formulaire direct épuré).
  */

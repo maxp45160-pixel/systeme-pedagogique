@@ -3,6 +3,7 @@ import { choisirConfiguration, creerMoteur } from "@/lib/tutor/moteurs";
 import type { ConfigTuteurClient } from "@/lib/tutor/cle-client";
 import { envTuteur } from "@/lib/tutor/env-requete";
 import { proposerRattachementCarte } from "@/lib/tutor/rattachement-carte";
+import { sousArbre } from "@/lib/domain/hierarchie-domaines";
 
 /**
  * Route de proposition d'une position sur la carte des savoirs.
@@ -69,6 +70,8 @@ export async function POST(request: Request) {
   const abandon = new AbortController();
   request.signal.addEventListener("abort", () => abandon.abort(), { once: true });
 
+  const perimetre = sousArbre(ctx.referentiel.domaines, domaineId);
+
   try {
     const resultat = await proposerRattachementCarte(
       moteur,
@@ -77,15 +80,12 @@ export async function POST(request: Request) {
         nom: domaine.nom,
         description: domaine.description,
         /*
-         * Les compétences portées ET rattachées (ADR-081) : une compétence
-         * partagée décrit ce domaine autant que les siennes propres.
+         * Toutes les compétences du sous-arbre (ADR-107) : une compétence
+         * partagée décrit ce domaine autant que celles qui n'y servent qu'ici,
+         * et un sous-domaine décrit son parent.
          */
         intitules: ctx.referentiel.actifs
-          .filter(
-            (skill) =>
-              skill.domaine === domaineId ||
-              (skill.domainesSecondaires ?? []).includes(domaineId),
-          )
+          .filter((skill) => (skill.tagsDomaine ?? []).some((tag) => perimetre.has(tag)))
           .map((skill) => skill.intitule),
       },
       abandon.signal,

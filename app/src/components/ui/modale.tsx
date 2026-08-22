@@ -6,7 +6,8 @@
  * ## Ce qui était dupliqué
  *
  * Sept composants répétaient la même chaîne d'overlay et le même panneau, au
- * caractère près, avec le même ✕ recopié sept fois. Une seule utilisait un
+ * caractère près, avec le même caractère de fermeture recopié sept fois. Une
+ * seule utilisait un
  * portail. Et surtout, **aucune** ne gérait `Échap`, ne piégeait le focus, ni
  * ne le restituait à la fermeture : au clavier, la tabulation sortait derrière
  * l'overlay et l'on se retrouvait à parcourir une page qu'on ne voyait plus.
@@ -47,6 +48,7 @@ import { useCallback, useEffect, useId, useRef, type ReactNode } from "react";
 import { useEstHydrate } from "@/lib/ui/hydratation";
 import { createPortal } from "react-dom";
 import { cx, Filigrane } from "./primitives";
+import { IconeFermer } from "./icones";
 
 /** Ce qui peut recevoir le focus au clavier, dans l'ordre du document. */
 const FOCUSABLES = [
@@ -271,7 +273,7 @@ export function Modale({
             aria-label="Fermer"
             className="shrink-0 rounded-md px-2 py-1 text-sm text-texte-attenue transition-colors hover:bg-surface-2 hover:text-texte"
           >
-            ✕
+            <IconeFermer className="size-4" />
           </button>
         </div>
 

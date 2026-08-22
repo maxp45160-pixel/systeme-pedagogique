@@ -336,11 +336,11 @@ describe("detecterRangements", () => {
     expect(candidats).toEqual([]);
   });
 
-  it("se tait quand le rattachement secondaire est déjà déclaré (ADR-081)", () => {
+  it("se tait quand le tag est déjà posé (ADR-107)", () => {
     const candidats = detecterRangements(
       entrees({
         referentiel: referentiel([
-          skill("LOG-01", { domaine: "logistique", domainesSecondaires: ["statistiques"] }),
+          skill("LOG-01", { domaine: "logistique", tagsDomaine: ["statistiques"] }),
         ]),
         exercices: [exercice("ex-1", ["LOG-01"], { domaine: "statistiques" })],
         observations: [

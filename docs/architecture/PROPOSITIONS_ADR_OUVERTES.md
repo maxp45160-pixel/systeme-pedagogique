@@ -32,7 +32,9 @@ dans `ARCHITECTURE_DECISIONS.md`.
 - ADR-087 : la scission générale est abandonnée ; l'atomicité d'ADR-086 ferme
   le besoin de cette machinerie.
 - ADR-106 : les sous-domaines lexicaux sont remplacés par la proposition
-  hiérarchique d'ADR-107.
+  hiérarchique d'ADR-107. Le module et son câblage sont retirés du code le
+  23/08 ; ADR-107 est construite le même jour, et **reste ❓** — construire
+  n'est pas trancher.
 
 ## Ce qui reste hypothétique ou ouvert
 

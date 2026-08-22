@@ -108,10 +108,10 @@ describe("gouvernance du référentiel", () => {
   });
 
   /*
-   * Une compétence déjà portée par CE domaine n'a rien à rattacher : elle y
-   * est. La proposition se contente de la nommer, sans lever d'erreur.
+   * Une compétence déjà taguée sur CE domaine n'a rien à y ajouter : elle y
+   * sert. La proposition se contente de la nommer, sans lever d'erreur.
    */
-  it("ne rattache rien quand la compétence est déjà portée par ce domaine", () => {
+  it("ne tague rien quand la compétence sert déjà ce domaine (ADR-107)", () => {
     const logistique = domaine("logistique", "Logistique", "LOG");
     const existante = skill("LOG-01", "Dimensionner un stock de sécurité", "logistique");
     const { commande, dejaAuReferentiel } = preparerCreationDomaine({
@@ -120,7 +120,7 @@ describe("gouvernance du référentiel", () => {
       description: "",
       origine: "tuteur",
       competences: [{ intitule: "Dimensionner un stock de sécurité", palier: "fondamentaux", importance: 0.6 }],
-    }, assemblerReferentiel([logistique], [existante]));
+    }, assemblerReferentiel([logistique], [existante], [{ code: "LOG-01", domaine: "logistique" }]));
 
     expect(commande).toBeNull();
     expect(dejaAuReferentiel).toMatchObject([{ code: "LOG-01", aRattacher: false }]);

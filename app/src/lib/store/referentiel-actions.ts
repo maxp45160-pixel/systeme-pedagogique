@@ -24,6 +24,7 @@ import {
   type ResultatCommandeReferentiel,
 } from "@/lib/domain/gouvernance-referentiel";
 import { competenceHomonyme } from "@/lib/domain/referentiel-compte";
+import { parenteCirculaire } from "@/lib/domain/hierarchie-domaines";
 import type {
   OrigineRattachementCarte,
   OrigineReferentiel,
@@ -111,48 +112,48 @@ export async function creerBranche(soumission: SoumissionBranche): Promise<Resul
 }
 
 /**
- * Rattache ce que la personne a demandé et qui existait déjà ailleurs.
+ * Tague ce que la personne a demandé et qui existait déjà ailleurs.
  *
  * Demander « Lire un tableau de données » dans Logistique, c'est demander que
  * ce savoir-faire y serve. Le système sait qu'il existe : le recréer
- * dédoublerait ses observations, et l'écarter en silence perdrait la demande. Il le
- * rattache donc, sans autre geste (ADR-081).
+ * dédoublerait ses observations, et l'écarter en silence perdrait la demande.
+ * Il pose donc le tag, sans autre geste (ADR-107).
  *
- * L'échec du rattachement ne défait pas l'écriture qui précède : les
- * compétences neuves sont créées, et le message dira lesquelles n'ont pas pu
- * être rattachées. Défaire serait pire — on perdrait un travail réussi pour un
- * complément manqué.
+ * L'échec du tag ne défait pas l'écriture qui précède : les compétences neuves
+ * sont créées, et le message dira lesquelles n'ont pas pu être taguées. Défaire
+ * serait pire — on perdrait un travail réussi pour un complément manqué.
  */
 async function rattacherAutomatiquement(
   domaineId: string,
   dejaAuReferentiel: CompetenceDejaAuReferentiel[],
 ): Promise<void> {
   const codes = dejaAuReferentiel
-    .filter((competence) => competence.aRattacher && competence.domaineId !== domaineId)
+    .filter((competence) => competence.aRattacher)
     .map(({ code }) => code);
   if (codes.length === 0) return;
-  await rattacherCompetences(domaineId, codes, true);
+  await taguerCompetences(domaineId, codes, true);
 }
 
-export interface ResultatRattachement {
+export interface ResultatTag {
   domaineId: string;
-  rattachees: string[];
-  detachees: string[];
+  taguees: string[];
+  detaguees: string[];
 }
 
 /**
- * Rattache des compétences d'autres domaines à celui-ci, ou les en détache.
+ * Pose ou retire un tag de domaine sur des compétences (ADR-107).
  *
- * Le domaine porteur ne bouge pas : il garde le code et la gouvernance. Ce
- * geste ajoute une lecture — la compétence devient visible depuis ce domaine et
- * compte dans sa couverture (ADR-081). Aucun code n'est créé, aucune observation
- * n'est dupliquée.
+ * Rien ne se déplace : le code ne change pas, le namespace de création non
+ * plus, les observations restent où elles sont. Un tag ajoute une visibilité —
+ * la compétence apparaît dans ce domaine et dans tous ses ancêtres, et compte
+ * dans leur couverture. Le retirer la fait disparaître de cette vue ; retirer
+ * son dernier tag l'envoie « À classer », ce qui est un état autorisé.
  */
-export async function rattacherCompetences(
+export async function taguerCompetences(
   domaineId: string,
   codes: string[],
-  rattache: boolean,
-): Promise<ResultatRattachement> {
+  tague: boolean,
+): Promise<ResultatTag> {
   const dorsale = await dorsaleCompte();
   const referentiel = await lireReferentiel(dorsale);
   const domaine = referentiel.domainesParId.get(domaineId);
@@ -160,32 +161,70 @@ export async function rattacherCompetences(
 
   const demandes = [...new Set(codes)];
   for (const code of demandes) {
-    const skill = referentiel.parCode.get(code);
-    if (!skill) throw new Error(`Compétence inconnue : ${code}`);
-    if (skill.domaine === domaineId) {
-      throw new Error(`${code} est déjà portée par ${domaine.nom} : un rattachement ne se superpose pas au porteur.`);
-    }
+    if (!referentiel.parCode.has(code)) throw new Error(`Compétence inconnue : ${code}`);
   }
 
-  const { data, error } = await dorsale.supabase.rpc("rattacher_competences_domaine", {
+  const { data, error } = await dorsale.supabase.rpc("taguer_competences_domaine", {
     p_request_id: nouvelIdCommande(),
     p_expected_version: domaine.version ?? null,
     p_origine: "utilisateur",
-    p_motif: rattache
-      ? `Rattachement de ${demandes.join(", ")} à ${domaine.nom}`
-      : `Détachement de ${demandes.join(", ")} de ${domaine.nom}`,
+    p_motif: tague
+      ? `Tag de ${demandes.join(", ")} vers ${domaine.nom}`
+      : `Retrait du tag de ${demandes.join(", ")} sur ${domaine.nom}`,
     p_domaine_id: domaineId,
     p_codes: demandes,
-    p_rattache: rattache,
+    p_tague: tague,
   });
-  verifier("rattachement de compétences", error);
+  verifier("tag de compétences", error);
   revalidatePath("/", "layout");
-  const resultat = data as { domaineId: string; rattachees?: string[]; detachees?: string[] };
+  const resultat = data as { domaineId: string; taguees?: string[]; detaguees?: string[] };
   return {
     domaineId: resultat.domaineId,
-    rattachees: resultat.rattachees ?? [],
-    detachees: resultat.detachees ?? [],
+    taguees: resultat.taguees ?? [],
+    detaguees: resultat.detaguees ?? [],
   };
+}
+
+/**
+ * Déplace un domaine sous un autre, ou le remet à la racine (ADR-107).
+ *
+ * Le déplacement ne réécrit rien : ni compétence, ni observation, ni score.
+ * Seule la visibilité dérivée change — les compétences du sous-arbre remontent
+ * désormais vers un autre parent — et elle se recalcule à la lecture suivante.
+ *
+ * La parenté circulaire est refusée par la commande SQL. Le contrôle est répété
+ * ici pour rendre un message avant l'aller-retour, jamais pour s'y substituer :
+ * la barrière qui compte est celle de la base.
+ */
+export async function deplacerDomaine(
+  domaineId: string,
+  parentId: string | null,
+): Promise<void> {
+  const dorsale = await dorsaleCompte();
+  const referentiel = await lireReferentiel(dorsale);
+  const domaine = referentiel.domainesParId.get(domaineId);
+  if (!domaine) throw new Error(`Domaine inconnu : ${domaineId}`);
+
+  const parent = parentId ? referentiel.domainesParId.get(parentId) : null;
+  if (parentId && !parent) throw new Error(`Domaine parent inconnu : ${parentId}`);
+  if (parentId && parenteCirculaire(referentiel.domaines, domaineId, parentId)) {
+    throw new Error(
+      `« ${parent!.nom} » descend de « ${domaine.nom} » : le rattacher dessous fermerait une boucle.`,
+    );
+  }
+
+  const { error } = await dorsale.supabase.rpc("deplacer_domaine", {
+    p_request_id: nouvelIdCommande(),
+    p_expected_version: domaine.version ?? null,
+    p_origine: "utilisateur",
+    p_motif: parent
+      ? `Déplacement de ${domaine.nom} sous ${parent.nom}`
+      : `${domaine.nom} remis à la racine`,
+    p_domaine_id: domaineId,
+    p_parent_id: parentId,
+  });
+  verifier("déplacement du domaine", error);
+  revalidatePath("/", "layout");
 }
 
 export interface ModificationCompetence {

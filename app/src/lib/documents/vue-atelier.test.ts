@@ -23,6 +23,8 @@ const competence: Skill = {
   active: true,
   archive: false,
   origine: "utilisateur",
+  // Le tag que la migration d ADR-107 pose pour chaque competence existante.
+  tagsDomaine: ["logistique"],
 };
 
 const suivante: Skill = {
@@ -224,7 +226,7 @@ describe("construireVuesAtelier", () => {
     };
     const competencePartagee: Skill = {
       ...competence,
-      domainesSecondaires: [domaineSecondaire.id],
+      tagsDomaine: [competence.domaine, domaineSecondaire.id],
     };
     const referentielPartage: Referentiel = {
       ...referentiel,
@@ -261,7 +263,7 @@ describe("construireVuesAtelier", () => {
       nombreEvaluees: 1,
       nombreObservations: 1,
       nombreExercices: 1,
-      competences: [{ code: competence.code, rattachee: true, porteurNom: "Logistique" }],
+      competences: [{ code: competence.code }],
     });
   });
 
@@ -288,6 +290,7 @@ describe("construireVuesAtelier", () => {
       ...competence,
       code: "OLD-01",
       domaine: "archive",
+      tagsDomaine: ["archive"],
     };
     const referentielEtendu: Referentiel = {
       ...referentiel,

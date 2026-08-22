@@ -202,6 +202,25 @@ export const OUTIL_RELATIONS = "proposer_relations";
 export const OUTIL_CARTE = "proposer_rattachement_carte";
 
 /**
+ * Où une compétence sert (ADR-107) — proposé, jamais posé.
+ *
+ * Une compétence peut porter plusieurs tags de domaine, et c'est exactement ce
+ * qu'une machine range mal : « Lire un tableau de données » sert les
+ * statistiques et la logistique, et aucun classement lexical ne le devine sans
+ * se tromper une fois sur deux. Le tuteur lit l'intitulé et les domaines du
+ * compte, et propose.
+ *
+ * Deux interdits, du même ordre que ceux de la carte :
+ *
+ * - **nommer un domaine neuf.** L'`enum` est fermé sur les domaines vivants du
+ *   compte, relu côté serveur. Créer un domaine est une commande gouvernée
+ *   (ADR-065), pas un effet de bord d'une suggestion ;
+ * - **taguer.** L'appel produit une proposition. L'écriture reste le geste
+ *   d'une personne (`taguerCompetences`), et rien ne part sans son clic.
+ */
+export const OUTIL_TAGS = "proposer_tags_competence";
+
+/**
  * Un référentiel entier — plusieurs branches d'un seul geste.
  *
  * `proposer_referentiel` rend **une** branche. Un sujet un peu large n'en tient
@@ -931,6 +950,57 @@ export function outilsRattachementCarte(noeuds: string[]): OutilTuteur {
   };
 }
 
+/**
+ * L'outil qui propose où une compétence sert (ADR-107).
+ *
+ * Une liste, à la différence de la carte : une compétence peut légitimement
+ * servir plusieurs domaines, et n'en proposer qu'un forcerait un choix que le
+ * modèle n'a pas à faire. Le plafond existe pour la même raison que partout
+ * ailleurs — au-delà, on ne relit plus, on coche.
+ */
+export function outilsTagsCompetence(domainesVivants: string[]): OutilTuteur {
+  const domaineId: SchemaJson =
+    domainesVivants.length > 0
+      ? {
+          type: "string",
+          enum: domainesVivants,
+          description: "Identifiant d'un domaine existant du compte.",
+        }
+      : { type: "string", description: "Aucun domaine existant." };
+
+  return {
+    nom: OUTIL_TAGS,
+    description:
+      "Propose les domaines où cette compétence sert vraiment. Tu n'écris rien : la personne valide ou refuse chaque tag. Tu ne peux désigner que des domaines de la liste — un domaine neuf se crée par une autre commande. Ne propose que ce que l'intitulé justifie : une liste large ne se relit pas.",
+    schema: {
+      type: "object",
+      properties: {
+        tags: {
+          type: "array",
+          maxItems: MAX_TAGS_PROPOSES,
+          items: {
+            type: "object",
+            properties: {
+              domaineId,
+              justification: {
+                type: "string",
+                description:
+                  "Une phrase : ce que cette compétence apporte à ce domaine. Sans motif, la personne ne peut pas arbitrer.",
+              },
+            },
+            required: ["domaineId", "justification"],
+            additionalProperties: false,
+          },
+        },
+      },
+      // Une liste vide reste exprimable, et se lit comme « aucun domaine
+      // existant ne convient » — ce qui est une réponse, pas un échec.
+      required: ["tags"],
+      additionalProperties: false,
+    },
+  };
+}
+
 export function outilsRevision(codesVivants: string[]): OutilTuteur {
   // Un `enum: []` n'admettrait aucune valeur et rendrait `modifications` et
   // `retraits` inexprimables — ce qui est correct sur un domaine vide, mais
@@ -1209,6 +1279,7 @@ export type PropositionRecue =
   | { genre: "revision"; revision: PropositionRevision }
   | { genre: "relations"; relations: PropositionRelations }
   | { genre: "carte"; carte: PropositionRattachementCarte }
+  | { genre: "tags"; tags: PropositionTagsCompetence }
   | { genre: "referentiel-complet"; resume: string; branches: PropositionReferentiel[]; ecartees: number }
   | { genre: "intention"; traduction: TraductionIntention };
 
@@ -1271,6 +1342,20 @@ export interface PropositionRattachementCarte {
   noeud: string;
   justification: string;
 }
+
+/**
+ * Ce que le tuteur propose comme tags de domaine (ADR-107).
+ *
+ * `domaineId` DÉSIGNE, il ne crée pas : son `enum` est fermé sur les domaines
+ * vivants du compte. Rien n'est écrit — c'est la validation humaine, et elle
+ * seule, qui pose un tag.
+ */
+export interface PropositionTagsCompetence {
+  tags: Array<{ domaineId: string; justification: string }>;
+}
+
+/** Au-delà, on ne relit plus une proposition de tags : on coche. */
+export const MAX_TAGS_PROPOSES = 4;
 
 /** Au-delà, ce n'est plus une proposition : c'est une liste à trier. */
 export const MAX_CANDIDATS_CARTE = 2;
@@ -1897,6 +1982,42 @@ function validerRattachementCarte(
   return { genre: "carte", carte: { noeud, justification } };
 }
 
+function domainesDuSchemaTags(outils: OutilTuteur[]): Set<string> {
+  const outil = outils.find((o) => o.nom === OUTIL_TAGS);
+  return new Set(outil?.schema.properties?.tags?.items?.properties?.domaineId?.enum ?? []);
+}
+
+/**
+ * Valide des tags proposés, contre les domaines réellement armés.
+ *
+ * Deuxième couche après l'`enum` du schéma (ADR-031). Ici, à la différence de
+ * la carte, une ligne fautive n'invalide pas l'appel entier : chaque tag est
+ * une proposition indépendante, et la personne les arbitre une par une. Un
+ * domaine inconnu est donc écarté, pas fatal — mais un appel dont il ne reste
+ * rien de valide rend une liste vide, jamais une liste inventée.
+ */
+function validerTagsCompetence(
+  entree: Record<string, unknown>,
+  domainesConnus: Set<string>,
+): PropositionRecue | null {
+  const brut = Array.isArray(entree.tags) ? entree.tags : null;
+  if (!brut) return null;
+  const vus = new Set<string>();
+  const tags: PropositionTagsCompetence["tags"] = [];
+  for (const element of brut) {
+    const ligne = objet(element);
+    if (!ligne) continue;
+    const domaineId = texte(ligne.domaineId);
+    const justification = texte(ligne.justification);
+    if (!domaineId || !justification) continue;
+    if (domainesConnus.size > 0 && !domainesConnus.has(domaineId)) continue;
+    if (vus.has(domaineId)) continue;
+    vus.add(domaineId);
+    tags.push({ domaineId, justification });
+  }
+  return { genre: "tags", tags: { tags } };
+}
+
 function codesDuSchemaRevision(outils: OutilTuteur[]): Set<string> {
   const revision = outils.find((o) => o.nom === OUTIL_REVISION);
   const codes = revision?.schema.properties?.retraits?.items?.properties?.code?.enum ?? [];
@@ -2058,6 +2179,8 @@ export function validerAppelOutil(
       return validerRelations(donnees, ensemblesDuSchemaRelations(outils));
     case OUTIL_CARTE:
       return validerRattachementCarte(donnees, noeudsDuSchemaCarte(outils));
+    case OUTIL_TAGS:
+      return validerTagsCompetence(donnees, domainesDuSchemaTags(outils));
     case OUTIL_REFERENTIEL_COMPLET:
       // Le plafond effectif est relu depuis le schéma REELLEMENT armé, jamais
       // recalculé : deux sources pourraient diverger, une seule ne le peut pas.

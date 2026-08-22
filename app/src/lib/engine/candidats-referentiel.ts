@@ -407,9 +407,9 @@ export function detecterDormances(entrees: EntreesCandidats): DormanceCandidate[
  * exercice source. Une compétence de « logistique » dont toutes les observations
  * viennent d'exercices de « statistiques » est rangée au mauvais endroit.
  *
- * Sortie : un RATTACHEMENT ou un déplacement à valider — jamais un déplacement
- * appliqué, qui changerait le code (donc casserait les observations) ou la
- * gouvernance du domaine porteur (ADR-081, ADR-065).
+ * Sortie : un TAG à valider — jamais un tag posé. Le code ne bouge pas, le
+ * namespace de création non plus : taguer ajoute une visibilité, il ne déplace
+ * rien (ADR-107, ADR-065).
  */
 export function detecterRangements(entrees: EntreesCandidats): RangementCandidate[] {
   const { referentiel, observations, exercices } = entrees;
@@ -435,12 +435,13 @@ export function detecterRangements(entrees: EntreesCandidats): RangementCandidat
     const dominant = [...domainesObserves.entries()].sort((a, b) => b[1] - a[1])[0];
     if (!dominant) continue;
     const [domaineObserve, occurrences] = dominant;
-    if (domaineObserve === skill.domaine) continue;
     // Toutes les observations, pas la majorité : une majorité peut refléter le stock
     // d'exercices disponible plutôt qu'un mauvais rangement.
     if (occurrences !== total) continue;
-    // Déjà rattachée : le rangement est assumé (ADR-081).
-    if (skill.domainesSecondaires?.includes(domaineObserve)) continue;
+    // Déjà taguée là : le rangement est assumé (ADR-107). Le test porte sur les
+    // tags et non sur le domaine de création — depuis ADR-107, c'est le tag qui
+    // dit où une compétence sert, et lui seul.
+    if ((skill.tagsDomaine ?? []).includes(domaineObserve)) continue;
 
     candidats.push({
       genre: "rangement",
@@ -450,8 +451,8 @@ export function detecterRangements(entrees: EntreesCandidats): RangementCandidat
       observations: total,
       motifs: [
         `Ses ${total} observations viennent toutes d'exercices de « ${domaineObserve} », ` +
-          `alors qu'elle est portée par « ${skill.domaine} ».`,
-        "Un rattachement suffit : elle compte dans les deux couvertures sans être dupliquée (ADR-081).",
+          `où elle n'est pas taguée.`,
+        "Un tag suffit : elle compte dans les deux couvertures sans être dupliquée (ADR-107).",
       ],
     });
   }

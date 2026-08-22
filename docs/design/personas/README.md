@@ -80,9 +80,14 @@ change, mais ils touchent la lecture de l'Atelier citée à plusieurs endroits :
 
 - **ADR-105** (❓ proposition) : une carte des savoirs en dépôt, rattachement
   écrit par une seule personne — rouvre ADR-099 ;
-- **ADR-106** (🔬 hypothèse) : les sous-domaines se dérivent des intitulés
-  (`lib/engine/sous-domaines.ts`), rien ne s'écrit — couche 3 pure.
+- **ADR-106** (🔄 réfutée le 22/08, module retiré du code le 23/08) : le
+  découpage lexical des intitulés n'est pas le modèle retenu ;
+- **ADR-107** (❓ proposition, construite le 23/08) : les domaines forment une
+  hiérarchie déclarée et une compétence porte plusieurs tags de domaine ; une
+  compétence sans tag reste « À classer ».
 
-À relire lors de la prochaine régénération des simulations : le regroupement
-dérivé peut réduire la friction « corpus plat » (S4 académique, R3
-reconversion) sans qu'aucun chantier des plans ne soit nécessaire.
+À relire lors de la prochaine régénération des simulations : la friction
+« corpus plat » (S4 académique, R3 reconversion) n'est plus traitée par un
+regroupement dérivé mais par un geste — créer un sous-domaine, y taguer —
+assisté d'une proposition du tuteur. C'est un coût d'usage à observer, pas une
+friction supprimée.

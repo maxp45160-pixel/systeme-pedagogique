@@ -306,6 +306,25 @@ describe("validation d'une compétence", () => {
       ).join(" "),
     ).toContain("entre 0 et 1");
   });
+
+  /*
+   * ADR-086 durcie le 18/08/2026 : l'atomicité s'applique à TOUTE validation,
+   * y compris sur un intitulé que personne ne touche. Sans ce cas, une
+   * réécriture silencieuse du validateur pourrait regeler les 67 compétences
+   * historiques sans que rien ne tombe.
+   */
+  it("refuse un intitulé NON atomique même si personne ne l'a changé", () => {
+    const erreurs = validerCompetence(
+      {
+        intitule: "Décrire les principes du stock et calculer un stock de sécurité en demande variable",
+        palier: "fondamentaux",
+        importance: 0.8,
+      },
+      referentiel,
+      "developpement",
+    );
+    expect(erreurs.length).toBeGreaterThan(0);
+  });
 });
 
 describe("retrait — ADR-027, une observation n'est jamais orpheline", () => {

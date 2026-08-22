@@ -19,12 +19,12 @@ const NOW = new Date("2026-08-20T12:00:00.000Z");
 
 function skill(
   code: string,
-  options: Partial<Pick<Skill, "domaine" | "domainesSecondaires" | "active" | "archive" | "ordre">> = {},
+  options: Partial<Pick<Skill, "domaine" | "tagsDomaine" | "active" | "archive" | "ordre">> = {},
 ): Skill {
   return {
     code,
     domaine: options.domaine ?? "dev",
-    domainesSecondaires: options.domainesSecondaires,
+    tagsDomaine: options.tagsDomaine,
     intitule: `Compétence ${code}`,
     palier: "fondamentaux",
     prerequis: [],
