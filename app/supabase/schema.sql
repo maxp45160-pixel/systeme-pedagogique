@@ -169,8 +169,29 @@ CREATE TABLE IF NOT EXISTS public.domaines (
   version      INTEGER NOT NULL DEFAULT 1 CHECK (version > 0),
   archive      BOOLEAN NOT NULL DEFAULT false,
   origine      TEXT NOT NULL DEFAULT 'utilisateur',  -- utilisateur | tuteur | migration
+  -- Position du domaine sur la carte des savoirs
+  -- (`src/lib/domain/carte-savoirs.ts`, migration
+  -- `20260822120000_rattachement_carte_savoirs`). Fait DÉCLARÉ par une
+  -- personne : un classement lexical propose, il n'écrit jamais ici.
+  -- Aucune clé étrangère possible — la carte vit en dépôt, pas en base ;
+  -- l'identifiant est validé côté application contre `enumNoeudsCarte()`.
+  carte_noeud     TEXT,
+  carte_version   TEXT,                            -- VERSION_CARTE à l'arbitrage
+  carte_origine   TEXT,                            -- tuteur | manuel
+  carte_valide_le TIMESTAMPTZ,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (user_id, id),
+  CONSTRAINT domaines_carte_origine_valide
+    CHECK (carte_origine IS NULL OR carte_origine IN ('tuteur', 'manuel')),
+  -- Tout ou rien : un rattachement sans provenance ni date serait une
+  -- affirmation sans source (invariant 2).
+  CONSTRAINT domaines_carte_complete CHECK (
+    (carte_noeud IS NULL AND carte_version IS NULL
+      AND carte_origine IS NULL AND carte_valide_le IS NULL)
+    OR
+    (carte_noeud IS NOT NULL AND carte_version IS NOT NULL
+      AND carte_origine IS NOT NULL AND carte_valide_le IS NOT NULL)
+  ),
   -- Le préfixe engendre les codes : deux domaines qui le partagent
   -- produiraient des collisions silencieuses.
   UNIQUE (user_id, prefixe)
@@ -1016,6 +1037,64 @@ END;
 $$;
 REVOKE ALL ON FUNCTION public.purger_observations_compte() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.purger_observations_compte() TO authenticated;
+
+-- Classement d'un domaine sur la carte des savoirs (ADR-105).
+--
+-- SECURITY DEFINER, et c'est le point : `public.domaines` porte
+-- `referentiel_commande_modification`, qui exige le drapeau
+-- `app.referentiel_command`. Un UPDATE lance depuis l'application ne
+-- correspond a AUCUNE ligne et rend un succes vide -- le defaut constate le
+-- 22/08/2026, ou le clic ne produisait rien, sans erreur.
+--
+-- Etroite par construction : les quatre colonnes de classement, le domaine du
+-- seul compte appelant, et une exception quand la ligne n'existe pas. Elle ne
+-- passe pas par `appliquer_commande_referentiel` : un classement ne touche ni
+-- code, ni competence, ni observation, et incrementer `version` ferait echouer
+-- sans raison toute commande concurrente ayant lu la version d'avant.
+CREATE OR REPLACE FUNCTION public.classer_domaine(
+  p_domaine_id TEXT,
+  p_noeud      TEXT,
+  p_version    TEXT,
+  p_origine    TEXT
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_uid UUID := auth.uid();
+BEGIN
+  IF v_uid IS NULL OR NOT public.compte_actif(v_uid) THEN
+    RAISE EXCEPTION 'Compte authentifie actif requis.' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_noeud IS NULL THEN
+    UPDATE public.domaines
+       SET carte_noeud = NULL, carte_version = NULL,
+           carte_origine = NULL, carte_valide_le = NULL
+     WHERE user_id = v_uid AND id = p_domaine_id;
+  ELSE
+    IF p_origine IS NULL OR p_origine NOT IN ('tuteur', 'manuel') THEN
+      RAISE EXCEPTION 'Origine de classement invalide : %', coalesce(p_origine, 'NULL')
+        USING ERRCODE = '22023';
+    END IF;
+    IF length(btrim(coalesce(p_version, ''))) = 0 THEN
+      RAISE EXCEPTION 'Version de carte obligatoire.' USING ERRCODE = '22023';
+    END IF;
+    UPDATE public.domaines
+       SET carte_noeud = p_noeud, carte_version = p_version,
+           carte_origine = p_origine, carte_valide_le = NOW()
+     WHERE user_id = v_uid AND id = p_domaine_id;
+  END IF;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Domaine introuvable : %', p_domaine_id USING ERRCODE = 'P0002';
+  END IF;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.classer_domaine(TEXT, TEXT, TEXT, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.classer_domaine(TEXT, TEXT, TEXT, TEXT) TO authenticated;
 
 ALTER TABLE public.referentiel_codes_emis ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.referentiel_changes ENABLE ROW LEVEL SECURITY;

@@ -27,7 +27,6 @@ import {
 import { BUCKET_PIECES_JOINTES, MAX_PDF_OCTETS, MIME_PDF, nomPdfValide } from "@/lib/documents/pieces-jointes";
 import type { DonneesGraphe } from "@/lib/domain/graphe";
 import type { GrapheDomaines } from "@/lib/domain/graphe-domaines";
-import { CarteDomaines } from "./vues/carte-domaines";
 import { urlComposerAutonome } from "@/lib/domain/navigation-exercice";
 /*
  * Le graphe (et `d3-force` avec lui) ne voyage que quand la vue graphe est
@@ -65,7 +64,6 @@ import {
   supprimerDocumentAction,
 } from "@/lib/store/document-actions";
 import type {
-  EntretienDomaineAtelier,
   VueDomaineAtelier,
   VueCompetenceAtelier,
 } from "@/lib/documents/vue-atelier";
@@ -307,7 +305,6 @@ export function EspaceDocumentaire({
   graphe,
   generation,
   donneesSeance,
-  entretien,
   domainesExistants,
   creationInitiale,
 }: {
@@ -318,7 +315,6 @@ export function EspaceDocumentaire({
   graphe: { donnees: DonneesGraphe; domaines: GrapheDomaines; compteId: string };
   generation: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
   donneesSeance?: DonneesSeance;
-  entretien: EntretienDomaineAtelier;
   domainesExistants: { id: string; nom: string; prefixe: string }[];
   creationInitiale?: string;
 }) {
@@ -544,8 +540,6 @@ export function EspaceDocumentaire({
    * recherche, qui rend maintenant ses résultats à plat.
    */
   const [recherche, setRecherche] = useState("");
-  /* L'échelle de lecture du graphe : les domaines d'abord, le détail ensuite. */
-  const [echelleGraphe, setEchelleGraphe] = useState<"domaines" | "competences">("domaines");
   const [triDomaines, setTriDomaines] = useState<TriDomaine>("recent");
   const [statutFiltre, setStatutFiltre] = useState<"actifs" | "archives">(
     selectionInitiale === "domaines-archives" ? "archives" : "actifs",
@@ -1231,43 +1225,13 @@ export function EspaceDocumentaire({
       )}>
         <main className="flex h-full min-w-0 flex-1 flex-col min-h-0 overflow-hidden bg-surface">
           {selection === "graphe" ? (
-            <div className="flex h-full min-h-0 flex-1 flex-col gap-3 overflow-hidden bg-surface p-4">
+            <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface p-4">
               {/*
-                Deux échelles du même corpus, pas deux classements : les
-                domaines rassemblent ce que les compétences détaillent. La
-                carte est l'entrée par défaut — c'est l'échelle où l'on
-                reconnaît son propre travail.
+                Une seule échelle ici : les compétences. La carte des domaines
+                qui doublait cet écran est retournée dans la page Domaines, où
+                elle ne fait plus doublon avec la liste.
               */}
-              <div className="inline-flex w-fit rounded-lg border border-bordure bg-surface-2 p-0.5">
-                {([
-                  ["domaines", "Domaines"],
-                  ["competences", "Compétences"],
-                ] as const).map(([cle, libelle]) => (
-                  <button
-                    key={cle}
-                    type="button"
-                    onClick={() => setEchelleGraphe(cle)}
-                    aria-pressed={echelleGraphe === cle}
-                    className={
-                      echelleGraphe === cle
-                        ? "rounded-md bg-surface px-3 py-1 text-xs font-semibold text-texte shadow-xs cursor-pointer"
-                        : "rounded-md px-3 py-1 text-xs font-medium text-texte-discret transition-colors hover:text-texte cursor-pointer"
-                    }
-                  >
-                    {libelle}
-                  </button>
-                ))}
-              </div>
-              {echelleGraphe === "domaines" ? (
-                <CarteDomaines
-                  graphe={graphe.domaines}
-                  ouvrirDomaine={(domaineId) => ouvrirElement(`domaine:${domaineId}`)}
-                />
-              ) : (
-                <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                  <GrapheCompetences donnees={graphe.donnees} compteId={graphe.compteId} ouvrirElement={ouvrirElement} />
-                </div>
-              )}
+              <GrapheCompetences donnees={graphe.donnees} compteId={graphe.compteId} ouvrirElement={ouvrirElement} />
             </div>
           ) : selection === "ressources" ? (
             <VueRessources
@@ -1282,6 +1246,7 @@ export function EspaceDocumentaire({
             />
           ) : selection === "domaines" || selection === "domaines-archives" ? (
             <VueTousLesDomaines
+              grapheDomaines={graphe.domaines}
               domaines={elements
                 .filter((el) => el.type === "domaine" && el.vuePedagogique)
                 .filter((el) => {
@@ -1308,7 +1273,6 @@ export function EspaceDocumentaire({
               compteId={graphe.compteId}
               generation={generation}
               donneesSeance={donneesSeance}
-              entretien={entretien}
               onRestaurerDomaine={onRestaurerDomaine}
               domainesExistants={domainesExistants}
             />
@@ -1590,6 +1554,7 @@ export function EspaceDocumentaire({
             </>
           ) : (
             <VueTousLesDomaines
+              grapheDomaines={graphe.domaines}
               domaines={elements
                 .filter((el) => el.type === "domaine" && el.vuePedagogique)
                 .filter((el) => !(el.vuePedagogique as VueDomaineAtelier).domaine.archive)

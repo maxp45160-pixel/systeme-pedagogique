@@ -55,3 +55,45 @@ describe("calculerSimilaritesTextuelles", () => {
     expect(sims.every((s) => s.score >= 0.9)).toBe(true);
   });
 });
+
+describe("normalisation de pluriel", () => {
+  it("rapproche le singulier du pluriel", () => {
+    /*
+     * Un troisième document sans rapport est nécessaire : avec deux documents
+     * qui partagent tout leur vocabulaire, l'IDF de chaque mot vaut log(2/2)
+     * = 0 et aucun score ne peut être non nul. Ce n'est pas la normalisation
+     * qui échouerait, c'est le corpus qui serait dégénéré.
+     */
+    const documents: DocumentTexte[] = [
+      { id: "a", fragments: ["statistiques et probabilités"] },
+      { id: "b", fragments: ["statistique et probabilité"] },
+      { id: "c", fragments: ["menuiserie traditionnelle"] },
+    ];
+    const sims = calculerSimilaritesTextuelles(documents, 3, 0.5);
+    expect(sims).toHaveLength(1);
+    expect(sims[0].score).toBeGreaterThan(0.9);
+  });
+
+  it("ne tronque pas les mots courts, où le « s » final appartient au mot", () => {
+    /*
+     * « flux » réduit à « flu », « cas » à « ca » : le découpage doit s'arrêter
+     * avant. On le vérifie par l'absence de rapprochement entre deux textes
+     * qui ne partagent que la troncature.
+     */
+    const documents: DocumentTexte[] = [
+      { id: "a", fragments: ["flux tendu"] },
+      { id: "b", fragments: ["flu saisonnière"] },
+    ];
+    const sims = calculerSimilaritesTextuelles(documents, 3, 0.1);
+    expect(sims).toHaveLength(0);
+  });
+
+  it("ne touche pas à un « s » double final", () => {
+    const documents: DocumentTexte[] = [
+      { id: "a", fragments: ["processus industriel"] },
+      { id: "b", fragments: ["processu industriel"] },
+    ];
+    const sims = calculerSimilaritesTextuelles(documents, 3, 0.99);
+    expect(sims).toHaveLength(0);
+  });
+});

@@ -2,12 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import {
-  construirePistesDomaine,
-  type EntretienDomaineAtelier,
-  type PisteDomaineAtelier,
-  type VueDomaineAtelier,
-} from "@/lib/documents/vue-atelier";
+import type { VueDomaineAtelier } from "@/lib/documents/vue-atelier";
 import { Bouton } from "@/components/ui/primitives";
 import { IconeDocuments, IconeRecherche } from "@/components/ui/icones";
 import { BoutonReviser } from "@/components/referentiel/bouton-reviser";
@@ -22,78 +17,18 @@ import {
   libelleImportance,
 } from "./elements-fiche";
 import { ArbreDomaineVue } from "./arbre-domaine";
-
-function PistesDomaine({
-  pistes,
-  ouvrirElement,
-}: {
-  pistes: Array<{ titre: string; items: PisteDomaineAtelier[] }>;
-  ouvrirElement: (id: string) => void;
-}) {
-  if (pistes.length === 0) return null;
-
-  return (
-    <section className="rounded-xl border border-info/25 bg-info-faible/35 p-5">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <div>
-          <h3 className="text-sm font-semibold text-texte">Repères à vérifier</h3>
-          <p className="mt-1 max-w-3xl text-xs leading-relaxed text-texte-attenue">
-            Le système les déduit de tes exercices, séances et traces de travail. Ce sont des invitations à regarder, pas des affirmations : rien ne change dans ton référentiel tant que tu n’agis pas.
-          </p>
-        </div>
-        <span className="rounded-full border border-info/30 bg-surface px-2 py-0.5 text-xs font-semibold tabular-nums text-info">
-          {pistes.reduce((total, famille) => total + famille.items.length, 0)}
-        </span>
-      </div>
-      <div className="mt-4 grid gap-3 lg:grid-cols-2">
-        {pistes.map((famille, familleIndex) => (
-          <div key={`${famille.titre}-${familleIndex}`} className="rounded-lg border border-bordure bg-surface p-3">
-            <div className="flex items-center justify-between gap-2">
-              <h4 className="text-xs font-semibold text-texte">{famille.titre}</h4>
-              <span className="text-[0.6875rem] tabular-nums text-texte-discret">{famille.items.length}</span>
-            </div>
-            <ul className="mt-2 space-y-2">
-              {famille.items.slice(0, 4).map((piste, pisteIndex) => (
-                <li key={`${famille.titre}-${piste.code ?? piste.titre}-${pisteIndex}`} className="text-xs">
-                  {piste.code ? (
-                    <button
-                      type="button"
-                      onClick={() => ouvrirElement(piste.code!)}
-                      className="cursor-pointer text-left font-medium text-texte underline-offset-2 hover:text-primaire hover:underline"
-                    >
-                      {piste.titre}
-                    </button>
-                  ) : (
-                    <p className="font-medium text-texte">{piste.titre}</p>
-                  )}
-                  <p className="mt-0.5 text-texte-discret">{piste.motif}</p>
-                </li>
-              ))}
-            </ul>
-            {famille.items.length > 4 && (
-              <p className="mt-2 text-[0.6875rem] text-texte-discret">
-                {famille.items.length - 4} autre{famille.items.length - 4 > 1 ? "s" : ""} piste{famille.items.length - 4 > 1 ? "s" : ""} dans l’analyse globale.
-              </p>
-            )}
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
+import { ClassementDomaine } from "./classement-domaine";
 
 export function VueDomaine({
   vue,
   ouvrirElement,
   compteId,
-  entretien,
   onRestaurerDomaine,
   domainesExistants = [],
 }: {
   vue: VueDomaineAtelier;
   ouvrirElement: (id: string) => void;
   compteId: string;
-  entretien?: EntretienDomaineAtelier;
   onRestaurerDomaine?: (domaineId: string) => void;
   domainesExistants?: { id: string; nom: string; prefixe: string }[];
 }) {
@@ -143,7 +78,6 @@ export function VueDomaine({
       modeRetrait: vue.retraits[skill.code]?.mode ?? ("suppression" as const),
       reformulationManuelleRequise: motifsNonAtomique(skill.intitule).length > 0,
     }));
-  const pistes = construirePistesDomaine(vue, entretien);
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-surface-2/40">
       <header className="border-b border-bordure bg-surface px-6 py-5 lg:px-8">
@@ -225,7 +159,13 @@ export function VueDomaine({
         </div>
 
         <div className="space-y-8">
-            <PistesDomaine pistes={pistes} ouvrirElement={ouvrirElement} />
+            <ClassementDomaine
+              domaineId={vue.domaine.id}
+              compteId={compteId}
+              rattachement={vue.rattachementCarte}
+              classification={vue.classificationCarte}
+              modifiable={!vue.domaine.archive && Boolean(compteId)}
+            />
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-bordure bg-surface px-3.5 py-3">
               <div className="inline-flex rounded-lg border border-bordure bg-surface-2 p-0.5">
                 {([

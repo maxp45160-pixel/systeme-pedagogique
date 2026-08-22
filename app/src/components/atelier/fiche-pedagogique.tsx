@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import type { VuePedagogiqueAtelier } from "@/lib/documents/vue-atelier";
-import type { EntretienDomaineAtelier } from "@/lib/documents/vue-atelier";
 import type { ElementAtelier } from "./types-atelier";
 import type { CalibrageModale, CompetenceModale } from "@/lib/domain/proprietes-generation";
 import { ConcepteurSeance, type DonneesSeance } from "@/components/seances/concepteur-seance";
@@ -25,7 +24,6 @@ export function FichePedagogiqueAtelier({
   compteId,
   generation,
   donneesSeance,
-  entretien,
   onRestaurerDomaine,
   domainesExistants,
 }: {
@@ -36,7 +34,6 @@ export function FichePedagogiqueAtelier({
   compteId: string;
   generation?: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
   donneesSeance?: DonneesSeance;
-  entretien?: EntretienDomaineAtelier;
   onRestaurerDomaine?: (domaineId: string) => void;
   domainesExistants?: { id: string; nom: string; prefixe: string }[];
 }) {
@@ -61,7 +58,6 @@ export function FichePedagogiqueAtelier({
         vue={vue}
         ouvrirElement={ouvrirElement}
         compteId={compteId}
-        entretien={entretien}
         onRestaurerDomaine={onRestaurerDomaine}
         domainesExistants={domainesExistants}
       />

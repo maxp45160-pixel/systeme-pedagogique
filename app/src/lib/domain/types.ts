@@ -104,6 +104,15 @@ export type DomaineId = string;
 /** D'où vient une entrée du référentiel. Fait observé, jamais dérivé. */
 export type OrigineReferentiel = "utilisateur" | "tuteur" | "migration" | "manuel";
 
+/**
+ * Qui a proposé le rattachement qu'une personne a validé.
+ *
+ * `lexical` n'en fait pas partie, ici comme en base : un classement calculé
+ * propose, il ne rattache pas. Ce qui est enregistré est toujours l'arbitrage
+ * d'une personne.
+ */
+export type OrigineRattachementCarte = "tuteur" | "manuel";
+
 export interface Domaine {
   id: DomaineId;
   nom: string;
@@ -116,6 +125,22 @@ export interface Domaine {
   version: number;
   archive: boolean;
   origine: OrigineReferentiel;
+
+  /*
+   * Position du domaine sur la carte des savoirs (couche 1 — déclaré).
+   *
+   * Les quatre champs vont ensemble ou pas du tout : la base l'impose
+   * (`domaines_carte_complete`), le validateur le revérifie à l'entrée. Un
+   * rattachement sans provenance ni date serait une affirmation sans source
+   * (invariant 2). Lire par `rattachementDomaine()`, jamais champ par champ.
+   */
+  /** Identifiant d'un nœud de `lib/domain/carte-savoirs.ts`. */
+  carteNoeud?: string;
+  /** `VERSION_CARTE` au moment de l'arbitrage — sans elle, « où » perd son sens. */
+  carteVersion?: string;
+  carteOrigine?: OrigineRattachementCarte;
+  /** Date ISO de la validation humaine. */
+  carteValideLe?: string;
 }
 
 /* ------------------------------------------------------------------ */

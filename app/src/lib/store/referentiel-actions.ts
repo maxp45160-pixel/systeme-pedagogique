@@ -24,7 +24,13 @@ import {
   type ResultatCommandeReferentiel,
 } from "@/lib/domain/gouvernance-referentiel";
 import { competenceHomonyme } from "@/lib/domain/referentiel-compte";
-import type { OrigineReferentiel, Palier, Referentiel } from "@/lib/domain/types";
+import type {
+  OrigineRattachementCarte,
+  OrigineReferentiel,
+  Palier,
+  Referentiel,
+} from "@/lib/domain/types";
+import { VERSION_CARTE, estNoeudCarteValide } from "@/lib/domain/carte-savoirs";
 
 async function executerCommande(
   commande: CommandeReferentiel,
@@ -451,3 +457,63 @@ export async function modifierProfil(champs: ModificationProfil): Promise<void> 
   revalidatePath("/", "layout");
 }
 
+/* ------------------------------------------------------------------ */
+/* Classement sur la carte des savoirs                                 */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Pourquoi une RPC et non un `update` direct.
+ *
+ * `public.domaines` ne porte pas la politique uniforme `isolation_par_compte` :
+ * elle porte `referentiel_commande_modification`, qui exige le drapeau
+ * `app.referentiel_command`. Un `UPDATE` lancé depuis l'application ne
+ * correspond donc à AUCUNE ligne — et PostgREST rend un succès, zéro ligne
+ * modifiée, sans message. C'est ce qu'a fait la première version : le clic ne
+ * produisait rien, silencieusement (constaté le 22/08/2026).
+ *
+ * `classer_domaine` est le chemin d'écriture étroit qui manquait : elle n'écrit
+ * que les quatre colonnes de classement, sur le domaine du compte appelant, et
+ * elle lève quand la ligne n'existe pas.
+ *
+ * Elle ne passe pas par `appliquer_commande_referentiel` : un classement ne
+ * touche ni code, ni compétence, ni observation, et incrémenter `version`
+ * ferait échouer sans raison toute commande concurrente ayant lu la version
+ * d'avant.
+ */
+
+/**
+ * Enregistre l'arbitrage d'une personne. Ce n'est jamais un calcul qui appelle
+ * cette fonction : `origine` ne peut valoir que `tuteur` (proposition du tuteur
+ * validée) ou `manuel` (choix de la personne, suggestion acceptée comprise).
+ */
+export async function rattacherDomaineACarte(
+  domaineId: string,
+  noeud: string,
+  origine: OrigineRattachementCarte,
+): Promise<void> {
+  if (!estNoeudCarteValide(noeud)) {
+    throw new Error(`Nœud de carte inconnu : ${noeud}`);
+  }
+  const dorsale = await dorsaleCompte();
+  const { error } = await dorsale.supabase.rpc("classer_domaine", {
+    p_domaine_id: domaineId,
+    p_noeud: noeud,
+    p_version: VERSION_CARTE,
+    p_origine: origine,
+  });
+  verifier("classement du domaine", error);
+  revalidatePath("/", "layout");
+}
+
+/** Retire le classement. Les quatre colonnes repartent ensemble, comme elles sont venues. */
+export async function detacherDomaineDeCarte(domaineId: string): Promise<void> {
+  const dorsale = await dorsaleCompte();
+  const { error } = await dorsale.supabase.rpc("classer_domaine", {
+    p_domaine_id: domaineId,
+    p_noeud: null,
+    p_version: null,
+    p_origine: null,
+  });
+  verifier("retrait du classement", error);
+  revalidatePath("/", "layout");
+}

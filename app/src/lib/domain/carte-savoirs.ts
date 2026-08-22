@@ -43,6 +43,8 @@
  * la refuse (`lib/engine/classification-domaine.ts`).
  */
 
+import type { Domaine, OrigineRattachementCarte } from "./types";
+
 /** Fait évoluer la carte explicitement. Une proposition enregistrée garde la sienne. */
 export const VERSION_CARTE = "2026-08-22";
 
@@ -479,4 +481,73 @@ export function cheminCarte(id: string): NoeudCarte[] {
 /** Les nœuds auxquels un domaine de compte peut être rattaché : tout sauf la racine. */
 export function noeudsRattachables(): NoeudCarte[] {
   return NOEUDS_CARTE.filter((noeud) => noeud.id !== RACINE_CARTE);
+}
+
+/* ------------------------------------------------------------------ */
+/* Rattachement d'un domaine de compte                                 */
+/* ------------------------------------------------------------------ */
+
+export interface RattachementCarte {
+  noeud: string;
+  version: string;
+  origine: OrigineRattachementCarte;
+  valideLe: string;
+  /**
+   * Vrai quand le nœud n'existe plus dans la carte courante — la carte a
+   * changé depuis l'arbitrage. Le rattachement n'est pas effacé pour autant :
+   * il reste un fait déclaré, daté, avec sa version. L'interface le signale
+   * et propose de le revoir ; personne ne le réécrit dans le dos de son auteur.
+   */
+  obsolete: boolean;
+  /** Chemin lisible, vide quand le nœud est obsolète. */
+  chemin: NoeudCarte[];
+}
+
+/**
+ * Le rattachement d'un domaine, ou `null`.
+ *
+ * Point de lecture unique : les quatre champs de `Domaine` ne se lisent jamais
+ * séparément. Un enregistrement incomplet — que la contrainte de base rend
+ * impossible, mais qu'un import ou une migration future pourrait produire —
+ * est traité comme une absence de rattachement, jamais complété d'office.
+ */
+export function rattachementDomaine(domaine: Domaine): RattachementCarte | null {
+  const { carteNoeud, carteVersion, carteOrigine, carteValideLe } = domaine;
+  if (!carteNoeud || !carteVersion || !carteOrigine || !carteValideLe) return null;
+  const chemin = cheminCarte(carteNoeud);
+  return {
+    noeud: carteNoeud,
+    version: carteVersion,
+    origine: carteOrigine,
+    valideLe: carteValideLe,
+    obsolete: chemin.length === 0,
+    chemin,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* Énumération fermée — tuteur, formulaires, imports                    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * La liste que le serveur fournit au tuteur.
+ *
+ * Même garde-fou que pour les codes de compétence : « les codes proposés par
+ * le tuteur doivent venir d'un `enum` fourni par le serveur ». Le tuteur ne
+ * nomme jamais une région de la carte de sa propre initiative — il choisit
+ * dans cette liste, ou il ne propose rien.
+ */
+export function enumNoeudsCarte(): string[] {
+  return noeudsRattachables().map((noeud) => noeud.id);
+}
+
+/**
+ * Valide un identifiant venu de l'extérieur — tuteur, formulaire, import.
+ *
+ * La racine est refusée : rattacher un domaine à « Savoirs humains » ne le
+ * situe nulle part et donnerait l'apparence d'un classement là où il n'y en a
+ * pas.
+ */
+export function estNoeudCarteValide(id: unknown): id is string {
+  return typeof id === "string" && id !== RACINE_CARTE && noeudCarte(id) !== undefined;
 }

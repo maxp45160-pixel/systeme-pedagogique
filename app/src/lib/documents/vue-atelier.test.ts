@@ -9,8 +9,7 @@ import type {
   SkillState,
 } from "@/lib/domain/types";
 import type { IndexDocumentaire } from "./index";
-import { construirePistesDomaine, construireVuesAtelier } from "./vue-atelier";
-import type { LotCandidats } from "@/lib/engine/candidats-referentiel";
+import { construireVuesAtelier } from "./vue-atelier";
 import { construireEtatCompetence } from "@/lib/engine/vues-twiny";
 
 const competence: Skill = {
@@ -264,103 +263,6 @@ describe("construireVuesAtelier", () => {
       nombreExercices: 1,
       competences: [{ code: competence.code, rattachee: true, porteurNom: "Logistique" }],
     });
-  });
-
-  it("ne propose un lien entre compétences que lorsqu'il vient d'une co-mobilisation observée", () => {
-    const vues = construireVuesAtelier(
-      referentiel,
-      [etat(competence, [observation]), etat(suivante)],
-      [exercice],
-      [tentative],
-      index,
-      [],
-      [],
-      new Set(),
-      etatsLot5(etat(competence, [observation]), etat(suivante)),
-    );
-    const lot: LotCandidats = {
-      aretes: [
-        {
-          genre: "arete",
-          amont: competence.code,
-          aval: suivante.code,
-          force: 0.8,
-          source: "usage",
-          motifs: ["Deux compétences mobilisées ensemble à plusieurs reprises."],
-        },
-        {
-          genre: "arete",
-          amont: competence.code,
-          aval: suivante.code,
-          force: 0.9,
-          source: "redaction",
-          motifs: ["Ordre proposé lors de la rédaction."],
-        },
-      ],
-      dormances: [],
-      rangements: [],
-      reformulations: [],
-      total: 2,
-    };
-
-    const familles = construirePistesDomaine(vues.domaines[0], {
-      lot,
-      intitules: {
-        [competence.code]: competence.intitule,
-        [suivante.code]: suivante.intitule,
-      },
-    });
-
-    expect(familles[0].items).toEqual([
-      expect.objectContaining({
-        titre: `${competence.intitule} → ${suivante.intitule}`,
-      }),
-    ]);
-  });
-
-  it("regroupe les pistes d'une même compétence sans perdre les signaux", () => {
-    const vues = construireVuesAtelier(
-      referentiel,
-      [etat(competence, [observation]), etat(suivante)],
-      [exercice],
-      [tentative],
-      index,
-      [],
-      [],
-      new Set(),
-      etatsLot5(etat(competence, [observation]), etat(suivante)),
-    );
-    const familles = construirePistesDomaine(vues.domaines[0], {
-      lot: {
-        aretes: [],
-        dormances: [
-          {
-            genre: "dormance",
-            code: competence.code,
-            joursSansRien: 120,
-            motifs: ["Aucune activité récente ne l'éclaire encore."],
-          },
-        ],
-        rangements: [],
-        reformulations: [
-          {
-            genre: "reformulation",
-            code: competence.code,
-            intitule: competence.intitule,
-            regles: ["deux verbes"],
-            aDesObservations: true,
-            motifs: ["L'intitulé couvre plusieurs gestes."],
-          },
-        ],
-      total: 2,
-      },
-      intitules: { [competence.code]: competence.intitule },
-    });
-
-    expect(familles).toHaveLength(1);
-    expect(familles[0].items).toHaveLength(1);
-    expect(familles[0].items[0].motif).toContain("Aucune activité récente");
-    expect(familles[0].items[0].motif).toContain("L'intitulé couvre");
   });
 
   it("réutilise les états du lot 5 déjà calculés", () => {

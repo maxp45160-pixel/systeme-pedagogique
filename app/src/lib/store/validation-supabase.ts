@@ -332,6 +332,38 @@ export function validerDomaine(valeur: unknown, chemin = "domaines"): Domaine {
   nombre(domaine.version, `${chemin}.version`, { min: 1, entier: true });
   booleen(domaine.archive, `${chemin}.archive`);
   enumeration(domaine.origine, ["utilisateur", "tuteur", "migration", "manuel"] as const, `${chemin}.origine`);
+
+  /*
+   * Rattachement à la carte des savoirs : les quatre champs vont ensemble ou
+   * pas du tout. La contrainte `domaines_carte_complete` le garantit côté
+   * base ; on le revérifie ici parce qu'une donnée venue de Supabase se valide
+   * avant d'entrer dans le moteur, y compris quand une contrainte est censée
+   * l'avoir déjà fait.
+   *
+   * L'existence du nœud dans la carte courante n'est PAS vérifiée ici : la
+   * carte évolue en dépôt, et un nœud retiré rendrait tout le référentiel
+   * illisible au chargement. Un rattachement vers un nœud disparu reste un
+   * fait daté ; `rattachementDomaine()` le signale obsolète à l'affichage.
+   */
+  optionnel(domaine, "carteNoeud", chemin, texte);
+  optionnel(domaine, "carteVersion", chemin, texte);
+  optionnel(domaine, "carteValideLe", chemin, date);
+  if (domaine.carteOrigine !== undefined) {
+    enumeration(domaine.carteOrigine, ["tuteur", "manuel"] as const, `${chemin}.carteOrigine`);
+  }
+  const presents = [
+    domaine.carteNoeud,
+    domaine.carteVersion,
+    domaine.carteOrigine,
+    domaine.carteValideLe,
+  ].filter((valeur) => valeur !== undefined).length;
+  if (presents !== 0 && presents !== 4) {
+    refuser(
+      `${chemin}.carteNoeud`,
+      "rattachement de carte incomplet : nœud, version, origine et date vont ensemble",
+    );
+  }
+
   return domaine as unknown as Domaine;
 }
 

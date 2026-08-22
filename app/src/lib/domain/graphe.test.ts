@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { construireGraphe } from "./graphe";
-import { REFERENTIEL_TEST, referentielDe, skillDeTest } from "./referentiel.fixture";
+import { REFERENTIEL_TEST, domaineDeTest, referentielDe, skillDeTest } from "./referentiel.fixture";
 import type { Exercise, SkillState } from "./types";
 import { reconstruireIndexDocumentaire } from "@/lib/documents/index";
 
@@ -169,5 +169,49 @@ describe("construireGraphe", () => {
       },
     ]));
     expect(graphe.liens.some((lien) => lien.target === "inconnu")).toBe(false);
+  });
+});
+
+describe("domaines mis de côté", () => {
+  const referentielAvecArchive = () =>
+    referentielDe(
+      [skillDeTest("DEV-01", "developpement", "fondamentaux", 1, 0)],
+      [
+        domaineDeTest("developpement", "Développement logiciel", "DEV", 0),
+        { ...domaineDeTest("statistiques", "Statistiques", "STAT", 1), archive: true },
+      ],
+    );
+
+  it("ne rattache plus un exercice à un domaine archivé", () => {
+    /*
+     * Le défaut constaté le 22/08 : un domaine archivé continuait de dessiner
+     * son halo et son étiquette sur le graphe, parce qu'un exercice portait
+     * encore son identifiant. Le nœud reste, son rattachement tombe.
+     */
+    const referentiel = referentielAvecArchive();
+    const etats = referentiel.actifs.map((s) => etat({ skill: s }));
+    const exercice = {
+      id: "ex-1",
+      titre: "Exercice",
+      competences: ["DEV-01"],
+      domaine: "statistiques",
+      archive: false,
+    } as unknown as Exercise;
+
+    const { noeuds } = construireGraphe(referentiel, etats, [exercice]);
+    const noeudExercice = noeuds.find((n) => n.id === "exercice:ex-1");
+
+    expect(noeudExercice).toBeDefined();
+    expect(noeudExercice?.domaineId).toBeNull();
+    expect(noeudExercice?.etiquettes).not.toContain("domaine:statistiques");
+  });
+
+  it("ne nomme que les domaines vivants", () => {
+    const referentiel = referentielAvecArchive();
+    const etats = referentiel.actifs.map((s) => etat({ skill: s }));
+
+    const { nomsDomaines } = construireGraphe(referentiel, etats, []);
+
+    expect(nomsDomaines).toEqual({ developpement: "Développement logiciel" });
   });
 });

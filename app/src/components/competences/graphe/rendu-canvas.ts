@@ -360,6 +360,8 @@ export function dessinerGroupementsDomaines(
   ctxCouleur: ContexteCouleur,
   axeCouleur: AxeCouleur,
   domainesMisEnValeur?: Set<string>,
+  /** Noms lisibles fournis par le graphe. À défaut, l'identifiant — jamais un nom inventé. */
+  nomsDomaines: Record<string, string> = {},
 ): void {
   if (axeCouleur !== "domaine") return;
 
@@ -420,9 +422,7 @@ export function dessinerGroupementsDomaines(
 
     // Nom du domaine au-dessus du groupe
     if (camera.zoom > 0.35 || estMisEnValeur) {
-      const premierNoeud = groupe[0];
-      const nomDomaine =
-        premierNoeud.etiquettes.find((e) => e.startsWith("domaine:"))?.slice(8) ?? domaineId;
+      const nomDomaine = nomsDomaines[domaineId] ?? domaineId;
       ctx.font = `600 ${Math.max(10, Math.min(13, 11 * camera.zoom))}px var(--police-texte, sans-serif)`;
       ctx.fillStyle = estMisEnValeur ? palette.texte : palette.texteAttenue;
       ctx.globalAlpha = estMisEnValeur ? 1 : Math.min(0.85, Math.max(0.3, camera.zoom * 0.9));

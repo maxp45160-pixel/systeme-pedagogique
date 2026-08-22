@@ -39,7 +39,6 @@
  */
 
 import {
-  RACINE_CARTE,
   VERSION_CARTE,
   cheminCarte,
   noeudCarte,
@@ -209,25 +208,10 @@ export function libelleChemin(noeudId: string): string {
 /* Garde-fou du tuteur                                                 */
 /* ------------------------------------------------------------------ */
 
-/**
- * L'énumération fermée que le serveur fournit au tuteur.
- *
- * Même garde-fou que pour les codes de compétence : « les codes proposés par
- * le tuteur doivent venir d'un `enum` fourni par le serveur ». Le tuteur ne
- * nomme jamais une région de la carte de sa propre initiative — il choisit
- * dans cette liste, ou il ne propose rien.
+/*
+ * L'énumération fermée et son validateur vivent dans `carte-savoirs.ts` : la
+ * couche store les appelle aussi, et une seconde implémentation serait un
+ * second endroit où la règle peut diverger. Réexportés ici parce que c'est ce
+ * module que l'outil du tuteur consulte.
  */
-export function enumNoeudsCarte(): string[] {
-  return noeudsRattachables().map((noeud) => noeud.id);
-}
-
-/**
- * Valide un identifiant venu de l'extérieur — tuteur, formulaire, import.
- *
- * La racine est refusée : rattacher un domaine à « Savoirs humains » ne le
- * situe nulle part et donnerait l'apparence d'un classement là où il n'y en a
- * pas.
- */
-export function estNoeudCarteValide(id: unknown): id is string {
-  return typeof id === "string" && id !== RACINE_CARTE && noeudCarte(id) !== undefined;
-}
+export { enumNoeudsCarte, estNoeudCarteValide } from "@/lib/domain/carte-savoirs";

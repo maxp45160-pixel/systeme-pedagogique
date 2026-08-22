@@ -278,6 +278,7 @@ export function GrapheCompetences({
       contexteCouleur,
       reglages.axeCouleur,
       domainesMisEnValeur,
+      donnees.nomsDomaines,
     );
 
     const voisins = new Set<string>();
@@ -316,7 +317,7 @@ export function GrapheCompetences({
       const n = noeudsRef.current.find((x) => x.id === survol);
       if (n) dessinerTooltip(ctx, n, largeur, hauteur, camera, palette);
     }
-  }, [reglages.axeCouleur, reglages.seuilLibelles, contexteCouleur]);
+  }, [reglages.axeCouleur, reglages.seuilLibelles, contexteCouleur, donnees.nomsDomaines]);
 
   // Dernier tracé frais, lu par les écouteurs et la simulation. Mise à jour
   // dans un effet et non pendant le rendu : écrire `current` au rendu viole la

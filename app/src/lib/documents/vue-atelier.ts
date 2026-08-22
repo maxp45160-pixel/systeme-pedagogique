@@ -16,7 +16,14 @@ import {
   construireArbreDomaine,
   type ArbreDomaine,
 } from "@/lib/domain/arbre-competences";
-import type { LotCandidats } from "@/lib/engine/candidats-referentiel";
+import {
+  rattachementDomaine,
+  type RattachementCarte,
+} from "@/lib/domain/carte-savoirs";
+import {
+  proposerClassification,
+  type PropositionClassification,
+} from "@/lib/engine/classification-domaine";
 import { retraitsParCode, type EtatRetrait } from "@/lib/domain/referentiel-compte";
 import type { IndexDocumentaire } from "./index";
 import { PREFIXE_PREUVE, idPreuve } from "./nature-document";
@@ -204,94 +211,14 @@ export interface VueDomaineAtelier {
    * lieu d'être tus.
    */
   arbre: ArbreDomaine;
-}
-
-export interface EntretienDomaineAtelier {
-  lot: LotCandidats;
-  intitules: Record<string, string>;
-}
-
-export interface PisteDomaineAtelier {
-  code?: string;
-  titre: string;
-  motif: string;
-}
-
-export function construirePistesDomaine(
-  vue: VueDomaineAtelier,
-  entretien?: EntretienDomaineAtelier,
-): Array<{ titre: string; items: PisteDomaineAtelier[] }> {
-  if (!entretien) return [];
-
-  const codes = new Set(vue.competences.map((competence) => competence.code));
-  const intitule = (code: string) => entretien.intitules[code] ?? "Repère sans intitulé";
-  const pistesAExplorerParCode = new Map<string, PisteDomaineAtelier>();
-  const ajouterPisteAExplorer = (piste: PisteDomaineAtelier & { code: string }) => {
-    const precedente = pistesAExplorerParCode.get(piste.code);
-    if (!precedente) {
-      pistesAExplorerParCode.set(piste.code, piste);
-      return;
-    }
-    const motifs = new Set([precedente.motif, piste.motif].filter(Boolean));
-    pistesAExplorerParCode.set(piste.code, {
-      ...precedente,
-      motif: [...motifs].join(" · "),
-    });
-  };
-
-  entretien.lot.reformulations
-    .filter((candidat) => codes.has(candidat.code))
-    .forEach((candidat) =>
-      ajouterPisteAExplorer({
-        code: candidat.code,
-        titre: intitule(candidat.code),
-        motif: candidat.motifs[0] ?? "L’intitulé mérite d’être reformulé.",
-      }),
-    );
-  entretien.lot.dormances
-    .filter((candidat) => codes.has(candidat.code))
-    .forEach((candidat) =>
-      ajouterPisteAExplorer({
-        code: candidat.code,
-        titre: intitule(candidat.code),
-        motif: candidat.motifs[0] ?? "Aucune activité ou relation ne l’éclaire encore.",
-      }),
-    );
-  entretien.lot.rangements
-    .filter(
-      (candidat) =>
-        codes.has(candidat.code) &&
-        (candidat.domaineActuel === vue.domaine.id || candidat.domaineObserve === vue.domaine.id),
-    )
-    .forEach((candidat) =>
-      ajouterPisteAExplorer({
-        code: candidat.code,
-        titre: intitule(candidat.code),
-        motif: candidat.motifs[0] ?? "Les observations viennent d’un autre domaine.",
-      }),
-    );
-
-  const familles: Array<{ titre: string; items: PisteDomaineAtelier[] }> = [
-    {
-      titre: "Ce qui va souvent ensemble",
-      items: entretien.lot.aretes
-        .filter(
-          (candidat) =>
-            candidat.source === "usage" &&
-            (codes.has(candidat.amont) || codes.has(candidat.aval)),
-        )
-        .map((candidat) => ({
-          titre: `${intitule(candidat.amont)} → ${intitule(candidat.aval)}`,
-          motif: candidat.motifs[0] ?? "Co-mobilisation répétée avec ordre observé.",
-        })),
-    },
-    {
-      titre: "À explorer",
-      items: [...pistesAExplorerParCode.values()],
-    },
-  ];
-
-  return familles.filter((famille) => famille.items.length > 0);
+  /** Position déclarée sur la carte des savoirs, `null` tant que personne n'a tranché. */
+  rattachementCarte: RattachementCarte | null;
+  /**
+   * Candidats proposés, `null` dès qu'un rattachement existe : on ne propose
+   * pas de reclasser ce qui vient d'être arbitré. Vide quand rien n'atteint le
+   * seuil — un résultat, pas un échec.
+   */
+  classificationCarte: PropositionClassification | null;
 }
 
 export interface VueExerciceProjectionAtelier {
@@ -511,6 +438,15 @@ export function construireVuesAtelier(
         nombreExercices: exercicesDomaine.length,
         derniereActivite: derniereDate(items.map((item) => item.derniereObservation)),
         arbre: construireArbreDomaine(domaine.id, referentiel, etats),
+        rattachementCarte: rattachementDomaine(domaine),
+        classificationCarte: rattachementDomaine(domaine)
+          ? null
+          : proposerClassification({
+              domaineId: domaine.id,
+              nom: domaine.nom,
+              description: domaine.description,
+              intitules: [...skillsAffichees, ...rattachees].map((skill) => skill.intitule),
+            }),
       };
     });
 

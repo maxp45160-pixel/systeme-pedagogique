@@ -84,6 +84,14 @@ export interface LienGraphe {
 export interface DonneesGraphe {
   noeuds: NoeudGraphe[];
   liens: LienGraphe[];
+  /**
+   * Nom lisible de chaque domaine vivant, par identifiant.
+   *
+   * Le rendu étiquetait ses halos avec le slug (« algebre-lineaire-et-analyse »),
+   * faute d'avoir le nom sous la main. Il voyage désormais avec le graphe :
+   * une seule source, construite au même endroit que les nœuds.
+   */
+  nomsDomaines: Record<string, string>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -101,6 +109,22 @@ export function construireGraphe(
 ): DonneesGraphe {
   const codesActifs = referentiel.codesActifs;
   const nomsDomaines = new Map(referentiel.domaines.map((d) => [d.id, d.nom]));
+
+  /*
+   * Les domaines mis de côté n'organisent plus rien.
+   *
+   * Leurs compétences sont désactivées par la commande d'archivage, donc
+   * absentes d'ici. Mais un exercice ou un document peut encore porter leur
+   * identifiant : le rendu en tirait un halo et une étiquette, et un domaine
+   * archivé continuait d'apparaître sur le graphe alors qu'il a disparu de
+   * partout ailleurs. Le nœud reste — il existe —, son rattachement de
+   * domaine tombe.
+   */
+  const domainesVivants = new Set(
+    referentiel.domaines.filter((d) => !d.archive).map((d) => d.id),
+  );
+  const domaineVivant = (id: string | null): string | null =>
+    id !== null && domainesVivants.has(id) ? id : null;
 
   const noeuds: NoeudGraphe[] = [];
   const idsCompetences = new Set<string>();
@@ -156,12 +180,16 @@ export function construireGraphe(
     const codes = ex.competences.filter((c) => codesActifs.has(c));
     if (codes.length === 0) continue;
     const idExercice = `exercice:${ex.id}`;
+    const domaineExercice = domaineVivant(ex.domaine);
     noeuds.push({
       id: idExercice,
       type: "exercice",
       libelle: ex.titre,
-      domaineId: ex.domaine,
-      etiquettes: [`domaine:${ex.domaine}`, "type:exercice"],
+      domaineId: domaineExercice,
+      etiquettes: [
+        ...(domaineExercice ? [`domaine:${domaineExercice}`] : []),
+        "type:exercice",
+      ],
       poidsAffichage: codes.length,
     });
     for (const c of codes) {
@@ -179,7 +207,9 @@ export function construireGraphe(
       const id = `document:${document.id}`;
       idsDocuments.add(id);
       const domaineBrut = document.frontMatter.domaine ?? document.frontMatter.domain;
-      const domaineId = typeof domaineBrut === "string" && domaineBrut.trim() ? domaineBrut : null;
+      const domaineId = domaineVivant(
+        typeof domaineBrut === "string" && domaineBrut.trim() ? domaineBrut : null,
+      );
       const connexions =
         (indexDocumentaire.sortants.get(document.id)?.length ?? 0) +
         (indexDocumentaire.entrants.get(document.id)?.length ?? 0);
@@ -240,5 +270,11 @@ export function construireGraphe(
     });
   }
 
-  return { noeuds, liens };
+  return {
+    noeuds,
+    liens,
+    nomsDomaines: Object.fromEntries(
+      [...domainesVivants].map((id) => [id, nomsDomaines.get(id) ?? id]),
+    ),
+  };
 }

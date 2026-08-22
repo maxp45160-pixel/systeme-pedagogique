@@ -199,6 +199,7 @@ export const OUTIL_REVISION = "proposer_revision";
  * plaçable n'est pas créée : elle s'affiche comme demandant un domaine neuf.
  */
 export const OUTIL_RELATIONS = "proposer_relations";
+export const OUTIL_CARTE = "proposer_rattachement_carte";
 
 /**
  * Un référentiel entier — plusieurs branches d'un seul geste.
@@ -887,6 +888,49 @@ export function outilsRelations(codesActifs: string[], domainesIds: string[]): O
   };
 }
 
+/**
+ * L'outil qui situe un domaine sur la carte des savoirs.
+ *
+ * Un seul rattachement est demandé, pas une liste : un domaine occupe une
+ * place, et proposer trois places reviendrait à renvoyer l'arbitrage à la
+ * personne sans l'avoir aidée. Quand le tuteur hésite vraiment, il le dit dans
+ * sa justification.
+ *
+ * L'`enum` est fermé côté serveur. Un `enum` vide n'admettrait aucune valeur :
+ * on retombe alors sur une chaîne libre que `validerRattachementCarte`
+ * rejettera de toute façon, faute de nœud connu — même raisonnement que
+ * `outilsRevision` sur un domaine vide.
+ */
+export function outilsRattachementCarte(noeuds: string[]): OutilTuteur {
+  const noeud: SchemaJson =
+    noeuds.length > 0
+      ? {
+          type: "string",
+          enum: noeuds,
+          description: "Identifiant d'une région de la carte des savoirs.",
+        }
+      : { type: "string", description: "Aucune région disponible." };
+
+  return {
+    nom: OUTIL_CARTE,
+    description:
+      "Propose o\u00f9 situer ce domaine sur la carte partagée des savoirs. Tu n'écris rien : la personne valide ou refuse. Tu ne peux désigner qu'une région de la liste — la carte n'accepte aucun nom neuf.",
+    schema: {
+      type: "object",
+      properties: {
+        noeud,
+        justification: {
+          type: "string",
+          description:
+            "Une à deux phrases : ce qui, dans ce domaine, relève de cette région. Dis-le si tu hésites entre deux.",
+        },
+      },
+      required: ["noeud", "justification"],
+      additionalProperties: false,
+    },
+  };
+}
+
 export function outilsRevision(codesVivants: string[]): OutilTuteur {
   // Un `enum: []` n'admettrait aucune valeur et rendrait `modifications` et
   // `retraits` inexprimables — ce qui est correct sur un domaine vide, mais
@@ -1164,6 +1208,7 @@ export type PropositionRecue =
   | { genre: "evaluation-explication"; evaluation: PropositionEvaluationExplication }
   | { genre: "revision"; revision: PropositionRevision }
   | { genre: "relations"; relations: PropositionRelations }
+  | { genre: "carte"; carte: PropositionRattachementCarte }
   | { genre: "referentiel-complet"; resume: string; branches: PropositionReferentiel[]; ecartees: number }
   | { genre: "intention"; traduction: TraductionIntention };
 
@@ -1210,6 +1255,25 @@ export interface PropositionRelations {
   prerequis: RelationProposee[];
   suivantes: RelationProposee[];
 }
+
+/**
+ * Où le tuteur situe un domaine sur la carte des savoirs.
+ *
+ * `noeud` DÉSIGNE, il ne crée pas : son `enum` est fermé sur les identifiants
+ * fournis par le serveur (`enumNoeudsCarte()`), exactement comme les codes de
+ * compétence ne sont jamais inventés par le tuteur. La carte est un
+ * référentiel partagé : un nœud neuf n'a pas de sens dans une proposition.
+ *
+ * `justification` n'est pas décorative. C'est elle que la personne lit pour
+ * accepter ou refuser ; une proposition sans motif ne s'arbitre pas.
+ */
+export interface PropositionRattachementCarte {
+  noeud: string;
+  justification: string;
+}
+
+/** Au-delà, ce n'est plus une proposition : c'est une liste à trier. */
+export const MAX_CANDIDATS_CARTE = 2;
 
 /** Cinq de chaque côté : au-delà, on ne relit plus, on coche. */
 export const MAX_RELATIONS_PROPOSEES = 5;
@@ -1808,6 +1872,31 @@ function validerRelations(
   };
 }
 
+/** Les nœuds réellement armés, relus dans le schéma envoyé — une seule source. */
+function noeudsDuSchemaCarte(outils: OutilTuteur[]): Set<string> {
+  const outil = outils.find((o) => o.nom === OUTIL_CARTE);
+  return new Set(outil?.schema.properties?.noeud?.enum ?? []);
+}
+
+/**
+ * Valide un rattachement proposé, contre les nœuds réellement armés.
+ *
+ * Deuxième couche après l'`enum` du schéma (ADR-031) : un fournisseur qui
+ * ignore l'énumération ne doit pas passer pour autant. Un nœud inconnu fait
+ * rejeter l'appel entier — il n'y a rien à trier, la proposition ne porte
+ * qu'une place.
+ */
+function validerRattachementCarte(
+  entree: Record<string, unknown>,
+  noeudsConnus: Set<string>,
+): PropositionRecue | null {
+  const noeud = texte(entree.noeud);
+  const justification = texte(entree.justification);
+  if (!noeud || !justification) return null;
+  if (noeudsConnus.size > 0 && !noeudsConnus.has(noeud)) return null;
+  return { genre: "carte", carte: { noeud, justification } };
+}
+
 function codesDuSchemaRevision(outils: OutilTuteur[]): Set<string> {
   const revision = outils.find((o) => o.nom === OUTIL_REVISION);
   const codes = revision?.schema.properties?.retraits?.items?.properties?.code?.enum ?? [];
@@ -1967,6 +2056,8 @@ export function validerAppelOutil(
       return validerRevision(donnees, codesDuSchemaRevision(outils));
     case OUTIL_RELATIONS:
       return validerRelations(donnees, ensemblesDuSchemaRelations(outils));
+    case OUTIL_CARTE:
+      return validerRattachementCarte(donnees, noeudsDuSchemaCarte(outils));
     case OUTIL_REFERENTIEL_COMPLET:
       // Le plafond effectif est relu depuis le schéma REELLEMENT armé, jamais
       // recalculé : deux sources pourraient diverger, une seule ne le peut pas.

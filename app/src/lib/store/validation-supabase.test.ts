@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  validerDomaine,
   validerLignesSupabase,
   validerObservation,
   validerTentative,
@@ -67,5 +68,81 @@ describe("validation de la frontière Supabase", () => {
   it("distingue une liste vide mesurée d'une réponse SELECT absente", () => {
     expect(validerLignesSupabase([], "observations")).toEqual([]);
     expect(() => validerLignesSupabase(null, "observations")).toThrow(/tableau attendu/);
+  });
+});
+
+const domaineNu = {
+  id: "logistique",
+  nom: "Logistique",
+  prefixe: "LOG",
+  description: "",
+  ordre: 0,
+  version: 1,
+  archive: false,
+  origine: "utilisateur",
+};
+
+describe("rattachement d'un domaine à la carte des savoirs", () => {
+  it("accepte un domaine sans rattachement — c'est l'état normal", () => {
+    expect(validerDomaine({ ...domaineNu }).carteNoeud).toBeUndefined();
+  });
+
+  it("accepte un rattachement complet", () => {
+    const domaine = validerDomaine({
+      ...domaineNu,
+      carteNoeud: "industrie",
+      carteVersion: "2026-08-22",
+      carteOrigine: "manuel",
+      carteValideLe: "2026-08-22T10:00:00.000Z",
+    });
+    expect(domaine.carteNoeud).toBe("industrie");
+    expect(domaine.carteOrigine).toBe("manuel");
+  });
+
+  it("refuse un rattachement incomplet plutôt que de le compléter", () => {
+    expect(() =>
+      validerDomaine({ ...domaineNu, carteNoeud: "industrie" }),
+    ).toThrow(/rattachement de carte incomplet/);
+  });
+
+  it("refuse une origine que la base n'autorise pas", () => {
+    expect(() =>
+      validerDomaine({
+        ...domaineNu,
+        carteNoeud: "industrie",
+        carteVersion: "2026-08-22",
+        carteOrigine: "lexical",
+        carteValideLe: "2026-08-22T10:00:00.000Z",
+      }),
+    ).toThrow();
+  });
+
+  it("refuse une date de validation qui n'en est pas une", () => {
+    expect(() =>
+      validerDomaine({
+        ...domaineNu,
+        carteNoeud: "industrie",
+        carteVersion: "2026-08-22",
+        carteOrigine: "manuel",
+        carteValideLe: "hier",
+      }),
+    ).toThrow();
+  });
+
+  it("accepte un nœud absent de la carte courante — le chargement ne doit pas casser", () => {
+    /*
+     * La carte évolue en dépôt. Un nœud retiré rendrait tout le référentiel
+     * illisible si la validation le refusait ici. L'obsolescence se signale
+     * à l'affichage, elle ne bloque pas la lecture.
+     */
+    expect(
+      validerDomaine({
+        ...domaineNu,
+        carteNoeud: "region-retiree-de-la-carte",
+        carteVersion: "2026-01-01",
+        carteOrigine: "tuteur",
+        carteValideLe: "2026-01-01T10:00:00.000Z",
+      }).carteNoeud,
+    ).toBe("region-retiree-de-la-carte");
   });
 });

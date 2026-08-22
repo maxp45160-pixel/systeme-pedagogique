@@ -7,8 +7,10 @@ import {
   enfantsCarte,
   noeudCarte,
   noeudsRattachables,
+  rattachementDomaine,
   regionsCarte,
 } from "./carte-savoirs";
+import type { Domaine } from "./types";
 
 /*
  * Ce que ce fichier protège : la carte est une donnée de dépôt, elle n'est
@@ -95,5 +97,59 @@ describe("carte des savoirs", () => {
         expect(clesAutorisees.has(cle)).toBe(true);
       }
     }
+  });
+});
+
+const domaine = (surcharge: Partial<Domaine> = {}): Domaine => ({
+  id: "logistique",
+  nom: "Logistique",
+  prefixe: "LOG",
+  description: "",
+  ordre: 0,
+  version: 1,
+  archive: false,
+  origine: "utilisateur",
+  ...surcharge,
+});
+
+describe("rattachementDomaine", () => {
+  it("rend null quand rien n'est déclaré", () => {
+    expect(rattachementDomaine(domaine())).toBeNull();
+  });
+
+  it("rend null sur un enregistrement incomplet, sans jamais le compléter", () => {
+    expect(rattachementDomaine(domaine({ carteNoeud: "industrie" }))).toBeNull();
+  });
+
+  it("rend le rattachement avec son chemin quand le nœud existe", () => {
+    const resultat = rattachementDomaine(
+      domaine({
+        carteNoeud: "industrie",
+        carteVersion: "2026-08-22",
+        carteOrigine: "manuel",
+        carteValideLe: "2026-08-22T10:00:00.000Z",
+      }),
+    );
+    expect(resultat?.obsolete).toBe(false);
+    expect(resultat?.chemin.map((noeud) => noeud.nom)).toEqual([
+      "Savoirs humains",
+      "Créations humaines",
+      "Industrie",
+    ]);
+  });
+
+  it("signale l'obsolescence sans effacer le fait déclaré", () => {
+    const resultat = rattachementDomaine(
+      domaine({
+        carteNoeud: "region-retiree",
+        carteVersion: "2026-01-01",
+        carteOrigine: "tuteur",
+        carteValideLe: "2026-01-01T10:00:00.000Z",
+      }),
+    );
+    expect(resultat?.obsolete).toBe(true);
+    expect(resultat?.noeud).toBe("region-retiree");
+    expect(resultat?.version).toBe("2026-01-01");
+    expect(resultat?.chemin).toEqual([]);
   });
 });

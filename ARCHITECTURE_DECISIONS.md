@@ -113,6 +113,8 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [101](#adr-101) | Le cahier rouvre sur aujourd'hui, et un jour se lit d'un tenant | ✅ Acceptée (21/08) — amende [079](#adr-079) |
 | [102](#adr-102) | Une séance abandonnée peut être renoncée | ✅ Acceptée (21/08) — prolonge [077](#adr-077) |
 | [103](#adr-103) | Le pôle de travail est un Bureau ; le Cahier en est l’archive | ✅ Acceptée (22/08) — refond [079](#adr-079) (dont un point renversé) et [101](#adr-101) |
+| [104](#adr-104) | Les thèmes persistants sont retirés ; la portée de séance reste dérivée | ✅ Acceptée (22/08) — remplace [055](#adr-055), [058](#adr-058), [088](#adr-088) |
+| [105](#adr-105) | Une carte des savoirs en dépôt, et un rattachement que seule une personne écrit | ❓ Proposition (22/08) — rouvre [099](#adr-099), répond à la question ouverte d'[104](#adr-104) |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -7824,6 +7826,137 @@ C'est l'écran où l'on passe le plus de temps.
 
 ---
 
+
+---
+
+<a name="adr-105"></a>
+## ADR-105 — Une carte des savoirs en dépôt, et un rattachement que seule une personne écrit ❓
+
+**Statut : ❓ proposition, non tranchée.** Rédigée le 22/08/2026 à la demande du
+titulaire du dépôt, qui a appliqué la migration le jour même. Le statut ne monte
+pas tant qu'une personne ne l'a pas passé explicitement.
+
+### Le problème
+
+Deux décisions récentes laissent la même question ouverte :
+
+- [ADR-104](#adr-104) (22/08) retire les thèmes persistants et conclut que
+  « rattacher un domaine à une organisation plus globale reste un sujet de
+  conception. Aucun arbre implicite ni regroupement automatique ne doit être
+  ajouté avant une décision et des données permettant de l'évaluer » ;
+- [ADR-099](#adr-099) (21/08) retire la carte globale et pose sa condition de
+  réouverture : « un retour éventuel repartira du modèle cible — avec un premier
+  contenu réel, un curateur désigné et un besoin démontré avant toute table ».
+
+Sans référentiel de rattachement, deux capacités manquent : situer un domaine
+d'un compte dans un ensemble plus large, et produire une classification
+**reproductible**. Un classement qui change d'un appel à l'autre ne se conteste
+pas, donc ne s'arbitre pas.
+
+### La décision
+
+**1. La carte est une constante versionnée, pas des tables.**
+`src/lib/domain/carte-savoirs.ts` — 45 nœuds sur quatre régions (créations
+humaines, monde physique, monde vivant, être humain), transcrits d'une carte
+conceptuelle fournie par le titulaire du dépôt le 22/08/2026. Chaque nœud porte
+un identifiant stable, un parent (`PART_OF`) et son vocabulaire déclaré. Huit
+voisinages (`RELATED_TO`), chacun avec son motif — une relation sans
+justification n'entre pas (TWINY_MODEL §6). `VERSION_CARTE` et `SOURCE_CARTE`
+portent la version et la provenance exigées par TWINY_MODEL §17.
+
+Créer des tables maintenant reproduirait exactement l'ordre qu'ADR-099 reproche
+au lot 3 : le schéma avant le contenu. Tant qu'aucun compte ne publie dans la
+carte, une table n'ajoute qu'une latence, une politique RLS et un curateur
+fictif. Le contenu existe désormais ; la table viendra le jour où une publication
+par un compte sera nécessaire, et elle partira de ce contenu-là.
+
+**2. La classification propose, elle ne rattache pas.**
+`src/lib/engine/classification-domaine.ts`, couche 3, rien de stocké. L'IDF est
+calculée sur la seule carte, qui est fixe : le même nom de domaine, avec les
+mêmes compétences, produit toujours le même classement — sur ce poste, sur un
+autre, aujourd'hui et dans six mois. Trois refus, testés :
+
+- sous le seuil, **rien** n'est proposé. Une proposition fausse place un domaine
+  sous une région erronée et donne à l'erreur l'autorité d'un calcul ;
+- une **ambiguïté n'est pas tranchée** : deux candidats au coude à coude sont
+  rendus tous les deux, marqués comme tels ;
+- chaque candidat est **justifié** par ses mots partagés et sa valeur mesurée.
+
+**3. Le tuteur choisit dans une énumération fermée.** Même garde-fou que pour les
+codes de compétence : `enumNoeudsCarte()` fournit la liste, `estNoeudCarteValide()`
+refuse tout le reste, racine comprise. Le tuteur ne nomme jamais une région de sa
+propre initiative.
+
+**4. Le rattachement validé est un fait déclaré.** Migration
+`20260822120000_rattachement_carte_savoirs.sql`, **appliquée le 22/08/2026** ;
+`app/supabase/schema.sql` est mis en accord dans le même chantier. Quatre
+colonnes sur `public.domaines` — `carte_noeud`, `carte_version`, `carte_origine`,
+`carte_valide_le` — avec contrainte tout-ou-rien. Aucune table : la cible n'est
+pas en base, aucune clé étrangère n'est posable, et les colonnes héritent de la
+politique `isolation_par_compte`.
+
+`carte_origine` nomme ce que la personne a validé, pas qui a écrit — l'écriture
+est toujours humaine. Une suggestion lexicale acceptée est `manuel` ; `tuteur`
+est réservé à une proposition réellement formulée par le tuteur. `lexical` est
+volontairement absent : un calcul enregistré serait une valeur dérivée stockée,
+contraire à P1.
+
+**4bis. L'écriture passe par une fonction dédiée, et une seule.**
+La première version écrivait les quatre colonnes par un `UPDATE` direct. Elle
+avait tort, et le symptôme était le pire possible : **rien ne se passait, sans
+erreur**. `public.domaines` ne porte pas la politique uniforme
+`isolation_par_compte` mais `referentiel_commande_modification`, qui exige le
+drapeau `app.referentiel_command` que seule `appliquer_commande_referentiel`
+pose. L'`UPDATE` ne correspondait donc à aucune ligne, et PostgREST rendait un
+succès vide. Corrigé le 22/08/2026 par `public.classer_domaine`
+(`20260822140000_classer_domaine.sql`) : `SECURITY DEFINER`, bornée aux quatre
+colonnes de classement et au domaine du compte appelant, et qui **lève** quand
+la ligne n'existe pas plutôt que de se taire.
+
+Elle ne passe pas par `appliquer_commande_referentiel` : un classement ne
+touche ni code, ni compétence, ni observation, et incrémenter `version` ferait
+échouer sans raison toute commande concurrente ayant lu la version d'avant.
+
+**5. Une seule page Domaines.** La carte des domaines construite pour ce chantier
+avait ouvert un second écran nommant les mêmes objets que la liste — la redite
+que le retrait de « Transversal » avait déjà corrigée ailleurs. Elle est retirée.
+Ce qu'elle apportait — quels domaines se parlent, lesquels sont travaillés en ce
+moment — descend dans la page Domaines, qui distingue désormais **champs actifs**
+et **reste du référentiel**. La frontière est un fait mesuré
+(`FENETRE_ACTIVITE_JOURS`), pas un goût, et aucun domaine ne disparaît : il change
+de section.
+
+### Ce que la décision ne fait pas
+
+- **Aucun rattachement automatique.** Rien n'est écrit sans un geste humain.
+- **Aucune remontée d'un élément local vers la carte.** L'enrichissement de la
+  carte par les données d'usage suppose une promotion explicite, anonymisée,
+  validée, tracée (invariant 8, TWINY_MODEL §17). C'est une décision distincte, à
+  prendre quand des rattachements réels montreront ce qui manque à la carte.
+- **Aucune vérification d'existence du nœud au chargement.** La carte évolue en
+  dépôt ; refuser un nœud retiré rendrait tout le référentiel illisible.
+  `rattachementDomaine()` marque le rattachement obsolète et l'affiche comme tel,
+  sans jamais l'effacer : c'est un fait daté, il appartient à son auteur.
+
+### Ce que ça coûte
+
+- Un fichier de contenu à maintenir en dépôt, dont le vocabulaire est la partie
+  qui bougera. Une classification médiocre se corrige dans un diff relu.
+- La carte est datée, française, non exhaustive, attribuée à une source unique
+  dont elle porte le découpage, y compris ses choix discutables.
+- Deux seuils numériques (`SEUIL_PROPOSITION`, `ECART_DECISIF`). Ce ne sont pas
+  des seuils de calibration : ils ne pondèrent aucune mesure et n'entrent dans
+  aucun niveau. Ils règlent le silence d'une suggestion.
+
+### Test de réfutation
+
+Si, sur les dix premiers domaines réellement rattachés, la proposition lexicale
+est refusée plus d'une fois sur deux, le rapprochement par vocabulaire ne vaut
+pas son écran : passer la proposition au tuteur seul, ou ne garder que le choix
+manuel dans la liste.
+
+Si aucun rattachement n'est créé dans le mois qui suit, c'est la carte elle-même
+qui ne sert à rien : la retirer comme ADR-099 a retiré les tables.
 
 ---
 

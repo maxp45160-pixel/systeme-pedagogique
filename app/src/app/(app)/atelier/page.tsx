@@ -10,7 +10,6 @@ import { analyserDocumentMarkdown } from "@/lib/documents/markdown";
 import { documentEnLectureSeule, estDocumentPreuve } from "@/lib/documents/nature-document";
 import { regrouperTentativesParExercice } from "@/lib/documents/workspace";
 import { chargerContexte } from "@/lib/store/context";
-import { chargerCandidatsReferentiel } from "@/lib/store/candidats-referentiel";
 import { construireGraphe } from "@/lib/domain/graphe";
 import { construireGrapheDomaines } from "@/lib/domain/graphe-domaines";
 import { construireVuesAtelier } from "@/lib/documents/vue-atelier";
@@ -56,14 +55,13 @@ export default async function PageAtelier(props: {
     );
   }
 
-  const [aperçus, snapshots, contexte, contenuInitial, changementsReferentiel, donneesSeance, lotEntretien] = await Promise.all([
+  const [aperçus, snapshots, contexte, contenuInitial, changementsReferentiel, donneesSeance] = await Promise.all([
     lireApercusDocuments(),
     lireApercusSnapshots(),
     chargerContexte(),
     documentDemande ? lireDocument(documentDemande).catch(() => null) : Promise.resolve(null),
     lireChangementsReferentiel(),
     chargerDonneesSeance(),
-    chargerCandidatsReferentiel(),
   ]);
   const referentiel = contexte.referentiel;
   const exercices = contexte.donnees.exercises;
@@ -75,7 +73,16 @@ export default async function PageAtelier(props: {
     l'application. Seul un identifiant absent de la projection et du corpus
     mérite le 404 d'un lien réellement périmé.
   */
-  const identifiantDocument = documentDemande?.replace(/^document:/, "");
+  /*
+   * Les projections de l'Atelier portent un préfixe de type dans leur
+   * identifiant (`domaine:logistique`, `exercice:xyz`) — c'est l'espace de
+   * noms du graphe, et c'est cet identifiant-là que `ouvrirElement` écrit dans
+   * l'URL. Seul `document:` était retiré ici : un rechargement sur une fiche de
+   * domaine ou d'exercice comparait donc « domaine:logistique » à des
+   * identifiants nus, ne trouvait rien, et rendait un 404 sur une page qui
+   * existait. Constaté le 22/08/2026 sur un `router.refresh()`.
+   */
+  const identifiantDocument = documentDemande?.replace(/^(document|domaine|exercice):/, "");
   const selectionAtelierExiste = Boolean(
     documentDemande &&
       (["domaines", "ressources", "graphe", "domaines-archives"].includes(documentDemande) ||
@@ -336,20 +343,6 @@ export default async function PageAtelier(props: {
     contexte.donnees.exercises,
   );
 
-  /*
-   * Pistes contextuelles pour les domaines.
-   *
-   * Calculé ici et non dans `chargerContexte` : les détecteurs ne doivent pas
-   * alourdir les autres pages. Les domaines affichent ces résultats comme des
-   * pistes de lecture.
-   */
-  const entretien = {
-    lot: lotEntretien,
-    intitules: Object.fromEntries(
-      contexte.referentiel.skills.map((skill) => [skill.code, skill.intitule]),
-    ),
-  };
-
   return (
     <>
       <EntetePage
@@ -371,7 +364,6 @@ export default async function PageAtelier(props: {
           calibrages: calibragesPourModale(referentiel.actifs, contexte.calibrations),
         }}
         donneesSeance={donneesSeance}
-        entretien={entretien}
         domainesExistants={referentiel.domaines
           .filter((domaine) => !domaine.archive)
           .map(({ id, nom, prefixe }) => ({ id, nom, prefixe }))}
