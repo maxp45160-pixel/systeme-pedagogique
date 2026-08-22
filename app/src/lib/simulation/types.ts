@@ -25,6 +25,7 @@ import type {
   Domaine,
   Exercise,
   ExerciseAttempt,
+  ResultatTentative,
   SkillObservation,
   SkillState,
   Skill,
@@ -36,7 +37,7 @@ export type EvenementScenario =
       type: "tentative";
       date: string;
       exercice: string;
-      resultat: "reussi" | "partiel" | "echec";
+      resultat: ResultatTentative;
       indicesUtilises: number;
       dureeMin: number;
       aideExterne?: AideExterne;

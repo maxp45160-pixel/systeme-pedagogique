@@ -509,7 +509,7 @@ export function classesLienBouton(
  * atténué, arrondie en haut seulement parce qu'elle « appartenait à ce qu'elle
  * sépare ». La forme se tenait tant que l'interface peignait un cahier.
  *
- * [ADR-099] a retiré cet habillage, [ADR-101] a renommé le pôle en Bureau :
+ * [ADR-100] a retiré cet habillage, [ADR-102] a renommé le pôle en Bureau :
  * la languette est restée seule, à dire un objet qui n'existe plus. Et sur le
  * fond sombre de l'espace de travail, une bordure transparente et un texte
  * atténué donnaient quatre mots gris sur gris — on ne voyait plus qu'il

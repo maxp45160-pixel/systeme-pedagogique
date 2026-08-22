@@ -24,7 +24,7 @@ import type { PointEvolution } from "@/lib/engine/evolution";
 /* ------------------------------------------------------------------ */
 
 /**
- * Infobulle positionnée en `fixed` (coordonnées écran) avec `z-50`.
+ * Infobulle positionnée en `fixed` (coordonnées écran), couche `menu`.
  * `fixed` permet de sortir du conteneur `overflow-x-auto` de la carte pour que
  * le `z-index` s'affiche par-dessus le cadre sans aucune découpe.
  */
@@ -41,7 +41,7 @@ function Infobulle({
   const sousLeCurseur = y < 45;
   return (
     <div
-      className={`pointer-events-none fixed z-50 -translate-x-1/2 whitespace-nowrap rounded-md border border-bordure bg-surface px-2 py-1 text-[0.6875rem] text-texte shadow-[var(--ombre-surcouche)] ${
+      className={`pointer-events-none fixed z-[var(--superposition-menu)] -translate-x-1/2 whitespace-nowrap rounded-md border border-bordure bg-surface px-2 py-1 text-[0.6875rem] text-texte shadow-[var(--ombre-surcouche)] ${
         sousLeCurseur ? "translate-y-4" : "-translate-y-full -translate-y-2"
       }`}
       style={{ left: x, top: y }}

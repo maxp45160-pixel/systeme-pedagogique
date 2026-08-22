@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Le Cahier — l'archive du Bureau (ADR-101).
+ * Le Cahier — l'archive du Bureau (ADR-102).
  *
  * ## Pourquoi c'est un mode, pas une page
  *
@@ -36,23 +36,16 @@ import { formatDuree } from "@/lib/engine/dates";
 import {
   moisDecale,
   resumesDuMois,
-  type DocumentOperationnelDate,
   type ResumeJour,
 } from "@/lib/domain/pages-cahier";
-import type { ExerciseAttempt, LearningSession } from "@/lib/domain/types";
-import type { LigneMarge } from "@/lib/documents/marge";
-import type { DonneesSeance } from "@/components/seances/concepteur-seance";
+import type { EntreesCahier } from "@/components/seances/bureau";
 import { OngletsSeancesOuvertes } from "@/components/seances/file-seances";
 import { CahierSeances, RechercheCahier } from "@/components/seances/cahier-seances";
 
 export function CahierArchive({
   mois,
   jours,
-  seances,
-  tentatives,
-  notes,
-  projets = [],
-  donnees,
+  entrees,
   recherche,
   onChangerJour,
   onChangerMois,
@@ -60,17 +53,14 @@ export function CahierArchive({
 }: {
   mois: string;
   jours: string[];
-  seances: LearningSession[];
-  tentatives: ExerciseAttempt[];
-  notes: LigneMarge[];
-  projets?: DocumentOperationnelDate[];
-  donnees: DonneesSeance;
+  entrees: EntreesCahier;
   /** Terme de recherche actif : le mois cède la place aux résultats. */
   recherche?: string;
   onChangerJour: (jour: string) => void;
   onChangerMois: (mois: string) => void;
   onFermer: () => void;
 }) {
+  const { seances, tentatives, donnees, notes, projets = [] } = entrees;
   const resumes = useMemo(
     () => resumesDuMois(mois, jours, { seances, notes, projets, tentatives }),
     [mois, jours, seances, notes, projets, tentatives],
@@ -99,7 +89,7 @@ export function CahierArchive({
       {/*
         Les onglets « en suspens » vivent ICI, pas au Bureau. Une dette qu'on
         ne peut pas traiter maintenant n'a rien à faire devant les yeux
-        pendant qu'on travaille — c'est la contrepartie d'ADR-100 : la file ne
+        pendant qu'on travaille — c'est la contrepartie d'ADR-101 : la file ne
         contient que des reprises crédibles, encore faut-il ne pas l'imposer.
       */}
       <OngletsSeancesOuvertes

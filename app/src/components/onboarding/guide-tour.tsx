@@ -199,7 +199,7 @@ export function GuideTour({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] transition-opacity duration-300"
+      className="fixed inset-0 z-[var(--superposition-tour)] transition-opacity duration-300"
       role="dialog"
       aria-modal="true"
       aria-labelledby="tour-titre"
@@ -249,10 +249,12 @@ export function GuideTour({
       )}
 
       {/* Bulle / Popover explicative */}
+      {/* La fiche suit le masque dans l'ordre du DOM : même couche, dernier
+          rendu — aucun z-index à improviser. */}
       <div
         style={positionnerBulle()}
         className={cx(
-          "w-[calc(100vw-32px)] sm:w-[400px] z-[101] rounded-2xl border border-primaire/30 bg-surface p-5 shadow-2xl transition-all duration-300 animate-in fade-in zoom-in-95",
+          "w-[calc(100vw-32px)] sm:w-[400px] rounded-2xl border border-primaire/30 bg-surface p-5 shadow-2xl transition-all duration-300 animate-in fade-in zoom-in-95",
         )}
       >
         {/* En-tête : Badge d'étape + Bouton fermer/skip */}

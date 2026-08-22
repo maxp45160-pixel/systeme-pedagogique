@@ -1,5 +1,7 @@
 import type { Exercise, ExerciseAttempt } from "@/lib/domain/types";
 import { ajouterDansSection } from "./sections-markdown";
+import { listeMarkdown } from "./markdown";
+import { PREFIXE_FICHE_EXERCICE, idPreuve } from "./nature-document";
 
 /**
  * La fiche d'un exercice travaillé.
@@ -43,11 +45,7 @@ export const SECTION_PASSAGES = "Passages";
 export const SECTION_CORRECTION = "Correction";
 
 export function idFicheExercice(exerciseId: string): string {
-  return `exercice-${exerciseId}`;
-}
-
-function listeMarkdown(valeurs: readonly string[]): string[] {
-  return valeurs.map((valeur) => `- [[${valeur}]]`);
+  return `${PREFIXE_FICHE_EXERCICE}${exerciseId}`;
 }
 
 /**
@@ -60,7 +58,7 @@ function listeMarkdown(valeurs: readonly string[]): string[] {
 export function lignePassage(tentative: ExerciseAttempt): string {
   const jour = (tentative.fin ?? tentative.debut).slice(0, 10);
   const duree = tentative.dureeMin ? ` · ${tentative.dureeMin} min` : "";
-  return `- ${jour} — ${tentative.resultat}${duree} · [[preuve-${tentative.id}]]`;
+  return `- ${jour} — ${tentative.resultat}${duree} · [[${idPreuve(tentative.id)}]]`;
 }
 
 /**

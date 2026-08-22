@@ -1,12 +1,12 @@
 "use client";
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
 import { BandeauInfo, Bouton, cx, Etiquette, PointActif } from "@/components/ui/primitives";
 import { Depliant } from "@/components/ui/explication";
 import { Markdown } from "@/components/ui/markdown";
 import { preparerPromptComplet } from "@/lib/tutor/actions";
-import type { SectionContexte } from "@/lib/tutor/contexte";
 import { MAX_MESSAGES_FENETRE } from "@/lib/tutor/fenetre";
 import { useEstHydrate } from "@/lib/ui/hydratation";
 import {
@@ -39,7 +39,8 @@ import { creerExercice } from "@/lib/store/actions";
 import type {
   CalibrageModale,
   CompetenceModale,
-} from "@/components/exercices/proprietes-generation";
+} from "@/lib/domain/proprietes-generation";
+import type { EtatContexteTuteur } from "@/lib/tutor/etat-contexte";
 
 /**
  * Ce qu'on affiche pendant qu'un outil se remplit.
@@ -77,20 +78,6 @@ interface Message {
    * texte à la relecture est précisément ce qu'on cherche à ne plus faire.
    */
   propositions?: PropositionRecue[];
-}
-
-/**
- * État du contexte pédagogique, assemblé par le serveur et reçu en props.
- *
- * Il était auparavant récupéré au montage par un `fetch("/api/tutor")`, ce qui
- * refaisait — dans une requête HTTP distincte, donc hors du `cache()` de React
- * — le `chargerContexte()` que la page venait déjà de payer.
- */
-export interface EtatContexteTuteur {
-  cleConfiguree: boolean;
-  modele: string;
-  manifeste: SectionContexte[];
-  caracteresTotal: number;
 }
 
 /* ------------------------------------------------------------------ */
@@ -1085,6 +1072,7 @@ function ChatHydrate({
     amorce ?? (messages.length === 0 && competenceCiblee ? `Explique-moi ${competenceCiblee}.` : "");
 
   const router = useRouter();
+  const cheminCourant = usePathname();
   const [demarrageDirect, setDemarrageDirect] = useState(false);
 
   const ouvrirBranche = useCallback((b: PropositionReferentiel) => {
@@ -1326,9 +1314,16 @@ function ChatHydrate({
           </p>
           <ol className="mt-2 space-y-1 pl-4 text-texte-attenue">
             <li className="list-decimal">
-              Ouvrir les <strong>réglages</strong> (icône engrenage, en bas du rail) et saisir ta
-              clé API — Mistral, Anthropic, Groq… La clé est stockée dans ton navigateur et
-              n{"'"}est jamais envoyée ailleurs qu{"'"}à la route du tuteur.
+              Ouvrir les{" "}
+              <Link
+                href={`/compte?onglet=tuteur&retour=${encodeURIComponent(cheminCourant ?? "/")}`}
+                className="font-medium text-primaire underline underline-offset-2"
+              >
+                réglages
+              </Link>{" "}
+              (onglet « Tuteur IA &amp; Clé ») et saisir ta clé API — Mistral, Anthropic,
+              Groq… La clé est stockée dans ton navigateur et n{"'"}est jamais envoyée
+              ailleurs qu{"'"}à la route du tuteur.
             </li>
             <li className="list-decimal">
               Utiliser <strong>« Copier le contexte »</strong> et coller le prompt dans Claude.

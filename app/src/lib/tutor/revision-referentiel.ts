@@ -26,6 +26,7 @@
  */
 
 import type { Domaine, Skill } from "@/lib/domain/types";
+import { PHRASE_MESURABILITE } from "@/lib/domain/atomicite";
 import type { EtatRetrait } from "@/lib/domain/referentiel-compte";
 import type { MoteurTuteur } from "./moteurs";
 import { lireOutilsActifs, messageSansOutils } from "./moteurs";
@@ -65,7 +66,7 @@ export function construirePromptRevision(
     "",
     "RÈGLES",
     "- Tu peux ajouter, reformuler et retirer. Ne propose pas de tout refaire quand une reformulation suffit.",
-    "- Pour ajouter : chaque intitulé est un savoir-faire observable et non un sujet, notable sur au moins une dimension, testable dans deux contextes, exerçable par un type d'exercice, et prouvable en 20 à 60 minutes.",
+    `- Pour ajouter : chaque intitulé est ${PHRASE_MESURABILITE}.`,
     "- Pour reformuler : ne mets que les champs qui changent, et désigne la compétence par son code.",
     "- Pour retirer : donne toujours un motif. **L'application décide seule entre suppression et archivage, selon les observations enregistrées** — ne le propose pas, et ne recommande pas de retirer une compétence qui porte des observations sans raison forte.",
     "- Tu ne peux désigner que les codes ci-dessus. Les compétences que tu ajoutes n'ont pas de code : l'application les attribue.",

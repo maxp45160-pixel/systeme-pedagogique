@@ -12,7 +12,7 @@ import {
  * La marge du cahier : écrire une phrase, en faire une séance.
  *
  * C'est le geste qu'on vient faire le plus souvent — noter ce sur quoi on bute
- * — et il doit donc être le plus proche de la main. Depuis ADR-101 le Bureau
+ * — et il doit donc être le plus proche de la main. Depuis ADR-102 le Bureau
  * en fait une **barre de capture fixe** en pied de colonne (`ChampMarge`) et
  * range les lignes déjà écrites dans un bloc au-dessus (`ListeMarge`) : le
  * champ reste atteignable sans faire défiler, la liste ne réclame rien.

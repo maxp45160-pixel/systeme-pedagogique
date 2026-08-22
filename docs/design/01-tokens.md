@@ -23,6 +23,15 @@ doit apparaître dans un composant.
 - états d'action : succès, alerte, information et danger ;
 - niveaux de compétence pour les graphiques, toujours accompagnés d'une valeur
   lisible ;
+- superpositions : une échelle unique, un seul ordre —
+  `--superposition-collant` (10) < `--superposition-barre` (20) <
+  `--superposition-menu` (30) < `--superposition-tiroir` (40) <
+  `--superposition-modale` (50) < `--superposition-tour` (60) <
+  `--superposition-notification` (70). Toute surface flottante pioche ici via
+  `z-[var(--…)]` ; écrire un `z-<nombre>` littéral est le défaut que cette
+  famille existe pour rendre impossible. Le contrat associé est « une seule
+  surface pleine page à la fois » : pendant qu'un tour est actif, la capture
+  d'intention ne s'ouvre pas (verrou du fournisseur d'intention) ;
 - couleurs du rail et ornements du cahier ;
 - corps de texte, espacement de base, rayons réellement consommés ;
 - ombres encore utilisées et mouvement d'apparition.

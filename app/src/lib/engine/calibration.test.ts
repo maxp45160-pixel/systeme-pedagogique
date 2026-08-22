@@ -12,7 +12,7 @@ import {
 import { computeAllSkillStates } from "./skill-state";
 import { recommander } from "./recommend";
 import { REFERENTIEL_TEST, skillDeTest } from "@/lib/domain/referentiel.fixture";
-import type { Difficulte, Dimension, Exercise, ExerciseAttempt } from "@/lib/domain/types";
+import { RESULTATS_TENTATIVE, type Difficulte, type Dimension, type Exercise, type ExerciseAttempt } from "@/lib/domain/types";
 
 /*
  * 3ᵉ maillon de la boucle (ADR-028). Les cas ci-dessous ne sont pas inventés :
@@ -656,7 +656,7 @@ describe("tentativeMenee — aucune observation sur une tentative qui n'a pas eu
    */
   it("dit exactement la même chose que le verdict de calibration", () => {
     const ex = exercice("x", 2, 20, ["DEV-01"], 3);
-    for (const resultat of ["reussi", "partiel", "echec"] as const) {
+    for (const resultat of RESULTATS_TENTATIVE) {
       for (const dureeMin of [1, 4, 5, 6, 12, 20, 40]) {
         const t = tentative({ exerciseId: "x", resultat, indicesUtilises: 0, dureeMin });
         expect(verdictTentative(t, ex).signal === "non-tentee").toBe(!tentativeMenee(t, ex));

@@ -57,9 +57,9 @@ const DIMENSIONS: Dimension[] = [
   "justification",
 ];
 
-export type Conversion<T> =
-  | { ok: true; valeur: T }
-  | { ok: false; erreurs: string[] };
+import type { Conversion } from "./conversion";
+
+export type { Conversion };
 
 export interface ExerciceEnregistrable {
   titre: string;

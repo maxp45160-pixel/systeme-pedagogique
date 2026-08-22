@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Bouton, cx } from "@/components/ui/primitives";
 import { ModaleExercice } from "./modale-exercice";
-import type { CalibrageModale, CompetenceModale } from "./proprietes-generation";
+import type { CalibrageModale, CompetenceModale } from "@/lib/domain/proprietes-generation";
 
 export function BoutonGenerer({
   competences,

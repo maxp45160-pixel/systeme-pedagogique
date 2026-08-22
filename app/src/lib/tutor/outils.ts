@@ -29,7 +29,11 @@
  * ne doit pas pouvoir faire entrer une proposition mal formée.
  */
 
-import type { Referentiel } from "@/lib/domain/types";
+import {
+  RESULTATS_TENTATIVE,
+  type Referentiel,
+  type ResultatTentative,
+} from "@/lib/domain/types";
 // Le barème vient du domaine, pas d'une constante locale : le prompt et l'écran
 // doivent nommer les mêmes valeurs dans les mêmes termes (`lib/domain/bilan.ts`).
 import { APPRECIATIONS, RESULTATS } from "@/lib/domain/bilan";
@@ -60,9 +64,11 @@ import {
   motifsNonAtomique,
   motifsRefusStructure,
   OBJET_MAX,
+  PHRASE_MESURABILITE,
   PRECISION_MAX,
   VERBES_ACTION,
 } from "@/lib/domain/atomicite";
+import { objet } from "./conversion";
 
 /* ------------------------------------------------------------------ */
 /* Noms d'outils et description neutre d'un schéma                     */
@@ -679,7 +685,7 @@ export function outilEvaluationExplication(): OutilTuteur {
       properties: {
         resultat: {
           type: "string",
-          enum: ["reussi", "partiel", "echec"],
+          enum: [...RESULTATS_TENTATIVE],
           description: "reussi = concept compris et expliqué correctement ; partiel = intuition présente mais imprécisions importantes ; echec = contre-sens ou hors sujet",
         },
         score_comprehension: {
@@ -1101,7 +1107,7 @@ export function outilsTuteur(referentiel: Referentiel): OutilTuteur[] {
         // premier suffisait presque : le protocole n'est chargé que sur
         // mots-clés, et « je veux bosser la thermodynamique » n'en porte aucun.
         // Leur place est ici — la description part avec l'outil, donc toujours.
-        "Propose une branche de compétences quand le sujet demandé n'existe pas encore au référentiel. L'application attribue les codes. Chaque intitulé doit être mesurable : un savoir-faire observable et non un sujet, notable sur au moins une dimension, testable dans deux contextes, exerçable par un des types d'exercice, et prouvable en 20 à 60 minutes.",
+        `Propose une branche de compétences quand le sujet demandé n'existe pas encore au référentiel. L'application attribue les codes. Chaque intitulé doit être mesurable : ${PHRASE_MESURABILITE}.`,
       schema: schemaReferentiel(),
     },
   ];
@@ -1127,12 +1133,6 @@ function listeDeTextes(valeur: unknown): string[] {
   return valeur.map(texte).filter((v) => v.length > 0);
 }
 
-function objet(valeur: unknown): Record<string, unknown> | null {
-  return typeof valeur === "object" && valeur !== null && !Array.isArray(valeur)
-    ? (valeur as Record<string, unknown>)
-    : null;
-}
-
 function dansEnum(valeur: unknown, valeurs: readonly string[]): string {
   const v = texte(valeur).toLowerCase();
   const trouve = valeurs.find((x) => x.toLowerCase() === v);
@@ -1147,7 +1147,7 @@ function dansEnum(valeur: unknown, valeurs: readonly string[]): string {
  * référentiel ne changent pas. La bascule est interne au tuteur.
  */
 export interface PropositionEvaluationExplication {
-  resultat: "reussi" | "partiel" | "echec";
+  resultat: ResultatTentative;
   scoreComprehension: number;
   scoreJustification: number;
   pointsCles: string[];
@@ -1435,7 +1435,7 @@ function validerEvaluationExplication(
     return null;
   }
 
-  const resultat = dansEnum(entree.resultat, ["reussi", "partiel", "echec"] as const);
+  const resultat = dansEnum(entree.resultat, RESULTATS_TENTATIVE);
   if (!resultat) return null;
 
   const scoreComp = typeof entree.score_comprehension === "number" ? entree.score_comprehension : null;
@@ -1464,7 +1464,7 @@ function validerEvaluationExplication(
   return {
     genre: "evaluation-explication",
     evaluation: {
-      resultat: resultat as "reussi" | "partiel" | "echec",
+      resultat: resultat as ResultatTentative,
       scoreComprehension: Math.round(scoreComp * 100) / 100,
       scoreJustification: Math.round(scoreJust * 100) / 100,
       pointsCles,

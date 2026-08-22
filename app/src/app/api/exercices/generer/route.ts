@@ -1,7 +1,6 @@
 import { chargerContexte } from "@/lib/store/context";
-import { choisirConfiguration, creerMoteur } from "@/lib/tutor/moteurs";
+import { resoudreMoteur, repondreParFluxSse } from "@/lib/tutor/reponse-flux";
 import type { ConfigTuteurClient } from "@/lib/tutor/cle-client";
-import { envTuteur } from "@/lib/tutor/env-requete";
 import { genererExercices } from "@/lib/tutor/generation";
 import type { PropositionExercice } from "@/lib/tutor/proposition";
 
@@ -73,27 +72,9 @@ export async function POST(request: Request) {
     );
   }
 
-  // La config client (si présente) prime sur `process.env` : l'utilisateur qui
-  // a saisi sa clé dans les réglages n'a pas à éditer `app/.env.local`.
-  // Point d'entree unique : la config client est validee avant de toucher
-  // l'environnement du serveur (SSRF, voir lib/tutor/url-fournisseur.ts).
-  const resolution = envTuteur(corps.config);
-  if (!resolution.ok) return resolution.reponse;
-  const choix = choisirConfiguration(resolution.env);
-  const moteur = creerMoteur(choix);
-
-  if (!moteur) {
-    return Response.json(
-      {
-        erreur: "moteur-absent",
-        message:
-          choix.kind === "aucun"
-            ? `${choix.raison} Utilise le mode « copier le contexte » en attendant.`
-            : "Aucun moteur de tuteur disponible.",
-      },
-      { status: 503 },
-    );
-  }
+  const resolu = resoudreMoteur(corps.config);
+  if (!resolu.ok) return resolu.reponse;
+  const { moteur } = resolu;
 
   const ctx = await chargerContexte();
 
@@ -141,66 +122,28 @@ export async function POST(request: Request) {
     );
   }
 
-  const encodeur = new TextEncoder();
-  const abandon = new AbortController();
-  request.signal.addEventListener("abort", () => abandon.abort(), { once: true });
-
-  const flux = new ReadableStream({
-    async start(controller) {
-      const envoyer = (evenement: string, donnees: unknown) => {
-        if (abandon.signal.aborted) return;
-        controller.enqueue(
-          encodeur.encode(`event: ${evenement}\ndata: ${JSON.stringify(donnees)}\n\n`),
-        );
-      };
-
-      try {
-        if (ignorees.length > 0) {
-          envoyer("avertissement", {
-            message: `${ignorees.length} compétence${ignorees.length > 1 ? "s" : ""} ignorée${ignorees.length > 1 ? "s" : ""} — hors périmètre actif : ${ignorees.join(", ")}.`,
-            codes: ignorees,
-          });
-        }
-
-        const resultat = await genererExercices(
-          moteur,
-          ctx.referentiel,
-          demandes,
-          abandon.signal,
-          envoyer,
-        );
-
-        if (resultat.erreur) {
-          envoyer("erreur", { message: resultat.erreur });
-          return;
-        }
-
-        // Les propositions sont renvoyées au client pour prévisualisation.
-        // L'écriture n'a lieu qu'après validation explicite de l'utilisateur.
-        envoyer("propositions", { exercices: resultat.exercices });
-      } catch (e) {
-        if (abandon.signal.aborted) return;
-        envoyer("erreur", {
-          message: e instanceof Error ? e.message : "Erreur inattendue lors de la génération.",
+  return repondreParFluxSse(
+    request,
+    async (envoyer, signal) => {
+      if (ignorees.length > 0) {
+        envoyer("avertissement", {
+          message: `${ignorees.length} compétence${ignorees.length > 1 ? "s" : ""} ignorée${ignorees.length > 1 ? "s" : ""} — hors périmètre actif : ${ignorees.join(", ")}.`,
+          codes: ignorees,
         });
-      } finally {
-        try {
-          controller.close();
-        } catch {
-          /* flux déjà annulé côté client */
-        }
       }
-    },
-    cancel() {
-      abandon.abort();
-    },
-  });
 
-  return new Response(flux, {
-    headers: {
-      "content-type": "text/event-stream; charset=utf-8",
-      "cache-control": "no-cache, no-transform",
-      connection: "keep-alive",
+      const resultat = await genererExercices(moteur, ctx.referentiel, demandes, signal, envoyer);
+
+      if (resultat.erreur) {
+        envoyer("erreur", { message: resultat.erreur });
+        return;
+      }
+
+      // Les propositions sont renvoyées au client pour prévisualisation.
+      // L'écriture n'a lieu qu'après validation explicite de l'utilisateur.
+      envoyer("propositions", { exercices: resultat.exercices });
     },
-  });
+    (e) =>
+      e instanceof Error ? e.message : "Erreur inattendue lors de la génération.",
+  );
 }

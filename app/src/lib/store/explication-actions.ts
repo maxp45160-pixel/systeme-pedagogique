@@ -11,6 +11,7 @@ import { revalidatePath } from "next/cache";
 import { ajouter, dorsaleCompte, nouvelId } from "./db";
 import { lireReferentiel } from "./referentiel";
 import { capturerDocumentProduction } from "./documents";
+import { idPreuve } from "@/lib/documents/nature-document";
 import type { EvaluationExplication } from "@/lib/domain/explication";
 import type { Exercise, ExerciseAttempt, LearningSession, SkillObservation } from "@/lib/domain/types";
 import { verifierTexteExplication } from "@/lib/domain/explication";
@@ -86,7 +87,7 @@ export async function enregistrerExplicationAction(
 
   // 1. Capture de la production dans le corpus documentaire
   const documentProduction = {
-    id: `preuve-${explicationId}`,
+    id: idPreuve(explicationId),
     attemptId: explicationId,
     exerciseId: exerciceId,
     contenuMd: [

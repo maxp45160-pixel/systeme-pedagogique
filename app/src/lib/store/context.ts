@@ -37,11 +37,6 @@ import { assemblerReferentiel } from "@/lib/domain/referentiel-compte";
 import type { Referentiel, SkillState } from "@/lib/domain/types";
 import { adaptLegacyActivities } from "@/lib/domain/legacy-activity-adapter";
 import {
-  chargerCarteGlobale,
-  chargerCorrespondancesCarteGlobale,
-  chargerSelectionsCarteGlobale,
-} from "./carte-globale";
-import {
   adapterRecommandationsAEspaceActif,
   construireCarteIndividuelle,
   construireEspaceActif,
@@ -52,7 +47,6 @@ import {
   construireParcoursInterne,
   ordonnerSelonParcoursInterne,
 } from "@/lib/engine/parcours-interne";
-import type { CarteGlobale } from "@/lib/domain/carte-globale";
 
 export interface Contexte {
   donnees: Collections;
@@ -87,9 +81,7 @@ export interface Contexte {
   etatsParCode: Map<string, SkillState>;
   global: EtatGlobal;
   recommandations: Recommandation[];
-  /** Catalogue global publié, lu séparément de l’overlay privé. */
-  carteGlobale: CarteGlobale;
-  /** Overlay privé + faits globaux pertinents, composés à la lecture. */
+  /** Overlay privé composé à la lecture : la projection locale des états. */
   carteIndividuelle: CarteIndividuelle;
   /** Sous-ensemble borné qui porte la priorité du lot 5. */
   espaceActif: EspaceActif;
@@ -140,12 +132,7 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
   // `chargerToutRPC` ramène les 8 tables en un seul aller-retour réseau.
   // Si la fonction SQL n'existe pas encore, elle renvoie `null` et le
   // chemin lent prend le relais — aucune casse.
-  const [rpc, carteGlobale, selectionsGlobales, correspondancesGlobales] = await Promise.all([
-    chargerToutRPC(),
-    chargerCarteGlobale(),
-    chargerSelectionsCarteGlobale(),
-    chargerCorrespondancesCarteGlobale(),
-  ]);
+  const rpc = await chargerToutRPC();
 
   let donneesBrutes: Collections;
   let referentiel: Referentiel;
@@ -337,13 +324,7 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
    */
   const maitrises = evaluerMaitrises(etats);
 
-  const carteIndividuelle = construireCarteIndividuelle({
-    carteGlobale,
-    selectionsGlobales,
-    correspondancesGlobales,
-    domainesLocaux: referentiel.domaines,
-    etatsLocaux: etatsCarte,
-  });
+  const carteIndividuelle = construireCarteIndividuelle(etatsCarte);
   const espaceActif = construireEspaceActif({
     carte: carteIndividuelle,
     recommandations: recommandationsInitiales,
@@ -371,7 +352,6 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
     etatsParCode: new Map(etats.map((e) => [e.skill.code, e])),
     global,
     recommandations,
-    carteGlobale,
     carteIndividuelle,
     espaceActif,
     calibrations,

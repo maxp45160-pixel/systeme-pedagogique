@@ -2,7 +2,7 @@
 
 /**
  * Le sas — la coupure entre « je décide de travailler » et « je travaille »
- * (ADR-101).
+ * (ADR-102).
  *
  * ## Le problème
  *

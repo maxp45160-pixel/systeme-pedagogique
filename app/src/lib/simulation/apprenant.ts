@@ -16,7 +16,7 @@
  *   lisible : plus l'exercice dépasse l'aptitude, moins ça passe.
  */
 
-import type { Dimension, Exercise } from "@/lib/domain/types";
+import type { Dimension, Exercise, ResultatTentative } from "@/lib/domain/types";
 import type { EvenementScenario } from "./types";
 
 /** Tirage pseudo-aléatoire à graine — LCG « Numerical Recipes ». */
@@ -148,7 +148,7 @@ const JOUR_MS = 86_400_000;
 const ECART_OPTIMAL = 0.5;
 const LARGEUR_ZONE = 1.2;
 
-const RENDEMENT_RESULTAT: Record<"reussi" | "partiel" | "echec", number> = {
+const RENDEMENT_RESULTAT: Record<ResultatTentative, number> = {
   reussi: 1,
   partiel: 0.8,
   echec: 0.5,
@@ -157,7 +157,7 @@ const RENDEMENT_RESULTAT: Record<"reussi" | "partiel" | "echec", number> = {
 export function gainDApprentissage(
   apprentissage: number,
   ecartDifficulte: number,
-  resultat: "reussi" | "partiel" | "echec",
+  resultat: ResultatTentative,
 ): number {
   const pertinence = Math.exp(
     -((ecartDifficulte - ECART_OPTIMAL) ** 2) / (2 * LARGEUR_ZONE ** 2),

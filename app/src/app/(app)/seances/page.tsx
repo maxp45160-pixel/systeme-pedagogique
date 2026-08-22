@@ -34,7 +34,7 @@ async function chargerProjetsDuCahier(): Promise<DocumentOperationnelDate[]> {
 }
 
 /**
- * Pôle Bureau (ADR-061, étendu par ADR-062, refondu par ADR-079 et ADR-101).
+ * Pôle Bureau (ADR-061, étendu par ADR-062, refondu par ADR-079 et ADR-102).
  *
  * Une page est un jour, et le pôle a deux lectures de la même route :
  * le **Bureau** — aujourd'hui, où l'on travaille — et le **Cahier**
@@ -85,7 +85,7 @@ export default async function PageSeances(props: {
   }
 
   /*
-   * Plus d'`EntetePage` (ADR-101).
+   * Plus d'`EntetePage` (ADR-102).
    *
    * Elle écrivait « Cahier » et une phrase d'explication au-dessus d'un héros
    * qui répétait déjà la date : deux en-têtes pour une page. Le Bureau porte
@@ -208,7 +208,7 @@ async function ContenuBureau({
   session?: string;
   exercice?: string;
   recherche?: EtapeRecherche;
-  /** L'URL porte `sas=1` : la séance dépliée ouvre sur son sas (ADR-101). */
+  /** L'URL porte `sas=1` : la séance dépliée ouvre sur son sas (ADR-102). */
   sasDemande?: boolean;
   /** Présente quand `composer=1` : le compositeur s'ouvre au-dessus de la page. */
   composition?: DemandeComposition;
@@ -232,7 +232,7 @@ async function ContenuBureau({
     : undefined;
 
   /*
-   * Travailler ouvre le plein écran (ADR-101, amende ADR-079).
+   * Travailler ouvre le plein écran (ADR-102, amende ADR-079).
    *
    * Une séance qui attend un geste ne se déroule plus encastrée dans la page
    * du jour : le déroulé complet posait ses propres en-tête, barre
@@ -266,11 +266,21 @@ async function ContenuBureau({
       vueInitiale={vueDemandee === "cahier" || terme ? "cahier" : "bureau"}
       {...(terme ? { recherche: terme } : {})}
       jours={jours}
-      seances={ctx.donnees.sessions}
-      tentatives={ctx.donnees.attempts}
-      donnees={donnees}
-      notes={marge}
-      projets={projets}
+      /*
+       * Le regroupement `entrees` vient de `master` (« regrouper les entrées
+       * du cahier en un seul objet ») et il est adopté tel quel : cinq
+       * paramètres qui voyagent toujours ensemble méritent un objet.
+       *
+       * `nombresDeFeuilletsMap` ne survit pas : les feuillets ont été retirés
+       * avec l'habillage du cahier — une page est un jour, rendue d'un tenant.
+       */
+      entrees={{
+        seances: ctx.donnees.sessions,
+        tentatives: ctx.donnees.attempts,
+        donnees,
+        notes: marge,
+        projets,
+      }}
       aujourdHuiIso={ctx.now.toISOString()}
       compteId={ctx.donnees.user.id}
       compositeur={composition ? <CompositeurDepuisLien {...composition} /> : undefined}

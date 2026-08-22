@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Le Bureau — la page du jour où l'on travaille (ADR-101).
+ * Le Bureau — la page du jour où l'on travaille (ADR-102).
  *
  * ## Ce qu'il remplace
  *
@@ -66,15 +66,28 @@ import { CalendrierCahier } from "@/components/seances/calendrier-cahier";
 import { FiletPomodoro } from "@/components/seances/pomodoro";
 import { PaletteBureau, useRaccourciPalette } from "@/components/seances/palette-bureau";
 
+/**
+ * Tout ce qu'un jour peut porter, en un seul objet.
+ *
+ * Le regroupement vient de `master` (« regrouper les entrées du cahier en un
+ * seul objet ») : cinq paramètres qui voyagent toujours ensemble, de la route
+ * jusqu'au dernier composant, méritent un nom. Il vivait dans
+ * `page-cahier.tsx`, retiré par ce chantier ; il vit désormais ici, avec la
+ * surface qui le consomme.
+ */
+export interface EntreesCahier {
+  seances: LearningSession[];
+  tentatives: ExerciseAttempt[];
+  donnees: DonneesSeance;
+  notes: LigneMarge[];
+  projets?: DocumentOperationnelDate[];
+}
+
 export function Bureau({
   jour,
   jours,
   mois,
-  seances,
-  tentatives,
-  donnees,
-  notes,
-  projets = [],
+  entrees,
   aujourdHui,
   compteId,
   seanceDeployee,
@@ -87,11 +100,7 @@ export function Bureau({
   jours: string[];
   /** Le mois ouvert dans le calendrier — pas forcément celui de la page. */
   mois: string;
-  seances: LearningSession[];
-  tentatives: ExerciseAttempt[];
-  donnees: DonneesSeance;
-  notes: LigneMarge[];
-  projets?: DocumentOperationnelDate[];
+  entrees: EntreesCahier;
   aujourdHui: Date;
   compteId: string;
   /** La séance ouverte en plein travail, rendue à sa place dans le déroulé. */
@@ -100,6 +109,7 @@ export function Bureau({
   onChangerMois: (mois: string) => void;
   onOuvrirCahier: () => void;
 }) {
+  const { seances, tentatives, donnees, notes, projets = [] } = entrees;
   const page = construirePage(jour, { seances, notes, projets });
   const { precedente, suivante } = voisinesDeLaPage(jour, jours);
 

@@ -30,6 +30,7 @@
  */
 
 import type { MetriqueMoteur } from "@/lib/engine/auto-evaluation";
+import { RESULTATS_TENTATIVE } from "@/lib/domain/types";
 import { construireRegistre, type LigneRegistre } from "./analyse";
 import { objectifsDuMonde, type ObjectifFictif } from "./monde";
 import type { PasResume, ResultatParcoursLong } from "./parcours-long";
@@ -696,7 +697,7 @@ function selection(parcours: ResultatParcoursLong): Selection {
     tauxSuivi: actions.length === 0 ? null : actions.filter((a) => a.suivie).length / actions.length,
     tauxReussite:
       menees.length === 0 ? null : menees.filter((a) => a.resultat === "reussi").length / menees.length,
-    repartitionResultats: ["reussi", "partiel", "echec"].map((resultat) => ({
+    repartitionResultats: RESULTATS_TENTATIVE.map((resultat) => ({
       resultat,
       n: menees.filter((a) => a.resultat === resultat).length,
     })),

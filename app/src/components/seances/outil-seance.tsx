@@ -29,7 +29,7 @@ export function OutilSeance({
   contenuClassName: string;
   /**
    * `outil` : un contrôle de l'espace de travail — fond, contour, état actif
-   * lisible (ADR-101). `bouton` : partout ailleurs. `discret` : la barre
+   * lisible (ADR-102). `bouton` : partout ailleurs. `discret` : la barre
    * d'outils du Bureau, où un libellé écrit par contrôle ferait quatre mots
    * de plus sur le seul écran qu'on veut silencieux.
    */

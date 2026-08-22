@@ -246,7 +246,7 @@ describe("calendrier", () => {
 
 
 /* ------------------------------------------------------------------ */
-/* Le résumé d'un jour et la bande de semaine (ADR-101)                 */
+/* Le résumé d'un jour et la bande de semaine (ADR-102)                 */
 /* ------------------------------------------------------------------ */
 
 function tentative(extra: Partial<ExerciseAttempt> = {}): ExerciseAttempt {

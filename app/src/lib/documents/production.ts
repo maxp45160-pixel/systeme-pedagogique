@@ -1,4 +1,6 @@
 import type { Exercise, ExerciseAttempt } from "@/lib/domain/types";
+import { listeMarkdown } from "./markdown";
+import { idPreuve } from "./nature-document";
 
 export interface DocumentProductionPreuve {
   id: string;
@@ -18,10 +20,6 @@ export function memeProductionHorsHorodatage(a: string, b: string): boolean {
   return sansHorodatage(a) === sansHorodatage(b);
 }
 
-function listeMarkdown(valeurs: string[]): string {
-  return valeurs.map((valeur) => `- [[${valeur}]]`).join("\n");
-}
-
 /**
  * Conserve la production et son contexte dans un document durable.
  *
@@ -35,14 +33,14 @@ export function construireDocumentProductionPreuve(
   tentative: ExerciseAttempt,
   produiteLe: string,
 ): DocumentProductionPreuve {
-  const id = `preuve-${tentative.id}`;
+  const id = idPreuve(tentative.id);
   const production = tentative.reponse;
   const notes = tentative.notes?.trim();
 
   const sections = [
     "## Compétences mobilisées",
     "",
-    listeMarkdown(exercice.competences),
+    listeMarkdown(exercice.competences).join("\n"),
     "",
     "## Support",
     "",

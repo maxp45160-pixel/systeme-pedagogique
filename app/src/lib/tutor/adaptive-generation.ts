@@ -6,6 +6,7 @@
  */
 
 import type { MoteurTuteur } from "./moteurs";
+import { objet } from "./conversion";
 import type { PromptTuteur } from "./prompt";
 import { lireErreurMoteur, lireOutilsActifs, messageSansOutils } from "./moteurs";
 import {
@@ -59,12 +60,6 @@ export interface ResultatPropositionTuteur<T> {
 
 const TEXTE_COURT_MAX = 1_000;
 const LISTE_MAX = 40;
-
-function objet(valeur: unknown): Record<string, unknown> | null {
-  return typeof valeur === "object" && valeur !== null && !Array.isArray(valeur)
-    ? (valeur as Record<string, unknown>)
-    : null;
-}
 
 function texteValide(valeur: unknown, maximum = TEXTE_COURT_MAX): valeur is string {
   return typeof valeur === "string" && valeur.trim().length > 0 && valeur.length <= maximum;

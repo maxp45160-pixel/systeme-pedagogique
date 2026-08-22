@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { grilleMois, moisDecale, moisDuJour } from "@/lib/domain/pages-cahier";
+import { formatMoisAnnee } from "@/lib/engine/dates";
 import { OutilSeance } from "@/components/seances/outil-seance";
 import { IconeCalendrier } from "@/components/ui/icones";
 
@@ -43,7 +44,7 @@ export function CalendrierCahier({
       libelle="Aller à une date"
       variante={variante}
       icone={<IconeCalendrier className="size-4" />}
-      contenuClassName="absolute right-0 z-30 mt-2 w-[17rem] rounded-lg border border-bordure bg-surface p-3 shadow-[var(--ombre-surcouche)]"
+      contenuClassName="absolute right-0 z-[var(--superposition-menu)] mt-2 w-[17rem] rounded-lg border border-bordure bg-surface p-3 shadow-[var(--ombre-surcouche)]"
     >
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
@@ -163,8 +164,5 @@ export function moisAffiche(moisDemande: string | null, jour: string): string {
 }
 
 function libelleMois(mois: string): string {
-  return new Date(`${mois}-01T12:00:00`).toLocaleDateString("fr-FR", {
-    month: "long",
-    year: "numeric",
-  });
+  return formatMoisAnnee(mois);
 }

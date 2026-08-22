@@ -394,7 +394,7 @@ export function AssistantOrientationProfil({
       <div
         role="dialog"
         aria-modal="true"
-        className="fixed inset-0 z-50 flex items-center justify-center bg-noir/40 backdrop-blur-xs p-4"
+        className="fixed inset-0 z-[var(--superposition-modale)] flex items-center justify-center bg-noir/40 backdrop-blur-xs p-4"
       >
         <div className="w-full max-w-xl rounded-2xl border border-bordure bg-surface p-6 shadow-xl animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
           {contenu}

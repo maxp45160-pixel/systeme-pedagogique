@@ -98,7 +98,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [086](#adr-086) | L'atomicité tient au schéma, pas à la consigne ; le référentiel se détecte seul | 🔬 Hypothèse (18/08) |
 | [087](#adr-087) | Une compétence a plusieurs successeurs ; la scission est sèche | 🔬 Hypothèse (18/08) |
 | [088](#adr-088) | Un domaine n'est pas un thème | 🔬 Hypothèse (18/08) |
-| [089](#adr-089) | Carte globale partagée et overlay privé | ✅ Acceptée (20/08) |
+| [089](#adr-089) | Carte globale partagée et overlay privé | 🗑️ Retirée (21/08) — voir [ADR-099](#adr-099) |
 | [090](#adr-090) | Une preuve est une trace ; l'actuel `evidence` devient Observation | ✅ Acceptée (20/08) |
 | [091](#adr-091) | États et vues personnelles restent dérivés | ✅ Acceptée (20/08) |
 | [092](#adr-092) | Une Connaissance est un élément déclaré, pas un document | ✅ Acceptée (20/08) |
@@ -108,10 +108,10 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [096](#adr-096) | Le parcours est une file d'actions dérivée, pas un objectif stocké | ✅ Acceptée (21/08) |
 | [097](#adr-097) | Le modèle se choisit par tâche, pas par compte | ✅ Acceptée (21/08) |
 | [098](#adr-098) | La Progression devient un profil de carrière | ✅ Acceptée (21/08) |
-| [099](#adr-099) | Le cahier rouvre sur aujourd'hui, et un jour se lit d'un tenant | ✅ Acceptée (21/08) — amende [079](#adr-079) |
-| [100](#adr-100) | Une séance abandonnée peut être renoncée | ✅ Acceptée (21/08) — prolonge [077](#adr-077) |
-| [101](#adr-101) | Le pôle de travail est un Bureau ; le Cahier en est l’archive | ✅ Acceptée (22/08) — refond [079](#adr-079) (dont un point renversé) et [099](#adr-099) |
-| [102](#adr-102) | Une surface optionnelle absente de la base ne fait pas tomber l'application | ✅ Acceptée (22/08) |
+| [099](#adr-099) | La carte globale est retirée, pas remplacée | 🗑️ Retrait acté (21/08) |
+| [100](#adr-100) | Le cahier rouvre sur aujourd'hui, et un jour se lit d'un tenant | ✅ Acceptée (21/08) — amende [079](#adr-079) |
+| [101](#adr-101) | Une séance abandonnée peut être renoncée | ✅ Acceptée (21/08) — prolonge [077](#adr-077) |
+| [102](#adr-102) | Le pôle de travail est un Bureau ; le Cahier en est l’archive | ✅ Acceptée (22/08) — refond [079](#adr-079) (dont un point renversé) et [100](#adr-100) |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -5793,7 +5793,7 @@ multiligne revient à `rows`.
 
 **Date.** 16/08/2026. **Tranchée par Maxime.** Lève l'invariant « une seule
 séance en cours » posé par [ADR-048](#adr-048), et fournit sa contrepartie.
-**Prolongée le 21/08/2026 par [ADR-100](#adr-100)** : une séance « en suspens »
+**Prolongée le 21/08/2026 par [ADR-101](#adr-101)** : une séance « en suspens »
 peut être renoncée définitivement (`sessions.renoncee_le`).
 
 **Contexte.** Une séance en cours n'avait qu'une sortie : `terminerSeance`, qui
@@ -5924,10 +5924,10 @@ phrase de six mots fait qu'on ne l'écrit pas — la même friction que
 
 **Date.** 16/08/2026. **Tranchée par Maxime.** Refond la surface posée par
 [ADR-061](#adr-061), et prolonge [ADR-077](#adr-077) et [ADR-078](#adr-078).
-**Amendée le 21/08/2026 par [ADR-099](#adr-099)** : ouverture sur la page du
+**Amendée le 21/08/2026 par [ADR-100](#adr-100)** : ouverture sur la page du
 jour (marque-page retiré), page rendue d'un seul tenant (feuillets retirés),
 papier suggéré (réglure retirée).
-**Refondue le 22/08/2026 par [ADR-101](#adr-101)**, qui **renverse** en outre le
+**Refondue le 22/08/2026 par [ADR-102](#adr-102)**, qui **renverse** en outre le
 point « le déroulé vit sur la page du jour » : une séance qui attend un geste
 ouvre le plein écran. Voir la décision pour ce que l'essai a montré.
 
@@ -7396,11 +7396,62 @@ renvoie.
 
 ---
 
-<a name="adr-099"></a>
-## ADR-099 — Le cahier rouvre sur aujourd'hui, et un jour se lit d'un tenant ✅
+## ADR-099 - La carte globale est retirée, pas remplacée
+
+**Statut : 🗑️ Retrait acté (21/08/2026).** Décision humaine explicite, prise
+après lecture directe de la base de production.
+
+### Le constat qui déclenche le retrait
+
+Le 21/08/2026, la base live est interrogée directement :
+
+- les six tables `carte_globale_*` contiennent **zéro ligne chacune** — elles
+  n'en ont jamais reçue ;
+- aucun chemin d'écriture applicatif ne subsiste : les actions serveur
+  (`store/carte-globale-actions.ts`) sont supprimées le même jour après
+  vérification qu'aucun composant ni aucune page ne les appelait ;
+- la table `carte_globale_curateurs` n'a jamais eu de voie de nomination
+  (aucun `INSERT`, nulle part) : même un écrivain réintroduit n'aurait rien pu
+  publier ;
+- `competence_succession` partage exactement ce constat : structure complète
+  (RLS, triggers, index), zéro référence dans le code, zéro writer possible.
+
+Le lot 3 avait provisionné le schéma avant d'avoir quoi que ce soit à y mettre.
+C'est l'ordre inverse de celui que le projet s'impose désormais.
+
+### Ce que le retrait emporte
+
+- Les sept tables et la fonction transactionnelle
+  `appliquer_commande_carte_globale` (`20260821190000_retrait_carte_globale.sql`).
+- Le chemin de lecture : `store/carte-globale.ts`, `validation-carte-globale.ts`,
+  les types de `domain/carte-globale.ts`.
+- Dans `vues-twiny.ts`, la branche globale de l'overlay privé et de l'espace
+  actif — structurellement vide depuis l'origine. L'espace actif reste borné à
+  quinze éléments et continue d'ordonner par classement explicable du
+  référentiel local ; il ne compose plus que des faits locaux.
+
+### Ce que le retrait ne remet pas en cause
+
+- **ADR-091 reste valable** : les états personnels restent dérivés, jamais
+  stockés ; ils portent désormais uniquement des faits locaux.
+- **Le concept** d'un catalogue partagé reste décrit dans `TWINY_MODEL.md`.
+  Un retour éventuel repartira du modèle cible — avec un premier contenu réel,
+  un curateur désigné et un besoin démontré avant toute table. L'inverse de
+  l'ordre qui a produit ce schéma mort.
+
+### Test de réfutation
+
+Si une sélection ou une publication globale redevient nécessaire, cet ADR sera
+rouvert avec le contenu initial nommé et le chemin d'écriture défini avant le
+schéma.
+
+---
+
+<a name="adr-100"></a>
+## ADR-100 — Le cahier rouvre sur aujourd'hui, et un jour se lit d'un tenant ✅
 
 **Date.** 21/08/2026. **Tranchée par Maxime.** Amende
-[ADR-079](#adr-079). **Refondue le 22/08/2026 par [ADR-101](#adr-101)** : le
+[ADR-079](#adr-079). **Refondue le 22/08/2026 par [ADR-102](#adr-102)** : le
 pôle devient un Bureau, et le Cahier son archive — le retrait de la
 skeuomorphie laissait un registre administratif à sa place.
 
@@ -7456,8 +7507,8 @@ skeuomorphie laissait un registre administratif à sa place.
 
 ---
 
-<a name="adr-100"></a>
-## ADR-100 — Une séance abandonnée peut être renoncée ✅
+<a name="adr-101"></a>
+## ADR-101 — Une séance abandonnée peut être renoncée ✅
 
 **Date.** 21/08/2026. **Tranchée par Maxime.** Prolonge
 [ADR-077](#adr-077).
@@ -7499,13 +7550,13 @@ Un nouveau geste : **« Renoncer »**, écrit par `renoncerSeance`.
 
 ---
 
-<a name="adr-101"></a>
-## ADR-101 — Le pôle de travail est un Bureau ; le Cahier en est l'archive ✅
+<a name="adr-102"></a>
+## ADR-102 — Le pôle de travail est un Bureau ; le Cahier en est l'archive ✅
 
 **Date.** 22/08/2026. **Tranchée par Maxime.** Refond [ADR-079](#adr-079) et
-[ADR-099](#adr-099).
+[ADR-100](#adr-100).
 
-**Contexte.** [ADR-099](#adr-099) a retiré l'habillage skeuomorphe — réglure,
+**Contexte.** [ADR-100](#adr-100) a retiré l'habillage skeuomorphe — réglure,
 reliure, ruban, folio, feuillets. Le retrait était juste : l'interface n'a pas
 besoin de peindre un objet pour dire « journal ». Mais **rien n'a remplacé la
 fonction**, et la page du jour est devenue un registre administratif :
@@ -7516,7 +7567,7 @@ fonction**, et la page du jour est devenue un registre administratif :
    séance », « Projets de ce jour », « Notes du jour » — quatre intitulés en
    capitales, quatre cartes bordées. La séance en cours et un exercice fait la
    veille avaient le même relief. On y classait ; on n'y travaillait pas.
-3. **Le défaut d'ADR-099 déplacé, pas résolu.** La décision nommait le
+3. **Le défaut d'ADR-100 déplacé, pas résolu.** La décision nommait le
    problème — « la réglure luttait avec les cartes ». La trame quadrillée du
    `body`, elle, est restée : elle lutte avec les mêmes cartes.
 4. **Deux besoins opposés sur le même écran.** « Où je travaille maintenant »
@@ -7569,7 +7620,7 @@ C'est l'écran où l'on passe le plus de temps.
   chargement déguisé.
 * **La dette sort du Bureau.** Les onglets « en suspens » vivent au Cahier :
   une reprise qu'on ne fera pas maintenant n'a rien à faire devant les yeux
-  pendant qu'on travaille. Contrepartie assumée d'[ADR-100](#adr-100).
+  pendant qu'on travaille. Contrepartie assumée d'[ADR-101](#adr-101).
 * **Travailler ouvre le plein écran** — ce qui **renverse**
   [ADR-079](#adr-079).
 
@@ -7649,62 +7700,6 @@ C'est l'écran où l'on passe le plus de temps.
 
 ---
 
-<a name="adr-102"></a>
-## ADR-102 — Une surface optionnelle absente de la base ne fait pas tomber l'application ✅
-
-**Date.** 22/08/2026. **Tranchée par Maxime.**
-
-**Contexte.** Le 22/08/2026, l'application entière ne rendait plus une seule
-page. Cause : les six tables `carte_globale_*` étaient absentes de la base,
-alors que leurs migrations existaient au dépôt depuis le 20/08 et que
-`schema.sql` les décrivait — le cas exact contre lequel `AGENTS.md` met en
-garde (« ne jamais supposer qu'une migration est appliquée simplement parce que
-le fichier existe »). Ni
-`20260820134723_twiny_lot_3_carte_globale_overlay_minimal.sql` ni
-`20260820190000_twiny_lot_7_correspondances_relations.sql` n'avaient été jouées.
-
-`chargerContexte` lit la carte globale à chaque rendu de chaque page. Une
-`carte_globale_selections` manquante faisait donc tomber le tableau de bord, la
-Progression, l'Atelier et le Bureau — aucune de ces surfaces n'ayant besoin de
-la carte globale pour exister.
-
-Le voisin immédiat dans le même `Promise.all` avait pourtant déjà la bonne
-discipline : `chargerToutRPC` renvoie `null` quand la fonction SQL n'existe pas
-encore, et le chemin lent prend le relais — « aucune casse ». Deux règles
-opposées sur la même ligne de code.
-
-### Décision
-
-Une lecture dont l'absence **retire une fonctionnalité sans fausser aucune
-mesure** rend vide plutôt que de lever — et le dit.
-
-* `estTableAbsente` ne reconnaît que `PGRST205` (PostgREST) et `42P01`
-  (`undefined_table`). Un refus RLS (`42501`), une colonne manquante ou une
-  coupure réseau continuent de remonter par `verifier`.
-* `signalerTableAbsente` journalise une fois par table et par processus, **en
-  nommant la migration**. Sans ce nom, l'avertissement est un bruit de plus.
-* La tolérance est posée chez l'appelant, jamais dans `verifier` : c'est
-  l'appelant qui sait si sa surface est optionnelle.
-
-**Ce n'est pas une entorse à l'invariant 6** (« ne jamais fabriquer une valeur à
-partir d'une donnée invalide »). Il n'y a pas de donnée invalide : il n'y a pas
-de table. Une carte globale vide parce que la fonctionnalité n'est pas déployée
-est un constat ; une carte globale vide parce qu'on aurait avalé un refus
-d'autorisation serait un mensonge — et c'est précisément ce que le prédicat
-étroit empêche.
-
-### Conséquences
-
-- ✅ Une migration oubliée dégrade la surface concernée au lieu de fermer
-  l'application.
-- ⚠️ La dérive base/code devient silencieuse à l'écran : elle ne vit plus que
-  dans les journaux serveur. Accepté — l'alternative était une application
-  inutilisable, et l'avertissement nomme le fichier à jouer.
-- ⚠️ **Les deux migrations restent à appliquer** sur le projet concerné. Le
-  filet ne les remplace pas : tant qu'elles ne sont pas jouées, la carte
-  globale et les correspondances locales/globales n'existent pas.
-- Aucune écriture n'est tolérante : seules les trois lectures de
-  `carte-globale.ts` le sont.
 
 ---
 

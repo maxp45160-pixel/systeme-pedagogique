@@ -306,7 +306,7 @@ export async function demarrerSeance(seanceId: string): Promise<void> {
   );
   revalidatePath("/", "layout");
   /*
-   * `sas=1` : la coupure entre décider et travailler (ADR-101). Le paramètre
+   * `sas=1` : la coupure entre décider et travailler (ADR-102). Le paramètre
    * porte l'état — aucune clé navigateur — et `SasSeance` le retire de l'URL
    * dès l'affichage, pour qu'un rechargement ne le rejoue pas.
    */

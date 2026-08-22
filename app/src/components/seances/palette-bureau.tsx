@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * La palette du Bureau (⌘K) — ADR-101.
+ * La palette du Bureau (⌘K) — ADR-102.
  *
  * ## Ce qu'elle remplace
  *
@@ -139,11 +139,26 @@ export function PaletteBureau({
       });
   }, [commandes, terme]);
 
-  useEffect(() => setCurseur(0), [terme]);
+  /*
+   * Réinitialisations pendant le rendu (motif React « adjusting state when a
+   * prop changes ») : un curseur qui pointerait au-delà de la liste filtrée,
+   * ou une saisie héritée d'une ouverture précédente, sont des incohérences à
+   * corriger avant de peindre — pas des effets.
+   */
+  const [termePrecedent, setTermePrecedent] = useState(terme);
+  if (terme !== termePrecedent) {
+    setTermePrecedent(terme);
+    setCurseur(0);
+  }
+
+  const [ouvertePrecedente, setOuvertePrecedente] = useState(ouverte);
+  if (ouverte !== ouvertePrecedente) {
+    setOuvertePrecedente(ouverte);
+    if (ouverte) setSaisie("");
+  }
 
   useEffect(() => {
     if (!ouverte) return;
-    setSaisie("");
     champ.current?.focus();
   }, [ouverte]);
 

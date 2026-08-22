@@ -17,7 +17,7 @@ import "server-only";
 import type { Contexte } from "@/lib/store/context";
 import { construireContexte } from "@/lib/tutor/contexte";
 import { choisirConfiguration, decrireChoix } from "@/lib/tutor/moteurs";
-import type { EtatContexteTuteur } from "@/components/tuteur/chat";
+import type { EtatContexteTuteur } from "@/lib/tutor/etat-contexte";
 
 export async function construireEtatInitialTuteur(
   ctx: Contexte,

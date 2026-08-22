@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import type { VuePedagogiqueAtelier } from "@/lib/documents/vue-atelier";
 import type { EntretienDomaineAtelier } from "@/lib/documents/vue-atelier";
 import type { ElementAtelier } from "./types-atelier";
-import type { CalibrageModale, CompetenceModale } from "@/components/exercices/proprietes-generation";
+import type { CalibrageModale, CompetenceModale } from "@/lib/domain/proprietes-generation";
 import { ConcepteurSeance, type DonneesSeance } from "@/components/seances/concepteur-seance";
 import { urlComposerAutonome } from "@/lib/domain/navigation-exercice";
 import Link from "next/link";

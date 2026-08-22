@@ -149,7 +149,7 @@
   --marge: rgb(146 133 109 / 0.28);
 
   /*
-    La lampe du Bureau (ADR-101) — le halo qui éclaire la colonne de travail
+    La lampe du Bureau (ADR-102) — le halo qui éclaire la colonne de travail
     et laisse retomber les bords dans la pénombre.
 
     Ce n'est pas une décoration libre : c'est le seul dispositif qui dit
@@ -257,6 +257,23 @@
 /* ══════════════ JETONS SANS THÈME (identiques partout) ═════════ */
 
 :root {
+  /*
+    Superpositions — une échelle, un seul ordre :
+    collant < barre < menu < tiroir < modale < tour < notification.
+    Le 21/08/2026, chaque surface improvisait sa couche (z-30, z-40, z-50,
+    z-[100]) : le tour flottait au-dessus des modales et deux masques
+    sombres se cumulaient. C'est le défaut que cette échelle rend
+    impossible ; le contrat « une seule surface pleine page à la fois »
+    est appliqué par le verrou du fournisseur d'intention.
+  */
+  --superposition-collant: 10;
+  --superposition-barre: 20;
+  --superposition-menu: 30;
+  --superposition-tiroir: 40;
+  --superposition-modale: 50;
+  --superposition-tour: 60;
+  --superposition-notification: 70;
+
   /* ── Typographie réellement consommée par les styles de base ───── */
   --pas-corps: 0.9375rem;
 
@@ -264,7 +281,7 @@
   --socle-espacement: 0.25rem;
 
   /*
-    Largeur de la colonne de travail du Bureau (ADR-101).
+    Largeur de la colonne de travail du Bureau (ADR-102).
 
     704 px. Ce n'est pas un goût : au-delà, une ligne de texte dépasse la
     longueur qu'un œil relit sans se perdre, et le Bureau est l'écran où l'on

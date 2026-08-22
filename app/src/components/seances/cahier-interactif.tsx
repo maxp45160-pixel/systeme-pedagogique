@@ -1,19 +1,12 @@
 "use client";
 
 import { useCallback, useMemo, useState, type ReactNode } from "react";
-import type { LearningSession, ExerciseAttempt } from "@/lib/domain/types";
-import type { LigneMarge } from "@/lib/documents/marge";
-import type { DonneesSeance } from "@/components/seances/concepteur-seance";
-import {
-  moisDuJour,
-  moisValide,
-  type DocumentOperationnelDate,
-} from "@/lib/domain/pages-cahier";
+import { moisDuJour, moisValide } from "@/lib/domain/pages-cahier";
 import { moisAffiche } from "@/components/seances/calendrier-cahier";
-import { Bureau } from "@/components/seances/bureau";
+import { Bureau, type EntreesCahier } from "@/components/seances/bureau";
 import { CahierArchive } from "@/components/seances/cahier-archive";
 
-/** Les deux lectures de la même route (ADR-101). */
+/** Les deux lectures de la même route (ADR-102). */
 type Vue = "bureau" | "cahier";
 
 /**
@@ -27,11 +20,7 @@ export function CahierInteractif({
   moisInitial,
   vueInitiale = "bureau",
   jours,
-  seances,
-  tentatives,
-  donnees,
-  notes,
-  projets = [],
+  entrees,
   aujourdHuiIso,
   compteId,
   recherche,
@@ -44,11 +33,7 @@ export function CahierInteractif({
   /** `cahier` quand l'URL porte `?vue=cahier` ou une recherche. */
   vueInitiale?: Vue;
   jours: string[];
-  seances: LearningSession[];
-  tentatives: ExerciseAttempt[];
-  donnees: DonneesSeance;
-  notes: LigneMarge[];
-  projets?: DocumentOperationnelDate[];
+  entrees: EntreesCahier;
   aujourdHuiIso: string;
   compteId: string;
   /** Terme de recherche actif, le cas échéant. Le Cahier s'ouvre dessus. */
@@ -65,7 +50,7 @@ export function CahierInteractif({
 
   /**
    * Navigation locale instantanée entre les pages. Aucune écriture : ni
-   * marque-page (le cahier rouvre toujours sur la page du jour — un marque-
+   * marque-page (le Bureau rouvre toujours sur la page du jour — un marque-
    * page qui ramenait trois jours en arrière était une friction, pas un
    * confort), ni URL (un `?jour=` posé par `replaceState` deviendrait un lien
    * explicite au rechargement et réintroduirait l'ouverture dans le passé).
@@ -86,11 +71,7 @@ export function CahierInteractif({
       <CahierArchive
         mois={mois}
         jours={jours}
-        seances={seances}
-        tentatives={tentatives}
-        notes={notes}
-        projets={projets}
-        donnees={donnees}
+        entrees={entrees}
         recherche={recherche}
         onChangerJour={allerALaPage}
         onChangerMois={setMois}
@@ -107,11 +88,7 @@ export function CahierInteractif({
         jour={jour}
         jours={jours}
         mois={mois}
-        seances={seances}
-        tentatives={tentatives}
-        donnees={donnees}
-        notes={notes}
-        projets={projets}
+        entrees={entrees}
         aujourdHui={aujourdHui}
         compteId={compteId}
         onChangerJour={allerALaPage}

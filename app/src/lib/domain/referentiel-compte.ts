@@ -160,13 +160,27 @@ export function slugifier(nom: string): string {
 }
 
 /**
- * Préfixe de repli quand le tuteur n'en propose pas d'exploitable : les
- * premières lettres du nom, sans accent. Jamais silencieux — l'écran de
- * validation le montre et l'utilisateur peut le corriger.
+ * Préfixe de repli quand le tuteur n'en propose pas d'exploitable : dérivé du
+ * nom, sans accent. Jamais silencieux — l'écran de validation le montre et
+ * l'utilisateur peut le corriger.
+ *
+ * Un seul algorithme pour tout le dépôt : il était dupliqué dans la modale de
+ * création avec une logique multi-mots plus riche, et les deux copies avaient
+ * divergé (« Philosophie morale » ne donnait pas le même préfixe selon l'écran).
  */
 export function prefixeParDefaut(nom: string): string {
-  const lettres = slugifier(nom).replace(/[^a-z]/g, "").toUpperCase();
-  return lettres.slice(0, 3).padEnd(2, "X").slice(0, 5);
+  const nettoye = nom.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+  const mots = nettoye.split(/[^A-Z0-9]+/).filter(Boolean);
+  const brut =
+    mots.length === 0
+      ? ""
+      : mots.length === 1
+        ? mots[0].slice(0, 4)
+        : mots.length === 2
+          ? mots[0].slice(0, 2) + mots[1].slice(0, 2)
+          : mots.map((m) => m[0]).slice(0, 4).join("");
+  // Une seule lettre est complétée plutôt que rejetée : « IA » est déjà valide.
+  return brut.slice(0, 5).padEnd(2, "X");
 }
 
 export function normaliserPrefixe(brut: string, nomDomaine: string): string {

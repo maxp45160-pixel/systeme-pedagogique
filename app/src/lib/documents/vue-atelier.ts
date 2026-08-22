@@ -7,6 +7,7 @@ import {
   type ExerciseAttempt,
   type NiveauCompetence,
   type Referentiel,
+  type ResultatTentative,
   type Skill,
   type SkillObservation,
   type SkillState,
@@ -14,6 +15,7 @@ import {
 import type { LotCandidats } from "@/lib/engine/candidats-referentiel";
 import { retraitsParCode, type EtatRetrait } from "@/lib/domain/referentiel-compte";
 import type { IndexDocumentaire } from "./index";
+import { PREFIXE_PREUVE, idPreuve } from "./nature-document";
 import {
   competencesConnexes,
   parcoursCompetence,
@@ -37,7 +39,7 @@ export interface ObservationAtelier {
   id: string;
   date: string;
   type: string;
-  resultat: "reussi" | "partiel" | "echec";
+  resultat: ResultatTentative;
   contexte: string;
   autonomie: string;
   qualite: string;
@@ -83,7 +85,7 @@ const TYPES_NON_SUPPORT = new Set(["exercice", "preuve"]);
 function estSupport(document: { id: string; type: string }): boolean {
   if (TYPES_NON_SUPPORT.has(document.type)) return false;
   /* Les preuves d'avant le champ `type` ne se reconnaissent qu'à leur identifiant. */
-  return !document.id.startsWith("preuve-") && !document.id.startsWith("exercice:");
+  return !document.id.startsWith(PREFIXE_PREUVE) && !document.id.startsWith("exercice:");
 }
 
 /**
@@ -97,7 +99,7 @@ function estSupport(document: { id: string; type: string }): boolean {
  */
 function documentPreuveDeLObservation(observation: SkillObservation, index: IndexDocumentaire): string | null {
   const explicite = observation.source.document?.documentId;
-  const candidat = explicite ?? (observation.source.kind === "exercice" ? `preuve-${observation.source.ref}` : null);
+  const candidat = explicite ?? (observation.source.kind === "exercice" ? idPreuve(observation.source.ref) : null);
   if (!candidat) return null;
   return index.parId.has(candidat) ? candidat : null;
 }
@@ -299,7 +301,7 @@ export interface VueExerciceProjectionAtelier {
   }>;
   tentatives: ExerciseAttempt[];
   nombreTentatives: number;
-  meilleurResultat: "reussi" | "partiel" | "echec" | null;
+  meilleurResultat: ResultatTentative | null;
   derniereTentative: string | null;
 }
 

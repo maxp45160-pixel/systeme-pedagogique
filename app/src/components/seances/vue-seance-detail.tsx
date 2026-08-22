@@ -27,7 +27,7 @@ import { lireMarge } from "@/lib/store/marge";
 import { FocusActe } from "@/components/exercices/focus-acte";
 import { TiroirTuteur } from "@/components/tuteur/tiroir-tuteur";
 import { construireEtatInitialTuteur } from "@/lib/tutor/etat-initial";
-import { calibragesPourModale, competencesPourModale } from "@/components/exercices/proprietes-generation";
+import { calibragesPourModale, competencesPourModale } from "@/lib/domain/proprietes-generation";
 import { VueExercice } from "@/components/exercices/vue-exercice";
 import { ResumeExerciceCahier } from "@/components/seances/resume-exercice-cahier";
 import { CarteImpact, LienApresImpact } from "@/components/exercices/carte-impact";
@@ -62,7 +62,7 @@ export type EtapeRecherche = {
   produirait aucun style.
 */
 const CLASSES_PANNEAU_BASE =
-  "fixed left-4 right-4 top-28 z-30 mt-2 shadow-xl sm:absolute sm:right-auto sm:top-auto";
+  "fixed left-4 right-4 top-28 z-[var(--superposition-menu)] mt-2 shadow-xl sm:absolute sm:right-auto sm:top-auto";
 const CLASSES_PANNEAU_CADRE = "rounded-lg border border-bordure bg-surface p-3";
 
 const PANNEAU_LARGE_GAUCHE = "sm:left-0 sm:translate-x-0 sm:w-[min(34rem,calc(100vw-6rem))]";
@@ -88,7 +88,7 @@ export async function VueSeanceDetail({
   exerciceDemande?: string;
   recherche?: EtapeRecherche;
   /**
-   * L'URL porte `sas=1` : on vient d'entrer en travail (ADR-101).
+   * L'URL porte `sas=1` : on vient d'entrer en travail (ADR-102).
    *
    * Lu ici plutôt que par `useSearchParams()` côté client pour que le sas soit
    * peint au premier rendu — il apparaîtrait sinon APRÈS l'exercice, ce qui
@@ -226,7 +226,7 @@ export async function VueSeanceDetail({
   return (
     /*
      * Le plein écran est la MÊME pièce que le Bureau, éclairée pareil
-     * (ADR-101). Il rendait jusqu'ici un `bg-surface` plat sur toute la
+     * (ADR-102). Il rendait jusqu'ici un `bg-surface` plat sur toute la
      * fenêtre, en `max-w-7xl` : on quittait visuellement l'application pour
      * entrer dans un écran générique. La lampe et la colonne rétablissent la
      * continuité — on reste au même endroit, on s'y concentre davantage.
@@ -339,7 +339,7 @@ export async function VueSeanceDetail({
 
             `classesIntercalaire` dessinait des languettes de séparateur de
             cahier : bordure transparente, texte atténué, aucun fond. La forme
-            se justifiait quand l'interface peignait un cahier — ADR-099 a
+            se justifiait quand l'interface peignait un cahier — ADR-100 a
             retiré cet habillage, et la languette est restée orpheline. Sur le
             fond sombre du Bureau, quatre mots gris sur gris : on ne voyait
             plus qu'il s'agissait de boutons.

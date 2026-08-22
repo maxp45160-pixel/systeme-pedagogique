@@ -1,67 +1,19 @@
 /**
  * Vues personnelles du lot 5.
  *
- * Ce module ne lit et n'écrit rien. Il compose les faits validés des lots
- * précédents avec les états déjà calculés par le moteur. Les Observations et
- * les sélections restent des entrées distinctes : aucun de ces faits n'est
- * transformé en mesure implicite.
+ * Ce module ne lit et n'écrit rien. Il compose les états déjà calculés par le
+ * moteur. La couche « carte globale » qui complétait ces vues a été retirée le
+ * 21/08/2026 : ses tables n'avaient jamais reçu une seule ligne et son chemin
+ * d'écriture applicatif n'existait plus (voir ARCHITECTURE_DECISIONS.md,
+ * « Retrait de la carte globale »).
  */
 
-import type {
-  Confiance,
-  Domaine,
-  Explication,
-  SkillObservation,
-  SkillState,
-} from "@/lib/domain/types";
-import type {
-  CarteGlobale,
-  CorrespondanceCarteGlobale,
-  ElementGlobal,
-  RelationGlobale,
-  SelectionCarteGlobale,
-} from "@/lib/domain/carte-globale";
+import type { SkillObservation, SkillState } from "@/lib/domain/types";
 import { evaluerMaitrise, type Maitrise } from "./maitrise";
 import type { Recommandation } from "./recommend";
 
 /** Borne validée humainement pour le lot 5. */
 export const LIMITE_ESPACE_ACTIF = 15;
-
-/**
- * L'état d'une connaissance ne peut actuellement porter aucune conclusion :
- * le contrat persistant des Observations cible uniquement une compétence
- * locale. Une sélection globale, un document ou une proximité ne sont pas des
- * mesures et ne créent donc pas de niveau de connaissance.
- */
-export interface EtatConnaissance {
-  elementId: string;
-  conclusion: null;
-  confiance: Extract<Confiance, "nulle">;
-  derniereObservation: null;
-  statut: "non-mesure";
-  explication: Explication;
-}
-
-export function construireEtatConnaissance(element: ElementGlobal): EtatConnaissance {
-  if (element.type !== "connaissance") {
-    throw new Error(`L'élément global ${element.id} n'est pas une connaissance.`);
-  }
-  return {
-    elementId: element.id,
-    conclusion: null,
-    confiance: "nulle",
-    derniereObservation: null,
-    statut: "non-mesure",
-    explication: {
-      resume: "Aucune Observation ne cible directement cette connaissance.",
-      facteurs: [],
-      nombreObservations: 0,
-      reserves: [
-        "Une sélection, un document ou une compétence voisine ne vaut pas mesure de connaissance.",
-      ],
-    },
-  };
-}
 
 /** Distinction explicite entre performance ponctuelle et état consolidé. */
 export interface EtatCompetence {
@@ -86,94 +38,30 @@ export function construireEtatCompetence(etat: SkillState): EtatCompetence {
 }
 
 /**
- * Composition en mémoire de l'overlay privé. Les tableaux de faits restent
- * identifiables ; la carte n'est ni une copie persistée ni une nouvelle
- * autorité.
+ * Overlay privé composé à la lecture : la projection locale des états. Rien
+ * n'est persisté — la carte n'est ni une copie ni une nouvelle autorité.
  */
 export interface CarteIndividuelle {
-  elementsGlobaux: ElementGlobal[];
-  relationsGlobales: RelationGlobale[];
-  selectionsGlobales: SelectionCarteGlobale[];
-  correspondancesGlobales: CorrespondanceCarteGlobale[];
-  domainesLocaux: Domaine[];
   competencesLocales: EtatCompetence[];
-  etatsConnaissance: Map<string, EtatConnaissance>;
-  reserves: string[];
-}
-
-export interface EntreesCarteIndividuelle {
-  carteGlobale: CarteGlobale;
-  selectionsGlobales: readonly SelectionCarteGlobale[];
-  correspondancesGlobales: readonly CorrespondanceCarteGlobale[];
-  domainesLocaux: readonly Domaine[];
-  etatsLocaux: readonly SkillState[];
 }
 
 export function construireCarteIndividuelle(
-  entrees: EntreesCarteIndividuelle,
+  etatsLocaux: readonly SkillState[],
 ): CarteIndividuelle {
-  const idsElements = new Set(entrees.selectionsGlobales.map((selection) => selection.elementId));
-  for (const correspondance of entrees.correspondancesGlobales) {
-    idsElements.add(correspondance.elementGlobalId);
-  }
-  const reserves: string[] = [];
-
-  const elementsParId = new Map(entrees.carteGlobale.elements.map((element) => [element.id, element]));
-  for (const elementId of idsElements) {
-    if (!elementsParId.has(elementId)) {
-      reserves.push(`Élément global ${elementId} introuvable ou retiré.`);
-    }
-  }
-  const elementsGlobaux = entrees.carteGlobale.elements.filter((element) => idsElements.has(element.id));
-  const relationsGlobales = entrees.carteGlobale.relations.filter(
-    (relation) => idsElements.has(relation.sourceId) && idsElements.has(relation.cibleId),
-  );
-
-  const etatsConnaissance = new Map(
-    elementsGlobaux
-      .filter((element) => element.type === "connaissance")
-      .map((element) => [element.id, construireEtatConnaissance(element)]),
-  );
-  const elementsAvecCorrespondance = new Set(
-    entrees.correspondancesGlobales.map((correspondance) => correspondance.elementGlobalId),
-  );
-  if (elementsGlobaux.some(
-    (element) => element.type === "competence" && !elementsAvecCorrespondance.has(element.id),
-  )) {
-    reserves.push(
-      "Une compétence globale ne reçoit aucun état sans rapprochement local explicite.",
-    );
-  }
-
-  return {
-    elementsGlobaux,
-    relationsGlobales,
-    selectionsGlobales: [...entrees.selectionsGlobales],
-    correspondancesGlobales: [...entrees.correspondancesGlobales],
-    domainesLocaux: [...entrees.domainesLocaux],
-    competencesLocales: entrees.etatsLocaux.map(construireEtatCompetence),
-    etatsConnaissance,
-    reserves,
-  };
+  return { competencesLocales: etatsLocaux.map(construireEtatCompetence) };
 }
-
-export type OrigineEspaceActif = "selection-globale" | "referentiel-local";
 
 export interface ElementEspaceActif {
   cle: string;
-  type: "element-global" | "competence-locale";
   id: string;
   libelle: string;
-  origine: OrigineEspaceActif;
-  referenceOrigine?: string;
   actionnable: boolean;
-  codeCompetence?: string;
+  codeCompetence: string;
 }
 
 export interface EspaceActif {
   limite: number;
   elements: ElementEspaceActif[];
-  relationsGlobales: RelationGlobale[];
   codesCompetences: string[];
   reserves: string[];
 }
@@ -205,21 +93,11 @@ export function construireEspaceActif(entrees: EntreesEspaceActif): EspaceActif 
     elements.push(element);
   };
 
-  const globauxParId = new Map(entrees.carte.elementsGlobaux.map((element) => [element.id, element]));
-  const correspondancesParElement = new Map<string, string[]>();
-  for (const correspondance of entrees.carte.correspondancesGlobales) {
-    const codes = correspondancesParElement.get(correspondance.elementGlobalId) ?? [];
-    codes.push(correspondance.competenceCode);
-    correspondancesParElement.set(correspondance.elementGlobalId, codes);
-  }
-  const competencesParCode = new Map(
-    entrees.carte.competencesLocales.map((etat) => [etat.code, etat]),
-  );
   const rangRecommandation = new Map(
     entrees.recommandations.map((recommandation, index) => [recommandation.etat.skill.code, index]),
   );
-  const competencesActives = entrees.carte.competencesLocales
-    .filter(({ etatConsolide }) => etatConsolide.skill.active && !etatConsolide.skill.archive)
+
+  const ordonnees = entrees.carte.competencesLocales
     .slice()
     .sort((a, b) =>
       (rangRecommandation.get(a.code) ?? Number.MAX_SAFE_INTEGER)
@@ -228,75 +106,25 @@ export function construireEspaceActif(entrees: EntreesEspaceActif): EspaceActif 
       || a.code.localeCompare(b.code),
     );
 
-  const ajouterCompetence = (
-    code: string,
-    origine: OrigineEspaceActif,
-    referenceOrigine?: string,
-  ) => {
-    const etat = competencesParCode.get(code);
-    if (!etat) {
-      reserves.push(`Compétence locale ${code} introuvable.`);
-      return;
-    }
-    const skill = etat.etatConsolide.skill;
+  for (const { code, etatConsolide } of ordonnees) {
+    const skill = etatConsolide.skill;
     if (!skill.active || skill.archive) {
-      reserves.push(
-        `Compétence locale ${code} ${skill.archive ? "archivée" : "hors périmètre"} : conservée dans la carte, non actionnable.`,
-      );
-      return;
+      // Une recommandation ne peut pas désigner une compétence sortie du
+      // périmètre : la carte la garde, l'espace actif la refuse et l'explique.
+      if (rangRecommandation.has(code)) {
+        reserves.push(
+          `Compétence locale ${code} ${skill.archive ? "archivée" : "hors périmètre"} : conservée dans la carte, non actionnable.`,
+        );
+      }
+      continue;
     }
     ajouter({
-      cle: `competence-locale:${code}`,
-      type: "competence-locale",
+      cle: `competence:${code}`,
       id: code,
       libelle: skill.intitule,
-      origine,
-      referenceOrigine,
       actionnable: rangRecommandation.has(code),
       codeCompetence: code,
     });
-  };
-
-  const ajouterGlobal = (
-    elementId: string,
-    origine: OrigineEspaceActif,
-    referenceOrigine?: string,
-  ) => {
-    const element = globauxParId.get(elementId);
-    if (!element) {
-      reserves.push(`Élément global ${elementId} introuvable ou retiré.`);
-      return;
-    }
-    ajouter({
-      cle: `element-global:${elementId}`,
-      type: "element-global",
-      id: elementId,
-      libelle: element.nom,
-      origine,
-      referenceOrigine,
-      actionnable: false,
-    });
-    for (const code of correspondancesParElement.get(elementId) ?? []) {
-      ajouterCompetence(code, origine, referenceOrigine ?? elementId);
-    }
-  };
-
-  for (const selection of entrees.carte.selectionsGlobales
-    .slice()
-    .sort((a, b) => a.selectionneLe.localeCompare(b.selectionneLe))) {
-    ajouterGlobal(selection.elementId, "selection-globale", selection.elementId);
-  }
-
-  const codesDejaClasses = new Set<string>();
-  for (const recommandation of entrees.recommandations) {
-    const code = recommandation.etat.skill.code;
-    codesDejaClasses.add(code);
-    ajouterCompetence(code, "referentiel-local", code);
-  }
-  for (const etat of competencesActives) {
-    if (!codesDejaClasses.has(etat.code)) {
-      ajouterCompetence(etat.code, "referentiel-local", etat.code);
-    }
   }
 
   if (tronques > 0) {
@@ -304,32 +132,19 @@ export function construireEspaceActif(entrees: EntreesEspaceActif): EspaceActif 
       `${tronques} élément(s) écarté(s) par la borne explicite de ${limite}.`,
     );
   }
-  const codesCompetences = elements.flatMap((element) =>
-    element.codeCompetence ? [element.codeCompetence] : [],
-  );
-  if (codesCompetences.length === 0 && elements.length > 0) {
-    reserves.push(
-      "Aucune cible active ne correspond explicitement à une compétence locale : le classement local est conservé sans rapprochement automatique.",
-    );
-  }
-  const idsGlobaux = new Set(
-    elements.filter((element) => element.type === "element-global").map((element) => element.id),
-  );
 
   return {
     limite,
     elements,
-    relationsGlobales: entrees.carte.relationsGlobales.filter(
-      (relation) => idsGlobaux.has(relation.sourceId) && idsGlobaux.has(relation.cibleId),
-    ),
-    codesCompetences,
+    codesCompetences: elements.map((element) => element.codeCompetence),
     reserves,
   };
 }
 
+export type OriginePrioriteLot5 = "referentiel-local";
+
 export interface PrioriteRecommandationLot5 {
-  origine: OrigineEspaceActif;
-  reference?: string;
+  origine: OriginePrioriteLot5;
   explication: string;
 }
 
@@ -338,12 +153,8 @@ export interface RecommandationAdaptee extends Recommandation {
   reservesLot5: string[];
 }
 
-function explicationPriorite(element: ElementEspaceActif | undefined): string {
-  if (!element || element.origine === "referentiel-local") {
-    return "Ordre conservé depuis le classement explicable du référentiel local.";
-  }
-  return "Cette priorité provient d'une sélection globale explicite.";
-}
+const EXPLICATION_PRIORITE_LOCALE =
+  "Ordre conservé depuis le classement explicable du référentiel local.";
 
 /**
  * Borne et réordonne la file historique sans recalculer son score. Quand
@@ -356,11 +167,6 @@ export function adapterRecommandationsAEspaceActif(
   limite = 6,
 ): RecommandationAdaptee[] {
   const rangActif = new Map(espace.codesCompetences.map((code, index) => [code, index]));
-  const elementParCode = new Map(
-    espace.elements.flatMap((element) =>
-      element.codeCompetence ? [[element.codeCompetence, element] as const] : [],
-    ),
-  );
   const rangInitial = new Map(
     recommandations.map((recommandation, index) => [recommandation.etat.skill.code, index]),
   );
@@ -379,22 +185,12 @@ export function adapterRecommandationsAEspaceActif(
       );
     })
     .slice(0, limite)
-    .map((recommandation) => {
-      const element = elementParCode.get(recommandation.etat.skill.code);
-      const horsEspace = !aucuneCorrespondanceLocale && element === undefined;
-      return {
-        ...recommandation,
-        prioriteLot5: {
-          origine: element?.origine ?? "referentiel-local",
-          reference: element?.referenceOrigine,
-          explication: explicationPriorite(element),
-        },
-        reservesLot5: [
-          ...espace.reserves,
-          ...(horsEspace
-            ? ["Cette recommandation complète la file après les cibles de l'espace actif."]
-            : []),
-        ],
-      };
-    });
+    .map((recommandation) => ({
+      ...recommandation,
+      prioriteLot5: {
+        origine: "referentiel-local" as const,
+        explication: EXPLICATION_PRIORITE_LOCALE,
+      },
+      reservesLot5: espace.reserves,
+    }));
 }

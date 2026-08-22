@@ -14,7 +14,7 @@ import { chargerCandidatsReferentiel } from "@/lib/store/candidats-referentiel";
 import { construireGraphe } from "@/lib/domain/graphe";
 import { construireVuesAtelier } from "@/lib/documents/vue-atelier";
 import { lireChangementsReferentiel } from "@/lib/store/referentiel";
-import { calibragesPourModale, competencesPourModale } from "@/components/exercices/proprietes-generation";
+import { calibragesPourModale, competencesPourModale } from "@/lib/domain/proprietes-generation";
 import {
   rangerDocument,
   rangementDomaine,
@@ -65,6 +65,13 @@ export default async function PageAtelier(props: {
     chargerCandidatsReferentiel(),
   ]);
   const referentiel = contexte.referentiel;
+
+  /*
+    Même garde que `?note` ci-dessus : un identifiant demandé qui n'existe
+    pas ou plus ne rend pas l'Atelier ordinaire en silence — le lien périmé
+    mérite un 404 explicite, pas une page qui fait comme si de rien n'était.
+  */
+  if (documentDemande && !contenuInitial) notFound();
   const exercices = contexte.donnees.exercises;
   const domainesVisibles = new Set(
     referentiel.domaines

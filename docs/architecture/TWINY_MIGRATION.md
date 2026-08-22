@@ -1392,3 +1392,79 @@ pas été modifiés hors de cette fonction.
      `suppression_themes`). Correctifs SQL à produire sur relevé, pas à
      l'aveugle : créer une migration dédiée par lot de remédiation,
      relancer les deux advisors après application.
+
+### Retrait du 21/08/2026 - carte globale et competence_succession
+
+Decision humaine explicite apres lecture directe de la base : les six tables
+`carte_globale_*` et `competence_succession` contiennent zero ligne chacune,
+aucun chemin d'ecriture applicatif ne subsiste (actions serveur supprimees le
+même jour) et aucune voie de nomination de curateur n'a jamais existe.
+ADR-099 acte le retrait ; le concept reste decrit dans TWINY_MODEL.md.
+
+La migration `20260821190000_retrait_carte_globale` supprime les sept tables,
+`appliquer_commande_carte_globale(text, integer, jsonb, jsonb)`,
+`refuser_mutation_carte_globale_changes()` et
+`provenance_carte_globale_valide(jsonb)`. Le chemin de lecture
+(`store/carte-globale.ts`, `validation-carte-globale.ts`,
+types `domain/carte-globale.ts`) et la branche globale de `vues-twiny.ts`
+sont retires dans le même commit. L'ordre d'application des drops suit celui du
+plan de retour arriere ci-dessus ; les advisors devront etre relus apres
+application.
+
+**Application effective le 22/08/2026.** La migration était restée
+local-only (jamais poussée au projet) : les six tables `carte_globale_*`
+existaient toujours en base, à zéro ligne chacune — vérifié avant exécution.
+`competence_succession` avait déjà disparu ; les trois fonctions ont été
+retirées par la migration. Historique réparé (`migration repair --status
+applied`). Advisors relus ensuite :
+
+- Disparus : les six avertissements `unused_index` sur `carte_globale_*`.
+- Restants (décision ouverte, non traités) :
+  - WARN sécurité — quatre fonctions `SECURITY DEFINER` exécutables par
+    `authenticated` (`admin_comptes()`, `compte_actif(p_uid)`,
+    `est_admin(p_uid)`, `purger_observations_compte()`) ; à qualifier :
+    helpers RLS légitimes ou surfaces RPC à révoquer ;
+  - WARN auth — protection contre mots de passe fuités désactivée
+    (réglage dashboard Auth) ;
+  - INFO perf — FK sans index couvrant sur `comptes_acces.suspendu_par` et
+    `moteur_predictions(user_id, decision_id)` ; index inutilisés
+    `competences_user_created_idx` et `moteur_predictions_user_type_emise_idx`.
+
+### Décisions du 22/08/2026 — suite des advisors
+
+**SECURITY DEFINER (4 WARN) — statu quo justifié.** Lecture des définitions :
+- `est_admin(p_uid)` et `compte_actif(p_uid)` sont les helpers RLS du panel
+  admin (`20260816112000_panel_admin_acces.sql`) : `REVOKE ... FROM PUBLIC,
+  anon` puis `GRANT EXECUTE TO authenticated` y est **délibéré**, et des
+  dizaines de politiques les appellent. Les révoquer casserait le cadre RLS.
+- `admin_comptes()` est appelée en session authentifiée admin
+  (`store/acces.ts`) et porte sa garde interne (`est_admin()` → exception
+  42501 sinon) ; elle ne sort que compteurs et identité (P8).
+- `purger_observations_compte()` est scellée sur `auth.uid()` : purge RGPD de
+  ses propres observations.
+Les quatre warnings sont donc des faux positifs assumés : la garde vit dans
+le corps de la fonction, pas dans les grants.
+
+**Mots de passe fuités (WARN) — impossible sans upgrade.** Activation tentée
+via Management API (`password_hibp_enabled`) : refusée — fonctionnalité
+réservée aux plans Pro+. À activer au passage en Pro, ou ignorer.
+
+**FK sans index (2 INFO) — corrigé.** Migration
+`20260822093000_index_fk_couvrants.sql` appliquée :
+`comptes_acces_suspendu_par_idx` et `moteur_predictions_user_decision_idx`.
+Un troisième warning `unused_index` apparaît ensuite sur ce nouvel index de
+`comptes_acces` : compteur de lectures à zéro depuis sa création, il se
+résorbera à l'usage.
+
+### Retrait de `competences.hypothese_initiale` (22/08/2026)
+
+Décision humaine : archiver puis dropper — la colonne n'était plus jamais
+écrite depuis l'import initial. Les onze valeurs restantes (LOG-01..03,
+PROD-01..04, PROD-06, STAT-01/02/05 — toutes « niveauSuppose 0-1 », cœur ou
+domaine couvert du BUT QLIO) sont archivées verbatim dans l'en-tête de
+`20260822090000_retrait_hypothese_initiale.sql`. Le statut moteur
+« hypothese » (observation de niveau D sans preuve) est retiré avec elle :
+une compétence sans observation est simplement non évaluée — invariant 3,
+absence de preuve ≠ zéro, sans intermédiaire déclaratif. Code touché :
+`types.ts` (champ + union du statut), `skill-state.ts`,
+`contexte.ts` (marqueur « ?D »), `validation-supabase.ts`, fixture et tests.

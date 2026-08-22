@@ -9,9 +9,8 @@
  * Ce jeu reproduit la forme dont les tests ont besoin, et rien de plus :
  *   * un domaine actif (`developpement`, DEV-01 → DEV-06) couvrant les trois
  *     paliers, avec des prérequis et des importances distinctes ;
- *   * un domaine hors périmètre (`statistiques`, STAT-01) portant une
- *     `hypotheseInitiale`, pour vérifier qu'une hypothèse ne devient jamais un
- *     niveau et qu'une observation hors périmètre n'entre dans aucun agrégat.
+ *   * un domaine hors périmètre (`statistiques`, STAT-01), pour vérifier
+ *     qu'une observation hors périmètre n'entre dans aucun agrégat.
  *
  * Les valeurs d'`importance`, de `palier` et de `prerequis` reprennent celles du
  * référentiel historique migré : les assertions numériques gardent le même sens
@@ -65,10 +64,6 @@ export const SKILLS_TEST: Skill[] = [
   // Hors périmètre : présente au référentiel, absente des calculs.
   skill("STAT-01", "statistiques", "fondamentaux", 1, 0, [], {
     active: false,
-    hypotheseInitiale: {
-      niveauSuppose: "0-1",
-      justification: "Domaine couvert par la formation — hypothèse de niveau D, à confirmer.",
-    },
   }),
 ];
 

@@ -1,12 +1,11 @@
 import { chargerContexte } from "@/lib/store/context";
-import { choisirConfiguration, creerMoteur } from "@/lib/tutor/moteurs";
+import { resoudreMoteur, repondreParFluxSse } from "@/lib/tutor/reponse-flux";
 import type { ConfigTuteurClient } from "@/lib/tutor/cle-client";
-import { envTuteur } from "@/lib/tutor/env-requete";
 import { traduireIntention, type CompetenceCandidate } from "@/lib/tutor/intention";
 import {
-  analyserDemandeReferentiel,
   besoinValide,
   demandeSeanceSansSujet,
+  forcerTraductionIntention,
   type TraductionIntention,
 } from "@/lib/domain/intention";
 import { serialiserProfilDeclare } from "@/lib/domain/profil";
@@ -79,53 +78,38 @@ export async function POST(request: Request) {
    * Court-circuit déterministe — le moteur n'est pas appelé quand sa réponse
    * est de toute façon réécrite.
    *
-   * `forcerDomaineReferentiel` et `forcerSeanceSansSujet` remplacent CHAQUE
+   * Les recadrages « domaine » et « séance sans sujet » remplacent CHAQUE
    * champ de l'action : genre, titre, pourquoi, codes, sujet. Il ne restait de
    * la traduction du modèle que `alternatives`, que l'écran n'affiche pas
    * quand le genre est imposé. Le compte payait donc la latence complète d'un
    * appel dont rien n'était conservé.
    *
+   * L'implémentation est celle du domaine (`forcerTraductionIntention`),
+   * partagée avec le recadrage post-appel appliqué par `traduireIntention` —
+   * une seule définition des libellés et des raisons annoncés.
+   *
    * Placé AVANT `envTuteur` : ces deux chemins n'ont plus besoin d'un moteur
-   * configuré, donc plus de 503 possible sur eux.
+   * configuré, donc plus de 503 possible sur eux. (Le troisième recadrage —
+   * demande explicite de compétences ou vue d'ensemble — reste post-appel :
+   * la traduction du modèle y est conservée quand elle ne contredit pas.)
    */
-  if (corps.contexte === "domaine") {
-    return fluxImmediat(
-      forcerDomaineReferentiel(null, besoin),
-      "Tu écris depuis le point d'entrée « nouveau domaine » : la demande est traitée comme la structuration d'un domaine.",
-    );
-  }
-  if (demandeSeanceSansSujet(besoin)) {
-    return fluxImmediat(
-      forcerSeanceSansSujet(null, besoin),
-      "Ta demande ne désigne aucun sujet précis : elle est traitée comme la préparation d'une séance libre.",
-    );
+  if (corps.contexte === "domaine" || demandeSeanceSansSujet(besoin)) {
+    const reponse = courtCircuit(besoin, corps.contexte);
+    if (reponse) return reponse;
   }
 
-  // Point d'entrée unique : la config client est validée avant de toucher
-  // l'environnement du serveur (SSRF, voir lib/tutor/url-fournisseur.ts).
-  const resolution = envTuteur(corps.config);
-  if (!resolution.ok) return resolution.reponse;
   /*
    * Profil `rapide` : cette route choisit une action, elle n'écrit aucun
    * contenu et ne produit aucune mesure. Le schéma de `traduire_intention`
    * ferme déjà les genres et les codes désignables — ce qu'un modèle plus petit
    * pourrait inventer est refusé avant d'arriver ici. Voir `ProfilMoteur`.
    */
-  const choix = choisirConfiguration(resolution.env, "rapide");
-  const moteur = creerMoteur(choix);
-
-  if (!moteur) {
-    return Response.json(
-      {
-        erreur: "moteur-absent",
-        message:
-          choix.kind === "aucun"
-            ? `${choix.raison} En attendant, les destinations restent accessibles depuis le menu.`
-            : "Aucun moteur de tuteur disponible.",
-      },
-      { status: 503 },
-    );
-  }
+  const resolu = resoudreMoteur(corps.config, {
+    profil: "rapide",
+    conseil: "En attendant, les destinations restent accessibles depuis le menu.",
+  });
+  if (!resolu.ok) return resolu.reponse;
+  const { moteur, modele } = resolu;
 
   const debutContexte = Date.now();
   const ctx = await chargerContexte();
@@ -142,126 +126,82 @@ export async function POST(request: Request) {
       raison: recommandation.raison,
     }));
 
-  const encodeur = new TextEncoder();
-  const abandon = new AbortController();
-  request.signal.addEventListener("abort", () => abandon.abort(), { once: true });
+  return repondreParFluxSse(request, async (envoyer, signal) => {
+    /*
+     * Les durées passent au client avant tout le reste : quand la traduction
+     * échoue ou traîne, c'est le découpage — lecture du compte contre appel
+     * au fournisseur — qui dit où chercher. L'écran les ignore ; l'onglet
+     * réseau, non.
+     */
+    envoyer("mesure", { etape: "contexte", dureeMs: dureeContexteMs });
+    const debutTraduction = Date.now();
 
-  const flux = new ReadableStream({
-    async start(controller) {
-      const envoyer = (evenement: string, donnees: unknown) => {
-        if (abandon.signal.aborted) return;
-        controller.enqueue(
-          encodeur.encode(`event: ${evenement}\ndata: ${JSON.stringify(donnees)}\n\n`),
-        );
-      };
+    /*
+     * Le relais est filtré sur `proposition`, pour la même raison que dans
+     * `/api/referentiel/suggerer` : le moteur émet `proposition` avec
+     * `{ genre, traduction }`, cette route émet son propre `proposition`
+     * terminal avec `{ traduction }`. Le lecteur SSE de l'écran déréférence
+     * `traduction.action` — une proposition d'un autre genre le ferait
+     * lever. Le reste (`proposition-en-cours`, `proposition-rejetee`…)
+     * passe au fil de l'eau, ce qui est tout l'objet du relais.
+     */
+    const resultat = await traduireIntention(
+      moteur,
+      ctx.referentiel,
+      besoin,
+      candidates,
+      signal,
+      (evenement, donnees) => {
+        if (evenement === "proposition") return;
+        envoyer(evenement, donnees);
+      },
+      serialiserProfilDeclare(ctx.donnees.user),
+      corps.contexte,
+      DELAI_TRADUCTION_MS,
+    );
 
-      /*
-       * Les durées passent au client avant tout le reste : quand la traduction
-       * échoue ou traîne, c'est le découpage — lecture du compte contre appel
-       * au fournisseur — qui dit où chercher. L'écran les ignore ; l'onglet
-       * réseau, non.
-       */
-      envoyer("mesure", { etape: "contexte", dureeMs: dureeContexteMs });
-      const debutTraduction = Date.now();
+    envoyer("mesure", {
+      etape: "traduction",
+      dureeMs: Date.now() - debutTraduction,
+      modele,
+    });
 
-      try {
-        /*
-         * Le relais est filtré sur `proposition`, pour la même raison que dans
-         * `/api/referentiel/suggerer` : le moteur émet `proposition` avec
-         * `{ genre, traduction }`, cette route émet son propre `proposition`
-         * terminal avec `{ traduction }`. Le lecteur SSE de l'écran déréférence
-         * `traduction.action` — une proposition d'un autre genre le ferait
-         * lever. Le reste (`proposition-en-cours`, `proposition-rejetee`…)
-         * passe au fil de l'eau, ce qui est tout l'objet du relais.
-         */
-        const resultat = await traduireIntention(
-          moteur,
-          ctx.referentiel,
-          besoin,
-          candidates,
-          abandon.signal,
-          (evenement, donnees) => {
-            if (evenement === "proposition") return;
-            envoyer(evenement, donnees);
-          },
-          serialiserProfilDeclare(ctx.donnees.user),
-          corps.contexte,
-          DELAI_TRADUCTION_MS,
-        );
+    if (resultat.erreur) {
+      envoyer("erreur", { message: resultat.erreur });
+      return;
+    }
 
-        envoyer("mesure", {
-          etape: "traduction",
-          dureeMs: Date.now() - debutTraduction,
-          modele: choix.kind === "aucun" ? null : choix.modele,
-        });
+    /*
+     * Les recadrages déterministes (`forcerTraductionIntention`, appliqués
+     * dans `traduireIntention`) peuvent contredire la traduction du modèle —
+     * c'est leur rôle : ils corrigent des lectures erronées déjà mesurées.
+     * Mais une contradiction silencieuse se vit comme une incompréhension :
+     * « j'ai demandé X, on me propose Y ». Chaque recadrage qui s'applique
+     * est donc annoncé à l'écran avant la proposition, avec sa raison.
+     *
+     * Les deux recadrages inconditionnels — contexte « domaine » et séance
+     * sans sujet — sont rendus en court-circuit avant tout appel : ils ne
+     * peuvent plus se présenter ici.
+     */
+    if (resultat.raisonRecadrage) {
+      envoyer("avertissement", { message: resultat.raisonRecadrage });
+    }
 
-        if (resultat.erreur) {
-          envoyer("erreur", { message: resultat.erreur });
-          return;
-        }
+    envoyer("proposition", { traduction: resultat.traduction });
+  }, (e) =>
+    e instanceof Error ? e.message : "Erreur inattendue lors de la traduction.");
+}
 
-        /*
-         * Les cadrages déterministes (`forcer*`) peuvent contredire la
-         * traduction du modèle — c'est leur rôle : ils corrigent des lectures
-         * erronées déjà mesurées. Mais une contradiction silencieuse se vit
-         * comme une incompréhension : « j'ai demandé X, on me propose Y ».
-         * Chaque forçage qui s'applique est donc annoncé à l'écran avant la
-         * proposition, avec sa raison.
-         */
-        // Les deux forçages inconditionnels — contexte « domaine » et séance
-        // sans sujet — sont rendus en court-circuit avant tout appel : ils ne
-        // peuvent plus se présenter ici.
-        const cadrage = analyserDemandeReferentiel(besoin, corps.contexte);
-        let raisonForcage: string | null = null;
-        let traduction: TraductionIntention | null = resultat.traduction;
-
-        if (
-          resultat.traduction &&
-          cadrage.explicite &&
-          (cadrage.type === "competence" || cadrage.portee === "large")
-        ) {
-          raisonForcage =
-            cadrage.type === "competence"
-              ? "Ta demande désigne explicitement une ou plusieurs compétences à ajouter : elle est traitée comme une extension du référentiel."
-              : "Ta demande porte sur une vue d'ensemble : elle est traitée comme la structuration d'un domaine plutôt que comme un entraînement.";
-          traduction = forcerExtensionReferentiel(
-            resultat.traduction,
-            besoin,
-            cadrage.type === "competence",
-            cadrage.intitules,
-          );
-        }
-
-        if (raisonForcage) {
-          envoyer("avertissement", { message: raisonForcage });
-        }
-
-        envoyer("proposition", { traduction });
-      } catch (e) {
-        if (abandon.signal.aborted) return;
-        envoyer("erreur", {
-          message: e instanceof Error ? e.message : "Erreur inattendue lors de la traduction.",
-        });
-      } finally {
-        try {
-          controller.close();
-        } catch {
-          /* flux déjà annulé côté client */
-        }
-      }
-    },
-    cancel() {
-      abandon.abort();
-    },
-  });
-
-  return new Response(flux, {
-    headers: {
-      "content-type": "text/event-stream; charset=utf-8",
-      "cache-control": "no-cache, no-transform",
-      connection: "keep-alive",
-    },
-  });
+/**
+ * Rend un flux SSE d'un seul tenant pour un recadrage déjà connu — aucun
+ * réseau n'est touché, la réponse part dans la milliseconde. Les conditions
+ * d'appel garantissent que le recadrage s'applique ; sinon la route suit le
+ * chemin normal plutôt que de rendre une réponse vide.
+ */
+function courtCircuit(besoin: string, contexte?: string): Response | null {
+  const forcee = forcerTraductionIntention(null, besoin, contexte);
+  if (!forcee.traduction || !forcee.raison) return null;
+  return fluxImmediat(forcee.traduction, forcee.raison);
 }
 
 /**
@@ -298,72 +238,3 @@ data: ${JSON.stringify(donnees)}
   });
 }
 
-function forcerDomaineReferentiel(
-  traduction: TraductionIntention | null,
-  besoin: string,
-): TraductionIntention {
-  const sujet = besoin.trim();
-  return {
-    ...(traduction ?? { alternatives: [] }),
-    action: {
-      ...(traduction?.action ?? {
-        codes: [],
-      }),
-      genre: "referentiel",
-      titre: `Structurer le domaine « ${sujet} »`,
-      pourquoi: "Ce domaine sera découpé en compétences pour enrichir ton Atelier.",
-      codes: [],
-      sujet,
-    },
-  };
-}
-
-function forcerSeanceSansSujet(
-  traduction: TraductionIntention | null,
-  besoin: string,
-): TraductionIntention {
-  return {
-    ...(traduction ?? { alternatives: [] }),
-    action: {
-      ...(traduction?.action ?? {
-        genre: "travail" as const,
-        titre: "Préparer une séance",
-        pourquoi: "Aucun sujet n’a été imposé.",
-      }),
-      genre: "travail",
-      titre: "Préparer une séance",
-      pourquoi: "Aucun sujet n’a été imposé : tu choisiras la portée dans le compositeur.",
-      codes: [],
-      sujet: besoin.trim(),
-    },
-  };
-}
-
-function forcerExtensionReferentiel(
-  traduction: TraductionIntention,
-  besoin: string,
-  competence: boolean,
-  intitules: string[],
-): TraductionIntention {
-  const sujet = besoin.trim();
-  const libelle =
-    competence && intitules.length === 1
-      ? `Ajouter la compétence « ${intitules[0]} »`
-      : competence
-        ? "Ajouter les compétences précisées dans la demande"
-        : "Structurer le domaine demandé";
-
-  return {
-    ...traduction,
-    action: {
-      ...traduction.action,
-      genre: "referentiel",
-      titre: libelle,
-      pourquoi: competence
-        ? "La demande désigne explicitement une ou plusieurs compétences à ajouter."
-        : "La demande porte sur une vue d’ensemble qui doit être organisée avant l’apprentissage.",
-      codes: [],
-      sujet,
-    },
-  };
-}
