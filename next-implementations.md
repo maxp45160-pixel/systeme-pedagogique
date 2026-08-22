@@ -327,6 +327,19 @@ la ligne de flottaison à 1440×900.
 
 ### 8. Audit de contraste des textes discrets
 
+> **Fait le 22/08/2026.** Script de mesure `app/scripts/contraste.ts` (parse
+> `tokens.css`, résout les chaînes `var()` par thème avec la cascade réelle —
+> `:root` s'applique aux deux thèmes —, calcule WCAG 2.1) + test verrou
+> `src/lib/ui/contraste.test.ts`. 22 paires consommées × 2 thèmes.
+>
+> **Un seul défaut réel trouvé** : `--rail-texte-discret × --rail` à 4,07:1
+> (#7f9585). Corrigé au niveau primitive : #8ba091 → 4,69:1 sur `--rail`,
+> 5,40:1 sur `--rail-2`, hiérarchie préservée sous `--rail-texte-attenue`
+> (6,52:1). Toutes les autres paires passaient déjà, y compris
+> `--bordure-controle × --surface` (3,57 / 3,36 ≥ 3:1) et
+> `--texte-discret × --surface-2`, la paire la plus juste (4,54 clair).
+> Valeurs finales documentées dans `docs/design/01-tokens.md`.
+
 **Constat.** Plusieurs libellés secondaires (descriptions, placeholders,
 « Rien en marge… ») paraissent sous les 4,5:1 visés par `docs/design/01-tokens.md`
 en thème sombre.

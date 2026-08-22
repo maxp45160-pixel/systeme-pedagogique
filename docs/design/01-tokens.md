@@ -43,6 +43,20 @@ recherche des références CSS et Tailwind.
 ## Accessibilité
 
 - le texte vise au moins 4,5:1 et les contours interactifs 3:1 ;
+- le contraste est **mesuré, pas estimé** : `node scripts/contraste.ts` affiche
+  le tableau ratio + verdict par paire et par thème, et
+  `src/lib/ui/contraste.test.ts` verrouille la règle dans les tests. Les paires
+  mesurées sont celles réellement consommées (textes sur surfaces et fond,
+  contours de contrôle, marque, états d'action, rail) ;
+- valeurs mesurées au 22/08/2026 — toutes conformes. Correction notable :
+  `--rail-texte-discret` passait sous le seuil sur `--rail` (4,07:1 en
+  #7f9585) ; la valeur retenue #8ba091 remet la paire à 4,69:1 (`--rail`) et
+  5,40:1 (`--rail-2`), sans franchir `--rail-texte-attenue` (6,52:1). Ratios
+  de référence : `--texte × --surface` 15,74:1 / 14,14:1 ;
+  `--texte-discret × --surface` 5,41:1 / 5,03:1 ;
+  `--bordure-controle × --surface` 3,57:1 / 3,36:1 ;
+- toute modification d'un jeton de couleur doit faire repasser le script et le
+  test avant d'être poussée ;
 - la couleur ne porte jamais seule une information ;
 - `prefers-reduced-motion` neutralise animations et transitions ;
 - toute modification de palette doit être vérifiée dans les deux thèmes.

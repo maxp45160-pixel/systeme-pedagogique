@@ -161,7 +161,13 @@
   --rail-bordure: #31463a;
   --rail-texte: #e9e4d6;
   --rail-texte-attenue: #a9bcae;
-  --rail-texte-discret: #7f9585;
+  /*
+    Mesuré (WCAG 2.1, voir scripts/contraste.ts) : l'ancienne valeur #7f9585
+    tombait à 4,07:1 sur --rail, sous le seuil texte de 4,5:1. #8ba091 remet
+    la paire à 4,69:1 sur --rail et 5,40:1 sur --rail-2, en restant un cran
+    sous --rail-texte-attenue (6,52:1).
+  */
+  --rail-texte-discret: #8ba091;
   --rail-actif: #2f6b4f;
   --rail-actif-texte: #f2eee2;
 }
