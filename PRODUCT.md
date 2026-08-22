@@ -80,7 +80,7 @@ enregistre ce qui a été observé, et en tire ce qu'il peut honnêtement en tir
 — souvent moins que ce qu'on aimerait.**
 
 Sur la révision : le produit ne planifie rien — pas de révision programmée,
-pas de parcours jour-par-jour. Il retient depuis le 22/08/2026 (ADR-107)
+pas de parcours jour-par-jour. Il retient depuis le 22/08/2026 (ADR-109)
 l'**engagement déclaré**, un fait daté extérieur (examen, rendu) qui éclaire
 la priorisation ; c'est un fait que la personne déclare, jamais un programme
 que le système exécute.
@@ -167,7 +167,7 @@ arbitrage.
 | **P5** | Le tuteur n'écrit aucune mesure | Instructions §13 | ✅ Tenu — reformulé le 03/08 (ADR-037) |
 | **P6** | Le protocole est la spécification | — | ✅ Tenu |
 | **P7** | L'honnêteté prime sur la complétude | Anti-halluc. §14 | ✅ Tenu |
-| **P8** | La qualité de la preuve conditionne tout | Anti-halluc. §2 ; éval. §5 et §6 | 🔬 Architecture tranchée par ADR-057 ; `PLAFOND_AIDE` reste à confronter à l'usage |
+| **P8** | La qualité de la preuve conditionne tout | Anti-halluc. §2 ; éval. §5 et §6 | 🔬 Architecture tranchée par ADR-057 ; `PLAFOND_AIDE` reste à confronter à l'usage (barème gelé jusqu'à environ 20 bilans terminés) |
 
 ### P2 — comment il a été rétabli le 31/07
 
@@ -257,7 +257,8 @@ plafonds numériques : P8 reste 🔬 jusqu'à leur confrontation à l'usage.
 ### Décidé
 
 ✅ **Le contenu vient du tuteur**, pas de fichiers écrits à la main (ADR-004).
-✅ **Le moteur du tuteur doit être gratuit** et configurable (ADR-007).
+✅ **Le moteur du tuteur est configurable par environnement** ; aucun fournisseur
+gratuit canonique n'est imposé. Le choix se valide par la mesure (ADR-007).
 ✅ **Construire et utiliser en parallèle** est le mode de travail retenu.
 ✅ **La boucle est le produit** (ADR-066). Son arbitrage — temps disponible,
 capacité déclarée — vit dans la carte d'action et fonctionne sans aucune table.
@@ -275,15 +276,15 @@ que par les actions recommandées — jamais comme surface autonome. Les
 intentions déclarées restent des textes verbatim du profil
 (`objectif_moyen_terme`, `objectif_long_terme`), sans extraction ni
 rattachement automatique. Nuance du 22/08/2026 : une date détectée dans un
-besoin ouvre le chemin assisté vers l'engagement déclaré (ADR-107) — une
+besoin ouvre le chemin assisté vers l'engagement déclaré (ADR-109) — une
 proposition explicite, jamais une écriture automatique.
-✅ **L'engagement est un fait déclaré, pas un objectif** (ADR-107). Une
+✅ **L'engagement est un fait déclaré, pas un objectif** (ADR-109). Une
 échéance extérieure — examen, rendu — se déclare verbatim avec sa date et
 éclaire la priorisation par un seul facteur de proximité (fenêtre J-21 →
 veille). Elle n'est ni un objectif structuré — ADR-096 reste debout — ni un
 retour au parcours planifié : pas de calendrier, pas de rappels, pas de plan
 jour-par-jour.
-✅ **Le mode épreuve est une déclaration de séance, pas une mesure** (ADR-108).
+✅ **Le mode épreuve est une déclaration de séance, pas une mesure** (ADR-110).
 Déclaré au départ sur la séance et irréversible, il change l'habillage du
 déroulé — chrono plein écran, indices masqués, correction à la fin — et rien
 au moteur. `LearningSession` reste l'épisode unique (ADR-048).
@@ -381,15 +382,37 @@ observer.
 preuve faible, moyenne ou forte sont des garde-fous de départ, non un barème
 calibré. Les contradictions, rectifications et validations humaines doivent
 être observées avant toute revendication ou modification des seuils.
-🔬 **Gouvernance durable proposée (ADR-065, 13/08).** Le référentiel reste
-strictement `Domaine → Compétences`. Preuves et notes support le servent sans
-en devenir des entités ; les thèmes persistants ont été retirés (ADR-104). Les commandes transactionnelles, versions
-optimistes, codes non réutilisables, succession explicite et journal append-only
-ont été migrés le 13/08 sur autorisation explicite ; le statut n’est pas monté
-par l’agent.
-❓ Quel moteur gratuit exactement (ADR-007) — résolu **par mesure**.
+✅ **Gouvernance transactionnelle** (ADR-065, acceptée le 22/08). Le
+référentiel est gouverné par des commandes serveur, des versions optimistes,
+des codes non réutilisables, une succession explicite et un journal append-only.
+Le statut n'est pas monté par l'agent.
+❓ **Modèle de domaines hiérarchiques** (ADR-107, construit le 23/08 — statut
+inchangé, aucune donnée d'usage encore). Un domaine peut en contenir d'autres,
+sans plafond de profondeur et sans table de sous-domaines : un sous-domaine est
+un domaine avec un parent. Une compétence porte **plusieurs** tags de domaine,
+ou aucun — elle est alors « À classer » : au référentiel, mais dans aucun
+domaine tant qu'une personne ne l'y range pas. Un tag posé sur un sous-domaine
+rend la compétence visible dans tous ses ancêtres par dérivation, jamais par
+une ligne écrite ; déplacer un domaine ne réécrit ni compétence, ni observation,
+ni score. Le domaine qui a produit le code (`LOG-01`) reste un namespace de
+création, plus une propriété : le nommage des futures compétences reste ouvert.
+Le tuteur peut proposer où une compétence sert, sur une liste fermée de
+domaines existants ; il n'en pose aucun.
+Les preuves et notes supportent le référentiel sans en devenir des entités ; les
+thèmes persistants ont été retirés (ADR-104).
+❓ **Relecture du référentiel entier** (ADR-108, construit le 23/08 — statut
+inchangé, aucune donnée d'usage encore). Le référentiel est relu d'un tenant,
+hors du chemin d'écriture, et produit des propositions que la personne arbitre
+une à une : ranger ce qui existe (un domaine qui porte plusieurs sujets peut se
+découper en un clic), et élargir vers ce qui manque, ancré dans ce qui a été
+réellement travaillé ou déclaré vouloir. Rien ne s'écrit sans un geste ; une
+proposition refusée ne revient pas ; une proposition porte sur l'état lu et
+devient caduque quand cet état change. Le déclenchement reste la péremption
+jamais un seuil de taille ; l'élargissement est ouvert sur arbitrage explicite
+du 22/08/2026 et réversible en une ligne si sa rétention ne tient pas.
 🔬 Le barème `PLAFOND_AIDE` — l'architecture de mesure est décidée par ADR-057,
-mais ses plafonds n'ont pas encore été confrontés à l'usage.
+mais ses plafonds restent gelés jusqu'à environ 20 bilans terminés et n'ont pas
+encore été confrontés à l'usage.
 ✅ Le 3ᵉ maillon est posé (ADR-028) et **a fonctionné le 01/08** (ADR-030) :
 sur DEV-01 et DEV-03, la difficulté produite par le tuteur a suivi exactement
 celle que la calibration conseillait. 🔬 *Reste de la réfutation : « la

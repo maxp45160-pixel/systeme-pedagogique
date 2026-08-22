@@ -110,7 +110,7 @@ describe("construireArbreSavoirs", () => {
     expect(noeuds.filter((n) => n.niveau === "region")).toHaveLength(1);
   });
 
-  it("place chaque compétence sous son domaine porteur, une seule fois", () => {
+  it("place chaque compétence sous son premier tag, une seule fois", () => {
     const referentiel = referentielDe(
       [
         skillDeTest("STAT-01", "statistiques", "fondamentaux", 1, 0),
@@ -120,7 +120,11 @@ describe("construireArbreSavoirs", () => {
         classe("developpement", "Développement", "DEV", "informatique"),
         classe("statistiques", "Statistiques", "STAT", "mathematiques", 1),
       ],
-      [{ code: "STAT-01", domaine: "developpement" }],
+      [
+        { code: "STAT-01", domaine: "statistiques" },
+        { code: "STAT-01", domaine: "developpement" },
+        { code: "DEV-01", domaine: "developpement" },
+      ],
     );
     const etats = referentiel.actifs.map((s) => etat(s));
 
@@ -128,7 +132,7 @@ describe("construireArbreSavoirs", () => {
       maintenant: MAINTENANT,
     });
 
-    /* Rattachée à « developpement » (ADR-081), mais portée par « statistiques ». */
+    /* Taguée sur les deux (ADR-107) : elle se dessine une fois, sous le premier. */
     expect(noeuds.filter((n) => n.id === "competence:STAT-01")).toHaveLength(1);
     expect(noeuds.find((n) => n.id === "competence:STAT-01")?.parent).toBe("domaine:statistiques");
     expect(

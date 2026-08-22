@@ -839,10 +839,9 @@ describe("actionnabilité — un exercice disponible départage, sans jamais pé
  * de rater. Le remède n'est pas un délai — trois jours ne rendent pas soluble
  * un exercice hors de portée — mais une condition : un progrès démontré.
  *
- * Le lot 5 (10/08/2026) étend la même règle au partiel, qui en était resté
- * exempté : observé en production, deux exercices ont chacun produit deux
- * « partiel » à plusieurs jours d'écart sans qu'aucune condition ne les fasse
- * sortir de la file entre les deux — la même impasse que l'échec non gouverné.
+ * Un échec sévère reste bloqué jusqu'à un progrès démontré. Un partiel reste
+ * candidat : il indique une prise exploitable et appelle un ajustement de
+ * difficulté, pas une exclusion automatique.
  */
 describe("choix de l'exercice — un résultat non abouti ne redonne pas le même exercice", () => {
   function exo(id: string, difficulte: Difficulte, dureeEstimeeMin = 25): Exercise {
@@ -930,35 +929,16 @@ describe("choix de l'exercice — un résultat non abouti ne redonne pas le mêm
     expect(propose([ex], [tent("ex-1", "echec", 3)], observations)).toBeNull();
   });
 
-  /*
-   * Un partiel n'est pas un mur — 09/08/2026 puis lot 5 (10/08/2026).
-   *
-   * Jusqu'au lot 5, un partiel restait candidat SANS AUCUNE condition,
-   * contrairement à l'échec. Observé en production le 10/08/2026 :
-   * `diag-dev-02` et `diag-tech-01` ont chacun produit deux « partiel » à
-   * plusieurs jours d'écart, sans que rien ne les ait fait sortir de la file
-   * entre les deux — le même exercice reproposé, le même résultat obtenu.
-   * P4 ne distingue pas l'échec du partiel : les deux sont un résultat non
-   * abouti, et les deux exigent la même démonstration de progrès avant de
-   * revenir.
-   */
-  it("un partiel ne revient pas tant qu'aucun progrès n'est démontré — même règle que l'échec", () => {
-    // Cas réel de `TECH-01` (10/08/2026) : `diag-tech-01` est son seul
-    // exercice, et deux partiels sans progrès l'ont produit à plusieurs jours
-    // d'écart. `exercice: null` fait retomber l'interface sur « Générer un
-    // exercice » — la sortie voulue, pas une impasse muette.
+  it("un partiel reste candidat pour rester dans une zone de défi utile", () => {
     const ex = exo("ex-1", 2);
     const partiel = observation({ skill: "STAT-01", jours: 3, resultat: "partiel" });
-    expect(propose([ex], [tent("ex-1", "partiel", 3)], [partiel])).toBeNull();
+    expect(propose([ex], [tent("ex-1", "partiel", 3)], [partiel])?.id).toBe("ex-1");
   });
 
-  it("un partiel revient dès qu'une réussite postérieure le suit sur la compétence", () => {
+  it("un partiel reste candidat même sans réussite postérieure", () => {
     const ex = exo("ex-1", 2);
-    const observations = [
-      observation({ skill: "STAT-01", jours: 5, resultat: "partiel" }),
-      observation({ skill: "STAT-01", jours: 1, resultat: "reussi", contexte: "Contexte B" }),
-    ];
-    expect(propose([ex], [tent("ex-1", "partiel", 5)], observations)?.id).toBe("ex-1");
+    const partiel = observation({ skill: "STAT-01", jours: 5, resultat: "partiel" });
+    expect(propose([ex], [tent("ex-1", "partiel", 5)], [partiel])?.id).toBe("ex-1");
   });
 
   it("un abandon ne compte pas : l'exercice reste proposable", () => {

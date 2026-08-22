@@ -26,6 +26,7 @@
  */
 
 import type { Confiance, Domaine, DomaineId, SkillState } from "@/lib/domain/types";
+import { domainesVisibles, sousArbre } from "@/lib/domain/hierarchie-domaines";
 import { JOUR_MS } from "./dates";
 
 const RANG_CONFIANCE: Record<Confiance, number> = { nulle: 0, faible: 1, moyenne: 2, forte: 3 };
@@ -77,14 +78,21 @@ export function agregerDomaine(
   domaines: Domaine[] = [],
 ): AgregatDomaine {
   /*
-   * Porteur **et** rattachées (ADR-081). Une compétence partagée informe
-   * réellement les deux domaines qu'elle sert : l'écarter du second sous-
-   * estimerait sa couverture. Ce n'est pas un double comptage — `calculerEtatGlobal`
-   * somme sur les compétences, jamais sur les domaines, donc le score global
-   * ne voit qu'une fois chaque compétence.
+   * L'union du sous-arbre, dédupliquée (ADR-107).
+   *
+   * Une vue de domaine montre ce qu'il porte **et** ce que portent ses
+   * sous-domaines : c'est la visibilité héritée, dérivée ici et jamais écrite.
+   * Une compétence taguée à la fois sur le domaine et sur l'un de ses
+   * sous-domaines n'apparaît qu'une fois — `filter` parcourt les états, pas les
+   * tags, donc le dédoublonnage est structurel.
+   *
+   * Ce n'est pas un double comptage vis-à-vis du score global :
+   * `calculerEtatGlobal` somme sur les compétences, jamais sur les domaines.
+   * C'est ce qui permet à un déplacement de domaine de ne changer aucun score.
    */
-  const duDomaine = etats.filter(
-    (e) => e.skill.domaine === domaine || (e.skill.domainesSecondaires ?? []).includes(domaine),
+  const perimetre = sousArbre(domaines, domaine);
+  const duDomaine = etats.filter((e) =>
+    (e.skill.tagsDomaine ?? []).some((tag) => perimetre.has(tag)),
   );
   const evalues = duDomaine.filter((e) => e.statut === "evalue" && e.score !== null);
   const observations = duDomaine.reduce((s, e) => s + e.observations.length, 0);
@@ -144,10 +152,17 @@ export function calculerEtatGlobal(
   // La liste se dérive des états eux-mêmes, et non plus d'un tableau global :
   // depuis ADR-026 le référentiel est propre au compte. `domaines` ne sert plus
   // qu'à ordonner et à nommer.
+  //
+  // Les ancêtres d'un domaine tagué en font partie (ADR-107) : un domaine
+  // parent qui ne porte lui-même aucun tag a bien un agrégat, celui de son
+  // sous-arbre. Une compétence sans tag — « À classer » — n'en fait entrer
+  // aucun : elle reste un fait du référentiel, invisible des domaines.
   const rang = new Map(domaines.map((d, i) => [d.id, i]));
-  const presents = [...new Set(etats.flatMap((e) => [e.skill.domaine, ...(e.skill.domainesSecondaires ?? [])]))].sort(
-    (a, b) => (rang.get(a) ?? Number.MAX_SAFE_INTEGER) - (rang.get(b) ?? Number.MAX_SAFE_INTEGER),
-  );
+  const presents = [
+    ...new Set(
+      etats.flatMap((e) => [...domainesVisibles(domaines, e.skill.tagsDomaine ?? [])]),
+    ),
+  ].sort((a, b) => (rang.get(a) ?? Number.MAX_SAFE_INTEGER) - (rang.get(b) ?? Number.MAX_SAFE_INTEGER));
   const parDomaine = presents.map((id) => agregerDomaine(id, etats, domaines));
 
   // Aucune observation nulle part : le score n'existe pas. On ne renvoie pas 0,

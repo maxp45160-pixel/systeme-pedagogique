@@ -10,13 +10,14 @@ import type {
 import type { ElementAtelier } from "../types-atelier";
 import { cx } from "@/components/ui/primitives";
 import { RelationsCompetence } from "../relations-competence";
+import { TagsCompetence } from "./tags-competence";
 import { IconeFleche } from "@/components/ui/icones";
 import { BoutonGenerer } from "@/components/exercices/bouton-generer";
 import type { CalibrageModale, CompetenceModale } from "@/lib/domain/proprietes-generation";
 import { ConcepteurSeance, type DonneesSeance } from "@/components/seances/concepteur-seance";
 import { urlComposerAutonome } from "@/lib/domain/navigation-exercice";
 import { creerDocumentBrutAction, supprimerDocumentAction } from "@/lib/store/document-actions";
-import { retirerExercice } from "@/lib/store/actions";
+import { supprimerExercice, archiverExercice } from "@/lib/store/actions";
 import {
   BoutonSuppressionCarte,
   ModaleConfirmationSuppression,
@@ -186,6 +187,14 @@ export function VueCompetence({
       <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
         {/* Volet de lecture : la prochaine étape, sans tableau de scores. */}
         <div className="min-h-0 space-y-5 overflow-y-auto px-6 py-5 lg:border-r lg:border-bordure lg:px-7">
+          <TagsCompetence
+            code={vue.code}
+            compteId={compteId ?? ""}
+            tags={vue.tags}
+            domainesExistants={vue.domainesExistants}
+            modifiable={Boolean(compteId)}
+            ouvrirDomaine={(id) => ouvrirElement(`domaine:${id}`)}
+          />
           <ResteADemontrer vue={vue} prochainExercice={prochainExercice} ouvrirElement={ouvrirElement} />
         </div>
 
@@ -376,7 +385,13 @@ export function VueCompetence({
           }
           texteBoutonConfirmer={exerciceASupprimer.tentatives > 0 ? "Confirmer l’archivage" : "Supprimer définitivement"}
           onConfirmer={async () => {
-            await retirerExercice(exerciceASupprimer.id);
+            // Le mode est dérivé AVANT le clic (ADR-035) ; le serveur, lui,
+            // refuse une suppression qui porterait des tentatives.
+            if (exerciceASupprimer.tentatives > 0) {
+              await archiverExercice(exerciceASupprimer.id);
+            } else {
+              await supprimerExercice(exerciceASupprimer.id);
+            }
             setExerciceASupprimer(null);
             router.refresh();
           }}

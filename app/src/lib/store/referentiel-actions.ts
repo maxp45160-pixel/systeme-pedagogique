@@ -23,7 +23,13 @@ import {
   type EnveloppeCommandeReferentiel,
   type ResultatCommandeReferentiel,
 } from "@/lib/domain/gouvernance-referentiel";
-import { competenceHomonyme } from "@/lib/domain/referentiel-compte";
+import {
+  competenceHomonyme,
+  prefixesDistincts,
+  slugifier,
+  validerDomaine,
+} from "@/lib/domain/referentiel-compte";
+import { parenteCirculaire } from "@/lib/domain/hierarchie-domaines";
 import type {
   OrigineRattachementCarte,
   OrigineReferentiel,
@@ -111,48 +117,48 @@ export async function creerBranche(soumission: SoumissionBranche): Promise<Resul
 }
 
 /**
- * Rattache ce que la personne a demandé et qui existait déjà ailleurs.
+ * Tague ce que la personne a demandé et qui existait déjà ailleurs.
  *
  * Demander « Lire un tableau de données » dans Logistique, c'est demander que
  * ce savoir-faire y serve. Le système sait qu'il existe : le recréer
- * dédoublerait ses observations, et l'écarter en silence perdrait la demande. Il le
- * rattache donc, sans autre geste (ADR-081).
+ * dédoublerait ses observations, et l'écarter en silence perdrait la demande.
+ * Il pose donc le tag, sans autre geste (ADR-107).
  *
- * L'échec du rattachement ne défait pas l'écriture qui précède : les
- * compétences neuves sont créées, et le message dira lesquelles n'ont pas pu
- * être rattachées. Défaire serait pire — on perdrait un travail réussi pour un
- * complément manqué.
+ * L'échec du tag ne défait pas l'écriture qui précède : les compétences neuves
+ * sont créées, et le message dira lesquelles n'ont pas pu être taguées. Défaire
+ * serait pire — on perdrait un travail réussi pour un complément manqué.
  */
 async function rattacherAutomatiquement(
   domaineId: string,
   dejaAuReferentiel: CompetenceDejaAuReferentiel[],
 ): Promise<void> {
   const codes = dejaAuReferentiel
-    .filter((competence) => competence.aRattacher && competence.domaineId !== domaineId)
+    .filter((competence) => competence.aRattacher)
     .map(({ code }) => code);
   if (codes.length === 0) return;
-  await rattacherCompetences(domaineId, codes, true);
+  await taguerCompetences(domaineId, codes, true);
 }
 
-export interface ResultatRattachement {
+export interface ResultatTag {
   domaineId: string;
-  rattachees: string[];
-  detachees: string[];
+  taguees: string[];
+  detaguees: string[];
 }
 
 /**
- * Rattache des compétences d'autres domaines à celui-ci, ou les en détache.
+ * Pose ou retire un tag de domaine sur des compétences (ADR-107).
  *
- * Le domaine porteur ne bouge pas : il garde le code et la gouvernance. Ce
- * geste ajoute une lecture — la compétence devient visible depuis ce domaine et
- * compte dans sa couverture (ADR-081). Aucun code n'est créé, aucune observation
- * n'est dupliquée.
+ * Rien ne se déplace : le code ne change pas, le namespace de création non
+ * plus, les observations restent où elles sont. Un tag ajoute une visibilité —
+ * la compétence apparaît dans ce domaine et dans tous ses ancêtres, et compte
+ * dans leur couverture. Le retirer la fait disparaître de cette vue ; retirer
+ * son dernier tag l'envoie « À classer », ce qui est un état autorisé.
  */
-export async function rattacherCompetences(
+export async function taguerCompetences(
   domaineId: string,
   codes: string[],
-  rattache: boolean,
-): Promise<ResultatRattachement> {
+  tague: boolean,
+): Promise<ResultatTag> {
   const dorsale = await dorsaleCompte();
   const referentiel = await lireReferentiel(dorsale);
   const domaine = referentiel.domainesParId.get(domaineId);
@@ -160,31 +166,181 @@ export async function rattacherCompetences(
 
   const demandes = [...new Set(codes)];
   for (const code of demandes) {
-    const skill = referentiel.parCode.get(code);
-    if (!skill) throw new Error(`Compétence inconnue : ${code}`);
-    if (skill.domaine === domaineId) {
-      throw new Error(`${code} est déjà portée par ${domaine.nom} : un rattachement ne se superpose pas au porteur.`);
-    }
+    if (!referentiel.parCode.has(code)) throw new Error(`Compétence inconnue : ${code}`);
   }
 
-  const { data, error } = await dorsale.supabase.rpc("rattacher_competences_domaine", {
+  const { data, error } = await dorsale.supabase.rpc("taguer_competences_domaine", {
     p_request_id: nouvelIdCommande(),
     p_expected_version: domaine.version ?? null,
     p_origine: "utilisateur",
-    p_motif: rattache
-      ? `Rattachement de ${demandes.join(", ")} à ${domaine.nom}`
-      : `Détachement de ${demandes.join(", ")} de ${domaine.nom}`,
+    p_motif: tague
+      ? `Tag de ${demandes.join(", ")} vers ${domaine.nom}`
+      : `Retrait du tag de ${demandes.join(", ")} sur ${domaine.nom}`,
     p_domaine_id: domaineId,
     p_codes: demandes,
-    p_rattache: rattache,
+    p_tague: tague,
   });
-  verifier("rattachement de compétences", error);
+  verifier("tag de compétences", error);
   revalidatePath("/", "layout");
-  const resultat = data as { domaineId: string; rattachees?: string[]; detachees?: string[] };
+  const resultat = data as { domaineId: string; taguees?: string[]; detaguees?: string[] };
   return {
     domaineId: resultat.domaineId,
-    rattachees: resultat.rattachees ?? [],
-    detachees: resultat.detachees ?? [],
+    taguees: resultat.taguees ?? [],
+    detaguees: resultat.detaguees ?? [],
+  };
+}
+
+/**
+ * Déplace un domaine sous un autre, ou le remet à la racine (ADR-107).
+ *
+ * Le déplacement ne réécrit rien : ni compétence, ni observation, ni score.
+ * Seule la visibilité dérivée change — les compétences du sous-arbre remontent
+ * désormais vers un autre parent — et elle se recalcule à la lecture suivante.
+ *
+ * La parenté circulaire est refusée par la commande SQL. Le contrôle est répété
+ * ici pour rendre un message avant l'aller-retour, jamais pour s'y substituer :
+ * la barrière qui compte est celle de la base.
+ */
+export async function deplacerDomaine(
+  domaineId: string,
+  parentId: string | null,
+): Promise<void> {
+  const dorsale = await dorsaleCompte();
+  const referentiel = await lireReferentiel(dorsale);
+  const domaine = referentiel.domainesParId.get(domaineId);
+  if (!domaine) throw new Error(`Domaine inconnu : ${domaineId}`);
+
+  const parent = parentId ? referentiel.domainesParId.get(parentId) : null;
+  if (parentId && !parent) throw new Error(`Domaine parent inconnu : ${parentId}`);
+  if (parentId && parenteCirculaire(referentiel.domaines, domaineId, parentId)) {
+    throw new Error(
+      `« ${parent!.nom} » descend de « ${domaine.nom} » : le rattacher dessous fermerait une boucle.`,
+    );
+  }
+
+  const { error } = await dorsale.supabase.rpc("deplacer_domaine", {
+    p_request_id: nouvelIdCommande(),
+    p_expected_version: domaine.version ?? null,
+    p_origine: "utilisateur",
+    p_motif: parent
+      ? `Déplacement de ${domaine.nom} sous ${parent.nom}`
+      : `${domaine.nom} remis à la racine`,
+    p_domaine_id: domaineId,
+    p_parent_id: parentId,
+  });
+  verifier("déplacement du domaine", error);
+  revalidatePath("/", "layout");
+}
+
+export interface ResultatScission {
+  sousDomaineId: string;
+  nom: string;
+  prefixe: string;
+  /** Codes dont le tag a bougé du parent vers l'enfant. */
+  transferees: string[];
+  /** Codes qui n'étaient pas tagués sur le parent : ajoutés, pas transférés. */
+  ajoutees: string[];
+}
+
+/**
+ * Crée un sous-domaine et y transfère des tags, en UNE transaction (ADR-108).
+ *
+ * ## Pourquoi une commande dédiée plutôt que trois appels
+ *
+ * Créer le domaine, le rattacher au parent, puis déplacer les tags : trois
+ * commandes successives, et une erreur au milieu laisse un sous-domaine vide et
+ * des compétences à moitié déplacées. C'est exactement le défaut qu'ADR-065
+ * existe pour empêcher. `scinder_domaine` fait les trois ou aucun.
+ *
+ * ## Ce que l'application décide, et que le tuteur ne touche pas
+ *
+ * L'identifiant (`slugifier`) et le préfixe (`prefixesDistincts`) sont calculés
+ * **ici**, à partir du nom lisible. Le tuteur ne propose qu'un nom : les codes
+ * sont attribués par l'application (ADR-026), et un préfixe frappé par un modèle
+ * pourrait entrer en collision avec un domaine existant et produire des codes
+ * ambigus. La base refuse la collision de toute façon ; ce calcul évite d'aller
+ * la chercher.
+ *
+ * ## Ce qui ne bouge pas
+ *
+ * Aucune compétence n'est créée, recodée ni déplacée. `competences.domaine`
+ * reste le namespace de création. Seuls des tags se déplacent, et la visibilité
+ * dans le parent se recalcule par héritage (ADR-107) — c'est ce qui fait qu'une
+ * scission ne change aucun score global ni aucune observation.
+ */
+export async function scinderDomaine(
+  parentId: string,
+  nom: string,
+  description: string,
+  codes: string[],
+): Promise<ResultatScission> {
+  const dorsale = await dorsaleCompte();
+  const referentiel = await lireReferentiel(dorsale);
+
+  const parent = referentiel.domainesParId.get(parentId);
+  if (!parent) throw new Error(`Domaine parent inconnu : ${parentId}`);
+
+  const nomPropre = nom.trim();
+  const demandes = [...new Set(codes)];
+  if (demandes.length === 0) {
+    throw new Error("Une scission doit emporter au moins une compétence.");
+  }
+  for (const code of demandes) {
+    const skill = referentiel.parCode.get(code);
+    if (!skill) throw new Error(`Compétence inconnue : ${code}`);
+    if (skill.archive) throw new Error(`« ${skill.intitule} » est archivée : elle ne se range plus.`);
+  }
+
+  const erreurs = validerDomaine(
+    { nom: nomPropre, prefixe: parent.prefixe, description },
+    referentiel,
+  );
+  /*
+   * Le préfixe est écarté des erreurs relevées : celui passé au validateur est
+   * celui du parent, forcément déjà pris, et c'est `prefixesDistincts` qui en
+   * calcule un libre juste après. Toutes les autres règles — nom vide, nom déjà
+   * pris — restent bloquantes.
+   */
+  const bloquantes = erreurs.filter((erreur) => !erreur.toLowerCase().includes("préfixe"));
+  if (bloquantes.length > 0) throw new Error(bloquantes.join(" "));
+
+  const sousDomaineId = slugifier(nomPropre);
+  if (referentiel.domainesParId.has(sousDomaineId)) {
+    throw new Error(`« ${nomPropre} » existe déjà : une scission crée un domaine neuf.`);
+  }
+  const [prefixe] = prefixesDistincts(
+    [{ nom: nomPropre, prefixe: "" }],
+    referentiel.domaines.map((domaine) => domaine.prefixe),
+  );
+
+  const { data, error } = await dorsale.supabase.rpc("scinder_domaine", {
+    p_request_id: nouvelIdCommande(),
+    p_expected_version: parent.version ?? null,
+    p_origine: "utilisateur",
+    p_motif: `Scission de ${parent.nom} : ${nomPropre} reçoit ${demandes.join(", ")}`,
+    p_parent_id: parentId,
+    p_sous_domaine_id: sousDomaineId,
+    p_nom: nomPropre,
+    p_prefixe: prefixe,
+    p_description: description.trim(),
+    p_codes: demandes,
+  });
+  verifier("scission du domaine", error);
+  revalidatePath("/", "layout");
+
+  const resultat = data as {
+    sousDomaineId: string;
+    nom: string;
+    prefixe: string;
+    transferees?: string[];
+    ajoutees?: string[];
+  };
+  return {
+    sousDomaineId: resultat.sousDomaineId,
+    nom: resultat.nom,
+    prefixe: resultat.prefixe,
+    transferees: resultat.transferees ?? [],
+    ajoutees: resultat.ajoutees ?? [],
   };
 }
 

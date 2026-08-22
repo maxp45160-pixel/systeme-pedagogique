@@ -202,6 +202,57 @@ export const OUTIL_RELATIONS = "proposer_relations";
 export const OUTIL_CARTE = "proposer_rattachement_carte";
 
 /**
+ * Où une compétence sert (ADR-107) — proposé, jamais posé.
+ *
+ * Une compétence peut porter plusieurs tags de domaine, et c'est exactement ce
+ * qu'une machine range mal : « Lire un tableau de données » sert les
+ * statistiques et la logistique, et aucun classement lexical ne le devine sans
+ * se tromper une fois sur deux. Le tuteur lit l'intitulé et les domaines du
+ * compte, et propose.
+ *
+ * Deux interdits, du même ordre que ceux de la carte :
+ *
+ * - **nommer un domaine neuf.** L'`enum` est fermé sur les domaines vivants du
+ *   compte, relu côté serveur. Créer un domaine est une commande gouvernée
+ *   (ADR-065), pas un effet de bord d'une suggestion ;
+ * - **taguer.** L'appel produit une proposition. L'écriture reste le geste
+ *   d'une personne (`taguerCompetences`), et rien ne part sans son clic.
+ */
+export const OUTIL_TAGS = "proposer_tags_competence";
+
+/**
+ * La relecture du référentiel entier — ADR-108.
+ *
+ * `proposer_tags_competence` et `proposer_relations` travaillent **par fiche**,
+ * sur clic. À soixante-quinze compétences, personne n'ouvre les soixante-quinze
+ * fiches : c'est le constat qui ouvre ADR-108. Cet outil lit le référentiel
+ * d'un tenant — les intitulés, l'arbre des domaines, les relations déjà
+ * déclarées, le travail récent et les intentions déclarées — et rend un lot.
+ *
+ * Trois genres, et rien d'autre. Les quatre détecteurs déterministes gardent
+ * leur place : ce qu'un calcul explique en une phrase n'a pas à être demandé à
+ * un modèle. Le tuteur ne couvre que ce qu'aucun calcul ne voit — la
+ * paraphrase, le sujet implicite, le prérequis qu'aucune co-mobilisation n'a
+ * encore révélé.
+ *
+ * Quatre interdits, tous portés par l'`enum` fermé et TOUS revérifiés par
+ * `validerRelecture` côté serveur (ADR-031 : le schéma n'est pas la barrière,
+ * c'est la première des deux) :
+ *
+ * - **frapper un code de compétence.** Les codes sont attribués par
+ *   l'application (ADR-026). Le tuteur désigne un code existant par `enum`, ou
+ *   décrit un savoir-faire en clair sans code ;
+ * - **frapper un identifiant de domaine.** `parentId` et `domaineId` sont des
+ *   `enum` sur les domaines vivants. Un sous-domaine proposé reçoit son
+ *   identifiant et son préfixe de l'application, à l'écriture ;
+ * - **toucher la carte des savoirs.** Elle reste fermée (ADR-105) et n'apparaît
+ *   pas dans ce schéma ;
+ * - **écrire.** L'appel produit un lot de propositions. Chacune s'arbitre
+ *   séparément, et l'écriture passe par les commandes gouvernées d'ADR-065.
+ */
+export const OUTIL_RELECTURE = "proposer_relecture_referentiel";
+
+/**
  * Un référentiel entier — plusieurs branches d'un seul geste.
  *
  * `proposer_referentiel` rend **une** branche. Un sujet un peu large n'en tient
@@ -931,6 +982,226 @@ export function outilsRattachementCarte(noeuds: string[]): OutilTuteur {
   };
 }
 
+/**
+ * L'outil qui propose où une compétence sert (ADR-107).
+ *
+ * Une liste, à la différence de la carte : une compétence peut légitimement
+ * servir plusieurs domaines, et n'en proposer qu'un forcerait un choix que le
+ * modèle n'a pas à faire. Le plafond existe pour la même raison que partout
+ * ailleurs — au-delà, on ne relit plus, on coche.
+ */
+export function outilsTagsCompetence(domainesVivants: string[]): OutilTuteur {
+  const domaineId: SchemaJson =
+    domainesVivants.length > 0
+      ? {
+          type: "string",
+          enum: domainesVivants,
+          description: "Identifiant d'un domaine existant du compte.",
+        }
+      : { type: "string", description: "Aucun domaine existant." };
+
+  return {
+    nom: OUTIL_TAGS,
+    description:
+      "Propose les domaines où cette compétence sert vraiment. Tu n'écris rien : la personne valide ou refuse chaque tag. Tu ne peux désigner que des domaines de la liste — un domaine neuf se crée par une autre commande. Ne propose que ce que l'intitulé justifie : une liste large ne se relit pas.",
+    schema: {
+      type: "object",
+      properties: {
+        tags: {
+          type: "array",
+          maxItems: MAX_TAGS_PROPOSES,
+          items: {
+            type: "object",
+            properties: {
+              domaineId,
+              justification: {
+                type: "string",
+                description:
+                  "Une phrase : ce que cette compétence apporte à ce domaine. Sans motif, la personne ne peut pas arbitrer.",
+              },
+            },
+            required: ["domaineId", "justification"],
+            additionalProperties: false,
+          },
+        },
+      },
+      // Une liste vide reste exprimable, et se lit comme « aucun domaine
+      // existant ne convient » — ce qui est une réponse, pas un échec.
+      required: ["tags"],
+      additionalProperties: false,
+    },
+  };
+}
+
+/**
+ * L'outil qui relit le référentiel entier (ADR-108).
+ *
+ * ## Pourquoi un seul outil et non trois
+ *
+ * Les trois genres se contredisent utilement. Proposer un sous-domaine
+ * « Gestion kanban » et proposer d'ajouter une compétence kanban sont deux
+ * lectures du même signal ; les demander en trois appels séparés produirait
+ * trois lots qui s'ignorent, et la personne arbitrerait trois fois la même
+ * observation. Un appel, un lot, une lecture cohérente.
+ *
+ * ## Ce que les `enum` ferment, et ce qu'ils laissent ouvert
+ *
+ * `codeExistant`, `parentId` et `domaineId` sont fermés sur le référentiel réel
+ * du compte, construits ici et **revalidés** par `validerRelecture`. Restent
+ * ouverts, et c'est voulu : les intitulés et les justifications. Un savoir-faire
+ * que le référentiel ne porte pas encore n'a pas de code à désigner — c'est tout
+ * l'objet du genre `manque` —, et son code lui sera attribué par l'application
+ * si la personne le retient (ADR-026).
+ *
+ * ## Les plafonds
+ *
+ * Ce ne sont pas des seuils de déclenchement — ADR-108 en écarte explicitement
+ * le principe, et c'est la version du domaine qui périme, pas un nombre. Ce sont
+ * des plafonds de **lecture**, la convention déjà posée par `MAX_TAGS_PROPOSES`
+ * et `MAX_RELATIONS_PROPOSEES` : au-delà, on ne relit plus un lot, on le coche.
+ */
+export function outilsRelecture(
+  codesVivants: string[],
+  domainesVivants: string[],
+): OutilTuteur {
+  const codeExistant: SchemaJson =
+    codesVivants.length > 0
+      ? {
+          type: "string",
+          enum: codesVivants,
+          description:
+            "Code d'une compétence déjà au référentiel, si tu en désignes une. Omets ce champ pour décrire une compétence qui n'existe pas encore.",
+        }
+      : { type: "string", description: "Aucune compétence existante à désigner." };
+
+  const domaineId: SchemaJson =
+    domainesVivants.length > 0
+      ? {
+          type: "string",
+          enum: domainesVivants,
+          description: "Identifiant d'un domaine existant du compte. N'en invente aucun.",
+        }
+      : { type: "string", description: "Aucun domaine existant." };
+
+  const competenceDesignee: SchemaJson = {
+    type: "object",
+    // Aucun champ pour frapper un code neuf : l'interdit d'ADR-026/031 tient.
+    properties: {
+      codeExistant,
+      intitule: {
+        type: "string",
+        description:
+          "Savoir-faire observable, pas un sujet. Obligatoire, même quand tu désignes un code existant.",
+      },
+      palier: { type: "string", enum: [...PALIERS] },
+    },
+    required: ["intitule", "palier"],
+    additionalProperties: false,
+  };
+
+  return {
+    nom: OUTIL_RELECTURE,
+    description:
+      "Relis le référentiel entier et propose comment il pourrait se ranger et s'étendre. Tu n'écris rien : chaque proposition s'affiche seule et la personne l'accepte ou la refuse. Tu ne peux désigner que des codes et des domaines de la liste — un identifiant neuf se crée par une autre commande.",
+    schema: {
+      type: "object",
+      properties: {
+        scissions: {
+          type: "array",
+          maxItems: MAX_SCISSIONS_PROPOSEES,
+          description:
+            "Des sous-domaines à tirer d'un domaine existant, quand il porte visiblement plusieurs sujets distincts.",
+          items: {
+            type: "object",
+            properties: {
+              parentId: domaineId,
+              nom: {
+                type: "string",
+                description:
+                  "Nom du sous-domaine, tel qu'une personne le lirait. Pas d'identifiant, pas de préfixe : l'application les attribue.",
+              },
+              description: {
+                type: "string",
+                description: "Une phrase : ce que ce sous-domaine regroupe.",
+              },
+              codes: {
+                type: "array",
+                items: codeExistant,
+                description:
+                  "Les compétences existantes qui iraient dans ce sous-domaine. Uniquement des codes de la liste.",
+              },
+              justification: {
+                type: "string",
+                description:
+                  "Une à deux phrases : ce qui, dans ces intitulés, forme un sujet à part. Cite ce que tu as lu.",
+              },
+            },
+            required: ["parentId", "nom", "description", "codes", "justification"],
+            additionalProperties: false,
+          },
+        },
+        relations: {
+          type: "array",
+          maxItems: MAX_RELATIONS_PROPOSEES,
+          description:
+            "Des prérequis qu'aucune co-mobilisation n'a encore révélés, à l'échelle du référentiel entier.",
+          items: {
+            type: "object",
+            properties: {
+              amont: competenceDesignee,
+              aval: competenceDesignee,
+              justification: {
+                type: "string",
+                description: "Une phrase : pourquoi l'amont prépare l'aval.",
+              },
+            },
+            required: ["amont", "aval", "justification"],
+            additionalProperties: false,
+          },
+        },
+        manques: {
+          type: "array",
+          maxItems: MAX_MANQUES_PROPOSES,
+          description:
+            "Des savoir-faire absents du référentiel que le travail réel ou les intentions déclarées supposent.",
+          items: {
+            type: "object",
+            properties: {
+              domaineId,
+              intitule: {
+                type: "string",
+                description: "Savoir-faire observable, pas un sujet ni un titre de cours.",
+              },
+              palier: { type: "string", enum: [...PALIERS] },
+              ancrage: {
+                type: "string",
+                description:
+                  "Ce qui, dans le travail récent ou les intentions déclarées, appelle ce savoir-faire. Cite-le. Sans ancrage, ce n'est pas une proposition, c'est un programme.",
+              },
+              justification: {
+                type: "string",
+                description: "Une phrase : ce que cette compétence ouvrirait.",
+              },
+            },
+            required: ["domaineId", "intitule", "palier", "ancrage", "justification"],
+            additionalProperties: false,
+          },
+        },
+      },
+      /*
+       * Les trois listes sont exigées, pour la raison déjà rencontrée sur
+       * `OUTIL_RELATIONS` : l'outil est seul armé, donc `tool_choice` force
+       * l'appel, et un modèle qui ne rend que les champs obligatoires renvoyait
+       * un objet vide que la validation rejetait — « le tuteur n'a rien proposé »
+       * alors qu'il avait répondu. Une liste vide reste exprimable, et se lit
+       * comme « rien de ce côté », ce qui est une réponse.
+       */
+      required: ["scissions", "relations", "manques"],
+      additionalProperties: false,
+    },
+  };
+}
+
 export function outilsRevision(codesVivants: string[]): OutilTuteur {
   // Un `enum: []` n'admettrait aucune valeur et rendrait `modifications` et
   // `retraits` inexprimables — ce qui est correct sur un domaine vide, mais
@@ -1209,6 +1480,8 @@ export type PropositionRecue =
   | { genre: "revision"; revision: PropositionRevision }
   | { genre: "relations"; relations: PropositionRelations }
   | { genre: "carte"; carte: PropositionRattachementCarte }
+  | { genre: "tags"; tags: PropositionTagsCompetence }
+  | { genre: "relecture"; relecture: PropositionRelecture }
   | { genre: "referentiel-complet"; resume: string; branches: PropositionReferentiel[]; ecartees: number }
   | { genre: "intention"; traduction: TraductionIntention };
 
@@ -1272,11 +1545,75 @@ export interface PropositionRattachementCarte {
   justification: string;
 }
 
+/**
+ * Ce que le tuteur propose comme tags de domaine (ADR-107).
+ *
+ * `domaineId` DÉSIGNE, il ne crée pas : son `enum` est fermé sur les domaines
+ * vivants du compte. Rien n'est écrit — c'est la validation humaine, et elle
+ * seule, qui pose un tag.
+ */
+export interface PropositionTagsCompetence {
+  tags: Array<{ domaineId: string; justification: string }>;
+}
+
+/** Au-delà, on ne relit plus une proposition de tags : on coche. */
+export const MAX_TAGS_PROPOSES = 4;
+
 /** Au-delà, ce n'est plus une proposition : c'est une liste à trier. */
 export const MAX_CANDIDATS_CARTE = 2;
 
 /** Cinq de chaque côté : au-delà, on ne relit plus, on coche. */
 export const MAX_RELATIONS_PROPOSEES = 5;
+
+/**
+ * Plafonds de lecture du lot de relecture (ADR-108).
+ *
+ * Ce ne sont **pas** des seuils de déclenchement : ADR-108 écarte le seuil de
+ * taille, et c'est la version du domaine qui périme une relecture, jamais un
+ * nombre. Ce sont les mêmes plafonds d'affichage que `MAX_TAGS_PROPOSES` et
+ * `MAX_RELATIONS_PROPOSEES`, pour la même raison — au-delà, une liste ne se
+ * relit plus, elle se coche.
+ *
+ * Les scissions sont plafonnées plus bas que le reste : découper un référentiel
+ * en cinq branches d'un coup n'est pas une proposition, c'est une refonte, et le
+ * test de réfutation d'ADR-107 demande justement de surveiller les branches
+ * créées pour classer.
+ */
+export const MAX_SCISSIONS_PROPOSEES = 3;
+
+/** Le genre le plus risqué d'ADR-108 : peu, et chacune ancrée. */
+export const MAX_MANQUES_PROPOSES = 4;
+
+/**
+ * Un lot de relecture, tel que l'outil le rend — avant toute validation.
+ *
+ * La structure est garantie par le schéma ; les **valeurs** ne le sont pas.
+ * `validerRelecture` (`lib/tutor/relecture-referentiel.ts`) revérifie que chaque
+ * code et chaque identifiant de domaine appartient bien au référentiel réel du
+ * compte. C'est la seconde couche d'ADR-031, et elle existe parce qu'un `enum`
+ * de schéma est une consigne au modèle, pas une barrière.
+ */
+export interface PropositionRelecture {
+  scissions: Array<{
+    parentId: string;
+    nom: string;
+    description: string;
+    codes: string[];
+    justification: string;
+  }>;
+  relations: Array<{
+    amont: { codeExistant?: string; intitule: string; palier: string };
+    aval: { codeExistant?: string; intitule: string; palier: string };
+    justification: string;
+  }>;
+  manques: Array<{
+    domaineId: string;
+    intitule: string;
+    palier: string;
+    ancrage: string;
+    justification: string;
+  }>;
+}
 
 /**
  * Une correction proposée, telle que l'outil la rend — tout en chaînes.
@@ -1897,6 +2234,192 @@ function validerRattachementCarte(
   return { genre: "carte", carte: { noeud, justification } };
 }
 
+function domainesDuSchemaTags(outils: OutilTuteur[]): Set<string> {
+  const outil = outils.find((o) => o.nom === OUTIL_TAGS);
+  return new Set(outil?.schema.properties?.tags?.items?.properties?.domaineId?.enum ?? []);
+}
+
+/**
+ * Valide des tags proposés, contre les domaines réellement armés.
+ *
+ * Deuxième couche après l'`enum` du schéma (ADR-031). Ici, à la différence de
+ * la carte, une ligne fautive n'invalide pas l'appel entier : chaque tag est
+ * une proposition indépendante, et la personne les arbitre une par une. Un
+ * domaine inconnu est donc écarté, pas fatal — mais un appel dont il ne reste
+ * rien de valide rend une liste vide, jamais une liste inventée.
+ */
+function validerTagsCompetence(
+  entree: Record<string, unknown>,
+  domainesConnus: Set<string>,
+): PropositionRecue | null {
+  const brut = Array.isArray(entree.tags) ? entree.tags : null;
+  if (!brut) return null;
+  const vus = new Set<string>();
+  const tags: PropositionTagsCompetence["tags"] = [];
+  for (const element of brut) {
+    const ligne = objet(element);
+    if (!ligne) continue;
+    const domaineId = texte(ligne.domaineId);
+    const justification = texte(ligne.justification);
+    if (!domaineId || !justification) continue;
+    if (domainesConnus.size > 0 && !domainesConnus.has(domaineId)) continue;
+    if (vus.has(domaineId)) continue;
+    vus.add(domaineId);
+    tags.push({ domaineId, justification });
+  }
+  return { genre: "tags", tags: { tags } };
+}
+
+/**
+ * Les codes et domaines réellement armés pour la relecture, relus dans le
+ * schéma envoyé — une seule source, jamais deux listes qui pourraient diverger.
+ */
+function ensemblesDuSchemaRelecture(outils: OutilTuteur[]): {
+  codes: Set<string>;
+  domaines: Set<string>;
+} {
+  const outil = outils.find((o) => o.nom === OUTIL_RELECTURE);
+  const scission = outil?.schema.properties?.scissions?.items;
+  return {
+    codes: new Set(scission?.properties?.codes?.items?.enum ?? []),
+    domaines: new Set(scission?.properties?.parentId?.enum ?? []),
+  };
+}
+
+/**
+ * Valide un lot de relecture, contre le référentiel réellement armé (ADR-108).
+ *
+ * Deuxième couche après l'`enum` du schéma (ADR-031). Elle existe parce qu'un
+ * `enum` de schéma est une **consigne au modèle**, pas une barrière : un
+ * fournisseur qui l'ignore, ou une réponse reconstruite depuis un flux
+ * fragmenté, doit être arrêté ici. C'est ce que le test de merge exige de
+ * démontrer — un code ou un domaine inventé est écarté par cette fonction, pas
+ * seulement par le schéma.
+ *
+ * Le tri se fait **ligne à ligne**, comme pour les tags et les relations : une
+ * proposition est indépendante des autres et s'arbitre seule, donc perdre la
+ * troisième ne fausse pas la lecture des deux premières. Mais chaque genre a sa
+ * propre notion de ligne irrécupérable :
+ *
+ * - **scission** : `parentId` inconnu ⇒ la ligne tombe, il n'y a nulle part où
+ *   accrocher le sous-domaine. Les codes inconnus sont retirés un à un ; s'il
+ *   n'en reste aucun, la ligne tombe aussi — un sous-domaine vide n'est pas une
+ *   scission, c'est une branche créée pour classer, exactement ce que le test de
+ *   réfutation d'ADR-107 demande de surveiller ;
+ * - **relation** : `codeExistant` inconnu ⇒ le **champ** est ignoré, pas la
+ *   ligne. L'intitulé reste exploitable et l'écriture retrouvera l'homonyme —
+ *   même choix que `validerRelations` ;
+ * - **manque** : `domaineId` inconnu ⇒ la ligne tombe. Placer au hasard une
+ *   compétence qui n'existe pas encore ferait grossir un domaine que personne
+ *   n'a désigné.
+ *
+ * Un lot dont il ne reste rien rend trois listes vides, jamais une ligne
+ * inventée. « Rien à proposer » est une réponse, pas une panne.
+ */
+function validerRelecture(
+  entree: Record<string, unknown>,
+  connus: { codes: Set<string>; domaines: Set<string> },
+): PropositionRecue | null {
+  /*
+   * Les trois clés absentes : l'appel ne porte aucune des réponses attendues.
+   * Une seule liste présente, même vide, reste une réponse.
+   */
+  if (
+    !Array.isArray(entree.scissions) &&
+    !Array.isArray(entree.relations) &&
+    !Array.isArray(entree.manques)
+  ) {
+    return null;
+  }
+
+  const connuCode = (code: string) => connus.codes.size === 0 || connus.codes.has(code);
+  const connuDomaine = (id: string) => connus.domaines.size === 0 || connus.domaines.has(id);
+
+  const scissions: PropositionRelecture["scissions"] = [];
+  for (const brut of Array.isArray(entree.scissions) ? entree.scissions : []) {
+    if (scissions.length >= MAX_SCISSIONS_PROPOSEES) break;
+    const o = objet(brut);
+    if (!o) continue;
+    const parentId = texte(o.parentId);
+    const nom = texte(o.nom);
+    const justification = texte(o.justification);
+    if (!parentId || !nom || !justification) continue;
+    if (!connuDomaine(parentId)) continue;
+    const codes = (Array.isArray(o.codes) ? o.codes : [])
+      .map((c) => texte(c))
+      .filter((c) => c.length > 0 && connuCode(c));
+    const uniques = [...new Set(codes)];
+    if (uniques.length === 0) continue;
+    scissions.push({
+      parentId,
+      nom,
+      description: texte(o.description),
+      codes: uniques,
+      justification,
+    });
+  }
+
+  const lireDesignee = (
+    brut: unknown,
+  ): PropositionRelecture["relations"][number]["amont"] | null => {
+    const o = objet(brut);
+    if (!o) return null;
+    const intitule = texte(o.intitule);
+    if (!intitule) return null;
+    const code = texte(o.codeExistant);
+    return {
+      ...(code && connuCode(code) ? { codeExistant: code } : {}),
+      intitule,
+      palier: texte(o.palier),
+    };
+  };
+
+  const relations: PropositionRelecture["relations"] = [];
+  for (const brut of Array.isArray(entree.relations) ? entree.relations : []) {
+    if (relations.length >= MAX_RELATIONS_PROPOSEES) break;
+    const o = objet(brut);
+    if (!o) continue;
+    const justification = texte(o.justification);
+    const amont = lireDesignee(o.amont);
+    const aval = lireDesignee(o.aval);
+    if (!amont || !aval || !justification) continue;
+    // Une compétence ne se prépare pas elle-même.
+    if (amont.codeExistant && amont.codeExistant === aval.codeExistant) continue;
+    /*
+     * Au moins un côté doit exister.
+     *
+     * Une relation entre deux compétences dont AUCUNE n'est au référentiel
+     * n'est pas écrivable : il faudrait créer les deux, et ce schéma ne porte
+     * pas de domaine où les placer. Ranger par défaut dans un domaine que
+     * personne n'a désigné est précisément le mécanisme qui produit les
+     * domaines immenses — `appliquerRelationProposee` le refuse déjà pour la
+     * même raison. Mieux vaut ne pas proposer que proposer une ligne dont le
+     * bouton « accepter » ne pourrait rien faire.
+     */
+    if (!amont.codeExistant && !aval.codeExistant) continue;
+    relations.push({ amont, aval, justification });
+  }
+
+  const manques: PropositionRelecture["manques"] = [];
+  for (const brut of Array.isArray(entree.manques) ? entree.manques : []) {
+    if (manques.length >= MAX_MANQUES_PROPOSES) break;
+    const o = objet(brut);
+    if (!o) continue;
+    const domaineId = texte(o.domaineId);
+    const intitule = texte(o.intitule);
+    const ancrage = texte(o.ancrage);
+    const justification = texte(o.justification);
+    // Sans ancrage, ce n'est pas une proposition tirée du compte : c'est un
+    // jugement de programme. ADR-108 nomme ce risque, et c'est ici qu'il se
+    // refuse.
+    if (!domaineId || !intitule || !ancrage || !justification) continue;
+    if (!connuDomaine(domaineId)) continue;
+    manques.push({ domaineId, intitule, palier: texte(o.palier), ancrage, justification });
+  }
+
+  return { genre: "relecture", relecture: { scissions, relations, manques } };
+}
+
 function codesDuSchemaRevision(outils: OutilTuteur[]): Set<string> {
   const revision = outils.find((o) => o.nom === OUTIL_REVISION);
   const codes = revision?.schema.properties?.retraits?.items?.properties?.code?.enum ?? [];
@@ -2058,6 +2581,10 @@ export function validerAppelOutil(
       return validerRelations(donnees, ensemblesDuSchemaRelations(outils));
     case OUTIL_CARTE:
       return validerRattachementCarte(donnees, noeudsDuSchemaCarte(outils));
+    case OUTIL_TAGS:
+      return validerTagsCompetence(donnees, domainesDuSchemaTags(outils));
+    case OUTIL_RELECTURE:
+      return validerRelecture(donnees, ensemblesDuSchemaRelecture(outils));
     case OUTIL_REFERENTIEL_COMPLET:
       // Le plafond effectif est relu depuis le schéma REELLEMENT armé, jamais
       // recalculé : deux sources pourraient diverger, une seule ne le peut pas.

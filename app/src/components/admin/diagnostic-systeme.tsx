@@ -1,6 +1,7 @@
 "use client";
 
 import type { DiagnosticSysteme } from "@/lib/store/systeme";
+import { IconeValide } from "@/components/ui/icones";
 
 export function DiagnosticSystemeView({ diagnostic }: { diagnostic: DiagnosticSysteme }) {
   const { baseDeDonnees, ia, environnement, securite } = diagnostic;
@@ -197,7 +198,7 @@ export function DiagnosticSystemeView({ diagnostic }: { diagnostic: DiagnosticSy
           <div className="mt-4 space-y-3">
             <div className="flex items-start gap-3 rounded-lg border border-bordure/60 bg-fond/50 p-3">
               <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-succes-faible text-succes text-xs font-bold">
-                ✓
+                <IconeValide className="size-3" />
               </span>
               <div>
                 <div className="text-sm font-medium text-texte">Row Level Security (RLS) PostgreSQL</div>
@@ -209,7 +210,7 @@ export function DiagnosticSystemeView({ diagnostic }: { diagnostic: DiagnosticSy
 
             <div className="flex items-start gap-3 rounded-lg border border-bordure/60 bg-fond/50 p-3">
               <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-succes-faible text-succes text-xs font-bold">
-                ✓
+                <IconeValide className="size-3" />
               </span>
               <div>
                 <div className="text-sm font-medium text-texte">Protection des Pairs Administrateurs</div>
@@ -221,7 +222,7 @@ export function DiagnosticSystemeView({ diagnostic }: { diagnostic: DiagnosticSy
 
             <div className="flex items-start gap-3 rounded-lg border border-bordure/60 bg-fond/50 p-3">
               <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-succes-faible text-succes text-xs font-bold">
-                ✓
+                <IconeValide className="size-3" />
               </span>
               <div>
                 <div className="text-sm font-medium text-texte">Principe P8 — Confidentialité Stricte</div>
@@ -239,7 +240,7 @@ export function DiagnosticSystemeView({ diagnostic }: { diagnostic: DiagnosticSy
                     : "bg-danger-faible text-danger"
                 }`}
               >
-                {securite.variablesSensiblesIsolees ? "✓" : "!"}
+                {securite.variablesSensiblesIsolees ? <IconeValide className="size-3" /> : "!"}
               </span>
               <div>
                 <div className="text-sm font-medium text-texte">Isolation des Clés Secrètes</div>

@@ -14,8 +14,8 @@
  *
  *   - `prerequis`     : une compétence de A est prérequis d'une compétence de
  *     B (`Skill.prerequis` traversant une frontière de domaine), orienté ;
- *   - `rattachement`  : une compétence portée par A sert aussi B
- *     (`Skill.domainesSecondaires`, ADR-081), non orienté ;
+ *   - `rattachement`  : une même compétence est taguée sur A et sur B
+ *     (`Skill.tagsDomaine`, ADR-107), non orienté ;
  *   - `exercice`      : un même exercice vivant mobilise des compétences de A
  *     et de B, non orienté.
  *
@@ -38,6 +38,7 @@
  */
 
 import type { DomaineId, Exercise, Referentiel, SkillState } from "./types";
+import { domainesVisibles } from "./hierarchie-domaines";
 import { joursDepuis } from "@/lib/engine/dates";
 
 /* ------------------------------------------------------------------ */
@@ -49,7 +50,7 @@ export interface NoeudDomaine {
   nom: string;
   prefixe: string;
   description: string;
-  /** Portées **et** rattachées (ADR-081) : ce que le domaine couvre réellement. */
+  /** Tags directs **et** hérités du sous-arbre (ADR-107) : ce que le domaine couvre réellement. */
   nombreCompetences: number;
   /** Parmi elles, celles qui portent au moins une observation. */
   nombreEvaluees: number;
@@ -125,12 +126,12 @@ export function construireGrapheDomaines(
   for (const etat of etats) {
     if (!codesActifs.has(etat.skill.code)) continue;
     /*
-     * Une compétence rattachée compte dans la couverture des domaines qu'elle
-     * sert (ADR-081) — jamais dans un score global, qui somme sur les
-     * compétences et non sur les domaines.
+     * Une compétence compte dans la couverture de chaque domaine qu'elle sert
+     * — ses tags, et leurs ancêtres par héritage (ADR-107) — jamais dans un
+     * score global, qui somme sur les compétences et non sur les domaines.
      */
-    const cibles = [etat.skill.domaine, ...(etat.skill.domainesSecondaires ?? [])];
-    for (const cible of new Set(cibles)) {
+    const cibles = domainesVisibles(referentiel.domaines, etat.skill.tagsDomaine ?? []);
+    for (const cible of cibles) {
       const agregat = agregats.get(cible);
       if (!agregat) continue; // domaine archivé ou inconnu — écarté, pas fabriqué
       agregat.competences += 1;
@@ -197,11 +198,16 @@ export function construireGrapheDomaines(
     }
   }
 
-  // Rattachements déclarés (ADR-081).
+  // Tags déclarés (ADR-107) : une compétence taguée sur plusieurs domaines les
+  // relie deux à deux. Aucun sens de lecture — il n'y a plus de porteur dont
+  // les autres dépendraient, seulement des domaines qu'une même compétence sert.
   for (const etat of etats) {
     if (!codesActifs.has(etat.skill.code)) continue;
-    for (const secondaire of etat.skill.domainesSecondaires ?? []) {
-      ajouter(etat.skill.domaine, secondaire, "rattachement", false);
+    const tags = [...new Set(etat.skill.tagsDomaine ?? [])];
+    for (let i = 0; i < tags.length; i += 1) {
+      for (let j = i + 1; j < tags.length; j += 1) {
+        ajouter(tags[i], tags[j], "rattachement", false);
+      }
     }
   }
 

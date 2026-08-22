@@ -169,6 +169,15 @@ CREATE TABLE IF NOT EXISTS public.domaines (
   version      INTEGER NOT NULL DEFAULT 1 CHECK (version > 0),
   archive      BOOLEAN NOT NULL DEFAULT false,
   origine      TEXT NOT NULL DEFAULT 'utilisateur',  -- utilisateur | tuteur | migration
+  -- Hiérarchie récursive des domaines (ADR-107, migration
+  -- `20260823090000_domaines_hierarchiques_tags`). NULL = racine. Aucun
+  -- plafond métier de profondeur, et aucune table `sous_domaines` : un
+  -- sous-domaine est un domaine comme les autres, avec un parent.
+  --
+  -- La visibilité héritée ne vit PAS ici. Un tag posé sur un sous-domaine rend
+  -- la compétence visible dans tous ses ancêtres par dérivation, recalculée à
+  -- chaque lecture (couche 3) : aucune ligne d'ancêtre n'est écrite.
+  parent_id    TEXT,
   -- Position du domaine sur la carte des savoirs
   -- (`src/lib/domain/carte-savoirs.ts`, migration
   -- `20260822120000_rattachement_carte_savoirs`). Fait DÉCLARÉ par une
@@ -194,8 +203,18 @@ CREATE TABLE IF NOT EXISTS public.domaines (
   ),
   -- Le préfixe engendre les codes : deux domaines qui le partagent
   -- produiraient des collisions silencieuses.
-  UNIQUE (user_id, prefixe)
+  UNIQUE (user_id, prefixe),
+  -- Le cycle de longueur 1 se refuse ici, une fois pour toutes ; les cycles
+  -- plus longs sont refusés par `deplacer_domaine()`, seule à pouvoir lire la
+  -- descendance.
+  CONSTRAINT domaines_parent_pas_soi CHECK (parent_id IS NULL OR parent_id <> id),
+  -- `RESTRICT` et non `CASCADE` : supprimer un parent ne doit jamais emporter
+  -- une branche entière de référentiel.
+  CONSTRAINT domaines_parent_fkey FOREIGN KEY (user_id, parent_id)
+    REFERENCES public.domaines(user_id, id) ON DELETE RESTRICT
 );
+
+CREATE INDEX IF NOT EXISTS domaines_parent_idx ON public.domaines (user_id, parent_id);
 
 CREATE TABLE IF NOT EXISTS public.competences (
   user_id             UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -230,16 +249,21 @@ CREATE TABLE IF NOT EXISTS public.competences (
     REFERENCES public.competences(user_id, code) DEFERRABLE INITIALLY IMMEDIATE
 );
 
--- Domaines supplémentaires servis par une compétence (ADR-081).
+-- Tags de domaine d'une compétence (ADR-107, remplace le rattachement
+-- secondaire d'ADR-081).
 --
--- Le porteur reste `competences.domaine` : il donne le code et porte la
--- gouvernance d'ADR-065. Un rattachement est une lecture de plus — la
--- compétence devient visible depuis ce domaine et compte dans sa couverture —
--- jamais une seconde propriété, et jamais un second code.
+-- Une compétence peut porter **plusieurs** tags, ou **aucun** — elle est alors
+-- « À classer » : un fait du référentiel, invisible de tout domaine tant qu'une
+-- personne ne l'y range pas. Aucun tag ne crée de copie, de second code ni de
+-- seconde compétence ; la clé primaire déduplique.
 --
--- Un rattachement vers le porteur est refusé par
--- `public.rattachement_hors_porteur()` : il compterait la compétence deux fois
--- dans sa propre couverture.
+-- `competences.domaine` n'est plus un tag : c'est le namespace de création qui
+-- a produit le code et qui porte la gouvernance d'ADR-065. La migration
+-- `20260823090000_domaines_hierarchiques_tags` l'a converti en tag explicite
+-- pour chaque compétence existante.
+--
+-- Les ancêtres ne sont jamais écrits : un tag sur un sous-domaine rend la
+-- compétence visible dans toute sa lignée par dérivation.
 CREATE TABLE IF NOT EXISTS public.competence_domaines (
   user_id     UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   code        TEXT NOT NULL,
@@ -632,34 +656,37 @@ CREATE TABLE IF NOT EXISTS public.document_attachments (
 );
 
 ALTER TABLE public.document_snapshots ENABLE ROW LEVEL SECURITY;
+-- ADR-074 : chaque politique d'une table metier porte compte_actif(), en plus
+-- de l'isolation par compte. Sans elle, un compte suspendu lit encore.
 DROP POLICY IF EXISTS "snapshots_lecture_compte" ON public.document_snapshots;
 CREATE POLICY "snapshots_lecture_compte"
   ON public.document_snapshots FOR SELECT
   TO authenticated
-  USING ((select auth.uid()) = user_id);
+  USING ((select auth.uid()) = user_id AND (select public.compte_actif()));
 DROP POLICY IF EXISTS "snapshots_creation_compte" ON public.document_snapshots;
 CREATE POLICY "snapshots_creation_compte"
   ON public.document_snapshots FOR INSERT
   TO authenticated
-  WITH CHECK ((select auth.uid()) = user_id);
+  WITH CHECK ((select auth.uid()) = user_id AND (select public.compte_actif()));
 DROP POLICY IF EXISTS "snapshots_suppression_compte" ON public.document_snapshots;
 CREATE POLICY "snapshots_suppression_compte"
   ON public.document_snapshots FOR DELETE
   TO authenticated
-  USING ((select auth.uid()) = user_id);
+  USING ((select auth.uid()) = user_id AND (select public.compte_actif()));
 
 ALTER TABLE public.document_attachments ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "pieces_jointes_lecture_compte" ON public.document_attachments;
 CREATE POLICY "pieces_jointes_lecture_compte"
   ON public.document_attachments FOR SELECT
   TO authenticated
-  USING ((select auth.uid()) = user_id);
+  USING ((select auth.uid()) = user_id AND (select public.compte_actif()));
 DROP POLICY IF EXISTS "pieces_jointes_creation_note_support" ON public.document_attachments;
 CREATE POLICY "pieces_jointes_creation_note_support"
   ON public.document_attachments FOR INSERT
   TO authenticated
   WITH CHECK (
     (select auth.uid()) = user_id
+    AND (select public.compte_actif())
     AND EXISTS (
       SELECT 1
       FROM public.documents
@@ -672,7 +699,7 @@ DROP POLICY IF EXISTS "pieces_jointes_suppression_compte" ON public.document_att
 CREATE POLICY "pieces_jointes_suppression_compte"
   ON public.document_attachments FOR DELETE
   TO authenticated
-  USING ((select auth.uid()) = user_id);
+  USING ((select auth.uid()) = user_id AND (select public.compte_actif()));
 
 -- Bucket prive : aucune piece jointe ne doit etre accessible par une URL
 -- publique. Depuis le 22/08/2026 : PDF et images (acceptation passive P2).
@@ -1108,16 +1135,22 @@ GRANT EXECUTE ON FUNCTION public.classer_domaine(TEXT, TEXT, TEXT, TEXT) TO auth
 
 ALTER TABLE public.referentiel_codes_emis ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.referentiel_changes ENABLE ROW LEVEL SECURITY;
+-- ADR-074 : chaque politique porte compte_actif(), en plus de l'isolation et
+-- du drapeau de commande. Sans elle, un compte suspendu lit encore ses lignes.
 DROP POLICY IF EXISTS "codes_emis_lecture_compte" ON public.referentiel_codes_emis;
-CREATE POLICY "codes_emis_lecture_compte" ON public.referentiel_codes_emis FOR SELECT TO authenticated USING ((select auth.uid()) = user_id);
+CREATE POLICY "codes_emis_lecture_compte" ON public.referentiel_codes_emis FOR SELECT TO authenticated
+  USING ((select auth.uid()) = user_id AND (select public.compte_actif()));
 DROP POLICY IF EXISTS "codes_emis_commande_compte" ON public.referentiel_codes_emis;
 CREATE POLICY "codes_emis_commande_compte" ON public.referentiel_codes_emis FOR INSERT TO authenticated
-  WITH CHECK ((select auth.uid()) = user_id AND (select current_setting('app.referentiel_command', true)) = 'on');
+  WITH CHECK ((select auth.uid()) = user_id AND (select public.compte_actif())
+    AND (select current_setting('app.referentiel_command', true)) = 'on');
 DROP POLICY IF EXISTS "referentiel_changes_lecture_compte" ON public.referentiel_changes;
-CREATE POLICY "referentiel_changes_lecture_compte" ON public.referentiel_changes FOR SELECT TO authenticated USING ((select auth.uid()) = user_id);
+CREATE POLICY "referentiel_changes_lecture_compte" ON public.referentiel_changes FOR SELECT TO authenticated
+  USING ((select auth.uid()) = user_id AND (select public.compte_actif()));
 DROP POLICY IF EXISTS "referentiel_changes_commande_compte" ON public.referentiel_changes;
 CREATE POLICY "referentiel_changes_commande_compte" ON public.referentiel_changes FOR INSERT TO authenticated
-  WITH CHECK ((select auth.uid()) = user_id AND (select current_setting('app.referentiel_command', true)) = 'on');
+  WITH CHECK ((select auth.uid()) = user_id AND (select public.compte_actif())
+    AND (select current_setting('app.referentiel_command', true)) = 'on');
 
 -- Remplace la politique uniforme posée par la boucle pour les deux agrégats.
 DROP POLICY IF EXISTS "isolation_par_compte" ON public.domaines;
@@ -1132,55 +1165,51 @@ DROP POLICY IF EXISTS "referentiel_commande_suppression" ON public.domaines;
 DROP POLICY IF EXISTS "referentiel_commande_insertion" ON public.competences;
 DROP POLICY IF EXISTS "referentiel_commande_modification" ON public.competences;
 DROP POLICY IF EXISTS "referentiel_commande_suppression" ON public.competences;
-CREATE POLICY "referentiel_lecture_compte" ON public.domaines FOR SELECT TO authenticated USING ((select auth.uid()) = user_id);
-CREATE POLICY "referentiel_lecture_compte" ON public.competences FOR SELECT TO authenticated USING ((select auth.uid()) = user_id);
+CREATE POLICY "referentiel_lecture_compte" ON public.domaines FOR SELECT TO authenticated
+  USING ((select auth.uid()) = user_id AND (select public.compte_actif()));
+CREATE POLICY "referentiel_lecture_compte" ON public.competences FOR SELECT TO authenticated
+  USING ((select auth.uid()) = user_id AND (select public.compte_actif()));
 CREATE POLICY "referentiel_commande_insertion" ON public.domaines FOR INSERT TO authenticated
-  WITH CHECK ((select auth.uid()) = user_id AND (select current_setting('app.referentiel_command', true)) = 'on');
+  WITH CHECK ((select auth.uid()) = user_id AND (select public.compte_actif())
+    AND (select current_setting('app.referentiel_command', true)) = 'on');
 CREATE POLICY "referentiel_commande_modification" ON public.domaines FOR UPDATE TO authenticated
-  USING ((select auth.uid()) = user_id AND (select current_setting('app.referentiel_command', true)) = 'on')
-  WITH CHECK ((select auth.uid()) = user_id AND (select current_setting('app.referentiel_command', true)) = 'on');
+  USING ((select auth.uid()) = user_id AND (select public.compte_actif())
+    AND (select current_setting('app.referentiel_command', true)) = 'on')
+  WITH CHECK ((select auth.uid()) = user_id AND (select public.compte_actif())
+    AND (select current_setting('app.referentiel_command', true)) = 'on');
 CREATE POLICY "referentiel_commande_suppression" ON public.domaines FOR DELETE TO authenticated
-  USING ((select auth.uid()) = user_id AND (select current_setting('app.referentiel_command', true)) = 'on');
+  USING ((select auth.uid()) = user_id AND (select public.compte_actif())
+    AND (select current_setting('app.referentiel_command', true)) = 'on');
 CREATE POLICY "referentiel_commande_insertion" ON public.competences FOR INSERT TO authenticated
-  WITH CHECK ((select auth.uid()) = user_id AND (select current_setting('app.referentiel_command', true)) = 'on');
+  WITH CHECK ((select auth.uid()) = user_id AND (select public.compte_actif())
+    AND (select current_setting('app.referentiel_command', true)) = 'on');
 CREATE POLICY "referentiel_commande_modification" ON public.competences FOR UPDATE TO authenticated
-  USING ((select auth.uid()) = user_id AND (select current_setting('app.referentiel_command', true)) = 'on')
-  WITH CHECK ((select auth.uid()) = user_id AND (select current_setting('app.referentiel_command', true)) = 'on');
+  USING ((select auth.uid()) = user_id AND (select public.compte_actif())
+    AND (select current_setting('app.referentiel_command', true)) = 'on')
+  WITH CHECK ((select auth.uid()) = user_id AND (select public.compte_actif())
+    AND (select current_setting('app.referentiel_command', true)) = 'on');
 CREATE POLICY "referentiel_commande_suppression" ON public.competences FOR DELETE TO authenticated
-  USING ((select auth.uid()) = user_id AND (select current_setting('app.referentiel_command', true)) = 'on');
+  USING ((select auth.uid()) = user_id AND (select public.compte_actif())
+    AND (select current_setting('app.referentiel_command', true)) = 'on');
 
--- Domaines secondaires du référentiel (ADR-081) : même frontière de commande
--- transactionnelle et même isolation RLS que le porteur.
+-- Tags de domaine (ADR-107) : même frontière de commande transactionnelle et
+-- même isolation RLS que `competences`.
 comment on table public.competence_domaines is
-  'Domaines supplémentaires servis par une compétence. Le domaine porteur reste competences.domaine : il donne le code et porte la gouvernance.';
+  'Tags de domaine d''une compétence (ADR-107). Une compétence peut en porter plusieurs, ou aucune — elle est alors « À classer ». competences.domaine reste le namespace de création du code, jamais un tag.';
+
+comment on column public.competences.domaine is
+  'Namespace de création : c''est lui qui a produit le code (LOG-01) et il porte la gouvernance d''ADR-065. Depuis ADR-107 ce n''est PLUS un rattachement métier — la visibilité d''une compétence se lit dans competence_domaines.';
 
 create index if not exists competence_domaines_domaine_idx
   on public.competence_domaines (user_id, domaine);
 
--- Un rattachement vers le domaine porteur compterait la compétence deux fois
--- dans sa propre couverture. La clause vit ici plutôt que dans la seule
--- fonction : la base reste vraie même si un autre chemin écrit un jour.
-create or replace function public.rattachement_hors_porteur()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  if exists (
-    select 1 from public.competences c
-    where c.user_id = new.user_id and c.code = new.code and c.domaine = new.domaine
-  ) then
-    raise exception '% est déjà portée par le domaine « % » : un rattachement ne se superpose pas au porteur.', new.code, new.domaine;
-  end if;
-  return new;
-end;
-$$;
-
+-- Le trigger `competence_domaines_hors_porteur` refusait qu'une compétence
+-- soit taguée vers son domaine de création : sous ADR-081 ce rattachement
+-- l'aurait comptée deux fois dans sa propre couverture. ADR-107 supprime la
+-- notion de porteur, donc le double : il n'y a plus qu'un ensemble de tags,
+-- dédupliqué par la clé primaire.
 drop trigger if exists competence_domaines_hors_porteur on public.competence_domaines;
-create trigger competence_domaines_hors_porteur
-  before insert or update on public.competence_domaines
-  for each row execute function public.rattachement_hors_porteur();
+drop function if exists public.rattachement_hors_porteur();
 
 alter table public.competence_domaines enable row level security;
 
@@ -1209,7 +1238,7 @@ create policy referentiel_commande_suppression on public.competence_domaines
 
 grant select, insert, delete on public.competence_domaines to authenticated;
 
--- Le geste de rattachement, transactionnel comme les autres.
+-- Le geste de tag, transactionnel comme les autres (ADR-107).
 --
 -- Il ne rejoint pas `appliquer_commande_referentiel` : cette fonction liste ses
 -- types autorisés dans un bloc unique de plus de 13 Ko, et l'étendre ferait
@@ -1217,14 +1246,19 @@ grant select, insert, delete on public.competence_domaines to authenticated;
 -- d'écriture du référentiel. Les garanties d'ADR-065 sont reprises ici telles
 -- quelles : idempotence par `request_id`, version optimiste, journal
 -- append-only, drapeau de commande.
-create or replace function public.rattacher_competences_domaine(
+--
+-- `rattacher_competences_domaine` était la version ADR-081 de cette commande :
+-- elle levait dès qu'on visait le domaine porteur. La migration
+-- `20260823090000_domaines_hierarchiques_tags` la supprime plutôt que de la
+-- laisser en second chemin d'écriture appliquant un modèle abandonné.
+create or replace function public.taguer_competences_domaine(
   p_request_id text,
   p_expected_version integer,
   p_origine text,
   p_motif text,
   p_domaine_id text,
   p_codes text[],
-  p_rattache boolean
+  p_tague boolean
 )
 returns jsonb
 language plpgsql
@@ -1237,14 +1271,13 @@ DECLARE
   v_version_apres INTEGER;
   v_resultat JSONB;
   v_code TEXT;
-  v_porteur TEXT;
   v_touches JSONB := '[]'::JSONB;
 BEGIN
   IF v_uid IS NULL THEN RAISE EXCEPTION 'Authentification requise.' USING ERRCODE = '42501'; END IF;
   IF length(btrim(coalesce(p_request_id, ''))) = 0 THEN RAISE EXCEPTION 'request_id obligatoire.'; END IF;
   IF p_origine NOT IN ('utilisateur', 'tuteur', 'migration', 'manuel') THEN RAISE EXCEPTION 'Origine inconnue : %', p_origine; END IF;
   IF length(btrim(coalesce(p_motif, ''))) = 0 THEN RAISE EXCEPTION 'Le motif est obligatoire.'; END IF;
-  IF coalesce(array_length(p_codes, 1), 0) = 0 THEN RAISE EXCEPTION 'Aucune compétence à rattacher.'; END IF;
+  IF coalesce(array_length(p_codes, 1), 0) = 0 THEN RAISE EXCEPTION 'Aucune compétence à taguer.'; END IF;
 
   PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_uid::TEXT || ':request:' || p_request_id, 0));
 
@@ -1259,20 +1292,17 @@ BEGIN
   WHERE user_id = v_uid AND id = p_domaine_id;
   IF NOT FOUND THEN RAISE EXCEPTION 'Domaine inconnu : %', p_domaine_id; END IF;
   IF p_expected_version IS NOT NULL AND p_expected_version <> v_version_avant THEN
-    RAISE EXCEPTION 'Le domaine a changé depuis ta lecture (version % attendue, % en base).', p_expected_version, v_version_avant;
+    RAISE EXCEPTION 'Le domaine a changé depuis ta lecture (version % attendue, % en base).', p_expected_version, v_version_avant USING ERRCODE = '40001';
   END IF;
 
   PERFORM pg_catalog.set_config('app.referentiel_command', 'on', true);
 
   FOREACH v_code IN ARRAY p_codes LOOP
-    SELECT domaine INTO v_porteur FROM public.competences
-    WHERE user_id = v_uid AND code = v_code;
-    IF NOT FOUND THEN RAISE EXCEPTION 'Compétence inconnue : %', v_code; END IF;
-    IF v_porteur = p_domaine_id THEN
-      RAISE EXCEPTION '% est déjà portée par ce domaine.', v_code;
+    IF NOT EXISTS (SELECT 1 FROM public.competences WHERE user_id = v_uid AND code = v_code) THEN
+      RAISE EXCEPTION 'Compétence inconnue : %', v_code;
     END IF;
 
-    IF p_rattache THEN
+    IF p_tague THEN
       INSERT INTO public.competence_domaines (user_id, code, domaine)
       VALUES (v_uid, v_code, p_domaine_id)
       ON CONFLICT DO NOTHING;
@@ -1290,14 +1320,14 @@ BEGIN
   v_resultat := jsonb_build_object(
     'domaineId', p_domaine_id,
     'version', v_version_apres,
-    'rattachees', CASE WHEN p_rattache THEN v_touches ELSE '[]'::JSONB END,
-    'detachees', CASE WHEN p_rattache THEN '[]'::JSONB ELSE v_touches END
+    'taguees', CASE WHEN p_tague THEN v_touches ELSE '[]'::JSONB END,
+    'detaguees', CASE WHEN p_tague THEN '[]'::JSONB ELSE v_touches END
   );
 
   INSERT INTO public.referentiel_changes (user_id, request_id, domaine_id, type, version_avant, version_apres, origine, motif, diff)
   VALUES (
     v_uid, p_request_id, p_domaine_id,
-    CASE WHEN p_rattache THEN 'rattacher_competences' ELSE 'detacher_competences' END,
+    CASE WHEN p_tague THEN 'taguer_competences' ELSE 'detaguer_competences' END,
     v_version_avant, v_version_apres, p_origine, btrim(p_motif),
     jsonb_build_object('resultat', v_resultat)
   );
@@ -1306,14 +1336,105 @@ BEGIN
 END;
 $$;
 
-revoke all on function public.rattacher_competences_domaine(text, integer, text, text, text, text[], boolean) from public, anon;
-grant execute on function public.rattacher_competences_domaine(text, integer, text, text, text, text[], boolean) to authenticated;
+revoke all on function public.taguer_competences_domaine(text, integer, text, text, text, text[], boolean) from public, anon;
+grant execute on function public.taguer_competences_domaine(text, integer, text, text, text, text[], boolean) to authenticated;
 
--- Une fonction de trigger n'a pas à être appelable depuis l'API REST.
--- Le trigger s'exécute sans passer par le GRANT ; seul l'accès direct se ferme.
-revoke execute on function public.rattachement_hors_porteur() from public;
-revoke execute on function public.rattachement_hors_porteur() from anon;
-revoke execute on function public.rattachement_hors_porteur() from authenticated;
+-- Déplacer un domaine dans la hiérarchie (ADR-107).
+--
+-- Mêmes garanties qu'au-dessus, et une de plus : la parenté circulaire est
+-- refusée. Le déplacement ne touche AUCUNE compétence, AUCUNE observation,
+-- AUCUN score — seule la visibilité dérivée change, et elle se recalcule.
+create or replace function public.deplacer_domaine(
+  p_request_id text,
+  p_expected_version integer,
+  p_origine text,
+  p_motif text,
+  p_domaine_id text,
+  p_parent_id text
+)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = public
+as $$
+DECLARE
+  v_uid UUID := auth.uid();
+  v_version_avant INTEGER;
+  v_version_apres INTEGER;
+  v_parent_avant TEXT;
+  v_resultat JSONB;
+BEGIN
+  IF v_uid IS NULL THEN RAISE EXCEPTION 'Authentification requise.' USING ERRCODE = '42501'; END IF;
+  IF length(btrim(coalesce(p_request_id, ''))) = 0 THEN RAISE EXCEPTION 'request_id obligatoire.'; END IF;
+  IF p_origine NOT IN ('utilisateur', 'tuteur', 'migration', 'manuel') THEN RAISE EXCEPTION 'Origine inconnue : %', p_origine; END IF;
+  IF length(btrim(coalesce(p_motif, ''))) = 0 THEN RAISE EXCEPTION 'Le motif est obligatoire.'; END IF;
+
+  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_uid::TEXT || ':request:' || p_request_id, 0));
+
+  SELECT diff -> 'resultat' INTO v_resultat
+  FROM public.referentiel_changes
+  WHERE user_id = v_uid AND request_id = p_request_id;
+  IF FOUND THEN RETURN v_resultat; END IF;
+
+  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_uid::TEXT || ':' || p_domaine_id, 0));
+
+  SELECT version, parent_id INTO v_version_avant, v_parent_avant
+  FROM public.domaines
+  WHERE user_id = v_uid AND id = p_domaine_id;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Domaine inconnu : %', p_domaine_id; END IF;
+  IF p_expected_version IS NOT NULL AND p_expected_version <> v_version_avant THEN
+    RAISE EXCEPTION 'Le domaine a changé depuis ta lecture (version % attendue, % en base).', p_expected_version, v_version_avant USING ERRCODE = '40001';
+  END IF;
+
+  IF p_parent_id IS NOT NULL THEN
+    IF p_parent_id = p_domaine_id THEN
+      RAISE EXCEPTION 'Un domaine ne peut pas être son propre parent.';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM public.domaines WHERE user_id = v_uid AND id = p_parent_id) THEN
+      RAISE EXCEPTION 'Domaine parent inconnu : %', p_parent_id;
+    END IF;
+    -- Le parent visé ne doit pas descendre du domaine déplacé : la branche se
+    -- refermerait sur elle-même et toute lecture d'ancêtres bouclerait.
+    IF EXISTS (
+      WITH RECURSIVE descendance AS (
+        SELECT d.id FROM public.domaines d WHERE d.user_id = v_uid AND d.id = p_domaine_id
+        UNION
+        SELECT enfant.id FROM public.domaines enfant
+        JOIN descendance parent ON enfant.parent_id = parent.id
+        WHERE enfant.user_id = v_uid
+      )
+      SELECT 1 FROM descendance WHERE id = p_parent_id
+    ) THEN
+      RAISE EXCEPTION 'Parenté circulaire refusée : « % » descend de « % ».', p_parent_id, p_domaine_id;
+    END IF;
+  END IF;
+
+  PERFORM pg_catalog.set_config('app.referentiel_command', 'on', true);
+
+  UPDATE public.domaines SET parent_id = p_parent_id, version = version + 1
+  WHERE user_id = v_uid AND id = p_domaine_id
+  RETURNING version INTO v_version_apres;
+
+  v_resultat := jsonb_build_object(
+    'domaineId', p_domaine_id,
+    'version', v_version_apres,
+    'parentAvant', v_parent_avant,
+    'parentApres', p_parent_id
+  );
+
+  INSERT INTO public.referentiel_changes (user_id, request_id, domaine_id, type, version_avant, version_apres, origine, motif, diff)
+  VALUES (
+    v_uid, p_request_id, p_domaine_id, 'deplacer_domaine',
+    v_version_avant, v_version_apres, p_origine, btrim(p_motif),
+    jsonb_build_object('resultat', v_resultat)
+  );
+
+  RETURN v_resultat;
+END;
+$$;
+
+revoke all on function public.deplacer_domaine(text, integer, text, text, text, text) from public, anon;
+grant execute on function public.deplacer_domaine(text, integer, text, text, text, text) to authenticated;
 
 -- Accès le plus fréquent : l'état d'une compétence se recalcule à partir de
 -- toutes ses observations.
@@ -2391,3 +2512,325 @@ CREATE INDEX IF NOT EXISTS comptes_acces_suspendu_par_idx
 
 
 -- --------------------------------------------------------------------
+-- 12. La relecture du référentiel et ses propositions (ADR-108)
+--
+-- Deux gestes, tous deux additifs et rejouables :
+--
+--   1. `propositions_referentiel` — le fait daté qu'une relecture a proposé
+--      quelque chose, et le fait daté de son arbitrage. Aucun état dérivé n'y
+--      entre : ni score, ni niveau, ni classement, ni « ce domaine est mal
+--      découpé ». On y lit ce qui a été proposé le J, rien de plus ;
+--   2. `scinder_domaine` — la commande transactionnelle qui crée un
+--      sous-domaine, le rattache à son parent et y transfère les tags EN UN
+--      SEUL APPEL.
+--
+-- Ce qui n'est PAS écrit ici, et ne doit jamais l'être :
+--
+--   - la péremption d'une proposition. Elle se dérive de `versions_lues`
+--     comparé aux versions courantes des domaines, à chaque lecture (couche 3) ;
+--   - le taux de rétention par genre. Il se recalcule depuis les arbitrages ;
+--   - la visibilité héritée. Inchangée depuis ADR-107 : un tag posé sur le
+--     sous-domaine rend la compétence visible dans tous ses ancêtres par
+--     dérivation, et c'est précisément ce qui fait qu'une scission ne perd rien.
+--
+-- Posée par `migrations/20260824090000_relecture_referentiel.sql`, reprise ici
+-- à l'identique — ce fichier reste le schéma de référence.
+-- --------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS public.propositions_referentiel (
+  user_id       UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  id            TEXT NOT NULL,
+  -- Le lot qui l'a produite. C'est l'unité que mesure le test de réfutation
+  -- d'ADR-108 : « sur les trois premiers lots produits ».
+  lot_id        TEXT NOT NULL,
+  genre         TEXT NOT NULL CHECK (genre IN (
+                  'arete', 'dormance', 'reformulation', 'rangement',
+                  'scission', 'relation', 'manque')),
+  -- Le domaine visé, quand la proposition en vise un. NULL sinon.
+  --
+  -- Volontairement SANS clé étrangère, à la différence de tout le reste du
+  -- référentiel. Une proposition est un fait daté : « le J, un découpage de
+  -- LOG a été proposé » reste vrai même si LOG disparaît ensuite, et une
+  -- cascade détruirait en silence l'historique dont le taux de rétention est
+  -- tiré.
+  domaine_id    TEXT,
+  -- Identité stable, indépendante du lot. Deux relectures qui proposent la
+  -- même chose avec deux phrases différentes partagent cette empreinte : c'est
+  -- ce qui permet à un refus de valoir pour les deux, et empêche le lot de se
+  -- rallumer indéfiniment.
+  empreinte     TEXT NOT NULL,
+  -- Les versions des domaines lus à la production, `{"log": 12, "stat": 3}`.
+  -- La péremption s'en DÉDUIT ; elle ne s'écrit nulle part.
+  versions_lues JSONB NOT NULL DEFAULT '{}'::jsonb,
+  contenu       JSONB NOT NULL,
+  -- Les faits qui la motivent. Jamais un texte rédigé d'avance (P3) : sans
+  -- motif, une personne ne peut pas arbitrer en connaissance de cause.
+  motifs        TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+  -- L'arbitrage : un second fait daté, écrit une fois. NULL = pas encore
+  -- regardée, ce qui n'est ni un succès ni un échec.
+  arbitrage     TEXT CHECK (arbitrage IS NULL OR arbitrage IN ('retenue', 'refusee')),
+  arbitre_le    TIMESTAMPTZ,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, id),
+  -- Tout ou rien : un arbitrage sans date serait une affirmation sans source
+  -- (invariant 2).
+  CONSTRAINT propositions_arbitrage_complet CHECK (
+    (arbitrage IS NULL AND arbitre_le IS NULL)
+    OR (arbitrage IS NOT NULL AND arbitre_le IS NOT NULL)
+  )
+);
+
+COMMENT ON TABLE public.propositions_referentiel IS
+  'Propositions de relecture du référentiel et leurs arbitrages (ADR-108). Faits datés — précédent ADR-004. Aucun état dérivé : la péremption et le taux de rétention se recalculent à la lecture.';
+
+-- Le lot ouvert se lit en excluant les arbitrées : l'index partiel évite de
+-- parcourir un historique qui ne fait que grossir.
+CREATE INDEX IF NOT EXISTS propositions_referentiel_ouvertes_idx
+  ON public.propositions_referentiel (user_id, created_at DESC)
+  WHERE arbitrage IS NULL;
+
+-- Le filtrage des refus se fait à la lecture, par empreinte.
+CREATE INDEX IF NOT EXISTS propositions_referentiel_empreinte_idx
+  ON public.propositions_referentiel (user_id, empreinte);
+
+-- Un arbitrage s'écrit UNE fois et ne se réécrit pas ; une proposition est un
+-- fait daté dont seul l'arbitrage peut être écrit. Sans ce trigger, repasser
+-- sur ses refus effacerait le signal que le test de réfutation d'ADR-108
+-- cherche.
+CREATE OR REPLACE FUNCTION public.refuser_reecriture_proposition()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+BEGIN
+  IF OLD.arbitrage IS NOT NULL THEN
+    RAISE EXCEPTION 'Cette proposition a déjà été arbitrée le %.', OLD.arbitre_le;
+  END IF;
+  IF NEW.genre IS DISTINCT FROM OLD.genre
+     OR NEW.contenu IS DISTINCT FROM OLD.contenu
+     OR NEW.empreinte IS DISTINCT FROM OLD.empreinte
+     OR NEW.versions_lues IS DISTINCT FROM OLD.versions_lues
+     OR NEW.lot_id IS DISTINCT FROM OLD.lot_id
+     OR NEW.motifs IS DISTINCT FROM OLD.motifs
+     OR NEW.domaine_id IS DISTINCT FROM OLD.domaine_id
+     OR NEW.created_at IS DISTINCT FROM OLD.created_at THEN
+    RAISE EXCEPTION 'Une proposition est un fait daté : seul son arbitrage peut être écrit.';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS propositions_referentiel_arbitrage_unique
+  ON public.propositions_referentiel;
+CREATE TRIGGER propositions_referentiel_arbitrage_unique
+  BEFORE UPDATE ON public.propositions_referentiel
+  FOR EACH ROW EXECUTE FUNCTION public.refuser_reecriture_proposition();
+
+ALTER TABLE public.propositions_referentiel ENABLE ROW LEVEL SECURITY;
+
+-- Pas de drapeau `app.referentiel_command` ici, et c'est délibéré : ADR-108
+-- exige que la relecture tourne HORS du chemin d'écriture du référentiel.
+-- Écrire une proposition ne mute aucun agrégat, ne consomme aucune version et
+-- ne peut faire échouer aucune commande.
+DROP POLICY IF EXISTS "propositions_lecture_compte" ON public.propositions_referentiel;
+CREATE POLICY "propositions_lecture_compte" ON public.propositions_referentiel
+  FOR SELECT TO authenticated
+  USING ((select auth.uid()) = user_id AND (select public.compte_actif()));
+
+DROP POLICY IF EXISTS "propositions_insertion_compte" ON public.propositions_referentiel;
+CREATE POLICY "propositions_insertion_compte" ON public.propositions_referentiel
+  FOR INSERT TO authenticated
+  WITH CHECK ((select auth.uid()) = user_id AND (select public.compte_actif()));
+
+DROP POLICY IF EXISTS "propositions_arbitrage_compte" ON public.propositions_referentiel;
+CREATE POLICY "propositions_arbitrage_compte" ON public.propositions_referentiel
+  FOR UPDATE TO authenticated
+  USING ((select auth.uid()) = user_id AND (select public.compte_actif()))
+  WITH CHECK ((select auth.uid()) = user_id AND (select public.compte_actif()));
+
+REVOKE ALL ON TABLE public.propositions_referentiel FROM anon;
+GRANT SELECT, INSERT, UPDATE ON TABLE public.propositions_referentiel TO authenticated;
+-- Une proposition ne s'efface pas : le fait qu'elle a été produite reste vrai,
+-- et le taux de rétention le compte.
+REVOKE DELETE, TRUNCATE, REFERENCES, TRIGGER ON TABLE public.propositions_referentiel
+  FROM authenticated;
+
+-- Scinder — créer le sous-domaine et y transférer les tags, en une seule
+-- commande transactionnelle (ADR-108).
+--
+-- Elle ne rejoint pas `appliquer_commande_referentiel`, pour la raison déjà
+-- retenue par ADR-081 puis ADR-107 : cette fonction déclare ses types dans un
+-- bloc unique de plus de 13 Ko, et l'étendre ferait porter à un ajout
+-- périphérique le risque de réécrire tout le chemin d'écriture du référentiel.
+-- Les garanties d'ADR-065 sont reprises telles quelles : `SECURITY INVOKER`,
+-- drapeau `app.referentiel_command`, verrou d'avis, idempotence par
+-- `request_id`, version optimiste (`40001` sur écran périmé), entrée dans
+-- `referentiel_changes`.
+--
+-- L'identifiant, le préfixe et le nom sont CALCULÉS PAR L'APPLICATION et
+-- passés en paramètre — jamais frappés par le tuteur (ADR-026, ADR-031).
+--
+-- Ce qu'elle ne touche pas : aucune compétence n'est créée, modifiée,
+-- déplacée ni recodée ; aucune observation n'est écrite ; aucun score ne
+-- bouge. Seuls des tags se déplacent d'un domaine vers son enfant.
+CREATE OR REPLACE FUNCTION public.scinder_domaine(
+  p_request_id text,
+  p_expected_version integer,
+  p_origine text,
+  p_motif text,
+  p_parent_id text,
+  p_sous_domaine_id text,
+  p_nom text,
+  p_prefixe text,
+  p_description text,
+  p_codes text[]
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
+DECLARE
+  v_uid UUID := auth.uid();
+  v_version_avant INTEGER;
+  v_version_apres INTEGER;
+  v_ordre INTEGER;
+  v_resultat JSONB;
+  v_code TEXT;
+  v_transferes JSONB := '[]'::JSONB;
+  v_ajoutes JSONB := '[]'::JSONB;
+  v_detag INTEGER;
+BEGIN
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'Authentification requise.' USING ERRCODE = '42501';
+  END IF;
+  IF length(btrim(coalesce(p_request_id, ''))) = 0 THEN
+    RAISE EXCEPTION 'request_id obligatoire.';
+  END IF;
+  IF p_origine NOT IN ('utilisateur', 'tuteur', 'migration', 'manuel') THEN
+    RAISE EXCEPTION 'Origine inconnue : %', p_origine;
+  END IF;
+  IF length(btrim(coalesce(p_motif, ''))) = 0 THEN
+    RAISE EXCEPTION 'Le motif est obligatoire.';
+  END IF;
+  IF length(btrim(coalesce(p_sous_domaine_id, ''))) = 0
+     OR length(btrim(coalesce(p_nom, ''))) = 0
+     OR length(btrim(coalesce(p_prefixe, ''))) = 0 THEN
+    RAISE EXCEPTION 'Un sous-domaine a besoin d''un identifiant, d''un nom et d''un préfixe.';
+  END IF;
+  -- Un sous-domaine sans compétence n'est pas une scission : c'est une branche
+  -- vide, exactement ce que le test de réfutation d'ADR-107 demande de surveiller.
+  IF coalesce(array_length(p_codes, 1), 0) = 0 THEN
+    RAISE EXCEPTION 'Une scission doit emporter au moins une compétence.';
+  END IF;
+
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(v_uid::TEXT || ':request:' || p_request_id, 0));
+
+  SELECT diff -> 'resultat' INTO v_resultat
+  FROM public.referentiel_changes
+  WHERE user_id = v_uid AND request_id = p_request_id;
+  IF FOUND THEN RETURN v_resultat; END IF;
+
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(v_uid::TEXT || ':' || p_parent_id, 0));
+
+  SELECT version INTO v_version_avant FROM public.domaines
+  WHERE user_id = v_uid AND id = p_parent_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Domaine parent inconnu : %', p_parent_id;
+  END IF;
+  IF p_expected_version IS NOT NULL AND p_expected_version <> v_version_avant THEN
+    RAISE EXCEPTION 'Le domaine a changé depuis ta lecture (version % attendue, % en base).',
+      p_expected_version, v_version_avant USING ERRCODE = '40001';
+  END IF;
+
+  -- Refus des cycles. Le sous-domaine est neuf, donc un cycle est impossible
+  -- par construction — mais seulement TANT QUE l'identifiant est réellement
+  -- neuf. Les deux contrôles ci-dessous sont ce qui rend cette prémisse vraie.
+  IF p_sous_domaine_id = p_parent_id THEN
+    RAISE EXCEPTION 'Un domaine ne peut pas être son propre parent.';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.domaines
+             WHERE user_id = v_uid AND id = p_sous_domaine_id) THEN
+    RAISE EXCEPTION 'Le domaine « % » existe déjà : une scission crée un domaine neuf.',
+      p_sous_domaine_id;
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.domaines
+             WHERE user_id = v_uid AND upper(prefixe) = upper(btrim(p_prefixe))) THEN
+    RAISE EXCEPTION 'Le préfixe « % » est déjà pris : deux domaines qui le partagent produiraient des codes en collision.',
+      p_prefixe;
+  END IF;
+
+  -- Toutes les compétences sont vérifiées AVANT la moindre écriture : une
+  -- scission est complète ou n'a pas lieu.
+  FOREACH v_code IN ARRAY p_codes LOOP
+    IF NOT EXISTS (SELECT 1 FROM public.competences
+                   WHERE user_id = v_uid AND code = v_code AND NOT archive) THEN
+      RAISE EXCEPTION 'Compétence inconnue ou archivée : %', v_code;
+    END IF;
+  END LOOP;
+
+  PERFORM pg_catalog.set_config('app.referentiel_command', 'on', true);
+
+  SELECT coalesce(max(ordre), -1) + 1 INTO v_ordre
+  FROM public.domaines WHERE user_id = v_uid;
+
+  INSERT INTO public.domaines (user_id, id, nom, prefixe, description, ordre, origine, parent_id)
+  VALUES (v_uid, p_sous_domaine_id, btrim(p_nom), upper(btrim(p_prefixe)),
+          coalesce(btrim(p_description), ''), v_ordre, p_origine, p_parent_id);
+
+  -- Le transfert. Poser le tag sur l'enfant SUFFIT à garder la compétence
+  -- visible dans le parent : la visibilité héritée se dérive (ADR-107).
+  -- Retirer le tag du parent n'enlève donc rien — c'est ce qui distingue une
+  -- scission d'une duplication, et ce qui fait qu'aucun score ne bouge.
+  --
+  -- Une compétence qui n'était PAS taguée sur le parent est simplement
+  -- ajoutée : le DELETE ne trouve rien, et `v_ajoutes` le dit au journal
+  -- plutôt que de laisser croire à un transfert qui n'a pas eu lieu (P2).
+  FOREACH v_code IN ARRAY p_codes LOOP
+    INSERT INTO public.competence_domaines (user_id, code, domaine)
+    VALUES (v_uid, v_code, p_sous_domaine_id)
+    ON CONFLICT DO NOTHING;
+
+    DELETE FROM public.competence_domaines
+    WHERE user_id = v_uid AND code = v_code AND domaine = p_parent_id;
+    GET DIAGNOSTICS v_detag = ROW_COUNT;
+
+    IF v_detag > 0 THEN
+      v_transferes := v_transferes || to_jsonb(v_code);
+    ELSE
+      v_ajoutes := v_ajoutes || to_jsonb(v_code);
+    END IF;
+  END LOOP;
+
+  UPDATE public.domaines SET version = version + 1
+  WHERE user_id = v_uid AND id = p_parent_id
+  RETURNING version INTO v_version_apres;
+
+  v_resultat := jsonb_build_object(
+    'parentId', p_parent_id,
+    'sousDomaineId', p_sous_domaine_id,
+    'nom', btrim(p_nom),
+    'prefixe', upper(btrim(p_prefixe)),
+    'version', v_version_apres,
+    'transferees', v_transferes,
+    'ajoutees', v_ajoutes
+  );
+
+  INSERT INTO public.referentiel_changes (
+    user_id, request_id, domaine_id, type,
+    version_avant, version_apres, origine, motif, diff)
+  VALUES (
+    v_uid, p_request_id, p_parent_id, 'scinder_domaine',
+    v_version_avant, v_version_apres, p_origine, btrim(p_motif),
+    jsonb_build_object('resultat', v_resultat));
+
+  RETURN v_resultat;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.scinder_domaine(
+  text, integer, text, text, text, text, text, text, text, text[]) FROM public, anon;
+GRANT EXECUTE ON FUNCTION public.scinder_domaine(
+  text, integer, text, text, text, text, text, text, text, text[]) TO authenticated;

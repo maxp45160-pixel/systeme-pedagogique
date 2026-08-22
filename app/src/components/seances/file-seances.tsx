@@ -10,7 +10,7 @@ import {
   Etiquette,
 } from "@/components/ui/primitives";
 import { ActionSeance } from "@/components/seances/action-seance";
-import { IconeMinuteur } from "@/components/ui/icones";
+import { IconeMinuteur, IconeValide } from "@/components/ui/icones";
 import { formatDateCourte } from "@/lib/engine/dates";
 import { avancementSeance, estModeEpreuve, peutReprendreSeance, statutSeance } from "@/lib/domain/seance";
 import {
@@ -279,7 +279,7 @@ export function CarteSeance({
                 >
                   {index + 1}. {act.libelle}
                 </span>
-                {faite && <span className="text-texte-discret">✓</span>}
+                {faite && <IconeValide className="size-3.5 text-texte-discret" />}
                 {courante && (
                   <span className="font-medium text-primaire">En cours</span>
                 )}

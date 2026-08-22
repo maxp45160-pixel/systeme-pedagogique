@@ -13,6 +13,7 @@ import { useMemo } from "react";
 import type { TypeLien } from "@/lib/domain/graphe";
 import type { ReglagesGraphe } from "./reglages-graphe";
 import { couleurDomaine, indexerDomaines } from "@/lib/ui/couleurs-domaines";
+import { IconeFermer } from "@/components/ui/icones";
 
 export function PanneauReglages({
   reglages,
@@ -76,7 +77,7 @@ export function PanneauReglages({
           className="grid size-8 place-items-center rounded-lg border border-bordure text-texte-attenue hover:text-texte cursor-pointer"
           aria-label="Fermer le panneau de réglages"
         >
-          ✕
+          <IconeFermer className="size-4" />
         </button>
       </div>
 

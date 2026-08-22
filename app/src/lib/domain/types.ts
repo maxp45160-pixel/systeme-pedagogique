@@ -125,6 +125,19 @@ export interface Domaine {
   version: number;
   archive: boolean;
   origine: OrigineReferentiel;
+  /**
+   * Domaine parent dans la hiérarchie du compte (ADR-107). Absent = racine.
+   *
+   * La hiérarchie est récursive et sans plafond métier : un sous-domaine est un
+   * domaine comme les autres. Aucune table `sous_domaines` n'existe, et rien de
+   * ce qui en découle — visibilité héritée, périmètre du sous-arbre — n'est
+   * écrit : tout se dérive à la lecture (`lib/domain/hierarchie-domaines.ts`).
+   *
+   * Les cycles sont refusés par la commande `deplacer_domaine`, jamais réparés
+   * après coup. Les lectures restent néanmoins défensives : une donnée venue de
+   * Supabase se traverse sans supposer qu'elle est saine.
+   */
+  parentId?: DomaineId;
 
   /*
    * Position du domaine sur la carte des savoirs (couche 1 — déclaré).
@@ -184,20 +197,37 @@ export interface Skill {
    */
   code: string;
   /**
-   * Le domaine **porteur** : il donne le code et porte la gouvernance
-   * (retrait, archivage, succession). Une compétence n'en a jamais qu'un.
+   * Le **namespace de création** : le domaine qui a produit le code, et qui
+   * porte la gouvernance (retrait, archivage, succession — ADR-065).
+   *
+   * Ce n'était plus, depuis ADR-107, une propriété métier : ce n'est pas là
+   * qu'on lit où la compétence est visible. Un domaine de création ne rend
+   * visible nulle part par lui-même ; c'est `tagsDomaine` qui le fait, et la
+   * migration a converti chaque domaine de création en tag explicite.
+   *
+   * Le préfixe reste donc un namespace stable, pas une propriété exclusive.
+   * Le remplacement éventuel du code par un identifiant indépendant des
+   * domaines est une décision séparée, encore ouverte (ADR-107).
    */
   domaine: DomaineId;
   /**
-   * Domaines supplémentaires que cette compétence sert (ADR-081).
+   * Les domaines que cette compétence sert (ADR-107) — ses tags.
    *
-   * Un savoir-faire partagé — « Lire un tableau de données » en Statistiques
-   * comme en Logistique — s'y rattache **sans être dupliqué** : un second code
-   * dédoublerait ses observations. Les rattachements comptent dans la couverture
-   * des domaines concernés, jamais dans le score global, qui somme sur les
-   * compétences et non sur les domaines.
+   * Une compétence peut en porter **plusieurs** : « Lire un tableau de
+   * données » sert Statistiques et Logistique sans être dupliquée, un second
+   * code dédoublerait ses observations. Elle peut aussi n'en porter **aucun** :
+   * elle est alors « À classer », un fait du référentiel qu'aucun domaine ne
+   * montre tant qu'une personne ne l'y range pas.
+   *
+   * Ce tableau ne contient que les tags **déclarés**. Les ancêtres ne s'y
+   * trouvent jamais : un tag sur un sous-domaine rend la compétence visible
+   * dans toute sa lignée par dérivation
+   * (`hierarchie-domaines.ts`, `progression.ts`), jamais par une ligne écrite.
+   *
+   * Les tags comptent dans la couverture de chaque domaine concerné, jamais
+   * dans le score global, qui somme sur les compétences et non sur les domaines.
    */
-  domainesSecondaires?: DomaineId[];
+  tagsDomaine?: DomaineId[];
   intitule: string;
   palier: Palier;
   /** Codes des compétences prérequises (indicatif, jamais bloquant). */

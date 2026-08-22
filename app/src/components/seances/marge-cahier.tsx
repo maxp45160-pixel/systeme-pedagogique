@@ -1,5 +1,5 @@
 import { Bouton, Carte, EnTeteCarte, cx } from "@/components/ui/primitives";
-import { IconePlus } from "@/components/ui/icones";
+import { IconePlus, IconeValide } from "@/components/ui/icones";
 import { TraiterLigneMarge } from "@/components/seances/traiter-ligne-marge";
 import { LIGNE_MARGE_MAX, type LigneMarge } from "@/lib/documents/marge";
 import {
@@ -139,9 +139,9 @@ export function ListeMarge({
                   ? `Rouvrir « ${ligne.texte} »`
                   : `Marquer « ${ligne.texte} » comme traité`
               }
-              className="flex size-4 items-center justify-center rounded border border-bordure-controle text-[0.625rem] leading-none text-primaire transition-colors hover:border-primaire"
+              className="flex size-4 items-center justify-center rounded border border-bordure-controle text-primaire transition-colors hover:border-primaire"
             >
-              {ligne.faite ? "✓" : ""}
+              {ligne.faite ? <IconeValide className="size-3" /> : null}
             </button>
           </form>
 

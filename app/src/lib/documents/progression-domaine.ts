@@ -92,6 +92,7 @@ export function construireProgressionsDomaines(
     const lecture = lectureDomaine({
       domaineId: domaine.id,
       skills: referentiel.skills,
+      domaines: referentiel.domaines,
       etats: entrees.etats,
       observations: entrees.observations,
       exercices: entrees.exercices,

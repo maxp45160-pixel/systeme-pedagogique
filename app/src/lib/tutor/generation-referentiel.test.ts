@@ -89,6 +89,23 @@ describe("construirePromptSuggestion", () => {
     expect(prompt).toContain("Sujet demandé : le stoïcisme");
   });
 
+  /*
+   * La coupure elle-même. Le sujet est la seule chose qui change d'une
+   * suggestion à l'autre : s'il regagnait le préfixe, `cacheLu` retomberait à
+   * zéro sur ce chemin sans que rien d'autre ne tombe (ADR-097).
+   */
+  it("place le sujet demandé HORS du bloc stable", () => {
+    const { stable, variable } = construirePromptSuggestionBlocs(REFERENTIEL, "l'épicurisme");
+    expect(variable).toContain("l'épicurisme");
+    expect(stable).not.toContain("l'épicurisme");
+  });
+
+  it("laisse le référentiel du compte dans le bloc stable — c'est lui qui ne bouge pas entre deux tours", () => {
+    const { stable, variable } = construirePromptSuggestionBlocs(REFERENTIEL, "peu importe");
+    expect(stable).toContain("logistique");
+    expect(variable).not.toContain("logistique");
+  });
+
   it("ne liste que les domaines qui portent une compétence active", () => {
     // « dormant » n'a aucune compétence active : le proposer comme rattachement
     // enverrait la branche dans un domaine que rien n'alimente.

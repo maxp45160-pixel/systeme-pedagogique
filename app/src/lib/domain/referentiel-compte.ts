@@ -55,51 +55,61 @@ export function assemblerReferentiel(
   domaines: Domaine[],
   skills: Skill[],
   /**
-   * Rattachements lus dans `competence_domaines`. Absents, chaque compétence ne
-   * sert que son domaine porteur — c'est l'état de tout compte qui n'a jamais
-   * rattaché quoi que ce soit, et le comportement d'avant ADR-081.
+   * Les tags lus dans `competence_domaines` (ADR-107).
+   *
+   * Absents, aucune compétence n'est visible d'aucun domaine : elles sont
+   * toutes « À classer ». Ce n'est pas un repli mais la lecture exacte de la
+   * table — la migration `20260823090000` a converti chaque domaine de création
+   * en tag, précisément pour qu'aucun référentiel existant ne s'y retrouve.
    */
-  rattachements: Array<{ code: string; domaine: string }> = [],
+  tags: Array<{ code: string; domaine: string }> = [],
 ): Referentiel {
-  const secondairesParCode = new Map<string, string[]>();
+  const tagsParCode = new Map<string, string[]>();
   const domainesConnus = new Set(domaines.map(({ id }) => id));
   const skillsParCode = new Map(skills.map((skill) => [skill.code, skill]));
 
   for (const skill of skills) {
     if (!domainesConnus.has(skill.domaine)) {
       throw new Error(
-        `Référentiel invalide : le domaine porteur « ${skill.domaine} » de « ${skill.code} » est absent.`,
+        `Référentiel invalide : le domaine de création « ${skill.domaine} » de « ${skill.code} » est absent.`,
       );
     }
   }
 
-  for (const { code, domaine } of rattachements) {
+  /*
+   * Un parent absent ne fait pas échouer la lecture : le domaine se lit à la
+   * racine (`indexerEnfants`). Un parent qui pointe sur lui-même, en revanche,
+   * est un fait faux — la contrainte `domaines_parent_pas_soi` l'interdit, et
+   * une donnée qui l'a contourné ne doit pas entrer dans le moteur.
+   */
+  for (const domaine of domaines) {
+    if (domaine.parentId === domaine.id) {
+      throw new Error(
+        `Référentiel invalide : le domaine « ${domaine.id} » se déclare son propre parent.`,
+      );
+    }
+  }
+
+  for (const { code, domaine } of tags) {
     const skill = skillsParCode.get(code);
     if (!skill) {
-      throw new Error(`Référentiel invalide : le rattachement vise la compétence absente « ${code} ».`);
+      throw new Error(`Référentiel invalide : le tag vise la compétence absente « ${code} ».`);
     }
     if (!domainesConnus.has(domaine)) {
-      throw new Error(`Référentiel invalide : le rattachement vise le domaine absent « ${domaine} ».`);
+      throw new Error(`Référentiel invalide : le tag vise le domaine absent « ${domaine} ».`);
     }
-    if (domaine === skill.domaine) {
-      throw new Error(
-        `Référentiel invalide : « ${code} » est rattachée une seconde fois à son domaine porteur « ${domaine} ».`,
-      );
-    }
-    const deja = secondairesParCode.get(code) ?? [];
+    const deja = tagsParCode.get(code) ?? [];
     if (deja.includes(domaine)) {
-      throw new Error(
-        `Référentiel invalide : le rattachement « ${code} » → « ${domaine} » est dupliqué.`,
-      );
+      throw new Error(`Référentiel invalide : le tag « ${code} » → « ${domaine} » est dupliqué.`);
     }
     deja.push(domaine);
-    secondairesParCode.set(code, deja);
+    tagsParCode.set(code, deja);
   }
 
   const tries = [...skills]
     .map((skill) => ({
       ...skill,
-      domainesSecondaires: secondairesParCode.get(skill.code) ?? [],
+      tagsDomaine: tagsParCode.get(skill.code) ?? [],
     }))
     .sort(comparerSkills);
   // Le périmètre de travail : ni archivée, ni désactivée. Les deux drapeaux

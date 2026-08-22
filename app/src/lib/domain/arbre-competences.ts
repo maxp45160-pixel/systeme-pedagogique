@@ -50,6 +50,7 @@ import {
   type Referentiel,
   type SkillState,
 } from "./types";
+import { sousArbre } from "./hierarchie-domaines";
 import { estMaitrisee } from "@/lib/engine/maitrise";
 
 /* ------------------------------------------------------------------ */
@@ -89,9 +90,13 @@ export interface NoeudArbre {
   niveau: NiveauCompetence | null;
   nombreObservations: number;
   importance: number;
-  /** Sert ce domaine sans en être portée (ADR-081). */
+  /**
+   * Vraie quand la compétence remonte d'un sous-domaine plutôt que d'être
+   * taguée ici même (ADR-107). Rien à détacher depuis ce domaine : le tag est
+   * posé plus bas.
+   */
   rattachee: boolean;
-  /** Le domaine porteur — le domaine courant sauf pour une rattachée. */
+  /** Le domaine de création — celui qui a produit le code. */
   domaine: DomaineId;
   /** Codes cités en prérequis, fantômes compris. */
   prerequis: string[];
@@ -136,11 +141,11 @@ export function construireArbreDomaine(
 ): ArbreDomaine {
   const { codesActifs } = referentiel;
 
-  /* Les compétences du domaine : portées + rattachées (ADR-081). */
+  /* Les compétences du domaine : l'union de son sous-arbre (ADR-107). */
+  const perimetre = sousArbre(referentiel.domaines, domaineId);
   const etatsDuDomaine = etats.filter((etat) => {
     if (!codesActifs.has(etat.skill.code)) return false;
-    if (etat.skill.domaine === domaineId) return true;
-    return (etat.skill.domainesSecondaires ?? []).includes(domaineId);
+    return (etat.skill.tagsDomaine ?? []).some((tag) => perimetre.has(tag));
   });
 
   const maitrisees = new Set(
@@ -172,7 +177,7 @@ export function construireArbreDomaine(
       niveau: etat.niveau,
       nombreObservations: etat.observations.length,
       importance: skill.importance,
-      rattachee: skill.domaine !== domaineId,
+      rattachee: !(skill.tagsDomaine ?? []).includes(domaineId),
       domaine: skill.domaine,
       prerequis: [...skill.prerequis],
       suivantes: suivantesParCode.get(skill.code) ?? [],

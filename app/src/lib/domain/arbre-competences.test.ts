@@ -183,20 +183,24 @@ describe("construireArbreDomaine", () => {
     expect(arbre.feuilles).toEqual([]);
   });
 
-  it("inclut une compétence rattachée et la signale comme telle (ADR-081)", () => {
+  it("inclut une compétence taguée sur un autre domaine du sous-arbre, et la signale (ADR-107)", () => {
+    /* « statistiques » devient un sous-domaine de « developpement ». */
+    const domaines = DOMAINES_TEST.map((domaine) =>
+      domaine.id === "statistiques" ? { ...domaine, parentId: "developpement" } : domaine,
+    );
     const referentiel = referentielDe(
       [
-        skillDeTest("STAT-01", "statistiques", "fondamentaux", 1, 0),
+        skillDeTest("STAT-01", "statistiques", "fondamentaux", 1, 0, [], { active: true }),
         skillDeTest("DEV-01", "developpement", "fondamentaux", 1, 1),
       ],
-      DOMAINES_TEST,
-      [{ code: "STAT-01", domaine: "developpement" }],
+      domaines,
     );
     const etats = referentiel.actifs.map((s) => etat(s));
 
     const arbre = construireArbreDomaine("developpement", referentiel, etats);
     const noeud = arbre.rangees.flatMap((r) => r.noeuds).find((n) => n.code === "STAT-01");
 
+    // Elle remonte du sous-domaine : rien n'a été écrit ici pour cela.
     expect(noeud).toMatchObject({ rattachee: true, domaine: "statistiques" });
   });
 

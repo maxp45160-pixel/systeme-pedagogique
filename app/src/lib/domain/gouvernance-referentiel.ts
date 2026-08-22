@@ -31,10 +31,9 @@ export interface CompetenceDejaAuReferentiel {
   domaineNom: string;
   archive: boolean;
   /**
-   * Vraie quand la compétence est portée par un **autre** domaine : demander
-   * ce savoir-faire ici, c'est demander qu'il y serve. Le rattachement suit
-   * donc automatiquement (ADR-081). Fausse quand elle est déjà portée par ce
-   * domaine : il n'y a rien à faire.
+   * Vraie quand la compétence n'est pas déjà taguée sur ce domaine : demander
+   * ce savoir-faire ici, c'est demander qu'il y serve, et le tag suit
+   * (ADR-107). Fausse quand elle y sert déjà : il n'y a rien à faire.
    */
   aRattacher: boolean;
 }
@@ -111,11 +110,29 @@ export interface ResultatCommandeReferentiel {
   domaineSupprime?: boolean;
 }
 
+/**
+ * Ce que le journal `referentiel_changes` peut porter.
+ *
+ * Les commandes hors `appliquer_commande_referentiel` y écrivent aussi : le
+ * tag (ADR-107) et le déplacement d'un domaine sont des mutations gouvernées,
+ * avec leur propre fonction transactionnelle, et le journal les enregistre au
+ * même titre. `rattacher_competences` / `detacher_competences` sont les noms
+ * qu'ADR-081 écrivait ; ils restent lisibles dans l'historique des comptes
+ * migrés, et ne sont plus produits.
+ */
+export type TypeChangementReferentiel =
+  | CommandeReferentiel["type"]
+  | "taguer_competences"
+  | "detaguer_competences"
+  | "deplacer_domaine"
+  | "rattacher_competences"
+  | "detacher_competences";
+
 export interface ChangementReferentiel {
   id: string;
   requestId: string;
   domaineId: string;
-  type: CommandeReferentiel["type"];
+  type: TypeChangementReferentiel;
   versionAvant: number | null;
   versionApres: number | null;
   origine: OrigineReferentiel;
@@ -164,7 +181,7 @@ function preparerAjouts(
      * importance validés.
      *
      * Demander ce savoir-faire dans ce domaine, c'est demander qu'il y serve :
-     * le rattachement suit, sans autre geste (ADR-081).
+     * le tag suit, sans autre geste (ADR-107).
      */
     const existante = competenceHomonyme(candidate.intitule, referentiel);
     if (existante) {
@@ -174,7 +191,7 @@ function preparerAjouts(
         domaineId: existante.domaine,
         domaineNom: referentiel.domainesParId.get(existante.domaine)?.nom ?? existante.domaine,
         archive: existante.archive,
-        aRattacher: existante.domaine !== domaineId,
+        aRattacher: !(existante.tagsDomaine ?? []).includes(domaineId),
       });
       continue;
     }

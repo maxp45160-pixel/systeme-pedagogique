@@ -148,7 +148,7 @@ export function ProfilDashboard({ compteId }: { compteId: string }) {
                 : "border-bordure-forte bg-surface text-texte hover:bg-surface-2"
             }`}
           >
-            {copie ? "✓ Copié !" : "Copier JSON"}
+            {copie ? "Copié" : "Copier JSON"}
           </button>
           <button
             onClick={vider}

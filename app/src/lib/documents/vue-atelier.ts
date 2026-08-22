@@ -25,9 +25,12 @@ import {
   type PropositionClassification,
 } from "@/lib/engine/classification-domaine";
 import {
-  deriverSousDomaines,
-  type DecoupageSousDomaines,
-} from "@/lib/engine/sous-domaines";
+  chemin as cheminHierarchie,
+  domainesVisibles,
+  indexerEnfants,
+  parentsPossibles,
+  sousArbre,
+} from "@/lib/domain/hierarchie-domaines";
 import { retraitsParCode, type EtatRetrait } from "@/lib/domain/referentiel-compte";
 import type { IndexDocumentaire } from "./index";
 import { PREFIXE_PREUVE, idPreuve } from "./nature-document";
@@ -128,8 +131,16 @@ function documentPreuveDeLObservation(observation: SkillObservation, index: Inde
 export interface VueCompetenceAtelier {
   kind: "competence";
   code: string;
+  /** Le domaine qui a produit le code — un namespace, jamais un rangement (ADR-107). */
   domaineId: string;
   domaineNom: string;
+  /**
+   * Les tags de domaine **déclarés** (ADR-107), avec leur chemin lisible.
+   *
+   * Les ancêtres n'y sont pas : la compétence y est visible par héritage, mais
+   * seul un tag posé se retire. Une liste vide se lit « À classer ».
+   */
+  tags: Array<{ id: string; nom: string; chemin: string }>;
   palier: string;
   niveau: NiveauCompetence | null;
   score: number | null;
@@ -196,13 +207,14 @@ export interface VueDomaineAtelier {
     prerequis: string[];
     suivantes: string[];
     /**
-     * Vraie quand la compétence sert ce domaine sans en être portée
-     * (ADR-081). Son code vient d'ailleurs, et elle ne s'y retire pas : elle
-     * s'en détache.
+     * Vraie quand la compétence apparaît ici **sans y être taguée**
+     * directement : elle est taguée sur un sous-domaine et remonte par
+     * héritage (ADR-107). Elle ne se détague pas d'ici — il n'y a rien à
+     * détacher : le geste porte sur le domaine où le tag est réellement posé.
      */
-    rattachee?: boolean;
-    /** Nom du domaine porteur, pour une rattachée. */
-    porteurNom?: string;
+    heritee?: boolean;
+    /** Le domaine du sous-arbre qui porte réellement le tag, pour une héritée. */
+    origineNom?: string;
   }>;
   domaine: Domaine;
   skills: Skill[];
@@ -230,11 +242,22 @@ export interface VueDomaineAtelier {
    */
   classificationCarte: PropositionClassification | null;
   /**
-   * Les sous-groupes que les intitules du domaine dessinent deja (ADR-104,
-   * question laissee ouverte). Lecture derivee : rien n'est cree, rien n'est
-   * deplace, rien n'est stocke.
+   * La place du domaine dans la hiérarchie du compte (ADR-107).
+   *
+   * Entièrement dérivée de `domaines.parent_id`, recalculée à chaque lecture.
+   * `chemin` va de la racine jusqu'à ce domaine inclus — de quoi écrire
+   * « Sciences › Physique › Thermodynamique » sans redescendre l'arbre.
    */
-  sousDomaines: DecoupageSousDomaines;
+  parentId: string | null;
+  parentNom: string | null;
+  chemin: Array<{ id: string; nom: string }>;
+  enfants: Array<{ id: string; nom: string }>;
+  /**
+   * Les domaines sous lesquels celui-ci peut aller : tous sauf lui-même et sa
+   * descendance. L'écran ne propose donc jamais une destination que la commande
+   * refuserait — le refus qui compte reste celui de `deplacer_domaine`.
+   */
+  parentsPossibles: Array<{ id: string; nom: string }>;
   /**
    * Le fil des ressources du domaine (R3) : ce qu'on lit pour travailler,
    * ordonné par dernière activité DÉRIVÉE du journal — rien n'est stocké.
@@ -248,6 +271,23 @@ export interface VueDomaineAtelier {
    * Absente (imprévu) : le mode affiche un repli sobre, sans planter.
    */
   progression?: ProgressionDomaineVue;
+}
+
+/**
+ * La zone « À classer » (ADR-107) : les compétences qu'aucun domaine ne montre.
+ *
+ * Ce n'est pas un domaine, et ce n'en sera jamais un — c'est l'absence de tag,
+ * rendue visible. Ces compétences restent des faits entiers du référentiel :
+ * leurs observations, leur code et leur histoire sont intacts. Elles n'entrent
+ * simplement dans aucune vue de domaine tant qu'une personne ne les range pas.
+ */
+export interface VueAClasserAtelier {
+  code: string;
+  titre: string;
+  palier: string;
+  /** Le domaine qui a produit son code — un namespace, pas un rangement. */
+  domaineCreationNom: string;
+  nombreObservations: number;
 }
 
 export interface VueExerciceProjectionAtelier {
@@ -313,12 +353,19 @@ export function construireVuesAtelier(
   domaines: VueDomaineAtelier[];
   competences: VueCompetenceAtelier[];
   exercices: VueExerciceProjectionAtelier[];
+  aClasser: VueAClasserAtelier[];
 } {
+  /*
+   * Les domaines qu'au moins une compétence vivante fait exister — ses tags, et
+   * leurs ancêtres par héritage (ADR-107). Un domaine parent n'a pas besoin
+   * d'être tagué lui-même pour être vivant : il l'est par sa descendance.
+   */
   const domainesVivants = new Set(
     referentiel.skills
       .filter((skill) => !skill.archive)
-      .flatMap((skill) => [skill.domaine, ...(skill.domainesSecondaires ?? [])]),
+      .flatMap((skill) => [...domainesVisibles(referentiel.domaines, skill.tagsDomaine ?? [])]),
   );
+  const enfantsParDomaine = indexerEnfants(referentiel.domaines);
   /*
    * Calculée une fois, partagée par référence : la même liste sur soixante-dix
    * fiches, pas soixante-dix copies. Un domaine archivé n'accueille rien, donc
@@ -361,6 +408,13 @@ export function construireVuesAtelier(
       code: etat.skill.code,
       domaineId: etat.skill.domaine,
       domaineNom: domaine?.nom ?? etat.skill.domaine,
+      tags: (etat.skill.tagsDomaine ?? []).map((id) => ({
+        id,
+        nom: referentiel.domainesParId.get(id)?.nom ?? id,
+        chemin: cheminHierarchie(referentiel.domaines, id)
+          .map((etape) => etape.nom)
+          .join(" › "),
+      })),
       palier: etat.skill.palier,
       niveau: etat.niveau,
       score: etat.score,
@@ -436,24 +490,29 @@ export function construireVuesAtelier(
   const domaines: VueDomaineAtelier[] = referentiel.domaines
     .filter((domaine) => domaine.archive || domainesVivants.has(domaine.id))
     .map((domaine) => {
-      const skills = referentiel.skills.filter((skill) => skill.domaine === domaine.id);
-      const skillsAffichees = domaine.archive
-        ? skills.filter((skill) => !skill.archive)
-        : skills.filter((skill) => referentiel.codesActifs.has(skill.code));
       /*
-       * Les compétences rattachées (ADR-081) : portées ailleurs, elles servent
-       * ce domaine et doivent s'y voir. Un domaine archivé ne les montre pas —
-       * il ne sert plus rien.
+       * `skills` reste la liste des compétences dont ce domaine est le
+       * **namespace de création** : c'est cette liste que la gouvernance
+       * d'ADR-065 régit — retrait, archivage, succession lèvent
+       * « n'appartient pas au domaine » sur elle, et elle seule.
        */
-      const rattachees = domaine.archive
-        ? []
+      const skills = referentiel.skills.filter((skill) => skill.domaine === domaine.id);
+      /*
+       * Ce que le domaine **montre** est autre chose : l'union de son
+       * sous-arbre (ADR-107). Une compétence taguée sur un sous-domaine y
+       * remonte par héritage, une compétence créée ici mais détaguée n'y est
+       * plus. Un domaine archivé ne montre que ce qui l'a créé — il ne sert
+       * plus de vue à personne.
+       */
+      const perimetre = sousArbre(referentiel.domaines, domaine.id);
+      const affichees = domaine.archive
+        ? skills.filter((skill) => !skill.archive)
         : referentiel.skills.filter(
             (skill) =>
-              skill.domaine !== domaine.id &&
-              (skill.domainesSecondaires ?? []).includes(domaine.id) &&
-              referentiel.codesActifs.has(skill.code),
+              referentiel.codesActifs.has(skill.code) &&
+              (skill.tagsDomaine ?? []).some((tag) => perimetre.has(tag)),
           );
-      const codesDomaine = new Set([...skillsAffichees, ...rattachees].map((skill) => skill.code));
+      const codesDomaine = new Set(affichees.map((skill) => skill.code));
       const items = competences.filter((competence) => codesDomaine.has(competence.code));
       const exercicesDomaine = exercices.filter(
         (exercice) => !exercice.archive && exercice.competences.some((code) => codesDomaine.has(code)),
@@ -463,9 +522,13 @@ export function construireVuesAtelier(
         id: domaine.id,
         nom: domaine.nom,
         description: domaine.description,
-        competences: [...skillsAffichees, ...rattachees].map((skill) => {
+        competences: affichees.map((skill) => {
           const item = competences.find((competence) => competence.code === skill.code);
-          const rattachee = skill.domaine !== domaine.id;
+          // Taguée ailleurs dans le sous-arbre : elle remonte, elle n'est pas
+          // posée ici. Le premier tag du sous-arbre nomme sa provenance.
+          const tags = skill.tagsDomaine ?? [];
+          const heritee = !tags.includes(domaine.id);
+          const origine = heritee ? tags.find((tag) => perimetre.has(tag)) : undefined;
           return {
             code: skill.code,
             titre: skill.intitule,
@@ -479,8 +542,11 @@ export function construireVuesAtelier(
             suivantes: referentiel.actifs
               .filter((suivante) => suivante.prerequis.includes(skill.code))
               .map((suivante) => suivante.code),
-            ...(rattachee
-              ? { rattachee: true, porteurNom: referentiel.domainesParId.get(skill.domaine)?.nom ?? skill.domaine }
+            ...(heritee && origine
+              ? {
+                  heritee: true,
+                  origineNom: referentiel.domainesParId.get(origine)?.nom ?? origine,
+                }
               : {}),
           };
         }),
@@ -496,12 +562,21 @@ export function construireVuesAtelier(
         nombreExercices: exercicesDomaine.length,
         derniereActivite: derniereDate(items.map((item) => item.derniereObservation)),
         arbre: construireArbreDomaine(domaine.id, referentiel, etats),
-        sousDomaines: deriverSousDomaines(
-          [...skillsAffichees, ...rattachees].map((skill) => ({
-            code: skill.code,
-            intitule: skill.intitule,
-          })),
-        ),
+        parentId: domaine.parentId ?? null,
+        parentNom: domaine.parentId
+          ? referentiel.domainesParId.get(domaine.parentId)?.nom ?? domaine.parentId
+          : null,
+        chemin: cheminHierarchie(referentiel.domaines, domaine.id).map((etape) => ({
+          id: etape.id,
+          nom: etape.nom,
+        })),
+        enfants: (enfantsParDomaine.get(domaine.id) ?? []).map((enfant) => ({
+          id: enfant.id,
+          nom: enfant.nom,
+        })),
+        parentsPossibles: parentsPossibles(referentiel.domaines, domaine.id)
+          .filter((candidat) => !candidat.archive)
+          .map((candidat) => ({ id: candidat.id, nom: candidat.nom })),
         rattachementCarte: rattachementDomaine(domaine),
         classificationCarte: rattachementDomaine(domaine)
           ? null
@@ -509,7 +584,7 @@ export function construireVuesAtelier(
               domaineId: domaine.id,
               nom: domaine.nom,
               description: domaine.description,
-              intitules: [...skillsAffichees, ...rattachees].map((skill) => skill.intitule),
+              intitules: affichees.map((skill) => skill.intitule),
             }),
         ressources: filRessourcesDomaine({
           domaineId: domaine.id,
@@ -565,5 +640,23 @@ export function construireVuesAtelier(
     };
   });
 
-  return { domaines, competences, exercices: vuesExercices };
+  /*
+   * « À classer » (ADR-107) : les compétences du périmètre de travail qu'aucun
+   * tag ne rend visible. Elles n'apparaissent dans aucun domaine — c'est la
+   * décision, pas un défaut d'affichage — et l'écran les nomme pour qu'une
+   * personne puisse les ranger. Aucun classement n'est proposé ici : ce serait
+   * exactement le rattachement lexical automatique qu'ADR-107 écarte.
+   */
+  const aClasser: VueAClasserAtelier[] = referentiel.actifs
+    .filter((skill) => (skill.tagsDomaine ?? []).length === 0)
+    .map((skill) => ({
+      code: skill.code,
+      titre: skill.intitule,
+      palier: skill.palier,
+      domaineCreationNom: referentiel.domainesParId.get(skill.domaine)?.nom ?? skill.domaine,
+      nombreObservations:
+        competences.find((competence) => competence.code === skill.code)?.nombreObservations ?? 0,
+    }));
+
+  return { domaines, competences, exercices: vuesExercices, aClasser };
 }

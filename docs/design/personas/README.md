@@ -36,7 +36,7 @@ navigation (les distances depuis le tableau de bord sont courtes).
 
 Un plan par persona (`PLAN_UI_*.md`). Les arbitrages [D] ont été rendus le
 22/08/2026 par Maxime — tous favorables, dans les limites documentées aux
-ADR-107 à ADR-111 — et les chantiers [S] correspondants sont implémentés sur
+ADR-109 à ADR-113 — et les chantiers [S] correspondants sont implémentés sur
 la branche `chantier-personas` (non fusionnée à la date d'écriture). Chaque
 chantier y est marqué :
 
@@ -47,18 +47,18 @@ chantier y est marqué :
 
 | Plan | Priorité [S] | Arbitrages [D] |
 |---|---|---|
-| `PLAN_PERSONA_ACADEMIQUE.md` | B amorçage pluriel + corpus groupé · D1 rattachement proposé — implémentés 22/08/2026 | fait daté (A) — ADR-107 · lecture du PDF par le tuteur (C) — ADR-111, implémentés 22/08/2026 |
-| `PLAN_UI_PARENT_SOUTIEN.md` | P1 lecture longitudinale filtrée — implémenté 22/08/2026 | photo (P2) — ADR-109 · profil bénéficiaire (P3) — traité par « comptes multiples conseillés », implémenté 22/08/2026 |
-| `PLAN_UI_RECONVERSION.md` | R1 désambiguïsation intention · R3 fils de corpus — implémentés 22/08/2026 | ressource-lien (R2) — ADR-110, implémentée 22/08/2026 |
-| `PLAN_UI_CONCOURS_DATE.md` | C0 refus explicite de la date — remplacé le 22/08/2026 par le chemin assisté du fait daté (ADR-107) · C1 mode épreuve — implémenté 22/08/2026 (ADR-108) | fait daté (C2) — ADR-107, implémenté 22/08/2026 |
-| `PLAN_UI_LOISIR.md` | L1 protocole de test tuteur (pas du code) — À EXÉCUTER par usage : aucune simulation lancée, aucun résultat inventé | ancrage répertoire (L3) · ressource-lien (R2, partagé avec la reconversion) — ADR-110, implémentée 22/08/2026 |
+| `PLAN_PERSONA_ACADEMIQUE.md` | B amorçage pluriel + corpus groupé · D1 rattachement proposé — implémentés 22/08/2026 | fait daté (A) — ADR-109 · lecture du PDF par le tuteur (C) — ADR-113, implémentés 22/08/2026 |
+| `PLAN_UI_PARENT_SOUTIEN.md` | P1 lecture longitudinale filtrée — implémenté 22/08/2026 | photo (P2) — ADR-111 · profil bénéficiaire (P3) — traité par « comptes multiples conseillés », implémenté 22/08/2026 |
+| `PLAN_UI_RECONVERSION.md` | R1 désambiguïsation intention · R3 fils de corpus — implémentés 22/08/2026 | ressource-lien (R2) — ADR-112, implémentée 22/08/2026 |
+| `PLAN_UI_CONCOURS_DATE.md` | C0 refus explicite de la date — remplacé le 22/08/2026 par le chemin assisté du fait daté (ADR-109) · C1 mode épreuve — implémenté 22/08/2026 (ADR-110) | fait daté (C2) — ADR-109, implémenté 22/08/2026 |
+| `PLAN_UI_LOISIR.md` | L1 protocole de test tuteur (pas du code) — À EXÉCUTER par usage : aucune simulation lancée, aucun résultat inventé | ancrage répertoire (L3) · ressource-lien (R2, partagé avec la reconversion) — ADR-112, implémentée 22/08/2026 |
 
 Le plan académique (`PLAN_PERSONA_ACADEMIQUE.md`, v0.2) est le plus détaillé :
 il porte les arbitrages du **fait daté** partagés avec
 `PLAN_UI_CONCOURS_DATE.md` — un seul arbitrage, deux documents qui s'y
 renvoient. La **ressource-lien** (R2 = reconversion + loisir) est le second
 arbitrage partagé. Les deux ont été tranchés favorablement le 22/08/2026
-(ADR-107 et ADR-110).
+(ADR-109 et ADR-112).
 
 Historique : le persona académique a été déplacé ici depuis `docs/design/`
 et son plan d'origine `docs/design/PLAN_PERSONA_ACADEMIQUE.md` rejoint dans
@@ -75,7 +75,7 @@ Les cinq personas convergent sur trois points :
    concours, gênant pour l'académique, indifférent pour le loisir. Question
    d'arbitrage : le produit doit-il retenir un fait daté, et sous quelle forme ?
    Arbitré OUI le 22/08/2026 : l'engagement déclaré existe désormais
-   (ADR-107), sans objectif ni parcours planifié.
+   (ADR-109), sans objectif ni parcours planifié.
 3. **Le compte est mono-utilisateur** : tout usage « pour quelqu'un d'autre »
    (parent, formateur) n'a nulle part où se poser sans brouiller les données.
    Traité le 22/08/2026 par l'option « comptes multiples conseillés » : zéro
@@ -90,9 +90,14 @@ change, mais ils touchent la lecture de l'Atelier citée à plusieurs endroits :
 
 - **ADR-105** (❓ proposition) : une carte des savoirs en dépôt, rattachement
   écrit par une seule personne — rouvre ADR-099 ;
-- **ADR-106** (🔬 hypothèse) : les sous-domaines se dérivent des intitulés
-  (`lib/engine/sous-domaines.ts`), rien ne s'écrit — couche 3 pure.
+- **ADR-106** (🔄 réfutée le 22/08, module retiré du code le 23/08) : le
+  découpage lexical des intitulés n'est pas le modèle retenu ;
+- **ADR-107** (❓ proposition, construite le 23/08) : les domaines forment une
+  hiérarchie déclarée et une compétence porte plusieurs tags de domaine ; une
+  compétence sans tag reste « À classer ».
 
-À relire lors de la prochaine régénération des simulations : le regroupement
-dérivé peut réduire la friction « corpus plat » (S4 académique, R3
-reconversion) sans qu'aucun chantier des plans ne soit nécessaire.
+À relire lors de la prochaine régénération des simulations : la friction
+« corpus plat » (S4 académique, R3 reconversion) n'est plus traitée par un
+regroupement dérivé mais par un geste — créer un sous-domaine, y taguer —
+assisté d'une proposition du tuteur. C'est un coût d'usage à observer, pas une
+friction supprimée.

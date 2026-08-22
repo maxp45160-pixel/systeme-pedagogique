@@ -115,11 +115,14 @@ describe("construireGrapheDomaines", () => {
     expect(liens).toEqual([]);
   });
 
-  it("dérive un rattachement non orienté depuis domainesSecondaires (ADR-081)", () => {
+  it("dérive un lien non orienté entre deux domaines qu'une même compétence sert (ADR-107)", () => {
     const referentiel = referentielDe(
       [skillDeTest("DEV-01", "developpement", "fondamentaux", 1, 0)],
       DOMAINES_TEST,
-      [{ code: "DEV-01", domaine: "statistiques" }],
+      [
+        { code: "DEV-01", domaine: "developpement" },
+        { code: "DEV-01", domaine: "statistiques" },
+      ],
     );
     const etats = referentiel.actifs.map((s) => etat(s));
 

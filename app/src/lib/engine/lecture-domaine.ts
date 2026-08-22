@@ -26,6 +26,7 @@ import type {
   SkillObservation,
   SkillState,
 } from "@/lib/domain/types";
+import { sousArbre } from "@/lib/domain/hierarchie-domaines";
 
 /**
  * Une compétence mesurée dont la dernière observation sort de cette fenêtre
@@ -61,13 +62,22 @@ export function resoudreFiltreDomaine(
 
 /**
  * Les codes de compétence qui informent un domaine : son porteur ET les
- * rattachées (ADR-081) — archivées comprises, pour qu'une observation ancienne
- * reste attributable au domaine qui l'a vue naître.
+ * compétences qui le servent par un tag, héritage du sous-arbre compris
+ * (ADR-107, même prédicat qu'`agregerDomaine`) — archivées comprises, pour
+ * qu'une observation ancienne reste attributable au domaine qui l'a vue naître.
  */
-export function codesDuDomaine(skills: readonly Skill[], domaineId: DomaineId): Set<string> {
+export function codesDuDomaine(
+  skills: readonly Skill[],
+  domaineId: DomaineId,
+  domaines?: readonly Domaine[],
+): Set<string> {
+  const perimetre = domaines ? sousArbre(domaines, domaineId) : new Set([domaineId]);
   const codes = new Set<string>();
   for (const skill of skills) {
-    if (skill.domaine === domaineId || (skill.domainesSecondaires ?? []).includes(domaineId)) {
+    if (
+      skill.domaine === domaineId ||
+      (skill.tagsDomaine ?? []).some((tag) => perimetre.has(tag))
+    ) {
       codes.add(skill.code);
     }
   }
@@ -78,6 +88,8 @@ export interface EntreesLectureDomaine {
   domaineId: DomaineId;
   /** Tout le référentiel du compte, archivées comprises (P4). */
   skills: readonly Skill[];
+  /** La hiérarchie des domaines — active l'héritage du sous-arbre (ADR-107). */
+  domaines?: readonly Domaine[];
   /** États dérivés du compte — le module ne recalcule rien. */
   etats: readonly SkillState[];
   /** Journal effectif des observations. */
@@ -111,7 +123,7 @@ export interface LectureDomaine {
 }
 
 export function lectureDomaine(entrees: EntreesLectureDomaine): LectureDomaine {
-  const codes = codesDuDomaine(entrees.skills, entrees.domaineId);
+  const codes = codesDuDomaine(entrees.skills, entrees.domaineId, entrees.domaines);
 
   const etats = entrees.etats.filter((etat) => codes.has(etat.skill.code));
   const observations = entrees.observations.filter((observation) =>

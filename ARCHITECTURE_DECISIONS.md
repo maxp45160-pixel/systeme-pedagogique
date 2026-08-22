@@ -17,13 +17,13 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [002](#adr-002) | Deux dorsales exclusives, jamais synchronisées | 🔄 Remplacée par ADR-015 |
 | [003](#adr-003) | Aucune librairie UI tierce | ✅ Acceptée |
 | [004](#adr-004) | Le contenu pédagogique vient du tuteur | ✅ Acceptée (27/07) |
-| [005](#adr-005) | Le moteur de recommandation est aujourd'hui une file d'attente | 🔬 Hypothèse |
+| [005](#adr-005) | Le moteur de recommandation est aujourd'hui une file d'attente | 🔄 Réfutée par [ADR-066](#adr-066) et [ADR-096](#adr-096) (22/08) |
 | [006](#adr-006) | Traitement des compétences non mesurées dans le score global | ✅ Acceptée (31/07), option B — tableau rattrapé le 21/08 |
 | [007](#adr-007) | Tuteur intégré, moteur configurable | ✅ Acceptée (27/07) |
 | [008](#adr-008) | L'autonomie mesurée ignore l'aide externe | 🔄 Fermée par [ADR-033](#adr-033) (01/08) |
 | [009](#adr-009) | Généralisation du référentiel | 🔄 Fermée par [ADR-026](#adr-026) (31/07) |
 | [010](#adr-010) | Widget de TODOs dev partagé entre comptes | 🔄 Remplacée par ADR-019 |
-| [011](#adr-011) | Conservation de l'objet `Exercise` | ❓ Ouverte |
+| [011](#adr-011) | Conservation de l'objet `Exercise` | ✅ Acceptée (22/08) |
 | [012](#adr-012) | Schéma SQL idempotent sans outil de migration | ✅ Acceptée, fragile |
 | [013](#adr-013) | **La boucle est le produit** — cadrage du chantier soustractif | ✅ Acceptée (28/07) |
 | [014](#adr-014) | Suppression des six entités sans usage | ✅ Acceptée (28/07) |
@@ -46,27 +46,27 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [031](#adr-031) | Les propositions du tuteur passent en sortie structurée | ✅ Acceptée (01/08) |
 | [032](#adr-032) | Ce qu'un validateur rejette n'a pas à être un paragraphe de prompt | ✅ Acceptée (01/08) |
 | [033](#adr-033) | L'aide extérieure se demande, l'autonomie se dérive | ✅ Acceptée (01/08) |
-| [034](#adr-034) | Un exercice échoué ne revient qu'après un progrès démontré | 🔬 Hypothèse (02/08) |
-| [035](#adr-035) | Cycle de vie d'un exercice : le calque d'ADR-027 | 🔬 Hypothèse (02/08) |
-| [036](#adr-036) | Le tuteur voit le corpus, jamais les énoncés | 🔬 Hypothèse (02/08) |
+| [034](#adr-034) | Un exercice échoué ne revient qu'après un progrès démontré | ✅ Acceptée (22/08) |
+| [035](#adr-035) | Cycle de vie d'un exercice : le calque d'ADR-027 | ✅ Acceptée (22/08) |
+| [036](#adr-036) | Le tuteur voit le corpus, jamais les énoncés | ✅ Acceptée (22/08) |
 | [037](#adr-037) | P5 reformulé : le tuteur écrit le contenu, jamais la mesure | ✅ Acceptée (03/08) |
 | [038](#adr-038) | Le retrait de la preuve manuelle | ✅ Acceptée (04/08) · ⚠️ corrigée le 07/08 |
 | [039](#adr-039) | Le « crash du tuteur » était une boucle infinie de rendu | ✅ Acceptée (04/08) |
-| [040](#adr-040) | La réponse écrite est la condition du bilan ; l'abandon est un geste | 🔬 Hypothèse (07/08) |
-| [041](#adr-041) | Le tuteur voit la correction sur un seul chemin, et n'en écrit aucune mesure | 🔬 Hypothèse (07/08) — amende [036](#adr-036) |
-| [042](#adr-042) | La maîtrise est un prédicat dérivé ; l'évolution est proposée, jamais appliquée | 🔬 Hypothèse (07/08) |
+| [040](#adr-040) | La réponse écrite est la condition du bilan ; l'abandon est un geste | ✅ Acceptée (22/08) |
+| [041](#adr-041) | Le tuteur voit la correction sur un seul chemin, et n'en écrit aucune mesure | ✅ Acceptée (22/08) — amende [036](#adr-036) |
+| [042](#adr-042) | La maîtrise est un prédicat dérivé ; l'évolution est proposée, jamais appliquée | ✅ Acceptée (22/08) |
 | [043](#adr-043) | Le tuteur désigne un code, il n'en frappe aucun | ✅ Acceptée (07/08) — précise [026](#adr-026) |
-| [044](#adr-044) | Un référentiel se révise ; le retrait reste dérivé | 🔬 Hypothèse (07/08) |
-| [045](#adr-045) | La difficulté conseillée demande confirmation ; la durée de référence est observée | 🔬 Hypothèse (09/08) |
-| [046](#adr-046) | Le tuteur garde la mémoire de ses verdicts | 🔬 Hypothèse (09/08) |
-| [047](#adr-047) | Un exercice se corrige ; les preuves qu'il a produites ne bougent pas | 🔬 Hypothèse (09/08) |
+| [044](#adr-044) | Un référentiel se révise ; le retrait reste dérivé | ✅ Acceptée (22/08) |
+| [045](#adr-045) | La difficulté conseillée demande confirmation ; la durée de référence est observée | ✅ Acceptée (22/08) |
+| [046](#adr-046) | Le tuteur garde la mémoire de ses verdicts | ✅ Acceptée (22/08) |
+| [047](#adr-047) | Un exercice se corrige ; les preuves qu'il a produites ne bougent pas | ✅ Acceptée (22/08) |
 | [048](#adr-048) | La séance existait déjà : elle s'étend, elle ne se recrée pas | ✅ Acceptée (10/08) |
 | [049](#adr-049) | Le CAF n'ajoute qu'une pièce : le modèle d'assemblage | ✅ Acceptée (10/08) |
 | [050](#adr-050) | Le besoin déclaré est un fait stocké ; l'écart est dérivé, et il n'y a pas de score de biais | ✅ Acceptée (10/08) |
 | [051](#adr-051) | Le moteur travaille sur `importance`, pas sur un objectif déclaré | 🔄 Remplacée par ADR-066 |
 | [052](#adr-052) | Le moteur dérive sans validation ; seul le tuteur ne mesure jamais | ✅ Acceptée (10/08) — précise [037](#adr-037) |
 | [053](#adr-053) | Pilotage au tableau de bord, analyse dans Séances ; navigation à trois pôles | ✅ Acceptée (10/08) |
-| [054](#adr-054) | L'actionnabilité départage sans pénaliser ; un partiel suit la règle de l'échec | ✅ Acceptée (10/08) |
+| [054](#adr-054) | L'actionnabilité départage sans pénaliser ; un partiel suit la règle de l'échec | 🔄 Remplacée par [ADR-034](#adr-034) (22/08) |
 | [055](#adr-055) | Le thème : une portée modulaire, pas une arête de plus | 🔄 Remplacée par [ADR-104](#adr-104) (22/08) — la portée de séance reste dérivée |
 | [056](#adr-056) | Le graphe est une vue dérivée : nœuds typés, liens réels, aucune arête fabriquée | ✅ Acceptée (11/08) |
 | [057](#adr-057) | L'autonomie se mesure par traces, puis se demande pour l'invisible | ✅ Acceptée (11/08) |
@@ -76,12 +76,12 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [061](#adr-061) | Séances : un hub et un workspace, pas quatre vues | ✅ Acceptée (11/08) |
 | [062](#adr-062) | Le pôle devient Cahier ; la relecture synthétise et toute prochaine action ouvre le focus | ✅ Acceptée (11/08) |
 | [063](#adr-063) | Amorçage direct, surfaces obsolètes retirées et Supabase obligatoire | ✅ Acceptée (11/08) |
-| [064](#adr-064) | Workspace documentaire Markdown en extension progressive | 🔬 Hypothèse (12/08) |
-| [065](#adr-065) | Gouvernance transactionnelle du référentiel | 🔬 Proposition (13/08) |
+| [064](#adr-064) | Workspace documentaire Markdown en extension progressive | 🔄 Remplacée par [ADR-080](#adr-080) et [ADR-103](#adr-103) (22/08) |
+| [065](#adr-065) | Gouvernance transactionnelle du référentiel | ✅ Acceptée (22/08) |
 | [066](#adr-066) | La boucle devient un moteur d'actions d'apprentissage adaptatif | ✅ Acceptée (13/08) |
 | [067](#adr-067) | Un projet n'est pas une séance : il porte son propre déroulé | 🔄 Remplacée par [070](#adr-070) |
 | [068](#adr-068) | Une preuve de projet s'adosse à un critère porteur, jamais à la cible entière | 🔄 Remplacée par [070](#adr-070) |
-| [069](#adr-069) | L'agent écrit ce qui est réversible ; le journal d'actions est la contrepartie | 🔬 Hypothèse (15/08) |
+| [069](#adr-069) | L'agent n'écrit jamais la mesure ; les écritures restent spécialisées | ✅ Acceptée (22/08) — journal générique reporté |
 | [070](#adr-070) | Un projet est une note, pas une entité : la machinerie de « Produire » est retirée | ✅ Acceptée (15/08) — remplace [067](#adr-067) et [068](#adr-068) |
 | [075](#adr-075) | Une séance ne passe plus par une note : le sujet libre est résolu avant de composer | ✅ Acceptée (16/08) |
 | [076](#adr-076) | Un projet a son espace de travail : la fiche est une structure, pas un pavé | ✅ Acceptée (16/08) |
@@ -90,13 +90,13 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [079](#adr-079) | Le cahier a des pages : un jour par page, et le travail s'y déroule | ✅ Acceptée (16/08) |
 | [074](#adr-074) | Rôle applicatif et suspension d'accès, portés par RLS | ✅ Acceptée (16/08) — ferme la question ouverte d'[019](#adr-019) |
 | [080](#adr-080) | L'Atelier a quatre lieux, et aucun dossier | ✅ Acceptée (16/08) |
-| [081](#adr-081) | Une compétence sert plusieurs domaines, avec un porteur unique | ✅ Acceptée (16/08) — amende [065](#adr-065) |
-| [082](#adr-082) | Une relation se propose ; le domaine de sa cible s'arbitre | 🔬 Hypothèse (17/08) |
-| [083](#adr-083) | Le contexte d'une preuve est une famille de situation, jamais un titre | 🔬 Hypothèse (18/08) |
-| [084](#adr-084) | Une décision et une prédiction sont des faits datés | 🔬 Hypothèse (18/08) |
-| [085](#adr-085) | Le moteur se relit, puis ajuste un seul seuil à la fois | 🔬 Hypothèse (18/08) |
-| [086](#adr-086) | L'atomicité tient au schéma, pas à la consigne ; le référentiel se détecte seul | 🔬 Hypothèse (18/08) |
-| [087](#adr-087) | Une compétence a plusieurs successeurs ; la scission est sèche | 🔬 Hypothèse (18/08) |
+| [081](#adr-081) | Une compétence sert plusieurs domaines, avec un porteur unique | 🔄 Remplacée par [ADR-107](#adr-107) (22/08) |
+| [082](#adr-082) | Une relation se propose ; le domaine de sa cible s'arbitre | 🔬 Hypothèse — qualité à démontrer (22/08) |
+| [083](#adr-083) | Le contexte d'une preuve est une famille de situation, jamais un titre | ✅ Acceptée (22/08) |
+| [084](#adr-084) | Une décision et une prédiction sont des faits datés | ✅ Acceptée (22/08) |
+| [085](#adr-085) | Le moteur se relit, puis ajuste un seul seuil à la fois | ✅ Acceptée (22/08) |
+| [086](#adr-086) | L'atomicité tient au schéma ; la détection du référentiel reste propositionnelle | 🔬 Hypothèse partielle (22/08) |
+| [087](#adr-087) | Une compétence a plusieurs successeurs ; la scission est sèche | 🗑️ Abandonnée, remplacée par [ADR-086](#adr-086) (22/08) |
 | [088](#adr-088) | Un domaine n'est pas un thème | 🔄 Remplacée par [ADR-104](#adr-104) (22/08) |
 | [089](#adr-089) | Carte globale partagée et overlay privé | 🗑️ Retirée (21/08) — voir [ADR-099](#adr-099) |
 | [090](#adr-090) | Une preuve est une trace ; l'actuel `evidence` devient Observation | ✅ Acceptée (20/08) |
@@ -114,8 +114,10 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [102](#adr-102) | Une séance abandonnée peut être renoncée | ✅ Acceptée (21/08) — prolonge [077](#adr-077) |
 | [103](#adr-103) | Le pôle de travail est un Bureau ; le Cahier en est l’archive | ✅ Acceptée (22/08) — refond [079](#adr-079) (dont un point renversé) et [101](#adr-101) |
 | [104](#adr-104) | Les thèmes persistants sont retirés ; la portée de séance reste dérivée | ✅ Acceptée (22/08) — remplace [055](#adr-055), [058](#adr-058), [088](#adr-088) |
-| [105](#adr-105) | Une carte des savoirs en dépôt, et un rattachement que seule une personne écrit | ❓ Proposition (22/08) — rouvre [099](#adr-099), répond à la question ouverte d'[104](#adr-104) |
-| [106](#adr-106) | Les sous-domaines se dérivent des intitulés, et ne s'écrivent pas | 🔬 Hypothèse (22/08) — répond à la seconde question ouverte d'[104](#adr-104) |
+| [105](#adr-105) | Une carte des savoirs en dépôt, et un rattachement que seule une personne écrit | ✅ Acceptée (22/08) |
+| [106](#adr-106) | Les sous-domaines se dérivent des intitulés, et ne s'écrivent pas | 🔄 Réfutée, remplacée par [ADR-107](#adr-107) (22/08) — module retiré du code le 23/08 |
+| [107](#adr-107) | Les domaines sont des tags hiérarchiques, pas des propriétaires | ❓ Proposition (22/08) — construite le 23/08, statut inchangé ; nommage des compétences encore ouvert |
+| [108](#adr-108) | Le référentiel se relit en entier, et ne se réécrit jamais tout seul | ❓ Proposition (23/08) — Maxime doit trancher le régime des propositions de structure |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -252,10 +254,12 @@ d'écarter un exercice raté — même contrat que pour une preuve contradictoir
 ---
 
 <a name="adr-005"></a>
-## ADR-005 — Le moteur de recommandation est aujourd'hui une file d'attente 🔬
+## ADR-005 — Le moteur de recommandation est aujourd'hui une file d'attente 🔄
 
-**Statut.** Hypothèse argumentée, **non validée par l'auteur**. Aucune action
-décidée.
+**Statut actuel.** Réfutée le 22/08/2026 par Maxime et remplacée par
+[ADR-066](#adr-066) et [ADR-096](#adr-096). Le moteur agit pour rapprocher la
+personne de ses intentions déclarées ; la file n'est qu'une représentation
+dérivée des actions disponibles. Les observations qui suivent sont historiques.
 
 **Observation.** Exécution du moteur sur les données réelles du 27/07 :
 
@@ -569,9 +573,10 @@ ce widget sans demande.
 ---
 
 <a name="adr-011"></a>
-## ADR-011 — Conservation de l'objet `Exercise` ❓ (rouverte)
+## ADR-011 — Conservation de l'objet `Exercise` ✅
 
-**Statut.** Ouverte.
+**Statut.** Acceptée le 22/08/2026 par Maxime. Une séance doit s'appuyer sur un
+exercice structuré ; `Exercise` est donc une entité durable du produit.
 
 **Question.** Si le tuteur génère le contenu (ADR-004), faut-il encore
 persister un objet `Exercise` avec énoncé, indices, correction et critères — ou
@@ -2114,10 +2119,14 @@ qu'il faudra rediscuter — pas le principe.
 ---
 
 <a name="adr-034"></a>
-## ADR-034 — Un exercice échoué ne revient qu'après un progrès démontré 🔬
+## ADR-034 — Un exercice sévèrement échoué ne revient qu'après un progrès démontré ✅
 
-**Date.** 02/08/2026. **Produite par une session Claude, non tranchée à
-l'usage.** Née d'un irritant remonté par Maxime :
+**Date.** 02/08/2026. **Acceptée le 22/08/2026 par Maxime.** Née d'un
+irritant remonté par Maxime :
+
+**Amendement du 22/08.** Seul un `echec` sévère — contre-sens ou hors sujet —
+bloque l'exercice jusqu'à une réussite ultérieure. Un `partiel` reste
+candidat et appelle un ajustement de difficulté vers une zone de défi utile.
 
 > « En suivant le système de "prochaine action", je me retrouve à refaire tous
 > les exos ratés, et qui ne sont pas de mon niveau réel sinon je les aurais
@@ -2211,10 +2220,10 @@ l'exercice ») ; il garantit la mécanique, pas la pertinence.
 ---
 
 <a name="adr-035"></a>
-## ADR-035 — Cycle de vie d'un exercice : le calque d'ADR-027 🔬
+## ADR-035 — Cycle de vie d'un exercice : le calque d'ADR-027 ✅
 
-**Date.** 02/08/2026. **Produite par une session Claude, non tranchée à
-l'usage.** Corollaire d'[ADR-027](#adr-027). Née d'un irritant remonté par
+**Date.** 02/08/2026. **Acceptée le 22/08/2026 par Maxime.** Corollaire
+d'[ADR-027](#adr-027). Née d'un irritant remonté par
 Maxime : « Que devient un exercice maîtrisé ? Un exercice trop dur ? Ça reste
 dans le système en prenant de la place. »
 
@@ -2268,10 +2277,10 @@ poignée ». Avec 27 exercices, en remettre serait refaire l'erreur.
 ---
 
 <a name="adr-036"></a>
-## ADR-036 — Le tuteur voit le corpus, jamais les énoncés 🔬
+## ADR-036 — Le tuteur voit le corpus, jamais les énoncés ✅
 
-**Date.** 02/08/2026. **Produite par une session Claude, non tranchée à
-l'usage.** Née d'un irritant remonté par Maxime : « il n'a pas le contexte des
+**Date.** 02/08/2026. **Acceptée le 22/08/2026 par Maxime.** Née d'un
+irritant remonté par Maxime : « il n'a pas le contexte des
 exercices existants et ne sait pas ce sur quoi on travaille en temps réel, donc
 il ne peut pas trop nous aider au final. »
 
@@ -2522,9 +2531,10 @@ plus fin qu'une liste de mots — pas une liste plus longue.
 
 ---
 
-## ADR-040 — La réponse écrite est la condition du bilan ; l'abandon est un geste 🔬
+## ADR-040 — La réponse écrite est la condition du bilan ; l'abandon est un geste ✅
 
-**Date.** 07/08/2026, lot A0 du chantier d'intégration IA. Décision de Maxime,
+**Date.** 07/08/2026, lot A0 du chantier d'intégration IA. **Acceptée le
+22/08/2026 par Maxime.** Décision de Maxime,
 prise en connaissance du chiffre ci-dessous.
 
 **Le fait mesuré, avant d'écrire une ligne.** Sur 37 tentatives terminées,
@@ -2544,10 +2554,23 @@ qu'on tape « . » pour passer, ce sera une **observation**, et le seuil pourra
 être calé dessus.
 
 **Pourquoi la condition porte sur la base et non sur l'écran.**
-`zone-reponse.tsx` exige un clic « Enregistrer le brouillon » — choix délibéré,
-non remis en cause. Du texte non enregistré n'existe pas pour le serveur, et le
-tuteur ne le relirait pas. Conséquence : **le message d'erreur nomme le bouton**,
-sinon il enverrait la personne regarder un champ qu'elle a déjà rempli.
+`zone-reponse.tsx` exigeait un clic « Enregistrer le brouillon » — choix
+délibéré, non remis en cause à l'époque. Du texte non enregistré n'existe pas
+pour le serveur, et le tuteur ne le relirait pas. Conséquence : **le message
+d'erreur nommait le bouton**, sinon il envoyait la personne regarder un champ
+qu'elle avait déjà rempli.
+
+> ⚠️ **Correction factuelle — 22/08/2026.** Le bouton « Enregistrer le
+> brouillon » n'existe plus : `zone-reponse.tsx` enregistre désormais
+> **automatiquement** en base, avec un filet `sessionStorage` pendant la frappe
+> et quatre états affichés (`enregistre` / `modifie` / `envoi` / `echec`). La
+> règle de cette ADR ne change pas — c'est toujours la valeur **en base**
+> (`reponseSuffisante`) qui déverrouille le bilan — mais son paragraphe ci-
+> dessus décrit une interface passée. `motifBlocageBilan`
+> (`lib/domain/tentative.ts`) dit aujourd'hui ce qui manque sans nommer de
+> bouton : « Le bilan demande ta réponse écrite. Rédige-la : elle est
+> enregistrée automatiquement… ». L'esprit de la règle — le message pointe ce
+> que la personne peut encore corriger, jamais un fantôme — reste entier.
 
 **Le troisième chemin de clôture.** Il en existait deux, tous deux via
 `terminerExercice` : la preuve écrite, et l'abandon *dérivé* d'une durée
@@ -2587,9 +2610,10 @@ factuelle sous ADR-038. **P8 reste 🔬**, pour une autre raison — le barème
 
 ---
 
-## ADR-041 — Le tuteur voit la correction sur un seul chemin, et n'en écrit aucune mesure 🔬
+## ADR-041 — Le tuteur voit la correction sur un seul chemin, et n'en écrit aucune mesure ✅
 
-**Date.** 07/08/2026, lot A1 du chantier d'intégration IA.
+**Date.** 07/08/2026, lot A1 du chantier d'intégration IA. **Acceptée le
+22/08/2026 par Maxime.**
 
 **Ce qui est décidé.** Le tuteur relit la réponse écrite et rend un verdict
 complet — résultat global, une appréciation par critère, une justification par
@@ -2691,9 +2715,10 @@ protège pas le journal de preuves.
 
 ---
 
-## ADR-042 — La maîtrise est un prédicat dérivé ; l'évolution est proposée, jamais appliquée 🔬
+## ADR-042 — La maîtrise est un prédicat dérivé ; l'évolution est proposée, jamais appliquée ✅
 
-**Date.** 07/08/2026, lot B du chantier d'intégration IA.
+**Date.** 07/08/2026, lot B du chantier d'intégration IA. **Acceptée le
+22/08/2026 par Maxime.**
 
 **La question.** ADR-035 a demandé « que devient un exercice maîtrisé ? » et y a
 répondu. Personne ne l'avait posée pour les **compétences**. Une compétence de
@@ -2778,7 +2803,8 @@ file une semaine **après** son arbitrage, un facteur négatif — à l'image du
 
 ## ADR-043 — Le tuteur désigne un code, il n'en frappe aucun ✅
 
-**Date.** 07/08/2026, lot C du chantier d'intégration IA.
+**Date.** 07/08/2026, lot C du chantier d'intégration IA. **Acceptée le
+22/08/2026 par Maxime.**
 
 **Le problème.** CLAUDE.md §8 interdit de laisser le tuteur écrire un code de
 compétence, et ADR-031 a rendu l'interdit *structurel* en retirant le champ
@@ -2822,7 +2848,7 @@ la frappe exprimable à nouveau, et le défaut serait invisible.
 
 ---
 
-## ADR-044 — Un référentiel se révise ; le retrait reste dérivé 🔬
+## ADR-044 — Un référentiel se révise ; le retrait reste dérivé ✅
 
 **Date.** 07/08/2026, lot C du chantier d'intégration IA.
 
@@ -2908,9 +2934,10 @@ valide reste un rejet — il n'y a alors rien à relire.
 
 ---
 
-## ADR-045 — La difficulté conseillée demande une confirmation ; la durée de référence est observée 🔬
+## ADR-045 — La difficulté conseillée demande une confirmation ; la durée de référence est observée ✅
 
-**Date.** 09/08/2026, lot 3 du chantier de stabilisation.
+**Date.** 09/08/2026, lot 3 du chantier de stabilisation. **Acceptée le
+22/08/2026 par Maxime.**
 
 **Ce qui manquait, dans les mots de Maxime.** « La durée attendue d'un exercice
 pourrait être ajustée en fonction du niveau de l'utilisateur. » L'intuition
@@ -3017,9 +3044,10 @@ réelle quand le corpus le permettra.
 
 ---
 
-## ADR-046 — Le tuteur garde la mémoire de ses verdicts 🔬
+## ADR-046 — Le tuteur garde la mémoire de ses verdicts ✅
 
-**Date.** 09/08/2026, lot 4 du chantier de stabilisation.
+**Date.** 09/08/2026, lot 4 du chantier de stabilisation. **Acceptée le
+22/08/2026 par Maxime.**
 
 **Ce qui manquait, dans les mots de Maxime.** « Le tuteur semble principalement
 remplir des cases pour moi, alors que j'attends davantage d'un véritable
@@ -3140,9 +3168,10 @@ preuve d'un texte, ce qui est l'inverse de tout ce que le moteur défend.
 
 ---
 
-## ADR-047 — Un exercice se corrige ; les preuves qu'il a produites ne bougent pas 🔬
+## ADR-047 — Un exercice se corrige ; les preuves qu'il a produites ne bougent pas ✅
 
-**Date.** 09/08/2026, lot 6 du chantier de stabilisation.
+**Date.** 09/08/2026, lot 6 du chantier de stabilisation. **Acceptée le
+22/08/2026 par Maxime.**
 
 **Ce qui manquait, dans les mots de Maxime.** « L'utilisateur ne peut pas
 suggérer de modification ou signaler facilement un problème sur un exercice. »
@@ -3681,9 +3710,11 @@ d'entrée, plutôt qu'à laisser traîner « au cas où » (CLAUDE.md §8).
 ---
 
 <a name="adr-054"></a>
-## ADR-054 — L'actionnabilité départage sans pénaliser ; un partiel suit la règle de l'échec ✅
+## ADR-054 — L'actionnabilité départage sans pénaliser ; un partiel suit la règle de l'échec 🔄
 
-**Date.** 10/08/2026, lot 5 du chantier de refonte.
+**Date.** 10/08/2026, lot 5 du chantier de refonte. **Remplacée le
+22/08/2026 par ADR-034**, qui réserve le blocage aux échecs sévères et laisse
+un `partiel` candidat.
 
 **Ce qui était demandé.** Revoir la logique de scoring de « prochaine
 meilleure action » : le brief initial de Maxime rapportait qu'elle
@@ -3728,7 +3759,7 @@ AVANT de noter la compétence (`choisirExercice` puis `evaluer(..., exercice
 sortie sur ce point : `Recommandation.exercice` est toujours résolu par
 `choisirExercice`, `evaluer` ne fait qu'en recevoir le résultat.
 
-### 2. Un partiel suit désormais la même règle qu'un échec
+### 2. Historique : un partiel suivait la même règle qu'un échec
 
 Avant ce lot, `recommandable()` bloquait un exercice ÉCHOUÉ tant qu'aucune
 réussite postérieure n'était démontrée sur la compétence (règle posée le
@@ -3742,7 +3773,7 @@ exercice reproposé, le même résultat obtenu. C'est la définition même de
 « tourner en rond », l'irritant que ce chantier entier adresse, et l'exemption
 du partiel en était une cause directe et mesurée, pas hypothétique.
 
-**Décision : P4 ne distingue pas l'échec du partiel.** Les deux sont un
+**Décision historique : P4 ne distinguait pas l'échec du partiel.** Les deux sont un
 résultat non abouti, et les deux exigent la même démonstration — une preuve en
 réussite postérieure sur la compétence — avant que le MÊME exercice ne
 revienne. `recommandable()` perd sa branche spéciale pour le partiel ; un seul
@@ -4254,6 +4285,15 @@ appliqués et infrastructure TODO sans rôle pédagogique.
   dans l'historique Supabase ; aucun script SQL ponctuel appliqué n'est conservé
   dans le dépôt.
 
+> ⚠️ **Correction factuelle — 22/08/2026.** « `/exercices/[id]` reste actif »
+> ci-dessus a cessé d'être vrai : l'écran unitaire d'un exercice a été retiré
+> avec la refonte Bureau (`lib/domain/navigation-exercice.ts` le documente), la
+> séance étant devenue le point d'entrée unique du travail sur un exercice.
+> Voir [ADR-079](#adr-079) et [ADR-103](#adr-103). De même, « `/progression`
+> supprimée » ne décrit plus l'état courant : une page du même chemin existe à
+> nouveau comme profil de carrière ([ADR-098](#adr-098)) — c'est une surface
+> nouvelle, pas le retour de la page retirée ici.
+
 ### Conséquences
 
 Le parcours initial a une seule destination et une seule implémentation de la
@@ -4268,9 +4308,10 @@ hypothèse antérieure.
 ---
 
 <a name="adr-064"></a>
-## ADR-064 — Workspace documentaire Markdown en extension progressive 🔬
+## ADR-064 — Workspace documentaire Markdown en extension progressive 🔄
 
-**Date.** 12/08/2026. **Hypothèse non tranchée.** Cette entrée documente le
+**Date.** 12/08/2026. **Remplacée le 22/08/2026 par ADR-080 et ADR-103.** Cette
+entrée documente le
 chantier en cours ; elle ne transforme pas une analyse en décision humaine.
 
 ### Contexte
@@ -4414,12 +4455,22 @@ c'est alors seulement que la persistance se justifiera.
 
 <a name="adr-065"></a>
 
-## ADR-065 — Gouvernance transactionnelle du référentiel 🔬
+## ADR-065 — Gouvernance transactionnelle du référentiel ✅
 
-**Date.** 13/08/2026. **Proposition non tranchée.** L’implémentation et les
+**Date.** 13/08/2026. **Acceptée le 22/08/2026 par Maxime.** L’implémentation et les
 migrations distantes ont été vérifiées puis appliquées le 13/08/2026 sur
 autorisation explicite. Cette mise en œuvre ne vaut pas décision humaine et ne
 fait pas monter le statut de l’ADR.
+
+> **Amendée par [ADR-107](#adr-107) le 23/08/2026.** Le référentiel n’est plus
+> l’agrégat `Domaine → Compétences` : un domaine peut en contenir d’autres
+> (`domaines.parent_id`) et une compétence sert plusieurs domaines par ses tags.
+> Ce qui ne change pas — et qui est l’objet de cette ADR — c’est le régime
+> d’écriture : `taguer_competences_domaine` et `deplacer_domaine` sont des
+> commandes transactionnelles portant les mêmes garanties que
+> `appliquer_commande_referentiel` (drapeau, version optimiste, idempotence par
+> `request_id`, journal append-only, `SECURITY INVOKER`). La version optimiste
+> reste portée par `domaines.version`, y compris pour un tag.
 
 ### Contexte
 
@@ -4899,14 +4950,20 @@ gouvernance du référentiel ([ADR-065](#adr-065)).
 
 ---
 
-## ADR-069 — L'agent écrit ce qui est réversible ; le journal d'actions est la contrepartie 🔬
+## ADR-069 — L'agent n'écrit jamais la mesure ; les écritures restent spécialisées ✅
 
 **Date.** 15/08/2026. **Direction tranchée par Maxime** (conversation du
 15/08) ; l'ergonomie du flux et le seuil d'aperçu restent 🔬. Étend
 [ADR-064](#adr-064) (workspace documentaire) et reprend la mécanique
 append-only d'[ADR-065](#adr-065).
 
-### Le problème
+**Statut actuel du 22/08.** La partie journal universel, lots documentaires et
+seuil d'aperçu est réfutée. Aucun journal générique n'est construit maintenant.
+La règle conservée est plus étroite : l'agent n'écrit jamais une mesure ; les
+écritures réversibles passent par les commandes métier et leurs journaux
+spécialisés. Le détail ci-dessous est historique.
+
+### Historique — le problème
 
 L'Atelier demande aujourd'hui à la personne de savoir **où** vivent ses
 documents. C'est de la maintenance : personne n'ouvre l'application pour ranger
@@ -6110,11 +6167,31 @@ migration que rien ne justifie encore. Deux états seulement — *à trier* et
 
 ---
 
-## ADR-081 — Une compétence sert plusieurs domaines, avec un porteur unique ✅
+## ADR-081 — Une compétence sert plusieurs domaines, avec un porteur unique 🔄
 
-**Date.** 16/08/2026. **Tranchée par Maxime**, qui a demandé le porteur unique.
+**Date.** 16/08/2026. **Remplacée le 22/08/2026 par ADR-107.** Le modèle du
+porteur unique est abandonné au profit de tags hiérarchiques multiples.
 Amende [ADR-065](#adr-065) — le référentiel n'est plus strictement
 `Domaine → Compétences` — et ferme la question ouverte n°1 d'[ADR-080](#adr-080).
+
+Le texte ci-dessous décrit l'ancien modèle du porteur unique. La relation
+`competence_domaines` devient la cible d'ADR-107 ; `competences.domaine` ne
+reste pas une propriété métier définitive.
+
+> **Ce qui a été retiré du code le 23/08/2026** (migration
+> `20260823090000_domaines_hierarchiques_tags`) :
+> `competence_domaines` porte désormais **tous** les tags de domaine, y compris
+> celui du domaine de création, et non plus les seuls domaines « secondaires ».
+> Le trigger `competence_domaines_hors_porteur` et la fonction
+> `rattachement_hors_porteur()` sont supprimés : ils refusaient un tag vers le
+> porteur, refus qui n'a plus d'objet. La commande
+> `rattacher_competences_domaine` est remplacée par
+> `taguer_competences_domaine`, et non conservée en parallèle — un second
+> chemin d'écriture appliquant un modèle abandonné serait pire qu'un renommage.
+> Côté TypeScript, `Skill.domainesSecondaires` devient `Skill.tagsDomaine`.
+> Les entrées de journal `rattacher_competences` / `detacher_competences`
+> restent lisibles dans l'historique des comptes migrés ; plus rien ne les
+> produit.
 
 **Contexte.** Créer un domaine faisait redéclarer des savoir-faire déjà connus.
 Le contrôle de doublon d'intitulé était borné au domaine, donc « Lire un tableau
@@ -6196,6 +6273,11 @@ archiverait une compétence portée par un autre, avec ses preuves.
 ## ADR-082 — Une relation se propose ; le domaine de sa cible s'arbitre 🔬
 
 **Date.** 17/08/2026, chantier de rendu de l'Atelier.
+
+**Statut actuel du 22/08.** Le principe est accepté sous condition : aucune
+relation n'est écrite automatiquement, mais la proposition doit démontrer une
+précision suffisante, une justification claire et un geste de validation
+fluide avant de passer en ✅.
 
 **Ce qui manquait, dans les mots de Maxime.** « Ça c'est vide et pas
 remplissable donc je vois pas l'intérêt en l'état » — les cadres « Prérequis »
@@ -6293,7 +6375,7 @@ sessions de déclaration.
 
 ---
 
-## ADR-083 — Le contexte d'une preuve est une famille de situation, jamais un titre 🔬
+## ADR-083 — Le contexte d'une preuve est une famille de situation, jamais un titre ✅
 
 **Date.** 18/08/2026, chantier de révision du moteur, lot 1.
 
@@ -6388,7 +6470,7 @@ n'aurait rien dit.
 
 ---
 
-## ADR-084 — Une décision et une prédiction sont des faits datés 🔬
+## ADR-084 — Une décision et une prédiction sont des faits datés ✅
 
 **Date.** 18/08/2026, chantier de révision du moteur, lot 2.
 
@@ -6523,7 +6605,7 @@ ne fait qu'une chose : **cesser de jeter ce que le moteur affirme**.
 
 ---
 
-## ADR-085 — Le moteur se relit, puis ajuste un seul seuil à la fois 🔬
+## ADR-085 — Le moteur se relit, puis ajuste un seul seuil à la fois ✅
 
 **Date.** 18/08/2026, chantier de révision du moteur, lots 3 et 4.
 
@@ -6651,9 +6733,13 @@ vide : le moteur se comporte exactement comme avant. C'est le résultat attendu.
 
 ---
 
-## ADR-086 — L'atomicité tient au schéma, pas à la consigne ; le référentiel se détecte seul 🔬
+## ADR-086 — L'atomicité tient au schéma ; la détection du référentiel reste propositionnelle 🔬
 
 **Date.** 18/08/2026, chantier de révision du moteur, lot 5.
+
+**Statut actuel du 22/08.** La moitié « atomicité » est acceptée. La détection
+du référentiel reste 🔬 : elle ne produit que des candidats et doit encore
+démontrer sa valeur à l'usage. La scission générale d'ADR-087 est abandonnée.
 
 **Ce qui était demandé, dans les mots de Maxime.** « Que proposes-tu pour cadrer
 le tuteur afin qu'il génère des compétences atomiques ? Comment va-t-on gérer
@@ -6847,9 +6933,14 @@ la réutiliser.
 
 ---
 
-## ADR-087 — Une compétence a plusieurs successeurs ; la scission est sèche 🔬
+## ADR-087 — Une compétence a plusieurs successeurs ; la scission est sèche 🗑️
 
 **Date.** 18/08/2026, lot 5.
+
+**Statut actuel du 22/08.** Abandonnée : les règles d'atomicité d'ADR-086
+ferment le besoin d'une machinerie générale de scission. Une éventuelle
+correction de compétences existantes fera l'objet d'une décision dédiée.
+Le texte ci-dessous est historique.
 
 **Le constat.** `competences.remplace_par` est mono-valué : il dit « LOG-01
 devient LOG-20 », jamais « LOG-01 devient LOG-20, 21, 22, 23 » — ce que produit
@@ -7831,11 +7922,11 @@ C'est l'écran où l'on passe le plus de temps.
 ---
 
 <a name="adr-105"></a>
-## ADR-105 — Une carte des savoirs en dépôt, et un rattachement que seule une personne écrit ❓
+## ADR-105 — Une carte des savoirs en dépôt, et un rattachement que seule une personne écrit ✅
 
-**Statut : ❓ proposition, non tranchée.** Rédigée le 22/08/2026 à la demande du
-titulaire du dépôt, qui a appliqué la migration le jour même. Le statut ne monte
-pas tant qu'une personne ne l'a pas passé explicitement.
+**Statut : ✅ Acceptée le 22/08/2026 par Maxime.** La migration a été appliquée
+le même jour ; la carte reste versionnée dans le dépôt et seul un geste humain
+écrit le rattachement.
 
 ### Le problème
 
@@ -7962,11 +8053,28 @@ qui ne sert à rien : la retirer comme ADR-099 a retiré les tables.
 ---
 
 <a name="adr-106"></a>
-## ADR-106 — Les sous-domaines se dérivent des intitulés, et ne s'écrivent pas 🔬
+## ADR-106 — Les sous-domaines se dérivent des intitulés, et ne s'écrivent pas 🔄
 
-**Statut : 🔬 hypothèse construite, non réfutée (22/08/2026).** Le découpage est
-en place et lisible à l'écran ; sa valeur reste à établir sur des données plus
-nombreuses. Le test de réfutation est en bas.
+**Statut actuel : 🔄 Réfutée le 22/08/2026 et remplacée par ADR-107.** Le
+découpage lexical n'est pas le modèle retenu ; l'ancien texte est conservé
+comme historique de la proposition écartée.
+
+> **Retirée du code le 23/08/2026.** `lib/engine/sous-domaines.ts` et son test
+> sont supprimés, avec leur câblage : le champ `sousDomaines` de
+> `VueDomaineAtelier` (`lib/documents/vue-atelier.ts`) et le filtre « Sujets
+> détectés » de `components/atelier/vues/vue-domaine.tsx`. À leur place, le
+> panneau `ParenteDomaine` affiche la hiérarchie **déclarée** d'ADR-107.
+> `lib/engine/similarite-textuelle.ts` reste : `classification-domaine.ts`
+> (ADR-105) s'en sert pour proposer une région de carte, ce qui est un autre
+> geste — proposer, pas regrouper.
+>
+> Ce retrait fait perdre une capacité, et il faut le dire : plus rien ne regroupe
+> automatiquement les compétences d'un domaine large. Ce qui la remplace n'est
+> pas un calcul mais un geste — créer un sous-domaine, y taguer — assisté par
+> une proposition du tuteur (`lib/tutor/tags-competence.ts`). Si l'usage montre
+> que ce geste ne se fait jamais, c'est la proposition qu'il faudra améliorer,
+> pas le classement lexical qu'il faudra ressusciter : il a été réfuté sur ses
+> résultats, pas sur son ergonomie.
 
 ### Le problème
 
@@ -8043,7 +8151,342 @@ pas encore : le module reste, sans être étendu.
 ---
 
 <a name="adr-107"></a>
-## ADR-107 — L'engagement est un fait déclaré, pas un objectif ✅
+## ADR-107 — Les domaines sont des tags hiérarchiques, pas des propriétaires ❓
+
+**Statut :** proposition validée sur le modèle métier le 22/08/2026 ; le
+nommage des compétences reste ouvert. Remplace [ADR-106](#adr-106) et la
+partie « porteur unique » d'[ADR-081](#adr-081).
+
+### Proposition
+
+Un `Domaine` est un nœud déclaré d'une hiérarchie, pas le propriétaire d'une
+compétence. La hiérarchie est récursive : elle peut commencer à deux niveaux
+dans l'interface, mais le modèle ne fixe pas de plafond métier. Une relation
+`parent_id` dans la même entité `Domaine` suffit ; aucune table
+`sous_domaines` n'est créée.
+
+Une compétence peut recevoir plusieurs tags de domaine — par exemple
+`Physique`, `Mathématiques` et `Biologie` — et peut être directement pertinente
+à la fois pour un domaine supérieur et pour un sous-domaine. Aucun tag ne crée
+une copie, un nouveau code ou une seconde compétence.
+
+Un tag posé sur un sous-domaine rend la compétence visible dans tous ses
+ancêtres par dérivation. Les rattachements hérités ne sont pas écrits. Une
+compétence sans tag est autorisée dans une zone « À classer » ; elle reste un
+fait du référentiel, mais n'apparaît dans aucun domaine tant qu'une personne ne
+la rattache pas.
+
+Les scores globaux dédupliquent les compétences. Une vue de domaine agrège
+l'union des compétences de son sous-arbre ; déplacer un domaine déplace donc
+la visibilité dérivée sans réécrire les compétences ni les observations.
+
+Créer, déplacer, renommer, taguer ou archiver reste un geste déclaré, gouverné
+par [ADR-065](#adr-065). Le tuteur peut proposer un rattachement ; il ne crée
+aucune hiérarchie ni aucun tag sans validation humaine. Les cycles de parenté
+sont refusés par la commande transactionnelle.
+
+Chaque domaine, y compris un sous-domaine, garde son propre préfixe. Le
+préfixe ne peut toutefois plus être interprété comme la propriété exclusive
+d'une compétence : une compétence multi-taguée conserve une seule identité.
+Les codes existants restent stables ; le choix d'un nouveau système de
+nommage indépendant des domaines fera l'objet d'une décision séparée.
+
+### Ce que cette proposition écarte
+
+- les sous-domaines déduits des seuls intitulés (ADR-106) ;
+- une table distincte pour les sous-domaines ;
+- le porteur unique comme propriété métier d'une compétence (ADR-081) ;
+- le double comptage d'une compétence dans le score global ;
+- tout rattachement automatique produit par un classement lexical.
+
+### Test de réfutation
+
+Après les premiers référentiels hiérarchiques, vérifier que les personnes
+retrouvent une compétence par ses tags et ses ancêtres, que les branches ne
+sont pas créées artificiellement pour classer, et qu'un déplacement de domaine
+ne modifie aucun état ni score global. Si l'héritage rend les périmètres
+illisibles ou produit des doublons dans les recommandations, le modèle devra
+être révisé avant d'étendre la profondeur.
+
+### Question restant ouverte
+
+Le code de compétence est encore lié historiquement au préfixe du domaine de
+création (`LOG-01`). Il faut décider séparément s'il reste un namespace de
+création stable ou s'il est remplacé, pour les nouvelles compétences, par un
+identifiant global indépendant des domaines.
+
+### Mise en œuvre — 23/08/2026
+
+**Le statut reste ❓.** Ce qui suit décrit ce qui a été construit sur
+autorisation explicite de Maxime le 23/08 ; construire n'est pas trancher, et
+le test de réfutation ci-dessus n'a pas encore de données.
+
+**Ce que la base porte.** Migration
+`20260823090000_domaines_hierarchiques_tags.sql`, additive et idempotente,
+**écrite mais non appliquée** au 23/08 — la comparaison à l'état réel de
+Supabase reste à faire avant de la jouer :
+
+- `domaines.parent_id` nullable, clé étrangère composite `(user_id, parent_id)`
+  vers `domaines(user_id, id)` en `ON DELETE RESTRICT` — supprimer un parent ne
+  doit jamais emporter une branche —, contrainte `domaines_parent_pas_soi` et
+  index `domaines_parent_idx`. **Aucune table `sous_domaines`.**
+- `competence_domaines` devient le porteur de **tous** les tags : la migration
+  y insère le domaine de création de chaque compétence existante. Sans ce
+  remplissage, tout référentiel migré partirait « À classer ».
+- `taguer_competences_domaine` remplace `rattacher_competences_domaine`, et
+  `deplacer_domaine` est ajoutée. Toutes deux reprennent les garanties
+  d'[ADR-065](#adr-065) : `SECURITY INVOKER`, drapeau `app.referentiel_command`,
+  verrou d'avis, idempotence par `request_id`, version optimiste (`40001` sur
+  écran périmé), entrée dans `referentiel_changes`. `deplacer_domaine` refuse
+  en plus la parenté circulaire, par `WITH RECURSIVE` sur la descendance.
+- Aucune de ces deux commandes ne rejoint `appliquer_commande_referentiel` :
+  même raison qu'ADR-081 — sa liste de types vit dans un bloc de plus de 13 Ko,
+  et l'étendre ferait porter à un ajout périphérique le risque de réécrire tout
+  le chemin d'écriture du référentiel.
+
+**Ce qui n'est jamais écrit.** La visibilité héritée. `lib/domain/hierarchie-domaines.ts`
+dérive ancêtres, descendance, chemin et sous-arbre à chaque lecture ; ses
+traversées portent un ensemble de nœuds déjà vus, pour qu'une hiérarchie
+corrompue rende une lecture partielle plutôt qu'une boucle au rendu.
+`agregerDomaine` agrège l'union du sous-arbre, dédupliquée parce qu'elle filtre
+des états et non des tags. `calculerEtatGlobal` continue de sommer sur les
+compétences : c'est ce qui rend vrai « déplacer un domaine ne change aucun
+score », figé par `lib/engine/tags-domaine.test.ts`.
+
+**Ce que le tuteur peut.** `proposer_tags_competence` (`lib/tutor/tags-competence.ts`,
+route `/api/referentiel/tags`) : `enum` fermé sur les domaines vivants du
+compte, construit et relu côté serveur, une justification obligatoire par
+ligne, et **aucun chemin d'écriture**. Le geste reste `taguerCompetences`,
+déclenché par un clic — modèle d'[ADR-105](#adr-105), appliqué aux compétences.
+
+**Ce qui n'est pas testé automatiquement, et pourquoi.** Le refus des cycles,
+l'idempotence, le verrou optimiste, l'append-only du journal et la frontière de
+commande n'existent qu'en base. `supabase/tests/adr_107_hierarchie_tags.sql`
+les exerce, et se joue **sur une base isolée** — comme le test de réfutation
+d'ADR-065. Il n'a pas été exécuté : la session qui a écrit ce chantier n'avait
+aucun accès Supabase.
+
+**Ce que ce chantier ne tranche pas.** Le nommage des compétences (question
+ci-dessus) reste ouvert : les codes existants sont stables, le préfixe est
+redevenu un namespace de création, et rien n'a été décidé pour les codes à
+venir.
+
+<a name="adr-108"></a>
+## ADR-108 — Le référentiel se relit en entier, et ne se réécrit jamais tout seul ❓
+
+**Statut :** ❓ proposition du 23/08/2026. **Doit être tranchée par Maxime.**
+Ce qui bloque n'est pas technique : c'est un arbitrage de régime — accepter
+qu'une proposition de **structure** vienne d'un modèle non déterministe.
+Étend [ADR-082](#adr-082), complète [ADR-107](#adr-107), et n'en fait monter
+aucune.
+
+### Le problème, et il est mesurable
+
+Le système sait déjà repérer beaucoup de choses dans le référentiel. Il ne les
+montre nulle part.
+
+| Ce qui existe | Où | État |
+|---|---|---|
+| Prérequis probable (co-mobilisation ordonnée) | `candidats-referentiel.ts`, genre `arete` | calculé, **aucun écran** |
+| Compétence dormante | genre `dormance` | calculé, **aucun écran** |
+| Intitulé non atomique | genre `reformulation` | calculé, **aucun écran** |
+| Compétence rangée ailleurs que là où elle s'observe | genre `rangement` | calculé, **aucun écran** |
+| Prérequis et suites proposés par le tuteur | `relations-referentiel.ts` (ADR-082) | câblé, **par compétence et sur clic** |
+| Où une compétence sert | `tags-competence.ts` (ADR-107) | câblé, **par compétence et sur clic** |
+
+`chargerCandidatsReferentiel` est appelé par rien. Quatre détecteurs tournent
+dans le vide depuis leur écriture.
+
+Et deux manques réels s'ajoutent à cet inventaire :
+
+- **rien ne propose de structure.** Un domaine qui accumule des compétences sur
+  un même sujet ne le signale pas. Le seul module qui lisait ce signal
+  (ADR-106) a été réfuté puis retiré le 23/08 ;
+- **rien ne relie les intentions au référentiel.** Le profil porte
+  `objectif_moyen_terme` et `objectif_long_terme` en texte libre ; le tuteur
+  sait traduire un besoin ponctuel (`traduire_intention`), mais personne ne
+  confronte jamais ces intentions à ce que le référentiel contient — ni à ce
+  qui lui manque.
+
+Le geste que ces manques imposent aujourd'hui est le même : ouvrir chaque
+fiche, cliquer, arbitrer. À soixante-quinze compétences, personne ne le fait.
+
+### La proposition
+
+**Une relecture du référentiel entier, périodique et sans écriture.** Le
+tuteur reçoit les intitulés du compte, l'arbre des domaines, les relations
+déjà déclarées et les intentions déclarées ; il rend un lot de propositions.
+Il n'écrit rien. Chaque proposition s'arbitre séparément, et l'écriture passe
+par les commandes gouvernées d'[ADR-065](#adr-065).
+
+**Le déclencheur est la péremption, jamais un seuil de taille.** Une commande
+de référentiel validée incrémente `domaines.version` : c'est ce fait, déjà
+présent, qui rend une relecture périmée. Aucune constante à calibrer. Un
+domaine de quarante compétences homogènes ne doit rien déclencher, un domaine
+de neuf qui porte deux sujets distincts doit déclencher — la taille ne
+distingue pas ces deux cas, et un seuil qui les confond fabriquerait des
+branches artificielles, ce que le test de réfutation d'ADR-107 demande
+justement de surveiller.
+
+**La relecture ne pend pas au chemin d'écriture.** Elle tourne hors de la
+transaction. Une création de compétence ne doit jamais échouer parce qu'un
+fournisseur de modèle a mis quatre secondes.
+
+**Les genres de proposition.** Les détecteurs déterministes gardent leur place
+et leur priorité : ce qu'un calcul explique en une phrase n'a pas à être
+demandé à un modèle. Le tuteur couvre ce qu'aucun calcul ne voit — la
+paraphrase, le sujet implicite, le prérequis qu'aucune co-mobilisation n'a
+encore révélé.
+
+| Genre | Origine | Ce qu'il propose |
+|---|---|---|
+| `arete` | déterministe | un prérequis déclaré entre deux compétences |
+| `dormance`, `reformulation`, `rangement` | déterministe | inchangés (ADR-086, ADR-107) |
+| `scission` | tuteur | un ou plusieurs sous-domaines nommés, et les codes de chacun |
+| `relation` | tuteur (ADR-082) | prérequis et suites, à l'échelle du référentiel et non d'une fiche |
+| `manque` | tuteur, adossé au travail réel et aux intentions | une compétence absente que ce qui a été travaillé ou déclaré suppose |
+
+**Les intentions entrent comme contexte, jamais comme mesure.** Les deux
+textes du profil sont transmis tels quels, sans extraction ni interprétation
+stockée. Le genre `manque` en découle : « tu as déclaré vouloir X, et ton
+référentiel ne porte rien sur Y, que X suppose ». C'est une **proposition de
+compétence à créer**, soumise aux mêmes règles que toutes les autres — code
+attribué par l'application (ADR-026), validation humaine (P5).
+
+**Tout `enum` est fermé et relu côté serveur.** Codes vivants, identifiants de
+domaines existants — modèle d'[ADR-043](#adr-043), [ADR-105](#adr-105) et
+[ADR-107](#adr-107). Le tuteur ne frappe ni code de compétence, ni
+identifiant de domaine, ni nœud de carte.
+
+**Une proposition est un fait daté, pas un calcul.** Elle est stockée avec la
+version du domaine ou du référentiel sur laquelle elle porte, et se périme
+d'elle-même dès que cette version bouge. Le précédent est [ADR-004](#adr-004) :
+un contenu produit par le tuteur est un fait observé — « cet énoncé a été
+proposé le J » — et a sa place sur le disque sans contrevenir à P1. Ce qui
+reste interdit est de stocker l'**état dérivé** qu'elle décrit.
+
+**Un refus s'enregistre, et ne revient pas.** Sans cela, le lot se rallume à
+chaque ajout et cesse d'être lu au bout d'une semaine. Le dépôt a déjà ce
+mécanisme pour les recommandations (`refus_recommandations`, filtrage à la
+lecture) ; le filtrage s'en inspire tel quel — **pas** l'expiration. Le refus
+d'une proposition de structure ne porte aucun délai : décliner un exercice
+aujourd'hui ne dit rien de la semaine prochaine, décliner un découpage dit
+quelque chose de durable. En choisir une durée reviendrait à inventer un
+nombre que cette ADR ne donne pas.
+
+**Une surface unique.** Un écran des propositions, où les six genres arrivent
+ensemble. Ajouter un signal de plus sans surface le rendrait invisible comme
+les quatre premiers.
+
+**Une scission validée s'écrit en une transaction.** `scinder_domaine` crée le
+sous-domaine, le rattache au parent et transfère les tags en un seul appel,
+avec les garanties d'ADR-065. En trois commandes successives, une erreur au
+milieu laisserait un sous-domaine vide et des compétences à moitié déplacées —
+exactement le défaut qu'ADR-065 existe pour empêcher.
+
+### Ce que cette proposition écarte
+
+- **un seuil de taille** comme déclencheur de découpe : il se trompe dans les
+  deux sens et fabrique des branches pour satisfaire un nombre ;
+- **le classement lexical automatique** (ADR-106, réfutée) : il reste écarté,
+  y compris comme détecteur silencieux ;
+- **l'invention d'un nœud de carte** : la carte est un référentiel partagé et
+  son `enum` reste fermé (ADR-105) ;
+- **le prérequis bloquant** : `Skill.prerequis` est « indicatif, jamais
+  bloquant ». Un manque signalé est une proposition, pas une serrure ;
+- **la relecture sur le chemin d'écriture** : elle ferait échouer une
+  commande de référentiel pour une suggestion ;
+- **l'extraction d'un objectif structuré depuis les textes du profil** : le
+  système d'objectifs structurés a été retiré le 21/08 (ADR-096) et ne revient
+  pas par cette porte.
+
+### Le régime du non-déterminisme, et pourquoi il est acceptable ici
+
+ADR-106 tenait au déterminisme : « même référentiel, même découpage,
+toujours ». Une proposition produite par un modèle perd cette propriété — deux
+relectures peuvent proposer deux découpages. ADR-106 avait elle-même anticipé
+le régime applicable : « non déterministes, donc soumis au même régime que le
+classement sur la carte — proposer, faire valider, enregistrer l'arbitrage ».
+
+C'est acceptable **parce que** rien ne s'écrit sans un geste humain, que
+l'arbitrage est journalisé, et que ce qui est écrit — un domaine, un tag, un
+prérequis — est ensuite un fait déclaré comme un autre, indépendant de la
+proposition qui l'a suggéré. Ce qui ne serait pas acceptable, et que cette ADR
+n'autorise pas, est qu'une lecture différente change un état déjà mesuré.
+
+### Test de réfutation
+
+Sur les trois premiers lots produits :
+
+- si moins d'une proposition sur deux est retenue, le lot est du bruit et il
+  vaut mieux ne rien montrer que d'entraîner à ignorer un écran ;
+- si une scission acceptée est défaite dans le mois, le découpage proposé
+  n'était pas le bon découpage et le genre `scission` doit être retiré avant
+  d'en ajouter d'autres ;
+- si les propositions déterministes suffisent — c'est-à-dire si les genres
+  produits par le tuteur ne sont presque jamais retenus —, alors l'appel modèle
+  ne se justifie pas et la relecture doit redevenir un calcul.
+
+Mesure préalable indispensable : **le taux de rétention par genre**. Sans lui,
+ce test n'est pas exécutable, et il doit donc être enregistré dès le premier
+lot.
+
+### Mise en œuvre (23/08/2026)
+
+La proposition est **construite**, et son statut reste ❓ : aucun des critères
+de réfutation n'a encore de données à lire, et le régime du non-déterminisme
+n'est tranché par personne d'autre que Maxime. Construire n'est pas trancher.
+
+**Arbitrages posés par Maxime le 22/08/2026** (AskUserQuestion, réponses
+explicites — ils précèdent la construction) :
+
+| Question | Réponse retenue |
+|---|---|
+| Genre `manque` (« élargir ») | **Activé, et nourri aussi par le travail réellement fait**, pas seulement par les intentions déclarées. Écart assumé avec le texte ci-dessus, qui le livre désactivé et adossé aux seuls textes du profil. La demande d'origine est une lecture d'activité — « je vois que vous vous intéressez au kanban » — pas une lecture d'objectif. Le risque nommé reste entier et tenu par deux garde-fous : l'`ancrage` cité est obligatoire (la seconde couche de validation écarte tout manque sans lui), et le taux de rétention du genre se mesure dès le premier lot |
+| Surface | **Avis sobre sur le Bureau + écran dédié** (`/atelier/propositions`). Pas d'écran seul |
+| Déclenchement | **À l'ouverture si périmé (tâche de fond) + bouton « relire maintenant »**. Hors du chemin d'écriture |
+
+**Ce qui existe au code :**
+
+- `lib/domain/propositions-referentiel.ts` — les types, l'empreinte, la
+  péremption dérivée, le lot ouvert, la rétention. Pur, sans persistance ;
+- `lib/tutor/outils.ts` (`outilsRelecture`, `validerRelecture`) — le schéma à
+  `enum` fermé et sa seconde couche de validation (ADR-031) ;
+- `lib/tutor/relecture-referentiel.ts` — le prompt et l'appel ; le drapeau
+  d'élargissement y est réappliqué côté serveur après validation de schéma ;
+- `lib/store/propositions-referentiel.ts` et `lib/store/relecture-referentiel.ts`
+  — persistance des faits datés, assemblage du lot : les quatre détecteurs
+  déterministes inchangés, puis les trois genres du tuteur, moins les
+  empreintes refusées ;
+- `app/api/referentiel/relecture/route.ts` — POST hors chemin d'écriture,
+  dégradé en lot déterministe seul si aucun moteur n'est disponible ;
+- `lib/store/referentiel-actions.ts` (`scinderDomaine`) — l'identifiant
+  (`slugifier`) et le préfixe (`prefixesDistincts`) calculés côté application,
+  jamais par le tuteur ;
+- `app/supabase/migrations/20260824090000_relecture_referentiel.sql` — table
+  `propositions_referentiel` + fonction `scinder_domaine`. **Appliquée en
+  production le 23/08/2026**, reprise à l'identique dans `schema.sql`.
+
+**Ce que la mise en œuvre n'a pas fait :** monter un statut, ouvrir un genre
+sans arbitrage, inventer un seuil de déclenchement (les plafonds
+d'affichage existants sont des bornes de lecture), ni toucher aux quatre
+détecteurs déterministes.
+
+### Questions restant ouvertes
+
+1. **La fréquence réelle.** La péremption dit *qu'*une relecture est due, pas
+   *quand* la lancer. Ouverture d'un domaine, tâche de fond après commande, ou
+   bouton : à trancher sur le coût observé, pas d'avance.
+2. **Le genre `manque` est le plus risqué.** Proposer une compétence absente
+   suppose de savoir ce que « X » exige — c'est un jugement de programme, pas
+   une lecture du compte. Maxime l'a ouvert le 22/08/2026 (voir Mise en œuvre)
+   ; il reste réversible à un coût d'une ligne (`ELARGISSEMENT_ACTIF`) si son
+   taux de rétention ne tient pas.
+
+---
+
+<a name="adr-109"></a>
+## ADR-109 — L'engagement est un fait déclaré, pas un objectif ✅
 
 **Date.** 22/08/2026. **Tranchée par Maxime** — arbitrage rendu favorable sur
 les questions ouvertes du plan persona académique (le « fait daté », A0).
@@ -8093,8 +8536,8 @@ autre barème.
 
 ---
 
-<a name="adr-108"></a>
-## ADR-108 — Le mode épreuve est une déclaration de séance, pas une mesure ✅
+<a name="adr-110"></a>
+## ADR-110 — Le mode épreuve est une déclaration de séance, pas une mesure ✅
 
 **Date.** 22/08/2026. **Tranchée par Maxime** — arbitrage rendu favorable sur
 le plan persona concours (chantier C1).
@@ -8121,8 +8564,8 @@ caractéristique déclarée au départ sur la séance elle-même suffisait.
 
 ---
 
-<a name="adr-109"></a>
-## ADR-109 — Les images sont des pièces jointes documentaires, acceptées passivement ✅
+<a name="adr-111"></a>
+## ADR-111 — Les images sont des pièces jointes documentaires, acceptées passivement ✅
 
 **Date.** 22/08/2026. **Tranchée par Maxime** — option « acceptation passive »
 du plan persona parent (chantier P2).
@@ -8145,8 +8588,8 @@ L'option passive est retenue. jpeg/png/webp admis comme pièces
 
 ---
 
-<a name="adr-110"></a>
-## ADR-110 — La ressource-lien documente, elle ne nourrit pas ✅
+<a name="adr-112"></a>
+## ADR-112 — La ressource-lien documente, elle ne nourrit pas ✅
 
 **Date.** 22/08/2026. **Tranchée par Maxime** — arbitrage partagé des plans
 reconversion et loisir (R2).
@@ -8169,8 +8612,8 @@ facultatifs au référentiel. Elle **documente**, elle ne nourrit pas :
 
 ---
 
-<a name="adr-111"></a>
-## ADR-111 — Le tuteur peut lire un PDF déposé pour proposer des branches ✅
+<a name="adr-113"></a>
+## ADR-113 — Le tuteur peut lire un PDF déposé pour proposer des branches ✅
 
 **Date.** 22/08/2026. **Tranchée par Maxime** — arbitrage rendu favorable sur
 le chantier C du plan académique.

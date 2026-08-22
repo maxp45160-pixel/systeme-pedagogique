@@ -67,22 +67,39 @@ export const SKILLS_TEST: Skill[] = [
   }),
 ];
 
-export const REFERENTIEL_TEST: Referentiel = assemblerReferentiel(DOMAINES_TEST, SKILLS_TEST);
+/**
+ * Le tag que la migration d'ADR-107 pose pour chaque compétence existante :
+ * son domaine de création devient un tag explicite.
+ *
+ * Les fixtures reproduisent cet état, faute de quoi tout le référentiel de test
+ * partirait « À classer » — ce qui serait un compte fraîchement détagué, pas un
+ * compte migré.
+ */
+function tagsDuDomaineDeCreation(skills: Skill[]): Array<{ code: string; domaine: string }> {
+  return skills.map((skill) => ({ code: skill.code, domaine: skill.domaine }));
+}
+
+export const REFERENTIEL_TEST: Referentiel = assemblerReferentiel(
+  DOMAINES_TEST,
+  SKILLS_TEST,
+  tagsDuDomaineDeCreation(SKILLS_TEST),
+);
 export const REFERENTIEL_VIDE: Referentiel = assemblerReferentiel([], []);
 
 /**
  * Construit un référentiel de test sur mesure, pour les cas particuliers.
  *
- * `rattachements` traverse jusqu'à `assemblerReferentiel` : c'est la seule
- * voie d'entrée des domaines secondaires (ADR-081), qui sont recalculés là et
- * écrasent ce qu'une `Skill` littérale prétendrait porter.
+ * `tags` traverse jusqu'à `assemblerReferentiel` : c'est la seule voie d'entrée
+ * des tags de domaine (ADR-107), qui sont recalculés là et écrasent ce qu'une
+ * `Skill` littérale prétendrait porter. Sans liste explicite, chaque compétence
+ * reçoit le tag de son domaine de création — l'état d'après migration.
  */
 export function referentielDe(
   skills: Skill[],
   domaines: Domaine[] = DOMAINES_TEST,
-  rattachements: Array<{ code: string; domaine: string }> = [],
+  tags: Array<{ code: string; domaine: string }> = tagsDuDomaineDeCreation(skills),
 ): Referentiel {
-  return assemblerReferentiel(domaines, skills, rattachements);
+  return assemblerReferentiel(domaines, skills, tags);
 }
 
 export { skill as skillDeTest, domaine as domaineDeTest };

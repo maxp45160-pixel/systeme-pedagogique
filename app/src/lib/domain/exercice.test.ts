@@ -3,6 +3,7 @@ import {
   compterTentatives,
   modeRetraitExercice,
   usageExercice,
+  motifRefusEditionCompetences,
   motifRefusExercice,
   DIFFICULTE_MAX,
   DIFFICULTE_MIN,
@@ -169,5 +170,30 @@ describe("motifRefusExercice", () => {
     // qui entrait en base pouvait dépasser ce que le tuteur avait le droit de
     // proposer.
     expect(motifRefusExercice(contenu({ dureeEstimeeMin: 480 }))).toContain("Durée");
+  });
+});
+
+/*
+ * Les compétences visées ne se modifient pas à l'édition (ADR-047). La règle
+ * doit être tenue côté serveur, pas seulement par l'écran : `modifierExercice`
+ * est une Server Function, donc un point d'entrée public — « l'interface peut
+ * être contournée, pas la règle ».
+ */
+describe("motifRefusEditionCompetences", () => {
+  it("accepte des compétences inchangées, quel que soit leur ordre", () => {
+    expect(motifRefusEditionCompetences(["LOG-10"], ["LOG-10"])).toBeNull();
+    expect(motifRefusEditionCompetences(["LOG-10", "DEV-01"], ["DEV-01", "LOG-10"])).toBeNull();
+  });
+
+  it("refuse d'ajouter, de retirer ou de substituer une compétence", () => {
+    expect(motifRefusEditionCompetences(["LOG-10"], ["LOG-10", "DEV-01"])).toContain(
+      "ne se modifient pas",
+    );
+    expect(motifRefusEditionCompetences(["LOG-10", "DEV-01"], ["LOG-10"])).toContain(
+      "ne se modifient pas",
+    );
+    expect(motifRefusEditionCompetences(["LOG-10"], ["DEV-01"])).toContain(
+      "ne se modifient pas",
+    );
   });
 });

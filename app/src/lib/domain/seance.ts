@@ -272,6 +272,15 @@ export function seanceEnCoursPour(
  *
  * Sans contexte utilisable, on retombe sur `seanceEnCoursPour` : c'est le cas
  * d'un exercice ouvert hors workspace, où aucune séance n'a été désignée.
+ *
+ * ⚠️ **Autorité d'écriture : le SQL, pas ce miroir.** La sélection d'hôte qui
+ * décide du journal vit dans `clore_exercice` (`app/supabase/schema.sql`,
+ * branche `p_seance_id_contexte`) — c'est elle qui fait foi pour toute
+ * écriture, et les deux implémentations doivent rester sémantiquement
+ * identiques (même discipline que la règle doublement écrite d'ADR-068). Cette
+ * fonction TypeScript porte la même lecture pour l'affichage et les tests ; si
+ * l'une des deux change seule, le rattachement affiché et le rattachement écrit
+ * divergent en silence.
  */
 export function seanceHoteDeLExercice(
   exerciceId: string,

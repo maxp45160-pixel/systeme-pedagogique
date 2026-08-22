@@ -41,6 +41,7 @@ import { creerExercice } from "@/lib/store/actions";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import { consommerFluxSse } from "@/lib/tutor/flux-sse";
 import { ChargementGeneration } from "@/components/ui/chargement-generation";
+import { IconeFermer, IconeValide } from "@/components/ui/icones";
 import { convertirProposition } from "@/lib/tutor/conversion-exercice";
 import type { PropositionExercice } from "@/lib/tutor/proposition";
 import { DIFFICULTES, LIBELLES_DIMENSIONS, type Dimension } from "@/lib/domain/types";
@@ -807,8 +808,9 @@ export function ModaleExercice({
                                   {prop.competences[0] ?? `Exo ${idx + 1}`}
                                 </span>
                                 {estEnregistre ? (
-                                  <span className="rounded bg-succes-faible px-1.5 py-0.5 text-[0.625rem] font-bold text-succes">
-                                    ✓ Enregistré
+                                  <span className="inline-flex items-center gap-1 rounded bg-succes-faible px-1.5 py-0.5 text-[0.625rem] font-bold text-succes">
+                                    <IconeValide className="size-3" />
+                                    Enregistré
                                   </span>
                                 ) : (
                                   <span className="size-1.5 rounded-full bg-primaire/60" />
@@ -863,7 +865,8 @@ export function ModaleExercice({
                             )}
                             {enregistrees.has(i) && (
                               <span className="inline-flex items-center gap-1 rounded-md bg-succes-faible px-2 py-0.5 text-[0.6875rem] font-bold text-succes">
-                                ✓ Enregistré
+                                <IconeValide className="size-3" />
+                                Enregistré
                               </span>
                             )}
                           </div>
@@ -1094,7 +1097,7 @@ function EnveloppeGeneration({
           aria-label="Abandonner la proposition"
           className="shrink-0 rounded-md px-2 py-1 text-sm text-texte-attenue transition-colors hover:bg-surface hover:text-texte"
         >
-          ✕
+          <IconeFermer className="size-4" />
         </button>
       </div>
       {children}

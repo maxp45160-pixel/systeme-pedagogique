@@ -372,6 +372,14 @@ export function validerDomaine(valeur: unknown, chemin = "domaines"): Domaine {
   enumeration(domaine.origine, ["utilisateur", "tuteur", "migration", "manuel"] as const, `${chemin}.origine`);
 
   /*
+   * Le parent (ADR-107). L'existence du domaine visé n'est PAS vérifiée ici :
+   * les domaines se valident un par un, sans voir la collection. Un parent
+   * absent se lit à la racine (`indexerEnfants`) plutôt que de rendre tout le
+   * référentiel illisible.
+   */
+  optionnel(domaine, "parentId", chemin, texte);
+
+  /*
    * Rattachement à la carte des savoirs : les quatre champs vont ensemble ou
    * pas du tout. La contrainte `domaines_carte_complete` le garantit côté
    * base ; on le revérifie ici parce qu'une donnée venue de Supabase se valide

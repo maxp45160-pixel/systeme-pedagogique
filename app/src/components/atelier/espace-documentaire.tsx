@@ -97,6 +97,7 @@ import {
 } from "@/lib/store/document-actions";
 import { extraireTexteSupportAction } from "@/lib/store/extraction-pdf";
 import type {
+  VueAClasserAtelier,
   VueDomaineAtelier,
   VueCompetenceAtelier,
 } from "@/lib/documents/vue-atelier";
@@ -354,6 +355,7 @@ export function EspaceDocumentaire({
   generation,
   donneesSeance,
   domainesExistants,
+  aClasser,
   creationInitiale,
 }: {
   elements: ElementAtelier[];
@@ -369,6 +371,12 @@ export function EspaceDocumentaire({
   generation: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
   donneesSeance?: DonneesSeance;
   domainesExistants: { id: string; nom: string; prefixe: string }[];
+  /**
+   * Les compétences qu'aucun tag ne rend visible (ADR-107). Dérivée une seule
+   * fois par `construireVuesAtelier` : la règle « aucun tag » n'a qu'une
+   * implémentation, et l'écran ne la recalcule pas.
+   */
+  aClasser: VueAClasserAtelier[];
   creationInitiale?: string;
 }) {
   const router = useRouter();
@@ -1392,6 +1400,7 @@ export function EspaceDocumentaire({
               changerVue={changerVue}
               selection={statutFiltre === "archives" || selection === "domaines-archives" ? "domaines-archives" : "domaines"}
               compteId={graphe.compteId}
+              aClasser={aClasser}
               tri={triDomaines}
               onArchiver={onArchiverDomaine}
               onRestaurer={onRestaurerDomaine}
@@ -1718,6 +1727,7 @@ export function EspaceDocumentaire({
               changerVue={changerVue}
               selection="domaines"
               compteId={graphe.compteId}
+              aClasser={aClasser}
             />
           )}
         </main>
