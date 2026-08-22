@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Le Bureau — la page du jour où l'on travaille (ADR-102).
+ * Le Bureau — la page du jour où l'on travaille (ADR-103).
  *
  * ## Ce qu'il remplace
  *

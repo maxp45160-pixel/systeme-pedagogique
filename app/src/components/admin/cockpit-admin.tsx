@@ -143,7 +143,7 @@ export function CockpitAdmin({
 
       {/* Barre de navigation des onglets */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-bordure pb-4">
-        <nav className="flex flex-wrap gap-1.5" aria-label="Navigation Cockpit Admin">
+        <nav className="flex flex-wrap gap-1.5" aria-label="Navigation Comptes et accès">
           {onglets.map((o) => {
             const actif = ongletActif === o.id;
             return (

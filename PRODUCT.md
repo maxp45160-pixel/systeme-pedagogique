@@ -137,6 +137,15 @@ auteur. *Test de réfutation inchangé : un compte tiers atteint 10 preuves sans
 assistance.* Le compte tiers en est à 3 — et il les a produites sur un
 référentiel écrit pour quelqu'un d'autre, ce qu'ADR-026 corrige.
 
+### Comptes et accès
+
+Connexion par e-mail + mot de passe, ou Google. Un mot de passe perdu se
+redéfinit en libre-service : le lien « Mot de passe oublié ? » de la connexion
+envoie un lien horodaté (une heure) vers la boîte déclarée, et le consommer
+déconnecte les autres appareils du compte (ADR-100). Aucune donnée
+pédagogique ne circule dans ce flux ; l'adresse déclarée n'est jamais confirmée
+ni infirmée par l'écran de demande.
+
 ## 5. Les huit principes
 
 Chacun est transcrit dans `lib/engine/` et vérifié par les tests. Les deux

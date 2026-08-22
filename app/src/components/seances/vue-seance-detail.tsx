@@ -88,7 +88,7 @@ export async function VueSeanceDetail({
   exerciceDemande?: string;
   recherche?: EtapeRecherche;
   /**
-   * L'URL porte `sas=1` : on vient d'entrer en travail (ADR-102).
+   * L'URL porte `sas=1` : on vient d'entrer en travail (ADR-103).
    *
    * Lu ici plutôt que par `useSearchParams()` côté client pour que le sas soit
    * peint au premier rendu — il apparaîtrait sinon APRÈS l'exercice, ce qui
@@ -226,7 +226,7 @@ export async function VueSeanceDetail({
   return (
     /*
      * Le plein écran est la MÊME pièce que le Bureau, éclairée pareil
-     * (ADR-102). Il rendait jusqu'ici un `bg-surface` plat sur toute la
+     * (ADR-103). Il rendait jusqu'ici un `bg-surface` plat sur toute la
      * fenêtre, en `max-w-7xl` : on quittait visuellement l'application pour
      * entrer dans un écran générique. La lampe et la colonne rétablissent la
      * continuité — on reste au même endroit, on s'y concentre davantage.
@@ -339,7 +339,7 @@ export async function VueSeanceDetail({
 
             `classesIntercalaire` dessinait des languettes de séparateur de
             cahier : bordure transparente, texte atténué, aucun fond. La forme
-            se justifiait quand l'interface peignait un cahier — ADR-100 a
+            se justifiait quand l'interface peignait un cahier — ADR-101 a
             retiré cet habillage, et la languette est restée orpheline. Sur le
             fond sombre du Bureau, quatre mots gris sur gris : on ne voyait
             plus qu'il s'agissait de boutons.

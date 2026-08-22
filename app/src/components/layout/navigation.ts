@@ -84,7 +84,7 @@ export const NAVIGATION: GroupeNav[] = [
        */
 
       /*
-       * Pas d'entrée « Cahier » non plus (ADR-102).
+       * Pas d'entrée « Cahier » non plus (ADR-103).
        *
        * L'archive est un MODE du Bureau (`?vue=cahier`), pas une destination :
        * lui donner sa propre entrée aurait posé deux liens vers `/seances`,

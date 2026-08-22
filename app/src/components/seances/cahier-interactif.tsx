@@ -6,7 +6,7 @@ import { moisAffiche } from "@/components/seances/calendrier-cahier";
 import { Bureau, type EntreesCahier } from "@/components/seances/bureau";
 import { CahierArchive } from "@/components/seances/cahier-archive";
 
-/** Les deux lectures de la même route (ADR-102). */
+/** Les deux lectures de la même route (ADR-103). */
 type Vue = "bureau" | "cahier";
 
 /**

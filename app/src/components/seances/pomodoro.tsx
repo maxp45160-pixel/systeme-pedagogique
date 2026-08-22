@@ -411,7 +411,7 @@ export function Pomodoro({ compteId }: { compteId: string }) {
  * S'insère dans l'en-tête ou la barre mobile.
  */
 /**
- * Le filet ambiant du Bureau (ADR-102) — deux pixels en haut de la fenêtre.
+ * Le filet ambiant du Bureau (ADR-103) — deux pixels en haut de la fenêtre.
  *
  * Il ne porte AUCUN chiffre, et c'est tout le propos : un décompte lisible
  * réclame un regard toutes les minutes, ce qui est l'inverse de ce qu'un

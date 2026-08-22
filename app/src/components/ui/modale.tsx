@@ -46,7 +46,7 @@
 import { useCallback, useEffect, useId, useRef, type ReactNode } from "react";
 import { useEstHydrate } from "@/lib/ui/hydratation";
 import { createPortal } from "react-dom";
-import { cx } from "./primitives";
+import { cx, Filigrane } from "./primitives";
 
 /** Ce qui peut recevoir le focus au clavier, dans l'ordre du document. */
 const FOCUSABLES = [
@@ -240,7 +240,7 @@ export function Modale({
         aria-labelledby={idTitre}
         tabIndex={-1}
         className={cx(
-          "flex w-full flex-col overflow-hidden border border-bordure",
+          "relative isolate flex w-full flex-col overflow-hidden border border-bordure",
           "bg-surface text-left text-texte shadow-[var(--ombre-surcouche)]",
           position === "laterale"
             ? "h-full border-y-0 border-r-0"
@@ -250,6 +250,14 @@ export function Modale({
         )}
         onClick={(e) => e.stopPropagation()}
       >
+        {/*
+         * Le tiroir latéral (le tuteur) porte la feuille en filigrane :
+         * un seul geste décoratif, ancré au coin haut-droit de l'en-tête,
+         * derrière tout le contenu (`isolate` + `-z-10`).
+         */}
+        {position === "laterale" && (
+          <Filigrane className="bottom-auto -top-10 -right-6 -z-10 size-40" />
+        )}
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-bordure px-5 py-4">
           <div className="min-w-0">
             <h2 id={idTitre} className="font-serif text-base font-medium">

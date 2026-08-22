@@ -102,7 +102,8 @@ function construireMacroSynthese(
   ajouterNoeud({
     id: "page:/seances",
     type: "page",
-    libelle: "Séances & Concepteur",
+    // Libellé du rail (ADR-062) : le graphe parle comme l'interface.
+    libelle: "Cahier",
     url: "/seances",
     groupe: "seances",
     badge: "Entraînement",
@@ -173,7 +174,8 @@ function construireMacroSynthese(
     ajouterNoeud({
       id: "page:/admin",
       type: "page",
-      libelle: "Cockpit d'Administration",
+      // Même entrée de rail que l'utilisateur lit — pas « Cockpit ».
+      libelle: "Comptes et accès",
       url: "/admin",
       groupe: "dashboard",
       badge: "Pilotage système",
@@ -917,6 +919,23 @@ function construireUxAtomique(
         type: "navigation",
         libelle: "Accès suspendu",
         declencheur: "Redirection du cadre applicatif quand l'accès est fermé",
+      });
+    }
+    /*
+     * Récupération de mot de passe (ADR-100). L'entrée de la page de
+     * redéfinition n'est pas un clic mais la consommation du lien du
+     * courriel : l'échange de code a lieu dans `/auth/callback`, invisible à
+     * l'AST comme toutes les routes serveur. Sans cette arête explicite, le
+     * graphe la déclarerait inatteignable alors qu'elle est le second temps
+     * obligé du flux.
+     */
+    if (parId.has("page:/auth/mot-de-passe-oublie") && parId.has("page:/auth/nouveau-mot-de-passe")) {
+      connecter({
+        source: "page:/auth/mot-de-passe-oublie",
+        target: "page:/auth/nouveau-mot-de-passe",
+        type: "navigation",
+        libelle: "Lien de redéfinition consommé",
+        declencheur: "Ouverture du courriel — session établie par /auth/callback",
       });
     }
   }

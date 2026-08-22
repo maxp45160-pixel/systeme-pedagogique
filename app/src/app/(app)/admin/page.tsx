@@ -24,7 +24,7 @@ import {
 import type { DonneesPerspectiveGraphe } from "@/components/dev/graphe-workflow";
 
 export const metadata: Metadata = {
-  title: "Cockpit Administrateur — Système pédagogique",
+  title: "Comptes et accès — Système pédagogique",
   robots: { index: false, follow: false },
 };
 
@@ -115,7 +115,7 @@ export default async function PageAdmin(props: {
   return (
     <>
       <EntetePage
-        titre="Cockpit d'Administration"
+        titre="Comptes et accès"
         sousTitre="Pilotage global, KPIs d'activité, sécurité des accès, diagnostic système et outils de développement."
       />
       <Suspense fallback={<SqueletteContenu />}>

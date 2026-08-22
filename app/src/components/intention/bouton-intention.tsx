@@ -14,6 +14,33 @@ import { useIntention } from "./contexte-intention";
 
 const LIBELLE = "Nouveau besoin";
 
+/**
+ * Rappel sobre du geste d'entrée du funnel dans un état vide.
+ *
+ * Les vides (Atelier sans domaine, Cahier sans séance) décrivent ce qu'on
+ * peut y faire mais n'offraient pas le geste : la ligne nomme « Nouveau
+ * besoin » ET le porte — le mot est le déclencheur, qui ouvre l'instance
+ * unique de capture d'intention. Aucun second mécanisme.
+ */
+export function RappelNouveauBesoin() {
+  const { ouvrir } = useIntention();
+
+  return (
+    <p className="flex flex-wrap items-center justify-center gap-1.5 text-xs text-texte-discret">
+      <IconePlus className="size-3.5 shrink-0" aria-hidden />
+      <span>Appuyez sur</span>
+      <button
+        type="button"
+        onClick={() => ouvrir()}
+        className="rounded font-semibold text-primaire underline-offset-2 transition-colors hover:text-primaire-fort hover:underline cursor-pointer"
+      >
+        Nouveau besoin
+      </button>
+      <span>pour démarrer.</span>
+    </p>
+  );
+}
+
 /** Déclencheur du rail desktop, posé au-dessus des destinations. */
 export function BoutonIntentionRail() {
   const { ouvrir } = useIntention();

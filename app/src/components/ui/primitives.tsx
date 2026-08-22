@@ -1,6 +1,7 @@
 import { Fragment } from "react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import type { Confiance, NiveauCompetence } from "@/lib/domain/types";
+import { IconeFeuille } from "./icones";
 
 export function cx(...parts: (string | false | null | undefined)[]): string {
   return parts.filter(Boolean).join(" ");
@@ -43,6 +44,28 @@ export function Carte({
     >
       {children}
     </section>
+  );
+}
+
+/**
+ * Filigrane botanique — le rappel décoratif des grandes surfaces.
+ *
+ * Une feuille en très faible opacité, ancrée en bas à droite d'un conteneur
+ * `relative overflow-hidden`. Purement ornementale : jamais interactive,
+ * jamais porteuse d'information. Le conteneur doit être `isolate` (ou porter
+ * un empilement maîtrisé) si l'appelant veut la feuille derrière son contenu
+ * (`-z-10`) ; dans une carte au contenu enveloppé dans un `relative`, la
+ * position par défaut suffit.
+ */
+export function Filigrane({ className }: { className?: string }) {
+  return (
+    <IconeFeuille
+      aria-hidden
+      className={cx(
+        "pointer-events-none absolute -bottom-8 -right-6 size-36 text-primaire opacity-[0.05]",
+        className,
+      )}
+    />
   );
 }
 
@@ -509,7 +532,7 @@ export function classesLienBouton(
  * atténué, arrondie en haut seulement parce qu'elle « appartenait à ce qu'elle
  * sépare ». La forme se tenait tant que l'interface peignait un cahier.
  *
- * [ADR-100] a retiré cet habillage, [ADR-102] a renommé le pôle en Bureau :
+ * [ADR-101] a retiré cet habillage, [ADR-103] a renommé le pôle en Bureau :
  * la languette est restée seule, à dire un objet qui n'existe plus. Et sur le
  * fond sombre de l'espace de travail, une bordure transparente et un texte
  * atténué donnaient quatre mots gris sur gris — on ne voyait plus qu'il

@@ -149,7 +149,7 @@
   --marge: rgb(146 133 109 / 0.28);
 
   /*
-    La lampe du Bureau (ADR-102) — le halo qui éclaire la colonne de travail
+    La lampe du Bureau (ADR-103) — le halo qui éclaire la colonne de travail
     et laisse retomber les bords dans la pénombre.
 
     Ce n'est pas une décoration libre : c'est le seul dispositif qui dit
@@ -176,7 +176,13 @@
   --rail-bordure: #31463a;
   --rail-texte: #e9e4d6;
   --rail-texte-attenue: #a9bcae;
-  --rail-texte-discret: #7f9585;
+  /*
+    Mesuré (WCAG 2.1, voir scripts/contraste.ts) : l'ancienne valeur #7f9585
+    tombait à 4,07:1 sur --rail, sous le seuil texte de 4,5:1. #8ba091 remet
+    la paire à 4,69:1 sur --rail et 5,40:1 sur --rail-2, en restant un cran
+    sous --rail-texte-attenue (6,52:1).
+  */
+  --rail-texte-discret: #8ba091;
   --rail-actif: #2f6b4f;
   --rail-actif-texte: #f2eee2;
 }
@@ -281,7 +287,7 @@
   --socle-espacement: 0.25rem;
 
   /*
-    Largeur de la colonne de travail du Bureau (ADR-102).
+    Largeur de la colonne de travail du Bureau (ADR-103).
 
     704 px. Ce n'est pas un goût : au-delà, une ligne de texte dépasse la
     longueur qu'un œil relit sans se perdre, et le Bureau est l'écran où l'on

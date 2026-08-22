@@ -51,7 +51,7 @@ export default async function PageDemarrer(props: {
                 href="/admin"
                 className="inline-flex items-center gap-1 text-xs font-semibold text-primaire hover:underline"
               >
-                <span>Retour au Cockpit Admin</span>
+                <span>Retour à Comptes et accès</span>
                 <IconeFleche className="size-3" />
               </Link>
             </div>
@@ -95,12 +95,17 @@ export default async function PageDemarrer(props: {
       </Carte>
 
       {/*
-        Ce qui vient après, dit maintenant plutôt que découvert plus tard.
+        Ce qui vient après, dit maintenant plutôt que découvert plus tard —
+        mais replié : le tour guidé raconte déjà ce récit, et le formulaire ne
+        doit pas le porter deux fois avant toute action. Le wording est
+        inchangé ; seul le conteneur change.
       */}
-      <div className="mt-6 rounded-xl border border-bordure bg-surface-2/50 px-5 py-4">
-        <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret">
-          Ensuite
-        </p>
+      <details className="group mt-6 rounded-xl border border-bordure bg-surface-2/50 px-5 py-4">
+        <summary className="cursor-pointer list-none marker:hidden">
+          <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret transition-colors group-open:text-texte-attenue hover:text-texte-attenue">
+            Ensuite — ce qui se passe après la génération
+          </span>
+        </summary>
         <ol className="mt-2.5 space-y-2 text-xs leading-relaxed text-texte-attenue">
           <li>
             <span className="font-medium text-texte">1. Tu relis la proposition.</span> Le tuteur
@@ -120,7 +125,7 @@ export default async function PageDemarrer(props: {
             jamais à choisir quel objet créer.
           </li>
         </ol>
-      </div>
+      </details>
 
       <p className="mt-4 px-1 text-xs text-texte-attenue">
         Rien n&apos;est figé : le référentiel se modifie, s&apos;étend et se réduit à tout moment

@@ -109,9 +109,10 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [097](#adr-097) | Le modèle se choisit par tâche, pas par compte | ✅ Acceptée (21/08) |
 | [098](#adr-098) | La Progression devient un profil de carrière | ✅ Acceptée (21/08) |
 | [099](#adr-099) | La carte globale est retirée, pas remplacée | 🗑️ Retrait acté (21/08) |
-| [100](#adr-100) | Le cahier rouvre sur aujourd'hui, et un jour se lit d'un tenant | ✅ Acceptée (21/08) — amende [079](#adr-079) |
-| [101](#adr-101) | Une séance abandonnée peut être renoncée | ✅ Acceptée (21/08) — prolonge [077](#adr-077) |
-| [102](#adr-102) | Le pôle de travail est un Bureau ; le Cahier en est l’archive | ✅ Acceptée (22/08) — refond [079](#adr-079) (dont un point renversé) et [100](#adr-100) |
+| [100](#adr-100) | La récupération de mot de passe emprunte l'échange PKCE existant | ✅ Acceptée (22/08) |
+| [101](#adr-101) | Le cahier rouvre sur aujourd'hui, et un jour se lit d'un tenant | ✅ Acceptée (21/08) — amende [079](#adr-079) |
+| [102](#adr-102) | Une séance abandonnée peut être renoncée | ✅ Acceptée (21/08) — prolonge [077](#adr-077) |
+| [103](#adr-103) | Le pôle de travail est un Bureau ; le Cahier en est l’archive | ✅ Acceptée (22/08) — refond [079](#adr-079) (dont un point renversé) et [101](#adr-101) |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -5793,7 +5794,7 @@ multiligne revient à `rows`.
 
 **Date.** 16/08/2026. **Tranchée par Maxime.** Lève l'invariant « une seule
 séance en cours » posé par [ADR-048](#adr-048), et fournit sa contrepartie.
-**Prolongée le 21/08/2026 par [ADR-101](#adr-101)** : une séance « en suspens »
+**Prolongée le 21/08/2026 par [ADR-102](#adr-102)** : une séance « en suspens »
 peut être renoncée définitivement (`sessions.renoncee_le`).
 
 **Contexte.** Une séance en cours n'avait qu'une sortie : `terminerSeance`, qui
@@ -5924,10 +5925,10 @@ phrase de six mots fait qu'on ne l'écrit pas — la même friction que
 
 **Date.** 16/08/2026. **Tranchée par Maxime.** Refond la surface posée par
 [ADR-061](#adr-061), et prolonge [ADR-077](#adr-077) et [ADR-078](#adr-078).
-**Amendée le 21/08/2026 par [ADR-100](#adr-100)** : ouverture sur la page du
+**Amendée le 21/08/2026 par [ADR-101](#adr-101)** : ouverture sur la page du
 jour (marque-page retiré), page rendue d'un seul tenant (feuillets retirés),
 papier suggéré (réglure retirée).
-**Refondue le 22/08/2026 par [ADR-102](#adr-102)**, qui **renverse** en outre le
+**Refondue le 22/08/2026 par [ADR-103](#adr-103)**, qui **renverse** en outre le
 point « le déroulé vit sur la page du jour » : une séance qui attend un geste
 ouvre le plein écran. Voir la décision pour ce que l'essai a montré.
 
@@ -7448,10 +7449,76 @@ schéma.
 ---
 
 <a name="adr-100"></a>
-## ADR-100 — Le cahier rouvre sur aujourd'hui, et un jour se lit d'un tenant ✅
+## ADR-100 — La récupération de mot de passe emprunte l'échange PKCE existant ✅
+
+**Statut : ✅ Acceptée (22/08/2026).** Option A du chantier 3 de l'audit UX,
+tranchée par le titulaire du dépôt (« implémente le chantier 3 ») après
+présentation des deux options — l'absence totale de récupération était le seul
+chemin de perte définitive d'un compte.
+
+### Le problème
+
+Un compte créé par e-mail/mot de passe était perdu si le mot de passe tombait :
+aucun lien « mot de passe oublié », aucun flux de réinitialisation, et aucun
+canal admin (l'admin sait suspendre, pas réinitialiser ; exposer `service_role`
+pour un flux de réinitialisation administrative aurait introduit la première
+clé serveur à long terme du projet pour un besoin qu'un e-mail horodaté
+couvre déjà).
+
+### La décision
+
+1. **Le flux Supabase Auth natif**, sans entité ni table nouvelle :
+   `resetPasswordForEmail` depuis une page publique `/auth/mot-de-passe-oublie`,
+   lien horodaté (une heure), formulaire de redéfinition sur
+   `/auth/nouveau-mot-de-passe`.
+2. **Un seul chemin d'échange de code** : le lien du courriel repasse par
+   `/auth/callback` (`suite=/auth/nouveau-mot-de-passe`), qui échange déjà le
+   code PKCE contre une session pour Google et l'inscription. Aucune seconde
+   implémentation de l'échange, aucune page consommant un jeton elle-même.
+   Conséquence structurelle : on n'arrive sur la page de redéfinition **qu'avec
+   une session établie** — la page peut donc refuser proprement (redirection
+   vers la demande) au lieu de découvrir l'échec à la soumission.
+3. **Pas de route publique ajoutée** : `PUBLICS` contient déjà `/auth`, les deux
+   pages héritent de la publicité du préfixe. Le proxy n'a pas bougé.
+4. **Politique de sessions explicite (A8)** : l'appareil qui vient de
+   redéfinir le mot de passe prouve la maîtrise de la boîte — il reste
+   connecté. Toutes les autres sessions sont révoquées explicitement
+   (`signOut({ scope: "others" })`) : GoTrue ne révoque pas les autres
+   sessions à `updateUser`, la révocation est donc faite par nous plutôt que
+   supposée.
+5. **Anti-énumération par construction, pas par promesse** :
+   `resetPasswordForEmail` répond identiquement que l'adresse existe ou non ;
+   l'écran affiche la même confirmation dans les deux cas et ne montre que les
+   erreurs bloquantes (adresse mal formée, limite d'envoi).
+6. La validation locale (longueur minimale, concordance) vit dans
+   `lib/domain/reinitialisation-mot-de-passe.ts`, testée — pas dans le
+   composant.
+
+### Ce que ça coûte
+
+- **La limite d'envoi du SMTP intégré (~2 e-mails/h) s'applique aussi à ce
+  flux** tant qu'un SMTP dédié n'est pas configuré sur le projet Supabase.
+  C'est le reste ouvert opérationnel : configuration dashboard nécessitant des
+  identifiants SMTP dont seul le titulaire dispose. Le flux est fonctionnel
+  dès maintenant, plafonné en débit.
+- Un visiteur direct sur `/auth/nouveau-mot-de-passe` sans session est
+  redirigé vers la connexion avec un message — c'est voulu : la page ne
+  simule pas un formulaire qui échouerait ensuite.
+
+### Test de réfutation
+
+Si un flux de réinitialisation administrative devient nécessaire (comptes sans
+boîte consultable, suspension suivie de retour), cet ADR sera rouvert : la
+question sera alors celle d'un rôle serveur dédié, pas d'une extension de ce
+flux utilisateur.
+
+---
+
+<a name="adr-101"></a>
+## ADR-101 — Le cahier rouvre sur aujourd'hui, et un jour se lit d'un tenant ✅
 
 **Date.** 21/08/2026. **Tranchée par Maxime.** Amende
-[ADR-079](#adr-079). **Refondue le 22/08/2026 par [ADR-102](#adr-102)** : le
+[ADR-079](#adr-079). **Refondue le 22/08/2026 par [ADR-103](#adr-103)** : le
 pôle devient un Bureau, et le Cahier son archive — le retrait de la
 skeuomorphie laissait un registre administratif à sa place.
 
@@ -7507,8 +7574,8 @@ skeuomorphie laissait un registre administratif à sa place.
 
 ---
 
-<a name="adr-101"></a>
-## ADR-101 — Une séance abandonnée peut être renoncée ✅
+<a name="adr-102"></a>
+## ADR-102 — Une séance abandonnée peut être renoncée ✅
 
 **Date.** 21/08/2026. **Tranchée par Maxime.** Prolonge
 [ADR-077](#adr-077).
@@ -7550,13 +7617,13 @@ Un nouveau geste : **« Renoncer »**, écrit par `renoncerSeance`.
 
 ---
 
-<a name="adr-102"></a>
-## ADR-102 — Le pôle de travail est un Bureau ; le Cahier en est l'archive ✅
+<a name="adr-103"></a>
+## ADR-103 — Le pôle de travail est un Bureau ; le Cahier en est l'archive ✅
 
 **Date.** 22/08/2026. **Tranchée par Maxime.** Refond [ADR-079](#adr-079) et
-[ADR-100](#adr-100).
+[ADR-101](#adr-101).
 
-**Contexte.** [ADR-100](#adr-100) a retiré l'habillage skeuomorphe — réglure,
+**Contexte.** [ADR-101](#adr-101) a retiré l'habillage skeuomorphe — réglure,
 reliure, ruban, folio, feuillets. Le retrait était juste : l'interface n'a pas
 besoin de peindre un objet pour dire « journal ». Mais **rien n'a remplacé la
 fonction**, et la page du jour est devenue un registre administratif :
@@ -7567,7 +7634,7 @@ fonction**, et la page du jour est devenue un registre administratif :
    séance », « Projets de ce jour », « Notes du jour » — quatre intitulés en
    capitales, quatre cartes bordées. La séance en cours et un exercice fait la
    veille avaient le même relief. On y classait ; on n'y travaillait pas.
-3. **Le défaut d'ADR-100 déplacé, pas résolu.** La décision nommait le
+3. **Le défaut d'ADR-101 déplacé, pas résolu.** La décision nommait le
    problème — « la réglure luttait avec les cartes ». La trame quadrillée du
    `body`, elle, est restée : elle lutte avec les mêmes cartes.
 4. **Deux besoins opposés sur le même écran.** « Où je travaille maintenant »
@@ -7620,7 +7687,7 @@ C'est l'écran où l'on passe le plus de temps.
   chargement déguisé.
 * **La dette sort du Bureau.** Les onglets « en suspens » vivent au Cahier :
   une reprise qu'on ne fera pas maintenant n'a rien à faire devant les yeux
-  pendant qu'on travaille. Contrepartie assumée d'[ADR-101](#adr-101).
+  pendant qu'on travaille. Contrepartie assumée d'[ADR-102](#adr-102).
 * **Travailler ouvre le plein écran** — ce qui **renverse**
   [ADR-079](#adr-079).
 
@@ -7700,8 +7767,6 @@ C'est l'écran où l'on passe le plus de temps.
 
 ---
 
-
----
 
 ---
 

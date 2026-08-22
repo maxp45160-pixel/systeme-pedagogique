@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * La palette du Bureau (⌘K) — ADR-102.
+ * La palette du Bureau (⌘K) — ADR-103.
  *
  * ## Ce qu'elle remplace
  *

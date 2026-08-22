@@ -143,6 +143,24 @@ cliquer sur « Analyser mon besoin ».
 
 ### 3. Récupération de mot de passe — décision d'abord
 
+> **Fait le 22/08/2026 (option A, tranchée par le titulaire).** Implémenté :
+> `/auth/mot-de-passe-oublie` (demande → `resetPasswordForEmail`),
+> `/auth/nouveau-mot-de-passe` (redéfinition → `updateUser` + révocation des
+> autres sessions), lien « Mot de passe oublié ? » sous le formulaire de
+> `/login`. Décision et politique écrites : ADR-100 + `PRODUCT.md §4`
+> (« Comptes et accès »), même commit que le code.
+> **Écarts au plan initial, vérifiés en écrivant** : (1) aucune route publique
+> à ajouter — `PUBLICS` couvrait déjà `/auth/*` ; (2) le jeton ne se consomme
+> pas sur la page de redéfinition : le lien repasse par `/auth/callback`
+> (`suite=`), qui établit la session avant la page — un seul chemin d'échange
+> PKCE pour inscription, Google et récupération ; (3) GoTrue **ne révoque pas**
+> les autres sessions à `updateUser` — la révocation est explicite
+> (`signOut({ scope: "others" })`, ADR-100 §4).
+> **Reste ouvert (opérationnel, pas code)** : SMTP dédié à configurer sur le
+> dashboard Supabase — identifiants dont seul le titulaire dispose. En l'état,
+> le flux fonctionne mais subit la limite du SMTP intégré (~2 e-mails/h), qui
+> s'applique aussi au lien de récupération lui-même.
+
 **Constat.** La page `/login` n'affiche aucun lien « mot de passe oublié » et
 aucune implémentation de réinitialisation n'existe dans le dépôt. Un compte créé
 par e-mail/mot de passe est perdu si le mot de passe tombe.
@@ -272,6 +290,18 @@ rail active, la bonne, avec `aria-current="page"`.
 
 ### 7. Aération de `/aide` et `/demarrer`
 
+> **Fait le 22/08/2026.** `/aide` : sommaire ancré sticky en tête de page
+> (`#fonctionnement`, `#premiere-heure`, `#vocabulaire`, `#niveaux`, `#faq`),
+> ancres partageables, portée `--superposition-collant` de l'échelle de
+> superpositions, `scroll-mt` pour compenser le bandeau lui-même. Une seule
+> des deux approches proposées retenue (sommaire, pas d'accordéons sur les
+> étapes). Critère tenu : « Abandonner une séance ? » est à un clic du
+> sommaire, depuis n'importe quel point de défilement. `/demarrer` : bloc
+> « Ensuite » replié derrière un `<details>` sobre — wording inchangé, seul
+> le conteneur change ; le tour guidé ne porte plus son récit en double.
+> Wording pédagogique non touché, `PRODUCT.md` relire sans correction
+> nécessaire : le parcours décrit ne change pas.
+
 **Constat.** `/aide` : colonne unique très longue (5 étapes × 3 paragraphes +
 vocabulaire + FAQ) — contenu bon, forme épuisante. `/demarrer` : « ÉTAPE 1 SUR
 2 » + exemples + bloc « ENSUITE » (4 paragraphes) s'empilent avant toute action,
@@ -297,6 +327,19 @@ la ligne de flottaison à 1440×900.
 
 ### 8. Audit de contraste des textes discrets
 
+> **Fait le 22/08/2026.** Script de mesure `app/scripts/contraste.ts` (parse
+> `tokens.css`, résout les chaînes `var()` par thème avec la cascade réelle —
+> `:root` s'applique aux deux thèmes —, calcule WCAG 2.1) + test verrou
+> `src/lib/ui/contraste.test.ts`. 22 paires consommées × 2 thèmes.
+>
+> **Un seul défaut réel trouvé** : `--rail-texte-discret × --rail` à 4,07:1
+> (#7f9585). Corrigé au niveau primitive : #8ba091 → 4,69:1 sur `--rail`,
+> 5,40:1 sur `--rail-2`, hiérarchie préservée sous `--rail-texte-attenue`
+> (6,52:1). Toutes les autres paires passaient déjà, y compris
+> `--bordure-controle × --surface` (3,57 / 3,36 ≥ 3:1) et
+> `--texte-discret × --surface-2`, la paire la plus juste (4,54 clair).
+> Valeurs finales documentées dans `docs/design/01-tokens.md`.
+
 **Constat.** Plusieurs libellés secondaires (descriptions, placeholders,
 « Rien en marge… ») paraissent sous les 4,5:1 visés par `docs/design/01-tokens.md`
 en thème sombre.
@@ -311,6 +354,14 @@ primitives fautives (jamais les composants). Vérifier les contours interactifs 
 
 ### 9. CTA contextuels dans les vides
 
+> **Fait le 22/08/2026.** `RappelNouveauBesoin` (exporté de
+> `components/intention/bouton-intention.tsx`) : une ligne sobre — icône SVG
+> du jeu existant + « Appuyez sur **Nouveau besoin** pour démarrer » — où le
+> mot « Nouveau besoin » est lui-même le déclencheur (`useIntention().ouvrir()`,
+> instance unique, aucune duplication du mécanisme). Posé dans les deux vides :
+> Atelier sans domaine actif (au-dessus de la carte de création, conservée) et
+> Cahier sans séance (sous l'état vide, hors cas recherche). Pas d'emoji.
+
 **Constat.** Atelier et Cahier vides proposent une carte unique mais ne rappellent
 pas le geste primaire du funnel (`+` → intention).
 
@@ -324,6 +375,13 @@ geste d'entrée du funnel et peut le déclencher localement.
 
 ### 10. Badge dev hors développement
 
+> **Fait le 22/08/2026.** Convention vérifiée dans la doc embarquée
+> (`node_modules/next/dist/docs/.../devIndicators.md`) : l'indicateur n'est
+> rendu qu'en `next dev` — `npm run build && npm start` n'en affiche déjà
+> aucun. `devIndicators: false` posé en plus pour le retirer aussi des
+> captures/démos sur serveur de développement (il chevauchait « Bord » sur
+> mobile) ; les overlays d'erreur restent actifs.
+
 **Constat.** Le badge Next.js DevTools (« N » noir) apparaît dans toutes les
 captures et démos ; il chevauche « Bord » sur mobile.
 
@@ -335,6 +393,18 @@ avant d'écrire le code.
 **Critères d'acceptation.** `npm run build && npm start` n'affiche aucun badge.
 
 ### 11. Unification du vocabulaire
+
+> **Fait le 22/08/2026.** Source de vérité retenue : les libellés du rail —
+> c'est ce que l'utilisateur lit en permanence. Aligné : le graphe macro
+> `workflow-ux-scanner.ts` nomme `/seances` « Cahier » (était « Séances &
+> Concepteur ») et `/admin` « Comptes et accès » ; la page `/admin`
+> elle-même aligne son titre visible, sa metadata, l'aria-label de navigation
+> et le lien retour de `/demarrer?apercu=1` sur la même entrée de rail
+> (« Cockpit d'Administration/Administrateur » retiré des surfaces lisibles).
+> `graphe-workflow.tsx` (groupe `seances`) suit. Les identifiants de code
+> (`ConcepteurSeance`, `CockpitAdmin`) restent : ils ne sont pas lus par
+> l'utilisateur. Aucun test à mettre à jour : le scanner dérive ses nœuds,
+> aucun libellé codé en dur n'était asserté.
 
 **Constat.** Le rail dit « Cahier », le titre de page aussi, mais le graphe macro
 nomme le pôle « Séances & Concepteur » ; « Comptes et accès » (rail) vs

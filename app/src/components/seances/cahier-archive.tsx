@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Le Cahier — l'archive du Bureau (ADR-102).
+ * Le Cahier — l'archive du Bureau (ADR-103).
  *
  * ## Pourquoi c'est un mode, pas une page
  *
@@ -89,7 +89,7 @@ export function CahierArchive({
       {/*
         Les onglets « en suspens » vivent ICI, pas au Bureau. Une dette qu'on
         ne peut pas traiter maintenant n'a rien à faire devant les yeux
-        pendant qu'on travaille — c'est la contrepartie d'ADR-101 : la file ne
+        pendant qu'on travaille — c'est la contrepartie d'ADR-102 : la file ne
         contient que des reprises crédibles, encore faut-il ne pas l'imposer.
       */}
       <OngletsSeancesOuvertes
