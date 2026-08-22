@@ -115,6 +115,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [103](#adr-103) | Le pôle de travail est un Bureau ; le Cahier en est l’archive | ✅ Acceptée (22/08) — refond [079](#adr-079) (dont un point renversé) et [101](#adr-101) |
 | [104](#adr-104) | Les thèmes persistants sont retirés ; la portée de séance reste dérivée | ✅ Acceptée (22/08) — remplace [055](#adr-055), [058](#adr-058), [088](#adr-088) |
 | [105](#adr-105) | Une carte des savoirs en dépôt, et un rattachement que seule une personne écrit | ❓ Proposition (22/08) — rouvre [099](#adr-099), répond à la question ouverte d'[104](#adr-104) |
+| [106](#adr-106) | Les sous-domaines se dérivent des intitulés, et ne s'écrivent pas | 🔬 Hypothèse (22/08) — répond à la seconde question ouverte d'[104](#adr-104) |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -7957,6 +7958,87 @@ manuel dans la liste.
 
 Si aucun rattachement n'est créé dans le mois qui suit, c'est la carte elle-même
 qui ne sert à rien : la retirer comme ADR-099 a retiré les tables.
+
+---
+
+<a name="adr-106"></a>
+## ADR-106 — Les sous-domaines se dérivent des intitulés, et ne s'écrivent pas 🔬
+
+**Statut : 🔬 hypothèse construite, non réfutée (22/08/2026).** Le découpage est
+en place et lisible à l'écran ; sa valeur reste à établir sur des données plus
+nombreuses. Le test de réfutation est en bas.
+
+### Le problème
+
+[ADR-104](#adr-104) a retiré les thèmes persistants et laissé une question
+ouverte : « la manière de dériver intelligemment des sous-domaines à
+l'intérieur d'un domaine large […] reste un sujet de conception. Aucun arbre
+implicite ni regroupement automatique ne doit être ajouté avant une décision et
+des données permettant de l'évaluer. »
+
+Les données existent désormais : « Logistique industrielle » porte treize
+compétences dont quatre nomment le Kanban. Le regroupement est écrit dans les
+intitulés, et rien ne le lisait.
+
+### La décision
+
+Un sous-domaine est **un terme que plusieurs intitulés du domaine partagent**,
+et c'est ce terme qui le nomme (`lib/engine/sous-domaines.ts`). Trois
+propriétés qu'un regroupement sémantique n'aurait pas : déterministe,
+explicable en une phrase, réfutable d'un coup d'œil.
+
+Trois exclusions, chacune testée :
+
+- **les verbes d'action** ([ADR-086](#adr-086)) décrivent la forme d'un
+  intitulé, jamais son sujet. Sans cette exclusion, tout domaine se coupe en
+  « les décrire » et « les appliquer » — un palier déguisé ;
+- **un terme présent dans plus de 70 % des compétences** nomme le domaine, pas
+  un sous-ensemble ;
+- **un domaine de moins de cinq compétences** se lit d'un seul tenant.
+
+Le terme le plus **partagé** l'emporte, pas le plus rare. La première version
+prenait le plus rare en croyant prendre le plus distinctif, et éclatait les
+quatre compétences Kanban en « Base » (2) et « Tableau » (2), pendant que
+« Kanban » (4) disparaissait.
+
+**Rien ne s'écrit.** Un sous-domaine dérivé est une lecture (couche 3),
+recalculée à chaque affichage : aucun domaine créé, aucune compétence déplacée,
+aucune colonne. L'écran l'affiche comme un filtre, jamais comme un rangement.
+
+### Ce que ça ne fait pas, et qui est connu
+
+Quatre angles morts, admis à la livraison :
+
+- **la paraphrase** : « Piloter un flux tiré » et « Appliquer les règles du
+  Kanban » ne partagent aucun mot. Manqué en silence ;
+- **la polysémie** : « tableau Kanban » et « tableau statistique » partagent
+  « tableau » ;
+- **les concepts en plusieurs mots** : « chaîne d'approvisionnement » se coupe
+  en jetons dont l'un rejoindra « chaîne de production » ;
+- **le volume** : au-delà de quelques dizaines de compétences par domaine, le
+  plafond des 70 % cesse de filtrer et les termes génériques reprennent la main.
+
+### La suite envisagée, et son ordre
+
+Le signal suivant n'est pas sémantique : il est **observé**. Deux compétences
+mobilisées par le même exercice sont liées, que leurs intitulés se ressemblent
+ou non — c'est un fait déjà enregistré, que `competencesConnexes` calcule
+ailleurs. Croiser « termes partagés » et « co-mobilisation » resterait
+déterministe et couvrirait la paraphrase.
+
+Des embeddings viendraient après et changeraient de nature : non déterministes,
+donc soumis au même régime que le classement sur la carte — proposer, faire
+valider, enregistrer l'arbitrage.
+
+### Test de réfutation
+
+Sur les cinq prochains domaines atteignant dix compétences : si plus d'un
+découpage sur deux est jugé faux à la lecture — groupe absurde, sujet évident
+manqué —, le partage de termes seul ne suffit pas, et la co-mobilisation doit
+entrer avant toute autre amélioration.
+
+Si aucun domaine n'atteint dix compétences dans le mois, la question ne se pose
+pas encore : le module reste, sans être étendu.
 
 ---
 
