@@ -64,7 +64,14 @@ function normaliserPluriel(mot: string): string {
   return mot.endsWith("s") || mot.endsWith("x") ? mot.slice(0, -1) : mot;
 }
 
-function tokeniser(texte: string): string[] {
+/**
+ * Découpage partagé — similarité, classement, dérivation de sous-domaines.
+ *
+ * Exporté le 22/08/2026 : `sous-domaines.ts` en avait besoin, et une seconde
+ * implémentation aurait été un second endroit où les mots vides et la
+ * normalisation de pluriel peuvent diverger.
+ */
+export function tokeniser(texte: string): string[] {
   return texte
     .toLowerCase()
     .replace(/['']/g, "'")

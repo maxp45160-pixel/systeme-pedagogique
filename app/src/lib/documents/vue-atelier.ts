@@ -24,6 +24,10 @@ import {
   proposerClassification,
   type PropositionClassification,
 } from "@/lib/engine/classification-domaine";
+import {
+  deriverSousDomaines,
+  type DecoupageSousDomaines,
+} from "@/lib/engine/sous-domaines";
 import { retraitsParCode, type EtatRetrait } from "@/lib/domain/referentiel-compte";
 import type { IndexDocumentaire } from "./index";
 import { PREFIXE_PREUVE, idPreuve } from "./nature-document";
@@ -219,6 +223,12 @@ export interface VueDomaineAtelier {
    * seuil — un résultat, pas un échec.
    */
   classificationCarte: PropositionClassification | null;
+  /**
+   * Les sous-groupes que les intitules du domaine dessinent deja (ADR-104,
+   * question laissee ouverte). Lecture derivee : rien n'est cree, rien n'est
+   * deplace, rien n'est stocke.
+   */
+  sousDomaines: DecoupageSousDomaines;
 }
 
 export interface VueExerciceProjectionAtelier {
@@ -438,6 +448,12 @@ export function construireVuesAtelier(
         nombreExercices: exercicesDomaine.length,
         derniereActivite: derniereDate(items.map((item) => item.derniereObservation)),
         arbre: construireArbreDomaine(domaine.id, referentiel, etats),
+        sousDomaines: deriverSousDomaines(
+          [...skillsAffichees, ...rattachees].map((skill) => ({
+            code: skill.code,
+            intitule: skill.intitule,
+          })),
+        ),
         rattachementCarte: rattachementDomaine(domaine),
         classificationCarte: rattachementDomaine(domaine)
           ? null

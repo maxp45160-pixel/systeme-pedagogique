@@ -43,7 +43,19 @@ export function VueDomaine({
    */
   const [mode, setMode] = useState<"fiches" | "arbre">("fiches");
   const [rechercheCompetence, setRechercheCompetence] = useState("");
+  /*
+   * Le sous-domaine retenu filtre la grille. Ce n'est PAS un rangement : rien
+   * n'est deplace ni cree, on regarde un sous-ensemble. D'ou un filtre plutot
+   * qu'un second classement (l'erreur de l'onglet « Transversal » retire).
+   */
+  const [sousDomaineFiltre, setSousDomaineFiltre] = useState<string | null>(null);
   const termeCompetence = rechercheCompetence.trim().toLocaleLowerCase("fr");
+  const codesDuSousDomaine = useMemo(() => {
+    if (!sousDomaineFiltre) return null;
+    const groupe = vue.sousDomaines.groupes.find((g) => g.terme === sousDomaineFiltre);
+    return groupe ? new Set(groupe.codes) : null;
+  }, [sousDomaineFiltre, vue.sousDomaines]);
+
   const groupes = useMemo(
     () =>
       ["fondamentaux", "intermediaire", "avance"]
@@ -52,13 +64,14 @@ export function VueDomaine({
           items: vue.competences.filter(
             (competence) =>
               competence.palier === palier &&
+              (codesDuSousDomaine === null || codesDuSousDomaine.has(competence.code)) &&
               `${competence.titre} ${competence.code}`
                 .toLocaleLowerCase("fr")
                 .includes(termeCompetence),
           ),
         }))
         .filter((groupe) => groupe.items.length > 0),
-    [termeCompetence, vue.competences],
+    [codesDuSousDomaine, termeCompetence, vue.competences],
   );
   const nombreCompetencesVisibles = groupes.reduce((total, groupe) => total + groupe.items.length, 0);
   const couverture = vue.competences.length ? vue.nombreEvaluees / vue.competences.length : 0;
@@ -166,6 +179,58 @@ export function VueDomaine({
               classification={vue.classificationCarte}
               modifiable={!vue.domaine.archive && Boolean(compteId)}
             />
+            {vue.sousDomaines.groupes.length > 0 && (
+              <section className="rounded-xl border border-bordure bg-surface px-4 py-3">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                  <span className="text-xs font-semibold uppercase tracking-[0.1em] text-texte-discret">
+                    Sujets détectés
+                  </span>
+                  {vue.sousDomaines.groupes.map((groupe) => {
+                    const actif = sousDomaineFiltre === groupe.terme;
+                    return (
+                      <button
+                        key={groupe.terme}
+                        type="button"
+                        aria-pressed={actif}
+                        onClick={() =>
+                          setSousDomaineFiltre((courant) =>
+                            courant === groupe.terme ? null : groupe.terme,
+                          )
+                        }
+                        className={
+                          actif
+                            ? "cursor-pointer rounded-lg border border-primaire bg-primaire-faible px-3 py-1.5 text-sm font-medium text-primaire"
+                            : "cursor-pointer rounded-lg border border-bordure bg-surface-2 px-3 py-1.5 text-sm font-medium text-texte transition-colors hover:border-primaire/50 hover:text-primaire"
+                        }
+                      >
+                        {groupe.libelle}{" "}
+                        <span className="chiffres text-xs text-texte-discret">
+                          {groupe.codes.length}
+                        </span>
+                      </button>
+                    );
+                  })}
+                  {vue.sousDomaines.isolees.length > 0 && (
+                    <span className="text-xs text-texte-discret">
+                      {vue.sousDomaines.isolees.length} à part
+                    </span>
+                  )}
+                  {sousDomaineFiltre && (
+                    <button
+                      type="button"
+                      onClick={() => setSousDomaineFiltre(null)}
+                      className="cursor-pointer text-xs text-texte-discret underline-offset-2 transition-colors hover:text-primaire hover:underline"
+                    >
+                      tout revoir
+                    </button>
+                  )}
+                </div>
+                <p className="mt-2 text-[0.6875rem] leading-relaxed text-texte-attenue">
+                  Des termes que plusieurs intitulés partagent. C’est une lecture, pas un
+                  rangement : rien n’est créé ni déplacé.
+                </p>
+              </section>
+            )}
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-bordure bg-surface px-3.5 py-3">
               <div className="inline-flex rounded-lg border border-bordure bg-surface-2 p-0.5">
                 {([

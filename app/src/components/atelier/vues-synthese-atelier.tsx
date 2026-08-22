@@ -47,7 +47,7 @@ export function CarteCreationPointillee({
  * ne se recouvrent pas — le référentiel, les sélections, les ressources, et la
  * même matière vue en graphe.
  */
-export type VueAtelier = "domaines" | "arbre" | "ressources" | "graphe";
+export type VueAtelier = "domaines" | "ressources" | "graphe" | "arbre";
 
 export function BarreVuesAtelier({
   vue,
@@ -58,9 +58,12 @@ export function BarreVuesAtelier({
 }) {
   const options = [
     { cle: "domaines" as const, libelle: "Domaines" },
-    { cle: "arbre" as const, libelle: "Arbre" },
     { cle: "ressources" as const, libelle: "Ressources" },
     { cle: "graphe" as const, libelle: "Graphe" },
+    /* En dernier, et à dessein : l'arbre est une lecture d'ensemble, pas une
+       entrée de travail. Il attend d'avoir assez de matière pour valoir mieux
+       que les trois qui le précèdent. */
+    { cle: "arbre" as const, libelle: "Arbre" },
   ];
   return (
     <div
