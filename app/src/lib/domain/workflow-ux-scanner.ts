@@ -919,6 +919,23 @@ function construireUxAtomique(
         declencheur: "Redirection du cadre applicatif quand l'accès est fermé",
       });
     }
+    /*
+     * Récupération de mot de passe (ADR-100). L'entrée de la page de
+     * redéfinition n'est pas un clic mais la consommation du lien du
+     * courriel : l'échange de code a lieu dans `/auth/callback`, invisible à
+     * l'AST comme toutes les routes serveur. Sans cette arête explicite, le
+     * graphe la déclarerait inatteignable alors qu'elle est le second temps
+     * obligé du flux.
+     */
+    if (parId.has("page:/auth/mot-de-passe-oublie") && parId.has("page:/auth/nouveau-mot-de-passe")) {
+      connecter({
+        source: "page:/auth/mot-de-passe-oublie",
+        target: "page:/auth/nouveau-mot-de-passe",
+        type: "navigation",
+        libelle: "Lien de redéfinition consommé",
+        declencheur: "Ouverture du courriel — session établie par /auth/callback",
+      });
+    }
   }
 
   if (parId.has("page:/login") && parId.has("page:/")) {

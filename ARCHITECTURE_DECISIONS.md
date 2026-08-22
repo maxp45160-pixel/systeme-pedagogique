@@ -107,6 +107,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [095](#adr-095) | Niveau observé et maîtrise consolidée sont distincts | ✅ Acceptée (20/08) |
 | [096](#adr-096) | Le parcours est une file d'actions dérivée, pas un objectif stocké | ✅ Acceptée (21/08) |
 | [097](#adr-097) | Le modèle se choisit par tâche, pas par compte | ✅ Acceptée (21/08) |
+| [100](#adr-100) | La récupération de mot de passe emprunte l'échange PKCE existant | ✅ Acceptée (22/08) |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -7433,6 +7434,70 @@ rouvert avec le contenu initial nommé et le chemin d'écriture défini avant le
 schéma.
 
 ---
+
+<a name="adr-100"></a>
+## ADR-100 — La récupération de mot de passe emprunte l'échange PKCE existant ✅
+
+**Statut : ✅ Acceptée (22/08/2026).** Option A du chantier 3 de l'audit UX,
+tranchée par le titulaire du dépôt (« implémente le chantier 3 ») après
+présentation des deux options — l'absence totale de récupération était le seul
+chemin de perte définitive d'un compte.
+
+### Le problème
+
+Un compte créé par e-mail/mot de passe était perdu si le mot de passe tombait :
+aucun lien « mot de passe oublié », aucun flux de réinitialisation, et aucun
+canal admin (l'admin sait suspendre, pas réinitialiser ; exposer `service_role`
+pour un flux de réinitialisation administrative aurait introduit la première
+clé serveur à long terme du projet pour un besoin qu'un e-mail horodaté
+couvre déjà).
+
+### La décision
+
+1. **Le flux Supabase Auth natif**, sans entité ni table nouvelle :
+   `resetPasswordForEmail` depuis une page publique `/auth/mot-de-passe-oublie`,
+   lien horodaté (une heure), formulaire de redéfinition sur
+   `/auth/nouveau-mot-de-passe`.
+2. **Un seul chemin d'échange de code** : le lien du courriel repasse par
+   `/auth/callback` (`suite=/auth/nouveau-mot-de-passe`), qui échange déjà le
+   code PKCE contre une session pour Google et l'inscription. Aucune seconde
+   implémentation de l'échange, aucune page consommant un jeton elle-même.
+   Conséquence structurelle : on n'arrive sur la page de redéfinition **qu'avec
+   une session établie** — la page peut donc refuser proprement (redirection
+   vers la demande) au lieu de découvrir l'échec à la soumission.
+3. **Pas de route publique ajoutée** : `PUBLICS` contient déjà `/auth`, les deux
+   pages héritent de la publicité du préfixe. Le proxy n'a pas bougé.
+4. **Politique de sessions explicite (A8)** : l'appareil qui vient de
+   redéfinir le mot de passe prouve la maîtrise de la boîte — il reste
+   connecté. Toutes les autres sessions sont révoquées explicitement
+   (`signOut({ scope: "others" })`) : GoTrue ne révoque pas les autres
+   sessions à `updateUser`, la révocation est donc faite par nous plutôt que
+   supposée.
+5. **Anti-énumération par construction, pas par promesse** :
+   `resetPasswordForEmail` répond identiquement que l'adresse existe ou non ;
+   l'écran affiche la même confirmation dans les deux cas et ne montre que les
+   erreurs bloquantes (adresse mal formée, limite d'envoi).
+6. La validation locale (longueur minimale, concordance) vit dans
+   `lib/domain/reinitialisation-mot-de-passe.ts`, testée — pas dans le
+   composant.
+
+### Ce que ça coûte
+
+- **La limite d'envoi du SMTP intégré (~2 e-mails/h) s'applique aussi à ce
+  flux** tant qu'un SMTP dédié n'est pas configuré sur le projet Supabase.
+  C'est le reste ouvert opérationnel : configuration dashboard nécessitant des
+  identifiants SMTP dont seul le titulaire dispose. Le flux est fonctionnel
+  dès maintenant, plafonné en débit.
+- Un visiteur direct sur `/auth/nouveau-mot-de-passe` sans session est
+  redirigé vers la connexion avec un message — c'est voulu : la page ne
+  simule pas un formulaire qui échouerait ensuite.
+
+### Test de réfutation
+
+Si un flux de réinitialisation administrative devient nécessaire (comptes sans
+boîte consultable, suspension suivie de retour), cet ADR sera rouvert : la
+question sera alors celle d'un rôle serveur dédié, pas d'une extension de ce
+flux utilisateur.
 
 ---
 

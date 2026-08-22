@@ -143,6 +143,24 @@ cliquer sur « Analyser mon besoin ».
 
 ### 3. Récupération de mot de passe — décision d'abord
 
+> **Fait le 22/08/2026 (option A, tranchée par le titulaire).** Implémenté :
+> `/auth/mot-de-passe-oublie` (demande → `resetPasswordForEmail`),
+> `/auth/nouveau-mot-de-passe` (redéfinition → `updateUser` + révocation des
+> autres sessions), lien « Mot de passe oublié ? » sous le formulaire de
+> `/login`. Décision et politique écrites : ADR-100 + `PRODUCT.md §4`
+> (« Comptes et accès »), même commit que le code.
+> **Écarts au plan initial, vérifiés en écrivant** : (1) aucune route publique
+> à ajouter — `PUBLICS` couvrait déjà `/auth/*` ; (2) le jeton ne se consomme
+> pas sur la page de redéfinition : le lien repasse par `/auth/callback`
+> (`suite=`), qui établit la session avant la page — un seul chemin d'échange
+> PKCE pour inscription, Google et récupération ; (3) GoTrue **ne révoque pas**
+> les autres sessions à `updateUser` — la révocation est explicite
+> (`signOut({ scope: "others" })`, ADR-100 §4).
+> **Reste ouvert (opérationnel, pas code)** : SMTP dédié à configurer sur le
+> dashboard Supabase — identifiants dont seul le titulaire dispose. En l'état,
+> le flux fonctionne mais subit la limite du SMTP intégré (~2 e-mails/h), qui
+> s'applique aussi au lien de récupération lui-même.
+
 **Constat.** La page `/login` n'affiche aucun lien « mot de passe oublié » et
 aucune implémentation de réinitialisation n'existe dans le dépôt. Un compte créé
 par e-mail/mot de passe est perdu si le mot de passe tombe.

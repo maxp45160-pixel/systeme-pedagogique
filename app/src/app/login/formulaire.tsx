@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createNavigateurClient } from "@/lib/supabase/client";
 import { BandeauInfo, Bouton } from "@/components/ui/primitives";
@@ -168,6 +169,17 @@ export function FormulaireConnexion({
           ? "Pas encore de compte ? En créer un"
           : "Déjà un compte ? Se connecter"}
       </button>
+
+      {mode === "connexion" && (
+        <p className="text-center">
+          <Link
+            href="/auth/mot-de-passe-oublie"
+            className="text-xs text-texte-attenue underline-offset-2 transition-colors hover:text-texte hover:underline"
+          >
+            Mot de passe oublié ?
+          </Link>
+        </p>
+      )}
     </div>
   );
 }
