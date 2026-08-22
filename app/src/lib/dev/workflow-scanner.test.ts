@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { scannerWorkflow } from "./workflow-scanner";
-import { parcourirWorkflow, statistiquesGraphe } from "./workflow-graphe";
+import { parcourirWorkflow, statistiquesGraphe } from "@/lib/domain/workflow-graphe";
 
 describe("scannerWorkflow", () => {
   it(

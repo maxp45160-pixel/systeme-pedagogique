@@ -20,7 +20,7 @@
 import { readdir, readFile, stat } from "fs/promises";
 import { join, resolve } from "path";
 import ts from "typescript";
-import type { GroupeWorkflow } from "./workflow-graphe";
+import type { GroupeWorkflow } from "@/lib/domain/workflow-graphe";
 
 export const RACINE_SRC = resolve(process.cwd(), "src");
 

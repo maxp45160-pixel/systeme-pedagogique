@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { scannerUxJourney } from "./workflow-ux-scanner";
-import { parcourirWorkflow, statistiquesGraphe } from "./workflow-graphe";
+import { parcourirWorkflow, statistiquesGraphe } from "@/lib/domain/workflow-graphe";
 
 describe("scannerUxJourney (dynamique AST)", () => {
   it("construit dynamiquement le graphe atomique ultra-détaillé sans aucun registre codé en dur", async () => {

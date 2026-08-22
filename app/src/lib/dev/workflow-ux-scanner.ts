@@ -24,7 +24,7 @@
 import type {
   GrapheWorkflow,
   TypeNoeudWorkflow,
-} from "./workflow-graphe";
+} from "@/lib/domain/workflow-graphe";
 import {
   analyserTousLesFichiersAst,
   baseRoute,

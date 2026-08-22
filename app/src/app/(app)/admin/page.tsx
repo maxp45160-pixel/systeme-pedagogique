@@ -9,8 +9,8 @@ import { calculerStatistiquesAdmin } from "@/lib/domain/admin-kpi";
 import { obtenirDiagnosticSysteme } from "@/lib/store/systeme";
 import { chargerEtatMoteur, type EtatMoteur } from "@/lib/store/auto-evaluation";
 import { REGLAGES_PAR_DEFAUT } from "@/lib/engine/reglages";
-import { scannerWorkflow } from "@/lib/domain/workflow-scanner";
-import { scannerUxJourney } from "@/lib/domain/workflow-ux-scanner";
+import { scannerWorkflow } from "@/lib/dev/workflow-scanner";
+import { scannerUxJourney } from "@/lib/dev/workflow-ux-scanner";
 import {
   parcourirWorkflow,
   statistiquesGraphe,

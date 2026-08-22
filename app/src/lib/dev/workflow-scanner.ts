@@ -14,7 +14,7 @@
  * Les types du graphe restent dans workflow-graphe.ts (couche 1).
  */
 
-import type { GrapheWorkflow } from "./workflow-graphe";
+import type { GrapheWorkflow } from "@/lib/domain/workflow-graphe";
 import {
   analyserTousLesFichiersAst,
   baseRoute,

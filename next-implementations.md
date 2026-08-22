@@ -1,7 +1,7 @@
 # Plan d'implémentation — Audit UX/UI du 21/08/2026
 
 Source : audit par captures d'écran (desktop 1440 px + mobile 390 px) de toutes les
-routes produit, croisé avec le graphe UX (`lib/domain/workflow-ux-scanner.ts`) et le
+routes produit, croisé avec le graphe UX (`lib/dev/workflow-ux-scanner.ts`) et le
 code. Les constats sont transformés ici en chantiers concrets, priorisés, avec
 fichiers à toucher et critères d'acceptation.
 

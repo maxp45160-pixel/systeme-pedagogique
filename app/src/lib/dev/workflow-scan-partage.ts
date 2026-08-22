@@ -15,7 +15,7 @@
 
 import type { FichierAstAnalyse } from "./workflow-ast-parser";
 import { resoudreNavigationPartagee } from "./workflow-ast-parser";
-import type { LienWorkflow, NoeudWorkflow } from "./workflow-graphe";
+import type { LienWorkflow, NoeudWorkflow } from "@/lib/domain/workflow-graphe";
 
 export interface ConstructionGraphe {
   noeuds: NoeudWorkflow[];
