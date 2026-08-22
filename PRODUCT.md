@@ -326,7 +326,15 @@ objectif structuré ni en mesure. La carte personnelle n'a pas de fenêtre
 dupliquée : sa surface canonique est le graphe de l'Atelier. La Progression est
 le **profil de carrière** (ADR-098) : elle porte la lecture longitudinale —
 évolution du score rejouée depuis le journal, faits marquants, bilan de
-croissance. Le *concept* d'un catalogue partagé reste décrit dans
+croissance.
+✅ **La lecture longitudinale par domaine a une seule surface** (23/08/2026).
+Elle vivait en double : `/progression?domaine=` et la vue domaine de l'Atelier
+répondaient à la même question (« où j'en suis dans ce domaine »). Le mode
+« Progression » de la vue domaine de l'Atelier est désormais la surface unique ;
+`/progression?domaine=` redirige vers elle (`/atelier?document=…&vue=progression`)
+et le calcul correspondant (`construireProgressionsDomaines`) est précalculé
+serveur avec les vues Atelier — mêmes fonctions pures, aucun chiffre nouveau.
+Le *concept* d'un catalogue partagé reste décrit dans
 [`TWINY_MODEL.md`](docs/architecture/TWINY_MODEL.md) ; tout retour repartira du
 modèle cible, avec un contenu initial réel et un curateur désigné avant toute
 table.

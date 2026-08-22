@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { chargerContexte } from "@/lib/store/context";
 import { compteCourant } from "@/lib/supabase/server";
 import { resoudreIdentite } from "@/lib/domain/identite";
@@ -7,11 +8,6 @@ import { resumeCarriere } from "@/lib/engine/carriere";
 import { resumeCroissance } from "@/lib/engine/croissance";
 import { evolutionScore } from "@/lib/engine/evolution";
 import {
-  agregerDomaine,
-  calculerEtatGlobal,
-} from "@/lib/engine/progression";
-import {
-  lectureDomaine,
   resoudreFiltreDomaine,
 } from "@/lib/engine/lecture-domaine";
 import { EntetePage } from "@/components/layout/entete-page";
@@ -24,7 +20,6 @@ import { CartePratique } from "@/components/progression/carte-pratique";
 import { ComparaisonDomaines } from "@/components/progression/comparaison-domaines";
 import { TopCompetences } from "@/components/progression/top-competences";
 import { BilanCroissanceLie } from "@/components/progression/bilan-croissance-lie";
-import { CarteEnTeteDomaine } from "@/components/progression/carte-en-tete-domaine";
 import { FiltreDomaines } from "@/components/progression/filtre-domaines";
 import { Glossaire } from "@/components/ui/glossaire";
 
@@ -51,10 +46,13 @@ import { Glossaire } from "@/components/ui/glossaire";
  *
  * ## Lecture par domaine (`?domaine=`)
  *
- * Le paramètre restreint toute la lecture aux compétences d'un domaine. Il
- * est validé contre les domaines réels du compte : un identifiant inconnu est
- * ignoré proprement, la page retombe sur sa vue globale plutôt que d'afficher
- * un périmètre qui n'existe pas.
+ * La lecture d'un seul domaine vit dans l'Atelier : la vue domaine y a un mode
+ * « Progression », alimenté par le même calcul que celui qui vivait ici. Le
+ * paramètre `?domaine=` redirige donc vers `/atelier?document=…&vue=progression`
+ * — une seule surface pour la question « où j'en suis dans ce domaine ». Il
+ * reste validé contre les domaines réels du compte : un identifiant inconnu
+ * est ignoré proprement, la page retombe sur sa vue globale plutôt que de
+ * rediriger vers un périmètre qui n'existe pas.
  */
 export default async function PageProgression(props: {
   searchParams: Promise<{ domaine?: string }>;
@@ -81,9 +79,14 @@ async function ContenuProgression({ filtreDemande }: { filtreDemande?: string })
   ]);
   const identite = resoudreIdentite(compte, ctx.donnees.user);
 
-  // Validation du filtre AVANT tout calcul : un paramètre invalide ne doit
-  // pas coûter une lecture filtrée ni produire un écran à moitié vide.
+  // Validation du paramètre AVANT tout calcul : un identifiant inconnu ne
+  // doit pas rediriger ni coûter une lecture — la page retombe sur sa vue
+  // globale. Un identifiant valide emmène vers la surface unique de la lecture
+  // par domaine : la vue domaine de l'Atelier, mode « Progression ».
   const filtre = resoudreFiltreDomaine(filtreDemande, ctx.referentiel.domaines);
+  if (filtre !== null) {
+    redirect(`/atelier?document=${encodeURIComponent(filtre)}&vue=progression`);
+  }
   const domainesDuFiltre = ctx.referentiel.domaines
     .filter((domaine) => !domaine.archive)
     .map((domaine) => ({ id: domaine.id, nom: domaine.nom }));
@@ -94,20 +97,12 @@ async function ContenuProgression({ filtreDemande }: { filtreDemande?: string })
 
   return (
     <div className="space-y-8 [&>*]:min-w-0">
-      <FiltreDomaines domaines={domainesDuFiltre} actif={filtre} />
-      {filtre === null ? (
-        <VueGlobale
-          ctx={ctx}
-          identite={identite}
-          intitules={intitules}
-        />
-      ) : (
-        <VueParDomaine
-          ctx={ctx}
-          domaineId={filtre}
-          intitules={intitules}
-        />
-      )}
+      <FiltreDomaines domaines={domainesDuFiltre} />
+      <VueGlobale
+        ctx={ctx}
+        identite={identite}
+        intitules={intitules}
+      />
       <Glossaire />
     </div>
   );
@@ -115,7 +110,7 @@ async function ContenuProgression({ filtreDemande }: { filtreDemande?: string })
 
 type ContextePage = Awaited<ReturnType<typeof chargerContexte>>;
 
-/** La lecture d'ensemble — inchangée par ce chantier quand aucun filtre n'est posé. */
+/** La lecture d'ensemble : le profil de carrière, sans filtre. */
 function VueGlobale({
   ctx,
   identite,
@@ -215,95 +210,8 @@ function VueGlobale({
 }
 
 /**
- * La lecture d'un seul domaine.
- *
- * Chaque section reçoit des données déjà restreintes par `lectureDomaine` :
- * les composants existants sont réutilisés tels quels, ils ne savent même pas
- * qu'un filtre existe. Les séances ne sont pas attribuables à un domaine, elles
- * sortent donc de la carrière et du bilan filtrés — seules les tentatives dont
- * l'exercice touche le périmètre y entrent, avec leurs durées réelles.
+ * La courbe du score et sa méthode repliée.
  */
-function VueParDomaine({
-  ctx,
-  domaineId,
-  intitules,
-}: {
-  ctx: ContextePage;
-  domaineId: string;
-  intitules: Record<string, string>;
-}) {
-  const domaine = ctx.referentiel.domainesParId.get(domaineId)!;
-
-  const lecture = lectureDomaine({
-    domaineId,
-    skills: ctx.referentiel.skills,
-    etats: ctx.etats,
-    observations: ctx.observationsEffectives,
-    exercices: ctx.donnees.exercises,
-    tentatives: ctx.donnees.attempts,
-    now: ctx.now,
-  });
-
-  const agregat = agregerDomaine(domaineId, ctx.etats, ctx.referentiel.domaines);
-
-  const evolution = evolutionScore({
-    observations: lecture.observations,
-    skillsParCode: ctx.referentiel.parCode,
-    now: ctx.now,
-  });
-
-  // Même moteur, journal réduit : les faits marquants comptent ce que CE
-  // domaine a produit, jamais la pratique entière déguisée.
-  const global = calculerEtatGlobal(lecture.etats, ctx.now, ctx.referentiel.domaines);
-
-  const carriere = resumeCarriere({
-    sessions: [],
-    tentatives: lecture.tentatives,
-    observations: lecture.observations,
-    now: ctx.now,
-  });
-
-  const croissance = resumeCroissance({
-    sessions: [],
-    tentatives: lecture.tentatives,
-    observations: lecture.observations,
-    skillsParCode: ctx.referentiel.parCode,
-    dureesEstimees: ctx.dureesEstimees,
-    now: ctx.now,
-    limiteEvenements: 8,
-  });
-
-  return (
-    <>
-      <CarteEnTeteDomaine
-        domaine={domaine}
-        score={agregat.score}
-        competencesMesurees={lecture.competencesMesurees}
-        competencesEnVeille={lecture.competencesEnVeille}
-        observationsTotal={lecture.observations.length}
-        derniereObservation={lecture.derniereObservation}
-        variation7j={evolution.variation7j}
-      />
-
-      <FaitsMarquants evolution={evolution} carriere={carriere} global={global} />
-
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-12 lg:gap-5">
-        <div className="space-y-4 min-w-0 lg:col-span-4">
-          <ComparaisonDomaines parDomaine={[agregat]} />
-        </div>
-
-        <div className="space-y-4 min-w-0 lg:col-span-8">
-          <CourbeEtMethode evolution={evolution} facteurs={global.facteurs} reserves={global.reserves} />
-          <TopCompetences etats={lecture.etats} />
-        </div>
-      </div>
-
-      <BilanCroissanceLie resume={croissance} intitules={intitules} />
-    </>
-  );
-}
-
-/** La courbe du score et sa méthode repliée — partagée par les deux lectures. */
 function CourbeEtMethode({
   evolution,
   facteurs,

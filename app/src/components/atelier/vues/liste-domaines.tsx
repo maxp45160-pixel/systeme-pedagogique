@@ -18,9 +18,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { cx } from "@/components/ui/primitives";
-import { IconeChevronDroit } from "@/components/ui/icones";
 import type { VueDomaineAtelier } from "@/lib/documents/vue-atelier";
 import {
   FENETRE_ACTIVITE_JOURS,
@@ -142,20 +140,6 @@ function CarteDomaine({
           )}
         </div>
       </button>
-
-      {/*
-        La sortie longitudinale : la même lecture, restreinte à ce domaine,
-        sur la page qui relit au lieu de travailler. Hors du bouton — un lien
-        ne s'imbrique pas dans un bouton — et sous la carte, où il gêne ni le
-        clic de fiche ni les gestes d'archivage.
-      */}
-      <Link
-        href={`/progression?domaine=${encodeURIComponent(domaine.id)}`}
-        className="mt-2 inline-flex items-center gap-1 text-[0.6875rem] font-medium text-texte-discret transition-colors hover:text-primaire"
-      >
-        Voir la progression
-        <IconeChevronDroit className="size-3" />
-      </Link>
 
       {estArchives ? (
         <div className="absolute right-3 top-3 z-10 flex items-center gap-1">

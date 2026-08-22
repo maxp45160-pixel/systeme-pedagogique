@@ -39,6 +39,7 @@ import {
 } from "@/lib/engine/parcours";
 import type { ChangementReferentiel } from "@/lib/domain/gouvernance-referentiel";
 import { type EtatCompetence } from "@/lib/engine/vues-twiny";
+import type { ProgressionDomaineVue } from "./progression-domaine";
 import {
   filRessourcesDomaine,
   type DocumentCorpus,
@@ -240,6 +241,13 @@ export interface VueDomaineAtelier {
    * Une ressource jamais mobilisée reste listée, sans date fabriquée.
    */
   ressources: FilRessource[];
+  /**
+   * La lecture longitudinale du domaine (mode « Progression »), précalculée
+   * serveur par `construireProgressionsDomaines` — la surface unique pour « où
+   * j'en suis dans ce domaine », là où `/progression?domaine=` doublonnait.
+   * Absente (imprévu) : le mode affiche un repli sobre, sans planter.
+   */
+  progression?: ProgressionDomaineVue;
 }
 
 export interface VueExerciceProjectionAtelier {

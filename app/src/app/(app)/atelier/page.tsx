@@ -15,6 +15,7 @@ import { construireGraphe } from "@/lib/domain/graphe";
 import { construireGrapheDomaines } from "@/lib/domain/graphe-domaines";
 import { construireArbreSavoirs } from "@/lib/domain/arbre-savoirs";
 import { construireVuesAtelier } from "@/lib/documents/vue-atelier";
+import { construireProgressionsDomaines } from "@/lib/documents/progression-domaine";
 import { lireChangementsReferentiel } from "@/lib/store/referentiel";
 import { calibragesPourModale, competencesPourModale } from "@/lib/domain/proprietes-generation";
 import {
@@ -25,9 +26,14 @@ import { paletteDomaines } from "@/lib/ui/couleurs-domaines";
 import { chargerDonneesSeance } from "@/components/seances/donnees-seance";
 
 export default async function PageAtelier(props: {
-  searchParams: Promise<{ document?: string; note?: string; retour?: string; creation?: string }>;
+  searchParams: Promise<{ document?: string; note?: string; retour?: string; creation?: string; vue?: string }>;
 }) {
-  const { document: documentDemande, note, retour, creation } = await props.searchParams;
+  const { document: documentDemande, note, retour, creation, vue: vueDemandee } = await props.searchParams;
+  /*
+   * `vue=progression` ouvre la vue domaine directement en lecture longitudinale.
+   * Toute autre valeur est ignorée : seul un mode qui existe mérite d'être initialisé.
+   */
+  const modeProgressionDemande = vueDemandee === "progression";
 
   /*
    * L'espace de travail documentaire unifié occupe l'écran entier.
@@ -143,6 +149,21 @@ export default async function PageAtelier(props: {
   );
   const vuesCompetences = new Map(vues.competences.map((vue) => [vue.code, vue]));
   const vuesExercices = new Map(vues.exercices.map((vue) => [vue.id, vue]));
+
+  /*
+   * La lecture longitudinale par domaine — la même que celle que rendait
+   * `/progression?domaine=`, calculée en une passe serveur et portée par les
+   * fiches de domaine. C'est maintenant la surface unique pour cette question.
+   */
+  const progressionsDomaines = construireProgressionsDomaines({
+    referentiel,
+    etats: contexte.etats,
+    observations: contexte.observationsEffectives,
+    exercices,
+    tentatives: contexte.donnees.attempts,
+    dureesEstimees: contexte.dureesEstimees,
+    now: contexte.now,
+  });
   const snapshotsParDocument = new Map<string, Array<{ id: string; version: number; captureReason: string; capturedAt: string }>>();
   for (const snapshot of snapshots) {
     const items = snapshotsParDocument.get(snapshot.documentId) ?? [];
@@ -234,7 +255,7 @@ export default async function PageAtelier(props: {
     tentatives: [],
     source: "projection",
     lectureSeule: true,
-    vuePedagogique: vue,
+    vuePedagogique: { ...vue, progression: progressionsDomaines[vue.id] },
     }));
 
   const competencesAtelier = referentiel.skills.filter((skill) =>
@@ -367,6 +388,7 @@ export default async function PageAtelier(props: {
         elements={elementsAtelier}
         couleursDomaines={couleursDomaines}
         documentDemande={documentDemande}
+        vueDemandee={modeProgressionDemande ? "progression" : undefined}
         graphe={{
           donnees: graphe,
           domaines: grapheDomaines,
