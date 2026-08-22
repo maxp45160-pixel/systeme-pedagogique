@@ -211,7 +211,7 @@ export function PaletteBureau({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-start justify-center px-4 pt-[12vh]"
+      className="fixed inset-0 z-[var(--superposition-modale)] flex items-start justify-center px-4 pt-[12vh]"
       // Cliquer à côté referme : le geste attendu d'une surcouche légère.
       onPointerDown={(event) => {
         if (event.target === event.currentTarget) onFermer();

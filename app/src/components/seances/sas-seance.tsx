@@ -112,7 +112,7 @@ export function SasSeance({
      */
     <div
       aria-live="polite"
-      className="fixed inset-0 z-[70] grid place-items-center bg-fond px-6 text-center"
+      className="fixed inset-0 z-[var(--superposition-modale)] grid place-items-center bg-fond px-6 text-center"
     >
       <div aria-hidden className="bureau-lampe absolute inset-0" />
 
