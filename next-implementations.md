@@ -290,6 +290,18 @@ rail active, la bonne, avec `aria-current="page"`.
 
 ### 7. Aération de `/aide` et `/demarrer`
 
+> **Fait le 22/08/2026.** `/aide` : sommaire ancré sticky en tête de page
+> (`#fonctionnement`, `#premiere-heure`, `#vocabulaire`, `#niveaux`, `#faq`),
+> ancres partageables, portée `--superposition-collant` de l'échelle de
+> superpositions, `scroll-mt` pour compenser le bandeau lui-même. Une seule
+> des deux approches proposées retenue (sommaire, pas d'accordéons sur les
+> étapes). Critère tenu : « Abandonner une séance ? » est à un clic du
+> sommaire, depuis n'importe quel point de défilement. `/demarrer` : bloc
+> « Ensuite » replié derrière un `<details>` sobre — wording inchangé, seul
+> le conteneur change ; le tour guidé ne porte plus son récit en double.
+> Wording pédagogique non touché, `PRODUCT.md` relire sans correction
+> nécessaire : le parcours décrit ne change pas.
+
 **Constat.** `/aide` : colonne unique très longue (5 étapes × 3 paragraphes +
 vocabulaire + FAQ) — contenu bon, forme épuisante. `/demarrer` : « ÉTAPE 1 SUR
 2 » + exemples + bloc « ENSUITE » (4 paragraphes) s'empilent avant toute action,

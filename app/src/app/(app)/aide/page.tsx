@@ -168,6 +168,15 @@ const QUESTIONS = [
   },
 ];
 
+/** Les ancres du sommaire : chaque cible est un `id` posé plus bas. */
+const SOMMAIRE = [
+  { ancre: "fonctionnement", libelle: "Fonctionnement" },
+  { ancre: "premiere-heure", libelle: "Première heure" },
+  { ancre: "vocabulaire", libelle: "Vocabulaire" },
+  { ancre: "niveaux", libelle: "Niveaux" },
+  { ancre: "faq", libelle: "FAQ" },
+];
+
 export default async function PageAide() {
   /*
    * La seule décision de cette page est « le compte a-t-il des compétences ? ».
@@ -186,6 +195,34 @@ export default async function PageAide() {
       />
 
       <div className="mx-auto max-w-3xl space-y-10">
+        {/*
+          Sommaire ancré collant. La page est longue par nature ; le sommaire
+          rend chaque section atteignable en un clic depuis n'importe quel
+          point de défilement, et les ancres sont partageables (#faq, …).
+          Portée `--superposition-collant` : au-dessus du contenu, sous les
+          menus. `scroll-mt` compense la hauteur du bandeau lui-même pour que
+          l'ancre n'atterrisse pas dessous.
+        */}
+        <nav
+          aria-label="Sommaire de l'aide"
+          className="sticky top-0 z-[var(--superposition-collant)] -mx-2 flex flex-wrap items-center gap-x-1 gap-y-1 rounded-xl border border-bordure bg-surface/95 px-3 py-2 shadow-xs backdrop-blur-sm"
+        >
+          {SOMMAIRE.map((entree, index) => (
+            <span key={entree.ancre} className="flex items-center gap-1">
+              {index > 0 && (
+                <span className="text-texte-discret" aria-hidden>
+                  ·
+                </span>
+              )}
+              <a
+                href={`#${entree.ancre}`}
+                className="rounded px-1.5 py-0.5 text-xs font-medium text-texte-attenue transition-colors hover:bg-surface-2 hover:text-texte"
+              >
+                {entree.libelle}
+              </a>
+            </span>
+          ))}
+        </nav>
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-primaire/30 bg-primaire/10 p-4 shadow-xs">
           <div className="space-y-0.5">
             <p className="text-sm font-semibold text-texte">Visite guidée interactive</p>
@@ -202,7 +239,7 @@ export default async function PageAide() {
           évaluations produisent les observations, les observations produisent les niveaux.
         </BandeauInfo>
 
-        <section>
+        <section id="fonctionnement" className="scroll-mt-16">
           <TitreSection legende="Cinq étapes. Les quatre dernières se répètent ensuite à chaque séance.">
             Le fonctionnement
           </TitreSection>
@@ -234,7 +271,7 @@ export default async function PageAide() {
           </ol>
         </section>
 
-        <section>
+        <section id="premiere-heure" className="scroll-mt-16">
           <TitreSection legende="À faire dans l'ordre, une seule fois.">
             Votre première heure
           </TitreSection>
@@ -284,7 +321,7 @@ export default async function PageAide() {
           </Carte>
         </section>
 
-        <section>
+        <section id="vocabulaire" className="scroll-mt-16">
           <TitreSection legende="Les mots qui reviennent partout dans l'interface.">
             Vocabulaire
           </TitreSection>
@@ -305,7 +342,7 @@ export default async function PageAide() {
           </Carte>
         </section>
 
-        <section>
+        <section id="niveaux" className="scroll-mt-16">
           <TitreSection legende="L'échelle utilisée partout où un niveau s'affiche. On ne saute pas d'échelon : on le démontre.">
             Les six niveaux
           </TitreSection>
@@ -332,7 +369,7 @@ export default async function PageAide() {
           </Carte>
         </section>
 
-        <section>
+        <section id="faq" className="scroll-mt-16">
           <TitreSection legende="Cliquez sur une question pour dérouler la réponse.">
             Questions fréquentes
           </TitreSection>
