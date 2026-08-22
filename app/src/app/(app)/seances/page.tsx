@@ -46,7 +46,6 @@ export default async function PageSeances(props: {
   searchParams: Promise<{
     session?: string;
     exercice?: string;
-    correction?: string;
     evaluer?: string;
     bilan?: string;
     abandon?: string;

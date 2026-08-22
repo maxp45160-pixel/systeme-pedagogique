@@ -3,7 +3,7 @@ import { urlExercice, urlComposerAutonome } from "./navigation-exercice";
 
 describe("urlExercice", () => {
   it("retombe sur le cahier pour un exercice sans séance", () => {
-    expect(urlExercice("ex 1", undefined, "correction")).toBe("/seances");
+    expect(urlExercice("ex 1", undefined, "evaluer")).toBe("/seances");
   });
 
   it("construit une URL de workspace partageable", () => {

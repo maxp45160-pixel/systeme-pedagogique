@@ -15,7 +15,7 @@ export interface ContexteNavigationExercice {
   plein?: boolean;
 }
 
-export type EtapeExercice = "correction" | "evaluer" | "bilan" | "abandon";
+export type EtapeExercice = "evaluer" | "bilan" | "abandon";
 
 /** Construit l'URL canonique d'un exercice, autonome ou inclus dans une séance. */
 export function urlExercice(

@@ -180,9 +180,9 @@ export function baseRoute(url: string): string {
   if (!query) return base;
 
   if (query.includes("session=")) return `${base}?session`;
+  if (query.includes("vue=")) return `${base}?vue`;
   if (query.includes("document=")) return `${base}?document`;
   if (query.includes("note=")) return `${base}?note`;
-  if (query.includes("correction=")) return `${base}?correction`;
   if (query.includes("evaluer=")) return `${base}?evaluer`;
   if (query.includes("bilan=")) return `${base}?bilan`;
   if (query.includes("abandon=")) return `${base}?abandon`;
@@ -199,9 +199,9 @@ export function baseRoute(url: string): string {
  */
 export const CLES_VARIANTS = [
   "session",
+  "vue",
   "document",
   "note",
-  "correction",
   "evaluer",
   "bilan",
   "abandon",
@@ -213,7 +213,7 @@ export const CLES_VARIANTS = [
  * Lit la déclaration de propriété `searchParams` du type des props (inline ou
  * interface nommée), dépaquette `Promise<T>` le cas échéant, et collecte les
  * noms des membres de l'objet. C'est la source de vérité des variantes :
- * `searchParams: { session?, correction?, … }` déclare les modes que la page
+ * `searchParams: { session?, evaluer?, … }` déclare les modes que la page
  * sait afficher.
  */
 export function extraireClesSearchParams(sf: ts.SourceFile): string[] {
@@ -494,9 +494,6 @@ export function resoudreUrlsDepuisNoeudAst(
       }
       if (argsTexte.includes('"abandon"') || argsTexte.includes("'abandon'")) {
         return ["/seances?abandon"];
-      }
-      if (argsTexte.includes('"correction"') || argsTexte.includes("'correction'")) {
-        return ["/seances?correction"];
       }
       return ["/seances?session={code}"];
     }
@@ -1139,8 +1136,15 @@ export function analyserFichierSourceAst(chemin: string, relatif: string, conten
       contenu.includes("<details");
 
     if (aAccordeonJsx) {
+      /*
+       * Identifiant canonique partagé : la fonction « déplier un contenu
+       * repliable » est la même où qu'elle soit montée. Un nœud par fichier
+       * fabriquait une quinzaine de feuilles jumelles qui gonflaient le graphe
+       * sans dire rien de plus ; `ajouterNoeud` déduplique par identifiant, les
+       * arêtes restent rattachées à chaque hôte.
+       */
       microInteractions.push({
-        id: `micro:${slugFichier}-accordion`,
+        id: "micro:ui-accordion",
         type: "accordéon",
         libelle: "Déplier un contenu repliable",
         declencheur: "Clic sur un contenu replié",

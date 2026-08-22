@@ -68,7 +68,7 @@ export async function VueExercice(props: {
   seancePeutTerminer?: boolean;
 }) {
   const { id } = await props.params;
-  const { correction, evaluer, bilan, abandon } = await props.searchParams;
+  const { evaluer, bilan, abandon } = await props.searchParams;
 
   const ctx = await chargerContexte();
   const exercice = ctx.donnees.exercises.find((e) => e.id === id);
@@ -136,10 +136,10 @@ export async function VueExercice(props: {
   /*
    * Deux actes : Chercher → Mesurer. La correction de référence n'est jamais
    * exposée dans l'interface : le tuteur relit la réponse côté serveur et rend
-   * une proposition dans le bilan. Les anciennes URLs `?correction=1` sont
-   * rabattues sur ce même chemin pour ne pas réouvrir l'ancien écran.
+   * une proposition dans le bilan. L'ancienne URL `?correction=1` a été
+   * retirée avec l'écran qu'elle ouvrait — seul `?evaluer=1` entre en mesure.
    */
-  const enMesure = evaluer === "1" || correction === "1";
+  const enMesure = evaluer === "1";
   // L'énoncé reste toujours atteignable — c'est le contexte, pas une action.
   // Il ne se replie que dans l'acte Mesurer, jamais avant : la recherche doit
   // garder l'énoncé sous les yeux.

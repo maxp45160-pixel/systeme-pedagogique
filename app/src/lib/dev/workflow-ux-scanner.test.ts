@@ -53,17 +53,24 @@ describe("scannerUxJourney (dynamique AST)", () => {
     expect(idsNoeuds).toContain("page:/seances?evaluer");
     expect(idsNoeuds).toContain("page:/seances?bilan");
     expect(idsNoeuds).toContain("page:/seances?abandon");
+    // ADR-103 : le mode archive est un état URL réel du Bureau (`?vue=cahier`).
+    expect(idsNoeuds).toContain("page:/seances?vue");
+    // L'ancien mode `?correction=1`, rabattu sur `?evaluer=1` puis retiré,
+    // ne doit plus jamais revenir comme variante déclarée.
+    expect(idsNoeuds).not.toContain("page:/seances?correction");
 
-    // Cadre partagé : le rail dessert /compte et /aide depuis toutes les pages
-    // du groupe, et le tiroir tuteur / le point d'entrée `+` y sont ouverts.
+    // Cadre partagé : le tiroir tuteur et le point d'entrée `+` reçoivent des
+    // ouvertures de plusieurs écrans ; les destinations du rail passent par le
+    // hub `cadre:rail`, qui est lui-même alimenté par tous les écrans du cadre.
     const entrantsParId = new Map<string, number>();
     for (const l of graphe.liens) {
       entrantsParId.set(l.target, (entrantsParId.get(l.target) ?? 0) + 1);
     }
-    expect(entrantsParId.get("page:/compte") ?? 0).toBeGreaterThan(1);
-    expect(entrantsParId.get("page:/aide") ?? 0).toBeGreaterThan(1);
     expect(entrantsParId.get("tiroir:tuteur") ?? 0).toBeGreaterThan(1);
     expect(entrantsParId.get("modal:de-quoi-as-tu-besoin") ?? 0).toBeGreaterThan(1);
+    expect(graphe.liens.some((l) => l.source === "cadre:rail" && l.target === "page:/compte")).toBe(true);
+    expect(graphe.liens.some((l) => l.source === "cadre:rail" && l.target === "page:/aide")).toBe(true);
+    expect(graphe.liens.filter((l) => l.target === "cadre:rail").length).toBeGreaterThan(10);
 
     // Qualification des arêtes de cadre (cadre: true)
     const liensCadre = graphe.liens.filter((l) => l.cadre === true);

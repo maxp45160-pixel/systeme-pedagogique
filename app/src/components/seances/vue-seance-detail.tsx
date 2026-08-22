@@ -36,7 +36,6 @@ import { SasSeance } from "@/components/seances/sas-seance";
 import { IconeExercices, IconeMinuteur, IconeNote } from "@/components/ui/icones";
 
 export type EtapeRecherche = {
-  correction?: string;
   evaluer?: string;
   bilan?: string;
   abandon?: string;

@@ -114,6 +114,7 @@ const COULEUR_PAR_TYPE_NOEUD: Record<TypeNoeudWorkflow, string> = {
   tiroir: "#10b981",
   etape: "#f59e0b",
   action: "#ef4444",
+  cadre: "#0ea5e9",
 };
 
 const FORME_LIBELLE: Record<TypeNoeudWorkflow, string> = {
@@ -123,6 +124,7 @@ const FORME_LIBELLE: Record<TypeNoeudWorkflow, string> = {
   tiroir: "Tiroir",
   etape: "Étape (3 Actes)",
   action: "Action / Effet",
+  cadre: "Cadre persistant",
 };
 
 const GROUPES_CONFIG: Record<
@@ -156,6 +158,7 @@ const RAYON_PAR_TYPE: Record<TypeNoeudWorkflow, number> = {
   tiroir: 16,
   etape: 16,
   action: 12,
+  cadre: 20,
 };
 
 /** Espacement horizontal entre colonnes de profondeur BFS (Vue Architecture). */
@@ -167,6 +170,7 @@ const DECALAGE_Y_TYPE: Record<TypeNoeudWorkflow, number> = {
   tiroir: 80,
   etape: -160,
   action: 160,
+  cadre: -240,
 };
 
 /* ------------------------------------------------------------------ */
@@ -277,6 +281,7 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
     tiroir: true,
     etape: true,
     action: true,
+    cadre: true,
   });
 
   // Filtres par groupe UX

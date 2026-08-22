@@ -53,17 +53,20 @@ describe("scannerWorkflow", () => {
       expect(atteignables).toContain("page:/progression");
       expect(atteignables).toContain("page:/atelier");
 
-      // Une page du groupe porte des arêtes de navigation persistante explicites.
-      const liensPersistants = graphe.liens.filter(
-        (l) => l.source === "page:/seances" && l.libelle === "Navigation persistante",
-      );
-      expect(liensPersistants.map((l) => l.target)).toContain("page:/aide");
-      expect(liensPersistants.map((l) => l.target)).toContain("page:/compte");
-      expect(liensPersistants.every((l) => l.cadre === true)).toBe(true);
+      // Le hub du cadre porte la navigation persistante : chaque écran du
+      // groupe `(app)` rejoint le rail, et le rail dessert ses destinations.
+      const versRail = graphe.liens.filter((l) => l.target === "cadre:rail");
+      expect(versRail.map((l) => l.source)).toContain("page:/seances");
+      expect(versRail.every((l) => l.cadre === true)).toBe(true);
+      const duRail = graphe.liens
+        .filter((l) => l.source === "cadre:rail")
+        .map((l) => l.target);
+      expect(duRail).toContain("page:/aide");
+      expect(duRail).toContain("page:/compte");
 
-      // `/compte` devient joignable depuis la racine sans passer par un profil.
+      // `/compte` devient joignable depuis la racine en passant par le rail.
       expect(atteignables).toContain("page:/compte");
-      expect(resultat.profondeurs.get("page:/compte")).toBeLessThanOrEqual(1);
+      expect(resultat.profondeurs.get("page:/compte")).toBeLessThanOrEqual(2);
     },
     25000,
   );

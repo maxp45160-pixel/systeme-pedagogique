@@ -66,10 +66,17 @@ export function creerConstructionGraphe(): ConstructionGraphe {
  * cette passe, `/aide`, `/compte` ou `/progression` sembleraient inaccessibles
  * depuis la plupart des pages alors qu'ils sont partout.
  *
- * Les sources diffèrent selon la perspective — pages seules pour le graphe
- * d'architecture, pages ET variantes searchParams pour la perspective UX
- * (une variante `?document` porte le même rail que sa page de base) — mais la
- * passe elle-même est une seule implémentation.
+ * ## Le hub `cadre:rail`
+ *
+ * Le rail est UN objet d'interface présent sur TOUS les écrans — pas N×M
+ * liens distincts. Le relier en pairwise fabriquait plus de cent arêtes
+ * jumelles qui noyaient le graphe sans rien dire de plus : la topologie réelle
+ * est une étoile. Chaque écran porte désormais une seule arête vers le hub,
+ * et le hub une arête par destination. Les sources diffèrent selon la
+ * perspective — pages seules pour le graphe d'architecture, pages ET variantes
+ * searchParams pour la perspective UX (une variante `?document` porte le même
+ * rail que sa page de base) — mais la passe elle-même est une seule
+ * implémentation.
  */
 export function relierNavigationPartagee(
   construction: ConstructionGraphe,
@@ -78,21 +85,46 @@ export function relierNavigationPartagee(
   declencheur?: string,
 ): void {
   const navPartagee = resoudreNavigationPartagee(analyses);
+  const HUB = "cadre:rail";
+  construction.ajouterNoeud({
+    id: HUB,
+    type: "cadre",
+    libelle: "Rail & barre mobile",
+    badge: "Cadre",
+    description:
+      "Navigation persistante du cadre : les mêmes destinations, depuis chaque écran.",
+  });
+
+  const destinations = new Set<string>();
+  for (const cibles of navPartagee.values()) {
+    for (const cible of cibles) destinations.add(`page:${cible}`);
+  }
+
+  // Seuls les écrans sous un layout qui déclare la navigation portent le rail :
+  // `/login` et les routes d'authentification vivent hors du cadre.
   for (const src of sources) {
-    for (const [dossier, cibles] of navPartagee.entries()) {
-      if (!src.relatif.startsWith(`${dossier}/`)) continue;
-      for (const cible of cibles) {
-        const targetId = `page:${cible}`;
-        if (!construction.parId.has(targetId) || targetId === src.id) continue;
-        construction.connecter({
-          source: src.id,
-          target: targetId,
-          type: "navigation",
-          libelle: "Navigation persistante",
-          ...(declencheur ? { declencheur } : {}),
-          cadre: true,
-        });
-      }
-    }
+    const encadre = [...navPartagee.keys()].some((dossier) =>
+      src.relatif.startsWith(`${dossier}/`),
+    );
+    if (!encadre || !construction.parId.has(src.id) || src.id === HUB) continue;
+    construction.connecter({
+      source: src.id,
+      target: HUB,
+      type: "navigation",
+      libelle: "Rail",
+      ...(declencheur ? { declencheur } : {}),
+      cadre: true,
+    });
+  }
+
+  for (const dest of destinations) {
+    if (!construction.parId.has(dest)) continue;
+    construction.connecter({
+      source: HUB,
+      target: dest,
+      type: "navigation",
+      libelle: "Destination du rail",
+      cadre: true,
+    });
   }
 }

@@ -50,7 +50,8 @@ export type TypeNoeudWorkflow =
   | "modal" // fenêtre modale
   | "tiroir" // panneau latéral (tuteur, réglages)
   | "etape" // étape d'un parcours (acte Chercher/Comparer/Mesurer)
-  | "action"; // effet de bord (server action, écriture)
+  | "action" // effet de bord (server action, écriture)
+  | "cadre"; // surface persistante du cadre (rail, barre mobile)
 
 export type TypeLienWorkflow =
   | "navigation" // lien ou redirection entre pages

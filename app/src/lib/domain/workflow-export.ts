@@ -158,6 +158,7 @@ export function exporterDOT(
     tiroir: "folder",
     etape: "note",
     action: "diamond",
+    cadre: "tab",
   };
 
   // Regrouper par groupe si présent

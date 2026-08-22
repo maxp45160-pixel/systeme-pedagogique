@@ -443,8 +443,25 @@ function construireUxAtomique(
       const a = analyses.get(rel);
       if (!a) continue;
 
+      /*
+       * Seuil de surface UX : le graphe décrit un parcours, pas un arbre de
+       * composants. Un composant sans aucun signal d'interaction propre
+       * (onglet, modale, micro-interaction, navigation, action serveur) est de
+       * l'habillage — le monter comme destination fabriquait des dizaines de
+       * feuilles muettes qui ne disaient rien du parcours. Sa contribution,
+       * s'il en avait une, remonte à la page hôte via le repli `?? pageId`.
+       */
+      const aSignalUx =
+        a.onglets.length > 0 ||
+        a.modales.length > 0 ||
+        a.microInteractions.length > 0 ||
+        a.navigations.length > 0 ||
+        a.actionsInvoquees.length > 0 ||
+        a.boutons.some((b) => b.actionInvoquee);
+
       for (const surf of a.surfaces) {
         const surfId = `ux:${slugId(surf.nom)}`;
+        if (!aSignalUx) continue;
         surfacesParFichier.set(rel, surfId);
 
         ajouterNoeud({
@@ -621,15 +638,19 @@ function construireUxAtomique(
     // L'AST ne voit pas les branches JSX : reprendre toutes les navigations de
     // vue-exercice.tsx les attribuait au bilan alors qu'elles appartiennent aux
     // autres actes (compositeur du démarrage, liens d'en-tête d'autres états).
-    // Le nœud ?bilan affichait 18 sorties pour un écran qui en propose trois
-    // sur sa carte impact — Prochaine action recommandée (/), Fiche compétence
-    // (/atelier), Cahier (/seances) — auxquelles s'ajoute la clôture de séance
-    // côté serveur. Mesuré sur vue-exercice.tsx (bloc `bilan === "1"`).
+    // Le bloc `bilan === "1"` de vue-exercice.tsx propose deux familles de
+    // sorties, mesurées sur son code :
+    //  - hors séance (fiche autonome) : Prochaine action recommandée (/),
+    //    Fiche compétence (/atelier?document={code}), Cahier (/seances) ;
+    //  - dans une séance : activité suivante ou continuation (?session=…),
+    //    la clôture passant par l'action serveur terminerSeance ci-dessous.
     if (parId.has(bilanId)) {
       for (const [cible, libelle] of [
         ["/", "Prochaine action recommandée"],
-        ["/atelier", "Voir la fiche dans l'Atelier"],
+        ["/atelier?document", "Voir la fiche dans l'Atelier"],
         ["/seances", "Retour au cahier"],
+        ["/seances?session", "Continuer la séance"],
+        ["/seances?session", "Passer à l'activité suivante"],
       ] as const) {
         const destId = `page:${cible}`;
         if (parId.has(destId)) {
@@ -1121,12 +1142,13 @@ function qualifierVarianteUx(
           libelleTransition: "Déroulé de séance",
           badge: "Session",
         };
-      case "correction":
+      case "vue":
+        // ADR-103 : l'archive est un MODE du Bureau, pas une destination.
         return {
           type: "etape",
-          libelle: "Étape : Correction de raisonnement",
-          libelleTransition: "Mode correction",
-          badge: "Correction",
+          libelle: "Cahier : l'archive du Bureau",
+          libelleTransition: "Mode archive",
+          badge: "Archive",
         };
       case "evaluer":
         return {
