@@ -1,22 +1,28 @@
 /**
- * Scanner de Parcours UX Atomique & Synthèse Macro — Introspection 100% dynamique (Couche 3).
+ * Scanner de Parcours UX Atomique & Synthèse Macro (Couche 3).
  *
- * Construit dynamiquement deux perspectives de parcours utilisateur :
- *   1. 🎯 Mode "atomique" : exhaustivité totale (pages, sous-vues, onglets, micro-interactions,
- *      canvas D3, accordéons, pomodoro, tuteur IA, modales, tiroirs et Server Actions).
- *   2. 🧭 Mode "macro" : vue de synthèse exécutive épurée (8-12 macro-pôles maîtres articulant
- *      le funnel de valeur pédagogique : Intention → Séance → 3 Actes → Observation → Progression).
+ * Construit deux perspectives de parcours utilisateur :
+ *   1. Mode "atomique" : exhaustivité totale, 100 % dérivée du code source
+ *      (pages, sous-vues, onglets, micro-interactions, canvas D3, accordéons,
+ *      pomodoro, tuteur IA, modales, tiroirs et Server Actions).
+ *   2. Mode "macro" : synthèse dirigée — les pôles et arêtes directrices du
+ *      funnel de valeur sont **nommés ici** (Intention → Séance → 3 Actes →
+ *      Observation → Progression), pas inférés. Chaque pôle reste vérifié
+ *      contre l'AST (`analyses.has`) pour n'exister que si son écran existe.
+ *      L'en-tête antérieur revendiquait « 100 % dynamique » pour les deux
+ *      modes ; c'était faux pour celui-ci, et l'affirmation a été corrigée
+ *      plutôt que le graphe réécrit — la synthèse assumée est un choix de
+ *      lecture, pas un registre oublié.
  *
- * ## Frontière (AGENTS.md)
+ * ## Frontiere (AGENTS.md)
  *
- * Couche 3 (Décide) : tout est dérivé du code source, rien n'est stocké.
- * Les types du graphe restent dans workflow-graphe.ts (couche 1).
+ * Couche 3 (Décide) : tout est dérivé du code source ou vérifié contre lui,
+ * rien n'est stocké. Les types du graphe restent dans workflow-graphe.ts
+ * (couche 1) ; la mécanique partagée dans workflow-scan-partage.ts.
  */
 
 import type {
   GrapheWorkflow,
-  LienWorkflow,
-  NoeudWorkflow,
   TypeNoeudWorkflow,
 } from "./workflow-graphe";
 import {
@@ -25,11 +31,11 @@ import {
   groupePourChemin,
   resoudreImportsComposants,
   resoudreModalesImbriquees,
-  resoudreNavigationPartagee,
   resoudreSurfacesPartagees,
   slugId,
   type FichierAstAnalyse,
 } from "./workflow-ast-parser";
+import { creerConstructionGraphe, relierNavigationPartagee } from "./workflow-scan-partage";
 
 /**
  * Construit dynamiquement le graphe complet du parcours UX (macro ou atomique).
@@ -55,29 +61,8 @@ export async function scannerUxJourney(options?: {
 function construireMacroSynthese(
   analyses: Map<string, FichierAstAnalyse>,
 ): GrapheWorkflow {
-  const noeuds: NoeudWorkflow[] = [];
-  const liens: LienWorkflow[] = [];
-  const parId = new Map<string, NoeudWorkflow>();
-  const vusLiens = new Set<string>();
-
-  function ajouterNoeud(noeud: NoeudWorkflow) {
-    if (!parId.has(noeud.id)) {
-      parId.set(noeud.id, noeud);
-      noeuds.push(noeud);
-    }
-  }
-
-  function connecter(lien: LienWorkflow) {
-    // Dédup sur le trajet, pas sur le geste : plusieurs boutons d'une même
-    // vue (ou la même navigation déclarée page + composant) produisent des
-    // arêtes jumelles qui ne diffèrent que par leur déclencheur. Les compter
-    // double gonflait les degrés et masquait la topologie réelle.
-    const cle = `${lien.source}→${lien.target}→${lien.type}→${lien.libelle}`;
-    if (!vusLiens.has(cle)) {
-      vusLiens.add(cle);
-      liens.push(lien);
-    }
-  }
+  const construction = creerConstructionGraphe();
+  const { ajouterNoeud, connecter, parId } = construction;
 
   // Les 12 Macro-Pôles Maîtres du Funnel Pédagogique
   ajouterNoeud({
@@ -376,7 +361,7 @@ function construireMacroSynthese(
     }
   }
 
-  return { noeuds, liens };
+  return { noeuds: construction.noeuds, liens: construction.liens };
 }
 
 /* ------------------------------------------------------------------ */
@@ -387,26 +372,8 @@ function construireUxAtomique(
   analyses: Map<string, FichierAstAnalyse>,
   composantsParPage: Map<string, Set<string>>,
 ): GrapheWorkflow {
-  const noeuds: NoeudWorkflow[] = [];
-  const liens: LienWorkflow[] = [];
-  const parId = new Map<string, NoeudWorkflow>();
-  const vusLiens = new Set<string>();
-
-  function ajouterNoeud(noeud: NoeudWorkflow) {
-    if (!parId.has(noeud.id)) {
-      parId.set(noeud.id, noeud);
-      noeuds.push(noeud);
-    }
-  }
-
-  function connecter(lien: LienWorkflow) {
-    // Même clé que la vue macro : dédup sur le trajet, pas sur le geste.
-    const cle = `${lien.source}→${lien.target}→${lien.type}→${lien.libelle}`;
-    if (!vusLiens.has(cle)) {
-      vusLiens.add(cle);
-      liens.push(lien);
-    }
-  }
+  const construction = creerConstructionGraphe();
+  const { ajouterNoeud, connecter, parId } = construction;
 
   // 1. Pages et sous-routes canoniques (searchParams)
   // Chaque nœud écran (page ou variante) mémorise le dossier du fichier qui
@@ -959,27 +926,11 @@ function construireUxAtomique(
   // mode à douze chemins d'entrée ne montrerait qu'une seule sortie.
   // `connecter` déduplique déjà une arête identique (source→cible→type→libellé),
   // y compris quand deux dossiers de layouts s'imbriquent.
-  const navPartagee = resoudreNavigationPartagee(analyses);
+  relierNavigationPartagee(construction, analyses, sourcesCadre, "Rail / barre mobile du cadre");
   const surfacesPartagees = resoudreSurfacesPartagees(analyses);
 
   for (const src of sourcesCadre) {
     const sourceId = src.id;
-
-    for (const [dossier, cibles] of navPartagee.entries()) {
-      if (!src.relatif.startsWith(`${dossier}/`)) continue;
-      for (const cible of cibles) {
-        const targetId = `page:${cible}`;
-        if (!parId.has(targetId) || targetId === sourceId) continue;
-        connecter({
-          source: sourceId,
-          target: targetId,
-          type: "navigation",
-          libelle: "Navigation persistante",
-          declencheur: "Rail / barre mobile du cadre",
-          cadre: true,
-        });
-      }
-    }
 
     for (const [dossier, ids] of surfacesPartagees.entries()) {
       if (!src.relatif.startsWith(`${dossier}/`)) continue;
@@ -1102,7 +1053,7 @@ function construireUxAtomique(
         });
       }
 
-      const dejaOuverte = liens.some(
+      const dejaOuverte = construction.liens.some(
         (l) => l.source === parent && l.target === enfant && l.type === "ouverture",
       );
       if (!dejaOuverte) {
@@ -1115,7 +1066,7 @@ function construireUxAtomique(
         });
       }
 
-      const dejaRetournee = liens.some(
+      const dejaRetournee = construction.liens.some(
         (l) => l.source === enfant && l.target === parent && l.type === "retour",
       );
       if (!dejaRetournee) {
@@ -1137,14 +1088,14 @@ function construireUxAtomique(
   // `statistiquesGraphe`. Pages, modales, tiroirs et actions sont toujours
   // reliés par construction ; seules les sous-vues peuvent tomber à zéro
   // sortie, et c'est alors le signe d'une affordance, pas d'une impasse.
-  const idsAvecSortie = new Set(liens.map((l) => l.source));
-  for (const n of noeuds) {
+  const idsAvecSortie = new Set(construction.liens.map((l) => l.source));
+  for (const n of construction.noeuds) {
     if (n.type === "sous-vue" && !idsAvecSortie.has(n.id)) {
       n.heuristique = true;
     }
   }
 
-  return { noeuds, liens };
+  return { noeuds: construction.noeuds, liens: construction.liens };
 }
 
 /* ------------------------------------------------------------------ */

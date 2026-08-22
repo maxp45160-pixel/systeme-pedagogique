@@ -14,11 +14,7 @@
  * Les types du graphe restent dans workflow-graphe.ts (couche 1).
  */
 
-import type {
-  GrapheWorkflow,
-  LienWorkflow,
-  NoeudWorkflow,
-} from "./workflow-graphe";
+import type { GrapheWorkflow } from "./workflow-graphe";
 import {
   analyserTousLesFichiersAst,
   baseRoute,
@@ -26,10 +22,13 @@ import {
   groupePourChemin,
   resoudreImportsComposants,
   resoudreModalesImbriquees,
-  resoudreNavigationPartagee,
   resoudreSurfacesPartagees,
   slugId,
 } from "./workflow-ast-parser";
+import {
+  creerConstructionGraphe,
+  relierNavigationPartagee,
+} from "./workflow-scan-partage";
 
 /**
  * Construit dynamiquement le graphe d'architecture du workflow.
@@ -38,25 +37,8 @@ export async function scannerWorkflow(): Promise<GrapheWorkflow> {
   const analyses = await analyserTousLesFichiersAst();
   const composantsPage = resoudreImportsComposants(analyses);
 
-  const noeuds: NoeudWorkflow[] = [];
-  const liens: LienWorkflow[] = [];
-  const parId = new Map<string, NoeudWorkflow>();
-  const vusLiens = new Set<string>();
-
-  function ajouterNoeud(noeud: NoeudWorkflow) {
-    if (!parId.has(noeud.id)) {
-      parId.set(noeud.id, noeud);
-      noeuds.push(noeud);
-    }
-  }
-
-  function connecter(lien: LienWorkflow) {
-    const cle = `${lien.source}→${lien.target}→${lien.type}→${lien.libelle}`;
-    if (!vusLiens.has(cle)) {
-      vusLiens.add(cle);
-      liens.push(lien);
-    }
-  }
+  const construction = creerConstructionGraphe();
+  const { ajouterNoeud, connecter, parId } = construction;
 
   // 0. Clés de variantes réellement ciblées par des navigations ou
   // redirections, toutes sources confondues. Elles complètent les clés lues
@@ -320,32 +302,22 @@ export async function scannerWorkflow(): Promise<GrapheWorkflow> {
     }
   }
 
-  // 5. Navigation persistante du cadre (rail + barre mobile) — déclarée dans
-  // les layouts partagés, présente sur toutes les pages du groupe de routes.
-  // Sans cette passe, `/aide`, `/compte` ou `/progression` sembleraient
-  // inaccessibles depuis la plupart des pages alors qu'ils sont sur toutes.
-  const navPartagee = resoudreNavigationPartagee(analyses);
-  for (const a of analyses.values()) {
-    if (!a.estPageRoute || !a.route || a.estRedirectionPure) continue;
-    if (a.route.startsWith("/dev")) continue;
+  // 5. Navigation persistante du cadre — passe partagée avec la perspective
+  // UX (workflow-scan-partage.ts). Sources : les pages seules, ici ; l'UX y
+  // ajoute ses variantes searchParams.
+  relierNavigationPartagee(
+    construction,
+    analyses,
+    [...analyses.values()]
+      .filter(
+        (a) =>
+          a.estPageRoute &&
+          a.route &&
+          !a.estRedirectionPure &&
+          !a.route.startsWith("/dev"),
+      )
+      .map((a) => ({ id: `page:${a.route}`, relatif: a.relatif })),
+  );
 
-    const sourceId = `page:${a.route}`;
-    for (const [dossier, cibles] of navPartagee.entries()) {
-      if (!a.relatif.startsWith(`${dossier}/`)) continue;
-      for (const cible of cibles) {
-        const targetId = `page:${cible}`;
-        if (parId.has(targetId) && targetId !== sourceId) {
-          connecter({
-            source: sourceId,
-            target: targetId,
-            type: "navigation",
-            libelle: "Navigation persistante",
-            cadre: true,
-          });
-        }
-      }
-    }
-  }
-
-  return { noeuds, liens };
+  return { noeuds: construction.noeuds, liens: construction.liens };
 }
