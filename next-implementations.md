@@ -202,6 +202,35 @@ sur simulateur iPhone (encoche), la barre ne chevauche pas l'indicateur système
 
 ### 5. Gardes sur les variantes d'URL
 
+> **Fait le 22/08/2026 (vérification partielle)** — exploration ayant réfuté
+> deux des trois constats : `?session` est vivant (la séance s'ouvre inline sur
+> la page du jour, ADR-079, et l'URL est normalisée volontairement vers
+> `?jour=` par la synchronisation du cahier interactif) ; `?note` a déjà sa
+> garde `notFound()`. Le seul défaut réel était `?document` sans garde :
+> corrigé dans `app/(app)/atelier/page.tsx` (`notFound()` sur identifiant
+> inexistant, même motif que `?note`). Le graphe AST dérive les variantes des
+> `searchParams` déclarés — il reflète déjà le produit.
+> **Reste** : E2E de non-régression (session de test expirée + compte jetable
+> supprimé → recréer un compte, tester `?document`/`?note` invalides → 404,
+> puis supprimer).
+>
+> **Fait le 22/08/2026** — E2E exécuté avec un compte jetable
+> (`mailer_autoconfirm` activé via Management API, compte créé, restauré à
+> `false` immédiatement ; compte et traces (`profiles`, `comptes_acces`)
+> purgés après test). Résultat : les deux gardes rendent bien l'écran 404
+> custom `(app)/not-found.tsx`, jamais l'Atelier.
+>
+> **Nuance de contrat HTTP.** Le statut reste `200`, pas `404` :
+> `(app)/loading.tsx` flushe le shell à 200 avant la résolution de la page, et
+> un `notFound()` mid-stream ne peut plus modifier les en-têtes (doc embarquée
+> `next/dist/docs/01-app/02-guides/streaming.md`, « Status codes »). Next
+> injecte alors `<meta name="robots" content="noindex">`. C'est le comportement
+> de **tous** les `notFound()` du groupe `(app)` (`admin`, séances, etc.), pas
+> un défaut du garde. Un vrai statut 404 exigerait soit de retirer le
+> skeleton de groupe (coût UX global), soit une vérification d'existence dans
+> `proxy.ts` (duplications d'accès base à chaque ouverture de fiche) — arbitrage
+> ouvert, non tranché, aucun des deux retenu par défaut.
+
 **Constat.** Le graphe atomique connaît `page:/atelier?document`, `?note`,
 `page:/seances?session`, etc., mais sans identifiant ces URL rendent l'écran de
 base sans aucun feedback (`/atelier?document` = `/atelier` à l'identique) ;
