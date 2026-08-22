@@ -22,9 +22,12 @@ import { SUPABASE_ANON_KEY, SUPABASE_URL, supabaseConfigure } from "@/lib/supaba
 /**
  * Chemins accessibles sans compte : vitrine publique (`/`, `/methode`,
  * `/etudiants`, `/autodidactes`) et routes d'authentification. Les routes
- * générées `robots.txt` et `sitemap.xml` doivent rester atteignables par les
- * moteurs malgré le matcher du proxy.
+ * générées `robots.txt`, `sitemap.xml` et la carte Open Graph doivent rester
+ * atteignables par les moteurs et réseaux sociaux malgré le matcher du proxy :
+ * un fetcher sans session (Discord, LinkedIn…) qui tombait sur une redirection
+ * vers `/login` recevrait du HTML au lieu de l'annonce.
  */
+const PREFIX_PUBLICS = ["/opengraph-image"];
 const PUBLICS = [
   "/",
   "/login",
@@ -37,7 +40,10 @@ const PUBLICS = [
 ];
 
 function estPublic(chemin: string): boolean {
-  return PUBLICS.some((p) => chemin === p || chemin.startsWith(`${p}/`));
+  return (
+    PUBLICS.some((p) => chemin === p || chemin.startsWith(`${p}/`)) ||
+    PREFIX_PUBLICS.some((p) => chemin.startsWith(p))
+  );
 }
 
 export async function proxy(request: NextRequest) {
