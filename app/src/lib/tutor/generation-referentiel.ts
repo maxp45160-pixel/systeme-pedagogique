@@ -144,7 +144,7 @@ export interface ResultatReferentiel {
  *
  * Il diffère de celui d'une branche sur un seul point, mais qui change tout :
  * il demande un **découpage**. Un sujet un peu large ne tient pas dans une
- * branche — « le stoïcisme » se découpe en thèmes — et forcer une branche
+ * branche — « le stoïcisme » se découpe en domaines cohérents — et forcer une branche
  * unique produit vingt compétences que personne ne relit.
  *
  * Il porte aussi les domaines existants, pour ne pas reproposer ce qui est
@@ -192,7 +192,7 @@ export function construirePromptReferentiel(
     "- Du plus fondamental au plus avancé, à l'intérieur de chaque branche.",
     "",
     "COMMENT DÉCOUPER",
-    // ADR-088 — un domaine n'est pas un thème.
+    // ADR-104 — une branche est un domaine ; aucun thème persistant n'est créé.
     //
     // Mesuré le 18/08/2026 : « les LLM » avaient produit CINQ domaines et
     // 40 compétences, aucune mesurée, soit 43 % du référentiel actif — pendant
@@ -202,9 +202,9 @@ export function construirePromptReferentiel(
     existants.length > 0
       ? `- UNE branche par domaine, et ${BRANCHES_MAX_COMPTE_ETABLI} domaines nouveaux au maximum : ce compte en a déjà ${existants.length}.`
       : "- Une branche par grand domaine du sujet. Deux à quatre pour un sujet large ; une seule si le sujet est étroit.",
-    "- Un DOMAINE n'est pas un THÈME. Un domaine porte un préfixe de code et se gouverne ; un thème regroupe librement des compétences en traversant les domaines. Pour découper un sujet large, ne multiplie pas les domaines : propose des compétences que la personne regroupera ensuite en thèmes.",
+    "- Une branche correspond à un DOMAINE gouverné par un préfixe de code. Aucun thème persistant n'est créé : pour découper un sujet large, limite-toi aux domaines nécessaires et propose des compétences mesurables dans chacun.",
     "- Quatre à huit compétences par branche. Vingt compétences dans un domaine unique ne se relisent pas.",
-    "- Ne propose pas une branche pour un thème que tu ne sais pas remplir de compétences mesurables.",
+    "- Ne propose pas une branche pour une subdivision que tu ne sais pas remplir de compétences mesurables.",
     "",
     "L'application attribue tous les codes, à l'enregistrement. Tu n'en écris aucun.",
     "",

@@ -30,6 +30,10 @@ export default function ErreurApp({
     console.error(error);
   }, [error]);
 
+  const sessionHorodateeDansLeFutur = /PGRST303|JWT issued at future/i.test(
+    error.message ?? "",
+  );
+
   return (
     <Carte>
       <div className="px-4 py-3.5">
@@ -37,10 +41,20 @@ export default function ErreurApp({
           Cette page n&apos;a pas pu être chargée
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-texte-attenue">
-          La lecture des données a échoué. Rien n&apos;a été modifié, et aucun chiffre
-          n&apos;est affiché à la place : une mesure absente n&apos;est pas une mesure à
-          zéro. Si le problème persiste, la session a peut-être expiré — se reconnecter
-          suffit en général.
+          {sessionHorodateeDansLeFutur ? (
+            <>
+              La session est horodatée dans le futur par rapport au serveur. Synchronise
+              la date et l&apos;heure de Windows, puis réessaie. Si le problème persiste,
+              reconnecte-toi.
+            </>
+          ) : (
+            <>
+              La lecture des données a échoué. Rien n&apos;a été modifié, et aucun chiffre
+              n&apos;est affiché à la place : une mesure absente n&apos;est pas une mesure à
+              zéro. Si le problème persiste, la session a peut-être expiré — se reconnecter
+              suffit en général.
+            </>
+          )}
         </p>
 
         {error.digest && (

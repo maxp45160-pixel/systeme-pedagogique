@@ -45,6 +45,25 @@ const MOTS_VIDES = new Set([
   "—", "–", "…",
 ]);
 
+/**
+ * Normalisation de pluriel — le minimum qui serve, et rien de plus.
+ *
+ * Sans elle, « statistiques » et « statistique » sont deux mots sans rapport,
+ * et un domaine nommé « Statistiques et probabilités » ne rejoint pas les
+ * mathématiques dont c'est pourtant le vocabulaire déclaré. Un racinisateur
+ * français complet (Snowball) trancherait bien plus large et confondrait des
+ * mots distincts ; on s'arrête au « s » et au « x » finals, sur les mots d'au
+ * moins cinq lettres, jamais après un « s » déjà double.
+ *
+ * La règle s'applique des deux côtés de la comparaison : elle ne peut donc pas
+ * créer d'appariement asymétrique.
+ */
+function normaliserPluriel(mot: string): string {
+  if (mot.length < 5) return mot;
+  if (mot.endsWith("ss")) return mot;
+  return mot.endsWith("s") || mot.endsWith("x") ? mot.slice(0, -1) : mot;
+}
+
 function tokeniser(texte: string): string[] {
   return texte
     .toLowerCase()
@@ -52,7 +71,8 @@ function tokeniser(texte: string): string[] {
     .replace(/[^a-zàâäéèêëïîôùûüÿçœæ0-9\s'-]/g, " ")
     .split(/\s+/)
     .map((m) => m.replace(/^['-]+|['-]+$/g, ""))
-    .filter((m) => m.length >= 3 && !MOTS_VIDES.has(m));
+    .filter((m) => m.length >= 3 && !MOTS_VIDES.has(m))
+    .map(normaliserPluriel);
 }
 
 /* ------------------------------------------------------------------ */
@@ -171,4 +191,78 @@ export function calculerSimilaritesTextuelles(
   }
 
   return resultats;
+}
+
+
+/* ------------------------------------------------------------------ */
+/* Classement dirigé — un texte contre un corpus de référence fixe     */
+/* ------------------------------------------------------------------ */
+
+export interface ProximiteTextuelle {
+  id: string;
+  /** Similarité cosinus, 0 = aucun mot en commun, 1 = vecteurs identiques. */
+  score: number;
+  /** Les mots qui portent le score, du plus contributif au moins. */
+  motsPartages: string[];
+}
+
+/**
+ * Classe un texte contre un corpus de référence, du plus proche au moins.
+ *
+ * Deux différences avec `calculerSimilaritesTextuelles`, et elles comptent :
+ *
+ *  - le classement est **dirigé** : la requête n'entre pas dans le corpus et
+ *    n'a pas à figurer dans le top-K de qui que ce soit. Il n'y a pas de
+ *    relation à établir, seulement un ordre à rendre ;
+ *  - l'IDF est calculée **sur le seul corpus**, jamais sur la requête. Quand
+ *    le corpus est fixe (la carte des savoirs), le même texte reçoit donc
+ *    toujours exactement le même classement, quel que soit le compte qui
+ *    interroge et quel que soit le moment. C'est ce qui rend une
+ *    classification reproductible, et donc discutable.
+ *
+ * Les `motsPartages` accompagnent chaque score parce qu'un rapprochement sans
+ * justification n'est pas présentable à une personne qui doit l'arbitrer.
+ */
+export function classerParProximiteTextuelle(
+  fragmentsRequete: string[],
+  corpus: DocumentTexte[],
+  options: { topK?: number; seuilMin?: number } = {},
+): ProximiteTextuelle[] {
+  const { topK = 3, seuilMin = 0.1 } = options;
+  if (corpus.length === 0) return [];
+
+  const motsParDoc = corpus.map((d) => tokeniser(d.fragments.join(" ")));
+
+  const dfParMot = new Map<string, number>();
+  for (const mots of motsParDoc) {
+    for (const mot of new Set(mots)) {
+      dfParMot.set(mot, (dfParMot.get(mot) ?? 0) + 1);
+    }
+  }
+  const idf = new Map<string, number>();
+  for (const [mot, df] of dfParMot) idf.set(mot, Math.log(corpus.length / df));
+
+  const vecteurRequete = construireVecteurTfIdf(tokeniser(fragmentsRequete.join(" ")), idf);
+  if (vecteurRequete.size === 0) return [];
+
+  const resultats: ProximiteTextuelle[] = [];
+  for (let i = 0; i < corpus.length; i++) {
+    const vecteur = construireVecteurTfIdf(motsParDoc[i], idf);
+    const score = similariteCosinus(vecteurRequete, vecteur);
+    if (score < seuilMin) continue;
+    const contributions: Array<{ mot: string; part: number }> = [];
+    for (const [mot, poids] of vecteurRequete) {
+      const autre = vecteur.get(mot);
+      if (autre !== undefined) contributions.push({ mot, part: poids * autre });
+    }
+    contributions.sort((a, b) => b.part - a.part || a.mot.localeCompare(b.mot));
+    resultats.push({
+      id: corpus[i].id,
+      score,
+      motsPartages: contributions.map((c) => c.mot),
+    });
+  }
+
+  resultats.sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
+  return resultats.slice(0, topK);
 }

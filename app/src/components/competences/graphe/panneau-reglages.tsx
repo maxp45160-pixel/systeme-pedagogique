@@ -5,7 +5,7 @@
  *
  * Épuré pour aller droit au but :
  * - Sélection et filtrage direct par Domaine.
- * - Activation des types d'éléments complémentaires (Thèmes, Exercices, Documents).
+ * - Activation des types d'éléments complémentaires (Exercices, Documents).
  * - Activation/désactivation globale des liaisons.
  */
 
@@ -203,7 +203,7 @@ export function PanneauReglages({
             </p>
           </div>
           <p className="text-[11px] text-texte-discret mb-2 leading-relaxed">
-            Affiche les connexions transversales (thèmes, co-ciblages, proximité sémantique).
+            Affiche les co-ciblages et les proximités sémantiques dérivées.
           </p>
           <label className="flex min-h-7 items-center gap-2 text-xs cursor-pointer hover:bg-surface-2 rounded-lg px-2 py-1 transition-colors">
             <input

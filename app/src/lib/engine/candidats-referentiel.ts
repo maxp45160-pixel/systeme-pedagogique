@@ -350,7 +350,7 @@ function aretesDepuisRedaction(
  * Les compétences actives que rien ne rattache à quoi que ce soit.
  *
  * Le contrepoids direct au 92 actives / 28 mesurées. Une compétence sans
- * observation, sans exercice, sans arête et sans thème depuis trois mois n'est pas
+ * observation, sans exercice et sans arête depuis trois mois n'est pas
  * une ambition affichée : c'est une case vide permanente, ce que le protocole
  * §1 nomme précisément comme le défaut à éviter.
  *

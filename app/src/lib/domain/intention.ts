@@ -2,7 +2,7 @@
  * L'intention déclarée, et sa traduction en une action déjà connue du système.
  *
  * Le produit demandait à l'utilisateur de choisir **l'objet** qu'il voulait
- * créer — une compétence, un thème, un exercice, une séance, une note, un
+ * créer — une compétence, un exercice, une séance, une note, un
  * projet — soit treize modales de création pour sept écrans. Choisir l'objet
  * suppose de connaître le modèle de données ; personne n'ouvre l'application
  * pour ça. On lui demande maintenant **ce dont il a besoin**, en une phrase, et

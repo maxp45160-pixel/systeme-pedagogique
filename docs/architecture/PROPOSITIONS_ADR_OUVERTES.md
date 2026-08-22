@@ -53,7 +53,7 @@ fonctionnalités décidé le 21/08 rend leur test enfin possible.
 |---|---|---|
 | [082](../../ARCHITECTURE_DECISIONS.md#adr-082) 🔬 | Relation proposée, domaine cible arbitré | Rien d'incohérent n'est construit, rien ne l'appelle tant que la carte globale est vide. Garder 🔬 dormant avec mention « reporté jusqu'à contenu de carte ». |
 | [084](../../ARCHITECTURE_DECISIONS.md#adr-084) 🔬 | Décision et prédiction comme faits datés | Rien construit, rien exigé. Reporter sans date — « ne pas construire par anticipation » s'applique littéralement. Envisager 🗑️ si rien ne survient d'ici fin 2026. |
-| [088](../../ARCHITECTURE_DECISIONS.md#adr-088) 🔬 | Un domaine n'est pas un thème | ⚠️ Obsolète de fait : la table `themes` a été supprimée le 21/08 (`suppression_themes`). La question se reformulera si les thèmes reviennent sous une autre forme. Proposer 🗑️ écartée avec cette raison. |
+| [088](../../ARCHITECTURE_DECISIONS.md#adr-088) 🔄 | Un domaine n'est pas un thème | Remplacée le 22/08 par [ADR-104](../../ARCHITECTURE_DECISIONS.md#adr-104) : les thèmes persistants ont été retirés ; le plafond de branches est conservé comme garde-fou contre l'inflation des domaines. |
 | [086](../../ARCHITECTURE_DECISIONS.md#adr-086) 🔬 | Atomicité au schéma ; référentiel autodétecté | Demi-clos par le lot 2 (`clore_exercice` atomique + triggers). La moitié « référentiel se détecte seul » n'est pas vérifiée. Soit scinder l'ADR en deux, soit la garder 🔬 pour la moitié restante. |
 
 ---
@@ -66,6 +66,7 @@ Pour clore ce document, il suffit d'un arbitrage en quatre lignes :
    dans le registre dans le même commit que toute retouche de code associée.
 2. **Partie B** : confirmer le gel — ces questions se répondent en utilisant
    l'application, pas en la modifiant.
-3. **Partie C** : valider reports et l'🗑️ proposé pour ADR-088.
+3. **Partie C** : le retrait des thèmes persistants et le remplacement d'ADR-088
+   sont désormais actés par [ADR-104](../../ARCHITECTURE_DECISIONS.md#adr-104).
 4. Décision séparée déjà identifiée : catalogue global (`GO contenu` +
    curateur) — prérequis de toute vie pour ADR-082.

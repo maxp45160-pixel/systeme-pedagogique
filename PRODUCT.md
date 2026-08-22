@@ -318,9 +318,9 @@ se supprime, une compétence qui en porte s'archive — jamais l'inverse.
 reste.
 ✅ **Une Connaissance est un élément déclaré, pas un document** (ADR-092). Elle
 peut référencer des ressources ; aucune note, ressource ou partie du corpus
-n'est convertie automatiquement en Connaissance. La connaissance n'a pas de
-profondeur maximale (ADR-058) : thèmes et sous-thèmes appartiennent à une même
-hiérarchie.
+n'est convertie automatiquement en Connaissance. L'ancienne hiérarchie
+persistante de thèmes et sous-thèmes a été retirée le 21/08/2026 (ADR-104) ;
+elle n'est donc plus un contrat de l'application.
 ✅ **Les relations déclarées et calculées n'ont pas le même statut** (ADR-093).
 Une relation validée et sourcée peut être persistée ; similarités et inférences
 restent dérivées.
@@ -356,8 +356,8 @@ preuve faible, moyenne ou forte sont des garde-fous de départ, non un barème
 calibré. Les contradictions, rectifications et validations humaines doivent
 être observées avant toute revendication ou modification des seuils.
 🔬 **Gouvernance durable proposée (ADR-065, 13/08).** Le référentiel reste
-strictement `Domaine → Compétences`. Preuves, notes support et thèmes le servent
-sans en devenir des entités. Les commandes transactionnelles, versions
+strictement `Domaine → Compétences`. Preuves et notes support le servent sans
+en devenir des entités ; les thèmes persistants ont été retirés (ADR-104). Les commandes transactionnelles, versions
 optimistes, codes non réutilisables, succession explicite et journal append-only
 ont été migrés le 13/08 sur autorisation explicite ; le statut n’est pas monté
 par l’agent.

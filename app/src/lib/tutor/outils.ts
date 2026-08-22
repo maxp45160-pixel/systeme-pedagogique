@@ -204,7 +204,7 @@ export const OUTIL_RELATIONS = "proposer_relations";
  * Un référentiel entier — plusieurs branches d'un seul geste.
  *
  * `proposer_referentiel` rend **une** branche. Un sujet un peu large n'en tient
- * pas une seule : « le stoïcisme » se découpe en thèmes, et forcer le tuteur à
+ * pas une seule : « le stoïcisme » se découpe en domaines, et forcer le tuteur à
  * tout mettre dans un domaine produit une branche de vingt compétences que
  * personne ne relit.
  *
@@ -735,7 +735,7 @@ export function outilEvaluationExplication(): OutilTuteur {
  * qu'est une branche, et l'interdit du champ `code` en hérite gratuitement.
  */
 /**
- * Plafond de branches quand le compte a déjà des domaines — ADR-088.
+ * Plafond de branches quand le compte a déjà des domaines — ADR-104.
  *
  * Le défaut est mesuré : un seul sujet, « les LLM », a produit **cinq domaines
  * et 40 compétences, aucune mesurée**, soit 43 % du référentiel actif, pendant
@@ -772,7 +772,7 @@ export function outilReferentielComplet(
     description:
       domainesVivants > 0
         ? `Propose un référentiel pour un sujet. Ce compte a déjà ${domainesVivants} domaine(s) : n'en crée pas plus de ${BRANCHES_MAX_COMPTE_ETABLI}. Pour découper un sujet large, rattache les compétences à un domaine existant ou à un seul domaine neuf. L'application attribue tous les codes.${vueEnsemble ? " Cette demande est une vue d'ensemble : renvoie au moins deux branches et trois compétences observables par branche." : ""}`
-        : `Propose un référentiel complet pour un sujet, découpé en branches cohérentes. Une branche par grand thème : ne mets pas vingt compétences dans un seul domaine, et n'en fais pas dix pour un sujet qui en tient trois. L'application attribue tous les codes.${vueEnsemble ? " Cette demande est une vue d'ensemble : renvoie au moins deux branches et trois compétences observables par branche." : ""}`,
+        : `Propose un référentiel complet pour un sujet, découpé en branches cohérentes. Une branche par grand domaine : ne mets pas vingt compétences dans un seul domaine, et n'en fais pas dix pour un sujet qui en tient trois. L'application attribue tous les codes.${vueEnsemble ? " Cette demande est une vue d'ensemble : renvoie au moins deux branches et trois compétences observables par branche." : ""}`,
     schema: {
       type: "object",
       properties: {
@@ -1926,7 +1926,7 @@ function validerRevision(
 }
 
 /**
- * Les codes actifs tels que le schéma de thème les a énumérés.
+ * Les codes actifs tels que le schéma de l'outil les a énumérés.
  *
 
 /**

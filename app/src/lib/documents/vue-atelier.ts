@@ -12,6 +12,10 @@ import {
   type SkillObservation,
   type SkillState,
 } from "@/lib/domain/types";
+import {
+  construireArbreDomaine,
+  type ArbreDomaine,
+} from "@/lib/domain/arbre-competences";
 import type { LotCandidats } from "@/lib/engine/candidats-referentiel";
 import { retraitsParCode, type EtatRetrait } from "@/lib/domain/referentiel-compte";
 import type { IndexDocumentaire } from "./index";
@@ -192,6 +196,14 @@ export interface VueDomaineAtelier {
   nombreObservations: number;
   nombreExercices: number;
   derniereActivite: string | null;
+  /**
+   * L'arbre de progression du domaine — mêmes compétences, même classement
+   * par palier, une autre lecture. Ce n'est pas un second classement (l'erreur
+   * de l'onglet « Transversal » retiré) : c'est `competences` disposé selon
+   * les prérequis déclarés, avec les prérequis manquants rendus visibles au
+   * lieu d'être tus.
+   */
+  arbre: ArbreDomaine;
 }
 
 export interface EntretienDomaineAtelier {
@@ -498,6 +510,7 @@ export function construireVuesAtelier(
         nombreObservations: items.reduce((total, item) => total + item.nombreObservations, 0),
         nombreExercices: exercicesDomaine.length,
         derniereActivite: derniereDate(items.map((item) => item.derniereObservation)),
+        arbre: construireArbreDomaine(domaine.id, referentiel, etats),
       };
     });
 

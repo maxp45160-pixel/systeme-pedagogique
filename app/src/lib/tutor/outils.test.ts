@@ -194,7 +194,7 @@ describe("validerAppelOutil — ce qui passe", () => {
 /* Les schémas eux-mêmes                                               */
 /* ------------------------------------------------------------------ */
 
-describe("outilReferentielComplet — le plafond de domaines (ADR-088)", () => {
+describe("outilReferentielComplet — le plafond de domaines (ADR-104)", () => {
   it("plafonne les branches quand le compte a déjà des domaines", () => {
     // Le plafond vit dans le SCHÉMA, pas dans la consigne : `maxItems` ne se
     // contourne pas. Mesuré le 18/08/2026 : un seul sujet avait produit cinq

@@ -12,6 +12,7 @@ import { regrouperTentativesParExercice } from "@/lib/documents/workspace";
 import { chargerContexte } from "@/lib/store/context";
 import { chargerCandidatsReferentiel } from "@/lib/store/candidats-referentiel";
 import { construireGraphe } from "@/lib/domain/graphe";
+import { construireGrapheDomaines } from "@/lib/domain/graphe-domaines";
 import { construireVuesAtelier } from "@/lib/documents/vue-atelier";
 import { lireChangementsReferentiel } from "@/lib/store/referentiel";
 import { calibragesPourModale, competencesPourModale } from "@/lib/domain/proprietes-generation";
@@ -23,9 +24,9 @@ import { paletteDomaines } from "@/lib/ui/couleurs-domaines";
 import { chargerDonneesSeance } from "@/components/seances/donnees-seance";
 
 export default async function PageAtelier(props: {
-  searchParams: Promise<{ document?: string; note?: string; retour?: string }>;
+  searchParams: Promise<{ document?: string; note?: string; retour?: string; creation?: string }>;
 }) {
-  const { document: documentDemande, note, retour } = await props.searchParams;
+  const { document: documentDemande, note, retour, creation } = await props.searchParams;
 
   /*
    * L'espace de travail documentaire unifié occupe l'écran entier.
@@ -65,14 +66,25 @@ export default async function PageAtelier(props: {
     chargerCandidatsReferentiel(),
   ]);
   const referentiel = contexte.referentiel;
+  const exercices = contexte.donnees.exercises;
 
   /*
-    Même garde que `?note` ci-dessus : un identifiant demandé qui n'existe
-    pas ou plus ne rend pas l'Atelier ordinaire en silence — le lien périmé
-    mérite un 404 explicite, pas une page qui fait comme si de rien n'était.
+    `document` désigne aussi une sélection projetée de l'Atelier : une vue,
+    un domaine ou une compétence. Ces éléments n'ont pas de ligne dans la
+    table des documents, mais ils doivent rester ouvrables depuis les liens de
+    l'application. Seul un identifiant absent de la projection et du corpus
+    mérite le 404 d'un lien réellement périmé.
   */
-  if (documentDemande && !contenuInitial) notFound();
-  const exercices = contexte.donnees.exercises;
+  const identifiantDocument = documentDemande?.replace(/^document:/, "");
+  const selectionAtelierExiste = Boolean(
+    documentDemande &&
+      (["domaines", "ressources", "graphe", "domaines-archives"].includes(documentDemande) ||
+        referentiel.domaines.some((domaine) => domaine.id === identifiantDocument) ||
+        referentiel.skills.some((skill) => skill.code === identifiantDocument) ||
+        exercices.some((exercice) => exercice.id === identifiantDocument) ||
+        aperçus.some((apercu) => apercu.id === identifiantDocument || apercu.id === documentDemande)),
+  );
+  if (documentDemande && !contenuInitial && !selectionAtelierExiste) notFound();
   const domainesVisibles = new Set(
     referentiel.domaines
       .filter(
@@ -295,6 +307,7 @@ export default async function PageAtelier(props: {
   ];
   const cleAtelier = [
     documentDemande ?? "",
+    creation ?? "",
     ...elementsAtelier.map(({ id, updatedAt }) => `${id}:${updatedAt ?? ""}`),
   ].join("|");
 
@@ -311,6 +324,17 @@ export default async function PageAtelier(props: {
     index,
   );
   const couleursDomaines = paletteDomaines(graphe.noeuds.map((noeud) => noeud.domaineId));
+
+  /*
+   * La carte des domaines — l'échelon au-dessus du graphe de compétences.
+   * Construite ici pour la même raison que lui : un seul ensemble de domaines
+   * alimente les deux échelles, donc une seule palette.
+   */
+  const grapheDomaines = construireGrapheDomaines(
+    contexte.referentiel,
+    contexte.etats,
+    contexte.donnees.exercises,
+  );
 
   /*
    * Pistes contextuelles pour les domaines.
@@ -339,6 +363,7 @@ export default async function PageAtelier(props: {
         documentDemande={documentDemande}
         graphe={{
           donnees: graphe,
+          domaines: grapheDomaines,
           compteId: contexte.donnees.user.id,
         }}
         generation={{
@@ -347,6 +372,10 @@ export default async function PageAtelier(props: {
         }}
         donneesSeance={donneesSeance}
         entretien={entretien}
+        domainesExistants={referentiel.domaines
+          .filter((domaine) => !domaine.archive)
+          .map(({ id, nom, prefixe }) => ({ id, nom, prefixe }))}
+        creationInitiale={creation}
       />
     </>
   );

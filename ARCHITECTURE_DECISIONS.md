@@ -67,10 +67,10 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [052](#adr-052) | Le moteur dérive sans validation ; seul le tuteur ne mesure jamais | ✅ Acceptée (10/08) — précise [037](#adr-037) |
 | [053](#adr-053) | Pilotage au tableau de bord, analyse dans Séances ; navigation à trois pôles | ✅ Acceptée (10/08) |
 | [054](#adr-054) | L'actionnabilité départage sans pénaliser ; un partiel suit la règle de l'échec | ✅ Acceptée (10/08) |
-| [055](#adr-055) | Le thème : une portée modulaire, pas une arête de plus | 🔬 Hypothèse (10/08) |
+| [055](#adr-055) | Le thème : une portée modulaire, pas une arête de plus | 🔄 Remplacée par [ADR-104](#adr-104) (22/08) — la portée de séance reste dérivée |
 | [056](#adr-056) | Le graphe est une vue dérivée : nœuds typés, liens réels, aucune arête fabriquée | ✅ Acceptée (11/08) |
 | [057](#adr-057) | L'autonomie se mesure par traces, puis se demande pour l'invisible | ✅ Acceptée (11/08) |
-| [058](#adr-058) | Granularité sans plafond ; les notes servent la boucle et entrent dans le graphe | ✅ Acceptée (11/08) |
+| [058](#adr-058) | Granularité sans plafond ; les notes servent la boucle et entrent dans le graphe | 🔄 Remplacée par [ADR-104](#adr-104) (22/08) |
 | [059](#adr-059) | Une séance créée conduit au workspace focus | ✅ Acceptée (11/08) |
 | [060](#adr-060) | Observer le maximum pertinent, jamais le maximum indiscriminé | ✅ Acceptée (11/08) |
 | [061](#adr-061) | Séances : un hub et un workspace, pas quatre vues | ✅ Acceptée (11/08) |
@@ -97,7 +97,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [085](#adr-085) | Le moteur se relit, puis ajuste un seul seuil à la fois | 🔬 Hypothèse (18/08) |
 | [086](#adr-086) | L'atomicité tient au schéma, pas à la consigne ; le référentiel se détecte seul | 🔬 Hypothèse (18/08) |
 | [087](#adr-087) | Une compétence a plusieurs successeurs ; la scission est sèche | 🔬 Hypothèse (18/08) |
-| [088](#adr-088) | Un domaine n'est pas un thème | 🔬 Hypothèse (18/08) |
+| [088](#adr-088) | Un domaine n'est pas un thème | 🔄 Remplacée par [ADR-104](#adr-104) (22/08) |
 | [089](#adr-089) | Carte globale partagée et overlay privé | 🗑️ Retirée (21/08) — voir [ADR-099](#adr-099) |
 | [090](#adr-090) | Une preuve est une trace ; l'actuel `evidence` devient Observation | ✅ Acceptée (20/08) |
 | [091](#adr-091) | États et vues personnelles restent dérivés | ✅ Acceptée (20/08) |
@@ -3774,9 +3774,13 @@ uniquement `recommend.ts`.
 ---
 
 <a name="adr-055"></a>
-## ADR-055 — Le thème : une portée modulaire, pas une arête de plus 🔬
+## ADR-055 — Le thème : une portée modulaire, pas une arête de plus 🔄
 
 **Date.** 10/08/2026.
+
+**Statut actuel.** Remplacée par [ADR-104](#adr-104) le 22/08/2026 pour sa
+proposition de persister `ThemeSeance` dans une table `themes`. La portée de
+séance calculée reste utilisée ; elle n'est pas une entité persistante.
 
 **Origine.** Discussion avec Maxime sur un « knowledge graph » de compétences,
 relancée après ADR-052 : « je veux de la flexibilité dans ce que je veux
@@ -4008,9 +4012,14 @@ elle jette les traces objectives et réintroduit le biais retiré par ADR-033.
 ---
 
 <a name="adr-058"></a>
-## ADR-058 — Granularité sans plafond ; les notes servent la boucle et entrent dans le graphe ✅
+## ADR-058 — Granularité sans plafond ; les notes servent la boucle et entrent dans le graphe 🔄
 
 **Date.** 11/08/2026. **Tranchée par Maxime** après la mission ④.
+
+**Statut actuel.** La partie qui promet une hiérarchie persistante de thèmes et
+de sous-thèmes est remplacée par [ADR-104](#adr-104). Cette entrée reste dans
+le journal pour conserver le raisonnement historique ; elle ne décrit plus le
+produit courant.
 
 ### Décision
 
@@ -6878,9 +6887,15 @@ et sa règle existent, l'écran qui les emploie non.
 
 ---
 
-## ADR-088 — Un domaine n'est pas un thème 🔬
+## ADR-088 — Un domaine n'est pas un thème 🔄
 
 **Date.** 18/08/2026, lot 5.
+
+**Statut actuel.** Remplacée par [ADR-104](#adr-104) le 22/08/2026 : la table
+`themes` et la fonctionnalité de regroupement transversal ont été retirées.
+Le garde-fou de volume des branches reste utile, mais il est désormais
+justifié comme une protection contre l'inflation des domaines et non comme une
+distinction entre domaines et thèmes persistants.
 
 **Le constat, mesuré.** Un seul sujet — « les LLM » — a produit **cinq domaines
 et 40 compétences, aucune mesurée**, soit 43 % du référentiel actif, pendant que
@@ -6912,6 +6927,48 @@ légitimement besoin de trois domaines, il doit monter. À surveiller : le nombr
 de branches écartées par le plafond sur les dix prochaines propositions de
 référentiel. S'il est nul, le plafond ne sert à rien ; s'il dépasse la moitié,
 il est trop bas.
+
+---
+
+<a name="adr-104"></a>
+## ADR-104 — Les thèmes persistants sont retirés ; la portée de séance reste dérivée ✅
+
+**Date.** 22/08/2026. **Tranchée par Maxime.**
+
+### Décision
+
+Les thèmes persistants ne font plus partie du produit. La table `public.themes`,
+son chemin de résolution et la hiérarchie thème / sous-thème ne sont pas des
+entités du modèle courant. Le retrait est porté par la migration
+`20260821000000_suppression_themes`.
+
+Le référentiel courant reste strictement `Domaine → Compétences`. Il n'existe
+pas de regroupement transversal persistant à afficher dans l'Atelier ou dans le
+graphe. Une future organisation en sous-domaines devra faire l'objet d'une
+nouvelle décision explicite sur son modèle, ses liens et son interface ; elle
+ne doit pas réactiver implicitement les anciens thèmes.
+
+Le type `ThemeSeance` reste autorisé comme **portée calculée pour composer une
+séance**. Il est produit à la demande par le moteur, n'est pas une entité SQL,
+ne crée aucun lien durable et ne justifie pas une table `themes`.
+
+### Conséquences
+
+- [ADR-055](#adr-055) est remplacée pour sa proposition de persister un thème ;
+  la portée dérivée de séance reste couverte par le moteur actuel.
+- [ADR-058](#adr-058) est remplacée pour sa hiérarchie récursive de thèmes ;
+  les documents et notes restent des contenus déclarés, pas des thèmes.
+- [ADR-088](#adr-088) est remplacée : son plafond de branches est conservé
+  comme garde-fou de création de domaines, sans notion de thème persistant.
+- Les prompts, commentaires et écrans ne doivent plus promettre de classer des
+  compétences « ensuite en thèmes ».
+
+### Ce qui reste ouvert
+
+La manière de dériver intelligemment des sous-domaines à l'intérieur d'un
+domaine large, puis de rattacher un domaine à une organisation plus globale,
+reste un sujet de conception. Aucun arbre implicite ni regroupement automatique
+ne doit être ajouté avant une décision et des données permettant de l'évaluer.
 
 ---
 

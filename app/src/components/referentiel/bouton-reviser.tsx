@@ -30,7 +30,7 @@ export function BoutonReviser({
 
   return (
     <>
-      <Bouton onClick={() => setVue("revision")} variante="secondaire" taille="petite">
+      <Bouton onClick={() => setVue("revision")} variante="secondaire" taille="normale">
         Réviser avec le tuteur
       </Bouton>
 

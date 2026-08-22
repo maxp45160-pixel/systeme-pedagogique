@@ -27,6 +27,7 @@ export function FichePedagogiqueAtelier({
   donneesSeance,
   entretien,
   onRestaurerDomaine,
+  domainesExistants,
 }: {
   vue: VuePedagogiqueAtelier;
   titre: string;
@@ -37,6 +38,7 @@ export function FichePedagogiqueAtelier({
   donneesSeance?: DonneesSeance;
   entretien?: EntretienDomaineAtelier;
   onRestaurerDomaine?: (domaineId: string) => void;
+  domainesExistants?: { id: string; nom: string; prefixe: string }[];
 }) {
   if (vue.kind === "competence") {
     return (
@@ -61,6 +63,7 @@ export function FichePedagogiqueAtelier({
         compteId={compteId}
         entretien={entretien}
         onRestaurerDomaine={onRestaurerDomaine}
+        domainesExistants={domainesExistants}
       />
     );
   }

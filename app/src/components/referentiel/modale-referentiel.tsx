@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * « Voici une proposition de référentiel pour le stoïcisme, en 5 thèmes. »
+ * « Voici une proposition de référentiel pour le stoïcisme, en 5 domaines. »
  *
  * Le manque était double dans l'ancien écran du référentiel : aucun point d'entrée pour ajouter
  * une branche neuve — `+ Compétence` n'existe que sur une carte de domaine

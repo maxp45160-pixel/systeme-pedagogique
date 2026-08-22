@@ -197,7 +197,7 @@ export function normaliserPrefixe(brut: string, nomDomaine: string): string {
  * Des préfixes tous distincts pour un lot de branches créées d'un seul geste.
  *
  * Indispensable dès qu'on propose un référentiel en plusieurs branches : « le
- * stoïcisme en 5 thèmes » produira « Stoïcisme antique » et « Stoïcisme
+ * stoïcisme en 5 domaines » produira « Stoïcisme antique » et « Stoïcisme
  * moderne », dont `prefixeParDefaut` tire **le même** `STO`. Or `validerDomaine`
  * refuse un préfixe déjà pris. Sans cette fonction, la création multi-branches
  * échouerait sur son entrée la plus probable.

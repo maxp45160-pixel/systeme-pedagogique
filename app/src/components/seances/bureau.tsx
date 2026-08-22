@@ -44,7 +44,7 @@ import {
   IconeChevronDroit,
   IconeChevronGauche,
   IconeFeuille,
-  IconeRecherche,
+  IconePlus,
 } from "@/components/ui/icones";
 import { cleJour, formatDuree } from "@/lib/engine/dates";
 import { statutSeance, tentativeDeSeance } from "@/lib/domain/seance";
@@ -425,20 +425,19 @@ function BarreBureau({
 
           Sa première version n'était qu'une loupe suivie de « ⌘K » : deux
           signes, aucun verbe. Rien ne disait ce qu'il ouvrait, et comme la
-          palette fait quatre choses (chercher, aller à un jour, composer,
-          ouvrir le Cahier), l'icône seule les promettait toutes sans en
-          annoncer aucune — un fourre-tout. Le libellé nomme donc l'entrée la
-          plus fréquente ; le reste se découvre une fois la palette ouverte,
-          où son champ l'écrit noir sur blanc.
+          palette regroupe maintenant les créations et les commandes du
+          Bureau, l'icône seule les promettait toutes sans en annoncer aucune.
+          Le libellé nomme donc le geste attendu ; le reste se découvre une
+          fois la palette ouverte, où son champ le précise.
         */}
         <button
           type="button"
           onClick={onOuvrirPalette}
-          title="Chercher dans tout le Cahier"
+          title="Ajouter ou créer"
           className="flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-texte-discret transition-colors hover:bg-surface-2 hover:text-texte"
         >
-          <IconeRecherche className="size-4" />
-          <span>Chercher</span>
+          <IconePlus className="size-4" />
+          <span>Créer</span>
           <kbd className="hidden rounded border border-bordure px-1 text-[0.625rem] sm:block">
             ⌘K
           </kbd>

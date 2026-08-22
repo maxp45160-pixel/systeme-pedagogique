@@ -36,7 +36,7 @@ import type { ContexteIntentionType } from "./contexte-intention";
  * Le point d'entrée unique de création.
  *
  * Il remplace treize modales qui demandaient chacune de choisir un **objet** —
- * compétence, thème, exercice, séance, note, projet — avant de pouvoir dire
+ * compétence, exercice, séance, note, projet — avant de pouvoir dire
  * quoi que ce soit. Ici on décrit un besoin, et le moteur choisit l'objet.
  *
  * Ce composant n'exécute jamais directement : il **oriente** vers une surface
@@ -175,7 +175,7 @@ export function CaptureIntention({
 
   /*
    * L'extension du référentiel passe la main à la proposition de référentiel
-   * complet, pas à la branche unique : « le stoïcisme » se découpe en thèmes,
+   * complet, pas à la branche unique : « le stoïcisme » se découpe en domaines,
    * et le même chemin traite aussi bien un sujet étroit — c'est le prompt qui
    * décide du découpage. Un seul chemin d'extension, donc, là où le tableau de
    * bord en offrait un second par sa carte de pilotage.

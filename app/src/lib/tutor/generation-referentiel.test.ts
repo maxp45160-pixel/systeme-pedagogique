@@ -138,12 +138,12 @@ describe("construirePromptReferentiel", () => {
     expect(prompt).toContain("Quatre à huit compétences par branche");
   });
 
-  it("plafonne les domaines nouveaux quand le compte en a déjà (ADR-088)", () => {
+  it("plafonne les domaines nouveaux quand le compte en a déjà (ADR-104)", () => {
     // Le défaut mesuré : « les LLM » avaient produit cinq domaines et
     // 40 compétences, aucune mesurée. Le prompt le dit, le schéma l'impose.
     const prompt = construirePromptReferentiel(REFERENTIEL, "les LLM");
     expect(prompt).toContain("domaines nouveaux au maximum");
-    expect(prompt).toContain("Un DOMAINE n'est pas un THÈME");
+    expect(prompt).toContain("Aucun thème persistant n'est créé");
   });
 
   it("ne plafonne pas l'amorçage d'un compte vide", () => {

@@ -12,10 +12,10 @@
  *
  * ## Ce qu'elle ne fait pas
  *
- * Elle **n'écrit rien**. Toutes ses entrées sont des navigations : ouvrir
- * l'archive, lancer une recherche, ouvrir le compositeur. Une palette qui
- * exécuterait des écritures demanderait une confirmation par entrée, et
- * deviendrait un formulaire déguisé.
+ * Elle ne fait pas d'écriture silencieuse : les commandes de création ouvrent
+ * un formulaire dédié dans l'Atelier. Les seules entrées de navigation sont
+ * revenir au jour courant et ouvrir l'archive ; composer une séance est rangé
+ * avec les autres créations.
  *
  * Elle ne liste pas non plus les jours : c'est la bande de semaine, les
  * chevrons et le calendrier qui mènent à une date. Voir plus bas.
@@ -71,6 +71,51 @@ export function PaletteBureau({
   const terme = saisie.trim().toLocaleLowerCase("fr");
 
   const commandes = useMemo<CommandePalette[]>(() => {
+    const creations: CommandePalette[] = [
+      {
+        id: "composer",
+        libelle: "Composer une séance",
+        indice: "Créer",
+        motsCles: "créer nouvelle exercice travail séance",
+        executer: () => router.push("/seances?composer=1"),
+      },
+      {
+        id: "feynman",
+        libelle: "Faire une explication Feynman",
+        indice: "Créer",
+        motsCles: "expliquer reformuler compréhension compétence",
+        executer: () => router.push("/atelier?creation=feynman"),
+      },
+      {
+        id: "projet",
+        libelle: "Lancer un projet",
+        indice: "Créer",
+        motsCles: "nouveau produire construire activité",
+        executer: () => router.push("/atelier?creation=projet"),
+      },
+      {
+        id: "cours",
+        libelle: "Créer une fiche de cours",
+        indice: "Créer",
+        motsCles: "cours fiche synthèse note ressource",
+        executer: () => router.push("/atelier?creation=cours"),
+      },
+      {
+        id: "formule",
+        libelle: "Enregistrer une formule",
+        indice: "Créer",
+        motsCles: "math formule équation note ressource",
+        executer: () => router.push("/atelier?creation=formule"),
+      },
+      {
+        id: "ressource",
+        libelle: "Ajouter une ressource ou un PDF",
+        indice: "Créer",
+        motsCles: "pdf document article support cours note",
+        executer: () => router.push("/atelier?creation=ressource"),
+      },
+    ];
+
     const actions: CommandePalette[] = [
       {
         id: "aujourd-hui",
@@ -78,13 +123,6 @@ export function PaletteBureau({
         indice: "Bureau",
         motsCles: "jour date maintenant",
         executer: () => onChangerJour(aujourdHui),
-      },
-      {
-        id: "composer",
-        libelle: "Composer une séance",
-        indice: "Nouvelle",
-        motsCles: "creer nouvelle exercice travail",
-        executer: () => router.push("/seances?composer=1"),
       },
       {
         id: "cahier",
@@ -116,7 +154,7 @@ export function PaletteBureau({
       ? [
           {
             id: "recherche",
-            libelle: `Chercher « ${saisie.trim()} » dans tout le Cahier`,
+            libelle: `Rechercher « ${saisie.trim()} » dans tout le Cahier`,
             indice: "Recherche",
             executer: () =>
               router.push(`/seances?vue=cahier&q=${encodeURIComponent(saisie.trim())}`),
@@ -124,7 +162,7 @@ export function PaletteBureau({
         ]
       : [];
 
-    return [...recherche, ...actions];
+    return [...recherche, ...creations, ...actions];
   }, [aujourdHui, onChangerJour, onOuvrirCahier, router, saisie, terme]);
 
   const filtrees = useMemo(() => {
@@ -217,13 +255,18 @@ export function PaletteBureau({
         if (event.target === event.currentTarget) onFermer();
       }}
     >
-      <div aria-hidden className="absolute inset-0 bg-neutral-950/25 backdrop-blur-[2px]" />
+      <div
+        aria-hidden
+        className="absolute inset-0 cursor-pointer bg-neutral-950/25 backdrop-blur-[2px]"
+        onPointerDown={onFermer}
+      />
 
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Commandes du Bureau"
         className="relative w-full max-w-lg overflow-hidden rounded-carte border border-bordure bg-surface shadow-[var(--ombre-surcouche)]"
+        onPointerDown={(event) => event.stopPropagation()}
       >
         <div className="flex items-center gap-2.5 border-b border-bordure px-3.5 py-2.5">
           <IconeRecherche className="size-4 shrink-0 text-texte-discret" />
@@ -231,8 +274,8 @@ export function PaletteBureau({
             ref={champ}
             value={saisie}
             onChange={(event) => setSaisie(event.target.value)}
-            placeholder="Chercher dans le Cahier, ou lancer une commande…"
-            aria-label="Chercher ou lancer une commande"
+            placeholder="Ajouter, créer ou rechercher une commande…"
+            aria-label="Ajouter, créer ou rechercher une commande"
             className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-texte-discret"
           />
           <kbd className="shrink-0 rounded border border-bordure px-1.5 py-0.5 text-[0.625rem] text-texte-discret">

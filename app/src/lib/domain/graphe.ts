@@ -14,13 +14,12 @@
  * domaines par mots-clés codés en dur (« stoïc », « conway »,
  * « domain-driven ») — cela viole l'invariant 6 du projet (« ne jamais
  * inventer de données ») et ne fonctionne que sur le référentiel pour lequel
- * ces mots-clés ont été écrits. Une compétence sans prérequis, sans thème et
+ * ces mots-clés ont été écrits. Une compétence sans prérequis
  * sans exercice reste **isolée** dans le graphe : c'est une information
  * vraie et actionnable, pas un défaut à masquer.
  *
  * Quatre liens, tous dérivés d'un fait réel :
  *   - `prerequis`  : `skill.prerequis`, orienté ;
- *   - `theme`      : `Theme.codes` (ADR-053), hub non orienté ;
  *   - `exercice`   : `Exercise.competences`, hub non orienté ;
  *   - `similarite` : proximité de vocabulaire des intitulés (top-K mutuel,
  *     `lib/engine/similarite-textuelle.ts`) — un lien dérivé, jamais une
@@ -30,7 +29,7 @@
  * ## Espace de noms des identifiants
  *
  * Chaque id de nœud est préfixé par son type (`competence:LOG-01`,
- * `theme:abc`, `exercice:xyz`). La version précédente mélangeait des ids de
+ * `exercice:xyz`). La version précédente mélangeait des ids de
  * domaine et des codes de compétence dans le même espace, et une règle
  * entière de liens s'y perdait silencieusement (filtrée comme référence
  * inconnue à l'affichage). Extensible sans réécriture : une future entité

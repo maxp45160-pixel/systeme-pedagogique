@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { cx } from "@/components/ui/primitives";
 import type { VueDomaineAtelier } from "@/lib/documents/vue-atelier";
-import { useIntention } from "@/components/intention/contexte-intention";
 import { RappelNouveauBesoin } from "@/components/intention/bouton-intention";
 import {
   BoutonSuppressionCarte,
@@ -125,7 +124,6 @@ export function VueTousLesDomaines({
   onSupprimer?: (domaineId: string) => void;
 }) {
   const router = useRouter();
-  const { ouvrir } = useIntention();
   const [domaineAArchiver, setDomaineAArchiver] = useState<VueDomaineAtelier | null>(null);
   const [domaineARestaurer, setDomaineARestaurer] = useState<VueDomaineAtelier | null>(null);
   const [domaineASupprimer, setDomaineASupprimer] = useState<VueDomaineAtelier | null>(null);
@@ -261,7 +259,7 @@ export function VueTousLesDomaines({
             <CarteCreationPointillee
               titre="Nouveau domaine"
               description="Structurer un nouveau domaine et ses compétences avec le tuteur"
-              onClick={() => ouvrir({ contexte: "domaine" })}
+              onClick={() => router.push("/atelier?creation=domaine")}
             />
           )}
         </div>
