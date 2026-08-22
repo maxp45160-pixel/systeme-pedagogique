@@ -8,14 +8,16 @@
  * pédagogiques personnels, et les persister indéfiniment côté client
  * demanderait une décision de rétention qui n'a pas été prise.
  *
- * Un marque-page n'est rien de tout cela : c'est une date, celle de la page du
- * cahier qu'on regardait. Sa valeur est précisément de survivre à la fermeture
- * — un marque-page qui tombe quand on referme le cahier n'est pas un
- * marque-page. Les deux modules coexistent donc, chacun avec la portée que son
- * contenu justifie, plutôt qu'un seul qui trancherait mal pour l'un des deux.
+ * Ici ne vivent que des préférences d'appareil sans contenu pédagogique —
+ * `theme`, `rail` (décision du 21/08/2026). Le cahier, lui, n'y stocke plus
+ * rien : son marque-page rouvrait la lecture plusieurs jours en arrière,
+ * une friction plutôt qu'un confort — il ouvre désormais toujours sur la
+ * page du jour.
  *
- * ⚠️ **Toute clé passe par `cleParCompte`** (ADR-029) : deux comptes sur le même
- * navigateur ne doivent jamais se voir, fût-ce à travers une date.
+ * ⚠️ Toute clé de données passe par `cleParCompte` (ADR-029) : deux comptes
+ * sur le même navigateur ne doivent jamais se voir. Les préférences globales
+ * `theme` et `rail` sont l'exception documentée : elles ne portent aucune
+ * donnée pédagogique ni identifiable.
  *
  * Rien de ce qui est ici n'entre dans le calcul d'une observation ou d'un niveau, et
  * la dorsale reste Supabase (ADR-015).
@@ -24,11 +26,6 @@
 import { cleParCompte } from "./stockage-session";
 
 export { cleParCompte };
-
-/** Clé du marque-page du cahier — la dernière page consultée. */
-export function cleMarquePage(compteId: string): string {
-  return cleParCompte("cahier:marque-page", compteId);
-}
 
 /**
  * Silencieuses en cas d'échec, pour la même raison que leurs jumelles de

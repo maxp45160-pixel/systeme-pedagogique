@@ -107,6 +107,11 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [095](#adr-095) | Niveau observé et maîtrise consolidée sont distincts | ✅ Acceptée (20/08) |
 | [096](#adr-096) | Le parcours est une file d'actions dérivée, pas un objectif stocké | ✅ Acceptée (21/08) |
 | [097](#adr-097) | Le modèle se choisit par tâche, pas par compte | ✅ Acceptée (21/08) |
+| [098](#adr-098) | La Progression devient un profil de carrière | ✅ Acceptée (21/08) |
+| [099](#adr-099) | Le cahier rouvre sur aujourd'hui, et un jour se lit d'un tenant | ✅ Acceptée (21/08) — amende [079](#adr-079) |
+| [100](#adr-100) | Une séance abandonnée peut être renoncée | ✅ Acceptée (21/08) — prolonge [077](#adr-077) |
+| [101](#adr-101) | Le pôle de travail est un Bureau ; le Cahier en est l’archive | ✅ Acceptée (22/08) — refond [079](#adr-079) (dont un point renversé) et [099](#adr-099) |
+| [102](#adr-102) | Une surface optionnelle absente de la base ne fait pas tomber l'application | ✅ Acceptée (22/08) |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -5788,6 +5793,8 @@ multiligne revient à `rows`.
 
 **Date.** 16/08/2026. **Tranchée par Maxime.** Lève l'invariant « une seule
 séance en cours » posé par [ADR-048](#adr-048), et fournit sa contrepartie.
+**Prolongée le 21/08/2026 par [ADR-100](#adr-100)** : une séance « en suspens »
+peut être renoncée définitivement (`sessions.renoncee_le`).
 
 **Contexte.** Une séance en cours n'avait qu'une sortie : `terminerSeance`, qui
 écrit un résultat au journal. `annulerSeance` refuse tout ce qui n'est pas
@@ -5917,6 +5924,12 @@ phrase de six mots fait qu'on ne l'écrit pas — la même friction que
 
 **Date.** 16/08/2026. **Tranchée par Maxime.** Refond la surface posée par
 [ADR-061](#adr-061), et prolonge [ADR-077](#adr-077) et [ADR-078](#adr-078).
+**Amendée le 21/08/2026 par [ADR-099](#adr-099)** : ouverture sur la page du
+jour (marque-page retiré), page rendue d'un seul tenant (feuillets retirés),
+papier suggéré (réglure retirée).
+**Refondue le 22/08/2026 par [ADR-101](#adr-101)**, qui **renverse** en outre le
+point « le déroulé vit sur la page du jour » : une séance qui attend un geste
+ouvre le plein écran. Voir la décision pour ce que l'essai a montré.
 
 **Contexte.** Le pôle s'appelait Cahier sans en avoir la forme. Le hub déroulait
 tout l'historique d'un coup, précédé d'un champ de recherche : pas de page, donc
@@ -7380,6 +7393,318 @@ renvoie.
   moyen global*, lui, n'a plus d'écran dédié.
 - La page reste garantie atteignable par `workflow-scanner` ; son rôle change,
   sa route non.
+
+---
+
+<a name="adr-099"></a>
+## ADR-099 — Le cahier rouvre sur aujourd'hui, et un jour se lit d'un tenant ✅
+
+**Date.** 21/08/2026. **Tranchée par Maxime.** Amende
+[ADR-079](#adr-079). **Refondue le 22/08/2026 par [ADR-101](#adr-101)** : le
+pôle devient un Bureau, et le Cahier son archive — le retrait de la
+skeuomorphie laissait un registre administratif à sa place.
+
+**Contexte.** Trois frictions constatées à l'usage du cahier :
+
+1. **L'ouverture dans le passé.** Le marque-page client ([ADR-079](#adr-079))
+   rouvrait la dernière page consultée, quel que soit son âge : revenir après
+   trois jours atterrissait au 17 août quand on vivait le 21. Un marque-page
+   qui ramène en arrière est une friction, pas un confort.
+2. **Le contenu caché.** Le jour était découpé en feuillets (une séance, puis
+   une clôture) qu'on tournait un à un : notes de marge, traces hors séance et
+   projets restaient invisibles tant qu'on n'avait pas tourné. Le découpage ne
+   disait rien que la page continue ne dise mieux — la coupe « un feuillet par
+   séance » était une frontière lue mais dont personne n'avait besoin pour
+   trouver son chemin dans une journée.
+3. **Le papier contre les cartes.** La réglure pleine traversait les interstices
+   entre cartes opaques : les deux registres se battaient, et le rendu paraissait
+   brouillon.
+
+### Décision
+
+* **Le cahier ouvre toujours sur la page du jour.** Seuls les liens explicites
+  (`?jour=`, `?session=`) ouvrent ailleurs. Le marque-page et sa clé localStorage
+  sont supprimés (`stockage-local.ts` ne porte plus que des préférences
+  d'appareil) ; `pageDOuverture` disparaît du domaine. L'URL n'est plus
+  réécrite à la navigation : un `?jour=` posé par `replaceState` serait devenu
+  un lien explicite au rechargement et aurait réintroduit l'ouverture dans le
+  passé.
+* **Une page est rendue d'un seul tenant** : séances composées, exercices hors
+  séance, projets, marge — tout le jour est visible sans tourner. La navigation
+  saute toujours d'un jour écrit à l'autre (`voisinesDeLaPage`, inchangée) ; le
+  calendrier retrouve une date ; le folio compte désormais des jours.
+  Toute la machinerie des feuillets (`Feuillet`, `feuilletsDeLaPage`,
+  `feuilletsParJour`, `folioDuFeuillet`, `voisinsDuFeuillet`, `rang*`,
+  `positionDeLaSeance`/`positionDuProjet`) et le calque d'animation 3D
+  (`tourne-page.tsx` et ses styles) sont retirés.
+* **Le papier est suggéré, pas dessiné.** La réglure pleine devient une trame
+  de points très pâle (`--reglure`, même pas de 26 px) : elle se lit comme un
+  grain et cesse de lutter avec les cartes. La reliure, le ruban, la date en
+  serif et le folio restent — ils portent l'identité, pas la skeuomorphie
+  lourde.
+
+### Conséquences
+
+- ✅ Zéro configuration mentale à l'ouverture : le cahier est toujours « là où
+  on écrit ». Les pages passées restent toutes accessibles (flèches,
+  calendrier, onglets).
+- ✅ La clôture du jour (marge, traces, projets) est visible d'emblée.
+- ⚠️ Un lien profond vers un feuillet précis (`?f=2`) n'existe plus : aucun
+  usage connu, la route ignorait déjà ce paramètre après migration.
+- `AGENTS.md` §garde-fous : la mention du marque-page comme donnée isolée par
+  compte disparaît avec lui ; `theme` et `rail` restent l'exception documentée.
+
+---
+
+<a name="adr-100"></a>
+## ADR-100 — Une séance abandonnée peut être renoncée ✅
+
+**Date.** 21/08/2026. **Tranchée par Maxime.** Prolonge
+[ADR-077](#adr-077).
+
+**Contexte.** Une séance `abandonnee` qui garde des exercices jamais ouverts
+reste « en suspens » : le cahier la montre aux onglets tant qu'elle demande un
+geste ([ADR-077](#adr-077)). Mais aucune porte de sortie n'existait quand ce
+geste ne viendrait jamais — seule « Reprendre » était proposée, et une séance
+oubliée restait accrochée indéfiniment, demandant un geste que son auteur ne
+ferait jamais.
+
+### Décision
+
+Un nouveau geste : **« Renoncer »**, écrit par `renoncerSeance`.
+
+* **C'est un fait daté, stocké une fois** : colonne `sessions.renoncee_le`
+  (TEXT ISO, même convention que `planifiee_pour`). Jamais dérivé — dériver
+  « est oubliée » du seul âge de la séance inventerait une intention.
+* **Il ferme l'attente, il ne supprime rien.** La séance reste au cahier avec
+  ses tentatives, son résultat et sa durée ; seule la promesse d'une reprise
+  disparaît (`peutReprendreSeance` lit `renonceeLe`). Elle rejoint le cahier
+  refermé comme ligne « Abandonnée ».
+* **Gardes** (même discipline que les autres écritures de statut) :
+  idempotent sur une séance déjà renoncée ; erreur explicite sur une séance en
+  cours (« abandonne-la d'abord ») ou planifiée (« elle s'annule ») ; erreur
+  explicite sur une séance qui n'attend plus rien.
+* **Interface** : le bouton accompagne « Reprendre » sur la carte « En suspens » ;
+  une séance renoncée sort des onglets au prochain re-rendu.
+
+### Conséquences
+
+- ✅ La file « en suspens » ne contient plus que des séances dont la reprise
+  reste crédible.
+- ⚠️ Le geste n'a pas de retour arrière dédié : composer une nouvelle séance
+  couvre le cas « finalement je veux le faire ». Accepté — une renonciation
+  réversible serait une troisième file d'état.
+- Migration `20260821200000_renonciation_seance.sql` appliquée ;
+  `schema.sql` à jour.
+
+---
+
+<a name="adr-101"></a>
+## ADR-101 — Le pôle de travail est un Bureau ; le Cahier en est l'archive ✅
+
+**Date.** 22/08/2026. **Tranchée par Maxime.** Refond [ADR-079](#adr-079) et
+[ADR-099](#adr-099).
+
+**Contexte.** [ADR-099](#adr-099) a retiré l'habillage skeuomorphe — réglure,
+reliure, ruban, folio, feuillets. Le retrait était juste : l'interface n'a pas
+besoin de peindre un objet pour dire « journal ». Mais **rien n'a remplacé la
+fonction**, et la page du jour est devenue un registre administratif :
+
+1. **Deux en-têtes pour une page.** `EntetePage` écrivait « Cahier » et une
+   phrase d'explication ; le héros en dégradé répétait la date juste dessous.
+2. **Quatre tiroirs de même poids.** « Séances de ce jour », « Exercices hors
+   séance », « Projets de ce jour », « Notes du jour » — quatre intitulés en
+   capitales, quatre cartes bordées. La séance en cours et un exercice fait la
+   veille avaient le même relief. On y classait ; on n'y travaillait pas.
+3. **Le défaut d'ADR-099 déplacé, pas résolu.** La décision nommait le
+   problème — « la réglure luttait avec les cartes ». La trame quadrillée du
+   `body`, elle, est restée : elle lutte avec les mêmes cartes.
+4. **Deux besoins opposés sur le même écran.** « Où je travaille maintenant »
+   et « ce que j'ai écrit avant ». Calendrier, flèches, onglets de séances en
+   suspens et champ de recherche occupaient le haut et le bas de la page du
+   jour, en permanence — le second besoin empêchait le premier d'être calme.
+
+C'est l'écran où l'on passe le plus de temps.
+
+### Décision
+
+* **Le pôle s'appelle Bureau.** « Cahier » disait l'archive ; le nom survit
+  pour ce qu'il désigne vraiment. Le rail ne gagne pas d'entrée : le Cahier est
+  un **mode** de la même route (`?vue=cahier`), pas une destination — deux
+  liens vers `/seances` auraient été allumés ensemble par `estActif`.
+* **Le Bureau est une colonne** (`--colonne`, 704 px), un seul objet en tête
+  (« Maintenant »), des **blocs sans bordure** — `Carte` ne survit que là où il
+  y a un objet à distinguer du fond — et le chrome au survol.
+* **Le papier n'est plus contredit** : `.bureau-lampe`, un calque qui éclaire
+  la colonne, laisse retomber les bords, et **couvre la trame** sur ce seul
+  écran. La trame reste partout ailleurs : elle porte l'identité.
+* **La marge devient une barre de capture fixe.** Noter est le geste le plus
+  fréquent du pôle ; il ne doit jamais demander de faire défiler.
+* **La recherche devient une commande** (`⌘K`, `PaletteBureau`). Le bloc
+  « Chercher dans tout le cahier » occupait un tiers d'écran en permanence sur
+  la seule page qu'on veut silencieuse. Un index n'est pas un meuble.
+* **Le rail n'est pas replié automatiquement.** Un composant `RailEnSeance` le
+  réduisait dès qu'une séance était en cours, sans écrire la préférence. Il a
+  été **écrit puis retiré dans le même chantier**, et le retrait est la vraie
+  décision : il datait du moment où le déroulé vivait dans la page du jour.
+  Depuis que travailler ouvre le plein écran, le Bureau n'est plus la surface
+  de travail — on y repliait donc la navigation d'une page où l'on ne travaille
+  pas, et la seule sortie visible vers le reste de l'application disparaissait
+  avec elle. Le plein écran, lui, recouvre déjà le rail.
+
+  ⚠️ Une sortie « Tableau de bord » a été ajoutée puis retirée dans la foulée,
+  parce que le rail *paraissait* absent de l'écran. Il ne l'était pas :
+  `.bureau-lampe` est un calque `fixed inset-0`, et deux éléments positionnés
+  à z-index automatique se peignent dans l'ordre du document — le rail venant
+  avant, la lampe le recouvrait entièrement. Le rail porte donc `z-40` : une
+  barre de navigation passe au-dessus des fonds de page. Corriger la cause a
+  rendu le lien inutile.
+* **Le minuteur devient ambiant** : un filet de 2 px, sans chiffre. Un décompte
+  lisible réclame un regard toutes les minutes, ce qui est l'inverse de ce
+  qu'un minuteur de concentration devrait produire. Il n'écrit toujours rien
+  ([ADR-045](#adr-045)).
+* **Un sas ouvre la séance** (`sas=1`, deux secondes, traversable par n'importe
+  quelle touche) : il relit **l'intention que la personne a elle-même
+  déclarée**. Sans intention déclarée, pas de sas — ce serait un écran de
+  chargement déguisé.
+* **La dette sort du Bureau.** Les onglets « en suspens » vivent au Cahier :
+  une reprise qu'on ne fera pas maintenant n'a rien à faire devant les yeux
+  pendant qu'on travaille. Contrepartie assumée d'[ADR-100](#adr-100).
+* **Travailler ouvre le plein écran** — ce qui **renverse**
+  [ADR-079](#adr-079).
+
+  ADR-079 avait décidé que « le déroulé vit désormais sur la page du jour »
+  et que « travailler ne fait plus sortir du cahier ». L'intention était
+  juste : la version d'avant remplaçait le cahier par un calque, et travailler
+  revenait à en sortir. Mais l'essai a montré le coût du remède. Un espace de
+  travail encastré dans la colonne du jour empile **deux en-têtes** (celui de
+  la page, celui de la séance), **deux barres d'avancement** et **deux jeux de
+  boutons de sortie** — « Replier », « Plein écran », « Abandonner la séance »
+  au milieu d'un énoncé. On ne sait plus ce qu'on quitte.
+
+  La correction ne rétablit pas l'ancien calque : la séance **reste** sur la
+  page du jour — sa carte, son avancement, la liste de ses activités y sont —
+  et c'est « Continuer » qui entre dans le travail. Ce qui est sorti de la
+  page, c'est le *déroulé*, pas la *séance*.
+
+  Une séance **close**, elle, se déplie toujours sur place : relire ne demande
+  aucun geste, donc rien ne justifie de quitter la page. La règle est donc :
+  **on relit dans la page, on travaille en plein écran.**
+* **Retirer un exercice n'est plus proposé depuis une séance.** Le bouton
+  s'affichait en rouge à côté de l'énoncé, juste avant « Commencer
+  l'exercice » : on offrait de détruire l'objet qu'on venait faire. C'est un
+  geste de bibliothèque, il regarde le catalogue et il a déjà sa place à
+  l'Atelier. Une séance a été composée AVEC cet exercice — l'enlever en plein
+  déroulé viderait la composition de son sens. « Corriger l'exercice » reste :
+  un énoncé fautif se répare sur-le-champ, et il est déjà masqué pendant une
+  tentative ([ADR-047](#adr-047)).
+
+### Conséquences
+
+- ✅ La page du jour est lisible d'un tenant, sans intitulé en capitales ni
+  carte pour chaque registre.
+- ✅ Deux nouvelles fonctions dérivées, testées, jamais stockées :
+  `resumeDuJour` / `resumesDuMois` (les vignettes du Cahier) et `semaineDuJour`
+  (la bande de semaine). Couche 3 : elles se recalculent.
+- ✅ `--marge` est rétabli. Il avait été retiré le 21/08 alors que
+  `border-marge` restait posé dans `(app)/layout.tsx` : la classe compilait
+  vers une couleur indéfinie, donc vers `currentColor` — le filet de marge
+  prenait la couleur du texte. `--reglure` disparaît de `@theme` avec les
+  styles qui le consommaient.
+- ⚠️ La bande de semaine a d'abord été rendue en sept points sans numéro. On
+  lisait « L M M J V S D » sans savoir de quelle semaine : une pastille de
+  navigation temporelle qui ne porte pas sa date décore au lieu de naviguer.
+  Les numéros sont écrits, et aucun des trois états ne repose sur la seule
+  couleur.
+- ⚠️ Le bouton de la palette n'a d'abord porté qu'une loupe et « ⌘K ». La
+  palette faisant quatre choses, l'icône les promettait toutes sans en annoncer
+  aucune. Il porte désormais son usage dominant : « Chercher ».
+- ⚠️ La palette listait aussi **tous les jours écrits**, un par ligne. Dix
+  entrées identiques poussaient les trois actions hors de vue dès l'ouverture :
+  une palette de commandes qui affiche surtout des dates est un calendrier mal
+  dessiné, et il en existe déjà un. Elle ne porte plus que des commandes ;
+  aller à un jour passe par la bande de semaine, les chevrons ou le calendrier.
+- ⚠️ Le plein écran ouvre sa colonne **au moment où l'on se met à écrire**.
+  `--colonne` est juste pour lire un énoncé, mais `VueExercice` passe en deux
+  colonnes dès qu'une tentative est ouverte, et 704 px les écrasait toutes les
+  deux — cinq mots par ligne à gauche, une fente à droite. La largeur suit donc
+  l'acte, pas l'écran.
+- ⚠️ « Corriger cet exercice » sort lui aussi du déroulé, pour la même raison
+  que le retrait : il s'affichait avant même qu'on ait commencé l'exercice.
+  Éditer un énoncé reste possible depuis l'Atelier.
+- ⚠️ `page-cahier.tsx` est supprimé, et le composant `PageCahier` avec lui. Le
+  type `PageCahier` du domaine reste — ce sont deux choses différentes qui
+  portaient le même nom.
+- ⚠️ `/seances?session=X` **redirige** vers `&focus=1` quand la séance est en
+  cours ou planifiée. Les liens existants continuent donc de fonctionner, mais
+  l'URL qu'ils atteignent n'est plus celle qu'ils portaient. `demarrerSeance`,
+  `reprendreSeance` et le compositeur visent directement le plein écran.
+- ⚠️ La bande de semaine a d'abord été rendue SOUS la couverture : elle remonte
+  de 20 px dessus (`-mt-5`), et `.bureau-couverture` porte un `::after`
+  positionné, donc peint au-dessus du contenu non positionné qui le suit. Les
+  numéros restaient visibles, les initiales disparaissaient. La maquette
+  portait le `z-index` qui l'évite ; le portage l'avait perdu.
+- `AGENTS.md` §garde-fous : inchangé. `theme` et `rail` restent la seule
+  exception d'isolation par compte, et `RailEnSeance` n'y touche pas.
+
+---
+
+<a name="adr-102"></a>
+## ADR-102 — Une surface optionnelle absente de la base ne fait pas tomber l'application ✅
+
+**Date.** 22/08/2026. **Tranchée par Maxime.**
+
+**Contexte.** Le 22/08/2026, l'application entière ne rendait plus une seule
+page. Cause : les six tables `carte_globale_*` étaient absentes de la base,
+alors que leurs migrations existaient au dépôt depuis le 20/08 et que
+`schema.sql` les décrivait — le cas exact contre lequel `AGENTS.md` met en
+garde (« ne jamais supposer qu'une migration est appliquée simplement parce que
+le fichier existe »). Ni
+`20260820134723_twiny_lot_3_carte_globale_overlay_minimal.sql` ni
+`20260820190000_twiny_lot_7_correspondances_relations.sql` n'avaient été jouées.
+
+`chargerContexte` lit la carte globale à chaque rendu de chaque page. Une
+`carte_globale_selections` manquante faisait donc tomber le tableau de bord, la
+Progression, l'Atelier et le Bureau — aucune de ces surfaces n'ayant besoin de
+la carte globale pour exister.
+
+Le voisin immédiat dans le même `Promise.all` avait pourtant déjà la bonne
+discipline : `chargerToutRPC` renvoie `null` quand la fonction SQL n'existe pas
+encore, et le chemin lent prend le relais — « aucune casse ». Deux règles
+opposées sur la même ligne de code.
+
+### Décision
+
+Une lecture dont l'absence **retire une fonctionnalité sans fausser aucune
+mesure** rend vide plutôt que de lever — et le dit.
+
+* `estTableAbsente` ne reconnaît que `PGRST205` (PostgREST) et `42P01`
+  (`undefined_table`). Un refus RLS (`42501`), une colonne manquante ou une
+  coupure réseau continuent de remonter par `verifier`.
+* `signalerTableAbsente` journalise une fois par table et par processus, **en
+  nommant la migration**. Sans ce nom, l'avertissement est un bruit de plus.
+* La tolérance est posée chez l'appelant, jamais dans `verifier` : c'est
+  l'appelant qui sait si sa surface est optionnelle.
+
+**Ce n'est pas une entorse à l'invariant 6** (« ne jamais fabriquer une valeur à
+partir d'une donnée invalide »). Il n'y a pas de donnée invalide : il n'y a pas
+de table. Une carte globale vide parce que la fonctionnalité n'est pas déployée
+est un constat ; une carte globale vide parce qu'on aurait avalé un refus
+d'autorisation serait un mensonge — et c'est précisément ce que le prédicat
+étroit empêche.
+
+### Conséquences
+
+- ✅ Une migration oubliée dégrade la surface concernée au lieu de fermer
+  l'application.
+- ⚠️ La dérive base/code devient silencieuse à l'écran : elle ne vit plus que
+  dans les journaux serveur. Accepté — l'alternative était une application
+  inutilisable, et l'avertissement nomme le fichier à jouer.
+- ⚠️ **Les deux migrations restent à appliquer** sur le projet concerné. Le
+  filet ne les remplace pas : tant qu'elles ne sont pas jouées, la carte
+  globale et les correspondances locales/globales n'existent pas.
+- Aucune écriture n'est tolérante : seules les trois lectures de
+  `carte-globale.ts` le sont.
 
 ---
 

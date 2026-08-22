@@ -306,6 +306,7 @@ export function validerSeance(valeur: unknown, chemin = "sessions"): LearningSes
   optionnel(seance, "statut", chemin, (v, c) =>
     enumeration(v, ["planifiee", "en-cours", "terminee", "abandonnee"] as const, c));
   optionnel(seance, "planifieePour", chemin, date);
+  optionnel(seance, "renonceeLe", chemin, date);
   if (seance.besoinDeclare !== undefined) validerBesoin(seance.besoinDeclare, `${chemin}.besoinDeclare`);
   if (seance.blueprint !== undefined) validerBlueprint(seance.blueprint, `${chemin}.blueprint`);
   return seance as unknown as LearningSession;

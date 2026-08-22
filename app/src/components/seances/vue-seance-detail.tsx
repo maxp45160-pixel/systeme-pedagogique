@@ -32,6 +32,8 @@ import { VueExercice } from "@/components/exercices/vue-exercice";
 import { ResumeExerciceCahier } from "@/components/seances/resume-exercice-cahier";
 import { CarteImpact, LienApresImpact } from "@/components/exercices/carte-impact";
 import { impactCumule, impactTentative } from "@/lib/engine/impact";
+import { SasSeance } from "@/components/seances/sas-seance";
+import { IconeExercices, IconeMinuteur, IconeNote } from "@/components/ui/icones";
 
 export type EtapeRecherche = {
   correction?: string;
@@ -79,11 +81,20 @@ export async function VueSeanceDetail({
   id,
   exerciceDemande,
   recherche,
+  sas = false,
   plein = true,
 }: {
   id: string;
   exerciceDemande?: string;
   recherche?: EtapeRecherche;
+  /**
+   * L'URL porte `sas=1` : on vient d'entrer en travail (ADR-101).
+   *
+   * Lu ici plutôt que par `useSearchParams()` côté client pour que le sas soit
+   * peint au premier rendu — il apparaîtrait sinon APRÈS l'exercice, ce qui
+   * est l'inverse d'une coupure.
+   */
+  sas?: boolean;
   /**
    * Plein écran, ou déroulé à sa place dans la page du cahier.
    *
@@ -188,8 +199,24 @@ export async function VueSeanceDetail({
   // pas besoin de la marge.
   const marge = statut === "en-cours" ? await lireMarge() : [];
 
+  /*
+   * La largeur suit l'ACTE, pas l'écran.
+   *
+   * Avant de commencer, il n'y a qu'un énoncé à lire : la colonne de lecture
+   * (`--colonne`) est la bonne mesure. Dès qu'une tentative est ouverte,
+   * `VueExercice` passe en deux colonnes — énoncé à gauche, réponse à droite —
+   * et 704 px les écrasait toutes les deux : l'énoncé tombait à cinq mots par
+   * ligne et le champ de réponse devenait une fente. L'écran s'ouvre donc au
+   * moment où l'on se met à écrire, et se referme quand on relit.
+   */
+  const travailOuvert = avancement.enCours.length > 0;
+  const colonnePlein = travailOuvert ? "max-w-6xl" : "max-w-[var(--colonne)]";
+
   const jourDeLaPage = jourDeLaSeance(seance);
   const urlSeance = `/seances?session=${encodeURIComponent(seance.id)}`;
+  // La même URL sans `sas`, posée par le sas dès son affichage : un
+  // rechargement pendant les deux secondes ne doit pas le rejouer.
+  const urlSansSas = plein ? `${urlSeance}&focus=1` : urlSeance;
 
   // Les languettes suivent le bandeau : à gauche sur la page, centrées en
   // plein écran — et leurs panneaux s'ancrent du même côté.
@@ -197,86 +224,155 @@ export async function VueSeanceDetail({
   const panneauMinuteur = `${CLASSES_PANNEAU_BASE} ${plein ? PANNEAU_ETROIT_CENTRE : PANNEAU_ETROIT_GAUCHE}`;
 
   return (
+    /*
+     * Le plein écran est la MÊME pièce que le Bureau, éclairée pareil
+     * (ADR-101). Il rendait jusqu'ici un `bg-surface` plat sur toute la
+     * fenêtre, en `max-w-7xl` : on quittait visuellement l'application pour
+     * entrer dans un écran générique. La lampe et la colonne rétablissent la
+     * continuité — on reste au même endroit, on s'y concentre davantage.
+     */
     <div
       className={
         plein
-          ? "fixed inset-0 z-50 overflow-y-auto bg-surface"
+          ? /*
+             * La séance N'EST PLUS un calque `fixed inset-0`.
+             *
+             * Elle recouvrait l'écran entier, rail compris : entrer dans une
+             * séance faisait disparaître d'un coup la navigation, la
+             * couverture, la date et la bande de semaine. On ne se déplaçait
+             * pas dans l'application, on était téléporté ailleurs — c'est de
+             * là que venait la cassure, pas du dessin.
+             *
+             * Elle occupe désormais la zone de contenu, et le rail reste. Les
+             * marges négatives annulent les paddings verticaux du cadre
+             * (`pt-6 lg:pt-8`, `pb-24 lg:pb-12`) pour que la surface parte
+             * bien du haut et descende jusqu'au bas.
+             */
+            "apparition relative isolate -mt-6 -mb-24 flex min-h-[calc(100dvh-3rem)] flex-col lg:-mt-8 lg:-mb-12 lg:min-h-dvh"
           : "overflow-hidden rounded-lg border border-bordure bg-surface"
       }
     >
+      {plein && (
+        <div aria-hidden className="bureau-lampe pointer-events-none fixed inset-0 -z-10" />
+      )}
+      {statut === "en-cours" && (
+        <SasSeance
+          actif={sas}
+          urlApres={urlSansSas}
+          intention={seance.besoinDeclare?.intention}
+          codes={seance.skillCodes}
+          nombreExercices={activites.length}
+          dureeCibleMin={seance.blueprint?.dureeCibleMin}
+        />
+      )}
       <header
         className={
           plein
-            ? "sticky top-0 z-20 border-b border-bordure bg-surface/95 backdrop-blur"
+            ? "sticky top-0 z-20 border-b border-bordure/60 bg-fond/85 backdrop-blur"
             : "border-b border-bordure bg-surface-2/30"
         }
       >
-        <div className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 ${plein ? "mx-auto max-w-7xl" : ""}`}>
-          <div className="min-w-0">
-            <p className="text-[0.6875rem] uppercase tracking-wider text-texte-discret">
-              {plein ? "Concentration" : "Séance de cette page"}
-            </p>
-            <div className="mt-0.5 flex items-center gap-2">
-              <h1 className="truncate font-serif text-lg font-medium">
-                {seance.besoinDeclare?.intention || "Séance"}
-              </h1>
-              <Etiquette ton={LIBELLES_STATUT[statut].ton}>{LIBELLES_STATUT[statut].texte}</Etiquette>
-            </div>
+        {/*
+          Une seule ligne, et pas de sur-titre.
+
+          « CONCENTRATION » en capitales au-dessus du titre annonçait l'état
+          d'esprit qu'on est censé avoir — le seul élément de l'écran qui ne
+          servait à rien qu'à se nommer. Le mode se voit : le rail a disparu,
+          la page est une colonne. Il n'a pas besoin d'être écrit.
+        */}
+        <div className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2.5 sm:px-6 ${plein ? `mx-auto ${colonnePlein}` : ""}`}>
+          <div className="flex min-w-0 items-center gap-2">
+            <h1 className="truncate font-serif text-base font-medium">
+              {seance.besoinDeclare?.intention || "Séance"}
+            </h1>
+            <Etiquette ton={LIBELLES_STATUT[statut].ton}>{LIBELLES_STATUT[statut].texte}</Etiquette>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-texte-attenue">{traites} / {avancement.total} traité{traites > 1 ? "s" : ""}</span>
+
+          <div className="flex shrink-0 items-center gap-1">
+            <span className="chiffres mr-1 text-xs text-texte-discret">
+              {traites} / {avancement.total}
+            </span>
             {/*
-              Le plein écran est un mode, pas une destination : on y entre et on
-              en sort sans quitter la séance, et l'URL le dit (`focus=1`).
+              ⚠️ Plus de bascule « plein écran ».
+
+              Elle BOUCLAIT : depuis qu'une séance ouverte ouvre directement le
+              mode travail, `?session=X` redirige vers `&focus=1` — et le
+              bouton « Quitter le plein écran » pointait précisément sur
+              `?session=X`. Un aller-retour infini.
+
+              Elle n'avait de toute façon plus d'objet : une séance qui attend
+              un geste n'a qu'un mode, et une séance close se relit sur la page
+              du jour. Une sortie, une seule, écrite.
             */}
-            {plein ? (
-              <Link href={urlSeance} className={classesLienBouton("secondaire", "petite")}>
-                Quitter le plein écran
-              </Link>
-            ) : (
-              <Link href={`${urlSeance}&focus=1`} className={classesLienBouton("secondaire", "petite")}>
-                Plein écran
-              </Link>
-            )}
             <Link
               href={`/seances?jour=${encodeURIComponent(jourDeLaPage)}`}
               className={classesLienBouton("secondaire", "petite")}
             >
-              {plein ? "Sortir vers le cahier" : "Replier"}
+              {plein ? "Sortir vers le Bureau" : "Replier"}
             </Link>
           </div>
-          <div className="h-1.5 basis-full overflow-hidden rounded-full bg-surface-3" aria-label={`${traites} activités traitées sur ${avancement.total}`}>
-            <div
-              className="h-full rounded-full bg-primaire transition-[width]"
-              style={{ width: `${avancement.total > 0 ? Math.round((traites / avancement.total) * 100) : 0}%` }}
-            />
-          </div>
+        </div>
+
+        {/*
+          L'avancement devient un filet de 2 px collé au bas de l'en-tête —
+          même grammaire que le filet du minuteur au Bureau. La barre de 6 px
+          arrondie, posée en pleine largeur sous le titre, pesait autant que le
+          titre lui-même pour une information qu'on ne consulte pas : on la
+          remarque quand elle bouge, pas quand on lit.
+        */}
+        <div
+          className="h-0.5 w-full bg-surface-3"
+          role="progressbar"
+          aria-valuenow={avancement.total > 0 ? Math.round((traites / avancement.total) * 100) : 0}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={`${traites} activités traitées sur ${avancement.total}`}
+        >
+          <div
+            className="h-full bg-primaire transition-[width] duration-500"
+            style={{ width: `${avancement.total > 0 ? Math.round((traites / avancement.total) * 100) : 0}%` }}
+          />
         </div>
         {statut === "en-cours" && (
           /*
-            Les outils de la séance sont les intercalaires du cahier : des
-            languettes posées sur la ligne, alignées à gauche comme les onglets
-            d'un séparateur. Ils étaient une barre de pastilles centrée et
-            flottante — le vocabulaire d'une application posée sur la page, pas
-            celui de l'objet qui la porte.
+            ⚠️ Les outils ne sont plus des « intercalaires ».
+
+            `classesIntercalaire` dessinait des languettes de séparateur de
+            cahier : bordure transparente, texte atténué, aucun fond. La forme
+            se justifiait quand l'interface peignait un cahier — ADR-099 a
+            retiré cet habillage, et la languette est restée orpheline. Sur le
+            fond sombre du Bureau, quatre mots gris sur gris : on ne voyait
+            plus qu'il s'agissait de boutons.
+
+            Ce sont des contrôles. Ils portent donc un fond, un contour, une
+            icône et un état actif lisible.
           */
-          <div className={`px-4 sm:px-6 ${plein ? "mx-auto w-full max-w-7xl" : ""}`}>
+          <div className={`px-4 pb-2.5 sm:px-6 ${plein ? `mx-auto w-full ${colonnePlein}` : ""}`}>
+            {/*
+              Centrés. Ils étaient alignés à gauche par crainte qu'un panneau
+              ouvert ne les décale — crainte infondée : les panneaux sont en
+              `absolute`, ils ne prennent aucune place dans le flux. Centrés,
+              ils se lisent comme la barre d'outils d'un plan de travail, au
+              lieu de flotter contre le bord gauche pendant que le contenu,
+              lui, est centré.
+            */}
             <nav
               aria-label="Outils de séance"
-              className={`flex max-w-full flex-wrap items-end gap-0.5 border-b border-bordure ${
-                plein ? "justify-center" : ""
-              }`}
+              className="flex max-w-full flex-wrap items-center justify-center gap-1.5"
             >
               <OutilSeance
-                variante="intercalaire"
+                variante="outil"
                 libelle="Exercices"
+                icone={<IconeExercices className="size-3.5" />}
+                indice={`${traites}/${avancement.total}`}
                 contenuClassName={panneauLarge}
               >
                 <ListeActivites activites={activites} parId={parId} avancement={avancement} seanceId={seance.id} plein={plein} compacte />
               </OutilSeance>
               <OutilSeance
-                variante="intercalaire"
+                variante="outil"
                 libelle="Pomodoro"
+                icone={<IconeMinuteur className="size-3.5" />}
                 contenuClassName={panneauMinuteur}
               >
                 <Pomodoro compteId={ctx.donnees.user.id} />
@@ -288,8 +384,10 @@ export async function VueSeanceDetail({
                 était l'annotation d'une séance déjà terminée.
               */}
               <OutilSeance
-                variante="intercalaire"
+                variante="outil"
                 libelle="Marge"
+                icone={<IconeNote className="size-3.5" />}
+                indice={marge.filter((ligne) => !ligne.faite).length || undefined}
                 contenuClassName={panneauLarge}
               >
                 <MargeCahier lignes={marge} compacte />
@@ -304,7 +402,7 @@ export async function VueSeanceDetail({
                   competencesModale={competencesPourModale(ctx.referentiel.actifs)}
                   calibragesModale={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
                   libelle="Tuteur IA"
-                  declencheur="intercalaire"
+                  declencheur="outil"
                 />
               )}
             </nav>
@@ -312,7 +410,13 @@ export async function VueSeanceDetail({
         )}
       </header>
 
-      <main className={`px-4 py-5 sm:px-6 ${plein ? "mx-auto max-w-7xl" : ""}`}>
+      {/*
+        La colonne de lecture, la même qu'au Bureau (`--colonne`, 704 px).
+        `max-w-7xl` laissait l'énoncé courir sur près de mille pixels : au-delà
+        d'une certaine longueur de ligne, l'œil perd le début de la suivante —
+        et c'est ici qu'on lit le plus longtemps de toute l'application.
+      */}
+      <main className={`px-4 py-6 sm:px-6 ${plein ? `mx-auto ${colonnePlein}` : ""}`}>
         {statut === "planifiee" && (
           <div className="mx-auto max-w-3xl space-y-5">
             <Carte accent>

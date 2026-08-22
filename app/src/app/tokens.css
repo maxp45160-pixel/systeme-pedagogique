@@ -127,23 +127,38 @@
   --niveau-4: #3a7838;
   --niveau-5: #285c2a;
 
-  /* ── Sémantiques · ornement du carnet ─────────────────────────── */
+  /*
+    Ornement du fond d'application — une trame très pâle, au pas de 26 px.
+    Les jetons propres à l'habillage skeuomorphe du cahier (`--reglure`,
+    `--pli`) ont été retirés le 21/08/2026 avec les styles qui les
+    consumaient : la page du jour est composée des primitives partagées.
+  */
   --grille: rgb(38 33 23 / 0.035);
-  --marge: #ddb9ab;
+
   /*
-    Réglure d'une page du cahier — les lignes horizontales sur lesquelles on
-    écrit. Distincte de `--grille`, qui trame le fond de l'application : la
-    réglure appartient à la page, elle est donc un cran plus lisible, sans
-    jamais concurrencer le texte qu'elle porte.
+    Filet de marge du cadre applicatif — le trait vertical qui court à gauche
+    du contenu (`(app)/layout.tsx`).
+
+    ⚠️ Il avait été retiré le 21/08/2026 avec le reste de l'habillage, alors
+    que `border-marge` restait posé dans le layout : la classe compilait vers
+    une couleur indéfinie, donc vers `currentColor` — le filet prenait la
+    couleur du texte. Rétabli ici comme un jeton d'ornement à part entière,
+    calé sur `--bordure` mais volontairement plus discret : c'est un repère,
+    pas un séparateur.
   */
-  --reglure: rgb(38 33 23 / 0.06);
+  --marge: rgb(146 133 109 / 0.28);
+
   /*
-    Le pli — l'ombre que porte une feuille contre la reliure. C'est ce qui
-    distingue un cahier relié d'une feuille volante : sans lui, la page flotte.
-    Plus soutenu que la réglure, car il doit se lire sur trois centimètres de
-    dégradé et non sur un trait.
+    La lampe du Bureau (ADR-101) — le halo qui éclaire la colonne de travail
+    et laisse retomber les bords dans la pénombre.
+
+    Ce n'est pas une décoration libre : c'est le seul dispositif qui dit
+    « on travaille ici » sans écrire un mot ni ajouter un contrôle. Les deux
+    thèmes le règlent en sens inverse — en clair on ajoute de la lumière, en
+    sombre on en ajoute très peu et c'est la pénombre qui fait le travail.
   */
-  --pli: rgb(38 33 23 / 0.10);
+  --lampe: rgb(255 253 248 / 0.85);
+  --penombre: rgb(38 33 23 / 0.06);
 
   /* ── Ombres · trois niveaux d'élévation, pas un de plus ───────── */
   --ombre-posee: 0 1px 0 rgb(201 189 159 / 0.6), 0 1px 2px rgb(38 33 23 / 0.04);
@@ -223,10 +238,16 @@
   --niveau-5: #9fd694;
 
   --grille: rgb(240 234 221 / 0.03);
-  --marge: #57342c;
-  --reglure: rgb(240 234 221 / 0.055);
-  /* En sombre, le pli est une vraie ombre : le papier est éteint, pas éclairé. */
-  --pli: rgb(0 0 0 / 0.45);
+  --marge: rgb(150 139 115 / 0.24);
+
+  /*
+    En sombre, éclairer serait un contresens : un halo crème sur un fond
+    presque noir ferait une tache. La lampe se contente d'un souffle, et
+    c'est la pénombre — beaucoup plus marquée qu'en clair — qui isole la
+    colonne.
+  */
+  --lampe: rgb(240 234 221 / 0.045);
+  --penombre: rgb(0 0 0 / 0.35);
 
   --ombre-posee: 0 1px 0 rgb(0 0 0 / 0.4), 0 1px 2px rgb(0 0 0 / 0.25);
   --ombre-levee: 0 2px 4px -1px rgb(0 0 0 / 0.5), 0 4px 12px -2px rgb(0 0 0 / 0.35);
@@ -241,6 +262,16 @@
 
   /* ── Espacement ─────────────────────────────────────────────────── */
   --socle-espacement: 0.25rem;
+
+  /*
+    Largeur de la colonne de travail du Bureau (ADR-101).
+
+    704 px. Ce n'est pas un goût : au-delà, une ligne de texte dépasse la
+    longueur qu'un œil relit sans se perdre, et le Bureau est l'écran où l'on
+    lit le plus longtemps. Le reste de l'application garde `max-w-7xl` — elle
+    montre des tableaux et des grilles, pas de la prose.
+  */
+  --colonne: 44rem;
 
   /* ── Rayons réellement consommés ───────────────────────────────── */
   --coin-net: 0.25rem;
@@ -286,7 +317,6 @@
 
   /* Ornement */
   --color-marge: var(--marge);
-  --color-reglure: var(--reglure);
 
   /* Familles */
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;

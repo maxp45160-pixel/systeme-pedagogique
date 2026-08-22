@@ -647,6 +647,14 @@ export interface LearningSession {
   statut?: StatutSeance;
   /** Date/heure prévue (ISO). Absente : la séance n'a pas été planifiée à l'avance. */
   planifieePour?: string;
+  /**
+   * Date/heure de la renonciation (ISO). Posée par `renoncerSeance` sur une
+   * séance abandonnée qui gardait des exercices jamais ouverts : l'utilisateur
+   * déclare qu'il ne la reprendra pas. Un fait daté, stocké une fois — il
+   * retire la séance de la file « en suspens » sans rien effacer de ce que
+   * la séance porte déjà.
+   */
+  renonceeLe?: string;
   besoinDeclare?: BesoinDeclare;
   blueprint?: BlueprintSeance;
 }

@@ -66,14 +66,14 @@ function construireEtapes(compteNeuf: boolean): Etape[] {
     {
       numero: 3,
       titre: "Composer votre première séance",
-      ou: "Cahier",
+      ou: "Bureau",
       vois:
         "Le compositeur : les compétences que vous pouvez viser, le nombre d'exercices, le temps dont vous disposez. En dessous, la file des séances en cours ou planifiées.",
       fais:
         "Vous choisissez une ou deux compétences et vous déclarez votre temps réel. Visez court pour la première fois : mieux vaut une séance finie qu'une séance abandonnée.",
       effet:
         "Le tuteur génère les exercices, calibrés sur les compétences visées et sur la durée. Il produit du contenu — jamais de mesure, et jamais un code de compétence qu'il aurait inventé.",
-      lien: { href: "/seances", libelle: "Ouvrir le Cahier" },
+      lien: { href: "/seances", libelle: "Ouvrir le Bureau" },
     },
     {
       numero: 4,
@@ -160,7 +160,7 @@ const QUESTIONS = [
   },
   {
     q: "Que se passe-t-il si j'abandonne une séance en cours ?",
-    r: "Elle reste dans la file du Cahier et se reprend plus tard. Les exercices non évalués ne produisent aucune observation, donc aucun niveau ne bouge.",
+    r: "Elle reste dans la file du Bureau et se reprend plus tard. Les exercices non évalués ne produisent aucune observation, donc aucun niveau ne bouge.",
   },
   {
     q: "Puis-je modifier ou étendre mon référentiel plus tard ?",

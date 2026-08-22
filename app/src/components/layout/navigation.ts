@@ -36,11 +36,11 @@ export interface GroupeNav {
  *
  *  - **Tableau de bord** — le point d'entrée de l'app (Piloter).
  *  - **Atelier**, dominant — explorer le corpus, le référentiel et sa progression (Visualiser).
- *  - **Cahier** — composer, planifier, dérouler et relire (Travailler).
+ *  - **Bureau** — composer, planifier, dérouler et relire (Travailler).
  *  - **Aide** — le mode d'emploi, détaché en bas de rail (`aPart`).
  *
  * La séparation tient au besoin (ADR-053) : le tableau de bord *pilote* (sa
- * prochaine action), Atelier *visualise* (le workspace documentaire), Cahier
+ * prochaine action), Atelier *visualise* (le workspace documentaire), Bureau
  * *travaille* (le hub et le workspace, ADR-061),
  * Les fiches de l'Atelier portent aussi le suivi et la gestion du référentiel.
  * Les anciennes surfaces parallèles ont été
@@ -82,13 +82,23 @@ export const NAVIGATION: GroupeNav[] = [
        * un pôle ajouterait une quatrième destination pour un objet qui vit déjà
        * dans deux surfaces existantes.
        */
-      { href: "/seances", libelle: "Cahier", court: "Cahier", icone: IconeExercices },
+
+      /*
+       * Pas d'entrée « Cahier » non plus (ADR-101).
+       *
+       * L'archive est un MODE du Bureau (`?vue=cahier`), pas une destination :
+       * lui donner sa propre entrée aurait posé deux liens vers `/seances`,
+       * que `estActif` aurait allumés tous les deux en même temps. On y entre
+       * par la barre d'outils du Bureau, là où l'on se trouve quand la
+       * question « qu'ai-je écrit avant ? » se pose.
+       */
+      { href: "/seances", libelle: "Bureau", court: "Bureau", icone: IconeExercices },
     ],
   },
   /*
    * Aide, seule, tout en bas.
    *
-   * Elle était la seconde entrée de « Travailler », sous le Cahier — donc
+   * Elle était la seconde entrée de « Travailler », sous le Bureau — donc
    * rangée parmi les pôles de travail, alors qu'elle n'en est pas un. On
    * n'ouvre pas l'aide dans le geste où l'on compose une séance : on l'ouvre
    * quand une autre destination n'a pas suffi. Un groupe à elle, détaché du

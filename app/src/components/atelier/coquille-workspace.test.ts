@@ -19,18 +19,18 @@ describe("sortieWorkspace", () => {
     });
   });
 
-  it("retourne un libellé cohérent pour le Cahier quand l'URL de retour vient de /seances", () => {
+  it("retourne un libellé cohérent pour le Bureau quand l'URL de retour vient de /seances", () => {
     expect(sortieWorkspace("/seances")).toEqual({
       href: "/seances",
-      libelle: "Retourner au Cahier",
+      libelle: "Retourner au Bureau",
     });
     expect(sortieWorkspace("/seances?jour=2026-08-16")).toEqual({
       href: "/seances?jour=2026-08-16",
-      libelle: "Retourner au Cahier",
+      libelle: "Retourner au Bureau",
     });
     expect(sortieWorkspace("/seances?q=simulateur")).toEqual({
       href: "/seances?q=simulateur",
-      libelle: "Retourner au Cahier",
+      libelle: "Retourner au Bureau",
     });
   });
 

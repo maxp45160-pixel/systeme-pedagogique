@@ -228,4 +228,51 @@ export const IconeMessage = ({ className }: Props) => (
   </Svg>
 );
 
+export const IconeCalendrier = ({ className }: Props) => (
+  <Svg className={className}>
+    <rect x="3" y="5" width="18" height="16" rx="2" />
+    <path d="M3 10h18M8 3v4M16 3v4" />
+  </Svg>
+);
+
+export const IconeMinuteur = ({ className }: Props) => (
+  <Svg className={className}>
+    <circle cx="12" cy="13.5" r="7.5" />
+    <path d="M12 9.5v4l2.5 2M9.5 2h5" />
+  </Svg>
+);
+
+/*
+ * Chevrons de navigation.
+ *
+ * Ils remplacent les caractères « ← » et « → » que le cahier utilisait comme
+ * libellés de boutons : un caractère n'est pas une icône — il hérite de la
+ * fonte, s'aligne sur la ligne de base du texte et non sur le centre optique
+ * du bouton, et son épaisseur ne suit pas celle du reste du jeu.
+ */
+export const IconeChevronGauche = ({ className }: Props) => (
+  <Svg className={className}>
+    <path d="m14.5 5-7 7 7 7" />
+  </Svg>
+);
+
+export const IconeChevronDroit = ({ className }: Props) => (
+  <Svg className={className}>
+    <path d="m9.5 5 7 7-7 7" />
+  </Svg>
+);
+
+/* Bascule de plein écran — quatre coins qui s'écartent, ou qui se referment. */
+export const IconeAgrandir = ({ className }: Props) => (
+  <Svg className={className}>
+    <path d="M9 4H4v5M15 4h5v5M15 20h5v-5M9 20H4v-5" />
+  </Svg>
+);
+
+export const IconeReduire = ({ className }: Props) => (
+  <Svg className={className}>
+    <path d="M4 9h5V4M20 9h-5V4M20 15h-5v5M4 15h5v5" />
+  </Svg>
+);
+
 

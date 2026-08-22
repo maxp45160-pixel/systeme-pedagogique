@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { grilleMois, moisDecale, moisDuJour } from "@/lib/domain/pages-cahier";
 import { OutilSeance } from "@/components/seances/outil-seance";
+import { IconeCalendrier } from "@/components/ui/icones";
 
 const JOURS_SEMAINE = ["L", "M", "M", "J", "V", "S", "D"];
 
@@ -19,6 +20,7 @@ export function CalendrierCahier({
   aujourdHui,
   onChangerJour,
   onChangerMois,
+  variante = "bouton",
 }: {
   /** La page ouverte, mise en évidence dans la grille. */
   jour: string;
@@ -29,6 +31,8 @@ export function CalendrierCahier({
   aujourdHui: Date;
   onChangerJour?: (jour: string) => void;
   onChangerMois?: (mois: string) => void;
+  /** `discret` : l'icône seule, pour la barre d'outils du Bureau. */
+  variante?: "bouton" | "discret";
 }) {
   const semaines = grilleMois(mois, jours, aujourdHui);
   const lienMois = (cible: string) =>
@@ -37,6 +41,8 @@ export function CalendrierCahier({
   return (
     <OutilSeance
       libelle="Aller à une date"
+      variante={variante}
+      icone={<IconeCalendrier className="size-4" />}
       contenuClassName="absolute right-0 z-30 mt-2 w-[17rem] rounded-lg border border-bordure bg-surface p-3 shadow-[var(--ombre-surcouche)]"
     >
       <div className="space-y-2">

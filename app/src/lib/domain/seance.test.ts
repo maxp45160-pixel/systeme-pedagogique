@@ -251,6 +251,14 @@ describe("abandon et reprise d'une séance", () => {
     const terminee = seance({ statut: "terminee" });
     expect(peutReprendreSeance(terminee, avancementSeance(terminee, []))).toBe(false);
   });
+
+  it("ne propose plus la reprise d'une séance renoncée, même s'il reste des exercices", () => {
+    // La renonciation (21/08/2026) est une déclaration de l'auteur : la séance
+    // ne demandera plus un geste qu'il a dit ne pas faire.
+    const s = seance({ statut: "abandonnee", renonceeLe: "2026-08-21T10:00:00.000Z" });
+    const reste = avancementSeance(s, [tentative("ex-a", "terminee")]);
+    expect(peutReprendreSeance(s, reste)).toBe(false);
+  });
 });
 
 describe("motifRefusBesoin", () => {

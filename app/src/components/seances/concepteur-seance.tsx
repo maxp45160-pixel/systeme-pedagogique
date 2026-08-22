@@ -415,7 +415,7 @@ export function ConcepteurSeance({
       const id = await creerSeance(entree, demarrer ? "en-cours" : "planifiee");
       await surSeanceCreee?.({ id, activites: entree.activites, codesVises: besoin.codesVises });
       if (demarrer) {
-        router.push(`/seances?session=${id}&focus=1`);
+        router.push(`/seances?session=${id}&focus=1&sas=1`);
         router.refresh();
       } else {
         router.refresh();

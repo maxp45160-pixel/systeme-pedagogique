@@ -18,7 +18,7 @@ const SORTIE_PAR_DEFAUT = { href: "/atelier", libelle: "Retourner à l’Atelier
 export function sortieWorkspace(retour?: string): { href: string; libelle: string } {
   if (!retour) return SORTIE_PAR_DEFAUT;
   if (retour.startsWith("/seances")) {
-    return { href: retour, libelle: "Retourner au Cahier" };
+    return { href: retour, libelle: "Retourner au Bureau" };
   }
   if (retour === "/" || retour.startsWith("/?")) {
     return { href: retour, libelle: "Retourner au tableau de bord" };

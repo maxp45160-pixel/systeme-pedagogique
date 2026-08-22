@@ -395,18 +395,26 @@ export async function VueExercice(props: {
             Corriger un exercice (ADR-047). Rendu par la fiche, comme
             `BoutonGenerer` : la fiche est un composant serveur et ne porte ni
             état ni `onClick`. Masqué pendant une tentative — modifier l'énoncé
-            en cours de mesure rendrait l'observation illisible. Le retrait
-            reste disponible : avec une tentative, il archive l'exercice sans
-            effacer la trace en cours.
+            en cours de mesure rendrait l'observation illisible.
+
+            ⚠️ **Retirer un exercice n'est PAS proposé depuis une séance**
+            (22/08/2026). Le bouton s'affichait à côté de l'énoncé qu'on
+            s'apprêtait à traiter, en rouge, juste avant « Commencer
+            l'exercice » : on offrait de détruire l'objet qu'on venait faire.
+            Retirer un exercice est un geste de bibliothèque — il regarde le
+            catalogue, pas le travail en cours — et il a déjà sa place à
+            l'Atelier, sur la fiche de l'exercice et sur celle de la
+            compétence. La séance, elle, a été composée AVEC cet exercice :
+            l'enlever en plein déroulé viderait la composition de son sens.
           */}
-          {!props.lectureSeule && (
+          {!props.lectureSeule && !navigation && (
             <>
               {!enCours && <BoutonEditer exercice={exercice} tentatives={tentatives.length} />}
               <BoutonRetirerExercice
                 exerciceId={exercice.id}
                 titre={exercice.titre}
                 tentatives={tentatives.length}
-                destination={navigation ? `/seances?session=${encodeURIComponent(navigation.seanceId)}` : "/atelier"}
+                destination="/atelier"
               />
             </>
           )}

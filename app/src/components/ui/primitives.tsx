@@ -500,27 +500,36 @@ export function classesLienBouton(
 }
 
 /**
- * Intercalaire — l'onglet d'un séparateur de cahier.
+ * Outil de séance — un contrôle qui ouvre un panneau.
  *
- * Les outils du workspace étaient une barre de boutons flottante posée sur la
- * page : quatre pastilles qui disaient « application », pas « cahier ». Un
- * intercalaire dit la même chose en une forme que l'objet possède déjà — une
- * languette qui monte de la ligne, arrondie en haut seulement, ouverte en bas
- * parce qu'elle appartient à ce qu'elle sépare.
+ * ## Ce qu'il remplace, et pourquoi
+ *
+ * Cette primitive s'appelait `classesIntercalaire` et dessinait la languette
+ * d'un séparateur de cahier : bordure transparente, pas de fond, texte
+ * atténué, arrondie en haut seulement parce qu'elle « appartenait à ce qu'elle
+ * sépare ». La forme se tenait tant que l'interface peignait un cahier.
+ *
+ * [ADR-099] a retiré cet habillage, [ADR-101] a renommé le pôle en Bureau :
+ * la languette est restée seule, à dire un objet qui n'existe plus. Et sur le
+ * fond sombre de l'espace de travail, une bordure transparente et un texte
+ * atténué donnaient quatre mots gris sur gris — on ne voyait plus qu'il
+ * s'agissait de boutons. Une commande qui ne se voit pas n'est pas discrète,
+ * elle est absente.
+ *
+ * Un outil porte donc ce qu'un contrôle doit porter : un fond, un contour, et
+ * un état actif qui ne repose pas sur la seule couleur (le fond change AVEC le
+ * contour et la graisse).
  *
  * Une seule implémentation, consommée par `OutilSeance` et `TiroirTuteur` :
  * deux recettes divergentes pour le même objet, c'est exactement le défaut que
  * `classesLienBouton` existe pour empêcher.
- *
- * ⚠️ `-mb-px` : la languette doit mordre la ligne qui la porte, sinon elle
- * flotte un pixel au-dessus et le dessin se casse.
  */
-export function classesIntercalaire(actif = false): string {
+export function classesOutilSeance(actif = false): string {
   return cx(
-    "relative -mb-px inline-flex cursor-pointer items-center gap-1.5 rounded-t-md border border-b-0 px-3 py-1.5 text-xs transition-colors",
+    "inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
     actif
-      ? "border-bordure bg-surface font-semibold text-texte shadow-[inset_0_-1px_0_var(--primaire)]"
-      : "border-transparent text-texte-attenue hover:bg-surface-2/60 hover:text-texte",
+      ? "border-primaire/40 bg-primaire-faible text-primaire"
+      : "border-bordure bg-surface text-texte-attenue hover:border-bordure-forte hover:text-texte",
   );
 }
 

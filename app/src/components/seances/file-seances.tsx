@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, type WheelEvent, type MouseEvent } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import {
+  BarreProgression,
   Carte,
   classesLienBouton,
   EnTeteCarte,
@@ -12,16 +13,15 @@ import { ActionSeance } from "@/components/seances/action-seance";
 import { formatDateCourte } from "@/lib/engine/dates";
 import { avancementSeance, peutReprendreSeance, statutSeance } from "@/lib/domain/seance";
 import {
-  positionDeLaSeance,
-  positionDuProjet,
+  jourDeLaSeance,
+  jourDuDocument,
   type DocumentOperationnelDate,
-  type NoteDatee,
-  type PositionFeuillet,
 } from "@/lib/domain/pages-cahier";
 import {
   abandonnerSeance,
   annulerSeance,
   demarrerSeance,
+  renoncerSeance,
   reprendreSeance,
 } from "@/lib/store/seance-actions";
 import type { ExerciseAttempt, LearningSession } from "@/lib/domain/types";
@@ -36,65 +36,24 @@ import type { ExerciseAttempt, LearningSession } from "@/lib/domain/types";
 export function OngletsSeancesOuvertes({
   seances,
   tentatives,
-  notes = [],
   projets = [],
   jourAffiche,
-  rangAffiche,
   onNaviguer,
 }: {
   seances: LearningSession[];
   tentatives: ExerciseAttempt[];
-  notes?: NoteDatee[];
   projets?: DocumentOperationnelDate[];
   jourAffiche: string;
-  rangAffiche?: number;
-  onNaviguer: (position: PositionFeuillet) => void;
+  onNaviguer: (jour: string) => void;
 }) {
-  const navRef = useRef<HTMLElement>(null);
-  const isDragging = useRef(false);
-  const startX = useRef(0);
-  const scrollLeftStart = useRef(0);
-
-  const handleWheel = (e: WheelEvent<HTMLElement>) => {
-    if (e.deltaY !== 0 && navRef.current) {
-      navRef.current.scrollLeft += e.deltaY;
-    }
-  };
-
-  const handleMouseDown = (e: MouseEvent<HTMLElement>) => {
-    isDragging.current = true;
-    startX.current = e.pageX;
-    scrollLeftStart.current = navRef.current?.scrollLeft ?? 0;
-  };
-
-  const handleMouseLeave = () => {
-    isDragging.current = false;
-  };
-
-  const handleMouseUp = () => {
-    isDragging.current = false;
-  };
-
-  const handleMouseMove = (e: MouseEvent<HTMLElement>) => {
-    if (!isDragging.current || !navRef.current) return;
-    const walk = (e.pageX - startX.current) * 1.2;
-    navRef.current.scrollLeft = scrollLeftStart.current - walk;
-  };
-
-  const entrees = { seances, notes, projets };
-
   const ouvertes = seances
     .filter((s) => {
       const statut = statutSeance(s);
       if (statut === "en-cours" || statut === "planifiee") return true;
       return peutReprendreSeance(s, avancementSeance(s, tentatives));
     })
-    .map((s) => ({ seance: s, pos: positionDeLaSeance(s, entrees) }))
-    .filter(({ pos }) =>
-      rangAffiche !== undefined
-        ? !(pos.jour === jourAffiche && pos.rang === rangAffiche)
-        : pos.jour !== jourAffiche,
-    )
+    .map((s) => ({ seance: s, jour: jourDeLaSeance(s) }))
+    .filter(({ jour }) => jour !== jourAffiche)
     .sort((a, b) =>
       (b.seance.planifieePour ?? b.seance.date).localeCompare(
         a.seance.planifieePour ?? a.seance.date,
@@ -103,12 +62,8 @@ export function OngletsSeancesOuvertes({
 
   const projetsOuverts = projets
     .filter((p) => !p.fige)
-    .map((p) => ({ projet: p, pos: positionDuProjet(p, entrees) }))
-    .filter(({ pos }) =>
-      rangAffiche !== undefined
-        ? !(pos.jour === jourAffiche && pos.rang === rangAffiche)
-        : pos.jour !== jourAffiche,
-    )
+    .map((p) => ({ projet: p, jour: jourDuDocument(p) }))
+    .filter(({ jour }) => jour !== jourAffiche)
     .sort((a, b) =>
       (b.projet.updatedAt ?? b.projet.createdAt ?? "").localeCompare(
         a.projet.updatedAt ?? a.projet.createdAt ?? "",
@@ -119,25 +74,20 @@ export function OngletsSeancesOuvertes({
 
   return (
     <nav
-      ref={navRef}
-      onWheel={handleWheel}
-      onMouseDown={handleMouseDown}
-      onMouseLeave={handleMouseLeave}
-      onMouseUp={handleMouseUp}
-      onMouseMove={handleMouseMove}
       aria-label="Séances et projets ouverts"
-      className="flex items-center gap-2 overflow-x-auto overscroll-contain no-scrollbar py-0.5 w-full min-w-0 cursor-grab active:cursor-grabbing"
+      className="flex items-center gap-2 overflow-x-auto overscroll-contain no-scrollbar py-0.5 w-full min-w-0"
     >
-      {projetsOuverts.map(({ projet: p, pos }) => {
+      {projetsOuverts.map(({ projet: p, jour }) => {
         const dateProjet = p.updatedAt ?? p.createdAt;
         return (
           <button
             key={p.id}
             type="button"
-            onClick={() => onNaviguer(pos)}
-            className="flex shrink-0 items-center gap-2 rounded-t-md border border-b-0 border-bordure bg-surface-2/40 px-3 py-1.5 text-xs hover:bg-surface-2 transition-colors text-left cursor-pointer"
+            onClick={() => onNaviguer(jour)}
+            title="Voir ce projet sur sa page"
+            className="flex shrink-0 items-center gap-2 rounded-full border border-bordure bg-surface px-3 py-1 text-xs shadow-[var(--ombre-posee)] hover:border-primaire/40 transition-colors text-left cursor-pointer"
           >
-            <Etiquette ton="primaire">Projet en cours</Etiquette>
+            <span className="size-1.5 rounded-full bg-primaire" aria-hidden />
             <span className="max-w-[13rem] truncate font-medium">{p.titre}</span>
             {dateProjet && (
               <span className="text-texte-discret shrink-0">
@@ -147,37 +97,104 @@ export function OngletsSeancesOuvertes({
           </button>
         );
       })}
-      {ouvertes.map(({ seance: s, pos }) => {
-        const statut = statutSeance(s);
-        const libelle =
-          statut === "en-cours" ? "En cours" : statut === "planifiee" ? "Planifiée" : "En suspens";
-        const ton = statut === "en-cours" ? "primaire" : statut === "planifiee" ? "info" : "danger";
-        const titre =
-          s.besoinDeclare?.intention ||
-          (s.activites.length === 1 ? s.activites[0]?.libelle : null) ||
-          `${s.activites.length} exercice${s.activites.length > 1 ? "s" : ""}`;
-
-        return (
-          <button
-            key={s.id}
-            type="button"
-            onClick={() => onNaviguer(pos)}
-            className="flex shrink-0 items-center gap-2 rounded-t-md border border-b-0 border-bordure bg-surface-2/40 px-3 py-1.5 text-xs hover:bg-surface-2 transition-colors text-left cursor-pointer"
-          >
-            <Etiquette ton={ton}>{libelle}</Etiquette>
-            <span className="max-w-[13rem] truncate font-medium">{titre}</span>
-            <span className="text-texte-discret shrink-0">
-              {formatDateCourte(s.planifieePour ?? s.date)}
-            </span>
-          </button>
-        );
-      })}
+      {ouvertes.map(({ seance: s, jour }) => (
+        <OngletSeance key={s.id} seance={s} jour={jour} onNaviguer={onNaviguer} />
+      ))}
     </nav>
   );
 }
 
 /**
+ * Un onglet de séance ouverte : cliquer y mène ; une séance « en suspens »
+ * porte en outre une croix qui renonce directement — sans détour par sa page.
+ * L'erreur éventuelle s'affiche sous l'onglet en absolu : la barre garde sa
+ * hauteur constante (CLS = 0).
+ */
+function OngletSeance({
+  seance: s,
+  jour,
+  onNaviguer,
+}: {
+  seance: LearningSession;
+  jour: string;
+  onNaviguer: (jour: string) => void;
+}) {
+  const statut = statutSeance(s);
+  // Une séance abandonnée n'arrive ici que si elle est reprenable : le filtre
+  // amont l'a déjà dit. La croix ne se pose donc que sur du vrai « en suspens ».
+  const enSuspens = statut === "abandonnee";
+  const [enCours, demarrer] = useTransition();
+  const [erreur, setErreur] = useState<string | null>(null);
+
+  const libelle =
+    statut === "en-cours" ? "En cours" : statut === "planifiee" ? "Planifiée" : "En suspens";
+  const point = statut === "en-cours" ? "bg-primaire" : statut === "planifiee" ? "bg-info" : "bg-danger";
+  const titre =
+    s.besoinDeclare?.intention ||
+    (s.activites.length === 1 ? s.activites[0]?.libelle : null) ||
+    `${s.activites.length} exercice${s.activites.length > 1 ? "s" : ""}`;
+
+  return (
+    <div className="relative shrink-0">
+      <div className="flex items-stretch overflow-hidden rounded-full border border-bordure bg-surface shadow-[var(--ombre-posee)] transition-colors hover:border-primaire/40 text-xs">
+        <button
+          type="button"
+          onClick={() => onNaviguer(jour)}
+          title="Aller à la page de cette séance"
+          className="flex items-center gap-2 py-1 pl-3 pr-2 text-left cursor-pointer"
+        >
+          <span className={`size-1.5 rounded-full ${point}`} aria-hidden />
+          <Etiquette ton={statut === "en-cours" ? "primaire" : statut === "planifiee" ? "info" : "danger"}>
+            {libelle}
+          </Etiquette>
+          <span className="max-w-[11rem] truncate font-medium">{titre}</span>
+          <span className="text-texte-discret shrink-0">
+            {formatDateCourte(s.planifieePour ?? s.date)}
+          </span>
+        </button>
+        {enSuspens && (
+          <button
+            type="button"
+            disabled={enCours}
+            onClick={(e) => {
+              e.stopPropagation();
+              setErreur(null);
+              demarrer(async () => {
+                try {
+                  await renoncerSeance(s.id);
+                } catch (err) {
+                  setErreur(err instanceof Error ? err.message : "L'action a échoué.");
+                }
+              });
+            }}
+            aria-label={`Renoncer définitivement à « ${titre} »`}
+            title="Renoncer définitivement : l'onglet disparaît et la séance rejoint le cahier refermée."
+            className="border-l border-bordure/60 px-2 text-sm text-texte-discret transition-colors hover:bg-danger-faible hover:text-danger cursor-pointer disabled:pointer-events-none disabled:opacity-50"
+          >
+            ×
+          </button>
+        )}
+      </div>
+      {erreur && (
+        <p
+          role="alert"
+          className="absolute inset-x-0 top-full z-10 mt-1 max-w-xs rounded-md bg-danger-faible px-2 py-1 text-[0.6875rem] text-danger shadow-[var(--ombre-surcouche)]"
+        >
+          {erreur}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
  * Une séance qui demande un geste, avec son avancement et ses actions.
+ *
+ * Une séance « en suspens » — abandonnée, mais avec des exercices jamais
+ * ouverts — offre deux sorties : la reprendre, ou y renoncer définitivement
+ * (`renoncerSeance`). Sans cette seconde porte, une séance qu'on ne mènera
+ * jamais restait accrochée aux onglets indéfiniment : le cahier lui demandait
+ * un geste qu'elle n'attendait plus.
  */
 export function CarteSeance({
   seance: s,
@@ -197,6 +214,9 @@ export function CarteSeance({
     (s.activites.length === 1 ? s.activites[0]?.libelle : null) ||
     "Séance d'exercices";
 
+  const faits = avancement.menes.length;
+  const fraction = avancement.total > 0 ? faits / avancement.total : 0;
+
   return (
     <Carte accent={enCours}>
       <EnTeteCarte
@@ -212,13 +232,19 @@ export function CarteSeance({
               {enCours ? "En cours" : planifiee ? "Planifiée" : "En suspens"}
             </Etiquette>
             <span className="text-xs text-texte-discret">
-              {avancement.menes.length}/{s.activites.length} fait{avancement.menes.length > 1 ? "s" : ""}
+              {faits}/{avancement.total} fait{faits > 1 ? "s" : ""}
             </span>
           </div>
         }
       />
 
       <div className="space-y-4 px-5 py-4">
+        <BarreProgression
+          fraction={fraction}
+          ton={reprenable ? "neutre" : "primaire"}
+          libelle={`Avancement de la séance : ${faits} exercices menés sur ${avancement.total}`}
+        />
+
         <div className="space-y-1.5">
           {s.activites.map((act, index) => {
             const faite = avancement.menes.includes(act.ref);
@@ -262,7 +288,17 @@ export function CarteSeance({
               </Link>
             )}
             {reprenable && (
-              <ActionSeance action={reprendreSeance} seanceId={s.id} libelle="Reprendre" taille="petite" />
+              <>
+                <ActionSeance action={reprendreSeance} seanceId={s.id} libelle="Reprendre" taille="petite" />
+                <ActionSeance
+                  action={renoncerSeance}
+                  seanceId={s.id}
+                  libelle="Renoncer"
+                  variante="secondaire"
+                  taille="petite"
+                  titre="Refermer définitivement : la séance reste au cahier, mais ne demandera plus rien."
+                />
+              </>
             )}
             {planifiee && (
               <ActionSeance action={annulerSeance} seanceId={s.id} libelle="Annuler" variante="secondaire" taille="petite" />
@@ -271,12 +307,14 @@ export function CarteSeance({
               <ActionSeance action={abandonnerSeance} seanceId={s.id} libelle="Abandonner" variante="secondaire" taille="petite" />
             )}
           </div>
-          <Link
-            href={`/seances?session=${encodeURIComponent(s.id)}`}
-            className="text-xs text-texte-discret hover:text-texte"
-          >
-            Détail de la séance →
-          </Link>
+          {!planifiee && (
+            <Link
+              href={`/seances?session=${encodeURIComponent(s.id)}`}
+              className="text-xs text-texte-discret hover:text-texte"
+            >
+              Détail de la séance →
+            </Link>
+          )}
         </div>
       </div>
     </Carte>

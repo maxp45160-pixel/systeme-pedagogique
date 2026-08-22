@@ -15,7 +15,7 @@ import {
 const GRAPHE_TEST: GrapheWorkflow = {
   noeuds: [
     { id: "page:/", type: "page", libelle: "Tableau de bord", url: "/" },
-    { id: "page:/seances", type: "page", libelle: "Cahier", url: "/seances" },
+    { id: "page:/seances", type: "page", libelle: "Bureau", url: "/seances" },
     { id: "modal:test", type: "modal", libelle: "Modale test" },
   ],
   liens: [

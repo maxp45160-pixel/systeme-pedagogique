@@ -410,6 +410,44 @@ export function Pomodoro({ compteId }: { compteId: string }) {
  * Pastille compacte indiquant le temps restant du Pomodoro quand il est actif.
  * S'insère dans l'en-tête ou la barre mobile.
  */
+/**
+ * Le filet ambiant du Bureau (ADR-101) — deux pixels en haut de la fenêtre.
+ *
+ * Il ne porte AUCUN chiffre, et c'est tout le propos : un décompte lisible
+ * réclame un regard toutes les minutes, ce qui est l'inverse de ce qu'un
+ * minuteur de concentration devrait produire. Le filet dit seulement que le
+ * temps passe, et dans quelle phase. Le nombre reste dans `Pomodoro` et dans
+ * la pastille du rail, pour qui va le chercher.
+ *
+ * Comme tout le reste du minuteur, il n'écrit rien et n'entre dans aucun
+ * calcul (ADR-045) : la fraction affichée est dérivée de l'échéance, jamais
+ * stockée.
+ */
+export function FiletPomodoro({ compteId }: { compteId: string }) {
+  const { hydrate, etat, enMarche, reste, durees } = usePomodoro(compteId);
+
+  if (!hydrate || !enMarche) return null;
+
+  const total = durees[etat.phase] * 60;
+  // `reste` peut dépasser `total` d'une seconde juste après un réglage : on
+  // borne plutôt que d'afficher un filet qui déborde.
+  const fraction = total > 0 ? Math.max(0, Math.min(1, reste / total)) : 0;
+  const estFocus = etat.phase === "focus";
+
+  return (
+    <div
+      aria-hidden
+      className="filet-ambiant pointer-events-none fixed inset-x-0 top-0 z-50 h-0.5"
+      title={`Pomodoro (${LIBELLES[etat.phase]}) en cours`}
+    >
+      <i
+        className={cx("block h-full transition-[width] duration-1000 ease-linear", estFocus ? "bg-primaire" : "bg-succes")}
+        style={{ width: `${fraction * 100}%` }}
+      />
+    </div>
+  );
+}
+
 export function PastillePomodoroGlobale({ compteId }: { compteId: string }) {
   const { hydrate, etat, enMarche, reste, reinitialiser } = usePomodoro(compteId);
 

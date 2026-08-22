@@ -425,6 +425,11 @@ CREATE TABLE IF NOT EXISTS public.sessions (
   statut                   TEXT
     CHECK (statut IS NULL OR statut IN ('planifiee', 'en-cours', 'terminee', 'abandonnee')),
   planifiee_pour           TEXT,
+  -- Renonciation (21/08/2026) : date ISO posée par `renoncerSeance` sur une
+  -- séance `abandonnee` dont l'auteur déclare qu'il ne reprendra pas. Un fait
+  -- daté, jamais dérivé : il sort la séance de la file « en suspens »
+  -- (`peutReprendreSeance`) sans rien effacer de ce qu'elle porte déjà.
+  renoncee_le              TEXT,
   besoin_declare           JSONB,
   blueprint                JSONB,
 

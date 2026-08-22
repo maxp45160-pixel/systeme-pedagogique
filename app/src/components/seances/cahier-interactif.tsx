@@ -1,187 +1,111 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import type { LearningSession, ExerciseAttempt } from "@/lib/domain/types";
 import type { LigneMarge } from "@/lib/documents/marge";
 import type { DonneesSeance } from "@/components/seances/concepteur-seance";
 import {
   moisDuJour,
   moisValide,
-  pageDOuverture,
   type DocumentOperationnelDate,
-  type PositionFeuillet,
 } from "@/lib/domain/pages-cahier";
-import { cleMarquePage, ecrireLocal, lireLocal } from "@/lib/ui/stockage-local";
 import { moisAffiche } from "@/components/seances/calendrier-cahier";
-import { OngletsSeancesOuvertes } from "@/components/seances/file-seances";
-import { PageCahier } from "@/components/seances/page-cahier";
-import { RechercheCahier } from "@/components/seances/cahier-seances";
-import type { TournePageHandle } from "@/components/seances/tourne-page";
+import { Bureau } from "@/components/seances/bureau";
+import { CahierArchive } from "@/components/seances/cahier-archive";
 
-interface PoseMarquePage {
-  jour: string;
-  rang: number;
-}
+/** Les deux lectures de la même route (ADR-101). */
+type Vue = "bureau" | "cahier";
 
-function lirePose(cle: string): PoseMarquePage | null {
-  const brut = lireLocal<string | PoseMarquePage>(cle);
-  if (!brut) return null;
-  if (typeof brut === "string") return { jour: brut, rang: 1 };
-  if (typeof brut.jour !== "string") return null;
-  return { jour: brut.jour, rang: typeof brut.rang === "number" ? brut.rang : 1 };
-}
-
-function lienFeuillet(position: PositionFeuillet): string {
-  const base = `/seances?jour=${encodeURIComponent(position.jour)}`;
-  return position.rang > 1 ? `${base}&f=${position.rang}` : base;
-}
-
+/**
+ * Le conteneur des deux modes du pôle.
+ *
+ * Toutes les données sont reçues une fois du serveur, puis la navigation —
+ * entre les jours comme entre les deux modes — est locale et instantanée.
+ */
 export function CahierInteractif({
-  compteId,
   jourInitial,
-  jourExplicite,
-  feuilletInitial,
   moisInitial,
+  vueInitiale = "bureau",
   jours,
-  nombresDeFeuilletsMap,
   seances,
   tentatives,
   donnees,
   notes,
   projets = [],
   aujourdHuiIso,
+  compteId,
+  recherche,
   compositeur,
   seanceDeployee,
 }: {
-  compteId: string;
+  /** Le jour ouvert : la page du jour, sauf lien explicite (`?jour=`, `?session=`). */
   jourInitial: string;
-  jourExplicite: boolean;
-  feuilletInitial: number | null;
   moisInitial?: string;
+  /** `cahier` quand l'URL porte `?vue=cahier` ou une recherche. */
+  vueInitiale?: Vue;
   jours: string[];
-  nombresDeFeuilletsMap: [string, number][];
   seances: LearningSession[];
   tentatives: ExerciseAttempt[];
   donnees: DonneesSeance;
   notes: LigneMarge[];
   projets?: DocumentOperationnelDate[];
   aujourdHuiIso: string;
+  compteId: string;
+  /** Terme de recherche actif, le cas échéant. Le Cahier s'ouvre dessus. */
+  recherche?: string;
   compositeur?: ReactNode;
   seanceDeployee?: { id: string; contenu: ReactNode };
 }) {
-  const tourneRef = useRef<TournePageHandle>(null);
-  const nombresDeFeuillets = useMemo(
-    () => new Map(nombresDeFeuilletsMap),
-    [nombresDeFeuilletsMap],
+  const [jour, setJour] = useState<string>(jourInitial);
+  const [mois, setMois] = useState<string>(() =>
+    moisAffiche(moisValide(moisInitial), jourInitial),
   );
+  const [vue, setVue] = useState<Vue>(vueInitiale);
   const aujourdHui = useMemo(() => new Date(aujourdHuiIso), [aujourdHuiIso]);
 
-  // Initialisation immédiate : si le jour n'a pas été demandé explicitement dans l'URL,
-  // on vérifie le marque-page local sans provoquer de double rendu serveur.
-  const [jour, setJour] = useState<string>(() => {
-    if (jourExplicite) return jourInitial;
-    if (typeof window !== "undefined") {
-      const pose = lirePose(cleMarquePage(compteId));
-      if (pose?.jour) {
-        return pageDOuverture(pose.jour, jours, aujourdHui);
-      }
-    }
-    return jourInitial;
-  });
-
-  const [rang, setRang] = useState<number>(() => {
-    if (jourExplicite && feuilletInitial) return Math.max(1, feuilletInitial);
-    if (!jourExplicite && typeof window !== "undefined") {
-      const pose = lirePose(cleMarquePage(compteId));
-      if (pose?.jour === jour && typeof pose.rang === "number") {
-        return Math.max(1, pose.rang);
-      }
-    }
-    return feuilletInitial ? Math.max(1, feuilletInitial) : 1;
-  });
-
-  const [mois, setMois] = useState<string>(() =>
-    moisAffiche(moisValide(moisInitial), jour),
-  );
-
-  // Navigation locale instantanée avec déclenchement de l'animation 3D fluide
-  const allerAuFeuillet = useCallback(
-    (position: PositionFeuillet, sens?: "avant" | "arriere") => {
-      const direction = sens === "arriere" ? -1 : 1;
-      tourneRef.current?.tourner(direction);
-
-      setJour(position.jour);
-      setRang(position.rang);
-      setMois(moisDuJour(position.jour));
-
-      // Sauvegarde du marque-page
-      ecrireLocal(cleMarquePage(compteId), { jour: position.jour, rang: position.rang });
-
-      // Synchronisation de l'URL sans rechargement de page
-      if (typeof window !== "undefined") {
-        window.history.replaceState(null, "", lienFeuillet(position));
-      }
-    },
-    [compteId],
-  );
-
-  const changerMois = useCallback((nouveauMois: string) => {
-    setMois(nouveauMois);
+  /**
+   * Navigation locale instantanée entre les pages. Aucune écriture : ni
+   * marque-page (le cahier rouvre toujours sur la page du jour — un marque-
+   * page qui ramenait trois jours en arrière était une friction, pas un
+   * confort), ni URL (un `?jour=` posé par `replaceState` deviendrait un lien
+   * explicite au rechargement et réintroduirait l'ouverture dans le passé).
+   */
+  const allerALaPage = useCallback((cible: string) => {
+    setJour(cible);
+    setMois(moisDuJour(cible));
+    // Ouvrir un jour depuis l'archive ramène AU Bureau, sur ce jour-là :
+    // on ne clique pas une vignette pour rester dans la grille.
+    setVue("bureau");
   }, []);
 
-  // Synchronisation lors de l'historique navigateur (bouton Précédent / Suivant)
-  useEffect(() => {
-    function onPopState() {
-      const params = new URLSearchParams(window.location.search);
-      const j = params.get("jour");
-      const f = params.get("f");
-      if (j && jours.includes(j)) {
-        setJour(j);
-        setRang(f ? Math.max(1, parseInt(f, 10) || 1) : 1);
-        setMois(moisDuJour(j));
-      }
-    }
-    window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
-  }, [jours]);
+  const ouvrirCahier = useCallback(() => setVue("cahier"), []);
+  const fermerCahier = useCallback(() => setVue("bureau"), []);
 
-  // Synchronisation de l'URL initiale si on a repris un marque-page
-  useEffect(() => {
-    if (!jourExplicite && typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      if (!params.has("jour")) {
-        window.history.replaceState(null, "", lienFeuillet({ jour, rang }));
-      }
-    }
-  }, [jour, rang, jourExplicite]);
+  if (vue === "cahier") {
+    return (
+      <CahierArchive
+        mois={mois}
+        jours={jours}
+        seances={seances}
+        tentatives={tentatives}
+        notes={notes}
+        projets={projets}
+        donnees={donnees}
+        recherche={recherche}
+        onChangerJour={allerALaPage}
+        onChangerMois={setMois}
+        onFermer={fermerCahier}
+      />
+    );
+  }
 
   return (
-    <div className="space-y-8">
+    <>
       {compositeur}
 
-      {/* Onglets qui dépassent du cahier pour les séances ouvertes ailleurs */}
-      <div className="h-9 flex items-center w-full min-w-0 overflow-hidden">
-        <OngletsSeancesOuvertes
-          seances={seances}
-          tentatives={tentatives}
-          notes={notes}
-          projets={projets}
-          jourAffiche={jour}
-          rangAffiche={rang}
-          onNaviguer={(pos) =>
-            allerAuFeuillet(
-              pos,
-              pos.jour > jour || (pos.jour === jour && pos.rang > rang) ? "avant" : "arriere",
-            )
-          }
-        />
-      </div>
-
-      <PageCahier
+      <Bureau
         jour={jour}
         jours={jours}
-        rang={rang}
-        nombresDeFeuillets={nombresDeFeuillets}
         mois={mois}
         seances={seances}
         tentatives={tentatives}
@@ -189,18 +113,12 @@ export function CahierInteractif({
         notes={notes}
         projets={projets}
         aujourdHui={aujourdHui}
-        onChangerFeuillet={allerAuFeuillet}
-        onChangerMois={changerMois}
+        compteId={compteId}
+        onChangerJour={allerALaPage}
+        onChangerMois={setMois}
+        onOuvrirCahier={ouvrirCahier}
         seanceDeployee={seanceDeployee}
-        refTourne={tourneRef}
       />
-
-      <section className="space-y-2 border-t border-bordure pt-6">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-texte-discret">
-          Chercher dans tout le cahier
-        </h2>
-        <RechercheCahier />
-      </section>
-    </div>
+    </>
   );
 }

@@ -1,28 +1,22 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { chargerContexte } from "@/lib/store/context";
 import { SqueletteContenu } from "@/components/layout/squelette";
-import { EntetePage } from "@/components/layout/entete-page";
 import { chargerDonneesSeance } from "@/components/seances/donnees-seance";
 import { VueSeanceDetail, type EtapeRecherche } from "@/components/seances/vue-seance-detail";
-import { CahierSeances, RechercheCahier } from "@/components/seances/cahier-seances";
 import { CahierInteractif } from "@/components/seances/cahier-interactif";
 import { lireMarge } from "@/lib/store/marge";
 import {
-  construirePage,
   extraireDocumentsOperationnels,
-  feuilletsDeLaPage,
-  feuilletsParJour,
   jourDeLaSeance,
   joursDuCahier,
   jourValide,
-  pageDOuverture,
-  rangDOuverture,
-  rangValide,
 } from "@/lib/domain/pages-cahier";
+import { cleJour } from "@/lib/engine/dates";
 import { lireApercusDocuments, lireApercusSnapshots } from "@/lib/store/documents";
 import type { DocumentOperationnelDate } from "@/lib/domain/pages-cahier";
 import { ConcepteurSeance, type PresetSeance } from "@/components/seances/concepteur-seance";
-import { TEMPS_DECLARE_MAX } from "@/lib/domain/seance";
+import { statutSeance, TEMPS_DECLARE_MAX } from "@/lib/domain/seance";
 
 /*
  * Les aperçus documentaires ne servent au cahier qu'à lister les documents
@@ -40,11 +34,13 @@ async function chargerProjetsDuCahier(): Promise<DocumentOperationnelDate[]> {
 }
 
 /**
- * Pôle Cahier (ADR-061, étendu par ADR-062, refondu par ADR-079).
+ * Pôle Bureau (ADR-061, étendu par ADR-062, refondu par ADR-079 et ADR-101).
  *
- * Le cahier a des pages, et une page est un jour.
- * Le rendu initial serveur rassemble toutes les données temporelles, puis
- * la navigation entre les feuillets s'effectue instantanément côté client (0 ms).
+ * Une page est un jour, et le pôle a deux lectures de la même route :
+ * le **Bureau** — aujourd'hui, où l'on travaille — et le **Cahier**
+ * (`?vue=cahier`) — l'archive, où l'on relit. Le rendu initial serveur
+ * rassemble toutes les données temporelles une fois ; la navigation entre les
+ * jours comme entre les deux modes s'effectue ensuite côté client (0 ms).
  */
 export default async function PageSeances(props: {
   searchParams: Promise<{
@@ -54,9 +50,10 @@ export default async function PageSeances(props: {
     evaluer?: string;
     bilan?: string;
     abandon?: string;
+    sas?: string;
     q?: string;
+    vue?: string;
     jour?: string;
-    f?: string;
     mois?: string;
     focus?: string;
     composer?: string;
@@ -77,53 +74,50 @@ export default async function PageSeances(props: {
   if (session && recherche.focus === "1") {
     return (
       <Suspense fallback={<SqueletteContenu />}>
-        <VueSeanceDetail id={session} exerciceDemande={exercice} recherche={recherche} />
+        <VueSeanceDetail
+          id={session}
+          exerciceDemande={exercice}
+          recherche={recherche}
+          sas={recherche.sas === "1"}
+        />
       </Suspense>
     );
   }
 
   /*
-   * La recherche est l'index du cahier, pas une page : elle traverse les jours.
-   * Elle garde donc la liste chronologique, et ne tourne pas de page.
+   * Plus d'`EntetePage` (ADR-101).
+   *
+   * Elle écrivait « Cahier » et une phrase d'explication au-dessus d'un héros
+   * qui répétait déjà la date : deux en-têtes pour une page. Le Bureau porte
+   * son propre titre — la date du jour — et le Cahier le sien. Une surface de
+   * concentration n'a pas besoin qu'on lui rappelle son nom à chaque ouverture.
+   *
+   * La recherche n'est pas une page non plus : c'est le Cahier ouvert sur un
+   * terme (`vueInitiale`), et il traverse toutes les dates comme avant.
    */
-  if (recherche.q?.trim()) {
-    return (
-      <>
-        <EntetePage titre="Cahier" sousTitre="Tous les résultats, toutes dates confondues." />
-        <Suspense fallback={<SqueletteContenu />}>
-          <ResultatsRecherche recherche={recherche.q} />
-        </Suspense>
-      </>
-    );
-  }
-
   return (
-    <>
-      <EntetePage
-        titre="Cahier"
-        sousTitre="Faites une séance, puis retrouvez ici l’essentiel de ce que vous en avez tiré."
+    <Suspense fallback={<SqueletteContenu />}>
+      <ContenuBureau
+        jourDemande={recherche.jour}
+        moisDemande={recherche.mois}
+        vueDemandee={recherche.vue}
+        rechercheTexte={recherche.q}
+        session={session}
+        exercice={exercice}
+        recherche={recherche}
+        sasDemande={recherche.sas === "1"}
+        {...(recherche.composer === "1"
+          ? {
+              composition: {
+                codesParametres: recherche.code,
+                intention: recherche.intention,
+                sansTheme: recherche["sans-theme"],
+                temps: recherche.temps,
+              },
+            }
+          : {})}
       />
-      <Suspense fallback={<SqueletteContenu />}>
-        <ContenuCahier
-          jourDemande={recherche.jour}
-          feuilletDemande={recherche.f}
-          moisDemande={recherche.mois}
-          session={session}
-          exercice={exercice}
-          recherche={recherche}
-          {...(recherche.composer === "1"
-            ? {
-                composition: {
-                  codesParametres: recherche.code,
-                  intention: recherche.intention,
-                  sansTheme: recherche["sans-theme"],
-                  temps: recherche.temps,
-                },
-              }
-            : {})}
-        />
-      </Suspense>
-    </>
+    </Suspense>
   );
 }
 
@@ -184,46 +178,38 @@ async function CompositeurDepuisLien({
   );
 }
 
-async function ResultatsRecherche({ recherche }: { recherche: string }) {
-  const [ctx, donnees, projets] = await Promise.all([
-    chargerContexte(),
-    chargerDonneesSeance(),
-    chargerProjetsDuCahier(),
-  ]);
-  return (
-    <div className="space-y-4">
-      <RechercheCahier recherche={recherche} />
-      <CahierSeances
-        seances={ctx.donnees.sessions}
-        donnees={donnees}
-        recherche={recherche}
-        projets={projets}
-      />
-    </div>
-  );
-}
-
 /**
- * Le cahier, ouvert sur une page.
+ * Le pôle, ouvert sur l'un de ses deux modes.
  *
  * Toutes les données sont assemblées ici une seule fois, puis confiées
- * au conteneur interactif pour un feuilletage instantané côté client.
+ * au conteneur interactif pour une navigation instantanée côté client.
+ * Le Bureau ouvre toujours sur la page du jour : un marque-page qui ramenait
+ * la lecture plusieurs jours en arrière était une friction, pas un confort.
+ * Seuls les liens explicites (`?jour=`, `?session=`) ouvrent ailleurs — et
+ * `joursDuCahier` garantit qu'aujourd'hui a toujours une page.
  */
-async function ContenuCahier({
+async function ContenuBureau({
   jourDemande,
-  feuilletDemande,
   moisDemande,
+  vueDemandee,
+  rechercheTexte,
   session,
   exercice,
   recherche,
+  sasDemande = false,
   composition,
 }: {
   jourDemande?: string;
-  feuilletDemande?: string;
   moisDemande?: string;
+  /** `cahier` ouvre l'archive ; toute autre valeur ouvre le Bureau. */
+  vueDemandee?: string;
+  /** Terme de recherche : implique le mode Cahier. */
+  rechercheTexte?: string;
   session?: string;
   exercice?: string;
   recherche?: EtapeRecherche;
+  /** L'URL porte `sas=1` : la séance dépliée ouvre sur son sas (ADR-101). */
+  sasDemande?: boolean;
   /** Présente quand `composer=1` : le compositeur s'ouvre au-dessus de la page. */
   composition?: DemandeComposition;
 }) {
@@ -244,38 +230,49 @@ async function ContenuCahier({
   const seanceOuverte = session
     ? ctx.donnees.sessions.find((candidate) => candidate.id === session)
     : undefined;
-  const jourExplicite = jourValide(jourDemande) ?? (seanceOuverte ? jourDeLaSeance(seanceOuverte) : null);
-  const jour = jourExplicite ?? pageDOuverture(null, jours, ctx.now);
 
-  const entreesDuCahier = { seances: ctx.donnees.sessions, notes: marge, projets };
-  const nombresDeFeuillets = feuilletsParJour(jours, entreesDuCahier);
-  const feuilletsDuJour = feuilletsDeLaPage(construirePage(jour, entreesDuCahier));
+  /*
+   * Travailler ouvre le plein écran (ADR-101, amende ADR-079).
+   *
+   * Une séance qui attend un geste ne se déroule plus encastrée dans la page
+   * du jour : le déroulé complet posait ses propres en-tête, barre
+   * d'avancement et boutons de sortie SOUS ceux de la page, et les deux jeux
+   * se contredisaient. La page du jour garde la séance — sa carte, son
+   * avancement, ses activités — et « Continuer » entre dans le travail.
+   *
+   * Une séance close, elle, reste dépliable sur place : relire ne demande
+   * aucun geste, donc rien ne justifie de quitter la page.
+   */
+  if (seanceOuverte) {
+    const statutOuvert = statutSeance(seanceOuverte);
+    if (statutOuvert === "en-cours" || statutOuvert === "planifiee") {
+      const suite = new URLSearchParams({ session: seanceOuverte.id, focus: "1" });
+      if (exercice) suite.set("exercice", exercice);
+      if (sasDemande) suite.set("sas", "1");
+      redirect(`/seances?${suite.toString()}`);
+    }
+  }
+  const jour =
+    jourValide(jourDemande) ??
+    (seanceOuverte ? jourDeLaSeance(seanceOuverte) : null) ??
+    cleJour(ctx.now);
 
-  const rangDeLaSeance = seanceOuverte
-    ? feuilletsDuJour.findIndex(
-        (feuillet) => feuillet.type === "seance" && feuillet.seance.id === seanceOuverte.id,
-      ) + 1
-    : 0;
-  const rang = rangDOuverture(
-    rangDeLaSeance > 0 ? rangDeLaSeance : rangValide(feuilletDemande),
-    feuilletsDuJour.length,
-  );
+  const terme = rechercheTexte?.trim();
 
   return (
     <CahierInteractif
-      compteId={ctx.donnees.user.id}
       jourInitial={jour}
-      jourExplicite={jourExplicite !== null}
-      feuilletInitial={rang}
       moisInitial={moisDemande}
+      vueInitiale={vueDemandee === "cahier" || terme ? "cahier" : "bureau"}
+      {...(terme ? { recherche: terme } : {})}
       jours={jours}
-      nombresDeFeuilletsMap={Array.from(nombresDeFeuillets.entries())}
       seances={ctx.donnees.sessions}
       tentatives={ctx.donnees.attempts}
       donnees={donnees}
       notes={marge}
       projets={projets}
       aujourdHuiIso={ctx.now.toISOString()}
+      compteId={ctx.donnees.user.id}
       compositeur={composition ? <CompositeurDepuisLien {...composition} /> : undefined}
       seanceDeployee={
         seanceOuverte
@@ -286,6 +283,7 @@ async function ContenuCahier({
                   id={seanceOuverte.id}
                   exerciceDemande={exercice}
                   recherche={recherche}
+                  sas={sasDemande}
                   plein={false}
                 />
               ),

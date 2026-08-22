@@ -253,4 +253,50 @@ export function verifier(
   throw new Error(`Supabase (${contexte}) : ${detail}`);
 }
 
+/**
+ * L'erreur dit-elle « cette table n'existe pas » ?
+ *
+ * `PGRST205` est le code que PostgREST renvoie quand la relation demandée est
+ * absente de son cache de schéma, `42P01` celui que PostgreSQL renvoie pour
+ * `undefined_table`. Les deux disent la même chose : **la migration n'a pas
+ * été appliquée à cette base.**
+ *
+ * ⚠️ Ce prédicat ne doit servir qu'à ça. Il ne couvre ni un refus RLS
+ * (`42501`), ni une coupure réseau, ni une colonne manquante — trois cas où
+ * avaler l'erreur ferait croire à une lecture réussie et vide. La règle du
+ * `verifier` ci-dessus reste la norme : une erreur Supabase se relance.
+ *
+ * La seule exception admise est une **surface optionnelle non déployée**,
+ * c'est-à-dire une lecture dont l'absence retire une fonctionnalité sans
+ * fausser aucune mesure. Ce n'est pas « fabriquer une valeur à partir d'une
+ * donnée invalide » (invariant 6) : il n'y a pas de donnée du tout, et
+ * l'appelant doit le dire à voix haute — voir `signalerTableAbsente`.
+ */
+export function estTableAbsente(erreur: { code?: string } | null): boolean {
+  return erreur?.code === "PGRST205" || erreur?.code === "42P01";
+}
+
+/** Les tables déjà signalées, pour ne pas répéter l'avertissement à chaque rendu. */
+const tablesSignalees = new Set<string>();
+
+/**
+ * Journalise une table absente, une fois par table et par processus.
+ *
+ * Nommer la migration est le point : sans elle, l'avertissement est un bruit
+ * de plus ; avec elle, il dit exactement quel fichier n'a pas été joué. Le
+ * 22/08/2026, six tables `carte_globale_*` manquaient à la base alors que
+ * leurs migrations existaient depuis deux jours et que `schema.sql` les
+ * décrivait — l'application entière tombait, sans qu'aucun message ne
+ * désigne la cause.
+ */
+export function signalerTableAbsente(table: string, migration: string): void {
+  if (tablesSignalees.has(table)) return;
+  tablesSignalees.add(table);
+  console.warn(
+    `[schéma] La table « ${table} » est absente de cette base : la migration ` +
+      `« ${migration} » n'y a jamais été appliquée. La surface qui en dépend ` +
+      `est rendue vide — ce n'est pas une donnée, c'est une fonctionnalité non déployée.`,
+  );
+}
+
 export type ClientSupabase = SupabaseClient;

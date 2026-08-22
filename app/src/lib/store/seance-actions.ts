@@ -305,7 +305,12 @@ export async function demarrerSeance(seanceId: string): Promise<void> {
     dorsale,
   );
   revalidatePath("/", "layout");
-  redirect(`/seances?session=${encodeURIComponent(seanceId)}`);
+  /*
+   * `sas=1` : la coupure entre décider et travailler (ADR-101). Le paramètre
+   * porte l'état — aucune clé navigateur — et `SasSeance` le retire de l'URL
+   * dès l'affichage, pour qu'un rechargement ne le rejoue pas.
+   */
+  redirect(`/seances?session=${encodeURIComponent(seanceId)}&focus=1&sas=1`);
 }
 
 /**
@@ -543,7 +548,65 @@ export async function reprendreSeance(seanceId: string): Promise<void> {
     dorsale,
   );
   revalidatePath("/", "layout");
-  redirect(`/seances?session=${encodeURIComponent(seanceId)}`);
+  // Reprendre est une entrée en travail comme une autre : même sas.
+  redirect(`/seances?session=${encodeURIComponent(seanceId)}&focus=1&sas=1`);
+}
+
+/**
+ * Renonce définitivement à une séance abandonnée.
+ *
+ * Une séance `abandonnee` qui garde des exercices jamais ouverts reste « en
+ * suspens » : le cahier la montre tant qu'elle demande un geste. Mais quand ce
+ * geste ne viendra jamais — la séance a été oubliée, remplacée, abandonnée de
+ * bon cœur — aucune porte de sortie n'existait : seule « Reprendre » était
+ * proposée, et l'onglet restait ouvert indéfiniment.
+ *
+ * Le geste écrit `renonceeLe` : un fait daté, posé une fois. Il ne supprime
+ * rien — la séance reste au cahier avec ses tentatives et son résultat — il
+ * retire seulement l'attente d'une reprise qui n'aura pas lieu
+ * (`peutReprendreSeance` devient faux).
+ *
+ * ## Gardes
+ *
+ * - déjà renoncée : idempotent, rien ne se réécrit (leçon d'ADR-072) ;
+ * - en cours ou planifiée : erreur explicite — ces états ont leurs propres
+ *   sorties (« Abandonner », « Annuler ») ;
+ * - terminée, ou abandonnée sans rien à reprendre : erreur explicite — il
+ *   n'y a précisément rien à renoncer.
+ */
+export async function renoncerSeance(seanceId: string): Promise<void> {
+  const dorsale = await dorsaleCompte();
+  const seance = await seanceDuCompte(seanceId, dorsale);
+  const statut = statutSeance(seance);
+
+  if (seance.renonceeLe) {
+    return;
+  }
+  if (statut === "planifiee") {
+    throw new Error(
+      "Cette séance n'a pas commencé : elle s'annule plutôt qu'elle ne se renonce.",
+    );
+  }
+  if (statut === "en-cours") {
+    throw new Error(
+      "Cette séance est en cours : abandonne-la d'abord si tu ne veux pas la mener.",
+    );
+  }
+
+  const tentatives = await lire("attempts", dorsale);
+  if (!peutReprendreSeance(seance, avancementSeance(seance, tentatives))) {
+    throw new Error(
+      "Cette séance n'attend plus rien : elle est déjà refermée dans le cahier.",
+    );
+  }
+
+  await modifier(
+    "sessions",
+    seanceId,
+    { renonceeLe: new Date().toISOString() },
+    dorsale,
+  );
+  revalidatePath("/", "layout");
 }
 
 /**

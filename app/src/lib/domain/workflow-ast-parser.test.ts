@@ -30,7 +30,7 @@ function analysesDeBase(): Map<string, FichierAstAnalyse> {
 export const NAVIGATION = [
   { href: "/progression", libelle: "Progression" },
   { href: "/atelier", libelle: "Atelier" },
-  { href: "/seances", libelle: "Cahier" },
+  { href: "/seances", libelle: "Bureau" },
   { href: "/aide", libelle: "Aide" },
 ];
 `,

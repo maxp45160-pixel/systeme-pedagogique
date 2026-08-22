@@ -20,7 +20,7 @@
 
 import { useState, useTransition } from "react";
 import { ChatTuteur, type EtatContexteTuteur } from "@/components/tuteur/chat";
-import { classesIntercalaire, classesLienBouton, cx } from "@/components/ui/primitives";
+import { classesOutilSeance, classesLienBouton, cx } from "@/components/ui/primitives";
 import { Modale } from "@/components/ui/modale";
 import { IconeMessage } from "@/components/ui/icones";
 import type {
@@ -79,7 +79,7 @@ export function TiroirTuteur({
    * `barre-contextuelle` : actions directes. `intercalaire` : la languette du
    * cahier, pour la rangée d'outils d'une séance en cours.
    */
-  declencheur?: "bouton" | "flottant" | "barre-contextuelle" | "intercalaire";
+  declencheur?: "bouton" | "flottant" | "barre-contextuelle" | "outil";
   /** Liste d'actions prédéfinies à afficher en barre contextuelle. */
   actionsContextuelles?: ActionContextuelleTuteur[];
 }) {
@@ -152,8 +152,8 @@ export function TiroirTuteur({
           className={
             flottant
               ? CLASSES_FLOTTANT
-              : declencheur === "intercalaire"
-                ? classesIntercalaire(ouvert)
+              : declencheur === "outil"
+                ? classesOutilSeance(ouvert)
                 : classesLienBouton("secondaire", "petite")
           }
         >

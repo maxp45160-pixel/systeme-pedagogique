@@ -1,6 +1,5 @@
 /**
- * Le cahier a des pages, et une page est un jour — qu'un jour chargé étale sur
- * plusieurs feuillets (voir `feuilletsDeLaPage`, plus bas).
+ * Le cahier a des pages, et une page est un jour — rendue d'un seul tenant.
  *
  * ## Pourquoi le jour, et pourquoi rien n'est stocké
  *
@@ -17,13 +16,18 @@
  * ## Ce que ce module ne fait pas
  *
  * Il ne calcule **aucune mesure**. Il range ce qui existe par jour et sait quel
- * jour vient avant ou après. Le tri des séances à l'intérieur d'une page relève
+ * jour vient avant ou après. L'ordre des séances à l'intérieur d'une page relève
  * de l'affichage, pas d'un jugement sur leur importance.
  */
 
 import { cleJour } from "@/lib/engine/dates";
-import { statutSeance } from "./seance";
-import type { LearningSession } from "./types";
+import {
+  avancementSeance,
+  peutReprendreSeance,
+  statutSeance,
+  tentativeDeSeance,
+} from "./seance";
+import type { ExerciseAttempt, LearningSession } from "./types";
 import type { ApercuDocument, ResumeSnapshotDocument } from "@/lib/documents/types-documents";
 
 /** Une ligne de marge, vue d'ici : seule sa date de rédaction compte. */
@@ -182,230 +186,141 @@ export function construirePage<
 }
 
 /* ------------------------------------------------------------------ */
-/* Feuillets — un jour porte une à plusieurs pages                      */
+/* Résumé d'un jour — ce que l'archive affiche sans ouvrir la page      */
 /* ------------------------------------------------------------------ */
 
 /**
- * Un feuillet : ce qu'on lit d'un seul tenant avant de tourner.
+ * Ce qu'un jour porte, réduit à ce qui tient sur une vignette.
  *
- * ## Pourquoi le jour ne suffit plus
+ * ⚠️ **Aucune de ces valeurs n'est stockée, et aucune n'est une mesure.**
+ * Ce sont des comptes relus à chaque affichage (P1, couche 3) : le jour où
+ * une tentative change de résultat, le résumé change avec elle. Écrire ces
+ * nombres quelque part créerait une seconde vérité libre de diverger.
  *
- * Un jour calme tient sur une page. Un jour à trois séances tenait, lui, sur
- * une page de trois écrans de haut — où « tourner la page » ne voulait plus
- * rien dire, et où la séance ouverte se battait avec les traces et la marge
- * pour l'attention.
- *
- * ## La coupe est lue, jamais calculée
- *
- * Une **séance** a un début, une fin, une durée, un bilan : c'est une frontière
- * qui existe déjà dans les données, et elle vaut un feuillet. Le reste du jour
- * — traces hors séance, projets, marge — tient sur un feuillet de **clôture**.
- *
- * Découper à la hauteur produirait une coupe différente selon l'écran, le zoom
- * et la longueur d'un énoncé : une frontière fabriquée, donc fausse (P1). Le
- * rang d'un feuillet doit pouvoir vivre dans une URL et désigner demain la même
- * chose qu'aujourd'hui.
+ * `dureeMin` reste `undefined` quand aucune séance du jour n'en porte : zéro
+ * dirait « ce jour-là, le travail a duré zéro minute », ce qui est faux —
+ * l'absence de mesure n'est pas une durée nulle (P2, invariant 3).
  */
-export type Feuillet<
-  N extends NoteDatee = NoteDatee,
-  P extends DocumentOperationnelDate = DocumentOperationnelDate,
-> = {
+export interface ResumeJour {
   jour: string;
-  /** Position dans le jour, à partir de 1 — ce qui voyage dans l'URL. */
-  rang: number;
-  /** Nombre de feuillets que porte ce jour. */
-  total: number;
-} & (
-  | { type: "seance"; seance: LearningSession }
-  | { type: "cloture"; traces: LearningSession[]; notes: N[]; projets: P[] }
-);
-
-/**
- * Les feuillets d'un jour, dans l'ordre où on les tourne.
- *
- * Le feuillet de clôture n'apparaît que s'il porte quelque chose — sauf sur un
- * jour sans aucune séance, où il est le feuillet unique : une page vierge reste
- * une page, c'est là qu'on écrit.
- */
-export function feuilletsDeLaPage<
-  N extends NoteDatee,
-  P extends DocumentOperationnelDate = DocumentOperationnelDate,
->(page: PageCahier<N, P>): Feuillet<N, P>[] {
-  const cloture = {
-    type: "cloture" as const,
-    traces: page.traces,
-    notes: page.notes,
-    projets: page.projets ?? [],
-  };
-  const clotureUtile =
-    cloture.traces.length > 0 || cloture.notes.length > 0 || cloture.projets.length > 0;
-
-  const contenus: Array<
-    { type: "seance"; seance: LearningSession } | typeof cloture
-  > = page.seances.map((seance) => ({ type: "seance" as const, seance }));
-  if (clotureUtile || contenus.length === 0) contenus.push(cloture);
-
-  return contenus.map((contenu, index) => ({
-    ...contenu,
-    jour: page.jour,
-    rang: index + 1,
-    total: contenus.length,
-  }));
-}
-
-/** Le rang lu dans l'URL. Un rang n'est ni négatif, ni décimal, ni deviné. */
-export function rangValide(brut: string | undefined): number | null {
-  if (!brut || !/^\d+$/.test(brut)) return null;
-  const rang = Number(brut);
-  return rang >= 1 ? rang : null;
+  /** Séances composées à la main. */
+  seances: number;
+  /** Exercices clos hors séance (`genereAutomatiquement`). */
+  traces: number;
+  notes: number;
+  projets: number;
+  reussis: number;
+  partiels: number;
+  nonAboutis: number;
+  /** Au moins une séance de ce jour attend encore un geste. */
+  ouverte: boolean;
+  /** Somme des durées notées, en minutes. Absente si aucune n'est notée. */
+  dureeMin?: number;
+  /** L'intitulé le plus parlant : l'intention de la première séance du jour. */
+  titre?: string;
 }
 
 /**
- * Le rang sur lequel ouvrir le jour.
+ * Le résumé d'un jour.
  *
- * Un rang hors bornes — une séance supprimée depuis, un lien recopié à la main
- * — ne doit pas rendre une page vide : on retombe sur le dernier feuillet
- * existant plutôt que sur rien.
+ * Les résultats sont comptés sur les tentatives **rattachées aux activités
+ * des séances du jour** (`tentativeDeSeance`), pas sur toutes les tentatives
+ * portant cette date : c'est la même jonction que partout ailleurs, et la
+ * seule qui distingue « fait pendant cette séance » de « fait un jour ».
  */
-export function rangDOuverture(rang: number | null, total: number): number {
-  if (total < 1) return 1;
-  if (!rang) return 1;
-  return Math.min(Math.max(rang, 1), total);
-}
-
-/** Où l'on se trouve dans le cahier : un jour, et un rang dans ce jour. */
-export interface PositionFeuillet {
-  jour: string;
-  rang: number;
-}
-
-/** Trouve la position précise (jour et rang de feuillet) d'une séance dans le cahier. */
-export function positionDeLaSeance(
-  seance: LearningSession,
-  entrees: {
-    seances: readonly LearningSession[];
-    notes?: readonly NoteDatee[];
-    projets?: readonly DocumentOperationnelDate[];
-  },
-): PositionFeuillet {
-  const jour = jourDeLaSeance(seance);
-  const page = construirePage(jour, {
-    seances: entrees.seances,
-    notes: entrees.notes ?? [],
-    projets: entrees.projets ?? [],
-  });
-  const feuillets = feuilletsDeLaPage(page);
-  const index = feuillets.findIndex(
-    (feuillet) => feuillet.type === "seance" && feuillet.seance.id === seance.id,
-  );
-  return {
-    jour,
-    rang: index >= 0 ? index + 1 : 1,
-  };
-}
-
-/** Trouve la position précise (jour et rang de feuillet) d'un projet dans le cahier. */
-export function positionDuProjet(
-  projet: DocumentOperationnelDate,
-  entrees: {
-    seances: readonly LearningSession[];
-    notes?: readonly NoteDatee[];
-    projets?: readonly DocumentOperationnelDate[];
-  },
-): PositionFeuillet {
-  const jour = jourDuDocument(projet);
-  const page = construirePage(jour, {
-    seances: entrees.seances,
-    notes: entrees.notes ?? [],
-    projets: entrees.projets ?? [],
-  });
-  const feuillets = feuilletsDeLaPage(page);
-  const index = feuillets.findIndex(
-    (feuillet) => feuillet.type === "cloture" && (feuillet.projets ?? []).some((p) => p.id === projet.id),
-  );
-  return {
-    jour,
-    rang: index >= 0 ? index + 1 : (feuillets.length || 1),
-  };
-}
-
-/**
- * Le feuillet précédent et le suivant, en traversant les jours.
- *
- * Tourner ne s'arrête pas au bord d'un jour : au dernier feuillet, la page
- * suivante est le premier feuillet du jour d'après ; au premier, la précédente
- * est le **dernier** feuillet du jour d'avant — on arrive par la fin, comme
- * dans un cahier qu'on remonte.
- *
- * Le comptage est passé en paramètre : ce module ne va pas chercher les données
- * lui-même, et l'appelant sait déjà combien de feuillets porte chaque jour.
- */
-export function voisinsDuFeuillet(
-  position: PositionFeuillet,
-  jours: readonly string[],
-  nombreDeFeuillets: (jour: string) => number,
-): { precedent: PositionFeuillet | null; suivant: PositionFeuillet | null } {
-  const { precedente, suivante } = voisinesDeLaPage(position.jour, jours);
-  const total = Math.max(1, nombreDeFeuillets(position.jour));
-  const rang = rangDOuverture(position.rang, total);
-
-  const precedent = rang > 1
-    ? { jour: position.jour, rang: rang - 1 }
-    : precedente
-      ? { jour: precedente, rang: Math.max(1, nombreDeFeuillets(precedente)) }
-      : null;
-
-  const suivant = rang < total
-    ? { jour: position.jour, rang: rang + 1 }
-    : suivante
-      ? { jour: suivante, rang: 1 }
-      : null;
-
-  return { precedent, suivant };
-}
-
-/**
- * Combien de feuillets porte chaque jour du cahier.
- *
- * Une seule construction pour tout le cahier : la navigation et le folio ont
- * besoin des voisins, et recompter jour par jour au fil des clics reviendrait
- * à relire toutes les séances à chaque flèche.
- */
-export function feuilletsParJour<
+export function resumeDuJour<
   N extends NoteDatee,
   P extends DocumentOperationnelDate = DocumentOperationnelDate,
 >(
+  jour: string,
+  entrees: {
+    seances: readonly LearningSession[];
+    notes: readonly N[];
+    projets?: readonly P[];
+    tentatives: readonly ExerciseAttempt[];
+  },
+): ResumeJour {
+  const page = construirePage(jour, entrees);
+  const tentatives = [...entrees.tentatives];
+
+  let reussis = 0;
+  let partiels = 0;
+  let nonAboutis = 0;
+  let duree: number | undefined;
+  let ouverte = false;
+
+  for (const seance of [...page.seances, ...page.traces]) {
+    for (const activite of seance.activites) {
+      if (activite.type !== "exercice") continue;
+      const tentative = tentativeDeSeance(seance, activite.ref, tentatives);
+      if (!tentative || tentative.statut !== "terminee") continue;
+      if (tentative.resultat === "reussi") reussis += 1;
+      else if (tentative.resultat === "partiel") partiels += 1;
+      else nonAboutis += 1;
+    }
+
+    if (typeof seance.dureeMin === "number") duree = (duree ?? 0) + seance.dureeMin;
+
+    const statut = statutSeance(seance);
+    if (
+      statut === "en-cours" ||
+      statut === "planifiee" ||
+      peutReprendreSeance(seance, avancementSeance(seance, tentatives))
+    ) {
+      ouverte = true;
+    }
+  }
+
+  const titre =
+    page.seances[0]?.besoinDeclare?.intention?.trim() ||
+    page.seances[0]?.activites[0]?.libelle ||
+    page.projets[0]?.titre ||
+    undefined;
+
+  return {
+    jour,
+    seances: page.seances.length,
+    traces: page.traces.length,
+    notes: page.notes.length,
+    projets: page.projets.length,
+    reussis,
+    partiels,
+    nonAboutis,
+    ouverte,
+    ...(duree === undefined ? {} : { dureeMin: duree }),
+    ...(titre ? { titre } : {}),
+  };
+}
+
+/**
+ * Les résumés des jours d'un mois, du plus récent au plus ancien.
+ *
+ * L'ordre est inversé par rapport à `joursDuCahier` : on relit un mois en
+ * partant de ce qui vient de se passer, alors qu'on feuillette le cahier dans
+ * le sens de l'écriture.
+ */
+export function resumesDuMois<
+  N extends NoteDatee,
+  P extends DocumentOperationnelDate = DocumentOperationnelDate,
+>(
+  mois: string,
   jours: readonly string[],
   entrees: {
     seances: readonly LearningSession[];
     notes: readonly N[];
     projets?: readonly P[];
+    tentatives: readonly ExerciseAttempt[];
   },
-): Map<string, number> {
-  return new Map(
-    jours.map((jour) => [jour, feuilletsDeLaPage(construirePage(jour, entrees)).length]),
-  );
+): ResumeJour[] {
+  return jours
+    .filter((jour) => moisDuJour(jour) === mois)
+    .sort((a, b) => b.localeCompare(a))
+    .map((jour) => resumeDuJour(jour, entrees));
 }
 
-/**
- * Le folio : le numéro du feuillet dans le cahier entier, et le total.
- *
- * C'est le seul repère qui ne bouge pas quand un jour se remplit ailleurs dans
- * la page — il compte des feuillets, pas des pixels.
- */
-export function folioDuFeuillet(
-  position: PositionFeuillet,
-  jours: readonly string[],
-  nombres: ReadonlyMap<string, number>,
-): { folio: number; total: number } {
-  const nombreDe = (jour: string) => Math.max(1, nombres.get(jour) ?? 1);
-  const total = jours.reduce((somme, jour) => somme + nombreDe(jour), 0);
-  const avant = jours
-    .filter((candidat) => candidat < position.jour)
-    .reduce((somme, jour) => somme + nombreDe(jour), 0);
-  const rang = rangDOuverture(position.rang, nombreDe(position.jour));
-  return { folio: avant + rang, total };
-}
+/* ------------------------------------------------------------------ */
+/* Navigation entre les pages                                           */
+/* ------------------------------------------------------------------ */
 
 /**
  * La page précédente et la suivante, parmi celles qui existent.
@@ -425,6 +340,33 @@ export function voisinesDeLaPage(
     precedente: precedents.length > 0 ? precedents[precedents.length - 1] : null,
     suivante: suivants.length > 0 ? suivants[0] : null,
   };
+}
+
+/**
+ * Les sept jours de la semaine qui contient `jour`, du lundi au dimanche.
+ *
+ * Sert la bande de semaine du Bureau : sept points valent mieux qu'une phrase
+ * « 2 séances · 3 notes » — on lit d'un coup où l'on a travaillé, et le regard
+ * ne s'arrête pas sur un compte qui ne demande rien.
+ *
+ * ⚠️ Midi, comme `grilleMois`, et pour la même raison : à minuit, un passage à
+ * l'heure d'été suffit à décaler la semaine entière d'un cran, deux fois par
+ * an, sans que rien ne le signale.
+ */
+export function semaineDuJour(jour: string): string[] {
+  const date = new Date(`${jour}T12:00:00`);
+  // `getDay()` rend 0 pour dimanche : on décale pour une semaine qui commence
+  // le lundi, comme un agenda français.
+  const lundi = new Date(date);
+  lundi.setDate(date.getDate() - ((date.getDay() + 6) % 7));
+
+  const semaine: string[] = [];
+  for (let index = 0; index < 7; index += 1) {
+    const courant = new Date(lundi);
+    courant.setDate(lundi.getDate() + index);
+    semaine.push(cleJour(courant));
+  }
+  return semaine;
 }
 
 /* ------------------------------------------------------------------ */
@@ -509,21 +451,4 @@ export function grilleMois(
     if (cases[6].dansLeMois === false && moisDuJour(cases[6].jour) > mois) break;
   }
   return semaines;
-}
-
-/**
- * Sur quelle page ouvrir le cahier.
- *
- * Le marque-page l'emporte — c'est la réponse à « reprendre là où je m'étais
- * arrêté » — mais seulement s'il désigne une page qui existe encore. Un
- * marque-page périmé (le jour d'une séance annulée depuis) ne doit pas ouvrir
- * une page vide ; on retombe alors sur le jour courant, qui existe toujours.
- */
-export function pageDOuverture(
-  marquePage: string | null | undefined,
-  jours: readonly string[],
-  aujourdHui: Date,
-): string {
-  if (marquePage && jours.includes(marquePage)) return marquePage;
-  return cleJour(aujourdHui);
 }

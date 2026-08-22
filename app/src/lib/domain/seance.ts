@@ -441,6 +441,11 @@ export function resumeSeanceAbandonnee(avancement: AvancementSeance): string {
  * qui n'a pas été traité. Il faut donc qu'il reste quelque chose à traiter —
  * une séance abandonnée dont tous les exercices ont été menés n'a rien à
  * reprendre, elle a seulement été close par la mauvaise porte.
+ *
+ * Une séance **renoncée** (`renonceeLe` posé, voir `renoncerSeance`) ne se
+ * reprend plus : son auteur a déclaré qu'il n'en ferait rien. Le geste est
+ * daté et définitif — il sort la séance de la file « en suspens » au lieu de
+ * la laisser y attendre un geste qui ne viendra pas.
  */
 export function peutReprendreSeance(
   seance: LearningSession,
@@ -448,6 +453,7 @@ export function peutReprendreSeance(
 ): boolean {
   return (
     statutSeance(seance) === "abandonnee" &&
+    !seance.renonceeLe &&
     avancement.restants.length + avancement.enCours.length > 0
   );
 }
