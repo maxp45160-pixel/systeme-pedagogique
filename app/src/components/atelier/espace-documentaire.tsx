@@ -980,17 +980,20 @@ export function EspaceDocumentaire({
 
   return (
     /*
-     * `isolate` : la feuille du filigrane passe en `-z-10` — derrière tout le
-     * contenu de la section, jamais devant les cartes, mais toujours au-dessus
-     * du fond. Sans elle, un `z` négatif descendrait sous le `bg-surface` de
-     * la section et la feuille serait invisible.
+     * `isolate` : confine l'empilement de la feuille à la section. Elle est
+     * laissée en z auto (pas `-z-10`) : les conteneurs de vue portent des
+     * fonds propres (`bg-surface`, `bg-surface-2/30`) qui, peints après un
+     * enfant en z négatif, l'enterrent complètement. En z auto et premier
+     * enfant, elle se pose au-dessus des fonds plats mais reste sous le
+     * contenu positionné ou transformé qui suit dans le DOM — à 4-5 %
+     * d'opacité, le recouvrement éventuel de texte est imperceptible.
      */
     <section className="relative isolate -mx-2 flex flex-col overflow-hidden rounded-xl border border-bordure bg-surface shadow-[var(--ombre-levee)] lg:-mx-6 2xl:-mx-8 lg:h-[calc(100vh-12.5rem)] lg:min-h-[34rem]">
       {/*
        * Filigrane des grands espaces vides : l'Atelier peut ne montrer que
        * quelques cartes sur une vaste surface ; la feuille habille ce silence.
        */}
-      <Filigrane className="-bottom-16 -right-12 -z-10 size-72 opacity-[0.04]" />
+      <Filigrane className="-bottom-16 -right-12 size-72 opacity-[0.05]" />
       {contexteOuvert && contexteDisponible && (
         <button
           type="button"

@@ -256,7 +256,7 @@ export function Modale({
          * derrière tout le contenu (`isolate` + `-z-10`).
          */}
         {position === "laterale" && (
-          <Filigrane className="-bottom-auto -top-10 -right-6 -z-10 size-40" />
+          <Filigrane className="bottom-auto -top-10 -right-6 -z-10 size-40" />
         )}
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-bordure px-5 py-4">
           <div className="min-w-0">
