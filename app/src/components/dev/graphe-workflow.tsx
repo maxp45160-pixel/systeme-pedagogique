@@ -41,6 +41,7 @@ import {
   matriceAdjacence,
   type ExportJSON,
 } from "@/lib/domain/workflow-export";
+import { conserverPositions, liensRelies, mouvementReduit, observerTailleCanvas } from "@/lib/ui/graphe-d3";
 
 /* ------------------------------------------------------------------ */
 /* Types internes                                                      */
@@ -645,9 +646,7 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
   /* ── Simulation d3-force ── */
 
   useEffect(() => {
-    const reduitMouvement =
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduitMouvement = mouvementReduit();
 
     const compteurParColonne = new Map<number, number>();
     const noeudsSimules: NoeudSimule[] = noeudsVisibles.map((n) => {
@@ -676,19 +675,9 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
     const parId = new Map(noeudsSimules.map((n) => [n.id, n]));
 
     // Conserver les positions si existantes
-    for (const ancien of noeudsRef.current) {
-      const suivant = parId.get(ancien.id);
-      if (suivant && ancien.x !== undefined) {
-        suivant.x = ancien.x;
-        suivant.y = ancien.y;
-        suivant.vx = ancien.vx;
-        suivant.vy = ancien.vy;
-      }
-    }
+    conserverPositions(noeudsRef.current, noeudsSimules);
 
-    const liensSimules: LienSimule[] = liensVisibles
-      .filter((l) => parId.has(l.source) && parId.has(l.target))
-      .map((l) => ({ ...l }));
+    const liensSimules = liensRelies(liensVisibles, parId);
 
     noeudsRef.current = noeudsSimules;
     liensRef.current = liensSimules;
@@ -752,23 +741,10 @@ export function GrapheWorkflowViz(props: GrapheWorkflowVizProps) {
     const canvas = canvasRef.current;
     if (!conteneur || !canvas) return;
 
-    function redimensionner() {
-      const rect = conteneur!.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      tailleRef.current = { largeur: rect.width, hauteur: rect.height };
-      canvas!.width = Math.max(1, Math.round(rect.width * dpr));
-      canvas!.height = Math.max(1, Math.round(rect.height * dpr));
-      canvas!.style.width = `${rect.width}px`;
-      canvas!.style.height = `${rect.height}px`;
-      const ctx = canvas!.getContext("2d");
-      ctx?.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return observerTailleCanvas(conteneur, canvas, (taille) => {
+      tailleRef.current = taille;
       dessinerRef.current();
-    }
-
-    redimensionner();
-    const observateur = new ResizeObserver(redimensionner);
-    observateur.observe(conteneur);
-    return () => observateur.disconnect();
+    });
   }, []);
 
   /* ── Thème ── */

@@ -46,6 +46,7 @@ import {
   type ReglagesGraphe,
 } from "./reglages-graphe";
 import { couleurDomaine, indexerDomaines } from "@/lib/ui/couleurs-domaines";
+import { conserverPositions, liensRelies, mouvementReduit, observerTailleCanvas } from "@/lib/ui/graphe-d3";
 
 export function GrapheCompetences({
   donnees,
@@ -332,27 +333,15 @@ export function GrapheCompetences({
   /* ------------------------------------------------------------------ */
 
   useEffect(() => {
-    const reduitMouvement =
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduitMouvement = mouvementReduit();
 
     const noeudsSimules = creerNoeudsSimules(noeudsAAfficher);
     const parId = new Map(noeudsSimules.map((n) => [n.id, n]));
     // Repart des positions précédentes quand le nœud existait déjà — évite
     // que chaque bascule de filtre relance le graphe depuis zéro.
-    for (const ancien of noeudsRef.current) {
-      const suivant = parId.get(ancien.id);
-      if (suivant && ancien.x !== undefined) {
-        suivant.x = ancien.x;
-        suivant.y = ancien.y;
-        suivant.vx = ancien.vx;
-        suivant.vy = ancien.vy;
-      }
-    }
+    conserverPositions(noeudsRef.current, noeudsSimules);
 
-    const liensSimules: LienSimule[] = liensAffiches
-      .filter((l) => parId.has(l.source) && parId.has(l.target))
-      .map((l) => ({ ...l }));
+    const liensSimules = liensRelies(liensAffiches, parId);
 
     noeudsRef.current = noeudsSimules;
     liensRef.current = liensSimules;
@@ -394,24 +383,11 @@ export function GrapheCompetences({
     const canvas = canvasRef.current;
     if (!conteneur || !canvas) return;
 
-    function redimensionner() {
-      const rect = conteneur!.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      tailleRef.current = { largeur: rect.width, hauteur: rect.height };
-      canvas!.width = Math.max(1, Math.round(rect.width * dpr));
-      canvas!.height = Math.max(1, Math.round(rect.height * dpr));
-      canvas!.style.width = `${rect.width}px`;
-      canvas!.style.height = `${rect.height}px`;
-      const ctx = canvas!.getContext("2d");
-      ctx?.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return observerTailleCanvas(conteneur, canvas, (taille) => {
+      tailleRef.current = taille;
       ajusterCamera();
       dessinerRef.current();
-    }
-
-    redimensionner();
-    const observateur = new ResizeObserver(redimensionner);
-    observateur.observe(conteneur);
-    return () => observateur.disconnect();
+    });
   }, [ajusterCamera]);
 
   /* ------------------------------------------------------------------ */
