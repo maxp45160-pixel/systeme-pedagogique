@@ -130,7 +130,7 @@ const GROUPES_CONFIG: Record<
 > = {
   dashboard: { libelle: "Dashboard & Pilotage", couleur: "#3b82f6", x: -200, y: -160 },
   atelier: { libelle: "Atelier Documentaire", couleur: "#059669", x: 260, y: -180 },
-  seances: { libelle: "Séances & Concepteur", couleur: "#8b5cf6", x: -260, y: 180 },
+  seances: { libelle: "Cahier", couleur: "#8b5cf6", x: -260, y: 180 },
   exercice: { libelle: "Boucle Exercice", couleur: "#f59e0b", x: 220, y: 190 },
   tuteur: { libelle: "Compagnon Tuteur IA", couleur: "#06b6d4", x: -460, y: 0 },
   profil: { libelle: "Profil & Compte", couleur: "#64748b", x: 500, y: 0 },

@@ -102,7 +102,8 @@ function construireMacroSynthese(
   ajouterNoeud({
     id: "page:/seances",
     type: "page",
-    libelle: "Séances & Concepteur",
+    // Libellé du rail (ADR-062) : le graphe parle comme l'interface.
+    libelle: "Cahier",
     url: "/seances",
     groupe: "seances",
     badge: "Entraînement",
@@ -173,7 +174,8 @@ function construireMacroSynthese(
     ajouterNoeud({
       id: "page:/admin",
       type: "page",
-      libelle: "Cockpit d'Administration",
+      // Même entrée de rail que l'utilisateur lit — pas « Cockpit ».
+      libelle: "Comptes et accès",
       url: "/admin",
       groupe: "dashboard",
       badge: "Pilotage système",

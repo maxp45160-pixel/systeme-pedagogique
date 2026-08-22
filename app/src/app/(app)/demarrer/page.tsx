@@ -51,7 +51,7 @@ export default async function PageDemarrer(props: {
                 href="/admin"
                 className="inline-flex items-center gap-1 text-xs font-semibold text-primaire hover:underline"
               >
-                <span>Retour au Cockpit Admin</span>
+                <span>Retour à Comptes et accès</span>
                 <IconeFleche className="size-3" />
               </Link>
             </div>

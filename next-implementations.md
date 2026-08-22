@@ -394,6 +394,18 @@ avant d'écrire le code.
 
 ### 11. Unification du vocabulaire
 
+> **Fait le 22/08/2026.** Source de vérité retenue : les libellés du rail —
+> c'est ce que l'utilisateur lit en permanence. Aligné : le graphe macro
+> `workflow-ux-scanner.ts` nomme `/seances` « Cahier » (était « Séances &
+> Concepteur ») et `/admin` « Comptes et accès » ; la page `/admin`
+> elle-même aligne son titre visible, sa metadata, l'aria-label de navigation
+> et le lien retour de `/demarrer?apercu=1` sur la même entrée de rail
+> (« Cockpit d'Administration/Administrateur » retiré des surfaces lisibles).
+> `graphe-workflow.tsx` (groupe `seances`) suit. Les identifiants de code
+> (`ConcepteurSeance`, `CockpitAdmin`) restent : ils ne sont pas lus par
+> l'utilisateur. Aucun test à mettre à jour : le scanner dérive ses nœuds,
+> aucun libellé codé en dur n'était asserté.
+
 **Constat.** Le rail dit « Cahier », le titre de page aussi, mais le graphe macro
 nomme le pôle « Séances & Concepteur » ; « Comptes et accès » (rail) vs
 « Cockpit d'Administration » (page). Une chose, plusieurs mots selon la couche.
