@@ -45,7 +45,6 @@ import {
   noeudCarte,
   noeudsRattachables,
 } from "@/lib/domain/carte-savoirs";
-import type { Explication } from "@/lib/domain/types";
 import {
   classerParProximiteTextuelle,
   type DocumentTexte,
@@ -72,6 +71,19 @@ export const NOMBRE_CANDIDATS = 3;
 
 export type OrigineRattachement = "lexical" | "tuteur" | "manuel";
 
+/**
+ * Pourquoi ce candidat est proposé.
+ *
+ * Volontairement PAS le type `Explication` du domaine : celui-ci porte un
+ * `nombreObservations`, et une classification ne repose sur aucune
+ * observation. Le remplir à zéro dirait « zéro preuve » là où la vérité est
+ * « la question ne se pose pas » — c'est l'invariant 3 pris à l'envers.
+ */
+export interface JustificationRattachement {
+  resume: string;
+  facteurs: Array<{ libelle: string; valeur: string }>;
+}
+
 export interface CandidatRattachement {
   /** Identifiant du nœud de carte — c'est lui qui serait enregistré. */
   noeud: string;
@@ -80,7 +92,7 @@ export interface CandidatRattachement {
   score: number;
   /** Vrai quand ce candidat et le suivant sont au coude à coude. */
   ambigu: boolean;
-  explication: Explication;
+  explication: JustificationRattachement;
 }
 
 export interface PropositionClassification {
