@@ -170,7 +170,20 @@ export function construirePromptRelecture(entree: EntreeRelecture): string {
     "- Quand un domaine porte visiblement PLUSIEURS SUJETS DISTINCTS, propose d'en tirer un sous-domaine et dis quelles compétences y vont.",
     "- Le critère n'est pas le nombre. Un domaine de quarante compétences qui traitent toutes du même sujet ne se découpe pas ; un domaine de neuf qui en porte deux se découpe. Ne découpe jamais pour faire baisser un compte.",
     "- Nomme le sous-domaine comme une personne le dirait — « Gestion kanban », pas « LOG-SOUS-2 ». Tu ne donnes ni identifiant ni préfixe : l'application les attribue.",
-    "- Dans ta justification, dis ce que tu as lu : combien de compétences parlent de ce sujet, et lesquelles.",
+    /*
+     * Nommer, ne pas compter.
+     *
+     * La justification demandait « combien de compétences parlent de ce sujet,
+     * et lesquelles ». Le compte annoncé par le tuteur et le compte réel
+     * divergent dès que `validerRelecture` écarte un code — un code archivé,
+     * hors de l'`enum`, ou répété. Constaté le 24/08/2026 sur le premier lot
+     * réel : la carte affichait « 4 compétences y seront rangées » sous un
+     * motif qui en nommait cinq. Une carte qui se contredit ne s'arbitre pas.
+     *
+     * Le compte n'est pas perdu : `effet` le calcule à partir de la liste
+     * VALIDÉE, et c'est le seul chiffre de la carte — donc toujours le vrai.
+     */
+    "- Dans ta justification, dis ce que tu as lu : NOMME les compétences concernées, sans annoncer de total chiffré. Le décompte est calculé et affiché ailleurs.",
     "",
     "2. DES PRÉREQUIS (relations).",
     "- Ce qu'il faut savoir faire avant autre chose, à l'échelle du référentiel entier et pas d'une seule fiche.",
@@ -181,7 +194,7 @@ export function construirePromptRelecture(entree: EntreeRelecture): string {
       ? [
           "3. DES SAVOIR-FAIRE QUI MANQUENT (manques).",
           "- Un savoir-faire absent du référentiel que le travail récent ou ce qu'elle a écrit vouloir suppose.",
-          "- L'ANCRAGE EST OBLIGATOIRE et doit CITER ce qui l'appelle : « tu as travaillé N fois sur X », ou « tu as écrit vouloir Y ». Sans cet ancrage, tu ne proposes pas un manque : tu écris un programme scolaire, et ce n'est pas ce qu'on te demande.",
+          "- L'ANCRAGE EST OBLIGATOIRE et doit CITER ce qui l'appelle : « vous avez travaillé N fois sur X », ou « vous avez écrit vouloir Y ». Sans cet ancrage, tu ne proposes pas un manque : tu écris un programme scolaire, et ce n'est pas ce qu'on te demande.",
           "- Reste proche. Si elle travaille le kanban, la méthode voisine de gestion de production est une bonne proposition ; la thermodynamique n'en est pas une.",
           "- Un savoir-faire OBSERVABLE, pas un sujet ni un titre de cours : « Dimensionner un supermarché de pièces », pas « Le lean manufacturing ».",
         ]
@@ -195,6 +208,16 @@ export function construirePromptRelecture(entree: EntreeRelecture): string {
     "- Justifie chaque ligne en partant de ce que tu as lu, jamais d'une généralité sur la discipline.",
     "- Si tu n'as rien de solide à proposer sur l'un des trois points, rends une liste vide. C'est une réponse, pas un échec.",
     "- Mieux vaut deux propositions justes que six plausibles : une personne qui refuse tout un lot cesse de lire le suivant.",
+    /*
+     * Le registre. Ces textes s'affichent TELS QUELS sur l'écran des
+     * propositions : justifications, ancrages, descriptions. Le prompt te
+     * tutoie parce qu'il s'adresse à toi ; ce que tu écris s'adresse à la
+     * personne, et toute l'interface la vouvoie. Sans cette règle, l'ancrage
+     * sortait en « Tu as travaillé 6 fois sur… » au milieu d'une carte qui dit
+     * « Vous pourrez ensuite vous exercer dessus » — constaté le 24/08/2026 sur
+     * le premier lot réel.
+     */
+    "- Tout ce que tu écris s'affiche tel quel à la personne : VOUVOIE-LA, dans les justifications comme dans les ancrages. Ne la tutoie jamais, même si ce prompt te tutoie.",
     "",
     `Appelle l'outil ${OUTIL_RELECTURE} UNE fois. Ne recopie pas le contenu de l'appel dans ta réponse.`,
   ].join("\n");

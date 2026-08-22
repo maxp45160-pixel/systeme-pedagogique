@@ -252,4 +252,73 @@ describe("la visibilité héritée", () => {
     expect(parDomaine(globalAvant, "sciences")).toBe(2);
     expect(parDomaine(globalApres, "sciences")).toBe(2);
   });
+
+  /*
+   * Le test que réclame ADR-108 avant merge : « une scission validée ne change
+   * AUCUN score global ni aucune observation ».
+   *
+   * Une scission déplace des TAGS, du parent vers un enfant neuf. Comme la
+   * visibilité héritée se dérive (ADR-107), le parent continue de voir ce
+   * qu'il voyait — et le score global, qui somme sur les compétences et non
+   * sur les domaines, ne peut pas bouger. Ce test tomberait au premier score
+   * qu'on stockerait par domaine.
+   */
+  it("scinder un domaine ne change AUCUN score, et le parent ne perd rien", () => {
+    const LOGI = domaine("logistique", "Logistique industrielle", "LOG");
+    const FLUX = skill("LOG-01", "Lire un plan de flux", "logistique");
+    const BOUCLE = skill("LOG-02", "Régler une boucle de rappel", "logistique");
+    const STOCK = skill("LOG-03", "Dimensionner un stock de sécurité", "logistique");
+    const observations = [observation("LOG-01"), observation("LOG-02"), observation("LOG-03")];
+
+    const avant = assemblerReferentiel(
+      [LOGI],
+      [FLUX, BOUCLE, STOCK],
+      [
+        { code: "LOG-01", domaine: "logistique" },
+        { code: "LOG-02", domaine: "logistique" },
+        { code: "LOG-03", domaine: "logistique" },
+      ],
+    );
+
+    /*
+     * Après la scission : « Gestion kanban » naît SOUS Logistique, et deux tags
+     * passent du parent à l'enfant. Aucune compétence n'est créée, recodée ni
+     * déplacée — `competences.domaine` reste « logistique » pour les trois,
+     * puisqu'il est le namespace de création et non un rattachement.
+     */
+    const apres = assemblerReferentiel(
+      [LOGI, domaine("kanban", "Gestion kanban", "KAN", "logistique")],
+      [FLUX, BOUCLE, STOCK],
+      [
+        { code: "LOG-01", domaine: "kanban" },
+        { code: "LOG-02", domaine: "kanban" },
+        { code: "LOG-03", domaine: "logistique" },
+      ],
+    );
+
+    const etatsAvant = computeAllSkillStates(avant.actifs, observations, MAINTENANT);
+    const etatsApres = computeAllSkillStates(apres.actifs, observations, MAINTENANT);
+    const globalAvant = calculerEtatGlobal(etatsAvant, MAINTENANT, avant.domaines);
+    const globalApres = calculerEtatGlobal(etatsApres, MAINTENANT, apres.domaines);
+
+    expect(globalApres.scoreGlobal).toBe(globalAvant.scoreGlobal);
+    expect(globalApres.niveauMoyen).toBe(globalAvant.niveauMoyen);
+    expect(globalApres.competencesTotal).toBe(globalAvant.competencesTotal);
+    expect(globalApres.competencesEvaluees).toBe(globalAvant.competencesEvaluees);
+    expect(globalApres.nombreObservations).toBe(globalAvant.nombreObservations);
+
+    // Les codes ne bougent pas : ce sont les clés étrangères des observations.
+    expect(apres.actifs.map((s) => s.code).sort()).toEqual(["LOG-01", "LOG-02", "LOG-03"]);
+    // Le namespace de création non plus.
+    expect(apres.parCode.get("LOG-01")?.domaine).toBe("logistique");
+
+    /*
+     * Le point qui fait qu'une scission ne perd rien : le parent voit toujours
+     * ses trois compétences, par HÉRITAGE, alors que deux ne portent plus son
+     * tag. C'est ce que la carte annonce à la personne — « elles restent
+     * comptées dans Logistique industrielle ».
+     */
+    expect(agregerDomaine("logistique", etatsApres, apres.domaines).competencesTotal).toBe(3);
+    expect(agregerDomaine("kanban", etatsApres, apres.domaines).competencesTotal).toBe(2);
+  });
 });

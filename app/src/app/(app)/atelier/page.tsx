@@ -22,6 +22,8 @@ import {
 } from "@/lib/documents/rangement-atelier";
 import { paletteDomaines } from "@/lib/ui/couleurs-domaines";
 import { chargerDonneesSeance } from "@/components/seances/donnees-seance";
+import { RelectureAuChargement } from "@/components/referentiel/relecture-au-chargement";
+import { chargerLotPropositions } from "@/lib/store/relecture-referentiel";
 
 export default async function PageAtelier(props: {
   searchParams: Promise<{ document?: string; note?: string; retour?: string; creation?: string }>;
@@ -56,14 +58,16 @@ export default async function PageAtelier(props: {
     );
   }
 
-  const [aperçus, snapshots, contexte, contenuInitial, changementsReferentiel, donneesSeance] = await Promise.all([
+  const [aperçus, snapshots, contexte, contenuInitial, changementsReferentiel, donneesSeance, lotPropositions] = await Promise.all([
     lireApercusDocuments(),
     lireApercusSnapshots(),
     chargerContexte(),
     documentDemande ? lireDocument(documentDemande).catch(() => null) : Promise.resolve(null),
     lireChangementsReferentiel(),
     chargerDonneesSeance(),
+    chargerLotPropositions(),
   ]);
+  const relectureDue = lotPropositions.relectureDue;
   const referentiel = contexte.referentiel;
   const exercices = contexte.donnees.exercises;
 
@@ -357,6 +361,16 @@ export default async function PageAtelier(props: {
         titre="Atelier"
         sousTitre="Vos cours, vos notes et vos travaux, rangés par sujet."
       />
+      {/*
+        La relecture du référentiel part ici quand il a bougé (ADR-108).
+
+        Elle ne rend rien, n'affiche rien, et ne bloque rien : le lot attend au
+        passage suivant, signalé par l'avis du tableau de bord. C'est la réponse
+        retenue à la question ouverte n°1 de l'ADR — « à l'ouverture si périmé »,
+        plutôt qu'après chaque commande (trop coûteux) ou sur bouton seul (ce qui
+        ne serait plus « sans avoir rien à faire »).
+      */}
+      <RelectureAuChargement due={relectureDue} />
       <EspaceDocumentaire
         key={cleAtelier}
         elements={elementsAtelier}

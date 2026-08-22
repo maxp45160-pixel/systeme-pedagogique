@@ -246,6 +246,31 @@ BEGIN
     NULL; -- `propositions_arbitrage_complet` : exactement le refus attendu.
   END;
 
+  -- ----------------------------------------------------------------
+  -- La trace de relecture : un lot VIDE s'enregistre quand même
+  -- (`20260824100000_trace_relecture`).
+  --
+  -- Sans elle, « rien à proposer » serait indiscernable de « pas encore
+  -- relu » : la relecture repartirait à chaque ouverture de l'Atelier pour
+  -- rappeler le modèle et ne rien produire.
+  -- ----------------------------------------------------------------
+  INSERT INTO public.relectures_referentiel (user_id, id, versions_lues, produites)
+  VALUES (v_uid, 'lot-sans-recolte', '{"log": 2}'::JSONB, 0);
+
+  ASSERT (SELECT produites FROM public.relectures_referentiel
+          WHERE user_id = v_uid AND id = 'lot-sans-recolte') = 0,
+    'un lot vide doit être une réponse enregistrable';
+
+  -- Un fait daté ne se réécrit pas, et ne s'efface pas : les grants le
+  -- refusent au rôle `authenticated`, indépendamment de RLS.
+  BEGIN
+    UPDATE public.relectures_referentiel SET produites = 99
+    WHERE user_id = v_uid AND id = 'lot-sans-recolte';
+    RAISE EXCEPTION 'ÉCHEC : une trace de relecture a pu être réécrite.';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL; -- le REVOKE UPDATE : exactement le refus attendu.
+  END;
+
   RAISE NOTICE 'ADR-108 : toutes les assertions passent.';
 END;
 $$;

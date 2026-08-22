@@ -2628,6 +2628,60 @@ REVOKE DELETE, TRUNCATE, REFERENCES, TRIGGER ON TABLE public.propositions_refere
 -- Ce qu'elle ne touche pas : aucune compétence n'est créée, modifiée,
 -- déplacée ni recodée ; aucune observation n'est écrite ; aucun score ne
 -- bouge. Seuls des tags se déplacent d'un domaine vers son enfant.
+-- --------------------------------------------------------------------
+-- Trace de relecture (ADR-108, migration `20260824100000_trace_relecture`)
+--
+-- Un fait daté : « le J, une relecture a lu ces versions ». Il rend un lot
+-- VIDE enregistrable, donc distinguable de « pas encore relu » — sans quoi un
+-- référentiel bien rangé serait éternellement « à relire » et rappellerait le
+-- modèle à chaque chargement pour ne rien produire.
+-- --------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS public.relectures_referentiel (
+  user_id       UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  id            TEXT NOT NULL,
+  -- Les versions des domaines au moment de la lecture. L'instantané porte le
+  -- référentiel ENTIER : c'est bien tout le référentiel qui vient d'être relu,
+  -- quand bien même chaque proposition ne retient que les versions des
+  -- domaines qu'elle nomme.
+  versions_lues JSONB NOT NULL DEFAULT '{}'::jsonb,
+  -- Combien de propositions ce lot a produites. Zéro est une valeur normale,
+  -- et c'est tout l'objet de cette table.
+  produites     INTEGER NOT NULL DEFAULT 0 CHECK (produites >= 0),
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, id)
+);
+
+COMMENT ON TABLE public.relectures_referentiel IS
+  'Fait daté : une relecture du référentiel a eu lieu, sur ces versions (ADR-108). Permet à un lot VIDE d''être une réponse enregistrée plutôt qu''une relecture éternellement due. La péremption s''en dérive, elle ne s''y stocke pas.';
+
+CREATE INDEX IF NOT EXISTS relectures_referentiel_recentes_idx
+  ON public.relectures_referentiel (user_id, created_at DESC);
+
+ALTER TABLE public.relectures_referentiel ENABLE ROW LEVEL SECURITY;
+
+-- ADR-074 : `compte_actif()` en plus de l'isolation par compte.
+--
+-- Pas de drapeau `app.referentiel_command`, pour la même raison que
+-- `propositions_referentiel` : ADR-108 exige que la relecture tourne hors du
+-- chemin d'écriture du référentiel. Inscrire une relecture ne mute aucun
+-- agrégat et ne peut faire échouer aucune commande.
+DROP POLICY IF EXISTS "relectures_lecture_compte" ON public.relectures_referentiel;
+CREATE POLICY "relectures_lecture_compte" ON public.relectures_referentiel
+  FOR SELECT TO authenticated
+  USING ((select auth.uid()) = user_id AND (select public.compte_actif()));
+
+DROP POLICY IF EXISTS "relectures_insertion_compte" ON public.relectures_referentiel;
+CREATE POLICY "relectures_insertion_compte" ON public.relectures_referentiel
+  FOR INSERT TO authenticated
+  WITH CHECK ((select auth.uid()) = user_id AND (select public.compte_actif()));
+
+REVOKE ALL ON TABLE public.relectures_referentiel FROM anon;
+GRANT SELECT, INSERT ON TABLE public.relectures_referentiel TO authenticated;
+-- Un fait daté ne se réécrit pas, et ne s'efface pas.
+REVOKE UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
+  ON TABLE public.relectures_referentiel FROM authenticated;
+
 CREATE OR REPLACE FUNCTION public.scinder_domaine(
   p_request_id text,
   p_expected_version integer,

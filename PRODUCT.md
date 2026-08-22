@@ -383,7 +383,10 @@ réellement travaillé ou déclaré vouloir. Rien ne s'écrit sans un geste ; un
 proposition refusée ne revient pas ; une proposition porte sur l'état lu et
 devient caduque quand cet état change. Le déclenchement reste la péremption
 jamais un seuil de taille ; l'élargissement est ouvert sur arbitrage explicite
-du 22/08/2026 et réversible en une ligne si sa rétention ne tient pas.
+du 22/08/2026 et réversible en une ligne si sa rétention ne tient pas. Les
+propositions se signalent d'elles-mêmes : un avis sobre apparaît sur le tableau
+de bord quand il y en a, et rien du tout quand il n'y en a pas. On ne va pas
+les chercher — c'est la condition pour qu'un écran de plus soit lu.
 🔬 Le barème `PLAFOND_AIDE` — l'architecture de mesure est décidée par ADR-057,
 mais ses plafonds restent gelés jusqu'à environ 20 bilans terminés et n'ont pas
 encore été confrontés à l'usage.

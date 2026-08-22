@@ -10,6 +10,7 @@ import { CarteSeanceActive } from "@/components/dashboard/carte-seance-active";
 import { CarteProchaineAction } from "@/components/dashboard/prochaine-action";
 import { PistesAlternatives } from "@/components/dashboard/pistes-alternatives";
 import { SyntheseReferentiel } from "@/components/dashboard/synthese-referentiel";
+import { AvisPropositions } from "@/components/dashboard/avis-propositions";
 import { MiniActivite } from "@/components/dashboard/mini-activite";
 import { IconeFleche } from "@/components/ui/icones";
 import { BandeauInfo, classesLienBouton } from "@/components/ui/primitives";
@@ -254,6 +255,19 @@ async function ContenuTableauDeBord({
 
         {/* Colonne droite : Repères contextuels passifs (Vision du Référentiel + Continuité) */}
         <div className="space-y-3.5 sm:space-y-4 lg:col-span-5 xl:col-span-4 min-w-0">
+          {/*
+            Les propositions de référentiel (ADR-108), au-dessus de la synthèse
+            parce qu'elles appellent un geste là où la synthèse décrit un état.
+
+            Sous `Suspense` avec un repli VIDE : c'est une lecture de plus, sur
+            une table qui ne sert qu'à cet avis, et le tableau de bord ne doit
+            pas l'attendre. Un repli vide plutôt qu'un squelette — un squelette
+            annoncerait un bloc qui, le plus souvent, ne s'affichera pas.
+          */}
+          <Suspense fallback={null}>
+            <AvisPropositions />
+          </Suspense>
+
           <SyntheseReferentiel
             referentiel={ctx.referentiel}
             global={ctx.global}

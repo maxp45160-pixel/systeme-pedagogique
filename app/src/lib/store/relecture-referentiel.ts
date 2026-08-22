@@ -34,11 +34,18 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 
 import { chargerContexte } from "./context";
-import { chargerPropositions, enregistrerLot, type PropositionAEnregistrer } from "./propositions-referentiel";
+import {
+  chargerPropositions,
+  derniereRelecture,
+  enregistrerLot,
+  inscrireRelecture,
+  type PropositionAEnregistrer,
+} from "./propositions-referentiel";
 import { detecterCandidats, type CandidatReferentiel } from "@/lib/engine/candidats-referentiel";
 import {
   empreinteProposition,
   empreintesRefusees,
+  estPerimee,
   lotOuvert,
   versionsCourantes,
   type ContenuProposition,
@@ -92,21 +99,31 @@ export interface LotPropositions {
  */
 export async function chargerLotPropositions(): Promise<LotPropositions> {
   const ctx = await chargerContexte();
-  const enregistrees = await chargerPropositions();
+  const [enregistrees, derniere] = await Promise.all([
+    chargerPropositions(),
+    derniereRelecture(),
+  ]);
   const versions = versionsCourantes(ctx.referentiel.domaines);
-
   const ouvertes = lotOuvert(enregistrees, versions);
-  const dernierLot = enregistrees[0]?.creeLe ?? null;
 
   /*
-   * « Due » signifie qu'aucune proposition encore valide ne subsiste : soit
-   * rien n'a jamais été produit, soit tout ce qui l'a été porte sur un
-   * référentiel qui a changé depuis. C'est exactement le fait qu'ADR-108
-   * désigne comme déclencheur, et il ne coûte aucune constante à calibrer.
+   * « Due » se lit sur la dernière RELECTURE, pas sur la vacuité du lot.
+   *
+   * Le raccourci tentant — « aucune proposition ouverte, donc à relire » — se
+   * retourne dès qu'un lot n'a RIEN à proposer, ce qui est le cas normal d'un
+   * référentiel bien rangé : le lot vide n'écrit aucune ligne, « à relire »
+   * reste vrai indéfiniment, et la relecture repart à chaque ouverture de
+   * l'Atelier pour rappeler le modèle et ne rien produire.
+   *
+   * `relectures_referentiel` enregistre le fait qu'une relecture a eu lieu,
+   * précisément pour qu'un lot vide soit une réponse et non une absence. Le
+   * déclencheur reste celui d'ADR-108 : la péremption d'une version de
+   * domaine, jamais un seuil de taille.
    */
-  const relectureDue = enregistrees.length === 0 || ouvertes.length === 0;
+  const relectureDue =
+    derniere === null || estPerimee({ versionsLues: derniere.versionsLues }, versions);
 
-  return { propositions: ouvertes, relectureDue, dernierLot };
+  return { propositions: ouvertes, relectureDue, dernierLot: derniere?.creeLe ?? null };
 }
 
 /* ------------------------------------------------------------------ */
@@ -427,6 +444,15 @@ export async function produireLot(
 
   const lotId = randomUUID();
   await enregistrerLot(lotId, aEcrire);
+  /*
+   * La trace est écrite MÊME quand le lot est vide, et c'est tout son objet :
+   * « rien à proposer » est une réponse, et sans cette ligne elle serait
+   * indiscernable de « pas encore relu ». L'instantané porté est celui du
+   * référentiel ENTIER — c'est bien tout le référentiel qui vient d'être relu,
+   * quand bien même chaque proposition ne retient que les versions des
+   * domaines qu'elle nomme.
+   */
+  await inscrireRelecture(lotId, versions, aEcrire.length);
 
   return { lotId, enregistrees: aEcrire.length, ecartees, erreurTuteur };
 }

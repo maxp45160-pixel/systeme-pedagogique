@@ -178,6 +178,67 @@ export async function enregistrerLot(
   verifier("enregistrement du lot de propositions", error);
 }
 
+/* ------------------------------------------------------------------ */
+/* Le fait qu'une relecture a eu lieu                                  */
+/* ------------------------------------------------------------------ */
+
+export interface RelectureInscrite {
+  versionsLues: Readonly<Record<DomaineId, number>>;
+  produites: number;
+  creeLe: string;
+}
+
+/**
+ * La dernière relecture, quelle qu'ait été sa récolte.
+ *
+ * C'est elle qui rend « un lot vide » exprimable. Déduire la péremption des
+ * seules propositions enregistrées se retourne dès qu'un lot n'a rien à
+ * proposer — le cas normal d'un référentiel bien rangé : aucune ligne n'est
+ * écrite, « à relire » reste vrai indéfiniment, et la relecture repart à
+ * chaque ouverture de l'Atelier pour rappeler le modèle et ne rien produire.
+ *
+ * Un lot vide est une réponse. Cette lecture est ce qui permet de la lire.
+ */
+export async function derniereRelecture(): Promise<RelectureInscrite | null> {
+  const dorsale = await dorsaleCompte();
+  const { data, error } = await dorsale.supabase
+    .from("relectures_referentiel")
+    .select("versions_lues, produites, created_at")
+    .eq("user_id", dorsale.userId)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  verifier("lecture de la dernière relecture", error);
+
+  const ligne = (data ?? [])[0] as
+    | { versions_lues: unknown; produites: number; created_at: string }
+    | undefined;
+  if (!ligne) return null;
+
+  const versions: Record<DomaineId, number> = {};
+  if (ligne.versions_lues && typeof ligne.versions_lues === "object") {
+    for (const [cle, valeur] of Object.entries(ligne.versions_lues)) {
+      if (typeof valeur === "number" && Number.isFinite(valeur)) versions[cle] = valeur;
+    }
+  }
+  return { versionsLues: versions, produites: ligne.produites, creeLe: ligne.created_at };
+}
+
+/** Inscrit qu'une relecture a eu lieu sur ces versions. Zéro produite est normal. */
+export async function inscrireRelecture(
+  lotId: string,
+  versionsLues: Record<DomaineId, number>,
+  produites: number,
+): Promise<void> {
+  const dorsale = await dorsaleCompte();
+  const { error } = await dorsale.supabase.from("relectures_referentiel").insert({
+    user_id: dorsale.userId,
+    id: lotId,
+    versions_lues: versionsLues,
+    produites,
+  });
+  verifier("inscription de la relecture", error);
+}
+
 /**
  * Inscrit l'arbitrage d'une proposition.
  *

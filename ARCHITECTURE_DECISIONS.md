@@ -118,6 +118,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [106](#adr-106) | Les sous-domaines se dérivent des intitulés, et ne s'écrivent pas | 🔄 Réfutée, remplacée par [ADR-107](#adr-107) (22/08) — module retiré du code le 23/08 |
 | [107](#adr-107) | Les domaines sont des tags hiérarchiques, pas des propriétaires | ❓ Proposition (22/08) — construite le 23/08, statut inchangé ; nommage des compétences encore ouvert |
 | [108](#adr-108) | Le référentiel se relit en entier, et ne se réécrit jamais tout seul | ❓ Proposition (23/08) — Maxime doit trancher le régime des propositions de structure |
+| [109](#adr-109) | Le rendu des formules passe par KaTeX ; le texte Unicode reste le filet | ✅ Acceptée (23/08) — révise l'application d'[ADR-003](#adr-003) aux formules |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -8464,13 +8465,96 @@ explicites — ils précèdent la construction) :
   (`slugifier`) et le préfixe (`prefixesDistincts`) calculés côté application,
   jamais par le tuteur ;
 - `app/supabase/migrations/20260824090000_relecture_referentiel.sql` — table
-  `propositions_referentiel` + fonction `scinder_domaine`. **Appliquée en
-  production le 23/08/2026**, reprise à l'identique dans `schema.sql`.
+  `propositions_referentiel` + fonction `scinder_domaine`. Reprise à
+  l'identique dans `schema.sql`.
 
 **Ce que la mise en œuvre n'a pas fait :** monter un statut, ouvrir un genre
 sans arbitrage, inventer un seuil de déclenchement (les plafonds
 d'affichage existants sont des bornes de lecture), ni toucher aux quatre
 détecteurs déterministes.
+
+### Correction du 24/08/2026 — trois écarts entre ce texte et le code
+
+Relecture du chantier contre l'état réel. Trois phrases de la section
+ci-dessus décrivaient un système qui n'existait pas. C'est le défaut nommé par
+`AGENTS.md` — « le 21/08/2026, le journal décrivait une interface
+inexistante » — et il s'était reproduit.
+
+**1. L'état de la migration.** `20260824090000` était inscrite « appliquée en
+production le 23/08/2026 ». Elle ne pouvait pas l'être : elle dépend de
+`20260823090000_domaines_hierarchiques_tags`, restée **non appliquée** jusqu'au
+24/08/2026, où Maxime l'a jouée après vérification par
+`supabase/tests/verifier_etat_adr_107.sql` (relevé avant : `parent_id` absent,
+`competence_domaines` à 0 ligne ; après : 118 compétences, 118 tags, 16
+domaines). La mention a été retirée. **`20260824090000` et `20260824100000`
+ont été appliquées à leur tour le 24/08/2026, après cette vérification.**
+
+**2. L'écran n'était atteignable de nulle part.** « Avis sobre sur le Bureau +
+écran dédié » était inscrit comme arbitrage *et comme fait*. Seul l'écran
+existait : `git grep "atelier/propositions"` ne rendait **aucun** résultat dans
+tout `app/src`. Ni rail, ni tableau de bord, ni lien. Le chantier reproduisait,
+un cran plus haut, le défaut qu'il corrige — quelque chose de construit
+qu'aucune surface ne consomme, exactement comme les quatre détecteurs
+déterministes qu'il venait brancher. Ajouté :
+`components/dashboard/avis-propositions.tsx`, monté sous `Suspense` dans la
+colonne droite du tableau de bord. Il ne rend rien quand il n'y a rien : un
+bloc permanent qui annonce « zéro » chaque jour apprend à ne plus regarder cet
+endroit.
+
+**3. Aucune relecture ne partait jamais.** « À l'ouverture si périmé (tâche de
+fond) » était inscrit ; rien ne l'implémentait. Le seul déclencheur était le
+bouton, sur la page inatteignable — donc aucun lot n'était produit, jamais.
+Ajouté : `components/referentiel/relecture-au-chargement.tsx`, monté sur
+l'Atelier. Il ne rend rien, n'annonce rien et ne bloque rien ; l'appel part
+vers la route séparée et le lot attend au passage suivant. La question ouverte
+n°1 est donc **tranchée dans les faits**, et non plus seulement sur le papier.
+
+**Un défaut de logique trouvé au passage, et corrigé.** La péremption se
+déduisait des seules propositions enregistrées :
+
+```
+relectureDue = enregistrees.length === 0 || ouvertes.length === 0
+```
+
+Le raccourci se retourne dès qu'un lot n'a **rien** à proposer — le cas normal
+d'un référentiel bien rangé. Le lot vide n'écrit aucune ligne, « à relire »
+reste vrai indéfiniment, et la relecture repart à chaque ouverture de l'Atelier
+pour rappeler le modèle et ne rien produire : le coût d'un appel à chaque
+chargement, et jamais de résultat. Un lot vide est une **réponse**.
+`20260824100000_trace_relecture.sql` ajoute `relectures_referentiel` — un fait
+daté de plus, « le J, une relecture a lu ces versions », qui rend cette réponse
+enregistrable. La péremption s'y **dérive** toujours ; rien de calculé n'y est
+stocké. Le déclencheur reste celui de cette ADR : la version d'un domaine,
+jamais un seuil de taille.
+
+`lib/engine/tags-domaine.test.ts` fige en plus qu'une scission ne change aucun
+score global — le test que la section « tests minimaux » réclamait et qui
+n'existait qu'en SQL.
+
+**Le premier lot réel, produit le 24/08/2026.** 37 propositions sur le compte
+de Maxime, dont les deux genres du tuteur qui portaient la demande d'origine :
+« Créer *Kanban* dans *Logistique industrielle* — neuf compétences (LOG-16 à
+LOG-24) », et un élargissement ancré dans l'activité — « vous avez travaillé 6
+fois sur LOG-01 (Modéliser un problème de gestion de stock à demande variable)
+… » proposant « Évaluer l'impact des coûts de stockage sur les décisions
+logistiques ». La boucle tourne de bout en bout. **Aucun de ces chiffres n'est
+un taux de rétention** : rien n'a encore été arbitré, et le test de réfutation
+reste donc inexécuté.
+
+Deux défauts de rédaction relevés sur ce lot, corrigés dans le prompt :
+
+- **le tuteur tutoyait.** L'ancrage sortait en « Tu as travaillé 6 fois sur… »
+  au milieu d'une carte qui dit « Vous pourrez ensuite vous exercer dessus ». Le
+  prompt tutoie le tuteur ; ce que le tuteur écrit s'affiche **tel quel** à la
+  personne. La règle est désormais explicite et générale, pas ponctuelle ;
+- **la carte pouvait se contredire.** La justification annonçait un total
+  (« Cinq compétences (LOG-01, LOG-02, LOG-25, LOG-26, LOG-09) ») sous un effet
+  calculé qui en disait quatre : `validerRelecture` avait écarté un code, et la
+  prose du tuteur l'ignorait. Le tuteur NOMME désormais les compétences sans
+  annoncer de total ; le seul chiffre de la carte est celui calculé depuis la
+  liste validée, donc toujours vrai.
+
+**Ce que cette correction ne fait pas :** monter le statut. ADR-108 reste ❓.
 
 ### Questions restant ouvertes
 
@@ -8482,6 +8566,55 @@ détecteurs déterministes.
    une lecture du compte. Maxime l'a ouvert le 22/08/2026 (voir Mise en œuvre)
    ; il reste réversible à un coût d'une ligne (`ELARGISSEMENT_ACTIF`) si son
    taux de rétention ne tient pas.
+
+---
+
+## ADR-109 — Le rendu des formules passe par KaTeX ; le texte Unicode reste le filet ✅
+
+**Statut :** ✅ Acceptée par Maxime (23/08/2026, choix explicite « Installer
+KaTeX » face à l'alternative « améliorer le convertisseur maison »). Révise
+l'application d'[ADR-003](#adr-003) au rendu mathématique.
+
+### Ce qui est décidé
+
+Les formules LaTeX (`\(…\)`, `$…$`, `\[…\]`, blocs ```` ```math ````, environnements)
+sont rendues par **KaTeX** — fractions composées, matrices, intégrales,
+alignements — là où le convertisseur LaTeX→Unicode de `lib/ui/formule.ts`
+aplatissait tout en texte.
+
+**Le convertisseur maison ne part pas.** Il devient le **filet** :
+
+- une formule que KaTeX refuse retombe sur `latexVersTexte()` — jamais un
+  message d'erreur, jamais du vide ;
+- il reste la source du texte de secours copiable et cherchable sous les blocs.
+
+### Pourquoi c'est coûteux à défaire
+
+ADR-003 (« aucune librairie UI tierce ») avait motivé le rejet explicite de
+KaTeX dans l'en-tête de `lib/ui/formule.ts` : plusieurs centaines de kilo-octets
+pour un besoin que la table couvrait. La limite s'est révélée en usage : les
+formules écrites en séance (stock de sécurité, intervalles de confiance)
+dépassent vite ce qu'un texte Unicode peut porter, et la saisie de formules est
+une demande explicite. L'exception est **circonscrite au rendu mathématique** :
+elle n'ouvre pas la porte à une librairie d'interface générale.
+
+### Mise en œuvre
+
+- dépendance `katex` (+ `@types/katex`) dans le workspace `app` ;
+- `components/ui/formule-math.tsx` — `FormuleMath` : `renderToString` avec
+  `throwOnError: true` et repli Unicode ; CSS `katex.min.css` importé avec lui ;
+- `components/ui/markdown.tsx` — segments en ligne portant leur LaTeX brut
+  (`SegmentTexte.latex`, `segmenterFormulesEnLigne`) et blocs de formule rendus
+  par `FormuleMath` ;
+- la barre de l'éditeur de l'Atelier gagne des insertions de formules
+  (`\( \)`, `\frac{}{}`, `\sqrt{}`, `\sum_{}^{}`, `\int_{}^{}`, `^{}`).
+
+### Ce que cette décision n'autorise pas
+
+- aucune autre dépendance d'UI (l'éditeur reste un `contentEditable` maison) ;
+- aucun HTML arbitraire : seul `katex.renderToString` produit du HTML injecté,
+  sur une entrée validée par KaTeX lui-même — le markdown reste rendu sans
+  HTML brut.
 
 ---
 
