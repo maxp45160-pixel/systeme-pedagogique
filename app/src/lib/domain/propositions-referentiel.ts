@@ -309,20 +309,146 @@ export function versionsCourantes(
 }
 
 /* ------------------------------------------------------------------ */
+/* Applicabilité — la question que la version approximait mal          */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Le référentiel, réduit à ce qu'il faut pour juger si une proposition tient
+ * encore. Un sous-ensemble, pour que le calcul reste pur et testable sans
+ * monter un compte entier.
+ */
+export interface ReferentielLu {
+  domaines: readonly { id: DomaineId; archive: boolean }[];
+  competences: readonly {
+    code: string;
+    intitule: string;
+    archive: boolean;
+    prerequis: readonly string[];
+    tagsDomaine?: readonly DomaineId[];
+  }[];
+}
+
+/** Le même calcul d'identifiant que `slugifier`, sans importer le module. */
+function slug(nom: string): string {
+  return nu(nom).replace(/ /g, "-");
+}
+
+/**
+ * Cette proposition décrit-elle encore quelque chose de faisable ?
+ *
+ * ## Pourquoi ceci remplace la péremption par version
+ *
+ * ADR-108 attache une proposition à « la version sur laquelle elle porte » et
+ * la périme dès que cette version bouge. L'intention est juste — ne pas
+ * proposer un découpage qui décrit un référentiel disparu — mais
+ * `domaines.version` est un proxy beaucoup trop grossier : il s'incrémente à
+ * n'importe quelle commande touchant le domaine, y compris celles qui ne
+ * changent rien de ce que la proposition décrivait.
+ *
+ * Le défaut s'est vu au premier usage réel, le 24/08/2026. Retenir deux
+ * scissions sur « Logistique industrielle » a incrémenté la version du parent
+ * et périmé d'un bloc les **quarante** autres propositions portant sur ce même
+ * domaine : arbitrer une proposition détruisait le reste du lot. Pire, ces
+ * quarante ne sont ni retenues ni refusées — elles sortent du dénominateur et
+ * privent de matière la seule mesure dont le test de réfutation dépend.
+ *
+ * La question posée ici est directement celle que la version approximait :
+ * **ce que la proposition désigne existe-t-il encore, et reste-t-il à faire ?**
+ * Elle se dérive du référentiel courant à chaque lecture, ne stocke rien, et
+ * n'a pas d'angle mort — une proposition ne disparaît que si elle est devenue
+ * réellement inapplicable.
+ *
+ * `versionsLues` n'est pas retiré pour autant : il reste le bon signal pour
+ * décider **qu'une relecture est due** (`estPerimee`), question de « quelque
+ * chose a-t-il bougé » où le grain grossier convient.
+ */
+export function estEncoreApplicable(
+  contenu: ContenuProposition,
+  referentiel: ReferentielLu,
+): boolean {
+  const parCode = new Map(referentiel.competences.map((c) => [c.code, c]));
+  const vivante = (code: string) => {
+    const skill = parCode.get(code);
+    return skill && !skill.archive ? skill : null;
+  };
+  const domaineVivant = (id: DomaineId) =>
+    referentiel.domaines.some((d) => d.id === id && !d.archive);
+
+  switch (contenu.genre) {
+    case "arete": {
+      const amont = vivante(contenu.amont);
+      const aval = vivante(contenu.aval);
+      if (!amont || !aval) return false;
+      // Le lien existe déjà : il n'y a plus rien à valider.
+      return !aval.prerequis.includes(contenu.amont);
+    }
+
+    case "dormance":
+      return vivante(contenu.code) !== null;
+
+    case "reformulation": {
+      const skill = vivante(contenu.code);
+      // L'intitulé a été récrit entre-temps : la proposition parlait de l'ancien.
+      return skill !== null && skill.intitule === contenu.intitule;
+    }
+
+    case "rangement": {
+      const skill = vivante(contenu.code);
+      if (!skill || !domaineVivant(contenu.domaineObserve)) return false;
+      return !(skill.tagsDomaine ?? []).includes(contenu.domaineObserve);
+    }
+
+    case "scission": {
+      if (!domaineVivant(contenu.parentId)) return false;
+      // Un domaine du même nom existe déjà : la scission a eu lieu.
+      if (referentiel.domaines.some((d) => d.id === slug(contenu.nom))) return false;
+      // Il suffit qu'une compétence subsiste : les autres ont pu être archivées
+      // sans que le découpage cesse d'avoir du sens.
+      return contenu.codes.some((code) => vivante(code) !== null);
+    }
+
+    case "relation": {
+      const amont = contenu.amont.code ? vivante(contenu.amont.code) : null;
+      const aval = contenu.aval.code ? vivante(contenu.aval.code) : null;
+      /*
+       * Le côté DÉSIGNÉ doit exister ; le côté décrit sans code n'existe pas
+       * encore, et c'est précisément ce que la proposition offre de créer.
+       */
+      if (contenu.amont.code && !amont) return false;
+      if (contenu.aval.code && !aval) return false;
+      if (amont && aval) return !aval.prerequis.includes(amont.code);
+      return true;
+    }
+
+    case "manque": {
+      if (!domaineVivant(contenu.domaineId)) return false;
+      // Elle a été créée entre-temps, ici ou ailleurs : plus rien à proposer.
+      const cherche = nu(contenu.intitule);
+      return !referentiel.competences.some(
+        (c) => !c.archive && nu(c.intitule) === cherche,
+      );
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* Le lot lisible                                                      */
 /* ------------------------------------------------------------------ */
 
 /**
- * Ce qui reste à arbitrer : ni déjà arbitré, ni périmé, ni déjà refusé sous
- * une autre identité de lot.
+ * Ce qui reste à arbitrer : ni déjà arbitré, ni devenu inapplicable, ni déjà
+ * refusé sous une autre identité de lot.
  *
  * Le filtrage des refus se fait **à la lecture**, comme `refus_recommandations`
  * : rien n'est effacé en base, et le jour où l'on veut savoir combien de fois
  * une proposition a été refusée, l'information est encore là.
+ *
+ * Le filtre d'applicabilité a remplacé le filtre par version le 24/08/2026 —
+ * voir `estEncoreApplicable` pour ce que le proxy de version cassait.
  */
 export function lotOuvert(
   propositions: readonly PropositionReferentielRelue[],
-  versionsActuelles: ReadonlyMap<DomaineId, number>,
+  referentiel: ReferentielLu,
 ): PropositionReferentielRelue[] {
   const refusees = empreintesRefusees(propositions);
   const vues = new Set<string>();
@@ -331,7 +457,7 @@ export function lotOuvert(
   for (const proposition of propositions) {
     if (proposition.arbitrage) continue;
     if (refusees.has(proposition.empreinte)) continue;
-    if (estPerimee(proposition, versionsActuelles)) continue;
+    if (!estEncoreApplicable(proposition.contenu, referentiel)) continue;
     // Deux lots successifs peuvent porter la même proposition encore valide :
     // elle ne s'affiche qu'une fois.
     if (vues.has(proposition.empreinte)) continue;

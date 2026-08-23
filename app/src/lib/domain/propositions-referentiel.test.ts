@@ -5,8 +5,10 @@ import {
   empreintesRefusees,
   estGenreProposition,
   estPerimee,
+  estEncoreApplicable,
   lireRefutation,
   lotOuvert,
+  type ReferentielLu,
   retentionParGenre,
   versionsCourantes,
   type ContenuProposition,
@@ -15,10 +17,19 @@ import {
 import type { DomaineId } from "./types";
 
 /**
- * Ce que fige ce fichier : une proposition a une identité stable (l'empreinte),
- * se périme par la version et jamais par un nombre de jours, un refus vaut
- * pour tous les lots, et la rétention ne fabrique aucun taux sans arbitrage.
- * Ce sont les quatre propriétés dont le test de réfutation d'ADR-108 dépend.
+ * Ce que fige ce fichier — les propriétés dont le test de réfutation d'ADR-108
+ * dépend :
+ *
+ * - une proposition a une **identité stable**, l'empreinte, qui ne porte que ce
+ *   qui est proposé et jamais la façon de le dire ;
+ * - un **refus vaut pour tous les lots**, et pour toute reformulation de la
+ *   même proposition ;
+ * - une proposition sort du lot quand elle n'est **plus applicable**, jamais
+ *   parce qu'une version a bougé (`estEncoreApplicable`, 24/08/2026) ;
+ * - `estPerimee` survit, mais pour la seule question qui lui convient :
+ *   **une relecture est-elle due**, pas si telle proposition tient encore ;
+ * - la rétention **ne fabrique aucun taux** sans arbitrage, et aucun verdict
+ *   sans les trois lots que l'ADR demande.
  */
 
 function proposition(partielle: Partial<PropositionReferentielRelue>): PropositionReferentielRelue {
@@ -120,28 +131,70 @@ describe("estPerimee — la version périme, jamais un nombre de jours", () => {
   });
 });
 
-describe("lotOuvert — ce qui reste à arbitrer", () => {
-  const versions = versionsCourantes([{ id: "logistique" as DomaineId, version: 3 }]);
+/**
+ * Le référentiel contre lequel l'applicabilité se juge.
+ *
+ * Il porte de quoi rendre la proposition par défaut de `proposition()` —
+ * une scission de « Gestion kanban » sous `logistique`, emportant LOG-01 et
+ * LOG-02 — encore faisable : le parent vit, aucun domaine ne porte déjà ce
+ * nom, et les deux compétences existent.
+ */
+const REFERENTIEL: ReferentielLu = {
+  domaines: [
+    { id: "logistique", archive: false },
+    { id: "stats", archive: false },
+  ],
+  competences: [
+    { code: "LOG-01", intitule: "Lire un plan de flux", archive: false, prerequis: [] },
+    { code: "LOG-02", intitule: "Régler une boucle", archive: false, prerequis: [] },
+  ],
+};
 
-  it("exclut les arbitrées, les périmées et les refusées sous une autre identité de lot", () => {
+describe("lotOuvert — ce qui reste à arbitrer", () => {
+  it("exclut les arbitrées et les refusées sous une autre identité de lot", () => {
     const ouvertes = lotOuvert(
       [
         proposition({ id: "a", empreinte: "e-a" }),
         proposition({ id: "b", empreinte: "e-b", arbitrage: { decision: "retenue", date: "2026-08-22T11:00:00.000Z" } }),
-        proposition({
-          id: "c",
-          empreinte: "e-c",
-          versionsLues: { logistique: 2 },
-        }),
         proposition({
           id: "d",
           empreinte: "e-refusee",
           arbitrage: { decision: "refusee", date: "2026-08-22T12:00:00.000Z" },
         }),
       ],
-      versions,
+      REFERENTIEL,
     );
     expect(ouvertes.map((p) => p.id)).toEqual(["a"]);
+  });
+
+  it("exclut ce qui n'est plus faisable — ici, la scission a déjà eu lieu", () => {
+    const dejaScinde: ReferentielLu = {
+      ...REFERENTIEL,
+      domaines: [...REFERENTIEL.domaines, { id: "gestion-kanban", archive: false }],
+    };
+    expect(lotOuvert([proposition({ id: "a" })], dejaScinde)).toHaveLength(0);
+  });
+
+  /*
+   * LE cas qui a motivé le remplacement du filtre par version, le 24/08/2026.
+   *
+   * Retenir une scission sur « Logistique industrielle » incrémentait la
+   * version du parent, et périmait d'un bloc toutes les autres propositions
+   * portant sur ce domaine — quarante, en l'occurrence. Une version qui bouge
+   * ne dit rien de la faisabilité : ce qui compte est que la proposition
+   * désigne encore quelque chose qui existe et reste à faire.
+   */
+  it("survit à une commande sur le domaine qui ne la rend pas infaisable", () => {
+    const apresUneAutreCommande: ReferentielLu = {
+      ...REFERENTIEL,
+      // Une compétence taguée ailleurs, un domaine renommé, une version qui a
+      // bougé : rien de tout cela n'empêche ce découpage.
+      competences: [
+        ...REFERENTIEL.competences,
+        { code: "LOG-03", intitule: "Autre chose", archive: false, prerequis: [] },
+      ],
+    };
+    expect(lotOuvert([proposition({ id: "a" })], apresUneAutreCommande)).toHaveLength(1);
   });
 
   it("fait valoir un refus pour le lot suivant qui reproposerait la même chose", () => {
@@ -155,7 +208,7 @@ describe("lotOuvert — ce qui reste à arbitrer", () => {
         }),
         proposition({ id: "meme-lot-2", lotId: "lot-2", empreinte: "e-refusee" }),
       ],
-      versions,
+      REFERENTIEL,
     );
     expect(ouvertes).toHaveLength(0);
   });
@@ -166,9 +219,81 @@ describe("lotOuvert — ce qui reste à arbitrer", () => {
         proposition({ id: "lot-1", lotId: "lot-1", empreinte: "e-doublon", creeLe: "2026-08-20T09:00:00.000Z" }),
         proposition({ id: "lot-2", lotId: "lot-2", empreinte: "e-doublon", creeLe: "2026-08-22T09:00:00.000Z" }),
       ],
-      versions,
+      REFERENTIEL,
     );
     expect(ouvertes).toHaveLength(1);
+  });
+});
+
+describe("estEncoreApplicable, genre par genre", () => {
+  it("écarte une arête dont le lien est déjà déclaré", () => {
+    const relie: ReferentielLu = {
+      ...REFERENTIEL,
+      competences: [
+        { code: "LOG-01", intitule: "A", archive: false, prerequis: [] },
+        { code: "LOG-02", intitule: "B", archive: false, prerequis: ["LOG-01"] },
+      ],
+    };
+    const arete = { genre: "arete", amont: "LOG-01", aval: "LOG-02", force: 1, source: "usage" } as const;
+    expect(estEncoreApplicable(arete, REFERENTIEL)).toBe(true);
+    expect(estEncoreApplicable(arete, relie)).toBe(false);
+  });
+
+  it("écarte une compétence archivée entre-temps", () => {
+    const archivee: ReferentielLu = {
+      ...REFERENTIEL,
+      competences: [{ code: "LOG-01", intitule: "A", archive: true, prerequis: [] }],
+    };
+    const dormance = { genre: "dormance", code: "LOG-01", joursSansRien: 90 } as const;
+    expect(estEncoreApplicable(dormance, REFERENTIEL)).toBe(true);
+    expect(estEncoreApplicable(dormance, archivee)).toBe(false);
+  });
+
+  it("écarte un rangement dont le tag est déjà posé", () => {
+    const tagee: ReferentielLu = {
+      ...REFERENTIEL,
+      competences: [
+        { code: "LOG-01", intitule: "A", archive: false, prerequis: [], tagsDomaine: ["stats"] },
+      ],
+    };
+    const rangement = {
+      genre: "rangement", code: "LOG-01", domaineActuel: "logistique",
+      domaineObserve: "stats", observations: 3,
+    } as const;
+    expect(estEncoreApplicable(rangement, REFERENTIEL)).toBe(true);
+    expect(estEncoreApplicable(rangement, tagee)).toBe(false);
+  });
+
+  /* Créée entre-temps, ici ou ailleurs : il n'y a plus de manque à combler. */
+  it("écarte un manque dont l'intitulé existe désormais, accents et casse ignorés", () => {
+    const manque = {
+      genre: "manque", domaineId: "logistique",
+      intitule: "Dimensionner un supermarché de pièces",
+      palier: "intermediaire", ancrage: "…",
+    } as const;
+    expect(estEncoreApplicable(manque, REFERENTIEL)).toBe(true);
+
+    const creee: ReferentielLu = {
+      ...REFERENTIEL,
+      competences: [
+        ...REFERENTIEL.competences,
+        { code: "LOG-09", intitule: "DIMENSIONNER UN SUPERMARCHE DE PIECES", archive: false, prerequis: [] },
+      ],
+    };
+    expect(estEncoreApplicable(manque, creee)).toBe(false);
+  });
+
+  /*
+   * Le côté sans code n'existe pas encore, et c'est exactement ce que la
+   * proposition offre de créer : son absence ne la rend pas caduque.
+   */
+  it("garde une relation dont un seul côté existe", () => {
+    const relation = {
+      genre: "relation",
+      amont: { code: "LOG-01", intitule: "A", palier: "fondamentaux" },
+      aval: { intitule: "Pas encore au référentiel", palier: "avance" },
+    } as const;
+    expect(estEncoreApplicable(relation, REFERENTIEL)).toBe(true);
   });
 });
 

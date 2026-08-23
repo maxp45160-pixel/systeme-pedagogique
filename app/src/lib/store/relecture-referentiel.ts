@@ -47,6 +47,7 @@ import {
   empreintesRefusees,
   estPerimee,
   lotOuvert,
+  type ReferentielLu,
   versionsCourantes,
   type ContenuProposition,
   type PropositionReferentielRelue,
@@ -70,6 +71,16 @@ import type { DomaineId } from "@/lib/domain/types";
  * aucune durée qu'aucune donnée ne justifie.
  */
 const TRAVAIL_RECENT_MAX = 12;
+
+/**
+ * Le référentiel sous la forme que l'applicabilité attend.
+ *
+ * `Referentiel` nomme ses compétences `skills`, `ReferentielLu` les nomme
+ * `competences` : une seule traduction, ici, plutôt qu'à chaque appel.
+ */
+function referentielLu(ctx: Contexte): ReferentielLu {
+  return { domaines: ctx.referentiel.domaines, competences: ctx.referentiel.skills };
+}
 
 /* ------------------------------------------------------------------ */
 /* Le lot lisible — sans appeler le tuteur                             */
@@ -104,7 +115,7 @@ export async function chargerLotPropositions(): Promise<LotPropositions> {
     derniereRelecture(),
   ]);
   const versions = versionsCourantes(ctx.referentiel.domaines);
-  const ouvertes = lotOuvert(enregistrees, versions);
+  const ouvertes = lotOuvert(enregistrees, referentielLu(ctx));
 
   /*
    * « Due » se lit sur la dernière RELECTURE, pas sur la vacuité du lot.
@@ -304,7 +315,7 @@ export async function produireLot(
   const enregistrees = await chargerPropositions();
   const refusees = empreintesRefusees(enregistrees);
   const dejaOuvertes = new Set(
-    lotOuvert(enregistrees, versionsCourantes(ctx.referentiel.domaines)).map((p) => p.empreinte),
+    lotOuvert(enregistrees, referentielLu(ctx)).map((p) => p.empreinte),
   );
 
   const versions = Object.fromEntries(

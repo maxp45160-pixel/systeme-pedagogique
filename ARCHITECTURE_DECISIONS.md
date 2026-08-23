@@ -8588,12 +8588,35 @@ de rétention s'en trouve fauché — 40 propositions ni retenues ni refusées, 
 absentes du dénominateur, et le test de réfutation privé de la matière qu'il
 attend.
 
-**Ce n'est pas tranché.** Deux directions se discutent — ne périmer que les
-propositions dont la version lue a bougé *pour une raison autre que
-l'arbitrage en cours*, ou ne pas incrémenter la version du parent sur une
-commande qui n'affecte pas ce que la proposition décrivait. Les deux touchent
-au cœur d'ADR-065 et méritent leur propre arbitrage. Consigné ici pour que le
-prochain relevé ne le redécouvre pas.
+**Corrigé le 24/08/2026, et par aucune des deux directions d'abord envisagées.**
+Ne pas périmer sur la commande d'arbitrage en cours, ou ne pas incrémenter la
+version du parent : les deux traitaient le symptôme, et la seconde touchait au
+cœur d'ADR-065 pour une raison qui ne la concerne pas.
+
+La cause est ailleurs : **`domaines.version` est un proxy trop grossier de la
+question posée**. La version répond à « quelque chose a-t-il bougé ? » ; la
+péremption d'une proposition demande « ce qu'elle décrit existe-t-il encore, et
+reste-t-il à faire ? ». Les deux coïncident rarement.
+
+`estEncoreApplicable` pose donc la seconde question directement, genre par
+genre : la compétence citée vit-elle encore, le lien n'est-il pas déjà déclaré,
+le tag pas déjà posé, le sous-domaine pas déjà créé, la compétence manquante pas
+déjà ajoutée. Entièrement dérivée du référentiel courant, recalculée à chaque
+lecture, rien de stocké — couche 3 comme le reste.
+
+`versionsLues` et `estPerimee` **restent**, pour la seule question où le grain
+grossier convient : décider qu'une **relecture** est due. C'est bien le
+déclencheur qu'ADR-108 décrit — la version, jamais un seuil de taille —, et il
+n'est pas touché.
+
+Effet mesuré immédiatement après : les 28 propositions encore faisables sont
+revenues à l'écran, et les 12 réellement caduques restent masquées — les arêtes
+dont le lien venait d'être déclaré, les scissions faites, et leurs redites du
+second lot. Le filtre coupe dans les deux sens, ce que le proxy de version ne
+faisait ni dans l'un ni dans l'autre.
+
+**Ce que ce correctif ne fait pas :** monter le statut. ADR-108 reste ❓, et le
+test de réfutation attend toujours ses trois lots.
 
 **Ce que cette correction ne fait pas :** monter le statut. ADR-108 reste ❓.
 
