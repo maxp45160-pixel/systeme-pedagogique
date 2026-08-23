@@ -7808,8 +7808,20 @@ C'est l'écran où l'on passe le plus de temps.
 * **Le papier n'est plus contredit** : `.bureau-lampe`, un calque qui éclaire
   la colonne, laisse retomber les bords, et **couvre la trame** sur ce seul
   écran. La trame reste partout ailleurs : elle porte l'identité.
-* **La marge devient une barre de capture fixe.** Noter est le geste le plus
-  fréquent du pôle ; il ne doit jamais demander de faire défiler.
+* **La marge devient une barre de capture collée au bas de l'écran.** Noter est
+  le geste le plus fréquent du pôle ; il ne doit jamais demander de faire
+  défiler.
+
+  ⚠️ Elle a d'abord été `fixed inset-x-0` avec un décalage `lg:pl-64` en dur
+  pour compenser le rail. **Corrigé le 23/08/2026** : le rail mesure 240 px
+  déployé (`w-60`) et 64 px replié (`rail-reduit:w-16`), jamais 256 px — rail
+  replié, la barre était décalée de 192 px, et le calcul ignorait en plus le
+  padding de `<main>`. La barre d'outils du Bureau souffrait du symétrique :
+  posée hors de la colonne, elle s'étendait sur `max-w-7xl` quand le contenu
+  tient dans `max-w-5xl`, et ses flèches de navigation tombaient loin à droite
+  de ce qu'elles pilotent. **Les deux vivent désormais DANS la colonne**, la
+  barre de capture en `sticky` : elle hérite de la boîte du contenu au lieu de
+  la recalculer. Aucune largeur de rail n'est plus écrite hors du rail.
 * **La recherche devient une commande** (`⌘K`, `PaletteBureau`). Le bloc
   « Chercher dans tout le cahier » occupait un tiers d'écran en permanence sur
   la seule page qu'on veut silencieuse. Un index n'est pas un meuble.

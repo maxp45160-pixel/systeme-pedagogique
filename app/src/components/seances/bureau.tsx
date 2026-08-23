@@ -182,20 +182,56 @@ export function Bureau({
         n'apporte rien.
       */}
 
-      <BarreBureau
-        jour={jour}
-        mois={mois}
-        jours={jours}
-        aujourdHui={aujourdHui}
-        precedente={precedente}
-        suivante={suivante}
-        onChangerJour={onChangerJour}
-        onChangerMois={onChangerMois}
-        onOuvrirCahier={onOuvrirCahier}
-        onOuvrirPalette={ouvrirPalette}
-      />
+      {/*
+        ── Une seule colonne, un seul axe ──
 
-      <div className={cx("mx-auto w-full pb-28", largeur)}>
+        La barre d'outils et la barre de capture vivaient hors de la colonne :
+        la première remplissait toute la largeur de `<main>` (`max-w-7xl`), la
+        seconde était `fixed inset-x-0` avec un `lg:pl-64` en dur pour
+        compenser le rail. Trois axes de centrage différents pour une même
+        page — d'où des commandes qui ne tombaient jamais au-dessus du contenu
+        qu'elles pilotent :
+
+         - le rail mesure 240 px déployé (`w-60`) et 64 px replié
+           (`rail-reduit:w-16`), jamais les 256 px que `pl-64` supposait. Rail
+           replié, la barre de capture était décalée de 192 px ;
+         - `<main>` ajoute son propre padding et un `lg:pl-10`, que le calcul
+           en dur ignorait ;
+         - la barre d'outils, large de `max-w-7xl`, poussait ses flèches de
+           navigation loin à droite du contenu, large de `max-w-5xl`.
+
+        Tout est désormais dans la colonne, et la barre de capture est
+        `sticky` plutôt que `fixed` : elle hérite de la boîte de la colonne au
+        lieu de la recalculer. Aucune largeur de rail n'apparaît plus ici — la
+        seule qui existe est celle du rail lui-même.
+      */}
+      {/*
+        La hauteur minimale est ce qui pousse la barre de capture `sticky` au
+        bas de la fenêtre : un élément collant s'arrête à la boîte de son
+        parent, et un jour vide donnerait une colonne de 300 px avec la barre
+        au milieu de l'écran. Les retraits correspondent aux marges de
+        `(app)/layout.tsx` — barre mobile et paddings de `<main>`.
+      */}
+      <div
+        className={cx(
+          "relative mx-auto flex w-full flex-col pb-6",
+          "min-h-[calc(100svh-11rem)] lg:min-h-[calc(100svh-7rem)]",
+          largeur,
+        )}
+      >
+        <BarreBureau
+          jour={jour}
+          mois={mois}
+          jours={jours}
+          aujourdHui={aujourdHui}
+          precedente={precedente}
+          suivante={suivante}
+          onChangerJour={onChangerJour}
+          onChangerMois={onChangerMois}
+          onOuvrirCahier={onOuvrirCahier}
+          onOuvrirPalette={ouvrirPalette}
+        />
+
         <BandeauDuJour
           jour={jour}
           jours={jours}
@@ -314,17 +350,23 @@ export function Bureau({
             )}
           </div>
         )}
-      </div>
 
-      {/*
-        La barre de capture. Fixe, parce que noter est le geste le plus
-        fréquent du Bureau et qu'il ne doit jamais demander de faire défiler.
-        `bottom-16` sur mobile : la barre de navigation basse occupe déjà le
-        bas de l'écran (`NavMobile`), et se superposer à elle rendrait les
-        deux inutilisables.
-      */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-16 z-40 flex justify-center bg-gradient-to-t from-fond via-fond/85 to-transparent px-4 pb-3 pt-6 lg:bottom-0 lg:pl-64">
-        <div className={cx("pointer-events-auto w-full", largeur)}>
+        {/*
+          La barre de capture, dernier enfant de la colonne.
+
+          Elle reste au bas de l'écran — noter est le geste le plus fréquent du
+          Bureau et ne doit jamais demander de faire défiler — mais par
+          `sticky`, donc dans la colonne : sa largeur EST celle du contenu,
+          sans qu'aucune largeur de rail n'ait à être devinée.
+
+          `bottom-16` sur mobile : la barre de navigation basse occupe déjà le
+          bas de l'écran (`NavMobile`), et se superposer à elle rendrait les
+          deux inutilisables.
+
+          Le dégradé déborde de la colonne (`-mx-4 px-4`) pour que le contenu
+          qui passe dessous s'efface aussi dans les gouttières.
+        */}
+        <div className="sticky bottom-16 z-40 -mx-4 mt-auto bg-gradient-to-t from-fond via-fond/85 to-transparent px-4 pb-3 pt-6 lg:bottom-4">
           <ChampMarge variante="barre" />
         </div>
       </div>
