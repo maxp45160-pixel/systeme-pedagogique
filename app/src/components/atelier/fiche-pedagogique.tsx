@@ -26,6 +26,7 @@ export function FichePedagogiqueAtelier({
   donneesSeance,
   onRestaurerDomaine,
   domainesExistants,
+  modeInitial,
 }: {
   vue: VuePedagogiqueAtelier;
   titre: string;
@@ -36,6 +37,8 @@ export function FichePedagogiqueAtelier({
   donneesSeance?: DonneesSeance;
   onRestaurerDomaine?: (domaineId: string) => void;
   domainesExistants?: { id: string; nom: string; prefixe: string }[];
+  /** Mode de lecture initial d'une vue domaine, venu de l'URL (`vue=progression`). */
+  modeInitial?: "progression";
 }) {
   if (vue.kind === "competence") {
     return (
@@ -60,6 +63,7 @@ export function FichePedagogiqueAtelier({
         compteId={compteId}
         onRestaurerDomaine={onRestaurerDomaine}
         domainesExistants={domainesExistants}
+        modeInitial={modeInitial}
       />
     );
   }

@@ -52,7 +52,7 @@ export function FormulaireNouveauMotDePasse() {
     // Révocation des autres sessions ; la session courante reste valide.
     await supabase.auth.signOut({ scope: "others" });
 
-    router.replace("/");
+    router.replace("/app");
     router.refresh();
   }
 

@@ -19,11 +19,31 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { SUPABASE_ANON_KEY, SUPABASE_URL, supabaseConfigure } from "@/lib/supabase/config";
 
-/** Chemins accessibles sans compte. */
-const PUBLICS = ["/login", "/auth", "/robots.txt", "/sitemap.xml"];
+/**
+ * Chemins accessibles sans compte : vitrine publique (`/`, `/methode`,
+ * `/etudiants`, `/autodidactes`) et routes d'authentification. Les routes
+ * générées `robots.txt`, `sitemap.xml` et la carte Open Graph doivent rester
+ * atteignables par les moteurs et réseaux sociaux malgré le matcher du proxy :
+ * un fetcher sans session (Discord, LinkedIn…) qui tombait sur une redirection
+ * vers `/login` recevrait du HTML au lieu de l'annonce.
+ */
+const PREFIX_PUBLICS = ["/opengraph-image"];
+const PUBLICS = [
+  "/",
+  "/login",
+  "/auth",
+  "/methode",
+  "/etudiants",
+  "/autodidactes",
+  "/robots.txt",
+  "/sitemap.xml",
+];
 
 function estPublic(chemin: string): boolean {
-  return PUBLICS.some((p) => chemin === p || chemin.startsWith(`${p}/`));
+  return (
+    PUBLICS.some((p) => chemin === p || chemin.startsWith(`${p}/`)) ||
+    PREFIX_PUBLICS.some((p) => chemin.startsWith(p))
+  );
 }
 
 export async function proxy(request: NextRequest) {
@@ -87,7 +107,7 @@ export async function proxy(request: NextRequest) {
 
   if (connecte && chemin === "/login") {
     const versAccueil = request.nextUrl.clone();
-    versAccueil.pathname = "/";
+    versAccueil.pathname = "/app";
     versAccueil.search = "";
     return NextResponse.redirect(versAccueil);
   }

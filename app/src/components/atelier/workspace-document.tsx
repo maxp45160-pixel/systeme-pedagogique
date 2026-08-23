@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo, useState, type ChangeEvent, type DragEvent } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent, type DragEvent } from "react";
+import { useEstHydrate } from "@/lib/ui/hydratation";
 import Link from "next/link";
 import { CoquilleWorkspace, sortieWorkspace } from "@/components/atelier/coquille-workspace";
 import { ConcepteurSeance, type DonneesSeance } from "@/components/seances/concepteur-seance";
 import { BandeauInfo, BarreProgression, Bouton, Carte, cx } from "@/components/ui/primitives";
 import { Champ } from "@/components/ui/champ";
 import { Markdown } from "@/components/ui/markdown";
+import { ModaleReferentiel } from "@/components/referentiel/modale-referentiel";
 import { analyserDocumentMarkdown } from "@/lib/documents/markdown";
 import { definitionTypeDocument, type PieceJointeDocument } from "@/lib/documents/types-documents";
 import {
@@ -24,8 +26,21 @@ import {
   ligneCompetenceSeance,
   ligneExerciceSeance,
 } from "@/lib/documents/journal-seance";
-import { erreurFichierPdf, televerserPdf } from "@/lib/documents/televersement-pdf";
+import { erreurFichierPiece, estMimePieceJointe, MIME_PDF } from "@/lib/documents/pieces-jointes";
+import { televerserFichier } from "@/lib/documents/televersement-fichier";
+import { composerSujetLecture } from "@/lib/documents/extraction-pdf";
+import {
+  LONGUEUR_REPERE_MAX,
+  creerRepere,
+  enregistrerReperes,
+  insererRepere,
+  lireReperes,
+  retirerRepere,
+  type RepereCorpus,
+} from "@/lib/documents/reperes-corpus";
+import { extraireTexteSupportAction } from "@/lib/store/extraction-pdf";
 import { sauvegarderDocumentAction } from "@/lib/store/document-actions";
+import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 
 export interface WorkspaceDocumentProps {
   /** Identifiant canonique du document (ex: identifiant fiche ou slug). */
@@ -40,6 +55,8 @@ export interface WorkspaceDocumentProps {
   donneesSeance?: DonneesSeance;
   /** URL de retour personnalisé. */
   retour?: string;
+  /** Identifiant du compte : isole les repères locaux et lit la clé du tuteur. */
+  compteId?: string;
 }
 
 const LIBELLE_VISEE: Record<string, string> = {
@@ -59,6 +76,18 @@ const CONSIGNES_PAR_TYPE: Record<string, string> = {
 };
 
 const SECTION_LIENS = "Déroulé";
+
+/*
+ * « Faire lire par le tuteur » : inactif → extraction → proposition → à
+ * valider / erreur. La proposition réutilise le canal existant de la modale
+ * (`/api/referentiel/proposer`) ; la validation case par case reste la seule
+ * écriture au référentiel.
+ */
+type EtatLectureTuteur =
+  | { phase: "repos" }
+  | { phase: "extraction" }
+  | { phase: "proposition"; sujet: string }
+  | { phase: "erreur"; message: string };
 
 function Journal({ corps }: { corps: string }) {
   const lignes = analyserJournal(corps);
@@ -106,6 +135,98 @@ function Journal({ corps }: { corps: string }) {
 }
 
 /**
+ * Les repères d'une ressource — des notes en marge, pas des mesures.
+ *
+ * Saisie libre, stockage navigateur isolé par compte et par document
+ * (`reperes-corpus`). Aucune mécanique de complétion : pas de barre, pas de
+ * pourcentage, pas de case à cocher — cocher « chapitre fait » ne dirait rien
+ * du niveau, alors on ne coche rien.
+ */
+function SectionReperes({ compteId, documentId }: { compteId: string; documentId: string }) {
+  // Le stockage navigateur ne se lit pas au rendu serveur : lecture dans un
+  // initialiseur paresseux derrière `useEstHydrate`, jamais dans un `useEffect`
+  // (même règle que le minuteur de séance — la re-seed différée provoquerait la
+  // cascade de rendus que React déconseille).
+  const hydrate = useEstHydrate();
+  const [reperes, setReperes] = useState<RepereCorpus[]>(() => lireReperes(compteId, documentId));
+  const [saisie, setSaisie] = useState("");
+  const [erreurRepere, setErreurRepere] = useState<string | null>(null);
+
+  if (!hydrate) return null;
+
+  function ajouter() {
+    const repere = creerRepere(crypto.randomUUID(), saisie, new Date().toISOString());
+    if (!repere) {
+      setErreurRepere(
+        `Un repère reste une note libre : entre 1 et ${LONGUEUR_REPERE_MAX} caractères.`,
+      );
+      return;
+    }
+    const suivants = insererRepere(reperes, repere);
+    setReperes(suivants);
+    enregistrerReperes(compteId, documentId, suivants);
+    setSaisie("");
+    setErreurRepere(null);
+  }
+
+  function retirer(id: string) {
+    const suivants = retirerRepere(reperes, id);
+    setReperes(suivants);
+    enregistrerReperes(compteId, documentId, suivants);
+  }
+
+  return (
+    <section className="rounded-xl border border-bordure bg-surface-2 p-4">
+      <p className="text-xs font-semibold uppercase tracking-wider text-texte-discret">Repères</p>
+      <p className="mt-1 text-[0.6875rem] leading-relaxed text-texte-discret">
+        Tes mots dans la marge. Ils restent sur cet appareil et n’alimentent aucun niveau.
+      </p>
+      {reperes.length > 0 && (
+        <ul className="mt-3 space-y-1.5">
+          {reperes.map((repere) => (
+            <li key={repere.id} className="flex items-start gap-2 rounded-md bg-surface px-2.5 py-1.5">
+              <span className="min-w-0 flex-1 break-words text-xs leading-relaxed text-texte">
+                {repere.texte}
+              </span>
+              <button
+                type="button"
+                onClick={() => retirer(repere.id)}
+                aria-label={`Retirer le repère : ${repere.texte}`}
+                className="shrink-0 cursor-pointer text-texte-discret transition-colors hover:text-danger"
+              >
+                ×
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="mt-3 flex items-start gap-2">
+        <input
+          value={saisie}
+          onChange={(event) => {
+            setSaisie(event.target.value);
+            setErreurRepere(null);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              ajouter();
+            }
+          }}
+          maxLength={LONGUEUR_REPERE_MAX + 1}
+          placeholder="À retenir, à relire…"
+          className="min-w-0 flex-1 rounded-md border border-bordure-controle bg-surface px-2 py-1.5 text-xs outline-none focus:border-primaire placeholder:text-texte-discret"
+        />
+        <Bouton variante="secondaire" taille="petite" onClick={ajouter} disabled={saisie.trim().length === 0}>
+          Ajouter
+        </Bouton>
+      </div>
+      {erreurRepere && <p className="mt-2 text-[0.6875rem] text-alerte">{erreurRepere}</p>}
+    </section>
+  );
+}
+
+/**
  * Espace de travail documentaire unifié de l'Atelier.
  *
  * Remplace et fédère les 3 workspaces précédents (Projet, Support PDF, Note opérationnelle)
@@ -118,6 +239,7 @@ export function WorkspaceDocument({
   piecesInitiales = [],
   donneesSeance,
   retour,
+  compteId,
 }: WorkspaceDocumentProps) {
   const [contenu, setContenu] = useState(contenuInitial);
   const [updatedAt, setUpdatedAt] = useState(updatedAtInitial);
@@ -127,6 +249,7 @@ export function WorkspaceDocument({
   const [depotActif, setDepotActif] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [lectureTuteur, setLectureTuteur] = useState<EtatLectureTuteur>({ phase: "repos" });
 
   const analyse = useMemo(() => analyserDocumentMarkdown(id, contenu), [id, contenu]);
   const definition = analyse.type ? definitionTypeDocument(analyse.type) : null;
@@ -218,10 +341,10 @@ export function WorkspaceDocument({
     }
   }
 
-  // --- Gestion Support : Pièces jointes PDF ---
-  async function ajouterPdf(fichier: File | undefined) {
+  // --- Gestion Support : Pièces jointes (PDF et photos de cahier) ---
+  async function ajouterFichier(fichier: File | undefined) {
     if (!fichier || televersement) return;
-    const messageErreur = erreurFichierPdf(fichier);
+    const messageErreur = erreurFichierPiece(fichier);
     if (messageErreur) {
       setErreur(messageErreur);
       return;
@@ -230,25 +353,50 @@ export function WorkspaceDocument({
     setMessage(null);
     setErreur(null);
     try {
-      const piece = await televerserPdf(id, fichier);
+      const piece = await televerserFichier(id, fichier);
       setPieces((anciennes) => [piece, ...anciennes]);
-      setMessage("PDF attaché à la ressource.");
+      setMessage("Pièce jointe attachée à la ressource.");
     } catch (cause) {
-      setErreur(cause instanceof Error ? cause.message : "Le PDF n’a pas pu être attaché.");
+      setErreur(cause instanceof Error ? cause.message : "La pièce jointe n’a pas pu être attachée.");
     } finally {
       setTeleversement(false);
     }
   }
 
   function lireFichier(event: ChangeEvent<HTMLInputElement>) {
-    void ajouterPdf(event.currentTarget.files?.[0]);
+    void ajouterFichier(event.currentTarget.files?.[0]);
     event.currentTarget.value = "";
+  }
+
+  // --- Faire lire par le tuteur (extraction PDF, puis proposition) ---
+  const pdfPresent = pieces.some((piece) => piece.mimeType === MIME_PDF);
+
+  async function lancerLectureTuteur() {
+    if (lectureTuteur.phase === "extraction") return;
+    setMessage(null);
+    setErreur(null);
+    setLectureTuteur({ phase: "extraction" });
+    try {
+      const resultat = await extraireTexteSupportAction(id);
+      setLectureTuteur({
+        phase: "proposition",
+        sujet: composerSujetLecture(titre, resultat.extrait),
+      });
+    } catch (cause) {
+      setLectureTuteur({
+        phase: "erreur",
+        message:
+          cause instanceof Error
+            ? cause.message
+            : "La lecture du PDF par le tuteur a échoué.",
+      });
+    }
   }
 
   function deposerFichier(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
     setDepotActif(false);
-    void ajouterPdf(event.dataTransfer.files?.[0]);
+    void ajouterFichier(event.dataTransfer.files?.[0]);
   }
 
   // --- Inscription automatique séance ---
@@ -459,28 +607,83 @@ export function WorkspaceDocument({
                   onDragLeave={(event) => { if (event.currentTarget === event.target) setDepotActif(false); }}
                   onDrop={deposerFichier}
                 >
-                  <input id={`workspace-pdf-${id}`} type="file" accept="application/pdf,.pdf" onChange={lireFichier} className="sr-only" />
-                  <label htmlFor={`workspace-pdf-${id}`} className="cursor-pointer text-xs font-medium hover:text-primaire">
-                    {televersement ? "Ajout du PDF…" : "Déposer ou choisir un PDF"}
+                  <input
+                    id={`workspace-piece-${id}`}
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
+                    onChange={lireFichier}
+                    className="sr-only"
+                  />
+                  <label htmlFor={`workspace-piece-${id}`} className="cursor-pointer text-xs font-medium hover:text-primaire">
+                    {televersement ? "Ajout du fichier…" : "Déposer ou choisir un PDF ou une photo"}
                   </label>
-                  <p className="mt-1 text-[0.6875rem] text-texte-discret">10 Mo maximum</p>
+                  <p className="mt-1 text-[0.6875rem] text-texte-discret">PDF, JPEG, PNG ou WebP · 10 Mo maximum</p>
                 </div>
                 {pieces.length > 0 && (
-                  <ul className="mt-3 space-y-1.5">
-                    {pieces.map((piece) => (
-                      <li key={piece.id}>
-                        {piece.url ? (
-                          <a href={piece.url} target="_blank" rel="noreferrer" className="block truncate text-xs font-medium text-primaire hover:underline" title={piece.nom}>
-                            {piece.nom}
-                          </a>
-                        ) : (
-                          <span className="block truncate text-xs">{piece.nom}</span>
-                        )}
-                      </li>
-                    ))}
+                  <ul className="mt-3 space-y-2">
+                    {pieces.map((piece) => {
+                      const estImage = estMimePieceJointe(piece.mimeType) && piece.mimeType !== "application/pdf";
+                      return (
+                        <li key={piece.id} className="flex items-center gap-2">
+                          {estImage && piece.url ? (
+                            <a href={piece.url} target="_blank" rel="noopener noreferrer" className="shrink-0" title={piece.nom}>
+                              {/* Photo de cahier : l'app n'affirme rien sur l'image, elle la montre. */}
+                              <img src={piece.url} alt={piece.nom} className="size-14 rounded-md border border-bordure object-cover" />
+                            </a>
+                          ) : null}
+                          {piece.url ? (
+                            <a href={piece.url} target="_blank" rel="noopener noreferrer" className="min-w-0 flex-1 truncate text-xs font-medium text-primaire hover:underline" title={piece.nom}>
+                              {piece.nom}
+                            </a>
+                          ) : (
+                            <span className="min-w-0 flex-1 truncate text-xs">{piece.nom}</span>
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
+
+                {pdfPresent && (
+                  <div className="mt-3 border-t border-bordure pt-3">
+                    <Bouton
+                      variante="secondaire"
+                      taille="petite"
+                      onClick={() => void lancerLectureTuteur()}
+                      disabled={lectureTuteur.phase === "extraction"}
+                      className="w-full"
+                    >
+                      {lectureTuteur.phase === "extraction"
+                        ? "Extraction du texte…"
+                        : "Faire lire par le tuteur"}
+                    </Bouton>
+                    <p className="mt-1.5 text-[0.6875rem] leading-relaxed text-texte-discret">
+                      Le tuteur propose des compétences à partir du PDF ; tu relis
+                      case par case avant tout enregistrement.
+                    </p>
+                    {lectureTuteur.phase === "erreur" && (
+                      <p className="mt-2 text-[0.6875rem] leading-relaxed text-danger">
+                        {lectureTuteur.message}{" "}
+                        <button
+                          type="button"
+                          onClick={() => void lancerLectureTuteur()}
+                          className="cursor-pointer font-medium underline-offset-2 hover:underline"
+                        >
+                          Réessayer
+                        </button>
+                      </p>
+                    )}
+                  </div>
+                )}
               </section>
+
+              {compteId && (
+                <SectionReperes
+                  key={`${compteId}:${id}`}
+                  compteId={compteId}
+                  documentId={id}
+                />
+              )}
             </aside>
           </div>
         )}
@@ -572,6 +775,17 @@ export function WorkspaceDocument({
           </p>
         )}
       </div>
+
+      {lectureTuteur.phase === "proposition" && compteId && (
+        <ModaleReferentiel
+          compteId={compteId}
+          sujetInitial={lectureTuteur.sujet}
+          demarrageAutomatique
+          cleDisponible={Boolean(lireConfigTuteur(compteId))}
+          guideEtape="Le tuteur lit le PDF attaché et propose des compétences. Rien n'est enregistré sans ta relecture case par case."
+          onFermer={() => setLectureTuteur({ phase: "repos" })}
+        />
+      )}
     </CoquilleWorkspace>
   );
 }

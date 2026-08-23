@@ -3,6 +3,7 @@ import { resoudreMoteur, repondreParFluxSse } from "@/lib/tutor/reponse-flux";
 import type { ConfigTuteurClient } from "@/lib/tutor/cle-client";
 import { genererExercices } from "@/lib/tutor/generation";
 import type { PropositionExercice } from "@/lib/tutor/proposition";
+import { DUREE_ESTIMEE_MAX, DUREE_ESTIMEE_MIN } from "@/lib/domain/exercice";
 
 /**
  * Route de génération d'exercices — sans conversation.
@@ -29,10 +30,12 @@ interface CorpsGenerer {
   competences?: string[];
   /** Indice de rédaction facultatif. */
   theme?: string;
-  /** Durée totale visée de la séance — calibre la durée estimée des exercices. */
+  /**
+   * Durée cible de la séance, en minutes — le budget que le tuteur répartit
+   * entre les exercices du lot. Facultative : la génération hors séance n'en
+   * a pas.
+   */
   dureeCibleMin?: number;
-  /** Nombre d'exercices du lot — complète la contrainte de durée. */
-  nombreExercices?: number;
   /** Config saisie côté client (réglages). Prime sur les variables serveur. */
   config?: ConfigTuteurClient;
   /** Révision d'une proposition non enregistrée, demandée par la personne. */
@@ -76,6 +79,17 @@ export async function POST(request: Request) {
     );
   }
 
+  /*
+   * La durée cible est validée aux mêmes bornes que `dureeEstimeeMin` : une
+   * valeur absurde venue du client ne doit pas atteindre le prompt. Absente
+   * ou invalide, elle disparaît — aucune durée n'est fabriquée.
+   */
+  const dureeCibleBrute = Number(corps.dureeCibleMin);
+  const dureeCible =
+    Number.isFinite(dureeCibleBrute) && dureeCibleBrute > 0
+      ? Math.min(DUREE_ESTIMEE_MAX, Math.max(DUREE_ESTIMEE_MIN, Math.round(dureeCibleBrute)))
+      : undefined;
+
   const resolu = resoudreMoteur(corps.config);
   if (!resolu.ok) return resolu.reponse;
   const { moteur } = resolu;
@@ -93,14 +107,6 @@ export async function POST(request: Request) {
    * sans explication — l'utilisateur croyait à un refus partiel du tuteur.
    */
   const ignorees: string[] = [];
-  const dureeCible =
-    typeof corps.dureeCibleMin === "number" && Number.isFinite(corps.dureeCibleMin) && corps.dureeCibleMin >= 5
-      ? Math.round(corps.dureeCibleMin)
-      : undefined;
-  const nombreExercicesLot =
-    typeof corps.nombreExercices === "number" && Number.isInteger(corps.nombreExercices) && corps.nombreExercices > 0
-      ? corps.nombreExercices
-      : codes.length;
   const demandes = codes.flatMap((code) => {
     const etat = ctx.etatsParCode.get(code.toUpperCase());
     if (!etat) {
@@ -112,7 +118,7 @@ export async function POST(request: Request) {
         competence: etat.skill,
         calibration: ctx.calibrations.get(etat.skill.code) ?? null,
         theme: corps.theme,
-        ...(dureeCible ? { enveloppe: { dureeCibleMin: dureeCible, nombreExercices: nombreExercicesLot } } : {}),
+        ...(dureeCible !== undefined ? { dureeCibleMin: dureeCible } : {}),
         ...(consigneModification && propositionModification
           ? {
               modification: {

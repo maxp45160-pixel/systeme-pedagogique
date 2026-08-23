@@ -19,6 +19,7 @@ import {
   type SkillObservation,
   type User,
 } from "@/lib/domain/types";
+import type { Engagement } from "@/lib/domain/engagement";
 import {
   PARAMETRE_PAR_NOM,
   type AjustementInscrit,
@@ -310,6 +311,7 @@ export function validerSeance(valeur: unknown, chemin = "sessions"): LearningSes
   optionnel(seance, "renonceeLe", chemin, date);
   if (seance.besoinDeclare !== undefined) validerBesoin(seance.besoinDeclare, `${chemin}.besoinDeclare`);
   if (seance.blueprint !== undefined) validerBlueprint(seance.blueprint, `${chemin}.blueprint`);
+  optionnel(seance, "modeEpreuve", chemin, booleen);
   return seance as unknown as LearningSession;
 }
 
@@ -320,6 +322,42 @@ export function validerRefus(valeur: unknown, chemin = "refusRecommandations"): 
   optionnel(refus, "exerciceId", chemin, texte);
   date(refus.date, `${chemin}.date`);
   return refus as unknown as RefusRecommandation;
+}
+
+/**
+ * Ligne `engagements` traduite en entité du domaine.
+ *
+ * La base garantit déjà le format de `echeance_le` (CHECK regex) et la
+ * cohérence de la clôture ; on le revérifie ici comme partout : une donnée
+ * venue de Supabase se valide avant d'entrer dans le moteur, y compris quand
+ * une contrainte est censée l'avoir fait.
+ */
+export function validerEngagement(valeur: unknown, chemin = "engagements"): Engagement {
+  const engagement = objet(valeur, chemin);
+  texte(engagement.id, `${chemin}.id`);
+  enumeration(engagement.type, ["examen", "rendu"] as const, `${chemin}.type`);
+  texte(engagement.libelle, `${chemin}.libelle`);
+  const echeance = texte(engagement.echeanceLe, `${chemin}.echeanceLe`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(echeance)) {
+    refuser(`${chemin}.echeanceLe`, "date ISO YYYY-MM-DD attendue");
+  }
+  textes(engagement.codes, `${chemin}.codes`);
+  optionnel(engagement, "clotureLe", chemin, (v, c) => texte(v, c));
+  optionnel(engagement, "clotureType", chemin, (v, c) =>
+    enumeration(v, ["passe", "reporte"] as const, c));
+  /*
+   * La contrainte de cohérence côté base dit que les deux champs vont ensemble
+   * ou pas du tout. La relire ici évite qu'un engagement « à moitié clos » —
+   * impossible à produire par les chemins d'écriture, mais pas par une main
+   * sur les données — soit lu comme ouvert ou clos selon quel champ l'appelant
+   * regarde (`estOuvert` exige les deux absents).
+   */
+  if (
+    (engagement.clotureLe === undefined) !== (engagement.clotureType === undefined)
+  ) {
+    refuser(`${chemin}.clotureLe`, "clôture complète attendue : instant et type vont ensemble");
+  }
+  return engagement as unknown as Engagement;
 }
 
 export function validerDomaine(valeur: unknown, chemin = "domaines"): Domaine {
@@ -445,7 +483,8 @@ export type NomCollectionValidee =
   | "exercises"
   | "attempts"
   | "sessions"
-  | "refusRecommandations";
+  | "refusRecommandations"
+  | "engagements";
 
 type EntiteValidee = {
   observations: SkillObservation;
@@ -453,6 +492,7 @@ type EntiteValidee = {
   attempts: ExerciseAttempt;
   sessions: LearningSession;
   refusRecommandations: RefusRecommandation;
+  engagements: Engagement;
 };
 
 export function validerEntiteSupabase<K extends NomCollectionValidee>(
@@ -467,5 +507,6 @@ export function validerEntiteSupabase<K extends NomCollectionValidee>(
     case "attempts": return validerTentative(valeur, chemin) as EntiteValidee[K];
     case "sessions": return validerSeance(valeur, chemin) as EntiteValidee[K];
     case "refusRecommandations": return validerRefus(valeur, chemin) as EntiteValidee[K];
+    case "engagements": return validerEngagement(valeur, chemin) as EntiteValidee[K];
   }
 }

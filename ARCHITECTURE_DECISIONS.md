@@ -8569,7 +8569,196 @@ Deux défauts de rédaction relevés sur ce lot, corrigés dans le prompt :
 
 ---
 
-## ADR-109 — Le rendu des formules passe par KaTeX ; le texte Unicode reste le filet ✅
+<a name="adr-109"></a>
+## ADR-109 — L'engagement est un fait déclaré, pas un objectif ✅
+
+**Date.** 22/08/2026. **Tranchée par Maxime** — arbitrage rendu favorable sur
+les questions ouvertes du plan persona académique (le « fait daté », A0).
+
+**Contexte.** Les simulations personas ont montré que le produit ne retenait
+aucun fait daté : fatal pour le persona concours, gênant pour l'académique.
+[ADR-096](#adr-096) a retiré les objectifs structurés et interdit de stocker
+l'intention ; mais une échéance extérieure — un examen, un rendu — n'est pas
+une intention : c'est un événement qui arrivera qu'on le veuille ou non.
+
+### Décision
+
+**L'engagement est un fait déclaré**, stocké tel quel :
+
+* table `engagements` : type `examen|rendu`, libellé **verbatim**, échéance
+  ISO (`echeance_le`), codes facultatifs validés contre le référentiel du
+  compte, clôture `passe|reporte`. Migration `20260822160000` appliquée le
+  22/08/2026.
+* **Append-only en pratique** : reporter = clôture + nouvel engagement. Jamais
+  de réécriture ni de suppression.
+* **Ce n'est ni un objectif ni un retour au parcours planifié** —
+  [ADR-096](#adr-096) reste debout. Interdits maintenus : pas de
+  planification calendaire, pas de rappels ni de notifications push, pas
+  d'objectifs par compétence, pas de score de préparation, jamais de plan
+  jour-par-jour.
+
+**Au moteur** : un facteur unique, « Proximité d'échéance », dans
+`lib/engine/recommend.ts`. Fenêtre J-21 → veille ; hors fenêtre, zéro ; bonus
+maximal `BONUS_ECHEANCE_MAX = 25`, ajouté **sans recalibrer** les barèmes
+existants. Comme les autres, le facteur est sourcé dans le dépliant « Pourquoi
+cette action plutôt qu'une autre ? ».
+
+**À l'écran** : un geste dédié, « Déclarer une échéance », au tableau de bord —
+jamais un effet de bord d'un besoin écrit ; une carte « À venir » ; une
+couverture dérivée honnête pour le type `examen` (« rien encore observé sur
+X », jamais zéro). Depuis la capture d'intention, quand une date est détectée
+(`extraireEcheanceBesoin`), un chemin assisté propose de déclarer
+l'engagement : proposition explicite, aucune écriture automatique — la
+conversion silencieuse qu'[ADR-096](#adr-096) a retirée reste interdite.
+
+### Test de réfutation
+
+L'utilité du facteur est une hypothèse : comparer le taux d'acceptation des
+actions recommandées pendant la fenêtre et hors fenêtre. Si l'écart ne se
+manifeste pas, le facteur ne vaut pas sa place — le retirer ne touche aucun
+autre barème.
+
+---
+
+<a name="adr-110"></a>
+## ADR-110 — Le mode épreuve est une déclaration de séance, pas une mesure ✅
+
+**Date.** 22/08/2026. **Tranchée par Maxime** — arbitrage rendu favorable sur
+le plan persona concours (chantier C1).
+
+**Contexte.** Le persona concours travaille sous contrainte de temps réelle.
+Un habillage d'épreuve pouvait exister sans nouvelle entité : une
+caractéristique déclarée au départ sur la séance elle-même suffisait.
+
+### Décision
+
+* `modeEpreuve` est une caractéristique déclarée de `LearningSession`
+  (colonne `sessions.mode_epreuve`, migration `20260822230000` appliquée le
+  22/08/2026). Posable seulement à la création, irréversible : la modifier
+  après coup fabriquerait un contexte qui n'a pas existé.
+* Ce que ça change : un chrono plein écran (habillage pomodoro, qui n'écrit
+  rien, comme le minuteur — [ADR-045](#adr-045)), les indices masqués pendant
+  le déroulé, une correction unique à la fin. Le bilan est inchangé ; le
+  journal porte un badge.
+* Ce que ça ne change pas : **rien au moteur**. Aucune pondération, aucun
+  niveau, aucune preuve supplémentaire — le mode épreuve n'est pas une mesure
+  de performance, au même titre que `dureeEstimeeMin`.
+* [ADR-048](#adr-048) reste debout : `LearningSession` demeure l'épisode de
+  travail unique ; aucune entité nouvelle, aucune séance parallèle.
+
+---
+
+<a name="adr-111"></a>
+## ADR-111 — Les images sont des pièces jointes documentaires, acceptées passivement ✅
+
+**Date.** 22/08/2026. **Tranchée par Maxime** — option « acceptation passive »
+du plan persona parent (chantier P2).
+
+**Contexte.** Un parent qui soutient un collégien veut déposer la photo d'un
+cahier ou d'un énoncé. Deux voies existaient : analyser l'image (fabriquer une
+affirmation sur ce qu'elle montre), ou l'accepter sans rien affirmer.
+
+### Décision
+
+L'option passive est retenue. jpeg/png/webp admis comme pièces
+**documentaires**, 10 Mo au plus, bucket `document-support` (migration
+`20260822183000` appliquée le 22/08/2026).
+
+* **L'application n'affirme rien sur l'image.** Aucune analyse, aucune
+  extraction, aucune donnée dérivée : une image jointe documente une fiche,
+  elle ne mesure rien et ne nourrit pas le moteur.
+* Vignette pour la lecture, suppression possible avant validation : ce qui
+  entre dans le corpus reste révisable par la personne jusqu'à son geste.
+
+---
+
+<a name="adr-112"></a>
+## ADR-112 — La ressource-lien documente, elle ne nourrit pas ✅
+
+**Date.** 22/08/2026. **Tranchée par Maxime** — arbitrage partagé des plans
+reconversion et loisir (R2).
+
+**Contexte.** Les personas reconversion et loisir citent tous deux des
+ressources extérieures — tutoriels, articles. La question était de savoir si
+l'application devait les lire, les résumer ou les transformer.
+
+### Décision
+
+Une ressource-lien est une fiche sobre : URL, titre, rattachements
+facultatifs au référentiel. Elle **documente**, elle ne nourrit pas :
+
+* pas de scraping, pas de lecture automatique du contenu distant ;
+* jamais convertie automatiquement en Connaissance —
+  [ADR-092](#adr-092) l'a posé pour les notes et les ressources, la
+  ressource-lien suit le même régime ;
+* la validation d'URL est partagée côté serveur : une seule implémentation,
+  comme toute validation métier transversale.
+
+---
+
+<a name="adr-113"></a>
+## ADR-113 — Le tuteur peut lire un PDF déposé pour proposer des branches ✅
+
+**Date.** 22/08/2026. **Tranchée par Maxime** — arbitrage rendu favorable sur
+le chantier C du plan académique.
+
+**Contexte.** Un support de cours PDF contient la matière des branches à
+proposer au référentiel. Le lire à la place de la personne économise une
+recopie ; mais tout ce que le tuteur lit ne doit pas devenir ce qu'il écrit.
+
+### Décision
+
+* **Extraction texte serveur** via `unpdf`. L'extrait est mis en cache
+  jetable — 20 000 caractères au plus — dans le front-matter de la fiche
+  support : reconstructible, jamais une source autoritative.
+* L'extrait **alimente la proposition de branches existante** ; il ne crée
+  rien lui-même. La modale référentiel case par case reste **la seule
+  écriture** — jamais d'écriture silencieuse, conformément à P5.
+* **Échec d'extraction affiché, texte jamais fabriqué** : pas d'OCR pour les
+  scans. Un PDF image reste illisible au système, et le dire vaut mieux
+  qu'inventer un contenu.
+
+---
+
+## ADR-114 — Une vitrine publique à la racine ; le carnet se déplace sous `/app` ✅
+
+**Date.** 23/08/2026. **Tranchée par Maxime** — arbitrage validé en session :
+landing marketing à la racine, tableau de bord déplacé vers `/app`.
+
+**Contexte.** L'application était intégralement derrière authentification : la
+seule page publique indexable était `/login`. Aucune acquisition par moteur de
+recherche n'était possible — Google n'a rien à classer sur une page de
+connexion, et la racine du domaine (la place la plus créditrice) hébergeait un
+tableau de bord inaccessible aux anonymes.
+
+### Décision
+
+* **La racine `/` devient une landing publique** dans un nouveau groupe de
+  routes `(public)` : proposition de valeur, boucle en trois temps, deux pages
+  cibles (`/etudiants`, `/autodidactes`) et la méthode (`/methode`). Un compte
+  déjà connecté qui visite `/` est redirigé vers `/app`.
+* **Le tableau de bord vit désormais à `/app`** (groupe `(app)`). Toutes les
+  destinations internes qui pointaient vers `/` sont mises à jour
+  (`proxy.ts`, écran de connexion, retour OAuth, navigation du rail,
+  liens « retour au tableau de bord »). La règle `estActif` perd son cas
+  particulier sur `/`.
+* **Le proxy laisse passer la vitrine** : `/`, `/methode`, `/etudiants`,
+  `/autodidactes` rejoignent `PUBLICS`. Le reste de l'application garde le
+  contrôle optimiste inchangé ; RLS reste la barrière de confiance.
+* **Aucune donnée pédagogique n'est exposée.** La vitrine ne lit que
+  `compteCourant()` pour sa redirection ; sitemap et robots.txt restent
+  publics pour les moteurs.
+
+---
+
+<a name="adr-115"></a>
+## ADR-115 — Le rendu des formules passe par KaTeX ; le texte Unicode reste le filet ✅
+
+> **Renumérotée d'ADR-109 en ADR-115 le 24/08/2026.** Deux chantiers menés
+> en parallèle ont attribué le même numéro : celui-ci et « L'engagement est
+> un fait déclaré » ([ADR-109](#adr-109)), tranché le 22/08. Le premier
+> arrivé au dépôt garde son numéro ; c'est celui-ci qui bouge. Aucune
+> décision n'est modifiée par ce renumérotage.
 
 **Statut :** ✅ Acceptée par Maxime (23/08/2026, choix explicite « Installer
 KaTeX » face à l'alternative « améliorer le convertisseur maison »). Révise

@@ -23,7 +23,7 @@ export default async function PageConnexion({
 
   // Une destination ne peut être qu'un chemin interne : accepter une URL
   // absolue ferait de l'écran de connexion un tremplin de redirection.
-  const destination = suite?.startsWith("/") && !suite.startsWith("//") ? suite : "/";
+  const destination = suite?.startsWith("/") && !suite.startsWith("//") ? suite : "/app";
 
   return (
     <main className="min-h-screen bg-fond px-4 py-12 sm:px-6 lg:px-8">

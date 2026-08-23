@@ -6,6 +6,7 @@
  */
 
 import type { FrontMatter, LienMarkdown } from "./markdown";
+import type { MimePieceJointe } from "./pieces-jointes";
 
 export type CategorieDocument = "connaissance" | "action" | "preuve";
 
@@ -96,11 +97,11 @@ export interface SnapshotDocument {
   createdAt?: string;
 }
 
-/** Métadonnées d'une ressource PDF attachée à une fiche support. */
+/** Métadonnées d'un fichier attaché (PDF de support ou photo de cahier) à une fiche. */
 export interface PieceJointeDocument {
   id: string;
   nom: string;
-  mimeType: "application/pdf";
+  mimeType: MimePieceJointe;
   tailleOctets: number;
   creeLe: string;
   url?: string;
@@ -149,6 +150,14 @@ export const TYPES_DOCUMENTS: Readonly<Record<string, DefinitionTypeDocument>> =
   domaine: definition("domaine", "Domaine", "connaissance", "domaine", "Domaines", ["Description", "Sous-domaines"]),
   competence: definition("competence", "Compétence", "action", "competence", "Compétences", ["Description", "Critères de réussite"]),
   note: definition("note", "Note", "connaissance", "note", "Connaissances/Notes", ["Contexte", "Idées", "À retenir"]),
+  /*
+   * Un lien est une adresse déclarée, rien de plus.
+   *
+   * L'URL vit dans le front-matter ; les notes restent un corps libre et les
+   * rattachements des wikiliens ordinaires. Le lien n'est jamais scrapé ni
+   * converti en Connaissance : il ne nourrit aucune mesure.
+   */
+  lien: definition("lien", "Lien", "connaissance", "reference", "Références/Liens", ["Notes"]),
   reference: definition("reference", "Référence", "connaissance", "reference", "Références", ["Résumé", "Passages utiles", "Bibliographie"]),
   article: definition("article", "Article", "connaissance", "article", "Références/Articles", ["Résumé", "Points importants"], ["reference"]),
   cours: definition("cours", "Cours", "connaissance", "cours", "Références/Cours", ["Objectifs", "Contenu", "À retenir"], ["competence"]),

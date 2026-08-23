@@ -74,10 +74,16 @@ Ils vivent dans le code et dans les ADR. À l'écran on dit *production*,
 qui compte des objets internes est un écran de maintenance : il n'a pas sa
 place devant quelqu'un qui vient travailler.
 
-Ce n'est pas un tracker d'habitudes, pas un LMS, pas un outil de révision. La
-distinction tient en une phrase : **un tracker enregistre ce que tu déclares
-avoir fait ; ce système enregistre ce qui a été observé, et en tire ce qu'il
-peut honnêtement en tirer — souvent moins que ce qu'on aimerait.**
+Ce n'est pas un tracker d'habitudes, pas un LMS. La distinction tient en une
+phrase : **un tracker enregistre ce que tu déclares avoir fait ; ce système
+enregistre ce qui a été observé, et en tire ce qu'il peut honnêtement en tirer
+— souvent moins que ce qu'on aimerait.**
+
+Sur la révision : le produit ne planifie rien — pas de révision programmée,
+pas de parcours jour-par-jour. Il retient depuis le 22/08/2026 (ADR-109)
+l'**engagement déclaré**, un fait daté extérieur (examen, rendu) qui éclaire
+la priorisation ; c'est un fait que la personne déclare, jamais un programme
+que le système exécute.
 
 ### Glossaire courant
 
@@ -124,13 +130,21 @@ l'histoire des décisions.
 
 ## 4. Public
 
+**Vitrine publique (23/08, ADR-114) :** la racine `/` est une landing
+marketing publique, complétée par `/methode`, `/etudiants` et `/autodidactes`.
+Le tableau de bord est à `/app`, derrière authentification. L'acquisition par
+moteur de recherche passe par ces pages publiques ; aucune donnée
+pédagogique n'y circule.
+
 **Aujourd'hui, factuellement (31/07) :** 3 comptes en production. Un
 utilisateur actif (26 preuves sur 22 compétences, 20 tentatives terminées), un
 **compte tiers réellement actif** (3 preuves, 5 tentatives), un compte sans
 aucune activité pédagogique.
 
-**Cible déclarée :** toute personne souhaitant un suivi longitudinal de ses
-compétences avec un parcours personnalisé.
+**Cible déclarée :** les étudiants et les autodidactes qui veulent un suivi
+longitudinal de leurs compétences avec un parcours personnalisé (précision du
+23/08/2026 ; la formulation antérieure visait « toute personne souhaitant un
+suivi longitudinal »).
 
 🔬 **Hypothèse partiellement soutenue :** que le besoin existe au-delà de son
 auteur. *Test de réfutation inchangé : un compte tiers atteint 10 preuves sans
@@ -269,7 +283,19 @@ humain explicite : il ne convenait pas. Le parcours se dérive des faits
 que par les actions recommandées — jamais comme surface autonome. Les
 intentions déclarées restent des textes verbatim du profil
 (`objectif_moyen_terme`, `objectif_long_terme`), sans extraction ni
-rattachement automatique.
+rattachement automatique. Nuance du 22/08/2026 : une date détectée dans un
+besoin ouvre le chemin assisté vers l'engagement déclaré (ADR-109) — une
+proposition explicite, jamais une écriture automatique.
+✅ **L'engagement est un fait déclaré, pas un objectif** (ADR-109). Une
+échéance extérieure — examen, rendu — se déclare verbatim avec sa date et
+éclaire la priorisation par un seul facteur de proximité (fenêtre J-21 →
+veille). Elle n'est ni un objectif structuré — ADR-096 reste debout — ni un
+retour au parcours planifié : pas de calendrier, pas de rappels, pas de plan
+jour-par-jour.
+✅ **Le mode épreuve est une déclaration de séance, pas une mesure** (ADR-110).
+Déclaré au départ sur la séance et irréversible, il change l'habillage du
+déroulé — chrono plein écran, indices masqués, correction à la fin — et rien
+au moteur. `LearningSession` reste l'épisode unique (ADR-048).
 ✅ **Les états et vues personnelles sont dérivés** (ADR-091). `État`,
 `KnowledgeState`, `SkillState`, carte individuelle, espace actif, tendances,
 préférences inférées et recommandation se recalculent depuis les faits. Aucun
@@ -309,7 +335,15 @@ objectif structuré ni en mesure. La carte personnelle n'a pas de fenêtre
 dupliquée : sa surface canonique est le graphe de l'Atelier. La Progression est
 le **profil de carrière** (ADR-098) : elle porte la lecture longitudinale —
 évolution du score rejouée depuis le journal, faits marquants, bilan de
-croissance. Le *concept* d'un catalogue partagé reste décrit dans
+croissance.
+✅ **La lecture longitudinale par domaine a une seule surface** (23/08/2026).
+Elle vivait en double : `/progression?domaine=` et la vue domaine de l'Atelier
+répondaient à la même question (« où j'en suis dans ce domaine »). Le mode
+« Progression » de la vue domaine de l'Atelier est désormais la surface unique ;
+`/progression?domaine=` redirige vers elle (`/atelier?document=…&vue=progression`)
+et le calcul correspondant (`construireProgressionsDomaines`) est précalculé
+serveur avec les vues Atelier — mêmes fonctions pures, aucun chiffre nouveau.
+Le *concept* d'un catalogue partagé reste décrit dans
 [`TWINY_MODEL.md`](docs/architecture/TWINY_MODEL.md) ; tout retour repartira du
 modèle cible, avec un contenu initial réel et un curateur désigné avant toute
 table.

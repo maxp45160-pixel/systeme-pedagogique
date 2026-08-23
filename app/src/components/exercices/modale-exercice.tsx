@@ -80,12 +80,6 @@ export function ModaleExercice({
    */
   competencesCibles?: string[];
   /**
-   * Durée totale visée de la séance, transmise au tuteur : il calibre la
-   * durée estimée de chaque exercice sur ce budget (une séance « 15 min »
-   * ne doit pas produire 60 min d'exercices).
-   */
-  dureeCibleMin?: number;
-  /**
    * Thème pré-rempli, modifiable.
    *
    * Sert à l'élargissement d'une compétence maîtrisée (ADR-042) : le contexte
@@ -106,6 +100,14 @@ export function ModaleExercice({
    * compétence initiale passée.
    */
   propositionInitiale?: PropositionExercice;
+  /**
+   * Durée cible de la séance en cours de composition, en minutes.
+   *
+   * Facultative : la génération hors séance (fiche, Atelier) n'en a pas. Elle
+   * ne fixe pas la durée d'un exercice — elle borne le budget que le tuteur
+   * répartit entre les exercices du lot.
+   */
+  dureeCibleMin?: number;
   /** Depuis la prochaine action, accepter enchaîne directement sur le workspace focus. */
   ouvrirDansCahierApresAcceptation?: boolean;
   /**
@@ -240,7 +242,7 @@ export function ModaleExercice({
         body: JSON.stringify({
           competences: codesAEnvoyer,
           theme: theme.trim() || undefined,
-          ...(dureeCibleMin ? { dureeCibleMin, nombreExercices: totalExercicesCibles } : {}),
+          ...(dureeCibleMin ? { dureeCibleMin } : {}),
           config: configClient,
           ...(modification
             ? {
@@ -359,7 +361,7 @@ export function ModaleExercice({
         setPhase(modification ? "previsualisation" : "formulaire");
       }
     }
-  }, [codesLot, competence, theme, compteId, dureeCibleMin, totalExercicesCibles]);
+  }, [codesLot, competence, theme, compteId, dureeCibleMin]);
 
   /*
    * Mode lot : la génération part à l'ouverture pour la clé de lot courante.

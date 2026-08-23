@@ -55,11 +55,18 @@ const DELAI_TRADUCTION_MS = 25_000;
 interface CorpsIntention {
   /** Le besoin, en langage libre. */
   besoin?: string;
-  /** Contexte d'origine de la demande (ex: "domaine"). */
+  /** Contexte d'origine de la demande (ex: "domaine", ou l'indice d'amorçage "projet"/"referentiel"). */
   contexte?: string;
   /** Config saisie côté client (réglages). Prime sur les variables serveur. */
   config?: ConfigTuteurClient;
 }
+
+/**
+ * Les contextes connus de la traduction. Toute autre valeur est ignorée plutôt
+ * que transmise : un client qui inventerait un contexte ne doit pas glisser une
+ * chaîne arbitraire dans le prompt.
+ */
+const CONTEXTES_CONNUS = new Set(["general", "domaine", "projet", "referentiel"]);
 
 export async function POST(request: Request) {
   let corps: CorpsIntention;
@@ -73,6 +80,8 @@ export async function POST(request: Request) {
   if (!besoinValide(besoin)) {
     return Response.json({ erreur: "besoin-invalide" }, { status: 400 });
   }
+  const contexte =
+    corps.contexte && CONTEXTES_CONNUS.has(corps.contexte) ? corps.contexte : undefined;
 
   /*
    * Court-circuit déterministe — le moteur n'est pas appelé quand sa réponse
@@ -93,8 +102,8 @@ export async function POST(request: Request) {
    * demande explicite de compétences ou vue d'ensemble — reste post-appel :
    * la traduction du modèle y est conservée quand elle ne contredit pas.)
    */
-  if (corps.contexte === "domaine" || demandeSeanceSansSujet(besoin)) {
-    const reponse = courtCircuit(besoin, corps.contexte);
+  if (contexte === "domaine" || demandeSeanceSansSujet(besoin)) {
+    const reponse = courtCircuit(besoin, contexte);
     if (reponse) return reponse;
   }
 
@@ -156,7 +165,7 @@ export async function POST(request: Request) {
         envoyer(evenement, donnees);
       },
       serialiserProfilDeclare(ctx.donnees.user),
-      corps.contexte,
+      contexte,
       DELAI_TRADUCTION_MS,
     );
 

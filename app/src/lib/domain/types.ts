@@ -717,6 +717,18 @@ export interface LearningSession {
   renonceeLe?: string;
   besoinDeclare?: BesoinDeclare;
   blueprint?: BlueprintSeance;
+  /**
+   * Mode épreuve (22/08/2026) : la séance est menée dans des conditions
+   * réelles — chrono affiché, aides masquées, correction à la fin.
+   *
+   * Posée à la CRÉATION de la séance et jamais après : c'est une intention
+   * déclarée au même titre que le blueprint, un fait daté, pas une mesure ni
+   * un état dérivé. Irréversible par construction — aucun chemin d'écriture ne
+   * touche ce champ une fois la séance créée (`creerSeance` est le seul
+   * écrivain). Absent sur les séances antérieures : l'absence vaut faux, lu
+   * une seule fois dans `estModeEpreuve` (lib/domain/seance.ts).
+   */
+  modeEpreuve?: boolean;
 }
 
 /* Résultats dérivés (jamais persistés)                                */

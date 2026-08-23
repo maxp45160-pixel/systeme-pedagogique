@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { chargerContexte } from "@/lib/store/context";
 import { compteCourant } from "@/lib/supabase/server";
 import { resoudreIdentite } from "@/lib/domain/identite";
@@ -6,6 +7,9 @@ import { SqueletteContenu } from "@/components/layout/squelette";
 import { resumeCarriere } from "@/lib/engine/carriere";
 import { resumeCroissance } from "@/lib/engine/croissance";
 import { evolutionScore } from "@/lib/engine/evolution";
+import {
+  resoudreFiltreDomaine,
+} from "@/lib/engine/lecture-domaine";
 import { EntetePage } from "@/components/layout/entete-page";
 import { Carte, CorpsCarte, EnTeteCarte } from "@/components/ui/primitives";
 import { Depliant } from "@/components/ui/explication";
@@ -16,6 +20,7 @@ import { CartePratique } from "@/components/progression/carte-pratique";
 import { ComparaisonDomaines } from "@/components/progression/comparaison-domaines";
 import { TopCompetences } from "@/components/progression/top-competences";
 import { BilanCroissanceLie } from "@/components/progression/bilan-croissance-lie";
+import { FiltreDomaines } from "@/components/progression/filtre-domaines";
 import { Glossaire } from "@/components/ui/glossaire";
 
 /**
@@ -38,8 +43,22 @@ import { Glossaire } from "@/components/ui/glossaire";
  * est ce qu'aucun autre écran ne montre : l'évolution du score rejouée depuis
  * le journal, les faits marquants de toute la pratique, et le bilan de ce
  * que le travail récent a changé.
+ *
+ * ## Lecture par domaine (`?domaine=`)
+ *
+ * La lecture d'un seul domaine vit dans l'Atelier : la vue domaine y a un mode
+ * « Progression », alimenté par le même calcul que celui qui vivait ici. Le
+ * paramètre `?domaine=` redirige donc vers `/atelier?document=…&vue=progression`
+ * — une seule surface pour la question « où j'en suis dans ce domaine ». Il
+ * reste validé contre les domaines réels du compte : un identifiant inconnu
+ * est ignoré proprement, la page retombe sur sa vue globale plutôt que de
+ * rediriger vers un périmètre qui n'existe pas.
  */
-export default async function PageProgression() {
+export default async function PageProgression(props: {
+  searchParams: Promise<{ domaine?: string }>;
+}) {
+  const recherche = await props.searchParams;
+
   return (
     <>
       <EntetePage
@@ -47,19 +66,60 @@ export default async function PageProgression() {
         sousTitre="Ce que vos exercices disent de votre niveau — et ce qu'ils ne disent pas encore."
       />
       <Suspense fallback={<SqueletteContenu />}>
-        <ContenuProgression />
+        <ContenuProgression filtreDemande={recherche.domaine} />
       </Suspense>
     </>
   );
 }
 
-async function ContenuProgression() {
+async function ContenuProgression({ filtreDemande }: { filtreDemande?: string }) {
   const [ctx, compte] = await Promise.all([
     chargerContexte(),
     compteCourant(),
   ]);
   const identite = resoudreIdentite(compte, ctx.donnees.user);
 
+  // Validation du paramètre AVANT tout calcul : un identifiant inconnu ne
+  // doit pas rediriger ni coûter une lecture — la page retombe sur sa vue
+  // globale. Un identifiant valide emmène vers la surface unique de la lecture
+  // par domaine : la vue domaine de l'Atelier, mode « Progression ».
+  const filtre = resoudreFiltreDomaine(filtreDemande, ctx.referentiel.domaines);
+  if (filtre !== null) {
+    redirect(`/atelier?document=${encodeURIComponent(filtre)}&vue=progression`);
+  }
+  const domainesDuFiltre = ctx.referentiel.domaines
+    .filter((domaine) => !domaine.archive)
+    .map((domaine) => ({ id: domaine.id, nom: domaine.nom }));
+
+  const intitules = Object.fromEntries(
+    ctx.referentiel.skills.map((skill) => [skill.code, skill.intitule]),
+  );
+
+  return (
+    <div className="space-y-8 [&>*]:min-w-0">
+      <FiltreDomaines domaines={domainesDuFiltre} />
+      <VueGlobale
+        ctx={ctx}
+        identite={identite}
+        intitules={intitules}
+      />
+      <Glossaire />
+    </div>
+  );
+}
+
+type ContextePage = Awaited<ReturnType<typeof chargerContexte>>;
+
+/** La lecture d'ensemble : le profil de carrière, sans filtre. */
+function VueGlobale({
+  ctx,
+  identite,
+  intitules,
+}: {
+  ctx: ContextePage;
+  identite?: ReturnType<typeof resoudreIdentite>;
+  intitules: Record<string, string>;
+}) {
   const carriere = resumeCarriere({
     sessions: ctx.donnees.sessions,
     tentatives: ctx.donnees.attempts,
@@ -90,10 +150,6 @@ async function ContenuProgression() {
     now: ctx.now,
   });
 
-  const intitules = Object.fromEntries(
-    ctx.referentiel.skills.map((skill) => [skill.code, skill.intitule]),
-  );
-
   // Répartition des compétences par niveau — la seule lecture du lot « mesures »
   // qui reste sur la page : elle rejoint le héros, où sa place est visuelle.
   const repartition: Record<number, number> = {};
@@ -102,7 +158,7 @@ async function ContenuProgression() {
   }
 
   return (
-    <div className="space-y-8 [&>*]:min-w-0">
+    <>
       {/*
         Trois zones hiérarchisées, dans l'ordre où on se les pose :
 
@@ -142,59 +198,67 @@ async function ContenuProgression() {
         </div>
 
         <div className="space-y-4 min-w-0 lg:col-span-8">
-          {evolution.points.length > 0 && (
-            <Carte>
-              <EnTeteCarte
-                titre="Évolution du score global"
-                legende="Chaque point est une observation qui a déplacé le score — recalculé depuis le journal, jamais stocké."
-              />
-              <CorpsCarte>
-                <CourbeEvolution points={evolution.points} />
-
-                {/*
-                  La méthode reste à portée de clic, repliée : un grand nombre
-                  ne doit pas se présenter comme plus certain qu'il n'est, mais
-                  la démonstration n'a pas à occuper l'écran.
-                */}
-                <div className="mt-4 border-t border-bordure pt-3">
-                  <Depliant resume="D'où viennent ces chiffres ?">
-                    <div className="rounded-md border border-bordure bg-surface-2 p-3 text-xs">
-                      <dl className="space-y-1">
-                        {ctx.global.facteurs.map((f, i) => (
-                          <div
-                            key={i}
-                            className="flex flex-wrap items-baseline justify-between gap-3 border-b border-bordure/60 pb-1 last:border-0"
-                          >
-                            <dt className="text-texte-attenue">{f.libelle}</dt>
-                            <dd className="chiffres font-medium">{f.valeur}</dd>
-                          </div>
-                        ))}
-                      </dl>
-                      <ul className="mt-3 space-y-1 text-texte-discret">
-                        {ctx.global.reserves.map((reserve, i) => (
-                          <li key={i}>· {reserve}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </Depliant>
-                </div>
-              </CorpsCarte>
-            </Carte>
-          )}
-
+          <CourbeEtMethode evolution={evolution} facteurs={ctx.global.facteurs} reserves={ctx.global.reserves} />
           <TopCompetences etats={ctx.etats} />
         </div>
       </div>
 
       {/* Le bilan de croissance, repris de l'accueil de l'Atelier. */}
       <BilanCroissanceLie resume={croissance} intitules={intitules} />
+    </>
+  );
+}
 
-      {/*
-        Le vocabulaire du produit. Observation, niveau, autonomie, confiance,
-        robustesse : cinq mots qui gouvernent tout ce qui est affiché plus haut,
-        et dont c'est ici la place — au pied des mesures qu'ils définissent.
-      */}
-      <Glossaire />
-    </div>
+/**
+ * La courbe du score et sa méthode repliée.
+ */
+function CourbeEtMethode({
+  evolution,
+  facteurs,
+  reserves,
+}: {
+  evolution: ReturnType<typeof evolutionScore>;
+  facteurs: Array<{ libelle: string; valeur: string }>;
+  reserves: string[];
+}) {
+  if (evolution.points.length === 0) return null;
+  return (
+    <Carte>
+      <EnTeteCarte
+        titre="Évolution du score"
+        legende="Chaque point est une observation qui a déplacé le score — recalculé depuis le journal, jamais stocké."
+      />
+      <CorpsCarte>
+        <CourbeEvolution points={evolution.points} />
+
+        {/*
+          La méthode reste à portée de clic, repliée : un grand nombre
+          ne doit pas se présenter comme plus certain qu'il n'est, mais
+          la démonstration n'a pas à occuper l'écran.
+        */}
+        <div className="mt-4 border-t border-bordure pt-3">
+          <Depliant resume="D'où viennent ces chiffres ?">
+            <div className="rounded-md border border-bordure bg-surface-2 p-3 text-xs">
+              <dl className="space-y-1">
+                {facteurs.map((f, i) => (
+                  <div
+                    key={i}
+                    className="flex flex-wrap items-baseline justify-between gap-3 border-b border-bordure/60 pb-1 last:border-0"
+                  >
+                    <dt className="text-texte-attenue">{f.libelle}</dt>
+                    <dd className="chiffres font-medium">{f.valeur}</dd>
+                  </div>
+                ))}
+              </dl>
+              <ul className="mt-3 space-y-1 text-texte-discret">
+                {reserves.map((reserve, i) => (
+                  <li key={i}>· {reserve}</li>
+                ))}
+              </ul>
+            </div>
+          </Depliant>
+        </div>
+      </CorpsCarte>
+    </Carte>
   );
 }

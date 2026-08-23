@@ -58,6 +58,7 @@ export function TiroirTuteur({
   libelle = "Demander de l'aide au tuteur",
   declencheur = "bouton",
   actionsContextuelles,
+  indicesMasques,
 }: {
   etatInitial?: EtatContexteTuteur;
   competenceCiblee?: string;
@@ -83,6 +84,13 @@ export function TiroirTuteur({
   declencheur?: "bouton" | "flottant" | "barre-contextuelle" | "outil";
   /** Liste d'actions prédéfinies à afficher en barre contextuelle. */
   actionsContextuelles?: ActionContextuelleTuteur[];
+  /**
+   * Mode épreuve : masque l'entrée « Donne-moi un indice » du chat. L'option
+   * ne traverse pas les protocoles du tuteur (elle n'est pas serveur) — c'est
+   * le geste d'interface dédié qui disparaît, pendant que la correction au
+   * bilan reste inchangée.
+   */
+  indicesMasques?: boolean;
 }) {
   /*
    * Fermer le tiroir n'interrompt plus la génération : la modale reste montée
@@ -219,6 +227,7 @@ export function TiroirTuteur({
                 competencesModale={competencesModale}
                 calibragesModale={calibragesModale}
                 surEnCoursChange={surEnCoursChange}
+                indicesMasques={indicesMasques}
               />
             ) : enChargement ? (
               <div className="flex h-64 items-center justify-center p-6 text-center text-xs text-texte-discret">

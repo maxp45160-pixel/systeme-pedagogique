@@ -24,6 +24,7 @@
 
 import type { Referentiel, Skill } from "@/lib/domain/types";
 import { LIBELLES_DIMENSIONS } from "@/lib/domain/types";
+import { DUREE_ESTIMEE_MIN } from "@/lib/domain/exercice";
 import type { Calibration } from "@/lib/engine/calibration";
 import type { MoteurTuteur } from "./moteurs";
 import { lireErreurMoteur, lireOutilsActifs, messageSansOutils } from "./moteurs";
@@ -43,17 +44,14 @@ export interface DemandeGeneration {
   /** Indice de rédaction facultatif — un thème, pas un sélecteur d'objet. */
   theme?: string;
   /**
-   * Contrainte de durée de séance : le lot visé doit tenir dans ce temps.
+   * Durée cible de la séance, en minutes — absente hors composition.
    *
-   * Sans elle, chaque exercice naissait avec une durée libre choisie par le
-   * modèle (~20-30 min), et une séance déclarée « 15 min » en affichait 60.
+   * C'est un BUDGET, pas une mesure : le tuteur répartit le temps disponible
+   * entre les exercices demandés et règle `dureeEstimeeMin` en conséquence.
+   * Sans lui, il écrivait « 1 h » sur un exercice destiné à une séance de
+   * quinze minutes.
    */
-  enveloppe?: {
-    /** Durée totale visée de la séance, en minutes. */
-    dureeCibleMin: number;
-    /** Nombre d'exercices du lot. */
-    nombreExercices: number;
-  };
+  dureeCibleMin?: number;
   /** Proposition à réviser et consigne humaine — absentes pour une création. */
   modification?: {
     proposition: PropositionExercice;
@@ -158,18 +156,21 @@ export function construirePromptGeneration(
   }
 
   /*
-   * L'enveloppe de durée change la durée écrite, pas la difficulté : elle
-   * complète le calibrage, elle ne le remplace pas.
+   * Le budget de durée change à chaque appel : il sort du préfixe mis en
+   * cache, comme le calibrage. Réparti ici (et non côté client) pour que la
+   * seule arithmétique du budget vive à côté du prompt qui l'exprime.
    */
-  const enveloppe = demandes.find((demande) => demande.enveloppe)?.enveloppe;
-  if (enveloppe && enveloppe.nombreExercices > 0) {
-    const parExercice = Math.max(5, Math.round(enveloppe.dureeCibleMin / enveloppe.nombreExercices));
+  const dureeCible = demandes.find((demande) => demande.dureeCibleMin)?.dureeCibleMin;
+  if (dureeCible !== undefined) {
+    const parExercice = Math.max(
+      DUREE_ESTIMEE_MIN,
+      Math.round(dureeCible / Math.max(1, demandes.length)),
+    );
     lignes.push(
       "",
-      "CONTRAINTE DE DURÉE DE SÉANCE",
-      `- La séance vise ${enveloppe.dureeCibleMin} min au total pour ${enveloppe.nombreExercices} exercice(s).`,
-      `- Calibre la durée estimée de chaque exercice autour de ${parExercice} min, sans dépasser ce budget par exercice.`,
-      "- Adapte l'ampleur de l'énoncé à cette durée ; ne sacrifie ni la complétude de la correction, ni les critères.",
+      "BUDGET DE DURÉE",
+      `- La séance dispose de ${dureeCible} min pour ${demandes.length} exercice(s) : vise environ ${parExercice} min par exercice.`,
+      "- Calibre l'énoncé pour être traitable en ce temps, et règle duréeEstimeeMin en conséquence.",
     );
   }
 

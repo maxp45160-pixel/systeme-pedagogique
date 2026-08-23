@@ -66,12 +66,12 @@ function CarteDomaine({
   const ratio = total > 0 ? Math.round((evaluees / total) * 100) : 0;
 
   return (
-    <div className="group relative">
+    <div className="group relative flex h-full flex-col">
       <button
         type="button"
         onClick={() => ouvrirElement(`domaine:${domaine.id}`)}
         className={cx(
-          "flex h-full w-full flex-col justify-between rounded-xl border bg-surface p-5 text-left shadow-[var(--ombre-posee)] transition-all duration-200 hover:-translate-y-1 hover:border-primaire/40 hover:shadow-[var(--ombre-levee)] cursor-pointer",
+          "flex w-full flex-1 flex-col justify-between rounded-xl border bg-surface p-5 text-left shadow-[var(--ombre-posee)] transition-all duration-200 hover:-translate-y-1 hover:border-primaire/40 hover:shadow-[var(--ombre-levee)] cursor-pointer",
           actif && !estArchives ? "border-primaire/40" : "border-bordure",
           estArchives && "opacity-90 hover:opacity-100",
         )}

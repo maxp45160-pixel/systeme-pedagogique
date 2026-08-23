@@ -51,7 +51,7 @@ export const NAVIGATION: GroupeNav[] = [
   {
     titre: "Piloter",
     entrees: [
-      { href: "/", libelle: "Tableau de bord", court: "Bord", icone: IconeTableauBord },
+      { href: "/app", libelle: "Tableau de bord", court: "Bord", icone: IconeTableauBord },
       /*
        * La progression est une destination, pas un bloc du tableau de bord.
        *
@@ -153,12 +153,10 @@ export function navigationPour(administrateur: boolean): GroupeNav[] {
 
 /**
  * Une destination est « active » si l'URL courante l'égale ou en descend —
- * une route enfant active son entrée parente, mais une autre route n'active
- * pas `/`. Partagée entre le rail (desktop) et la barre basse
- * (mobile) : les deux doivent s'accorder sur la même page courante, pas
- * chacune sa propre règle.
+ * une route enfant active son entrée parente. Partagée entre le rail (desktop)
+ * et la barre basse (mobile) : les deux doivent s'accorder sur la même page
+ * courante, pas chacune sa propre règle.
  */
 export function estActif(pathname: string, href: string): boolean {
-  if (href === "/") return pathname === "/";
   return pathname === href || pathname.startsWith(`${href}/`);
 }

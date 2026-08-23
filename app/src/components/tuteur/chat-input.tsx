@@ -30,6 +30,7 @@ export const ChatInput = memo(function ChatInput({
   cleAbsente,
   usage,
   saisieInitiale,
+  indicesMasques = false,
 }: {
   onEnvoyer: (texte: string) => void;
   onCopier: (texte: string) => void;
@@ -40,10 +41,18 @@ export const ChatInput = memo(function ChatInput({
   cleAbsente: boolean;
   usage: string | null;
   saisieInitiale: string;
+  /**
+   * Mode épreuve : l'entrée « Donne-moi un indice » ne s'affiche pas pendant
+   * le déroulé de la séance. La saisie libre reste possible — c'est le geste
+   * dédié qui disparaît, pas une censure du chat.
+   */
+  indicesMasques?: boolean;
 }) {
   const [saisie, setSaisie] = useState(saisieInitiale);
   const [saisieInitialePrecedente, setSaisieInitialePrecedente] = useState(saisieInitiale);
   const champRef = useRef<HTMLTextAreaElement>(null);
+
+  const modesVisibles = MODES.filter((m) => !(indicesMasques && m.cle === "indice"));
 
   if (saisieInitiale !== saisieInitialePrecedente) {
     setSaisieInitialePrecedente(saisieInitiale);
@@ -59,7 +68,7 @@ export const ChatInput = memo(function ChatInput({
   return (
     <div className="border-t border-bordure px-3 py-3">
       <div className="mb-2 flex flex-wrap gap-1">
-        {MODES.map((m) => (
+        {modesVisibles.map((m) => (
           <button
             key={m.cle}
             type="button"

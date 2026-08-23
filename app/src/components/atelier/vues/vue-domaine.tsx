@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { VueDomaineAtelier } from "@/lib/documents/vue-atelier";
+import type { ProgressionDomaineVue } from "@/lib/documents/progression-domaine";
 import { Bouton } from "@/components/ui/primitives";
 import { IconeDocuments, IconeRecherche } from "@/components/ui/icones";
 import { BoutonReviser } from "@/components/referentiel/bouton-reviser";
@@ -18,7 +19,19 @@ import {
 } from "./elements-fiche";
 import { ArbreDomaineVue } from "./arbre-domaine";
 import { ClassementDomaine } from "./classement-domaine";
+import { CarteEnTeteDomaine } from "@/components/progression/carte-en-tete-domaine";
+import { FaitsMarquants } from "@/components/progression/faits-marquants";
+import { TopCompetences } from "@/components/progression/top-competences";
+import { BilanCroissanceLie } from "@/components/progression/bilan-croissance-lie";
 import { ParenteDomaine } from "./parente-domaine";
+
+/**
+ * Les lectures des mêmes compétences : « Fiches » les liste, « Arbre » les
+ * dispose selon les prérequis déclarés, « Progression » dit ce que la pratique
+ * du domaine a produit. Le filtre de recherche n'agit que sur la première —
+ * filtrer un arbre en couperait les chemins.
+ */
+type ModeLecture = "fiches" | "arbre" | "progression";
 
 export function VueDomaine({
   vue,
@@ -26,23 +39,24 @@ export function VueDomaine({
   compteId,
   onRestaurerDomaine,
   domainesExistants = [],
+  modeInitial,
 }: {
   vue: VueDomaineAtelier;
   ouvrirElement: (id: string) => void;
   compteId: string;
   onRestaurerDomaine?: (domaineId: string) => void;
   domainesExistants?: { id: string; nom: string; prefixe: string }[];
+  /** Mode de lecture initial, venu de l'URL (`/atelier?document=…&vue=progression`). */
+  modeInitial?: ModeLecture;
 }) {
   const router = useRouter();
   const [restaurationEnCours, demarrerRestauration] = useTransition();
   const [ajoutCompetenceOuvert, setAjoutCompetenceOuvert] = useState(false);
   /*
-   * Deux lectures des mêmes compétences, jamais deux rangements : « Fiches »
-   * les liste, « Arbre » les dispose selon les prérequis déclarés. Le filtre
-   * de recherche n'agit que sur la première — filtrer un arbre en couperait
-   * les chemins, ce qui donnerait à lire une progression fausse.
+   * Trois lectures des mêmes compétences, jamais trois rangements. Le filtre
+   * de recherche n'agit que sur la première — voir `ModeLecture`.
    */
-  const [mode, setMode] = useState<"fiches" | "arbre">("fiches");
+  const [mode, setMode] = useState<ModeLecture>(modeInitial ?? "fiches");
   const [rechercheCompetence, setRechercheCompetence] = useState("");
   const termeCompetence = rechercheCompetence.trim().toLocaleLowerCase("fr");
 
@@ -176,11 +190,54 @@ export function VueDomaine({
               modifiable={!vue.domaine.archive}
               ouvrirDomaine={(id) => ouvrirElement(`domaine:${id}`)}
             />
+            {vue.ressources.length > 0 && (
+              /*
+               * Le fil des ressources (R3) : ce qu'on lit pour travailler ce
+               * domaine, du plus récemment mobilisé au plus ancien. L'ordre
+               * vient du journal — rien n'est stocké, aucune date n'est
+               * fabriquée pour une ressource jamais mobilisée.
+               */
+              <section className="rounded-xl border border-bordure bg-surface px-4 py-4">
+                <div className="flex items-baseline justify-between gap-3">
+                  <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-texte-discret">
+                    Ressources
+                  </h3>
+                  <span className="chiffres text-[0.6875rem] text-texte-discret">
+                    {vue.ressources.length}
+                  </span>
+                </div>
+                <p className="mt-1 text-[0.6875rem] leading-relaxed text-texte-attenue">
+                  Ce qu’on lit pour travailler ce domaine, du plus récemment
+                  mobilisé au plus ancien.
+                </p>
+                <ul className="mt-2 divide-y divide-bordure/60">
+                  {vue.ressources.map((ressource) => (
+                    <li key={ressource.documentId}>
+                      <button
+                        type="button"
+                        onClick={() => ouvrirElement(ressource.documentId)}
+                        className="group flex w-full cursor-pointer items-center justify-between gap-3 py-2 text-left"
+                      >
+                        <span className="min-w-0 truncate text-sm font-medium text-texte transition-colors group-hover:text-primaire">
+                          {ressource.titre}
+                        </span>
+                        <span className="shrink-0 text-[0.6875rem] text-texte-discret">
+                          {ressource.derniereActivite
+                            ? `Dernière activité : ${dateCourte(ressource.derniereActivite)}`
+                            : "Jamais mobilisée"}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-bordure bg-surface px-3.5 py-3">
               <div className="inline-flex rounded-lg border border-bordure bg-surface-2 p-0.5">
                 {([
                   ["fiches", "Fiches"],
                   ["arbre", "Arbre"],
+                  ["progression", "Progression"],
                 ] as const).map(([cle, libelle]) => (
                   <button
                     key={cle}
@@ -213,9 +270,13 @@ export function VueDomaine({
                     {nombreCompetencesVisibles} / {vue.competences.length} compétence{vue.competences.length > 1 ? "s" : ""} visible{nombreCompetencesVisibles > 1 ? "s" : ""}
                   </span>
                 </>
-              ) : (
+              ) : mode === "arbre" ? (
                 <span className="text-[0.6875rem] text-texte-discret">
                   Les traits pleins sont des prérequis déclarés ; les traits pointillés mènent à une compétence absente du périmètre.
+                </span>
+              ) : (
+                <span className="text-[0.6875rem] text-texte-discret">
+                  Ce que la pratique de ce domaine a produit — des mesures dérivées du journal, jamais du temps passé.
                 </span>
               )}
             </div>
@@ -230,6 +291,8 @@ export function VueDomaine({
                     : undefined
                 }
               />
+            ) : mode === "progression" ? (
+              <LectureProgression progression={vue.progression} />
             ) : (
               <>
               {groupes.map((groupe) => (
@@ -304,6 +367,51 @@ export function VueDomaine({
           onFermer={() => setAjoutCompetenceOuvert(false)}
         />
       )}
+    </div>
+  );
+}
+
+/**
+ * La lecture longitudinale du domaine — la surface unique pour « où j'en suis
+ * dans ce domaine », là où `/progression?domaine=` doublonnait. Les composants
+ * de la page Progression sont réutilisés tels quels : ils ne reçoivent que des
+ * props précalculées serveur (`ProgressionDomaineVue`), ils ne savent même pas
+ * qu'un filtre existe.
+ */
+function LectureProgression({ progression }: { progression?: ProgressionDomaineVue }) {
+  if (!progression) {
+    /*
+     * Imprévu seulement : toute fiche domaine porte sa lecture. Le repli dit
+     * l'indisponibilité au lieu d'afficher un écran à moitié vide.
+     */
+    return (
+      <p className="rounded-xl border border-dashed border-bordure bg-surface/50 px-4 py-8 text-center text-sm text-texte-discret">
+        Lecture indisponible.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <CarteEnTeteDomaine
+        domaine={progression.domaine}
+        score={progression.score}
+        competencesMesurees={progression.competencesMesurees}
+        competencesEnVeille={progression.competencesEnVeille}
+        observationsTotal={progression.observationsTotal}
+        derniereObservation={progression.derniereObservation}
+        variation7j={progression.evolution.variation7j}
+      />
+
+      <FaitsMarquants
+        evolution={progression.evolution}
+        carriere={progression.carriere}
+        global={progression.global}
+      />
+
+      <TopCompetences etats={progression.etats} />
+
+      <BilanCroissanceLie resume={progression.croissance} intitules={progression.intitules} />
     </div>
   );
 }

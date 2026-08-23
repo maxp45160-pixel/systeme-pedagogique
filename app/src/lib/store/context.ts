@@ -31,6 +31,7 @@ import {
   type ContexteDocumentaire,
 } from "@/lib/engine/document-context";
 import { calibrerToutes, type Calibration } from "@/lib/engine/calibration";
+import { estOuvert } from "@/lib/domain/engagement";
 import { evaluerMaitrises, type Maitrise } from "@/lib/engine/maitrise";
 import { mesurer, mesurerSync } from "@/lib/profiling/server";
 import { assemblerReferentiel } from "@/lib/domain/referentiel-compte";
@@ -311,6 +312,9 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
       refus,
       contexteDocumentaire,
       { bonusActionnable: reglages.bonusActionnable, modeleRevision },
+      // Engagements ouverts du compte — fait daté transmis au moteur, qui ne
+      // lit jamais lui-même (P1). Hors fenêtre, ils n'y pèsent rien.
+      donneesBrutes.engagements.filter(estOuvert),
     ),
     { exercices: exercicesActifs.length, tentatives: donnees.attempts.length },
   );

@@ -16,7 +16,7 @@ export default async function PageExpliquer(props: {
   const code = (params.code ?? "").trim();
 
   if (!code) {
-    redirect("/");
+    redirect("/app");
   }
 
   return (
@@ -42,7 +42,7 @@ async function ContenuExpliquer({ code }: { code: string }) {
           titre="Cette compétence n'existe plus au référentiel"
           message={`Le lien pointait vers « ${code} », qui a été archivée ou retirée depuis. Le reste du référentiel est intact.`}
           action={
-            <Link href="/" className={classesLienBouton("principal")}>
+            <Link href="/app" className={classesLienBouton("principal")}>
               Retour au tableau de bord
             </Link>
           }

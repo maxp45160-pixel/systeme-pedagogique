@@ -293,3 +293,44 @@ export function definirArchiveFrontMatter(contenuMd: string, archive: boolean): 
   return `---\n${nouvellesLignes.join("\n")}\n---\n\n${corps}`;
 }
 
+/**
+ * Insère ou met à jour plusieurs clés scalaires mono-ligne du front-matter.
+ *
+ * Version générale de `definirArchiveFrontMatter` : mêmes règles — les clés
+ * existantes sont réécrites sur place, les nouvelles poussées en fin de bloc.
+ * Les valeurs DOIVENT tenir sur une ligne : le parseur de l'application ignore
+ * les blocs multilignes (voir `aplatirPourFrontMatter`).
+ */
+export function definirChampsFrontMatter(
+  contenuMd: string,
+  champs: Record<string, string>,
+): string {
+  const { frontmatterBrut, corps } = separerFrontMatterEtCorps(contenuMd);
+  const entrees = Object.entries(champs);
+  if (entrees.length === 0) return contenuMd;
+
+  if (!frontmatterBrut) {
+    return [
+      "---",
+      `schema: ${SCHEMA_MARKDOWN}`,
+      ...entrees.map(([cle, valeur]) => `${cle}: ${valeur}`),
+      "---",
+      "",
+      corps,
+    ].join("\n");
+  }
+
+  const lignes = frontmatterBrut.slice(4, -4).split("\n");
+  for (const [cle, valeur] of entrees) {
+    const motif = new RegExp(`^${cle}\\s*:`, "i");
+    if (lignes.some((ligne) => motif.test(ligne.trim()))) {
+      for (let i = 0; i < lignes.length; i += 1) {
+        if (motif.test(lignes[i].trim())) lignes[i] = `${cle}: ${valeur}`;
+      }
+    } else {
+      lignes.push(`${cle}: ${valeur}`);
+    }
+  }
+  return `---\n${lignes.join("\n")}\n---\n\n${corps}`;
+}
+

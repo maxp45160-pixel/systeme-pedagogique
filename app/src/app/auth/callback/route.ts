@@ -13,7 +13,7 @@ import { createServeurClient } from "@/lib/supabase/server";
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const suite = searchParams.get("suite") ?? "/";
+  const suite = searchParams.get("suite") ?? "/app";
 
   // Derrière un proxy (Vercel), `origin` pointe sur l'hôte interne : on
   // reconstruit l'URL publique à partir des en-têtes de transfert.
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
   // `suite` vient de l'URL : on n'accepte qu'un chemin interne, jamais une
   // URL absolue, sous peine de redirection ouverte vers un site tiers.
-  const destination = suite.startsWith("/") && !suite.startsWith("//") ? suite : "/";
+  const destination = suite.startsWith("/") && !suite.startsWith("//") ? suite : "/app";
 
   if (!code) {
     const erreur = searchParams.get("error_description") ?? "Code d'autorisation absent.";

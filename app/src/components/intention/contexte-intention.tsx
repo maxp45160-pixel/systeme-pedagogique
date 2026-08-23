@@ -9,7 +9,13 @@ import { createContext, useContext } from "react";
  * la barre mobile et la marge du cahier ouvrent tous la même instance unique.
  */
 
-export type ContexteIntentionType = "general" | "domaine";
+/**
+ * `projet` et `referentiel` portent l'orientation choisie à l'amorçage —
+ * un INDICE transmis au tuteur, jamais une contrainte : la consigne qui en
+ * découle dans le prompt est souple, et aucun recadrage déterministe ne s'y
+ * attache. Le point d'entrée `+` d'un compte établi reste sur `general`.
+ */
+export type ContexteIntentionType = "general" | "domaine" | "projet" | "referentiel";
 
 export interface OptionsIntention {
   besoinInitial?: string;

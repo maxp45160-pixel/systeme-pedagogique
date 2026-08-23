@@ -24,6 +24,8 @@ import {
 } from "@/lib/engine/action-unifiee";
 import { DashboardTour } from "@/components/onboarding/dashboard-tour";
 import { BoutonIntentionDashboard } from "@/components/intention/bouton-intention";
+import { CarteEcheances } from "@/components/dashboard/carte-echeances";
+import { BoutonEcheance } from "@/components/dashboard/bouton-echeance";
 
 export default async function TableauDeBord(props: {
   searchParams: Promise<{ temps?: string; capacite?: string; explication?: string }>;
@@ -134,7 +136,7 @@ async function ContenuTableauDeBord({
           <span>
             <strong className="font-semibold">Explication enregistrée.</strong> Une observation de compréhension a été ajoutée à votre suivi.
           </span>
-          <Link href="/" className="shrink-0 font-medium text-primaire hover:underline">
+          <Link href="/app" className="shrink-0 font-medium text-primaire hover:underline">
             Fermer
           </Link>
         </BandeauInfo>
@@ -171,8 +173,15 @@ async function ContenuTableauDeBord({
         </Link>
       </div>
 
-      {/* Déclencheur d'intention compact */}
-      <BoutonIntentionDashboard />
+      {/* Déclencheur d'intention compact + entrée dédiée « échéance » */}
+      <div className="space-y-1.5">
+        <BoutonIntentionDashboard />
+        <div className="flex justify-end px-1">
+          <BoutonEcheance
+            competences={ctx.referentiel.actifs.map(({ code, intitule }) => ({ code, intitule }))}
+          />
+        </div>
+      </div>
 
       {/* Grille principale asymétrique : Flux d'action (gauche) + Repères contextuels (droite) */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:gap-5 items-start">
@@ -245,6 +254,13 @@ async function ContenuTableauDeBord({
               />
             )}
           </div>
+
+          {/* Échéances déclarées (fait daté) — absente tant que rien n'est déclaré */}
+          <CarteEcheances
+            engagements={ctx.donnees.engagements}
+            etatsParCode={ctx.etatsParCode}
+            now={ctx.now}
+          />
 
           {/* Pistes alternatives suggérées */}
           <PistesAlternatives

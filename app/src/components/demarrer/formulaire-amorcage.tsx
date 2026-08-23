@@ -18,6 +18,11 @@ import {
   type ProfilSynthetise,
   type SuggestionDomaine,
 } from "@/lib/domain/assistant-orientation";
+import {
+  orientationAmorcage,
+  type OrientationAmorcage,
+} from "@/lib/domain/intention";
+import { useIntention } from "@/components/intention/contexte-intention";
 
 export function FormulaireAmorcage({
   objectifMoyenTerme,
@@ -33,6 +38,7 @@ export function FormulaireAmorcage({
 }) {
   const router = useRouter();
   const { lancerTour } = useOnboarding();
+  const { ouvrir: ouvrirIntention } = useIntention();
   const [enCours, demarrer] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
   const [validationOuverte, setValidationOuverte] = useState(false);
@@ -41,6 +47,16 @@ export function FormulaireAmorcage({
 
   const [sujet, setSujet] = useState("");
   const [intention, setIntention] = useState(objectifMoyenTerme);
+
+  /*
+   * L'orientation projet / référentiel est un choix de la personne : la
+   * présélection vient d'une heuristique locale sur sa phrase, mais un clic
+   * sur une puce la fige. Elle part ensuite comme INDICE au tuteur (aucun
+   * recadrage déterministe ne s'y attache) — jamais comme contrainte.
+   */
+  const [orientationManuelle, setOrientationManuelle] = useState<OrientationAmorcage | null>(null);
+  const orientation: OrientationAmorcage =
+    orientationManuelle ?? orientationAmorcage(intention);
   const [pointDeDepart, setPointDeDepart] = useState("");
   const [preferencesChoisies, setPreferencesChoisies] = useState<string[]>([
     "Pratiquer d'abord",
@@ -101,7 +117,18 @@ export function FormulaireAmorcage({
           objectifLongTerme: objectifLongTerme || undefined,
           preferencesPedagogiques: preferencesChoisies,
         });
-        setValidationOuverte(true);
+        if (orientation === "projet") {
+          /*
+           * « Mener un projet précis » : la phrase part à la traduction avec
+           * l'indice `projet` — le tuteur choisit librement le genre, et
+           * l'écran de résultat rejoint les surfaces existantes (parcours de
+           * projet, fiche, référentiel). Le compte reste vierge : rien n'est
+           * écrit avant sa confirmation.
+           */
+          ouvrirIntention({ besoinInitial: intention.trim(), contexte: "projet" });
+        } else {
+          setValidationOuverte(true);
+        }
       } catch (e) {
         setErreur(e instanceof Error ? e.message : "Enregistrement impossible.");
       }
@@ -250,7 +277,7 @@ export function FormulaireAmorcage({
                   <span className="flex size-5 items-center justify-center rounded-full bg-surface-2 border border-bordure text-[0.6875rem] font-mono">
                     1
                   </span>
-                  Le sujet à travailler
+                  Ce que tu étudies
                 </span>
                 {sujetValide && (
                   <span className="text-xs font-medium text-primaire flex items-center gap-1">
@@ -263,8 +290,8 @@ export function FormulaireAmorcage({
                 label=""
                 value={sujet}
                 onChange={(e) => setSujet(e.target.value)}
-                placeholder="Ex : développement web, droit fiscal, lutherie, philosophie morale…"
-                aide="Écris-le avec tes propres mots. Le tuteur IA le découpera ensuite en compétences mesurables ; cette intention déclarée ne constitue pas encore une mesure."
+                placeholder="Ex : macroéconomie, statistiques, développement web"
+                aide="Avec tes propres mots — tu peux en lister plusieurs, séparés par des virgules. Le tuteur IA les découpera ensuite en compétences mesurables ; cette intention déclarée ne constitue pas encore une mesure."
               />
             </div>
 
@@ -290,6 +317,60 @@ export function FormulaireAmorcage({
                 placeholder="Ex : préparer un concours, changer de métier, mener un projet en autonomie…"
                 aide="Écris-le avec tes mots. Le système traduit cette intention en compétences puis en exercices ; tu n’as pas à définir de cible ni de parcours."
               />
+
+              {/* Indice d'orientation — la personne tranche, le tuteur reste libre. */}
+              <div className="mt-3.5">
+                <p className="mb-1.5 text-[0.6875rem] font-medium text-texte-attenue">
+                  Pour commencer, tu veux plutôt…
+                </p>
+                <div
+                  role="radiogroup"
+                  aria-label="Orientation de départ"
+                  className="flex flex-wrap gap-2"
+                >
+                  {(
+                    [
+                      {
+                        valeur: "referentiel",
+                        libelle: "Organiser des compétences à faire monter",
+                      },
+                      { valeur: "projet", libelle: "Mener un projet précis" },
+                    ] as const
+                  ).map(({ valeur, libelle }) => {
+                    const selectionne = orientation === valeur;
+                    return (
+                      <label
+                        key={valeur}
+                        className={cx(
+                          "inline-flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all shadow-xs",
+                          selectionne
+                            ? "border-primaire bg-primaire/15 text-primaire font-semibold ring-1 ring-primaire/30"
+                            : "border-bordure bg-surface text-texte-attenue hover:border-primaire/40 hover:text-texte hover:bg-surface-2",
+                        )}
+                      >
+                        <input
+                          type="radio"
+                          name="orientation-amorcage"
+                          checked={selectionne}
+                          onChange={() => setOrientationManuelle(valeur)}
+                          className="sr-only"
+                        />
+                        <span
+                          aria-hidden
+                          className={cx(
+                            "size-2 rounded-full border transition-colors",
+                            selectionne ? "border-primaire bg-primaire" : "border-texte-discret bg-transparent",
+                          )}
+                        />
+                        <span>{libelle}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                <p className="mt-1.5 text-[0.6875rem] text-texte-discret">
+                  Un simple point de départ : le tuteur reste libre et te proposera ce qui colle le mieux.
+                </p>
+              </div>
             </div>
 
             {/* Section 3 : Style d'apprentissage et point de départ */}
@@ -406,7 +487,7 @@ export function FormulaireAmorcage({
           cleDisponible={cleDisponible}
           guideEtape="Étape 2 sur 2 : Relis les compétences découpées par le tuteur. Tu peux en décocher ou valider directement pour lancer ton Tableau de bord !"
           onFermer={() => setValidationOuverte(false)}
-          surEnregistre={() => router.replace("/")}
+          surEnregistre={() => router.replace("/app")}
         />
       )}
 

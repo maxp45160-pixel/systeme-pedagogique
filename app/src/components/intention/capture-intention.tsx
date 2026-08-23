@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Modale } from "@/components/ui/modale";
 import { Bouton, cx } from "@/components/ui/primitives";
@@ -20,11 +20,16 @@ import { FORMATS_PAR_ROLE } from "@/lib/documents/roles-note";
 import { ModaleReferentiel } from "@/components/referentiel/modale-referentiel";
 import { ModaleCompetence } from "@/components/referentiel/modale-competence";
 import { ParcoursNouveauProjet } from "@/components/projets/modale-nouveau-projet";
+import { IconeCalendrier } from "@/components/ui/icones";
+import { ModaleEngagement } from "@/components/dashboard/modale-engagement";
+import { extraireEcheanceBesoin } from "@/lib/domain/echeance-besoin";
 import {
   BESOIN_MAX,
   analyserDemandeReferentiel,
   besoinValide,
   demandeSeanceSansSujet,
+  domainePourCodes,
+  dureeDeclaree,
   urlComposition,
   type ActionIntention,
   type TraductionIntention,
@@ -96,8 +101,8 @@ const SUGGESTIONS_RAPIDES = [
     Icone: IconeCompetences,
   },
   {
-    libelle: "Créer une fiche de cours",
-    prompt: "Je souhaite créer une fiche de synthèse pour résumer mon cours",
+    libelle: "Créer une fiche de synthèse",
+    prompt: "Je souhaite créer une fiche de synthèse pour résumer ce que j'étudie",
     Icone: IconeNote,
   },
   {
@@ -179,11 +184,44 @@ export function CaptureIntention({
    * et le même chemin traite aussi bien un sujet étroit — c'est le prompt qui
    * décide du découpage. Un seul chemin d'extension, donc, là où le tableau de
    * bord en offrait un second par sa carte de pilotage.
+   *
+   * Le message optionnel est la micro-copie du résultat : quand le tuteur a
+   * choisi `referentiel`, la modale s'ouvre sur « Voici une première
+   * organisation — tu pourras tout ajuster », qui replace la proposition comme
+   * un point de départ relisible.
    */
-  const [sujetBranche, setSujetBranche] = useState<string | null>(null);
+  const [sujetBranche, setSujetBranche] = useState<{
+    sujet: string;
+    message?: string;
+  } | null>(null);
 
   /** Le parcours de projet, qui recible lui-même les compétences depuis la phrase. */
   const [projetDemande, setProjetDemande] = useState<string | null>(null);
+
+  /*
+   * Date détectée dans le besoin (chantier « fait daté ») : une PROPOSITION,
+   * jamais une écriture. Ignorer ne laisse aucune trace — le comportement
+   * actuel reste le défaut, et seul un clic explicite ouvre le formulaire
+   * d'engagement pré-rempli.
+   */
+  const [echeanceDemandee, setEcheanceDemandee] = useState<{
+    libelle: string;
+    echeanceLe: string;
+  } | null>(null);
+  const echeanceDetectee =
+    phase === "proposition" ? extraireEcheanceBesoin(besoin) : undefined;
+
+  /**
+   * Rattachement proposé de la fiche (D1) : quand la traduction vise des codes,
+   * leur domaine commun est PROPOSÉ comme rattachement — jamais dérivé en
+   * silence. Décoché par défaut : sans confirmation explicite, la fiche reste
+   * transversale.
+   */
+  const [rattacherDomaine, setRattacherDomaine] = useState(false);
+  const rattachementPropose = useMemo(() => {
+    if (traduction?.action.genre !== "note") return null;
+    return domainePourCodes(traduction.action.codes, domainesExistants);
+  }, [traduction, domainesExistants]);
 
   const abandonRef = useRef<AbortController | null>(null);
 
@@ -198,6 +236,7 @@ export function CaptureIntention({
     setPhase("traduction");
     setProgression(null);
     setApercu(null);
+    setRattacherDomaine(false);
     setErreur(null);
     setAvertissement(null);
 
@@ -305,7 +344,7 @@ export function CaptureIntention({
       setErreur(null);
 
       if (contexte === "domaine") {
-        setSujetBranche(action.sujet || action.titre || besoin.trim());
+        setSujetBranche({ sujet: action.sujet || action.titre || besoin.trim() });
         return;
       }
 
@@ -320,7 +359,7 @@ export function CaptureIntention({
       }
 
       if (demandeReferentiel.type === "domaine" && demandeReferentiel.portee === "large") {
-        setSujetBranche(besoin.trim());
+        setSujetBranche({ sujet: besoin.trim() });
         return;
       }
 
@@ -330,12 +369,17 @@ export function CaptureIntention({
         const seanceSansSujet = demandeSeanceSansSujet(besoin);
         const codes = seanceSansSujet ? [] : action.codes;
         // Le besoin reste une intention déclarée : il ouvre la composition et
-        // n'est converti en aucun fait persistant (invariant intention).
+        // n'est converti en aucun fait persistant (invariant intention). La
+        // durée explicite de la phrase voyage avec elle — « 15 minutes » doit
+        // ouvrir le compositeur sur 15, pas sur son défaut.
         setEnExecution(true);
         try {
           onFermer();
           router.push(
-            urlComposition(codes, besoin, { sansTheme: seanceSansSujet }),
+            urlComposition(codes, besoin, {
+              sansTheme: seanceSansSujet,
+              temps: dureeDeclaree(besoin),
+            }),
           );
         } catch (cause) {
           setErreur(cause instanceof Error ? cause.message : "Le besoin n'a pas pu être pris en compte.");
@@ -354,19 +398,35 @@ export function CaptureIntention({
         // La proposition de branches doit recevoir la formulation originale :
         // elle contient parfois un nombre de domaines, une granularité ou un
         // nombre de compétences que le titre de l’action résumée perdrait.
-        setSujetBranche(besoin.trim());
+        setSujetBranche({
+          sujet: besoin.trim(),
+          message: "Voici une première organisation — tu pourras tout ajuster.",
+        });
         return;
       }
 
       setEnExecution(true);
       try {
+        /*
+         * Le rattachement au domaine des compétences visées est PROPOSÉ dans la
+         * carte et CONFIRMÉ par la case cochée — jamais dérivé en silence.
+         * Sans confirmation, la fiche reste transversale : le comportement par
+         * défaut ne bouge pas (D1). Une alternative exécutée d'un clic reste
+         * transversale : sa case n'a jamais été montrée.
+         */
+        const propose =
+          action.genre === "note" && action === traduction?.action
+            ? rattachementPropose
+            : null;
+        const domaineFiche =
+          rattacherDomaine && propose ? propose.id : "transversal";
         const fiche = await creerNoteAction(
           "support",
           FORMATS_PAR_ROLE.support[0].valeur,
           action.titre,
           // Le besoin exprimé EST le contexte de la fiche : le retaper serait
           // redemander ce qui vient d'être dit.
-          { contexte: besoin.trim(), domaine: "transversal" },
+          { contexte: besoin.trim(), domaine: domaineFiche },
         );
         onFermer();
         router.push(`/atelier?note=${encodeURIComponent(fiche.id)}`);
@@ -377,7 +437,16 @@ export function CaptureIntention({
         setEnExecution(false);
       }
     },
-    [besoin, contexte, domainesExistants, onFermer, router],
+    [
+      besoin,
+      contexte,
+      rattachementPropose,
+      domainesExistants,
+      onFermer,
+      rattacherDomaine,
+      router,
+      traduction,
+    ],
   );
 
   function repondreAQuestion(reponse: string) {
@@ -394,6 +463,27 @@ export function CaptureIntention({
       <ParcoursNouveauProjet
         accountId={compteId}
         intentionInitiale={projetDemande}
+        onFermer={onFermer}
+      />
+    );
+  }
+
+  /*
+   * La personne a cliqué « Créer un engagement » : le formulaire pré-rempli
+   * remplace la capture, même motif que le parcours projet ci-dessus. Le
+   * ciblage de compétences n'est pas proposé ici — ce chemin assisté ne porte
+   * que le fait daté ; la déclaration détaillée reste l'entrée du tableau
+   * de bord.
+   */
+  if (echeanceDemandee !== null) {
+    return (
+      <ModaleEngagement
+        competences={[]}
+        initial={{
+          type: "examen",
+          libelle: echeanceDemandee.libelle,
+          echeanceLe: echeanceDemandee.echeanceLe,
+        }}
         onFermer={onFermer}
       />
     );
@@ -431,8 +521,9 @@ export function CaptureIntention({
     return (
       <ModaleReferentiel
         compteId={compteId}
-        sujetInitial={sujetBranche}
+        sujetInitial={sujetBranche.sujet}
         demarrageAutomatique
+        guideEtape={sujetBranche.message}
         onFermer={onFermer}
       />
     );
@@ -598,8 +689,42 @@ export function CaptureIntention({
             <PropositionPrincipale
               action={traduction.action}
               enExecution={enExecution}
+              rattachementPropose={
+                traduction.action.genre === "note" ? rattachementPropose : null
+              }
+              rattacherDomaine={rattacherDomaine}
+              surRattachementChange={setRattacherDomaine}
               onExecuter={() => void executer(traduction.action)}
             />
+          )}
+
+          {echeanceDetectee && traduction.action.genre !== "clarification" && (
+            /*
+             * Une date a été lue dans le besoin. Bandeau discret, aucune
+             * écriture automatique : le tuteur propose, la personne valide.
+             * Ignorer ne laisse aucune trace.
+             */
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-bordure bg-surface-2/60 px-3 py-2 text-xs">
+              <span className="flex min-w-0 items-center gap-2 text-texte-attenue">
+                <IconeCalendrier className="size-3.5 shrink-0 text-texte-discret" />
+                <span>
+                  Une échéance a été repérée dans ton besoin (le{" "}
+                  {echeanceDetectee.split("-").reverse().join("/")}).
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  setEcheanceDemandee({
+                    libelle: besoin.trim().slice(0, 80),
+                    echeanceLe: echeanceDetectee,
+                  })
+                }
+                className="shrink-0 rounded-md border border-bordure bg-surface px-2.5 py-1 text-xs font-medium text-texte transition-colors hover:border-primaire/40 hover:text-primaire cursor-pointer"
+              >
+                Garder cette date ? Créer un engagement
+              </button>
+            </div>
           )}
 
           {traduction.alternatives.length > 0 && (
@@ -650,13 +775,22 @@ export function CaptureIntention({
 function PropositionPrincipale({
   action,
   enExecution,
+  rattachementPropose,
+  rattacherDomaine,
+  surRattachementChange,
   onExecuter,
 }: {
   action: ActionIntention;
   enExecution: boolean;
+  /** Domaine proposé pour la fiche, lu dans les codes visés. `null` : rien à proposer. */
+  rattachementPropose?: { id: string; nom: string; prefixe: string } | null;
+  rattacherDomaine: boolean;
+  surRattachementChange: (valeur: boolean) => void;
   onExecuter: () => void;
 }) {
   const IconeGenre = ICONE_PAR_GENRE[action.genre] ?? IconeAmpoule;
+  const montrerRattachement =
+    action.genre === "note" && Boolean(rattachementPropose) && !enExecution;
 
   return (
     <div className="rounded-xl border border-primaire/40 bg-primaire-faible/25 p-4 sm:p-5 shadow-xs">
@@ -689,6 +823,26 @@ function PropositionPrincipale({
         </p>
         <p className="mt-1 text-xs sm:text-sm text-texte-attenue">{RESULTAT_ACTION[action.genre]}</p>
       </div>
+
+      {montrerRattachement && (
+        /*
+         * Rattachement PROPOSÉ, jamais dérivé : la case part décochée et la
+         * fiche ne quitte le transversal que sur une confirmation explicite.
+         */
+        <label className="mt-2 flex cursor-pointer items-start gap-2.5 rounded-lg border border-bordure bg-surface/60 p-3">
+          <input
+            type="checkbox"
+            checked={rattacherDomaine}
+            onChange={(e) => surRattachementChange(e.target.checked)}
+            className="mt-0.5 shrink-0"
+          />
+          <span className="text-xs text-texte-attenue">
+            Rattacher cette fiche au domaine{" "}
+            <span className="font-medium text-texte">« {rattachementPropose?.nom} »</span> — sinon
+            elle restera transversale.
+          </span>
+        </label>
+      )}
 
       <Bouton
         variante="principal"

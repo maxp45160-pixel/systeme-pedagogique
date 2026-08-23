@@ -194,6 +194,24 @@ describe("construirePromptReferentiel", () => {
       "L'application attribue",
     );
   });
+
+  it("demande UNE branche par sujet quand plusieurs sujets sont déclarés", () => {
+    // B.1 — amorçage pluriel : « macroéconomie, statistiques » est deux
+    // demandes, pas un sujet à découper thématiquement.
+    const prompt = construirePromptReferentiel(
+      REFERENTIEL_VIDE,
+      "macroéconomie, statistiques et développement web",
+    );
+    expect(prompt).toContain("UNE branche par sujet déclaré");
+    expect(prompt).toContain("« macroéconomie »");
+    expect(prompt).toContain("« statistiques »");
+    expect(prompt).toContain("« développement web »");
+  });
+
+  it("ne parle pas de sujets multiples pour un sujet unique", () => {
+    const prompt = construirePromptReferentiel(REFERENTIEL_VIDE, "le stoïcisme");
+    expect(prompt).not.toContain("SUJETS MULTIPLES");
+  });
 });
 
 describe("validerReferentielComplet — écarter n'est pas accepter à moitié", () => {

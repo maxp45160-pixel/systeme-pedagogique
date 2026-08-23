@@ -92,7 +92,14 @@ export function construirePromptIntention(
           "- `sujet` doit contenir le nom ou la description du domaine demandé.",
           "",
         ]
-      : [];
+      : contexte === "projet" || contexte === "referentiel"
+        ? [
+            contexte === "projet"
+              ? "CONTEXTE D'OUVERTURE : à l'amorçage, la personne a indiqué vouloir mener un projet précis. C'est un indice, pas une règle : garde le genre qui répond le mieux au besoin exprimé."
+              : "CONTEXTE D'OUVERTURE : à l'amorçage, la personne a indiqué vouloir organiser des compétences à faire monter. C'est un indice, pas une règle : garde le genre qui répond le mieux au besoin exprimé.",
+            "",
+          ]
+        : [];
 
   return [
     "Tu es le moteur d'orientation du système pédagogique. Une personne exprime un besoin en une phrase ; tu le traduis en une action que le système sait exécuter.",

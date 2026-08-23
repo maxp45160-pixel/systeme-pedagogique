@@ -15,10 +15,11 @@ import type { SnapshotDocument, ResumeSnapshotDocument } from "@/lib/documents/t
 import {
   enregistrerPieceJointe,
   lirePiecesJointes,
-  preparerTeleversementPdf,
-  annulerTeleversementPdf,
+  preparerTeleversementPiece,
+  annulerTeleversementPiece,
   supprimerPieceJointe,
 } from "./document-attachments";
+import { validerUrlRessource } from "@/lib/domain/url-ressource";
 
 export interface MetadonneesNote {
   contexte: string;
@@ -97,6 +98,55 @@ export async function supprimerDocumentAction(id: string): Promise<void> {
   await supprimerDocument(id);
 }
 
+/**
+ * Crée une fiche « lien » : une adresse déclarée, un titre, des rattachements
+ * facultatifs.
+ *
+ * Le lien n'est jamais scrapé ni converti en Connaissance : il reste une
+ * ressource documentaire dont l'URL vit dans le front-matter. Les
+ * rattachements sont des codes du référentiel du compte, vérifiés avant
+ * l'écriture — jamais inventés. La validation d'URL passe par la seule
+ * implémentation partagée (`lib/domain/url-ressource`).
+ */
+export async function creerLienAction(
+  titre: string,
+  url: string,
+  codes: string[] = [],
+): Promise<{ id: string }> {
+  const titrePropre = titre.trim().replace(/\s+/g, " ");
+  if (!titrePropre) throw new Error("Le titre du lien est obligatoire.");
+  if (titrePropre.length > 200) throw new Error("Le titre du lien est limité à 200 caractères.");
+
+  const resultatUrl = validerUrlRessource(url);
+  if (!resultatUrl.valide) throw new Error(resultatUrl.erreur);
+
+  const codesPropres = [...new Set(codes.map((code) => code.trim()).filter(Boolean))];
+  const dorsale = await dorsaleCompte();
+  if (codesPropres.length > 0) {
+    const { data, error } = await dorsale.supabase
+      .from("competences")
+      .select("code")
+      .eq("user_id", dorsale.userId)
+      .in("code", codesPropres);
+    verifier("validation des rattachements du lien", error);
+    const connus = new Set(((data ?? []) as Array<{ code: string }>).map((ligne) => ligne.code));
+    const inconnu = codesPropres.find((code) => !connus.has(code));
+    if (inconnu) throw new Error(`La compétence ${inconnu} n'existe pas dans ce compte.`);
+  }
+
+  const id = nouvelId("doc");
+  const date = new Date().toISOString().slice(0, 10);
+  const base = creerDepuisTemplate("lien", id, titrePropre, date, {
+    role: "support",
+    url: resultatUrl.url,
+  });
+  const corps = codesPropres.length > 0
+    ? `${base}\n${codesPropres.map((code) => `- [[${code}]]`).join("\n")}\n`
+    : base;
+  await creerDocument(id, corps);
+  return { id };
+}
+
 export async function archiverDocumentAction(id: string): Promise<void> {
   const doc = await lireDocument(id);
   const nouveauContenu = definirArchiveFrontMatter(doc.contenuMd, true);
@@ -124,11 +174,12 @@ export async function renommerDocumentAction(
   return { titre, contenuMd: nouveauContenu, updatedAt: resultat.updatedAt };
 }
 
-export async function preparerTeleversementPdfAction(
+export async function preparerTeleversementPieceAction(
   documentId: string,
   nom: string,
+  mimeType: "application/pdf" | "image/jpeg" | "image/png" | "image/webp",
 ): Promise<{ chemin: string; token: string }> {
-  return preparerTeleversementPdf(documentId, nom);
+  return preparerTeleversementPiece(documentId, nom, mimeType);
 }
 
 export async function enregistrerPieceJointeAction(
@@ -136,12 +187,13 @@ export async function enregistrerPieceJointeAction(
   chemin: string,
   nom: string,
   tailleOctets: number,
+  mimeType: "application/pdf" | "image/jpeg" | "image/png" | "image/webp",
 ) {
-  return enregistrerPieceJointe(documentId, chemin, nom, tailleOctets);
+  return enregistrerPieceJointe(documentId, chemin, nom, tailleOctets, mimeType);
 }
 
-export async function annulerTeleversementPdfAction(documentId: string, chemin: string): Promise<void> {
-  await annulerTeleversementPdf(documentId, chemin);
+export async function annulerTeleversementPieceAction(documentId: string, chemin: string): Promise<void> {
+  await annulerTeleversementPiece(documentId, chemin);
 }
 
 export async function lirePiecesJointesAction(documentId: string) {

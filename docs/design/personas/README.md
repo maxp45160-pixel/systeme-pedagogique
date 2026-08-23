@@ -34,8 +34,11 @@ navigation (les distances depuis le tableau de bord sont courtes).
 
 ## Plans d'implémentation UI/UX
 
-Un plan par persona (`PLAN_UI_*.md`), propositions non validées. Chaque chantier
-y est marqué :
+Un plan par persona (`PLAN_UI_*.md`). Les arbitrages [D] ont été rendus le
+22/08/2026 par Maxime — tous favorables, dans les limites documentées aux
+ADR-109 à ADR-113 — et les chantiers [S] correspondants sont implémentés sur
+la branche `chantier-personas` (non fusionnée à la date d'écriture). Chaque
+chantier y est marqué :
 
 - **[S]** — implémentable sur les surfaces existantes, sans nouvelle entité ni
   donnée stockée supplémentaire ;
@@ -44,17 +47,18 @@ y est marqué :
 
 | Plan | Priorité [S] | Arbitrages [D] |
 |---|---|---|
-| `PLAN_PERSONA_ACADEMIQUE.md` | B amorçage pluriel + corpus groupé · D1 rattachement proposé | fait daté (A) · lecture du PDF par le tuteur (C) |
-| `PLAN_UI_PARENT_SOUTIEN.md` | P1 lecture longitudinale filtrée | photo (P2), profil bénéficiaire (P3) |
-| `PLAN_UI_RECONVERSION.md` | R1 désambiguïsation intention · R3 fils de corpus | ressource-lien (R2) |
-| `PLAN_UI_CONCOURS_DATE.md` | C0 refus explicite de la date · C1 mode épreuve | fait daté (C2) |
-| `PLAN_UI_LOISIR.md` | L1 protocole de test tuteur (pas du code) | ancrage répertoire (L3) |
+| `PLAN_PERSONA_ACADEMIQUE.md` | B amorçage pluriel + corpus groupé · D1 rattachement proposé — implémentés 22/08/2026 | fait daté (A) — ADR-109 · lecture du PDF par le tuteur (C) — ADR-113, implémentés 22/08/2026 |
+| `PLAN_UI_PARENT_SOUTIEN.md` | P1 lecture longitudinale filtrée — implémenté 22/08/2026 | photo (P2) — ADR-111 · profil bénéficiaire (P3) — traité par « comptes multiples conseillés », implémenté 22/08/2026 |
+| `PLAN_UI_RECONVERSION.md` | R1 désambiguïsation intention · R3 fils de corpus — implémentés 22/08/2026 | ressource-lien (R2) — ADR-112, implémentée 22/08/2026 |
+| `PLAN_UI_CONCOURS_DATE.md` | C0 refus explicite de la date — remplacé le 22/08/2026 par le chemin assisté du fait daté (ADR-109) · C1 mode épreuve — implémenté 22/08/2026 (ADR-110) | fait daté (C2) — ADR-109, implémenté 22/08/2026 |
+| `PLAN_UI_LOISIR.md` | L1 protocole de test tuteur (pas du code) — À EXÉCUTER par usage : aucune simulation lancée, aucun résultat inventé | ancrage répertoire (L3) · ressource-lien (R2, partagé avec la reconversion) — ADR-112, implémentée 22/08/2026 |
 
 Le plan académique (`PLAN_PERSONA_ACADEMIQUE.md`, v0.2) est le plus détaillé :
 il porte les arbitrages du **fait daté** partagés avec
 `PLAN_UI_CONCOURS_DATE.md` — un seul arbitrage, deux documents qui s'y
 renvoient. La **ressource-lien** (R2 = reconversion + loisir) est le second
-arbitrage partagé.
+arbitrage partagé. Les deux ont été tranchés favorablement le 22/08/2026
+(ADR-109 et ADR-112).
 
 Historique : le persona académique a été déplacé ici depuis `docs/design/`
 et son plan d'origine `docs/design/PLAN_PERSONA_ACADEMIQUE.md` rejoint dans
@@ -67,11 +71,17 @@ Les cinq personas convergent sur trois points :
 
 1. **La boucle apprendre fonctionne** : compositeur → bilan → recommandation,
    partout le geste le mieux huilé.
-2. **Le produit ne retient aucun fait daté** (ADR-096) : fatal pour le persona
+2. **Le produit ne retenait aucun fait daté** (ADR-096) : fatal pour le persona
    concours, gênant pour l'académique, indifférent pour le loisir. Question
    d'arbitrage : le produit doit-il retenir un fait daté, et sous quelle forme ?
+   Arbitré OUI le 22/08/2026 : l'engagement déclaré existe désormais
+   (ADR-109), sans objectif ni parcours planifié.
 3. **Le compte est mono-utilisateur** : tout usage « pour quelqu'un d'autre »
    (parent, formateur) n'a nulle part où se poser sans brouiller les données.
+   Traité le 22/08/2026 par l'option « comptes multiples conseillés » : zéro
+   entité nouvelle, zéro politique RLS ; un guide sobre dans `/compte`
+   (un compte par apprenant, bascule par connexion). Les données restent
+   isolées par compte et ne se partagent jamais sans consentement explicite.
 
 ## Faits nouveaux du 22/08, postérieurs aux simulations
 

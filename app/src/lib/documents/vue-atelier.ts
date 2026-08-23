@@ -42,6 +42,12 @@ import {
 } from "@/lib/engine/parcours";
 import type { ChangementReferentiel } from "@/lib/domain/gouvernance-referentiel";
 import { type EtatCompetence } from "@/lib/engine/vues-twiny";
+import type { ProgressionDomaineVue } from "./progression-domaine";
+import {
+  filRessourcesDomaine,
+  type DocumentCorpus,
+  type FilRessource,
+} from "./fils-corpus";
 
 export interface ExerciceLieAtelier {
   id: string;
@@ -252,6 +258,19 @@ export interface VueDomaineAtelier {
    * refuserait — le refus qui compte reste celui de `deplacer_domaine`.
    */
   parentsPossibles: Array<{ id: string; nom: string }>;
+  /**
+   * Le fil des ressources du domaine (R3) : ce qu'on lit pour travailler,
+   * ordonné par dernière activité DÉRIVÉE du journal — rien n'est stocké.
+   * Une ressource jamais mobilisée reste listée, sans date fabriquée.
+   */
+  ressources: FilRessource[];
+  /**
+   * La lecture longitudinale du domaine (mode « Progression »), précalculée
+   * serveur par `construireProgressionsDomaines` — la surface unique pour « où
+   * j'en suis dans ce domaine », là où `/progression?domaine=` doublonnait.
+   * Absente (imprévu) : le mode affiche un repli sobre, sans planter.
+   */
+  progression?: ProgressionDomaineVue;
 }
 
 /**
@@ -439,6 +458,35 @@ export function construireVuesAtelier(
     };
   });
 
+  /*
+   * Le corpus du fil des ressources (R3) : dérivé de l'index à chaque lecture,
+   * jamais stocké. Les fiches d'exercice et les preuves portent une mesure —
+   * `estSupport` les sort déjà ; une fiche archivée sort aussi.
+   */
+  const corpus: DocumentCorpus[] = index.documents
+    .filter(
+      (document) =>
+        document.frontMatter?.archive !== true &&
+        estSupport({ id: document.id, type: document.type ?? "document" }),
+    )
+    .map((document) => {
+      const domaineDeclare = document.frontMatter?.domaine;
+      return {
+        id: document.id,
+        titre: document.titre,
+        type: document.type,
+        domaineConnu:
+          typeof domaineDeclare === "string" &&
+          referentiel.domainesParId.has(domaineDeclare)
+            ? domaineDeclare
+            : undefined,
+        role: document.frontMatter?.role,
+        competencesCitees: (index.sortants.get(document.id) ?? []).filter((code) =>
+          referentiel.codesActifs.has(code),
+        ),
+      };
+    });
+
   const domaines: VueDomaineAtelier[] = referentiel.domaines
     .filter((domaine) => domaine.archive || domainesVivants.has(domaine.id))
     .map((domaine) => {
@@ -538,6 +586,12 @@ export function construireVuesAtelier(
               description: domaine.description,
               intitules: affichees.map((skill) => skill.intitule),
             }),
+        ressources: filRessourcesDomaine({
+          domaineId: domaine.id,
+          codesCompetences: codesDomaine,
+          documents: corpus,
+          observations: observationsReferentiel,
+        }),
       };
     });
 

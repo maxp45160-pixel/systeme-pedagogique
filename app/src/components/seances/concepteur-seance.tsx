@@ -112,6 +112,13 @@ export interface DonneesSeance {
   compteId: string;
   /** Pré-remplit le compositeur (ex. « Refaire cette séance »). */
   preset?: PresetSeance;
+  /**
+   * Durée lue dans la demande (`?temps=`, ou relue dans l'intention).
+   *
+   * Elle ne fabrique pas de preset : elle remplace seulement le défaut du
+   * champ temps quand ni `preset` ni la personne n'ont parlé avant elle.
+   */
+  dureeInitiale?: number;
   /** Domaine déclaré dans la fiche qui a lancé la composition. */
   domaineInitial?: string;
   /** Contexte déclaré dans la fiche qui a lancé la composition. */
@@ -177,6 +184,7 @@ export function ConcepteurSeance({
   domaines,
   compteId,
   preset,
+  dureeInitiale,
   domaineInitial,
   contexteInitial,
   sansThemeInitial = false,
@@ -297,7 +305,7 @@ export function ConcepteurSeance({
   const theme = themePrincipal;
 
   const [temps, setTemps] = useState(
-    String(preset?.dureeCibleMin ?? TEMPS_PAR_DEFAUT),
+    String(preset?.dureeCibleMin ?? dureeInitiale ?? TEMPS_PAR_DEFAUT),
   );
   const [intention, setIntention] = useState(contexteInitial ?? "");
   const [intentionOuverte, setIntentionOuverte] = useState(Boolean(contexteInitial?.trim()));
@@ -311,6 +319,8 @@ export function ConcepteurSeance({
   const [nombreTouche, setNombreTouche] = useState(Boolean(preset));
 
   const [planifieePour, setPlanifieePour] = useState("");
+  // Mode épreuve : décision de composition, posée une fois à l'écriture.
+  const [modeEpreuve, setModeEpreuve] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enregistrement, setEnregistrement] = useState(false);
 
@@ -411,6 +421,7 @@ export function ConcepteurSeance({
         ...(planifieePour && !demarrer
           ? { planifieePour: new Date(planifieePour).toISOString() }
           : {}),
+        ...(modeEpreuve ? { modeEpreuve: true } : {}),
       };
       const id = await creerSeance(entree, demarrer ? "en-cours" : "planifiee");
       await surSeanceCreee?.({ id, activites: entree.activites, codesVises: besoin.codesVises });
@@ -576,6 +587,16 @@ export function ConcepteurSeance({
               competences={competencesModale}
               competenceInitiale={generationCibles.codeInitial}
               competencesCibles={generationCibles.codes}
+              /*
+               * La durée cible de la séance accompagne la demande : sans elle,
+               * le tuteur rédigeait des exercices d'une heure pour une séance
+               * de quinze minutes — et l'étiquette « ≈ 1 h » s'affichait sur
+               * un programme qui devait durer un quart d'heure.
+               *
+               * Elle transite par `generationCibles`, qui la reçoit de
+               * `tempsMin` au moment où les cibles sont posées : une seule
+               * voie, plutôt que la même valeur passée deux fois.
+               */
               dureeCibleMin={generationCibles.dureeCibleMin}
               calibrages={calibragesModale}
               compteId={compteId}
@@ -622,6 +643,8 @@ export function ConcepteurSeance({
                 setNombreTouche(true);
                 setNombreExercices(v);
               }}
+              modeEpreuve={modeEpreuve}
+              setModeEpreuve={setModeEpreuve}
               planifieePour={planifieePour}
               setPlanifieePour={setPlanifieePour}
               enregistrement={enregistrement}

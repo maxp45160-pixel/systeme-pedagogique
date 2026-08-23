@@ -42,6 +42,7 @@ export const TABLES: Record<CleListe, string> = {
   attempts: "attempts",
   sessions: "sessions",
   refusRecommandations: "refus_recommandations",
+  engagements: "engagements",
 };
 
 /** Colonnes de service, jamais exposées au domaine. */
@@ -147,6 +148,7 @@ export const CLES_RPC = [
   "attempts",
   "sessions",
   "refus_recommandations",
+  "engagements",
   "domaines",
   "competences",
   "competence_domaines",
@@ -226,6 +228,7 @@ export function convertirResultatRPC(
       attempts: convertirCollection("attempts", "attempts"),
       sessions: convertirCollection("sessions", "sessions"),
       refusRecommandations: convertirCollection("refus_recommandations", "refusRecommandations"),
+      engagements: convertirCollection("engagements", "engagements"),
     },
     domaines,
     competences,

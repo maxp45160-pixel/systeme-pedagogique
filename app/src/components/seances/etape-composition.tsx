@@ -10,6 +10,7 @@
 
 import { BandeauInfo, Bouton, Carte, cx, Etiquette } from "@/components/ui/primitives";
 import { Champ } from "@/components/ui/champ";
+import { IconeMinuteur } from "@/components/ui/icones";
 import { EXERCICES_PAR_SEANCE_MAX, EXERCICES_PAR_SEANCE_MIN } from "@/lib/domain/seance";
 import {
   nombreExercicesConseille,
@@ -27,6 +28,8 @@ export function EtapeComposition({
   nombreExercices,
   refusDemande,
   setNombreExercices,
+  modeEpreuve,
+  setModeEpreuve,
   planifieePour,
   setPlanifieePour,
   enregistrement,
@@ -41,6 +44,8 @@ export function EtapeComposition({
   nombreExercices: number;
   refusDemande: string | null;
   setNombreExercices: (v: number) => void;
+  modeEpreuve: boolean;
+  setModeEpreuve: (v: boolean) => void;
   planifieePour: string;
   setPlanifieePour: (v: string) => void;
   enregistrement: boolean;
@@ -123,6 +128,40 @@ export function EtapeComposition({
           </div>
         </div>
       </div>
+
+      {/* Mode épreuve — troisième décision discrète, après thème et temps */}
+      <button
+        type="button"
+        role="switch"
+        aria-checked={modeEpreuve}
+        onClick={() => setModeEpreuve(!modeEpreuve)}
+        className={cx(
+          "flex w-full cursor-pointer items-start gap-3 rounded-xl border p-3 text-left transition-colors",
+          modeEpreuve
+            ? "border-primaire/40 bg-primaire-faible/30"
+            : "border-bordure bg-surface hover:border-primaire/30",
+        )}
+      >
+        <span
+          className={cx(
+            "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded border",
+            modeEpreuve ? "border-primaire bg-primaire" : "border-bordure-controle bg-surface",
+          )}
+          aria-hidden
+        >
+          {modeEpreuve && <span className="size-2 rounded-[0.125rem] bg-white" />}
+        </span>
+        <span className="min-w-0">
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-texte">
+            <IconeMinuteur className="size-3.5" />
+            <span>Mode épreuve</span>
+          </span>
+          <span className="mt-0.5 block text-[0.6875rem] leading-relaxed text-texte-discret">
+            Conditions réelles : chrono affiché pendant la séance, aides masquées,
+            correction à la fin. Posé au démarrage, il ne se retire plus.
+          </span>
+        </span>
+      </button>
 
       {/* Grille de 3 métriques de synthèse */}
       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">

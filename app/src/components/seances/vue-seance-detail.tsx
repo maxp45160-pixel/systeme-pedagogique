@@ -11,6 +11,8 @@ import {
 import {
   avancementSeance,
   ecartBesoinRealise,
+  estModeEpreuve,
+  indicesMasquesEnEpreuve,
   peutReprendreSeance,
   statutSeance,
   tentativeDeSeance,
@@ -21,6 +23,7 @@ import { formatDateCourte, formatDuree } from "@/lib/engine/dates";
 import { Carte, CodeCompetence, EnTeteCarte, Etiquette, EtatVide, classesLienBouton } from "@/components/ui/primitives";
 import { ActionSeance } from "@/components/seances/action-seance";
 import { Pomodoro } from "@/components/seances/pomodoro";
+import { ChronoEpreuve } from "@/components/seances/chrono-epreuve";
 import { OutilSeance } from "@/components/seances/outil-seance";
 import { CalculatriceSeance } from "@/components/seances/calculatrice-seance";
 import { MargeCahier } from "@/components/seances/marge-cahier";
@@ -110,6 +113,14 @@ export async function VueSeanceDetail({
   if (!seance) notFound();
 
   const statut = statutSeance(seance);
+  /*
+   * Mode épreuve (22/08/2026) : un fait posé à la création, lu ici pour
+   * l'habillage — chrono affiché, aides du tuteur masquées pendant le déroulé.
+   * Aucune mesure n'en dépend : le déroulé, le bilan et l'autonomie restent
+   * exactement ceux d'une séance ordinaire.
+   */
+  const epreuve = estModeEpreuve(seance);
+  const aidesMasquees = indicesMasquesEnEpreuve(seance);
   /*
    * Une séance abandonnée se relit comme une séance terminée : le déroulé est
    * figé, les traces restent. La seule différence tient à ce qu'on peut encore
@@ -282,16 +293,36 @@ export async function VueSeanceDetail({
         */}
         <div className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2.5 sm:px-6 ${plein ? `mx-auto ${colonnePlein}` : ""}`}>
           <div className="flex min-w-0 items-center gap-2">
+            {epreuve && (
+              <span
+                title="Mode épreuve"
+                className="flex size-5 shrink-0 items-center justify-center rounded-full border border-primaire/30 bg-primaire-faible text-primaire"
+              >
+                <IconeMinuteur className="size-3" />
+              </span>
+            )}
             <h1 className="truncate font-serif text-base font-medium">
               {seance.besoinDeclare?.intention || "Séance"}
             </h1>
             <Etiquette ton={LIBELLES_STATUT[statut].ton}>{LIBELLES_STATUT[statut].texte}</Etiquette>
           </div>
 
-          <div className="flex shrink-0 items-center gap-1">
-            <span className="chiffres mr-1 text-xs text-texte-discret">
+          {/*
+            Une seule ligne de pilotage : avancement, chrono d'épreuve et
+            sortie vivent ici. Le chrono était un bandeau plein largeur sous
+            l'en-tête — une rangée de plus pour une information qui tient en
+            une pastille, et qui n'a d'usage que pendant la séance elle-même.
+          */}
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <span className="chiffres text-xs text-texte-discret">
               {traites} / {avancement.total}
             </span>
+            {epreuve && statut === "en-cours" && (
+              <ChronoEpreuve
+                compteId={ctx.donnees.user.id}
+                dureeFocusMin={seance.blueprint?.dureeCibleMin}
+              />
+            )}
             {/*
               ⚠️ Plus de bascule « plein écran ».
 
@@ -308,7 +339,7 @@ export async function VueSeanceDetail({
               href={`/seances?jour=${encodeURIComponent(jourDeLaPage)}`}
               className={classesLienBouton("secondaire", "petite")}
             >
-              {plein ? "Sortir vers le Bureau" : "Replier"}
+              {plein ? "Bureau" : "Replier"}
             </Link>
           </div>
         </div>
@@ -364,7 +395,6 @@ export async function VueSeanceDetail({
                 variante="outil"
                 libelle="Exercices"
                 icone={<IconeExercices className="size-3.5" />}
-                indice={`${traites}/${avancement.total}`}
                 contenuClassName={panneauLarge}
               >
                 <ListeActivites activites={activites} parId={parId} avancement={avancement} seanceId={seance.id} plein={plein} compacte />
@@ -375,7 +405,14 @@ export async function VueSeanceDetail({
                 icone={<IconeMinuteur className="size-3.5" />}
                 contenuClassName={panneauMinuteur}
               >
-                <Pomodoro compteId={ctx.donnees.user.id} />
+                {/* Même défaut de durée que le chrono du mode épreuve : les deux
+                    affichages du minuteur ne doivent pas se contredire. */}
+                <Pomodoro
+                  compteId={ctx.donnees.user.id}
+                  {...(epreuve && seance.blueprint?.dureeCibleMin
+                    ? { dureeFocusDefaut: seance.blueprint.dureeCibleMin }
+                    : {})}
+                />
               </OutilSeance>
               {/*
                 La calculatrice est un support, pas une évidence : elle se
@@ -398,19 +435,20 @@ export async function VueSeanceDetail({
               >
                 <MargeCahier lignes={marge} compacte />
               </OutilSeance>
-              {etatTuteur && exerciceActif && (
-                <TiroirTuteur
-                  etatInitial={etatTuteur}
-                  exerciceCible={exerciceActif}
-                  codesCompetences={ctx.etats.map((etat) => etat.skill.code)}
-                  compteId={ctx.donnees.user.id}
-                  domainesExistants={ctx.referentiel.domaines.map((domaine) => ({ id: domaine.id, nom: domaine.nom, prefixe: domaine.prefixe }))}
-                  competencesModale={competencesPourModale(ctx.referentiel.actifs)}
-                  calibragesModale={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
-                  libelle="Tuteur IA"
-                  declencheur="outil"
-                />
-              )}
+                {etatTuteur && exerciceActif && (
+                  <TiroirTuteur
+                    etatInitial={etatTuteur}
+                    exerciceCible={exerciceActif}
+                    codesCompetences={ctx.etats.map((etat) => etat.skill.code)}
+                    compteId={ctx.donnees.user.id}
+                    domainesExistants={ctx.referentiel.domaines.map((domaine) => ({ id: domaine.id, nom: domaine.nom, prefixe: domaine.prefixe }))}
+                    competencesModale={competencesPourModale(ctx.referentiel.actifs)}
+                    calibragesModale={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
+                    libelle="Tuteur IA"
+                    declencheur="outil"
+                    indicesMasques={aidesMasquees}
+                  />
+                )}
             </nav>
           </div>
         )}
@@ -545,7 +583,7 @@ export async function VueSeanceDetail({
                         consequences: impactSeance.consequences,
                         aRetravailler: [],
                       }}
-                      actions={<LienApresImpact href="/" libelle="Prochaine action recommandée" />}
+                      actions={<LienApresImpact href="/app" libelle="Prochaine action recommandée" />}
                     />
                   </div>
                 ) : (

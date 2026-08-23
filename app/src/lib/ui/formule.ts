@@ -9,7 +9,7 @@
  * Le choix initial était la **conversion en Unicode**, sans moteur de rendu :
  * une librairie mathématique (KaTeX, MathJax) pèse plusieurs centaines de
  * kilo-octets et contredit « aucune librairie UI tierce ». Révisé le 23/08/2026
- * par ADR-109 : KaTeX porte désormais la composition visée, et CE MODULE reste
+ * par ADR-115 : KaTeX porte désormais la composition visée, et CE MODULE reste
  * le filet — formules refusées par KaTeX, texte de secours, environnement node
  * (les tests Vitest ne chargent pas de CSS).
  *

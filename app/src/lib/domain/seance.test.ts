@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   avancementSeance,
   ecartBesoinRealise,
+  estModeEpreuve,
   exercicesDeLaSeance,
+  indicesMasquesEnEpreuve,
   motifRefusBesoin,
   motifRefusActivites,
   motifRefusBlueprint,
+  motifRefusChangementModeEpreuve,
   motifRefusDemande,
   peutReprendreSeance,
   resumeSeance,
@@ -521,5 +524,78 @@ describe("ecartBesoinRealise — des faits comparés, jamais un score", () => {
     )!;
     expect(e.tempsPasseMin).toBeNull();
     expect(e.codesImprevus).toEqual([]);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Mode épreuve (22/08/2026)                                           */
+/* ------------------------------------------------------------------ */
+
+describe("estModeEpreuve — un fait déclaré, jamais dérivé", () => {
+  it("lit faux sur une séance sans champ — l'absence vaut non, sans déduction", () => {
+    // Toutes les séances antérieures au 22/08/2026, et les séances normales :
+    // aucune ne doit hériter du mode par un calcul.
+    expect(estModeEpreuve(seance({ statut: "en-cours" }))).toBe(false);
+  });
+
+  it("ne lit que le champ posé à la création", () => {
+    expect(estModeEpreuve(seance({ statut: "en-cours", modeEpreuve: true }))).toBe(true);
+    expect(estModeEpreuve(seance({ statut: "en-cours", modeEpreuve: false }))).toBe(false);
+  });
+});
+
+describe("indicesMasquesEnEpreuve — la seule autorité du masquage", () => {
+  it("masque pendant le déroulé d'une séance en mode épreuve", () => {
+    expect(indicesMasquesEnEpreuve(seance({ statut: "en-cours", modeEpreuve: true }))).toBe(
+      true,
+    );
+  });
+
+  it("rend les aides à la clôture : terminée comme abandonnée se relisent", () => {
+    expect(indicesMasquesEnEpreuve(seance({ statut: "terminee", modeEpreuve: true }))).toBe(
+      false,
+    );
+    expect(indicesMasquesEnEpreuve(seance({ statut: "abandonnee", modeEpreuve: true }))).toBe(
+      false,
+    );
+  });
+
+  it("ne masque jamais hors du mode épreuve, quel que soit le statut", () => {
+    for (const statut of ["planifiee", "en-cours", "terminee", "abandonnee"] as const) {
+      expect(indicesMasquesEnEpreuve(seance({ statut }))).toBe(false);
+    }
+  });
+});
+
+describe("motifRefusChangementModeEpreuve — irréversible après création", () => {
+  it("refuse d'activer le mode sur une séance déjà écrite sans lui", () => {
+    // Une séance dont les premiers exercices ont été menés avec aides ne
+    // devient pas « épreuve » en cours de route : deux régimes dans une trace.
+    const refus = motifRefusChangementModeEpreuve(
+      seance({ statut: "en-cours" }),
+      seance({ statut: "en-cours", modeEpreuve: true }),
+    );
+    expect(refus).toContain("à la création");
+  });
+
+  it("refuse de retirer le mode d'une séance qui le porte", () => {
+    const refus = motifRefusChangementModeEpreuve(
+      seance({ statut: "en-cours", modeEpreuve: true }),
+      seance({ statut: "en-cours" }),
+    );
+    expect(refus).not.toBeNull();
+  });
+
+  it("laisse passer toute écriture qui ne change pas le régime", () => {
+    // Réécrire le même état (statut, durée…) n'est pas un changement de régime
+    // : le garde ne doit pas bloquer `demarrerSeance` ou `terminerSeance`.
+    const avant = seance({ statut: "en-cours", modeEpreuve: true });
+    expect(motifRefusChangementModeEpreuve(avant, avant)).toBeNull();
+    expect(
+      motifRefusChangementModeEpreuve(
+        seance({ statut: "en-cours" }),
+        seance({ statut: "terminee" }),
+      ),
+    ).toBeNull();
   });
 });
