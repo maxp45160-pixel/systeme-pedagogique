@@ -186,7 +186,7 @@ export function ModaleDangerCompte({
             <li>Observations de compétence et historique de maîtrise</li>
             <li>Séances d&apos;apprentissage et tentatives d&apos;exercices</li>
             <li>Exercices personnalisés créés dans le compte</li>
-            <li>Documents, notes et pièces jointes de l&apos;Atelier</li>
+            <li>Documents, notes et pièces jointes de mes cours</li>
             <li>Objectifs, cibles internes et clés d&apos;accès locales</li>
           </ul>
         </div>

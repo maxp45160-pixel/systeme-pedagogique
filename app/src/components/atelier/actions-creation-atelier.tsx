@@ -274,7 +274,7 @@ function ModaleCreationDocument({
   return (
     <Modale
       titre={definition.titre}
-      sousTitre="La fiche s’ouvrira dans l’Atelier. Tu pourras ensuite y joindre un PDF."
+      sousTitre="La fiche s’ouvrira dans vos cours. Vous pourrez ensuite y joindre un PDF."
       largeur="xl"
       onFermer={onFermer}
       pied={

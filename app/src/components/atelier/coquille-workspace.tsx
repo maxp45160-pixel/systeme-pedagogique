@@ -13,12 +13,12 @@ import { TiroirTuteur } from "@/components/tuteur/tiroir-tuteur";
  *
  * Plein écran, en-tête collant, et une sortie toujours visible vers l'Atelier.
  */
-const SORTIE_PAR_DEFAUT = { href: "/atelier", libelle: "Retourner à l’Atelier" } as const;
+const SORTIE_PAR_DEFAUT = { href: "/atelier", libelle: "Retour à mes cours" } as const;
 
 export function sortieWorkspace(retour?: string): { href: string; libelle: string } {
   if (!retour) return SORTIE_PAR_DEFAUT;
   if (retour.startsWith("/seances")) {
-    return { href: retour, libelle: "Retourner au Bureau" };
+    return { href: retour, libelle: "Retour aux séances" };
   }
   if (retour === "/" || retour.startsWith("/?")) {
     return { href: retour, libelle: "Retourner au tableau de bord" };

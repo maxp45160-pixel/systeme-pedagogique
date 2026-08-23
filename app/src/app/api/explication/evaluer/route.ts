@@ -43,7 +43,7 @@ export async function POST(request: Request) {
 
   const domaine = ctx.referentiel.domainesParId.get(skill.domaine);
 
-  const resolu = resoudreMoteur(corps.config, {
+  const resolu = await resoudreMoteur(corps.config, {
     conseil: "Configurez une clé d'API dans les réglages pour utiliser le tuteur.",
   });
   if (!resolu.ok) return resolu.reponse;

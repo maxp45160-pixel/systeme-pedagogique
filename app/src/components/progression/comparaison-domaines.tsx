@@ -63,7 +63,7 @@ export function ComparaisonDomaines({ parDomaine }: { parDomaine: AgregatDomaine
           href="/atelier?document=domaines"
           className="group mt-4 flex items-center justify-between border-t border-bordure pt-3 text-xs font-medium text-texte-attenue transition-colors hover:text-primaire"
         >
-          <span>Le détail par sujet dans l&apos;Atelier</span>
+          <span>Le détail par sujet dans mes cours</span>
           <IconeFleche className="size-3 transition-transform group-hover:translate-x-0.5" />
         </Link>
       </CorpsCarte>

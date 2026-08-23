@@ -299,7 +299,7 @@ export function ModaleReferentiel({
     <>
       <Modale
         titre="Préciser le domaine à apprendre"
-        sousTitre="Décris le domaine ou le sujet. Le système propose une organisation de compétences ; tu relis avant de l’ajouter à ton Atelier."
+        sousTitre="Décris le domaine ou le sujet. Le système propose une organisation de compétences ; vous relisez avant de l’ajouter à vos cours."
         onFermer={fermer}
       >
         <>

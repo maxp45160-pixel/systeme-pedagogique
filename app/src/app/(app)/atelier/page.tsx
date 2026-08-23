@@ -392,7 +392,7 @@ export default async function PageAtelier(props: {
   return (
     <>
       <EntetePage
-        titre="Atelier"
+        titre="Mes cours"
         sousTitre="Vos cours, vos notes et vos travaux, rangés par sujet."
       />
       {/*

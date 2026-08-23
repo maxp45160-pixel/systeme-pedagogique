@@ -32,14 +32,18 @@ export interface OptionsMoteur {
  * honnête et l'interface bascule d'elle-même en mode « copier le contexte » —
  * elle ne simule jamais une réponse. `options.conseil` personnalise le geste
  * proposé à la place (créer à la main, réessayer plus tard…).
+ *
+ * Asynchrone depuis ADR-116 : `envTuteur` décompte le quota de la clé serveur,
+ * ce qui suppose un aller-retour en base. Le refus qu'elle peut rendre (402,
+ * quota épuisé) remonte tel quel dans `MoteurResolu`.
  */
-export function resoudreMoteur(
+export async function resoudreMoteur(
   config?: ConfigTuteurClient,
   options: OptionsMoteur = {},
-): MoteurResolu {
+): Promise<MoteurResolu> {
   // La config client (si présente) prime sur `process.env` : l'utilisateur qui
   // a saisi sa clé dans les réglages n'a pas à éditer `app/.env.local`.
-  const resolution = envTuteur(config);
+  const resolution = await envTuteur(config);
   if (!resolution.ok) return resolution;
 
   const conseil = options.conseil ?? "Utilise le mode « copier le contexte » en attendant.";

@@ -199,7 +199,7 @@ export function ParcoursNouveauProjet({
             const codes = proposition?.action?.codes ?? [];
             if (codes.length === 0) {
               throw new Error(
-                "Aucune compétence de ton référentiel ne correspond à cette description. Crée d'abord la branche correspondante depuis l'Atelier.",
+                "Aucune compétence de ton référentiel ne correspond à cette description. Créez d'abord la branche correspondante depuis vos cours.",
               );
             }
             setDesignees(codes.map((code) => ({ code, origine: "tuteur" as const })));

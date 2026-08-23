@@ -12,11 +12,21 @@ type Mode = "connexion" | "inscription";
 export function FormulaireConnexion({
   destination,
   erreurInitiale,
+  modeInitial = "connexion",
 }: {
   destination: string;
   erreurInitiale: string | null;
+  /**
+   * Mode d'ouverture, posé par `?mode=` côté serveur.
+   *
+   * Le titre de la carte vit ici et non dans la page : il dépend du mode,
+   * et le mode est un état client. Rendu côté serveur, il annonçait « Se
+   * connecter — Content de vous revoir » à quiconque arrivait par le
+   * bouton « Créer mon compte gratuitement » de la vitrine.
+   */
+  modeInitial?: Mode;
 }) {
-  const [mode, setMode] = useState<Mode>("connexion");
+  const [mode, setMode] = useState<Mode>(modeInitial);
   const [courriel, setCourriel] = useState("");
   const [motDePasse, setMotDePasse] = useState("");
   const [enCours, setEnCours] = useState(false);
@@ -83,6 +93,16 @@ export function FormulaireConnexion({
 
   return (
     <div className="space-y-4">
+      <div className="mb-1">
+        <h2 className="text-base font-medium text-texte">
+          {mode === "inscription" ? "Créer votre compte" : "Se connecter"}
+        </h2>
+        <p className="mt-0.5 text-xs text-texte-discret">
+          {mode === "inscription"
+            ? "Gratuit. Vos exercices commencent dès la première minute."
+            : "Content de vous revoir."}
+        </p>
+      </div>
       {erreur && (
         <BandeauInfo ton="danger" taille="compacte">
           <p className="leading-relaxed text-danger">{erreur}</p>

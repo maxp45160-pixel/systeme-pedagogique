@@ -160,6 +160,20 @@ export function TableComptes({
                       : " · aucune activité"}
                   </p>
 
+                  {/*
+                    La consommation de la clé serveur (ADR-116) — c'est d'ici
+                    qu'on décide d'accorder plus à un compte, ou de couper. Un
+                    administrateur n'est jamais décompté, l'afficher pour lui
+                    annoncerait une limite qui n'existe pas.
+                  */}
+                  {compte.role !== "admin" && (
+                    <p className="chiffres mt-0.5 text-[0.6875rem] text-texte-discret">
+                      Tuteur : {compte.quotaAppels}/{compte.quotaMensuel} génération
+                      {compte.quotaMensuel > 1 ? "s" : ""} ce mois-ci
+                      {compte.quotaMensuel === 0 && " — clé serveur fermée pour ce compte"}
+                    </p>
+                  )}
+
                   {suspendu && (
                     <p className="mt-1 text-[0.6875rem] text-alerte">
                       Suspendu {compte.suspenduLe ? formatDateRelative(compte.suspenduLe) : ""}

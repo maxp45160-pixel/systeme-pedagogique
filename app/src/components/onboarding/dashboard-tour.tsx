@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { GuideTour, type EtapeTour } from "./guide-tour";
+import { destinationsPrincipales, resumeDestinations } from "@/components/layout/navigation";
 import { useOnboarding } from "./onboarding-context";
 
 const TOUR_DASHBOARD_ID = "dashboard_v1";
@@ -30,9 +31,17 @@ const ETAPES_DASHBOARD: EtapeTour[] = [
   {
     id: "navigation-rail",
     cibleSelector: '[data-tour="navigation-rail"]',
-    titre: "Vos trois espaces",
-    description:
-      "L'Atelier : vos compétences et vos notes. Le Cahier : vos séances d'entraînement. La Progression : ce que vous savez faire, d'après vos exercices.",
+    /*
+      Titre et description dérivés de `NAVIGATION`, pas recopiés.
+
+      La version recopiée annonçait « vos trois espaces — l'Atelier, le Cahier,
+      la Progression » en surlignant un rail qui en montrait quatre, dont un
+      « Bureau » qu'elle passait sous silence et un « Cahier » retiré par
+      ADR-103. C'est la première chose que voit un compte neuf ; elle ne peut
+      pas être la moins fiable.
+    */
+    titre: `Vos ${destinationsPrincipales().length} espaces`,
+    description: resumeDestinations(),
     position: "right",
     badge: "3/4 · Les espaces",
     boutonTexte: "Découvrir le tuteur",

@@ -1391,7 +1391,7 @@ export function EspaceDocumentaire({
                   event.currentTarget.blur();
                 }
               }}
-              placeholder="Rechercher dans l’Atelier…"
+              placeholder="Rechercher dans mes cours…"
               className="w-52 sm:w-64 lg:w-72 rounded-lg border border-bordure bg-surface-2/60 pl-8 pr-11 py-1.5 text-xs outline-none transition-all placeholder:text-texte-discret focus:w-80 focus:border-primaire focus:bg-surface focus:ring-1 focus:ring-primaire/20"
             />
             {recherche.trim() ? (

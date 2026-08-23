@@ -420,7 +420,7 @@ export async function VueSeanceDetail({
               href={`/seances?jour=${encodeURIComponent(jourDeLaPage)}`}
               className={classesLienBouton("secondaire", "petite")}
             >
-              {plein ? "Bureau" : "Replier"}
+              {plein ? "Séances" : "Replier"}
             </Link>
           </div>
         </div>

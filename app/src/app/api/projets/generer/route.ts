@@ -84,7 +84,7 @@ export async function POST(request: Request) {
     versionContrat: 1,
   };
 
-  const resolution = envTuteur(corps.config);
+  const resolution = await envTuteur(corps.config);
   if (!resolution.ok) return resolution.reponse;
   const moteur = creerMoteur(choisirConfiguration(resolution.env));
   if (!moteur) {

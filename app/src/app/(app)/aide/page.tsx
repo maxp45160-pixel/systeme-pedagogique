@@ -9,6 +9,7 @@ import {
   classesLienBouton,
 } from "@/components/ui/primitives";
 import { NIVEAUX } from "@/lib/domain/types";
+import { Glossaire } from "@/components/ui/glossaire";
 import { BoutonRelancerTour } from "@/components/onboarding/bouton-relancer-tour";
 import { chargerReferentiel } from "@/lib/store/referentiel";
 
@@ -40,7 +41,7 @@ function construireEtapes(compteNeuf: boolean): Etape[] {
     {
       numero: 1,
       titre: "Dire ce que vous voulez travailler",
-      ou: compteNeuf ? "Écran de démarrage" : "Profil d'apprentissage & Atelier",
+      ou: compteNeuf ? "Écran de démarrage" : "Compte et réglages",
       vois:
         "Votre sujet d'apprentissage, vos objectifs concret et votre point de départ.",
       fais:
@@ -54,31 +55,31 @@ function construireEtapes(compteNeuf: boolean): Etape[] {
     {
       numero: 2,
       titre: "Vérifier votre liste de compétences",
-      ou: "Atelier",
+      ou: "Mes cours",
       vois:
         "Vos domaines, et dans chacun les compétences avec leur code (ex. LOG-01). La plupart n'ont pas encore de niveau : un tiret, pas un zéro. C'est normal — rien n'a encore été démontré.",
       fais:
         "Vous ouvrez deux ou trois fiches pour voir de quoi elles parlent. Vous corrigez ce qui est faux : une compétence mal formulée s'édite, une hors sujet s'archive, une manquante s'ajoute.",
       effet:
         "Le référentiel appartient à votre compte : le modifier ne casse rien. Une compétence déjà soutenue par des observations est archivée, jamais supprimée — effacer l'objet effacerait l'historique posé dessus.",
-      lien: { href: "/atelier", libelle: "Ouvrir l'Atelier" },
+      lien: { href: "/atelier", libelle: "Ouvrir Mes cours" },
     },
     {
       numero: 3,
       titre: "Composer votre première séance",
-      ou: "Bureau",
+      ou: "Séances",
       vois:
         "Le compositeur : les compétences que vous pouvez viser, le nombre d'exercices, le temps dont vous disposez. En dessous, la file des séances en cours ou planifiées.",
       fais:
         "Vous choisissez une ou deux compétences et vous déclarez votre temps réel. Visez court pour la première fois : mieux vaut une séance finie qu'une séance abandonnée.",
       effet:
         "Le tuteur génère les exercices, calibrés sur les compétences visées et sur la durée. Il produit du contenu — jamais de mesure, et jamais un code de compétence qu'il aurait inventé.",
-      lien: { href: "/seances", libelle: "Ouvrir le Bureau" },
+      lien: { href: "/seances", libelle: "Ouvrir les séances" },
     },
     {
       numero: 4,
       titre: "Dérouler la séance",
-      ou: "Cahier · séance en cours",
+      ou: "Séances · séance en cours",
       vois:
         "Un exercice à la fois : l'énoncé, votre zone de réponse, puis la correction, puis l'évaluation.",
       fais:
@@ -96,55 +97,15 @@ function construireEtapes(compteNeuf: boolean): Etape[] {
         "Vous suivez la prochaine action, ou vous retournez composer. En cas de doute sur un niveau, vous ouvrez la fiche : les observations qui le soutiennent sont listées.",
       effet:
         "Chaque niveau affiché porte sa justification : en ouvrant la fiche d'une compétence, vous lisez les observations exactes qui soutiennent son niveau.",
-      lien: { href: "/", libelle: "Ouvrir le Tableau de bord" },
+      lien: { href: "/app", libelle: "Ouvrir le Tableau de bord" },
     },
   ];
 }
-
-const PREMIERE_HEURE = [
-  "Renseigner votre sujet et vos objectifs lors de l'amorçage.",
-  "Laisser le tuteur proposer le premier référentiel et le valider.",
-  "Lancer la première séance de 20 minutes avec 2 exercices.",
-  "Évaluer honnêtement votre autonomie pour chaque exercice.",
-  "Regarder votre Tableau de bord : vos premiers niveaux soutenu apparaissent.",
-];
-
-const VOCABULAIRE = [
-  {
-    mot: "Référentiel",
-    definition:
-      "L'ensemble structuré de vos domaines et de vos compétences. Il est personnel à votre compte et peut évoluer à tout moment.",
-  },
-  {
-    mot: "Compétence",
-    definition:
-      "Un savoir-faire observable et démontrable (ex. LOG-01). Elle ne porte pas de note brute stockée, mais un niveau dérivé de vos observations.",
-  },
-  {
-    mot: "Observation",
-    definition:
-      "Une trace concrète d'activité réussie (exercice évalué, résolution autonome) rattachée à une compétence avec sa date et son degré d'autonomie.",
-  },
-  {
-    mot: "Séance",
-    definition:
-      "Un épisode de travail cadré dans le temps contenant un ou plusieurs exercices. Une seule séance est active à la fois par compte.",
-  },
-  {
-    mot: "Tuteur IA",
-    definition:
-      "Le moteur qui génère vos exercices et explications. Il ne produit aucune mesure sur vous et respecte strictement vos consignes déclarées.",
-  },
-];
 
 const QUESTIONS = [
   {
     q: "Pourquoi certaines compétences n'affichent-elles aucun niveau ?",
     r: "Parce qu'aucune observation ne les soutient encore. Une absence d'observation n'est pas un zéro : le système préfère un tiret à un chiffre inventé. Le niveau apparaît à la première évaluation.",
-  },
-  {
-    q: "D'où vient le niveau affiché sur une fiche de compétence ?",
-    r: "Uniquement des observations enregistrées — évaluations d'exercices et résolutions. Chaque mesure garde sa source, consultable depuis la fiche.",
   },
   {
     q: "Que se passe-t-il si je m'évalue trop généreusement ?",
@@ -155,23 +116,18 @@ const QUESTIONS = [
     r: "Non. Tant qu'aucune nouvelle démonstration ne vient la contredire, elle reste. Le seul moyen de la lever est de refaire l'observation.",
   },
   {
-    q: "Le tuteur peut-il modifier mes niveaux ?",
-    r: "Non. Il produit du contenu — exercices, explications, propositions de compétences — jamais des mesures.",
-  },
-  {
     q: "Que se passe-t-il si j'abandonne une séance en cours ?",
-    r: "Elle reste dans la file du Bureau et se reprend plus tard. Les exercices non évalués ne produisent aucune observation, donc aucun niveau ne bouge.",
+    r: "Elle reste dans la file des Séances et se reprend plus tard. Les exercices non évalués ne produisent aucune observation, donc aucun niveau ne bouge.",
   },
   {
     q: "Puis-je modifier ou étendre mon référentiel plus tard ?",
-    r: "Oui, à tout moment depuis l'Atelier ou le bouton '+' : vous pouvez ajouter des compétences, réviser un domaine ou ajuster votre profil dans Compte.",
+    r: "Oui, à tout moment depuis Mes cours ou le bouton « + » : vous pouvez ajouter des compétences, réviser un domaine ou ajuster votre profil dans Compte.",
   },
 ];
 
 /** Les ancres du sommaire : chaque cible est un `id` posé plus bas. */
 const SOMMAIRE = [
   { ancre: "fonctionnement", libelle: "Fonctionnement" },
-  { ancre: "premiere-heure", libelle: "Première heure" },
   { ancre: "vocabulaire", libelle: "Vocabulaire" },
   { ancre: "niveaux", libelle: "Niveaux" },
   { ancre: "faq", libelle: "FAQ" },
@@ -269,58 +225,37 @@ export default async function PageAide() {
               </li>
             ))}
           </ol>
+
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            {compteNeuf ? (
+              <Link href="/demarrer" className={classesLienBouton("principal", "normale")}>
+                Commencer mon amorçage
+              </Link>
+            ) : (
+              <>
+                <Link href="/app" className={classesLienBouton("principal", "normale")}>
+                  Accéder à mon Tableau de bord
+                </Link>
+                <Link href="/compte" className={classesLienBouton("secondaire", "normale")}>
+                  Modifier mon profil
+                </Link>
+              </>
+            )}
+          </div>
         </section>
 
-        <section id="premiere-heure" className="scroll-mt-16">
-          <TitreSection legende="À faire dans l'ordre, une seule fois.">
-            Votre première heure
-          </TitreSection>
+        {/*
+          Le vocabulaire est celui de `Glossaire`, pas une seconde liste.
 
-          <Carte>
-            <CorpsCarte>
-              <ol className="space-y-2">
-                {PREMIERE_HEURE.map((ligne, index) => (
-                  <li key={ligne} className="flex gap-3 text-sm">
-                    <span
-                      className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-surface-2 text-[0.6875rem] font-medium text-texte-attenue"
-                      aria-hidden
-                    >
-                      {index + 1}
-                    </span>
-                    <span className="text-texte-attenue">{ligne}</span>
-                  </li>
-                ))}
-              </ol>
+          Cette page en tenait une : cinq termes, dont « Observation » défini
+          une seconde fois en d'autres mots que le glossaire de la Progression.
+          Deux glossaires qui ne se recouvrent qu'à un terme ne valent pas mieux
+          qu'aucun — les termes de structure ont rejoint la liste unique.
 
-              <div className="mt-5 flex flex-wrap items-center gap-3">
-                {compteNeuf ? (
-                  <Link
-                    href="/demarrer"
-                    className={classesLienBouton("principal", "normale")}
-                  >
-                    Commencer mon amorçage
-                  </Link>
-                ) : (
-                  <>
-                    <Link
-                      href="/app"
-                      className={classesLienBouton("principal", "normale")}
-                    >
-                      Accéder à mon Tableau de bord
-                    </Link>
-                    <Link
-                      href="/compte"
-                      className={classesLienBouton("secondaire", "normale")}
-                    >
-                      Modifier mon profil
-                    </Link>
-                  </>
-                )}
-              </div>
-            </CorpsCarte>
-          </Carte>
-        </section>
-
+          « Votre première heure » a disparu du même geste : ses cinq puces
+          redisaient les cinq étapes ci-dessus, en plus court. Ses boutons
+          vivent maintenant sous les étapes qu'ils prolongent.
+        */}
         <section id="vocabulaire" className="scroll-mt-16">
           <TitreSection legende="Les mots qui reviennent partout dans l'interface.">
             Vocabulaire
@@ -328,16 +263,7 @@ export default async function PageAide() {
 
           <Carte>
             <CorpsCarte>
-              <dl className="space-y-3">
-                {VOCABULAIRE.map((terme) => (
-                  <div key={terme.mot} className="text-sm">
-                    <dt className="font-medium">{terme.mot}</dt>
-                    <dd className="mt-0.5 leading-relaxed text-texte-attenue">
-                      {terme.definition}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
+              <Glossaire resume="Déplier les définitions" />
             </CorpsCarte>
           </Carte>
         </section>

@@ -13,6 +13,16 @@ export interface Entree {
   libelle: string;
   court: string;
   icone: ComponentType<{ className?: string }>;
+  /**
+   * Ce que la destination sert, en une proposition.
+   *
+   * Porté par l'entrée et non par le tour d'accueil : le tour décrivait
+   * « vos trois espaces — l'Atelier, le Cahier, la Progression » alors que le
+   * rail en montrait quatre et que « Cahier » avait été retiré par ADR-103.
+   * Une phrase recopiée à côté d'une liste finit toujours par la contredire ;
+   * `resumeDestinations()` la compose désormais à partir d'ici.
+   */
+  resume: string;
 }
 
 export interface GroupeNav {
@@ -51,7 +61,13 @@ export const NAVIGATION: GroupeNav[] = [
   {
     titre: "Piloter",
     entrees: [
-      { href: "/app", libelle: "Tableau de bord", court: "Bord", icone: IconeTableauBord },
+      {
+        href: "/app",
+        libelle: "Tableau de bord",
+        court: "Bord",
+        icone: IconeTableauBord,
+        resume: "ce qu'il y a de mieux à faire maintenant",
+      },
       /*
        * La progression est une destination, pas un bloc du tableau de bord.
        *
@@ -61,14 +77,26 @@ export const NAVIGATION: GroupeNav[] = [
        * geste. Elle reste sous « Piloter » — c'est la même question, « où j'en
        * suis », posée sur un autre horizon.
        */
-      { href: "/progression", libelle: "Progression", court: "Progrès", icone: IconeCompetences },
+      {
+        href: "/progression",
+        libelle: "Progression",
+        court: "Progrès",
+        icone: IconeCompetences,
+        resume: "ce que vos exercices disent de votre niveau",
+      },
     ],
   },
   {
     titre: "Visualiser",
     primaire: true,
     entrees: [
-      { href: "/atelier", libelle: "Atelier", court: "Atelier", icone: IconeDocuments },
+      {
+        href: "/atelier",
+        libelle: "Mes cours",
+        court: "Cours",
+        icone: IconeDocuments,
+        resume: "vos sujets, vos compétences, vos notes",
+      },
     ],
   },
   {
@@ -92,7 +120,13 @@ export const NAVIGATION: GroupeNav[] = [
        * par la barre d'outils du Bureau, là où l'on se trouve quand la
        * question « qu'ai-je écrit avant ? » se pose.
        */
-      { href: "/seances", libelle: "Bureau", court: "Bureau", icone: IconeExercices },
+      {
+        href: "/seances",
+        libelle: "Séances",
+        court: "Séances",
+        icone: IconeExercices,
+        resume: "composer et dérouler vos entraînements",
+      },
     ],
   },
   /*
@@ -108,7 +142,13 @@ export const NAVIGATION: GroupeNav[] = [
     titre: "Comprendre",
     aPart: true,
     entrees: [
-      { href: "/aide", libelle: "Aide", court: "Aide", icone: IconeAmpoule },
+      {
+        href: "/aide",
+        libelle: "Aide",
+        court: "Aide",
+        icone: IconeAmpoule,
+        resume: "le mode d'emploi, écran par écran",
+      },
     ],
   },
 ];
@@ -141,6 +181,7 @@ const ENTREE_ADMIN: Entree = {
   libelle: "Comptes et accès",
   court: "Comptes",
   icone: IconeCle,
+  resume: "administrer les comptes",
 };
 
 export function navigationPour(administrateur: boolean): GroupeNav[] {
@@ -159,4 +200,25 @@ export function navigationPour(administrateur: boolean): GroupeNav[] {
  */
 export function estActif(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+/**
+ * Les destinations du rail, décrites — la phrase que lit le tour d'accueil.
+ *
+ * Dérivée de `NAVIGATION`, jamais recopiée, pour la même raison que
+ * `NAV_MOBILE` : la version recopiée avait fini par annoncer trois espaces
+ * dont un retiré, en surlignant un rail qui en montrait quatre. Ici, une
+ * destination ajoutée ou retirée change la phrase toute seule.
+ *
+ * `Aide` est exclue : c'est le groupe détaché, celui qu'on ouvre quand une
+ * autre destination n'a pas suffi — pas un endroit où l'on vient travailler.
+ */
+export function destinationsPrincipales(): Entree[] {
+  return NAVIGATION.filter((groupe) => !groupe.aPart).flatMap((groupe) => groupe.entrees);
+}
+
+export function resumeDestinations(): string {
+  return destinationsPrincipales()
+    .map((entree) => `${entree.libelle} : ${entree.resume}.`)
+    .join(" ");
 }

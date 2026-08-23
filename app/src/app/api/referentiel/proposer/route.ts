@@ -37,7 +37,7 @@ export async function POST(request: Request) {
   const sujet = (corps.sujet ?? "").trim();
   if (!sujet) return Response.json({ erreur: "sujet-vide" }, { status: 400 });
 
-  const resolu = resoudreMoteur(corps.config, {
+  const resolu = await resoudreMoteur(corps.config, {
     conseil: "Tu peux créer une branche à la main depuis un domaine existant.",
   });
   if (!resolu.ok) return resolu.reponse;

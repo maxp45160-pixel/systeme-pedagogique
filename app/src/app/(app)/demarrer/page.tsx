@@ -8,6 +8,7 @@ import { BandeauInfo, Carte } from "@/components/ui/primitives";
 import { FormulaireAmorcage } from "@/components/demarrer/formulaire-amorcage";
 import { IconeAmpoule, IconeFleche } from "@/components/ui/icones";
 import { choisirConfiguration } from "@/lib/tutor/moteurs";
+import { lireQuotaTuteur } from "@/lib/store/quota-tuteur";
 
 /**
  * Amorçage d'un compte neuf (ADR-026).
@@ -26,7 +27,11 @@ export default async function PageDemarrer(props: {
   const params = props.searchParams ? await props.searchParams : undefined;
   const modeApercu = params?.apercu === "1" || params?.preview === "1";
 
-  const [ctx, admin] = await Promise.all([chargerContexte(), estAdministrateur()]);
+  const [ctx, admin, quota] = await Promise.all([
+    chargerContexte(),
+    estAdministrateur(),
+    lireQuotaTuteur(),
+  ]);
   const accesApercuAdmin = modeApercu && admin;
 
   // Le référentiel existe déjà : il n'y a rien à amorcer sauf si un administrateur
@@ -90,6 +95,7 @@ export default async function PageDemarrer(props: {
             objectifLongTerme={valeurDeclaree(ctx.donnees.user.objectifLongTerme) ?? ""}
             compteId={ctx.donnees.user.id}
             cleServeurConfiguree={choisirConfiguration(process.env).kind !== "aucun"}
+            quotaRestant={quota?.restant ?? null}
           />
         </div>
       </Carte>
@@ -129,7 +135,7 @@ export default async function PageDemarrer(props: {
 
       <p className="mt-4 px-1 text-xs text-texte-attenue">
         Rien n&apos;est figé : le référentiel se modifie, s&apos;étend et se réduit à tout moment
-        depuis l&apos;<span className="font-medium">Atelier</span>.
+        depuis l&apos;<span className="font-medium">Mes cours</span>.
       </p>
     </>
   );

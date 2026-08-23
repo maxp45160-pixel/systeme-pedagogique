@@ -76,7 +76,7 @@ const CTA_ACTION: Record<ActionIntention["genre"], string> = {
 const RESULTAT_ACTION: Record<ActionIntention["genre"], string> = {
   travail: "Une séance sera préparée à partir des compétences repérées.",
   projet: "Le parcours de projet reprendra ton besoin et reciblera les compétences utiles.",
-  note: "Une fiche sera créée dans ton Atelier avec ton besoin comme contexte.",
+  note: "Une fiche sera créée dans vos cours, avec votre besoin comme contexte.",
   referentiel: "Le sujet sera situé avant qu’une éventuelle compétence soit proposée.",
   clarification: "Rien ne sera créé avant ta réponse.",
 };
@@ -536,7 +536,7 @@ export function CaptureIntention({
       titre={estContexteDomaine ? "Quel domaine souhaites-tu ajouter ?" : "De quoi as-tu besoin ?"}
       sousTitre={
         estContexteDomaine
-          ? "Décris le domaine ou la discipline. Le système structurera une proposition de compétences pour ton Atelier."
+          ? "Décris le domaine ou la discipline. Le système structurera une proposition de compétences pour vos cours."
           : "Décris ton objectif ou clique sur une suggestion. Le système choisit l’action appropriée."
       }
       largeur="xl"
@@ -812,7 +812,7 @@ function PropositionPrincipale({
         <div className="mt-3 flex items-center gap-1.5 text-xs text-primaire font-medium">
           <IconeCompetences className="size-3.5 shrink-0" />
           <span>
-            {action.codes.length} compétence{action.codes.length > 1 ? "s" : ""} de ton Atelier mobilisée{action.codes.length > 1 ? "s" : ""}
+            {action.codes.length} compétence{action.codes.length > 1 ? "s" : ""} de vos cours mobilisée{action.codes.length > 1 ? "s" : ""}
           </span>
         </div>
       )}

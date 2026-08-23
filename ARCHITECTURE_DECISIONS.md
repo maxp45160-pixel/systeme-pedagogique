@@ -9001,6 +9001,141 @@ elle n'ouvre pas la porte à une librairie d'interface générale.
 
 ---
 
+## ADR-116 — La clé du tuteur est servie par le produit, bornée par un quota mensuel 🔬
+
+**Statut :** 🔬 hypothèse posée le 24/08/2026. Étend [ADR-007](#adr-007)
+(sélection du moteur) et s'appuie sur [ADR-074](#adr-074) (`comptes_acces`).
+
+### Le problème
+
+La vitrine promet « Gratuit, privé, et sans engagement. Déclarez un sujet,
+faites un premier exercice ». Le premier écran applicatif répondait « Clé IA
+non configurée (Mistral, Groq gratuit, Anthropic) » et désactivait le bouton de
+génération. Un étudiant qui découvre le produit devait ouvrir un compte chez un
+fournisseur d'IA, y créer une clé, la coller — avant d'avoir vu un seul
+exercice. C'est le premier point d'abandon du parcours, et il précède toute
+preuve de valeur.
+
+Le repli serveur existait déjà : `envTuteur` sans config client retombe sur
+`process.env`. Ce qui manquait n'était pas le code, c'était ce qui rend une clé
+partageable — un plafond. Sans lui, un compte inscrit peut vider le crédit.
+
+### La décision
+
+**Une clé serveur dédiée**, portée par un compte Mistral distinct du compte
+personnel : le rayon d'explosion financier est borné par le crédit de ce
+compte-là. Aucune variable d'environnement nouvelle — `choisirConfiguration`
+lisait déjà `TUTEUR_CLE` / `TUTEUR_URL_BASE` / `TUTEUR_MODELE` et privilégie le
+palier compatible-OpenAI.
+
+**Un quota mensuel par compte**, 150 générations par défaut. Une requête vers
+une route IA vaut une génération, uniformément — pondérer par profil (`rapide`
+contre `qualite`) aurait posé une seconde règle à tenir cohérente entre SQL et
+TypeScript, pour un gain que le plafond par compte règle déjà.
+
+**Une clé personnelle n'est jamais décomptée.** Qui paie son fournisseur ne
+nous doit rien, et c'est aussi la porte de sortie quand le quota est atteint.
+
+### Quatre choix qui méritent leur justification
+
+**Le quota vit sur `comptes_acces`, pas dans une table dédiée.** Cette table
+porte déjà exactement les politiques qu'un compteur réclame : `SELECT`
+soi-ou-admin — un compte lit son solde — et `UPDATE` administrateur seul — il ne
+peut pas le remettre à zéro. Une table dédiée aurait obligé à réécrire ces deux
+politiques, le trigger de création à l'inscription et la révocation
+d'`INSERT`/`DELETE`. Quatre occasions de se tromper pour zéro gain.
+
+**La RPC `consommer_quota_tuteur()` ne prend aucun argument.** Le plafond se lit
+en base. La clé anon et le JWT vivent dans le navigateur : une signature
+`consommer_quota_tuteur(plafond INTEGER)` serait appelable depuis la console
+avec `{ plafond: 999999 }`, et le quota ne vaudrait rien. Même raisonnement que
+`est_admin()`, qui lit la base plutôt que de croire son appelant.
+
+**La consommation précède l'appel.** Compter au succès rendrait gratuit tout
+appel abandonné, et une boucle d'abandons côté client viderait la clé sans
+jamais incrémenter. Le prix est une génération perdue quand le fournisseur
+échoue ; c'est le moindre des deux.
+
+**Le refus est un `402`.** Ni `429` — ce n'est pas une limite de débit mais une
+réserve mensuelle consommée — ni `503` — le moteur va très bien. Le corps porte
+`erreur: "quota-epuise"` et un message autoportant : les ~14 surfaces clientes
+affichent déjà le champ `message` d'une réponse en échec, et il ne doit pas
+exister un écran de quota par surface.
+
+**Un administrateur n'est jamais décompté** : une ligne dans la fonction, pas
+une donnée à maintenir ni à remettre après un test.
+
+### Ce que cette décision n'autorise pas
+
+- aucune route IA ne peut appeler `choisirConfiguration` sans passer par
+  `envTuteur` : ce serait générer gratuitement sur la clé serveur ;
+- le quota ne borne **pas** la dépense totale. Il borne un compte à la fois. Le
+  plafond de dépense du compte Mistral dédié reste la seconde barrière, et elle
+  n'est pas dans ce dépôt ;
+- rien n'est promis sur la disponibilité : un crédit épuisé côté fournisseur
+  reste un `503` du moteur, distinct du `402` du quota.
+
+### Ce qui la réfuterait
+
+Une facture qui dérive malgré le quota — c'est-à-dire un volume de comptes tel
+que 150 générations chacun dépasse le budget. La réponse serait alors de baisser
+la `DEFAULT` de la colonne, pas de changer de mécanisme. Si en revanche le
+plafond bloque des usages légitimes avant la fin du mois, c'est l'unité comptée
+(une requête = une génération) qui est fausse, et la pondération par profil
+redevient à examiner.
+
+---
+
+## ADR-117 — Les destinations portent des noms devinables, et le tour les lit ✅
+
+**Statut :** ✅ tranché le 24/08/2026. Renomme les surfaces posées par
+[ADR-053](#adr-053), [ADR-061](#adr-061) et [ADR-103](#adr-103) ; n'en change
+aucune route ni aucun comportement.
+
+### Le problème
+
+Le rail nommait quatre métaphores de mobilier pour trois surfaces : **Atelier**,
+**Bureau**, **Cahier** — et **Carnet** dans le copy de `/login`. Aucune n'est
+devinable : rien dans « Bureau » ne dit « c'est là que je compose une séance »,
+rien dans « Atelier » ne dit « c'est là que sont mes cours ».
+
+Pire, le tour d'accueil — la toute première chose que voit un compte neuf —
+surlignait le rail et annonçait « **Vos trois espaces** : l'Atelier, le Cahier,
+la Progression ». Le rail en montrait quatre. « Bureau », le seul endroit où
+l'on travaille, n'était pas nommé. Et « Cahier » avait cessé d'être une
+destination avec [ADR-103](#adr-103) : c'était devenu un mode de `/seances`.
+`/aide` répétait le même fantôme (« Cahier · séance en cours »).
+
+### La décision
+
+| Avant | Après | Pourquoi |
+|---|---|---|
+| Atelier | **Mes cours** | ce que la page contient, dit avec les mots de qui apprend |
+| Bureau | **Séances** | le nom de l'objet qu'on y compose, et de la route déjà en place |
+| Cahier (mode de `/seances`) | **Historique** | ce que le mode fait : relire les jours passés |
+| Carnet (copy de `/login`) | — | retiré : un cinquième meuble, absent de l'application |
+
+Les routes ne bougent pas. `/atelier` continue de servir « Mes cours » : un
+renommage d'URL aurait cassé tous les liens internes et externes pour un gain
+invisible.
+
+**La phrase du tour est dérivée de `NAVIGATION`, plus recopiée.** Chaque entrée
+porte un `resume`, et `resumeDestinations()` compose. C'est le même remède que
+`NAV_MOBILE`, dérivée plutôt que recopiée pour la même raison : une liste
+recopiée à côté de sa source finit toujours par la contredire.
+`navigation-tour.test.ts` échoue si une destination n'est pas nommée, ou si une
+surface retirée réapparaît dans la phrase.
+
+### Ce que cette décision n'autorise pas
+
+- les libellés de groupe du rail restent inchangés (**Piloter**, **Visualiser**,
+  **Travailler**, **Comprendre**) : ils sont eux aussi peu devinables, mais les
+  changer relève d'un arbitrage sur la structure du rail, pas d'un renommage ;
+- aucune fusion de surfaces. « Graphe » et « Arbre » restent deux onglets pour
+  deux vues du même référentiel — c'est un défaut constaté, pas traité ici.
+
+---
+
 ## Comment modifier ce registre
 
 1. Une décision ✅ ne se retire pas : elle passe en 🔄 **Remplacée**, avec le

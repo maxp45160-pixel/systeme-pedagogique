@@ -109,7 +109,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const resolu = resoudreMoteur(corps.config, {
+  const resolu = await resoudreMoteur(corps.config, {
     conseil: "Remplis le bilan à la main en attendant.",
   });
   if (!resolu.ok) return resolu.reponse;

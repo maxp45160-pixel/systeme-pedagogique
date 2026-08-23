@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     return Response.json({ erreur: "sujet-vide" }, { status: 400 });
   }
 
-  const resolu = resoudreMoteur(corps.config);
+  const resolu = await resoudreMoteur(corps.config);
   if (!resolu.ok) return resolu.reponse;
   const { moteur } = resolu;
 

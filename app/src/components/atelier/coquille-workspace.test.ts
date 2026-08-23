@@ -7,30 +7,30 @@ describe("sortieWorkspace", () => {
   it("retourne la sortie par défaut vers l'Atelier quand aucun retour n'est fourni", () => {
     expect(sortieWorkspace()).toEqual({
       href: "/atelier",
-      libelle: "Retourner à l’Atelier",
+      libelle: "Retour à mes cours",
     });
     expect(sortieWorkspace(undefined)).toEqual({
       href: "/atelier",
-      libelle: "Retourner à l’Atelier",
+      libelle: "Retour à mes cours",
     });
     expect(sortieWorkspace("")).toEqual({
       href: "/atelier",
-      libelle: "Retourner à l’Atelier",
+      libelle: "Retour à mes cours",
     });
   });
 
   it("retourne un libellé cohérent pour le Bureau quand l'URL de retour vient de /seances", () => {
     expect(sortieWorkspace("/seances")).toEqual({
       href: "/seances",
-      libelle: "Retourner au Bureau",
+      libelle: "Retour aux séances",
     });
     expect(sortieWorkspace("/seances?jour=2026-08-16")).toEqual({
       href: "/seances?jour=2026-08-16",
-      libelle: "Retourner au Bureau",
+      libelle: "Retour aux séances",
     });
     expect(sortieWorkspace("/seances?q=simulateur")).toEqual({
       href: "/seances?q=simulateur",
-      libelle: "Retourner au Bureau",
+      libelle: "Retour aux séances",
     });
   });
 

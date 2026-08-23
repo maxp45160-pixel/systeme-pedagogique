@@ -29,12 +29,21 @@ export function FormulaireAmorcage({
   objectifLongTerme,
   compteId,
   cleServeurConfiguree = false,
+  quotaRestant = null,
 }: {
   objectifMoyenTerme: string;
   objectifLongTerme: string;
   compteId: string;
   /** Une clé est configurée côté serveur : la génération marche sans clé navigateur. */
   cleServeurConfiguree?: boolean;
+  /**
+   * Générations encore offertes ce mois-ci sur la clé serveur (ADR-116).
+   *
+   * `null` quand la question ne se pose pas — administrateur, ou aucune ligne
+   * d'accès. Zéro est une réponse, pas une absence : c'est le cas où la clé
+   * serveur existe mais ne peut plus servir ce compte.
+   */
+  quotaRestant?: number | null;
 }) {
   const router = useRouter();
   const { lancerTour } = useOnboarding();
@@ -78,8 +87,25 @@ export function FormulaireAmorcage({
    * (variables d'environnement). La génération ne se propose que si l'une des
    * deux existe : sans ce test AVANT soumission, le clic échouait après coup
    * à chaque maillon — premier risque d'abandon avant la première preuve.
+   *
+   * Depuis ADR-116, la clé serveur n'est disponible que tant qu'il reste du
+   * quota : sans ce second test, le bouton resterait actif pour renvoyer un
+   * 402 en pleine génération — exactement l'échec après coup qu'on évite ici.
    */
-  const cleDisponible = cleConfiguree || cleServeurConfiguree;
+  const quotaServeurOuvert = quotaRestant === null || quotaRestant > 0;
+  const serveurDisponible = cleServeurConfiguree && quotaServeurOuvert;
+  const cleDisponible = cleConfiguree || serveurDisponible;
+
+  /*
+   * Le bloc « clé IA » ne s'affiche que s'il y a une décision à prendre.
+   *
+   * Quand le serveur génère et que le quota tient, il n'y en a aucune : montrer
+   * le statut d'une clé d'API tierce, et un bouton pour la changer, à quelqu'un
+   * qui vient déclarer ce qu'il veut apprendre, c'est de la plomberie sur le
+   * premier écran du produit. Les réglages restent dans « Compte et réglages ».
+   */
+  const quotaEpuise = cleServeurConfiguree && quotaRestant === 0;
+  const cleADecider = !serveurDisponible;
 
   const sujetValide = sujet.trim().length > 2;
   const intentionValide = intention.trim().length > 2;
@@ -157,7 +183,15 @@ export function FormulaireAmorcage({
         </div>
       </div>
 
-      {/* État de la clé IA */}
+      {/*
+        État de la clé IA — affiché seulement quand il y a un choix à faire.
+
+        Trois situations, et une seule justifie ce bloc :
+         - le serveur génère et le quota tient → rien, le bloc disparaît ;
+         - le quota est épuisé → il faut sa propre clé pour continuer ;
+         - aucune clé nulle part → c'est un blocage, il doit être expliqué.
+      */}
+      {cleADecider && (
       <div
         data-tour="cle-ia"
         className="rounded-xl border border-bordure bg-surface px-4 py-3 shadow-xs"
@@ -171,11 +205,11 @@ export function FormulaireAmorcage({
               )}
             />
             <span className="text-xs font-medium text-texte">
-              {cleDisponible
-                ? cleConfiguree
-                  ? "Clé IA configurée (prête à générer)"
-                  : "Clé IA configurée côté serveur (prête à générer)"
-                : "Clé IA non configurée (Mistral, Groq gratuit, Anthropic)"}
+              {cleConfiguree
+                ? "Clé IA configurée (prête à générer)"
+                : quotaEpuise
+                  ? "Générations offertes épuisées ce mois-ci"
+                  : "Clé IA non configurée (Mistral, Groq gratuit, Anthropic)"}
             </span>
           </div>
           <button
@@ -186,6 +220,14 @@ export function FormulaireAmorcage({
             {panneauCleOuvert ? "Fermer les réglages" : cleConfiguree ? "Modifier la clé" : "Renseigner ma clé IA"}
           </button>
         </div>
+
+        {quotaEpuise && !cleConfiguree && (
+          <p className="mt-2 text-xs leading-relaxed text-texte-attenue">
+            Le compteur repart le 1er du mois. Pour continuer maintenant,
+            renseignez votre propre clé : elle est gratuite chez Mistral comme
+            chez Groq, et n&apos;est alors plus décomptée.
+          </p>
+        )}
 
         {panneauCleOuvert && (
           <div className="mt-3 border-t border-bordure/60 pt-3">
@@ -203,6 +245,7 @@ export function FormulaireAmorcage({
           </div>
         )}
       </div>
+      )}
 
       {/* Commutateur de mode (Assistant interactif vs Saisie directe) */}
       <div className="flex items-center justify-between gap-2 rounded-xl bg-surface-2/40 border border-bordure/70 p-1.5">
@@ -492,7 +535,7 @@ export function FormulaireAmorcage({
       )}
 
       {/* Visite guidée dynamique pour /demarrer */}
-      <DemarrerTour />
+      <DemarrerTour afficherEtapeCle={cleADecider} />
     </div>
   );
 }

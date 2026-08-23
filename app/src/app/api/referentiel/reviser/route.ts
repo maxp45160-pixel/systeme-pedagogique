@@ -55,7 +55,7 @@ export async function POST(request: Request) {
   const vivantes = ctx.referentiel.skills.filter((s) => s.domaine === domaineId && !s.archive);
   const retraits = retraitsParCode(vivantes, ctx.observationsEffectives);
 
-  const resolu = resoudreMoteur(corps.config, {
+  const resolu = await resoudreMoteur(corps.config, {
     conseil: "Tu peux modifier les compétences à la main sur cette page.",
   });
   if (!resolu.ok) return resolu.reponse;

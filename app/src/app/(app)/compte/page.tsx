@@ -9,6 +9,7 @@ import {
 import { EntetePage } from "@/components/layout/entete-page";
 import { SqueletteContenu } from "@/components/layout/squelette";
 import { PanneauCompte } from "@/components/profil/panneau-compte";
+import { lireQuotaTuteur } from "@/lib/store/quota-tuteur";
 
 /**
  * Le compte, ses réglages et son profil d'apprentissage organisés par onglets.
@@ -45,7 +46,11 @@ async function ContenuCompte({
   ongletInitial?: "profil" | "tuteur" | "preferences" | "donnees";
   retour?: string;
 }) {
-  const [ctx, compte] = await Promise.all([chargerContexte(), compteCourant()]);
+  const [ctx, compte, quota] = await Promise.all([
+    chargerContexte(),
+    compteCourant(),
+    lireQuotaTuteur(),
+  ]);
   const identite = resoudreIdentite(compte, ctx.donnees.user);
   const profilEnrichi = {
     ...ctx.donnees.user,
@@ -61,6 +66,7 @@ async function ContenuCompte({
         courriel={compte?.email ?? null}
         ongletInitial={ongletInitial}
         retour={retour}
+        quota={quota}
       />
     </div>
   );

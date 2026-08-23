@@ -43,10 +43,18 @@ export function PanneauCompte({
   courriel,
   ongletInitial,
   retour,
+  quota,
 }: {
   profil: User;
   compteId: string;
   courriel: string | null;
+  /**
+   * Générations offertes ce mois-ci sur la clé serveur (ADR-116).
+   *
+   * `null` quand la question ne se pose pas : administrateur, ou aucune clé
+   * serveur configurée sur ce déploiement.
+   */
+  quota?: { restant: number; plafond: number } | null;
   /** Onglet demandé par l'URL (`?onglet=`) — déjà validé côté serveur. */
   ongletInitial?: OngletCompte;
   /**
@@ -154,10 +162,33 @@ export function PanneauCompte({
             <div className="border-b border-bordure/60 pb-3.5">
               <h3 className="text-sm font-semibold text-texte">Configuration du Tuteur IA</h3>
               <p className="text-xs text-texte-attenue mt-0.5">
-                Renseignez votre clé d&apos;API pour la génération d&apos;exercices et l&apos;aide en direct.
-                Elle est stockée localement dans votre navigateur et n&apos;est jamais partagée.
+                Le tuteur fonctionne sans réglage : chaque compte dispose de
+                générations offertes. Renseigner votre propre clé lève cette
+                limite — elle est stockée dans votre navigateur et n&apos;est
+                jamais partagée.
               </p>
             </div>
+
+            {/*
+              Le solde, dit une fois et à un seul endroit.
+
+              Pas de compteur sur le tableau de bord : il porte déjà l'action du
+              jour, et un chiffre qui parle de consommation n'aide personne à
+              travailler. Ici, il est à côté du geste qui le lève.
+            */}
+            {quota && (
+              <div className="max-w-xl rounded-xl border border-bordure bg-surface-2/60 px-4 py-3">
+                <p className="text-xs leading-relaxed text-texte-attenue">
+                  <strong className="font-semibold text-texte">
+                    {quota.restant} génération{quota.restant > 1 ? "s" : ""} offerte
+                    {quota.restant > 1 ? "s" : ""}
+                  </strong>{" "}
+                  {quota.restant > 0 ? "restante" : "restant"}
+                  {quota.restant > 1 ? "s" : ""} ce mois-ci, sur {quota.plafond} incluses.
+                  Le compteur repart le 1er. Une clé personnelle n&apos;est jamais décomptée.
+                </p>
+              </div>
+            )}
             <div className="max-w-xl">
               <ReglagesTuteur
                 compteId={compteId}

@@ -40,6 +40,10 @@ export interface CompteAdministre {
   seances: number;
   competences: number;
   derniereActivite: string | null;
+  /** Générations offertes par mois sur la clé serveur (ADR-116). */
+  quotaMensuel: number;
+  /** Générations déjà consommées sur le mois courant. Zéro si la période a tourné. */
+  quotaAppels: number;
 }
 
 export function estSuspendu(compte: CompteAdministre): boolean {

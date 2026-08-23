@@ -39,7 +39,7 @@ export default function LayoutPublic({ children }: { children: React.ReactNode }
             ))}
           </nav>
 
-          <Link href="/login" className="shrink-0 rounded-lg bg-primaire px-3.5 py-1.5 text-sm font-medium text-primaire-contraste transition-opacity hover:opacity-90">
+          <Link href="/login?mode=inscription" className="shrink-0 rounded-lg bg-primaire px-3.5 py-1.5 text-sm font-medium text-primaire-contraste transition-opacity hover:opacity-90">
             Commencer
           </Link>
         </div>

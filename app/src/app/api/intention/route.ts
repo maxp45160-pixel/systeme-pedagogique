@@ -113,7 +113,7 @@ export async function POST(request: Request) {
    * ferme déjà les genres et les codes désignables — ce qu'un modèle plus petit
    * pourrait inventer est refusé avant d'arriver ici. Voir `ProfilMoteur`.
    */
-  const resolu = resoudreMoteur(corps.config, {
+  const resolu = await resoudreMoteur(corps.config, {
     profil: "rapide",
     conseil: "En attendant, les destinations restent accessibles depuis le menu.",
   });

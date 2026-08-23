@@ -120,13 +120,13 @@ export function PaletteBureau({
       {
         id: "aujourd-hui",
         libelle: "Revenir à aujourd’hui",
-        indice: "Bureau",
+        indice: "Séances",
         motsCles: "jour date maintenant",
         executer: () => onChangerJour(aujourdHui),
       },
       {
         id: "cahier",
-        libelle: "Ouvrir le Cahier",
+        libelle: "Ouvrir l'historique",
         indice: "Archive",
         motsCles: "archive historique passe relire",
         executer: onOuvrirCahier,
@@ -264,7 +264,7 @@ export function PaletteBureau({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Commandes du Bureau"
+        aria-label="Commandes des séances"
         className="relative w-full max-w-lg overflow-hidden rounded-carte border border-bordure bg-surface shadow-[var(--ombre-surcouche)]"
         onPointerDown={(event) => event.stopPropagation()}
       >

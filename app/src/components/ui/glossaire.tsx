@@ -10,6 +10,11 @@ import { Depliant } from "@/components/ui/explication";
  * mais jamais les *termes*. Un nouvel arrivant lisait « robustesse 0,42 » sans
  * avoir de quoi savoir si c'est bien.
  *
+ * Le vocabulaire de structure — référentiel, compétence, séance, tuteur — l'a
+ * rejoint le 24/08/2026 : `/aide` en tenait sa propre liste, qui définissait
+ * « Observation » une seconde fois, en d'autres mots. Deux glossaires qui ne se
+ * recouvrent qu'à un terme ne valent pas mieux qu'aucun.
+ *
  * Replié par défaut : c'est un rappel pour qui en a besoin, pas un cours à
  * traverser à chaque visite. Et volontairement court — un glossaire qu'on ne
  * finit pas de lire ne sert personne.
@@ -17,9 +22,29 @@ import { Depliant } from "@/components/ui/explication";
 
 const ENTREES: { terme: string; definition: string }[] = [
   {
+    terme: "Référentiel",
+    definition:
+      "L’ensemble de vos sujets et des compétences qu’ils contiennent. Il appartient à votre compte : vous l’étendez, le corrigez et le réduisez à tout moment depuis Mes cours.",
+  },
+  {
+    terme: "Compétence",
+    definition:
+      "Un savoir-faire observable, porté par un code (ex. LOG-01). Elle ne stocke aucune note : son niveau est recalculé depuis vos observations à chaque affichage.",
+  },
+  {
+    terme: "Séance",
+    definition:
+      "Un épisode de travail cadré dans le temps, contenant un ou plusieurs exercices. Une seule séance est active à la fois.",
+  },
+  {
+    terme: "Tuteur IA",
+    definition:
+      "Le moteur qui rédige vos exercices, vos corrections et vos explications. Il produit du contenu — jamais une mesure sur vous, jamais un code de compétence qu’il aurait inventé.",
+  },
+  {
     terme: "Preuve",
     definition:
-      "La trace durable et vérifiable d’une activité : ta réponse, ta production ou la version figée qui la conserve. Elle précède toute mesure.",
+      "La trace durable et vérifiable d’une activité : votre réponse, votre production ou la version figée qui la conserve. Elle précède toute mesure.",
   },
   {
     terme: "Observation",
@@ -29,7 +54,7 @@ const ENTREES: { terme: string; definition: string }[] = [
   {
     terme: "Niveau (0 à 5)",
     definition:
-      "Ce que les observations permettent d'affirmer, pas ce que tu penses savoir. Il ne monte que si les observations le justifient : une réussite isolée ne dépasse jamais le niveau 2.",
+      "Ce que les observations permettent d'affirmer, pas ce que vous pensez savoir. Il ne monte que si les observations le justifient : une réussite isolée ne dépasse jamais le niveau 2.",
   },
   {
     terme: "Dimension",
@@ -39,7 +64,7 @@ const ENTREES: { terme: string; definition: string }[] = [
   {
     terme: "Autonomie (A0 à A4)",
     definition:
-      "Avec quelle aide tu y es arrivé — A0 solution fournie, A1 fortement guidé, A2 quelques indices, A3 en autonomie, A4 avec initiative méthodologique. Elle est déduite des indices consultés et de l'aide extérieure déclarée, jamais choisie.",
+      "Avec quelle aide vous y êtes arrivé — A0 solution fournie, A1 fortement guidé, A2 quelques indices, A3 en autonomie, A4 avec initiative méthodologique. Elle est déduite des indices consultés et de l'aide extérieure déclarée, jamais choisie.",
   },
   {
     terme: "Confiance",

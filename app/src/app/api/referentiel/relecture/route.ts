@@ -55,7 +55,7 @@ export async function POST(request: Request) {
     corps = {};
   }
 
-  const resolution = envTuteur(corps.config);
+  const resolution = await envTuteur(corps.config);
   /*
    * Sans moteur, on produit quand même.
    *

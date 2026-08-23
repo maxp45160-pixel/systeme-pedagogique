@@ -90,7 +90,7 @@ export async function POST(request: Request) {
       ? Math.min(DUREE_ESTIMEE_MAX, Math.max(DUREE_ESTIMEE_MIN, Math.round(dureeCibleBrute)))
       : undefined;
 
-  const resolu = resoudreMoteur(corps.config);
+  const resolu = await resoudreMoteur(corps.config);
   if (!resolu.ok) return resolu.reponse;
   const { moteur } = resolu;
 

@@ -33,7 +33,7 @@ export function PistesAlternatives({
           href="/atelier"
           className="group flex items-center gap-1 text-xs font-medium text-texte-attenue hover:text-primaire transition-colors"
         >
-          <span>Voir tout l’Atelier</span>
+          <span>Voir tous mes cours</span>
           <IconeFleche className="size-2.5 transition-transform group-hover:translate-x-0.5" />
         </Link>
       </div>

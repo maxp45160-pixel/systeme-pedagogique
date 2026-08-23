@@ -164,7 +164,7 @@ export async function supprimerDocument(id: string): Promise<void> {
 
   const frontMatter = frontMatterDepuisLigne(document as Record<string, unknown>);
   if (frontMatter.role !== "support" && frontMatter.role !== "operationnel") {
-    throw new Error("Seules les notes capturées peuvent être supprimées depuis l'Atelier.");
+    throw new Error("Seules les notes capturées peuvent être supprimées depuis vos cours.");
   }
 
   const { data: snapshots, error: snapshotsErreur } = await supabase

@@ -368,7 +368,7 @@ export function forcerTraductionIntention(
           ...precedente?.action,
           genre: "referentiel",
           titre: `Structurer le domaine « ${sujet} »`,
-          pourquoi: "Ce domaine sera découpé en compétences pour enrichir ton Atelier.",
+          pourquoi: "Ce domaine sera découpé en compétences pour enrichir vos cours.",
           codes: [],
           sujet,
         },

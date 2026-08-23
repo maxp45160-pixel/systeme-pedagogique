@@ -86,7 +86,7 @@ export default function PageEtudiants() {
           et voyez ce que le système peut déjà affirmer sur votre niveau.
         </p>
         <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-          <Link href="/login" className={classesLienBouton("principal")}>
+          <Link href="/login?mode=inscription" className={classesLienBouton("principal")}>
             Créer mon compte
             <IconeFleche className="size-4" />
           </Link>

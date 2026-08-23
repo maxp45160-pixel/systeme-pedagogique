@@ -69,7 +69,7 @@ export function BarreVuesAtelier({
     <div
       className="flex items-center gap-1 rounded-lg border border-bordure bg-surface-2 p-1 text-xs"
       role="tablist"
-      aria-label="Modes de vue de l'Atelier"
+      aria-label="Modes de vue de mes cours"
     >
       {options.map((opt) => (
         <button

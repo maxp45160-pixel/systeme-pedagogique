@@ -429,12 +429,12 @@ function BarreBureau({
         que doubler une navigation déjà présente à deux mètres à gauche.
       */}
       <div className="flex min-w-0 items-center gap-2 text-xs text-texte-discret">
-        <span className="font-medium text-texte-attenue">Bureau</span>
+        <span className="font-medium text-texte-attenue">Séances</span>
         <span aria-hidden>·</span>
         <span className="truncate">{dateCourte(jour)}</span>
       </div>
 
-      <nav aria-label="Navigation du Bureau" className="flex shrink-0 items-center gap-0.5">
+      <nav aria-label="Navigation des séances" className="flex shrink-0 items-center gap-0.5">
         <FlecheJour
           cible={precedente}
           libelle="Jour précédent"

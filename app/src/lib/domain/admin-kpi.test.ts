@@ -15,6 +15,8 @@ function compte(partiel: Partial<CompteAdministre> & { userId: string }): Compte
     seances: 0,
     competences: 0,
     derniereActivite: null,
+    quotaMensuel: 150,
+    quotaAppels: 0,
     ...partiel,
   };
 }

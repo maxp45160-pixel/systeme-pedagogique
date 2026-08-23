@@ -121,6 +121,12 @@ Consulter `PRODUCT.md` pour la définition complète des principes.
   portent aucune donnée pédagogique ni identifiable.
 - La logique métier non triviale doit vivre dans `lib/`, pas dans un composant.
 - `outilCorrection` reste confiné au chemin de correction prévu.
+- Toute route qui appelle le tuteur passe par `envTuteur` (ADR-116). C'est là
+  et nulle part ailleurs qu'est décompté le quota de la clé serveur : un appel
+  direct à `choisirConfiguration` génère gratuitement aux frais du compte
+  fournisseur partagé.
+- La phrase du tour d'accueil qui décrit les destinations se **dérive** de
+  `NAVIGATION` (ADR-117), jamais recopiée — comme `NAV_MOBILE`.
 - Pas d'émoji dans le frontend : ne jamais utiliser d'émojis dans l'interface utilisateur (boutons, badges, étiquettes, icônes, textes). Utiliser les composants d'icônes SVG (`components/ui/icones.tsx`) ou du texte sobre.
 
 Pour les détails et justifications :

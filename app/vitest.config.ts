@@ -6,7 +6,18 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   resolve: {
-    alias: { "@": path.resolve(__dirname, "src") },
+    alias: {
+      "@": path.resolve(__dirname, "src"),
+      /*
+       * `server-only` est une garde de bundler : son point d'entrée par défaut
+       * lève dès qu'un module client l'importe. Sous Vitest il n'y a pas de
+       * frontière client/serveur, et la levée empêchait de tester des routes
+       * dont la chaîne d'imports traverse un module `lib/store` — ce que le
+       * quota du tuteur a rendu vrai pour les treize routes IA. On la neutralise
+       * ici, et seulement ici : le build Next continue de la faire respecter.
+       */
+      "server-only": path.resolve(__dirname, "src/lib/test/server-only-stub.ts"),
+    },
   },
   test: {
     include: ["src/**/*.test.ts"],

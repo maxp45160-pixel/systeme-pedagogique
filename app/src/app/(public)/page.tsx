@@ -73,7 +73,7 @@ export default async function PageAccueil() {
           fait — et la prochaine action à faire est toujours claire.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Link href="/login" className={classesLienBouton("principal")}>
+          <Link href="/login?mode=inscription" className={classesLienBouton("principal")}>
             Créer mon compte gratuitement
             <IconeFleche className="size-4" />
           </Link>
@@ -173,7 +173,7 @@ export default async function PageAccueil() {
           premier exercice, voyez ce que le système peut déjà affirmer sur vous.
         </p>
         <div className="mt-8">
-          <Link href="/login" className={classesLienBouton("principal")}>
+          <Link href="/login?mode=inscription" className={classesLienBouton("principal")}>
             Commencer maintenant
             <IconeFleche className="size-4" />
           </Link>

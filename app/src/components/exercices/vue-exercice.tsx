@@ -298,7 +298,7 @@ export async function VueExercice(props: {
             )}
             {!props.integree && (
               <Link href="/seances" className={classesLienBouton("secondaire", "petite")}>
-                Cahier des séances
+                Historique des séances
               </Link>
             )}
           </div>
@@ -351,13 +351,13 @@ export async function VueExercice(props: {
                       {exercice.competences[0] && (
                         <LienApresImpact
                           href={`/atelier?document=${encodeURIComponent(exercice.competences[0])}`}
-                          libelle="Voir la fiche dans l'Atelier"
+                          libelle="Voir la fiche dans mes cours"
                           variante="secondaire"
                         />
                       )}
                       <LienApresImpact
                         href="/seances"
-                        libelle="Cahier des séances"
+                        libelle="Historique des séances"
                         variante="discret"
                       />
                     </>

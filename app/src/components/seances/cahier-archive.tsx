@@ -72,9 +72,9 @@ export function CahierArchive({
     <div className="space-y-5">
       <div className="sticky top-0 z-30 -mx-4 flex h-11 items-center justify-between gap-3 border-b border-bordure bg-fond/85 px-4 backdrop-blur sm:-mx-6 sm:px-6">
         <div className="flex min-w-0 items-center gap-2 text-xs text-texte-discret">
-          <span className="font-medium text-texte-attenue">Cahier</span>
+          <span className="font-medium text-texte-attenue">Historique</span>
           <span aria-hidden>·</span>
-          <span className="truncate">l’archive du Bureau</span>
+          <span className="truncate">l’archive des séances</span>
         </div>
         <button
           type="button"

@@ -86,5 +86,7 @@ export async function listerComptes(): Promise<CompteAdministre[]> {
     seances: Number(l.seances ?? 0),
     competences: Number(l.competences ?? 0),
     derniereActivite: (l.derniere_activite as string | null) ?? null,
+    quotaMensuel: Number(l.quota_mensuel ?? 0),
+    quotaAppels: Number(l.quota_appels ?? 0),
   }));
 }

@@ -267,6 +267,13 @@ plafonds numériques : P8 reste 🔬 jusqu'à leur confrontation à l'usage.
 ✅ **Le contenu vient du tuteur**, pas de fichiers écrits à la main (ADR-004).
 ✅ **Le moteur du tuteur est configurable par environnement** ; aucun fournisseur
 gratuit canonique n'est imposé. Le choix se valide par la mesure (ADR-007).
+🔬 **Le tuteur fonctionne sans que l'utilisateur fournisse de clé** (24/08/2026,
+ADR-116). Le produit sert sa propre clé, portée par un compte fournisseur
+dédié, et **150 générations par mois sont incluses** par compte. Ce que « gratuit »
+promet sur la vitrine est donc exact et borné : passé le plafond, la génération
+s'arrête avec un message qui dit quand le compteur repart, et renseigner sa
+propre clé lève la limite sans rien décompter. Le plafond est réglable par
+compte ; un administrateur n'est jamais décompté.
 ✅ **Construire et utiliser en parallèle** est le mode de travail retenu.
 ✅ **La boucle est le produit** (ADR-066). Son arbitrage — temps disponible,
 capacité déclarée — vit dans la carte d'action et fonctionne sans aucune table.
@@ -332,17 +339,25 @@ dérivés du référentiel et des observations — jamais une copie d'un catalog
 externe. L'amorçage reste privé au compte : la personne déclare son sujet et
 son intention de départ dans `/demarrer`, sans transformer cette déclaration en
 objectif structuré ni en mesure. La carte personnelle n'a pas de fenêtre
-dupliquée : sa surface canonique est le graphe de l'Atelier. La Progression est
+dupliquée : sa surface canonique est le graphe de Mes cours. La Progression est
 le **profil de carrière** (ADR-098) : elle porte la lecture longitudinale —
 évolution du score rejouée depuis le journal, faits marquants, bilan de
 croissance.
+✅ **Les destinations portent des noms devinables** (24/08/2026, ADR-117).
+« Atelier » est devenu **Mes cours**, « Bureau » **Séances**, et le mode archive
+« Cahier » **Historique** ; « Carnet » a disparu du copy de la connexion. Quatre
+métaphores de mobilier pour trois surfaces demandaient d'apprendre le plan avant
+de pouvoir s'en servir. Les routes n'ont pas bougé. La phrase du tour d'accueil
+qui présente ces destinations est désormais **dérivée** de `NAVIGATION` : elle
+annonçait « vos trois espaces » en surlignant un rail qui en montrait quatre,
+dont un retiré un mois plus tôt.
 ✅ **La lecture longitudinale par domaine a une seule surface** (23/08/2026).
-Elle vivait en double : `/progression?domaine=` et la vue domaine de l'Atelier
+Elle vivait en double : `/progression?domaine=` et la vue domaine de Mes cours
 répondaient à la même question (« où j'en suis dans ce domaine »). Le mode
-« Progression » de la vue domaine de l'Atelier est désormais la surface unique ;
+« Progression » de la vue domaine de Mes cours est désormais la surface unique ;
 `/progression?domaine=` redirige vers elle (`/atelier?document=…&vue=progression`)
 et le calcul correspondant (`construireProgressionsDomaines`) est précalculé
-serveur avec les vues Atelier — mêmes fonctions pures, aucun chiffre nouveau.
+serveur avec les vues de Mes cours — mêmes fonctions pures, aucun chiffre nouveau.
 Le *concept* d'un catalogue partagé reste décrit dans
 [`TWINY_MODEL.md`](docs/architecture/TWINY_MODEL.md) ; tout retour repartira du
 modèle cible, avec un contenu initial réel et un curateur désigné avant toute
