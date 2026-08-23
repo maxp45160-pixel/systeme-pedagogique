@@ -168,6 +168,16 @@ export function construirePromptRelecture(entree: EntreeRelecture): string {
     "",
     "1. DES SOUS-DOMAINES (scissions).",
     "- Quand un domaine porte visiblement PLUSIEURS SUJETS DISTINCTS, propose d'en tirer un sous-domaine et dis quelles compétences y vont.",
+    /*
+     * L'exhaustivité, exigée explicitement.
+     *
+     * La consigne s'arrêtait à « dis quelles compétences y vont », et le modèle
+     * en citait un échantillon représentatif. Constaté le 24/08/2026 : après la
+     * création de « Gestion des stocks », deux compétences de stock étaient
+     * restées dans le parent — et plus rien ne pouvait les y rattacher, la
+     * scission n'étant plus reproposable une fois le domaine créé.
+     */
+    "- RELIS LA LISTE ENTIÈRE du domaine et cite TOUTES les compétences qui relèvent de ce sujet, sans en omettre une seule. Un échantillon ne suffit pas : une scission incomplète laisse le parent encombré, et les oubliées devront être rattachées une par une à la main.",
     "- Le critère n'est pas le nombre. Un domaine de quarante compétences qui traitent toutes du même sujet ne se découpe pas ; un domaine de neuf qui en porte deux se découpe. Ne découpe jamais pour faire baisser un compte.",
     "- Nomme le sous-domaine comme une personne le dirait — « Gestion kanban », pas « LOG-SOUS-2 ». Tu ne donnes ni identifiant ni préfixe : l'application les attribue.",
     /*
@@ -203,6 +213,11 @@ export function construirePromptRelecture(entree: EntreeRelecture): string {
           "- DÉSACTIVÉ pour ce compte. Rends une liste vide.",
         ]),
     "",
+    "4. DES RATTACHEMENTS.",
+    "- Une compétence DÉJÀ au référentiel qui gagnerait à être visible dans un domaine existant où elle ne l'est pas encore. Tu ne crées rien : tu désignes une compétence de la liste et un domaine de la liste.",
+    "- C'est ce qui rattrape un découpage incomplet. Relis chaque domaine et demande-toi si une compétence rangée ailleurs relève manifestement de son sujet.",
+    "- Ne le propose que si l'intitulé le justifie sans ambiguïté. Une compétence peut servir plusieurs domaines, mais un tag mal posé encombre une vue que personne ne nettoiera.",
+    "",
     "RÈGLES QUI VALENT POUR TOUT",
     "- N'invente aucun code de compétence et aucun identifiant de domaine. Recopie exactement ceux des listes ci-dessus.",
     "- Justifie chaque ligne en partant de ce que tu as lu, jamais d'une généralité sur la discipline.",
@@ -227,7 +242,12 @@ export function construirePromptRelecture(entree: EntreeRelecture): string {
 /* L'appel                                                             */
 /* ------------------------------------------------------------------ */
 
-const LOT_VIDE: PropositionRelecture = { scissions: [], relations: [], manques: [] };
+const LOT_VIDE: PropositionRelecture = {
+  scissions: [],
+  relations: [],
+  manques: [],
+  rattachements: [],
+};
 
 export async function relireReferentiel(
   moteur: MoteurTuteur,

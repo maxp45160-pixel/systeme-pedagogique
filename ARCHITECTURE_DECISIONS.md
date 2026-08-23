@@ -8618,6 +8618,59 @@ faisait ni dans l'un ni dans l'autre.
 **Ce que ce correctif ne fait pas :** monter le statut. ADR-108 reste ❓, et le
 test de réfutation attend toujours ses trois lots.
 
+### Ce que le premier vrai découpage a appris (24/08/2026)
+
+Trois défauts, tous découverts en scindant réellement « Logistique
+industrielle » en « Kanban » et « Gestion des stocks ». Aucun n'était visible
+avant que la fonctionnalité serve.
+
+**1. Un sous-domaine créé n'apparaissait nulle part.** Plusieurs surfaces
+décidaient qu'un domaine « a des compétences » en testant
+`skill.domaine === domaine.id` — le **namespace de création**, pas le tag. Or
+un sous-domaine né d'une scission n'a aucune compétence dont `domaine` vaut son
+identifiant : les compétences gardent leur namespace, seul leur tag bouge.
+« Kanban » existait en base avec neuf compétences et restait invisible.
+`domainesPortants` (`lib/domain/hierarchie-domaines.ts`) pose désormais le bon
+prédicat, celui d'`agregerDomaine` : un domaine montre une compétence si elle
+le tague, ou tague l'un de ses descendants. La visibilité reste héritée — un
+parent dont tout est descendu chez ses enfants doit rester atteignable.
+
+**2. Une vue de domaine listait l'union de son sous-arbre.** C'est ce que cette
+ADR décrit, et c'est correct pour un **agrégat** — `agregerDomaine` et les
+scores le font toujours, sans quoi scinder ferait chuter la couverture d'un
+domaine sans que rien ne soit perdu. Mais pour une **liste**, l'union rend la
+scission illisible : le parent affichait toujours ses dix-sept compétences, et
+le découpage semblait n'avoir rien fait. **Arbitrage de Maxime :** une vue
+liste ce qui la tague, et une compétence taguée des deux côtés apparaît des
+deux côtés. Les sous-domaines s'atteignent par le panneau de parenté, qui les
+nommait déjà.
+
+**3. Une scission incomplète était irrattrapable.** Le tuteur avait cité un
+échantillon de compétences, pas la liste complète — deux compétences de stock
+sont restées dans le parent. Or aucun chemin ne pouvait les rattraper : la
+scission n'est plus reproposable une fois le domaine créé (à juste titre), le
+genre `rangement` est déterministe et exige des observations venues d'exercices
+de ce domaine, et `proposer_tags_competence` travaille par fiche et sur clic —
+le geste que la relecture existe pour éviter.
+
+Deux réponses. Le prompt exige désormais l'**exhaustivité** : « relis la liste
+entière et cite TOUTES les compétences qui relèvent de ce sujet ». Et un
+**huitième genre**, `rattachement` (migration `20260824110000`), autorisé par
+Maxime le 24/08/2026 : le tuteur désigne une compétence existante et un domaine
+existant, tous deux par `enum` fermé revérifié côté serveur. Il ne crée ni code,
+ni domaine, ni compétence — l'écriture reste `taguer_competences_domaine`,
+la commande gouvernée d'ADR-107. C'est cette ADR appliquée en lot.
+
+À l'écran, `rattachement` et `rangement` se lisent pareil — « celle-ci a sa
+place là-bas aussi ». Ce qui les sépare est leur origine, un calcul
+d'observations contre une lecture d'intitulés, et une origine est du
+vocabulaire de maintenance : elle reste dans les données et dans la mesure de
+rétention, jamais devant la personne.
+
+**Ce que ces correctifs ne font pas :** monter le statut. Le genre
+`rattachement` entre dans la mesure de rétention comme les sept autres, et
+devra faire ses preuves comme eux.
+
 **Ce que cette correction ne fait pas :** monter le statut. ADR-108 reste ❓.
 
 ### Questions restant ouvertes

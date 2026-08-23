@@ -103,6 +103,17 @@ async function ecrireProposition(
       return `Cette compétence apparaît maintenant dans « ${domaine?.nom ?? contenu.domaineObserve} ».`;
     }
 
+    /*
+     * Même écriture que `rangement`, et c'est voulu : les deux posent un tag,
+     * par la commande gouvernée d'ADR-107. Seule leur origine diffère — un
+     * calcul d'observations là, une lecture d'intitulés ici.
+     */
+    case "rattachement": {
+      await taguerCompetences(contenu.domaineId, [contenu.code], true);
+      const domaine = referentiel.domainesParId.get(contenu.domaineId);
+      return `Cette compétence apparaît maintenant dans « ${domaine?.nom ?? contenu.domaineId} ».`;
+    }
+
     case "arete": {
       await relierCompetences(contenu.amont, contenu.aval);
       return "Le lien est enregistré.";

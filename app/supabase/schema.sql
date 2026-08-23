@@ -2543,9 +2543,12 @@ CREATE TABLE IF NOT EXISTS public.propositions_referentiel (
   -- Le lot qui l'a produite. C'est l'unité que mesure le test de réfutation
   -- d'ADR-108 : « sur les trois premiers lots produits ».
   lot_id        TEXT NOT NULL,
+  -- Quatre déterministes, quatre du tuteur. `rattachement` a rejoint la liste
+  -- le 24/08/2026 (migration `20260824110000_genre_rattachement`) : sans lui,
+  -- une scission incomplète était irrattrapable.
   genre         TEXT NOT NULL CHECK (genre IN (
                   'arete', 'dormance', 'reformulation', 'rangement',
-                  'scission', 'relation', 'manque')),
+                  'scission', 'relation', 'manque', 'rattachement')),
   -- Le domaine visé, quand la proposition en vise un. NULL sinon.
   --
   -- Volontairement SANS clé étrangère, à la différence de tout le reste du

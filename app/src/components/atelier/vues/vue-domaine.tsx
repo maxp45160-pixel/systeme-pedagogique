@@ -168,6 +168,7 @@ export function VueDomaine({
       </header>
       <div className="space-y-6 p-6 lg:p-8">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {/* Ce que ce domaine tague ; ses sous-domaines se lisent à part. */}
             <Indicateur libelle="Compétences" valeur={String(vue.competences.length)} precision={`${vue.nombreEvaluees} déjà rencontrée${vue.nombreEvaluees > 1 ? "s" : ""}`} />
             <Indicateur libelle="Chemin parcouru" valeur={`${Math.round(couverture * 100)} %`} precision="Compétences déjà rencontrées" />
             <Indicateur libelle="Traces de travail" valeur={String(vue.nombreObservations)} precision="Constats gardés en mémoire" />

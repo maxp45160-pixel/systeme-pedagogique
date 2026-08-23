@@ -193,3 +193,38 @@ export function parcourirHierarchie(
   }
   return sortie;
 }
+
+/**
+ * Les domaines qui montrent au moins une compétence — héritage compris.
+ *
+ * ## Le défaut que cette fonction ferme
+ *
+ * Plusieurs surfaces décidaient qu'un domaine « a des compétences » en testant
+ * `skill.domaine === domaine.id`. C'est le **namespace de création**, pas le
+ * tag : depuis ADR-107, ce n'est plus là qu'on lit où une compétence est
+ * visible. La conséquence s'est vue le 24/08/2026, au premier usage de la
+ * scission — un sous-domaine né d'une scission n'a AUCUNE compétence dont
+ * `domaine` vaut son identifiant, puisque les compétences gardent leur
+ * namespace et que seul leur **tag** a bougé. « Gestion kanban » existait en
+ * base, portait neuf compétences, et n'apparaissait nulle part.
+ *
+ * Le prédicat correct est celui d'`agregerDomaine` et de `codesDuDomaine` : un
+ * domaine montre une compétence si elle le tague, ou tague l'un de ses
+ * descendants. `domainesVisibles` le dit déjà dans l'autre sens, compétence par
+ * compétence ; cette fonction en fait l'union pour tout un référentiel.
+ *
+ * Rien n'est stocké : l'héritage se dérive, ici comme partout ailleurs.
+ */
+export function domainesPortants(
+  domaines: readonly Domaine[],
+  /** Les compétences VIVANTES du compte — `referentiel.actifs`. */
+  actifs: readonly { tagsDomaine?: readonly DomaineId[] }[],
+): Set<DomaineId> {
+  const portants = new Set<DomaineId>();
+  for (const skill of actifs) {
+    for (const id of domainesVisibles(domaines, skill.tagsDomaine ?? [])) {
+      portants.add(id);
+    }
+  }
+  return portants;
+}

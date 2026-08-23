@@ -61,7 +61,7 @@ export const GENRES_DETERMINISTES = [
   "rangement",
 ] as const;
 
-export const GENRES_TUTEUR = ["scission", "relation", "manque"] as const;
+export const GENRES_TUTEUR = ["scission", "relation", "manque", "rattachement"] as const;
 
 export const GENRES_PROPOSITION = [
   ...GENRES_DETERMINISTES,
@@ -167,6 +167,31 @@ export interface ContenuScission {
   codes: string[];
 }
 
+/**
+ * Une compétence existante à taguer dans un domaine existant (24/08/2026).
+ *
+ * ## Le trou qu'elle bouche
+ *
+ * Une scission incomplète était irrattrapable. Le domaine créé, la scission
+ * n'est plus reproposable — et c'est correct, elle a eu lieu. Le genre
+ * `rangement` est déterministe et exige des observations venant d'exercices de
+ * ce domaine : une compétence peu travaillée n'y entre jamais.
+ * `proposer_tags_competence` couvre le cas, mais par fiche et sur clic —
+ * exactement le geste que la relecture existe pour éviter.
+ *
+ * Constaté au premier usage réel : après la création de « Gestion des stocks »,
+ * deux compétences de stock sont restées dans le parent, sans aucun chemin
+ * automatique pour les y rattacher.
+ *
+ * C'est ADR-107 appliqué en lot : le tuteur propose un tag, une personne le
+ * pose. Rien de plus — ni code créé, ni domaine créé, ni compétence déplacée.
+ */
+export interface ContenuRattachement {
+  genre: "rattachement";
+  code: string;
+  domaineId: DomaineId;
+}
+
 export interface ContenuRelation {
   genre: "relation";
   amont: CompetenceDesignee;
@@ -196,7 +221,8 @@ export type ContenuProposition =
   | ContenuRangement
   | ContenuScission
   | ContenuRelation
-  | ContenuManque;
+  | ContenuManque
+  | ContenuRattachement;
 
 /* ------------------------------------------------------------------ */
 /* La proposition et son arbitrage                                     */
@@ -276,6 +302,8 @@ export function empreinteProposition(contenu: ContenuProposition): string {
     }
     case "manque":
       return `manque:${contenu.domaineId}:${nu(contenu.intitule)}`;
+    case "rattachement":
+      return `rattachement:${contenu.code}>${contenu.domaineId}`;
   }
 }
 
@@ -427,6 +455,13 @@ export function estEncoreApplicable(
       return !referentiel.competences.some(
         (c) => !c.archive && nu(c.intitule) === cherche,
       );
+    }
+
+    case "rattachement": {
+      const skill = vivante(contenu.code);
+      if (!skill || !domaineVivant(contenu.domaineId)) return false;
+      // Le tag est déjà posé : il n'y a plus rien à valider.
+      return !(skill.tagsDomaine ?? []).includes(contenu.domaineId);
     }
   }
 }

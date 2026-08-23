@@ -29,7 +29,6 @@ import {
   domainesVisibles,
   indexerEnfants,
   parentsPossibles,
-  sousArbre,
 } from "@/lib/domain/hierarchie-domaines";
 import { retraitsParCode, type EtatRetrait } from "@/lib/domain/referentiel-compte";
 import type { IndexDocumentaire } from "./index";
@@ -504,13 +503,32 @@ export function construireVuesAtelier(
        * plus. Un domaine archivé ne montre que ce qui l'a créé — il ne sert
        * plus de vue à personne.
        */
-      const perimetre = sousArbre(referentiel.domaines, domaine.id);
+      /*
+       * ## Ce qu'une vue de domaine montre, révisé le 24/08/2026
+       *
+       * Elle montrait l'union du sous-arbre : une compétence taguée sur un
+       * sous-domaine remontait dans son parent. C'est ce qu'ADR-107 décrit,
+       * et c'est correct pour un AGRÉGAT — `agregerDomaine` et les scores le
+       * font toujours, sans quoi scinder ferait chuter la couverture d'un
+       * domaine sans que rien n'ait été perdu.
+       *
+       * Mais pour une LISTE, l'union rend la scission illisible : après avoir
+       * tiré « Kanban » et « Gestion des stocks » de « Logistique
+       * industrielle », le parent affichait toujours ses dix-sept compétences,
+       * et le découpage semblait n'avoir rien fait. Arbitrage de Maxime,
+       * 24/08/2026 : un domaine liste ce qui le tague, et ses sous-domaines
+       * s'atteignent par le panneau de parenté qui les nomme déjà.
+       *
+       * La visibilité, elle, reste héritée (`domainesPortants`) : un parent
+       * dont toutes les compétences sont descendues chez ses enfants doit
+       * rester affiché, sinon on ne peut plus atteindre les enfants.
+       */
       const affichees = domaine.archive
         ? skills.filter((skill) => !skill.archive)
         : referentiel.skills.filter(
             (skill) =>
               referentiel.codesActifs.has(skill.code) &&
-              (skill.tagsDomaine ?? []).some((tag) => perimetre.has(tag)),
+              (skill.tagsDomaine ?? []).includes(domaine.id),
           );
       const codesDomaine = new Set(affichees.map((skill) => skill.code));
       const items = competences.filter((competence) => codesDomaine.has(competence.code));
@@ -524,11 +542,16 @@ export function construireVuesAtelier(
         description: domaine.description,
         competences: affichees.map((skill) => {
           const item = competences.find((competence) => competence.code === skill.code);
-          // Taguée ailleurs dans le sous-arbre : elle remonte, elle n'est pas
-          // posée ici. Le premier tag du sous-arbre nomme sa provenance.
+          /*
+           * Plus rien n'est hérité dans cette liste : elle ne porte que ce qui
+           * tague ce domaine (voir `affichees`). Les deux champs restent, à
+           * `false` et `undefined` — un domaine ARCHIVÉ montre encore ce dont
+           * il est le namespace de création, y compris des compétences qui ne
+           * le taguent plus, et l'écran doit pouvoir le dire.
+           */
           const tags = skill.tagsDomaine ?? [];
           const heritee = !tags.includes(domaine.id);
-          const origine = heritee ? tags.find((tag) => perimetre.has(tag)) : undefined;
+          const origine = heritee ? tags[0] : undefined;
           return {
             code: skill.code,
             titre: skill.intitule,

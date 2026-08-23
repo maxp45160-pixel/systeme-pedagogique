@@ -143,6 +143,24 @@ function traduire(
       };
     }
 
+    /*
+     * Volontairement rédigé comme `rangement` : pour la personne, les deux
+     * disent la même chose — « celle-ci a sa place là-bas aussi ». Ce qui les
+     * sépare est leur origine (un calcul d'observations d'un côté, une lecture
+     * d'intitulés de l'autre), et cette origine est du vocabulaire de
+     * maintenance. Elle reste dans les données, pas à l'écran.
+     */
+    case "rattachement": {
+      const ou = nomDomaine(referentiel, contenu.domaineId);
+      return {
+        section: "ranger",
+        titre: `« ${intitule(referentiel, contenu.code)} » a sa place dans « ${ou} »`,
+        effet: `Elle apparaîtra dans « ${ou} » en plus de là où elle est déjà. Elle n'est ni déplacée ni dupliquée, et rien ne change à vos résultats.`,
+        action: "L'ajouter à ce domaine",
+        lien: null,
+      };
+    }
+
     case "dormance":
       return {
         section: "ranger",

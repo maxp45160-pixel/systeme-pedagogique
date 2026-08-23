@@ -1187,16 +1187,36 @@ export function outilsRelecture(
             additionalProperties: false,
           },
         },
+        rattachements: {
+          type: "array",
+          maxItems: MAX_RATTACHEMENTS_PROPOSES,
+          description:
+            "Des compétences DÉJÀ au référentiel qui gagneraient à être visibles dans un domaine existant où elles ne le sont pas encore.",
+          items: {
+            type: "object",
+            properties: {
+              codeExistant,
+              domaineId,
+              justification: {
+                type: "string",
+                description:
+                  "Une phrase : ce que cette compétence apporte à ce domaine. Pars de ce que l'intitulé fait faire.",
+              },
+            },
+            required: ["codeExistant", "domaineId", "justification"],
+            additionalProperties: false,
+          },
+        },
       },
       /*
-       * Les trois listes sont exigées, pour la raison déjà rencontrée sur
+       * Les listes sont exigées, pour la raison déjà rencontrée sur
        * `OUTIL_RELATIONS` : l'outil est seul armé, donc `tool_choice` force
        * l'appel, et un modèle qui ne rend que les champs obligatoires renvoyait
        * un objet vide que la validation rejetait — « le tuteur n'a rien proposé »
        * alors qu'il avait répondu. Une liste vide reste exprimable, et se lit
        * comme « rien de ce côté », ce qui est une réponse.
        */
-      required: ["scissions", "relations", "manques"],
+      required: ["scissions", "relations", "manques", "rattachements"],
       additionalProperties: false,
     },
   };
@@ -1585,6 +1605,13 @@ export const MAX_SCISSIONS_PROPOSEES = 3;
 export const MAX_MANQUES_PROPOSES = 4;
 
 /**
+ * Les rattachements se cochent vite — ils ne créent rien, ils rangent — donc
+ * le plafond est plus haut que les autres. Il reste un plafond de LECTURE :
+ * au-delà, on ne relit plus un lot, on le coche en bloc.
+ */
+export const MAX_RATTACHEMENTS_PROPOSES = 8;
+
+/**
  * Un lot de relecture, tel que l'outil le rend — avant toute validation.
  *
  * La structure est garantie par le schéma ; les **valeurs** ne le sont pas.
@@ -1611,6 +1638,12 @@ export interface PropositionRelecture {
     intitule: string;
     palier: string;
     ancrage: string;
+    justification: string;
+  }>;
+  /** Une compétence existante à taguer dans un domaine existant (24/08/2026). */
+  rattachements: Array<{
+    codeExistant: string;
+    domaineId: string;
     justification: string;
   }>;
 }
@@ -2327,7 +2360,8 @@ function validerRelecture(
   if (
     !Array.isArray(entree.scissions) &&
     !Array.isArray(entree.relations) &&
-    !Array.isArray(entree.manques)
+    !Array.isArray(entree.manques) &&
+    !Array.isArray(entree.rattachements)
   ) {
     return null;
   }
@@ -2417,7 +2451,30 @@ function validerRelecture(
     manques.push({ domaineId, intitule, palier: texte(o.palier), ancrage, justification });
   }
 
-  return { genre: "relecture", relecture: { scissions, relations, manques } };
+  /*
+   * Le rattachement exige les DEUX identifiants dans leur `enum` : il ne crée
+   * rien, il désigne un existant de chaque côté. Un code ou un domaine inventé
+   * fait tomber la ligne — il n'y a rien à récupérer, à la différence d'une
+   * relation où l'intitulé reste exploitable.
+   */
+  const rattachements: PropositionRelecture["rattachements"] = [];
+  const vusRattachement = new Set<string>();
+  for (const brut of Array.isArray(entree.rattachements) ? entree.rattachements : []) {
+    if (rattachements.length >= MAX_RATTACHEMENTS_PROPOSES) break;
+    const o = objet(brut);
+    if (!o) continue;
+    const codeExistant = texte(o.codeExistant);
+    const domaineId = texte(o.domaineId);
+    const justification = texte(o.justification);
+    if (!codeExistant || !domaineId || !justification) continue;
+    if (!connuCode(codeExistant) || !connuDomaine(domaineId)) continue;
+    const cle = `${codeExistant}>${domaineId}`;
+    if (vusRattachement.has(cle)) continue;
+    vusRattachement.add(cle);
+    rattachements.push({ codeExistant, domaineId, justification });
+  }
+
+  return { genre: "relecture", relecture: { scissions, relations, manques, rattachements } };
 }
 
 function codesDuSchemaRevision(outils: OutilTuteur[]): Set<string> {

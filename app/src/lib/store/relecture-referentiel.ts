@@ -435,6 +435,24 @@ export async function produireLot(
       );
     }
 
+    /*
+     * Le rattachement porte sur le domaine visé — c'est lui qui change de
+     * contenu. La compétence, elle, ne bouge pas : son namespace de création
+     * et ses autres tags restent intacts (ADR-107).
+     */
+    for (const rattachement of resultat.lot.rattachements) {
+      ajouter(
+        {
+          genre: "rattachement",
+          code: rattachement.codeExistant,
+          domaineId: rattachement.domaineId,
+        },
+        [rattachement.justification],
+        rattachement.domaineId,
+        [rattachement.domaineId],
+      );
+    }
+
     for (const manque of resultat.lot.manques) {
       ajouter(
         {

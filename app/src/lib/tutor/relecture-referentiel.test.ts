@@ -80,8 +80,8 @@ describe("outilsRelecture — ce que le schéma laisse exprimer", () => {
     expect(schema?.manques?.maxItems).toBe(MAX_MANQUES_PROPOSES);
   });
 
-  it("exige les trois listes, quitte à être vides", () => {
-    expect(OUTILS[0].schema.required).toEqual(["scissions", "relations", "manques"]);
+  it("exige les quatre listes, quitte à être vides", () => {
+    expect(OUTILS[0].schema.required).toEqual(["scissions", "relations", "manques", "rattachements"]);
   });
 });
 
@@ -222,11 +222,71 @@ describe("validerRelecture — la seconde couche écarte l'inventé (ADR-031)", 
     expect(lot?.manques).toHaveLength(MAX_MANQUES_PROPOSES);
   });
 
-  it("accepte trois listes vides : « rien à proposer » est une réponse", () => {
-    expect(valider({ scissions: [], relations: [], manques: [] })).toEqual({
+  /*
+   * Le rattachement ne crée rien : il désigne un existant de chaque côté. Les
+   * DEUX identifiants doivent donc être dans leur `enum`, et une ligne dont
+   * l'un manque tombe entière — il n'y a rien à récupérer, à la différence
+   * d'une relation où l'intitulé reste exploitable.
+   */
+  it("retient un rattachement dont le code et le domaine sont connus", () => {
+    const recu = validerAppelOutil(
+      OUTIL_RELECTURE,
+      {
+        scissions: [], relations: [], manques: [],
+        rattachements: [
+          { codeExistant: "LOG-01", domaineId: "stats", justification: "Elle sert à lire un tableau." },
+        ],
+      },
+      OUTILS,
+    );
+    expect(recu).toMatchObject({
+      genre: "relecture",
+      relecture: { rattachements: [{ codeExistant: "LOG-01", domaineId: "stats" }] },
+    });
+  });
+
+  it("fait tomber un rattachement dont le code est inventé", () => {
+    const recu = validerAppelOutil(
+      OUTIL_RELECTURE,
+      {
+        scissions: [], relations: [], manques: [],
+        rattachements: [{ codeExistant: "INVENTE-1", domaineId: "stats", justification: "…" }],
+      },
+      OUTILS,
+    );
+    expect(recu).toMatchObject({ genre: "relecture", relecture: { rattachements: [] } });
+  });
+
+  it("fait tomber un rattachement dont le domaine est inventé", () => {
+    const recu = validerAppelOutil(
+      OUTIL_RELECTURE,
+      {
+        scissions: [], relations: [], manques: [],
+        rattachements: [{ codeExistant: "LOG-01", domaineId: "domaine-invente", justification: "…" }],
+      },
+      OUTILS,
+    );
+    expect(recu).toMatchObject({ genre: "relecture", relecture: { rattachements: [] } });
+  });
+
+  it("déduplique deux fois le même rattachement", () => {
+    const ligne = { codeExistant: "LOG-01", domaineId: "stats", justification: "…" };
+    const recu = validerAppelOutil(
+      OUTIL_RELECTURE,
+      { scissions: [], relations: [], manques: [], rattachements: [ligne, { ...ligne }] },
+      OUTILS,
+    );
+    expect(
+      (recu as { relecture: { rattachements: unknown[] } }).relecture.rattachements,
+    ).toHaveLength(1);
+  });
+
+  it("accepte quatre listes vides : « rien à proposer » est une réponse", () => {
+    expect(valider({ scissions: [], relations: [], manques: [], rattachements: [] })).toEqual({
       scissions: [],
       relations: [],
       manques: [],
+      rattachements: [],
     });
   });
 
@@ -321,7 +381,7 @@ describe("relireReferentiel — aucune panne ne se déguise en silence", () => {
       moteurQuiEmet([["erreur", { message: "Quota atteint." }]]),
       entree,
     );
-    expect(resultat.lot).toEqual({ scissions: [], relations: [], manques: [] });
+    expect(resultat.lot).toEqual({ scissions: [], relations: [], manques: [], rattachements: [] });
     expect(resultat.erreur).toBe("Quota atteint.");
   });
 

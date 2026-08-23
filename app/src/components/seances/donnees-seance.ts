@@ -3,6 +3,7 @@ import "server-only";
 import { chargerContexte } from "@/lib/store/context";
 import { calibragesPourModale } from "@/lib/domain/proprietes-generation";
 import type { DonneesSeance } from "./concepteur-seance";
+import { domainesPortants } from "@/lib/domain/hierarchie-domaines";
 
 /**
  * Les données du concepteur de séance, assemblées une seule fois.
@@ -28,11 +29,16 @@ export async function chargerDonneesSeance(): Promise<DonneesSeance> {
     calibragesModale: calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations),
     recommandations: ctx.recommandations,
     contexteDocumentaire: Array.from(ctx.contexteDocumentaire.entries()),
+    /*
+     * Ce qu'un domaine MONTRE, pas ce qu'il a créé (ADR-107). Le test portait
+     * sur le namespace de création : un sous-domaine né d'une scission n'en a
+     * aucun, et n'était donc pas proposable pour une séance.
+     */
     domaines: ctx.referentiel.domaines
       .filter(
         (domaine) =>
           !domaine.archive &&
-          ctx.referentiel.actifs.some((skill) => skill.domaine === domaine.id),
+          domainesPortants(ctx.referentiel.domaines, ctx.referentiel.actifs).has(domaine.id),
       )
       .map((d) => ({ id: d.id, nom: d.nom, prefixe: d.prefixe })),
     compteId: ctx.donnees.user.id,

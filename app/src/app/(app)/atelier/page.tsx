@@ -14,6 +14,7 @@ import { dorsaleCompte } from "@/lib/store/db";
 import { construireGraphe } from "@/lib/domain/graphe";
 import { construireGrapheDomaines } from "@/lib/domain/graphe-domaines";
 import { construireArbreSavoirs } from "@/lib/domain/arbre-savoirs";
+import { domainesPortants } from "@/lib/domain/hierarchie-domaines";
 import { construireVuesAtelier } from "@/lib/documents/vue-atelier";
 import { construireProgressionsDomaines } from "@/lib/documents/progression-domaine";
 import { lireChangementsReferentiel } from "@/lib/store/referentiel";
@@ -108,13 +109,20 @@ export default async function PageAtelier(props: {
         aperçus.some((apercu) => apercu.id === identifiantDocument || apercu.id === documentDemande)),
   );
   if (documentDemande && !contenuInitial && !selectionAtelierExiste) notFound();
+  /*
+   * Un domaine est visible s'il MONTRE une compétence, pas s'il en a créé une.
+   *
+   * Le test portait sur `skill.domaine === domaine.id`, c'est-à-dire le
+   * namespace de création. Depuis ADR-107 ce n'est plus là qu'on lit la
+   * visibilité — et un sous-domaine né d'une scission n'a aucune compétence
+   * dont `domaine` vaut son identifiant : les compétences gardent leur
+   * namespace, seul leur tag a bougé. « Gestion kanban » existait en base avec
+   * neuf compétences et n'apparaissait nulle part (constaté le 24/08/2026).
+   */
+  const portants = domainesPortants(referentiel.domaines, referentiel.actifs);
   const domainesVisibles = new Set(
     referentiel.domaines
-      .filter(
-        (domaine) =>
-          !domaine.archive &&
-          referentiel.skills.some((skill) => skill.domaine === domaine.id && !skill.archive),
-      )
+      .filter((domaine) => !domaine.archive && portants.has(domaine.id))
       .map((domaine) => domaine.id),
   );
   const exercicesVisibles = exercices.filter(

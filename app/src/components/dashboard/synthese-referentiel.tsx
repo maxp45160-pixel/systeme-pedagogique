@@ -25,9 +25,19 @@ export function SyntheseReferentiel({
   const nonEvaluees = Math.max(0, total - evaluees);
   const pourcentageDecouverte = total > 0 ? Math.round((evaluees / total) * 100) : 0;
 
-  // Calculer la répartition par domaine
+  /*
+   * La répartition par domaine, sur ce que chaque domaine MONTRE.
+   *
+   * Le filtre portait sur `s.domaine === domaine.id`, le namespace de création.
+   * Depuis ADR-107 la visibilité se lit dans les tags — d'où deux écrans qui se
+   * contredisaient, et un sous-domaine né d'une scission qui comptait zéro
+   * partout (constaté le 24/08/2026). Les sous-domaines ne sont PAS agrégés
+   * ici : chacun a sa ligne, comme dans l'Atelier.
+   */
   const statsParDomaine = referentiel.domaines.map((domaine) => {
-    const skillsDuDomaine = referentiel.actifs.filter((s) => s.domaine === domaine.id);
+    const skillsDuDomaine = referentiel.actifs.filter((s) =>
+      (s.tagsDomaine ?? []).includes(domaine.id),
+    );
     const codesDuDomaine = new Set(skillsDuDomaine.map((s) => s.code));
     const evalueesDuDomaine = etats.filter(
       (e) => codesDuDomaine.has(e.skill.code) && e.niveau !== null,

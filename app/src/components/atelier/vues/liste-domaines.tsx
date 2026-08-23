@@ -90,6 +90,7 @@ function CarteDomaine({
             >
               {estArchives ? "Domaine mis de côté" : actif ? "Champ actif" : "Domaine"}
             </span>
+            {/* Ce que ce domaine tague, ses sous-domaines non compris (24/08/2026). */}
             <span className="chiffres text-xs text-texte-discret">
               {total} compétence{total > 1 ? "s" : ""}
             </span>

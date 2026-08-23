@@ -284,6 +284,32 @@ describe("estEncoreApplicable, genre par genre", () => {
   });
 
   /*
+   * Le genre qui rattrape une scission incomplète : il ne tient que tant que le
+   * tag n'est pas posé.
+   */
+  it("écarte un rattachement dont le tag est déjà posé", () => {
+    const rattachement = {
+      genre: "rattachement", code: "LOG-01", domaineId: "stats",
+    } as const;
+    expect(estEncoreApplicable(rattachement, REFERENTIEL)).toBe(true);
+
+    const dejaTaguee: ReferentielLu = {
+      ...REFERENTIEL,
+      competences: [
+        { code: "LOG-01", intitule: "A", archive: false, prerequis: [], tagsDomaine: ["stats"] },
+      ],
+    };
+    expect(estEncoreApplicable(rattachement, dejaTaguee)).toBe(false);
+  });
+
+  it("écarte un rattachement vers un domaine disparu", () => {
+    const rattachement = {
+      genre: "rattachement", code: "LOG-01", domaineId: "nexiste-pas",
+    } as const;
+    expect(estEncoreApplicable(rattachement, REFERENTIEL)).toBe(false);
+  });
+
+  /*
    * Le côté sans code n'existe pas encore, et c'est exactement ce que la
    * proposition offre de créer : son absence ne la rend pas caduque.
    */
@@ -374,6 +400,7 @@ describe("retentionParGenre — la mesure du test de réfutation", () => {
       "scission",
       "relation",
       "manque",
+      "rattachement",
     ]);
   });
 });
