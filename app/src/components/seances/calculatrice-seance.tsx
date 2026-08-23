@@ -33,7 +33,14 @@ export function CalculatriceSeance({ compteId }: { compteId: string }) {
       variante="outil"
       libelle="Calculatrice"
       icone={<IconeCalculatrice className="size-3.5" />}
-      contenuClassName="sm:left-1/2 sm:-translate-x-1/2 sm:w-[min(24rem,calc(100vw-2rem))] fixed left-4 right-4 top-28 z-[var(--superposition-menu)] mt-2 shadow-xl sm:absolute sm:top-auto"
+      /*
+        Le panneau n'avait ni fond ni contour : une `shadow-xl` portée par une
+        boîte transparente, donc une ombre autour de rien, et des touches
+        posées à même la page. Il porte désormais la surface — c'est lui qui
+        tient la position, donc c'est lui qui tient la carte ; `Calculatrice`
+        reste du contenu pur.
+      */
+      contenuClassName="sm:left-1/2 sm:-translate-x-1/2 sm:w-[min(24rem,calc(100vw-2rem))] fixed left-4 right-4 top-28 z-[var(--superposition-menu)] mt-2 rounded-xl border border-bordure bg-surface p-3 shadow-[var(--ombre-surcouche)] sm:absolute sm:top-auto"
     >
       <Calculatrice />
     </OutilSeance>

@@ -63,6 +63,24 @@ describe("ce que la calculatrice refuse", () => {
   it("rend null sur un résultat non fini plutôt qu'Infinity", () => {
     expect(evaluer("1/0")).toBeNull();
   });
+
+  /*
+   * Depuis le 23/08/2026, l'affichage est un `<input>` : on tape au clavier,
+   * et le filtre du champ laisse volontairement passer les lettres de `sin`,
+   * `cos`, `tan`, `ln`, `log` et `e` — sans quoi on ne pourrait pas écrire
+   * `sin(` caractère par caractère, aucun préfixe n'étant une expression
+   * valide.
+   *
+   * Ces cas figent le fait que ce relâchement s'arrête au champ : tout ce
+   * qu'on peut désormais taper et qui n'est PAS une expression est rejeté par
+   * la liste blanche, avant `new Function`. La barrière n'a pas bougé.
+   */
+  it.each(["sin", "sco", "elg", "sin(", "cos)", "lnlog", "e e", "tanx"])(
+    "écarte %j, tapable au clavier mais pas une expression",
+    (saisie) => {
+      expect(evaluer(saisie)).toBeNull();
+    },
+  );
 });
 
 describe("la liste blanche ne part pas en backtracking", () => {
