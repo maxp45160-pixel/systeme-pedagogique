@@ -86,6 +86,13 @@ export interface ProprietesChat {
   competencesModale: CompetenceModale[];
   /** Calibrages de toutes les compétences, indexés par code — idem. */
   calibragesModale: Record<string, CalibrageModale>;
+  /**
+   * Remonte l'état du flux vers l'appelant.
+   *
+   * Sert au tiroir : fenêtre fermée, il peut signaler sur son bouton que la
+   * génération continue en arrière-plan.
+   */
+  surEnCoursChange?: (enCours: boolean) => void;
 }
 
 /**
@@ -126,6 +133,7 @@ function ChatHydrate({
   domainesExistants,
   competencesModale,
   calibragesModale,
+  surEnCoursChange,
 }: {
   /** Manifeste et moteur, calculés côté serveur au rendu de la page. */
   etatInitial: EtatContexteTuteur;
@@ -149,6 +157,8 @@ function ChatHydrate({
   competencesModale: CompetenceModale[];
   /** Calibrages de toutes les compétences, indexés par code — idem. */
   calibragesModale: Record<string, CalibrageModale>;
+  /** Remontée de l'état du flux — voir `ProprietesChat`. */
+  surEnCoursChange?: (enCours: boolean) => void;
 }) {
   // `etat` ne vient plus d'un chargement asynchrone : il est calculé par le
   // serveur et ne change pas pendant la vie du composant. Pas d'état local.
@@ -343,7 +353,8 @@ function ChatHydrate({
   }, [messages]);
   useEffect(() => {
     enCoursRef.current = enCours;
-  }, [enCours]);
+    surEnCoursChange?.(enCours);
+  }, [enCours, surEnCoursChange]);
 
   /**
    * Flux en cours, pour pouvoir l'interrompre.

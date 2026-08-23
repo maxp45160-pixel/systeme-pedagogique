@@ -29,6 +29,10 @@ interface CorpsGenerer {
   competences?: string[];
   /** Indice de rédaction facultatif. */
   theme?: string;
+  /** Durée totale visée de la séance — calibre la durée estimée des exercices. */
+  dureeCibleMin?: number;
+  /** Nombre d'exercices du lot — complète la contrainte de durée. */
+  nombreExercices?: number;
   /** Config saisie côté client (réglages). Prime sur les variables serveur. */
   config?: ConfigTuteurClient;
   /** Révision d'une proposition non enregistrée, demandée par la personne. */
@@ -89,6 +93,14 @@ export async function POST(request: Request) {
    * sans explication — l'utilisateur croyait à un refus partiel du tuteur.
    */
   const ignorees: string[] = [];
+  const dureeCible =
+    typeof corps.dureeCibleMin === "number" && Number.isFinite(corps.dureeCibleMin) && corps.dureeCibleMin >= 5
+      ? Math.round(corps.dureeCibleMin)
+      : undefined;
+  const nombreExercicesLot =
+    typeof corps.nombreExercices === "number" && Number.isInteger(corps.nombreExercices) && corps.nombreExercices > 0
+      ? corps.nombreExercices
+      : codes.length;
   const demandes = codes.flatMap((code) => {
     const etat = ctx.etatsParCode.get(code.toUpperCase());
     if (!etat) {
@@ -100,6 +112,7 @@ export async function POST(request: Request) {
         competence: etat.skill,
         calibration: ctx.calibrations.get(etat.skill.code) ?? null,
         theme: corps.theme,
+        ...(dureeCible ? { enveloppe: { dureeCibleMin: dureeCible, nombreExercices: nombreExercicesLot } } : {}),
         ...(consigneModification && propositionModification
           ? {
               modification: {

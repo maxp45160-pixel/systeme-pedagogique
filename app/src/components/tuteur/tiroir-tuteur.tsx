@@ -18,7 +18,7 @@
  * contextuel reste disponible depuis le nouveau hub Atelier.
  */
 
-import { useState, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 import { ChatTuteur } from "@/components/tuteur/chat";
 import type { EtatContexteTuteur } from "@/lib/tutor/etat-contexte";
 import { classesOutilSeance, classesLienBouton, cx } from "@/components/ui/primitives";
@@ -84,10 +84,22 @@ export function TiroirTuteur({
   /** Liste d'actions prédéfinies à afficher en barre contextuelle. */
   actionsContextuelles?: ActionContextuelleTuteur[];
 }) {
+  /*
+   * Fermer le tiroir n'interrompt plus la génération : la modale reste montée
+   * mais masquée (`masquee`), le flux SSE poursuit en arrière-plan, et la
+   * conversation se retrouve telle quelle à la réouverture. Le bouton porte un
+   * point pulsant tant que le tuteur écrit, pour qu'une fenêtre fermée ne
+   * devienne pas une réponse perdue de vue.
+   */
   const [ouvert, setOuvert] = useState(false);
+  const [dejaOuvert, setDejaOuvert] = useState(false);
+  const [generationEnCours, setGenerationEnCours] = useState(false);
   const [amorceCourante, setAmorceCourante] = useState<string | undefined>(amorce);
   const [donneesLazy, setDonneesLazy] = useState<DonneesTuteurGlobal | null>(null);
   const [enChargement, startTransition] = useTransition();
+  const surEnCoursChange = useCallback((enCours: boolean) => {
+    setGenerationEnCours(enCours);
+  }, []);
 
   const flottant = declencheur === "flottant";
   const barre = declencheur === "barre-contextuelle";
@@ -96,6 +108,7 @@ export function TiroirTuteur({
   function ouvrirAvecAmorce(texteAmorce?: string) {
     setAmorceCourante(texteAmorce ?? amorce);
     setOuvert(true);
+    setDejaOuvert(true);
     if (besoinLazy && !donneesLazy) {
       startTransition(async () => {
         try {
@@ -148,7 +161,13 @@ export function TiroirTuteur({
           type="button"
           onClick={() => ouvrirAvecAmorce(amorce)}
           aria-label={flottant ? libelle : undefined}
-          title={flottant ? libelle : undefined}
+          title={
+            flottant
+              ? !ouvert && generationEnCours
+                ? "Le tuteur rédige sa réponse…"
+                : libelle
+              : undefined
+          }
           data-tour={flottant ? "tuteur-flottant" : undefined}
           className={
             flottant
@@ -159,19 +178,31 @@ export function TiroirTuteur({
           }
         >
           {flottant ? (
-            <IconeMessage className="size-5" />
+            <>
+              <IconeMessage className="size-5" />
+              {!ouvert && generationEnCours && (
+                <span
+                  className="absolute right-0 top-0 size-3 animate-pulse rounded-full bg-succes ring-2 ring-surface"
+                  aria-hidden
+                />
+              )}
+              <span className="sr-only">
+                {!ouvert && generationEnCours ? " (le tuteur rédige une réponse)" : ""}
+              </span>
+            </>
           ) : (
             libelle
           )}
         </button>
       )}
 
-      {ouvert && (
+      {dejaOuvert && (
         <Modale
           titre="Tuteur IA"
           sousTitre="Il reçoit les protocoles du système et l'état réel de tes compétences."
           largeur="md"
           position="laterale"
+          masquee={!ouvert}
           onFermer={() => setOuvert(false)}
         >
           <div className="min-h-0 flex-1 overflow-y-auto">
@@ -187,6 +218,7 @@ export function TiroirTuteur({
                 domainesExistants={domainesExistants}
                 competencesModale={competencesModale}
                 calibragesModale={calibragesModale}
+                surEnCoursChange={surEnCoursChange}
               />
             ) : enChargement ? (
               <div className="flex h-64 items-center justify-center p-6 text-center text-xs text-texte-discret">

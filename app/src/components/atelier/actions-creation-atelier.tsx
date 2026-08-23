@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Modale } from "@/components/ui/modale";
 import { IconeAmpoule, IconeCours, IconeDocuments, IconeFormule, IconePlus, IconeProjet } from "@/components/ui/icones";
 import { creerNoteAction } from "@/lib/store/document-actions";
+import { definitionTypeDocument } from "@/lib/documents/types-documents";
 import { ModaleCompetence } from "@/components/referentiel/modale-competence";
 import { ModaleReferentiel } from "@/components/referentiel/modale-referentiel";
 import { ParcoursNouveauProjet } from "@/components/projets/modale-nouveau-projet";
@@ -232,6 +233,16 @@ function ModaleCreationDocument({
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, demarrer] = useState(false);
   const definition = TYPES_DOCUMENT[type];
+  /*
+   * La saisie reflète le rendu : une zone par section déclarée du type
+   * (Résumé, Passages utiles…), pas seulement un contexte unique. Rester vide
+   * est valide — les sections restent dans la fiche, à compléter plus tard.
+   */
+  const sectionsDocument = useMemo(
+    () => definitionTypeDocument(definition.type)?.sections ?? ["Contenu"],
+    [definition.type],
+  );
+  const [valeursSections, setValeursSections] = useState<Record<string, string>>({});
 
   async function creer() {
     const titreNettoye = titre.trim();
@@ -244,10 +255,13 @@ function ModaleCreationDocument({
     demarrer(true);
     setErreur(null);
     try {
-      const fiche = await creerNoteAction("support", definition.type, titreNettoye, {
-        contexte: contexteNettoye,
-        domaine,
-      });
+      const fiche = await creerNoteAction(
+        "support",
+        definition.type,
+        titreNettoye,
+        { contexte: contexteNettoye, domaine },
+        valeursSections,
+      );
       onFermer();
       router.push(`/atelier?note=${encodeURIComponent(fiche.id)}`);
       router.refresh();
@@ -305,6 +319,24 @@ function ModaleCreationDocument({
             placeholder="Pourquoi veux-tu garder cette fiche ?"
           />
         </label>
+
+        {sectionsDocument.map((section) => (
+          <label key={section} className="block">
+            <span className="text-xs font-medium text-texte">{section}</span>
+            <textarea
+              value={valeursSections[section] ?? ""}
+              onChange={(event) =>
+                setValeursSections((anciennes) => ({
+                  ...anciennes,
+                  [section]: event.target.value,
+                }))
+              }
+              rows={3}
+              className="mt-1.5 w-full resize-none rounded-lg border border-bordure-controle bg-surface px-3 py-2 text-sm outline-none transition-colors placeholder:text-texte-discret focus:border-primaire focus:ring-1 focus:ring-primaire/20"
+              placeholder={`Contenu de la section « ${section} » (facultatif ici)`}
+            />
+          </label>
+        ))}
 
         <label className="block">
           <span className="text-xs font-medium text-texte">Domaine</span>

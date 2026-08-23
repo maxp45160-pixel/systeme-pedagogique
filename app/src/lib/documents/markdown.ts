@@ -249,6 +249,27 @@ export function creerDepuisTemplate(
 }
 
 /**
+ * Remplace le titre H1 d'un document, sans toucher au frontmatter ni au corps.
+ *
+ * Le titre vit dans la première ligne `# …` du corps : renommer est une
+ * réécriture localisée, jamais une reconstruction du document.
+ */
+export function renommerDocument(contenuMd: string, nouveauTitre: string): string {
+  const titrePropre = nouveauTitre.trim().slice(0, 200);
+  if (!titrePropre) return contenuMd;
+  const { frontmatterBrut, corps } = separerFrontMatterEtCorps(contenuMd);
+  const lignes = corps.replace(/\r\n/g, "\n").split("\n");
+  const indexTitre = lignes.findIndex((ligne) => /^#\s+\S/.test(ligne));
+  if (indexTitre === -1) {
+    const corpsRenomme = [`# ${titrePropre}`, "", ...lignes].join("\n").trimStart();
+    return frontmatterBrut ? `${frontmatterBrut}\n\n${corpsRenomme}` : corpsRenomme;
+  }
+  lignes[indexTitre] = `# ${titrePropre}`;
+  const corpsRenomme = lignes.join("\n");
+  return frontmatterBrut ? `${frontmatterBrut}\n\n${corpsRenomme}` : corpsRenomme;
+}
+
+/**
  * Insère ou met à jour la clé `archive: true/false` dans le frontmatter YAML d'un document Markdown.
  */
 export function definirArchiveFrontMatter(contenuMd: string, archive: boolean): string {

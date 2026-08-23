@@ -17,6 +17,7 @@ import { lireApercusDocuments, lireApercusSnapshots } from "@/lib/store/document
 import type { DocumentOperationnelDate } from "@/lib/domain/pages-cahier";
 import { ConcepteurSeance, type PresetSeance } from "@/components/seances/concepteur-seance";
 import { statutSeance, TEMPS_DECLARE_MAX } from "@/lib/domain/seance";
+import { nombreExercicesConseille } from "@/lib/engine/caf";
 
 /*
  * Les aperçus documentaires ne servent au cahier qu'à lister les documents
@@ -154,11 +155,21 @@ async function CompositeurDepuisLien({
     return skill ? [skill.domaine] : [];
   }))];
 
+  /*
+   * Le nombre d'exercices suit la durée déclarée, il n'est plus codé en dur à
+   * 3 : un lien « 15 min » qui composait trois exercices de ~20 min produisait
+   * une séance de 60 min. Sans historique suffisant pour `nombreExercicesConseille`,
+   * repli simple : un exercice par tranche de 15 min.
+   */
+  const conseilLien = nombreExercicesConseille(duree, donnees.exercices, donnees.tentatives);
+  const nombreExercicesLien =
+    conseilLien?.nombre ?? Math.min(6, Math.max(1, Math.round(duree / 15)));
+
   const preset: PresetSeance | undefined = codes.length > 0
     ? {
         libelle: codes.length === 1 ? `Compétence : ${codes[0]}` : "Séance ciblée",
         codesVises: codes,
-        nombreExercices: 3,
+        nombreExercices: nombreExercicesLien,
         dureeCibleMin: duree,
         ...(domaines.length === 1 ? { domaine: domaines[0] } : {}),
       }

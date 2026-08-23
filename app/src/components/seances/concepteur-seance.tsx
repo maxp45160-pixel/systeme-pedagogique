@@ -195,6 +195,8 @@ export function ConcepteurSeance({
   const [generationCibles, setGenerationCibles] = useState<{
     codeInitial: string;
     codes?: string[];
+    /** Budget de la séance : le tuteur calibre les durées des manquants dessus. */
+    dureeCibleMin?: number;
   } | null>(null);
 
   function fermer() {
@@ -574,6 +576,7 @@ export function ConcepteurSeance({
               competences={competencesModale}
               competenceInitiale={generationCibles.codeInitial}
               competencesCibles={generationCibles.codes}
+              dureeCibleMin={generationCibles.dureeCibleMin}
               calibrages={calibragesModale}
               compteId={compteId}
               surEnregistre={() => {
@@ -624,7 +627,9 @@ export function ConcepteurSeance({
               enregistrement={enregistrement}
               erreur={erreur}
               planifier={() => enregistrer(false)}
-              onDeclencherGeneration={(cibles) => setGenerationCibles(cibles)}
+              onDeclencherGeneration={(cibles) =>
+                setGenerationCibles({ ...cibles, dureeCibleMin: tempsMin })
+              }
             />
           )}
         </Modale>

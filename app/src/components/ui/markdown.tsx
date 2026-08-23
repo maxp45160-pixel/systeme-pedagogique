@@ -1,6 +1,7 @@
 import { memo, type ReactNode } from "react";
 import { decouperEnBlocs } from "@/lib/ui/markdown-blocs";
 import { latexVersTexte, segmenterFormulesEnLigne } from "@/lib/ui/formule";
+import { FormuleMath } from "@/components/ui/formule-math";
 import { parserFrontMatter, REGEX_INLINE_MARKDOWN } from "@/lib/documents/markdown";
 
 /**
@@ -62,9 +63,13 @@ function emphase(texte: string, pfx: string): ReactNode[] {
 function enligne(texte: string, pfx: string = "in"): ReactNode[] {
   return segmenterFormulesEnLigne(texte).flatMap((segment, idx) =>
     segment.formule ? (
-      <span key={`${pfx}-f-${idx}`} className="formule">
-        {segment.texte}
-      </span>
+      segment.latex ? (
+        <FormuleMath key={`${pfx}-f-${idx}`} latex={segment.latex} />
+      ) : (
+        <span key={`${pfx}-f-${idx}`} className="formule">
+          {segment.texte}
+        </span>
+      )
     ) : (
       emphase(segment.texte, `${pfx}-${idx}`)
     ),
@@ -144,7 +149,13 @@ export const Markdown = memo(function Markdown({
       case "formule":
         return (
           <div key={cle} className="formule-affichee">
-            {latexVersTexte(bloc.latex)}
+            <FormuleMath latex={bloc.latex} display />
+            {/*
+              Le texte Unicode reste sous la composition KaTeX : copiable,
+              cherchable, et lisible si KaTeX refuse une commande exotique —
+              `FormuleMath` retombe alors dessus de lui-même.
+            */}
+            <p className="sr-only">{latexVersTexte(bloc.latex)}</p>
           </div>
         );
 

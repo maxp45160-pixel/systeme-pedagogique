@@ -118,7 +118,7 @@ describe("segmenterFormulesEnLigne", () => {
   it("isole une formule \\( … \\) au milieu de la prose", () => {
     expect(segmenterFormulesEnLigne("On pose \\(\\mu_d\\) puis on conclut.")).toEqual([
       { formule: false, texte: "On pose " },
-      { formule: true, texte: "μ_d" },
+      { formule: true, texte: "μ_d", latex: "\\mu_d" },
       { formule: false, texte: " puis on conclut." },
     ]);
   });
@@ -126,7 +126,7 @@ describe("segmenterFormulesEnLigne", () => {
   it("accepte $ … $ quand le contenu porte une marque de notation", () => {
     expect(segmenterFormulesEnLigne("soit $\\sigma^2$ ici")).toEqual([
       { formule: false, texte: "soit " },
-      { formule: true, texte: "σ²" },
+      { formule: true, texte: "σ²", latex: "\\sigma^2" },
       { formule: false, texte: " ici" },
     ]);
   });
@@ -136,7 +136,11 @@ describe("segmenterFormulesEnLigne", () => {
       segmenterFormulesEnLigne("Soit A = \\begin{pmatrix} 3 & 1 \\ 2 & 4 \\ \\end{pmatrix} définie"),
     ).toEqual([
       { formule: false, texte: "Soit A = " },
-      { formule: true, texte: "( 3 1 ; 2 4 )" },
+      {
+        formule: true,
+        texte: "( 3 1 ; 2 4 )",
+        latex: "\\begin{pmatrix} 3 & 1 \\ 2 & 4 \\ \\end{pmatrix}",
+      },
       { formule: false, texte: " définie" },
     ]);
   });
@@ -144,7 +148,7 @@ describe("segmenterFormulesEnLigne", () => {
   it("reconnaît les délimiteurs \\[ … \\] et $$ … $$ inline", () => {
     expect(segmenterFormulesEnLigne("valeur \\[ x^2 + 1 \\] fin")).toEqual([
       { formule: false, texte: "valeur " },
-      { formule: true, texte: "x² + 1" },
+      { formule: true, texte: "x² + 1", latex: " x^2 + 1 " },
       { formule: false, texte: " fin" },
     ]);
   });

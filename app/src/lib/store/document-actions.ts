@@ -1,6 +1,12 @@
 "use server";
 
-import { creerDepuisTemplate, definirArchiveFrontMatter } from "@/lib/documents/markdown";
+import {
+  creerDepuisTemplate,
+  definirArchiveFrontMatter,
+  renommerDocument,
+} from "@/lib/documents/markdown";
+import { mettreAJourSections } from "@/lib/documents/sections-markdown";
+import { definitionTypeDocument } from "@/lib/documents/types-documents";
 import { formatAutorise, type RoleNote } from "@/lib/documents/roles-note";
 import { creerDocument, lireDocument, modifierDocument, supprimerDocument } from "./documents";
 import { dorsaleCompte, nouvelId } from "./db";
@@ -38,6 +44,8 @@ export async function creerNoteAction(
   type: string,
   titre: string,
   metadonnees: MetadonneesNote,
+  /** Contenu initial par section déclarée du type — la saisie reflète le rendu. */
+  sections?: Record<string, string>,
 ): Promise<{ id: string; contenuMd: string }> {
   if (!formatAutorise(role, type)) {
     throw new Error("Ce format ne correspond pas au rôle de note choisi.");
@@ -62,11 +70,25 @@ export async function creerNoteAction(
   }
 
   const id = nouvelId("doc");
-  const contenuMd = creerDepuisTemplate(type, id, titre, undefined, {
+  let contenuMd = creerDepuisTemplate(type, id, titre, undefined, {
     role,
     contexte,
     domaine,
   });
+
+  const sectionsDeclarees = definitionTypeDocument(type)?.sections ?? [];
+  const sectionsRenseignees = Object.fromEntries(
+    Object.entries(sections ?? {})
+      .map(([nom, valeur]) => {
+        const declaree = sectionsDeclarees.find((s) => s.localeCompare(nom, "fr", { sensitivity: "base" }) === 0) ?? nom;
+        return [declaree, typeof valeur === "string" ? valeur.trim() : ""];
+      })
+      .filter(([, valeur]) => valeur !== ""),
+  );
+  if (Object.keys(sectionsRenseignees).length > 0) {
+    contenuMd = mettreAJourSections(contenuMd, sectionsDeclarees, sectionsRenseignees);
+  }
+
   await creerDocument(id, contenuMd);
   return { id, contenuMd };
 }
@@ -85,6 +107,21 @@ export async function restaurerDocumentAction(id: string): Promise<void> {
   const doc = await lireDocument(id);
   const nouveauContenu = definirArchiveFrontMatter(doc.contenuMd, false);
   await modifierDocument(id, nouveauContenu);
+}
+
+export async function renommerDocumentAction(
+  id: string,
+  nouveauTitre: string,
+): Promise<{ titre: string; contenuMd: string; updatedAt: string }> {
+  const titre = nouveauTitre.trim().slice(0, 200);
+  if (!titre) throw new Error("Le titre ne peut pas être vide.");
+  const doc = await lireDocument(id);
+  const nouveauContenu = renommerDocument(doc.contenuMd, titre);
+  if (nouveauContenu === doc.contenuMd) {
+    return { titre, contenuMd: doc.contenuMd, updatedAt: doc.updatedAt ?? "" };
+  }
+  const resultat = await modifierDocument(id, nouveauContenu, false, doc.updatedAt);
+  return { titre, contenuMd: nouveauContenu, updatedAt: resultat.updatedAt };
 }
 
 export async function preparerTeleversementPdfAction(

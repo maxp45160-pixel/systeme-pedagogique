@@ -91,6 +91,7 @@ export function Modale({
   children,
   pied,
   className,
+  masquee = false,
 }: {
   /** Sert de titre visible ET de nom accessible — les deux ne peuvent pas diverger. */
   titre: string;
@@ -107,6 +108,16 @@ export function Modale({
    */
   pied?: ReactNode;
   className?: string;
+  /**
+   * Garder le contenu monté mais invisible.
+   *
+   * Sert au tiroir du tuteur : fermer la fenêtre pendant que le modèle rédige
+   * ne doit ni démonter le chat ni couper le flux SSE. La modale reste rendue,
+   * masquée (`display:none`), sans piège de focus ni blocage de défilement ; le
+   * contenu poursuit son travail en arrière-plan et se retrouve tel quel à la
+   * réouverture.
+   */
+  masquee?: boolean;
 }) {
   const panneauRef = useRef<HTMLDivElement>(null);
   const idTitre = useId();
@@ -157,6 +168,7 @@ export function Modale({
    * modale ouverte au-dessus d'une autre rende bien `hidden` en se fermant.
    */
   useEffect(() => {
+    if (masquee) return;
     const compensation = window.innerWidth - document.documentElement.clientWidth;
     const { overflow, paddingRight } = document.body.style;
     document.body.style.overflow = "hidden";
@@ -165,7 +177,7 @@ export function Modale({
       document.body.style.overflow = overflow;
       document.body.style.paddingRight = paddingRight;
     };
-  }, []);
+  }, [masquee]);
 
   /*
    * Le focus entre dans la modale — sur le panneau lui-même si rien d'autre
@@ -178,12 +190,13 @@ export function Modale({
    * pose l'attribut, la primitive garde la règle.
    */
   useEffect(() => {
+    if (masquee) return;
     const panneau = panneauRef.current;
     if (!panneau) return;
     const designe = panneau.querySelector<HTMLElement>("[data-focus-initial]");
     const premier = designe ?? panneau.querySelector<HTMLElement>(FOCUSABLES);
     (premier ?? panneau).focus();
-  }, [monte]);
+  }, [monte, masquee]);
 
   const surTouche = useCallback(
     (e: KeyboardEvent) => {
@@ -219,9 +232,10 @@ export function Modale({
   );
 
   useEffect(() => {
+    if (masquee) return;
     document.addEventListener("keydown", surTouche);
     return () => document.removeEventListener("keydown", surTouche);
-  }, [surTouche]);
+  }, [surTouche, masquee]);
 
   if (!monte) return null;
 
@@ -233,7 +247,9 @@ export function Modale({
           ? "justify-end"
           : "items-center justify-center p-4",
       )}
-      onClick={onFermer}
+      style={masquee ? { display: "none" } : undefined}
+      aria-hidden={masquee || undefined}
+      onClick={masquee ? undefined : onFermer}
     >
       <div
         ref={panneauRef}

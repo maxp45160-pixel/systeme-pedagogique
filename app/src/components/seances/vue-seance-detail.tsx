@@ -22,6 +22,7 @@ import { Carte, CodeCompetence, EnTeteCarte, Etiquette, EtatVide, classesLienBou
 import { ActionSeance } from "@/components/seances/action-seance";
 import { Pomodoro } from "@/components/seances/pomodoro";
 import { OutilSeance } from "@/components/seances/outil-seance";
+import { CalculatriceSeance } from "@/components/seances/calculatrice-seance";
 import { MargeCahier } from "@/components/seances/marge-cahier";
 import { lireMarge } from "@/lib/store/marge";
 import { FocusActe } from "@/components/exercices/focus-acte";
@@ -376,6 +377,12 @@ export async function VueSeanceDetail({
               >
                 <Pomodoro compteId={ctx.donnees.user.id} />
               </OutilSeance>
+              {/*
+                La calculatrice est un support, pas une évidence : elle se
+                montre ou se cache depuis les réglages du compte (Apparence &
+                Compte), et la préférence reste sur l'appareil.
+              */}
+              <CalculatriceSeance compteId={ctx.donnees.user.id} />
               {/*
                 La marge suit le travail. C'est pendant un exercice qu'on se dit
                 « il faudra revoir ça » — et jusqu'ici le workspace n'offrait

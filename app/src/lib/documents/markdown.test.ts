@@ -4,10 +4,29 @@ import {
   analyserDocumentMarkdown,
   parserFrontMatter,
   definirArchiveFrontMatter,
+  renommerDocument,
 } from "./markdown";
 import { reconstruireIndexDocumentaire, reconstruireIndexDepuisApercus } from "./index";
 
 describe("documents Markdown", () => {
+  it("renomme le titre H1 sans toucher au frontmatter ni aux sections", () => {
+    const doc = creerDepuisTemplate(
+      "note",
+      "doc-1",
+      "Ancien titre",
+      undefined,
+      { contexte: "pourquoi", domaine: "transversal" },
+    );
+    const renomme = renommerDocument(doc, "Nouveau titre");
+    const analyse = analyserDocumentMarkdown("doc-1", renomme);
+    expect(analyse.titre).toBe("Nouveau titre");
+    expect(analyse.frontMatter.contexte).toBe("pourquoi");
+    expect(renomme).toContain("## Contexte");
+
+    // Un titre vide ne réécrit rien.
+    expect(renommerDocument(doc, "   ")).toBe(doc);
+  });
+
   it("définit ou met à jour la clé archive dans le front-matter", () => {
     // Document sans front-matter initial
     const sansFrontmatter = "# Document brut\n\nCorps du texte";

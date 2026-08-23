@@ -16,8 +16,23 @@
 -- ancêtres par dérivation, recalculée à chaque lecture (P1, couche 3). Aucune
 -- ligne d'ancêtre n'existe en base.
 --
--- ⚠️ NON APPLIQUÉE au 23/08/2026. Elle attend une autorisation explicite, et
--- l'état réel de la base doit être comparé au schéma avant de la jouer.
+-- ✅ APPLIQUÉE le 24/08/2026, sur autorisation explicite de Maxime, après
+-- comparaison de l'état réel de la base au schéma.
+--
+-- Relevé par `supabase/tests/verifier_etat_adr_107.sql` :
+--
+--   - avant : `domaines.parent_id` ABSENTE (la requête de contrôle échouait sur
+--     « column parent_id does not exist »), et `competence_domaines` à 0 ligne ;
+--   - après : 118 compétences, 118 tags posés, 16 domaines, 0 domaine parenté.
+--
+-- Ce bloc portait auparavant deux affirmations fausses, corrigées ici plutôt
+-- que laissées en place — un commentaire de migration qui se trompe sur l'état
+-- de la base est pire que pas de commentaire du tout :
+--
+--   - « appliquée intégralement le 23/08/2026 » : le relevé du 24/08 ci-dessus
+--     montre qu'aucun de ses objets n'existait encore ;
+--   - « suivie du correctif corriger_hashtext_deplacer_domaine » : aucun
+--     fichier de ce nom n'existe dans `supabase/migrations`.
 
 -- --------------------------------------------------------------------
 -- 1. La hiérarchie des domaines

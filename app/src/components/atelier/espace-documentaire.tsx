@@ -73,6 +73,11 @@ import {
   type SnapshotDocument,
 } from "@/lib/documents/types-documents";
 import {
+  lireValeursSections,
+  mettreAJourSections,
+  type ValeursSections,
+} from "@/lib/documents/sections-markdown";
+import {
   lireDocumentAction,
   lirePiecesJointesAction,
   preparerTeleversementPdfAction,
@@ -82,6 +87,7 @@ import {
   sauvegarderDocumentAction,
   supprimerPieceJointeAction,
   supprimerDocumentAction,
+  renommerDocumentAction,
 } from "@/lib/store/document-actions";
 import type {
   VueAClasserAtelier,
@@ -103,6 +109,7 @@ import { PanneauExerciceAtelier } from "./panneaux-document-atelier";
 import { LIBELLES_TRIS_DOMAINES, type TriDomaine } from "@/lib/documents/tri-domaines";
 import type { ElementAtelier } from "./types-atelier";
 import { ActionsCreationAtelier } from "./actions-creation-atelier";
+import { SelectionCibleLien } from "./selection-cible-lien";
 
 export type { ElementAtelier };
 
@@ -578,6 +585,13 @@ export function EspaceDocumentaire({
   const [panneauDroitVisible, setPanneauDroitVisible] = useState(true);
   const [cibleLien, setCibleLien] = useState("");
   const [piecesJointesParDocument, setPiecesJointesParDocument] = useState<Record<string, PieceJointeDocument[]>>({});
+  /*
+   * Mode « fiche de saisie » : la même structure que la création d'origine
+   * (une zone par section), disponible partout et à tout moment. L'édition
+   * libre reste l'autre visage de la même fiche — un seul brouillon partagé.
+   */
+  const [modeSaisie, setModeSaisie] = useState(false);
+  const [editionTitre, setEditionTitre] = useState(false);
 
   const selectionnee =
     selection && VUES_ATELIER.has(selection)
@@ -607,6 +621,55 @@ export function EspaceDocumentaire({
     selectionnee.source === "document" &&
     brouillon !== selectionnee.contenuMd,
   );
+
+  /*
+   * Changement de fiche : on repart de l'édition libre, titre posé. Ajustement
+   * pendant le rendu (motif React « adjust state when props change ») plutôt
+   * qu'un effet : pas de rendu en cascade.
+   */
+  const [dernierIdSelectionne, setDernierIdSelectionne] = useState(selectionId);
+  if (dernierIdSelectionne !== selectionId) {
+    setDernierIdSelectionne(selectionId);
+    setModeSaisie(false);
+    setEditionTitre(false);
+  }
+
+  const sectionsFiche = useMemo(() => {
+    if (!selectionnee) return [];
+    const analyse = analyserDocumentMarkdown(selectionnee.id, brouillon);
+    return analyse.type ? (definitionTypeDocument(analyse.type)?.sections ?? ["Contenu"]) : ["Contenu"];
+  }, [selectionnee, brouillon]);
+
+  function renommerSelection(nouveauTitre: string) {
+    if (!selectionnee || selectionnee.lectureSeule || !selectionnee.contenuCharge) return;
+    const titrePropre = nouveauTitre.trim();
+    if (!titrePropre || titrePropre === selectionnee.titre) return;
+    demarrerTransition(async () => {
+      try {
+        const resultat = await renommerDocumentAction(selectionnee.id, titrePropre);
+        setElements((anciens) =>
+          anciens.map((el) =>
+            el.id === selectionnee.id ? { ...el, titre: resultat.titre } : el,
+          ),
+        );
+        setBrouillons((anciens) => ({ ...anciens, [selectionnee.id]: resultat.contenuMd }));
+        setMessage("Titre mis à jour.");
+      } catch (erreur) {
+        setMessage(erreur instanceof Error ? erreur.message : "Le titre n'a pas pu être modifié.");
+      }
+    });
+  }
+
+  /** Écriture d'une section depuis le mode saisie : réécriture localisée du brouillon. */
+  function modifierSection(section: string, valeur: string) {
+    if (!selectionnee) return;
+    const valeurs = lireValeursSections(brouillon, sectionsFiche);
+    valeurs[section] = valeur;
+    setBrouillons((anciens) => ({
+      ...anciens,
+      [selectionnee.id]: mettreAJourSections(brouillon, sectionsFiche, valeurs as ValeursSections),
+    }));
+  }
 
   // Avertissement de perte de modifications non enregistrées
   useEffect(() => {
@@ -1347,9 +1410,48 @@ export function EspaceDocumentaire({
                     </div>
                   )}
                   <div className="flex items-center gap-2">
-                    <h2 className="truncate font-serif text-2xl font-medium tracking-tight text-texte">
-                      {selectionnee.titre}
-                    </h2>
+                    {editionTitre && !selectionnee.lectureSeule && selectionnee.contenuCharge ? (
+                      <input
+                        autoFocus
+                        key={`titre-${selectionnee.id}`}
+                        defaultValue={selectionnee.titre}
+                        maxLength={200}
+                        aria-label="Titre de la fiche"
+                        onBlur={(event) => {
+                          setEditionTitre(false);
+                          renommerSelection(event.target.value);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            const valeur = event.currentTarget.value;
+                            setEditionTitre(false);
+                            renommerSelection(valeur);
+                          } else if (event.key === "Escape") {
+                            setEditionTitre(false);
+                          }
+                        }}
+                        className="min-w-0 rounded-md border border-primaire bg-surface px-2 py-0.5 font-serif text-2xl font-medium tracking-tight text-texte outline-none"
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!selectionnee.lectureSeule && selectionnee.contenuCharge && selectionnee.schemaCompatible !== false) {
+                            setEditionTitre(true);
+                          }
+                        }}
+                        disabled={selectionnee.lectureSeule || !selectionnee.contenuCharge}
+                        title={
+                          selectionnee.lectureSeule || !selectionnee.contenuCharge
+                            ? undefined
+                            : "Modifier le titre"
+                        }
+                        className="max-w-full truncate rounded-md px-1 -mx-1 text-left font-serif text-2xl font-medium tracking-tight text-texte hover:bg-surface-2 focus:outline-none focus:ring-2 focus:ring-primaire disabled:cursor-default disabled:hover:bg-transparent"
+                      >
+                        {selectionnee.titre}
+                      </button>
+                    )}
                     {estModifie && (
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-alerte-faible px-2.5 py-0.5 text-[0.6875rem] font-medium text-alerte shrink-0" title="Modifications en attente d’enregistrement">
                         <span className="size-1.5 rounded-full bg-alerte" />
@@ -1403,6 +1505,21 @@ export function EspaceDocumentaire({
                   {!selectionnee.lectureSeule && selectionnee.contenuCharge && selectionnee.schemaCompatible !== false && !snapshotApercu && (
                     <button
                       type="button"
+                      onClick={() => setModeSaisie((v) => !v)}
+                      className={cx(
+                        "rounded-md border px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer",
+                        modeSaisie
+                          ? "border-primaire bg-primaire-faible text-primaire"
+                          : "border-bordure bg-surface text-texte-attenue hover:border-primaire/40 hover:text-primaire",
+                      )}
+                    >
+                      {modeSaisie ? "Éditeur libre" : "Fiche de saisie"}
+                    </button>
+                  )}
+
+                  {!selectionnee.lectureSeule && selectionnee.contenuCharge && selectionnee.schemaCompatible !== false && !snapshotApercu && (
+                    <button
+                      type="button"
                       onClick={() => sauvegarder(true)}
                       disabled={enCours || brouillon === selectionnee.contenuMd}
                       className="rounded-md bg-primaire px-3.5 py-1.5 text-xs font-semibold text-texte-inverse shadow-sm hover:bg-primaire-survol disabled:cursor-not-allowed disabled:opacity-50 transition-colors cursor-pointer"
@@ -1443,6 +1560,35 @@ export function EspaceDocumentaire({
                         </button>
                       </div>
                       <Markdown contenu={snapshotApercu.contenuMd} />
+                    </div>
+                  ) : modeSaisie && !selectionnee.lectureSeule ? (
+                    /*
+                     * Mode « fiche de saisie » : la même structure que la
+                     * création d'origine — une zone par section déclarée du
+                     * type (Contexte, Idées, À retenir…). Le brouillon est le
+                     * même que celui de l'éditeur libre : « Enregistrer » vaut
+                     * pour les deux.
+                     */
+                    <div className="space-y-4">
+                      {(() => {
+                        const valeurs = lireValeursSections(brouillon, sectionsFiche);
+                        return sectionsFiche.map((section) => (
+                          <section key={section} className="rounded-lg border border-bordure bg-surface p-4">
+                            <h3 className="font-serif text-lg font-medium">{section}</h3>
+                            <textarea
+                              value={valeurs[section] ?? ""}
+                              onChange={(event) => modifierSection(section, event.target.value)}
+                              rows={6}
+                              aria-label={section}
+                              placeholder={`Écrire dans « ${section} »…`}
+                              className="mt-2 min-h-24 w-full resize-y rounded-md border border-bordure-controle bg-surface px-3 py-2 text-sm leading-relaxed outline-none focus:border-primaire"
+                            />
+                          </section>
+                        ));
+                      })()}
+                      <p className="text-xs text-texte-discret">
+                        Les modifications s&apos;enregistrent avec le bouton « Enregistrer » en haut de la fiche.
+                      </p>
                     </div>
                   ) : (
                     <div className="relative min-h-full rounded-lg border border-bordure bg-surface focus-within:border-primaire transition-colors">
@@ -1554,6 +1700,30 @@ export function EspaceDocumentaire({
                             >
                               ”
                             </button>
+                            <div className="h-3.5 w-px bg-bordure mx-0.5" />
+                            {(
+                              [
+                                { libelle: "\\(\\)", insere: "\\(\\)", titre: "Formule en ligne" },
+                                { libelle: "a/b", insere: "\\frac{}{}", titre: "Fraction" },
+                                { libelle: "√", insere: "\\sqrt{}", titre: "Racine carrée" },
+                                { libelle: "∑", insere: "\\sum_{}^{}", titre: "Somme" },
+                                { libelle: "∫", insere: "\\int_{}^{}", titre: "Intégrale" },
+                                { libelle: "^", insere: "^{}", titre: "Exposant" },
+                              ] as const
+                            ).map((bouton) => (
+                              <button
+                                key={bouton.titre}
+                                type="button"
+                                onClick={() => {
+                                  executerFormatage("insertText", bouton.insere);
+                                  rafraichirEtatFormatage();
+                                }}
+                                className="flex h-6 items-center justify-center rounded-full px-1.5 font-mono text-[0.6875rem] font-medium text-texte-attenue hover:bg-primaire/15 hover:text-primaire transition-colors cursor-pointer"
+                                title={bouton.titre}
+                              >
+                                {bouton.libelle}
+                              </button>
+                            ))}
                             <div className="h-3.5 w-px bg-bordure mx-0.5" />
                             <button
                               type="button"
@@ -1742,63 +1912,15 @@ export function EspaceDocumentaire({
 
                     {!selectionnee.lectureSeule && selectionnee.contenuCharge && selectionnee.schemaCompatible !== false && fichesLiables.length > 0 && (
                       <div className="border-t border-bordure pt-3 mt-3">
-                        <label className="block text-[0.6875rem] font-medium text-texte-attenue mb-1.5" htmlFor="ajouter-lien-fiche">
+                        <span className="block text-[0.6875rem] font-medium text-texte-attenue mb-1.5">
                           Rattacher une compétence ou ressource
-                        </label>
+                        </span>
                         <div className="flex gap-1.5">
-                          {(() => {
-                            const competences = fichesLiables.filter((f) => f.type === "competence");
-                            const notes = fichesLiables.filter((f) => f.type === "note" || f.type === "document" || f.source === "document");
-                            const exercices = fichesLiables.filter((f) => f.type === "exercice");
-                            const autres = fichesLiables.filter((f) => !competences.includes(f) && !notes.includes(f) && !exercices.includes(f));
-
-                            return (
-                              <select
-                                id="ajouter-lien-fiche"
-                                value={cibleLien}
-                                onChange={(event) => setCibleLien(event.target.value)}
-                                className="min-w-0 flex-1 rounded-md border border-bordure bg-surface-2 px-2.5 py-1.5 text-xs text-texte outline-none focus:border-primaire cursor-pointer"
-                              >
-                                <option value="">Sélectionner une cible…</option>
-                                {competences.length > 0 && (
-                                  <optgroup label="Compétences">
-                                    {competences.map((fiche) => (
-                                      <option key={fiche.id} value={fiche.id}>
-                                        {fiche.id} — {fiche.titre}
-                                      </option>
-                                    ))}
-                                  </optgroup>
-                                )}
-                                {notes.length > 0 && (
-                                  <optgroup label="Notes & Documents">
-                                    {notes.map((fiche) => (
-                                      <option key={fiche.id} value={fiche.id}>
-                                        {fiche.titre}
-                                      </option>
-                                    ))}
-                                  </optgroup>
-                                )}
-                                {exercices.length > 0 && (
-                                  <optgroup label="Exercices">
-                                    {exercices.map((fiche) => (
-                                      <option key={fiche.id} value={fiche.id}>
-                                        {fiche.titre}
-                                      </option>
-                                    ))}
-                                  </optgroup>
-                                )}
-                                {autres.length > 0 && (
-                                  <optgroup label="Autres ressources">
-                                    {autres.map((fiche) => (
-                                      <option key={fiche.id} value={fiche.id}>
-                                        {fiche.titre}
-                                      </option>
-                                    ))}
-                                  </optgroup>
-                                )}
-                              </select>
-                            );
-                          })()}
+                          <SelectionCibleLien
+                            fiches={fichesLiables}
+                            valeur={cibleLien}
+                            onSelectionner={setCibleLien}
+                          />
                           <button
                             type="button"
                             onClick={ajouterLien}

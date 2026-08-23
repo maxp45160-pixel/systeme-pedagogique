@@ -66,6 +66,15 @@ export const IconePlus = ({ className }: Props) => (
   </Svg>
 );
 
+/** La calculatrice scientifique — outil de séance activable dans les réglages. */
+export const IconeCalculatrice = ({ className }: Props) => (
+  <Svg className={className}>
+    <rect x="6" y="3" width="12" height="18" rx="2" />
+    <path d="M9 7h6" />
+    <path d="M9 12h.01M12 12h.01M15 12h.01M9 15.5h.01M12 15.5h.01M15 15.5h.01M9 19h.01M12 19h.01M15 19h.01" strokeWidth="2" />
+  </Svg>
+);
+
 export const IconeFleche = ({ className }: Props) => (
   <Svg className={className}>
     <path d="M5 12h14M13 6l6 6-6 6" />

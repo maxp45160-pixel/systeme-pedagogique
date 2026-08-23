@@ -43,8 +43,11 @@ function echapperHtml(texte: string): string {
  */
 export function formaterEnLigneVersHtml(texte: string): string {
   const tokens: Array<{ type: "html" | "text"; value: string }> = [];
-  // Découpe sur les wikiliens, le gras, l'italique et le code
-  const regex = REGEX_INLINE_MARKDOWN;
+  // Découpe sur les wikiliens, le gras, l'italique et le code.
+  // Instance locale obligatoire : REGEX_INLINE_MARKDOWN est partagée au niveau
+  // module avec le flag /g, et exec() conserve lastIndex d'un appel à l'autre,
+  // ce qui faisait sauter des emphases selon l'historique des lignes traitées.
+  const regex = new RegExp(REGEX_INLINE_MARKDOWN.source, REGEX_INLINE_MARKDOWN.flags);
   let dernierIndex = 0;
   let match: RegExpExecArray | null;
 

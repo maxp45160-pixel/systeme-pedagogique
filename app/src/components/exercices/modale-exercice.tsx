@@ -63,6 +63,7 @@ export function ModaleExercice({
   surEnregistre,
   propositionInitiale,
   competencesCibles,
+  dureeCibleMin,
   ouvrirDansCahierApresAcceptation = false,
   presentation = "modale",
 }: {
@@ -78,6 +79,12 @@ export function ModaleExercice({
    * Bornée à `EXERCICES_PAR_LOT_MAX`, la même borne que côté route.
    */
   competencesCibles?: string[];
+  /**
+   * Durée totale visée de la séance, transmise au tuteur : il calibre la
+   * durée estimée de chaque exercice sur ce budget (une séance « 15 min »
+   * ne doit pas produire 60 min d'exercices).
+   */
+  dureeCibleMin?: number;
   /**
    * Thème pré-rempli, modifiable.
    *
@@ -233,6 +240,7 @@ export function ModaleExercice({
         body: JSON.stringify({
           competences: codesAEnvoyer,
           theme: theme.trim() || undefined,
+          ...(dureeCibleMin ? { dureeCibleMin, nombreExercices: totalExercicesCibles } : {}),
           config: configClient,
           ...(modification
             ? {
@@ -351,7 +359,7 @@ export function ModaleExercice({
         setPhase(modification ? "previsualisation" : "formulaire");
       }
     }
-  }, [codesLot, competence, theme, compteId]);
+  }, [codesLot, competence, theme, compteId, dureeCibleMin, totalExercicesCibles]);
 
   /*
    * Mode lot : la génération part à l'ouverture pour la clé de lot courante.

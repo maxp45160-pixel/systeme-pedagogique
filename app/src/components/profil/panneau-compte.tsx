@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ComponentType } from "react";
+import { useState, useSyncExternalStore, type ComponentType } from "react";
 import { useRouter } from "next/navigation";
 import { Bouton, SelecteurSegmente, cx } from "@/components/ui/primitives";
 import { seDeconnecter } from "@/lib/supabase/actions";
@@ -15,6 +15,11 @@ import {
 import { FormulaireProfil } from "@/components/profil/formulaire-profil";
 import { ModaleDangerCompte } from "@/components/layout/modale-danger-compte";
 import { appliquerTheme, lireChoixTheme, type ChoixTheme } from "@/components/layout/theme";
+import {
+  calculatriceActive,
+  ecrirePreferencesOutils,
+  sAbonnerPreferencesOutils,
+} from "@/lib/ui/preferences-outils";
 import type { User } from "@/lib/domain/types";
 import { ReglagesTuteur } from "@/components/tuteur/reglages-tuteur";
 import type { OngletCompte } from "@/lib/domain/onglets-compte";
@@ -165,7 +170,21 @@ export function PanneauCompte({
               </div>
             </div>
 
-            {/* Ligne 2 : Identité & Session */}
+            {/* Ligne 2 : Calculatrice de séance */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-6 pb-6">
+              <div className="space-y-0.5">
+                <h4 className="text-sm font-semibold text-texte">Calculatrice de séance</h4>
+                <p className="text-xs text-texte-attenue">
+                  Affiche une calculatrice scientifique dans les outils d&apos;une séance en cours.
+                  Le réglage reste sur cet appareil.
+                </p>
+              </div>
+              <div className="shrink-0">
+                <BasculeCalculatrice compteId={compteId} />
+              </div>
+            </div>
+
+            {/* Ligne 3 : Identité & Session */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-6">
               <div className="flex items-center gap-3.5 min-w-0">
                 {profil.avatarUrl ? (
@@ -266,6 +285,45 @@ export function PanneauCompte({
 /* ------------------------------------------------------------------ */
 /* Choix d'apparence                                                  */
 /* ------------------------------------------------------------------ */
+
+function BasculeCalculatrice({ compteId }: { compteId: string }) {
+  /*
+   * La préférence est un store externe (`localStorage`) : `useSyncExternalStore`
+   * le lit et suit ses changements sans effet ni état local.
+   */
+  const activee = useSyncExternalStore(
+    sAbonnerPreferencesOutils,
+    () => calculatriceActive(compteId),
+    () => true,
+  );
+
+  function basculer() {
+    ecrirePreferencesOutils(compteId, { calculatrice: !activee });
+  }
+
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={activee}
+      onClick={basculer}
+      className={cx(
+        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primaire/40",
+        activee ? "bg-primaire" : "bg-surface-3 border border-bordure",
+      )}
+    >
+      <span
+        className={cx(
+          "inline-block size-4 transform rounded-full bg-surface shadow-sm transition-transform",
+          activee ? "translate-x-6" : "translate-x-1",
+        )}
+      />
+      <span className="sr-only">
+        {activee ? "Désactiver la calculatrice de séance" : "Activer la calculatrice de séance"}
+      </span>
+    </button>
+  );
+}
 
 type CleApparence = "clair" | "dark" | "systeme";
 

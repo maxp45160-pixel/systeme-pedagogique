@@ -54,6 +54,19 @@ competencies:
     expect(html).toContain("[[Gestion du stress]]");
   });
 
+  it("rend l'italique sur des lignes successives — la regex /g ne fuit pas entre deux appels", () => {
+    /*
+     * Régression : REGEX_INLINE_MARKDOWN est une instance partagée au niveau
+     * module avec le flag /g. Utilisée avec exec(), son lastIndex persistait
+     * d'un appel à l'autre et des paires *…* étaient sautées selon
+     * l'historique des lignes traitées — les astérisques disparaissaient du
+     * rendu sans produire d'emphase.
+     */
+    formaterEnLigneVersHtml("ligne sans emphase qui décale lastIndex *brouillon");
+    expect(formaterEnLigneVersHtml("SS = k*sigma*racine")).toContain("<em>sigma</em>");
+    expect(formaterEnLigneVersHtml("du *texte* en italique")).toContain("<em>texte</em>");
+  });
+
   it("convertit un document Markdown complet en HTML structuré pour contenteditable", () => {
     const md = `## Section 1
 Un paragraphe avec **du gras**.

@@ -6,14 +6,15 @@
  * rien : la personne lisait la source, pas la formule. Le contenu était bon,
  * illisible.
  *
- * Le choix est la **conversion en Unicode**, pas un moteur de rendu. Une
- * librairie mathématique (KaTeX, MathJax) pèse plusieurs centaines de kilo-
- * octets et contredit « aucune librairie UI tierce ». Ce que les énoncés
- * utilisent réellement — opérateurs, lettres grecques, racines, fractions,
- * indices et exposants — tient dans une table de correspondance.
+ * Le choix initial était la **conversion en Unicode**, sans moteur de rendu :
+ * une librairie mathématique (KaTeX, MathJax) pèse plusieurs centaines de
+ * kilo-octets et contredit « aucune librairie UI tierce ». Révisé le 23/08/2026
+ * par ADR-109 : KaTeX porte désormais la composition visée, et CE MODULE reste
+ * le filet — formules refusées par KaTeX, texte de secours, environnement node
+ * (les tests Vitest ne chargent pas de CSS).
  *
- * Ce qui n'est pas couvert (matrices, intégrales, alignements) est rendu tel
- * quel, allégé de ses commandes : dégradé lisible, jamais une erreur.
+ * Ce qui n'est pas couvert est rendu tel quel, allégé de ses commandes :
+ * dégradé lisible, jamais une erreur.
  *
  * Au-delà de la table, le module couvre les constructions qui rendaient la
  * formule illisible : environnements (`\begin{cases}`, `\begin{pmatrix}`…)
@@ -621,7 +622,12 @@ export function latexVersTexte(latex: string): string {
 }
 
 /** Un segment de texte : prose, ou formule à mettre en valeur. */
-export type SegmentTexte = { formule: boolean; texte: string };
+export type SegmentTexte = {
+  formule: boolean;
+  texte: string;
+  /** LaTeX d'origine du segment — présent uniquement sur une formule. */
+  latex?: string;
+};
 
 /**
  * Découpe une ligne de prose sur ses formules en ligne : `\(...\)`, `\[...\]`, `$...$`,
@@ -648,7 +654,7 @@ export function segmenterFormulesEnLigne(texte: string): SegmentTexte[] {
 
     const debut = trouve.index ?? 0;
     if (debut > curseur) segments.push({ formule: false, texte: texte.slice(curseur, debut) });
-    segments.push({ formule: true, texte: latexVersTexte(brut) });
+    segments.push({ formule: true, texte: latexVersTexte(brut), latex: brut });
     curseur = debut + trouve[0].length;
   }
 
