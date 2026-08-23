@@ -150,6 +150,30 @@ export async function lire<K extends keyof Collections>(
   ) as Collections[K];
 }
 
+/**
+ * Lit une seule entité par identifiant, en un aller-retour.
+ *
+ * Les chemins de clôture d'exercice n'ont pas besoin du contenu de la table —
+ * lire toutes les tentatives ou toutes les séances pour en extraire une ligne
+ * payait le volume entier du compte là où un `eq("id")` suffit. Renvoie
+ * `null` si la ligne est absente ou appartient à un autre compte (le filtre
+ * `user_id` double la politique RLS).
+ */
+export async function lireParId<K extends CleListe>(
+  nom: K,
+  id: string,
+  dorsaleFournie?: DorsaleCompte,
+): Promise<Collections[K][number] | null> {
+  const { supabase, userId } = dorsaleFournie ?? (await dorsaleCompte());
+  const { data, error } = await mesurer(`supabase:${TABLES[nom]}:par-id`, () =>
+    supabase.from(TABLES[nom]).select("*").eq("user_id", userId).eq("id", id).maybeSingle(),
+  );
+  verifier(`lecture de « ${nom} » par identifiant`, error);
+  return data
+    ? (validerEntiteSupabase(nom, ligneVersEntite(data)) as Collections[K][number])
+    : null;
+}
+
 /** Ajoute un élément en fin de collection. Le journal ne réécrit pas le passé. */
 export async function ajouter<K extends CleListe>(
   nom: K,

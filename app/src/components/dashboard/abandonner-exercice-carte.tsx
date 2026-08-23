@@ -10,11 +10,12 @@
  * (aucune observation ne sera jamais écrite pour cette tentative).
  *
  * Même forme que `PasserSeance` : confirmation, puis action serveur. L'action
- * redirige elle-même après écriture ; en cas d'échec, le message s'affiche
- * dans la modale et rien n'est écrit.
+ * retourne la destination ; le composant y navigue après écriture. En cas
+ * d'échec, le message s'affiche dans la modale et rien n'est écrit.
  */
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Bouton } from "@/components/ui/primitives";
 import { Modale } from "@/components/ui/modale";
 import { abandonnerExercice } from "@/lib/store/actions";
@@ -32,6 +33,7 @@ export function AbandonnerExerciceCarte({
   dureeMin: number;
   taille?: "normale" | "compacte" | "petite";
 }) {
+  const router = useRouter();
   const [confirmer, setConfirmer] = useState(false);
   const [enCours, demarrer] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
@@ -40,7 +42,15 @@ export function AbandonnerExerciceCarte({
     setErreur(null);
     demarrer(async () => {
       try {
-        await abandonnerExercice(attemptId, exerciceId, dureeMin, undefined);
+        const destination = await abandonnerExercice(
+          attemptId,
+          exerciceId,
+          dureeMin,
+          undefined,
+        );
+        setConfirmer(false);
+        router.push(destination);
+        router.refresh();
       } catch (e) {
         setErreur(e instanceof Error ? e.message : "Impossible d'abandonner la tentative.");
       }

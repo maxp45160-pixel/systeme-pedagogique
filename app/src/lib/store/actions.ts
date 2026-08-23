@@ -17,7 +17,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { ajouter, dorsaleCompte, lire, modifier, nouvelId } from "./db";
+import { ajouter, dorsaleCompte, lire, lireParId, modifier, nouvelId } from "./db";
 import { verifier } from "./supabase-backend";
 import { cloreExerciceAtomiquement } from "./cloture-exercice";
 import { capturerDocumentProduction, inscrireFicheExercice } from "./documents";
@@ -150,12 +150,12 @@ async function destinationApresExercice(
 
   // Cette validation intervient après les écritures pédagogiques : un contexte
   // périmé ne peut donc jamais faire perdre une tentative ou une observation.
-  const seances = await lire("sessions", dorsale);
-  const valide = seances.some(
-    (seance) =>
-      seance.id === navigation.seanceId &&
-      seance.activites.some((activite) => activite.type === "exercice" && activite.ref === exerciceId),
-  );
+  // Lecture ciblée : la séance citée suffit, pas la table entière.
+  const seance = await lireParId("sessions", navigation.seanceId, dorsale);
+  const valide =
+    seance?.activites.some(
+      (activite) => activite.type === "exercice" && activite.ref === exerciceId,
+    ) ?? false;
   return urlExercice(exerciceId, valide ? navigation : undefined, etape);
 }
 
@@ -415,11 +415,14 @@ export async function abandonnerExercice(
   exerciseId: string,
   dureeMin: number,
   navigation?: ContexteNavigationExercice,
-): Promise<void> {
+): Promise<string> {
   const dorsale = await dorsaleCompte();
-  const exercices = await lire("exercises", dorsale);
+  // Lecture ciblée de l'exercice stocké ; les diagnostics du logiciel sont la
+  // seconde source consultée par `trouverExercice`, qui reste l'implémentation
+  // unique de cette jonction (ADR-044).
+  const stocke = await lireParId("exercises", exerciseId, dorsale);
   const { EXERCICES_DIAGNOSTIC } = await import("@/lib/seed/exercises");
-  const exercice = trouverExercice(exercices, EXERCICES_DIAGNOSTIC, exerciseId);
+  const exercice = trouverExercice(stocke ? [stocke] : [], EXERCICES_DIAGNOSTIC, exerciseId);
   if (!exercice) throw new Error(`Exercice introuvable : ${exerciseId}`);
 
   /*
@@ -427,8 +430,9 @@ export async function abandonnerExercice(
    * `terminerExercice` : c'est ce qui rend l'abandon idempotent. Sans cette
    * lecture, chaque clic répété écrivait sa propre séance — douze pour un seul
    * abandon le 12/08/2026 (voir `deciderAbandonExercice`, ADR-072).
+   * Lecture ciblée : une ligne par identifiant, pas la table entière.
    */
-  const avant = (await lire("attempts", dorsale)).find((t) => t.id === attemptId);
+  const avant = await lireParId("attempts", attemptId, dorsale);
   if (!avant) throw new Error("Tentative introuvable");
   const decision = deciderAbandonExercice(avant, exerciseId);
   if (decision.action === "refuser") throw new Error(decision.motif);
@@ -479,7 +483,15 @@ export async function abandonnerExercice(
   }
 
   revalidatePath("/", "layout");
-  redirect(await destinationApresExercice(exercice.id, "abandon", navigation, dorsale));
+  /*
+   * La destination est retournée, pas jouée par `redirect` : une Server Action
+   * qui redirige lève une erreur NEXT_REDIRECT qui traverse la promesse côté
+   * client. Attrapée par le `try/catch` des composants d'abandon, elle
+   * s'affichait comme un message d'erreur après une écriture réussie — et
+   * aucune navigation ne se produisait (défaut du 23/08/2026). Le composant
+   * appelleur pilote lui-même `router.push`.
+   */
+  return await destinationApresExercice(exercice.id, "abandon", navigation, dorsale);
 }
 
 /* ------------------------------------------------------------------ */

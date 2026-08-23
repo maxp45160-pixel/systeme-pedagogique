@@ -332,6 +332,39 @@ describe("composerSeance — mélange existant et manquant", () => {
   });
 });
 
+describe("composerSeance — un exercice plus long que toute la séance ne tient pas", () => {
+  it("déclare manquante la compétence dont l'exercice dépasse la cible entière", () => {
+    // Le défaut rapporté à l'usage (23/08/2026) : une séance « 15 minutes »
+    // partait avec deux exercices estimés 60 min chacun. La promesse de temps
+    // se perdait dès la composition, sans que rien ne la défende.
+    const c = composer({ nombreExercices: 2, dureeCibleMin: 15 }, [
+      exercice("ex-long", ["DEV-01"], { duree: 90 }),
+      exercice("ex-court", ["DEV-02"], { duree: 10 }),
+    ]);
+    expect(c.activites.map((a) => a.ref)).toEqual(["ex-court"]);
+    expect(c.manquants.map((m) => m.code)).toContain("DEV-01");
+    // La place devient une commande au tuteur : un exercice calibré pour le
+    // temps déclaré, pas la reprise d'un énoncé qui ne tient pas dedans.
+    expect(c.manquants.find((m) => m.code === "DEV-01")?.raison).toContain("90 min");
+  });
+
+  it("garde un exercice qui tient exactement dans la cible", () => {
+    const c = composer({ nombreExercices: 1, dureeCibleMin: 60 }, [
+      exercice("ex-juste", ["DEV-01"], { duree: 60 }),
+    ]);
+    expect(c.activites.map((a) => a.ref)).toEqual(["ex-juste"]);
+    expect(c.manquants).toHaveLength(0);
+  });
+
+  it("nomme les écarts de durée dans l'explication", () => {
+    const c = composer({ nombreExercices: 1, dureeCibleMin: 15 }, [
+      exercice("ex-long", ["DEV-01"], { duree: 90 }),
+    ]);
+    expect(c.explication.join(" ")).toContain("Trop longs pour une séance de 15 min");
+    expect(c.explication.join(" ")).toContain("Exercice ex-long");
+  });
+});
+
 describe("composerSeance — la portée", () => {
   it("mono : n'assemble que dans le domaine demandé", () => {
     const c = composer({ portee: { type: "mono", domaine: "statistiques" } });

@@ -436,6 +436,7 @@ export function composerSeance(
   const activites: ActiviteComposee[] = [];
   const manquants: ManquantSeance[] = [];
   const exercicesPris = new Set<string>();
+  const surdimensionnes: string[] = [];
   let couvertsParUnAutre = 0;
 
   for (const code of ordre) {
@@ -456,6 +457,29 @@ export function composerSeance(
        */
       if (exercicesPris.has(exercice.id)) {
         couvertsParUnAutre += 1;
+        continue;
+      }
+      /*
+       * Une place tenue par un exercice qui ne tient pas dans le temps n'est
+       * pas une place tenue. Au 23/08/2026, une séance déclarée « 15 minutes »
+       * partait quand même avec deux exercices estimés 60 min chacun — la
+       * promesse de temps était contredite dès la composition. Un exercice
+       * dont l'estimation dépasse à lui seul TOUTE la cible ne rentre pas :
+       * sa compétence passe donc en manquant, ce qui est exactement le sens du
+       * dispositif — le corpus manque d'un exercice calibré pour ce temps,
+       * et c'est la commande que l'écran passe au tuteur (qui reçoit désormais
+       * ce budget). En dessous de ce seuil, l'estimation reste indicative
+       * (elle valait mesuré 0,48 fois la durée réelle, ADR-045) : elle ne
+       * départage PAS des candidats qui tiennent.
+       */
+      if (exercice.dureeEstimeeMin > demande.dureeCibleMin) {
+        surdimensionnes.push(`${code} · ${exercice.titre} (${exercice.dureeEstimeeMin} min estimées)`);
+        manquants.push({
+          code,
+          intitule: etat.skill.intitule,
+          difficulteCible: rec?.difficulteCible ?? difficulteVisee(etat, calibrations?.get(code)),
+          raison: `L'exercice existant (« ${exercice.titre} ») est estimé à ${exercice.dureeEstimeeMin} min — plus que toute la séance (${demande.dureeCibleMin} min). Il en faut un calibré pour ce temps.`,
+        });
         continue;
       }
       exercicesPris.add(exercice.id);
@@ -507,6 +531,11 @@ export function composerSeance(
   explication.push(
     `Durée estimée des exercices retenus : ${dureeEstimeeTotaleMin} min pour une cible de ${demande.dureeCibleMin} min.`,
   );
+  if (surdimensionnes.length > 0) {
+    explication.push(
+      `Trop longs pour une séance de ${demande.dureeCibleMin} min, donc à rédiger en plus court : ${surdimensionnes.join(", ")}.`,
+    );
+  }
   if (manquants.length > 0) {
     explication.push(
       `${manquants.length} exercice(s) restent à rédiger : leur durée n'est pas connue et n'entre pas dans ce total.`,
