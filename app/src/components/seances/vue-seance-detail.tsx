@@ -45,32 +45,36 @@ export type EtapeRecherche = {
 };
 
 /*
-  Les panneaux des intercalaires.
+  Les panneaux des outils.
   ------------------------------------------------------------------
-  Sur mobile, un panneau flottant ancré à sa languette sortirait de
+  Sur mobile, un panneau flottant ancré à son bouton sortirait de
   l'écran : il devient une nappe `fixed`, large de la fenêtre. Au-delà,
-  il s'ancre à sa languette — et l'ancrage suit l'alignement des
-  languettes elles-mêmes :
+  il s'ancre à son bouton — et l'ancrage suit l'alignement des boutons
+  eux-mêmes :
 
-   - **sur la page du cahier**, elles commencent à gauche (les onglets
-     d'un séparateur) : le panneau s'ouvre donc à partir du bord gauche.
-     Le centrer sur une languette de gauche le faisait déborder du cadre,
-     que `overflow-hidden` coupait net ;
-   - **en plein écran**, elles sont centrées comme le reste du bandeau :
-     le panneau l'est aussi.
+   - **sur la page du cahier**, les outils commencent à gauche (les
+     onglets d'un séparateur) : le panneau s'ouvre donc à partir du bord
+     gauche. Le centrer sur un bouton de gauche le faisait déborder du
+     cadre, que `overflow-hidden` coupait net ;
+   - **en plein écran**, ils vivent dans le groupe de droite de
+     l'en-tête : le panneau s'ouvre vers le bord droit.
 
-  ⚠️ Les quatre variantes sont écrites en toutes lettres : Tailwind lit
-  les classes dans la source, une chaîne assemblée à l'exécution ne
+  ⚠️ Les variantes sont écrites en toutes lettres : Tailwind lit les
+  classes dans la source, une chaîne assemblée à l'exécution ne
   produirait aucun style.
 */
 const CLASSES_PANNEAU_BASE =
-  "fixed left-4 right-4 top-28 z-[var(--superposition-menu)] mt-2 shadow-xl sm:absolute sm:right-auto sm:top-auto";
+  "fixed left-4 right-4 top-28 z-[var(--superposition-menu)] mt-2 shadow-xl sm:absolute sm:top-auto";
 const CLASSES_PANNEAU_CADRE = "rounded-lg border border-bordure bg-surface p-3";
 
-const PANNEAU_LARGE_GAUCHE = "sm:left-0 sm:translate-x-0 sm:w-[min(34rem,calc(100vw-6rem))]";
-const PANNEAU_LARGE_CENTRE = "sm:left-1/2 sm:-translate-x-1/2 sm:w-[min(34rem,calc(100vw-2rem))]";
-const PANNEAU_ETROIT_GAUCHE = "sm:left-0 sm:translate-x-0 sm:w-[min(24rem,calc(100vw-6rem))]";
-const PANNEAU_ETROIT_CENTRE = "sm:left-1/2 sm:-translate-x-1/2 sm:w-[min(24rem,calc(100vw-2rem))]";
+const PANNEAU_LARGE_GAUCHE =
+  "sm:right-auto sm:left-0 sm:translate-x-0 sm:w-[min(34rem,calc(100vw-6rem))]";
+const PANNEAU_LARGE_DROITE =
+  "sm:left-auto sm:right-0 sm:translate-x-0 sm:w-[min(34rem,calc(100vw-2rem))]";
+const PANNEAU_ETROIT_GAUCHE =
+  "sm:right-auto sm:left-0 sm:translate-x-0 sm:w-[min(24rem,calc(100vw-6rem))]";
+const PANNEAU_ETROIT_DROITE =
+  "sm:left-auto sm:right-0 sm:translate-x-0 sm:w-[min(24rem,calc(100vw-2rem))]";
 
 const LIBELLES_STATUT = {
   planifiee: { texte: "Planifiée", ton: "info" as const },
@@ -228,10 +232,10 @@ export async function VueSeanceDetail({
   // rechargement pendant les deux secondes ne doit pas le rejouer.
   const urlSansSas = plein ? `${urlSeance}&focus=1` : urlSeance;
 
-  // Les languettes suivent le bandeau : à gauche sur la page, centrées en
-  // plein écran — et leurs panneaux s'ancrent du même côté.
-  const panneauLarge = `${CLASSES_PANNEAU_BASE} ${CLASSES_PANNEAU_CADRE} ${plein ? PANNEAU_LARGE_CENTRE : PANNEAU_LARGE_GAUCHE}`;
-  const panneauMinuteur = `${CLASSES_PANNEAU_BASE} ${plein ? PANNEAU_ETROIT_CENTRE : PANNEAU_ETROIT_GAUCHE}`;
+  // Les outils suivent le bandeau : à gauche sur la page, à droite dans
+  // l'en-tête du plein écran — et leurs panneaux s'ancrent du même côté.
+  const panneauLarge = `${CLASSES_PANNEAU_BASE} ${CLASSES_PANNEAU_CADRE} ${plein ? PANNEAU_LARGE_DROITE : PANNEAU_LARGE_GAUCHE}`;
+  const panneauMinuteur = `${CLASSES_PANNEAU_BASE} ${plein ? PANNEAU_ETROIT_DROITE : PANNEAU_ETROIT_GAUCHE}`;
 
   return (
     /*
@@ -307,13 +311,18 @@ export async function VueSeanceDetail({
           </div>
 
           {/*
-            Une seule ligne de pilotage : avancement, chrono d'épreuve et
-            sortie vivent ici. Le chrono était un bandeau plein largeur sous
-            l'en-tête — une rangée de plus pour une information qui tient en
-            une pastille, et qui n'a d'usage que pendant la séance elle-même.
+            Une seule rangée : pilotage ET outils.
+
+            L'en-tête empilait deux bandes — la ligne de titre, puis une barre
+            d'outils centrée collée sous le filet d'avancement. Six contrôles
+            bordés sur deux rangées pesaient plus lourd que le travail
+            lui-même. Tout vit désormais dans le groupe de droite, dans un
+            ordre de lecture : avancement, chrono (mode épreuve), outils,
+            sortie. `flex-wrap` renvoie les outils sous le titre quand la
+            fenêtre manque de largeur.
           */}
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
-            <span className="chiffres text-xs text-texte-discret">
+          <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+            <span className="chiffres mr-1 text-xs text-texte-discret">
               {traites} / {avancement.total}
             </span>
             {epreuve && statut === "en-cours" && (
@@ -321,6 +330,72 @@ export async function VueSeanceDetail({
                 compteId={ctx.donnees.user.id}
                 dureeFocusMin={seance.blueprint?.dureeCibleMin}
               />
+            )}
+            {statut === "en-cours" && (
+              <>
+                {/*
+                  ⚠️ Les outils ne sont plus des « intercalaires ».
+
+                  `classesIntercalaire` dessinait des languettes de séparateur
+                  de cahier : bordure transparente, texte atténué, aucun fond.
+                  La forme se justifiait quand l'interface peignait un cahier —
+                  ADR-101 a retiré cet habillage, et la languette est restée
+                  orpheline. Ce sont des contrôles : ils portent un fond, un
+                  contour, une icône et un état actif lisible (ADR-103).
+                */}
+                <OutilSeance
+                  variante="outil"
+                  libelle="Exercices"
+                  icone={<IconeExercices className="size-3.5" />}
+                  contenuClassName={panneauLarge}
+                >
+                  <ListeActivites activites={activites} parId={parId} avancement={avancement} seanceId={seance.id} plein={plein} compacte />
+                </OutilSeance>
+                <OutilSeance
+                  variante="outil"
+                  libelle="Pomodoro"
+                  icone={<IconeMinuteur className="size-3.5" />}
+                  contenuClassName={panneauMinuteur}
+                >
+                  {/* Même défaut de durée que le chrono du mode épreuve : les deux
+                      affichages du minuteur ne doivent pas se contredire. */}
+                  <Pomodoro
+                    compteId={ctx.donnees.user.id}
+                    {...(epreuve && seance.blueprint?.dureeCibleMin
+                      ? { dureeFocusDefaut: seance.blueprint.dureeCibleMin }
+                      : {})}
+                  />
+                </OutilSeance>
+                {/*
+                  La marge suit le travail. C'est pendant un exercice qu'on se
+                  dit « il faudra revoir ça » — et jusqu'ici le workspace
+                  n'offrait aucun endroit où l'écrire : la seule zone de saisie
+                  du cahier était l'annotation d'une séance déjà terminée.
+                */}
+                <OutilSeance
+                  variante="outil"
+                  libelle="Marge"
+                  icone={<IconeNote className="size-3.5" />}
+                  indice={marge.filter((ligne) => !ligne.faite).length || undefined}
+                  contenuClassName={panneauLarge}
+                >
+                  <MargeCahier lignes={marge} compacte />
+                </OutilSeance>
+                {etatTuteur && exerciceActif && (
+                  <TiroirTuteur
+                    etatInitial={etatTuteur}
+                    exerciceCible={exerciceActif}
+                    codesCompetences={ctx.etats.map((etat) => etat.skill.code)}
+                    compteId={ctx.donnees.user.id}
+                    domainesExistants={ctx.referentiel.domaines.map((domaine) => ({ id: domaine.id, nom: domaine.nom, prefixe: domaine.prefixe }))}
+                    competencesModale={competencesPourModale(ctx.referentiel.actifs)}
+                    calibragesModale={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
+                    libelle="Tuteur IA"
+                    declencheur="outil"
+                    indicesMasques={aidesMasquees}
+                  />
+                )}
+              </>
             )}
             {/*
               ⚠️ Plus de bascule « plein écran ».
@@ -363,90 +438,7 @@ export async function VueSeanceDetail({
             style={{ width: `${avancement.total > 0 ? Math.round((traites / avancement.total) * 100) : 0}%` }}
           />
         </div>
-        {statut === "en-cours" && (
-          /*
-            ⚠️ Les outils ne sont plus des « intercalaires ».
-
-            `classesIntercalaire` dessinait des languettes de séparateur de
-            cahier : bordure transparente, texte atténué, aucun fond. La forme
-            se justifiait quand l'interface peignait un cahier — ADR-101 a
-            retiré cet habillage, et la languette est restée orpheline. Sur le
-            fond sombre du Bureau, quatre mots gris sur gris : on ne voyait
-            plus qu'il s'agissait de boutons.
-
-            Ce sont des contrôles. Ils portent donc un fond, un contour, une
-            icône et un état actif lisible.
-          */
-          <div className={`px-4 pb-2.5 sm:px-6 ${plein ? `mx-auto w-full ${colonnePlein}` : ""}`}>
-            {/*
-              Centrés. Ils étaient alignés à gauche par crainte qu'un panneau
-              ouvert ne les décale — crainte infondée : les panneaux sont en
-              `absolute`, ils ne prennent aucune place dans le flux. Centrés,
-              ils se lisent comme la barre d'outils d'un plan de travail, au
-              lieu de flotter contre le bord gauche pendant que le contenu,
-              lui, est centré.
-            */}
-            <nav
-              aria-label="Outils de séance"
-              className="flex max-w-full flex-wrap items-center justify-center gap-1.5"
-            >
-              <OutilSeance
-                variante="outil"
-                libelle="Exercices"
-                icone={<IconeExercices className="size-3.5" />}
-                contenuClassName={panneauLarge}
-              >
-                <ListeActivites activites={activites} parId={parId} avancement={avancement} seanceId={seance.id} plein={plein} compacte />
-              </OutilSeance>
-              <OutilSeance
-                variante="outil"
-                libelle="Pomodoro"
-                icone={<IconeMinuteur className="size-3.5" />}
-                contenuClassName={panneauMinuteur}
-              >
-                {/* Même défaut de durée que le chrono du mode épreuve : les deux
-                    affichages du minuteur ne doivent pas se contredire. */}
-                <Pomodoro
-                  compteId={ctx.donnees.user.id}
-                  {...(epreuve && seance.blueprint?.dureeCibleMin
-                    ? { dureeFocusDefaut: seance.blueprint.dureeCibleMin }
-                    : {})}
-                />
-              </OutilSeance>
-              {/*
-                La marge suit le travail. C'est pendant un exercice qu'on se dit
-                « il faudra revoir ça » — et jusqu'ici le workspace n'offrait
-                aucun endroit où l'écrire : la seule zone de saisie du cahier
-                était l'annotation d'une séance déjà terminée.
-              */}
-              <OutilSeance
-                variante="outil"
-                libelle="Marge"
-                icone={<IconeNote className="size-3.5" />}
-                indice={marge.filter((ligne) => !ligne.faite).length || undefined}
-                contenuClassName={panneauLarge}
-              >
-                <MargeCahier lignes={marge} compacte />
-              </OutilSeance>
-                {etatTuteur && exerciceActif && (
-                  <TiroirTuteur
-                    etatInitial={etatTuteur}
-                    exerciceCible={exerciceActif}
-                    codesCompetences={ctx.etats.map((etat) => etat.skill.code)}
-                    compteId={ctx.donnees.user.id}
-                    domainesExistants={ctx.referentiel.domaines.map((domaine) => ({ id: domaine.id, nom: domaine.nom, prefixe: domaine.prefixe }))}
-                    competencesModale={competencesPourModale(ctx.referentiel.actifs)}
-                    calibragesModale={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
-                    libelle="Tuteur IA"
-                    declencheur="outil"
-                    indicesMasques={aidesMasquees}
-                  />
-                )}
-            </nav>
-          </div>
-        )}
       </header>
-
       {/*
         La colonne de lecture, la même qu'au Bureau (`--colonne`, 704 px).
         `max-w-7xl` laissait l'énoncé courir sur près de mille pixels : au-delà
