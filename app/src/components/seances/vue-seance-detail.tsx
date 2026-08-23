@@ -306,10 +306,22 @@ export async function VueSeanceDetail({
             <Etiquette ton={LIBELLES_STATUT[statut].ton}>{LIBELLES_STATUT[statut].texte}</Etiquette>
           </div>
 
-          <div className="flex shrink-0 items-center gap-1">
-            <span className="chiffres mr-1 text-xs text-texte-discret">
+          {/*
+            Une seule ligne de pilotage : avancement, chrono d'épreuve et
+            sortie vivent ici. Le chrono était un bandeau plein largeur sous
+            l'en-tête — une rangée de plus pour une information qui tient en
+            une pastille, et qui n'a d'usage que pendant la séance elle-même.
+          */}
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <span className="chiffres text-xs text-texte-discret">
               {traites} / {avancement.total}
             </span>
+            {epreuve && statut === "en-cours" && (
+              <ChronoEpreuve
+                compteId={ctx.donnees.user.id}
+                dureeFocusMin={seance.blueprint?.dureeCibleMin}
+              />
+            )}
             {/*
               ⚠️ Plus de bascule « plein écran ».
 
@@ -326,7 +338,7 @@ export async function VueSeanceDetail({
               href={`/seances?jour=${encodeURIComponent(jourDeLaPage)}`}
               className={classesLienBouton("secondaire", "petite")}
             >
-              {plein ? "Sortir vers le Bureau" : "Replier"}
+              {plein ? "Bureau" : "Replier"}
             </Link>
           </div>
         </div>
@@ -382,7 +394,6 @@ export async function VueSeanceDetail({
                 variante="outil"
                 libelle="Exercices"
                 icone={<IconeExercices className="size-3.5" />}
-                indice={`${traites}/${avancement.total}`}
                 contenuClassName={panneauLarge}
               >
                 <ListeActivites activites={activites} parId={parId} avancement={avancement} seanceId={seance.id} plein={plein} compacte />
@@ -393,7 +404,14 @@ export async function VueSeanceDetail({
                 icone={<IconeMinuteur className="size-3.5" />}
                 contenuClassName={panneauMinuteur}
               >
-                <Pomodoro compteId={ctx.donnees.user.id} />
+                {/* Même défaut de durée que le chrono du mode épreuve : les deux
+                    affichages du minuteur ne doivent pas se contredire. */}
+                <Pomodoro
+                  compteId={ctx.donnees.user.id}
+                  {...(epreuve && seance.blueprint?.dureeCibleMin
+                    ? { dureeFocusDefaut: seance.blueprint.dureeCibleMin }
+                    : {})}
+                />
               </OutilSeance>
               {/*
                 La marge suit le travail. C'est pendant un exercice qu'on se dit
@@ -428,15 +446,6 @@ export async function VueSeanceDetail({
           </div>
         )}
       </header>
-
-      {epreuve && statut === "en-cours" && (
-        /*
-          Le chrono du mode épreuve, en bandeau sous l'en-tête. Habillage seul :
-          il réutilise le minuteur Pomodoro et n'écrit rien — la durée du
-          journal reste la somme observée des tentatives à la clôture.
-        */
-        <ChronoEpreuve compteId={ctx.donnees.user.id} />
-      )}
 
       {/*
         La colonne de lecture, la même qu'au Bureau (`--colonne`, 704 px).

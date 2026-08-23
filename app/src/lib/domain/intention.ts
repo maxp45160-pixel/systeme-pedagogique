@@ -485,18 +485,91 @@ export function domainePourCodes(
  * Exactement celle que `BoutonGenerer` fabriquait déjà : le point d'entrée
  * unique n'invente aucune destination, il en réutilise une. `intention` porte
  * la phrase de l'utilisateur, que le compositeur affiche comme titre proposé.
+ * `temps` porte la durée lue dans cette phrase (`dureeDeclaree`) : sans lui,
+ * le compositeur rouvrirait sur son défaut et contredirait le temps que la
+ * personne vient d'écrire.
  */
 export function urlComposition(
   codes: string[],
   intention: string,
-  options: { sansTheme?: boolean } = {},
+  options: { sansTheme?: boolean; temps?: number } = {},
 ): string {
   const parametres = new URLSearchParams({ composer: "1" });
   for (const code of codes.slice(0, EXERCICES_PAR_LOT_MAX)) parametres.append("code", code);
   const t = intention.trim();
   if (t) parametres.set("intention", t);
   if (options.sansTheme) parametres.set("sans-theme", "1");
+  if (options.temps !== undefined) parametres.set("temps", String(options.temps));
   return `/seances?${parametres.toString()}`;
+}
+
+/* ------------------------------------------------------------------ */
+/* Durée déclarée                                                      */
+/* ------------------------------------------------------------------ */
+
+/** Bornes de la durée de séance déclarée — les mêmes que le compositeur. */
+export const DUREE_DECLAREE_MIN = 5;
+export const DUREE_DECLAREE_MAX = 480;
+
+const HEURES_EN_LETTRES = new Map<string, number>([
+  ["un", 1],
+  ["une", 1],
+  ["deux", 2],
+  ["trois", 3],
+  ["quatre", 4],
+  ["cinq", 5],
+  ["six", 6],
+]);
+
+function bornerDureeDeclaree(valeur: number): number {
+  return Math.min(
+    DUREE_DECLAREE_MAX,
+    Math.max(DUREE_DECLAREE_MIN, Math.round(valeur)),
+  );
+}
+
+/**
+ * Lit la durée de séance explicitement écrite dans le besoin.
+ *
+ * « Une séance courte de 15 minutes », « 1h30 », « deux heures » : la
+ * personne a déclaré un temps, et le compositeur doit l'afficher plutôt que
+ * son défaut. Ce n'est PAS une interprétation — « rapide » ou « courte » sans
+ * chiffre ne déduit rien ; seul un temps explicite est lu. Hors bornes, la
+ * valeur est ramenée (une faute de frappe ne doit pas produire une séance de
+ * 9 000 minutes), et l'absence rend `undefined` : aucun défaut n'est fabriqué
+ * ici, le repli appartient à l'écran.
+ */
+export function dureeDeclaree(besoin: string): number | undefined {
+  const texte = besoin.trim();
+  if (!texte) return undefined;
+
+  // « 20 min », « 30 minutes »
+  const minutes = /\b(\d{1,3})\s*(?:min|mn|minutes?)\b/iu.exec(texte);
+  if (minutes?.[1]) return bornerDureeDeclaree(Number(minutes[1]));
+
+  // « 1h30 », « 2 h », « 0,5 h »
+  const heureCompacte = /\b(\d{1,2})\s*h\s*(\d{1,2})?\b/iu.exec(texte);
+  if (heureCompacte?.[1]) {
+    const heures = Number(heureCompacte[1]);
+    const minutesComp = heureCompacte[2] ? Number(heureCompacte[2]) : 0;
+    return bornerDureeDeclaree(heures * 60 + minutesComp);
+  }
+  const heureDecimale = /\b(\d{1,2}(?:[.,]\d{1,2})?)\s*(?:heures?|hrs?)\b/iu.exec(texte);
+  if (heureDecimale?.[1]) {
+    return bornerDureeDeclaree(Number(heureDecimale[1].replace(",", ".")) * 60);
+  }
+
+  // « une heure », « deux heures »
+  const heureLettres = /\b(un|une|deux|trois|quatre|cinq|six)\s+heures?\b/iu.exec(texte);
+  if (heureLettres?.[1]) {
+    const heures = HEURES_EN_LETTRES.get(heureLettres[1].toLowerCase());
+    if (heures) return bornerDureeDeclaree(heures * 60);
+  }
+
+  // « une demi-heure », « une demi heure »
+  if (/\b(?:demi[\s-]?heure)\b/iu.test(texte)) return bornerDureeDeclaree(30);
+
+  return undefined;
 }
 
 /**

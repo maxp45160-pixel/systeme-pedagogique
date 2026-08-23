@@ -5,9 +5,10 @@
  *
  * Il réutilise `usePomodoro` tel quel : même état en `sessionStorage` isolé
  * par compte (`cleParCompte`), même discipline — il n'écrit RIEN en base,
- * ne pré-remplit aucune durée, n'entre dans aucun calcul. La seule différence
- * avec `Pomodoro` est l'habillage : un bandeau large et lisible, pensé pour
- * rester sous les yeux pendant toute la séance (persona concours daté).
+ * n'entre dans aucun calcul. La durée cible de la séance (`dureeFocusMin`)
+ * ne fait que remplacer le défaut de 25 min tant que la personne n'a pas
+ * réglé ses propres durées : entrer en épreuve chronométrée doit afficher le
+ * temps de l'épreuve, pas celui d'un pomodoro générique.
  *
  * ⚠️ Le temps qu'il affiche n'est pas une mesure : `dureeMin` reste la somme
  * observée des tentatives à la clôture (ADR-071), jamais le décompte du
@@ -24,43 +25,43 @@ function formaterMMSS(secondes: number): string {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-export function ChronoEpreuve({ compteId }: { compteId: string }) {
-  const { hydrate, etat, enMarche, reste, demarrer, suspendre } = usePomodoro(compteId);
+export function ChronoEpreuve({
+  compteId,
+  dureeFocusMin,
+}: {
+  compteId: string;
+  /** Durée cible de la séance — défaut de focus tant qu'aucun réglage utilisateur n'existe. */
+  dureeFocusMin?: number;
+}) {
+  const { hydrate, etat, enMarche, reste, demarrer, suspendre } = usePomodoro(
+    compteId,
+    dureeFocusMin ? { focus: Math.min(120, Math.max(1, Math.round(dureeFocusMin))) } : undefined,
+  );
 
   return (
-    <div className="border-b border-bordure/60 bg-fond/60">
-      <div className="flex items-center justify-between gap-4 px-4 py-2 sm:px-6">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-primaire/30 bg-primaire-faible text-primaire" aria-hidden>
-            <IconeMinuteur className="size-4" />
-          </span>
-          <div className="min-w-0">
-            <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret">
-              Mode épreuve · {etat.phase === "pause" ? "Pause" : "Concentration"}
-            </p>
-            <p className="chiffres font-mono text-2xl font-medium tabular-nums leading-tight">
-              {hydrate ? formaterMMSS(reste) : "--:--"}
-            </p>
-          </div>
-        </div>
-        {hydrate &&
-          (enMarche ? (
-            <Bouton variante="secondaire" taille="petite" onClick={suspendre}>
-              Suspendre
-            </Bouton>
-          ) : (
-            <Bouton variante="principal" taille="petite" onClick={demarrer}>
-              Lancer le chrono
-            </Bouton>
-          ))}
-      </div>
-      <div
-        aria-hidden
-        className={cx(
-          "h-px w-full",
-          enMarche && hydrate ? "bg-primaire/40" : "bg-transparent",
-        )}
-      />
+    <div
+      className={cx(
+        "flex items-center gap-2 rounded-lg border border-primaire/30 bg-primaire-faible px-2.5 py-1",
+      )}
+      title="Chrono du mode épreuve"
+    >
+      <IconeMinuteur className="size-4 shrink-0 text-primaire" aria-hidden />
+      <span className="chiffres font-mono text-sm font-semibold tabular-nums text-primaire">
+        {hydrate ? formaterMMSS(reste) : "--:--"}
+      </span>
+      <span className="hidden text-[0.625rem] uppercase tracking-wide text-texte-discret sm:inline">
+        {etat.phase === "pause" ? "Pause" : "Concentration"}
+      </span>
+      {hydrate &&
+        (enMarche ? (
+          <Bouton variante="secondaire" taille="petite" onClick={suspendre}>
+            Suspendre
+          </Bouton>
+        ) : (
+          <Bouton variante="principal" taille="petite" onClick={demarrer}>
+            Lancer
+          </Bouton>
+        ))}
     </div>
   );
 }

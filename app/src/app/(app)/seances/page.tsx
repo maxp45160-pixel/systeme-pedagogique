@@ -17,6 +17,7 @@ import { lireApercusDocuments, lireApercusSnapshots } from "@/lib/store/document
 import type { DocumentOperationnelDate } from "@/lib/domain/pages-cahier";
 import { ConcepteurSeance, type PresetSeance } from "@/components/seances/concepteur-seance";
 import { statutSeance, TEMPS_DECLARE_MAX } from "@/lib/domain/seance";
+import { dureeDeclaree } from "@/lib/domain/intention";
 
 /*
  * Les aperçus documentaires ne servent au cahier qu'à lister les documents
@@ -145,10 +146,20 @@ async function CompositeurDepuisLien({
   const intentionEcrite = Boolean(intention?.trim());
   const codeRepli = intentionEcrite ? undefined : donnees.recommandations[0]?.etat.skill.code;
   const codes = codesVises.length > 0 ? codesVises : codeRepli ? [codeRepli] : [];
-  const duree = Math.min(
-    TEMPS_DECLARE_MAX,
-    Math.max(5, Math.round(Number(temps) || 45)),
-  );
+  /*
+   * La durée vient de l'URL (`temps`, posé par `urlComposition`) ou, à défaut,
+   * est relue dans la phrase d'intention elle-même : un vieux lien sans
+   * `temps` qui dit « séance de 15 minutes » doit quand même ouvrir sur 15.
+   * Sans aucune des deux sources, `dureeInitiale` reste absent et le
+   * compositeur garde son propre défaut — aucun chiffre n'est fabriqué ici.
+   */
+  const tempsUrl = Number(temps);
+  const dureeUrl =
+    Number.isFinite(tempsUrl) && tempsUrl > 0
+      ? Math.min(TEMPS_DECLARE_MAX, Math.max(5, Math.round(tempsUrl)))
+      : undefined;
+  const dureeIntention = intention ? dureeDeclaree(intention) : undefined;
+  const duree = dureeUrl ?? dureeIntention;
   const domaines = [...new Set(codes.flatMap((code) => {
     const skill = donnees.actifs.find((candidate) => candidate.code === code);
     return skill ? [skill.domaine] : [];
@@ -159,7 +170,7 @@ async function CompositeurDepuisLien({
         libelle: codes.length === 1 ? `Compétence : ${codes[0]}` : "Séance ciblée",
         codesVises: codes,
         nombreExercices: 3,
-        dureeCibleMin: duree,
+        dureeCibleMin: duree ?? 45,
         ...(domaines.length === 1 ? { domaine: domaines[0] } : {}),
       }
     : undefined;
@@ -169,6 +180,7 @@ async function CompositeurDepuisLien({
       {...donnees}
       preset={preset}
       contexteInitial={intention}
+      {...(duree !== undefined ? { dureeInitiale: duree } : {})}
       sansThemeInitial={sansTheme === "1"}
       ouvertParDefaut
       retourEnFermant

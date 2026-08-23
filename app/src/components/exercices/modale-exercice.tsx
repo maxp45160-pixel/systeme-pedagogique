@@ -63,6 +63,7 @@ export function ModaleExercice({
   surEnregistre,
   propositionInitiale,
   competencesCibles,
+  dureeCibleMin,
   ouvrirDansCahierApresAcceptation = false,
   presentation = "modale",
 }: {
@@ -99,6 +100,14 @@ export function ModaleExercice({
    * compétence initiale passée.
    */
   propositionInitiale?: PropositionExercice;
+  /**
+   * Durée cible de la séance en cours de composition, en minutes.
+   *
+   * Facultative : la génération hors séance (fiche, Atelier) n'en a pas. Elle
+   * ne fixe pas la durée d'un exercice — elle borne le budget que le tuteur
+   * répartit entre les exercices du lot.
+   */
+  dureeCibleMin?: number;
   /** Depuis la prochaine action, accepter enchaîne directement sur le workspace focus. */
   ouvrirDansCahierApresAcceptation?: boolean;
   /**
@@ -233,6 +242,7 @@ export function ModaleExercice({
         body: JSON.stringify({
           competences: codesAEnvoyer,
           theme: theme.trim() || undefined,
+          ...(dureeCibleMin ? { dureeCibleMin } : {}),
           config: configClient,
           ...(modification
             ? {
@@ -351,7 +361,7 @@ export function ModaleExercice({
         setPhase(modification ? "previsualisation" : "formulaire");
       }
     }
-  }, [codesLot, competence, theme, compteId]);
+  }, [codesLot, competence, theme, compteId, dureeCibleMin]);
 
   /*
    * Mode lot : la génération part à l'ouverture pour la clé de lot courante.

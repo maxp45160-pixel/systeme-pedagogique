@@ -4,6 +4,7 @@ import {
   besoinValide,
   demandeSeanceSansSujet,
   domainePourCodes,
+  dureeDeclaree,
   orientationAmorcage,
   urlComposition,
   validerActionIntention,
@@ -264,6 +265,35 @@ describe("validerTraductionIntention", () => {
   });
 });
 
+describe("dureeDeclaree", () => {
+  it("lit une durée explicite en minutes", () => {
+    expect(dureeDeclaree("Je veux faire une séance courte de 15 minutes pour m'entraîner")).toBe(15);
+    expect(dureeDeclaree("séance de 30 min")).toBe(30);
+    expect(dureeDeclaree("20minutes le midi")).toBe(20);
+  });
+
+  it("lit une durée en heures, compacte ou écrite", () => {
+    expect(dureeDeclaree("prévoir 1h30 de révision")).toBe(90);
+    expect(dureeDeclaree("une séance de 2 h")).toBe(120);
+    expect(dureeDeclaree("travailler deux heures")).toBe(120);
+    expect(dureeDeclaree("une demi-heure suffit")).toBe(30);
+  });
+
+  it("borne une valeur absurde au lieu de la propager", () => {
+    expect(dureeDeclaree("900 minutes de révision")).toBe(480);
+  });
+
+  it("rend undefined sans durée explicite — aucun défaut n'est fabriqué ici", () => {
+    expect(dureeDeclaree("une séance rapide pour s'entraîner")).toBeUndefined();
+    expect(dureeDeclaree("créer une séance")).toBeUndefined();
+    expect(dureeDeclaree("")).toBeUndefined();
+  });
+
+  it("ne lit pas « 15 » tout seul comme une durée", () => {
+    expect(dureeDeclaree("15 exercices sur les fractions")).toBeUndefined();
+  });
+});
+
 describe("urlComposition", () => {
   it("reprend la destination du compositeur de séance", () => {
     expect(urlComposition(["LOG-01", "LOG-02"], "calcul de coût")).toBe(
@@ -278,6 +308,18 @@ describe("urlComposition", () => {
   it("porte explicitement l'absence de sujet pour une séance générale", () => {
     expect(urlComposition([], "créer une séance", { sansTheme: true })).toBe(
       "/seances?composer=1&intention=cr%C3%A9er+une+s%C3%A9ance&sans-theme=1",
+    );
+  });
+
+  it("transmet la durée déclarée pour que le compositeur l'affiche", () => {
+    expect(urlComposition([], "séance de 15 minutes", { temps: 15 })).toBe(
+      "/seances?composer=1&intention=s%C3%A9ance+de+15+minutes&temps=15",
+    );
+  });
+
+  it("omet le temps quand aucune durée n'a été lue", () => {
+    expect(urlComposition(["LOG-01"], "réviser", {})).toBe(
+      "/seances?composer=1&code=LOG-01&intention=r%C3%A9viser",
     );
   });
 });

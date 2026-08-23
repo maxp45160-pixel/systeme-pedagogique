@@ -29,6 +29,7 @@ import {
   besoinValide,
   demandeSeanceSansSujet,
   domainePourCodes,
+  dureeDeclaree,
   urlComposition,
   type ActionIntention,
   type TraductionIntention,
@@ -368,12 +369,17 @@ export function CaptureIntention({
         const seanceSansSujet = demandeSeanceSansSujet(besoin);
         const codes = seanceSansSujet ? [] : action.codes;
         // Le besoin reste une intention déclarée : il ouvre la composition et
-        // n'est converti en aucun fait persistant (invariant intention).
+        // n'est converti en aucun fait persistant (invariant intention). La
+        // durée explicite de la phrase voyage avec elle — « 15 minutes » doit
+        // ouvrir le compositeur sur 15, pas sur son défaut.
         setEnExecution(true);
         try {
           onFermer();
           router.push(
-            urlComposition(codes, besoin, { sansTheme: seanceSansSujet }),
+            urlComposition(codes, besoin, {
+              sansTheme: seanceSansSujet,
+              temps: dureeDeclaree(besoin),
+            }),
           );
         } catch (cause) {
           setErreur(cause instanceof Error ? cause.message : "Le besoin n'a pas pu être pris en compte.");

@@ -112,6 +112,13 @@ export interface DonneesSeance {
   compteId: string;
   /** Pré-remplit le compositeur (ex. « Refaire cette séance »). */
   preset?: PresetSeance;
+  /**
+   * Durée lue dans la demande (`?temps=`, ou relue dans l'intention).
+   *
+   * Elle ne fabrique pas de preset : elle remplace seulement le défaut du
+   * champ temps quand ni `preset` ni la personne n'ont parlé avant elle.
+   */
+  dureeInitiale?: number;
   /** Domaine déclaré dans la fiche qui a lancé la composition. */
   domaineInitial?: string;
   /** Contexte déclaré dans la fiche qui a lancé la composition. */
@@ -177,6 +184,7 @@ export function ConcepteurSeance({
   domaines,
   compteId,
   preset,
+  dureeInitiale,
   domaineInitial,
   contexteInitial,
   sansThemeInitial = false,
@@ -295,7 +303,7 @@ export function ConcepteurSeance({
   const theme = themePrincipal;
 
   const [temps, setTemps] = useState(
-    String(preset?.dureeCibleMin ?? TEMPS_PAR_DEFAUT),
+    String(preset?.dureeCibleMin ?? dureeInitiale ?? TEMPS_PAR_DEFAUT),
   );
   const [intention, setIntention] = useState(contexteInitial ?? "");
   const [intentionOuverte, setIntentionOuverte] = useState(Boolean(contexteInitial?.trim()));
@@ -579,6 +587,13 @@ export function ConcepteurSeance({
               competencesCibles={generationCibles.codes}
               calibrages={calibragesModale}
               compteId={compteId}
+              /*
+               * La durée cible de la séance accompagne la demande : sans elle,
+               * le tuteur rédigeait des exercices d'une heure pour une séance
+               * de quinze minutes — et l'étiquette « ≈ 1 h » s'affichait sur
+               * un programme qui devait durer un quart d'heure.
+               */
+              dureeCibleMin={tempsMin}
               surEnregistre={() => {
                 router.refresh();
               }}

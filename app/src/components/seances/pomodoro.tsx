@@ -60,8 +60,16 @@ function etatInitial(): EtatPersiste {
 }
 
 /** Les durées effectives — celles réglées, ou celles par défaut. */
-function dureesDe(etat: EtatPersiste): Record<PhasePomodoro, number> {
-  return etat.dureesMin ?? DUREES_PAR_DEFAUT;
+function dureesDe(
+  etat: EtatPersiste,
+  defauts?: Partial<Record<PhasePomodoro, number>>,
+): Record<PhasePomodoro, number> {
+  return {
+    focus: DUREES_PAR_DEFAUT.focus,
+    pause: DUREES_PAR_DEFAUT.pause,
+    ...defauts,
+    ...etat.dureesMin,
+  };
 }
 
 /**
@@ -70,9 +78,13 @@ function dureesDe(etat: EtatPersiste): Record<PhasePomodoro, number> {
  * `sessionStorage` n'apporterait rien et userait le stockage pour rien. Seule
  * l'échéance (`finPrevue`) est persistée ; le nombre affiché se recalcule.
  */
-function secondesRestantes(etat: EtatPersiste, maintenant: number): number {
+function secondesRestantes(
+  etat: EtatPersiste,
+  maintenant: number,
+  defauts?: Partial<Record<PhasePomodoro, number>>,
+): number {
   if (etat.finPrevue === undefined) {
-    return etat.resteAuArret ?? dureesDe(etat)[etat.phase] * 60;
+    return etat.resteAuArret ?? dureesDe(etat, defauts)[etat.phase] * 60;
   }
   // Le premier affichage doit être 24:59 pour un cycle de 25 minutes. Le
   // décompte représente la seconde en cours, pas une seconde supplémentaire
@@ -118,8 +130,17 @@ const EVENT_POMODORO_SYNC = "pedagogie:pomodoro-sync";
 
 /**
  * Hook Pomodoro partagé — synchronisé à la seconde près entre tous les composants montés.
+ *
+ * `defauts` permet à un habillage (le chrono du mode épreuve) de proposer une
+ * durée de focus différente de 25 min — typiquement la durée cible de la
+ * séance affichée. Ce n'est PAS un réglage : tant que la personne n'a pas
+ * réglé ses durées, l'affichage et le démarrage suivent ce défaut de contexte ;
+ * dès qu'elle a réglé (`dureesMin` persisté), sa valeur prime.
  */
-export function usePomodoro(compteId: string) {
+export function usePomodoro(
+  compteId: string,
+  defauts?: Partial<Record<PhasePomodoro, number>>,
+) {
   const hydrate = useEstHydrate();
   const cle = cleParCompte("pomodoro", compteId);
 
@@ -128,6 +149,16 @@ export function usePomodoro(compteId: string) {
   const [signalFin, setSignalFin] = useState<PhasePomodoro | null>(null);
   const etatCourant = useRef(etat);
   const effacementSignal = useRef<number | null>(null);
+  /*
+   * Les défauts de contexte vivent dans un ref : l'objet passé par l'appelant
+   * change d'identité à chaque rendu, et le recopier dans une dépendance
+   * d'effet recréerait l'horloge à chaque rendu pour rien. Lu UNIQUEMENT
+   * dans l'intervalle et les handlers — jamais pendant le rendu.
+   */
+  const defautsCourants = useRef(defauts);
+  useEffect(() => {
+    defautsCourants.current = defauts;
+  }, [defauts]);
 
   useEffect(() => {
     etatCourant.current = etat;
@@ -153,8 +184,11 @@ export function usePomodoro(compteId: string) {
   }, [hydrate, cle]);
 
   const enMarche = etat.finPrevue !== undefined;
-  const reste = secondesRestantes(etat, maintenant);
-  const durees = dureesDe(etat);
+  // L'affichage lit la PROP directement — pas le ref : les refs ne se lisent
+  // jamais pendant le rendu. Le ref n'existe que pour l'horloge et les
+  // gestes (effets et handlers), où lire la valeur courante est légitime.
+  const reste = secondesRestantes(etat, maintenant, defauts);
+  const durees = dureesDe(etat, defauts);
 
   const diffuser = useCallback((prochain: EtatPersiste) => {
     setEtat(prochain);
@@ -177,7 +211,7 @@ export function usePomodoro(compteId: string) {
         const prochain = {
           ...e,
           phase: suivante,
-          finPrevue: instant + dureesDe(e)[suivante] * 60_000,
+          finPrevue: instant + dureesDe(e, defautsCourants.current)[suivante] * 60_000,
           resteAuArret: undefined,
         } satisfies EtatPersiste;
         diffuser(prochain);
@@ -201,7 +235,9 @@ export function usePomodoro(compteId: string) {
     const e = etatCourant.current;
     const prochain = {
       ...e,
-      finPrevue: instant + (e.resteAuArret ?? dureesDe(e)[e.phase] * 60) * 1000 +
+      finPrevue:
+        instant +
+        (e.resteAuArret ?? dureesDe(e, defautsCourants.current)[e.phase] * 60) * 1000 +
         (e.resteAuArret === undefined ? 0 : 1000),
       resteAuArret: undefined,
     };
@@ -216,7 +252,7 @@ export function usePomodoro(compteId: string) {
     const prochain = {
       ...e,
       finPrevue: undefined,
-      resteAuArret: secondesRestantes(e, instant),
+      resteAuArret: secondesRestantes(e, instant, defautsCourants.current),
     };
     diffuser(prochain);
   }
@@ -248,7 +284,7 @@ export function usePomodoro(compteId: string) {
   function reglerDuree(phase: PhasePomodoro, valeur: number) {
     setSignalFin(null);
     const e = etatCourant.current;
-    const dureesMin = { ...dureesDe(e), [phase]: bornerDuree(valeur) };
+    const dureesMin = { ...dureesDe(e, defautsCourants.current), [phase]: bornerDuree(valeur) };
     const prochain = {
       ...e,
       dureesMin,
@@ -273,7 +309,14 @@ export function usePomodoro(compteId: string) {
   };
 }
 
-export function Pomodoro({ compteId }: { compteId: string }) {
+export function Pomodoro({
+  compteId,
+  dureeFocusDefaut,
+}: {
+  compteId: string;
+  /** Défaut de focus contextuel (ex. durée cible d'une séance en mode épreuve). */
+  dureeFocusDefaut?: number;
+}) {
   const {
     hydrate,
     etat,
@@ -287,7 +330,10 @@ export function Pomodoro({ compteId }: { compteId: string }) {
     oublierReglages,
     changerPhase,
     reglerDuree,
-  } = usePomodoro(compteId);
+  } = usePomodoro(
+    compteId,
+    dureeFocusDefaut ? { focus: Math.min(120, Math.max(1, Math.round(dureeFocusDefaut))) } : undefined,
+  );
 
   const [reglageOuvert, setReglageOuvert] = useState(false);
 

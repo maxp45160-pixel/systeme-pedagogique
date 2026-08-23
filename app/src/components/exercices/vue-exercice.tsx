@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/primitives";
 import { PanneauPliable } from "@/components/ui/panneau-pliable";
 import { Markdown } from "@/components/ui/markdown";
+import { DemarrageAuto } from "@/components/exercices/auto-demarrage";
 import { BilanAssiste } from "@/components/exercices/bilan-assiste";
 import { BoutonAbandon } from "@/components/exercices/abandon";
 import { BoutonEditer } from "@/components/exercices/bouton-editer";
@@ -498,7 +499,31 @@ export async function VueExercice(props: {
         </div>
 
         {/* ------------------------ Démarrage / résolution ------------------ */}
-        {!props.lectureSeule && !enCours && (props.integree || !derniereTerminee) && (
+        {/*
+          Démarrage automatique dans le déroulé d'une séance : ouvrir le
+          travail EST commencer. Hors séance, et pour refaire un exercice
+          déjà mené dans la même séance, le geste reste explicite.
+        */}
+        {!props.lectureSeule && !enCours && props.integree && !derniereTerminee && (
+          <DemarrageAuto exerciseId={exercice.id} />
+        )}
+        {!props.lectureSeule && !enCours && props.integree && derniereTerminee && (
+          <Carte accent>
+            <div className="px-4 py-3.5">
+              <p className="text-sm">
+                Cet exercice a déjà été mené dans cette séance. Tu peux le refaire : la nouvelle
+                tentative comptera comme les autres.
+              </p>
+              <form action={demarrerTentative.bind(null, exercice.id)}>
+                <Bouton type="submit" variante="principal" taille="petite">
+                  Refaire l&apos;exercice
+                  <IconeFleche className="size-4" />
+                </Bouton>
+              </form>
+            </div>
+          </Carte>
+        )}
+        {!props.lectureSeule && !enCours && !props.integree && !derniereTerminee && (
           <Carte accent>
             <div className="px-4 py-3.5">
               <p className="text-sm">
@@ -512,19 +537,10 @@ export async function VueExercice(props: {
                   une information utile.
                 </p>
               )}
-              {props.integree ? (
-                <form action={demarrerTentative.bind(null, exercice.id)}>
-                  <Bouton type="submit" variante="principal" taille="petite">
-                    Commencer l&apos;exercice
-                    <IconeFleche className="size-4" />
-                  </Bouton>
-                </form>
-              ) : (
-                <Link href={lienCompositeur} className={classesLienBouton("principal", "petite")}>
-                  Composer une séance
-                  <IconeFleche className="size-4" />
-                </Link>
-              )}
+              <Link href={lienCompositeur} className={classesLienBouton("principal", "petite")}>
+                Composer une séance
+                <IconeFleche className="size-4" />
+              </Link>
             </div>
           </Carte>
         )}
