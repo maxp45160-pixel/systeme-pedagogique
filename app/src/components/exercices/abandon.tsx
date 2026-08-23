@@ -19,6 +19,7 @@
  */
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { abandonnerExercice } from "@/lib/store/actions";
 import type { ContexteNavigationExercice } from "@/lib/domain/navigation-exercice";
 import { BandeauInfo, Bouton } from "@/components/ui/primitives";
@@ -38,6 +39,7 @@ export function BoutonAbandon({
   codes: string[];
   navigation?: ContexteNavigationExercice;
 }) {
+  const router = useRouter();
   const [confirme, setConfirme] = useState(false);
   const [enCours, demarrer] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
@@ -46,7 +48,15 @@ export function BoutonAbandon({
     setErreur(null);
     demarrer(async () => {
       try {
-        await abandonnerExercice(attemptId, exerciceId, dureeMin, navigation);
+        const destination = await abandonnerExercice(
+          attemptId,
+          exerciceId,
+          dureeMin,
+          navigation,
+        );
+        setConfirme(false);
+        router.push(destination);
+        router.refresh();
       } catch (e) {
         setErreur(e instanceof Error ? e.message : "Impossible de clore la tentative.");
       }
