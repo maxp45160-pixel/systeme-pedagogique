@@ -195,6 +195,7 @@ export function ModaleEdition({
         <Champ
           label="Énoncé"
           multiligne
+          formules
           rows={8}
           value={enonce}
           onChange={(e) => setEnonce(e.target.value)}

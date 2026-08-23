@@ -10,6 +10,7 @@
 
 import { memo, useEffect, useRef, useState } from "react";
 import { Bouton } from "@/components/ui/primitives";
+import { PaletteFormulesTexte } from "@/components/ui/palette-formules";
 
 /** Les six modes rapides — « Donne-moi un exercice » a disparu (lot 1.4). */
 const MODES = [
@@ -67,7 +68,7 @@ export const ChatInput = memo(function ChatInput({
 
   return (
     <div className="border-t border-bordure px-3 py-3">
-      <div className="mb-2 flex flex-wrap gap-1">
+      <div className="mb-2 flex flex-wrap items-center gap-1">
         {modesVisibles.map((m) => (
           <button
             key={m.cle}
@@ -82,6 +83,16 @@ export const ChatInput = memo(function ChatInput({
             {m.libelle}
           </button>
         ))}
+        {/* On pose des questions de mathématiques au tuteur : la palette doit
+            être là aussi, sinon il faut taper le LaTeX de mémoire. */}
+        <div className="ml-auto">
+          <PaletteFormulesTexte
+            champ={champRef}
+            valeur={saisie}
+            onChange={setSaisie}
+            desactivee={enCours}
+          />
+        </div>
       </div>
 
       {/*

@@ -627,6 +627,14 @@ export type SegmentTexte = {
   texte: string;
   /** LaTeX d'origine du segment — présent uniquement sur une formule. */
   latex?: string;
+  /**
+   * Formule hors-ligne (`\[…\]`, `$$…$$`, environnement) plutôt qu'en ligne.
+   *
+   * L'éditeur WYSIWYG en a besoin pour recomposer la source d'origine : une
+   * formule rendue à `\(…\)` alors qu'elle venait de `\[…\]` changerait le
+   * document à chaque passage dans l'éditeur.
+   */
+  bloc?: boolean;
 };
 
 /**
@@ -654,7 +662,11 @@ export function segmenterFormulesEnLigne(texte: string): SegmentTexte[] {
 
     const debut = trouve.index ?? 0;
     if (debut > curseur) segments.push({ formule: false, texte: texte.slice(curseur, debut) });
-    segments.push({ formule: true, texte: latexVersTexte(brut), latex: brut });
+    /* `\[…\]`, `$$…$$` et les environnements posent la formule sur sa propre
+       ligne ; `\(…\)` et `$…$` la laissent dans le texte. */
+    const bloc =
+      trouve[2] !== undefined || trouve[3] !== undefined || trouve[5] !== undefined;
+    segments.push({ formule: true, texte: latexVersTexte(brut), latex: brut, bloc });
     curseur = debut + trouve[0].length;
   }
 

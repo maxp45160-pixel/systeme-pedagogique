@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { enregistrerReponse } from "@/lib/store/actions";
 import { useEstHydrate } from "@/lib/ui/hydratation";
+import { PaletteFormulesTexte } from "@/components/ui/palette-formules";
 import { cleParCompte, ecrireSession, effacerSession, lireSession } from "@/lib/ui/stockage-session";
 
 /**
@@ -117,6 +118,7 @@ function ZoneHydrate({
   const texteRef = useRef(texte);
   const enregistreRef = useRef(valeur);
   const envoiEnVol = useRef(false);
+  const champRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Synchronisées après le rendu, jamais pendant : un rendu qui écrit dans une
   // ref est un rendu impur. L'effet passe avant tout événement utilisateur
@@ -255,17 +257,23 @@ function ZoneHydrate({
     void allerCorriger();
   }
 
+  /* La réponse porte des calculs : on doit pouvoir y écrire une racine ou un
+     sigma sans connaître LaTeX. La palette écrit dans le même état que la
+     frappe, donc l'enregistrement différé la voit comme le reste. */
+  function ecrireReponse(suivant: string) {
+    setTexte(suivant);
+    if (!envoiEnVol.current) setEtat(suivant === enregistre ? "enregistre" : "modifie");
+  }
+
   return (
     <div>
+      <div className="mb-1.5 flex justify-end">
+        <PaletteFormulesTexte champ={champRef} valeur={texte} onChange={ecrireReponse} />
+      </div>
       <textarea
+        ref={champRef}
         value={texte}
-        onChange={(e) => {
-          const suivant = e.target.value;
-          setTexte(suivant);
-          // Pas « Enregistrement… » : rien n'est parti tant que le décompte
-          // n'a pas expiré. Un envoi déjà en vol garde son propre état.
-          if (!envoiEnVol.current) setEtat(suivant === enregistre ? "enregistre" : "modifie");
-        }}
+        onChange={(e) => ecrireReponse(e.target.value)}
         onKeyDown={gererToucheClavier}
         onBlur={forcer}
         rows={10}

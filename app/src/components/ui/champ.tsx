@@ -1,10 +1,14 @@
-import { useId } from "react";
+"use client";
+
+import { useId, useRef } from "react";
 import type {
   InputHTMLAttributes,
   SelectHTMLAttributes,
   TextareaHTMLAttributes,
 } from "react";
 import { cx } from "@/components/ui/primitives";
+import { PaletteFormules } from "@/components/ui/palette-formules";
+import { insererFormuleDansTexte } from "@/lib/ui/insertion-formule";
 
 type TailleChamp = "normale" | "compacte";
 
@@ -127,6 +131,14 @@ type ProprietesChampTextarea = ProprietesChampBase &
     /** Rend un `<textarea>` au lieu d'un `<input>` — même chrome, même câblage. */
     multiligne: true;
     rows?: number;
+    /**
+     * Pose la palette de symboles mathématiques à côté du libellé.
+     *
+     * Opt-in, jamais par défaut : on écrit des mathématiques dans un énoncé ou
+     * une section de fiche, pas dans une consigne au tuteur ni dans une note
+     * d'administration. Une palette partout serait du bruit partout.
+     */
+    formules?: boolean;
   };
 
 /**
@@ -148,6 +160,11 @@ export function Champ(props: ProprietesChampInput | ProprietesChampTextarea) {
     ...reste
   } = props;
 
+  /* `formules` est une propriété à nous : elle ne doit pas atterrir sur le
+     `<textarea>`, où React la signalerait comme attribut DOM inconnu. */
+  const { formules, ...resteChamp } = reste as { formules?: boolean } & Record<string, unknown>;
+  const champRef = useRef<HTMLTextAreaElement | null>(null);
+
   const idGenere = useId();
   const idFinal = id ?? idGenere;
   const aideId = `${idFinal}-aide`;
@@ -158,17 +175,27 @@ export function Champ(props: ProprietesChampInput | ProprietesChampTextarea) {
 
   return (
     <div>
-      <Etiquette id={idFinal} label={label} requis={requis} />
+      {multiligne && formules ? (
+        <div className="flex items-end justify-between gap-2">
+          <Etiquette id={idFinal} label={label} requis={requis} />
+          <PaletteFormules
+            onInserer={(latex, recul) => ecrireFormule(champRef.current, latex, recul)}
+          />
+        </div>
+      ) : (
+        <Etiquette id={idFinal} label={label} requis={requis} />
+      )}
       {multiligne ? (
         <textarea
+          ref={champRef}
           id={idFinal}
           required={requis}
           aria-required={requis || undefined}
           aria-invalid={Boolean(erreur) || undefined}
           aria-describedby={decrivantPar}
-          rows={(reste as TextareaHTMLAttributes<HTMLTextAreaElement>).rows ?? 3}
+          rows={(resteChamp as TextareaHTMLAttributes<HTMLTextAreaElement>).rows ?? 3}
           className={classes}
-          {...(reste as Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "rows">)}
+          {...(resteChamp as Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "rows">)}
         />
       ) : (
         <input
@@ -178,12 +205,54 @@ export function Champ(props: ProprietesChampInput | ProprietesChampTextarea) {
           aria-invalid={Boolean(erreur) || undefined}
           aria-describedby={decrivantPar}
           className={classes}
-          {...(reste as InputHTMLAttributes<HTMLInputElement>)}
+          {...(resteChamp as InputHTMLAttributes<HTMLInputElement>)}
         />
       )}
       <Pied aideId={aideId} erreurId={erreurId} aide={aide} erreur={erreur} />
     </div>
   );
+}
+
+/**
+ * Écrit une formule dans un `<textarea>` contrôlé par React, sans connaître
+ * l'état de l'appelant.
+ *
+ * ## Pourquoi ce détour
+ *
+ * `Champ` reçoit `value` et `onChange` et ne sait rien du `useState` qui est
+ * derrière. Affecter `element.value` directement ne déclencherait aucun
+ * `onChange` : React garde sa propre trace de la valeur et considérerait
+ * qu'elle n'a pas bougé, si bien que la formule disparaîtrait au rendu
+ * suivant.
+ *
+ * On passe donc par le *setter* natif du prototype — celui que React a masqué
+ * sur l'instance — puis on émet un `input` qui remonte. React le lit comme une
+ * frappe ordinaire et appelle `onChange` de l'appelant. C'est le prix à payer
+ * pour que n'importe quel champ multiligne gagne la palette d'un seul mot,
+ * sans que chaque site de la page ait à recâbler son état.
+ */
+function ecrireFormule(element: HTMLTextAreaElement | null, latex: string, recul: number) {
+  if (!element) return;
+  const { texte, curseur } = insererFormuleDansTexte(
+    element.value,
+    element.selectionStart ?? element.value.length,
+    element.selectionEnd ?? element.value.length,
+    latex,
+    recul,
+  );
+
+  const setterNatif = Object.getOwnPropertyDescriptor(
+    HTMLTextAreaElement.prototype,
+    "value",
+  )?.set;
+  if (setterNatif) setterNatif.call(element, texte);
+  else element.value = texte;
+  element.dispatchEvent(new Event("input", { bubbles: true }));
+
+  requestAnimationFrame(() => {
+    element.focus();
+    element.setSelectionRange(curseur, curseur);
+  });
 }
 
 interface ProprietesChampSelect

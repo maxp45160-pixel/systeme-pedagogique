@@ -734,6 +734,7 @@ export function WorkspaceDocument({
                       id={`doc-${id}-${index}`}
                       label={`Contenu — ${section}`}
                       multiligne
+                      formules
                       rows={6}
                       value={valeurs[section] ?? ""}
                       onChange={(event) => {

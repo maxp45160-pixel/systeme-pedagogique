@@ -318,21 +318,94 @@
   .prose-exo ol {
     list-style: decimal;
   }
-  /* Formules : converties en Unicode par lib/ui/formule.ts, pas de librairie. */
+  /*
+   * Formules : composées par KaTeX (`components/ui/formule-math.tsx`), avec
+   * repli Unicode (`lib/ui/formule.ts`) quand KaTeX refuse une commande.
+   *
+   * `.formule` n'habille QUE ce repli textuel : le monospace y sert à séparer
+   * la notation de la prose. Sur une sortie KaTeX il se battrait avec les
+   * fontes KaTeX_Main, qui portent déjà cette distinction.
+   */
   .prose-exo .formule {
     font-family: var(--font-geist-mono), ui-monospace, monospace;
     font-size: 0.95em;
     white-space: nowrap;
   }
+  /*
+   * Formule hors-ligne : une ligne à elle, pas une carte.
+   *
+   * L'ancienne règle (23/08/2026) posait un cadre plein — `--surface-2`,
+   * bordure, coin arrondi, 0,8 rem de marge intérieure — autour de CHAQUE
+   * formule affichée : une fiche qui en compte cinq devenait une pile de
+   * boîtes grises, et le cadre pesait plus lourd que la formule.
+   *
+   * Deux réglages y contredisaient carrément KaTeX. `white-space: pre-wrap`
+   * rendait signifiants les espaces de mise en page du HTML de KaTeX, qui en
+   * produit beaucoup : trous au milieu des fractions, exposants décalés.
+   * `font-family: monospace` s'appliquait à tout ce que KaTeX ne recouvre pas
+   * de sa propre fonte — délimiteurs étirés, filets de fraction.
+   *
+   * Ce qui reste : de l'air au-dessus et au-dessous, la formule centrée, et le
+   * débordement horizontal confié au conteneur — une matrice large défile au
+   * lieu de sortir de la colonne.
+   */
   .prose-exo .formule-affichee {
-    font-family: var(--font-geist-mono), ui-monospace, monospace;
-    font-size: 1.05em;
+    margin: 1.25rem 0;
+    padding: 0.25rem 0;
     text-align: center;
-    background: var(--surface-2);
-    border: 1px solid var(--bordure);
-    border-radius: var(--coin-doux);
-    padding: 0.8rem 1rem;
     overflow-x: auto;
+    overflow-y: hidden;
+  }
+  /*
+   * KaTeX pose lui-même `margin: 1em 0` sur `.katex-display` : cumulé à celle
+   * du conteneur, l'espacement doublait autour de chaque formule.
+   */
+  .prose-exo .katex-display {
+    margin: 0;
+  }
+  .prose-exo .katex {
+    font-size: 1.08em;
+  }
+  /* Une formule en ligne ne se coupe pas au milieu d'un exposant. */
+  .prose-exo :not(.katex-display) > .katex {
+    white-space: nowrap;
+  }
+
+  /*
+   * Formules DANS l'éditeur (`formule-noeud.ts`).
+   *
+   * Un nœud composé est atomique : `contenteditable="false"`, le curseur passe
+   * devant ou derrière. Il doit donc annoncer qu'il est cliquable — sans quoi
+   * rien ne dit qu'on peut le rouvrir pour le corriger.
+   */
+  .formule-noeud {
+    cursor: pointer;
+    border-radius: var(--coin-net);
+    padding: 0 0.15em;
+    transition: background-color 0.12s ease;
+  }
+  .formule-noeud:hover {
+    background: var(--primaire-faible, var(--surface-2));
+    outline: 1px solid var(--bordure);
+  }
+  .formule-noeud[data-bloc="1"] {
+    display: block;
+    margin: 1.25rem 0;
+    padding: 0.25rem 0;
+    overflow-x: auto;
+  }
+  /*
+   * Formule rouverte : c'est de la source, elle se lit comme du code et se
+   * distingue franchement du texte composé — sinon on ne sait plus laquelle
+   * des deux on est en train de modifier.
+   */
+  .formule-source {
+    font-family: var(--font-geist-mono), ui-monospace, monospace;
+    font-size: 0.9em;
+    background: var(--surface-2);
+    border: 1px dashed var(--bordure-forte);
+    border-radius: var(--coin-net);
+    padding: 0.05em 0.3em;
     white-space: pre-wrap;
   }
 

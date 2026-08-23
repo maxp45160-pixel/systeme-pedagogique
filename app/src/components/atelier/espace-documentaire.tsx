@@ -5,6 +5,12 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Markdown } from "@/components/ui/markdown";
 import { cx, Filigrane } from "@/components/ui/primitives";
+import { PaletteFormules, PaletteFormulesTexte } from "@/components/ui/palette-formules";
+import {
+  ATTRIBUT_SOURCE,
+  htmlSourceFormule,
+  sourceFormule,
+} from "@/lib/documents/formule-noeud";
 import dynamic from "next/dynamic";
 import { Modale } from "@/components/ui/modale";
 import { IconeFleche, IconeRecherche } from "@/components/ui/icones";
@@ -962,6 +968,57 @@ export function EspaceDocumentaire({
     synchroniserContenu();
   }
 
+  /**
+   * Insère un symbole de la palette, en garantissant qu'il tombe DANS une formule.
+   *
+   * ## Pourquoi l'enveloppe est automatique
+   *
+   * Les touches de la palette insèrent du LaTeX nu (`\sigma`, `\sqrt{}`). Hors
+   * d'un `\(…\)`, `segmenterFormulesEnLigne` n'y voit aucune formule : le
+   * document garde `\sqrt{}` et l'affiche tel quel. Cliquer « √ » dans de la
+   * prose produisait donc littéralement du bruit — le défaut visible dans la
+   * capture du 23/08/2026. La palette pose désormais l'enveloppe elle-même
+   * quand le curseur n'est pas déjà dans une formule ; il n'y a rien à savoir
+   * de LaTeX pour s'en servir.
+   *
+   * ## Pourquoi le curseur recule
+   *
+   * `insertText`/`insertHTML` laissent toujours le curseur APRÈS ce qui vient
+   * d'être écrit : après `\frac{}{}` il fallait trois flèches pour revenir au
+   * numérateur. `Selection.modify` le ramène d'autant de caractères que la
+   * touche le demande — plus les deux du `\)` fermant quand on vient de poser
+   * l'enveloppe.
+   */
+  function insererFormule(latex: string, recul: number) {
+    if (!selectionnee || selectionnee.lectureSeule) return;
+    editeurRef.current?.focus();
+
+    const ancre = window.getSelection()?.anchorNode ?? null;
+    const element =
+      ancre === null ? null : ancre.nodeType === 1 ? (ancre as Element) : ancre.parentElement;
+    const dejaDansUneFormule = element?.closest(`[${ATTRIBUT_SOURCE}]`) != null;
+    /* `\(\)` et `\[\]` sont des enveloppes : les envelopper à nouveau
+       produirait `\(\(\)\)`, que rien ne sait relire. */
+    const estEnveloppe = /^\\[([]/.test(latex);
+
+    let reculTotal = recul;
+    if (dejaDansUneFormule || estEnveloppe) {
+      document.execCommand(dejaDansUneFormule ? "insertText" : "insertHTML", false,
+        dejaDansUneFormule ? latex : htmlSourceFormule(latex));
+    } else {
+      document.execCommand("insertHTML", false, htmlSourceFormule(sourceFormule(latex, false)));
+      reculTotal += 2; // le `\)` fermant
+    }
+
+    const selection = window.getSelection();
+    for (let pas = 0; pas < reculTotal; pas++) {
+      selection?.modify("move", "backward", "character");
+    }
+
+    synchroniserContenu();
+    rafraichirEtatFormatage();
+  }
+
   function gererRaccourcisClavier(event: React.KeyboardEvent<HTMLDivElement>) {
     if ((event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey) {
       if (event.key === "b" || event.key === "B") {
@@ -1677,17 +1734,12 @@ export function EspaceDocumentaire({
                       {(() => {
                         const valeurs = lireValeursSections(brouillon, sectionsFiche);
                         return sectionsFiche.map((section) => (
-                          <section key={section} className="rounded-lg border border-bordure bg-surface p-4">
-                            <h3 className="font-serif text-lg font-medium">{section}</h3>
-                            <textarea
-                              value={valeurs[section] ?? ""}
-                              onChange={(event) => modifierSection(section, event.target.value)}
-                              rows={6}
-                              aria-label={section}
-                              placeholder={`Écrire dans « ${section} »…`}
-                              className="mt-2 min-h-24 w-full resize-y rounded-md border border-bordure-controle bg-surface px-3 py-2 text-sm leading-relaxed outline-none focus:border-primaire"
-                            />
-                          </section>
+                          <SectionFicheSaisie
+                            key={section}
+                            section={section}
+                            valeur={valeurs[section] ?? ""}
+                            onChange={(texte) => modifierSection(section, texte)}
+                          />
                         ));
                       })()}
                       <p className="text-xs text-texte-discret">
@@ -1825,29 +1877,7 @@ export function EspaceDocumentaire({
                               ”
                             </button>
                             <div className="h-3.5 w-px bg-bordure mx-0.5" />
-                            {(
-                              [
-                                { libelle: "\\(\\)", insere: "\\(\\)", titre: "Formule en ligne" },
-                                { libelle: "a/b", insere: "\\frac{}{}", titre: "Fraction" },
-                                { libelle: "√", insere: "\\sqrt{}", titre: "Racine carrée" },
-                                { libelle: "∑", insere: "\\sum_{}^{}", titre: "Somme" },
-                                { libelle: "∫", insere: "\\int_{}^{}", titre: "Intégrale" },
-                                { libelle: "^", insere: "^{}", titre: "Exposant" },
-                              ] as const
-                            ).map((bouton) => (
-                              <button
-                                key={bouton.titre}
-                                type="button"
-                                onClick={() => {
-                                  executerFormatage("insertText", bouton.insere);
-                                  rafraichirEtatFormatage();
-                                }}
-                                className="flex h-6 items-center justify-center rounded-full px-1.5 font-mono text-[0.6875rem] font-medium text-texte-attenue hover:bg-primaire/15 hover:text-primaire transition-colors cursor-pointer"
-                                title={bouton.titre}
-                              >
-                                {bouton.libelle}
-                              </button>
-                            ))}
+                            <PaletteFormules onInserer={insererFormule} />
                             <div className="h-3.5 w-px bg-bordure mx-0.5" />
                             <button
                               type="button"
@@ -2497,5 +2527,45 @@ function CarteResultat({
         </div>
       </div>
     </button>
+  );
+}
+
+/**
+ * Une section de la fiche de saisie : son titre, sa zone de texte, sa palette.
+ *
+ * Composant à part parce qu'il lui faut une `ref` par section — un `useRef`
+ * dans la boucle de rendu du parent serait un appel de hook conditionnel.
+ *
+ * La palette est ici, et pas seulement dans l'éditeur libre : la fiche de
+ * saisie est la structure de la création d'origine, donc l'endroit où l'on
+ * écrit vraiment. Elle n'offrait aucun moyen de produire une formule autrement
+ * qu'en tapant du LaTeX de mémoire.
+ */
+function SectionFicheSaisie({
+  section,
+  valeur,
+  onChange,
+}: {
+  section: string;
+  valeur: string;
+  onChange: (texte: string) => void;
+}) {
+  const champ = useRef<HTMLTextAreaElement | null>(null);
+  return (
+    <section className="rounded-lg border border-bordure bg-surface p-4">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="font-serif text-lg font-medium">{section}</h3>
+        <PaletteFormulesTexte champ={champ} valeur={valeur} onChange={onChange} />
+      </div>
+      <textarea
+        ref={champ}
+        value={valeur}
+        onChange={(event) => onChange(event.target.value)}
+        rows={6}
+        aria-label={section}
+        placeholder={`Écrire dans « ${section} »…`}
+        className="mt-2 min-h-24 w-full resize-y rounded-md border border-bordure-controle bg-surface px-3 py-2 text-sm leading-relaxed outline-none focus:border-primaire"
+      />
+    </section>
   );
 }

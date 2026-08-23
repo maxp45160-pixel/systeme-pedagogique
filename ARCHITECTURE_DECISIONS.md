@@ -8924,8 +8924,73 @@ elle n'ouvre pas la porte à une librairie d'interface générale.
 - `components/ui/markdown.tsx` — segments en ligne portant leur LaTeX brut
   (`SegmentTexte.latex`, `segmenterFormulesEnLigne`) et blocs de formule rendus
   par `FormuleMath` ;
-- la barre de l'éditeur de l'Atelier gagne des insertions de formules
-  (`\( \)`, `\frac{}{}`, `\sqrt{}`, `\sum_{}^{}`, `\int_{}^{}`, `^{}`).
+- la barre de l'éditeur de l'Atelier gagne une **palette de symboles**
+  (`components/ui/palette-formules.tsx`) : six familles — opérations,
+  relations, structures, grec, ensembles et logique, flèches — plus les deux
+  enveloppes `\(…\)` et `\[…\]`. Chaque touche insère du LaTeX au curseur et
+  **replace le curseur** dans le premier trou de la structure (`\frac{|}{}`).
+
+  ⚠️ Cette palette remplace les six insertions initiales (`\( \)`, `\frac{}{}`,
+  `\sqrt{}`, `\sum_{}^{}`, `\int_{}^{}`, `^{}`), **retirées le 23/08/2026** :
+  elles n'offraient ni multiplication, ni « inférieur ou égal », ni une seule
+  lettre grecque. Écrire une formule réelle supposait de connaître LaTeX par
+  cœur, ce que la décision d'installer KaTeX visait précisément à éviter. Le
+  libellé d'une touche est le glyphe rendu, jamais le nom de la commande.
+
+- **La palette pose l'enveloppe elle-même** (`lib/ui/insertion-formule.ts`).
+  Sa première version insérait du LaTeX nu : hors d'un `\(…\)`,
+  `segmenterFormulesEnLigne` n'y voit aucune formule, et cliquer « √ » dans de
+  la prose écrivait littéralement `\sqrt{}` dans la fiche. Le symbole tombe
+  désormais toujours dans une formule — dans celle où est le curseur, ou dans
+  une enveloppe créée pour lui. Il n'y a rien à savoir de LaTeX pour s'en
+  servir.
+
+- **La palette est partout où l'on écrit vraiment.** Elle n'existait que dans
+  l'éditeur libre de l'Atelier, c'est-à-dire nulle part où l'on rédige
+  réellement : la **fiche de saisie** (une zone par section déclarée, la
+  structure de la création d'origine), l'**énoncé** d'un exercice, le
+  **contenu** d'une section de document, la **réponse** qu'on rédige et la
+  question posée au **tuteur** en étaient privés. `Champ multiligne` gagne un
+  drapeau `formules` — opt-in, jamais par défaut : une palette dans une note
+  d'administration ou une consigne au tuteur serait du bruit.
+
+- **Les formules sont composées DANS l'éditeur**
+  (`lib/documents/formule-noeud.ts`, `components/atelier/editeur-document.tsx`).
+
+  ⚠️ Découverte le 23/08/2026 : **une fiche ressource n'a pas de vue rendue.**
+  Son corps ne passe que par `EditeurDirect`, un `contentEditable` ;
+  `<Markdown>` — donc KaTeX — n'y était branché que sur l'aperçu d'un
+  snapshot. Autrement dit, à l'endroit même où l'on écrit des mathématiques,
+  aucune formule n'a jamais été composée : on lisait la source. Une formule est
+  désormais un **nœud atomique** (`contenteditable="false"`, LaTeX en
+  attribut) ; un clic la rouvre en source, et sortir le curseur la recompose.
+  Le délimiteur d'origine est conservé — `SegmentTexte.bloc` — pour qu'un
+  passage dans l'éditeur ne réécrive pas silencieusement `\[…\]` en `\(…\)`.
+
+- **L'emphase Markdown ne s'applique plus à l'intérieur du LaTeX.**
+  `*` est un opérateur en mathématiques et un délimiteur d'italique en
+  Markdown ; `_` est un indice et une emphase. `formaterEnLigneVersHtml`
+  traitait la ligne entière, LaTeX compris :
+
+  ```
+  SS = k*\sigma*\sqrt{}*(L)   →   SS = k<em>\sigma</em>\sqrt{}*(L)
+  ```
+
+  `components/ui/markdown.tsx` segmentait déjà les formules AVANT l'emphase et
+  notait pourquoi ; le chemin WYSIWYG ne le faisait pas, et comme il est le
+  rendu final d'une fiche ressource, le défaut était visible à l'écran.
+  **Corrigé le 23/08/2026** : les deux chemins segmentent d'abord.
+
+- **rendu des blocs de formule** (`globals.css`, `.formule-affichee`) : la
+  règle initiale posait un cadre plein — fond `--surface-2`, bordure, coin
+  arrondi — autour de CHAQUE formule affichée, et imposait à la sortie de
+  KaTeX `white-space: pre-wrap` et une fonte monospace. Les deux **contredisent
+  KaTeX** : `pre-wrap` rend signifiants les espaces de mise en page que son
+  HTML produit en nombre (trous dans les fractions, exposants décalés), et la
+  fonte monospace s'applique à tout ce que KaTeX ne recouvre pas de la sienne.
+  **Retirés le 23/08/2026** : une formule hors-ligne est une ligne à elle —
+  de l'air, centrée, débordement horizontal confié au conteneur — pas une
+  carte. Le monospace ne sert plus qu'au repli textuel (`.formule`).
 
 ### Ce que cette décision n'autorise pas
 

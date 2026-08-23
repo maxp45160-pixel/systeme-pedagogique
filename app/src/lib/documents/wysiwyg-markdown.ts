@@ -12,6 +12,15 @@ import {
   REGEX_INLINE_MARKDOWN,
   type ExtractionFrontMatter,
 } from "@/lib/documents/markdown";
+import { echapperHtml } from "@/lib/documents/echappement-html";
+import { segmenterFormulesEnLigne } from "@/lib/ui/formule";
+import {
+  ATTRIBUT_BLOC,
+  ATTRIBUT_LATEX,
+  ATTRIBUT_SOURCE,
+  htmlNoeudFormule,
+  sourceFormule,
+} from "@/lib/documents/formule-noeud";
 
 export { separerFrontMatterEtCorps, REGEX_INLINE_MARKDOWN };
 export type { ExtractionFrontMatter };
@@ -28,20 +37,12 @@ export function recomposerDocumentComplet(frontmatterBrut: string, corpsMd: stri
 }
 
 /**
- * Échappe les caractères HTML spéciaux d'une chaîne texte.
+ * Formate la PROSE en ligne (gras, italique, code, wikiliens) en balises HTML.
+ *
+ * Ne reçoit jamais de LaTeX : `formaterEnLigneVersHtml` a déjà mis les formules
+ * de côté. Voir la note qui l'accompagne — l'ordre n'est pas un détail.
  */
-function echapperHtml(texte: string): string {
-  return texte
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-/**
- * Formate les éléments en ligne (gras, italique, code, wikiliens) en balises HTML.
- */
-export function formaterEnLigneVersHtml(texte: string): string {
+function formaterProseVersHtml(texte: string): string {
   const tokens: Array<{ type: "html" | "text"; value: string }> = [];
   // Découpe sur les wikiliens, le gras, l'italique et le code.
   // Instance locale obligatoire : REGEX_INLINE_MARKDOWN est partagée au niveau
@@ -91,6 +92,35 @@ export function formaterEnLigneVersHtml(texte: string): string {
 
   return tokens
     .map((token) => (token.type === "html" ? token.value : echapperHtml(token.value)))
+    .join("");
+}
+
+/**
+ * Formate les éléments en ligne, formules comprises.
+ *
+ * ## Pourquoi les formules passent EN PREMIER
+ *
+ * `*` est un opérateur en mathématiques et un délimiteur d'italique en
+ * Markdown ; `_` est un indice et une emphase. Appliquer l'emphase à une ligne
+ * qui contient du LaTeX mange la formule :
+ *
+ *     SS = k*\sigma*\sqrt{}*(L)   →   SS = k<em>\sigma</em>\sqrt{}*(L)
+ *
+ * `components/ui/markdown.tsx` segmente déjà les formules avant l'emphase pour
+ * cette raison, et le note. Ce chemin-ci ne le faisait pas : une formule écrite
+ * dans une fiche ressource — le seul endroit où l'on écrit des mathématiques —
+ * était systématiquement abîmée. Corrigé le 23/08/2026.
+ *
+ * Chaque formule devient un nœud atomique composé par KaTeX (`formule-noeud.ts`),
+ * que `serialiserNœudsInlineVersMarkdown` sait rendre à sa source d'origine.
+ */
+export function formaterEnLigneVersHtml(texte: string): string {
+  return segmenterFormulesEnLigne(texte)
+    .map((segment) =>
+      segment.formule && segment.latex
+        ? htmlNoeudFormule(segment.latex, segment.bloc === true)
+        : formaterProseVersHtml(segment.texte),
+    )
     .join("");
 }
 
@@ -204,6 +234,28 @@ function serialiserNœudsInlineVersMarkdown(node: Node): string {
     // ELEMENT_NODE
     const el = node as HTMLElement;
     const tagName = el.tagName.toLowerCase();
+
+    /*
+     * Les formules AVANT tout le reste.
+     *
+     * Un nœud composé ne porte plus son LaTeX dans son texte — il porte le
+     * HTML de KaTeX, une centaine de `<span>` dont la sérialisation naïve
+     * rendrait une bouillie de fragments. Son seul état durable est
+     * l'attribut : c'est lui qui revient au Markdown, à l'identique.
+     */
+    const latex = el.getAttribute(ATTRIBUT_LATEX);
+    if (latex !== null) {
+      return sourceFormule(latex, el.getAttribute(ATTRIBUT_BLOC) === "1");
+    }
+
+    /*
+     * Une formule rouverte pour édition est du texte nu, délimiteurs compris :
+     * on le rend tel quel. C'est ce qui permet de sauvegarder en plein milieu
+     * d'une correction de formule sans rien perdre.
+     */
+    if (el.hasAttribute(ATTRIBUT_SOURCE)) {
+      return (el.textContent ?? "").replace(/ /g, " ");
+    }
 
     if (el.classList.contains("wikilien-badge") || el.hasAttribute("data-wikilien")) {
       const cible = el.getAttribute("data-wikilien") ?? "";
