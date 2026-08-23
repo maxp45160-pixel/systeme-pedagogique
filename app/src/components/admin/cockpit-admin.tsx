@@ -7,11 +7,13 @@ import type { CompteAdministre } from "@/lib/domain/acces";
 import type { StatistiquesAdmin } from "@/lib/domain/admin-kpi";
 import type { DiagnosticSysteme } from "@/lib/store/systeme";
 import type { EtatMoteur } from "@/lib/store/auto-evaluation";
+import type { LectureRefutation } from "@/lib/domain/propositions-referentiel";
 import type { DonneesPerspectiveGraphe } from "@/components/dev/graphe-workflow";
 import { KpiDashboard } from "./kpi-dashboard";
 import { TableComptes } from "./table-comptes";
 import { DiagnosticSystemeView } from "./diagnostic-systeme";
 import { MetriquesMoteur } from "./metriques-moteur";
+import { RetentionRelecture } from "./retention-relecture";
 import { GrapheWorkflowViz } from "@/components/dev/graphe-workflow";
 import { ProfilDashboard } from "@/components/dev/profil-dashboard";
 import { BandeauInfo } from "@/components/ui/primitives";
@@ -21,6 +23,7 @@ export type OngletAdmin =
   | "kpi"
   | "comptes"
   | "moteur"
+  | "relecture"
   | "diagnostic"
   | "workflow"
   | "profil";
@@ -40,6 +43,14 @@ export interface DonneesCockpitAdmin {
   diagnostic: DiagnosticSysteme;
   /** Le moteur jugé sur ses propres prédictions (ADR-085). */
   etatMoteur: EtatMoteur;
+  /**
+   * Le taux de rétention de la relecture du référentiel (ADR-108).
+   *
+   * Chargé paresseusement comme les métriques du moteur : il lit tout
+   * l'historique des propositions, ce qui n'a rien à faire sur l'onglet des
+   * indicateurs.
+   */
+  refutationRelecture: LectureRefutation;
   perspectivesWorkflow: {
     architecture: DonneesPerspectiveGraphe;
     ux: DonneesPerspectiveGraphe;
@@ -53,6 +64,7 @@ export function CockpitAdmin({
   kpis,
   diagnostic,
   etatMoteur,
+  refutationRelecture,
   perspectivesWorkflow,
 }: DonneesCockpitAdmin) {
   const router = useRouter();
@@ -64,6 +76,7 @@ export function CockpitAdmin({
   const ongletActif: OngletAdmin =
     ongletActifBrut === "comptes" ||
     ongletActifBrut === "moteur" ||
+    ongletActifBrut === "relecture" ||
     ongletActifBrut === "diagnostic" ||
     ongletActifBrut === "workflow" ||
     ongletActifBrut === "profil"
@@ -97,6 +110,14 @@ export function CockpitAdmin({
         etatMoteur.metriques.length > 0
           ? etatMoteur.metriques.filter((m) => m.valeur !== null).length
           : undefined,
+    },
+    {
+      id: "relecture",
+      libelle: "Relecture du référentiel",
+      // Même règle que le moteur : pas de badge tant que l'onglet n'a pas été
+      // ouvert, un « 0 » dirait « rien de mesuré » là où la vérité est « pas
+      // encore lu ».
+      badge: refutationRelecture.ensemble.proposees || undefined,
     },
     { id: "diagnostic", libelle: "Diagnostic et sécurité" },
     { id: "workflow", libelle: "Workflow" },
@@ -218,6 +239,8 @@ export function CockpitAdmin({
         )}
 
         {ongletActif === "moteur" && <MetriquesMoteur {...etatMoteur} />}
+
+        {ongletActif === "relecture" && <RetentionRelecture lecture={refutationRelecture} />}
 
         {ongletActif === "diagnostic" && <DiagnosticSystemeView diagnostic={diagnostic} />}
 

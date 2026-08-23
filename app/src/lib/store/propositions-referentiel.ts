@@ -20,6 +20,8 @@ import { dorsaleCompte } from "./db";
 import { verifier } from "./supabase-backend";
 import {
   estGenreProposition,
+  lireRefutation,
+  type LectureRefutation,
   type Arbitrage,
   type ContenuProposition,
   type DecisionArbitrage,
@@ -264,4 +266,18 @@ export async function inscrireArbitrage(
     .select("id");
   verifier("arbitrage d'une proposition", error);
   return (data ?? []).length > 0;
+}
+
+/**
+ * La mesure qu'ADR-108 rend indispensable : le taux de rétention par genre et
+ * les trois critères de réfutation, confrontés aux faits enregistrés.
+ *
+ * Elle ne se stocke nulle part — `lireRefutation` recalcule tout à la lecture,
+ * comme le reste de la couche 3. Ce module ne fait que lui apporter les faits.
+ *
+ * Volontairement hors du chemin chaud : elle n'est lue que depuis l'onglet
+ * d'administration qui l'affiche, comme les métriques du moteur.
+ */
+export async function chargerRefutationRelecture(): Promise<LectureRefutation> {
+  return lireRefutation(await chargerPropositions());
 }

@@ -399,3 +399,143 @@ export function retentionParGenre(
     };
   });
 }
+
+/* ------------------------------------------------------------------ */
+/* Le test de réfutation d'ADR-108, rendu lisible                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Les lots que l'ADR demande d'observer avant de conclure : « sur les trois
+ * premiers lots produits ». Ce n'est pas un seuil de déclenchement — rien ne
+ * se décide à partir de ce nombre —, c'est la borne d'observation que le texte
+ * de l'ADR fixe lui-même.
+ */
+export const LOTS_AVANT_VERDICT = 3;
+
+/**
+ * La moitié : « si moins d'une proposition sur deux est retenue, le lot est du
+ * bruit ». Repris littéralement du texte, jamais calibré.
+ */
+export const RETENTION_MINIMALE = 0.5;
+
+export type VerdictCritere = "insuffisant" | "tenu" | "refute" | "non-mesurable";
+
+export interface CritereRefutation {
+  /** L'énoncé du critère, tel qu'ADR-108 l'écrit. */
+  enonce: string;
+  verdict: VerdictCritere;
+  /** Ce que les données disent, ou ce qui manque pour le dire. */
+  constat: string;
+}
+
+export interface LectureRefutation {
+  /** Lots ayant produit au moins une proposition. */
+  lots: number;
+  retention: RetentionGenre[];
+  /** Tous genres confondus. */
+  ensemble: Pick<RetentionGenre, "proposees" | "arbitrees" | "retenues" | "taux">;
+  criteres: CritereRefutation[];
+}
+
+function pourcent(taux: number | null): string {
+  return taux === null ? "—" : `${Math.round(taux * 100)} %`;
+}
+
+/**
+ * Les trois critères d'ADR-108, confrontés aux faits enregistrés.
+ *
+ * ## Pourquoi un verdict peut être « insuffisant » ou « non mesurable »
+ *
+ * C'est P2 appliqué à la mesure d'elle-même : absence de preuve n'est pas
+ * preuve d'absence. Tant que trois lots n'ont pas été produits, un taux de
+ * 100 % sur le premier ne dit rien — il peut ne refléter que l'enthousiasme
+ * d'une première découverte de l'écran. Rendre « tenu » sur cette base
+ * fabriquerait une conclusion, ce que l'ADR interdit à ses propres tests.
+ *
+ * Le deuxième critère — « une scission acceptée est défaite dans le mois » —
+ * est déclaré **non mesurable** plutôt que silencieusement omis : le dépôt
+ * n'enregistre nulle part qu'un sous-domaine créé par une scission a été
+ * archivé ensuite. L'écrire demanderait de relier un archivage à la
+ * proposition qui l'a suggéré, ce qu'aucune table ne fait aujourd'hui. Le dire
+ * vaut mieux que d'afficher un verdict qui n'a pas de données derrière lui.
+ *
+ * Rien ici n'est stocké : tout se recalcule à la lecture, comme le reste de la
+ * couche 3.
+ */
+export function lireRefutation(
+  propositions: readonly PropositionReferentielRelue[],
+): LectureRefutation {
+  const retention = retentionParGenre(propositions);
+  const lots = new Set(propositions.map((p) => p.lotId)).size;
+
+  const arbitrees = propositions.filter((p) => p.arbitrage !== null);
+  const retenues = arbitrees.filter((p) => p.arbitrage!.decision === "retenue");
+  const ensemble = {
+    proposees: propositions.length,
+    arbitrees: arbitrees.length,
+    retenues: retenues.length,
+    taux: arbitrees.length === 0 ? null : retenues.length / arbitrees.length,
+  };
+
+  const assezDeLots = lots >= LOTS_AVANT_VERDICT;
+  const manque = `${lots} lot${lots > 1 ? "s" : ""} produit${lots > 1 ? "s" : ""} sur les ${LOTS_AVANT_VERDICT} qu'ADR-108 demande d'observer.`;
+
+  /* Critère 1 — le lot est-il du bruit ? */
+  const critereBruit: CritereRefutation =
+    ensemble.arbitrees === 0
+      ? {
+          enonce:
+            "Si moins d'une proposition sur deux est retenue, le lot est du bruit et il vaut mieux ne rien montrer.",
+          verdict: "insuffisant",
+          constat: "Aucune proposition n'a encore été arbitrée.",
+        }
+      : {
+          enonce:
+            "Si moins d'une proposition sur deux est retenue, le lot est du bruit et il vaut mieux ne rien montrer.",
+          verdict: !assezDeLots
+            ? "insuffisant"
+            : ensemble.taux! < RETENTION_MINIMALE
+              ? "refute"
+              : "tenu",
+          constat: `${ensemble.retenues} retenue${ensemble.retenues > 1 ? "s" : ""} sur ${ensemble.arbitrees} arbitrée${ensemble.arbitrees > 1 ? "s" : ""} — ${pourcent(ensemble.taux)}.${assezDeLots ? "" : ` ${manque}`}`,
+        };
+
+  /* Critère 2 — une scission acceptée tient-elle ? */
+  const scissions = retention.find((r) => r.genre === "scission")!;
+  const critereScission: CritereRefutation = {
+    enonce:
+      "Si une scission acceptée est défaite dans le mois, le découpage proposé n'était pas le bon et le genre doit être retiré.",
+    verdict: "non-mesurable",
+    constat:
+      scissions.retenues === 0
+        ? "Aucune scission retenue pour l'instant."
+        : `${scissions.retenues} scission${scissions.retenues > 1 ? "s" : ""} retenue${scissions.retenues > 1 ? "s" : ""}. Rien n'enregistre encore qu'un sous-domaine créé ainsi a été archivé ensuite : relier un archivage à la proposition qui l'a suggéré demanderait une trace qui n'existe pas.`,
+  };
+
+  /* Critère 3 — l'appel au modèle se justifie-t-il ? */
+  const parTuteur = retention.filter((r) => estGenreTuteur(r.genre));
+  const arbitreesTuteur = parTuteur.reduce((n, r) => n + r.arbitrees, 0);
+  const retenuesTuteur = parTuteur.reduce((n, r) => n + r.retenues, 0);
+  const tauxTuteur = arbitreesTuteur === 0 ? null : retenuesTuteur / arbitreesTuteur;
+  const critereTuteur: CritereRefutation = {
+    enonce:
+      "Si les genres produits par le tuteur ne sont presque jamais retenus, l'appel modèle ne se justifie pas et la relecture doit redevenir un calcul.",
+    verdict:
+      arbitreesTuteur === 0 || !assezDeLots
+        ? "insuffisant"
+        : tauxTuteur! < RETENTION_MINIMALE
+          ? "refute"
+          : "tenu",
+    constat:
+      arbitreesTuteur === 0
+        ? "Aucune proposition du tuteur n'a encore été arbitrée."
+        : `${retenuesTuteur} retenue${retenuesTuteur > 1 ? "s" : ""} sur ${arbitreesTuteur} arbitrée${arbitreesTuteur > 1 ? "s" : ""} — ${pourcent(tauxTuteur)}.${assezDeLots ? "" : ` ${manque}`}`,
+  };
+
+  return {
+    lots,
+    retention,
+    ensemble,
+    criteres: [critereBruit, critereScission, critereTuteur],
+  };
+}

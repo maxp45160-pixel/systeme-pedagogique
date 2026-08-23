@@ -5,6 +5,7 @@ import {
   empreintesRefusees,
   estGenreProposition,
   estPerimee,
+  lireRefutation,
   lotOuvert,
   retentionParGenre,
   versionsCourantes,
@@ -257,5 +258,103 @@ describe("les genres", () => {
     expect(estGenreProposition("scission")).toBe(true);
     expect(estGenreProposition("invention")).toBe(false);
     expect(estGenreProposition(null)).toBe(false);
+  });
+});
+
+describe("la lecture du test de réfutation (ADR-108)", () => {
+  /*
+   * `proposition()` fixe `genre: "scission"` par defaut : ce helper le derive
+   * du contenu, sans quoi toute ligne serait comptee comme une scission — et
+   * le critere qui juge les seuls genres du tuteur ne mesurerait plus rien.
+   */
+  const lot = (id: string, contenu: ContenuProposition, decision?: "retenue" | "refusee") =>
+    proposition({
+      contenu,
+      genre: contenu.genre,
+      empreinte: empreinteProposition(contenu),
+      lotId: id,
+      ...(decision
+        ? { arbitrage: { decision, date: "2026-08-24T10:00:00.000Z" } as const }
+        : {}),
+    });
+
+  const dormance = (code: string): ContenuProposition => ({
+    genre: "dormance",
+    code,
+    joursSansRien: 90,
+  });
+
+  it("ne rend aucun verdict tant que rien n'a été arbitré", () => {
+    const lecture = lireRefutation([lot("l1", dormance("LOG-01"))]);
+    expect(lecture.ensemble.taux).toBeNull();
+    expect(lecture.criteres[0].verdict).toBe("insuffisant");
+  });
+
+  /*
+   * Le cas réel du 24/08/2026 : un premier lot arbitré d'un bloc, 100 % retenu.
+   * Un « tenu » ici serait une conclusion fabriquée — l'ADR demande trois lots,
+   * et un premier lot enthousiaste ne dit rien d'une rétention installée.
+   */
+  it("refuse de conclure sur un seul lot, même retenu à 100 %", () => {
+    const lecture = lireRefutation([
+      lot("l1", dormance("LOG-01"), "retenue"),
+      lot("l1", dormance("LOG-02"), "retenue"),
+    ]);
+    expect(lecture.lots).toBe(1);
+    expect(lecture.ensemble.taux).toBe(1);
+    expect(lecture.criteres[0].verdict).toBe("insuffisant");
+    expect(lecture.criteres[0].constat).toContain("sur les 3 qu'ADR-108 demande");
+  });
+
+  it("tient le critère du bruit au-delà de trois lots majoritairement retenus", () => {
+    const lecture = lireRefutation([
+      lot("l1", dormance("LOG-01"), "retenue"),
+      lot("l2", dormance("LOG-02"), "retenue"),
+      lot("l3", dormance("LOG-03"), "refusee"),
+    ]);
+    expect(lecture.lots).toBe(3);
+    expect(lecture.criteres[0].verdict).toBe("tenu");
+  });
+
+  it("réfute quand moins d'une proposition sur deux est retenue", () => {
+    const lecture = lireRefutation([
+      lot("l1", dormance("LOG-01"), "refusee"),
+      lot("l2", dormance("LOG-02"), "refusee"),
+      lot("l3", dormance("LOG-03"), "retenue"),
+    ]);
+    expect(lecture.criteres[0].verdict).toBe("refute");
+  });
+
+  /*
+   * Le troisième critère ne regarde QUE les genres du tuteur : c'est lui qui
+   * dit si l'appel modèle se justifie. Des déterministes massivement retenus ne
+   * doivent pas le sauver.
+   */
+  it("juge l'appel modèle sur les seuls genres du tuteur", () => {
+    const scission: ContenuProposition = {
+      genre: "scission",
+      parentId: "logistique",
+      nom: "Gestion kanban",
+      description: "",
+      codes: ["LOG-01"],
+    };
+    const lecture = lireRefutation([
+      lot("l1", dormance("LOG-01"), "retenue"),
+      lot("l2", dormance("LOG-02"), "retenue"),
+      lot("l3", dormance("LOG-03"), "retenue"),
+      lot("l3", scission, "refusee"),
+    ]);
+    expect(lecture.criteres[0].verdict).toBe("tenu");
+    expect(lecture.criteres[2].verdict).toBe("refute");
+  });
+
+  /*
+   * « Non mesurable » plutôt qu'omis en silence : rien ne relie un archivage de
+   * sous-domaine à la proposition qui l'a suggéré. Le dire vaut mieux que
+   * d'afficher un verdict sans données derrière.
+   */
+  it("déclare non mesurable le critère de la scission défaite", () => {
+    const lecture = lireRefutation([lot("l1", dormance("LOG-01"), "retenue")]);
+    expect(lecture.criteres[1].verdict).toBe("non-mesurable");
   });
 });

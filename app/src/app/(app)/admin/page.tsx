@@ -8,6 +8,8 @@ import { estAdministrateur, lireAccesCourant, listerComptes } from "@/lib/store/
 import { calculerStatistiquesAdmin } from "@/lib/domain/admin-kpi";
 import { obtenirDiagnosticSysteme } from "@/lib/store/systeme";
 import { chargerEtatMoteur, type EtatMoteur } from "@/lib/store/auto-evaluation";
+import { chargerRefutationRelecture } from "@/lib/store/propositions-referentiel";
+import { lireRefutation, type LectureRefutation } from "@/lib/domain/propositions-referentiel";
 import { REGLAGES_PAR_DEFAUT } from "@/lib/engine/reglages";
 import { scannerWorkflow } from "@/lib/dev/workflow-scanner";
 import { scannerUxJourney } from "@/lib/dev/workflow-ux-scanner";
@@ -141,6 +143,15 @@ const MOTEUR_NON_CHARGE: EtatMoteur = {
   proposition: null,
 };
 
+/**
+ * L'état rendu tant que l'onglet Relecture n'a pas été ouvert.
+ *
+ * Une lecture vide, et non des compteurs à zéro : `lireRefutation([])` rend
+ * exactement ce que dit la vérité — rien n'a été lu. Fabriquer des zéros ferait
+ * afficher « 0 % de rétention » là où la mesure n'a simplement pas été chargée.
+ */
+const RELECTURE_NON_CHARGEE: LectureRefutation = lireRefutation([]);
+
 async function ContenuAdmin({ onglet }: { onglet?: string }) {
   const [admin, acces] = await Promise.all([estAdministrateur(), lireAccesCourant()]);
   if (!admin || !acces) notFound();
@@ -149,12 +160,17 @@ async function ContenuAdmin({ onglet }: { onglet?: string }) {
   // Comme le workflow : cinq lectures pour l'auto-évaluation, dont le journal
   // du moteur. Aucune raison de les payer sur l'onglet des indicateurs.
   const chargerMoteur = onglet === "moteur";
+  // Même raison : la rétention lit tout l'historique des propositions.
+  const chargerRelecture = onglet === "relecture";
 
-  const [comptes, diagnostic, etatMoteur, grapheArch, grapheUxMacro, grapheUxAtomique] =
+  const [comptes, diagnostic, etatMoteur, refutationRelecture, grapheArch, grapheUxMacro, grapheUxAtomique] =
     await Promise.all([
       listerComptes(),
       obtenirDiagnosticSysteme(),
       chargerMoteur ? chargerEtatMoteur() : Promise.resolve(MOTEUR_NON_CHARGE),
+      chargerRelecture
+        ? chargerRefutationRelecture()
+        : Promise.resolve(RELECTURE_NON_CHARGEE),
       chargerWorkflow ? scannerWorkflow() : Promise.resolve(GRAPHE_VIDE),
       chargerWorkflow ? scannerUxJourney({ mode: "macro" }) : Promise.resolve(GRAPHE_VIDE),
       chargerWorkflow ? scannerUxJourney({ mode: "atomique" }) : Promise.resolve(GRAPHE_VIDE),
@@ -175,6 +191,7 @@ async function ContenuAdmin({ onglet }: { onglet?: string }) {
       kpis={kpis}
       diagnostic={diagnostic}
       etatMoteur={etatMoteur}
+      refutationRelecture={refutationRelecture}
       perspectivesWorkflow={perspectivesWorkflow}
     />
   );

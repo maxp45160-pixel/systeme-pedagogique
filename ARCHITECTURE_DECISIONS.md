@@ -8554,6 +8554,47 @@ Deux défauts de rédaction relevés sur ce lot, corrigés dans le prompt :
   annoncer de total ; le seul chiffre de la carte est celui calculé depuis la
   liste validée, donc toujours vrai.
 
+### La mesure a désormais une surface — et un défaut qu'elle révèle (24/08/2026)
+
+`retentionParGenre` était calculable et affiché **nulle part**, alors qu'ADR-108
+en fait la condition de son propre test : « sans lui, ce test n'est pas
+exécutable ». Le même défaut que celui de l'ADR elle-même, un cran plus loin.
+
+Elle vit maintenant dans un onglet de `/admin` — pas dans l'application. Les
+sept genres sont du vocabulaire de maintenance, et `/admin` est la seule
+surface du dépôt déjà réservée à cet usage. `lireRefutation` y confronte les
+trois critères aux faits, et **refuse de conclure** tant que les trois lots
+demandés n'ont pas été produits : un « tenu » sur un premier lot ne refléterait
+que l'enthousiasme d'une première découverte de l'écran. Le deuxième critère
+est déclaré **non mesurable** plutôt qu'omis — rien ne relie l'archivage d'un
+sous-domaine à la proposition qui l'a suggéré.
+
+**Premier relevé réel, 24/08/2026 :** 49 propositions sur 2 lots, 9 arbitrées,
+9 retenues — 7 arêtes et 2 scissions. Les 33 dormances, 2 rangements, 2
+relations et 3 manques n'ont pas été regardés. Verdicts : données
+insuffisantes.
+
+**Ce que ce relevé met au jour, et qui n'était pas prévu.** Les 40 propositions
+non arbitrées sont invisibles à l'écran : elles se sont **périmées d'un bloc**
+quand les 2 scissions ont été validées. Créer un sous-domaine incrémente la
+version du parent, et toute proposition portant sur ce parent devient caduque —
+donc **arbitrer une proposition détruit le reste du lot qui vise le même
+domaine**.
+
+C'est la péremption d'ADR-108 appliquée à la lettre, et elle se retourne contre
+l'usage : sur un référentiel où un domaine domine, on ne peut retenir qu'une
+seule proposition par session avant que tout le reste ne disparaisse. Le taux
+de rétention s'en trouve fauché — 40 propositions ni retenues ni refusées, donc
+absentes du dénominateur, et le test de réfutation privé de la matière qu'il
+attend.
+
+**Ce n'est pas tranché.** Deux directions se discutent — ne périmer que les
+propositions dont la version lue a bougé *pour une raison autre que
+l'arbitrage en cours*, ou ne pas incrémenter la version du parent sur une
+commande qui n'affecte pas ce que la proposition décrivait. Les deux touchent
+au cœur d'ADR-065 et méritent leur propre arbitrage. Consigné ici pour que le
+prochain relevé ne le redécouvre pas.
+
 **Ce que cette correction ne fait pas :** monter le statut. ADR-108 reste ❓.
 
 ### Questions restant ouvertes
