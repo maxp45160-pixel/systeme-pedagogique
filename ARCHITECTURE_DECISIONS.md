@@ -9372,11 +9372,13 @@ serait une autre décision.
 
 ---
 
-## ADR-120 — Deux entrées de création, parce qu'elles ne font pas la même chose 🔬
+## ADR-120 — Deux entrées de création, parce qu'elles ne font pas la même chose 🔄
 
-**Statut :** 🔬 construit le 24/08/2026, hypothèse non réfutée. Corrige une
-affirmation du code relevée par l'audit de conception (défaut D6a) ; n'en fait
-monter aucune.
+**Statut :** 🔄 **révisé le 24/08/2026 par [ADR-126](#adr-126)**, quelques heures
+après avoir été écrit. Sa conclusion — « les deux entrées ne se recouvrent
+pas » — reposait sur la vérification d'**une** entrée sur sept. Trois se
+recouvraient. Ce qui suit reste lisible pour la raison qui a produit l'erreur ;
+ce qui vaut aujourd'hui est dans ADR-126.
 
 ### Le problème
 
@@ -9920,6 +9922,88 @@ construction, toujours dit ailleurs dans la même requête.
 - elle ne règle pas la question de fond, qui reste le **chargement
   conditionnel**. Deux fichiers sur cinq le sont déjà ; le reste demande de
   décider ce qui déclenche quoi, et ce n'est pas une question de rédaction.
+
+---
+
+## ADR-126 — Le menu de Mes cours ne garde que ce que le « + » ne sait pas faire 🔬
+
+**Statut :** 🔬 construit le 24/08/2026, hypothèse non réfutée. **Révise
+[ADR-120](#adr-120)**, écrit le même jour et fondé sur une vérification
+incomplète. N'en fait monter aucune.
+
+### L'erreur d'ADR-120, et comment elle a été produite
+
+ADR-120 concluait que le menu « Créer » de Mes cours et le `+` du rail « ne se
+recouvrent pas ». Le raisonnement partait d'un fait exact —
+`capture-intention.tsx` crée toujours `FORMATS_PAR_ROLE.support[0]`, « Note
+libre », en dur — et l'étendait aux sept entrées du menu **sans les vérifier**.
+
+Trois d'entre elles ouvrent littéralement les mêmes composants que le `+` :
+
+| Entrée du menu | Composant ouvert | Le `+` l'ouvre aussi |
+|---|---|---|
+| Ajouter un domaine | `ModaleReferentiel` | oui — `genre: "referentiel"` |
+| Ajouter une compétence | `ModaleCompetence` | oui |
+| Lancer un projet | `ParcoursNouveauProjet` | oui — `genre: "projet"` |
+
+Le second argument d'ADR-120 tombe avec le premier : « le menu est le chemin
+gratuit » ne vaut pas ici, parce que **ces trois modales appellent le tuteur
+elles-mêmes**. Créer un domaine consomme des générations qu'on y arrive par le
+menu ou par le `+` ; le menu n'économisait que l'appel d'aiguillage.
+
+La leçon tient en une ligne, et elle vaut au-delà de ce cas : *une entrée
+vérifiée ne dit rien des six autres.*
+
+### Ce qui a été fait
+
+Le menu ne **propose** plus que les trois documents typés — ressource, fiche de
+cours, formule. Hors de la vue « Ressources », il n'a plus rien à proposer et
+**ne s'affiche pas**.
+
+Ces trois-là restent parce que les deux arguments d'ADR-120 y sont vrais, eux :
+
+- elles portent des **sections déclarées** (`definitionTypeDocument`) que le `+`
+  ne sait pas remplir, puisqu'il ne produit qu'un seul format ;
+- leur chemin ne fait **aucun appel au tuteur** : zéro génération décomptée
+  (ADR-116), et il fonctionne quota épuisé. C'est le seul geste de création qui
+  survit à une panne de moteur.
+
+« Faire une explication Feynman » sort aussi du menu : démarrer une activité
+n'est pas créer un objet, et elle n'y avait sa place que par voisinage.
+
+### Ce qui n'a PAS été supprimé, et pourquoi c'est le point délicat
+
+Les sept modales **restent montées**, atteintes par `?creation=`. Trois surfaces
+y mènent, et les casser aurait été un dégât collatéral invisible :
+
+- `palette-bureau.tsx` — la palette ⌘K du Bureau porte cinq commandes de
+  création, dont `feynman` et `projet` ;
+- `liste-domaines.tsx` — le bouton de l'état vide « aucun domaine » pointe
+  `?creation=domaine`. C'est le premier geste d'un compte neuf.
+
+La distinction est celle qui compte : **une destination n'est pas une entrée de
+menu.** Ce qui gênait à l'écran était le menu qui doublait le `+` sous les yeux,
+pas l'existence des modales au bout d'un lien. Retirer les modales aurait coûté
+trois surfaces pour un gain d'écran nul.
+
+### Le test de réfutation
+
+Cette décision est réfutée si créer un domaine ou lancer un projet devient
+sensiblement plus coûteux à l'usage — la génération d'aiguillage du `+`
+s'ajoutant à celles que la modale consomme déjà. Le signal serait un quota qui
+s'épuise plus vite sans plus de travail produit. Le remède ne serait pas de
+remettre le menu, mais de rendre l'aiguillage gratuit quand la demande est déjà
+sans ambiguïté.
+
+### Ce que cette décision n'autorise pas
+
+- elle ne supprime **aucune modale** ni aucun chemin de création : ce qui change
+  est ce que le menu propose, pas ce que le produit sait faire ;
+- elle ne fait pas du `+` le « point d'entrée unique ». Un document typé lui
+  échappe toujours, et c'est délibéré tant que le moteur d'intention ne choisit
+  qu'un genre et pas un format ;
+- elle ne touche pas à la palette ⌘K, qui reste la voie rapide vers les sept
+  gestes pour qui les connaît.
 
 ---
 

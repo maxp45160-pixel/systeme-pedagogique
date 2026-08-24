@@ -51,23 +51,23 @@ import type { ContexteIntentionType } from "./contexte-intention";
  * proposition de branche avec son sujet pré-rempli. Aucun nouveau chemin
  * d'écriture n'est ouvert ici, et la validation humaine reste là où elle était.
  *
- * ## Ce n'est pas le point d'entrée *unique* (ADR-120)
+ * ## Ce n'est pas tout à fait le point d'entrée *unique* (ADR-120, révisé par ADR-126)
  *
- * Ce JSDoc l'a affirmé pendant plusieurs mois, et c'était faux sur trois
- * points que le code dit lui-même :
+ * Ce JSDoc l'a affirmé pendant plusieurs mois. Il reste UN geste qu'il ne sait
+ * pas faire : **produire un document typé.** La création de note passe toujours
+ * par `FORMATS_PAR_ROLE.support[0]` — « Note libre », en dur, l. 444. Une fiche
+ * de cours, une référence ou une formule portent des sections déclarées que
+ * seul `actions-creation-atelier.tsx` remplit, et ce chemin-là n'appelle pas le
+ * tuteur : il fonctionne quota épuisé.
  *
- * 1. **Il ne sait produire qu'un seul format.** La création de note passe
- *    toujours par `FORMATS_PAR_ROLE.support[0]` — « Note libre », en dur. Une
- *    fiche de cours, une référence ou une formule ont des **sections
- *    déclarées** que seul le menu « Créer » de Mes cours remplit.
- * 2. **Il coûte une génération de quota** (ADR-116) : il passe par
- *    `/api/intention`. Le menu « Créer » n'en coûte aucune.
- * 3. **Il ne fonctionne plus quand le quota est épuisé.** Le menu, si. C'est le
- *    chemin de secours, et un produit qui n'a qu'une entrée de création perd
- *    toute création le jour où son moteur ne répond pas.
+ * Pour tout le reste, ce composant EST l'entrée unique depuis ADR-126 : le menu
+ * de Mes cours ne propose plus domaine, compétence ni projet, parce qu'il
+ * ouvrait exactement les modales montées ici — `ModaleReferentiel`,
+ * `ModaleCompetence`, `ParcoursNouveauProjet`. ADR-120 avait conclu l'inverse
+ * en n'ayant vérifié qu'une entrée sur sept.
  *
- * Les deux entrées ne se recouvrent donc pas : celle-ci sert quand on sait ce
- * qu'on veut **obtenir**, l'autre quand on sait ce qu'on veut **créer**.
+ * Ces trois modales restent atteignables par `?creation=` (palette ⌘K, état
+ * vide des domaines) : elles sont au bout d'un lien, plus dans un menu.
  */
 
 const PLACEHOLDER = "Ex. j'ai un contrôle sur les stocks vendredi et je bloque sur le calcul de coût";

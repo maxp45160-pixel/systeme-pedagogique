@@ -12,22 +12,34 @@ import { ParcoursNouveauProjet } from "@/components/projets/modale-nouveau-proje
 import type { CompetenceModale } from "@/lib/domain/proprietes-generation";
 
 /**
- * L'entrée **déterministe** de création, dans Mes cours : on sait quel objet
- * on veut, on le nomme, il se crée.
+ * La création de **documents typés** dans Mes cours, et les destinations que
+ * les liens profonds ouvrent.
  *
- * Elle coexiste avec le `+` du rail (`capture-intention.tsx`), et ce n'est pas
- * un doublon (ADR-120). Trois choses qu'elle fait et que le `+` ne fait pas :
+ * Ce module fait deux choses, et il faut les tenir séparées :
+ *
+ * 1. **Un menu**, qui ne propose que ce que le `+` du rail ne sait pas faire —
+ *    ressource, fiche de cours, formule. Voir `actionsPourVue`.
+ * 2. **Sept destinations**, montées ci-dessous et atteintes par `?creation=` :
+ *    la palette ⌘K du Bureau et l'état vide des domaines y mènent. Elles ne
+ *    sont pas dans le menu, elles sont au bout d'un lien.
+ *
+ * ## Pourquoi le menu s'est réduit (ADR-126, révise ADR-120)
+ *
+ * ADR-120 affirmait que ce menu et le `+` « ne se recouvrent pas ». C'était
+ * faux sur trois gestes : le `+` monte **exactement** `ModaleReferentiel`,
+ * `ModaleCompetence` et `ParcoursNouveauProjet`. Une seule entrée avait été
+ * vérifiée — la création de note, en dur sur « Note libre » — et la conclusion
+ * avait été étendue aux sept.
+ *
+ * Ce qui reste vrai, et qui justifie les trois entrées gardées :
  *
  * - **Les formats typés.** `cours`, `reference` et `formule` portent des
  *   sections déclarées (`definitionTypeDocument`) que la saisie ci-dessous
  *   remplit. Le `+` crée toujours une « Note libre », quoi qu'on lui demande.
- * - **Aucun appel au tuteur.** Le `+` passe par `/api/intention` et décompte
- *   une génération du quota mensuel (ADR-116) ; ici, rien n'est décompté.
- * - **Le chemin de secours.** Quota épuisé ou moteur muet, le `+` ne crée
- *   plus rien. Ce menu continue de fonctionner.
- *
- * Le menu s'adapte à la vue : on ne propose pas de créer une ressource là où
- * l'on regarde un graphe de compétences (`actionsPourVue`).
+ * - **Aucun appel au tuteur.** Ce chemin-ci n'en fait aucun : zéro génération
+ *   décomptée (ADR-116), et il fonctionne quota épuisé. L'argument ne valait
+ *   PAS pour domaine, compétence et projet — ces trois modales appellent le
+ *   tuteur elles-mêmes, qu'on y arrive par le menu ou par le `+`.
  */
 export type CreationAtelier =
   | "domaine"
@@ -98,10 +110,22 @@ function estCreationAtelier(valeur: string | undefined): valeur is CreationAteli
   return Boolean(valeur && CREATIONS_ATELIER.includes(valeur as CreationAtelier));
 }
 
+/**
+ * Ce que le menu PROPOSE — un sous-ensemble strict de ce qu'il sait ouvrir.
+ *
+ * Les trois documents typés, et rien d'autre (ADR-126). Domaine, compétence et
+ * projet en sont sortis : le `+` monte littéralement les mêmes modales
+ * (`ModaleReferentiel`, `ModaleCompetence`, `ParcoursNouveauProjet`), et
+ * celles-ci appellent le tuteur de toute façon — le menu n'y était pas le
+ * chemin gratuit qu'ADR-120 lui prêtait. « Explication Feynman » en sort aussi :
+ * démarrer une activité n'est pas créer un objet.
+ *
+ * Hors de la vue « Ressources », le menu n'a donc plus rien à proposer et ne
+ * s'affiche pas. Il reste monté : les liens profonds `?creation=` continuent
+ * d'ouvrir les sept modales (palette ⌘K, état vide des domaines).
+ */
 function actionsPourVue(vue: "domaines" | "ressources" | "graphe"): CreationAtelier[] {
-  if (vue === "ressources") return ["ressource", "cours", "formule", "projet"];
-  if (vue === "graphe") return ["competence", "feynman", "domaine"];
-  return ["domaine", "competence", "feynman"];
+  return vue === "ressources" ? ["ressource", "cours", "formule"] : [];
 }
 
 export function ActionsCreationAtelier({
@@ -162,6 +186,7 @@ export function ActionsCreationAtelier({
 
   return (
     <>
+      {actions.length > 0 && (
       <div ref={racine} className="relative shrink-0">
         <button
           type="button"
@@ -198,6 +223,7 @@ export function ActionsCreationAtelier({
           </div>
         )}
       </div>
+      )}
 
       {creation === "domaine" && (
         <ModaleReferentiel compteId={compteId} onFermer={fermerCreation} />
