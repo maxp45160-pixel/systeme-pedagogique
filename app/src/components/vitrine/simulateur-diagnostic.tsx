@@ -273,9 +273,6 @@ export function SimulateurDiagnostic() {
             <span className="text-texte-discret">·</span>
             <span className="font-medium text-texte">{question.competence}</span>
           </div>
-          <span className="rounded-full border border-bordure bg-fond px-2.5 py-0.5 font-mono text-[0.6875rem] text-texte-attenue">
-            Sans inscription requise
-          </span>
         </div>
 
         <div className="p-6 sm:p-8">
