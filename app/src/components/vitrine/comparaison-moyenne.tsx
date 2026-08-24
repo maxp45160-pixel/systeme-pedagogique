@@ -75,18 +75,25 @@ export function ComparaisonMoyenne() {
           return (
             <li
               key={ligne.nom}
-              className="grid grid-cols-[1fr_auto] items-center gap-4 border-t border-bordure px-5 py-3 sm:grid-cols-[1fr_8rem_4rem]"
+              className={cx(
+                "grid grid-cols-[1fr_auto] items-center gap-4 border-t border-bordure px-5 py-3 transition-colors duration-300 sm:grid-cols-[1fr_8rem_4rem]",
+                compteZero && "bg-alerte-faible",
+              )}
             >
               <div className="min-w-0">
-                <p className="truncate text-sm text-texte">{ligne.nom}</p>
-                <p className="mt-0.5 text-xs text-texte-discret">
-                  {compteZero ? "Jamais travaillé — compté comme un zéro" : ligne.source}
+                <p className={cx("truncate text-sm", compteZero ? "font-medium text-alerte" : "text-texte")}>
+                  {ligne.nom}
+                </p>
+                <p className={cx("mt-0.5 text-xs", compteZero ? "font-medium text-alerte" : "text-texte-discret")}>
+                  {compteZero ? "Jamais travaillé — compté comme un zéro" : absente ? "Jamais travaillé — hors calcul" : ligne.source}
                 </p>
               </div>
               <div
                 className={cx(
                   "hidden h-[7px] overflow-hidden rounded-sm border sm:block",
-                  absente && !ailleurs ? "border-dashed border-bordure" : "border-bordure bg-surface-3",
+                  compteZero && "border-alerte/60 bg-surface",
+                  absente && !compteZero && "border-dashed border-bordure bg-transparent",
+                  !absente && "border-bordure bg-surface-3",
                 )}
                 aria-hidden
               >
@@ -94,14 +101,14 @@ export function ComparaisonMoyenne() {
                   className="h-full transition-[width] duration-500"
                   style={{
                     width: largeur,
-                    background: absente ? "var(--bordure-forte)" : "var(--primaire)",
+                    background: compteZero ? "var(--alerte)" : absente ? "transparent" : "var(--primaire)",
                   }}
                 />
               </div>
               <span
                 className={cx(
                   "chiffres text-right font-mono text-[0.8125rem]",
-                  compteZero && "text-alerte",
+                  compteZero && "font-semibold text-alerte",
                   absente && !compteZero && "text-texte-discret",
                 )}
               >
@@ -115,16 +122,27 @@ export function ComparaisonMoyenne() {
       <div className="flex flex-wrap items-baseline justify-between gap-3 border-t border-bordure-forte bg-surface-2 px-5 py-4">
         <div>
           <p className="font-mono text-[0.6875rem] uppercase tracking-wide text-texte-discret">Niveau global</p>
-          <p key={mode} className="apparition chiffres font-serif text-3xl tracking-tight">
-            {ailleurs ? 40 : 60}
-            <span className="ml-1 font-mono text-sm text-texte-discret">/ 100</span>
+          <p key={mode} className="apparition chiffres flex items-baseline gap-2 font-serif text-3xl tracking-tight">
+            <span className={ailleurs ? "text-alerte" : "text-primaire"}>
+              {ailleurs ? 40 : 60}
+            </span>
+            <span className="font-mono text-sm text-texte-discret">/ 100</span>
+            <span
+              className={
+                ailleurs
+                  ? "rounded-full border border-alerte/40 bg-alerte-faible px-2 py-0.5 font-mono text-xs font-medium text-alerte"
+                  : "rounded-full border border-succes/40 bg-succes-faible px-2 py-0.5 font-mono text-xs font-medium text-succes"
+              }
+            >
+              {ailleurs ? "−20 pts" : "+20 pts"}
+            </span>
           </p>
         </div>
         <p className="max-w-md text-sm leading-relaxed text-texte-attenue">
           {ailleurs ? (
             <>
               Les deux sujets jamais travaillés comptent pour zéro.{" "}
-              <b className="font-semibold text-texte">
+              <b className="font-semibold text-alerte">
                 Ajoutez un chapitre à votre programme et votre moyenne baisse
               </b>{" "}
               — alors que vous n&apos;avez rien oublié de ce que vous saviez faire.
