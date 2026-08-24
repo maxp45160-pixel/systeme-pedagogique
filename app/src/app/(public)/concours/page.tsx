@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Carte, classesLienBouton } from "@/components/ui/primitives";
-import { IconeFleche, IconeValide, IconeCalendrier, IconeMinuteur, IconePreuve } from "@/components/ui/icones";
+import { IconeFleche, IconeCalendrier, IconeMinuteur, IconePreuve } from "@/components/ui/icones";
 
 export const metadata: Metadata = {
   title: "Préparer un concours ou un examen à date — Système pédagogique",

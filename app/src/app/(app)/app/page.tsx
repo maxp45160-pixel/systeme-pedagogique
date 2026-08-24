@@ -169,7 +169,6 @@ async function ContenuTableauDeBord({
         userId={ctx.donnees.user.id}
         joursSansActivite={joursSansActivite}
         nombreCompetencesActives={ctx.referentiel.actifs.length}
-        recommandationCode={premiereRecommandation?.etat.skill.code}
         recommandationTitre={premiereRecommandation?.etat.skill.intitule}
       />
 

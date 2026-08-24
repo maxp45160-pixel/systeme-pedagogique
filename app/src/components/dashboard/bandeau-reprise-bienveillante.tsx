@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { cx, classesLienBouton } from "@/components/ui/primitives";
 import { IconeFeuille, IconeFermer, IconeFleche, IconeMinuteur } from "@/components/ui/icones";
@@ -9,40 +9,35 @@ interface Props {
   userId: string;
   joursSansActivite: number;
   nombreCompetencesActives: number;
-  recommandationCode?: string;
   recommandationTitre?: string;
 }
+
+const sansAbonnement = () => () => {};
 
 export function BandeauRepriseBienveillante({
   userId,
   joursSansActivite,
   nombreCompetencesActives,
-  recommandationCode,
   recommandationTitre,
 }: Props) {
-  const [estMasque, setEstMasque] = useState(true);
-
-  useEffect(() => {
-    // Ne s'affiche que si l'utilisateur a au moins 5 jours d'inactivité et des compétences suivies
-    if (joursSansActivite < 5 || nombreCompetencesActives === 0) {
-      return;
-    }
-    const cleStockage = `reprise_bienveillante_masquee_${userId}`;
-    const dateMasquage = sessionStorage.getItem(cleStockage);
-    const aujourdhui = new Date().toISOString().slice(0, 10);
-
-    if (dateMasquage !== aujourdhui) {
-      setEstMasque(false);
-    }
-  }, [userId, joursSansActivite, nombreCompetencesActives]);
+  const estHydrate = useSyncExternalStore(sansAbonnement, () => true, () => false);
+  const [estFerme, setEstFerme] = useState(false);
+  const cleStockage = `reprise_bienveillante_masquee_${userId}`;
+  const aujourdhui = new Date().toISOString().slice(0, 10);
+  const estMasqueAujourdHui = estHydrate && sessionStorage.getItem(cleStockage) === aujourdhui;
 
   const fermer = () => {
-    setEstMasque(true);
-    const cleStockage = `reprise_bienveillante_masquee_${userId}`;
-    sessionStorage.setItem(cleStockage, new Date().toISOString().slice(0, 10));
+    setEstFerme(true);
+    sessionStorage.setItem(cleStockage, aujourdhui);
   };
 
-  if (estMasque) return null;
+  if (
+    !estHydrate ||
+    estFerme ||
+    estMasqueAujourdHui ||
+    joursSansActivite < 5 ||
+    nombreCompetencesActives === 0
+  ) return null;
 
   return (
     <aside
