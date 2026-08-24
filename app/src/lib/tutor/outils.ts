@@ -637,7 +637,7 @@ function schemaJalonsActivite(): SchemaJson {
         resultat_attendu: {
           type: "string",
           description:
-            "Production observable attendue à ce jalon. Ce jalon reste une observation, jamais une observation par lui-même.",
+            "Production observable attendue à ce jalon. Ce jalon décrit une production, jamais une Observation par lui-même.",
         },
       },
       required: ["titre", "consigne", "resultat_attendu"],
