@@ -34,7 +34,7 @@
  * clic « Démarrer » ou « Planifier ».
  */
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Bouton, cx } from "@/components/ui/primitives";
 import { Modale } from "@/components/ui/modale";
@@ -125,6 +125,8 @@ export interface DonneesSeance {
   contexteInitial?: string;
   /** Ouvre une séance générale sans sélectionner la première recommandation. */
   sansThemeInitial?: boolean;
+  /** Premier parcours : un seul exercice, sans écran de paramétrage. */
+  amorceInitiale?: boolean;
   /** Libellé du bouton déclencheur. */
   libelle?: string;
   /** Le bouton occupe toute la largeur de son conteneur. */
@@ -188,6 +190,7 @@ export function ConcepteurSeance({
   domaineInitial,
   contexteInitial,
   sansThemeInitial = false,
+  amorceInitiale = false,
   libelle = "Composer une séance",
   pleineLargeur = false,
   variante = "principal",
@@ -199,7 +202,9 @@ export function ConcepteurSeance({
 }: DonneesSeance) {
   const router = useRouter();
   const [ouvert, setOuvert] = useState(ouvertParDefaut);
-  const [phase, setPhase] = useState<Phase>("besoin");
+  const [phase, setPhase] = useState<Phase>(amorceInitiale ? "composition" : "besoin");
+  const generationAmorceLancee = useRef(false);
+  const [generationAmorceSuspendue, setGenerationAmorceSuspendue] = useState(false);
   const [generationCibles, setGenerationCibles] = useState<{
     codeInitial: string;
     codes?: string[];
@@ -209,6 +214,10 @@ export function ConcepteurSeance({
 
   function fermer() {
     setOuvert(false);
+    if (amorceInitiale) {
+      router.push("/app");
+      return;
+    }
     if (!retourEnFermant) return;
     if (typeof window !== "undefined" && window.history.length > 1) router.back();
     else router.push("/seances");
@@ -363,6 +372,40 @@ export function ConcepteurSeance({
     );
   }, [demande, etats, exercices, tentatives, calibMap, contexteDocumentaire]);
 
+  /*
+   * Le clic qui valide l'axe de départ dit déjà « préparer mon premier
+   * test ». Quand aucun exercice n'existe, la rédaction peut donc partir sans
+   * demander un second clic qui ne prendrait aucune décision. La proposition
+   * reste relue et acceptée par la personne avant toute séance.
+   */
+  useEffect(() => {
+    if (
+      !amorceInitiale ||
+      !ouvert ||
+      generationAmorceLancee.current ||
+      generationAmorceSuspendue ||
+      generationCibles ||
+      !composition ||
+      composition.activites.length > 0 ||
+      composition.manquants.length === 0
+    ) return;
+
+    const cible = composition.manquants[0];
+    generationAmorceLancee.current = true;
+    setGenerationCibles({
+      codeInitial: cible.code,
+      codes: [cible.code],
+      dureeCibleMin: tempsMin,
+    });
+  }, [
+    amorceInitiale,
+    composition,
+    generationAmorceSuspendue,
+    generationCibles,
+    ouvert,
+    tempsMin,
+  ]);
+
   const competencesModale: CompetenceModale[] = useMemo(
     () => competencesPourModale(actifs),
     [actifs],
@@ -452,8 +495,12 @@ export function ConcepteurSeance({
 
       {ouvert && (
         <Modale
-          titre="Composer une séance"
-          sousTitre="Configurez le temps et préparez votre programme de travail sur-mesure."
+          titre={amorceInitiale ? "Votre premier test" : "Composer une séance"}
+          sousTitre={
+            amorceInitiale
+              ? "Un seul exercice court pour poser votre point de départ, puis le tableau de bord s'adaptera à ce résultat."
+              : "Configurez le temps et préparez votre programme de travail sur-mesure."
+          }
           onFermer={fermer}
           largeur="3xl"
           pied={
@@ -489,9 +536,13 @@ export function ConcepteurSeance({
               </Bouton>
             ) : (
               <div className="flex w-full items-center justify-between gap-2">
-                <Bouton type="button" onClick={() => setPhase("besoin")} variante="secondaire">
-                  <span>← Paramètres</span>
-                </Bouton>
+                {amorceInitiale ? (
+                  <span className="text-xs text-texte-discret">Un exercice · environ {tempsMin} min</span>
+                ) : (
+                  <Bouton type="button" onClick={() => setPhase("besoin")} variante="secondaire">
+                    <span>← Paramètres</span>
+                  </Bouton>
+                )}
                 <Bouton
                   type="button"
                   onClick={() => enregistrer(true)}
@@ -500,14 +551,21 @@ export function ConcepteurSeance({
                   variante="principal"
                   className="shadow-xs"
                 >
-                  <span>Démarrer la séance</span>
+                  <span>{amorceInitiale ? "Commencer mon premier test" : "Démarrer la séance"}</span>
                 </Bouton>
               </div>
             )
           }
         >
-          {/* Barre de navigation d'étapes visuelle */}
-          <div className="mb-4 flex items-center justify-between border-b border-bordure pb-3.5">
+          {/* Le premier parcours n'expose ni paramètres ni arborescence. */}
+          {amorceInitiale ? (
+            <div className="mb-4 flex min-h-11 items-center justify-between gap-3 rounded-xl border border-primaire/25 bg-primaire-faible/30 px-4 py-2.5">
+              <span className="text-xs font-semibold text-primaire">Étape 3 sur 3 · Premier repère</span>
+              <button type="button" onClick={fermer} className="min-h-11 rounded-lg px-2 text-xs text-texte-attenue hover:text-texte">
+                Faire plus tard
+              </button>
+            </div>
+          ) : <div className="mb-4 flex items-center justify-between border-b border-bordure pb-3.5">
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -516,7 +574,7 @@ export function ConcepteurSeance({
                   setPhase("besoin");
                 }}
                 className={cx(
-                  "flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold transition-all cursor-pointer",
+                  "flex min-h-11 touch-manipulation items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold transition-all cursor-pointer",
                   phase === "besoin" && !generationCibles
                     ? "bg-primaire text-primaire-contraste shadow-xs"
                     : "bg-surface-2 text-texte-attenue hover:text-texte",
@@ -536,7 +594,7 @@ export function ConcepteurSeance({
                 }}
                 disabled={theme === null}
                 className={cx(
-                  "flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold transition-all",
+                  "flex min-h-11 touch-manipulation items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold transition-all",
                   phase === "composition" && !generationCibles
                     ? "bg-primaire text-primaire-contraste shadow-xs"
                     : "bg-surface-2 text-texte-attenue hover:text-texte cursor-pointer",
@@ -566,7 +624,7 @@ export function ConcepteurSeance({
                   ? "Étape 1/2"
                   : "Étape 2/2"}
             </span>
-          </div>
+          </div>}
 
           {generationCibles ? (
             /*
@@ -583,7 +641,10 @@ export function ConcepteurSeance({
              */
             <ModaleExercice
               presentation="inline"
-              onFermer={() => setGenerationCibles(null)}
+              onFermer={() => {
+                setGenerationCibles(null);
+                if (amorceInitiale) setGenerationAmorceSuspendue(true);
+              }}
               competences={competencesModale}
               competenceInitiale={generationCibles.codeInitial}
               competencesCibles={generationCibles.codes}
@@ -600,9 +661,9 @@ export function ConcepteurSeance({
               dureeCibleMin={generationCibles.dureeCibleMin}
               calibrages={calibragesModale}
               compteId={compteId}
-              surEnregistre={() => {
-                router.refresh();
-              }}
+              demarrerApresAcceptation={amorceInitiale}
+              varianteAmorce={amorceInitiale}
+              surEnregistre={amorceInitiale ? undefined : () => router.refresh()}
             />
           ) : phase === "besoin" ? (
             <EtapeBesoin
@@ -649,6 +710,12 @@ export function ConcepteurSeance({
               setPlanifieePour={setPlanifieePour}
               enregistrement={enregistrement}
               erreur={erreur}
+              amorce={amorceInitiale}
+              amorceSuspendue={generationAmorceSuspendue}
+              onRelancerAmorce={() => {
+                generationAmorceLancee.current = false;
+                setGenerationAmorceSuspendue(false);
+              }}
               planifier={() => enregistrer(false)}
               onDeclencherGeneration={(cibles) =>
                 setGenerationCibles({ ...cibles, dureeCibleMin: tempsMin })

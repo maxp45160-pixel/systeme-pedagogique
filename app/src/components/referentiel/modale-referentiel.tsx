@@ -68,6 +68,7 @@ export function ModaleReferentiel({
   demarrageAutomatique = false,
   cleDisponible,
   guideEtape,
+  demarrageProgressif = false,
   onFermer,
   surEnregistre,
 }: {
@@ -85,9 +86,15 @@ export function ModaleReferentiel({
   cleDisponible?: boolean;
   /** Message ou badge d'étape guidée lors d'un onboarding. */
   guideEtape?: string;
+  /**
+   * Compte neuf : un seul axe est retenu par défaut et le reste demeure
+   * replié. La personne peut tout de même ouvrir les autres propositions et
+   * les ajouter maintenant ; rien n'est supprimé ni choisi à sa place.
+   */
+  demarrageProgressif?: boolean;
   onFermer: () => void;
   /** Permet à l'appelant de reprendre son flux après l'écriture. */
-  surEnregistre?: () => void;
+  surEnregistre?: (resultat: { codes: string[] }) => void;
 }) {
   const router = useRouter();
   const [etat, setEtat] = useState<Etat>({ phase: "saisie", message: null });
@@ -97,6 +104,7 @@ export function ModaleReferentiel({
   const [progressionEcriture, setProgressionEcriture] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [dejaAuReferentiel, setDejaAuReferentiel] = useState<CompetenceDejaAuReferentiel[]>([]);
+  const [afficherAutresAxes, setAfficherAutresAxes] = useState(false);
   const [enCours, demarrer] = useTransition();
   const abandonRef = useRef<AbortController | null>(null);
   const [afficherReglagesCle, setAfficherReglagesCle] = useState(false);
@@ -179,7 +187,7 @@ export function ModaleReferentiel({
           const initial: Record<string, boolean> = {};
           const p: Record<number, string> = {};
           recu.branches.forEach((b, i) => {
-            initial[`b${i}`] = true;
+            initial[`b${i}`] = !demarrageProgressif || i === 0;
             p[i] = b.prefixe;
             b.competences.forEach((_, j) => (initial[`c${i}-${j}`] = true));
           });
@@ -215,7 +223,7 @@ export function ModaleReferentiel({
         setEtat({ phase: "saisie", message: "Proposition interrompue." });
       }
     }
-  }, [aCleConfiguree, compteId, sujet]);
+  }, [aCleConfiguree, compteId, demarrageProgressif, sujet]);
 
   /*
    * Le démarrage automatique ne se rejoue pas : sans le drapeau, un rendu
@@ -271,7 +279,9 @@ export function ModaleReferentiel({
 
         setProgressionEcriture(null);
         router.refresh();
-        surEnregistre?.();
+        surEnregistre?.({
+          codes: [...new Set([...tousLesCodes, ...deja.map(({ code }) => code)])],
+        });
         /*
          * On ne referme pas quand des compétences ont été écartées : la modale
          * est le seul endroit où le dire, et la fermer ferait disparaître
@@ -298,8 +308,12 @@ export function ModaleReferentiel({
   return (
     <>
       <Modale
-        titre="Préciser le domaine à apprendre"
-        sousTitre="Décrivez le domaine ou le sujet. Le système propose une organisation de compétences ; vous relisez avant de l’ajouter à vos cours."
+        titre={demarrageProgressif ? "Choisir votre premier axe" : "Préciser le domaine à apprendre"}
+        sousTitre={
+          demarrageProgressif
+            ? "Commencez petit : un seul axe suffit pour lancer votre premier test. Vous pourrez élargir votre carte au fil des séances."
+            : "Décrivez le domaine ou le sujet. Le système propose une organisation de compétences ; vous relisez avant de l’ajouter à vos cours."
+        }
         onFermer={fermer}
       >
         <>
@@ -471,7 +485,29 @@ export function ModaleReferentiel({
 
               <AvisDejaAuReferentiel competences={dejaAuReferentiel} />
 
+              {demarrageProgressif && relecture.branches.length > 1 && (
+                <div className="rounded-xl border border-primaire/25 bg-primaire-faible/30 px-4 py-3">
+                  <p className="text-xs font-semibold text-texte">
+                    Un seul axe est coché pour commencer sans vous disperser.
+                  </p>
+                  <p className="mt-1 text-[0.6875rem] leading-relaxed text-texte-attenue">
+                    Les {relecture.branches.length - 1} autres axes ne seront pas ajoutés maintenant.
+                    Le tuteur pourra vous les reproposer plus tard, quand votre première pratique le justifiera.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setAfficherAutresAxes((visible) => !visible)}
+                    className="mt-2 min-h-11 rounded-lg px-2 text-xs font-semibold text-primaire underline-offset-2 hover:underline"
+                  >
+                    {afficherAutresAxes
+                      ? "Masquer les autres axes"
+                      : `Voir les ${relecture.branches.length - 1} autres axes`}
+                  </button>
+                </div>
+              )}
+
               {relecture.branches.map((b, i) => (
+                demarrageProgressif && !afficherAutresAxes && i > 0 ? null :
                 <section key={i} className="rounded-md border border-bordure px-3 py-2.5">
                   <label className="flex items-start gap-2">
                     <input
@@ -531,7 +567,9 @@ export function ModaleReferentiel({
                 >
                   {enCours
                     ? (progressionEcriture ?? "Enregistrement…")
-                    : `Enregistrer ${retenues} branche${retenues > 1 ? "s" : ""}`}
+                    : demarrageProgressif
+                      ? "Valider cet axe et préparer mon premier test"
+                      : `Enregistrer ${retenues} branche${retenues > 1 ? "s" : ""}`}
                 </Bouton>
                 <button
                   type="button"

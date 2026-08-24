@@ -23,6 +23,7 @@ import {
   type OrientationAmorcage,
 } from "@/lib/domain/intention";
 import { useIntention } from "@/components/intention/contexte-intention";
+import { urlPremierTest } from "@/lib/domain/navigation-exercice";
 
 export function FormulaireAmorcage({
   objectifMoyenTerme,
@@ -167,14 +168,14 @@ export function FormulaireAmorcage({
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-bordure/60 pb-3">
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center rounded-full bg-primaire/15 px-2.5 py-0.5 text-[0.6875rem] font-semibold uppercase tracking-wider text-primaire">
-            Étape 1 sur 2 · Votre axe d&apos;apprentissage
+            Étape 1 sur 3 · Votre axe d&apos;apprentissage
           </span>
         </div>
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={() => lancerTour(TOUR_DEMARRER_ID)}
-            className="flex items-center gap-1 text-xs font-medium text-primaire hover:underline cursor-pointer"
+            className="flex min-h-11 items-center gap-1 rounded-lg px-2 text-xs font-medium text-primaire hover:underline cursor-pointer touch-manipulation"
           >
             <span>Visite guidée</span>
           </button>
@@ -253,7 +254,7 @@ export function FormulaireAmorcage({
           type="button"
           onClick={() => setModeGuide(true)}
           className={cx(
-            "flex-1 rounded-lg py-2 text-xs font-medium transition-all text-center",
+            "min-h-11 flex-1 rounded-lg px-2 py-2 text-xs font-medium transition-all text-center touch-manipulation",
             modeGuide
               ? "bg-surface text-texte shadow-xs font-semibold"
               : "text-texte-attenue hover:text-texte",
@@ -265,7 +266,7 @@ export function FormulaireAmorcage({
           type="button"
           onClick={() => setModeGuide(false)}
           className={cx(
-            "flex-1 rounded-lg py-2 text-xs font-medium transition-all text-center",
+            "min-h-11 flex-1 rounded-lg px-2 py-2 text-xs font-medium transition-all text-center touch-manipulation",
             !modeGuide
               ? "bg-surface text-texte shadow-xs font-semibold"
               : "text-texte-attenue hover:text-texte",
@@ -300,7 +301,7 @@ export function FormulaireAmorcage({
                   type="button"
                   onClick={() => choisirExemple(dom)}
                   className={cx(
-                    "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all shadow-xs",
+                    "inline-flex min-h-11 touch-manipulation items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-all shadow-xs",
                     sujet === dom.sujetExemple
                       ? "border-primaire bg-primaire/15 text-primaire font-semibold"
                       : "border-bordure bg-surface text-texte-attenue hover:border-primaire/40 hover:text-texte hover:bg-surface-2",
@@ -385,7 +386,7 @@ export function FormulaireAmorcage({
                       <label
                         key={valeur}
                         className={cx(
-                          "inline-flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all shadow-xs",
+                            "inline-flex min-h-11 cursor-pointer touch-manipulation items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-all shadow-xs",
                           selectionne
                             ? "border-primaire bg-primaire/15 text-primaire font-semibold ring-1 ring-primaire/30"
                             : "border-bordure bg-surface text-texte-attenue hover:border-primaire/40 hover:text-texte hover:bg-surface-2",
@@ -435,7 +436,7 @@ export function FormulaireAmorcage({
 
               <div>
                 <label className="text-[0.6875rem] font-medium text-texte-attenue mb-1.5 block">
-                  Comment préfères-tu apprendre ?
+                  Comment préférez-vous apprendre ?
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {PREFERENCES_APPRENTISSAGE.map((pref) => {
@@ -446,7 +447,7 @@ export function FormulaireAmorcage({
                         type="button"
                         onClick={() => basculerPreference(pref.libelle)}
                         className={cx(
-                          "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-all shadow-xs",
+                          "inline-flex min-h-11 touch-manipulation items-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-medium transition-all shadow-xs",
                           selectionne
                             ? "border-primaire bg-primaire/15 text-primaire font-semibold ring-1 ring-primaire/30"
                             : "border-bordure bg-surface text-texte-attenue hover:border-primaire/40 hover:text-texte hover:bg-surface-2",
@@ -495,7 +496,7 @@ export function FormulaireAmorcage({
                   pret && cleDisponible && "ring-2 ring-primaire/30",
                 )}
               >
-                <span>{enCours ? "Génération en cours…" : "Générer mon référentiel avec l'IA"}</span>
+                <span>{enCours ? "Préparation en cours…" : "Préparer mon point de départ"}</span>
                 <IconeFleche className="size-3.5 transition-transform group-hover:translate-x-1" />
               </Bouton>
 
@@ -528,9 +529,12 @@ export function FormulaireAmorcage({
           sujetInitial={sujet.trim()}
           demarrageAutomatique
           cleDisponible={cleDisponible}
-          guideEtape="Étape 2 sur 2 : Relisez les compétences découpées par le tuteur. Vous pouvez en décocher ou valider directement pour lancer votre Tableau de bord !"
+          demarrageProgressif
+          guideEtape="Étape 2 sur 3 : le tuteur propose plusieurs axes, mais un seul est coché. Validez ce point de départ pour passer directement à un premier test."
           onFermer={() => setValidationOuverte(false)}
-          surEnregistre={() => router.replace("/app")}
+          surEnregistre={({ codes }) => {
+            router.replace(urlPremierTest(codes[0]));
+          }}
         />
       )}
 

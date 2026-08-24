@@ -54,6 +54,7 @@ import {
   type ContenuProposition,
   type PropositionReferentielRelue,
 } from "@/lib/domain/propositions-referentiel";
+import { competenceVoisine, domaineVoisin } from "@/lib/domain/doublons-proposition";
 import { chemin as cheminHierarchie } from "@/lib/domain/hierarchie-domaines";
 import { relireReferentiel, type EntreeRelecture } from "@/lib/tutor/relecture-referentiel";
 import type { MoteurTuteur } from "@/lib/tutor/moteurs";
@@ -296,6 +297,14 @@ export interface ResultatProductionLot {
   enregistrees: number;
   /** Combien ont été écartées parce que déjà refusées, ou déjà proposées. */
   ecartees: number;
+  /**
+   * Combien ont été écartées parce qu'elles redisaient ce qui existe déjà.
+   *
+   * Compté à part de `ecartees` : « tu me l'as déjà proposé » et « ça existe
+   * déjà au référentiel » sont deux constats différents, et confondre les deux
+   * masquerait une dérive du tuteur derrière la mémoire des refus.
+   */
+  doublons: number;
   /** Ce qui a empêché le tuteur de contribuer. Les détecteurs, eux, aboutissent toujours. */
   erreurTuteur: string | null;
 }
@@ -345,6 +354,28 @@ export async function produireLot(
 
   const aEcrire: PropositionAEnregistrer[] = [];
   let ecartees = 0;
+  let doublons = 0;
+
+  /*
+   * Ce que le référentiel porte DÉJÀ, pour ne pas le proposer une seconde fois.
+   *
+   * Le 24/08/2026, la relecture a proposé « Résilience et optimisation des
+   * réseaux logistiques » alors que « Résilience logistique » existait. Les
+   * contrôles du dépôt n'ont rien vu : ils comparent des noms exacts, et ils ne
+   * jouent qu'à l'ÉCRITURE — la carte s'affichait, et n'aurait échoué qu'au
+   * clic. Le contrôle est donc remonté ici, avant l'enregistrement du lot.
+   *
+   * Il ne couvre que les deux genres qui CRÉENT : `scission` fabrique un
+   * domaine, `manque` fabrique une compétence. `relation` et `rattachement`
+   * désignent l'existant et n'ont rien à dédoublonner.
+   */
+  const domainesVivants = ctx.referentiel.domaines
+    .filter((domaine) => !domaine.archive)
+    .map((domaine) => ({ id: domaine.id, nom: domaine.nom }));
+  const competencesVivantes = ctx.referentiel.actifs.map((skill) => ({
+    code: skill.code,
+    intitule: skill.intitule,
+  }));
 
   const ajouter = (
     contenu: ContenuProposition,
@@ -404,6 +435,11 @@ export async function produireLot(
     erreurTuteur = resultat.erreur;
 
     for (const scission of resultat.lot.scissions) {
+      const dejaLa = domaineVoisin(scission.nom, domainesVivants);
+      if (dejaLa) {
+        doublons += 1;
+        continue;
+      }
       ajouter(
         {
           genre: "scission",
@@ -460,6 +496,11 @@ export async function produireLot(
     }
 
     for (const manque of resultat.lot.manques) {
+      const dejaLa = competenceVoisine(manque.intitule, competencesVivantes);
+      if (dejaLa) {
+        doublons += 1;
+        continue;
+      }
       ajouter(
         {
           genre: "manque",
@@ -489,5 +530,5 @@ export async function produireLot(
    */
   await inscrireRelecture(lotId, versions, aEcrire.length);
 
-  return { lotId, enregistrees: aEcrire.length, ecartees, erreurTuteur };
+  return { lotId, enregistrees: aEcrire.length, ecartees, doublons, erreurTuteur };
 }

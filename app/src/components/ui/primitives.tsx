@@ -1,6 +1,7 @@
 import { Fragment } from "react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import type { Confiance, NiveauCompetence } from "@/lib/domain/types";
+import { aideBilan, libelleBilan } from "@/lib/ui/mesures-lisibles";
 import { IconeChargement, IconeFeuille } from "./icones";
 
 export function cx(...parts: (string | false | null | undefined)[]): string {
@@ -315,15 +316,13 @@ const TON_CONFIANCE: Record<Confiance, Ton> = {
  * texte hors écran (lecteurs d'écran) plutôt que par une ligne de plus : le
  * bandeau est déjà dense, et cette précision n'est utile qu'une fois.
  */
-const AIDE_CONFIANCE =
-  "La confiance mesure l'assise des observations — leur nombre, leur variété, leur fraîcheur — pas le niveau atteint. Une confiance faible signale qu'il manque des mesures, pas que la compétence est faible.";
-
 export function TagConfiance({ confiance }: { confiance: Confiance }) {
+  const aide = aideBilan(confiance);
   return (
-    <span title={AIDE_CONFIANCE} className="inline-flex">
+    <span title={aide} className="inline-flex cursor-help" tabIndex={0}>
       <Etiquette ton={TON_CONFIANCE[confiance]}>
-        Confiance&nbsp;: {confiance === "nulle" ? "non évaluable" : confiance}
-        <span className="sr-only"> — {AIDE_CONFIANCE}</span>
+        Bilan&nbsp;: {libelleBilan(confiance)}
+        <span className="sr-only"> — {aide}</span>
       </Etiquette>
     </span>
   );

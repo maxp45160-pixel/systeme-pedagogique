@@ -62,6 +62,7 @@ export default async function PageSeances(props: {
     intention?: string;
     "sans-theme"?: string;
     temps?: string;
+    amorce?: string;
   }>;
 }) {
   const recherche = await props.searchParams;
@@ -114,6 +115,7 @@ export default async function PageSeances(props: {
                 intention: recherche.intention,
                 sansTheme: recherche["sans-theme"],
                 temps: recherche.temps,
+                amorce: recherche.amorce,
               },
             }
           : {})}
@@ -127,6 +129,7 @@ export interface DemandeComposition {
   intention?: string;
   temps?: string;
   sansTheme?: string;
+  amorce?: string;
 }
 
 /**
@@ -137,6 +140,7 @@ async function CompositeurDepuisLien({
   intention,
   temps,
   sansTheme,
+  amorce,
 }: DemandeComposition) {
   const donnees = await chargerDonneesSeance();
   const codesDemandes = (Array.isArray(codesParametres) ? codesParametres : codesParametres ? [codesParametres] : [])
@@ -183,11 +187,18 @@ async function CompositeurDepuisLien({
   const dureeCible = duree ?? 45;
   const conseilLien = nombreExercicesConseille(dureeCible, donnees.exercices, donnees.tentatives);
   const nombreExercicesLien =
-    conseilLien?.nombre ?? Math.min(6, Math.max(1, Math.round(dureeCible / 15)));
+    amorce === "1"
+      ? 1
+      : conseilLien?.nombre ?? Math.min(6, Math.max(1, Math.round(dureeCible / 15)));
 
   const preset: PresetSeance | undefined = codes.length > 0
     ? {
-        libelle: codes.length === 1 ? `Compétence : ${codes[0]}` : "Séance ciblée",
+        libelle:
+          amorce === "1"
+            ? "Votre premier point de départ"
+            : codes.length === 1
+              ? `Compétence : ${codes[0]}`
+              : "Séance ciblée",
         codesVises: codes,
         nombreExercices: nombreExercicesLien,
         dureeCibleMin: dureeCible,
@@ -202,9 +213,10 @@ async function CompositeurDepuisLien({
       contexteInitial={intention}
       {...(duree !== undefined ? { dureeInitiale: duree } : {})}
       sansThemeInitial={sansTheme === "1"}
+      amorceInitiale={amorce === "1"}
       ouvertParDefaut
       retourEnFermant
-      libelle="Composer une séance"
+      libelle={amorce === "1" ? "Préparer mon premier test" : "Composer une séance"}
     />
   );
 }

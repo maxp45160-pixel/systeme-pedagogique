@@ -34,6 +34,9 @@ export function EtapeComposition({
   setPlanifieePour,
   enregistrement,
   erreur,
+  amorce = false,
+  amorceSuspendue = false,
+  onRelancerAmorce,
   planifier,
   onDeclencherGeneration,
 }: {
@@ -50,6 +53,11 @@ export function EtapeComposition({
   setPlanifieePour: (v: string) => void;
   enregistrement: boolean;
   erreur: string | null;
+  /** Premier parcours : masque les réglages avancés et ne montre qu'un test. */
+  amorce?: boolean;
+  /** La personne a interrompu la rédaction automatique et peut la reprendre. */
+  amorceSuspendue?: boolean;
+  onRelancerAmorce?: () => void;
   planifier: () => void;
   onDeclencherGeneration: (cibles: { codeInitial: string; codes?: string[] }) => void;
 }) {
@@ -70,6 +78,51 @@ export function EtapeComposition({
   const vide = composition.activites.length === 0 && composition.manquants.length === 0;
   const sansExerciceDisponible = composition.activites.length === 0;
   const dureeRetenue = composition.activites.reduce((acc, a) => acc + a.dureeEstimeeMin, 0);
+
+  if (amorce) {
+    const activite = composition.activites[0];
+    return (
+      <div className="space-y-4 pt-1">
+        <div className="rounded-xl border border-bordure bg-surface-2/55 p-4 sm:p-5">
+          <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-primaire">
+            Un seul axe pour commencer
+          </p>
+          <h3 className="mt-1.5 font-serif text-lg font-medium text-texte">{theme.libelle}</h3>
+          <p className="mt-1 text-xs leading-relaxed text-texte-attenue">
+            Ce test court ne cherche pas à tout évaluer. Il pose un premier repère concret,
+            puis vos prochaines séances s&apos;adapteront à ce que vous aurez réellement montré.
+          </p>
+        </div>
+
+        {activite ? (
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-succes">Votre test est prêt.</p>
+            <LigneActivite activite={activite} />
+          </div>
+        ) : amorceSuspendue && onRelancerAmorce ? (
+          <div className="space-y-3 rounded-xl border border-bordure bg-surface p-4">
+            <p className="text-xs leading-relaxed text-texte-attenue">
+              La préparation a été interrompue. Vous pouvez la reprendre sans perdre votre axe
+              de départ.
+            </p>
+            <Bouton type="button" variante="secondaire" className="min-h-11" onClick={onRelancerAmorce}>
+              Reprendre la préparation
+            </Bouton>
+          </div>
+        ) : (
+          <p className="text-xs text-texte-attenue" role="status">
+            Préparation de votre premier exercice…
+          </p>
+        )}
+
+        {erreur && (
+          <BandeauInfo ton="danger" taille="compacte">
+            <p className="text-xs text-danger">{erreur}</p>
+          </BandeauInfo>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5 pt-2">
@@ -99,7 +152,7 @@ export function EtapeComposition({
                 }
                 disabled={nombreExercices <= EXERCICES_PAR_SEANCE_MIN}
                 aria-label="Moins d'exercices"
-                className="flex size-7 items-center justify-center rounded-lg border border-bordure bg-surface text-sm font-bold text-texte transition-colors hover:bg-surface-2 disabled:opacity-40 cursor-pointer"
+            className="flex size-11 touch-manipulation items-center justify-center rounded-lg border border-bordure bg-surface text-base font-bold text-texte transition-colors hover:bg-surface-2 disabled:opacity-40 cursor-pointer sm:size-8 sm:text-sm"
               >
                 −
               </button>
@@ -115,7 +168,7 @@ export function EtapeComposition({
                 }
                 disabled={nombreExercices >= EXERCICES_PAR_SEANCE_MAX}
                 aria-label="Plus d'exercices"
-                className="flex size-7 items-center justify-center rounded-lg border border-bordure bg-surface text-sm font-bold text-texte transition-colors hover:bg-surface-2 disabled:opacity-40 cursor-pointer"
+                className="flex size-11 touch-manipulation items-center justify-center rounded-lg border border-bordure bg-surface text-base font-bold text-texte transition-colors hover:bg-surface-2 disabled:opacity-40 cursor-pointer sm:size-8 sm:text-sm"
               >
                 +
               </button>
@@ -136,7 +189,7 @@ export function EtapeComposition({
         aria-checked={modeEpreuve}
         onClick={() => setModeEpreuve(!modeEpreuve)}
         className={cx(
-          "flex w-full cursor-pointer items-start gap-3 rounded-xl border p-3 text-left transition-colors",
+          "flex min-h-11 w-full cursor-pointer touch-manipulation items-start gap-3 rounded-xl border p-3 text-left transition-colors",
           modeEpreuve
             ? "border-primaire/40 bg-primaire-faible/30"
             : "border-bordure bg-surface hover:border-primaire/30",
@@ -154,11 +207,11 @@ export function EtapeComposition({
         <span className="min-w-0">
           <span className="flex items-center gap-1.5 text-xs font-semibold text-texte">
             <IconeMinuteur className="size-3.5" />
-            <span>Mode épreuve</span>
+            <span>Mode examen / concours</span>
           </span>
           <span className="mt-0.5 block text-[0.6875rem] leading-relaxed text-texte-discret">
-            Conditions réelles : chrono affiché pendant la séance, aides masquées,
-            correction à la fin. Posé au démarrage, il ne se retire plus.
+            Chrono continu, sans indice ni assistance. La correction et le bilan
+            consolidé n&apos;apparaissent qu&apos;à la fin.
           </span>
         </span>
       </button>

@@ -53,6 +53,16 @@ function CarteProposition({ proposition }: { proposition: PropositionLisible }) 
             ? await retenirProposition(proposition.id)
             : await refuserProposition(proposition.id);
         /*
+         * Un échec attendu ARRIVE dans le résultat, il ne remonte pas par le
+         * `catch` : Next rédige les erreurs des Server Actions en production, et
+         * ce bloc n'y voyait que le message générique de React (#441). La carte
+         * reste alors ouverte, avec son motif — la personne peut réessayer.
+         */
+        if (!resultat.ok) {
+          setErreur(resultat.message);
+          return;
+        }
+        /*
          * Le message reste affiché à la place des boutons plutôt que de faire
          * disparaître la carte sur-le-champ. Une carte qui s'évapore au clic ne
          * dit pas ce qu'elle a fait — et « créer un sous-domaine » mérite un
@@ -61,8 +71,10 @@ function CarteProposition({ proposition }: { proposition: PropositionLisible }) 
          */
         setFait(resultat.message);
         router.refresh();
-      } catch (e) {
-        setErreur(e instanceof Error ? e.message : "Impossible d'enregistrer ce choix.");
+      } catch {
+        // Ce qui reste ici est une panne, pas un refus métier : le message du
+        // serveur y est rédigé, et le répéter n'apprendrait rien.
+        setErreur("Impossible d'enregistrer ce choix. Rafraîchissez la page et réessayez.");
       }
     });
   }

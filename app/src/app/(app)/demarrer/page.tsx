@@ -4,9 +4,9 @@ import { chargerContexte } from "@/lib/store/context";
 import { valeurDeclaree } from "@/lib/domain/profil";
 import { estAdministrateur } from "@/lib/store/acces";
 import { EntetePage } from "@/components/layout/entete-page";
-import { BandeauInfo, Carte } from "@/components/ui/primitives";
+import { BandeauInfo, Carte, classesLienBouton } from "@/components/ui/primitives";
 import { FormulaireAmorcage } from "@/components/demarrer/formulaire-amorcage";
-import { IconeAmpoule, IconeFleche } from "@/components/ui/icones";
+import { IconeAmpoule, IconeCours, IconeFleche } from "@/components/ui/icones";
 import { choisirConfiguration } from "@/lib/tutor/moteurs";
 import { lireQuotaTuteur } from "@/lib/store/quota-tuteur";
 
@@ -66,7 +66,7 @@ export default async function PageDemarrer(props: {
 
       <EntetePage
         titre="Sur quoi voulez-vous progresser ?"
-        sousTitre="Écrivez ce que vous voulez pouvoir faire. Nous le traduisons en exercices."
+        sousTitre="Choisissez un seul point de départ. Votre premier test arrive avant le tableau de bord."
       />
 
       {/*
@@ -81,6 +81,27 @@ export default async function PageDemarrer(props: {
         </Link>{" "}
         — le fonctionnement complet, écran par écran, en quelques minutes.
       </p>
+
+      <div className="mb-4 flex flex-col gap-3 rounded-xl border border-bordure bg-surface-2/55 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-primaire-faible text-primaire">
+            <IconeCours className="size-5" />
+          </span>
+          <div>
+            <p className="text-sm font-semibold text-texte">Vous avez déjà un PDF ou un syllabus ?</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-texte-attenue">
+              Déposez votre cours : le tuteur en extraira des axes à relire, puis préparera des exercices ciblés.
+            </p>
+          </div>
+        </div>
+        <Link
+          href="/atelier?creation=cours"
+          className={`${classesLienBouton("secondaire")} min-h-11 shrink-0 touch-manipulation`}
+        >
+          Déposer mon cours
+          <IconeFleche className="size-4" />
+        </Link>
+      </div>
 
       <Carte>
         <div className="px-5 py-4">
@@ -109,33 +130,31 @@ export default async function PageDemarrer(props: {
       <details className="group mt-6 rounded-xl border border-bordure bg-surface-2/50 px-5 py-4">
         <summary className="cursor-pointer list-none marker:hidden">
           <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret transition-colors group-open:text-texte-attenue hover:text-texte-attenue">
-            Ensuite — ce qui se passe après la génération
+            Ensuite — votre premier parcours
           </span>
         </summary>
         <ol className="mt-2.5 space-y-2 text-xs leading-relaxed text-texte-attenue">
           <li>
-            <span className="font-medium text-texte">1. Vous relisez la proposition.</span> Le tuteur
-            découpe le sujet en compétences mesurables ; vous décochez ce qui ne vous concerne pas.
-            Rien n&apos;est enregistré avant votre validation.
+            <span className="font-medium text-texte">1. Vous retenez un seul axe.</span> Le tuteur
+            propose une carte plus large, mais le reste demeure replié. Vous pourrez l&apos;étendre
+            plus tard, au fil de votre pratique.
           </li>
           <li>
-            <span className="font-medium text-texte">2. Le tableau de bord vous propose une action.</span>{" "}
-            Une seule — celle qui produira la prochaine observation.
+            <span className="font-medium text-texte">2. Vous passez directement un test express.</span>{" "}
+            Un exercice court pose votre premier repère. Vous voyez et validez l&apos;énoncé avant de commencer.
           </li>
           <li>
             <span className="font-medium text-texte">
-              3. Pour tout le reste, le bouton <span className="font-mono">+</span>.
+              3. Le tableau de bord s&apos;ouvre ensuite.
             </span>{" "}
-            Vous y écrivez ce dont vous avez besoin, en une phrase, et le système choisit quoi
-            faire : s&apos;entraîner, produire, déposer une ressource, ou étendre votre
-            référentiel. Vous n&apos;avez jamais à choisir quel objet créer.
+            Il s&apos;appuie déjà sur ce que vous venez de faire, au lieu de vous accueillir par une liste vide.
           </li>
         </ol>
       </details>
 
       <p className="mt-4 px-1 text-xs text-texte-attenue">
-        Rien n&apos;est figé : le référentiel se modifie, s&apos;étend et se réduit à tout moment
-        depuis l&apos;<span className="font-medium">Mes cours</span>.
+        Rien n&apos;est figé : votre carte se modifie, s&apos;étend et se réduit à tout moment
+        depuis <span className="font-medium">Mes cours</span>.
       </p>
     </>
   );

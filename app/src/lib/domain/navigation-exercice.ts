@@ -55,6 +55,19 @@ export function urlComposerAutonome(
 }
 
 /**
+ * Le premier parcours après validation d'un axe.
+ *
+ * Cinq minutes est le minimum honnête d'un exercice dans le domaine
+ * (`DUREE_ESTIMEE_MIN`). Le parcours peut atteindre l'exercice en deux
+ * minutes ; il ne prétend pas que l'exercice lui-même en dure deux.
+ */
+export function urlPremierTest(code?: string): string {
+  const params = new URLSearchParams({ composer: "1", amorce: "1", temps: "5" });
+  if (code) params.set("code", code);
+  return `/seances?${params.toString()}`;
+}
+
+/**
  * L'infobulle du lien « Générer puis commencer ».
  *
  * Une seule déclaration parce qu'elle vivait en double, mot pour mot, dans la
