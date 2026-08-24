@@ -32,6 +32,14 @@ import type { Contexte } from "@/lib/store/context";
  * Le fixture (6 compétences, aucune observation) mesure la part FIXE. Un compte
  * réel ajoute son état et ses priorités par-dessus ; c'est justement la part
  * qu'on veut voir grandir, et elle n'entre pas dans ce plafond.
+ *
+ * ## Ce que ce plafond ne surveille PAS
+ *
+ * Le prompt système, et lui seul. La conversation est bornée ailleurs :
+ * `MAX_MESSAGES_FENETRE` pour l'historique, `LIMITE_MATIERE_FICHE` pour la
+ * matière qu'ADR-124 joint au premier message — et `fenetrerHistorique`
+ * conserve toujours ce premier message, donc cet extrait-là est repayé à
+ * chaque tour. Trois chiffres pour un seul budget : les revoir ensemble.
  */
 
 /** Mesuré à 28 849 le 24/08/2026 (ADR-125). La marge absorbe une reformulation. */

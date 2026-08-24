@@ -132,6 +132,16 @@ Consulter `PRODUCT.md` pour la définition complète des principes.
   **transcrit** — comme `atomicite.ts` et `explication.ts` — et la
   transcription porte un test qui relit le fichier de protocole. C'est la seule
   exception admise à « une seule implémentation », et le protocole décide.
+- Le contexte permanent du tuteur ne contient **aucun document** (ADR-124).
+  `contexte.ts` n'a pas de bloc de corpus documentaire, et n'en gagne pas un
+  sans rouvrir la question de la fenêtre. Un document n'atteint le tuteur que
+  par un geste explicite, composé côté client et **relu par la personne avant
+  l'envoi** — `composerSujetFiche`, `composerSujetLecture`, `TraiterLigneMarge`.
+  Rien de ce qui vient d'un document ne devient une mesure.
+- Le prompt système du chat porte un plafond mesuré (ADR-125) :
+  `budget-contexte.test.ts` échoue au-delà. Le relever est une décision qui
+  s'écrit ; `MAX_MESSAGES_FENETRE` et `LIMITE_MATIERE_FICHE` bornent la
+  conversation et se revoient avec lui.
 - Pas d'émoji dans le frontend : ne jamais utiliser d'émojis dans l'interface utilisateur (boutons, badges, étiquettes, icônes, textes). Utiliser les composants d'icônes SVG (`components/ui/icones.tsx`) ou du texte sobre.
 
 Pour les détails et justifications :

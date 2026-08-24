@@ -9670,6 +9670,139 @@ réponse est écrite dans les deux fichiers : **§10.1 décide.**
 
 ---
 
+## ADR-124 — Une fiche atteint le tuteur par un geste, jamais par le contexte 🔬
+
+**Statut :** 🔬 construit le 24/08/2026, hypothèse non réfutée. Tranche Q1 et Q2
+de `docs/audit/CHARGE-MES-COURS.md`. Ne fait monter aucune brique en ✅.
+
+### Le manque
+
+`lib/tutor/contexte.ts` assemble onze blocs sur un message ordinaire — trois
+protocoles, le cadre d'intervention, les schémas d'outil, et six lectures
+dérivées des compétences, des Observations et des exercices. **Aucun ne
+contient de document.** Une fiche de cours écrite avec soin — ses formules, ses wikiliens,
+son PDF joint — ne changeait donc rien à l'exercice suivant : le tuteur ne
+l'avait jamais lue. « Mes cours » pèse 14 % du dépôt et 76 % du poids du
+moteur, pour un contenu qui ne circulait pas.
+
+### Ce qui a été écarté : le huitième bloc de contexte
+
+La forme évidente était d'ajouter une ligne au manifeste — les fiches qui citent
+la compétence calibrée, extraites et jointes au prompt. La charnière existait
+déjà : `index.ts` construit `entrants`, et `vue-atelier.ts` fait déjà
+`entrants.get(skill.code)` ; un `[[LOG-01]]` **est** un lien fiche → compétence.
+
+Deux raisons de ne pas le faire :
+
+1. **La fenêtre ne le supporte pas.** `fenetre.ts` chiffre son pire cas à
+   `8 + 14 × 8 ≈ 120 K` jetons pour la limite de 128 K de Mistral, et le
+   commentaire dit « tout juste tenue ». Un bloc de corpus renvoyé à **chaque**
+   message n'a pas de place, et il n'en aurait pas davantage en le rabotant.
+2. **Il aurait fallu deviner.** Choisir *quelles* fiches partent est une
+   heuristique que personne ne peut valider aujourd'hui : le relevé note que
+   l'usage réel du corpus n'a jamais été mesuré. Une sélection automatique
+   fausse coûte des jetons à chaque tour et se voit mal.
+
+### Ce qui a été retenu
+
+Un geste : sur une fiche de **connaissance**, le bouton « Travailler à partir
+de cette fiche » compose un message et le pose en **brouillon** dans la saisie
+du tuteur. La personne le relit, l'édite ou l'efface, et l'envoie elle-même.
+
+C'est le patron déjà éprouvé deux fois dans le produit — `composerSujetLecture`
+(lecture d'un PDF) et `TraiterLigneMarge` (une ligne de marge pré-remplit la
+capture d'intention). Aucun nouveau chemin d'écriture, aucune route d'API
+nouvelle : le message est une chaîne composée côté client, qui part comme
+n'importe quel message de la conversation.
+
+| Propriété | Conséquence |
+|---|---|
+| Coût payé au geste | Zéro jeton les tours où personne ne le demande |
+| La personne choisit la fiche | Aucune heuristique de sélection à valider |
+| Le message est visible avant l'envoi | Ce qui est composé est exactement ce que le modèle reçoit |
+| Une seule surface | Le bouton *est* le déclencheur du tuteur du plan de travail, il change de libellé — pas un second tuteur dans l'en-tête |
+
+### Les trois frontières, et où elles sont tenues
+
+**1. La fiche est de la matière, jamais une mesure.** Le moteur ne lit rien
+d'ici. Avoir écrit un cours n'est pas l'avoir démontré : en tirer un niveau
+fabriquerait une mesure à partir d'une déclaration, contre l'invariant 2 (toute
+mesure a une source explicite) et l'invariant 3 (absence de preuve ≠ zéro). Le
+message le dit lui-même : « aucun niveau ne doit en être déduit ».
+
+**2. La fiche est du texte non fiable.** Elle est rédigée par la personne et
+entre dans un prompt exécuté sur la clé serveur partagée (ADR-116). Le message
+la délimite (`--- début de la fiche ---`) et déclare qu'elle ne porte aucune
+consigne. Le garde-fou vit **dans le message**, pas dans `00_instructions/` :
+il n'a de sens que là où la matière est jointe, et il reste lisible par la
+personne qui l'envoie.
+
+**3. La borne est constante et documentée.** `LIMITE_MATIERE_FICHE = 4 000`
+caractères ≈ 1 300 jetons. Le chiffre n'est pas décoratif :
+`fenetrerHistorique` conserve **toujours** le premier message utilisateur, donc
+cet extrait est repayé à chaque tour de la conversation. Au-delà on coupe en
+fin de mot et **on le dit dans le message** — on ne résume jamais.
+
+Deux précisions, depuis [ADR-125](#adr-125) rendu le même jour. D'une part la
+marge s'est élargie : le contexte système a maigri d'environ 1 250 jetons par
+message, ce qui donne à cet extrait la place qu'il prend. D'autre part
+`budget-contexte.test.ts` **ne le couvre pas** — il mesure le prompt système,
+pas la conversation. Les 4 000 caractères ne sont donc tenus que par la
+constante et par ce paragraphe.
+
+### Ce qui compte comme matière, et pourquoi ce n'est pas une liste
+
+`ficheEstMatiere` lit la `categorie` déjà déclarée par `TYPES_DOCUMENTS` :
+
+- `connaissance` (cours, référence, formule, réflexion, note…) → matière ;
+- `action` (exercice, séance, projet, productions) → **non** : ces documents
+  sont déjà dans le contexte du tuteur via `serialiserCorpus`, les rejoindre
+  serait payer deux fois la même chose ;
+- `preuve` → **non** : une preuve se mesure, elle ne se relit pas comme un
+  cours.
+
+Une liste de types recopiée aurait vieilli au premier type ajouté ; un test
+parcourt `TYPES_DOCUMENTS` et échoue si la règle et le registre divergent.
+Un document sans type connu reste de la matière — c'est du texte libre écrit
+par la personne, et rien ne permet d'affirmer le contraire.
+
+Une fiche qui n'a que ses titres de section (gabarit non rempli) ne compose
+rien : transmettre une table des matières vide coûterait des jetons pour rien.
+
+### Le registre du message
+
+Le message n'emploie **ni tutoiement ni vouvoiement** (ADR-119) : il énonce un
+travail demandé, sans destinataire. Un test le vérifie sur le texte composé.
+
+### Le test de réfutation
+
+Cette décision est réfutée si l'une de ces trois choses se produit :
+
+1. **le geste n'est pas utilisé** — les fiches restent muettes parce que
+   personne ne pense à ouvrir le tuteur depuis une fiche. Le remède serait le
+   bloc de contexte écarté ci-dessus, et il faudra alors reprendre la question
+   de la fenêtre ;
+2. **la borne se révèle fausse** — une conversation ouverte depuis une fiche
+   atteint la limite du fournisseur plus tôt que les autres. `MAX_MESSAGES_FENETRE`
+   et `LIMITE_MATIERE_FICHE` sont les deux chiffres à revoir ensemble ;
+3. **la matière devient une mesure** — si un chemin fait entrer un contenu de
+   fiche dans un niveau ou un score, la frontière 1 est tombée et la décision
+   est à retirer, pas à ajuster.
+
+### Ce que cette décision n'autorise pas
+
+- elle **n'ouvre pas le contexte permanent aux documents**. `contexte.ts` n'est
+  pas modifié, le manifeste garde ses onze blocs, et il n'y a toujours pas de
+  douzième ligne ;
+- elle **ne câble pas le moteur**. `lib/engine/` ne connaît toujours pas le
+  corpus documentaire, et reçoit toujours les compétences en paramètre ;
+- elle **ne justifie pas le WYSIWYG**. Le geste ne lit que du Markdown, quel
+  que soit l'éditeur qui l'a produit. Q3 du relevé reste ouverte ;
+- elle **n'envoie rien automatiquement**. Un message composé mais non envoyé
+  n'atteint aucun fournisseur et ne coûte aucun quota.
+
+---
+
 ## ADR-125 — Le contexte du chat se mesure, et il porte un plafond 🔬
 
 **Statut :** 🔬 construit le 24/08/2026, hypothèse non réfutée. Réduit ce que
@@ -9780,6 +9913,10 @@ construction, toujours dit ailleurs dans la même requête.
   ce sont des règles, pas de la prose ;
 - elle ne rend pas le plafond intouchable. Il se relève — dans un commit qui le
   dit, avec la raison ;
+- elle **ne surveille pas la conversation**. Le test mesure le prompt système ;
+  l'historique et la matière de fiche jointe par [ADR-124](#adr-124) sont
+  bornés ailleurs, par `MAX_MESSAGES_FENETRE` et `LIMITE_MATIERE_FICHE`. Trois
+  chiffres pour un seul budget : les revoir ensemble ou pas du tout ;
 - elle ne règle pas la question de fond, qui reste le **chargement
   conditionnel**. Deux fichiers sur cinq le sont déjà ; le reste demande de
   décider ce qui déclenche quoi, et ce n'est pas une question de rédaction.

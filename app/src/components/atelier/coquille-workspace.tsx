@@ -32,6 +32,7 @@ export function CoquilleWorkspace({
   compteId,
   sortie = SORTIE_PAR_DEFAUT,
   barre,
+  actionTuteur,
   children,
 }: {
   surtitre: string;
@@ -44,6 +45,15 @@ export function CoquilleWorkspace({
   sortie?: { href: string; libelle: string };
   /** Bandeau pleine largeur sous la ligne de titre, dans l'en-tête collant. */
   barre?: ReactNode;
+  /**
+   * Un brouillon posé dans la saisie du tuteur à l'ouverture, et le nom du
+   * geste qui l'ouvre.
+   *
+   * La coquille ne compose rien : elle relaie un texte que l'espace de travail
+   * a fabriqué et que la personne relit avant de l'envoyer. C'est le seul
+   * chemin par lequel le contenu d'un document atteint le tuteur (ADR-124).
+   */
+  actionTuteur?: { libelle: string; texte: string };
   children: ReactNode;
 }) {
   const router = useRouter();
@@ -65,15 +75,19 @@ export function CoquilleWorkspace({
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
             {compteId && (
-              <>
-                <OutilSeance
-                  libelle="Pomodoro"
-                  contenuClassName="absolute right-0 top-full z-30 mt-2 w-[min(22rem,calc(100vw-2rem))]"
-                >
-                  <Pomodoro compteId={compteId} />
-                </OutilSeance>
-                <TiroirTuteur declencheur="bouton" libelle="Tuteur" />
-              </>
+              <OutilSeance
+                libelle="Pomodoro"
+                contenuClassName="absolute right-0 top-full z-30 mt-2 w-[min(22rem,calc(100vw-2rem))]"
+              >
+                <Pomodoro compteId={compteId} />
+              </OutilSeance>
+            )}
+            {(compteId || actionTuteur) && (
+              <TiroirTuteur
+                declencheur="bouton"
+                libelle={actionTuteur?.libelle ?? "Tuteur"}
+                amorce={actionTuteur?.texte}
+              />
             )}
             <Link
               href={sortie.href}

@@ -280,6 +280,12 @@ promet sur la vitrine est donc exact et borné : passé le plafond, la générat
 s'arrête avec un message qui dit quand le compteur repart, et renseigner sa
 propre clé lève la limite sans rien décompter. Le plafond est réglable par
 compte ; un administrateur n'est jamais décompté.
+🔬 **Une fiche de cours atteint le tuteur par un geste, jamais par le contexte**
+(24/08/2026, ADR-124). « Travailler à partir de cette fiche » compose un message
+— titre plus corps borné à 4 000 caractères — que la personne relit et envoie
+elle-même. Le contexte permanent du tuteur ne contient toujours aucun document,
+et le moteur n'en lit aucun : une fiche est de la matière pour un énoncé, jamais
+une mesure. Avoir écrit un cours n'est pas l'avoir démontré.
 ✅ **Construire et utiliser en parallèle** est le mode de travail retenu.
 ✅ **La boucle est le produit** (ADR-066). Son arbitrage — temps disponible,
 capacité déclarée — vit dans la carte d'action et fonctionne sans aucune table.

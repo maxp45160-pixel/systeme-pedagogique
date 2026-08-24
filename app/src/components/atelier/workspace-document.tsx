@@ -29,6 +29,7 @@ import {
 import { erreurFichierPiece, estMimePieceJointe, MIME_PDF } from "@/lib/documents/pieces-jointes";
 import { televerserFichier } from "@/lib/documents/televersement-fichier";
 import { composerSujetLecture } from "@/lib/documents/extraction-pdf";
+import { composerSujetFiche } from "@/lib/documents/matiere-fiche";
 import {
   LONGUEUR_REPERE_MAX,
   creerRepere,
@@ -433,6 +434,17 @@ export function WorkspaceDocument({
   const titre = analyse.titre || "Fiche documentaire";
   const surtitre = definition ? `Fiche · ${definition.libelle}` : "Fiche documentaire";
 
+  /*
+   * Le seul chemin par lequel ce que la personne écrit atteint le tuteur
+   * (ADR-124). Le message est composé ici, posé en brouillon dans la saisie du
+   * tiroir, et envoyé par la personne — jamais automatiquement. `null` quand la
+   * fiche n'a pas de matière : le bouton reprend alors son libellé ordinaire.
+   */
+  const sujetFiche = useMemo(
+    () => composerSujetFiche(titre, analyse.corps, analyse.type),
+    [titre, analyse.corps, analyse.type],
+  );
+
   const barreEntete = estProjet && totalJalons > 0 ? (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between gap-3 text-[0.6875rem] text-texte-attenue">
@@ -463,6 +475,11 @@ export function WorkspaceDocument({
       titre={titre}
       sortie={sortieWorkspace(retour)}
       barre={barreEntete}
+      actionTuteur={
+        sujetFiche
+          ? { libelle: "Travailler à partir de cette fiche", texte: sujetFiche }
+          : undefined
+      }
     >
       <div className="mx-auto max-w-5xl space-y-6">
         {erreur && (
