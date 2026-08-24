@@ -97,7 +97,7 @@ export function CahierSeances({
             titre={terme ? "Aucun résultat" : "Aucune séance réalisée"}
             message={terme
               ? `Aucun élément ne correspond à « ${recherche?.trim()} ».`
-              : "Compose ta première séance : une fois terminée, elle rejoint ce cahier."}
+              : "Composez votre première séance : une fois terminée, elle rejoint ce cahier."}
           />
           {!terme && (
             /*

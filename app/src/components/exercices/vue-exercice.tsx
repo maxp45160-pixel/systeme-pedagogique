@@ -228,9 +228,9 @@ export async function VueExercice(props: {
           <p className="mt-1 text-xs text-texte-attenue">
             {abandonDelibere ? (
               <>
-                Tu as clos cette tentative sans la mener à son terme : elle est marquée
+                Vous avez clos cette tentative sans la mener à son terme : elle est marquée
                 comme abandonnée. Un abandon n&apos;est pas un échec — un échec est une
-                mesure, il suppose qu&apos;on ait essayé. Ton niveau sur{" "}
+                mesure, il suppose qu&apos;on ait essayé. Votre niveau sur{" "}
                 {exercice.competences.join(", ")} est inchangé.
               </>
             ) : (
@@ -238,7 +238,7 @@ export async function VueExercice(props: {
                 La tentative a duré moins d&apos;un quart de la durée estimée
                 ({exercice.dureeEstimeeMin} min) sans être réussie : elle est marquée comme
                 abandonnée. En tirer un niveau reviendrait à confondre « pas mesuré » et
-                « raté » — ton niveau sur{" "}
+                « raté » — votre niveau sur{" "}
                 {exercice.competences.join(", ")} est inchangé.
               </>
             )}
@@ -511,7 +511,7 @@ export async function VueExercice(props: {
           <Carte accent>
             <div className="px-4 py-3.5">
               <p className="text-sm">
-                Cet exercice a déjà été mené dans cette séance. Tu peux le refaire : la nouvelle
+                Cet exercice a déjà été mené dans cette séance. Vous pouvez le refaire : la nouvelle
                 tentative comptera comme les autres.
               </p>
               <form action={demarrerTentative.bind(null, exercice.id)}>
@@ -527,13 +527,13 @@ export async function VueExercice(props: {
           <Carte accent>
             <div className="px-4 py-3.5">
               <p className="text-sm">
-                Prends le temps de chercher avant de demander de l&apos;aide. La résolution reste
-                la tienne ; le tuteur intervient seulement quand tu en as besoin.
+                Prenez le temps de chercher avant de demander de l&apos;aide. La résolution reste
+                la vôtre ; le tuteur intervient seulement quand vous en avez besoin.
               </p>
               {cible?.observations.length === 0 && (
                 <p className="mt-2 text-xs text-texte-attenue">
                   Il s&apos;agit du premier diagnostic sur {exercice.competences[0]}. L&apos;objectif
-                  n&apos;est pas de réussir mais de situer ton niveau réel : une réponse partielle est
+                  n&apos;est pas de réussir mais de situer votre niveau réel : une réponse partielle est
                   une information utile.
                 </p>
               )}
@@ -553,16 +553,16 @@ export async function VueExercice(props: {
               </p>
             )}
             {/*
-              Ta réponse — vivante dans l'acte Chercher, repliée dès que le
+              Votre réponse — vivante dans l'acte Chercher, repliée dès que le
               bilan du tuteur est ouvert. Elle reste modifiable avant l'envoi
               au tuteur.
             */}
             <PanneauPliable
               ouvertParDefaut={!enMesure}
-              titre={<span className="text-sm font-medium">Ta réponse</span>}
+              titre={<span className="text-sm font-medium">Votre réponse</span>}
               sousEntete={
                 <p className="mt-0.5 text-xs text-texte-attenue">
-                  Rédige ta méthode, pas seulement le résultat final
+                  Rédigez votre méthode, pas seulement le résultat final
                 </p>
               }
             >
@@ -603,7 +603,7 @@ export async function VueExercice(props: {
                 <div className="min-w-0">
                   <p className="text-xs font-medium">Correction par le tuteur</p>
                   <p className="text-micro text-texte-attenue">
-                    Le tuteur relira ta réponse et te proposera un bilan.
+                    Le tuteur relira votre réponse et vous proposera un bilan.
                   </p>
                 </div>
                 <Link
@@ -671,15 +671,15 @@ export async function VueExercice(props: {
                     <EnTeteCarte
                       id="titre-mesurer"
                       titre="Évaluation"
-                      legende="Elle attend ta réponse écrite"
+                      legende="Elle attend votre réponse écrite"
                     />
                     <div className="px-4 py-3.5">
                       <p className="text-xs text-texte-attenue">
                         {motifBlocageBilan(enCours.reponse)}
                       </p>
                       <p className="mt-2 text-xs text-texte-discret">
-                        Si tu ne veux pas mener cet exercice, clos-le franchement : aucune
-                        observation ne sera écrite, et ton niveau restera inchangé. Le bouton
+                        Si vous ne voulez pas mener cet exercice, closez-le franchement : aucune
+                        observation ne sera écrite, et votre niveau restera inchangé. Le bouton
                         « Abandonner cette tentative » est disponible en bas de page, dans
                         les trois actes.
                       </p>

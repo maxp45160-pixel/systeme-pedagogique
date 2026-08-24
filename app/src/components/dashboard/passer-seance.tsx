@@ -90,7 +90,7 @@ export function PasserSeance({
               encore ouvertes seront clôturées sans conclusion.
             </p>
             <p>
-              Tu restes sur le tableau de bord, qui te proposera une autre action.
+              Vous restez sur le tableau de bord, qui vous proposera une autre action.
             </p>
           </div>
           {erreur && <p className="mt-3 text-xs text-alerte">{erreur}</p>}

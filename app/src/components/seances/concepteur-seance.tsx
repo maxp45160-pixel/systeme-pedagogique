@@ -266,7 +266,7 @@ export function ConcepteurSeance({
     return {
       cle: "sans-sujet",
       libelle: "Aucun thème imposé",
-      detail: "Le moteur choisira dans les compétences actives ; tu peux cibler un sujet si tu le souhaites.",
+      detail: "Le moteur choisira dans les compétences actives ; vous pouvez cibler un sujet si vous le souhaitez.",
       portee: { type: "transverse", domaines: domainesActifs },
       codesImposes: [],
     };
@@ -453,7 +453,7 @@ export function ConcepteurSeance({
       {ouvert && (
         <Modale
           titre="Composer une séance"
-          sousTitre="Configure le temps et prépare ton programme de travail sur-mesure."
+          sousTitre="Configurez le temps et préparez votre programme de travail sur-mesure."
           onFermer={fermer}
           largeur="3xl"
           pied={

@@ -46,13 +46,13 @@ export function BilanCroissance({
 function NiveauActivite({ resume }: { resume: ResumeCroissance }) {
   return (
     <section>
-      <TitreNiveau titre="Ce que tu as fait" />
+      <TitreNiveau titre="Ce que vous avez fait" />
       {resume.vide ? (
         <div className="mt-3 rounded-xl border border-dashed border-bordure-contraste bg-surface px-4 py-6 text-center">
           <p className="text-xs leading-relaxed text-texte-discret">
             Rien enregistré sur les sept derniers jours.
             <br />
-            Cet espace se remplit tout seul dès qu&apos;un travail est terminé — tu n&apos;as rien à y ranger.
+            Cet espace se remplit tout seul dès qu&apos;un travail est terminé — vous n&apos;avez rien à y ranger.
           </p>
           {/*
             Le bilan ne se contente pas de constater le vide : il rend le geste

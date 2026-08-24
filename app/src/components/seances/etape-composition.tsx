@@ -273,7 +273,7 @@ export function EtapeComposition({
                 </span>
               </h4>
               <p className="mt-0.5 text-[0.6875rem] text-texte-attenue">
-                Génère et valide ces exercices avec le tuteur pour les intégrer à ta séance.
+                Générez et validez ces exercices avec le tuteur pour les intégrer à votre séance.
               </p>
             </div>
             <Bouton

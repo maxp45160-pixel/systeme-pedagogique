@@ -31,6 +31,7 @@ import type { EtatRetrait } from "@/lib/domain/referentiel-compte";
 import type { MoteurTuteur } from "./moteurs";
 import { lireOutilsActifs, messageSansOutils } from "./moteurs";
 import { outilsRevision, type PropositionRevision } from "./outils";
+import { REGLE_VOUVOIEMENT } from "./prompt";
 
 export interface ResultatRevision {
   revision: PropositionRevision | null;
@@ -71,6 +72,7 @@ export function construirePromptRevision(
     "- Pour retirer : donne toujours un motif. **L'application décide seule entre suppression et archivage, selon les observations enregistrées** — ne le propose pas, et ne recommande pas de retirer une compétence qui porte des observations sans raison forte.",
     "- Tu ne peux désigner que les codes ci-dessus. Les compétences que tu ajoutes n'ont pas de code : l'application les attribue.",
     "",
+    REGLE_VOUVOIEMENT,
     "Appelle l'outil proposer_revision UNE fois. Ne recopie pas le contenu de l'appel dans ta réponse.",
   ].join("\n");
 }

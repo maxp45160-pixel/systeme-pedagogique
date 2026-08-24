@@ -14,7 +14,7 @@ import type { VerdictTuteur } from "@/lib/domain/types";
 export function BilanRedigeVue({
   bilan,
   titre = "Le retour du tuteur",
-  legende = "Aucune note ici — c'est une lecture de ta réponse, pas une mesure.",
+  legende = "Aucune note ici — c'est une lecture de votre réponse, pas une mesure.",
 }: {
   bilan: VerdictTuteur["bilan"];
   titre?: string;

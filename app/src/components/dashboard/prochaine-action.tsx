@@ -21,6 +21,7 @@ import {
 import { Depliant } from "@/components/ui/explication";
 import { IconeFleche } from "@/components/ui/icones";
 import { formatDuree } from "@/lib/engine/dates";
+import { INFOBULLE_GENERER_PUIS_COMMENCER } from "@/lib/domain/navigation-exercice";
 import { BoutonRefusRecommandation } from "@/components/dashboard/refus-recommandation";
 import { FeedbackRecommandation } from "@/components/dashboard/feedback-recommandation";
 import { demarrerExerciceEnFocus } from "@/lib/store/seance-actions";
@@ -248,7 +249,7 @@ export function CarteProchaineAction({
                 <Link
                   href={`/seances?composer=1&code=${encodeURIComponent(etat.skill.code)}&temps=${encodeURIComponent(String(instant?.tempsMin ?? dureeEstimeeMin))}`}
                   className={classesLienBouton("principal")}
-                  title="Aucun exercice existe encore : tu pourras les générer puis commencer"
+                  title={INFOBULLE_GENERER_PUIS_COMMENCER}
                 >
                   Générer puis commencer
                   <IconeFleche className="size-4" />

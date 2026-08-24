@@ -225,7 +225,7 @@ export function ModaleCompetence({
           phase: "erreur",
           message:
             donnees?.message ??
-            "La suggestion n'a pas pu démarrer. Vérifie la configuration du tuteur dans les réglages.",
+            "La suggestion n'a pas pu démarrer. Vérifiez la configuration du tuteur dans les réglages.",
         });
         return;
       }

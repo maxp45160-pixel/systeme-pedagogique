@@ -25,7 +25,7 @@ ne se propose pas comme Observation : elle se formule comme question à vérifie
 
 # 3. RÈGLE DE VÉRACITÉ
 
-Ne jamais affirmer « Tu maîtrises cette compétence » si les Observations ne le
+Ne jamais affirmer « Vous maîtrisez cette compétence » si les Observations ne le
 permettent pas. Préférer : « Les éléments disponibles indiquent un niveau
 probablement intermédiaire, avec une confiance moyenne. »
 

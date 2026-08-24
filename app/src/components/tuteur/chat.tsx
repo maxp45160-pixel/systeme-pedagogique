@@ -763,11 +763,11 @@ function ChatHydrate({
           <div ref={zoneRef} className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
             {messages.length === 0 && (
               <div className="py-6 text-center">
-                <p className="text-sm font-medium">Le tuteur connaît ton profil</p>
+                <p className="text-sm font-medium">Le tuteur connaît votre profil</p>
                 <p className="mx-auto mt-1 max-w-md text-xs leading-relaxed text-texte-attenue">
                   Il reçoit les protocoles du système et l{"'"}état réel de tes{" "}
-                  {codesCompetences.length} compétences, calculé depuis tes observations. Il ne peut
-                  pas modifier ton profil : il propose des mises à jour que tu valides.
+                  {codesCompetences.length} compétences, calculé depuis vos observations. Il ne peut
+                  pas modifier votre profil : il propose des mises à jour que vous validez.
                 </p>
               </div>
             )}
@@ -924,7 +924,7 @@ function ChatHydrate({
           <div className="rounded-carte border border-bordure-controle bg-surface px-5 py-4 text-xs text-texte-attenue">
             <p className="font-medium text-texte">Ce que le tuteur ne peut pas faire</p>
             <ul className="mt-1.5 space-y-1">
-              <li>· Écrire dans ton profil — il propose, tu valides.</li>
+              <li>· Écrire dans votre profil — il propose, vous validez.</li>
               <li>· Se souvenir d{"'"}une séance absente du contexte ci-dessus.</li>
               <li>· Affirmer une maîtrise que les observations ne soutiennent pas.</li>
             </ul>
@@ -948,8 +948,8 @@ function ChatHydrate({
               >
                 réglages
               </Link>{" "}
-              (onglet « Tuteur IA &amp; Clé ») et saisir ta clé API — Mistral, Anthropic,
-              Groq… La clé est stockée dans ton navigateur et n{"'"}est jamais envoyée
+              (onglet « Tuteur IA &amp; Clé ») et saisir votre clé API — Mistral, Anthropic,
+              Groq… La clé est stockée dans votre navigateur et n{"'"}est jamais envoyée
               ailleurs qu{"'"}à la route du tuteur.
             </li>
             <li className="list-decimal">

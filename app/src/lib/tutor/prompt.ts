@@ -45,3 +45,24 @@ export interface PromptTuteur {
 export function promptComplet(prompt: PromptTuteur): string {
   return [prompt.stable, prompt.variable].filter((bloc) => bloc.trim() !== "").join("\n\n");
 }
+
+/**
+ * Le registre de tout ce que le tuteur écrit vers l'écran.
+ *
+ * Le prompt tutoie le modèle parce qu'il s'adresse à lui ; ce que le modèle
+ * rédige s'adresse à la personne, et toute l'interface la vouvoie (ADR-119).
+ * Sans cette ligne, un ancrage sortait en « Tu as travaillé 6 fois sur… » au
+ * milieu d'une carte qui dit « Vous pourrez ensuite vous exercer dessus » —
+ * constaté le 24/08/2026 sur le premier lot réel de relecture.
+ *
+ * Une seule déclaration : la règle a d'abord vécu en un exemplaire dans
+ * `relecture-referentiel.ts`, ce qui laissait onze autres chemins de rédaction
+ * sans consigne de registre. Les énoncés d'exercice, les bilans, les
+ * justifications de compétence et les traductions de besoin s'affichent tous
+ * tels quels — ils relèvent tous de cette règle.
+ *
+ * Elle vit dans le bloc **stable** du prompt : elle ne change jamais d'un
+ * appel à l'autre, et n'a donc aucune raison de casser le préfixe mis en cache.
+ */
+export const REGLE_VOUVOIEMENT =
+  "- Tout ce que tu écris s'affiche tel quel à la personne : VOUVOIE-LA, partout — énoncés, consignes, corrections, justifications, intitulés, ancrages. Ne la tutoie jamais, même si ce prompt te tutoie.";

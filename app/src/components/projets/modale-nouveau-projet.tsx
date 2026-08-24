@@ -199,7 +199,7 @@ export function ParcoursNouveauProjet({
             const codes = proposition?.action?.codes ?? [];
             if (codes.length === 0) {
               throw new Error(
-                "Aucune compétence de ton référentiel ne correspond à cette description. Créez d'abord la branche correspondante depuis vos cours.",
+                "Aucune compétence de votre référentiel ne correspond à cette description. Créez d'abord la branche correspondante depuis vos cours.",
               );
             }
             setDesignees(codes.map((code) => ({ code, origine: "tuteur" as const })));
@@ -211,7 +211,7 @@ export function ParcoursNouveauProjet({
             recu = true;
             throw new Error((JSON.parse(donnees) as { message: string }).message);
           } else if (type === "proposition-en-cours") {
-            setProgression("Le tuteur cherche dans tes compétences…");
+            setProgression("Le tuteur cherche dans vos compétences…");
           }
         }
       }
@@ -278,10 +278,10 @@ export function ParcoursNouveauProjet({
 
   const sousTitreModale =
     etape === 3
-      ? "Tout reste modifiable. Rien n'est enregistré tant que tu n'ouvres pas le projet."
+      ? "Tout reste modifiable. Rien n'est enregistré tant que vous n'ouvrez pas le projet."
       : etape === 2
-        ? "Le tuteur a désigné ces compétences dans ton référentiel. Retire celles qui n'ont pas leur place."
-        : "Décris ce que tu veux travailler. Rien n'est enregistré avant ton acceptation.";
+        ? "Le tuteur a désigné ces compétences dans votre référentiel. Retirez celles qui n'ont pas leur place."
+        : "Décrivez ce que vous voulez travailler. Rien n'est enregistré avant votre acceptation.";
 
   const contenu = proposition?.famille === "produire" ? proposition : null;
 
@@ -465,7 +465,7 @@ export function ParcoursNouveauProjet({
             {etape === 1 && (
               <div className="space-y-4">
                 <Champ
-                  label="Ce que tu veux travailler"
+                  label="Ce que vous voulez travailler"
                   name="intention"
                   multiligne
                   rows={5}
@@ -573,7 +573,7 @@ export function ParcoursNouveauProjet({
                     placeholder="Cherche par intitulé, code ou domaine"
                     aide={
                       catalogue === null
-                        ? "Lecture de ton référentiel…"
+                        ? "Lecture de votre référentiel…"
                         : complet
                           ? `Maximum atteint : ${COMPETENCES_MAX} compétences par projet. Retires-en une pour en ajouter une autre.`
                           : "Seules les compétences déjà au référentiel peuvent être mobilisées."

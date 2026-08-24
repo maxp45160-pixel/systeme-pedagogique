@@ -320,7 +320,7 @@ export function FormulaireAmorcage({
                   <span className="flex size-5 items-center justify-center rounded-full bg-surface-2 border border-bordure text-[0.6875rem] font-mono">
                     1
                   </span>
-                  Ce que tu étudies
+                  Ce que vous étudiez
                 </span>
                 {sujetValide && (
                   <span className="text-xs font-medium text-primaire flex items-center gap-1">
@@ -334,7 +334,7 @@ export function FormulaireAmorcage({
                 value={sujet}
                 onChange={(e) => setSujet(e.target.value)}
                 placeholder="Ex : macroéconomie, statistiques, développement web"
-                aide="Avec tes propres mots — tu peux en lister plusieurs, séparés par des virgules. Le tuteur IA les découpera ensuite en compétences mesurables ; cette intention déclarée ne constitue pas encore une mesure."
+                aide="Avec vos propres mots — vous pouvez en lister plusieurs, séparés par des virgules. Le tuteur IA les découpera ensuite en compétences mesurables ; cette intention déclarée ne constitue pas encore une mesure."
               />
             </div>
 
@@ -344,7 +344,7 @@ export function FormulaireAmorcage({
                   <span className="flex size-5 items-center justify-center rounded-full bg-surface-2 border border-bordure text-[0.6875rem] font-mono">
                     2
                   </span>
-                  Ce que tu veux pouvoir faire
+                  Ce que vous voulez pouvoir faire
                 </span>
                 {intentionValide && (
                   <span className="text-xs font-medium text-primaire flex items-center gap-1">
@@ -358,13 +358,13 @@ export function FormulaireAmorcage({
                 value={intention}
                 onChange={(e) => setIntention(e.target.value)}
                 placeholder="Ex : préparer un concours, changer de métier, mener un projet en autonomie…"
-                aide="Écris-le avec tes mots. Le système traduit cette intention en compétences puis en exercices ; tu n’as pas à définir de cible ni de parcours."
+                aide="Écrivez-le avec vos mots. Le système traduit cette intention en compétences puis en exercices ; vous n’avez pas à définir de cible ni de parcours."
               />
 
               {/* Indice d'orientation — la personne tranche, le tuteur reste libre. */}
               <div className="mt-3.5">
                 <p className="mb-1.5 text-[0.6875rem] font-medium text-texte-attenue">
-                  Pour commencer, tu veux plutôt…
+                  Pour commencer, vous voulez plutôt…
                 </p>
                 <div
                   role="radiogroup"
@@ -411,7 +411,7 @@ export function FormulaireAmorcage({
                   })}
                 </div>
                 <p className="mt-1.5 text-[0.6875rem] text-texte-discret">
-                  Un simple point de départ : le tuteur reste libre et te proposera ce qui colle le mieux.
+                  Un simple point de départ : le tuteur reste libre et vous proposera ce qui colle le mieux.
                 </p>
               </div>
             </div>
@@ -426,7 +426,7 @@ export function FormulaireAmorcage({
                   <span className="flex size-5 items-center justify-center rounded-full bg-surface border border-bordure text-[0.6875rem] font-mono">
                     3
                   </span>
-                  Ton style d&apos;apprentissage (calibrage direct du tuteur IA)
+                  Votre style d&apos;apprentissage (calibrage direct du tuteur IA)
                 </span>
                 <span className="text-[0.6875rem] text-texte-discret">
                   Optionnel · Sélection en 1 clic
@@ -462,7 +462,7 @@ export function FormulaireAmorcage({
 
               <div>
                 <Champ
-                  label="Ton point de départ / contexte (facultatif)"
+                  label="Votre point de départ / contexte (facultatif)"
                   value={pointDeDepart}
                   onChange={(e) => setPointDeDepart(e.target.value)}
                   placeholder="Ex : débutant complet, autodidacte, reconversion, junior, étudiant..."
@@ -501,7 +501,7 @@ export function FormulaireAmorcage({
 
               {!pret && (
                 <span className="text-xs text-texte-discret">
-                  Remplis le sujet et ton intention pour continuer.
+                  Remplissez le sujet et votre intention pour continuer.
                 </span>
               )}
               {pret && !cleDisponible && (
@@ -516,7 +516,7 @@ export function FormulaireAmorcage({
             </div>
 
             <span className="text-xs text-texte-discret">
-              Rien n&apos;est enregistré sans ta validation.
+              Rien n&apos;est enregistré sans votre validation.
             </span>
           </div>
         </>
@@ -528,7 +528,7 @@ export function FormulaireAmorcage({
           sujetInitial={sujet.trim()}
           demarrageAutomatique
           cleDisponible={cleDisponible}
-          guideEtape="Étape 2 sur 2 : Relis les compétences découpées par le tuteur. Tu peux en décocher ou valider directement pour lancer ton Tableau de bord !"
+          guideEtape="Étape 2 sur 2 : Relisez les compétences découpées par le tuteur. Vous pouvez en décocher ou valider directement pour lancer votre Tableau de bord !"
           onFermer={() => setValidationOuverte(false)}
           surEnregistre={() => router.replace("/app")}
         />

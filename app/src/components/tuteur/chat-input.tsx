@@ -132,7 +132,7 @@ export const ChatInput = memo(function ChatInput({
           }
         }}
         rows={3}
-        placeholder="Pose ta question, colle ton raisonnement, demande un exercice…"
+        placeholder="Posez votre question, collez votre raisonnement, demandez un exercice…"
         className="w-full resize-y rounded-md border border-bordure-controle bg-surface px-3 py-2 text-sm placeholder:text-texte-discret"
       />
 
@@ -145,7 +145,7 @@ export const ChatInput = memo(function ChatInput({
           {onReinitialiser && !enCours && (
             <Bouton
               onClick={onReinitialiser}
-              title="Efface les messages affichés. Tes observations et tes exercices ne sont pas touchés."
+              title="Efface les messages affichés. Vos observations et vos exercices ne sont pas touchés."
               variante="secondaire"
               taille="petite"
             >

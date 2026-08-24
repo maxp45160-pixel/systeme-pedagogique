@@ -197,7 +197,7 @@ export function ModaleDangerCompte({
             Sauvegarde souveraine préalable
           </div>
           <p className="text-xs text-texte-attenue mb-2.5 leading-relaxed">
-            Il est fortement conseillé de télécharger l&apos;archive JSON complète de ton journal
+            Il est fortement conseillé de télécharger l&apos;archive JSON complète de votre journal
             avant d&apos;effectuer la suppression.
           </p>
           <div className="flex items-center gap-3">
@@ -236,7 +236,7 @@ export function ModaleDangerCompte({
                   Remettre à zéro les données (repartir sur un compte vierge)
                 </div>
                 <div className="text-texte-discret mt-0.5">
-                  Toutes les données sont purgées et le profil est réinitialisé par défaut. Tu restes
+                  Toutes les données sont purgées et le profil est réinitialisé par défaut. Vous restez
                   connecté.
                 </div>
               </div>
@@ -256,7 +256,7 @@ export function ModaleDangerCompte({
                   Supprimer toutes les données et me déconnecter
                 </div>
                 <div className="text-texte-discret mt-0.5">
-                  Toutes les données sont purgées, la session est fermée et tu es redirigé vers
+                  Toutes les données sont purgées, la session est fermée et vous êtes redirigé vers
                   l&apos;écran de connexion.
                 </div>
               </div>

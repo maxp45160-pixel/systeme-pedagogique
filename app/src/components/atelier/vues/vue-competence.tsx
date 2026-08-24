@@ -381,7 +381,7 @@ export function VueCompetence({
           explication={
             exerciceASupprimer.tentatives > 0
               ? `Cet exercice possède ${exerciceASupprimer.tentatives} tentative${exerciceASupprimer.tentatives > 1 ? "s" : ""}. Il sera retiré des exercices proposés, mais son historique restera conservé.`
-              : "Cet exercice ne possède aucune tentative. Il sera supprimé définitivement de ta bibliothèque."
+              : "Cet exercice ne possède aucune tentative. Il sera supprimé définitivement de votre bibliothèque."
           }
           texteBoutonConfirmer={exerciceASupprimer.tentatives > 0 ? "Confirmer l’archivage" : "Supprimer définitivement"}
           onConfirmer={async () => {
@@ -417,8 +417,8 @@ function ResteADemontrer({
       <div className="rounded-xl border border-bordure bg-surface p-5 shadow-[var(--ombre-posee)]">
         <h3 className="font-serif text-lg font-medium">Rien à signaler pour l’instant</h3>
         <p className="mt-2 text-sm leading-relaxed text-texte-attenue">
-          Les traces conservées ne font pas ressortir de suite particulière. Tu peux relire les traces
-          de travail ou lancer une séance quand tu veux.
+          Les traces conservées ne font pas ressortir de suite particulière. Vous pouvez relire les traces
+          de travail ou lancer une séance quand vous voulez.
         </p>
       </div>
     );
@@ -499,7 +499,7 @@ function CoMobilisees({
         Souvent travaillées avec
       </h3>
       <p className="mt-1 text-[0.6875rem] text-texte-discret">
-        Vu dans ton travail, pas déduit d’un intitulé : ces repères apparaissent dans les mêmes
+        Vu dans votre travail, pas déduit d’un intitulé : ces repères apparaissent dans les mêmes
         exercices.
       </p>
       <ul className="mt-3 grid gap-2 sm:grid-cols-2">

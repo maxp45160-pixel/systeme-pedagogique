@@ -27,6 +27,7 @@
 import type { MoteurTuteur } from "./moteurs";
 import { lireErreurMoteur, lireOutilsActifs } from "./moteurs";
 import { outilsTagsCompetence, type PropositionTagsCompetence } from "./outils";
+import { REGLE_VOUVOIEMENT } from "./prompt";
 
 export interface DomaineProposable {
   id: string;
@@ -82,6 +83,7 @@ export function construirePromptTagsCompetence(entree: EntreeTagsCompetence): st
     "- N'invente aucun identifiant. Recopie exactement celui de la liste.",
     "- Justifie chaque tag en une phrase, en partant de ce que la compétence fait faire.",
     "",
+    REGLE_VOUVOIEMENT,
     "Appelle l'outil proposer_tags_competence UNE fois. Ne recopie pas le contenu de l'appel dans ta réponse.",
   ].join("\n");
 }

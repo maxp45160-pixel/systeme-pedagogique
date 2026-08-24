@@ -9,6 +9,7 @@ import type { Skill, Domaine } from "@/lib/domain/types";
 import type { EvaluationExplication } from "@/lib/domain/explication";
 import type { MoteurTuteur } from "./moteurs";
 import { lireErreurMoteur, lireOutilsActifs } from "./moteurs";
+import { REGLE_VOUVOIEMENT } from "./prompt";
 import {
   outilEvaluationExplication,
   type PropositionEvaluationExplication,
@@ -51,6 +52,7 @@ export function construirePromptExplication(
     "- feedback_formatif : synthèse claire de son niveau de compréhension (max 400 caractères).",
     "- conseil_suivant : indique le prochain geste recommandé (ex: consolider ou passer à un exercice guidé).",
     "",
+    REGLE_VOUVOIEMENT,
     "Appelle l'outil proposer_evaluation_explication UNE SEULE FOIS.",
   ]
     .filter(Boolean)

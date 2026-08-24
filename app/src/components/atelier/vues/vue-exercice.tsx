@@ -154,7 +154,7 @@ export function VueExercice({
             </div>
           ) : (
             <p className="mt-4 text-xs text-texte-discret">
-              Aucune tentative enregistrée sur cet exercice. Lance une session pour enregistrer ta première observation.
+              Aucune tentative enregistrée sur cet exercice. Lancez une session pour enregistrer votre première observation.
             </p>
           )}
         </section>

@@ -117,7 +117,7 @@ export function ReglagesTuteur({
             type={afficherCle ? "text" : "password"}
             value={cle}
             onChange={(e) => setCle(e.target.value)}
-            placeholder={preset?.aide ?? "Colle ta clé ici"}
+            placeholder={preset?.aide ?? "Collez votre clé ici"}
             className={cx(classesChamp("compacte", false), "min-w-0 flex-1 font-mono text-xs")}
             autoComplete="off"
             spellCheck={false}
@@ -160,7 +160,7 @@ export function ReglagesTuteur({
       )}
 
       <p className="text-[0.6875rem] leading-relaxed text-texte-discret">
-        La clé est stockée localement dans ton navigateur, isolée par compte, et n&apos;est jamais
+        La clé est stockée localement dans votre navigateur, isolée par compte, et n&apos;est jamais
         partagée.
       </p>
 

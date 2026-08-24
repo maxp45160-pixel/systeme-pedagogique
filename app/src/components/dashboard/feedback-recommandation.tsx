@@ -63,7 +63,7 @@ export function FeedbackRecommandation({
   if (donne) {
     return (
       <span className="text-xs text-texte-discret">
-        Merci — ton feedback est enregistré.
+        Merci — votre retour est enregistré.
       </span>
     );
   }

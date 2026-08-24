@@ -31,6 +31,7 @@ import type { Referentiel } from "@/lib/domain/types";
 import type { MoteurTuteur } from "./moteurs";
 import { lireErreurMoteur, lireOutilsActifs, messageSansOutils } from "./moteurs";
 import { outilIntention } from "./outils";
+import { REGLE_VOUVOIEMENT } from "./prompt";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -133,6 +134,7 @@ export function construirePromptIntention(
           (c) => `- ${c.code} — ${c.intitule} — ${c.domaine} — ${c.raison}`,
         )),
     "",
+    REGLE_VOUVOIEMENT,
     "Appelle l'outil traduire_intention UNE fois. Ne recopie pas le contenu de l'appel dans ta réponse.",
   ].join("\n");
 }

@@ -78,7 +78,7 @@ export function BoutonAbandon({
         <p className="text-texte-attenue">
           <span className="font-medium text-texte">Cet exercice ne comptera pas.</span> Un
           abandon n{"'"}est pas un échec : un échec est une mesure, il suppose qu{"'"}on ait
-          essayé. Ton niveau sur {codes.join(", ")} restera inchangé.
+          essayé. Votre niveau sur {codes.join(", ")} restera inchangé.
           <br />
           La tentative passe en abandonnée et reste au journal — elle explique pourquoi
           aucune difficulté n{"'"}est conseillée pour le prochain exercice.

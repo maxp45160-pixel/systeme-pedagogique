@@ -6,6 +6,7 @@ import { formatDuree } from "@/lib/engine/dates";
 import { Bouton, classesLienBouton, Etiquette } from "@/components/ui/primitives";
 import { demarrerExerciceEnFocus } from "@/lib/store/seance-actions";
 import { IconeFleche } from "@/components/ui/icones";
+import { INFOBULLE_GENERER_PUIS_COMMENCER } from "@/lib/domain/navigation-exercice";
 
 /**
  * Présentation épurée des alternatives de travail proposées par le moteur.
@@ -111,7 +112,7 @@ export function PistesAlternatives({
                   <Link
                     href={`/seances?composer=1&code=${encodeURIComponent(code)}`}
                     className={`${classesLienBouton("secondaire")} !py-1 !px-2.5 !text-xs`}
-                    title="Aucun exercice existe encore : tu pourras les générer puis commencer"
+                    title={INFOBULLE_GENERER_PUIS_COMMENCER}
                   >
                     Générer puis commencer →
                   </Link>

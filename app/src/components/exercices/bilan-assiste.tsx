@@ -84,7 +84,7 @@ export function BilanAssiste({
             phase: "nue",
             raison:
               donnees?.message ??
-              "Le tuteur n'a pas pu relire ta réponse. Remplis le bilan à la main.",
+              "Le tuteur n'a pas pu relire votre réponse. Remplissez le bilan à la main.",
           });
           return;
         }
@@ -152,10 +152,10 @@ export function BilanAssiste({
       <div className="flex flex-col items-center justify-center py-8 text-center">
         <PointActif />
         <p className="mt-3 text-sm text-texte-attenue">
-          {progression ?? "Le tuteur relit ta réponse…"}
+          {progression ?? "Le tuteur relit votre réponse…"}
         </p>
         <p className="mt-1 text-[0.6875rem] text-texte-discret">
-          Son verdict sera une proposition : tu le relis et tu décides.
+          Son verdict sera une proposition : vous le relisez et vous décidez.
         </p>
         <Bouton
           onClick={() => {

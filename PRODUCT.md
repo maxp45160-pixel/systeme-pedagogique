@@ -70,9 +70,15 @@ d'écran à elle, et la file des suivantes reste où elle était.
 *snapshot*, *modèle*, *version*, *exécution*, *inventaire recalculé*,
 *événement d'audit* décrivent des mécanismes, pas des gestes d'apprentissage.
 Ils vivent dans le code et dans les ADR. À l'écran on dit *production*,
-*travail en cours*, *ce que tu as rendu*, *l'original est conservé*. Un écran
-qui compte des objets internes est un écran de maintenance : il n'a pas sa
-place devant quelqu'un qui vient travailler.
+*travail en cours*, *ce que vous avez rendu*, *l'original est conservé*. Un
+écran qui compte des objets internes est un écran de maintenance : il n'a pas
+sa place devant quelqu'un qui vient travailler.
+
+**Et le produit vouvoie** (ADR-119), sur toutes ses surfaces — y compris le
+texte que le tuteur rédige à l'exécution : énoncés, corrections,
+justifications, intitulés. Ce n'est pas un goût de rédaction. Le tutoiement
+fait du système un pair qui encourage ; le vouvoiement en fait un appareil qui
+constate — et c'est la seconde chose que ce document décrit.
 
 Ce n'est pas un tracker d'habitudes, pas un LMS. La distinction tient en une
 phrase : **un tracker enregistre ce que tu déclares avoir fait ; ce système

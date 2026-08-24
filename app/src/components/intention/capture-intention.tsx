@@ -75,10 +75,10 @@ const CTA_ACTION: Record<ActionIntention["genre"], string> = {
 
 const RESULTAT_ACTION: Record<ActionIntention["genre"], string> = {
   travail: "Une séance sera préparée à partir des compétences repérées.",
-  projet: "Le parcours de projet reprendra ton besoin et reciblera les compétences utiles.",
+  projet: "Le parcours de projet reprendra votre besoin et reciblera les compétences utiles.",
   note: "Une fiche sera créée dans vos cours, avec votre besoin comme contexte.",
   referentiel: "Le sujet sera situé avant qu’une éventuelle compétence soit proposée.",
-  clarification: "Rien ne sera créé avant ta réponse.",
+  clarification: "Rien ne sera créé avant votre réponse.",
 };
 
 const ICONE_PAR_GENRE: Record<ActionIntention["genre"], React.ComponentType<{ className?: string }>> = {
@@ -259,7 +259,7 @@ export function CaptureIntention({
         const donnees = await reponse.json().catch(() => null);
         setErreur(
           donnees?.message ??
-            "La traduction n'a pas pu démarrer. Vérifie la configuration du tuteur dans les réglages.",
+            "La traduction n'a pas pu démarrer. Vérifiez la configuration du tuteur dans les réglages.",
         );
         setPhase("saisie");
         return;
@@ -297,7 +297,7 @@ export function CaptureIntention({
           const parsed = JSON.parse(donnees) as { message?: string };
           if (parsed.message?.trim()) setErreur(parsed.message.trim());
         } else if (type === "proposition-en-cours") {
-          setProgression("Le moteur choisit l'action qui répond à ton besoin…");
+          setProgression("Le moteur choisit l'action qui répond à votre besoin…");
         } else if (type === "proposition-partielle") {
           /*
            * Aperçu d'affichage uniquement : il ne remplit jamais `traduction`
@@ -316,7 +316,7 @@ export function CaptureIntention({
       const estAbandon =
         abandon.signal.aborted || (cause instanceof DOMException && cause.name === "AbortError");
       if (!estAbandon) {
-        setErreur("Le tuteur n’a pas répondu. Vérifie sa configuration puis relance la traduction.");
+        setErreur("Le tuteur n’a pas répondu. Vérifiez sa configuration puis relancez la traduction.");
         setPhase("saisie");
       }
     }
@@ -400,7 +400,7 @@ export function CaptureIntention({
         // nombre de compétences que le titre de l’action résumée perdrait.
         setSujetBranche({
           sujet: besoin.trim(),
-          message: "Voici une première organisation — tu pourras tout ajuster.",
+          message: "Voici une première organisation — vous pourrez tout ajuster.",
         });
         return;
       }
@@ -503,7 +503,7 @@ export function CaptureIntention({
                 domaine: competenceDemande.domaine ?? "",
                 prefixe: "",
                 description: "",
-                justification: "Intitulé repris de ta demande.",
+                justification: "Intitulé repris de votre demande.",
                 competences: competenceDemande.intitules.map((intitule) => ({
                   intitule,
                   palier: "fondamentaux",
@@ -536,8 +536,8 @@ export function CaptureIntention({
       titre={estContexteDomaine ? "Quel domaine souhaites-tu ajouter ?" : "De quoi as-tu besoin ?"}
       sousTitre={
         estContexteDomaine
-          ? "Décris le domaine ou la discipline. Le système structurera une proposition de compétences pour vos cours."
-          : "Décris ton objectif ou clique sur une suggestion. Le système choisit l’action appropriée."
+          ? "Décrivez le domaine ou la discipline. Le système structurera une proposition de compétences pour vos cours."
+          : "Décrivez votre objectif ou cliquez sur une suggestion. Le système choisit l’action appropriée."
       }
       largeur="xl"
       onFermer={onFermer}
@@ -574,8 +574,8 @@ export function CaptureIntention({
           <ChargementGeneration
             progressionServeur={progression}
             etapes={[
-              "Lecture et qualification de ton intention…",
-              "Rapprochement avec tes compétences et notes…",
+              "Lecture et qualification de votre intention…",
+              "Rapprochement avec vos compétences et notes…",
               "Sélection de l'action la plus pertinente…",
               "Finalisation de la proposition…",
             ]}
@@ -670,12 +670,12 @@ export function CaptureIntention({
       {phase === "proposition" && traduction && (
         <div className="space-y-4">
           <p className="text-sm text-texte-attenue">
-            Voici la traduction de ton besoin. Vérifie le résultat et l’action proposée avant de
+            Voici la traduction de votre besoin. Vérifiez le résultat et l’action proposée avant de
             lancer quoi que ce soit.
           </p>
           {avertissement && (
             <div className="rounded-lg border border-alerte/40 bg-alerte-faible/40 px-3 py-2 text-xs text-texte">
-              <p className="font-semibold text-alerte">Ta demande a été recadrée</p>
+              <p className="font-semibold text-alerte">Votre demande a été recadrée</p>
               <p className="mt-0.5 leading-relaxed text-texte-attenue">{avertissement}</p>
             </div>
           )}
@@ -708,7 +708,7 @@ export function CaptureIntention({
               <span className="flex min-w-0 items-center gap-2 text-texte-attenue">
                 <IconeCalendrier className="size-3.5 shrink-0 text-texte-discret" />
                 <span>
-                  Une échéance a été repérée dans ton besoin (le{" "}
+                  Une échéance a été repérée dans votre besoin (le{" "}
                   {echeanceDetectee.split("-").reverse().join("/")}).
                 </span>
               </span>

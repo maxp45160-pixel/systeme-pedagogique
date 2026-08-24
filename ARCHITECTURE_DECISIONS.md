@@ -9289,6 +9289,89 @@ L'hypothèse est double, et chaque moitié se réfute :
 - elle n'ouvre pas la pastille à d'autres compteurs. Un second point rouge
   permanent dans le rail retirerait au premier ce qui le rend lisible.
 
+## ADR-119 — Le produit vouvoie, y compris par la bouche du tuteur 🔬
+
+**Statut :** 🔬 construit le 24/08/2026, hypothèse non réfutée. Tranche un
+mélange constaté par l'audit de conception (défaut A4) ; n'en fait monter
+aucune.
+
+### Le problème
+
+L'application tutoyait et vouvoyait la même personne, parfois dans le même
+fichier. `prochaine-action.tsx` disait « vous proposer » l. 162, « tu pourras »
+l. 251 et « votre niveau » l. 287. Tout le chemin d'entrée — vitrine, `/login`,
+`/aide` — vouvoyait déjà ; trente fichiers de l'application tutoyaient.
+
+**Et le comptage statique ratait le plus gros.** La moitié du texte que
+l'utilisateur lit n'est pas dans le dépôt : elle est rédigée à l'exécution par
+le tuteur — énoncés d'exercice, consignes, corrections, bilans, intitulés de
+compétence, justifications, traductions de besoin. Douze constructeurs de
+prompt produisent ce texte. **Un seul** portait une consigne de registre
+(`relecture-referentiel.ts`, ajoutée le 24/08/2026 après qu'un ancrage réel
+soit sorti en « Tu as travaillé 6 fois sur… » au milieu d'une carte qui
+vouvoie). Les onze autres n'en portaient aucune. Passer les fichiers statiques
+au vouvoiement sans toucher aux prompts aurait donné une interface qui vouvoie
+autour d'un tuteur qui tutoie — c'est-à-dire le même défaut, déplacé.
+
+### La décision
+
+**Le produit vouvoie. Partout, et sans exception d'écran.**
+
+Le vouvoiement n'est pas un goût de rédaction : c'est le registre d'un
+instrument de mesure qui refuse d'affirmer ce qu'il ne peut pas prouver. Le
+tutoiement fait du système un pair qui encourage ; le vouvoiement en fait un
+appareil qui constate. Le second est ce que `PRODUCT.md` décrit.
+
+**La règle du texte généré vit en un seul endroit.** `REGLE_VOUVOIEMENT`
+(`lib/tutor/prompt.ts`) est injectée dans le bloc **stable** des douze
+constructeurs de prompt. Le bloc stable et non le variable : la règle ne change
+jamais d'un appel à l'autre, elle n'a donc aucune raison de casser le préfixe
+mis en cache (ADR sur `PromptTuteur`). L'exemplaire local de
+`relecture-referentiel.ts` a été remplacé par l'import — une règle qui existe en
+deux exemplaires finit par n'être vraie que dans un.
+
+**Le prompt continue de tutoyer le modèle.** C'est le sens de la règle
+elle-même : « VOUVOIE-LA, même si ce prompt te tutoie ». Les « tu » de
+`app/data/00_instructions/` s'adressent au modèle et restent — sauf **trois
+phrases-exemples** qui étaient, elles, du texte adressé à l'apprenant que le
+modèle recopie : « Tu maîtrises cette compétence », « où tu en es là-dessus »,
+« tu viens de faire X ». Un exemple contredit une consigne plus efficacement
+qu'il ne l'illustre.
+
+**Une chaîne dupliquée se corrige une fois sur deux.** L'infobulle « Aucun
+exercice **existe** encore » (la faute est dans le dépôt) vivait mot pour mot
+dans `prochaine-action.tsx` et dans `pistes-alternatives.tsx`. Les deux copies
+portaient la même faute — preuve qu'elles avaient été recopiées et non
+réécrites. Elle devient `INFOBULLE_GENERER_PUIS_COMMENCER`, dans
+`lib/domain/navigation-exercice.ts`, à côté de l'URL dont elle décrit l'effet.
+
+### Le test de réfutation
+
+Cette décision est réfutée si le texte **généré** continue de tutoyer alors que
+les douze prompts portent la règle — c'est-à-dire si la consigne de registre ne
+tient pas face au modèle. La vérification est la même que celle qui a révélé le
+défaut : lire un lot réel de propositions, un énoncé d'exercice et un bilan de
+correction sur le compte, et y chercher un « tu ». Si le modèle dérive malgré la
+consigne, le registre devra être imposé après coup et non demandé avant — ce qui
+serait une autre décision.
+
+### Ce que cette décision n'autorise pas
+
+- elle ne renomme **rien** dans le code : `bureau.tsx`, `palette-bureau.tsx` et
+  les cinquante-deux occurrences internes de « Bureau » gardent leurs noms.
+  ADR-117 a renommé des **libellés**, pas des identifiants ; confondre les deux
+  ferait une refonte là où il n'y a qu'un changement d'affichage ;
+- elle ne touche pas aux amorces de conversation (`lib/tutor/amorces.ts`), qui
+  sont des messages que la **personne** envoie au tuteur (« Peux-tu me donner un
+  indice ? »). C'est elle qui tutoie la machine, ce qui est l'usage courant et
+  n'est pas le sujet ;
+- elle ne touche pas non plus à `components/dev` ni à `components/admin` : ce
+  ne sont pas des surfaces d'apprentissage ;
+- elle n'ouvre aucune règle de style au-delà du registre. Longueur, ton et
+  vocabulaire restent ce qu'ils étaient.
+
+---
+
 ---
 
 ## Comment modifier ce registre

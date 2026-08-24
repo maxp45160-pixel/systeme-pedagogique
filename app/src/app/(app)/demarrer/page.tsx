@@ -114,21 +114,21 @@ export default async function PageDemarrer(props: {
         </summary>
         <ol className="mt-2.5 space-y-2 text-xs leading-relaxed text-texte-attenue">
           <li>
-            <span className="font-medium text-texte">1. Tu relis la proposition.</span> Le tuteur
-            découpe le sujet en compétences mesurables ; tu décoches ce qui ne te concerne pas.
-            Rien n&apos;est enregistré avant ta validation.
+            <span className="font-medium text-texte">1. Vous relisez la proposition.</span> Le tuteur
+            découpe le sujet en compétences mesurables ; vous décochez ce qui ne vous concerne pas.
+            Rien n&apos;est enregistré avant votre validation.
           </li>
           <li>
-            <span className="font-medium text-texte">2. Le tableau de bord te propose une action.</span>{" "}
+            <span className="font-medium text-texte">2. Le tableau de bord vous propose une action.</span>{" "}
             Une seule — celle qui produira la prochaine observation.
           </li>
           <li>
             <span className="font-medium text-texte">
               3. Pour tout le reste, le bouton <span className="font-mono">+</span>.
             </span>{" "}
-            Tu y écris ce dont tu as besoin, en une phrase, et le système choisit quoi faire :
-            s&apos;entraîner, produire, déposer une ressource, ou étendre ton référentiel. Tu n&apos;as
-            jamais à choisir quel objet créer.
+            Vous y écrivez ce dont vous avez besoin, en une phrase, et le système choisit quoi
+            faire : s&apos;entraîner, produire, déposer une ressource, ou étendre votre
+            référentiel. Vous n&apos;avez jamais à choisir quel objet créer.
           </li>
         </ol>
       </details>

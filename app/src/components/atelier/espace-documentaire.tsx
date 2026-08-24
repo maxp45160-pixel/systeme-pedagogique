@@ -1053,7 +1053,7 @@ export function EspaceDocumentaire({
       }));
     }
     setCibleLien("");
-    setMessage(`Lien vers « ${cible.titre} » inséré. Enregistre la fiche pour le conserver.`);
+    setMessage(`Lien vers « ${cible.titre} » inséré. Enregistrez la fiche pour le conserver.`);
   }
 
   function televerserPiece(event: ChangeEvent<HTMLInputElement>) {
@@ -2236,7 +2236,7 @@ export function EspaceDocumentaire({
           sujetInitial={lectureTuteur.sujet}
           demarrageAutomatique
           cleDisponible={Boolean(lireConfigTuteur(graphe.compteId))}
-          guideEtape="Le tuteur lit le PDF attaché et propose des compétences. Rien n'est enregistré sans ta relecture case par case."
+          guideEtape="Le tuteur lit le PDF attaché et propose des compétences. Rien n'est enregistré sans votre relecture case par case."
           onFermer={() => setLectureTuteur({ phase: "repos" })}
         />
       )}
@@ -2293,7 +2293,7 @@ function ModaleAjoutLien({
   return (
     <Modale
       titre="Ajouter un lien"
-      sousTitre="Garde une adresse web avec tes notes. Elle ne sera jamais analysée ni convertie en connaissance."
+      sousTitre="Gardez une adresse web avec vos notes. Elle ne sera jamais analysée ni convertie en connaissance."
       largeur="xl"
       onFermer={onFermer}
       pied={
@@ -2437,7 +2437,7 @@ function ResultatsRecherche({
       {elements.length === 0 ? (
         <div className="py-12 text-center text-xs text-texte-discret">
           <p>Aucune fiche ne correspond à « {terme} ».</p>
-          <p className="mt-1 text-[11px] text-texte-attenue">Essaie un mot-clé, un code de compétence ou un titre.</p>
+          <p className="mt-1 text-[11px] text-texte-attenue">Essayez un mot-clé, un code de compétence ou un titre.</p>
         </div>
       ) : (
         <>

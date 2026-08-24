@@ -41,21 +41,25 @@ export interface GroupeNav {
 }
 
 /**
- * Trois groupes, desktop et mobile identiques, par ordre de priorité
+ * Quatre groupes, desktop et mobile identiques, par ordre de priorité
  * d'usage :
  *
- *  - **Tableau de bord** — le point d'entrée de l'app (Piloter).
- *  - **Atelier**, dominant — explorer le corpus, le référentiel et sa progression (Visualiser).
- *  - **Bureau** — composer, planifier, dérouler et relire (Travailler).
+ *  - **Tableau de bord** et **Progression** — le point d'entrée de l'app (Piloter).
+ *  - **Mes cours**, dominant — le corpus, le référentiel et les notes (Visualiser).
+ *  - **Séances** — composer, planifier, dérouler et relire (Travailler).
  *  - **Aide** — le mode d'emploi, détaché en bas de rail (`aPart`).
  *
+ * Les libellés sont ceux d'ADR-117 : « Atelier » et « Bureau » ne nommaient
+ * rien de devinable pour qui arrive. Ce commentaire les avait gardés trois
+ * commits de plus que les entrées qu'il décrit — un JSDoc qui survit au
+ * renommage de ce qu'il documente redevient faux le jour même.
+ *
  * La séparation tient au besoin (ADR-053) : le tableau de bord *pilote* (sa
- * prochaine action), Atelier *visualise* (le workspace documentaire), Bureau
- * *travaille* (le hub et le workspace, ADR-061),
- * Les fiches de l'Atelier portent aussi le suivi et la gestion du référentiel.
- * Les anciennes surfaces parallèles ont été
- * retirées : le rail ne décrit que les destinations actives (ADR-063, étendu
- * par l'Atelier documentaire).
+ * prochaine action), Mes cours *visualise* (le workspace documentaire),
+ * Séances *travaille* (le hub et le workspace, ADR-061). Les fiches de Mes
+ * cours portent aussi le suivi et la gestion du référentiel. Les anciennes
+ * surfaces parallèles ont été retirées : le rail ne décrit que les
+ * destinations actives (ADR-063, étendu par le workspace documentaire).
  */
 export const NAVIGATION: GroupeNav[] = [
   {
@@ -106,7 +110,7 @@ export const NAVIGATION: GroupeNav[] = [
        * Pas d'entrée « Projets ».
        *
        * Un projet n'est pas une destination à parcourir : il se crée depuis le
-       * tableau de bord et se pilote depuis sa fiche dans l'Atelier. Lui donner
+       * tableau de bord et se pilote depuis sa fiche dans Mes cours. Lui donner
        * un pôle ajouterait une quatrième destination pour un objet qui vit déjà
        * dans deux surfaces existantes.
        */
@@ -114,10 +118,10 @@ export const NAVIGATION: GroupeNav[] = [
       /*
        * Pas d'entrée « Cahier » non plus (ADR-103).
        *
-       * L'archive est un MODE du Bureau (`?vue=cahier`), pas une destination :
+       * L'archive est un MODE de Séances (`?vue=cahier`), pas une destination :
        * lui donner sa propre entrée aurait posé deux liens vers `/seances`,
        * que `estActif` aurait allumés tous les deux en même temps. On y entre
-       * par la barre d'outils du Bureau, là où l'on se trouve quand la
+       * par la barre d'outils de Séances, là où l'on se trouve quand la
        * question « qu'ai-je écrit avant ? » se pose.
        */
       {
@@ -132,7 +136,7 @@ export const NAVIGATION: GroupeNav[] = [
   /*
    * Aide, seule, tout en bas.
    *
-   * Elle était la seconde entrée de « Travailler », sous le Bureau — donc
+   * Elle était la seconde entrée de « Travailler », sous Séances — donc
    * rangée parmi les pôles de travail, alors qu'elle n'en est pas un. On
    * n'ouvre pas l'aide dans le geste où l'on compose une séance : on l'ouvre
    * quand une autre destination n'a pas suffi. Un groupe à elle, détaché du

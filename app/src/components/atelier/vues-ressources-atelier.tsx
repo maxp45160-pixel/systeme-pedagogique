@@ -144,7 +144,7 @@ export function VueRessources({
                   <span className="chiffres text-xs text-texte-discret">{aTrier.length}</span>
                 </div>
                 <p className="mt-1 text-xs text-texte-attenue">
-                  Ces ressources ne servent encore aucune compétence. Ouvre-les pour les rattacher.
+                  Ces ressources ne servent encore aucune compétence. Ouvrez-les pour les rattacher.
                 </p>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   {aTrier.map((element) => (

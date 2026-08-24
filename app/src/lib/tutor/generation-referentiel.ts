@@ -24,7 +24,7 @@ import {
   outilsTuteur,
 } from "./outils";
 import type { PropositionReferentiel } from "./proposition";
-import type { PromptTuteur } from "./prompt";
+import { REGLE_VOUVOIEMENT, type PromptTuteur } from "./prompt";
 
 const [observable, notable, deuxContextes, exercable, prouvable] = CONDITIONS_MESURABILITE;
 
@@ -121,6 +121,7 @@ export function construirePromptSuggestion(
   const variable = [
     `Sujet demandé : ${sujet}`,
     "",
+    REGLE_VOUVOIEMENT,
     "Appelle l'outil proposer_referentiel UNE fois. Ne recopie pas le contenu de l'appel dans ta réponse.",
   ].join("\n");
 
@@ -243,6 +244,7 @@ export function construirePromptReferentiel(
       : []),
     `Sujet demandé : ${sujet}`,
     "",
+    REGLE_VOUVOIEMENT,
     "Appelle l'outil proposer_referentiel_complet UNE fois. Ne recopie pas le contenu de l'appel dans ta réponse.",
   ].join("\n");
 

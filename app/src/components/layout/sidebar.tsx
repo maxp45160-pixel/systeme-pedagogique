@@ -36,7 +36,7 @@ export function Sidebar({
     // encadre le canevas crème et concentre le regard sur le travail.
     // `z-40` : le rail est une barre de navigation, il passe au-dessus de tout
     // fond de page. Sans lui, un calque `fixed inset-0` posé par une page —
-    // la lampe du Bureau, par exemple — le recouvrait entièrement : il vient
+    // la lampe de Séances, par exemple — le recouvrait entièrement : il vient
     // avant dans le DOM, et deux éléments positionnés à z-index automatique se
     // peignent dans l'ordre du document.
     <aside className="sticky top-0 z-40 hidden h-screen w-60 shrink-0 flex-col border-r border-[var(--rail-bordure)] bg-[var(--rail)] text-[var(--rail-texte)] lg:flex rail-reduit:w-16">
@@ -51,7 +51,7 @@ export function Sidebar({
       {/*
         `flex flex-col` sur la nav : c'est ce qui donne prise au `mt-auto` du
         groupe détaché. Sans lui, la marge auto n'a rien à repousser et « Aide »
-        resterait collée au Bureau.
+        resterait collée à Séances.
       */}
       <nav data-tour="navigation-rail" className="flex flex-1 flex-col overflow-y-auto px-3 py-4 rail-reduit:px-2">
         {/*

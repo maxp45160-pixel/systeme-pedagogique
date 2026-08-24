@@ -51,6 +51,7 @@
 import type { MoteurTuteur } from "./moteurs";
 import { lireErreurMoteur, lireOutilsActifs } from "./moteurs";
 import { OUTIL_RELECTURE, outilsRelecture, type PropositionRelecture } from "./outils";
+import { REGLE_VOUVOIEMENT } from "./prompt";
 
 export interface CompetenceRelue {
   code: string;
@@ -232,7 +233,7 @@ export function construirePromptRelecture(entree: EntreeRelecture): string {
      * « Vous pourrez ensuite vous exercer dessus » — constaté le 24/08/2026 sur
      * le premier lot réel.
      */
-    "- Tout ce que tu écris s'affiche tel quel à la personne : VOUVOIE-LA, dans les justifications comme dans les ancrages. Ne la tutoie jamais, même si ce prompt te tutoie.",
+    REGLE_VOUVOIEMENT,
     "",
     `Appelle l'outil ${OUTIL_RELECTURE} UNE fois. Ne recopie pas le contenu de l'appel dans ta réponse.`,
   ].join("\n");

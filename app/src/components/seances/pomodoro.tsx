@@ -435,7 +435,7 @@ export function Pomodoro({
             ))}
             <p className="text-[0.6875rem] text-texte-discret">
               De {POMODORO_MIN} à {POMODORO_MAX} minutes. Ces durées ne servent qu&apos;à
-              rythmer ton travail : aucun calcul du système ne les lit.
+              rythmer votre travail : aucun calcul du système ne les lit.
               {enMarche && " Suspends le minuteur pour les modifier."}
             </p>
             <button

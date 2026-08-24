@@ -293,7 +293,7 @@ function ZoneHydrate({
           </span>
           <span aria-hidden>·</span>
           <span>
-            Le contenu n&apos;est pas corrigé automatiquement — il sert de trace de ton raisonnement.
+            Le contenu n&apos;est pas corrigé automatiquement — il sert de trace de votre raisonnement.
           </span>
         </div>
         {(urlCorrection || onDemanderCorrection) && (

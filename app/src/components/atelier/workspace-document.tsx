@@ -95,7 +95,7 @@ function Journal({ corps }: { corps: string }) {
   if (lignes.length === 0) {
     return (
       <p className="text-sm text-texte-discret">
-        Rien encore. Ce que tu composes s’inscrit ici.
+        Rien encore. Ce que vous composez s’inscrit ici.
       </p>
     );
   }
@@ -179,7 +179,7 @@ function SectionReperes({ compteId, documentId }: { compteId: string; documentId
     <section className="rounded-xl border border-bordure bg-surface-2 p-4">
       <p className="text-xs font-semibold uppercase tracking-wider text-texte-discret">Repères</p>
       <p className="mt-1 text-[0.6875rem] leading-relaxed text-texte-discret">
-        Tes mots dans la marge. Ils restent sur cet appareil et n’alimentent aucun niveau.
+        Vos mots dans la marge. Ils restent sur cet appareil et n’alimentent aucun niveau.
       </p>
       {reperes.length > 0 && (
         <ul className="mt-3 space-y-1.5">
@@ -578,7 +578,7 @@ export function WorkspaceDocument({
                 {CONSIGNES_PAR_TYPE[analyse.type ?? ""] ?? "Lis la ressource et transforme-la en fiche de travail exploitable."}
               </p>
               <label className="mt-5 block">
-                <span className="text-xs font-semibold uppercase tracking-wide text-texte-discret">Ta fiche de travail</span>
+                <span className="text-xs font-semibold uppercase tracking-wide text-texte-discret">Votre fiche de travail</span>
                 <textarea
                   value={valeurs[sections[0]] ?? ""}
                   onChange={(event) => {
@@ -589,7 +589,7 @@ export function WorkspaceDocument({
                   disabled={enregistrement}
                   rows={20}
                   className="mt-2 min-h-[28rem] w-full resize-y rounded-lg border border-bordure-controle bg-surface px-4 py-3 text-sm leading-relaxed outline-none focus:border-primaire"
-                  placeholder="Écris ici ce que tu comprends, les points importants et ton cas d’application…"
+                  placeholder="Écrivez ici ce que vous comprenez, les points importants et votre cas d’application…"
                 />
               </label>
             </section>
@@ -658,7 +658,7 @@ export function WorkspaceDocument({
                         : "Faire lire par le tuteur"}
                     </Bouton>
                     <p className="mt-1.5 text-[0.6875rem] leading-relaxed text-texte-discret">
-                      Le tuteur propose des compétences à partir du PDF ; tu relis
+                      Le tuteur propose des compétences à partir du PDF ; vous relisez
                       case par case avant tout enregistrement.
                     </p>
                     {lectureTuteur.phase === "erreur" && (
@@ -699,7 +699,7 @@ export function WorkspaceDocument({
           >
             {donneesSeance && (
               <div className="rounded-lg border border-primaire/20 bg-primaire-faible/35 px-4 py-3 text-sm leading-relaxed text-texte-attenue">
-                Cette page est le carnet de ta séance{domaineLibelle ? ` dans « ${domaineLibelle} »` : ""}.
+                Cette page est le carnet de votre séance{domaineLibelle ? ` dans « ${domaineLibelle} »` : ""}.
                 La composition ci-dessous choisira les exercices dans ce périmètre.
               </div>
             )}
@@ -783,7 +783,7 @@ export function WorkspaceDocument({
           sujetInitial={lectureTuteur.sujet}
           demarrageAutomatique
           cleDisponible={Boolean(lireConfigTuteur(compteId))}
-          guideEtape="Le tuteur lit le PDF attaché et propose des compétences. Rien n'est enregistré sans ta relecture case par case."
+          guideEtape="Le tuteur lit le PDF attaché et propose des compétences. Rien n'est enregistré sans votre relecture case par case."
           onFermer={() => setLectureTuteur({ phase: "repos" })}
         />
       )}

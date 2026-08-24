@@ -234,7 +234,7 @@ export function FormulaireBilan({
             Critère par critère
             <span className="ml-1.5 font-normal text-texte-discret">
               {assiste
-                ? "— relis le verdict du tuteur : c'est toi qui décides"
+                ? "— relisez le verdict du tuteur : c'est vous qui décidez"
                 : "— sois honnête : c'est ce qui rend le suivi utile"}
             </span>
           </div>
@@ -487,12 +487,12 @@ export function FormulaireBilan({
         )}
         {resultat === null && (
           <span className="text-xs text-texte-discret">
-            Choisis le résultat global de ta résolution pour continuer.
+            Choisissez le résultat global de votre résolution pour continuer.
           </span>
         )}
         {resultat !== null && !tousRenseignes && (
           <span className="text-xs text-texte-discret">
-            Renseigne chaque critère pour continuer.
+            Renseignez chaque critère pour continuer.
           </span>
         )}
       </div>

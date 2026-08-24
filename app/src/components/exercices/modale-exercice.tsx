@@ -260,7 +260,7 @@ export function ModaleExercice({
         const donnees = await reponse.json().catch(() => null);
         setErreur(
           donnees?.message ??
-            "La génération n'a pas pu démarrer. Vérifie la configuration du tuteur dans les réglages.",
+            "La génération n'a pas pu démarrer. Vérifiez la configuration du tuteur dans les réglages.",
         );
         setPhase(modification ? "previsualisation" : "formulaire");
         return;
@@ -771,7 +771,7 @@ export function ModaleExercice({
             {propositions.length === 0 ? (
               <BandeauInfo ton="alerte" taille="compacte">
                 <p className="text-alerte">
-                  Aucun exercice exploitable n&apos;a été produit. Réessaie, ou change de thème.
+                  Aucun exercice exploitable n&apos;a été produit. Réessayez, ou changez de thème.
                 </p>
               </BandeauInfo>
             ) : (
@@ -932,7 +932,7 @@ export function ModaleExercice({
                               {[
                                 "Rends l'énoncé plus concret",
                                 "Raccourcis l'énoncé",
-                                "Précise la consigne",
+                                "Préciser la consigne",
                               ].map((sug) => (
                                 <button
                                   key={sug}
@@ -1053,7 +1053,7 @@ export function ModaleExercice({
 
 const TITRE_GENERATION = "Générer un exercice";
 const SOUS_TITRE_GENERATION =
-  "Relis la proposition : accepte-la ou indique au tuteur ce qu’il doit modifier.";
+  "Relisez la proposition : acceptez-la ou indiquez au tuteur ce qu’il doit modifier.";
 
 /**
  * La coquille, et elle seule.

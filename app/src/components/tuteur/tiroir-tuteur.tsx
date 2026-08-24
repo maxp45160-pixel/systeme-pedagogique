@@ -207,7 +207,7 @@ export function TiroirTuteur({
       {dejaOuvert && (
         <Modale
           titre="Tuteur IA"
-          sousTitre="Il reçoit les protocoles du système et l'état réel de tes compétences."
+          sousTitre="Il reçoit les protocoles du système et l'état réel de vos compétences."
           largeur="md"
           position="laterale"
           masquee={!ouvert}

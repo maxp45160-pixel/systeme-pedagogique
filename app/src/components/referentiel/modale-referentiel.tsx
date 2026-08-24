@@ -132,7 +132,7 @@ export function ModaleReferentiel({
       setEtat({
         phase: "saisie",
         message:
-          "Aucune clé IA n'est configurée. Renseigne-en une ci-dessous pour lancer la proposition.",
+          "Aucune clé IA n'est configurée. Renseignez-en une ci-dessous pour lancer la proposition.",
       });
       return;
     }
@@ -284,7 +284,7 @@ export function ModaleReferentiel({
         const cause = e instanceof Error ? e.message : "L'enregistrement a échoué.";
         const bilan =
           ecrites.length === 0
-            ? "Aucune branche n'a été écrite : tu peux relancer l'enregistrement sans doublon."
+            ? "Aucune branche n'a été écrite : vous pouvez relancer l'enregistrement sans doublon."
             : `${ecrites.length} branche(s) déjà écrite(s) et conservée(s) : ${ecrites.join(", ")}. Relancer n'écrira que les restantes.`;
         setErreur(`${cause} ${bilan}`);
       }
@@ -299,7 +299,7 @@ export function ModaleReferentiel({
     <>
       <Modale
         titre="Préciser le domaine à apprendre"
-        sousTitre="Décris le domaine ou le sujet. Le système propose une organisation de compétences ; vous relisez avant de l’ajouter à vos cours."
+        sousTitre="Décrivez le domaine ou le sujet. Le système propose une organisation de compétences ; vous relisez avant de l’ajouter à vos cours."
         onFermer={fermer}
       >
         <>
@@ -386,7 +386,7 @@ export function ModaleReferentiel({
                   {demarrageBloque && !etat.message && (
                     <p className="mb-2 text-[0.6875rem] leading-relaxed text-alerte">
                       Aucune clé IA n&apos;est configurée : la proposition n&apos;a pas été
-                      lancée automatiquement. Renseigne-en une ci-dessous, elle partira
+                      lancée automatiquement. Renseignez-en une ci-dessous, elle partira
                       dès l&apos;enregistrement.
                     </p>
                   )}
@@ -448,8 +448,8 @@ export function ModaleReferentiel({
                 </p>
                 {cadrage.nombreDomaines && cadrage.nombreDomaines !== relecture.branches.length && (
                   <p className="mt-1 text-[0.6875rem] text-alerte">
-                    Tu demandais {cadrage.nombreDomaines} domaines ; la proposition actuelle n’en
-                    contient que {relecture.branches.length}. Reformule si ce découpage ne convient pas.
+                    Vous demandiez {cadrage.nombreDomaines} domaines ; la proposition actuelle n’en
+                    contient que {relecture.branches.length}. Reformulez si ce découpage ne convient pas.
                   </p>
                 )}
                 {/* Une liste tronquée en silence se lirait comme complète (ADR-036). */}

@@ -36,7 +36,7 @@ import type { Exercise } from "@/lib/domain/types";
 import { LIBELLES_DIMENSIONS } from "@/lib/domain/types";
 import { APPRECIATIONS, RESULTATS } from "@/lib/domain/bilan";
 import type { MoteurTuteur } from "./moteurs";
-import type { PromptTuteur } from "./prompt";
+import { REGLE_VOUVOIEMENT, type PromptTuteur } from "./prompt";
 import { lireErreurMoteur, lireOutilsActifs, messageSansOutils } from "./moteurs";
 import { outilCorrection, type PropositionCorrection } from "./outils";
 
@@ -155,6 +155,7 @@ export function construirePromptCorrection(
     "- Ce sont les seuls éléments que tu reverras dans une conversation ultérieure : écris-les pour ton toi futur, qui n'aura ni l'énoncé ni la correction sous les yeux.",
     "- Le bilan ne porte aucune note. N'y remets pas de barème, et n'y recopie pas la correction de référence.",
     "",
+    REGLE_VOUVOIEMENT,
     "Appelle l'outil proposer_correction UNE fois. Ne recopie pas le contenu de l'appel dans ta réponse.",
   ].join("\n");
 

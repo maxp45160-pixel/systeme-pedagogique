@@ -285,7 +285,7 @@ export function EtapeBesoin({
           aide={
             conseil
               ? conseil.explication
-              : "Aucune durée de référence observée : tu fixeras le nombre d'exercices à l'étape suivante."
+              : "Aucune durée de référence observée : vous fixerez le nombre d'exercices à l'étape suivante."
           }
         />
       </div>
@@ -300,7 +300,7 @@ export function EtapeBesoin({
             value={intention}
             onChange={(e) => setIntention(e.target.value)}
             placeholder="Ex. : Révision avant l'examen de vendredi, focus sur les biais..."
-            aide="Conservée telle quelle dans ton journal de travail."
+            aide="Conservée telle quelle dans votre journal de travail."
           />
         </div>
       ) : (

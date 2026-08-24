@@ -29,7 +29,7 @@ import type { Calibration } from "@/lib/engine/calibration";
 import type { MoteurTuteur } from "./moteurs";
 import { lireErreurMoteur, lireOutilsActifs, messageSansOutils } from "./moteurs";
 import { outilsTuteur } from "./outils";
-import type { PromptTuteur } from "./prompt";
+import { REGLE_VOUVOIEMENT, type PromptTuteur } from "./prompt";
 import type { PropositionExercice } from "./proposition";
 
 /* ------------------------------------------------------------------ */
@@ -122,6 +122,7 @@ export function construirePromptGeneration(
     "",
     `Domaines disponibles : ${domaines.length > 0 ? domaines.join(", ") : "aucun — commence par proposer une branche."}`,
     "",
+    REGLE_VOUVOIEMENT,
     "Appelle l'outil proposer_exercice UNE fois par exercice demandé. Ne recopie pas le contenu de l'appel dans ta réponse.",
   ];
 

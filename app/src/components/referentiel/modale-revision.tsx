@@ -165,7 +165,7 @@ export function ModaleRevision({
               message: (JSON.parse(donnees) as { message: string }).message,
             });
           } else if (type === "proposition-en-cours") {
-            setEtat({ phase: "revision", progression: "Le tuteur relit ta branche…" });
+            setEtat({ phase: "revision", progression: "Le tuteur relit votre branche…" });
           }
         }
       }
@@ -236,7 +236,7 @@ export function ModaleRevision({
   return (
     <Modale
       titre={`Réviser « ${domaineNom} »`}
-      sousTitre="Dis ce que tu veux faire évoluer. Le tuteur te propose un avant/après ; tu gardes seulement ce qui te convient. Rien ne change avant ta validation."
+      sousTitre="Dites ce que vous voulez faire évoluer. Le tuteur vous propose un avant/après ; vous gardez seulement ce qui vous convient. Rien ne change avant votre validation."
       onFermer={onFermer}
     >
       <>
@@ -249,7 +249,7 @@ export function ModaleRevision({
             )}
             <label className="block">
               <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
-                Ce que tu veux faire évoluer
+                Ce que vous voulez faire évoluer
               </span>
               <textarea
                 value={demande}
@@ -355,8 +355,8 @@ export function ModaleRevision({
                                 <>Retrait définitif du parcours. Ce repère ne sera pas réutilisé.</>
                               ) : (
                                 <>
-                                  Mise de côté ({observations} trace{observations > 1 ? "s" : ""} de travail{observations === 0 ? ", autre trace conservée" : ""}) — tes traces restent
-                                  intactes. Tu pourras remettre ce repère dans le parcours plus tard.
+                                  Mise de côté ({observations} trace{observations > 1 ? "s" : ""} de travail{observations === 0 ? ", autre trace conservée" : ""}) — vos traces restent
+                                  intactes. Vous pourrez remettre ce repère dans le parcours plus tard.
                                 </>
                               )}
                             </span>
@@ -433,7 +433,7 @@ export function ModaleRevision({
                 <h3 className="text-xs font-medium">
                   Nouvelles étapes
                   <span className="ml-1.5 font-normal text-texte-discret">
-                    — elles rejoindront le parcours après ta validation
+                    — elles rejoindront le parcours après votre validation
                   </span>
                 </h3>
                 <ul className="mt-2 space-y-2">
@@ -477,7 +477,7 @@ export function ModaleRevision({
                 {compte.archivees > 1 ? "s" : ""} de côté</strong>
               </p>
               <p className="mt-1">
-                Les repères existants gardent leurs traces de travail. Tu peux relire chaque changement avant de le valider.
+                Les repères existants gardent leurs traces de travail. Vous pouvez relire chaque changement avant de le valider.
               </p>
             </div>
 

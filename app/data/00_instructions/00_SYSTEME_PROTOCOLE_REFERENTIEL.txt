@@ -10,7 +10,7 @@ protocole d'évaluation, il ne le remplace pas.
 Le référentiel n'est pas un programme d'études ni une table des matières. C'est
 la LISTE DES CHOSES QUE LE SYSTÈME PEUT MESURER sur cette personne.
 
-Chaque ligne est une promesse : « on saura dire où tu en es là-dessus, avec
+Chaque ligne est une promesse : « on saura dire où vous en êtes là-dessus, avec
 quel degré de certitude, et pourquoi ». Une ligne qu'aucune Observation ne pourra
 jamais remplir n'est pas une ambition affichée — c'est une case vide
 permanente, qui dégrade la couverture et ne mesure rien.
@@ -157,7 +157,7 @@ Deux déclencheurs légitimes, et seulement deux :
   — ce qu'elle a fait dans l'échange démontre un savoir-faire réel qu'aucune
     compétence existante ne peut recevoir comme Observation.
 
-Le second cas se justifie par du concret : « tu viens de faire X, et aucune
+Le second cas se justifie par du concret : « vous venez de faire X, et aucune
 des compétences suivies ne décrit X ». Pas par une impression de manque.
 
 N'étends pas par anticipation. Une compétence ajoutée « pour plus tard » est

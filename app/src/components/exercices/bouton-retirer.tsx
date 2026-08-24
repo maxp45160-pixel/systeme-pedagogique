@@ -43,7 +43,7 @@ export function BoutonRetirerExercice({
           explication={
             mode === "archivage"
               ? `Cet exercice possède ${tentatives} tentative${tentatives > 1 ? "s" : ""}. Il sera retiré des exercices proposés, mais son historique restera conservé.`
-              : "Cet exercice ne possède aucune tentative. Il sera supprimé définitivement de ta bibliothèque."
+              : "Cet exercice ne possède aucune tentative. Il sera supprimé définitivement de votre bibliothèque."
           }
           texteBoutonConfirmer={mode === "archivage" ? "Confirmer l’archivage" : "Supprimer définitivement"}
           onConfirmer={async () => {

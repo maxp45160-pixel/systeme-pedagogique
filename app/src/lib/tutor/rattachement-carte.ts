@@ -26,6 +26,7 @@ import { libelleChemin } from "@/lib/engine/classification-domaine";
 import type { MoteurTuteur } from "./moteurs";
 import { lireErreurMoteur, lireOutilsActifs } from "./moteurs";
 import { outilsRattachementCarte, type PropositionRattachementCarte } from "./outils";
+import { REGLE_VOUVOIEMENT } from "./prompt";
 
 export interface EntreeRattachementCarte {
   domaineId: string;
@@ -79,6 +80,7 @@ export function construirePromptRattachementCarte(entree: EntreeRattachementCart
     "- N'invente aucun identifiant. Recopie exactement celui de la liste.",
     "- Justifie en une à deux phrases, en partant de ce que fait ce domaine.",
     "",
+    REGLE_VOUVOIEMENT,
     "Appelle l'outil proposer_rattachement_carte UNE fois. Ne recopie pas le contenu de l'appel dans ta réponse.",
   ].join("\n");
 }

@@ -53,3 +53,18 @@ export function urlComposerAutonome(
 ): string {
   return `/seances?composer=1${code ? `&code=${encodeURIComponent(code)}` : ""}&temps=${dureeEstimeeMin ?? 45}`;
 }
+
+/**
+ * L'infobulle du lien « Générer puis commencer ».
+ *
+ * Une seule déclaration parce qu'elle vivait en double, mot pour mot, dans la
+ * carte d'action et dans les pistes alternatives — deux surfaces qui posent le
+ * même lien vers le compositeur. Les deux copies portaient la même faute
+ * (« Aucun exercice existe »), preuve qu'elles avaient été recopiées et non
+ * réécrites : une chaîne dupliquée se corrige une fois sur deux.
+ *
+ * Elle vit ici, avec `urlComposerAutonome`, parce qu'elle dit exactement ce
+ * que cette URL fait — proposer la génération avant le démarrage.
+ */
+export const INFOBULLE_GENERER_PUIS_COMMENCER =
+  "Aucun exercice n'existe encore : vous pourrez les générer puis commencer";

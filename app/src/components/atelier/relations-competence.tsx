@@ -343,7 +343,7 @@ export function RelationsCompetence({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-[0.6875rem] leading-relaxed text-texte-discret">
-          Le tuteur propose, tu valides. Rien n’est écrit sans ton clic.
+          Le tuteur propose, vous validez. Rien n’est écrit sans votre clic.
         </p>
         <button
           type="button"

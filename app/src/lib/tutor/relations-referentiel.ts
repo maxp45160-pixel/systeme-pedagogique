@@ -28,6 +28,7 @@ import { PHRASE_MESURABILITE } from "@/lib/domain/atomicite";
 import type { MoteurTuteur } from "./moteurs";
 import { lireErreurMoteur, lireOutilsActifs, messageSansOutils } from "./moteurs";
 import { outilsRelations, type PropositionRelations } from "./outils";
+import { REGLE_VOUVOIEMENT } from "./prompt";
 
 export interface ResultatRelations {
   relations: PropositionRelations | null;
@@ -94,6 +95,7 @@ export function construirePromptRelations(entree: EntreeRelations): string {
     "- Justifie chaque relation en une phrase, en partant de la compétence lue.",
     "- Cinq propositions maximum de chaque côté. Mieux vaut trois justes que cinq approximatives.",
     "",
+    REGLE_VOUVOIEMENT,
     `Appelle l'outil proposer_relations UNE fois. Ne recopie pas le contenu de l'appel dans ta réponse.`,
   ].join("\n");
 }

@@ -155,7 +155,7 @@ export function PanneauPedagogiqueAtelier({
     return (
       <div className="space-y-5 p-4">
         <div>
-          <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-texte-discret">Ton parcours</p>
+          <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-texte-discret">Votre parcours</p>
           <h3 className="mt-1 font-serif text-lg font-medium">{vue.nom}</h3>
         </div>
 

@@ -248,7 +248,7 @@ function ModaleCreationDocument({
     const titreNettoye = titre.trim();
     const contexteNettoye = contexte.trim();
     if (!titreNettoye || !contexteNettoye) {
-      setErreur("Renseigne un titre et le contexte de cette fiche.");
+      setErreur("Renseignez un titre et le contexte de cette fiche.");
       return;
     }
 
@@ -316,7 +316,7 @@ function ModaleCreationDocument({
             onChange={(event) => setContexte(event.target.value)}
             rows={4}
             className="mt-1.5 w-full resize-none rounded-lg border border-bordure-controle bg-surface px-3 py-2 text-sm outline-none transition-colors placeholder:text-texte-discret focus:border-primaire focus:ring-1 focus:ring-primaire/20"
-            placeholder="Pourquoi veux-tu garder cette fiche ?"
+            placeholder="Pourquoi voulez-vous garder cette fiche ?"
           />
         </label>
 
@@ -383,7 +383,7 @@ function ModaleFeynman({
   return (
     <Modale
       titre="Faire une explication Feynman"
-      sousTitre="Choisis la compétence que tu veux reformuler avec tes propres mots."
+      sousTitre="Choisissez la compétence que vous voulez reformuler avec vos propres mots."
       largeur="xl"
       onFermer={onFermer}
     >
