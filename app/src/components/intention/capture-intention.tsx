@@ -38,17 +38,36 @@ import {
 import type { ContexteIntentionType } from "./contexte-intention";
 
 /**
- * Le point d'entrée unique de création.
+ * L'entrée **assistée** de création : on décrit un besoin, le moteur choisit
+ * l'objet.
  *
- * Il remplace treize modales qui demandaient chacune de choisir un **objet** —
+ * Elle remplace treize modales qui demandaient chacune de choisir un **objet** —
  * compétence, exercice, séance, note, projet — avant de pouvoir dire
- * quoi que ce soit. Ici on décrit un besoin, et le moteur choisit l'objet.
+ * quoi que ce soit.
  *
  * Ce composant n'exécute jamais directement : il **oriente** vers une surface
  * qui existait déjà. Un travail part au compositeur de séance, une ressource
  * passe par la création de note, une extension de référentiel ouvre la
  * proposition de branche avec son sujet pré-rempli. Aucun nouveau chemin
  * d'écriture n'est ouvert ici, et la validation humaine reste là où elle était.
+ *
+ * ## Ce n'est pas le point d'entrée *unique* (ADR-120)
+ *
+ * Ce JSDoc l'a affirmé pendant plusieurs mois, et c'était faux sur trois
+ * points que le code dit lui-même :
+ *
+ * 1. **Il ne sait produire qu'un seul format.** La création de note passe
+ *    toujours par `FORMATS_PAR_ROLE.support[0]` — « Note libre », en dur. Une
+ *    fiche de cours, une référence ou une formule ont des **sections
+ *    déclarées** que seul le menu « Créer » de Mes cours remplit.
+ * 2. **Il coûte une génération de quota** (ADR-116) : il passe par
+ *    `/api/intention`. Le menu « Créer » n'en coûte aucune.
+ * 3. **Il ne fonctionne plus quand le quota est épuisé.** Le menu, si. C'est le
+ *    chemin de secours, et un produit qui n'a qu'une entrée de création perd
+ *    toute création le jour où son moteur ne répond pas.
+ *
+ * Les deux entrées ne se recouvrent donc pas : celle-ci sert quand on sait ce
+ * qu'on veut **obtenir**, l'autre quand on sait ce qu'on veut **créer**.
  */
 
 const PLACEHOLDER = "Ex. j'ai un contrôle sur les stocks vendredi et je bloque sur le calcul de coût";

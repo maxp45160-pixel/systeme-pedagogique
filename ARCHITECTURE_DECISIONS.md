@@ -9372,6 +9372,72 @@ serait une autre décision.
 
 ---
 
+## ADR-120 — Deux entrées de création, parce qu'elles ne font pas la même chose 🔬
+
+**Statut :** 🔬 construit le 24/08/2026, hypothèse non réfutée. Corrige une
+affirmation du code relevée par l'audit de conception (défaut D6a) ; n'en fait
+monter aucune.
+
+### Le problème
+
+Le JSDoc de `capture-intention.tsx` — le `+` du rail — s'annonçait comme « le
+point d'entrée **unique** de création ». Mes cours garde pourtant son menu
+« Créer », qui propose sept gestes selon la vue. Deux entrées pour un geste
+annoncé unique : soit le `+` absorbe le menu, soit le JSDoc ment.
+
+### Ce que le code dit, et qui tranche
+
+Le menu n'est pas un reste. Il fait trois choses que le `+` ne sait pas faire :
+
+**1. Les formats typés.** Le `+` crée toujours
+`FORMATS_PAR_ROLE.support[0]` — « Note libre », en dur. Une fiche de cours, une
+référence ou une formule portent des **sections déclarées**
+(`definitionTypeDocument`) que seule `ModaleCreationDocument` remplit. Faire
+absorber cela par le `+` supposerait que le moteur choisisse un format typé et
+en remplisse les sections — c'est-à-dire lui confier la structure du document
+en plus de son contenu.
+
+**2. Le coût.** Depuis [ADR-116](#adr-116), le `+` passe par `/api/intention` et
+décompte **une génération** du quota mensuel. Le menu n'en décompte aucune. Un
+geste de rangement — « je pose ce PDF quelque part » — ne devrait pas consommer
+la même réserve qu'une génération d'exercices.
+
+**3. Le secours.** Quota épuisé, clé absente ou fournisseur muet : le `+` ne
+crée plus rien. Le menu continue. Un produit dont l'unique entrée de création
+dépend d'un service tiers perd toute création le jour où ce service tombe.
+
+### La décision
+
+**Les deux entrées restent, et le JSDoc cesse de mentir.**
+
+- le `+` est l'entrée **assistée** : on sait ce qu'on veut *obtenir*, on le dit
+  en une phrase, le moteur choisit l'objet ;
+- le menu « Créer » est l'entrée **déterministe** : on sait ce qu'on veut
+  *créer*, on le nomme, rien n'est interprété.
+
+Chacun des deux fichiers porte désormais la description de l'autre et la raison
+de sa propre existence. Un JSDoc qui revendique l'unicité d'un geste doit être
+vérifiable en lisant le fichier d'en face ; celui-ci ne l'était pas.
+
+### Le test de réfutation
+
+Cette décision est réfutée si la mesure montre que le menu « Créer » n'est
+jamais employé alors que le quota reste disponible — c'est-à-dire si la seule
+chose qui le fait vivre est la panne. Dans ce cas, la bonne forme serait un
+menu qui n'apparaît **que** lorsque le `+` ne peut pas servir, et les formats
+typés devraient être portés autrement.
+
+### Ce que cette décision n'autorise pas
+
+- elle ne rouvre **pas** les treize modales que le `+` a remplacées : le menu
+  n'en est pas un retour, il n'ouvre aucun chemin d'écriture que le serveur ne
+  contrôlait pas déjà ;
+- elle n'autorise pas une troisième entrée de création. Deux se justifient par
+  une différence de nature ; une troisième serait un oubli de rangement ;
+- elle ne change rien au décompte du quota, ni à ce que `envTuteur` protège.
+
+---
+
 ---
 
 ## Comment modifier ce registre

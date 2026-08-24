@@ -11,6 +11,24 @@ import { ModaleReferentiel } from "@/components/referentiel/modale-referentiel";
 import { ParcoursNouveauProjet } from "@/components/projets/modale-nouveau-projet";
 import type { CompetenceModale } from "@/lib/domain/proprietes-generation";
 
+/**
+ * L'entrée **déterministe** de création, dans Mes cours : on sait quel objet
+ * on veut, on le nomme, il se crée.
+ *
+ * Elle coexiste avec le `+` du rail (`capture-intention.tsx`), et ce n'est pas
+ * un doublon (ADR-120). Trois choses qu'elle fait et que le `+` ne fait pas :
+ *
+ * - **Les formats typés.** `cours`, `reference` et `formule` portent des
+ *   sections déclarées (`definitionTypeDocument`) que la saisie ci-dessous
+ *   remplit. Le `+` crée toujours une « Note libre », quoi qu'on lui demande.
+ * - **Aucun appel au tuteur.** Le `+` passe par `/api/intention` et décompte
+ *   une génération du quota mensuel (ADR-116) ; ici, rien n'est décompté.
+ * - **Le chemin de secours.** Quota épuisé ou moteur muet, le `+` ne crée
+ *   plus rien. Ce menu continue de fonctionner.
+ *
+ * Le menu s'adapte à la vue : on ne propose pas de créer une ressource là où
+ * l'on regarde un graphe de compétences (`actionsPourVue`).
+ */
 export type CreationAtelier =
   | "domaine"
   | "competence"
