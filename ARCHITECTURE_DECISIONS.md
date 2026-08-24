@@ -9670,6 +9670,122 @@ réponse est écrite dans les deux fichiers : **§10.1 décide.**
 
 ---
 
+## ADR-125 — Le contexte du chat se mesure, et il porte un plafond 🔬
+
+**Statut :** 🔬 construit le 24/08/2026, hypothèse non réfutée. Réduit ce que
+[ADR-123](#adr-123) venait d'ajouter et rend la dérive visible ; n'en fait
+monter aucune.
+
+### Ce que personne n'avait mesuré
+
+`/api/tutor` est la **seule** route sur quatorze qui charge
+`app/data/00_instructions/`. Les treize autres construisent un prompt court et
+dédié. Tout ce qui grossit dans ces fichiers se paie donc au chat, à chaque
+message, et nulle part ailleurs — ce qui rend la dérive indolore à l'écriture.
+
+Premier relevé, sur le fixture à 6 compétences, message ordinaire :
+
+| Bloc | Car. | % |
+|---|---:|---:|
+| Instructions principales | 9 339 | 27,6 |
+| Protocole d'évaluation (essentiel) | 7 946 | 23,4 |
+| Protocole anti-hallucination | 5 489 | 16,2 |
+| Schémas des deux outils | 4 255 | 12,6 |
+| Cadre d'intervention (prose de `contexte.ts`) | 4 115 | 12,1 |
+| **Les données de la personne** | **2 747** | **8,1** |
+| | **33 891** | ~8 500 jetons |
+
+**92 % de doctrine statique pour 8 % de données.** Et ADR-123 venait d'ajouter
+800 jetons à ce total.
+
+### Ce qui a été retiré, et pourquoi c'était sûr
+
+Trois familles seulement, aucune qui retire une règle du produit.
+
+**1. Ce qui était dit deux ou trois fois.** La ligne de partage
+« tu proposes, l'utilisateur valide » vivait dans `INSTRUCTIONS §4`, `§13` **et**
+le préambule du cadre d'intervention. « Reste concis » dans `§5`, `§12` et le
+cadre §6. Le niveau de confiance était défini dans `EVALUATION §7` **et**
+`ANTI-HALLUCINATION §10`, deux fichiers qui partent dans la même requête.
+L'échelle de niveau était paraphrasée dans `INSTRUCTIONS §3`, deux lignes
+au-dessus de la phrase qui renvoie au protocole « qui fait foi ».
+
+**2. Ce que la requête ne peut pas employer.** `INSTRUCTIONS §11` décrivait le
+schéma exact d'un mini-projet — champ par champ, bornes comprises — alors que le
+chat n'a que deux outils, `proposer_exercice` et `proposer_referentiel`. Un
+projet se construit par `/api/projets/generer`, qui ne charge aucun protocole et
+reçoit son schéma directement. Le principe reste (« un jalon décrit une
+production, pas une Observation ») ; la forme part avec l'outil qui la sert.
+
+**3. Ce qui explique une décision au lieu de commander un geste.** « Une échelle
+à cinq paliers proposée telle quelle récompense l'optimisme : personne ne se
+déclare A1 » justifie la formulation d'une question d'interface. C'est vrai, et
+sa place est dans un ADR — pas dans chaque message envoyé au fournisseur. Idem
+pour « une application Next.js implémente en code les protocoles de ce
+dossier », que le modèle ne peut pas actionner.
+
+**Déplacé plutôt que supprimé** : les deux listes de contrôle de
+l'anti-hallucination (§8 avant une mise à jour, §9 audit périodique) et le
+barème de l'auto-explication rejoignent le protocole de synthèse, chargé sur
+mot-clé ou cadence. Ils n'ont d'emploi qu'au moment d'une proposition de mesure
+ou d'un bilan. Les sections d'origine gardent leur numéro et un renvoi d'une
+ligne : `INSTRUCTIONS §9` citait « anti-hallucination §9 », et ce renvoi serait
+devenu faux en silence.
+
+### Ce qui n'a PAS été retiré, et pourquoi
+
+- **Les schémas d'outil (4 255 car., 15 %).** Leurs descriptions sont
+  porteuses : l'`enum` fermé de verbes, les bornes de caractères, la phrase de
+  mesurabilité. Un commentaire d'`outils.ts` montre que la déduplication y a
+  déjà été faite volontairement — les cinq conditions ont été **déplacées vers**
+  la description de l'outil parce que le protocole de référentiel n'est chargé
+  que sur mots-clés, et que « je veux bosser la thermodynamique » n'en porte
+  aucun. Y toucher retirerait une règle, pas une répétition.
+- **`EVALUATION §7, §8, §9`** (confiance, mise à jour, régression). Elles
+  auraient pu rejoindre le mode synthétique — le chat ne peut écrire aucune
+  mesure. Mais il peut en *affirmer* une en prose, et le déclencheur de synthèse
+  est une liste de mots-clés : « j'ai réussi, ça monte à 4 ? » n'en porte aucun.
+  Le gain ne valait pas ce trou.
+
+### Résultat
+
+**33 891 → 28 849 caractères** sur un message ordinaire, soit **−15 %**, environ
+1 250 jetons par message. Aucune règle du produit n'a disparu ; deux renvois
+morts ont été réparés au passage.
+
+### Le plafond, qui est l'objet réel de cette décision
+
+`budget-contexte.test.ts` mesure le contexte d'un message ordinaire et échoue
+au-delà de **30 000 caractères**. Il vérifie aussi que le message de test ne
+déclenche ni la synthèse ni la charte du référentiel — sans quoi le total cesse
+de décrire le cas courant — et que la part statique ne repart pas vers 92 %.
+
+Le plafond ne dit pas « ne dépassez jamais ». Il dit : **si vous dépassez, c'est
+une décision, pas un effet de bord.** C'est exactement ce qui a manqué : ces
+fichiers ont grossi pendant des semaines sans que personne ne voie le total, et
+l'audit lui-même y a ajouté avant de le mesurer.
+
+### Le test de réfutation
+
+Cette décision est réfutée si la qualité du tutorat baisse — réponses moins
+justes sur les niveaux, exercices moins bien calibrés, affirmations que les
+Observations ne portent pas. La vérification est d'usage, pas de code : mener
+une séance complète et relire un bilan. Si quelque chose manque, ce qui a été
+**déplacé** revient en premier ; ce qui a été retiré comme doublon est, par
+construction, toujours dit ailleurs dans la même requête.
+
+### Ce que cette décision n'autorise pas
+
+- elle n'autorise pas à couper dans les schémas d'outil pour tenir le plafond :
+  ce sont des règles, pas de la prose ;
+- elle ne rend pas le plafond intouchable. Il se relève — dans un commit qui le
+  dit, avec la raison ;
+- elle ne règle pas la question de fond, qui reste le **chargement
+  conditionnel**. Deux fichiers sur cinq le sont déjà ; le reste demande de
+  décider ce qui déclenche quoi, et ce n'est pas une question de rédaction.
+
+---
+
 ---
 
 ## Comment modifier ce registre

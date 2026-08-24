@@ -75,7 +75,7 @@ export function refusChangementRole(
   moiId: string,
 ): RefusAcces {
   if (cible.role === nouveauRole) return "Ce compte a déjà ce rôle.";
-  if (cible.userId === moiId) return "Tu ne peux pas modifier ton propre rôle.";
+  if (cible.userId === moiId) return "Vous ne pouvez pas modifier votre propre rôle.";
   if (cible.role === "admin" && nouveauRole !== "admin") {
     return "Un administrateur ne peut pas être rétrogradé.";
   }
@@ -87,7 +87,7 @@ export function refusSuspension(
   moiId: string,
 ): RefusAcces {
   if (estSuspendu(cible)) return "Ce compte est déjà suspendu.";
-  if (cible.userId === moiId) return "Tu ne peux pas suspendre ton propre accès.";
+  if (cible.userId === moiId) return "Vous ne pouvez pas suspendre votre propre accès.";
   if (cible.role === "admin") {
     return "Un administrateur ne peut pas être suspendu.";
   }

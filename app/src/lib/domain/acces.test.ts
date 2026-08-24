@@ -42,7 +42,7 @@ describe("refusChangementRole", () => {
   const moi = compte({ userId: "moi", role: "admin" });
 
   it("refuse de changer son propre rôle", () => {
-    expect(refusChangementRole(moi, "membre", "moi")).toMatch(/ton propre rôle/);
+    expect(refusChangementRole(moi, "membre", "moi")).toMatch(/votre propre rôle/);
   });
 
   it("refuse formellement de rétrograder un administrateur", () => {
@@ -66,7 +66,7 @@ describe("refusChangementRole", () => {
 describe("refusSuspension", () => {
   it("refuse de se suspendre soi-même", () => {
     const moi = compte({ userId: "moi", role: "admin" });
-    expect(refusSuspension(moi, "moi")).toMatch(/ton propre accès/);
+    expect(refusSuspension(moi, "moi")).toMatch(/votre propre accès/);
   });
 
   it("refuse formellement de suspendre un administrateur", () => {

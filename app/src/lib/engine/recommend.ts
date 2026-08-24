@@ -227,8 +227,8 @@ function evaluer(
     contribution: fImportance,
     phrase:
       etat.skill.importance >= 0.9
-        ? "elle est centrale pour ton objectif actuel"
-        : "elle sert ton objectif de parcours",
+        ? "elle est centrale pour votre objectif actuel"
+        : "elle sert votre objectif de parcours",
   });
 
   // 2. Absence totale d'observation — le cas dominant au démarrage.

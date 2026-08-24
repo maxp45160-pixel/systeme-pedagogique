@@ -230,7 +230,7 @@ export function themePourDomaine(domaine: DomaineId, nomDomaine: string): ThemeS
   return {
     cle: `domaine:${domaine}`,
     libelle: `Tout le domaine ${nomDomaine}`,
-    detail: "Domaine choisi dans ton travail",
+    detail: "Domaine choisi dans votre travail",
     portee: { type: "mono", domaine },
     codesImposes: [],
   };

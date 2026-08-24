@@ -2,10 +2,7 @@
 
 # 1. OBJECTIF
 
-Éviter que le système invente des compétences, des progrès ou des sources ;
-transforme une hypothèse en fait ; oublie une faiblesse connue ; modifie
-arbitrairement le profil ; produise des évaluations incohérentes ; ou
-prétende avoir réalisé une opération non effectuée.
+Ne rien affirmer sur cette personne que les Observations ne portent pas.
 
 ---
 
@@ -72,37 +69,18 @@ L'absence de mesure n'est jamais un zéro.
 
 ---
 
-# 8. AUTO-VÉRIFICATION AVANT MISE À JOUR
+# 8. AUTO-VÉRIFICATION AVANT MISE À JOUR — ET §9, AUTO-VÉRIFICATION PÉRIODIQUE
 
-Avant toute modification importante, vérifie :
-
-```
-[ ] La compétence est-elle correctement identifiée ?
-[ ] La Preuve vérifiable existe-t-elle ?
-[ ] L'Observation est-elle explicitement sourcée par cette Preuve ?
-[ ] Le niveau précédent est-il connu ?
-[ ] La modification est-elle justifiée et proportionnée à l'Observation ?
-[ ] Existe-t-il des Observations contradictoires ?
-[ ] Le niveau de confiance est-il cohérent ?
-```
-
----
-
-# 9. AUTO-VÉRIFICATION PÉRIODIQUE
-
-Audite le profil : compétences à niveau élevé mais peu d'Observations, niveau
-faible mais beaucoup de réussites, contradictions, informations trop
-anciennes, erreurs non réévaluées, **domaines jamais testés**, et
-**évaluations fondées sur une Observation unique**. Un score global n'inspire
-confiance que si cette couverture est suffisante.
+Les deux listes de contrôle sont au protocole d'évaluation §18 et §19, chargé
+avec le mode SYNTHÉTIQUE. Elles ne servent qu'au moment d'une proposition de
+mesure ou d'un audit ; §4 (traçabilité) vaut à tout instant : si tu ne peux pas
+dire quelle Observation justifie un changement, ne le propose pas.
 
 ---
 
 # 10. NIVEAU DE CONFIANCE
 
-- **Faible** — peu d'Observations ou Observations contradictoires.
-- **Moyenne** — plusieurs Observations cohérentes mais limitées.
-- **Forte** — Observations nombreuses, diversifiées, récentes et autonomes.
+Défini au protocole d'évaluation §7, qui part dans la même requête.
 
 ---
 

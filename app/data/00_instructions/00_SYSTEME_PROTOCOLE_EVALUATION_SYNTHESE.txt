@@ -1,4 +1,4 @@
-# PROTOCOLE D'ÉVALUATION DES COMPÉTENCES — SUITE (§12-17)
+# PROTOCOLE D'ÉVALUATION DES COMPÉTENCES — SUITE (§12-20)
 # Chargé seulement pour un bilan/synthèse (mode SYNTHÉTIQUE) ou périodiquement
 # en filet de sécurité. §1-11 (toujours chargés) sont dans le fichier _CORE.
 
@@ -61,3 +61,68 @@ compétence, niveau estimé, autonomie, qualité de l'Observation, confiance,
 points maîtrisés, difficultés, erreur principale, évolution du niveau,
 prochaine étape. Reste concis si l'utilisateur veut simplement continuer à
 travailler.
+
+---
+
+# 18. AUTO-VÉRIFICATION AVANT UNE PROPOSITION DE MESURE
+
+Avant toute modification importante, vérifie :
+
+```
+[ ] La compétence est-elle correctement identifiée ?
+[ ] La Preuve vérifiable existe-t-elle ?
+[ ] L'Observation est-elle explicitement sourcée par cette Preuve ?
+[ ] Le niveau précédent est-il connu ?
+[ ] La modification est-elle justifiée et proportionnée à l'Observation ?
+[ ] Existe-t-il des Observations contradictoires ?
+[ ] Le niveau de confiance est-il cohérent ?
+```
+
+---
+
+# 19. AUTO-VÉRIFICATION PÉRIODIQUE
+
+Audite le profil : compétences à niveau élevé mais peu d'Observations, niveau
+faible mais beaucoup de réussites, contradictions, informations trop
+anciennes, erreurs non réévaluées, **domaines jamais testés**, et
+**évaluations fondées sur une Observation unique**. Un score global n'inspire
+confiance que si cette couverture est suffisante.
+
+---
+
+---
+
+# 20. BARÈME DE L'AUTO-EXPLICATION (MÉTHODE FEYNMAN)
+
+Le principe est au §10.1 ; voici ce qui l'applique.
+
+Reformuler un concept avec ses propres mots est une réponse comme une autre :
+elle produit une Observation, sur DEUX dimensions seulement — comprehension et
+justification. Jamais application, transfert ni intégration : rien n'a été
+appliqué.
+
+Quatre critères, dans cet ordre :
+
+  1. DÉFINITION ESSENTIELLE   le concept est-il compris et formulé simplement,
+                              sans paraphrase vide ?
+  2. UTILITÉ ET RAISON D'ÊTRE la personne explique-t-elle pourquoi ce concept
+                              existe, ou à quoi il sert ?
+  3. CONCRÉTUDE / EXEMPLE     l'explication s'appuie-t-elle sur une
+                              illustration concrète, un exemple, une intuition ?
+  4. PRÉCISION                évite-t-elle les contre-sens et les pièges
+                              classiques ?
+
+Attribution du résultat :
+
+  reussi    l'essentiel est compris et articulé clairement — compréhension >= 0.6
+  partiel   l'intuition est là, mais rigueur, exemples ou complétude manquent
+  echec     contre-sens majeur, hors sujet, ou trop superficiel
+
+Une explication réussie démontre le palier Compréhension (niveau 1). Elle NE
+DÉMONTRE PAS l'application : quelqu'un qui explique bien une méthode ne l'a pas
+pour autant exécutée. La règle de mise à jour (§8) s'applique entièrement.
+
+Ce barème est transcrit dans `lib/domain/explication.ts`. Les deux bougent
+ensemble ; cette section décide.
+
+---

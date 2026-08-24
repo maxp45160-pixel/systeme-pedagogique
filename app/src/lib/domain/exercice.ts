@@ -125,7 +125,7 @@ export function motifRefusEditionCompetences(
     avant.length === soumises.length && avant.every((c) => soumises.includes(c));
   return identiques
     ? null
-    : "Les compétences visées ne se modifient pas à l'édition : elles portent ce que tes observations déjà écrites ont mesuré. Pour en viser d'autres, crée un autre exercice.";
+    : "Les compétences visées ne se modifient pas à l'édition : elles portent ce que vos observations déjà écrites ont mesuré. Pour en viser d'autres, créez un autre exercice.";
 }
 
 /**

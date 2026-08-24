@@ -3,11 +3,9 @@
 
 # 1. OBJECTIF
 
-Évaluer la progression de façon progressive, fondée sur des Preuves
-vérifiables et des Observations sourcées, contextualisée, répétée, prudente,
-orientée vers le transfert. Le but n'est
-pas une note artificiellement précise mais une estimation de ce que
-l'utilisateur est réellement capable de faire.
+Estimer ce que l'utilisateur est réellement capable de faire, à partir de
+Preuves vérifiables et d'Observations sourcées — jamais produire une note
+artificiellement précise.
 
 ---
 
@@ -78,19 +76,14 @@ d'indices consultés dans l'application ne voit que ce qui s'y passe ; ce qui a
   assistant IA               A1        « solution fortement guidée »
   correction obtenue         A0        « solution fournie », par définition
 
-L'autonomie retenue est le MINIMUM entre ce que disent les indices internes et
-ce plafond. Un minimum, jamais un remplacement : quelqu'un qui a épuisé les
-indices de l'application ET consulté une documentation reste en A1. Un plafond
-ne relève pas une autonomie que la mesure interne avait déjà rabaissée.
+L'autonomie retenue est le MINIMUM des deux — un plafond ne relève jamais une
+autonomie que les indices internes avaient déjà rabaissée.
 
 Ce que le système mesure ici est « sait faire seul », pas « sait faire bien ».
-Travailler documentation ouverte est une pratique professionnelle normale ; ce
-n'est simplement pas une résolution autonome au sens de cette échelle.
+Travailler documentation ouverte est une pratique normale ; ce n'est simplement
+pas une résolution autonome au sens de cette échelle.
 
-L'aide extérieure se DEMANDE, elle ne se devine pas — et la question porte sur
-un fait dont la personne se souvient, jamais sur une auto-évaluation de son
-propre niveau. Une échelle à cinq paliers proposée telle quelle récompense
-l'optimisme : personne ne se déclare A1.
+L'aide extérieure se DEMANDE, elle ne se devine pas.
 
 ---
 
@@ -146,36 +139,14 @@ réponse peut être correcte par hasard, incorrecte avec une bonne méthode,
 correcte avec une mauvaise justification, ou partiellement correcte : ne
 réduis jamais l'évaluation à la réponse finale.
 
-## 10.1 LE CAS DE L'AUTO-EXPLICATION (MÉTHODE FEYNMAN)
+## 10.1 L'AUTO-EXPLICATION (MÉTHODE FEYNMAN)
 
-Reformuler un concept avec ses propres mots est une réponse comme une autre :
-elle produit une Observation, sur DEUX dimensions seulement — comprehension et
-justification. Jamais application, transfert ni intégration : rien n'a été
-appliqué.
+Reformuler un concept avec ses propres mots produit une Observation sur DEUX
+dimensions seulement : comprehension et justification. Jamais application,
+transfert ni intégration — rien n'a été appliqué. Une explication réussie
+démontre le palier Compréhension, pas la capacité à faire.
 
-Quatre critères, dans cet ordre :
-
-  1. DÉFINITION ESSENTIELLE   le concept est-il compris et formulé simplement,
-                              sans paraphrase vide ?
-  2. UTILITÉ ET RAISON D'ÊTRE la personne explique-t-elle pourquoi ce concept
-                              existe, ou à quoi il sert ?
-  3. CONCRÉTUDE / EXEMPLE     l'explication s'appuie-t-elle sur une
-                              illustration concrète, un exemple, une intuition ?
-  4. PRÉCISION                évite-t-elle les contre-sens et les pièges
-                              classiques ?
-
-Attribution du résultat :
-
-  reussi    l'essentiel est compris et articulé clairement — compréhension >= 0.6
-  partiel   l'intuition est là, mais rigueur, exemples ou complétude manquent
-  echec     contre-sens majeur, hors sujet, ou trop superficiel
-
-Une explication réussie démontre le palier Compréhension (niveau 1). Elle NE
-DÉMONTRE PAS l'application : quelqu'un qui explique bien une méthode ne l'a pas
-pour autant exécutée. La règle de mise à jour (§8) s'applique entièrement.
-
-Ce barème est transcrit dans `lib/domain/explication.ts`. Les deux bougent
-ensemble ; cette section décide.
+Le barème détaillé est au §20, chargé avec le mode SYNTHÉTIQUE.
 
 ---
 

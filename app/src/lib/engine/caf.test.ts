@@ -207,7 +207,7 @@ describe("themesSuggeres — la suggestion sort du même classement que la proch
 
     expect(theme.portee).toEqual({ type: "mono", domaine: "developpement" });
     expect(theme.codesImposes).toEqual([]);
-    expect(theme.detail).toBe("Domaine choisi dans ton travail");
+    expect(theme.detail).toBe("Domaine choisi dans votre travail");
   });
 });
 

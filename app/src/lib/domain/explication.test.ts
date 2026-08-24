@@ -26,17 +26,27 @@ import {
  * de protocole et vérifie que les deux disent le même chiffre.
  */
 
-const PROTOCOLE = join(
-  __dirname,
-  "../../../data/00_instructions/00_SYSTEME_PROTOCOLE_EVALUATION_CORE.txt",
-);
+const DOSSIER = join(__dirname, "../../../data/00_instructions");
+
+/** Le principe — toujours chargé, parce que le chat en a besoin pour lire. */
+const CORE = join(DOSSIER, "00_SYSTEME_PROTOCOLE_EVALUATION_CORE.txt");
+
+/**
+ * Le barème — chargé avec le mode SYNTHÉTIQUE seulement.
+ *
+ * Le chat n'évalue jamais une auto-explication : c'est `/api/explication/evaluer`
+ * qui le fait, et cette route ne charge aucun protocole. Faire voyager quatre
+ * critères dans chaque message du chat les payait sans jamais les employer
+ * (ADR-125).
+ */
+const SYNTHESE = join(DOSSIER, "00_SYSTEME_PROTOCOLE_EVALUATION_SYNTHESE.txt");
 
 describe("le barème de l'auto-explication", () => {
   it("dit le même seuil que le protocole d'évaluation §10.1", () => {
-    const texte = readFileSync(PROTOCOLE, "utf8");
-
-    expect(texte).toContain("10.1 LE CAS DE L'AUTO-EXPLICATION");
-    expect(texte).toContain(`compréhension >= ${SEUIL_REUSSITE_COMPREHENSION}`);
+    expect(readFileSync(CORE, "utf8")).toContain("10.1 L'AUTO-EXPLICATION");
+    expect(readFileSync(SYNTHESE, "utf8")).toContain(
+      `compréhension >= ${SEUIL_REUSSITE_COMPREHENSION}`,
+    );
   });
 
   it("porte les quatre critères et les trois résultats", () => {

@@ -600,7 +600,7 @@ export async function renoncerSeance(seanceId: string): Promise<void> {
   }
   if (statut === "en-cours") {
     throw new Error(
-      "Cette séance est en cours : abandonne-la d'abord si tu ne veux pas la mener.",
+      "Cette séance est en cours : abandonnez-la d'abord si vous ne voulez pas la mener.",
     );
   }
 

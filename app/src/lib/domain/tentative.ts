@@ -96,7 +96,7 @@ export function reponseSuffisante(reponse: string | null | undefined): boolean {
  */
 export function motifBlocageBilan(reponse: string | null | undefined): string | null {
   if (reponseSuffisante(reponse)) return null;
-  return "Le bilan demande ta réponse écrite. Rédige-la : elle est enregistrée automatiquement, et c'est cette trace que le tuteur relira pour te proposer une correction.";
+  return "Le bilan demande votre réponse écrite. Rédigez-la : elle est enregistrée automatiquement, et c'est cette trace que le tuteur relira pour vous proposer une correction.";
 }
 
 export interface SoumissionTerminerExercice {

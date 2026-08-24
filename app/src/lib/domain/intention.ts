@@ -385,7 +385,7 @@ export function forcerTraductionIntention(
         action: {
           genre: "travail",
           titre: "Préparer une séance",
-          pourquoi: "Aucun sujet n’a été imposé : tu choisiras la portée dans le compositeur.",
+          pourquoi: "Aucun sujet n’a été imposé : vous choisirez la portée dans le compositeur.",
           codes: [],
           sujet,
         },
