@@ -149,10 +149,10 @@ export function LotPropositions({
 }: {
   sections: SectionLisible[];
   /**
-   * Une relecture est-elle attendue ? Vrai quand rien n'a jamais été produit,
-   * ou quand tout ce qui l'a été porte sur un référentiel qui a changé depuis.
+   * Une relecture est-elle attendue ? Vrai lorsqu'une famille porte un fait
+   * nouveau : croissance, maîtrise, intention ou candidat de maintenance.
    *
-   * C'est le déclencheur d'ADR-108 : la péremption, jamais un seuil de taille.
+   * Arbitrer ne rallume pas le signal. Un fait nouveau de la famille le peut.
    */
   relectureDue: boolean;
 }) {
@@ -196,9 +196,11 @@ export function LotPropositions({
             ? "Rien à vous proposer pour l'instant."
             : `${total} proposition${total > 1 ? "s" : ""} à regarder.`}
         </p>
-        <Bouton variante="secondaire" taille="compacte" enChargement={enCours} onClick={relire}>
-          {relectureDue ? "Relire mon référentiel" : "Relire à nouveau"}
-        </Bouton>
+        {relectureDue && (
+          <Bouton variante="secondaire" taille="compacte" enChargement={enCours} onClick={relire}>
+            Analyser les nouveautés
+          </Bouton>
+        )}
       </div>
 
       {erreur && (
@@ -214,8 +216,8 @@ export function LotPropositions({
             titre="Votre référentiel n'appelle aucune proposition"
             message={
               relectureDue
-                ? "Il a changé depuis la dernière relecture. Relancez-la pour voir ce qu'il en ressort."
-                : "Continuez à travailler : les propositions arrivent quand votre référentiel bouge."
+                ? "Un fait nouveau mérite une analyse : croissance du référentiel, maîtrise, intention ou maintenance."
+                : "La classification reste stable tant qu'aucun fait nouveau ne justifie de la rouvrir."
             }
           />
         </Carte>

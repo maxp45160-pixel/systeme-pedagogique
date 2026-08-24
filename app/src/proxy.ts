@@ -18,6 +18,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { SUPABASE_ANON_KEY, SUPABASE_URL, supabaseConfigure } from "@/lib/supabase/config";
+import { fetchSupabase } from "@/lib/supabase/fetch";
 
 /**
  * Chemins accessibles sans compte : vitrine publique (`/`, `/methode`,
@@ -66,6 +67,7 @@ export async function proxy(request: NextRequest) {
   let reponse = NextResponse.next({ request });
 
   const supabase = createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: { fetch: fetchSupabase },
     cookies: {
       getAll() {
         return request.cookies.getAll();

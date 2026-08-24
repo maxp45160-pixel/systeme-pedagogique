@@ -1,4 +1,4 @@
-import { produireLot } from "@/lib/store/relecture-referentiel";
+import { chargerLotPropositions, produireLot } from "@/lib/store/relecture-referentiel";
 import { choisirConfiguration, creerMoteur } from "@/lib/tutor/moteurs";
 import type { ConfigTuteurClient } from "@/lib/tutor/cle-client";
 import { envTuteur } from "@/lib/tutor/env-requete";
@@ -55,7 +55,26 @@ export async function POST(request: Request) {
     corps = {};
   }
 
-  const resolution = await envTuteur(corps.config);
+  /*
+   * Barrière serveur : l'interface n'est pas la garantie.
+   *
+   * Un POST direct ou un ancien client ne choisit pas sa famille : les besoins
+   * sont toujours dérivés côté serveur. Une mutation de rangement ne peut donc
+   * pas relancer la classification qui l'a produite.
+   */
+  const lot = await chargerLotPropositions();
+  if (!lot.relectureDue) {
+    return Response.json({
+      enregistrees: 0,
+      ecartees: 0,
+      doublons: 0,
+      avertissement: null,
+      ignoree: true,
+    });
+  }
+
+  const tuteurRequis = lot.besoins.structure.tuteur || lot.besoins.progression.due;
+  const resolution = tuteurRequis ? await envTuteur(corps.config) : null;
   /*
    * Sans moteur, on produit quand même.
    *
@@ -64,7 +83,7 @@ export async function POST(request: Request) {
    * priverait de surface une seconde fois, pour une raison qui ne les concerne
    * pas. Le lot dit ce qui manque.
    */
-  const moteur = resolution.ok ? creerMoteur(choisirConfiguration(resolution.env)) : null;
+  const moteur = resolution?.ok ? creerMoteur(choisirConfiguration(resolution.env)) : null;
 
   const abandon = new AbortController();
   request.signal.addEventListener("abort", () => abandon.abort(), { once: true });
@@ -72,6 +91,7 @@ export async function POST(request: Request) {
   try {
     const resultat = await produireLot(moteur, {
       elargissementActif: ELARGISSEMENT_ACTIF,
+      besoins: lot.besoins,
       signal: abandon.signal,
     });
     return Response.json({

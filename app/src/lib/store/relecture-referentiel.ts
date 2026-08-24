@@ -8,7 +8,7 @@ import "server-only";
  * `lib/engine/candidats-referentiel.ts` porte quatre détecteurs déterministes
  * depuis le 18/08/2026, et `chargerCandidatsReferentiel` n'était appelé **par
  * rien**. C'est le constat qui ouvre ADR-108 : quatre détecteurs tournaient dans
- * le vide faute de surface. Ce module les assemble avec les trois genres du
+ * le vide faute de surface. Ce module les assemble avec les quatre genres du
  * tuteur en un lot unique, et l'écran des propositions le consomme.
  *
  * Les détecteurs ne sont pas réécrits. Ils gardent leur place et leur priorité :
@@ -43,14 +43,16 @@ import {
   inscrireRelecture,
   type PropositionAEnregistrer,
 } from "./propositions-referentiel";
+import {
+  declencheursDeclaresDepuis,
+  type FamilleRelecture,
+} from "./declencheurs-relecture";
 import { detecterCandidats, type CandidatReferentiel } from "@/lib/engine/candidats-referentiel";
 import {
   empreinteProposition,
-  empreintesRefusees,
-  estPerimee,
   lotOuvert,
+  relectureDueApresSignal,
   type ReferentielLu,
-  versionsCourantes,
   type ContenuProposition,
   type PropositionReferentielRelue,
 } from "@/lib/domain/propositions-referentiel";
@@ -60,6 +62,7 @@ import { relireReferentiel, type EntreeRelecture } from "@/lib/tutor/relecture-r
 import type { MoteurTuteur } from "@/lib/tutor/moteurs";
 import type { Contexte } from "./context";
 import type { DomaineId } from "@/lib/domain/types";
+import { franchissementsMaitriseCourants } from "@/lib/engine/historique";
 
 /**
  * Combien de compétences récemment mobilisées le tuteur reçoit.
@@ -82,7 +85,15 @@ const TRAVAIL_RECENT_MAX = 12;
  * `competences` : une seule traduction, ici, plutôt qu'à chaque appel.
  */
 function referentielLu(ctx: Contexte): ReferentielLu {
-  return { domaines: ctx.referentiel.domaines, competences: ctx.referentiel.skills };
+  return {
+    domaines: ctx.referentiel.domaines,
+    competences: ctx.referentiel.skills,
+    maitrisees: [...ctx.maitrises.values()].filter((m) => m.maitrisee).map((m) => m.code),
+    intentions: {
+      moyenTerme: ctx.donnees.user.objectifMoyenTerme,
+      longTerme: ctx.donnees.user.objectifLongTerme,
+    },
+  };
 }
 
 /* ------------------------------------------------------------------ */
@@ -92,16 +103,37 @@ function referentielLu(ctx: Contexte): ReferentielLu {
 export interface LotPropositions {
   propositions: PropositionReferentielRelue[];
   /**
-   * La relecture est-elle périmée ? Vrai quand une version a bougé depuis le
-   * dernier lot, ou qu'aucun lot n'a jamais été produit.
+   * Une des trois familles attend-elle sa prochaine analyse ?
    *
-   * C'est le déclencheur d'ADR-108 : la péremption, jamais un nombre. Il est
-   * **dérivé** — comparer les versions lues aux versions courantes — et ne
-   * s'écrit nulle part.
+   * Une commande issue d'une proposition ne suffit jamais : elle ferait
+   * grandir le référentiel à partir de sa propre croissance.
    */
   relectureDue: boolean;
+  besoins: BesoinsRelecture;
   /** L'horodatage du lot le plus récent, `null` si aucun. */
   dernierLot: string | null;
+}
+
+export interface BesoinsRelecture {
+  structure: { tuteur: boolean; deterministe: boolean };
+  progression: {
+    due: boolean;
+    maitrisesNouvelles: Array<{ code: string; intitule: string; franchiLe: string }>;
+    intentionsNouvelles: Array<"moyen" | "long">;
+  };
+  maintenance: boolean;
+}
+
+function candidatsDuContexte(ctx: Contexte) {
+  return detecterCandidats({
+    referentiel: ctx.referentiel,
+    etats: ctx.etats,
+    observations: ctx.observationsEffectives,
+    exercices: ctx.donnees.exercises,
+    tentatives: ctx.donnees.attempts,
+    seances: ctx.donnees.sessions.map((s) => ({ date: s.date, skillCodes: s.skillCodes })),
+    now: ctx.now,
+  });
 }
 
 /**
@@ -117,31 +149,91 @@ export interface LotPropositions {
  */
 export const chargerLotPropositions = cache(async (): Promise<LotPropositions> => {
   const ctx = await chargerContexte();
-  const [enregistrees, derniere] = await Promise.all([
+  const [enregistrees, derniereStructure, derniereProgression, derniereMaintenance] = await Promise.all([
     chargerPropositions(),
-    derniereRelecture(),
+    derniereRelecture("structure"),
+    derniereRelecture("progression"),
+    derniereRelecture("maintenance"),
   ]);
-  const versions = versionsCourantes(ctx.referentiel.domaines);
   const ouvertes = lotOuvert(enregistrees, referentielLu(ctx), ctx.now);
+  const [signauxStructure, signauxProgression] = await Promise.all([
+    declencheursDeclaresDepuis("structure", derniereStructure?.creeLe ?? null),
+    declencheursDeclaresDepuis("progression", derniereProgression?.creeLe ?? null),
+  ]);
 
-  /*
-   * « Due » se lit sur la dernière RELECTURE, pas sur la vacuité du lot.
-   *
-   * Le raccourci tentant — « aucune proposition ouverte, donc à relire » — se
-   * retourne dès qu'un lot n'a RIEN à proposer, ce qui est le cas normal d'un
-   * référentiel bien rangé : le lot vide n'écrit aucune ligne, « à relire »
-   * reste vrai indéfiniment, et la relecture repart à chaque ouverture de
-   * l'Atelier pour rappeler le modèle et ne rien produire.
-   *
-   * `relectures_referentiel` enregistre le fait qu'une relecture a eu lieu,
-   * précisément pour qu'un lot vide soit une réponse et non une absence. Le
-   * déclencheur reste celui d'ADR-108 : la péremption d'une version de
-   * domaine, jamais un seuil de taille.
-   */
+  const candidats = candidatsDuContexte(ctx);
+  const dernierSignalStructure = signauxStructure.map((s) => s.creeLe).sort().at(-1) ?? null;
+  const derniereObservation = ctx.observationsEffectives.map((o) => o.date).sort().at(-1) ?? null;
+  const derniereObservationParCode = new Map<string, string>();
+  for (const observation of ctx.observationsEffectives) {
+    const precedente = derniereObservationParCode.get(observation.skillCode);
+    if (!precedente || observation.date > precedente) {
+      derniereObservationParCode.set(observation.skillCode, observation.date);
+    }
+  }
+  const inedite = (candidat: CandidatReferentiel) => {
+    const empreinte = empreinteProposition(contenuDuCandidat(candidat));
+    const memes = enregistrees.filter((p) => p.empreinte === empreinte);
+    if (memes.length === 0) return true;
+    if (memes.some((p) => p.arbitrage === null)) return false;
+    const refus = memes
+      .filter((p) => p.arbitrage?.decision === "refusee")
+      .map((p) => p.arbitrage!.date)
+      .sort()
+      .at(-1);
+    if (!refus) return false;
+    const horizon = candidat.genre === "dormance"
+      ? (derniereObservationParCode.get(candidat.code) ?? null)
+      : [dernierSignalStructure, derniereObservation]
+          .filter((date): date is string => date !== null)
+          .sort()
+          .at(-1) ?? null;
+    return horizon !== null && horizon > refus;
+  };
+  const structureDeterministe = [
+    ...candidats.aretes,
+    ...candidats.rangements,
+    ...candidats.reformulations,
+  ].some(inedite);
+  const maintenance = candidats.dormances.some(inedite);
+
+  const passages = franchissementsMaitriseCourants(
+    ctx.observationsEffectives,
+    ctx.referentiel.parCode,
+    ctx.now,
+  );
+  const maitrisesNouvelles = passages.filter((passage) =>
+    relectureDueApresSignal(passage.franchiLe, derniereProgression?.creeLe ?? null),
+  );
+  const intentionsNouvelles = [...new Set(signauxProgression.flatMap((signal) =>
+    signal.cause === "intention_moyen"
+      ? ["moyen" as const]
+      : signal.cause === "intention_long"
+        ? ["long" as const]
+        : [],
+  ))];
+
+  const besoins: BesoinsRelecture = {
+    structure: { tuteur: signauxStructure.length > 0, deterministe: structureDeterministe },
+    progression: {
+      due: maitrisesNouvelles.length > 0 || intentionsNouvelles.length > 0,
+      maitrisesNouvelles,
+      intentionsNouvelles,
+    },
+    maintenance,
+  };
   const relectureDue =
-    derniere === null || estPerimee({ versionsLues: derniere.versionsLues }, versions);
+    besoins.structure.tuteur ||
+    besoins.structure.deterministe ||
+    besoins.progression.due ||
+    besoins.maintenance;
+  const dernierLot = [derniereStructure, derniereProgression, derniereMaintenance]
+    .map((r) => r?.creeLe ?? null)
+    .filter((date): date is string => date !== null)
+    .sort()
+    .at(-1) ?? null;
 
-  return { propositions: ouvertes, relectureDue, dernierLot: derniere?.creeLe ?? null };
+  return { propositions: ouvertes, relectureDue, besoins, dernierLot };
 });
 
 /* ------------------------------------------------------------------ */
@@ -217,6 +309,11 @@ function contenuDuCandidat(candidat: CandidatReferentiel): ContenuProposition {
 export function composerEntreeRelecture(
   ctx: Contexte,
   elargissementActif: boolean,
+  selection: {
+    familles: Array<"structure" | "progression">;
+    maitrisesNouvelles: Array<{ code: string; intitule: string; franchiLe: string }>;
+    intentionsNouvelles: Array<"moyen" | "long">;
+  } = { familles: ["structure", "progression"], maitrisesNouvelles: [], intentionsNouvelles: [] },
 ): EntreeRelecture {
   const vivants = ctx.referentiel.domaines.filter((domaine) => !domaine.archive);
 
@@ -273,6 +370,7 @@ export function composerEntreeRelecture(
   }
 
   return {
+    familles: selection.familles,
     domaines,
     aClasser,
     relationsDeclarees,
@@ -283,6 +381,8 @@ export function composerEntreeRelecture(
       moyenTerme: ctx.donnees.user.objectifMoyenTerme,
       longTerme: ctx.donnees.user.objectifLongTerme,
     },
+    maitrisesNouvelles: selection.maitrisesNouvelles,
+    intentionsNouvelles: selection.intentionsNouvelles,
     elargissementActif,
   };
 }
@@ -307,6 +407,7 @@ export interface ResultatProductionLot {
   doublons: number;
   /** Ce qui a empêché le tuteur de contribuer. Les détecteurs, eux, aboutissent toujours. */
   erreurTuteur: string | null;
+  famillesAnalysees: FamilleRelecture[];
 }
 
 /**
@@ -324,11 +425,10 @@ export interface ResultatProductionLot {
  */
 export async function produireLot(
   moteur: MoteurTuteur | null,
-  options: { elargissementActif: boolean; signal?: AbortSignal },
+  options: { elargissementActif: boolean; besoins: BesoinsRelecture; signal?: AbortSignal },
 ): Promise<ResultatProductionLot> {
   const ctx = await chargerContexte();
   const enregistrees = await chargerPropositions();
-  const refusees = empreintesRefusees(enregistrees);
   const dejaOuvertes = new Set(
     lotOuvert(enregistrees, referentielLu(ctx), ctx.now).map((p) => p.empreinte),
   );
@@ -384,7 +484,7 @@ export async function produireLot(
     domainesLus: readonly (DomaineId | null)[],
   ) => {
     const empreinte = empreinteProposition(contenu);
-    if (refusees.has(empreinte) || dejaOuvertes.has(empreinte)) {
+    if (dejaOuvertes.has(empreinte)) {
       ecartees += 1;
       return;
     }
@@ -400,39 +500,44 @@ export async function produireLot(
     });
   };
 
-  /* --- 1. Les quatre détecteurs déterministes, inchangés --- */
+  const famillesAnalysees: FamilleRelecture[] = [];
 
-  const candidats = detecterCandidats({
-    referentiel: ctx.referentiel,
-    etats: ctx.etats,
-    observations: ctx.observationsEffectives,
-    exercices: ctx.donnees.exercises,
-    tentatives: ctx.donnees.attempts,
-    seances: ctx.donnees.sessions.map((s) => ({ date: s.date, skillCodes: s.skillCodes })),
-    now: ctx.now,
-  });
+  /* --- 1. Les détecteurs déterministes des seules familles dues --- */
 
-  for (const candidat of [
-    ...candidats.aretes,
-    ...candidats.rangements,
-    ...candidats.reformulations,
-    ...candidats.dormances,
-  ] as CandidatReferentiel[]) {
+  const candidats = candidatsDuContexte(ctx);
+
+  const candidatsDus: CandidatReferentiel[] = [
+    ...(options.besoins.structure.deterministe
+      ? [...candidats.aretes, ...candidats.rangements, ...candidats.reformulations]
+      : []),
+    ...(options.besoins.maintenance ? candidats.dormances : []),
+  ];
+  for (const candidat of candidatsDus) {
     const domaineId = domaineDuCandidat(candidat, ctx);
     ajouter(contenuDuCandidat(candidat), candidat.motifs, domaineId, [domaineId]);
   }
+  if (options.besoins.maintenance) famillesAnalysees.push("maintenance");
 
-  /* --- 2. Les trois genres du tuteur --- */
+  /* --- 2. Les genres du tuteur, filtrés par famille --- */
 
   let erreurTuteur: string | null = null;
 
-  if (moteur) {
+  const famillesTuteur: Array<"structure" | "progression"> = [];
+  if (options.besoins.structure.tuteur) famillesTuteur.push("structure");
+  if (options.besoins.progression.due) famillesTuteur.push("progression");
+
+  if (moteur && famillesTuteur.length > 0) {
     const resultat = await relireReferentiel(
       moteur,
-      composerEntreeRelecture(ctx, options.elargissementActif),
+      composerEntreeRelecture(ctx, options.elargissementActif, {
+        familles: famillesTuteur,
+        maitrisesNouvelles: options.besoins.progression.maitrisesNouvelles,
+        intentionsNouvelles: options.besoins.progression.intentionsNouvelles,
+      }),
       options.signal,
     );
     erreurTuteur = resultat.erreur;
+    if (resultat.erreur === null) famillesAnalysees.push(...famillesTuteur);
 
     for (const scission of resultat.lot.scissions) {
       const dejaLa = domaineVoisin(scission.nom, domainesVivants);
@@ -469,8 +574,24 @@ export async function produireLot(
       const domaines = [relation.amont.codeExistant, relation.aval.codeExistant].map((code) =>
         code ? (ctx.referentiel.parCode.get(code)?.domaine ?? null) : null,
       );
+      const sourceProgression = relation.sourceProgression?.type === "maitrise"
+        ? { type: "maitrise" as const, code: relation.sourceProgression.codeExistant }
+        : relation.sourceProgression?.type === "intention"
+          ? {
+              type: "intention" as const,
+              portee: relation.sourceProgression.portee,
+              valeurLue: relation.sourceProgression.portee === "moyen"
+                ? ctx.donnees.user.objectifMoyenTerme
+                : ctx.donnees.user.objectifLongTerme,
+            }
+          : undefined;
       ajouter(
-        { genre: "relation", amont: designee(relation.amont), aval: designee(relation.aval) },
+        {
+          genre: "relation",
+          amont: designee(relation.amont),
+          aval: designee(relation.aval),
+          ...(sourceProgression ? { sourceProgression } : {}),
+        },
         [relation.justification],
         domaines.find((d) => d !== null) ?? null,
         domaines,
@@ -508,14 +629,31 @@ export async function produireLot(
           intitule: manque.intitule,
           palier: manque.palier,
           ancrage: manque.ancrage,
+          sourceProgression: manque.sourceProgression.type === "maitrise"
+            ? { type: "maitrise", code: manque.sourceProgression.codeExistant }
+            : {
+                type: "intention",
+                portee: manque.sourceProgression.portee,
+                valeurLue: manque.sourceProgression.portee === "moyen"
+                  ? ctx.donnees.user.objectifMoyenTerme
+                  : ctx.donnees.user.objectifLongTerme,
+              },
         },
         [manque.ancrage, manque.justification],
         manque.domaineId,
         [manque.domaineId],
       );
     }
-  } else {
+  } else if (famillesTuteur.length > 0) {
     erreurTuteur = "Aucun moteur de tuteur disponible : seules les propositions calculées sont là.";
+  }
+
+  if (
+    options.besoins.structure.deterministe &&
+    !options.besoins.structure.tuteur &&
+    !famillesAnalysees.includes("structure")
+  ) {
+    famillesAnalysees.push("structure");
   }
 
   const lotId = randomUUID();
@@ -528,7 +666,16 @@ export async function produireLot(
    * quand bien même chaque proposition ne retient que les versions des
    * domaines qu'elle nomme.
    */
-  await inscrireRelecture(lotId, versions, aEcrire.length);
+  if (famillesAnalysees.length > 0) {
+    await inscrireRelecture(lotId, versions, aEcrire.length, [...new Set(famillesAnalysees)]);
+  }
 
-  return { lotId, enregistrees: aEcrire.length, ecartees, doublons, erreurTuteur };
+  return {
+    lotId,
+    enregistrees: aEcrire.length,
+    ecartees,
+    doublons,
+    erreurTuteur,
+    famillesAnalysees: [...new Set(famillesAnalysees)],
+  };
 }

@@ -22,8 +22,8 @@ import type { DomaineId } from "./types";
  *
  * - une proposition a une **identité stable**, l'empreinte, qui ne porte que ce
  *   qui est proposé et jamais la façon de le dire ;
- * - un **refus vaut pour tous les lots**, et pour toute reformulation de la
- *   même proposition ;
+ * - un refus masque son horizon, mais un fait nouveau peut rouvrir la même
+ *   proposition sans effacer l'historique ;
  * - une proposition sort du lot quand elle n'est **plus applicable**, jamais
  *   parce qu'une version a bougé (`estEncoreApplicable`, 24/08/2026) ;
  * - `estPerimee` survit, mais pour la seule question qui lui convient :
@@ -150,6 +150,7 @@ const REFERENTIEL: ReferentielLu = {
     { code: "LOG-01", intitule: "Lire un plan de flux", archive: false, prerequis: [], creeLe: "2026-01-01T09:00:00.000Z" },
     { code: "LOG-02", intitule: "Régler une boucle", archive: false, prerequis: [], creeLe: "2026-01-01T09:00:00.000Z" },
   ],
+  maitrisees: ["LOG-01"],
 };
 
 /** Le jour où ces lectures sont faites. */
@@ -203,7 +204,7 @@ describe("lotOuvert — ce qui reste à arbitrer", () => {
     expect(lotOuvert([proposition({ id: "a" })], apresUneAutreCommande, MAINTENANT)).toHaveLength(1);
   });
 
-  it("fait valoir un refus pour le lot suivant qui reproposerait la même chose", () => {
+  it("laisse revenir la même idée lorsqu'un nouveau lot est créé après le refus", () => {
     const ouvertes = lotOuvert(
       [
         proposition({
@@ -217,7 +218,7 @@ describe("lotOuvert — ce qui reste à arbitrer", () => {
       REFERENTIEL,
       MAINTENANT,
     );
-    expect(ouvertes).toHaveLength(0);
+    expect(ouvertes.map((p) => p.id)).toEqual(["meme-lot-2"]);
   });
 
   it("affiche une fois seulement une proposition portée par plusieurs lots valides", () => {
@@ -300,6 +301,7 @@ describe("estEncoreApplicable, genre par genre", () => {
       genre: "manque", domaineId: "logistique",
       intitule: "Dimensionner un supermarché de pièces",
       palier: "intermediaire", ancrage: "…",
+      sourceProgression: { type: "maitrise", code: "LOG-01" },
     } as const;
     expect(estEncoreApplicable(manque, REFERENTIEL, MAINTENANT)).toBe(true);
 
@@ -348,8 +350,51 @@ describe("estEncoreApplicable, genre par genre", () => {
       genre: "relation",
       amont: { code: "LOG-01", intitule: "A", palier: "fondamentaux" },
       aval: { intitule: "Pas encore au référentiel", palier: "avance" },
+      sourceProgression: { type: "maitrise", code: "LOG-01" },
     } as const;
     expect(estEncoreApplicable(relation, REFERENTIEL, MAINTENANT)).toBe(true);
+  });
+
+  it("retire une progression si la maîtrise qui l'ouvrait n'est plus vraie", () => {
+    const manque = {
+      genre: "manque",
+      domaineId: "logistique",
+      intitule: "Aller plus loin",
+      palier: "avance",
+      ancrage: "Maîtrise de LOG-01",
+      sourceProgression: { type: "maitrise", code: "LOG-01" },
+    } as const;
+    expect(estEncoreApplicable(manque, REFERENTIEL, MAINTENANT)).toBe(true);
+    expect(
+      estEncoreApplicable(manque, { ...REFERENTIEL, maitrisees: [] }, MAINTENANT),
+    ).toBe(false);
+  });
+
+  it("retire une progression si l'intention a changé depuis sa lecture", () => {
+    const manque = {
+      genre: "manque",
+      domaineId: "logistique",
+      intitule: "Planifier une production",
+      palier: "avance",
+      ancrage: "Objectif moyen terme",
+      sourceProgression: {
+        type: "intention",
+        portee: "moyen",
+        valeurLue: "Piloter une production",
+      },
+    } as const;
+    const initial = {
+      ...REFERENTIEL,
+      intentions: { moyenTerme: "Piloter une production", longTerme: "" },
+    };
+    expect(estEncoreApplicable(manque, initial, MAINTENANT)).toBe(true);
+    expect(
+      estEncoreApplicable(
+        manque,
+        { ...initial, intentions: { moyenTerme: "Préparer un concours", longTerme: "" } },
+        MAINTENANT,
+      ),
+    ).toBe(false);
   });
 });
 

@@ -69,6 +69,8 @@ export interface DomaineRelu {
 }
 
 export interface EntreeRelecture {
+  /** Seules ces familles peuvent sortir de l'appel, même si le modèle déborde. */
+  familles: readonly ("structure" | "progression")[];
   /** L'arbre des domaines vivants, avec ce que chacun porte. */
   domaines: readonly DomaineRelu[];
   /** Les compétences sans aucun tag — la zone « À classer » d'ADR-107. */
@@ -86,6 +88,9 @@ export interface EntreeRelecture {
   travailRecent: readonly { code: string; intitule: string; mobilisations: number }[];
   /** Les deux textes du profil, VERBATIM. Aucune extraction (ADR-096). */
   intentions: { moyenTerme: string; longTerme: string };
+  /** Les faits nouveaux autorisés comme source d'une proposition de progression. */
+  maitrisesNouvelles: readonly { code: string; intitule: string; franchiLe: string }[];
+  intentionsNouvelles: readonly ("moyen" | "long")[];
   /**
    * Le genre `manque` est-il ouvert ? Question ouverte n°2 d'ADR-108.
    *
@@ -139,12 +144,15 @@ export function construirePromptRelecture(entree: EntreeRelecture): string {
       ? `- à long terme : « ${entree.intentions.longTerme.trim()} »`
       : "- à long terme : rien d'écrit",
   ];
+  const maitrises = entree.maitrisesNouvelles.length > 0
+    ? entree.maitrisesNouvelles.map((m) => `- ${m.code} — ${m.intitule}`)
+    : ["- aucune maîtrise nouvelle pour cette relecture"];
 
   return [
     "Tu es le tuteur du système pédagogique. Tu relis un référentiel de compétences en entier et tu proposes comment il pourrait mieux se ranger, et où il pourrait s'étendre.",
     "",
     "TU N'APPLIQUES RIEN.",
-    "Chaque proposition s'affiche seule et la personne l'accepte ou la refuse. Rien n'est écrit sans son geste. Une proposition refusée ne revient jamais : mieux vaut n'en faire aucune que d'en faire une mal fondée.",
+    "Chaque proposition s'affiche seule et la personne l'accepte ou la refuse. Rien n'est écrit sans son geste. Un refus vaut pour l'horizon courant ; seul un fait nouveau de la même famille peut rouvrir l'idée. Mieux vaut n'en faire aucune que d'en faire une mal fondée.",
     "",
     "LES DOMAINES ET CE QU'ILS PORTENT",
     ...domaines,
@@ -164,6 +172,15 @@ export function construirePromptRelecture(entree: EntreeRelecture): string {
     "",
     "CE QU'ELLE A ÉCRIT VOULOIR",
     ...intentions,
+    "",
+    "LES MAÎTRISES NOUVELLEMENT FRANCHIES — aucun score, seulement le fait dérivé",
+    ...maitrises,
+    "",
+    `FAMILLES DEMANDÉES : ${entree.familles.join(", ")}. Les autres listes doivent être vides.`,
+    "Structure = ranger, relier ou rattacher ce qui existe. Progression = proposer une suite justifiée uniquement par une maîtrise nouvelle ou une intention nouvellement modifiée.",
+    "Une activité récente seule n'autorise jamais une proposition de progression.",
+    "Pour aller plus loin, cherche d'abord une compétence déjà présente qui forme une suite. Ne décris une compétence absente que si aucune existante ne convient.",
+    "Toute relation qui crée un côté et tout manque doit citer sourceProgression : soit une maîtrise de la liste, soit une portée d'intention signalée.",
     "",
     "CE QUE TU PROPOSES",
     "",
@@ -218,8 +235,8 @@ export function construirePromptRelecture(entree: EntreeRelecture): string {
     ...(entree.elargissementActif
       ? [
           "3. DES SAVOIR-FAIRE QUI MANQUENT (manques).",
-          "- Un savoir-faire absent du référentiel que le travail récent ou ce qu'elle a écrit vouloir suppose.",
-          "- L'ANCRAGE EST OBLIGATOIRE et doit CITER ce qui l'appelle : « vous avez travaillé N fois sur X », ou « vous avez écrit vouloir Y ». Sans cet ancrage, tu ne proposes pas un manque : tu écris un programme scolaire, et ce n'est pas ce qu'on te demande.",
+          "- Un savoir-faire absent du référentiel qu'une maîtrise nouvellement franchie ou une intention nouvellement modifiée appelle.",
+          "- L'ANCRAGE EST OBLIGATOIRE et doit citer exactement cette maîtrise ou cette intention. Le travail récent seul n'est pas un ancrage.",
           "- Reste proche. Si elle travaille le kanban, la méthode voisine de gestion de production est une bonne proposition ; la thermodynamique n'en est pas une.",
           "- Un savoir-faire OBSERVABLE, pas un sujet ni un titre de cours : « Dimensionner un supermarché de pièces », pas « Le lean manufacturing ».",
           "- RELIS LES INTITULÉS DÉJÀ AU RÉFÉRENTIEL avant d'en proposer un. Un savoir-faire déjà présent sous une autre formulation n'est pas un manque : le proposer dédoublerait ses observations. Il n'y a de manque que là où rien ne le dit.",
@@ -310,7 +327,12 @@ export async function relireReferentiel(
   await moteur.repondre({
     systemeStable: construirePromptRelecture(entree),
     systemeProfil: "",
-    outils: [outilsRelecture([...new Set(codesVivants)], domainesVivants)],
+    outils: [
+      outilsRelecture([...new Set(codesVivants)], domainesVivants, {
+        codesMaitrises: entree.maitrisesNouvelles.map((m) => m.code),
+        intentions: [...entree.intentionsNouvelles],
+      }),
+    ],
     messages: [
       {
         role: "user" as const,
@@ -348,10 +370,32 @@ export async function relireReferentiel(
    * `enum`. Un genre livré fermé doit l'être côté serveur, quoi que le modèle
    * réponde.
    */
-  const manques = entree.elargissementActif ? (lot?.manques ?? []) : [];
+  const structure = entree.familles.includes("structure");
+  const progression = entree.familles.includes("progression") && entree.elargissementActif;
+  const sourceAutorisee = (
+    source: PropositionRelecture["manques"][number]["sourceProgression"],
+  ) => source.type === "maitrise"
+    ? entree.maitrisesNouvelles.some((m) => m.code === source.codeExistant)
+    : entree.intentionsNouvelles.includes(source.portee);
+
+  const relations = (lot?.relations ?? []).filter((relation) => {
+    const cree = !relation.amont.codeExistant || !relation.aval.codeExistant;
+    if (!cree) return structure;
+    return progression && !!relation.sourceProgression && sourceAutorisee(relation.sourceProgression);
+  });
+  const manques = progression
+    ? (lot?.manques ?? []).filter((manque) => sourceAutorisee(manque.sourceProgression))
+    : [];
 
   return {
-    lot: lot ? { ...lot, manques } : LOT_VIDE,
+    lot: lot
+      ? {
+          scissions: structure ? lot.scissions : [],
+          relations,
+          manques,
+          rattachements: structure ? lot.rattachements : [],
+        }
+      : LOT_VIDE,
     outilsActifs,
     erreur,
   };

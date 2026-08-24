@@ -17,6 +17,7 @@ import { createServerClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { SUPABASE_ANON_KEY, SUPABASE_URL, supabaseConfigure } from "./config";
+import { fetchSupabase } from "./fetch";
 import { mesurer } from "@/lib/profiling/server";
 
 /**
@@ -35,6 +36,7 @@ export const createServeurClient = cache(async (): Promise<SupabaseClient | null
   const jar = await mesurer("cookies()", () => cookies());
 
   return createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: { fetch: fetchSupabase },
     cookies: {
       getAll() {
         return jar.getAll();

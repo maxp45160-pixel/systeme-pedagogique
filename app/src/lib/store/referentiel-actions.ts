@@ -14,6 +14,7 @@ import { revalidatePath } from "next/cache";
 import { dorsaleCompte } from "./db";
 import { verifier } from "./supabase-backend";
 import { lireReferentiel } from "./referentiel";
+import { inscrireDeclencheurDeclare } from "./declencheurs-relecture";
 import {
   nouvelIdCommande,
   preparerCreationDomaine,
@@ -71,6 +72,8 @@ export interface SoumissionBranche {
   description: string;
   competences: Array<{ intitule: string; palier: string; importance: string; prerequis?: string[] }>;
   origine?: OrigineReferentiel;
+  /** Les compétences réellement créées doivent-elles rouvrir le rangement ? */
+  signalerCroissanceReferentiel: boolean;
 }
 
 export interface ResultatBranche {
@@ -106,6 +109,11 @@ export async function creerBranche(soumission: SoumissionBranche): Promise<Resul
       (d) => d.nom.toLocaleLowerCase("fr-FR") === soumission.domaine.trim().toLocaleLowerCase("fr-FR"),
     )?.id;
   if (!domaineId) throw new Error(`Domaine introuvable : ${soumission.domaine}`);
+
+  const ajouts = (resultat?.codes ?? resultat?.ajoutees ?? []).length;
+  if (soumission.signalerCroissanceReferentiel) {
+    await inscrireDeclencheurDeclare("structure", "croissance_referentiel", ajouts);
+  }
 
   await rattacherAutomatiquement(domaineId, dejaAuReferentiel);
   return {
@@ -481,6 +489,7 @@ export async function appliquerRelationProposee(
       ],
       modifications: [],
       retraits: [],
+      signalerCroissanceReferentiel: true,
     });
     /* Un intitulé déjà pris a été dévié vers `dejaAuReferentiel` sans rien créer. */
     codeRelie = resultat.ajoutes[0] ?? resultat.dejaAuReferentiel[0]?.code ?? null;
@@ -514,6 +523,8 @@ export interface SoumissionRevision {
   ajouts: Array<{ intitule: string; palier: string; importance: string; prerequis?: string[] }>;
   modifications: Array<{ code: string; intitule?: string; palier?: string; importance?: string }>;
   retraits: string[];
+  /** Les compétences réellement créées doivent-elles rouvrir le rangement ? */
+  signalerCroissanceReferentiel: boolean;
 }
 
 export interface ResultatRevision {
@@ -531,6 +542,13 @@ export async function appliquerRevision(soumission: SoumissionRevision): Promise
   const resultat = commande
     ? await executerCommande(commande, referentiel, "tuteur", "Révision assistée relue et validée")
     : null;
+  if (soumission.signalerCroissanceReferentiel) {
+    await inscrireDeclencheurDeclare(
+      "structure",
+      "croissance_referentiel",
+      (resultat?.ajoutees ?? []).length,
+    );
+  }
   await rattacherAutomatiquement(soumission.domaineId, dejaAuReferentiel);
   return {
     ajoutes: resultat?.ajoutees ?? [],
@@ -675,8 +693,26 @@ export async function modifierProfil(champs: ModificationProfil): Promise<void> 
   if (champs.objectifLongTerme !== undefined) ligne.objectif_long_terme = champs.objectifLongTerme.trim();
   if (champs.preferencesPedagogiques !== undefined) ligne.preferences_pedagogiques = champs.preferencesPedagogiques.map((preference) => preference.trim()).filter(Boolean);
   if (Object.keys(ligne).length === 0) return;
+  const litIntentions =
+    champs.objectifMoyenTerme !== undefined || champs.objectifLongTerme !== undefined;
+  const { data: profil, error: erreurLecture } = litIntentions
+    ? await dorsale.supabase
+        .from("profiles")
+        .select("objectif_moyen_terme, objectif_long_terme")
+        .eq("id", dorsale.userId)
+        .single()
+    : { data: null, error: null };
+  verifier("lecture du profil avant modification", erreurLecture);
   const { error } = await dorsale.supabase.from("profiles").update(ligne).eq("id", dorsale.userId);
   verifier("modification du profil", error);
+  const moyen = champs.objectifMoyenTerme?.trim();
+  const long = champs.objectifLongTerme?.trim();
+  if (moyen !== undefined && moyen !== profil?.objectif_moyen_terme) {
+    await inscrireDeclencheurDeclare("progression", "intention_moyen");
+  }
+  if (long !== undefined && long !== profil?.objectif_long_terme) {
+    await inscrireDeclencheurDeclare("progression", "intention_long");
+  }
   revalidatePath("/", "layout");
 }
 

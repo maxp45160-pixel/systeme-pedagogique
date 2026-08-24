@@ -22,6 +22,7 @@ import { describe, expect, it } from "vitest";
 
 import { computeSkillState } from "./skill-state";
 import { estMaitrisee, evaluerMaitrise, evaluerMaitrises, NIVEAU_MAITRISE } from "./maitrise";
+import { franchissementsMaitriseCourants } from "./historique";
 import type { Dimension, Skill, SkillObservation } from "@/lib/domain/types";
 
 const MAINTENANT = new Date("2026-08-07T12:00:00.000Z");
@@ -156,6 +157,27 @@ describe("estMaitrisee — le prédicat", () => {
     const e = etat(observationsReellesDeb01());
     expect(e.niveau).toBeGreaterThanOrEqual(NIVEAU_MAITRISE);
     expect(estMaitrisee({ ...e, niveau: 5 })).toBe(true);
+  });
+});
+
+describe("franchissementsMaitriseCourants — le déclencheur dérivé", () => {
+  it("date l'observation qui fait réellement franchir la maîtrise", () => {
+    const observations = observationsReellesDeb01();
+    expect(
+      franchissementsMaitriseCourants(observations, new Map([[DEB_01.code, DEB_01]]), MAINTENANT),
+    ).toEqual([
+      { code: "DEB-01", intitule: DEB_01.intitule, franchiLe: observations[1].date },
+    ]);
+  });
+
+  it("retire le déclencheur après une observation contradictoire", () => {
+    const observations = [
+      ...observationsReellesDeb01(),
+      observation({ jours: 0, resultat: "echec", contexte: "Régression", dims: { comprehension: 0 } }),
+    ];
+    expect(
+      franchissementsMaitriseCourants(observations, new Map([[DEB_01.code, DEB_01]]), MAINTENANT),
+    ).toEqual([]);
   });
 });
 

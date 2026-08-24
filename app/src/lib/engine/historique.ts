@@ -19,6 +19,7 @@ import type {
 import { seanceALieu, tentativeDeSeance } from "@/lib/domain/seance";
 import { dureeRetenue } from "@/lib/domain/tentative";
 import { computeSkillState } from "./skill-state";
+import { estMaitrisee } from "./maitrise";
 import { cleJour, joursDepuis } from "./dates";
 
 /* ------------------------------------------------------------------ */
@@ -117,6 +118,50 @@ export function evenementsRecents(
 
   // Déjà du plus récent au plus ancien : le parcours part de la fin.
   return evenements;
+}
+
+export interface FranchissementMaitrise {
+  code: string;
+  intitule: string;
+  franchiLe: string;
+}
+
+/**
+ * Retrouve le dernier passage faux → vrai des compétences encore maîtrisées.
+ *
+ * La date n'est pas stockée : elle se reconstitue par rejeu, comme les paliers
+ * du journal. Une régression retire donc à la fois la maîtrise et le droit de
+ * pousser une proposition qui s'appuyait dessus.
+ */
+export function franchissementsMaitriseCourants(
+  observations: readonly SkillObservation[],
+  skillsParCode: ReadonlyMap<string, Skill>,
+  now: Date = new Date(),
+): FranchissementMaitrise[] {
+  const parCode = new Map<string, SkillObservation[]>();
+  for (const observation of [...observations].sort((a, b) => a.date.localeCompare(b.date))) {
+    const historique = parCode.get(observation.skillCode) ?? [];
+    historique.push(observation);
+    parCode.set(observation.skillCode, historique);
+  }
+
+  const passages: FranchissementMaitrise[] = [];
+  for (const [code, historique] of parCode) {
+    const skill = skillsParCode.get(code);
+    if (!skill || skill.archive) continue;
+    const courant = computeSkillState(skill, historique, now);
+    if (!estMaitrisee(courant)) continue;
+
+    let franchiLe: string | null = null;
+    for (let rang = 0; rang < historique.length; rang++) {
+      const avant = computeSkillState(skill, historique.slice(0, rang), now);
+      const apres = computeSkillState(skill, historique.slice(0, rang + 1), now);
+      if (!estMaitrisee(avant) && estMaitrisee(apres)) franchiLe = historique[rang].date;
+    }
+    if (franchiLe) passages.push({ code, intitule: skill.intitule, franchiLe });
+  }
+
+  return passages.sort((a, b) => b.franchiLe.localeCompare(a.franchiLe));
 }
 
 /* ------------------------------------------------------------------ */

@@ -9,6 +9,7 @@
 import { createBrowserClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { SUPABASE_ANON_KEY, SUPABASE_URL, supabaseConfigure } from "./config";
+import { fetchSupabase } from "./fetch";
 
 let cache: SupabaseClient | null = null;
 
@@ -16,6 +17,8 @@ export function createNavigateurClient(): SupabaseClient | null {
   if (!supabaseConfigure) return null;
   // Un seul client par onglet : `onAuthStateChange` ne doit pas être réabonné
   // à chaque rendu, sous peine de fuites d'abonnements.
-  cache ??= createBrowserClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  cache ??= createBrowserClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: { fetch: fetchSupabase },
+  });
   return cache;
 }

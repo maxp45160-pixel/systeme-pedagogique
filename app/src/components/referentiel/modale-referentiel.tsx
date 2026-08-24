@@ -269,6 +269,7 @@ export function ModaleReferentiel({
             description: b.description,
             competences: b.competences.filter((_, j) => garde[`c${i}-${j}`]),
             origine: "tuteur",
+            signalerCroissanceReferentiel: true,
           });
           if (res?.codes) {
             tousLesCodes.push(...res.codes);

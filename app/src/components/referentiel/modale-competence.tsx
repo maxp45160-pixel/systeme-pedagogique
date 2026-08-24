@@ -346,6 +346,7 @@ export function ModaleCompetence({
             importance: c.importance,
           })),
           origine: "tuteur",
+          signalerCroissanceReferentiel: true,
         });
 
         if (r.dejaAuReferentiel && r.dejaAuReferentiel.length > 0) {
@@ -397,6 +398,7 @@ export function ModaleCompetence({
             importance: l.importance,
           })),
           origine: "manuel",
+          signalerCroissanceReferentiel: true,
         });
 
         if (r.dejaAuReferentiel && r.dejaAuReferentiel.length > 0) {

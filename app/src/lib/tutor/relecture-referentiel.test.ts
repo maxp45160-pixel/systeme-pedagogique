@@ -23,7 +23,12 @@ import {
  * d'ADR-108.
  */
 
-const OUTILS = [outilsRelecture(["LOG-01", "LOG-02", "STA-01"], ["logistique", "stats"])];
+const OUTILS = [
+  outilsRelecture(["LOG-01", "LOG-02", "STA-01"], ["logistique", "stats"], {
+    codesMaitrises: ["LOG-01"],
+    intentions: ["moyen"],
+  }),
+];
 
 function valider(entree: unknown) {
   const recue = validerAppelOutil(OUTIL_RELECTURE, entree, OUTILS);
@@ -50,6 +55,7 @@ const MANQUE = {
   palier: "intermediaire",
   ancrage: "Tu as travaillé trois fois sur le pilotage des flux.",
   justification: "C'est le pas suivant après le kanban.",
+  sourceProgression: { type: "maitrise", codeExistant: "LOG-01" },
 };
 
 describe("outilsRelecture — ce que le schéma laisse exprimer", () => {
@@ -134,6 +140,7 @@ describe("validerRelecture — la seconde couche écarte l'inventé (ADR-031)", 
           amont: { ...DESIGNEE_EXISTANTE, codeExistant: "FAUX-99" },
           aval: { codeExistant: "STA-01", intitule: "Lire un tableau", palier: "fondamentaux" },
           justification: "L'un prépare l'autre.",
+          sourceProgression: { type: "maitrise", codeExistant: "LOG-01" },
         },
       ],
       manques: [],
@@ -297,6 +304,7 @@ describe("validerRelecture — la seconde couche écarte l'inventé (ADR-031)", 
 
 describe("construirePromptRelecture", () => {
   const base: EntreeRelecture = {
+    familles: ["structure", "progression"],
     domaines: [
       {
         id: "logistique",
@@ -309,6 +317,8 @@ describe("construirePromptRelecture", () => {
     relationsDeclarees: [{ amont: "LOG-01", aval: "STA-01" }],
     travailRecent: [{ code: "LOG-01", intitule: "Calculer un stock de sécurité", mobilisations: 3 }],
     intentions: { moyenTerme: "Piloter une production.", longTerme: "" },
+    maitrisesNouvelles: [],
+    intentionsNouvelles: [],
     elargissementActif: true,
   };
 
@@ -358,11 +368,14 @@ describe("relireReferentiel — aucune panne ne se déguise en silence", () => {
   }
 
   const entree: EntreeRelecture = {
+    familles: ["structure", "progression"],
     domaines: [],
     aClasser: [],
     relationsDeclarees: [],
     travailRecent: [],
     intentions: { moyenTerme: "", longTerme: "" },
+    maitrisesNouvelles: [],
+    intentionsNouvelles: [],
     elargissementActif: true,
   };
 
@@ -397,5 +410,35 @@ describe("relireReferentiel — aucune panne ne se déguise en silence", () => {
       { ...entree, elargissementActif: false },
     );
     expect(resultat.lot.manques).toHaveLength(0);
+  });
+
+  it("une relecture de structure ne laisse passer aucune création", async () => {
+    const resultat = await relireReferentiel(
+      moteurQuiEmet([
+        ["proposition", { genre: "relecture", relecture: {
+          scissions: [SCISSON], relations: [], manques: [MANQUE], rattachements: [],
+        } }],
+      ]),
+      {
+        ...entree,
+        familles: ["structure"],
+        maitrisesNouvelles: [{ code: "LOG-01", intitule: "Stock", franchiLe: "2026-08-24" }],
+      },
+    );
+    expect(resultat.lot.scissions).toHaveLength(1);
+    expect(resultat.lot.manques).toEqual([]);
+  });
+
+  it("une relecture de progression exige une source réellement nouvelle", async () => {
+    const resultat = await relireReferentiel(
+      moteurQuiEmet([
+        ["proposition", { genre: "relecture", relecture: {
+          scissions: [SCISSON], relations: [], manques: [MANQUE], rattachements: [],
+        } }],
+      ]),
+      { ...entree, familles: ["progression"], maitrisesNouvelles: [] },
+    );
+    expect(resultat.lot.scissions).toEqual([]);
+    expect(resultat.lot.manques).toEqual([]);
   });
 });

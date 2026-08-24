@@ -28,6 +28,7 @@ import {
   type PropositionReferentielRelue,
 } from "@/lib/domain/propositions-referentiel";
 import type { DomaineId } from "@/lib/domain/types";
+import type { FamilleRelecture } from "./declencheurs-relecture";
 
 /* ------------------------------------------------------------------ */
 /* Conversion                                                          */
@@ -186,6 +187,7 @@ export async function enregistrerLot(
 
 export interface RelectureInscrite {
   versionsLues: Readonly<Record<DomaineId, number>>;
+  familles: FamilleRelecture[];
   produites: number;
   creeLe: string;
 }
@@ -201,18 +203,21 @@ export interface RelectureInscrite {
  *
  * Un lot vide est une réponse. Cette lecture est ce qui permet de la lire.
  */
-export async function derniereRelecture(): Promise<RelectureInscrite | null> {
+export async function derniereRelecture(
+  famille?: FamilleRelecture,
+): Promise<RelectureInscrite | null> {
   const dorsale = await dorsaleCompte();
   const { data, error } = await dorsale.supabase
     .from("relectures_referentiel")
-    .select("versions_lues, produites, created_at")
+    .select("versions_lues, familles, produites, created_at")
     .eq("user_id", dorsale.userId)
+    .contains("familles", famille ? [famille] : [])
     .order("created_at", { ascending: false })
     .limit(1);
   verifier("lecture de la dernière relecture", error);
 
   const ligne = (data ?? [])[0] as
-    | { versions_lues: unknown; produites: number; created_at: string }
+    | { versions_lues: unknown; familles: unknown; produites: number; created_at: string }
     | undefined;
   if (!ligne) return null;
 
@@ -222,7 +227,13 @@ export async function derniereRelecture(): Promise<RelectureInscrite | null> {
       if (typeof valeur === "number" && Number.isFinite(valeur)) versions[cle] = valeur;
     }
   }
-  return { versionsLues: versions, produites: ligne.produites, creeLe: ligne.created_at };
+  const familles = Array.isArray(ligne.familles)
+    ? ligne.familles.filter(
+        (valeur): valeur is FamilleRelecture =>
+          valeur === "structure" || valeur === "progression" || valeur === "maintenance",
+      )
+    : [];
+  return { versionsLues: versions, familles, produites: ligne.produites, creeLe: ligne.created_at };
 }
 
 /** Inscrit qu'une relecture a eu lieu sur ces versions. Zéro produite est normal. */
@@ -230,6 +241,7 @@ export async function inscrireRelecture(
   lotId: string,
   versionsLues: Record<DomaineId, number>,
   produites: number,
+  familles: FamilleRelecture[],
 ): Promise<void> {
   const dorsale = await dorsaleCompte();
   const { error } = await dorsale.supabase.from("relectures_referentiel").insert({
@@ -237,6 +249,7 @@ export async function inscrireRelecture(
     id: lotId,
     versions_lues: versionsLues,
     produites,
+    familles,
   });
   verifier("inscription de la relecture", error);
 }

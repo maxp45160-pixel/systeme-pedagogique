@@ -5,11 +5,11 @@
  *
  * ## La question qu'ADR-108 laisse ouverte, et ce qui la tranche ici
  *
- * L'ADR dit *qu'*une relecture est due — la péremption —, pas *quand* la
+ * L'ADR disait *qu'*une relecture est due — la péremption —, pas *quand* la
  * lancer : « ouverture d'un domaine, tâche de fond après commande, ou bouton :
  * à trancher sur le coût observé, pas d'avance ». Maxime a tranché le
- * 22/08/2026 : à l'ouverture de l'Atelier si le référentiel a bougé, plus un
- * bouton explicite sur l'écran des propositions.
+ * 22/08/2026 : à l'ouverture de l'Atelier. Depuis le 24/08, « due » ne signifie
+ * plus « une version a bougé » : chaque famille attend son propre fait nouveau.
  *
  * ## Pourquoi ce composant ne rend rien
  *
@@ -23,8 +23,8 @@
  * C'est un refus explicite d'ADR-108 : « une création de compétence ne doit
  * jamais échouer parce qu'un fournisseur de modèle a mis quatre secondes ». Ce
  * composant vit dans le rendu d'une page de lecture, appelle une route séparée,
- * et n'entre dans aucune transaction de référentiel. Un échec ne se voit pas,
- * et c'est correct : rien n'a été demandé.
+ * et n'entre dans aucune transaction de référentiel. Si l'appel échoue, le fait
+ * reste acquis et la famille demeure due pour une tentative ultérieure.
  */
 
 import { useEffect, useRef } from "react";

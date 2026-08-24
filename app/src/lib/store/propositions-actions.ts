@@ -192,6 +192,7 @@ async function ecrireProposition(
         ],
         modifications: [],
         retraits: [],
+        signalerCroissanceReferentiel: true,
       });
       const code = revision.ajoutes[0] ?? revision.dejaAuReferentiel[0]?.code;
       if (!code) throw new Error(`La création de « ${manquante.intitule} » n'a rendu aucun code.`);
@@ -224,6 +225,7 @@ async function ecrireProposition(
         ajouts: [{ intitule: contenu.intitule, palier: contenu.palier, importance: "0.5" }],
         modifications: [],
         retraits: [],
+        signalerCroissanceReferentiel: true,
       });
       const domaine = referentiel.domainesParId.get(contenu.domaineId);
       return revision.ajoutes.length > 0

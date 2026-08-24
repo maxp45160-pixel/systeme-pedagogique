@@ -2818,12 +2818,17 @@ CREATE TABLE IF NOT EXISTS public.relectures_referentiel (
   -- Combien de propositions ce lot a produites. Zéro est une valeur normale,
   -- et c'est tout l'objet de cette table.
   produites     INTEGER NOT NULL DEFAULT 0 CHECK (produites >= 0),
+  familles      TEXT[] NOT NULL DEFAULT ARRAY['structure', 'progression', 'maintenance']::TEXT[]
+                 CHECK (cardinality(familles) > 0 AND familles <@ ARRAY['structure', 'progression', 'maintenance']::TEXT[]),
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (user_id, id)
 );
 
 COMMENT ON TABLE public.relectures_referentiel IS
   'Fait daté : une relecture du référentiel a eu lieu, sur ces versions (ADR-108). Permet à un lot VIDE d''être une réponse enregistrée plutôt qu''une relecture éternellement due. La péremption s''en dérive, elle ne s''y stocke pas.';
+
+COMMENT ON COLUMN public.relectures_referentiel.familles IS
+  'Familles effectivement analysées par ce lot. Un échec du tuteur ne consomme pas structure/progression.';
 
 CREATE INDEX IF NOT EXISTS relectures_referentiel_recentes_idx
   ON public.relectures_referentiel (user_id, created_at DESC);
@@ -2851,6 +2856,48 @@ GRANT SELECT, INSERT ON TABLE public.relectures_referentiel TO authenticated;
 -- Un fait daté ne se réécrit pas, et ne s'efface pas.
 REVOKE UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
   ON TABLE public.relectures_referentiel FROM authenticated;
+
+-- --------------------------------------------------------------------
+-- Déclencheurs déclarés qui autorisent une famille de relecture (ADR-108)
+--
+-- Une version de domaine bouge aussi quand une proposition est acceptée. Elle
+-- ne peut donc pas répondre à « la personne a-t-elle apporté de la matière
+-- nouvelle ? ». Cette table append-only porte ce fait déclaré, sans contenu
+-- pédagogique ni état dérivé.
+-- --------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS public.declencheurs_relecture_referentiel (
+  user_id    UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  id         UUID NOT NULL DEFAULT gen_random_uuid(),
+  famille    TEXT NOT NULL CHECK (famille IN ('structure', 'progression')),
+  cause      TEXT NOT NULL CHECK (cause IN ('croissance_referentiel', 'intention_moyen', 'intention_long')),
+  nombre     INTEGER NOT NULL CHECK (nombre > 0),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, id)
+);
+
+COMMENT ON TABLE public.declencheurs_relecture_referentiel IS
+  'Faits append-only déclarés : croissance du référentiel ou intention modifiée. La maîtrise reste dérivée et n entre pas ici.';
+
+CREATE INDEX IF NOT EXISTS declencheurs_relecture_referentiel_recents_idx
+  ON public.declencheurs_relecture_referentiel (user_id, famille, created_at DESC);
+
+ALTER TABLE public.declencheurs_relecture_referentiel ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "declencheurs_relecture_lecture_compte" ON public.declencheurs_relecture_referentiel;
+CREATE POLICY "declencheurs_relecture_lecture_compte" ON public.declencheurs_relecture_referentiel
+  FOR SELECT TO authenticated
+  USING ((select auth.uid()) = user_id AND (select public.compte_actif()));
+
+DROP POLICY IF EXISTS "declencheurs_relecture_insertion_compte" ON public.declencheurs_relecture_referentiel;
+CREATE POLICY "declencheurs_relecture_insertion_compte" ON public.declencheurs_relecture_referentiel
+  FOR INSERT TO authenticated
+  WITH CHECK ((select auth.uid()) = user_id AND (select public.compte_actif()));
+
+REVOKE ALL ON TABLE public.declencheurs_relecture_referentiel FROM anon;
+GRANT SELECT, INSERT ON TABLE public.declencheurs_relecture_referentiel TO authenticated;
+REVOKE UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
+  ON TABLE public.declencheurs_relecture_referentiel FROM authenticated;
 
 CREATE OR REPLACE FUNCTION public.scinder_domaine(
   p_request_id text,

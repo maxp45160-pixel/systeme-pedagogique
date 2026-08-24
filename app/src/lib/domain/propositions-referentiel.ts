@@ -193,14 +193,21 @@ export interface ContenuRattachement {
   domaineId: DomaineId;
 }
 
+/** Le fait courant qui justifie une proposition d'aller plus loin. */
+export type SourceProgression =
+  | { type: "maitrise"; code: string }
+  | { type: "intention"; portee: "moyen" | "long"; valeurLue: string };
+
 export interface ContenuRelation {
   genre: "relation";
   amont: CompetenceDesignee;
   aval: CompetenceDesignee;
+  /** Requis quand un côté reste à créer ; absent pour un lien entre existants. */
+  sourceProgression?: SourceProgression;
 }
 
 /**
- * Une compétence absente que le travail réel ou une intention déclarée suppose.
+ * Une compétence absente qu'une maîtrise nouvelle ou une intention modifiée suppose.
  *
  * Le genre le plus risqué d'ADR-108, et le seul qui **agrandit** le référentiel
  * au lieu de le ranger. `domaineId` dit où elle irait — toujours un domaine
@@ -213,6 +220,7 @@ export interface ContenuManque {
   palier: string;
   /** Ce qui, dans le travail réel ou les intentions, appelle cette compétence. */
   ancrage: string;
+  sourceProgression?: SourceProgression;
 }
 
 export type ContenuProposition =
@@ -337,6 +345,30 @@ export function versionsCourantes(
   return new Map(domaines.map((domaine) => [domaine.id, domaine.version]));
 }
 
+/**
+ * Une nouvelle analyse est-elle autorisée par un fait postérieur ?
+ *
+ * Les versions restent utiles pour figer l'état lu par une proposition, mais
+ * ne déclenchent plus une analyse : accepter une proposition les incrémente et
+ * fabriquait ainsi une boucle de suggestions. Seul un ajout explicitement
+ * déclaré par la personne rouvre la classification.
+ */
+export function relectureDueApresSignal(
+  dernierSignal: string | null,
+  derniereRelecture: string | null,
+): boolean {
+  if (dernierSignal === null) return false;
+
+  const signal = Date.parse(dernierSignal);
+  if (!Number.isFinite(signal)) return false;
+  if (derniereRelecture === null) return true;
+
+  const relecture = Date.parse(derniereRelecture);
+  // Une trace de relecture invalide ne prouve pas que l'ajout a été analysé.
+  if (!Number.isFinite(relecture)) return true;
+  return signal > relecture;
+}
+
 /* ------------------------------------------------------------------ */
 /* Applicabilité — la question que la version approximait mal          */
 /* ------------------------------------------------------------------ */
@@ -357,6 +389,33 @@ export interface ReferentielLu {
     /** `competences.created_at` — ce qui donne un âge à une dormance. */
     creeLe?: string;
   }[];
+  maitrisees?: readonly string[];
+  intentions?: { moyenTerme: string; longTerme: string };
+}
+
+export type FamilleProposition = "structure" | "progression" | "maintenance";
+
+export function familleProposition(contenu: ContenuProposition): FamilleProposition {
+  if (contenu.genre === "dormance") return "maintenance";
+  if (contenu.genre === "manque") return "progression";
+  if (contenu.genre === "relation" && (!contenu.amont.code || !contenu.aval.code)) {
+    return "progression";
+  }
+  return "structure";
+}
+
+function sourceProgressionApplicable(
+  source: SourceProgression | undefined,
+  referentiel: ReferentielLu,
+): boolean {
+  // Les anciennes propositions sans provenance restent en base mais ne peuvent
+  // plus pousser le référentiel : aucun fait courant ne permet de les défendre.
+  if (!source) return false;
+  if (source.type === "maitrise") return (referentiel.maitrisees ?? []).includes(source.code);
+  const valeur = source.portee === "moyen"
+    ? referentiel.intentions?.moyenTerme
+    : referentiel.intentions?.longTerme;
+  return source.valeurLue.trim().length > 0 && valeur === source.valeurLue;
 }
 
 /** Le même calcul d'identifiant que `slugifier`, sans importer le module. */
@@ -462,11 +521,12 @@ export function estEncoreApplicable(
       if (contenu.amont.code && !amont) return false;
       if (contenu.aval.code && !aval) return false;
       if (amont && aval) return !aval.prerequis.includes(amont.code);
-      return true;
+      return sourceProgressionApplicable(contenu.sourceProgression, referentiel);
     }
 
     case "manque": {
       if (!domaineVivant(contenu.domaineId)) return false;
+      if (!sourceProgressionApplicable(contenu.sourceProgression, referentiel)) return false;
       // Elle a été créée entre-temps, ici ou ailleurs : plus rien à proposer.
       const cherche = nu(contenu.intitule);
       return !referentiel.competences.some(
@@ -503,13 +563,22 @@ export function lotOuvert(
   referentiel: ReferentielLu,
   now: Date,
 ): PropositionReferentielRelue[] {
-  const refusees = empreintesRefusees(propositions);
+  const dernierRefus = new Map<string, string>();
+  for (const proposition of propositions) {
+    if (proposition.arbitrage?.decision !== "refusee") continue;
+    const precedent = dernierRefus.get(proposition.empreinte);
+    if (!precedent || proposition.arbitrage.date > precedent) {
+      dernierRefus.set(proposition.empreinte, proposition.arbitrage.date);
+    }
+  }
   const vues = new Set<string>();
   const ouvertes: PropositionReferentielRelue[] = [];
 
   for (const proposition of propositions) {
     if (proposition.arbitrage) continue;
-    if (refusees.has(proposition.empreinte)) continue;
+    // Un refus masque les occurrences de son horizon, pas une proposition
+    // reformulée après un fait nouveau. L'historique reste intact.
+    if ((dernierRefus.get(proposition.empreinte) ?? "") >= proposition.creeLe) continue;
     if (!estEncoreApplicable(proposition.contenu, referentiel, now)) continue;
     // Deux lots successifs peuvent porter la même proposition encore valide :
     // elle ne s'affiche qu'une fois.
@@ -521,11 +590,11 @@ export function lotOuvert(
 }
 
 /**
- * Les empreintes qu'une nouvelle relecture ne doit pas reproposer.
+ * Les empreintes déjà refusées, pour la mesure historique.
  *
- * Ce sont les refus, et eux seuls. Une proposition retenue ne revient pas non
- * plus, mais pour une autre raison : ce qu'elle proposait est désormais écrit,
- * et le détecteur qui la produisait ne la produit plus.
+ * Ce jeu ne sert plus de veto permanent à la production : un fait nouveau de
+ * la même famille ouvre un nouvel horizon. Il reste utile à l'analyse des
+ * arbitrages passés.
  */
 export function empreintesRefusees(
   propositions: readonly PropositionReferentielRelue[],

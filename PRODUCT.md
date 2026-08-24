@@ -447,20 +447,36 @@ domaines existants ; il n'en pose aucun.
 Les preuves et notes supportent le référentiel sans en devenir des entités ; les
 thèmes persistants ont été retirés (ADR-104).
 ❓ **Relecture du référentiel entier** (ADR-108, construit le 23/08 — statut
-inchangé, aucune donnée d'usage encore). Le référentiel est relu d'un tenant,
-hors du chemin d'écriture, et produit des propositions que la personne arbitre
-une à une : ranger ce qui existe (un domaine qui porte plusieurs sujets peut se
-découper en un clic), et élargir vers ce qui manque, ancré dans ce qui a été
-réellement travaillé ou déclaré vouloir. Rien ne s'écrit sans un geste ; une
-proposition refusée ne revient pas ; une proposition porte sur l'état lu et
-devient caduque quand cet état change. Depuis le 24/08/2026 (ADR-127), une
+inchangé). La relecture est désormais divisée en trois familles qui ne se
+déclenchent pas l'une l'autre : **structure** quand le référentiel grandit ou
+qu'un nouveau candidat déterministe apparaît ; **progression** quand une
+compétence franchit réellement la maîtrise ou qu'une intention explicite est
+modifiée ; **maintenance** quand un nouveau candidat de dormance apparaît.
+Une activité récente seule n'autorise jamais un élargissement. Accepter un
+rangement, un tag ou un lien ne relance donc pas la classification qui l'a
+produit ; créer réellement une compétence rouvre seulement son rangement.
+
+Les propositions de progression portent leur source structurée : code de la
+maîtrise, ou portée et valeur exacte de l'intention lue. Une régression, un
+archivage ou une intention modifiée les rend inapplicables sans effacer leur
+historique. Rien ne s'écrit sans un geste. Un refus vaut pour l'horizon courant,
+pas pour toujours : la même idée reste masquée tant qu'aucun fait nouveau de sa
+famille n'arrive, puis elle peut être reproposée. Les lots vides et les familles
+effectivement analysées sont datés séparément ; un échec du tuteur ne consomme
+pas le déclencheur et sera retenté. La migration
+`20260824170120_declenchement_relecture_sur_ajout_declare.sql` est appliquée en
+production depuis le 24/08/2026 (historique Supabase :
+`20260824173303_declenchement_relecture_par_famille`) ; la table de déclencheurs est append-only,
+isolée par RLS, et ne stocke aucun état de maîtrise dérivé.
+
+Depuis le 24/08/2026 (ADR-127), une
 proposition qui **redit ce qui existe déjà** — un domaine à créer sous un autre
 nom qu'un domaine vivant, une compétence à ajouter sous une autre formulation
 qu'une compétence vivante — est écartée **avant** d'atteindre l'écran, et le
 compte des écartées est rendu. Et un échec d'arbitrage s'affiche **avec son
 motif** : les messages du produit ne sont plus masqués par la rédaction des
-erreurs de Next. Le déclenchement reste la péremption
-jamais un seuil de taille ; l'élargissement est ouvert sur arbitrage explicite
+erreurs de Next. Le déclenchement repose sur des faits nouveaux par famille,
+jamais sur une version ou un seuil de taille ; l'élargissement est ouvert sur arbitrage explicite
 du 22/08/2026 et réversible en une ligne si sa rétention ne tient pas. Les
 propositions se signalent d'elles-mêmes, à deux endroits qui ne font pas
 doublon (ADR-118) : une pastille compte celles qui attendent, posée sur « Mes

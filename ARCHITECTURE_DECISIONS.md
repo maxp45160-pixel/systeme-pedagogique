@@ -1104,6 +1104,24 @@ Ce qui ne change **pas** :
 sur `getUser()`. La migration est donc sûre par construction : le pire cas
 est le comportement d'avant, jamais une vérification affaiblie.
 
+**Correction du 24/08/2026 — course Auth/Data API après rafraîchissement.**
+Un rafraîchissement de session a réussi à `17:49:59.364`, puis une des trois
+lectures parallèles de `lireReferentiel` a reçu vingt millisecondes après
+`PGRST303 — JWT issued at future`. Les deux autres lectures ont réussi, et la
+même route `competence_domaines` a répondu 200 moins d'une demi-seconde plus
+tard. L'horloge locale, comparée à UTC, n'était pas en cause : le défaut est
+une désynchronisation transitoire entre le nœud Auth qui émet `iat` et un nœud
+Data API qui le valide.
+
+`lib/supabase/fetch.ts` applique donc un repli au niveau transport : un seul
+réessai après 500 ms, uniquement sur `GET`/`HEAD`, uniquement si la réponse est
+401 avec le code `PGRST303` et le message exact `JWT issued at future`. Une
+écriture n'est jamais rejouée ; toute autre erreur remonte immédiatement ; un
+second échec remonte normalement. Le délai vient de l'incident mesuré (succès
+448 ms après l'échec), pas d'une politique générale de masquage des erreurs.
+Le même fetch est donné aux clients navigateur, serveur et proxy pour que le
+contrat ne dépende pas de la surface qui fait la lecture.
+
 **Conséquence assumée — l'arbitrage réel.** Un compte supprimé, banni ou
 déconnecté côté serveur conserve un jeton d'accès valide et non expiré
 jusqu'à son `exp` (durée configurée dans Auth › Sessions ; défaut Supabase :
@@ -2773,6 +2791,15 @@ déjà abaissé le niveau en amont.
 mécanisme qui sort la compétence de la file ; y ajouter un facteur de score le
 préempterait, sur zéro donnée. Et `estDue` la tient déjà silencieuse 8 à 16 fois
 plus longtemps (`spaced.ts`).
+
+**Révision du 24/08/2026, arbitrée par Maxime.** Le passage courant
+`non maîtrisée → maîtrisée` ouvre désormais la famille **progression** de la
+relecture d'ADR-108. Le passage et sa date restent dérivés par rejeu des
+observations ; aucune colonne n'est ajoutée. Le tuteur reçoit le code et
+l'intitulé de la maîtrise nouvellement franchie, jamais son score ni son
+niveau. Il doit chercher une suite déjà présente avant de décrire une
+compétence absente. Si une observation contradictoire retire la maîtrise, toute
+proposition encore ouverte qui la citait devient inapplicable à la lecture.
 
 🔬 **Déclencheur pour rouvrir** : si une compétence maîtrisée reste en tête de la
 file une semaine **après** son arbitrage, un facteur négatif — à l'image du −15
@@ -8335,9 +8362,11 @@ déjà déclarées et les intentions déclarées ; il rend un lot de proposition
 Il n'écrit rien. Chaque proposition s'arbitre séparément, et l'écriture passe
 par les commandes gouvernées d'[ADR-065](#adr-065).
 
-**Le déclencheur est la péremption, jamais un seuil de taille.** Une commande
-de référentiel validée incrémente `domaines.version` : c'est ce fait, déjà
-présent, qui rend une relecture périmée. Aucune constante à calibrer. Un
+**Le déclencheur est un fait nouveau de la famille, jamais un seuil de taille.**
+La version a servi de premier proxy, puis a été remplacée le 24/08 par les trois
+horizons décrits plus bas : croissance/observation pour `structure`, maîtrise
+ou intention modifiée pour `progression`, nouvelle dormance pour `maintenance`.
+Aucune constante à calibrer. Un
 domaine de quarante compétences homogènes ne doit rien déclencher, un domaine
 de neuf qui porte deux sujets distincts doit déclencher — la taille ne
 distingue pas ces deux cas, et un seuil qui les confond fabriquerait des
@@ -8360,7 +8389,7 @@ encore révélé.
 | `dormance`, `reformulation`, `rangement` | déterministe | inchangés (ADR-086, ADR-107) |
 | `scission` | tuteur | un ou plusieurs sous-domaines nommés, et les codes de chacun |
 | `relation` | tuteur (ADR-082) | prérequis et suites, à l'échelle du référentiel et non d'une fiche |
-| `manque` | tuteur, adossé au travail réel et aux intentions | une compétence absente que ce qui a été travaillé ou déclaré suppose |
+| `manque` | tuteur, adossé à une maîtrise nouvelle ou une intention modifiée | une compétence absente que ce nouveau fait suppose |
 
 **Les intentions entrent comme contexte, jamais comme mesure.** Les deux
 textes du profil sont transmis tels quels, sans extraction ni interprétation
@@ -8375,22 +8404,18 @@ domaines existants — modèle d'[ADR-043](#adr-043), [ADR-105](#adr-105) et
 identifiant de domaine, ni nœud de carte.
 
 **Une proposition est un fait daté, pas un calcul.** Elle est stockée avec la
-version du domaine ou du référentiel sur laquelle elle porte, et se périme
-d'elle-même dès que cette version bouge. Le précédent est [ADR-004](#adr-004) :
+version lue pour l'audit, mais son applicabilité se recalcule genre par genre
+contre l'état courant ; une version seule ne la masque plus. Le précédent est [ADR-004](#adr-004) :
 un contenu produit par le tuteur est un fait observé — « cet énoncé a été
 proposé le J » — et a sa place sur le disque sans contrevenir à P1. Ce qui
 reste interdit est de stocker l'**état dérivé** qu'elle décrit.
 
-**Un refus s'enregistre, et ne revient pas.** Sans cela, le lot se rallume à
-chaque ajout et cesse d'être lu au bout d'une semaine. Le dépôt a déjà ce
-mécanisme pour les recommandations (`refus_recommandations`, filtrage à la
-lecture) ; le filtrage s'en inspire tel quel — **pas** l'expiration. Le refus
-d'une proposition de structure ne porte aucun délai : décliner un exercice
-aujourd'hui ne dit rien de la semaine prochaine, décliner un découpage dit
-quelque chose de durable. En choisir une durée reviendrait à inventer un
-nombre que cette ADR ne donne pas.
+**Un refus s'enregistre et vaut pour l'horizon courant.** Il masque les lots
+déjà produits, sans durée arbitraire. Un fait nouveau de la même famille peut
+ouvrir un nouvel horizon et autoriser la même idée après la date du refus ;
+l'historique des deux arbitrages reste conservé.
 
-**Une surface unique.** Un écran des propositions, où les six genres arrivent
+**Une surface unique.** Un écran des propositions, où les huit genres arrivent
 ensemble. Ajouter un signal de plus sans surface le rendrait invisible comme
 les quatre premiers.
 
@@ -8458,22 +8483,22 @@ explicites — ils précèdent la construction) :
 
 | Question | Réponse retenue |
 |---|---|
-| Genre `manque` (« élargir ») | **Activé, et nourri aussi par le travail réellement fait**, pas seulement par les intentions déclarées. Écart assumé avec le texte ci-dessus, qui le livre désactivé et adossé aux seuls textes du profil. La demande d'origine est une lecture d'activité — « je vois que vous vous intéressez au kanban » — pas une lecture d'objectif. Le risque nommé reste entier et tenu par deux garde-fous : l'`ancrage` cité est obligatoire (la seconde couche de validation écarte tout manque sans lui), et le taux de rétention du genre se mesure dès le premier lot |
+| Genre `manque` (« élargir ») | **Activé.** L'arbitrage initial l'ouvrait aussi sur le travail récent ; la révision explicite du 24/08 le borne à une maîtrise nouvellement franchie ou une intention nouvellement modifiée. L'ancrage et sa source structurée sont obligatoires, puis relus à chaque affichage |
 | Surface | **Avis sobre sur le Bureau + écran dédié** (`/atelier/propositions`). Pas d'écran seul |
-| Déclenchement | **À l'ouverture si périmé (tâche de fond) + bouton « relire maintenant »**. Hors du chemin d'écriture |
+| Déclenchement | **À l'ouverture si une famille porte un fait nouveau + bouton explicite**. Hors du chemin d'écriture |
 
 **Ce qui existe au code :**
 
-- `lib/domain/propositions-referentiel.ts` — les types, l'empreinte, la
-  péremption dérivée, le lot ouvert, la rétention. Pur, sans persistance ;
+- `lib/domain/propositions-referentiel.ts` — les types, l'empreinte,
+  l'applicabilité et les horizons de refus, le lot ouvert, la rétention. Pur,
+  sans persistance ;
 - `lib/tutor/outils.ts` (`outilsRelecture`, `validerRelecture`) — le schéma à
   `enum` fermé et sa seconde couche de validation (ADR-031) ;
 - `lib/tutor/relecture-referentiel.ts` — le prompt et l'appel ; le drapeau
   d'élargissement y est réappliqué côté serveur après validation de schéma ;
-- `lib/store/propositions-referentiel.ts` et `lib/store/relecture-referentiel.ts`
-  — persistance des faits datés, assemblage du lot : les quatre détecteurs
-  déterministes inchangés, puis les trois genres du tuteur, moins les
-  empreintes refusées ;
+- `lib/store/declencheurs-relecture.ts`, `lib/store/propositions-referentiel.ts`
+  et `lib/store/relecture-referentiel.ts` — faits déclarés append-only,
+  relectures par famille et assemblage du lot ;
 - `app/api/referentiel/relecture/route.ts` — POST hors chemin d'écriture,
   dégradé en lot déterministe seul si aucun moteur n'est disponible ;
 - `lib/store/referentiel-actions.ts` (`scinderDomaine`) — l'identifiant
@@ -8690,12 +8715,67 @@ devra faire ses preuves comme eux.
 
 **Ce que cette correction ne fait pas :** monter le statut. ADR-108 reste ❓.
 
+### Révision du 24/08/2026 — trois familles, trois horizons
+
+**Origine.** Maxime constate que le système « grandit beaucoup plus vite que
+l'utilisateur a le temps de bosser » : accepter une proposition modifiait une
+version, la version rallumait une relecture complète, et le résultat de la
+relecture devenait sa propre matière. Il distingue ensuite deux gestes : quand
+le référentiel grandit, proposer de le ranger et de le relier ; quand une
+compétence est maîtrisée, proposer d'aller plus loin. Enfin, un refus à un
+instant T ne doit pas supprimer une idée de tout horizon.
+
+**Décision.** Une relecture n'est plus une boucle unique. Elle porte exactement
+une ou plusieurs familles effectivement analysées :
+
+| Famille | Fait qui l'ouvre | Ce qu'elle peut produire |
+|---|---|---|
+| `structure` | compétences réellement créées ; ou nouveau candidat déterministe issu d'observations | arête, rangement, reformulation, scission, rattachement, relation entre deux compétences existantes |
+| `progression` | passage dérivé à la maîtrise ; modification explicite de l'intention moyen ou long terme | compétence manquante, ou relation dont un côté reste à créer |
+| `maintenance` | nouveau candidat déterministe de dormance | mise de côté proposée |
+
+Une activité récente seule ne déclenche plus `progression`. Elle peut nourrir
+les détecteurs déterministes de `structure`, jamais un jugement de programme.
+Accepter une proposition ne rouvre jamais **sa propre famille**. Si une
+proposition de progression crée réellement une compétence, cette croissance
+peut ouvrir `structure` — un passage borné entre familles, pas une récursion.
+Un renommage, un tag, une arête ou une scission sans nouvelle compétence ne
+compte pas comme croissance.
+
+**Provenance et invalidation.** Tout `manque`, et toute `relation` qui crée un
+côté, porte une source structurée : `{ type: "maitrise", code }` ou
+`{ type: "intention", portee, valeurLue }`. La maîtrise courante et le texte du
+profil sont relus à chaque affichage. Régression, archivage ou changement de
+texte rendent la proposition inapplicable sans réécrire ni supprimer le fait
+historique. Les propositions anciennes sans source sont conservées mais ne
+peuvent plus pousser le référentiel.
+
+**Refus borné à un horizon.** Le refus continue de masquer toutes les
+occurrences déjà produites. Il n'est plus un veto éternel : un fait nouveau de
+la même famille autorise une nouvelle occurrence après la date du refus. La
+production n'efface rien ; `lotOuvert` compare les dates et l'historique garde
+les deux arbitrages. Pour un candidat déterministe, une nouvelle observation
+forme le nouvel horizon ; pour la dormance, il faut une observation ultérieure
+sur la compétence avant qu'une nouvelle dormance puisse revenir.
+
+**Persistance.** `declencheurs_relecture_referentiel` stocke uniquement les
+faits déclarés `croissance_referentiel`, `intention_moyen` et
+`intention_long`, en append-only et sous RLS. La maîtrise et les candidats
+déterministes restent dérivés. `relectures_referentiel.familles` nomme les
+familles réellement achevées ; une panne du tuteur ne les consomme pas. Les
+anciennes relectures valent pour les trois familles par défaut, afin de ne pas
+rejouer tout l'historique au déploiement. La migration
+`20260824170120_declenchement_relecture_sur_ajout_declare.sql` a été appliquée
+en production le 24/08/2026 après vérification de l'état réel (historique
+Supabase : `20260824173303_declenchement_relecture_par_famille`) ; RLS est actif
+sur les deux tables.
+
+**Ce que cette révision ne fait pas :** monter le statut. ADR-108 reste ❓ et
+ses taux de rétention restent à confronter à l'usage.
+
 ### Questions restant ouvertes
 
-1. **La fréquence réelle.** La péremption dit *qu'*une relecture est due, pas
-   *quand* la lancer. Ouverture d'un domaine, tâche de fond après commande, ou
-   bouton : à trancher sur le coût observé, pas d'avance.
-2. **Le genre `manque` est le plus risqué.** Proposer une compétence absente
+1. **Le genre `manque` est le plus risqué.** Proposer une compétence absente
    suppose de savoir ce que « X » exige — c'est un jugement de programme, pas
    une lecture du compte. Maxime l'a ouvert le 22/08/2026 (voir Mise en œuvre)
    ; il reste réversible à un coût d'une ligne (`ELARGISSEMENT_ACTIF`) si son

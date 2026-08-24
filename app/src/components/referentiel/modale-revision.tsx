@@ -208,6 +208,7 @@ export function ModaleRevision({
               importance: m.importance || undefined,
             })),
           retraits: p.retraits.filter((r) => garde[`r${r.code}`]).map((r) => r.code),
+          signalerCroissanceReferentiel: true,
         });
         onFermer();
         router.refresh();

@@ -1038,7 +1038,7 @@ export function outilsTagsCompetence(domainesVivants: string[]): OutilTuteur {
  *
  * ## Pourquoi un seul outil et non trois
  *
- * Les trois genres se contredisent utilement. Proposer un sous-domaine
+ * Les quatre genres du tuteur se contredisent utilement. Proposer un sous-domaine
  * « Gestion kanban » et proposer d'ajouter une compétence kanban sont deux
  * lectures du même signal ; les demander en trois appels séparés produirait
  * trois lots qui s'ignorent, et la personne arbitrerait trois fois la même
@@ -1063,6 +1063,10 @@ export function outilsTagsCompetence(domainesVivants: string[]): OutilTuteur {
 export function outilsRelecture(
   codesVivants: string[],
   domainesVivants: string[],
+  sourcesProgression: {
+    codesMaitrises: string[];
+    intentions: Array<"moyen" | "long">;
+  } = { codesMaitrises: [], intentions: [] },
 ): OutilTuteur {
   const codeExistant: SchemaJson =
     codesVivants.length > 0
@@ -1096,6 +1100,31 @@ export function outilsRelecture(
       palier: { type: "string", enum: [...PALIERS] },
     },
     required: ["intitule", "palier"],
+    additionalProperties: false,
+  };
+
+  const sourceProgression: SchemaJson = {
+    type: "object",
+    description:
+      "Le fait nouveau qui justifie d'aller plus loin. Utilise maitrise avec un code fourni, ou intention avec la portée fournie.",
+    properties: {
+      type: { type: "string", enum: ["maitrise", "intention"] },
+      codeExistant: sourcesProgression.codesMaitrises.length > 0
+        ? {
+            type: "string",
+            enum: sourcesProgression.codesMaitrises,
+            description: "Obligatoire avec type maitrise ; omis avec type intention.",
+          }
+        : { type: "string", description: "Aucune maîtrise nouvelle n'est disponible." },
+      portee: sourcesProgression.intentions.length > 0
+        ? {
+            type: "string",
+            enum: sourcesProgression.intentions,
+            description: "Obligatoire avec type intention ; omis avec type maitrise.",
+          }
+        : { type: "string", description: "Aucune intention nouvelle n'est disponible." },
+    },
+    required: ["type"],
     additionalProperties: false,
   };
 
@@ -1154,6 +1183,7 @@ export function outilsRelecture(
                 type: "string",
                 description: "Une phrase : pourquoi l'amont prépare l'aval.",
               },
+              sourceProgression,
             },
             required: ["amont", "aval", "justification"],
             additionalProperties: false,
@@ -1176,14 +1206,15 @@ export function outilsRelecture(
               ancrage: {
                 type: "string",
                 description:
-                  "Ce qui, dans le travail récent ou les intentions déclarées, appelle ce savoir-faire. Cite-le. Sans ancrage, ce n'est pas une proposition, c'est un programme.",
+                  "La maîtrise nouvellement franchie ou l'intention nouvellement modifiée qui appelle ce savoir-faire. Cite-la. Sans cet ancrage, ce n'est pas une proposition, c'est un programme.",
               },
               justification: {
                 type: "string",
                 description: "Une phrase : ce que cette compétence ouvrirait.",
               },
+              sourceProgression,
             },
-            required: ["domaineId", "intitule", "palier", "ancrage", "justification"],
+            required: ["domaineId", "intitule", "palier", "ancrage", "justification", "sourceProgression"],
             additionalProperties: false,
           },
         },
@@ -1632,6 +1663,7 @@ export interface PropositionRelecture {
     amont: { codeExistant?: string; intitule: string; palier: string };
     aval: { codeExistant?: string; intitule: string; palier: string };
     justification: string;
+    sourceProgression?: SourceProgressionProposee;
   }>;
   manques: Array<{
     domaineId: string;
@@ -1639,6 +1671,7 @@ export interface PropositionRelecture {
     palier: string;
     ancrage: string;
     justification: string;
+    sourceProgression: SourceProgressionProposee;
   }>;
   /** Une compétence existante à taguer dans un domaine existant (24/08/2026). */
   rattachements: Array<{
@@ -1647,6 +1680,10 @@ export interface PropositionRelecture {
     justification: string;
   }>;
 }
+
+export type SourceProgressionProposee =
+  | { type: "maitrise"; codeExistant: string }
+  | { type: "intention"; portee: "moyen" | "long" };
 
 /**
  * Une correction proposée, telle que l'outil la rend — tout en chaînes.
@@ -2368,6 +2405,22 @@ function validerRelecture(
 
   const connuCode = (code: string) => connus.codes.size === 0 || connus.codes.has(code);
   const connuDomaine = (id: string) => connus.domaines.size === 0 || connus.domaines.has(id);
+  const lireSourceProgression = (brut: unknown): SourceProgressionProposee | null => {
+    const o = objet(brut);
+    if (!o) return null;
+    const type = texte(o.type);
+    if (type === "maitrise") {
+      const codeExistant = texte(o.codeExistant);
+      return codeExistant && connuCode(codeExistant)
+        ? { type: "maitrise", codeExistant }
+        : null;
+    }
+    if (type === "intention") {
+      const portee = texte(o.portee);
+      return portee === "moyen" || portee === "long" ? { type: "intention", portee } : null;
+    }
+    return null;
+  };
 
   const scissions: PropositionRelecture["scissions"] = [];
   for (const brut of Array.isArray(entree.scissions) ? entree.scissions : []) {
@@ -2431,7 +2484,15 @@ function validerRelecture(
      * bouton « accepter » ne pourrait rien faire.
      */
     if (!amont.codeExistant && !aval.codeExistant) continue;
-    relations.push({ amont, aval, justification });
+    const cree = !amont.codeExistant || !aval.codeExistant;
+    const sourceProgression = cree ? lireSourceProgression(o.sourceProgression) : null;
+    if (cree && !sourceProgression) continue;
+    relations.push({
+      amont,
+      aval,
+      justification,
+      ...(sourceProgression ? { sourceProgression } : {}),
+    });
   }
 
   const manques: PropositionRelecture["manques"] = [];
@@ -2448,7 +2509,16 @@ function validerRelecture(
     // refuse.
     if (!domaineId || !intitule || !ancrage || !justification) continue;
     if (!connuDomaine(domaineId)) continue;
-    manques.push({ domaineId, intitule, palier: texte(o.palier), ancrage, justification });
+    const sourceProgression = lireSourceProgression(o.sourceProgression);
+    if (!sourceProgression) continue;
+    manques.push({
+      domaineId,
+      intitule,
+      palier: texte(o.palier),
+      ancrage,
+      justification,
+      sourceProgression,
+    });
   }
 
   /*
