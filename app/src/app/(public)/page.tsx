@@ -9,17 +9,19 @@ import {
   IconeLivre,
   IconeRecherche,
   IconeValide,
+  IconeEtudeDeCas,
 } from "@/components/ui/icones";
 import { BandeauMatieres } from "@/components/vitrine/bandeau-matieres";
 import { CarteExerciceDemo } from "@/components/vitrine/carte-exercice-demo";
 import { ComparaisonMoyenne } from "@/components/vitrine/comparaison-moyenne";
 import { EcritureAnimee } from "@/components/vitrine/ecriture-animee";
 import { Revelation } from "@/components/vitrine/revelation";
+import { SimulateurDiagnostic } from "@/components/vitrine/simulateur-diagnostic";
 
 export const metadata: Metadata = {
   title: "Système pédagogique — apprenez par la pratique, sachez où vous en êtes",
   description:
-    "Des exercices créés sur vos sujets, une évaluation honnête de ce que vous savez faire, et une prochaine action toujours claire. Pour étudiants et autodidactes.",
+    "Des exercices créés sur vos sujets, une évaluation honnête de ce que vous savez faire, et une prochaine action toujours claire. Pour étudiants, concours et autodidactes.",
   alternates: { canonical: "/" },
 };
 
@@ -118,8 +120,8 @@ export default async function PageAccueil() {
                 Créer mon compte
                 <IconeFleche className="size-4" />
               </Link>
-              <Link href="#boucle" className={classesLienBouton("secondaire")}>
-                Voir comment ça marche
+              <Link href="#test-direct" className={classesLienBouton("secondaire")}>
+                Essayer le simulateur
               </Link>
             </div>
             <p className="mt-5 font-mono text-xs text-texte-discret">
@@ -134,8 +136,30 @@ export default async function PageAccueil() {
 
       <BandeauMatieres />
 
+      {/* Simulateur interactif direct */}
+      <section id="test-direct" aria-labelledby="titre-test-direct" className="border-b border-bordure bg-surface/50 py-16 sm:py-20">
+        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="text-xs font-semibold uppercase tracking-widest text-primaire">
+              Faites le test sans inscription
+            </p>
+            <h2 id="titre-test-direct" className="mt-3 font-serif text-2xl font-medium tracking-tight text-texte sm:text-3xl">
+              Voyez comment le système évalue une réponse
+            </h2>
+            <p className="mt-4 text-base leading-relaxed text-texte-attenue">
+              Choisissez un domaine, répondez à une question de calibrage et observez
+              ce que le moteur en déduit immédiatement sur votre niveau, votre certitude et votre prochaine action.
+            </p>
+          </div>
+
+          <div className="mt-10">
+            <SimulateurDiagnostic />
+          </div>
+        </div>
+      </section>
+
       {/* Le geste quotidien */}
-      <section id="boucle" aria-labelledby="titre-boucle" className="border-y border-bordure bg-surface">
+      <section id="boucle" aria-labelledby="titre-boucle" className="border-b border-bordure bg-surface">
         <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6">
           <div className="mx-auto max-w-2xl text-center">
             <p className="text-xs font-semibold uppercase tracking-widest text-primaire">Le geste quotidien</p>
@@ -170,9 +194,9 @@ export default async function PageAccueil() {
               <p className="font-mono text-[0.6875rem] uppercase tracking-wide text-texte-discret">Étape 1</p>
               <h3 className="mt-1 font-serif text-lg font-medium text-texte">Dites ce que vous visez</h3>
               <p className="mt-2 text-sm leading-relaxed text-texte-attenue">
-                Un examen, un chapitre, une langue. Votre sujet est découpé en
-                choses précises : « écrire au subjonctif », pas « être bon en
-                espagnol ».
+                Un examen, un concours, une langue. Votre sujet est découpé en
+                notions précises : « dériver une composée », pas « être bon en
+                maths ».
               </p>
             </Revelation>
 
@@ -222,8 +246,80 @@ export default async function PageAccueil() {
         </div>
       </section>
 
+      {/* Tableau comparatif : Méthode classique vs Système pédagogique */}
+      <section aria-labelledby="titre-comparatif" className="border-b border-bordure bg-fond">
+        <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6">
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="text-xs font-semibold uppercase tracking-widest text-primaire">
+              Changer de méthode
+            </p>
+            <h2 id="titre-comparatif" className="mt-3 font-serif text-2xl font-medium tracking-tight text-texte sm:text-3xl">
+              Pourquoi la révision passive vous fait perdre du temps
+            </h2>
+            <p className="mt-4 text-base leading-relaxed text-texte-attenue">
+              La plupart des approches récompensent le temps passé ou le confort de relecture.
+              Ici, seule la capacité démontrée compte.
+            </p>
+          </div>
+
+          <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div className="rounded-carte border border-alerte/30 bg-alerte/5 p-6 sm:p-8">
+              <h3 className="font-serif text-lg font-medium text-texte">
+                Les révisions habituelles
+              </h3>
+              <ul className="mt-4 space-y-4 text-sm text-texte-attenue">
+                <li className="flex items-start gap-3">
+                  <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-alerte" />
+                  <span>
+                    <b className="font-medium text-texte">Illusion de maîtrise</b> : relire des fiches surlignées donne l&apos;impression de savoir, sans jamais tester la restitution active.
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-alerte" />
+                  <span>
+                    <b className="font-medium text-texte">Moyenne punitive</b> : aborder un nouveau chapitre fait chuter votre note globale, ce qui décourage la progression.
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-alerte" />
+                  <span>
+                    <b className="font-medium text-texte">Flou avant l&apos;examen</b> : impossible de savoir précisément quel point de détail fera défaut le jour J.
+                  </span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="rounded-carte border border-valide/30 bg-valide/5 p-6 sm:p-8">
+              <h3 className="font-serif text-lg font-medium text-texte">
+                Avec le Système pédagogique
+              </h3>
+              <ul className="mt-4 space-y-4 text-sm text-texte-attenue">
+                <li className="flex items-start gap-3">
+                  <IconeValide className="mt-0.5 size-4 shrink-0 text-valide" />
+                  <span>
+                    <b className="font-medium text-texte">Mesure par la preuve</b> : seul un exercice résolu prouve votre niveau. Vos acquis sont fondés sur des observations datées.
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <IconeValide className="mt-0.5 size-4 shrink-0 text-valide" />
+                  <span>
+                    <b className="font-medium text-texte">Progression cumulative</b> : explorer une nouvelle matière n&apos;abaisse jamais le score de ce que vous maîtrisez déjà.
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <IconeValide className="mt-0.5 size-4 shrink-0 text-valide" />
+                  <span>
+                    <b className="font-medium text-texte">Action utile immédiate</b> : en ouvrant l&apos;application, le moteur sait déjà quel exercice vous fera progresser le plus vite.
+                  </span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* La fin des moyennes qui punissent */}
-      <section id="mesure" aria-labelledby="titre-mesure">
+      <section id="mesure" aria-labelledby="titre-mesure" className="border-b border-bordure">
         <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6">
           <div className="max-w-2xl">
             <p className="text-xs font-semibold uppercase tracking-widest text-primaire">
@@ -246,7 +342,7 @@ export default async function PageAccueil() {
       </section>
 
       {/* Tableau de bord par matière */}
-      <section id="matieres" aria-labelledby="titre-matieres" className="border-y border-bordure bg-surface">
+      <section id="matieres" aria-labelledby="titre-matieres" className="border-b border-bordure bg-surface">
         <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6">
           <div className="mx-auto max-w-2xl text-center">
             <p className="text-xs font-semibold uppercase tracking-widest text-primaire">Votre tableau de bord</p>
@@ -315,7 +411,7 @@ export default async function PageAccueil() {
       </section>
 
       {/* Absents volontairement */}
-      <section aria-labelledby="titre-absents">
+      <section aria-labelledby="titre-absents" className="border-b border-bordure">
         <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6">
           <div className="mx-auto max-w-2xl text-center">
             <p className="text-xs font-semibold uppercase tracking-widest text-primaire">Absents volontairement</p>
@@ -346,36 +442,57 @@ export default async function PageAccueil() {
         </div>
       </section>
 
-      {/* Deux publics */}
-      <section aria-labelledby="titre-publics" className="border-y border-bordure bg-surface">
+      {/* Trois publics */}
+      <section aria-labelledby="titre-publics" className="border-b border-bordure bg-surface">
         <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6">
           <div className="mx-auto max-w-2xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-widest text-primaire">Deux façons d&apos;arriver ici</p>
+            <p className="text-xs font-semibold uppercase tracking-widest text-primaire">Trois profils d&apos;usage</p>
             <h2 id="titre-publics" className="mt-3 font-serif text-2xl font-medium tracking-tight text-texte sm:text-3xl">
-              Vous apprenez seul, ou presque
+              À chacun son cadre d&apos;apprentissage
             </h2>
           </div>
 
-          <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-2">
+          <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-3">
             <Link href="/etudiants" className="group block">
               <section className="h-full rounded-carte border border-bordure bg-fond p-6 transition-all hover:-translate-y-0.5 hover:border-bordure-forte hover:shadow-levee">
                 <span className="flex size-11 items-center justify-center rounded-lg bg-primaire-faible text-primaire">
                   <IconeLivre className="size-5" />
                 </span>
                 <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-texte-discret">
-                  Vous êtes étudiant
+                  Étudiants & Université
                 </p>
                 <h3 className="mt-1 font-serif text-xl font-medium text-texte">
                   Savoir quel chapitre fait illusion
                 </h3>
                 <p className="mt-3 text-sm leading-relaxed text-texte-attenue">
-                  Trois semaines avant l&apos;examen, la vraie question n&apos;est
-                  pas « est-ce que j&apos;ai tout relu » mais « qu&apos;est-ce que
+                  Trois semaines avant l&apos;examen, la vraie question est « qu&apos;est-ce que
                   je sais faire sans regarder ». Une fiche relue quatre fois ne
                   répond pas à ça. Un exercice, oui.
                 </p>
                 <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-primaire">
-                  Ce que ça change pour vos révisions
+                  Ce que ça change pour vos partiels
+                  <IconeFleche className="size-4 transition-transform group-hover:translate-x-0.5" />
+                </span>
+              </section>
+            </Link>
+
+            <Link href="/concours" className="group block">
+              <section className="h-full rounded-carte border border-bordure bg-fond p-6 transition-all hover:-translate-y-0.5 hover:border-bordure-forte hover:shadow-levee">
+                <span className="flex size-11 items-center justify-center rounded-lg bg-primaire-faible text-primaire">
+                  <IconeEtudeDeCas className="size-5" />
+                </span>
+                <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-texte-discret">
+                  Concours & Épreuves
+                </p>
+                <h3 className="mt-1 font-serif text-xl font-medium text-texte">
+                  Réviser avec une date fixe
+                </h3>
+                <p className="mt-3 text-sm leading-relaxed text-texte-attenue">
+                  IFSI, concours administratifs ou écoles : arbitrez vos révisions
+                  selon la date de l&apos;épreuve et mesurez votre autonomie en conditions réelles.
+                </p>
+                <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-primaire">
+                  Préparer votre concours sans fioriture
                   <IconeFleche className="size-4 transition-transform group-hover:translate-x-0.5" />
                 </span>
               </section>
@@ -387,14 +504,14 @@ export default async function PageAccueil() {
                   <IconeRecherche className="size-5" />
                 </span>
                 <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-texte-discret">
-                  Vous apprenez seul
+                  Autodidactes & Reconversion
                 </p>
-                <h3 className="mt-1 font-serif text-xl font-medium text-texte">Sortir de la pile de tutos</h3>
+                <h3 className="mt-1 font-serif text-xl font-medium text-texte">
+                  Sortir de la pile de tutoriels
+                </h3>
                 <p className="mt-3 text-sm leading-relaxed text-texte-attenue">
-                  Au quinzième tuto, impossible de dire ce qui est acquis et ce
-                  qui a seulement été regardé. Ici, ce que vous savez faire se
-                  mesure à ce que vous faites — maths, langues, ou n&apos;importe
-                  quel sujet que vous choisissez.
+                  Au quinzième tuto, impossible de dire ce qui est acquis. Ici, ce que
+                  vous savez faire se mesure par la pratique, sur n&apos;importe quel sujet.
                 </p>
                 <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-primaire">
                   Apprendre sans avancer à l&apos;aveugle

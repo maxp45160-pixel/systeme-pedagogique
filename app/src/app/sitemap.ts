@@ -28,6 +28,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     entree("/", 1.0, "weekly"),
     entree("/methode", 0.9, "monthly"),
     entree("/etudiants", 0.9, "monthly"),
+    entree("/concours", 0.9, "monthly"),
     entree("/autodidactes", 0.9, "monthly"),
     entree("/login", 0.5, "monthly"),
   ];
