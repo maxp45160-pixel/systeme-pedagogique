@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { chargerContexte } from "@/lib/store/context";
 import { compteCourant } from "@/lib/supabase/server";
 import { resoudreIdentite } from "@/lib/domain/identite";
+import { genererBilanMarkdown } from "@/lib/domain/export-bilan";
 import { SqueletteContenu } from "@/components/layout/squelette";
 import { resumeCarriere } from "@/lib/engine/carriere";
 import { resumeCroissance } from "@/lib/engine/croissance";
@@ -21,6 +22,7 @@ import { ComparaisonDomaines } from "@/components/progression/comparaison-domain
 import { TopCompetences } from "@/components/progression/top-competences";
 import { BilanCroissanceLie } from "@/components/progression/bilan-croissance-lie";
 import { FiltreDomaines } from "@/components/progression/filtre-domaines";
+import { ModaleExportBilan } from "@/components/progression/modale-export-bilan";
 import { Glossaire } from "@/components/ui/glossaire";
 import { libelleMesureLisible } from "@/lib/ui/mesures-lisibles";
 
@@ -61,15 +63,9 @@ export default async function PageProgression(props: {
   const recherche = await props.searchParams;
 
   return (
-    <>
-      <EntetePage
-        titre="Progression"
-        sousTitre="Ce que vos exercices disent de votre niveau — et ce qu'ils ne disent pas encore."
-      />
-      <Suspense fallback={<SqueletteContenu />}>
-        <ContenuProgression filtreDemande={recherche.domaine} />
-      </Suspense>
-    </>
+    <Suspense fallback={<SqueletteContenu />}>
+      <ContenuProgression filtreDemande={recherche.domaine} />
+    </Suspense>
   );
 }
 
@@ -96,16 +92,57 @@ async function ContenuProgression({ filtreDemande }: { filtreDemande?: string })
     ctx.referentiel.skills.map((skill) => [skill.code, skill.intitule]),
   );
 
+  const carriere = resumeCarriere({
+    sessions: ctx.donnees.sessions,
+    tentatives: ctx.donnees.attempts,
+    observations: ctx.observationsEffectives,
+    now: ctx.now,
+  });
+
+  const donneesExport = {
+    identite,
+    dateExport: ctx.now,
+    scoreGlobal: ctx.global.scoreGlobal,
+    nombreCompetences: ctx.referentiel.actifs.length,
+    nombreExercices: carriere.exercicesMenes,
+    joursActifs: carriere.joursActifsTotal,
+    etats: ctx.etats,
+    skillsParCode: ctx.referentiel.parCode,
+    engagements: ctx.donnees.engagements,
+  };
+
+  const bilanMarkdown = genererBilanMarkdown(donneesExport);
+
+  const dateFormatee = ctx.now.toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
   return (
-    <div className="space-y-8 [&>*]:min-w-0">
-      <FiltreDomaines domaines={domainesDuFiltre} />
-      <VueGlobale
-        ctx={ctx}
-        identite={identite}
-        intitules={intitules}
+    <>
+      <EntetePage
+        titre="Progression"
+        sousTitre="Ce que vos exercices disent de votre niveau — et ce qu'ils ne disent pas encore."
+        actions={
+          <ModaleExportBilan
+            donnees={donneesExport}
+            bilanMarkdown={bilanMarkdown}
+            nomApprenant={identite?.nom}
+            dateExport={dateFormatee}
+          />
+        }
       />
-      <Glossaire />
-    </div>
+      <div className="space-y-8 [&>*]:min-w-0">
+        <FiltreDomaines domaines={domainesDuFiltre} />
+        <VueGlobale
+          ctx={ctx}
+          identite={identite}
+          intitules={intitules}
+        />
+        <Glossaire />
+      </div>
+    </>
   );
 }
 

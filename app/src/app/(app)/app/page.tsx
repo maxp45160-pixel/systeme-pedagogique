@@ -11,7 +11,7 @@ import { CarteProchaineAction } from "@/components/dashboard/prochaine-action";
 import { PistesAlternatives } from "@/components/dashboard/pistes-alternatives";
 import { AvisPropositions } from "@/components/dashboard/avis-propositions";
 import { MiniActivite } from "@/components/dashboard/mini-activite";
-import { IconeCours, IconeFleche } from "@/components/ui/icones";
+import { IconeCalendrier, IconeCours, IconeFleche } from "@/components/ui/icones";
 import { BandeauInfo, classesLienBouton } from "@/components/ui/primitives";
 import { AbandonnerExerciceCarte } from "@/components/dashboard/abandonner-exercice-carte";
 import { statutSeance } from "@/lib/domain/seance";
@@ -25,6 +25,13 @@ import { DashboardTour } from "@/components/onboarding/dashboard-tour";
 import { BoutonIntentionDashboard } from "@/components/intention/bouton-intention";
 import { CarteEcheances } from "@/components/dashboard/carte-echeances";
 import { BoutonEcheance } from "@/components/dashboard/bouton-echeance";
+import { BandeauRepriseBienveillante } from "@/components/dashboard/bandeau-reprise-bienveillante";
+import {
+  estOuvert,
+  joursRestants,
+  libelleCompte,
+  triParUrgence,
+} from "@/lib/domain/engagement";
 
 export default async function TableauDeBord(props: {
   searchParams: Promise<{ temps?: string; capacite?: string; explication?: string }>;
@@ -89,6 +96,21 @@ async function ContenuTableauDeBord({
   );
   const aucuneObservation = ctx.global.nombreObservations === 0;
 
+  // Détection du temps d'inactivité pour l'accueil bienveillant
+  let joursSansActivite = 0;
+  if (activite.derniereSeance) {
+    const diffMs = ctx.now.getTime() - new Date(activite.derniereSeance).getTime();
+    joursSansActivite = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+  }
+
+  // Échéance prioritaire la plus proche
+  const engagementsOuverts = triParUrgence(
+    ctx.donnees.engagements.filter(estOuvert),
+  );
+  const echeanceProche = engagementsOuverts.find(
+    (e) => joursRestants(e.echeanceLe, ctx.now) >= 0 && joursRestants(e.echeanceLe, ctx.now) <= 30,
+  );
+
   const seancesActives = [...ctx.donnees.sessions]
     .filter((seance) => statutSeance(seance) === "en-cours")
     .sort((a, b) => b.date.localeCompare(a.date));
@@ -118,6 +140,7 @@ async function ContenuTableauDeBord({
     .sort((a, b) => a.depuis - b.depuis);
 
   const recommandationsFile = action?.kind === "exercice" ? action.recommandations : ctx.recommandations;
+  const premiereRecommandation = recommandationsFile[0];
 
   /*
    * La pastille annonce des EXERCICES, elle doit donc en compter — pas les
@@ -133,14 +156,24 @@ async function ContenuTableauDeBord({
       {explicationEnregistree && (
         <BandeauInfo ton="succes" className="justify-between gap-3">
           <span>
-            <strong className="font-semibold">Explication enregistrée.</strong> Un résultat de compréhension a été ajouté à votre suivi.
+            <strong className="font-semibold">Explication enregistrée.</strong> Une observation de compréhension a été ajoutée à votre suivi.
           </span>
           <Link href="/app" className="shrink-0 font-medium text-primaire hover:underline">
             Fermer
           </Link>
         </BandeauInfo>
       )}
-      {/* En-tête épuré avec résumé de progression intégré */}
+
+      {/* Accueil bienveillant après interruption */}
+      <BandeauRepriseBienveillante
+        userId={ctx.donnees.user.id}
+        joursSansActivite={joursSansActivite}
+        nombreCompetencesActives={ctx.referentiel.actifs.length}
+        recommandationCode={premiereRecommandation?.etat.skill.code}
+        recommandationTitre={premiereRecommandation?.etat.skill.intitule}
+      />
+
+      {/* En-tête épuré avec résumé de progression intégré & échéance proche */}
       <div className="flex flex-wrap items-end justify-between gap-3 border-b border-bordure/40 pb-2.5">
         <div className="min-w-0">
           <div className="font-serif text-xs italic text-texte-discret">{dateJour}</div>
@@ -152,30 +185,45 @@ async function ContenuTableauDeBord({
           </p>
         </div>
 
-        <Link
-          href="/progression"
-          className="group flex flex-wrap items-center gap-2.5 rounded-full border border-bordure bg-surface px-3.5 py-1.5 text-xs text-texte-attenue shadow-xs transition-colors hover:border-primaire/40 hover:text-texte"
-          title="Voir le détail de ma progression"
-        >
-          {aucuneObservation ? (
-            <span className="font-medium text-texte">Premier repère à construire</span>
-          ) : (
-            <>
+        <div className="flex flex-wrap items-center gap-2">
+          {echeanceProche && (
+            <Link
+              href="#carte-echeances"
+              className="flex items-center gap-2 rounded-full border border-primaire/40 bg-primaire-faible px-3.5 py-1.5 text-xs text-primaire transition-colors hover:bg-primaire/15"
+              title={`Échéance : ${echeanceProche.libelle}`}
+            >
+              <IconeCalendrier className="size-3.5" />
               <span>
-                <strong className="font-medium text-texte">{ctx.referentiel.actifs.length}</strong> compétences
+                <strong className="font-medium text-texte">{echeanceProche.libelle}</strong> : {libelleCompte(joursRestants(echeanceProche.echeanceLe, ctx.now))}
               </span>
-              <span className="text-bordure-contraste" aria-hidden>·</span>
-            </>
+            </Link>
           )}
-          <span>
-            <strong className="font-medium text-texte">{exercicesTravailles}</strong> exercice{exercicesTravailles > 1 ? "s" : ""}
-          </span>
-          <span className="text-bordure-contraste" aria-hidden>·</span>
-          <span>
-            <strong className="font-medium text-texte">{activite.joursActifs30}</strong>/30 j.
-          </span>
-          <IconeFleche className="size-3 text-texte-discret transition-transform group-hover:translate-x-0.5 group-hover:text-primaire" />
-        </Link>
+
+          <Link
+            href="/progression"
+            className="group flex flex-wrap items-center gap-2.5 rounded-full border border-bordure bg-surface px-3.5 py-1.5 text-xs text-texte-attenue shadow-xs transition-colors hover:border-primaire/40 hover:text-texte"
+            title="Voir le détail de ma progression"
+          >
+            {aucuneObservation ? (
+              <span className="font-medium text-texte">Premier repère à construire</span>
+            ) : (
+              <>
+                <span>
+                  <strong className="font-medium text-texte">{ctx.referentiel.actifs.length}</strong> compétences
+                </span>
+                <span className="text-bordure-contraste" aria-hidden>·</span>
+              </>
+            )}
+            <span>
+              <strong className="font-medium text-texte">{exercicesTravailles}</strong> exercice{exercicesTravailles > 1 ? "s" : ""}
+            </span>
+            <span className="text-bordure-contraste" aria-hidden>·</span>
+            <span>
+              <strong className="font-medium text-texte">{activite.joursActifs30}</strong>/30 j.
+            </span>
+            <IconeFleche className="size-3 text-texte-discret transition-transform group-hover:translate-x-0.5 group-hover:text-primaire" />
+          </Link>
+        </div>
       </div>
 
       {/* Déclencheur d'intention compact + entrée dédiée « échéance » */}

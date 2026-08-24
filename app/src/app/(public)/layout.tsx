@@ -12,6 +12,7 @@ import { IconeMarque } from "@/components/ui/icones";
 const NAVIGATION = [
   { href: "/methode", libelle: "La méthode" },
   { href: "/etudiants", libelle: "Pour les étudiants" },
+  { href: "/concours", libelle: "Concours & Examens" },
   { href: "/autodidactes", libelle: "Pour les autodidactes" },
 ];
 
