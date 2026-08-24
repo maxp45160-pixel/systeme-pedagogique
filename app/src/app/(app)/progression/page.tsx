@@ -99,7 +99,7 @@ async function ContenuProgression({ filtreDemande }: { filtreDemande?: string })
     now: ctx.now,
   });
 
-  const bilanMarkdown = genererBilanMarkdown({
+  const donneesExport = {
     identite,
     dateExport: ctx.now,
     scoreGlobal: ctx.global.scoreGlobal,
@@ -109,7 +109,9 @@ async function ContenuProgression({ filtreDemande }: { filtreDemande?: string })
     etats: ctx.etats,
     skillsParCode: ctx.referentiel.parCode,
     engagements: ctx.donnees.engagements,
-  });
+  };
+
+  const bilanMarkdown = genererBilanMarkdown(donneesExport);
 
   const dateFormatee = ctx.now.toLocaleDateString("fr-FR", {
     day: "numeric",
@@ -124,6 +126,7 @@ async function ContenuProgression({ filtreDemande }: { filtreDemande?: string })
         sousTitre="Ce que vos exercices disent de votre niveau — et ce qu'ils ne disent pas encore."
         actions={
           <ModaleExportBilan
+            donnees={donneesExport}
             bilanMarkdown={bilanMarkdown}
             nomApprenant={identite?.nom}
             dateExport={dateFormatee}
