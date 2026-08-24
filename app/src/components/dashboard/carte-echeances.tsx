@@ -40,7 +40,7 @@ export function CarteEcheances({
   const depasses = ouverts.filter((e) => joursRestants(e.echeanceLe, now) < 0);
 
   return (
-    <Carte>
+    <Carte id="carte-echeances">
       <div className="border-b border-bordure px-5 py-3.5">
         <h2 className="font-serif text-[1.0625rem] font-medium tracking-tight">À venir</h2>
         <p className="mt-0.5 text-xs text-texte-attenue">
