@@ -9501,6 +9501,82 @@ et il est employé. Il ne bouge pas.
 
 ---
 
+## ADR-122 — Un outil entre s'il est sur le chemin d'une preuve, ou s'il est éteint 🔬
+
+**Statut :** 🔬 posé le 24/08/2026, hypothèse non réfutée. Écrit la règle qui a
+été appliquée à deux cas concrets ; ne valide aucune fonctionnalité future par
+avance.
+
+### Le problème
+
+L'audit de conception a relevé une dérive de périmètre : `calculatrice.tsx`
+(409 l.) et `palette-formules.tsx` (363 l.) sont arrivés dans le dépôt sans
+qu'aucune décision ne dise pourquoi. `PRODUCT.md` §7 est pourtant explicite :
+
+> « Une fonctionnalité n'entre pas dans ce produit parce qu'elle est
+> intéressante, mais parce qu'elle sert la boucle du §1. »
+
+Le §7 dit **quand refuser**. Il ne dit pas comment reconnaître un outil qui
+sert la boucle sans en faire partie — et c'est le cas de ces deux-là.
+
+### Ce que l'examen a montré
+
+**La palette de formules est sur le chemin de la preuve.** Elle est montée dans
+`zone-reponse.tsx` — le champ où l'on rédige sa réponse à un exercice. C'est
+exactement le geste qui produit une Observation. Sans elle, écrire « ≤ » dans
+une réponse suppose de connaître `\leq` : la boucle est alors bornée par la
+familiarité de la personne avec LaTeX, ce qui n'est pas ce qu'on mesure. Elle
+sert aussi la saisie du tuteur et l'éditeur documentaire, mais c'est le premier
+usage qui la justifie.
+
+**La calculatrice ne l'est pas — et elle est éteinte.** Elle vit dans la barre
+d'outils d'une séance, derrière une préférence **désactivée par défaut**. Qui
+ne l'allume pas ne la voit jamais, et rien n'en dépend. `vue-seance-detail.tsx`
+porte déjà la phrase qui la borne : « la calculatrice est un support, pas une
+évidence ». Son évaluation passe par une liste blanche stricte, verrouillée par
+un test.
+
+### La décision
+
+**Deux portes, et seulement deux.**
+
+1. **Sur le chemin d'une preuve.** L'outil est traversé par le geste qui produit
+   une Observation — rédiger une réponse, mener une tentative, rendre une
+   production. Il entre, et il est visible par défaut.
+2. **Éteint par défaut.** L'outil n'est sur aucun chemin, mais il n'ajoute
+   **rien** à qui ne l'allume pas : ni pixel, ni requête, ni concept à
+   apprendre. Il entre, et il reste éteint.
+
+Tout le reste est refusé par le §7. En particulier : un outil *intéressant*,
+visible par défaut, hors du chemin d'une preuve n'entre pas — c'est la
+définition même de la dérive de périmètre.
+
+La deuxième porte est étroite à dessein. « Éteint par défaut » ne veut pas dire
+« caché dans un menu » : cela veut dire qu'un compte qui ne l'active jamais ne
+peut pas constater son existence en travaillant. Une préférence dans les
+réglages qui ajoute une case à cocher que tout le monde lit ne remplit pas ce
+critère.
+
+### Le test de réfutation
+
+Cette règle est réfutée si la deuxième porte devient une porte de service — si
+la liste des outils « éteints par défaut » s'allonge sans qu'aucun ne soit
+jamais allumé. Le signal à surveiller est le nombre : **au-delà de trois**,
+c'est que le critère sert à faire entrer, pas à trier. Aujourd'hui il y en a
+un.
+
+### Ce que cette décision n'autorise pas
+
+- elle ne valide **aucune** fonctionnalité par avance : elle donne un critère,
+  pas un blanc-seing. Chaque cas se juge en nommant le geste probant qu'il
+  traverse, ou en démontrant qu'il n'ajoute rien tant qu'il est éteint ;
+- elle ne fait pas de `dureeEstimeeMin` ni d'un résultat de calculatrice une
+  mesure : rien de ce qui sort d'un outil n'est une Observation ;
+- elle n'ouvre pas la palette à des symboles que le repli textuel ne sait pas
+  lire — la contrainte que son propre en-tête pose reste la sienne.
+
+---
+
 ---
 
 ## Comment modifier ce registre

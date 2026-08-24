@@ -489,6 +489,20 @@ mais parce qu'elle sert la boucle du §1 et la phrase du §3. La grille
 d'évaluation est dans `CLAUDE.md` §9 et s'applique **à toute proposition, y
 compris celles venant d'une session Claude.**
 
+**Le cas des outils** (ADR-122). Un outil n'est pas une étape de la boucle : il
+l'assiste. Deux portes, et seulement deux :
+
+1. **Sur le chemin d'une preuve** — l'outil est traversé par le geste qui
+   produit une Observation. Il entre, visible par défaut. *La palette de
+   formules : on la rencontre en rédigeant sa réponse à un exercice.*
+2. **Éteint par défaut** — l'outil n'est sur aucun chemin, mais un compte qui
+   ne l'allume jamais ne peut pas constater son existence en travaillant. Il
+   entre, et il reste éteint. *La calculatrice de séance.*
+
+Tout le reste relève du refus ci-dessus. Un outil intéressant, visible par
+défaut, hors du chemin d'une preuve, est la définition de la dérive de
+périmètre.
+
 ---
 
 ## Annexe — envisagé puis écarté
