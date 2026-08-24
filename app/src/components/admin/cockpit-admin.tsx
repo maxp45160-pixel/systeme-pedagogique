@@ -34,6 +34,7 @@ const VITRINE_PUBLIQUE = [
   { href: "/methode", libelle: "Méthode (/methode)" },
   { href: "/etudiants", libelle: "Étudiants (/etudiants)" },
   { href: "/autodidactes", libelle: "Autodidactes (/autodidactes)" },
+  { href: "/concours", libelle: "Concours (/concours)" },
 ];
 
 export interface DonneesCockpitAdmin {

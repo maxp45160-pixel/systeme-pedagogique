@@ -35,6 +35,7 @@ const PUBLICS = [
   "/methode",
   "/etudiants",
   "/autodidactes",
+  "/concours",
   "/robots.txt",
   "/sitemap.xml",
 ];
