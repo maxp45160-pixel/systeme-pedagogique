@@ -3,9 +3,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Modale } from "@/components/ui/modale";
-import { IconeAmpoule, IconeCours, IconeDocuments, IconeFormule, IconePlus, IconeProjet } from "@/components/ui/icones";
+import { cx } from "@/components/ui/primitives";
+import { IconeAmpoule, IconeCours, IconeDocuments, IconeExercices, IconeFleche, IconeFormule, IconeNote, IconePlus, IconeProjet } from "@/components/ui/icones";
 import { creerNoteAction } from "@/lib/store/document-actions";
 import { definitionTypeDocument } from "@/lib/documents/types-documents";
+import {
+  erreurFichierPiece,
+  estMimePieceJointe,
+  mimeDepuisNomFichier,
+  MIME_PDF,
+} from "@/lib/documents/pieces-jointes";
+import { televerserFichier } from "@/lib/documents/televersement-fichier";
+import { titreDepuisNomFichier } from "@/lib/documents/titre-depuis-fichier";
+import type { IntentionCours } from "@/lib/domain/protocole-cours";
 import { ModaleCompetence } from "@/components/referentiel/modale-competence";
 import { ModaleReferentiel } from "@/components/referentiel/modale-referentiel";
 import { ParcoursNouveauProjet } from "@/components/projets/modale-nouveau-projet";
@@ -18,7 +28,7 @@ import type { CompetenceModale } from "@/lib/domain/proprietes-generation";
  * Ce module fait deux choses, et il faut les tenir séparées :
  *
  * 1. **Un menu**, qui ne propose que ce que le `+` du rail ne sait pas faire —
- *    ressource, fiche de cours, formule. Voir `actionsPourVue`.
+ *    ressource, cours (PDF), formule. Voir `actionsPourVue`.
  * 2. **Sept destinations**, montées ci-dessous et atteintes par `?creation=` :
  *    la palette ⌘K du Bureau et l'état vide des domaines y mènent. Elles ne
  *    sont pas dans le menu, elles sont au bout d'un lien.
@@ -31,15 +41,23 @@ import type { CompetenceModale } from "@/lib/domain/proprietes-generation";
  * vérifiée — la création de note, en dur sur « Note libre » — et la conclusion
  * avait été étendue aux sept.
  *
- * Ce qui reste vrai, et qui justifie les trois entrées gardées :
+ * Ce qui reste vrai, et qui justifie les entrées gardées :
  *
- * - **Les formats typés.** `cours`, `reference` et `formule` portent des
- *   sections déclarées (`definitionTypeDocument`) que la saisie ci-dessous
- *   remplit. Le `+` crée toujours une « Note libre », quoi qu'on lui demande.
- * - **Aucun appel au tuteur.** Ce chemin-ci n'en fait aucun : zéro génération
- *   décomptée (ADR-116), et il fonctionne quota épuisé. L'argument ne valait
- *   PAS pour domaine, compétence et projet — ces trois modales appellent le
- *   tuteur elles-mêmes, qu'on y arrive par le menu ou par le `+`.
+ * - **Les formats typés.** `reference` et `formule` portent des sections
+ *   déclarées (`definitionTypeDocument`) que la saisie ci-dessous remplit. Le
+ *   `+` crée toujours une « Note libre », quoi qu'on lui demande.
+ * - **Aucun appel au tuteur** — pour `ressource` et `formule`. Ce chemin-ci
+ *   n'en fait aucun : zéro génération décomptée (ADR-116), et il fonctionne
+ *   quota épuisé. L'argument ne valait PAS pour domaine, compétence et projet —
+ *   ces trois modales appellent le tuteur elles-mêmes, qu'on y arrive par le
+ *   menu ou par le `+`.
+ *
+ * ## Pourquoi « cours » ne suit plus cette règle (ADR-129, révise ADR-126)
+ *
+ * Déposer un cours commence par le PDF, pas par une saisie : la fiche support
+ * est créée à partir du fichier, le PDF est attaché, et la lecture par le
+ * tuteur — qui décompte — est enchaînée. Saisir la fiche reste un travail sur
+ * le cours, dans l'espace de travail ; ce n'est plus le geste d'entrée.
  */
 export type CreationAtelier =
   | "domaine"
@@ -64,13 +82,13 @@ const LIBELLES_CREATION: Record<CreationAtelier, string> = {
   domaine: "Ajouter un domaine",
   competence: "Ajouter une compétence",
   ressource: "Ajouter une ressource",
-  cours: "Créer une fiche de cours",
+  cours: "Déposer un cours (PDF)",
   formule: "Enregistrer une formule",
   projet: "Lancer un projet",
   feynman: "Faire une explication Feynman",
 };
 
-const TYPES_DOCUMENT: Record<"ressource" | "cours" | "formule", {
+const TYPES_DOCUMENT: Record<"ressource" | "formule", {
   titre: string;
   type: string;
   titreInitial: string;
@@ -81,12 +99,6 @@ const TYPES_DOCUMENT: Record<"ressource" | "cours" | "formule", {
     type: "reference",
     titreInitial: "Nouvelle ressource",
     placeholder: "Ex. article, PDF ou ressource à garder",
-  },
-  cours: {
-    titre: "Créer une fiche de cours",
-    type: "cours",
-    titreInitial: "Fiche de cours",
-    placeholder: "Ex. synthèse du chapitre sur les matrices",
   },
   formule: {
     titre: "Enregistrer une formule",
@@ -106,6 +118,20 @@ const ICONES_CREATION: Record<CreationAtelier, typeof IconePlus> = {
   feynman: IconeAmpoule,
 };
 
+/**
+ * Les suggestions d'amorçage de la capture d'intention (ADR-130) — les trois
+ * valeurs de l'enum serveur, dans le style du point d'entrée assisté.
+ */
+const SUGGESTIONS_INTENTION_COURS: readonly {
+  valeur: IntentionCours;
+  libelle: string;
+  Icone: typeof IconeNote;
+}[] = [
+  { valeur: "memoriser", libelle: "Mémoriser", Icone: IconeNote },
+  { valeur: "maitriser", libelle: "Maîtriser les notions", Icone: IconeExercices },
+  { valeur: "comprendre", libelle: "Comprendre le contenu", Icone: IconeAmpoule },
+];
+
 function estCreationAtelier(valeur: string | undefined): valeur is CreationAtelier {
   return Boolean(valeur && CREATIONS_ATELIER.includes(valeur as CreationAtelier));
 }
@@ -113,12 +139,12 @@ function estCreationAtelier(valeur: string | undefined): valeur is CreationAteli
 /**
  * Ce que le menu PROPOSE — un sous-ensemble strict de ce qu'il sait ouvrir.
  *
- * Les trois documents typés, et rien d'autre (ADR-126). Domaine, compétence et
- * projet en sont sortis : le `+` monte littéralement les mêmes modales
- * (`ModaleReferentiel`, `ModaleCompetence`, `ParcoursNouveauProjet`), et
- * celles-ci appellent le tuteur de toute façon — le menu n'y était pas le
- * chemin gratuit qu'ADR-120 lui prêtait. « Explication Feynman » en sort aussi :
- * démarrer une activité n'est pas créer un objet.
+ * Les deux documents typés saisis (ressource, formule) et le dépôt de cours
+ * PDF (ADR-129). Domaine, compétence et projet en sont sortis : le `+` monte
+ * littéralement les mêmes modales (`ModaleReferentiel`, `ModaleCompetence`,
+ * `ParcoursNouveauProjet`), et celles-ci appellent le tuteur de toute façon —
+ * le menu n'y était pas le chemin gratuit qu'ADR-120 lui prêtait. « Explication
+ * Feynman » en sort aussi : démarrer une activité n'est pas créer un objet.
  *
  * Hors de la vue « Ressources », le menu n'a donc plus rien à proposer et ne
  * s'affiche pas. Il reste monté : les liens profonds `?creation=` continuent
@@ -237,7 +263,14 @@ export function ActionsCreationAtelier({
           onFermer={fermerCreation}
         />
       )}
-      {(creation === "ressource" || creation === "cours" || creation === "formule") && (
+      {creation === "cours" && (
+        <ModaleDepotCours
+          domainesExistants={domainesExistants}
+          domaineInitial={domaineInitial}
+          onFermer={fermerCreation}
+        />
+      )}
+      {(creation === "ressource" || creation === "formule") && (
         <ModaleCreationDocument
           domainesExistants={domainesExistants}
           domaineInitial={domaineInitial}
@@ -259,6 +292,245 @@ export function ActionsCreationAtelier({
   );
 }
 
+/**
+ * « Déposer mon cours » : le PDF d'abord, la fiche ensuite (ADR-129).
+ *
+ * Le geste d'entrée est le dépôt du fichier. La fiche support de type `cours`
+ * est créée automatiquement — titre dérivé du nom du fichier, contexte qui
+ * décrit le geste, domaine choisi en un clic — puis le PDF y est attaché et
+ * l'espace de travail s'ouvre sur la lecture par le tuteur (`?lecture=1`) :
+ * extraction, proposition de compétences, relecture case par case. C'est le
+ * chemin existant d'ADR-113, atteint sans saisie préalable.
+ *
+ * La lecture décompte le quota (ADR-116) : c'est assumé et validé — la boucle
+ * doit avancer d'elle-même jusqu'à la proposition, qui reste la seule écriture
+ * au référentiel après relecture humaine.
+ */
+function ModaleDepotCours({
+  domainesExistants,
+  domaineInitial,
+  onFermer,
+}: {
+  domainesExistants: { id: string; nom: string; prefixe: string }[];
+  domaineInitial?: string;
+  onFermer: () => void;
+}) {
+  const router = useRouter();
+  const [fichier, setFichier] = useState<File | null>(null);
+  const [depotActif, setDepotActif] = useState(false);
+  const [domaine, setDomaine] = useState(domaineInitial ?? "transversal");
+  const [intention, setIntention] = useState<IntentionCours>("maitriser");
+  const [intentionLibre, setIntentionLibre] = useState("");
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [enCours, setEnCours] = useState(false);
+
+  function choisirFichier(fichierChoisi: File | undefined) {
+    setErreur(null);
+    if (!fichierChoisi) return;
+    const mime = estMimePieceJointe(fichierChoisi.type)
+      ? fichierChoisi.type
+      : mimeDepuisNomFichier(fichierChoisi.name);
+    if (mime !== MIME_PDF) {
+      setErreur("Le cours se dépose en PDF.");
+      return;
+    }
+    const motifRefus = erreurFichierPiece(fichierChoisi);
+    if (motifRefus) {
+      setErreur(motifRefus);
+      return;
+    }
+    setFichier(fichierChoisi);
+  }
+
+  async function deposer() {
+    if (!fichier) {
+      setErreur("Choisissez d'abord le PDF de votre cours.");
+      return;
+    }
+    setEnCours(true);
+    setErreur(null);
+    try {
+      const fiche = await creerNoteAction(
+        "support",
+        "cours",
+        titreDepuisNomFichier(fichier.name),
+        {
+          contexte: `Cours déposé depuis le fichier « ${fichier.name} »`.slice(0, 200),
+          domaine,
+          intentionCours: intention,
+          intentionLibre: intentionLibre.trim(),
+        },
+      );
+      await televerserFichier(fiche.id, fichier);
+      onFermer();
+      router.push(`/atelier?note=${encodeURIComponent(fiche.id)}&lecture=1`);
+      router.refresh();
+    } catch (cause) {
+      setErreur(
+        cause instanceof Error
+          ? cause.message
+          : "Le dépôt a échoué. La fiche existe peut-être déjà sans son PDF.",
+      );
+      setEnCours(false);
+    }
+  }
+
+  return (
+    <Modale
+      titre="Déposer mon cours"
+      sousTitre="Le PDF devient votre cours : le tuteur le lit et propose des compétences, que vous relisez avant tout enregistrement."
+      largeur="xl"
+      onFermer={onFermer}
+      pied={
+        <>
+          <button
+            type="button"
+            onClick={onFermer}
+            className="cursor-pointer rounded-lg border border-bordure-controle px-3 py-1.5 text-xs font-medium text-texte-attenue transition-colors hover:bg-surface-2"
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            onClick={() => void deposer()}
+            disabled={enCours || !fichier}
+            className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-primaire px-3 py-1.5 text-xs font-semibold text-texte-inverse transition-colors hover:bg-primaire-survol disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {enCours ? "Dépôt en cours…" : "Déposer et faire lire"}
+            {!enCours && <IconeFleche className="size-3.5" />}
+          </button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <div
+          className={cx(
+            "rounded-lg border border-dashed px-3 py-6 text-center transition-colors",
+            depotActif ? "border-primaire bg-primaire-faible/35" : "border-bordure-contraste",
+          )}
+          onDragEnter={(event) => {
+            event.preventDefault();
+            setDepotActif(true);
+          }}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setDepotActif(true);
+          }}
+          onDragLeave={(event) => {
+            if (event.currentTarget === event.target) setDepotActif(false);
+          }}
+          onDrop={(event) => {
+            event.preventDefault();
+            setDepotActif(false);
+            choisirFichier(event.dataTransfer.files?.[0]);
+          }}
+        >
+          <input
+            id="depot-cours-fichier"
+            type="file"
+            accept=".pdf,application/pdf"
+            onChange={(event) => {
+              choisirFichier(event.currentTarget.files?.[0]);
+              event.currentTarget.value = "";
+            }}
+            className="sr-only"
+          />
+          <label htmlFor="depot-cours-fichier" className="cursor-pointer text-sm font-medium hover:text-primaire">
+            {fichier ? fichier.name : "Déposer ou choisir un PDF"}
+          </label>
+          <p className="mt-1 text-[0.6875rem] text-texte-discret">PDF seulement · 10 Mo maximum</p>
+        </div>
+
+        <label className="block">
+          <span className="text-xs font-medium text-texte">Domaine</span>
+          <select
+            value={domaine}
+            onChange={(event) => setDomaine(event.target.value)}
+            className="mt-1.5 w-full cursor-pointer rounded-lg border border-bordure-controle bg-surface px-3 py-2 text-sm outline-none focus:border-primaire focus:ring-1 focus:ring-primaire/20"
+          >
+            <option value="transversal">Transversal</option>
+            {domainesExistants.map((domaineExistant) => (
+              <option key={domaineExistant.id} value={domaineExistant.id}>
+                {domaineExistant.nom}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {/*
+         * La capture d'intention reprend le style du point d'entrée assisté
+         * (`CaptureIntention`) : une phrase libre, des suggestions d'amorçage,
+         * le geste principal dans le pied de modale. Cliquer une suggestion
+         * CHOISIT l'intention — elle reste visible sélectionnée, car le dépôt
+         * du fichier reste le geste à valider.
+         */}
+        <div>
+          <textarea
+            value={intentionLibre}
+            onChange={(event) => setIntentionLibre(event.target.value.slice(0, 500))}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                void deposer();
+              }
+            }}
+            rows={3}
+            placeholder="Ex. : j'ai un examen dans deux semaines et je dois surtout retenir les définitions"
+            className="w-full resize-none rounded-xl border border-bordure-controle bg-surface px-3.5 py-3 text-sm outline-none transition-all placeholder:text-texte-discret focus:border-primaire focus:ring-1 focus:ring-primaire/20"
+          />
+          <div className="mt-1 flex items-center justify-between text-[0.6875rem] text-texte-discret">
+            <span>Une intention libre, ou choisissez une orientation ci-dessous</span>
+            <span>Entrée pour déposer · Maj+Entrée nouvelle ligne</span>
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-2 text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-attenue">
+            Suggestions d’amorçage rapide :
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {SUGGESTIONS_INTENTION_COURS.map(({ valeur, libelle, Icone }) => (
+              <button
+                key={valeur}
+                type="button"
+                onClick={() => setIntention(valeur)}
+                aria-pressed={intention === valeur}
+                className={cx(
+                  "group flex items-center gap-2.5 rounded-lg border px-3 py-2 text-left text-xs transition-colors",
+                  intention === valeur
+                    ? "border-primaire bg-primaire-faible/30"
+                    : "border-bordure bg-surface-2/60 hover:border-primaire/40 hover:bg-primaire-faible/30",
+                )}
+              >
+                <Icone
+                  className={cx(
+                    "size-4 shrink-0 transition-transform group-hover:scale-110",
+                    intention === valeur ? "text-primaire" : "text-texte-discret group-hover:text-primaire",
+                  )}
+                />
+                <span
+                  className={cx(
+                    "font-medium",
+                    intention === valeur ? "text-primaire" : "text-texte group-hover:text-primaire",
+                  )}
+                >
+                  {libelle}
+                </span>
+              </button>
+            ))}
+          </div>
+          <p className="mt-1.5 text-[0.6875rem] leading-relaxed text-texte-discret">
+            Cette intention oriente le protocole de séances que le tuteur
+            concevra depuis le PDF — vous le relisez avant toute création.
+          </p>
+        </div>
+
+        {erreur && <p className="rounded-lg bg-danger-faible px-3 py-2 text-xs text-danger">{erreur}</p>}
+      </div>
+    </Modale>
+  );
+}
+
 function ModaleCreationDocument({
   domainesExistants,
   domaineInitial,
@@ -267,7 +539,7 @@ function ModaleCreationDocument({
 }: {
   domainesExistants: { id: string; nom: string; prefixe: string }[];
   domaineInitial?: string;
-  type: "ressource" | "cours" | "formule";
+  type: "ressource" | "formule";
   onFermer: () => void;
 }) {
   const router = useRouter();

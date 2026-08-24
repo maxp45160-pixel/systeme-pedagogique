@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState, type ChangeEvent, type DragEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from "react";
+import { useRouter } from "next/navigation";
 import { useEstHydrate } from "@/lib/ui/hydratation";
 import Link from "next/link";
 import { CoquilleWorkspace, sortieWorkspace } from "@/components/atelier/coquille-workspace";
@@ -42,6 +43,8 @@ import {
 import { extraireTexteSupportAction } from "@/lib/store/extraction-pdf";
 import { sauvegarderDocumentAction } from "@/lib/store/document-actions";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
+import { ProtocoleCoursPanel, ModaleProtocole } from "@/components/atelier/protocole-cours";
+import type { TraceProtocole } from "@/lib/store/protocole-actions";
 
 export interface WorkspaceDocumentProps {
   /** Identifiant canonique du document (ex: identifiant fiche ou slug). */
@@ -58,6 +61,17 @@ export interface WorkspaceDocumentProps {
   retour?: string;
   /** Identifiant du compte : isole les repères locaux et lit la clé du tuteur. */
   compteId?: string;
+  /**
+   * Enchaîner la lecture par le tuteur au montage (ADR-129) : le PDF vient
+   * d'être déposé par « Déposer mon cours » et la boucle continue sans saisie.
+   * Un seul lancement, même au retour d'un `router.refresh()`.
+   */
+  lectureAutomatique?: boolean;
+  /**
+   * La trace du protocole de ce cours (ADR-130) — séances liées et journal,
+   * dérivées côté serveur. Absente hors fiche de cours.
+   */
+  traceProtocole?: TraceProtocole;
 }
 
 const LIBELLE_VISEE: Record<string, string> = {
@@ -241,6 +255,8 @@ export function WorkspaceDocument({
   donneesSeance,
   retour,
   compteId,
+  lectureAutomatique = false,
+  traceProtocole,
 }: WorkspaceDocumentProps) {
   const [contenu, setContenu] = useState(contenuInitial);
   const [updatedAt, setUpdatedAt] = useState(updatedAtInitial);
@@ -251,6 +267,14 @@ export function WorkspaceDocument({
   const [message, setMessage] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [lectureTuteur, setLectureTuteur] = useState<EtatLectureTuteur>({ phase: "repos" });
+  const router = useRouter();
+  /*
+   * Enchaînement lecture → plan (ADR-130) : quand la validation du
+   * référentiel proposé depuis le PDF aboutit, la conception du plan de
+   * révision s'ouvre d'elle-même — l'intention est déjà connue, la génération
+   * part sans seconde saisie.
+   */
+  const [protocoleApresLecture, setProtocoleApresLecture] = useState(false);
 
   const analyse = useMemo(() => analyserDocumentMarkdown(id, contenu), [id, contenu]);
   const definition = analyse.type ? definitionTypeDocument(analyse.type) : null;
@@ -260,6 +284,12 @@ export function WorkspaceDocument({
     [definition],
   );
   const sectionsSaisies = sections.filter((section) => !sectionsJournal.has(section));
+  /*
+   * Déclaré tôt : la lecture par le tuteur (et son enchaînement automatique,
+   * ADR-129) cite le titre dans le sujet composé — l'accès précède donc la
+   * fin du composant, et la règle react-hooks l'exige déclarée avant.
+   */
+  const titre = analyse.titre || "Fiche documentaire";
 
   const [valeurs, setValeurs] = useState<ValeursSections>(() =>
     lireValeursSections(contenuInitial, sections),
@@ -400,6 +430,33 @@ export function WorkspaceDocument({
     void ajouterFichier(event.dataTransfer.files?.[0]);
   }
 
+  /*
+   * Dépôt de cours (ADR-129) : le PDF vient d'être attaché et la boucle
+   * enchaîne sur la lecture par le tuteur sans geste supplémentaire. Le garde
+   * `lectureAutomatiqueLancee` interdit le relancement sur un re-rendu ou un
+   * `router.refresh()` ; en cas d'échec, le bouton et « Réessayer » restent
+   * le chemin de reprise.
+   */
+  const lectureAutomatiqueLancee = useRef(false);
+  useEffect(() => {
+    if (!lectureAutomatique || lectureAutomatiqueLancee.current) return;
+    if (!pdfPresent) return;
+    /*
+     * Différé d'un tick : `lancerLectureTuteur` pose un état d'attente, et un
+     * setState synchrone dans le corps d'un effet déclenche une cascade de
+     * rendus que React déconseille. Le garde n'est verrouillé qu'à l'exécution :
+     * le premier nettoyage de Strict Mode peut ainsi annuler son minuteur sans
+     * empêcher le second montage de planifier le lancement réel.
+     */
+    const minuteur = setTimeout(() => {
+      if (lectureAutomatiqueLancee.current) return;
+      lectureAutomatiqueLancee.current = true;
+      void lancerLectureTuteur();
+    }, 0);
+    return () => clearTimeout(minuteur);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- le garde `lectureAutomatiqueLancee` interdit le relancement
+  }, [lectureAutomatique, pdfPresent]);
+
   // --- Inscription automatique séance ---
   async function inscrireSeance(seance: {
     activites: { type: string; ref: string; libelle: string }[];
@@ -431,7 +488,6 @@ export function WorkspaceDocument({
     }
   }
 
-  const titre = analyse.titre || "Fiche documentaire";
   const surtitre = definition ? `Fiche · ${definition.libelle}` : "Fiche documentaire";
 
   /*
@@ -476,7 +532,12 @@ export function WorkspaceDocument({
       sortie={sortieWorkspace(retour)}
       barre={barreEntete}
       actionTuteur={
-        sujetFiche
+        /*
+         * Pas de « S'entraîner sur ce document » sur un cours (ADR-130) : le
+         * geste d'entrée, c'est le plan de révision — un second chemin vers le
+         * tuteur ferait doublon avec la conception du plan.
+         */
+        analyse.type !== "cours" && sujetFiche
           ? { libelle: "S'entraîner sur ce document", texte: sujetFiche }
           : undefined
       }
@@ -587,29 +648,55 @@ export function WorkspaceDocument({
 
         {/* 2. VUE SUPPORT / RESSOURCE AVEC ATTACHEMENTS */}
         {estSupport && (
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
-            <section className="min-w-0 rounded-xl border border-bordure bg-surface-2 p-4 sm:p-6">
-              <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-primaire">Cas d’application</p>
-              <h2 className="mt-2 font-serif text-2xl font-medium">Travaille cette ressource</h2>
-              <p className="mt-2 max-w-3xl text-sm leading-relaxed text-texte-attenue">
-                {CONSIGNES_PAR_TYPE[analyse.type ?? ""] ?? "Lis la ressource et transforme-la en fiche de travail exploitable."}
-              </p>
-              <label className="mt-5 block">
-                <span className="text-xs font-semibold uppercase tracking-wide text-texte-discret">Votre fiche de travail</span>
-                <textarea
-                  value={valeurs[sections[0]] ?? ""}
-                  onChange={(event) => {
-                    const v = event.target.value;
-                    setValeurs((anciennes) => ({ ...anciennes, [sections[0]]: v }));
-                    setMessage(null);
-                  }}
-                  disabled={enregistrement}
-                  rows={20}
-                  className="mt-2 min-h-[28rem] w-full resize-y rounded-lg border border-bordure-controle bg-surface px-4 py-3 text-sm leading-relaxed outline-none focus:border-primaire"
-                  placeholder="Écrivez ici ce que vous comprenez, les points importants et votre cas d’application…"
-                />
-              </label>
-            </section>
+          <div className="space-y-6">
+            {/*
+             * Un cours n'a pas de « fiche de travail » à remplir (ADR-130) :
+             * son contenu, c'est le plan de révision — la saisie du cours est
+             * le PDF lui-même. La lecture par le tuteur est automatique au
+             * dépôt (ADR-129) : aucun bouton ne la propose, seul un échec
+             * affiche une reprise.
+             */}
+            {analyse.type === "cours" && compteId && (
+              <ProtocoleCoursPanel
+                ficheId={id}
+                compteId={compteId}
+                trace={traceProtocole}
+                pdfPresent={pdfPresent}
+              />
+            )}
+
+            <div
+              className={cx(
+                "grid gap-5",
+                analyse.type === "cours"
+                  ? "max-w-xl"
+                  : "lg:grid-cols-[minmax(0,1fr)_18rem]",
+              )}
+            >
+              {analyse.type !== "cours" && (
+                <section className="min-w-0 rounded-xl border border-bordure bg-surface-2 p-4 sm:p-6">
+                  <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-primaire">Cas d’application</p>
+                  <h2 className="mt-2 font-serif text-2xl font-medium">Travaille cette ressource</h2>
+                  <p className="mt-2 max-w-3xl text-sm leading-relaxed text-texte-attenue">
+                    {CONSIGNES_PAR_TYPE[analyse.type ?? ""] ?? "Lis la ressource et transforme-la en fiche de travail exploitable."}
+                  </p>
+                  <label className="mt-5 block">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-texte-discret">Votre fiche de travail</span>
+                    <textarea
+                      value={valeurs[sections[0]] ?? ""}
+                      onChange={(event) => {
+                        const v = event.target.value;
+                        setValeurs((anciennes) => ({ ...anciennes, [sections[0]]: v }));
+                        setMessage(null);
+                      }}
+                      disabled={enregistrement}
+                      rows={20}
+                      className="mt-2 min-h-[28rem] w-full resize-y rounded-lg border border-bordure-controle bg-surface px-4 py-3 text-sm leading-relaxed outline-none focus:border-primaire"
+                      placeholder="Écrivez ici ce que vous comprenez, les points importants et votre cas d’application…"
+                    />
+                  </label>
+                </section>
+              )}
 
             <aside className="space-y-4">
               <section className="rounded-xl border border-bordure bg-surface-2 p-4">
@@ -661,35 +748,18 @@ export function WorkspaceDocument({
                   </ul>
                 )}
 
-                {pdfPresent && (
+                {lectureTuteur.phase === "erreur" && (
                   <div className="mt-3 border-t border-bordure pt-3">
-                    <Bouton
-                      variante="secondaire"
-                      taille="petite"
-                      onClick={() => void lancerLectureTuteur()}
-                      disabled={lectureTuteur.phase === "extraction"}
-                      className="w-full"
-                    >
-                      {lectureTuteur.phase === "extraction"
-                        ? "Extraction du texte…"
-                        : "Faire lire par le tuteur"}
-                    </Bouton>
-                    <p className="mt-1.5 text-[0.6875rem] leading-relaxed text-texte-discret">
-                      Le tuteur propose des compétences à partir du PDF ; vous relisez
-                      case par case avant tout enregistrement.
+                    <p className="text-[0.6875rem] leading-relaxed text-danger">
+                      La lecture du PDF a échoué : {lectureTuteur.message}{" "}
+                      <button
+                        type="button"
+                        onClick={() => void lancerLectureTuteur()}
+                        className="cursor-pointer font-medium underline-offset-2 hover:underline"
+                      >
+                        Réessayer
+                      </button>
                     </p>
-                    {lectureTuteur.phase === "erreur" && (
-                      <p className="mt-2 text-[0.6875rem] leading-relaxed text-danger">
-                        {lectureTuteur.message}{" "}
-                        <button
-                          type="button"
-                          onClick={() => void lancerLectureTuteur()}
-                          className="cursor-pointer font-medium underline-offset-2 hover:underline"
-                        >
-                          Réessayer
-                        </button>
-                      </p>
-                    )}
                   </div>
                 )}
               </section>
@@ -702,6 +772,7 @@ export function WorkspaceDocument({
                 />
               )}
             </aside>
+            </div>
           </div>
         )}
 
@@ -802,6 +873,27 @@ export function WorkspaceDocument({
           cleDisponible={Boolean(lireConfigTuteur(compteId))}
           guideEtape="Le tuteur lit le PDF attaché et propose des compétences. Rien n'est enregistré sans votre relecture case par case."
           onFermer={() => setLectureTuteur({ phase: "repos" })}
+          surEnregistre={({ codes }) => {
+            /*
+             * Le référentiel du cours est validé : la conception du plan de
+             * révision s'ouvre d'elle-même (ADR-130). Sans compétence validée,
+             * il n'y a rien à quoi lier un plan — on ne lance pas.
+             */
+            if (analyse.type === "cours" && codes.length > 0) {
+              setProtocoleApresLecture(true);
+            }
+          }}
+        />
+      )}
+
+      {protocoleApresLecture && compteId && (
+        <ModaleProtocole
+          ficheId={id}
+          compteId={compteId}
+          intentionInitiale={traceProtocole?.intention}
+          demarrageAutomatique={Boolean(traceProtocole?.intention)}
+          onFermer={() => setProtocoleApresLecture(false)}
+          surTermine={() => router.refresh()}
         />
       )}
     </CoquilleWorkspace>

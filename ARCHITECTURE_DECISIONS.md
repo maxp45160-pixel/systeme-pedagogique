@@ -121,6 +121,8 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [109](#adr-109) | Le rendu des formules passe par KaTeX ; le texte Unicode reste le filet | ✅ Acceptée (23/08) — révise l'application d'[ADR-003](#adr-003) aux formules |
 | [127](#adr-127) | Une proposition ne redit pas ce qui existe, et un échec se lit | 🔬 Construite, hypothèse non réfutée (24/08) |
 | [128](#adr-128) | Le premier parcours atteint l'exercice avant le tableau de bord | 🔬 Construite, hypothèse non réfutée (24/08) |
+| [129](#adr-129) | Déposer mon cours commence par le PDF, pas par la fiche | 🔬 Construite, hypothèse non réfutée (24/08) — révise [ADR-126](#adr-126) |
+| [130](#adr-130) | Le cours saisi devient un protocole de séances, relu case par case | 🔬 Construite, hypothèse non réfutée (24/08) — étend [ADR-129](#adr-129) |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -10012,7 +10014,10 @@ construction, toujours dit ailleurs dans la même requête.
 
 **Statut :** 🔬 construit le 24/08/2026, hypothèse non réfutée. **Révise
 [ADR-120](#adr-120)**, écrit le même jour et fondé sur une vérification
-incomplète. N'en fait monter aucune.
+incomplète. N'en fait monter aucune. **Révisé le 24/08/2026 par
+[ADR-129](#adr-129)** : l'entrée « cours » du menu n'est plus une saisie sans
+appel au tuteur mais un dépôt de PDF qui enchaîne la lecture — le second
+argument ci-dessous ne vaut plus que pour `ressource` et `formule`.
 
 ### L'erreur d'ADR-120, et comment elle a été produite
 
@@ -10236,6 +10241,160 @@ réfutée si la personne ne comprend pas pourquoi un seul axe est retenu, si
 elle abandonne avant l'énoncé, ou si le passage automatique déclenche des
 générations qu'elle ne pensait pas avoir demandées. Le remède se mesure sur le
 temps jusqu'au premier exercice commencé, pas sur le nombre d'écrans retirés.
+
+---
+
+## ADR-129 — Déposer mon cours commence par le PDF, pas par la fiche 🔬
+
+**Statut :** 🔬 construit le 24/08/2026, hypothèse non réfutée. **Révise
+[ADR-126](#adr-126)** sur un point précis. Décision validée par Maxime le
+24/08/2026 (arbitrage produit : la boucle de travail sur un cours ne commence
+pas par une saisie).
+
+### Contexte
+
+Le lien « Déposer mon cours » du tableau de bord ouvrait
+`/atelier?creation=cours` : une modale demandant titre, contexte, sections
+Objectifs/Contenu/À retenir — la fiche à taper à la main. Le PDF n'arrivait
+qu'ensuite ; la modale l'annonçait elle-même (« Vous pourrez ensuite y joindre
+un PDF »). Or toute la logique de travail sur un cours existait déjà en aval :
+dépôt du PDF (`televerserFichier`), extraction et cache (`extraction-pdf.ts`),
+lecture par le tuteur avec relecture case par case (ADR-113). Le problème
+n'était pas une brique manquante mais l'ordre de la boucle : on demandait de
+fabriquer un conteneur avant d'avoir le contenu.
+
+### Décidé
+
+- **Le geste d'entrée est le dépôt du fichier.** La modale `cours` demande un
+  PDF (glisser-déposer ou sélecteur, PDF seul) et un domaine en un clic —
+  rien d'autre à saisir.
+- **La fiche support est créée automatiquement** : titre dérivé du nom du
+  fichier (`titreDepuisNomFichier`, module testé), contexte qui décrit le
+  geste (« Cours déposé depuis le fichier « … » »), type `cours`, rôle
+  `support`. Les sections restent vides — les remplir est un travail sur le
+  cours, dans l'espace de travail, pas un droit d'entrée.
+- **La lecture par le tuteur s'enchaîne.** Après téléversement, le workspace
+  s'ouvre avec `?lecture=1` et lance l'extraction puis la proposition
+  (`ModaleReferentiel` en démarrage automatique) — le chemin existant
+  d'ADR-113, atteint sans saisie préalable. La relecture case par case reste
+  la seule écriture au référentiel.
+- **La saisie manuelle d'une fiche de cours disparaît comme point d'entrée**
+  mais pas comme travail : les sections restent éditables dans le workspace,
+  et `ressource`/`formule` gardent leur saisie typée.
+
+### Révision d'ADR-126
+
+ADR-126 justifiait les trois documents typés du menu par deux arguments dont
+un tombe pour `cours` : « aucun appel au tuteur ». Le dépôt de cours enchaîne
+désormais une génération **décomptée** (ADR-116), assumée et validée — c'est
+le prix de la boucle courte. Les deux autres arguments d'ADR-126 tiennent :
+le menu garde ses trois entrées (la troisième relabellisée « Déposer un cours
+(PDF) »), et la distinction destination/entrée de menu reste entière.
+
+### Ce que cela n'autorise pas
+
+- aucune écriture au référentiel sans relecture : la proposition automatique
+  suit exactement le canal d'ADR-113 et la frontière d'ADR-124 (rien d'un
+  document ne devient une mesure) ;
+- aucun relancement de lecture : `?lecture=1` n'est posé que par le flux de
+  dépôt, un garde empêche le re-déclenchement sur re-rendu, et l'échec retombe
+  sur le bouton « Faire lire par le tuteur » ;
+- aucune fabrication de contenu : le titre dérive du nom du fichier, le
+  contexte décrit le geste — rien n'est résumé ni inventé.
+
+### Test de réfutation
+
+L'hypothèse est réfutée si le décompte de quota augmente sans plus de
+référentiel validé — des lectures lancées qui n'aboutissent à aucune
+compétence acceptée — ou si les fiches créées restent vides de tout travail.
+Le remède serait de revenir au bouton manuel (lecture non déclenchée), pas de
+recréer une saisie préalable.
+
+---
+
+## ADR-130 — Le cours saisi devient un protocole de séances, relu case par case 🔬
+
+**Statut :** 🔬 construit le 24/08/2026, hypothèse non réfutée. Décisions
+validées par Maxime le 24/08/2026 (intention enum + libre, protocole plan fixe
+regénérable, revue humaine obligatoire, journal dérivé, génération automatique
+des exercices manquants à la validation). **Étend [ADR-129](#adr-129)** : le
+PDF déposé ne sert plus qu'à proposer un référentiel, il sert désormais aussi
+à concevoir un plan de travail.
+
+### Contexte
+
+Après le dépôt d'un cours (ADR-129), le PDF ne produisait qu'une chose : une
+proposition de référentiel. Une fois les compétences validées, rien ne
+reliait le cours au travail — la personne devait composer ses séances à la
+main, sans que rien ne lui rappelle ce qu'elle voulait faire du cours ni ce
+qu'elle en avait déjà travaillé.
+
+Le besoin déclaré : « quand je saisis un PDF, en extraire un protocole
+personnalisé pour le travailler » — un concepteur de traitement de cours, avec
+des séances typées par dimension pédagogique (compréhension, application,
+contextualisation, mémorisation).
+
+### Décisions
+
+1. **Intention déclarée, jamais déduite.** Au dépôt du PDF (et à chaque
+   régénération), la personne déclare ce qu'elle veut faire du cours : enum
+   serveur `INTENTIONS_COURS` (`memoriser` / `maitriser` / `comprendre`) +
+   phrase libre facultative bornée. C'est un fait déclaré stocké au
+   front-matter de la fiche — même statut que `BesoinDeclare`, jamais une
+   mesure, jamais déduit du contenu du fichier.
+2. **Le protocole est du contenu, pas une entité.** Le tuteur propose un plan
+   de 1 à 6 séances via l'outil confiné `proposer_protocole_cours` (route
+   non conversationnelle `/api/protocole/generer`, quota décompté dans
+   `envTuteur`, ADR-116). Chaque séance porte une dimension (enum serveur
+   `DIMENSIONS_SEANCE`), des codes **désignés** dans l'enum du référentiel
+   actif — jamais frappés (ADR-043) —, une consigne et une durée cible. Le
+   validateur du domaine (`motifRefusProtocole`, `lib/domain/protocole-cours.ts`)
+   revérifie tout, y compris l'appartenance des codes : un plan qui désigne un
+   code hors référentiel est refusé avec son motif.
+3. **Relecture humaine obligatoire** (patronne ADR-129). Le plan est relu
+   séance par séance ; rien n'est créé sans coche. Aucune entité « protocole »
+   n'est stockée : il *devient* des `LearningSession` planifiées dont le
+   `blueprint.origine` (`genre`, `ficheId`, `titre`, `dimension`) porte la
+   trace — ADR-048 respecté, aucune entité nouvelle, aucune table nouvelle.
+4. **Le manquant est encaissé d'un coup.** Cas normal d'un cours nouveau :
+   les compétences n'ont aucun exercice. À la validation, chaque séance
+   retenue est préparée séance par séance
+   (`preparerSeanceProtocoleAction`) : composition (`composerSeance`),
+   génération des manquants (la commande d'ADR-049, encaissée par choix
+   validé), écriture des exercices, écriture de la séance planifiée. Les
+   exercices générés sans relecture un par un restent relisibles et
+   modifiables sur leur fiche ; la barrière qualité demeure la validation
+   humaine des corrections — le seul chemin qui écrit une mesure.
+5. **Le journal de la fiche est dérivé, pas recopié** (P1). Les dates des
+   séances liées se lisent dans `sessions` filtrées par
+   `blueprint.origine.ficheId` (`lireTraceProtocole`) — les recopier dans la
+   fiche ferait deux vérités libres de diverger. Seuls les faits non
+   dérivables s'y écrivent : l'intention datée et le plan validé, dans la
+   section « Journal » du type `cours` (append-only, Markdown ordinaire).
+6. **Dimensions = intentifs, jamais des états.** « Compréhension » dans un
+   blueprint dit ce que la séance est *conçue pour observer*, rien de plus.
+   Rien ne mesure « la compréhension du cours » : les observations naissent
+   des tentatives validées, comme partout (ADR-037, ADR-069).
+
+### Ce qui a été réutilisé plutôt que créé
+
+Extraction PDF bornée et cachée (`extraireTexteSupportAction`, ADR-113),
+assemblage (`composerSeance`), écriture atomique de séance (`creerSeance`),
+génération d'exercices (`genererExercices` + `convertirProposition` +
+`creerExercice`), résolution moteur et quota (`resoudreMoteur` → `envTuteur`),
+flux SSE (`repondreParFluxSse`), sections Markdown (`ajouterDansSection`).
+Une seule pièce réellement neuve : le contrat de génération du plan et sa
+validation.
+
+### Test de réfutation
+
+L'hypothèse est réfutée si les protocoles générés produisent des séances qui
+restent non travaillées (plans subis, pas choisis), si des exercices générés
+d'emblée se font massivement corriger à la main avant tout usage (le coût de
+la relecture différée dépasserait celui de la relecture immédiate), ou si le
+journal dérivé diverge des sessions réelles. Le remède ne serait pas de
+supprimer le protocole, mais de resserrer la relecture (retour à la validation
+exercice par exercice) ou de borner le nombre de séances générées d'un coup.
 
 ---
 

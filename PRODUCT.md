@@ -286,6 +286,18 @@ compte ; un administrateur n'est jamais décompté.
 elle-même. Le contexte permanent du tuteur ne contient toujours aucun document,
 et le moteur n'en lit aucun : une fiche est de la matière pour un énoncé, jamais
 une mesure. Avoir écrit un cours n'est pas l'avoir démontré.
+🔬 **Le cours saisi devient un protocole de séances, relu case par case**
+(24/08/2026, ADR-130). Au dépôt d'un cours, la personne déclare son intention
+(mémoriser / maîtriser / comprendre, enum serveur + précision libre) ; le
+tuteur lit le PDF et propose un plan de 1 à 6 séances typées par dimension
+(compréhension, application, contextualisation, mémorisation) et liées aux
+compétences validées du référentiel. Le plan n'est rien tant qu'il n'est pas
+relu : les séances cochées deviennent des `LearningSession` planifiées du
+bureau, avec génération des exercices manquants. Aucune entité « protocole »
+n'existe ; les dates des séances travaillées se dérivent des sessions à la
+lecture, et seuls les faits déclarés (intention, plan validé) s'inscrivent au
+journal de la fiche. Les dimensions sont des intentifs de séance — elles ne
+mesurent rien.
 ✅ **Construire et utiliser en parallèle** est le mode de travail retenu.
 ✅ **La boucle est le produit** (ADR-066). Son arbitrage — temps disponible,
 capacité déclarée — vit dans la carte d'action et fonctionne sans aucune table.

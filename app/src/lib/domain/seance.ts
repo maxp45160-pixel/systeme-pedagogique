@@ -32,7 +32,9 @@ import {
   DUREE_ESTIMEE_MAX,
   DUREE_ESTIMEE_MIN,
   EXERCICES_PAR_LOT_MAX,
+  TEMPS_DECLARE_MAX,
 } from "./exercice";
+import { motifRefusOrigineSeance } from "./protocole-cours";
 import type {
   BesoinDeclare,
   BlueprintSeance,
@@ -61,11 +63,11 @@ export const INTENTION_MAX = 500;
 /**
  * Plafond du temps déclaré disponible, en minutes.
  *
- * Une déclaration n'a pas besoin d'une borne serrée — elle n'est pas une
- * mesure. Elle a besoin de ne pas être absurde : au-delà d'une journée de
- * travail, la valeur est une faute de frappe, pas une intention.
+ * La constante vit dans `exercice.ts` (voir son commentaire) : le protocole
+ * d'un cours la lit aussi, et l'import direct créerait un cycle. Ce re-export
+ * maintient l'import historique des écrans.
  */
-export const TEMPS_DECLARE_MAX = 480;
+export { TEMPS_DECLARE_MAX } from "./exercice";
 
 /**
  * Nombre d'exercices par séance.
@@ -393,6 +395,14 @@ export function motifRefusBlueprint(blueprint: BlueprintSeance): string | null {
   // dépasse ce qui a été demandé.
   if (blueprint.cibles.length > blueprint.nombreExercices) {
     return `Le blueprint vise ${blueprint.cibles.length} compétences pour ${blueprint.nombreExercices} exercice(s) demandé(s).`;
+  }
+
+  // L'origine protocole (ADR-130) est validée par la seule implémentation
+  // partagée : un blueprint écrit par un chemin détourné ne doit pas pouvoir
+  // se réclamer d'un protocole qui n'existe pas.
+  if (blueprint.origine) {
+    const refusOrigine = motifRefusOrigineSeance(blueprint.origine);
+    if (refusOrigine) return refusOrigine;
   }
 
   return null;

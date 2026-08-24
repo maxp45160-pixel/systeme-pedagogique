@@ -160,7 +160,22 @@ export const TYPES_DOCUMENTS: Readonly<Record<string, DefinitionTypeDocument>> =
   lien: definition("lien", "Lien", "connaissance", "reference", "Références/Liens", ["Notes"]),
   reference: definition("reference", "Référence", "connaissance", "reference", "Références", ["Résumé", "Passages utiles", "Bibliographie"]),
   article: definition("article", "Article", "connaissance", "article", "Références/Articles", ["Résumé", "Points importants"], ["reference"]),
-  cours: definition("cours", "Cours", "connaissance", "cours", "Références/Cours", ["Objectifs", "Contenu", "À retenir"], ["competence"]),
+  /*
+   * Le journal d'un cours (ADR-130) est écrit par le système : chaque
+   * protocole validé y inscrit son fait daté — intention déclarée, séances
+   * retenues. Les dates des séances elles-mêmes n'y sont PAS recopiées : elles
+   * se dérivent des sessions liées à la fiche, à la lecture.
+   */
+  cours: definition(
+    "cours",
+    "Cours",
+    "connaissance",
+    "cours",
+    "Références/Cours",
+    ["Objectifs", "Contenu", "À retenir", "Journal"],
+    ["competence"],
+    ["Journal"],
+  ),
   livre: definition("livre", "Livre", "connaissance", "livre", "Références/Livres", ["Résumé", "Chapitres utiles"], ["reference"]),
   formule: definition("formule", "Formule", "connaissance", "formule", "Connaissances/Formules", ["Définition", "Variables", "Exemple"]),
   reflexion: definition("reflexion", "Réflexion", "connaissance", "reflexion", "Connaissances/Réflexions", ["Question", "Analyse", "Conclusion"]),

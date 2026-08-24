@@ -24,6 +24,13 @@ import { validerUrlRessource } from "@/lib/domain/url-ressource";
 export interface MetadonneesNote {
   contexte: string;
   domaine: string;
+  /**
+   * L'intention déclarée sur un cours au dépôt du PDF (ADR-130), et la
+   * précision libre qui l'accompagne. Des faits déclarés, stockés au
+   * front-matter de la fiche — jamais déduits du contenu du fichier.
+   */
+  intentionCours?: string;
+  intentionLibre?: string;
 }
 
 export async function creerDocumentBrutAction(
@@ -75,6 +82,12 @@ export async function creerNoteAction(
     role,
     contexte,
     domaine,
+    ...(metadonnees.intentionCours
+      ? { intention_cours: metadonnees.intentionCours }
+      : {}),
+    ...(metadonnees.intentionLibre
+      ? { intention_libre: metadonnees.intentionLibre.replace(/\s+/g, " ").slice(0, 200) }
+      : {}),
   });
 
   const sectionsDeclarees = definitionTypeDocument(type)?.sections ?? [];

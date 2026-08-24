@@ -95,9 +95,9 @@ export function PaletteBureau({
       },
       {
         id: "cours",
-        libelle: "Créer une fiche de cours",
+        libelle: "Déposer un cours (PDF)",
         indice: "Créer",
-        motsCles: "cours fiche synthèse note ressource",
+        motsCles: "cours pdf déposer fiche synthèse note ressource",
         executer: () => router.push("/atelier?creation=cours"),
       },
       {

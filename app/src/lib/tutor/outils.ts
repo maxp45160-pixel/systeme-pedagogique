@@ -69,6 +69,13 @@ import {
   VERBES_ACTION,
 } from "@/lib/domain/atomicite";
 import { objet } from "./conversion";
+import {
+  CODES_SEANCE_PROTOCOLE_MAX,
+  DIMENSIONS_SEANCE,
+  SEANCES_PROTOCOLE_MAX,
+  motifRefusProtocole,
+  type ProtocoleCours,
+} from "@/lib/domain/protocole-cours";
 
 /* ------------------------------------------------------------------ */
 /* Noms d'outils et description neutre d'un schéma                     */
@@ -296,6 +303,18 @@ export const OUTIL_INTENTION = "traduire_intention";
  */
 export const OUTIL_MINI_PROJET_ADAPTATIF = "proposer_mini_projet_adaptatif";
 export const OUTIL_EVALUATION_EXPLICATION = "proposer_evaluation_explication";
+
+/**
+ * Outil confiné du protocole de traitement d'un cours (ADR-130).
+ *
+ * Il n'entre PAS dans `outilsTuteur` : le serveur l'arme sur sa seule route
+ * (`/api/protocole/generer`), après avoir fixé l'intention déclarée et les
+ * codes actifs du compte. Le tuteur propose un plan de séances — du contenu,
+ * jamais une mesure (ADR-037) — et n'en frappe aucun code : `codes` est un
+ * `enum` fermé sur le référentiel actif, même distinction frapper / désigner
+ * que `traduire_intention`.
+ */
+export const OUTIL_PROTOCOLE_COURS = "proposer_protocole_cours";
 
 export type FamilleContenuAdaptatif = "produire";
 
@@ -721,6 +740,77 @@ export function outilGenerationActivite(): OutilTuteur {
     description:
       "Rédige uniquement le contenu d'un mini-projet dont les cibles, ressources et critères sont déjà fixés par le serveur. Tu n'enregistres rien et tu ne notes rien.",
     schema: schemaMiniProjetAdaptatif(),
+  };
+}
+
+/**
+ * L'outil du protocole de traitement d'un cours (ADR-130).
+ *
+ * Le serveur fixe l'intention déclarée, le texte du cours et l'enum des codes
+ * actifs ; le tuteur ne remplit que les champs éditoriaux du plan. La
+ * description porte les bornes que le validateur (`motifRefusProtocole`)
+ * revérifie de toute façon : un fournisseur qui ignore le schéma ne passe pas.
+ */
+export function outilProtocoleCours(codesActifs: string[]): OutilTuteur {
+  return {
+    nom: OUTIL_PROTOCOLE_COURS,
+    description: `Propose un plan de 1 à ${SEANCES_PROTOCOLE_MAX} séances pour travailler un cours, du plus fondamental au plus avancé. Chaque séance vise 1 à ${CODES_SEANCE_PROTOCOLE_MAX} compétences de la liste fournie — tu n'inventes aucun code et tu n'évalues rien.`,
+    schema: {
+      type: "object",
+      properties: {
+        resume: {
+          type: "string",
+          maxLength: 1_000,
+          description:
+            "Une à trois phrases : comment le plan couvre le cours et sert l'intention déclarée.",
+        },
+        seances: {
+          type: "array",
+          minItems: 1,
+          maxItems: SEANCES_PROTOCOLE_MAX,
+          items: {
+            type: "object",
+            properties: {
+              titre: {
+                type: "string",
+                maxLength: 120,
+                description: "Titre court de la séance, lisible tel quel.",
+              },
+              dimension: {
+                type: "string",
+                enum: [...DIMENSIONS_SEANCE],
+                description:
+                  "comprehension = vérifier que les notions sont comprises ; application = les appliquer à des exercices typiques ; contextualisation = les transposer à des cas nouveaux ; memorisation = fixer les points clés.",
+              },
+              codes: {
+                type: "array",
+                minItems: 1,
+                maxItems: CODES_SEANCE_PROTOCOLE_MAX,
+                items: { type: "string", enum: codesActifs },
+                description: "Les compétences visées, choisies dans la liste fournie.",
+              },
+              consigne: {
+                type: "string",
+                maxLength: 600,
+                description:
+                  "Ce que la séance fait faire, en une à trois phrases, ancré dans le contenu du cours.",
+              },
+              dureeCibleMin: {
+                type: "integer",
+                minimum: 5,
+                maximum: 480,
+                description:
+                  "Durée cible en minutes. Au moins 5 minutes par compétence visée.",
+              },
+            },
+            required: ["titre", "dimension", "codes", "consigne", "dureeCibleMin"],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ["resume", "seances"],
+      additionalProperties: false,
+    },
   };
 }
 
@@ -1447,6 +1537,83 @@ function codesDuSchemaIntention(outils: OutilTuteur[]): Set<string> {
 }
 
 /**
+ * Les codes actifs tels que le schéma du protocole les a énumérés.
+ *
+ * Même règle que `codesDuSchemaIntention` : on valide contre l'ensemble
+ * effectivement reçu par le fournisseur, jamais contre une liste parallèle.
+ */
+function codesDuSchemaProtocole(outils: OutilTuteur[]): Set<string> {
+  const protocole = outils.find((o) => o.nom === OUTIL_PROTOCOLE_COURS);
+  const codes =
+    protocole?.schema.properties?.seances?.items?.properties?.codes?.items?.enum ?? [];
+  return new Set(codes);
+}
+
+/*
+ * Les modèles recopient rarement les enums à la lettre : un code arrive en
+ * minuscules, une dimension accentuée, une durée en chaîne. Comme
+ * `convertirProposition` pour l'exercice, on PARSE — on ne fabrique rien :
+ * une valeur illisible reste un refus.
+ */
+function normaliserCodeProtocole(valeur: unknown): string {
+  return typeof valeur === "string" ? valeur.trim().toUpperCase() : "";
+}
+
+function dimensionNormalisee(valeur: unknown): string | null {
+  if (typeof valeur !== "string") return null;
+  const n = valeur
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+  return (DIMENSIONS_SEANCE as readonly string[]).includes(n) ? n : null;
+}
+
+function dureeNormalisee(valeur: unknown): number | null {
+  const n =
+    typeof valeur === "number"
+      ? valeur
+      : typeof valeur === "string"
+        ? Number.parseInt(valeur.trim(), 10)
+        : Number.NaN;
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+function validerProtocoleCours(
+  donnees: Record<string, unknown>,
+  codesActifs: Set<string>,
+): PropositionRecue | null {
+  const resume = typeof donnees.resume === "string" ? donnees.resume : "";
+  const seancesBrutes = Array.isArray(donnees.seances) ? donnees.seances : [];
+  const seances: ProtocoleCours["seances"] = [];
+  for (const brut of seancesBrutes) {
+    const o = objet(brut);
+    if (!o) return null;
+    if (typeof o.titre !== "string") return null;
+    const dimension = dimensionNormalisee(o.dimension);
+    if (!dimension) return null;
+    if (!Array.isArray(o.codes)) return null;
+    const codes = o.codes.map(normaliserCodeProtocole).filter(Boolean);
+    if (codes.length === 0) return null;
+    if (typeof o.consigne !== "string") return null;
+    const dureeCibleMin = dureeNormalisee(o.dureeCibleMin);
+    if (dureeCibleMin === null) return null;
+    seances.push({
+      titre: o.titre,
+      dimension: dimension as ProtocoleCours["seances"][number]["dimension"],
+      codes,
+      consigne: o.consigne,
+      dureeCibleMin,
+    });
+  }
+  if (seances.length === 0) return null;
+
+  const protocole: ProtocoleCours = { resume, seances };
+  if (motifRefusProtocole(protocole, codesActifs)) return null;
+  return { genre: "protocole-cours", protocole };
+}
+
+/**
  * Les trois outils, pour un référentiel donné.
  *
  * Stable pour un compte tant que son référentiel ne change pas — même propriété
@@ -1534,7 +1701,8 @@ export type PropositionRecue =
   | { genre: "tags"; tags: PropositionTagsCompetence }
   | { genre: "relecture"; relecture: PropositionRelecture }
   | { genre: "referentiel-complet"; resume: string; branches: PropositionReferentiel[]; ecartees: number }
-  | { genre: "intention"; traduction: TraductionIntention };
+  | { genre: "intention"; traduction: TraductionIntention }
+  | { genre: "protocole-cours"; protocole: ProtocoleCours };
 
 export interface PropositionRevision {
   resume: string;
@@ -2727,6 +2895,8 @@ export function validerAppelOutil(
       const traduction = validerTraductionIntention(donnees, codesDuSchemaIntention(outils));
       return traduction ? { genre: "intention", traduction } : null;
     }
+    case OUTIL_PROTOCOLE_COURS:
+      return validerProtocoleCours(donnees, codesDuSchemaProtocole(outils));
     default:
       return null;
   }
@@ -2751,7 +2921,16 @@ export function validerAppelOutil(
  */
 const MOTIFS_REFUS_MAX = 3;
 
-export function motifsRefusAppelOutil(nom: string, argumentsJson: string): string[] {
+export function motifsRefusAppelOutil(
+  nom: string,
+  argumentsJson: string,
+  /**
+   * Les outils armés — pour relire l'enum réellement reçu par le fournisseur
+   * (mêmes raisons que `validerAppelOutil`). Facultatif : sans lui, les motifs
+   * d'appartenance des codes sont silencieux.
+   */
+  outils: OutilTuteur[] = [],
+): string[] {
   let entree: unknown;
   try {
     entree = JSON.parse(argumentsJson);
@@ -2761,10 +2940,62 @@ export function motifsRefusAppelOutil(nom: string, argumentsJson: string): strin
     ];
   }
 
-  if (nom !== OUTIL_REFERENTIEL_COMPLET && nom !== OUTIL_REFERENTIEL) return [];
+  if (nom !== OUTIL_REFERENTIEL_COMPLET && nom !== OUTIL_REFERENTIEL && nom !== OUTIL_PROTOCOLE_COURS) {
+    return [];
+  }
 
   const racine = objet(entree);
   if (!racine) return [];
+
+  /*
+   * Un plan de protocole refusé doit dire pourquoi : « arrivée incomplète »
+   * était faux dans le cas le plus courant — le plan est entier mais une
+   * dimension est inconnue ou un code hors liste. Même leçon que les motifs
+   * d'atomicité ci-dessous, appliquée au protocole (ADR-130).
+   */
+  if (nom === OUTIL_PROTOCOLE_COURS) {
+    const motifs: string[] = [];
+    const codesActifs = codesDuSchemaProtocole(outils);
+    const seancesBrutes = Array.isArray(racine.seances) ? racine.seances : [];
+    if (seancesBrutes.length === 0) {
+      motifs.push("aucune séance dans le plan");
+    } else if (seancesBrutes.length > SEANCES_PROTOCOLE_MAX) {
+      motifs.push(`${seancesBrutes.length} séances pour ${SEANCES_PROTOCOLE_MAX} au plus`);
+    }
+    for (const [index, brute] of seancesBrutes.entries()) {
+      const o = objet(brute);
+      if (!o) continue;
+      const ou = `séance ${index + 1}`;
+      if (typeof o.titre !== "string" || !o.titre.trim()) motifs.push(`${ou} : titre absent`);
+      if (!dimensionNormalisee(o.dimension)) {
+        motifs.push(`${ou} : dimension inconnue (attendu : comprehension, application, contextualisation ou memorisation)`);
+      }
+      if (!Array.isArray(o.codes) || o.codes.length === 0) {
+        motifs.push(`${ou} : aucune compétence visée`);
+      } else {
+        const codes = o.codes.map(normaliserCodeProtocole).filter(Boolean);
+        if (codes.length > CODES_SEANCE_PROTOCOLE_MAX) {
+          motifs.push(`${ou} : ${codes.length} compétences pour ${CODES_SEANCE_PROTOCOLE_MAX} au plus`);
+        }
+        const inconnus = codes.filter((code) => !codesActifs.has(code));
+        if (inconnus.length > 0) {
+          motifs.push(`${ou} : compétence(s) hors référentiel (${inconnus.slice(0, 3).join(", ")})`);
+        }
+        const duree = dureeNormalisee(o.dureeCibleMin);
+        if (duree === null) {
+          motifs.push(`${ou} : durée cible illisible`);
+        } else if (duree < codes.length * 5 || duree > 480) {
+          motifs.push(`${ou} : durée cible hors bornes (au moins ${codes.length * 5} min pour ${codes.length} compétence(s), 480 au plus)`);
+        }
+      }
+      if (typeof o.consigne !== "string" || !o.consigne.trim()) {
+        motifs.push(`${ou} : consigne absente`);
+      }
+      if (motifs.length >= MOTIFS_REFUS_MAX) break;
+    }
+    return motifs.slice(0, MOTIFS_REFUS_MAX);
+  }
+
   const branchesBrutes =
     nom === OUTIL_REFERENTIEL_COMPLET
       ? Array.isArray(racine.branches)

@@ -113,7 +113,7 @@ export function moteurAnthropic(cle: string, modele: string): MoteurTuteur {
             // Même dette que dans `compatible-openai.ts` : un refus muet ne se
             // corrige pas. Les motifs viennent du même endroit, pour que les
             // deux moteurs disent la même chose du même refus.
-            const motifs = motifsRefusAppelOutil(bloc.name, JSON.stringify(bloc.input));
+            const motifs = motifsRefusAppelOutil(bloc.name, JSON.stringify(bloc.input), outils);
             envoyer("proposition-rejetee", {
               message:
                 motifs.length > 0

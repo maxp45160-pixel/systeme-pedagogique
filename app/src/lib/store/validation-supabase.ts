@@ -20,6 +20,7 @@ import {
   type User,
 } from "@/lib/domain/types";
 import type { Engagement } from "@/lib/domain/engagement";
+import { motifRefusOrigineSeance } from "@/lib/domain/protocole-cours";
 import {
   PARAMETRE_PAR_NOM,
   type AjustementInscrit,
@@ -286,6 +287,19 @@ function validerBlueprint(valeur: unknown, chemin: string): void {
     nombre(cible.difficulte, `${chemin}.cibles[${index}].difficulte`, { min: 1, max: 5, entier: true });
     texte(cible.raison, `${chemin}.cibles[${index}].raison`);
   });
+  // Origine protocole (ADR-130) : validée par la seule implémentation du
+  // domaine — une ligne Supabase ne peut pas se réclamer d'un protocole
+  // mal formé.
+  if (blueprint.origine !== undefined) {
+    const origine = objet(blueprint.origine, `${chemin}.origine`);
+    texte(origine.genre, `${chemin}.origine.genre`);
+    texte(origine.ficheId, `${chemin}.origine.ficheId`);
+    texte(origine.titre, `${chemin}.origine.titre`);
+    const refus = motifRefusOrigineSeance(
+      origine as unknown as Parameters<typeof motifRefusOrigineSeance>[0],
+    );
+    if (refus) refuser(`${chemin}.origine`, refus);
+  }
 }
 
 export function validerSeance(valeur: unknown, chemin = "sessions"): LearningSession {

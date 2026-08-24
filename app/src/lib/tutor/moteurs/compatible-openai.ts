@@ -454,7 +454,7 @@ export function moteurCompatibleOpenAI(
              * verbe hors liste. Ni la personne ni le journal ne pouvaient le
              * savoir, donc personne ne pouvait le corriger.
              */
-            const motifs = motifsRefusAppelOutil(appel.nom, appel.arguments);
+            const motifs = motifsRefusAppelOutil(appel.nom, appel.arguments, outils);
             envoyer("proposition-rejetee", {
               message:
                 motifs.length > 0

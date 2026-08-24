@@ -142,6 +142,14 @@ Consulter `PRODUCT.md` pour la définition complète des principes.
   `budget-contexte.test.ts` échoue au-delà. Le relever est une décision qui
   s'écrit ; `MAX_MESSAGES_FENETRE` et `LIMITE_MATIERE_FICHE` bornent la
   conversation et se revoient avec lui.
+- Le protocole d'un cours n'est pas une entité (ADR-130) : il devient des
+  séances planifiées dont `blueprint.origine` porte la trace. Ses dimensions
+  (compréhension, application, contextualisation, mémorisation) sont des
+  intentifs de séance — elles n'observent rien et ne notent rien. Les codes
+  qu'il désigne viennent de l'enum du référentiel actif, validés par
+  `motifRefusProtocole`. Le journal de la fiche se DÉRIVE des sessions
+  (`lireTraceProtocole`) — seuls les faits déclarés (intention, plan validé)
+  s'y écrivent.
 - Pas d'émoji dans le frontend : ne jamais utiliser d'émojis dans l'interface utilisateur (boutons, badges, étiquettes, icônes, textes). Utiliser les composants d'icônes SVG (`components/ui/icones.tsx`) ou du texte sobre.
 
 Pour les détails et justifications :

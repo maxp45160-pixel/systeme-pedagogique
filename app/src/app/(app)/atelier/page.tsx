@@ -24,13 +24,14 @@ import {
 } from "@/lib/documents/rangement-atelier";
 import { paletteDomaines } from "@/lib/ui/couleurs-domaines";
 import { chargerDonneesSeance } from "@/components/seances/donnees-seance";
+import { lireTraceProtocole } from "@/lib/store/protocole-actions";
 import { RelectureAuChargement } from "@/components/referentiel/relecture-au-chargement";
 import { chargerLotPropositions } from "@/lib/store/relecture-referentiel";
 
 export default async function PageAtelier(props: {
-  searchParams: Promise<{ document?: string; note?: string; retour?: string; creation?: string; vue?: string }>;
+  searchParams: Promise<{ document?: string; note?: string; retour?: string; creation?: string; vue?: string; lecture?: string }>;
 }) {
-  const { document: documentDemande, note, retour, creation, vue: vueDemandee } = await props.searchParams;
+  const { document: documentDemande, note, retour, creation, vue: vueDemandee, lecture } = await props.searchParams;
   /*
    * `vue=progression` ouvre la vue domaine directement en lecture longitudinale.
    * Toute autre valeur est ignorée : seul un mode qui existe mérite d'être initialisé.
@@ -47,10 +48,19 @@ export default async function PageAtelier(props: {
     const analyse = analyserDocumentMarkdown(fiche.id, fiche.contenuMd);
     const estSupport = analyse.frontMatter.role === "support";
     const estSeance = analyse.type === "seance";
+    const estCours = analyse.type === "cours";
 
-    const [pieces, donneesSeance] = await Promise.all([
+    /*
+     * La trace du protocole (ADR-130) est dérivée à la lecture : séances liées
+     * dans `sessions`, journal dans la fiche. Elle ne charge que pour une fiche
+     * cours — les autres supports n'ont pas de protocole.
+     */
+    const [pieces, donneesSeance, traceProtocole] = await Promise.all([
       estSupport ? lirePiecesJointes(fiche.id).catch(() => []) : Promise.resolve([]),
       estSeance ? chargerDonneesSeance() : Promise.resolve(undefined),
+      estSupport && estCours
+        ? lireTraceProtocole(fiche.id).catch(() => undefined)
+        : Promise.resolve(undefined),
     ]);
     // Les repères locaux et la clé du tuteur sont isolés par compte (garde-fou
     // post-ADR-029) : l'espace de travail a besoin de savoir qui est connecté.
@@ -65,6 +75,13 @@ export default async function PageAtelier(props: {
         donneesSeance={donneesSeance}
         retour={retour}
         compteId={userId}
+        traceProtocole={traceProtocole}
+        /*
+         * Dépôt de cours (ADR-129) : `?lecture=1` n'est posé que par le flux
+         * « Déposer mon cours », qui vient d'attacher le PDF. Toute autre
+         * valeur est ignorée — le paramètre ne relance jamais une lecture.
+         */
+        lectureAutomatique={lecture === "1"}
       />
     );
   }

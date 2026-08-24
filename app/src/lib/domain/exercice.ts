@@ -50,6 +50,21 @@ export const DIFFICULTE_MAX = 5;
  */
 export const EXERCICES_PAR_LOT_MAX = 6;
 
+/**
+ * Plafond du temps déclaré disponible, en minutes.
+ *
+ * Une déclaration n'a pas besoin d'une borne serrée — elle n'est pas une
+ * mesure. Elle a besoin de ne pas être absurde : au-delà d'une journée de
+ * travail, la valeur est une faute de frappe, pas une intention.
+ *
+ * Elle vit ici et non dans `seance.ts` : le protocole d'un cours
+ * (`protocole-cours.ts`) borne ses durées cibles par elle, et un import de
+ * `seance.ts` vers `protocole-cours.ts` créerait un cycle — `seance.ts`
+ * valide l'origine protocole de ses blueprints. Une règle, un endroit ; le
+ * re-export de `seance.ts` garde les imports existants stables.
+ */
+export const TEMPS_DECLARE_MAX = 480;
+
 /** Ce qu'un exercice doit satisfaire pour entrer en base, création ou édition. */
 export interface ContenuExercice {
   titre: string;

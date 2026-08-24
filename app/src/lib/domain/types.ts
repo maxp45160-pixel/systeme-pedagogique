@@ -653,6 +653,23 @@ export type PorteeSeance =
   | { type: "transverse"; domaines: DomaineId[] };
 
 /**
+ * La provenance d'une séance née du protocole d'un cours (ADR-130).
+ *
+ * Un fait de traçabilité, pas une donnée de calcul : le moteur ne le lit
+ * jamais. `ficheId` désigne la fiche cours dont le PDF a fait naître la
+ * séance — c'est lui qui permet de dériver, à la lecture, le journal des
+ * séances liées à ce cours. Absent sur les séances composées à la main :
+ * l'absence vaut « séance ordinaire », même discipline que `statut`.
+ */
+export interface OrigineSeance {
+  genre: "protocole-cours";
+  ficheId: string;
+  /** Titre relu de la séance du protocole, tel que validé par la personne. */
+  titre: string;
+  dimension: import("./protocole-cours").DimensionSeance;
+}
+
+/**
  * Le cahier des charges qui a produit la composition d'une séance.
  *
  * Conservé avec la séance pour une raison de traçabilité, pas de calcul : sans
@@ -665,6 +682,8 @@ export interface BlueprintSeance {
   nombreExercices: number;
   portee: PorteeSeance;
   cibles: CibleSeance[];
+  /** Présent : la séance vient du protocole d'un cours (ADR-130). */
+  origine?: OrigineSeance;
 }
 
 /**
