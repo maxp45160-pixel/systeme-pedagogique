@@ -141,9 +141,6 @@ export function CarteExerciceDemo() {
         <span className="font-mono text-[0.6875rem] uppercase tracking-wide text-texte-discret">
           Votre prochain exercice
         </span>
-        <span className="rounded-full border border-alerte/40 px-2 py-0.5 font-mono text-[0.625rem] uppercase tracking-wide text-alerte">
-          Exemple
-        </span>
       </div>
 
       <div className="grid gap-4 px-5 pb-1 pt-4">
