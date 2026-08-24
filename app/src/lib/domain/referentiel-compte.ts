@@ -411,11 +411,21 @@ export function competenceHomonyme(
   );
 }
 
+export interface OptionsValidationCompetence {
+  /**
+   * Si faux, ne bloque pas sur les règles d'atomicité (longueur > 80, 2 verbes, etc.).
+   * Utilisé lorsqu'une compétence existante est simplement reliée, ordonnée ou mise à jour
+   * sans que son intitulé ne soit réécrit (Option A / ADR-086 assoupli pour les arêtes).
+   */
+  verifierAtomicite?: boolean;
+}
+
 export function validerCompetence(
   candidat: CompetenceCandidate,
   referentiel: Referentiel,
   domaineId: string,
   codeIgnore?: string,
+  options?: OptionsValidationCompetence,
 ): string[] {
   const erreurs: string[] = [];
   const intitule = candidat.intitule.trim();
@@ -430,24 +440,18 @@ export function validerCompetence(
   }
 
   /*
-   * L'atomicité — ADR-086, durci le 18/08/2026 sur décision explicite.
+   * L'atomicité — ADR-086.
    *
-   * La règle s'applique à TOUTE validation, y compris sur un intitulé que
-   * personne ne touche. 67 des 115 compétences du compte échouent : elles sont
-   * donc gelées jusqu'à reformulation, et c'est l'effet voulu — « si elles
-   * doivent toutes être reformulées car elles ne sont pas adéquates, ainsi
-   * soit-il ».
-   *
-   * ⚠️ Le gel a une portée qu'il faut connaître : `relierCompetences` passe par
-   * `modifierCompetence`, donc par ici. Déclarer un prérequis sur une
-   * compétence non atomique échoue tant qu'elle n'est pas réécrite. C'est
-   * cohérent — une arête vers un intitulé qui recouvre cinq savoir-faire ne
-   * décrit aucun ordre d'apprentissage — mais cela rend la reformulation
-   * bloquante pour le reste. D'où `detecterReformulations`
-   * (`lib/engine/candidats-referentiel.ts`), qui rend la liste actionnable
-   * plutôt que de laisser buter écran par écran.
+   * La règle s'applique à la création et à toute modification d'intitulé.
+   * Lorsqu'une compétence existante est modifiée pour un autre champ (ex:
+   * prérequis / liaison d'arête, importance, ordre), `verifierAtomicite: false`
+   * permet d'enregistrer la structure pédagogique sans bloquer sur la
+   * reformulation de l'intitulé historique.
    */
-  for (const motif of motifsNonAtomique(intitule)) erreurs.push(motif.message);
+  const verifierAtomicite = options?.verifierAtomicite ?? true;
+  if (verifierAtomicite) {
+    for (const motif of motifsNonAtomique(intitule)) erreurs.push(motif.message);
+  }
   if (!PALIERS.includes(candidat.palier)) {
     erreurs.push(`Palier inconnu : « ${candidat.palier} ».`);
   }

@@ -157,4 +157,41 @@ describe("gouvernance du référentiel", () => {
       retraits: [competence.code],
     }, referentiel, "tuteur")).toThrow("retirée dans la même révision");
   });
+
+  it("permet d'ajouter un prérequis à une compétence existante dont l'intitulé dépasse 80 caractères", () => {
+    const domaineExistant = domaine("llm", "Grand modèle de langage", "LLM");
+    const longIntitule = "Comprendre les enjeux de propriété intellectuelle et de droits d'auteur dans l'utilisation des LLM";
+    const comp1 = skill("LLM-01", "Comprendre les fondamentaux", "llm");
+    const comp2 = skill("LLM-02", longIntitule, "llm");
+    const referentiel = assemblerReferentiel([domaineExistant], [comp1, comp2]);
+
+    const revision = preparerRevisionDomaine({
+      domaineId: domaineExistant.id,
+      ajouts: [],
+      modifications: [{ code: "LLM-02", prerequis: ["LLM-01"] }],
+      retraits: [],
+    }, referentiel, "utilisateur");
+
+    expect(revision.commande).toMatchObject({
+      type: "reviser_domaine",
+      modifications: [{ code: "LLM-02", prerequis: ["LLM-01"] }],
+    });
+  });
+
+  it("refuse la modification d'un intitulé si le nouvel intitulé n'est pas atomique", () => {
+    const domaineExistant = domaine("llm", "Grand modèle de langage", "LLM");
+    const comp1 = skill("LLM-01", "Comprendre les fondamentaux", "llm");
+    const referentiel = assemblerReferentiel([domaineExistant], [comp1]);
+
+    expect(() => preparerRevisionDomaine({
+      domaineId: domaineExistant.id,
+      ajouts: [],
+      modifications: [{
+        code: "LLM-01",
+        intitule: "Comprendre les enjeux de propriété intellectuelle et de droits d'auteur dans l'utilisation des LLM",
+      }],
+      retraits: [],
+    }, referentiel, "utilisateur")).toThrow();
+  });
 });
+

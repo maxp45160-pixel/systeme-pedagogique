@@ -313,7 +313,7 @@ describe("validation d'une compétence", () => {
    * réécriture silencieuse du validateur pourrait regeler les 67 compétences
    * historiques sans que rien ne tombe.
    */
-  it("refuse un intitulé NON atomique même si personne ne l'a changé", () => {
+  it("refuse par défaut un intitulé NON atomique", () => {
     const erreurs = validerCompetence(
       {
         intitule: "Décrire les principes du stock et calculer un stock de sécurité en demande variable",
@@ -324,6 +324,21 @@ describe("validation d'une compétence", () => {
       "developpement",
     );
     expect(erreurs.length).toBeGreaterThan(0);
+  });
+
+  it("tolère un intitulé non atomique lorsque verifierAtomicite est faux (ex: ajout de prérequis)", () => {
+    const erreurs = validerCompetence(
+      {
+        intitule: "Décrire les principes du stock et calculer un stock de sécurité en demande variable",
+        palier: "fondamentaux",
+        importance: 0.8,
+      },
+      referentiel,
+      "developpement",
+      undefined,
+      { verifierAtomicite: false },
+    );
+    expect(erreurs).toEqual([]);
   });
 });
 
