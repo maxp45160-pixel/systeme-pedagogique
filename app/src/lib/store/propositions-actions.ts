@@ -28,6 +28,7 @@ import { revalidatePath } from "next/cache";
 import { chargerPropositions, inscrireArbitrage } from "./propositions-referentiel";
 import {
   appliquerRevision,
+  mettreDeCoteCompetence,
   relierCompetences,
   scinderDomaine,
   taguerCompetences,
@@ -164,14 +165,18 @@ async function ecrireProposition(
     case "dormance": {
       const skill = referentiel.parCode.get(contenu.code);
       if (!skill) throw new Error("Cette compétence n'est plus au référentiel.");
-      // Retirée, donc ARCHIVÉE : une compétence ne se supprime pas (P4, ADR-027).
-      await appliquerRevision({
-        domaineId: skill.domaine,
-        ajouts: [],
-        modifications: [],
-        retraits: [contenu.code],
-      });
-      return `« ${skill.intitule} » est mise de côté. Elle reste consultable.`;
+      /*
+       * `mettreDeCoteCompetence`, et surtout PAS `appliquerRevision`.
+       *
+       * Le commentaire qui vivait ici disait « retirée, donc ARCHIVÉE : une
+       * compétence ne se supprime pas ». Il décrivait une intention, pas le
+       * code : un retrait de révision laisse le SQL arbitrer, et il SUPPRIME
+       * quand rien ne dépend de la compétence — soit exactement le cas d'une
+       * dormance. La mise de côté détruisait donc ce qu'elle promettait de
+       * conserver (constaté le 24/08/2026, ADR-118).
+       */
+      await mettreDeCoteCompetence(contenu.code);
+      return `« ${skill.intitule} » est mise de côté. Vous pouvez la reprendre depuis son domaine.`;
     }
 
     case "manque": {

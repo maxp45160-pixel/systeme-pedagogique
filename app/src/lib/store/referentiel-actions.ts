@@ -568,6 +568,73 @@ export async function lireCompetencesActives(): Promise<CompetenceLisible[]> {
   }));
 }
 
+/* ------------------------------------------------------------------ */
+/* Mettre de côté une compétence, et la reprendre                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Le domaine qui gouverne une compétence, ou une erreur qui le dit.
+ *
+ * La gouvernance d'ADR-065 porte sur le **namespace de création**
+ * (`Skill.domaine`), pas sur les tags : c'est lui que la RPC exige, et une
+ * compétence taguée ailleurs se met de côté depuis son domaine d'origine.
+ */
+async function competenceGouvernee(code: string) {
+  const dorsale = await dorsaleCompte();
+  const referentiel = await lireReferentiel(dorsale);
+  const skill = referentiel.parCode.get(code);
+  if (!skill) throw new Error(`Compétence inconnue : ${code}`);
+  return { referentiel, skill };
+}
+
+/**
+ * Mettre une compétence de côté : elle sort du périmètre actif, rien n'est
+ * supprimé.
+ *
+ * ## Pourquoi elle ne passe pas par `appliquerRevision`
+ *
+ * Un retrait de révision laisse le SQL choisir entre archiver et supprimer :
+ * il supprime dès que rien ne dépend de la compétence. Une compétence dormante
+ * n'a par définition ni observation, ni exercice, ni relation — elle était donc
+ * SUPPRIMÉE, pendant que l'écran promettait de pouvoir la reprendre. La
+ * commande `archiver_competence` archive sans arbitrer (24/08/2026).
+ *
+ * Le retrait de révision garde son heuristique : effacer une erreur de saisie
+ * reste un geste légitime, et ce n'est pas celui-ci.
+ */
+export async function mettreDeCoteCompetence(code: string): Promise<void> {
+  const { referentiel, skill } = await competenceGouvernee(code);
+  if (skill.archive) return;
+  await executerCommande(
+    { type: "archiver_competence", domaineId: skill.domaine, code: skill.code },
+    referentiel,
+    "utilisateur",
+    "Mise de côté validée",
+  );
+}
+
+/**
+ * Reprendre une compétence mise de côté : elle revient dans le périmètre actif.
+ *
+ * Le pendant exact de `restaurerDomaine`, pour une compétence. Il n'existait
+ * pas : la commande SQL `desarchiver_competence` était en base depuis le
+ * 20/08/2026 et n'était appelée par rien, si bien que l'écran promettait une
+ * reprise qu'aucun geste ne tenait.
+ *
+ * Elle ne restaure aucun exercice : ceux-ci sont archivés par domaine, jamais
+ * par compétence, et rien n'a été archivé au moment de la mise de côté.
+ */
+export async function reprendreCompetence(code: string): Promise<void> {
+  const { referentiel, skill } = await competenceGouvernee(code);
+  if (!skill.archive) return;
+  await executerCommande(
+    { type: "desarchiver_competence", domaineId: skill.domaine, code: skill.code },
+    referentiel,
+    "utilisateur",
+    "Reprise d’une compétence mise de côté",
+  );
+}
+
 export async function archiverDomaine(domaineId: string): Promise<ResultatCommandeReferentiel> {
   const dorsale = await dorsaleCompte();
   const referentiel = await lireReferentiel(dorsale);

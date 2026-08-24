@@ -425,6 +425,10 @@ export function validerCompetence(valeur: unknown, chemin = "competences"): Skil
   booleen(competence.active, `${chemin}.active`);
   booleen(competence.archive, `${chemin}.archive`);
   optionnel(competence, "remplacePar", chemin, texte);
+  // `created_at` : rattachée explicitement par l'appelant, car `ligneVersEntite`
+  // écarte les colonnes techniques. Optionnelle ici pour que la validation ne
+  // dépende pas de ce que l'appelant a pris la peine de joindre.
+  optionnel(competence, "creeLe", chemin, date);
   enumeration(competence.origine, ["utilisateur", "tuteur", "migration", "manuel"] as const, `${chemin}.origine`);
   return competence as unknown as Skill;
 }

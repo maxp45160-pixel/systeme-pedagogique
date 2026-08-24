@@ -41,6 +41,7 @@
  */
 
 import type { DomaineId } from "./types";
+import { joursDeDormance } from "./dormance";
 
 /* ------------------------------------------------------------------ */
 /* Genres                                                              */
@@ -353,6 +354,8 @@ export interface ReferentielLu {
     archive: boolean;
     prerequis: readonly string[];
     tagsDomaine?: readonly DomaineId[];
+    /** `competences.created_at` — ce qui donne un âge à une dormance. */
+    creeLe?: string;
   }[];
 }
 
@@ -393,6 +396,7 @@ function slug(nom: string): string {
 export function estEncoreApplicable(
   contenu: ContenuProposition,
   referentiel: ReferentielLu,
+  now: Date,
 ): boolean {
   const parCode = new Map(referentiel.competences.map((c) => [c.code, c]));
   const vivante = (code: string) => {
@@ -411,8 +415,21 @@ export function estEncoreApplicable(
       return !aval.prerequis.includes(contenu.amont);
     }
 
-    case "dormance":
-      return vivante(contenu.code) !== null;
+    /*
+     * Une dormance enregistrée reste applicable tant que la compétence vit ET
+     * qu'elle est assez âgée pour être dite dormante.
+     *
+     * La seconde moitié a été ajoutée le 24/08/2026, et elle est la seule à
+     * faire disparaître les vingt-huit propositions produites la veille sur des
+     * compétences créées le jour même : corriger le détecteur ne retire rien de
+     * ce qu'il a déjà écrit en base. La question posée ici doit être celle que
+     * le détecteur pose — même seuil, même implémentation
+     * (`lib/domain/dormance.ts`).
+     */
+    case "dormance": {
+      const skill = vivante(contenu.code);
+      return skill !== null && joursDeDormance(skill.creeLe, now) !== null;
+    }
 
     case "reformulation": {
       const skill = vivante(contenu.code);
@@ -484,6 +501,7 @@ export function estEncoreApplicable(
 export function lotOuvert(
   propositions: readonly PropositionReferentielRelue[],
   referentiel: ReferentielLu,
+  now: Date,
 ): PropositionReferentielRelue[] {
   const refusees = empreintesRefusees(propositions);
   const vues = new Set<string>();
@@ -492,7 +510,7 @@ export function lotOuvert(
   for (const proposition of propositions) {
     if (proposition.arbitrage) continue;
     if (refusees.has(proposition.empreinte)) continue;
-    if (!estEncoreApplicable(proposition.contenu, referentiel)) continue;
+    if (!estEncoreApplicable(proposition.contenu, referentiel, now)) continue;
     // Deux lots successifs peuvent porter la même proposition encore valide :
     // elle ne s'affiche qu'une fois.
     if (vues.has(proposition.empreinte)) continue;

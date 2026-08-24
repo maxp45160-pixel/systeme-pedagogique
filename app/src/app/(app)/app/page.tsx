@@ -9,7 +9,6 @@ import { calculerActivite } from "@/lib/engine/historique";
 import { CarteSeanceActive } from "@/components/dashboard/carte-seance-active";
 import { CarteProchaineAction } from "@/components/dashboard/prochaine-action";
 import { PistesAlternatives } from "@/components/dashboard/pistes-alternatives";
-import { SyntheseReferentiel } from "@/components/dashboard/synthese-referentiel";
 import { AvisPropositions } from "@/components/dashboard/avis-propositions";
 import { MiniActivite } from "@/components/dashboard/mini-activite";
 import { IconeFleche } from "@/components/ui/icones";
@@ -269,26 +268,27 @@ async function ContenuTableauDeBord({
           />
         </div>
 
-        {/* Colonne droite : Repères contextuels passifs (Vision du Référentiel + Continuité) */}
-        <div className="space-y-3.5 sm:space-y-4 lg:col-span-5 xl:col-span-4 min-w-0">
-          {/*
-            Les propositions de référentiel (ADR-108), au-dessus de la synthèse
-            parce qu'elles appellent un geste là où la synthèse décrit un état.
+        {/*
+          Colonne droite : ce qui appelle un geste, puis la continuité.
 
-            Sous `Suspense` avec un repli VIDE : c'est une lecture de plus, sur
-            une table qui ne sert qu'à cet avis, et le tableau de bord ne doit
-            pas l'attendre. Un repli vide plutôt qu'un squelette — un squelette
-            annoncerait un bloc qui, le plus souvent, ne s'affichera pas.
-          */}
+          La synthèse du référentiel (27 compétences, jauge de découverte,
+          domaines actifs) a été retirée le 24/08/2026 : elle redisait, en
+          panneau permanent, ce que l'Atelier montre mieux.
+
+          L'avis de propositions, lui, revient — et coexiste avec la pastille du
+          rail sans faire doublon. La pastille est un signal qui suit partout ;
+          cette carte est une entrée de PILOTAGE, et le tableau de bord est
+          l'endroit où l'on décide de ce qu'on fait maintenant.
+
+          Sous `Suspense` avec un repli VIDE : c'est une lecture de plus, et le
+          tableau de bord ne doit pas l'attendre. Un repli vide plutôt qu'un
+          squelette — un squelette annoncerait un bloc qui, le plus souvent, ne
+          s'affichera pas.
+        */}
+        <div className="space-y-3.5 sm:space-y-4 lg:col-span-5 xl:col-span-4 min-w-0">
           <Suspense fallback={null}>
             <AvisPropositions />
           </Suspense>
-
-          <SyntheseReferentiel
-            referentiel={ctx.referentiel}
-            global={ctx.global}
-            etats={ctx.etats}
-          />
 
           <MiniActivite activite={activite} now={ctx.now} />
         </div>

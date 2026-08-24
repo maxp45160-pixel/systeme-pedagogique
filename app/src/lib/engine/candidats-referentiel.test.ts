@@ -43,6 +43,9 @@ function skill(code: string, options: Partial<Skill> = {}): Skill {
     active: true,
     archive: false,
     origine: "tuteur",
+    // Créée bien avant `NOW` : sans date, la dormance s'abstient, et tous les
+    // cas qui ne parlent pas d'âge n'auraient plus rien à observer.
+    creeLe: "2026-01-01T09:00:00.000Z",
     ...options,
   } as Skill;
 }
@@ -282,6 +285,34 @@ describe("detecterDormances", () => {
     );
     expect(candidats).toHaveLength(1);
     expect(candidats[0].code).toBe("LLM-01");
+  });
+
+  it("épargne une compétence trop jeune pour avoir servi", () => {
+    // Le défaut du 24/08/2026 : une compétence écrite la veille remplit les
+    // trois conditions d'absence — rien n'a encore pu la mobiliser — et le lot
+    // proposait de mettre de côté ce qu'on venait d'ajouter.
+    const hier = new Date(NOW.getTime() - 24 * 60 * 60 * 1000).toISOString();
+    const candidats = detecterDormances(
+      entrees({ referentiel: referentiel([skill("LLM-01", { creeLe: hier })]) }),
+    );
+    expect(candidats).toEqual([]);
+  });
+
+  it("s'abstient quand la date de création manque", () => {
+    // Invariant 6 : pas d'âge fabriqué. Sans date, aucune dormance.
+    const candidats = detecterDormances(
+      entrees({ referentiel: referentiel([skill("LLM-01", { creeLe: undefined })]) }),
+    );
+    expect(candidats).toEqual([]);
+  });
+
+  it("compte les jours depuis la création, sans les inventer", () => {
+    const candidats = detecterDormances(
+      entrees({
+        referentiel: referentiel([skill("LLM-01", { creeLe: "2026-01-01T09:00:00.000Z" })]),
+      }),
+    );
+    expect(candidats[0].joursSansRien).toBe(229);
   });
 
   it("épargne une compétence rattachée à quoi que ce soit", () => {

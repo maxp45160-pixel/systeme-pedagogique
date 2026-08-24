@@ -8511,7 +8511,9 @@ déterministes qu'il venait brancher. Ajouté :
 `components/dashboard/avis-propositions.tsx`, monté sous `Suspense` dans la
 colonne droite du tableau de bord. Il ne rend rien quand il n'y a rien : un
 bloc permanent qui annonce « zéro » chaque jour apprend à ne plus regarder cet
-endroit.
+endroit. **Cette carte a été retirée le 24/08/2026 et remplacée par une
+pastille de rail ([ADR-118](#adr-118)) : la surface change, le principe — un
+nombre, un lien, rien quand il n'y a rien — est conservé.**
 
 **3. Aucune relecture ne partait jamais.** « À l'ouverture si périmé (tâche de
 fond) » était inscrit ; rien ne l'implémentait. Le seul déclencheur était le
@@ -9133,6 +9135,159 @@ surface retirée réapparaît dans la phrase.
   changer relève d'un arbitrage sur la structure du rail, pas d'un renommage ;
 - aucune fusion de surfaces. « Graphe » et « Arbre » restent deux onglets pour
   deux vues du même référentiel — c'est un défaut constaté, pas traité ici.
+
+---
+
+## ADR-118 — Le référentiel se signale par une pastille, et ne propose l'oubli qu'à ce qui a eu le temps de servir 🔬
+
+**Statut :** 🔬 construit le 24/08/2026, hypothèse non réfutée. Révise la
+surface d'affichage d'[ADR-108](#adr-108) et corrige son détecteur de
+dormance ; n'en fait monter aucune.
+
+### Les deux problèmes, tenus ensemble parce qu'ils ont la même cause
+
+**1. Une proposition qui vise ce qu'on vient d'écrire.** `detecterDormances`
+retenait toute compétence active sans observation, sans exercice et sans
+relation déclarée. Une compétence ajoutée il y a cinq minutes remplit ces trois
+conditions — rien n'a encore pu la mobiliser. Le lot proposait donc de mettre
+de côté ce qu'on venait d'ajouter. Le code le disait lui-même : « sans date de
+création dans `Skill`, l'ancienneté ne peut pas être dérivée ici », et rendait
+le candidat avec `joursSansRien = JOURS_DORMANCE` — un âge posé, pas mesuré,
+alors que la doctrine du détecteur annonçait « depuis trois mois ».
+
+**2. Trois surfaces pour un même compte.** Le tableau de bord portait une carte
+« Votre référentiel » (total, jauge de découverte, domaines actifs) et une
+carte « N propositions ». La première redisait, en panneau permanent, ce que
+l'Atelier montre mieux ; la seconde disait un nombre et un lien — soit tout ce
+qu'une pastille dit — en occupant une colonne, sur un seul écran.
+
+### La décision
+
+**L'âge décide, et il se lit — à la production comme à la lecture.** `Skill.creeLe` porte `competences.created_at`.
+La colonne existait ; `ligneVersEntite` l'écartait comme technique, pour toutes
+les entités. Elle est rattachée explicitement aux compétences seules
+(`ligneVersCompetence`), et non retirée de `COLONNES_TECHNIQUES` — ce qui
+l'aurait fait apparaître partout, et repartir en écriture par
+`entiteVersLigne`. Une compétence de moins de `JOURS_DORMANCE` (90 jours) n'est
+plus candidate. **Sans date, aucune dormance** : pas d'âge fabriqué
+(invariant 6), plutôt qu'un défaut par défaut qui reproduirait exactement ce
+qui est corrigé.
+
+90 et non 30 : trois mois est le seuil que la doctrine du détecteur annonçait
+déjà. Le raccourcir ne rendrait pas la proposition plus vraie, seulement plus
+fréquente.
+
+**Corriger le détecteur ne suffisait pas, et c'est le piège de ce chantier.**
+Les propositions sont des lignes **stockées**. Le compte réel affichait encore
+ses vingt-huit dormances le lendemain de la correction : elles avaient été
+écrites la veille, sur des compétences créées le jour même, et rien ne les
+relisait. Une proposition ne disparaît que si `estEncoreApplicable` la déclare
+caduque — la question qu'elle pose doit donc être celle que pose la détection.
+Le seuil et son calcul vivent désormais dans `lib/domain/dormance.ts`, lus par
+le détecteur ET par l'applicabilité. Aucune purge, aucune écriture : les
+vingt-huit sortent du lot à la lecture suivante, et reviendraient d'elles-mêmes
+le jour où ces compétences auront trois mois sans rien.
+
+**Le signal gagne le rail, sans quitter le tableau de bord.**
+`components/layout/pastille-propositions.tsx` pose le nombre sur « Tableau de
+bord ». Le rail est visible partout : le signal cesse d'être une chose à
+croiser sur la page d'accueil.
+
+Sur la destination de **pilotage**, et non sur « Mes cours » qui porte l'écran
+d'arbitrage — déplacée le 24/08/2026, après essai. Le tableau de bord porte
+déjà la carte des propositions : pastille et carte disent alors la même chose
+au même endroit, le rail y ramène, et la carte mène à l'arbitrage. Le lien de
+la pastille, lui, saute directement à `/atelier/propositions`.
+
+Les deux surfaces coexistent, et ce n'est pas un doublon — arbitrage de Maxime
+le 24/08/2026, après avoir vu la version « rail seul ». La pastille est un
+**signal** : elle suit partout, ne prend pas de place, ne propose rien. La
+carte du tableau de bord est une **entrée de pilotage**, et le tableau de bord
+est l'endroit d'où l'on décide de ce qu'on fait maintenant — ranger son
+référentiel en fait partie. Retirer l'une pour l'autre perd chaque fois une
+moitié.
+
+Seule la carte « Votre référentiel » est supprimée : elle redisait, en panneau
+permanent, ce que l'Atelier montre mieux.
+
+**On repart de l'écran des propositions.** Un retour vers le tableau de bord
+est posé en haut et en bas de la page : le rail ramène à « Mes cours », pas là
+d'où l'on vient, et la dernière proposition arbitrée laissait sur un écran sans
+issue.
+
+**La pastille est elle-même le lien vers `/atelier/propositions`**, posée en
+frère du lien de navigation et non dedans (deux `<a>` imbriqués sont
+invalides). Sans cela le retrait de la carte rendait l'écran des propositions
+inatteignable — le défaut même qu'ADR-108 corrigeait, reproduit à l'identique,
+et constaté dans l'heure.
+
+`chargerLotPropositions` devient mémoïsé par requête : le rail la lit sur
+chaque page, la barre mobile la relit, la page des propositions aussi — une
+seule lecture par rendu. La pastille est montée sous `Suspense` avec un repli
+vide : le cadre ne l'attend jamais.
+
+**La mise de côté SUPPRIMAIT — et c'est le défaut le plus grave des trois.**
+Le texte annonçait « rien n'est perdu, vous pouvez la reprendre quand vous
+voulez ». Il était faux deux fois. D'abord parce qu'aucun geste ne reprenait :
+`restaurerDomaine` existe pour un domaine, rien n'existait pour une compétence,
+et la commande SQL `desarchiver_competence` dormait en base depuis le
+20/08/2026 sans être appelée par quoi que ce soit. Ensuite — et c'est pire —
+parce que l'arbitrage passait par `appliquerRevision({ retraits })`, dont
+l'heuristique SQL **supprime** la ligne quand rien ne dépend de la compétence.
+Or une dormance n'a par définition ni observation, ni exercice, ni relation :
+la mise de côté détruisait exactement ce qu'elle promettait de conserver. Le
+commentaire du code affirmait le contraire (« retirée, donc ARCHIVÉE »), sans
+que rien ne le vérifie.
+
+Les deux sont corrigés :
+
+- **une commande qui archive, point.** `archiver_competence`, symétrique exacte
+  de `desarchiver_competence`, ajoutée par la migration
+  `20260825100000_archiver_competence` — **appliquée le 24/08/2026** (déclaré
+  par Maxime). `retirer_competences` garde son heuristique : effacer une erreur
+  de saisie reste un geste légitime, et ce n'est pas celui-ci ;
+- **la reprise existe.** `reprendreCompetence` appelle la commande qui dormait,
+  et `CompetencesMisesDeCote` la donne à voir sur la fiche du domaine, à la
+  suite de ses compétences. Le domaine, parce que c'est lui qui gouverne le
+  retrait comme la reprise (ADR-065), et parce que c'est là qu'on s'aperçoit
+  d'un manque. Pas de corbeille globale : elle rangerait ensemble des
+  compétences sans rapport, et demanderait de chercher là où l'on ne s'est
+  aperçu de rien.
+
+**Ce qui a déjà été supprimé l'est définitivement.** Aucune migration ne
+reconstruit ce que l'heuristique a détruit ; la correction ne vaut que pour les
+mises de côté à venir.
+
+### Le test de réfutation
+
+L'hypothèse est double, et chaque moitié se réfute :
+
+- **sur la dormance** — si un lot propose encore de mettre de côté une
+  compétence créée depuis moins de 90 jours, la correction est fausse.
+  `candidats-referentiel.test.ts` couvre les trois cas (âgée, trop jeune, sans
+  date) ; le compte réel, dont 33 dormances avaient été calculées, doit voir ce
+  nombre chuter d'autant qu'il contient de compétences récentes ;
+- **sur la pastille** — si les propositions cessent d'être arbitrées après le
+  retrait de la carte, c'est que la carte portait le geste et non le seul
+  signal. La mesure est le nombre d'arbitrages rendus par semaine, avant et
+  après ;
+- **sur la mise de côté** — après application de la migration, arbitrer une
+  dormance doit laisser la ligne en base avec `archive = true`. Si
+  `SELECT count(*) FROM competences WHERE archive` ne bouge pas d'une unité, la
+  commande n'est pas celle qui part.
+  `referentiel-actions-mise-de-cote.test.ts` verrouille la commande émise.
+
+### Ce que cette décision n'autorise pas
+
+- elle ne rend **pas** réversible ce qui a déjà été supprimé : rien ne
+  reconstruit une ligne détruite ;
+- elle ne change pas `retirer_competences`. Un retrait de révision continue de
+  supprimer quand rien ne dépend de la compétence — c'est le geste qui efface
+  une erreur de saisie, pas celui qui met de côté ;
+- elle ne touche à aucun autre détecteur : `reformulation`, `rangement` et
+  `arete` gardent leurs seuils ;
+- elle n'ouvre pas la pastille à d'autres compteurs. Un second point rouge
+  permanent dans le rail retirerait au premier ce qui le rend lisible.
 
 ---
 

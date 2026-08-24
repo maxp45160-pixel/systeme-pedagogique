@@ -1,8 +1,10 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { compteCourant } from "@/lib/supabase/server";
 import { lireAccesCourant } from "@/lib/store/acces";
 import { Sidebar } from "@/components/layout/sidebar";
 import { NavMobile } from "@/components/layout/nav-mobile";
+import { PastillePropositions } from "@/components/layout/pastille-propositions";
 import { CompteMobile } from "@/components/layout/compte";
 import { ProfilPage } from "@/components/dev/profil-page";
 import { ProfilWrapper } from "@/components/dev/profil-wrapper";
@@ -48,6 +50,40 @@ export default async function AppLayout({
   const domaines = await chargerDomaines();
   const administrateur = acces?.role === "admin";
 
+  /*
+    Les propositions de référentiel, comptées sur « Tableau de bord ».
+
+    Sur la destination de PILOTAGE, et non sur celle qui les arbitre
+    (« Mes cours »), déplacée le 24/08/2026 : le tableau de bord porte déjà la
+    carte des propositions, et c'est de là qu'on décide de ce qu'on fait
+    maintenant. La pastille et la carte disent alors la même chose au même
+    endroit — le rail ramène au tableau de bord, le tableau de bord mène à
+    l'arbitrage. Le lien de la pastille, lui, continue de sauter directement à
+    `/atelier/propositions`.
+
+    Sous `Suspense` avec un repli VIDE, et c'est structurant : le rail est
+    rendu sur CHAQUE page, la lecture ne doit donc jamais retarder le cadre.
+    Un repli vide plutôt qu'un point gris — un compteur qui s'affiche avant de
+    savoir ce qu'il compte annonce une chose qui, le plus souvent, n'existe
+    pas. `chargerLotPropositions` est mémoïsé par requête : la pastille du rail
+    et celle de la barre mobile ne provoquent qu'une lecture, et la page des
+    propositions la partage.
+  */
+  const pastilles = {
+    "/app": (
+      <Suspense fallback={null}>
+        <PastillePropositions className="absolute right-2.5 top-1/2 -translate-y-1/2 rail-reduit:right-1 rail-reduit:top-1 rail-reduit:translate-y-0" />
+      </Suspense>
+    ),
+  };
+  const pastillesMobile = {
+    "/app": (
+      <Suspense fallback={null}>
+        <PastillePropositions />
+      </Suspense>
+    ),
+  };
+
   const identite = resoudreIdentite(compte);
   const session = {
     courriel: compte.email ?? null,
@@ -71,7 +107,7 @@ export default async function AppLayout({
           .map(({ id, nom, prefixe }) => ({ id, nom, prefixe }))}
       >
         <div className="flex min-h-screen">
-          <Sidebar session={session} administrateur={administrateur} />
+          <Sidebar session={session} administrateur={administrateur} pastilles={pastilles} />
 
           <div className="flex min-w-0 flex-1 flex-col">
             {/*
@@ -108,7 +144,7 @@ export default async function AppLayout({
             </main>
           </div>
 
-          <NavMobile />
+          <NavMobile pastilles={pastillesMobile} />
           <ProfilFlottant compteId={compte.id} />
           <TuteurGlobal />
         </div>

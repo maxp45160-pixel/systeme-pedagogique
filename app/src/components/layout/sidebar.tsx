@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { estActif, navigationPour } from "./navigation";
@@ -12,10 +13,20 @@ import { BoutonIntentionRail } from "@/components/intention/bouton-intention";
 export function Sidebar({
   session,
   administrateur = false,
+  pastilles,
 }: {
   session: EtatSession;
   /** Ajoute l'entrée « Comptes et accès ». Affichage seulement — voir `navigationPour`. */
   administrateur?: boolean;
+  /**
+   * Compteurs à poser sur une destination, indexés par `href`.
+   *
+   * Rendus côté serveur et passés en `ReactNode` : le rail est un composant
+   * client, il ne lit aucune donnée. Une entrée absente ne pose rien — c'est
+   * ce qui permet à une pastille de ne pas exister quand elle ne compte rien,
+   * sans que le rail ait à connaître ce qu'elle compte.
+   */
+  pastilles?: Partial<Record<string, ReactNode>>;
 }) {
   const pathname = usePathname();
   const groupes = navigationPour(administrateur);
@@ -76,8 +87,15 @@ export function Sidebar({
               {groupe.entrees.map((e) => {
                 const actif = estActif(pathname, e.href);
                 const Icone = e.icone;
+                const pastille = pastilles?.[e.href];
                 return (
-                  <li key={e.href}>
+                  /*
+                    `relative` sur le `<li>`, pas sur le lien : la pastille est
+                    un lien vers `/atelier/propositions`, et deux `<a>`
+                    imbriqués sont invalides. Elle se pose donc en frère,
+                    au-dessus du lien de navigation.
+                  */
+                  <li key={e.href} className="relative">
                     <Link
                       href={e.href}
                       aria-current={actif ? "page" : undefined}
@@ -88,6 +106,10 @@ export function Sidebar({
                       title={e.libelle}
                       className={cx(
                         "group flex items-center transition-colors rail-reduit:justify-center rail-reduit:px-0",
+                        // La place réservée à la pastille, pour que le libellé
+                        // ne passe pas dessous. Inutile en rail réduit : il n'y
+                        // a plus de libellé, et elle se pose sur l'icône.
+                        Boolean(pastille) && "pr-10 rail-reduit:pr-0",
                         groupe.primaire
                           ? "gap-3 rounded-lg px-3 py-2.5 text-sm font-medium"
                           : "gap-2.5 rounded-md px-3 py-1.5 text-[0.8125rem]",
@@ -107,6 +129,7 @@ export function Sidebar({
                       />
                       <span className="truncate rail-reduit:hidden">{e.libelle}</span>
                     </Link>
+                    {pastille}
                   </li>
                 );
               })}

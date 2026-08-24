@@ -168,7 +168,13 @@ function traduire(
         effet:
           "Elle sera mise de côté et cessera de compter dans votre couverture. " +
           // P4 / ADR-027 : rien ne se supprime. Le dire, sinon personne n'ose.
-          "Rien n'est perdu : elle reste consultable, et vous pouvez la reprendre quand vous voulez.",
+          //
+          // La phrase a été fausse une journée, le 24/08/2026 : elle promettait
+          // une reprise qu'aucun geste ne tenait, sur une mise de côté qui
+          // SUPPRIMAIT la ligne. Les deux sont corrigés (ADR-118) — la mise de
+          // côté archive, et « Reprendre » existe sur la fiche du domaine.
+          // Elle ne redevient donc vraie que tant que ces deux-là tiennent.
+          "Rien n'est supprimé : elle reste consultable dans son domaine, et vous pouvez la reprendre quand vous voulez.",
         action: "La mettre de côté",
         lien: null,
       };

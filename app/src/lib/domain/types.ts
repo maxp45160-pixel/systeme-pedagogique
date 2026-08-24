@@ -254,6 +254,19 @@ export interface Skill {
   /** Successeur explicite lorsque le savoir-faire change de sens. */
   remplacePar?: string;
   origine: OrigineReferentiel;
+  /**
+   * Date de création, telle que la base l'a inscrite (`competences.created_at`).
+   *
+   * Lue et jamais écrite ici : c'est un fait de la base, pas une propriété que
+   * l'application décide. Elle sert à donner un âge à une compétence — sans
+   * elle, `detecterDormances` ne pouvait pas distinguer « jamais mobilisée
+   * depuis trois mois » de « ajoutée il y a cinq minutes », et proposait de
+   * mettre de côté ce qu'on venait d'écrire.
+   *
+   * Optionnelle par prudence de typage seulement : la colonne est `NOT NULL`.
+   * Son absence n'autorise jamais à fabriquer un âge (invariant 6).
+   */
+  creeLe?: string;
 }
 
 /**

@@ -433,9 +433,19 @@ proposition refusée ne revient pas ; une proposition porte sur l'état lu et
 devient caduque quand cet état change. Le déclenchement reste la péremption
 jamais un seuil de taille ; l'élargissement est ouvert sur arbitrage explicite
 du 22/08/2026 et réversible en une ligne si sa rétention ne tient pas. Les
-propositions se signalent d'elles-mêmes : un avis sobre apparaît sur le tableau
-de bord quand il y en a, et rien du tout quand il n'y en a pas. On ne va pas
-les chercher — c'est la condition pour qu'un écran de plus soit lu.
+propositions se signalent d'elles-mêmes, à deux endroits qui ne font pas
+doublon (ADR-118) : une pastille compte celles qui attendent, posée sur « Mes
+cours » dans le rail — le signal, visible depuis n'importe quelle page — et un
+avis sur le tableau de bord, l'entrée de pilotage, d'où l'on décide de ce qu'on
+fait maintenant. Rien du tout quand il n'y en a pas. On ne va pas les
+chercher — c'est la condition pour qu'un écran de plus soit lu. La dormance,
+elle, ne vise plus que ce qui a eu le temps de servir : une compétence de moins
+de trois mois n'est jamais proposée à la mise de côté, et une compétence sans
+date de création ne l'est pas non plus. **Mettre de côté est réversible** :
+la compétence est archivée — jamais supprimée, ce qui n'était pas le cas avant
+le 24/08/2026 — et « Mises de côté », sur la fiche de son domaine, la reprend
+d'un geste. La migration `20260825100000_archiver_competence` porte la commande
+qui archive sans arbitrer ; elle est **appliquée depuis le 24/08/2026**.
 🔬 Le barème `PLAFOND_AIDE` — l'architecture de mesure est décidée par ADR-057,
 mais ses plafonds restent gelés jusqu'à environ 20 bilans terminés et n'ont pas
 encore été confrontés à l'usage.

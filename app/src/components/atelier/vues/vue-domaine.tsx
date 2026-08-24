@@ -8,6 +8,7 @@ import { Bouton } from "@/components/ui/primitives";
 import { IconeDocuments, IconeRecherche } from "@/components/ui/icones";
 import { BoutonReviser } from "@/components/referentiel/bouton-reviser";
 import { ModaleCompetence } from "@/components/referentiel/modale-competence";
+import { CompetencesMisesDeCote } from "@/components/referentiel/competences-mises-de-cote";
 import { restaurerDomaine } from "@/lib/store/referentiel-actions";
 import { motifsNonAtomique } from "@/lib/domain/atomicite";
 import {
@@ -84,6 +85,15 @@ export function VueDomaine({
   ]);
   const libellesCompetences = (codes: string[]) =>
     codes.map((code) => intitulesParCode.get(code) ?? "Repère à préciser").join(", ");
+  /*
+   * Ce que ce domaine a mis de côté. Lu sur `vue.skills` — la liste que la
+   * GOUVERNANCE régit (le namespace de création, ADR-065), pas sur les
+   * compétences affichées : une compétence archivée n'est affichée nulle part,
+   * c'est précisément le problème que la reprise résout.
+   */
+  const misesDeCote = vue.skills
+    .filter((skill) => skill.archive)
+    .map((skill) => ({ code: skill.code, intitule: skill.intitule }));
   const competencesRevisables = vue.skills
     .filter((skill) => !skill.archive)
     .map((skill) => ({
@@ -354,6 +364,13 @@ export function VueDomaine({
                   Aucune compétence ne correspond à cette recherche.
                 </p>
               )}
+              {/*
+                À la SUITE des fiches, jamais mêlée à elles : ce qui est mis de
+                côté n'est pas du travail en cours. Absente d'un domaine
+                lui-même mis de côté — on le reprend en entier d'abord, et sa
+                reprise réactive toutes ses compétences.
+              */}
+              {!vue.domaine.archive && <CompetencesMisesDeCote competences={misesDeCote} />}
               </>
             )}
         </div>

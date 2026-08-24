@@ -84,6 +84,17 @@ export type CommandeReferentiel =
       retraits: string[];
     }
   | { type: "activer_competences"; domaineId: string; codes: string[]; active: boolean }
+  /*
+   * Mettre de côté, sans jamais supprimer.
+   *
+   * Distincte de `retirer_competences`, dont l'heuristique SQL supprime la
+   * ligne quand rien ne dépend de la compétence : c'est ce qu'il faut pour
+   * effacer une erreur de saisie, et exactement ce qu'il ne faut pas pour une
+   * mise de côté — une compétence dormante n'a par définition ni observation,
+   * ni exercice, ni relation, elle était donc détruite alors que l'écran
+   * promettait de pouvoir la reprendre (24/08/2026).
+   */
+  | { type: "archiver_competence"; domaineId: string; code: string }
   | { type: "desarchiver_competence"; domaineId: string; code: string }
   | { type: "retirer_competences"; domaineId: string; codes: string[] }
   | { type: "archiver_domaine"; domaineId: string }

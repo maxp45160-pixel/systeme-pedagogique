@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { estActif, NAV_MOBILE } from "./navigation";
@@ -8,7 +8,12 @@ import { cx } from "@/components/ui/primitives";
 import { BoutonIntentionMobile } from "@/components/intention/bouton-intention";
 
 /** Barre inférieure sur mobile : les mêmes destinations que le rail desktop. */
-export function NavMobile() {
+export function NavMobile({
+  pastilles,
+}: {
+  /** Compteurs par `href`, rendus côté serveur — voir `Sidebar`. */
+  pastilles?: Partial<Record<string, ReactNode>>;
+}) {
   const pathname = usePathname();
 
   return (
@@ -35,6 +40,7 @@ export function NavMobile() {
           const centre = Math.floor(NAV_MOBILE.length / 2);
           const actif = estActif(pathname, e.href);
           const Icone = e.icone;
+          const pastille = pastilles?.[e.href];
           return (
             <Fragment key={e.href}>
               {index === centre && (
@@ -42,7 +48,12 @@ export function NavMobile() {
                   <BoutonIntentionMobile />
                 </li>
               )}
-              <li>
+              {/*
+                `relative` sur le `<li>` : la pastille est un lien vers
+                `/atelier/propositions`, elle ne peut donc pas vivre DANS le
+                lien de destination (deux `<a>` imbriqués sont invalides).
+              */}
+              <li className="relative">
               <Link
                 href={e.href}
                 aria-current={actif ? "page" : undefined}
@@ -57,6 +68,13 @@ export function NavMobile() {
                 <Icone className="size-[19px]" />
                 {e.court}
               </Link>
+              {/*
+                Posée sur l'icône, décalée vers la droite : la colonne est
+                étroite et le libellé court passe dessous.
+              */}
+              {pastille ? (
+                <span className="absolute left-1/2 top-1 ml-1.5">{pastille}</span>
+              ) : null}
               </li>
             </Fragment>
           );

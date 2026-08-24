@@ -33,6 +33,8 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
+import { cache } from "react";
+
 import { chargerContexte } from "./context";
 import {
   chargerPropositions,
@@ -105,17 +107,21 @@ export interface LotPropositions {
  * Ce qu'il y a à montrer aujourd'hui, sans rien produire de neuf.
  *
  * Lecture pure : aucun appel de modèle, aucune écriture. C'est ce que la page
- * des propositions et l'avis du Bureau appellent, et c'est ce qui rend
+ * des propositions et la pastille du rail appellent, et c'est ce qui rend
  * l'affichage indépendant de la disponibilité du fournisseur.
+ *
+ * Mémoïsée par requête (`cache`) : depuis le 24/08/2026 le rail la lit sur
+ * CHAQUE page, et la page des propositions la relit derrière. Sans mémoïsation,
+ * la même lecture partirait deux fois par rendu.
  */
-export async function chargerLotPropositions(): Promise<LotPropositions> {
+export const chargerLotPropositions = cache(async (): Promise<LotPropositions> => {
   const ctx = await chargerContexte();
   const [enregistrees, derniere] = await Promise.all([
     chargerPropositions(),
     derniereRelecture(),
   ]);
   const versions = versionsCourantes(ctx.referentiel.domaines);
-  const ouvertes = lotOuvert(enregistrees, referentielLu(ctx));
+  const ouvertes = lotOuvert(enregistrees, referentielLu(ctx), ctx.now);
 
   /*
    * « Due » se lit sur la dernière RELECTURE, pas sur la vacuité du lot.
@@ -135,7 +141,7 @@ export async function chargerLotPropositions(): Promise<LotPropositions> {
     derniere === null || estPerimee({ versionsLues: derniere.versionsLues }, versions);
 
   return { propositions: ouvertes, relectureDue, dernierLot: derniere?.creeLe ?? null };
-}
+});
 
 /* ------------------------------------------------------------------ */
 /* Les quatre détecteurs → des propositions                            */
@@ -315,7 +321,7 @@ export async function produireLot(
   const enregistrees = await chargerPropositions();
   const refusees = empreintesRefusees(enregistrees);
   const dejaOuvertes = new Set(
-    lotOuvert(enregistrees, referentielLu(ctx)).map((p) => p.empreinte),
+    lotOuvert(enregistrees, referentielLu(ctx), ctx.now).map((p) => p.empreinte),
   );
 
   const versions = Object.fromEntries(

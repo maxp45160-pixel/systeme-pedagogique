@@ -145,10 +145,15 @@ const REFERENTIEL: ReferentielLu = {
     { id: "stats", archive: false },
   ],
   competences: [
-    { code: "LOG-01", intitule: "Lire un plan de flux", archive: false, prerequis: [] },
-    { code: "LOG-02", intitule: "Régler une boucle", archive: false, prerequis: [] },
+    // Créées bien avant `MAINTENANT` : une dormance ne s'applique qu'à une
+    // compétence qui a eu le temps de servir.
+    { code: "LOG-01", intitule: "Lire un plan de flux", archive: false, prerequis: [], creeLe: "2026-01-01T09:00:00.000Z" },
+    { code: "LOG-02", intitule: "Régler une boucle", archive: false, prerequis: [], creeLe: "2026-01-01T09:00:00.000Z" },
   ],
 };
+
+/** Le jour où ces lectures sont faites. */
+const MAINTENANT = new Date("2026-08-24T09:00:00.000Z");
 
 describe("lotOuvert — ce qui reste à arbitrer", () => {
   it("exclut les arbitrées et les refusées sous une autre identité de lot", () => {
@@ -163,6 +168,7 @@ describe("lotOuvert — ce qui reste à arbitrer", () => {
         }),
       ],
       REFERENTIEL,
+      MAINTENANT,
     );
     expect(ouvertes.map((p) => p.id)).toEqual(["a"]);
   });
@@ -172,7 +178,7 @@ describe("lotOuvert — ce qui reste à arbitrer", () => {
       ...REFERENTIEL,
       domaines: [...REFERENTIEL.domaines, { id: "gestion-kanban", archive: false }],
     };
-    expect(lotOuvert([proposition({ id: "a" })], dejaScinde)).toHaveLength(0);
+    expect(lotOuvert([proposition({ id: "a" })], dejaScinde, MAINTENANT)).toHaveLength(0);
   });
 
   /*
@@ -194,7 +200,7 @@ describe("lotOuvert — ce qui reste à arbitrer", () => {
         { code: "LOG-03", intitule: "Autre chose", archive: false, prerequis: [] },
       ],
     };
-    expect(lotOuvert([proposition({ id: "a" })], apresUneAutreCommande)).toHaveLength(1);
+    expect(lotOuvert([proposition({ id: "a" })], apresUneAutreCommande, MAINTENANT)).toHaveLength(1);
   });
 
   it("fait valoir un refus pour le lot suivant qui reproposerait la même chose", () => {
@@ -209,6 +215,7 @@ describe("lotOuvert — ce qui reste à arbitrer", () => {
         proposition({ id: "meme-lot-2", lotId: "lot-2", empreinte: "e-refusee" }),
       ],
       REFERENTIEL,
+      MAINTENANT,
     );
     expect(ouvertes).toHaveLength(0);
   });
@@ -220,6 +227,7 @@ describe("lotOuvert — ce qui reste à arbitrer", () => {
         proposition({ id: "lot-2", lotId: "lot-2", empreinte: "e-doublon", creeLe: "2026-08-22T09:00:00.000Z" }),
       ],
       REFERENTIEL,
+      MAINTENANT,
     );
     expect(ouvertes).toHaveLength(1);
   });
@@ -235,8 +243,8 @@ describe("estEncoreApplicable, genre par genre", () => {
       ],
     };
     const arete = { genre: "arete", amont: "LOG-01", aval: "LOG-02", force: 1, source: "usage" } as const;
-    expect(estEncoreApplicable(arete, REFERENTIEL)).toBe(true);
-    expect(estEncoreApplicable(arete, relie)).toBe(false);
+    expect(estEncoreApplicable(arete, REFERENTIEL, MAINTENANT)).toBe(true);
+    expect(estEncoreApplicable(arete, relie, MAINTENANT)).toBe(false);
   });
 
   it("écarte une compétence archivée entre-temps", () => {
@@ -245,8 +253,30 @@ describe("estEncoreApplicable, genre par genre", () => {
       competences: [{ code: "LOG-01", intitule: "A", archive: true, prerequis: [] }],
     };
     const dormance = { genre: "dormance", code: "LOG-01", joursSansRien: 90 } as const;
-    expect(estEncoreApplicable(dormance, REFERENTIEL)).toBe(true);
-    expect(estEncoreApplicable(dormance, archivee)).toBe(false);
+    expect(estEncoreApplicable(dormance, REFERENTIEL, MAINTENANT)).toBe(true);
+    expect(estEncoreApplicable(dormance, archivee, MAINTENANT)).toBe(false);
+  });
+
+  it("écarte une dormance déjà enregistrée sur une compétence trop jeune", () => {
+    /*
+     * Le cas constaté sur le compte réel le 24/08/2026 : vingt-huit dormances
+     * produites AVANT le seuil d'âge restaient à l'écran, sur des compétences
+     * créées la veille. Corriger le détecteur ne retire rien de ce qu'il a déjà
+     * écrit en base — seule l'applicabilité les fait disparaître.
+     */
+    const jeune: ReferentielLu = {
+      ...REFERENTIEL,
+      competences: [
+        { code: "LOG-01", intitule: "A", archive: false, prerequis: [], creeLe: "2026-08-23T09:00:00.000Z" },
+      ],
+    };
+    const sansDate: ReferentielLu = {
+      ...REFERENTIEL,
+      competences: [{ code: "LOG-01", intitule: "A", archive: false, prerequis: [] }],
+    };
+    const dormance = { genre: "dormance", code: "LOG-01", joursSansRien: 90 } as const;
+    expect(estEncoreApplicable(dormance, jeune, MAINTENANT)).toBe(false);
+    expect(estEncoreApplicable(dormance, sansDate, MAINTENANT)).toBe(false);
   });
 
   it("écarte un rangement dont le tag est déjà posé", () => {
@@ -260,8 +290,8 @@ describe("estEncoreApplicable, genre par genre", () => {
       genre: "rangement", code: "LOG-01", domaineActuel: "logistique",
       domaineObserve: "stats", observations: 3,
     } as const;
-    expect(estEncoreApplicable(rangement, REFERENTIEL)).toBe(true);
-    expect(estEncoreApplicable(rangement, tagee)).toBe(false);
+    expect(estEncoreApplicable(rangement, REFERENTIEL, MAINTENANT)).toBe(true);
+    expect(estEncoreApplicable(rangement, tagee, MAINTENANT)).toBe(false);
   });
 
   /* Créée entre-temps, ici ou ailleurs : il n'y a plus de manque à combler. */
@@ -271,7 +301,7 @@ describe("estEncoreApplicable, genre par genre", () => {
       intitule: "Dimensionner un supermarché de pièces",
       palier: "intermediaire", ancrage: "…",
     } as const;
-    expect(estEncoreApplicable(manque, REFERENTIEL)).toBe(true);
+    expect(estEncoreApplicable(manque, REFERENTIEL, MAINTENANT)).toBe(true);
 
     const creee: ReferentielLu = {
       ...REFERENTIEL,
@@ -280,7 +310,7 @@ describe("estEncoreApplicable, genre par genre", () => {
         { code: "LOG-09", intitule: "DIMENSIONNER UN SUPERMARCHE DE PIECES", archive: false, prerequis: [] },
       ],
     };
-    expect(estEncoreApplicable(manque, creee)).toBe(false);
+    expect(estEncoreApplicable(manque, creee, MAINTENANT)).toBe(false);
   });
 
   /*
@@ -291,7 +321,7 @@ describe("estEncoreApplicable, genre par genre", () => {
     const rattachement = {
       genre: "rattachement", code: "LOG-01", domaineId: "stats",
     } as const;
-    expect(estEncoreApplicable(rattachement, REFERENTIEL)).toBe(true);
+    expect(estEncoreApplicable(rattachement, REFERENTIEL, MAINTENANT)).toBe(true);
 
     const dejaTaguee: ReferentielLu = {
       ...REFERENTIEL,
@@ -299,14 +329,14 @@ describe("estEncoreApplicable, genre par genre", () => {
         { code: "LOG-01", intitule: "A", archive: false, prerequis: [], tagsDomaine: ["stats"] },
       ],
     };
-    expect(estEncoreApplicable(rattachement, dejaTaguee)).toBe(false);
+    expect(estEncoreApplicable(rattachement, dejaTaguee, MAINTENANT)).toBe(false);
   });
 
   it("écarte un rattachement vers un domaine disparu", () => {
     const rattachement = {
       genre: "rattachement", code: "LOG-01", domaineId: "nexiste-pas",
     } as const;
-    expect(estEncoreApplicable(rattachement, REFERENTIEL)).toBe(false);
+    expect(estEncoreApplicable(rattachement, REFERENTIEL, MAINTENANT)).toBe(false);
   });
 
   /*
@@ -319,7 +349,7 @@ describe("estEncoreApplicable, genre par genre", () => {
       amont: { code: "LOG-01", intitule: "A", palier: "fondamentaux" },
       aval: { intitule: "Pas encore au référentiel", palier: "avance" },
     } as const;
-    expect(estEncoreApplicable(relation, REFERENTIEL)).toBe(true);
+    expect(estEncoreApplicable(relation, REFERENTIEL, MAINTENANT)).toBe(true);
   });
 });
 

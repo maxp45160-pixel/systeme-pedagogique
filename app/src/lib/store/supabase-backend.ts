@@ -74,6 +74,24 @@ export function ligneVersEntite<T>(ligne: Record<string, unknown>): T {
   return sortie as T;
 }
 
+/**
+ * Ligne `competences` → `Skill`, sa date de création comprise.
+ *
+ * `created_at` est une colonne technique pour toutes les entités sauf
+ * celle-ci : l'âge d'une compétence décide si l'on peut la dire dormante
+ * (`detecterDormances`). On la rattache donc ici, explicitement, plutôt que de
+ * la retirer de `COLONNES_TECHNIQUES` — ce qui la ferait apparaître sur toutes
+ * les entités, et repartir en écriture par `entiteVersLigne`.
+ *
+ * Si la colonne manque, le champ reste absent : aucune date n'est fabriquée
+ * (invariant 6), et la dormance s'abstient.
+ */
+export function ligneVersCompetence(ligne: Record<string, unknown>): Skill {
+  const skill = ligneVersEntite<Skill>(ligne);
+  const cree = ligne.created_at;
+  return typeof cree === "string" ? { ...skill, creeLe: cree } : skill;
+}
+
 /** Entité du domaine → ligne SQL, rattachée au compte. */
 export function entiteVersLigne(
   entite: object,
@@ -214,7 +232,7 @@ export function convertirResultatRPC(
   const domaines = lignes("domaines").map((ligne, index) =>
     validerDomaine(ligneVersEntite(ligne), `domaines[${index}]`));
   const competences = lignes("competences").map((ligne, index) =>
-    validerCompetence(ligneVersEntite(ligne), `competences[${index}]`));
+    validerCompetence(ligneVersCompetence(ligne), `competences[${index}]`));
   const competenceDomaines = lignes("competence_domaines").map((ligne, index) =>
     validerRattachement(ligneVersEntite(ligne), `competenceDomaines[${index}]`));
   const moteurReglages = lignes("moteur_reglages").map((ligne, index) =>

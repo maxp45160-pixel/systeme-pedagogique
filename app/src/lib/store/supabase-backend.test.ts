@@ -3,6 +3,7 @@ import {
   CLES_RPC,
   convertirResultatRPC,
   entiteVersLigne,
+  ligneVersCompetence,
   ligneVersEntite,
   profilVersUser,
   verifier,
@@ -95,6 +96,39 @@ describe("ligne SQL → entité", () => {
     expect("dureeMin" in seance).toBe(false);
     expect(seance.dureeMin ?? null).toBeNull();
     expect(seance.genereAutomatiquement).toBe(false);
+  });
+});
+
+describe("ligne competences → Skill", () => {
+  const LIGNE = {
+    user_id: "compte-1",
+    code: "LOG-01",
+    domaine: "logistique",
+    intitule: "Calculer un stock de sécurité",
+    palier: "fondamentaux",
+    prerequis: [],
+    importance: 0.5,
+    ordre: 0,
+    active: true,
+    archive: false,
+    origine: "tuteur",
+    created_at: "2026-01-01T09:00:00.000Z",
+  };
+
+  it("garde la date de création, que `ligneVersEntite` écarte", () => {
+    // C'est elle qui donne un âge à la compétence, donc qui permet de ne pas
+    // proposer de mettre de côté ce qu'on vient d'ajouter (24/08/2026).
+    expect(ligneVersEntite<Record<string, unknown>>(LIGNE).creeLe).toBeUndefined();
+    expect(ligneVersCompetence(LIGNE).creeLe).toBe("2026-01-01T09:00:00.000Z");
+  });
+
+  it("n'invente aucune date quand la colonne manque", () => {
+    const { created_at: _, ...sansDate } = LIGNE;
+    expect("creeLe" in ligneVersCompetence(sansDate)).toBe(false);
+  });
+
+  it("ne laisse pas fuir le compte", () => {
+    expect("userId" in ligneVersCompetence(LIGNE)).toBe(false);
   });
 });
 

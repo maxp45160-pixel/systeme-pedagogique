@@ -45,6 +45,7 @@ import type {
 import { calculerSimilaritesTextuelles } from "./similarite-textuelle";
 import { motifsNonAtomique } from "@/lib/domain/atomicite";
 import { joursDepuis } from "./dates";
+import { JOURS_DORMANCE, joursDeDormance } from "@/lib/domain/dormance";
 
 /* ------------------------------------------------------------------ */
 /* Seuils — chacun avec sa raison                                      */
@@ -65,8 +66,16 @@ export const SEUIL_SIMILARITE = 0.25;
 /** Observations minimales avant de proposer un rangement. */
 export const OBSERVATIONS_PAR_FAMILLE_MINIMUM = 2;
 
-/** Jours sans rien avant qu'une compétence soit dite dormante. */
-export const JOURS_DORMANCE = 90;
+/**
+ * Le seuil de dormance vit dans le domaine, pas ici.
+ *
+ * L'applicabilité d'une proposition déjà enregistrée pose la MÊME question que
+ * la détection (`lib/domain/dormance.ts`), et deux copies du seuil auraient
+ * laissé des dormances périmées à l'écran après correction du détecteur —
+ * c'est exactement ce qui s'est produit le 24/08/2026. Réexporté pour les
+ * appelants qui le lisaient ici.
+ */
+export { JOURS_DORMANCE };
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -376,22 +385,33 @@ export function detecterDormances(entrees: EntreesCandidats): DormanceCandidate[
     if (avecExercice.has(skill.code)) continue;
     if (dansUneArete.has(skill.code)) continue;
 
-    // Sans date de création dans `Skill`, l'ancienneté ne peut pas être dérivée
-    // ici : le module reste pur et ne va pas lire `created_at`. On rend le
-    // candidat sans âge plutôt que d'en inventer un (P2).
-    const joursSansRien = JOURS_DORMANCE;
+    /*
+     * L'ÂGE décide, pas la seule absence de trace.
+     *
+     * Sans lui, une compétence écrite il y a cinq minutes remplissait les trois
+     * conditions ci-dessus — rien n'a encore pu la mobiliser — et le lot
+     * proposait de mettre de côté ce qu'on venait d'ajouter. Le défaut est
+     * signalé le 24/08/2026 : « on nous propose de virer du périmètre actif des
+     * notions qu'on vient d'ajouter ».
+     *
+     * `Skill.creeLe` porte `competences.created_at`. Quand la date manque, on
+     * s'abstient : pas de dormance sur un âge inconnu (invariant 6), plutôt
+     * qu'un âge par défaut qui reproduirait exactement le défaut corrigé.
+     */
+    const joursSansRien = joursDeDormance(skill.creeLe, now);
+    if (joursSansRien === null) continue;
+
     candidats.push({
       genre: "dormance",
       code: skill.code,
       joursSansRien,
       motifs: [
-        "Aucune observation, aucun exercice, aucune relation déclarée.",
+        `Ajoutée il y a ${joursSansRien} jours, et depuis : aucune observation, aucun exercice, aucune relation déclarée.`,
         "Elle compte dans la couverture sans que rien ne puisse la mesurer (protocole §1).",
       ],
     });
   }
 
-  void now;
   return candidats;
 }
 

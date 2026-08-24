@@ -780,7 +780,7 @@ BEGIN
   IF length(btrim(coalesce(p_request_id, ''))) = 0 THEN RAISE EXCEPTION 'request_id obligatoire.'; END IF;
   IF p_origine NOT IN ('utilisateur', 'tuteur', 'migration', 'manuel') THEN RAISE EXCEPTION 'Origine inconnue : %', p_origine; END IF;
   IF length(btrim(coalesce(p_motif, ''))) = 0 THEN RAISE EXCEPTION 'Le motif est obligatoire.'; END IF;
-  IF v_type NOT IN ('creer_domaine', 'ajouter_competences', 'reviser_domaine', 'activer_competences', 'desarchiver_competence', 'retirer_competences', 'archiver_domaine', 'restaurer_domaine', 'remplacer_competence') THEN
+  IF v_type NOT IN ('creer_domaine', 'ajouter_competences', 'reviser_domaine', 'activer_competences', 'archiver_competence', 'desarchiver_competence', 'retirer_competences', 'archiver_domaine', 'restaurer_domaine', 'remplacer_competence') THEN
     RAISE EXCEPTION 'Commande inconnue : %', coalesce(v_type, 'NULL');
   END IF;
 
@@ -894,6 +894,25 @@ BEGIN
       IF coalesce((p_commande ->> 'active')::BOOLEAN, false) AND EXISTS (SELECT 1 FROM public.competences WHERE user_id = v_uid AND code = v_code AND archive) THEN RAISE EXCEPTION '% est archivée : désarchive-la d''abord.', v_code; END IF;
       UPDATE public.competences SET active = (p_commande ->> 'active')::BOOLEAN WHERE user_id = v_uid AND code = v_code;
     END LOOP;
+  END IF;
+
+  -- Mettre de côté SANS jamais supprimer.
+  --
+  -- `retirer_competences` décide seul entre archivage et suppression : il
+  -- supprime dès que rien ne dépend de la compétence. C'est ce qu'il faut pour
+  -- un retrait d'erreur de saisie, et c'est exactement ce qu'il ne faut pas
+  -- pour une mise de côté : une compétence dormante n'a par définition ni
+  -- observation, ni exercice, ni relation — donc la mise de côté la
+  -- SUPPRIMAIT, et la reprise promise à l'écran était impossible par
+  -- construction (constaté le 24/08/2026).
+  --
+  -- Cette commande archive, point. Symétrique exacte de
+  -- `desarchiver_competence`.
+  IF v_type = 'archiver_competence' THEN
+    UPDATE public.competences SET archive = true, active = false
+    WHERE user_id = v_uid AND domaine = v_domaine_id AND code = p_commande ->> 'code';
+    IF NOT FOUND THEN RAISE EXCEPTION 'Compétence inconnue dans ce domaine.'; END IF;
+    v_archivees := v_archivees || jsonb_build_array(p_commande ->> 'code');
   END IF;
 
   IF v_type = 'desarchiver_competence' THEN

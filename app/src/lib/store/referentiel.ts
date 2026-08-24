@@ -16,10 +16,10 @@ import "server-only";
 import { cache } from "react";
 
 import { dorsaleCompte, type DorsaleCompte } from "./db";
-import { ligneVersEntite, verifier } from "./supabase-backend";
+import { ligneVersCompetence, ligneVersEntite, verifier } from "./supabase-backend";
 import { mesurer } from "@/lib/profiling/server";
 import { assemblerReferentiel } from "@/lib/domain/referentiel-compte";
-import type { Domaine, Referentiel, Skill } from "@/lib/domain/types";
+import type { Domaine, Referentiel } from "@/lib/domain/types";
 import type { ChangementReferentiel } from "@/lib/domain/gouvernance-referentiel";
 import {
   validerCompetence,
@@ -48,7 +48,7 @@ export async function lireReferentiel(
     validerLignesSupabase(domaines.data, "domaines").map((l, index) =>
       validerDomaine(ligneVersEntite<Domaine>(l), `domaines[${index}]`)),
     validerLignesSupabase(competences.data, "competences").map((l, index) =>
-      validerCompetence(ligneVersEntite<Skill>(l), `competences[${index}]`)),
+      validerCompetence(ligneVersCompetence(l), `competences[${index}]`)),
     validerLignesSupabase(rattachements.data, "competenceDomaines").map((l, index) =>
       validerRattachement(ligneVersEntite(l), `competenceDomaines[${index}]`)),
   );
