@@ -18,7 +18,7 @@ export function TopCompetences({ etats }: { etats: SkillState[] }) {
 
   return (
     <Carte>
-      <EnTeteCarte titre="Les plus travaillées" legende="Où l'effort est allé, en observations enregistrées" />
+      <EnTeteCarte titre="Les plus travaillées" legende="Où l'effort est allé, en résultats enregistrés" />
       <CorpsCarte>
         <div className="grid gap-2.5 sm:grid-cols-3">
           {top.map((etat) => (

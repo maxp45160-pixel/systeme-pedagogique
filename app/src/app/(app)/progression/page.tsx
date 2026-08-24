@@ -22,6 +22,7 @@ import { TopCompetences } from "@/components/progression/top-competences";
 import { BilanCroissanceLie } from "@/components/progression/bilan-croissance-lie";
 import { FiltreDomaines } from "@/components/progression/filtre-domaines";
 import { Glossaire } from "@/components/ui/glossaire";
+import { libelleMesureLisible } from "@/lib/ui/mesures-lisibles";
 
 /**
  * La Progression : le profil de carrière — ce que la pratique a totalisé,
@@ -226,7 +227,7 @@ function CourbeEtMethode({
     <Carte>
       <EnTeteCarte
         titre="Évolution du score"
-        legende="Chaque point est une observation qui a déplacé le score — recalculé depuis le journal, jamais stocké."
+        legende="Chaque point correspond à un résultat qui a fait évoluer votre repère global."
       />
       <CorpsCarte>
         <CourbeEvolution points={evolution.points} />
@@ -245,7 +246,7 @@ function CourbeEtMethode({
                     key={i}
                     className="flex flex-wrap items-baseline justify-between gap-3 border-b border-bordure/60 pb-1 last:border-0"
                   >
-                    <dt className="text-texte-attenue">{f.libelle}</dt>
+                    <dt className="text-texte-attenue">{libelleMesureLisible(f.libelle)}</dt>
                     <dd className="chiffres font-medium">{f.valeur}</dd>
                   </div>
                 ))}

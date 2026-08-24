@@ -77,6 +77,10 @@ export async function POST(request: Request) {
     return Response.json({
       enregistrees: resultat.enregistrees,
       ecartees: resultat.ecartees,
+      // Rendu à part : une relecture qui redit surtout ce qui existe déjà se
+      // voit ici, et nulle part ailleurs. Un filtre silencieux passerait pour
+      // « le tuteur n'a rien trouvé ».
+      doublons: resultat.doublons,
       // Le message d'un fournisseur absent ou lent s'affiche, il ne se masque
       // pas : un lot amputé qui se présente comme complet est pire qu'un lot
       // qui dit ce qui lui manque.

@@ -278,7 +278,7 @@ function ZoneHydrate({
         onBlur={forcer}
         rows={10}
         placeholder="Hypothèses, méthode, calculs, résultat, interprétation, limites…"
-        className="h-[15.5rem] w-full resize-y rounded-md border border-bordure-controle bg-surface px-3 py-2 font-mono text-xs leading-relaxed placeholder:text-texte-discret lg:h-[min(32rem,calc(100dvh-16rem))]"
+        className="h-[40dvh] min-h-[15.5rem] w-full scroll-mb-[45dvh] resize-y overscroll-contain rounded-md border border-bordure-controle bg-surface px-3 py-3 font-mono text-base leading-relaxed placeholder:text-texte-discret sm:text-sm lg:h-[min(32rem,calc(100dvh-16rem))]"
       />
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[0.625rem] text-texte-discret">
         <div className="flex flex-wrap items-center gap-2">

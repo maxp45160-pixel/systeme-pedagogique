@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ChangeEvent, type DragEvent } from "react";
+import { useMemo, useState, type ChangeEvent, type DragEvent } from "react";
 import { useEstHydrate } from "@/lib/ui/hydratation";
 import Link from "next/link";
 import { CoquilleWorkspace, sortieWorkspace } from "@/components/atelier/coquille-workspace";
@@ -477,7 +477,7 @@ export function WorkspaceDocument({
       barre={barreEntete}
       actionTuteur={
         sujetFiche
-          ? { libelle: "Travailler à partir de cette fiche", texte: sujetFiche }
+          ? { libelle: "S'entraîner sur ce document", texte: sujetFiche }
           : undefined
       }
     >

@@ -7,6 +7,7 @@ import { profilDeclare } from "@/lib/domain/profil";
 import { formatDateCourte } from "@/lib/engine/dates";
 import { RepartitionNiveaux } from "@/components/charts";
 import { cx, Etiquette, TagConfiance } from "@/components/ui/primitives";
+import { aideBilan } from "@/lib/ui/mesures-lisibles";
 
 /**
  * Le héros du profil : qui, depuis quand, et le grand nombre qui résume.
@@ -103,6 +104,9 @@ export function CarteCarriere({
                 {score === null ? "Pas encore de mesure" : qualificatifScore(score)}
               </span>
               <TagConfiance confiance={global.confiance} />
+              <p className="max-w-64 text-[0.6875rem] leading-relaxed text-texte-discret">
+                {aideBilan(global.confiance)}
+              </p>
               {variation7j !== null && variation7j !== undefined && (
                 <Etiquette ton={variation7j > 0 ? "succes" : variation7j < 0 ? "alerte" : "neutre"} mono>
                   {variation7j > 0 ? "+" : ""}

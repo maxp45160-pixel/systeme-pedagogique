@@ -11,7 +11,7 @@ import { CarteProchaineAction } from "@/components/dashboard/prochaine-action";
 import { PistesAlternatives } from "@/components/dashboard/pistes-alternatives";
 import { AvisPropositions } from "@/components/dashboard/avis-propositions";
 import { MiniActivite } from "@/components/dashboard/mini-activite";
-import { IconeFleche } from "@/components/ui/icones";
+import { IconeCours, IconeFleche } from "@/components/ui/icones";
 import { BandeauInfo, classesLienBouton } from "@/components/ui/primitives";
 import { AbandonnerExerciceCarte } from "@/components/dashboard/abandonner-exercice-carte";
 import { statutSeance } from "@/lib/domain/seance";
@@ -133,7 +133,7 @@ async function ContenuTableauDeBord({
       {explicationEnregistree && (
         <BandeauInfo ton="succes" className="justify-between gap-3">
           <span>
-            <strong className="font-semibold">Explication enregistrée.</strong> Une observation de compréhension a été ajoutée à votre suivi.
+            <strong className="font-semibold">Explication enregistrée.</strong> Un résultat de compréhension a été ajouté à votre suivi.
           </span>
           <Link href="/app" className="shrink-0 font-medium text-primaire hover:underline">
             Fermer
@@ -157,10 +157,16 @@ async function ContenuTableauDeBord({
           className="group flex flex-wrap items-center gap-2.5 rounded-full border border-bordure bg-surface px-3.5 py-1.5 text-xs text-texte-attenue shadow-xs transition-colors hover:border-primaire/40 hover:text-texte"
           title="Voir le détail de ma progression"
         >
-          <span>
-            <strong className="font-medium text-texte">{ctx.referentiel.actifs.length}</strong> compétences
-          </span>
-          <span className="text-bordure-contraste" aria-hidden>·</span>
+          {aucuneObservation ? (
+            <span className="font-medium text-texte">Premier repère à construire</span>
+          ) : (
+            <>
+              <span>
+                <strong className="font-medium text-texte">{ctx.referentiel.actifs.length}</strong> compétences
+              </span>
+              <span className="text-bordure-contraste" aria-hidden>·</span>
+            </>
+          )}
           <span>
             <strong className="font-medium text-texte">{exercicesTravailles}</strong> exercice{exercicesTravailles > 1 ? "s" : ""}
           </span>
@@ -175,7 +181,14 @@ async function ContenuTableauDeBord({
       {/* Déclencheur d'intention compact + entrée dédiée « échéance » */}
       <div className="space-y-1.5">
         <BoutonIntentionDashboard />
-        <div className="flex justify-end px-1">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+          <Link
+            href="/atelier?creation=cours"
+            className="inline-flex min-h-11 touch-manipulation items-center gap-2 rounded-lg px-2 text-xs font-semibold text-primaire hover:bg-primaire-faible/40"
+          >
+            <IconeCours className="size-4" />
+            Déposer mon cours
+          </Link>
           <BoutonEcheance
             competences={ctx.referentiel.actifs.map(({ code, intitule }) => ({ code, intitule }))}
           />

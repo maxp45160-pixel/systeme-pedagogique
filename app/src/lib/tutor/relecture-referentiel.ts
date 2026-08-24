@@ -182,6 +182,20 @@ export function construirePromptRelecture(entree: EntreeRelecture): string {
     "- Le critère n'est pas le nombre. Un domaine de quarante compétences qui traitent toutes du même sujet ne se découpe pas ; un domaine de neuf qui en porte deux se découpe. Ne découpe jamais pour faire baisser un compte.",
     "- Nomme le sous-domaine comme une personne le dirait — « Gestion kanban », pas « LOG-SOUS-2 ». Tu ne donnes ni identifiant ni préfixe : l'application les attribue.",
     /*
+     * Le doublon, dit au modèle avant d'être filtré par le serveur.
+     *
+     * Constaté le 24/08/2026 sur un lot réel : « Résilience et optimisation des
+     * réseaux logistiques » proposé alors que « Résilience logistique »
+     * figurait dans la liste ci-dessus, avec ses trois compétences. La liste
+     * était sous ses yeux ; rien ne lui disait de la relire avant de nommer.
+     *
+     * La consigne ne suffit pas — `produireLot` écarte le doublon quoi qu'il
+     * réponde, même raisonnement qu'ADR-031 sur les `enum`. Elle vaut quand
+     * même : filtrée, la proposition est perdue ; évitée, elle laisse la place
+     * à un rattachement qui, lui, sert.
+     */
+    "- AVANT DE NOMMER, RELIS LA LISTE DES DOMAINES CI-DESSUS. Si l'un d'eux dit déjà ce sujet, même avec d'autres mots, NE PROPOSE PAS de le créer une seconde fois : propose un RATTACHEMENT vers le domaine qui existe. Un référentiel qui porte deux fois le même sujet sous deux noms ne se range plus.",
+    /*
      * Nommer, ne pas compter.
      *
      * La justification demandait « combien de compétences parlent de ce sujet,
@@ -208,6 +222,7 @@ export function construirePromptRelecture(entree: EntreeRelecture): string {
           "- L'ANCRAGE EST OBLIGATOIRE et doit CITER ce qui l'appelle : « vous avez travaillé N fois sur X », ou « vous avez écrit vouloir Y ». Sans cet ancrage, tu ne proposes pas un manque : tu écris un programme scolaire, et ce n'est pas ce qu'on te demande.",
           "- Reste proche. Si elle travaille le kanban, la méthode voisine de gestion de production est une bonne proposition ; la thermodynamique n'en est pas une.",
           "- Un savoir-faire OBSERVABLE, pas un sujet ni un titre de cours : « Dimensionner un supermarché de pièces », pas « Le lean manufacturing ».",
+          "- RELIS LES INTITULÉS DÉJÀ AU RÉFÉRENTIEL avant d'en proposer un. Un savoir-faire déjà présent sous une autre formulation n'est pas un manque : le proposer dédoublerait ses observations. Il n'y a de manque que là où rien ne le dit.",
         ]
       : [
           "3. DES SAVOIR-FAIRE QUI MANQUENT (manques).",

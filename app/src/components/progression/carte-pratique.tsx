@@ -18,7 +18,7 @@ export function CartePratique({ carriere }: { carriere: Carriere }) {
           <Ligne libelle="Temps travaillé" valeur={carriere.minutesTotal > 0 ? formatDuree(carriere.minutesTotal) : "—"} />
           <Ligne libelle="Séances tenues" valeur={String(carriere.seancesTotal)} />
           <Ligne libelle="Exercices menés" valeur={String(carriere.exercicesMenes)} />
-          <Ligne libelle="Observations" valeur={String(carriere.observationsTotal)} />
+          <Ligne libelle="Résultats observés" valeur={String(carriere.observationsTotal)} />
           <Ligne libelle="Jours actifs" valeur={String(carriere.joursActifsTotal)} />
           <Ligne
             libelle="Meilleure série"

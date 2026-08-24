@@ -21,6 +21,20 @@
  * produit un domaine, un tag, une arête ou une compétence — des faits déclarés,
  * ensuite indépendants de la proposition qui les a suggérés. Elle ne produit
  * jamais une mesure.
+ *
+ * ## Un échec attendu se RETOURNE, il ne se lève pas
+ *
+ * Ces fonctions levaient des phrases françaises soignées — « Cette compétence
+ * n'est plus au référentiel. », « Le domaine « X » existe déjà. » — et
+ * **personne ne les a jamais lues**. Next rédige les erreurs des Server Actions
+ * en production : le client reçoit le message générique de React (#441,
+ * `resolveErrorProd`), et le `catch` de l'écran ne peut afficher que lui.
+ * Constaté le 24/08/2026 sur une carte de proposition, où « Minified React
+ * error #441 » s'affichait à la place du motif réel.
+ *
+ * Un échec métier fait donc partie du RÉSULTAT : `{ ok: false, message }`. Ce
+ * qui reste levé — une panne, un bogue — est rédigé volontairement, et sa cause
+ * part dans le journal serveur où elle est lisible.
  */
 
 import { revalidatePath } from "next/cache";
@@ -42,8 +56,28 @@ import type {
 import type { Referentiel } from "@/lib/domain/types";
 
 export interface ResultatArbitrage {
+  /** Le geste a-t-il abouti ? Faux : rien n'a été écrit, et `message` dit quoi. */
+  ok: boolean;
   /** Une phrase, en français, pour l'écran. Jamais un identifiant technique. */
   message: string;
+}
+
+/**
+ * La phrase à montrer quand une commande a échoué.
+ *
+ * Les messages du domaine sont écrits pour être lus et passent tels quels. Ceux
+ * de la dorsale ne le sont pas : « Supabase (scission du domaine) : 40001 — … »
+ * n'apprend rien à la personne et expose un vocabulaire technique que le reste
+ * de l'écran s'interdit. Ils partent dans le journal serveur — le seul endroit
+ * où ils servent — et l'écran reçoit une phrase.
+ */
+function messageDEchec(e: unknown, contexte: string): string {
+  const brut = e instanceof Error ? e.message : String(e);
+  console.error(`[propositions] ${contexte} : ${brut}`);
+  if (!(e instanceof Error) || brut.startsWith("Supabase (")) {
+    return "Ce choix n'a pas pu être enregistré. Rafraîchissez la page et réessayez.";
+  }
+  return brut;
 }
 
 async function lireProposition(id: string): Promise<PropositionReferentielRelue> {
@@ -60,14 +94,19 @@ async function lireProposition(id: string): Promise<PropositionReferentielRelue>
  * rallume à chaque relecture et cesse d'être lu au bout d'une semaine.
  */
 export async function refuserProposition(id: string): Promise<ResultatArbitrage> {
-  await lireProposition(id);
-  const inscrit = await inscrireArbitrage(id, "refusee");
-  revalidatePath("/", "layout");
-  return {
-    message: inscrit
-      ? "C'est noté, cette proposition ne reviendra pas."
-      : "Cette proposition avait déjà été tranchée.",
-  };
+  try {
+    await lireProposition(id);
+    const inscrit = await inscrireArbitrage(id, "refusee");
+    revalidatePath("/", "layout");
+    return {
+      ok: true,
+      message: inscrit
+        ? "C'est noté, cette proposition ne reviendra pas."
+        : "Cette proposition avait déjà été tranchée.",
+    };
+  } catch (e) {
+    return { ok: false, message: messageDEchec(e, `refus de ${id}`) };
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -200,6 +239,14 @@ async function ecrireProposition(
 }
 
 export async function retenirProposition(id: string): Promise<ResultatArbitrage> {
+  try {
+    return await appliquerProposition(id);
+  } catch (e) {
+    return { ok: false, message: messageDEchec(e, `retenue de ${id}`) };
+  }
+}
+
+async function appliquerProposition(id: string): Promise<ResultatArbitrage> {
   const proposition = await lireProposition(id);
   const referentiel = await lireReferentiel(await dorsaleCompte());
 
@@ -215,5 +262,5 @@ export async function retenirProposition(id: string): Promise<ResultatArbitrage>
   const message = await ecrireProposition(proposition.contenu, referentiel);
   await inscrireArbitrage(id, "retenue");
   revalidatePath("/", "layout");
-  return { message };
+  return { ok: true, message };
 }

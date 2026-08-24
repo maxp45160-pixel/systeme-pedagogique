@@ -130,7 +130,7 @@ l'histoire des décisions.
 | Promesse | État au 28/07/2026 |
 |---|---|
 | « ce que tu sais réellement faire » | ✅ Tenue. Le moteur est complet et testé. |
-| « avec le degré de certitude » | ✅ Tenue. Niveau / confiance / robustesse sont distincts et affichés. |
+| « avec le degré de certitude » | ✅ Tenue. Les trois lectures restent distinctes ; l'interface les traduit en « ce que vous avez montré », « bilan à confirmer / solide » et « ancrage ». |
 | « quoi travailler ensuite » | 🟡 **La boucle a tourné en entier le 01/08** (ADR-030). La difficulté produite a suivi le conseil de la calibration sur les deux compétences où il existait — le 3ᵉ maillon est démontré. La seconde moitié du test reste à mesurer : les deux tentatives ont été abandonnées en 1 minute, donc aucune dimension n'a pu reculer. |
 | « parmi plusieurs façons d'apprendre » | 🔬 **Deux gestes existent** depuis le 15/08 : l'exercice et le mini-projet, ce dernier sur le chemin documentaire (ADR-070). Reste à vérifier — aucun projet n'a encore été mené à son terme. |
 
@@ -281,7 +281,7 @@ s'arrête avec un message qui dit quand le compteur repart, et renseigner sa
 propre clé lève la limite sans rien décompter. Le plafond est réglable par
 compte ; un administrateur n'est jamais décompté.
 🔬 **Une fiche de cours atteint le tuteur par un geste, jamais par le contexte**
-(24/08/2026, ADR-124). « Travailler à partir de cette fiche » compose un message
+(24/08/2026, ADR-124). « S'entraîner sur ce document » compose un message
 — titre plus corps borné à 4 000 caractères — que la personne relit et envoie
 elle-même. Le contexte permanent du tuteur ne contient toujours aucun document,
 et le moteur n'en lit aucun : une fiche est de la matière pour un énoncé, jamais
@@ -400,6 +400,17 @@ et les KPI actuels répondent au besoin présent. Réouverture sur fait nouveau.
 
 ### Ouvert
 
+🔬 **Le premier parcours atteint l'exercice avant le tableau de bord**
+(construit le 24/08/2026, ADR-128). Après la saisie du sujet, un seul axe est
+coché par défaut ; les autres propositions restent repliées et ne sont pas
+écrites sans geste. Valider cet axe lance la rédaction d'un exercice unique,
+que la personne relit puis accepte avant d'entrer directement dans une vraie
+`LearningSession`. « Faire plus tard » conduit au tableau de bord. Le contrat
+minimal de l'exercice reste cinq minutes : l'objectif de deux minutes porte sur
+le temps pour **atteindre** le test, pas sur une durée fictive. Test de
+réfutation : un compte tiers doit atteindre et commencer ce premier exercice
+sans assistance, et le taux d'abandon avant l'énoncé doit baisser.
+
 🔬 **Pertinence du classement adaptatif (ADR-066).** Le moteur déterministe et
 ses règles de séquençage sont une politique explicable, pas la démonstration
 d'une action pédagogiquement optimale. Test : au moins 10 boucles réelles avec
@@ -442,7 +453,13 @@ une à une : ranger ce qui existe (un domaine qui porte plusieurs sujets peut se
 découper en un clic), et élargir vers ce qui manque, ancré dans ce qui a été
 réellement travaillé ou déclaré vouloir. Rien ne s'écrit sans un geste ; une
 proposition refusée ne revient pas ; une proposition porte sur l'état lu et
-devient caduque quand cet état change. Le déclenchement reste la péremption
+devient caduque quand cet état change. Depuis le 24/08/2026 (ADR-127), une
+proposition qui **redit ce qui existe déjà** — un domaine à créer sous un autre
+nom qu'un domaine vivant, une compétence à ajouter sous une autre formulation
+qu'une compétence vivante — est écartée **avant** d'atteindre l'écran, et le
+compte des écartées est rendu. Et un échec d'arbitrage s'affiche **avec son
+motif** : les messages du produit ne sont plus masqués par la rédaction des
+erreurs de Next. Le déclenchement reste la péremption
 jamais un seuil de taille ; l'élargissement est ouvert sur arbitrage explicite
 du 22/08/2026 et réversible en une ligne si sa rétention ne tient pas. Les
 propositions se signalent d'elles-mêmes, à deux endroits qui ne font pas

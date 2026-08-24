@@ -36,8 +36,8 @@ export function FaitsMarquants({
         icone={<IconeCompetences className="size-4" />}
         tonIcone="text-info"
         valeur={String(evolution.premieresMesuresTotal)}
-        libelle="Compétences explorées"
-        precision="mesurées au moins une fois"
+        libelle="Compétences essayées"
+        precision="avec au moins un résultat"
       />
       <Fait
         icone={<IconeExercices className="size-4" />}

@@ -119,6 +119,8 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [107](#adr-107) | Les domaines sont des tags hiérarchiques, pas des propriétaires | ❓ Proposition (22/08) — construite le 23/08, statut inchangé ; nommage des compétences encore ouvert |
 | [108](#adr-108) | Le référentiel se relit en entier, et ne se réécrit jamais tout seul | ❓ Proposition (23/08) — Maxime doit trancher le régime des propositions de structure |
 | [109](#adr-109) | Le rendu des formules passe par KaTeX ; le texte Unicode reste le filet | ✅ Acceptée (23/08) — révise l'application d'[ADR-003](#adr-003) aux formules |
+| [127](#adr-127) | Une proposition ne redit pas ce qui existe, et un échec se lit | 🔬 Construite, hypothèse non réfutée (24/08) |
+| [128](#adr-128) | Le premier parcours atteint l'exercice avant le tableau de bord | 🔬 Construite, hypothèse non réfutée (24/08) |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -7541,7 +7543,8 @@ renvoie.
 - `CarteEtatGlobal` supprimé avec son unique appelant ; `RepartitionNiveaux`
   gagne une piste visible (une barre sans fond se lisait comme flottante).
 - La promesse « niveau / confiance / robustesse distincts et affichés » tient :
-  confiance et robustesse restent affichés (héros, faits marquants), le niveau
+  ces lectures restent distinctes, mais l'interface les nomme désormais
+  « ce que vous avez montré », « bilan à confirmer / solide » et « ancrage » ; le niveau
   l'est par compétence partout ailleurs et en répartition ici ; le *niveau
   moyen global*, lui, n'a plus d'écran dédié.
 - La page reste garantie atteignable par `workflow-scanner` ; son rôle change,
@@ -9707,8 +9710,8 @@ Deux raisons de ne pas le faire :
 
 ### Ce qui a été retenu
 
-Un geste : sur une fiche de **connaissance**, le bouton « Travailler à partir
-de cette fiche » compose un message et le pose en **brouillon** dans la saisie
+Un geste : sur une fiche de **connaissance**, le bouton « S'entraîner sur ce
+document » compose un message et le pose en **brouillon** dans la saisie
 du tuteur. La personne le relit, l'édite ou l'efface, et l'envoie elle-même.
 
 C'est le patron déjà éprouvé deux fois dans le produit — `composerSujetLecture`
@@ -10004,6 +10007,155 @@ sans ambiguïté.
   qu'un genre et pas un format ;
 - elle ne touche pas à la palette ⌘K, qui reste la voie rapide vers les sept
   gestes pour qui les connaît.
+
+---
+
+## ADR-127 — Une proposition ne redit pas ce qui existe, et un échec se lit 🔬
+
+**Statut :** 🔬 construit le 24/08/2026, hypothèse non réfutée. **Complète
+[ADR-108](#adr-108)** sans la réviser : la relecture reste ce qu'elle était, on
+lui ajoute ce qu'elle ne regardait pas. N'en fait monter aucune.
+
+### Les deux défauts, constatés le même jour sur des lots réels
+
+**1. La relecture a proposé de créer « Résilience et optimisation des réseaux
+logistiques » alors que « Résilience logistique » existait**, à trois
+compétences de là, et figurait dans le prompt avec son chemin complet.
+
+Deux contrôles auraient dû l'attraper. Aucun ne pouvait :
+
+- `validerDomaine` compare des noms **exacts** — `slugifier(nom)` et le nom en
+  minuscules. Deux formulations d'un même sujet ne se rencontrent jamais ;
+- surtout, ces contrôles jouent **à l'écriture**. La carte s'affichait, et
+  n'aurait échoué qu'au clic, sur un nom identique.
+
+Le dédoublonnage de `produireLot` ne portait que sur l'`empreinte` — les
+propositions **passées**, jamais l'état courant du référentiel.
+
+**2. « Minified React error #441 » s'affichait sur une carte**, à la place du
+motif. Décodé : `resolveErrorProd` de `react-server-dom-webpack`, l'erreur
+générique de rédaction. Une Server Action avait levé, et Next avait masqué le
+message — comme il masque **tous** les messages levés par une Server Action en
+production.
+
+Conséquence : les phrases françaises soignées de `ecrireProposition` — « Cette
+compétence n'est plus au référentiel. », « Le domaine « X » existe déjà. » —
+**n'ont jamais été lues par personne**. Le `catch (e) { e.message }` de l'écran
+ne pouvait afficher que le code React.
+
+### Ce qui a été fait
+
+**Le doublon est écarté avant l'écran, pas au clic.**
+`lib/domain/doublons-proposition.ts` rapproche un nom candidat des noms vivants
+par TF-IDF cosinus (`classerParProximiteTextuelle`, déjà là). `produireLot`
+écarte une `scission` dont le nom redit un domaine, et un `manque` dont
+l'intitulé redit une compétence. Deux seuils, calibrés sur des cas nommés dans
+`doublons-proposition.test.ts` : **0,5** pour les domaines, **0,7** pour les
+compétences — un intitulé de compétence est une phrase, pas une étiquette, et
+deux savoir-faire voisins partagent beaucoup de vocabulaire sans se confondre.
+
+Le candidat entre dans le corpus le temps du calcul. Sans cela, l'IDF étant
+calculée sur le seul corpus, un mot du candidat absent du corpus y pèse zéro et
+disparaît du vecteur : la requête se réduit à son vocabulaire partagé et tout
+ressemble à tout — « Gestion des stocks » scorerait haut contre « Gestion de
+production » parce que « stocks » se serait évaporé.
+
+**Le prompt le dit aussi**, sans que cela suffise (même raisonnement qu'ADR-031
+sur les `enum`) : le serveur filtre quoi que le modèle réponde. La consigne vaut
+quand même — filtrée, la proposition est perdue ; évitée, elle laisse la place à
+un rattachement, qui sert.
+
+**Un échec attendu se RETOURNE.** `retenirProposition` et `refuserProposition`
+rendent `{ ok, message }`. Ce qui reste levé est rédigé volontairement, et sa
+cause part dans le journal serveur — le seul endroit où « Supabase (scission du
+domaine) : 40001 — … » apprend quelque chose. L'écran, lui, reçoit une phrase.
+
+**Le compte des doublons est rendu**, à part de `ecartees` : « tu me l'as déjà
+proposé » et « ça existe déjà » sont deux constats différents, et un filtre
+silencieux ferait passer une dérive du tuteur pour « rien à proposer ».
+
+### Ce que cette décision ne fait PAS
+
+- elle ne touche **pas** à `competenceHomonyme`, dont le rapprochement reste
+  délibérément exact. La différence est la conséquence : ce module refuse de
+  **proposer**, `competenceHomonyme` refuse d'**écrire**. Refuser d'écrire sur
+  une ressemblance serait un jugement que le système n'a pas les moyens de
+  porter — « Modéliser un flux » n'a pas le même sens en Logistique et en
+  Développement. Refuser de proposer n'en est pas un : le coût est une
+  proposition non faite, et le lot suivant la refera si elle vaut ;
+- elle ne couvre que les deux genres qui **créent**. `relation` et
+  `rattachement` désignent l'existant et n'ont rien à dédoublonner ;
+- elle ne corrige **pas** la péremption. Une proposition de `scission` n'emporte
+  toujours que la version de son **parent** : créer un domaine ailleurs ne la
+  périme pas, et une carte peut survivre à son propre objet. C'est un troisième
+  défaut du même constat, laissé ouvert — l'élargir périmerait tout le lot au
+  premier geste sur n'importe quel domaine, ce qu'ADR-108 refuse explicitement.
+
+### Le test de réfutation
+
+Cette décision est réfutée si le compte des `doublons` d'une relecture devient
+comparable à celui des propositions retenues : le filtre écarterait alors du
+travail utile, et le seuil serait trop bas. Elle l'est aussi si un doublon passe
+encore — auquel cas c'est le rapprochement textuel qui ne suffit pas, et non le
+seuil, et le remède serait de comparer aussi les descriptions.
+
+Sur le second point : elle est réfutée si un « Minified React error » réapparaît
+sur une carte de proposition. Cela signifierait qu'un chemin lève encore hors
+du `try`.
+
+---
+
+## ADR-128 — Le premier parcours atteint l'exercice avant le tableau de bord 🔬
+
+**Statut :** 🔬 construit le 24/08/2026, hypothèse non réfutée. Ne fait
+monter aucun statut existant.
+
+### Le défaut
+
+Un compte neuf validait un référentiel de 15 à 30 compétences, arrivait sur le
+tableau de bord, puis devait encore comprendre une recommandation, ouvrir le
+compositeur, constater l'absence d'exercice, demander une génération, relire
+l'énoncé et enfin démarrer. La première expérience du produit était donc son
+inventaire, pas sa boucle.
+
+### Ce qui est construit
+
+- la relecture d'amorçage coche **un seul axe** par défaut et replie les autres ;
+  les ouvrir et en cocher davantage reste possible, et rien n'est écrit sans ce
+  geste ;
+- le bouton annonce exactement sa suite : « Valider cet axe et préparer mon
+  premier test ». Ce geste autorise la génération d'un exercice unique sur le
+  premier code écrit ;
+- l'énoncé reste une proposition relue. L'accepter crée une séance unitaire
+  avec `creerSeanceFocusExercice`, puis ouvre le workspace focus. Aucune entité
+  ne double `LearningSession`, et aucune mesure n'existe avant la réponse ;
+- « Faire plus tard » reste disponible et conduit au tableau de bord ;
+- la durée est cinq minutes, minimum existant de `Exercise`. « Deux minutes »
+  désigne le temps d'accès au test, pas une estimation que le domaine interdit ;
+- les noms statistiques ne changent pas dans le moteur. À la surface,
+  `mesures-lisibles.ts` les traduit en gestes compréhensibles : bilan à
+  confirmer, bilan solide, ancrage. Aucun seuil n'a changé.
+
+Le chemin documentaire reste soumis à ADR-124 : « S'entraîner sur ce
+document » compose un message borné que la personne relit. Le contenu d'un PDF
+ne devient ni mesure ni contexte permanent.
+
+### Ce que cela n'autorise pas
+
+- aucune XP, aucun badge, rang ou récompense inventée : l'ampleur visuelle ne
+  porte que des faits et des états dérivés (ADR-017) ;
+- aucune extension automatique du référentiel ; les axes non cochés ne sont pas
+  persistés et pourront seulement être reproposés plus tard ;
+- aucune génération gratuite hors `envTuteur` et aucun document ajouté au
+  contexte permanent.
+
+### Test de réfutation
+
+Faire parcourir l'amorçage à un compte tiers sans assistance. L'hypothèse est
+réfutée si la personne ne comprend pas pourquoi un seul axe est retenu, si
+elle abandonne avant l'énoncé, ou si le passage automatique déclenche des
+générations qu'elle ne pensait pas avoir demandées. Le remède se mesure sur le
+temps jusqu'au premier exercice commencé, pas sur le nombre d'écrans retirés.
 
 ---
 

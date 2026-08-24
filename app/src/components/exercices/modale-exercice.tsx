@@ -46,6 +46,8 @@ import { convertirProposition } from "@/lib/tutor/conversion-exercice";
 import type { PropositionExercice } from "@/lib/tutor/proposition";
 import { DIFFICULTES, LIBELLES_DIMENSIONS, type Dimension } from "@/lib/domain/types";
 import { EXERCICES_PAR_LOT_MAX } from "@/lib/domain/exercice";
+import { creerSeanceFocusExercice } from "@/lib/store/seance-actions";
+import { urlPremierTest } from "@/lib/domain/navigation-exercice";
 import type {
   CalibrageModale,
   CompetenceModale,
@@ -65,6 +67,8 @@ export function ModaleExercice({
   competencesCibles,
   dureeCibleMin,
   ouvrirDansCahierApresAcceptation = false,
+  demarrerApresAcceptation = false,
+  varianteAmorce = false,
   presentation = "modale",
 }: {
   onFermer: () => void;
@@ -110,6 +114,10 @@ export function ModaleExercice({
   dureeCibleMin?: number;
   /** Depuis la prochaine action, accepter enchaîne directement sur le workspace focus. */
   ouvrirDansCahierApresAcceptation?: boolean;
+  /** Compte neuf : accepter crée la séance unitaire et ouvre directement le test. */
+  demarrerApresAcceptation?: boolean;
+  /** Remplace le vocabulaire de génération par celui du premier test. */
+  varianteAmorce?: boolean;
   /**
    * Où le contenu se pose. `modale` par défaut — la coquille flottante.
    *
@@ -427,6 +435,24 @@ export function ModaleExercice({
         setEnregistrees(nouvellesEnregistrees);
         surEnregistre?.(id);
 
+        if (demarrerApresAcceptation) {
+          try {
+            const seanceId = await creerSeanceFocusExercice(id);
+            onFermer();
+            router.push(`/seances?session=${encodeURIComponent(seanceId)}&focus=1&sas=1`);
+          } catch {
+            /*
+             * L'exercice est déjà écrit : on ne prétend pas que toute
+             * l'opération a échoué et on ne le génère surtout pas deux fois.
+             * Le compositeur le retrouvera dans son catalogue et offrira le
+             * démarrage normal.
+             */
+            onFermer();
+            router.push(urlPremierTest(p.competences[0]));
+          }
+          return;
+        }
+
         if (ouvrirDansCahierApresAcceptation) {
           onFermer();
           router.push(`/seances?composer=1&code=${encodeURIComponent(p.competences[0] ?? "")}`);
@@ -454,6 +480,7 @@ export function ModaleExercice({
       enregistrerUneProposition,
       surEnregistre,
       ouvrirDansCahierApresAcceptation,
+      demarrerApresAcceptation,
       onFermer,
       router,
       propositions,
@@ -511,6 +538,12 @@ export function ModaleExercice({
     <EnveloppeGeneration
       presentation={presentation}
       onFermer={onFermer}
+      titre={varianteAmorce ? "Préparation de votre premier test" : TITRE_GENERATION}
+      sousTitre={
+        varianteAmorce
+          ? "Relisez l'énoncé, puis commencez : ce premier résultat servira de point de départ."
+          : SOUS_TITRE_GENERATION
+      }
       largeur={phase === "previsualisation" ? "5xl" : "2xl"}
       pied={
         phase === "formulaire" && codesLot ? (
@@ -598,9 +631,9 @@ export function ModaleExercice({
                     variante="principal"
                     disabled={enEcriture !== null}
                     enChargement={enEcriture === 0}
-                    aria-label="Accepter la proposition"
+                    aria-label={varianteAmorce ? "Accepter et commencer le premier test" : "Accepter la proposition"}
                   >
-                    Accepter
+                    {varianteAmorce ? "Commencer ce test" : "Accepter"}
                   </Bouton>
                 </>
               )}
@@ -1069,12 +1102,16 @@ const SOUS_TITRE_GENERATION =
 function EnveloppeGeneration({
   presentation,
   onFermer,
+  titre,
+  sousTitre,
   largeur = "2xl",
   pied,
   children,
 }: {
   presentation: "modale" | "inline";
   onFermer: () => void;
+  titre: string;
+  sousTitre: string;
   largeur?: LargeurModale;
   pied?: ReactNode;
   children: ReactNode;
@@ -1083,7 +1120,7 @@ function EnveloppeGeneration({
 
   if (presentation === "modale") {
     return (
-      <Modale titre={TITRE_GENERATION} sousTitre={SOUS_TITRE_GENERATION} onFermer={onFermer} largeur={largeur} pied={pied}>
+      <Modale titre={titre} sousTitre={sousTitre} onFermer={onFermer} largeur={largeur} pied={pied}>
         {children}
       </Modale>
     );
@@ -1097,9 +1134,9 @@ function EnveloppeGeneration({
       <div className="flex items-start justify-between gap-3 border-b border-bordure pb-3">
         <div className="min-w-0">
           <h3 id={idTitre} className="font-serif text-sm font-medium">
-            {TITRE_GENERATION}
+            {titre}
           </h3>
-          <p className="mt-0.5 text-xs text-texte-discret">{SOUS_TITRE_GENERATION}</p>
+          <p className="mt-0.5 text-xs text-texte-discret">{sousTitre}</p>
         </div>
         <button
           type="button"

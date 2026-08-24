@@ -22,9 +22,9 @@ import { Depliant } from "@/components/ui/explication";
 
 const ENTREES: { terme: string; definition: string }[] = [
   {
-    terme: "Référentiel",
+    terme: "Carte d'apprentissage",
     definition:
-      "L’ensemble de vos sujets et des compétences qu’ils contiennent. Il appartient à votre compte : vous l’étendez, le corrigez et le réduisez à tout moment depuis Mes cours.",
+      "L’ensemble de vos sujets et des savoir-faire qu’ils contiennent. Elle vous appartient : vous l’étendez, la corrigez et la réduisez à tout moment depuis Mes cours.",
   },
   {
     terme: "Compétence",
@@ -47,9 +47,9 @@ const ENTREES: { terme: string; definition: string }[] = [
       "La trace durable et vérifiable d’une activité : votre réponse, votre production ou la version figée qui la conserve. Elle précède toute mesure.",
   },
   {
-    terme: "Observation",
+    terme: "Résultat observé",
     definition:
-      "Un constat structuré, daté et sourcé tiré d’une preuve : résultat, autonomie, qualité et dimensions observées. Les niveaux et tendances sont recalculés à partir de ces constats.",
+      "Ce que votre réponse permet réellement de constater : réussite, aide utilisée et qualité du raisonnement. Vos repères sont recalculés à partir de ces résultats.",
   },
   {
     terme: "Niveau (0 à 5)",
@@ -67,14 +67,14 @@ const ENTREES: { terme: string; definition: string }[] = [
       "Avec quelle aide vous y êtes arrivé — A0 solution fournie, A1 fortement guidé, A2 quelques indices, A3 en autonomie, A4 avec initiative méthodologique. Elle est déduite des indices consultés et de l'aide extérieure déclarée, jamais choisie.",
   },
   {
-    terme: "Confiance",
+    terme: "Bilan à confirmer ou solide",
     definition:
-      "À quel point le niveau affiché est fiable. Elle dépend du nombre d’observations, de leur fraîcheur et de leur cohérence entre elles. Faible ne veut pas dire mauvais : cela veut dire « pas encore assez pour conclure ».",
+      "À quel point le niveau affiché est bien étayé. « À confirmer » ne veut pas dire faible : cela signifie simplement qu’il faut encore vous voir réussir.",
   },
   {
-    terme: "Robustesse (0 à 1)",
+    terme: "Ancrage",
     definition:
-      "La solidité de l'acquis dans le temps : plusieurs observations, dans plusieurs contextes, étalées sur plusieurs semaines. Réussir trois fois le même exercice le même jour ne la fait pas monter.",
+      "La solidité de l'acquis dans le temps : plusieurs réussites, dans plusieurs contextes, espacées dans le temps. Refaire trois fois le même exercice le même jour ne suffit pas.",
   },
   {
     terme: "—",
@@ -84,7 +84,7 @@ const ENTREES: { terme: string; definition: string }[] = [
 ];
 
 export function Glossaire({
-  resume = "Que veulent dire ces mots ?",
+  resume = "Comprendre mes repères",
 }: {
   resume?: string;
 }) {

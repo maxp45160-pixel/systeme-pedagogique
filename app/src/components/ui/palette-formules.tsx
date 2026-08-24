@@ -236,7 +236,7 @@ export function PaletteFormules({
         aria-label="Palette de symboles mathématiques"
         title="Symboles mathématiques"
         className={[
-          "flex h-6 items-center justify-center gap-0.5 rounded-full px-1.5 text-[0.6875rem] font-medium transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40",
+          "flex min-h-11 touch-manipulation items-center justify-center gap-0.5 rounded-full px-3 text-xs font-medium transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 sm:min-h-8 sm:px-2 sm:text-[0.6875rem]",
           ouverte
             ? "bg-primaire text-texte-inverse shadow-xs"
             : "text-texte-attenue hover:bg-primaire/15 hover:text-primaire",
@@ -253,10 +253,10 @@ export function PaletteFormules({
           Ancré à gauche, il débordait de l'écran sur les fenêtres étroites.
         */
         <div
-          className="absolute left-1/2 top-full z-40 mt-2 w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 rounded-xl border border-bordure bg-surface p-2 shadow-xl"
+          className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 max-h-[min(30rem,calc(100dvh-1.5rem))] overflow-y-auto rounded-xl border border-bordure bg-surface p-2 shadow-xl sm:absolute sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-full sm:mt-2 sm:w-[min(24rem,calc(100vw-2rem))] sm:-translate-x-1/2 sm:overflow-visible"
           /* Le clic ne doit pas voler le focus : la sélection dans l'éditeur
              est le point d'insertion, et un `blur` la perdrait. */
-          onMouseDown={(event) => event.preventDefault()}
+          onPointerDown={(event) => event.preventDefault()}
         >
           <div className="mb-2 grid grid-cols-2 gap-1">
             {ENVELOPPES.map((symbole) => (
@@ -265,7 +265,7 @@ export function PaletteFormules({
                 type="button"
                 onClick={() => onInserer(symbole.insere, symbole.recul ?? 0)}
                 title={symbole.nom}
-                className="flex items-center justify-center gap-1.5 rounded-md border border-bordure bg-surface-2 px-2 py-1.5 text-[0.6875rem] text-texte transition-colors hover:border-primaire/40 hover:text-primaire cursor-pointer"
+                className="flex min-h-11 touch-manipulation items-center justify-center gap-1.5 rounded-md border border-bordure bg-surface-2 px-2 py-2 text-[0.6875rem] text-texte transition-colors hover:border-primaire/40 hover:text-primaire cursor-pointer"
               >
                 <span className="font-mono">{symbole.glyphe}</span>
                 <span className="text-texte-discret">{symbole.nom}</span>
@@ -286,7 +286,7 @@ export function PaletteFormules({
                 aria-selected={c.titre === active.titre}
                 onClick={() => setCategorie(c.titre)}
                 className={[
-                  "shrink-0 rounded-full px-2 py-1 text-[0.6875rem] font-medium transition-colors cursor-pointer",
+                  "min-h-11 shrink-0 touch-manipulation rounded-full px-3 py-2 text-[0.6875rem] font-medium transition-colors cursor-pointer sm:min-h-8 sm:px-2 sm:py-1",
                   c.titre === active.titre
                     ? "bg-primaire text-texte-inverse"
                     : "text-texte-attenue hover:bg-primaire/15 hover:text-primaire",
@@ -306,7 +306,7 @@ export function PaletteFormules({
                 title={symbole.nom}
                 aria-label={symbole.nom}
                 className={[
-                  "flex h-8 items-center justify-center rounded-md border border-transparent text-sm text-texte transition-colors hover:border-primaire/40 hover:bg-primaire/10 hover:text-primaire cursor-pointer",
+                  "flex h-11 touch-manipulation items-center justify-center rounded-md border border-transparent text-sm text-texte transition-colors hover:border-primaire/40 hover:bg-primaire/10 hover:text-primaire cursor-pointer sm:h-9",
                   symbole.large ? "col-span-2 text-[0.6875rem]" : "",
                 ].join(" ")}
               >
