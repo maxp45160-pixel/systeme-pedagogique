@@ -13,7 +13,6 @@ import { chargerContexte } from "@/lib/store/context";
 import { dorsaleCompte } from "@/lib/store/db";
 import { construireGraphe } from "@/lib/domain/graphe";
 import { construireGrapheDomaines } from "@/lib/domain/graphe-domaines";
-import { construireArbreSavoirs } from "@/lib/domain/arbre-savoirs";
 import { domainesPortants } from "@/lib/domain/hierarchie-domaines";
 import { construireVuesAtelier } from "@/lib/documents/vue-atelier";
 import { construireProgressionsDomaines } from "@/lib/documents/progression-domaine";
@@ -382,13 +381,6 @@ export default async function PageAtelier(props: {
     contexte.donnees.exercises,
   );
 
-  /*
-   * L'arbre des savoirs : le classement des domaines lui donne son tronc.
-   * Construit ici comme les deux autres projections — une seule lecture du
-   * référentiel alimente les trois, donc une seule vérité par écran.
-   */
-  const arbreSavoirs = construireArbreSavoirs(contexte.referentiel, contexte.etats);
-
   return (
     <>
       <EntetePage
@@ -414,7 +406,6 @@ export default async function PageAtelier(props: {
         graphe={{
           donnees: graphe,
           domaines: grapheDomaines,
-          arbre: arbreSavoirs,
           compteId: contexte.donnees.user.id,
         }}
         aClasser={vues.aClasser}

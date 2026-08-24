@@ -40,14 +40,16 @@ export function CarteCreationPointillee({
 }
 
 /**
- * Les trois entrées de l'Atelier.
+ * Les trois entrées de Mes cours.
  *
  * « Transversal » a disparu : c'était un second classement des mêmes objets,
- * où chaque compétence apparaissait une deuxième fois. Restent quatre lieux qui
- * ne se recouvrent pas — le référentiel, les sélections, les ressources, et la
- * même matière vue en graphe.
+ * où chaque compétence apparaissait une deuxième fois. « Arbre » a disparu à
+ * son tour (ADR-121) : il montrait le même référentiel que « Graphe », dans un
+ * onglet frère, en attendant d'avoir assez de matière pour valoir mieux que
+ * les trois autres. Restent trois lieux qui ne se recouvrent pas — le
+ * référentiel, les ressources, et la même matière vue en relations.
  */
-export type VueAtelier = "domaines" | "ressources" | "graphe" | "arbre";
+export type VueAtelier = "domaines" | "ressources" | "graphe";
 
 export function BarreVuesAtelier({
   vue,
@@ -60,10 +62,6 @@ export function BarreVuesAtelier({
     { cle: "domaines" as const, libelle: "Domaines" },
     { cle: "ressources" as const, libelle: "Ressources" },
     { cle: "graphe" as const, libelle: "Graphe" },
-    /* En dernier, et à dessein : l'arbre est une lecture d'ensemble, pas une
-       entrée de travail. Il attend d'avoir assez de matière pour valoir mieux
-       que les trois qui le précèdent. */
-    { cle: "arbre" as const, libelle: "Arbre" },
   ];
   return (
     <div

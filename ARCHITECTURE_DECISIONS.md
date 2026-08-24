@@ -9438,6 +9438,69 @@ typés devraient être portés autrement.
 
 ---
 
+## ADR-121 — « Arbre » sort de Mes cours, parce qu'il attendait de valoir ✅
+
+**Statut :** ✅ retiré le 24/08/2026, sur décision explicite de Maxime après
+l'audit de conception (défaut D5). Retire une surface construite sous
+[ADR-105](#adr-105) ; ne remet en cause ni le classement des domaines, ni
+l'arbre d'un domaine.
+
+### Le problème
+
+Mes cours portait quatre onglets frères : Domaines, Ressources, Graphe, Arbre.
+Les deux derniers montraient **le même référentiel**, à deux échelles.
+
+Ils répondaient bien à deux questions distinctes :
+
+- **Graphe** — « qu'est-ce qui est relié à quoi » : prérequis orientés, hubs
+  d'exercices, similarité de vocabulaire en pointillé. Non hiérarchique ;
+- **Arbre** — « où va chaque domaine » : région de la carte → domaine du
+  compte → compétence, teinté par la maîtrise, avec le classement d'ADR-105
+  pour tronc.
+
+Deux questions ne font pas deux onglets. Le fichier le disait lui-même, en
+commentaire, à côté de l'entrée qu'il ajoutait :
+
+> « En dernier, et à dessein : l'arbre est une lecture d'ensemble, pas une
+> entrée de travail. **Il attend d'avoir assez de matière pour valoir mieux que
+> les trois qui le précèdent.** »
+
+Une surface qui attend de valoir est une surface construite par anticipation —
+ce qu'`AGENTS.md` interdit. Elle coûtait 1 069 lignes, un quatrième onglet dans
+une barre de trois, et un second chargement de `d3-force`.
+
+### La décision
+
+**L'onglet « Arbre » et l'arbre global sont retirés.** Partent avec lui
+`lib/domain/arbre-savoirs.ts` (272 l.), son test (282 l.) et
+`components/atelier/vues/arbre-savoirs-canvas.tsx` (515 l.).
+
+Rien n'est déprécié, rien n'est mis en commentaire : le code part dans
+l'historique, d'où il se restaure entier le jour où le classement des domaines
+aura la matière que ce commentaire attendait. Une surface qu'on garde
+« au cas où » se maintient à chaque refonte du voisinage et ne se rouvre
+jamais ; une surface qu'on retire se relit d'un `git show`.
+
+**Ce qui reste, et qu'il ne faut pas confondre.**
+`components/atelier/vues/arbre-domaine.tsx` est un **mode de lecture d'un
+domaine** (Fiches / Arbre / Progression), à l'intérieur d'une fiche, pas un
+onglet frère du Graphe. Il montre les prérequis des compétences d'**un** domaine
+et il est employé. Il ne bouge pas.
+
+### Ce que cette décision n'autorise pas
+
+- elle ne retire **pas** le classement des domaines ([ADR-105](#adr-105)) : il
+  reste ce qui situe un domaine sur la carte partagée, et il sert ailleurs. Ce
+  qui sort, c'est une projection de plus de ce classement, pas le classement ;
+- elle ne touche pas au Graphe, ni à `construireGraphe`, ni à
+  `construireGrapheDomaines` ;
+- elle ne rouvre pas la question « faut-il une vue d'ensemble hiérarchique ».
+  Elle constate qu'elle n'était pas encore utile, pas qu'elle ne le sera
+  jamais. Le jour où on la rouvre, la forme à examiner d'abord est une bascule
+  **dans** la vue Graphe, pas un quatrième onglet.
+
+---
+
 ---
 
 ## Comment modifier ce registre

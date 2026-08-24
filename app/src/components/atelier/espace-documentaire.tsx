@@ -43,7 +43,6 @@ import { ModaleReferentiel } from "@/components/referentiel/modale-referentiel";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import type { DonneesGraphe } from "@/lib/domain/graphe";
 import type { GrapheDomaines } from "@/lib/domain/graphe-domaines";
-import type { ArbreSavoirs } from "@/lib/domain/arbre-savoirs";
 import { urlComposerAutonome } from "@/lib/domain/navigation-exercice";
 import { validerUrlRessource } from "@/lib/domain/url-ressource";
 /*
@@ -51,25 +50,6 @@ import { validerUrlRessource } from "@/lib/domain/url-ressource";
  * ouverte : en import statique, son chunk partait avec l'atelier pour tout le
  * monde, consulté ou non.
  */
-/*
- * Le canevas de l'arbre ne voyage que quand la vue Arbre est ouverte : il
- * embarque `d3-force`, comme le graphe.
- */
-const ArbreSavoirsCanvas = dynamic(
-  () =>
-    import("@/components/atelier/vues/arbre-savoirs-canvas").then(
-      (m) => m.ArbreSavoirsCanvas,
-    ),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="grid h-full place-items-center text-sm text-texte-discret">
-        Préparation de l’arbre…
-      </div>
-    ),
-  },
-);
-
 const GrapheCompetences = dynamic(
   () =>
     import("@/components/competences/graphe/graphe-competences").then(
@@ -212,7 +192,6 @@ function documentDepuisAnalyse(
  */
 const VUES_ATELIER = new Set<string>([
   "domaines",
-  "arbre",
   "ressources",
   "graphe",
   "domaines-archives",
@@ -220,7 +199,6 @@ const VUES_ATELIER = new Set<string>([
 
 const TITRES_VUES: Record<string, string> = {
   domaines: "Domaines",
-  arbre: "Arbre",
   ressources: "Ressources",
   graphe: "Graphe",
   "domaines-archives": "Domaines archivés",
@@ -380,7 +358,7 @@ export function EspaceDocumentaire({
    * s'ouvre alors directement en lecture longitudinale, sans clic.
    */
   vueDemandee?: string;
-  graphe: { donnees: DonneesGraphe; domaines: GrapheDomaines; arbre: ArbreSavoirs; compteId: string };
+  graphe: { donnees: DonneesGraphe; domaines: GrapheDomaines; compteId: string };
   generation: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
   donneesSeance?: DonneesSeance;
   domainesExistants: { id: string; nom: string; prefixe: string }[];
@@ -1255,7 +1233,7 @@ export function EspaceDocumentaire({
           <div className="flex items-center gap-3">
             <BarreVuesAtelier
               vue={
-                (["domaines", "arbre", "ressources", "graphe"].includes(
+                (["domaines", "ressources", "graphe"].includes(
                   selection ?? "",
                 )
                   ? selection
@@ -1475,15 +1453,7 @@ export function EspaceDocumentaire({
           : "lg:grid-cols-[1fr]",
       )}>
         <main className="flex h-full min-w-0 flex-1 flex-col min-h-0 overflow-hidden bg-surface">
-          {selection === "arbre" ? (
-            <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface p-4">
-              <ArbreSavoirsCanvas
-                arbre={graphe.arbre}
-                couleursDomaines={couleursDomaines}
-                ouvrirElement={ouvrirElement}
-              />
-            </div>
-          ) : selection === "graphe" ? (
+          {selection === "graphe" ? (
             <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface p-4">
               {/*
                 Une seule échelle ici : les compétences. La carte des domaines
