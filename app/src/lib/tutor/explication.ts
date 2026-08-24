@@ -6,7 +6,11 @@
  */
 
 import type { Skill, Domaine } from "@/lib/domain/types";
-import type { EvaluationExplication } from "@/lib/domain/explication";
+import {
+  ATTRIBUTION_RESULTAT_EXPLICATION,
+  CRITERES_AUTO_EXPLICATION,
+  type EvaluationExplication,
+} from "@/lib/domain/explication";
 import type { MoteurTuteur } from "./moteurs";
 import { lireErreurMoteur, lireOutilsActifs } from "./moteurs";
 import { REGLE_VOUVOIEMENT } from "./prompt";
@@ -35,15 +39,10 @@ export function construirePromptExplication(
     domaine ? `- Domaine : ${domaine.nom} — ${domaine.description}` : "",
     "",
     "CRITÈRES D'ÉVALUATION DE LA COMPRÉHENSION :",
-    "1. Définition essentielle : Le concept fondamental est-il compris et formulé simplement, sans paraphrase vide ?",
-    "2. Utilité et raison d'être : L'apprenant explique-t-il pourquoi ce concept existe ou à quoi il sert ?",
-    "3. Concrétude / Exemple : L'explication s'appuie-t-elle sur une illustration concrète, un exemple ou une intuition claire ?",
-    "4. Précision / Absence de contre-sens : L'explication évite-t-elle les confusions majeures et les pièges classiques ?",
+    ...CRITERES_AUTO_EXPLICATION.map((critere, rang) => `${rang + 1}. ${critere}`),
     "",
     "RÈGLES D'ATTRIBUTION DU RÉSULTAT :",
-    "- 'reussi' : L'essentiel du concept est compris et articulé clairement (scoreComprehension >= 0.6).",
-    "- 'partiel' : L'intuition est présente mais l'explication manque de rigueur, d'exemples ou contient des lacunes notables.",
-    "- 'echec' : L'explication contient un contre-sens majeur, est hors sujet ou trop superficielle.",
+    ...ATTRIBUTION_RESULTAT_EXPLICATION.map((regle) => `- ${regle}`),
     "",
     "CONSIGNES DE RÉDACTION DU FEEDBACK :",
     "- Sois précis, concis et encourageant.",

@@ -119,13 +119,15 @@ concerne un concept fondamental, ou persiste après correction.
 Qu'une information soit présente ne signifie pas qu'elle est vraie.
 Distingue information fournie, démontrée, déduite et supposée.
 
-L'aide extérieure est demandée et entre dans le calcul de l'autonomie depuis
-le 01/08/2026 (§5, ADR-033). Les Observations ANTÉRIEURES à cette date n'ont pas
-reçu la question : leur autonomie peut être optimiste, et seul leur champ
-commentaire — que le moteur ne lit pas — porte parfois la mention d'une aide
-(« j'ai eu besoin de l'aide de Claude », « j'ai regardé sur internet »). Lis
-le commentaire avant de discuter d'un niveau ancien, et signale la tension
-plutôt que de la taire.
+Cas particulier, à durée limitée : l'aide extérieure n'est demandée que depuis
+le 01/08/2026 (§5, ADR-033). Avant cette date, l'autonomie enregistrée peut
+être optimiste, et l'aide reçue n'apparaît parfois que dans le champ
+commentaire, que le moteur ne lit pas. Devant une Observation antérieure au
+01/08/2026 : lis son commentaire, et signale la tension plutôt que de la taire.
+
+[Cette clause se retire le jour où plus aucune Observation du compte n'est
+antérieure au 01/08/2026. Elle est rechargée à chaque message ; ne la garder
+que tant qu'elle décrit des données réelles.]
 
 ---
 

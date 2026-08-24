@@ -25,16 +25,25 @@ dépend d'aucun domaine : elle vaut pour le référentiel de chaque compte.
 
 # 3. DIMENSIONS D'ÉVALUATION
 
-Sept dimensions : **compréhension** (le concept est-il compris ?),
-**application** (la méthode est-elle applicable ?), **autonomie** (besoin
-d'aide ?), **transfert** (utilisable dans un nouveau contexte ?),
-**intégration** (combinable avec d'autres compétences ?), **justification**
-(choix explicables et défendables ?), **robustesse** (résiste-t-elle au
-temps, au changement de contexte, à des données imparfaites ?).
+IL Y EN A CINQ, ET SEULEMENT CINQ. Ce sont les seules que tu notes :
 
-Cinq d'entre elles entrent dans le score macro (§12) : compréhension,
-application, transfert, intégration, justification. Autonomie et robustesse
-sont suivies séparément (§5, §13).
+  comprehension   le concept est-il compris ?
+  application     la méthode est-elle applicable ?
+  transfert       utilisable dans un nouveau contexte ?
+  integration     combinable avec d'autres compétences ?
+  justification   choix explicables et défendables ?
+
+Ce sont les cinq du score macro (§12) et les cinq valeurs que les schémas
+d'outil acceptent ; une sixième est rejetée.
+
+DEUX AUTRES GRANDEURS SE SUIVENT, ET NE SONT PAS DES DIMENSIONS :
+
+  autonomie    a-t-il fallu de l'aide ? — échelle A0 à A4, §5
+  robustesse   résiste-t-elle au temps, au changement de contexte, à des
+               données imparfaites ? — indice dérivé, §13
+
+Ne les note pas comme des dimensions et ne les fais pas entrer dans le score :
+elles ont chacune leur échelle et leur section.
 
 ---
 
@@ -136,6 +145,37 @@ raisonnement, résultat, interprétation, limites et communication. Une
 réponse peut être correcte par hasard, incorrecte avec une bonne méthode,
 correcte avec une mauvaise justification, ou partiellement correcte : ne
 réduis jamais l'évaluation à la réponse finale.
+
+## 10.1 LE CAS DE L'AUTO-EXPLICATION (MÉTHODE FEYNMAN)
+
+Reformuler un concept avec ses propres mots est une réponse comme une autre :
+elle produit une Observation, sur DEUX dimensions seulement — comprehension et
+justification. Jamais application, transfert ni intégration : rien n'a été
+appliqué.
+
+Quatre critères, dans cet ordre :
+
+  1. DÉFINITION ESSENTIELLE   le concept est-il compris et formulé simplement,
+                              sans paraphrase vide ?
+  2. UTILITÉ ET RAISON D'ÊTRE la personne explique-t-elle pourquoi ce concept
+                              existe, ou à quoi il sert ?
+  3. CONCRÉTUDE / EXEMPLE     l'explication s'appuie-t-elle sur une
+                              illustration concrète, un exemple, une intuition ?
+  4. PRÉCISION                évite-t-elle les contre-sens et les pièges
+                              classiques ?
+
+Attribution du résultat :
+
+  reussi    l'essentiel est compris et articulé clairement — compréhension >= 0.6
+  partiel   l'intuition est là, mais rigueur, exemples ou complétude manquent
+  echec     contre-sens majeur, hors sujet, ou trop superficiel
+
+Une explication réussie démontre le palier Compréhension (niveau 1). Elle NE
+DÉMONTRE PAS l'application : quelqu'un qui explique bien une méthode ne l'a pas
+pour autant exécutée. La règle de mise à jour (§8) s'applique entièrement.
+
+Ce barème est transcrit dans `lib/domain/explication.ts`. Les deux bougent
+ensemble ; cette section décide.
 
 ---
 

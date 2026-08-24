@@ -9577,6 +9577,99 @@ un.
 
 ---
 
+## ADR-123 — Les protocoles disent ce que le code fait, et le barème Feynman rentre dedans 🔬
+
+**Statut :** 🔬 construit le 24/08/2026, hypothèse non réfutée. Corrige huit
+écarts relevés par relecture de `app/data/00_instructions/` ; n'en fait monter
+aucune.
+
+### Pourquoi une relecture
+
+`AGENTS.md` interdit de modifier ces cinq fichiers **silencieusement**. Le
+revers de cette protection est qu'ils avaient dérivé sans qu'on les rouvre :
+20 340 caractères — environ 5 100 jetons — sont rechargés à **chaque message**,
+et personne n'avait vérifié depuis des semaines qu'ils décrivaient encore le
+produit.
+
+### Le seul écart qui touche une mesure
+
+**Le barème de l'auto-explication vivait hors de tout protocole.** `/expliquer`
+écrit une `ExerciseAttempt` complète — `resultat`, `evaluation.comprehension`,
+`evaluation.justification` — c'est-à-dire une Observation comme les autres. Ses
+quatre critères et son seuil (`scoreComprehension >= 0.6`) étaient en dur dans
+`lib/tutor/explication.ts`, alors qu'`INSTRUCTIONS §3` affirme que « l'échelle
+de niveau et les dimensions d'évaluation sont définies au protocole
+d'évaluation §3 et §4, **qui font foi** ». Une règle de mesure décidée dans un
+prompt est exactement l'écart que ce dossier existe pour empêcher.
+
+**Le protocole ne pouvait pas être injecté**, et c'est ce qui explique la
+dérive : la route `/api/explication/evaluer` construit un prompt court, sans
+référentiel ni historique, et ne charge pas `00_instructions/`. Y injecter les
+6 400 caractères du protocole d'évaluation pour un barème de vingt lignes
+aurait coûté plus que le problème.
+
+La forme retenue est celle qu'`atomicite.ts` emploie déjà pour §2 du protocole
+de référentiel : **le protocole décide, le code transcrit, et un test vérifie
+qu'ils disent le même chiffre.** Le barème devient §10.1 du protocole
+d'évaluation ; `SEUIL_REUSSITE_COMPREHENSION`, `CRITERES_AUTO_EXPLICATION` et
+`ATTRIBUTION_RESULTAT_EXPLICATION` vivent dans `lib/domain/explication.ts` ; le
+prompt les compose au lieu de les recopier ; `explication.test.ts` relit le
+fichier de protocole et échoue si les deux divergent.
+
+### Les sept autres écarts
+
+| # | Écart | Traitement |
+|---|---|---|
+| 1 | `PROTOCOLE_REFERENTIEL` s'annonçait « Version 1.0 — 31/07/2026 » alors que son corps citait ADR-086 (18/08) et ADR-105 (22/08) | En-tête daté, révisions nommées |
+| 2 | `INSTRUCTIONS §10` disait « relie-les à **la matrice** » — mot absent du produit depuis le référentiel | « rapproche-les des compétences du référentiel du compte » |
+| 3 | `INSTRUCTIONS §11` imposait douze étapes de projet d'ingénierie (« analyse du système, variables, hypothèses, modèle, implémentation, expérimentation… ») quand le schéma réel demande titre, description, brief, jalons et workspace | Réécrit sur le schéma réel, avec la règle d'ADR-070 : **un jalon décrit une production, pas une Observation** |
+| 4 | `INSTRUCTIONS §1` visait à faire « **modéliser**, résoudre, **programmer**… » — deux verbes qui présupposent un domaine technique, que §6 du même fichier interdit de supposer | Résoudre, expliquer, justifier, transférer |
+| 6 | `ANTI_HALLUCINATION §12` portait sur neuf lignes le legs des Observations d'avant ADR-033 | Compressé à quatre, **avec sa condition de retrait écrite dans le fichier** |
+| 7 | `EVALUATION_CORE §3` annonçait « **Sept** dimensions » ; le type `Dimension` en a cinq, et les schémas d'outil rejettent la sixième | Cinq dimensions nommées, plus deux grandeurs suivies à part |
+| 8 | `INSTRUCTIONS §5` présentait LÉGER, AVANCÉ et SYNTHÉTIQUE comme symétriques ; seul SYNTHÉTIQUE est câblé (`fautChargerSyntheseEvaluation`) | La différence de nature est dite : deux registres choisis, un mode matériel |
+
+Les points 3 et 4 sont le même défaut à deux endroits : le cadrage
+d'ingénierie d'origine avait survécu à la généralisation du référentiel, dans
+le fichier qui interdit précisément de présupposer un domaine.
+
+### Le coût, et ce qu'il faudra faire ensuite
+
+Le poids toujours chargé passe de **20 340 à 23 558 caractères** — environ
++800 jetons par message. C'est assumé : §10.1 met dans les protocoles une règle
+de mesure qui n'y était pas, ce qui est le but. Les justifications que la
+relecture a produites vivent ici, dans cet ADR, et non dans les fichiers de
+prompt — un modèle n'a pas besoin de savoir pourquoi une phrase a changé.
+
+**Le vrai levier n'est pas la concision, c'est le chargement conditionnel.**
+`§10.1` (auto-explication), `§10` (lectures) et `§11` (projets) ne servent que
+lorsque le geste correspondant est en cours. Le mécanisme existe déjà :
+`contexte.ts` ne charge `PROTOCOLE_REFERENTIEL` que lorsque la conversation
+porte sur le référentiel, et `EVALUATION_SYNTHESE` que sur cadence ou mot-clé.
+Étendre cette découpe est le chantier suivant ; il n'a pas été fait ici parce
+qu'il demande de décider **ce qui déclenche quoi**, et que ce n'est pas une
+question de rédaction.
+
+### Le test de réfutation
+
+Cette décision est réfutée si la transcription redérive malgré le test — c'est
+-à-dire si quelqu'un change le seuil dans le protocole sans toucher au code, et
+que le test échoue sans que personne ne comprenne lequel des deux fait foi. La
+réponse est écrite dans les deux fichiers : **§10.1 décide.**
+
+### Ce que cette décision n'autorise pas
+
+- elle ne change **aucun seuil**. 0,6 reste 0,6 ; les cinq dimensions restent
+  les cinq ; les échelles A0-A4 et 0-5 ne bougent pas. Rien de ce qui a été
+  mesuré n'est réinterprété ;
+- elle ne retire pas la clause du 01/08/2026 : sans accès aux données, on ne
+  peut pas affirmer qu'aucune Observation antérieure ne subsiste. Elle porte
+  désormais sa propre condition de retrait ;
+- elle n'autorise pas à transcrire un protocole dans le code par confort. La
+  transcription se justifie ici parce que le prompt concerné ne peut pas
+  charger le protocole ; partout ailleurs, on charge.
+
+---
+
 ---
 
 ## Comment modifier ce registre

@@ -127,6 +127,11 @@ Consulter `PRODUCT.md` pour la définition complète des principes.
   fournisseur partagé.
 - La phrase du tour d'accueil qui décrit les destinations se **dérive** de
   `NAVIGATION` (ADR-117), jamais recopiée — comme `NAV_MOBILE`.
+- Une règle de mesure vit dans `app/data/00_instructions/`, jamais dans un
+  prompt seul (ADR-123). Un prompt qui ne peut pas charger le protocole le
+  **transcrit** — comme `atomicite.ts` et `explication.ts` — et la
+  transcription porte un test qui relit le fichier de protocole. C'est la seule
+  exception admise à « une seule implémentation », et le protocole décide.
 - Pas d'émoji dans le frontend : ne jamais utiliser d'émojis dans l'interface utilisateur (boutons, badges, étiquettes, icônes, textes). Utiliser les composants d'icônes SVG (`components/ui/icones.tsx`) ou du texte sobre.
 
 Pour les détails et justifications :

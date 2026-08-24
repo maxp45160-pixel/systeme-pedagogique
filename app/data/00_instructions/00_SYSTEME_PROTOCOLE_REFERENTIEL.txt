@@ -1,5 +1,5 @@
 PROTOCOLE DE CONSTRUCTION DU RÉFÉRENTIEL
-Version 1.0 — 31/07/2026 (ADR-026)
+Version 1.3 — 24/08/2026 (ADR-026, révisé par ADR-086 et ADR-105)
 
 Ce protocole est chargé uniquement quand la conversation porte sur le
 référentiel : sa création, son extension, sa réorganisation. Il complète le
