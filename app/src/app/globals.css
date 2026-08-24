@@ -463,17 +463,27 @@
    ═══════════════════════════════════════════════════════════════ */
 
 @keyframes defilement-continue {
+  from {
+    transform: translateX(0);
+  }
   to {
     transform: translateX(-50%);
   }
 }
 
 .defilement {
-  animation: defilement-continue 42s linear infinite;
+  animation: defilement-continue 100s linear infinite;
+  will-change: transform;
 }
 
 .defilement:hover {
   animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .defilement {
+    animation-duration: 220s;
+  }
 }
 
 /* Bulles de la démonstration conversationnelle. */
