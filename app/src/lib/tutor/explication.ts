@@ -46,7 +46,7 @@ export function construirePromptExplication(
     "- 'echec' : L'explication contient un contre-sens majeur, est hors sujet ou trop superficielle.",
     "",
     "CONSIGNES DE RÉDACTION DU FEEDBACK :",
-    "- Tutoie l'apprenant, sois précis, concis et encourageant.",
+    "- Sois précis, concis et encourageant.",
     "- points_cles : cite explicitement ce qui est bien compris.",
     "- points_manquants : nomme les nuances absentes ou les confusions à rectifier.",
     "- feedback_formatif : synthèse claire de son niveau de compréhension (max 400 caractères).",

@@ -148,7 +148,7 @@ export function construirePromptCorrection(
      * sont ce qui sépare une grille de cases d'un retour de tuteur.
      */
     "COMMENT RÉDIGER LE BILAN",
-    "- Il s'adresse à la personne, pas au système. Tutoie, et parle de sa réponse à elle.",
+    "- Il s'adresse à la personne, pas au système : parle de sa réponse à elle.",
     "- points_forts : ce qui est réellement acquis, cité. Si rien ne l'est, dis-le — un encouragement à vide se repère et décrédibilise le reste.",
     "- points_bloquants : l'erreur, PUIS ce qu'elle empêche. Remonte à l'incompréhension quand tu la vois, plutôt que de décrire le symptôme.",
     "- a_retravailler : formule sur la PERSONNE, pas sur cet exercice. « Confond médiane et moyenne » se relit dans six semaines ; « question 3 fausse » ne se relit pas.",
