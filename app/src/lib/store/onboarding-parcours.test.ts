@@ -98,6 +98,11 @@ function tentativeEnCours(debut: string): ExerciseAttempt {
   } as unknown as ExerciseAttempt;
 }
 
+function tentativeApresSeance(seance: LearningSession): ExerciseAttempt {
+  const debut = new Date(new Date(seance.date).getTime() + 60_000).toISOString();
+  return tentativeEnCours(debut);
+}
+
 async function creerSeanceAmorce(premierParcours: boolean): Promise<LearningSession> {
   const id = await creerSeanceFocusExercice(EXERCICE.id, { premierParcours });
   expect(mocks.ajouter).toHaveBeenCalledTimes(1);
@@ -148,7 +153,7 @@ describe("parcours d'onboarding — du premier axe au tableau de bord", () => {
     expect(seance.activites).toHaveLength(1);
 
     db.sessions = [seance];
-    db.attempts = [tentativeEnCours("2026-08-25T09:00:00.000Z")];
+    db.attempts = [tentativeApresSeance(seance)];
 
     const destination = await terminerExercice({
       attemptId: "att-1",
@@ -187,7 +192,7 @@ describe("parcours d'onboarding — du premier axe au tableau de bord", () => {
     expect(seance.blueprint?.premierParcours).toBeUndefined();
 
     db.sessions = [seance];
-    db.attempts = [tentativeEnCours("2026-08-25T09:00:00.000Z")];
+    db.attempts = [tentativeApresSeance(seance)];
 
     const destination = await terminerExercice({
       attemptId: "att-1",
