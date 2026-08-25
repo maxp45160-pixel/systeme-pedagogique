@@ -387,7 +387,7 @@ export function FormulaireAmorcage({
                 label=""
                 value={intention}
                 onChange={(e) => setIntention(e.target.value)}
-                placeholder="Ex : préparer un concours, changer de métier, mener un projet en autonomie…"
+                placeholder="Ex : réussir mes partiels, préparer un concours, mener un projet en autonomie…"
                 aide="Écrivez-le avec vos mots. Le système traduit cette intention en compétences puis en exercices ; vous n’avez pas à définir de cible ni de parcours."
               />
 
@@ -495,7 +495,7 @@ export function FormulaireAmorcage({
                   label="Votre point de départ / contexte (facultatif)"
                   value={pointDeDepart}
                   onChange={(e) => setPointDeDepart(e.target.value)}
-                  placeholder="Ex : débutant complet, autodidacte, reconversion, junior, étudiant..."
+                  placeholder="Ex : étudiant en licence, débutant complet, junior, reconversion..."
                   aide="Transmis au tuteur pour qu'il adapte son vocabulaire et ses analogies sans inventer de diplôme."
                 />
               </div>
@@ -518,7 +518,7 @@ export function FormulaireAmorcage({
                 title={
                   cleDisponible
                     ? undefined
-                    : "Configure d'abord une clé IA pour générer le référentiel"
+                    : "Configurez d'abord une clé IA pour générer le référentiel"
                 }
                 className={cx(
                   "group px-5 py-2.5 shadow-md transition-all",

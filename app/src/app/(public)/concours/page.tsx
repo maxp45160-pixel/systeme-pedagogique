@@ -25,8 +25,11 @@ export default function PageConcours() {
           Que vous prépariez un concours d&apos;entrée (IFSI, fonction publique, écoles),
           une certification professionnelle ou des partiels universitaires à date butoir,
           votre temps est compté. La question chaque matin n&apos;est pas
-          « ai-je assez de chapitres à lire ? », mais **« qu&apos;est-ce qui me rapproche le
-          plus de l&apos;admission aujourd&apos;hui ? »**.
+          « ai-je assez de chapitres à lire ? », mais{" "}
+          <strong>
+            « qu&apos;est-ce qui me rapproche le plus de l&apos;admission aujourd&apos;hui ? »
+          </strong>
+          .
         </p>
 
         <h2 className="pt-4 font-serif text-xl font-medium text-texte sm:text-2xl">
@@ -34,17 +37,17 @@ export default function PageConcours() {
         </h2>
         <ul className="list-disc space-y-3 pl-5">
           <li>
-            **L&apos;illusion du surlignage** : relire des annales et des fiches donne
+            <strong>L&apos;illusion du surlignage</strong> : relire des annales et des fiches donne
             l&apos;impression de maîtriser, jusqu&apos;à la première question d&apos;épreuve
             posée sans aide ni modèle sous les yeux.
           </li>
           <li>
-            **La mauvaise répartition de l&apos;effort** : on passe trop de temps sur ce qu&apos;on
+            <strong>La mauvaise répartition de l&apos;effort</strong> : on passe trop de temps sur ce qu&apos;on
             aime et qu&apos;on sait déjà faire, au détriment des points éliminatoires ou des
             matières à fort coefficient.
           </li>
           <li>
-            **Le stress des plannings rigides** : les plannings jour par jour deviennent
+            <strong>Le stress des plannings rigides</strong> : les plannings jour par jour deviennent
             anxiogènes dès le premier imprévu et finissent abandonnés.
           </li>
         </ul>

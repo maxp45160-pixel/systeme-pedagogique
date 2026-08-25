@@ -77,7 +77,7 @@ export default async function PageDemarrer(props: {
       <p className="mb-4 px-1 text-xs text-texte-attenue">
         Première visite ?{" "}
         <Link href="/aide" className="font-medium text-primaire underline underline-offset-2">
-          Lis d&apos;abord comment ça marche
+          Lisez d&apos;abord comment ça marche
         </Link>{" "}
         — le fonctionnement complet, écran par écran, en quelques minutes.
       </p>

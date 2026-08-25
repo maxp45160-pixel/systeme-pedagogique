@@ -228,7 +228,7 @@ export function AssistantOrientationProfil({
               label="Contexte de départ (facultatif)"
               value={pointDeDepartCustom}
               onChange={(e) => setPointDeDepartCustom(e.target.value)}
-              placeholder="Ex : Ancien développeur PHP en reconversion, étudiant en 2e année de droit…"
+              placeholder="Ex : étudiant en 2e année de droit, ancien développeur PHP en reconversion…"
             />
           </div>
         </div>

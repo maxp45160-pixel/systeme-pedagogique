@@ -40,16 +40,16 @@ export const NIVEAUX_DEPART: NiveauDepartOption[] = [
     formationType: "Débutant complet — découverte du sujet",
   },
   {
+    id: "academique",
+    titre: "Étudiant / Formation initiale",
+    description: "J'ai des bases théoriques ou un cursus en cours, je veux consolider.",
+    formationType: "Formation académique ou cursus initial en cours",
+  },
+  {
     id: "autodidacte",
     titre: "Autodidacte / Pratique informelle",
     description: "J'ai déjà expérimenté ou bricolé par moi-même, je veux structurer.",
     formationType: "Pratique autodidacte et expérimentations personnelles",
-  },
-  {
-    id: "academique",
-    titre: "Formation initiale ou étudiant",
-    description: "J'ai des bases théoriques ou un cursus en cours, je veux consolider.",
-    formationType: "Formation académique ou cursus initial en cours",
   },
   {
     id: "professionnel",
@@ -98,7 +98,7 @@ export const SUGGESTIONS_DOMAINES: SuggestionDomaine[] = [
     nom: "Développement Web",
     sujetExemple: "Architecture web moderne, React, TypeScript, APIs et bases de données",
     objectifExemple: "Concevoir et déployer des applications web complètes en autonomie",
-    pointDeDepartExemple: "Notions de base en programmation ou reconversion",
+    pointDeDepartExemple: "Cours de développement web suivi, ou bases en programmation",
     preferencesExemples: ["Pratiquer d'abord", "Pas à pas"],
   },
   {
@@ -106,7 +106,7 @@ export const SUGGESTIONS_DOMAINES: SuggestionDomaine[] = [
     nom: "Data & IA",
     sujetExemple: "Machine Learning, LLMs, Python, pipelines de données et prompt engineering",
     objectifExemple: "Analyser des données complexes et intégrer des modèles d'IA",
-    pointDeDepartExemple: "Bases en programmation ou statistiques",
+    pointDeDepartExemple: "Cours de statistiques, ou bases en programmation",
     preferencesExemples: ["Pratiquer d'abord", "Des cas concrets"],
   },
   {
@@ -138,7 +138,7 @@ export const SUGGESTIONS_DOMAINES: SuggestionDomaine[] = [
     nom: "Communication",
     sujetExemple: "Prise de parole en public, argumentation et persuasion",
     objectifExemple: "Captiver un auditoire et défendre des idées avec clarté",
-    pointDeDepartExemple: "Pratique informelle / professionnel",
+    pointDeDepartExemple: "Cours d'expression orale, pratique associative ou professionnelle",
     preferencesExemples: ["Pratiquer d'abord", "Court et rapide"],
   },
 ];
